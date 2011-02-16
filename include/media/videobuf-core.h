@@ -68,6 +68,13 @@ enum videobuf_state {
 	VIDEOBUF_ERROR      = 5,
 	VIDEOBUF_IDLE       = 6,
 };
+#ifdef CONFIG_VIDEO_RK29XX_VOUT
+struct rk29_vaddr {
+	dma_addr_t 				base[2];
+	size_t 					len[2];
+};
+
+#endif
 
 struct videobuf_buffer {
 	unsigned int            i;
@@ -106,6 +113,9 @@ struct videobuf_buffer {
 
 	/* Private pointer to allow specific methods to store their data */
 	int			privsize;
+#ifdef CONFIG_VIDEO_RK29XX_VOUT
+	struct rk29_vaddr		vaddr;
+#endif
 	void                    *priv;
 };
 

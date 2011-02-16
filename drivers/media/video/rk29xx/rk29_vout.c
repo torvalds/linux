@@ -39,6 +39,13 @@
 #define norm_maxw() 	1920
 #define norm_maxh() 	1080
 
+/* Wake up at about 30 fps */
+#define WAKE_NUMERATOR 30
+#define WAKE_DENOMINATOR 1001
+#define frames_to_ms(frames)					\
+	((frames * WAKE_NUMERATOR * 1000) / WAKE_DENOMINATOR)
+
+
 #if 1
 #define rk29_vout_dbg(dev, format, arg...)		\
 	dev_printk(KERN_INFO , dev , format , ## arg)
@@ -50,11 +57,6 @@
 
 static unsigned int vid_limit = 16; //16M
 
-
-struct rk29_vbuf {
-	dma_addr_t 				base[2];
-	size_t 					len[2];
-};
 struct rk29_vid_device {
 	struct rk29_vout_device *vouts[VOUT_NR];
 	struct v4l2_device 		v4l2_dev;
@@ -64,22 +66,30 @@ struct rk29_vid_device {
 struct rk29_vout_device {
 	int 					vid;
 	int						opened;
+	int						first_int;
 
 	struct rk29_vid_device 	*vid_dev;
 	enum v4l2_buf_type 		type;
 	enum v4l2_memory 		memory;
+
+	struct video_device 	*vfd;
+	struct videobuf_queue 	vq;
+
+	spinlock_t				lock;
+	struct mutex		   	mutex;
+
+	struct list_head		active;
+	struct task_struct		*kthread;
+
+	struct videobuf_buffer *cur_frm, next_frm;
+
 	struct v4l2_pix_format 	pix;
 	struct v4l2_rect 		crop;
 	struct v4l2_rect 		win;
 	struct v4l2_control 	ctrl;
-	struct rk29_vbuf 		vbuf;
-
-	struct video_device 	*vfd;
-	struct videobuf_queue 	vbq;
-
-	spinlock_t				lock;
-	struct mutex		   	mutex;
+	struct rk29_vaddr 		vaddr;
 };
+
 struct rk29_fmt {
 	char  *name;
 	u32   fourcc;          /* v4l2 format id */
@@ -118,7 +128,7 @@ static int lcd_open(struct rk29_vout_device *vout)
 		vout->pix.width, vout->pix.height,vout->pix.bytesperline, vout->pix.sizeimage);
 	rk29_vout_dbg(vout->vid_dev->dev, "crop.width = %u, crop.height = %u,crop.left = %u, crop.top = %u\n", 
 		vout->crop.width, vout->crop.height,vout->crop.left, vout->crop.top);
-	rk29_vout_dbg(vout->vid_dev->dev, "win.width = %u, win.height = %u,win.left = %u, win.top = %u\n", 
+	rk29_vout_dbg(vout->vid_dev->dev, "win.width = %u, win.height = %u,win.left = %u, win.top = %u\n\n", 
 		vout->win.width, vout->win.height,vout->win.left, vout->win.top);
 	return 0;
 }
@@ -131,24 +141,88 @@ static int lcd_close(struct rk29_vout_device *vout)
 /* set lcd_controler var */
 static int lcd_set_var(struct rk29_vout_device *vout)
 {
+	/*
 	rk29_vout_dbg(vout->vid_dev->dev, "%s.\n", __func__);
 	rk29_vout_dbg(vout->vid_dev->dev, "pix.width = %u, pix.height = %u,pix.bytesperline = %u, pix.sizeimage = %u\n", 
 		vout->pix.width, vout->pix.height,vout->pix.bytesperline, vout->pix.sizeimage);
 	rk29_vout_dbg(vout->vid_dev->dev, "crop.width = %u, crop.height = %u,crop.left = %u, crop.top = %u\n", 
 		vout->crop.width, vout->crop.height,vout->crop.left, vout->crop.top);
-	rk29_vout_dbg(vout->vid_dev->dev, "win.width = %u, win.height = %u,win.left = %u, win.top = %u\n", 
+	rk29_vout_dbg(vout->vid_dev->dev, "win.width = %u, win.height = %u,win.left = %u, win.top = %u\n\n", 
 		vout->win.width, vout->win.height,vout->win.left, vout->win.top);
-	
+	*/
 	return 0;
 }
 /* set lcd_controler addr */
 static int lcd_set_addr(struct rk29_vout_device *vout)
 {
-	rk29_vout_dbg(vout->vid_dev->dev, "%s.\n", __func__);
+	//rk29_vout_dbg(vout->vid_dev->dev, "%s: set addr 0x%08x\n", __func__, vout->vaddr.base[0]);
+
+	mdelay(10);
 	return 0;
 }
 
-/**********************/
+static void rk29_thread_dequeue_buff(struct rk29_vout_device *vout)
+{
+	unsigned long flags = 0;
+	
+	spin_lock_irqsave(&vout->lock, flags);
+
+	if (list_empty(&vout->active)) {
+		rk29_vout_dbg(vout->vid_dev->dev, "No active queue to serve\n");
+		goto unlock;
+	}
+	if(vout->first_int){
+		vout->first_int = 0;
+	}else {
+		vout->cur_frm->state = VIDEOBUF_DONE;
+		wake_up(&vout->cur_frm->done);
+	}
+	vout->cur_frm = list_entry(vout->active.next, struct videobuf_buffer, queue);
+	list_del(&vout->cur_frm->queue);
+	vout->vaddr = vout->cur_frm->vaddr;
+	rk29_vout_dbg(vout->vid_dev->dev, "lcd_set_addr: index = %d, addr = 0x%08x\n",
+		vout->cur_frm->i,vout->vaddr.base[0]);
+	lcd_set_addr(vout);
+	//vout->cur_frm->state = VIDEOBUF_ACTIVE;
+	
+unlock:
+	spin_unlock_irqrestore(&vout->lock, flags);
+}
+static int rk29_vout_thread(void *data)
+{
+	struct rk29_vout_device *vout = data;
+
+	//set_freezable();
+
+	for (;;) {
+		rk29_thread_dequeue_buff(vout);
+
+		if (kthread_should_stop())
+			break;
+	}
+
+	return 0;
+}
+
+static int rk29_start_thread(struct rk29_vout_device *vout)
+{
+	rk29_vout_dbg(vout->vid_dev->dev, "%s\n", __func__);
+
+	vout->kthread = kthread_run(rk29_vout_thread, vout, "rk29_vout");
+	if (IS_ERR(vout->kthread)) {
+		dev_err(vout->vid_dev->dev, "kernel_thread() failed\n");
+		return PTR_ERR(vout->kthread);
+	}
+	return 0;
+}
+static void rk29_stop_thread(struct rk29_vout_device *vout)
+{
+	rk29_vout_dbg(vout->vid_dev->dev, "%s\n", __func__);
+	if (vout->kthread) {
+		kthread_stop(vout->kthread);
+		vout->kthread = NULL;
+	}
+}
 
 
 
@@ -198,17 +272,18 @@ static int vidioc_s_fmt_vid_out(struct file *file, void *priv,
 
 	mutex_lock(&vout->mutex);
 
-	if (videobuf_queue_is_busy(&vout->vbq)) {
+	if (videobuf_queue_is_busy(&vout->vq)) {
 		rk29_vout_dbg(vout->vid_dev->dev, "%s queue busy\n", __func__);
 		ret = -EBUSY;
 		goto out;
 	}
 
 	vout->pix 			= f->fmt.pix;
-	vout->vbq.field 	= f->fmt.pix.field;
+	vout->vq.field 	= f->fmt.pix.field;
 	vout->type          = f->type;
 	lcd_set_var(vout);
 	ret = 0;
+
 out:
 	mutex_unlock(&vout->mutex);
 
@@ -283,9 +358,8 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 
 	if (V4L2_MEMORY_USERPTR != p->memory)
 		return -EINVAL;
-
-
-	return videobuf_reqbufs(&vout->vbq, p);
+	
+	return videobuf_reqbufs(&vout->vq, p);
 }
 static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
@@ -295,21 +369,30 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		return -EINVAL;
 	if (V4L2_MEMORY_USERPTR != p->memory)
 		return -EINVAL;
+	rk29_vout_dbg(vout->vid_dev->dev, "qbuf: index = %d, addr = 0x%08x\n",
+		p->index, ((struct rk29_vaddr *)p->m.userptr)->base[0]);
 
-	vout->vbuf = *((struct rk29_vbuf *)p->m.userptr);
-	
-	return (videobuf_qbuf(&vout->vbq, p));
+	vout->vaddr = *((struct rk29_vaddr *)(p->m.userptr));
+	return (videobuf_qbuf(&vout->vq, p));
 }
 
 static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
+	int ret = 0;
 	struct rk29_vout_device *vout = priv;
 
-	return (videobuf_dqbuf(&vout->vbq, p, file->f_flags & O_NONBLOCK));
+	ret = (videobuf_dqbuf(&vout->vq, p, file->f_flags & O_NONBLOCK));
+
+	*((struct rk29_vaddr *)p->m.userptr) = vout->vq.bufs[p->index]->vaddr;
+	rk29_vout_dbg(vout->vid_dev->dev, "dqbuf: index = %d,addr = 0x%08x\n", 
+			p->index, ((struct rk29_vaddr *)p->m.userptr)->base[0]);
+
+	return ret;
 }
 
 static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 {
+	int ret = 0;
 	struct rk29_vout_device *vout = priv;
 
 	if (vout->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
@@ -317,10 +400,34 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	if (i != vout->type)
 		return -EINVAL;
 
-	if(lcd_open(vout) < 0)
-		return -EINVAL;
+	mutex_lock(&vout->mutex);
+	
+	ret = videobuf_streamon(&vout->vq);
+	if(ret < 0)
+		goto streamon_err;
 
-	return videobuf_streamon(&vout->vbq);
+	if(lcd_open(vout) < 0) {
+		dev_err(vout->vid_dev->dev,"lcd_open error\n");
+		ret = -EIO;
+		goto streamon_err1;
+	}
+
+	vout->first_int = 1;
+	INIT_LIST_HEAD(&vout->active);
+	if(rk29_start_thread(vout) < 0) {
+		dev_err(vout->vid_dev->dev,"rk29_start_thread error\n");
+		ret = -EINVAL;
+		goto streamon_err2;
+	}
+	mutex_unlock(&vout->mutex);
+	return 0;
+streamon_err2:
+	lcd_close(vout);
+streamon_err1:
+	ret = videobuf_streamoff(&vout->vq);
+streamon_err:
+	mutex_unlock(&vout->mutex);
+	return ret;
 }
 
 static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
@@ -331,10 +438,15 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 		return -EINVAL;
 	if (i != vout->type)
 		return -EINVAL;
-
+	
 	if(lcd_close(vout) < 0)
 		return -EINVAL;
-	return videobuf_streamoff(&vout->vbq);
+
+	rk29_stop_thread(vout);
+	
+	INIT_LIST_HEAD(&vout->active);
+	videobuf_mmap_free(&vout->vq);
+	return videobuf_streamoff(&vout->vq);
 }
 static int vidioc_g_ctrl(struct file *file, void *priv,
 			 struct v4l2_control *ctrl)
@@ -373,7 +485,7 @@ static int vidioc_s_crop(struct file *file, void *priv,
 	if (crop->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		return -EINVAL;
 
-	if (vout->vbq.streaming) {
+	if (vout->vq.streaming) {
 		rk29_vout_dbg(vout->vid_dev->dev, "vedio is running\n");
 		return -EBUSY;
 	}
@@ -416,7 +528,7 @@ static int vidioc_s_crop(struct file *file, void *priv,
 
 static int buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 {
-	//struct rk29_vout_device *vout  = vq->priv_data;
+	struct rk29_vout_device *vout  = vq->priv_data;
 
 	*size = norm_maxw() * norm_maxh() * 2;
 
@@ -426,16 +538,15 @@ static int buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned
 	while (*size * *count > vid_limit * 1024 * 1024)
 		(*count)--;
 
+	rk29_vout_dbg(vout->vid_dev->dev, "buffer_setup: count = %d, size = %d\n",
+			*count, *size);
 	return 0;
 }
 
 static void free_buffer(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 {
-	//struct rk29_vout_device *vout  = vq->priv_data;
-
 	if (in_interrupt())
 		BUG();
-
 	videobuf_dma_contig_free(vq, vb);
 	vb->state = VIDEOBUF_NEEDS_INIT;
 }
@@ -443,54 +554,28 @@ static void free_buffer(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 static int buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 						enum v4l2_field field)
 {
-	struct rk29_vout_device *vout  = vq->priv_data;
-	//int rc;
+	//struct rk29_vout_device *vout  = vq->priv_data;
 
-	if (vout->pix.width  < 48 || vout->pix.width  > norm_maxw() ||
-	    vout->pix.height < 32 || vout->pix.height > norm_maxh())
-		return -EINVAL;
-
-	vb->size = vout->pix.width * vout->pix.height * 2;
-	if (vb->bsize < vb->size)
-		return -EINVAL;
-
-	vb->width  = vout->pix.width;
-	vb->height = vout->pix.height;
-	vb->field  = field;
-/*
-	if (VIDEOBUF_NEEDS_INIT == vb->state) {
-		rc = videobuf_iolock(vq, vb, NULL);
-		if (rc < 0)
-			goto fail;
-	}
-*/
 	vb->state = VIDEOBUF_PREPARED;
 
 	return 0;
-/*
-fail:
-	free_buffer(vq, vb);
-	return rc;
-*/
 }
 static void buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 {
 	struct rk29_vout_device *vout  = vq->priv_data;
 
-	lcd_set_addr(vout);
-	vb->state = VIDEOBUF_DONE;
-	/*
-	if(vb->state == VIDEOBUF_QUEUED || vb->state == VIDEOBUF_ACTIVE)
-		vb->state = VIDEOBUF_DONE;
-	else
-		vb->state = VIDEOBUF_QUEUED;
-	*/
+	vb->vaddr = vout->vaddr;
+	list_add_tail(&vb->queue, &vout->active);
+	vb->state = VIDEOBUF_QUEUED;
 }
 
 static void buffer_release(struct videobuf_queue *vq,
 			   struct videobuf_buffer *vb)
 {
-	//free_buffer(vq, vb);
+	//struct rk29_vout_device *vout  = vq->priv_data;
+	
+	free_buffer(vq, vb);
+	
 	vb->state = VIDEOBUF_NEEDS_INIT;
 	return;
 }
@@ -522,11 +607,12 @@ static int rk29_vout_open(struct file *file)
 	file->private_data = vout;
 
 	vout->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+	INIT_LIST_HEAD(&vout->active);
 
 	spin_lock_init(&vout->lock);
 
-	videobuf_queue_dma_contig_init(&vout->vbq, &rk29_video_qops,
-			vout->vbq.dev, &vout->lock, vout->type, V4L2_FIELD_NONE,
+	videobuf_queue_dma_contig_init(&vout->vq, &rk29_video_qops,
+			vout->vq.dev, &vout->lock, vout->type, V4L2_FIELD_NONE,
 			sizeof(struct videobuf_buffer), vout);
 
 	rk29_vout_dbg(vout->vid_dev->dev, "Exiting %s\n", __func__);
@@ -535,16 +621,18 @@ static int rk29_vout_open(struct file *file)
 }
 static int rk29_vout_release(struct file *file)
 {
-	struct videobuf_queue *q;
 	struct rk29_vout_device *vout = file->private_data;
 	
 	rk29_vout_dbg(vout->vid_dev->dev, "Entering %s\n", __func__);
 	
 	if (!vout)
 		return 0;
-	
-	q = &vout->vbq;
-	videobuf_stop(q);
+
+	rk29_stop_thread(vout);
+	lcd_close(vout);
+	INIT_LIST_HEAD(&vout->active);
+	videobuf_mmap_free(&vout->vq);
+	videobuf_stop(&vout->vq);
 	
 	mutex_lock(&vout->mutex);
 	vout->opened -= 1;
