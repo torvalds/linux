@@ -627,6 +627,11 @@ static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 		value = (red << info->var.red.offset) |
 			(green << info->var.green.offset) |
 			(blue << info->var.blue.offset);
+		if (info->var.transp.length > 0) {
+			u32 mask = (1 << info->var.transp.length) - 1;
+			mask <<= info->var.transp.offset;
+			value |= mask;
+		}
 		palette[regno] = value;
 		return 0;
 	}
