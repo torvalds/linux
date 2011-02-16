@@ -27,12 +27,16 @@
 static struct omap_board_config_kernel ti8168_evm_config[] __initdata = {
 };
 
-static void __init ti8168_evm_init_irq(void)
+static void __init ti8168_init_early(void)
 {
 	omap_board_config = ti8168_evm_config;
 	omap_board_config_size = ARRAY_SIZE(ti8168_evm_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
+}
+
+static void __init ti8168_evm_init_irq(void)
+{
 	omap_init_irq();
 }
 
@@ -51,6 +55,7 @@ MACHINE_START(TI8168EVM, "ti8168evm")
 	/* Maintainer: Texas Instruments */
 	.boot_params	= 0x80000100,
 	.map_io		= ti8168_evm_map_io,
+	.init_early	= ti8168_init_early,
 	.init_irq	= ti8168_evm_init_irq,
 	.timer		= &omap_timer,
 	.init_machine	= ti8168_evm_init,
