@@ -631,7 +631,7 @@ config GPIO_INTEL_PMIC
 
 config INTEL_MID_POWER_BUTTON
 	tristate "power button driver for Intel MID platforms"
-	depends on INTEL_SCU_IPC
+	depends on INTEL_SCU_IPC && INPUT
 	help
 	  This driver handles the power button on the Intel MID platforms.
 
