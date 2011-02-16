@@ -345,8 +345,12 @@ static int intel_idle_probe(void)
 		break;
 
 	case 0x1C:	/* 28 - Atom Processor */
+		cpuidle_state_table = atom_cstates;
+		break;
+
 	case 0x26:	/* 38 - Lincroft Atom Processor */
 		cpuidle_state_table = atom_cstates;
+		auto_demotion_disable_flags = ATM_LNC_C6_AUTO_DEMOTE;
 		break;
 
 	case 0x2A:	/* SNB */
