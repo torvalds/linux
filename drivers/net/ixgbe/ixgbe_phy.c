@@ -138,17 +138,51 @@ static enum ixgbe_phy_type ixgbe_get_phy_type_from_id(u32 phy_id)
  **/
 s32 ixgbe_reset_phy_generic(struct ixgbe_hw *hw)
 {
+	u32 i;
+	u16 ctrl = 0;
+	s32 status = 0;
+
+	if (hw->phy.type == ixgbe_phy_unknown)
+		status = ixgbe_identify_phy_generic(hw);
+
+	if (status != 0 || hw->phy.type == ixgbe_phy_none)
+		goto out;
+
 	/* Don't reset PHY if it's shut down due to overtemp. */
 	if (!hw->phy.reset_if_overtemp &&
 	    (IXGBE_ERR_OVERTEMP == hw->phy.ops.check_overtemp(hw)))
-		return 0;
+		goto out;
 
 	/*
 	 * Perform soft PHY reset to the PHY_XS.
 	 * This will cause a soft reset to the PHY
 	 */
-	return hw->phy.ops.write_reg(hw, MDIO_CTRL1, MDIO_MMD_PHYXS,
-				     MDIO_CTRL1_RESET);
+	hw->phy.ops.write_reg(hw, MDIO_CTRL1,
+			      MDIO_MMD_PHYXS,
+			      MDIO_CTRL1_RESET);
+
+	/*
+	 * Poll for reset bit to self-clear indicating reset is complete.
+	 * Some PHYs could take up to 3 seconds to complete and need about
+	 * 1.7 usec delay after the reset is complete.
+	 */
+	for (i = 0; i < 30; i++) {
+		msleep(100);
+		hw->phy.ops.read_reg(hw, MDIO_CTRL1,
+				     MDIO_MMD_PHYXS, &ctrl);
+		if (!(ctrl & MDIO_CTRL1_RESET)) {
+			udelay(2);
+			break;
+		}
+	}
+
+	if (ctrl & MDIO_CTRL1_RESET) {
+		status = IXGBE_ERR_RESET_FAILED;
+		hw_dbg(hw, "PHY reset polling failed to complete.\n");
+	}
+
+out:
+	return status;
 }
 
 /**
