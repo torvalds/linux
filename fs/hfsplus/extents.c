@@ -209,6 +209,7 @@ int hfsplus_get_block(struct inode *inode, sector_t iblock,
 	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
 	int res = -EIO;
 	u32 ablock, dblock, mask;
+	sector_t sector;
 	int was_dirty = 0;
 	int shift;
 
@@ -255,10 +256,12 @@ int hfsplus_get_block(struct inode *inode, sector_t iblock,
 done:
 	dprint(DBG_EXTENT, "get_block(%lu): %llu - %u\n",
 		inode->i_ino, (long long)iblock, dblock);
+
 	mask = (1 << sbi->fs_shift) - 1;
-	map_bh(bh_result, sb,
-		(dblock << sbi->fs_shift) + sbi->blockoffset +
-			(iblock & mask));
+	sector = ((sector_t)dblock << sbi->fs_shift) +
+		  sbi->blockoffset + (iblock & mask);
+	map_bh(bh_result, sb, sector);
+
 	if (create) {
 		set_buffer_new(bh_result);
 		hip->phys_size += sb->s_blocksize;
