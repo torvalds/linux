@@ -2,7 +2,6 @@
 #define _ASM_X86_NUMA_64_H
 
 #include <linux/nodemask.h>
-#include <asm/apicdef.h>
 
 struct bootnode {
 	u64 start;
@@ -14,10 +13,7 @@ extern int compute_hash_shift(struct bootnode *nodes, int numblks,
 
 #define ZONE_ALIGN (1UL << (MAX_ORDER+PAGE_SHIFT))
 
-extern void numa_init_array(void);
 extern int numa_off;
-
-extern s16 apicid_to_node[MAX_LOCAL_APIC];
 
 extern unsigned long numa_free_all_bootmem(void);
 extern void setup_node_bootmem(int nodeid, unsigned long start,
@@ -31,11 +27,7 @@ extern void setup_node_bootmem(int nodeid, unsigned long start,
  */
 #define NODE_MIN_SIZE (4*1024*1024)
 
-extern void __init init_cpu_to_node(void);
-extern void __cpuinit numa_set_node(int cpu, int node);
-extern void __cpuinit numa_clear_node(int cpu);
-extern void __cpuinit numa_add_cpu(int cpu);
-extern void __cpuinit numa_remove_cpu(int cpu);
+extern int __cpuinit numa_cpu_node(int cpu);
 
 #ifdef CONFIG_NUMA_EMU
 #define FAKE_NODE_MIN_SIZE	((u64)32 << 20)
@@ -43,11 +35,7 @@ extern void __cpuinit numa_remove_cpu(int cpu);
 void numa_emu_cmdline(char *);
 #endif /* CONFIG_NUMA_EMU */
 #else
-static inline void init_cpu_to_node(void)		{ }
-static inline void numa_set_node(int cpu, int node)	{ }
-static inline void numa_clear_node(int cpu)		{ }
-static inline void numa_add_cpu(int cpu, int node)	{ }
-static inline void numa_remove_cpu(int cpu)		{ }
+static inline int numa_cpu_node(int cpu)		{ return NUMA_NO_NODE; }
 #endif
 
 #endif /* _ASM_X86_NUMA_64_H */
