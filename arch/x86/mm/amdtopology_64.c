@@ -122,7 +122,7 @@ int __init amd_numa_init(void)
 			       nodeid, (base >> 8) & 3, (limit >> 8) & 3);
 			return -EINVAL;
 		}
-		if (node_isset(nodeid, mem_nodes_parsed)) {
+		if (node_isset(nodeid, numa_nodes_parsed)) {
 			pr_info("Node %d already present, skipping\n",
 				nodeid);
 			continue;
@@ -167,11 +167,10 @@ int __init amd_numa_init(void)
 
 		prevbase = base;
 		numa_add_memblk(nodeid, base, limit);
-		node_set(nodeid, mem_nodes_parsed);
 		node_set(nodeid, numa_nodes_parsed);
 	}
 
-	if (!nodes_weight(mem_nodes_parsed))
+	if (!nodes_weight(numa_nodes_parsed))
 		return -ENOENT;
 
 	/*

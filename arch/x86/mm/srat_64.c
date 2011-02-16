@@ -238,9 +238,7 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 	printk(KERN_INFO "SRAT: Node %u PXM %u %lx-%lx\n", node, pxm,
 	       start, end);
 
-	if (!(ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE))
-		node_set(node, mem_nodes_parsed);
-	else
+	if (ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE)
 		update_nodes_add(node, start, end);
 }
 
@@ -310,10 +308,9 @@ void __init acpi_fake_nodes(const struct bootnode *fake_nodes, int num_nodes)
 		__acpi_map_pxm_to_node(fake_node_to_pxm_map[i], i);
 	memcpy(__apicid_to_node, fake_apicid_to_node, sizeof(__apicid_to_node));
 
-	nodes_clear(mem_nodes_parsed);
 	for (i = 0; i < num_nodes; i++)
 		if (fake_nodes[i].start != fake_nodes[i].end)
-			node_set(i, mem_nodes_parsed);
+			node_set(i, numa_nodes_parsed);
 }
 
 static int null_slit_node_compare(int a, int b)

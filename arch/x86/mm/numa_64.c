@@ -37,7 +37,6 @@ struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL(node_data);
 
 nodemask_t numa_nodes_parsed __initdata;
-nodemask_t mem_nodes_parsed __initdata;
 
 struct memnode memnode;
 
@@ -344,6 +343,20 @@ static int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 }
 
 /*
+ * Set nodes, which have memory in @mi, in *@nodemask.
+ */
+static void __init numa_nodemask_from_meminfo(nodemask_t *nodemask,
+					      const struct numa_meminfo *mi)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(mi->blk); i++)
+		if (mi->blk[i].start != mi->blk[i].end &&
+		    mi->blk[i].nid != NUMA_NO_NODE)
+			node_set(mi->blk[i].nid, *nodemask);
+}
+
+/*
  * Sanity check to catch more bad NUMA configurations (they are amazingly
  * common).  Make sure the nodes cover all memory.
  */
@@ -379,7 +392,8 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
 	int i, j, nid;
 
 	/* Account for nodes with cpus and no memory */
-	nodes_or(node_possible_map, mem_nodes_parsed, numa_nodes_parsed);
+	node_possible_map = numa_nodes_parsed;
+	numa_nodemask_from_meminfo(&node_possible_map, mi);
 	if (WARN_ON(nodes_empty(node_possible_map)))
 		return -EINVAL;
 
@@ -824,7 +838,6 @@ static int dummy_numa_init(void)
 	       0LU, max_pfn << PAGE_SHIFT);
 
 	node_set(0, numa_nodes_parsed);
-	node_set(0, mem_nodes_parsed);
 	numa_add_memblk(0, 0, (u64)max_pfn << PAGE_SHIFT);
 
 	return 0;
@@ -852,7 +865,6 @@ void __init initmem_init(void)
 			set_apicid_to_node(j, NUMA_NO_NODE);
 
 		nodes_clear(numa_nodes_parsed);
-		nodes_clear(mem_nodes_parsed);
 		nodes_clear(node_possible_map);
 		nodes_clear(node_online_map);
 		memset(&numa_meminfo, 0, sizeof(numa_meminfo));
