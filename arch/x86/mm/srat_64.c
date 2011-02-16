@@ -78,8 +78,6 @@ static __init void bad_srat(void)
 	int i;
 	printk(KERN_ERR "SRAT: SRAT not used.\n");
 	acpi_numa = -1;
-	for (i = 0; i < MAX_LOCAL_APIC; i++)
-		set_apicid_to_node(i, NUMA_NO_NODE);
 	for (i = 0; i < MAX_NUMNODES; i++) {
 		nodes[i].start = nodes[i].end = 0;
 		nodes_add[i].start = nodes_add[i].end = 0;
@@ -89,7 +87,7 @@ static __init void bad_srat(void)
 
 static __init inline int srat_disabled(void)
 {
-	return numa_off || acpi_numa < 0;
+	return acpi_numa < 0;
 }
 
 /* Callback for SLIT parsing */
