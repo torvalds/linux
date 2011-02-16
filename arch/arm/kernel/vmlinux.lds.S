@@ -247,6 +247,8 @@ SECTIONS
 	}
 #endif
 
+	NOTES
+
 	BSS_SECTION(0, 0, 0)
 	_end = .;
 
