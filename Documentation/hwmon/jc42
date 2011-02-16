@@ -51,7 +51,8 @@ Supported chips:
   * JEDEC JC 42.4 compliant temperature sensor chips
     Prefix: 'jc42'
     Addresses scanned: I2C 0x18 - 0x1f
-    Datasheet: -
+    Datasheet:
+	http://www.jedec.org/sites/default/files/docs/4_01_04R19.pdf
 
 Author:
 	Guenter Roeck <guenter.roeck@ericsson.com>
@@ -60,7 +61,11 @@ Author:
 Description
 -----------
 
-This driver implements support for JEDEC JC 42.4 compliant temperature sensors.
+This driver implements support for JEDEC JC 42.4 compliant temperature sensors,
+which are used on many DDR3 memory modules for mobile devices and servers. Some
+systems use the sensor to prevent memory overheating by automatically throttling
+the memory controller.
+
 The driver auto-detects the chips listed above, but can be manually instantiated
 to support other JC 42.4 compliant chips.
 
