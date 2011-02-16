@@ -543,6 +543,7 @@ static struct cxgbi_sock *cxgbi_check_route(struct sockaddr *dst_addr)
 	csk->dst = dst;
 	csk->daddr.sin_addr.s_addr = daddr->sin_addr.s_addr;
 	csk->daddr.sin_port = daddr->sin_port;
+	csk->daddr.sin_family = daddr->sin_family;
 	csk->saddr.sin_addr.s_addr = rt->rt_src;
 
 	return csk;
@@ -2200,32 +2201,34 @@ int cxgbi_set_conn_param(struct iscsi_cls_conn *cls_conn,
 }
 EXPORT_SYMBOL_GPL(cxgbi_set_conn_param);
 
-int cxgbi_get_conn_param(struct iscsi_cls_conn *cls_conn,
-			enum iscsi_param param, char *buf)
+int cxgbi_get_ep_param(struct iscsi_endpoint *ep, enum iscsi_param param,
+		       char *buf)
 {
-	struct iscsi_conn *iconn = cls_conn->dd_data;
+	struct cxgbi_endpoint *cep = ep->dd_data;
+	struct cxgbi_sock *csk;
 	int len;
 
 	log_debug(1 << CXGBI_DBG_ISCSI,
-		"cls_conn 0x%p, param %d.\n", cls_conn, param);
+		"cls_conn 0x%p, param %d.\n", ep, param);
 
 	switch (param) {
 	case ISCSI_PARAM_CONN_PORT:
-		spin_lock_bh(&iconn->session->lock);
-		len = sprintf(buf, "%hu\n", iconn->portal_port);
-		spin_unlock_bh(&iconn->session->lock);
-		break;
 	case ISCSI_PARAM_CONN_ADDRESS:
-		spin_lock_bh(&iconn->session->lock);
-		len = sprintf(buf, "%s\n", iconn->portal_address);
-		spin_unlock_bh(&iconn->session->lock);
-		break;
+		if (!cep)
+			return -ENOTCONN;
+
+		csk = cep->csk;
+		if (!csk)
+			return -ENOTCONN;
+
+		return iscsi_conn_get_addr_param((struct sockaddr_storage *)
+						 &csk->daddr, param, buf);
 	default:
-		return iscsi_conn_get_param(cls_conn, param, buf);
+		return -ENOSYS;
 	}
 	return len;
 }
-EXPORT_SYMBOL_GPL(cxgbi_get_conn_param);
+EXPORT_SYMBOL_GPL(cxgbi_get_ep_param);
 
 struct iscsi_cls_conn *
 cxgbi_create_conn(struct iscsi_cls_session *cls_session, u32 cid)
@@ -2291,11 +2294,6 @@ int cxgbi_bind_conn(struct iscsi_cls_session *cls_session,
 
 	cxgbi_conn_max_xmit_dlength(conn);
 	cxgbi_conn_max_recv_dlength(conn);
-
-	spin_lock_bh(&conn->session->lock);
-	sprintf(conn->portal_address, "%pI4", &csk->daddr.sin_addr.s_addr);
-	conn->portal_port = ntohs(csk->daddr.sin_port);
-	spin_unlock_bh(&conn->session->lock);
 
 	log_debug(1 << CXGBI_DBG_ISCSI,
 		"cls 0x%p,0x%p, ep 0x%p, cconn 0x%p, csk 0x%p.\n",

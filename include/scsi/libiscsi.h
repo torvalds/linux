@@ -212,9 +212,6 @@ struct iscsi_conn {
 	/* values userspace uses to id a conn */
 	int			persistent_port;
 	char			*persistent_address;
-	/* remote portal currently connected to */
-	int			portal_port;
-	char			portal_address[ISCSI_ADDRESS_BUF_LEN];
 
 	/* MIB-statistics */
 	uint64_t		txdata_octets;
@@ -319,9 +316,6 @@ struct iscsi_host {
 	/* hw address or netdev iscsi connection is bound to */
 	char			*hwaddress;
 	char			*netdev;
-	/* local address */
-	int			local_port;
-	char			local_address[ISCSI_ADDRESS_BUF_LEN];
 
 	wait_queue_head_t	session_removal_wq;
 	/* protects sessions and state */

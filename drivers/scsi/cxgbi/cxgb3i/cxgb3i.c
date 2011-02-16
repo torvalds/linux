@@ -137,7 +137,7 @@ static struct iscsi_transport cxgb3i_iscsi_transport = {
 	.destroy_conn	= iscsi_tcp_conn_teardown,
 	.start_conn	= iscsi_conn_start,
 	.stop_conn	= iscsi_conn_stop,
-	.get_conn_param	= cxgbi_get_conn_param,
+	.get_conn_param	= iscsi_conn_get_param,
 	.set_param	= cxgbi_set_conn_param,
 	.get_stats	= cxgbi_get_conn_stats,
 	/* pdu xmit req from user space */
@@ -152,6 +152,7 @@ static struct iscsi_transport cxgb3i_iscsi_transport = {
 	.xmit_pdu	= cxgbi_conn_xmit_pdu,
 	.parse_pdu_itt	= cxgbi_parse_pdu_itt,
 	/* TCP connect/disconnect */
+	.get_ep_param	= cxgbi_get_ep_param,
 	.ep_connect	= cxgbi_ep_connect,
 	.ep_poll	= cxgbi_ep_poll,
 	.ep_disconnect	= cxgbi_ep_disconnect,
