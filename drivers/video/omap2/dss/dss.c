@@ -79,6 +79,7 @@ static struct {
 	enum dss_clk_source dispc_clk_source;
 
 	u32		ctx[DSS_SZ_REGS / sizeof(u32)];
+	int		dss_irq;
 } dss;
 
 static void dss_clk_enable_all_no_ctx(void);
@@ -609,11 +610,18 @@ static int dss_init(bool skip_init)
 	REG_FLD_MOD(DSS_CONTROL, 0, 2, 2);	/* venc clock mode = normal */
 #endif
 
-	r = request_irq(INT_24XX_DSS_IRQ,
-			cpu_is_omap24xx()
-			? dss_irq_handler_omap2
-			: dss_irq_handler_omap3,
-			0, "OMAP DSS", NULL);
+	dss.dss_irq = platform_get_irq(dss.pdev, 0);
+	if (dss.dss_irq < 0) {
+		DSSERR("omap2 dss: platform_get_irq failed\n");
+		r = -ENODEV;
+		goto fail1;
+	}
+
+	r = request_irq(dss.dss_irq,
+		cpu_is_omap24xx()
+		? dss_irq_handler_omap2
+		: dss_irq_handler_omap3,
+		0, "OMAP DSS", NULL);
 
 	if (r < 0) {
 		DSSERR("omap2 dss: request_irq failed\n");
@@ -641,7 +649,7 @@ static int dss_init(bool skip_init)
 	return 0;
 
 fail2:
-	free_irq(INT_24XX_DSS_IRQ, NULL);
+	free_irq(dss.dss_irq, NULL);
 fail1:
 	iounmap(dss.base);
 fail0:
@@ -653,7 +661,7 @@ static void dss_exit(void)
 	if (cpu_is_omap34xx())
 		clk_put(dss.dpll4_m4_ck);
 
-	free_irq(INT_24XX_DSS_IRQ, NULL);
+	free_irq(dss.dss_irq, NULL);
 
 	iounmap(dss.base);
 }
