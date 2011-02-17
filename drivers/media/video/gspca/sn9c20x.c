@@ -152,6 +152,13 @@ static const struct dmi_system_id flip_dmi_table[] = {
 		}
 	},
 	{
+		.ident = "MSI MS-1633X",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "MSI"),
+			DMI_MATCH(DMI_BOARD_NAME, "MS-1633X")
+		}
+	},
+	{
 		.ident = "MSI MS-1635X",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "MSI"),
