@@ -543,7 +543,7 @@ nouveau_pm_resume(struct drm_device *dev)
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 	struct nouveau_pm_level *perflvl;
 
-	if (pm->cur == &pm->boot)
+	if (!pm->cur || pm->cur == &pm->boot)
 		return;
 
 	perflvl = pm->cur;
