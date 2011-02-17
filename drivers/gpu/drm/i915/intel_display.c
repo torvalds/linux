@@ -4506,81 +4506,6 @@ static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
 	return dev_priv->lvds_use_ssc && i915_panel_use_ssc;
 }
 
-static void intel_update_dref(struct drm_i915_private *dev_priv)
-{
-	struct drm_device *dev = dev_priv->dev;
-	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct intel_encoder *encoder;
-	struct drm_crtc *crtc;
-	u32 temp;
-	bool lvds_on = false, edp_on = false, pch_edp_on = false, other_on = false;
-
-	list_for_each_entry(encoder, &mode_config->encoder_list, base.head) {
-		crtc = encoder->base.crtc;
-
-		if (!crtc || !crtc->enabled)
-			continue;
-
-		switch (encoder->type) {
-		case INTEL_OUTPUT_LVDS:
-			lvds_on = true;
-			break;
-		case INTEL_OUTPUT_EDP:
-			edp_on = true;
-			if (!pch_edp_on)
-				pch_edp_on = intel_encoder_is_pch_edp(&encoder->base);
-			break;
-		default:
-			other_on = true;
-			break;
-		}
-	}
-
-	/*XXX BIOS treats 16:31 as a mask for 0:15 */
-
-	temp = I915_READ(PCH_DREF_CONTROL);
-
-	/* First clear the current state for output switching */
-	temp &= ~DREF_SSC1_ENABLE;
-	temp &= ~DREF_SSC4_ENABLE;
-	temp &= ~DREF_SUPERSPREAD_SOURCE_MASK;
-	temp &= ~DREF_NONSPREAD_SOURCE_MASK;
-	temp &= ~DREF_SSC_SOURCE_MASK;
-	temp &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
-	I915_WRITE(PCH_DREF_CONTROL, temp);
-
-	POSTING_READ(PCH_DREF_CONTROL);
-	udelay(200);
-
-	if ((lvds_on || edp_on) && intel_panel_use_ssc(dev_priv)) {
-		temp |= DREF_SSC_SOURCE_ENABLE;
-		if (edp_on) {
-			if (!pch_edp_on) {
-				/* Enable CPU source on CPU attached eDP */
-				temp |= DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD;
-			} else {
-				/* Enable SSC on PCH eDP if needed */
-				temp |= DREF_SUPERSPREAD_SOURCE_ENABLE;
-			}
-			I915_WRITE(PCH_DREF_CONTROL, temp);
-		}
-		if (!dev_priv->display_clock_mode)
-			temp |= DREF_SSC1_ENABLE;
-	}
-
-	if (other_on && dev_priv->display_clock_mode)
-		temp |= DREF_NONSPREAD_CK505_ENABLE;
-	else if (other_on) {
-		temp |= DREF_NONSPREAD_SOURCE_ENABLE;
-		if (edp_on && !pch_edp_on)
-			temp |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
-	}
-
-	I915_WRITE(PCH_DREF_CONTROL, temp);
-	POSTING_READ(PCH_DREF_CONTROL);
-	udelay(200);
-}
-
 static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			       struct drm_display_mode *mode,
 			       struct drm_display_mode *adjusted_mode,
@@ -4806,8 +4731,46 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	 * PCH B stepping, previous chipset stepping should be
 	 * ignoring this setting.
 	 */
-	if (HAS_PCH_SPLIT(dev))
-		intel_update_dref(dev_priv);
+	if (HAS_PCH_SPLIT(dev)) {
+		temp = I915_READ(PCH_DREF_CONTROL);
+		/* Always enable nonspread source */
+		temp &= ~DREF_NONSPREAD_SOURCE_MASK;
+		temp |= DREF_NONSPREAD_SOURCE_ENABLE;
+		temp &= ~DREF_SSC_SOURCE_MASK;
+		temp |= DREF_SSC_SOURCE_ENABLE;
+		I915_WRITE(PCH_DREF_CONTROL, temp);
+
+		POSTING_READ(PCH_DREF_CONTROL);
+		udelay(200);
+
+		if (has_edp_encoder) {
+			if (intel_panel_use_ssc(dev_priv)) {
+				temp |= DREF_SSC1_ENABLE;
+				I915_WRITE(PCH_DREF_CONTROL, temp);
+
+				POSTING_READ(PCH_DREF_CONTROL);
+				udelay(200);
+			}
+			temp &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
+
+			/* Enable CPU source on CPU attached eDP */
+			if (!intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
+				if (intel_panel_use_ssc(dev_priv))
+					temp |= DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD;
+				else
+					temp |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
+			} else {
+				/* Enable SSC on PCH eDP if needed */
+				if (intel_panel_use_ssc(dev_priv)) {
+					DRM_ERROR("enabling SSC on PCH\n");
+					temp |= DREF_SUPERSPREAD_SOURCE_ENABLE;
+				}
+			}
+			I915_WRITE(PCH_DREF_CONTROL, temp);
+			POSTING_READ(PCH_DREF_CONTROL);
+			udelay(200);
+		}
+	}
 
 	if (IS_PINEVIEW(dev)) {
 		fp = (1 << clock.n) << 16 | clock.m1 << 8 | clock.m2;
