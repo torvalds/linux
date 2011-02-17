@@ -238,13 +238,13 @@ config SENSORS_K8TEMP
 	  will be called k8temp.
 
 config SENSORS_K10TEMP
-	tristate "AMD Phenom/Sempron/Turion/Opteron temperature sensor"
+	tristate "AMD Family 10h/11h/12h/14h temperature sensor"
 	depends on X86 && PCI
 	help
 	  If you say yes here you get support for the temperature
 	  sensor(s) inside your CPU. Supported are later revisions of
-	  the AMD Family 10h and all revisions of the AMD Family 11h
-	  microarchitectures.
+	  the AMD Family 10h and all revisions of the AMD Family 11h,
+	  12h (Llano), and 14h (Brazos) microarchitectures.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called k10temp.
