@@ -899,7 +899,7 @@ static bool __init numa_emulation(void)
 }
 #endif /* CONFIG_NUMA_EMU */
 
-static int dummy_numa_init(void)
+static int __init dummy_numa_init(void)
 {
 	printk(KERN_INFO "%s\n",
 	       numa_off ? "NUMA turned off" : "No NUMA configuration found");
