@@ -193,6 +193,17 @@ void netpoll_poll_dev(struct net_device *dev)
 
 	poll_napi(dev);
 
+	if (dev->priv_flags & IFF_SLAVE) {
+		if (dev->npinfo) {
+			struct net_device *bond_dev = dev->master;
+			struct sk_buff *skb;
+			while ((skb = skb_dequeue(&dev->npinfo->arp_tx))) {
+				skb->dev = bond_dev;
+				skb_queue_tail(&bond_dev->npinfo->arp_tx, skb);
+			}
+		}
+	}
+
 	service_arp_queue(dev->npinfo);
 
 	zap_completion_queue();
