@@ -361,20 +361,20 @@ static ssize_t dwc_otg_enable_store( struct device *_dev,
         if (_core_if->hcd_cb && _core_if->hcd_cb->stop) {
                 _core_if->hcd_cb->stop( _core_if->hcd_cb->p );
         }
-        clk_disable(otg_dev->phyclk);
-        clk_disable(otg_dev->ahbclk);
         if (_core_if->hcd_cb && _core_if->hcd_cb->suspend) {
                 _core_if->hcd_cb->suspend( _core_if->hcd_cb->p, val);
         }
+        clk_disable(otg_dev->phyclk);
+        clk_disable(otg_dev->ahbclk);
 	}
 	else if(val == 1)
 	{
 	    DWC_PRINT("enable host controller:%s\n",pdev->name);
+        clk_enable(otg_dev->phyclk);
+        clk_enable(otg_dev->ahbclk);
         if (_core_if->hcd_cb && _core_if->hcd_cb->suspend) {
                 _core_if->hcd_cb->suspend( _core_if->hcd_cb->p, val);
         }
-        clk_enable(otg_dev->phyclk);
-        clk_enable(otg_dev->ahbclk);
         mdelay(5);
         if (_core_if->hcd_cb && _core_if->hcd_cb->start) {
                 _core_if->hcd_cb->start( _core_if->hcd_cb->p );
@@ -929,21 +929,65 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	int32_t regval;
     struct clk *ahbclk,*phyclk,*busclk;
     unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
-	/*
-	 *Enable usb phy
-	 */
+    
+    
     regval = * otg_phy_con1;
-    regval |= (0x01<<2);
-    regval |= (0x01<<3);    // exit suspend.
-    regval &= ~(0x01<<2);
 #ifndef CONFIG_USB11_HOST
+	/*
+	 * disable usb host 1.1 controller if not support
+	 */
+    phyclk = clk_get(NULL, "uhost");
+    if (IS_ERR(phyclk)) {
+            retval = PTR_ERR(phyclk);
+            DWC_ERROR("can't get UHOST clock\n");
+           goto fail;
+    }
+    clk_enable(phyclk);
+    
+    ahbclk = clk_get(NULL, "hclk_uhost");
+    if (IS_ERR(ahbclk)) {
+            retval = PTR_ERR(ahbclk);
+            DWC_ERROR("can't get UHOST ahb bus clock\n");
+           goto fail;
+    }
+    clk_enable(ahbclk);
+    
 	regval |= (0x01<<28);
+	
+    *otg_phy_con1 = regval;
+    
+    clk_disable(phyclk);
+    clk_disable(ahbclk);
 #endif
 #ifndef CONFIG_USB20_HOST
+	/*
+	 * disable usb host 2.0 phy if not support
+	 */
+    phyclk = clk_get(NULL, "otgphy1");
+    if (IS_ERR(phyclk)) {
+            retval = PTR_ERR(phyclk);
+            DWC_ERROR("can't get USBPHY1 clock\n");
+           goto fail;
+    }
+    clk_enable(phyclk);
+    
+    ahbclk = clk_get(NULL, "usbotg1");
+    if (IS_ERR(ahbclk)) {
+            retval = PTR_ERR(ahbclk);
+            DWC_ERROR("can't get USBOTG1 ahb bus clock\n");
+           goto fail;
+    }
+    clk_enable(ahbclk);
+    
     regval &= ~(0x01<<14);    // exit suspend.
     regval |= (0x01<<13);    // software control
-#endif
+
     *otg_phy_con1 = regval;
+    
+    clk_disable(phyclk);
+    clk_disable(ahbclk);
+#endif
+
     #if 0
     otgreg = ioremap(RK2818_USBOTG_PHYS,RK2818_USBOTG_SIZE);
     DWC_PRINT("otgreg 0x%x",otgreg);
@@ -987,6 +1031,15 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
            goto fail;
     }
     clk_enable(ahbclk);
+    
+	/*
+	 * Enable usb phy 0
+	 */
+    regval = * otg_phy_con1;
+    regval |= (0x01<<2);
+    regval |= (0x01<<3);    // exit suspend.
+    regval &= ~(0x01<<2);
+    *otg_phy_con1 = regval;
     
 	dwc_otg_device->phyclk = phyclk;
 	dwc_otg_device->ahbclk = ahbclk;

@@ -3336,8 +3336,13 @@ void dwc_otg_dump_flags(dwc_otg_core_if_t *_core_if)
 	DWC_PRINT("core_if->usb_mode = %x\n",_core_if->usb_mode);
 	DWC_PRINT("core_if->usb_wakeup = %x\n",_core_if->usb_wakeup);
 }
+
+#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+extern void dwc_otg_pcd_stop(dwc_otg_pcd_t *_pcd);
+#endif
 int dwc_debug(dwc_otg_core_if_t *core_if, int flag)
 {
+    dctl_data_t dctl = {.d32=0};
 	//dwc_otg_core_if_t *core_if = dwc_core_if;
 	#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
         dwc_otg_pcd_t * pcd;
@@ -3354,6 +3359,12 @@ int dwc_debug(dwc_otg_core_if_t *core_if, int flag)
 		    otg_dev = core_if->otg_dev;
 		    pcd = otg_dev->pcd;
 		    pcd->vbus_status = 0;
+            pcd->conn_status = 0;
+		    pcd->conn_en = 0;
+            dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
+            dctl.b.sftdiscon = 1;
+            dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
+            dwc_otg_pcd_stop(pcd);
 		#endif
 			break;
 		case 3:
@@ -3372,6 +3383,12 @@ int dwc_debug(dwc_otg_core_if_t *core_if, int flag)
 			dwc_otg_dump_flags(core_if);
 			break;
 		case 8:
+		#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+		    otg_dev = core_if->otg_dev;
+		    pcd = otg_dev->pcd;
+		    //pcd->vbus_status = 0;
+		    pcd->conn_en = 1;
+		#endif
 			break;
 		case 9:
 			dwc_otg_dump_flags(core_if);
