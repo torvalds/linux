@@ -282,6 +282,12 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,                 "Siano SMS1184"},
 	{ TUNER_PHILIPS_FQ1236_MK5,	"TCL M30WTP-4N-E"},
 	{ TUNER_ABSENT,                 "TCL_M11WPP_2PN_E"},
+	/* 170-179 */
+	{ TUNER_ABSENT,                 "MaxLinear 301"},
+	{ TUNER_ABSENT,                 "Mirics MSi001"},
+	{ TUNER_ABSENT,                 "MaxLinear MxL241SF"},
+	{ TUNER_ABSENT,                 "Xceive XC5000C"},
+	{ TUNER_ABSENT,                 "Montage M68TS2020"},
 };
 
 /* Use V4L2_IDENT_AMBIGUOUS for those audio 'chips' that are
