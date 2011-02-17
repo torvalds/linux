@@ -85,6 +85,8 @@
 #define  SSB_IMSTATE_AP_RSV	0x00000030 /* Reserved */
 #define  SSB_IMSTATE_IBE	0x00020000 /* In Band Error */
 #define  SSB_IMSTATE_TO		0x00040000 /* Timeout */
+#define  SSB_IMSTATE_BUSY	0x01800000 /* Busy (Backplane rev >= 2.3 only) */
+#define  SSB_IMSTATE_REJECT	0x02000000 /* Reject (Backplane rev >= 2.3 only) */
 #define SSB_INTVEC		0x0F94     /* SB Interrupt Mask */
 #define  SSB_INTVEC_PCI		0x00000001 /* Enable interrupts for PCI */
 #define  SSB_INTVEC_ENET0	0x00000002 /* Enable interrupts for enet 0 */
