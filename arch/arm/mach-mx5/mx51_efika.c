@@ -47,6 +47,7 @@
 #include "devices-imx51.h"
 #include "devices.h"
 #include "efika.h"
+#include "cpu_op-mx51.h"
 
 #define MX51_USB_CTRL_1_OFFSET          0x10
 #define MX51_USB_CTRL_UH1_EXT_CLK_EN    (1 << 25)
@@ -627,5 +628,9 @@ void __init efika_board_common_init(void)
 	spi_register_board_info(mx51_efika_spi_board_info,
 		ARRAY_SIZE(mx51_efika_spi_board_info));
 	imx51_add_ecspi(0, &mx51_efika_spi_pdata);
+
+#if defined(CONFIG_CPU_FREQ_IMX)
+	get_cpu_op = mx51_get_cpu_op;
+#endif
 }
 
