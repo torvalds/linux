@@ -128,6 +128,13 @@ config MACH_MX51_EFIKAMX
 	  Include support for Genesi Efika MX nettop. This includes specific
 	  configurations for the board and its peripherals.
 
+config MACH_MX51_EFIKASB
+	bool "Support MX51 Genesi Efika Smartbook"
+	select MX51_EFIKA_COMMON
+	help
+	  Include support for Genesi Efika Smartbook. This includes specific
+	  configurations for the board and its peripherals.
+
 config MACH_MX53_EVK
 	bool "Support MX53 EVK platforms"
 	select SOC_IMX53
