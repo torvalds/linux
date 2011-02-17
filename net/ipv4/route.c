@@ -2456,6 +2456,7 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 	res.r		= NULL;
 #endif
 
+	rcu_read_lock();
 	if (oldflp->fl4_src) {
 		err = -EINVAL;
 		if (ipv4_is_multicast(oldflp->fl4_src) ||
@@ -2617,15 +2618,16 @@ make_route:
 		err = rt_intern_hash(hash, rth, rp, NULL, oldflp->oif);
 	}
 
-out:	return err;
+out:
+	rcu_read_unlock();
+	return err;
 }
 
 int __ip_route_output_key(struct net *net, struct rtable **rp,
 			  const struct flowi *flp)
 {
-	unsigned int hash;
-	int res;
 	struct rtable *rth;
+	unsigned int hash;
 
 	if (!rt_caching(net))
 		goto slow_output;
@@ -2655,10 +2657,7 @@ int __ip_route_output_key(struct net *net, struct rtable **rp,
 	rcu_read_unlock_bh();
 
 slow_output:
-	rcu_read_lock();
-	res = ip_route_output_slow(net, rp, flp);
-	rcu_read_unlock();
-	return res;
+	return ip_route_output_slow(net, rp, flp);
 }
 EXPORT_SYMBOL_GPL(__ip_route_output_key);
 
