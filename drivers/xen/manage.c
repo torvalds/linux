@@ -39,6 +39,23 @@ struct suspend_info {
 	unsigned long arg; /* extra hypercall argument */
 };
 
+static void xen_hvm_post_suspend(void)
+{
+	gnttab_resume();
+}
+
+static void xen_pre_suspend(void)
+{
+	xen_mm_pin_all();
+	gnttab_suspend();
+}
+
+static void xen_post_suspend(void)
+{
+	gnttab_resume();
+	xen_mm_unpin_all();
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int xen_hvm_suspend(void *data)
 {
@@ -62,7 +79,7 @@ static int xen_hvm_suspend(void *data)
 	si->cancelled = HYPERVISOR_suspend(si->arg);
 
 	xen_arch_hvm_post_suspend(si->cancelled);
-	gnttab_resume();
+	xen_hvm_post_suspend();
 
 	if (!si->cancelled) {
 		xen_irq_resume();
@@ -89,8 +106,7 @@ static int xen_suspend(void *data)
 		return err;
 	}
 
-	xen_mm_pin_all();
-	gnttab_suspend();
+	xen_pre_suspend();
 	xen_arch_pre_suspend();
 
 	/*
@@ -101,8 +117,7 @@ static int xen_suspend(void *data)
 	si->cancelled = HYPERVISOR_suspend(si->arg);
 
 	xen_arch_post_suspend(si->cancelled);
-	gnttab_resume();
-	xen_mm_unpin_all();
+	xen_post_suspend();
 
 	if (!si->cancelled) {
 		xen_irq_resume();
