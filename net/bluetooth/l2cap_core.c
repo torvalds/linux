@@ -1671,10 +1671,6 @@ done:
 		break;
 	}
 
-	/* FIXME: Need actual value of the flush timeout */
-	//if (flush_to != L2CAP_DEFAULT_FLUSH_TO)
-	//   l2cap_add_conf_opt(&ptr, L2CAP_CONF_FLUSH_TO, 2, pi->flush_to);
-
 	req->dcid  = cpu_to_le16(pi->dcid);
 	req->flags = cpu_to_le16(0);
 
@@ -2501,7 +2497,7 @@ static inline int l2cap_information_rsp(struct l2cap_conn *conn, struct l2cap_cm
 	return 0;
 }
 
-static int inline l2cap_check_conn_param(u16 min, u16 max, u16 latency,
+static inline int l2cap_check_conn_param(u16 min, u16 max, u16 latency,
 							u16 to_multiplier)
 {
 	u16 max_latency;
@@ -2539,8 +2535,8 @@ static inline int l2cap_conn_param_update_req(struct l2cap_conn *conn,
 		return -EPROTO;
 
 	req = (struct l2cap_conn_param_update_req *) data;
-	min 		= __le16_to_cpu(req->min);
-	max 		= __le16_to_cpu(req->max);
+	min		= __le16_to_cpu(req->min);
+	max		= __le16_to_cpu(req->max);
 	latency		= __le16_to_cpu(req->latency);
 	to_multiplier	= __le16_to_cpu(req->to_multiplier);
 
