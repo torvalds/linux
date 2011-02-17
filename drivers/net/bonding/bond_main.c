@@ -59,7 +59,6 @@
 #include <linux/uaccess.h>
 #include <linux/errno.h>
 #include <linux/netdevice.h>
-#include <linux/netpoll.h>
 #include <linux/inetdevice.h>
 #include <linux/igmp.h>
 #include <linux/etherdevice.h>
@@ -424,15 +423,11 @@ int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
 {
 	skb->dev = slave_dev;
 	skb->priority = 1;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	if (unlikely(bond->dev->priv_flags & IFF_IN_NETPOLL)) {
-		struct netpoll *np = bond->dev->npinfo->netpoll;
-		slave_dev->npinfo = bond->dev->npinfo;
+	if (unlikely(netpoll_tx_running(slave_dev))) {
 		slave_dev->priv_flags |= IFF_IN_NETPOLL;
-		netpoll_send_skb_on_dev(np, skb, slave_dev);
+		bond_netpoll_send_skb(bond_get_slave_by_dev(bond, slave_dev), skb);
 		slave_dev->priv_flags &= ~IFF_IN_NETPOLL;
 	} else
-#endif
 		dev_queue_xmit(skb);
 
 	return 0;
@@ -1288,63 +1283,113 @@ static void bond_detach_slave(struct bonding *bond, struct slave *slave)
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-/*
- * You must hold read lock on bond->lock before calling this.
- */
-static bool slaves_support_netpoll(struct net_device *bond_dev)
+static inline int slave_enable_netpoll(struct slave *slave)
 {
-	struct bonding *bond = netdev_priv(bond_dev);
-	struct slave *slave;
-	int i = 0;
-	bool ret = true;
+	struct netpoll *np;
+	int err = 0;
 
-	bond_for_each_slave(bond, slave, i) {
-		if ((slave->dev->priv_flags & IFF_DISABLE_NETPOLL) ||
-		    !slave->dev->netdev_ops->ndo_poll_controller)
-			ret = false;
+	np = kzalloc(sizeof(*np), GFP_KERNEL);
+	err = -ENOMEM;
+	if (!np)
+		goto out;
+
+	np->dev = slave->dev;
+	err = __netpoll_setup(np);
+	if (err) {
+		kfree(np);
+		goto out;
 	}
-	return i != 0 && ret;
+	slave->np = np;
+out:
+	return err;
+}
+static inline void slave_disable_netpoll(struct slave *slave)
+{
+	struct netpoll *np = slave->np;
+
+	if (!np)
+		return;
+
+	slave->np = NULL;
+	synchronize_rcu_bh();
+	__netpoll_cleanup(np);
+	kfree(np);
+}
+static inline bool slave_dev_support_netpoll(struct net_device *slave_dev)
+{
+	if (slave_dev->priv_flags & IFF_DISABLE_NETPOLL)
+		return false;
+	if (!slave_dev->netdev_ops->ndo_poll_controller)
+		return false;
+	return true;
 }
 
 static void bond_poll_controller(struct net_device *bond_dev)
 {
-	struct bonding *bond = netdev_priv(bond_dev);
+}
+
+static void __bond_netpoll_cleanup(struct bonding *bond)
+{
 	struct slave *slave;
 	int i;
 
-	bond_for_each_slave(bond, slave, i) {
-		if (slave->dev && IS_UP(slave->dev))
-			netpoll_poll_dev(slave->dev);
-	}
+	bond_for_each_slave(bond, slave, i)
+		if (IS_UP(slave->dev))
+			slave_disable_netpoll(slave);
 }
-
 static void bond_netpoll_cleanup(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
-	struct slave *slave;
-	const struct net_device_ops *ops;
-	int i;
 
 	read_lock(&bond->lock);
-	bond_dev->npinfo = NULL;
-	bond_for_each_slave(bond, slave, i) {
-		if (slave->dev) {
-			ops = slave->dev->netdev_ops;
-			if (ops->ndo_netpoll_cleanup)
-				ops->ndo_netpoll_cleanup(slave->dev);
-			else
-				slave->dev->npinfo = NULL;
-		}
-	}
+	__bond_netpoll_cleanup(bond);
 	read_unlock(&bond->lock);
 }
 
-#else
+static int bond_netpoll_setup(struct net_device *dev, struct netpoll_info *ni)
+{
+	struct bonding *bond = netdev_priv(dev);
+	struct slave *slave;
+	int i, err = 0;
 
+	read_lock(&bond->lock);
+	bond_for_each_slave(bond, slave, i) {
+		if (!IS_UP(slave->dev))
+			continue;
+		err = slave_enable_netpoll(slave);
+		if (err) {
+			__bond_netpoll_cleanup(bond);
+			break;
+		}
+	}
+	read_unlock(&bond->lock);
+	return err;
+}
+
+static struct netpoll_info *bond_netpoll_info(struct bonding *bond)
+{
+	return bond->dev->npinfo;
+}
+
+#else
+static inline int slave_enable_netpoll(struct slave *slave)
+{
+	return 0;
+}
+static inline void slave_disable_netpoll(struct slave *slave)
+{
+}
 static void bond_netpoll_cleanup(struct net_device *bond_dev)
 {
 }
-
+static int bond_netpoll_setup(struct net_device *dev, struct netpoll_info *ni)
+{
+	return 0;
+}
+static struct netpoll_info *bond_netpoll_info(struct bonding *bond)
+{
+	return NULL;
+}
 #endif
 
 /*---------------------------------- IOCTL ----------------------------------*/
@@ -1782,17 +1827,19 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	bond_set_carrier(bond);
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-	if (slaves_support_netpoll(bond_dev)) {
-		bond_dev->priv_flags &= ~IFF_DISABLE_NETPOLL;
-		if (bond_dev->npinfo)
-			slave_dev->npinfo = bond_dev->npinfo;
-	} else if (!(bond_dev->priv_flags & IFF_DISABLE_NETPOLL)) {
-		bond_dev->priv_flags |= IFF_DISABLE_NETPOLL;
-		pr_info("New slave device %s does not support netpoll\n",
-			slave_dev->name);
-		pr_info("Disabling netpoll support for %s\n", bond_dev->name);
+	slave_dev->npinfo = bond_netpoll_info(bond);
+	if (slave_dev->npinfo) {
+		if (slave_enable_netpoll(new_slave)) {
+			read_unlock(&bond->lock);
+			pr_info("Error, %s: master_dev is using netpoll, "
+				 "but new slave device does not support netpoll.\n",
+				 bond_dev->name);
+			res = -EBUSY;
+			goto err_close;
+		}
 	}
 #endif
+
 	read_unlock(&bond->lock);
 
 	res = bond_create_slave_symlinks(bond_dev, slave_dev);
@@ -1994,17 +2041,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	netdev_set_bond_master(slave_dev, NULL);
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	read_lock_bh(&bond->lock);
-
-	if (slaves_support_netpoll(bond_dev))
-		bond_dev->priv_flags &= ~IFF_DISABLE_NETPOLL;
-	read_unlock_bh(&bond->lock);
-	if (slave_dev->netdev_ops->ndo_netpoll_cleanup)
-		slave_dev->netdev_ops->ndo_netpoll_cleanup(slave_dev);
-	else
-		slave_dev->npinfo = NULL;
-#endif
+	slave_disable_netpoll(slave);
 
 	/* close slave before restoring its mac address */
 	dev_close(slave_dev);
@@ -2039,6 +2076,7 @@ static int  bond_release_and_destroy(struct net_device *bond_dev,
 
 	ret = bond_release(bond_dev, slave_dev);
 	if ((ret == 0) && (bond->slave_cnt == 0)) {
+		bond_dev->priv_flags |= IFF_DISABLE_NETPOLL;
 		pr_info("%s: destroying bond %s.\n",
 			bond_dev->name, bond_dev->name);
 		unregister_netdevice(bond_dev);
@@ -2115,6 +2153,8 @@ static int bond_release_all(struct net_device *bond_dev)
 		}
 
 		netdev_set_bond_master(slave_dev, NULL);
+
+		slave_disable_netpoll(slave);
 
 		/* close slave before restoring its mac address */
 		dev_close(slave_dev);
@@ -4654,6 +4694,7 @@ static const struct net_device_ops bond_netdev_ops = {
 	.ndo_vlan_rx_add_vid 	= bond_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= bond_vlan_rx_kill_vid,
 #ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_netpoll_setup	= bond_netpoll_setup,
 	.ndo_netpoll_cleanup	= bond_netpoll_cleanup,
 	.ndo_poll_controller	= bond_poll_controller,
 #endif

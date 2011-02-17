@@ -20,6 +20,7 @@
 #include <linux/if_bonding.h>
 #include <linux/cpumask.h>
 #include <linux/in6.h>
+#include <linux/netpoll.h>
 #include "bond_3ad.h"
 #include "bond_alb.h"
 
@@ -198,6 +199,9 @@ struct slave {
 	u16    queue_id;
 	struct ad_slave_info ad_info; /* HUGE - better to dynamically alloc */
 	struct tlb_slave_info tlb_info;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	struct netpoll *np;
+#endif
 };
 
 /*
@@ -322,6 +326,22 @@ static inline unsigned long slave_last_rx(struct bonding *bond,
 
 	return slave->dev->last_rx;
 }
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static inline void bond_netpoll_send_skb(const struct slave *slave,
+					 struct sk_buff *skb)
+{
+	struct netpoll *np = slave->np;
+
+	if (np)
+		netpoll_send_skb(np, skb);
+}
+#else
+static inline void bond_netpoll_send_skb(const struct slave *slave,
+					 struct sk_buff *skb)
+{
+}
+#endif
 
 static inline void bond_set_slave_inactive_flags(struct slave *slave)
 {
