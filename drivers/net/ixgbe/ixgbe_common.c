@@ -1239,37 +1239,37 @@ s32 ixgbe_set_rar_generic(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
 	u32 rar_low, rar_high;
 	u32 rar_entries = hw->mac.num_rar_entries;
 
+	/* Make sure we are using a valid rar index range */
+	if (index >= rar_entries) {
+		hw_dbg(hw, "RAR index %d is out of range.\n", index);
+		return IXGBE_ERR_INVALID_ARGUMENT;
+	}
+
 	/* setup VMDq pool selection before this RAR gets enabled */
 	hw->mac.ops.set_vmdq(hw, index, vmdq);
 
-	/* Make sure we are using a valid rar index range */
-	if (index < rar_entries) {
-		/*
-		 * HW expects these in little endian so we reverse the byte
-		 * order from network order (big endian) to little endian
-		 */
-		rar_low = ((u32)addr[0] |
-		           ((u32)addr[1] << 8) |
-		           ((u32)addr[2] << 16) |
-		           ((u32)addr[3] << 24));
-		/*
-		 * Some parts put the VMDq setting in the extra RAH bits,
-		 * so save everything except the lower 16 bits that hold part
-		 * of the address and the address valid bit.
-		 */
-		rar_high = IXGBE_READ_REG(hw, IXGBE_RAH(index));
-		rar_high &= ~(0x0000FFFF | IXGBE_RAH_AV);
-		rar_high |= ((u32)addr[4] | ((u32)addr[5] << 8));
+	/*
+	 * HW expects these in little endian so we reverse the byte
+	 * order from network order (big endian) to little endian
+	 */
+	rar_low = ((u32)addr[0] |
+		   ((u32)addr[1] << 8) |
+		   ((u32)addr[2] << 16) |
+		   ((u32)addr[3] << 24));
+	/*
+	 * Some parts put the VMDq setting in the extra RAH bits,
+	 * so save everything except the lower 16 bits that hold part
+	 * of the address and the address valid bit.
+	 */
+	rar_high = IXGBE_READ_REG(hw, IXGBE_RAH(index));
+	rar_high &= ~(0x0000FFFF | IXGBE_RAH_AV);
+	rar_high |= ((u32)addr[4] | ((u32)addr[5] << 8));
 
-		if (enable_addr != 0)
-			rar_high |= IXGBE_RAH_AV;
+	if (enable_addr != 0)
+		rar_high |= IXGBE_RAH_AV;
 
-		IXGBE_WRITE_REG(hw, IXGBE_RAL(index), rar_low);
-		IXGBE_WRITE_REG(hw, IXGBE_RAH(index), rar_high);
-	} else {
-		hw_dbg(hw, "RAR index %d is out of range.\n", index);
-		return IXGBE_ERR_RAR_INDEX;
-	}
+	IXGBE_WRITE_REG(hw, IXGBE_RAL(index), rar_low);
+	IXGBE_WRITE_REG(hw, IXGBE_RAH(index), rar_high);
 
 	return 0;
 }
@@ -1287,21 +1287,21 @@ s32 ixgbe_clear_rar_generic(struct ixgbe_hw *hw, u32 index)
 	u32 rar_entries = hw->mac.num_rar_entries;
 
 	/* Make sure we are using a valid rar index range */
-	if (index < rar_entries) {
-		/*
-		 * Some parts put the VMDq setting in the extra RAH bits,
-		 * so save everything except the lower 16 bits that hold part
-		 * of the address and the address valid bit.
-		 */
-		rar_high = IXGBE_READ_REG(hw, IXGBE_RAH(index));
-		rar_high &= ~(0x0000FFFF | IXGBE_RAH_AV);
-
-		IXGBE_WRITE_REG(hw, IXGBE_RAL(index), 0);
-		IXGBE_WRITE_REG(hw, IXGBE_RAH(index), rar_high);
-	} else {
+	if (index >= rar_entries) {
 		hw_dbg(hw, "RAR index %d is out of range.\n", index);
-		return IXGBE_ERR_RAR_INDEX;
+		return IXGBE_ERR_INVALID_ARGUMENT;
 	}
+
+	/*
+	 * Some parts put the VMDq setting in the extra RAH bits,
+	 * so save everything except the lower 16 bits that hold part
+	 * of the address and the address valid bit.
+	 */
+	rar_high = IXGBE_READ_REG(hw, IXGBE_RAH(index));
+	rar_high &= ~(0x0000FFFF | IXGBE_RAH_AV);
+
+	IXGBE_WRITE_REG(hw, IXGBE_RAL(index), 0);
+	IXGBE_WRITE_REG(hw, IXGBE_RAH(index), rar_high);
 
 	/* clear VMDq pool/queue selection for this RAR */
 	hw->mac.ops.clear_vmdq(hw, index, IXGBE_CLEAR_VMDQ_ALL);
@@ -2468,37 +2468,38 @@ s32 ixgbe_clear_vmdq_generic(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 	u32 mpsar_lo, mpsar_hi;
 	u32 rar_entries = hw->mac.num_rar_entries;
 
-	if (rar < rar_entries) {
-		mpsar_lo = IXGBE_READ_REG(hw, IXGBE_MPSAR_LO(rar));
-		mpsar_hi = IXGBE_READ_REG(hw, IXGBE_MPSAR_HI(rar));
-
-		if (!mpsar_lo && !mpsar_hi)
-			goto done;
-
-		if (vmdq == IXGBE_CLEAR_VMDQ_ALL) {
-			if (mpsar_lo) {
-				IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), 0);
-				mpsar_lo = 0;
-			}
-			if (mpsar_hi) {
-				IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), 0);
-				mpsar_hi = 0;
-			}
-		} else if (vmdq < 32) {
-			mpsar_lo &= ~(1 << vmdq);
-			IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), mpsar_lo);
-		} else {
-			mpsar_hi &= ~(1 << (vmdq - 32));
-			IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), mpsar_hi);
-		}
-
-		/* was that the last pool using this rar? */
-		if (mpsar_lo == 0 && mpsar_hi == 0 && rar != 0)
-			hw->mac.ops.clear_rar(hw, rar);
-	} else {
+	/* Make sure we are using a valid rar index range */
+	if (rar >= rar_entries) {
 		hw_dbg(hw, "RAR index %d is out of range.\n", rar);
+		return IXGBE_ERR_INVALID_ARGUMENT;
 	}
 
+	mpsar_lo = IXGBE_READ_REG(hw, IXGBE_MPSAR_LO(rar));
+	mpsar_hi = IXGBE_READ_REG(hw, IXGBE_MPSAR_HI(rar));
+
+	if (!mpsar_lo && !mpsar_hi)
+		goto done;
+
+	if (vmdq == IXGBE_CLEAR_VMDQ_ALL) {
+		if (mpsar_lo) {
+			IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), 0);
+			mpsar_lo = 0;
+		}
+		if (mpsar_hi) {
+			IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), 0);
+			mpsar_hi = 0;
+		}
+	} else if (vmdq < 32) {
+		mpsar_lo &= ~(1 << vmdq);
+		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), mpsar_lo);
+	} else {
+		mpsar_hi &= ~(1 << (vmdq - 32));
+		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), mpsar_hi);
+	}
+
+	/* was that the last pool using this rar? */
+	if (mpsar_lo == 0 && mpsar_hi == 0 && rar != 0)
+		hw->mac.ops.clear_rar(hw, rar);
 done:
 	return 0;
 }
@@ -2514,18 +2515,20 @@ s32 ixgbe_set_vmdq_generic(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 	u32 mpsar;
 	u32 rar_entries = hw->mac.num_rar_entries;
 
-	if (rar < rar_entries) {
-		if (vmdq < 32) {
-			mpsar = IXGBE_READ_REG(hw, IXGBE_MPSAR_LO(rar));
-			mpsar |= 1 << vmdq;
-			IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), mpsar);
-		} else {
-			mpsar = IXGBE_READ_REG(hw, IXGBE_MPSAR_HI(rar));
-			mpsar |= 1 << (vmdq - 32);
-			IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), mpsar);
-		}
-	} else {
+	/* Make sure we are using a valid rar index range */
+	if (rar >= rar_entries) {
 		hw_dbg(hw, "RAR index %d is out of range.\n", rar);
+		return IXGBE_ERR_INVALID_ARGUMENT;
+	}
+
+	if (vmdq < 32) {
+		mpsar = IXGBE_READ_REG(hw, IXGBE_MPSAR_LO(rar));
+		mpsar |= 1 << vmdq;
+		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), mpsar);
+	} else {
+		mpsar = IXGBE_READ_REG(hw, IXGBE_MPSAR_HI(rar));
+		mpsar |= 1 << (vmdq - 32);
+		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), mpsar);
 	}
 	return 0;
 }
