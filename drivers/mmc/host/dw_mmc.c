@@ -673,6 +673,9 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	case MMC_BUS_WIDTH_4:
 		slot->ctype = SDMMC_CTYPE_4BIT;
 		break;
+	case MMC_BUS_WIDTH_8:
+		slot->ctype = SDMMC_CTYPE_8BIT;
+		break;
 	}
 
 	if (ios->clock) {
