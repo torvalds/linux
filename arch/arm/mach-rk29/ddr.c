@@ -972,7 +972,7 @@ void DDR_Init(void)
     }
     pDDR_Reg->DTAR = value;
 
-    if(memType == DDRII)
+    if((memType == DDRII) || (memType == DDR3))
     {
         pDDR_Reg->ALPMR = LPPERIOD_POWER_DOWN(0xFF)|AUTOPD;
     }
@@ -987,10 +987,13 @@ void DDR_Init(void)
     Hz = clk_get_rate(clk_get(NULL,"ddr"));
     MHz = Hz/1000000;   //PLLGetDDRFreq()/1000;
     printk("DDR_Init: freq=%dMHz\n", MHz);
+    if((memType == DDRII) || (memType == Mobile_DDR))
+    {
     DDRPreUpdateRef(MHz);
     DDRPreUpdateTiming(MHz);
     DDRUpdateRef();
     DDRUpdateTiming();
+    }
 	
 }
 
