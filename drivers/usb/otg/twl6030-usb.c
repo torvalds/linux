@@ -262,11 +262,13 @@ static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 			twl->otg.default_a = false;
 			twl->otg.state = OTG_STATE_B_IDLE;
 			twl->linkstat = status;
+			twl->otg.last_event = status;
 			blocking_notifier_call_chain(&twl->otg.notifier,
 						status, twl->otg.gadget);
 		} else {
 			status = USB_EVENT_NONE;
 			twl->linkstat = status;
+			twl->otg.last_event = status;
 			blocking_notifier_call_chain(&twl->otg.notifier,
 						status, twl->otg.gadget);
 			if (twl->asleep) {
@@ -299,6 +301,7 @@ static irqreturn_t twl6030_usbotg_irq(int irq, void *_twl)
 		twl->otg.default_a = true;
 		twl->otg.state = OTG_STATE_A_IDLE;
 		twl->linkstat = status;
+		twl->otg.last_event = status;
 		blocking_notifier_call_chain(&twl->otg.notifier, status,
 							twl->otg.gadget);
 	} else  {

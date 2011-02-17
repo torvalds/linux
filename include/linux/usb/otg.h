@@ -66,6 +66,7 @@ struct otg_transceiver {
 
 	u8			default_a;
 	enum usb_otg_state	state;
+	enum usb_xceiv_events	last_event;
 
 	struct usb_bus		*host;
 	struct usb_gadget	*gadget;
