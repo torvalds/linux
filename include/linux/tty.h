@@ -587,7 +587,7 @@ extern int pcxe_open(struct tty_struct *tty, struct file *filp);
 extern int vt_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg);
 
-extern long vt_compat_ioctl(struct tty_struct *tty, struct file * file,
+extern long vt_compat_ioctl(struct tty_struct *tty,
 		     unsigned int cmd, unsigned long arg);
 
 /* tty_mutex.c */
