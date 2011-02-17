@@ -50,6 +50,8 @@
 #define ACLKTCX		(CKC_BASE + ACLKTCX_OFFS)
 #define ACLKTCZ		(CKC_BASE + ACLKTCZ_OFFS)
 
+#define ACLK_MAX_DIV	(0xfff + 1)
+
 /* Crystal frequencies */
 static unsigned long xi_rate, xti_rate;
 
@@ -258,14 +260,19 @@ static unsigned long aclk_best_div(struct clk *clk, unsigned long rate)
 {
 	unsigned long div, src, freq, r1, r2;
 
+	if (!rate)
+		return ACLK_MAX_DIV;
+
 	src = __raw_readl(clk->aclkreg) >> ACLK_SEL_SHIFT;
 	src &= CLK_SRC_MASK;
 	freq = root_clk_get_rate(src);
-	div = freq / rate + 1;
+	div = freq / rate;
+	if (!div)
+		return 1;
+	if (div >= ACLK_MAX_DIV)
+		return ACLK_MAX_DIV;
 	r1 = freq / div;
 	r2 = freq / (div + 1);
-	if (r2 >= rate)
-		return div + 1;
 	if ((rate - r2) < (r1 - rate))
 		return div + 1;
 
@@ -287,7 +294,8 @@ static int aclk_set_rate(struct clk *clk, unsigned long rate)
 	u32 reg;
 
 	reg = __raw_readl(clk->aclkreg) & ~ACLK_DIV_MASK;
-	reg |= aclk_best_div(clk, rate);
+	reg |= aclk_best_div(clk, rate) - 1;
+	__raw_writel(reg, clk->aclkreg);
 	return 0;
 }
 
