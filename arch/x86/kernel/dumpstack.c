@@ -320,31 +320,6 @@ void die(const char *str, struct pt_regs *regs, long err)
 	oops_end(flags, regs, sig);
 }
 
-void notrace __kprobes
-die_nmi(char *str, struct pt_regs *regs, int do_panic)
-{
-	unsigned long flags;
-
-	if (notify_die(DIE_NMIWATCHDOG, str, regs, 0, 2, SIGINT) == NOTIFY_STOP)
-		return;
-
-	/*
-	 * We are in trouble anyway, lets at least try
-	 * to get a message out.
-	 */
-	flags = oops_begin();
-	printk(KERN_EMERG "%s", str);
-	printk(" on CPU%d, ip %08lx, registers:\n",
-		smp_processor_id(), regs->ip);
-	show_registers(regs);
-	oops_end(flags, regs, 0);
-	if (do_panic || panic_on_oops)
-		panic("Non maskable interrupt");
-	nmi_exit();
-	local_irq_enable();
-	do_exit(SIGBUS);
-}
-
 static int __init oops_setup(char *s)
 {
 	if (!s)
