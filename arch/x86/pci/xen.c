@@ -193,6 +193,9 @@ static void xen_teardown_msi_irqs(struct pci_dev *dev)
 		xen_pci_frontend_disable_msix(dev);
 	else
 		xen_pci_frontend_disable_msi(dev);
+
+	/* Free the IRQ's and the msidesc using the generic code. */
+	default_teardown_msi_irqs(dev);
 }
 
 static void xen_teardown_msi_irq(unsigned int irq)
