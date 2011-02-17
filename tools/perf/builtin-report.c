@@ -350,6 +350,12 @@ static int __cmd_report(void)
 		perf_session__fprintf_dsos(session, stdout);
 
 	next = rb_first(&session->hists_tree);
+
+	if (next == NULL) {
+		ui__warning("The %s file has no samples!\n", input_name);
+		goto out_delete;
+	}
+
 	while (next) {
 		struct hists *hists;
 
