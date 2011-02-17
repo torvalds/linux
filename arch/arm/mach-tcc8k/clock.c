@@ -308,10 +308,17 @@ static unsigned long get_rate_sys(struct clk *clk)
 
 static unsigned long get_rate_bus(struct clk *clk)
 {
-	unsigned int div;
+	unsigned int reg, sdiv, bdiv, rate;
 
-	div = (__raw_readl(CKC_BASE + CLKCTRL_OFFS) >> 4) & 0xff;
-	return get_rate_sys(clk) / (div + 1);
+	reg = __raw_readl(CKC_BASE + CLKCTRL_OFFS);
+	rate = get_rate_sys(clk);
+	sdiv = (reg >> 20) & 3;
+	if (sdiv)
+		rate /= sdiv + 1;
+	bdiv = (reg >> 4) & 0xff;
+	if (bdiv)
+		rate /= bdiv + 1;
+	return rate;
 }
 
 static unsigned long get_rate_cpu(struct clk *clk)
