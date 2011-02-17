@@ -974,19 +974,6 @@ static void scic_sds_port_timeout_handler(void *port)
 
 /* --------------------------------------------------------------------------- */
 
-#ifdef SCIC_DEBUG_ENABLED
-void scic_sds_port_decrement_request_count(struct scic_sds_port *this_port)
-{
-	if (this_port->started_request_count == 0)
-		dev_warn(sciport_to_dev(this_port),
-			 __func__,
-			 "%s: SCIC Port object requested to decrement started "
-			 "io count past zero.\n");
-	else
-		this_port->started_request_count--;
-}
-#endif
-
 /**
  * This function updates the hardwares VIIT entry for this port.
  *

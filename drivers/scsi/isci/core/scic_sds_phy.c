@@ -267,101 +267,6 @@ static void scic_sds_phy_sata_timeout(void *phy)
 		);
 }
 
-/*
- * *****************************************************************************
- * * SCIC SDS PHY External Methods
- * ***************************************************************************** */
-
-/**
- * This method returns the object size for a phy object.
- *
- * u32
- */
-
-/**
- * This method returns the minimum number of timers required for a phy object.
- *
- * u32
- */
-
-/**
- * This method returns the maximum number of timers required for a phy object.
- *
- * u32
- */
-
-#ifdef SCIC_DEBUG_ENABLED
-/**
- * scic_sds_phy_observe_state_change() -
- * @our_observer:
- *
- * Debug code to record the state transitions in the phy
- */
-void scic_sds_phy_observe_state_change(
-	struct sci_base_observer *our_observer,
-	struct sci_base_subject *the_subject)
-{
-	struct scic_sds_phy *this_phy;
-	struct sci_base_state_machine *the_state_machine;
-
-	u8 transition_requestor;
-	u32 base_state_id;
-	u32 starting_substate_id;
-
-	the_state_machine = (struct sci_base_state_machine *)the_subject;
-	this_phy = (struct scic_sds_phy *)the_state_machine->state_machine_owner;
-
-	if (the_state_machine == &this_phy->parent.state_machine) {
-		transition_requestor = 0x01;
-	} else if (the_state_machine == &this_phy->starting_substate_machine) {
-		transition_requestor = 0x02;
-	} else {
-		transition_requestor = 0xFF;
-	}
-
-	base_state_id =
-		sci_base_state_machine_get_state(&this_phy->parent.state_machine);
-	starting_substate_id =
-		sci_base_state_machine_get_state(&this_phy->starting_substate_machine);
-
-	this_phy->state_record.state_transition_table[
-		this_phy->state_record.index++] = ((transition_requestor << 24)
-						   | ((u8)base_state_id << 8)
-						   | ((u8)starting_substate_id));
-
-	this_phy->state_record.index =
-		this_phy->state_record.index & (MAX_STATE_TRANSITION_RECORD - 1);
-
-}
-#endif /* SCIC_DEBUG_ENABLED */
-
-#ifdef SCIC_DEBUG_ENABLED
-/**
- * scic_sds_phy_initialize_state_recording() -
- *
- * This method initializes the state record debug information for the phy
- * object. The state machines for the phy object must be constructed before
- * this function is called.
- */
-void scic_sds_phy_initialize_state_recording(
-	struct scic_sds_phy *this_phy)
-{
-	this_phy->state_record.index = 0;
-
-	sci_base_observer_initialize(
-		&this_phy->state_record.base_state_observer,
-		scic_sds_phy_observe_state_change,
-		&this_phy->parent.state_machine.parent
-		);
-
-	sci_base_observer_initialize(
-		&this_phy->state_record.starting_state_observer,
-		scic_sds_phy_observe_state_change,
-		&this_phy->starting_substate_machine.parent
-		);
-}
-#endif /* SCIC_DEBUG_ENABLED */
-
 /**
  * This method will construct the struct scic_sds_phy object
  * @this_phy:
@@ -400,10 +305,6 @@ void scic_sds_phy_construct(
 		scic_sds_phy_starting_substates,
 		SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL
 		);
-
-   #ifdef SCIC_DEBUG_ENABLED
-	scic_sds_phy_initialize_state_recording(this_phy);
-   #endif /* SCIC_DEBUG_ENABLED */
 }
 
 /**

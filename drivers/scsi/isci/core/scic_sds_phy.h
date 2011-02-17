@@ -156,25 +156,6 @@ enum SCIC_SDS_PHY_STARTING_SUBSTATES {
 struct scic_sds_port;
 struct scic_sds_controller;
 
-#ifdef SCIC_DEBUG_ENABLED
-#define MAX_STATE_TRANSITION_RECORD    (256)
-
-/**
- *
- *
- * Debug code to record the state transitions for the phy object
- */
-struct scic_sds_phy_state_record {
-	struct sci_base_observer base_state_observer;
-	struct sci_base_observer starting_state_observer;
-
-	u16 index;
-
-	u32 state_transition_table[MAX_STATE_TRANSITION_RECORD];
-
-};
-#endif /* SCIC_DEBUG_ENABLED */
-
 /**
  * This enumeration provides a named phy type for the state machine
  *
@@ -270,10 +251,6 @@ struct scic_sds_phy {
 	struct scic_sds_phy_state_handler *state_handlers;
 
 	struct sci_base_state_machine starting_substate_machine;
-
-   #ifdef SCIC_DEBUG_ENABLED
-	struct scic_sds_phy_state_record state_record;
-   #endif /* SCIC_DEBUG_ENABLED */
 
 	/**
 	 * This field points to the link layer register set within the SCU.

@@ -63,6 +63,7 @@
  *
  */
 
+#include <linux/kernel.h>
 #include "sci_controller_constants.h"
 #include "intel_sas.h"
 #include "sci_base_port.h"
@@ -286,40 +287,21 @@ extern struct scic_sds_port_state_handler scic_sds_port_ready_substate_handler_t
 #define scic_sds_port_get_index(this_port) \
 	((this_port)->physical_port_index)
 
-/**
- * scic_sds_port_increment_request_count() -
- *
- * Helper macro to increment the started request count
- */
-#define scic_sds_port_increment_request_count(this_port) \
-	((this_port)->started_request_count++)
 
-#ifdef SCIC_DEBUG_ENABLED
-/**
- * scic_sds_port_decrement_request_count() - This method decrements the started
- *    io request count.  The method will not decrment the started io request
- *    count below 0 and will log a debug message if this is attempted.
- *
- *
- */
-void scic_sds_port_decrement_request_count(
-	struct scic_sds_port *this_port);
-#else
-/**
- * scic_sds_port_decrement_request_count() -
- *
- * Helper macro to decrement the started io request count.  The macro will not
- * decrement the started io request count below 0.
- */
-#define scic_sds_port_decrement_request_count(this_port) \
-	(\
-		(this_port)->started_request_count = (\
-			((this_port)->started_request_count == 0) ? \
-			(this_port)->started_request_count : \
-			((this_port)->started_request_count - 1) \
-			) \
-			)
-#endif
+static inline void scic_sds_port_increment_request_count(struct scic_sds_port *sci_port)
+{
+	sci_port->started_request_count++;
+}
+
+static inline void scic_sds_port_decrement_request_count(struct scic_sds_port *sci_port)
+{
+	if (WARN_ONCE(sci_port->started_request_count == 0,
+		       "%s: tried to decrement started_request_count past 0!?",
+			__func__))
+		/* pass */;
+	else
+		sci_port->started_request_count--;
+}
 
 /**
  * scic_sds_port_write_phy_assignment() -
