@@ -661,7 +661,7 @@ struct drbd_request {
 	/* if local IO is not allowed, will be NULL.
 	 * if local IO _is_ allowed, holds the locally submitted bio clone,
 	 * or, after local IO completion, the ERR_PTR(error).
-	 * see drbd_endio_pri(). */
+	 * see drbd_request_endio(). */
 	struct bio *private_bio;
 
 	struct drbd_interval i;

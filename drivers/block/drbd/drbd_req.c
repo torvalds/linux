@@ -116,7 +116,7 @@ static void _req_is_done(struct drbd_conf *mdev, struct drbd_request *req, const
 			drbd_set_in_sync(mdev, req->i.sector, req->i.size);
 
 		/* one might be tempted to move the drbd_al_complete_io
-		 * to the local io completion callback drbd_endio_pri.
+		 * to the local io completion callback drbd_request_endio.
 		 * but, if this was a mirror write, we may only
 		 * drbd_al_complete_io after this is RQ_NET_DONE,
 		 * otherwise the extent could be dropped from the al
@@ -252,7 +252,7 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 		 * what we need to do here is just: complete the master_bio.
 		 *
 		 * local completion error, if any, has been stored as ERR_PTR
-		 * in private_bio within drbd_endio_pri.
+		 * in private_bio within drbd_request_endio.
 		 */
 		int ok = (s & RQ_LOCAL_OK) || (s & RQ_NET_OK);
 		int error = PTR_ERR(req->private_bio);

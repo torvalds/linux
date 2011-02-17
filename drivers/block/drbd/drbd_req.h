@@ -230,7 +230,7 @@ static inline void drbd_req_make_private_bio(struct drbd_request *req, struct bi
 	req->private_bio = bio;
 
 	bio->bi_private  = req;
-	bio->bi_end_io   = drbd_endio_pri;
+	bio->bi_end_io   = drbd_request_endio;
 	bio->bi_next     = NULL;
 }
 

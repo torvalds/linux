@@ -45,8 +45,8 @@ static int w_make_resync_request(struct drbd_work *w, int cancel);
 
 /* endio handlers:
  *   drbd_md_io_complete (defined here)
- *   drbd_endio_pri (defined here)
- *   drbd_endio_sec (defined here)
+ *   drbd_request_endio (defined here)
+ *   drbd_peer_request_endio (defined here)
  *   bm_async_io_complete (defined in drbd_bitmap.c)
  *
  * For all these callbacks, note the following:
@@ -151,7 +151,7 @@ static void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __rel
 /* writes on behalf of the partner, or resync writes,
  * "submitted" by the receiver.
  */
-void drbd_endio_sec(struct bio *bio, int error)
+void drbd_peer_request_endio(struct bio *bio, int error)
 {
 	struct drbd_peer_request *peer_req = bio->bi_private;
 	struct drbd_conf *mdev = peer_req->w.mdev;
@@ -187,7 +187,7 @@ void drbd_endio_sec(struct bio *bio, int error)
 
 /* read, readA or write requests on R_PRIMARY coming from drbd_make_request
  */
-void drbd_endio_pri(struct bio *bio, int error)
+void drbd_request_endio(struct bio *bio, int error)
 {
 	unsigned long flags;
 	struct drbd_request *req = bio->bi_private;

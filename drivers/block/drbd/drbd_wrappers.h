@@ -20,8 +20,8 @@ static inline void drbd_set_my_capacity(struct drbd_conf *mdev,
 
 /* bi_end_io handlers */
 extern void drbd_md_io_complete(struct bio *bio, int error);
-extern void drbd_endio_sec(struct bio *bio, int error);
-extern void drbd_endio_pri(struct bio *bio, int error);
+extern void drbd_peer_request_endio(struct bio *bio, int error);
+extern void drbd_request_endio(struct bio *bio, int error);
 
 /*
  * used to submit our private bio
