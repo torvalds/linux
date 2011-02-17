@@ -47,10 +47,6 @@ struct of_platform_driver
 #define	to_of_platform_driver(drv) \
 	container_of(drv,struct of_platform_driver, driver)
 
-extern int of_register_driver(struct of_platform_driver *drv,
-			      struct bus_type *bus);
-extern void of_unregister_driver(struct of_platform_driver *drv);
-
 /* Platform drivers register/unregister */
 extern int of_register_platform_driver(struct of_platform_driver *drv);
 extern void of_unregister_platform_driver(struct of_platform_driver *drv);
@@ -59,8 +55,6 @@ extern struct platform_device *of_device_alloc(struct device_node *np,
 					 const char *bus_id,
 					 struct device *parent);
 extern struct platform_device *of_find_device_by_node(struct device_node *np);
-
-extern int of_bus_type_init(struct bus_type *bus, const char *name);
 
 #if !defined(CONFIG_SPARC) /* SPARC has its own device registration method */
 /* Platform devices and busses creation */
