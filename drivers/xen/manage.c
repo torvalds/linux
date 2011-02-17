@@ -39,8 +39,9 @@ struct suspend_info {
 	unsigned long arg; /* extra hypercall argument */
 };
 
-static void xen_hvm_post_suspend(void)
+static void xen_hvm_post_suspend(int cancelled)
 {
+	xen_arch_hvm_post_suspend(cancelled);
 	gnttab_resume();
 }
 
@@ -48,10 +49,12 @@ static void xen_pre_suspend(void)
 {
 	xen_mm_pin_all();
 	gnttab_suspend();
+	xen_arch_pre_suspend();
 }
 
-static void xen_post_suspend(void)
+static void xen_post_suspend(int cancelled)
 {
+	xen_arch_post_suspend(cancelled);
 	gnttab_resume();
 	xen_mm_unpin_all();
 }
@@ -78,8 +81,7 @@ static int xen_hvm_suspend(void *data)
 	 */
 	si->cancelled = HYPERVISOR_suspend(si->arg);
 
-	xen_arch_hvm_post_suspend(si->cancelled);
-	xen_hvm_post_suspend();
+	xen_hvm_post_suspend(si->cancelled);
 
 	if (!si->cancelled) {
 		xen_irq_resume();
@@ -107,7 +109,6 @@ static int xen_suspend(void *data)
 	}
 
 	xen_pre_suspend();
-	xen_arch_pre_suspend();
 
 	/*
 	 * This hypercall returns 1 if suspend was cancelled
@@ -116,8 +117,7 @@ static int xen_suspend(void *data)
 	 */
 	si->cancelled = HYPERVISOR_suspend(si->arg);
 
-	xen_arch_post_suspend(si->cancelled);
-	xen_post_suspend();
+	xen_post_suspend(si->cancelled);
 
 	if (!si->cancelled) {
 		xen_irq_resume();
