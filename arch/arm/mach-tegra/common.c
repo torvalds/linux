@@ -39,9 +39,10 @@ void tegra_assert_system_reset(char mode, const char *cmd)
 	void __iomem *reset = IO_ADDRESS(TEGRA_CLK_RESET_BASE + 0x04);
 	u32 reg;
 
-	reg = readl(reset);
+	/* use *_related to avoid spinlock since caches are off */
+	reg = readl_relaxed(reset);
 	reg |= 0x04;
-	writel(reg, reset);
+	writel_relaxed(reg, reset);
 }
 
 static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
