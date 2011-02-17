@@ -3428,8 +3428,6 @@ error:
 
 static void __devexit xgifb_remove(struct pci_dev *pdev)
 {
-	/* Unregister the framebuffer */
-	/* if (xgi_video_info.registered) { */
 	unregister_framebuffer(fb_info);
 	iounmap(xgi_video_info.mmio_vbase);
 	iounmap(xgi_video_info.video_vbase);
@@ -3438,11 +3436,8 @@ static void __devexit xgifb_remove(struct pci_dev *pdev)
 			   xgi_video_info.video_size);
 	vfree(XGIhw_ext.pjVirtualRomBase);
 	framebuffer_release(fb_info);
-	/* } */
-
 	pci_set_drvdata(pdev, NULL);
-
-};
+}
 
 static struct pci_driver xgifb_driver = {
 	.name = "xgifb",
