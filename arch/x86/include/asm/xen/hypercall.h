@@ -422,10 +422,17 @@ HYPERVISOR_set_segment_base(int reg, unsigned long value)
 #endif
 
 static inline int
-HYPERVISOR_suspend(unsigned long srec)
+HYPERVISOR_suspend(unsigned long start_info_mfn)
 {
-	return _hypercall3(int, sched_op, SCHEDOP_shutdown,
-			   SHUTDOWN_suspend, srec);
+	struct sched_shutdown r = { .reason = SHUTDOWN_suspend };
+
+	/*
+	 * For a PV guest the tools require that the start_info mfn be
+	 * present in rdx/edx when the hypercall is made. Per the
+	 * hypercall calling convention this is the third hypercall
+	 * argument, which is start_info_mfn here.
+	 */
+	return _hypercall3(int, sched_op_new, SCHEDOP_shutdown, &r, start_info_mfn);
 }
 
 static inline int
