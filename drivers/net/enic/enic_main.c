@@ -2080,7 +2080,7 @@ static void enic_reset(struct work_struct *work)
 static int enic_set_intr_mode(struct enic *enic)
 {
 	unsigned int n = min_t(unsigned int, enic->rq_count, ENIC_RQ_MAX);
-	unsigned int m = 1;
+	unsigned int m = min_t(unsigned int, enic->wq_count, ENIC_WQ_MAX);
 	unsigned int i;
 
 	/* Set interrupt mode (INTx, MSI, MSI-X) depending
