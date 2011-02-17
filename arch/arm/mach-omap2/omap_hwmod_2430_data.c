@@ -89,6 +89,16 @@ static struct omap_hwmod omap2430_uart3_hwmod;
 static struct omap_hwmod omap2430_i2c1_hwmod;
 static struct omap_hwmod omap2430_i2c2_hwmod;
 
+static struct omap_hwmod omap2430_usbhsotg_hwmod;
+
+/* l3_core -> usbhsotg  interface */
+static struct omap_hwmod_ocp_if omap2430_usbhsotg__l3 = {
+	.master		= &omap2430_usbhsotg_hwmod,
+	.slave		= &omap2430_l3_main_hwmod,
+	.clk		= "core_l3_ck",
+	.user		= OCP_USER_MPU,
+};
+
 /* I2C IP block address space length (in bytes) */
 #define OMAP2_I2C_AS_LEN		128
 
@@ -187,6 +197,35 @@ static struct omap_hwmod_ocp_if omap2_l4_core__uart3 = {
 	.addr		= omap2430_uart3_addr_space,
 	.addr_cnt	= ARRAY_SIZE(omap2430_uart3_addr_space),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/*
+* usbhsotg interface data
+*/
+static struct omap_hwmod_addr_space omap2430_usbhsotg_addrs[] = {
+	{
+		.pa_start	= OMAP243X_HS_BASE,
+		.pa_end		= OMAP243X_HS_BASE + SZ_4K - 1,
+		.flags		= ADDR_TYPE_RT
+	},
+};
+
+/*  l4_core ->usbhsotg  interface */
+static struct omap_hwmod_ocp_if omap2430_l4_core__usbhsotg = {
+	.master		= &omap2430_l4_core_hwmod,
+	.slave		= &omap2430_usbhsotg_hwmod,
+	.clk		= "usb_l4_ick",
+	.addr		= omap2430_usbhsotg_addrs,
+	.addr_cnt	= ARRAY_SIZE(omap2430_usbhsotg_addrs),
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_ocp_if *omap2430_usbhsotg_masters[] = {
+	&omap2430_usbhsotg__l3,
+};
+
+static struct omap_hwmod_ocp_if *omap2430_usbhsotg_slaves[] = {
+	&omap2430_l4_core__usbhsotg,
 };
 
 /* Slave interfaces on the L4_CORE interconnect */
@@ -919,6 +958,62 @@ static struct omap_hwmod omap2430_dma_system_hwmod = {
 	.flags		= HWMOD_NO_IDLEST,
 };
 
+/*
+ * usbhsotg
+ */
+static struct omap_hwmod_class_sysconfig omap2430_usbhsotg_sysc = {
+	.rev_offs	= 0x0400,
+	.sysc_offs	= 0x0404,
+	.syss_offs	= 0x0408,
+	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_MIDLEMODE|
+			  SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
+			  SYSC_HAS_AUTOIDLE),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
+			  MSTANDBY_FORCE | MSTANDBY_NO | MSTANDBY_SMART),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class usbotg_class = {
+	.name = "usbotg",
+	.sysc = &omap2430_usbhsotg_sysc,
+};
+
+/* usb_otg_hs */
+static struct omap_hwmod_irq_info omap2430_usbhsotg_mpu_irqs[] = {
+
+	{ .name = "mc", .irq = 92 },
+	{ .name = "dma", .irq = 93 },
+};
+
+static struct omap_hwmod omap2430_usbhsotg_hwmod = {
+	.name		= "usb_otg_hs",
+	.mpu_irqs	= omap2430_usbhsotg_mpu_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(omap2430_usbhsotg_mpu_irqs),
+	.main_clk	= "usbhs_ick",
+	.prcm		= {
+		.omap2 = {
+			.prcm_reg_id = 1,
+			.module_bit = OMAP2430_EN_USBHS_MASK,
+			.module_offs = CORE_MOD,
+			.idlest_reg_id = 1,
+			.idlest_idle_bit = OMAP2430_ST_USBHS_SHIFT,
+		},
+	},
+	.masters	= omap2430_usbhsotg_masters,
+	.masters_cnt	= ARRAY_SIZE(omap2430_usbhsotg_masters),
+	.slaves		= omap2430_usbhsotg_slaves,
+	.slaves_cnt	= ARRAY_SIZE(omap2430_usbhsotg_slaves),
+	.class		= &usbotg_class,
+	/*
+	 * Erratum ID: i479  idle_req / idle_ack mechanism potentially
+	 * broken when autoidle is enabled
+	 * workaround is to disable the autoidle bit at module level.
+	 */
+	.flags		= HWMOD_NO_OCP_AUTOIDLE | HWMOD_SWSUP_SIDLE
+				| HWMOD_SWSUP_MSTANDBY,
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP2430)
+};
+
 static __initdata struct omap_hwmod *omap2430_hwmods[] = {
 	&omap2430_l3_main_hwmod,
 	&omap2430_l4_core_hwmod,
@@ -941,6 +1036,9 @@ static __initdata struct omap_hwmod *omap2430_hwmods[] = {
 
 	/* dma_system class*/
 	&omap2430_dma_system_hwmod,
+
+	/* usbotg class*/
+	&omap2430_usbhsotg_hwmod,
 	NULL,
 };
 
