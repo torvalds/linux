@@ -423,6 +423,12 @@ int clkdm_add_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 {
 	struct clkdm_dep *cd;
 
+	if (!cpu_is_omap24xx() && !cpu_is_omap34xx()) {
+		pr_err("clockdomain: %s/%s: %s: not yet implemented\n",
+		       clkdm1->name, clkdm2->name, __func__);
+		return -EINVAL;
+	}
+
 	if (!clkdm1 || !clkdm2)
 		return -EINVAL;
 
@@ -457,6 +463,12 @@ int clkdm_add_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 int clkdm_del_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 {
 	struct clkdm_dep *cd;
+
+	if (!cpu_is_omap24xx() && !cpu_is_omap34xx()) {
+		pr_err("clockdomain: %s/%s: %s: not yet implemented\n",
+		       clkdm1->name, clkdm2->name, __func__);
+		return -EINVAL;
+	}
 
 	if (!clkdm1 || !clkdm2)
 		return -EINVAL;
@@ -500,6 +512,12 @@ int clkdm_read_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 	if (!clkdm1 || !clkdm2)
 		return -EINVAL;
 
+	if (!cpu_is_omap24xx() && !cpu_is_omap34xx()) {
+		pr_err("clockdomain: %s/%s: %s: not yet implemented\n",
+		       clkdm1->name, clkdm2->name, __func__);
+		return -EINVAL;
+	}
+
 	cd = _clkdm_deps_lookup(clkdm2, clkdm1->wkdep_srcs);
 	if (IS_ERR(cd)) {
 		pr_debug("clockdomain: hardware cannot set/clear wake up of "
@@ -526,6 +544,12 @@ int clkdm_clear_all_wkdeps(struct clockdomain *clkdm)
 {
 	struct clkdm_dep *cd;
 	u32 mask = 0;
+
+	if (!cpu_is_omap24xx() && !cpu_is_omap34xx()) {
+		pr_err("clockdomain: %s: %s: not yet implemented\n",
+		       clkdm->name, __func__);
+		return -EINVAL;
+	}
 
 	if (!clkdm)
 		return -EINVAL;
@@ -830,8 +854,7 @@ void omap2_clkdm_allow_idle(struct clockdomain *clkdm)
 	 * dependency code and data for OMAP4.
 	 */
 	if (cpu_is_omap44xx()) {
-		WARN_ONCE(1, "clockdomain: OMAP4 wakeup/sleep dependency "
-			  "support is not yet implemented\n");
+		pr_err("clockdomain: %s: OMAP4 wakeup/sleep dependency support: not yet implemented\n", clkdm->name);
 	} else {
 		if (atomic_read(&clkdm->usecount) > 0)
 			_clkdm_add_autodeps(clkdm);
@@ -872,8 +895,7 @@ void omap2_clkdm_deny_idle(struct clockdomain *clkdm)
 	 * dependency code and data for OMAP4.
 	 */
 	if (cpu_is_omap44xx()) {
-		WARN_ONCE(1, "clockdomain: OMAP4 wakeup/sleep dependency "
-			  "support is not yet implemented\n");
+		pr_err("clockdomain: %s: OMAP4 wakeup/sleep dependency support: not yet implemented\n", clkdm->name);
 	} else {
 		if (atomic_read(&clkdm->usecount) > 0)
 			_clkdm_del_autodeps(clkdm);

@@ -638,7 +638,7 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 	 * target processor state.
 	 */
 	startup_ipi_hook(phys_apicid, (unsigned long) start_secondary,
-			 (unsigned long)stack_start.sp);
+			 stack_start);
 
 	/*
 	 * Run STARTUP IPI loop.
@@ -785,7 +785,7 @@ do_rest:
 #endif
 	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 	initial_code = (unsigned long)start_secondary;
-	stack_start.sp = (void *) c_idle.idle->thread.sp;
+	stack_start  = c_idle.idle->thread.sp;
 
 	/* start_ip had better be page-aligned! */
 	start_ip = setup_trampoline();
@@ -1060,7 +1060,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 
 		connect_bsp_APIC();
 		setup_local_APIC();
-		end_local_APIC_setup();
+		bsp_end_local_APIC_setup();
 		return -1;
 	}
 
@@ -1137,7 +1137,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	if (!skip_ioapic_setup && nr_ioapics)
 		enable_IO_APIC();
 
-	end_local_APIC_setup();
+	bsp_end_local_APIC_setup();
 
 	map_cpu_to_logical_apicid();
 
@@ -1402,8 +1402,9 @@ static inline void mwait_play_dead(void)
 	unsigned int highest_subcstate = 0;
 	int i;
 	void *mwait_ptr;
+	struct cpuinfo_x86 *c = __this_cpu_ptr(&cpu_info);
 
-	if (!cpu_has(__this_cpu_ptr(&cpu_info), X86_FEATURE_MWAIT))
+	if (!(cpu_has(c, X86_FEATURE_MWAIT) && mwait_usable(c)))
 		return;
 	if (!cpu_has(__this_cpu_ptr(&cpu_info), X86_FEATURE_CLFLSH))
 		return;

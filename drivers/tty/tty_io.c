@@ -3256,8 +3256,8 @@ static ssize_t show_cons_active(struct device *dev,
 	struct console *c;
 	ssize_t count = 0;
 
-	acquire_console_sem();
-	for (c = console_drivers; c; c = c->next) {
+	console_lock();
+	for_each_console(c) {
 		if (!c->device)
 			continue;
 		if (!c->write)
@@ -3271,7 +3271,7 @@ static ssize_t show_cons_active(struct device *dev,
 	while (i--)
 		count += sprintf(buf + count, "%s%d%c",
 				 cs[i]->name, cs[i]->index, i ? ' ':'\n');
-	release_console_sem();
+	console_unlock();
 
 	return count;
 }
@@ -3306,7 +3306,7 @@ int __init tty_init(void)
 	if (IS_ERR(consdev))
 		consdev = NULL;
 	else
-		device_create_file(consdev, &dev_attr_active);
+		WARN_ON(device_create_file(consdev, &dev_attr_active) < 0);
 
 #ifdef CONFIG_VT
 	vty_init(&console_fops);

@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2006, 2007, 2009 Rusty Russell, IBM Corporation
- * Copyright (C) 2009, 2010 Red Hat, Inc.
+ * Copyright (C) 2009, 2010, 2011 Red Hat, Inc.
+ * Copyright (C) 2009, 2010, 2011 Amit Shah <amit.shah@redhat.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +32,7 @@
 #include <linux/virtio_console.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
-#include "hvc_console.h"
+#include "../tty/hvc/hvc_console.h"
 
 /*
  * This is a global struct for storing common data for all the devices
@@ -1462,6 +1463,17 @@ static void control_work_handler(struct work_struct *work)
 	spin_unlock(&portdev->cvq_lock);
 }
 
+static void out_intr(struct virtqueue *vq)
+{
+	struct port *port;
+
+	port = find_port_by_vq(vq->vdev->priv, vq);
+	if (!port)
+		return;
+
+	wake_up_interruptible(&port->waitqueue);
+}
+
 static void in_intr(struct virtqueue *vq)
 {
 	struct port *port;
@@ -1566,7 +1578,7 @@ static int init_vqs(struct ports_device *portdev)
 	 */
 	j = 0;
 	io_callbacks[j] = in_intr;
-	io_callbacks[j + 1] = NULL;
+	io_callbacks[j + 1] = out_intr;
 	io_names[j] = "input";
 	io_names[j + 1] = "output";
 	j += 2;
@@ -1580,7 +1592,7 @@ static int init_vqs(struct ports_device *portdev)
 		for (i = 1; i < nr_ports; i++) {
 			j += 2;
 			io_callbacks[j] = in_intr;
-			io_callbacks[j + 1] = NULL;
+			io_callbacks[j + 1] = out_intr;
 			io_names[j] = "input";
 			io_names[j + 1] = "output";
 		}

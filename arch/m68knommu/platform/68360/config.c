@@ -75,7 +75,7 @@ void hw_timer_init(void)
   /* Set compare register  32Khz / 32 / 10 = 100 */
   TCMP = 10;                                                              
 
-  request_irq(IRQ_MACHSPEC | 1, timer_routine, IRQ_FLG_LOCK, "timer", NULL);
+  request_irq(IRQ_MACHSPEC | 1, timer_routine, 0, "timer", NULL);
 #endif
 
   /* General purpose quicc timers: MC68360UM p7-20 */

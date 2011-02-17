@@ -263,11 +263,12 @@ static int __event__synthesize_thread(event_t *comm_event, event_t *mmap_event,
 					     process, session);
 }
 
-int event__synthesize_thread(pid_t pid, event__handler_t process,
-			     struct perf_session *session)
+int event__synthesize_thread_map(struct thread_map *threads,
+				 event__handler_t process,
+				 struct perf_session *session)
 {
 	event_t *comm_event, *mmap_event;
-	int err = -1;
+	int err = -1, thread;
 
 	comm_event = malloc(sizeof(comm_event->comm) + session->id_hdr_size);
 	if (comm_event == NULL)
@@ -277,8 +278,15 @@ int event__synthesize_thread(pid_t pid, event__handler_t process,
 	if (mmap_event == NULL)
 		goto out_free_comm;
 
-	err = __event__synthesize_thread(comm_event, mmap_event, pid,
-					 process, session);
+	err = 0;
+	for (thread = 0; thread < threads->nr; ++thread) {
+		if (__event__synthesize_thread(comm_event, mmap_event,
+					       threads->map[thread],
+					       process, session)) {
+			err = -1;
+			break;
+		}
+	}
 	free(mmap_event);
 out_free_comm:
 	free(comm_event);
@@ -459,7 +467,8 @@ int event__process_comm(event_t *self, struct sample_data *sample __used,
 int event__process_lost(event_t *self, struct sample_data *sample __used,
 			struct perf_session *session)
 {
-	dump_printf(": id:%Ld: lost:%Ld\n", self->lost.id, self->lost.lost);
+	dump_printf(": id:%" PRIu64 ": lost:%" PRIu64 "\n",
+		    self->lost.id, self->lost.lost);
 	session->hists.stats.total_lost += self->lost.lost;
 	return 0;
 }
@@ -575,7 +584,7 @@ int event__process_mmap(event_t *self, struct sample_data *sample __used,
 	u8 cpumode = self->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	int ret = 0;
 
-	dump_printf(" %d/%d: [%#Lx(%#Lx) @ %#Lx]: %s\n",
+	dump_printf(" %d/%d: [%#" PRIx64 "(%#" PRIx64 ") @ %#" PRIx64 "]: %s\n",
 			self->mmap.pid, self->mmap.tid, self->mmap.start,
 			self->mmap.len, self->mmap.pgoff, self->mmap.filename);
 

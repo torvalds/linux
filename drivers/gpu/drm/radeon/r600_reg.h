@@ -81,7 +81,11 @@
 #define R600_MEDIUM_VID_LOWER_GPIO_CNTL                            0x720
 #define R600_LOW_VID_LOWER_GPIO_CNTL                               0x724
 
-
+#define R600_D1GRPH_SWAP_CONTROL                               0x610C
+#       define R600_D1GRPH_SWAP_ENDIAN_NONE                    (0 << 0)
+#       define R600_D1GRPH_SWAP_ENDIAN_16BIT                   (1 << 0)
+#       define R600_D1GRPH_SWAP_ENDIAN_32BIT                   (2 << 0)
+#       define R600_D1GRPH_SWAP_ENDIAN_64BIT                   (3 << 0)
 
 #define R600_HDP_NONSURFACE_BASE                                0x2c04
 

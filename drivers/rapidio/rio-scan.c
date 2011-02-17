@@ -943,6 +943,8 @@ static int rio_enum_complete(struct rio_mport *port)
  * @port: Master port to send transactions
  * @destid: Current destination ID in network
  * @hopcount: Number of hops into the network
+ * @prev: previous rio_dev
+ * @prev_port: previous port number
  *
  * Recursively discovers a RIO network.  Transactions are sent via the
  * master port passed in @port.

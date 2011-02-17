@@ -136,9 +136,6 @@ cifs_reconnect_tcon(struct cifsTconInfo *tcon, int smb_command)
 		}
 	}
 
-	if (ses->status == CifsExiting)
-		return -EIO;
-
 	/*
 	 * Give demultiplex thread up to 10 seconds to reconnect, should be
 	 * greater than cifs socket timeout which is 7 seconds
@@ -156,7 +153,7 @@ cifs_reconnect_tcon(struct cifsTconInfo *tcon, int smb_command)
 		 * retrying until process is killed or server comes
 		 * back on-line
 		 */
-		if (!tcon->retry || ses->status == CifsExiting) {
+		if (!tcon->retry) {
 			cFYI(1, "gave up waiting on reconnect in smb_init");
 			return -EHOSTDOWN;
 		}
@@ -4914,7 +4911,6 @@ CIFSSMBSetFileSize(const int xid, struct cifsTconInfo *tcon, __u64 size,
 		   __u16 fid, __u32 pid_of_opener, bool SetAllocation)
 {
 	struct smb_com_transaction2_sfi_req *pSMB  = NULL;
-	char *data_offset;
 	struct file_end_of_file_info *parm_data;
 	int rc = 0;
 	__u16 params, param_offset, offset, byte_count, count;
@@ -4937,8 +4933,6 @@ CIFSSMBSetFileSize(const int xid, struct cifsTconInfo *tcon, __u64 size,
 	pSMB->Reserved2 = 0;
 	param_offset = offsetof(struct smb_com_transaction2_sfi_req, Fid) - 4;
 	offset = param_offset + params;
-
-	data_offset = (char *) (&pSMB->hdr.Protocol) + offset;
 
 	count = sizeof(struct file_end_of_file_info);
 	pSMB->MaxParameterCount = cpu_to_le16(2);

@@ -265,8 +265,8 @@ nouveau_temp_probe_i2c(struct drm_device *dev)
 	struct i2c_board_info info[] = {
 		{ I2C_BOARD_INFO("w83l785ts", 0x2d) },
 		{ I2C_BOARD_INFO("w83781d", 0x2d) },
-		{ I2C_BOARD_INFO("f75375", 0x2e) },
 		{ I2C_BOARD_INFO("adt7473", 0x2e) },
+		{ I2C_BOARD_INFO("f75375", 0x2e) },
 		{ I2C_BOARD_INFO("lm99", 0x4c) },
 		{ }
 	};

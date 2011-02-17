@@ -778,9 +778,9 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	DRM_DEBUG_KMS("\n");
 
 	if (!use_bios_divs) {
-		radeon_compute_pll(pll, mode->clock,
-				   &freq, &feedback_div, &frac_fb_div,
-				   &reference_div, &post_divider);
+		radeon_compute_pll_legacy(pll, mode->clock,
+					  &freq, &feedback_div, &frac_fb_div,
+					  &reference_div, &post_divider);
 
 		for (post_div = &post_divs[0]; post_div->divider; ++post_div) {
 			if (post_div->divider == post_divider)

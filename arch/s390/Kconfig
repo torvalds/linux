@@ -406,7 +406,7 @@ config QDIO
 	  If unsure, say Y.
 
 config CHSC_SCH
-	def_tristate y
+	def_tristate m
 	prompt "Support for CHSC subchannels"
 	help
 	  This driver allows usage of CHSC subchannels. A CHSC subchannel

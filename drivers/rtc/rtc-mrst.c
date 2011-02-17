@@ -255,42 +255,21 @@ static int mrst_irq_set_state(struct device *dev, int enabled)
 	return 0;
 }
 
-#if defined(CONFIG_RTC_INTF_DEV) || defined(CONFIG_RTC_INTF_DEV_MODULE)
-
 /* Currently, the vRTC doesn't support UIE ON/OFF */
-static int
-mrst_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
+static int mrst_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct mrst_rtc	*mrst = dev_get_drvdata(dev);
 	unsigned long	flags;
 
-	switch (cmd) {
-	case RTC_AIE_OFF:
-	case RTC_AIE_ON:
-		if (!mrst->irq)
-			return -EINVAL;
-		break;
-	default:
-		/* PIE ON/OFF is handled by mrst_irq_set_state() */
-		return -ENOIOCTLCMD;
-	}
-
 	spin_lock_irqsave(&rtc_lock, flags);
-	switch (cmd) {
-	case RTC_AIE_OFF:	/* alarm off */
-		mrst_irq_disable(mrst, RTC_AIE);
-		break;
-	case RTC_AIE_ON:	/* alarm on */
+	if (enabled)
 		mrst_irq_enable(mrst, RTC_AIE);
-		break;
-	}
+	else
+		mrst_irq_disable(mrst, RTC_AIE);
 	spin_unlock_irqrestore(&rtc_lock, flags);
 	return 0;
 }
 
-#else
-#define	mrst_rtc_ioctl	NULL
-#endif
 
 #if defined(CONFIG_RTC_INTF_PROC) || defined(CONFIG_RTC_INTF_PROC_MODULE)
 
@@ -317,13 +296,13 @@ static int mrst_procfs(struct device *dev, struct seq_file *seq)
 #endif
 
 static const struct rtc_class_ops mrst_rtc_ops = {
-	.ioctl		= mrst_rtc_ioctl,
 	.read_time	= mrst_read_time,
 	.set_time	= mrst_set_time,
 	.read_alarm	= mrst_read_alarm,
 	.set_alarm	= mrst_set_alarm,
 	.proc		= mrst_procfs,
 	.irq_set_state	= mrst_irq_set_state,
+	.alarm_irq_enable = mrst_rtc_alarm_irq_enable,
 };
 
 static struct mrst_rtc	mrst_rtc;

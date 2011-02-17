@@ -427,6 +427,13 @@ void __init ep93xx_gpio_init(void)
 {
 	int i;
 
+	/* Set Ports C, D, E, G, and H for GPIO use */
+	ep93xx_devcfg_set_bits(EP93XX_SYSCON_DEVCFG_KEYS |
+				 EP93XX_SYSCON_DEVCFG_GONK |
+				 EP93XX_SYSCON_DEVCFG_EONIDE |
+				 EP93XX_SYSCON_DEVCFG_GONIDE |
+				 EP93XX_SYSCON_DEVCFG_HONIDE);
+
 	for (i = 0; i < ARRAY_SIZE(ep93xx_gpio_banks); i++)
 		gpiochip_add(&ep93xx_gpio_banks[i].chip);
 }

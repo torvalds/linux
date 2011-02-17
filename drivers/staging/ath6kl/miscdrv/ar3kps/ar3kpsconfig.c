@@ -360,8 +360,8 @@ int PSSendOps(void *arg)
         	status = 1;
         	goto complete;
     	}
-        len = (firmware->size > MAX_BDADDR_FORMAT_LENGTH)? MAX_BDADDR_FORMAT_LENGTH: firmware->size;
-	memcpy(config_bdaddr, firmware->data,len);
+	len = min(firmware->size, MAX_BDADDR_FORMAT_LENGTH - 1);
+	memcpy(config_bdaddr, firmware->data, len);
 	config_bdaddr[len] = '\0';
 	write_bdaddr(hdev,config_bdaddr,BDADDR_TYPE_STRING);
        	A_RELEASE_FIRMWARE(firmware);

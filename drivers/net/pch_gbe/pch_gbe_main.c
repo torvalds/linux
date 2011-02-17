@@ -519,7 +519,9 @@ static void pch_gbe_reset_task(struct work_struct *work)
 	struct pch_gbe_adapter *adapter;
 	adapter = container_of(work, struct pch_gbe_adapter, reset_task);
 
+	rtnl_lock();
 	pch_gbe_reinit_locked(adapter);
+	rtnl_unlock();
 }
 
 /**
@@ -528,14 +530,8 @@ static void pch_gbe_reset_task(struct work_struct *work)
  */
 void pch_gbe_reinit_locked(struct pch_gbe_adapter *adapter)
 {
-	struct net_device *netdev = adapter->netdev;
-
-	rtnl_lock();
-	if (netif_running(netdev)) {
-		pch_gbe_down(adapter);
-		pch_gbe_up(adapter);
-	}
-	rtnl_unlock();
+	pch_gbe_down(adapter);
+	pch_gbe_up(adapter);
 }
 
 /**
@@ -2247,7 +2243,7 @@ static void pch_gbe_remove(struct pci_dev *pdev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 
-	flush_scheduled_work();
+	cancel_work_sync(&adapter->reset_task);
 	unregister_netdev(netdev);
 
 	pch_gbe_hal_phy_hw_reset(&adapter->hw);

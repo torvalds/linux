@@ -57,7 +57,8 @@ extern pmd_t *page_check_address_pmd(struct page *page,
 	  (transparent_hugepage_flags &					\
 	   (1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG) &&			\
 	   ((__vma)->vm_flags & VM_HUGEPAGE))) &&			\
-	 !((__vma)->vm_flags & VM_NOHUGEPAGE))
+	 !((__vma)->vm_flags & VM_NOHUGEPAGE) &&			\
+	 !is_vma_temporary_stack(__vma))
 #define transparent_hugepage_defrag(__vma)				\
 	((transparent_hugepage_flags &					\
 	  (1<<TRANSPARENT_HUGEPAGE_DEFRAG_FLAG)) ||			\

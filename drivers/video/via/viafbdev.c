@@ -1674,17 +1674,17 @@ static int parse_mode(const char *str, u32 *xres, u32 *yres)
 #ifdef CONFIG_PM
 static int viafb_suspend(void *unused)
 {
-	acquire_console_sem();
+	console_lock();
 	fb_set_suspend(viafbinfo, 1);
 	viafb_sync(viafbinfo);
-	release_console_sem();
+	console_unlock();
 
 	return 0;
 }
 
 static int viafb_resume(void *unused)
 {
-	acquire_console_sem();
+	console_lock();
 	if (viaparinfo->shared->vdev->engine_mmio)
 		viafb_reset_engine(viaparinfo);
 	viafb_set_par(viafbinfo);
@@ -1692,7 +1692,7 @@ static int viafb_resume(void *unused)
 		viafb_set_par(viafbinfo1);
 	fb_set_suspend(viafbinfo, 0);
 
-	release_console_sem();
+	console_unlock();
 	return 0;
 }
 

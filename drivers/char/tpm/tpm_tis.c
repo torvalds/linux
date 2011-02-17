@@ -376,6 +376,7 @@ static DEVICE_ATTR(temp_deactivated, S_IRUGO, tpm_show_temp_deactivated,
 		   NULL);
 static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps_1_2, NULL);
 static DEVICE_ATTR(cancel, S_IWUSR | S_IWGRP, NULL, tpm_store_cancel);
+static DEVICE_ATTR(timeouts, S_IRUGO, tpm_show_timeouts, NULL);
 
 static struct attribute *tis_attrs[] = {
 	&dev_attr_pubek.attr,
@@ -385,7 +386,8 @@ static struct attribute *tis_attrs[] = {
 	&dev_attr_owned.attr,
 	&dev_attr_temp_deactivated.attr,
 	&dev_attr_caps.attr,
-	&dev_attr_cancel.attr, NULL,
+	&dev_attr_cancel.attr,
+	&dev_attr_timeouts.attr, NULL,
 };
 
 static struct attribute_group tis_attr_grp = {
@@ -492,9 +494,6 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 	dev_info(dev,
 		 "1.2 TPM (device-id 0x%X, rev-id %d)\n",
 		 vendor >> 16, ioread8(chip->vendor.iobase + TPM_RID(0)));
-
-	if (is_itpm(to_pnp_dev(dev)))
-		itpm = 1;
 
 	if (itpm)
 		dev_info(dev, "Intel iTPM workaround enabled\n");
@@ -636,6 +635,9 @@ static int __devinit tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 		irq = pnp_irq(pnp_dev, 0);
 	else
 		interrupts = 0;
+
+	if (is_itpm(pnp_dev))
+		itpm = 1;
 
 	return tpm_tis_init(&pnp_dev->dev, start, len, irq);
 }

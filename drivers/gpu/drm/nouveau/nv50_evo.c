@@ -283,8 +283,7 @@ nv50_evo_create(struct drm_device *dev)
 			nv50_evo_channel_del(&dev_priv->evo);
 			return ret;
 		}
-	} else
-	if (dev_priv->chipset != 0x50) {
+	} else {
 		ret = nv50_evo_dmaobj_new(evo, 0x3d, NvEvoFB16, 0x70, 0x19,
 					  0, 0xffffffff, 0x00010000);
 		if (ret) {

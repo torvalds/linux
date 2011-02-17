@@ -206,8 +206,8 @@ static int read_counter_aggr(struct perf_evsel *counter)
 		update_stats(&ps->res_stats[i], count[i]);
 
 	if (verbose) {
-		fprintf(stderr, "%s: %Ld %Ld %Ld\n", event_name(counter),
-				count[0], count[1], count[2]);
+		fprintf(stderr, "%s: %" PRIu64 " %" PRIu64 " %" PRIu64 "\n",
+			event_name(counter), count[0], count[1], count[2]);
 	}
 
 	/*

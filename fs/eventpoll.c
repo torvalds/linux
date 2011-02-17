@@ -1114,6 +1114,17 @@ static int ep_send_events(struct eventpoll *ep,
 	return ep_scan_ready_list(ep, ep_send_events_proc, &esed);
 }
 
+static inline struct timespec ep_set_mstimeout(long ms)
+{
+	struct timespec now, ts = {
+		.tv_sec = ms / MSEC_PER_SEC,
+		.tv_nsec = NSEC_PER_MSEC * (ms % MSEC_PER_SEC),
+	};
+
+	ktime_get_ts(&now);
+	return timespec_add_safe(now, ts);
+}
+
 static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 		   int maxevents, long timeout)
 {
@@ -1121,12 +1132,11 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 	unsigned long flags;
 	long slack;
 	wait_queue_t wait;
-	struct timespec end_time;
 	ktime_t expires, *to = NULL;
 
 	if (timeout > 0) {
-		ktime_get_ts(&end_time);
-		timespec_add_ns(&end_time, (u64)timeout * NSEC_PER_MSEC);
+		struct timespec end_time = ep_set_mstimeout(timeout);
+
 		slack = select_estimate_accuracy(&end_time);
 		to = &expires;
 		*to = timespec_to_ktime(end_time);

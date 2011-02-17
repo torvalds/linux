@@ -58,6 +58,12 @@ struct module_attribute {
 	void (*free)(struct module *);
 };
 
+struct module_version_attribute {
+	struct module_attribute mattr;
+	const char *module_name;
+	const char *version;
+};
+
 struct module_kobject
 {
 	struct kobject kobj;
@@ -161,7 +167,28 @@ extern struct module __this_module;
   Using this automatically adds a checksum of the .c files and the
   local headers in "srcversion".
 */
+
+#if defined(MODULE) || !defined(CONFIG_SYSFS)
 #define MODULE_VERSION(_version) MODULE_INFO(version, _version)
+#else
+#define MODULE_VERSION(_version)					\
+	extern ssize_t __modver_version_show(struct module_attribute *,	\
+					     struct module *, char *);	\
+	static struct module_version_attribute __modver_version_attr	\
+	__used								\
+    __attribute__ ((__section__ ("__modver"),aligned(sizeof(void *)))) \
+	= {								\
+		.mattr	= {						\
+			.attr	= {					\
+				.name	= "version",			\
+				.mode	= S_IRUGO,			\
+			},						\
+			.show	= __modver_version_show,		\
+		},							\
+		.module_name	= KBUILD_MODNAME,			\
+		.version	= _version,				\
+	}
+#endif
 
 /* Optional firmware file (or files) needed by the module
  * format is simply firmware file name.  Multiple firmware
@@ -350,7 +377,7 @@ struct module
 	   keeping pointers to this stuff */
 	char *args;
 #ifdef CONFIG_TRACEPOINTS
-	struct tracepoint *tracepoints;
+	struct tracepoint * const *tracepoints_ptrs;
 	unsigned int num_tracepoints;
 #endif
 #ifdef HAVE_JUMP_LABEL
@@ -362,7 +389,7 @@ struct module
 	unsigned int num_trace_bprintk_fmt;
 #endif
 #ifdef CONFIG_EVENT_TRACING
-	struct ftrace_event_call *trace_events;
+	struct ftrace_event_call **trace_events;
 	unsigned int num_trace_events;
 #endif
 #ifdef CONFIG_FTRACE_MCOUNT_RECORD

@@ -111,6 +111,7 @@ static void ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
 {
 	int		port;
 	u32		temp;
+	unsigned long	flags;
 
 	/* If remote wakeup is enabled for the root hub but disabled
 	 * for the controller, we must adjust all the port wakeup flags
@@ -119,6 +120,8 @@ static void ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
 	 */
 	if (!ehci_to_hcd(ehci)->self.root_hub->do_remote_wakeup || do_wakeup)
 		return;
+
+	spin_lock_irqsave(&ehci->lock, flags);
 
 	/* clear phy low-power mode before changing wakeup flags */
 	if (ehci->has_hostpc) {
@@ -131,7 +134,9 @@ static void ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
 			temp = ehci_readl(ehci, hostpc_reg);
 			ehci_writel(ehci, temp & ~HOSTPC_PHCD, hostpc_reg);
 		}
+		spin_unlock_irqrestore(&ehci->lock, flags);
 		msleep(5);
+		spin_lock_irqsave(&ehci->lock, flags);
 	}
 
 	port = HCS_N_PORTS(ehci->hcs_params);
@@ -170,6 +175,8 @@ static void ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
 	/* Does the root hub have a port wakeup pending? */
 	if (!suspending && (ehci_readl(ehci, &ehci->regs->status) & STS_PCD))
 		usb_hcd_resume_root_hub(ehci_to_hcd(ehci));
+
+	spin_unlock_irqrestore(&ehci->lock, flags);
 }
 
 static int ehci_bus_suspend (struct usb_hcd *hcd)

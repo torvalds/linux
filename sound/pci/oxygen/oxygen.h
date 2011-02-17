@@ -92,6 +92,8 @@ struct oxygen_model {
 	void (*update_dac_volume)(struct oxygen *chip);
 	void (*update_dac_mute)(struct oxygen *chip);
 	void (*update_center_lfe_mix)(struct oxygen *chip, bool mixed);
+	unsigned int (*adjust_dac_routing)(struct oxygen *chip,
+					   unsigned int play_routing);
 	void (*gpio_changed)(struct oxygen *chip);
 	void (*uart_input)(struct oxygen *chip);
 	void (*ac97_switch)(struct oxygen *chip,
