@@ -157,3 +157,21 @@ drbd_find_overlap(struct rb_root *root, sector_t sector, unsigned int size)
 	}
 	return overlap;
 }
+
+struct drbd_interval *
+drbd_next_overlap(struct drbd_interval *i, sector_t sector, unsigned int size)
+{
+	sector_t end = sector + (size >> 9);
+	struct rb_node *node;
+
+	for (;;) {
+		node = rb_next(&i->rb);
+		if (!node)
+			return NULL;
+		i = rb_entry(node, struct drbd_interval, rb);
+		if (i->sector >= end)
+			return NULL;
+		if (sector < i->sector + (i->size >> 9))
+			return i;
+	}
+}
