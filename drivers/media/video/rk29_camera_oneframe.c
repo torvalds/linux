@@ -262,7 +262,16 @@ static int rk29_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 
     dev_dbg(&icd->dev, "count=%d, size=%d\n", *count, *size);
 
+	/* planar capture requires Y, U and V buffers to be page aligned */
+    *size = PAGE_ALIGN(icd->user_width* icd->user_height * bytes_per_pixel);                               /* Y pages UV pages, yuv422*/
+	pcdev->vipmem_bsize = PAGE_ALIGN(pcdev->host_width * pcdev->host_height * bytes_per_pixel);
+
 	if ((pcdev->host_width != pcdev->icd->user_width) || (pcdev->host_height != pcdev->icd->user_height)) {
+
+		if (*count > pcdev->vipmem_size/pcdev->vipmem_bsize) {    /* Buffers must be limited, when this resolution is genered by IPP */
+			*count = pcdev->vipmem_size/pcdev->vipmem_bsize;
+		}
+
 		if ((pcdev->camera_work_count != *count) && pcdev->camera_work) {
 			kfree(pcdev->camera_work);
 			pcdev->camera_work = NULL;
@@ -278,10 +287,6 @@ static int rk29_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 			pcdev->camera_work_count = *count;
 		}
 	}
-
-    /* planar capture requires Y, U and V buffers to be page aligned */
-    *size = PAGE_ALIGN(icd->user_width* icd->user_height * bytes_per_pixel);                               /* Y pages UV pages, yuv422*/
-	pcdev->vipmem_bsize = PAGE_ALIGN(pcdev->host_width * pcdev->host_height * bytes_per_pixel);
 
     RK29CAMERA_DG("%s..%d.. videobuf size:%d, vipmem_buf size:%d \n",__FUNCTION__,__LINE__, *size,pcdev->vipmem_bsize);
 
@@ -371,8 +376,8 @@ static inline void rk29_videobuf_capture(struct videobuf_buffer *vb)
 			uv_addr = y_addr + pcdev->host_width*pcdev->host_height;
 
 			if (y_addr > (pcdev->vipmem_phybase + pcdev->vipmem_size - pcdev->vipmem_bsize)) {
-				RK29CAMERA_TR("vipmem for IPP is overflow! %dx%d -> %dx%d vb_index:%d\n",pcdev->icd->user_width,
-					          pcdev->icd->user_height,pcdev->host_width,pcdev->host_height, vb->i);
+				RK29CAMERA_TR("vipmem for IPP is overflow! %dx%d -> %dx%d vb_index:%d\n",pcdev->host_width,pcdev->host_height,
+					          pcdev->icd->user_width,pcdev->icd->user_height, vb->i);
 				BUG();
 			}
 		} else {

@@ -123,6 +123,7 @@ static unsigned int snd_soc_8_16_read_i2c(struct snd_soc_codec *codec,
 	xfer[0].flags = 0;
 	xfer[0].len = 1;
 	xfer[0].buf = &reg;
+	xfer[0].scl_rate = 100 * 1000;
 
 	/* Read data */
 	xfer[1].addr = client->addr;

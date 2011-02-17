@@ -2325,9 +2325,13 @@ static struct reginfo sensor_uxga[] =
 		{0x3008,0x02},   //software wake
     {0x0000 ,0x00}
 };
-
 /* 1280X1024 SXGA */
 static struct reginfo sensor_sxga[] =
+{
+	{0x0000,0x00}
+};
+/*  1024X768 XGA */
+static struct reginfo sensor_xga[] =
 {
 		{0x3008,0x42},   //software sleep : Sensor vsync singal may not output if haven't sleep the sensor when transfer the array,
 	//{0x3503 , 0x7 },
@@ -4225,7 +4229,9 @@ static bool sensor_fmt_capturechk(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
     bool ret = false;
 
-	if ((f->fmt.pix.width == 1280) && (f->fmt.pix.height == 1024)) {
+	if ((f->fmt.pix.width == 1024) && (f->fmt.pix.height == 768)) {
+		ret = true;
+	} else if ((f->fmt.pix.width == 1280) && (f->fmt.pix.height == 1024)) {
 		ret = true;
 	} else if ((f->fmt.pix.width == 1600) && (f->fmt.pix.height == 1200)) {
 		ret = true;
@@ -4305,6 +4311,12 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
         winseqe_set_addr = sensor_svga;
         set_w = 800;
         set_h = 600;
+    }
+	else if (((set_w <= 1024) && (set_h <= 768)) && sensor_xga[0].reg)
+    {
+        winseqe_set_addr = sensor_xga;
+        set_w = 1024;
+        set_h = 768;
     }
 	else if (((set_w <= 1280) && (set_h <= 720)) && sensor_720p[0].reg)
     {
