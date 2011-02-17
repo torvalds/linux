@@ -177,6 +177,17 @@ static void twl6030_phy_shutdown(struct otg_transceiver *x)
 	pdata->phy_power(twl->dev, 0, 0);
 }
 
+static int twl6030_phy_suspend(struct otg_transceiver *x, int suspend)
+{
+	struct twl6030_usb *twl = xceiv_to_twl(x);
+	struct device *dev = twl->dev;
+	struct twl4030_usb_data *pdata = dev->platform_data;
+
+	pdata->phy_suspend(dev, suspend);
+
+	return 0;
+}
+
 static int twl6030_usb_ldo_init(struct twl6030_usb *twl)
 {
 
@@ -388,6 +399,7 @@ static int __devinit twl6030_usb_probe(struct platform_device *pdev)
 	twl->otg.set_vbus	= twl6030_set_vbus;
 	twl->otg.init		= twl6030_phy_init;
 	twl->otg.shutdown	= twl6030_phy_shutdown;
+	twl->otg.set_suspend	= twl6030_phy_suspend;
 
 	/* init spinlock for workqueue */
 	spin_lock_init(&twl->lock);
@@ -432,6 +444,7 @@ static int __devinit twl6030_usb_probe(struct platform_device *pdev)
 
 	twl->asleep = 0;
 	pdata->phy_init(dev);
+	twl6030_phy_suspend(&twl->otg, 0);
 	twl6030_enable_irq(&twl->otg);
 	dev_info(&pdev->dev, "Initialized TWL6030 USB module\n");
 
