@@ -42,14 +42,14 @@ static int GPIO_IRQ_mask = 0;
 
 #define GPIO_MASK(irq)		(1 << (irq - IRQ_GPIO0))
 
-static int puv3_gpio_type(unsigned int irq, unsigned int type)
+static int puv3_gpio_type(struct irq_data *d, unsigned int type)
 {
 	unsigned int mask;
 
-	if (irq < IRQ_GPIOHIGH)
-		mask = 1 << irq;
+	if (d->irq < IRQ_GPIOHIGH)
+		mask = 1 << d->irq;
 	else
-		mask = GPIO_MASK(irq);
+		mask = GPIO_MASK(d->irq);
 
 	if (type == IRQ_TYPE_PROBE) {
 		if ((GPIO_IRQ_rising_edge | GPIO_IRQ_falling_edge) & mask)
@@ -75,37 +75,37 @@ static int puv3_gpio_type(unsigned int irq, unsigned int type)
 /*
  * GPIO IRQs must be acknowledged.  This is for IRQs from 0 to 7.
  */
-static void puv3_low_gpio_ack(unsigned int irq)
+static void puv3_low_gpio_ack(struct irq_data *d)
 {
-	GPIO_GEDR = (1 << irq);
+	GPIO_GEDR = (1 << d->irq);
 }
 
-static void puv3_low_gpio_mask(unsigned int irq)
+static void puv3_low_gpio_mask(struct irq_data *d)
 {
-	INTC_ICMR &= ~(1 << irq);
+	INTC_ICMR &= ~(1 << d->irq);
 }
 
-static void puv3_low_gpio_unmask(unsigned int irq)
+static void puv3_low_gpio_unmask(struct irq_data *d)
 {
-	INTC_ICMR |= 1 << irq;
+	INTC_ICMR |= 1 << d->irq;
 }
 
-static int puv3_low_gpio_wake(unsigned int irq, unsigned int on)
+static int puv3_low_gpio_wake(struct irq_data *d, unsigned int on)
 {
 	if (on)
-		PM_PWER |= 1 << irq;
+		PM_PWER |= 1 << d->irq;
 	else
-		PM_PWER &= ~(1 << irq);
+		PM_PWER &= ~(1 << d->irq);
 	return 0;
 }
 
 static struct irq_chip puv3_low_gpio_chip = {
 	.name		= "GPIO-low",
-	.ack		= puv3_low_gpio_ack,
-	.mask		= puv3_low_gpio_mask,
-	.unmask		= puv3_low_gpio_unmask,
-	.set_type	= puv3_gpio_type,
-	.set_wake	= puv3_low_gpio_wake,
+	.irq_ack	= puv3_low_gpio_ack,
+	.irq_mask	= puv3_low_gpio_mask,
+	.irq_unmask	= puv3_low_gpio_unmask,
+	.irq_set_type	= puv3_gpio_type,
+	.irq_set_wake	= puv3_low_gpio_wake,
 };
 
 /*
@@ -142,16 +142,16 @@ puv3_gpio_handler(unsigned int irq, struct irq_desc *desc)
  * In addition, the IRQs are all collected up into one bit in the
  * interrupt controller registers.
  */
-static void puv3_high_gpio_ack(unsigned int irq)
+static void puv3_high_gpio_ack(struct irq_data *d)
 {
-	unsigned int mask = GPIO_MASK(irq);
+	unsigned int mask = GPIO_MASK(d->irq);
 
 	GPIO_GEDR = mask;
 }
 
-static void puv3_high_gpio_mask(unsigned int irq)
+static void puv3_high_gpio_mask(struct irq_data *d)
 {
-	unsigned int mask = GPIO_MASK(irq);
+	unsigned int mask = GPIO_MASK(d->irq);
 
 	GPIO_IRQ_mask &= ~mask;
 
@@ -159,9 +159,9 @@ static void puv3_high_gpio_mask(unsigned int irq)
 	GPIO_GFER &= ~mask;
 }
 
-static void puv3_high_gpio_unmask(unsigned int irq)
+static void puv3_high_gpio_unmask(struct irq_data *d)
 {
-	unsigned int mask = GPIO_MASK(irq);
+	unsigned int mask = GPIO_MASK(d->irq);
 
 	GPIO_IRQ_mask |= mask;
 
@@ -169,7 +169,7 @@ static void puv3_high_gpio_unmask(unsigned int irq)
 	GPIO_GFER = GPIO_IRQ_falling_edge & GPIO_IRQ_mask;
 }
 
-static int puv3_high_gpio_wake(unsigned int irq, unsigned int on)
+static int puv3_high_gpio_wake(struct irq_data *d, unsigned int on)
 {
 	if (on)
 		PM_PWER |= PM_PWER_GPIOHIGH;
@@ -180,33 +180,33 @@ static int puv3_high_gpio_wake(unsigned int irq, unsigned int on)
 
 static struct irq_chip puv3_high_gpio_chip = {
 	.name		= "GPIO-high",
-	.ack		= puv3_high_gpio_ack,
-	.mask		= puv3_high_gpio_mask,
-	.unmask		= puv3_high_gpio_unmask,
-	.set_type	= puv3_gpio_type,
-	.set_wake	= puv3_high_gpio_wake,
+	.irq_ack	= puv3_high_gpio_ack,
+	.irq_mask	= puv3_high_gpio_mask,
+	.irq_unmask	= puv3_high_gpio_unmask,
+	.irq_set_type	= puv3_gpio_type,
+	.irq_set_wake	= puv3_high_gpio_wake,
 };
 
 /*
  * We don't need to ACK IRQs on the PKUnity unless they're GPIOs
  * this is for internal IRQs i.e. from 8 to 31.
  */
-static void puv3_mask_irq(unsigned int irq)
+static void puv3_mask_irq(struct irq_data *d)
 {
-	INTC_ICMR &= ~(1 << irq);
+	INTC_ICMR &= ~(1 << d->irq);
 }
 
-static void puv3_unmask_irq(unsigned int irq)
+static void puv3_unmask_irq(struct irq_data *d)
 {
-	INTC_ICMR |= (1 << irq);
+	INTC_ICMR |= (1 << d->irq);
 }
 
 /*
  * Apart form GPIOs, only the RTC alarm can be a wakeup event.
  */
-static int puv3_set_wake(unsigned int irq, unsigned int on)
+static int puv3_set_wake(struct irq_data *d, unsigned int on)
 {
-	if (irq == IRQ_RTCAlarm) {
+	if (d->irq == IRQ_RTCAlarm) {
 		if (on)
 			PM_PWER |= PM_PWER_RTC;
 		else
@@ -218,10 +218,10 @@ static int puv3_set_wake(unsigned int irq, unsigned int on)
 
 static struct irq_chip puv3_normal_chip = {
 	.name		= "PKUnity-v3",
-	.ack		= puv3_mask_irq,
-	.mask		= puv3_mask_irq,
-	.unmask		= puv3_unmask_irq,
-	.set_wake	= puv3_set_wake,
+	.irq_ack	= puv3_mask_irq,
+	.irq_mask	= puv3_mask_irq,
+	.irq_unmask	= puv3_unmask_irq,
+	.irq_set_wake	= puv3_set_wake,
 };
 
 static struct resource irq_resource = {
@@ -383,7 +383,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_printf(p, "%3d: ", i);
 		for_each_present_cpu(cpu)
 			seq_printf(p, "%10u ", kstat_irqs_cpu(i, cpu));
-		seq_printf(p, " %10s", desc->chip->name ? : "-");
+		seq_printf(p, " %10s", desc->irq_data.chip->name ? : "-");
 		seq_printf(p, "  %s", action->name);
 		for (action = action->next; action; action = action->next)
 			seq_printf(p, ", %s", action->name);
