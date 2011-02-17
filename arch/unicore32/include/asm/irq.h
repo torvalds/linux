@@ -95,9 +95,7 @@
 #define IRQ_SD_CD               IRQ_GPIO6 /* falling or rising trigger */
 
 #ifndef __ASSEMBLY__
-struct irqaction;
 struct pt_regs;
-extern void migrate_irqs(void);
 
 extern void asm_do_IRQ(unsigned int, struct pt_regs *);
 
