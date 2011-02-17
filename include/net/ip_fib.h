@@ -232,7 +232,7 @@ extern void fib_select_multipath(const struct flowi *flp, struct fib_result *res
 extern void fib_trie_init(void);
 extern struct fib_table *fib_trie_table(u32 id);
 
-static inline void fib_combine_itag(u32 *itag, struct fib_result *res)
+static inline void fib_combine_itag(u32 *itag, const struct fib_result *res)
 {
 #ifdef CONFIG_IP_ROUTE_CLASSID
 #ifdef CONFIG_IP_MULTIPLE_TABLES
