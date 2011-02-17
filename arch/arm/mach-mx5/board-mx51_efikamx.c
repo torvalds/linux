@@ -211,6 +211,20 @@ static void __init mx51_efikamx_init(void)
 		gpio_request(EFIKAMX_RESET, "reset");
 		gpio_direction_output(EFIKAMX_RESET, 1);
 	}
+
+	/*
+	 * enable wifi by default only on mx
+	 * sb and mx have same wlan pin but the value to enable it are
+	 * different :/
+	 */
+	gpio_request(EFIKA_WLAN_EN, "wlan_en");
+	gpio_direction_output(EFIKA_WLAN_EN, 0);
+	msleep(10);
+
+	gpio_request(EFIKA_WLAN_RESET, "wlan_rst");
+	gpio_direction_output(EFIKA_WLAN_RESET, 0);
+	msleep(10);
+	gpio_set_value(EFIKA_WLAN_RESET, 1);
 }
 
 static void __init mx51_efikamx_timer_init(void)
