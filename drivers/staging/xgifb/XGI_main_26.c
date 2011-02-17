@@ -3065,7 +3065,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 	XGIhw_ext.pCR = vmalloc(sizeof(struct XGI_DSReg) * CR_BUFFER_SIZE);
 	if (XGIhw_ext.pCR == NULL) {
-		vfree(XGIhw_ext.pSR);
 		printk(KERN_ERR "XGIfb: Fatal error: Allocating CRReg space failed.\n");
 		ret = -ENODEV;
 		goto error;
@@ -3105,8 +3104,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	}
 #endif
 	if (XGIfb_get_dram_size()) {
-		vfree(XGIhw_ext.pSR);
-		vfree(XGIhw_ext.pCR);
 		printk(KERN_INFO "XGIfb: Fatal error: Unable to determine RAM size.\n");
 		ret = -ENODEV;
 		goto error;
@@ -3125,8 +3122,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		printk("unable request memory size %x", xgi_video_info.video_size);
 		printk(KERN_ERR "XGIfb: Fatal error: Unable to reserve frame buffer memory\n");
 		printk(KERN_ERR "XGIfb: Is there another framebuffer driver active?\n");
-		vfree(XGIhw_ext.pSR);
-		vfree(XGIhw_ext.pCR);
 		ret = -ENODEV;
 		goto error;
 	}
@@ -3134,8 +3129,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	if (!request_mem_region(xgi_video_info.mmio_base, XGIfb_mmio_size, "XGIfb MMIO")) {
 		printk(KERN_ERR "XGIfb: Fatal error: Unable to reserve MMIO region\n");
 		release_mem_region(xgi_video_info.video_base, xgi_video_info.video_size);
-		vfree(XGIhw_ext.pSR);
-		vfree(XGIhw_ext.pCR);
 		ret = -ENODEV;
 		goto error;
 	}
@@ -3441,6 +3434,8 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	return 0;
 
 error:
+	vfree(XGIhw_ext.pSR);
+	vfree(XGIhw_ext.pCR);
 	framebuffer_release(fb_info);
 	return ret;
 }
