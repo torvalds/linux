@@ -37,6 +37,8 @@ static enum shutdown_state shutting_down = SHUTDOWN_INVALID;
 struct suspend_info {
 	int cancelled;
 	unsigned long arg; /* extra hypercall argument */
+	void (*pre)(void);
+	void (*post)(int cancelled);
 };
 
 static void xen_hvm_post_suspend(int cancelled)
@@ -74,6 +76,9 @@ static int xen_hvm_suspend(void *data)
 		return err;
 	}
 
+	if (si->pre)
+		si->pre();
+
 	/*
 	 * This hypercall returns 1 if suspend was cancelled
 	 * or the domain was merely checkpointed, and 0 if it
@@ -81,7 +86,8 @@ static int xen_hvm_suspend(void *data)
 	 */
 	si->cancelled = HYPERVISOR_suspend(si->arg);
 
-	xen_hvm_post_suspend(si->cancelled);
+	if (si->post)
+		si->post(si->cancelled);
 
 	if (!si->cancelled) {
 		xen_irq_resume();
@@ -108,7 +114,8 @@ static int xen_suspend(void *data)
 		return err;
 	}
 
-	xen_pre_suspend();
+	if (si->pre)
+		si->pre();
 
 	/*
 	 * This hypercall returns 1 if suspend was cancelled
@@ -117,7 +124,8 @@ static int xen_suspend(void *data)
 	 */
 	si->cancelled = HYPERVISOR_suspend(si->arg);
 
-	xen_post_suspend(si->cancelled);
+	if (si->post)
+		si->post(si->cancelled);
 
 	if (!si->cancelled) {
 		xen_irq_resume();
@@ -165,10 +173,15 @@ static void do_suspend(void)
 
 	si.cancelled = 1;
 
-	if (xen_hvm_domain())
+	if (xen_hvm_domain()) {
 		si.arg = 0UL;
-	else
+		si.pre = NULL;
+		si.post = &xen_hvm_post_suspend;
+	} else {
 		si.arg = virt_to_mfn(xen_start_info);
+		si.pre = &xen_pre_suspend;
+		si.post = &xen_post_suspend;
+	}
 
 	if (xen_hvm_domain())
 		err = stop_machine(xen_hvm_suspend, &si, cpumask_of(0));
