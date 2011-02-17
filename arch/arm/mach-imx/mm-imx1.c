@@ -23,6 +23,8 @@
 
 #include <mach/common.h>
 #include <mach/hardware.h>
+#include <mach/gpio.h>
+#include <mach/irqs.h>
 
 static struct map_desc imx_io_desc[] __initdata = {
 	imx_map_entry(MX1, IO, MT_DEVICE),
@@ -39,10 +41,15 @@ void __init imx1_init_early(void)
 	mxc_arch_reset_init(MX1_IO_ADDRESS(MX1_WDT_BASE_ADDR));
 }
 
-int imx1_register_gpios(void);
+static struct mxc_gpio_port imx1_gpio_ports[] = {
+	DEFINE_IMX_GPIO_PORT_IRQ(MX1, 0, 1, MX1_GPIO_INT_PORTA),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX1, 1, 2, MX1_GPIO_INT_PORTB),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX1, 2, 3, MX1_GPIO_INT_PORTC),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX1, 3, 4, MX1_GPIO_INT_PORTD),
+};
 
 void __init mx1_init_irq(void)
 {
 	mxc_init_irq(MX1_IO_ADDRESS(MX1_AVIC_BASE_ADDR));
-	imx1_register_gpios();
+	mxc_gpio_init(imx1_gpio_ports,	ARRAY_SIZE(imx1_gpio_ports));
 }

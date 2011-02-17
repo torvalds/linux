@@ -27,6 +27,8 @@
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/iomux-v3.h>
+#include <mach/gpio.h>
+#include <mach/irqs.h>
 
 #ifdef CONFIG_SOC_IMX31
 static struct map_desc mx31_io_desc[] __initdata = {
@@ -53,11 +55,16 @@ void __init imx31_init_early(void)
 	mxc_arch_reset_init(MX31_IO_ADDRESS(MX31_WDOG_BASE_ADDR));
 }
 
-int imx31_register_gpios(void);
+static struct mxc_gpio_port imx31_gpio_ports[] = {
+	DEFINE_IMX_GPIO_PORT_IRQ(MX31, 0, 1, MX31_INT_GPIO1),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX31, 1, 2, MX31_INT_GPIO2),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX31, 2, 3, MX31_INT_GPIO3),
+};
+
 void __init mx31_init_irq(void)
 {
 	mxc_init_irq(MX31_IO_ADDRESS(MX31_AVIC_BASE_ADDR));
-	imx31_register_gpios();
+	mxc_gpio_init(imx31_gpio_ports,	ARRAY_SIZE(imx31_gpio_ports));
 }
 #endif /* ifdef CONFIG_SOC_IMX31 */
 
@@ -82,11 +89,16 @@ void __init imx35_init_early(void)
 	mxc_arch_reset_init(MX35_IO_ADDRESS(MX35_WDOG_BASE_ADDR));
 }
 
-int imx35_register_gpios(void);
+static struct mxc_gpio_port imx35_gpio_ports[] = {
+	DEFINE_IMX_GPIO_PORT_IRQ(MX35, 0, 1, MX35_INT_GPIO1),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX35, 1, 2, MX35_INT_GPIO2),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX35, 2, 3, MX35_INT_GPIO3),
+};
+
 void __init mx35_init_irq(void)
 {
 	mxc_init_irq(MX35_IO_ADDRESS(MX35_AVIC_BASE_ADDR));
-	imx35_register_gpios();
+	mxc_gpio_init(imx35_gpio_ports,	ARRAY_SIZE(imx35_gpio_ports));
 }
 #endif /* ifdef CONFIG_SOC_IMX35 */
 
