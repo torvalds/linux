@@ -74,16 +74,20 @@ ecryptfs_create_underlying_file(struct inode *lower_dir_inode,
 	unsigned int flags_save;
 	int rc;
 
-	dentry_save = nd->path.dentry;
-	vfsmount_save = nd->path.mnt;
-	flags_save = nd->flags;
-	nd->path.dentry = lower_dentry;
-	nd->path.mnt = lower_mnt;
-	nd->flags &= ~LOOKUP_OPEN;
+	if (nd) {
+		dentry_save = nd->path.dentry;
+		vfsmount_save = nd->path.mnt;
+		flags_save = nd->flags;
+		nd->path.dentry = lower_dentry;
+		nd->path.mnt = lower_mnt;
+		nd->flags &= ~LOOKUP_OPEN;
+	}
 	rc = vfs_create(lower_dir_inode, lower_dentry, mode, nd);
-	nd->path.dentry = dentry_save;
-	nd->path.mnt = vfsmount_save;
-	nd->flags = flags_save;
+	if (nd) {
+		nd->path.dentry = dentry_save;
+		nd->path.mnt = vfsmount_save;
+		nd->flags = flags_save;
+	}
 	return rc;
 }
 
@@ -241,8 +245,7 @@ out:
  */
 int ecryptfs_lookup_and_interpose_lower(struct dentry *ecryptfs_dentry,
 					struct dentry *lower_dentry,
-					struct inode *ecryptfs_dir_inode,
-					struct nameidata *ecryptfs_nd)
+					struct inode *ecryptfs_dir_inode)
 {
 	struct dentry *lower_dir_dentry;
 	struct vfsmount *lower_mnt;
@@ -289,8 +292,6 @@ int ecryptfs_lookup_and_interpose_lower(struct dentry *ecryptfs_dentry,
 	if (S_ISLNK(lower_inode->i_mode))
 		goto out;
 	if (special_file(lower_inode->i_mode))
-		goto out;
-	if (!ecryptfs_nd)
 		goto out;
 	/* Released in this function */
 	page_virt = kmem_cache_zalloc(ecryptfs_header_cache_2, GFP_USER);
@@ -417,8 +418,7 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 	}
 lookup_and_interpose:
 	rc = ecryptfs_lookup_and_interpose_lower(ecryptfs_dentry, lower_dentry,
-						 ecryptfs_dir_inode,
-						 ecryptfs_nd);
+						 ecryptfs_dir_inode);
 	goto out;
 out_d_drop:
 	d_drop(ecryptfs_dentry);
