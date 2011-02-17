@@ -1,5 +1,5 @@
 config HAVE_GENERIC_HARDIRQS
-	def_bool n
+	bool
 
 if HAVE_GENERIC_HARDIRQS
 menu "IRQ subsystem"
@@ -11,32 +11,32 @@ config GENERIC_HARDIRQS
 
 # Select this to disable the deprecated stuff
 config GENERIC_HARDIRQS_NO_DEPRECATED
-       def_bool n
+       bool
 
 config GENERIC_HARDIRQS_NO_COMPAT
-       def_bool n
+       bool
 
 # Options selectable by the architecture code
 config HAVE_SPARSE_IRQ
-       def_bool n
+       bool
 
 config GENERIC_IRQ_PROBE
-	def_bool n
+	bool
 
 config GENERIC_IRQ_SHOW
-       def_bool n
+       bool
 
 config GENERIC_PENDING_IRQ
-	def_bool n
+	bool
 
 config AUTO_IRQ_AFFINITY
-       def_bool n
+       bool
 
 config HARDIRQS_SW_RESEND
-       def_bool n
+       bool
 
 config IRQ_PREFLOW_FASTEOI
-       def_bool n
+       bool
 
 config SPARSE_IRQ
 	bool "Support sparse irq numbering"
