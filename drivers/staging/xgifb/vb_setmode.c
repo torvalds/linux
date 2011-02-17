@@ -1,5 +1,6 @@
 
 #include <asm/io.h>
+#include <linux/delay.h>
 #include <linux/types.h>
 #include <linux/version.h>
 #include "XGIfb.h"
@@ -161,7 +162,6 @@ void     XGI_GetRAMDAC2DATA(unsigned short ModeNo, unsigned short ModeIdIndex, u
 void     XGI_UnLockCRT2(struct xgi_hw_device_info *, struct vb_device_info *pVBInfo);
 void     XGI_LockCRT2(struct xgi_hw_device_info *, struct vb_device_info *pVBInfo);
 void     XGINew_EnableCRT2(struct vb_device_info *pVBInfo);
-void     XGINew_LCD_Wait_Time(unsigned char DelayTime, struct vb_device_info *pVBInfo);
 void     XGI_LongWait(struct vb_device_info *pVBInfo);
 void     XGI_SetCRT1Offset(unsigned short ModeNo, unsigned short ModeIdIndex, unsigned short RefreshRateTableIndex, struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo);
 void     XGI_GetLCDVCLKPtr(unsigned char *di_0, unsigned char *di_1,
@@ -3788,7 +3788,7 @@ void XGI_SenseCRT1(struct vb_device_info *pVBInfo)
 	XGI_VBLongWait(pVBInfo);
 	XGI_VBLongWait(pVBInfo);
 
-	XGINew_LCD_Wait_Time(0x01, pVBInfo);
+	mdelay(1);
 
 	XGI_WaitDisply(pVBInfo);
 	temp = XGINew_GetReg2(pVBInfo->P3c2);
@@ -6716,16 +6716,16 @@ void XGI_SetPanelDelay(unsigned short tempbl, struct vb_device_info *pVBInfo)
 	index = XGI_GetLCDCapPtr(pVBInfo);
 
 	if (tempbl == 1)
-		XGINew_LCD_Wait_Time(pVBInfo->LCDCapList[index].PSC_S1, pVBInfo);
+		mdelay(pVBInfo->LCDCapList[index].PSC_S1);
 
 	if (tempbl == 2)
-		XGINew_LCD_Wait_Time(pVBInfo->LCDCapList[index].PSC_S2, pVBInfo);
+		mdelay(pVBInfo->LCDCapList[index].PSC_S2);
 
 	if (tempbl == 3)
-		XGINew_LCD_Wait_Time(pVBInfo->LCDCapList[index].PSC_S3, pVBInfo);
+		mdelay(pVBInfo->LCDCapList[index].PSC_S3);
 
 	if (tempbl == 4)
-		XGINew_LCD_Wait_Time(pVBInfo->LCDCapList[index].PSC_S4, pVBInfo);
+		mdelay(pVBInfo->LCDCapList[index].PSC_S4);
 }
 
 /* --------------------------------------------------------------------- */
@@ -6897,20 +6897,16 @@ void XGI_XG21SetPanelDelay(unsigned short tempbl,
 
 	index = XGI_GetLVDSOEMTableIndex(pVBInfo);
 	if (tempbl == 1)
-		XGINew_LCD_Wait_Time(pVBInfo->XG21_LVDSCapList[index].PSC_S1,
-				pVBInfo);
+		mdelay(pVBInfo->XG21_LVDSCapList[index].PSC_S1);
 
 	if (tempbl == 2)
-		XGINew_LCD_Wait_Time(pVBInfo->XG21_LVDSCapList[index].PSC_S2,
-				pVBInfo);
+		mdelay(pVBInfo->XG21_LVDSCapList[index].PSC_S2);
 
 	if (tempbl == 3)
-		XGINew_LCD_Wait_Time(pVBInfo->XG21_LVDSCapList[index].PSC_S3,
-				pVBInfo);
+		mdelay(pVBInfo->XG21_LVDSCapList[index].PSC_S3);
 
 	if (tempbl == 4)
-		XGINew_LCD_Wait_Time(pVBInfo->XG21_LVDSCapList[index].PSC_S4,
-				pVBInfo);
+		mdelay(pVBInfo->XG21_LVDSCapList[index].PSC_S4);
 }
 
 unsigned char XGI_XG21CheckLVDSMode(unsigned short ModeNo,
@@ -8635,29 +8631,6 @@ void XGI_LockCRT2(struct xgi_hw_device_info *HwDeviceExtension,
 void XGINew_EnableCRT2(struct vb_device_info *pVBInfo)
 {
 	XGINew_SetRegANDOR(pVBInfo->P3c4, 0x1E, 0xFF, 0x20);
-}
-
-void XGINew_LCD_Wait_Time(unsigned char DelayTime,
-		struct vb_device_info *pVBInfo)
-{
-	unsigned short i, j;
-
-	unsigned long temp, flag;
-
-	flag = 0;
-	/* printk("XGINew_LCD_Wait_Time"); */
-	/* return; */
-	for (i = 0; i < DelayTime; i++) {
-		for (j = 0; j < 66; j++) {
-			temp = XGINew_GetReg3(0x61);
-			/* temp &= 0x10000000; */
-			temp &= 0x10;
-			if (temp == flag)
-				continue;
-
-			flag = temp;
-		}
-	}
 }
 
 unsigned char XGI_BridgeIsOn(struct vb_device_info *pVBInfo)
