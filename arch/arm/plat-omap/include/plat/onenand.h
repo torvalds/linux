@@ -24,6 +24,7 @@ struct omap_onenand_platform_data {
 	int			dma_channel;
 	u8			flags;
 	u8			regulator_can_sleep;
+	u8			skip_initial_unlocking;
 };
 
 #define ONENAND_MAX_PARTITIONS 8
