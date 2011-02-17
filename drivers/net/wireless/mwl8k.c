@@ -3945,9 +3945,13 @@ static int mwl8k_config(struct ieee80211_hw *hw, u32 changed)
 		if (rc)
 			goto out;
 
-		rc = mwl8k_cmd_rf_antenna(hw, MWL8K_RF_ANTENNA_RX, 0x7);
-		if (!rc)
-			rc = mwl8k_cmd_rf_antenna(hw, MWL8K_RF_ANTENNA_TX, 0x7);
+		rc = mwl8k_cmd_rf_antenna(hw, MWL8K_RF_ANTENNA_RX, 0x3);
+		if (rc)
+			wiphy_warn(hw->wiphy, "failed to set # of RX antennas");
+		rc = mwl8k_cmd_rf_antenna(hw, MWL8K_RF_ANTENNA_TX, 0x7);
+		if (rc)
+			wiphy_warn(hw->wiphy, "failed to set # of TX antennas");
+
 	} else {
 		rc = mwl8k_cmd_rf_tx_power(hw, conf->power_level);
 		if (rc)
