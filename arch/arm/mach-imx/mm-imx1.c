@@ -25,6 +25,7 @@
 #include <mach/hardware.h>
 #include <mach/gpio.h>
 #include <mach/irqs.h>
+#include <mach/iomux-v1.h>
 
 static struct map_desc imx_io_desc[] __initdata = {
 	imx_map_entry(MX1, IO, MT_DEVICE),
@@ -39,6 +40,8 @@ void __init imx1_init_early(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX1);
 	mxc_arch_reset_init(MX1_IO_ADDRESS(MX1_WDT_BASE_ADDR));
+	imx_iomuxv1_init(MX1_IO_ADDRESS(MX1_GPIO_BASE_ADDR),
+			MX1_NUM_GPIO_PORT);
 }
 
 static struct mxc_gpio_port imx1_gpio_ports[] = {

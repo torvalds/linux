@@ -26,6 +26,7 @@
 #include <asm/mach/map.h>
 #include <mach/gpio.h>
 #include <mach/irqs.h>
+#include <mach/iomux-v1.h>
 
 /* MX21 memory map definition */
 static struct map_desc imx21_io_desc[] __initdata = {
@@ -65,6 +66,8 @@ void __init imx21_init_early(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX21);
 	mxc_arch_reset_init(MX21_IO_ADDRESS(MX21_WDOG_BASE_ADDR));
+	imx_iomuxv1_init(MX21_IO_ADDRESS(MX21_GPIO_BASE_ADDR),
+			MX21_NUM_GPIO_PORT);
 }
 
 static struct mxc_gpio_port imx21_gpio_ports[] = {

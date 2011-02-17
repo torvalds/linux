@@ -26,6 +26,7 @@
 #include <asm/mach/map.h>
 #include <mach/gpio.h>
 #include <mach/irqs.h>
+#include <mach/iomux-v1.h>
 
 /* MX27 memory map definition */
 static struct map_desc imx27_io_desc[] __initdata = {
@@ -65,6 +66,8 @@ void __init imx27_init_early(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX27);
 	mxc_arch_reset_init(MX27_IO_ADDRESS(MX27_WDOG_BASE_ADDR));
+	imx_iomuxv1_init(MX27_IO_ADDRESS(MX27_GPIO_BASE_ADDR),
+			MX27_NUM_GPIO_PORT);
 }
 
 static struct mxc_gpio_port imx27_gpio_ports[] = {
