@@ -22,7 +22,7 @@
 
 /* Bluetooth HCI Management interface */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
