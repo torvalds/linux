@@ -55,7 +55,7 @@ char igb_driver_name[] = "igb";
 char igb_driver_version[] = DRV_VERSION;
 static const char igb_driver_string[] =
 				"Intel(R) Gigabit Ethernet Network Driver";
-static const char igb_copyright[] = "Copyright (c) 2007-2009 Intel Corporation.";
+static const char igb_copyright[] = "Copyright (c) 2007-2011 Intel Corporation.";
 
 static const struct e1000_info *igb_info_tbl[] = {
 	[board_82575] = &e1000_82575_info,
