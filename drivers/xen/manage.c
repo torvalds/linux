@@ -62,44 +62,6 @@ static void xen_post_suspend(int cancelled)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int xen_hvm_suspend(void *data)
-{
-	struct suspend_info *si = data;
-	int err;
-
-	BUG_ON(!irqs_disabled());
-
-	err = sysdev_suspend(PMSG_SUSPEND);
-	if (err) {
-		printk(KERN_ERR "xen_hvm_suspend: sysdev_suspend failed: %d\n",
-		       err);
-		return err;
-	}
-
-	if (si->pre)
-		si->pre();
-
-	/*
-	 * This hypercall returns 1 if suspend was cancelled
-	 * or the domain was merely checkpointed, and 0 if it
-	 * is resuming in a new domain.
-	 */
-	si->cancelled = HYPERVISOR_suspend(si->arg);
-
-	if (si->post)
-		si->post(si->cancelled);
-
-	if (!si->cancelled) {
-		xen_irq_resume();
-		xen_console_resume();
-		xen_timer_resume();
-	}
-
-	sysdev_resume();
-
-	return 0;
-}
-
 static int xen_suspend(void *data)
 {
 	struct suspend_info *si = data;
@@ -183,10 +145,7 @@ static void do_suspend(void)
 		si.post = &xen_post_suspend;
 	}
 
-	if (xen_hvm_domain())
-		err = stop_machine(xen_hvm_suspend, &si, cpumask_of(0));
-	else
-		err = stop_machine(xen_suspend, &si, cpumask_of(0));
+	err = stop_machine(xen_suspend, &si, cpumask_of(0));
 
 	dpm_resume_noirq(PMSG_RESUME);
 
