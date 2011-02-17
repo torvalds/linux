@@ -36,12 +36,19 @@
 
 static inline int atomic_read(const atomic_t *v)
 {
-	return ACCESS_ONCE(v->counter);
+	int c;
+
+	asm volatile(
+		"	l	%0,%1\n"
+		: "=d" (c) : "Q" (v->counter));
+	return c;
 }
 
 static inline void atomic_set(atomic_t *v, int i)
 {
-	v->counter = i;
+	asm volatile(
+		"	st	%1,%0\n"
+		: "=Q" (v->counter) : "d" (i));
 }
 
 static inline int atomic_add_return(int i, atomic_t *v)
@@ -126,12 +133,19 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
 
 static inline long long atomic64_read(const atomic64_t *v)
 {
-	return ACCESS_ONCE(v->counter);
+	long long c;
+
+	asm volatile(
+		"	lg	%0,%1\n"
+		: "=d" (c) : "Q" (v->counter));
+	return c;
 }
 
 static inline void atomic64_set(atomic64_t *v, long long i)
 {
-	v->counter = i;
+	asm volatile(
+		"	stg	%1,%0\n"
+		: "=Q" (v->counter) : "d" (i));
 }
 
 static inline long long atomic64_add_return(long long i, atomic64_t *v)
