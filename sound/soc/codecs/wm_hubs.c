@@ -82,7 +82,8 @@ static void wait_for_dc_servo(struct snd_soc_codec *codec, unsigned int op)
 	} while (reg & op && count < 400);
 
 	if (reg & op)
-		dev_err(codec->dev, "Timed out waiting for DC Servo\n");
+		dev_err(codec->dev, "Timed out waiting for DC Servo %x\n",
+			op);
 }
 
 /*
