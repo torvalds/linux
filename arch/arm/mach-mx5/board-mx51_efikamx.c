@@ -25,6 +25,9 @@
 #include <linux/fsl_devices.h>
 #include <linux/spi/flash.h>
 #include <linux/spi/spi.h>
+#include <linux/mfd/mc13892.h>
+#include <linux/regulator/machine.h>
+#include <linux/regulator/consumer.h>
 
 #include <mach/common.h>
 #include <mach/hardware.h>
@@ -56,6 +59,10 @@
 #define EFIKAMX_RESET1_1	IMX_GPIO_NR(3, 2)
 #define EFIKAMX_RESET		IMX_GPIO_NR(1, 4)
 
+#define EFIKAMX_POWEROFF	IMX_GPIO_NR(4, 13)
+
+#define EFIKAMX_PMIC		IMX_GPIO_NR(1, 6)
+
 /* the pci ids pin have pull up. they're driven low according to board id */
 #define MX51_PAD_PCBID0	IOMUX_PAD(0x518, 0x130, 3, 0x0,   0, PAD_CTL_PUS_100K_UP)
 #define MX51_PAD_PCBID1	IOMUX_PAD(0x51C, 0x134, 3, 0x0,   0, PAD_CTL_PUS_100K_UP)
@@ -79,6 +86,9 @@ static iomux_v3_cfg_t mx51efikamx_pads[] = {
 	/* reset */
 	MX51_PAD_DI1_PIN13__GPIO3_2,
 	MX51_PAD_GPIO1_4__GPIO1_4,
+
+	/* power off */
+	MX51_PAD_CSI2_VSYNC__GPIO4_13,
 };
 
 /*   PCBID2  PCBID1 PCBID0  STATE
@@ -186,6 +196,46 @@ void mx51_efikamx_reset(void)
 	else
 		gpio_direction_output(EFIKAMX_RESET, 0);
 }
+
+static struct regulator *pwgt1, *pwgt2, *coincell;
+
+static void mx51_efikamx_power_off(void)
+{
+	if (!IS_ERR(coincell))
+		regulator_disable(coincell);
+
+	if (!IS_ERR(pwgt1) && !IS_ERR(pwgt2)) {
+		regulator_disable(pwgt2);
+		regulator_disable(pwgt1);
+	}
+	gpio_direction_output(EFIKAMX_POWEROFF, 1);
+}
+
+static int __init mx51_efikamx_power_init(void)
+{
+	if (machine_is_mx51_efikamx()) {
+		pwgt1 = regulator_get(NULL, "pwgt1");
+		pwgt2 = regulator_get(NULL, "pwgt2");
+		if (!IS_ERR(pwgt1) && !IS_ERR(pwgt2)) {
+			regulator_enable(pwgt1);
+			regulator_enable(pwgt2);
+		}
+		gpio_request(EFIKAMX_POWEROFF, "poweroff");
+		pm_power_off = mx51_efikamx_power_off;
+
+		/* enable coincell charger. maybe need a small power driver ? */
+		coincell = regulator_get(NULL, "coincell");
+		if (!IS_ERR(coincell)) {
+			regulator_set_voltage(coincell, 3000000, 3000000);
+			regulator_enable(coincell);
+		}
+
+		regulator_has_full_constraints();
+	}
+
+	return 0;
+}
+late_initcall(mx51_efikamx_power_init);
 
 static void __init mx51_efikamx_init(void)
 {

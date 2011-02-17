@@ -23,6 +23,9 @@
 #include <linux/fsl_devices.h>
 #include <linux/spi/flash.h>
 #include <linux/spi/spi.h>
+#include <linux/mfd/mc13892.h>
+#include <linux/regulator/machine.h>
+#include <linux/regulator/consumer.h>
 
 #include <mach/common.h>
 #include <mach/hardware.h>
@@ -39,6 +42,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
+#include <asm/mach-types.h>
 
 #include "devices-imx51.h"
 #include "devices.h"
@@ -53,6 +57,8 @@
 
 #define EFIKAMX_SPI_CS0		IMX_GPIO_NR(4, 24)
 #define EFIKAMX_SPI_CS1		IMX_GPIO_NR(4, 25)
+
+#define EFIKAMX_PMIC		IMX_GPIO_NR(1, 6)
 
 static iomux_v3_cfg_t mx51efika_pads[] = {
 	/* UART1 */
@@ -90,6 +96,7 @@ static iomux_v3_cfg_t mx51efika_pads[] = {
 	MX51_PAD_CSPI1_SS1__GPIO4_25,
 	MX51_PAD_CSPI1_RDY__ECSPI1_RDY,
 	MX51_PAD_CSPI1_SCLK__ECSPI1_SCLK,
+	MX51_PAD_GPIO1_6__GPIO1_6,
 
 	/* USB HOST1 */
 	MX51_PAD_USBH1_CLK__USBH1_CLK,
@@ -238,6 +245,336 @@ static struct flash_platform_data mx51_efika_spi_flash_data = {
 	.type		= "sst25vf032b",
 };
 
+static struct regulator_consumer_supply sw1_consumers[] = {
+	{
+		.supply = "cpu_vcc",
+	}
+};
+
+static struct regulator_consumer_supply vdig_consumers[] = {
+	/* sgtl5000 */
+	REGULATOR_SUPPLY("VDDA", "1-000a"),
+	REGULATOR_SUPPLY("VDDD", "1-000a"),
+};
+
+static struct regulator_consumer_supply vvideo_consumers[] = {
+	/* sgtl5000 */
+	REGULATOR_SUPPLY("VDDIO", "1-000a"),
+};
+
+static struct regulator_consumer_supply vsd_consumers[] = {
+	REGULATOR_SUPPLY("vmmc", "sdhci-esdhc-imx.0"),
+	REGULATOR_SUPPLY("vmmc", "sdhci-esdhc-imx.1"),
+};
+
+static struct regulator_consumer_supply pwgt1_consumer[] = {
+	{
+		.supply = "pwgt1",
+	}
+};
+
+static struct regulator_consumer_supply pwgt2_consumer[] = {
+	{
+		.supply = "pwgt2",
+	}
+};
+
+static struct regulator_consumer_supply coincell_consumer[] = {
+	{
+		.supply = "coincell",
+	}
+};
+
+static struct regulator_init_data sw1_init = {
+	.constraints = {
+		.name = "SW1",
+		.min_uV = 600000,
+		.max_uV = 1375000,
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+		.valid_modes_mask = 0,
+		.always_on = 1,
+		.boot_on = 1,
+		.state_mem = {
+			.uV = 850000,
+			.mode = REGULATOR_MODE_NORMAL,
+			.enabled = 1,
+		},
+	},
+	.num_consumer_supplies = ARRAY_SIZE(sw1_consumers),
+	.consumer_supplies = sw1_consumers,
+};
+
+static struct regulator_init_data sw2_init = {
+	.constraints = {
+		.name = "SW2",
+		.min_uV = 900000,
+		.max_uV = 1850000,
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+		.always_on = 1,
+		.boot_on = 1,
+		.state_mem = {
+			.uV = 950000,
+			.mode = REGULATOR_MODE_NORMAL,
+			.enabled = 1,
+		},
+	}
+};
+
+static struct regulator_init_data sw3_init = {
+	.constraints = {
+		.name = "SW3",
+		.min_uV = 1100000,
+		.max_uV = 1850000,
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+		.always_on = 1,
+		.boot_on = 1,
+	}
+};
+
+static struct regulator_init_data sw4_init = {
+	.constraints = {
+		.name = "SW4",
+		.min_uV = 1100000,
+		.max_uV = 1850000,
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+		.always_on = 1,
+		.boot_on = 1,
+	}
+};
+
+static struct regulator_init_data viohi_init = {
+	.constraints = {
+		.name = "VIOHI",
+		.boot_on = 1,
+		.always_on = 1,
+	}
+};
+
+static struct regulator_init_data vusb_init = {
+	.constraints = {
+		.name = "VUSB",
+		.boot_on = 1,
+		.always_on = 1,
+	}
+};
+
+static struct regulator_init_data swbst_init = {
+	.constraints = {
+		.name = "SWBST",
+	}
+};
+
+static struct regulator_init_data vdig_init = {
+	.constraints = {
+		.name = "VDIG",
+		.min_uV = 1050000,
+		.max_uV = 1800000,
+		.valid_ops_mask =
+			REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_STATUS,
+		.boot_on = 1,
+		.always_on = 1,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(vdig_consumers),
+	.consumer_supplies = vdig_consumers,
+};
+
+static struct regulator_init_data vpll_init = {
+	.constraints = {
+		.name = "VPLL",
+		.min_uV = 1050000,
+		.max_uV = 1800000,
+		.valid_ops_mask =
+			REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_STATUS,
+		.boot_on = 1,
+		.always_on = 1,
+	}
+};
+
+static struct regulator_init_data vusb2_init = {
+	.constraints = {
+		.name = "VUSB2",
+		.min_uV = 2400000,
+		.max_uV = 2775000,
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+		.boot_on = 1,
+		.always_on = 1,
+	}
+};
+
+static struct regulator_init_data vvideo_init = {
+	.constraints = {
+		.name = "VVIDEO",
+		.min_uV = 2775000,
+		.max_uV = 2775000,
+		.valid_ops_mask =
+			REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_STATUS,
+		.boot_on = 1,
+		.apply_uV = 1,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(vvideo_consumers),
+	.consumer_supplies = vvideo_consumers,
+};
+
+static struct regulator_init_data vaudio_init = {
+	.constraints = {
+		.name = "VAUDIO",
+		.min_uV = 2300000,
+		.max_uV = 3000000,
+		.valid_ops_mask =
+			REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_STATUS,
+		.boot_on = 1,
+	}
+};
+
+static struct regulator_init_data vsd_init = {
+	.constraints = {
+		.name = "VSD",
+		.min_uV = 1800000,
+		.max_uV = 3150000,
+		.valid_ops_mask =
+			REGULATOR_CHANGE_VOLTAGE,
+		.boot_on = 1,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(vsd_consumers),
+	.consumer_supplies = vsd_consumers,
+};
+
+static struct regulator_init_data vcam_init = {
+	.constraints = {
+		.name = "VCAM",
+		.min_uV = 2500000,
+		.max_uV = 3000000,
+		.valid_ops_mask =
+			REGULATOR_CHANGE_VOLTAGE |
+			REGULATOR_CHANGE_MODE | REGULATOR_CHANGE_STATUS,
+		.valid_modes_mask = REGULATOR_MODE_FAST | REGULATOR_MODE_NORMAL,
+		.boot_on = 1,
+	}
+};
+
+static struct regulator_init_data vgen1_init = {
+	.constraints = {
+		.name = "VGEN1",
+		.min_uV = 1200000,
+		.max_uV = 3150000,
+		.valid_ops_mask =
+			REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_STATUS,
+		.boot_on = 1,
+		.always_on = 1,
+	}
+};
+
+static struct regulator_init_data vgen2_init = {
+	.constraints = {
+		.name = "VGEN2",
+		.min_uV = 1200000,
+		.max_uV = 3150000,
+		.valid_ops_mask =
+			REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_STATUS,
+		.boot_on = 1,
+		.always_on = 1,
+	}
+};
+
+static struct regulator_init_data vgen3_init = {
+	.constraints = {
+		.name = "VGEN3",
+		.min_uV = 1800000,
+		.max_uV = 2900000,
+		.valid_ops_mask =
+			REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_STATUS,
+		.boot_on = 1,
+		.always_on = 1,
+	}
+};
+
+static struct regulator_init_data gpo1_init = {
+	.constraints = {
+		.name = "GPO1",
+	}
+};
+
+static struct regulator_init_data gpo2_init = {
+	.constraints = {
+		.name = "GPO2",
+	}
+};
+
+static struct regulator_init_data gpo3_init = {
+	.constraints = {
+		.name = "GPO3",
+	}
+};
+
+static struct regulator_init_data gpo4_init = {
+	.constraints = {
+		.name = "GPO4",
+	}
+};
+
+static struct regulator_init_data pwgt1_init = {
+	.constraints = {
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+		.boot_on        = 1,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(pwgt1_consumer),
+	.consumer_supplies = pwgt1_consumer,
+};
+
+static struct regulator_init_data pwgt2_init = {
+	.constraints = {
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+		.boot_on        = 1,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(pwgt2_consumer),
+	.consumer_supplies = pwgt2_consumer,
+};
+
+static struct regulator_init_data vcoincell_init = {
+	.constraints = {
+		.name = "COINCELL",
+		.min_uV = 3000000,
+		.max_uV = 3000000,
+		.valid_ops_mask =
+			REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(coincell_consumer),
+	.consumer_supplies = coincell_consumer,
+};
+
+static struct mc13xxx_regulator_init_data mx51_efika_regulators[] = {
+	{ .id = MC13892_SW1,		.init_data =  &sw1_init },
+	{ .id = MC13892_SW2,		.init_data =  &sw2_init },
+	{ .id = MC13892_SW3,		.init_data =  &sw3_init },
+	{ .id = MC13892_SW4,		.init_data =  &sw4_init },
+	{ .id = MC13892_SWBST,		.init_data =  &swbst_init },
+	{ .id = MC13892_VIOHI,		.init_data =  &viohi_init },
+	{ .id = MC13892_VPLL,		.init_data =  &vpll_init },
+	{ .id = MC13892_VDIG,		.init_data =  &vdig_init },
+	{ .id = MC13892_VSD,		.init_data =  &vsd_init },
+	{ .id = MC13892_VUSB2,		.init_data =  &vusb2_init },
+	{ .id = MC13892_VVIDEO,		.init_data =  &vvideo_init },
+	{ .id = MC13892_VAUDIO,		.init_data =  &vaudio_init },
+	{ .id = MC13892_VCAM,		.init_data =  &vcam_init },
+	{ .id = MC13892_VGEN1,		.init_data =  &vgen1_init },
+	{ .id = MC13892_VGEN2,		.init_data =  &vgen2_init },
+	{ .id = MC13892_VGEN3,		.init_data =  &vgen3_init },
+	{ .id = MC13892_VUSB,		.init_data =  &vusb_init },
+	{ .id = MC13892_GPO1,		.init_data =  &gpo1_init },
+	{ .id = MC13892_GPO2,		.init_data =  &gpo2_init },
+	{ .id = MC13892_GPO3,		.init_data =  &gpo3_init },
+	{ .id = MC13892_GPO4,		.init_data =  &gpo4_init },
+	{ .id = MC13892_PWGT1SPI,	.init_data = &pwgt1_init },
+	{ .id = MC13892_PWGT2SPI,	.init_data = &pwgt2_init },
+	{ .id = MC13892_VCOINCELL,	.init_data = &vcoincell_init },
+};
+
+static struct mc13xxx_platform_data mx51_efika_mc13892_data = {
+	.flags = MC13XXX_USE_RTC | MC13XXX_USE_REGULATOR,
+	.num_regulators = ARRAY_SIZE(mx51_efika_regulators),
+	.regulators = mx51_efika_regulators,
+};
+
 static struct spi_board_info mx51_efika_spi_board_info[] __initdata = {
 	{
 		.modalias = "m25p80",
@@ -246,6 +583,14 @@ static struct spi_board_info mx51_efika_spi_board_info[] __initdata = {
 		.chip_select = 1,
 		.platform_data = &mx51_efika_spi_flash_data,
 		.irq = -1,
+	},
+	{
+		.modalias = "mc13892",
+		.max_speed_hz = 1000000,
+		.bus_num = 0,
+		.chip_select = 0,
+		.platform_data = &mx51_efika_mc13892_data,
+		.irq = gpio_to_irq(EFIKAMX_PMIC),
 	},
 };
 
@@ -267,6 +612,18 @@ void __init efika_board_common_init(void)
 	mx51_efika_usb();
 	imx51_add_sdhci_esdhc_imx(0, NULL);
 
+	/* FIXME: comes from original code. check this. */
+	if (mx51_revision() < IMX_CHIP_REVISION_2_0)
+		sw2_init.constraints.state_mem.uV = 1100000;
+	else if (mx51_revision() == IMX_CHIP_REVISION_2_0) {
+		sw2_init.constraints.state_mem.uV = 1250000;
+		sw1_init.constraints.state_mem.uV = 1000000;
+	}
+	if (machine_is_mx51_efikasb())
+		vgen1_init.constraints.max_uV = 1200000;
+
+	gpio_request(EFIKAMX_PMIC, "pmic irq");
+	gpio_direction_input(EFIKAMX_PMIC);
 	spi_register_board_info(mx51_efika_spi_board_info,
 		ARRAY_SIZE(mx51_efika_spi_board_info));
 	imx51_add_ecspi(0, &mx51_efika_spi_pdata);
