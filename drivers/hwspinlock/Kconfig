@@ -11,3 +11,12 @@ config HWSPINLOCK
 	  coprocessors).
 
 	  If unsure, say N.
+
+config HWSPINLOCK_OMAP
+	tristate "OMAP Hardware Spinlock device"
+	depends on HWSPINLOCK && ARCH_OMAP4
+	help
+	  Say y here to support the OMAP Hardware Spinlock device (firstly
+	  introduced in OMAP4).
+
+	  If unsure, say N.
