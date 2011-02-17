@@ -6,6 +6,9 @@
 #include "../debug.h"
 #include "browser.h"
 #include "helpline.h"
+#include "ui.h"
+
+pthread_mutex_t ui__lock = PTHREAD_MUTEX_INITIALIZER;
 
 static void newt_suspend(void *d __used)
 {
