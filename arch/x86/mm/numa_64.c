@@ -371,11 +371,13 @@ static void __init numa_reset_distance(void)
 {
 	size_t size;
 
-	size = numa_distance_cnt * sizeof(numa_distance[0]);
-	memblock_x86_free_range(__pa(numa_distance),
-				__pa(numa_distance) + size);
+	if (numa_distance_cnt) {
+		size = numa_distance_cnt * sizeof(numa_distance[0]);
+		memblock_x86_free_range(__pa(numa_distance),
+					__pa(numa_distance) + size);
+		numa_distance_cnt = 0;
+	}
 	numa_distance = NULL;
-	numa_distance_cnt = 0;
 }
 
 /*
