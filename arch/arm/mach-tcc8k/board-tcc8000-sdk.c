@@ -17,6 +17,7 @@
 #include <asm/mach/time.h>
 
 #include <mach/clock.h>
+#include <mach/tcc-nand.h>
 
 #include "common.h"
 
