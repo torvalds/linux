@@ -2128,8 +2128,18 @@ static int mwl8k_cmd_set_hw_spec(struct ieee80211_hw *hw)
 	cmd->ps_cookie = cpu_to_le32(priv->cookie_dma);
 	cmd->rx_queue_ptr = cpu_to_le32(priv->rxq[0].rxd_dma);
 	cmd->num_tx_queues = cpu_to_le32(MWL8K_TX_QUEUES);
-	for (i = 0; i < MWL8K_TX_QUEUES; i++)
-		cmd->tx_queue_ptrs[i] = cpu_to_le32(priv->txq[i].txd_dma);
+
+	/*
+	 * Mac80211 stack has Q0 as highest priority and Q3 as lowest in
+	 * that order. Firmware has Q3 as highest priority and Q0 as lowest
+	 * in that order. Map Q3 of mac80211 to Q0 of firmware so that the
+	 * priority is interpreted the right way in firmware.
+	 */
+	for (i = 0; i < MWL8K_TX_QUEUES; i++) {
+		int j = MWL8K_TX_QUEUES - 1 - i;
+		cmd->tx_queue_ptrs[i] = cpu_to_le32(priv->txq[j].txd_dma);
+	}
+
 	cmd->flags = cpu_to_le32(MWL8K_SET_HW_SPEC_FLAG_HOST_DECR_MGMT |
 				 MWL8K_SET_HW_SPEC_FLAG_HOSTFORM_PROBERESP |
 				 MWL8K_SET_HW_SPEC_FLAG_HOSTFORM_BEACON);
@@ -4331,12 +4341,14 @@ static int mwl8k_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		if (!priv->wmm_enabled)
 			rc = mwl8k_cmd_set_wmm_mode(hw, 1);
 
-		if (!rc)
-			rc = mwl8k_cmd_set_edca_params(hw, queue,
+		if (!rc) {
+			int q = MWL8K_TX_QUEUES - 1 - queue;
+			rc = mwl8k_cmd_set_edca_params(hw, q,
 						       params->cw_min,
 						       params->cw_max,
 						       params->aifs,
 						       params->txop);
+		}
 
 		mwl8k_fw_unlock(hw);
 	}
