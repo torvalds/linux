@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2004, 2008 Nokia Corporation
  *
- * Copyright (C) 2009 Texas Instruments.
+ * Copyright (C) 2009-11 Texas Instruments.
  *
  * Written by Tony Lindgren <tony.lindgren@nokia.com>
  *
@@ -405,8 +405,10 @@ IS_OMAP_TYPE(3517, 0x3517)
 #define TI8168_REV_ES1_1	(TI816X_CLASS | (OMAP_REVBITS_01 << 8))
 
 #define OMAP443X_CLASS		0x44300044
-#define OMAP4430_REV_ES1_0	OMAP443X_CLASS
-#define OMAP4430_REV_ES2_0	0x44301044
+#define OMAP4430_REV_ES1_0	(OMAP443X_CLASS | (0x10 << 8))
+#define OMAP4430_REV_ES2_0	(OMAP443X_CLASS | (0x20 << 8))
+#define OMAP4430_REV_ES2_1	(OMAP443X_CLASS | (0x21 << 8))
+#define OMAP4430_REV_ES2_2	(OMAP443X_CLASS | (0x22 << 8))
 
 /*
  * omap_chip bits
@@ -434,12 +436,16 @@ IS_OMAP_TYPE(3517, 0x3517)
 #define CHIP_IS_OMAP3630ES1_1           (1 << 9)
 #define CHIP_IS_OMAP3630ES1_2           (1 << 10)
 #define CHIP_IS_OMAP4430ES2		(1 << 11)
+#define CHIP_IS_OMAP4430ES2_1		(1 << 12)
+#define CHIP_IS_OMAP4430ES2_2		(1 << 13)
 #define CHIP_IS_TI816X			(1 << 14)
 
 #define CHIP_IS_OMAP24XX		(CHIP_IS_OMAP2420 | CHIP_IS_OMAP2430)
 
-#define CHIP_IS_OMAP4430		(CHIP_IS_OMAP4430ES1 | \
-						 CHIP_IS_OMAP4430ES2)
+#define CHIP_IS_OMAP4430		(CHIP_IS_OMAP4430ES1 |		\
+					 CHIP_IS_OMAP4430ES2 |		\
+					 CHIP_IS_OMAP4430ES2_1 |	\
+					 CHIP_IS_OMAP4430ES2_2)
 
 /*
  * "GE" here represents "greater than or equal to" in terms of ES
