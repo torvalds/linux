@@ -30,6 +30,16 @@ static const iomux_cfg_t mx23evk_pads[] __initconst = {
 	/* duart */
 	MX23_PAD_PWM0__DUART_RX | MXS_PAD_4MA,
 	MX23_PAD_PWM1__DUART_TX | MXS_PAD_4MA,
+
+	/* auart */
+	MX23_PAD_AUART1_RX__AUART1_RX |
+		(MXS_PAD_4MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
+	MX23_PAD_AUART1_TX__AUART1_TX |
+		(MXS_PAD_4MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
+	MX23_PAD_AUART1_CTS__AUART1_CTS |
+		(MXS_PAD_4MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
+	MX23_PAD_AUART1_RTS__AUART1_RTS |
+		(MXS_PAD_4MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
 };
 
 static void __init mx23evk_init(void)
@@ -37,6 +47,7 @@ static void __init mx23evk_init(void)
 	mxs_iomux_setup_multiple_pads(mx23evk_pads, ARRAY_SIZE(mx23evk_pads));
 
 	mx23_add_duart();
+	mx23_add_auart0();
 }
 
 static void __init mx23evk_timer_init(void)
