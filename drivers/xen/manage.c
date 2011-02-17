@@ -38,7 +38,6 @@ static enum shutdown_state shutting_down = SHUTDOWN_INVALID;
 static int xen_hvm_suspend(void *data)
 {
 	int err;
-	struct sched_shutdown r = { .reason = SHUTDOWN_suspend };
 	int *cancelled = data;
 
 	BUG_ON(!irqs_disabled());
@@ -50,7 +49,12 @@ static int xen_hvm_suspend(void *data)
 		return err;
 	}
 
-	*cancelled = HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
+	/*
+	 * This hypercall returns 1 if suspend was cancelled
+	 * or the domain was merely checkpointed, and 0 if it
+	 * is resuming in a new domain.
+	 */
+	*cancelled = HYPERVISOR_suspend(0UL);
 
 	xen_hvm_post_suspend(*cancelled);
 	gnttab_resume();
