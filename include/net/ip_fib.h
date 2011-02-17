@@ -202,7 +202,7 @@ extern int __net_init fib4_rules_init(struct net *net);
 extern void __net_exit fib4_rules_exit(struct net *net);
 
 #ifdef CONFIG_IP_ROUTE_CLASSID
-extern u32 fib_rules_tclass(struct fib_result *res);
+extern u32 fib_rules_tclass(const struct fib_result *res);
 #endif
 
 extern int fib_lookup(struct net *n, struct flowi *flp, struct fib_result *res);

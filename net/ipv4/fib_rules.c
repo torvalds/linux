@@ -47,7 +47,7 @@ struct fib4_rule {
 };
 
 #ifdef CONFIG_IP_ROUTE_CLASSID
-u32 fib_rules_tclass(struct fib_result *res)
+u32 fib_rules_tclass(const struct fib_result *res)
 {
 	return res->r ? ((struct fib4_rule *) res->r)->tclassid : 0;
 }

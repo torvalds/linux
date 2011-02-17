@@ -1787,10 +1787,10 @@ static void rt_init_metrics(struct rtable *rt, struct fib_info *fi)
 	}
 }
 
-static void rt_set_nexthop(struct rtable *rt, struct fib_result *res, u32 itag)
+static void rt_set_nexthop(struct rtable *rt, const struct fib_result *res,
+			   struct fib_info *fi, u16 type, u32 itag)
 {
 	struct dst_entry *dst = &rt->dst;
-	struct fib_info *fi = res->fi;
 
 	if (fi) {
 		if (FIB_RES_GW(*res) &&
@@ -1813,7 +1813,7 @@ static void rt_set_nexthop(struct rtable *rt, struct fib_result *res, u32 itag)
 #endif
 	set_class_tag(rt, itag);
 #endif
-	rt->rt_type = res->type;
+	rt->rt_type = type;
 }
 
 static struct rtable *rt_dst_alloc(bool nopolicy, bool noxfrm)
@@ -1939,7 +1939,7 @@ static void ip_handle_martian_source(struct net_device *dev,
 
 /* called in rcu_read_lock() section */
 static int __mkroute_input(struct sk_buff *skb,
-			   struct fib_result *res,
+			   const struct fib_result *res,
 			   struct in_device *in_dev,
 			   __be32 daddr, __be32 saddr, u32 tos,
 			   struct rtable **result)
@@ -2018,7 +2018,7 @@ static int __mkroute_input(struct sk_buff *skb,
 	rth->dst.output = ip_output;
 	rth->rt_genid = rt_genid(dev_net(rth->dst.dev));
 
-	rt_set_nexthop(rth, res, itag);
+	rt_set_nexthop(rth, res, res->fi, res->type, itag);
 
 	rth->rt_flags = flags;
 
@@ -2319,23 +2319,25 @@ skip_cache:
 EXPORT_SYMBOL(ip_route_input_common);
 
 /* called with rcu_read_lock() */
-static struct rtable *__mkroute_output(struct fib_result *res,
+static struct rtable *__mkroute_output(const struct fib_result *res,
 				       const struct flowi *fl,
 				       const struct flowi *oldflp,
 				       struct net_device *dev_out,
 				       unsigned int flags)
 {
+	struct fib_info *fi = res->fi;
 	u32 tos = RT_FL_TOS(oldflp);
 	struct in_device *in_dev;
+	u16 type = res->type;
 	struct rtable *rth;
 
 	if (ipv4_is_loopback(fl->fl4_src) && !(dev_out->flags & IFF_LOOPBACK))
 		return ERR_PTR(-EINVAL);
 
 	if (ipv4_is_lbcast(fl->fl4_dst))
-		res->type = RTN_BROADCAST;
+		type = RTN_BROADCAST;
 	else if (ipv4_is_multicast(fl->fl4_dst))
-		res->type = RTN_MULTICAST;
+		type = RTN_MULTICAST;
 	else if (ipv4_is_zeronet(fl->fl4_dst))
 		return ERR_PTR(-EINVAL);
 
@@ -2346,10 +2348,10 @@ static struct rtable *__mkroute_output(struct fib_result *res,
 	if (!in_dev)
 		return ERR_PTR(-EINVAL);
 
-	if (res->type == RTN_BROADCAST) {
+	if (type == RTN_BROADCAST) {
 		flags |= RTCF_BROADCAST | RTCF_LOCAL;
-		res->fi = NULL;
-	} else if (res->type == RTN_MULTICAST) {
+		fi = NULL;
+	} else if (type == RTN_MULTICAST) {
 		flags |= RTCF_MULTICAST | RTCF_LOCAL;
 		if (!ip_check_mc(in_dev, oldflp->fl4_dst, oldflp->fl4_src,
 				 oldflp->proto))
@@ -2358,8 +2360,8 @@ static struct rtable *__mkroute_output(struct fib_result *res,
 		 * default one, but do not gateway in this case.
 		 * Yes, it is hack.
 		 */
-		if (res->fi && res->prefixlen < 4)
-			res->fi = NULL;
+		if (fi && res->prefixlen < 4)
+			fi = NULL;
 	}
 
 	rth = rt_dst_alloc(IN_DEV_CONF_GET(in_dev, NOPOLICY),
@@ -2399,7 +2401,7 @@ static struct rtable *__mkroute_output(struct fib_result *res,
 			RT_CACHE_STAT_INC(out_slow_mc);
 		}
 #ifdef CONFIG_IP_MROUTE
-		if (res->type == RTN_MULTICAST) {
+		if (type == RTN_MULTICAST) {
 			if (IN_DEV_MFORWARD(in_dev) &&
 			    !ipv4_is_local_multicast(oldflp->fl4_dst)) {
 				rth->dst.input = ip_mr_input;
@@ -2409,7 +2411,7 @@ static struct rtable *__mkroute_output(struct fib_result *res,
 #endif
 	}
 
-	rt_set_nexthop(rth, res, 0);
+	rt_set_nexthop(rth, res, fi, type, 0);
 
 	rth->rt_flags = flags;
 	return rth;
