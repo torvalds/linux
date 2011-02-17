@@ -61,7 +61,7 @@ static int xen_hvm_suspend(void *data)
 	 */
 	si->cancelled = HYPERVISOR_suspend(si->arg);
 
-	xen_hvm_post_suspend(si->cancelled);
+	xen_arch_hvm_post_suspend(si->cancelled);
 	gnttab_resume();
 
 	if (!si->cancelled) {
@@ -91,7 +91,7 @@ static int xen_suspend(void *data)
 
 	xen_mm_pin_all();
 	gnttab_suspend();
-	xen_pre_suspend();
+	xen_arch_pre_suspend();
 
 	/*
 	 * This hypercall returns 1 if suspend was cancelled
@@ -100,7 +100,7 @@ static int xen_suspend(void *data)
 	 */
 	si->cancelled = HYPERVISOR_suspend(si->arg);
 
-	xen_post_suspend(si->cancelled);
+	xen_arch_post_suspend(si->cancelled);
 	gnttab_resume();
 	xen_mm_unpin_all();
 
