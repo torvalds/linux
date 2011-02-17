@@ -36,6 +36,7 @@ static enum shutdown_state shutting_down = SHUTDOWN_INVALID;
 
 struct suspend_info {
 	int cancelled;
+	unsigned long arg; /* extra hypercall argument */
 };
 
 #ifdef CONFIG_PM_SLEEP
@@ -58,7 +59,7 @@ static int xen_hvm_suspend(void *data)
 	 * or the domain was merely checkpointed, and 0 if it
 	 * is resuming in a new domain.
 	 */
-	si->cancelled = HYPERVISOR_suspend(0UL);
+	si->cancelled = HYPERVISOR_suspend(si->arg);
 
 	xen_hvm_post_suspend(si->cancelled);
 	gnttab_resume();
@@ -97,7 +98,7 @@ static int xen_suspend(void *data)
 	 * or the domain was merely checkpointed, and 0 if it
 	 * is resuming in a new domain.
 	 */
-	si->cancelled = HYPERVISOR_suspend(virt_to_mfn(xen_start_info));
+	si->cancelled = HYPERVISOR_suspend(si->arg);
 
 	xen_post_suspend(si->cancelled);
 	gnttab_resume();
@@ -148,6 +149,11 @@ static void do_suspend(void)
 	}
 
 	si.cancelled = 1;
+
+	if (xen_hvm_domain())
+		si.arg = 0UL;
+	else
+		si.arg = virt_to_mfn(xen_start_info);
 
 	if (xen_hvm_domain())
 		err = stop_machine(xen_hvm_suspend, &si, cpumask_of(0));
