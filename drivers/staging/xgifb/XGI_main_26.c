@@ -54,6 +54,8 @@ int XGIfb_accel = 0;
 #define GPIOG_READ  (1<<1)
 int XGIfb_GetXG21DefaultLVDSModeIdx(void);
 
+#define XGIFB_ROM_SIZE	65536
+
 /* -------------------- Macro definitions ---------------------------- */
 
 #undef XGIFBDEBUG
@@ -2881,52 +2883,26 @@ XGIINITSTATIC int __init XGIfb_setup(char *options)
 	return 0;
 }
 
-static unsigned char VBIOS_BUF[65535];
-
-static unsigned char *attempt_map_rom(struct pci_dev *dev, void *copy_address)
+static unsigned char *xgifb_copy_rom(struct pci_dev *dev)
 {
-	u32 rom_size = 0;
-	u32 rom_address = 0;
-	int j;
+	void __iomem *rom_address;
+	unsigned char *rom_copy;
+	size_t rom_size;
 
-	/*  Get the size of the expansion rom */
-	pci_write_config_dword(dev, PCI_ROM_ADDRESS, 0xFFFFFFFF);
-	pci_read_config_dword(dev, PCI_ROM_ADDRESS, &rom_size);
-	if ((rom_size & 0x01) == 0) {
-		printk("No ROM\n");
+	rom_address = pci_map_rom(dev, &rom_size);
+	if (rom_address == NULL)
 		return NULL;
-	}
 
-	rom_size &= 0xFFFFF800;
-	rom_size = (~rom_size) + 1;
+	rom_copy = vzalloc(XGIFB_ROM_SIZE);
+	if (rom_copy == NULL)
+		goto done;
 
-	rom_address = pci_resource_start(dev, 0);
-	if (rom_address == 0 || rom_address == 0xFFFFFFF0) {
-		printk("No suitable rom address found\n");
-		return NULL;
-	}
+	rom_size = min_t(size_t, rom_size, XGIFB_ROM_SIZE);
+	memcpy_fromio(rom_copy, rom_address, rom_size);
 
-	printk("ROM Size is %dK, Address is %x\n", rom_size / 1024, rom_address);
-
-	/*  Map ROM */
-	pci_write_config_dword(dev, PCI_ROM_ADDRESS, rom_address
-			| PCI_ROM_ADDRESS_ENABLE);
-
-	/* memcpy(copy_address, rom_address, rom_size); */
-	{
-		unsigned char *virt_addr = ioremap(rom_address, 0x8000000);
-
-		unsigned char *from = (unsigned char *) virt_addr;
-		unsigned char *to = (unsigned char *) copy_address;
-		for (j = 0; j < 65536 /*rom_size*/; j++)
-			*to++ = *from++;
-	}
-
-	pci_write_config_dword(dev, PCI_ROM_ADDRESS, 0);
-
-	printk("Copy is done\n");
-
-	return copy_address;
+done:
+	pci_unmap_rom(dev, rom_address);
+	return rom_copy;
 }
 
 static int __devinit xgifb_probe(struct pci_dev *pdev,
@@ -3039,8 +3015,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 	XGIhw_ext.pDevice = NULL;
 	if ((xgi_video_info.chip == XG21) || (XGIfb_userom)) {
-		XGIhw_ext.pjVirtualRomBase = attempt_map_rom(pdev, VBIOS_BUF);
-
+		XGIhw_ext.pjVirtualRomBase = xgifb_copy_rom(pdev);
 		if (XGIhw_ext.pjVirtualRomBase)
 			printk(KERN_INFO "XGIfb: Video ROM found and mapped to %p\n", XGIhw_ext.pjVirtualRomBase);
 		else
@@ -3434,6 +3409,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	return 0;
 
 error:
+	vfree(XGIhw_ext.pjVirtualRomBase);
 	vfree(XGIhw_ext.pSR);
 	vfree(XGIhw_ext.pCR);
 	framebuffer_release(fb_info);
@@ -3449,6 +3425,7 @@ static void __devexit xgifb_remove(struct pci_dev *pdev)
 	/* Unregister the framebuffer */
 	/* if (xgi_video_info.registered) { */
 	unregister_framebuffer(fb_info);
+	vfree(XGIhw_ext.pjVirtualRomBase);
 	framebuffer_release(fb_info);
 	/* } */
 
