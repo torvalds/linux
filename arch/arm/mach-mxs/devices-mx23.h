@@ -14,3 +14,8 @@
 extern const struct amba_device mx23_duart_device __initconst;
 #define mx23_add_duart() \
 	mxs_add_duart(&mx23_duart_device)
+
+extern const struct mxs_auart_data mx23_auart_data[] __initconst;
+#define mx23_add_auart(id)	mxs_add_auart(&mx23_auart_data[id])
+#define mx23_add_auart0()		mx23_add_auart(0)
+#define mx23_add_auart1()		mx23_add_auart(1)
