@@ -180,6 +180,14 @@ config HID_EZKEY
 	---help---
 	Support for Ezkey BTC 8193 keyboard.
 
+config HID_KEYTOUCH
+	tristate "Keyoutch HID devices"
+	depends on USB_HID
+	---help---
+	Support for Keytouch HID devices not fully compliant with
+	the specification. Currently supported:
+		- Keytouch IEC 60945
+
 config HID_KYE
 	tristate "Kye/Genius Ergo Mouse" if EMBEDDED
 	depends on USB_HID
