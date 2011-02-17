@@ -149,7 +149,6 @@ static int twl6030_set_phy_clk(struct otg_transceiver *x, int on)
 
 static int twl6030_phy_init(struct otg_transceiver *x)
 {
-	u8 hw_state;
 	struct twl6030_usb *twl;
 	struct device *dev;
 	struct twl4030_usb_data *pdata;
@@ -158,9 +157,7 @@ static int twl6030_phy_init(struct otg_transceiver *x)
 	dev  = twl->dev;
 	pdata = dev->platform_data;
 
-	hw_state = twl6030_readb(twl, TWL6030_MODULE_ID0, STS_HW_CONDITIONS);
-
-	if (hw_state & STS_USB_ID)
+	if (twl->linkstat == USB_EVENT_ID)
 		pdata->phy_power(twl->dev, 1, 1);
 	else
 		pdata->phy_power(twl->dev, 0, 1);
@@ -290,6 +287,7 @@ static irqreturn_t twl6030_usbotg_irq(int irq, void *_twl)
 		status = USB_EVENT_ID;
 		twl->otg.default_a = true;
 		twl->otg.state = OTG_STATE_A_IDLE;
+		twl->linkstat = status;
 		blocking_notifier_call_chain(&twl->otg.notifier, status,
 							twl->otg.gadget);
 	} else  {
@@ -299,7 +297,6 @@ static irqreturn_t twl6030_usbotg_irq(int irq, void *_twl)
 								0x1);
 	}
 	twl6030_writeb(twl, TWL_MODULE_USB, USB_ID_INT_LATCH_CLR, status);
-	twl->linkstat = status;
 
 	return IRQ_HANDLED;
 }
