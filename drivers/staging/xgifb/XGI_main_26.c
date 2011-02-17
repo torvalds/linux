@@ -3103,9 +3103,8 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 	if (!request_mem_region(xgi_video_info.mmio_base, XGIfb_mmio_size, "XGIfb MMIO")) {
 		printk(KERN_ERR "XGIfb: Fatal error: Unable to reserve MMIO region\n");
-		release_mem_region(xgi_video_info.video_base, xgi_video_info.video_size);
 		ret = -ENODEV;
-		goto error;
+		goto error_0;
 	}
 
 	xgi_video_info.video_vbase = XGIhw_ext.pjVideoMemoryAddress =
@@ -3394,7 +3393,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 		if (register_framebuffer(fb_info) < 0) {
 			ret = -EINVAL;
-			goto error;
+			goto error_1;
 		}
 
 		XGIfb_registered = 1;
@@ -3408,6 +3407,13 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 	return 0;
 
+error_1:
+	iounmap(xgi_video_info.mmio_vbase);
+	iounmap(xgi_video_info.video_vbase);
+	release_mem_region(xgi_video_info.mmio_base, XGIfb_mmio_size);
+error_0:
+	release_mem_region(xgi_video_info.video_base,
+			   xgi_video_info.video_size);
 error:
 	vfree(XGIhw_ext.pjVirtualRomBase);
 	vfree(XGIhw_ext.pSR);
@@ -3425,6 +3431,11 @@ static void __devexit xgifb_remove(struct pci_dev *pdev)
 	/* Unregister the framebuffer */
 	/* if (xgi_video_info.registered) { */
 	unregister_framebuffer(fb_info);
+	iounmap(xgi_video_info.mmio_vbase);
+	iounmap(xgi_video_info.video_vbase);
+	release_mem_region(xgi_video_info.mmio_base, XGIfb_mmio_size);
+	release_mem_region(xgi_video_info.video_base,
+			   xgi_video_info.video_size);
 	vfree(XGIhw_ext.pjVirtualRomBase);
 	framebuffer_release(fb_info);
 	/* } */
