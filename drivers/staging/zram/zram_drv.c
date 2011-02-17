@@ -211,11 +211,6 @@ static void zram_read(struct zram *zram, struct bio *bio)
 	u32 index;
 	struct bio_vec *bvec;
 
-	if (unlikely(!zram->init_done)) {
-		bio_endio(bio, -ENXIO);
-		return;
-	}
-
 	zram_stat64_inc(zram, &zram->stats.num_reads);
 	index = bio->bi_sector >> SECTORS_PER_PAGE_SHIFT;
 
@@ -286,20 +281,15 @@ out:
 
 static void zram_write(struct zram *zram, struct bio *bio)
 {
-	int i, ret;
+	int i;
 	u32 index;
 	struct bio_vec *bvec;
-
-	if (unlikely(!zram->init_done)) {
-		ret = zram_init_device(zram);
-		if (ret)
-			goto out;
-	}
 
 	zram_stat64_inc(zram, &zram->stats.num_writes);
 	index = bio->bi_sector >> SECTORS_PER_PAGE_SHIFT;
 
 	bio_for_each_segment(bvec, bio, i) {
+		int ret;
 		u32 offset;
 		size_t clen;
 		struct zobj_header *zheader;
@@ -441,6 +431,11 @@ static int zram_make_request(struct request_queue *queue, struct bio *bio)
 
 	if (!valid_io_request(zram, bio)) {
 		zram_stat64_inc(zram, &zram->stats.invalid_io);
+		bio_io_error(bio);
+		return 0;
+	}
+
+	if (unlikely(!zram->init_done) && zram_init_device(zram)) {
 		bio_io_error(bio);
 		return 0;
 	}
