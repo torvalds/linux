@@ -1092,7 +1092,7 @@ void drbd_bump_write_ordering(struct drbd_conf *mdev, enum write_ordering_e wo) 
 }
 
 /**
- * drbd_submit_ee()
+ * drbd_submit_peer_request()
  * @mdev:	DRBD device.
  * @peer_req:	peer request
  * @rw:		flag field, see bio->bi_rw
@@ -1108,8 +1108,9 @@ void drbd_bump_write_ordering(struct drbd_conf *mdev, enum write_ordering_e wo) 
  *  on certain Xen deployments.
  */
 /* TODO allocate from our own bio_set. */
-int drbd_submit_ee(struct drbd_conf *mdev, struct drbd_peer_request *peer_req,
-		   const unsigned rw, const int fault_type)
+int drbd_submit_peer_request(struct drbd_conf *mdev,
+			     struct drbd_peer_request *peer_req,
+			     const unsigned rw, const int fault_type)
 {
 	struct bio *bios = NULL;
 	struct bio *bio;
@@ -1496,7 +1497,7 @@ static int recv_resync_read(struct drbd_conf *mdev, sector_t sector, int data_si
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	atomic_add(data_size >> 9, &mdev->rs_sect_ev);
-	if (drbd_submit_ee(mdev, peer_req, WRITE, DRBD_FAULT_RS_WR) == 0)
+	if (drbd_submit_peer_request(mdev, peer_req, WRITE, DRBD_FAULT_RS_WR) == 0)
 		return true;
 
 	/* don't care for the reason here */
@@ -1936,7 +1937,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
 		drbd_al_begin_io(mdev, peer_req->i.sector);
 	}
 
-	if (drbd_submit_ee(mdev, peer_req, rw, DRBD_FAULT_DT_WR) == 0)
+	if (drbd_submit_peer_request(mdev, peer_req, rw, DRBD_FAULT_DT_WR) == 0)
 		return true;
 
 	/* don't care for the reason here */
@@ -2193,7 +2194,7 @@ submit:
 	list_add_tail(&peer_req->w.list, &mdev->read_ee);
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
-	if (drbd_submit_ee(mdev, peer_req, READ, fault_type) == 0)
+	if (drbd_submit_peer_request(mdev, peer_req, READ, fault_type) == 0)
 		return true;
 
 	/* don't care for the reason here */

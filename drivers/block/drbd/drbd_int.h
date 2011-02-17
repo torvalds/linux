@@ -1532,8 +1532,9 @@ extern void start_resync_timer_fn(unsigned long data);
 
 /* drbd_receiver.c */
 extern int drbd_rs_should_slow_down(struct drbd_conf *mdev, sector_t sector);
-extern int drbd_submit_ee(struct drbd_conf *, struct drbd_peer_request *,
-			  const unsigned, const int);
+extern int drbd_submit_peer_request(struct drbd_conf *,
+				    struct drbd_peer_request *, const unsigned,
+				    const int);
 extern int drbd_release_ee(struct drbd_conf *mdev, struct list_head *list);
 extern struct drbd_peer_request *drbd_alloc_ee(struct drbd_conf *,
 					       u64, sector_t, unsigned int,

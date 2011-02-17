@@ -365,7 +365,7 @@ static int read_for_csum(struct drbd_conf *mdev, sector_t sector, int size)
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	atomic_add(size >> 9, &mdev->rs_sect_ev);
-	if (drbd_submit_ee(mdev, peer_req, READ, DRBD_FAULT_RS_RD) == 0)
+	if (drbd_submit_peer_request(mdev, peer_req, READ, DRBD_FAULT_RS_RD) == 0)
 		return 0;
 
 	/* If it failed because of ENOMEM, retry should help.  If it failed
