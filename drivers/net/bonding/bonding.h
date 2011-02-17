@@ -133,7 +133,7 @@ static inline void unblock_netpoll_tx(void)
 
 static inline int is_netpoll_tx_blocked(struct net_device *dev)
 {
-	if (unlikely(dev->priv_flags & IFF_IN_NETPOLL))
+	if (unlikely(netpoll_tx_running(dev)))
 		return atomic_read(&netpoll_block_tx);
 	return 0;
 }

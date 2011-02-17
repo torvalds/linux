@@ -423,11 +423,9 @@ int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
 {
 	skb->dev = slave_dev;
 	skb->priority = 1;
-	if (unlikely(netpoll_tx_running(slave_dev))) {
-		slave_dev->priv_flags |= IFF_IN_NETPOLL;
+	if (unlikely(netpoll_tx_running(slave_dev)))
 		bond_netpoll_send_skb(bond_get_slave_by_dev(bond, slave_dev), skb);
-		slave_dev->priv_flags &= ~IFF_IN_NETPOLL;
-	} else
+	else
 		dev_queue_xmit(skb);
 
 	return 0;
