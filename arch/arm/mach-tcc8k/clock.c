@@ -45,7 +45,6 @@
 #define ACLKGSB1	(CKC_BASE + ACLKGSB1_OFFS)
 #define ACLKGSB2	(CKC_BASE + ACLKGSB2_OFFS)
 #define ACLKGSB3	(CKC_BASE + ACLKGSB3_OFFS)
-#define ACLKUSBH	(CKC_BASE + ACLKUSBH_OFFS)
 #define ACLKTCT		(CKC_BASE + ACLKTCT_OFFS)
 #define ACLKTCX		(CKC_BASE + ACLKTCX_OFFS)
 #define ACLKTCZ		(CKC_BASE + ACLKTCZ_OFFS)
@@ -108,9 +107,9 @@ static int root_clk_enable(enum root_clks src)
 	return 0;
 }
 
-static int root_clk_disable(enum root_clks root_src)
+static int root_clk_disable(enum root_clks src)
 {
-	switch (root_src) {
+	switch (src) {
 	case CLK_SRC_PLL0: return pll_enable(0, 0);
 	case CLK_SRC_PLL1: return pll_enable(1, 0);
 	case CLK_SRC_PLL2: return pll_enable(2, 0);
@@ -304,7 +303,7 @@ static unsigned long get_rate_sys(struct clk *clk)
 	unsigned int src;
 
 	src = __raw_readl(CKC_BASE + CLKCTRL_OFFS) & CLK_SRC_MASK;
-		return root_clk_get_rate(src);
+	return root_clk_get_rate(src);
 }
 
 static unsigned long get_rate_bus(struct clk *clk)
