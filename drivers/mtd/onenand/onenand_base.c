@@ -4085,7 +4085,8 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	mtd->writebufsize = mtd->writesize;
 
 	/* Unlock whole block */
-	this->unlock_all(mtd);
+	if (!(this->options & ONENAND_SKIP_INITIAL_UNLOCKING))
+		this->unlock_all(mtd);
 
 	ret = this->scan_bbt(mtd);
 	if ((!FLEXONENAND(this)) || ret)
