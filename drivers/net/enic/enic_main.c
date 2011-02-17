@@ -874,9 +874,10 @@ static struct net_device_stats *enic_get_stats(struct net_device *netdev)
 	return net_stats;
 }
 
-static void enic_reset_multicast_list(struct enic *enic)
+static void enic_reset_addr_lists(struct enic *enic)
 {
 	enic->mc_count = 0;
+	enic->uc_count = 0;
 	enic->flags = 0;
 }
 
@@ -941,7 +942,7 @@ static int enic_set_mac_address(struct net_device *netdev, void *p)
 	return enic_dev_add_station_addr(enic);
 }
 
-static void enic_add_multicast_addr_list(struct enic *enic)
+static void enic_update_multicast_addr_list(struct enic *enic)
 {
 	struct net_device *netdev = enic->netdev;
 	struct netdev_hw_addr *ha;
@@ -996,7 +997,7 @@ static void enic_add_multicast_addr_list(struct enic *enic)
 	enic->mc_count = mc_count;
 }
 
-static void enic_add_unicast_addr_list(struct enic *enic)
+static void enic_update_unicast_addr_list(struct enic *enic)
 {
 	struct net_device *netdev = enic->netdev;
 	struct netdev_hw_addr *ha;
@@ -1073,9 +1074,9 @@ static void enic_set_rx_mode(struct net_device *netdev)
 	}
 
 	if (!promisc) {
-		enic_add_unicast_addr_list(enic);
+		enic_update_unicast_addr_list(enic);
 		if (!allmulti)
-			enic_add_multicast_addr_list(enic);
+			enic_update_multicast_addr_list(enic);
 	}
 }
 
@@ -2067,7 +2068,7 @@ static void enic_reset(struct work_struct *work)
 	enic_dev_hang_notify(enic);
 	enic_stop(enic->netdev);
 	enic_dev_hang_reset(enic);
-	enic_reset_multicast_list(enic);
+	enic_reset_addr_lists(enic);
 	enic_init_vnic_resources(enic);
 	enic_set_rss_nic_cfg(enic);
 	enic_dev_set_ig_vlan_rewrite_mode(enic);
