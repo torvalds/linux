@@ -216,8 +216,7 @@ static void __devinit of_free_probes(const char **probes)
 }
 #endif
 
-static int __devinit of_flash_probe(struct platform_device *dev,
-				    const struct of_device_id *match)
+static int __devinit of_flash_probe(struct platform_device *dev)
 {
 #ifdef CONFIG_MTD_PARTITIONS
 	const char **part_probe_types;
@@ -225,7 +224,7 @@ static int __devinit of_flash_probe(struct platform_device *dev,
 	struct device_node *dp = dev->dev.of_node;
 	struct resource res;
 	struct of_flash *info;
-	const char *probe_type = match->data;
+	const char *probe_type;
 	const __be32 *width;
 	int err;
 	int i;
@@ -234,6 +233,10 @@ static int __devinit of_flash_probe(struct platform_device *dev,
 	int reg_tuple_size;
 	struct mtd_info **mtd_list = NULL;
 	resource_size_t res_size;
+
+	if (!dev->dev.of_match)
+		return -EINVAL;
+	probe_type = dev->dev.of_match->data;
 
 	reg_tuple_size = (of_n_addr_cells(dp) + of_n_size_cells(dp)) * sizeof(u32);
 
@@ -418,7 +421,7 @@ static struct of_device_id of_flash_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_flash_match);
 
-static struct of_platform_driver of_flash_driver = {
+static struct platform_driver of_flash_driver = {
 	.driver = {
 		.name = "of-flash",
 		.owner = THIS_MODULE,
@@ -430,12 +433,12 @@ static struct of_platform_driver of_flash_driver = {
 
 static int __init of_flash_init(void)
 {
-	return of_register_platform_driver(&of_flash_driver);
+	return platform_driver_register(&of_flash_driver);
 }
 
 static void __exit of_flash_exit(void)
 {
-	of_unregister_platform_driver(&of_flash_driver);
+	platform_driver_unregister(&of_flash_driver);
 }
 
 module_init(of_flash_init);

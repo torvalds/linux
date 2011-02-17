@@ -268,8 +268,7 @@ static const struct rtc_class_ops mpc5121_rtc_ops = {
 	.update_irq_enable = mpc5121_rtc_update_irq_enable,
 };
 
-static int __devinit mpc5121_rtc_probe(struct platform_device *op,
-					const struct of_device_id *match)
+static int __devinit mpc5121_rtc_probe(struct platform_device *op)
 {
 	struct mpc5121_rtc_data *rtc;
 	int err = 0;
@@ -364,7 +363,7 @@ static struct of_device_id mpc5121_rtc_match[] __devinitdata = {
 	{},
 };
 
-static struct of_platform_driver mpc5121_rtc_driver = {
+static struct platform_driver mpc5121_rtc_driver = {
 	.driver = {
 		.name = "mpc5121-rtc",
 		.owner = THIS_MODULE,
@@ -376,13 +375,13 @@ static struct of_platform_driver mpc5121_rtc_driver = {
 
 static int __init mpc5121_rtc_init(void)
 {
-	return of_register_platform_driver(&mpc5121_rtc_driver);
+	return platform_driver_register(&mpc5121_rtc_driver);
 }
 module_init(mpc5121_rtc_init);
 
 static void __exit mpc5121_rtc_exit(void)
 {
-	of_unregister_platform_driver(&mpc5121_rtc_driver);
+	platform_driver_unregister(&mpc5121_rtc_driver);
 }
 module_exit(mpc5121_rtc_exit);
 

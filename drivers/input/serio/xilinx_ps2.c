@@ -232,8 +232,7 @@ static void sxps2_close(struct serio *pserio)
  * It returns 0, if the driver is bound to the PS/2 device, or a negative
  * value if there is an error.
  */
-static int __devinit xps2_of_probe(struct platform_device *ofdev,
-				   const struct of_device_id *match)
+static int __devinit xps2_of_probe(struct platform_device *ofdev)
 {
 	struct resource r_irq; /* Interrupt resources */
 	struct resource r_mem; /* IO mem resources */
@@ -361,7 +360,7 @@ static const struct of_device_id xps2_of_match[] __devinitconst = {
 };
 MODULE_DEVICE_TABLE(of, xps2_of_match);
 
-static struct of_platform_driver xps2_of_driver = {
+static struct platform_driver xps2_of_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
@@ -373,12 +372,12 @@ static struct of_platform_driver xps2_of_driver = {
 
 static int __init xps2_init(void)
 {
-	return of_register_platform_driver(&xps2_of_driver);
+	return platform_driver_register(&xps2_of_driver);
 }
 
 static void __exit xps2_cleanup(void)
 {
-	of_unregister_platform_driver(&xps2_of_driver);
+	platform_driver_unregister(&xps2_of_driver);
 }
 
 module_init(xps2_init);

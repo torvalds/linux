@@ -181,8 +181,7 @@ static struct pccard_operations electra_cf_ops = {
 	.set_mem_map		= electra_cf_set_mem_map,
 };
 
-static int __devinit electra_cf_probe(struct platform_device *ofdev,
-				      const struct of_device_id *match)
+static int __devinit electra_cf_probe(struct platform_device *ofdev)
 {
 	struct device *device = &ofdev->dev;
 	struct device_node *np = ofdev->dev.of_node;
@@ -356,7 +355,7 @@ static const struct of_device_id electra_cf_match[] = {
 };
 MODULE_DEVICE_TABLE(of, electra_cf_match);
 
-static struct of_platform_driver electra_cf_driver = {
+static struct platform_driver electra_cf_driver = {
 	.driver = {
 		.name = (char *)driver_name,
 		.owner = THIS_MODULE,
@@ -368,13 +367,13 @@ static struct of_platform_driver electra_cf_driver = {
 
 static int __init electra_cf_init(void)
 {
-	return of_register_platform_driver(&electra_cf_driver);
+	return platform_driver_register(&electra_cf_driver);
 }
 module_init(electra_cf_init);
 
 static void __exit electra_cf_exit(void)
 {
-	of_unregister_platform_driver(&electra_cf_driver);
+	platform_driver_unregister(&electra_cf_driver);
 }
 module_exit(electra_cf_exit);
 

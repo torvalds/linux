@@ -14,8 +14,7 @@
 #include <linux/of_platform.h>
 #include <linux/ata_platform.h>
 
-static int __devinit pata_of_platform_probe(struct platform_device *ofdev,
-					    const struct of_device_id *match)
+static int __devinit pata_of_platform_probe(struct platform_device *ofdev)
 {
 	int ret;
 	struct device_node *dn = ofdev->dev.of_node;
@@ -90,7 +89,7 @@ static struct of_device_id pata_of_platform_match[] = {
 };
 MODULE_DEVICE_TABLE(of, pata_of_platform_match);
 
-static struct of_platform_driver pata_of_platform_driver = {
+static struct platform_driver pata_of_platform_driver = {
 	.driver = {
 		.name = "pata_of_platform",
 		.owner = THIS_MODULE,
@@ -102,13 +101,13 @@ static struct of_platform_driver pata_of_platform_driver = {
 
 static int __init pata_of_platform_init(void)
 {
-	return of_register_platform_driver(&pata_of_platform_driver);
+	return platform_driver_register(&pata_of_platform_driver);
 }
 module_init(pata_of_platform_init);
 
 static void __exit pata_of_platform_exit(void)
 {
-	of_unregister_platform_driver(&pata_of_platform_driver);
+	platform_driver_unregister(&pata_of_platform_driver);
 }
 module_exit(pata_of_platform_exit);
 

@@ -1195,15 +1195,12 @@ static struct platform_driver ace_platform_driver = {
  */
 
 #if defined(CONFIG_OF)
-static int __devinit
-ace_of_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit ace_of_probe(struct platform_device *op)
 {
 	struct resource res;
 	resource_size_t physaddr;
 	const u32 *id;
 	int irq, bus_width, rc;
-
-	dev_dbg(&op->dev, "ace_of_probe(%p, %p)\n", op, match);
 
 	/* device id */
 	id = of_get_property(op->dev.of_node, "port-number", NULL);
@@ -1245,7 +1242,7 @@ static const struct of_device_id ace_of_match[] __devinitconst = {
 };
 MODULE_DEVICE_TABLE(of, ace_of_match);
 
-static struct of_platform_driver ace_of_driver = {
+static struct platform_driver ace_of_driver = {
 	.probe = ace_of_probe,
 	.remove = __devexit_p(ace_of_remove),
 	.driver = {
@@ -1259,12 +1256,12 @@ static struct of_platform_driver ace_of_driver = {
 static inline int __init ace_of_register(void)
 {
 	pr_debug("xsysace: registering OF binding\n");
-	return of_register_platform_driver(&ace_of_driver);
+	return platform_driver_register(&ace_of_driver);
 }
 
 static inline void __exit ace_of_unregister(void)
 {
-	of_unregister_platform_driver(&ace_of_driver);
+	platform_driver_unregister(&ace_of_driver);
 }
 #else /* CONFIG_OF */
 /* CONFIG_OF not enabled; do nothing helpers */
