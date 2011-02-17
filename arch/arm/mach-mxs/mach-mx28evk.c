@@ -38,6 +38,25 @@ static const iomux_cfg_t mx28evk_pads[] __initconst = {
 	MX28_PAD_PWM1__DUART_TX |
 		(MXS_PAD_4MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
 
+	/* auart0 */
+	MX28_PAD_AUART0_RX__AUART0_RX |
+		(MXS_PAD_4MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
+	MX28_PAD_AUART0_TX__AUART0_TX |
+		(MXS_PAD_4MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
+	MX28_PAD_AUART0_CTS__AUART0_CTS |
+		(MXS_PAD_4MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
+	MX28_PAD_AUART0_RTS__AUART0_RTS |
+		(MXS_PAD_4MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
+	/* auart3 */
+	MX28_PAD_AUART3_RX__AUART3_RX |
+		(MXS_PAD_4MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
+	MX28_PAD_AUART3_TX__AUART3_TX |
+		(MXS_PAD_4MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
+	MX28_PAD_AUART3_CTS__AUART3_CTS |
+		(MXS_PAD_4MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
+	MX28_PAD_AUART3_RTS__AUART3_RTS |
+		(MXS_PAD_4MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
+
 	/* fec0 */
 	MX28_PAD_ENET0_MDC__ENET0_MDC |
 		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
@@ -164,6 +183,8 @@ static void __init mx28evk_init(void)
 	mxs_iomux_setup_multiple_pads(mx28evk_pads, ARRAY_SIZE(mx28evk_pads));
 
 	mx28_add_duart();
+	mx28_add_auart0();
+	mx28_add_auart3();
 
 	if (mx28evk_fec_get_mac())
 		pr_warn("%s: failed on fec mac setup\n", __func__);
