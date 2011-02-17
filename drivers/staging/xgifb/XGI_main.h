@@ -375,7 +375,6 @@ static struct xgi_hw_device_info XGIhw_ext;
 static struct vb_device_info  XGI_Pr;
 
 /* card parameters */
-static unsigned long XGIfb_mmio_size = 0;
 static u8            XGIfb_caps = 0;
 
 typedef enum _XGI_CMDTYPE {

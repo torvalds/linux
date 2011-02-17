@@ -161,6 +161,7 @@ struct video_info{
         unsigned long video_base;
         char  *       video_vbase;
         unsigned long mmio_base;
+	unsigned long mmio_size;
         char  *       mmio_vbase;
         unsigned long vga_base;
         unsigned long mtrr;
