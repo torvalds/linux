@@ -1735,7 +1735,14 @@ int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset)
 	if (count < rsize)
 		rsize = count;
 
-	req = p9_client_rpc(clnt, P9_TREADDIR, "dqd", fid->fid, offset, rsize);
+	if ((clnt->trans_mod->pref & P9_TRANS_PREF_PAYLOAD_MASK) ==
+			P9_TRANS_PREF_PAYLOAD_SEP) {
+		req = p9_client_rpc(clnt, P9_TREADDIR, "dqF", fid->fid,
+				offset, rsize, data);
+	} else {
+		req = p9_client_rpc(clnt, P9_TREADDIR, "dqd", fid->fid,
+				offset, rsize);
+	}
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
 		goto error;
@@ -1749,7 +1756,7 @@ int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset)
 
 	P9_DPRINTK(P9_DEBUG_9P, "<<< RREADDIR count %d\n", count);
 
-	if (data)
+	if (!req->tc->pbuf_size && data)
 		memmove(data, dataptr, count);
 
 	p9_free_req(clnt, req);

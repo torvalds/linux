@@ -125,6 +125,15 @@ pdu_write_urw(struct p9_fcall *pdu, const char *kdata, const char __user *udata,
 	return 0;
 }
 
+static size_t
+pdu_write_readdir(struct p9_fcall *pdu, const char *kdata, size_t size)
+{
+	BUG_ON(pdu->size > P9_READDIRHDRSZ);
+	pdu->pkbuf = (char *)kdata;
+	pdu->pbuf_size = size;
+	return 0;
+}
+
 /*
 	b - int8_t
 	w - int16_t
@@ -463,6 +472,15 @@ p9pdu_vwritef(struct p9_fcall *pdu, int proto_version, const char *fmt,
 				 errcode = p9pdu_writef(pdu, proto_version, "d",
 						 cnt);
 				 if (!errcode && pdu_write_urw(pdu, k, u, cnt))
+					errcode = -EFAULT;
+			 }
+			 break;
+		case 'F':{
+				 int32_t cnt = va_arg(ap, int32_t);
+				 const char *k = va_arg(ap, const void *);
+				 errcode = p9pdu_writef(pdu, proto_version, "d",
+						 cnt);
+				 if (!errcode && pdu_write_readdir(pdu, k, cnt))
 					errcode = -EFAULT;
 			 }
 			 break;
