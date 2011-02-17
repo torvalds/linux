@@ -766,8 +766,9 @@ int xen_destroy_irq(int irq)
 			printk(KERN_WARNING "unmap irq failed %d\n", rc);
 			goto out;
 		}
-		pirq_to_irq[info->u.pirq.pirq] = -1;
 	}
+	pirq_to_irq[info->u.pirq.pirq] = -1;
+
 	irq_info[irq] = mk_unbound_info();
 
 	xen_free_irq(irq);
