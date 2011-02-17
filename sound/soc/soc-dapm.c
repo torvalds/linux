@@ -2263,7 +2263,6 @@ int snd_soc_dapm_stream_event(struct snd_soc_pcm_runtime *rtd,
 	mutex_unlock(&codec->mutex);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_soc_dapm_stream_event);
 
 /**
  * snd_soc_dapm_enable_pin - enable pin.
