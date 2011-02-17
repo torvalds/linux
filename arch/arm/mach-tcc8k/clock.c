@@ -199,7 +199,7 @@ static unsigned long get_rate_pll_div(int pll)
 		addr = CKC_BASE + CLKDIVC1_OFFS;
 		reg = __raw_readl(addr);
 		if (reg & CLKDIVC1_P2E)
-			div = __raw_readl(addr) & 0x3f;
+			div = reg & 0x3f;
 		break;
 	}
 	return get_rate_pll(pll) / (div + 1);
