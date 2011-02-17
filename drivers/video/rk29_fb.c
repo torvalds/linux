@@ -2414,6 +2414,8 @@ static int rk29fb_remove(struct platform_device *pdev)
    // cpufreq_unregister_notifier(&inf->freq_transition, CPUFREQ_TRANSITION_NOTIFIER);
   #endif
 
+    msleep(100);
+
 	if (inf->clk)
     {
 		clk_disable(inf->clk);
@@ -2439,14 +2441,19 @@ static void rk29fb_shutdown(struct platform_device *pdev)
     mdelay(300);
 	//printk("----------------------------rk29fb_shutdown----------------------------\n");
   	set_lcd_pin(pdev, 0);
+	if (inf->clk)
+    {
+		clk_disable(inf->clk);
+		clk_put(inf->clk);
+		inf->clk = NULL;
+	}
     if (inf->dclk)
     {
-        clk_disable(inf->dclk);
-    }
-    if (inf->clk)
-    {
-        clk_disable(inf->clk);
-    }
+		clk_disable(inf->dclk);
+		clk_put(inf->dclk);
+		inf->dclk = NULL;
+	}
+
 }
 
 static struct platform_driver rk29fb_driver = {
