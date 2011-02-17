@@ -172,12 +172,39 @@ out:
 }
 #endif	/* CONFIG_PM_SLEEP */
 
+struct shutdown_handler {
+	const char *command;
+	void (*cb)(void);
+};
+
+static void do_poweroff(void)
+{
+	shutting_down = SHUTDOWN_POWEROFF;
+	orderly_poweroff(false);
+}
+
+static void do_reboot(void)
+{
+	shutting_down = SHUTDOWN_POWEROFF; /* ? */
+	ctrl_alt_del();
+}
+
 static void shutdown_handler(struct xenbus_watch *watch,
 			     const char **vec, unsigned int len)
 {
 	char *str;
 	struct xenbus_transaction xbt;
 	int err;
+	static struct shutdown_handler handlers[] = {
+		{ "poweroff",	do_poweroff },
+		{ "halt",	do_poweroff },
+		{ "reboot",	do_reboot   },
+#ifdef CONFIG_PM_SLEEP
+		{ "suspend",	do_suspend  },
+#endif
+		{NULL, NULL},
+	};
+	static struct shutdown_handler *handler;
 
 	if (shutting_down != SHUTDOWN_INVALID)
 		return;
@@ -194,7 +221,14 @@ static void shutdown_handler(struct xenbus_watch *watch,
 		return;
 	}
 
-	xenbus_write(xbt, "control", "shutdown", "");
+	for (handler = &handlers[0]; handler->command; handler++) {
+		if (strcmp(str, handler->command) == 0)
+			break;
+	}
+
+	/* Only acknowledge commands which we are prepared to handle. */
+	if (handler->cb)
+		xenbus_write(xbt, "control", "shutdown", "");
 
 	err = xenbus_transaction_end(xbt, 0);
 	if (err == -EAGAIN) {
@@ -202,17 +236,8 @@ static void shutdown_handler(struct xenbus_watch *watch,
 		goto again;
 	}
 
-	if (strcmp(str, "poweroff") == 0 ||
-	    strcmp(str, "halt") == 0) {
-		shutting_down = SHUTDOWN_POWEROFF;
-		orderly_poweroff(false);
-	} else if (strcmp(str, "reboot") == 0) {
-		shutting_down = SHUTDOWN_POWEROFF; /* ? */
-		ctrl_alt_del();
-#ifdef CONFIG_PM_SLEEP
-	} else if (strcmp(str, "suspend") == 0) {
-		do_suspend();
-#endif
+	if (handler->cb) {
+		handler->cb();
 	} else {
 		printk(KERN_INFO "Ignoring shutdown request: %s\n", str);
 		shutting_down = SHUTDOWN_INVALID;
