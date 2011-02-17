@@ -90,6 +90,7 @@ static void __init mx53_smd_board_init(void)
 	mx53_smd_init_uart();
 	mx53_smd_fec_reset();
 	imx53_add_fec(&mx53_smd_fec_data);
+	imx53_add_imx2_wdt(0, NULL);
 }
 
 static void __init mx53_smd_timer_init(void)
