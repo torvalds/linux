@@ -983,8 +983,6 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 	for (i = 0; i < PHY_MAX_ADDR; i++)
 		fep->mii_bus->irq[i] = PHY_POLL;
 
-	platform_set_drvdata(ndev, fep->mii_bus);
-
 	if (mdiobus_register(fep->mii_bus))
 		goto err_out_free_mdio_irq;
 
