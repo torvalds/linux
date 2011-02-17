@@ -243,7 +243,7 @@ struct pci_ops pcifront_bus_ops = {
 
 #ifdef CONFIG_PCI_MSI
 static int pci_frontend_enable_msix(struct pci_dev *dev,
-				    int **vector, int nvec)
+				    int vector[], int nvec)
 {
 	int err;
 	int i;
@@ -282,10 +282,10 @@ static int pci_frontend_enable_msix(struct pci_dev *dev,
 					dev_warn(&dev->dev, "MSI-X entry %d is invalid: %d!\n",
 						i, op.msix_entries[i].vector);
 					err = -EINVAL;
-					*(*vector+i) = -1;
+					vector[i] = -1;
 					continue;
 				}
-				*(*vector+i) = op.msix_entries[i].vector;
+				vector[i] = op.msix_entries[i].vector;
 			}
 		} else {
 			printk(KERN_DEBUG "enable msix get value %x\n",
@@ -316,7 +316,7 @@ static void pci_frontend_disable_msix(struct pci_dev *dev)
 		dev_err(&dev->dev, "pci_disable_msix get err %x\n", err);
 }
 
-static int pci_frontend_enable_msi(struct pci_dev *dev, int **vector)
+static int pci_frontend_enable_msi(struct pci_dev *dev, int vector[])
 {
 	int err;
 	struct xen_pci_op op = {
@@ -330,12 +330,12 @@ static int pci_frontend_enable_msi(struct pci_dev *dev, int **vector)
 
 	err = do_pci_op(pdev, &op);
 	if (likely(!err)) {
-		*(*vector) = op.value;
+		vector[0] = op.value;
 		if (op.value <= 0) {
 			dev_warn(&dev->dev, "MSI entry is invalid: %d!\n",
 				op.value);
 			err = -EINVAL;
-			*(*vector) = -1;	
+			vector[0] = -1;
 		}
 	} else {
 		dev_err(&dev->dev, "pci frontend enable msi failed for dev "

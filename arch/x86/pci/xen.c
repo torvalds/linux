@@ -150,9 +150,9 @@ static int xen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		return -ENOMEM;
 
 	if (type == PCI_CAP_ID_MSIX)
-		ret = xen_pci_frontend_enable_msix(dev, &v, nvec);
+		ret = xen_pci_frontend_enable_msix(dev, v, nvec);
 	else
-		ret = xen_pci_frontend_enable_msi(dev, &v);
+		ret = xen_pci_frontend_enable_msi(dev, v);
 	if (ret)
 		goto error;
 	i = 0;
