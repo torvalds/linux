@@ -23,10 +23,14 @@ r_base = .
 1:	popl	%ebx
 	subl	$1b, %ebx
 
+	/* Compute the equivalent real-mode segment */
+	movl	%ebx, %ecx
+	shrl	$4, %ecx
+	
 	/* Patch post-real-mode segment jump */
-	movw	dispatch_table(%ebx,%ecx,2),%cx
-	movw	%cx, 101f(%ebx)
-	movw	%ax, 102f(%ebx)
+	movw	dispatch_table(%ebx,%eax,2),%ax
+	movw	%ax, 101f(%ebx)
+	movw	%cx, 102f(%ebx)
 
 	/* Set up the IDT for real mode. */
 	lidtl	machine_real_restart_idt(%ebx)
