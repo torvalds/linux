@@ -1258,7 +1258,7 @@ static struct mtd_blktrans_ops sm_ftl_ops = {
 static __init int sm_module_init(void)
 {
 	int error = 0;
-	cache_flush_workqueue = create_freezeable_workqueue("smflush");
+	cache_flush_workqueue = create_freezable_workqueue("smflush");
 
 	if (IS_ERR(cache_flush_workqueue))
 		return PTR_ERR(cache_flush_workqueue);
