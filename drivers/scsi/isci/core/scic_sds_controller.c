@@ -1937,18 +1937,12 @@ void scic_sds_controller_completion_handler(struct scic_sds_controller *scic)
 	SMU_IMR_WRITE(scic, 0x00000000);
 }
 
-/**
- * This is the method provided to handle the error MSIX message interrupt.
- *    This is the normal operating mode for the hardware if MSIX is enabled.
- *
- * bool true if an interrupt is processed false if no interrupt was processed
- */
-static bool scic_sds_controller_error_vector_interrupt_handler(
-	struct scic_sds_controller *scic)
+bool scic_sds_controller_error_isr(struct scic_sds_controller *scic)
 {
 	u32 interrupt_status;
 
 	interrupt_status = SMU_ISR_READ(scic);
+
 	interrupt_status &= (SMU_ISR_QUEUE_ERROR | SMU_ISR_QUEUE_SUSPEND);
 
 	if (interrupt_status != 0) {
@@ -1970,12 +1964,7 @@ static bool scic_sds_controller_error_vector_interrupt_handler(
 	return false;
 }
 
-/**
- * This is the method provided to handle the error completions when the
- *    hardware is using two MSIX messages.
- */
-static void scic_sds_controller_error_vector_completion_handler(
-	struct scic_sds_controller *scic)
+void scic_sds_controller_error_handler(struct scic_sds_controller *scic)
 {
 	u32 interrupt_status;
 
@@ -1988,10 +1977,7 @@ static void scic_sds_controller_error_vector_completion_handler(
 		SMU_ISR_WRITE(scic, SMU_ISR_QUEUE_SUSPEND);
 
 	} else {
-		dev_err(scic_to_dev(scic),
-			"%s: SCIC Controller reports CRC error on completion "
-			"ISR %x\n",
-			__func__,
+		dev_err(scic_to_dev(scic), "%s: status: %#x\n", __func__,
 			interrupt_status);
 
 		sci_base_state_machine_change_state(
@@ -2585,9 +2571,9 @@ enum sci_status scic_controller_get_handler_methods(
 				= scic_sds_controller_completion_handler;
 
 			handler_methods[1].interrupt_handler
-				= scic_sds_controller_error_vector_interrupt_handler;
+				= scic_sds_controller_error_isr;
 			handler_methods[1].completion_handler
-				= scic_sds_controller_error_vector_completion_handler;
+				= scic_sds_controller_error_handler;
 
 			status = SCI_SUCCESS;
 		}

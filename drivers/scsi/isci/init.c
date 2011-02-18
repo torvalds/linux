@@ -330,11 +330,17 @@ static int isci_setup_interrupts(struct pci_dev *pdev)
 		int id = i / SCI_NUM_MSI_X_INT;
 		struct msix_entry *msix = &pci_info->msix_entries[i];
 		struct isci_host *isci_host = isci_host_by_id(pdev, id);
+		irq_handler_t isr;
+
+		/* odd numbered vectors are error interrupts */
+		if (i & 1)
+			isr = isci_error_isr;
+		else
+			isr = isci_msix_isr;
 
 		BUG_ON(!isci_host);
 
-		/* @todo: need to handle error case. */
-		err = devm_request_irq(&pdev->dev, msix->vector, isci_msix_isr, 0,
+		err = devm_request_irq(&pdev->dev, msix->vector, isr, 0,
 				       DRV_NAME"-msix", isci_host);
 		if (!err)
 			continue;

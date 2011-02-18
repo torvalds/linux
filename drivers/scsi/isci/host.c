@@ -85,11 +85,27 @@ irqreturn_t isci_intx_isr(int vec, void *data)
 		if (scic_sds_controller_isr(scic)) {
 			tasklet_schedule(&ihost->completion_tasklet);
 			ret = IRQ_HANDLED;
+		} else if (scic_sds_controller_error_isr(scic)) {
+			spin_lock(&ihost->scic_lock);
+			scic_sds_controller_error_handler(scic);
+			spin_unlock(&ihost->scic_lock);
+			ret = IRQ_HANDLED;
 		}
 	}
+
 	return ret;
 }
 
+irqreturn_t isci_error_isr(int vec, void *data)
+{
+	struct isci_host *ihost = data;
+	struct scic_sds_controller *scic = ihost->core_controller;
+
+	if (scic_sds_controller_error_isr(scic))
+		scic_sds_controller_error_handler(scic);
+
+	return IRQ_HANDLED;
+}
 
 /**
  * isci_host_start_complete() - This function is called by the core library,
