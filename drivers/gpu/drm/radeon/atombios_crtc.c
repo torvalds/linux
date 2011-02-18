@@ -1030,7 +1030,7 @@ static int evergreen_crtc_do_set_base(struct drm_crtc *crtc,
 	 * just update base pointers
 	 */
 	obj = radeon_fb->obj;
-	rbo = obj->driver_private;
+	rbo = gem_to_radeon_bo(obj);
 	r = radeon_bo_reserve(rbo, false);
 	if (unlikely(r != 0))
 		return r;
@@ -1145,7 +1145,7 @@ static int evergreen_crtc_do_set_base(struct drm_crtc *crtc,
 
 	if (!atomic && fb && fb != crtc->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
-		rbo = radeon_fb->obj->driver_private;
+		rbo = gem_to_radeon_bo(radeon_fb->obj);
 		r = radeon_bo_reserve(rbo, false);
 		if (unlikely(r != 0))
 			return r;
@@ -1191,7 +1191,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	}
 
 	obj = radeon_fb->obj;
-	rbo = obj->driver_private;
+	rbo = gem_to_radeon_bo(obj);
 	r = radeon_bo_reserve(rbo, false);
 	if (unlikely(r != 0))
 		return r;
@@ -1308,7 +1308,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 
 	if (!atomic && fb && fb != crtc->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
-		rbo = radeon_fb->obj->driver_private;
+		rbo = gem_to_radeon_bo(radeon_fb->obj);
 		r = radeon_bo_reserve(rbo, false);
 		if (unlikely(r != 0))
 			return r;

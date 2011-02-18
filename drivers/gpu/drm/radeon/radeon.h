@@ -261,6 +261,7 @@ struct radeon_bo {
 	struct drm_gem_object		*gobj;
 	struct drm_gem_object		gem_base;
 };
+#define gem_to_radeon_bo(gobj) container_of((gobj), struct radeon_bo, gem_base)
 
 struct radeon_bo_list {
 	struct ttm_validate_buffer tv;

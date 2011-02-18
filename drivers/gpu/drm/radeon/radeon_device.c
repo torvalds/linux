@@ -860,7 +860,7 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 		if (rfb == NULL || rfb->obj == NULL) {
 			continue;
 		}
-		robj = rfb->obj->driver_private;
+		robj = gem_to_radeon_bo(rfb->obj);
 		/* don't unpin kernel fb objects */
 		if (!radeon_fbdev_robj_is_fb(rdev, robj)) {
 			r = radeon_bo_reserve(robj, false);

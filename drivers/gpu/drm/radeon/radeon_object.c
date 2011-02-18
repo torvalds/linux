@@ -128,7 +128,7 @@ retry:
 	}
 	bo->rdev = rdev;
 	bo->gobj = &bo->gem_base;
-	bo->gem_base.driver_private = bo;
+	bo->gem_base.driver_private = NULL;
 	bo->surface_reg = -1;
 	INIT_LIST_HEAD(&bo->list);
 	radeon_ttm_placement_from_domain(bo, domain);
@@ -282,7 +282,6 @@ void radeon_bo_force_delete(struct radeon_device *rdev)
 		list_del_init(&bo->list);
 		mutex_unlock(&bo->rdev->gem.mutex);
 		radeon_bo_unref(&bo);
-		gobj->driver_private = NULL;
 		drm_gem_object_unreference(gobj);
 		mutex_unlock(&rdev->ddev->struct_mutex);
 	}
