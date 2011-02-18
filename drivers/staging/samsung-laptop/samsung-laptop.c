@@ -525,6 +525,16 @@ static struct dmi_system_id __initdata samsung_dmi_table[] = {
 		.callback = dmi_check_cb,
 	},
 	{
+		.ident = "X120/X170",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR,
+					"SAMSUNG ELECTRONICS CO., LTD."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X120/X170"),
+			DMI_MATCH(DMI_BOARD_NAME, "X120/X170"),
+		},
+		.callback = dmi_check_cb,
+	},
+	{
 		.ident = "NC10",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR,
