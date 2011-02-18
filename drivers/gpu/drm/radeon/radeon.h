@@ -258,7 +258,6 @@ struct radeon_bo {
 	int				surface_reg;
 	/* Constant after initialization */
 	struct radeon_device		*rdev;
-	struct drm_gem_object		*gobj;
 	struct drm_gem_object		gem_base;
 };
 #define gem_to_radeon_bo(gobj) container_of((gobj), struct radeon_bo, gem_base)

@@ -127,7 +127,6 @@ retry:
 		return r;
 	}
 	bo->rdev = rdev;
-	bo->gobj = &bo->gem_base;
 	bo->gem_base.driver_private = NULL;
 	bo->surface_reg = -1;
 	INIT_LIST_HEAD(&bo->list);
@@ -266,7 +265,6 @@ int radeon_bo_evict_vram(struct radeon_device *rdev)
 void radeon_bo_force_delete(struct radeon_device *rdev)
 {
 	struct radeon_bo *bo, *n;
-	struct drm_gem_object *gobj;
 
 	if (list_empty(&rdev->gem.objects)) {
 		return;
@@ -274,15 +272,14 @@ void radeon_bo_force_delete(struct radeon_device *rdev)
 	dev_err(rdev->dev, "Userspace still has active objects !\n");
 	list_for_each_entry_safe(bo, n, &rdev->gem.objects, list) {
 		mutex_lock(&rdev->ddev->struct_mutex);
-		gobj = bo->gobj;
 		dev_err(rdev->dev, "%p %p %lu %lu force free\n",
-			gobj, bo, (unsigned long)gobj->size,
-			*((unsigned long *)&gobj->refcount));
+			&bo->gem_base, bo, (unsigned long)bo->gem_base.size,
+			*((unsigned long *)&bo->gem_base.refcount));
 		mutex_lock(&bo->rdev->gem.mutex);
 		list_del_init(&bo->list);
 		mutex_unlock(&bo->rdev->gem.mutex);
 		radeon_bo_unref(&bo);
-		drm_gem_object_unreference(gobj);
+		drm_gem_object_unreference(&bo->gem_base);
 		mutex_unlock(&rdev->ddev->struct_mutex);
 	}
 }
