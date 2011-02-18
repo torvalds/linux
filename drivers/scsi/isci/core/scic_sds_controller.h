@@ -335,19 +335,6 @@ struct scic_sds_controller {
 	 */
 	struct scic_sds_unsolicited_frame_control uf_control;
 
-	/**
-	 * This field records the fact that the controller has encountered a fatal
-	 * error and must be reset.
-	 */
-	bool encountered_fatal_error;
-
-	/**
-	 * This field specifies that the controller should ignore
-	 * completion processing for non-fastpath events.  This will
-	 * cause the completions to be thrown away.
-	 */
-	bool restrict_completions;
-
 	/* Phy Startup Data */
 	/**
 	 * This field is the driver timer handle for controller phy request startup.

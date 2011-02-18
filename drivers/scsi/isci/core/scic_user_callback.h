@@ -86,9 +86,8 @@ struct scic_sds_controller;
  *    occurs for the created timer.
  *
  * The "timer_callback" method should be executed in a mutually exlusive manner
- * from the controller completion handler handler (refer to
- * scic_controller_get_handler_methods()). This method returns a handle to a
- * timer object created by the user.  The handle will be utilized for all
+ * from the controller completion handler handler. This method returns a handle
+ * to a timer object created by the user.  The handle will be utilized for all
  * further interactions relating to this timer.
  */
 void *scic_cb_timer_create(

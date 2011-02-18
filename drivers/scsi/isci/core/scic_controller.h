@@ -81,62 +81,6 @@ enum sci_controller_mode {
 
 
 /**
- * enum _SCIC_INTERRUPT_TYPE - This enumeration depicts the various types of
- *    interrupts that are potentially supported by a SCI Core implementation.
- *
- *
- */
-enum scic_interrupt_type {
-	SCIC_LEGACY_LINE_INTERRUPT_TYPE,
-	SCIC_MSIX_INTERRUPT_TYPE,
-
-	/**
-	 * This enumeration value indicates the use of polling.
-	 */
-	SCIC_NO_INTERRUPTS
-
-};
-
-/**
- * This method is called by the SCI user in order to have the SCI
- *    implementation handle the interrupt.  This method performs minimal
- *    processing to allow for streamlined interrupt time usage.
- *
- * SCIC_CONTROLLER_INTERRUPT_HANDLER true: returned if there is an interrupt to
- * process and it was processed. false: returned if no interrupt was processed.
- */
-typedef bool (*SCIC_CONTROLLER_INTERRUPT_HANDLER)(
-	struct scic_sds_controller *controller
-	);
-
-/**
- * This method is called by the SCI user to process completions generated as a
- *    result of a previously handled interrupt.  This method will result in the
- *    completion of IO requests and handling of other controller generated
- *    events.  This method should be called some time after the interrupt
- *    handler.
- *
- * Most, if not all, of the user callback APIs are invoked from within this
- * API.  As a result, the user should be cognizent of the operating level at
- * which they invoke this API.
- */
-typedef void (*SCIC_CONTROLLER_COMPLETION_HANDLER)(
-	struct scic_sds_controller *controller
-	);
-
-/**
- * struct scic_controller_handler_methods - This structure contains an
- *    interrupt handler and completion handler function pointers.
- *
- *
- */
-struct scic_controller_handler_methods {
-	SCIC_CONTROLLER_INTERRUPT_HANDLER interrupt_handler;
-	SCIC_CONTROLLER_COMPLETION_HANDLER completion_handler;
-
-};
-
-/**
  * scic_controller_construct() - This method will attempt to construct a
  *    controller object utilizing the supplied parameter information.
  * @c: This parameter specifies the controller to be constructed.
@@ -176,47 +120,6 @@ void scic_controller_enable_interrupts(
 void scic_controller_disable_interrupts(
 	struct scic_sds_controller *controller);
 
-/**
- * scic_controller_get_handler_methods() - This method will return provide
- *    function pointers for the interrupt handler and completion handler.  The
- *    interrupt handler is expected to be invoked at interrupt time.  The
- *    completion handler is scheduled to run as a result of the interrupt
- *    handler. The completion handler performs the bulk work for processing
- *    silicon events.
- * @interrupt_type: This parameter informs the core which type of
- *    interrupt/completion methods are being requested. These are the types:
- *    SCIC_LEGACY_LINE_INTERRUPT_TYPE, SCIC_MSIX_INTERRUPT_TYPE,
- *    SCIC_NO_INTERRUPTS (POLLING)
- * @message_count: This parameter informs the core the number of MSI-X messages
- *    to be utilized.  This parameter must be 0 when requesting legacy line
- *    based handlers.
- * @handler_methods: The caller provides a pointer to a buffer of type
- *    struct scic_controller_handler_methods. The size depends on the combination of
- *    the interrupt_type and message_count input parameters:
- *    SCIC_LEGACY_LINE_INTERRUPT_TYPE: - size =
- *    sizeof(struct scic_controller_handler_methods) SCIC_MSIX_INTERRUPT_TYPE:
- *    sizeof(struct scic_controller_handler_methods)
- * @handler_methods: SCIC fills out the caller's buffer with the appropriate
- *    interrupt and completion handlers based on the info provided in the
- *    interrupt_type and message_count input parameters. For
- *    SCIC_LEGACY_LINE_INTERRUPT_TYPE, the buffer receives a single
- *    struct scic_controller_handler_methods element regardless that the
- *    message_count parameter is zero. For SCIC_MSIX_INTERRUPT_TYPE, the buffer
- *    receives an array of elements of type struct scic_controller_handler_methods
- *    where the array size is equivalent to the message_count parameter. The
- *    array is zero-relative where entry zero corresponds to message-vector
- *    zero, entry one corresponds to message-vector one, and so forth.
- *
- * Indicate if the handler retrieval operation was successful. SCI_SUCCESS This
- * value is returned if retrieval succeeded.
- * SCI_FAILURE_UNSUPPORTED_MESSAGE_COUNT This value is returned if the user
- * supplied an unsupported number of MSI-X messages. For legacy line interrupts
- * the only valid value is 0.
- */
-enum sci_status scic_controller_get_handler_methods(
-	enum scic_interrupt_type interrupt_type,
-	u16 message_count,
-	struct scic_controller_handler_methods *handler_methods);
 
 /**
  * scic_controller_initialize() - This method will initialize the controller
