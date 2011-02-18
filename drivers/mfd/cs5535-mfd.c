@@ -39,6 +39,37 @@ enum cs5535_mfd_bars {
 	NR_BARS,
 };
 
+static int cs5535_mfd_res_enable(struct platform_device *pdev)
+{
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "can't fetch device resource info\n");
+		return -EIO;
+	}
+
+	if (!request_region(res->start, resource_size(res), DRV_NAME)) {
+		dev_err(&pdev->dev, "can't request region\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int cs5535_mfd_res_disable(struct platform_device *pdev)
+{
+	struct resource *res;
+	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "can't fetch device resource info\n");
+		return -EIO;
+	}
+
+	release_region(res->start, resource_size(res));
+	return 0;
+}
+
 static __devinitdata struct resource cs5535_mfd_resources[NR_BARS];
 
 static __devinitdata struct mfd_cell cs5535_mfd_cells[] = {
@@ -65,12 +96,18 @@ static __devinitdata struct mfd_cell cs5535_mfd_cells[] = {
 		.name = "cs5535-pms",
 		.num_resources = 1,
 		.resources = &cs5535_mfd_resources[PMS_BAR],
+
+		.enable = cs5535_mfd_res_enable,
+		.disable = cs5535_mfd_res_disable,
 	},
 	{
 		.id = ACPI_BAR,
 		.name = "cs5535-acpi",
 		.num_resources = 1,
 		.resources = &cs5535_mfd_resources[ACPI_BAR],
+
+		.enable = cs5535_mfd_res_enable,
+		.disable = cs5535_mfd_res_disable,
 	},
 };
 
