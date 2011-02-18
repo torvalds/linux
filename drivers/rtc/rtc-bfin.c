@@ -259,21 +259,23 @@ static int bfin_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long ar
 		bfin_rtc_int_clear(~RTC_ISTAT_SEC);
 		break;
 
-	case RTC_AIE_ON:
-		dev_dbg_stamp(dev);
-		bfin_rtc_int_set_alarm(rtc);
-		break;
-	case RTC_AIE_OFF:
-		dev_dbg_stamp(dev);
-		bfin_rtc_int_clear(~(RTC_ISTAT_ALARM | RTC_ISTAT_ALARM_DAY));
-		break;
-
 	default:
 		dev_dbg_stamp(dev);
 		ret = -ENOIOCTLCMD;
 	}
 
 	return ret;
+}
+
+static int bfin_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
+{
+	struct bfin_rtc *rtc = dev_get_drvdata(dev);
+
+	dev_dbg_stamp(dev);
+	if (enabled)
+		bfin_rtc_int_set_alarm(rtc);
+	else
+		bfin_rtc_int_clear(~(RTC_ISTAT_ALARM | RTC_ISTAT_ALARM_DAY));
 }
 
 static int bfin_rtc_read_time(struct device *dev, struct rtc_time *tm)
@@ -362,6 +364,7 @@ static struct rtc_class_ops bfin_rtc_ops = {
 	.read_alarm    = bfin_rtc_read_alarm,
 	.set_alarm     = bfin_rtc_set_alarm,
 	.proc          = bfin_rtc_proc,
+	.alarm_irq_enable = bfin_rtc_alarm_irq_enable,
 };
 
 static int __devinit bfin_rtc_probe(struct platform_device *pdev)

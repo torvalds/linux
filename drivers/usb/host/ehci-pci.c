@@ -367,8 +367,8 @@ static int ehci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 	 * mark HW unaccessible.  The PM and USB cores make sure that
 	 * the root hub is either suspended or stopped.
 	 */
-	spin_lock_irqsave (&ehci->lock, flags);
 	ehci_prepare_ports_for_controller_suspend(ehci, do_wakeup);
+	spin_lock_irqsave (&ehci->lock, flags);
 	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
 	(void)ehci_readl(ehci, &ehci->regs->intr_enable);
 

@@ -2428,6 +2428,7 @@ static const struct tty_operations rs_360_ops = {
 	/* .read_proc = rs_360_read_proc, */
 	.tiocmget = rs_360_tiocmget,
 	.tiocmset = rs_360_tiocmset,
+	.get_icount = rs_360_get_icount,
 };
 
 static int __init rs_360_init(void)

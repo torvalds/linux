@@ -682,7 +682,7 @@ static int p4_validate_raw_event(struct perf_event *event)
 	 * if an event is shared accross the logical threads
 	 * the user needs special permissions to be able to use it
 	 */
-	if (p4_event_bind_map[v].shared) {
+	if (p4_ht_active() && p4_event_bind_map[v].shared) {
 		if (perf_paranoid_cpu() && !capable(CAP_SYS_ADMIN))
 			return -EACCES;
 	}
@@ -727,7 +727,8 @@ static int p4_hw_config(struct perf_event *event)
 		event->hw.config = p4_set_ht_bit(event->hw.config);
 
 	if (event->attr.type == PERF_TYPE_RAW) {
-
+		struct p4_event_bind *bind;
+		unsigned int esel;
 		/*
 		 * Clear bits we reserve to be managed by kernel itself
 		 * and never allowed from a user space
@@ -743,6 +744,13 @@ static int p4_hw_config(struct perf_event *event)
 		 * bits since we keep additional info here (for cache events and etc)
 		 */
 		event->hw.config |= event->attr.config;
+		bind = p4_config_get_bind(event->attr.config);
+		if (!bind) {
+			rc = -EINVAL;
+			goto out;
+		}
+		esel = P4_OPCODE_ESEL(bind->opcode);
+		event->hw.config |= p4_config_pack_cccr(P4_CCCR_ESEL(esel));
 	}
 
 	rc = x86_setup_perfctr(event);

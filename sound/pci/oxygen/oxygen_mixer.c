@@ -180,6 +180,8 @@ void oxygen_update_dac_routing(struct oxygen *chip)
 			    (1 << OXYGEN_PLAY_DAC1_SOURCE_SHIFT) |
 			    (2 << OXYGEN_PLAY_DAC2_SOURCE_SHIFT) |
 			    (3 << OXYGEN_PLAY_DAC3_SOURCE_SHIFT);
+	if (chip->model.adjust_dac_routing)
+		reg_value = chip->model.adjust_dac_routing(chip, reg_value);
 	oxygen_write16_masked(chip, OXYGEN_PLAY_ROUTING, reg_value,
 			      OXYGEN_PLAY_DAC0_SOURCE_MASK |
 			      OXYGEN_PLAY_DAC1_SOURCE_MASK |

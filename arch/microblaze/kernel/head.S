@@ -62,23 +62,32 @@ real_start:
 	andi	r1, r1, ~2
 	mts	rmsr, r1
 /*
- * Here is checking mechanism which check if Microblaze has msr instructions
- * We load msr and compare it with previous r1 value - if is the same,
- * msr instructions works if not - cpu don't have them.
+ * According to Xilinx, msrclr instruction behaves like 'mfs rX,rpc'
+ * if the msrclr instruction is not enabled. We use this to detect
+ * if the opcode is available, by issuing msrclr and then testing the result.
+ * r8 == 0 - msr instructions are implemented
+ * r8 != 0 - msr instructions are not implemented
  */
-	/* r8=0 - I have msr instr, 1 - I don't have them */
-	rsubi	r0, r0, 1	/* set the carry bit */
-	msrclr	r0, 0x4		/* try to clear it */
-	/* read the carry bit, r8 will be '0' if msrclr exists */
-	addik	r8, r0, 0
+	msrclr	r8, 0 /* clear nothing - just read msr for test */
+	cmpu	r8, r8, r1 /* r1 must contain msr reg content */
 
 /* r7 may point to an FDT, or there may be one linked in.
    if it's in r7, we've got to save it away ASAP.
    We ensure r7 points to a valid FDT, just in case the bootloader
    is broken or non-existent */
 	beqi	r7, no_fdt_arg			/* NULL pointer?  don't copy */
-	lw	r11, r0, r7			/* Does r7 point to a */
-	rsubi	r11, r11, OF_DT_HEADER		/* valid FDT? */
+/* Does r7 point to a valid FDT? Load HEADER magic number */
+	/* Run time Big/Little endian platform */
+	/* Save 1 as word and load byte - 0 - BIG, 1 - LITTLE */
+	addik	r11, r0, 0x1 /* BIG/LITTLE checking value */
+	/* __bss_start will be zeroed later - it is just temp location */
+	swi	r11, r0, TOPHYS(__bss_start)
+	lbui	r11, r0, TOPHYS(__bss_start)
+	beqid	r11, big_endian /* DO NOT break delay stop dependency */
+	lw	r11, r0, r7 /* Big endian load in delay slot */
+	lwr	r11, r0, r7 /* Little endian load */
+big_endian:
+	rsubi	r11, r11, OF_DT_HEADER	/* Check FDT header */
 	beqi	r11, _prepare_copy_fdt
 	or	r7, r0, r0		/* clear R7 when not valid DTB */
 	bnei	r11, no_fdt_arg			/* No - get out of here */

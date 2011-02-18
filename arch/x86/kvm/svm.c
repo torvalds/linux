@@ -1150,8 +1150,8 @@ static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 	kvm_load_ldt(svm->host.ldt);
 #ifdef CONFIG_X86_64
 	loadsegment(fs, svm->host.fs);
-	load_gs_index(svm->host.gs);
 	wrmsrl(MSR_KERNEL_GS_BASE, current->thread.gs);
+	load_gs_index(svm->host.gs);
 #else
 	loadsegment(gs, svm->host.gs);
 #endif

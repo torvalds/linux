@@ -409,7 +409,8 @@ int register_cdrom(struct cdrom_device_info *cdi)
 	}
 
 	ENSURE(drive_status, CDC_DRIVE_STATUS );
-	ENSURE(media_changed, CDC_MEDIA_CHANGED);
+	if (cdo->check_events == NULL && cdo->media_changed == NULL)
+		*change_capability = ~(CDC_MEDIA_CHANGED | CDC_SELECT_DISC);
 	ENSURE(tray_move, CDC_CLOSE_TRAY | CDC_OPEN_TRAY);
 	ENSURE(lock_door, CDC_LOCK);
 	ENSURE(select_speed, CDC_SELECT_SPEED);

@@ -4309,7 +4309,6 @@ link_up:
 			 * to get done, so reset controller to flush Tx.
 			 * (Do the reset outside of interrupt context).
 			 */
-			adapter->tx_timeout_count++;
 			schedule_work(&adapter->reset_task);
 			/* return immediately since reset is imminent */
 			return;

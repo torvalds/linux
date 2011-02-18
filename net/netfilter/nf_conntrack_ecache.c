@@ -63,6 +63,9 @@ void nf_ct_deliver_cached_events(struct nf_conn *ct)
 		 * this does not harm and it happens very rarely. */
 		unsigned long missed = e->missed;
 
+		if (!((events | missed) & e->ctmask))
+			goto out_unlock;
+
 		ret = notify->fcn(events | missed, &item);
 		if (unlikely(ret < 0 || missed)) {
 			spin_lock_bh(&ct->lock);

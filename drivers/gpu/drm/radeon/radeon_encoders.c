@@ -910,7 +910,7 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 
 	args.v1.ucAction = action;
 	if (action == ATOM_TRANSMITTER_ACTION_INIT) {
-		args.v1.usInitInfo = connector_object_id;
+		args.v1.usInitInfo = cpu_to_le16(connector_object_id);
 	} else if (action == ATOM_TRANSMITTER_ACTION_SETUP_VSEMPH) {
 		args.v1.asMode.ucLaneSel = lane_num;
 		args.v1.asMode.ucLaneSet = lane_set;
@@ -1063,7 +1063,7 @@ atombios_set_edp_panel_power(struct drm_connector *connector, int action)
 	if (!ASIC_IS_DCE4(rdev))
 		return;
 
-	if ((action != ATOM_TRANSMITTER_ACTION_POWER_ON) ||
+	if ((action != ATOM_TRANSMITTER_ACTION_POWER_ON) &&
 	    (action != ATOM_TRANSMITTER_ACTION_POWER_OFF))
 		return;
 
@@ -1140,7 +1140,7 @@ atombios_external_encoder_setup(struct drm_encoder *encoder,
 		case 3:
 			args.v3.sExtEncoder.ucAction = action;
 			if (action == EXTERNAL_ENCODER_ACTION_V3_ENCODER_INIT)
-				args.v3.sExtEncoder.usConnectorId = connector_object_id;
+				args.v3.sExtEncoder.usConnectorId = cpu_to_le16(connector_object_id);
 			else
 				args.v3.sExtEncoder.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
 			args.v3.sExtEncoder.ucEncoderMode = atombios_get_encoder_mode(encoder);
@@ -1570,11 +1570,21 @@ atombios_apply_encoder_quirks(struct drm_encoder *encoder,
 	}
 
 	/* set scaler clears this on some chips */
-	/* XXX check DCE4 */
-	if (!(radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT))) {
-		if (ASIC_IS_AVIVO(rdev) && (mode->flags & DRM_MODE_FLAG_INTERLACE))
-			WREG32(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset,
-			       AVIVO_D1MODE_INTERLEAVE_EN);
+	if (ASIC_IS_AVIVO(rdev) &&
+	    (!(radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT)))) {
+		if (ASIC_IS_DCE4(rdev)) {
+			if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+				WREG32(EVERGREEN_DATA_FORMAT + radeon_crtc->crtc_offset,
+				       EVERGREEN_INTERLEAVE_EN);
+			else
+				WREG32(EVERGREEN_DATA_FORMAT + radeon_crtc->crtc_offset, 0);
+		} else {
+			if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+				WREG32(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset,
+				       AVIVO_D1MODE_INTERLEAVE_EN);
+			else
+				WREG32(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset, 0);
+		}
 	}
 }
 
