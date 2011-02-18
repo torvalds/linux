@@ -36,9 +36,6 @@ struct mfd_cell {
 	/* platform_data can be used to pass data to "generic" drivers */
 	void			*platform_data;
 
-	/* unused */
-	size_t			data_size;
-
 	/*
 	 * These resources can be specified relative to the parent device.
 	 * For accessing hardware you should use resources from the platform dev
