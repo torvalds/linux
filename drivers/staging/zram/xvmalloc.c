@@ -14,6 +14,8 @@
 #define DEBUG
 #endif
 
+#include <linux/module.h>
+#include <linux/kernel.h>
 #include <linux/bitops.h>
 #include <linux/errno.h>
 #include <linux/highmem.h>
@@ -315,11 +317,13 @@ struct xv_pool *xv_create_pool(void)
 
 	return pool;
 }
+EXPORT_SYMBOL_GPL(xv_create_pool);
 
 void xv_destroy_pool(struct xv_pool *pool)
 {
 	kfree(pool);
 }
+EXPORT_SYMBOL_GPL(xv_destroy_pool);
 
 /**
  * xv_malloc - Allocate block of given size from pool.
@@ -408,6 +412,7 @@ int xv_malloc(struct xv_pool *pool, u32 size, struct page **page,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(xv_malloc);
 
 /*
  * Free block identified with <page, offset>
@@ -484,6 +489,7 @@ void xv_free(struct xv_pool *pool, struct page *page, u32 offset)
 	put_ptr_atomic(page_start, KM_USER0);
 	spin_unlock(&pool->lock);
 }
+EXPORT_SYMBOL_GPL(xv_free);
 
 u32 xv_get_object_size(void *obj)
 {
@@ -492,6 +498,7 @@ u32 xv_get_object_size(void *obj)
 	blk = (struct block_header *)((char *)(obj) - XV_ALIGN);
 	return blk->size;
 }
+EXPORT_SYMBOL_GPL(xv_get_object_size);
 
 /*
  * Returns total memory used by allocator (userdata + metadata)
@@ -500,3 +507,4 @@ u64 xv_get_total_size_bytes(struct xv_pool *pool)
 {
 	return pool->total_pages << PAGE_SHIFT;
 }
+EXPORT_SYMBOL_GPL(xv_get_total_size_bytes);
