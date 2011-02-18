@@ -1196,19 +1196,6 @@ int radeon_device_init(struct radeon_device *rdev,
 void radeon_device_fini(struct radeon_device *rdev);
 int radeon_gpu_wait_for_idle(struct radeon_device *rdev);
 
-/* r600 blit */
-int r600_blit_prepare_copy(struct radeon_device *rdev, int size_bytes);
-void r600_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence);
-void r600_kms_blit_copy(struct radeon_device *rdev,
-			u64 src_gpu_addr, u64 dst_gpu_addr,
-			int size_bytes);
-/* evergreen blit */
-int evergreen_blit_prepare_copy(struct radeon_device *rdev, int size_bytes);
-void evergreen_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence);
-void evergreen_kms_blit_copy(struct radeon_device *rdev,
-			     u64 src_gpu_addr, u64 dst_gpu_addr,
-			     int size_bytes);
-
 static inline uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg)
 {
 	if (reg < rdev->rmmio_size)
