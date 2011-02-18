@@ -615,7 +615,7 @@ char *drbd_task_to_thread_name(struct drbd_tconn *tconn, struct task_struct *tas
 }
 
 #ifdef CONFIG_SMP
-static int conn_lowest_minor(struct drbd_tconn *tconn)
+int conn_lowest_minor(struct drbd_tconn *tconn)
 {
 	int minor = 0;
 	idr_get_next(&tconn->volumes, &minor);
