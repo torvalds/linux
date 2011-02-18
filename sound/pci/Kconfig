@@ -152,9 +152,15 @@ config SND_AZT3328
 	select SND_MPU401_UART
 	select SND_PCM
 	select SND_RAWMIDI
+	select SND_AC97_CODEC
 	help
 	  Say Y here to include support for Aztech AZF3328 (PCI168)
 	  soundcards.
+
+	  Supported features: AC97-"conformant" mixer, MPU401/OPL3, analog I/O
+	  (16bit/8bit, many sample rates [<= 66.2kHz], NO hardware mixing),
+	  Digital Enhanced Game Port, 1.024MHz multimedia sequencer timer,
+	  ext. codec (I2S port), onboard amp (4W/4Ohms/ch), suspend/resume.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-azt3328.
