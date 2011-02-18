@@ -649,19 +649,16 @@ out:
 
 static int find_unbound_pirq(int type)
 {
-	int rc, i;
+	int rc;
 	struct physdev_get_free_pirq op_get_free_pirq;
+
 	op_get_free_pirq.type = type;
-
 	rc = HYPERVISOR_physdev_op(PHYSDEVOP_get_free_pirq, &op_get_free_pirq);
-	if (!rc)
-		return op_get_free_pirq.pirq;
 
-	for (i = 0; i < nr_irqs; i++) {
-		if (pirq_to_irq[i] < 0)
-			return i;
-	}
-	return -1;
+	WARN_ONCE(rc == -ENOSYS,
+		  "hypervisor does not support the PHYSDEVOP_get_free_pirq interface\n");
+
+	return rc ? -1 : op_get_free_pirq.pirq;
 }
 
 int xen_allocate_pirq_msi(char *name, int *pirq, int alloc_pirq)
