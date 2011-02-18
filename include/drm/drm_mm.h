@@ -42,23 +42,24 @@
 #endif
 
 struct drm_mm_node {
-	struct list_head free_stack;
 	struct list_head node_list;
-	unsigned free : 1;
+	struct list_head hole_stack;
+	unsigned hole_follows : 1;
 	unsigned scanned_block : 1;
 	unsigned scanned_prev_free : 1;
 	unsigned scanned_next_free : 1;
+	unsigned scanned_preceeds_hole : 1;
 	unsigned long start;
 	unsigned long size;
 	struct drm_mm *mm;
 };
 
 struct drm_mm {
-	/* List of free memory blocks, most recently freed ordered. */
-	struct list_head free_stack;
-	/* List of all memory nodes, ordered according to the (increasing) start
-	 * address of the memory node. */
-	struct list_head node_list;
+	/* List of all memory nodes that immediatly preceed a free hole. */
+	struct list_head hole_stack;
+	/* head_node.node_list is the list of all memory nodes, ordered
+	 * according to the (increasing) start address of the memory node. */
+	struct drm_mm_node head_node;
 	struct list_head unused_nodes;
 	int num_unused;
 	spinlock_t unused_lock;
@@ -74,9 +75,11 @@ struct drm_mm {
 
 static inline bool drm_mm_initialized(struct drm_mm *mm)
 {
-	return mm->free_stack.next;
+	return mm->hole_stack.next;
 }
-
+#define drm_mm_for_each_node(entry, mm) list_for_each_entry(entry, \
+						&(mm)->head_node.node_list, \
+						node_list);
 /*
  * Basic range manager support (drm_mm.c)
  */
