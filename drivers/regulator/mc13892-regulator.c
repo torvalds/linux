@@ -15,6 +15,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
+#include <linux/mfd/core.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/err.h>
@@ -520,8 +521,7 @@ static int __devinit mc13892_regulator_probe(struct platform_device *pdev)
 {
 	struct mc13xxx_regulator_priv *priv;
 	struct mc13xxx *mc13892 = dev_get_drvdata(pdev->dev.parent);
-	struct mc13xxx_regulator_platform_data *pdata =
-		dev_get_platdata(&pdev->dev);
+	struct mc13xxx_regulator_platform_data *pdata = mfd_get_data(pdev);
 	struct mc13xxx_regulator_init_data *init_data;
 	int i, ret;
 	u32 val;
@@ -595,8 +595,7 @@ err_free:
 static int __devexit mc13892_regulator_remove(struct platform_device *pdev)
 {
 	struct mc13xxx_regulator_priv *priv = platform_get_drvdata(pdev);
-	struct mc13xxx_regulator_platform_data *pdata =
-		dev_get_platdata(&pdev->dev);
+	struct mc13xxx_regulator_platform_data *pdata = mfd_get_data(pdev);
 	int i;
 
 	platform_set_drvdata(pdev, NULL);
