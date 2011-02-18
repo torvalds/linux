@@ -125,17 +125,17 @@ static inline struct snd_soc_dapm_widget *dapm_cnew_widget(
 
 /**
  * snd_soc_dapm_set_bias_level - set the bias level for the system
- * @card: audio device
+ * @dapm: DAPM context
  * @level: level to configure
  *
  * Configure the bias (power) levels for the SoC audio device.
  *
  * Returns 0 for success else error.
  */
-static int snd_soc_dapm_set_bias_level(struct snd_soc_card *card,
-				       struct snd_soc_dapm_context *dapm,
+static int snd_soc_dapm_set_bias_level(struct snd_soc_dapm_context *dapm,
 				       enum snd_soc_bias_level level)
 {
+	struct snd_soc_card *card = dapm->card;
 	int ret = 0;
 
 	switch (level) {
@@ -1112,7 +1112,7 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 
 	list_for_each_entry(d, &dapm->card->dapm_list, list) {
 		if (d->dev_power && d->bias_level == SND_SOC_BIAS_OFF) {
-			ret = snd_soc_dapm_set_bias_level(card, d,
+			ret = snd_soc_dapm_set_bias_level(d,
 							  SND_SOC_BIAS_STANDBY);
 			if (ret != 0)
 				dev_err(d->dev,
@@ -1122,7 +1122,7 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 		/* If we're changing to all on or all off then prepare */
 		if ((d->dev_power && d->bias_level == SND_SOC_BIAS_STANDBY) ||
 		    (!d->dev_power && d->bias_level == SND_SOC_BIAS_ON)) {
-			ret = snd_soc_dapm_set_bias_level(card, d,
+			ret = snd_soc_dapm_set_bias_level(d,
 							  SND_SOC_BIAS_PREPARE);
 			if (ret != 0)
 				dev_err(d->dev,
@@ -1141,7 +1141,7 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 	list_for_each_entry(d, &dapm->card->dapm_list, list) {
 		/* If we just powered the last thing off drop to standby bias */
 		if (d->bias_level == SND_SOC_BIAS_PREPARE && !d->dev_power) {
-			ret = snd_soc_dapm_set_bias_level(card, d,
+			ret = snd_soc_dapm_set_bias_level(d,
 							  SND_SOC_BIAS_STANDBY);
 			if (ret != 0)
 				dev_err(d->dev,
@@ -1152,7 +1152,7 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 		/* If we're in standby and can support bias off then do that */
 		if (d->bias_level == SND_SOC_BIAS_STANDBY &&
 		    d->idle_bias_off) {
-			ret = snd_soc_dapm_set_bias_level(card, d,
+			ret = snd_soc_dapm_set_bias_level(d,
 							  SND_SOC_BIAS_OFF);
 			if (ret != 0)
 				dev_err(d->dev,
@@ -1161,7 +1161,7 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 
 		/* If we just powered up then move to active bias */
 		if (d->bias_level == SND_SOC_BIAS_PREPARE && d->dev_power) {
-			ret = snd_soc_dapm_set_bias_level(card, d,
+			ret = snd_soc_dapm_set_bias_level(d,
 							  SND_SOC_BIAS_ON);
 			if (ret != 0)
 				dev_err(d->dev,
@@ -2439,9 +2439,9 @@ static void soc_dapm_shutdown_codec(struct snd_soc_dapm_context *dapm)
 	 * standby.
 	 */
 	if (powerdown) {
-		snd_soc_dapm_set_bias_level(NULL, dapm, SND_SOC_BIAS_PREPARE);
+		snd_soc_dapm_set_bias_level(dapm, SND_SOC_BIAS_PREPARE);
 		dapm_seq_run(dapm, &down_list, 0, false);
-		snd_soc_dapm_set_bias_level(NULL, dapm, SND_SOC_BIAS_STANDBY);
+		snd_soc_dapm_set_bias_level(dapm, SND_SOC_BIAS_STANDBY);
 	}
 }
 
@@ -2454,7 +2454,7 @@ void snd_soc_dapm_shutdown(struct snd_soc_card *card)
 
 	list_for_each_entry(codec, &card->codec_dev_list, list) {
 		soc_dapm_shutdown_codec(&codec->dapm);
-		snd_soc_dapm_set_bias_level(card, &codec->dapm, SND_SOC_BIAS_OFF);
+		snd_soc_dapm_set_bias_level(&codec->dapm, SND_SOC_BIAS_OFF);
 	}
 }
 
