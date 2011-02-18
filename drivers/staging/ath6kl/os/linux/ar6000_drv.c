@@ -2052,6 +2052,9 @@ ar6000_stop_endpoint(struct net_device *dev, bool keepprofile, bool getdbglogs)
     }
        /* Done with cookies */
     ar6000_cookie_cleanup(ar);
+
+    /* cleanup any allocated AMSDU buffers */
+    ar6000_cleanup_amsdu_rxbufs(ar);
 }
 /*
  * We need to differentiate between the surprise and planned removal of the
