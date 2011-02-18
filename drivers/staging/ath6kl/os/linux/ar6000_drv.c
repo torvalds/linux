@@ -1806,7 +1806,9 @@ ar6000_avail_ev(void *context, void *hif_handle)
                     break;
                 }
 #ifdef HTC_RAW_INTERFACE
-                break; /* Don't call ar6000_init for ART */
+                if (!eppingtest && bypasswmi) {
+                    break; /* Don't call ar6000_init for ART */
+                }
 #endif 
                 rtnl_lock();
                 status = (ar6000_init(dev)==0) ? 0 : A_ERROR;
