@@ -366,7 +366,7 @@ static dma_cookie_t pd_tx_submit(struct dma_async_tx_descriptor *txd)
 	struct pch_dma_chan *pd_chan = to_pd_chan(txd->chan);
 	dma_cookie_t cookie;
 
-	spin_lock_bh(&pd_chan->lock);
+	spin_lock(&pd_chan->lock);
 	cookie = pdc_assign_cookie(pd_chan, desc);
 
 	if (list_empty(&pd_chan->active_list)) {
@@ -376,7 +376,7 @@ static dma_cookie_t pd_tx_submit(struct dma_async_tx_descriptor *txd)
 		list_add_tail(&desc->desc_node, &pd_chan->queue);
 	}
 
-	spin_unlock_bh(&pd_chan->lock);
+	spin_unlock(&pd_chan->lock);
 	return 0;
 }
 
@@ -386,7 +386,7 @@ static struct pch_dma_desc *pdc_alloc_desc(struct dma_chan *chan, gfp_t flags)
 	struct pch_dma *pd = to_pd(chan->device);
 	dma_addr_t addr;
 
-	desc = pci_pool_alloc(pd->pool, GFP_KERNEL, &addr);
+	desc = pci_pool_alloc(pd->pool, flags, &addr);
 	if (desc) {
 		memset(desc, 0, sizeof(struct pch_dma_desc));
 		INIT_LIST_HEAD(&desc->tx_list);
@@ -405,7 +405,7 @@ static struct pch_dma_desc *pdc_desc_get(struct pch_dma_chan *pd_chan)
 	struct pch_dma_desc *ret = NULL;
 	int i;
 
-	spin_lock_bh(&pd_chan->lock);
+	spin_lock(&pd_chan->lock);
 	list_for_each_entry_safe(desc, _d, &pd_chan->free_list, desc_node) {
 		i++;
 		if (async_tx_test_ack(&desc->txd)) {
@@ -415,15 +415,15 @@ static struct pch_dma_desc *pdc_desc_get(struct pch_dma_chan *pd_chan)
 		}
 		dev_dbg(chan2dev(&pd_chan->chan), "desc %p not ACKed\n", desc);
 	}
-	spin_unlock_bh(&pd_chan->lock);
+	spin_unlock(&pd_chan->lock);
 	dev_dbg(chan2dev(&pd_chan->chan), "scanned %d descriptors\n", i);
 
 	if (!ret) {
 		ret = pdc_alloc_desc(&pd_chan->chan, GFP_NOIO);
 		if (ret) {
-			spin_lock_bh(&pd_chan->lock);
+			spin_lock(&pd_chan->lock);
 			pd_chan->descs_allocated++;
-			spin_unlock_bh(&pd_chan->lock);
+			spin_unlock(&pd_chan->lock);
 		} else {
 			dev_err(chan2dev(&pd_chan->chan),
 				"failed to alloc desc\n");
@@ -437,10 +437,10 @@ static void pdc_desc_put(struct pch_dma_chan *pd_chan,
 			 struct pch_dma_desc *desc)
 {
 	if (desc) {
-		spin_lock_bh(&pd_chan->lock);
+		spin_lock(&pd_chan->lock);
 		list_splice_init(&desc->tx_list, &pd_chan->free_list);
 		list_add(&desc->desc_node, &pd_chan->free_list);
-		spin_unlock_bh(&pd_chan->lock);
+		spin_unlock(&pd_chan->lock);
 	}
 }
 
@@ -530,9 +530,9 @@ static void pd_issue_pending(struct dma_chan *chan)
 	struct pch_dma_chan *pd_chan = to_pd_chan(chan);
 
 	if (pdc_is_idle(pd_chan)) {
-		spin_lock_bh(&pd_chan->lock);
+		spin_lock(&pd_chan->lock);
 		pdc_advance_work(pd_chan);
-		spin_unlock_bh(&pd_chan->lock);
+		spin_unlock(&pd_chan->lock);
 	}
 }
 
@@ -592,7 +592,6 @@ static struct dma_async_tx_descriptor *pd_prep_slave_sg(struct dma_chan *chan,
 			goto err_desc_get;
 		}
 
-
 		if (!first) {
 			first = desc;
 		} else {
@@ -641,13 +640,13 @@ static int pd_device_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 
 	spin_unlock_bh(&pd_chan->lock);
 
-
 	return 0;
 }
 
 static void pdc_tasklet(unsigned long data)
 {
 	struct pch_dma_chan *pd_chan = (struct pch_dma_chan *)data;
+	unsigned long flags;
 
 	if (!pdc_is_idle(pd_chan)) {
 		dev_err(chan2dev(&pd_chan->chan),
@@ -655,12 +654,12 @@ static void pdc_tasklet(unsigned long data)
 		return;
 	}
 
-	spin_lock_bh(&pd_chan->lock);
+	spin_lock_irqsave(&pd_chan->lock, flags);
 	if (test_and_clear_bit(0, &pd_chan->err_status))
 		pdc_handle_error(pd_chan);
 	else
 		pdc_advance_work(pd_chan);
-	spin_unlock_bh(&pd_chan->lock);
+	spin_unlock_irqrestore(&pd_chan->lock, flags);
 }
 
 static irqreturn_t pd_irq(int irq, void *devid)
