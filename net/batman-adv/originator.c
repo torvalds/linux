@@ -140,9 +140,8 @@ void orig_node_free_ref(struct kref *refcount)
 void originator_free(struct bat_priv *bat_priv)
 {
 	struct hashtable_t *hash = bat_priv->orig_hash;
-	struct hlist_node *walk, *safe;
+	struct hlist_node *node, *node_tmp;
 	struct hlist_head *head;
-	struct element_t *bucket;
 	spinlock_t *list_lock; /* spinlock to protect write access */
 	struct orig_node *orig_node;
 	int i;
@@ -160,11 +159,10 @@ void originator_free(struct bat_priv *bat_priv)
 		list_lock = &hash->list_locks[i];
 
 		spin_lock_bh(list_lock);
-		hlist_for_each_entry_safe(bucket, walk, safe, head, hlist) {
-			orig_node = bucket->data;
+		hlist_for_each_entry_safe(orig_node, node, node_tmp,
+					  head, hash_entry) {
 
-			hlist_del_rcu(walk);
-			call_rcu(&bucket->rcu, bucket_free_rcu);
+			hlist_del_rcu(node);
 			kref_put(&orig_node->refcount, orig_node_free_ref);
 		}
 		spin_unlock_bh(list_lock);
@@ -172,18 +170,6 @@ void originator_free(struct bat_priv *bat_priv)
 
 	hash_destroy(hash);
 	spin_unlock_bh(&bat_priv->orig_hash_lock);
-}
-
-static void bucket_free_orig_rcu(struct rcu_head *rcu)
-{
-	struct element_t *bucket;
-	struct orig_node *orig_node;
-
-	bucket = container_of(rcu, struct element_t, rcu);
-	orig_node = bucket->data;
-
-	kref_put(&orig_node->refcount, orig_node_free_ref);
-	kfree(bucket);
 }
 
 /* this function finds or creates an originator entry for the given
@@ -194,16 +180,9 @@ struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr)
 	int size;
 	int hash_added;
 
-	rcu_read_lock();
-	orig_node = ((struct orig_node *)hash_find(bat_priv->orig_hash,
-						   compare_orig, choose_orig,
-						   addr));
-	rcu_read_unlock();
-
-	if (orig_node) {
-		kref_get(&orig_node->refcount);
+	orig_node = orig_hash_find(bat_priv, addr);
+	if (orig_node)
 		return orig_node;
-	}
 
 	bat_dbg(DBG_BATMAN, bat_priv,
 		"Creating new originator: %pM\n", addr);
@@ -245,8 +224,8 @@ struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr)
 	if (!orig_node->bcast_own_sum)
 		goto free_bcast_own;
 
-	hash_added = hash_add(bat_priv->orig_hash, compare_orig, choose_orig,
-			      orig_node);
+	hash_added = hash_add(bat_priv->orig_hash, compare_orig,
+			      choose_orig, orig_node, &orig_node->hash_entry);
 	if (hash_added < 0)
 		goto free_bcast_own_sum;
 
@@ -346,9 +325,8 @@ static bool purge_orig_node(struct bat_priv *bat_priv,
 static void _purge_orig(struct bat_priv *bat_priv)
 {
 	struct hashtable_t *hash = bat_priv->orig_hash;
-	struct hlist_node *walk, *safe;
+	struct hlist_node *node, *node_tmp;
 	struct hlist_head *head;
-	struct element_t *bucket;
 	spinlock_t *list_lock; /* spinlock to protect write access */
 	struct orig_node *orig_node;
 	int i;
@@ -364,14 +342,14 @@ static void _purge_orig(struct bat_priv *bat_priv)
 		list_lock = &hash->list_locks[i];
 
 		spin_lock_bh(list_lock);
-		hlist_for_each_entry_safe(bucket, walk, safe, head, hlist) {
-			orig_node = bucket->data;
-
+		hlist_for_each_entry_safe(orig_node, node, node_tmp,
+					  head, hash_entry) {
 			if (purge_orig_node(bat_priv, orig_node)) {
 				if (orig_node->gw_flags)
 					gw_node_delete(bat_priv, orig_node);
-				hlist_del_rcu(walk);
-				call_rcu(&bucket->rcu, bucket_free_orig_rcu);
+				hlist_del_rcu(node);
+				kref_put(&orig_node->refcount,
+					 orig_node_free_ref);
 				continue;
 			}
 
@@ -411,9 +389,8 @@ int orig_seq_print_text(struct seq_file *seq, void *offset)
 	struct net_device *net_dev = (struct net_device *)seq->private;
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
 	struct hashtable_t *hash = bat_priv->orig_hash;
-	struct hlist_node *walk, *node;
+	struct hlist_node *node, *node_tmp;
 	struct hlist_head *head;
-	struct element_t *bucket;
 	struct orig_node *orig_node;
 	struct neigh_node *neigh_node;
 	int batman_count = 0;
@@ -447,9 +424,7 @@ int orig_seq_print_text(struct seq_file *seq, void *offset)
 		head = &hash->table[i];
 
 		rcu_read_lock();
-		hlist_for_each_entry_rcu(bucket, walk, head, hlist) {
-			orig_node = bucket->data;
-
+		hlist_for_each_entry_rcu(orig_node, node, head, hash_entry) {
 			if (!orig_node->router)
 				continue;
 
@@ -468,7 +443,7 @@ int orig_seq_print_text(struct seq_file *seq, void *offset)
 				   neigh_node->addr,
 				   neigh_node->if_incoming->net_dev->name);
 
-			hlist_for_each_entry_rcu(neigh_node, node,
+			hlist_for_each_entry_rcu(neigh_node, node_tmp,
 						 &orig_node->neigh_list, list) {
 				seq_printf(seq, " %pM (%3i)", neigh_node->addr,
 						neigh_node->tq_avg);
@@ -522,9 +497,8 @@ int orig_hash_add_if(struct batman_if *batman_if, int max_if_num)
 {
 	struct bat_priv *bat_priv = netdev_priv(batman_if->soft_iface);
 	struct hashtable_t *hash = bat_priv->orig_hash;
-	struct hlist_node *walk;
+	struct hlist_node *node;
 	struct hlist_head *head;
-	struct element_t *bucket;
 	struct orig_node *orig_node;
 	int i, ret;
 
@@ -536,9 +510,7 @@ int orig_hash_add_if(struct batman_if *batman_if, int max_if_num)
 		head = &hash->table[i];
 
 		rcu_read_lock();
-		hlist_for_each_entry_rcu(bucket, walk, head, hlist) {
-			orig_node = bucket->data;
-
+		hlist_for_each_entry_rcu(orig_node, node, head, hash_entry) {
 			spin_lock_bh(&orig_node->ogm_cnt_lock);
 			ret = orig_node_add_if(orig_node, max_if_num);
 			spin_unlock_bh(&orig_node->ogm_cnt_lock);
@@ -614,9 +586,8 @@ int orig_hash_del_if(struct batman_if *batman_if, int max_if_num)
 {
 	struct bat_priv *bat_priv = netdev_priv(batman_if->soft_iface);
 	struct hashtable_t *hash = bat_priv->orig_hash;
-	struct hlist_node *walk;
+	struct hlist_node *node;
 	struct hlist_head *head;
-	struct element_t *bucket;
 	struct batman_if *batman_if_tmp;
 	struct orig_node *orig_node;
 	int i, ret;
@@ -629,9 +600,7 @@ int orig_hash_del_if(struct batman_if *batman_if, int max_if_num)
 		head = &hash->table[i];
 
 		rcu_read_lock();
-		hlist_for_each_entry_rcu(bucket, walk, head, hlist) {
-			orig_node = bucket->data;
-
+		hlist_for_each_entry_rcu(orig_node, node, head, hash_entry) {
 			spin_lock_bh(&orig_node->ogm_cnt_lock);
 			ret = orig_node_del_if(orig_node, max_if_num,
 					batman_if->if_num);

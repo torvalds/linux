@@ -85,6 +85,7 @@ struct orig_node {
 	struct list_head frag_list;
 	spinlock_t neigh_list_lock; /* protects neighbor list */
 	struct kref refcount;
+	struct hlist_node hash_entry;
 	struct bat_priv *bat_priv;
 	unsigned long last_frag_packet;
 	spinlock_t ogm_cnt_lock; /* protects: bcast_own, bcast_own_sum,
@@ -194,11 +195,13 @@ struct hna_local_entry {
 	uint8_t addr[ETH_ALEN];
 	unsigned long last_seen;
 	char never_purge;
+	struct hlist_node hash_entry;
 };
 
 struct hna_global_entry {
 	uint8_t addr[ETH_ALEN];
 	struct orig_node *orig_node;
+	struct hlist_node hash_entry;
 };
 
 /**
@@ -248,6 +251,7 @@ struct vis_info {
 			     * from.  we should not reply to them. */
 	struct list_head send_list;
 	struct kref refcount;
+	struct hlist_node hash_entry;
 	struct bat_priv *bat_priv;
 	/* this packet might be part of the vis send queue. */
 	struct sk_buff *skb_packet;

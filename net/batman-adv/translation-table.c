@@ -30,10 +30,83 @@ static void _hna_global_del_orig(struct bat_priv *bat_priv,
 				 struct hna_global_entry *hna_global_entry,
 				 char *message);
 
+/* returns 1 if they are the same mac addr */
+static int compare_lhna(struct hlist_node *node, void *data2)
+{
+	void *data1 = container_of(node, struct hna_local_entry, hash_entry);
+
+	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
+}
+
+/* returns 1 if they are the same mac addr */
+static int compare_ghna(struct hlist_node *node, void *data2)
+{
+	void *data1 = container_of(node, struct hna_global_entry, hash_entry);
+
+	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
+}
+
 static void hna_local_start_timer(struct bat_priv *bat_priv)
 {
 	INIT_DELAYED_WORK(&bat_priv->hna_work, hna_local_purge);
 	queue_delayed_work(bat_event_workqueue, &bat_priv->hna_work, 10 * HZ);
+}
+
+static struct hna_local_entry *hna_local_hash_find(struct bat_priv *bat_priv,
+						   void *data)
+{
+	struct hashtable_t *hash = bat_priv->hna_local_hash;
+	struct hlist_head *head;
+	struct hlist_node *node;
+	struct hna_local_entry *hna_local_entry, *hna_local_entry_tmp = NULL;
+	int index;
+
+	if (!hash)
+		return NULL;
+
+	index = choose_orig(data, hash->size);
+	head = &hash->table[index];
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(hna_local_entry, node, head, hash_entry) {
+		if (!compare_eth(hna_local_entry, data))
+			continue;
+
+		hna_local_entry_tmp = hna_local_entry;
+		break;
+	}
+	rcu_read_unlock();
+
+	return hna_local_entry_tmp;
+}
+
+static struct hna_global_entry *hna_global_hash_find(struct bat_priv *bat_priv,
+						     void *data)
+{
+	struct hashtable_t *hash = bat_priv->hna_global_hash;
+	struct hlist_head *head;
+	struct hlist_node *node;
+	struct hna_global_entry *hna_global_entry;
+	struct hna_global_entry *hna_global_entry_tmp = NULL;
+	int index;
+
+	if (!hash)
+		return NULL;
+
+	index = choose_orig(data, hash->size);
+	head = &hash->table[index];
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(hna_global_entry, node, head, hash_entry) {
+		if (!compare_eth(hna_global_entry, data))
+			continue;
+
+		hna_global_entry_tmp = hna_global_entry;
+		break;
+	}
+	rcu_read_unlock();
+
+	return hna_global_entry_tmp;
 }
 
 int hna_local_init(struct bat_priv *bat_priv)
@@ -60,12 +133,7 @@ void hna_local_add(struct net_device *soft_iface, uint8_t *addr)
 	int required_bytes;
 
 	spin_lock_bh(&bat_priv->hna_lhash_lock);
-	rcu_read_lock();
-	hna_local_entry =
-		((struct hna_local_entry *)hash_find(bat_priv->hna_local_hash,
-						     compare_orig, choose_orig,
-						     addr));
-	rcu_read_unlock();
+	hna_local_entry = hna_local_hash_find(bat_priv, addr);
 	spin_unlock_bh(&bat_priv->hna_lhash_lock);
 
 	if (hna_local_entry) {
@@ -108,8 +176,8 @@ void hna_local_add(struct net_device *soft_iface, uint8_t *addr)
 
 	spin_lock_bh(&bat_priv->hna_lhash_lock);
 
-	hash_add(bat_priv->hna_local_hash, compare_orig, choose_orig,
-		 hna_local_entry);
+	hash_add(bat_priv->hna_local_hash, compare_lhna, choose_orig,
+		 hna_local_entry, &hna_local_entry->hash_entry);
 	bat_priv->num_local_hna++;
 	atomic_set(&bat_priv->hna_local_changed, 1);
 
@@ -118,11 +186,7 @@ void hna_local_add(struct net_device *soft_iface, uint8_t *addr)
 	/* remove address from global hash if present */
 	spin_lock_bh(&bat_priv->hna_ghash_lock);
 
-	rcu_read_lock();
-	hna_global_entry = ((struct hna_global_entry *)
-				hash_find(bat_priv->hna_global_hash,
-					  compare_orig, choose_orig, addr));
-	rcu_read_unlock();
+	hna_global_entry = hna_global_hash_find(bat_priv, addr);
 
 	if (hna_global_entry)
 		_hna_global_del_orig(bat_priv, hna_global_entry,
@@ -136,28 +200,27 @@ int hna_local_fill_buffer(struct bat_priv *bat_priv,
 {
 	struct hashtable_t *hash = bat_priv->hna_local_hash;
 	struct hna_local_entry *hna_local_entry;
-	struct element_t *bucket;
-	int i;
-	struct hlist_node *walk;
+	struct hlist_node *node;
 	struct hlist_head *head;
-	int count = 0;
+	int i, count = 0;
 
 	spin_lock_bh(&bat_priv->hna_lhash_lock);
 
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
-		hlist_for_each_entry(bucket, walk, head, hlist) {
-
+		rcu_read_lock();
+		hlist_for_each_entry_rcu(hna_local_entry, node,
+					 head, hash_entry) {
 			if (buff_len < (count + 1) * ETH_ALEN)
 				break;
 
-			hna_local_entry = bucket->data;
 			memcpy(buff + (count * ETH_ALEN), hna_local_entry->addr,
 			       ETH_ALEN);
 
 			count++;
 		}
+		rcu_read_unlock();
 	}
 
 	/* if we did not get all new local hnas see you next time  ;-) */
@@ -174,12 +237,11 @@ int hna_local_seq_print_text(struct seq_file *seq, void *offset)
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
 	struct hashtable_t *hash = bat_priv->hna_local_hash;
 	struct hna_local_entry *hna_local_entry;
-	int i;
-	struct hlist_node *walk;
+	struct hlist_node *node;
 	struct hlist_head *head;
-	struct element_t *bucket;
 	size_t buf_size, pos;
 	char *buff;
+	int i;
 
 	if (!bat_priv->primary_if) {
 		return seq_printf(seq, "BATMAN mesh %s disabled - "
@@ -198,8 +260,10 @@ int hna_local_seq_print_text(struct seq_file *seq, void *offset)
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
-		hlist_for_each(walk, head)
+		rcu_read_lock();
+		__hlist_for_each_rcu(node, head)
 			buf_size += 21;
+		rcu_read_unlock();
 	}
 
 	buff = kmalloc(buf_size, GFP_ATOMIC);
@@ -207,18 +271,20 @@ int hna_local_seq_print_text(struct seq_file *seq, void *offset)
 		spin_unlock_bh(&bat_priv->hna_lhash_lock);
 		return -ENOMEM;
 	}
+
 	buff[0] = '\0';
 	pos = 0;
 
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
-		hlist_for_each_entry(bucket, walk, head, hlist) {
-			hna_local_entry = bucket->data;
-
+		rcu_read_lock();
+		hlist_for_each_entry_rcu(hna_local_entry, node,
+					 head, hash_entry) {
 			pos += snprintf(buff + pos, 22, " * %pM\n",
 					hna_local_entry->addr);
 		}
+		rcu_read_unlock();
 	}
 
 	spin_unlock_bh(&bat_priv->hna_lhash_lock);
@@ -228,9 +294,10 @@ int hna_local_seq_print_text(struct seq_file *seq, void *offset)
 	return 0;
 }
 
-static void _hna_local_del(void *data, void *arg)
+static void _hna_local_del(struct hlist_node *node, void *arg)
 {
 	struct bat_priv *bat_priv = (struct bat_priv *)arg;
+	void *data = container_of(node, struct hna_local_entry, hash_entry);
 
 	kfree(data);
 	bat_priv->num_local_hna--;
@@ -244,9 +311,9 @@ static void hna_local_del(struct bat_priv *bat_priv,
 	bat_dbg(DBG_ROUTES, bat_priv, "Deleting local hna entry (%pM): %s\n",
 		hna_local_entry->addr, message);
 
-	hash_remove(bat_priv->hna_local_hash, compare_orig, choose_orig,
+	hash_remove(bat_priv->hna_local_hash, compare_lhna, choose_orig,
 		    hna_local_entry->addr);
-	_hna_local_del(hna_local_entry, bat_priv);
+	_hna_local_del(&hna_local_entry->hash_entry, bat_priv);
 }
 
 void hna_local_remove(struct bat_priv *bat_priv,
@@ -256,11 +323,7 @@ void hna_local_remove(struct bat_priv *bat_priv,
 
 	spin_lock_bh(&bat_priv->hna_lhash_lock);
 
-	rcu_read_lock();
-	hna_local_entry = (struct hna_local_entry *)
-		hash_find(bat_priv->hna_local_hash, compare_orig, choose_orig,
-			  addr);
-	rcu_read_unlock();
+	hna_local_entry = hna_local_hash_find(bat_priv, addr);
 
 	if (hna_local_entry)
 		hna_local_del(bat_priv, hna_local_entry, message);
@@ -276,27 +339,29 @@ static void hna_local_purge(struct work_struct *work)
 		container_of(delayed_work, struct bat_priv, hna_work);
 	struct hashtable_t *hash = bat_priv->hna_local_hash;
 	struct hna_local_entry *hna_local_entry;
-	int i;
-	struct hlist_node *walk, *safe;
+	struct hlist_node *node, *node_tmp;
 	struct hlist_head *head;
-	struct element_t *bucket;
 	unsigned long timeout;
+	int i;
 
 	spin_lock_bh(&bat_priv->hna_lhash_lock);
 
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
-		hlist_for_each_entry_safe(bucket, walk, safe, head, hlist) {
-			hna_local_entry = bucket->data;
+		hlist_for_each_entry_safe(hna_local_entry, node, node_tmp,
+					  head, hash_entry) {
+			if (hna_local_entry->never_purge)
+				continue;
 
 			timeout = hna_local_entry->last_seen;
 			timeout += LOCAL_HNA_TIMEOUT * HZ;
 
-			if ((!hna_local_entry->never_purge) &&
-			    time_after(jiffies, timeout))
-				hna_local_del(bat_priv, hna_local_entry,
-					"address timed out");
+			if (time_before(jiffies, timeout))
+				continue;
+
+			hna_local_del(bat_priv, hna_local_entry,
+				      "address timed out");
 		}
 	}
 
@@ -340,11 +405,7 @@ void hna_global_add_orig(struct bat_priv *bat_priv,
 		spin_lock_bh(&bat_priv->hna_ghash_lock);
 
 		hna_ptr = hna_buff + (hna_buff_count * ETH_ALEN);
-		rcu_read_lock();
-		hna_global_entry = (struct hna_global_entry *)
-			hash_find(bat_priv->hna_global_hash, compare_orig,
-				  choose_orig, hna_ptr);
-		rcu_read_unlock();
+		hna_global_entry = hna_global_hash_find(bat_priv, hna_ptr);
 
 		if (!hna_global_entry) {
 			spin_unlock_bh(&bat_priv->hna_ghash_lock);
@@ -364,8 +425,9 @@ void hna_global_add_orig(struct bat_priv *bat_priv,
 				hna_global_entry->addr, orig_node->orig);
 
 			spin_lock_bh(&bat_priv->hna_ghash_lock);
-			hash_add(bat_priv->hna_global_hash, compare_orig,
-				 choose_orig, hna_global_entry);
+			hash_add(bat_priv->hna_global_hash, compare_ghna,
+				 choose_orig, hna_global_entry,
+				 &hna_global_entry->hash_entry);
 
 		}
 
@@ -376,11 +438,7 @@ void hna_global_add_orig(struct bat_priv *bat_priv,
 		spin_lock_bh(&bat_priv->hna_lhash_lock);
 
 		hna_ptr = hna_buff + (hna_buff_count * ETH_ALEN);
-		rcu_read_lock();
-		hna_local_entry = (struct hna_local_entry *)
-			hash_find(bat_priv->hna_local_hash, compare_orig,
-				  choose_orig, hna_ptr);
-		rcu_read_unlock();
+		hna_local_entry = hna_local_hash_find(bat_priv, hna_ptr);
 
 		if (hna_local_entry)
 			hna_local_del(bat_priv, hna_local_entry,
@@ -410,12 +468,11 @@ int hna_global_seq_print_text(struct seq_file *seq, void *offset)
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
 	struct hashtable_t *hash = bat_priv->hna_global_hash;
 	struct hna_global_entry *hna_global_entry;
-	int i;
-	struct hlist_node *walk;
+	struct hlist_node *node;
 	struct hlist_head *head;
-	struct element_t *bucket;
 	size_t buf_size, pos;
 	char *buff;
+	int i;
 
 	if (!bat_priv->primary_if) {
 		return seq_printf(seq, "BATMAN mesh %s disabled - "
@@ -433,8 +490,10 @@ int hna_global_seq_print_text(struct seq_file *seq, void *offset)
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
-		hlist_for_each(walk, head)
+		rcu_read_lock();
+		__hlist_for_each_rcu(node, head)
 			buf_size += 43;
+		rcu_read_unlock();
 	}
 
 	buff = kmalloc(buf_size, GFP_ATOMIC);
@@ -448,14 +507,15 @@ int hna_global_seq_print_text(struct seq_file *seq, void *offset)
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
-		hlist_for_each_entry(bucket, walk, head, hlist) {
-			hna_global_entry = bucket->data;
-
+		rcu_read_lock();
+		hlist_for_each_entry_rcu(hna_global_entry, node,
+					 head, hash_entry) {
 			pos += snprintf(buff + pos, 44,
 					" * %pM via %pM\n",
 					hna_global_entry->addr,
 					hna_global_entry->orig_node->orig);
 		}
+		rcu_read_unlock();
 	}
 
 	spin_unlock_bh(&bat_priv->hna_ghash_lock);
@@ -474,7 +534,7 @@ static void _hna_global_del_orig(struct bat_priv *bat_priv,
 		hna_global_entry->addr, hna_global_entry->orig_node->orig,
 		message);
 
-	hash_remove(bat_priv->hna_global_hash, compare_orig, choose_orig,
+	hash_remove(bat_priv->hna_global_hash, compare_ghna, choose_orig,
 		    hna_global_entry->addr);
 	kfree(hna_global_entry);
 }
@@ -493,11 +553,7 @@ void hna_global_del_orig(struct bat_priv *bat_priv,
 
 	while ((hna_buff_count + 1) * ETH_ALEN <= orig_node->hna_buff_len) {
 		hna_ptr = orig_node->hna_buff + (hna_buff_count * ETH_ALEN);
-		rcu_read_lock();
-		hna_global_entry = (struct hna_global_entry *)
-			hash_find(bat_priv->hna_global_hash, compare_orig,
-				  choose_orig, hna_ptr);
-		rcu_read_unlock();
+		hna_global_entry = hna_global_hash_find(bat_priv, hna_ptr);
 
 		if ((hna_global_entry) &&
 		    (hna_global_entry->orig_node == orig_node))
@@ -514,8 +570,10 @@ void hna_global_del_orig(struct bat_priv *bat_priv,
 	orig_node->hna_buff = NULL;
 }
 
-static void hna_global_del(void *data, void *arg)
+static void hna_global_del(struct hlist_node *node, void *arg)
 {
+	void *data = container_of(node, struct hna_global_entry, hash_entry);
+
 	kfree(data);
 }
 
@@ -533,11 +591,11 @@ struct orig_node *transtable_search(struct bat_priv *bat_priv, uint8_t *addr)
 	struct hna_global_entry *hna_global_entry;
 
 	spin_lock_bh(&bat_priv->hna_ghash_lock);
-	rcu_read_lock();
-	hna_global_entry = (struct hna_global_entry *)
-				hash_find(bat_priv->hna_global_hash,
-					  compare_orig, choose_orig, addr);
-	rcu_read_unlock();
+	hna_global_entry = hna_global_hash_find(bat_priv, addr);
+
+	if (hna_global_entry)
+		kref_get(&hna_global_entry->orig_node->refcount);
+
 	spin_unlock_bh(&bat_priv->hna_ghash_lock);
 
 	if (!hna_global_entry)

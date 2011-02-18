@@ -68,11 +68,3 @@ free_hash:
 	kfree(hash);
 	return NULL;
 }
-
-void bucket_free_rcu(struct rcu_head *rcu)
-{
-	struct element_t *bucket;
-
-	bucket = container_of(rcu, struct element_t, rcu);
-	kfree(bucket);
-}

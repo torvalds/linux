@@ -178,17 +178,11 @@ int frag_reassemble_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 		(struct unicast_frag_packet *)skb->data;
 
 	*new_skb = NULL;
-	spin_lock_bh(&bat_priv->orig_hash_lock);
-	rcu_read_lock();
-	orig_node = ((struct orig_node *)
-		    hash_find(bat_priv->orig_hash, compare_orig, choose_orig,
-			      unicast_packet->orig));
-	rcu_read_unlock();
 
-	if (!orig_node) {
-		pr_debug("couldn't find originator in orig_hash\n");
-		goto out;
-	}
+	spin_lock_bh(&bat_priv->orig_hash_lock);
+	orig_node = orig_hash_find(bat_priv, unicast_packet->orig);
+	if (!orig_node)
+		goto unlock;
 
 	orig_node->last_frag_packet = jiffies;
 
@@ -212,9 +206,12 @@ int frag_reassemble_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	/* if not, merge failed */
 	if (*new_skb)
 		ret = NET_RX_SUCCESS;
-out:
-	spin_unlock_bh(&bat_priv->orig_hash_lock);
 
+unlock:
+	spin_unlock_bh(&bat_priv->orig_hash_lock);
+out:
+	if (orig_node)
+		kref_put(&orig_node->refcount, orig_node_free_ref);
 	return ret;
 }
 

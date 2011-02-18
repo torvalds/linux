@@ -222,14 +222,11 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 
 	spin_lock_bh(&bat_priv->orig_hash_lock);
 	rcu_read_lock();
-	orig_node = ((struct orig_node *)hash_find(bat_priv->orig_hash,
-						   compare_orig, choose_orig,
-						   icmp_packet->dst));
+	orig_node = orig_hash_find(bat_priv, icmp_packet->dst);
 
 	if (!orig_node)
 		goto unlock;
 
-	kref_get(&orig_node->refcount);
 	neigh_node = orig_node->router;
 
 	if (!neigh_node)
