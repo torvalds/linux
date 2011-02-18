@@ -694,26 +694,7 @@ static int __devinit tc6393xb_probe(struct platform_device *dev)
 	}
 
 	tc6393xb_cells[TC6393XB_CELL_NAND].driver_data = tcpd->nand_data;
-	tc6393xb_cells[TC6393XB_CELL_NAND].platform_data =
-		&tc6393xb_cells[TC6393XB_CELL_NAND];
-	tc6393xb_cells[TC6393XB_CELL_NAND].data_size =
-		sizeof(tc6393xb_cells[TC6393XB_CELL_NAND]);
-
-	tc6393xb_cells[TC6393XB_CELL_MMC].platform_data =
-		&tc6393xb_cells[TC6393XB_CELL_MMC];
-	tc6393xb_cells[TC6393XB_CELL_MMC].data_size =
-		sizeof(tc6393xb_cells[TC6393XB_CELL_MMC]);
-
-	tc6393xb_cells[TC6393XB_CELL_OHCI].platform_data =
-		&tc6393xb_cells[TC6393XB_CELL_OHCI];
-	tc6393xb_cells[TC6393XB_CELL_OHCI].data_size =
-		sizeof(tc6393xb_cells[TC6393XB_CELL_OHCI]);
-
 	tc6393xb_cells[TC6393XB_CELL_FB].driver_data = tcpd->fb_data;
-	tc6393xb_cells[TC6393XB_CELL_FB].platform_data =
-		&tc6393xb_cells[TC6393XB_CELL_FB];
-	tc6393xb_cells[TC6393XB_CELL_FB].data_size =
-		sizeof(tc6393xb_cells[TC6393XB_CELL_FB]);
 
 	ret = mfd_add_devices(&dev->dev, dev->id,
 			tc6393xb_cells, ARRAY_SIZE(tc6393xb_cells),
