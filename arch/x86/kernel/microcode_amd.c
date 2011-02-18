@@ -246,7 +246,7 @@ generic_load_microcode(int cpu, const u8 *data, size_t size)
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 	struct microcode_header_amd *mc_hdr = NULL;
 	unsigned int mc_size, leftover;
-	unsigned long offset;
+	int offset;
 	const u8 *ucode_ptr = data;
 	void *new_mc = NULL;
 	unsigned int new_rev = uci->cpu_sig.rev;
