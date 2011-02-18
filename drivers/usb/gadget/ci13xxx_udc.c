@@ -435,20 +435,6 @@ static int hw_ep_get_halt(int num, int dir)
 }
 
 /**
- * hw_ep_is_primed: test if endpoint is primed (execute without interruption)
- * @num:   endpoint number
- * @dir:   endpoint direction
- *
- * This function returns true if endpoint primed
- */
-static int hw_ep_is_primed(int num, int dir)
-{
-	u32 reg = hw_cread(CAP_ENDPTPRIME, ~0) | hw_cread(CAP_ENDPTSTAT, ~0);
-
-	return test_bit(hw_ep_bit(num, dir), (void *)&reg);
-}
-
-/**
  * hw_test_and_clear_setup_status: test & clear setup status (execute without
  *                                 interruption)
  * @n: bit number (endpoint)
@@ -471,10 +457,6 @@ static int hw_test_and_clear_setup_status(int n)
 static int hw_ep_prime(int num, int dir, int is_ctrl)
 {
 	int n = hw_ep_bit(num, dir);
-
-	/* the caller should flush first */
-	if (hw_ep_is_primed(num, dir))
-		return -EBUSY;
 
 	if (is_ctrl && dir == RX && hw_cread(CAP_ENDPTSETUPSTAT, BIT(num)))
 		return -EAGAIN;
@@ -1434,6 +1416,8 @@ static inline u8 _usb_addr(struct ci13xxx_ep *ep)
 static int _hardware_enqueue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 {
 	unsigned i;
+	int ret = 0;
+	unsigned length = mReq->req.length;
 
 	trace("%p, %p", mEp, mReq);
 
@@ -1441,53 +1425,91 @@ static int _hardware_enqueue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 	if (mReq->req.status == -EALREADY)
 		return -EALREADY;
 
-	if (hw_ep_is_primed(mEp->num, mEp->dir))
-		return -EBUSY;
-
 	mReq->req.status = -EALREADY;
-
-	if (mReq->req.length && !mReq->req.dma) {
+	if (length && !mReq->req.dma) {
 		mReq->req.dma = \
 			dma_map_single(mEp->device, mReq->req.buf,
-				       mReq->req.length, mEp->dir ?
-				       DMA_TO_DEVICE : DMA_FROM_DEVICE);
+				       length, mEp->dir ? DMA_TO_DEVICE :
+				       DMA_FROM_DEVICE);
 		if (mReq->req.dma == 0)
 			return -ENOMEM;
 
 		mReq->map = 1;
 	}
 
+	if (mReq->req.zero && length && (length % mEp->ep.maxpacket == 0)) {
+		mReq->zptr = dma_pool_alloc(mEp->td_pool, GFP_ATOMIC,
+					   &mReq->zdma);
+		if (mReq->zptr == NULL) {
+			if (mReq->map) {
+				dma_unmap_single(mEp->device, mReq->req.dma,
+					length, mEp->dir ? DMA_TO_DEVICE :
+					DMA_FROM_DEVICE);
+				mReq->req.dma = 0;
+				mReq->map     = 0;
+			}
+			return -ENOMEM;
+		}
+		memset(mReq->zptr, 0, sizeof(*mReq->zptr));
+		mReq->zptr->next    = TD_TERMINATE;
+		mReq->zptr->token   = TD_STATUS_ACTIVE;
+		if (!mReq->req.no_interrupt)
+			mReq->zptr->token   |= TD_IOC;
+	}
 	/*
 	 * TD configuration
 	 * TODO - handle requests which spawns into several TDs
 	 */
 	memset(mReq->ptr, 0, sizeof(*mReq->ptr));
-	mReq->ptr->next    |= TD_TERMINATE;
-	mReq->ptr->token    = mReq->req.length << ffs_nr(TD_TOTAL_BYTES);
+	mReq->ptr->token    = length << ffs_nr(TD_TOTAL_BYTES);
 	mReq->ptr->token   &= TD_TOTAL_BYTES;
-	mReq->ptr->token   |= TD_IOC;
 	mReq->ptr->token   |= TD_STATUS_ACTIVE;
+	if (mReq->zptr) {
+		mReq->ptr->next    = mReq->zdma;
+	} else {
+		mReq->ptr->next    = TD_TERMINATE;
+		if (!mReq->req.no_interrupt)
+			mReq->ptr->token  |= TD_IOC;
+	}
 	mReq->ptr->page[0]  = mReq->req.dma;
 	for (i = 1; i < 5; i++)
 		mReq->ptr->page[i] =
 			(mReq->req.dma + i * CI13XXX_PAGE_SIZE) & ~TD_RESERVED_MASK;
 
-	/*
-	 *  QH configuration
-	 *  At this point it's guaranteed exclusive access to qhead
-	 *  (endpt is not primed) so it's no need to use tripwire
-	 */
+	if (!list_empty(&mEp->qh.queue)) {
+		struct ci13xxx_req *mReqPrev;
+		int n = hw_ep_bit(mEp->num, mEp->dir);
+		int tmp_stat;
+
+		mReqPrev = list_entry(mEp->qh.queue.prev,
+				struct ci13xxx_req, queue);
+		if (mReqPrev->zptr)
+			mReqPrev->zptr->next = mReq->dma & TD_ADDR_MASK;
+		else
+			mReqPrev->ptr->next = mReq->dma & TD_ADDR_MASK;
+		wmb();
+		if (hw_cread(CAP_ENDPTPRIME, BIT(n)))
+			goto done;
+		do {
+			hw_cwrite(CAP_USBCMD, USBCMD_ATDTW, USBCMD_ATDTW);
+			tmp_stat = hw_cread(CAP_ENDPTSTAT, BIT(n));
+		} while (!hw_cread(CAP_USBCMD, USBCMD_ATDTW));
+		hw_cwrite(CAP_USBCMD, USBCMD_ATDTW, 0);
+		if (tmp_stat)
+			goto done;
+	}
+
+	/*  QH configuration */
 	mEp->qh.ptr->td.next   = mReq->dma;    /* TERMINATE = 0 */
 	mEp->qh.ptr->td.token &= ~TD_STATUS;   /* clear status */
-	if (mReq->req.zero == 0)
-		mEp->qh.ptr->cap |=  QH_ZLT;
-	else
-		mEp->qh.ptr->cap &= ~QH_ZLT;
+	mEp->qh.ptr->cap |=  QH_ZLT;
 
 	wmb();   /* synchronize before ep prime */
 
-	return hw_ep_prime(mEp->num, mEp->dir,
+	ret = hw_ep_prime(mEp->num, mEp->dir,
 			   mEp->type == USB_ENDPOINT_XFER_CONTROL);
+done:
+	return ret;
 }
 
 /**
@@ -1504,8 +1526,15 @@ static int _hardware_dequeue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 	if (mReq->req.status != -EALREADY)
 		return -EINVAL;
 
-	if (hw_ep_is_primed(mEp->num, mEp->dir))
-		hw_ep_flush(mEp->num, mEp->dir);
+	if ((TD_STATUS_ACTIVE & mReq->ptr->token) != 0)
+		return -EBUSY;
+
+	if (mReq->zptr) {
+		if ((TD_STATUS_ACTIVE & mReq->zptr->token) != 0)
+			return -EBUSY;
+		dma_pool_free(mEp->td_pool, mReq->zptr, mReq->zdma);
+		mReq->zptr = NULL;
+	}
 
 	mReq->req.status = 0;
 
@@ -1517,9 +1546,7 @@ static int _hardware_dequeue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 	}
 
 	mReq->req.status = mReq->ptr->token & TD_STATUS;
-	if      ((TD_STATUS_ACTIVE & mReq->req.status) != 0)
-		mReq->req.status = -ECONNRESET;
-	else if ((TD_STATUS_HALTED & mReq->req.status) != 0)
+	if ((TD_STATUS_HALTED & mReq->req.status) != 0)
 		mReq->req.status = -1;
 	else if ((TD_STATUS_DT_ERR & mReq->req.status) != 0)
 		mReq->req.status = -1;
@@ -1783,7 +1810,7 @@ static int isr_tr_complete_low(struct ci13xxx_ep *mEp)
 __releases(mEp->lock)
 __acquires(mEp->lock)
 {
-	struct ci13xxx_req *mReq;
+	struct ci13xxx_req *mReq, *mReqTemp;
 	int retval;
 
 	trace("%p", mEp);
@@ -1791,34 +1818,25 @@ __acquires(mEp->lock)
 	if (list_empty(&mEp->qh.queue))
 		return -EINVAL;
 
-	/* pop oldest request */
-	mReq = list_entry(mEp->qh.queue.next,
-			  struct ci13xxx_req, queue);
-	list_del_init(&mReq->queue);
+	list_for_each_entry_safe(mReq, mReqTemp, &mEp->qh.queue,
+			queue) {
+		retval = _hardware_dequeue(mEp, mReq);
+		if (retval < 0)
+			break;
+		list_del_init(&mReq->queue);
+		dbg_done(_usb_addr(mEp), mReq->ptr->token, retval);
+		if (mReq->req.complete != NULL) {
+			spin_unlock(mEp->lock);
+			mReq->req.complete(&mEp->ep, &mReq->req);
+			spin_lock(mEp->lock);
+		}
+	}
 
-	retval = _hardware_dequeue(mEp, mReq);
-	if (retval < 0) {
+	if (retval == EBUSY)
+		retval = 0;
+	if (retval < 0)
 		dbg_event(_usb_addr(mEp), "DONE", retval);
-		goto done;
-	}
 
-	dbg_done(_usb_addr(mEp), mReq->ptr->token, retval);
-
-	if (!list_empty(&mEp->qh.queue)) {
-		struct ci13xxx_req* mReqEnq;
-
-		mReqEnq = list_entry(mEp->qh.queue.next,
-				  struct ci13xxx_req, queue);
-		_hardware_enqueue(mEp, mReqEnq);
-	}
-
-	if (mReq->req.complete != NULL) {
-		spin_unlock(mEp->lock);
-		mReq->req.complete(&mEp->ep, &mReq->req);
-		spin_lock(mEp->lock);
-	}
-
- done:
 	return retval;
 }
 
@@ -2178,15 +2196,15 @@ static int ep_queue(struct usb_ep *ep, struct usb_request *req,
 	/* push request */
 	mReq->req.status = -EINPROGRESS;
 	mReq->req.actual = 0;
-	list_add_tail(&mReq->queue, &mEp->qh.queue);
 
-	if (list_is_singular(&mEp->qh.queue))
-		retval = _hardware_enqueue(mEp, mReq);
+	retval = _hardware_enqueue(mEp, mReq);
 
 	if (retval == -EALREADY) {
 		dbg_event(_usb_addr(mEp), "QUEUE", retval);
 		retval = 0;
 	}
+	if (!retval)
+		list_add_tail(&mReq->queue, &mEp->qh.queue);
 
  done:
 	spin_unlock_irqrestore(mEp->lock, flags);
@@ -2206,19 +2224,25 @@ static int ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 
 	trace("%p, %p", ep, req);
 
-	if (ep == NULL || req == NULL || mEp->desc == NULL ||
-	    list_empty(&mReq->queue)  || list_empty(&mEp->qh.queue))
+	if (ep == NULL || req == NULL || mReq->req.status != -EALREADY ||
+		mEp->desc == NULL || list_empty(&mReq->queue) ||
+		list_empty(&mEp->qh.queue))
 		return -EINVAL;
 
 	spin_lock_irqsave(mEp->lock, flags);
 
 	dbg_event(_usb_addr(mEp), "DEQUEUE", 0);
 
-	if (mReq->req.status == -EALREADY)
-		_hardware_dequeue(mEp, mReq);
+	hw_ep_flush(mEp->num, mEp->dir);
 
 	/* pop request */
 	list_del_init(&mReq->queue);
+	if (mReq->map) {
+		dma_unmap_single(mEp->device, mReq->req.dma, mReq->req.length,
+				 mEp->dir ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+		mReq->req.dma = 0;
+		mReq->map     = 0;
+	}
 	req->status = -ECONNRESET;
 
 	if (mReq->req.complete != NULL) {

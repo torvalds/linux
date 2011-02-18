@@ -33,6 +33,7 @@ struct ci13xxx_td {
 	/* 0 */
 	u32 next;
 #define TD_TERMINATE          BIT(0)
+#define TD_ADDR_MASK          (0xFFFFFFEUL << 5)
 	/* 1 */
 	u32 token;
 #define TD_STATUS             (0x00FFUL <<  0)
@@ -74,6 +75,8 @@ struct ci13xxx_req {
 	struct list_head     queue;
 	struct ci13xxx_td   *ptr;
 	dma_addr_t           dma;
+	struct ci13xxx_td   *zptr;
+	dma_addr_t           zdma;
 };
 
 /* Extension of usb_ep */
@@ -152,6 +155,7 @@ struct ci13xxx {
 #define USBCMD_RS             BIT(0)
 #define USBCMD_RST            BIT(1)
 #define USBCMD_SUTW           BIT(13)
+#define USBCMD_ATDTW          BIT(14)
 
 /* USBSTS & USBINTR */
 #define USBi_UI               BIT(0)
