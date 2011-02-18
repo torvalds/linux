@@ -716,6 +716,12 @@ int xen_create_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int type)
 		map_irq.entry_nr = msidesc->msi_attrib.entry_nr;
 	}
 
+	rc = HYPERVISOR_physdev_op(PHYSDEVOP_map_pirq, &map_irq);
+	if (rc) {
+		dev_warn(&dev->dev, "xen map irq failed %d\n", rc);
+		goto out;
+	}
+
 	spin_lock(&irq_mapping_update_lock);
 
 	irq = xen_allocate_irq_dynamic();
@@ -723,15 +729,6 @@ int xen_create_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int type)
 	if (irq == -1)
 		goto out;
 
-	rc = HYPERVISOR_physdev_op(PHYSDEVOP_map_pirq, &map_irq);
-	if (rc) {
-		printk(KERN_WARNING "xen map irq failed %d\n", rc);
-
-		xen_free_irq(irq);
-
-		irq = -1;
-		goto out;
-	}
 	irq_info[irq] = mk_pirq_info(0, map_irq.pirq, 0, map_irq.index);
 
 	set_irq_chip_and_handler_name(irq, &xen_pirq_chip,
