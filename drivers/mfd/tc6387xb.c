@@ -190,11 +190,6 @@ static int __devinit tc6387xb_probe(struct platform_device *dev)
 
 	printk(KERN_INFO "Toshiba tc6387xb initialised\n");
 
-	tc6387xb_cells[TC6387XB_CELL_MMC].platform_data =
-		&tc6387xb_cells[TC6387XB_CELL_MMC];
-	tc6387xb_cells[TC6387XB_CELL_MMC].data_size =
-		sizeof(tc6387xb_cells[TC6387XB_CELL_MMC]);
-
 	ret = mfd_add_devices(&dev->dev, dev->id, tc6387xb_cells,
 			      ARRAY_SIZE(tc6387xb_cells), iomem, irq);
 
