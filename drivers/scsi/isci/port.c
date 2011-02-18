@@ -263,6 +263,8 @@ void isci_port_link_up(
 		success = false;
 	}
 
+	isci_phy->sas_phy.phy->negotiated_linkrate = sci_phy_linkrate(phy);
+
 	spin_unlock_irqrestore(&isci_phy->sas_phy.frame_rcvd_lock, flags);
 
 	/* Notify libsas that we have an address frame, if indeed

@@ -73,6 +73,11 @@
 /* Maximum arbitration wait time in micro-seconds */
 #define SCIC_SDS_PHY_MAX_ARBITRATION_WAIT_TIME  (700)
 
+enum sas_linkrate sci_phy_linkrate(struct scic_sds_phy *sci_phy)
+{
+	return sci_phy->max_negotiated_speed;
+}
+
 /*
  * *****************************************************************************
  * * SCIC SDS PHY Internal Methods

@@ -72,6 +72,9 @@
 struct scic_sds_phy;
 struct scic_sds_port;
 
+
+enum sas_linkrate sci_phy_linkrate(struct scic_sds_phy *sci_phy);
+
 /**
  * struct scic_phy_properties - This structure defines the properties common to
  *    all phys that can be retrieved.
