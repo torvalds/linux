@@ -384,7 +384,7 @@ static int __init altera_jtaguart_console_setup(struct console *co,
 	if (co->index < 0 || co->index >= ALTERA_JTAGUART_MAXPORTS)
 		return -EINVAL;
 	port = &altera_jtaguart_ports[co->index].port;
-	if (port->membase == 0)
+	if (port->membase == NULL)
 		return -ENODEV;
 	return 0;
 }
