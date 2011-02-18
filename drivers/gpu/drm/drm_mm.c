@@ -115,23 +115,14 @@ static inline unsigned long drm_mm_hole_node_end(struct drm_mm_node *hole_node)
 	return next_node->start;
 }
 
-struct drm_mm_node *drm_mm_get_block_generic(struct drm_mm_node *hole_node,
-					     unsigned long size,
-					     unsigned alignment,
-					     int atomic)
+static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
+				 struct drm_mm_node *node,
+				 unsigned long size, unsigned alignment)
 {
-
-	struct drm_mm_node *node;
 	struct drm_mm *mm = hole_node->mm;
 	unsigned long tmp = 0, wasted = 0;
 	unsigned long hole_start = drm_mm_hole_node_start(hole_node);
 	unsigned long hole_end = drm_mm_hole_node_end(hole_node);
-
-	BUG_ON(!hole_node->hole_follows);
-
-	node = drm_mm_kmalloc(mm, atomic);
-	if (unlikely(node == NULL))
-		return NULL;
 
 	if (alignment)
 		tmp = hole_start % alignment;
@@ -157,29 +148,36 @@ struct drm_mm_node *drm_mm_get_block_generic(struct drm_mm_node *hole_node,
 	} else {
 		node->hole_follows = 0;
 	}
+}
+
+struct drm_mm_node *drm_mm_get_block_generic(struct drm_mm_node *hole_node,
+					     unsigned long size,
+					     unsigned alignment,
+					     int atomic)
+{
+	struct drm_mm_node *node;
+
+	BUG_ON(!hole_node->hole_follows);
+
+	node = drm_mm_kmalloc(hole_node->mm, atomic);
+	if (unlikely(node == NULL))
+		return NULL;
+
+	drm_mm_insert_helper(hole_node, node, size, alignment);
 
 	return node;
 }
 EXPORT_SYMBOL(drm_mm_get_block_generic);
 
-struct drm_mm_node *drm_mm_get_block_range_generic(struct drm_mm_node *hole_node,
-						unsigned long size,
-						unsigned alignment,
-						unsigned long start,
-						unsigned long end,
-						int atomic)
+static void drm_mm_insert_helper_range(struct drm_mm_node *hole_node,
+				       struct drm_mm_node *node,
+				       unsigned long size, unsigned alignment,
+				       unsigned long start, unsigned long end)
 {
-	struct drm_mm_node *node;
 	struct drm_mm *mm = hole_node->mm;
 	unsigned long tmp = 0, wasted = 0;
 	unsigned long hole_start = drm_mm_hole_node_start(hole_node);
 	unsigned long hole_end = drm_mm_hole_node_end(hole_node);
-
-	BUG_ON(!hole_node->hole_follows);
-
-	node = drm_mm_kmalloc(mm, atomic);
-	if (unlikely(node == NULL))
-		return NULL;
 
 	if (hole_start < start)
 		wasted += start - hole_start;
@@ -210,6 +208,25 @@ struct drm_mm_node *drm_mm_get_block_range_generic(struct drm_mm_node *hole_node
 	} else {
 		node->hole_follows = 0;
 	}
+}
+
+struct drm_mm_node *drm_mm_get_block_range_generic(struct drm_mm_node *hole_node,
+						unsigned long size,
+						unsigned alignment,
+						unsigned long start,
+						unsigned long end,
+						int atomic)
+{
+	struct drm_mm_node *node;
+
+	BUG_ON(!hole_node->hole_follows);
+
+	node = drm_mm_kmalloc(hole_node->mm, atomic);
+	if (unlikely(node == NULL))
+		return NULL;
+
+	drm_mm_insert_helper_range(hole_node, node, size, alignment,
+				   start, end);
 
 	return node;
 }
