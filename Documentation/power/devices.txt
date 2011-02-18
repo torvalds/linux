@@ -249,23 +249,18 @@ various phases always run after tasks have been frozen and before they are
 unfrozen.  Furthermore, the *_noirq phases run at a time when IRQ handlers have
 been disabled (except for those marked with the IRQ_WAKEUP flag).
 
-Most phases use bus, type, and class callbacks (that is, methods defined in
-dev->bus->pm, dev->type->pm, and dev->class->pm).  The prepare and complete
-phases are exceptions; they use only bus callbacks.  When multiple callbacks
-are used in a phase, they are invoked in the order: <class, type, bus> during
-power-down transitions and in the opposite order during power-up transitions.
-For example, during the suspend phase the PM core invokes
-
-	dev->class->pm.suspend(dev);
-	dev->type->pm.suspend(dev);
-	dev->bus->pm.suspend(dev);
-
-before moving on to the next device, whereas during the resume phase the core
-invokes
-
-	dev->bus->pm.resume(dev);
-	dev->type->pm.resume(dev);
-	dev->class->pm.resume(dev);
+All phases use bus, type, or class callbacks (that is, methods defined in
+dev->bus->pm, dev->type->pm, or dev->class->pm).  These callbacks are mutually
+exclusive, so if the device type provides a struct dev_pm_ops object pointed to
+by its pm field (i.e. both dev->type and dev->type->pm are defined), the
+callbacks included in that object (i.e. dev->type->pm) will be used.  Otherwise,
+if the class provides a struct dev_pm_ops object pointed to by its pm field
+(i.e. both dev->class and dev->class->pm are defined), the PM core will use the
+callbacks from that object (i.e. dev->class->pm).  Finally, if the pm fields of
+both the device type and class objects are NULL (or those objects do not exist),
+the callbacks provided by the bus (that is, the callbacks from dev->bus->pm)
+will be used (this allows device types to override callbacks provided by bus
+types or classes if necessary).
 
 These callbacks may in turn invoke device- or driver-specific methods stored in
 dev->driver->pm, but they don't have to.
