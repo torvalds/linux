@@ -538,11 +538,6 @@ static int __cmd_record(int argc, const char **argv)
 	if (have_tracepoints(&evsel_list->entries))
 		perf_header__set_feat(&session->header, HEADER_TRACE_INFO);
 
-	/*
- 	 * perf_session__delete(session) will be called at atexit_header()
-	 */
-	atexit(atexit_header);
-
 	if (forks) {
 		child_pid = fork();
 		if (child_pid < 0) {
@@ -600,6 +595,11 @@ static int __cmd_record(int argc, const char **argv)
 	open_counters(evsel_list);
 
 	perf_session__set_sample_type(session, sample_type);
+
+	/*
+	 * perf_session__delete(session) will be called at atexit_header()
+	 */
+	atexit(atexit_header);
 
 	if (pipe_output) {
 		err = perf_header__write_pipe(output);
