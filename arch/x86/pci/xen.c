@@ -203,6 +203,7 @@ static void xen_teardown_msi_irq(unsigned int irq)
 	xen_destroy_irq(irq);
 }
 
+#ifdef CONFIG_XEN_DOM0
 static int xen_initdom_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
 	int irq, ret;
@@ -223,6 +224,7 @@ error:
 	xen_destroy_irq(irq);
 	return ret;
 }
+#endif
 #endif
 
 static int xen_pcifront_enable_irq(struct pci_dev *dev)
