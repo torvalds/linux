@@ -24,6 +24,7 @@
 #include <plat/cpu.h>
 #include <plat/gpio.h>
 #include <plat/dma.h>
+#include <plat/mcspi.h>
 
 #include "omap_hwmod_common_data.h"
 
@@ -3114,6 +3115,7 @@ static struct omap_hwmod_class_sysconfig omap44xx_mcspi_sysc = {
 static struct omap_hwmod_class omap44xx_mcspi_hwmod_class = {
 	.name	= "mcspi",
 	.sysc	= &omap44xx_mcspi_sysc,
+	.rev	= OMAP4_MCSPI_REV,
 };
 
 /* mcspi1 */
@@ -3156,6 +3158,11 @@ static struct omap_hwmod_ocp_if *omap44xx_mcspi1_slaves[] = {
 	&omap44xx_l4_per__mcspi1,
 };
 
+/* mcspi1 dev_attr */
+static struct omap2_mcspi_dev_attr mcspi1_dev_attr = {
+	.num_chipselect	= 4,
+};
+
 static struct omap_hwmod omap44xx_mcspi1_hwmod = {
 	.name		= "mcspi1",
 	.class		= &omap44xx_mcspi_hwmod_class,
@@ -3169,6 +3176,7 @@ static struct omap_hwmod omap44xx_mcspi1_hwmod = {
 			.clkctrl_reg = OMAP4430_CM_L4PER_MCSPI1_CLKCTRL,
 		},
 	},
+	.dev_attr	= &mcspi1_dev_attr,
 	.slaves		= omap44xx_mcspi1_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap44xx_mcspi1_slaves),
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
@@ -3210,6 +3218,11 @@ static struct omap_hwmod_ocp_if *omap44xx_mcspi2_slaves[] = {
 	&omap44xx_l4_per__mcspi2,
 };
 
+/* mcspi2 dev_attr */
+static struct omap2_mcspi_dev_attr mcspi2_dev_attr = {
+	.num_chipselect	= 2,
+};
+
 static struct omap_hwmod omap44xx_mcspi2_hwmod = {
 	.name		= "mcspi2",
 	.class		= &omap44xx_mcspi_hwmod_class,
@@ -3223,6 +3236,7 @@ static struct omap_hwmod omap44xx_mcspi2_hwmod = {
 			.clkctrl_reg = OMAP4430_CM_L4PER_MCSPI2_CLKCTRL,
 		},
 	},
+	.dev_attr	= &mcspi2_dev_attr,
 	.slaves		= omap44xx_mcspi2_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap44xx_mcspi2_slaves),
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
@@ -3264,6 +3278,11 @@ static struct omap_hwmod_ocp_if *omap44xx_mcspi3_slaves[] = {
 	&omap44xx_l4_per__mcspi3,
 };
 
+/* mcspi3 dev_attr */
+static struct omap2_mcspi_dev_attr mcspi3_dev_attr = {
+	.num_chipselect	= 2,
+};
+
 static struct omap_hwmod omap44xx_mcspi3_hwmod = {
 	.name		= "mcspi3",
 	.class		= &omap44xx_mcspi_hwmod_class,
@@ -3277,6 +3296,7 @@ static struct omap_hwmod omap44xx_mcspi3_hwmod = {
 			.clkctrl_reg = OMAP4430_CM_L4PER_MCSPI3_CLKCTRL,
 		},
 	},
+	.dev_attr	= &mcspi3_dev_attr,
 	.slaves		= omap44xx_mcspi3_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap44xx_mcspi3_slaves),
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
@@ -3316,6 +3336,11 @@ static struct omap_hwmod_ocp_if *omap44xx_mcspi4_slaves[] = {
 	&omap44xx_l4_per__mcspi4,
 };
 
+/* mcspi4 dev_attr */
+static struct omap2_mcspi_dev_attr mcspi4_dev_attr = {
+	.num_chipselect	= 1,
+};
+
 static struct omap_hwmod omap44xx_mcspi4_hwmod = {
 	.name		= "mcspi4",
 	.class		= &omap44xx_mcspi_hwmod_class,
@@ -3329,6 +3354,7 @@ static struct omap_hwmod omap44xx_mcspi4_hwmod = {
 			.clkctrl_reg = OMAP4430_CM_L4PER_MCSPI4_CLKCTRL,
 		},
 	},
+	.dev_attr	= &mcspi4_dev_attr,
 	.slaves		= omap44xx_mcspi4_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap44xx_mcspi4_slaves),
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
