@@ -121,7 +121,7 @@ typedef spinlock_t                      A_MUTEX_T;
 
 /* Get current time in ms adding a constant offset (in ms) */
 #define A_GET_MS(offset)    \
-	(jiffies + ((offset) / 1000) * HZ)
+	(((jiffies / HZ) * 1000) + (offset))
 
 /*
  * Timer Functions

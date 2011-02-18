@@ -122,7 +122,7 @@ wlan_setup_node(struct ieee80211_node_table *nt, bss_t *ni,
 
     timeoutValue = nt->nt_nodeAge;
 
-    ni->ni_tstamp = A_GET_MS (timeoutValue);
+    ni->ni_tstamp = A_GET_MS (0);
     ni->ni_actcnt = WLAN_NODE_INACT_CNT;
 
     IEEE80211_NODE_LOCK_BH(nt);
@@ -360,7 +360,7 @@ wlan_refresh_inactive_nodes (struct ieee80211_node_table *nt)
         if (A_MEMCMP(myBssid, bss->ni_macaddr, sizeof(myBssid)) != 0)
         {
 
-            if (bss->ni_tstamp <= now || --bss->ni_actcnt == 0)
+            if (((now - bss->ni_tstamp) > timeoutValue)  || --bss->ni_actcnt == 0)
             {
                /*
                 * free up all but the current bss - if set
@@ -381,6 +381,7 @@ wlan_node_timeout (A_ATH_TIMER arg)
     bss_t *bss, *nextBss;
     u8 myBssid[IEEE80211_ADDR_LEN], reArmTimer = false;
     u32 timeoutValue = 0;
+    u32 now = A_GET_MS(0);
 
     timeoutValue = nt->nt_nodeAge;
 
@@ -393,7 +394,7 @@ wlan_node_timeout (A_ATH_TIMER arg)
         if (A_MEMCMP(myBssid, bss->ni_macaddr, sizeof(myBssid)) != 0)
         {
 
-            if (bss->ni_tstamp <= A_GET_MS(0))
+            if ((now - bss->ni_tstamp) > timeoutValue)
             {
                /*
                 * free up all but the current bss - if set
