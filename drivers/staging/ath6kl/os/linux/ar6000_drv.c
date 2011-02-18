@@ -2417,6 +2417,120 @@ u8 ar6000_endpoint_id2_ac(void * devt, HTC_ENDPOINT_ID ep )
     return(arEndpoint2Ac(ar, ep ));
 }
 
+/*
+ * This function applies WLAN specific configuration defined in wlan_config.h
+ */
+int ar6000_target_config_wlan_params(AR_SOFTC_T *ar)
+{
+    int status = 0;
+#if defined(INIT_MODE_DRV_ENABLED) && defined(ENABLE_COEXISTENCE)
+    WMI_SET_BTCOEX_COLOCATED_BT_DEV_CMD sbcb_cmd;
+    WMI_SET_BTCOEX_FE_ANT_CMD sbfa_cmd;
+#endif /* INIT_MODE_DRV_ENABLED && ENABLE_COEXISTENCE */
+
+#ifdef CONFIG_HOST_TCMD_SUPPORT
+    if (ar->arTargetMode != AR6000_WLAN_MODE) {
+        return 0;
+    }
+#endif /* CONFIG_HOST_TCMD_SUPPORT */
+
+    /* 
+     * configure the device for rx dot11 header rules 0,0 are the default values
+     * therefore this command can be skipped if the inputs are 0,FALSE,FALSE.Required
+     * if checksum offload is needed. Set RxMetaVersion to 2
+     */
+    if ((wmi_set_rx_frame_format_cmd(ar->arWmi,ar->rxMetaVersion, processDot11Hdr, processDot11Hdr)) != 0) {
+        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set the rx frame format.\n"));
+        status = A_ERROR;
+    }
+
+#if defined(INIT_MODE_DRV_ENABLED) && defined(ENABLE_COEXISTENCE)
+    /* Configure the type of BT collocated with WLAN */
+    memset(&sbcb_cmd, 0, sizeof(WMI_SET_BTCOEX_COLOCATED_BT_DEV_CMD));
+#ifdef CONFIG_AR600x_BT_QCOM
+    sbcb_cmd.btcoexCoLocatedBTdev = 1;
+#elif defined(CONFIG_AR600x_BT_CSR)
+    sbcb_cmd.btcoexCoLocatedBTdev = 2;
+#elif defined(CONFIG_AR600x_BT_AR3001)
+    sbcb_cmd.btcoexCoLocatedBTdev = 3;
+#else
+#error Unsupported Bluetooth Type
+#endif /* Collocated Bluetooth Type */
+
+    if ((wmi_set_btcoex_colocated_bt_dev_cmd(ar->arWmi, &sbcb_cmd)) != 0) {
+        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set collocated BT type\n"));
+        status = A_ERROR;
+    }
+
+    /* Configure the type of BT collocated with WLAN */
+    memset(&sbfa_cmd, 0, sizeof(WMI_SET_BTCOEX_FE_ANT_CMD));
+#ifdef CONFIG_AR600x_DUAL_ANTENNA
+    sbfa_cmd.btcoexFeAntType = 2;
+#elif defined(CONFIG_AR600x_SINGLE_ANTENNA)
+    sbfa_cmd.btcoexFeAntType = 1;
+#else
+#error Unsupported Front-End Antenna Configuration
+#endif /* AR600x Front-End Antenna Configuration */
+
+    if ((wmi_set_btcoex_fe_ant_cmd(ar->arWmi, &sbfa_cmd)) != 0) {
+        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set fornt end antenna configuration\n"));
+        status = A_ERROR;
+    }
+#endif /* INIT_MODE_DRV_ENABLED && ENABLE_COEXISTENCE */
+
+#if WLAN_CONFIG_IGNORE_POWER_SAVE_FAIL_EVENT_DURING_SCAN
+    if ((wmi_pmparams_cmd(ar->arWmi, 0, 1, 0, 0, 1, IGNORE_POWER_SAVE_FAIL_EVENT_DURING_SCAN)) != 0) {
+        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set power save fail event policy\n"));
+        status = A_ERROR;
+    }
+#endif
+
+#if WLAN_CONFIG_DONOT_IGNORE_BARKER_IN_ERP
+    if ((wmi_set_lpreamble_cmd(ar->arWmi, 0, WMI_DONOT_IGNORE_BARKER_IN_ERP)) != 0) {
+        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set barker preamble policy\n"));
+        status = A_ERROR;
+    }
+#endif
+
+    if ((wmi_set_keepalive_cmd(ar->arWmi, WLAN_CONFIG_KEEP_ALIVE_INTERVAL)) != 0) {
+        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set keep alive interval\n"));
+        status = A_ERROR;
+    }
+
+#if WLAN_CONFIG_DISABLE_11N
+    {
+        WMI_SET_HT_CAP_CMD htCap;
+
+        memset(&htCap, 0, sizeof(WMI_SET_HT_CAP_CMD));
+        htCap.band = 0;
+        if ((wmi_set_ht_cap_cmd(ar->arWmi, &htCap)) != 0) {
+            AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set ht capabilities \n"));
+            status = A_ERROR;
+        }
+
+        htCap.band = 1;
+        if ((wmi_set_ht_cap_cmd(ar->arWmi, &htCap)) != 0) {
+            AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set ht capabilities \n"));
+            status = A_ERROR;
+        }
+    }
+#endif /* WLAN_CONFIG_DISABLE_11N */
+
+#ifdef ATH6K_CONFIG_OTA_MODE
+    if ((wmi_powermode_cmd(ar->arWmi, MAX_PERF_POWER)) != 0) {
+        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set power mode \n"));
+        status = A_ERROR;
+    }
+#endif
+
+    if ((wmi_disctimeout_cmd(ar->arWmi, WLAN_CONFIG_DISCONNECT_TIMEOUT)) != 0) {
+        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set disconnect timeout \n"));
+        status = A_ERROR;
+    }
+
+    return status;
+}
+
 /* This function does one time initialization for the lifetime of the device */
 int ar6000_init(struct net_device *dev)
 {
@@ -2425,10 +2539,6 @@ int ar6000_init(struct net_device *dev)
     s32 timeleft;
     s16 i;
     int         ret = 0;
-#if defined(INIT_MODE_DRV_ENABLED) && defined(ENABLE_COEXISTENCE)
-    WMI_SET_BTCOEX_COLOCATED_BT_DEV_CMD sbcb_cmd;
-    WMI_SET_BTCOEX_FE_ANT_CMD sbfa_cmd;
-#endif /* INIT_MODE_DRV_ENABLED && ENABLE_COEXISTENCE */
 
     if((ar = ar6k_priv(dev)) == NULL)
     {
@@ -2696,46 +2806,7 @@ int ar6000_init(struct net_device *dev)
         if ((ar6000_set_host_app_area(ar)) != 0) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set the host app area\n"));
         }
-
-        /* configure the device for rx dot11 header rules 0,0 are the default values
-         * therefore this command can be skipped if the inputs are 0,false,false.Required
-         if checksum offload is needed. Set RxMetaVersion to 2*/
-        if ((wmi_set_rx_frame_format_cmd(ar->arWmi,ar->rxMetaVersion, processDot11Hdr, processDot11Hdr)) != 0) {
-            AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set the rx frame format.\n"));
-        }
-
-#if defined(INIT_MODE_DRV_ENABLED) && defined(ENABLE_COEXISTENCE)
-        /* Configure the type of BT collocated with WLAN */
-        A_MEMZERO(&sbcb_cmd, sizeof(WMI_SET_BTCOEX_COLOCATED_BT_DEV_CMD));
-#ifdef CONFIG_AR600x_BT_QCOM
-        sbcb_cmd.btcoexCoLocatedBTdev = 1;
-#elif defined(CONFIG_AR600x_BT_CSR)
-        sbcb_cmd.btcoexCoLocatedBTdev = 2;
-#elif defined(CONFIG_AR600x_BT_AR3001)
-        sbcb_cmd.btcoexCoLocatedBTdev = 3;
-#else
-#error Unsupported Bluetooth Type
-#endif /* Collocated Bluetooth Type */
-
-        if ((wmi_set_btcoex_colocated_bt_dev_cmd(ar->arWmi, &sbcb_cmd)) != 0)
-        {
-            AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set collocated BT type\n"));
-        }
-
-        /* Configure the type of BT collocated with WLAN */
-        A_MEMZERO(&sbfa_cmd, sizeof(WMI_SET_BTCOEX_FE_ANT_CMD));
-#ifdef CONFIG_AR600x_DUAL_ANTENNA
-        sbfa_cmd.btcoexFeAntType = 2;
-#elif defined(CONFIG_AR600x_SINGLE_ANTENNA)
-        sbfa_cmd.btcoexFeAntType = 1;
-#else
-#error Unsupported Front-End Antenna Configuration
-#endif /* AR600x Front-End Antenna Configuration */
-
-        if ((wmi_set_btcoex_fe_ant_cmd(ar->arWmi, &sbfa_cmd)) != 0) {
-            AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set fornt end antenna configuration\n"));
-        }
-#endif /* INIT_MODE_DRV_ENABLED && ENABLE_COEXISTENCE */
+        ar6000_target_config_wlan_params(ar);
     }
 
     ar->arNumDataEndPts = 1;
@@ -4169,31 +4240,6 @@ ar6000_ready_event(void *devt, u8 *datap, u8 phyCap, u32 sw_ver, u32 abi_ver)
     /* Indicate to the waiting thread that the ready event was received */
     ar->arWmiReady = true;
     wake_up(&arEvent);
-
-#if WLAN_CONFIG_IGNORE_POWER_SAVE_FAIL_EVENT_DURING_SCAN
-    wmi_pmparams_cmd(ar->arWmi, 0, 1, 0, 0, 1, IGNORE_POWER_SAVE_FAIL_EVENT_DURING_SCAN);
-#endif
-#if WLAN_CONFIG_DONOT_IGNORE_BARKER_IN_ERP
-    wmi_set_lpreamble_cmd(ar->arWmi, 0, WMI_DONOT_IGNORE_BARKER_IN_ERP);
-#endif
-    wmi_set_keepalive_cmd(ar->arWmi, WLAN_CONFIG_KEEP_ALIVE_INTERVAL);
-#if WLAN_CONFIG_DISABLE_11N
-    {
-        WMI_SET_HT_CAP_CMD htCap;
-
-        A_MEMZERO(&htCap, sizeof(WMI_SET_HT_CAP_CMD));
-        htCap.band = 0;
-        wmi_set_ht_cap_cmd(ar->arWmi, &htCap);
-
-        htCap.band = 1;
-        wmi_set_ht_cap_cmd(ar->arWmi, &htCap);
-    }
-#endif /* WLAN_CONFIG_DISABLE_11N */
-
-#ifdef ATH6K_CONFIG_OTA_MODE
-    wmi_powermode_cmd(ar->arWmi, MAX_PERF_POWER);
-#endif
-    wmi_disctimeout_cmd(ar->arWmi, WLAN_CONFIG_DISCONNECT_TIMEOUT);
 }
 
 void
