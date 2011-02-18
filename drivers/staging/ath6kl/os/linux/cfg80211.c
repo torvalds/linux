@@ -318,7 +318,7 @@ ar6k_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
         return 0;
     } else if(ar->arSsidLen == sme->ssid_len &&
               !A_MEMCMP(ar->arSsid, sme->ssid, ar->arSsidLen)) {
-	    wmi_disconnect_cmd(ar->arWmi);
+	    ar6000_disconnect(ar);
     }
 
     A_MEMZERO(ar->arSsid, sizeof(ar->arSsid));
@@ -604,7 +604,7 @@ ar6k_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
     }
 
     reconnect_flag = 0;
-    wmi_disconnect_cmd(ar->arWmi);
+    ar6000_disconnect(ar);
     A_MEMZERO(ar->arSsid, sizeof(ar->arSsid));
     ar->arSsidLen = 0;
 
@@ -1341,6 +1341,7 @@ ar6k_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
                             ar->arSsidLen, ar->arSsid,
                             ar->arReqBssid, ar->arChannelHint,
                             ar->arConnectCtrlFlags);
+    ar->arConnectPending = true;
 
     return 0;
 }
@@ -1362,7 +1363,7 @@ ar6k_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
         return -EIO;
     }
 
-    wmi_disconnect_cmd(ar->arWmi);
+    ar6000_disconnect(ar);
     A_MEMZERO(ar->arSsid, sizeof(ar->arSsid));
     ar->arSsidLen = 0;
 

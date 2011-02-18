@@ -1943,15 +1943,12 @@ ar6000_stop_endpoint(struct net_device *dev, bool keepprofile, bool getdbglogs)
     {
         if (!bypasswmi)
         {
-            if (ar->arConnected == true || ar->arConnectPending == true)
-            {
-                AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("%s(): Disconnect\n", __func__));
-                if (!keepprofile) {
-                    AR6000_SPIN_LOCK(&ar->arLock, 0);
-                    ar6000_init_profile_info(ar);
-                    AR6000_SPIN_UNLOCK(&ar->arLock, 0);
-                }
-                wmi_disconnect_cmd(ar->arWmi);
+            bool disconnectIssued;
+ 
+            disconnectIssued = (ar->arConnected) || (ar->arConnectPending);
+            ar6000_disconnect(ar);
+            if (!keepprofile) {
+                ar6000_init_profile_info(ar);
             }
 
             A_UNTIMEOUT(&ar->disconnect_timer);
@@ -1973,14 +1970,12 @@ ar6000_stop_endpoint(struct net_device *dev, bool keepprofile, bool getdbglogs)
              * Sometimes disconnect_event will be received when the debug logs 
              * are collected.
              */
-            if (ar->arConnected == true || ar->arConnectPending == true) {
+            if (disconnectIssued) {
                 if(ar->arNetworkType & AP_NETWORK) {
                     ar6000_disconnect_event(ar, DISCONNECT_CMD, bcast_mac, 0, NULL, 0);
                 } else {
                     ar6000_disconnect_event(ar, DISCONNECT_CMD, ar->arBssid, 0, NULL, 0);
                 }
-                ar->arConnected = false;
-                ar->arConnectPending = false;
             }
 #ifdef USER_KEYS
             ar->user_savedkeys_stat = USER_SAVEDKEYS_STAT_INIT;
@@ -2163,7 +2158,7 @@ static void disconnect_timer_handler(unsigned long ptr)
     A_UNTIMEOUT(&ar->disconnect_timer);
 
     ar6000_init_profile_info(ar);
-    wmi_disconnect_cmd(ar->arWmi);
+    ar6000_disconnect(ar);
 }
 
 static void ar6000_detect_error(unsigned long ptr)
@@ -2235,7 +2230,6 @@ void ar6000_init_profile_info(AR_SOFTC_T *ar)
     A_MEMZERO(ar->arReqBssid, sizeof(ar->arReqBssid));
     A_MEMZERO(ar->arBssid, sizeof(ar->arBssid));
     ar->arBssChannel = 0;
-    ar->arConnected = false;
 }
 
 static void
@@ -2322,13 +2316,7 @@ ar6000_close(struct net_device *dev)
     netif_stop_queue(dev);
 
 #ifdef ATH6K_CONFIG_CFG80211
-    AR6000_SPIN_LOCK(&ar->arLock, 0);
-    if (ar->arConnected == true || ar->arConnectPending == true) {
-        AR6000_SPIN_UNLOCK(&ar->arLock, 0);
-        wmi_disconnect_cmd(ar->arWmi);
-    } else {
-        AR6000_SPIN_UNLOCK(&ar->arLock, 0);
-    }
+    ar6000_disconnect(ar);
 
     if(ar->arWmiReady == true) {
         if (wmi_scanparams_cmd(ar->arWmi, 0xFFFF, 0,
@@ -4608,6 +4596,8 @@ ar6000_disconnect_event(AR_SOFTC_T *ar, u8 reason, u8 *bssid,
             A_MEMCPY(wrqu.addr.sa_data, bssid, ATH_MAC_LEN);
             wireless_send_event(ar->arNetDev, IWEVEXPIRED, &wrqu, NULL);
         }
+
+        ar->arConnected = false;
         return;
     }
 
@@ -4652,7 +4642,6 @@ ar6000_disconnect_event(AR_SOFTC_T *ar, u8 reason, u8 *bssid,
      */
     if( reason == DISCONNECT_CMD)
     {
-        ar->arConnectPending = false;
         if ((!ar->arUserBssFilter) && (ar->arWmiReady)) {
             wmi_bssfilter_cmd(ar->arWmi, NONE_BSS_FILTER, 0);
         }
@@ -6084,8 +6073,6 @@ ar6000_ap_mode_profile_commit(struct ar6_softc *ar)
     p.groupCryptoLen = ar->arGroupCryptoLen;
     p.ctrl_flags = ar->arConnectCtrlFlags;
 
-    ar->arConnected = false;
-
     wmi_ap_profile_commit(ar->arWmi, &p);
     spin_lock_irqsave(&ar->arLock, flags);
     ar->arConnected  = true;
@@ -6164,6 +6151,21 @@ ar6000_connect_to_ap(struct ar6_softc *ar)
         return status;    
     }
     return A_ERROR;
+}
+
+int
+ar6000_disconnect(struct ar6_softc *ar)
+{
+    if ((ar->arConnected == true) || (ar->arConnectPending == true)) {
+        wmi_disconnect_cmd(ar->arWmi);
+        /* 
+         * Disconnect cmd is issued, clear connectPending.
+         * arConnected will be cleard in disconnect_event notification.
+         */
+        ar->arConnectPending = false;
+    }
+
+    return 0;
 }
 
 int

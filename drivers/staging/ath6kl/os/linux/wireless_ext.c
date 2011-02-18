@@ -575,9 +575,10 @@ ar6000_ioctl_siwessid(struct net_device *dev,
     /* Update the arNetworkType */
     ar->arNetworkType = ar->arNextMode;
 
-
     if ((prevMode != AP_NETWORK) &&
-        ((ar->arSsidLen) || ((ar->arSsidLen == 0) && ar->arConnected) || (!data->flags)))
+        ((ar->arSsidLen) || 
+        ((ar->arSsidLen == 0) && (ar->arConnected || ar->arConnectPending)) || 
+        (!data->flags)))
     {
         if ((!data->flags) ||
             (A_MEMCMP(ar->arSsid, ssid, ar->arSsidLen) != 0) ||
@@ -594,7 +595,7 @@ ar6000_ioctl_siwessid(struct net_device *dev,
             if (ar->arWmiReady == true) {
                 reconnect_flag = 0;
                 status = wmi_setPmkid_cmd(ar->arWmi, ar->arBssid, NULL, 0);
-                status = wmi_disconnect_cmd(ar->arWmi);
+                ar6000_disconnect(ar);
                 A_MEMZERO(ar->arSsid, sizeof(ar->arSsid));
                 ar->arSsidLen = 0;
                 if (ar->arSkipScan == false) {
@@ -2414,7 +2415,7 @@ ar6000_ioctl_siwmlme(struct net_device *dev,
                 ar6000_init_profile_info(ar);
                 ar->arNetworkType = arNetworkType;
                 reconnect_flag = 0;
-                wmi_disconnect_cmd(ar->arWmi);
+                ar6000_disconnect(ar);
                 A_MEMZERO(ar->arSsid, sizeof(ar->arSsid));
                 ar->arSsidLen = 0;
                 if (ar->arSkipScan == false) {
@@ -2614,8 +2615,6 @@ ar6000_ioctl_siwcommit(struct net_device *dev,
      * update the host driver association state for the STA|IBSS mode.
      */
     if (ar->arNetworkType != AP_NETWORK && ar->arNextMode == AP_NETWORK) {
-        ar->arConnectPending = false;
-        ar->arConnected = false;
         /* Stop getting pkts from upper stack */
         netif_stop_queue(ar->arNetDev);
         A_MEMZERO(ar->arBssid, sizeof(ar->arBssid));

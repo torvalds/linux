@@ -171,6 +171,7 @@ void ap_wapi_rekey_event(struct ar6_softc *ar, u8 type, u8 *mac);
 #endif
 
 int ar6000_connect_to_ap(struct ar6_softc *ar);
+int ar6000_disconnect(struct ar6_softc *ar);
 int ar6000_update_wlan_pwr_state(struct ar6_softc *ar, AR6000_WLAN_STATE state, bool suspending);
 int ar6000_set_wlan_state(struct ar6_softc *ar, AR6000_WLAN_STATE state);
 int ar6000_set_bt_hw_state(struct ar6_softc *ar, u32 state);
