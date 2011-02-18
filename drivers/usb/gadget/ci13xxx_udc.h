@@ -131,6 +131,7 @@ struct ci13xxx {
 	u8                         remote_wakeup; /* Is remote wakeup feature
 							enabled by the host? */
 	u8                         suspended;  /* suspended by the host */
+	u8                         test_mode;  /* the selected test mode */
 
 	struct usb_gadget_driver  *driver;     /* 3rd party gadget driver */
 	struct ci13xxx_udc_driver *udc_driver; /* device controller driver */

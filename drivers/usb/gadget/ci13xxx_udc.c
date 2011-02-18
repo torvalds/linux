@@ -1784,6 +1784,28 @@ __acquires(mEp->lock)
 }
 
 /**
+ * isr_setup_status_complete: setup_status request complete function
+ * @ep:  endpoint
+ * @req: request handled
+ *
+ * Caller must release lock. Put the port in test mode if test mode
+ * feature is selected.
+ */
+static void
+isr_setup_status_complete(struct usb_ep *ep, struct usb_request *req)
+{
+	struct ci13xxx *udc = req->context;
+	unsigned long flags;
+
+	trace("%p, %p", ep, req);
+
+	spin_lock_irqsave(udc->lock, flags);
+	if (udc->test_mode)
+		hw_port_test_set(udc->test_mode);
+	spin_unlock_irqrestore(udc->lock, flags);
+}
+
+/**
  * isr_setup_status_phase: queues the status phase of a setup transation
  * @udc: udc struct
  *
@@ -1799,6 +1821,8 @@ __acquires(mEp->lock)
 	trace("%p", udc);
 
 	mEp = (udc->ep0_dir == TX) ? &udc->ep0out : &udc->ep0in;
+	udc->status->context = udc;
+	udc->status->complete = isr_setup_status_complete;
 
 	spin_unlock(mEp->lock);
 	retval = usb_ep_queue(&mEp->ep, udc->status, GFP_ATOMIC);
@@ -1859,6 +1883,7 @@ __releases(udc->lock)
 __acquires(udc->lock)
 {
 	unsigned i;
+	u8 tmode = 0;
 
 	trace("%p", udc);
 
@@ -1982,14 +2007,33 @@ __acquires(udc->lock)
 				err = usb_ep_set_halt(&udc->ci13xxx_ep[num].ep);
 				spin_lock(udc->lock);
 				if (!err)
-					err = isr_setup_status_phase(udc);
-			} else if (type == (USB_DIR_OUT|USB_RECIP_DEVICE) &&
-					le16_to_cpu(req.wValue) ==
-					USB_DEVICE_REMOTE_WAKEUP) {
+					isr_setup_status_phase(udc);
+			} else if (type == (USB_DIR_OUT|USB_RECIP_DEVICE)) {
 				if (req.wLength != 0)
 					break;
-				udc->remote_wakeup = 1;
-				err = isr_setup_status_phase(udc);
+				switch (le16_to_cpu(req.wValue)) {
+				case USB_DEVICE_REMOTE_WAKEUP:
+					udc->remote_wakeup = 1;
+					err = isr_setup_status_phase(udc);
+					break;
+				case USB_DEVICE_TEST_MODE:
+					tmode = le16_to_cpu(req.wIndex) >> 8;
+					switch (tmode) {
+					case TEST_J:
+					case TEST_K:
+					case TEST_SE0_NAK:
+					case TEST_PACKET:
+					case TEST_FORCE_EN:
+						udc->test_mode = tmode;
+						err = isr_setup_status_phase(
+								udc);
+						break;
+					default:
+						break;
+					}
+				default:
+					goto delegate;
+				}
 			} else {
 				goto delegate;
 			}
