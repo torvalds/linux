@@ -201,6 +201,11 @@ __get_cpu_context(struct perf_event_context *ctx)
 
 #ifdef CONFIG_CGROUP_PERF
 
+/*
+ * Must ensure cgroup is pinned (css_get) before calling
+ * this function. In other words, we cannot call this function
+ * if there is no cgroup event for the current CPU context.
+ */
 static inline struct perf_cgroup *
 perf_cgroup_from_task(struct task_struct *task)
 {
@@ -268,28 +273,41 @@ static inline void update_cgrp_time_from_cpuctx(struct perf_cpu_context *cpuctx)
 
 static inline void update_cgrp_time_from_event(struct perf_event *event)
 {
-	struct perf_cgroup *cgrp = perf_cgroup_from_task(current);
+	struct perf_cgroup *cgrp;
+
 	/*
-	 * do not update time when cgroup is not active
+	 * ensure we access cgroup data only when needed and
+	 * when we know the cgroup is pinned (css_get)
 	 */
-	if (!event->cgrp || cgrp != event->cgrp)
+	if (!is_cgroup_event(event))
 		return;
 
-	__update_cgrp_time(event->cgrp);
+	cgrp = perf_cgroup_from_task(current);
+	/*
+	 * Do not update time when cgroup is not active
+	 */
+	if (cgrp == event->cgrp)
+		__update_cgrp_time(event->cgrp);
 }
 
 static inline void
-perf_cgroup_set_timestamp(struct task_struct *task, u64 now)
+perf_cgroup_set_timestamp(struct task_struct *task,
+			  struct perf_event_context *ctx)
 {
 	struct perf_cgroup *cgrp;
 	struct perf_cgroup_info *info;
 
-	if (!task)
+	/*
+	 * ctx->lock held by caller
+	 * ensure we do not access cgroup data
+	 * unless we have the cgroup pinned (css_get)
+	 */
+	if (!task || !ctx->nr_cgroups)
 		return;
 
 	cgrp = perf_cgroup_from_task(task);
 	info = this_cpu_ptr(cgrp->info);
-	info->timestamp = now;
+	info->timestamp = ctx->timestamp;
 }
 
 #define PERF_CGROUP_SWOUT	0x1 /* cgroup switch out every event */
@@ -494,7 +512,8 @@ static inline int perf_cgroup_connect(pid_t pid, struct perf_event *event,
 }
 
 static inline void
-perf_cgroup_set_timestamp(struct task_struct *task, u64 now)
+perf_cgroup_set_timestamp(struct task_struct *task,
+			  struct perf_event_context *ctx)
 {
 }
 
@@ -1613,7 +1632,7 @@ static int __perf_event_enable(void *info)
 	/*
 	 * set current task's cgroup time reference point
 	 */
-	perf_cgroup_set_timestamp(current, perf_clock());
+	perf_cgroup_set_timestamp(current, ctx);
 
 	__perf_event_mark_enabled(event, ctx);
 
@@ -2048,7 +2067,7 @@ ctx_sched_in(struct perf_event_context *ctx,
 
 	now = perf_clock();
 	ctx->timestamp = now;
-	perf_cgroup_set_timestamp(task, now);
+	perf_cgroup_set_timestamp(task, ctx);
 	/*
 	 * First go through the list and put on any pinned groups
 	 * in order to give them the best chance of going on.
@@ -5795,7 +5814,6 @@ static void task_clock_event_read(struct perf_event *event)
 
 	if (!in_nmi()) {
 		update_context_time(event->ctx);
-		update_cgrp_time_from_event(event);
 		time = event->ctx->time;
 	} else {
 		u64 now = perf_clock();
