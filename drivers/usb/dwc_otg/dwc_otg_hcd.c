@@ -104,7 +104,7 @@ static int dwc_otg_hcd_suspend(struct usb_hcd *hcd)
                 core_if->hcd_cb->suspend( core_if->hcd_cb->p, 0);
         }
     }
-    udelay(1);
+    udelay(3);
     clk_disable(core_if->otg_dev->phyclk);
     clk_disable(core_if->otg_dev->ahbclk);
     //power off
