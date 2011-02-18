@@ -1092,6 +1092,7 @@ static int hifDeviceSuspend(struct device *dev)
             device->is_suspend = false;
         }
     }
+    CleanupHIFScatterResources(device);
     AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: -hifDeviceSuspend\n"));
 
     switch (status) {
