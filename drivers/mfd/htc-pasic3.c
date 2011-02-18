@@ -117,7 +117,7 @@ static struct mfd_cell ds1wm_cell __initdata = {
 	.name          = "ds1wm",
 	.enable        = ds1wm_enable,
 	.disable       = ds1wm_disable,
-	.driver_data   = &ds1wm_pdata,
+	.mfd_data      = &ds1wm_pdata,
 	.num_resources = 2,
 	.resources     = ds1wm_resources,
 };
@@ -172,7 +172,6 @@ static int __init pasic3_probe(struct platform_device *pdev)
 	}
 
 	if (pdata && pdata->led_pdata) {
-		led_cell.driver_data = pdata->led_pdata;
 		ret = mfd_add_devices(&pdev->dev, pdev->id, &led_cell, 1, r, 0);
 		if (ret < 0)
 			dev_warn(dev, "failed to register LED device\n");

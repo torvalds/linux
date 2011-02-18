@@ -216,7 +216,7 @@ static int ds1wm_find_divisor(int gclk)
 static void ds1wm_up(struct ds1wm_data *ds1wm_data)
 {
 	int divisor;
-	struct ds1wm_driver_data *plat = ds1wm_data->cell->driver_data;
+	struct ds1wm_driver_data *plat = mfd_get_data(ds1wm_data->pdev);
 
 	if (ds1wm_data->cell->enable)
 		ds1wm_data->cell->enable(ds1wm_data->pdev);
@@ -356,7 +356,7 @@ static int ds1wm_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err0;
 	}
-	plat = cell->driver_data;
+	plat = mfd_get_data(pdev);
 
 	/* calculate bus shift from mem resource */
 	ds1wm_data->bus_shift = resource_size(res) >> 3;
