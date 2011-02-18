@@ -86,7 +86,7 @@ static void xen_msi_compose_msg(struct pci_dev *pdev, unsigned int pirq,
 
 static int xen_hvm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
-	int irq, pirq, ret = 0;
+	int irq, pirq;
 	struct msi_desc *msidesc;
 	struct msi_msg msg;
 
@@ -94,39 +94,32 @@ static int xen_hvm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		__read_msi_msg(msidesc, &msg);
 		pirq = MSI_ADDR_EXT_DEST_ID(msg.address_hi) |
 			((msg.address_lo >> MSI_ADDR_DEST_ID_SHIFT) & 0xff);
-		if (xen_irq_from_pirq(pirq) >= 0 && msg.data == XEN_PIRQ_MSI_DATA) {
-			irq = xen_allocate_pirq_msi((type == PCI_CAP_ID_MSIX) ?
-						    "msi-x" : "msi", &pirq, 0);
-			if (irq < 0)
+		if (msg.data != XEN_PIRQ_MSI_DATA ||
+		    xen_irq_from_pirq(pirq) < 0) {
+			pirq = xen_allocate_pirq_msi(dev, msidesc);
+			if (pirq < 0)
 				goto error;
-			ret = set_irq_msi(irq, msidesc);
-			if (ret < 0)
-				goto error_while;
-			printk(KERN_DEBUG "xen: msi already setup: msi --> irq=%d"
-					" pirq=%d\n", irq, pirq);
-			return 0;
+			xen_msi_compose_msg(dev, pirq, &msg);
+			__write_msi_msg(msidesc, &msg);
+			dev_dbg(&dev->dev, "xen: msi bound to pirq=%d\n", pirq);
+		} else {
+			dev_dbg(&dev->dev,
+				"xen: msi already bound to pirq=%d\n", pirq);
 		}
-		irq = xen_allocate_pirq_msi((type == PCI_CAP_ID_MSIX) ?
-					    "msi-x" : "msi", &pirq, 1);
-		if (irq < 0 || pirq < 0)
+		irq = xen_bind_pirq_msi_to_irq(dev, msidesc, pirq,
+					       (type == PCI_CAP_ID_MSIX) ?
+					       "msi-x" : "msi");
+		if (irq < 0)
 			goto error;
-		printk(KERN_DEBUG "xen: msi --> irq=%d, pirq=%d\n", irq, pirq);
-		xen_msi_compose_msg(dev, pirq, &msg);
-		ret = set_irq_msi(irq, msidesc);
-		if (ret < 0)
-			goto error_while;
-		write_msi_msg(irq, &msg);
+		dev_dbg(&dev->dev,
+			"xen: msi --> pirq=%d --> irq=%d\n", pirq, irq);
 	}
 	return 0;
 
-error_while:
-	unbind_from_irqhandler(irq, NULL);
 error:
-	if (ret == -ENODEV)
-		dev_err(&dev->dev, "Xen PCI frontend has not registered" \
-				" MSI/MSI-X support!\n");
-
-	return ret;
+	dev_err(&dev->dev,
+		"Xen PCI frontend has not registered MSI/MSI-X support!\n");
+	return -ENODEV;
 }
 
 /*
@@ -152,28 +145,19 @@ static int xen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		goto error;
 	i = 0;
 	list_for_each_entry(msidesc, &dev->msi_list, list) {
-		irq = xen_allocate_pirq_msi(
-			(type == PCI_CAP_ID_MSIX) ?
-			"pcifront-msi-x" : "pcifront-msi",
-			&v[i], 0);
-		if (irq < 0) {
-			ret = -1;
+		irq = xen_bind_pirq_msi_to_irq(dev, msidesc, v[i],
+					       (type == PCI_CAP_ID_MSIX) ?
+					       "pcifront-msi-x" :
+					       "pcifront-msi");
+		if (irq < 0)
 			goto free;
-		}
-		ret = set_irq_msi(irq, msidesc);
-		if (ret)
-			goto error_while;
 		i++;
 	}
 	kfree(v);
 	return 0;
 
-error_while:
-	unbind_from_irqhandler(irq, NULL);
 error:
-	if (ret == -ENODEV)
-		dev_err(&dev->dev, "Xen PCI frontend has not registered" \
-			" MSI/MSI-X support!\n");
+	dev_err(&dev->dev, "Xen PCI frontend has not registered MSI/MSI-X support!\n");
 free:
 	kfree(v);
 	return ret;

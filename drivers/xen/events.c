@@ -647,12 +647,12 @@ out:
 #include <linux/msi.h>
 #include "../pci/msi.h"
 
-static int find_unbound_pirq(int type)
+int xen_allocate_pirq_msi(struct pci_dev *dev, struct msi_desc *msidesc)
 {
 	int rc;
 	struct physdev_get_free_pirq op_get_free_pirq;
 
-	op_get_free_pirq.type = type;
+	op_get_free_pirq.type = MAP_PIRQ_TYPE_MSI;
 	rc = HYPERVISOR_physdev_op(PHYSDEVOP_get_free_pirq, &op_get_free_pirq);
 
 	WARN_ONCE(rc == -ENOSYS,
@@ -661,9 +661,10 @@ static int find_unbound_pirq(int type)
 	return rc ? -1 : op_get_free_pirq.pirq;
 }
 
-int xen_allocate_pirq_msi(char *name, int *pirq, int alloc_pirq)
+int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
+			     int pirq, const char *name)
 {
-	int irq;
+	int irq, ret;
 
 	spin_lock(&irq_mapping_update_lock);
 
@@ -671,24 +672,21 @@ int xen_allocate_pirq_msi(char *name, int *pirq, int alloc_pirq)
 	if (irq == -1)
 		goto out;
 
-	if (alloc_pirq) {
-		*pirq = find_unbound_pirq(MAP_PIRQ_TYPE_MSI);
-		if (*pirq == -1) {
-			xen_free_irq(irq);
-			irq = -1;
-			goto out;
-		}
-	}
-
 	set_irq_chip_and_handler_name(irq, &xen_pirq_chip,
 				      handle_level_irq, name);
 
-	irq_info[irq] = mk_pirq_info(0, *pirq, 0, 0);
-	pirq_to_irq[*pirq] = irq;
-
+	irq_info[irq] = mk_pirq_info(0, pirq, 0, 0);
+	pirq_to_irq[pirq] = irq;
+	ret = set_irq_msi(irq, msidesc);
+	if (ret < 0)
+		goto error_irq;
 out:
 	spin_unlock(&irq_mapping_update_lock);
 	return irq;
+error_irq:
+	spin_unlock(&irq_mapping_update_lock);
+	xen_free_irq(irq);
+	return -1;
 }
 
 int xen_create_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int type)
