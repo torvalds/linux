@@ -978,7 +978,7 @@ static int musb_gadget_enable(struct usb_ep *ep,
 			ok = musb->hb_iso_rx;
 
 		if (!ok) {
-			DBG(4, "%s: not support ISO high bandwidth\n", __func__);
+			DBG(4, "no support for high bandwidth ISO\n");
 			goto fail;
 		}
 		musb_ep->hb_mult = (tmp >> 11) & 3;
@@ -1002,7 +1002,7 @@ static int musb_gadget_enable(struct usb_ep *ep,
 			goto fail;
 
 		if (tmp > hw_ep->max_packet_sz_tx) {
-			DBG(4, "%s: packet size beyond hw fifo size\n", __func__);
+			DBG(4, "packet size beyond hardware FIFO size\n");
 			goto fail;
 		}
 
@@ -1042,7 +1042,7 @@ static int musb_gadget_enable(struct usb_ep *ep,
 			goto fail;
 
 		if (tmp > hw_ep->max_packet_sz_rx) {
-			DBG(4, "%s: packet size beyond hw fifo size\n", __func__);
+			DBG(4, "packet size beyond hardware FIFO size\n");
 			goto fail;
 		}
 
@@ -1815,7 +1815,7 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 
 	/* driver must be initialized to support peripheral mode */
 	if (!musb) {
-		DBG(1, "%s, no dev??\n", __func__);
+		DBG(1, "no dev??\n");
 		retval = -ENODEV;
 		goto err0;
 	}
