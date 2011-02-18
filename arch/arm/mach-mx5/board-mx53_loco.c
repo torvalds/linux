@@ -199,6 +199,10 @@ static struct fec_platform_data mx53_loco_fec_data = {
 	.phy = PHY_INTERFACE_MODE_RMII,
 };
 
+static const struct imxi2c_platform_data mx53_loco_i2c_data __initconst = {
+	.bitrate = 100000,
+};
+
 static void __init mx53_loco_board_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(mx53_loco_pads,
@@ -207,6 +211,8 @@ static void __init mx53_loco_board_init(void)
 	mx53_loco_fec_reset();
 	imx53_add_fec(&mx53_loco_fec_data);
 	imx53_add_imx2_wdt(0, NULL);
+	imx53_add_imx_i2c(0, &mx53_loco_i2c_data);
+	imx53_add_imx_i2c(1, &mx53_loco_i2c_data);
 }
 
 static void __init mx53_loco_timer_init(void)

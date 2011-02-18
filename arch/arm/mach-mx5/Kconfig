@@ -160,6 +160,7 @@ config MACH_MX53_LOCO
 	bool "Support MX53 LOCO platforms"
 	select SOC_IMX53
 	select IMX_HAVE_PLATFORM_IMX2_WDT
+	select IMX_HAVE_PLATFORM_IMX_I2C
 	select IMX_HAVE_PLATFORM_IMX_UART
 	help
 	  Include support for MX53 LOCO platform. This includes specific
