@@ -185,15 +185,50 @@ static void xen_teardown_msi_irq(unsigned int irq)
 #ifdef CONFIG_XEN_DOM0
 static int xen_initdom_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
-	int irq;
+	int ret = 0;
 	struct msi_desc *msidesc;
 
 	list_for_each_entry(msidesc, &dev->msi_list, list) {
-		irq = xen_create_msi_irq(dev, msidesc, type);
-		if (irq < 0)
-			return -1;
+		struct physdev_map_pirq map_irq;
+
+		memset(&map_irq, 0, sizeof(map_irq));
+		map_irq.domid = DOMID_SELF;
+		map_irq.type = MAP_PIRQ_TYPE_MSI;
+		map_irq.index = -1;
+		map_irq.pirq = -1;
+		map_irq.bus = dev->bus->number;
+		map_irq.devfn = dev->devfn;
+
+		if (type == PCI_CAP_ID_MSIX) {
+			int pos;
+			u32 table_offset, bir;
+
+			pos = pci_find_capability(dev, PCI_CAP_ID_MSIX);
+
+			pci_read_config_dword(dev, pos + PCI_MSIX_TABLE,
+					      &table_offset);
+			bir = (u8)(table_offset & PCI_MSIX_FLAGS_BIRMASK);
+
+			map_irq.table_base = pci_resource_start(dev, bir);
+			map_irq.entry_nr = msidesc->msi_attrib.entry_nr;
+		}
+
+		ret = HYPERVISOR_physdev_op(PHYSDEVOP_map_pirq, &map_irq);
+		if (ret) {
+			dev_warn(&dev->dev, "xen map irq failed %d\n", ret);
+			goto out;
+		}
+
+		ret = xen_bind_pirq_msi_to_irq(dev, msidesc,
+					       map_irq.pirq, map_irq.index,
+					       (type == PCI_CAP_ID_MSIX) ?
+					       "msi-x" : "msi");
+		if (ret < 0)
+			goto out;
 	}
-	return 0;
+	ret = 0;
+out:
+	return ret;
 }
 #endif
 #endif
