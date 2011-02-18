@@ -30,9 +30,6 @@ struct mfd_cell {
 	int			(*suspend)(struct platform_device *dev);
 	int			(*resume)(struct platform_device *dev);
 
-	/* driver-specific data for MFD-aware "cell" drivers */
-	void			*driver_data;
-
 	/* mfd_data can be used to pass data to client drivers */
 	void			*mfd_data;
 
