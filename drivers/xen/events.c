@@ -730,6 +730,7 @@ int xen_create_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int type)
 		goto out;
 
 	irq_info[irq] = mk_pirq_info(0, map_irq.pirq, 0, map_irq.index);
+	pirq_to_irq[map_irq.pirq] = irq;
 
 	set_irq_chip_and_handler_name(irq, &xen_pirq_chip,
 			handle_level_irq,
