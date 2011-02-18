@@ -1459,59 +1459,12 @@ extern void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc
 extern int radeon_resume_kms(struct drm_device *dev);
 extern int radeon_suspend_kms(struct drm_device *dev, pm_message_t state);
 
-/* r600, rv610, rv630, rv620, rv635, rv670, rs780, rs880 */
-extern bool r600_card_posted(struct radeon_device *rdev);
-extern void r600_cp_stop(struct radeon_device *rdev);
-extern int r600_cp_start(struct radeon_device *rdev);
-extern void r600_ring_init(struct radeon_device *rdev, unsigned ring_size);
-extern int r600_cp_resume(struct radeon_device *rdev);
-extern void r600_cp_fini(struct radeon_device *rdev);
-extern int r600_count_pipe_bits(uint32_t val);
-extern int r600_mc_wait_for_idle(struct radeon_device *rdev);
-extern int r600_pcie_gart_init(struct radeon_device *rdev);
-extern void r600_pcie_gart_tlb_flush(struct radeon_device *rdev);
-extern int r600_ib_test(struct radeon_device *rdev);
-extern int r600_ring_test(struct radeon_device *rdev);
-extern void r600_scratch_init(struct radeon_device *rdev);
-extern int r600_blit_init(struct radeon_device *rdev);
-extern void r600_blit_fini(struct radeon_device *rdev);
-extern int r600_init_microcode(struct radeon_device *rdev);
-extern int r600_asic_reset(struct radeon_device *rdev);
-/* r600 irq */
-extern int r600_irq_init(struct radeon_device *rdev);
-extern void r600_irq_fini(struct radeon_device *rdev);
-extern void r600_ih_ring_init(struct radeon_device *rdev, unsigned ring_size);
-extern int r600_irq_set(struct radeon_device *rdev);
-extern void r600_irq_suspend(struct radeon_device *rdev);
-extern void r600_disable_interrupts(struct radeon_device *rdev);
-extern void r600_rlc_stop(struct radeon_device *rdev);
-/* r600 audio */
-extern int r600_audio_init(struct radeon_device *rdev);
-extern int r600_audio_tmds_index(struct drm_encoder *encoder);
-extern void r600_audio_set_clock(struct drm_encoder *encoder, int clock);
-extern int r600_audio_channels(struct radeon_device *rdev);
-extern int r600_audio_bits_per_sample(struct radeon_device *rdev);
-extern int r600_audio_rate(struct radeon_device *rdev);
-extern uint8_t r600_audio_status_bits(struct radeon_device *rdev);
-extern uint8_t r600_audio_category_code(struct radeon_device *rdev);
-extern void r600_audio_schedule_polling(struct radeon_device *rdev);
-extern void r600_audio_enable_polling(struct drm_encoder *encoder);
-extern void r600_audio_disable_polling(struct drm_encoder *encoder);
-extern void r600_audio_fini(struct radeon_device *rdev);
-extern void r600_hdmi_init(struct drm_encoder *encoder);
+/*
+ * r600 functions used by radeon_encoder.c
+ */
 extern void r600_hdmi_enable(struct drm_encoder *encoder);
 extern void r600_hdmi_disable(struct drm_encoder *encoder);
 extern void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode);
-extern int r600_hdmi_buffer_status_changed(struct drm_encoder *encoder);
-extern void r600_hdmi_update_audio_settings(struct drm_encoder *encoder);
-
-extern void r700_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
-extern void r700_cp_stop(struct radeon_device *rdev);
-extern void r700_cp_fini(struct radeon_device *rdev);
-extern void evergreen_disable_interrupt_state(struct radeon_device *rdev);
-extern int evergreen_irq_set(struct radeon_device *rdev);
-extern int evergreen_blit_init(struct radeon_device *rdev);
-extern void evergreen_blit_fini(struct radeon_device *rdev);
 
 extern int ni_init_microcode(struct radeon_device *rdev);
 extern int btc_mc_load_microcode(struct radeon_device *rdev);
@@ -1522,14 +1475,6 @@ extern int radeon_acpi_init(struct radeon_device *rdev);
 #else 
 static inline int radeon_acpi_init(struct radeon_device *rdev) { return 0; } 
 #endif 
-
-/* evergreen */
-struct evergreen_mc_save {
-	u32 vga_control[6];
-	u32 vga_render_control;
-	u32 vga_hdp_control;
-	u32 crtc_control[6];
-};
 
 #include "radeon_object.h"
 
