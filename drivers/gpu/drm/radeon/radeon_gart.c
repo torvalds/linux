@@ -78,7 +78,7 @@ int radeon_gart_table_vram_alloc(struct radeon_device *rdev)
 	int r;
 
 	if (rdev->gart.table.vram.robj == NULL) {
-		r = radeon_bo_create(rdev, NULL, rdev->gart.table_size,
+		r = radeon_bo_create(rdev, rdev->gart.table_size,
 				     PAGE_SIZE, true, RADEON_GEM_DOMAIN_VRAM,
 				     &rdev->gart.table.vram.robj);
 		if (r) {

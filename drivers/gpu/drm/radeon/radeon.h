@@ -259,6 +259,7 @@ struct radeon_bo {
 	/* Constant after initialization */
 	struct radeon_device		*rdev;
 	struct drm_gem_object		*gobj;
+	struct drm_gem_object		gem_base;
 };
 
 struct radeon_bo_list {

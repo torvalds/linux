@@ -55,6 +55,7 @@ static void radeon_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	list_del_init(&bo->list);
 	mutex_unlock(&bo->rdev->gem.mutex);
 	radeon_bo_clear_surface_reg(bo);
+	drm_gem_object_release(&bo->gem_base);
 	kfree(bo);
 }
 
@@ -86,7 +87,7 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 	rbo->placement.num_busy_placement = c;
 }
 
-int radeon_bo_create(struct radeon_device *rdev, struct drm_gem_object *gobj,
+int radeon_bo_create(struct radeon_device *rdev,
 		     unsigned long size, int byte_align, bool kernel, u32 domain,
 		     struct radeon_bo **bo_ptr)
 {
@@ -95,6 +96,8 @@ int radeon_bo_create(struct radeon_device *rdev, struct drm_gem_object *gobj,
 	unsigned long page_align = roundup(byte_align, PAGE_SIZE) >> PAGE_SHIFT;
 	unsigned long max_size = 0;
 	int r;
+
+	size = ALIGN(size, PAGE_SIZE);
 
 	if (unlikely(rdev->mman.bdev.dev_mapping == NULL)) {
 		rdev->mman.bdev.dev_mapping = rdev->ddev->dev_mapping;
@@ -118,8 +121,14 @@ retry:
 	bo = kzalloc(sizeof(struct radeon_bo), GFP_KERNEL);
 	if (bo == NULL)
 		return -ENOMEM;
+	r = drm_gem_object_init(rdev->ddev, &bo->gem_base, size);
+	if (unlikely(r)) {
+		kfree(bo);
+		return r;
+	}
 	bo->rdev = rdev;
-	bo->gobj = gobj;
+	bo->gobj = &bo->gem_base;
+	bo->gem_base.driver_private = bo;
 	bo->surface_reg = -1;
 	INIT_LIST_HEAD(&bo->list);
 	radeon_ttm_placement_from_domain(bo, domain);
@@ -142,12 +151,9 @@ retry:
 		return r;
 	}
 	*bo_ptr = bo;
-	if (gobj) {
-		mutex_lock(&bo->rdev->gem.mutex);
-		list_add_tail(&bo->list, &rdev->gem.objects);
-		mutex_unlock(&bo->rdev->gem.mutex);
-	}
+
 	trace_radeon_bo_create(bo);
+
 	return 0;
 }
 

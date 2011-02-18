@@ -32,7 +32,8 @@
 
 int radeon_gem_object_init(struct drm_gem_object *obj)
 {
-	/* we do nothings here */
+	BUG();
+
 	return 0;
 }
 
@@ -44,9 +45,6 @@ void radeon_gem_object_free(struct drm_gem_object *gobj)
 	if (robj) {
 		radeon_bo_unref(&robj);
 	}
-
-	drm_gem_object_release(gobj);
-	kfree(gobj);
 }
 
 int radeon_gem_object_create(struct radeon_device *rdev, int size,
@@ -54,29 +52,27 @@ int radeon_gem_object_create(struct radeon_device *rdev, int size,
 				bool discardable, bool kernel,
 				struct drm_gem_object **obj)
 {
-	struct drm_gem_object *gobj;
 	struct radeon_bo *robj;
 	int r;
 
 	*obj = NULL;
-	gobj = drm_gem_object_alloc(rdev->ddev, size);
-	if (!gobj) {
-		return -ENOMEM;
-	}
 	/* At least align on page size */
 	if (alignment < PAGE_SIZE) {
 		alignment = PAGE_SIZE;
 	}
-	r = radeon_bo_create(rdev, gobj, size, alignment, kernel, initial_domain, &robj);
+	r = radeon_bo_create(rdev, size, alignment, kernel, initial_domain, &robj);
 	if (r) {
 		if (r != -ERESTARTSYS)
 			DRM_ERROR("Failed to allocate GEM object (%d, %d, %u, %d)\n",
 				  size, initial_domain, alignment, r);
-		drm_gem_object_unreference_unlocked(gobj);
 		return r;
 	}
-	gobj->driver_private = robj;
-	*obj = gobj;
+	*obj = &robj->gem_base;
+
+	mutex_lock(&rdev->gem.mutex);
+	list_add_tail(&robj->list, &rdev->gem.objects);
+	mutex_unlock(&rdev->gem.mutex);
+
 	return 0;
 }
 
