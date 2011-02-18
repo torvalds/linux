@@ -662,7 +662,7 @@ int xen_allocate_pirq_msi(struct pci_dev *dev, struct msi_desc *msidesc)
 }
 
 int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
-			     int pirq, const char *name)
+			     int pirq, int vector, const char *name)
 {
 	int irq, ret;
 
@@ -675,7 +675,7 @@ int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 	set_irq_chip_and_handler_name(irq, &xen_pirq_chip,
 				      handle_level_irq, name);
 
-	irq_info[irq] = mk_pirq_info(0, pirq, 0, 0);
+	irq_info[irq] = mk_pirq_info(0, pirq, 0, vector);
 	pirq_to_irq[pirq] = irq;
 	ret = set_irq_msi(irq, msidesc);
 	if (ret < 0)
@@ -691,7 +691,6 @@ error_irq:
 
 int xen_create_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int type)
 {
-	int ret, irq = -1;
 	struct physdev_map_pirq map_irq;
 	int rc;
 	int pos;
@@ -719,34 +718,13 @@ int xen_create_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int type)
 	rc = HYPERVISOR_physdev_op(PHYSDEVOP_map_pirq, &map_irq);
 	if (rc) {
 		dev_warn(&dev->dev, "xen map irq failed %d\n", rc);
-		goto out;
+		return -1;
 	}
 
-	spin_lock(&irq_mapping_update_lock);
-
-	irq = xen_allocate_irq_dynamic();
-
-	if (irq == -1)
-		goto out;
-
-	irq_info[irq] = mk_pirq_info(0, map_irq.pirq, 0, map_irq.index);
-	pirq_to_irq[map_irq.pirq] = irq;
-
-	set_irq_chip_and_handler_name(irq, &xen_pirq_chip,
-			handle_level_irq,
-			(type == PCI_CAP_ID_MSIX) ? "msi-x":"msi");
-
-	ret = set_irq_msi(irq, msidesc);
-	if (ret)
-		goto out_irq;
-
-out:
-	spin_unlock(&irq_mapping_update_lock);
-	return irq;
-out_irq:
-	spin_unlock(&irq_mapping_update_lock);
-	xen_free_irq(irq);
-	return -1;
+	return xen_bind_pirq_msi_to_irq(dev, msidesc,
+					map_irq.pirq, map_irq.index,
+					(type == PCI_CAP_ID_MSIX) ?
+					"msi-x" : "msi");
 }
 #endif
 
