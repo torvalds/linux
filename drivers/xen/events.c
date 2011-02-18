@@ -676,8 +676,11 @@ void xen_allocate_pirq_msi(char *name, int *irq, int *pirq, int alloc)
 
 	if (alloc & XEN_ALLOC_PIRQ) {
 		*pirq = find_unbound_pirq(MAP_PIRQ_TYPE_MSI);
-		if (*pirq == -1)
+		if (*pirq == -1) {
+			xen_free_irq(*irq);
+			*irq = -1;
 			goto out;
+		}
 	}
 
 	set_irq_chip_and_handler_name(*irq, &xen_pirq_chip,
