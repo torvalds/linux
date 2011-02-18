@@ -765,12 +765,12 @@ ar6k_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
        request->ssids[0].ssid_len) {
         u8 i;
 
-        if(request->n_ssids > MAX_PROBED_SSID_INDEX) {
-            request->n_ssids = MAX_PROBED_SSID_INDEX;
+        if(request->n_ssids > (MAX_PROBED_SSID_INDEX - 1)) {
+            request->n_ssids = MAX_PROBED_SSID_INDEX - 1;
         }
 
         for (i = 0; i < request->n_ssids; i++) {
-            wmi_probedSsid_cmd(ar->arWmi, i, SPECIFIC_SSID_FLAG,
+            wmi_probedSsid_cmd(ar->arWmi, i+1, SPECIFIC_SSID_FLAG,
                                request->ssids[i].ssid_len,
                                request->ssids[i].ssid);
         }
@@ -810,7 +810,7 @@ ar6k_cfg80211_scanComplete_event(AR_SOFTC_T *ar, int status)
             u8 i;
 
             for (i = 0; i < ar->scan_request->n_ssids; i++) {
-                wmi_probedSsid_cmd(ar->arWmi, i, DISABLE_SSID_FLAG,
+                wmi_probedSsid_cmd(ar->arWmi, i+1, DISABLE_SSID_FLAG,
                                    0, NULL);
             }
         }
