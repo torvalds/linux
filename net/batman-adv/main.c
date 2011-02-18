@@ -161,7 +161,7 @@ int is_my_mac(uint8_t *addr)
 		if (batman_if->if_status != IF_ACTIVE)
 			continue;
 
-		if (compare_orig(batman_if->net_dev->dev_addr, addr)) {
+		if (compare_eth(batman_if->net_dev->dev_addr, addr)) {
 			rcu_read_unlock();
 			return 1;
 		}

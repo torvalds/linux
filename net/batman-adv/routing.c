@@ -163,8 +163,8 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 		hlist_for_each_entry_rcu(tmp_neigh_node, node,
 					 &orig_node->neigh_list, list) {
 
-			if (compare_orig(tmp_neigh_node->addr,
-					 orig_neigh_node->orig) &&
+			if (compare_eth(tmp_neigh_node->addr,
+					orig_neigh_node->orig) &&
 			    (tmp_neigh_node->if_incoming == if_incoming))
 				neigh_node = tmp_neigh_node;
 		}
@@ -192,8 +192,8 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 		hlist_for_each_entry_rcu(tmp_neigh_node, node,
 					 &orig_neigh_node->neigh_list, list) {
 
-			if (compare_orig(tmp_neigh_node->addr,
-					 orig_neigh_node->orig) &&
+			if (compare_eth(tmp_neigh_node->addr,
+					orig_neigh_node->orig) &&
 			    (tmp_neigh_node->if_incoming == if_incoming))
 				neigh_node = tmp_neigh_node;
 		}
@@ -304,8 +304,8 @@ static void bonding_candidate_add(struct orig_node *orig_node,
 	spin_lock_bh(&orig_node->neigh_list_lock);
 
 	/* only consider if it has the same primary address ...  */
-	if (!compare_orig(orig_node->orig,
-			  neigh_node->orig_node->primary_addr))
+	if (!compare_eth(orig_node->orig,
+			 neigh_node->orig_node->primary_addr))
 		goto candidate_del;
 
 	if (!orig_node->router)
@@ -334,7 +334,7 @@ static void bonding_candidate_add(struct orig_node *orig_node,
 			continue;
 
 		if ((neigh_node->if_incoming == tmp_neigh_node->if_incoming) ||
-		    (compare_orig(neigh_node->addr, tmp_neigh_node->addr))) {
+		    (compare_eth(neigh_node->addr, tmp_neigh_node->addr))) {
 			interference_candidate = 1;
 			break;
 		}
@@ -394,7 +394,7 @@ static void update_orig(struct bat_priv *bat_priv,
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(tmp_neigh_node, node,
 				 &orig_node->neigh_list, list) {
-		if (compare_orig(tmp_neigh_node->addr, ethhdr->h_source) &&
+		if (compare_eth(tmp_neigh_node->addr, ethhdr->h_source) &&
 		    (tmp_neigh_node->if_incoming == if_incoming) &&
 		     atomic_inc_not_zero(&tmp_neigh_node->refcount)) {
 			if (neigh_node)
@@ -579,7 +579,7 @@ static char count_real_packets(struct ethhdr *ethhdr,
 					       orig_node->last_real_seqno,
 					       batman_packet->seqno);
 
-		if (compare_orig(tmp_neigh_node->addr, ethhdr->h_source) &&
+		if (compare_eth(tmp_neigh_node->addr, ethhdr->h_source) &&
 		    (tmp_neigh_node->if_incoming == if_incoming))
 			set_mark = 1;
 		else
@@ -644,8 +644,8 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 
 	has_directlink_flag = (batman_packet->flags & DIRECTLINK ? 1 : 0);
 
-	is_single_hop_neigh = (compare_orig(ethhdr->h_source,
-					    batman_packet->orig) ? 1 : 0);
+	is_single_hop_neigh = (compare_eth(ethhdr->h_source,
+					   batman_packet->orig) ? 1 : 0);
 
 	bat_dbg(DBG_BATMAN, bat_priv,
 		"Received BATMAN packet via NB: %pM, IF: %s [%pM] "
@@ -665,19 +665,19 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 		if (batman_if->soft_iface != if_incoming->soft_iface)
 			continue;
 
-		if (compare_orig(ethhdr->h_source,
-				 batman_if->net_dev->dev_addr))
+		if (compare_eth(ethhdr->h_source,
+				batman_if->net_dev->dev_addr))
 			is_my_addr = 1;
 
-		if (compare_orig(batman_packet->orig,
-				 batman_if->net_dev->dev_addr))
+		if (compare_eth(batman_packet->orig,
+				batman_if->net_dev->dev_addr))
 			is_my_orig = 1;
 
-		if (compare_orig(batman_packet->prev_sender,
-				 batman_if->net_dev->dev_addr))
+		if (compare_eth(batman_packet->prev_sender,
+				batman_if->net_dev->dev_addr))
 			is_my_oldorig = 1;
 
-		if (compare_orig(ethhdr->h_source, broadcast_addr))
+		if (compare_eth(ethhdr->h_source, broadcast_addr))
 			is_broadcast = 1;
 	}
 	rcu_read_unlock();
@@ -717,8 +717,8 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 		/* if received seqno equals last send seqno save new
 		 * seqno for bidirectional check */
 		if (has_directlink_flag &&
-		    compare_orig(if_incoming->net_dev->dev_addr,
-				 batman_packet->orig) &&
+		    compare_eth(if_incoming->net_dev->dev_addr,
+				batman_packet->orig) &&
 		    (batman_packet->seqno - if_incoming_seqno + 2 == 0)) {
 			offset = if_incoming->if_num * NUM_WORDS;
 
@@ -765,11 +765,11 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 	/* avoid temporary routing loops */
 	if ((orig_node->router) &&
 	    (orig_node->router->orig_node->router) &&
-	    (compare_orig(orig_node->router->addr,
-			  batman_packet->prev_sender)) &&
-	    !(compare_orig(batman_packet->orig, batman_packet->prev_sender)) &&
-	    (compare_orig(orig_node->router->addr,
-			  orig_node->router->orig_node->router->addr))) {
+	    (compare_eth(orig_node->router->addr,
+			 batman_packet->prev_sender)) &&
+	    !(compare_eth(batman_packet->orig, batman_packet->prev_sender)) &&
+	    (compare_eth(orig_node->router->addr,
+			 orig_node->router->orig_node->router->addr))) {
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"Drop packet: ignoring all rebroadcast packets that "
 			"may make me loop (sender: %pM)\n", ethhdr->h_source);
@@ -1185,14 +1185,13 @@ struct neigh_node *find_router(struct bat_priv *bat_priv,
 
 	/* if we have something in the primary_addr, we can search
 	 * for a potential bonding candidate. */
-	if (memcmp(router_orig->primary_addr, zero_mac, ETH_ALEN) == 0)
+	if (compare_eth(router_orig->primary_addr, zero_mac))
 		goto return_router;
 
 	/* find the orig_node which has the primary interface. might
 	 * even be the same as our router_orig in many cases */
 
-	if (memcmp(router_orig->primary_addr,
-				router_orig->orig, ETH_ALEN) == 0) {
+	if (compare_eth(router_orig->primary_addr, router_orig->orig)) {
 		primary_orig_node = router_orig;
 	} else {
 		primary_orig_node = hash_find(bat_priv->orig_hash, compare_orig,

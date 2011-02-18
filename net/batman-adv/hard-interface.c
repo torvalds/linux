@@ -187,7 +187,7 @@ static void check_known_mac_addr(struct net_device *net_dev)
 		if (batman_if->net_dev == net_dev)
 			continue;
 
-		if (!compare_orig(batman_if->net_dev->dev_addr,
+		if (!compare_eth(batman_if->net_dev->dev_addr,
 				  net_dev->dev_addr))
 			continue;
 

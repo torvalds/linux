@@ -326,7 +326,7 @@ void schedule_forward_packet(struct orig_node *orig_node,
 	if ((orig_node->router) && (orig_node->router->tq_avg != 0)) {
 
 		/* rebroadcast ogm of best ranking neighbor as is */
-		if (!compare_orig(orig_node->router->addr, ethhdr->h_source)) {
+		if (!compare_eth(orig_node->router->addr, ethhdr->h_source)) {
 			batman_packet->tq = orig_node->router->tq_avg;
 
 			if (orig_node->router->last_ttl)

@@ -75,7 +75,7 @@ static int vis_info_cmp(void *data1, void *data2)
 	d2 = data2;
 	p1 = (struct vis_packet *)d1->skb_packet->data;
 	p2 = (struct vis_packet *)d2->skb_packet->data;
-	return compare_orig(p1->vis_orig, p2->vis_orig);
+	return compare_eth(p1->vis_orig, p2->vis_orig);
 }
 
 /* hash function to choose an entry in a hash table of given size */
@@ -113,7 +113,7 @@ static void vis_data_insert_interface(const uint8_t *interface,
 	struct hlist_node *pos;
 
 	hlist_for_each_entry(entry, pos, if_list, list) {
-		if (compare_orig(entry->addr, (void *)interface))
+		if (compare_eth(entry->addr, (void *)interface))
 			return;
 	}
 
@@ -165,7 +165,7 @@ static ssize_t vis_data_read_entry(char *buff, struct vis_info_entry *entry,
 	/* maximal length: max(4+17+2, 3+17+1+3+2) == 26 */
 	if (primary && entry->quality == 0)
 		return sprintf(buff, "HNA %pM, ", entry->dest);
-	else if (compare_orig(entry->src, src))
+	else if (compare_eth(entry->src, src))
 		return sprintf(buff, "TQ %pM %d, ", entry->dest,
 			       entry->quality);
 
@@ -212,7 +212,7 @@ int vis_seq_print_text(struct seq_file *seq, void *offset)
 				if (entries[j].quality == 0)
 					continue;
 				compare =
-				 compare_orig(entries[j].src, packet->vis_orig);
+				 compare_eth(entries[j].src, packet->vis_orig);
 				vis_data_insert_interface(entries[j].src,
 							  &vis_if_list,
 							  compare);
@@ -222,7 +222,7 @@ int vis_seq_print_text(struct seq_file *seq, void *offset)
 				buf_size += 18 + 26 * packet->entries;
 
 				/* add primary/secondary records */
-				if (compare_orig(entry->addr, packet->vis_orig))
+				if (compare_eth(entry->addr, packet->vis_orig))
 					buf_size +=
 					  vis_data_count_prim_sec(&vis_if_list);
 
@@ -258,7 +258,7 @@ int vis_seq_print_text(struct seq_file *seq, void *offset)
 				if (entries[j].quality == 0)
 					continue;
 				compare =
-				 compare_orig(entries[j].src, packet->vis_orig);
+				 compare_eth(entries[j].src, packet->vis_orig);
 				vis_data_insert_interface(entries[j].src,
 							  &vis_if_list,
 							  compare);
@@ -276,7 +276,7 @@ int vis_seq_print_text(struct seq_file *seq, void *offset)
 							entry->primary);
 
 				/* add primary/secondary records */
-				if (compare_orig(entry->addr, packet->vis_orig))
+				if (compare_eth(entry->addr, packet->vis_orig))
 					buff_pos +=
 					 vis_data_read_prim_sec(buff + buff_pos,
 								&vis_if_list);
@@ -344,7 +344,7 @@ static int recv_list_is_in(struct bat_priv *bat_priv,
 
 	spin_lock_bh(&bat_priv->vis_list_lock);
 	list_for_each_entry(entry, recv_list, list) {
-		if (memcmp(entry->mac, mac, ETH_ALEN) == 0) {
+		if (compare_eth(entry->mac, mac)) {
 			spin_unlock_bh(&bat_priv->vis_list_lock);
 			return 1;
 		}
@@ -617,7 +617,7 @@ static int generate_vis_packet(struct bat_priv *bat_priv)
 			if (!neigh_node)
 				continue;
 
-			if (!compare_orig(neigh_node->addr, orig_node->orig))
+			if (!compare_eth(neigh_node->addr, orig_node->orig))
 				continue;
 
 			if (neigh_node->if_incoming->if_status != IF_ACTIVE)

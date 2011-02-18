@@ -101,7 +101,7 @@ void hna_local_add(struct net_device *soft_iface, uint8_t *addr)
 	hna_local_entry->last_seen = jiffies;
 
 	/* the batman interface mac address should never be purged */
-	if (compare_orig(addr, soft_iface->dev_addr))
+	if (compare_eth(addr, soft_iface->dev_addr))
 		hna_local_entry->never_purge = 1;
 	else
 		hna_local_entry->never_purge = 0;

@@ -132,7 +132,7 @@ static struct softif_neigh *softif_neigh_get(struct bat_priv *bat_priv,
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(softif_neigh, node,
 				 &bat_priv->softif_neigh_list, list) {
-		if (memcmp(softif_neigh->addr, addr, ETH_ALEN) != 0)
+		if (!compare_eth(softif_neigh->addr, addr))
 			continue;
 
 		if (softif_neigh->vid != vid)
