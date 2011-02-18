@@ -303,7 +303,7 @@ static void tmio_mmc_set_clock(struct tmio_mmc_host *host, int new_clock)
 
 static void tmio_mmc_clk_stop(struct tmio_mmc_host *host)
 {
-	struct mfd_cell *cell = host->pdev->dev.platform_data;
+	struct mfd_cell *cell = mfd_get_cell(host->pdev);
 	struct tmio_mmc_data *pdata = cell->driver_data;
 
 	/*
@@ -327,7 +327,7 @@ static void tmio_mmc_clk_stop(struct tmio_mmc_host *host)
 
 static void tmio_mmc_clk_start(struct tmio_mmc_host *host)
 {
-	struct mfd_cell *cell = host->pdev->dev.platform_data;
+	struct mfd_cell *cell = mfd_get_cell(host->pdev);
 	struct tmio_mmc_data *pdata = cell->driver_data;
 
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, 0x0100 |
@@ -669,7 +669,7 @@ out:
 static irqreturn_t tmio_mmc_irq(int irq, void *devid)
 {
 	struct tmio_mmc_host *host = devid;
-	struct mfd_cell	*cell = host->pdev->dev.platform_data;
+	struct mfd_cell	*cell = mfd_get_cell(host->pdev);
 	struct tmio_mmc_data *pdata = cell->driver_data;
 	unsigned int ireg, irq_mask, status;
 	unsigned int sdio_ireg, sdio_irq_mask, sdio_status;
@@ -799,7 +799,7 @@ static void tmio_mmc_start_dma_rx(struct tmio_mmc_host *host)
 	struct scatterlist *sg = host->sg_ptr, *sg_tmp;
 	struct dma_async_tx_descriptor *desc = NULL;
 	struct dma_chan *chan = host->chan_rx;
-	struct mfd_cell	*cell = host->pdev->dev.platform_data;
+	struct mfd_cell	*cell = mfd_get_cell(host->pdev);
 	struct tmio_mmc_data *pdata = cell->driver_data;
 	dma_cookie_t cookie;
 	int ret, i;
@@ -869,7 +869,7 @@ static void tmio_mmc_start_dma_tx(struct tmio_mmc_host *host)
 	struct scatterlist *sg = host->sg_ptr, *sg_tmp;
 	struct dma_async_tx_descriptor *desc = NULL;
 	struct dma_chan *chan = host->chan_tx;
-	struct mfd_cell	*cell = host->pdev->dev.platform_data;
+	struct mfd_cell	*cell = mfd_get_cell(host->pdev);
 	struct tmio_mmc_data *pdata = cell->driver_data;
 	dma_cookie_t cookie;
 	int ret, i;
@@ -1063,7 +1063,7 @@ static void tmio_mmc_release_dma(struct tmio_mmc_host *host)
 static int tmio_mmc_start_data(struct tmio_mmc_host *host,
 	struct mmc_data *data)
 {
-	struct mfd_cell *cell = host->pdev->dev.platform_data;
+	struct mfd_cell *cell = mfd_get_cell(host->pdev);
 	struct tmio_mmc_data *pdata = cell->driver_data;
 
 	pr_debug("setup data transfer: blocksize %08x  nr_blocks %d\n",
@@ -1169,7 +1169,7 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 static int tmio_mmc_get_ro(struct mmc_host *mmc)
 {
 	struct tmio_mmc_host *host = mmc_priv(mmc);
-	struct mfd_cell	*cell = host->pdev->dev.platform_data;
+	struct mfd_cell	*cell = mfd_get_cell(host->pdev);
 	struct tmio_mmc_data *pdata = cell->driver_data;
 
 	return ((pdata->flags & TMIO_MMC_WRPROTECT_DISABLE) ||
@@ -1179,7 +1179,7 @@ static int tmio_mmc_get_ro(struct mmc_host *mmc)
 static int tmio_mmc_get_cd(struct mmc_host *mmc)
 {
 	struct tmio_mmc_host *host = mmc_priv(mmc);
-	struct mfd_cell	*cell = host->pdev->dev.platform_data;
+	struct mfd_cell	*cell = mfd_get_cell(host->pdev);
 	struct tmio_mmc_data *pdata = cell->driver_data;
 
 	if (!pdata->get_cd)
@@ -1199,7 +1199,7 @@ static const struct mmc_host_ops tmio_mmc_ops = {
 #ifdef CONFIG_PM
 static int tmio_mmc_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct mfd_cell	*cell = (struct mfd_cell *)dev->dev.platform_data;
+	struct mfd_cell	*cell = mfd_get_cell(dev);
 	struct mmc_host *mmc = platform_get_drvdata(dev);
 	int ret;
 
@@ -1214,7 +1214,7 @@ static int tmio_mmc_suspend(struct platform_device *dev, pm_message_t state)
 
 static int tmio_mmc_resume(struct platform_device *dev)
 {
-	struct mfd_cell	*cell = (struct mfd_cell *)dev->dev.platform_data;
+	struct mfd_cell	*cell = mfd_get_cell(dev);
 	struct mmc_host *mmc = platform_get_drvdata(dev);
 	int ret = 0;
 
@@ -1237,7 +1237,7 @@ out:
 
 static int __devinit tmio_mmc_probe(struct platform_device *dev)
 {
-	struct mfd_cell	*cell = (struct mfd_cell *)dev->dev.platform_data;
+	struct mfd_cell	*cell = mfd_get_cell(dev);
 	struct tmio_mmc_data *pdata;
 	struct resource *res_ctl;
 	struct tmio_mmc_host *host;
@@ -1352,7 +1352,7 @@ out:
 
 static int __devexit tmio_mmc_remove(struct platform_device *dev)
 {
-	struct mfd_cell	*cell = (struct mfd_cell *)dev->dev.platform_data;
+	struct mfd_cell	*cell = mfd_get_cell(dev);
 	struct mmc_host *mmc = platform_get_drvdata(dev);
 
 	platform_set_drvdata(dev, NULL);

@@ -336,7 +336,7 @@ static int ds1wm_probe(struct platform_device *pdev)
 	if (!pdev)
 		return -ENODEV;
 
-	cell = pdev->dev.platform_data;
+	cell = mfd_get_cell(pdev);
 	if (!cell)
 		return -ENODEV;
 
