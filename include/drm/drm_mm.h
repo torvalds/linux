@@ -72,6 +72,11 @@ struct drm_mm {
 	unsigned long scan_end;
 };
 
+static inline bool drm_mm_initialized(struct drm_mm *mm)
+{
+	return mm->free_stack.next;
+}
+
 /*
  * Basic range manager support (drm_mm.c)
  */
