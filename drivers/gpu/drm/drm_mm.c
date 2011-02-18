@@ -124,6 +124,8 @@ static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
 	unsigned long hole_start = drm_mm_hole_node_start(hole_node);
 	unsigned long hole_end = drm_mm_hole_node_end(hole_node);
 
+	BUG_ON(!hole_node->hole_follows || node->allocated);
+
 	if (alignment)
 		tmp = hole_start % alignment;
 
@@ -136,6 +138,7 @@ static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
 	node->start = hole_start + wasted;
 	node->size = size;
 	node->mm = mm;
+	node->allocated = 1;
 
 	INIT_LIST_HEAD(&node->hole_stack);
 	list_add(&node->node_list, &hole_node->node_list);
@@ -157,8 +160,6 @@ struct drm_mm_node *drm_mm_get_block_generic(struct drm_mm_node *hole_node,
 {
 	struct drm_mm_node *node;
 
-	BUG_ON(!hole_node->hole_follows);
-
 	node = drm_mm_kmalloc(hole_node->mm, atomic);
 	if (unlikely(node == NULL))
 		return NULL;
@@ -169,6 +170,26 @@ struct drm_mm_node *drm_mm_get_block_generic(struct drm_mm_node *hole_node,
 }
 EXPORT_SYMBOL(drm_mm_get_block_generic);
 
+/**
+ * Search for free space and insert a preallocated memory node. Returns
+ * -ENOSPC if no suitable free area is available. The preallocated memory node
+ * must be cleared.
+ */
+int drm_mm_insert_node(struct drm_mm *mm, struct drm_mm_node *node,
+		       unsigned long size, unsigned alignment)
+{
+	struct drm_mm_node *hole_node;
+
+	hole_node = drm_mm_search_free(mm, size, alignment, 0);
+	if (!hole_node)
+		return -ENOSPC;
+
+	drm_mm_insert_helper(hole_node, node, size, alignment);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_mm_insert_node);
+
 static void drm_mm_insert_helper_range(struct drm_mm_node *hole_node,
 				       struct drm_mm_node *node,
 				       unsigned long size, unsigned alignment,
@@ -178,6 +199,8 @@ static void drm_mm_insert_helper_range(struct drm_mm_node *hole_node,
 	unsigned long tmp = 0, wasted = 0;
 	unsigned long hole_start = drm_mm_hole_node_start(hole_node);
 	unsigned long hole_end = drm_mm_hole_node_end(hole_node);
+
+	BUG_ON(!hole_node->hole_follows || node->allocated);
 
 	if (hole_start < start)
 		wasted += start - hole_start;
@@ -195,6 +218,7 @@ static void drm_mm_insert_helper_range(struct drm_mm_node *hole_node,
 	node->start = hole_start + wasted;
 	node->size = size;
 	node->mm = mm;
+	node->allocated = 1;
 
 	INIT_LIST_HEAD(&node->hole_stack);
 	list_add(&node->node_list, &hole_node->node_list);
@@ -219,8 +243,6 @@ struct drm_mm_node *drm_mm_get_block_range_generic(struct drm_mm_node *hole_node
 {
 	struct drm_mm_node *node;
 
-	BUG_ON(!hole_node->hole_follows);
-
 	node = drm_mm_kmalloc(hole_node->mm, atomic);
 	if (unlikely(node == NULL))
 		return NULL;
@@ -232,14 +254,34 @@ struct drm_mm_node *drm_mm_get_block_range_generic(struct drm_mm_node *hole_node
 }
 EXPORT_SYMBOL(drm_mm_get_block_range_generic);
 
-/*
- * Put a block. Merge with the previous and / or next block if they are free.
- * Otherwise add to the free stack.
+/**
+ * Search for free space and insert a preallocated memory node. Returns
+ * -ENOSPC if no suitable free area is available. This is for range
+ * restricted allocations. The preallocated memory node must be cleared.
  */
-
-void drm_mm_put_block(struct drm_mm_node *node)
+int drm_mm_insert_node_in_range(struct drm_mm *mm, struct drm_mm_node *node,
+				unsigned long size, unsigned alignment,
+				unsigned long start, unsigned long end)
 {
+	struct drm_mm_node *hole_node;
 
+	hole_node = drm_mm_search_free_in_range(mm, size, alignment,
+						start, end, 0);
+	if (!hole_node)
+		return -ENOSPC;
+
+	drm_mm_insert_helper_range(hole_node, node, size, alignment,
+				   start, end);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_mm_insert_node_in_range);
+
+/**
+ * Remove a memory node from the allocator.
+ */
+void drm_mm_remove_node(struct drm_mm_node *node)
+{
 	struct drm_mm *mm = node->mm;
 	struct drm_mm_node *prev_node;
 
@@ -264,6 +306,22 @@ void drm_mm_put_block(struct drm_mm_node *node)
 		list_move(&prev_node->hole_stack, &mm->hole_stack);
 
 	list_del(&node->node_list);
+	node->allocated = 0;
+}
+EXPORT_SYMBOL(drm_mm_remove_node);
+
+/*
+ * Remove a memory node from the allocator and free the allocated struct
+ * drm_mm_node. Only to be used on a struct drm_mm_node obtained by one of the
+ * drm_mm_get_block functions.
+ */
+void drm_mm_put_block(struct drm_mm_node *node)
+{
+
+	struct drm_mm *mm = node->mm;
+
+	drm_mm_remove_node(node);
+
 	spin_lock(&mm->unused_lock);
 	if (mm->num_unused < MM_UNUSED_TARGET) {
 		list_add(&node->node_list, &mm->unused_nodes);
@@ -366,6 +424,23 @@ struct drm_mm_node *drm_mm_search_free_in_range(const struct drm_mm *mm,
 	return best;
 }
 EXPORT_SYMBOL(drm_mm_search_free_in_range);
+
+/**
+ * Moves an allocation. To be used with embedded struct drm_mm_node.
+ */
+void drm_mm_replace_node(struct drm_mm_node *old, struct drm_mm_node *new)
+{
+	list_replace(&old->node_list, &new->node_list);
+	list_replace(&old->node_list, &new->hole_stack);
+	new->hole_follows = old->hole_follows;
+	new->mm = old->mm;
+	new->start = old->start;
+	new->size = old->size;
+
+	old->allocated = 0;
+	new->allocated = 1;
+}
+EXPORT_SYMBOL(drm_mm_replace_node);
 
 /**
  * Initializa lru scanning.

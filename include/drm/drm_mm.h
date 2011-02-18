@@ -49,6 +49,7 @@ struct drm_mm_node {
 	unsigned scanned_prev_free : 1;
 	unsigned scanned_next_free : 1;
 	unsigned scanned_preceeds_hole : 1;
+	unsigned allocated : 1;
 	unsigned long start;
 	unsigned long size;
 	struct drm_mm *mm;
@@ -72,6 +73,11 @@ struct drm_mm {
 	unsigned long scan_start;
 	unsigned long scan_end;
 };
+
+static inline bool drm_mm_node_allocated(struct drm_mm_node *node)
+{
+	return node->allocated;
+}
 
 static inline bool drm_mm_initialized(struct drm_mm *mm)
 {
@@ -126,7 +132,15 @@ static inline struct drm_mm_node *drm_mm_get_block_atomic_range(
 	return drm_mm_get_block_range_generic(parent, size, alignment,
 						start, end, 1);
 }
+extern int drm_mm_insert_node(struct drm_mm *mm, struct drm_mm_node *node,
+			      unsigned long size, unsigned alignment);
+extern int drm_mm_insert_node_in_range(struct drm_mm *mm,
+				       struct drm_mm_node *node,
+				       unsigned long size, unsigned alignment,
+				       unsigned long start, unsigned long end);
 extern void drm_mm_put_block(struct drm_mm_node *cur);
+extern void drm_mm_remove_node(struct drm_mm_node *node);
+extern void drm_mm_replace_node(struct drm_mm_node *old, struct drm_mm_node *new);
 extern struct drm_mm_node *drm_mm_search_free(const struct drm_mm *mm,
 					      unsigned long size,
 					      unsigned alignment,
@@ -142,11 +156,6 @@ extern int drm_mm_init(struct drm_mm *mm, unsigned long start,
 		       unsigned long size);
 extern void drm_mm_takedown(struct drm_mm *mm);
 extern int drm_mm_clean(struct drm_mm *mm);
-extern unsigned long drm_mm_tail_space(struct drm_mm *mm);
-extern int drm_mm_remove_space_from_tail(struct drm_mm *mm,
-					 unsigned long size);
-extern int drm_mm_add_space_to_tail(struct drm_mm *mm,
-				    unsigned long size, int atomic);
 extern int drm_mm_pre_get(struct drm_mm *mm);
 
 static inline struct drm_mm *drm_get_mm(struct drm_mm_node *block)
