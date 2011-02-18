@@ -33,7 +33,7 @@
 	 sizeof(struct bcast_packet))))
 
 
-struct batman_if {
+struct hard_iface {
 	struct list_head list;
 	int16_t if_num;
 	char if_status;
@@ -124,7 +124,7 @@ struct neigh_node {
 	atomic_t refcount;
 	struct rcu_head rcu;
 	struct orig_node *orig_node;
-	struct batman_if *if_incoming;
+	struct hard_iface *if_incoming;
 };
 
 
@@ -148,7 +148,7 @@ struct bat_priv {
 	struct hlist_head softif_neigh_list;
 	struct softif_neigh *softif_neigh;
 	struct debug_log *debug_log;
-	struct batman_if *primary_if;
+	struct hard_iface *primary_if;
 	struct kobject *mesh_obj;
 	struct dentry *debug_dir;
 	struct hlist_head forw_bat_list;
@@ -217,7 +217,7 @@ struct forw_packet {
 	uint32_t direct_link_flags;
 	uint8_t num_packets;
 	struct delayed_work delayed_work;
-	struct batman_if *if_incoming;
+	struct hard_iface *if_incoming;
 };
 
 /* While scanning for vis-entries of a particular vis-originator

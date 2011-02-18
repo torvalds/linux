@@ -35,9 +35,9 @@
 #include "gateway_client.h"
 #include "unicast.h"
 
-void slide_own_bcast_window(struct batman_if *batman_if)
+void slide_own_bcast_window(struct hard_iface *hard_iface)
 {
-	struct bat_priv *bat_priv = netdev_priv(batman_if->soft_iface);
+	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct hashtable_t *hash = bat_priv->orig_hash;
 	struct hlist_node *node;
 	struct hlist_head *head;
@@ -52,11 +52,11 @@ void slide_own_bcast_window(struct batman_if *batman_if)
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(orig_node, node, head, hash_entry) {
 			spin_lock_bh(&orig_node->ogm_cnt_lock);
-			word_index = batman_if->if_num * NUM_WORDS;
+			word_index = hard_iface->if_num * NUM_WORDS;
 			word = &(orig_node->bcast_own[word_index]);
 
 			bit_get_packet(bat_priv, word, 1, 0);
-			orig_node->bcast_own_sum[batman_if->if_num] =
+			orig_node->bcast_own_sum[hard_iface->if_num] =
 				bit_packet_count(word);
 			spin_unlock_bh(&orig_node->ogm_cnt_lock);
 		}
@@ -143,7 +143,7 @@ void update_routes(struct bat_priv *bat_priv, struct orig_node *orig_node,
 static int is_bidirectional_neigh(struct orig_node *orig_node,
 				struct orig_node *orig_neigh_node,
 				struct batman_packet *batman_packet,
-				struct batman_if *if_incoming)
+				struct hard_iface *if_incoming)
 {
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 	struct neigh_node *neigh_node = NULL, *tmp_neigh_node;
@@ -368,7 +368,7 @@ static void update_orig(struct bat_priv *bat_priv,
 			struct orig_node *orig_node,
 			struct ethhdr *ethhdr,
 			struct batman_packet *batman_packet,
-			struct batman_if *if_incoming,
+			struct hard_iface *if_incoming,
 			unsigned char *hna_buff, int hna_buff_len,
 			char is_duplicate)
 {
@@ -533,7 +533,7 @@ static int window_protected(struct bat_priv *bat_priv,
  */
 static char count_real_packets(struct ethhdr *ethhdr,
 			       struct batman_packet *batman_packet,
-			       struct batman_if *if_incoming)
+			       struct hard_iface *if_incoming)
 {
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 	struct orig_node *orig_node;
@@ -598,10 +598,10 @@ out:
 void receive_bat_packet(struct ethhdr *ethhdr,
 			struct batman_packet *batman_packet,
 			unsigned char *hna_buff, int hna_buff_len,
-			struct batman_if *if_incoming)
+			struct hard_iface *if_incoming)
 {
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
-	struct batman_if *batman_if;
+	struct hard_iface *hard_iface;
 	struct orig_node *orig_neigh_node, *orig_node;
 	char has_directlink_flag;
 	char is_my_addr = 0, is_my_orig = 0, is_my_oldorig = 0;
@@ -643,23 +643,23 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 		has_directlink_flag);
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(batman_if, &hardif_list, list) {
-		if (batman_if->if_status != IF_ACTIVE)
+	list_for_each_entry_rcu(hard_iface, &hardif_list, list) {
+		if (hard_iface->if_status != IF_ACTIVE)
 			continue;
 
-		if (batman_if->soft_iface != if_incoming->soft_iface)
+		if (hard_iface->soft_iface != if_incoming->soft_iface)
 			continue;
 
 		if (compare_eth(ethhdr->h_source,
-				batman_if->net_dev->dev_addr))
+				hard_iface->net_dev->dev_addr))
 			is_my_addr = 1;
 
 		if (compare_eth(batman_packet->orig,
-				batman_if->net_dev->dev_addr))
+				hard_iface->net_dev->dev_addr))
 			is_my_orig = 1;
 
 		if (compare_eth(batman_packet->prev_sender,
-				batman_if->net_dev->dev_addr))
+				hard_iface->net_dev->dev_addr))
 			is_my_oldorig = 1;
 
 		if (compare_eth(ethhdr->h_source, broadcast_addr))
@@ -828,7 +828,7 @@ out:
 	orig_node_free_ref(orig_node);
 }
 
-int recv_bat_packet(struct sk_buff *skb, struct batman_if *batman_if)
+int recv_bat_packet(struct sk_buff *skb, struct hard_iface *hard_iface)
 {
 	struct ethhdr *ethhdr;
 
@@ -859,7 +859,7 @@ int recv_bat_packet(struct sk_buff *skb, struct batman_if *batman_if)
 	receive_aggr_bat_packet(ethhdr,
 				skb->data,
 				skb_headlen(skb),
-				batman_if);
+				hard_iface);
 
 	kfree_skb(skb);
 	return NET_RX_SUCCESS;
@@ -997,7 +997,7 @@ out:
 }
 
 
-int recv_icmp_packet(struct sk_buff *skb, struct batman_if *recv_if)
+int recv_icmp_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 {
 	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct icmp_packet_rr *icmp_packet;
@@ -1097,7 +1097,7 @@ out:
  * refcount.*/
 struct neigh_node *find_router(struct bat_priv *bat_priv,
 			       struct orig_node *orig_node,
-			       struct batman_if *recv_if)
+			       struct hard_iface *recv_if)
 {
 	struct orig_node *primary_orig_node;
 	struct orig_node *router_orig;
@@ -1263,7 +1263,7 @@ static int check_unicast_packet(struct sk_buff *skb, int hdr_size)
 	return 0;
 }
 
-int route_unicast_packet(struct sk_buff *skb, struct batman_if *recv_if,
+int route_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if,
 			 int hdr_size)
 {
 	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
@@ -1349,7 +1349,7 @@ out:
 	return ret;
 }
 
-int recv_unicast_packet(struct sk_buff *skb, struct batman_if *recv_if)
+int recv_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 {
 	struct unicast_packet *unicast_packet;
 	int hdr_size = sizeof(struct unicast_packet);
@@ -1368,7 +1368,7 @@ int recv_unicast_packet(struct sk_buff *skb, struct batman_if *recv_if)
 	return route_unicast_packet(skb, recv_if, hdr_size);
 }
 
-int recv_ucast_frag_packet(struct sk_buff *skb, struct batman_if *recv_if)
+int recv_ucast_frag_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 {
 	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct unicast_frag_packet *unicast_packet;
@@ -1402,7 +1402,7 @@ int recv_ucast_frag_packet(struct sk_buff *skb, struct batman_if *recv_if)
 }
 
 
-int recv_bcast_packet(struct sk_buff *skb, struct batman_if *recv_if)
+int recv_bcast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 {
 	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct orig_node *orig_node = NULL;
@@ -1487,7 +1487,7 @@ out:
 	return ret;
 }
 
-int recv_vis_packet(struct sk_buff *skb, struct batman_if *recv_if)
+int recv_vis_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 {
 	struct vis_packet *vis_packet;
 	struct ethhdr *ethhdr;

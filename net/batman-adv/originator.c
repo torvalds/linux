@@ -73,7 +73,7 @@ void neigh_node_free_ref(struct neigh_node *neigh_node)
 struct neigh_node *create_neighbor(struct orig_node *orig_node,
 				   struct orig_node *orig_neigh_node,
 				   uint8_t *neigh,
-				   struct batman_if *if_incoming)
+				   struct hard_iface *if_incoming)
 {
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 	struct neigh_node *neigh_node;
@@ -487,9 +487,9 @@ static int orig_node_add_if(struct orig_node *orig_node, int max_if_num)
 	return 0;
 }
 
-int orig_hash_add_if(struct batman_if *batman_if, int max_if_num)
+int orig_hash_add_if(struct hard_iface *hard_iface, int max_if_num)
 {
-	struct bat_priv *bat_priv = netdev_priv(batman_if->soft_iface);
+	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct hashtable_t *hash = bat_priv->orig_hash;
 	struct hlist_node *node;
 	struct hlist_head *head;
@@ -572,13 +572,13 @@ free_own_sum:
 	return 0;
 }
 
-int orig_hash_del_if(struct batman_if *batman_if, int max_if_num)
+int orig_hash_del_if(struct hard_iface *hard_iface, int max_if_num)
 {
-	struct bat_priv *bat_priv = netdev_priv(batman_if->soft_iface);
+	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct hashtable_t *hash = bat_priv->orig_hash;
 	struct hlist_node *node;
 	struct hlist_head *head;
-	struct batman_if *batman_if_tmp;
+	struct hard_iface *hard_iface_tmp;
 	struct orig_node *orig_node;
 	int i, ret;
 
@@ -591,7 +591,7 @@ int orig_hash_del_if(struct batman_if *batman_if, int max_if_num)
 		hlist_for_each_entry_rcu(orig_node, node, head, hash_entry) {
 			spin_lock_bh(&orig_node->ogm_cnt_lock);
 			ret = orig_node_del_if(orig_node, max_if_num,
-					batman_if->if_num);
+					hard_iface->if_num);
 			spin_unlock_bh(&orig_node->ogm_cnt_lock);
 
 			if (ret == -1)
@@ -602,22 +602,22 @@ int orig_hash_del_if(struct batman_if *batman_if, int max_if_num)
 
 	/* renumber remaining batman interfaces _inside_ of orig_hash_lock */
 	rcu_read_lock();
-	list_for_each_entry_rcu(batman_if_tmp, &hardif_list, list) {
-		if (batman_if_tmp->if_status == IF_NOT_IN_USE)
+	list_for_each_entry_rcu(hard_iface_tmp, &hardif_list, list) {
+		if (hard_iface_tmp->if_status == IF_NOT_IN_USE)
 			continue;
 
-		if (batman_if == batman_if_tmp)
+		if (hard_iface == hard_iface_tmp)
 			continue;
 
-		if (batman_if->soft_iface != batman_if_tmp->soft_iface)
+		if (hard_iface->soft_iface != hard_iface_tmp->soft_iface)
 			continue;
 
-		if (batman_if_tmp->if_num > batman_if->if_num)
-			batman_if_tmp->if_num--;
+		if (hard_iface_tmp->if_num > hard_iface->if_num)
+			hard_iface_tmp->if_num--;
 	}
 	rcu_read_unlock();
 
-	batman_if->if_num = -1;
+	hard_iface->if_num = -1;
 	return 0;
 
 err:

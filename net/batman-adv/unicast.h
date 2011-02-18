@@ -32,7 +32,7 @@ int frag_reassemble_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 void frag_list_free(struct list_head *head);
 int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv);
 int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
-		  struct batman_if *batman_if, uint8_t dstaddr[]);
+		  struct hard_iface *hard_iface, uint8_t dstaddr[]);
 
 static inline int frag_can_reassemble(struct sk_buff *skb, int mtu)
 {

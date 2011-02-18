@@ -153,14 +153,14 @@ void dec_module_count(void)
 
 int is_my_mac(uint8_t *addr)
 {
-	struct batman_if *batman_if;
+	struct hard_iface *hard_iface;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(batman_if, &hardif_list, list) {
-		if (batman_if->if_status != IF_ACTIVE)
+	list_for_each_entry_rcu(hard_iface, &hardif_list, list) {
+		if (hard_iface->if_status != IF_ACTIVE)
 			continue;
 
-		if (compare_eth(batman_if->net_dev->dev_addr, addr)) {
+		if (compare_eth(hard_iface->net_dev->dev_addr, addr)) {
 			rcu_read_unlock();
 			return 1;
 		}

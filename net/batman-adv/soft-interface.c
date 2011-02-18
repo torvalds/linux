@@ -414,7 +414,7 @@ end:
 }
 
 void interface_rx(struct net_device *soft_iface,
-		  struct sk_buff *skb, struct batman_if *recv_if,
+		  struct sk_buff *skb, struct hard_iface *recv_if,
 		  int hdr_size)
 {
 	struct bat_priv *bat_priv = netdev_priv(soft_iface);

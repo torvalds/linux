@@ -730,7 +730,7 @@ static void broadcast_vis_packet(struct bat_priv *bat_priv,
 	struct orig_node *orig_node;
 	struct vis_packet *packet;
 	struct sk_buff *skb;
-	struct batman_if *batman_if;
+	struct hard_iface *hard_iface;
 	uint8_t dstaddr[ETH_ALEN];
 	int i;
 
@@ -755,12 +755,12 @@ static void broadcast_vis_packet(struct bat_priv *bat_priv,
 				continue;
 
 			memcpy(packet->target_orig, orig_node->orig, ETH_ALEN);
-			batman_if = orig_node->router->if_incoming;
+			hard_iface = orig_node->router->if_incoming;
 			memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
 
 			skb = skb_clone(info->skb_packet, GFP_ATOMIC);
 			if (skb)
-				send_skb_packet(skb, batman_if, dstaddr);
+				send_skb_packet(skb, hard_iface, dstaddr);
 
 		}
 		rcu_read_unlock();

@@ -213,7 +213,7 @@ out:
 }
 
 int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
-		  struct batman_if *batman_if, uint8_t dstaddr[])
+		  struct hard_iface *hard_iface, uint8_t dstaddr[])
 {
 	struct unicast_packet tmp_uc, *unicast_packet;
 	struct sk_buff *frag_skb;
@@ -258,12 +258,12 @@ int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	frag1->flags = UNI_FRAG_HEAD | large_tail;
 	frag2->flags = large_tail;
 
-	seqno = atomic_add_return(2, &batman_if->frag_seqno);
+	seqno = atomic_add_return(2, &hard_iface->frag_seqno);
 	frag1->seqno = htons(seqno - 1);
 	frag2->seqno = htons(seqno);
 
-	send_skb_packet(skb, batman_if, dstaddr);
-	send_skb_packet(frag_skb, batman_if, dstaddr);
+	send_skb_packet(skb, hard_iface, dstaddr);
+	send_skb_packet(frag_skb, hard_iface, dstaddr);
 	return NET_RX_SUCCESS;
 
 drop_frag:
