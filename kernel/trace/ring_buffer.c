@@ -2163,14 +2163,10 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 		delta = diff;
 		if (unlikely(test_time_stamp(delta))) {
 			WARN_ONCE(delta > (1ULL << 59),
-				  KERN_WARNING "Delta way too big! %llu ts=%llu write stamp = %llu\n%s",
+				  KERN_WARNING "Delta way too big! %llu ts=%llu write stamp = %llu\n",
 				  (unsigned long long)delta,
 				  (unsigned long long)ts,
-				  (unsigned long long)cpu_buffer->write_stamp,
-				  sched_clock_stable ? "" :
-				  "If you just came from a suspend/resume,\n"
-				  "please switch to the trace global clock:\n"
-				  "  echo global > /sys/kernel/debug/tracing/trace_clock\n");
+				  (unsigned long long)cpu_buffer->write_stamp);
 			add_timestamp = 1;
 		}
 	}
