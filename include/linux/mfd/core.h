@@ -87,4 +87,13 @@ extern int mfd_add_devices(struct device *parent, int id,
 
 extern void mfd_remove_devices(struct device *parent);
 
+/*
+ * For MFD drivers with clients sharing access to resources, these create
+ * multiple platform devices per cell.  Contention handling must still be
+ * handled via drivers (ie, with enable/disable hooks).
+ */
+extern int mfd_shared_platform_driver_register(struct platform_driver *drv,
+		const char *cellname);
+extern void mfd_shared_platform_driver_unregister(struct platform_driver *drv);
+
 #endif

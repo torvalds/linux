@@ -184,5 +184,66 @@ void mfd_remove_devices(struct device *parent)
 }
 EXPORT_SYMBOL(mfd_remove_devices);
 
+static int add_shared_platform_device(const char *cell, const char *name)
+{
+	struct mfd_cell cell_entry;
+	struct device *dev;
+	struct platform_device *pdev;
+	int err;
+
+	/* check if we've already registered a device (don't fail if we have) */
+	if (bus_find_device_by_name(&platform_bus_type, NULL, name))
+		return 0;
+
+	/* fetch the parent cell's device (should already be registered!) */
+	dev = bus_find_device_by_name(&platform_bus_type, NULL, cell);
+	if (!dev) {
+		printk(KERN_ERR "failed to find device for cell %s\n", cell);
+		return -ENODEV;
+	}
+	pdev = to_platform_device(dev);
+	memcpy(&cell_entry, mfd_get_cell(pdev), sizeof(cell_entry));
+
+	WARN_ON(!cell_entry.enable);
+
+	cell_entry.name = name;
+	err = mfd_add_device(pdev->dev.parent, -1, &cell_entry, NULL, 0);
+	if (err)
+		dev_err(dev, "MFD add devices failed: %d\n", err);
+	return err;
+}
+
+int mfd_shared_platform_driver_register(struct platform_driver *drv,
+		const char *cellname)
+{
+	int err;
+
+	err = add_shared_platform_device(cellname, drv->driver.name);
+	if (err)
+		printk(KERN_ERR "failed to add platform device %s\n",
+				drv->driver.name);
+
+	err = platform_driver_register(drv);
+	if (err)
+		printk(KERN_ERR "failed to add platform driver %s\n",
+				drv->driver.name);
+
+	return err;
+}
+EXPORT_SYMBOL(mfd_shared_platform_driver_register);
+
+void mfd_shared_platform_driver_unregister(struct platform_driver *drv)
+{
+	struct device *dev;
+
+	dev = bus_find_device_by_name(&platform_bus_type, NULL,
+			drv->driver.name);
+	if (dev)
+		platform_device_unregister(to_platform_device(dev));
+
+	platform_driver_unregister(drv);
+}
+EXPORT_SYMBOL(mfd_shared_platform_driver_unregister);
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ian Molton, Dmitry Baryshkov");
