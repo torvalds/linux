@@ -18,6 +18,43 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
+int mfd_shared_cell_enable(struct platform_device *pdev)
+{
+	const struct mfd_cell *cell = mfd_get_cell(pdev);
+	int err = 0;
+
+	/* only call enable hook if the cell wasn't previously enabled */
+	if (atomic_inc_return(cell->usage_count) == 1)
+		err = cell->enable(pdev);
+
+	/* if the enable hook failed, decrement counter to allow retries */
+	if (err)
+		atomic_dec(cell->usage_count);
+
+	return err;
+}
+EXPORT_SYMBOL(mfd_shared_cell_enable);
+
+int mfd_shared_cell_disable(struct platform_device *pdev)
+{
+	const struct mfd_cell *cell = mfd_get_cell(pdev);
+	int err = 0;
+
+	/* only disable if no other clients are using it */
+	if (atomic_dec_return(cell->usage_count) == 0)
+		err = cell->disable(pdev);
+
+	/* if the disable hook failed, increment to allow retries */
+	if (err)
+		atomic_inc(cell->usage_count);
+
+	/* sanity check; did someone call disable too many times? */
+	WARN_ON(atomic_read(cell->usage_count) < 0);
+
+	return err;
+}
+EXPORT_SYMBOL(mfd_shared_cell_disable);
+
 static int mfd_add_device(struct device *parent, int id,
 			  const struct mfd_cell *cell,
 			  struct resource *mem_base,
@@ -96,14 +133,22 @@ fail_alloc:
 }
 
 int mfd_add_devices(struct device *parent, int id,
-		    const struct mfd_cell *cells, int n_devs,
+		    struct mfd_cell *cells, int n_devs,
 		    struct resource *mem_base,
 		    int irq_base)
 {
 	int i;
 	int ret = 0;
+	atomic_t *cnts;
+
+	/* initialize reference counting for all cells */
+	cnts = kcalloc(sizeof(*cnts), n_devs, GFP_KERNEL);
+	if (!cnts)
+		return -ENOMEM;
 
 	for (i = 0; i < n_devs; i++) {
+		atomic_set(&cnts[i], 0);
+		cells[i].usage_count = &cnts[i];
 		ret = mfd_add_device(parent, id, cells + i, mem_base, irq_base);
 		if (ret)
 			break;
@@ -116,15 +161,26 @@ int mfd_add_devices(struct device *parent, int id,
 }
 EXPORT_SYMBOL(mfd_add_devices);
 
-static int mfd_remove_devices_fn(struct device *dev, void *unused)
+static int mfd_remove_devices_fn(struct device *dev, void *c)
 {
-	platform_device_unregister(to_platform_device(dev));
+	struct platform_device *pdev = to_platform_device(dev);
+	const struct mfd_cell *cell = mfd_get_cell(pdev);
+	atomic_t **usage_count = c;
+
+	/* find the base address of usage_count pointers (for freeing) */
+	if (!*usage_count || (cell->usage_count < *usage_count))
+		*usage_count = cell->usage_count;
+
+	platform_device_unregister(pdev);
 	return 0;
 }
 
 void mfd_remove_devices(struct device *parent)
 {
-	device_for_each_child(parent, NULL, mfd_remove_devices_fn);
+	atomic_t *cnts = NULL;
+
+	device_for_each_child(parent, &cnts, mfd_remove_devices_fn);
+	kfree(cnts);
 }
 EXPORT_SYMBOL(mfd_remove_devices);
 
