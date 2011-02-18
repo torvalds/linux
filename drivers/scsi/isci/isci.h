@@ -113,8 +113,11 @@ struct isci_firmware {
 	u8 sas_addrs_size;
 };
 
-irqreturn_t isci_isr(int vec, void *data);
-irqreturn_t isci_legacy_isr(int vec, void *data);
+irqreturn_t isci_msix_isr(int vec, void *data);
+irqreturn_t isci_intx_isr(int vec, void *data);
+
+bool scic_sds_controller_isr(struct scic_sds_controller *scic);
+void scic_sds_controller_completion_handler(struct scic_sds_controller *scic);
 
 enum sci_status isci_parse_oem_parameters(
 	union scic_oem_parameters *oem_params,

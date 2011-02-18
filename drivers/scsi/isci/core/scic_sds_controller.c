@@ -1898,8 +1898,7 @@ static void scic_sds_controller_single_vector_completion_handler(
  *
  * bool true if an interrupt is processed false if no interrupt was processed
  */
-static bool scic_sds_controller_normal_vector_interrupt_handler(
-	struct scic_sds_controller *scic)
+bool scic_sds_controller_isr(struct scic_sds_controller *scic)
 {
 	if (scic_sds_controller_completion_queue_has_entries(scic)) {
 		return true;
@@ -1925,8 +1924,7 @@ static bool scic_sds_controller_normal_vector_interrupt_handler(
  * This is the method provided to handle the completions for a normal MSIX
  *    message.
  */
-static void scic_sds_controller_normal_vector_completion_handler(
-	struct scic_sds_controller *scic)
+void scic_sds_controller_completion_handler(struct scic_sds_controller *scic)
 {
 	/* Empty out the completion queue */
 	if (scic_sds_controller_completion_queue_has_entries(scic))
@@ -2582,9 +2580,9 @@ enum sci_status scic_controller_get_handler_methods(
 			status = SCI_SUCCESS;
 		} else if (message_count == 2) {
 			handler_methods[0].interrupt_handler
-				= scic_sds_controller_normal_vector_interrupt_handler;
+				= scic_sds_controller_isr;
 			handler_methods[0].completion_handler
-				= scic_sds_controller_normal_vector_completion_handler;
+				= scic_sds_controller_completion_handler;
 
 			handler_methods[1].interrupt_handler
 				= scic_sds_controller_error_vector_interrupt_handler;

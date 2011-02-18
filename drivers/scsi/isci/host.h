@@ -53,13 +53,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/**
- * This file contains the isci_module initialization routines.
- *
- * host.h
- */
-
-
 
 #if !defined(_SCI_HOST_H_)
 #define _SCI_HOST_H_
@@ -79,10 +72,6 @@
 #define SCI_SCU_BAR_SIZE  (4*1024*1024)
 #define SCI_IO_SPACE_BAR0 2
 #define SCI_IO_SPACE_BAR1 3
-#define SCI_MSIX_NORMAL_VECTOR 0
-#define SCI_MSIX_ERROR_VECTOR 1
-#define SCI_MSIX_SINGLE_VECTOR 1
-#define SCI_MSIX_DOUBLE_VECTOR 2
 #define ISCI_CAN_QUEUE_VAL 250 /* < SCI_MAX_IO_REQUESTS ? */
 #define SCIC_CONTROLLER_STOP_TIMEOUT 5000
 
@@ -96,7 +85,6 @@ struct coherent_memory_info {
 
 struct isci_host {
 	struct scic_sds_controller *core_controller;
-	struct scic_controller_handler_methods scic_irq_handlers[SCI_NUM_MSI_X_INT];
 	union scic_oem_parameters oem_parameters;
 
 	int id; /* unique within a given pci device */

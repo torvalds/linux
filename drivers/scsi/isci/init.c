@@ -334,7 +334,7 @@ static int isci_setup_interrupts(struct pci_dev *pdev)
 		BUG_ON(!isci_host);
 
 		/* @todo: need to handle error case. */
-		err = devm_request_irq(&pdev->dev, msix->vector, isci_isr, 0,
+		err = devm_request_irq(&pdev->dev, msix->vector, isci_msix_isr, 0,
 				       DRV_NAME"-msix", isci_host);
 		if (!err)
 			continue;
@@ -353,7 +353,7 @@ static int isci_setup_interrupts(struct pci_dev *pdev)
 	return 0;
 
  intx:
-	err = devm_request_irq(&pdev->dev, pdev->irq, isci_legacy_isr,
+	err = devm_request_irq(&pdev->dev, pdev->irq, isci_intx_isr,
 			       IRQF_SHARED, DRV_NAME"-intx", pdev);
 
 	return err;
