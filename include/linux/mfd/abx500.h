@@ -186,7 +186,6 @@ struct abx500_init_settings {
 struct ab3550_platform_data {
 	struct {unsigned int base; unsigned int count; } irq;
 	void *dev_data[AB3550_NUM_DEVICES];
-	size_t dev_data_sz[AB3550_NUM_DEVICES];
 	struct abx500_init_settings *init_settings;
 	unsigned int init_settings_sz;
 };
