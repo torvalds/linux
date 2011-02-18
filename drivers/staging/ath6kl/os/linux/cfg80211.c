@@ -791,7 +791,7 @@ ar6k_cfg80211_scanComplete_event(AR_SOFTC_T *ar, int status)
         wmi_iterate_nodes(ar->arWmi, ar6k_cfg80211_scan_node, ar->wdev->wiphy);
 
         cfg80211_scan_done(ar->scan_request,
-                          (status & A_ECANCELED) ? true : false);
+            ((status & A_ECANCELED) || (status & A_EBUSY)) ? true : false);
 
         if(ar->scan_request->n_ssids &&
            ar->scan_request->ssids[0].ssid_len) {
