@@ -84,18 +84,16 @@ config PM_STD_PARTITION
 	  device.
 
 config PM_SLEEP
-	bool
+	def_bool y
 	depends on SUSPEND || HIBERNATION || XEN_SAVE_RESTORE
-	default y
 
 config PM_SLEEP_SMP
-	bool
+	def_bool y
 	depends on SMP
 	depends on ARCH_SUSPEND_POSSIBLE || ARCH_HIBERNATION_POSSIBLE
 	depends on PM_SLEEP
 	select HOTPLUG
 	select HOTPLUG_CPU
-	default y
 
 config PM_RUNTIME
 	bool "Run-time PM core functionality"
@@ -112,9 +110,8 @@ config PM_RUNTIME
 	  wake-up events.
 
 config PM
-	bool
+	def_bool y
 	depends on PM_SLEEP || PM_RUNTIME
-	default y
 
 config PM_DEBUG
 	bool "Power Management Debug Support"
@@ -127,14 +124,12 @@ config PM_DEBUG
 config PM_VERBOSE
 	bool "Verbose Power Management debugging"
 	depends on PM_DEBUG
-	default n
 	---help---
 	This option enables verbose messages from the Power Management code.
 
 config PM_ADVANCED_DEBUG
 	bool "Extra PM attributes in sysfs for low-level debugging/testing"
 	depends on PM_DEBUG
-	default n
 	---help---
 	Add extra sysfs attributes allowing one to access some Power Management
 	fields of device objects from user space.  If you are not a kernel
@@ -175,7 +170,6 @@ config PM_TRACE_RTC
 	depends on CAN_PM_TRACE
 	depends on X86
 	select PM_TRACE
-	default n
 	---help---
 	This enables some cheesy code to save the last PM event point in the
 	RTC across reboots, so that you can debug a machine that just hangs
