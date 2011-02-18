@@ -104,6 +104,7 @@ struct wm8994_priv {
 	void *jack_cb_data;
 	bool jack_is_mic;
 	bool jack_is_video;
+	int micdet_irq;
 
 	int revision;
 	struct wm8994_pdata *pdata;
@@ -3102,6 +3103,12 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	wm8994->pdata = dev_get_platdata(codec->dev->parent);
 	wm8994->codec = codec;
 
+	if (wm8994->pdata && wm8994->pdata->micdet_irq)
+		wm8994->micdet_irq = wm8994->pdata->micdet_irq;
+	else if (wm8994->pdata && wm8994->pdata->irq_base)
+		wm8994->micdet_irq = wm8994->pdata->irq_base +
+				     WM8994_IRQ_MIC1_DET;
+
 	pm_runtime_enable(codec->dev);
 	pm_runtime_resume(codec->dev);
 
@@ -3150,14 +3157,17 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 
 	switch (control->type) {
 	case WM8994:
-		ret = wm8994_request_irq(codec->control_data,
-					 WM8994_IRQ_MIC1_DET,
-					 wm8994_mic_irq, "Mic 1 detect",
-					 wm8994);
-		if (ret != 0)
-			dev_warn(codec->dev,
-				 "Failed to request Mic1 detect IRQ: %d\n",
-				 ret);
+		if (wm8994->micdet_irq) {
+			ret = request_threaded_irq(wm8994->micdet_irq, NULL,
+						   wm8994_mic_irq,
+						   IRQF_TRIGGER_RISING,
+						   "Mic1 detect",
+						   wm8994);
+			if (ret != 0)
+				dev_warn(codec->dev,
+					 "Failed to request Mic1 detect IRQ: %d\n",
+					 ret);
+		}
 
 		ret = wm8994_request_irq(codec->control_data,
 					 WM8994_IRQ_MIC1_SHRT,
@@ -3188,15 +3198,17 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		break;
 
 	case WM8958:
-		ret = wm8994_request_irq(codec->control_data,
-					 WM8994_IRQ_MIC1_DET,
-					 wm8958_mic_irq, "Mic detect",
-					 wm8994);
-		if (ret != 0)
-			dev_warn(codec->dev,
-				 "Failed to request Mic detect IRQ: %d\n",
-				 ret);
-		break;
+		if (wm8994->micdet_irq) {
+			ret = request_threaded_irq(wm8994->micdet_irq, NULL,
+						   wm8958_mic_irq,
+						   IRQF_TRIGGER_RISING,
+						   "Mic detect",
+						   wm8994);
+			if (ret != 0)
+				dev_warn(codec->dev,
+					 "Failed to request Mic detect IRQ: %d\n",
+					 ret);
+		}
 	}
 
 	/* Remember if AIFnLRCLK is configured as a GPIO.  This should be
@@ -3328,7 +3340,8 @@ err_irq:
 	wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC2_SHRT, wm8994);
 	wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC2_DET, wm8994);
 	wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC1_SHRT, wm8994);
-	wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC1_DET, wm8994);
+	if (wm8994->micdet_irq)
+		free_irq(wm8994->micdet_irq, wm8994);
 err:
 	kfree(wm8994);
 	return ret;
@@ -3345,8 +3358,8 @@ static int  wm8994_codec_remove(struct snd_soc_codec *codec)
 
 	switch (control->type) {
 	case WM8994:
-		wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC2_SHRT,
-				wm8994);
+		if (wm8994->micdet_irq)
+			free_irq(wm8994->micdet_irq, wm8994);
 		wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC2_DET,
 				wm8994);
 		wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC1_SHRT,
@@ -3356,8 +3369,8 @@ static int  wm8994_codec_remove(struct snd_soc_codec *codec)
 		break;
 
 	case WM8958:
-		wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC1_DET,
-				wm8994);
+		if (wm8994->micdet_irq)
+			free_irq(wm8994->micdet_irq, wm8994);
 		break;
 	}
 	kfree(wm8994->retune_mobile_texts);
