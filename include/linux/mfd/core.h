@@ -33,9 +33,10 @@ struct mfd_cell {
 	/* driver-specific data for MFD-aware "cell" drivers */
 	void			*driver_data;
 
-	/* platform_data can be used to either pass data to "generic"
-	   driver or as a hook to mfd_cell for the "cell" drivers */
+	/* platform_data can be used to pass data to "generic" drivers */
 	void			*platform_data;
+
+	/* unused */
 	size_t			data_size;
 
 	/*
@@ -54,6 +55,24 @@ struct mfd_cell {
 	 */
 	bool			pm_runtime_no_callbacks;
 };
+
+/*
+ * Given a platform device that's been created by mfd_add_devices(), fetch
+ * the mfd_cell that created it.
+ */
+static inline const struct mfd_cell *mfd_get_cell(struct platform_device *pdev)
+{
+	return pdev->dev.platform_data;
+}
+
+/*
+ * Given a platform device that's been created by mfd_add_devices(), fetch
+ * the .platform_data entry from the mfd_cell that created it.
+ */
+static inline void *mfd_get_data(struct platform_device *pdev)
+{
+	return mfd_get_cell(pdev)->platform_data;
+}
 
 extern int mfd_add_devices(struct device *parent, int id,
 			   const struct mfd_cell *cells, int n_devs,
