@@ -38,6 +38,7 @@
 #define L2CAP_DEFAULT_MAX_PDU_SIZE	1009    /* Sized for 3-DH5 packet */
 #define L2CAP_DEFAULT_ACK_TO		200
 #define L2CAP_LOCAL_BUSY_TRIES		12
+#define L2CAP_LE_DEFAULT_MTU		23
 
 #define L2CAP_CONN_TIMEOUT	(40000) /* 40 seconds */
 #define L2CAP_INFO_TIMEOUT	(4000)  /*  4 seconds */
@@ -88,6 +89,8 @@ struct l2cap_conninfo {
 #define L2CAP_ECHO_RSP		0x09
 #define L2CAP_INFO_REQ		0x0a
 #define L2CAP_INFO_RSP		0x0b
+#define L2CAP_CONN_PARAM_UPDATE_REQ	0x12
+#define L2CAP_CONN_PARAM_UPDATE_RSP	0x13
 
 /* L2CAP feature mask */
 #define L2CAP_FEAT_FLOWCTL	0x00000001
@@ -160,6 +163,9 @@ struct l2cap_conn_rsp {
 /* channel indentifier */
 #define L2CAP_CID_SIGNALING	0x0001
 #define L2CAP_CID_CONN_LESS	0x0002
+#define L2CAP_CID_LE_DATA	0x0004
+#define L2CAP_CID_LE_SIGNALING	0x0005
+#define L2CAP_CID_SMP		0x0006
 #define L2CAP_CID_DYN_START	0x0040
 #define L2CAP_CID_DYN_END	0xffff
 
@@ -254,6 +260,21 @@ struct l2cap_info_rsp {
 /* info result */
 #define L2CAP_IR_SUCCESS    0x0000
 #define L2CAP_IR_NOTSUPP    0x0001
+
+struct l2cap_conn_param_update_req {
+	__le16      min;
+	__le16      max;
+	__le16      latency;
+	__le16      to_multiplier;
+} __packed;
+
+struct l2cap_conn_param_update_rsp {
+	__le16      result;
+} __packed;
+
+/* Connection Parameters result */
+#define L2CAP_CONN_PARAM_ACCEPTED	0x0000
+#define L2CAP_CONN_PARAM_REJECTED	0x0001
 
 /* ----- L2CAP connections ----- */
 struct l2cap_chan_list {
@@ -454,7 +475,5 @@ struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock,
 void l2cap_send_disconn_req(struct l2cap_conn *conn, struct sock *sk, int err);
 void l2cap_chan_del(struct sock *sk, int err);
 int l2cap_do_connect(struct sock *sk);
-
-void l2cap_load(void);
 
 #endif /* __L2CAP_H */

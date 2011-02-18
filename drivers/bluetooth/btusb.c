@@ -105,6 +105,9 @@ static struct usb_device_id blacklist_table[] = {
 	/* Atheros AR9285 Malbec with sflash firmware */
 	{ USB_DEVICE(0x03f0, 0x311d), .driver_info = BTUSB_IGNORE },
 
+	/* Atheros 3012 with sflash firmware */
+	{ USB_DEVICE(0x0cf3, 0x3004), .driver_info = BTUSB_IGNORE },
+
 	/* Broadcom BCM2035 */
 	{ USB_DEVICE(0x0a5c, 0x2035), .driver_info = BTUSB_WRONG_SCO_MTU },
 	{ USB_DEVICE(0x0a5c, 0x200a), .driver_info = BTUSB_WRONG_SCO_MTU },
@@ -711,15 +714,11 @@ static int btusb_send_frame(struct sk_buff *skb)
 		pipe = usb_sndisocpipe(data->udev,
 					data->isoc_tx_ep->bEndpointAddress);
 
-		urb->dev      = data->udev;
-		urb->pipe     = pipe;
-		urb->context  = skb;
-		urb->complete = btusb_isoc_tx_complete;
-		urb->interval = data->isoc_tx_ep->bInterval;
+		usb_fill_int_urb(urb, data->udev, pipe,
+				skb->data, skb->len, btusb_isoc_tx_complete,
+				skb, data->isoc_tx_ep->bInterval);
 
 		urb->transfer_flags  = URB_ISO_ASAP;
-		urb->transfer_buffer = skb->data;
-		urb->transfer_buffer_length = skb->len;
 
 		__fill_isoc_descriptor(urb, skb->len,
 				le16_to_cpu(data->isoc_tx_ep->wMaxPacketSize));

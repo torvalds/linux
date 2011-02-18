@@ -11,7 +11,7 @@
 
 static struct class *bt_class;
 
-struct dentry *bt_debugfs = NULL;
+struct dentry *bt_debugfs;
 EXPORT_SYMBOL_GPL(bt_debugfs);
 
 static inline char *link_typetostr(int type)
@@ -51,8 +51,8 @@ static ssize_t show_link_features(struct device *dev, struct device_attribute *a
 				conn->features[6], conn->features[7]);
 }
 
-#define LINK_ATTR(_name,_mode,_show,_store) \
-struct device_attribute link_attr_##_name = __ATTR(_name,_mode,_show,_store)
+#define LINK_ATTR(_name, _mode, _show, _store) \
+struct device_attribute link_attr_##_name = __ATTR(_name, _mode, _show, _store)
 
 static LINK_ATTR(type, S_IRUGO, show_link_type, NULL);
 static LINK_ATTR(address, S_IRUGO, show_link_address, NULL);

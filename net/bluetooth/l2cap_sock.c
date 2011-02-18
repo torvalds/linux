@@ -103,7 +103,7 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	len = min_t(unsigned int, sizeof(la), alen);
 	memcpy(&la, addr, len);
 
-	if (la.l2_cid)
+	if (la.l2_cid && la.l2_psm)
 		return -EINVAL;
 
 	lock_sock(sk);
@@ -145,6 +145,9 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 			l2cap_pi(sk)->sec_level = BT_SECURITY_SDP;
 	}
 
+	if (la.l2_cid)
+		l2cap_pi(sk)->scid = la.l2_cid;
+
 	write_unlock_bh(&l2cap_sk_list.lock);
 
 done:
@@ -168,13 +171,13 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int al
 	len = min_t(unsigned int, sizeof(la), alen);
 	memcpy(&la, addr, len);
 
-	if (la.l2_cid)
+	if (la.l2_cid && la.l2_psm)
 		return -EINVAL;
 
 	lock_sock(sk);
 
 	if ((sk->sk_type == SOCK_SEQPACKET || sk->sk_type == SOCK_STREAM)
-			&& !la.l2_psm) {
+			&& !(la.l2_psm || la.l2_cid)) {
 		err = -EINVAL;
 		goto done;
 	}
@@ -216,7 +219,7 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int al
 
 	/* PSM must be odd and lsb of upper byte must be 0 */
 	if ((__le16_to_cpu(la.l2_psm) & 0x0101) != 0x0001 &&
-		sk->sk_type != SOCK_RAW) {
+				sk->sk_type != SOCK_RAW && !la.l2_cid) {
 		err = -EINVAL;
 		goto done;
 	}
@@ -224,6 +227,7 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int al
 	/* Set destination address and psm */
 	bacpy(&bt_sk(sk)->dst, &la.l2_bdaddr);
 	l2cap_pi(sk)->psm = la.l2_psm;
+	l2cap_pi(sk)->dcid = la.l2_cid;
 
 	err = l2cap_do_connect(sk);
 	if (err)
@@ -265,7 +269,7 @@ static int l2cap_sock_listen(struct socket *sock, int backlog)
 		goto done;
 	}
 
-	if (!l2cap_pi(sk)->psm) {
+	if (!l2cap_pi(sk)->psm && !l2cap_pi(sk)->dcid) {
 		bdaddr_t *src = &bt_sk(sk)->src;
 		u16 psm;
 
@@ -392,6 +396,7 @@ static int l2cap_sock_getsockopt_old(struct socket *sock, int optname, char __us
 
 	switch (optname) {
 	case L2CAP_OPTIONS:
+		memset(&opts, 0, sizeof(opts));
 		opts.imtu     = l2cap_pi(sk)->imtu;
 		opts.omtu     = l2cap_pi(sk)->omtu;
 		opts.flush_to = l2cap_pi(sk)->flush_to;
@@ -880,6 +885,8 @@ static void l2cap_sock_cleanup_listen(struct sock *parent)
 
 void __l2cap_sock_close(struct sock *sk, int reason)
 {
+	struct l2cap_conn *conn = l2cap_pi(sk)->conn;
+
 	BT_DBG("sk %p state %d socket %p", sk, sk->sk_state, sk->sk_socket);
 
 	switch (sk->sk_state) {
@@ -889,10 +896,9 @@ void __l2cap_sock_close(struct sock *sk, int reason)
 
 	case BT_CONNECTED:
 	case BT_CONFIG:
-		if (sk->sk_type == SOCK_SEQPACKET ||
-				sk->sk_type == SOCK_STREAM) {
-			struct l2cap_conn *conn = l2cap_pi(sk)->conn;
-
+		if ((sk->sk_type == SOCK_SEQPACKET ||
+					sk->sk_type == SOCK_STREAM) &&
+					conn->hcon->type == ACL_LINK) {
 			l2cap_sock_set_timer(sk, sk->sk_sndtimeo);
 			l2cap_send_disconn_req(conn, sk, reason);
 		} else
@@ -900,9 +906,9 @@ void __l2cap_sock_close(struct sock *sk, int reason)
 		break;
 
 	case BT_CONNECT2:
-		if (sk->sk_type == SOCK_SEQPACKET ||
-				sk->sk_type == SOCK_STREAM) {
-			struct l2cap_conn *conn = l2cap_pi(sk)->conn;
+		if ((sk->sk_type == SOCK_SEQPACKET ||
+					sk->sk_type == SOCK_STREAM) &&
+					conn->hcon->type == ACL_LINK) {
 			struct l2cap_conn_rsp rsp;
 			__u16 result;
 
@@ -1121,30 +1127,30 @@ static const struct net_proto_family l2cap_sock_family_ops = {
 
 int __init l2cap_init_sockets(void)
 {
-       int err;
+	int err;
 
-       err = proto_register(&l2cap_proto, 0);
-       if (err < 0)
-               return err;
+	err = proto_register(&l2cap_proto, 0);
+	if (err < 0)
+		return err;
 
-       err = bt_sock_register(BTPROTO_L2CAP, &l2cap_sock_family_ops);
-       if (err < 0)
-               goto error;
+	err = bt_sock_register(BTPROTO_L2CAP, &l2cap_sock_family_ops);
+	if (err < 0)
+		goto error;
 
-       BT_INFO("L2CAP socket layer initialized");
+	BT_INFO("L2CAP socket layer initialized");
 
-       return 0;
+	return 0;
 
 error:
-       BT_ERR("L2CAP socket registration failed");
-       proto_unregister(&l2cap_proto);
-       return err;
+	BT_ERR("L2CAP socket registration failed");
+	proto_unregister(&l2cap_proto);
+	return err;
 }
 
 void l2cap_cleanup_sockets(void)
 {
-       if (bt_sock_unregister(BTPROTO_L2CAP) < 0)
-               BT_ERR("L2CAP socket unregistration failed");
+	if (bt_sock_unregister(BTPROTO_L2CAP) < 0)
+		BT_ERR("L2CAP socket unregistration failed");
 
-       proto_unregister(&l2cap_proto);
+	proto_unregister(&l2cap_proto);
 }

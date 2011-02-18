@@ -469,8 +469,6 @@ int cmtp_get_conninfo(struct cmtp_conninfo *ci)
 
 static int __init cmtp_init(void)
 {
-	l2cap_load();
-
 	BT_INFO("CMTP (CAPI Emulation) ver %s", VERSION);
 
 	cmtp_init_sockets();

@@ -40,7 +40,7 @@
 
 #include <net/bluetooth/bluetooth.h>
 
-#define VERSION "2.15"
+#define VERSION "2.16"
 
 /* Bluetooth sockets */
 #define BT_MAX_PROTO	8
@@ -397,7 +397,7 @@ static inline unsigned int bt_accept_poll(struct sock *parent)
 	return 0;
 }
 
-unsigned int bt_sock_poll(struct file * file, struct socket *sock, poll_table *wait)
+unsigned int bt_sock_poll(struct file *file, struct socket *sock, poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	unsigned int mask = 0;
@@ -545,13 +545,41 @@ static int __init bt_init(void)
 
 	BT_INFO("HCI device and connection manager initialized");
 
-	hci_sock_init();
+	err = hci_sock_init();
+	if (err < 0)
+		goto error;
+
+	err = l2cap_init();
+	if (err < 0) {
+		hci_sock_cleanup();
+		goto sock_err;
+	}
+
+	err = sco_init();
+	if (err < 0) {
+		l2cap_exit();
+		goto sock_err;
+	}
 
 	return 0;
+
+sock_err:
+	hci_sock_cleanup();
+
+error:
+	sock_unregister(PF_BLUETOOTH);
+	bt_sysfs_cleanup();
+
+	return err;
 }
 
 static void __exit bt_exit(void)
 {
+
+	sco_exit();
+
+	l2cap_exit();
+
 	hci_sock_cleanup();
 
 	sock_unregister(PF_BLUETOOTH);
