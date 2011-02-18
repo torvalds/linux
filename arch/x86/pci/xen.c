@@ -20,7 +20,8 @@
 #include <asm/xen/pci.h>
 
 #ifdef CONFIG_ACPI
-static int xen_hvm_register_pirq(u32 gsi, int triggering)
+static int acpi_register_gsi_xen_hvm(struct device *dev, u32 gsi,
+				 int trigger, int polarity)
 {
 	int rc, irq;
 	struct physdev_map_pirq map_irq;
@@ -41,7 +42,7 @@ static int xen_hvm_register_pirq(u32 gsi, int triggering)
 		return -1;
 	}
 
-	if (triggering == ACPI_EDGE_SENSITIVE) {
+	if (trigger == ACPI_EDGE_SENSITIVE) {
 		shareable = 0;
 		name = "ioapic-edge";
 	} else {
@@ -54,12 +55,6 @@ static int xen_hvm_register_pirq(u32 gsi, int triggering)
 	printk(KERN_DEBUG "xen: --> irq=%d, pirq=%d\n", irq, map_irq.pirq);
 
 	return irq;
-}
-
-static int acpi_register_gsi_xen_hvm(struct device *dev, u32 gsi,
-				 int trigger, int polarity)
-{
-	return xen_hvm_register_pirq(gsi, trigger);
 }
 #endif
 
