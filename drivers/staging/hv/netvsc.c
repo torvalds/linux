@@ -188,11 +188,6 @@ int netvsc_initialize(struct hv_driver *drv)
 	drv->name = driver_name;
 	memcpy(&drv->dev_type, &netvsc_device_type, sizeof(struct hv_guid));
 
-	/* Make sure it is set by the caller */
-	/* FIXME: These probably should still be tested in some way */
-	/* ASSERT(driver->OnReceiveCallback); */
-	/* ASSERT(driver->OnLinkStatusChanged); */
-
 	/* Setup the dispatch table */
 	driver->base.dev_add	= netvsc_device_add;
 	driver->base.dev_rm	= netvsc_device_remove;
