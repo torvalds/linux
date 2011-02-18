@@ -1955,6 +1955,8 @@ static int rk29fb_suspend(struct platform_device *pdev, pm_message_t mesg)
         printk("inf==0, rk29fb_suspend fail! \n");
         return 0;
     }
+    LcdMskReg(inf, DSP_CTRL0, m_HSYNC_POLARITY | m_VSYNC_POLARITY | m_DEN_POLARITY ,
+       v_HSYNC_POLARITY(1) | v_VSYNC_POLARITY(1) | v_DEN_POLARITY(1) );
 
     LcdMskReg(inf, DSP_CTRL1, m_BLANK_MODE , v_BLANK_MODE(1));
     LcdMskReg(inf, SYS_CONFIG, m_STANDBY, v_STANDBY(1));
@@ -1985,6 +1987,7 @@ static int rk29fb_suspend(struct platform_device *pdev, pm_message_t mesg)
 static int rk29fb_resume(struct platform_device *pdev)
 {
     struct rk29fb_inf *inf = platform_get_drvdata(pdev);
+    struct rk29fb_screen *screen = inf->cur_screen;
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
 
@@ -2013,6 +2016,9 @@ static int rk29fb_resume(struct platform_device *pdev)
     LcdMskReg(inf, DSP_CTRL1, m_BLANK_MODE , v_BLANK_MODE(0));
     LcdMskReg(inf, SYS_CONFIG, m_STANDBY, v_STANDBY(0));
     LcdWrReg(inf, REG_CFG_DONE, 0x01);
+
+    LcdMskReg(inf, DSP_CTRL0, m_HSYNC_POLARITY | m_VSYNC_POLARITY | m_DEN_POLARITY ,
+       v_HSYNC_POLARITY(screen->pin_hsync) | v_VSYNC_POLARITY(screen->pin_vsync) | v_DEN_POLARITY(screen->pin_den) );
 
 	return 0;
 }
