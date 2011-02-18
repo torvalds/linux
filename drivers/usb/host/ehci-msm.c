@@ -1,6 +1,6 @@
 /* ehci-msm.c - HSUSB Host Controller Driver Implementation
  *
- * Copyright (c) 2008-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2008-2011, Code Aurora Forum. All rights reserved.
  *
  * Partly derived from ehci-fsl.c and ehci-hcd.c
  * Copyright (c) 2000-2004 by David Brownell
@@ -42,6 +42,8 @@ static int ehci_msm_reset(struct usb_hcd *hcd)
 	ehci->caps = USB_CAPLENGTH;
 	ehci->regs = USB_CAPLENGTH +
 		HC_LENGTH(ehci_readl(ehci, &ehci->caps->hc_capbase));
+	dbg_hcs_params(ehci, "reset");
+	dbg_hcc_params(ehci, "reset");
 
 	/* cache the data to minimize the chip reads*/
 	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
