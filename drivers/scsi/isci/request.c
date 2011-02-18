@@ -285,7 +285,6 @@ static int isci_request_alloc_core(
 
 	/* initialize the request object.	*/
 	spin_lock_init(&request->state_lock);
-	isci_request_change_state(request, allocated);
 	request->sci_request_mem_ptr = ((u8 *)request) +
 				       sizeof(struct isci_request);
 	request->request_daddr = handle;
@@ -302,6 +301,7 @@ static int isci_request_alloc_core(
 	INIT_LIST_HEAD(&request->dev_node);
 
 	*isci_request = request;
+	isci_request_change_state(request, allocated);
 
 	return ret;
 }
@@ -1389,8 +1389,8 @@ u32 isci_request_ssp_io_request_get_lun(
 
 	for (i = 0; i < 8; i++)
 		dev_dbg(&request->isci_host->pdev->dev,
-			"%s: request->task->ssp_task.LUN[%d] = %x\n",
-			__func__, i, request->task->ssp_task.LUN[i]);
+			"%s: task->ssp_task.LUN[%d] = %x\n",
+			__func__, i, task->ssp_task.LUN[i]);
 
 #endif
 

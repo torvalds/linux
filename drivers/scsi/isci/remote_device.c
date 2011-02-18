@@ -686,12 +686,6 @@ void isci_remote_device_change_state(
 {
 	unsigned long flags;
 
-	dev_dbg(&isci_device->isci_port->isci_host->pdev->dev,
-		"%s: isci_device = %p, state = 0x%x",
-		__func__,
-		isci_device,
-		status);
-
 	spin_lock_irqsave(&isci_device->state_lock, flags);
 	isci_device->status = status;
 	spin_unlock_irqrestore(&isci_device->state_lock, flags);
