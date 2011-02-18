@@ -248,6 +248,7 @@ ar6k_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
     int status;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: \n", __func__));
+    ar->smeState = SME_CONNECTING;
 
     if(ar->arWmiReady == false) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: Wmi not ready yet\n", __func__));
@@ -562,6 +563,7 @@ ar6k_cfg80211_connect_event(AR_SOFTC_T *ar, u16 channel,
 
     if (false == ar->arConnected) {
         /* inform connect result to cfg80211 */
+        ar->smeState = SME_DISCONNECTED;
         cfg80211_connect_result(ar->arNetDev, bssid,
                                 assocReqIe, assocReqLen,
                                 assocRespIe, assocRespLen,
@@ -644,18 +646,28 @@ ar6k_cfg80211_disconnect_event(AR_SOFTC_T *ar, u8 reason,
         }
     }
 
-    if(false == ar->arConnected) {
+    if(true == ar->arConnectPending) {
         if(NO_NETWORK_AVAIL == reason) {
             /* connect cmd failed */
-            cfg80211_connect_result(ar->arNetDev, bssid,
-                                    NULL, 0,
-                                    NULL, 0,
-                                    WLAN_STATUS_UNSPECIFIED_FAILURE,
-                                    GFP_KERNEL);
+            wmi_disconnect_cmd(ar->arWmi);
+        } else if (reason == DISCONNECT_CMD) {
+            /* connection loss due to disconnect cmd or low rssi */
+            ar->arConnectPending = false;   
+            if (ar->smeState == SME_CONNECTING) {
+                cfg80211_connect_result(ar->arNetDev, bssid,
+                                        NULL, 0,
+                                        NULL, 0,
+                                        WLAN_STATUS_UNSPECIFIED_FAILURE,
+                                        GFP_KERNEL);
+            } else {
+                cfg80211_disconnected(ar->arNetDev, reason, NULL, 0, GFP_KERNEL);
+            }
+            ar->smeState = SME_DISCONNECTED;
         }
     } else {
-        /* connection loss due to disconnect cmd or low rssi */
-        cfg80211_disconnected(ar->arNetDev, reason, NULL, 0, GFP_KERNEL);
+        if (reason != DISCONNECT_CMD) {
+            wmi_disconnect_cmd(ar->arWmi);
+        }
     }
 }
 

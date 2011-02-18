@@ -393,6 +393,12 @@ struct ar_key {
     u8 seq_len;
     u32 cipher;
 };
+
+enum {
+    SME_DISCONNECTED,
+    SME_CONNECTING,
+    SME_CONNECTED
+};
 #endif /* ATH6K_CONFIG_CFG80211 */
 
 
@@ -595,6 +601,7 @@ typedef struct ar6_softc {
     struct wireless_dev *wdev;
     struct cfg80211_scan_request    *scan_request;
     struct ar_key   keys[WMI_MAX_KEY_INDEX + 1];
+    u32 smeState;
 #endif /* ATH6K_CONFIG_CFG80211 */
     u16 arWlanPowerState;
     bool                  arWlanOff;

@@ -1670,6 +1670,7 @@ ar6000_avail_ev(void *context, void *hif_handle)
     SET_NETDEV_DEV(dev, wiphy_dev(wdev->wiphy));
     wdev->netdev = dev;
     ar->arNetworkType = INFRA_NETWORK;
+    ar->smeState = SME_DISCONNECTED;
 #endif /* ATH6K_CONFIG_CFG80211 */
 
     init_netdev(dev, ifname);
