@@ -165,8 +165,6 @@ static int __init pasic3_probe(struct platform_device *pdev)
 		ds1wm_pdata.clock_rate = pdata->clock_rate;
 		/* the first 5 PASIC3 registers control the DS1WM */
 		ds1wm_resources[0].end = (5 << asic->bus_shift) - 1;
-		ds1wm_cell.platform_data = &ds1wm_cell;
-		ds1wm_cell.data_size = sizeof(ds1wm_cell);
 		ret = mfd_add_devices(&pdev->dev, pdev->id,
 				&ds1wm_cell, 1, r, irq);
 		if (ret < 0)
@@ -175,8 +173,6 @@ static int __init pasic3_probe(struct platform_device *pdev)
 
 	if (pdata && pdata->led_pdata) {
 		led_cell.driver_data = pdata->led_pdata;
-		led_cell.platform_data = &led_cell;
-		led_cell.data_size = sizeof(ds1wm_cell);
 		ret = mfd_add_devices(&pdev->dev, pdev->id, &led_cell, 1, r, 0);
 		if (ret < 0)
 			dev_warn(dev, "failed to register LED device\n");
