@@ -33,8 +33,8 @@ struct mfd_cell {
 	/* driver-specific data for MFD-aware "cell" drivers */
 	void			*driver_data;
 
-	/* platform_data can be used to pass data to "generic" drivers */
-	void			*platform_data;
+	/* mfd_data can be used to pass data to client drivers */
+	void			*mfd_data;
 
 	/*
 	 * These resources can be specified relative to the parent device.
@@ -64,11 +64,11 @@ static inline const struct mfd_cell *mfd_get_cell(struct platform_device *pdev)
 
 /*
  * Given a platform device that's been created by mfd_add_devices(), fetch
- * the .platform_data entry from the mfd_cell that created it.
+ * the .mfd_data entry from the mfd_cell that created it.
  */
 static inline void *mfd_get_data(struct platform_device *pdev)
 {
-	return mfd_get_cell(pdev)->platform_data;
+	return mfd_get_cell(pdev)->mfd_data;
 }
 
 extern int mfd_add_devices(struct device *parent, int id,

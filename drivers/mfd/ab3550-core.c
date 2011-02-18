@@ -1321,7 +1321,7 @@ static int __init ab3550_probe(struct i2c_client *client,
 
 	/* Set up and register the platform devices. */
 	for (i = 0; i < AB3550_NUM_DEVICES; i++)
-		ab3550_devs[i].platform_data = ab3550_plf_data->dev_data[i];
+		ab3550_devs[i].mfd_data = ab3550_plf_data->dev_data[i];
 
 	err = mfd_add_devices(&client->dev, 0, ab3550_devs,
 		ARRAY_SIZE(ab3550_devs), NULL,

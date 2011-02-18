@@ -689,7 +689,7 @@ static int mc13xxx_add_subdevice_pdata(struct mc13xxx *mc13xxx,
 	const char *name = mc13xxx_get_chipname(mc13xxx);
 
 	struct mfd_cell cell = {
-		.platform_data = pdata,
+		.mfd_data = pdata,
 	};
 
 	/* there is no asnprintf in the kernel :-( */
