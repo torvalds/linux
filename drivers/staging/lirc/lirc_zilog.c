@@ -1595,6 +1595,8 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ret = -EBADRQC;
 		goto out_put_xx;
 	}
+	zilog_info("IR unit on %s (i2c-%d) registered as lirc%d and ready\n",
+		   adap->name, adap->nr, ir->l.minor);
 
 out_ok:
 	if (rx != NULL)
@@ -1602,7 +1604,7 @@ out_ok:
 	if (tx != NULL)
 		put_ir_tx(tx, true);
 	put_ir_device(ir, true);
-	zilog_info("probe of IR %s on %s (i2c-%d) done. IR unit ready.\n",
+	zilog_info("probe of IR %s on %s (i2c-%d) done\n",
 		   tx_probe ? "Tx" : "Rx", adap->name, adap->nr);
 	mutex_unlock(&ir_devices_lock);
 	return 0;
