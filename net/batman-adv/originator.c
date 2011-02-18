@@ -102,13 +102,13 @@ struct neigh_node *create_neighbor(struct orig_node *orig_node,
 	return neigh_node;
 }
 
-void orig_node_free_ref(struct kref *refcount)
+static void orig_node_free_rcu(struct rcu_head *rcu)
 {
 	struct hlist_node *node, *node_tmp;
 	struct neigh_node *neigh_node, *tmp_neigh_node;
 	struct orig_node *orig_node;
 
-	orig_node = container_of(refcount, struct orig_node, refcount);
+	orig_node = container_of(rcu, struct orig_node, rcu);
 
 	spin_lock_bh(&orig_node->neigh_list_lock);
 
@@ -137,6 +137,12 @@ void orig_node_free_ref(struct kref *refcount)
 	kfree(orig_node);
 }
 
+void orig_node_free_ref(struct orig_node *orig_node)
+{
+	if (atomic_dec_and_test(&orig_node->refcount))
+		call_rcu(&orig_node->rcu, orig_node_free_rcu);
+}
+
 void originator_free(struct bat_priv *bat_priv)
 {
 	struct hashtable_t *hash = bat_priv->orig_hash;
@@ -163,7 +169,7 @@ void originator_free(struct bat_priv *bat_priv)
 					  head, hash_entry) {
 
 			hlist_del_rcu(node);
-			kref_put(&orig_node->refcount, orig_node_free_ref);
+			orig_node_free_ref(orig_node);
 		}
 		spin_unlock_bh(list_lock);
 	}
@@ -196,7 +202,9 @@ struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr)
 	spin_lock_init(&orig_node->ogm_cnt_lock);
 	spin_lock_init(&orig_node->bcast_seqno_lock);
 	spin_lock_init(&orig_node->neigh_list_lock);
-	kref_init(&orig_node->refcount);
+
+	/* extra reference for return */
+	atomic_set(&orig_node->refcount, 2);
 
 	orig_node->bat_priv = bat_priv;
 	memcpy(orig_node->orig, addr, ETH_ALEN);
@@ -229,8 +237,6 @@ struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr)
 	if (hash_added < 0)
 		goto free_bcast_own_sum;
 
-	/* extra reference for return */
-	kref_get(&orig_node->refcount);
 	return orig_node;
 free_bcast_own_sum:
 	kfree(orig_node->bcast_own_sum);
@@ -348,8 +354,7 @@ static void _purge_orig(struct bat_priv *bat_priv)
 				if (orig_node->gw_flags)
 					gw_node_delete(bat_priv, orig_node);
 				hlist_del_rcu(node);
-				kref_put(&orig_node->refcount,
-					 orig_node_free_ref);
+				orig_node_free_ref(orig_node);
 				continue;
 			}
 

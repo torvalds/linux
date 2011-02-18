@@ -27,7 +27,7 @@
 int originator_init(struct bat_priv *bat_priv);
 void originator_free(struct bat_priv *bat_priv);
 void purge_orig_ref(struct bat_priv *bat_priv);
-void orig_node_free_ref(struct kref *refcount);
+void orig_node_free_ref(struct orig_node *orig_node);
 struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr);
 struct neigh_node *create_neighbor(struct orig_node *orig_node,
 				   struct orig_node *orig_neigh_node,
@@ -88,8 +88,10 @@ static inline struct orig_node *orig_hash_find(struct bat_priv *bat_priv,
 		if (!compare_eth(orig_node, data))
 			continue;
 
+		if (!atomic_inc_not_zero(&orig_node->refcount))
+			continue;
+
 		orig_node_tmp = orig_node;
-		kref_get(&orig_node_tmp->refcount);
 		break;
 	}
 	rcu_read_unlock();

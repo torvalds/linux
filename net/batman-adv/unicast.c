@@ -211,7 +211,7 @@ unlock:
 	spin_unlock_bh(&bat_priv->orig_hash_lock);
 out:
 	if (orig_node)
-		kref_put(&orig_node->refcount, orig_node_free_ref);
+		orig_node_free_ref(orig_node);
 	return ret;
 }
 
@@ -280,7 +280,7 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 {
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	struct unicast_packet *unicast_packet;
-	struct orig_node *orig_node = NULL;
+	struct orig_node *orig_node;
 	struct batman_if *batman_if;
 	struct neigh_node *neigh_node;
 	int data_len = skb->len;
@@ -347,7 +347,7 @@ out:
 	if (neigh_node)
 		neigh_node_free_ref(neigh_node);
 	if (orig_node)
-		kref_put(&orig_node->refcount, orig_node_free_ref);
+		orig_node_free_ref(orig_node);
 	if (ret == 1)
 		kfree_skb(skb);
 	return ret;

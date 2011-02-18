@@ -420,7 +420,7 @@ static void update_orig(struct bat_priv *bat_priv,
 		neigh_node = create_neighbor(orig_node, orig_tmp,
 					     ethhdr->h_source, if_incoming);
 
-		kref_put(&orig_tmp->refcount, orig_node_free_ref);
+		orig_node_free_ref(orig_tmp);
 		if (!neigh_node)
 			goto unlock;
 
@@ -604,7 +604,7 @@ static char count_real_packets(struct ethhdr *ethhdr,
 
 out:
 	spin_unlock_bh(&orig_node->ogm_cnt_lock);
-	kref_put(&orig_node->refcount, orig_node_free_ref);
+	orig_node_free_ref(orig_node);
 	return ret;
 }
 
@@ -730,7 +730,7 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 
 		bat_dbg(DBG_BATMAN, bat_priv, "Drop packet: "
 			"originator packet from myself (via neighbor)\n");
-		kref_put(&orig_neigh_node->refcount, orig_node_free_ref);
+		orig_node_free_ref(orig_neigh_node);
 		return;
 	}
 
@@ -835,10 +835,10 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 				0, hna_buff_len, if_incoming);
 
 out_neigh:
-	if (!is_single_hop_neigh)
-		kref_put(&orig_neigh_node->refcount, orig_node_free_ref);
+	if ((orig_neigh_node) && (!is_single_hop_neigh))
+		orig_node_free_ref(orig_neigh_node);
 out:
-	kref_put(&orig_node->refcount, orig_node_free_ref);
+	orig_node_free_ref(orig_node);
 }
 
 int recv_bat_packet(struct sk_buff *skb, struct batman_if *batman_if)
@@ -952,7 +952,7 @@ out:
 	if (neigh_node)
 		neigh_node_free_ref(neigh_node);
 	if (orig_node)
-		kref_put(&orig_node->refcount, orig_node_free_ref);
+		orig_node_free_ref(orig_node);
 	return ret;
 }
 
@@ -1028,7 +1028,7 @@ out:
 	if (neigh_node)
 		neigh_node_free_ref(neigh_node);
 	if (orig_node)
-		kref_put(&orig_node->refcount, orig_node_free_ref);
+		orig_node_free_ref(orig_node);
 	return ret;
 }
 
@@ -1134,7 +1134,7 @@ out:
 	if (neigh_node)
 		neigh_node_free_ref(neigh_node);
 	if (orig_node)
-		kref_put(&orig_node->refcount, orig_node_free_ref);
+		orig_node_free_ref(orig_node);
 	return ret;
 }
 
@@ -1189,7 +1189,7 @@ struct neigh_node *find_router(struct bat_priv *bat_priv,
 		if (!primary_orig_node)
 			goto return_router;
 
-		kref_put(&primary_orig_node->refcount, orig_node_free_ref);
+		orig_node_free_ref(primary_orig_node);
 	}
 
 	/* with less than 2 candidates, we can't do any
@@ -1401,7 +1401,7 @@ out:
 	if (neigh_node)
 		neigh_node_free_ref(neigh_node);
 	if (orig_node)
-		kref_put(&orig_node->refcount, orig_node_free_ref);
+		orig_node_free_ref(orig_node);
 	return ret;
 }
 
@@ -1543,7 +1543,7 @@ spin_unlock:
 	spin_unlock_bh(&bat_priv->orig_hash_lock);
 out:
 	if (orig_node)
-		kref_put(&orig_node->refcount, orig_node_free_ref);
+		orig_node_free_ref(orig_node);
 	return ret;
 }
 

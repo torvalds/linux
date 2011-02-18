@@ -589,17 +589,20 @@ void hna_global_free(struct bat_priv *bat_priv)
 struct orig_node *transtable_search(struct bat_priv *bat_priv, uint8_t *addr)
 {
 	struct hna_global_entry *hna_global_entry;
+	struct orig_node *orig_node = NULL;
 
 	spin_lock_bh(&bat_priv->hna_ghash_lock);
 	hna_global_entry = hna_global_hash_find(bat_priv, addr);
 
-	if (hna_global_entry)
-		kref_get(&hna_global_entry->orig_node->refcount);
-
-	spin_unlock_bh(&bat_priv->hna_ghash_lock);
-
 	if (!hna_global_entry)
-		return NULL;
+		goto out;
 
-	return hna_global_entry->orig_node;
+	if (!atomic_inc_not_zero(&hna_global_entry->orig_node->refcount))
+		goto out;
+
+	orig_node = hna_global_entry->orig_node;
+
+out:
+	spin_unlock_bh(&bat_priv->hna_ghash_lock);
+	return orig_node;
 }

@@ -53,9 +53,11 @@ void *gw_get_selected(struct bat_priv *bat_priv)
 		goto out;
 
 	orig_node = curr_gateway_tmp->orig_node;
+	if (!orig_node)
+		goto out;
 
-	if (orig_node)
-		kref_get(&orig_node->refcount);
+	if (!atomic_inc_not_zero(&orig_node->refcount))
+		orig_node = NULL;
 
 out:
 	rcu_read_unlock();
