@@ -66,6 +66,8 @@ struct tm6000_board {
 	char            *name;
 
 	struct tm6000_capabilities caps;
+	enum            tm6000_inaudio aradio;
+	enum            tm6000_inaudio avideo;
 
 	enum		tm6000_devtype type;	/* variant of the chipset */
 	int             tuner_type;     /* type of the tuner */
@@ -230,6 +232,8 @@ struct tm6000_board tm6000_boards[] = {
 		.tuner_addr   = 0xc2 >> 1,
 		.demod_addr   = 0x1e >> 1,
 		.type         = TM6010,
+		.avideo       = TM6000_AIP_SIF1,
+		.aradio       = TM6000_AIP_LINE1,
 		.caps = {
 			.has_tuner    = 1,
 			.has_dvb      = 1,
@@ -248,6 +252,8 @@ struct tm6000_board tm6000_boards[] = {
 		.tuner_type   = TUNER_XC5000,
 		.tuner_addr   = 0xc2 >> 1,
 		.type         = TM6010,
+		.avideo       = TM6000_AIP_SIF1,
+		.aradio       = TM6000_AIP_LINE1,
 		.caps = {
 			.has_tuner    = 1,
 			.has_dvb      = 0,
@@ -693,12 +699,11 @@ static void tm6000_config_tuner(struct tm6000_core *dev)
 		struct xc5000_config ctl = {
 			.i2c_address = dev->tuner_addr,
 			.if_khz      = 4570,
-			.radio_input = XC5000_RADIO_FM1,
+			.radio_input = XC5000_RADIO_FM1_MONO,
 			};
 
 		xc5000_cfg.tuner = TUNER_XC5000;
 		xc5000_cfg.priv  = &ctl;
-
 
 		v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_config,
 				     &xc5000_cfg);
@@ -732,6 +737,8 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 
 	dev->caps = tm6000_boards[dev->model].caps;
 
+	dev->avideo = tm6000_boards[dev->model].avideo;
+	dev->aradio = tm6000_boards[dev->model].aradio;
 	/* initialize hardware */
 	rc = tm6000_init(dev);
 	if (rc < 0)
