@@ -983,6 +983,7 @@ ar6k_cfg80211_set_default_key(struct wiphy *wiphy, struct net_device *ndev,
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(ndev);
     struct ar_key *key = NULL;
     int status = 0;
+    u8 key_usage;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: index %d\n", __func__, key_index));
 
@@ -1011,8 +1012,13 @@ ar6k_cfg80211_set_default_key(struct wiphy *wiphy, struct net_device *ndev,
 
     ar->arDefTxKeyIndex = key_index;
     key = &ar->keys[ar->arDefTxKeyIndex];
+    key_usage = GROUP_USAGE;
+    if (WEP_CRYPT == ar->arPairwiseCrypto) {
+        key_usage |= TX_USAGE;
+    }
+
     status = wmi_addKey_cmd(ar->arWmi, ar->arDefTxKeyIndex,
-                            ar->arPairwiseCrypto, GROUP_USAGE | TX_USAGE,
+                            ar->arPairwiseCrypto, key_usage,
                             key->key_len, key->seq, key->key, KEY_OP_INIT_VAL,
                             NULL, SYNC_BOTH_WMIFLAG);
     if (status) {
