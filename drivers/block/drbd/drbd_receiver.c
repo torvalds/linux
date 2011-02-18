@@ -1455,7 +1455,8 @@ static int recv_dless_read(struct drbd_conf *mdev, struct drbd_request *req,
  * drbd_process_done_ee() by asender only */
 static int e_end_resync_block(struct drbd_work *w, int unused)
 {
-	struct drbd_peer_request *peer_req = (struct drbd_peer_request *)w;
+	struct drbd_peer_request *peer_req =
+		container_of(w, struct drbd_peer_request, w);
 	struct drbd_conf *mdev = w->mdev;
 	sector_t sector = peer_req->i.sector;
 	int ok;
@@ -1593,7 +1594,8 @@ static int receive_RSDataReply(struct drbd_conf *mdev, enum drbd_packet cmd,
  */
 static int e_end_block(struct drbd_work *w, int cancel)
 {
-	struct drbd_peer_request *peer_req = (struct drbd_peer_request *)w;
+	struct drbd_peer_request *peer_req =
+		container_of(w, struct drbd_peer_request, w);
 	struct drbd_conf *mdev = w->mdev;
 	sector_t sector = peer_req->i.sector;
 	int ok = 1, pcmd;
@@ -1631,7 +1633,8 @@ static int e_end_block(struct drbd_work *w, int cancel)
 
 static int e_send_discard_ack(struct drbd_work *w, int unused)
 {
-	struct drbd_peer_request *peer_req = (struct drbd_peer_request *)w;
+	struct drbd_peer_request *peer_req =
+		container_of(w, struct drbd_peer_request, w);
 	struct drbd_conf *mdev = w->mdev;
 	int ok = 1;
 
