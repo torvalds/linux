@@ -126,58 +126,83 @@ static struct rockchip_pcm_dma_params rockchip_i2s_pcm_stereo_in[MAX_I2S] = {
 static void rockchip_snd_txctrl(struct rk29_i2s_info *i2s, int on)
 {
         u32 opr,xfer,fifosts;
+        int  xor=0;
     
-        I2S_DBG("Enter %s, %d >>>>>>>>>>>\n", __func__, __LINE__);
         opr  = readl(&(pheadi2s->I2S_DMACR));
         xfer = readl(&(pheadi2s->I2S_XFER));
+
+        if(xfer & I2S_RX_TRAN_START) {
+                xor = 1;
+        }
+        
         opr  &= ~I2S_TRAN_DMA_ENABLE;
-        xfer &= ~I2S_TX_TRAN_START;       
+        xfer &= ~I2S_TX_TRAN_START;     
+        
         if (on) 
         {                
+                if(xor) {
+                        xfer &= ~I2S_RX_TRAN_START;
+                }
+                writel(0, &(pheadi2s->I2S_XFER));
                 writel(opr, &(pheadi2s->I2S_DMACR));
-                writel(xfer, &(pheadi2s->I2S_XFER));
-                udelay(5);
 
                 opr  |= I2S_TRAN_DMA_ENABLE;
                 xfer |= I2S_TX_TRAN_START;
-                writel(opr, &(pheadi2s->I2S_DMACR));
+                if(xor) {
+                        xfer |= I2S_RX_TRAN_START;
+                }
+                
+                writel(opr, &(pheadi2s->I2S_DMACR));         
                 writel(xfer, &(pheadi2s->I2S_XFER));
         }
         else
         {
-                writel(opr, &(pheadi2s->I2S_DMACR));
                 writel(xfer, &(pheadi2s->I2S_XFER));
+                udelay(5);                
+                writel(opr, &(pheadi2s->I2S_DMACR));  
+
         } 
+        I2S_DBG("Enter %s, %d, opr=0x%08X, xfer=0x%08X\n", __func__, __LINE__, opr, xfer);
 }
 
 static void rockchip_snd_rxctrl(struct rk29_i2s_info *i2s, int on)
 {
         u32 opr,xfer,fifosts;
-          
-        I2S_DBG("Enter %s, %d >>>>>>>>>>>\n", __func__, __LINE__);
-
+        int  xor=0;
+        
         opr  = readl(&(pheadi2s->I2S_DMACR));
         xfer = readl(&(pheadi2s->I2S_XFER));
+
+        if(xfer & I2S_TX_TRAN_START){
+                xor = 1;
+        }
         
         opr  &= ~I2S_RECE_DMA_ENABLE;
         xfer &= ~I2S_RX_TRAN_START;
         
         if (on) 
-        {                
-                writel(opr, &(pheadi2s->I2S_DMACR));
-                writel(xfer, &(pheadi2s->I2S_XFER));
-                udelay(5);
-
+        {        
+                if(xor) {
+                        xfer &= ~I2S_TX_TRAN_START;
+                }
+                writel(0, &(pheadi2s->I2S_XFER));
+                writel(opr, &(pheadi2s->I2S_DMACR));  
+                
                 opr  |= I2S_RECE_DMA_ENABLE;
                 xfer |= I2S_RX_TRAN_START;
+                if(xor) {
+                        xfer |= I2S_TX_TRAN_START;
+                }
                 writel(opr, &(pheadi2s->I2S_DMACR));
                 writel(xfer, &(pheadi2s->I2S_XFER));
         }
         else
         {
-                writel(opr, &(pheadi2s->I2S_DMACR));
                 writel(xfer, &(pheadi2s->I2S_XFER));
+                udelay(5);
+                writel(opr, &(pheadi2s->I2S_DMACR));     
         }  
+        I2S_DBG("Enter %s, %d, opr=0x%08X, xfer=0x%08X\n", __func__, __LINE__, opr, xfer);
 }
 
 /*
@@ -238,6 +263,7 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
         struct snd_soc_dai_link *dai = rtd->dai;
         struct rk29_i2s_info *i2s = to_info(dai->cpu_dai);
 	u32 iismod;
+	u32 dmarc;
 	  
         I2S_DBG("Enter %s, %d >>>>>>>>>>>\n", __func__, __LINE__);
 	/*by Vincent Hsiung for EQ Vol Change*/
@@ -274,18 +300,24 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
                 break;
         }
         #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
-        iismod |= I2S_MASTER_MODE;
+        iismod &= ~I2S_SLAVE_MODE;
         #endif
 
         #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
         iismod |= I2S_SLAVE_MODE;
         #endif
 
-        writel((16<<24) |(16<<18)|(16<<12)|(16<<6)|16, &(pheadi2s->I2S_FIFOLR));
-        writel((16<<16) | 16, &(pheadi2s->I2S_DMACR));
+        //writel((16<<24) |(16<<18)|(16<<12)|(16<<6)|16, &(pheadi2s->I2S_FIFOLR));
+        dmarc = readl(&(pheadi2s->I2S_DMACR));
+        
+        if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+                dmarc = ((dmarc & 0xFFFFFE00) | 16);
+        else
+                dmarc = ((dmarc & 0xFE00FFFF) | 16<<16);
 
-	I2S_DBG("Enter %s, %d I2S_TXCR=0x%08X\n", __func__, __LINE__, iismod);  
-	writel(iismod, &(pheadi2s->I2S_TXCR));
+        writel(dmarc, &(pheadi2s->I2S_DMACR));
+        I2S_DBG("Enter %s, %d I2S_TXCR=0x%08X\n", __func__, __LINE__, iismod);  
+        writel(iismod, &(pheadi2s->I2S_TXCR));
         iismod = iismod & 0x00007FFF;
         writel(iismod, &(pheadi2s->I2S_RXCR));        
         return 0;
@@ -653,4 +685,51 @@ module_exit(rockchip_i2s_exit);
 MODULE_AUTHOR("rockchip");
 MODULE_DESCRIPTION("ROCKCHIP IIS ASoC Interface");
 MODULE_LICENSE("GPL");
+
+
+#ifdef CONFIG_PROC_FS
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+static int proc_i2s_show(struct seq_file *s, void *v)
+{
+        unsigned int i;
+        unsigned int reg;
+
+        struct rk29_i2s_info *i2s=&rk29_i2s[0];
+        
+        printk("========Show I2S reg========\n");
+        
+        printk("I2S_TXCR = 0x%08X\n", readl(&(pheadi2s->I2S_TXCR)));
+        printk("I2S_RXCR = 0x%08X\n", readl(&(pheadi2s->I2S_RXCR)));
+        printk("I2S_TXCKR = 0x%08X\n", readl(&(pheadi2s->I2S_TXCKR)));
+        printk("I2S_RXCKR = 0x%08X\n", readl(&(pheadi2s->I2S_RXCKR)));
+        printk("I2S_DMACR = 0x%08X\n", readl(&(pheadi2s->I2S_DMACR)));
+        printk("I2S_INTCR = 0x%08X\n", readl(&(pheadi2s->I2S_INTCR)));
+        printk("I2S_INTSR = 0x%08X\n", readl(&(pheadi2s->I2S_INTSR)));
+        printk("I2S_XFER = 0x%08X\n", readl(&(pheadi2s->I2S_XFER)));
+
+        printk("========Show I2S reg========\n");
+	return 0;
+}
+
+static int proc_i2s_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, proc_i2s_show, NULL);
+}
+
+static const struct file_operations proc_i2s_fops = {
+	.open		= proc_i2s_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int __init i2s_proc_init(void)
+{
+	proc_create("i2s_reg", 0, NULL, &proc_i2s_fops);
+	return 0;
+
+}
+late_initcall(i2s_proc_init);
+#endif /* CONFIG_PROC_FS */
 
