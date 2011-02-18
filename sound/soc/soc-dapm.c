@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
+#include <linux/async.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/bitops.h>
@@ -1014,7 +1015,62 @@ static void dapm_widget_update(struct snd_soc_dapm_context *dapm)
 	}
 }
 
+/* Async callback run prior to DAPM sequences - brings to _PREPARE if
+ * they're changing state.
+ */
+static void dapm_pre_sequence_async(void *data, async_cookie_t cookie)
+{
+	struct snd_soc_dapm_context *d = data;
+	int ret;
 
+	if (d->dev_power && d->bias_level == SND_SOC_BIAS_OFF) {
+		ret = snd_soc_dapm_set_bias_level(d, SND_SOC_BIAS_STANDBY);
+		if (ret != 0)
+			dev_err(d->dev,
+				"Failed to turn on bias: %d\n", ret);
+	}
+
+	/* If we're changing to all on or all off then prepare */
+	if ((d->dev_power && d->bias_level == SND_SOC_BIAS_STANDBY) ||
+	    (!d->dev_power && d->bias_level == SND_SOC_BIAS_ON)) {
+		ret = snd_soc_dapm_set_bias_level(d, SND_SOC_BIAS_PREPARE);
+		if (ret != 0)
+			dev_err(d->dev,
+				"Failed to prepare bias: %d\n", ret);
+	}
+}
+
+/* Async callback run prior to DAPM sequences - brings to their final
+ * state.
+ */
+static void dapm_post_sequence_async(void *data, async_cookie_t cookie)
+{
+	struct snd_soc_dapm_context *d = data;
+	int ret;
+
+	/* If we just powered the last thing off drop to standby bias */
+	if (d->bias_level == SND_SOC_BIAS_PREPARE && !d->dev_power) {
+		ret = snd_soc_dapm_set_bias_level(d, SND_SOC_BIAS_STANDBY);
+		if (ret != 0)
+			dev_err(d->dev, "Failed to apply standby bias: %d\n",
+				ret);
+	}
+
+	/* If we're in standby and can support bias off then do that */
+	if (d->bias_level == SND_SOC_BIAS_STANDBY && d->idle_bias_off) {
+		ret = snd_soc_dapm_set_bias_level(d, SND_SOC_BIAS_OFF);
+		if (ret != 0)
+			dev_err(d->dev, "Failed to turn off bias: %d\n", ret);
+	}
+
+	/* If we just powered up then move to active bias */
+	if (d->bias_level == SND_SOC_BIAS_PREPARE && d->dev_power) {
+		ret = snd_soc_dapm_set_bias_level(d, SND_SOC_BIAS_ON);
+		if (ret != 0)
+			dev_err(d->dev, "Failed to apply active bias: %d\n",
+				ret);
+	}
+}
 
 /*
  * Scan each dapm widget for complete audio path.
@@ -1032,7 +1088,7 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 	struct snd_soc_dapm_context *d;
 	LIST_HEAD(up_list);
 	LIST_HEAD(down_list);
-	int ret = 0;
+	LIST_HEAD(async_domain);
 	int power;
 
 	trace_snd_soc_dapm_start(card);
@@ -1110,25 +1166,11 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 		}
 	}
 
-	list_for_each_entry(d, &dapm->card->dapm_list, list) {
-		if (d->dev_power && d->bias_level == SND_SOC_BIAS_OFF) {
-			ret = snd_soc_dapm_set_bias_level(d,
-							  SND_SOC_BIAS_STANDBY);
-			if (ret != 0)
-				dev_err(d->dev,
-					"Failed to turn on bias: %d\n", ret);
-		}
-
-		/* If we're changing to all on or all off then prepare */
-		if ((d->dev_power && d->bias_level == SND_SOC_BIAS_STANDBY) ||
-		    (!d->dev_power && d->bias_level == SND_SOC_BIAS_ON)) {
-			ret = snd_soc_dapm_set_bias_level(d,
-							  SND_SOC_BIAS_PREPARE);
-			if (ret != 0)
-				dev_err(d->dev,
-					"Failed to prepare bias: %d\n", ret);
-		}
-	}
+	/* Run all the bias changes in parallel */
+	list_for_each_entry(d, &dapm->card->dapm_list, list)
+		async_schedule_domain(dapm_pre_sequence_async, d,
+					&async_domain);
+	async_synchronize_full_domain(&async_domain);
 
 	/* Power down widgets first; try to avoid amplifying pops. */
 	dapm_seq_run(dapm, &down_list, event, false);
@@ -1138,37 +1180,11 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 	/* Now power up. */
 	dapm_seq_run(dapm, &up_list, event, true);
 
-	list_for_each_entry(d, &dapm->card->dapm_list, list) {
-		/* If we just powered the last thing off drop to standby bias */
-		if (d->bias_level == SND_SOC_BIAS_PREPARE && !d->dev_power) {
-			ret = snd_soc_dapm_set_bias_level(d,
-							  SND_SOC_BIAS_STANDBY);
-			if (ret != 0)
-				dev_err(d->dev,
-					"Failed to apply standby bias: %d\n",
-					ret);
-		}
-
-		/* If we're in standby and can support bias off then do that */
-		if (d->bias_level == SND_SOC_BIAS_STANDBY &&
-		    d->idle_bias_off) {
-			ret = snd_soc_dapm_set_bias_level(d,
-							  SND_SOC_BIAS_OFF);
-			if (ret != 0)
-				dev_err(d->dev,
-					"Failed to turn off bias: %d\n", ret);
-		}
-
-		/* If we just powered up then move to active bias */
-		if (d->bias_level == SND_SOC_BIAS_PREPARE && d->dev_power) {
-			ret = snd_soc_dapm_set_bias_level(d,
-							  SND_SOC_BIAS_ON);
-			if (ret != 0)
-				dev_err(d->dev,
-					"Failed to apply active bias: %d\n",
-					ret);
-		}
-	}
+	/* Run all the bias changes in parallel */
+	list_for_each_entry(d, &dapm->card->dapm_list, list)
+		async_schedule_domain(dapm_post_sequence_async, d,
+					&async_domain);
+	async_synchronize_full_domain(&async_domain);
 
 	pop_dbg(dapm->dev, card->pop_time,
 		"DAPM sequencing finished, waiting %dms\n", card->pop_time);
