@@ -179,6 +179,15 @@ void __init stingray_pinmux_init(void)
 	tegra_drive_pinmux_config_table(stingray_drive_pinmux,
 		ARRAY_SIZE(stingray_drive_pinmux));
 
+	if (!stingray_hw_has_cdma() && !stingray_hw_has_umts()) {
+		/* Keep the pins from floating and creating excessive
+		 * current drain. */
+		tegra_pinmux_set_pullupdown(TEGRA_PINGROUP_GMC,
+					    TEGRA_PUPD_PULL_UP);
+		tegra_pinmux_set_pullupdown(TEGRA_PINGROUP_UDA,
+					    TEGRA_PUPD_PULL_UP);
+	}
+
 	tegra_gpio_disable(TEGRA_GPIO_PE0);
 	tegra_gpio_disable(TEGRA_GPIO_PE1);
 	tegra_gpio_disable(TEGRA_GPIO_PE2);
