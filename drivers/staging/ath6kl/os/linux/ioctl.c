@@ -2590,7 +2590,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                         != 0) {
                     ret = -EIO;
                 } else {
-                    ar->arUserBssFilter = param;
+                    ar->arUserBssFilter = filt.bssFilter;
                 }
             }
             break;
