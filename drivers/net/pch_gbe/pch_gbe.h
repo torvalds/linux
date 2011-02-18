@@ -73,7 +73,7 @@ struct pch_gbe_regs {
 	struct pch_gbe_regs_mac_adr mac_adr[16];
 	u32 ADDR_MASK;
 	u32 MIIM;
-	u32 reserve2;
+	u32 MAC_ADDR_LOAD;
 	u32 RGMII_ST;
 	u32 RGMII_CTRL;
 	u32 reserve3[3];
