@@ -2528,6 +2528,13 @@ int ar6000_target_config_wlan_params(AR_SOFTC_T *ar)
         status = A_ERROR;
     }
 
+#if WLAN_CONFIG_DISABLE_TX_BURSTING  
+    if ((wmi_set_wmm_txop(ar->arWmi, WMI_TXOP_DISABLED)) != 0) {
+        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Unable to set txop bursting \n"));
+        status = A_ERROR;
+    }
+#endif 
+
     return status;
 }
 
