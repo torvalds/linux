@@ -362,7 +362,7 @@ static int uinput_setup_device(struct uinput_device *udev, const char __user *bu
 	dev = udev->dev;
 
 	user_dev = memdup_user(buffer, sizeof(struct uinput_user_dev));
-	if (!IS_ERR(user_dev))
+	if (IS_ERR(user_dev))
 		return PTR_ERR(user_dev);
 
 	udev->ff_effects_max = user_dev->ff_effects_max;
