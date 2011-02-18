@@ -372,8 +372,7 @@ static void tmio_hw_stop(struct platform_device *dev, struct tmio_nand *tmio)
 
 static int tmio_probe(struct platform_device *dev)
 {
-	struct mfd_cell *cell = mfd_get_cell(dev);
-	struct tmio_nand_data *data = cell->driver_data;
+	struct tmio_nand_data *data = mfd_get_data(dev);
 	struct resource *fcr = platform_get_resource(dev,
 			IORESOURCE_MEM, 0);
 	struct resource *ccr = platform_get_resource(dev,

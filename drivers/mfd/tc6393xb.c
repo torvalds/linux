@@ -693,7 +693,7 @@ static int __devinit tc6393xb_probe(struct platform_device *dev)
 			goto err_setup;
 	}
 
-	tc6393xb_cells[TC6393XB_CELL_NAND].driver_data = tcpd->nand_data;
+	tc6393xb_cells[TC6393XB_CELL_NAND].mfd_data = tcpd->nand_data;
 	tc6393xb_cells[TC6393XB_CELL_FB].driver_data = tcpd->fb_data;
 
 	ret = mfd_add_devices(&dev->dev, dev->id,
