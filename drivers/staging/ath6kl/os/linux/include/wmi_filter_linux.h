@@ -288,6 +288,13 @@ u8 xioctl_filter[] = {
 (0xFF),                                         /* AR6000_XIOCTL_ADD_AP_INTERFACE                  152  */
 (0xFF),                                         /* AR6000_XIOCTL_REMOVE_AP_INTERFACE               153  */
 (0xFF),                                         /* AR6000_XIOCTL_WMI_SET_TX_SGI_PARAM              154  */
+(INFRA_NETWORK | ADHOC_NETWORK),                /* AR6000_XIOCTL_WMI_SET_WPA_OFFLOAD_STATE         155  */
+(INFRA_NETWORK | ADHOC_NETWORK),                /* AR6000_XIOCTL_WMI_SET_PASSPHRASE                156  */
+(0xFF),
+(0xFF),
+(0xFF),
+(0xFF),
+(INFRA_NETWORK | ADHOC_NETWORK),                /* AR6000_XIOCTL_WMI_SET_EXCESS_TX_RETRY_THRES     161  */
 };
 
 #endif /*_WMI_FILTER_LINUX_H_*/

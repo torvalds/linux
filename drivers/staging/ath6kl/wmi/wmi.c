@@ -6610,6 +6610,27 @@ wmi_set_pmk_cmd(struct wmi_t *wmip, u8 *pmk)
 }
 
 int
+wmi_set_excess_tx_retry_thres_cmd(struct wmi_t *wmip, WMI_SET_EXCESS_TX_RETRY_THRES_CMD *cmd)
+{
+    void *osbuf;
+    WMI_SET_EXCESS_TX_RETRY_THRES_CMD *p;
+
+    osbuf = A_NETBUF_ALLOC(sizeof(WMI_SET_EXCESS_TX_RETRY_THRES_CMD));
+    if (osbuf == NULL) {
+        return A_NO_MEMORY;
+    }
+
+    A_NETBUF_PUT(osbuf, sizeof(WMI_SET_EXCESS_TX_RETRY_THRES_CMD));
+
+    p = (WMI_SET_EXCESS_TX_RETRY_THRES_CMD *)(A_NETBUF_DATA(osbuf));
+    memset(p, 0, sizeof(*p));
+
+    p->threshold = cmd->threshold;
+
+    return (wmi_cmd_send(wmip, osbuf, WMI_SET_EXCESS_TX_RETRY_THRES_CMDID, NO_SYNC_WMIFLAG));
+}
+
+int
 wmi_SGI_cmd(struct wmi_t *wmip, u32 sgiMask, u8 sgiPERThreshold)
 {
     void *osbuf;

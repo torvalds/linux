@@ -997,6 +997,7 @@ typedef enum {
 
 #define AR6000_XIOCTL_WMI_SET_TX_SGI_PARAM              154
 
+#define AR6000_XIOCTL_WMI_SET_EXCESS_TX_RETRY_THRES     161
 
 /* used by AR6000_IOCTL_WMI_GETREV */
 struct ar6000_version {

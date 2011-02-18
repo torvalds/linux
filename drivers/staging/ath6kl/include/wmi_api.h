@@ -421,6 +421,9 @@ wmi_set_wlan_conn_precedence_cmd(struct wmi_t *wmip, BT_WLAN_CONN_PRECEDENCE pre
 int
 wmi_set_pmk_cmd(struct wmi_t *wmip, u8 *pmk);
 
+int
+wmi_set_excess_tx_retry_thres_cmd(struct wmi_t *wmip, WMI_SET_EXCESS_TX_RETRY_THRES_CMD *cmd);
+
 u16 wmi_ieee2freq (int chan);
 
 u32 wmi_freq2ieee (u16 freq);

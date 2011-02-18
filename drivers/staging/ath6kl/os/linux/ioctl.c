@@ -1329,6 +1329,28 @@ ar6000_xioctl_get_btcoex_stats_cmd(struct net_device * dev, char *userdata, stru
 	return(ret);
 }
 
+static int
+ar6000_xioctl_set_excess_tx_retry_thres_cmd(struct net_device * dev, char * userdata)
+{
+    AR_SOFTC_T     *ar     = (AR_SOFTC_T *)ar6k_priv(dev);
+    WMI_SET_EXCESS_TX_RETRY_THRES_CMD cmd;
+    int ret = 0;
+
+    if (ar->arWmiReady == false) {
+        return -EIO;
+    }
+
+    if (copy_from_user(&cmd, userdata, sizeof(cmd))) {
+        return -EFAULT;
+    }
+
+    if (wmi_set_excess_tx_retry_thres_cmd(ar->arWmi, &cmd) != 0)
+    {
+        ret = -EINVAL;
+    }
+    return(ret);
+}
+
 #ifdef CONFIG_HOST_GPIO_SUPPORT
 struct ar6000_gpio_intr_wait_cmd_s  gpio_intr_results;
 /* gpio_reg_results and gpio_data_available are protected by arSem */
@@ -4659,6 +4681,12 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
             ret = -EOPNOTSUPP;
 #endif
             break;
+
+        case AR6000_XIOCTL_WMI_SET_EXCESS_TX_RETRY_THRES:
+        {
+            ret = ar6000_xioctl_set_excess_tx_retry_thres_cmd(dev, userdata);
+            break;
+        }
 
         default:
             ret = -EOPNOTSUPP;
