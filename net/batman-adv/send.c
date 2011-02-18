@@ -204,7 +204,7 @@ static void send_packet(struct forw_packet *forw_packet)
 
 	/* broadcast on every interface */
 	rcu_read_lock();
-	list_for_each_entry_rcu(batman_if, &if_list, list) {
+	list_for_each_entry_rcu(batman_if, &hardif_list, list) {
 		if (batman_if->soft_iface != soft_iface)
 			continue;
 
@@ -461,7 +461,7 @@ static void send_outstanding_bcast_packet(struct work_struct *work)
 
 	/* rebroadcast packet */
 	rcu_read_lock();
-	list_for_each_entry_rcu(batman_if, &if_list, list) {
+	list_for_each_entry_rcu(batman_if, &hardif_list, list) {
 		if (batman_if->soft_iface != soft_iface)
 			continue;
 

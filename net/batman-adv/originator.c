@@ -602,7 +602,7 @@ int orig_hash_del_if(struct batman_if *batman_if, int max_if_num)
 
 	/* renumber remaining batman interfaces _inside_ of orig_hash_lock */
 	rcu_read_lock();
-	list_for_each_entry_rcu(batman_if_tmp, &if_list, list) {
+	list_for_each_entry_rcu(batman_if_tmp, &hardif_list, list) {
 		if (batman_if_tmp->if_status == IF_NOT_IN_USE)
 			continue;
 

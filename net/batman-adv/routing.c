@@ -643,7 +643,7 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 		has_directlink_flag);
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(batman_if, &if_list, list) {
+	list_for_each_entry_rcu(batman_if, &hardif_list, list) {
 		if (batman_if->if_status != IF_ACTIVE)
 			continue;
 

@@ -122,7 +122,7 @@
 #define REVISION_VERSION_STR " "REVISION_VERSION
 #endif
 
-extern struct list_head if_list;
+extern struct list_head hardif_list;
 
 extern unsigned char broadcast_addr[];
 extern struct workqueue_struct *bat_event_workqueue;

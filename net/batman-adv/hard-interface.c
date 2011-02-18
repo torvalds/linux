@@ -31,8 +31,8 @@
 
 #include <linux/if_arp.h>
 
-/* protect update critical side of if_list - but not the content */
-static DEFINE_SPINLOCK(if_list_lock);
+/* protect update critical side of hardif_list - but not the content */
+static DEFINE_SPINLOCK(hardif_list_lock);
 
 
 static int batman_skb_recv(struct sk_buff *skb,
@@ -54,7 +54,7 @@ struct batman_if *get_batman_if_by_netdev(struct net_device *net_dev)
 	struct batman_if *batman_if;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(batman_if, &if_list, list) {
+	list_for_each_entry_rcu(batman_if, &hardif_list, list) {
 		if (batman_if->net_dev == net_dev &&
 		    atomic_inc_not_zero(&batman_if->refcount))
 			goto out;
@@ -99,7 +99,7 @@ static struct batman_if *get_active_batman_if(struct net_device *soft_iface)
 	struct batman_if *batman_if;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(batman_if, &if_list, list) {
+	list_for_each_entry_rcu(batman_if, &hardif_list, list) {
 		if (batman_if->soft_iface != soft_iface)
 			continue;
 
@@ -179,7 +179,7 @@ static void check_known_mac_addr(struct net_device *net_dev)
 	struct batman_if *batman_if;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(batman_if, &if_list, list) {
+	list_for_each_entry_rcu(batman_if, &hardif_list, list) {
 		if ((batman_if->if_status != IF_ACTIVE) &&
 		    (batman_if->if_status != IF_TO_BE_ACTIVATED))
 			continue;
@@ -212,7 +212,7 @@ int hardif_min_mtu(struct net_device *soft_iface)
 		goto out;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(batman_if, &if_list, list) {
+	list_for_each_entry_rcu(batman_if, &hardif_list, list) {
 		if ((batman_if->if_status != IF_ACTIVE) &&
 		    (batman_if->if_status != IF_TO_BE_ACTIVATED))
 			continue;
@@ -449,9 +449,9 @@ static struct batman_if *hardif_add_interface(struct net_device *net_dev)
 
 	check_known_mac_addr(batman_if->net_dev);
 
-	spin_lock(&if_list_lock);
-	list_add_tail_rcu(&batman_if->list, &if_list);
-	spin_unlock(&if_list_lock);
+	spin_lock(&hardif_list_lock);
+	list_add_tail_rcu(&batman_if->list, &hardif_list);
+	spin_unlock(&hardif_list_lock);
 
 	return batman_if;
 
@@ -484,12 +484,12 @@ void hardif_remove_interfaces(void)
 
 	INIT_LIST_HEAD(&if_queue);
 
-	spin_lock(&if_list_lock);
-	list_for_each_entry_safe(batman_if, batman_if_tmp, &if_list, list) {
+	spin_lock(&hardif_list_lock);
+	list_for_each_entry_safe(batman_if, batman_if_tmp, &hardif_list, list) {
 		list_del_rcu(&batman_if->list);
 		list_add_tail(&batman_if->list, &if_queue);
 	}
-	spin_unlock(&if_list_lock);
+	spin_unlock(&hardif_list_lock);
 
 	rtnl_lock();
 	list_for_each_entry_safe(batman_if, batman_if_tmp, &if_queue, list) {
@@ -520,9 +520,9 @@ static int hard_if_event(struct notifier_block *this,
 		hardif_deactivate_interface(batman_if);
 		break;
 	case NETDEV_UNREGISTER:
-		spin_lock(&if_list_lock);
+		spin_lock(&hardif_list_lock);
 		list_del_rcu(&batman_if->list);
-		spin_unlock(&if_list_lock);
+		spin_unlock(&hardif_list_lock);
 
 		hardif_remove_interface(batman_if);
 		break;

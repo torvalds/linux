@@ -33,7 +33,7 @@
 #include "vis.h"
 #include "hash.h"
 
-struct list_head if_list;
+struct list_head hardif_list;
 
 unsigned char broadcast_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
@@ -41,7 +41,7 @@ struct workqueue_struct *bat_event_workqueue;
 
 static int __init batman_init(void)
 {
-	INIT_LIST_HEAD(&if_list);
+	INIT_LIST_HEAD(&hardif_list);
 
 	/* the name should not be longer than 10 chars - see
 	 * http://lwn.net/Articles/23634/ */
@@ -156,7 +156,7 @@ int is_my_mac(uint8_t *addr)
 	struct batman_if *batman_if;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(batman_if, &if_list, list) {
+	list_for_each_entry_rcu(batman_if, &hardif_list, list) {
 		if (batman_if->if_status != IF_ACTIVE)
 			continue;
 
