@@ -82,7 +82,7 @@ struct pch_dma_regs {
 	u32	dma_sts1;
 	u32	reserved2;
 	u32	reserved3;
-	struct pch_dma_desc_regs desc[0];
+	struct pch_dma_desc_regs desc[MAX_CHAN_NR];
 };
 
 struct pch_dma_desc {
@@ -124,7 +124,7 @@ struct pch_dma {
 	struct pci_pool		*pool;
 	struct pch_dma_regs	regs;
 	struct pch_dma_desc_regs ch_regs[MAX_CHAN_NR];
-	struct pch_dma_chan	channels[0];
+	struct pch_dma_chan	channels[MAX_CHAN_NR];
 };
 
 #define PCH_DMA_CTL0	0x00
