@@ -507,6 +507,8 @@ int isci_remote_device_found(struct domain_device *domain_dev)
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: domain_device = %p\n", __func__, domain_dev);
 
+	wait_for_start(isci_host);
+
 	sas_port = domain_dev->port;
 	sas_phy = list_first_entry(&sas_port->phy_list, struct asd_sas_phy,
 				   port_phy_el);
@@ -559,8 +561,6 @@ int isci_remote_device_found(struct domain_device *domain_dev)
 		spin_unlock_irqrestore(&isci_port->remote_device_lock, flags);
 		return -ENODEV;
 	}
-
-	wait_for_completion(&isci_host->start_complete);
 
 	return 0;
 }

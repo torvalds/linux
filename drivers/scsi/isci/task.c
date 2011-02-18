@@ -164,8 +164,7 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 		 * for the quiesce spinlock.
 		 */
 
-		if (isci_host_get_state(isci_host) == isci_starting ||
-		    (device && ((isci_remote_device_get_state(device) == isci_ready) ||
+		if ((device && ((isci_remote_device_get_state(device) == isci_ready) ||
 		    (isci_remote_device_get_state(device) == isci_host_quiesce)))) {
 
 			/* Forces a retry from scsi mid layer. */

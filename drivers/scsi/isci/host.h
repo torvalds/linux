@@ -109,13 +109,15 @@ struct isci_host {
 	u8 sas_addr[SAS_ADDR_SIZE];
 
 	enum isci_status status;
+	#define IHOST_START_PENDING 0
+	#define IHOST_STOP_PENDING 1
+	unsigned long flags;
+	wait_queue_head_t eventq;
 	struct Scsi_Host *shost;
 	struct tasklet_struct completion_tasklet;
 	struct list_head mdl_struct_list;
 	struct list_head requests_to_complete;
 	struct list_head requests_to_abort;
-	struct completion stop_complete;
-	struct completion start_complete;
 	spinlock_t scic_lock;
 	struct isci_host *next;
 };
@@ -201,6 +203,17 @@ static inline void isci_host_can_dequeue(
 	isci_host->can_queue += num;
 	spin_unlock_irqrestore(&isci_host->queue_lock, flags);
 }
+
+static inline void wait_for_start(struct isci_host *ihost)
+{
+	wait_event(ihost->eventq, !test_bit(IHOST_START_PENDING, &ihost->flags));
+}
+
+static inline void wait_for_stop(struct isci_host *ihost)
+{
+	wait_event(ihost->eventq, !test_bit(IHOST_STOP_PENDING, &ihost->flags));
+}
+
 
 /**
  * isci_host_from_sas_ha() - This accessor retrieves the isci_host object
