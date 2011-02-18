@@ -437,6 +437,9 @@ struct snd_soc_jack_zone {
  * @invert:       report presence in low state
  * @debouce_time: debouce time in ms
  * @wake:	  enable as wake source
+ * @jack_status_check: callback function which overrides the detection
+ *		       to provide more complex checks (eg, reading an
+ *		       ADC).
  */
 #ifdef CONFIG_GPIOLIB
 struct snd_soc_jack_gpio {
