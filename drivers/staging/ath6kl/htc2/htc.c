@@ -486,6 +486,8 @@ void HTCStop(HTC_HANDLE HTCHandle)
         /* flush all recv buffers */
     HTCFlushRecvBuffers(target);
 
+    DevCleanupMsgBundling(&target->Device);
+
     ResetEndpointStates(target);
    
     AR_DEBUG_PRINTF(ATH_DEBUG_TRC, ("-HTCStop \n"));

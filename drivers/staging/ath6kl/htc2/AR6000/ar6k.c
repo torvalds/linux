@@ -810,6 +810,15 @@ static int DevSetupVirtualScatterSupport(AR6K_DEVICE *pDev)
     return status;
 }
 
+int DevCleanupMsgBundling(AR6K_DEVICE *pDev)
+{
+    if(NULL != pDev)
+    {
+        DevCleanupVirtualScatterSupport(pDev);
+    }
+
+    return 0;
+}
 
 int DevSetupMsgBundling(AR6K_DEVICE *pDev, int MaxMsgsPerTransfer)
 {

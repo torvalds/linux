@@ -297,6 +297,8 @@ static INLINE int DEV_PREPARE_SCATTER_OPERATION(HIF_SCATTER_REQ *pReq)  {
         
     
 int DevSetupMsgBundling(AR6K_DEVICE *pDev, int MaxMsgsPerTransfer);
+
+int DevCleanupMsgBundling(AR6K_DEVICE *pDev);
                                   
 #define DEV_GET_MAX_MSG_PER_BUNDLE(pDev)        (pDev)->HifScatterInfo.MaxScatterEntries
 #define DEV_GET_MAX_BUNDLE_LENGTH(pDev)         (pDev)->HifScatterInfo.MaxTransferSizePerScatterReq
