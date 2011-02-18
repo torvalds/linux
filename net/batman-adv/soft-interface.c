@@ -171,8 +171,6 @@ int softif_neigh_seq_print_text(struct seq_file *seq, void *offset)
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
 	struct softif_neigh *softif_neigh;
 	struct hlist_node *node;
-	size_t buf_size, pos;
-	char *buff;
 
 	if (!bat_priv->primary_if) {
 		return seq_printf(seq, "BATMAN mesh %s disabled - "
@@ -182,33 +180,15 @@ int softif_neigh_seq_print_text(struct seq_file *seq, void *offset)
 
 	seq_printf(seq, "Softif neighbor list (%s)\n", net_dev->name);
 
-	buf_size = 1;
-	/* Estimate length for: "   xx:xx:xx:xx:xx:xx\n" */
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(softif_neigh, node,
 				 &bat_priv->softif_neigh_list, list)
-		buf_size += 30;
-	rcu_read_unlock();
-
-	buff = kmalloc(buf_size, GFP_ATOMIC);
-	if (!buff)
-		return -ENOMEM;
-
-	buff[0] = '\0';
-	pos = 0;
-
-	rcu_read_lock();
-	hlist_for_each_entry_rcu(softif_neigh, node,
-				 &bat_priv->softif_neigh_list, list) {
-		pos += snprintf(buff + pos, 31, "%s %pM (vid: %d)\n",
+		seq_printf(seq, "%s %pM (vid: %d)\n",
 				bat_priv->softif_neigh == softif_neigh
 				? "=>" : "  ", softif_neigh->addr,
 				softif_neigh->vid);
-	}
 	rcu_read_unlock();
 
-	seq_printf(seq, "%s", buff);
-	kfree(buff);
 	return 0;
 }
 
