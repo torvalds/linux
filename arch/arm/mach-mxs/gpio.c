@@ -68,29 +68,29 @@ static void set_gpio_irqenable(struct mxs_gpio_port *port, u32 index,
 	}
 }
 
-static void mxs_gpio_ack_irq(u32 irq)
+static void mxs_gpio_ack_irq(struct irq_data *d)
 {
-	u32 gpio = irq_to_gpio(irq);
+	u32 gpio = irq_to_gpio(d->irq);
 	clear_gpio_irqstatus(&mxs_gpio_ports[gpio / 32], gpio & 0x1f);
 }
 
-static void mxs_gpio_mask_irq(u32 irq)
+static void mxs_gpio_mask_irq(struct irq_data *d)
 {
-	u32 gpio = irq_to_gpio(irq);
+	u32 gpio = irq_to_gpio(d->irq);
 	set_gpio_irqenable(&mxs_gpio_ports[gpio / 32], gpio & 0x1f, 0);
 }
 
-static void mxs_gpio_unmask_irq(u32 irq)
+static void mxs_gpio_unmask_irq(struct irq_data *d)
 {
-	u32 gpio = irq_to_gpio(irq);
+	u32 gpio = irq_to_gpio(d->irq);
 	set_gpio_irqenable(&mxs_gpio_ports[gpio / 32], gpio & 0x1f, 1);
 }
 
 static int mxs_gpio_get(struct gpio_chip *chip, unsigned offset);
 
-static int mxs_gpio_set_irq_type(u32 irq, u32 type)
+static int mxs_gpio_set_irq_type(struct irq_data *d, unsigned int type)
 {
-	u32 gpio = irq_to_gpio(irq);
+	u32 gpio = irq_to_gpio(d->irq);
 	u32 pin_mask = 1 << (gpio & 31);
 	struct mxs_gpio_port *port = &mxs_gpio_ports[gpio / 32];
 	void __iomem *pin_addr;
@@ -160,9 +160,9 @@ static void mxs_gpio_irq_handler(u32 irq, struct irq_desc *desc)
  * @param  enable       enable as wake-up if equal to non-zero
  * @return       This function returns 0 on success.
  */
-static int mxs_gpio_set_wake_irq(u32 irq, u32 enable)
+static int mxs_gpio_set_wake_irq(struct irq_data *d, unsigned int enable)
 {
-	u32 gpio = irq_to_gpio(irq);
+	u32 gpio = irq_to_gpio(d->irq);
 	u32 gpio_idx = gpio & 0x1f;
 	struct mxs_gpio_port *port = &mxs_gpio_ports[gpio / 32];
 
@@ -182,11 +182,11 @@ static int mxs_gpio_set_wake_irq(u32 irq, u32 enable)
 }
 
 static struct irq_chip gpio_irq_chip = {
-	.ack = mxs_gpio_ack_irq,
-	.mask = mxs_gpio_mask_irq,
-	.unmask = mxs_gpio_unmask_irq,
-	.set_type = mxs_gpio_set_irq_type,
-	.set_wake = mxs_gpio_set_wake_irq,
+	.irq_ack = mxs_gpio_ack_irq,
+	.irq_mask = mxs_gpio_mask_irq,
+	.irq_unmask = mxs_gpio_unmask_irq,
+	.irq_set_type = mxs_gpio_set_irq_type,
+	.irq_set_wake = mxs_gpio_set_wake_irq,
 };
 
 static void mxs_set_gpio_direction(struct gpio_chip *chip, unsigned offset,
