@@ -664,17 +664,15 @@ static int find_unbound_pirq(int type)
 	return -1;
 }
 
-void xen_allocate_pirq_msi(char *name, int *irq, int *pirq, int alloc)
+void xen_allocate_pirq_msi(char *name, int *irq, int *pirq, int alloc_pirq)
 {
 	spin_lock(&irq_mapping_update_lock);
 
-	if (alloc & XEN_ALLOC_IRQ) {
-		*irq = xen_allocate_irq_dynamic();
-		if (*irq == -1)
-			goto out;
-	}
+	*irq = xen_allocate_irq_dynamic();
+	if (*irq == -1)
+		goto out;
 
-	if (alloc & XEN_ALLOC_PIRQ) {
+	if (alloc_pirq) {
 		*pirq = find_unbound_pirq(MAP_PIRQ_TYPE_MSI);
 		if (*pirq == -1) {
 			xen_free_irq(*irq);
