@@ -100,8 +100,8 @@ static int xen_hvm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		pirq = MSI_ADDR_EXT_DEST_ID(msg.address_hi) |
 			((msg.address_lo >> MSI_ADDR_DEST_ID_SHIFT) & 0xff);
 		if (xen_irq_from_pirq(pirq) >= 0 && msg.data == XEN_PIRQ_MSI_DATA) {
-			xen_allocate_pirq_msi((type == PCI_CAP_ID_MSIX) ?
-					"msi-x" : "msi", &irq, &pirq, 0);
+			irq = xen_allocate_pirq_msi((type == PCI_CAP_ID_MSIX) ?
+						    "msi-x" : "msi", &pirq, 0);
 			if (irq < 0)
 				goto error;
 			ret = set_irq_msi(irq, msidesc);
@@ -111,8 +111,8 @@ static int xen_hvm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 					" pirq=%d\n", irq, pirq);
 			return 0;
 		}
-		xen_allocate_pirq_msi((type == PCI_CAP_ID_MSIX) ?
-				"msi-x" : "msi", &irq, &pirq, 1);
+		irq = xen_allocate_pirq_msi((type == PCI_CAP_ID_MSIX) ?
+					    "msi-x" : "msi", &pirq, 1);
 		if (irq < 0 || pirq < 0)
 			goto error;
 		printk(KERN_DEBUG "xen: msi --> irq=%d, pirq=%d\n", irq, pirq);
@@ -157,10 +157,10 @@ static int xen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		goto error;
 	i = 0;
 	list_for_each_entry(msidesc, &dev->msi_list, list) {
-		xen_allocate_pirq_msi(
+		irq = xen_allocate_pirq_msi(
 			(type == PCI_CAP_ID_MSIX) ?
 			"pcifront-msi-x" : "pcifront-msi",
-			&irq, &v[i], 0);
+			&v[i], 0);
 		if (irq < 0) {
 			ret = -1;
 			goto free;

@@ -664,31 +664,34 @@ static int find_unbound_pirq(int type)
 	return -1;
 }
 
-void xen_allocate_pirq_msi(char *name, int *irq, int *pirq, int alloc_pirq)
+int xen_allocate_pirq_msi(char *name, int *pirq, int alloc_pirq)
 {
+	int irq;
+
 	spin_lock(&irq_mapping_update_lock);
 
-	*irq = xen_allocate_irq_dynamic();
-	if (*irq == -1)
+	irq = xen_allocate_irq_dynamic();
+	if (irq == -1)
 		goto out;
 
 	if (alloc_pirq) {
 		*pirq = find_unbound_pirq(MAP_PIRQ_TYPE_MSI);
 		if (*pirq == -1) {
-			xen_free_irq(*irq);
-			*irq = -1;
+			xen_free_irq(irq);
+			irq = -1;
 			goto out;
 		}
 	}
 
-	set_irq_chip_and_handler_name(*irq, &xen_pirq_chip,
+	set_irq_chip_and_handler_name(irq, &xen_pirq_chip,
 				      handle_level_irq, name);
 
-	irq_info[*irq] = mk_pirq_info(0, *pirq, 0, 0);
-	pirq_to_irq[*pirq] = *irq;
+	irq_info[irq] = mk_pirq_info(0, *pirq, 0, 0);
+	pirq_to_irq[*pirq] = irq;
 
 out:
 	spin_unlock(&irq_mapping_update_lock);
+	return irq;
 }
 
 int xen_create_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int type)

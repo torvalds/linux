@@ -75,7 +75,7 @@ int xen_allocate_pirq(unsigned gsi, int shareable, char *name);
 int xen_map_pirq_gsi(unsigned pirq, unsigned gsi, int shareable, char *name);
 
 #ifdef CONFIG_PCI_MSI
-void xen_allocate_pirq_msi(char *name, int *irq, int *pirq, int alloc_pirq);
+int xen_allocate_pirq_msi(char *name, int *pirq, int alloc_pirq);
 int xen_create_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int type);
 #endif
 
