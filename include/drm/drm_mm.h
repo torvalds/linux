@@ -72,6 +72,7 @@ struct drm_mm {
 	unsigned scanned_blocks;
 	unsigned long scan_start;
 	unsigned long scan_end;
+	struct drm_mm_node *prev_scanned_node;
 };
 
 static inline bool drm_mm_node_allocated(struct drm_mm_node *node)
@@ -86,6 +87,13 @@ static inline bool drm_mm_initialized(struct drm_mm *mm)
 #define drm_mm_for_each_node(entry, mm) list_for_each_entry(entry, \
 						&(mm)->head_node.node_list, \
 						node_list);
+#define drm_mm_for_each_scanned_node_reverse(entry, n, mm) \
+	for (entry = (mm)->prev_scanned_node, \
+		next = entry ? list_entry(entry->node_list.next, \
+			struct drm_mm_node, node_list) : NULL; \
+	     entry != NULL; entry = next, \
+		next = entry ? list_entry(entry->node_list.next, \
+			struct drm_mm_node, node_list) : NULL) \
 /*
  * Basic range manager support (drm_mm.c)
  */

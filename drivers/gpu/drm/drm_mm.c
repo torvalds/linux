@@ -460,6 +460,7 @@ void drm_mm_init_scan(struct drm_mm *mm, unsigned long size,
 	mm->scan_hit_start = 0;
 	mm->scan_hit_size = 0;
 	mm->scan_check_range = 0;
+	mm->prev_scanned_node = NULL;
 }
 EXPORT_SYMBOL(drm_mm_init_scan);
 
@@ -485,6 +486,7 @@ void drm_mm_init_scan_with_range(struct drm_mm *mm, unsigned long size,
 	mm->scan_start = start;
 	mm->scan_end = end;
 	mm->scan_check_range = 1;
+	mm->prev_scanned_node = NULL;
 }
 EXPORT_SYMBOL(drm_mm_init_scan_with_range);
 
@@ -514,6 +516,8 @@ int drm_mm_scan_add_block(struct drm_mm_node *node)
 	prev_node->hole_follows = 1;
 	list_del(&node->node_list);
 	node->node_list.prev = &prev_node->node_list;
+	node->node_list.next = &mm->prev_scanned_node->node_list;
+	mm->prev_scanned_node = node;
 
 	hole_start = drm_mm_hole_node_start(prev_node);
 	hole_end = drm_mm_hole_node_end(prev_node);
