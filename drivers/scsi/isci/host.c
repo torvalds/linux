@@ -113,31 +113,17 @@ int isci_host_scan_finished(struct Scsi_Host *shost, unsigned long time)
 {
 	struct isci_host *ihost = isci_host_from_sas_ha(SHOST_TO_SAS_HA(shost));
 
-	/**
-	 * check interrupt_handler's status and call completion_handler if true,
-	 * link_up events should be coming from the scu core lib, as phy's come
-	 * online. for each link_up from the core, call
-	 * get_received_identify_address_frame, copy the frame into the
-	 * sas_phy object and call libsas notify_port_event(PORTE_BYTES_DMAED).
-	 * continue to return zero from thee scan_finished routine until
-	 * the scic_cb_controller_start_complete() call comes from the core.
-	 **/
-	if (scic_sds_controller_isr(ihost->core_controller))
-		scic_sds_controller_completion_handler(ihost->core_controller);
-
-	if (test_bit(IHOST_START_PENDING, &ihost->flags) && time < HZ*10) {
-		dev_dbg(&ihost->pdev->dev,
-			"%s: ihost->status = %d, time = %ld\n",
-			     __func__, isci_host_get_state(ihost), time);
+	if (test_bit(IHOST_START_PENDING, &ihost->flags))
 		return 0;
-	}
 
+	/* todo: use sas_flush_discovery once it is upstream */
+	scsi_flush_work(shost);
+
+	scsi_flush_work(shost);
 
 	dev_dbg(&ihost->pdev->dev,
 		"%s: ihost->status = %d, time = %ld\n",
 		 __func__, isci_host_get_state(ihost), time);
-
-	scic_controller_enable_interrupts(ihost->core_controller);
 
 	return 1;
 
@@ -150,8 +136,11 @@ void isci_host_scan_start(struct Scsi_Host *shost)
 	unsigned long tmo = scic_controller_get_suggested_start_timeout(scic);
 
 	set_bit(IHOST_START_PENDING, &ihost->flags);
-	scic_controller_disable_interrupts(ihost->core_controller);
+
+	spin_lock_irq(&ihost->scic_lock);
 	scic_controller_start(scic, tmo);
+	scic_controller_enable_interrupts(scic);
+	spin_unlock_irq(&ihost->scic_lock);
 }
 
 void isci_host_stop_complete(struct isci_host *ihost, enum sci_status completion_status)
