@@ -775,6 +775,8 @@ static void resizer_calc_ratios(struct isp_res_device *res,
 	unsigned int max_width;
 	unsigned int max_height;
 	unsigned int width_alignment;
+	unsigned int width;
+	unsigned int height;
 
 	/*
 	 * Clamp the output height based on the hardware capabilities and
@@ -794,11 +796,11 @@ static void resizer_calc_ratios(struct isp_res_device *res,
 	if (ratio->vert <= MID_RESIZE_VALUE) {
 		upscaled_height = (output->height - 1) * ratio->vert
 				+ 32 * spv + 16;
-		input->height = (upscaled_height >> 8) + 4;
+		height = (upscaled_height >> 8) + 4;
 	} else {
 		upscaled_height = (output->height - 1) * ratio->vert
 				+ 64 * spv + 32;
-		input->height = (upscaled_height >> 8) + 7;
+		height = (upscaled_height >> 8) + 7;
 	}
 
 	/*
@@ -862,12 +864,18 @@ static void resizer_calc_ratios(struct isp_res_device *res,
 	if (ratio->horz <= MID_RESIZE_VALUE) {
 		upscaled_width = (output->width - 1) * ratio->horz
 			       + 32 * sph + 16;
-		input->width = (upscaled_width >> 8) + 7;
+		width = (upscaled_width >> 8) + 7;
 	} else {
 		upscaled_width = (output->width - 1) * ratio->horz
 			       + 64 * sph + 32;
-		input->width = (upscaled_width >> 8) + 7;
+		width = (upscaled_width >> 8) + 7;
 	}
+
+	/* Center the new crop rectangle. */
+	input->left += (input->width - width) / 2;
+	input->top += (input->height - height) / 2;
+	input->width = width;
+	input->height = height;
 }
 
 /*
