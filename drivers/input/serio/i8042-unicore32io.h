@@ -29,33 +29,36 @@
 /*
  * Register numbers.
  */
-#define I8042_COMMAND_REG	((unsigned long)&PS2_COMMAND)
-#define I8042_STATUS_REG	((unsigned long)&PS2_STATUS)
-#define I8042_DATA_REG		((unsigned long)&PS2_DATA)
+#define I8042_COMMAND_REG	((volatile void __iomem *)&PS2_COMMAND)
+#define I8042_STATUS_REG	((volatile void __iomem *)&PS2_STATUS)
+#define I8042_DATA_REG		((volatile void __iomem *)&PS2_DATA)
+
+#define I8042_REGION_START	(resource_size_t)(&PS2_DATA)
+#define I8042_REGION_SIZE	(resource_size_t)(16)
 
 static inline int i8042_read_data(void)
 {
-	return inb(I8042_DATA_REG);
+	return readb(I8042_DATA_REG);
 }
 
 static inline int i8042_read_status(void)
 {
-	return inb(I8042_STATUS_REG);
+	return readb(I8042_STATUS_REG);
 }
 
 static inline void i8042_write_data(int val)
 {
-	outb(val, I8042_DATA_REG);
+	writeb(val, I8042_DATA_REG);
 }
 
 static inline void i8042_write_command(int val)
 {
-	outb(val, I8042_COMMAND_REG);
+	writeb(val, I8042_COMMAND_REG);
 }
 
 static inline int i8042_platform_init(void)
 {
-	if (!request_region(I8042_DATA_REG, 16, "i8042"))
+	if (!request_region(I8042_REGION_START, I8042_REGION_SIZE, "i8042"))
 		return -EBUSY;
 
 	i8042_reset = 1;
@@ -64,7 +67,7 @@ static inline int i8042_platform_init(void)
 
 static inline void i8042_platform_exit(void)
 {
-	release_region(I8042_DATA_REG, 16);
+	release_region(I8042_REGION_START, I8042_REGION_SIZE);
 }
 
 #endif /* _I8042_UNICORE32_H */
