@@ -69,6 +69,9 @@ static struct usb_device_id ath3k_table[] = {
 	/* Atheros AR3012 with sflash firmware*/
 	{ USB_DEVICE(0x0CF3, 0x3004) },
 
+	/* Atheros AR5BBU12 with sflash firmware */
+	{ USB_DEVICE(0x0489, 0xE02C) },
+
 	{ }	/* Terminating entry */
 };
 

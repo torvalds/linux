@@ -1071,6 +1071,12 @@ void ieee80211_sta_rx_notify(struct ieee80211_sub_if_data *sdata,
 	if (is_multicast_ether_addr(hdr->addr1))
 		return;
 
+	/*
+	 * In case we receive frames after disassociation.
+	 */
+	if (!sdata->u.mgd.associated)
+		return;
+
 	ieee80211_sta_reset_conn_monitor(sdata);
 }
 

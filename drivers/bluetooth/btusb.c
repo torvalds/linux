@@ -108,6 +108,9 @@ static struct usb_device_id blacklist_table[] = {
 	/* Atheros 3012 with sflash firmware */
 	{ USB_DEVICE(0x0cf3, 0x3004), .driver_info = BTUSB_IGNORE },
 
+	/* Atheros AR5BBU12 with sflash firmware */
+	{ USB_DEVICE(0x0489, 0xe02c), .driver_info = BTUSB_IGNORE },
+
 	/* Broadcom BCM2035 */
 	{ USB_DEVICE(0x0a5c, 0x2035), .driver_info = BTUSB_WRONG_SCO_MTU },
 	{ USB_DEVICE(0x0a5c, 0x200a), .driver_info = BTUSB_WRONG_SCO_MTU },
@@ -828,7 +831,7 @@ static void btusb_work(struct work_struct *work)
 
 	if (hdev->conn_hash.sco_num > 0) {
 		if (!test_bit(BTUSB_DID_ISO_RESUME, &data->flags)) {
-			err = usb_autopm_get_interface(data->isoc);
+			err = usb_autopm_get_interface(data->isoc ? data->isoc : data->intf);
 			if (err < 0) {
 				clear_bit(BTUSB_ISOC_RUNNING, &data->flags);
 				usb_kill_anchored_urbs(&data->isoc_anchor);
@@ -857,7 +860,7 @@ static void btusb_work(struct work_struct *work)
 
 		__set_isoc_interface(hdev, 0);
 		if (test_and_clear_bit(BTUSB_DID_ISO_RESUME, &data->flags))
-			usb_autopm_put_interface(data->isoc);
+			usb_autopm_put_interface(data->isoc ? data->isoc : data->intf);
 	}
 }
 
