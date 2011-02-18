@@ -1177,6 +1177,16 @@ config ARM_ERRATA_743622
 	  visible impact on the overall performance or power consumption of the
 	  processor.
 
+config ARM_ERRATA_751472
+	bool "ARM errata: Interrupted ICIALLUIS may prevent completion of broadcasted operation"
+	depends on CPU_V7 && SMP
+	help
+	  This option enables the workaround for the 751472 Cortex-A9 (prior
+	  to r3p0) erratum. An interrupted ICIALLUIS operation may prevent the
+	  completion of a following broadcasted operation if the second
+	  operation is received by a CPU before the ICIALLUIS has completed,
+	  potentially leading to corrupted entries in the cache or TLB.
+
 config ARM_ERRATA_753970
 	bool "ARM errata: cache sync operation may be faulty"
 	depends on CACHE_PL310
