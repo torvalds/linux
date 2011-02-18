@@ -567,7 +567,6 @@ static void vmbus_onoffers_delivered(
 static void vmbus_onopen_result(struct vmbus_channel_message_header *hdr)
 {
 	struct vmbus_channel_open_result *result;
-	struct list_head *curr;
 	struct vmbus_channel_msginfo *msginfo;
 	struct vmbus_channel_message_header *requestheader;
 	struct vmbus_channel_open_channel *openmsg;
@@ -581,9 +580,8 @@ static void vmbus_onopen_result(struct vmbus_channel_message_header *hdr)
 	 */
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 
-	list_for_each(curr, &vmbus_connection.chn_msg_list) {
-/* FIXME: this should probably use list_entry() instead */
-		msginfo = (struct vmbus_channel_msginfo *)curr;
+	list_for_each_entry(msginfo, &vmbus_connection.chn_msg_list,
+				msglistentry) {
 		requestheader =
 			(struct vmbus_channel_message_header *)msginfo->msg;
 
@@ -614,7 +612,6 @@ static void vmbus_onopen_result(struct vmbus_channel_message_header *hdr)
 static void vmbus_ongpadl_created(struct vmbus_channel_message_header *hdr)
 {
 	struct vmbus_channel_gpadl_created *gpadlcreated;
-	struct list_head *curr;
 	struct vmbus_channel_msginfo *msginfo;
 	struct vmbus_channel_message_header *requestheader;
 	struct vmbus_channel_gpadl_header *gpadlheader;
@@ -630,9 +627,8 @@ static void vmbus_ongpadl_created(struct vmbus_channel_message_header *hdr)
 	 */
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 
-	list_for_each(curr, &vmbus_connection.chn_msg_list) {
-/* FIXME: this should probably use list_entry() instead */
-		msginfo = (struct vmbus_channel_msginfo *)curr;
+	list_for_each_entry(msginfo, &vmbus_connection.chn_msg_list,
+				msglistentry) {
 		requestheader =
 			(struct vmbus_channel_message_header *)msginfo->msg;
 
@@ -666,7 +662,6 @@ static void vmbus_ongpadl_torndown(
 			struct vmbus_channel_message_header *hdr)
 {
 	struct vmbus_channel_gpadl_torndown *gpadl_torndown;
-	struct list_head *curr;
 	struct vmbus_channel_msginfo *msginfo;
 	struct vmbus_channel_message_header *requestheader;
 	struct vmbus_channel_gpadl_teardown *gpadl_teardown;
@@ -679,9 +674,8 @@ static void vmbus_ongpadl_torndown(
 	 */
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 
-	list_for_each(curr, &vmbus_connection.chn_msg_list) {
-/* FIXME: this should probably use list_entry() instead */
-		msginfo = (struct vmbus_channel_msginfo *)curr;
+	list_for_each_entry(msginfo, &vmbus_connection.chn_msg_list,
+				msglistentry) {
 		requestheader =
 			(struct vmbus_channel_message_header *)msginfo->msg;
 
@@ -712,7 +706,6 @@ static void vmbus_ongpadl_torndown(
 static void vmbus_onversion_response(
 		struct vmbus_channel_message_header *hdr)
 {
-	struct list_head *curr;
 	struct vmbus_channel_msginfo *msginfo;
 	struct vmbus_channel_message_header *requestheader;
 	struct vmbus_channel_initiate_contact *initiate;
@@ -722,9 +715,8 @@ static void vmbus_onversion_response(
 	version_response = (struct vmbus_channel_version_response *)hdr;
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 
-	list_for_each(curr, &vmbus_connection.chn_msg_list) {
-/* FIXME: this should probably use list_entry() instead */
-		msginfo = (struct vmbus_channel_msginfo *)curr;
+	list_for_each_entry(msginfo, &vmbus_connection.chn_msg_list,
+				msglistentry) {
 		requestheader =
 			(struct vmbus_channel_message_header *)msginfo->msg;
 
