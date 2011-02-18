@@ -714,16 +714,36 @@ static void resizer_print_status(struct isp_res_device *res)
  * iw and ih are the input width and height after cropping. Those equations need
  * to be satisfied exactly for the resizer to work correctly.
  *
- * Reverting the equations, we can compute the resizing ratios with
+ * The equations can't be easily reverted, as the >> 8 operation is not linear.
+ * In addition, not all input sizes can be achieved for a given output size. To
+ * get the highest input size lower than or equal to the requested input size,
+ * we need to compute the highest resizing ratio that satisfies the following
+ * inequality (taking the 4-tap mode width equation as an example)
+ *
+ *	iw >= (32 * sph + (ow - 1) * hrsz + 16) >> 8 - 7
+ *
+ * (where iw is the requested input width) which can be rewritten as
+ *
+ *	  iw - 7            >= (32 * sph + (ow - 1) * hrsz + 16) >> 8
+ *	 (iw - 7) << 8      >=  32 * sph + (ow - 1) * hrsz + 16 - b
+ *	((iw - 7) << 8) + b >=  32 * sph + (ow - 1) * hrsz + 16
+ *
+ * where b is the value of the 8 least significant bits of the right hand side
+ * expression of the last inequality. The highest resizing ratio value will be
+ * achieved when b is equal to its maximum value of 255. That resizing ratio
+ * value will still satisfy the original inequality, as b will disappear when
+ * the expression will be shifted right by 8.
+ *
+ * The reverted the equations thus become
  *
  * - 8-phase, 4-tap mode
- *	hrsz = ((iw - 7) * 256 - 16 - 32 * sph) / (ow - 1)
- *	vrsz = ((ih - 4) * 256 - 16 - 32 * spv) / (oh - 1)
+ *	hrsz = ((iw - 7) * 256 + 255 - 16 - 32 * sph) / (ow - 1)
+ *	vrsz = ((ih - 4) * 256 + 255 - 16 - 32 * spv) / (oh - 1)
  * - 4-phase, 7-tap mode
- *	hrsz = ((iw - 7) * 256 - 32 - 64 * sph) / (ow - 1)
- *	vrsz = ((ih - 7) * 256 - 32 - 64 * spv) / (oh - 1)
+ *	hrsz = ((iw - 7) * 256 + 255 - 32 - 64 * sph) / (ow - 1)
+ *	vrsz = ((ih - 7) * 256 + 255 - 32 - 64 * spv) / (oh - 1)
  *
- * The ratios are integer values, and must be rounded down to ensure that the
+ * The ratios are integer values, and are rounded down to ensure that the
  * cropped input size is not bigger than the uncropped input size.
  *
  * As the number of phases/taps, used to select the correct equations to compute
@@ -799,10 +819,10 @@ static void resizer_calc_ratios(struct isp_res_device *res,
 	max_height = min_t(unsigned int, max_height, MAX_OUT_HEIGHT);
 	output->height = clamp(output->height, min_height, max_height);
 
-	ratio->vert = ((input->height - 4) * 256 - 16 - 32 * spv)
+	ratio->vert = ((input->height - 4) * 256 + 255 - 16 - 32 * spv)
 		    / (output->height - 1);
 	if (ratio->vert > MID_RESIZE_VALUE)
-		ratio->vert = ((input->height - 7) * 256 - 32 - 64 * spv)
+		ratio->vert = ((input->height - 7) * 256 + 255 - 32 - 64 * spv)
 			    / (output->height - 1);
 	ratio->vert = clamp_t(unsigned int, ratio->vert,
 			      MIN_RESIZE_VALUE, MAX_RESIZE_VALUE);
@@ -870,10 +890,10 @@ static void resizer_calc_ratios(struct isp_res_device *res,
 			      max_width & ~(width_alignment - 1));
 	output->width = ALIGN(output->width, width_alignment);
 
-	ratio->horz = ((input->width - 7) * 256 - 16 - 32 * sph)
+	ratio->horz = ((input->width - 7) * 256 + 255 - 16 - 32 * sph)
 		    / (output->width - 1);
 	if (ratio->horz > MID_RESIZE_VALUE)
-		ratio->horz = ((input->width - 7) * 256 - 32 - 64 * sph)
+		ratio->horz = ((input->width - 7) * 256 + 255 - 32 - 64 * sph)
 			    / (output->width - 1);
 	ratio->horz = clamp_t(unsigned int, ratio->horz,
 			      MIN_RESIZE_VALUE, MAX_RESIZE_VALUE);
