@@ -650,13 +650,13 @@ int do_adjtimex(struct timex *txc)
 
 	if (txc->modes & ADJ_SETOFFSET) {
 		struct timespec delta;
-		if ((unsigned long)txc->time.tv_usec >= NSEC_PER_SEC)
-			return -EINVAL;
 		delta.tv_sec  = txc->time.tv_sec;
 		delta.tv_nsec = txc->time.tv_usec;
 		if (!(txc->modes & ADJ_NANO))
 			delta.tv_nsec *= 1000;
-		timekeeping_inject_offset(&delta);
+		result = timekeeping_inject_offset(&delta);
+		if (result)
+			return result;
 	}
 
 	getnstimeofday(&ts);
