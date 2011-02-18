@@ -185,23 +185,15 @@ static void xen_teardown_msi_irq(unsigned int irq)
 #ifdef CONFIG_XEN_DOM0
 static int xen_initdom_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
-	int irq, ret;
+	int irq;
 	struct msi_desc *msidesc;
 
 	list_for_each_entry(msidesc, &dev->msi_list, list) {
 		irq = xen_create_msi_irq(dev, msidesc, type);
 		if (irq < 0)
 			return -1;
-
-		ret = set_irq_msi(irq, msidesc);
-		if (ret)
-			goto error;
 	}
 	return 0;
-
-error:
-	xen_destroy_irq(irq);
-	return ret;
 }
 #endif
 #endif

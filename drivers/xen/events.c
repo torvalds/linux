@@ -691,7 +691,7 @@ error_irq:
 
 int xen_create_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int type)
 {
-	int irq = -1;
+	int ret, irq = -1;
 	struct physdev_map_pirq map_irq;
 	int rc;
 	int pos;
@@ -736,9 +736,17 @@ int xen_create_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int type)
 			handle_level_irq,
 			(type == PCI_CAP_ID_MSIX) ? "msi-x":"msi");
 
+	ret = set_irq_msi(irq, msidesc);
+	if (ret)
+		goto out_irq;
+
 out:
 	spin_unlock(&irq_mapping_update_lock);
 	return irq;
+out_irq:
+	spin_unlock(&irq_mapping_update_lock);
+	xen_free_irq(irq);
+	return -1;
 }
 #endif
 
