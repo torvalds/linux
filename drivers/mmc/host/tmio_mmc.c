@@ -303,8 +303,7 @@ static void tmio_mmc_set_clock(struct tmio_mmc_host *host, int new_clock)
 
 static void tmio_mmc_clk_stop(struct tmio_mmc_host *host)
 {
-	struct mfd_cell *cell = mfd_get_cell(host->pdev);
-	struct tmio_mmc_data *pdata = cell->driver_data;
+	struct tmio_mmc_data *pdata = mfd_get_data(host->pdev);
 
 	/*
 	 * Testing on sh-mobile showed that SDIO IRQs are unmasked when
@@ -327,8 +326,7 @@ static void tmio_mmc_clk_stop(struct tmio_mmc_host *host)
 
 static void tmio_mmc_clk_start(struct tmio_mmc_host *host)
 {
-	struct mfd_cell *cell = mfd_get_cell(host->pdev);
-	struct tmio_mmc_data *pdata = cell->driver_data;
+	struct tmio_mmc_data *pdata = mfd_get_data(host->pdev);
 
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, 0x0100 |
 		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
@@ -669,8 +667,7 @@ out:
 static irqreturn_t tmio_mmc_irq(int irq, void *devid)
 {
 	struct tmio_mmc_host *host = devid;
-	struct mfd_cell	*cell = mfd_get_cell(host->pdev);
-	struct tmio_mmc_data *pdata = cell->driver_data;
+	struct tmio_mmc_data *pdata = mfd_get_data(host->pdev);
 	unsigned int ireg, irq_mask, status;
 	unsigned int sdio_ireg, sdio_irq_mask, sdio_status;
 
@@ -799,8 +796,7 @@ static void tmio_mmc_start_dma_rx(struct tmio_mmc_host *host)
 	struct scatterlist *sg = host->sg_ptr, *sg_tmp;
 	struct dma_async_tx_descriptor *desc = NULL;
 	struct dma_chan *chan = host->chan_rx;
-	struct mfd_cell	*cell = mfd_get_cell(host->pdev);
-	struct tmio_mmc_data *pdata = cell->driver_data;
+	struct tmio_mmc_data *pdata = mfd_get_data(host->pdev);
 	dma_cookie_t cookie;
 	int ret, i;
 	bool aligned = true, multiple = true;
@@ -869,8 +865,7 @@ static void tmio_mmc_start_dma_tx(struct tmio_mmc_host *host)
 	struct scatterlist *sg = host->sg_ptr, *sg_tmp;
 	struct dma_async_tx_descriptor *desc = NULL;
 	struct dma_chan *chan = host->chan_tx;
-	struct mfd_cell	*cell = mfd_get_cell(host->pdev);
-	struct tmio_mmc_data *pdata = cell->driver_data;
+	struct tmio_mmc_data *pdata = mfd_get_data(host->pdev);
 	dma_cookie_t cookie;
 	int ret, i;
 	bool aligned = true, multiple = true;
@@ -1063,8 +1058,7 @@ static void tmio_mmc_release_dma(struct tmio_mmc_host *host)
 static int tmio_mmc_start_data(struct tmio_mmc_host *host,
 	struct mmc_data *data)
 {
-	struct mfd_cell *cell = mfd_get_cell(host->pdev);
-	struct tmio_mmc_data *pdata = cell->driver_data;
+	struct tmio_mmc_data *pdata = mfd_get_data(host->pdev);
 
 	pr_debug("setup data transfer: blocksize %08x  nr_blocks %d\n",
 		 data->blksz, data->blocks);
@@ -1169,8 +1163,7 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 static int tmio_mmc_get_ro(struct mmc_host *mmc)
 {
 	struct tmio_mmc_host *host = mmc_priv(mmc);
-	struct mfd_cell	*cell = mfd_get_cell(host->pdev);
-	struct tmio_mmc_data *pdata = cell->driver_data;
+	struct tmio_mmc_data *pdata = mfd_get_data(host->pdev);
 
 	return ((pdata->flags & TMIO_MMC_WRPROTECT_DISABLE) ||
 		(sd_ctrl_read32(host, CTL_STATUS) & TMIO_STAT_WRPROTECT)) ? 0 : 1;
@@ -1179,8 +1172,7 @@ static int tmio_mmc_get_ro(struct mmc_host *mmc)
 static int tmio_mmc_get_cd(struct mmc_host *mmc)
 {
 	struct tmio_mmc_host *host = mmc_priv(mmc);
-	struct mfd_cell	*cell = mfd_get_cell(host->pdev);
-	struct tmio_mmc_data *pdata = cell->driver_data;
+	struct tmio_mmc_data *pdata = mfd_get_data(host->pdev);
 
 	if (!pdata->get_cd)
 		return -ENOSYS;
@@ -1252,7 +1244,7 @@ static int __devinit tmio_mmc_probe(struct platform_device *dev)
 	if (!res_ctl)
 		goto out;
 
-	pdata = cell->driver_data;
+	pdata = mfd_get_data(dev);
 	if (!pdata || !pdata->hclk)
 		goto out;
 
