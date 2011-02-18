@@ -157,8 +157,6 @@ startup_64_vector:
 	.word	__KERNEL_CS, 0
 
 	.balign 4
-fixup_base:
-	.long	0
 ENTRY(trampoline_status)
 	.long	0
 
