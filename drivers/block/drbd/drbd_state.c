@@ -41,12 +41,28 @@ extern void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what);
 static int w_after_state_ch(struct drbd_work *w, int unused);
 static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			   union drbd_state ns, enum chg_state_flags flags);
-static void after_all_state_ch(struct drbd_tconn *tconn, union drbd_state ns);
+static void after_all_state_ch(struct drbd_tconn *tconn);
 static enum drbd_state_rv is_valid_state(struct drbd_conf *, union drbd_state);
 static enum drbd_state_rv is_valid_soft_transition(union drbd_state, union drbd_state);
 static enum drbd_state_rv is_valid_transition(union drbd_state os, union drbd_state ns);
 static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state ns,
 				       const char **warn_sync_abort);
+
+int conn_all_vols_unconf(struct drbd_tconn *tconn)
+{
+	struct drbd_conf *mdev;
+	int minor, uncfg = 1;
+
+	idr_for_each_entry(&tconn->volumes, mdev, minor) {
+		uncfg &= (mdev->state.disk == D_DISKLESS &&
+			  mdev->state.conn == C_STANDALONE &&
+			  mdev->state.role == R_SECONDARY);
+		if (!uncfg)
+			break;
+	}
+
+	return uncfg;
+}
 
 /**
  * cl_wide_st_chg() - true if the state change is a cluster wide one
@@ -744,20 +760,6 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 
 	print_state_change(mdev, os, ns, flags);
 
-	/* solve the race between becoming unconfigured,
-	 * worker doing the cleanup, and
-	 * admin reconfiguring us:
-	 * on (re)configure, first set CONFIG_PENDING,
-	 * then wait for a potentially exiting worker,
-	 * start the worker, and schedule one no_op.
-	 * then proceed with configuration.
-	 */
-	if (ns.disk == D_DISKLESS &&
-	    ns.conn == C_STANDALONE &&
-	    ns.role == R_SECONDARY &&
-	    !test_and_set_bit(CONFIG_PENDING, &mdev->flags))
-		set_bit(DEVICE_DYING, &mdev->flags);
-
 	/* if we are going -> D_FAILED or D_DISKLESS, grab one extra reference
 	 * on the ldev here, to be sure the transition -> D_DISKLESS resp.
 	 * drbd_ldev_destroy() won't happen before our corresponding
@@ -767,6 +769,18 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 		atomic_inc(&mdev->local_cnt);
 
 	mdev->state = ns;
+
+	/* solve the race between becoming unconfigured,
+	 * worker doing the cleanup, and
+	 * admin reconfiguring us:
+	 * on (re)configure, first set CONFIG_PENDING,
+	 * then wait for a potentially exiting worker,
+	 * start the worker, and schedule one no_op.
+	 * then proceed with configuration.
+	 */
+	if(conn_all_vols_unconf(mdev->tconn) &&
+	   !test_and_set_bit(CONFIG_PENDING, &mdev->tconn->flags))
+		set_bit(OBJECT_DYING, &mdev->tconn->flags);
 
 	if (os.disk == D_ATTACHING && ns.disk >= D_NEGOTIATING)
 		drbd_print_uuids(mdev, "attached to UUIDs");
@@ -1236,7 +1250,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			resume_next_sg(mdev);
 	}
 
-	after_all_state_ch(mdev->tconn, ns);
+	after_all_state_ch(mdev->tconn);
 
 	drbd_md_sync(mdev);
 }
@@ -1248,10 +1262,10 @@ struct after_conn_state_chg_work {
 	enum chg_state_flags flags;
 };
 
-static void after_all_state_ch(struct drbd_tconn *tconn, union drbd_state ns)
+static void after_all_state_ch(struct drbd_tconn *tconn)
 {
-	if (ns.disk == D_DISKLESS && ns.conn == C_STANDALONE && ns.role == R_SECONDARY) {
-		/* if (test_bit(DEVICE_DYING, &mdev->flags)) TODO: DEVICE_DYING functionality */
+	if (conn_all_vols_unconf(tconn) &&
+	    test_bit(OBJECT_DYING, &tconn->flags)) {
 		drbd_thread_stop_nowait(&tconn->worker);
 	}
 }
@@ -1271,7 +1285,7 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 		drbd_thread_start(&tconn->receiver);
 
 	//conn_err(tconn, STATE_FMT, STATE_ARGS("nms", nms));
-	after_all_state_ch(tconn, nms);
+	after_all_state_ch(tconn);
 
 	return 1;
 }

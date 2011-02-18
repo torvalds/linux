@@ -1643,29 +1643,13 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 	mutex_unlock(mdev->state_mutex);
 }
 
-static int _worker_dying(int vnr, void *p, void *data)
-{
-	struct drbd_conf *mdev = (struct drbd_conf *)p;
-
-	D_ASSERT(mdev->state.disk == D_DISKLESS && mdev->state.conn == C_STANDALONE);
-	/* _drbd_set_state only uses stop_nowait.
-	 * wait here for the exiting receiver. */
-	drbd_thread_stop(&mdev->tconn->receiver);
-	drbd_mdev_cleanup(mdev);
-
-	clear_bit(DEVICE_DYING, &mdev->flags);
-	clear_bit(CONFIG_PENDING, &mdev->flags);
-	wake_up(&mdev->state_wait);
-
-	return 0;
-}
-
 int drbd_worker(struct drbd_thread *thi)
 {
 	struct drbd_tconn *tconn = thi->tconn;
 	struct drbd_work *w = NULL;
+	struct drbd_conf *mdev;
 	LIST_HEAD(work_list);
-	int intr = 0;
+	int minor, intr = 0;
 
 	while (get_t_state(thi) == RUNNING) {
 		drbd_thread_current_set_cpu(thi);
@@ -1749,7 +1733,16 @@ int drbd_worker(struct drbd_thread *thi)
 	 */
 	spin_unlock_irq(&tconn->data.work.q_lock);
 
-	idr_for_each(&tconn->volumes, _worker_dying, NULL);
+	drbd_thread_stop(&tconn->receiver);
+	idr_for_each_entry(&tconn->volumes, mdev, minor) {
+		D_ASSERT(mdev->state.disk == D_DISKLESS && mdev->state.conn == C_STANDALONE);
+		/* _drbd_set_state only uses stop_nowait.
+		 * wait here for the exiting receiver. */
+		drbd_mdev_cleanup(mdev);
+	}
+	clear_bit(OBJECT_DYING, &tconn->flags);
+	clear_bit(CONFIG_PENDING, &tconn->flags);
+	wake_up(&tconn->ping_wait);
 
 	return 0;
 }

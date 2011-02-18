@@ -3932,14 +3932,14 @@ static void drbdd(struct drbd_tconn *tconn)
 	}
 }
 
-void drbd_flush_workqueue(struct drbd_conf *mdev)
+void conn_flush_workqueue(struct drbd_tconn *tconn)
 {
 	struct drbd_wq_barrier barr;
 
 	barr.w.cb = w_prev_work_done;
-	barr.w.mdev = mdev;
+	barr.w.tconn = tconn;
 	init_completion(&barr.done);
-	drbd_queue_work(&mdev->tconn->data.work, &barr.w);
+	drbd_queue_work(&tconn->data.work, &barr.w);
 	wait_for_completion(&barr.done);
 }
 

@@ -871,29 +871,27 @@ void drbd_reconsider_max_bio_size(struct drbd_conf *mdev)
  * or start a new one.  Flush any pending work, there may still be an
  * after_state_change queued.
  */
-static void drbd_reconfig_start(struct drbd_conf *mdev)
+static void conn_reconfig_start(struct drbd_tconn *tconn)
 {
-	wait_event(mdev->state_wait, !test_and_set_bit(CONFIG_PENDING, &mdev->flags));
-	wait_event(mdev->state_wait, !test_bit(DEVICE_DYING, &mdev->flags));
-	drbd_thread_start(&mdev->tconn->worker);
-	drbd_flush_workqueue(mdev);
+	wait_event(tconn->ping_wait, !test_and_set_bit(CONFIG_PENDING, &tconn->flags));
+	wait_event(tconn->ping_wait, !test_bit(OBJECT_DYING, &tconn->flags));
+	drbd_thread_start(&tconn->worker);
+	conn_flush_workqueue(tconn);
 }
 
 /* if still unconfigured, stops worker again.
  * if configured now, clears CONFIG_PENDING.
  * wakes potential waiters */
-static void drbd_reconfig_done(struct drbd_conf *mdev)
+static void conn_reconfig_done(struct drbd_tconn *tconn)
 {
-	spin_lock_irq(&mdev->tconn->req_lock);
-	if (mdev->state.disk == D_DISKLESS &&
-	    mdev->state.conn == C_STANDALONE &&
-	    mdev->state.role == R_SECONDARY) {
-		set_bit(DEVICE_DYING, &mdev->flags);
-		drbd_thread_stop_nowait(&mdev->tconn->worker);
+	spin_lock_irq(&tconn->req_lock);
+	if (conn_all_vols_unconf(tconn)) {
+		set_bit(OBJECT_DYING, &tconn->flags);
+		drbd_thread_stop_nowait(&tconn->worker);
 	} else
-		clear_bit(CONFIG_PENDING, &mdev->flags);
-	spin_unlock_irq(&mdev->tconn->req_lock);
-	wake_up(&mdev->state_wait);
+		clear_bit(CONFIG_PENDING, &tconn->flags);
+	spin_unlock_irq(&tconn->req_lock);
+	wake_up(&tconn->ping_wait);
 }
 
 /* Make sure IO is suspended before calling this function(). */
@@ -933,7 +931,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	enum drbd_state_rv rv;
 	int cp_discovered = 0;
 
-	drbd_reconfig_start(mdev);
+	conn_reconfig_start(mdev->tconn);
 
 	/* if you want to reconfigure, please tear down first */
 	if (mdev->state.disk > D_DISKLESS) {
@@ -1279,7 +1277,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	kobject_uevent(&disk_to_dev(mdev->vdisk)->kobj, KOBJ_CHANGE);
 	put_ldev(mdev);
 	reply->ret_code = retcode;
-	drbd_reconfig_done(mdev);
+	conn_reconfig_done(mdev->tconn);
 	return 0;
 
  force_diskless_dec:
@@ -1300,7 +1298,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	lc_destroy(resync_lru);
 
 	reply->ret_code = retcode;
-	drbd_reconfig_done(mdev);
+	conn_reconfig_done(mdev->tconn);
 	return 0;
 }
 
@@ -1344,7 +1342,7 @@ static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 	void *int_dig_vv = NULL;
 	struct sockaddr *new_my_addr, *new_peer_addr, *taken_addr;
 
-	drbd_reconfig_start(mdev);
+	conn_reconfig_start(mdev->tconn);
 
 	if (mdev->state.conn > C_STANDALONE) {
 		retcode = ERR_NET_CONFIGURED;
@@ -1530,7 +1528,7 @@ static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 
 	kobject_uevent(&disk_to_dev(mdev->vdisk)->kobj, KOBJ_CHANGE);
 	reply->ret_code = retcode;
-	drbd_reconfig_done(mdev);
+	conn_reconfig_done(mdev->tconn);
 	return 0;
 
 fail:
@@ -1543,7 +1541,7 @@ fail:
 	kfree(new_conf);
 
 	reply->ret_code = retcode;
-	drbd_reconfig_done(mdev);
+	conn_reconfig_done(mdev->tconn);
 	return 0;
 }
 

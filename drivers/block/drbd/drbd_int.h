@@ -787,12 +787,6 @@ enum {
 	GO_DISKLESS,		/* Disk is being detached, on io-error or admin request. */
 	WAS_IO_ERROR,		/* Local disk failed returned IO error */
 	RESYNC_AFTER_NEG,       /* Resync after online grow after the attach&negotiate finished. */
-	CONFIG_PENDING,		/* serialization of (re)configuration requests.
-				 * if set, also prevents the device from dying */
-	DEVICE_DYING,		/* device became unconfigured,
-				 * but worker thread is still handling the cleanup.
-				 * reconfiguring (nl_disk_conf, nl_net_conf) is dissalowed,
-				 * while this is set. */
 	RESIZE_PENDING,		/* Size change detected locally, waiting for the response from
 				 * the peer, if it changed there as well. */
 	CONN_DRY_RUN,		/* Expect disconnect after resync handshake. */
@@ -921,6 +915,12 @@ enum {
 	GOT_PING_ACK,		/* set when we receive a ping_ack packet, ping_wait gets woken */
 	CONN_WD_ST_CHG_OKAY,
 	CONN_WD_ST_CHG_FAIL,
+	CONFIG_PENDING,		/* serialization of (re)configuration requests.
+				 * if set, also prevents the device from dying */
+	OBJECT_DYING,		/* device became unconfigured,
+				 * but worker thread is still handling the cleanup.
+				 * reconfiguring (nl_disk_conf, nl_net_conf) is dissalowed,
+				 * while this is set. */
 };
 
 struct drbd_tconn {			/* is a resource from the config file */
@@ -1574,7 +1574,11 @@ extern void _drbd_wait_ee_list_empty(struct drbd_conf *mdev,
 		struct list_head *head);
 extern void drbd_set_recv_tcq(struct drbd_conf *mdev, int tcq_enabled);
 extern void _drbd_clear_done_ee(struct drbd_conf *mdev, struct list_head *to_be_freed);
-extern void drbd_flush_workqueue(struct drbd_conf *mdev);
+extern void conn_flush_workqueue(struct drbd_tconn *tconn);
+static inline void drbd_flush_workqueue(struct drbd_conf *mdev)
+{
+	conn_flush_workqueue(mdev->tconn);
+}
 
 /* yes, there is kernel_setsockopt, but only since 2.6.18. we don't need to
  * mess with get_fs/set_fs, we know we are KERNEL_DS always. */
