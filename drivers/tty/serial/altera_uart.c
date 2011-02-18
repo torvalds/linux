@@ -24,6 +24,7 @@
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 #include <linux/io.h>
 #include <linux/altera_uart.h>
 
@@ -511,6 +512,29 @@ static struct uart_driver altera_uart_driver = {
 	.cons		= ALTERA_UART_CONSOLE,
 };
 
+#ifdef CONFIG_OF
+static int altera_uart_get_of_uartclk(struct platform_device *pdev,
+				      struct uart_port *port)
+{
+	int len;
+	const __be32 *clk;
+
+	clk = of_get_property(pdev->dev.of_node, "clock-frequency", &len);
+	if (!clk || len < sizeof(__be32))
+		return -ENODEV;
+
+	port->uartclk = be32_to_cpup(clk);
+
+	return 0;
+}
+#else
+static int altera_uart_get_of_uartclk(struct platform_device *pdev,
+				      struct uart_port *port)
+{
+	return -ENODEV;
+}
+#endif /* CONFIG_OF */
+
 static int __devinit altera_uart_probe(struct platform_device *pdev)
 {
 	struct altera_uart_platform_uart *platp = pdev->dev.platform_data;
@@ -518,6 +542,7 @@ static int __devinit altera_uart_probe(struct platform_device *pdev)
 	struct resource *res_mem;
 	struct resource *res_irq;
 	int i = pdev->id;
+	int ret;
 
 	/* -1 emphasizes that the platform must have one port, no .N suffix */
 	if (i == -1)
@@ -542,6 +567,15 @@ static int __devinit altera_uart_probe(struct platform_device *pdev)
 	else if (platp->irq)
 		port->irq = platp->irq;
 
+	/* Check platform data first so we can override device node data */
+	if (platp)
+		port->uartclk = platp->uartclk;
+	else {
+		ret = altera_uart_get_of_uartclk(pdev, port);
+		if (ret)
+			return ret;
+	}
+
 	port->membase = ioremap(port->mapbase, ALTERA_UART_SIZE);
 	if (!port->membase)
 		return -ENOMEM;
@@ -549,7 +583,6 @@ static int __devinit altera_uart_probe(struct platform_device *pdev)
 	port->line = i;
 	port->type = PORT_ALTERA_UART;
 	port->iotype = SERIAL_IO_MEM;
-	port->uartclk = platp->uartclk;
 	port->ops = &altera_uart_ops;
 	port->flags = UPF_BOOT_AUTOCONF;
 	port->private_data = platp;
@@ -567,13 +600,23 @@ static int __devexit altera_uart_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static struct of_device_id altera_uart_match[] = {
+	{ .compatible = "ALTR,uart-1.0", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, altera_uart_match);
+#else
+#define altera_uart_match NULL
+#endif /* CONFIG_OF */
+
 static struct platform_driver altera_uart_platform_driver = {
 	.probe	= altera_uart_probe,
 	.remove	= __devexit_p(altera_uart_remove),
 	.driver	= {
-		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
-		.pm	= NULL,
+		.name		= DRV_NAME,
+		.owner		= THIS_MODULE,
+		.of_match_table	= altera_uart_match,
 	},
 };
 
