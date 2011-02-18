@@ -150,7 +150,7 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 				struct batman_if *if_incoming)
 {
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
-	struct neigh_node *neigh_node = NULL, *tmp_neigh_node = NULL;
+	struct neigh_node *neigh_node = NULL, *tmp_neigh_node;
 	struct hlist_node *node;
 	unsigned char total_count;
 	uint8_t orig_eq_count, neigh_rq_count, tq_own;
@@ -161,27 +161,27 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 		hlist_for_each_entry_rcu(tmp_neigh_node, node,
 					 &orig_node->neigh_list, list) {
 
-			if (compare_eth(tmp_neigh_node->addr,
-					orig_neigh_node->orig) &&
-			    (tmp_neigh_node->if_incoming == if_incoming))
-				neigh_node = tmp_neigh_node;
+			if (!compare_eth(tmp_neigh_node->addr,
+					 orig_neigh_node->orig))
+				continue;
+
+			if (tmp_neigh_node->if_incoming != if_incoming)
+				continue;
+
+			if (!atomic_inc_not_zero(&tmp_neigh_node->refcount))
+				continue;
+
+			neigh_node = tmp_neigh_node;
 		}
+		rcu_read_unlock();
 
 		if (!neigh_node)
 			neigh_node = create_neighbor(orig_node,
 						     orig_neigh_node,
 						     orig_neigh_node->orig,
 						     if_incoming);
-		/* create_neighbor failed, return 0 */
 		if (!neigh_node)
-			goto unlock;
-
-		if (!atomic_inc_not_zero(&neigh_node->refcount)) {
-			neigh_node = NULL;
-			goto unlock;
-		}
-
-		rcu_read_unlock();
+			goto out;
 
 		neigh_node->last_valid = jiffies;
 	} else {
@@ -190,27 +190,27 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 		hlist_for_each_entry_rcu(tmp_neigh_node, node,
 					 &orig_neigh_node->neigh_list, list) {
 
-			if (compare_eth(tmp_neigh_node->addr,
-					orig_neigh_node->orig) &&
-			    (tmp_neigh_node->if_incoming == if_incoming))
-				neigh_node = tmp_neigh_node;
+			if (!compare_eth(tmp_neigh_node->addr,
+					 orig_neigh_node->orig))
+				continue;
+
+			if (tmp_neigh_node->if_incoming != if_incoming)
+				continue;
+
+			if (!atomic_inc_not_zero(&tmp_neigh_node->refcount))
+				continue;
+
+			neigh_node = tmp_neigh_node;
 		}
+		rcu_read_unlock();
 
 		if (!neigh_node)
 			neigh_node = create_neighbor(orig_neigh_node,
 						     orig_neigh_node,
 						     orig_neigh_node->orig,
 						     if_incoming);
-		/* create_neighbor failed, return 0 */
 		if (!neigh_node)
-			goto unlock;
-
-		if (!atomic_inc_not_zero(&neigh_node->refcount)) {
-			neigh_node = NULL;
-			goto unlock;
-		}
-
-		rcu_read_unlock();
+			goto out;
 	}
 
 	orig_node->last_valid = jiffies;
@@ -265,10 +265,6 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 	if (batman_packet->tq >= TQ_TOTAL_BIDRECT_LIMIT)
 		ret = 1;
 
-	goto out;
-
-unlock:
-	rcu_read_unlock();
 out:
 	if (neigh_node)
 		neigh_node_free_ref(neigh_node);
@@ -423,11 +419,6 @@ static void update_orig(struct bat_priv *bat_priv,
 		orig_node_free_ref(orig_tmp);
 		if (!neigh_node)
 			goto unlock;
-
-		if (!atomic_inc_not_zero(&neigh_node->refcount)) {
-			neigh_node = NULL;
-			goto unlock;
-		}
 	} else
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"Updating existing last-hop neighbor of originator\n");
