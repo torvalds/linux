@@ -2014,7 +2014,8 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		spin_lock_bh(&txq->axq_lock);
 		if (list_empty(&txq->axq_q)) {
 			txq->axq_link = NULL;
-			if (sc->sc_flags & SC_OP_TXAGGR)
+			if (sc->sc_flags & SC_OP_TXAGGR &&
+			    !txq->txq_flush_inprogress)
 				ath_txq_schedule(sc, txq);
 			spin_unlock_bh(&txq->axq_lock);
 			break;
@@ -2071,6 +2072,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 
 		if (bf_is_ampdu_not_probing(bf))
 			txq->axq_ampdu_depth--;
+
 		spin_unlock_bh(&txq->axq_lock);
 
 		if (bf_held)
@@ -2094,7 +2096,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 
 		spin_lock_bh(&txq->axq_lock);
 
-		if (sc->sc_flags & SC_OP_TXAGGR)
+		if (sc->sc_flags & SC_OP_TXAGGR && !txq->txq_flush_inprogress)
 			ath_txq_schedule(sc, txq);
 		spin_unlock_bh(&txq->axq_lock);
 	}
@@ -2265,15 +2267,18 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 
 		spin_lock_bh(&txq->axq_lock);
 
-		if (!list_empty(&txq->txq_fifo_pending)) {
-			INIT_LIST_HEAD(&bf_head);
-			bf = list_first_entry(&txq->txq_fifo_pending,
-				struct ath_buf, list);
-			list_cut_position(&bf_head, &txq->txq_fifo_pending,
-				&bf->bf_lastbf->list);
-			ath_tx_txqaddbuf(sc, txq, &bf_head);
-		} else if (sc->sc_flags & SC_OP_TXAGGR)
-			ath_txq_schedule(sc, txq);
+		if (!txq->txq_flush_inprogress) {
+			if (!list_empty(&txq->txq_fifo_pending)) {
+				INIT_LIST_HEAD(&bf_head);
+				bf = list_first_entry(&txq->txq_fifo_pending,
+						      struct ath_buf, list);
+				list_cut_position(&bf_head,
+						  &txq->txq_fifo_pending,
+						  &bf->bf_lastbf->list);
+				ath_tx_txqaddbuf(sc, txq, &bf_head);
+			} else if (sc->sc_flags & SC_OP_TXAGGR)
+				ath_txq_schedule(sc, txq);
+		}
 		spin_unlock_bh(&txq->axq_lock);
 	}
 }

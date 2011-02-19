@@ -15,6 +15,7 @@
  */
 
 #include <linux/nl80211.h>
+#include <linux/delay.h>
 #include "ath9k.h"
 #include "btcoex.h"
 
@@ -51,6 +52,21 @@ static u8 parse_mpdudensity(u8 mpdudensity)
 	default:
 		return 0;
 	}
+}
+
+static bool ath9k_has_pending_frames(struct ath_softc *sc, struct ath_txq *txq)
+{
+	bool pending = false;
+
+	spin_lock_bh(&txq->axq_lock);
+
+	if (txq->axq_depth || !list_empty(&txq->axq_acq))
+		pending = true;
+	else if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
+		pending = !list_empty(&txq->txq_fifo_pending);
+
+	spin_unlock_bh(&txq->axq_lock);
+	return pending;
 }
 
 bool ath9k_setpower(struct ath_softc *sc, enum ath9k_power_mode mode)
@@ -2111,6 +2127,60 @@ static void ath9k_set_coverage_class(struct ieee80211_hw *hw, u8 coverage_class)
 	mutex_unlock(&sc->mutex);
 }
 
+static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
+{
+#define ATH_FLUSH_TIMEOUT	60 /* ms */
+	struct ath_softc *sc = hw->priv;
+	struct ath_txq *txq;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+	int i, j, npend = 0;
+
+	mutex_lock(&sc->mutex);
+
+	cancel_delayed_work_sync(&sc->tx_complete_work);
+
+	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
+		if (!ATH_TXQ_SETUP(sc, i))
+			continue;
+		txq = &sc->tx.txq[i];
+
+		if (!drop) {
+			for (j = 0; j < ATH_FLUSH_TIMEOUT; j++) {
+				if (!ath9k_has_pending_frames(sc, txq))
+					break;
+				usleep_range(1000, 2000);
+			}
+		}
+
+		if (drop || ath9k_has_pending_frames(sc, txq)) {
+			ath_dbg(common, ATH_DBG_QUEUE, "Drop frames from hw queue:%d\n",
+				txq->axq_qnum);
+			spin_lock_bh(&txq->axq_lock);
+			txq->txq_flush_inprogress = true;
+			spin_unlock_bh(&txq->axq_lock);
+
+			ath9k_ps_wakeup(sc);
+			ath9k_hw_stoptxdma(ah, txq->axq_qnum);
+			npend = ath9k_hw_numtxpending(ah, txq->axq_qnum);
+			ath9k_ps_restore(sc);
+			if (npend)
+				break;
+
+			ath_draintxq(sc, txq, false);
+			txq->txq_flush_inprogress = false;
+		}
+	}
+
+	if (npend) {
+		ath_reset(sc, false);
+		txq->txq_flush_inprogress = false;
+	}
+
+	ieee80211_queue_delayed_work(hw, &sc->tx_complete_work, 0);
+	mutex_unlock(&sc->mutex);
+}
+
 struct ieee80211_ops ath9k_ops = {
 	.tx 		    = ath9k_tx,
 	.start 		    = ath9k_start,
@@ -2132,4 +2202,5 @@ struct ieee80211_ops ath9k_ops = {
 	.get_survey	    = ath9k_get_survey,
 	.rfkill_poll        = ath9k_rfkill_poll_state,
 	.set_coverage_class = ath9k_set_coverage_class,
+	.flush		    = ath9k_flush,
 };
