@@ -418,6 +418,7 @@ static struct iwl_bt_params iwl2030_bt_params = {
 	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
 	.bt_prio_boost = IWLAGN_BT_PRIO_BOOST_DEFAULT,
 	.bt_sco_disable = true,
+	.bt_session_2 = true,
 };
 
 #define IWL_DEVICE_2000						\

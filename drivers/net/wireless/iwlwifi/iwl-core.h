@@ -339,6 +339,7 @@ struct iwl_bt_params {
 	u8 ampdu_factor;
 	u8 ampdu_density;
 	bool bt_sco_disable;
+	bool bt_session_2;
 };
 /*
  * @use_rts_for_aggregation: use rts/cts protection for HT traffic

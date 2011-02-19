@@ -2477,7 +2477,7 @@ struct iwl_bt_cmd {
 					IWLAGN_BT_VALID_BT4_TIMES | \
 					IWLAGN_BT_VALID_3W_LUT)
 
-struct iwl6000_bt_cmd {
+struct iwl_basic_bt_cmd {
 	u8 flags;
 	u8 ledtime; /* unused */
 	u8 max_kill;
@@ -2490,6 +2490,10 @@ struct iwl6000_bt_cmd {
 	__le32 bt3_lookup_table[12];
 	__le16 bt4_decision_time; /* unused */
 	__le16 valid;
+};
+
+struct iwl6000_bt_cmd {
+	struct iwl_basic_bt_cmd basic;
 	u8 prio_boost;
 	/*
 	 * set IWLAGN_BT_VALID_BOOST to "1" in "valid" bitmask
@@ -2500,18 +2504,7 @@ struct iwl6000_bt_cmd {
 };
 
 struct iwl2000_bt_cmd {
-	u8 flags;
-	u8 ledtime; /* unused */
-	u8 max_kill;
-	u8 bt3_timer_t7_value;
-	__le32 kill_ack_mask;
-	__le32 kill_cts_mask;
-	u8 bt3_prio_sample_time;
-	u8 bt3_timer_t2_value;
-	__le16 bt4_reaction_time; /* unused */
-	__le32 bt3_lookup_table[12];
-	__le16 bt4_decision_time; /* unused */
-	__le16 valid;
+	struct iwl_basic_bt_cmd basic;
 	__le32 prio_boost;
 	/*
 	 * set IWLAGN_BT_VALID_BOOST to "1" in "valid" bitmask
@@ -4172,6 +4165,9 @@ enum iwl_bt_coex_profile_traffic_load {
  * indication from the BT device only has two bits.
  */
 };
+
+#define BT_SESSION_ACTIVITY_1_UART_MSG		0x1
+#define BT_SESSION_ACTIVITY_2_UART_MSG		0x2
 
 /* BT UART message - Share Part (BT -> WiFi) */
 #define BT_UART_MSG_FRAME1MSGTYPE_POS		(0)

@@ -1804,26 +1804,39 @@ static const __le32 iwlagn_concurrent_lookup[12] = {
 
 void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 {
-	struct iwl6000_bt_cmd bt_cmd = {
+	struct iwl_basic_bt_cmd basic = {
 		.max_kill = IWLAGN_BT_MAX_KILL_DEFAULT,
 		.bt3_timer_t7_value = IWLAGN_BT3_T7_DEFAULT,
 		.bt3_prio_sample_time = IWLAGN_BT3_PRIO_SAMPLE_DEFAULT,
 		.bt3_timer_t2_value = IWLAGN_BT3_T2_DEFAULT,
 	};
+	struct iwl6000_bt_cmd bt_cmd_6000;
+	struct iwl2000_bt_cmd bt_cmd_2000;
+	int ret;
 
 	BUILD_BUG_ON(sizeof(iwlagn_def_3w_lookup) !=
-			sizeof(bt_cmd.bt3_lookup_table));
+			sizeof(basic.bt3_lookup_table));
 
-	if (priv->cfg->bt_params)
-		bt_cmd.prio_boost = priv->cfg->bt_params->bt_prio_boost;
-	else
-		bt_cmd.prio_boost = 0;
-	bt_cmd.kill_ack_mask = priv->kill_ack_mask;
-	bt_cmd.kill_cts_mask = priv->kill_cts_mask;
+	if (priv->cfg->bt_params) {
+		if (priv->cfg->bt_params->bt_session_2) {
+			bt_cmd_2000.prio_boost = cpu_to_le32(
+				priv->cfg->bt_params->bt_prio_boost);
+			bt_cmd_2000.tx_prio_boost = 0;
+			bt_cmd_2000.rx_prio_boost = 0;
+		} else {
+			bt_cmd_6000.prio_boost =
+				priv->cfg->bt_params->bt_prio_boost;
+			bt_cmd_6000.tx_prio_boost = 0;
+			bt_cmd_6000.rx_prio_boost = 0;
+		}
+	} else {
+		IWL_ERR(priv, "failed to construct BT Coex Config\n");
+		return;
+	}
 
-	bt_cmd.valid = priv->bt_valid;
-	bt_cmd.tx_prio_boost = 0;
-	bt_cmd.rx_prio_boost = 0;
+	basic.kill_ack_mask = priv->kill_ack_mask;
+	basic.kill_cts_mask = priv->kill_cts_mask;
+	basic.valid = priv->bt_valid;
 
 	/*
 	 * Configure BT coex mode to "no coexistence" when the
@@ -1832,32 +1845,43 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	 * IBSS mode (no proper uCode support for coex then).
 	 */
 	if (!bt_coex_active || priv->iw_mode == NL80211_IFTYPE_ADHOC) {
-		bt_cmd.flags = IWLAGN_BT_FLAG_COEX_MODE_DISABLED;
+		basic.flags = IWLAGN_BT_FLAG_COEX_MODE_DISABLED;
 	} else {
-		bt_cmd.flags = IWLAGN_BT_FLAG_COEX_MODE_3W <<
+		basic.flags = IWLAGN_BT_FLAG_COEX_MODE_3W <<
 					IWLAGN_BT_FLAG_COEX_MODE_SHIFT;
 		if (priv->cfg->bt_params &&
 		    priv->cfg->bt_params->bt_sco_disable)
-			bt_cmd.flags |= IWLAGN_BT_FLAG_SYNC_2_BT_DISABLE;
+			basic.flags |= IWLAGN_BT_FLAG_SYNC_2_BT_DISABLE;
 
 		if (priv->bt_ch_announce)
-			bt_cmd.flags |= IWLAGN_BT_FLAG_CHANNEL_INHIBITION;
-		IWL_DEBUG_INFO(priv, "BT coex flag: 0X%x\n", bt_cmd.flags);
+			basic.flags |= IWLAGN_BT_FLAG_CHANNEL_INHIBITION;
+		IWL_DEBUG_INFO(priv, "BT coex flag: 0X%x\n", basic.flags);
 	}
-	priv->bt_enable_flag = bt_cmd.flags;
+	priv->bt_enable_flag = basic.flags;
 	if (priv->bt_full_concurrent)
-		memcpy(bt_cmd.bt3_lookup_table, iwlagn_concurrent_lookup,
+		memcpy(basic.bt3_lookup_table, iwlagn_concurrent_lookup,
 			sizeof(iwlagn_concurrent_lookup));
 	else
-		memcpy(bt_cmd.bt3_lookup_table, iwlagn_def_3w_lookup,
+		memcpy(basic.bt3_lookup_table, iwlagn_def_3w_lookup,
 			sizeof(iwlagn_def_3w_lookup));
 
 	IWL_DEBUG_INFO(priv, "BT coex %s in %s mode\n",
-		       bt_cmd.flags ? "active" : "disabled",
+		       basic.flags ? "active" : "disabled",
 		       priv->bt_full_concurrent ?
 		       "full concurrency" : "3-wire");
 
-	if (iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG, sizeof(bt_cmd), &bt_cmd))
+	if (priv->cfg->bt_params->bt_session_2) {
+		memcpy(&bt_cmd_2000.basic, &basic,
+			sizeof(basic));
+		ret = iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG,
+			sizeof(bt_cmd_2000), &bt_cmd_2000);
+	} else {
+		memcpy(&bt_cmd_6000.basic, &basic,
+			sizeof(basic));
+		ret = iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG,
+			sizeof(bt_cmd_6000), &bt_cmd_6000);
+	}
+	if (ret)
 		IWL_ERR(priv, "failed to send BT Coex Config\n");
 
 }
