@@ -207,11 +207,11 @@ struct irq_desc * __ref irq_to_desc_alloc_node(unsigned int irq, int node)
 	return NULL;
 }
 
-static int irq_expand_nr_irqs(unsigned int cnt)
+static int irq_expand_nr_irqs(unsigned int nr)
 {
-	if (nr_irqs + cnt > IRQ_BITMAP_BITS)
+	if (nr > IRQ_BITMAP_BITS)
 		return -ENOMEM;
-	nr_irqs += cnt;
+	nr_irqs = nr;
 	return 0;
 }
 
@@ -298,7 +298,7 @@ static inline int alloc_descs(unsigned int start, unsigned int cnt, int node)
 	return start;
 }
 
-static int irq_expand_nr_irqs(unsigned int cnt)
+static int irq_expand_nr_irqs(unsigned int nr)
 {
 	return -ENOMEM;
 }
@@ -346,13 +346,14 @@ irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node)
 
 	mutex_lock(&sparse_irq_lock);
 
-	start = bitmap_find_next_zero_area(allocated_irqs, nr_irqs, from, cnt, 0);
+	start = bitmap_find_next_zero_area(allocated_irqs, IRQ_BITMAP_BITS,
+					   from, cnt, 0);
 	ret = -EEXIST;
 	if (irq >=0 && start != irq)
 		goto err;
 
-	if (start >= nr_irqs) {
-		ret = irq_expand_nr_irqs(cnt);
+	if (start + cnt > nr_irqs) {
+		ret = irq_expand_nr_irqs(start + cnt);
 		if (ret)
 			goto err;
 	}
