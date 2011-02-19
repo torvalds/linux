@@ -3801,8 +3801,6 @@ static int r100_startup(struct radeon_device *rdev)
 	r100_mc_program(rdev);
 	/* Resume clock */
 	r100_clock_startup(rdev);
-	/* Initialize GPU configuration (# pipes, ...) */
-//	r100_gpu_init(rdev);
 	/* Initialize GART (initialize after TTM so we can allocate
 	 * memory through TTM but finalize after TTM) */
 	r100_enable_bm(rdev);
