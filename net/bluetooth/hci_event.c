@@ -1424,8 +1424,10 @@ static inline void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 		if (!ev->status) {
 			conn->link_mode |= HCI_LM_AUTH;
 			conn->sec_level = conn->pending_sec_level;
-		} else
+		} else {
+			mgmt_auth_failed(hdev->id, &conn->dst, ev->status);
 			conn->sec_level = BT_SECURITY_LOW;
+		}
 
 		clear_bit(HCI_CONN_AUTH_PEND, &conn->pend);
 
@@ -2418,9 +2420,20 @@ static inline void hci_simple_pair_complete_evt(struct hci_dev *hdev, struct sk_
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
-	if (conn)
-		hci_conn_put(conn);
+	if (!conn)
+		goto unlock;
 
+	/* To avoid duplicate auth_failed events to user space we check
+	 * the HCI_CONN_AUTH_PEND flag which will be set if we
+	 * initiated the authentication. A traditional auth_complete
+	 * event gets always produced as initiator and is also mapped to
+	 * the mgmt_auth_failed event */
+	if (!test_bit(HCI_CONN_AUTH_PEND, &conn->pend) && ev->status != 0)
+		mgmt_auth_failed(hdev->id, &conn->dst, ev->status);
+
+	hci_conn_put(conn);
+
+unlock:
 	hci_dev_unlock(hdev);
 }
 

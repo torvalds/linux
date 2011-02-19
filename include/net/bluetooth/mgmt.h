@@ -264,3 +264,10 @@ struct mgmt_ev_user_confirm_request {
 	bdaddr_t bdaddr;
 	__le32 value;
 } __packed;
+
+#define MGMT_EV_AUTH_FAILED		0x0010
+struct mgmt_ev_auth_failed {
+	__le16 index;
+	bdaddr_t bdaddr;
+	__u8 status;
+} __packed;

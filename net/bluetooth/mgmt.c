@@ -1647,3 +1647,14 @@ int mgmt_user_confirm_neg_reply_complete(u16 index, bdaddr_t *bdaddr,
 	return confirm_reply_complete(index, bdaddr, status,
 					MGMT_OP_USER_CONFIRM_NEG_REPLY);
 }
+
+int mgmt_auth_failed(u16 index, bdaddr_t *bdaddr, u8 status)
+{
+	struct mgmt_ev_auth_failed ev;
+
+	put_unaligned_le16(index, &ev.index);
+	bacpy(&ev.bdaddr, bdaddr);
+	ev.status = status;
+
+	return mgmt_event(MGMT_EV_AUTH_FAILED, &ev, sizeof(ev), NULL);
+}
