@@ -962,7 +962,7 @@ static int pin_code_reply(struct sock *sk, unsigned char *data, u16 len)
 
 	hdev = hci_dev_get(dev_id);
 	if (!hdev)
-		return cmd_status(sk, MGMT_OP_DISCONNECT, ENODEV);
+		return cmd_status(sk, MGMT_OP_PIN_CODE_REPLY, ENODEV);
 
 	hci_dev_lock_bh(hdev);
 
