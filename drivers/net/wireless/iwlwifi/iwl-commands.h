@@ -2499,6 +2499,29 @@ struct iwl6000_bt_cmd {
 	__le16 rx_prio_boost;	/* SW boost of WiFi rx priority */
 };
 
+struct iwl2000_bt_cmd {
+	u8 flags;
+	u8 ledtime; /* unused */
+	u8 max_kill;
+	u8 bt3_timer_t7_value;
+	__le32 kill_ack_mask;
+	__le32 kill_cts_mask;
+	u8 bt3_prio_sample_time;
+	u8 bt3_timer_t2_value;
+	__le16 bt4_reaction_time; /* unused */
+	__le32 bt3_lookup_table[12];
+	__le16 bt4_decision_time; /* unused */
+	__le16 valid;
+	__le32 prio_boost;
+	/*
+	 * set IWLAGN_BT_VALID_BOOST to "1" in "valid" bitmask
+	 * if configure the following patterns
+	 */
+	u8 reserved;
+	u8 tx_prio_boost;	/* SW boost of WiFi tx priority */
+	__le16 rx_prio_boost;	/* SW boost of WiFi rx priority */
+};
+
 #define IWLAGN_BT_SCO_ACTIVE	cpu_to_le32(BIT(0))
 
 struct iwlagn_bt_sco_cmd {
