@@ -48,7 +48,7 @@ struct amba_driver {
 	void			(*shutdown)(struct amba_device *);
 	int			(*suspend)(struct amba_device *, pm_message_t);
 	int			(*resume)(struct amba_device *);
-	struct amba_id		*id_table;
+	const struct amba_id	*id_table;
 };
 
 enum amba_vendor {
