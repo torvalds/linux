@@ -47,7 +47,6 @@ static void ixgbe_lower_eeprom_clk(struct ixgbe_hw *hw, u32 *eec);
 static void ixgbe_release_eeprom(struct ixgbe_hw *hw);
 
 static s32 ixgbe_mta_vector(struct ixgbe_hw *hw, u8 *mc_addr);
-static void ixgbe_add_uc_addr(struct ixgbe_hw *hw, u8 *addr, u32 vmdq);
 static s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num);
 
 /**
@@ -1363,104 +1362,6 @@ s32 ixgbe_init_rx_addrs_generic(struct ixgbe_hw *hw)
 	if (hw->mac.ops.init_uta_tables)
 		hw->mac.ops.init_uta_tables(hw);
 
-	return 0;
-}
-
-/**
- *  ixgbe_add_uc_addr - Adds a secondary unicast address.
- *  @hw: pointer to hardware structure
- *  @addr: new address
- *
- *  Adds it to unused receive address register or goes into promiscuous mode.
- **/
-static void ixgbe_add_uc_addr(struct ixgbe_hw *hw, u8 *addr, u32 vmdq)
-{
-	u32 rar_entries = hw->mac.num_rar_entries;
-	u32 rar;
-
-	hw_dbg(hw, " UC Addr = %.2X %.2X %.2X %.2X %.2X %.2X\n",
-	          addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
-
-	/*
-	 * Place this address in the RAR if there is room,
-	 * else put the controller into promiscuous mode
-	 */
-	if (hw->addr_ctrl.rar_used_count < rar_entries) {
-		rar = hw->addr_ctrl.rar_used_count;
-		hw->mac.ops.set_rar(hw, rar, addr, vmdq, IXGBE_RAH_AV);
-		hw_dbg(hw, "Added a secondary address to RAR[%d]\n", rar);
-		hw->addr_ctrl.rar_used_count++;
-	} else {
-		hw->addr_ctrl.overflow_promisc++;
-	}
-
-	hw_dbg(hw, "ixgbe_add_uc_addr Complete\n");
-}
-
-/**
- *  ixgbe_update_uc_addr_list_generic - Updates MAC list of secondary addresses
- *  @hw: pointer to hardware structure
- *  @netdev: pointer to net device structure
- *
- *  The given list replaces any existing list.  Clears the secondary addrs from
- *  receive address registers.  Uses unused receive address registers for the
- *  first secondary addresses, and falls back to promiscuous mode as needed.
- *
- *  Drivers using secondary unicast addresses must set user_set_promisc when
- *  manually putting the device into promiscuous mode.
- **/
-s32 ixgbe_update_uc_addr_list_generic(struct ixgbe_hw *hw,
-				      struct net_device *netdev)
-{
-	u32 i;
-	u32 old_promisc_setting = hw->addr_ctrl.overflow_promisc;
-	u32 uc_addr_in_use;
-	u32 fctrl;
-	struct netdev_hw_addr *ha;
-
-	/*
-	 * Clear accounting of old secondary address list,
-	 * don't count RAR[0]
-	 */
-	uc_addr_in_use = hw->addr_ctrl.rar_used_count - 1;
-	hw->addr_ctrl.rar_used_count -= uc_addr_in_use;
-	hw->addr_ctrl.overflow_promisc = 0;
-
-	/* Zero out the other receive addresses */
-	hw_dbg(hw, "Clearing RAR[1-%d]\n", uc_addr_in_use + 1);
-	for (i = 0; i < uc_addr_in_use; i++) {
-		IXGBE_WRITE_REG(hw, IXGBE_RAL(1+i), 0);
-		IXGBE_WRITE_REG(hw, IXGBE_RAH(1+i), 0);
-	}
-
-	/* Add the new addresses */
-	netdev_for_each_uc_addr(ha, netdev) {
-		hw_dbg(hw, " Adding the secondary addresses:\n");
-		ixgbe_add_uc_addr(hw, ha->addr, 0);
-	}
-
-	if (hw->addr_ctrl.overflow_promisc) {
-		/* enable promisc if not already in overflow or set by user */
-		if (!old_promisc_setting && !hw->addr_ctrl.user_set_promisc) {
-			hw_dbg(hw, " Entering address overflow promisc mode\n");
-			fctrl = IXGBE_READ_REG(hw, IXGBE_FCTRL);
-			fctrl |= IXGBE_FCTRL_UPE;
-			IXGBE_WRITE_REG(hw, IXGBE_FCTRL, fctrl);
-			hw->addr_ctrl.uc_set_promisc = true;
-		}
-	} else {
-		/* only disable if set by overflow, not by user */
-		if ((old_promisc_setting && hw->addr_ctrl.uc_set_promisc) &&
-		   !(hw->addr_ctrl.user_set_promisc)) {
-			hw_dbg(hw, " Leaving address overflow promisc mode\n");
-			fctrl = IXGBE_READ_REG(hw, IXGBE_FCTRL);
-			fctrl &= ~IXGBE_FCTRL_UPE;
-			IXGBE_WRITE_REG(hw, IXGBE_FCTRL, fctrl);
-			hw->addr_ctrl.uc_set_promisc = false;
-		}
-	}
-
-	hw_dbg(hw, "ixgbe_update_uc_addr_list_generic Complete\n");
 	return 0;
 }
 

@@ -1198,7 +1198,6 @@ static struct ixgbe_mac_operations mac_ops_82598 = {
 	.set_vmdq		= &ixgbe_set_vmdq_82598,
 	.clear_vmdq		= &ixgbe_clear_vmdq_82598,
 	.init_rx_addrs		= &ixgbe_init_rx_addrs_generic,
-	.update_uc_addr_list	= &ixgbe_update_uc_addr_list_generic,
 	.update_mc_addr_list	= &ixgbe_update_mc_addr_list_generic,
 	.enable_mc		= &ixgbe_enable_mc_generic,
 	.disable_mc		= &ixgbe_disable_mc_generic,
