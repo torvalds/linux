@@ -2021,7 +2021,7 @@ static void pl022_cleanup(struct spi_device *spi)
 
 
 static int __devinit
-pl022_probe(struct amba_device *adev, struct amba_id *id)
+pl022_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	struct device *dev = &adev->dev;
 	struct pl022_ssp_controller *platform_info = adev->dev.platform_data;

@@ -232,7 +232,7 @@ static void pl061_irq_handler(unsigned irq, struct irq_desc *desc)
 	desc->irq_data.chip->irq_unmask(&desc->irq_data);
 }
 
-static int pl061_probe(struct amba_device *dev, struct amba_id *id)
+static int pl061_probe(struct amba_device *dev, const struct amba_id *id)
 {
 	struct pl061_platform_data *pdata;
 	struct pl061_gpio *chip;

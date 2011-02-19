@@ -713,7 +713,8 @@ static const struct mmc_host_ops mmci_ops = {
 	.get_cd		= mmci_get_cd,
 };
 
-static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
+static int __devinit mmci_probe(struct amba_device *dev,
+	const struct amba_id *id)
 {
 	struct mmci_platform_data *plat = dev->dev.platform_data;
 	struct variant_data *variant = id->data;

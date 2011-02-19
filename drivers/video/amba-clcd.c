@@ -461,7 +461,7 @@ static int clcdfb_register(struct clcd_fb *fb)
 	return ret;
 }
 
-static int clcdfb_probe(struct amba_device *dev, struct amba_id *id)
+static int clcdfb_probe(struct amba_device *dev, const struct amba_id *id)
 {
 	struct clcd_board *board = dev->dev.platform_data;
 	struct clcd_fb *fb;
