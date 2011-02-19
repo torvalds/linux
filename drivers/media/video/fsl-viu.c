@@ -825,13 +825,11 @@ static int vidioc_s_fmt_overlay(struct file *file, void *priv,
 	if (err)
 		return err;
 
-	mutex_lock(&dev->lock);
 	fh->win = f->fmt.win;
 
 	spin_lock_irqsave(&dev->slock, flags);
 	viu_start_preview(dev, fh);
 	spin_unlock_irqrestore(&dev->slock, flags);
-	mutex_unlock(&dev->lock);
 	return 0;
 }
 
@@ -1311,7 +1309,8 @@ static int viu_open(struct file *file)
 	videobuf_queue_dma_contig_init(&fh->vb_vidq, &viu_video_qops,
 				       dev->dev, &fh->vbq_lock,
 				       fh->type, V4L2_FIELD_INTERLACED,
-				       sizeof(struct viu_buf), fh, NULL);
+				       sizeof(struct viu_buf), fh,
+				       &fh->dev->lock);
 	return 0;
 }
 
@@ -1401,7 +1400,7 @@ static struct v4l2_file_operations viu_fops = {
 	.release	= viu_release,
 	.read		= viu_read,
 	.poll		= viu_poll,
-	.ioctl		= video_ioctl2, /* V4L2 ioctl handler */
+	.unlocked_ioctl	= video_ioctl2, /* V4L2 ioctl handler */
 	.mmap		= viu_mmap,
 };
 
@@ -1498,9 +1497,6 @@ static int __devinit viu_of_probe(struct platform_device *op)
 	INIT_LIST_HEAD(&viu_dev->vidq.active);
 	INIT_LIST_HEAD(&viu_dev->vidq.queued);
 
-	/* initialize locks */
-	mutex_init(&viu_dev->lock);
-
 	snprintf(viu_dev->v4l2_dev.name,
 		 sizeof(viu_dev->v4l2_dev.name), "%s", "VIU");
 	ret = v4l2_device_register(viu_dev->dev, &viu_dev->v4l2_dev);
@@ -1531,7 +1527,14 @@ static int __devinit viu_of_probe(struct platform_device *op)
 
 	viu_dev->vdev = vdev;
 
+	/* initialize locks */
+	mutex_init(&viu_dev->lock);
+	viu_dev->vdev->lock = &viu_dev->lock;
+	spin_lock_init(&viu_dev->slock);
+
 	video_set_drvdata(viu_dev->vdev, viu_dev);
+
+	mutex_lock(&viu_dev->lock);
 
 	ret = video_register_device(viu_dev->vdev, VFL_TYPE_GRABBER, -1);
 	if (ret < 0) {
@@ -1559,6 +1562,8 @@ static int __devinit viu_of_probe(struct platform_device *op)
 		goto err_irq;
 	}
 
+	mutex_unlock(&viu_dev->lock);
+
 	dev_info(&op->dev, "Freescale VIU Video Capture Board\n");
 	return ret;
 
@@ -1568,6 +1573,7 @@ err_irq:
 err_clk:
 	video_unregister_device(viu_dev->vdev);
 err_vdev:
+	mutex_unlock(&viu_dev->lock);
 	i2c_put_adapter(ad);
 	v4l2_device_unregister(&viu_dev->v4l2_dev);
 err:
