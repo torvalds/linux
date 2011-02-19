@@ -52,7 +52,7 @@ int rtl92c_init_sw_vars(struct ieee80211_hw *hw)
 	rtlpriv->dm.thermalvalue = 0;
 	rtlpci->transmit_config = CFENDFORM | BIT(12) | BIT(13);
 
-	rtlpci->receive_config = (RCR_APPFCS |
+	rtlpci->receive_config = (RCR_APP_FCS |
 				  RCR_AMF |
 				  RCR_ADF |
 				  RCR_APP_MIC |
