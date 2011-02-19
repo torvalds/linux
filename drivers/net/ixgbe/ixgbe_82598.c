@@ -831,14 +831,14 @@ mac_reset_top:
 		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, hw->mac.orig_autoc);
 	}
 
+	/* Store the permanent mac address */
+	hw->mac.ops.get_mac_addr(hw, hw->mac.perm_addr);
+
 	/*
 	 * Store MAC address from RAR0, clear receive address registers, and
 	 * clear the multicast table
 	 */
 	hw->mac.ops.init_rx_addrs(hw);
-
-	/* Store the permanent mac address */
-	hw->mac.ops.get_mac_addr(hw, hw->mac.perm_addr);
 
 reset_hw_out:
 	if (phy_status)

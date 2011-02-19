@@ -965,6 +965,9 @@ mac_reset_top:
 		}
 	}
 
+	/* Store the permanent mac address */
+	hw->mac.ops.get_mac_addr(hw, hw->mac.perm_addr);
+
 	/*
 	 * Store MAC address from RAR0, clear receive address registers, and
 	 * clear the multicast table.  Also reset num_rar_entries to 128,
@@ -972,9 +975,6 @@ mac_reset_top:
 	 */
 	hw->mac.num_rar_entries = 128;
 	hw->mac.ops.init_rx_addrs(hw);
-
-	/* Store the permanent mac address */
-	hw->mac.ops.get_mac_addr(hw, hw->mac.perm_addr);
 
 	/* Store the permanent SAN mac address */
 	hw->mac.ops.get_san_mac_addr(hw, hw->mac.san_addr);
