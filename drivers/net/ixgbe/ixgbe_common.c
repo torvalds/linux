@@ -1188,7 +1188,7 @@ s32 ixgbe_update_eeprom_checksum_generic(struct ixgbe_hw *hw)
 	if (status == 0) {
 		checksum = hw->eeprom.ops.calc_checksum(hw);
 		status = hw->eeprom.ops.write(hw, IXGBE_EEPROM_CHECKSUM,
-		                            checksum);
+					      checksum);
 	} else {
 		hw_dbg(hw, "EEPROM read failed\n");
 	}
@@ -1555,7 +1555,9 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 	 * 2: Tx flow control is enabled (we can send pause frames but
 	 *    we do not support receiving pause frames).
 	 * 3: Both Rx and Tx flow control (symmetric) are enabled.
+#ifdef CONFIG_DCB
 	 * 4: Priority Flow Control is enabled.
+#endif
 	 * other: Invalid.
 	 */
 	switch (hw->fc.current_mode) {
@@ -2392,7 +2394,6 @@ s32 ixgbe_init_uta_tables_generic(struct ixgbe_hw *hw)
 {
 	int i;
 
-
 	for (i = 0; i < 128; i++)
 		IXGBE_WRITE_REG(hw, IXGBE_UTA(i), 0);
 
@@ -2621,7 +2622,7 @@ s32 ixgbe_clear_vfta_generic(struct ixgbe_hw *hw)
  *  Reads the links register to determine if link is up and the current speed
  **/
 s32 ixgbe_check_mac_link_generic(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
-                               bool *link_up, bool link_up_wait_to_complete)
+				 bool *link_up, bool link_up_wait_to_complete)
 {
 	u32 links_reg, links_orig;
 	u32 i;

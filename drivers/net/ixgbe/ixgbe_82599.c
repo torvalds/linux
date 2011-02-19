@@ -417,14 +417,14 @@ static s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
 	return status;
 }
 
- /**
-  *  ixgbe_disable_tx_laser_multispeed_fiber - Disable Tx laser
-  *  @hw: pointer to hardware structure
-  *
-  *  The base drivers may require better control over SFP+ module
-  *  PHY states.  This includes selectively shutting down the Tx
-  *  laser on the PHY, effectively halting physical link.
-  **/
+/**
+ *  ixgbe_disable_tx_laser_multispeed_fiber - Disable Tx laser
+ *  @hw: pointer to hardware structure
+ *
+ *  The base drivers may require better control over SFP+ module
+ *  PHY states.  This includes selectively shutting down the Tx
+ *  laser on the PHY, effectively halting physical link.
+ **/
 static void ixgbe_disable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
 {
 	u32 esdp_reg = IXGBE_READ_REG(hw, IXGBE_ESDP);
@@ -542,7 +542,6 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 		 * Section 73.10.2, we may have to wait up to 500ms if KR is
 		 * attempted.  82599 uses the same timing for 10g SFI.
 		 */
-
 		for (i = 0; i < 5; i++) {
 			/* Wait for the link partner to also set speed */
 			msleep(100);
@@ -766,7 +765,6 @@ static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
 		orig_autoc = hw->mac.orig_autoc;
 	else
 		orig_autoc = autoc;
-
 
 	if (link_mode == IXGBE_AUTOC_LMS_KX4_KX_KR ||
 	    link_mode == IXGBE_AUTOC_LMS_KX4_KX_KR_1G_AN ||
@@ -1926,6 +1924,7 @@ static s32 ixgbe_enable_rx_dma_82599(struct ixgbe_hw *hw, u32 regval)
 		if (secrxreg & IXGBE_SECRXSTAT_SECRX_RDY)
 			break;
 		else
+			/* Use interrupt-safe sleep just in case */
 			udelay(10);
 	}
 

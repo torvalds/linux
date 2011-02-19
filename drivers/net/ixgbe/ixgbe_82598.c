@@ -627,7 +627,6 @@ out:
 	return 0;
 }
 
-
 /**
  *  ixgbe_setup_mac_link_82598 - Set MAC link speed
  *  @hw: pointer to hardware structure
@@ -698,7 +697,6 @@ static s32 ixgbe_setup_copper_link_82598(struct ixgbe_hw *hw,
 	/* Setup the PHY according to input speed */
 	status = hw->phy.ops.setup_link_speed(hw, speed, autoneg,
 	                                      autoneg_wait_to_complete);
-
 	/* Set up MAC */
 	ixgbe_start_mac_link_82598(hw, autoneg_wait_to_complete);
 
@@ -1013,13 +1011,12 @@ static s32 ixgbe_write_analog_reg8_82598(struct ixgbe_hw *hw, u32 reg, u8 val)
 }
 
 /**
- *  ixgbe_read_i2c_eeprom_82598 - Read 8 bit EEPROM word of an SFP+ module
- *  over I2C interface through an intermediate phy.
+ *  ixgbe_read_i2c_eeprom_82598 - Reads 8 bit word over I2C interface.
  *  @hw: pointer to hardware structure
  *  @byte_offset: EEPROM byte offset to read
  *  @eeprom_data: value read
  *
- *  Performs byte read operation to SFP module's EEPROM over I2C interface.
+ *  Performs 8 byte read operation to SFP module's EEPROM over I2C interface.
  **/
 static s32 ixgbe_read_i2c_eeprom_82598(struct ixgbe_hw *hw, u8 byte_offset,
 				       u8 *eeprom_data)
