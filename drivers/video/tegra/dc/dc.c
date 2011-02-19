@@ -1047,6 +1047,9 @@ static bool _tegra_dc_enable(struct tegra_dc *dc)
 
 	clk_enable(dc->clk);
 	clk_enable(dc->emc_clk);
+	tegra_periph_reset_deassert(dc->clk);
+	msleep(10);
+
 	enable_irq(dc->irq);
 
 	tegra_dc_init(dc);
@@ -1118,10 +1121,10 @@ static void tegra_dc_reset_worker(struct work_struct *work)
 
 	msleep(100);
 	tegra_periph_reset_assert(dc->clk);
-	msleep(100);
-	tegra_periph_reset_deassert(dc->clk);
 
+	/* _tegra_dc_enable deasserts reset */
 	_tegra_dc_enable(dc);
+
 	mutex_unlock(&dc->lock);
 }
 
