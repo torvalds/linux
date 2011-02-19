@@ -41,7 +41,7 @@ static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 enum chips {
 	any_chip, lm85b, lm85c,
 	adm1027, adt7463, adt7468,
-	emc6d100, emc6d102, emc6d103
+	emc6d100, emc6d102, emc6d103, emc6d103s
 };
 
 /* The LM85 registers */
@@ -350,6 +350,7 @@ static const struct i2c_device_id lm85_id[] = {
 	{ "emc6d101", emc6d100 },
 	{ "emc6d102", emc6d102 },
 	{ "emc6d103", emc6d103 },
+	{ "emc6d103s", emc6d103s },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm85_id);
@@ -1068,13 +1069,7 @@ static struct attribute *lm85_attributes[] = {
 	&sensor_dev_attr_pwm1_auto_pwm_min.dev_attr.attr,
 	&sensor_dev_attr_pwm2_auto_pwm_min.dev_attr.attr,
 	&sensor_dev_attr_pwm3_auto_pwm_min.dev_attr.attr,
-	&sensor_dev_attr_pwm1_auto_pwm_minctl.dev_attr.attr,
-	&sensor_dev_attr_pwm2_auto_pwm_minctl.dev_attr.attr,
-	&sensor_dev_attr_pwm3_auto_pwm_minctl.dev_attr.attr,
 
-	&sensor_dev_attr_temp1_auto_temp_off.dev_attr.attr,
-	&sensor_dev_attr_temp2_auto_temp_off.dev_attr.attr,
-	&sensor_dev_attr_temp3_auto_temp_off.dev_attr.attr,
 	&sensor_dev_attr_temp1_auto_temp_min.dev_attr.attr,
 	&sensor_dev_attr_temp2_auto_temp_min.dev_attr.attr,
 	&sensor_dev_attr_temp3_auto_temp_min.dev_attr.attr,
@@ -1093,6 +1088,26 @@ static struct attribute *lm85_attributes[] = {
 
 static const struct attribute_group lm85_group = {
 	.attrs = lm85_attributes,
+};
+
+static struct attribute *lm85_attributes_minctl[] = {
+	&sensor_dev_attr_pwm1_auto_pwm_minctl.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_pwm_minctl.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_pwm_minctl.dev_attr.attr,
+};
+
+static const struct attribute_group lm85_group_minctl = {
+	.attrs = lm85_attributes_minctl,
+};
+
+static struct attribute *lm85_attributes_temp_off[] = {
+	&sensor_dev_attr_temp1_auto_temp_off.dev_attr.attr,
+	&sensor_dev_attr_temp2_auto_temp_off.dev_attr.attr,
+	&sensor_dev_attr_temp3_auto_temp_off.dev_attr.attr,
+};
+
+static const struct attribute_group lm85_group_temp_off = {
+	.attrs = lm85_attributes_temp_off,
 };
 
 static struct attribute *lm85_attributes_in4[] = {
@@ -1242,16 +1257,9 @@ static int lm85_detect(struct i2c_client *client, struct i2c_board_info *info)
 		case LM85_VERSTEP_EMC6D103_A1:
 			type_name = "emc6d103";
 			break;
-		/*
-		 * Registers apparently missing in EMC6D103S/EMC6D103:A2
-		 * compared to EMC6D103:A0, EMC6D103:A1, and EMC6D102
-		 * (according to the data sheets), but used unconditionally
-		 * in the driver: 62[5:7], 6D[0:7], and 6E[0:7].
-		 * So skip EMC6D103S for now.
 		case LM85_VERSTEP_EMC6D103S:
 			type_name = "emc6d103s";
 			break;
-		 */
 		}
 	} else {
 		dev_dbg(&adapter->dev,
@@ -1267,6 +1275,10 @@ static int lm85_detect(struct i2c_client *client, struct i2c_board_info *info)
 static void lm85_remove_files(struct i2c_client *client, struct lm85_data *data)
 {
 	sysfs_remove_group(&client->dev.kobj, &lm85_group);
+	if (data->type != emc6d103s) {
+		sysfs_remove_group(&client->dev.kobj, &lm85_group_minctl);
+		sysfs_remove_group(&client->dev.kobj, &lm85_group_temp_off);
+	}
 	if (!data->has_vid5)
 		sysfs_remove_group(&client->dev.kobj, &lm85_group_in4);
 	if (data->type == emc6d100)
@@ -1295,6 +1307,7 @@ static int lm85_probe(struct i2c_client *client,
 	case emc6d100:
 	case emc6d102:
 	case emc6d103:
+	case emc6d103s:
 		data->freq_map = adm1027_freq_map;
 		break;
 	default:
@@ -1311,6 +1324,17 @@ static int lm85_probe(struct i2c_client *client,
 	err = sysfs_create_group(&client->dev.kobj, &lm85_group);
 	if (err)
 		goto err_kfree;
+
+	/* minctl and temp_off exist on all chips except emc6d103s */
+	if (data->type != emc6d103s) {
+		err = sysfs_create_group(&client->dev.kobj, &lm85_group_minctl);
+		if (err)
+			goto err_kfree;
+		err = sysfs_create_group(&client->dev.kobj,
+					 &lm85_group_temp_off);
+		if (err)
+			goto err_kfree;
+	}
 
 	/* The ADT7463/68 have an optional VRM 10 mode where pin 21 is used
 	   as a sixth digital VID input rather than an analog input. */
@@ -1475,7 +1499,8 @@ static struct lm85_data *lm85_update_device(struct device *dev)
 			/* More alarm bits */
 			data->alarms |= lm85_read_value(client,
 						EMC6D100_REG_ALARM3) << 16;
-		} else if (data->type == emc6d102 || data->type == emc6d103) {
+		} else if (data->type == emc6d102 || data->type == emc6d103 ||
+			   data->type == emc6d103s) {
 			/* Have to read LSB bits after the MSB ones because
 			   the reading of the MSB bits has frozen the
 			   LSBs (backward from the ADM1027).
@@ -1560,17 +1585,19 @@ static struct lm85_data *lm85_update_device(struct device *dev)
 			}
 		}
 
-		i = lm85_read_value(client, LM85_REG_AFAN_SPIKE1);
-		data->autofan[0].min_off = (i & 0x20) != 0;
-		data->autofan[1].min_off = (i & 0x40) != 0;
-		data->autofan[2].min_off = (i & 0x80) != 0;
+		if (data->type != emc6d103s) {
+			i = lm85_read_value(client, LM85_REG_AFAN_SPIKE1);
+			data->autofan[0].min_off = (i & 0x20) != 0;
+			data->autofan[1].min_off = (i & 0x40) != 0;
+			data->autofan[2].min_off = (i & 0x80) != 0;
 
-		i = lm85_read_value(client, LM85_REG_AFAN_HYST1);
-		data->zone[0].hyst = i >> 4;
-		data->zone[1].hyst = i & 0x0f;
+			i = lm85_read_value(client, LM85_REG_AFAN_HYST1);
+			data->zone[0].hyst = i >> 4;
+			data->zone[1].hyst = i & 0x0f;
 
-		i = lm85_read_value(client, LM85_REG_AFAN_HYST2);
-		data->zone[2].hyst = i >> 4;
+			i = lm85_read_value(client, LM85_REG_AFAN_HYST2);
+			data->zone[2].hyst = i >> 4;
+		}
 
 		data->last_config = jiffies;
 	}  /* last_config */
