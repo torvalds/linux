@@ -1427,7 +1427,7 @@ struct rtl_hal_usbint_cfg {
 
 	/* endpoint mapping */
 	int (*usb_endpoint_mapping)(struct ieee80211_hw *hw);
-	u16 (*usb_mq_to_hwq)(u16 fc, u16 mac80211_queue_index);
+	u16 (*usb_mq_to_hwq)(__le16 fc, u16 mac80211_queue_index);
 };
 
 struct rtl_hal_cfg {
@@ -1646,7 +1646,7 @@ struct bt_coexist_info {
 #define READEF2BYTE(_ptr)	\
 	EF2BYTE(*((u16 *)(_ptr)))
 #define READEF4BYTE(_ptr)	\
-	EF4BYTE(*((u32 *)(_ptr)))
+	EF4BYTE(*((__le32 *)(_ptr)))
 
 /* Write data to memory */
 #define WRITEEF1BYTE(_ptr, _val)	\
@@ -1759,10 +1759,10 @@ Set subfield of little-endian 4-byte value to specified value.	*/
 #define packet_get_type(_packet) (EF1BYTE((_packet).octet[0]) & 0xFC)
 #define RTL_WATCH_DOG_TIME	2000
 #define MSECS(t)		msecs_to_jiffies(t)
-#define WLAN_FC_GET_VERS(fc)	((fc) & IEEE80211_FCTL_VERS)
-#define WLAN_FC_GET_TYPE(fc)	((fc) & IEEE80211_FCTL_FTYPE)
-#define WLAN_FC_GET_STYPE(fc)	((fc) & IEEE80211_FCTL_STYPE)
-#define WLAN_FC_MORE_DATA(fc)	((fc) & IEEE80211_FCTL_MOREDATA)
+#define WLAN_FC_GET_VERS(fc)	(le16_to_cpu(fc) & IEEE80211_FCTL_VERS)
+#define WLAN_FC_GET_TYPE(fc)	(le16_to_cpu(fc) & IEEE80211_FCTL_FTYPE)
+#define WLAN_FC_GET_STYPE(fc)	(le16_to_cpu(fc) & IEEE80211_FCTL_STYPE)
+#define WLAN_FC_MORE_DATA(fc)	(le16_to_cpu(fc) & IEEE80211_FCTL_MOREDATA)
 #define SEQ_TO_SN(seq)		(((seq) & IEEE80211_SCTL_SEQ) >> 4)
 #define SN_TO_SEQ(ssn)		(((ssn) << 4) & IEEE80211_SCTL_SEQ)
 #define MAX_SN			((IEEE80211_SCTL_SEQ) >> 4)

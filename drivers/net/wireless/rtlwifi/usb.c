@@ -126,7 +126,7 @@ static u32 _usb_read_sync(struct usb_device *udev, u32 addr, u16 len)
 
 	wvalue = (u16)addr;
 	_usbctrl_vendorreq_sync_read(udev, request, wvalue, index, data, len);
-	ret = le32_to_cpu(*data);
+	ret = *data;
 	kfree(data);
 	return ret;
 }
@@ -163,7 +163,7 @@ static void _usb_write_async(struct usb_device *udev, u32 addr, u32 val,
 	request = REALTEK_USB_VENQT_CMD_REQ;
 	index = REALTEK_USB_VENQT_CMD_IDX; /* n/a */
 	wvalue = (u16)(addr&0x0000ffff);
-	data = cpu_to_le32(val);
+	data = val;
 	_usbctrl_vendorreq_async_write(udev, request, wvalue, index, &data,
 				       len);
 }
@@ -437,7 +437,7 @@ static void _rtl_usb_rx_process_agg(struct ieee80211_hw *hw,
 	u8 *rxdesc = skb->data;
 	struct ieee80211_hdr *hdr;
 	bool unicast = false;
-	u16 fc;
+	__le16 fc;
 	struct ieee80211_rx_status rx_status = {0};
 	struct rtl_stats stats = {
 		.signal = 0,
@@ -449,7 +449,7 @@ static void _rtl_usb_rx_process_agg(struct ieee80211_hw *hw,
 	rtlpriv->cfg->ops->query_rx_desc(hw, &stats, &rx_status, rxdesc, skb);
 	skb_pull(skb, (stats.rx_drvinfo_size + stats.rx_bufshift));
 	hdr = (struct ieee80211_hdr *)(skb->data);
-	fc = le16_to_cpu(hdr->frame_control);
+	fc = hdr->frame_control;
 	if (!stats.crc) {
 		memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
 
@@ -480,7 +480,7 @@ static void _rtl_usb_rx_process_noagg(struct ieee80211_hw *hw,
 	u8 *rxdesc = skb->data;
 	struct ieee80211_hdr *hdr;
 	bool unicast = false;
-	u16 fc;
+	__le16 fc;
 	struct ieee80211_rx_status rx_status = {0};
 	struct rtl_stats stats = {
 		.signal = 0,
@@ -492,7 +492,7 @@ static void _rtl_usb_rx_process_noagg(struct ieee80211_hw *hw,
 	rtlpriv->cfg->ops->query_rx_desc(hw, &stats, &rx_status, rxdesc, skb);
 	skb_pull(skb, (stats.rx_drvinfo_size + stats.rx_bufshift));
 	hdr = (struct ieee80211_hdr *)(skb->data);
-	fc = le16_to_cpu(hdr->frame_control);
+	fc = hdr->frame_control;
 	if (!stats.crc) {
 		memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
 
@@ -853,7 +853,7 @@ static void _rtl_usb_tx_preprocess(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct rtl_tx_desc *pdesc = NULL;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
-	u16 fc = le16_to_cpu(hdr->frame_control);
+	__le16 fc = hdr->frame_control;
 	u8 *pda_addr = hdr->addr1;
 	/* ssn */
 	u8 *qc = NULL;
@@ -892,7 +892,7 @@ static int rtl_usb_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
-	u16 fc = le16_to_cpu(hdr->frame_control);
+	__le16 fc = hdr->frame_control;
 	u16 hw_queue;
 
 	if (unlikely(is_hal_stop(rtlhal)))

@@ -318,15 +318,17 @@ void rtl92ce_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		}
 	case HW_VAR_AC_PARAM:{
 			u8 e_aci = *((u8 *) val);
-			u32 u4b_ac_param = 0;
+			u32 u4b_ac_param;
+			u16 cw_min = le16_to_cpu(mac->ac[e_aci].cw_min);
+			u16 cw_max = le16_to_cpu(mac->ac[e_aci].cw_max);
+			u16 tx_op = le16_to_cpu(mac->ac[e_aci].tx_op);
 
-			u4b_ac_param |= (u32) mac->ac[e_aci].aifs;
-			u4b_ac_param |= ((u32) mac->ac[e_aci].cw_min
+			u4b_ac_param = (u32) mac->ac[e_aci].aifs;
+			u4b_ac_param |= ((u32)cw_min
 					 & 0xF) << AC_PARAM_ECW_MIN_OFFSET;
-			u4b_ac_param |= ((u32) mac->ac[e_aci].cw_max &
+			u4b_ac_param |= ((u32)cw_max &
 					 0xF) << AC_PARAM_ECW_MAX_OFFSET;
-			u4b_ac_param |= (u32) mac->ac[e_aci].tx_op
-			    << AC_PARAM_TXOP_LIMIT_OFFSET;
+			u4b_ac_param |= (u32)tx_op << AC_PARAM_TXOP_OFFSET;
 
 			RT_TRACE(rtlpriv, COMP_MLME, DBG_LOUD,
 				 ("queue:%x, ac_param:%x\n", e_aci,
@@ -1170,21 +1172,20 @@ void rtl92ce_set_qos(struct ieee80211_hw *hw, int aci)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-
 	u32 u4b_ac_param;
+	u16 cw_min = le16_to_cpu(mac->ac[aci].cw_min);
+	u16 cw_max = le16_to_cpu(mac->ac[aci].cw_max);
+	u16 tx_op = le16_to_cpu(mac->ac[aci].tx_op);
 
 	rtl92c_dm_init_edca_turbo(hw);
-
 	u4b_ac_param = (u32) mac->ac[aci].aifs;
-	u4b_ac_param |=
-	    ((u32) mac->ac[aci].cw_min & 0xF) << AC_PARAM_ECW_MIN_OFFSET;
-	u4b_ac_param |=
-	    ((u32) mac->ac[aci].cw_max & 0xF) << AC_PARAM_ECW_MAX_OFFSET;
-	u4b_ac_param |= (u32) mac->ac[aci].tx_op << AC_PARAM_TXOP_LIMIT_OFFSET;
+	u4b_ac_param |= (u32) ((cw_min & 0xF) << AC_PARAM_ECW_MIN_OFFSET);
+	u4b_ac_param |= (u32) ((cw_max & 0xF) << AC_PARAM_ECW_MAX_OFFSET);
+	u4b_ac_param |= (u32) (tx_op << AC_PARAM_TXOP_OFFSET);
 	RT_TRACE(rtlpriv, COMP_QOS, DBG_DMESG,
 		 ("queue:%x, ac_param:%x aifs:%x cwmin:%x cwmax:%x txop:%x\n",
-		  aci, u4b_ac_param, mac->ac[aci].aifs, mac->ac[aci].cw_min,
-		  mac->ac[aci].cw_max, mac->ac[aci].tx_op));
+		  aci, u4b_ac_param, mac->ac[aci].aifs, cw_min,
+		  cw_max, tx_op));
 	switch (aci) {
 	case AC1_BK:
 		rtl_write_dword(rtlpriv, REG_EDCA_BK_PARAM, u4b_ac_param);
@@ -1712,7 +1713,7 @@ void rtl92ce_update_hal_rate_table(struct ieee80211_hw *hw)
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 
 	u32 ratr_value = (u32) mac->basic_rates;
-	u8 *p_mcsrate = mac->mcs;
+	u8 *mcsrate = mac->mcs;
 	u8 ratr_index = 0;
 	u8 nmode = mac->ht_enable;
 	u8 mimo_ps = 1;
@@ -1723,7 +1724,7 @@ void rtl92ce_update_hal_rate_table(struct ieee80211_hw *hw)
 	u8 curshortgi_20mhz = mac->sgi_20;
 	enum wireless_mode wirelessmode = mac->mode;
 
-	ratr_value |= EF2BYTE((*(u16 *) (p_mcsrate))) << 12;
+	ratr_value |= ((*(u16 *) (mcsrate))) << 12;
 
 	switch (wirelessmode) {
 	case WIRELESS_MODE_B:
@@ -1892,8 +1893,8 @@ void rtl92ce_update_hal_rate_mask(struct ieee80211_hw *hw, u8 rssi_level)
 	}
 	RT_TRACE(rtlpriv, COMP_RATR, DBG_DMESG,
 		 ("ratr_bitmap :%x\n", ratr_bitmap));
-	*(u32 *)&rate_mask = EF4BYTE((ratr_bitmap & 0x0fffffff) |
-				       (ratr_index << 28));
+	*(u32 *)&rate_mask = (ratr_bitmap & 0x0fffffff) |
+				       (ratr_index << 28);
 	rate_mask[4] = macid | (shortgi ? 0x20 : 0x00) | 0x80;
 	RT_TRACE(rtlpriv, COMP_RATR, DBG_DMESG, ("Rate_index:%x, "
 						 "ratr_val:%x, %x:%x:%x:%x:%x\n",

@@ -114,7 +114,7 @@ struct rtl_usb {
 	u32 irq_mask[2];
 	bool irq_enabled;
 
-	u16 (*usb_mq_to_hwq)(u16 fc, u16 mac80211_queue_index);
+	u16 (*usb_mq_to_hwq)(__le16 fc, u16 mac80211_queue_index);
 
 	/* Tx */
 	u8 out_ep_nums ;

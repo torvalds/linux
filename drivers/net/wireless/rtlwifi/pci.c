@@ -476,9 +476,9 @@ static void _rtl_pci_tx_isr(struct ieee80211_hw *hw, int prio)
 
 		skb = __skb_dequeue(&ring->queue);
 		pci_unmap_single(rtlpci->pdev,
-				 le32_to_cpu(rtlpriv->cfg->ops->
+				 rtlpriv->cfg->ops->
 					     get_desc((u8 *) entry, true,
-						      HW_DESC_TXBUFF_ADDR)),
+						      HW_DESC_TXBUFF_ADDR),
 				 skb->len, PCI_DMA_TODEVICE);
 
 		RT_TRACE(rtlpriv, (COMP_INTR | COMP_SEND), DBG_TRACE,
@@ -557,7 +557,7 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 			return;
 		} else {
 			struct ieee80211_hdr *hdr;
-			u16 fc;
+			__le16 fc;
 			struct sk_buff *new_skb = NULL;
 
 			rtlpriv->cfg->ops->query_rx_desc(hw, &stats,
@@ -583,7 +583,7 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 			 */
 
 			hdr = (struct ieee80211_hdr *)(skb->data);
-			fc = le16_to_cpu(hdr->frame_control);
+			fc = hdr->frame_control;
 
 			if (!stats.crc) {
 				memcpy(IEEE80211_SKB_RXCB(skb), &rx_status,
@@ -666,7 +666,7 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 
 		}
 done:
-		bufferaddress = cpu_to_le32(*((dma_addr_t *) skb->cb));
+		bufferaddress = (u32)(*((dma_addr_t *) skb->cb));
 		tmp_one = 1;
 		rtlpriv->cfg->ops->set_desc((u8 *) pdesc, false,
 					    HW_DESC_RXBUFF_ADDR,
@@ -955,9 +955,8 @@ static int _rtl_pci_init_tx_ring(struct ieee80211_hw *hw,
 		 ("queue:%d, ring_addr:%p\n", prio, ring));
 
 	for (i = 0; i < entries; i++) {
-		nextdescaddress = cpu_to_le32((u32) dma +
-					      ((i + 1) % entries) *
-					      sizeof(*ring));
+		nextdescaddress = (u32) dma + ((i + 1) % entries) *
+					      sizeof(*ring);
 
 		rtlpriv->cfg->ops->set_desc((u8 *)&(ring[i]),
 					    true, HW_DESC_TX_NEXTDESC_ADDR,
@@ -1021,7 +1020,7 @@ static int _rtl_pci_init_rx_ring(struct ieee80211_hw *hw)
 					   rtlpci->rxbuffersize,
 					   PCI_DMA_FROMDEVICE);
 
-			bufferaddress = cpu_to_le32(*((dma_addr_t *)skb->cb));
+			bufferaddress = (u32)(*((dma_addr_t *)skb->cb));
 			rtlpriv->cfg->ops->set_desc((u8 *)entry, false,
 						    HW_DESC_RXBUFF_ADDR,
 						    (u8 *)&bufferaddress);
@@ -1052,9 +1051,9 @@ static void _rtl_pci_free_tx_ring(struct ieee80211_hw *hw,
 		struct sk_buff *skb = __skb_dequeue(&ring->queue);
 
 		pci_unmap_single(rtlpci->pdev,
-				 le32_to_cpu(rtlpriv->cfg->
+				 rtlpriv->cfg->
 					     ops->get_desc((u8 *) entry, true,
-						   HW_DESC_TXBUFF_ADDR)),
+						   HW_DESC_TXBUFF_ADDR),
 				 skb->len, PCI_DMA_TODEVICE);
 		kfree_skb(skb);
 		ring->idx = (ring->idx + 1) % ring->entries;
@@ -1186,11 +1185,11 @@ int rtl_pci_reset_trx_ring(struct ieee80211_hw *hw)
 				    __skb_dequeue(&ring->queue);
 
 				pci_unmap_single(rtlpci->pdev,
-						 le32_to_cpu(rtlpriv->cfg->ops->
+						 rtlpriv->cfg->ops->
 							 get_desc((u8 *)
 							 entry,
 							 true,
-							 HW_DESC_TXBUFF_ADDR)),
+							 HW_DESC_TXBUFF_ADDR),
 						 skb->len, PCI_DMA_TODEVICE);
 				kfree_skb(skb);
 				ring->idx = (ring->idx + 1) % ring->entries;
@@ -1204,7 +1203,7 @@ int rtl_pci_reset_trx_ring(struct ieee80211_hw *hw)
 	return 0;
 }
 
-static unsigned int _rtl_mac_to_hwqueue(u16 fc,
+static unsigned int _rtl_mac_to_hwqueue(__le16 fc,
 		unsigned int mac80211_queue_index)
 {
 	unsigned int hw_queue_index;
@@ -1254,7 +1253,7 @@ static int rtl_pci_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	unsigned int queue_index, hw_queue;
 	unsigned long flags;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
-	u16 fc = le16_to_cpu(hdr->frame_control);
+	__le16 fc = hdr->frame_control;
 	u8 *pda_addr = hdr->addr1;
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	/*ssn */

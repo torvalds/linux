@@ -144,7 +144,7 @@ static void _rtl_init_hw_ht_capab(struct ieee80211_hw *hw,
 		ht_cap->mcs.rx_mask[1] = 0xFF;
 		ht_cap->mcs.rx_mask[4] = 0x01;
 
-		ht_cap->mcs.rx_highest = MAX_BIT_RATE_40MHZ_MCS15;
+		ht_cap->mcs.rx_highest = cpu_to_le16(MAX_BIT_RATE_40MHZ_MCS15);
 	} else if (get_rf_type(rtlphy) == RF_1T1R) {
 
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, ("1T1R\n"));
@@ -153,7 +153,7 @@ static void _rtl_init_hw_ht_capab(struct ieee80211_hw *hw,
 		ht_cap->mcs.rx_mask[1] = 0x00;
 		ht_cap->mcs.rx_mask[4] = 0x01;
 
-		ht_cap->mcs.rx_highest = MAX_BIT_RATE_40MHZ_MCS7;
+		ht_cap->mcs.rx_highest = cpu_to_le16(MAX_BIT_RATE_40MHZ_MCS7);
 	}
 }
 
@@ -498,7 +498,7 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 	struct rtl_mac *rtlmac = rtl_mac(rtl_priv(hw));
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
 	struct ieee80211_rate *txrate;
-	u16 fc = le16_to_cpu(hdr->frame_control);
+	__le16 fc = hdr->frame_control;
 
 	memset(tcb_desc, 0, sizeof(struct rtl_tcb_desc));
 
@@ -570,7 +570,7 @@ bool rtl_tx_mgmt_proc(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
-	u16 fc = le16_to_cpu(hdr->frame_control);
+	__le16 fc = hdr->frame_control;
 
 	if (ieee80211_is_auth(fc)) {
 		RT_TRACE(rtlpriv, COMP_SEND, DBG_DMESG, ("MAC80211_LINKING\n"));
@@ -587,7 +587,7 @@ bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u16 fc = le16_to_cpu(hdr->frame_control);
+	__le16 fc = hdr->frame_control;
 	u8 *act = (u8 *) (((u8 *) skb->data + MAC80211_3ADDR_LEN));
 	u8 category;
 
@@ -632,7 +632,7 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	u16 fc = le16_to_cpu(hdr->frame_control);
+	__le16 fc = hdr->frame_control;
 	u16 ether_type;
 	u8 mac_hdr_len = ieee80211_get_hdrlen_from_skb(skb);
 	const struct iphdr *ip;
@@ -646,7 +646,6 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 	ip = (struct iphdr *)((u8 *) skb->data + mac_hdr_len +
 			      SNAP_SIZE + PROTOC_TYPE_SIZE);
 	ether_type = *(u16 *) ((u8 *) skb->data + mac_hdr_len + SNAP_SIZE);
-	ether_type = ntohs(ether_type);
 
 	if (ETH_P_IP == ether_type) {
 		if (IPPROTO_UDP == ip->protocol) {
@@ -690,7 +689,8 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 		}
 
 		return true;
-	} else if (0x86DD == ether_type) {
+	} else if (ETH_P_IPV6 == ether_type) {
+		/* IPv6 */
 		return true;
 	}
 

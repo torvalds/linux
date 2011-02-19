@@ -36,7 +36,7 @@
 #include "trx.h"
 #include "led.h"
 
-static enum rtl_desc_qsel _rtl92ce_map_hwqueue_to_fwqueue(u16 fc,
+static enum rtl_desc_qsel _rtl92ce_map_hwqueue_to_fwqueue(__le16 fc,
 							  unsigned int
 							  skb_queue)
 {
@@ -617,13 +617,15 @@ static void _rtl92ce_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 	u8 *tmp_buf;
 	u8 *praddr;
 	u8 *psaddr;
-	u16 fc, type;
+	__le16 fc;
+	u16 type, c_fc;
 	bool packet_matchbssid, packet_toself, packet_beacon;
 
 	tmp_buf = skb->data + pstats->rx_drvinfo_size + pstats->rx_bufshift;
 
 	hdr = (struct ieee80211_hdr *)tmp_buf;
-	fc = le16_to_cpu(hdr->frame_control);
+	fc = hdr->frame_control;
+	c_fc = le16_to_cpu(fc);
 	type = WLAN_FC_GET_TYPE(fc);
 	praddr = hdr->addr1;
 	psaddr = hdr->addr2;
@@ -631,8 +633,8 @@ static void _rtl92ce_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 	packet_matchbssid =
 	    ((IEEE80211_FTYPE_CTL != type) &&
 	     (!compare_ether_addr(mac->bssid,
-				  (fc & IEEE80211_FCTL_TODS) ?
-				  hdr->addr1 : (fc & IEEE80211_FCTL_FROMDS) ?
+				  (c_fc & IEEE80211_FCTL_TODS) ?
+				  hdr->addr1 : (c_fc & IEEE80211_FCTL_FROMDS) ?
 				  hdr->addr2 : hdr->addr3)) &&
 	     (!pstats->hwerror) && (!pstats->crc) && (!pstats->icv));
 
@@ -728,20 +730,17 @@ void rtl92ce_tx_fill_desc(struct ieee80211_hw *hw,
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	bool defaultadapter = true;
-
 	struct ieee80211_sta *sta = ieee80211_find_sta(mac->vif, mac->bssid);
-
 	u8 *pdesc = (u8 *) pdesc_tx;
 	struct rtl_tcb_desc tcb_desc;
 	u8 *qc = ieee80211_get_qos_ctl(hdr);
 	u8 tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
 	u16 seq_number;
-	u16 fc = le16_to_cpu(hdr->frame_control);
+	__le16 fc = hdr->frame_control;
 	u8 rate_flag = info->control.rates[0].flags;
 
 	enum rtl_desc_qsel fw_qsel =
-	    _rtl92ce_map_hwqueue_to_fwqueue(le16_to_cpu(hdr->frame_control),
-					    queue_index);
+	    _rtl92ce_map_hwqueue_to_fwqueue(fc, queue_index);
 
 	bool firstseg = ((hdr->seq_ctrl &
 			  cpu_to_le16(IEEE80211_SCTL_FRAG)) == 0);
@@ -901,7 +900,7 @@ void rtl92ce_tx_fill_cmddesc(struct ieee80211_hw *hw,
 					    PCI_DMA_TODEVICE);
 
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
-	u16 fc = le16_to_cpu(hdr->frame_control);
+	__le16 fc = hdr->frame_control;
 
 	CLEAR_PCI_TX_DESC_CONTENT(pdesc, TX_DESC_SIZE);
 

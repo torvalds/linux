@@ -434,9 +434,9 @@ static int rtl_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
 
 	aci = _rtl_get_hal_qnum(queue);
 	mac->ac[aci].aifs = param->aifs;
-	mac->ac[aci].cw_min = param->cw_min;
-	mac->ac[aci].cw_max = param->cw_max;
-	mac->ac[aci].tx_op = param->txop;
+	mac->ac[aci].cw_min = cpu_to_le16(param->cw_min);
+	mac->ac[aci].cw_max = cpu_to_le16(param->cw_max);
+	mac->ac[aci].tx_op = cpu_to_le16(param->txop);
 	memcpy(&mac->edca_param[aci], param, sizeof(*param));
 	rtlpriv->cfg->ops->set_qos(hw, aci);
 	return 0;
