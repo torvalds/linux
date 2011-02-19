@@ -1558,17 +1558,18 @@ int mgmt_pin_code_request(u16 index, bdaddr_t *bdaddr)
 int mgmt_pin_code_reply_complete(u16 index, bdaddr_t *bdaddr, u8 status)
 {
 	struct pending_cmd *cmd;
+	struct mgmt_rp_pin_code_reply rp;
 	int err;
 
 	cmd = mgmt_pending_find(MGMT_OP_PIN_CODE_REPLY, index);
 	if (!cmd)
 		return -ENOENT;
 
-	if (status != 0)
-		err = cmd_status(cmd->sk, MGMT_OP_PIN_CODE_REPLY, status);
-	else
-		err = cmd_complete(cmd->sk, MGMT_OP_PIN_CODE_REPLY,
-						bdaddr, sizeof(*bdaddr));
+	put_unaligned_le16(index, &rp.index);
+	bacpy(&rp.bdaddr, bdaddr);
+	rp.status = status;
+
+	err = cmd_complete(cmd->sk, MGMT_OP_PIN_CODE_REPLY, &rp, sizeof(rp));
 
 	list_del(&cmd->list);
 	mgmt_pending_free(cmd);
@@ -1579,17 +1580,19 @@ int mgmt_pin_code_reply_complete(u16 index, bdaddr_t *bdaddr, u8 status)
 int mgmt_pin_code_neg_reply_complete(u16 index, bdaddr_t *bdaddr, u8 status)
 {
 	struct pending_cmd *cmd;
+	struct mgmt_rp_pin_code_reply rp;
 	int err;
 
 	cmd = mgmt_pending_find(MGMT_OP_PIN_CODE_NEG_REPLY, index);
 	if (!cmd)
 		return -ENOENT;
 
-	if (status != 0)
-		err = cmd_status(cmd->sk, MGMT_OP_PIN_CODE_NEG_REPLY, status);
-	else
-		err = cmd_complete(cmd->sk, MGMT_OP_PIN_CODE_NEG_REPLY,
-						bdaddr, sizeof(*bdaddr));
+	put_unaligned_le16(index, &rp.index);
+	bacpy(&rp.bdaddr, bdaddr);
+	rp.status = status;
+
+	err = cmd_complete(cmd->sk, MGMT_OP_PIN_CODE_NEG_REPLY,
+							&rp, sizeof(rp));
 
 	list_del(&cmd->list);
 	mgmt_pending_free(cmd);

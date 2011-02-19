@@ -147,6 +147,11 @@ struct mgmt_cp_pin_code_reply {
 	__u8 pin_len;
 	__u8 pin_code[16];
 } __packed;
+struct mgmt_rp_pin_code_reply {
+	__le16 index;
+	bdaddr_t bdaddr;
+	uint8_t status;
+} __packed;
 
 #define MGMT_OP_PIN_CODE_NEG_REPLY	0x0012
 struct mgmt_cp_pin_code_neg_reply {
