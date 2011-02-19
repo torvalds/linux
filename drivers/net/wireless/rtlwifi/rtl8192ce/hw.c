@@ -1335,19 +1335,6 @@ void rtl92ce_update_interrupt_mask(struct ieee80211_hw *hw,
 	rtl92ce_enable_interrupt(hw);
 }
 
-static u8 _rtl92c_get_chnl_group(u8 chnl)
-{
-	u8 group;
-
-	if (chnl < 3)
-		group = 0;
-	else if (chnl < 9)
-		group = 1;
-	else
-		group = 2;
-	return group;
-}
-
 static void _rtl92ce_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
 						 bool autoload_fail,
 						 u8 *hwinfo)
