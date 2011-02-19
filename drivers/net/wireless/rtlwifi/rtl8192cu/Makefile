@@ -1,14 +1,15 @@
-rtl8192ce-objs :=		\
+rtl8192cu-objs :=		\
 		dm.o		\
 		fw.o		\
 		hw.o		\
 		led.o		\
+		mac.o		\
 		phy.o		\
 		rf.o		\
 		sw.o		\
 		table.o		\
 		trx.o
 
-obj-$(CONFIG_RTL8192CE) += rtl8192ce.o
+obj-$(CONFIG_RTL8192CU) += rtl8192cu.o
 
 ccflags-y += -D__CHECK_ENDIAN__

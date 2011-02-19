@@ -1077,6 +1077,7 @@
 #define _RARF_RC8(x)				(((x) & 0x1F) << 24)
 
 #define AC_PARAM_TXOP_LIMIT_OFFSET		16
+#define AC_PARAM_TXOP_OFFSET			16
 #define AC_PARAM_ECW_MAX_OFFSET			12
 #define AC_PARAM_ECW_MIN_OFFSET			8
 #define AC_PARAM_AIFS_OFFSET			0
