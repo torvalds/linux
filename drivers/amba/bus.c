@@ -21,8 +21,8 @@
 #define to_amba_device(d)	container_of(d, struct amba_device, dev)
 #define to_amba_driver(d)	container_of(d, struct amba_driver, drv)
 
-static struct amba_id *
-amba_lookup(struct amba_id *table, struct amba_device *dev)
+static const struct amba_id *
+amba_lookup(const struct amba_id *table, struct amba_device *dev)
 {
 	int ret = 0;
 
@@ -188,7 +188,7 @@ static int amba_probe(struct device *dev)
 {
 	struct amba_device *pcdev = to_amba_device(dev);
 	struct amba_driver *pcdrv = to_amba_driver(dev->driver);
-	struct amba_id *id = amba_lookup(pcdrv->id_table, pcdev);
+	const struct amba_id *id = amba_lookup(pcdrv->id_table, pcdev);
 	int ret;
 
 	do {
