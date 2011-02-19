@@ -57,8 +57,6 @@
 #define IQK_MAC_REG_NUM			4
 
 #define RF90_PATH_MAX			2
-#define CHANNEL_MAX_NUMBER		14
-#define CHANNEL_GROUP_MAX		3
 
 #define CT_OFFSET_MAC_ADDR		0X16
 
@@ -78,8 +76,6 @@
 #define CT_OFFSET_CUSTOMER_ID		0x7F
 
 #define RTL92C_MAX_PATH_NUM		2
-#define CHANNEL_MAX_NUMBER		14
-#define CHANNEL_GROUP_MAX		3
 #define LLT_LAST_ENTRY_OF_TX_PKT_BUFFER	255
 enum swchnlcmd_id {
 	CMDID_END,
