@@ -1193,6 +1193,55 @@ unlock:
 	return err;
 }
 
+static int user_confirm_reply(struct sock *sk, unsigned char *data, u16 len,
+								int success)
+{
+	struct mgmt_cp_user_confirm_reply *cp = (void *) data;
+	u16 dev_id, mgmt_op, hci_op;
+	struct pending_cmd *cmd;
+	struct hci_dev *hdev;
+	int err;
+
+	BT_DBG("");
+
+	dev_id = get_unaligned_le16(&cp->index);
+
+	if (success) {
+		mgmt_op = MGMT_OP_USER_CONFIRM_REPLY;
+		hci_op = HCI_OP_USER_CONFIRM_REPLY;
+	} else {
+		mgmt_op = MGMT_OP_USER_CONFIRM_NEG_REPLY;
+		hci_op = HCI_OP_USER_CONFIRM_NEG_REPLY;
+	}
+
+	hdev = hci_dev_get(dev_id);
+	if (!hdev)
+		return cmd_status(sk, mgmt_op, ENODEV);
+
+	if (!test_bit(HCI_UP, &hdev->flags)) {
+		err = cmd_status(sk, mgmt_op, ENETDOWN);
+		goto failed;
+	}
+
+	cmd = mgmt_pending_add(sk, mgmt_op, dev_id, data, len);
+	if (!cmd) {
+		err = -ENOMEM;
+		goto failed;
+	}
+
+	err = hci_send_cmd(hdev, hci_op, sizeof(cp->bdaddr), &cp->bdaddr);
+	if (err < 0) {
+		list_del(&cmd->list);
+		mgmt_pending_free(cmd);
+	}
+
+failed:
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 {
 	unsigned char *buf;
@@ -1280,6 +1329,12 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_PAIR_DEVICE:
 		err = pair_device(sk, buf + sizeof(*hdr), len);
+		break;
+	case MGMT_OP_USER_CONFIRM_REPLY:
+		err = user_confirm_reply(sk, buf + sizeof(*hdr), len, 1);
+		break;
+	case MGMT_OP_USER_CONFIRM_NEG_REPLY:
+		err = user_confirm_reply(sk, buf + sizeof(*hdr), len, 0);
 		break;
 	default:
 		BT_DBG("Unknown op %u", opcode);
@@ -1540,4 +1595,52 @@ int mgmt_pin_code_neg_reply_complete(u16 index, bdaddr_t *bdaddr, u8 status)
 	mgmt_pending_free(cmd);
 
 	return err;
+}
+
+int mgmt_user_confirm_request(u16 index, bdaddr_t *bdaddr, __le32 value)
+{
+	struct mgmt_ev_user_confirm_request ev;
+
+	BT_DBG("hci%u", index);
+
+	put_unaligned_le16(index, &ev.index);
+	bacpy(&ev.bdaddr, bdaddr);
+	put_unaligned_le32(value, &ev.value);
+
+	return mgmt_event(MGMT_EV_USER_CONFIRM_REQUEST, &ev, sizeof(ev), NULL);
+}
+
+static int confirm_reply_complete(u16 index, bdaddr_t *bdaddr, u8 status,
+								u8 opcode)
+{
+	struct pending_cmd *cmd;
+	struct mgmt_rp_user_confirm_reply rp;
+	int err;
+
+	cmd = mgmt_pending_find(opcode, index);
+	if (!cmd)
+		return -ENOENT;
+
+	put_unaligned_le16(index, &rp.index);
+	bacpy(&rp.bdaddr, bdaddr);
+	rp.status = status;
+	err = cmd_complete(cmd->sk, opcode, &rp, sizeof(rp));
+
+	list_del(&cmd->list);
+	mgmt_pending_free(cmd);
+
+	return err;
+}
+
+int mgmt_user_confirm_reply_complete(u16 index, bdaddr_t *bdaddr, u8 status)
+{
+	return confirm_reply_complete(index, bdaddr, status,
+						MGMT_OP_USER_CONFIRM_REPLY);
+}
+
+int mgmt_user_confirm_neg_reply_complete(u16 index, bdaddr_t *bdaddr,
+								u8 status)
+{
+	return confirm_reply_complete(index, bdaddr, status,
+					MGMT_OP_USER_CONFIRM_NEG_REPLY);
 }

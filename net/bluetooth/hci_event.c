@@ -796,6 +796,29 @@ static void hci_cc_le_read_buffer_size(struct hci_dev *hdev,
 	hci_req_complete(hdev, HCI_OP_LE_READ_BUFFER_SIZE, rp->status);
 }
 
+static void hci_cc_user_confirm_reply(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_rp_user_confirm_reply *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%x", hdev->name, rp->status);
+
+	if (test_bit(HCI_MGMT, &hdev->flags))
+		mgmt_user_confirm_reply_complete(hdev->id, &rp->bdaddr,
+								rp->status);
+}
+
+static void hci_cc_user_confirm_neg_reply(struct hci_dev *hdev,
+							struct sk_buff *skb)
+{
+	struct hci_rp_user_confirm_reply *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%x", hdev->name, rp->status);
+
+	if (test_bit(HCI_MGMT, &hdev->flags))
+		mgmt_user_confirm_neg_reply_complete(hdev->id, &rp->bdaddr,
+								rp->status);
+}
+
 static inline void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
 {
 	BT_DBG("%s status 0x%x", hdev->name, status);
@@ -1728,6 +1751,14 @@ static inline void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *sk
 		hci_cc_le_read_buffer_size(hdev, skb);
 		break;
 
+	case HCI_OP_USER_CONFIRM_REPLY:
+		hci_cc_user_confirm_reply(hdev, skb);
+		break;
+
+	case HCI_OP_USER_CONFIRM_NEG_REPLY:
+		hci_cc_user_confirm_neg_reply(hdev, skb);
+		break;
+
 	default:
 		BT_DBG("%s opcode 0x%x", hdev->name, opcode);
 		break;
@@ -2362,6 +2393,21 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
+static inline void hci_user_confirm_request_evt(struct hci_dev *hdev,
+							struct sk_buff *skb)
+{
+	struct hci_ev_user_confirm_req *ev = (void *) skb->data;
+
+	BT_DBG("%s", hdev->name);
+
+	hci_dev_lock(hdev);
+
+	if (test_bit(HCI_MGMT, &hdev->flags))
+		mgmt_user_confirm_request(hdev->id, &ev->bdaddr, ev->passkey);
+
+	hci_dev_unlock(hdev);
+}
+
 static inline void hci_simple_pair_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_simple_pair_complete *ev = (void *) skb->data;
@@ -2578,6 +2624,10 @@ void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_EV_IO_CAPA_REPLY:
 		hci_io_capa_reply_evt(hdev, skb);
+		break;
+
+	case HCI_EV_USER_CONFIRM_REQUEST:
+		hci_user_confirm_request_evt(hdev, skb);
 		break;
 
 	case HCI_EV_SIMPLE_PAIR_COMPLETE:

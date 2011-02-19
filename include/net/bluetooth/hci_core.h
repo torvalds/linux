@@ -762,6 +762,10 @@ int mgmt_connect_failed(u16 index, bdaddr_t *bdaddr, u8 status);
 int mgmt_pin_code_request(u16 index, bdaddr_t *bdaddr);
 int mgmt_pin_code_reply_complete(u16 index, bdaddr_t *bdaddr, u8 status);
 int mgmt_pin_code_neg_reply_complete(u16 index, bdaddr_t *bdaddr, u8 status);
+int mgmt_user_confirm_request(u16 index, bdaddr_t *bdaddr, __le32 value);
+int mgmt_user_confirm_reply_complete(u16 index, bdaddr_t *bdaddr, u8 status);
+int mgmt_user_confirm_neg_reply_complete(u16 index, bdaddr_t *bdaddr,
+								u8 status);
 
 /* HCI info for socket */
 #define hci_pi(sk) ((struct hci_pinfo *) sk)

@@ -172,6 +172,19 @@ struct mgmt_rp_pair_device {
 	__u8 status;
 } __packed;
 
+#define MGMT_OP_USER_CONFIRM_REPLY	0x0015
+struct mgmt_cp_user_confirm_reply {
+	__le16 index;
+	bdaddr_t bdaddr;
+} __packed;
+struct mgmt_rp_user_confirm_reply {
+	__le16 index;
+	bdaddr_t bdaddr;
+	__u8 status;
+} __packed;
+
+#define MGMT_OP_USER_CONFIRM_NEG_REPLY	0x0016
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16 opcode;
@@ -238,4 +251,11 @@ struct mgmt_ev_connect_failed {
 struct mgmt_ev_pin_code_request {
 	__le16 index;
 	bdaddr_t bdaddr;
+} __packed;
+
+#define MGMT_EV_USER_CONFIRM_REQUEST	0x000F
+struct mgmt_ev_user_confirm_request {
+	__le16 index;
+	bdaddr_t bdaddr;
+	__le32 value;
 } __packed;
