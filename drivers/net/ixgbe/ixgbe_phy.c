@@ -858,6 +858,9 @@ err_read_i2c_eeprom:
  *  @hw: pointer to hardware structure
  *  @list_offset: offset to the SFP ID list
  *  @data_offset: offset to the SFP data block
+ *
+ *  Checks the MAC's EEPROM to see if it supports a given SFP+ module type, if
+ *  so it returns the offsets to the phy init sequence block.
  **/
 s32 ixgbe_get_sfp_init_sequence_offsets(struct ixgbe_hw *hw,
                                         u16 *list_offset,
@@ -972,11 +975,22 @@ s32 ixgbe_read_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
                                 u8 dev_addr, u8 *data)
 {
 	s32 status = 0;
-	u32 max_retry = 1;
+	u32 max_retry = 10;
 	u32 retry = 0;
+	u16 swfw_mask = 0;
 	bool nack = 1;
 
+	if (IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_LAN_ID_1)
+		swfw_mask = IXGBE_GSSR_PHY1_SM;
+	else
+		swfw_mask = IXGBE_GSSR_PHY0_SM;
+
 	do {
+		if (ixgbe_acquire_swfw_sync(hw, swfw_mask) != 0) {
+			status = IXGBE_ERR_SWFW_SYNC;
+			goto read_byte_out;
+		}
+
 		ixgbe_i2c_start(hw);
 
 		/* Device Address and write indication */
@@ -1019,6 +1033,8 @@ s32 ixgbe_read_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
 		break;
 
 fail:
+		ixgbe_release_swfw_sync(hw, swfw_mask);
+		msleep(100);
 		ixgbe_i2c_bus_clear(hw);
 		retry++;
 		if (retry < max_retry)
@@ -1028,6 +1044,9 @@ fail:
 
 	} while (retry < max_retry);
 
+	ixgbe_release_swfw_sync(hw, swfw_mask);
+
+read_byte_out:
 	return status;
 }
 
@@ -1046,6 +1065,17 @@ s32 ixgbe_write_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
 	s32 status = 0;
 	u32 max_retry = 1;
 	u32 retry = 0;
+	u16 swfw_mask = 0;
+
+	if (IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_LAN_ID_1)
+		swfw_mask = IXGBE_GSSR_PHY1_SM;
+	else
+		swfw_mask = IXGBE_GSSR_PHY0_SM;
+
+	if (ixgbe_acquire_swfw_sync(hw, swfw_mask) != 0) {
+		status = IXGBE_ERR_SWFW_SYNC;
+		goto write_byte_out;
+	}
 
 	do {
 		ixgbe_i2c_start(hw);
@@ -1086,6 +1116,9 @@ fail:
 			hw_dbg(hw, "I2C byte write error.\n");
 	} while (retry < max_retry);
 
+	ixgbe_release_swfw_sync(hw, swfw_mask);
+
+write_byte_out:
 	return status;
 }
 
@@ -1404,6 +1437,8 @@ static void ixgbe_i2c_bus_clear(struct ixgbe_hw *hw)
 	u32 i2cctl = IXGBE_READ_REG(hw, IXGBE_I2CCTL);
 	u32 i;
 
+	ixgbe_i2c_start(hw);
+
 	ixgbe_set_i2c_data(hw, &i2cctl, 1);
 
 	for (i = 0; i < 9; i++) {
@@ -1417,6 +1452,8 @@ static void ixgbe_i2c_bus_clear(struct ixgbe_hw *hw)
 		/* Min low period of clock is 4.7us*/
 		udelay(IXGBE_I2C_T_LOW);
 	}
+
+	ixgbe_i2c_start(hw);
 
 	/* Put the i2c bus back to default state */
 	ixgbe_i2c_stop(hw);
