@@ -366,10 +366,10 @@ static int _rtl_usb_init_sw(struct ieee80211_hw *hw)
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 
 	rtlhal->hw = hw;
-	ppsc->b_inactiveps = false;
-	ppsc->b_leisure_ps = false;
-	ppsc->b_fwctrl_lps = false;
-	ppsc->b_reg_fwctrl_lps = 3;
+	ppsc->inactiveps = false;
+	ppsc->leisure_ps = false;
+	ppsc->fwctrl_lps = false;
+	ppsc->reg_fwctrl_lps = 3;
 	ppsc->reg_max_lps_awakeintvl = 5;
 	ppsc->fwctrl_psmode = FW_PS_DTIM_MODE;
 
@@ -450,7 +450,7 @@ static void _rtl_usb_rx_process_agg(struct ieee80211_hw *hw,
 	skb_pull(skb, (stats.rx_drvinfo_size + stats.rx_bufshift));
 	hdr = (struct ieee80211_hdr *)(skb->data);
 	fc = le16_to_cpu(hdr->frame_control);
-	if (!stats.b_crc) {
+	if (!stats.crc) {
 		memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
 
 		if (is_broadcast_ether_addr(hdr->addr1)) {
@@ -493,7 +493,7 @@ static void _rtl_usb_rx_process_noagg(struct ieee80211_hw *hw,
 	skb_pull(skb, (stats.rx_drvinfo_size + stats.rx_bufshift));
 	hdr = (struct ieee80211_hdr *)(skb->data);
 	fc = le16_to_cpu(hdr->frame_control);
-	if (!stats.b_crc) {
+	if (!stats.crc) {
 		memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
 
 		if (is_broadcast_ether_addr(hdr->addr1)) {

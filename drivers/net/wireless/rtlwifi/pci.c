@@ -50,7 +50,7 @@ static void _rtl_pci_update_default_setting(struct ieee80211_hw *hw)
 	u8 pcibridge_vendor = pcipriv->ndis_adapter.pcibridge_vendor;
 
 	ppsc->reg_rfps_level = 0;
-	ppsc->b_support_aspm = 0;
+	ppsc->support_aspm = 0;
 
 	/*Update PCI ASPM setting */
 	ppsc->const_amdpci_aspm = rtlpci->const_amdpci_aspm;
@@ -115,29 +115,29 @@ static void _rtl_pci_update_default_setting(struct ieee80211_hw *hw)
 	switch (rtlpci->const_support_pciaspm) {
 	case 0:{
 			/*Not support ASPM. */
-			bool b_support_aspm = false;
-			ppsc->b_support_aspm = b_support_aspm;
+			bool support_aspm = false;
+			ppsc->support_aspm = support_aspm;
 			break;
 		}
 	case 1:{
 			/*Support ASPM. */
-			bool b_support_aspm = true;
-			bool b_support_backdoor = true;
-			ppsc->b_support_aspm = b_support_aspm;
+			bool support_aspm = true;
+			bool support_backdoor = true;
+			ppsc->support_aspm = support_aspm;
 
 			/*if(priv->oem_id == RT_CID_TOSHIBA &&
 			   !priv->ndis_adapter.amd_l1_patch)
-			   b_support_backdoor = false; */
+			   support_backdoor = false; */
 
-			ppsc->b_support_backdoor = b_support_backdoor;
+			ppsc->support_backdoor = support_backdoor;
 
 			break;
 		}
 	case 2:
 		/*ASPM value set by chipset. */
 		if (pcibridge_vendor == PCI_BRIDGE_VENDOR_INTEL) {
-			bool b_support_aspm = true;
-			ppsc->b_support_aspm = b_support_aspm;
+			bool support_aspm = true;
+			ppsc->support_aspm = support_aspm;
 		}
 		break;
 	default:
@@ -585,7 +585,7 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 			hdr = (struct ieee80211_hdr *)(skb->data);
 			fc = le16_to_cpu(hdr->frame_control);
 
-			if (!stats.b_crc) {
+			if (!stats.crc) {
 				memcpy(IEEE80211_SKB_RXCB(skb), &rx_status,
 				       sizeof(rx_status));
 
@@ -890,17 +890,17 @@ static void _rtl_pci_init_struct(struct ieee80211_hw *hw,
 	rtlhal->hw = hw;
 	rtlpci->pdev = pdev;
 
-	ppsc->b_inactiveps = false;
-	ppsc->b_leisure_ps = true;
-	ppsc->b_fwctrl_lps = true;
-	ppsc->b_reg_fwctrl_lps = 3;
+	ppsc->inactiveps = false;
+	ppsc->leisure_ps = true;
+	ppsc->fwctrl_lps = true;
+	ppsc->reg_fwctrl_lps = 3;
 	ppsc->reg_max_lps_awakeintvl = 5;
 
-	if (ppsc->b_reg_fwctrl_lps == 1)
+	if (ppsc->reg_fwctrl_lps == 1)
 		ppsc->fwctrl_psmode = FW_PS_MIN_MODE;
-	else if (ppsc->b_reg_fwctrl_lps == 2)
+	else if (ppsc->reg_fwctrl_lps == 2)
 		ppsc->fwctrl_psmode = FW_PS_MAX_MODE;
-	else if (ppsc->b_reg_fwctrl_lps == 3)
+	else if (ppsc->reg_fwctrl_lps == 3)
 		ppsc->fwctrl_psmode = FW_PS_DTIM_MODE;
 
 	/*Tx/Rx related var */

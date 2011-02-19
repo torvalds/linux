@@ -666,7 +666,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_BASIC_RATE,
 					(u8 *) (&basic_rates));
 
-			if (rtlpriv->dm.b_useramask)
+			if (rtlpriv->dm.useramask)
 				rtlpriv->cfg->ops->update_rate_mask(hw, 0);
 			else
 				rtlpriv->cfg->ops->update_rate_table(hw);
@@ -681,7 +681,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 	 */
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
-			if (ppsc->b_fwctrl_lps) {
+			if (ppsc->fwctrl_lps) {
 				u8 mstatus = RT_MEDIA_CONNECT;
 				rtlpriv->cfg->ops->set_hw_reg(hw,
 						      HW_VAR_H2C_FW_JOINBSSRPT,
@@ -689,7 +689,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 				ppsc->report_linked = true;
 			}
 		} else {
-			if (ppsc->b_fwctrl_lps) {
+			if (ppsc->fwctrl_lps) {
 				u8 mstatus = RT_MEDIA_DISCONNECT;
 				rtlpriv->cfg->ops->set_hw_reg(hw,
 						      HW_VAR_H2C_FW_JOINBSSRPT,
@@ -818,7 +818,7 @@ static void rtl_op_sw_scan_complete(struct ieee80211_hw *hw)
 		/* fix fwlps issue */
 		rtlpriv->cfg->ops->set_network_type(hw, mac->opmode);
 
-		if (rtlpriv->dm.b_useramask)
+		if (rtlpriv->dm.useramask)
 			rtlpriv->cfg->ops->update_rate_mask(hw, 0);
 		else
 			rtlpriv->cfg->ops->update_rate_table(hw);
