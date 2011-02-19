@@ -62,8 +62,8 @@ const struct wm8994_access_mask wm8994_access_masks[WM8994_CACHE_SIZE] = {
 	{ 0x00FF, 0x00FF }, /* R58    - MICBIAS */
 	{ 0x000F, 0x000F }, /* R59    - LDO 1 */
 	{ 0x0007, 0x0007 }, /* R60    - LDO 2 */
-	{ 0x0000, 0x0000 }, /* R61 */
-	{ 0x0000, 0x0000 }, /* R62 */
+	{ 0xFFFF, 0xFFFF }, /* R61 */
+	{ 0xFFFF, 0xFFFF }, /* R62 */
 	{ 0x0000, 0x0000 }, /* R63 */
 	{ 0x0000, 0x0000 }, /* R64 */
 	{ 0x0000, 0x0000 }, /* R65 */
