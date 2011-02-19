@@ -38,6 +38,7 @@ struct pending_cmd {
 	int index;
 	void *cmd;
 	struct sock *sk;
+	void *user_data;
 };
 
 LIST_HEAD(cmd_list);
@@ -1063,6 +1064,135 @@ static int set_io_capability(struct sock *sk, unsigned char *data, u16 len)
 						&dev_id, sizeof(dev_id));
 }
 
+static inline struct pending_cmd *find_pairing(struct hci_conn *conn)
+{
+	struct hci_dev *hdev = conn->hdev;
+	struct list_head *p;
+
+	list_for_each(p, &cmd_list) {
+		struct pending_cmd *cmd;
+
+		cmd = list_entry(p, struct pending_cmd, list);
+
+		if (cmd->opcode != MGMT_OP_PAIR_DEVICE)
+			continue;
+
+		if (cmd->index != hdev->id)
+			continue;
+
+		if (cmd->user_data != conn)
+			continue;
+
+		return cmd;
+	}
+
+	return NULL;
+}
+
+static void pairing_complete(struct pending_cmd *cmd, u8 status)
+{
+	struct mgmt_rp_pair_device rp;
+	struct hci_conn *conn = cmd->user_data;
+
+	rp.index = cmd->index;
+	bacpy(&rp.bdaddr, &conn->dst);
+	rp.status = status;
+
+	cmd_complete(cmd->sk, MGMT_OP_PAIR_DEVICE, &rp, sizeof(rp));
+
+	/* So we don't get further callbacks for this connection */
+	conn->connect_cfm_cb = NULL;
+	conn->security_cfm_cb = NULL;
+	conn->disconn_cfm_cb = NULL;
+
+	hci_conn_put(conn);
+
+	list_del(&cmd->list);
+	mgmt_pending_free(cmd);
+}
+
+static void pairing_complete_cb(struct hci_conn *conn, u8 status)
+{
+	struct pending_cmd *cmd;
+
+	BT_DBG("status %u", status);
+
+	cmd = find_pairing(conn);
+	if (!cmd) {
+		BT_DBG("Unable to find a pending command");
+		return;
+	}
+
+	pairing_complete(cmd, status);
+}
+
+static int pair_device(struct sock *sk, unsigned char *data, u16 len)
+{
+	struct hci_dev *hdev;
+	struct mgmt_cp_pair_device *cp;
+	struct pending_cmd *cmd;
+	u8 sec_level, auth_type;
+	struct hci_conn *conn;
+	u16 dev_id;
+	int err;
+
+	BT_DBG("");
+
+	cp = (void *) data;
+	dev_id = get_unaligned_le16(&cp->index);
+
+	hdev = hci_dev_get(dev_id);
+	if (!hdev)
+		return cmd_status(sk, MGMT_OP_PAIR_DEVICE, ENODEV);
+
+	hci_dev_lock_bh(hdev);
+
+	if (cp->io_cap == 0x03) {
+		sec_level = BT_SECURITY_MEDIUM;
+		auth_type = HCI_AT_DEDICATED_BONDING;
+	} else {
+		sec_level = BT_SECURITY_HIGH;
+		auth_type = HCI_AT_DEDICATED_BONDING_MITM;
+	}
+
+	conn = hci_connect(hdev, ACL_LINK, &cp->bdaddr, sec_level, auth_type);
+	if (!conn) {
+		err = -ENOMEM;
+		goto unlock;
+	}
+
+	if (conn->connect_cfm_cb) {
+		hci_conn_put(conn);
+		err = cmd_status(sk, MGMT_OP_PAIR_DEVICE, EBUSY);
+		goto unlock;
+	}
+
+	cmd = mgmt_pending_add(sk, MGMT_OP_PAIR_DEVICE, dev_id, data, len);
+	if (!cmd) {
+		err = -ENOMEM;
+		hci_conn_put(conn);
+		goto unlock;
+	}
+
+	conn->connect_cfm_cb = pairing_complete_cb;
+	conn->security_cfm_cb = pairing_complete_cb;
+	conn->disconn_cfm_cb = pairing_complete_cb;
+	conn->io_capability = cp->io_cap;
+	cmd->user_data = conn;
+
+	if (conn->state == BT_CONNECTED &&
+				hci_conn_security(conn, sec_level, auth_type))
+		pairing_complete(cmd, 0);
+
+	err = 0;
+
+unlock:
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 {
 	unsigned char *buf;
@@ -1147,6 +1277,9 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_SET_IO_CAPABILITY:
 		err = set_io_capability(sk, buf + sizeof(*hdr), len);
+		break;
+	case MGMT_OP_PAIR_DEVICE:
+		err = pair_device(sk, buf + sizeof(*hdr), len);
 		break;
 	default:
 		BT_DBG("Unknown op %u", opcode);
