@@ -1641,6 +1641,9 @@ out:
 
 static void loop_free(struct loop_device *lo)
 {
+	if (!lo->lo_queue->queue_lock)
+		lo->lo_queue->queue_lock = &lo->lo_queue->__queue_lock;
+
 	blk_cleanup_queue(lo->lo_queue);
 	put_disk(lo->lo_disk);
 	list_del(&lo->lo_list);

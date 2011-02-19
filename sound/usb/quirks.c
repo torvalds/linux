@@ -532,7 +532,7 @@ int snd_usb_is_big_endian_format(struct snd_usb_audio *chip, struct audioformat 
 }
 
 /*
- * For E-Mu 0404USB/0202USB/TrackerPre sample rate should be set for device,
+ * For E-Mu 0404USB/0202USB/TrackerPre/0204 sample rate should be set for device,
  * not for interface.
  */
 
@@ -589,6 +589,7 @@ void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
 	case USB_ID(0x041e, 0x3f02): /* E-Mu 0202 USB */
 	case USB_ID(0x041e, 0x3f04): /* E-Mu 0404 USB */
 	case USB_ID(0x041e, 0x3f0a): /* E-Mu Tracker Pre */
+	case USB_ID(0x041e, 0x3f19): /* E-Mu 0204 USB */
 		set_format_emu_quirk(subs, fmt);
 		break;
 	}

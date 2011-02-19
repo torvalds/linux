@@ -5558,9 +5558,7 @@ static void intel_crtc_reset(struct drm_crtc *crtc)
 	/* Reset flags back to the 'unknown' status so that they
 	 * will be correctly set on the initial modeset.
 	 */
-	intel_crtc->cursor_addr = 0;
 	intel_crtc->dpms_mode = -1;
-	intel_crtc->active = true; /* force the pipe off on setup_init_config */
 }
 
 static struct drm_crtc_helper_funcs intel_helper_funcs = {
@@ -5666,6 +5664,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	dev_priv->pipe_to_crtc_mapping[intel_crtc->pipe] = &intel_crtc->base;
 
 	intel_crtc_reset(&intel_crtc->base);
+	intel_crtc->active = true; /* force the pipe off on setup_init_config */
 
 	if (HAS_PCH_SPLIT(dev)) {
 		intel_helper_funcs.prepare = ironlake_crtc_prepare;
@@ -6463,29 +6462,19 @@ void intel_enable_clock_gating(struct drm_device *dev)
 	}
 }
 
-void intel_disable_clock_gating(struct drm_device *dev)
+static void ironlake_teardown_rc6(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (dev_priv->renderctx) {
-		struct drm_i915_gem_object *obj = dev_priv->renderctx;
-
-		I915_WRITE(CCID, 0);
-		POSTING_READ(CCID);
-
-		i915_gem_object_unpin(obj);
-		drm_gem_object_unreference(&obj->base);
+		i915_gem_object_unpin(dev_priv->renderctx);
+		drm_gem_object_unreference(&dev_priv->renderctx->base);
 		dev_priv->renderctx = NULL;
 	}
 
 	if (dev_priv->pwrctx) {
-		struct drm_i915_gem_object *obj = dev_priv->pwrctx;
-
-		I915_WRITE(PWRCTXA, 0);
-		POSTING_READ(PWRCTXA);
-
-		i915_gem_object_unpin(obj);
-		drm_gem_object_unreference(&obj->base);
+		i915_gem_object_unpin(dev_priv->pwrctx);
+		drm_gem_object_unreference(&dev_priv->pwrctx->base);
 		dev_priv->pwrctx = NULL;
 	}
 }
@@ -6494,21 +6483,39 @@ static void ironlake_disable_rc6(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	/* Wake the GPU, prevent RC6, then restore RSTDBYCTL */
-	I915_WRITE(RSTDBYCTL, I915_READ(RSTDBYCTL) | RCX_SW_EXIT);
-	wait_for(((I915_READ(RSTDBYCTL) & RSX_STATUS_MASK) == RSX_STATUS_ON),
-		 10);
-	POSTING_READ(CCID);
-	I915_WRITE(PWRCTXA, 0);
-	POSTING_READ(PWRCTXA);
-	I915_WRITE(RSTDBYCTL, I915_READ(RSTDBYCTL) & ~RCX_SW_EXIT);
-	POSTING_READ(RSTDBYCTL);
-	i915_gem_object_unpin(dev_priv->renderctx);
-	drm_gem_object_unreference(&dev_priv->renderctx->base);
-	dev_priv->renderctx = NULL;
-	i915_gem_object_unpin(dev_priv->pwrctx);
-	drm_gem_object_unreference(&dev_priv->pwrctx->base);
-	dev_priv->pwrctx = NULL;
+	if (I915_READ(PWRCTXA)) {
+		/* Wake the GPU, prevent RC6, then restore RSTDBYCTL */
+		I915_WRITE(RSTDBYCTL, I915_READ(RSTDBYCTL) | RCX_SW_EXIT);
+		wait_for(((I915_READ(RSTDBYCTL) & RSX_STATUS_MASK) == RSX_STATUS_ON),
+			 50);
+
+		I915_WRITE(PWRCTXA, 0);
+		POSTING_READ(PWRCTXA);
+
+		I915_WRITE(RSTDBYCTL, I915_READ(RSTDBYCTL) & ~RCX_SW_EXIT);
+		POSTING_READ(RSTDBYCTL);
+	}
+
+	ironlake_disable_rc6(dev);
+}
+
+static int ironlake_setup_rc6(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->renderctx == NULL)
+		dev_priv->renderctx = intel_alloc_context_page(dev);
+	if (!dev_priv->renderctx)
+		return -ENOMEM;
+
+	if (dev_priv->pwrctx == NULL)
+		dev_priv->pwrctx = intel_alloc_context_page(dev);
+	if (!dev_priv->pwrctx) {
+		ironlake_teardown_rc6(dev);
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 void ironlake_enable_rc6(struct drm_device *dev)
@@ -6516,15 +6523,26 @@ void ironlake_enable_rc6(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
+	/* rc6 disabled by default due to repeated reports of hanging during
+	 * boot and resume.
+	 */
+	if (!i915_enable_rc6)
+		return;
+
+	ret = ironlake_setup_rc6(dev);
+	if (ret)
+		return;
+
 	/*
 	 * GPU can automatically power down the render unit if given a page
 	 * to save state.
 	 */
 	ret = BEGIN_LP_RING(6);
 	if (ret) {
-		ironlake_disable_rc6(dev);
+		ironlake_teardown_rc6(dev);
 		return;
 	}
+
 	OUT_RING(MI_SUSPEND_FLUSH | MI_SUSPEND_FLUSH_EN);
 	OUT_RING(MI_SET_CONTEXT);
 	OUT_RING(dev_priv->renderctx->gtt_offset |
@@ -6540,6 +6558,7 @@ void ironlake_enable_rc6(struct drm_device *dev)
 	I915_WRITE(PWRCTXA, dev_priv->pwrctx->gtt_offset | PWRCTX_EN);
 	I915_WRITE(RSTDBYCTL, I915_READ(RSTDBYCTL) & ~RCX_SW_EXIT);
 }
+
 
 /* Set up chip specific display functions */
 static void intel_init_display(struct drm_device *dev)
@@ -6783,21 +6802,9 @@ void intel_modeset_init(struct drm_device *dev)
 	if (IS_GEN6(dev))
 		gen6_enable_rps(dev_priv);
 
-	if (IS_IRONLAKE_M(dev)) {
-		dev_priv->renderctx = intel_alloc_context_page(dev);
-		if (!dev_priv->renderctx)
-			goto skip_rc6;
-		dev_priv->pwrctx = intel_alloc_context_page(dev);
-		if (!dev_priv->pwrctx) {
-			i915_gem_object_unpin(dev_priv->renderctx);
-			drm_gem_object_unreference(&dev_priv->renderctx->base);
-			dev_priv->renderctx = NULL;
-			goto skip_rc6;
-		}
+	if (IS_IRONLAKE_M(dev))
 		ironlake_enable_rc6(dev);
-	}
 
-skip_rc6:
 	INIT_WORK(&dev_priv->idle_work, intel_idle_update);
 	setup_timer(&dev_priv->idle_timer, intel_gpu_idle_timer,
 		    (unsigned long)dev);

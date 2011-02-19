@@ -46,6 +46,9 @@ module_param_named(fbpercrtc, i915_fbpercrtc, int, 0400);
 unsigned int i915_powersave = 1;
 module_param_named(powersave, i915_powersave, int, 0600);
 
+unsigned int i915_enable_rc6 = 0;
+module_param_named(i915_enable_rc6, i915_enable_rc6, int, 0600);
+
 unsigned int i915_lvds_downclock = 0;
 module_param_named(lvds_downclock, i915_lvds_downclock, int, 0400);
 
@@ -360,7 +363,7 @@ static int i915_drm_thaw(struct drm_device *dev)
 		/* Resume the modeset for every activated CRTC */
 		drm_helper_resume_force_mode(dev);
 
-		if (dev_priv->renderctx && dev_priv->pwrctx)
+		if (IS_IRONLAKE_M(dev))
 			ironlake_enable_rc6(dev);
 	}
 

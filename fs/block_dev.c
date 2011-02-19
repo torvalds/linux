@@ -1215,12 +1215,6 @@ int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
 
 	res = __blkdev_get(bdev, mode, 0);
 
-	/* __blkdev_get() may alter read only status, check it afterwards */
-	if (!res && (mode & FMODE_WRITE) && bdev_read_only(bdev)) {
-		__blkdev_put(bdev, mode, 0);
-		res = -EACCES;
-	}
-
 	if (whole) {
 		/* finish claiming */
 		mutex_lock(&bdev->bd_mutex);
@@ -1297,6 +1291,11 @@ struct block_device *blkdev_get_by_path(const char *path, fmode_t mode,
 	err = blkdev_get(bdev, mode, holder);
 	if (err)
 		return ERR_PTR(err);
+
+	if ((mode & FMODE_WRITE) && bdev_read_only(bdev)) {
+		blkdev_put(bdev, mode);
+		return ERR_PTR(-EACCES);
+	}
 
 	return bdev;
 }

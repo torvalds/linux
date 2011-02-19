@@ -644,6 +644,7 @@ retry:
 					async_extent->ram_size - 1, 0);
 
 		em = alloc_extent_map(GFP_NOFS);
+		BUG_ON(!em);
 		em->start = async_extent->start;
 		em->len = async_extent->ram_size;
 		em->orig_start = em->start;
@@ -820,6 +821,7 @@ static noinline int cow_file_range(struct inode *inode,
 		BUG_ON(ret);
 
 		em = alloc_extent_map(GFP_NOFS);
+		BUG_ON(!em);
 		em->start = start;
 		em->orig_start = em->start;
 		ram_size = ins.offset;
@@ -1169,6 +1171,7 @@ out_check:
 			struct extent_map_tree *em_tree;
 			em_tree = &BTRFS_I(inode)->extent_tree;
 			em = alloc_extent_map(GFP_NOFS);
+			BUG_ON(!em);
 			em->start = cur_offset;
 			em->orig_start = em->start;
 			em->len = num_bytes;
