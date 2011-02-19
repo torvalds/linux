@@ -161,7 +161,7 @@ struct clocksource {
 	/*
 	 * First part of structure is read mostly
 	 */
-	char *name;
+	const char *name;
 	struct list_head list;
 	int rating;
 	cycle_t (*read)(struct clocksource *cs);
