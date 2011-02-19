@@ -40,6 +40,7 @@
 
 /* events the user application reading /dev/sonypi can use */
 
+#define SONYPI_EVENT_IGNORE			 0
 #define SONYPI_EVENT_JOGDIAL_DOWN		 1
 #define SONYPI_EVENT_JOGDIAL_UP			 2
 #define SONYPI_EVENT_JOGDIAL_DOWN_PRESSED	 3

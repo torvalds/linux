@@ -1592,8 +1592,8 @@ static struct sonypi_event sonypi_blueev[] = {
 
 /* The set of possible wireless events */
 static struct sonypi_event sonypi_wlessev[] = {
-	{ 0x59, SONYPI_EVENT_WIRELESS_ON },
-	{ 0x5a, SONYPI_EVENT_WIRELESS_OFF },
+	{ 0x59, SONYPI_EVENT_IGNORE },
+	{ 0x5a, SONYPI_EVENT_IGNORE },
 	{ 0, 0 }
 };
 
@@ -2733,6 +2733,9 @@ static irqreturn_t sony_pic_irq(int irq, void *dev_id)
 			if (ev == dev->event_types[i].events[j].data) {
 				device_event =
 					dev->event_types[i].events[j].event;
+				/* some events may require ignoring */
+				if (!device_event)
+					return IRQ_HANDLED;
 				goto found;
 			}
 		}
@@ -2752,7 +2755,6 @@ found:
 	sony_laptop_report_input_event(device_event);
 	acpi_bus_generate_proc_event(dev->acpi_dev, 1, device_event);
 	sonypi_compat_report_event(device_event);
-
 	return IRQ_HANDLED;
 }
 
