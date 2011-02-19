@@ -2477,7 +2477,7 @@ struct iwl_bt_cmd {
 					IWLAGN_BT_VALID_BT4_TIMES | \
 					IWLAGN_BT_VALID_3W_LUT)
 
-struct iwlagn_bt_cmd {
+struct iwl6000_bt_cmd {
 	u8 flags;
 	u8 ledtime; /* unused */
 	u8 max_kill;

@@ -1804,7 +1804,7 @@ static const __le32 iwlagn_concurrent_lookup[12] = {
 
 void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 {
-	struct iwlagn_bt_cmd bt_cmd = {
+	struct iwl6000_bt_cmd bt_cmd = {
 		.max_kill = IWLAGN_BT_MAX_KILL_DEFAULT,
 		.bt3_timer_t7_value = IWLAGN_BT3_T7_DEFAULT,
 		.bt3_prio_sample_time = IWLAGN_BT3_PRIO_SAMPLE_DEFAULT,
