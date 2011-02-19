@@ -114,6 +114,7 @@ enum hardware_type {
 	HARDWARE_TYPE_RTL8192CU,
 	HARDWARE_TYPE_RTL8192DE,
 	HARDWARE_TYPE_RTL8192DU,
+	HARDWARE_TYPE_RTL8723U,
 
 	/*keep it last*/
 	HARDWARE_TYPE_NUM
@@ -121,6 +122,10 @@ enum hardware_type {
 
 #define IS_HARDWARE_TYPE_8192CE(rtlhal)			\
 	(rtlhal->hw_type == HARDWARE_TYPE_RTL8192CE)
+#define IS_HARDWARE_TYPE_8192CU(rtlhal)			\
+	(rtlhal->hw_type == HARDWARE_TYPE_RTL8192CU)
+#define IS_HARDWARE_TYPE_8723U(rtlhal)			\
+	(rtlhal->hw_type == HARDWARE_TYPE_RTL8723U)
 
 enum scan_operation_backup_opt {
 	SCAN_OPT_BACKUP = 0,
@@ -363,6 +368,8 @@ enum rtl_var_map {
 	EFUSE_LOADER_CLK_EN,
 	EFUSE_ANA8M,
 	EFUSE_HWSET_MAX_SIZE,
+	EFUSE_MAX_SECTION_MAP,
+	EFUSE_REAL_CONTENT_SIZE,
 
 	/*CAM map */
 	RWCAM,
@@ -508,6 +515,17 @@ enum wireless_mode {
 	WIRELESS_MODE_N_24G = 0x10,
 	WIRELESS_MODE_N_5G = 0x20
 };
+
+#define IS_WIRELESS_MODE_A(wirelessmode)	\
+	(wirelessmode == WIRELESS_MODE_A)
+#define IS_WIRELESS_MODE_B(wirelessmode)	\
+	(wirelessmode == WIRELESS_MODE_B)
+#define IS_WIRELESS_MODE_G(wirelessmode)	\
+	(wirelessmode == WIRELESS_MODE_G)
+#define IS_WIRELESS_MODE_N_24G(wirelessmode)	\
+	(wirelessmode == WIRELESS_MODE_N_24G)
+#define IS_WIRELESS_MODE_N_5G(wirelessmode)	\
+	(wirelessmode == WIRELESS_MODE_N_5G)
 
 enum ratr_table_mode {
 	RATR_INX_WIRELESS_NGB = 0,
@@ -694,6 +712,25 @@ struct rtl_rfkill {
 	bool rfkill_state;	/*0 is off, 1 is on */
 };
 
+struct phy_parameters {
+	u16 length;
+	u32 *pdata;
+};
+
+enum hw_param_tab_index {
+	PHY_REG_2T,
+	PHY_REG_1T,
+	PHY_REG_PG,
+	RADIOA_2T,
+	RADIOB_2T,
+	RADIOA_1T,
+	RADIOB_1T,
+	MAC_REG,
+	AGCTAB_2T,
+	AGCTAB_1T,
+	MAX_TAB
+};
+
 struct rtl_phy {
 	struct bb_reg_def phyreg_def[4];	/*Radio A/B/C/D */
 	struct init_gain initgain_backup;
@@ -747,6 +784,7 @@ struct rtl_phy {
 	u32 framesync_c34;
 
 	u8 num_total_rfpath;
+	struct phy_parameters hwparam_tables[MAX_TAB];
 };
 
 #define MAX_TID_COUNT				9
@@ -862,11 +900,13 @@ struct rtl_hal {
 	enum intf_type interface;
 	u16 hw_type;		/*92c or 92d or 92s and so on */
 	u8 oem_id;
-	u8 version;		/*version of chip */
+	u32 version;		/*version of chip */
 	u8 state;		/*stop 0, start 1 */
 
 	/*firmware */
 	u8 *pfirmware;
+	u16 fw_version;
+	u16 fw_subversion;
 	bool h2c_setinprogress;
 	u8 last_hmeboxnum;
 	bool fw_ready;
@@ -925,10 +965,10 @@ struct rtl_dm {
 	char cck_index;
 };
 
-#define	EFUSE_MAX_LOGICAL_SIZE			 128
+#define	EFUSE_MAX_LOGICAL_SIZE			 256
 
 struct rtl_efuse {
-	bool autoLoad_ok;
+	bool autoload_ok;
 	bool bootfromefuse;
 	u16 max_physical_size;
 	u8 contents[EFUSE_MAX_LOGICAL_SIZE];
@@ -947,6 +987,8 @@ struct rtl_efuse {
 	u8 eeprom_oemid;
 	u16 eeprom_channelplan;
 	u8 eeprom_version;
+	u8 board_type;
+	u8 external_pa;
 
 	u8 dev_addr[6];
 
@@ -1020,6 +1062,7 @@ struct rtl_ps_ctl {
 	/*just for PCIE ASPM */
 	u8 const_amdpci_aspm;
 
+	bool pwrdown_mode;
 	enum rf_pwrstate inactive_pwrstate;
 	enum rf_pwrstate rfpwr_state;	/*cur power state */
 };
@@ -1120,9 +1163,11 @@ struct rtl_hal_ops {
 	void (*disable_interrupt) (struct ieee80211_hw *hw);
 	int (*set_network_type) (struct ieee80211_hw *hw,
 				 enum nl80211_iftype type);
+	void (*set_chk_bssid)(struct ieee80211_hw *hw,
+				bool check_bssid);
 	void (*set_bw_mode) (struct ieee80211_hw *hw,
 			     enum nl80211_channel_type ch_type);
-	 u8(*switch_channel) (struct ieee80211_hw *hw);
+	u8 (*switch_channel) (struct ieee80211_hw *hw);
 	void (*set_qos) (struct ieee80211_hw *hw, int aci);
 	void (*set_bcn_reg) (struct ieee80211_hw *hw);
 	void (*set_bcn_intv) (struct ieee80211_hw *hw);
@@ -1136,6 +1181,8 @@ struct rtl_hal_ops {
 			      struct ieee80211_hdr *hdr, u8 *pdesc_tx,
 			      struct ieee80211_tx_info *info,
 			      struct sk_buff *skb, unsigned int queue_index);
+	void (*fill_fake_txdesc) (struct ieee80211_hw *hw, u8 * pDesc,
+				  u32 buffer_len, bool bIsPsPoll);
 	void (*fill_tx_cmddesc) (struct ieee80211_hw *hw, u8 *pdesc,
 				 bool firstseg, bool lastseg,
 				 struct sk_buff *skb);
@@ -1310,6 +1357,89 @@ struct rtl_priv {
 #define rtl_hal(rtlpriv)	(&((rtlpriv)->rtlhal))
 #define rtl_efuse(rtlpriv)	(&((rtlpriv)->efuse))
 #define rtl_psc(rtlpriv)	(&((rtlpriv)->psc))
+
+/***************************************
+    Bluetooth Co-existance Related
+****************************************/
+
+enum bt_ant_num {
+	ANT_X2 = 0,
+	ANT_X1 = 1,
+};
+
+enum bt_co_type {
+	BT_2WIRE = 0,
+	BT_ISSC_3WIRE = 1,
+	BT_ACCEL = 2,
+	BT_CSR_BC4 = 3,
+	BT_CSR_BC8 = 4,
+	BT_RTL8756 = 5,
+};
+
+enum bt_cur_state {
+	BT_OFF = 0,
+	BT_ON = 1,
+};
+
+enum bt_service_type {
+	BT_SCO = 0,
+	BT_A2DP = 1,
+	BT_HID = 2,
+	BT_HID_IDLE = 3,
+	BT_SCAN = 4,
+	BT_IDLE = 5,
+	BT_OTHER_ACTION = 6,
+	BT_BUSY = 7,
+	BT_OTHERBUSY = 8,
+	BT_PAN = 9,
+};
+
+enum bt_radio_shared {
+	BT_RADIO_SHARED = 0,
+	BT_RADIO_INDIVIDUAL = 1,
+};
+
+struct bt_coexist_info {
+
+	/* EEPROM BT info. */
+	u8 eeprom_bt_coexist;
+	u8 eeprom_bt_type;
+	u8 eeprom_bt_ant_num;
+	u8 eeprom_bt_ant_isolation;
+	u8 eeprom_bt_radio_shared;
+
+	u8 bt_coexistence;
+	u8 bt_ant_num;
+	u8 bt_coexist_type;
+	u8 bt_state;
+	u8 bt_cur_state;	/* 0:on, 1:off */
+	u8 bt_ant_isolation;	/* 0:good, 1:bad */
+	u8 bt_pape_ctrl;	/* 0:SW, 1:SW/HW dynamic */
+	u8 bt_service;
+	u8 bt_radio_shared_type;
+	u8 bt_rfreg_origin_1e;
+	u8 bt_rfreg_origin_1f;
+	u8 bt_rssi_state;
+	u32 ratio_tx;
+	u32 ratio_pri;
+	u32 bt_edca_ul;
+	u32 bt_edca_dl;
+
+	bool b_init_set;
+	bool b_bt_busy_traffic;
+	bool b_bt_traffic_mode_set;
+	bool b_bt_non_traffic_mode_set;
+
+	bool b_fw_coexist_all_off;
+	bool b_sw_coexist_all_off;
+	u32 current_state;
+	u32 previous_state;
+	u8 bt_pre_rssi_state;
+
+	u8 b_reg_bt_iso;
+	u8 b_reg_bt_sco;
+
+};
 
 /****************************************
 	mem access macro define start
