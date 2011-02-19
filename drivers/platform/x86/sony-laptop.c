@@ -733,22 +733,30 @@ static int sony_find_snc_handle(int handle)
 
 	for (i = 0x20; i < 0x30; i++) {
 		acpi_callsetfunc(sony_nc_acpi_handle, "SN00", i, &result);
-		if (result == handle)
+		if (result == handle) {
+			dprintk("found handle 0x%.4x (offset: 0x%.2x)\n",
+					handle, i - 0x20);
 			return i-0x20;
+		}
 	}
 
+	dprintk("handle 0x%.4x not found\n", handle);
 	return -1;
 }
 
 static int sony_call_snc_handle(int handle, int argument, int *result)
 {
+	int ret = 0;
 	int offset = sony_find_snc_handle(handle);
 
 	if (offset < 0)
 		return -1;
 
-	return acpi_callsetfunc(sony_nc_acpi_handle, "SN07", offset | argument,
-				result);
+	ret = acpi_callsetfunc(sony_nc_acpi_handle, "SN07", offset | argument,
+			result);
+	dprintk("called SN07 with 0x%.4x (result: 0x%.4x)\n", offset | argument,
+			*result);
+	return ret;
 }
 
 /*
