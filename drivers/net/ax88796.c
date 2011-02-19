@@ -858,8 +858,6 @@ static int ax_probe(struct platform_device *pdev)
 	ei_local = netdev_priv(dev);
 	ax = to_ax_dev(dev);
 
-	memset(ax, 0, sizeof(struct ax_device));
-
 	spin_lock_init(&ax->mii_lock);
 
 	ax->dev = pdev;
