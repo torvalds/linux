@@ -5324,7 +5324,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	}
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, handle));
-	if (!obj)
+	if (&obj->base == NULL)
 		return -ENOENT;
 
 	if (obj->base.size < width * height * 4) {
@@ -6563,7 +6563,7 @@ intel_user_framebuffer_create(struct drm_device *dev,
 	int ret;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, filp, mode_cmd->handle));
-	if (!obj)
+	if (&obj->base == NULL)
 		return ERR_PTR(-ENOENT);
 
 	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);

@@ -1156,7 +1156,7 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 
 	new_bo = to_intel_bo(drm_gem_object_lookup(dev, file_priv,
 						   put_image_rec->bo_handle));
-	if (!new_bo) {
+	if (&new_bo->base == NULL) {
 		ret = -ENOENT;
 		goto out_free;
 	}

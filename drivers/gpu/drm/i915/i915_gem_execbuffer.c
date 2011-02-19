@@ -677,7 +677,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 	for (i = 0; i < count; i++) {
 		obj = to_intel_bo(drm_gem_object_lookup(dev, file,
 							exec[i].handle));
-		if (obj == NULL) {
+		if (&obj->base == NULL) {
 			DRM_ERROR("Invalid object handle %d at index %d\n",
 				   exec[i].handle, i);
 			ret = -ENOENT;
@@ -1087,7 +1087,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 		obj = to_intel_bo(drm_gem_object_lookup(dev, file,
 							exec[i].handle));
-		if (obj == NULL) {
+		if (&obj->base == NULL) {
 			DRM_ERROR("Invalid object handle %d at index %d\n",
 				   exec[i].handle, i);
 			/* prevent error path from reading uninitialized data */

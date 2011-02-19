@@ -506,7 +506,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 		return ret;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
-	if (obj == NULL) {
+	if (&obj->base == NULL) {
 		ret = -ENOENT;
 		goto unlock;
 	}
@@ -949,7 +949,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 		return ret;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
-	if (obj == NULL) {
+	if (&obj->base == NULL) {
 		ret = -ENOENT;
 		goto unlock;
 	}
@@ -1045,7 +1045,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 		return ret;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
-	if (obj == NULL) {
+	if (&obj->base == NULL) {
 		ret = -ENOENT;
 		goto unlock;
 	}
@@ -1088,7 +1088,7 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 		return ret;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
-	if (obj == NULL) {
+	if (&obj->base == NULL) {
 		ret = -ENOENT;
 		goto unlock;
 	}
@@ -1463,7 +1463,7 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 		return ret;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
-	if (obj == NULL) {
+	if (&obj->base == NULL) {
 		ret = -ENOENT;
 		goto unlock;
 	}
@@ -3331,7 +3331,7 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 		return ret;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
-	if (obj == NULL) {
+	if (&obj->base == NULL) {
 		ret = -ENOENT;
 		goto unlock;
 	}
@@ -3382,7 +3382,7 @@ i915_gem_unpin_ioctl(struct drm_device *dev, void *data,
 		return ret;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
-	if (obj == NULL) {
+	if (&obj->base == NULL) {
 		ret = -ENOENT;
 		goto unlock;
 	}
@@ -3419,7 +3419,7 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 		return ret;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
-	if (obj == NULL) {
+	if (&obj->base == NULL) {
 		ret = -ENOENT;
 		goto unlock;
 	}
@@ -3497,7 +3497,7 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 		return ret;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file_priv, args->handle));
-	if (obj == NULL) {
+	if (&obj->base == NULL) {
 		ret = -ENOENT;
 		goto unlock;
 	}
