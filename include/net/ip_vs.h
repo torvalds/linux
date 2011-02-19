@@ -494,7 +494,7 @@ struct ip_vs_conn_param {
  *	IP_VS structure allocated for each dynamically scheduled connection
  */
 struct ip_vs_conn {
-	struct list_head        c_list;         /* hashed list heads */
+	struct hlist_node	c_list;         /* hashed list heads */
 #ifdef CONFIG_NET_NS
 	struct net              *net;           /* Name space */
 #endif
