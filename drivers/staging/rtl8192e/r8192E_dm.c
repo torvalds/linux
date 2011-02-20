@@ -195,34 +195,8 @@ void dm_CheckRxAggregation(struct net_device *dev) {
 }
 #endif
 
-
-// call the script file to enable
-void dm_check_ac_dc_power(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	static char *ac_dc_check_script_path = "/etc/acpi/wireless-rtl-ac-dc-power.sh";
-	char *argv[] = {ac_dc_check_script_path,DRV_NAME,NULL};
-	static char *envp[] = {"HOME=/",
-			"TERM=linux",
-			"PATH=/usr/bin:/bin",
-			 NULL};
-
-	if(priv->ResetProgress == RESET_TYPE_SILENT)
-	{
-		RT_TRACE((COMP_INIT | COMP_POWER | COMP_RF), "GPIOChangeRFWorkItemCallBack(): Silent Reseting!!!!!!!\n");
-		return;
-	}
-
-	if(priv->ieee80211->state != IEEE80211_LINKED) {
-		return;
-	}
-	call_usermodehelper(ac_dc_check_script_path,argv,envp,1);
-}
-
 void hal_dm_watchdog(struct net_device *dev)
 {
-	dm_check_ac_dc_power(dev);
-
 	/*Add by amy 2008/05/15 ,porting from windows code.*/
 	dm_check_rate_adaptive(dev);
 	dm_dynamic_txpower(dev);
