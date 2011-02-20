@@ -587,20 +587,28 @@ static int __devinit hp_wmi_rfkill_setup(struct platform_device *device)
 	return 0;
 register_wwan_err:
 	rfkill_destroy(wwan_rfkill);
+	wwan_rfkill = NULL;
 	if (bluetooth_rfkill)
 		rfkill_unregister(bluetooth_rfkill);
 register_bluetooth_error:
 	rfkill_destroy(bluetooth_rfkill);
+	bluetooth_rfkill = NULL;
 	if (wifi_rfkill)
 		rfkill_unregister(wifi_rfkill);
 register_wifi_error:
 	rfkill_destroy(wifi_rfkill);
+	wifi_rfkill = NULL;
 	return err;
 }
 
 static int __devinit hp_wmi_bios_setup(struct platform_device *device)
 {
 	int err;
+
+	/* clear detected rfkill devices */
+	wifi_rfkill = NULL;
+	bluetooth_rfkill = NULL;
+	wwan_rfkill = NULL;
 
 	err = hp_wmi_rfkill_setup(device);
 	if (err)
