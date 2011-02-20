@@ -201,6 +201,7 @@ int sparse_keymap_setup(struct input_dev *dev,
 			break;
 
 		case KE_SW:
+		case KE_VSW:
 			__set_bit(EV_SW, dev->evbit);
 			__set_bit(entry->sw.code, dev->swbit);
 			break;

@@ -415,7 +415,7 @@ static int __key_instantiate_and_link(struct key *key,
 				      size_t datalen,
 				      struct key *keyring,
 				      struct key *authkey,
-				      struct keyring_list **_prealloc)
+				      unsigned long *_prealloc)
 {
 	int ret, awaken;
 
@@ -481,7 +481,7 @@ int key_instantiate_and_link(struct key *key,
 			     struct key *keyring,
 			     struct key *authkey)
 {
-	struct keyring_list *prealloc;
+	unsigned long prealloc;
 	int ret;
 
 	if (keyring) {
@@ -526,7 +526,7 @@ int key_negate_and_link(struct key *key,
 			struct key *keyring,
 			struct key *authkey)
 {
-	struct keyring_list *prealloc;
+	unsigned long prealloc;
 	struct timespec now;
 	int ret, awaken, link_ret = 0;
 
@@ -814,7 +814,7 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 			       key_perm_t perm,
 			       unsigned long flags)
 {
-	struct keyring_list *prealloc;
+	unsigned long prealloc;
 	const struct cred *cred = current_cred();
 	struct key_type *ktype;
 	struct key *keyring, *key = NULL;

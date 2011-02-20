@@ -26,6 +26,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/acpi_io.h>
 #include <acpi/video.h>
 
 #include "drmP.h"
@@ -476,7 +477,7 @@ int intel_opregion_setup(struct drm_device *dev)
 		return -ENOTSUPP;
 	}
 
-	base = ioremap(asls, OPREGION_SIZE);
+	base = acpi_os_ioremap(asls, OPREGION_SIZE);
 	if (!base)
 		return -ENOMEM;
 

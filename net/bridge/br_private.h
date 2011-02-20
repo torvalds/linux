@@ -84,13 +84,13 @@ struct net_bridge_port_group {
 struct net_bridge_mdb_entry
 {
 	struct hlist_node		hlist[2];
-	struct hlist_node		mglist;
 	struct net_bridge		*br;
 	struct net_bridge_port_group __rcu *ports;
 	struct rcu_head			rcu;
 	struct timer_list		timer;
 	struct timer_list		query_timer;
 	struct br_ip			addr;
+	bool				mglist;
 	u32				queries_sent;
 };
 
@@ -238,7 +238,6 @@ struct net_bridge
 	spinlock_t			multicast_lock;
 	struct net_bridge_mdb_htable __rcu *mdb;
 	struct hlist_head		router_list;
-	struct hlist_head		mglist;
 
 	struct timer_list		multicast_router_timer;
 	struct timer_list		multicast_querier_timer;

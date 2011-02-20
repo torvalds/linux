@@ -108,7 +108,6 @@ Luser_return:
 	movel	%d1,%a2
 1:
 	move	%a2@(TI_FLAGS),%d1	/* thread_info->flags */
-	andl	#_TIF_WORK_MASK,%d1
 	jne	Lwork_to_do
 	RESTORE_ALL
 

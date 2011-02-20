@@ -2373,7 +2373,7 @@ static int savagefb_suspend(struct pci_dev *dev, pm_message_t mesg)
 	if (mesg.event == PM_EVENT_FREEZE)
 		return 0;
 
-	acquire_console_sem();
+	console_lock();
 	fb_set_suspend(info, 1);
 
 	if (info->fbops->fb_sync)
@@ -2385,7 +2385,7 @@ static int savagefb_suspend(struct pci_dev *dev, pm_message_t mesg)
 	pci_save_state(dev);
 	pci_disable_device(dev);
 	pci_set_power_state(dev, pci_choose_state(dev, mesg));
-	release_console_sem();
+	console_unlock();
 
 	return 0;
 }
@@ -2409,7 +2409,7 @@ static int savagefb_resume(struct pci_dev* dev)
 		return 0;
 	}
 
-	acquire_console_sem();
+	console_lock();
 
 	pci_set_power_state(dev, PCI_D0);
 	pci_restore_state(dev);
@@ -2423,7 +2423,7 @@ static int savagefb_resume(struct pci_dev* dev)
 	savagefb_set_par(info);
 	fb_set_suspend(info, 0);
 	savagefb_blank(FB_BLANK_UNBLANK, info);
-	release_console_sem();
+	console_unlock();
 
 	return 0;
 }

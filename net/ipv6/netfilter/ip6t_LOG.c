@@ -410,7 +410,7 @@ fallback:
 		if (p != NULL) {
 			sb_add(m, "%02x", *p++);
 			for (i = 1; i < len; i++)
-				sb_add(m, ":%02x", p[i]);
+				sb_add(m, ":%02x", *p++);
 		}
 		sb_add(m, " ");
 

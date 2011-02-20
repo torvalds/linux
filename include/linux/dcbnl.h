@@ -106,8 +106,8 @@ struct ieee_pfc {
  */
 struct dcb_app {
 	__u8	selector;
-	__u32	protocol;
 	__u8	priority;
+	__u16	protocol;
 };
 
 struct dcbmsg {

@@ -57,6 +57,7 @@ struct omap_irq_bank {
 	unsigned long wake_enable;
 };
 
+u32 omap_irq_flags;
 static unsigned int irq_bank_count;
 static struct omap_irq_bank *irq_banks;
 
@@ -176,7 +177,6 @@ static struct irq_chip omap_irq_chip = {
 
 void __init omap_init_irq(void)
 {
-	extern unsigned int omap_irq_flags;
 	int i, j;
 
 #if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)

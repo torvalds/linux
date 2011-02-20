@@ -935,6 +935,9 @@ static void e1000_print_hw_hang(struct work_struct *work)
 	u16 phy_status, phy_1000t_status, phy_ext_status;
 	u16 pci_status;
 
+	if (test_bit(__E1000_DOWN, &adapter->state))
+		return;
+
 	e1e_rphy(hw, PHY_STATUS, &phy_status);
 	e1e_rphy(hw, PHY_1000T_STATUS, &phy_1000t_status);
 	e1e_rphy(hw, PHY_EXT_STATUS, &phy_ext_status);
@@ -1497,6 +1500,9 @@ static void e1000e_downshift_workaround(struct work_struct *work)
 {
 	struct e1000_adapter *adapter = container_of(work,
 					struct e1000_adapter, downshift_task);
+
+	if (test_bit(__E1000_DOWN, &adapter->state))
+		return;
 
 	e1000e_gig_downshift_workaround_ich8lan(&adapter->hw);
 }
@@ -3335,6 +3341,21 @@ int e1000e_up(struct e1000_adapter *adapter)
 	return 0;
 }
 
+static void e1000e_flush_descriptors(struct e1000_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+
+	if (!(adapter->flags2 & FLAG2_DMA_BURST))
+		return;
+
+	/* flush pending descriptor writebacks to memory */
+	ew32(TIDV, adapter->tx_int_delay | E1000_TIDV_FPD);
+	ew32(RDTR, adapter->rx_int_delay | E1000_RDTR_FPD);
+
+	/* execute the writes immediately */
+	e1e_flush();
+}
+
 static void e1000e_update_stats(struct e1000_adapter *adapter);
 
 void e1000e_down(struct e1000_adapter *adapter)
@@ -3381,6 +3402,9 @@ void e1000e_down(struct e1000_adapter *adapter)
 
 	if (!pci_channel_offline(adapter->pdev))
 		e1000e_reset(adapter);
+
+	e1000e_flush_descriptors(adapter);
+
 	e1000_clean_tx_ring(adapter);
 	e1000_clean_rx_ring(adapter);
 
@@ -3771,6 +3795,10 @@ static void e1000e_update_phy_task(struct work_struct *work)
 {
 	struct e1000_adapter *adapter = container_of(work,
 					struct e1000_adapter, update_phy_task);
+
+	if (test_bit(__E1000_DOWN, &adapter->state))
+		return;
+
 	e1000_get_phy_info(&adapter->hw);
 }
 
@@ -3781,6 +3809,10 @@ static void e1000e_update_phy_task(struct work_struct *work)
 static void e1000_update_phy_info(unsigned long data)
 {
 	struct e1000_adapter *adapter = (struct e1000_adapter *) data;
+
+	if (test_bit(__E1000_DOWN, &adapter->state))
+		return;
+
 	schedule_work(&adapter->update_phy_task);
 }
 
@@ -4155,6 +4187,9 @@ static void e1000_watchdog_task(struct work_struct *work)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 link, tctl;
 
+	if (test_bit(__E1000_DOWN, &adapter->state))
+		return;
+
 	link = e1000e_has_link(adapter);
 	if ((netif_carrier_ok(netdev)) && link) {
 		/* Cancel scheduled suspend requests. */
@@ -4342,18 +4377,11 @@ link_up:
 	else
 		ew32(ICS, E1000_ICS_RXDMT0);
 
+	/* flush pending descriptors to memory before detecting Tx hang */
+	e1000e_flush_descriptors(adapter);
+
 	/* Force detection of hung controller every watchdog period */
 	adapter->detect_tx_hung = 1;
-
-	/* flush partial descriptors to memory before detecting Tx hang */
-	if (adapter->flags2 & FLAG2_DMA_BURST) {
-		ew32(TIDV, adapter->tx_int_delay | E1000_TIDV_FPD);
-		ew32(RDTR, adapter->rx_int_delay | E1000_RDTR_FPD);
-		/*
-		 * no need to flush the writes because the timeout code does
-		 * an er32 first thing
-		 */
-	}
 
 	/*
 	 * With 82571 controllers, LAA may be overwritten due to controller
@@ -4891,6 +4919,10 @@ static void e1000_reset_task(struct work_struct *work)
 {
 	struct e1000_adapter *adapter;
 	adapter = container_of(work, struct e1000_adapter, reset_task);
+
+	/* don't run the task if already down */
+	if (test_bit(__E1000_DOWN, &adapter->state))
+		return;
 
 	if (!((adapter->flags & FLAG_RX_NEEDS_RESTART) &&
 	      (adapter->flags & FLAG_RX_RESTART_NOW))) {

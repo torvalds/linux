@@ -1281,10 +1281,13 @@ static int __dev_close_many(struct list_head *head)
 
 static int __dev_close(struct net_device *dev)
 {
+	int retval;
 	LIST_HEAD(single);
 
 	list_add(&dev->unreg_list, &single);
-	return __dev_close_many(&single);
+	retval = __dev_close_many(&single);
+	list_del(&single);
+	return retval;
 }
 
 static int dev_close_many(struct list_head *head)
@@ -1326,7 +1329,7 @@ int dev_close(struct net_device *dev)
 
 	list_add(&dev->unreg_list, &single);
 	dev_close_many(&single);
-
+	list_del(&single);
 	return 0;
 }
 EXPORT_SYMBOL(dev_close);
@@ -5243,6 +5246,7 @@ static void rollback_registered(struct net_device *dev)
 
 	list_add(&dev->unreg_list, &single);
 	rollback_registered_many(&single);
+	list_del(&single);
 }
 
 u32 netdev_fix_features(struct net_device *dev, u32 features)
@@ -6433,6 +6437,7 @@ static void __net_exit default_device_exit_batch(struct list_head *net_list)
 		}
 	}
 	unregister_netdevice_many(&dev_kill_list);
+	list_del(&dev_kill_list);
 	rtnl_unlock();
 }
 
