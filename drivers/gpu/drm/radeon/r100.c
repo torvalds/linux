@@ -3490,7 +3490,7 @@ void r100_cs_track_clear(struct radeon_device *rdev, struct r100_cs_track *track
 		track->num_texture = 16;
 		track->maxy = 4096;
 		track->separate_cube = 0;
-		track->aaresolve = true;
+		track->aaresolve = false;
 		track->aa.robj = NULL;
 	}
 
