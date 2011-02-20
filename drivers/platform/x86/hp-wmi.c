@@ -89,6 +89,13 @@ struct bios_return {
 	u32 value;
 };
 
+enum hp_return_value {
+	HPWMI_RET_WRONG_SIGNATURE	= 0x02,
+	HPWMI_RET_UNKNOWN_COMMAND	= 0x03,
+	HPWMI_RET_UNKNOWN_CMDTYPE	= 0x04,
+	HPWMI_RET_INVALID_PARAMETERS	= 0x05,
+};
+
 static const struct key_entry hp_wmi_keymap[] = {
 	{ KE_KEY, 0x02,   { KEY_BRIGHTNESSUP } },
 	{ KE_KEY, 0x03,   { KEY_BRIGHTNESSDOWN } },
@@ -170,6 +177,15 @@ static int hp_wmi_perform_query(int query, int write, u32 *buffer,
 	}
 
 	bios_return = *((struct bios_return *)obj->buffer.pointer);
+
+	if (bios_return.return_code) {
+		if (bios_return.return_code != HPWMI_RET_UNKNOWN_CMDTYPE)
+			printk(KERN_WARNING PREFIX "query 0x%x returned "
+						   "error 0x%x\n",
+			       query, bios_return.return_code);
+		kfree(obj);
+		return bios_return.return_code;
+	}
 
 	memcpy(buffer, &bios_return.value, sizeof(bios_return.value));
 
