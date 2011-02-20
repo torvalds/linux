@@ -70,23 +70,6 @@ uint wl_msg_level = WL_ERROR_VAL;
 
 #define MAX_WLIW_IOCTL_LEN 1024
 
-#if defined(IL_BIGENDIAN)
-#include <bcmendian.h>
-#define htod32(i) (bcmswap32(i))
-#define htod16(i) (bcmswap16(i))
-#define dtoh32(i) (bcmswap32(i))
-#define dtoh16(i) (bcmswap16(i))
-#define htodchanspec(i) htod16(i)
-#define dtohchanspec(i) dtoh16(i)
-#else
-#define htod32(i) i
-#define htod16(i) i
-#define dtoh32(i) i
-#define dtoh16(i) i
-#define htodchanspec(i) i
-#define dtohchanspec(i) i
-#endif
-
 #ifdef CONFIG_WIRELESS_EXT
 
 extern struct iw_statistics *dhd_get_wireless_stats(struct net_device *dev);
@@ -159,24 +142,24 @@ wl_iw_get_scan_prep(wl_scan_results_t *list,
 
 static void swap_key_from_BE(wl_wsec_key_t *key)
 {
-	key->index = htod32(key->index);
-	key->len = htod32(key->len);
-	key->algo = htod32(key->algo);
-	key->flags = htod32(key->flags);
-	key->rxiv.hi = htod32(key->rxiv.hi);
-	key->rxiv.lo = htod16(key->rxiv.lo);
-	key->iv_initialized = htod32(key->iv_initialized);
+	key->index = cpu_to_le32(key->index);
+	key->len = cpu_to_le32(key->len);
+	key->algo = cpu_to_le32(key->algo);
+	key->flags = cpu_to_le32(key->flags);
+	key->rxiv.hi = cpu_to_le32(key->rxiv.hi);
+	key->rxiv.lo = cpu_to_le16(key->rxiv.lo);
+	key->iv_initialized = cpu_to_le32(key->iv_initialized);
 }
 
 static void swap_key_to_BE(wl_wsec_key_t *key)
 {
-	key->index = dtoh32(key->index);
-	key->len = dtoh32(key->len);
-	key->algo = dtoh32(key->algo);
-	key->flags = dtoh32(key->flags);
-	key->rxiv.hi = dtoh32(key->rxiv.hi);
-	key->rxiv.lo = dtoh16(key->rxiv.lo);
-	key->iv_initialized = dtoh32(key->iv_initialized);
+	key->index = le32_to_cpu(key->index);
+	key->len = le32_to_cpu(key->len);
+	key->algo = le32_to_cpu(key->algo);
+	key->flags = le32_to_cpu(key->flags);
+	key->rxiv.hi = le32_to_cpu(key->rxiv.hi);
+	key->rxiv.lo = le16_to_cpu(key->rxiv.lo);
+	key->iv_initialized = le32_to_cpu(key->iv_initialized);
 }
 
 static int dev_wlc_ioctl(struct net_device *dev, int cmd, void *arg, int len)
@@ -224,7 +207,7 @@ static int dev_wlc_intvar_set(struct net_device *dev, char *name, int val)
 	char buf[WLC_IOCTL_SMLEN];
 	uint len;
 
-	val = htod32(val);
+	val = cpu_to_le32(val);
 	len = bcm_mkiovar(name, (char *)(&val), sizeof(val), buf, sizeof(buf));
 	ASSERT(len);
 
@@ -311,7 +294,7 @@ static int dev_wlc_intvar_get(struct net_device *dev, char *name, int *retval)
 	ASSERT(len);
 	error = dev_wlc_ioctl(dev, WLC_GET_VAR, (void *)&var, len);
 
-	*retval = dtoh32(var.val);
+	*retval = le32_to_cpu(var.val);
 
 	return error;
 }
@@ -341,7 +324,7 @@ wl_iw_config_commit(struct net_device *dev,
 	if (error)
 		return error;
 
-	ssid.SSID_len = dtoh32(ssid.SSID_len);
+	ssid.SSID_len = le32_to_cpu(ssid.SSID_len);
 
 	if (!ssid.SSID_len)
 		return 0;
@@ -393,7 +376,7 @@ wl_iw_set_freq(struct net_device *dev,
 
 		chan = wf_mhz2channel(fwrq->m, sf);
 	}
-	chan = htod32(chan);
+	chan = cpu_to_le32(chan);
 
 	error = dev_wlc_ioctl(dev, WLC_SET_CHANNEL, &chan, sizeof(chan));
 	if (error)
@@ -416,8 +399,8 @@ wl_iw_get_freq(struct net_device *dev,
 	if (error)
 		return error;
 
-	fwrq->m = dtoh32(ci.hw_channel);
-	fwrq->e = dtoh32(0);
+	fwrq->m = le32_to_cpu(ci.hw_channel);
+	fwrq->e = le32_to_cpu(0);
 	return 0;
 }
 
@@ -442,8 +425,8 @@ wl_iw_set_mode(struct net_device *dev,
 	default:
 		return -EINVAL;
 	}
-	infra = htod32(infra);
-	ap = htod32(ap);
+	infra = cpu_to_le32(infra);
+	ap = cpu_to_le32(ap);
 
 	error = dev_wlc_ioctl(dev, WLC_SET_INFRA, &infra, sizeof(infra));
 	if (error)
@@ -472,8 +455,8 @@ wl_iw_get_mode(struct net_device *dev,
 	if (error)
 		return error;
 
-	infra = dtoh32(infra);
-	ap = dtoh32(ap);
+	infra = le32_to_cpu(infra);
+	ap = le32_to_cpu(ap);
 	*uwrq = infra ? ap ? IW_MODE_MASTER : IW_MODE_INFRA : IW_MODE_ADHOC;
 
 	return 0;
@@ -518,17 +501,18 @@ wl_iw_get_range(struct net_device *dev,
 
 	range->min_nwid = range->max_nwid = 0;
 
-	list->count = htod32(MAXCHANNEL);
+	list->count = cpu_to_le32(MAXCHANNEL);
 	error = dev_wlc_ioctl(dev, WLC_GET_VALID_CHANNELS, channels,
 				(MAXCHANNEL + 1) * 4);
 	if (error) {
 		kfree(channels);
 		return error;
 	}
-	for (i = 0; i < dtoh32(list->count) && i < IW_MAX_FREQUENCIES; i++) {
-		range->freq[i].i = dtoh32(list->element[i]);
+	for (i = 0; i < le32_to_cpu(list->count) && i < IW_MAX_FREQUENCIES;
+	     i++) {
+		range->freq[i].i = le32_to_cpu(list->element[i]);
 
-		ch = dtoh32(list->element[i]);
+		ch = le32_to_cpu(list->element[i]);
 		if (ch <= CH_MAX_2G_CHANNEL) {
 			range->freq[i].m = ieee80211_dsss_chan_to_freq(ch);
 		} else {
@@ -556,7 +540,7 @@ wl_iw_get_range(struct net_device *dev,
 		kfree(channels);
 		return error;
 	}
-	rateset.count = dtoh32(rateset.count);
+	rateset.count = le32_to_cpu(rateset.count);
 	range->num_bitrates = rateset.count;
 	for (i = 0; i < rateset.count && i < IW_MAX_BITRATES; i++)
 		range->bitrate[i] = (rateset.rates[i] & 0x7f) * 500000;
@@ -568,7 +552,7 @@ wl_iw_get_range(struct net_device *dev,
 		dev_wlc_intvar_get(dev, "sgi_tx", &sgi_tx);
 		dev_wlc_ioctl(dev, WLC_GET_CHANNEL, &ci,
 			      sizeof(channel_info_t));
-		ci.hw_channel = dtoh32(ci.hw_channel);
+		ci.hw_channel = le32_to_cpu(ci.hw_channel);
 
 		if (bw_cap == 0 || (bw_cap == 2 && ci.hw_channel <= 14)) {
 			if (sgi_tx == 0)
@@ -594,7 +578,7 @@ wl_iw_get_range(struct net_device *dev,
 		kfree(channels);
 		return error;
 	}
-	i = dtoh32(i);
+	i = le32_to_cpu(i);
 	if (i == WLC_PHY_TYPE_A)
 		range->throughput = 24000000;
 	else
@@ -746,10 +730,10 @@ wl_iw_ch_to_chanspec(int ch, wl_join_params_t *join_params,
 		join_params->params.chanspec_list[0] &= WL_CHANSPEC_CHAN_MASK;
 		join_params->params.chanspec_list[0] |= chanspec;
 		join_params->params.chanspec_list[0] =
-		    htodchanspec(join_params->params.chanspec_list[0]);
+		    cpu_to_le16(join_params->params.chanspec_list[0]);
 
 		join_params->params.chanspec_num =
-		    htod32(join_params->params.chanspec_num);
+		    cpu_to_le32(join_params->params.chanspec_num);
 
 		WL_TRACE("%s  join_params->params.chanspec_list[0]= %X\n",
 			 __func__, join_params->params.chanspec_list[0]);
@@ -785,7 +769,7 @@ wl_iw_set_wap(struct net_device *dev,
 	join_params_size = sizeof(join_params.ssid);
 
 	memcpy(join_params.ssid.SSID, g_ssid.SSID, g_ssid.SSID_len);
-	join_params.ssid.SSID_len = htod32(g_ssid.SSID_len);
+	join_params.ssid.SSID_len = cpu_to_le32(g_ssid.SSID_len);
 	memcpy(&join_params.params.bssid, awrq->sa_data, ETH_ALEN);
 
 	WL_TRACE("%s  target_channel=%d\n",
@@ -844,12 +828,12 @@ wl_iw_mlme(struct net_device *dev,
 	memcpy(&scbval.ea, &mlme->addr.sa_data, ETH_ALEN);
 
 	if (mlme->cmd == IW_MLME_DISASSOC) {
-		scbval.val = htod32(scbval.val);
+		scbval.val = cpu_to_le32(scbval.val);
 		error =
 		    dev_wlc_ioctl(dev, WLC_DISASSOC, &scbval,
 				  sizeof(scb_val_t));
 	} else if (mlme->cmd == IW_MLME_DEAUTH) {
-		scbval.val = htod32(scbval.val);
+		scbval.val = cpu_to_le32(scbval.val);
 		error =
 		    dev_wlc_ioctl(dev, WLC_SCB_DEAUTHENTICATE_FOR_REASON,
 				  &scbval, sizeof(scb_val_t));
@@ -884,16 +868,16 @@ wl_iw_get_aplist(struct net_device *dev,
 	if (!list)
 		return -ENOMEM;
 	memset(list, 0, buflen);
-	list->buflen = htod32(buflen);
+	list->buflen = cpu_to_le32(buflen);
 	error = dev_wlc_ioctl(dev, WLC_SCAN_RESULTS, list, buflen);
 	if (error) {
 		WL_ERROR("%d: Scan results error %d\n", __LINE__, error);
 		kfree(list);
 		return error;
 	}
-	list->buflen = dtoh32(list->buflen);
-	list->version = dtoh32(list->version);
-	list->count = dtoh32(list->count);
+	list->buflen = le32_to_cpu(list->buflen);
+	list->version = le32_to_cpu(list->version);
+	list->count = le32_to_cpu(list->count);
 	if (list->version != WL_BSS_INFO_VERSION) {
 		WL_ERROR("%s : list->version %d != WL_BSS_INFO_VERSION\n",
 			 __func__, list->version);
@@ -904,18 +888,18 @@ wl_iw_get_aplist(struct net_device *dev,
 	for (i = 0, dwrq->length = 0;
 	     i < list->count && dwrq->length < IW_MAX_AP; i++) {
 		bi = bi ? (wl_bss_info_t *) ((unsigned long)bi +
-					     dtoh32(bi->length)) : list->
+					     le32_to_cpu(bi->length)) : list->
 		    bss_info;
-		ASSERT(((unsigned long)bi + dtoh32(bi->length)) <=
+		ASSERT(((unsigned long)bi + le32_to_cpu(bi->length)) <=
 		       ((unsigned long)list + buflen));
 
-		if (!(dtoh16(bi->capability) & WLAN_CAPABILITY_ESS))
+		if (!(le16_to_cpu(bi->capability) & WLAN_CAPABILITY_ESS))
 			continue;
 
 		memcpy(addr[dwrq->length].sa_data, &bi->BSSID, ETH_ALEN);
 		addr[dwrq->length].sa_family = ARPHRD_ETHER;
-		qual[dwrq->length].qual = rssi_to_qual(dtoh16(bi->RSSI));
-		qual[dwrq->length].level = 0x100 + dtoh16(bi->RSSI);
+		qual[dwrq->length].qual = rssi_to_qual(le16_to_cpu(bi->RSSI));
+		qual[dwrq->length].level = 0x100 + le16_to_cpu(bi->RSSI);
 		qual[dwrq->length].noise = 0x100 + bi->phy_noise;
 
 #if WIRELESS_EXT > 18
@@ -976,20 +960,22 @@ wl_iw_iscan_get_aplist(struct net_device *dev,
 		for (i = 0, dwrq->length = 0;
 		     i < list->count && dwrq->length < IW_MAX_AP; i++) {
 			bi = bi ? (wl_bss_info_t *) ((unsigned long)bi +
-						     dtoh32(bi->length)) :
+						     le32_to_cpu(bi->length)) :
 			    list->bss_info;
-			ASSERT(((unsigned long)bi + dtoh32(bi->length)) <=
+			ASSERT(((unsigned long)bi + le32_to_cpu(bi->length)) <=
 			       ((unsigned long)list + WLC_IW_ISCAN_MAXLEN));
 
-			if (!(dtoh16(bi->capability) & WLAN_CAPABILITY_ESS))
+			if (!(le16_to_cpu(bi->capability) &
+			      WLAN_CAPABILITY_ESS))
 				continue;
 
 			memcpy(addr[dwrq->length].sa_data, &bi->BSSID,
 			       ETH_ALEN);
 			addr[dwrq->length].sa_family = ARPHRD_ETHER;
 			qual[dwrq->length].qual =
-			    rssi_to_qual(dtoh16(bi->RSSI));
-			qual[dwrq->length].level = 0x100 + dtoh16(bi->RSSI);
+			    rssi_to_qual(le16_to_cpu(bi->RSSI));
+			qual[dwrq->length].level = 0x100 +
+							le16_to_cpu(bi->RSSI);
 			qual[dwrq->length].noise = 0x100 + bi->phy_noise;
 
 #if WIRELESS_EXT > 18
@@ -1025,10 +1011,10 @@ static int wl_iw_iscan_prep(wl_scan_params_t *params, wlc_ssid_t *ssid)
 	params->home_time = -1;
 	params->channel_num = 0;
 
-	params->nprobes = htod32(params->nprobes);
-	params->active_time = htod32(params->active_time);
-	params->passive_time = htod32(params->passive_time);
-	params->home_time = htod32(params->home_time);
+	params->nprobes = cpu_to_le32(params->nprobes);
+	params->active_time = cpu_to_le32(params->active_time);
+	params->passive_time = cpu_to_le32(params->passive_time);
+	params->home_time = cpu_to_le32(params->home_time);
 	if (ssid && ssid->SSID_len)
 		memcpy(&params->ssid, ssid, sizeof(wlc_ssid_t));
 
@@ -1039,9 +1025,9 @@ static int wl_iw_iscan(iscan_info_t *iscan, wlc_ssid_t *ssid, u16 action)
 {
 	int err = 0;
 
-	iscan->iscan_ex_params_p->version = htod32(ISCAN_REQ_VERSION);
-	iscan->iscan_ex_params_p->action = htod16(action);
-	iscan->iscan_ex_params_p->scan_duration = htod16(0);
+	iscan->iscan_ex_params_p->version = cpu_to_le32(ISCAN_REQ_VERSION);
+	iscan->iscan_ex_params_p->action = cpu_to_le16(action);
+	iscan->iscan_ex_params_p->scan_duration = cpu_to_le16(0);
 
 	WL_SCAN("%s : nprobes=%d\n",
 		__func__, iscan->iscan_ex_params_p->params.nprobes);
@@ -1125,19 +1111,19 @@ static u32 wl_iw_iscan_get(iscan_info_t *iscan)
 	results->count = 0;
 
 	memset(&list, 0, sizeof(list));
-	list.results.buflen = htod32(WLC_IW_ISCAN_MAXLEN);
+	list.results.buflen = cpu_to_le32(WLC_IW_ISCAN_MAXLEN);
 	res = dev_iw_iovar_getbuf(iscan->dev,
 				  "iscanresults",
 				  &list,
 				  WL_ISCAN_RESULTS_FIXED_SIZE,
 				  buf->iscan_buf, WLC_IW_ISCAN_MAXLEN);
 	if (res == 0) {
-		results->buflen = dtoh32(results->buflen);
-		results->version = dtoh32(results->version);
-		results->count = dtoh32(results->count);
+		results->buflen = le32_to_cpu(results->buflen);
+		results->version = le32_to_cpu(results->version);
+		results->count = le32_to_cpu(results->count);
 		WL_TRACE("results->count = %d\n", results->count);
 		WL_TRACE("results->buflen = %d\n", results->buflen);
-		status = dtoh32(list_buf->status);
+		status = le32_to_cpu(list_buf->status);
 	} else {
 		WL_ERROR("%s returns error %d\n", __func__, res);
 		status = WL_SCAN_RESULTS_NO_MEM;
@@ -1284,7 +1270,7 @@ wl_iw_set_scan(struct net_device *dev,
 				memcpy(g_specific_ssid.SSID, req->essid,
 				       g_specific_ssid.SSID_len);
 				g_specific_ssid.SSID_len =
-				    htod32(g_specific_ssid.SSID_len);
+				    cpu_to_le32(g_specific_ssid.SSID_len);
 				g_scan_specified_ssid = 1;
 				WL_TRACE("### Specific scan ssid=%s len=%d\n",
 					 g_specific_ssid.SSID,
@@ -1380,7 +1366,7 @@ wl_iw_iscan_set_scan(struct net_device *dev,
 			ssid.SSID_len = min_t(size_t, sizeof(ssid.SSID),
 						req->essid_len);
 			memcpy(ssid.SSID, req->essid, ssid.SSID_len);
-			ssid.SSID_len = htod32(ssid.SSID_len);
+			ssid.SSID_len = cpu_to_le32(ssid.SSID_len);
 		} else {
 			g_scan_specified_ssid = 0;
 
@@ -1506,7 +1492,7 @@ wl_iw_get_scan_prep(wl_scan_results_t *list,
 		}
 
 		bi = bi ? (wl_bss_info_t *)((unsigned long)bi +
-					     dtoh32(bi->length)) : list->
+					     le32_to_cpu(bi->length)) : list->
 		    bss_info;
 
 		WL_TRACE("%s : %s\n", __func__, bi->SSID);
@@ -1517,15 +1503,15 @@ wl_iw_get_scan_prep(wl_scan_results_t *list,
 		event =
 		    IWE_STREAM_ADD_EVENT(info, event, end, &iwe,
 					 IW_EV_ADDR_LEN);
-		iwe.u.data.length = dtoh32(bi->SSID_len);
+		iwe.u.data.length = le32_to_cpu(bi->SSID_len);
 		iwe.cmd = SIOCGIWESSID;
 		iwe.u.data.flags = 1;
 		event = IWE_STREAM_ADD_POINT(info, event, end, &iwe, bi->SSID);
 
-		if (dtoh16(bi->capability) & (WLAN_CAPABILITY_ESS |
+		if (le16_to_cpu(bi->capability) & (WLAN_CAPABILITY_ESS |
 		    WLAN_CAPABILITY_IBSS)) {
 			iwe.cmd = SIOCGIWMODE;
-			if (dtoh16(bi->capability) & WLAN_CAPABILITY_ESS)
+			if (le16_to_cpu(bi->capability) & WLAN_CAPABILITY_ESS)
 				iwe.u.mode = IW_MODE_INFRA;
 			else
 				iwe.u.mode = IW_MODE_ADHOC;
@@ -1550,8 +1536,8 @@ wl_iw_get_scan_prep(wl_scan_results_t *list,
 					 IW_EV_FREQ_LEN);
 
 		iwe.cmd = IWEVQUAL;
-		iwe.u.qual.qual = rssi_to_qual(dtoh16(bi->RSSI));
-		iwe.u.qual.level = 0x100 + dtoh16(bi->RSSI);
+		iwe.u.qual.qual = rssi_to_qual(le16_to_cpu(bi->RSSI));
+		iwe.u.qual.level = 0x100 + le16_to_cpu(bi->RSSI);
 		iwe.u.qual.noise = 0x100 + bi->phy_noise;
 		event =
 		    IWE_STREAM_ADD_EVENT(info, event, end, &iwe,
@@ -1560,7 +1546,7 @@ wl_iw_get_scan_prep(wl_scan_results_t *list,
 		wl_iw_handle_scanresults_ies(&event, end, info, bi);
 
 		iwe.cmd = SIOCGIWENCODE;
-		if (dtoh16(bi->capability) & WLAN_CAPABILITY_PRIVACY)
+		if (le16_to_cpu(bi->capability) & WLAN_CAPABILITY_PRIVACY)
 			iwe.u.data.flags = IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
 		else
 			iwe.u.data.flags = IW_ENCODE_DISABLED;
@@ -1627,7 +1613,7 @@ wl_iw_get_scan(struct net_device *dev,
 	error = dev_wlc_ioctl(dev, WLC_GET_CHANNEL, &ci, sizeof(ci));
 	if (error)
 		return error;
-	ci.scan_channel = dtoh32(ci.scan_channel);
+	ci.scan_channel = le32_to_cpu(ci.scan_channel);
 	if (ci.scan_channel)
 		return -EAGAIN;
 
@@ -1642,7 +1628,7 @@ wl_iw_get_scan(struct net_device *dev,
 	}
 
 	memset(list, 0, len);
-	list->buflen = htod32(len);
+	list->buflen = cpu_to_le32(len);
 	error = dev_wlc_ioctl(dev, WLC_SCAN_RESULTS, list, len);
 	if (error) {
 		WL_ERROR("%s: %s : Scan_results ERROR %d\n",
@@ -1654,9 +1640,9 @@ wl_iw_get_scan(struct net_device *dev,
 		}
 		return 0;
 	}
-	list->buflen = dtoh32(list->buflen);
-	list->version = dtoh32(list->version);
-	list->count = dtoh32(list->count);
+	list->buflen = le32_to_cpu(list->buflen);
+	list->version = le32_to_cpu(list->version);
+	list->count = le32_to_cpu(list->count);
 
 	if (list->version != WL_BSS_INFO_VERSION) {
 		WL_ERROR("%s : list->version %d != WL_BSS_INFO_VERSION\n",
@@ -1776,9 +1762,9 @@ wl_iw_iscan_get_scan(struct net_device *dev,
 		for (ii = 0; ii < list->count && apcnt < IW_MAX_AP;
 		     apcnt++, ii++) {
 			bi = bi ? (wl_bss_info_t *)((unsigned long)bi +
-						     dtoh32(bi->length)) :
+						     le32_to_cpu(bi->length)) :
 			    list->bss_info;
-			ASSERT(((unsigned long)bi + dtoh32(bi->length)) <=
+			ASSERT(((unsigned long)bi + le32_to_cpu(bi->length)) <=
 			       ((unsigned long)list + WLC_IW_ISCAN_MAXLEN));
 
 			if (event + ETH_ALEN + bi->SSID_len +
@@ -1793,17 +1779,17 @@ wl_iw_iscan_get_scan(struct net_device *dev,
 			    IWE_STREAM_ADD_EVENT(info, event, end, &iwe,
 						 IW_EV_ADDR_LEN);
 
-			iwe.u.data.length = dtoh32(bi->SSID_len);
+			iwe.u.data.length = le32_to_cpu(bi->SSID_len);
 			iwe.cmd = SIOCGIWESSID;
 			iwe.u.data.flags = 1;
 			event =
 			    IWE_STREAM_ADD_POINT(info, event, end, &iwe,
 						 bi->SSID);
 
-			if (dtoh16(bi->capability) &
+			if (le16_to_cpu(bi->capability) &
 			    (WLAN_CAPABILITY_ESS | WLAN_CAPABILITY_IBSS)) {
 				iwe.cmd = SIOCGIWMODE;
-				if (dtoh16(bi->capability) &
+				if (le16_to_cpu(bi->capability) &
 				    WLAN_CAPABILITY_ESS)
 					iwe.u.mode = IW_MODE_INFRA;
 				else
@@ -1832,8 +1818,8 @@ wl_iw_iscan_get_scan(struct net_device *dev,
 						 IW_EV_FREQ_LEN);
 
 			iwe.cmd = IWEVQUAL;
-			iwe.u.qual.qual = rssi_to_qual(dtoh16(bi->RSSI));
-			iwe.u.qual.level = 0x100 + dtoh16(bi->RSSI);
+			iwe.u.qual.qual = rssi_to_qual(le16_to_cpu(bi->RSSI));
+			iwe.u.qual.level = 0x100 + le16_to_cpu(bi->RSSI);
 			iwe.u.qual.noise = 0x100 + bi->phy_noise;
 			event =
 			    IWE_STREAM_ADD_EVENT(info, event, end, &iwe,
@@ -1842,7 +1828,8 @@ wl_iw_iscan_get_scan(struct net_device *dev,
 			wl_iw_handle_scanresults_ies(&event, end, info, bi);
 
 			iwe.cmd = SIOCGIWENCODE;
-			if (dtoh16(bi->capability) & WLAN_CAPABILITY_PRIVACY)
+			if (le16_to_cpu(bi->capability) &
+			    WLAN_CAPABILITY_PRIVACY)
 				iwe.u.data.flags =
 				    IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
 			else
@@ -1922,13 +1909,13 @@ wl_iw_set_essid(struct net_device *dev,
 	} else {
 		g_ssid.SSID_len = 0;
 	}
-	g_ssid.SSID_len = htod32(g_ssid.SSID_len);
+	g_ssid.SSID_len = cpu_to_le32(g_ssid.SSID_len);
 
 	memset(&join_params, 0, sizeof(join_params));
 	join_params_size = sizeof(join_params.ssid);
 
 	memcpy(&join_params.ssid.SSID, g_ssid.SSID, g_ssid.SSID_len);
-	join_params.ssid.SSID_len = htod32(g_ssid.SSID_len);
+	join_params.ssid.SSID_len = cpu_to_le32(g_ssid.SSID_len);
 	memcpy(join_params.params.bssid, ether_bcast, ETH_ALEN);
 
 	wl_iw_ch_to_chanspec(g_wl_iw_params.target_channel, &join_params,
@@ -1965,7 +1952,7 @@ wl_iw_get_essid(struct net_device *dev,
 		return error;
 	}
 
-	ssid.SSID_len = dtoh32(ssid.SSID_len);
+	ssid.SSID_len = le32_to_cpu(ssid.SSID_len);
 
 	memcpy(extra, ssid.SSID, ssid.SSID_len);
 
@@ -2027,7 +2014,7 @@ wl_iw_set_rate(struct net_device *dev,
 	if (error)
 		return error;
 
-	rateset.count = dtoh32(rateset.count);
+	rateset.count = le32_to_cpu(rateset.count);
 
 	if (vwrq->value < 0)
 		rate = rateset.rates[rateset.count - 1] & 0x7f;
@@ -2052,7 +2039,7 @@ wl_iw_set_rate(struct net_device *dev,
 		for (i = 0; i < rateset.count; i++)
 			if ((rateset.rates[i] & 0x7f) > rate)
 				break;
-		rateset.count = htod32(i);
+		rateset.count = cpu_to_le32(i);
 
 		error = dev_wlc_ioctl(dev, WLC_SET_RATESET, &rateset,
 					sizeof(rateset));
@@ -2074,7 +2061,7 @@ wl_iw_get_rate(struct net_device *dev,
 	error = dev_wlc_ioctl(dev, WLC_GET_RATE, &rate, sizeof(rate));
 	if (error)
 		return error;
-	rate = dtoh32(rate);
+	rate = le32_to_cpu(rate);
 	vwrq->value = rate * 500000;
 
 	return 0;
@@ -2174,7 +2161,7 @@ wl_iw_set_txpow(struct net_device *dev,
 	disable = vwrq->disabled ? WL_RADIO_SW_DISABLE : 0;
 	disable += WL_RADIO_SW_DISABLE << 16;
 
-	disable = htod32(disable);
+	disable = cpu_to_le32(disable);
 	error = dev_wlc_ioctl(dev, WLC_SET_RADIO, &disable, sizeof(disable));
 	if (error)
 		return error;
@@ -2216,7 +2203,7 @@ wl_iw_get_txpow(struct net_device *dev,
 	if (error)
 		return error;
 
-	disable = dtoh32(disable);
+	disable = le32_to_cpu(disable);
 	result = (u8) (txpwrdbm & ~WL_TXPWR_OVERRIDE);
 	vwrq->value = (s32) bcm_qdbm_to_mw(result);
 	vwrq->fixed = 0;
@@ -2251,7 +2238,7 @@ wl_iw_set_retry(struct net_device *dev,
 		if ((vwrq->flags & IW_RETRY_MAX)
 		    || !(vwrq->flags & IW_RETRY_MIN)) {
 #endif
-			lrl = htod32(vwrq->value);
+			lrl = cpu_to_le32(vwrq->value);
 			error = dev_wlc_ioctl(dev, WLC_SET_LRL, &lrl,
 						sizeof(lrl));
 			if (error)
@@ -2266,7 +2253,7 @@ wl_iw_set_retry(struct net_device *dev,
 		if ((vwrq->flags & IW_RETRY_MIN)
 		    || !(vwrq->flags & IW_RETRY_MAX)) {
 #endif
-			srl = htod32(vwrq->value);
+			srl = cpu_to_le32(vwrq->value);
 			error = dev_wlc_ioctl(dev, WLC_SET_SRL, &srl,
 						sizeof(srl));
 			if (error)
@@ -2298,8 +2285,8 @@ wl_iw_get_retry(struct net_device *dev,
 	if (error)
 		return error;
 
-	lrl = dtoh32(lrl);
-	srl = dtoh32(srl);
+	lrl = le32_to_cpu(lrl);
+	srl = le32_to_cpu(srl);
 
 	if (vwrq->flags & IW_RETRY_MAX) {
 		vwrq->flags = IW_RETRY_LIMIT | IW_RETRY_MAX;
@@ -2330,12 +2317,12 @@ wl_iw_set_encode(struct net_device *dev,
 	if ((dwrq->flags & IW_ENCODE_INDEX) == 0) {
 		for (key.index = 0; key.index < DOT11_MAX_DEFAULT_KEYS;
 		     key.index++) {
-			val = htod32(key.index);
+			val = cpu_to_le32(key.index);
 			error = dev_wlc_ioctl(dev, WLC_GET_KEY_PRIMARY, &val,
 						sizeof(val));
 			if (error)
 				return error;
-			val = dtoh32(val);
+			val = le32_to_cpu(val);
 			if (val)
 				break;
 		}
@@ -2348,7 +2335,7 @@ wl_iw_set_encode(struct net_device *dev,
 	}
 
 	if (!extra || !dwrq->length || (dwrq->flags & IW_ENCODE_NOKEY)) {
-		val = htod32(key.index);
+		val = cpu_to_le32(key.index);
 		error = dev_wlc_ioctl(dev, WLC_SET_KEY_PRIMARY, &val,
 					sizeof(val));
 		if (error)
@@ -2399,7 +2386,7 @@ wl_iw_set_encode(struct net_device *dev,
 		return error;
 
 	val = (dwrq->flags & IW_ENCODE_RESTRICTED) ? 1 : 0;
-	val = htod32(val);
+	val = cpu_to_le32(val);
 	error = dev_wlc_ioctl(dev, WLC_SET_AUTH, &val, sizeof(val));
 	if (error)
 		return error;
@@ -2427,7 +2414,7 @@ wl_iw_get_encode(struct net_device *dev,
 						sizeof(val));
 			if (error)
 				return error;
-			val = dtoh32(val);
+			val = le32_to_cpu(val);
 			if (val)
 				break;
 		}
@@ -2447,8 +2434,8 @@ wl_iw_get_encode(struct net_device *dev,
 
 	swap_key_to_BE(&key);
 
-	wsec = dtoh32(wsec);
-	auth = dtoh32(auth);
+	wsec = le32_to_cpu(wsec);
+	auth = le32_to_cpu(auth);
 	dwrq->length = min_t(u16, DOT11_MAX_KEY_SIZE, key.len);
 
 	dwrq->flags = key.index + 1;
@@ -2475,7 +2462,7 @@ wl_iw_set_power(struct net_device *dev,
 
 	pm = vwrq->disabled ? PM_OFF : PM_MAX;
 
-	pm = htod32(pm);
+	pm = cpu_to_le32(pm);
 	error = dev_wlc_ioctl(dev, WLC_SET_PM, &pm, sizeof(pm));
 	if (error)
 		return error;
@@ -2496,7 +2483,7 @@ wl_iw_get_power(struct net_device *dev,
 	if (error)
 		return error;
 
-	pm = dtoh32(pm);
+	pm = le32_to_cpu(pm);
 	vwrq->disabled = pm ? 0 : 1;
 	vwrq->flags = IW_POWER_ALL_R;
 
@@ -2561,7 +2548,7 @@ wl_iw_set_encodeext(struct net_device *dev,
 		if (iwe->ext_flags & IW_ENCODE_EXT_SET_TX_KEY) {
 			WL_WSEC("Changing the the primary Key to %d\n",
 				key.index);
-			key.index = htod32(key.index);
+			key.index = cpu_to_le32(key.index);
 			error = dev_wlc_ioctl(dev, WLC_SET_KEY_PRIMARY,
 					      &key.index, sizeof(key.index));
 			if (error)
@@ -3579,7 +3566,7 @@ wl_iw_get_wireless_stats(struct net_device *dev, struct iw_statistics *wstats)
 	if (res)
 		goto done;
 
-	phy_noise = dtoh32(phy_noise);
+	phy_noise = le32_to_cpu(phy_noise);
 	WL_TRACE("wl_iw_get_wireless_stats phy noise=%d\n", phy_noise);
 
 	memset(&scb_val, 0, sizeof(scb_val_t));
@@ -3587,7 +3574,7 @@ wl_iw_get_wireless_stats(struct net_device *dev, struct iw_statistics *wstats)
 	if (res)
 		goto done;
 
-	rssi = dtoh32(scb_val.val);
+	rssi = le32_to_cpu(scb_val.val);
 	WL_TRACE("wl_iw_get_wireless_stats rssi=%d\n", rssi);
 	if (rssi <= WL_IW_RSSI_NO_SIGNAL)
 		wstats->qual.qual = 0;
@@ -3624,7 +3611,7 @@ wl_iw_get_wireless_stats(struct net_device *dev, struct iw_statistics *wstats)
 		goto done;
 	}
 
-	cnt.version = dtoh16(cnt.version);
+	cnt.version = le16_to_cpu(cnt.version);
 	if (cnt.version != WL_CNT_T_VERSION) {
 		WL_TRACE("\tIncorrect counter version: expected %d; got %d\n",
 			 WL_CNT_T_VERSION, cnt.version);
@@ -3632,28 +3619,29 @@ wl_iw_get_wireless_stats(struct net_device *dev, struct iw_statistics *wstats)
 	}
 
 	wstats->discard.nwid = 0;
-	wstats->discard.code = dtoh32(cnt.rxundec);
-	wstats->discard.fragment = dtoh32(cnt.rxfragerr);
-	wstats->discard.retries = dtoh32(cnt.txfail);
-	wstats->discard.misc = dtoh32(cnt.rxrunt) + dtoh32(cnt.rxgiant);
+	wstats->discard.code = le32_to_cpu(cnt.rxundec);
+	wstats->discard.fragment = le32_to_cpu(cnt.rxfragerr);
+	wstats->discard.retries = le32_to_cpu(cnt.txfail);
+	wstats->discard.misc = le32_to_cpu(cnt.rxrunt) +
+		le32_to_cpu(cnt.rxgiant);
 	wstats->miss.beacon = 0;
 
 	WL_TRACE("wl_iw_get_wireless_stats counters txframe=%d txbyte=%d\n",
-		 dtoh32(cnt.txframe), dtoh32(cnt.txbyte));
+		 le32_to_cpu(cnt.txframe), le32_to_cpu(cnt.txbyte));
 	WL_TRACE("wl_iw_get_wireless_stats counters rxfrmtoolong=%d\n",
-		  dtoh32(cnt.rxfrmtoolong));
+		  le32_to_cpu(cnt.rxfrmtoolong));
 	WL_TRACE("wl_iw_get_wireless_stats counters rxbadplcp=%d\n",
-		  dtoh32(cnt.rxbadplcp));
+		  le32_to_cpu(cnt.rxbadplcp));
 	WL_TRACE("wl_iw_get_wireless_stats counters rxundec=%d\n",
-		  dtoh32(cnt.rxundec));
+		  le32_to_cpu(cnt.rxundec));
 	WL_TRACE("wl_iw_get_wireless_stats counters rxfragerr=%d\n",
-		  dtoh32(cnt.rxfragerr));
+		  le32_to_cpu(cnt.rxfragerr));
 	WL_TRACE("wl_iw_get_wireless_stats counters txfail=%d\n",
-		  dtoh32(cnt.txfail));
+		  le32_to_cpu(cnt.txfail));
 	WL_TRACE("wl_iw_get_wireless_stats counters rxrunt=%d\n",
-		  dtoh32(cnt.rxrunt));
+		  le32_to_cpu(cnt.rxrunt));
 	WL_TRACE("wl_iw_get_wireless_stats counters rxgiant=%d\n",
-		  dtoh32(cnt.rxgiant));
+		  le32_to_cpu(cnt.rxgiant));
 #endif				/* WIRELESS_EXT > 11 */
 
 done:

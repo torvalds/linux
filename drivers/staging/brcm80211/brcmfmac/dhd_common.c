@@ -37,11 +37,6 @@ u32 dhd_conn_event;
 u32 dhd_conn_status;
 u32 dhd_conn_reason;
 
-#define htod32(i) i
-#define htod16(i) i
-#define dtoh32(i) i
-#define dtoh16(i) i
-
 extern int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf,
 			    uint len);
 extern void dhd_ind_scan_confirm(void *h, bool status);
@@ -975,10 +970,10 @@ dhd_pktfilter_offload_enable(dhd_pub_t *dhd, char *arg, int enable,
 	pkt_filterp = (wl_pkt_filter_enable_t *) (buf + str_len + 1);
 
 	/* Parse packet filter id. */
-	enable_parm.id = htod32(simple_strtoul(argv[i], NULL, 0));
+	enable_parm.id = simple_strtoul(argv[i], NULL, 0);
 
 	/* Parse enable/disable value. */
-	enable_parm.enable = htod32(enable);
+	enable_parm.enable = enable;
 
 	buf_len += sizeof(enable_parm);
 	memcpy((char *)pkt_filterp, &enable_parm, sizeof(enable_parm));
@@ -1063,7 +1058,7 @@ void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 	pkt_filterp = (wl_pkt_filter_t *) (buf + str_len + 1);
 
 	/* Parse packet filter id. */
-	pkt_filter.id = htod32(simple_strtoul(argv[i], NULL, 0));
+	pkt_filter.id = simple_strtoul(argv[i], NULL, 0);
 
 	if (NULL == argv[++i]) {
 		DHD_ERROR(("Polarity not provided\n"));
@@ -1071,7 +1066,7 @@ void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 	}
 
 	/* Parse filter polarity. */
-	pkt_filter.negate_match = htod32(simple_strtoul(argv[i], NULL, 0));
+	pkt_filter.negate_match = simple_strtoul(argv[i], NULL, 0);
 
 	if (NULL == argv[++i]) {
 		DHD_ERROR(("Filter type not provided\n"));
@@ -1079,7 +1074,7 @@ void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 	}
 
 	/* Parse filter type. */
-	pkt_filter.type = htod32(simple_strtoul(argv[i], NULL, 0));
+	pkt_filter.type = simple_strtoul(argv[i], NULL, 0);
 
 	if (NULL == argv[++i]) {
 		DHD_ERROR(("Offset not provided\n"));
@@ -1087,7 +1082,7 @@ void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 	}
 
 	/* Parse pattern filter offset. */
-	pkt_filter.u.pattern.offset = htod32(simple_strtoul(argv[i], NULL, 0));
+	pkt_filter.u.pattern.offset = simple_strtoul(argv[i], NULL, 0);
 
 	if (NULL == argv[++i]) {
 		DHD_ERROR(("Bitmask not provided\n"));
@@ -1096,8 +1091,8 @@ void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 
 	/* Parse pattern filter mask. */
 	mask_size =
-	    htod32(wl_pattern_atoh
-		   (argv[i], (char *)pkt_filterp->u.pattern.mask_and_pattern));
+	    wl_pattern_atoh
+		   (argv[i], (char *)pkt_filterp->u.pattern.mask_and_pattern);
 
 	if (NULL == argv[++i]) {
 		DHD_ERROR(("Pattern not provided\n"));
@@ -1106,9 +1101,9 @@ void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 
 	/* Parse pattern filter pattern. */
 	pattern_size =
-	    htod32(wl_pattern_atoh(argv[i],
+	    wl_pattern_atoh(argv[i],
 				   (char *)&pkt_filterp->u.pattern.
-				   mask_and_pattern[mask_size]));
+				   mask_and_pattern[mask_size]);
 
 	if (mask_size != pattern_size) {
 		DHD_ERROR(("Mask and pattern not the same size\n"));
@@ -1428,8 +1423,7 @@ int dhd_iscan_print_cache(iscan_buf_t *iscan_skip)
 				   bi->BSSID.octet[2], bi->BSSID.octet[3],
 				   bi->BSSID.octet[4], bi->BSSID.octet[5]));
 
-			bi = (wl_bss_info_t *)((unsigned long)bi +
-						dtoh32(bi->length));
+			bi = (wl_bss_info_t *)((unsigned long)bi + bi->length);
 		}
 		iscan_cur = iscan_cur->next;
 		l++;
@@ -1493,18 +1487,16 @@ int dhd_iscan_delete_bss(void *dhdp, void *addr, iscan_buf_t *iscan_skip)
 					bi->BSSID.octet[5]));
 
 					bi_new = bi;
-					bi = (wl_bss_info_t *)((unsigned long)bi +
-								dtoh32
-								(bi->length));
+					bi = (wl_bss_info_t *)((unsigned long)
+							       bi + bi->length);
 /*
 			if(bi && bi_new) {
 				memcpy(bi_new, bi, results->buflen -
-				dtoh32(bi_new->length));
-				results->buflen -= dtoh32(bi_new->length);
+				bi_new->length);
+				results->buflen -= bi_new->length;
 			}
 */
-					results->buflen -=
-					    dtoh32(bi_new->length);
+					results->buflen -= bi_new->length;
 					results->count--;
 
 					for (j = i; j < results->count; j++) {
@@ -1520,16 +1512,13 @@ int dhd_iscan_delete_bss(void *dhdp, void *addr, iscan_buf_t *iscan_skip)
 
 							bi_next =
 							    (wl_bss_info_t *)((unsigned long)bi +
-								 dtoh32
-								 (bi->length));
+								 bi->length);
 							memcpy(bi_new, bi,
-							      dtoh32
-							      (bi->length));
+							      bi->length);
 							bi_new =
 							    (wl_bss_info_t *)((unsigned long)bi_new +
-								 dtoh32
-								 (bi_new->
-								  length));
+								 bi_new->
+								  length);
 							bi = bi_next;
 						}
 					}
@@ -1544,7 +1533,7 @@ int dhd_iscan_delete_bss(void *dhdp, void *addr, iscan_buf_t *iscan_skip)
 					break;
 				}
 				bi = (wl_bss_info_t *)((unsigned long)bi +
-							dtoh32(bi->length));
+							bi->length);
 			}
 		}
 		iscan_cur = iscan_cur->next;
@@ -1598,7 +1587,7 @@ int dhd_iscan_remove_duplicates(void *dhdp, iscan_buf_t *iscan_cur)
 
 		dhd_iscan_delete_bss(dhdp, bi->BSSID.octet, iscan_cur);
 
-		bi = (wl_bss_info_t *)((unsigned long)bi + dtoh32(bi->length));
+		bi = (wl_bss_info_t *)((unsigned long)bi + bi->length);
 	}
 
 done:
@@ -1627,15 +1616,15 @@ int dhd_iscan_request(void *dhdp, u16 action)
 	params.params.bss_type = DOT11_BSSTYPE_ANY;
 	params.params.scan_type = DOT11_SCANTYPE_ACTIVE;
 
-	params.params.nprobes = htod32(-1);
-	params.params.active_time = htod32(-1);
-	params.params.passive_time = htod32(-1);
-	params.params.home_time = htod32(-1);
-	params.params.channel_num = htod32(0);
+	params.params.nprobes = -1;
+	params.params.active_time = -1;
+	params.params.passive_time = -1;
+	params.params.home_time = -1;
+	params.params.channel_num = 0;
 
-	params.version = htod32(ISCAN_REQ_VERSION);
-	params.action = htod16(action);
-	params.scan_duration = htod16(0);
+	params.version = ISCAN_REQ_VERSION;
+	params.action = action;
+	params.scan_duration = 0;
 
 	bcm_mkiovar("iscan", (char *)&params, sizeof(wl_iscan_params_t), buf,
 		    WLC_IOCTL_SMLEN);
@@ -1672,16 +1661,16 @@ static int dhd_iscan_get_partial_result(void *dhdp, uint *scan_count)
 	results->count = 0;
 
 	memset(&list, 0, sizeof(list));
-	list.results.buflen = htod32(WLC_IW_ISCAN_MAXLEN);
+	list.results.buflen = WLC_IW_ISCAN_MAXLEN;
 	bcm_mkiovar("iscanresults", (char *)&list, WL_ISCAN_RESULTS_FIXED_SIZE,
 		    iscan_cur->iscan_buf, WLC_IW_ISCAN_MAXLEN);
 	rc = dhd_wl_ioctl(dhdp, WLC_GET_VAR, iscan_cur->iscan_buf,
 			  WLC_IW_ISCAN_MAXLEN);
 
-	results->buflen = dtoh32(results->buflen);
-	results->version = dtoh32(results->version);
-	*scan_count = results->count = dtoh32(results->count);
-	status = dtoh32(list_buf->status);
+	results->buflen = results->buflen;
+	results->version = results->version;
+	*scan_count = results->count = results->count;
+	status = list_buf->status;
 
 	dhd_iscan_unlock();
 
@@ -1804,12 +1793,12 @@ dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t *ssids_local, int nssid, unsigned char sc
 	memset(&pfn_element, 0, sizeof(pfn_element));
 
 	/* set pfn parameters */
-	pfn_param.version = htod32(PFN_VERSION);
-	pfn_param.flags = htod16((PFN_LIST_ORDER << SORT_CRITERIA_BIT));
+	pfn_param.version = PFN_VERSION;
+	pfn_param.flags = (PFN_LIST_ORDER << SORT_CRITERIA_BIT);
 
 	/* set up pno scan fr */
 	if (scan_fr != 0)
-		pfn_param.scan_freq = htod32(scan_fr);
+		pfn_param.scan_freq = scan_fr;
 
 	bcm_mkiovar("pfn_set", (char *)&pfn_param, sizeof(pfn_param), iovbuf,
 		    sizeof(iovbuf));
@@ -1818,11 +1807,11 @@ dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t *ssids_local, int nssid, unsigned char sc
 	/* set all pfn ssid */
 	for (i = 0; i < nssid; i++) {
 
-		pfn_element.bss_type = htod32(DOT11_BSSTYPE_INFRASTRUCTURE);
-		pfn_element.auth = (DOT11_OPEN_SYSTEM);
-		pfn_element.wpa_auth = htod32(WPA_AUTH_PFN_ANY);
-		pfn_element.wsec = htod32(0);
-		pfn_element.infra = htod32(1);
+		pfn_element.bss_type = DOT11_BSSTYPE_INFRASTRUCTURE;
+		pfn_element.auth = DOT11_OPEN_SYSTEM;
+		pfn_element.wpa_auth = WPA_AUTH_PFN_ANY;
+		pfn_element.wsec = 0;
+		pfn_element.infra = 1;
 
 		memcpy((char *)pfn_element.ssid.SSID, ssids_local[i].SSID,
 		       ssids_local[i].SSID_len);

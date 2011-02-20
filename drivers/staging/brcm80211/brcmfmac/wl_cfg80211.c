@@ -555,24 +555,24 @@ static const u32 __wl_cipher_suites[] = {
 
 static void swap_key_from_BE(struct wl_wsec_key *key)
 {
-	key->index = htod32(key->index);
-	key->len = htod32(key->len);
-	key->algo = htod32(key->algo);
-	key->flags = htod32(key->flags);
-	key->rxiv.hi = htod32(key->rxiv.hi);
-	key->rxiv.lo = htod16(key->rxiv.lo);
-	key->iv_initialized = htod32(key->iv_initialized);
+	key->index = cpu_to_le32(key->index);
+	key->len = cpu_to_le32(key->len);
+	key->algo = cpu_to_le32(key->algo);
+	key->flags = cpu_to_le32(key->flags);
+	key->rxiv.hi = cpu_to_le32(key->rxiv.hi);
+	key->rxiv.lo = cpu_to_le16(key->rxiv.lo);
+	key->iv_initialized = cpu_to_le32(key->iv_initialized);
 }
 
 static void swap_key_to_BE(struct wl_wsec_key *key)
 {
-	key->index = dtoh32(key->index);
-	key->len = dtoh32(key->len);
-	key->algo = dtoh32(key->algo);
-	key->flags = dtoh32(key->flags);
-	key->rxiv.hi = dtoh32(key->rxiv.hi);
-	key->rxiv.lo = dtoh16(key->rxiv.lo);
-	key->iv_initialized = dtoh32(key->iv_initialized);
+	key->index = le32_to_cpu(key->index);
+	key->len = le32_to_cpu(key->len);
+	key->algo = le32_to_cpu(key->algo);
+	key->flags = le32_to_cpu(key->flags);
+	key->rxiv.hi = le32_to_cpu(key->rxiv.hi);
+	key->rxiv.lo = le16_to_cpu(key->rxiv.lo);
+	key->iv_initialized = le32_to_cpu(key->iv_initialized);
 }
 
 static s32
@@ -626,8 +626,8 @@ wl_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
 	default:
 		return -EINVAL;
 	}
-	infra = htod32(infra);
-	ap = htod32(ap);
+	infra = cpu_to_le32(infra);
+	ap = cpu_to_le32(ap);
 	wdev = ndev->ieee80211_ptr;
 	wdev->iftype = type;
 	WL_DBG("%s : ap (%d), infra (%d)\n", ndev->name, ap, infra);
@@ -657,10 +657,10 @@ static void wl_iscan_prep(struct wl_scan_params *params, struct wlc_ssid *ssid)
 	params->home_time = -1;
 	params->channel_num = 0;
 
-	params->nprobes = htod32(params->nprobes);
-	params->active_time = htod32(params->active_time);
-	params->passive_time = htod32(params->passive_time);
-	params->home_time = htod32(params->home_time);
+	params->nprobes = cpu_to_le32(params->nprobes);
+	params->active_time = cpu_to_le32(params->active_time);
+	params->passive_time = cpu_to_le32(params->passive_time);
+	params->home_time = cpu_to_le32(params->home_time);
 	if (ssid && ssid->SSID_len)
 		memcpy(&params->ssid, ssid, sizeof(wlc_ssid_t));
 
@@ -707,9 +707,9 @@ wl_run_iscan(struct wl_iscan_ctrl *iscan, struct wlc_ssid *ssid, u16 action)
 
 	wl_iscan_prep(&params->params, ssid);
 
-	params->version = htod32(ISCAN_REQ_VERSION);
-	params->action = htod16(action);
-	params->scan_duration = htod16(0);
+	params->version = cpu_to_le32(ISCAN_REQ_VERSION);
+	params->action = cpu_to_le16(action);
+	params->scan_duration = cpu_to_le16(0);
 
 	/* params_size += offsetof(wl_iscan_params_t, params); */
 	err = wl_dev_iovar_setbuf(iscan->dev, "iscan", params, params_size,
@@ -812,7 +812,7 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 			    min_t(u8, sizeof(sr->ssid.SSID), ssids->ssid_len);
 		if (sr->ssid.SSID_len) {
 			memcpy(sr->ssid.SSID, ssids->ssid, sr->ssid.SSID_len);
-			sr->ssid.SSID_len = htod32(sr->ssid.SSID_len);
+			sr->ssid.SSID_len = cpu_to_le32(sr->ssid.SSID_len);
 			WL_DBG("Specific scan ssid=\"%s\" len=%d\n",
 			       sr->ssid.SSID, sr->ssid.SSID_len);
 			spec_scan = true;
@@ -872,7 +872,7 @@ static s32 wl_dev_intvar_set(struct net_device *dev, s8 *name, s32 val)
 	u32 len;
 	s32 err = 0;
 
-	val = htod32(val);
+	val = cpu_to_le32(val);
 	len = bcm_mkiovar(name, (char *)(&val), sizeof(val), buf, sizeof(buf));
 	BUG_ON(!len);
 
@@ -903,7 +903,7 @@ wl_dev_intvar_get(struct net_device *dev, s8 *name, s32 *retval)
 	if (unlikely(err)) {
 		WL_ERR("error (%d)\n", err);
 	}
-	*retval = dtoh32(var.val);
+	*retval = le32_to_cpu(var.val);
 
 	return err;
 }
@@ -937,7 +937,7 @@ static s32 wl_set_retry(struct net_device *dev, u32 retry, bool l)
 	s32 err = 0;
 	u32 cmd = (l ? WLC_SET_LRL : WLC_SET_SRL);
 
-	retry = htod32(retry);
+	retry = cpu_to_le32(retry);
 	err = wl_dev_ioctl(dev, cmd, &retry, sizeof(retry));
 	if (unlikely(err)) {
 		WL_ERR("cmd (%d) , error (%d)\n", cmd, err);
@@ -1040,7 +1040,7 @@ wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	memset(&join_params, 0, sizeof(join_params));
 	memcpy((void *)join_params.ssid.SSID, (void *)params->ssid,
 	       params->ssid_len);
-	join_params.ssid.SSID_len = htod32(params->ssid_len);
+	join_params.ssid.SSID_len = cpu_to_le32(params->ssid_len);
 	if (params->bssid)
 		memcpy(&join_params.params.bssid, params->bssid,
 		       ETH_ALEN);
@@ -1370,7 +1370,7 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 
 	join_params.ssid.SSID_len = min(sizeof(join_params.ssid.SSID), sme->ssid_len);
 	memcpy(&join_params.ssid.SSID, sme->ssid, join_params.ssid.SSID_len);
-	join_params.ssid.SSID_len = htod32(join_params.ssid.SSID_len);
+	join_params.ssid.SSID_len = cpu_to_le32(join_params.ssid.SSID_len);
 	wl_update_prof(wl, NULL, &join_params.ssid, WL_PROF_SSID);
 	memcpy(join_params.params.bssid, ether_bcast, ETH_ALEN);
 
@@ -1406,7 +1406,7 @@ wl_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	if (likely(act)) {
 		scbval.val = reason_code;
 		memcpy(&scbval.ea, &wl->bssid, ETH_ALEN);
-		scbval.val = htod32(scbval.val);
+		scbval.val = cpu_to_le32(scbval.val);
 		err = wl_dev_ioctl(dev, WLC_DISASSOC, &scbval,
 				sizeof(scb_val_t));
 		if (unlikely(err)) {
@@ -1448,7 +1448,7 @@ wl_cfg80211_set_tx_power(struct wiphy *wiphy,
 	}
 	/* Make sure radio is off or on as far as software is concerned */
 	disable = WL_RADIO_SW_DISABLE << 16;
-	disable = htod32(disable);
+	disable = cpu_to_le32(disable);
 	err = wl_dev_ioctl(ndev, WLC_SET_RADIO, &disable, sizeof(disable));
 	if (unlikely(err)) {
 		WL_ERR("WLC_SET_RADIO error (%d)\n", err);
@@ -1506,11 +1506,11 @@ wl_cfg80211_config_default_key(struct wiphy *wiphy, struct net_device *dev,
 		WL_ERR("WLC_GET_WSEC error (%d)\n", err);
 		return err;
 	}
-	wsec = dtoh32(wsec);
+	wsec = le32_to_cpu(wsec);
 	if (wsec & WEP_ENABLED) {
 		/* Just select a new current key */
 		index = (u32) key_idx;
-		index = htod32(index);
+		index = cpu_to_le32(index);
 		err = wl_dev_ioctl(dev, WLC_SET_KEY_PRIMARY, &index,
 				sizeof(index));
 		if (unlikely(err)) {
@@ -1683,7 +1683,7 @@ wl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	val = 1;		/* assume shared key. otherwise 0 */
-	val = htod32(val);
+	val = cpu_to_le32(val);
 	err = wl_dev_ioctl(dev, WLC_SET_AUTH, &val, sizeof(val));
 	if (unlikely(err)) {
 		WL_ERR("WLC_SET_AUTH error (%d)\n", err);
@@ -1739,7 +1739,7 @@ wl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	val = 0;		/* assume open key. otherwise 1 */
-	val = htod32(val);
+	val = cpu_to_le32(val);
 	err = wl_dev_ioctl(dev, WLC_SET_AUTH, &val, sizeof(val));
 	if (unlikely(err)) {
 		WL_ERR("WLC_SET_AUTH error (%d)\n", err);
@@ -1775,7 +1775,7 @@ wl_cfg80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 		WL_ERR("WLC_GET_WSEC error (%d)\n", err);
 		return err;
 	}
-	wsec = dtoh32(wsec);
+	wsec = le32_to_cpu(wsec);
 	switch (wsec) {
 	case WEP_ENABLED:
 		sec = wl_read_prof(wl, WL_PROF_SEC);
@@ -1835,7 +1835,7 @@ wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 	if (err) {
 		WL_ERR("Could not get rate (%d)\n", err);
 	} else {
-		rate = dtoh32(rate);
+		rate = le32_to_cpu(rate);
 		sinfo->filled |= STATION_INFO_TX_BITRATE;
 		sinfo->txrate.legacy = rate * 5;
 		WL_DBG("Rate %d Mbps\n", rate / 2);
@@ -1849,7 +1849,7 @@ wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 			WL_ERR("Could not get rssi (%d)\n", err);
 			return err;
 		}
-		rssi = dtoh32(scb_val.val);
+		rssi = le32_to_cpu(scb_val.val);
 		sinfo->filled |= STATION_INFO_SIGNAL;
 		sinfo->signal = rssi;
 		WL_DBG("RSSI %d dBm\n", rssi);
@@ -1867,7 +1867,7 @@ wl_cfg80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 
 	CHECK_SYS_UP();
 	pm = enabled ? PM_FAST : PM_OFF;
-	pm = htod32(pm);
+	pm = cpu_to_le32(pm);
 	WL_DBG("power save %s\n", (pm ? "enabled" : "disabled"));
 	err = wl_dev_ioctl(dev, WLC_SET_PM, &pm, sizeof(pm));
 	if (unlikely(err)) {
@@ -1930,7 +1930,7 @@ wl_cfg80211_set_bitrate_mask(struct wiphy *wiphy, struct net_device *dev,
 		return err;
 	}
 
-	rateset.count = dtoh32(rateset.count);
+	rateset.count = le32_to_cpu(rateset.count);
 
 	legacy = wl_find_msb(mask->control[IEEE80211_BAND_2GHZ].legacy);
 	if (!legacy)
@@ -2263,7 +2263,7 @@ static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 	u32 freq;
 	s32 err = 0;
 
-	if (unlikely(dtoh32(bi->length) > WL_BSS_INFO_MAX)) {
+	if (unlikely(le32_to_cpu(bi->length) > WL_BSS_INFO_MAX)) {
 		WL_DBG("Beacon is larger than buffer. Discarding\n");
 		return err;
 	}
@@ -2536,10 +2536,10 @@ static void wl_ch_to_chanspec(int ch, struct wl_join_params *join_params,
 		join_params->params.chanspec_list[0] &= WL_CHANSPEC_CHAN_MASK;
 		join_params->params.chanspec_list[0] |= chanspec;
 		join_params->params.chanspec_list[0] =
-		htodchanspec(join_params->params.chanspec_list[0]);
+		cpu_to_le16(join_params->params.chanspec_list[0]);
 
 		join_params->params.chanspec_num =
-			htod32(join_params->params.chanspec_num);
+			cpu_to_le32(join_params->params.chanspec_num);
 
 		WL_DBG("join_params->params.chanspec_list[0]= %#X, channel %d, chanspec %#X\n",
 		       join_params->params.chanspec_list[0], ch, chanspec);
@@ -2570,7 +2570,7 @@ static s32 wl_update_bss_info(struct wl_priv *wl)
 	rtnl_lock();
 	if (unlikely(!bss)) {
 		WL_DBG("Could not find the AP\n");
-		*(u32 *) wl->extra_buf = htod32(WL_EXTRA_BUF_MAX);
+		*(u32 *) wl->extra_buf = cpu_to_le32(WL_EXTRA_BUF_MAX);
 		err = wl_dev_ioctl(wl_to_ndev(wl), WLC_GET_BSS_INFO,
 				wl->extra_buf, WL_EXTRA_BUF_MAX);
 		if (unlikely(err)) {
@@ -2722,7 +2722,7 @@ wl_notify_scan_status(struct wl_priv *wl, struct net_device *ndev,
 		WL_ERR("scan busy (%d)\n", err);
 		goto scan_done_out;
 	}
-	channel_inform.scan_channel = dtoh32(channel_inform.scan_channel);
+	channel_inform.scan_channel = le32_to_cpu(channel_inform.scan_channel);
 	if (unlikely(channel_inform.scan_channel)) {
 
 		WL_DBG("channel_inform.scan_channel (%d)\n",
@@ -2731,16 +2731,16 @@ wl_notify_scan_status(struct wl_priv *wl, struct net_device *ndev,
 	wl->bss_list = wl->scan_results;
 	bss_list = wl->bss_list;
 	memset(bss_list, 0, len);
-	bss_list->buflen = htod32(len);
+	bss_list->buflen = cpu_to_le32(len);
 	err = wl_dev_ioctl(ndev, WLC_SCAN_RESULTS, bss_list, len);
 	if (unlikely(err)) {
 		WL_ERR("%s Scan_results error (%d)\n", ndev->name, err);
 		err = -EINVAL;
 		goto scan_done_out;
 	}
-	bss_list->buflen = dtoh32(bss_list->buflen);
-	bss_list->version = dtoh32(bss_list->version);
-	bss_list->count = dtoh32(bss_list->count);
+	bss_list->buflen = le32_to_cpu(bss_list->buflen);
+	bss_list->version = le32_to_cpu(bss_list->version);
+	bss_list->count = le32_to_cpu(bss_list->count);
 
 	err = wl_inform_bss(wl);
 	if (err)
@@ -2949,7 +2949,7 @@ wl_get_iscan_results(struct wl_iscan_ctrl *iscan, u32 *status,
 	results->count = 0;
 
 	memset(&list, 0, sizeof(list));
-	list.results.buflen = htod32(WL_ISCAN_BUF_MAX);
+	list.results.buflen = cpu_to_le32(WL_ISCAN_BUF_MAX);
 	err = wl_dev_iovar_getbuf(iscan->dev, "iscanresults", &list,
 				WL_ISCAN_RESULTS_FIXED_SIZE, iscan->scan_buf,
 				WL_ISCAN_BUF_MAX);
@@ -2957,12 +2957,12 @@ wl_get_iscan_results(struct wl_iscan_ctrl *iscan, u32 *status,
 		WL_ERR("error (%d)\n", err);
 		return err;
 	}
-	results->buflen = dtoh32(results->buflen);
-	results->version = dtoh32(results->version);
-	results->count = dtoh32(results->count);
+	results->buflen = le32_to_cpu(results->buflen);
+	results->version = le32_to_cpu(results->version);
+	results->count = le32_to_cpu(results->count);
 	WL_DBG("results->count = %d\n", results->count);
 	WL_DBG("results->buflen = %d\n", results->buflen);
-	*status = dtoh32(list_buf->status);
+	*status = le32_to_cpu(list_buf->status);
 	*bss_list = results;
 
 	return err;
@@ -3392,8 +3392,8 @@ static s32 wl_dongle_mode(struct net_device *ndev, s32 iftype)
 		WL_ERR("invalid type (%d)\n", iftype);
 		return err;
 	}
-	infra = htod32(infra);
-	ap = htod32(ap);
+	infra = cpu_to_le32(infra);
+	ap = cpu_to_le32(ap);
 	WL_DBG("%s ap (%d), infra (%d)\n", ndev->name, ap, infra);
 	err = wl_dev_ioctl(ndev, WLC_SET_INFRA, &infra, sizeof(infra));
 	if (unlikely(err)) {
@@ -3655,26 +3655,28 @@ static s32 wl_dongle_filter(struct net_device *ndev, u32 filter_mode)
 	pkt_filterp = (struct wl_pkt_filter *)(buf + str_len + 1);
 
 	/* Parse packet filter id. */
-	pkt_filter.id = htod32(100);
+	pkt_filter.id = cpu_to_le32(100);
 
 	/* Parse filter polarity. */
-	pkt_filter.negate_match = htod32(0);
+	pkt_filter.negate_match = cpu_to_le32(0);
 
 	/* Parse filter type. */
-	pkt_filter.type = htod32(0);
+	pkt_filter.type = cpu_to_le32(0);
 
 	/* Parse pattern filter offset. */
-	pkt_filter.u.pattern.offset = htod32(0);
+	pkt_filter.u.pattern.offset = cpu_to_le32(0);
 
 	/* Parse pattern filter mask. */
-	mask_size = htod32(wl_pattern_atoh("0xff",
-					   (char *)pkt_filterp->u.pattern.
-					   mask_and_pattern));
+	mask_size = cpu_to_le32(wl_pattern_atoh("0xff",
+						(char *)pkt_filterp->u.pattern.
+						mask_and_pattern));
 
 	/* Parse pattern filter pattern. */
-	pattern_size = htod32(wl_pattern_atoh("0x00",
-					      (char *)&pkt_filterp->u.pattern.
-					      mask_and_pattern[mask_size]));
+	pattern_size = cpu_to_le32(wl_pattern_atoh("0x00",
+						   (char *)&pkt_filterp->u.
+						   pattern.
+						   mask_and_pattern
+						   [mask_size]));
 
 	if (mask_size != pattern_size) {
 		WL_ERR("Mask and pattern not the same size\n");

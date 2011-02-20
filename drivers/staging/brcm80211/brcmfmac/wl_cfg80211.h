@@ -28,23 +28,6 @@ struct wl_priv;
 struct wl_security;
 struct wl_ibss;
 
-#if defined(IL_BIGENDIAN)
-#include <bcmendian.h>
-#define htod32(i) (bcmswap32(i))
-#define htod16(i) (bcmswap16(i))
-#define dtoh32(i) (bcmswap32(i))
-#define dtoh16(i) (bcmswap16(i))
-#define htodchanspec(i) htod16(i)
-#define dtohchanspec(i) dtoh16(i)
-#else
-#define htod32(i) i
-#define htod16(i) i
-#define dtoh32(i) i
-#define dtoh16(i) i
-#define htodchanspec(i) i
-#define dtohchanspec(i) i
-#endif
-
 #define WL_DBG_NONE	0
 #define WL_DBG_DBG 	(1 << 2)
 #define WL_DBG_INFO	(1 << 1)
@@ -365,7 +348,8 @@ static inline struct wl_bss_info *next_bss(struct wl_scan_results *list,
 {
 	return bss = bss ?
 		(struct wl_bss_info *)((unsigned long)bss +
-				       dtoh32(bss->length)) : list->bss_info;
+				       le32_to_cpu(bss->length)) :
+		list->bss_info;
 }
 
 #define for_each_bss(list, bss, __i)	\
