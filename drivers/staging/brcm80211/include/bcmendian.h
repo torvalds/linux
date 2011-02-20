@@ -22,18 +22,6 @@
 	((u16)((((u16)(val) & (u16)0x00ffU) << 8) | \
 		  (((u16)(val) & (u16)0xff00U) >> 8)))
 
-/* Reverse the bytes in a 32-bit value */
-#define BCMSWAP32(val) \
-	((u32)((((u32)(val) & (u32)0x000000ffU) << 24) | \
-		  (((u32)(val) & (u32)0x0000ff00U) <<  8) | \
-		  (((u32)(val) & (u32)0x00ff0000U) >>  8) | \
-		  (((u32)(val) & (u32)0xff000000U) >> 24)))
-
-/* Reverse the two 16-bit halves of a 32-bit value */
-#define BCMSWAP32BY16(val) \
-	((u32)((((u32)(val) & (u32)0x0000ffffU) << 16) | \
-		  (((u32)(val) & (u32)0xffff0000U) >> 16)))
-
 #ifndef IL_BIGENDIAN
 #define ltoh16_buf(buf, i)
 #define htol16_buf(buf, i)
@@ -53,16 +41,6 @@
 	BCMSWAP16(_val); \
 })
 
-#define bcmswap32(val) ({ \
-	u32 _val = (val); \
-	BCMSWAP32(_val); \
-})
-
-#define bcmswap32by16(val) ({ \
-	u32 _val = (val); \
-	BCMSWAP32BY16(_val); \
-})
-
 #define bcmswap16_buf(buf, len) ({ \
 	u16 *_buf = (u16 *)(buf); \
 	uint _wds = (len) / 2; \
@@ -78,16 +56,6 @@
 static inline u16 bcmswap16(u16 val)
 {
 	return BCMSWAP16(val);
-}
-
-static inline u32 bcmswap32(u32 val)
-{
-	return BCMSWAP32(val);
-}
-
-static inline u32 bcmswap32by16(u32 val)
-{
-	return BCMSWAP32BY16(val);
 }
 
 /* Reverse pairs of bytes in a buffer (not for high-performance use) */
