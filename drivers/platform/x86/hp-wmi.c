@@ -532,7 +532,7 @@ static void cleanup_sysfs(struct platform_device *device)
 	device_remove_file(&device->dev, &dev_attr_tablet);
 }
 
-static int __devinit hp_wmi_bios_setup(struct platform_device *device)
+static int __devinit hp_wmi_rfkill_setup(struct platform_device *device)
 {
 	int err;
 	int wireless = 0;
@@ -541,22 +541,6 @@ static int __devinit hp_wmi_bios_setup(struct platform_device *device)
 				   sizeof(wireless), sizeof(wireless));
 	if (err)
 		return err;
-
-	err = device_create_file(&device->dev, &dev_attr_display);
-	if (err)
-		goto add_sysfs_error;
-	err = device_create_file(&device->dev, &dev_attr_hddtemp);
-	if (err)
-		goto add_sysfs_error;
-	err = device_create_file(&device->dev, &dev_attr_als);
-	if (err)
-		goto add_sysfs_error;
-	err = device_create_file(&device->dev, &dev_attr_dock);
-	if (err)
-		goto add_sysfs_error;
-	err = device_create_file(&device->dev, &dev_attr_tablet);
-	if (err)
-		goto add_sysfs_error;
 
 	if (wireless & 0x1) {
 		wifi_rfkill = rfkill_alloc("hp-wifi", &device->dev,
@@ -611,6 +595,34 @@ register_bluetooth_error:
 		rfkill_unregister(wifi_rfkill);
 register_wifi_error:
 	rfkill_destroy(wifi_rfkill);
+	return err;
+}
+
+static int __devinit hp_wmi_bios_setup(struct platform_device *device)
+{
+	int err;
+
+	err = hp_wmi_rfkill_setup(device);
+	if (err)
+		return err;
+
+	err = device_create_file(&device->dev, &dev_attr_display);
+	if (err)
+		goto add_sysfs_error;
+	err = device_create_file(&device->dev, &dev_attr_hddtemp);
+	if (err)
+		goto add_sysfs_error;
+	err = device_create_file(&device->dev, &dev_attr_als);
+	if (err)
+		goto add_sysfs_error;
+	err = device_create_file(&device->dev, &dev_attr_dock);
+	if (err)
+		goto add_sysfs_error;
+	err = device_create_file(&device->dev, &dev_attr_tablet);
+	if (err)
+		goto add_sysfs_error;
+	return 0;
+
 add_sysfs_error:
 	cleanup_sysfs(device);
 	return err;
