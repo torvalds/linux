@@ -88,6 +88,7 @@ struct be_mcc_compl {
 #define ASYNC_EVENT_CODE_GRP_5		0x5
 #define ASYNC_EVENT_QOS_SPEED		0x1
 #define ASYNC_EVENT_COS_PRIORITY	0x2
+#define ASYNC_EVENT_PVID_STATE		0x3
 struct be_async_event_trailer {
 	u32 code;
 };
@@ -131,6 +132,18 @@ struct be_async_event_grp5_cos_priority {
 	u8 valid;
 	u8 rsvd0;
 	u8 event_tag;
+	struct be_async_event_trailer trailer;
+} __packed;
+
+/* When the event code of an async trailer is GRP5 and event type is
+ * PVID state, the mcc_compl must be interpreted as follows
+ */
+struct be_async_event_grp5_pvid_state {
+	u8 enabled;
+	u8 rsvd0;
+	u16 tag;
+	u32 event_tag;
+	u32 rsvd1;
 	struct be_async_event_trailer trailer;
 } __packed;
 

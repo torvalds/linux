@@ -1047,6 +1047,9 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 	if ((adapter->function_mode & 0x400) && !vtm)
 		vlanf = 0;
 
+	if ((adapter->pvid == vlanf) && !adapter->vlan_tag[vlanf])
+		vlanf = 0;
+
 	if (unlikely(vlanf)) {
 		if (!adapter->vlan_grp || adapter->vlans_added == 0) {
 			kfree_skb(skb);
@@ -1085,6 +1088,9 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 	/* vlanf could be wrongly set in some cards.
 	 * ignore if vtm is not set */
 	if ((adapter->function_mode & 0x400) && !vtm)
+		vlanf = 0;
+
+	if ((adapter->pvid == vlanf) && !adapter->vlan_tag[vlanf])
 		vlanf = 0;
 
 	skb = napi_get_frags(&eq_obj->napi);

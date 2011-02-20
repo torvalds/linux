@@ -311,6 +311,7 @@ struct be_adapter {
 	struct be_vf_cfg vf_cfg[BE_MAX_VF];
 	u8 is_virtfn;
 	u32 sli_family;
+	u16 pvid;
 };
 
 #define be_physfn(adapter) (!adapter->is_virtfn)

@@ -124,6 +124,16 @@ static void be_async_grp5_qos_speed_process(struct be_adapter *adapter,
 	}
 }
 
+/*Grp5 PVID evt*/
+static void be_async_grp5_pvid_state_process(struct be_adapter *adapter,
+		struct be_async_event_grp5_pvid_state *evt)
+{
+	if (evt->enabled)
+		adapter->pvid = evt->tag;
+	else
+		adapter->pvid = 0;
+}
+
 static void be_async_grp5_evt_process(struct be_adapter *adapter,
 		u32 trailer, struct be_mcc_compl *evt)
 {
@@ -140,6 +150,10 @@ static void be_async_grp5_evt_process(struct be_adapter *adapter,
 	case ASYNC_EVENT_QOS_SPEED:
 		be_async_grp5_qos_speed_process(adapter,
 		(struct be_async_event_grp5_qos_link_speed *)evt);
+	break;
+	case ASYNC_EVENT_PVID_STATE:
+		be_async_grp5_pvid_state_process(adapter,
+		(struct be_async_event_grp5_pvid_state *)evt);
 	break;
 	default:
 		dev_warn(&adapter->pdev->dev, "Unknown grp5 event!\n");
