@@ -1048,27 +1048,17 @@ void write_nic_byte(struct r8192_priv *priv, int x,u8 y);
 void write_nic_word(struct r8192_priv *priv, int x,u16 y);
 void write_nic_dword(struct r8192_priv *priv, int x,u32 y);
 
-void rtl8192_halt_adapter(struct net_device *dev, bool reset);
-void rtl8192_rx_enable(struct net_device *);
-void rtl8192_tx_enable(struct net_device *);
-
-void rtl8192_update_msr(struct net_device *dev);
 int rtl8192_down(struct net_device *dev);
 int rtl8192_up(struct net_device *dev);
 void rtl8192_commit(struct net_device *dev);
-void rtl8192_set_chan(struct net_device *dev,short ch);
 void write_phy(struct net_device *dev, u8 adr, u8 data);
-void write_phy_cck(struct net_device *dev, u8 adr, u32 data);
-void write_phy_ofdm(struct net_device *dev, u8 adr, u32 data);
 void CamResetAllEntry(struct net_device* dev);
 void EnableHWSecurityConfig8192(struct net_device *dev);
 void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent );
 void dm_cck_txpower_adjust(struct net_device *dev, bool binch14);
 void firmware_init_param(struct net_device *dev);
 RT_STATUS cmpk_message_handle_tx(struct net_device *dev, u8* codevirtualaddress, u32 packettype, u32 buffer_len);
-void rtl8192_hw_wakeup_wq (struct work_struct *work);
 
-short rtl8192_is_tx_queue_empty(struct net_device *dev);
 #ifdef ENABLE_IPS
 void IPSEnter(struct net_device *dev);
 void IPSLeave(struct net_device *dev);
@@ -1085,6 +1075,5 @@ void LeisurePSLeave(struct net_device *dev);
 bool NicIFEnableNIC(struct net_device* dev);
 bool NicIFDisableNIC(struct net_device* dev);
 
-void rtl8192_irq_disable(struct net_device *dev);
 void PHY_SetRtl8192eRfOff(struct net_device* dev);
 #endif

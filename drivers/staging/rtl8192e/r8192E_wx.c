@@ -1149,7 +1149,7 @@ static iw_handler r8192_private_handler[] = {
 	r8192_wx_adapter_power_status,
 };
 
-struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
+static struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
 {
        struct r8192_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device* ieee = priv->ieee80211;

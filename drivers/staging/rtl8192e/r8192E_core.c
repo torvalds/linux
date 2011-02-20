@@ -595,7 +595,7 @@ static void rtl8192_proc_init_one(struct net_device *dev)
 	}
 }
 
-short check_nic_enough_desc(struct net_device *dev, int prio)
+static short check_nic_enough_desc(struct net_device *dev, int prio)
 {
     struct r8192_priv *priv = ieee80211_priv(dev);
     struct rtl8192_tx_ring *ring = &priv->tx_ring[prio];
@@ -620,7 +620,7 @@ static void rtl8192_irq_enable(struct net_device *dev)
 	write_nic_dword(priv, INTA_MASK, priv->irq_mask);
 }
 
-void rtl8192_irq_disable(struct net_device *dev)
+static void rtl8192_irq_disable(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 
@@ -628,7 +628,7 @@ void rtl8192_irq_disable(struct net_device *dev)
 	synchronize_irq(dev->irq);
 }
 
-void rtl8192_update_msr(struct net_device *dev)
+static void rtl8192_update_msr(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8 msr;
@@ -656,7 +656,7 @@ void rtl8192_update_msr(struct net_device *dev)
 	write_nic_byte(priv, MSR, msr);
 }
 
-void rtl8192_set_chan(struct net_device *dev,short ch)
+static void rtl8192_set_chan(struct net_device *dev,short ch)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 
@@ -668,7 +668,7 @@ void rtl8192_set_chan(struct net_device *dev,short ch)
 		priv->rf_set_chan(dev, priv->chan);
 }
 
-void rtl8192_rx_enable(struct net_device *dev)
+static void rtl8192_rx_enable(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 
@@ -687,7 +687,7 @@ void rtl8192_rx_enable(struct net_device *dev)
  *  BEACON_QUEUE   ===>                        8
  *  */
 static const u32 TX_DESC_BASE[] = {BKQDA, BEQDA, VIQDA, VOQDA, HCCAQDA, CQDA, MQDA, HQDA, BQDA};
-void rtl8192_tx_enable(struct net_device *dev)
+static void rtl8192_tx_enable(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	u32 i;
@@ -762,7 +762,7 @@ void PHY_SetRtl8192eRfOff(struct net_device* dev)
 
 }
 
-void rtl8192_halt_adapter(struct net_device *dev, bool reset)
+static void rtl8192_halt_adapter(struct net_device *dev, bool reset)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int i;
@@ -817,13 +817,6 @@ void rtl8192_halt_adapter(struct net_device *dev, bool reset)
 	}
 
 	skb_queue_purge(&priv->skb_queue);
-}
-
-static const u16 rtl_rate[] = {10,20,55,110,60,90,120,180,240,360,480,540};
-inline u16 rtl8192_rate2rate(short rate)
-{
-	if (rate >11) return 0;
-	return rtl_rate[rate];
 }
 
 static void rtl8192_data_hard_stop(struct net_device *dev)
@@ -1065,7 +1058,7 @@ static void rtl8192_net_update(struct net_device *dev)
 	}
 }
 
-void rtl819xE_tx_cmd(struct net_device *dev, struct sk_buff *skb)
+static void rtl819xE_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 {
     struct r8192_priv *priv = ieee80211_priv(dev);
     struct rtl8192_tx_ring *ring;
@@ -1831,7 +1824,7 @@ static bool GetHalfNmodeSupportByAPs819xPci(struct net_device* dev)
 	return ieee->bHalfWirelessN24GMode;
 }
 
-short rtl8192_is_tx_queue_empty(struct net_device *dev)
+static short rtl8192_is_tx_queue_empty(struct net_device *dev)
 {
 	int i=0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -1889,7 +1882,7 @@ static void rtl8192_hw_wakeup(struct net_device* dev)
 	MgntActSet_RF_State(dev, eRfOn, RF_CHANGE_BY_PS);
 }
 
-void rtl8192_hw_wakeup_wq (struct work_struct *work)
+static void rtl8192_hw_wakeup_wq (struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
 	struct ieee80211_device *ieee = container_of(dwork,struct ieee80211_device,hw_wakeup_wq);
