@@ -3480,9 +3480,8 @@ void wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void *data)
 
 				cmd = IWEVPMKIDCAND;
 				pmkcandlist = data;
-				count =
-				    ntoh32_ua((u8 *) &
-					      pmkcandlist->npmkid_cand);
+				count = get_unaligned_be32(&pmkcandlist->
+							   npmkid_cand);
 				ASSERT(count >= 0);
 				wrqu.data.length = sizeof(struct iw_pmkid_cand);
 				pmkidcand = pmkcandlist->pmkid_cand;

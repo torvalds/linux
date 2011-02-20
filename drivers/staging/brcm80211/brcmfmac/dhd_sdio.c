@@ -974,8 +974,9 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 	    ((chan << SDPCM_CHANNEL_SHIFT) & SDPCM_CHANNEL_MASK) | bus->tx_seq |
 	    (((pad +
 	       SDPCM_HDRLEN) << SDPCM_DOFFSET_SHIFT) & SDPCM_DOFFSET_MASK);
-	htol32_ua_store(swheader, frame + SDPCM_FRAMETAG_LEN);
-	htol32_ua_store(0, frame + SDPCM_FRAMETAG_LEN + sizeof(swheader));
+
+	put_unaligned_le32(swheader, frame + SDPCM_FRAMETAG_LEN);
+	put_unaligned_le32(0, frame + SDPCM_FRAMETAG_LEN + sizeof(swheader));
 
 #ifdef DHD_DEBUG
 	tx_packets[pkt->priority]++;
@@ -1290,8 +1291,8 @@ int dhd_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 	     SDPCM_CHANNEL_MASK)
 	    | bus->tx_seq | ((doff << SDPCM_DOFFSET_SHIFT) &
 			     SDPCM_DOFFSET_MASK);
-	htol32_ua_store(swheader, frame + SDPCM_FRAMETAG_LEN);
-	htol32_ua_store(0, frame + SDPCM_FRAMETAG_LEN + sizeof(swheader));
+	put_unaligned_le32(swheader, frame + SDPCM_FRAMETAG_LEN);
+	put_unaligned_le32(0, frame + SDPCM_FRAMETAG_LEN + sizeof(swheader));
 
 	if (!DATAOK(bus)) {
 		DHD_INFO(("%s: No bus credit bus->tx_max %d, bus->tx_seq %d\n",
@@ -3213,7 +3214,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 
 		for (totlen = num = 0; dlen; num++) {
 			/* Get (and move past) next length */
-			sublen = ltoh16_ua(dptr);
+			sublen = get_unaligned_le16(dptr);
 			dlen -= sizeof(u16);
 			dptr += sizeof(u16);
 			if ((sublen < SDPCM_HDRLEN) ||
@@ -3366,8 +3367,8 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 
 		/* Validate the superframe header */
 		dptr = (u8 *) (pfirst->data);
-		sublen = ltoh16_ua(dptr);
-		check = ltoh16_ua(dptr + sizeof(u16));
+		sublen = get_unaligned_le16(dptr);
+		check = get_unaligned_le16(dptr + sizeof(u16));
 
 		chan = SDPCM_PACKET_CHANNEL(&dptr[SDPCM_FRAMETAG_LEN]);
 		seq = SDPCM_PACKET_SEQUENCE(&dptr[SDPCM_FRAMETAG_LEN]);
@@ -3436,8 +3437,8 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 		     num++, pnext = pnext->next) {
 			dptr = (u8 *) (pnext->data);
 			dlen = (u16) (pnext->len);
-			sublen = ltoh16_ua(dptr);
-			check = ltoh16_ua(dptr + sizeof(u16));
+			sublen = get_unaligned_le16(dptr);
+			check = get_unaligned_le16(dptr + sizeof(u16));
 			chan = SDPCM_PACKET_CHANNEL(&dptr[SDPCM_FRAMETAG_LEN]);
 			doff = SDPCM_DOFFSET_VALUE(&dptr[SDPCM_FRAMETAG_LEN]);
 #ifdef DHD_DEBUG
@@ -3499,7 +3500,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 			pfirst->next = NULL;
 
 			dptr = (u8 *) (pfirst->data);
-			sublen = ltoh16_ua(dptr);
+			sublen = get_unaligned_le16(dptr);
 			chan = SDPCM_PACKET_CHANNEL(&dptr[SDPCM_FRAMETAG_LEN]);
 			seq = SDPCM_PACKET_SEQUENCE(&dptr[SDPCM_FRAMETAG_LEN]);
 			doff = SDPCM_DOFFSET_VALUE(&dptr[SDPCM_FRAMETAG_LEN]);
@@ -3772,8 +3773,8 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 			memcpy(bus->rxhdr, rxbuf, SDPCM_HDRLEN);
 
 			/* Extract hardware header fields */
-			len = ltoh16_ua(bus->rxhdr);
-			check = ltoh16_ua(bus->rxhdr + sizeof(u16));
+			len = get_unaligned_le16(bus->rxhdr);
+			check = get_unaligned_le16(bus->rxhdr + sizeof(u16));
 
 			/* All zeros means readahead info was bad */
 			if (!(len | check)) {
@@ -3964,8 +3965,8 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 #endif
 
 		/* Extract hardware header fields */
-		len = ltoh16_ua(bus->rxhdr);
-		check = ltoh16_ua(bus->rxhdr + sizeof(u16));
+		len = get_unaligned_le16(bus->rxhdr);
+		check = get_unaligned_le16(bus->rxhdr + sizeof(u16));
 
 		/* All zeros means no more frames */
 		if (!(len | check)) {

@@ -42,36 +42,6 @@
 #define htol16_buf(buf, i) bcmswap16_buf((u16 *)(buf), (i))
 #endif				/* IL_BIGENDIAN */
 
-/* Unaligned loads and stores in host byte order */
-#ifndef IL_BIGENDIAN
-#define load32_ua(a)		ltoh32_ua(a)
-#define store32_ua(a, v)	htol32_ua_store(v, a)
-#define load16_ua(a)		ltoh16_ua(a)
-#define store16_ua(a, v)	htol16_ua_store(v, a)
-#else
-#define load32_ua(a)		ntoh32_ua(a)
-#define store32_ua(a, v)	hton32_ua_store(v, a)
-#define load16_ua(a)		ntoh16_ua(a)
-#define store16_ua(a, v)	hton16_ua_store(v, a)
-#endif				/* IL_BIGENDIAN */
-
-#define _LTOH16_UA(cp)	((cp)[0] | ((cp)[1] << 8))
-#define _LTOH32_UA(cp)	((cp)[0] | ((cp)[1] << 8) | ((cp)[2] << 16) | ((cp)[3] << 24))
-#define _NTOH16_UA(cp)	(((cp)[0] << 8) | (cp)[1])
-#define _NTOH32_UA(cp)	(((cp)[0] << 24) | ((cp)[1] << 16) | ((cp)[2] << 8) | (cp)[3])
-
-#define ltoh_ua(ptr) \
-	(sizeof(*(ptr)) == sizeof(u8) ? *(const u8 *)(ptr) : \
-	 sizeof(*(ptr)) == sizeof(u16) ? _LTOH16_UA((const u8 *)(ptr)) : \
-	 sizeof(*(ptr)) == sizeof(u32) ? _LTOH32_UA((const u8 *)(ptr)) : \
-	 *(u8 *)0)
-
-#define ntoh_ua(ptr) \
-	(sizeof(*(ptr)) == sizeof(u8) ? *(const u8 *)(ptr) : \
-	 sizeof(*(ptr)) == sizeof(u16) ? _NTOH16_UA((const u8 *)(ptr)) : \
-	 sizeof(*(ptr)) == sizeof(u32) ? _NTOH32_UA((const u8 *)(ptr)) : \
-	 *(u8 *)0)
-
 #ifdef __GNUC__
 
 /* GNU macro versions avoid referencing the argument multiple times, while also
@@ -100,58 +70,6 @@
 		*_buf = bcmswap16(*_buf); \
 		_buf++; \
 	} \
-})
-
-#define htol16_ua_store(val, bytes) ({ \
-	u16 _val = (val); \
-	u8 *_bytes = (u8 *)(bytes); \
-	_bytes[0] = _val & 0xff; \
-	_bytes[1] = _val >> 8; \
-})
-
-#define htol32_ua_store(val, bytes) ({ \
-	u32 _val = (val); \
-	u8 *_bytes = (u8 *)(bytes); \
-	_bytes[0] = _val & 0xff; \
-	_bytes[1] = (_val >> 8) & 0xff; \
-	_bytes[2] = (_val >> 16) & 0xff; \
-	_bytes[3] = _val >> 24; \
-})
-
-#define hton16_ua_store(val, bytes) ({ \
-	u16 _val = (val); \
-	u8 *_bytes = (u8 *)(bytes); \
-	_bytes[0] = _val >> 8; \
-	_bytes[1] = _val & 0xff; \
-})
-
-#define hton32_ua_store(val, bytes) ({ \
-	u32 _val = (val); \
-	u8 *_bytes = (u8 *)(bytes); \
-	_bytes[0] = _val >> 24; \
-	_bytes[1] = (_val >> 16) & 0xff; \
-	_bytes[2] = (_val >> 8) & 0xff; \
-	_bytes[3] = _val & 0xff; \
-})
-
-#define ltoh16_ua(bytes) ({ \
-	const u8 *_bytes = (const u8 *)(bytes); \
-	_LTOH16_UA(_bytes); \
-})
-
-#define ltoh32_ua(bytes) ({ \
-	const u8 *_bytes = (const u8 *)(bytes); \
-	_LTOH32_UA(_bytes); \
-})
-
-#define ntoh16_ua(bytes) ({ \
-	const u8 *_bytes = (const u8 *)(bytes); \
-	_NTOH16_UA(_bytes); \
-})
-
-#define ntoh32_ua(bytes) ({ \
-	const u8 *_bytes = (const u8 *)(bytes); \
-	_NTOH32_UA(_bytes); \
 })
 
 #else				/* !__GNUC__ */
@@ -183,78 +101,6 @@ static inline void bcmswap16_buf(u16 *buf, uint len)
 		*buf = bcmswap16(*buf);
 		buf++;
 	}
-}
-
-/*
- * Store 16-bit value to unaligned little-endian byte array.
- */
-static inline void htol16_ua_store(u16 val, u8 *bytes)
-{
-	bytes[0] = val & 0xff;
-	bytes[1] = val >> 8;
-}
-
-/*
- * Store 32-bit value to unaligned little-endian byte array.
- */
-static inline void htol32_ua_store(u32 val, u8 *bytes)
-{
-	bytes[0] = val & 0xff;
-	bytes[1] = (val >> 8) & 0xff;
-	bytes[2] = (val >> 16) & 0xff;
-	bytes[3] = val >> 24;
-}
-
-/*
- * Store 16-bit value to unaligned network-(big-)endian byte array.
- */
-static inline void hton16_ua_store(u16 val, u8 *bytes)
-{
-	bytes[0] = val >> 8;
-	bytes[1] = val & 0xff;
-}
-
-/*
- * Store 32-bit value to unaligned network-(big-)endian byte array.
- */
-static inline void hton32_ua_store(u32 val, u8 *bytes)
-{
-	bytes[0] = val >> 24;
-	bytes[1] = (val >> 16) & 0xff;
-	bytes[2] = (val >> 8) & 0xff;
-	bytes[3] = val & 0xff;
-}
-
-/*
- * Load 16-bit value from unaligned little-endian byte array.
- */
-static inline u16 ltoh16_ua(const void *bytes)
-{
-	return _LTOH16_UA((const u8 *)bytes);
-}
-
-/*
- * Load 32-bit value from unaligned little-endian byte array.
- */
-static inline u32 ltoh32_ua(const void *bytes)
-{
-	return _LTOH32_UA((const u8 *)bytes);
-}
-
-/*
- * Load 16-bit value from unaligned big-(network-)endian byte array.
- */
-static inline u16 ntoh16_ua(const void *bytes)
-{
-	return _NTOH16_UA((const u8 *)bytes);
-}
-
-/*
- * Load 32-bit value from unaligned big-(network-)endian byte array.
- */
-static inline u32 ntoh32_ua(const void *bytes)
-{
-	return _NTOH32_UA((const u8 *)bytes);
 }
 
 #endif				/* !__GNUC__ */

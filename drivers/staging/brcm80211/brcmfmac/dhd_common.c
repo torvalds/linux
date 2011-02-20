@@ -826,7 +826,7 @@ wl_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 	}
 
 	/* BRCM event pkt may be unaligned - use xxx_ua to load user_subtype. */
-	if (ntoh16_ua((void *)&pvt_data->bcm_hdr.usr_subtype) !=
+	if (get_unaligned_be16(&pvt_data->bcm_hdr.usr_subtype) !=
 	    BCMILCP_BCM_SUBTYPE_EVENT) {
 		DHD_ERROR(("%s: mismatched subtype, bailing\n", __func__));
 		return BCME_ERROR;
@@ -838,10 +838,10 @@ wl_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 	/* memcpy since BRCM event pkt may be unaligned. */
 	memcpy(event, &pvt_data->event, sizeof(wl_event_msg_t));
 
-	type = ntoh32_ua((void *)&event->event_type);
-	flags = ntoh16_ua((void *)&event->flags);
-	status = ntoh32_ua((void *)&event->status);
-	evlen = ntoh32_ua((void *)&event->datalen) + sizeof(bcm_event_t);
+	type = get_unaligned_be32(&event->event_type);
+	flags = get_unaligned_be16(&event->flags);
+	status = get_unaligned_be32(&event->status);
+	evlen = get_unaligned_be32(&event->datalen) + sizeof(bcm_event_t);
 
 	switch (type) {
 	case WLC_E_IF:
@@ -895,7 +895,7 @@ wl_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 		if (type == WLC_E_NDIS_LINK) {
 			u32 temp;
 
-			temp = ntoh32_ua((void *)&event->event_type);
+			temp = get_unaligned_be32(&event->event_type);
 			DHD_TRACE(("Converted to WLC_E_LINK type %d\n", temp));
 
 			temp = be32_to_cpu(WLC_E_NDIS_LINK);
