@@ -1703,11 +1703,14 @@ struct mac_iveiv_entry {
  */
 
 /*
- * BBP 1: TX Antenna & Power
- * POWER: 0 - normal, 1 - drop tx power by 6dBm, 2 - drop tx power by 12dBm,
- *	3 - increase tx power by 6dBm
+ * BBP 1: TX Antenna & Power Control
+ * POWER_CTRL:
+ * 0 - normal,
+ * 1 - drop tx power by 6dBm,
+ * 2 - drop tx power by 12dBm,
+ * 3 - increase tx power by 6dBm
  */
-#define BBP1_TX_POWER			FIELD8(0x07)
+#define BBP1_TX_POWER_CTRL		FIELD8(0x07)
 #define BBP1_TX_ANTENNA			FIELD8(0x18)
 
 /*
@@ -2001,23 +2004,26 @@ struct mac_iveiv_entry {
 #define EEPROM_RSSI_A2_LNA_A2		FIELD16(0xff00)
 
 /*
- * EEPROM Maximum TX power values
+ * EEPROM EIRP Maximum TX power values(unit: dbm)
  */
-#define EEPROM_MAX_TX_POWER		0x0027
-#define EEPROM_MAX_TX_POWER_24GHZ	FIELD16(0x00ff)
-#define EEPROM_MAX_TX_POWER_5GHZ	FIELD16(0xff00)
+#define EEPROM_EIRP_MAX_TX_POWER	0x0027
+#define EEPROM_EIRP_MAX_TX_POWER_2GHZ	FIELD16(0x00ff)
+#define EEPROM_EIRP_MAX_TX_POWER_5GHZ	FIELD16(0xff00)
 
 /*
  * EEPROM TXpower delta: 20MHZ AND 40 MHZ use different power.
  * This is delta in 40MHZ.
- * VALUE: Tx Power dalta value (MAX=4)
+ * VALUE: Tx Power dalta value, MAX=4(unit: dbm)
  * TYPE: 1: Plus the delta value, 0: minus the delta value
- * TXPOWER: Enable:
+ * ENABLE: enable tx power compensation for 40BW
  */
 #define EEPROM_TXPOWER_DELTA		0x0028
-#define EEPROM_TXPOWER_DELTA_VALUE	FIELD16(0x003f)
-#define EEPROM_TXPOWER_DELTA_TYPE	FIELD16(0x0040)
-#define EEPROM_TXPOWER_DELTA_TXPOWER	FIELD16(0x0080)
+#define EEPROM_TXPOWER_DELTA_VALUE_2G	FIELD16(0x003f)
+#define EEPROM_TXPOWER_DELTA_TYPE_2G	FIELD16(0x0040)
+#define EEPROM_TXPOWER_DELTA_ENABLE_2G	FIELD16(0x0080)
+#define EEPROM_TXPOWER_DELTA_VALUE_5G	FIELD16(0x3f00)
+#define EEPROM_TXPOWER_DELTA_TYPE_5G	FIELD16(0x4000)
+#define EEPROM_TXPOWER_DELTA_ENABLE_5G	FIELD16(0x8000)
 
 /*
  * EEPROM TXPOWER 802.11BG
@@ -2214,5 +2220,10 @@ struct mac_iveiv_entry {
 
 #define TXPOWER_A_TO_DEV(__txpower) \
 	clamp_t(char, __txpower, MIN_A_TXPOWER, MAX_A_TXPOWER)
+
+/*
+ *  Board's maximun TX power limitation
+ */
+#define EIRP_MAX_TX_POWER_LIMIT	0x50
 
 #endif /* RT2800_H */
