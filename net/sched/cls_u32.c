@@ -134,12 +134,12 @@ next_knode:
 
 		for (i = n->sel.nkeys; i > 0; i--, key++) {
 			int toff = off + key->off + (off2 & key->offmask);
-			__be32 *data, _data;
+			__be32 *data, hdata;
 
 			if (skb_headroom(skb) + toff > INT_MAX)
 				goto out;
 
-			data = skb_header_pointer(skb, toff, 4, &_data);
+			data = skb_header_pointer(skb, toff, 4, &hdata);
 			if (!data)
 				goto out;
 			if ((*data ^ key->val) & key->mask) {
@@ -187,10 +187,10 @@ check_terminal:
 		ht = n->ht_down;
 		sel = 0;
 		if (ht->divisor) {
-			__be32 *data, _data;
+			__be32 *data, hdata;
 
 			data = skb_header_pointer(skb, off + n->sel.hoff, 4,
-						  &_data);
+						  &hdata);
 			if (!data)
 				goto out;
 			sel = ht->divisor & u32_hash_fold(*data, &n->sel,
@@ -202,11 +202,11 @@ check_terminal:
 		if (n->sel.flags & (TC_U32_OFFSET | TC_U32_VAROFFSET)) {
 			off2 = n->sel.off + 3;
 			if (n->sel.flags & TC_U32_VAROFFSET) {
-				__be16 *data, _data;
+				__be16 *data, hdata;
 
 				data = skb_header_pointer(skb,
 							  off + n->sel.offoff,
-							  2, &_data);
+							  2, &hdata);
 				if (!data)
 					goto out;
 				off2 += ntohs(n->sel.offmask & *data) >>
