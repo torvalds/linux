@@ -127,7 +127,7 @@ static const char et_self_tests[][ETH_GSTRING_LEN] = {
 	"MAC Loopback test",
 	"PHY Loopback test",
 	"External Loopback test",
-	"DDR DMA test"
+	"DDR DMA test",
 	"Link test"
 };
 
@@ -642,7 +642,8 @@ be_self_test(struct net_device *netdev, struct ethtool_test *test, u64 *data)
 				&qos_link_speed) != 0) {
 		test->flags |= ETH_TEST_FL_FAILED;
 		data[4] = -1;
-	} else if (mac_speed) {
+	} else if (!mac_speed) {
+		test->flags |= ETH_TEST_FL_FAILED;
 		data[4] = 1;
 	}
 }
