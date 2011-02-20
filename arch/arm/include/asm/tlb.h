@@ -22,6 +22,9 @@
 #ifndef CONFIG_MMU
 
 #include <linux/pagemap.h>
+
+#define tlb_flush(tlb)	((void) tlb)
+
 #include <asm-generic/tlb.h>
 
 #else /* !CONFIG_MMU */
