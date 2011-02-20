@@ -139,9 +139,9 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * either RTS or CTS-to-self frame and handles everything
 	 * inside the hardware.
 	 */
-	if ((tx_info->control.rates[0].flags & (IEEE80211_TX_RC_USE_RTS_CTS |
-						IEEE80211_TX_RC_USE_CTS_PROTECT)) &&
-	    !rt2x00dev->ops->hw->set_rts_threshold) {
+	if (!rt2x00dev->ops->hw->set_rts_threshold &&
+	    (tx_info->control.rates[0].flags & (IEEE80211_TX_RC_USE_RTS_CTS |
+						IEEE80211_TX_RC_USE_CTS_PROTECT))) {
 		if (rt2x00queue_available(queue) <= 1)
 			goto exit_fail;
 
