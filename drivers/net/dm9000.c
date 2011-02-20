@@ -852,8 +852,8 @@ static void dm9000_timeout(struct net_device *dev)
 	unsigned long flags;
 
 	/* Save previous register address */
-	reg_save = readb(db->io_addr);
 	spin_lock_irqsave(&db->lock, flags);
+	reg_save = readb(db->io_addr);
 
 	netif_stop_queue(dev);
 	dm9000_reset(db);
