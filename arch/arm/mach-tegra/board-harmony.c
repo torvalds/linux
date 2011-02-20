@@ -30,10 +30,13 @@
 
 #include <mach/iomap.h>
 #include <mach/irqs.h>
+#include <mach/sdhci.h>
 
 #include "board.h"
 #include "board-harmony.h"
 #include "clock.h"
+#include "devices.h"
+#include "gpio-names.h"
 
 static struct plat_serial8250_port debug_uart_platform_data[] = {
 	{
@@ -59,6 +62,9 @@ static struct platform_device debug_uart = {
 
 static struct platform_device *harmony_devices[] __initdata = {
 	&debug_uart,
+	&tegra_sdhci_device1,
+	&tegra_sdhci_device2,
+	&tegra_sdhci_device4,
 };
 
 static void __init tegra_harmony_fixup(struct machine_desc *desc,
@@ -77,11 +83,35 @@ static __initdata struct tegra_clk_init_table harmony_clk_init_table[] = {
 	{ NULL,		NULL,		0,		0},
 };
 
+
+static struct tegra_sdhci_platform_data sdhci_pdata1 = {
+	.cd_gpio	= -1,
+	.wp_gpio	= -1,
+	.power_gpio	= -1,
+};
+
+static struct tegra_sdhci_platform_data sdhci_pdata2 = {
+	.cd_gpio	= TEGRA_GPIO_PI5,
+	.wp_gpio	= TEGRA_GPIO_PH1,
+	.power_gpio	= TEGRA_GPIO_PT3,
+};
+
+static struct tegra_sdhci_platform_data sdhci_pdata4 = {
+	.cd_gpio	= TEGRA_GPIO_PH2,
+	.wp_gpio	= TEGRA_GPIO_PH3,
+	.power_gpio	= TEGRA_GPIO_PI6,
+	.is_8bit	= 1,
+};
+
 static void __init tegra_harmony_init(void)
 {
 	tegra_clk_init_from_table(harmony_clk_init_table);
 
 	harmony_pinmux_init();
+
+	tegra_sdhci_device1.dev.platform_data = &sdhci_pdata1;
+	tegra_sdhci_device2.dev.platform_data = &sdhci_pdata2;
+	tegra_sdhci_device4.dev.platform_data = &sdhci_pdata4;
 
 	platform_add_devices(harmony_devices, ARRAY_SIZE(harmony_devices));
 }
