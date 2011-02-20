@@ -153,7 +153,6 @@ static int hp_wmi_perform_query(int query, int write, u32 *buffer,
 				int buffersize)
 {
 	struct bios_return bios_return;
-	acpi_status status;
 	union acpi_object *obj;
 	struct bios_args args = {
 		.signature = 0x55434553,
@@ -165,7 +164,7 @@ static int hp_wmi_perform_query(int query, int write, u32 *buffer,
 	struct acpi_buffer input = { sizeof(struct bios_args), &args };
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
 
-	status = wmi_evaluate_method(HPWMI_BIOS_GUID, 0, 0x3, &input, &output);
+	wmi_evaluate_method(HPWMI_BIOS_GUID, 0, 0x3, &input, &output);
 
 	obj = output.pointer;
 
