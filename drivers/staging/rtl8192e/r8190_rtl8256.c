@@ -121,9 +121,6 @@ RT_STATUS phy_RF8256_Config_ParaFile(struct net_device* dev)
 
 		pPhyReg = &priv->PHYRegDef[eRFPath];
 
-		// Joseph test for shorten RF config
-	//	pHalData->RfReg0Value[eRFPath] =  rtl8192_phy_QueryRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, rGlobalCtrl, bMaskDWord);
-
 		/*----Store original RFENV control type----*/
 		switch(eRFPath)
 		{
@@ -473,20 +470,17 @@ MgntDisconnectIBSS(
 )
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	//RT_OP_MODE	OpMode;
 	u8			i;
 	bool	bFilterOutNonAssociatedBSSID = false;
 
 	priv->ieee80211->state = IEEE80211_NOLINK;
 
-//	PlatformZeroMemory( pMgntInfo->Bssid, 6 );
 	for(i=0;i<6;i++)  priv->ieee80211->current_network.bssid[i]= 0x55;
 	priv->OpMode = RT_OP_MODE_NO_LINK;
 	write_nic_word(priv, BSSIDR, ((u16*)priv->ieee80211->current_network.bssid)[0]);
 	write_nic_dword(priv, BSSIDR+2, ((u32*)(priv->ieee80211->current_network.bssid+2))[0]);
 	{
 			RT_OP_MODE	OpMode = priv->OpMode;
-			//LED_CTL_MODE	LedAction = LED_CTL_NO_LINK;
 			u8	btMsr = read_nic_byte(priv, MSR);
 
 			btMsr &= 0xfc;
@@ -495,7 +489,6 @@ MgntDisconnectIBSS(
 			{
 			case RT_OP_MODE_INFRASTRUCTURE:
 				btMsr |= MSR_LINK_MANAGED;
-				//LedAction = LED_CTL_LINK;
 				break;
 
 			case RT_OP_MODE_IBSS:
@@ -505,7 +498,6 @@ MgntDisconnectIBSS(
 
 			case RT_OP_MODE_AP:
 				btMsr |= MSR_LINK_MASTER;
-				//LedAction = LED_CTL_LINK;
 				break;
 
 			default:
@@ -514,9 +506,6 @@ MgntDisconnectIBSS(
 			}
 
 			write_nic_byte(priv, MSR, btMsr);
-
-			// LED control
-			//Adapter->HalFunc.LedControlHandler(Adapter, LedAction);
 	}
 	ieee80211_stop_send_beacons(priv->ieee80211);
 
@@ -538,7 +527,6 @@ MgntDisconnectIBSS(
 			}
 
 		}
-	//MgntIndicateMediaStatus( Adapter, RT_MEDIA_DISCONNECT, GENERAL_INDICATE );
 	notify_wx_assoc_event(priv->ieee80211);
 
 }
@@ -562,14 +550,10 @@ MlmeDisassociateRequest(
 		//ShuChen TODO: change media status.
 		//ShuChen TODO: What to do when disassociate.
 		priv->ieee80211->state = IEEE80211_NOLINK;
-		//pMgntInfo->AsocTimestamp = 0;
 		for(i=0;i<6;i++)  priv->ieee80211->current_network.bssid[i] = 0x22;
-//		pMgntInfo->mBrates.Length = 0;
-//		Adapter->HalFunc.SetHwRegHandler( Adapter, HW_VAR_BASIC_RATE, (pu1Byte)(&pMgntInfo->mBrates) );
 		priv->OpMode = RT_OP_MODE_NO_LINK;
 		{
 			RT_OP_MODE	OpMode = priv->OpMode;
-			//LED_CTL_MODE	LedAction = LED_CTL_NO_LINK;
 			u8 btMsr = read_nic_byte(priv, MSR);
 
 			btMsr &= 0xfc;
@@ -578,7 +562,6 @@ MlmeDisassociateRequest(
 			{
 			case RT_OP_MODE_INFRASTRUCTURE:
 				btMsr |= MSR_LINK_MANAGED;
-				//LedAction = LED_CTL_LINK;
 				break;
 
 			case RT_OP_MODE_IBSS:
@@ -588,7 +571,6 @@ MlmeDisassociateRequest(
 
 			case RT_OP_MODE_AP:
 				btMsr |= MSR_LINK_MASTER;
-				//LedAction = LED_CTL_LINK;
 				break;
 
 			default:
@@ -597,9 +579,6 @@ MlmeDisassociateRequest(
 			}
 
 			write_nic_byte(priv, MSR, btMsr);
-
-			// LED control
-			//Adapter->HalFunc.LedControlHandler(Adapter, LedAction);
 		}
 		ieee80211_disassociate(priv->ieee80211);
 
@@ -646,32 +625,6 @@ MgntDisconnect(
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	//
-	// Schedule an workitem to wake up for ps mode, 070109, by rcnjko.
-	//
-#ifdef TO_DO
-	if(pMgntInfo->mPss != eAwake)
-	{
-		//
-		// Using AwkaeTimer to prevent mismatch ps state.
-		// In the timer the state will be changed according to the RF is being awoke or not. By Bruce, 2007-10-31.
-		//
-		// PlatformScheduleWorkItem( &(pMgntInfo->AwakeWorkItem) );
-		PlatformSetTimer( Adapter, &(pMgntInfo->AwakeTimer), 0 );
-	}
-#endif
-	// Follow 8180 AP mode, 2005.05.30, by rcnjko.
-#ifdef TO_DO
-	if(pMgntInfo->mActingAsAp)
-	{
-		RT_TRACE(COMP_MLME, DBG_LOUD, ("MgntDisconnect() ===> AP_DisassociateAllStation\n"));
-		AP_DisassociateAllStation(Adapter, unspec_reason);
-		return TRUE;
-	}
-#endif
-	// Indication of disassociation event.
-	//DrvIFIndicateDisassociation(Adapter, asRsn);
-
 	// In adhoc mode, update beacon frame.
 	if( priv->ieee80211->state == IEEE80211_LINKED )
 	{
@@ -688,9 +641,6 @@ MgntDisconnect(
 			// frame to AP.  2005.01.27, by rcnjko.
 			MgntDisconnectAP(dev, asRsn);
 		}
-
-		// Inidicate Disconnect, 2005.02.23, by rcnjko.
-		//MgntIndicateMediaStatus( Adapter, RT_MEDIA_DISCONNECT, GENERAL_INDICATE);
 	}
 
 	return true;
