@@ -610,9 +610,7 @@ static int __devinit hp_wmi_bios_setup(struct platform_device *device)
 	bluetooth_rfkill = NULL;
 	wwan_rfkill = NULL;
 
-	err = hp_wmi_rfkill_setup(device);
-	if (err)
-		return err;
+	hp_wmi_rfkill_setup(device);
 
 	err = device_create_file(&device->dev, &dev_attr_display);
 	if (err)
