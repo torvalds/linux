@@ -169,6 +169,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_SET_QOS				28
 #define OPCODE_COMMON_MCC_CREATE_EXT			90
 #define OPCODE_COMMON_SEEPROM_READ			30
+#define OPCODE_COMMON_GET_CNTL_ATTRIBUTES               32
 #define OPCODE_COMMON_NTWK_RX_FILTER    		34
 #define OPCODE_COMMON_GET_FW_VERSION			35
 #define OPCODE_COMMON_SET_FLOW_CONTROL			36
@@ -1030,6 +1031,16 @@ struct be_cmd_resp_set_qos {
 	u32 rsvd;
 };
 
+/*********************** Controller Attributes ***********************/
+struct be_cmd_req_cntl_attribs {
+	struct be_cmd_req_hdr hdr;
+};
+
+struct be_cmd_resp_cntl_attribs {
+	struct be_cmd_resp_hdr hdr;
+	struct mgmt_controller_attrib attribs;
+};
+
 extern int be_pci_fnum_get(struct be_adapter *adapter);
 extern int be_cmd_POST(struct be_adapter *adapter);
 extern int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
@@ -1115,4 +1126,5 @@ extern int be_cmd_get_phy_info(struct be_adapter *adapter,
 extern int be_cmd_set_qos(struct be_adapter *adapter, u32 bps, u32 domain);
 extern void be_detect_dump_ue(struct be_adapter *adapter);
 extern int be_cmd_get_die_temperature(struct be_adapter *adapter);
+extern int be_cmd_get_cntl_attributes(struct be_adapter *adapter);
 

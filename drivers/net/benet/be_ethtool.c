@@ -513,7 +513,7 @@ be_phys_id(struct net_device *netdev, u32 data)
 	int status;
 	u32 cur;
 
-	be_cmd_get_beacon_state(adapter, adapter->port_num, &cur);
+	be_cmd_get_beacon_state(adapter, adapter->hba_port_num, &cur);
 
 	if (cur == BEACON_STATE_ENABLED)
 		return 0;
@@ -521,12 +521,12 @@ be_phys_id(struct net_device *netdev, u32 data)
 	if (data < 2)
 		data = 2;
 
-	status = be_cmd_set_beacon_state(adapter, adapter->port_num, 0, 0,
+	status = be_cmd_set_beacon_state(adapter, adapter->hba_port_num, 0, 0,
 			BEACON_STATE_ENABLED);
 	set_current_state(TASK_INTERRUPTIBLE);
 	schedule_timeout(data*HZ);
 
-	status = be_cmd_set_beacon_state(adapter, adapter->port_num, 0, 0,
+	status = be_cmd_set_beacon_state(adapter, adapter->hba_port_num, 0, 0,
 			BEACON_STATE_DISABLED);
 
 	return status;
@@ -605,12 +605,12 @@ err:
 static u64 be_loopback_test(struct be_adapter *adapter, u8 loopback_type,
 				u64 *status)
 {
-	be_cmd_set_loopback(adapter, adapter->port_num,
+	be_cmd_set_loopback(adapter, adapter->hba_port_num,
 				loopback_type, 1);
-	*status = be_cmd_loopback_test(adapter, adapter->port_num,
+	*status = be_cmd_loopback_test(adapter, adapter->hba_port_num,
 				loopback_type, 1500,
 				2, 0xabc);
-	be_cmd_set_loopback(adapter, adapter->port_num,
+	be_cmd_set_loopback(adapter, adapter->hba_port_num,
 				BE_NO_LOOPBACK, 1);
 	return *status;
 }

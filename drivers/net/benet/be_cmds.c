@@ -1954,3 +1954,57 @@ err:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }
+
+int be_cmd_get_cntl_attributes(struct be_adapter *adapter)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_cntl_attribs *req;
+	struct be_cmd_resp_cntl_attribs *resp;
+	struct be_sge *sge;
+	int status;
+	int payload_len = max(sizeof(*req), sizeof(*resp));
+	struct mgmt_controller_attrib *attribs;
+	struct be_dma_mem attribs_cmd;
+
+	memset(&attribs_cmd, 0, sizeof(struct be_dma_mem));
+	attribs_cmd.size = sizeof(struct be_cmd_resp_cntl_attribs);
+	attribs_cmd.va = pci_alloc_consistent(adapter->pdev, attribs_cmd.size,
+						&attribs_cmd.dma);
+	if (!attribs_cmd.va) {
+		dev_err(&adapter->pdev->dev,
+				"Memory allocation failure\n");
+		return -ENOMEM;
+	}
+
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
+
+	wrb = wrb_from_mbox(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+	req = attribs_cmd.va;
+	sge = nonembedded_sgl(wrb);
+
+	be_wrb_hdr_prepare(wrb, payload_len, false, 1,
+			OPCODE_COMMON_GET_CNTL_ATTRIBUTES);
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			 OPCODE_COMMON_GET_CNTL_ATTRIBUTES, payload_len);
+	sge->pa_hi = cpu_to_le32(upper_32_bits(attribs_cmd.dma));
+	sge->pa_lo = cpu_to_le32(attribs_cmd.dma & 0xFFFFFFFF);
+	sge->len = cpu_to_le32(attribs_cmd.size);
+
+	status = be_mbox_notify_wait(adapter);
+	if (!status) {
+		attribs = (struct mgmt_controller_attrib *)( attribs_cmd.va +
+					sizeof(struct be_cmd_resp_hdr));
+		adapter->hba_port_num = attribs->hba_attribs.phy_port;
+	}
+
+err:
+	mutex_unlock(&adapter->mbox_lock);
+	pci_free_consistent(adapter->pdev, attribs_cmd.size, attribs_cmd.va,
+					attribs_cmd.dma);
+	return status;
+}
