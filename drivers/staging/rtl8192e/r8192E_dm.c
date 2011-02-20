@@ -153,48 +153,6 @@ void deinit_hal_dm(struct net_device *dev)
 
 }
 
-
-#ifdef USB_RX_AGGREGATION_SUPPORT
-void dm_CheckRxAggregation(struct net_device *dev) {
-	struct r8192_priv *priv = ieee80211_priv((struct net_device *)dev);
-	PRT_HIGH_THROUGHPUT	pHTInfo = priv->ieee80211->pHTInfo;
-	static unsigned long	lastTxOkCnt = 0;
-	static unsigned long	lastRxOkCnt = 0;
-	unsigned long		curTxOkCnt = 0;
-	unsigned long		curRxOkCnt = 0;
-
-	curTxOkCnt = priv->stats.txbytesunicast - lastTxOkCnt;
-	curRxOkCnt = priv->stats.rxbytesunicast - lastRxOkCnt;
-
-	if((curTxOkCnt + curRxOkCnt) < 15000000) {
-		return;
-	}
-
-	if(curTxOkCnt > 4*curRxOkCnt) {
-		if (priv->bCurrentRxAggrEnable) {
-			write_nic_dword(priv, 0x1a8, 0);
-			priv->bCurrentRxAggrEnable = false;
-		}
-	}else{
-		if (!priv->bCurrentRxAggrEnable && !pHTInfo->bCurrentRT2RTAggregation) {
-			u32 ulValue;
-			ulValue = (pHTInfo->UsbRxFwAggrEn<<24) | (pHTInfo->UsbRxFwAggrPageNum<<16) |
-				(pHTInfo->UsbRxFwAggrPacketNum<<8) | (pHTInfo->UsbRxFwAggrTimeout);
-			/*
-			 * If usb rx firmware aggregation is enabled,
-			 * when anyone of three threshold conditions above is reached,
-			 * firmware will send aggregated packet to driver.
-			 */
-			write_nic_dword(priv, 0x1a8, ulValue);
-			priv->bCurrentRxAggrEnable = true;
-		}
-	}
-
-	lastTxOkCnt = priv->stats.txbytesunicast;
-	lastRxOkCnt = priv->stats.rxbytesunicast;
-}
-#endif
-
 void hal_dm_watchdog(struct net_device *dev)
 {
 	/*Add by amy 2008/05/15 ,porting from windows code.*/
@@ -216,10 +174,6 @@ void hal_dm_watchdog(struct net_device *dev)
 	dm_check_pbc_gpio(dev);
 	dm_send_rssi_tofw(dev);
 	dm_ctstoself(dev);
-
-#ifdef USB_RX_AGGREGATION_SUPPORT
-	dm_CheckRxAggregation(dev);
-#endif
 }
 
 
