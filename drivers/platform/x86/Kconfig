@@ -637,6 +637,13 @@ config INTEL_MID_POWER_BUTTON
 
 	  If unsure, say N.
 
+config INTEL_MFLD_THERMAL
+       tristate "Thermal driver for Intel Medfield platform"
+       depends on INTEL_SCU_IPC && THERMAL
+       help
+         Say Y here to enable thermal driver support for the  Intel Medfield
+         platform.
+
 config RAR_REGISTER
 	bool "Restricted Access Region Register Driver"
 	depends on PCI && X86_MRST
