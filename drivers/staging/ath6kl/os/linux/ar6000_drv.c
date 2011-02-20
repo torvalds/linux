@@ -2331,6 +2331,7 @@ ar6000_close(struct net_device *dev)
         }
         ar->arWlanState = WLAN_DISABLED;
     }
+	ar6k_cfg80211_scanComplete_event(ar, A_ECANCELED);
 #endif /* ATH6K_CONFIG_CFG80211 */
 
     return 0;
