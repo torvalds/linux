@@ -1,4 +1,5 @@
 obj-y                                   += common.o
+obj-y                                   += devices.o
 obj-y                                   += io.o
 obj-y                                   += irq.o legacy_irq.o
 obj-y                                   += clock.o
