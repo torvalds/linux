@@ -27,11 +27,30 @@ config MACH_HARMONY
        help
          Support for nVidia Harmony development platform
 
+config MACH_KAEN
+       bool "Kaen board"
+       select MACH_SEABOARD
+       help
+         Support for the Kaen version of Seaboard
+
+config MACH_SEABOARD
+       bool "Seaboard board"
+       help
+         Support for nVidia Seaboard development platform. It will
+	 also be included for some of the derivative boards that
+	 have large similarities with the seaboard design.
+
 config MACH_TRIMSLICE
        bool "TrimSlice board"
        select TEGRA_PCI
        help
          Support for CompuLab TrimSlice platform
+
+config MACH_WARIO
+       bool "Wario board"
+       select MACH_SEABOARD
+       help
+         Support for the Wario version of Seaboard
 
 choice
         prompt "Low-level debug console UART"
