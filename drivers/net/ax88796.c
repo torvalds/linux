@@ -87,7 +87,6 @@ struct ax_device {
 
 	u32 msg_enable;
 	void __iomem *map2;
-	struct platform_device *dev;
 	struct resource *mem;
 	struct resource *mem2;
 	struct ax_plat_data *plat;
@@ -545,11 +544,11 @@ static int ax_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 static void ax_get_drvinfo(struct net_device *dev,
 			   struct ethtool_drvinfo *info)
 {
-	struct ax_device *ax = to_ax_dev(dev);
+	struct platform_device *pdev = to_platform_device(dev->dev.parent);
 
 	strcpy(info->driver, DRV_NAME);
 	strcpy(info->version, DRV_VERSION);
-	strcpy(info->bus_info, ax->dev->name);
+	strcpy(info->bus_info, pdev->name);
 }
 
 static int ax_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -848,7 +847,6 @@ static int ax_probe(struct platform_device *pdev)
 
 	spin_lock_init(&ax->mii_lock);
 
-	ax->dev = pdev;
 	ax->plat = pdev->dev.platform_data;
 	platform_set_drvdata(pdev, dev);
 
