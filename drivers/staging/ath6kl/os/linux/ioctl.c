@@ -3175,6 +3175,11 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 break;
             }
 
+            if (optTxFrmCmd.optIEDataLen > MAX_OPT_DATA_LEN) {
+                ret = -EINVAL;
+                break;
+            }
+
             if (copy_from_user(data, userdata+sizeof(WMI_OPT_TX_FRAME_CMD) - 1,
                                    optTxFrmCmd.optIEDataLen)) {
                 ret = -EFAULT;
