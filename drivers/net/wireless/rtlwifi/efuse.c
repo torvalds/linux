@@ -1169,21 +1169,3 @@ static u8 efuse_calculate_word_cnts(u8 word_en)
 	return word_cnts;
 }
 
-void efuse_reset_loader(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u16 tmp_u2b;
-
-	tmp_u2b = rtl_read_word(rtlpriv, rtlpriv->cfg->maps[SYS_FUNC_EN]);
-	rtl_write_word(rtlpriv, rtlpriv->cfg->maps[SYS_FUNC_EN],
-		       (tmp_u2b & ~(BIT(12))));
-	udelay(10000);
-	rtl_write_word(rtlpriv, rtlpriv->cfg->maps[SYS_FUNC_EN],
-		       (tmp_u2b | BIT(12)));
-	udelay(10000);
-}
-
-bool efuse_program_map(struct ieee80211_hw *hw, char *p_filename, u8 tabletype)
-{
-	return true;
-}
