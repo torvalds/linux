@@ -746,7 +746,7 @@ static void *BCMFASTPATH _dma_rx(dma_info_t *di)
 	if (head == NULL)
 		return NULL;
 
-	len = ltoh16(*(u16 *) (head->data));
+	len = le16_to_cpu(*(u16 *) (head->data));
 	DMA_TRACE(("%s: dma_rx len %d\n", di->name, len));
 
 #if defined(__mips__)
@@ -755,7 +755,7 @@ static void *BCMFASTPATH _dma_rx(dma_info_t *di)
 		while (!(len = *(u16 *) OSL_UNCACHED(head->data)))
 			udelay(1);
 
-		*(u16 *) (head->data) = htol16((u16) len);
+		*(u16 *) (head->data) = cpu_to_le16((u16) len);
 	}
 #endif				/* defined(__mips__) */
 

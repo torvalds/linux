@@ -1345,13 +1345,13 @@ void wlc_wme_initparams_sta(struct wlc_info *wlc, wme_param_ie_t *pe)
 		0,
 		{
 		 {EDCF_AC_BE_ACI_STA, EDCF_AC_BE_ECW_STA,
-		  HTOL16(EDCF_AC_BE_TXOP_STA)},
+		  cpu_to_le16(EDCF_AC_BE_TXOP_STA)},
 		 {EDCF_AC_BK_ACI_STA, EDCF_AC_BK_ECW_STA,
-		  HTOL16(EDCF_AC_BK_TXOP_STA)},
+		  cpu_to_le16(EDCF_AC_BK_TXOP_STA)},
 		 {EDCF_AC_VI_ACI_STA, EDCF_AC_VI_ECW_STA,
-		  HTOL16(EDCF_AC_VI_TXOP_STA)},
+		  cpu_to_le16(EDCF_AC_VI_TXOP_STA)},
 		 {EDCF_AC_VO_ACI_STA, EDCF_AC_VO_ECW_STA,
-		  HTOL16(EDCF_AC_VO_TXOP_STA)}
+		  cpu_to_le16(EDCF_AC_VO_TXOP_STA)}
 		 }
 	};
 
@@ -1390,7 +1390,7 @@ void wlc_wme_setparams(struct wlc_info *wlc, u16 aci, void *arg, bool suspend)
 		/* wlc->wme_admctl |= 1 << aci; *//* should be set ??  seems like off by default */
 
 		/* fill in shm ac params struct */
-		acp_shm.txop = ltoh16(params->txop);
+		acp_shm.txop = le16_to_cpu(params->txop);
 		/* convert from units of 32us to us for ucode */
 		wlc->edcf_txop[aci & 0x3] = acp_shm.txop =
 		    EDCF_TXOP2USEC(acp_shm.txop);
@@ -1474,7 +1474,7 @@ void wlc_edcf_setparams(wlc_bsscfg_t *cfg, bool suspend)
 		}
 
 		/* fill in shm ac params struct */
-		acp_shm.txop = ltoh16(edcf_acp->TXOP);
+		acp_shm.txop = le16_to_cpu(edcf_acp->TXOP);
 		/* convert from units of 32us to us for ucode */
 		wlc->edcf_txop[aci] = acp_shm.txop =
 		    EDCF_TXOP2USEC(acp_shm.txop);
@@ -4750,7 +4750,7 @@ wlc_ctrupd_cache(u16 cur_stat, u16 *macstat_snapshot, u32 *macstat)
 	u16 v;
 	u16 delta;
 
-	v = ltoh16(cur_stat);
+	v = le16_to_cpu(cur_stat);
 	delta = (u16)(v - *macstat_snapshot);
 
 	if (delta != 0) {
@@ -4927,32 +4927,32 @@ bool wlc_chipmatch(u16 vendor, u16 device)
 #if defined(BCMDBG)
 void wlc_print_txdesc(d11txh_t *txh)
 {
-	u16 mtcl = ltoh16(txh->MacTxControlLow);
-	u16 mtch = ltoh16(txh->MacTxControlHigh);
-	u16 mfc = ltoh16(txh->MacFrameControl);
-	u16 tfest = ltoh16(txh->TxFesTimeNormal);
-	u16 ptcw = ltoh16(txh->PhyTxControlWord);
-	u16 ptcw_1 = ltoh16(txh->PhyTxControlWord_1);
-	u16 ptcw_1_Fbr = ltoh16(txh->PhyTxControlWord_1_Fbr);
-	u16 ptcw_1_Rts = ltoh16(txh->PhyTxControlWord_1_Rts);
-	u16 ptcw_1_FbrRts = ltoh16(txh->PhyTxControlWord_1_FbrRts);
-	u16 mainrates = ltoh16(txh->MainRates);
-	u16 xtraft = ltoh16(txh->XtraFrameTypes);
+	u16 mtcl = le16_to_cpu(txh->MacTxControlLow);
+	u16 mtch = le16_to_cpu(txh->MacTxControlHigh);
+	u16 mfc = le16_to_cpu(txh->MacFrameControl);
+	u16 tfest = le16_to_cpu(txh->TxFesTimeNormal);
+	u16 ptcw = le16_to_cpu(txh->PhyTxControlWord);
+	u16 ptcw_1 = le16_to_cpu(txh->PhyTxControlWord_1);
+	u16 ptcw_1_Fbr = le16_to_cpu(txh->PhyTxControlWord_1_Fbr);
+	u16 ptcw_1_Rts = le16_to_cpu(txh->PhyTxControlWord_1_Rts);
+	u16 ptcw_1_FbrRts = le16_to_cpu(txh->PhyTxControlWord_1_FbrRts);
+	u16 mainrates = le16_to_cpu(txh->MainRates);
+	u16 xtraft = le16_to_cpu(txh->XtraFrameTypes);
 	u8 *iv = txh->IV;
 	u8 *ra = txh->TxFrameRA;
-	u16 tfestfb = ltoh16(txh->TxFesTimeFallback);
+	u16 tfestfb = le16_to_cpu(txh->TxFesTimeFallback);
 	u8 *rtspfb = txh->RTSPLCPFallback;
-	u16 rtsdfb = ltoh16(txh->RTSDurFallback);
+	u16 rtsdfb = le16_to_cpu(txh->RTSDurFallback);
 	u8 *fragpfb = txh->FragPLCPFallback;
-	u16 fragdfb = ltoh16(txh->FragDurFallback);
-	u16 mmodelen = ltoh16(txh->MModeLen);
-	u16 mmodefbrlen = ltoh16(txh->MModeFbrLen);
-	u16 tfid = ltoh16(txh->TxFrameID);
-	u16 txs = ltoh16(txh->TxStatus);
-	u16 mnmpdu = ltoh16(txh->MaxNMpdus);
-	u16 mabyte = ltoh16(txh->MaxABytes_MRT);
-	u16 mabyte_f = ltoh16(txh->MaxABytes_FBR);
-	u16 mmbyte = ltoh16(txh->MinMBytes);
+	u16 fragdfb = le16_to_cpu(txh->FragDurFallback);
+	u16 mmodelen = le16_to_cpu(txh->MModeLen);
+	u16 mmodefbrlen = le16_to_cpu(txh->MModeFbrLen);
+	u16 tfid = le16_to_cpu(txh->TxFrameID);
+	u16 txs = le16_to_cpu(txh->TxStatus);
+	u16 mnmpdu = le16_to_cpu(txh->MaxNMpdus);
+	u16 mabyte = le16_to_cpu(txh->MaxABytes_MRT);
+	u16 mabyte_f = le16_to_cpu(txh->MaxABytes_FBR);
+	u16 mmbyte = le16_to_cpu(txh->MinMBytes);
 
 	u8 *rtsph = txh->RTSPhyHeader;
 	struct ieee80211_rts rts = txh->rts_frame;
@@ -5213,7 +5213,7 @@ wlc_sendpkt_mac80211(struct wlc_info *wlc, struct sk_buff *sdu,
 
 	ASSERT(sdu);
 
-	fc = ltoh16(d11_header->frame_control);
+	fc = le16_to_cpu(d11_header->frame_control);
 	type = (fc & IEEE80211_FCTL_FTYPE);
 
 	/* 802.11 standard requires management traffic to go at highest priority */
@@ -5315,7 +5315,8 @@ bcmc_fid_generate(struct wlc_info *wlc, wlc_bsscfg_t *bsscfg, d11txh_t *txh)
 {
 	u16 frameid;
 
-	frameid = ltoh16(txh->TxFrameID) & ~(TXFID_SEQ_MASK | TXFID_QUEUE_MASK);
+	frameid = le16_to_cpu(txh->TxFrameID) & ~(TXFID_SEQ_MASK |
+						  TXFID_QUEUE_MASK);
 	frameid |=
 	    (((wlc->
 	       mc_fid_counter++) << TXFID_SEQ_SHIFT) & TXFID_SEQ_MASK) |
@@ -5338,7 +5339,7 @@ wlc_txfifo(struct wlc_info *wlc, uint fifo, struct sk_buff *p, bool commit,
 	 * ucode or BSS info as appropriate.
 	 */
 	if (fifo == TX_BCMC_FIFO) {
-		frameid = ltoh16(txh->TxFrameID);
+		frameid = le16_to_cpu(txh->TxFrameID);
 
 	}
 
@@ -5789,7 +5790,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 
 	/* locate 802.11 MAC header */
 	h = (struct ieee80211_hdr *)(p->data);
-	fc = ltoh16(h->frame_control);
+	fc = le16_to_cpu(h->frame_control);
 	type = (fc & IEEE80211_FCTL_FTYPE);
 
 	qos = (type == IEEE80211_FTYPE_DATA &&
@@ -5834,9 +5835,9 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 			}
 
 			/* extract fragment number from frame first */
-			seq = ltoh16(seq) & FRAGNUM_MASK;
+			seq = le16_to_cpu(seq) & FRAGNUM_MASK;
 			seq |= (SCB_SEQNUM(scb, p->priority) << SEQNUM_SHIFT);
-			h->seq_ctrl = htol16(seq);
+			h->seq_ctrl = cpu_to_le16(seq);
 
 			frameid = ((seq << TXFID_SEQ_SHIFT) & TXFID_SEQ_MASK) |
 			    (queue & TXFID_QUEUE_MASK);
@@ -6078,7 +6079,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 		durid =
 		    wlc_compute_frame_dur(wlc, rspec[0], preamble_type[0],
 					  next_frag_len);
-		h->duration_id = htol16(durid);
+		h->duration_id = cpu_to_le16(durid);
 	} else if (use_rifs) {
 		/* NAV protect to end of next max packet size */
 		durid =
@@ -6086,7 +6087,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 						 preamble_type[0],
 						 DOT11_MAX_FRAG_LEN);
 		durid += RIFS_11N_TIME;
-		h->duration_id = htol16(durid);
+		h->duration_id = cpu_to_le16(durid);
 	}
 
 	/* DUR field for fallback rate */
@@ -6097,7 +6098,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	else {
 		durid = wlc_compute_frame_dur(wlc, rspec[1],
 					      preamble_type[1], next_frag_len);
-		txh->FragDurFallback = htol16(durid);
+		txh->FragDurFallback = cpu_to_le16(durid);
 	}
 
 	/* (4) MAC-HDR: MacTxControlLow */
@@ -6117,7 +6118,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	if (hwtkmic)
 		mcl |= TXC_AMIC;
 
-	txh->MacTxControlLow = htol16(mcl);
+	txh->MacTxControlLow = cpu_to_le16(mcl);
 
 	/* MacTxControlHigh */
 	mch = 0;
@@ -6133,28 +6134,28 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 
 	/* MacFrameControl */
 	memcpy(&txh->MacFrameControl, &h->frame_control, sizeof(u16));
-	txh->TxFesTimeNormal = htol16(0);
+	txh->TxFesTimeNormal = cpu_to_le16(0);
 
-	txh->TxFesTimeFallback = htol16(0);
+	txh->TxFesTimeFallback = cpu_to_le16(0);
 
 	/* TxFrameRA */
 	memcpy(&txh->TxFrameRA, &h->addr1, ETH_ALEN);
 
 	/* TxFrameID */
-	txh->TxFrameID = htol16(frameid);
+	txh->TxFrameID = cpu_to_le16(frameid);
 
 	/* TxStatus, Note the case of recreating the first frag of a suppressed frame
 	 * then we may need to reset the retry cnt's via the status reg
 	 */
-	txh->TxStatus = htol16(status);
+	txh->TxStatus = cpu_to_le16(status);
 
 	/* extra fields for ucode AMPDU aggregation, the new fields are added to
 	 * the END of previous structure so that it's compatible in driver.
 	 */
-	txh->MaxNMpdus = htol16(0);
-	txh->MaxABytes_MRT = htol16(0);
-	txh->MaxABytes_FBR = htol16(0);
-	txh->MinMBytes = htol16(0);
+	txh->MaxNMpdus = cpu_to_le16(0);
+	txh->MaxABytes_MRT = cpu_to_le16(0);
+	txh->MaxABytes_FBR = cpu_to_le16(0);
+	txh->MinMBytes = cpu_to_le16(0);
 
 	/* (5) RTS/CTS: determine RTS/CTS PLCP header and MAC duration, furnish d11txh_t */
 	/* RTS PLCP header and RTS frame */
@@ -6184,10 +6185,10 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 
 		/* RTS/CTS additions to MacTxControlLow */
 		if (use_cts) {
-			txh->MacTxControlLow |= htol16(TXC_SENDCTS);
+			txh->MacTxControlLow |= cpu_to_le16(TXC_SENDCTS);
 		} else {
-			txh->MacTxControlLow |= htol16(TXC_SENDRTS);
-			txh->MacTxControlLow |= htol16(TXC_LONGFRAME);
+			txh->MacTxControlLow |= cpu_to_le16(TXC_SENDRTS);
+			txh->MacTxControlLow |= cpu_to_le16(TXC_LONGFRAME);
 		}
 
 		/* RTS PLCP header */
@@ -6212,19 +6213,19 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 		durid = wlc_compute_rtscts_dur(wlc, use_cts, rts_rspec[0],
 					       rspec[0], rts_preamble_type[0],
 					       preamble_type[0], phylen, false);
-		rts->duration = htol16(durid);
+		rts->duration = cpu_to_le16(durid);
 		/* fallback rate version of RTS DUR field */
 		durid = wlc_compute_rtscts_dur(wlc, use_cts,
 					       rts_rspec[1], rspec[1],
 					       rts_preamble_type[1],
 					       preamble_type[1], phylen, false);
-		txh->RTSDurFallback = htol16(durid);
+		txh->RTSDurFallback = cpu_to_le16(durid);
 
 		if (use_cts) {
-			rts->frame_control = htol16(FC_CTS);
+			rts->frame_control = cpu_to_le16(FC_CTS);
 			memcpy(&rts->ra, &h->addr2, ETH_ALEN);
 		} else {
-			rts->frame_control = htol16((u16) FC_RTS);
+			rts->frame_control = cpu_to_le16((u16) FC_RTS);
 			memcpy(&rts->ra, &h->addr1, 2 * ETH_ALEN);
 		}
 
@@ -6253,10 +6254,10 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 #endif
 
 	/* Now that RTS/RTS FB preamble types are updated, write the final value */
-	txh->MacTxControlHigh = htol16(mch);
+	txh->MacTxControlHigh = cpu_to_le16(mch);
 
 	/* MainRates (both the rts and frag plcp rates have been calculated now) */
-	txh->MainRates = htol16(mainrates);
+	txh->MainRates = cpu_to_le16(mainrates);
 
 	/* XtraFrameTypes */
 	xfts = FRAMETYPE(rspec[1], wlc->mimoft);
@@ -6264,7 +6265,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	xfts |= (FRAMETYPE(rts_rspec[1], wlc->mimoft) << XFTS_FBRRTS_FT_SHIFT);
 	xfts |=
 	    CHSPEC_CHANNEL(WLC_BAND_PI_RADIO_CHANSPEC) << XFTS_CHANNEL_SHIFT;
-	txh->XtraFrameTypes = htol16(xfts);
+	txh->XtraFrameTypes = cpu_to_le16(xfts);
 
 	/* PhyTxControlWord */
 	phyctl = FRAMETYPE(rspec[0], wlc->mimoft);
@@ -6279,22 +6280,22 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 
 	/* phytxant is properly bit shifted */
 	phyctl |= wlc_stf_d11hdrs_phyctl_txant(wlc, rspec[0]);
-	txh->PhyTxControlWord = htol16(phyctl);
+	txh->PhyTxControlWord = cpu_to_le16(phyctl);
 
 	/* PhyTxControlWord_1 */
 	if (WLC_PHY_11N_CAP(wlc->band)) {
 		u16 phyctl1 = 0;
 
 		phyctl1 = wlc_phytxctl1_calc(wlc, rspec[0]);
-		txh->PhyTxControlWord_1 = htol16(phyctl1);
+		txh->PhyTxControlWord_1 = cpu_to_le16(phyctl1);
 		phyctl1 = wlc_phytxctl1_calc(wlc, rspec[1]);
-		txh->PhyTxControlWord_1_Fbr = htol16(phyctl1);
+		txh->PhyTxControlWord_1_Fbr = cpu_to_le16(phyctl1);
 
 		if (use_rts || use_cts) {
 			phyctl1 = wlc_phytxctl1_calc(wlc, rts_rspec[0]);
-			txh->PhyTxControlWord_1_Rts = htol16(phyctl1);
+			txh->PhyTxControlWord_1_Rts = cpu_to_le16(phyctl1);
 			phyctl1 = wlc_phytxctl1_calc(wlc, rts_rspec[1]);
-			txh->PhyTxControlWord_1_FbrRts = htol16(phyctl1);
+			txh->PhyTxControlWord_1_FbrRts = cpu_to_le16(phyctl1);
 		}
 
 		/*
@@ -6305,13 +6306,13 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 		if (IS_MCS(rspec[0]) && (preamble_type[0] == WLC_MM_PREAMBLE)) {
 			u16 mmodelen =
 			    wlc_calc_lsig_len(wlc, rspec[0], phylen);
-			txh->MModeLen = htol16(mmodelen);
+			txh->MModeLen = cpu_to_le16(mmodelen);
 		}
 
 		if (IS_MCS(rspec[1]) && (preamble_type[1] == WLC_MM_PREAMBLE)) {
 			u16 mmodefbrlen =
 			    wlc_calc_lsig_len(wlc, rspec[1], phylen);
-			txh->MModeFbrLen = htol16(mmodefbrlen);
+			txh->MModeFbrLen = cpu_to_le16(mmodefbrlen);
 		}
 	}
 
@@ -6345,8 +6346,9 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 				    wlc_calc_cts_time(wlc, rts_rspec[1],
 						      rts_preamble_type[1]);
 				/* (SIFS + CTS) + SIFS + frame + SIFS + ACK */
-				dur += ltoh16(rts->duration);
-				dur_fallback += ltoh16(txh->RTSDurFallback);
+				dur += le16_to_cpu(rts->duration);
+				dur_fallback +=
+					le16_to_cpu(txh->RTSDurFallback);
 			} else if (use_rifs) {
 				dur = frag_dur;
 				dur_fallback = 0;
@@ -6366,9 +6368,10 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 							  preamble_type[1], 0);
 			}
 			/* NEED to set TxFesTimeNormal (hard) */
-			txh->TxFesTimeNormal = htol16((u16) dur);
+			txh->TxFesTimeNormal = cpu_to_le16((u16) dur);
 			/* NEED to set fallback rate version of TxFesTimeNormal (hard) */
-			txh->TxFesTimeFallback = htol16((u16) dur_fallback);
+			txh->TxFesTimeFallback =
+				cpu_to_le16((u16) dur_fallback);
 
 			/* update txop byte threshold (txop minus intraframe overhead) */
 			if (wlc->edcf_txop[ac] >= (dur - frag_dur)) {
@@ -6636,7 +6639,7 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 		goto fatal;
 
 	txh = (d11txh_t *) (p->data);
-	mcl = ltoh16(txh->MacTxControlLow);
+	mcl = le16_to_cpu(txh->MacTxControlLow);
 
 	if (txs->phyerr) {
 		if (WL_ERROR_ON()) {
@@ -6647,13 +6650,13 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 		wlc_print_txstatus(txs);
 	}
 
-	ASSERT(txs->frameid == htol16(txh->TxFrameID));
-	if (txs->frameid != htol16(txh->TxFrameID))
+	ASSERT(txs->frameid == cpu_to_le16(txh->TxFrameID));
+	if (txs->frameid != cpu_to_le16(txh->TxFrameID))
 		goto fatal;
 
 	tx_info = IEEE80211_SKB_CB(p);
 	h = (struct ieee80211_hdr *)((u8 *) (txh + 1) + D11_PHY_HDR_LEN);
-	fc = ltoh16(h->frame_control);
+	fc = le16_to_cpu(h->frame_control);
 
 	scb = (struct scb *)tx_info->control.sta->drv_priv;
 
@@ -6676,7 +6679,7 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 		WL_NONE("%s: Pkt tx suppressed, possibly channel %d\n",
 			__func__, CHSPEC_CHANNEL(wlc->default_bss->chanspec));
 
-	tx_rts = htol16(txh->MacTxControlLow) & TXC_SENDRTS;
+	tx_rts = cpu_to_le16(txh->MacTxControlLow) & TXC_SENDRTS;
 	tx_frame_count =
 	    (txs->status & TX_STATUS_FRM_RTX_MASK) >> TX_STATUS_FRM_RTX_SHIFT;
 	tx_rts_count =
@@ -7091,7 +7094,7 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 
 	/* check received pkt has at least frame control field */
 	if (len >= D11_PHY_HDR_LEN + sizeof(h->frame_control)) {
-		fc = ltoh16(h->frame_control);
+		fc = le16_to_cpu(h->frame_control);
 	} else {
 		wlc->pub->_cnt->rxrunt++;
 		goto toss;
@@ -7716,7 +7719,7 @@ wlc_bcn_prb_template(struct wlc_info *wlc, uint type, ratespec_t bcn_rspec,
 		h = (struct ieee80211_mgmt *)&plcp[1];
 
 	/* fill in 802.11 header */
-	h->frame_control = htol16((u16) type);
+	h->frame_control = cpu_to_le16((u16) type);
 
 	/* DUR is 0 for multicast bcn, or filled in by MAC for prb resp */
 	/* A1 filled in by MAC for prb resp, broadcast for bcn */
@@ -7892,10 +7895,10 @@ int wlc_prep_pdu(struct wlc_info *wlc, struct sk_buff *pdu, uint *fifop)
 	ASSERT(txh);
 	h = (struct ieee80211_hdr *)((u8 *) (txh + 1) + D11_PHY_HDR_LEN);
 	ASSERT(h);
-	fc = ltoh16(h->frame_control);
+	fc = le16_to_cpu(h->frame_control);
 
 	/* get the pkt queue info. This was put at wlc_sendctl or wlc_send for PDU */
-	fifo = ltoh16(txh->TxFrameID) & TXFID_QUEUE_MASK;
+	fifo = le16_to_cpu(txh->TxFrameID) & TXFID_QUEUE_MASK;
 
 	scb = NULL;
 
@@ -7908,8 +7911,7 @@ int wlc_prep_pdu(struct wlc_info *wlc, struct sk_buff *pdu, uint *fifop)
 		return BCME_BUSY;
 	}
 
-	if ((ltoh16(txh->MacFrameControl) & IEEE80211_FCTL_FTYPE) !=
-	    IEEE80211_FTYPE_DATA)
+	if (!ieee80211_is_data(txh->MacFrameControl))
 		wlc->pub->_cnt->txctl++;
 
 	return 0;

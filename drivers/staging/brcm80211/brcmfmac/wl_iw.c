@@ -3353,9 +3353,9 @@ wl_iw_conn_status_str(u32 event_type, u32 status, u32 reason,
 static bool
 wl_iw_check_conn_fail(wl_event_msg_t *e, char *stringBuf, uint buflen)
 {
-	u32 event = ntoh32(e->event_type);
-	u32 status = ntoh32(e->status);
-	u32 reason = ntoh32(e->reason);
+	u32 event = be32_to_cpu(e->event_type);
+	u32 status = be32_to_cpu(e->status);
+	u32 reason = be32_to_cpu(e->reason);
 
 	if (wl_iw_conn_status_str(event, status, reason, stringBuf, buflen)) {
 		return true;
@@ -3374,10 +3374,10 @@ void wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void *data)
 	union iwreq_data wrqu;
 	char extra[IW_CUSTOM_MAX + 1];
 	int cmd = 0;
-	u32 event_type = ntoh32(e->event_type);
-	u16 flags = ntoh16(e->flags);
-	u32 datalen = ntoh32(e->datalen);
-	u32 status = ntoh32(e->status);
+	u32 event_type = be32_to_cpu(e->event_type);
+	u16 flags = be16_to_cpu(e->flags);
+	u32 datalen = be32_to_cpu(e->datalen);
+	u32 status = be32_to_cpu(e->status);
 	wl_iw_t *iw;
 	u32 toto;
 	memset(&wrqu, 0, sizeof(wrqu));

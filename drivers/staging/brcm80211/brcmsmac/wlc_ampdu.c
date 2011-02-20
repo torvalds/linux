@@ -594,13 +594,13 @@ wlc_sendampdu(struct ampdu_info *ampdu, wlc_txq_info_t *qi,
 		txh = (d11txh_t *) p->data;
 		plcp = (u8 *) (txh + 1);
 		h = (struct ieee80211_hdr *)(plcp + D11_PHY_HDR_LEN);
-		seq = ltoh16(h->seq_ctrl) >> SEQNUM_SHIFT;
+		seq = le16_to_cpu(h->seq_ctrl) >> SEQNUM_SHIFT;
 		index = TX_SEQ_TO_INDEX(seq);
 
 		/* check mcl fields and test whether it can be agg'd */
-		mcl = ltoh16(txh->MacTxControlLow);
+		mcl = le16_to_cpu(txh->MacTxControlLow);
 		mcl &= ~TXC_AMPDU_MASK;
-		fbr_iscck = !(ltoh16(txh->XtraFrameTypes) & 0x3);
+		fbr_iscck = !(le16_to_cpu(txh->XtraFrameTypes) & 0x3);
 		ASSERT(!fbr_iscck);
 		txh->PreloadSize = 0;	/* always default to 0 */
 
@@ -637,7 +637,7 @@ wlc_sendampdu(struct ampdu_info *ampdu, wlc_txq_info_t *qi,
 			/* refill the bits since might be a retx mpdu */
 			mcl |= TXC_STARTMSDU;
 			rts = (struct ieee80211_rts *)&txh->rts_frame;
-			fc = ltoh16(rts->frame_control);
+			fc = le16_to_cpu(rts->frame_control);
 			if ((fc & FC_KIND_MASK) == FC_RTS) {
 				mcl |= TXC_SENDRTS;
 				use_rts = true;
@@ -659,7 +659,7 @@ wlc_sendampdu(struct ampdu_info *ampdu, wlc_txq_info_t *qi,
 		WL_AMPDU_TX("wl%d: wlc_sendampdu: ampdu_len %d seg_cnt %d null delim %d\n",
 			    wlc->pub->unit, ampdu_len, seg_cnt, ndelim);
 
-		txh->MacTxControlLow = htol16(mcl);
+		txh->MacTxControlLow = cpu_to_le16(mcl);
 
 		/* this packet is added */
 		pkt[count++] = p;
@@ -784,10 +784,10 @@ wlc_sendampdu(struct ampdu_info *ampdu, wlc_txq_info_t *qi,
 
 		/* patch up the last txh */
 		txh = (d11txh_t *) pkt[count - 1]->data;
-		mcl = ltoh16(txh->MacTxControlLow);
+		mcl = le16_to_cpu(txh->MacTxControlLow);
 		mcl &= ~TXC_AMPDU_MASK;
 		mcl |= (TXC_AMPDU_LAST << TXC_AMPDU_SHIFT);
-		txh->MacTxControlLow = htol16(mcl);
+		txh->MacTxControlLow = cpu_to_le16(mcl);
 
 		/* remove the null delimiter after last mpdu */
 		ndelim = txh->RTSPLCPFallback[AMPDU_FBR_NULL_DELIM];
@@ -795,7 +795,7 @@ wlc_sendampdu(struct ampdu_info *ampdu, wlc_txq_info_t *qi,
 		ampdu_len -= ndelim * AMPDU_DELIMITER_LEN;
 
 		/* remove the pad len from last mpdu */
-		fbr_iscck = ((ltoh16(txh->XtraFrameTypes) & 0x3) == 0);
+		fbr_iscck = ((le16_to_cpu(txh->XtraFrameTypes) & 0x3) == 0);
 		len = fbr_iscck ? WLC_GET_CCK_PLCP_LEN(txh->FragPLCPFallback)
 		    : WLC_GET_MIMO_PLCP_LEN(txh->FragPLCPFallback);
 		ampdu_len -= roundup(len, 4) - len;
@@ -812,24 +812,24 @@ wlc_sendampdu(struct ampdu_info *ampdu, wlc_txq_info_t *qi,
 		if (txh->MModeLen) {
 			u16 mmodelen =
 			    wlc_calc_lsig_len(wlc, rspec, ampdu_len);
-			txh->MModeLen = htol16(mmodelen);
+			txh->MModeLen = cpu_to_le16(mmodelen);
 			preamble_type = WLC_MM_PREAMBLE;
 		}
 		if (txh->MModeFbrLen) {
 			u16 mmfbrlen =
 			    wlc_calc_lsig_len(wlc, rspec_fallback, ampdu_len);
-			txh->MModeFbrLen = htol16(mmfbrlen);
+			txh->MModeFbrLen = cpu_to_le16(mmfbrlen);
 			fbr_preamble_type = WLC_MM_PREAMBLE;
 		}
 
 		/* set the preload length */
 		if (MCS_RATE(mcs, true, false) >= f->dmaxferrate) {
 			dma_len = min(dma_len, f->ampdu_pld_size);
-			txh->PreloadSize = htol16(dma_len);
+			txh->PreloadSize = cpu_to_le16(dma_len);
 		} else
 			txh->PreloadSize = 0;
 
-		mch = ltoh16(txh->MacTxControlHigh);
+		mch = le16_to_cpu(txh->MacTxControlHigh);
 
 		/* update RTS dur fields */
 		if (use_rts || use_cts) {
@@ -848,14 +848,14 @@ wlc_sendampdu(struct ampdu_info *ampdu, wlc_txq_info_t *qi,
 						   rspec, rts_preamble_type,
 						   preamble_type, ampdu_len,
 						   true);
-			rts->duration = htol16(durid);
+			rts->duration = cpu_to_le16(durid);
 			durid = wlc_compute_rtscts_dur(wlc, use_cts,
 						       rts_rspec_fallback,
 						       rspec_fallback,
 						       rts_fbr_preamble_type,
 						       fbr_preamble_type,
 						       ampdu_len, true);
-			txh->RTSDurFallback = htol16(durid);
+			txh->RTSDurFallback = cpu_to_le16(durid);
 			/* set TxFesTimeNormal */
 			txh->TxFesTimeNormal = rts->duration;
 			/* set fallback rate version of TxFesTimeNormal */
@@ -867,7 +867,7 @@ wlc_sendampdu(struct ampdu_info *ampdu, wlc_txq_info_t *qi,
 			WLCNTADD(ampdu->cnt->txfbr_mpdu, count);
 			WLCNTINCR(ampdu->cnt->txfbr_ampdu);
 			mch |= TXC_AMPDU_FBR;
-			txh->MacTxControlHigh = htol16(mch);
+			txh->MacTxControlHigh = cpu_to_le16(mch);
 			WLC_SET_MIMO_PLCP_AMPDU(plcp);
 			WLC_SET_MIMO_PLCP_AMPDU(txh->FragPLCPFallback);
 		}
@@ -876,7 +876,7 @@ wlc_sendampdu(struct ampdu_info *ampdu, wlc_txq_info_t *qi,
 			    wlc->pub->unit, count, ampdu_len);
 
 		/* inform rate_sel if it this is a rate probe pkt */
-		frameid = ltoh16(txh->TxFrameID);
+		frameid = le16_to_cpu(txh->TxFrameID);
 		if (frameid & TXFID_RATE_PROBE_MASK) {
 			WL_ERROR("%s: XXX what to do with TXFID_RATE_PROBE_MASK!?\n",
 				 __func__);
@@ -1082,14 +1082,14 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 		tx_info = IEEE80211_SKB_CB(p);
 		ASSERT(tx_info->flags & IEEE80211_TX_CTL_AMPDU);
 		txh = (d11txh_t *) p->data;
-		mcl = ltoh16(txh->MacTxControlLow);
+		mcl = le16_to_cpu(txh->MacTxControlLow);
 		plcp = (u8 *) (txh + 1);
 		h = (struct ieee80211_hdr *)(plcp + D11_PHY_HDR_LEN);
-		seq = ltoh16(h->seq_ctrl) >> SEQNUM_SHIFT;
+		seq = le16_to_cpu(h->seq_ctrl) >> SEQNUM_SHIFT;
 
 		if (tot_mpdu == 0) {
 			mcs = plcp[0] & MIMO_PLCP_MCS_MASK;
-			mimoantsel = ltoh16(txh->ABI_MimoAntSel);
+			mimoantsel = le16_to_cpu(txh->ABI_MimoAntSel);
 		}
 
 		index = TX_SEQ_TO_INDEX(seq);

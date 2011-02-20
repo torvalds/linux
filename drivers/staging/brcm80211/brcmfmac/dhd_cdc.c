@@ -65,7 +65,7 @@ typedef struct dhd_prot {
 static int dhdcdc_msg(dhd_pub_t *dhd)
 {
 	dhd_prot_t *prot = dhd->prot;
-	int len = ltoh32(prot->msg.len) + sizeof(cdc_ioctl_t);
+	int len = le32_to_cpu(prot->msg.len) + sizeof(cdc_ioctl_t);
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
@@ -93,7 +93,7 @@ static int dhdcdc_cmplt(dhd_pub_t *dhd, u32 id, u32 len)
 				  len + sizeof(cdc_ioctl_t));
 		if (ret < 0)
 			break;
-	} while (CDC_IOC_ID(ltoh32(prot->msg.flags)) != id);
+	} while (CDC_IOC_ID(le32_to_cpu(prot->msg.flags)) != id);
 
 	return ret;
 }
@@ -124,11 +124,11 @@ dhdcdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
 
 	memset(msg, 0, sizeof(cdc_ioctl_t));
 
-	msg->cmd = htol32(cmd);
-	msg->len = htol32(len);
+	msg->cmd = cpu_to_le32(cmd);
+	msg->len = cpu_to_le32(len);
 	msg->flags = (++prot->reqid << CDCF_IOC_ID_SHIFT);
 	CDC_SET_IF_IDX(msg, ifidx);
-	msg->flags = htol32(msg->flags);
+	msg->flags = cpu_to_le32(msg->flags);
 
 	if (buf)
 		memcpy(prot->buf, buf, len);
@@ -146,7 +146,7 @@ retry:
 	if (ret < 0)
 		goto done;
 
-	flags = ltoh32(msg->flags);
+	flags = le32_to_cpu(msg->flags);
 	id = (flags & CDCF_IOC_ID_MASK) >> CDCF_IOC_ID_SHIFT;
 
 	if ((id < prot->reqid) && (++retries < RETRIES))
@@ -170,7 +170,7 @@ retry:
 
 	/* Check the ERROR flag */
 	if (flags & CDCF_IOC_ERROR) {
-		ret = ltoh32(msg->status);
+		ret = le32_to_cpu(msg->status);
 		/* Cache error from dongle */
 		dhd->dongle_error = ret;
 	}
@@ -191,11 +191,11 @@ int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
 
 	memset(msg, 0, sizeof(cdc_ioctl_t));
 
-	msg->cmd = htol32(cmd);
-	msg->len = htol32(len);
+	msg->cmd = cpu_to_le32(cmd);
+	msg->len = cpu_to_le32(len);
 	msg->flags = (++prot->reqid << CDCF_IOC_ID_SHIFT) | CDCF_IOC_SET;
 	CDC_SET_IF_IDX(msg, ifidx);
-	msg->flags = htol32(msg->flags);
+	msg->flags = cpu_to_le32(msg->flags);
 
 	if (buf)
 		memcpy(prot->buf, buf, len);
@@ -208,7 +208,7 @@ int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
 	if (ret < 0)
 		goto done;
 
-	flags = ltoh32(msg->flags);
+	flags = le32_to_cpu(msg->flags);
 	id = (flags & CDCF_IOC_ID_MASK) >> CDCF_IOC_ID_SHIFT;
 
 	if (id != prot->reqid) {
@@ -220,7 +220,7 @@ int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
 
 	/* Check the ERROR flag */
 	if (flags & CDCF_IOC_ERROR) {
-		ret = ltoh32(msg->status);
+		ret = le32_to_cpu(msg->status);
 		/* Cache error from dongle */
 		dhd->dongle_error = ret;
 	}
@@ -276,8 +276,8 @@ dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
 		ret = 0;
 	else {
 		cdc_ioctl_t *msg = &prot->msg;
-		ioc->needed = ltoh32(msg->len);	/* len == needed when set/query
-						 fails from dongle */
+		/* len == needed when set/query fails from dongle */
+		ioc->needed = le32_to_cpu(msg->len);
 	}
 
 	/* Intercept the wme_dp ioctl here */
@@ -287,7 +287,7 @@ dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
 		slen = strlen("wme_dp") + 1;
 		if (len >= (int)(slen + sizeof(int)))
 			memcpy(&val, (char *)buf + slen, sizeof(int));
-		dhd->wme_dp = (u8) ltoh32(val);
+		dhd->wme_dp = (u8) le32_to_cpu(val);
 	}
 
 	prot->pending = false;

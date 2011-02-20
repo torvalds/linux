@@ -577,12 +577,12 @@ static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 		WLC_E_PFN_SCAN_COMPLETE, "SCAN_COMPLETE"}
 	};
 	uint event_type, flags, auth_type, datalen;
-	event_type = ntoh32(event->event_type);
-	flags = ntoh16(event->flags);
-	status = ntoh32(event->status);
-	reason = ntoh32(event->reason);
-	auth_type = ntoh32(event->auth_type);
-	datalen = ntoh32(event->datalen);
+	event_type = be32_to_cpu(event->event_type);
+	flags = be16_to_cpu(event->flags);
+	status = be32_to_cpu(event->status);
+	reason = be32_to_cpu(event->reason);
+	auth_type = be32_to_cpu(event->auth_type);
+	datalen = be32_to_cpu(event->datalen);
 	/* debug dump of event messages */
 	sprintf(eabuf, "%pM", event->addr);
 
@@ -750,24 +750,24 @@ static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 			}
 
 			/* There are 2 bytes available at the end of data */
-			buf[MSGTRACE_HDRLEN + ntoh16(hdr.len)] = '\0';
+			buf[MSGTRACE_HDRLEN + be16_to_cpu(hdr.len)] = '\0';
 
-			if (ntoh32(hdr.discarded_bytes)
-			    || ntoh32(hdr.discarded_printf)) {
+			if (be32_to_cpu(hdr.discarded_bytes)
+			    || be32_to_cpu(hdr.discarded_printf)) {
 				DHD_ERROR(
 				    ("\nWLC_E_TRACE: [Discarded traces in dongle -->"
 				     "discarded_bytes %d discarded_printf %d]\n",
-				     ntoh32(hdr.discarded_bytes),
-				     ntoh32(hdr.discarded_printf)));
+				     be32_to_cpu(hdr.discarded_bytes),
+				     be32_to_cpu(hdr.discarded_printf)));
 			}
 
-			nblost = ntoh32(hdr.seqnum) - seqnum_prev - 1;
+			nblost = be32_to_cpu(hdr.seqnum) - seqnum_prev - 1;
 			if (nblost > 0) {
 				DHD_ERROR(
 				    ("\nWLC_E_TRACE: [Event lost --> seqnum %d nblost %d\n",
-				     ntoh32(hdr.seqnum), nblost));
+				     be32_to_cpu(hdr.seqnum), nblost));
 			}
-			seqnum_prev = ntoh32(hdr.seqnum);
+			seqnum_prev = be32_to_cpu(hdr.seqnum);
 
 			/* Display the trace buffer. Advance from \n to \n to
 			 * avoid display big
@@ -788,7 +788,7 @@ static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 
 	case WLC_E_RSSI:
 		DHD_EVENT(("MACEVENT: %s %d\n", event_name,
-			   ntoh32(*((int *)event_data))));
+			   be32_to_cpu(*((int *)event_data))));
 		break;
 
 	default:
@@ -898,7 +898,7 @@ wl_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 			temp = ntoh32_ua((void *)&event->event_type);
 			DHD_TRACE(("Converted to WLC_E_LINK type %d\n", temp));
 
-			temp = ntoh32(WLC_E_NDIS_LINK);
+			temp = be32_to_cpu(WLC_E_NDIS_LINK);
 			memcpy((void *)(&pvt_data->event.event_type), &temp,
 			       sizeof(pvt_data->event.event_type));
 		}

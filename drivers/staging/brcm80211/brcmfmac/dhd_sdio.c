@@ -966,8 +966,8 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 
 	/* Hardware tag: 2 byte len followed by 2 byte ~len check (all LE) */
 	len = (u16) (pkt->len);
-	*(u16 *) frame = htol16(len);
-	*(((u16 *) frame) + 1) = htol16(~len);
+	*(u16 *) frame = cpu_to_le16(len);
+	*(((u16 *) frame) + 1) = cpu_to_le16(~len);
 
 	/* Software tag: channel, sequence number, data offset */
 	swheader =
@@ -1281,8 +1281,8 @@ int dhd_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 	dhdsdio_clkctl(bus, CLK_AVAIL, false);
 
 	/* Hardware tag: 2 byte len followed by 2 byte ~len check (all LE) */
-	*(u16 *) frame = htol16((u16) msglen);
-	*(((u16 *) frame) + 1) = htol16(~msglen);
+	*(u16 *) frame = cpu_to_le16((u16) msglen);
+	*(((u16 *) frame) + 1) = cpu_to_le16(~msglen);
 
 	/* Software tag: channel, sequence number, data offset */
 	swheader =
@@ -1768,7 +1768,7 @@ static int dhdsdio_readshared(dhd_bus_t *bus, sdpcm_shared_t *sh)
 	if (rv < 0)
 		return rv;
 
-	addr = ltoh32(addr);
+	addr = le32_to_cpu(addr);
 
 	DHD_INFO(("sdpcm_shared address 0x%08X\n", addr));
 
@@ -1789,13 +1789,13 @@ static int dhdsdio_readshared(dhd_bus_t *bus, sdpcm_shared_t *sh)
 		return rv;
 
 	/* Endianness */
-	sh->flags = ltoh32(sh->flags);
-	sh->trap_addr = ltoh32(sh->trap_addr);
-	sh->assert_exp_addr = ltoh32(sh->assert_exp_addr);
-	sh->assert_file_addr = ltoh32(sh->assert_file_addr);
-	sh->assert_line = ltoh32(sh->assert_line);
-	sh->console_addr = ltoh32(sh->console_addr);
-	sh->msgtrace_addr = ltoh32(sh->msgtrace_addr);
+	sh->flags = le32_to_cpu(sh->flags);
+	sh->trap_addr = le32_to_cpu(sh->trap_addr);
+	sh->assert_exp_addr = le32_to_cpu(sh->assert_exp_addr);
+	sh->assert_file_addr = le32_to_cpu(sh->assert_file_addr);
+	sh->assert_line = le32_to_cpu(sh->assert_line);
+	sh->console_addr = le32_to_cpu(sh->console_addr);
+	sh->msgtrace_addr = le32_to_cpu(sh->msgtrace_addr);
 
 	if ((sh->flags & SDPCM_SHARED_VERSION_MASK) != SDPCM_SHARED_VERSION) {
 		DHD_ERROR(("%s: sdpcm_shared version %d in dhd "
@@ -2008,13 +2008,13 @@ static int dhdsdio_readconsole(dhd_bus_t *bus)
 
 	/* Allocate console buffer (one time only) */
 	if (c->buf == NULL) {
-		c->bufsize = ltoh32(c->log.buf_size);
+		c->bufsize = le32_to_cpu(c->log.buf_size);
 		c->buf = kmalloc(c->bufsize, GFP_ATOMIC);
 		if (c->buf == NULL)
 			return BCME_NOMEM;
 	}
 
-	idx = ltoh32(c->log.idx);
+	idx = le32_to_cpu(c->log.idx);
 
 	/* Protect against corrupt value */
 	if (idx > c->bufsize)
@@ -2026,7 +2026,7 @@ static int dhdsdio_readconsole(dhd_bus_t *bus)
 		return BCME_OK;
 
 	/* Read the console buffer */
-	addr = ltoh32(c->log.buf);
+	addr = le32_to_cpu(c->log.buf);
 	rv = dhdsdio_membytes(bus, false, addr, c->buf, c->bufsize);
 	if (rv < 0)
 		return rv;
@@ -2589,7 +2589,7 @@ static int dhdsdio_write_vars(dhd_bus_t *bus)
 	} else {
 		varsizew = varsize / 4;
 		varsizew = (~varsizew << 16) | (varsizew & 0x0000FFFF);
-		varsizew = htol32(varsizew);
+		varsizew = cpu_to_le32(varsizew);
 	}
 
 	DHD_INFO(("New varsize is %d, length token=0x%08x\n", varsize,
@@ -4986,7 +4986,7 @@ extern int dhd_bus_console_in(dhd_pub_t *dhdp, unsigned char *msg, uint msglen)
 
 	/* Zero cbuf_index */
 	addr = bus->console_addr + offsetof(hndrte_cons_t, cbuf_idx);
-	val = htol32(0);
+	val = cpu_to_le32(0);
 	rv = dhdsdio_membytes(bus, true, addr, (u8 *)&val, sizeof(val));
 	if (rv < 0)
 		goto done;
@@ -4999,7 +4999,7 @@ extern int dhd_bus_console_in(dhd_pub_t *dhdp, unsigned char *msg, uint msglen)
 
 	/* Write length into vcons_in */
 	addr = bus->console_addr + offsetof(hndrte_cons_t, vcons_in);
-	val = htol32(msglen);
+	val = cpu_to_le32(msglen);
 	rv = dhdsdio_membytes(bus, true, addr, (u8 *)&val, sizeof(val));
 	if (rv < 0)
 		goto done;

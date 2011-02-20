@@ -304,7 +304,7 @@ wlc_bmac_recv(struct wlc_hw_info *wlc_hw, uint fifo, bool bound)
 
 		/* record the tsf_l in wlc_rxd11hdr */
 		wlc_rxhdr = (wlc_d11rxhdr_t *) p->data;
-		wlc_rxhdr->tsf_l = htol32(tsf_l);
+		wlc_rxhdr->tsf_l = cpu_to_le32(tsf_l);
 
 		/* compute the RSSI from d11rxhdr and record it in wlc_rxd11hr */
 		wlc_phy_rssi_compute(wlc_hw->band->pi, wlc_rxhdr);
@@ -1701,9 +1701,9 @@ wlc_bmac_write_template_ram(struct wlc_hw_info *wlc_hw, int offset, int len,
 		memcpy(&word, buf, sizeof(u32));
 
 		if (be_bit)
-			word = hton32(word);
+			word = cpu_to_be32(word);
 		else
-			word = htol32(word);
+			word = cpu_to_le32(word);
 
 		W_REG(osh, &regs->tplatewrdata, word);
 

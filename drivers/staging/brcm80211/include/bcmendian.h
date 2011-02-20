@@ -34,48 +34,6 @@
 	((u32)((((u32)(val) & (u32)0x0000ffffU) << 16) | \
 		  (((u32)(val) & (u32)0xffff0000U) >> 16)))
 
-/* Byte swapping macros
- *    Host <=> Network (Big Endian) for 16- and 32-bit values
- *    Host <=> Little-Endian for 16- and 32-bit values
- */
-#ifndef hton16
-#ifndef IL_BIGENDIAN
-#define HTON16(i) BCMSWAP16(i)
-#define	hton16(i) bcmswap16(i)
-#define	HTON32(i) BCMSWAP32(i)
-#define	hton32(i) bcmswap32(i)
-#define	NTOH16(i) BCMSWAP16(i)
-#define	ntoh16(i) bcmswap16(i)
-#define	NTOH32(i) BCMSWAP32(i)
-#define	ntoh32(i) bcmswap32(i)
-#define LTOH16(i) (i)
-#define ltoh16(i) (i)
-#define LTOH32(i) (i)
-#define ltoh32(i) (i)
-#define HTOL16(i) (i)
-#define htol16(i) (i)
-#define HTOL32(i) (i)
-#define htol32(i) (i)
-#else				/* IL_BIGENDIAN */
-#define HTON16(i) (i)
-#define	hton16(i) (i)
-#define	HTON32(i) (i)
-#define	hton32(i) (i)
-#define	NTOH16(i) (i)
-#define	ntoh16(i) (i)
-#define	NTOH32(i) (i)
-#define	ntoh32(i) (i)
-#define	LTOH16(i) BCMSWAP16(i)
-#define	ltoh16(i) bcmswap16(i)
-#define	LTOH32(i) BCMSWAP32(i)
-#define	ltoh32(i) bcmswap32(i)
-#define HTOL16(i) BCMSWAP16(i)
-#define htol16(i) bcmswap16(i)
-#define HTOL32(i) BCMSWAP32(i)
-#define htol32(i) bcmswap32(i)
-#endif				/* IL_BIGENDIAN */
-#endif				/* hton16 */
-
 #ifndef IL_BIGENDIAN
 #define ltoh16_buf(buf, i)
 #define htol16_buf(buf, i)

@@ -2859,7 +2859,7 @@ void BCMFASTPATH wlc_phy_rssi_compute(wlc_phy_t *pih, void *ctx)
 {
 	wlc_d11rxhdr_t *wlc_rxhdr = (wlc_d11rxhdr_t *) ctx;
 	d11rxhdr_t *rxh = &wlc_rxhdr->rxhdr;
-	int rssi = ltoh16(rxh->PhyRxStatus_1) & PRXS1_JSSI_MASK;
+	int rssi = le16_to_cpu(rxh->PhyRxStatus_1) & PRXS1_JSSI_MASK;
 	uint radioid = pih->radioid;
 	phy_info_t *pi = (phy_info_t *) pih;
 
@@ -2869,13 +2869,13 @@ void BCMFASTPATH wlc_phy_rssi_compute(wlc_phy_t *pih, void *ctx)
 	}
 
 	if ((pi->sh->corerev >= 11)
-	    && !(ltoh16(rxh->RxStatus2) & RXS_PHYRXST_VALID)) {
+	    && !(le16_to_cpu(rxh->RxStatus2) & RXS_PHYRXST_VALID)) {
 		rssi = WLC_RSSI_INVALID;
 		goto end;
 	}
 
 	if (ISLCNPHY(pi)) {
-		u8 gidx = (ltoh16(rxh->PhyRxStatus_2) & 0xFC00) >> 10;
+		u8 gidx = (le16_to_cpu(rxh->PhyRxStatus_2) & 0xFC00) >> 10;
 		phy_info_lcnphy_t *pi_lcn = pi->u.pi_lcnphy;
 
 		if (rssi > 127)

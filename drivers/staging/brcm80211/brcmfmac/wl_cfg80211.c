@@ -2336,8 +2336,8 @@ static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 
 static bool wl_is_linkup(struct wl_priv *wl, const wl_event_msg_t *e)
 {
-	u32 event = ntoh32(e->event_type);
-	u16 flags = ntoh16(e->flags);
+	u32 event = be32_to_cpu(e->event_type);
+	u16 flags = be16_to_cpu(e->flags);
 
 	if (event == WLC_E_LINK) {
 		if (flags & WLC_EVENT_MSG_LINK) {
@@ -2355,8 +2355,8 @@ static bool wl_is_linkup(struct wl_priv *wl, const wl_event_msg_t *e)
 
 static bool wl_is_linkdown(struct wl_priv *wl, const wl_event_msg_t *e)
 {
-	u32 event = ntoh32(e->event_type);
-	u16 flags = ntoh16(e->flags);
+	u32 event = be32_to_cpu(e->event_type);
+	u16 flags = be16_to_cpu(e->flags);
 
 	if (event == WLC_E_DEAUTH_IND || event == WLC_E_DISASSOC_IND) {
 		return true;
@@ -2370,8 +2370,8 @@ static bool wl_is_linkdown(struct wl_priv *wl, const wl_event_msg_t *e)
 
 static bool wl_is_nonetwork(struct wl_priv *wl, const wl_event_msg_t *e)
 {
-	u32 event = ntoh32(e->event_type);
-	u32 status = ntoh32(e->status);
+	u32 event = be32_to_cpu(e->event_type);
+	u32 status = be32_to_cpu(e->status);
 
 	if (event == WLC_E_SET_SSID || event == WLC_E_LINK) {
 		if (status == WLC_E_STATUS_NO_NETWORKS)
@@ -2681,7 +2681,7 @@ static s32
 wl_notify_mic_status(struct wl_priv *wl, struct net_device *ndev,
 		     const wl_event_msg_t *e, void *data)
 {
-	u16 flags = ntoh16(e->flags);
+	u16 flags = be16_to_cpu(e->flags);
 	enum nl80211_key_type key_type;
 
 	rtnl_lock();
@@ -3273,7 +3273,7 @@ static s32 wl_event_handler(void *data)
 void
 wl_cfg80211_event(struct net_device *ndev, const wl_event_msg_t * e, void *data)
 {
-	u32 event_type = ntoh32(e->event_type);
+	u32 event_type = be32_to_cpu(e->event_type);
 	struct wl_priv *wl = ndev_to_wl(ndev);
 #if (WL_DBG_LEVEL > 0)
 	s8 *estr = (event_type <= sizeof(wl_dbg_estr) / WL_DBG_ESTR_MAX - 1) ?

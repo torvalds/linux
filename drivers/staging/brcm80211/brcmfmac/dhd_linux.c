@@ -713,7 +713,7 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 	strcpy(bufp, "mcast_list");
 	bufp += strlen("mcast_list") + 1;
 
-	cnt = htol32(cnt);
+	cnt = cpu_to_le32(cnt);
 	memcpy(bufp, &cnt, sizeof(cnt));
 	bufp += sizeof(cnt);
 
@@ -752,7 +752,7 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 			   dhd_ifname(&dhd->pub, ifidx)));
 		return;
 	}
-	allmulti = htol32(allmulti);
+	allmulti = cpu_to_le32(allmulti);
 
 	if (!bcm_mkiovar
 	    ("allmulti", (void *)&allmulti, sizeof(allmulti), buf, buflen)) {
@@ -772,7 +772,8 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 	ret = dhd_prot_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len);
 	if (ret < 0) {
 		DHD_ERROR(("%s: set allmulti %d failed\n",
-			   dhd_ifname(&dhd->pub, ifidx), ltoh32(allmulti)));
+			   dhd_ifname(&dhd->pub, ifidx),
+			   le32_to_cpu(allmulti)));
 	}
 
 	kfree(buf);
@@ -781,7 +782,7 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 		 driver does */
 
 	allmulti = (dev->flags & IFF_PROMISC) ? true : false;
-	allmulti = htol32(allmulti);
+	allmulti = cpu_to_le32(allmulti);
 
 	memset(&ioc, 0, sizeof(ioc));
 	ioc.cmd = WLC_SET_PROMISC;
@@ -792,7 +793,8 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 	ret = dhd_prot_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len);
 	if (ret < 0) {
 		DHD_ERROR(("%s: set promisc %d failed\n",
-			   dhd_ifname(&dhd->pub, ifidx), ltoh32(allmulti)));
+			   dhd_ifname(&dhd->pub, ifidx),
+			   le32_to_cpu(allmulti)));
 	}
 }
 
@@ -1028,7 +1030,7 @@ int dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pktbuf)
 
 		if (is_multicast_ether_addr(eh->h_dest))
 			dhdp->tx_multicast++;
-		if (ntoh16(eh->h_proto) == ETH_P_PAE)
+		if (ntohs(eh->h_proto) == ETH_P_PAE)
 			atomic_inc(&dhd->pend_8021x_cnt);
 	}
 
@@ -1208,7 +1210,7 @@ void dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pktbuf,
 		skb_pull(skb, ETH_HLEN);
 
 		/* Process special event packets and then discard them */
-		if (ntoh16(skb->protocol) == ETH_P_BRCM)
+		if (ntohs(skb->protocol) == ETH_P_BRCM)
 			dhd_wl_host_event(dhd, &ifidx,
 					  skb_mac_header(skb),
 					  &event, &data);
@@ -1253,7 +1255,7 @@ void dhd_txcomplete(dhd_pub_t *dhdp, struct sk_buff *txp, bool success)
 	dhd_prot_hdrpull(dhdp, &ifidx, txp);
 
 	eh = (struct ethhdr *)(txp->data);
-	type = ntoh16(eh->h_proto);
+	type = ntohs(eh->h_proto);
 
 	if (type == ETH_P_PAE)
 		atomic_dec(&dhd->pend_8021x_cnt);
@@ -2749,7 +2751,7 @@ dhd_wl_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
 /* send up locally generated event */
 void dhd_sendup_event(dhd_pub_t *dhdp, wl_event_msg_t *event, void *data)
 {
-	switch (ntoh32(event->event_type)) {
+	switch (be32_to_cpu(event->event_type)) {
 	default:
 		break;
 	}

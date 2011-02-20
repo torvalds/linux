@@ -735,7 +735,7 @@ static int sdioh_sdmmc_get_cisaddr(sdioh_info_t *sd, u32 regaddr)
 	}
 
 	/* Only the lower 17-bits are valid */
-	scratch = ltoh32(scratch);
+	scratch = le32_to_cpu(scratch);
 	scratch &= 0x0001FFFF;
 	return scratch;
 }
