@@ -619,7 +619,10 @@ struct be_rxf_stats {
 	u32 rx_drops_invalid_ring;	/* dword 145*/
 	u32 forwarded_packets;	/* dword 146*/
 	u32 rx_drops_mtu;	/* dword 147*/
-	u32 rsvd0[15];
+	u32 rsvd0[7];
+	u32 port0_jabber_events;
+	u32 port1_jabber_events;
+	u32 rsvd1[6];
 };
 
 struct be_erx_stats {
@@ -630,11 +633,16 @@ struct be_erx_stats {
 	u32 debug_pmem_pbuf_dealloc;       /* dword 47*/
 };
 
+struct be_pmem_stats {
+	u32 eth_red_drops;
+	u32 rsvd[4];
+};
+
 struct be_hw_stats {
 	struct be_rxf_stats rxf;
 	u32 rsvd[48];
 	struct be_erx_stats erx;
-	u32 rsvd1[6];
+	struct be_pmem_stats pmem;
 };
 
 struct be_cmd_req_get_stats {

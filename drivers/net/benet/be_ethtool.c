@@ -26,7 +26,8 @@ struct be_ethtool_stat {
 	int offset;
 };
 
-enum {NETSTAT, PORTSTAT, MISCSTAT, DRVSTAT_TX, DRVSTAT_RX, ERXSTAT};
+enum {NETSTAT, PORTSTAT, MISCSTAT, DRVSTAT_TX, DRVSTAT_RX, ERXSTAT,
+			PMEMSTAT};
 #define FIELDINFO(_struct, field) FIELD_SIZEOF(_struct, field), \
 					offsetof(_struct, field)
 #define NETSTAT_INFO(field) 	#field, NETSTAT,\
@@ -43,6 +44,8 @@ enum {NETSTAT, PORTSTAT, MISCSTAT, DRVSTAT_TX, DRVSTAT_RX, ERXSTAT};
 						field)
 #define ERXSTAT_INFO(field) 	#field, ERXSTAT,\
 					FIELDINFO(struct be_erx_stats, field)
+#define PMEMSTAT_INFO(field) 	#field, PMEMSTAT,\
+					FIELDINFO(struct be_pmem_stats, field)
 
 static const struct be_ethtool_stat et_stats[] = {
 	{NETSTAT_INFO(rx_packets)},
@@ -99,7 +102,10 @@ static const struct be_ethtool_stat et_stats[] = {
 	{MISCSTAT_INFO(rx_drops_too_many_frags)},
 	{MISCSTAT_INFO(rx_drops_invalid_ring)},
 	{MISCSTAT_INFO(forwarded_packets)},
-	{MISCSTAT_INFO(rx_drops_mtu)}
+	{MISCSTAT_INFO(rx_drops_mtu)},
+	{MISCSTAT_INFO(port0_jabber_events)},
+	{MISCSTAT_INFO(port1_jabber_events)},
+	{PMEMSTAT_INFO(eth_red_drops)}
 };
 #define ETHTOOL_STATS_NUM ARRAY_SIZE(et_stats)
 
@@ -275,6 +281,9 @@ be_get_ethtool_stats(struct net_device *netdev,
 			break;
 		case MISCSTAT:
 			p = &hw_stats->rxf;
+			break;
+		case PMEMSTAT:
+			p = &hw_stats->pmem;
 			break;
 		}
 
