@@ -3162,29 +3162,31 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
         case AR6000_XIOCTL_OPT_SEND_FRAME:
         {
-        WMI_OPT_TX_FRAME_CMD optTxFrmCmd;
+            WMI_OPT_TX_FRAME_CMD optTxFrmCmd;
             u8 data[MAX_OPT_DATA_LEN];
 
             if (ar->arWmiReady == false) {
                 ret = -EIO;
-            } else if (copy_from_user(&optTxFrmCmd, userdata,
-                                      sizeof(optTxFrmCmd)))
-            {
+                break;
+            }
+
+            if (copy_from_user(&optTxFrmCmd, userdata, sizeof(optTxFrmCmd))) {
                 ret = -EFAULT;
-            } else if (copy_from_user(data,
-                                      userdata+sizeof(WMI_OPT_TX_FRAME_CMD)-1,
-                                      optTxFrmCmd.optIEDataLen))
-            {
+                break;
+            }
+
+            if (copy_from_user(data, userdata+sizeof(WMI_OPT_TX_FRAME_CMD) - 1,
+                                   optTxFrmCmd.optIEDataLen)) {
                 ret = -EFAULT;
-            } else {
-                ret = wmi_opt_tx_frame_cmd(ar->arWmi,
+                break;
+            }
+
+            ret = wmi_opt_tx_frame_cmd(ar->arWmi,
                                            optTxFrmCmd.frmType,
                                            optTxFrmCmd.dstAddr,
                                            optTxFrmCmd.bssid,
                                            optTxFrmCmd.optIEDataLen,
                                            data);
-            }
-
             break;
         }
         case AR6000_XIOCTL_WMI_SETRETRYLIMITS:
