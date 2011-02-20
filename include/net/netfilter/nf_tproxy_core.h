@@ -201,18 +201,8 @@ nf_tproxy_get_sock_v6(struct net *net, const u8 protocol,
 }
 #endif
 
-static inline void
-nf_tproxy_put_sock(struct sock *sk)
-{
-	/* TIME_WAIT inet sockets have to be handled differently */
-	if ((sk->sk_protocol == IPPROTO_TCP) && (sk->sk_state == TCP_TIME_WAIT))
-		inet_twsk_put(inet_twsk(sk));
-	else
-		sock_put(sk);
-}
-
 /* assign a socket to the skb -- consumes sk */
-int
+void
 nf_tproxy_assign_sock(struct sk_buff *skb, struct sock *sk);
 
 #endif
