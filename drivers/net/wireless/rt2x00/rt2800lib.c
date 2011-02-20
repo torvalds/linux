@@ -1376,10 +1376,32 @@ void rt2800_config_erp(struct rt2x00_dev *rt2x00dev, struct rt2x00lib_erp *erp,
 }
 EXPORT_SYMBOL_GPL(rt2800_config_erp);
 
+static void rt2800_set_ant_diversity(struct rt2x00_dev *rt2x00dev,
+				     enum antenna ant)
+{
+	u32 reg;
+	u8 eesk_pin = (ant == ANTENNA_A) ? 1 : 0;
+	u8 gpio_bit3 = (ant == ANTENNA_A) ? 0 : 1;
+
+	if (rt2x00_is_pci(rt2x00dev)) {
+		rt2800_register_read(rt2x00dev, E2PROM_CSR, &reg);
+		rt2x00_set_field32(&reg, E2PROM_CSR_DATA_CLOCK, eesk_pin);
+		rt2800_register_write(rt2x00dev, E2PROM_CSR, reg);
+	} else if (rt2x00_is_usb(rt2x00dev))
+		rt2800_mcu_request(rt2x00dev, MCU_ANT_SELECT, 0xff,
+				   eesk_pin, 0);
+
+	rt2800_register_read(rt2x00dev, GPIO_CTRL_CFG, &reg);
+	rt2x00_set_field32(&reg, GPIO_CTRL_CFG_GPIOD, 0);
+	rt2x00_set_field32(&reg, GPIO_CTRL_CFG_BIT3, gpio_bit3);
+	rt2800_register_write(rt2x00dev, GPIO_CTRL_CFG, reg);
+}
+
 void rt2800_config_ant(struct rt2x00_dev *rt2x00dev, struct antenna_setup *ant)
 {
 	u8 r1;
 	u8 r3;
+	u16 eeprom;
 
 	rt2800_bbp_read(rt2x00dev, 1, &r1);
 	rt2800_bbp_read(rt2x00dev, 3, &r3);
@@ -1387,7 +1409,7 @@ void rt2800_config_ant(struct rt2x00_dev *rt2x00dev, struct antenna_setup *ant)
 	/*
 	 * Configure the TX antenna.
 	 */
-	switch ((int)ant->tx) {
+	switch (ant->tx_chain_num) {
 	case 1:
 		rt2x00_set_field8(&r1, BBP1_TX_ANTENNA, 0);
 		break;
@@ -1402,8 +1424,18 @@ void rt2800_config_ant(struct rt2x00_dev *rt2x00dev, struct antenna_setup *ant)
 	/*
 	 * Configure the RX antenna.
 	 */
-	switch ((int)ant->rx) {
+	switch (ant->rx_chain_num) {
 	case 1:
+		if (rt2x00_rt(rt2x00dev, RT3070) ||
+		    rt2x00_rt(rt2x00dev, RT3090) ||
+		    rt2x00_rt(rt2x00dev, RT3390)) {
+			rt2x00_eeprom_read(rt2x00dev,
+					   EEPROM_NIC_CONF1, &eeprom);
+			if (rt2x00_get_field16(eeprom,
+						EEPROM_NIC_CONF1_ANT_DIVERSITY))
+				rt2800_set_ant_diversity(rt2x00dev,
+						rt2x00dev->default_ant.rx);
+		}
 		rt2x00_set_field8(&r3, BBP3_RX_ANTENNA, 0);
 		break;
 	case 2:
@@ -1449,13 +1481,13 @@ static void rt2800_config_channel_rf2xxx(struct rt2x00_dev *rt2x00dev,
 {
 	rt2x00_set_field32(&rf->rf4, RF4_FREQ_OFFSET, rt2x00dev->freq_offset);
 
-	if (rt2x00dev->default_ant.tx == 1)
+	if (rt2x00dev->default_ant.tx_chain_num == 1)
 		rt2x00_set_field32(&rf->rf2, RF2_ANTENNA_TX1, 1);
 
-	if (rt2x00dev->default_ant.rx == 1) {
+	if (rt2x00dev->default_ant.rx_chain_num == 1) {
 		rt2x00_set_field32(&rf->rf2, RF2_ANTENNA_RX1, 1);
 		rt2x00_set_field32(&rf->rf2, RF2_ANTENNA_RX2, 1);
-	} else if (rt2x00dev->default_ant.rx == 2)
+	} else if (rt2x00dev->default_ant.rx_chain_num == 2)
 		rt2x00_set_field32(&rf->rf2, RF2_ANTENNA_RX2, 1);
 
 	if (rf->channel > 14) {
@@ -1602,13 +1634,13 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	tx_pin = 0;
 
 	/* Turn on unused PA or LNA when not using 1T or 1R */
-	if (rt2x00dev->default_ant.tx != 1) {
+	if (rt2x00dev->default_ant.tx_chain_num == 2) {
 		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_A1_EN, 1);
 		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_G1_EN, 1);
 	}
 
 	/* Turn on unused PA or LNA when not using 1T or 1R */
-	if (rt2x00dev->default_ant.rx != 1) {
+	if (rt2x00dev->default_ant.rx_chain_num == 2) {
 		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_A1_EN, 1);
 		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_G1_EN, 1);
 	}
@@ -3068,10 +3100,34 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Identify default antenna configuration.
 	 */
-	rt2x00dev->default_ant.tx =
+	rt2x00dev->default_ant.tx_chain_num =
 	    rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_TXPATH);
-	rt2x00dev->default_ant.rx =
+	rt2x00dev->default_ant.rx_chain_num =
 	    rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_RXPATH);
+
+	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF1, &eeprom);
+
+	if (rt2x00_rt(rt2x00dev, RT3070) ||
+	    rt2x00_rt(rt2x00dev, RT3090) ||
+	    rt2x00_rt(rt2x00dev, RT3390)) {
+		value = rt2x00_get_field16(eeprom,
+				EEPROM_NIC_CONF1_ANT_DIVERSITY);
+		switch (value) {
+		case 0:
+		case 1:
+		case 2:
+			rt2x00dev->default_ant.tx = ANTENNA_A;
+			rt2x00dev->default_ant.rx = ANTENNA_A;
+			break;
+		case 3:
+			rt2x00dev->default_ant.tx = ANTENNA_A;
+			rt2x00dev->default_ant.rx = ANTENNA_B;
+			break;
+		}
+	} else {
+		rt2x00dev->default_ant.tx = ANTENNA_A;
+		rt2x00dev->default_ant.rx = ANTENNA_A;
+	}
 
 	/*
 	 * Read frequency offset and RF programming sequence.

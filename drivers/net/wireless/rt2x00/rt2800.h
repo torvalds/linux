@@ -270,6 +270,7 @@
 
 /*
  * GPIO_CTRL_CFG:
+ * GPIOD: GPIO direction, 0: Output, 1: Input
  */
 #define GPIO_CTRL_CFG			0x0228
 #define GPIO_CTRL_CFG_BIT0		FIELD32(0x00000001)
@@ -281,6 +282,7 @@
 #define GPIO_CTRL_CFG_BIT6		FIELD32(0x00000040)
 #define GPIO_CTRL_CFG_BIT7		FIELD32(0x00000080)
 #define GPIO_CTRL_CFG_BIT8		FIELD32(0x00000100)
+#define GPIO_CTRL_CFG_GPIOD		FIELD32(0x00000800)
 
 /*
  * MCU_CMD_CFG
@@ -2068,6 +2070,7 @@ struct mac_iveiv_entry {
 #define MCU_LED_LED_POLARITY		0x54
 #define MCU_RADAR			0x60
 #define MCU_BOOT_SIGNAL			0x72
+#define MCU_ANT_SELECT			0X73
 #define MCU_BBP_SIGNAL			0x80
 #define MCU_POWER_SAVE			0x83
 
