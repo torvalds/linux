@@ -18,6 +18,9 @@
 #include "be.h"
 #include "be_cmds.h"
 
+/* Must be a power of 2 or else MODULO will BUG_ON */
+static int be_get_temp_freq = 32;
+
 static void be_mcc_notify(struct be_adapter *adapter)
 {
 	struct be_queue_info *mccq = &adapter->mcc_obj.q;
@@ -1069,6 +1072,9 @@ int be_cmd_get_stats(struct be_adapter *adapter, struct be_dma_mem *nonemb_cmd)
 	struct be_sge *sge;
 	int status = 0;
 
+	if (MODULO(adapter->work_counter, be_get_temp_freq) == 0)
+		be_cmd_get_die_temperature(adapter);
+
 	spin_lock_bh(&adapter->mcc_lock);
 
 	wrb = wrb_from_mccq(adapter);
@@ -1130,6 +1136,44 @@ int be_cmd_link_status_query(struct be_adapter *adapter,
 			*mac_speed = resp->mac_speed;
 		}
 	}
+
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
+/* Uses synchronous mcc */
+int be_cmd_get_die_temperature(struct be_adapter *adapter)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_get_cntl_addnl_attribs *req;
+	int status;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+	req = embedded_payload(wrb);
+
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0,
+			OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES);
+
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+		OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES, sizeof(*req));
+
+	status = be_mcc_notify_wait(adapter);
+	if (!status) {
+		struct be_cmd_resp_get_cntl_addnl_attribs *resp =
+						embedded_payload(wrb);
+		adapter->drv_stats.be_on_die_temperature =
+						resp->on_die_temperature;
+	}
+	/* If IOCTL fails once, do not bother issuing it again */
+	else
+		be_get_temp_freq = 0;
 
 err:
 	spin_unlock_bh(&adapter->mcc_lock);

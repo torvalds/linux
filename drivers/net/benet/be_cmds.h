@@ -189,6 +189,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_GET_BEACON_STATE			70
 #define OPCODE_COMMON_READ_TRANSRECV_DATA		73
 #define OPCODE_COMMON_GET_PHY_DETAILS			102
+#define OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES	121
 
 #define OPCODE_ETH_RSS_CONFIG				1
 #define OPCODE_ETH_ACPI_CONFIG				2
@@ -668,6 +669,20 @@ struct be_cmd_resp_get_stats {
 	struct be_hw_stats hw_stats;
 };
 
+struct be_cmd_req_get_cntl_addnl_attribs {
+	struct be_cmd_req_hdr hdr;
+	u8 rsvd[8];
+};
+
+struct be_cmd_resp_get_cntl_addnl_attribs {
+	struct be_cmd_resp_hdr hdr;
+	u16 ipl_file_number;
+	u8 ipl_file_version;
+	u8 rsvd0;
+	u8 on_die_temperature; /* in degrees centigrade*/
+	u8 rsvd1[3];
+};
+
 struct be_cmd_req_vlan_config {
 	struct be_cmd_req_hdr hdr;
 	u8 interface_id;
@@ -1099,4 +1114,5 @@ extern int be_cmd_get_phy_info(struct be_adapter *adapter,
 		struct be_dma_mem *cmd);
 extern int be_cmd_set_qos(struct be_adapter *adapter, u32 bps, u32 domain);
 extern void be_detect_dump_ue(struct be_adapter *adapter);
+extern int be_cmd_get_die_temperature(struct be_adapter *adapter);
 
