@@ -810,7 +810,6 @@ typedef struct r8192_priv
         struct mutex mutex;
 	spinlock_t ps_lock;
 
-	u32 irq_mask;
 	short chan;
 	short sens;
 	/* RX stuff */

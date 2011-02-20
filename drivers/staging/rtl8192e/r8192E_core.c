@@ -617,7 +617,14 @@ static void tx_timeout(struct net_device *dev)
 static void rtl8192_irq_enable(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-	write_nic_dword(priv, INTA_MASK, priv->irq_mask);
+	u32 mask;
+
+	mask = IMR_ROK | IMR_VODOK | IMR_VIDOK | IMR_BEDOK | IMR_BKDOK |
+	       IMR_HCCADOK | IMR_MGNTDOK | IMR_COMDOK | IMR_HIGHDOK |
+	       IMR_BDOK | IMR_RXCMDOK | IMR_TIMEOUT0 | IMR_RDU | IMR_RXFOVW |
+	       IMR_TXFOVW | IMR_BcnInt | IMR_TBDOK | IMR_TBDER;
+
+	write_nic_dword(priv, INTA_MASK, mask);
 }
 
 static void rtl8192_irq_disable(struct net_device *dev)
@@ -2041,11 +2048,6 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 		RCR_AB | RCR_AM | RCR_APM |	//accept BC/MC/UC
 		RCR_AAP | ((u32)7<<RCR_MXDMA_OFFSET) |
 		((u32)7 << RCR_FIFO_OFFSET) | RCR_ONLYERLPKT;
-
-	priv->irq_mask = 	(u32)(IMR_ROK | IMR_VODOK | IMR_VIDOK | IMR_BEDOK | IMR_BKDOK |
-				IMR_HCCADOK | IMR_MGNTDOK | IMR_COMDOK | IMR_HIGHDOK |
-				IMR_BDOK | IMR_RXCMDOK | IMR_TIMEOUT0 | IMR_RDU | IMR_RXFOVW |
-				IMR_TXFOVW | IMR_BcnInt | IMR_TBDOK | IMR_TBDER);
 
 	priv->pFirmware = vzalloc(sizeof(rt_firmware));
 
