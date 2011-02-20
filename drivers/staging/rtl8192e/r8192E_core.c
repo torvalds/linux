@@ -518,7 +518,7 @@ static int proc_get_stats_rx(char *page, char **start,
 
 static void rtl8192_proc_module_init(void)
 {
-	RT_TRACE(COMP_INIT, "Initializing proc filesystem");
+	RT_TRACE(COMP_INIT, "Initializing proc filesystem\n");
 	rtl8192_proc=create_proc_entry(RTL819xE_MODULE_NAME, S_IFDIR, init_net.proc_net);
 }
 
@@ -1297,7 +1297,7 @@ static short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 
 	pdesc = &ring->desc[idx];
 	if ((pdesc->OWN == 1) && (tcb_desc->queue_index != BEACON_QUEUE)) {
-		RT_TRACE(COMP_ERR, "No more TX desc@%d, ring->idx = %d,idx = %d,%x",
+		RT_TRACE(COMP_ERR, "No more TX desc@%d, ring->idx = %d,idx = %d,%x\n",
 			 tcb_desc->queue_index, ring->idx, idx, skb->len);
 		spin_unlock_irqrestore(&priv->irq_th_lock, flags);
 		return skb->len;
@@ -1615,7 +1615,7 @@ static int rtl8192_qos_handle_probe_response(struct r8192_priv *priv,
 
 		if ((network->qos_data.active == 1) && (active_network == 1)) {
 			queue_work(priv->priv_wq, &priv->qos_activate);
-			RT_TRACE(COMP_QOS, "QoS was disabled call qos_activate \n");
+			RT_TRACE(COMP_QOS, "QoS was disabled call qos_activate\n");
 		}
 		network->qos_data.active = 0;
 		network->qos_data.supported = 0;
@@ -1847,7 +1847,7 @@ static void rtl8192_hw_sleep_down(struct net_device *dev)
 	spin_lock(&priv->rf_ps_lock);
 	if (priv->RFChangeInProgress) {
 		spin_unlock(&priv->rf_ps_lock);
-		RT_TRACE(COMP_RF, "rtl8192_hw_sleep_down(): RF Change in progress! \n");
+		RT_TRACE(COMP_RF, "rtl8192_hw_sleep_down(): RF Change in progress!\n");
 		printk("rtl8192_hw_sleep_down(): RF Change in progress!\n");
 		return;
 	}
@@ -1872,7 +1872,7 @@ static void rtl8192_hw_wakeup(struct net_device* dev)
 	spin_lock(&priv->rf_ps_lock);
 	if (priv->RFChangeInProgress) {
 		spin_unlock(&priv->rf_ps_lock);
-		RT_TRACE(COMP_RF, "rtl8192_hw_wakeup(): RF Change in progress! \n");
+		RT_TRACE(COMP_RF, "rtl8192_hw_wakeup(): RF Change in progress!\n");
 		printk("rtl8192_hw_wakeup(): RF Change in progress! schedule wake up task again\n");
 		queue_delayed_work(priv->ieee80211->wq,&priv->ieee80211->hw_wakeup_wq,MSECS(10));//PowerSave is not supported if kernel version is below 2.6.20
 		return;
@@ -2160,8 +2160,8 @@ static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 
 		ICVer8192 = (IC_Version&0xf);		//bit0~3; 1:A cut, 2:B cut, 3:C cut...
 		ICVer8256 = ((IC_Version&0xf0)>>4);//bit4~6, bit7 reserved for other RF chip; 1:A cut, 2:B cut, 3:C cut...
-		RT_TRACE(COMP_INIT, "\nICVer8192 = 0x%x\n", ICVer8192);
-		RT_TRACE(COMP_INIT, "\nICVer8256 = 0x%x\n", ICVer8256);
+		RT_TRACE(COMP_INIT, "ICVer8192 = 0x%x\n", ICVer8192);
+		RT_TRACE(COMP_INIT, "ICVer8256 = 0x%x\n", ICVer8256);
 		if(ICVer8192 == 0x2)	//B-cut
 		{
 			if(ICVer8256 == 0x5) //E-cut
@@ -2186,7 +2186,7 @@ static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 		priv->eeprom_did = 0;
 		priv->eeprom_CustomerID = 0;
 		priv->eeprom_ChannelPlan = 0;
-		RT_TRACE(COMP_INIT, "\nIC Version = 0x%x\n", 0xff);
+		RT_TRACE(COMP_INIT, "IC Version = 0x%x\n", 0xff);
 	}
 
 	RT_TRACE(COMP_INIT, "EEPROM VID = 0x%4x\n", priv->eeprom_vid);
@@ -2369,11 +2369,11 @@ static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 
 	if(priv->rf_type == RF_1T2R)
 	{
-		RT_TRACE(COMP_INIT, "\n1T2R config\n");
+		RT_TRACE(COMP_INIT, "1T2R config\n");
 	}
 	else if (priv->rf_type == RF_2T4R)
 	{
-		RT_TRACE(COMP_INIT, "\n2T4R config\n");
+		RT_TRACE(COMP_INIT, "2T4R config\n");
 	}
 
 	// 2008/01/16 MH We can only know RF type in the function. So we have to init
@@ -2486,8 +2486,8 @@ static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 
 
 	RT_TRACE(COMP_INIT, "RegChannelPlan(%d)\n", priv->RegChannelPlan);
-	RT_TRACE(COMP_INIT, "ChannelPlan = %d \n", priv->ChannelPlan);
-	RT_TRACE(COMP_INIT, "LedStrategy = %d \n", priv->LedStrategy);
+	RT_TRACE(COMP_INIT, "ChannelPlan = %d\n", priv->ChannelPlan);
+	RT_TRACE(COMP_INIT, "LedStrategy = %d\n", priv->LedStrategy);
 	RT_TRACE(COMP_TRACE, "<==== ReadAdapterInfo\n");
 
 	return ;
@@ -2875,12 +2875,12 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 {
 	if(priv->ieee80211->RfOffReason > RF_CHANGE_BY_PS)
 	{ // H/W or S/W RF OFF before sleep.
-		RT_TRACE((COMP_INIT|COMP_RF|COMP_POWER), "%s(): Turn off RF for RfOffReason(%d) ----------\n", __FUNCTION__,priv->ieee80211->RfOffReason);
+		RT_TRACE((COMP_INIT|COMP_RF|COMP_POWER), "%s(): Turn off RF for RfOffReason(%d)\n", __FUNCTION__,priv->ieee80211->RfOffReason);
 		MgntActSet_RF_State(dev, eRfOff, priv->ieee80211->RfOffReason);
 	}
 	else if(priv->ieee80211->RfOffReason >= RF_CHANGE_BY_IPS)
 	{ // H/W or S/W RF OFF before sleep.
-		RT_TRACE((COMP_INIT|COMP_RF|COMP_POWER), "%s(): Turn off RF for RfOffReason(%d) ----------\n", __FUNCTION__,priv->ieee80211->RfOffReason);
+		RT_TRACE((COMP_INIT|COMP_RF|COMP_POWER), "%s(): Turn off RF for RfOffReason(%d)\n", __FUNCTION__,priv->ieee80211->RfOffReason);
 		MgntActSet_RF_State(dev, eRfOff, priv->ieee80211->RfOffReason);
 	}
 	else
@@ -3131,7 +3131,7 @@ void InactivePsWorkItemCallback(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->ieee80211->PowerSaveControl));
 
-	RT_TRACE(COMP_POWER, "InactivePsWorkItemCallback() ---------> \n");
+	RT_TRACE(COMP_POWER, "InactivePsWorkItemCallback() --------->\n");
 	//
 	// This flag "bSwRfProcessing", indicates the status of IPS procedure, should be set if the IPS workitem
 	// is really scheduled.
@@ -3152,7 +3152,7 @@ void InactivePsWorkItemCallback(struct net_device *dev)
 	// To solve CAM values miss in RF OFF, rewrite CAM values after RF ON. By Bruce, 2007-09-20.
 	//
 	pPSC->bSwRfProcessing = FALSE;
-	RT_TRACE(COMP_POWER, "InactivePsWorkItemCallback() <--------- \n");
+	RT_TRACE(COMP_POWER, "InactivePsWorkItemCallback() <---------\n");
 }
 
 #ifdef ENABLE_LPS
@@ -3507,7 +3507,7 @@ static int _rtl8192_up(struct net_device *dev)
 	priv->up=1;
 	priv->ieee80211->ieee_up=1;
 	priv->bdisable_nic = false;  //YJ,add,091111
-	RT_TRACE(COMP_INIT, "Bringing up iface");
+	RT_TRACE(COMP_INIT, "Bringing up iface\n");
 
 	init_status = rtl8192_adapter_start(dev);
 	if(init_status != RT_STATUS_SUCCESS)
@@ -3914,7 +3914,7 @@ static void rtl8192_process_phyinfo(struct r8192_priv * priv, u8* buffer,struct 
 		{
 			if (!rtl8192_phy_CheckIsLegalRFPath(priv->ieee80211->dev, rfpath))
 				continue;
-			RT_TRACE(COMP_DBG,"Jacken -> pPreviousstats->RxMIMOSignalStrength[rfpath]  = %d \n" ,pprevious_stats->RxMIMOSignalStrength[rfpath] );
+			RT_TRACE(COMP_DBG, "pPreviousstats->RxMIMOSignalStrength[rfpath] = %d\n", pprevious_stats->RxMIMOSignalStrength[rfpath]);
 			//Fixed by Jacken 2008-03-20
 			if(priv->stats.rx_rssi_percentage[rfpath] == 0)
 			{
@@ -3933,7 +3933,7 @@ static void rtl8192_process_phyinfo(struct r8192_priv * priv, u8* buffer,struct 
 					( (priv->stats.rx_rssi_percentage[rfpath]*(Rx_Smooth_Factor-1)) +
 					(pprevious_stats->RxMIMOSignalStrength[rfpath])) /(Rx_Smooth_Factor);
 			}
-			RT_TRACE(COMP_DBG,"Jacken -> priv->RxStats.RxRSSIPercentage[rfPath]  = %d \n" ,priv->stats.rx_rssi_percentage[rfpath] );
+			RT_TRACE(COMP_DBG, "priv->RxStats.RxRSSIPercentage[rfPath] = %d \n" , priv->stats.rx_rssi_percentage[rfpath]);
 		}
 	}
 
@@ -4697,7 +4697,7 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	int ret = -ENODEV;
 	unsigned long pmem_start, pmem_len, pmem_flags;
 
-	RT_TRACE(COMP_INIT,"Configuring chip resources");
+	RT_TRACE(COMP_INIT,"Configuring chip resources\n");
 
 	if( pci_enable_device (pdev) ){
 		RT_TRACE(COMP_ERR,"Failed to enable PCI device");
@@ -4731,20 +4731,20 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	pmem_flags = pci_resource_flags (pdev, 1);
 
 	if (!(pmem_flags & IORESOURCE_MEM)) {
-		RT_TRACE(COMP_ERR,"region #1 not a MMIO resource, aborting");
+		RT_TRACE(COMP_ERR, "region #1 not a MMIO resource, aborting\n");
 		goto fail;
 	}
 
 	//DMESG("Memory mapped space @ 0x%08lx ", pmem_start);
 	if( ! request_mem_region(pmem_start, pmem_len, RTL819xE_MODULE_NAME)) {
-		RT_TRACE(COMP_ERR,"request_mem_region failed!");
+		RT_TRACE(COMP_ERR,"request_mem_region failed!\n");
 		goto fail;
 	}
 
 
 	ioaddr = (unsigned long)ioremap_nocache( pmem_start, pmem_len);
 	if( ioaddr == (unsigned long)NULL ){
-		RT_TRACE(COMP_ERR,"ioremap failed!");
+		RT_TRACE(COMP_ERR,"ioremap failed!\n");
 	       // release_mem_region( pmem_start, pmem_len );
 		goto fail1;
 	}
@@ -4778,7 +4778,7 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 
 	RT_TRACE(COMP_INIT, "Driver probe completed1\n");
 	if(rtl8192_init(dev)!=0){
-		RT_TRACE(COMP_ERR, "Initialization failed");
+		RT_TRACE(COMP_ERR, "Initialization failed\n");
 		goto fail;
 	}
 
@@ -4896,7 +4896,7 @@ static int __init rtl8192_pci_module_init(void)
 
 	printk(KERN_INFO "\nLinux kernel driver for RTL8192 based WLAN cards\n");
 	printk(KERN_INFO "Copyright (c) 2007-2008, Realsil Wlan\n");
-	RT_TRACE(COMP_INIT, "Initializing module");
+	RT_TRACE(COMP_INIT, "Initializing module\n");
 	rtl8192_proc_module_init();
       if(0!=pci_register_driver(&rtl8192_pci_driver))
 	{
@@ -4912,7 +4912,7 @@ static void __exit rtl8192_pci_module_exit(void)
 {
 	pci_unregister_driver(&rtl8192_pci_driver);
 
-	RT_TRACE(COMP_DOWN, "Exiting");
+	RT_TRACE(COMP_DOWN, "Exiting\n");
 	rtl8192_proc_module_remove();
 	ieee80211_rtl_exit();
 }

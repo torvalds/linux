@@ -653,7 +653,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
 
 	down(&priv->wx_sem);
 
-	RT_TRACE(COMP_SEC, "Setting SW wep key");
+	RT_TRACE(COMP_SEC, "Setting SW wep key\n");
 	ret = ieee80211_wx_set_encode(priv->ieee80211,info,wrqu,key);
 
 	up(&priv->wx_sem);

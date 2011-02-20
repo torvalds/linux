@@ -97,7 +97,7 @@
 extern u32 rt_global_debug_component;
 #define RT_TRACE(component, x, args...) \
 do { if(rt_global_debug_component & component) \
-	printk(KERN_DEBUG RTL819xE_MODULE_NAME ":" x "\n" , \
+	printk(KERN_DEBUG RTL819xE_MODULE_NAME ":" x , \
 	       ##args);\
 }while(0);
 

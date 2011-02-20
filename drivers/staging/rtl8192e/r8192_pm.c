@@ -73,7 +73,7 @@ int rtl8192E_resume (struct pci_dev *pdev)
 	int err;
 	u32 val;
 
-        RT_TRACE(COMP_POWER, "================>r8192E resume call.");
+        RT_TRACE(COMP_POWER, "================>r8192E resume call.\n");
 
 	pci_set_power_state(pdev, PCI_D0);
 

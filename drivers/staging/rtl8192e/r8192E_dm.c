@@ -751,12 +751,12 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 
 	// read and filter out unreasonable value
 	tmpRegA = rtl8192_phy_QueryRFReg(dev, RF90_PATH_A, 0x12, 0x078);	// 0x12: RF Reg[10:7]
-	RT_TRACE(COMP_POWER_TRACKING, "Readback ThermalMeterA = %d \n", tmpRegA);
+	RT_TRACE(COMP_POWER_TRACKING, "Readback ThermalMeterA = %d\n", tmpRegA);
 	if(tmpRegA < 3 || tmpRegA > 13)
 		return;
 	if(tmpRegA >= 12)	// if over 12, TP will be bad when high temperature
 		tmpRegA = 12;
-	RT_TRACE(COMP_POWER_TRACKING, "Valid ThermalMeterA = %d \n", tmpRegA);
+	RT_TRACE(COMP_POWER_TRACKING, "Valid ThermalMeterA = %d\n", tmpRegA);
 	priv->ThermalMeter[0] = ThermalMeterVal;	//We use fixed value by Bryant's suggestion
 	priv->ThermalMeter[1] = ThermalMeterVal;	//We use fixed value by Bryant's suggestion
 
@@ -2656,7 +2656,7 @@ static void dm_dynamic_txpower(struct net_device *dev)
 		txlowpower_threshold = TX_POWER_NEAR_FIELD_THRESH_LOW;
 	}
 
-	RT_TRACE(COMP_TXAGC,"priv->undecorated_smoothed_pwdb = %ld \n" , priv->undecorated_smoothed_pwdb);
+	RT_TRACE(COMP_TXAGC, "priv->undecorated_smoothed_pwdb = %ld\n" , priv->undecorated_smoothed_pwdb);
 
 	if(priv->ieee80211->state == IEEE80211_LINKED)
 	{
@@ -2693,7 +2693,7 @@ static void dm_dynamic_txpower(struct net_device *dev)
 	if( (priv->bDynamicTxHighPower != priv->bLastDTPFlag_High ) ||
 		(priv->bDynamicTxLowPower != priv->bLastDTPFlag_Low ) )
 	{
-		RT_TRACE(COMP_TXAGC,"SetTxPowerLevel8190()  channel = %d \n" , priv->ieee80211->current_network.channel);
+		RT_TRACE(COMP_TXAGC, "SetTxPowerLevel8190() channel = %d\n", priv->ieee80211->current_network.channel);
 
 
 		rtl8192_phy_setTxPower(dev,priv->ieee80211->current_network.channel);

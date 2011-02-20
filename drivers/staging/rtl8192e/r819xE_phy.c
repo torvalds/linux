@@ -1099,7 +1099,7 @@ void rtl8192_phyConfigBB(struct net_device* dev, u8 ConfigType)
 		for (i=0; i<PHY_REGArrayLen; i+=2)
 		{
 			rtl8192_setBBreg(dev, Rtl819XPHY_REGArray_Table[i], bMaskDWord, Rtl819XPHY_REGArray_Table[i+1]);
-			RT_TRACE(COMP_DBG, "i: %x, The Rtl819xUsbPHY_REGArray[0] is %x Rtl819xUsbPHY_REGArray[1] is %x \n",i, Rtl819XPHY_REGArray_Table[i], Rtl819XPHY_REGArray_Table[i+1]);
+			RT_TRACE(COMP_DBG, "i: %x, The Rtl819xUsbPHY_REGArray[0] is %x Rtl819xUsbPHY_REGArray[1] is %x\n",i, Rtl819XPHY_REGArray_Table[i], Rtl819XPHY_REGArray_Table[i+1]);
 		}
 	}
 	else if (ConfigType == BaseBand_Config_AGC_TAB)
@@ -1107,7 +1107,7 @@ void rtl8192_phyConfigBB(struct net_device* dev, u8 ConfigType)
 		for (i=0; i<AGCTAB_ArrayLen; i+=2)
 		{
 			rtl8192_setBBreg(dev, Rtl819XAGCTAB_Array_Table[i], bMaskDWord, Rtl819XAGCTAB_Array_Table[i+1]);
-			RT_TRACE(COMP_DBG, "i:%x, The rtl819XAGCTAB_Array[0] is %x rtl819XAGCTAB_Array[1] is %x \n",i, Rtl819XAGCTAB_Array_Table[i], Rtl819XAGCTAB_Array_Table[i+1]);
+			RT_TRACE(COMP_DBG, "i:%x, The rtl819XAGCTAB_Array[0] is %x rtl819XAGCTAB_Array[1] is %x\n",i, Rtl819XAGCTAB_Array_Table[i], Rtl819XAGCTAB_Array_Table[i+1]);
 		}
 	}
 }
@@ -1257,7 +1257,7 @@ RT_STATUS rtl8192_phy_checkBBAndRF(struct net_device* dev, HW90_BLOCK_E CheckBlo
 		switch(CheckBlock)
 		{
 		case HW90_BLOCK_MAC:
-			RT_TRACE(COMP_ERR, "PHY_CheckBBRFOK(): Never Write 0x100 here!");
+			RT_TRACE(COMP_ERR, "PHY_CheckBBRFOK(): Never Write 0x100 here!\n");
 			break;
 
 		case HW90_BLOCK_PHY0:
@@ -1286,7 +1286,7 @@ RT_STATUS rtl8192_phy_checkBBAndRF(struct net_device* dev, HW90_BLOCK_E CheckBlo
 		//
 		if(dwRegRead != WriteData[i])
 		{
-			RT_TRACE(COMP_ERR, "====>error=====dwRegRead: %x, WriteData: %x \n", dwRegRead, WriteData[i]);
+			RT_TRACE(COMP_ERR, "====>error=====dwRegRead: %x, WriteData: %x\n", dwRegRead, WriteData[i]);
 			ret = RT_STATUS_FAILURE;
 			break;
 		}
@@ -1416,14 +1416,14 @@ void rtl8192_phy_getTxPower(struct net_device* dev)
 	priv->DefaultInitialGain[1] = read_nic_byte(priv, rOFDM0_XBAGCCore1);
 	priv->DefaultInitialGain[2] = read_nic_byte(priv, rOFDM0_XCAGCCore1);
 	priv->DefaultInitialGain[3] = read_nic_byte(priv, rOFDM0_XDAGCCore1);
-	RT_TRACE(COMP_INIT, "Default initial gain (c50=0x%x, c58=0x%x, c60=0x%x, c68=0x%x) \n",
+	RT_TRACE(COMP_INIT, "Default initial gain (c50=0x%x, c58=0x%x, c60=0x%x, c68=0x%x)\n",
 		priv->DefaultInitialGain[0], priv->DefaultInitialGain[1],
 		priv->DefaultInitialGain[2], priv->DefaultInitialGain[3]);
 
 	// read framesync
 	priv->framesync = read_nic_byte(priv, rOFDM0_RxDetector3);
 	priv->framesyncC34 = read_nic_dword(priv, rOFDM0_RxDetector2);
-	RT_TRACE(COMP_INIT, "Default framesync (0x%x) = 0x%x \n",
+	RT_TRACE(COMP_INIT, "Default framesync (0x%x) = 0x%x\n",
 		rOFDM0_RxDetector3, priv->framesync);
 	// read SIFS (save the value read fome MACPHY_REG.txt)
 	priv->SifsTime = read_nic_word(priv, SIFS);
@@ -1888,20 +1888,20 @@ u8 rtl8192_phy_SwChnl(struct net_device* dev, u8 channel)
 	case WIRELESS_MODE_A:
 	case WIRELESS_MODE_N_5G:
 		if (channel<=14){
-			RT_TRACE(COMP_ERR, "WIRELESS_MODE_A but channel<=14");
+			RT_TRACE(COMP_ERR, "WIRELESS_MODE_A but channel<=14\n");
 			return false;
 		}
 		break;
 	case WIRELESS_MODE_B:
 		if (channel>14){
-			RT_TRACE(COMP_ERR, "WIRELESS_MODE_B but channel>14");
+			RT_TRACE(COMP_ERR, "WIRELESS_MODE_B but channel>14\n");
 			return false;
 		}
 		break;
 	case WIRELESS_MODE_G:
 	case WIRELESS_MODE_N_24G:
 		if (channel>14){
-			RT_TRACE(COMP_ERR, "WIRELESS_MODE_G but channel>14");
+			RT_TRACE(COMP_ERR, "WIRELESS_MODE_G but channel>14\n");
 			return false;
 		}
 		break;
@@ -2141,7 +2141,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 	atomic_dec(&(priv->ieee80211->atm_swbw));
 	priv->SetBWModeInProgress= false;
 
-	RT_TRACE(COMP_SWBW, "<==SetBWMode819xUsb()");
+	RT_TRACE(COMP_SWBW, "<==SetBWMode819xUsb()\n");
 }
 
 /******************************************************************************
@@ -2246,7 +2246,7 @@ void InitialGain819xPci(struct net_device *dev, u8 Operation)
 					rtl8192_setBBreg(dev, UFWP, bMaskByte1, 0x1);	// FW DIG ON
 				break;
 			default:
-			RT_TRACE(COMP_SCAN, "Unknown IG Operation. \n");
+			RT_TRACE(COMP_SCAN, "Unknown IG Operation.\n");
 				break;
 		}
 	}
