@@ -717,10 +717,10 @@ void et131x_rx_dma_disable(struct et131x_adapter *etdev)
 	/* Setup the receive dma configuration register */
 	writel(0x00002001, &etdev->regs->rxdma.csr);
 	csr = readl(&etdev->regs->rxdma.csr);
-	if ((csr & 0x00020000) != 1) {	/* Check halt status (bit 17) */
+	if ((csr & 0x00020000) == 0) {	/* Check halt status (bit 17) */
 		udelay(5);
 		csr = readl(&etdev->regs->rxdma.csr);
-		if ((csr & 0x00020000) != 1)
+		if ((csr & 0x00020000) == 0)
 			dev_err(&etdev->pdev->dev,
 			"RX Dma failed to enter halt state. CSR 0x%08x\n",
 				csr);
