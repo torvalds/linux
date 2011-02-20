@@ -1392,7 +1392,7 @@ static void rt2800_set_ant_diversity(struct rt2x00_dev *rt2x00dev,
 				   eesk_pin, 0);
 
 	rt2800_register_read(rt2x00dev, GPIO_CTRL_CFG, &reg);
-	rt2x00_set_field32(&reg, GPIO_CTRL_CFG_GPIOD, 0);
+	rt2x00_set_field32(&reg, GPIO_CTRL_CFG_GPIOD_BIT3, 0);
 	rt2x00_set_field32(&reg, GPIO_CTRL_CFG_BIT3, gpio_bit3);
 	rt2800_register_write(rt2x00dev, GPIO_CTRL_CFG, reg);
 }
