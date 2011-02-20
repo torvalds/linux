@@ -1873,7 +1873,7 @@ static void be_worker(struct work_struct *work)
 		goto reschedule;
 	}
 
-	if (!adapter->stats_ioctl_sent)
+	if (!adapter->stats_cmd_sent)
 		be_cmd_get_stats(adapter, &adapter->stats_cmd);
 
 	be_tx_rate_update(adapter);

@@ -298,7 +298,7 @@ struct be_adapter {
 	u32 rx_fc;		/* Rx flow control */
 	u32 tx_fc;		/* Tx flow control */
 	bool ue_detected;
-	bool stats_ioctl_sent;
+	bool stats_cmd_sent;
 	int link_speed;
 	u8 port_type;
 	u8 transceiver;
