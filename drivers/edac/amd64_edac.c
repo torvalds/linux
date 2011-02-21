@@ -1233,7 +1233,6 @@ static u64 f1x_get_norm_dct_addr(struct amd64_pvt *pvt, int range,
 	u64 chan_off;
 	u64 dram_base		= get_dram_base(pvt, range);
 	u64 hole_off		= f10_dhar_offset(pvt);
-	u32 hole_valid		= dhar_valid(pvt);
 	u64 dct_sel_base_off	= (pvt->dct_sel_hi & 0xFFFFFC00) << 16;
 
 	if (hi_rng) {
@@ -1250,7 +1249,7 @@ static u64 f1x_get_norm_dct_addr(struct amd64_pvt *pvt, int range,
 		 */
 		if ((!(dct_sel_base_addr >> 16) ||
 		     dct_sel_base_addr < dhar_base(pvt)) &&
-		    hole_valid &&
+		    dhar_valid(pvt) &&
 		    (sys_addr >= BIT_64(32)))
 			chan_off = hole_off;
 		else
@@ -1265,7 +1264,7 @@ static u64 f1x_get_norm_dct_addr(struct amd64_pvt *pvt, int range,
 		 * else
 		 *	remove dram base to normalize to DCT address
 		 */
-		if (hole_valid && (sys_addr >= BIT_64(32)))
+		if (dhar_valid(pvt) && (sys_addr >= BIT_64(32)))
 			chan_off = hole_off;
 		else
 			chan_off = dram_base;
