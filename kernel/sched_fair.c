@@ -2743,7 +2743,7 @@ static inline void update_sg_lb_stats(struct sched_domain *sd,
 
 	/*
 	 * Consider the group unbalanced when the imbalance is larger
-	 * than the average weight of two tasks.
+	 * than the average weight of a task.
 	 *
 	 * APZ: with cgroup the avg task weight can vary wildly and
 	 *      might not be a suitable number - should we keep a
@@ -2753,7 +2753,7 @@ static inline void update_sg_lb_stats(struct sched_domain *sd,
 	if (sgs->sum_nr_running)
 		avg_load_per_task = sgs->sum_weighted_load / sgs->sum_nr_running;
 
-	if ((max_cpu_load - min_cpu_load) > 2*avg_load_per_task && max_nr_running > 1)
+	if ((max_cpu_load - min_cpu_load) >= avg_load_per_task && max_nr_running > 1)
 		sgs->group_imb = 1;
 
 	sgs->group_capacity = DIV_ROUND_CLOSEST(group->cpu_power, SCHED_LOAD_SCALE);
@@ -3127,6 +3127,14 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 	/* There is no busy sibling group to pull tasks from */
 	if (!sds.busiest || sds.busiest_nr_running == 0)
 		goto out_balanced;
+
+	/*
+	 * If the busiest group is imbalanced the below checks don't
+	 * work because they assumes all things are equal, which typically
+	 * isn't true due to cpus_allowed constraints and the like.
+	 */
+	if (sds.group_imb)
+		goto force_balance;
 
 	/* SD_BALANCE_NEWIDLE trumps SMP nice when underutilized */
 	if (idle == CPU_NEWLY_IDLE && sds.this_has_capacity &&
