@@ -23,6 +23,23 @@ DEFINE_EVENT(ocfs2__int, name,	\
 	TP_PROTO(int num),	\
 	TP_ARGS(num))
 
+DECLARE_EVENT_CLASS(ocfs2__uint,
+	TP_PROTO(unsigned int num),
+	TP_ARGS(num),
+	TP_STRUCT__entry(
+		__field(	unsigned int,	num		)
+	),
+	TP_fast_assign(
+		__entry->num	= 	num;
+	),
+	TP_printk("%u", __entry->num)
+);
+
+#define DEFINE_OCFS2_UINT_EVENT(name)	\
+DEFINE_EVENT(ocfs2__uint, name,	\
+	TP_PROTO(unsigned int num),	\
+	TP_ARGS(num))
+
 DECLARE_EVENT_CLASS(ocfs2__int_int,
 	TP_PROTO(int value1, int value2),
 	TP_ARGS(value1, value2),
@@ -60,6 +77,55 @@ DECLARE_EVENT_CLASS(ocfs2__ull_uint,
 DEFINE_EVENT(ocfs2__ull_uint, name,	\
 	TP_PROTO(unsigned long long val1, unsigned int val2),	\
 	TP_ARGS(val1, val2))
+
+DECLARE_EVENT_CLASS(ocfs2__uint_uint_uint,
+	TP_PROTO(unsigned int value1, unsigned int value2,
+		 unsigned int value3),
+	TP_ARGS(value1, value2, value3),
+	TP_STRUCT__entry(
+		__field(	unsigned int,	value1		)
+		__field(	unsigned int,	value2		)
+		__field(	unsigned int,	value3		)
+	),
+	TP_fast_assign(
+		__entry->value1	= 	value1;
+		__entry->value2	= 	value2;
+		__entry->value3	= 	value3;
+	),
+	TP_printk("%u %u %u", __entry->value1, __entry->value2, __entry->value3)
+);
+
+#define DEFINE_OCFS2_UINT_UINT_UINT_EVENT(name)	\
+DEFINE_EVENT(ocfs2__uint_uint_uint, name,	\
+	TP_PROTO(unsigned int value1, unsigned int value2,	\
+		 unsigned int value3),	\
+	TP_ARGS(value1, value2, value3))
+
+DECLARE_EVENT_CLASS(ocfs2__ull_int_int_int,
+	TP_PROTO(unsigned long long ull, int value1, int value2, int value3),
+	TP_ARGS(ull, value1, value2, value3),
+	TP_STRUCT__entry(
+		__field(	unsigned long long,	ull	)
+		__field(	int,	value1			)
+		__field(	int,	value2			)
+		__field(	int,	value3			)
+	),
+	TP_fast_assign(
+		__entry->ull		= ull;
+		__entry->value1		= value1;
+		__entry->value2		= value2;
+		__entry->value3		= value3;
+	),
+	TP_printk("%llu %d %d %d",
+		  __entry->ull, __entry->value1,
+		  __entry->value2, __entry->value3)
+);
+
+#define DEFINE_OCFS2_ULL_INT_INT_INT_EVENT(name)	\
+DEFINE_EVENT(ocfs2__ull_int_int_int, name,	\
+	TP_PROTO(unsigned long long ull, int value1,	\
+		 int value2, int value3),	\
+	TP_ARGS(ull, value1, value2, value3))
 
 /* Trace events for fs/ocfs2/alloc.c. */
 DECLARE_EVENT_CLASS(ocfs2__btree_ops,
@@ -371,6 +437,52 @@ TRACE_EVENT(ocfs2_cache_block_dealloc,
 
 /* End of trace events for fs/ocfs2/alloc.c. */
 
+/* Trace events for fs/ocfs2/localalloc.c. */
+
+DEFINE_OCFS2_UINT_UINT_UINT_EVENT(ocfs2_la_set_sizes);
+
+DEFINE_OCFS2_ULL_INT_INT_INT_EVENT(ocfs2_alloc_should_use_local);
+
+DEFINE_OCFS2_INT_EVENT(ocfs2_load_local_alloc);
+
+DEFINE_OCFS2_INT_EVENT(ocfs2_begin_local_alloc_recovery);
+
+DEFINE_OCFS2_ULL_INT_INT_INT_EVENT(ocfs2_reserve_local_alloc_bits);
+
+DEFINE_OCFS2_UINT_EVENT(ocfs2_local_alloc_count_bits);
+
+DEFINE_OCFS2_INT_INT_EVENT(ocfs2_local_alloc_find_clear_bits_search_bitmap);
+
+DEFINE_OCFS2_ULL_INT_INT_INT_EVENT(ocfs2_local_alloc_find_clear_bits);
+
+DEFINE_OCFS2_INT_INT_EVENT(ocfs2_sync_local_to_main);
+
+TRACE_EVENT(ocfs2_sync_local_to_main_free,
+	TP_PROTO(int count, int bit, unsigned long long start_blk,
+		 unsigned long long blkno),
+	TP_ARGS(count, bit, start_blk, blkno),
+	TP_STRUCT__entry(
+		__field(int, count)
+		__field(int, bit)
+		__field(unsigned long long, start_blk)
+		__field(unsigned long long, blkno)
+	),
+	TP_fast_assign(
+		__entry->count = count;
+		__entry->bit = bit;
+		__entry->start_blk = start_blk;
+		__entry->blkno = blkno;
+	),
+	TP_printk("%d %d %llu %llu",
+		  __entry->count, __entry->bit, __entry->start_blk,
+		  __entry->blkno)
+);
+
+DEFINE_OCFS2_INT_INT_EVENT(ocfs2_local_alloc_new_window);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_local_alloc_new_window_result);
+
+/* End of trace events for fs/ocfs2/localalloc.c. */
 #endif /* _TRACE_OCFS2_H */
 
 /* This part must be outside protection */
