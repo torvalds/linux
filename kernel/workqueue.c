@@ -251,12 +251,12 @@ struct workqueue_struct *system_wq __read_mostly;
 struct workqueue_struct *system_long_wq __read_mostly;
 struct workqueue_struct *system_nrt_wq __read_mostly;
 struct workqueue_struct *system_unbound_wq __read_mostly;
-struct workqueue_struct *system_freezeable_wq __read_mostly;
+struct workqueue_struct *system_freezable_wq __read_mostly;
 EXPORT_SYMBOL_GPL(system_wq);
 EXPORT_SYMBOL_GPL(system_long_wq);
 EXPORT_SYMBOL_GPL(system_nrt_wq);
 EXPORT_SYMBOL_GPL(system_unbound_wq);
-EXPORT_SYMBOL_GPL(system_freezeable_wq);
+EXPORT_SYMBOL_GPL(system_freezable_wq);
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/workqueue.h>
@@ -3777,10 +3777,10 @@ static int __init init_workqueues(void)
 	system_nrt_wq = alloc_workqueue("events_nrt", WQ_NON_REENTRANT, 0);
 	system_unbound_wq = alloc_workqueue("events_unbound", WQ_UNBOUND,
 					    WQ_UNBOUND_MAX_ACTIVE);
-	system_freezeable_wq = alloc_workqueue("events_freezeable",
-					       WQ_FREEZEABLE, 0);
+	system_freezable_wq = alloc_workqueue("events_freezable",
+					      WQ_FREEZABLE, 0);
 	BUG_ON(!system_wq || !system_long_wq || !system_nrt_wq ||
-	       !system_unbound_wq || !system_freezeable_wq);
+	       !system_unbound_wq || !system_freezable_wq);
 	return 0;
 }
 early_initcall(init_workqueues);
