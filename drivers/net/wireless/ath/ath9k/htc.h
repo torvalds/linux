@@ -204,6 +204,8 @@ struct ath9k_htc_target_stats {
 	__be32 ht_tx_xretries;
 } __packed;
 
+#define ATH9K_HTC_MAX_VIF 2
+
 struct ath9k_htc_vif {
 	u8 index;
 };
@@ -357,6 +359,11 @@ struct ath9k_htc_priv {
 	enum htc_endpoint_id data_bk_ep;
 	enum htc_endpoint_id data_vi_ep;
 	enum htc_endpoint_id data_vo_ep;
+
+	u8 vif_slot;
+	u8 mon_vif_idx;
+	u8 sta_slot;
+	u8 vif_sta_pos[ATH9K_HTC_MAX_VIF];
 
 	u16 op_flags;
 	u16 curtxpow;

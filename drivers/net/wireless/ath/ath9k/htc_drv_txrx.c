@@ -84,7 +84,9 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_sta *sta = tx_info->control.sta;
+	struct ieee80211_vif *vif = tx_info->control.vif;
 	struct ath9k_htc_sta *ista;
+	struct ath9k_htc_vif *avp;
 	struct ath9k_htc_tx_ctl tx_ctl;
 	enum htc_endpoint_id epid;
 	u16 qnum;
@@ -95,18 +97,31 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 	hdr = (struct ieee80211_hdr *) skb->data;
 	fc = hdr->frame_control;
 
-	if (tx_info->control.vif &&
-			(struct ath9k_htc_vif *) tx_info->control.vif->drv_priv)
-		vif_idx = ((struct ath9k_htc_vif *)
-				tx_info->control.vif->drv_priv)->index;
-	else
-		vif_idx = priv->nvifs;
+	/*
+	 * Find out on which interface this packet has to be
+	 * sent out.
+	 */
+	if (vif) {
+		avp = (struct ath9k_htc_vif *) vif->drv_priv;
+		vif_idx = avp->index;
+	} else {
+		if (!priv->ah->is_monitoring) {
+			ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
+				"VIF is null, but no monitor interface !\n");
+			return -EINVAL;
+		}
 
+		vif_idx = priv->mon_vif_idx;
+	}
+
+	/*
+	 * Find out which station this packet is destined for.
+	 */
 	if (sta) {
 		ista = (struct ath9k_htc_sta *) sta->drv_priv;
 		sta_idx = ista->index;
 	} else {
-		sta_idx = 0;
+		sta_idx = priv->vif_sta_pos[vif_idx];
 	}
 
 	memset(&tx_ctl, 0, sizeof(struct ath9k_htc_tx_ctl));
