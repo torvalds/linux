@@ -707,7 +707,8 @@ static void ir_close(struct input_dev *idev)
 {
 	struct rc_dev *rdev = input_get_drvdata(idev);
 
-	rdev->close(rdev);
+	 if (rdev)
+		rdev->close(rdev);
 }
 
 /* class for /sys/class/rc */
