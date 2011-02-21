@@ -878,6 +878,7 @@
 enum ath_usb_dev {
 	AR9280_USB = 1, /* AR7010 + AR9280, UB94 */
 	AR9287_USB = 2, /* AR7010 + AR9287, UB95 */
+	STORAGE_DEVICE = 3,
 };
 
 #define AR_DEVID_7010(_ah) \
