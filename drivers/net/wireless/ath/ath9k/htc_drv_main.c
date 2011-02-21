@@ -166,6 +166,18 @@ static void ath9k_htc_set_bssid_mask(struct ath9k_htc_priv *priv,
 	ath_hw_setbssidmask(common);
 }
 
+static void ath9k_htc_set_opmode(struct ath9k_htc_priv *priv)
+{
+	if (priv->num_ibss_vif)
+		priv->ah->opmode = NL80211_IFTYPE_ADHOC;
+	else if (priv->num_ap_vif)
+		priv->ah->opmode = NL80211_IFTYPE_AP;
+	else
+		priv->ah->opmode = NL80211_IFTYPE_STATION;
+
+	ath9k_hw_setopmode(priv->ah);
+}
+
 void ath9k_htc_reset(struct ath9k_htc_priv *priv)
 {
 	struct ath_hw *ah = priv->ah;
@@ -1252,12 +1264,12 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 
 	ath9k_htc_set_bssid_mask(priv, vif);
 
-	priv->ah->opmode = vif->type;
 	priv->vif_slot |= (1 << avp->index);
 	priv->nvifs++;
 	priv->vif = vif;
 
 	INC_VIF(priv, vif->type);
+	ath9k_htc_set_opmode(priv);
 
 	ath_dbg(common, ATH_DBG_CONFIG,
 		"Attach a VIF of type: %d at idx: %d\n", vif->type, avp->index);
@@ -1293,6 +1305,7 @@ static void ath9k_htc_remove_interface(struct ieee80211_hw *hw,
 	priv->vif = NULL;
 
 	DEC_VIF(priv, vif->type);
+	ath9k_htc_set_opmode(priv);
 
 	ath_dbg(common, ATH_DBG_CONFIG, "Detach Interface at idx: %d\n", avp->index);
 
