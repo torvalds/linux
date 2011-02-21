@@ -2138,6 +2138,7 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 	u32 ar;
 
 	if (vmx->rmode.vm86_active && seg == VCPU_SREG_TR) {
+		vmcs_write16(sf->selector, var->selector);
 		vmx->rmode.tr.selector = var->selector;
 		vmx->rmode.tr.base = var->base;
 		vmx->rmode.tr.limit = var->limit;
