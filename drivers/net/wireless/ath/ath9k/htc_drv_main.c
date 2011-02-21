@@ -318,15 +318,6 @@ static int ath9k_htc_add_monitor_interface(struct ath9k_htc_priv *priv)
 
 	priv->sta_slot |= (1 << sta_idx);
 	priv->nstations++;
-
-	/*
-	 * Set chainmask etc. on the target.
-	 */
-	ret = ath9k_htc_update_cap_target(priv);
-	if (ret)
-		ath_dbg(common, ATH_DBG_CONFIG,
-			"Failed to update capability in target\n");
-
 	priv->vif_sta_pos[priv->mon_vif_idx] = sta_idx;
 	priv->ah->is_monitoring = true;
 
@@ -1050,6 +1041,11 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 
 	ath9k_host_rx_init(priv);
 
+	ret = ath9k_htc_update_cap_target(priv);
+	if (ret)
+		ath_dbg(common, ATH_DBG_CONFIG,
+			"Failed to update capability in target\n");
+
 	priv->op_flags &= ~OP_INVALID;
 	htc_start(priv->htc);
 
@@ -1181,11 +1177,6 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 	ret = ath9k_htc_add_station(priv, vif, NULL);
 	if (ret)
 		goto out;
-
-	ret = ath9k_htc_update_cap_target(priv);
-	if (ret)
-		ath_dbg(common, ATH_DBG_CONFIG,
-			"Failed to update capability in target\n");
 
 	priv->ah->opmode = vif->type;
 	priv->vif_slot |= (1 << avp->index);
