@@ -1281,17 +1281,17 @@ static void b43_nphy_gain_ctrl_workarounds(struct b43_wldev *dev)
 						B43_NPHY_TABLE_DATALO, tmp);
 				}
 			}
-
-			b43_nphy_set_rf_sequence(dev, 5,
-					rfseq_events, rfseq_delays, 3);
-			b43_phy_maskset(dev, B43_NPHY_OVER_DGAIN1,
-				~B43_NPHY_OVER_DGAIN_CCKDGECV & 0xFFFF,
-				0x5A << B43_NPHY_OVER_DGAIN_CCKDGECV_SHIFT);
-
-			if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
-				b43_phy_maskset(dev, B43_PHY_N(0xC5D),
-						0xFF80, 4);
 		}
+
+		b43_nphy_set_rf_sequence(dev, 5,
+				rfseq_events, rfseq_delays, 3);
+		b43_phy_maskset(dev, B43_NPHY_OVER_DGAIN1,
+			~B43_NPHY_OVER_DGAIN_CCKDGECV & 0xFFFF,
+			0x5A << B43_NPHY_OVER_DGAIN_CCKDGECV_SHIFT);
+
+		if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+			b43_phy_maskset(dev, B43_PHY_N(0xC5D),
+					0xFF80, 4);
 	}
 }
 
