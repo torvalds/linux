@@ -1255,13 +1255,13 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	CHK_SUSPEND(inf);
     if(inf->fb0_color_deepth)var->bits_per_pixel=inf->fb0_color_deepth;
-    
+
     switch(var1->bits_per_pixel)
     {
     case 16:    // rgb565
         var->xoffset = (var->xoffset) & (~0x1);
         offset = (var->yoffset*var1->xres_virtual + var->xoffset)*(inf->fb0_color_deepth ? 4:2);
-        break; 
+        break;
     case 32:    // rgb888
         offset = (var->yoffset*var1->xres_virtual + var->xoffset)*4;
         break;
@@ -1309,9 +1309,9 @@ static int fb0_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
         }
         break;
    case FBIOPUT_16OR32:
-        
+
         inf->fb0_color_deepth = arg;
-        
+
 	    break;
    default:
         break;
@@ -2444,20 +2444,28 @@ static int rk29fb_remove(struct platform_device *pdev)
 static void rk29fb_shutdown(struct platform_device *pdev)
 {
     struct rk29fb_inf *inf = platform_get_drvdata(pdev);
-    mdelay(300);
-	//printk("----------------------------rk29fb_shutdown----------------------------\n");
-  	set_lcd_pin(pdev, 0);
-	if (inf->clk)
+
+	fbprintk("----------------------------rk29fb_shutdown----------------------------\n");
+
+    set_lcd_pin(pdev, 0);
+    if(!inf->in_suspend)
     {
-		clk_disable(inf->clk);
-		clk_put(inf->clk);
-		inf->clk = NULL;
-	}
-    if (inf->dclk)
-    {
-		clk_disable(inf->dclk);
-		clk_put(inf->dclk);
-		inf->dclk = NULL;
+        LcdMskReg(inf, DSP_CTRL1, m_BLANK_MODE , v_BLANK_MODE(1));
+        LcdMskReg(inf, SYS_CONFIG, m_STANDBY, v_STANDBY(1));
+        LcdWrReg(inf, REG_CFG_DONE, 0x01);
+        mdelay(100);
+        clk_disable(inf->aclk_ddr_lcdc);
+        clk_disable(inf->aclk_disp_matrix);
+        clk_disable(inf->hclk_cpu_display);
+        clk_disable(inf->clk);
+        if(inf->dclk){
+            clk_disable(inf->dclk);
+        }
+        if(inf->clk){
+            clk_disable(inf->aclk);
+        }
+       // pmu_set_power_domain(PD_DISPLAY, 0);
+		inf->in_suspend = 1;
 	}
 
 }
