@@ -188,6 +188,9 @@ void drbd_bm_unlock(struct drbd_conf *mdev)
 /* to mark for lazy writeout once syncer cleared all clearable bits,
  * we if bits have been cleared since last IO. */
 #define BM_PAGE_LAZY_WRITEOUT	28
+/* pages marked with this "HINT" will be considered for writeout
+ * on activity log transactions */
+#define BM_PAGE_HINT_WRITEOUT	27
 
 /* store_page_idx uses non-atomic assignment. It is only used directly after
  * allocating the page.  All other bm_set_page_* and bm_clear_page_* need to
@@ -235,6 +238,27 @@ static void bm_set_page_unchanged(struct page *page)
 static void bm_set_page_need_writeout(struct page *page)
 {
 	set_bit(BM_PAGE_NEED_WRITEOUT, &page_private(page));
+}
+
+/**
+ * drbd_bm_mark_for_writeout() - mark a page with a "hint" to be considered for writeout
+ * @mdev:	DRBD device.
+ * @page_nr:	the bitmap page to mark with the "hint" flag
+ *
+ * From within an activity log transaction, we mark a few pages with these
+ * hints, then call drbd_bm_write_hinted(), which will only write out changed
+ * pages which are flagged with this mark.
+ */
+void drbd_bm_mark_for_writeout(struct drbd_conf *mdev, int page_nr)
+{
+	struct page *page;
+	if (page_nr >= mdev->bitmap->bm_number_of_pages) {
+		dev_warn(DEV, "BAD: page_nr: %u, number_of_pages: %u\n",
+			 page_nr, (int)mdev->bitmap->bm_number_of_pages);
+		return;
+	}
+	page = mdev->bitmap->bm_pages[page_nr];
+	set_bit(BM_PAGE_HINT_WRITEOUT, &page_private(page));
 }
 
 static int bm_test_page_unchanged(struct page *page)
@@ -897,6 +921,7 @@ struct bm_aio_ctx {
 	struct completion done;
 	unsigned flags;
 #define BM_AIO_COPY_PAGES	1
+#define BM_AIO_WRITE_HINTED	2
 	int error;
 };
 
@@ -1007,13 +1032,13 @@ static void bm_page_io_async(struct bm_aio_ctx *ctx, int page_nr, int rw) __must
 /*
  * bm_rw: read/write the whole bitmap from/to its on disk location.
  */
-static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_idx) __must_hold(local)
+static int bm_rw(struct drbd_conf *mdev, int rw, unsigned flags, unsigned lazy_writeout_upper_idx) __must_hold(local)
 {
 	struct bm_aio_ctx ctx = {
 		.mdev = mdev,
 		.in_flight = ATOMIC_INIT(1),
 		.done = COMPLETION_INITIALIZER_ONSTACK(ctx.done),
-		.flags = lazy_writeout_upper_idx ? BM_AIO_COPY_PAGES : 0,
+		.flags = flags,
 	};
 	struct drbd_bitmap *b = mdev->bitmap;
 	int num_pages, i, count = 0;
@@ -1042,6 +1067,10 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_id
 		if (lazy_writeout_upper_idx && i == lazy_writeout_upper_idx)
 			break;
 		if (rw & WRITE) {
+			if ((flags & BM_AIO_WRITE_HINTED) &&
+			    !test_and_clear_bit(BM_PAGE_HINT_WRITEOUT,
+				    &page_private(b->bm_pages[i])))
+				continue;
 			if (bm_test_page_unchanged(b->bm_pages[i])) {
 				dynamic_dev_dbg(DEV, "skipped bm write for idx %u\n", i);
 				continue;
@@ -1099,7 +1128,7 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_id
  */
 int drbd_bm_read(struct drbd_conf *mdev) __must_hold(local)
 {
-	return bm_rw(mdev, READ, 0);
+	return bm_rw(mdev, READ, 0, 0);
 }
 
 /**
@@ -1110,7 +1139,7 @@ int drbd_bm_read(struct drbd_conf *mdev) __must_hold(local)
  */
 int drbd_bm_write(struct drbd_conf *mdev) __must_hold(local)
 {
-	return bm_rw(mdev, WRITE, 0);
+	return bm_rw(mdev, WRITE, 0, 0);
 }
 
 /**
@@ -1120,12 +1149,20 @@ int drbd_bm_write(struct drbd_conf *mdev) __must_hold(local)
  */
 int drbd_bm_write_lazy(struct drbd_conf *mdev, unsigned upper_idx) __must_hold(local)
 {
-	return bm_rw(mdev, WRITE, upper_idx);
+	return bm_rw(mdev, WRITE, BM_AIO_COPY_PAGES, upper_idx);
 }
 
+/**
+ * drbd_bm_write_hinted() - Write bitmap pages with "hint" marks, if they have changed.
+ * @mdev:	DRBD device.
+ */
+int drbd_bm_write_hinted(struct drbd_conf *mdev) __must_hold(local)
+{
+	return bm_rw(mdev, WRITE, BM_AIO_WRITE_HINTED | BM_AIO_COPY_PAGES, 0);
+}
 
 /**
- * drbd_bm_write_page: Writes a PAGE_SIZE aligned piece of bitmap
+ * drbd_bm_write_page() - Writes a PAGE_SIZE aligned piece of bitmap
  * @mdev:	DRBD device.
  * @idx:	bitmap page index
  *

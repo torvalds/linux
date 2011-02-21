@@ -1310,11 +1310,14 @@ struct bm_extent {
 
 #define SLEEP_TIME (HZ/10)
 
-#define BM_BLOCK_SHIFT  12			 /* 4k per bit */
+/* We do bitmap IO in units of 4k blocks.
+ * We also still have a hardcoded 4k per bit relation. */
+#define BM_BLOCK_SHIFT	12			 /* 4k per bit */
 #define BM_BLOCK_SIZE	 (1<<BM_BLOCK_SHIFT)
-/* (9+3) : 512 bytes @ 8 bits; representing 16M storage
- * per sector of on disk bitmap */
-#define BM_EXT_SHIFT	 (BM_BLOCK_SHIFT + MD_SECTOR_SHIFT + 3)  /* = 24 */
+/* mostly arbitrarily set the represented size of one bitmap extent,
+ * aka resync extent, to 16 MiB (which is also 512 Byte worth of bitmap
+ * at 4k per bit resolution) */
+#define BM_EXT_SHIFT	 24	/* 16 MiB per resync extent */
 #define BM_EXT_SIZE	 (1<<BM_EXT_SHIFT)
 
 #if (BM_EXT_SHIFT != 24) || (BM_BLOCK_SHIFT != 12)
@@ -1408,7 +1411,9 @@ extern int  drbd_bm_test_bit(struct drbd_conf *mdev, unsigned long bitnr);
 extern int  drbd_bm_e_weight(struct drbd_conf *mdev, unsigned long enr);
 extern int  drbd_bm_write_page(struct drbd_conf *mdev, unsigned int idx) __must_hold(local);
 extern int  drbd_bm_read(struct drbd_conf *mdev) __must_hold(local);
+extern void drbd_bm_mark_for_writeout(struct drbd_conf *mdev, int page_nr);
 extern int  drbd_bm_write(struct drbd_conf *mdev) __must_hold(local);
+extern int  drbd_bm_write_hinted(struct drbd_conf *mdev) __must_hold(local);
 extern unsigned long drbd_bm_ALe_set_all(struct drbd_conf *mdev,
 		unsigned long al_enr);
 extern size_t	     drbd_bm_words(struct drbd_conf *mdev);
