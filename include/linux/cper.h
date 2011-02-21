@@ -388,5 +388,7 @@ struct cper_sec_pcie {
 #pragma pack()
 
 u64 cper_next_record_id(void);
+void cper_print_bits(const char *prefix, unsigned int bits,
+		     const char *strs[], unsigned int strs_size);
 
 #endif
