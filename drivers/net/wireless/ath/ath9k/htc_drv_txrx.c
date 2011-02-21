@@ -407,7 +407,7 @@ u32 ath9k_htc_calcrxfilter(struct ath9k_htc_priv *priv)
 	 */
 	if (((ah->opmode != NL80211_IFTYPE_AP) &&
 	     (priv->rxfilter & FIF_PROMISC_IN_BSS)) ||
-	    (ah->opmode == NL80211_IFTYPE_MONITOR))
+	    ah->is_monitoring)
 		rfilt |= ATH9K_RX_FILTER_PROM;
 
 	if (priv->rxfilter & FIF_CONTROL)
@@ -419,8 +419,13 @@ u32 ath9k_htc_calcrxfilter(struct ath9k_htc_priv *priv)
 	else
 		rfilt |= ATH9K_RX_FILTER_BEACON;
 
-	if (conf_is_ht(&priv->hw->conf))
+	if (conf_is_ht(&priv->hw->conf)) {
 		rfilt |= ATH9K_RX_FILTER_COMP_BAR;
+		rfilt |= ATH9K_RX_FILTER_UNCOMP_BA_BAR;
+	}
+
+	if (priv->rxfilter & FIF_PSPOLL)
+		rfilt |= ATH9K_RX_FILTER_PSPOLL;
 
 	return rfilt;
 
