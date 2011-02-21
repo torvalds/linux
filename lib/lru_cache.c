@@ -308,6 +308,58 @@ static int lc_unused_element_available(struct lru_cache *lc)
 	return 0;
 }
 
+static struct lc_element *__lc_get(struct lru_cache *lc, unsigned int enr, bool may_change)
+{
+	struct lc_element *e;
+
+	PARANOIA_ENTRY();
+	if (lc->flags & LC_STARVING) {
+		++lc->starving;
+		RETURN(NULL);
+	}
+
+	e = lc_find(lc, enr);
+	if (e) {
+		++lc->hits;
+		if (e->refcnt++ == 0)
+			lc->used++;
+		list_move(&e->list, &lc->in_use); /* Not evictable... */
+		RETURN(e);
+	}
+
+	++lc->misses;
+	if (!may_change)
+		RETURN(NULL);
+
+	/* In case there is nothing available and we can not kick out
+	 * the LRU element, we have to wait ...
+	 */
+	if (!lc_unused_element_available(lc)) {
+		__set_bit(__LC_STARVING, &lc->flags);
+		RETURN(NULL);
+	}
+
+	/* it was not present in the active set.
+	 * we are going to recycle an unused (or even "free") element.
+	 * user may need to commit a transaction to record that change.
+	 * we serialize on flags & LC_DIRTY */
+	if (test_and_set_bit(__LC_DIRTY, &lc->flags)) {
+		++lc->dirty;
+		RETURN(NULL);
+	}
+
+	e = lc_get_unused_element(lc);
+	BUG_ON(!e);
+
+	clear_bit(__LC_STARVING, &lc->flags);
+	BUG_ON(++e->refcnt != 1);
+	lc->used++;
+
+	lc->changing_element = e;
+	lc->new_number = enr;
+
+	RETURN(e);
+}
 
 /**
  * lc_get - get element by label, maybe change the active set
@@ -348,78 +400,28 @@ static int lc_unused_element_available(struct lru_cache *lc)
  */
 struct lc_element *lc_get(struct lru_cache *lc, unsigned int enr)
 {
-	struct lc_element *e;
-
-	PARANOIA_ENTRY();
-	if (lc->flags & LC_STARVING) {
-		++lc->starving;
-		RETURN(NULL);
-	}
-
-	e = lc_find(lc, enr);
-	if (e) {
-		++lc->hits;
-		if (e->refcnt++ == 0)
-			lc->used++;
-		list_move(&e->list, &lc->in_use); /* Not evictable... */
-		RETURN(e);
-	}
-
-	++lc->misses;
-
-	/* In case there is nothing available and we can not kick out
-	 * the LRU element, we have to wait ...
-	 */
-	if (!lc_unused_element_available(lc)) {
-		__set_bit(__LC_STARVING, &lc->flags);
-		RETURN(NULL);
-	}
-
-	/* it was not present in the active set.
-	 * we are going to recycle an unused (or even "free") element.
-	 * user may need to commit a transaction to record that change.
-	 * we serialize on flags & LC_DIRTY */
-	if (test_and_set_bit(__LC_DIRTY, &lc->flags)) {
-		++lc->dirty;
-		RETURN(NULL);
-	}
-
-	e = lc_get_unused_element(lc);
-	BUG_ON(!e);
-
-	clear_bit(__LC_STARVING, &lc->flags);
-	BUG_ON(++e->refcnt != 1);
-	lc->used++;
-
-	lc->changing_element = e;
-	lc->new_number = enr;
-
-	RETURN(e);
+	return __lc_get(lc, enr, 1);
 }
 
-/* similar to lc_get,
- * but only gets a new reference on an existing element.
- * you either get the requested element, or NULL.
- * will be consolidated into one function.
+/**
+ * lc_try_get - get element by label, if present; do not change the active set
+ * @lc: the lru cache to operate on
+ * @enr: the label to look up
+ *
+ * Finds an element in the cache, increases its usage count,
+ * "touches" and returns it.
+ *
+ * Return values:
+ *  NULL
+ *     The cache was marked %LC_STARVING,
+ *     or the requested label was not in the active set
+ *
+ *  pointer to the element with the REQUESTED element number.
+ *     In this case, it can be used right away
  */
 struct lc_element *lc_try_get(struct lru_cache *lc, unsigned int enr)
 {
-	struct lc_element *e;
-
-	PARANOIA_ENTRY();
-	if (lc->flags & LC_STARVING) {
-		++lc->starving;
-		RETURN(NULL);
-	}
-
-	e = lc_find(lc, enr);
-	if (e) {
-		++lc->hits;
-		if (e->refcnt++ == 0)
-			lc->used++;
-		list_move(&e->list, &lc->in_use); /* Not evictable... */
-	}
-	RETURN(e);
+	return __lc_get(lc, enr, 0);
 }
 
 /**
