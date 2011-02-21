@@ -45,6 +45,7 @@
 #include <linux/pagemap.h>
 #include <linux/kref.h>
 #include <linux/slab.h>
+#include <linux/task_io_accounting_ops.h>
 
 #include <linux/nfs_fs.h>
 #include <linux/nfs_page.h>
@@ -937,6 +938,8 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, const struct iovec *iov,
 	if (retval)
 		goto out;
 
+	task_io_account_read(count);
+
 	retval = nfs_direct_read(iocb, iov, nr_segs, pos);
 	if (retval > 0)
 		iocb->ki_pos = pos + retval;
@@ -997,6 +1000,8 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 	retval = nfs_sync_mapping(mapping);
 	if (retval)
 		goto out;
+
+	task_io_account_write(count);
 
 	retval = nfs_direct_write(iocb, iov, nr_segs, pos, count);
 
