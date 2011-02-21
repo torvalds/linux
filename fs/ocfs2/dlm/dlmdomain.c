@@ -926,9 +926,10 @@ static int dlm_assert_joined_handler(struct o2net_msg *msg, u32 len, void *data,
 }
 
 static int dlm_match_regions(struct dlm_ctxt *dlm,
-			     struct dlm_query_region *qr)
+			     struct dlm_query_region *qr,
+			     char *local, int locallen)
 {
-	char *local = NULL, *remote = qr->qr_regions;
+	char *remote = qr->qr_regions;
 	char *l, *r;
 	int localnr, i, j, foundit;
 	int status = 0;
@@ -957,13 +958,8 @@ static int dlm_match_regions(struct dlm_ctxt *dlm,
 		r += O2HB_MAX_REGION_NAME_LEN;
 	}
 
-	local = kmalloc(sizeof(qr->qr_regions), GFP_ATOMIC);
-	if (!local) {
-		status = -ENOMEM;
-		goto bail;
-	}
-
-	localnr = o2hb_get_all_regions(local, O2NM_MAX_REGIONS);
+	localnr = min(O2NM_MAX_REGIONS, locallen/O2HB_MAX_REGION_NAME_LEN);
+	localnr = o2hb_get_all_regions(local, (u8)localnr);
 
 	/* compare local regions with remote */
 	l = local;
@@ -1012,8 +1008,6 @@ static int dlm_match_regions(struct dlm_ctxt *dlm,
 	}
 
 bail:
-	kfree(local);
-
 	return status;
 }
 
@@ -1075,6 +1069,7 @@ static int dlm_query_region_handler(struct o2net_msg *msg, u32 len,
 {
 	struct dlm_query_region *qr;
 	struct dlm_ctxt *dlm = NULL;
+	char *local = NULL;
 	int status = 0;
 	int locked = 0;
 
@@ -1082,6 +1077,13 @@ static int dlm_query_region_handler(struct o2net_msg *msg, u32 len,
 
 	mlog(0, "Node %u queries hb regions on domain %s\n", qr->qr_node,
 	     qr->qr_domain);
+
+	/* buffer used in dlm_mast_regions() */
+	local = kmalloc(sizeof(qr->qr_regions), GFP_KERNEL);
+	if (!local) {
+		status = -ENOMEM;
+		goto bail;
+	}
 
 	status = -EINVAL;
 
@@ -1112,12 +1114,14 @@ static int dlm_query_region_handler(struct o2net_msg *msg, u32 len,
 		goto bail;
 	}
 
-	status = dlm_match_regions(dlm, qr);
+	status = dlm_match_regions(dlm, qr, local, sizeof(qr->qr_regions));
 
 bail:
 	if (locked)
 		spin_unlock(&dlm->spinlock);
 	spin_unlock(&dlm_domain_lock);
+
+	kfree(local);
 
 	return status;
 }
