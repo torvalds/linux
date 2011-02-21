@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -89,7 +89,7 @@ static struct iwl3945_tpt_entry iwl3945_tpt_table_g[] = {
 };
 
 #define IWL_RATE_MAX_WINDOW          62
-#define IWL_RATE_FLUSH       	 (3*HZ)
+#define IWL_RATE_FLUSH		(3*HZ)
 #define IWL_RATE_WIN_FLUSH       (HZ/2)
 #define IWL39_RATE_HIGH_TH          11520
 #define IWL_SUCCESS_UP_TH	   8960
@@ -394,18 +394,18 @@ out:
 	IWL_DEBUG_INFO(priv, "leave\n");
 }
 
-static void *rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
+static void *iwl3945_rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 {
 	return hw->priv;
 }
 
 /* rate scale requires free function to be implemented */
-static void rs_free(void *priv)
+static void iwl3945_rs_free(void *priv)
 {
 	return;
 }
 
-static void *rs_alloc_sta(void *iwl_priv, struct ieee80211_sta *sta, gfp_t gfp)
+static void *iwl3945_rs_alloc_sta(void *iwl_priv, struct ieee80211_sta *sta, gfp_t gfp)
 {
 	struct iwl3945_rs_sta *rs_sta;
 	struct iwl3945_sta_priv *psta = (void *) sta->drv_priv;
@@ -423,7 +423,7 @@ static void *rs_alloc_sta(void *iwl_priv, struct ieee80211_sta *sta, gfp_t gfp)
 	return rs_sta;
 }
 
-static void rs_free_sta(void *iwl_priv, struct ieee80211_sta *sta,
+static void iwl3945_rs_free_sta(void *iwl_priv, struct ieee80211_sta *sta,
 			void *priv_sta)
 {
 	struct iwl3945_rs_sta *rs_sta = priv_sta;
@@ -438,12 +438,12 @@ static void rs_free_sta(void *iwl_priv, struct ieee80211_sta *sta,
 
 
 /**
- * rs_tx_status - Update rate control values based on Tx results
+ * iwl3945_rs_tx_status - Update rate control values based on Tx results
  *
  * NOTE: Uses iwl_priv->retry_rate for the # of retries attempted by
  * the hardware for each rate.
  */
-static void rs_tx_status(void *priv_rate, struct ieee80211_supported_band *sband,
+static void iwl3945_rs_tx_status(void *priv_rate, struct ieee80211_supported_band *sband,
 			 struct ieee80211_sta *sta, void *priv_sta,
 			 struct sk_buff *skb)
 {
@@ -612,7 +612,7 @@ static u16 iwl3945_get_adjacent_rate(struct iwl3945_rs_sta *rs_sta,
 }
 
 /**
- * rs_get_rate - find the rate for the requested packet
+ * iwl3945_rs_get_rate - find the rate for the requested packet
  *
  * Returns the ieee80211_rate structure allocated by the driver.
  *
@@ -627,7 +627,7 @@ static u16 iwl3945_get_adjacent_rate(struct iwl3945_rs_sta *rs_sta,
  * rate table and must reference the driver allocated rate table
  *
  */
-static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
+static void iwl3945_rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 			void *priv_sta,	struct ieee80211_tx_rate_control *txrc)
 {
 	struct ieee80211_supported_band *sband = txrc->sband;
@@ -899,7 +899,8 @@ static void iwl3945_remove_debugfs(void *priv, void *priv_sta)
  * the station is added. Since mac80211 calls this function before a
  * station is added we ignore it.
  */
-static void rs_rate_init_stub(void *priv_r, struct ieee80211_supported_band *sband,
+static void iwl3945_rs_rate_init_stub(void *priv_r,
+				struct ieee80211_supported_band *sband,
 			      struct ieee80211_sta *sta, void *priv_sta)
 {
 }
@@ -907,13 +908,13 @@ static void rs_rate_init_stub(void *priv_r, struct ieee80211_supported_band *sba
 static struct rate_control_ops rs_ops = {
 	.module = NULL,
 	.name = RS_NAME,
-	.tx_status = rs_tx_status,
-	.get_rate = rs_get_rate,
-	.rate_init = rs_rate_init_stub,
-	.alloc = rs_alloc,
-	.free = rs_free,
-	.alloc_sta = rs_alloc_sta,
-	.free_sta = rs_free_sta,
+	.tx_status = iwl3945_rs_tx_status,
+	.get_rate = iwl3945_rs_get_rate,
+	.rate_init = iwl3945_rs_rate_init_stub,
+	.alloc = iwl3945_rs_alloc,
+	.free = iwl3945_rs_free,
+	.alloc_sta = iwl3945_rs_alloc_sta,
+	.free_sta = iwl3945_rs_free_sta,
 #ifdef CONFIG_MAC80211_DEBUGFS
 	.add_sta_debugfs = iwl3945_add_debugfs,
 	.remove_sta_debugfs = iwl3945_remove_debugfs,
@@ -991,5 +992,3 @@ void iwl3945_rate_control_unregister(void)
 {
 	ieee80211_rate_control_unregister(&rs_ops);
 }
-
-

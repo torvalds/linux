@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2011 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -86,7 +86,7 @@
  *
  * Driver sequence:
  *
- * iwl_rx_queue_alloc()   Allocates rx_free
+ * iwl_legacy_rx_queue_alloc()   Allocates rx_free
  * iwl_rx_replenish()     Replenishes rx_free list from rx_used, and calls
  *                            iwl_rx_queue_restock
  * iwl_rx_queue_restock() Moves available buffers from rx_free into Rx
@@ -105,9 +105,9 @@
  */
 
 /**
- * iwl_rx_queue_space - Return number of free slots available in queue.
+ * iwl_legacy_rx_queue_space - Return number of free slots available in queue.
  */
-int iwl_rx_queue_space(const struct iwl_rx_queue *q)
+int iwl_legacy_rx_queue_space(const struct iwl_rx_queue *q)
 {
 	int s = q->read - q->write;
 	if (s <= 0)
@@ -118,11 +118,14 @@ int iwl_rx_queue_space(const struct iwl_rx_queue *q)
 		s = 0;
 	return s;
 }
+EXPORT_SYMBOL(iwl_legacy_rx_queue_space);
 
 /**
- * iwl_rx_queue_update_write_ptr - Update the write pointer for the RX queue
+ * iwl_legacy_rx_queue_update_write_ptr - Update the write pointer for the RX queue
  */
-void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl_rx_queue *q)
+void
+iwl_legacy_rx_queue_update_write_ptr(struct iwl_priv *priv,
+					struct iwl_rx_queue *q)
 {
 	unsigned long flags;
 	u32 rx_wrt_ptr_reg = priv->hw_params.rx_wrt_ptr_reg;
@@ -133,44 +136,39 @@ void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl_rx_queue *q
 	if (q->need_update == 0)
 		goto exit_unlock;
 
-	if (priv->cfg->base_params->shadow_reg_enable) {
-		/* shadow register enabled */
+	/* If power-saving is in use, make sure device is awake */
+	if (test_bit(STATUS_POWER_PMI, &priv->status)) {
+		reg = iwl_read32(priv, CSR_UCODE_DRV_GP1);
+
+		if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
+			IWL_DEBUG_INFO(priv,
+				"Rx queue requesting wakeup,"
+				" GP1 = 0x%x\n", reg);
+			iwl_legacy_set_bit(priv, CSR_GP_CNTRL,
+				CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+			goto exit_unlock;
+		}
+
+		q->write_actual = (q->write & ~0x7);
+		iwl_legacy_write_direct32(priv, rx_wrt_ptr_reg,
+				q->write_actual);
+
+	/* Else device is assumed to be awake */
+	} else {
 		/* Device expects a multiple of 8 */
 		q->write_actual = (q->write & ~0x7);
-		iwl_write32(priv, rx_wrt_ptr_reg, q->write_actual);
-	} else {
-		/* If power-saving is in use, make sure device is awake */
-		if (test_bit(STATUS_POWER_PMI, &priv->status)) {
-			reg = iwl_read32(priv, CSR_UCODE_DRV_GP1);
-
-			if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
-				IWL_DEBUG_INFO(priv,
-					"Rx queue requesting wakeup,"
-					" GP1 = 0x%x\n", reg);
-				iwl_set_bit(priv, CSR_GP_CNTRL,
-					CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-				goto exit_unlock;
-			}
-
-			q->write_actual = (q->write & ~0x7);
-			iwl_write_direct32(priv, rx_wrt_ptr_reg,
-					q->write_actual);
-
-		/* Else device is assumed to be awake */
-		} else {
-			/* Device expects a multiple of 8 */
-			q->write_actual = (q->write & ~0x7);
-			iwl_write_direct32(priv, rx_wrt_ptr_reg,
-				q->write_actual);
-		}
+		iwl_legacy_write_direct32(priv, rx_wrt_ptr_reg,
+			q->write_actual);
 	}
+
 	q->need_update = 0;
 
  exit_unlock:
 	spin_unlock_irqrestore(&q->lock, flags);
 }
+EXPORT_SYMBOL(iwl_legacy_rx_queue_update_write_ptr);
 
-int iwl_rx_queue_alloc(struct iwl_priv *priv)
+int iwl_legacy_rx_queue_alloc(struct iwl_priv *priv)
 {
 	struct iwl_rx_queue *rxq = &priv->rxq;
 	struct device *dev = &priv->pci_dev->dev;
@@ -209,9 +207,10 @@ err_rb:
 err_bd:
 	return -ENOMEM;
 }
+EXPORT_SYMBOL(iwl_legacy_rx_queue_alloc);
 
 
-void iwl_rx_spectrum_measure_notif(struct iwl_priv *priv,
+void iwl_legacy_rx_spectrum_measure_notif(struct iwl_priv *priv,
 					  struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
@@ -226,30 +225,33 @@ void iwl_rx_spectrum_measure_notif(struct iwl_priv *priv,
 	memcpy(&priv->measure_report, report, sizeof(*report));
 	priv->measurement_status |= MEASUREMENT_READY;
 }
+EXPORT_SYMBOL(iwl_legacy_rx_spectrum_measure_notif);
 
-void iwl_recover_from_statistics(struct iwl_priv *priv,
+void iwl_legacy_recover_from_statistics(struct iwl_priv *priv,
 				struct iwl_rx_packet *pkt)
 {
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status) ||
-	    !iwl_is_any_associated(priv))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
-
-	if (priv->cfg->ops->lib->check_ack_health &&
-	    !priv->cfg->ops->lib->check_ack_health(priv, pkt)) {
-		IWL_ERR(priv, "low ack count detected, restart firmware\n");
-		if (!iwl_force_reset(priv, IWL_FW_RESET, false))
-			return;
+	if (iwl_legacy_is_any_associated(priv)) {
+		if (priv->cfg->ops->lib->check_plcp_health) {
+			if (!priv->cfg->ops->lib->check_plcp_health(
+			    priv, pkt)) {
+				/*
+				 * high plcp error detected
+				 * reset Radio
+				 */
+				iwl_legacy_force_reset(priv,
+							IWL_RF_RESET, false);
+			}
+		}
 	}
-
-	if (priv->cfg->ops->lib->check_plcp_health &&
-	    !priv->cfg->ops->lib->check_plcp_health(priv, pkt))
-		iwl_force_reset(priv, IWL_RF_RESET, false);
 }
+EXPORT_SYMBOL(iwl_legacy_recover_from_statistics);
 
 /*
  * returns non-zero if packet should be dropped
  */
-int iwl_set_decrypted_flag(struct iwl_priv *priv,
+int iwl_legacy_set_decrypted_flag(struct iwl_priv *priv,
 			   struct ieee80211_hdr *hdr,
 			   u32 decrypt_res,
 			   struct ieee80211_rx_status *stats)
@@ -297,3 +299,4 @@ int iwl_set_decrypted_flag(struct iwl_priv *priv,
 	}
 	return 0;
 }
+EXPORT_SYMBOL(iwl_legacy_set_decrypted_flag);

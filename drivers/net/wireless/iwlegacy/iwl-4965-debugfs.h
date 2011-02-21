@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,30 +30,29 @@
 #include "iwl-core.h"
 #include "iwl-debug.h"
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-ssize_t iwl3945_ucode_rx_stats_read(struct file *file, char __user *user_buf,
-				    size_t count, loff_t *ppos);
-ssize_t iwl3945_ucode_tx_stats_read(struct file *file, char __user *user_buf,
-				    size_t count, loff_t *ppos);
-ssize_t iwl3945_ucode_general_stats_read(struct file *file,
-					 char __user *user_buf, size_t count,
-					 loff_t *ppos);
+#ifdef CONFIG_IWLWIFI_LEGACY_DEBUGFS
+ssize_t iwl4965_ucode_rx_stats_read(struct file *file, char __user *user_buf,
+				size_t count, loff_t *ppos);
+ssize_t iwl4965_ucode_tx_stats_read(struct file *file, char __user *user_buf,
+				size_t count, loff_t *ppos);
+ssize_t iwl4965_ucode_general_stats_read(struct file *file,
+			char __user *user_buf, size_t count, loff_t *ppos);
 #else
-static ssize_t iwl3945_ucode_rx_stats_read(struct file *file,
-					   char __user *user_buf, size_t count,
-					   loff_t *ppos)
+static ssize_t
+iwl4965_ucode_rx_stats_read(struct file *file, char __user *user_buf,
+				       size_t count, loff_t *ppos)
 {
 	return 0;
 }
-static ssize_t iwl3945_ucode_tx_stats_read(struct file *file,
-					   char __user *user_buf, size_t count,
-					   loff_t *ppos)
+static ssize_t
+iwl4965_ucode_tx_stats_read(struct file *file, char __user *user_buf,
+				       size_t count, loff_t *ppos)
 {
 	return 0;
 }
-static ssize_t iwl3945_ucode_general_stats_read(struct file *file,
-						char __user *user_buf,
-						size_t count, loff_t *ppos)
+static ssize_t
+iwl4965_ucode_general_stats_read(struct file *file, char __user *user_buf,
+					    size_t count, loff_t *ppos)
 {
 	return 0;
 }

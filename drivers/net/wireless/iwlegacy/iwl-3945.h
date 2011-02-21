@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -108,7 +108,7 @@ struct iwl3945_rs_sta {
 
 /*
  * The common struct MUST be first because it is shared between
- * 3945 and agn!
+ * 3945 and 4965!
  */
 struct iwl3945_sta_priv {
 	struct iwl_station_priv_common common;
@@ -201,7 +201,7 @@ struct iwl3945_ibss_seq {
 
 /******************************************************************************
  *
- * Functions implemented in iwl-base.c which are forward declared here
+ * Functions implemented in iwl3945-base.c which are forward declared here
  * for use by iwl-*.c
  *
  *****************************************************************************/
@@ -209,7 +209,7 @@ extern int iwl3945_calc_db_from_ratio(int sig_ratio);
 extern void iwl3945_rx_replenish(void *data);
 extern void iwl3945_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 extern unsigned int iwl3945_fill_beacon_frame(struct iwl_priv *priv,
-					struct ieee80211_hdr *hdr,int left);
+					struct ieee80211_hdr *hdr, int left);
 extern int iwl3945_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 				       char **buf, bool display);
 extern void iwl3945_dump_nic_error_log(struct iwl_priv *priv);
@@ -217,7 +217,7 @@ extern void iwl3945_dump_nic_error_log(struct iwl_priv *priv);
 /******************************************************************************
  *
  * Functions implemented in iwl-[34]*.c which are forward declared here
- * for use by iwl-base.c
+ * for use by iwl3945-base.c
  *
  * NOTE:  The implementation of these functions are hardware specific
  * which is why they are in the hardware specific files (vs. iwl-base.c)
@@ -283,7 +283,7 @@ extern u8 iwl3945_hw_find_station(struct iwl_priv *priv, const u8 *bssid);
 extern struct ieee80211_ops iwl3945_hw_ops;
 
 /*
- * Forward declare iwl-3945.c functions for iwl-base.c
+ * Forward declare iwl-3945.c functions for iwl3945-base.c
  */
 extern __le32 iwl3945_get_antenna_flags(const struct iwl_priv *priv);
 extern int iwl3945_init_hw_rate_table(struct iwl_priv *priv);

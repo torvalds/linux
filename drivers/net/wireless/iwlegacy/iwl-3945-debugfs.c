@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -60,12 +60,13 @@ ssize_t iwl3945_ucode_rx_stats_read(struct file *file,
 	int bufsz = sizeof(struct iwl39_statistics_rx_phy) * 40 +
 		    sizeof(struct iwl39_statistics_rx_non_phy) * 40 + 400;
 	ssize_t ret;
-	struct iwl39_statistics_rx_phy *ofdm, *accum_ofdm, *delta_ofdm, *max_ofdm;
+	struct iwl39_statistics_rx_phy *ofdm, *accum_ofdm, *delta_ofdm,
+					*max_ofdm;
 	struct iwl39_statistics_rx_phy *cck, *accum_cck, *delta_cck, *max_cck;
 	struct iwl39_statistics_rx_non_phy *general, *accum_general;
 	struct iwl39_statistics_rx_non_phy *delta_general, *max_general;
 
-	if (!iwl_is_alive(priv))
+	if (!iwl_legacy_is_alive(priv))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
@@ -335,7 +336,7 @@ ssize_t iwl3945_ucode_tx_stats_read(struct file *file,
 	ssize_t ret;
 	struct iwl39_statistics_tx *tx, *accum_tx, *delta_tx, *max_tx;
 
-	if (!iwl_is_alive(priv))
+	if (!iwl_legacy_is_alive(priv))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
@@ -434,7 +435,7 @@ ssize_t iwl3945_ucode_general_stats_read(struct file *file,
 	struct statistics_dbg *dbg, *accum_dbg, *delta_dbg, *max_dbg;
 	struct iwl39_statistics_div *div, *accum_div, *delta_div, *max_div;
 
-	if (!iwl_is_alive(priv))
+	if (!iwl_legacy_is_alive(priv))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);

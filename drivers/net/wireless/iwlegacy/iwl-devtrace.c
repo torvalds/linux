@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2009 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -24,9 +24,22 @@
  *
  *****************************************************************************/
 
-#ifndef __iwl_3945_led_h__
-#define __iwl_3945_led_h__
+#include <linux/module.h>
 
-extern const struct iwl_led_ops iwl3945_led_ops;
+/* sparse doesn't like tracepoint macros */
+#ifndef __CHECKER__
+#include "iwl-dev.h"
 
-#endif /* __iwl_3945_led_h__ */
+#define CREATE_TRACE_POINTS
+#include "iwl-devtrace.h"
+
+EXPORT_TRACEPOINT_SYMBOL(iwlwifi_legacy_dev_iowrite8);
+EXPORT_TRACEPOINT_SYMBOL(iwlwifi_legacy_dev_ioread32);
+EXPORT_TRACEPOINT_SYMBOL(iwlwifi_legacy_dev_iowrite32);
+EXPORT_TRACEPOINT_SYMBOL(iwlwifi_legacy_dev_rx);
+EXPORT_TRACEPOINT_SYMBOL(iwlwifi_legacy_dev_tx);
+EXPORT_TRACEPOINT_SYMBOL(iwlwifi_legacy_dev_ucode_event);
+EXPORT_TRACEPOINT_SYMBOL(iwlwifi_legacy_dev_ucode_error);
+EXPORT_TRACEPOINT_SYMBOL(iwlwifi_legacy_dev_ucode_cont_event);
+EXPORT_TRACEPOINT_SYMBOL(iwlwifi_legacy_dev_ucode_wrap_event);
+#endif
