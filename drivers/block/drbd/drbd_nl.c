@@ -901,19 +901,17 @@ static void drbd_suspend_al(struct drbd_conf *mdev)
 {
 	int s = 0;
 
-	if (lc_try_lock(mdev->act_log)) {
-		drbd_al_shrink(mdev);
-		lc_unlock(mdev->act_log);
-	} else {
+	if (!lc_try_lock(mdev->act_log)) {
 		dev_warn(DEV, "Failed to lock al in drbd_suspend_al()\n");
 		return;
 	}
 
+	drbd_al_shrink(mdev);
 	spin_lock_irq(&mdev->tconn->req_lock);
 	if (mdev->state.conn < C_CONNECTED)
 		s = !test_and_set_bit(AL_SUSPENDED, &mdev->flags);
-
 	spin_unlock_irq(&mdev->tconn->req_lock);
+	lc_unlock(mdev->act_log);
 
 	if (s)
 		dev_info(DEV, "Suspended AL updates\n");
