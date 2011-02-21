@@ -337,8 +337,6 @@ static int dnet_mii_init(struct dnet *bp)
 	for (i = 0; i < PHY_MAX_ADDR; i++)
 		bp->mii_bus->irq[i] = PHY_POLL;
 
-	platform_set_drvdata(bp->dev, bp->mii_bus);
-
 	if (mdiobus_register(bp->mii_bus)) {
 		err = -ENXIO;
 		goto err_out_free_mdio_irq;
@@ -863,6 +861,7 @@ static int __devinit dnet_probe(struct platform_device *pdev)
 	bp = netdev_priv(dev);
 	bp->dev = dev;
 
+	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	spin_lock_init(&bp->lock);
