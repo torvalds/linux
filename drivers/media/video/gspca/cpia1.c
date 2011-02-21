@@ -1,7 +1,7 @@
 /*
  * cpia CPiA (1) gspca driver
  *
- * Copyright (C) 2010 Hans de Goede <hdegoede@redhat.com>
+ * Copyright (C) 2010-2011 Hans de Goede <hdegoede@redhat.com>
  *
  * This module is adapted from the in kernel v4l1 cpia driver which is :
  *
@@ -1400,7 +1400,7 @@ static void monitor_exposure(struct gspca_dev *gspca_dev)
 		if ((sd->exposure_status == EXPOSURE_VERY_DARK ||
 		     sd->exposure_status == EXPOSURE_DARK) &&
 		    sd->exposure_count >= DARK_TIME * framerate &&
-		    sd->params.sensorFps.divisor < 3) {
+		    sd->params.sensorFps.divisor < 2) {
 
 			/* dark for too long */
 			++sd->params.sensorFps.divisor;
@@ -1456,7 +1456,7 @@ static void monitor_exposure(struct gspca_dev *gspca_dev)
 		if ((sd->exposure_status == EXPOSURE_VERY_DARK ||
 		     sd->exposure_status == EXPOSURE_DARK) &&
 		    sd->exposure_count >= DARK_TIME * framerate &&
-		    sd->params.sensorFps.divisor < 3) {
+		    sd->params.sensorFps.divisor < 2) {
 
 			/* dark for too long */
 			++sd->params.sensorFps.divisor;
