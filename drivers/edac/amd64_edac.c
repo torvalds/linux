@@ -1226,7 +1226,7 @@ static u8 f1x_determine_channel(struct amd64_pvt *pvt, u64 sys_addr,
 }
 
 /* Convert the sys_addr to the normalized DCT address */
-static u64 f1x_get_norm_dct_addr(struct amd64_pvt *pvt, int range,
+static u64 f1x_get_norm_dct_addr(struct amd64_pvt *pvt, unsigned range,
 				 u64 sys_addr, bool hi_rng,
 				 u32 dct_sel_base_addr)
 {
@@ -1380,7 +1380,7 @@ static u64 f1x_swap_interleaved_region(struct amd64_pvt *pvt, u64 sys_addr)
 }
 
 /* For a given @dram_range, check if @sys_addr falls within it. */
-static int f1x_match_to_this_node(struct amd64_pvt *pvt, int range,
+static int f1x_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
 				  u64 sys_addr, int *nid, int *chan_sel)
 {
 	int cs_found = -EINVAL;
@@ -1468,7 +1468,8 @@ static int f1x_match_to_this_node(struct amd64_pvt *pvt, int range,
 static int f1x_translate_sysaddr_to_cs(struct amd64_pvt *pvt, u64 sys_addr,
 				       int *node, int *chan_sel)
 {
-	int range, cs_found = -EINVAL;
+	int cs_found = -EINVAL;
+	unsigned range;
 
 	for (range = 0; range < DRAM_RANGES; range++) {
 
@@ -1941,7 +1942,7 @@ static void read_mc_regs(struct amd64_pvt *pvt)
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 	u64 msr_val;
 	u32 tmp;
-	int range;
+	unsigned range;
 
 	/*
 	 * Retrieve TOP_MEM and TOP_MEM2; no masking off of reserved bits since
