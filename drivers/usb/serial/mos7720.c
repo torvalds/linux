@@ -2052,7 +2052,7 @@ static int mos7720_startup(struct usb_serial *serial)
 	struct usb_device *dev;
 	int i;
 	char data;
-	u16 product = le16_to_cpu(serial->dev->descriptor.idProduct);
+	u16 product;
 	int ret_val;
 
 	dbg("%s: Entering ..........", __func__);
@@ -2062,6 +2062,7 @@ static int mos7720_startup(struct usb_serial *serial)
 		return -ENODEV;
 	}
 
+	product = le16_to_cpu(serial->dev->descriptor.idProduct);
 	dev = serial->dev;
 
 	/*
