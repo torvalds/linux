@@ -480,7 +480,7 @@ static bool __init numa_meminfo_cover_memory(const struct numa_meminfo *mi)
 
 static int __init numa_register_memblks(struct numa_meminfo *mi)
 {
-	int i, j, nid;
+	int i, nid;
 
 	/* Account for nodes with cpus and no memory */
 	node_possible_map = numa_nodes_parsed;
@@ -506,28 +506,20 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
 
 	init_memory_mapping_high();
 
-	/*
-	 * Finally register nodes.  Do it twice in case setup_node_bootmem
-	 * missed one due to missing bootmem.
-	 */
-	for (i = 0; i < 2; i++) {
-		for_each_node_mask(nid, node_possible_map) {
-			u64 start = (u64)max_pfn << PAGE_SHIFT;
-			u64 end = 0;
+	/* Finally register nodes. */
+	for_each_node_mask(nid, node_possible_map) {
+		u64 start = (u64)max_pfn << PAGE_SHIFT;
+		u64 end = 0;
 
-			if (node_online(nid))
+		for (i = 0; i < mi->nr_blks; i++) {
+			if (nid != mi->blk[i].nid)
 				continue;
-
-			for (j = 0; j < mi->nr_blks; j++) {
-				if (nid != mi->blk[j].nid)
-					continue;
-				start = min(mi->blk[j].start, start);
-				end = max(mi->blk[j].end, end);
-			}
-
-			if (start < end)
-				setup_node_bootmem(nid, start, end);
+			start = min(mi->blk[i].start, start);
+			end = max(mi->blk[i].end, end);
 		}
+
+		if (start < end)
+			setup_node_bootmem(nid, start, end);
 	}
 
 	return 0;
