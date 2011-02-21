@@ -105,9 +105,6 @@ XGI310Sync(void)
 
 int XGIfb_initaccel(void)
 {
-#ifdef XGIFB_USE_SPINLOCKS
-    spin_lock_init(&xgi_video_info.lockaccel);
-#endif
     return(0);
 }
 
