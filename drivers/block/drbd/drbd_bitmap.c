@@ -219,8 +219,7 @@ static void bm_page_unlock_io(struct drbd_conf *mdev, int page_nr)
 {
 	struct drbd_bitmap *b = mdev->bitmap;
 	void *addr = &page_private(b->bm_pages[page_nr]);
-	clear_bit(BM_PAGE_IO_LOCK, addr);
-	smp_mb__after_clear_bit();
+	clear_bit_unlock(BM_PAGE_IO_LOCK, addr);
 	wake_up(&mdev->bitmap->bm_io_wait);
 }
 

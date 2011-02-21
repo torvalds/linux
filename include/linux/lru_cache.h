@@ -275,8 +275,7 @@ static inline int lc_try_lock(struct lru_cache *lc)
  */
 static inline void lc_unlock(struct lru_cache *lc)
 {
-	clear_bit(__LC_DIRTY, &lc->flags);
-	smp_mb__after_clear_bit();
+	clear_bit_unlock(__LC_DIRTY, &lc->flags);
 }
 
 static inline int lc_is_used(struct lru_cache *lc, unsigned int enr)
