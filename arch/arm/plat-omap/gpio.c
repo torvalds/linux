@@ -1137,8 +1137,9 @@ static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	struct gpio_bank *bank;
 	u32 retrigger = 0;
 	int unmasked = 0;
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 
-	desc->irq_data.chip->irq_ack(&desc->irq_data);
+	chained_irq_enter(chip, desc);
 
 	bank = irq_get_handler_data(irq);
 #ifdef CONFIG_ARCH_OMAP1
@@ -1195,7 +1196,7 @@ static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 		configured, we could unmask GPIO bank interrupt immediately */
 		if (!level_mask && !unmasked) {
 			unmasked = 1;
-			desc->irq_data.chip->irq_unmask(&desc->irq_data);
+			chained_irq_exit(chip, desc);
 		}
 
 		isr |= retrigger;
@@ -1231,7 +1232,7 @@ static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	interrupt */
 exit:
 	if (!unmasked)
-		desc->irq_data.chip->irq_unmask(&desc->irq_data);
+		chained_irq_exit(chip, desc);
 }
 
 static void gpio_irq_shutdown(struct irq_data *d)
