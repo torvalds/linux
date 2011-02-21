@@ -24,21 +24,67 @@
  */
 
 #include <linux/slab.h>
+#include <linux/crc32c.h>
 #include <linux/drbd.h>
+#include <linux/drbd_limits.h>
+#include <linux/dynamic_debug.h>
 #include "drbd_int.h"
 #include "drbd_wrappers.h"
 
-/* We maintain a trivial checksum in our on disk activity log.
- * With that we can ensure correct operation even when the storage
- * device might do a partial (last) sector write while losing power.
- */
-struct __packed al_transaction {
-	u32       magic;
-	u32       tr_number;
-	struct __packed {
-		u32 pos;
-		u32 extent; } updates[1 + AL_EXTENTS_PT];
-	u32       xor_sum;
+/* all fields on disc in big endian */
+struct __packed al_transaction_on_disk {
+	/* don't we all like magic */
+	__be32	magic;
+
+	/* to identify the most recent transaction block
+	 * in the on disk ring buffer */
+	__be32	tr_number;
+
+	/* checksum on the full 4k block, with this field set to 0. */
+	__be32	crc32c;
+
+	/* type of transaction, special transaction types like:
+	 * purge-all, set-all-idle, set-all-active, ... to-be-defined */
+	__be16	transaction_type;
+
+	/* we currently allow only a few thousand extents,
+	 * so 16bit will be enough for the slot number. */
+
+	/* how many updates in this transaction */
+	__be16	n_updates;
+
+	/* maximum slot number, "al-extents" in drbd.conf speak.
+	 * Having this in each transaction should make reconfiguration
+	 * of that parameter easier. */
+	__be16	context_size;
+
+	/* slot number the context starts with */
+	__be16	context_start_slot_nr;
+
+	/* Some reserved bytes.  Expected usage is a 64bit counter of
+	 * sectors-written since device creation, and other data generation tag
+	 * supporting usage */
+	__be32	__reserved[4];
+
+	/* --- 36 byte used --- */
+
+	/* Reserve space for up to AL_UPDATES_PER_TRANSACTION changes
+	 * in one transaction, then use the remaining byte in the 4k block for
+	 * context information.  "Flexible" number of updates per transaction
+	 * does not help, as we have to account for the case when all update
+	 * slots are used anyways, so it would only complicate code without
+	 * additional benefit.
+	 */
+	__be16	update_slot_nr[AL_UPDATES_PER_TRANSACTION];
+
+	/* but the extent number is 32bit, which at an extent size of 4 MiB
+	 * allows to cover device sizes of up to 2**54 Byte (16 PiB) */
+	__be32	update_extent_nr[AL_UPDATES_PER_TRANSACTION];
+
+	/* --- 420 bytes used (36 + 64*6) --- */
+
+	/* 4096 - 420 = 3676 = 919 * 4 */
+	__be32	context[AL_CONTEXT_PER_TRANSACTION];
 };
 
 struct update_odbm_work {
@@ -48,11 +94,8 @@ struct update_odbm_work {
 
 struct update_al_work {
 	struct drbd_work w;
-	struct lc_element *al_ext;
 	struct completion event;
-	unsigned int enr;
-	/* if old_enr != LC_FREE, write corresponding bitmap sector, too */
-	unsigned int old_enr;
+	int err;
 };
 
 struct drbd_atodb_wait {
@@ -107,65 +150,28 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 int drbd_md_sync_page_io(struct drbd_conf *mdev, struct drbd_backing_dev *bdev,
 			 sector_t sector, int rw)
 {
-	int logical_block_size, mask, ok;
-	int offset = 0;
+	int ok;
 	struct page *iop = mdev->md_io_page;
 
 	D_ASSERT(mutex_is_locked(&mdev->md_io_mutex));
 
 	BUG_ON(!bdev->md_bdev);
 
-	logical_block_size = bdev_logical_block_size(bdev->md_bdev);
-	if (logical_block_size == 0)
-		logical_block_size = MD_SECTOR_SIZE;
-
-	/* in case logical_block_size != 512 [ s390 only? ] */
-	if (logical_block_size != MD_SECTOR_SIZE) {
-		mask = (logical_block_size / MD_SECTOR_SIZE) - 1;
-		D_ASSERT(mask == 1 || mask == 3 || mask == 7);
-		D_ASSERT(logical_block_size == (mask+1) * MD_SECTOR_SIZE);
-		offset = sector & mask;
-		sector = sector & ~mask;
-		iop = mdev->md_io_tmpp;
-
-		if (rw & WRITE) {
-			/* these are GFP_KERNEL pages, pre-allocated
-			 * on device initialization */
-			void *p = page_address(mdev->md_io_page);
-			void *hp = page_address(mdev->md_io_tmpp);
-
-			ok = _drbd_md_sync_page_io(mdev, bdev, iop, sector,
-					READ, logical_block_size);
-
-			if (unlikely(!ok)) {
-				dev_err(DEV, "drbd_md_sync_page_io(,%llus,"
-				    "READ [logical_block_size!=512]) failed!\n",
-				    (unsigned long long)sector);
-				return 0;
-			}
-
-			memcpy(hp + offset*MD_SECTOR_SIZE, p, MD_SECTOR_SIZE);
-		}
-	}
+	dev_dbg(DEV, "meta_data io: %s [%d]:%s(,%llus,%s)\n",
+	     current->comm, current->pid, __func__,
+	     (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ");
 
 	if (sector < drbd_md_first_sector(bdev) ||
-	    sector > drbd_md_last_sector(bdev))
+	    sector + 7 > drbd_md_last_sector(bdev))
 		dev_alert(DEV, "%s [%d]:%s(,%llus,%s) out of range md access!\n",
 		     current->comm, current->pid, __func__,
 		     (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ");
 
-	ok = _drbd_md_sync_page_io(mdev, bdev, iop, sector, rw, logical_block_size);
+	ok = _drbd_md_sync_page_io(mdev, bdev, iop, sector, rw, MD_BLOCK_SIZE);
 	if (unlikely(!ok)) {
 		dev_err(DEV, "drbd_md_sync_page_io(,%llus,%s) failed!\n",
 		    (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ");
 		return 0;
-	}
-
-	if (logical_block_size != MD_SECTOR_SIZE && !(rw & WRITE)) {
-		void *p = page_address(mdev->md_io_page);
-		void *hp = page_address(mdev->md_io_tmpp);
-
-		memcpy(p, hp + offset*MD_SECTOR_SIZE, MD_SECTOR_SIZE);
 	}
 
 	return ok;
@@ -211,20 +217,34 @@ void drbd_al_begin_io(struct drbd_conf *mdev, sector_t sector)
 		 * current->bio_tail list now.
 		 * we have to delegate updates to the activity log
 		 * to the worker thread. */
-		init_completion(&al_work.event);
-		al_work.al_ext = al_ext;
-		al_work.enr = enr;
-		al_work.old_enr = al_ext->lc_number;
-		al_work.w.cb = w_al_write_transaction;
-		al_work.w.mdev = mdev;
-		drbd_queue_work_front(&mdev->tconn->data.work, &al_work.w);
-		wait_for_completion(&al_work.event);
 
-		mdev->al_writ_cnt++;
+		/* Serialize multiple transactions.
+		 * This uses test_and_set_bit, memory barrier is implicit.
+		 * Optimization potential:
+		 * first check for transaction number > old transaction number,
+		 * so not all waiters have to lock/unlock.  */
+		wait_event(mdev->al_wait, lc_try_lock_for_transaction(mdev->act_log));
 
-		spin_lock_irq(&mdev->al_lock);
-		lc_committed(mdev->act_log);
-		spin_unlock_irq(&mdev->al_lock);
+		/* Double check: it may have been committed by someone else,
+		 * while we have been waiting for the lock. */
+		if (al_ext->lc_number != enr) {
+			init_completion(&al_work.event);
+			al_work.w.cb = w_al_write_transaction;
+			al_work.w.mdev = mdev;
+			drbd_queue_work_front(&mdev->tconn->data.work, &al_work.w);
+			wait_for_completion(&al_work.event);
+
+			mdev->al_writ_cnt++;
+
+			spin_lock_irq(&mdev->al_lock);
+			/* FIXME
+			if (al_work.err)
+				we need an "lc_cancel" here;
+			*/
+			lc_committed(mdev->act_log);
+			spin_unlock_irq(&mdev->al_lock);
+		}
+		lc_unlock(mdev->act_log);
 		wake_up(&mdev->al_wait);
 	}
 }
@@ -283,94 +303,117 @@ w_al_write_transaction(struct drbd_work *w, int unused)
 {
 	struct update_al_work *aw = container_of(w, struct update_al_work, w);
 	struct drbd_conf *mdev = w->mdev;
-	struct lc_element *updated = aw->al_ext;
-	const unsigned int new_enr = aw->enr;
-	const unsigned int evicted = aw->old_enr;
-	struct al_transaction *buffer;
+	struct al_transaction_on_disk *buffer;
+	struct lc_element *e;
 	sector_t sector;
-	int i, n, mx;
-	unsigned int extent_nr;
-	u32 xor_sum = 0;
+	int i, mx;
+	unsigned extent_nr;
+	unsigned crc = 0;
 
 	if (!get_ldev(mdev)) {
-		dev_err(DEV,
-			"disk is %s, cannot start al transaction (-%d +%d)\n",
-			drbd_disk_str(mdev->state.disk), evicted, new_enr);
+		dev_err(DEV, "disk is %s, cannot start al transaction\n",
+			drbd_disk_str(mdev->state.disk));
+		aw->err = -EIO;
 		complete(&((struct update_al_work *)w)->event);
 		return 1;
 	}
-	/* do we have to do a bitmap write, first?
-	 * TODO reduce maximum latency:
-	 * submit both bios, then wait for both,
-	 * instead of doing two synchronous sector writes.
-	 * For now, we must not write the transaction,
-	 * if we cannot write out the bitmap of the evicted extent. */
-	if (mdev->state.conn < C_CONNECTED && evicted != LC_FREE)
-		drbd_bm_write_page(mdev, al_extent_to_bm_page(evicted));
 
 	/* The bitmap write may have failed, causing a state change. */
 	if (mdev->state.disk < D_INCONSISTENT) {
 		dev_err(DEV,
-			"disk is %s, cannot write al transaction (-%d +%d)\n",
-			drbd_disk_str(mdev->state.disk), evicted, new_enr);
+			"disk is %s, cannot write al transaction\n",
+			drbd_disk_str(mdev->state.disk));
+		aw->err = -EIO;
 		complete(&((struct update_al_work *)w)->event);
 		put_ldev(mdev);
 		return 1;
 	}
 
 	mutex_lock(&mdev->md_io_mutex); /* protects md_io_buffer, al_tr_cycle, ... */
-	buffer = (struct al_transaction *)page_address(mdev->md_io_page);
+	buffer = page_address(mdev->md_io_page);
 
-	buffer->magic = __constant_cpu_to_be32(DRBD_MAGIC);
+	memset(buffer, 0, sizeof(*buffer));
+	buffer->magic = cpu_to_be32(DRBD_AL_MAGIC);
 	buffer->tr_number = cpu_to_be32(mdev->al_tr_number);
 
-	n = lc_index_of(mdev->act_log, updated);
+	i = 0;
 
-	buffer->updates[0].pos = cpu_to_be32(n);
-	buffer->updates[0].extent = cpu_to_be32(new_enr);
+	/* Even though no one can start to change this list
+	 * once we set the LC_LOCKED -- from drbd_al_begin_io(),
+	 * lc_try_lock_for_transaction() --, someone may still
+	 * be in the process of changing it. */
+	spin_lock_irq(&mdev->al_lock);
+	list_for_each_entry(e, &mdev->act_log->to_be_changed, list) {
+		if (i == AL_UPDATES_PER_TRANSACTION) {
+			i++;
+			break;
+		}
+		buffer->update_slot_nr[i] = cpu_to_be16(e->lc_index);
+		buffer->update_extent_nr[i] = cpu_to_be32(e->lc_new_number);
+		if (e->lc_number != LC_FREE)
+			drbd_bm_mark_for_writeout(mdev,
+					al_extent_to_bm_page(e->lc_number));
+		i++;
+	}
+	spin_unlock_irq(&mdev->al_lock);
+	BUG_ON(i > AL_UPDATES_PER_TRANSACTION);
 
-	xor_sum ^= new_enr;
+	buffer->n_updates = cpu_to_be16(i);
+	for ( ; i < AL_UPDATES_PER_TRANSACTION; i++) {
+		buffer->update_slot_nr[i] = cpu_to_be16(-1);
+		buffer->update_extent_nr[i] = cpu_to_be32(LC_FREE);
+	}
 
-	mx = min_t(int, AL_EXTENTS_PT,
+	buffer->context_size = cpu_to_be16(mdev->act_log->nr_elements);
+	buffer->context_start_slot_nr = cpu_to_be16(mdev->al_tr_cycle);
+
+	mx = min_t(int, AL_CONTEXT_PER_TRANSACTION,
 		   mdev->act_log->nr_elements - mdev->al_tr_cycle);
 	for (i = 0; i < mx; i++) {
 		unsigned idx = mdev->al_tr_cycle + i;
 		extent_nr = lc_element_by_index(mdev->act_log, idx)->lc_number;
-		buffer->updates[i+1].pos = cpu_to_be32(idx);
-		buffer->updates[i+1].extent = cpu_to_be32(extent_nr);
-		xor_sum ^= extent_nr;
+		buffer->context[i] = cpu_to_be32(extent_nr);
 	}
-	for (; i < AL_EXTENTS_PT; i++) {
-		buffer->updates[i+1].pos = __constant_cpu_to_be32(-1);
-		buffer->updates[i+1].extent = __constant_cpu_to_be32(LC_FREE);
-		xor_sum ^= LC_FREE;
-	}
-	mdev->al_tr_cycle += AL_EXTENTS_PT;
+	for (; i < AL_CONTEXT_PER_TRANSACTION; i++)
+		buffer->context[i] = cpu_to_be32(LC_FREE);
+
+	mdev->al_tr_cycle += AL_CONTEXT_PER_TRANSACTION;
 	if (mdev->al_tr_cycle >= mdev->act_log->nr_elements)
 		mdev->al_tr_cycle = 0;
 
-	buffer->xor_sum = cpu_to_be32(xor_sum);
-
 	sector =  mdev->ldev->md.md_offset
-		+ mdev->ldev->md.al_offset + mdev->al_tr_pos;
+		+ mdev->ldev->md.al_offset
+		+ mdev->al_tr_pos * (MD_BLOCK_SIZE>>9);
 
-	if (!drbd_md_sync_page_io(mdev, mdev->ldev, sector, WRITE))
+	crc = crc32c(0, buffer, 4096);
+	buffer->crc32c = cpu_to_be32(crc);
+
+	if (drbd_bm_write_hinted(mdev))
+		aw->err = -EIO;
+		/* drbd_chk_io_error done already */
+	else if (!drbd_md_sync_page_io(mdev, mdev->ldev, sector, WRITE)) {
+		aw->err = -EIO;
 		drbd_chk_io_error(mdev, 1, true);
-
-	if (++mdev->al_tr_pos >
-	    div_ceil(mdev->act_log->nr_elements, AL_EXTENTS_PT))
-		mdev->al_tr_pos = 0;
-
-	D_ASSERT(mdev->al_tr_pos < MD_AL_MAX_SIZE);
-	mdev->al_tr_number++;
+	} else {
+		/* advance ringbuffer position and transaction counter */
+		mdev->al_tr_pos = (mdev->al_tr_pos + 1) % (MD_AL_SECTORS*512/MD_BLOCK_SIZE);
+		mdev->al_tr_number++;
+	}
 
 	mutex_unlock(&mdev->md_io_mutex);
-
 	complete(&((struct update_al_work *)w)->event);
 	put_ldev(mdev);
 
 	return 1;
 }
+
+/* FIXME
+ * reading of the activity log,
+ * and potentially dirtying of the affected bitmap regions,
+ * should be done from userland only.
+ * DRBD would simply always attach with an empty activity log,
+ * and refuse to attach to something that looks like a crashed primary.
+ */
 
 /**
  * drbd_al_read_tr() - Read a single transaction from the on disk activity log
@@ -383,27 +426,39 @@ w_al_write_transaction(struct drbd_work *w, int unused)
  */
 static int drbd_al_read_tr(struct drbd_conf *mdev,
 			   struct drbd_backing_dev *bdev,
-			   struct al_transaction *b,
 			   int index)
 {
+	struct al_transaction_on_disk *b = page_address(mdev->md_io_page);
 	sector_t sector;
-	int rv, i;
-	u32 xor_sum = 0;
+	u32 crc;
 
-	sector = bdev->md.md_offset + bdev->md.al_offset + index;
+	sector =  bdev->md.md_offset
+		+ bdev->md.al_offset
+		+ index * (MD_BLOCK_SIZE>>9);
 
 	/* Dont process error normally,
 	 * as this is done before disk is attached! */
 	if (!drbd_md_sync_page_io(mdev, bdev, sector, READ))
 		return -1;
 
-	rv = (b->magic == cpu_to_be32(DRBD_MAGIC));
+	if (!expect(b->magic == cpu_to_be32(DRBD_AL_MAGIC)))
+		return 0;
 
-	for (i = 0; i < AL_EXTENTS_PT + 1; i++)
-		xor_sum ^= be32_to_cpu(b->updates[i].extent);
-	rv &= (xor_sum == be32_to_cpu(b->xor_sum));
+	if (!expect(be16_to_cpu(b->n_updates) <= AL_UPDATES_PER_TRANSACTION))
+		return 0;
 
-	return rv;
+	if (!expect(be16_to_cpu(b->context_size) <= DRBD_AL_EXTENTS_MAX))
+		return 0;
+
+	if (!expect(be16_to_cpu(b->context_start_slot_nr) < DRBD_AL_EXTENTS_MAX))
+		return 0;
+
+	crc = be32_to_cpu(b->crc32c);
+	b->crc32c = 0;
+	if (!expect(crc == crc32c(0, b, 4096)))
+		return 0;
+
+	return 1;
 }
 
 /**
@@ -415,7 +470,7 @@ static int drbd_al_read_tr(struct drbd_conf *mdev,
  */
 int drbd_al_read_log(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 {
-	struct al_transaction *buffer;
+	struct al_transaction_on_disk *b;
 	int i;
 	int rv;
 	int mx;
@@ -428,25 +483,36 @@ int drbd_al_read_log(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 	u32 to_tnr = 0;
 	u32 cnr;
 
-	mx = div_ceil(mdev->act_log->nr_elements, AL_EXTENTS_PT);
+	/* Note that this is expected to be called with a newly created,
+	 * clean and all unused activity log of the "expected size".
+	 */
 
 	/* lock out all other meta data io for now,
 	 * and make sure the page is mapped.
 	 */
 	mutex_lock(&mdev->md_io_mutex);
-	buffer = page_address(mdev->md_io_page);
+	b = page_address(mdev->md_io_page);
+
+	/* Always use the full ringbuffer space for now.
+	 * possible optimization: read in all of it,
+	 * then scan the in-memory pages. */
+
+	mx = (MD_AL_SECTORS*512/MD_BLOCK_SIZE);
 
 	/* Find the valid transaction in the log */
-	for (i = 0; i <= mx; i++) {
-		rv = drbd_al_read_tr(mdev, bdev, buffer, i);
+	for (i = 0; i < mx; i++) {
+		rv = drbd_al_read_tr(mdev, bdev, i);
+		/* invalid data in that block */
 		if (rv == 0)
 			continue;
+
+		/* IO error */
 		if (rv == -1) {
 			mutex_unlock(&mdev->md_io_mutex);
 			return 0;
 		}
-		cnr = be32_to_cpu(buffer->tr_number);
 
+		cnr = be32_to_cpu(b->tr_number);
 		if (++found_valid == 1) {
 			from = i;
 			to = i;
@@ -454,8 +520,11 @@ int drbd_al_read_log(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 			to_tnr = cnr;
 			continue;
 		}
+
+		D_ASSERT(cnr != to_tnr);
+		D_ASSERT(cnr != from_tnr);
 		if ((int)cnr - (int)from_tnr < 0) {
-			D_ASSERT(from_tnr - cnr + i - from == mx+1);
+			D_ASSERT(from_tnr - cnr + i - from == mx);
 			from = i;
 			from_tnr = cnr;
 		}
@@ -476,11 +545,10 @@ int drbd_al_read_log(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 	 * dev_info(DEV, "Reading from %d to %d.\n",from,to); */
 	i = from;
 	while (1) {
-		int j, pos;
-		unsigned int extent_nr;
-		unsigned int trn;
+		struct lc_element *e;
+		unsigned j, n, slot, extent_nr;
 
-		rv = drbd_al_read_tr(mdev, bdev, buffer, i);
+		rv = drbd_al_read_tr(mdev, bdev, i);
 		if (!expect(rv != 0))
 			goto cancel;
 		if (rv == -1) {
@@ -488,23 +556,55 @@ int drbd_al_read_log(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 			return 0;
 		}
 
-		trn = be32_to_cpu(buffer->tr_number);
+		/* deal with different transaction types.
+		 * not yet implemented */
+		if (!expect(b->transaction_type == 0))
+			goto cancel;
 
+		/* on the fly re-create/resize activity log?
+		 * will be a special transaction type flag. */
+		if (!expect(be16_to_cpu(b->context_size) == mdev->act_log->nr_elements))
+			goto cancel;
+		if (!expect(be16_to_cpu(b->context_start_slot_nr) < mdev->act_log->nr_elements))
+			goto cancel;
+
+		/* We are the only user of the activity log right now,
+		 * don't actually need to take that lock. */
 		spin_lock_irq(&mdev->al_lock);
 
-		/* This loop runs backwards because in the cyclic
-		   elements there might be an old version of the
-		   updated element (in slot 0). So the element in slot 0
-		   can overwrite old versions. */
-		for (j = AL_EXTENTS_PT; j >= 0; j--) {
-			pos = be32_to_cpu(buffer->updates[j].pos);
-			extent_nr = be32_to_cpu(buffer->updates[j].extent);
+		/* first, apply the context, ... */
+		for (j = 0, slot = be16_to_cpu(b->context_start_slot_nr);
+		     j < AL_CONTEXT_PER_TRANSACTION &&
+		     slot < mdev->act_log->nr_elements; j++, slot++) {
+			extent_nr = be32_to_cpu(b->context[j]);
+			e = lc_element_by_index(mdev->act_log, slot);
+			if (e->lc_number != extent_nr) {
+				if (extent_nr != LC_FREE)
+					active_extents++;
+				else
+					active_extents--;
+			}
+			lc_set(mdev->act_log, extent_nr, slot);
+		}
 
-			if (extent_nr == LC_FREE)
-				continue;
-
-			lc_set(mdev->act_log, extent_nr, pos);
-			active_extents++;
+		/* ... then apply the updates,
+		 * which override the context information.
+		 * drbd_al_read_tr already did the rangecheck
+		 * on n <= AL_UPDATES_PER_TRANSACTION */
+		n = be16_to_cpu(b->n_updates);
+		for (j = 0; j < n; j++) {
+			slot = be16_to_cpu(b->update_slot_nr[j]);
+			extent_nr = be32_to_cpu(b->update_extent_nr[j]);
+			if (!expect(slot < mdev->act_log->nr_elements))
+				break;
+			e = lc_element_by_index(mdev->act_log, slot);
+			if (e->lc_number != extent_nr) {
+				if (extent_nr != LC_FREE)
+					active_extents++;
+				else
+					active_extents--;
+			}
+			lc_set(mdev->act_log, extent_nr, slot);
 		}
 		spin_unlock_irq(&mdev->al_lock);
 
@@ -514,15 +614,12 @@ cancel:
 		if (i == to)
 			break;
 		i++;
-		if (i > mx)
+		if (i >= mx)
 			i = 0;
 	}
 
 	mdev->al_tr_number = to_tnr+1;
-	mdev->al_tr_pos = to;
-	if (++mdev->al_tr_pos >
-	    div_ceil(mdev->act_log->nr_elements, AL_EXTENTS_PT))
-		mdev->al_tr_pos = 0;
+	mdev->al_tr_pos = (to + 1) % (MD_AL_SECTORS*512/MD_BLOCK_SIZE);
 
 	/* ok, we are done with it */
 	mutex_unlock(&mdev->md_io_mutex);

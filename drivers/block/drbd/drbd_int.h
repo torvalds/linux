@@ -1069,7 +1069,6 @@ struct drbd_conf {
 	atomic_t pp_in_use_by_net;	/* sendpage()d, still referenced by tcp */
 	wait_queue_head_t ee_wait;
 	struct page *md_io_page;	/* one page buffer for md_io */
-	struct page *md_io_tmpp;	/* for logical_block_size != 512 */
 	struct mutex md_io_mutex;	/* protects the md_io_buffer */
 	spinlock_t al_lock;
 	wait_queue_head_t al_wait;
@@ -1259,21 +1258,38 @@ extern void drbd_ldev_destroy(struct drbd_conf *mdev);
    * either at the end of the backing device
    * or on a separate meta data device. */
 
-#define MD_RESERVED_SECT (128LU << 11)  /* 128 MB, unit sectors */
 /* The following numbers are sectors */
-#define MD_AL_OFFSET 8	    /* 8 Sectors after start of meta area */
-#define MD_AL_MAX_SIZE 64   /* = 32 kb LOG  ~ 3776 extents ~ 14 GB Storage */
-/* Allows up to about 3.8TB */
-#define MD_BM_OFFSET (MD_AL_OFFSET + MD_AL_MAX_SIZE)
+/* Allows up to about 3.8TB, so if you want more,
+ * you need to use the "flexible" meta data format. */
+#define MD_RESERVED_SECT (128LU << 11)  /* 128 MB, unit sectors */
+#define MD_AL_OFFSET	8    /* 8 Sectors after start of meta area */
+#define MD_AL_SECTORS	64   /* = 32 kB on disk activity log ring buffer */
+#define MD_BM_OFFSET (MD_AL_OFFSET + MD_AL_SECTORS)
 
-/* Since the smalles IO unit is usually 512 byte */
-#define MD_SECTOR_SHIFT	 9
-#define MD_SECTOR_SIZE	 (1<<MD_SECTOR_SHIFT)
+/* we do all meta data IO in 4k blocks */
+#define MD_BLOCK_SHIFT	12
+#define MD_BLOCK_SIZE	(1<<MD_BLOCK_SHIFT)
 
-/* activity log */
-#define AL_EXTENTS_PT ((MD_SECTOR_SIZE-12)/8-1) /* 61 ; Extents per 512B sector */
-#define AL_EXTENT_SHIFT 22		 /* One extent represents 4M Storage */
+/* One activity log extent represents 4M of storage */
+#define AL_EXTENT_SHIFT 22
 #define AL_EXTENT_SIZE (1<<AL_EXTENT_SHIFT)
+
+/* We could make these currently hardcoded constants configurable
+ * variables at create-md time (or even re-configurable at runtime?).
+ * Which will require some more changes to the DRBD "super block"
+ * and attach code.
+ *
+ * updates per transaction:
+ *   This many changes to the active set can be logged with one transaction.
+ *   This number is arbitrary.
+ * context per transaction:
+ *   This many context extent numbers are logged with each transaction.
+ *   This number is resulting from the transaction block size (4k), the layout
+ *   of the transaction header, and the number of updates per transaction.
+ *   See drbd_actlog.c:struct al_transaction_on_disk
+ * */
+#define AL_UPDATES_PER_TRANSACTION	 64	// arbitrary
+#define AL_CONTEXT_PER_TRANSACTION	919	// (4096 - 36 - 6*64)/4
 
 #if BITS_PER_LONG == 32
 #define LN2_BPL 5

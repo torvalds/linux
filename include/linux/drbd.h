@@ -336,6 +336,10 @@ enum drbd_timeout_flag {
 #define DRBD_MAGIC 0x83740267
 #define DRBD_MAGIC_BIG 0x835a
 
+/* how I came up with this magic?
+ * base64 decode "actlog==" ;) */
+#define DRBD_AL_MAGIC 0x69cb65a2
+
 /* these are of type "int" */
 #define DRBD_MD_INDEX_INTERNAL -1
 #define DRBD_MD_INDEX_FLEX_EXT -2

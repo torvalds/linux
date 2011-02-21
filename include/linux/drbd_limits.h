@@ -102,10 +102,12 @@
 #define DRBD_RATE_DEF 250  /* kb/second */
 
   /* less than 7 would hit performance unnecessarily.
-   * 3833 is the largest prime that still does fit
-   * into 64 sectors of activity log */
+   * 919 slots context information per transaction,
+   * 32k activity log, 4k transaction size,
+   * one transaction in flight:
+   * 919 * 7 = 6433 */
 #define DRBD_AL_EXTENTS_MIN  7
-#define DRBD_AL_EXTENTS_MAX  3833
+#define DRBD_AL_EXTENTS_MAX  6433
 #define DRBD_AL_EXTENTS_DEF  127
 
 #define DRBD_AFTER_MIN  -1

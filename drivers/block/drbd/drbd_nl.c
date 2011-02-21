@@ -527,7 +527,7 @@ static void drbd_md_set_sector_offsets(struct drbd_conf *mdev,
 	case DRBD_MD_INDEX_FLEX_INT:
 		bdev->md.md_offset = drbd_md_ss__(mdev, bdev);
 		/* al size is still fixed */
-		bdev->md.al_offset = -MD_AL_MAX_SIZE;
+		bdev->md.al_offset = -MD_AL_SECTORS;
 		/* we need (slightly less than) ~ this much bitmap sectors: */
 		md_size_sect = drbd_get_capacity(bdev->backing_bdev);
 		md_size_sect = ALIGN(md_size_sect, BM_SECT_PER_EXT);
@@ -751,8 +751,8 @@ static int drbd_check_al_size(struct drbd_conf *mdev)
 	unsigned int in_use;
 	int i;
 
-	if (!expect(mdev->sync_conf.al_extents >= 7))
-		mdev->sync_conf.al_extents = 127;
+	if (!expect(mdev->sync_conf.al_extents >= DRBD_AL_EXTENTS_MIN))
+		mdev->sync_conf.al_extents = DRBD_AL_EXTENTS_MIN;
 
 	if (mdev->act_log &&
 	    mdev->act_log->nr_elements == mdev->sync_conf.al_extents)
@@ -760,7 +760,7 @@ static int drbd_check_al_size(struct drbd_conf *mdev)
 
 	in_use = 0;
 	t = mdev->act_log;
-	n = lc_create("act_log", drbd_al_ext_cache, 1,
+	n = lc_create("act_log", drbd_al_ext_cache, AL_UPDATES_PER_TRANSACTION,
 		mdev->sync_conf.al_extents, sizeof(struct lc_element), 0);
 
 	if (n == NULL) {
@@ -932,7 +932,6 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	union drbd_state ns, os;
 	enum drbd_state_rv rv;
 	int cp_discovered = 0;
-	int logical_block_size;
 
 	drbd_reconfig_start(mdev);
 
@@ -1086,25 +1085,6 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 		goto force_diskless;
 
 	drbd_md_set_sector_offsets(mdev, nbc);
-
-	/* allocate a second IO page if logical_block_size != 512 */
-	logical_block_size = bdev_logical_block_size(nbc->md_bdev);
-	if (logical_block_size == 0)
-		logical_block_size = MD_SECTOR_SIZE;
-
-	if (logical_block_size != MD_SECTOR_SIZE) {
-		if (!mdev->md_io_tmpp) {
-			struct page *page = alloc_page(GFP_NOIO);
-			if (!page)
-				goto force_diskless_dec;
-
-			dev_warn(DEV, "Meta data's bdev logical_block_size = %d != %d\n",
-			     logical_block_size, MD_SECTOR_SIZE);
-			dev_warn(DEV, "Workaround engaged (has performance impact).\n");
-
-			mdev->md_io_tmpp = page;
-		}
-	}
 
 	if (!mdev->bitmap) {
 		if (drbd_bm_init(mdev)) {
@@ -1804,14 +1784,12 @@ static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *n
 
 	if (!expect(sc.rate >= 1))
 		sc.rate = 1;
-	if (!expect(sc.al_extents >= 7))
-		sc.al_extents = 127; /* arbitrary minimum */
-#define AL_MAX ((MD_AL_MAX_SIZE-1) * AL_EXTENTS_PT)
-	if (sc.al_extents > AL_MAX) {
-		dev_err(DEV, "sc.al_extents > %d\n", AL_MAX);
-		sc.al_extents = AL_MAX;
-	}
-#undef AL_MAX
+
+	/* clip to allowed range */
+	if (!expect(sc.al_extents >= DRBD_AL_EXTENTS_MIN))
+		sc.al_extents = DRBD_AL_EXTENTS_MIN;
+	if (!expect(sc.al_extents <= DRBD_AL_EXTENTS_MAX))
+		sc.al_extents = DRBD_AL_EXTENTS_MAX;
 
 	/* to avoid spurious errors when configuring minors before configuring
 	 * the minors they depend on: if necessary, first create the minor we

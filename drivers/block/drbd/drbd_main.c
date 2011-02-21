@@ -2841,10 +2841,6 @@ void drbd_ldev_destroy(struct drbd_conf *mdev)
 		drbd_free_bc(mdev->ldev);
 		mdev->ldev = NULL;);
 
-	if (mdev->md_io_tmpp) {
-		__free_page(mdev->md_io_tmpp);
-		mdev->md_io_tmpp = NULL;
-	}
 	clear_bit(GO_DISKLESS, &mdev->flags);
 }
 
