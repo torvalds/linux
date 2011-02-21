@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2010 by Vivante Corp.
+*    Copyright (C) 2005 - 2011 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -94,6 +94,8 @@ typedef enum _gceFEATURE
     gcvFEATURE_VG_DOUBLE_BUFFER,
     gcvFEATURE_MC20,
     gcvFEATURE_SUPER_TILED,
+    gcvFEATURE_2D_DITHER,
+    gcvFEATURE_WIDE_LINE,
 }
 gceFEATURE;
 
@@ -104,6 +106,7 @@ typedef enum _gceCHIPPOWERSTATE
     gcvPOWER_OFF,
     gcvPOWER_IDLE,
     gcvPOWER_SUSPEND,
+    gcvPOWER_ON_BROADCAST,
     gcvPOWER_SUSPEND_ATPOWERON,
     gcvPOWER_OFF_ATPOWERON,
     gcvPOWER_IDLE_BROADCAST,

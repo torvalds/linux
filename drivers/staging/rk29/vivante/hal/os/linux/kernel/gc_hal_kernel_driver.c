@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2010 by Vivante Corp.
+*    Copyright (C) 2005 - 2011 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
 #include <linux/device.h>
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
-
 
 #include "gc_hal_kernel_linux.h"
 #include "gc_hal_driver.h"
@@ -138,10 +137,10 @@ void gputimer_callback(unsigned long arg)
 
     if(freq!=last_freq) {
         last_freq = freq;
-        set_nextfreq(freq);
+        //set_nextfreq(freq);
     }
     
-    //printk("%8d /%8d = %3d %%, needfreq = %dM (%d)\n", (int)run, (int)(run+idle), precent, freq, power_cnt);
+    printk("%8d /%8d = %3d %%, needfreq = %dM (%d)\n", (int)run, (int)(run+idle), precent, freq, power_cnt);
 }
 #endif
 
@@ -211,7 +210,7 @@ int drv_release(struct inode* inode, struct file* filp)
 	FreeAllMemoryRecord(galDevice->os, &private->memoryRecordList);
 
 #ifdef ANDROID
-	gcmkVERIFY_OK(gckOS_Delay(galDevice->os, 1000));
+	/* gcmkVERIFY_OK(gckOS_Delay(galDevice->os, 1000)); */
 #else
 	gcmkVERIFY_OK(gckCOMMAND_Stall(device->kernel->command));
 #endif
@@ -467,7 +466,9 @@ static int drv_mmap(struct file * filp, struct vm_area_struct * vma)
         return -ENOTTY;
     }
 
+#if !gcdENABLE_MEM_CACHE
     vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+#endif
     vma->vm_flags    |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND;
     vma->vm_pgoff     = 0;
 
@@ -812,10 +813,27 @@ static int __devinit gpu_resume(struct platform_device *dev)
 	return 0;
 }
 
+static void __devinit gpu_shutdown(struct platform_device *dev)
+{
+	gceSTATUS status;
+	gckGALDEVICE device;
+    
+    printk("Enter %s \n", __func__);
+
+	device = platform_get_drvdata(dev);
+
+	status = gckHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_OFF);
+
+	if (gcmIS_ERROR(status))
+	{
+	    printk("%s fail!\n", __func__);
+	}
+}
+
 static struct platform_driver gpu_driver = {
 	.probe		= gpu_probe,
 	.remove		= gpu_remove,
-
+    .shutdown   = gpu_shutdown,
 	.suspend	= gpu_suspend,
 	.resume		= gpu_resume,
 
