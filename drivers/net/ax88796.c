@@ -89,7 +89,7 @@ struct ax_device {
 	void __iomem *map2;
 	struct resource *mem;
 	struct resource *mem2;
-	struct ax_plat_data *plat;
+	const struct ax_plat_data *plat;
 
 	unsigned char running;
 	unsigned char resume_open;
