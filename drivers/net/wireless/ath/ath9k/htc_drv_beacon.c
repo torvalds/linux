@@ -207,9 +207,9 @@ void ath9k_htc_swba(struct ath9k_htc_priv *priv, u8 beacon_pending)
 	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
 		struct ieee80211_hdr *hdr =
 			(struct ieee80211_hdr *) beacon->data;
-		priv->seq_no += 0x10;
+		avp->seq_no += 0x10;
 		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
-		hdr->seq_ctrl |= cpu_to_le16(priv->seq_no);
+		hdr->seq_ctrl |= cpu_to_le16(avp->seq_no);
 	}
 
 	tx_ctl.type = ATH9K_HTC_NORMAL;

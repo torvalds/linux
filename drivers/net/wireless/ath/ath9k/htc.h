@@ -208,6 +208,7 @@ struct ath9k_htc_target_stats {
 
 struct ath9k_htc_vif {
 	u8 index;
+	u16 seq_no;
 };
 
 struct ath9k_vif_iter_data {
@@ -372,7 +373,6 @@ struct ath9k_htc_priv {
 	u16 txpowlimit;
 	u16 nvifs;
 	u16 nstations;
-	u16 seq_no;
 	u32 bmiss_cnt;
 	bool rearm_ani;
 	bool reconfig_beacon;
