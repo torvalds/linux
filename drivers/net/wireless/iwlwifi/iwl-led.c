@@ -175,6 +175,7 @@ void iwl_leds_init(struct iwl_priv *priv)
 
 	priv->led_registered = true;
 }
+EXPORT_SYMBOL(iwl_leds_init);
 
 void iwl_leds_exit(struct iwl_priv *priv)
 {
@@ -184,3 +185,4 @@ void iwl_leds_exit(struct iwl_priv *priv)
 	led_classdev_unregister(&priv->led);
 	kfree(priv->led.name);
 }
+EXPORT_SYMBOL(iwl_leds_exit);

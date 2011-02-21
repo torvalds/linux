@@ -425,6 +425,7 @@ int iwl_power_set_mode(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd,
 
 	return ret;
 }
+EXPORT_SYMBOL(iwl_power_set_mode);
 
 int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 {
@@ -433,6 +434,7 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 	iwl_power_build_cmd(priv, &cmd);
 	return iwl_power_set_mode(priv, &cmd, force);
 }
+EXPORT_SYMBOL(iwl_power_update_mode);
 
 /* initialize to default */
 void iwl_power_initialize(struct iwl_priv *priv)
@@ -446,3 +448,4 @@ void iwl_power_initialize(struct iwl_priv *priv)
 	memset(&priv->power_data.sleep_cmd, 0,
 		sizeof(priv->power_data.sleep_cmd));
 }
+EXPORT_SYMBOL(iwl_power_initialize);

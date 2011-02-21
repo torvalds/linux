@@ -84,6 +84,7 @@ void iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 	}
 	txq->need_update = 0;
 }
+EXPORT_SYMBOL(iwl_txq_update_write_ptr);
 
 /**
  * iwl_tx_queue_free - Deallocate DMA queue.
@@ -130,6 +131,7 @@ void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id)
 	/* 0-fill queue descriptor structure */
 	memset(txq, 0, sizeof(*txq));
 }
+EXPORT_SYMBOL(iwl_tx_queue_free);
 
 /**
  * iwl_cmd_queue_free - Deallocate DMA queue.
@@ -191,6 +193,7 @@ void iwl_cmd_queue_free(struct iwl_priv *priv)
 	/* 0-fill queue descriptor structure */
 	memset(txq, 0, sizeof(*txq));
 }
+EXPORT_SYMBOL(iwl_cmd_queue_free);
 
 /*************** DMA-QUEUE-GENERAL-FUNCTIONS  *****
  * DMA services
@@ -230,6 +233,7 @@ int iwl_queue_space(const struct iwl_queue *q)
 		s = 0;
 	return s;
 }
+EXPORT_SYMBOL(iwl_queue_space);
 
 
 /**
@@ -380,6 +384,7 @@ out_free_arrays:
 
 	return -ENOMEM;
 }
+EXPORT_SYMBOL(iwl_tx_queue_init);
 
 void iwl_tx_queue_reset(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 			int slots_num, u32 txq_id)
@@ -399,6 +404,7 @@ void iwl_tx_queue_reset(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 	/* Tell device where to find queue */
 	priv->cfg->ops->lib->txq_init(priv, txq);
 }
+EXPORT_SYMBOL(iwl_tx_queue_reset);
 
 /*************** HOST COMMAND QUEUE FUNCTIONS   *****/
 
@@ -635,3 +641,4 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	}
 	meta->flags = 0;
 }
+EXPORT_SYMBOL(iwl_tx_cmd_complete);
