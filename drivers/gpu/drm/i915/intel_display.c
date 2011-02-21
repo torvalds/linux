@@ -2067,6 +2067,7 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev,
 			   struct drm_i915_gem_object *obj,
 			   struct intel_ring_buffer *pipelined)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 alignment;
 	int ret;
 
@@ -2091,9 +2092,10 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev,
 		BUG();
 	}
 
+	dev_priv->mm.interruptible = false;
 	ret = i915_gem_object_pin(obj, alignment, true);
 	if (ret)
-		return ret;
+		goto err_interruptible;
 
 	ret = i915_gem_object_set_to_display_plane(obj, pipelined);
 	if (ret)
@@ -2105,15 +2107,18 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev,
 	 * a fence as the cost is not that onerous.
 	 */
 	if (obj->tiling_mode != I915_TILING_NONE) {
-		ret = i915_gem_object_get_fence(obj, pipelined, false);
+		ret = i915_gem_object_get_fence(obj, pipelined);
 		if (ret)
 			goto err_unpin;
 	}
 
+	dev_priv->mm.interruptible = true;
 	return 0;
 
 err_unpin:
 	i915_gem_object_unpin(obj);
+err_interruptible:
+	dev_priv->mm.interruptible = true;
 	return ret;
 }
 
@@ -2247,7 +2252,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		 * This should only fail upon a hung GPU, in which case we
 		 * can safely continue.
 		 */
-		ret = i915_gem_object_flush_gpu(obj, false);
+		ret = i915_gem_object_flush_gpu(obj);
 		(void) ret;
 	}
 
@@ -2994,9 +2999,12 @@ static void intel_crtc_dpms_overlay(struct intel_crtc *intel_crtc, bool enable)
 {
 	if (!enable && intel_crtc->overlay) {
 		struct drm_device *dev = intel_crtc->base.dev;
+		struct drm_i915_private *dev_priv = dev->dev_private;
 
 		mutex_lock(&dev->struct_mutex);
-		(void) intel_overlay_switch_off(intel_crtc->overlay, false);
+		dev_priv->mm.interruptible = false;
+		(void) intel_overlay_switch_off(intel_crtc->overlay);
+		dev_priv->mm.interruptible = true;
 		mutex_unlock(&dev->struct_mutex);
 	}
 

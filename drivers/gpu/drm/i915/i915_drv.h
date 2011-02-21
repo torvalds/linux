@@ -617,6 +617,12 @@ typedef struct drm_i915_private {
 		struct delayed_work retire_work;
 
 		/**
+		 * Are we in a non-interruptible section of code like
+		 * modesetting?
+		 */
+		bool interruptible;
+
+		/**
 		 * Flag if the X Server, and thus DRM, is not currently in
 		 * control of the device.
 		 *
@@ -1110,8 +1116,7 @@ void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
 void i915_gem_lastclose(struct drm_device *dev);
 
 int __must_check i915_mutex_lock_interruptible(struct drm_device *dev);
-int __must_check i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
-						bool interruptible);
+int __must_check i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj);
 void i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
 				    struct intel_ring_buffer *ring,
 				    u32 seqno);
@@ -1133,8 +1138,7 @@ i915_gem_next_request_seqno(struct intel_ring_buffer *ring)
 }
 
 int __must_check i915_gem_object_get_fence(struct drm_i915_gem_object *obj,
-					   struct intel_ring_buffer *pipelined,
-					   bool interruptible);
+					   struct intel_ring_buffer *pipelined);
 int __must_check i915_gem_object_put_fence(struct drm_i915_gem_object *obj);
 
 void i915_gem_retire_requests(struct drm_device *dev);
@@ -1143,8 +1147,7 @@ void i915_gem_clflush_object(struct drm_i915_gem_object *obj);
 int __must_check i915_gem_object_set_domain(struct drm_i915_gem_object *obj,
 					    uint32_t read_domains,
 					    uint32_t write_domain);
-int __must_check i915_gem_object_flush_gpu(struct drm_i915_gem_object *obj,
-					   bool interruptible);
+int __must_check i915_gem_object_flush_gpu(struct drm_i915_gem_object *obj);
 int __must_check i915_gem_init_ringbuffer(struct drm_device *dev);
 void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
 void i915_gem_do_init(struct drm_device *dev,
@@ -1157,8 +1160,7 @@ int __must_check i915_add_request(struct intel_ring_buffer *ring,
 				  struct drm_file *file,
 				  struct drm_i915_gem_request *request);
 int __must_check i915_wait_request(struct intel_ring_buffer *ring,
-				   uint32_t seqno,
-				   bool interruptible);
+				   uint32_t seqno);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 int __must_check
 i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj,

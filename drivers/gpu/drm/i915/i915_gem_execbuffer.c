@@ -560,7 +560,7 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 
 			if (has_fenced_gpu_access) {
 				if (need_fence) {
-					ret = i915_gem_object_get_fence(obj, ring, 1);
+					ret = i915_gem_object_get_fence(obj, ring);
 					if (ret)
 						break;
 				} else if (entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
@@ -756,7 +756,7 @@ i915_gem_execbuffer_sync_rings(struct drm_i915_gem_object *obj,
 
 	/* XXX gpu semaphores are currently causing hard hangs on SNB mobile */
 	if (INTEL_INFO(obj->base.dev)->gen < 6 || IS_MOBILE(obj->base.dev))
-		return i915_gem_object_wait_rendering(obj, true);
+		return i915_gem_object_wait_rendering(obj);
 
 	idx = intel_ring_sync_index(from, to);
 

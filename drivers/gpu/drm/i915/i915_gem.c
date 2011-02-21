@@ -1200,7 +1200,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (obj->tiling_mode == I915_TILING_NONE)
 		ret = i915_gem_object_put_fence(obj);
 	else
-		ret = i915_gem_object_get_fence(obj, NULL, true);
+		ret = i915_gem_object_get_fence(obj, NULL);
 	if (ret)
 		goto unlock;
 
@@ -1989,8 +1989,7 @@ i915_gem_retire_work_handler(struct work_struct *work)
  */
 int
 i915_wait_request(struct intel_ring_buffer *ring,
-		  uint32_t seqno,
-		  bool interruptible)
+		  uint32_t seqno)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	u32 ier;
@@ -2043,7 +2042,7 @@ i915_wait_request(struct intel_ring_buffer *ring,
 
 		ring->waiting_seqno = seqno;
 		if (ring->irq_get(ring)) {
-			if (interruptible)
+			if (dev_priv->mm.interruptible)
 				ret = wait_event_interruptible(ring->irq_queue,
 							       i915_seqno_passed(ring->get_seqno(ring), seqno)
 							       || atomic_read(&dev_priv->mm.wedged));
@@ -2085,8 +2084,7 @@ i915_wait_request(struct intel_ring_buffer *ring,
  * safe to unbind from the GTT or access from the CPU.
  */
 int
-i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
-			       bool interruptible)
+i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj)
 {
 	int ret;
 
@@ -2099,9 +2097,7 @@ i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
 	 * it.
 	 */
 	if (obj->active) {
-		ret = i915_wait_request(obj->ring,
-					obj->last_rendering_seqno,
-					interruptible);
+		ret = i915_wait_request(obj->ring, obj->last_rendering_seqno);
 		if (ret)
 			return ret;
 	}
@@ -2202,9 +2198,7 @@ static int i915_ring_idle(struct intel_ring_buffer *ring)
 			return ret;
 	}
 
-	return i915_wait_request(ring,
-				 i915_gem_next_request_seqno(ring),
-				 true);
+	return i915_wait_request(ring, i915_gem_next_request_seqno(ring));
 }
 
 int
@@ -2405,8 +2399,7 @@ static bool ring_passed_seqno(struct intel_ring_buffer *ring, u32 seqno)
 
 static int
 i915_gem_object_flush_fence(struct drm_i915_gem_object *obj,
-			    struct intel_ring_buffer *pipelined,
-			    bool interruptible)
+			    struct intel_ring_buffer *pipelined)
 {
 	int ret;
 
@@ -2425,9 +2418,7 @@ i915_gem_object_flush_fence(struct drm_i915_gem_object *obj,
 		if (!ring_passed_seqno(obj->last_fenced_ring,
 				       obj->last_fenced_seqno)) {
 			ret = i915_wait_request(obj->last_fenced_ring,
-						obj->last_fenced_seqno,
-						interruptible);
-
+						obj->last_fenced_seqno);
 			if (ret)
 				return ret;
 		}
@@ -2453,7 +2444,7 @@ i915_gem_object_put_fence(struct drm_i915_gem_object *obj)
 	if (obj->tiling_mode)
 		i915_gem_release_mmap(obj);
 
-	ret = i915_gem_object_flush_fence(obj, NULL, true);
+	ret = i915_gem_object_flush_fence(obj, NULL);
 	if (ret)
 		return ret;
 
@@ -2530,8 +2521,7 @@ i915_find_fence_reg(struct drm_device *dev,
  */
 int
 i915_gem_object_get_fence(struct drm_i915_gem_object *obj,
-			  struct intel_ring_buffer *pipelined,
-			  bool interruptible)
+			  struct intel_ring_buffer *pipelined)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2554,8 +2544,7 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj,
 				if (!ring_passed_seqno(obj->last_fenced_ring,
 						       reg->setup_seqno)) {
 					ret = i915_wait_request(obj->last_fenced_ring,
-								reg->setup_seqno,
-								interruptible);
+								reg->setup_seqno);
 					if (ret)
 						return ret;
 				}
@@ -2564,9 +2553,7 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj,
 			}
 		} else if (obj->last_fenced_ring &&
 			   obj->last_fenced_ring != pipelined) {
-			ret = i915_gem_object_flush_fence(obj,
-							  pipelined,
-							  interruptible);
+			ret = i915_gem_object_flush_fence(obj, pipelined);
 			if (ret)
 				return ret;
 		} else if (obj->tiling_changed) {
@@ -2603,7 +2590,7 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj,
 	if (reg == NULL)
 		return -ENOSPC;
 
-	ret = i915_gem_object_flush_fence(obj, pipelined, interruptible);
+	ret = i915_gem_object_flush_fence(obj, pipelined);
 	if (ret)
 		return ret;
 
@@ -2615,9 +2602,7 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj,
 		if (old->tiling_mode)
 			i915_gem_release_mmap(old);
 
-		ret = i915_gem_object_flush_fence(old,
-						  pipelined,
-						  interruptible);
+		ret = i915_gem_object_flush_fence(old, pipelined);
 		if (ret) {
 			drm_gem_object_unreference(&old->base);
 			return ret;
@@ -2940,7 +2925,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 		return ret;
 
 	if (obj->pending_gpu_write || write) {
-		ret = i915_gem_object_wait_rendering(obj, true);
+		ret = i915_gem_object_wait_rendering(obj);
 		if (ret)
 			return ret;
 	}
@@ -2990,7 +2975,7 @@ i915_gem_object_set_to_display_plane(struct drm_i915_gem_object *obj,
 
 	/* Currently, we are always called from an non-interruptible context. */
 	if (pipelined != obj->ring) {
-		ret = i915_gem_object_wait_rendering(obj, false);
+		ret = i915_gem_object_wait_rendering(obj);
 		if (ret)
 			return ret;
 	}
@@ -3008,8 +2993,7 @@ i915_gem_object_set_to_display_plane(struct drm_i915_gem_object *obj,
 }
 
 int
-i915_gem_object_flush_gpu(struct drm_i915_gem_object *obj,
-			  bool interruptible)
+i915_gem_object_flush_gpu(struct drm_i915_gem_object *obj)
 {
 	int ret;
 
@@ -3022,7 +3006,7 @@ i915_gem_object_flush_gpu(struct drm_i915_gem_object *obj,
 			return ret;
 	}
 
-	return i915_gem_object_wait_rendering(obj, interruptible);
+	return i915_gem_object_wait_rendering(obj);
 }
 
 /**
@@ -3044,7 +3028,7 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 	if (ret)
 		return ret;
 
-	ret = i915_gem_object_wait_rendering(obj, true);
+	ret = i915_gem_object_wait_rendering(obj);
 	if (ret)
 		return ret;
 
@@ -3142,7 +3126,7 @@ i915_gem_object_set_cpu_read_domain_range(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
-	ret = i915_gem_object_wait_rendering(obj, true);
+	ret = i915_gem_object_wait_rendering(obj);
 	if (ret)
 		return ret;
 
@@ -3841,6 +3825,8 @@ i915_gem_load(struct drm_device *dev)
 	}
 	i915_gem_detect_bit_6_swizzle(dev);
 	init_waitqueue_head(&dev_priv->pending_flip_queue);
+
+	dev_priv->mm.interruptible = true;
 
 	dev_priv->mm.inactive_shrinker.shrink = i915_gem_inactive_shrink;
 	dev_priv->mm.inactive_shrinker.seeks = DEFAULT_SEEKS;
