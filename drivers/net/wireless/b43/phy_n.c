@@ -430,9 +430,9 @@ static void b43_radio_init2055_post(struct b43_wldev *dev)
 	bool workaround = false;
 
 	if (sprom->revision < 4)
-		workaround = (binfo->vendor != PCI_VENDOR_ID_BROADCOM ||
-				binfo->type != 0x46D ||
-				binfo->rev < 0x41);
+		workaround = (binfo->vendor != PCI_VENDOR_ID_BROADCOM &&
+				binfo->type == 0x46D &&
+				binfo->rev >= 0x41);
 	else
 		workaround =
 			!(sprom->boardflags2_lo & B43_BFL2_RXBB_INT_REG_DIS);
