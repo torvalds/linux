@@ -430,8 +430,9 @@ struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst, __u8
 
 	if (type == LE_LINK) {
 		le = hci_conn_hash_lookup_ba(hdev, LE_LINK, dst);
-		if (!le)
-			le = hci_conn_add(hdev, LE_LINK, dst);
+		if (le)
+			return NULL;
+		le = hci_conn_add(hdev, LE_LINK, dst);
 		if (!le)
 			return NULL;
 		if (le->state == BT_OPEN)
