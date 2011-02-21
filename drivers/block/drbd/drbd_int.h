@@ -1479,6 +1479,7 @@ extern void drbd_free_mdev(struct drbd_conf *mdev);
 
 struct drbd_tconn *drbd_new_tconn(char *name);
 extern void drbd_free_tconn(struct drbd_tconn *tconn);
+struct drbd_tconn *conn_by_name(const char *name);
 
 extern int proc_details;
 

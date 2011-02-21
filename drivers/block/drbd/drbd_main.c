@@ -2196,6 +2196,21 @@ static void drbd_init_workqueue(struct drbd_work_queue* wq)
 	INIT_LIST_HEAD(&wq->q);
 }
 
+struct drbd_tconn *conn_by_name(const char *name)
+{
+	struct drbd_tconn *tconn;
+
+	write_lock_irq(&global_state_lock);
+	list_for_each_entry(tconn, &drbd_tconns, all_tconn) {
+		if (!strcmp(tconn->name, name))
+			goto found;
+	}
+	tconn = NULL;
+found:
+	write_unlock_irq(&global_state_lock);
+	return tconn;
+}
+
 struct drbd_tconn *drbd_new_tconn(char *name)
 {
 	struct drbd_tconn *tconn;
