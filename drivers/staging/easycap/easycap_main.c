@@ -29,6 +29,7 @@
 /*****************************************************************************/
 
 #include "easycap.h"
+#include <linux/usb/audio.h>
 
 
 MODULE_LICENSE("GPL");
@@ -3494,7 +3495,7 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 			}
 		}
 	} else if ((USB_CLASS_AUDIO == bInterfaceClass) &&
-		   (0x02 == bInterfaceSubClass)) {
+		   (USB_SUBCLASS_AUDIOSTREAMING == bInterfaceSubClass)) {
 		if (-1 == peasycap->audio_interface) {
 			peasycap->audio_interface = bInterfaceNumber;
 			JOM(4, "setting peasycap->audio_interface=%i\n",
@@ -3654,7 +3655,8 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 						break;
 					}
 					case USB_CLASS_AUDIO: {
-						if (0x02 != bInterfaceSubClass)
+						if (bInterfaceSubClass !=
+						    USB_SUBCLASS_AUDIOSTREAMING)
 							break;
 						if (!peasycap) {
 							SAM("MISTAKE: "
