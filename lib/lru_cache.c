@@ -378,7 +378,7 @@ struct lc_element *lc_get(struct lru_cache *lc, unsigned int enr)
 	/* it was not present in the active set.
 	 * we are going to recycle an unused (or even "free") element.
 	 * user may need to commit a transaction to record that change.
-	 * we serialize on flags & TF_DIRTY */
+	 * we serialize on flags & LC_DIRTY */
 	if (test_and_set_bit(__LC_DIRTY, &lc->flags)) {
 		++lc->dirty;
 		RETURN(NULL);
