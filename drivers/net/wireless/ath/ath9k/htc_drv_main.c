@@ -1524,15 +1524,6 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 		ath9k_htc_beacon_config(priv, vif);
 	}
 
-	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
-		ath_dbg(common, ATH_DBG_CONFIG, "BSS Changed PREAMBLE %d\n",
-			bss_conf->use_short_preamble);
-		if (bss_conf->use_short_preamble)
-			priv->op_flags |= OP_PREAMBLE_SHORT;
-		else
-			priv->op_flags &= ~OP_PREAMBLE_SHORT;
-	}
-
 	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
 		ath_dbg(common, ATH_DBG_CONFIG, "BSS Changed CTS PROT %d\n",
 			bss_conf->use_cts_prot);
