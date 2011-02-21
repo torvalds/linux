@@ -470,7 +470,7 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 
 	/* Add TLV for broadcast link */
 
-	link_info.dest = htonl(tipc_own_addr & 0xfffff00);
+	link_info.dest = htonl(tipc_own_addr & 0xfffff000);
 	link_info.up = htonl(1);
 	strlcpy(link_info.str, tipc_bclink_name, TIPC_MAX_LINK_NAME);
 	tipc_cfg_append_tlv(buf, TIPC_TLV_LINK_INFO, &link_info, sizeof(link_info));
