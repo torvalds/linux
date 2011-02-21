@@ -5146,8 +5146,6 @@ wlc_prec_enq_head(struct wlc_info *wlc, struct pktq *q, struct sk_buff *pkt,
 				 tx_failed[WME_PRIO2AC(p->priority)].bytes,
 				 pkttotlen(wlc->osh, p));
 		}
-
-		ASSERT(0);
 		pkt_buf_free_skb(wlc->osh, p, true);
 		wlc->pub->_cnt->txnobuf++;
 	}
