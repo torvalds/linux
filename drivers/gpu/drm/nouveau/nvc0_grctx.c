@@ -1830,7 +1830,7 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 
 	for (tp = 0, id = 0; tp < 4; tp++) {
 		for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
-			if (tp <= priv->tp_nr[gpc]) {
+			if (tp < priv->tp_nr[gpc]) {
 				nv_wr32(dev, TP_UNIT(gpc, tp, 0x698), id);
 				nv_wr32(dev, TP_UNIT(gpc, tp, 0x4e8), id);
 				nv_wr32(dev, GPC_UNIT(gpc, 0x0c10 + tp * 4), id);

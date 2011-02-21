@@ -359,10 +359,14 @@ static int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 
-	if (page->private == EXTENT_PAGE_PRIVATE)
+	if (page->private == EXTENT_PAGE_PRIVATE) {
+		WARN_ON(1);
 		goto out;
-	if (!page->private)
+	}
+	if (!page->private) {
+		WARN_ON(1);
 		goto out;
+	}
 	len = page->private >> 2;
 	WARN_ON(len == 0);
 
@@ -1550,6 +1554,7 @@ static int transaction_kthread(void *arg)
 		spin_unlock(&root->fs_info->new_trans_lock);
 
 		trans = btrfs_join_transaction(root, 1);
+		BUG_ON(IS_ERR(trans));
 		if (transid == trans->transid) {
 			ret = btrfs_commit_transaction(trans, root);
 			BUG_ON(ret);
@@ -2453,10 +2458,14 @@ int btrfs_commit_super(struct btrfs_root *root)
 	up_write(&root->fs_info->cleanup_work_sem);
 
 	trans = btrfs_join_transaction(root, 1);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
 	ret = btrfs_commit_transaction(trans, root);
 	BUG_ON(ret);
 	/* run commit again to drop the original snapshot */
 	trans = btrfs_join_transaction(root, 1);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
 	btrfs_commit_transaction(trans, root);
 	ret = btrfs_write_and_wait_transaction(NULL, root);
 	BUG_ON(ret);
@@ -2554,6 +2563,8 @@ int close_ctree(struct btrfs_root *root)
 	kfree(fs_info->chunk_root);
 	kfree(fs_info->dev_root);
 	kfree(fs_info->csum_root);
+	kfree(fs_info);
+
 	return 0;
 }
 

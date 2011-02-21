@@ -1547,7 +1547,7 @@ static int ieee80211_skb_resize(struct ieee80211_local *local,
 		skb_orphan(skb);
 	}
 
-	if (skb_header_cloned(skb))
+	if (skb_cloned(skb))
 		I802_DEBUG_INC(local->tx_expand_skb_head_cloned);
 	else if (head_need || tail_need)
 		I802_DEBUG_INC(local->tx_expand_skb_head);
@@ -2229,6 +2229,9 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 	rcu_read_lock();
 
 	sdata = vif_to_sdata(vif);
+
+	if (!ieee80211_sdata_running(sdata))
+		goto out;
 
 	if (tim_offset)
 		*tim_offset = 0;

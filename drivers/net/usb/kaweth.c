@@ -406,6 +406,7 @@ static int kaweth_download_firmware(struct kaweth_device *kaweth,
 
 	if (fw->size > KAWETH_FIRMWARE_BUF_SIZE) {
 		err("Firmware too big: %zu", fw->size);
+		release_firmware(fw);
 		return -ENOSPC;
 	}
 	data_len = fw->size;

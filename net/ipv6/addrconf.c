@@ -2661,14 +2661,12 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 	struct net *net = dev_net(dev);
 	struct inet6_dev *idev;
 	struct inet6_ifaddr *ifa;
-	LIST_HEAD(keep_list);
-	int state;
+	int state, i;
 
 	ASSERT_RTNL();
 
-	/* Flush routes if device is being removed or it is not loopback */
-	if (how || !(dev->flags & IFF_LOOPBACK))
-		rt6_ifdown(net, dev);
+	rt6_ifdown(net, dev);
+	neigh_ifdown(&nd_tbl, dev);
 
 	idev = __in6_dev_get(dev);
 	if (idev == NULL)
@@ -2687,6 +2685,23 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 		/* Step 1.5: remove snmp6 entry */
 		snmp6_unregister_dev(idev);
 
+	}
+
+	/* Step 2: clear hash table */
+	for (i = 0; i < IN6_ADDR_HSIZE; i++) {
+		struct hlist_head *h = &inet6_addr_lst[i];
+		struct hlist_node *n;
+
+		spin_lock_bh(&addrconf_hash_lock);
+	restart:
+		hlist_for_each_entry_rcu(ifa, n, h, addr_lst) {
+			if (ifa->idev == idev) {
+				hlist_del_init_rcu(&ifa->addr_lst);
+				addrconf_del_timer(ifa);
+				goto restart;
+			}
+		}
+		spin_unlock_bh(&addrconf_hash_lock);
 	}
 
 	write_lock_bh(&idev->lock);
@@ -2722,52 +2737,23 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 				       struct inet6_ifaddr, if_list);
 		addrconf_del_timer(ifa);
 
-		/* If just doing link down, and address is permanent
-		   and not link-local, then retain it. */
-		if (!how &&
-		    (ifa->flags&IFA_F_PERMANENT) &&
-		    !(ipv6_addr_type(&ifa->addr) & IPV6_ADDR_LINKLOCAL)) {
-			list_move_tail(&ifa->if_list, &keep_list);
+		list_del(&ifa->if_list);
 
-			/* If not doing DAD on this address, just keep it. */
-			if ((dev->flags&(IFF_NOARP|IFF_LOOPBACK)) ||
-			    idev->cnf.accept_dad <= 0 ||
-			    (ifa->flags & IFA_F_NODAD))
-				continue;
+		write_unlock_bh(&idev->lock);
 
-			/* If it was tentative already, no need to notify */
-			if (ifa->flags & IFA_F_TENTATIVE)
-				continue;
+		spin_lock_bh(&ifa->state_lock);
+		state = ifa->state;
+		ifa->state = INET6_IFADDR_STATE_DEAD;
+		spin_unlock_bh(&ifa->state_lock);
 
-			/* Flag it for later restoration when link comes up */
-			ifa->flags |= IFA_F_TENTATIVE;
-			ifa->state = INET6_IFADDR_STATE_DAD;
-		} else {
-			list_del(&ifa->if_list);
-
-			/* clear hash table */
-			spin_lock_bh(&addrconf_hash_lock);
-			hlist_del_init_rcu(&ifa->addr_lst);
-			spin_unlock_bh(&addrconf_hash_lock);
-
-			write_unlock_bh(&idev->lock);
-			spin_lock_bh(&ifa->state_lock);
-			state = ifa->state;
-			ifa->state = INET6_IFADDR_STATE_DEAD;
-			spin_unlock_bh(&ifa->state_lock);
-
-			if (state != INET6_IFADDR_STATE_DEAD) {
-				__ipv6_ifa_notify(RTM_DELADDR, ifa);
-				atomic_notifier_call_chain(&inet6addr_chain,
-							   NETDEV_DOWN, ifa);
-			}
-
-			in6_ifa_put(ifa);
-			write_lock_bh(&idev->lock);
+		if (state != INET6_IFADDR_STATE_DEAD) {
+			__ipv6_ifa_notify(RTM_DELADDR, ifa);
+			atomic_notifier_call_chain(&inet6addr_chain, NETDEV_DOWN, ifa);
 		}
-	}
+		in6_ifa_put(ifa);
 
-	list_splice(&keep_list, &idev->addr_list);
+		write_lock_bh(&idev->lock);
+	}
 
 	write_unlock_bh(&idev->lock);
 
@@ -4156,8 +4142,7 @@ static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 		addrconf_leave_solict(ifp->idev, &ifp->addr);
 		dst_hold(&ifp->rt->dst);
 
-		if (ifp->state == INET6_IFADDR_STATE_DEAD &&
-		    ip6_del_rt(ifp->rt))
+		if (ip6_del_rt(ifp->rt))
 			dst_free(&ifp->rt->dst);
 		break;
 	}

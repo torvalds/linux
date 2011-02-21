@@ -320,6 +320,7 @@ static int unload_when_empty = 1;
 static int add_smi(struct smi_info *smi);
 static int try_smi_init(struct smi_info *smi);
 static void cleanup_one_si(struct smi_info *to_clean);
+static void cleanup_ipmi_si(void);
 
 static ATOMIC_NOTIFIER_HEAD(xaction_notifier_list);
 static int register_xaction_notifier(struct notifier_block *nb)
@@ -3450,16 +3451,7 @@ static int __devinit init_ipmi_si(void)
 	mutex_lock(&smi_infos_lock);
 	if (unload_when_empty && list_empty(&smi_infos)) {
 		mutex_unlock(&smi_infos_lock);
-#ifdef CONFIG_PCI
-		if (pci_registered)
-			pci_unregister_driver(&ipmi_pci_driver);
-#endif
-
-#ifdef CONFIG_PPC_OF
-		if (of_registered)
-			of_unregister_platform_driver(&ipmi_of_platform_driver);
-#endif
-		driver_unregister(&ipmi_driver.driver);
+		cleanup_ipmi_si();
 		printk(KERN_WARNING PFX
 		       "Unable to find any System Interface(s)\n");
 		return -ENODEV;

@@ -347,7 +347,7 @@ static int msm_fb_suspend(struct platform_device *pdev, pm_message_t state)
 	if ((!mfd) || (mfd->key != MFD_KEY))
 		return 0;
 
-	acquire_console_sem();
+	console_lock();
 	fb_set_suspend(mfd->fbi, 1);
 
 	ret = msm_fb_suspend_sub(mfd);
@@ -358,7 +358,7 @@ static int msm_fb_suspend(struct platform_device *pdev, pm_message_t state)
 		pdev->dev.power.power_state = state;
 	}
 
-	release_console_sem();
+	console_unlock();
 	return ret;
 }
 #else
@@ -431,11 +431,11 @@ static int msm_fb_resume(struct platform_device *pdev)
 	if ((!mfd) || (mfd->key != MFD_KEY))
 		return 0;
 
-	acquire_console_sem();
+	console_lock();
 	ret = msm_fb_resume_sub(mfd);
 	pdev->dev.power.power_state = PMSG_ON;
 	fb_set_suspend(mfd->fbi, 1);
-	release_console_sem();
+	console_unlock();
 
 	return ret;
 }

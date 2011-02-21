@@ -1391,7 +1391,7 @@ config AEABI
 
 config OABI_COMPAT
 	bool "Allow old ABI binaries to run with this kernel (EXPERIMENTAL)"
-	depends on AEABI && EXPERIMENTAL
+	depends on AEABI && EXPERIMENTAL && !THUMB2_KERNEL
 	default y
 	help
 	  This option preserves the old syscall interface along with the

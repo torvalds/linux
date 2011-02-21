@@ -373,11 +373,11 @@ int core_update_device_list_for_node(
 		/*
 		 * deve->se_lun_acl will be NULL for demo-mode created LUNs
 		 * that have not been explictly concerted to MappedLUNs ->
-		 * struct se_lun_acl.
+		 * struct se_lun_acl, but we remove deve->alua_port_list from
+		 * port->sep_alua_list. This also means that active UAs and
+		 * NodeACL context specific PR metadata for demo-mode
+		 * MappedLUN *deve will be released below..
 		 */
-		if (!(deve->se_lun_acl))
-			return 0;
-
 		spin_lock_bh(&port->sep_alua_lock);
 		list_del(&deve->alua_port_list);
 		spin_unlock_bh(&port->sep_alua_lock);
@@ -395,12 +395,14 @@ int core_update_device_list_for_node(
 				printk(KERN_ERR "struct se_dev_entry->se_lun_acl"
 					" already set for demo mode -> explict"
 					" LUN ACL transition\n");
+				spin_unlock_irq(&nacl->device_list_lock);
 				return -1;
 			}
 			if (deve->se_lun != lun) {
 				printk(KERN_ERR "struct se_dev_entry->se_lun does"
 					" match passed struct se_lun for demo mode"
 					" -> explict LUN ACL transition\n");
+				spin_unlock_irq(&nacl->device_list_lock);
 				return -1;
 			}
 			deve->se_lun_acl = lun_acl;
@@ -865,9 +867,6 @@ static void se_dev_stop(struct se_device *dev)
 		}
 	}
 	spin_unlock(&hba->device_lock);
-
-	while (atomic_read(&hba->dev_mib_access_count))
-		cpu_relax();
 }
 
 int se_dev_check_online(struct se_device *dev)

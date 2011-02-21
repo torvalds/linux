@@ -1294,6 +1294,7 @@ static int __init arch_setup(void)
 	i2c_register_board_info(1, i2c1_devices,
 				ARRAY_SIZE(i2c1_devices));
 
+#if defined(CONFIG_VIDEO_SH_VOU) || defined(CONFIG_VIDEO_SH_VOU_MODULE)
 	/* VOU */
 	gpio_request(GPIO_FN_DV_D15, NULL);
 	gpio_request(GPIO_FN_DV_D14, NULL);
@@ -1325,6 +1326,7 @@ static int __init arch_setup(void)
 
 	/* Remove reset */
 	gpio_set_value(GPIO_PTG4, 1);
+#endif
 
 	return platform_add_devices(ecovec_devices,
 				    ARRAY_SIZE(ecovec_devices));

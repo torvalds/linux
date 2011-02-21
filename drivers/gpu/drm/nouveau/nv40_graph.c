@@ -211,30 +211,35 @@ nv40_graph_set_tile_region(struct drm_device *dev, int i)
 	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
 
 	switch (dev_priv->chipset) {
-	case 0x44:
-	case 0x4a:
+	case 0x40:
+	case 0x41: /* guess */
+	case 0x42:
+	case 0x43:
+	case 0x45: /* guess */
 	case 0x4e:
 		nv_wr32(dev, NV20_PGRAPH_TSIZE(i), tile->pitch);
 		nv_wr32(dev, NV20_PGRAPH_TLIMIT(i), tile->limit);
 		nv_wr32(dev, NV20_PGRAPH_TILE(i), tile->addr);
-		break;
-
-	case 0x46:
-	case 0x47:
-	case 0x49:
-	case 0x4b:
-		nv_wr32(dev, NV47_PGRAPH_TSIZE(i), tile->pitch);
-		nv_wr32(dev, NV47_PGRAPH_TLIMIT(i), tile->limit);
-		nv_wr32(dev, NV47_PGRAPH_TILE(i), tile->addr);
 		nv_wr32(dev, NV40_PGRAPH_TSIZE1(i), tile->pitch);
 		nv_wr32(dev, NV40_PGRAPH_TLIMIT1(i), tile->limit);
 		nv_wr32(dev, NV40_PGRAPH_TILE1(i), tile->addr);
 		break;
-
-	default:
+	case 0x44:
+	case 0x4a:
 		nv_wr32(dev, NV20_PGRAPH_TSIZE(i), tile->pitch);
 		nv_wr32(dev, NV20_PGRAPH_TLIMIT(i), tile->limit);
 		nv_wr32(dev, NV20_PGRAPH_TILE(i), tile->addr);
+		break;
+	case 0x46:
+	case 0x47:
+	case 0x49:
+	case 0x4b:
+	case 0x4c:
+	case 0x67:
+	default:
+		nv_wr32(dev, NV47_PGRAPH_TSIZE(i), tile->pitch);
+		nv_wr32(dev, NV47_PGRAPH_TLIMIT(i), tile->limit);
+		nv_wr32(dev, NV47_PGRAPH_TILE(i), tile->addr);
 		nv_wr32(dev, NV40_PGRAPH_TSIZE1(i), tile->pitch);
 		nv_wr32(dev, NV40_PGRAPH_TLIMIT1(i), tile->limit);
 		nv_wr32(dev, NV40_PGRAPH_TILE1(i), tile->addr);
@@ -396,16 +401,19 @@ nv40_graph_init(struct drm_device *dev)
 		break;
 	default:
 		switch (dev_priv->chipset) {
-		case 0x46:
-		case 0x47:
-		case 0x49:
-		case 0x4b:
-			nv_wr32(dev, 0x400DF0, nv_rd32(dev, NV04_PFB_CFG0));
-			nv_wr32(dev, 0x400DF4, nv_rd32(dev, NV04_PFB_CFG1));
-			break;
-		default:
+		case 0x41:
+		case 0x42:
+		case 0x43:
+		case 0x45:
+		case 0x4e:
+		case 0x44:
+		case 0x4a:
 			nv_wr32(dev, 0x4009F0, nv_rd32(dev, NV04_PFB_CFG0));
 			nv_wr32(dev, 0x4009F4, nv_rd32(dev, NV04_PFB_CFG1));
+			break;
+		default:
+			nv_wr32(dev, 0x400DF0, nv_rd32(dev, NV04_PFB_CFG0));
+			nv_wr32(dev, 0x400DF4, nv_rd32(dev, NV04_PFB_CFG1));
 			break;
 		}
 		nv_wr32(dev, 0x4069F0, nv_rd32(dev, NV04_PFB_CFG0));

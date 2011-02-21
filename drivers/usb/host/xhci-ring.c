@@ -308,11 +308,8 @@ static int room_on_ring(struct xhci_hcd *xhci, struct xhci_ring *ring,
 /* Ring the host controller doorbell after placing a command on the ring */
 void xhci_ring_cmd_db(struct xhci_hcd *xhci)
 {
-	u32 temp;
-
 	xhci_dbg(xhci, "// Ding dong!\n");
-	temp = xhci_readl(xhci, &xhci->dba->doorbell[0]) & DB_MASK;
-	xhci_writel(xhci, temp | DB_TARGET_HOST, &xhci->dba->doorbell[0]);
+	xhci_writel(xhci, DB_VALUE_HOST, &xhci->dba->doorbell[0]);
 	/* Flush PCI posted writes */
 	xhci_readl(xhci, &xhci->dba->doorbell[0]);
 }
@@ -322,26 +319,24 @@ void xhci_ring_ep_doorbell(struct xhci_hcd *xhci,
 		unsigned int ep_index,
 		unsigned int stream_id)
 {
-	struct xhci_virt_ep *ep;
-	unsigned int ep_state;
-	u32 field;
 	__u32 __iomem *db_addr = &xhci->dba->doorbell[slot_id];
+	struct xhci_virt_ep *ep = &xhci->devs[slot_id]->eps[ep_index];
+	unsigned int ep_state = ep->ep_state;
 
-	ep = &xhci->devs[slot_id]->eps[ep_index];
-	ep_state = ep->ep_state;
 	/* Don't ring the doorbell for this endpoint if there are pending
-	 * cancellations because the we don't want to interrupt processing.
+	 * cancellations because we don't want to interrupt processing.
 	 * We don't want to restart any stream rings if there's a set dequeue
 	 * pointer command pending because the device can choose to start any
 	 * stream once the endpoint is on the HW schedule.
 	 * FIXME - check all the stream rings for pending cancellations.
 	 */
-	if (!(ep_state & EP_HALT_PENDING) && !(ep_state & SET_DEQ_PENDING)
-			&& !(ep_state & EP_HALTED)) {
-		field = xhci_readl(xhci, db_addr) & DB_MASK;
-		field |= EPI_TO_DB(ep_index) | STREAM_ID_TO_DB(stream_id);
-		xhci_writel(xhci, field, db_addr);
-	}
+	if ((ep_state & EP_HALT_PENDING) || (ep_state & SET_DEQ_PENDING) ||
+	    (ep_state & EP_HALTED))
+		return;
+	xhci_writel(xhci, DB_VALUE(ep_index, stream_id), db_addr);
+	/* The CPU has better things to do at this point than wait for a
+	 * write-posting flush.  It'll get there soon enough.
+	 */
 }
 
 /* Ring the doorbell for any rings with pending URBs */
@@ -1188,7 +1183,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 
 	addr = &xhci->op_regs->port_status_base + NUM_PORT_REGS * (port_id - 1);
 	temp = xhci_readl(xhci, addr);
-	if ((temp & PORT_CONNECT) && (hcd->state == HC_STATE_SUSPENDED)) {
+	if (hcd->state == HC_STATE_SUSPENDED) {
 		xhci_dbg(xhci, "resume root hub\n");
 		usb_hcd_resume_root_hub(hcd);
 	}
@@ -1710,8 +1705,7 @@ static int process_bulk_intr_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		/* Others already handled above */
 		break;
 	}
-	dev_dbg(&td->urb->dev->dev,
-			"ep %#x - asked for %d bytes, "
+	xhci_dbg(xhci, "ep %#x - asked for %d bytes, "
 			"%d bytes untransferred\n",
 			td->urb->ep->desc.bEndpointAddress,
 			td->urb->transfer_buffer_length,
@@ -2389,7 +2383,8 @@ static unsigned int count_sg_trbs_needed(struct xhci_hcd *xhci, struct urb *urb)
 	}
 	xhci_dbg(xhci, "\n");
 	if (!in_interrupt())
-		dev_dbg(&urb->dev->dev, "ep %#x - urb len = %d, sglist used, num_trbs = %d\n",
+		xhci_dbg(xhci, "ep %#x - urb len = %d, sglist used, "
+				"num_trbs = %d\n",
 				urb->ep->desc.bEndpointAddress,
 				urb->transfer_buffer_length,
 				num_trbs);
@@ -2414,14 +2409,17 @@ static void check_trb_math(struct urb *urb, int num_trbs, int running_total)
 
 static void giveback_first_trb(struct xhci_hcd *xhci, int slot_id,
 		unsigned int ep_index, unsigned int stream_id, int start_cycle,
-		struct xhci_generic_trb *start_trb, struct xhci_td *td)
+		struct xhci_generic_trb *start_trb)
 {
 	/*
 	 * Pass all the TRBs to the hardware at once and make sure this write
 	 * isn't reordered.
 	 */
 	wmb();
-	start_trb->field[3] |= start_cycle;
+	if (start_cycle)
+		start_trb->field[3] |= start_cycle;
+	else
+		start_trb->field[3] &= ~0x1;
 	xhci_ring_ep_doorbell(xhci, slot_id, ep_index, stream_id);
 }
 
@@ -2449,7 +2447,7 @@ int xhci_queue_intr_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	 * to set the polling interval (once the API is added).
 	 */
 	if (xhci_interval != ep_interval) {
-		if (!printk_ratelimit())
+		if (printk_ratelimit())
 			dev_dbg(&urb->dev->dev, "Driver uses different interval"
 					" (%d microframe%s) than xHCI "
 					"(%d microframe%s)\n",
@@ -2551,9 +2549,11 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		u32 remainder = 0;
 
 		/* Don't change the cycle bit of the first TRB until later */
-		if (first_trb)
+		if (first_trb) {
 			first_trb = false;
-		else
+			if (start_cycle == 0)
+				field |= 0x1;
+		} else
 			field |= ep_ring->cycle_state;
 
 		/* Chain all the TRBs together; clear the chain bit in the last
@@ -2625,7 +2625,7 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 
 	check_trb_math(urb, num_trbs, running_total);
 	giveback_first_trb(xhci, slot_id, ep_index, urb->stream_id,
-			start_cycle, start_trb, td);
+			start_cycle, start_trb);
 	return 0;
 }
 
@@ -2671,7 +2671,8 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	/* FIXME: this doesn't deal with URB_ZERO_PACKET - need one more */
 
 	if (!in_interrupt())
-		dev_dbg(&urb->dev->dev, "ep %#x - urb len = %#x (%d), addr = %#llx, num_trbs = %d\n",
+		xhci_dbg(xhci, "ep %#x - urb len = %#x (%d), "
+				"addr = %#llx, num_trbs = %d\n",
 				urb->ep->desc.bEndpointAddress,
 				urb->transfer_buffer_length,
 				urb->transfer_buffer_length,
@@ -2711,9 +2712,11 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		field = 0;
 
 		/* Don't change the cycle bit of the first TRB until later */
-		if (first_trb)
+		if (first_trb) {
 			first_trb = false;
-		else
+			if (start_cycle == 0)
+				field |= 0x1;
+		} else
 			field |= ep_ring->cycle_state;
 
 		/* Chain all the TRBs together; clear the chain bit in the last
@@ -2757,7 +2760,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 
 	check_trb_math(urb, num_trbs, running_total);
 	giveback_first_trb(xhci, slot_id, ep_index, urb->stream_id,
-			start_cycle, start_trb, td);
+			start_cycle, start_trb);
 	return 0;
 }
 
@@ -2818,13 +2821,17 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	/* Queue setup TRB - see section 6.4.1.2.1 */
 	/* FIXME better way to translate setup_packet into two u32 fields? */
 	setup = (struct usb_ctrlrequest *) urb->setup_packet;
+	field = 0;
+	field |= TRB_IDT | TRB_TYPE(TRB_SETUP);
+	if (start_cycle == 0)
+		field |= 0x1;
 	queue_trb(xhci, ep_ring, false, true,
 			/* FIXME endianness is probably going to bite my ass here. */
 			setup->bRequestType | setup->bRequest << 8 | setup->wValue << 16,
 			setup->wIndex | setup->wLength << 16,
 			TRB_LEN(8) | TRB_INTR_TARGET(0),
 			/* Immediate data in pointer */
-			TRB_IDT | TRB_TYPE(TRB_SETUP));
+			field);
 
 	/* If there's data, queue data TRBs */
 	field = 0;
@@ -2859,7 +2866,7 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			field | TRB_IOC | TRB_TYPE(TRB_STATUS) | ep_ring->cycle_state);
 
 	giveback_first_trb(xhci, slot_id, ep_index, 0,
-			start_cycle, start_trb, td);
+			start_cycle, start_trb);
 	return 0;
 }
 
@@ -2900,6 +2907,7 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	int running_total, trb_buff_len, td_len, td_remain_len, ret;
 	u64 start_addr, addr;
 	int i, j;
+	bool more_trbs_coming;
 
 	ep_ring = xhci->devs[slot_id]->eps[ep_index].ring;
 
@@ -2910,7 +2918,7 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	}
 
 	if (!in_interrupt())
-		dev_dbg(&urb->dev->dev, "ep %#x - urb len = %#x (%d),"
+		xhci_dbg(xhci, "ep %#x - urb len = %#x (%d),"
 				" addr = %#llx, num_tds = %d\n",
 				urb->ep->desc.bEndpointAddress,
 				urb->transfer_buffer_length,
@@ -2950,7 +2958,10 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 				field |= TRB_TYPE(TRB_ISOC);
 				/* Assume URB_ISO_ASAP is set */
 				field |= TRB_SIA;
-				if (i > 0)
+				if (i == 0) {
+					if (start_cycle == 0)
+						field |= 0x1;
+				} else
 					field |= ep_ring->cycle_state;
 				first_trb = false;
 			} else {
@@ -2965,9 +2976,11 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			 */
 			if (j < trbs_per_td - 1) {
 				field |= TRB_CHAIN;
+				more_trbs_coming = true;
 			} else {
 				td->last_trb = ep_ring->enqueue;
 				field |= TRB_IOC;
+				more_trbs_coming = false;
 			}
 
 			/* Calculate TRB length */
@@ -2980,7 +2993,7 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			length_field = TRB_LEN(trb_buff_len) |
 				remainder |
 				TRB_INTR_TARGET(0);
-			queue_trb(xhci, ep_ring, false, false,
+			queue_trb(xhci, ep_ring, false, more_trbs_coming,
 				lower_32_bits(addr),
 				upper_32_bits(addr),
 				length_field,
@@ -3003,10 +3016,8 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		}
 	}
 
-	wmb();
-	start_trb->field[3] |= start_cycle;
-
-	xhci_ring_ep_doorbell(xhci, slot_id, ep_index, urb->stream_id);
+	giveback_first_trb(xhci, slot_id, ep_index, urb->stream_id,
+			start_cycle, start_trb);
 	return 0;
 }
 
@@ -3064,7 +3075,7 @@ int xhci_queue_isoc_tx_prepare(struct xhci_hcd *xhci, gfp_t mem_flags,
 	 * to set the polling interval (once the API is added).
 	 */
 	if (xhci_interval != ep_interval) {
-		if (!printk_ratelimit())
+		if (printk_ratelimit())
 			dev_dbg(&urb->dev->dev, "Driver uses different interval"
 					" (%d microframe%s) than xHCI "
 					"(%d microframe%s)\n",
