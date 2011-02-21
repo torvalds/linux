@@ -916,13 +916,11 @@ static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev, u32 drv_info)
 	if (ret) {
 		dev_err(&hif_dev->udev->dev,
 			"ath9k_htc: Unable to allocate URBs\n");
-		goto err_urb;
+		goto err_fw_download;
 	}
 
 	return 0;
 
-err_urb:
-	ath9k_hif_usb_dealloc_urbs(hif_dev);
 err_fw_download:
 	release_firmware(hif_dev->firmware);
 err_fw_req:
