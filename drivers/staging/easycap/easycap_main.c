@@ -3177,6 +3177,8 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 	u16 mask;
 	s32 value;
 	struct easycap_format *peasycap_format;
+	int fmtidx;
+	struct inputset *inputset;
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #ifdef EASYCAP_IS_VIDEODEV_CLIENT
 	struct v4l2_device *pv4l2_device;
@@ -3345,116 +3347,87 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
  *  ... AND POPULATE easycap.inputset[]
 */
 /*---------------------------------------------------------------------------*/
+		/* FIXME: maybe we just use memset 0 */
+		inputset = peasycap->inputset;
 		for (k = 0; k < INPUT_MANY; k++) {
-			peasycap->inputset[k].input_ok = 0;
-			peasycap->inputset[k].standard_offset_ok = 0;
-			peasycap->inputset[k].format_offset_ok = 0;
-			peasycap->inputset[k].brightness_ok = 0;
-			peasycap->inputset[k].contrast_ok = 0;
-			peasycap->inputset[k].saturation_ok = 0;
-			peasycap->inputset[k].hue_ok = 0;
+			inputset[k].input_ok = 0;
+			inputset[k].standard_offset_ok = 0;
+			inputset[k].format_offset_ok = 0;
+			inputset[k].brightness_ok = 0;
+			inputset[k].contrast_ok = 0;
+			inputset[k].saturation_ok = 0;
+			inputset[k].hue_ok = 0;
 		}
-		if (true == peasycap->ntsc) {
-			i = 0;
-			m = 0;
-			mask = 0;
-			while (0xFFFF != easycap_standard[i].mask) {
-				if (NTSC_M == easycap_standard[i].
-								v4l2_standard.index) {
-					m++;
-					for (k = 0; k < INPUT_MANY; k++) {
-						peasycap->inputset[k].
-								standard_offset = i;
-					}
+
+		fmtidx = peasycap->ntsc ? NTSC_M : PAL_BGHIN;
+		m = 0;
+		mask = 0;
+		for (i = 0; 0xFFFF != easycap_standard[i].mask; i++) {
+			if (fmtidx == easycap_standard[i].v4l2_standard.index) {
+				m++;
+				for (k = 0; k < INPUT_MANY; k++)
+					inputset[k].standard_offset = i;
+
 				mask = easycap_standard[i].mask;
-				}
-				i++;
-			}
-		} else {
-			i = 0;
-			m = 0;
-			mask = 0;
-			while (0xFFFF != easycap_standard[i].mask) {
-				if (PAL_BGHIN == easycap_standard[i].
-								v4l2_standard.index) {
-					m++;
-					for (k = 0; k < INPUT_MANY; k++) {
-						peasycap->inputset[k].
-								standard_offset = i;
-					}
-				mask = easycap_standard[i].mask;
-				}
-				i++;
 			}
 		}
 
 		if (1 != m) {
-			SAM("MISTAKE: easycap.inputset[].standard_offset "
-							"unpopulated, %i=m\n", m);
+			SAM("ERROR: "
+			    "inputset->standard_offset unpopulated, %i=m\n", m);
 			return -ENOENT;
 		}
 
 		peasycap_format = &easycap_format[0];
-		i = 0;
 		m = 0;
-		while (0 != peasycap_format->v4l2_format.fmt.pix.width) {
+		for (i = 0; peasycap_format->v4l2_format.fmt.pix.width; i++) {
+			struct v4l2_pix_format *pix =
+				&peasycap_format->v4l2_format.fmt.pix;
 			if (((peasycap_format->mask & 0x0F) == (mask & 0x0F)) &&
-					(peasycap_format->
-						v4l2_format.fmt.pix.field ==
-								V4L2_FIELD_NONE) &&
-					(peasycap_format->
-						v4l2_format.fmt.pix.pixelformat ==
-								V4L2_PIX_FMT_UYVY) &&
-					(peasycap_format->
-						v4l2_format.fmt.pix.width  ==
-								640) &&
-					(peasycap_format->
-						v4l2_format.fmt.pix.height == 480)) {
+			    pix->field == V4L2_FIELD_NONE &&
+			    pix->pixelformat == V4L2_PIX_FMT_UYVY &&
+			    pix->width  == 640 && pix->height == 480) {
 				m++;
 				for (k = 0; k < INPUT_MANY; k++)
-					peasycap->inputset[k].format_offset = i;
+					inputset[k].format_offset = i;
 				break;
 			}
 			peasycap_format++;
-			i++;
 		}
 		if (1 != m) {
-			SAM("MISTAKE: easycap.inputset[].format_offset unpopulated\n");
+			SAM("ERROR: inputset[]->format_offset unpopulated\n");
 			return -ENOENT;
 		}
 
-		i = 0;
 		m = 0;
-		while (0xFFFFFFFF != easycap_control[i].id) {
+		for (i = 0; 0xFFFFFFFF != easycap_control[i].id; i++) {
 			value = easycap_control[i].default_value;
 			if (V4L2_CID_BRIGHTNESS == easycap_control[i].id) {
 				m++;
 				for (k = 0; k < INPUT_MANY; k++)
-					peasycap->inputset[k].brightness = value;
+					inputset[k].brightness = value;
 			} else if (V4L2_CID_CONTRAST == easycap_control[i].id) {
 				m++;
 				for (k = 0; k < INPUT_MANY; k++)
-					peasycap->inputset[k].contrast = value;
+					inputset[k].contrast = value;
 			} else if (V4L2_CID_SATURATION == easycap_control[i].id) {
 				m++;
 				for (k = 0; k < INPUT_MANY; k++)
-					peasycap->inputset[k].saturation = value;
+					inputset[k].saturation = value;
 			} else if (V4L2_CID_HUE == easycap_control[i].id) {
 				m++;
 				for (k = 0; k < INPUT_MANY; k++)
-					peasycap->inputset[k].hue = value;
+					inputset[k].hue = value;
 			}
-			i++;
 		}
 
 		if (4 != m) {
-			SAM("MISTAKE: easycap.inputset[].brightness,... "
-							"underpopulated\n");
+			SAM("ERROR: inputset[]->brightness underpopulated\n");
 			return -ENOENT;
 		}
 		for (k = 0; k < INPUT_MANY; k++)
-			peasycap->inputset[k].input = k;
-		JOM(4, "populated easycap.inputset[]\n");
+			inputset[k].input = k;
+		JOM(4, "populated inputset[]\n");
 		JOM(4, "finished initialization\n");
 	} else {
 /*---------------------------------------------------------------------------*/
