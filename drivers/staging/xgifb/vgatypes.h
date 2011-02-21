@@ -106,16 +106,6 @@ struct xgi_hw_device_info
     unsigned char bIsPowerSaving;     /* True: XGIInit() is invoked by power management,
                                    otherwise by 2nd adapter's initialzation */
 
-    struct XGI_DSReg  *pSR;             /* restore SR registers in initial function. */
-                                 /* end data :(idx, val) =  (FF, FF). */
-                                 /* Note : restore SR registers if  */
-                                 /* bSkipDramSizing = 1 */
-
-    struct XGI_DSReg  *pCR;             /* restore CR registers in initial function. */
-                                 /* end data :(idx, val) =  (FF, FF) */
-                                 /* Note : restore cR registers if  */
-                                 /* bSkipDramSizing = 1 */
-
 	unsigned char(*pQueryVGAConfigSpace)(struct xgi_hw_device_info *,
 					    unsigned long, unsigned long,
 					    unsigned long *);

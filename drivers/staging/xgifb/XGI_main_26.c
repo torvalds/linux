@@ -3018,22 +3018,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	/* XGIhw_ext.pQueryNorthBridgeSpace = &XGIfb_query_north_bridge_space; */
 	strcpy(XGIhw_ext.szVBIOSVer, "0.84");
 
-	XGIhw_ext.pSR = vmalloc(sizeof(struct XGI_DSReg) * SR_BUFFER_SIZE);
-	if (XGIhw_ext.pSR == NULL) {
-		printk(KERN_ERR "XGIfb: Fatal error: Allocating SRReg space failed.\n");
-		ret = -ENODEV;
-		goto error;
-	}
-	XGIhw_ext.pSR[0].jIdx = XGIhw_ext.pSR[0].jVal = 0xFF;
-
-	XGIhw_ext.pCR = vmalloc(sizeof(struct XGI_DSReg) * CR_BUFFER_SIZE);
-	if (XGIhw_ext.pCR == NULL) {
-		printk(KERN_ERR "XGIfb: Fatal error: Allocating CRReg space failed.\n");
-		ret = -ENODEV;
-		goto error;
-	}
-	XGIhw_ext.pCR[0].jIdx = XGIhw_ext.pCR[0].jVal = 0xFF;
-
 	if (!XGIvga_enabled) {
 		/* Mapping Max FB Size for 315 Init */
 		XGIhw_ext.pjVideoMemoryAddress = ioremap(xgi_video_info.video_base, 0x10000000);
@@ -3403,8 +3387,6 @@ error_0:
 			   xgi_video_info.video_size);
 error:
 	vfree(XGIhw_ext.pjVirtualRomBase);
-	vfree(XGIhw_ext.pSR);
-	vfree(XGIhw_ext.pCR);
 	framebuffer_release(fb_info);
 	return ret;
 }
