@@ -123,12 +123,8 @@ void ath9k_deinit_wmi(struct ath9k_htc_priv *priv)
 void ath9k_swba_tasklet(unsigned long data)
 {
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *)data;
-	struct ath_common *common = ath9k_hw_common(priv->ah);
-
-	ath_dbg(common, ATH_DBG_WMI, "SWBA Event received\n");
 
 	ath9k_htc_swba(priv, priv->wmi->beacon_pending);
-
 }
 
 void ath9k_fatal_work(struct work_struct *work)

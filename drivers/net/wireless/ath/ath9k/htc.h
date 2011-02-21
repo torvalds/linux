@@ -352,10 +352,8 @@ struct ath_led {
 
 struct htc_beacon_config {
 	u16 beacon_interval;
-	u16 listen_interval;
 	u16 dtim_period;
 	u16 bmiss_timeout;
-	u8 dtim_count;
 };
 
 struct ath_btcoex {
@@ -380,6 +378,7 @@ void ath_htc_cancel_btcoex_work(struct ath9k_htc_priv *priv);
 #define OP_BT_PRIORITY_DETECTED    BIT(6)
 #define OP_BT_SCAN                 BIT(7)
 #define OP_ANI_RUNNING             BIT(8)
+#define OP_TSF_RESET               BIT(9)
 
 struct ath9k_htc_priv {
 	struct device *dev;

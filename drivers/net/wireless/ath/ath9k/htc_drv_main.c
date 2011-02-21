@@ -110,6 +110,9 @@ static void ath9k_htc_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 	struct ath9k_htc_priv *priv = data;
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 
+	if ((vif->type == NL80211_IFTYPE_AP) && bss_conf->enable_beacon)
+		priv->reconfig_beacon = true;
+
 	if (bss_conf->assoc) {
 		priv->rearm_ani = true;
 		priv->reconfig_beacon = true;
@@ -288,6 +291,11 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 		goto err;
 
 	htc_start(priv->htc);
+
+	if (!(priv->op_flags & OP_SCANNING) &&
+	    !(hw->conf.flags & IEEE80211_CONF_OFFCHANNEL))
+		ath9k_htc_vif_reconfig(priv);
+
 err:
 	ath9k_htc_ps_restore(priv);
 	return ret;
@@ -1620,17 +1628,40 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 			common->curbssid, common->curaid);
 	}
 
-	if ((changed & BSS_CHANGED_BEACON_INT) ||
-	    (changed & BSS_CHANGED_BEACON) ||
-	    ((changed & BSS_CHANGED_BEACON_ENABLED) &&
-	    bss_conf->enable_beacon)) {
+	if ((changed & BSS_CHANGED_BEACON_ENABLED) && bss_conf->enable_beacon) {
+		ath_dbg(common, ATH_DBG_CONFIG,
+			"Beacon enabled for BSS: %pM\n", bss_conf->bssid);
 		priv->op_flags |= OP_ENABLE_BEACON;
 		ath9k_htc_beacon_config(priv, vif);
 	}
 
-	if ((changed & BSS_CHANGED_BEACON_ENABLED) &&
-	    !bss_conf->enable_beacon) {
-		priv->op_flags &= ~OP_ENABLE_BEACON;
+	if ((changed & BSS_CHANGED_BEACON_ENABLED) && !bss_conf->enable_beacon) {
+		/*
+		 * Disable SWBA interrupt only if there are no
+		 * AP/IBSS interfaces.
+		 */
+		if ((priv->num_ap_vif <= 1) || priv->num_ibss_vif) {
+			ath_dbg(common, ATH_DBG_CONFIG,
+				"Beacon disabled for BSS: %pM\n",
+				bss_conf->bssid);
+			priv->op_flags &= ~OP_ENABLE_BEACON;
+			ath9k_htc_beacon_config(priv, vif);
+		}
+	}
+
+	if (changed & BSS_CHANGED_BEACON_INT) {
+		/*
+		 * Reset the HW TSF for the first AP interface.
+		 */
+		if ((priv->ah->opmode == NL80211_IFTYPE_AP) &&
+		    (priv->nvifs == 1) &&
+		    (priv->num_ap_vif == 1) &&
+		    (vif->type == NL80211_IFTYPE_AP)) {
+			priv->op_flags |= OP_TSF_RESET;
+		}
+		ath_dbg(common, ATH_DBG_CONFIG,
+			"Beacon interval changed for BSS: %pM\n",
+			bss_conf->bssid);
 		ath9k_htc_beacon_config(priv, vif);
 	}
 

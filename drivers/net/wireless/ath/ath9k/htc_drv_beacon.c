@@ -138,6 +138,51 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 	WMI_CMD_BUF(WMI_ENABLE_INTR_CMDID, &htc_imask);
 }
 
+static void ath9k_htc_beacon_config_ap(struct ath9k_htc_priv *priv,
+				       struct htc_beacon_config *bss_conf)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	enum ath9k_int imask = 0;
+	u32 nexttbtt, intval, tsftu;
+	__be32 htc_imask = 0;
+	int ret;
+	u8 cmd_rsp;
+	u64 tsf;
+
+	intval = bss_conf->beacon_interval & ATH9K_BEACON_PERIOD;
+	intval /= ATH9K_HTC_MAX_BCN_VIF;
+	nexttbtt = intval;
+
+	if (priv->op_flags & OP_TSF_RESET) {
+		intval |= ATH9K_BEACON_RESET_TSF;
+		priv->op_flags &= ~OP_TSF_RESET;
+	} else {
+		/*
+		 * Pull nexttbtt forward to reflect the current TSF.
+		 */
+		tsf = ath9k_hw_gettsf64(priv->ah);
+		tsftu = TSF_TO_TU(tsf >> 32, tsf) + FUDGE;
+		do {
+			nexttbtt += intval;
+		} while (nexttbtt < tsftu);
+	}
+
+	intval |= ATH9K_BEACON_ENA;
+
+	if (priv->op_flags & OP_ENABLE_BEACON)
+		imask |= ATH9K_INT_SWBA;
+
+	ath_dbg(common, ATH_DBG_CONFIG,
+		"AP Beacon config, intval: %d, nexttbtt: %u imask: 0x%x\n",
+		bss_conf->beacon_interval, nexttbtt, imask);
+
+	WMI_CMD(WMI_DISABLE_INTR_CMDID);
+	ath9k_hw_beaconinit(priv->ah, nexttbtt, intval);
+	priv->bmiss_cnt = 0;
+	htc_imask = cpu_to_be32(imask);
+	WMI_CMD_BUF(WMI_ENABLE_INTR_CMDID, &htc_imask);
+}
+
 static void ath9k_htc_beacon_config_adhoc(struct ath9k_htc_priv *priv,
 					  struct htc_beacon_config *bss_conf)
 {
@@ -260,13 +305,36 @@ void ath9k_htc_beacon_config(struct ath9k_htc_priv *priv,
 	struct htc_beacon_config *cur_conf = &priv->cur_beacon_conf;
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 
+	/*
+	 * Changing the beacon interval when multiple AP interfaces
+	 * are configured will affect beacon transmission of all
+	 * of them.
+	 */
+	if ((priv->ah->opmode == NL80211_IFTYPE_AP) &&
+	    (priv->num_ap_vif > 1) &&
+	    (vif->type == NL80211_IFTYPE_AP) &&
+	    (cur_conf->beacon_interval != bss_conf->beacon_int)) {
+		ath_dbg(common, ATH_DBG_CONFIG,
+			"Changing beacon interval of multiple AP interfaces !\n");
+		return;
+	}
+
+	/*
+	 * If the HW is operating in AP mode, any new station interfaces that
+	 * are added cannot change the beacon parameters.
+	 */
+	if (priv->num_ap_vif &&
+	    (vif->type != NL80211_IFTYPE_AP)) {
+		ath_dbg(common, ATH_DBG_CONFIG,
+			"HW in AP mode, cannot set STA beacon parameters\n");
+		return;
+	}
+
 	cur_conf->beacon_interval = bss_conf->beacon_int;
 	if (cur_conf->beacon_interval == 0)
 		cur_conf->beacon_interval = 100;
 
 	cur_conf->dtim_period = bss_conf->dtim_period;
-	cur_conf->listen_interval = 1;
-	cur_conf->dtim_count = 1;
 	cur_conf->bmiss_timeout =
 		ATH_DEFAULT_BMISS_LIMIT * cur_conf->beacon_interval;
 
@@ -276,6 +344,9 @@ void ath9k_htc_beacon_config(struct ath9k_htc_priv *priv,
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		ath9k_htc_beacon_config_adhoc(priv, cur_conf);
+		break;
+	case NL80211_IFTYPE_AP:
+		ath9k_htc_beacon_config_ap(priv, cur_conf);
 		break;
 	default:
 		ath_dbg(common, ATH_DBG_CONFIG,
@@ -295,6 +366,9 @@ void ath9k_htc_beacon_reconfig(struct ath9k_htc_priv *priv)
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		ath9k_htc_beacon_config_adhoc(priv, cur_conf);
+		break;
+	case NL80211_IFTYPE_AP:
+		ath9k_htc_beacon_config_ap(priv, cur_conf);
 		break;
 	default:
 		ath_dbg(common, ATH_DBG_CONFIG,
