@@ -232,6 +232,7 @@ static bool ath9k_htc_check_tx_aggr(struct ath9k_htc_priv *priv,
 void ath9k_tx_tasklet(unsigned long data)
 {
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *)data;
+	struct ieee80211_vif *vif;
 	struct ieee80211_sta *sta;
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *tx_info;
@@ -243,12 +244,16 @@ void ath9k_tx_tasklet(unsigned long data)
 		hdr = (struct ieee80211_hdr *) skb->data;
 		fc = hdr->frame_control;
 		tx_info = IEEE80211_SKB_CB(skb);
+		vif = tx_info->control.vif;
 
 		memset(&tx_info->status, 0, sizeof(tx_info->status));
 
+		if (!vif)
+			goto send_mac80211;
+
 		rcu_read_lock();
 
-		sta = ieee80211_find_sta(priv->vif, hdr->addr1);
+		sta = ieee80211_find_sta(vif, hdr->addr1);
 		if (!sta) {
 			rcu_read_unlock();
 			ieee80211_tx_status(priv->hw, skb);
@@ -278,6 +283,7 @@ void ath9k_tx_tasklet(unsigned long data)
 
 		rcu_read_unlock();
 
+	send_mac80211:
 		/* Send status to mac80211 */
 		ieee80211_tx_status(priv->hw, skb);
 	}
