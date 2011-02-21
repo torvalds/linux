@@ -156,7 +156,7 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 
 		/* CTS-to-self */
 		if (!(flags & ATH9K_HTC_TX_RTSCTS) &&
-		    (priv->op_flags & OP_PROTECT_ENABLE))
+		    (vif && vif->bss_conf.use_cts_prot))
 			flags |= ATH9K_HTC_TX_CTSONLY;
 
 		tx_hdr.flags = cpu_to_be32(flags);
