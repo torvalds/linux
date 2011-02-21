@@ -1,6 +1,6 @@
 config FB_OLPC_DCON
 	tristate "One Laptop Per Child Display CONtroller support"
-	depends on OLPC
+	depends on OLPC && FB
 	select I2C
 	---help---
 	  Add support for the OLPC XO DCON controller.  This controller is
@@ -19,7 +19,7 @@ config FB_OLPC_DCON_1
 
 config FB_OLPC_DCON_1_5
 	bool "OLPC XO-1.5 DCON support"
-	depends on FB_OLPC_DCON
+	depends on FB_OLPC_DCON && ACPI
 	default y
 	---help---
 	  Enable support for the DCON in XO-1.5 model laptops.  The kernel
