@@ -665,10 +665,12 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 			    vid_cap->fmt.code);
 			return -EINVAL;
 		}
-		writel(tmp | (0x1 << 8), fimc->regs + S5P_CSIIMGFMT);
+		tmp |= (cam->csi_data_align == 32) << 8;
+
+		writel(tmp, fimc->regs + S5P_CSIIMGFMT);
 
 	} else if (cam->bus_type == FIMC_ITU_601 ||
-		  cam->bus_type == FIMC_ITU_656) {
+		   cam->bus_type == FIMC_ITU_656) {
 		if (cam->mux_id == 0) /* ITU-A, ITU-B: 0, 1 */
 			cfg |= S5P_CIGCTRL_SELCAM_ITU_A;
 	} else if (cam->bus_type == FIMC_LCD_WB) {
