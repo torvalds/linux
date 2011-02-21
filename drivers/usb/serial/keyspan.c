@@ -2121,15 +2121,15 @@ static int keyspan_usa49_send_setup(struct usb_serial *serial,
 	/* Work out which port within the device is being setup */
 	device_port = port->number - port->serial->minor;
 
-	dbg("%s - endpoint %d port %d (%d)",
-			__func__, usb_pipeendpoint(this_urb->pipe),
-			port->number, device_port);
-
-		/* Make sure we have an urb then send the message */
+	/* Make sure we have an urb then send the message */
 	if (this_urb == NULL) {
 		dbg("%s - oops no urb for port %d.", __func__, port->number);
 		return -1;
 	}
+
+	dbg("%s - endpoint %d port %d (%d)",
+			__func__, usb_pipeendpoint(this_urb->pipe),
+			port->number, device_port);
 
 	/* Save reset port val for resend.
 	   Don't overwrite resend for open/close condition. */
