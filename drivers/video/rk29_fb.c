@@ -1313,6 +1313,8 @@ static int fb0_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
         inf->fb0_color_deepth = arg;
 
 	    break;
+	case FBIOPUT_FBPHYADD:
+        return info->fix.smem_start;
    default:
         break;
     }
