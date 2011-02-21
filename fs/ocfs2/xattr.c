@@ -5538,7 +5538,7 @@ static int ocfs2_xattr_set_entry_bucket(struct inode *inode,
 	int ret;
 	struct ocfs2_xa_loc loc;
 
-	mlog_entry("Set xattr %s in xattr bucket\n", xi->xi_name);
+	mlog(0, "Set xattr %s in xattr bucket\n", xi->xi_name);
 
 	ocfs2_init_xattr_bucket_xa_loc(&loc, xs->bucket,
 				       xs->not_found ? NULL : xs->here);
@@ -5581,7 +5581,7 @@ static int ocfs2_xattr_set_entry_index_block(struct inode *inode,
 {
 	int ret;
 
-	mlog_entry("Set xattr %s in xattr index block\n", xi->xi_name);
+	mlog(0, "Set xattr %s in xattr index block\n", xi->xi_name);
 
 	ret = ocfs2_xattr_set_entry_bucket(inode, xi, xs, ctxt);
 	if (!ret)

@@ -82,7 +82,6 @@
 
 /* bits that are frequently given and infrequently matched in the low word */
 /* NOTE: If you add a flag, you need to also update masklog.c! */
-#define ML_ENTRY	0x0000000000000001ULL /* func call entry */
 #define ML_EXIT		0x0000000000000002ULL /* func call exit */
 #define ML_TCP		0x0000000000000004ULL /* net cluster/tcp.c */
 #define ML_MSG		0x0000000000000008ULL /* net network messages */
@@ -124,7 +123,7 @@
 #define ML_KTHREAD	0x4000000000000000ULL /* kernel thread activity */
 
 #define MLOG_INITIAL_AND_MASK (ML_ERROR|ML_NOTICE)
-#define MLOG_INITIAL_NOT_MASK (ML_ENTRY|ML_EXIT)
+#define MLOG_INITIAL_NOT_MASK (ML_EXIT)
 #ifndef MLOG_MASK_PREFIX
 #define MLOG_MASK_PREFIX 0
 #endif
@@ -223,14 +222,6 @@ extern struct mlog_bits mlog_and_bits, mlog_not_bits;
 } while (0)
 
 #if defined(CONFIG_OCFS2_DEBUG_MASKLOG)
-#define mlog_entry(fmt, args...) do {					\
-	mlog(ML_ENTRY, "ENTRY:" fmt , ##args);				\
-} while (0)
-
-#define mlog_entry_void() do {						\
-	mlog(ML_ENTRY, "ENTRY:\n");					\
-} while (0)
-
 /*
  * We disable this for sparse.
  */
@@ -267,8 +258,6 @@ extern struct mlog_bits mlog_and_bits, mlog_not_bits;
 	mlog(ML_EXIT, "EXIT\n");					\
 } while (0)
 #else
-#define mlog_entry(...)  do { } while (0)
-#define mlog_entry_void(...)  do { } while (0)
 #define mlog_exit(...)  do { } while (0)
 #define mlog_exit_ptr(...)  do { } while (0)
 #define mlog_exit_void(...)  do { } while (0)

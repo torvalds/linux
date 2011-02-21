@@ -291,8 +291,6 @@ int ocfs2_load_local_alloc(struct ocfs2_super *osb)
 	struct inode *inode = NULL;
 	struct ocfs2_local_alloc *la;
 
-	mlog_entry_void();
-
 	if (osb->local_alloc_bits == 0)
 		goto bail;
 
@@ -387,8 +385,6 @@ void ocfs2_shutdown_local_alloc(struct ocfs2_super *osb)
 	struct inode *main_bm_inode = NULL;
 	struct ocfs2_dinode *alloc_copy = NULL;
 	struct ocfs2_dinode *alloc = NULL;
-
-	mlog_entry_void();
 
 	cancel_delayed_work(&osb->la_enable_wq);
 	flush_workqueue(ocfs2_wq);
@@ -502,7 +498,7 @@ int ocfs2_begin_local_alloc_recovery(struct ocfs2_super *osb,
 	struct inode *inode = NULL;
 	struct ocfs2_dinode *alloc;
 
-	mlog_entry("(slot_num = %d)\n", slot_num);
+	mlog(0, "(slot_num = %d)\n", slot_num);
 
 	*alloc_copy = NULL;
 
@@ -569,8 +565,6 @@ int ocfs2_complete_local_alloc_recovery(struct ocfs2_super *osb,
 	handle_t *handle;
 	struct buffer_head *main_bm_bh = NULL;
 	struct inode *main_bm_inode;
-
-	mlog_entry_void();
 
 	main_bm_inode = ocfs2_get_system_file_inode(osb,
 						    GLOBAL_BITMAP_SYSTEM_INODE,
@@ -639,8 +633,6 @@ int ocfs2_reserve_local_alloc_bits(struct ocfs2_super *osb,
 	struct ocfs2_dinode *alloc;
 	struct inode *local_alloc_inode;
 	unsigned int free_bits;
-
-	mlog_entry_void();
 
 	BUG_ON(!ac);
 
@@ -749,7 +741,6 @@ int ocfs2_claim_local_alloc_bits(struct ocfs2_super *osb,
 	struct ocfs2_dinode *alloc;
 	struct ocfs2_local_alloc *la;
 
-	mlog_entry_void();
 	BUG_ON(ac->ac_which != OCFS2_AC_USE_LOCAL);
 
 	local_alloc_inode = ac->ac_inode;
@@ -799,8 +790,6 @@ static u32 ocfs2_local_alloc_count_bits(struct ocfs2_dinode *alloc)
 	u32 count = 0;
 	struct ocfs2_local_alloc *la = OCFS2_LOCAL_ALLOC(alloc);
 
-	mlog_entry_void();
-
 	buffer = la->la_bitmap;
 	for (i = 0; i < le16_to_cpu(la->la_size); i++)
 		count += hweight8(buffer[i]);
@@ -820,7 +809,7 @@ static int ocfs2_local_alloc_find_clear_bits(struct ocfs2_super *osb,
 	void *bitmap = NULL;
 	struct ocfs2_reservation_map *resmap = &osb->osb_la_resmap;
 
-	mlog_entry("(numbits wanted = %u)\n", *numbits);
+	mlog(0, "(numbits wanted = %u)\n", *numbits);
 
 	if (!alloc->id1.bitmap1.i_total) {
 		mlog(0, "No bits in my window!\n");
@@ -903,7 +892,6 @@ static void ocfs2_clear_local_alloc(struct ocfs2_dinode *alloc)
 {
 	struct ocfs2_local_alloc *la = OCFS2_LOCAL_ALLOC(alloc);
 	int i;
-	mlog_entry_void();
 
 	alloc->id1.bitmap1.i_total = 0;
 	alloc->id1.bitmap1.i_used = 0;
@@ -952,9 +940,9 @@ static int ocfs2_sync_local_to_main(struct ocfs2_super *osb,
 	void *bitmap;
 	struct ocfs2_local_alloc *la = OCFS2_LOCAL_ALLOC(alloc);
 
-	mlog_entry("total = %u, used = %u\n",
-		   le32_to_cpu(alloc->id1.bitmap1.i_total),
-		   le32_to_cpu(alloc->id1.bitmap1.i_used));
+	mlog(0, "total = %u, used = %u\n",
+	     le32_to_cpu(alloc->id1.bitmap1.i_total),
+	     le32_to_cpu(alloc->id1.bitmap1.i_used));
 
 	if (!alloc->id1.bitmap1.i_total) {
 		mlog(0, "nothing to sync!\n");
@@ -1148,8 +1136,6 @@ static int ocfs2_local_alloc_new_window(struct ocfs2_super *osb,
 	struct ocfs2_dinode *alloc = NULL;
 	struct ocfs2_local_alloc *la;
 
-	mlog_entry_void();
-
 	alloc = (struct ocfs2_dinode *) osb->local_alloc_bh->b_data;
 	la = OCFS2_LOCAL_ALLOC(alloc);
 
@@ -1242,8 +1228,6 @@ static int ocfs2_local_alloc_slide_window(struct ocfs2_super *osb,
 	struct ocfs2_dinode *alloc;
 	struct ocfs2_dinode *alloc_copy = NULL;
 	struct ocfs2_alloc_context *ac = NULL;
-
-	mlog_entry_void();
 
 	ocfs2_recalc_la_window(osb, OCFS2_LA_EVENT_SLIDE);
 

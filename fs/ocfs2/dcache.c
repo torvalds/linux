@@ -62,8 +62,8 @@ static int ocfs2_dentry_revalidate(struct dentry *dentry,
 	inode = dentry->d_inode;
 	osb = OCFS2_SB(dentry->d_sb);
 
-	mlog_entry("(0x%p, '%.*s')\n", dentry,
-		   dentry->d_name.len, dentry->d_name.name);
+	mlog(0, "(0x%p, '%.*s')\n", dentry,
+	     dentry->d_name.len, dentry->d_name.name);
 
 	/* For a negative dentry -
 	 * check the generation number of the parent and compare with the

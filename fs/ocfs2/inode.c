@@ -131,7 +131,7 @@ struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 blkno, unsigned flags,
 	struct super_block *sb = osb->sb;
 	struct ocfs2_find_inode_args args;
 
-	mlog_entry("(blkno = %llu)\n", (unsigned long long)blkno);
+	mlog(0, "(blkno = %llu)\n", (unsigned long long)blkno);
 
 	/* Ok. By now we've either got the offsets passed to us by the
 	 * caller, or we just pulled them off the bh. Lets do some
@@ -192,7 +192,7 @@ static int ocfs2_find_actor(struct inode *inode, void *opaque)
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 	int ret = 0;
 
-	mlog_entry("(0x%p, %lu, 0x%p)\n", inode, inode->i_ino, opaque);
+	mlog(0, "(0x%p, %lu, 0x%p)\n", inode, inode->i_ino, opaque);
 
 	args = opaque;
 
@@ -218,7 +218,7 @@ static int ocfs2_init_locked_inode(struct inode *inode, void *opaque)
 	static struct lock_class_key ocfs2_quota_ip_alloc_sem_key,
 				     ocfs2_file_ip_alloc_sem_key;
 
-	mlog_entry("inode = %p, opaque = %p\n", inode, opaque);
+	mlog(0, "inode = %p, opaque = %p\n", inode, opaque);
 
 	inode->i_ino = args->fi_ino;
 	OCFS2_I(inode)->ip_blkno = args->fi_blkno;
@@ -246,8 +246,8 @@ void ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 	struct ocfs2_super *osb;
 	int use_plocks = 1;
 
-	mlog_entry("(0x%p, size:%llu)\n", inode,
-		   (unsigned long long)le64_to_cpu(fe->i_size));
+	mlog(0, "(0x%p, size:%llu)\n", inode,
+	     (unsigned long long)le64_to_cpu(fe->i_size));
 
 	sb = inode->i_sb;
 	osb = OCFS2_SB(sb);
@@ -394,7 +394,7 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 	int status, can_lock;
 	u32 generation = 0;
 
-	mlog_entry("(0x%p, 0x%p)\n", inode, args);
+	mlog(0, "(0x%p, 0x%p)\n", inode, args);
 
 	status = -EINVAL;
 	if (inode == NULL || inode->i_sb == NULL) {
@@ -550,8 +550,6 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 	int status = 0;
 	struct ocfs2_dinode *fe;
 	handle_t *handle = NULL;
-
-	mlog_entry_void();
 
 	fe = (struct ocfs2_dinode *) fe_bh->b_data;
 
@@ -980,7 +978,7 @@ static void ocfs2_delete_inode(struct inode *inode)
 	sigset_t oldset;
 	struct buffer_head *di_bh = NULL;
 
-	mlog_entry("(inode->i_ino = %lu)\n", inode->i_ino);
+	mlog(0, "(inode->i_ino = %lu)\n", inode->i_ino);
 
 	/* When we fail in read_inode() we mark inode as bad. The second test
 	 * catches the case when inode allocation fails before allocating
@@ -1087,8 +1085,6 @@ static void ocfs2_clear_inode(struct inode *inode)
 {
 	int status;
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
-
-	mlog_entry_void();
 
 	end_writeback(inode);
 	mlog(0, "Clearing inode: %llu, nlink = %u\n",
@@ -1204,8 +1200,6 @@ int ocfs2_drop_inode(struct inode *inode)
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 	int res;
 
-	mlog_entry_void();
-
 	mlog(0, "Drop inode %llu, nlink = %u, ip_flags = 0x%x\n",
 	     (unsigned long long)oi->ip_blkno, inode->i_nlink, oi->ip_flags);
 
@@ -1226,8 +1220,8 @@ int ocfs2_inode_revalidate(struct dentry *dentry)
 	struct inode *inode = dentry->d_inode;
 	int status = 0;
 
-	mlog_entry("(inode = 0x%p, ino = %llu)\n", inode,
-		   inode ? (unsigned long long)OCFS2_I(inode)->ip_blkno : 0ULL);
+	mlog(0, "(inode = 0x%p, ino = %llu)\n", inode,
+	     inode ? (unsigned long long)OCFS2_I(inode)->ip_blkno : 0ULL);
 
 	if (!inode) {
 		mlog(0, "eep, no inode!\n");
@@ -1271,8 +1265,8 @@ int ocfs2_mark_inode_dirty(handle_t *handle,
 	int status;
 	struct ocfs2_dinode *fe = (struct ocfs2_dinode *) bh->b_data;
 
-	mlog_entry("(inode %llu)\n",
-		   (unsigned long long)OCFS2_I(inode)->ip_blkno);
+	mlog(0, "(inode %llu)\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno);
 
 	status = ocfs2_journal_access_di(handle, INODE_CACHE(inode), bh,
 					 OCFS2_JOURNAL_ACCESS_WRITE);

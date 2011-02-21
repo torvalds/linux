@@ -841,10 +841,10 @@ int ocfs2_read_virt_blocks(struct inode *inode, u64 v_block, int nr,
 	u64 p_block, p_count;
 	int i, count, done = 0;
 
-	mlog_entry("(inode = %p, v_block = %llu, nr = %d, bhs = %p, "
-		   "flags = %x, validate = %p)\n",
-		   inode, (unsigned long long)v_block, nr, bhs, flags,
-		   validate);
+	mlog(0, "(inode = %p, v_block = %llu, nr = %d, bhs = %p, "
+	     "flags = %x, validate = %p)\n",
+	     inode, (unsigned long long)v_block, nr, bhs, flags,
+	     validate);
 
 	if (((v_block + nr - 1) << inode->i_sb->s_blocksize_bits) >=
 	    i_size_read(inode)) {

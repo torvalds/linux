@@ -343,8 +343,6 @@ int ocfs2_global_read_info(struct super_block *sb, int type)
 	u64 pcount;
 	int status;
 
-	mlog_entry_void();
-
 	/* Read global header */
 	gqinode = ocfs2_get_system_file_inode(OCFS2_SB(sb), ino[type],
 			OCFS2_INVALID_SLOT);
@@ -596,7 +594,7 @@ static int ocfs2_sync_dquot_helper(struct dquot *dquot, unsigned long type)
 	struct ocfs2_super *osb = OCFS2_SB(sb);
 	int status = 0;
 
-	mlog_entry("id=%u qtype=%u type=%lu device=%s\n", dquot->dq_id,
+	mlog(0, "id=%u qtype=%u type=%lu device=%s\n", dquot->dq_id,
 		   dquot->dq_type, type, sb->s_id);
 	if (type != dquot->dq_type)
 		goto out;
@@ -649,7 +647,7 @@ static int ocfs2_write_dquot(struct dquot *dquot)
 	struct ocfs2_super *osb = OCFS2_SB(dquot->dq_sb);
 	int status = 0;
 
-	mlog_entry("id=%u, type=%d", dquot->dq_id, dquot->dq_type);
+	mlog(0, "id=%u, type=%d", dquot->dq_id, dquot->dq_type);
 
 	handle = ocfs2_start_trans(osb, OCFS2_QWRITE_CREDITS);
 	if (IS_ERR(handle)) {
@@ -688,7 +686,7 @@ static int ocfs2_release_dquot(struct dquot *dquot)
 	struct ocfs2_super *osb = OCFS2_SB(dquot->dq_sb);
 	int status = 0;
 
-	mlog_entry("id=%u, type=%d", dquot->dq_id, dquot->dq_type);
+	mlog(0, "id=%u, type=%d", dquot->dq_id, dquot->dq_type);
 
 	mutex_lock(&dquot->dq_lock);
 	/* Check whether we are not racing with some other dqget() */
@@ -745,7 +743,7 @@ static int ocfs2_acquire_dquot(struct dquot *dquot)
 	int need_alloc = ocfs2_global_qinit_alloc(sb, type);
 	handle_t *handle;
 
-	mlog_entry("id=%u, type=%d", dquot->dq_id, type);
+	mlog(0, "id=%u, type=%d", dquot->dq_id, type);
 	mutex_lock(&dquot->dq_lock);
 	/*
 	 * We need an exclusive lock, because we're going to update use count
@@ -831,7 +829,7 @@ static int ocfs2_mark_dquot_dirty(struct dquot *dquot)
 	handle_t *handle;
 	struct ocfs2_super *osb = OCFS2_SB(sb);
 
-	mlog_entry("id=%u, type=%d", dquot->dq_id, type);
+	mlog(0, "id=%u, type=%d", dquot->dq_id, type);
 
 	/* In case user set some limits, sync dquot immediately to global
 	 * quota file so that information propagates quicker */
@@ -878,8 +876,6 @@ static int ocfs2_write_info(struct super_block *sb, int type)
 	handle_t *handle;
 	int status = 0;
 	struct ocfs2_mem_dqinfo *oinfo = sb_dqinfo(sb, type)->dqi_priv;
-
-	mlog_entry_void();
 
 	status = ocfs2_lock_global_qf(oinfo, 1);
 	if (status < 0)

@@ -59,8 +59,8 @@ static int ocfs2_symlink_get_block(struct inode *inode, sector_t iblock,
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	void *kaddr;
 
-	mlog_entry("(0x%p, %llu, 0x%p, %d)\n", inode,
-		   (unsigned long long)iblock, bh_result, create);
+	mlog(0, "(0x%p, %llu, 0x%p, %d)\n", inode,
+	     (unsigned long long)iblock, bh_result, create);
 
 	BUG_ON(ocfs2_inode_is_fast_symlink(inode));
 
@@ -136,8 +136,8 @@ int ocfs2_get_block(struct inode *inode, sector_t iblock,
 	u64 p_blkno, count, past_eof;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
-	mlog_entry("(0x%p, %llu, 0x%p, %d)\n", inode,
-		   (unsigned long long)iblock, bh_result, create);
+	mlog(0, "(0x%p, %llu, 0x%p, %d)\n", inode,
+	     (unsigned long long)iblock, bh_result, create);
 
 	if (OCFS2_I(inode)->ip_flags & OCFS2_INODE_SYSTEM_FILE)
 		mlog(ML_NOTICE, "get_block on system inode 0x%p (%lu)\n",
@@ -278,7 +278,7 @@ static int ocfs2_readpage(struct file *file, struct page *page)
 	loff_t start = (loff_t)page->index << PAGE_CACHE_SHIFT;
 	int ret, unlock = 1;
 
-	mlog_entry("(0x%p, %lu)\n", file, (page ? page->index : 0));
+	mlog(0, "(0x%p, %lu)\n", file, (page ? page->index : 0));
 
 	ret = ocfs2_inode_lock_with_page(inode, NULL, 0, page);
 	if (ret != 0) {
@@ -398,7 +398,7 @@ static int ocfs2_writepage(struct page *page, struct writeback_control *wbc)
 {
 	int ret;
 
-	mlog_entry("(0x%p)\n", page);
+	mlog(0, "(0x%p)\n", page);
 
 	ret = block_write_full_page(page, ocfs2_get_block, wbc);
 
@@ -450,7 +450,7 @@ static sector_t ocfs2_bmap(struct address_space *mapping, sector_t block)
 	int err = 0;
 	struct inode *inode = mapping->host;
 
-	mlog_entry("(block = %llu)\n", (unsigned long long)block);
+	mlog(0, "(block = %llu)\n", (unsigned long long)block);
 
 	/* We don't need to lock journal system files, since they aren't
 	 * accessed concurrently from multiple nodes.
@@ -617,8 +617,6 @@ static ssize_t ocfs2_direct_IO(int rw,
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_path.dentry->d_inode->i_mapping->host;
 	int ret;
-
-	mlog_entry_void();
 
 	/*
 	 * Fallback to buffered I/O if we see an inode without

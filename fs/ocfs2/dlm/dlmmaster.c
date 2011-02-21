@@ -426,8 +426,6 @@ static void dlm_mle_release(struct kref *kref)
 	struct dlm_master_list_entry *mle;
 	struct dlm_ctxt *dlm;
 
-	mlog_entry_void();
-
 	mle = container_of(kref, struct dlm_master_list_entry, mle_refs);
 	dlm = mle->dlm;
 
@@ -3120,8 +3118,6 @@ static int dlm_add_migration_mle(struct dlm_ctxt *dlm,
 
 	*oldmle = NULL;
 
-	mlog_entry_void();
-
 	assert_spin_locked(&dlm->spinlock);
 	assert_spin_locked(&dlm->master_lock);
 
@@ -3261,7 +3257,7 @@ void dlm_clean_master_list(struct dlm_ctxt *dlm, u8 dead_node)
 	struct hlist_node *list;
 	unsigned int i;
 
-	mlog_entry("dlm=%s, dead node=%u\n", dlm->name, dead_node);
+	mlog(0, "dlm=%s, dead node=%u\n", dlm->name, dead_node);
 top:
 	assert_spin_locked(&dlm->spinlock);
 

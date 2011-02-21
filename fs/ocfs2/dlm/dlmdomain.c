@@ -188,7 +188,7 @@ struct dlm_lock_resource * __dlm_lookup_lockres_full(struct dlm_ctxt *dlm,
 	struct hlist_head *bucket;
 	struct hlist_node *list;
 
-	mlog_entry("%.*s\n", len, name);
+	mlog(0, "%.*s\n", len, name);
 
 	assert_spin_locked(&dlm->spinlock);
 
@@ -222,7 +222,7 @@ struct dlm_lock_resource * __dlm_lookup_lockres(struct dlm_ctxt *dlm,
 {
 	struct dlm_lock_resource *res = NULL;
 
-	mlog_entry("%.*s\n", len, name);
+	mlog(0, "%.*s\n", len, name);
 
 	assert_spin_locked(&dlm->spinlock);
 
@@ -531,7 +531,7 @@ static int dlm_exit_domain_handler(struct o2net_msg *msg, u32 len, void *data,
 	unsigned int node;
 	struct dlm_exit_domain *exit_msg = (struct dlm_exit_domain *) msg->buf;
 
-	mlog_entry("%p %u %p", msg, len, data);
+	mlog(0, "%p %u %p", msg, len, data);
 
 	if (!dlm_grab(dlm))
 		return 0;
@@ -1553,7 +1553,7 @@ static int dlm_try_to_join_domain(struct dlm_ctxt *dlm)
 	struct domain_join_ctxt *ctxt;
 	enum dlm_query_join_response_code response = JOIN_DISALLOW;
 
-	mlog_entry("%p", dlm);
+	mlog(0, "%p", dlm);
 
 	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
 	if (!ctxt) {

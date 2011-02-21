@@ -62,8 +62,6 @@ static char *ocfs2_fast_symlink_getlink(struct inode *inode,
 	char *link = NULL;
 	struct ocfs2_dinode *fe;
 
-	mlog_entry_void();
-
 	status = ocfs2_read_inode_block(inode, bh);
 	if (status < 0) {
 		mlog_errno(status);
@@ -87,8 +85,6 @@ static int ocfs2_readlink(struct dentry *dentry,
 	char *link;
 	struct buffer_head *bh = NULL;
 	struct inode *inode = dentry->d_inode;
-
-	mlog_entry_void();
 
 	link = ocfs2_fast_symlink_getlink(inode, &bh);
 	if (IS_ERR(link)) {
@@ -116,8 +112,6 @@ static void *ocfs2_fast_follow_link(struct dentry *dentry,
 	char *target, *link = ERR_PTR(-ENOMEM);
 	struct inode *inode = dentry->d_inode;
 	struct buffer_head *bh = NULL;
-
-	mlog_entry_void();
 
 	BUG_ON(!ocfs2_inode_is_fast_symlink(inode));
 	target = ocfs2_fast_symlink_getlink(inode, &bh);

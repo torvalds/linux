@@ -80,7 +80,6 @@ struct mlog_attribute {
 }
 
 static struct mlog_attribute mlog_attrs[MLOG_MAX_BITS] = {
-	define_mask(ENTRY),
 	define_mask(EXIT),
 	define_mask(TCP),
 	define_mask(MSG),

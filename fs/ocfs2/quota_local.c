@@ -475,7 +475,7 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 	struct ocfs2_recovery_chunk *rchunk, *next;
 	qsize_t spacechange, inodechange;
 
-	mlog_entry("ino=%lu type=%u", (unsigned long)lqinode->i_ino, type);
+	mlog(0, "ino=%lu type=%u", (unsigned long)lqinode->i_ino, type);
 
 	list_for_each_entry_safe(rchunk, next, &(rec->r_list[type]), rc_list) {
 		chunk = rchunk->rc_chunk;

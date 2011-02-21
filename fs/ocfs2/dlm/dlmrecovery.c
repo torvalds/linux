@@ -2083,8 +2083,6 @@ static void dlm_finish_local_lockres_recovery(struct dlm_ctxt *dlm,
 	struct hlist_head *bucket;
 	struct dlm_lock_resource *res, *next;
 
-	mlog_entry_void();
-
 	assert_spin_locked(&dlm->spinlock);
 
 	list_for_each_entry_safe(res, next, &dlm->reco.resources, recovering) {
@@ -2606,8 +2604,6 @@ static int dlm_send_begin_reco_message(struct dlm_ctxt *dlm, u8 dead_node)
 	struct dlm_node_iter iter;
 	int nodenum;
 	int status;
-
-	mlog_entry("%u\n", dead_node);
 
 	mlog(0, "%s: dead node is %u\n", dlm->name, dead_node);
 

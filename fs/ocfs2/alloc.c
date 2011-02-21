@@ -965,8 +965,6 @@ int ocfs2_num_free_extents(struct ocfs2_super *osb,
 	struct buffer_head *eb_bh = NULL;
 	u64 last_eb_blk = 0;
 
-	mlog_entry_void();
-
 	el = et->et_root_el;
 	last_eb_blk = ocfs2_et_get_last_eb_blk(et);
 
@@ -1009,8 +1007,6 @@ static int ocfs2_create_new_meta_bhs(handle_t *handle,
 	struct ocfs2_super *osb =
 		OCFS2_SB(ocfs2_metadata_cache_get_super(et->et_ci));
 	struct ocfs2_extent_block *eb;
-
-	mlog_entry_void();
 
 	count = 0;
 	while (count < wanted) {
@@ -1172,8 +1168,6 @@ static int ocfs2_add_branch(handle_t *handle,
 	struct ocfs2_extent_list  *eb_el;
 	struct ocfs2_extent_list  *el;
 	u32 new_cpos, root_end;
-
-	mlog_entry_void();
 
 	BUG_ON(!last_eb_bh || !*last_eb_bh);
 
@@ -1353,8 +1347,6 @@ static int ocfs2_shift_tree_depth(handle_t *handle,
 	struct ocfs2_extent_list  *root_el;
 	struct ocfs2_extent_list  *eb_el;
 
-	mlog_entry_void();
-
 	status = ocfs2_create_new_meta_bhs(handle, et, 1, meta_ac,
 					   &new_eb_bh);
 	if (status < 0) {
@@ -1445,8 +1437,6 @@ static int ocfs2_find_branch_target(struct ocfs2_extent_tree *et,
 	struct ocfs2_extent_list  *el;
 	struct buffer_head *bh = NULL;
 	struct buffer_head *lowest_bh = NULL;
-
-	mlog_entry_void();
 
 	*target_bh = NULL;
 
@@ -5795,8 +5785,8 @@ int ocfs2_truncate_log_append(struct ocfs2_super *osb,
 	struct ocfs2_dinode *di;
 	struct ocfs2_truncate_log *tl;
 
-	mlog_entry("start_blk = %llu, num_clusters = %u\n",
-		   (unsigned long long)start_blk, num_clusters);
+	mlog(0, "start_blk = %llu, num_clusters = %u\n",
+	     (unsigned long long)start_blk, num_clusters);
 
 	BUG_ON(mutex_trylock(&tl_inode->i_mutex));
 
@@ -5878,8 +5868,6 @@ static int ocfs2_replay_truncate_records(struct ocfs2_super *osb,
 	struct inode *tl_inode = osb->osb_tl_inode;
 	struct buffer_head *tl_bh = osb->osb_tl_bh;
 
-	mlog_entry_void();
-
 	di = (struct ocfs2_dinode *) tl_bh->b_data;
 	tl = &di->id2.i_dealloc;
 	i = le16_to_cpu(tl->tl_used) - 1;
@@ -5948,8 +5936,6 @@ int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 	struct buffer_head *data_alloc_bh = NULL;
 	struct ocfs2_dinode *di;
 	struct ocfs2_truncate_log *tl;
-
-	mlog_entry_void();
 
 	BUG_ON(mutex_trylock(&tl_inode->i_mutex));
 
@@ -6031,8 +6017,6 @@ static void ocfs2_truncate_log_worker(struct work_struct *work)
 	struct ocfs2_super *osb =
 		container_of(work, struct ocfs2_super,
 			     osb_truncate_log_wq.work);
-
-	mlog_entry_void();
 
 	status = ocfs2_flush_truncate_log(osb);
 	if (status < 0)
@@ -6174,8 +6158,6 @@ int ocfs2_complete_truncate_log_recovery(struct ocfs2_super *osb,
 	struct inode *tl_inode = osb->osb_tl_inode;
 	struct ocfs2_truncate_log *tl;
 
-	mlog_entry_void();
-
 	if (OCFS2_I(tl_inode)->ip_blkno == le64_to_cpu(tl_copy->i_blkno)) {
 		mlog(ML_ERROR, "Asked to recover my own truncate log!\n");
 		return -EINVAL;
@@ -6228,8 +6210,6 @@ void ocfs2_truncate_log_shutdown(struct ocfs2_super *osb)
 	int status;
 	struct inode *tl_inode = osb->osb_tl_inode;
 
-	mlog_entry_void();
-
 	if (tl_inode) {
 		cancel_delayed_work(&osb->osb_truncate_log_wq);
 		flush_workqueue(ocfs2_wq);
@@ -6250,8 +6230,6 @@ int ocfs2_truncate_log_init(struct ocfs2_super *osb)
 	int status;
 	struct inode *tl_inode = NULL;
 	struct buffer_head *tl_bh = NULL;
-
-	mlog_entry_void();
 
 	status = ocfs2_get_truncate_log_info(osb,
 					     osb->slot_num,
@@ -7004,8 +6982,6 @@ int ocfs2_commit_truncate(struct ocfs2_super *osb,
 	u64 refcount_loc = le64_to_cpu(di->i_refcount_loc);
 	struct ocfs2_extent_tree et;
 	struct ocfs2_cached_dealloc_ctxt dealloc;
-
-	mlog_entry_void();
 
 	ocfs2_init_dinode_extent_tree(&et, INODE_CACHE(inode), di_bh);
 	ocfs2_init_dealloc_ctxt(&dealloc);

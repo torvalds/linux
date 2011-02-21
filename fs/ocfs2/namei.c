@@ -106,8 +106,8 @@ static struct dentry *ocfs2_lookup(struct inode *dir, struct dentry *dentry,
 	struct dentry *ret;
 	struct ocfs2_inode_info *oi;
 
-	mlog_entry("(0x%p, 0x%p, '%.*s')\n", dir, dentry,
-		   dentry->d_name.len, dentry->d_name.name);
+	mlog(0, "(0x%p, 0x%p, '%.*s')\n", dir, dentry,
+	     dentry->d_name.len, dentry->d_name.name);
 
 	if (dentry->d_name.len > OCFS2_MAX_FILENAME_LEN) {
 		ret = ERR_PTR(-ENAMETOOLONG);
@@ -235,9 +235,9 @@ static int ocfs2_mknod(struct inode *dir,
 	sigset_t oldset;
 	int did_block_signals = 0;
 
-	mlog_entry("(0x%p, 0x%p, %d, %lu, '%.*s')\n", dir, dentry, mode,
-		   (unsigned long)dev, dentry->d_name.len,
-		   dentry->d_name.name);
+	mlog(0, "(0x%p, 0x%p, %d, %lu, '%.*s')\n", dir, dentry, mode,
+	     (unsigned long)dev, dentry->d_name.len,
+	     dentry->d_name.name);
 
 	dquot_initialize(dir);
 
@@ -354,9 +354,9 @@ static int ocfs2_mknod(struct inode *dir,
 		goto leave;
 	did_quota_inode = 1;
 
-	mlog_entry("(0x%p, 0x%p, %d, %lu, '%.*s')\n", dir, dentry,
-		   inode->i_mode, (unsigned long)dev, dentry->d_name.len,
-		   dentry->d_name.name);
+	mlog(0, "(0x%p, 0x%p, %d, %lu, '%.*s')\n", dir, dentry,
+	     inode->i_mode, (unsigned long)dev, dentry->d_name.len,
+	     dentry->d_name.name);
 
 	/* do the real work now. */
 	status = ocfs2_mknod_locked(osb, dir, inode, dev,
@@ -615,8 +615,8 @@ static int ocfs2_mkdir(struct inode *dir,
 {
 	int ret;
 
-	mlog_entry("(0x%p, 0x%p, %d, '%.*s')\n", dir, dentry, mode,
-		   dentry->d_name.len, dentry->d_name.name);
+	mlog(0, "(0x%p, 0x%p, %d, '%.*s')\n", dir, dentry, mode,
+	     dentry->d_name.len, dentry->d_name.name);
 	ret = ocfs2_mknod(dir, dentry, mode | S_IFDIR, 0);
 	mlog_exit(ret);
 
@@ -630,8 +630,8 @@ static int ocfs2_create(struct inode *dir,
 {
 	int ret;
 
-	mlog_entry("(0x%p, 0x%p, %d, '%.*s')\n", dir, dentry, mode,
-		   dentry->d_name.len, dentry->d_name.name);
+	mlog(0, "(0x%p, 0x%p, %d, '%.*s')\n", dir, dentry, mode,
+	     dentry->d_name.len, dentry->d_name.name);
 	ret = ocfs2_mknod(dir, dentry, mode | S_IFREG, 0);
 	mlog_exit(ret);
 
@@ -652,9 +652,9 @@ static int ocfs2_link(struct dentry *old_dentry,
 	struct ocfs2_dir_lookup_result lookup = { NULL, };
 	sigset_t oldset;
 
-	mlog_entry("(inode=%lu, old='%.*s' new='%.*s')\n", inode->i_ino,
-		   old_dentry->d_name.len, old_dentry->d_name.name,
-		   dentry->d_name.len, dentry->d_name.name);
+	mlog(0, "(inode=%lu, old='%.*s' new='%.*s')\n", inode->i_ino,
+	     old_dentry->d_name.len, old_dentry->d_name.name,
+	     dentry->d_name.len, dentry->d_name.name);
 
 	if (S_ISDIR(inode->i_mode))
 		return -EPERM;
@@ -809,8 +809,8 @@ static int ocfs2_unlink(struct inode *dir,
 	struct ocfs2_dir_lookup_result lookup = { NULL, };
 	struct ocfs2_dir_lookup_result orphan_insert = { NULL, };
 
-	mlog_entry("(0x%p, 0x%p, '%.*s')\n", dir, dentry,
-		   dentry->d_name.len, dentry->d_name.name);
+	mlog(0, "(0x%p, 0x%p, '%.*s')\n", dir, dentry,
+	     dentry->d_name.len, dentry->d_name.name);
 
 	dquot_initialize(dir);
 
@@ -975,9 +975,9 @@ static int ocfs2_double_lock(struct ocfs2_super *osb,
 	struct buffer_head **tmpbh;
 	struct inode *tmpinode;
 
-	mlog_entry("(inode1 = %llu, inode2 = %llu)\n",
-		   (unsigned long long)oi1->ip_blkno,
-		   (unsigned long long)oi2->ip_blkno);
+	mlog(0, "(inode1 = %llu, inode2 = %llu)\n",
+	     (unsigned long long)oi1->ip_blkno,
+	     (unsigned long long)oi2->ip_blkno);
 
 	if (*bh1)
 		*bh1 = NULL;
@@ -1067,10 +1067,10 @@ static int ocfs2_rename(struct inode *old_dir,
 	/* At some point it might be nice to break this function up a
 	 * bit. */
 
-	mlog_entry("(0x%p, 0x%p, 0x%p, 0x%p, from='%.*s' to='%.*s')\n",
-		   old_dir, old_dentry, new_dir, new_dentry,
-		   old_dentry->d_name.len, old_dentry->d_name.name,
-		   new_dentry->d_name.len, new_dentry->d_name.name);
+	mlog(0, "(0x%p, 0x%p, 0x%p, 0x%p, from='%.*s' to='%.*s')\n",
+	     old_dir, old_dentry, new_dir, new_dentry,
+	     old_dentry->d_name.len, old_dentry->d_name.name,
+	     new_dentry->d_name.len, new_dentry->d_name.name);
 
 	dquot_initialize(old_dir);
 	dquot_initialize(new_dir);
@@ -1501,9 +1501,9 @@ static int ocfs2_create_symlink_data(struct ocfs2_super *osb,
 	 * write i_size + 1 bytes. */
 	blocks = (bytes_left + sb->s_blocksize - 1) >> sb->s_blocksize_bits;
 
-	mlog_entry("i_blocks = %llu, i_size = %llu, blocks = %d\n",
-			(unsigned long long)inode->i_blocks,
-			i_size_read(inode), blocks);
+	mlog(0, "i_blocks = %llu, i_size = %llu, blocks = %d\n",
+	     (unsigned long long)inode->i_blocks,
+	     i_size_read(inode), blocks);
 
 	/* Sanity check -- make sure we're going to fit. */
 	if (bytes_left >
@@ -1610,8 +1610,8 @@ static int ocfs2_symlink(struct inode *dir,
 	sigset_t oldset;
 	int did_block_signals = 0;
 
-	mlog_entry("(0x%p, 0x%p, symname='%s' actual='%.*s')\n", dir,
-		   dentry, symname, dentry->d_name.len, dentry->d_name.name);
+	mlog(0, "(0x%p, 0x%p, symname='%s' actual='%.*s')\n", dir,
+	     dentry, symname, dentry->d_name.len, dentry->d_name.name);
 
 	dquot_initialize(dir);
 
@@ -1713,9 +1713,9 @@ static int ocfs2_symlink(struct inode *dir,
 		goto bail;
 	did_quota_inode = 1;
 
-	mlog_entry("(0x%p, 0x%p, %d, '%.*s')\n", dir, dentry,
-		   inode->i_mode, dentry->d_name.len,
-		   dentry->d_name.name);
+	mlog(0, "(0x%p, 0x%p, %d, '%.*s')\n", dir, dentry,
+	     inode->i_mode, dentry->d_name.len,
+	     dentry->d_name.name);
 
 	status = ocfs2_mknod_locked(osb, dir, inode,
 				    0, &new_fe_bh, parent_fe_bh, handle,
@@ -1843,8 +1843,6 @@ bail:
 static int ocfs2_blkno_stringify(u64 blkno, char *name)
 {
 	int status, namelen;
-
-	mlog_entry_void();
 
 	namelen = snprintf(name, OCFS2_ORPHAN_NAMELEN + 1, "%016llx",
 			   (long long)blkno);
@@ -1997,7 +1995,7 @@ static int ocfs2_orphan_add(struct ocfs2_super *osb,
 	struct ocfs2_dinode *orphan_fe;
 	struct ocfs2_dinode *fe = (struct ocfs2_dinode *) fe_bh->b_data;
 
-	mlog_entry("(inode->i_ino = %lu)\n", inode->i_ino);
+	mlog(0, "(inode->i_ino = %lu)\n", inode->i_ino);
 
 	status = ocfs2_read_inode_block(orphan_dir_inode, &orphan_dir_bh);
 	if (status < 0) {
@@ -2077,8 +2075,6 @@ int ocfs2_orphan_del(struct ocfs2_super *osb,
 	struct ocfs2_dinode *orphan_fe;
 	int status = 0;
 	struct ocfs2_dir_lookup_result lookup = { NULL, };
-
-	mlog_entry_void();
 
 	status = ocfs2_blkno_stringify(OCFS2_I(inode)->ip_blkno, name);
 	if (status < 0) {
@@ -2358,8 +2354,8 @@ int ocfs2_mv_orphaned_inode_to_new(struct inode *dir,
 	struct buffer_head *di_bh = NULL;
 	struct ocfs2_dir_lookup_result lookup = { NULL, };
 
-	mlog_entry("(0x%p, 0x%p, %.*s')\n", dir, dentry,
-		   dentry->d_name.len, dentry->d_name.name);
+	mlog(0, "(0x%p, 0x%p, %.*s')\n", dir, dentry,
+	     dentry->d_name.len, dentry->d_name.name);
 
 	status = ocfs2_inode_lock(dir, &parent_di_bh, 1);
 	if (status < 0) {

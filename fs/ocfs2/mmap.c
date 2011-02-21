@@ -49,7 +49,7 @@ static int ocfs2_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 	sigset_t oldset;
 	int ret;
 
-	mlog_entry("(area=%p, page offset=%lu)\n", area, vmf->pgoff);
+	mlog(0, "(area=%p, page offset=%lu)\n", area, vmf->pgoff);
 
 	ocfs2_block_signals(&oldset);
 	ret = filemap_fault(area, vmf);

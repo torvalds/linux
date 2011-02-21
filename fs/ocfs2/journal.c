@@ -303,8 +303,6 @@ static int ocfs2_commit_cache(struct ocfs2_super *osb)
 	unsigned int flushed;
 	struct ocfs2_journal *journal = NULL;
 
-	mlog_entry_void();
-
 	journal = osb->journal;
 
 	/* Flush all pending commits and checkpoint the journal. */
@@ -425,7 +423,6 @@ int ocfs2_extend_trans(handle_t *handle, int nblocks)
 		return 0;
 
 	old_nblocks = handle->h_buffer_credits;
-	mlog_entry_void();
 
 	mlog(0, "Trying to extend transaction by %d blocks\n", nblocks);
 
@@ -622,12 +619,12 @@ static int __ocfs2_journal_access(handle_t *handle,
 	BUG_ON(!handle);
 	BUG_ON(!bh);
 
-	mlog_entry("bh->b_blocknr=%llu, type=%d (\"%s\"), bh->b_size = %zu\n",
-		   (unsigned long long)bh->b_blocknr, type,
-		   (type == OCFS2_JOURNAL_ACCESS_CREATE) ?
-		   "OCFS2_JOURNAL_ACCESS_CREATE" :
-		   "OCFS2_JOURNAL_ACCESS_WRITE",
-		   bh->b_size);
+	mlog(0, "bh->b_blocknr=%llu, type=%d (\"%s\"), bh->b_size = %zu\n",
+	     (unsigned long long)bh->b_blocknr, type,
+	     (type == OCFS2_JOURNAL_ACCESS_CREATE) ?
+	     "OCFS2_JOURNAL_ACCESS_CREATE" :
+	     "OCFS2_JOURNAL_ACCESS_WRITE",
+	     bh->b_size);
 
 	/* we can safely remove this assertion after testing. */
 	if (!buffer_uptodate(bh)) {
@@ -737,8 +734,8 @@ void ocfs2_journal_dirty(handle_t *handle, struct buffer_head *bh)
 {
 	int status;
 
-	mlog_entry("(bh->b_blocknr=%llu)\n",
-		   (unsigned long long)bh->b_blocknr);
+	mlog(0, "(bh->b_blocknr=%llu)\n",
+	     (unsigned long long)bh->b_blocknr);
 
 	status = jbd2_journal_dirty_metadata(handle, bh);
 	BUG_ON(status);
@@ -774,8 +771,6 @@ int ocfs2_journal_init(struct ocfs2_journal *journal, int *dirty)
 	struct buffer_head *bh = NULL;
 	struct ocfs2_super *osb;
 	int inode_lock = 0;
-
-	mlog_entry_void();
 
 	BUG_ON(!journal);
 
@@ -882,8 +877,6 @@ static int ocfs2_journal_toggle_dirty(struct ocfs2_super *osb,
 	struct buffer_head *bh = journal->j_bh;
 	struct ocfs2_dinode *fe;
 
-	mlog_entry_void();
-
 	fe = (struct ocfs2_dinode *)bh->b_data;
 
 	/* The journal bh on the osb always comes from ocfs2_journal_init()
@@ -920,8 +913,6 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 	int status = 0;
 	struct inode *inode = NULL;
 	int num_running_trans = 0;
-
-	mlog_entry_void();
 
 	BUG_ON(!osb);
 
@@ -1024,8 +1015,6 @@ int ocfs2_journal_load(struct ocfs2_journal *journal, int local, int replayed)
 	int status = 0;
 	struct ocfs2_super *osb;
 
-	mlog_entry_void();
-
 	BUG_ON(!journal);
 
 	osb = journal->j_osb;
@@ -1069,8 +1058,6 @@ done:
 int ocfs2_journal_wipe(struct ocfs2_journal *journal, int full)
 {
 	int status;
-
-	mlog_entry_void();
 
 	BUG_ON(!journal);
 
@@ -1123,8 +1110,6 @@ static int ocfs2_force_read_journal(struct inode *inode)
 	u64 v_blkno, p_blkno, p_blocks, num_blocks;
 #define CONCURRENT_JOURNAL_FILL 32ULL
 	struct buffer_head *bhs[CONCURRENT_JOURNAL_FILL];
-
-	mlog_entry_void();
 
 	memset(bhs, 0, sizeof(struct buffer_head *) * CONCURRENT_JOURNAL_FILL);
 
@@ -1193,8 +1178,6 @@ void ocfs2_complete_recovery(struct work_struct *work)
 	struct ocfs2_la_recovery_item *item, *n;
 	struct ocfs2_quota_recovery *qrec;
 	LIST_HEAD(tmp_la_list);
-
-	mlog_entry_void();
 
 	mlog(0, "completing recovery from keventd\n");
 
@@ -1339,8 +1322,6 @@ static int __ocfs2_recovery_thread(void *arg)
 	int rm_quota_used = 0, i;
 	struct ocfs2_quota_recovery *qrec;
 
-	mlog_entry_void();
-
 	status = ocfs2_wait_on_mount(osb);
 	if (status < 0) {
 		goto bail;
@@ -1461,8 +1442,8 @@ bail:
 
 void ocfs2_recovery_thread(struct ocfs2_super *osb, int node_num)
 {
-	mlog_entry("(node_num=%d, osb->node_num = %d)\n",
-		   node_num, osb->node_num);
+	mlog(0, "(node_num=%d, osb->node_num = %d)\n",
+	     node_num, osb->node_num);
 
 	mutex_lock(&osb->recovery_lock);
 	if (osb->disable_recovery)
@@ -1688,8 +1669,8 @@ static int ocfs2_recover_node(struct ocfs2_super *osb,
 	struct ocfs2_dinode *la_copy = NULL;
 	struct ocfs2_dinode *tl_copy = NULL;
 
-	mlog_entry("(node_num=%d, slot_num=%d, osb->node_num = %d)\n",
-		   node_num, slot_num, osb->node_num);
+	mlog(0, "(node_num=%d, slot_num=%d, osb->node_num = %d)\n",
+	     node_num, slot_num, osb->node_num);
 
 	/* Should not ever be called to recover ourselves -- in that
 	 * case we should've called ocfs2_journal_load instead. */

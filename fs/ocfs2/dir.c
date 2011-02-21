@@ -367,8 +367,6 @@ static int inline ocfs2_search_dirblock(struct buffer_head *bh,
 	int de_len;
 	int ret = 0;
 
-	mlog_entry_void();
-
 	de_buf = first_de;
 	dlimit = de_buf + bytes;
 
@@ -705,8 +703,6 @@ static struct buffer_head *ocfs2_find_entry_el(const char *name, int namelen,
 				   buffer */
 	int num = 0;
 	int nblocks, i, err;
-
-	mlog_entry_void();
 
 	sb = dir->i_sb;
 
@@ -1166,7 +1162,7 @@ static int __ocfs2_delete_entry(handle_t *handle, struct inode *dir,
 	int i, status = -ENOENT;
 	ocfs2_journal_access_func access = ocfs2_journal_access_db;
 
-	mlog_entry("(0x%p, 0x%p, 0x%p, 0x%p)\n", handle, dir, de_del, bh);
+	mlog(0, "(0x%p, 0x%p, 0x%p, 0x%p)\n", handle, dir, de_del, bh);
 
 	if (OCFS2_I(dir)->ip_dyn_features & OCFS2_INLINE_DATA_FL)
 		access = ocfs2_journal_access_di;
@@ -1632,8 +1628,6 @@ int __ocfs2_add_entry(handle_t *handle,
 	struct buffer_head *insert_bh = lookup->dl_leaf_bh;
 	char *data_start = insert_bh->b_data;
 
-	mlog_entry_void();
-
 	if (!namelen)
 		return -EINVAL;
 
@@ -2028,8 +2022,8 @@ int ocfs2_readdir(struct file * filp, void * dirent, filldir_t filldir)
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	int lock_level = 0;
 
-	mlog_entry("dirino=%llu\n",
-		   (unsigned long long)OCFS2_I(inode)->ip_blkno);
+	mlog(0, "dirino=%llu\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno);
 
 	error = ocfs2_inode_lock_atime(inode, filp->f_vfsmnt, &lock_level);
 	if (lock_level && error >= 0) {
@@ -2114,8 +2108,8 @@ int ocfs2_check_dir_for_entry(struct inode *dir,
 	int ret;
 	struct ocfs2_dir_lookup_result lookup = { NULL, };
 
-	mlog_entry("dir %llu, name '%.*s'\n",
-		   (unsigned long long)OCFS2_I(dir)->ip_blkno, namelen, name);
+	mlog(0, "dir %llu, name '%.*s'\n",
+	     (unsigned long long)OCFS2_I(dir)->ip_blkno, namelen, name);
 
 	ret = -EEXIST;
 	if (ocfs2_find_entry(name, namelen, dir, &lookup) == 0)
@@ -2323,8 +2317,6 @@ static int ocfs2_fill_new_dir_el(struct ocfs2_super *osb,
 	unsigned int size = osb->sb->s_blocksize;
 	struct buffer_head *new_bh = NULL;
 	struct ocfs2_dir_entry *de;
-
-	mlog_entry_void();
 
 	if (ocfs2_new_dir_wants_trailer(inode))
 		size = ocfs2_dir_trailer_blk_off(parent->i_sb);
@@ -3269,8 +3261,6 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 	struct super_block *sb = osb->sb;
 	struct ocfs2_extent_tree et;
 	struct buffer_head *dx_root_bh = lookup->dl_dx_root_bh;
-
-	mlog_entry_void();
 
 	if (OCFS2_I(dir)->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
 		/*

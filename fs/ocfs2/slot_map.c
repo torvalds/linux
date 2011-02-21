@@ -475,8 +475,6 @@ int ocfs2_find_slot(struct ocfs2_super *osb)
 	int slot;
 	struct ocfs2_slot_info *si;
 
-	mlog_entry_void();
-
 	si = osb->slot_info;
 
 	spin_lock(&osb->osb_lock);

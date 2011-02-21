@@ -55,8 +55,8 @@ int ocfs2_write_block(struct ocfs2_super *osb, struct buffer_head *bh,
 {
 	int ret = 0;
 
-	mlog_entry("(bh->b_blocknr = %llu, ci=%p)\n",
-		   (unsigned long long)bh->b_blocknr, ci);
+	mlog(0, "(bh->b_blocknr = %llu, ci=%p)\n",
+	     (unsigned long long)bh->b_blocknr, ci);
 
 	BUG_ON(bh->b_blocknr < OCFS2_SUPER_BLOCK_BLKNO);
 	BUG_ON(buffer_jbd(bh));
@@ -186,8 +186,8 @@ int ocfs2_read_blocks(struct ocfs2_caching_info *ci, u64 block, int nr,
 	struct buffer_head *bh;
 	struct super_block *sb = ocfs2_metadata_cache_get_super(ci);
 
-	mlog_entry("(ci=%p, block=(%llu), nr=(%d), flags=%d)\n",
-		   ci, (unsigned long long)block, nr, flags);
+	mlog(0, "(ci=%p, block=(%llu), nr=(%d), flags=%d)\n",
+	     ci, (unsigned long long)block, nr, flags);
 
 	BUG_ON(!ci);
 	BUG_ON((flags & OCFS2_BH_READAHEAD) &&
@@ -407,8 +407,6 @@ int ocfs2_write_super_or_backup(struct ocfs2_super *osb,
 {
 	int ret = 0;
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)bh->b_data;
-
-	mlog_entry_void();
 
 	BUG_ON(buffer_jbd(bh));
 	ocfs2_check_super_or_backup(osb->sb, bh->b_blocknr);

@@ -99,8 +99,8 @@ static int ocfs2_file_open(struct inode *inode, struct file *file)
 	int mode = file->f_flags;
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 
-	mlog_entry("(0x%p, 0x%p, '%.*s')\n", inode, file,
-		   file->f_path.dentry->d_name.len, file->f_path.dentry->d_name.name);
+	mlog(0, "(0x%p, 0x%p, '%.*s')\n", inode, file,
+	     file->f_path.dentry->d_name.len, file->f_path.dentry->d_name.name);
 
 	if (file->f_mode & FMODE_WRITE)
 		dquot_initialize(inode);
@@ -143,9 +143,9 @@ static int ocfs2_file_release(struct inode *inode, struct file *file)
 {
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 
-	mlog_entry("(0x%p, 0x%p, '%.*s')\n", inode, file,
-		       file->f_path.dentry->d_name.len,
-		       file->f_path.dentry->d_name.name);
+	mlog(0, "(0x%p, 0x%p, '%.*s')\n", inode, file,
+	     file->f_path.dentry->d_name.len,
+	     file->f_path.dentry->d_name.name);
 
 	spin_lock(&oi->ip_lock);
 	if (!--oi->ip_open_count)
@@ -177,9 +177,9 @@ static int ocfs2_sync_file(struct file *file, int datasync)
 	struct inode *inode = file->f_mapping->host;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
-	mlog_entry("(0x%p, %d, 0x%p, '%.*s')\n", file, datasync,
-		   file->f_path.dentry, file->f_path.dentry->d_name.len,
-		   file->f_path.dentry->d_name.name);
+	mlog(0, "(0x%p, %d, 0x%p, '%.*s')\n", file, datasync,
+	     file->f_path.dentry, file->f_path.dentry->d_name.len,
+	     file->f_path.dentry->d_name.name);
 
 	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC)) {
 		/*
@@ -251,8 +251,6 @@ int ocfs2_update_inode_atime(struct inode *inode,
 	handle_t *handle;
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *) bh->b_data;
 
-	mlog_entry_void();
-
 	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
 	if (IS_ERR(handle)) {
 		ret = PTR_ERR(handle);
@@ -291,7 +289,6 @@ static int ocfs2_set_inode_size(handle_t *handle,
 {
 	int status;
 
-	mlog_entry_void();
 	i_size_write(inode, new_i_size);
 	inode->i_blocks = ocfs2_inode_sector_count(inode);
 	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
@@ -375,8 +372,6 @@ static int ocfs2_orphan_for_truncate(struct ocfs2_super *osb,
 	struct ocfs2_dinode *di;
 	u64 cluster_bytes;
 
-	mlog_entry_void();
-
 	/*
 	 * We need to CoW the cluster contains the offset if it is reflinked
 	 * since we will call ocfs2_zero_range_for_truncate later which will
@@ -442,9 +437,9 @@ static int ocfs2_truncate_file(struct inode *inode,
 	struct ocfs2_dinode *fe = NULL;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
-	mlog_entry("(inode = %llu, new_i_size = %llu\n",
-		   (unsigned long long)OCFS2_I(inode)->ip_blkno,
-		   (unsigned long long)new_i_size);
+	mlog(0, "(inode = %llu, new_i_size = %llu\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
+	     (unsigned long long)new_i_size);
 
 	/* We trust di_bh because it comes from ocfs2_inode_lock(), which
 	 * already validated it */
@@ -578,7 +573,7 @@ static int __ocfs2_extend_allocation(struct inode *inode, u32 logical_start,
 	struct ocfs2_extent_tree et;
 	int did_quota = 0;
 
-	mlog_entry("(clusters_to_add = %u)\n", clusters_to_add);
+	mlog(0, "(clusters_to_add = %u)\n", clusters_to_add);
 
 	/*
 	 * This function only exists for file systems which don't
@@ -1113,8 +1108,8 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 	struct dquot *transfer_to[MAXQUOTAS] = { };
 	int qtype;
 
-	mlog_entry("(0x%p, '%.*s')\n", dentry,
-	           dentry->d_name.len, dentry->d_name.name);
+	mlog(0, "(0x%p, '%.*s')\n", dentry,
+	     dentry->d_name.len, dentry->d_name.name);
 
 	/* ensuring we don't even attempt to truncate a symlink */
 	if (S_ISLNK(inode->i_mode))
@@ -1287,8 +1282,6 @@ int ocfs2_getattr(struct vfsmount *mnt,
 	struct ocfs2_super *osb = sb->s_fs_info;
 	int err;
 
-	mlog_entry_void();
-
 	err = ocfs2_inode_revalidate(dentry);
 	if (err) {
 		if (err != -ENOENT)
@@ -1314,8 +1307,6 @@ int ocfs2_permission(struct inode *inode, int mask, unsigned int flags)
 	if (flags & IPERM_FLAG_RCU)
 		return -ECHILD;
 
-	mlog_entry_void();
-
 	ret = ocfs2_inode_lock(inode, NULL, 0);
 	if (ret) {
 		if (ret != -ENOENT)
@@ -1339,8 +1330,8 @@ static int __ocfs2_write_remove_suid(struct inode *inode,
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct ocfs2_dinode *di;
 
-	mlog_entry("(Inode %llu, mode 0%o)\n",
-		   (unsigned long long)OCFS2_I(inode)->ip_blkno, inode->i_mode);
+	mlog(0, "(Inode %llu, mode 0%o)\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno, inode->i_mode);
 
 	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
 	if (IS_ERR(handle)) {
@@ -2233,10 +2224,10 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 	int full_coherency = !(osb->s_mount_opt &
 			       OCFS2_MOUNT_COHERENCY_BUFFERED);
 
-	mlog_entry("(0x%p, %u, '%.*s')\n", file,
-		   (unsigned int)nr_segs,
-		   file->f_path.dentry->d_name.len,
-		   file->f_path.dentry->d_name.name);
+	mlog(0, "(0x%p, %u, '%.*s')\n", file,
+	     (unsigned int)nr_segs,
+	     file->f_path.dentry->d_name.len,
+	     file->f_path.dentry->d_name.name);
 
 	if (iocb->ki_left == 0)
 		return 0;
@@ -2438,10 +2429,10 @@ static ssize_t ocfs2_file_splice_write(struct pipe_inode_info *pipe,
 		.u.file = out,
 	};
 
-	mlog_entry("(0x%p, 0x%p, %u, '%.*s')\n", out, pipe,
-		   (unsigned int)len,
-		   out->f_path.dentry->d_name.len,
-		   out->f_path.dentry->d_name.name);
+	mlog(0, "(0x%p, 0x%p, %u, '%.*s')\n", out, pipe,
+	     (unsigned int)len,
+	     out->f_path.dentry->d_name.len,
+	     out->f_path.dentry->d_name.name);
 
 	if (pipe->inode)
 		mutex_lock_nested(&pipe->inode->i_mutex, I_MUTEX_PARENT);
@@ -2498,10 +2489,10 @@ static ssize_t ocfs2_file_splice_read(struct file *in,
 	int ret = 0, lock_level = 0;
 	struct inode *inode = in->f_path.dentry->d_inode;
 
-	mlog_entry("(0x%p, 0x%p, %u, '%.*s')\n", in, pipe,
-		   (unsigned int)len,
-		   in->f_path.dentry->d_name.len,
-		   in->f_path.dentry->d_name.name);
+	mlog(0, "(0x%p, 0x%p, %u, '%.*s')\n", in, pipe,
+	     (unsigned int)len,
+	     in->f_path.dentry->d_name.len,
+	     in->f_path.dentry->d_name.name);
 
 	/*
 	 * See the comment in ocfs2_file_aio_read()
@@ -2529,10 +2520,10 @@ static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
 	struct file *filp = iocb->ki_filp;
 	struct inode *inode = filp->f_path.dentry->d_inode;
 
-	mlog_entry("(0x%p, %u, '%.*s')\n", filp,
-		   (unsigned int)nr_segs,
-		   filp->f_path.dentry->d_name.len,
-		   filp->f_path.dentry->d_name.name);
+	mlog(0, "(0x%p, %u, '%.*s')\n", filp,
+	     (unsigned int)nr_segs,
+	     filp->f_path.dentry->d_name.len,
+	     filp->f_path.dentry->d_name.name);
 
 	if (!inode) {
 		ret = -EINVAL;

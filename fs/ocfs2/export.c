@@ -56,7 +56,7 @@ static struct dentry *ocfs2_get_dentry(struct super_block *sb,
 	int status, set;
 	struct dentry *result;
 
-	mlog_entry("(0x%p, 0x%p)\n", sb, handle);
+	mlog(0, "(0x%p, 0x%p)\n", sb, handle);
 
 	if (blkno == 0) {
 		mlog(0, "nfs wants inode with blkno: 0\n");
@@ -152,8 +152,8 @@ static struct dentry *ocfs2_get_parent(struct dentry *child)
 	struct dentry *parent;
 	struct inode *dir = child->d_inode;
 
-	mlog_entry("(0x%p, '%.*s')\n", child,
-		   child->d_name.len, child->d_name.name);
+	mlog(0, "(0x%p, '%.*s')\n", child,
+	     child->d_name.len, child->d_name.name);
 
 	mlog(0, "find parent of directory %llu\n",
 	     (unsigned long long)OCFS2_I(dir)->ip_blkno);
@@ -193,9 +193,9 @@ static int ocfs2_encode_fh(struct dentry *dentry, u32 *fh_in, int *max_len,
 	u32 generation;
 	__le32 *fh = (__force __le32 *) fh_in;
 
-	mlog_entry("(0x%p, '%.*s', 0x%p, %d, %d)\n", dentry,
-		   dentry->d_name.len, dentry->d_name.name,
-		   fh, len, connectable);
+	mlog(0, "(0x%p, '%.*s', 0x%p, %d, %d)\n", dentry,
+	     dentry->d_name.len, dentry->d_name.name,
+	     fh, len, connectable);
 
 	if (connectable && (len < 6)) {
 		*max_len = 6;
