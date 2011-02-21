@@ -867,16 +867,14 @@ static void __devinit smp_core99_setup_cpu(int cpu_nr)
 
 #if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PPC32)
 
-int smp_core99_cpu_disable(void)
+static int smp_core99_cpu_disable(void)
 {
-	set_cpu_online(smp_processor_id(), false);
+	int rc = generic_cpu_disable();
+	if (rc)
+		return rc;
 
-	/* XXX reset cpu affinity here */
 	mpic_cpu_set_priority(0xf);
-	asm volatile("mtdec %0" : : "r" (0x7fffffff));
-	mb();
-	udelay(20);
-	asm volatile("mtdec %0" : : "r" (0x7fffffff));
+
 	return 0;
 }
 
@@ -902,12 +900,7 @@ struct smp_ops_t core99_smp_ops = {
 	.give_timebase	= smp_core99_give_timebase,
 	.take_timebase	= smp_core99_take_timebase,
 #if defined(CONFIG_HOTPLUG_CPU)
-# if defined(CONFIG_PPC32)
 	.cpu_disable	= smp_core99_cpu_disable,
-# endif
-# if defined(CONFIG_PPC64)
-	.cpu_disable	= generic_cpu_disable,
-# endif
 	.cpu_die	= generic_cpu_die,
 #endif
 };
