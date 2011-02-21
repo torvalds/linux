@@ -916,18 +916,20 @@ static void pmac_cpu_die(void)
 	preempt_enable();
 
 	/*
-	 * hard-disable interrupts for the non-NAP case, the NAP code
-	 * needs to re-enable interrupts (but soft-disables them)
+	 * Re-enable interrupts. The NAP code needs to enable them
+	 * anyways, do it now so we deal with the case where one already
+	 * happened while soft-disabled.
+	 * We shouldn't get any external interrupts, only decrementer, and the
+	 * decrementer handler is safe for use on offline CPUs
 	 */
-	hard_irq_disable();
+	local_irq_enable();
 
 	while (1) {
 		/* let's not take timer interrupts too often ... */
 		set_dec(0x7fffffff);
 
-		/* should always be true at this point */
-		if (cpu_has_feature(CPU_FTR_CAN_NAP))
-			power4_cpu_offline_powersave();
+		/* Enter NAP mode */
+		power4_idle();
 	}
 }
 
