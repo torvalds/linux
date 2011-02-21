@@ -42,6 +42,9 @@
 #include <linux/seq_file.h>
 #include <linux/quotaops.h>
 
+#define CREATE_TRACE_POINTS
+#include "ocfs2_trace.h"
+
 #define MLOG_MASK_PREFIX ML_SUPER
 #include <cluster/masklog.h>
 
