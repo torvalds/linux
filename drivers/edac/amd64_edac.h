@@ -288,7 +288,7 @@
 #define MSR_MCGCTL_NBE			BIT(4)
 
 /* AMD sets the first MC device at device ID 0x18. */
-static inline int get_node_id(struct pci_dev *pdev)
+static inline u8 get_node_id(struct pci_dev *pdev)
 {
 	return PCI_SLOT(pdev->devfn) - 0x18;
 }
@@ -335,7 +335,7 @@ struct amd64_pvt {
 	/* pci_device handles which we utilize */
 	struct pci_dev *F1, *F2, *F3;
 
-	int mc_node_id;		/* MC index of this MC node */
+	unsigned mc_node_id;	/* MC index of this MC node */
 	int ext_model;		/* extended model value of this node */
 	int channel_count;
 

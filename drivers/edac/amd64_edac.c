@@ -226,7 +226,8 @@ static int amd64_get_scrub_rate(struct mem_ctl_info *mci)
  * returns true if the SysAddr given by sys_addr matches the
  * DRAM base/limit associated with node_id
  */
-static bool amd64_base_limit_match(struct amd64_pvt *pvt, u64 sys_addr, int nid)
+static bool amd64_base_limit_match(struct amd64_pvt *pvt, u64 sys_addr,
+				   unsigned nid)
 {
 	u64 addr;
 
@@ -252,7 +253,7 @@ static struct mem_ctl_info *find_mc_by_sys_addr(struct mem_ctl_info *mci,
 						u64 sys_addr)
 {
 	struct amd64_pvt *pvt;
-	int node_id;
+	unsigned node_id;
 	u32 intlv_en, bits;
 
 	/*
@@ -302,7 +303,7 @@ static struct mem_ctl_info *find_mc_by_sys_addr(struct mem_ctl_info *mci,
 	}
 
 found:
-	return edac_mc_find(node_id);
+	return edac_mc_find((int)node_id);
 
 err_no_match:
 	debugf2("sys_addr 0x%lx doesn't match any node\n",
@@ -602,7 +603,7 @@ static u64 sys_addr_to_input_addr(struct mem_ctl_info *mci, u64 sys_addr)
 static u64 input_addr_to_dram_addr(struct mem_ctl_info *mci, u64 input_addr)
 {
 	struct amd64_pvt *pvt;
-	int node_id, intlv_shift;
+	unsigned node_id, intlv_shift;
 	u64 bits, dram_addr;
 	u32 intlv_sel;
 
@@ -616,7 +617,8 @@ static u64 input_addr_to_dram_addr(struct mem_ctl_info *mci, u64 input_addr)
 	 */
 	pvt = mci->pvt_info;
 	node_id = pvt->mc_node_id;
-	BUG_ON((node_id < 0) || (node_id > 7));
+
+	BUG_ON(node_id > 7);
 
 	intlv_shift = num_node_interleave_bits(dram_intlv_en(pvt, 0));
 
@@ -2147,7 +2149,7 @@ static int init_csrows(struct mem_ctl_info *mci)
 }
 
 /* get all cores on this DCT */
-static void get_cpus_on_this_dct_cpumask(struct cpumask *mask, int nid)
+static void get_cpus_on_this_dct_cpumask(struct cpumask *mask, unsigned nid)
 {
 	int cpu;
 
@@ -2157,7 +2159,7 @@ static void get_cpus_on_this_dct_cpumask(struct cpumask *mask, int nid)
 }
 
 /* check MCG_CTL on all the cpus on this node */
-static bool amd64_nb_mce_bank_enabled_on_node(int nid)
+static bool amd64_nb_mce_bank_enabled_on_node(unsigned nid)
 {
 	cpumask_var_t mask;
 	int cpu, nbe;
