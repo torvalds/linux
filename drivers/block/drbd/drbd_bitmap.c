@@ -1096,9 +1096,12 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned flags, unsigned lazy_w
 	 */
 	if (!atomic_dec_and_test(&ctx.in_flight))
 		wait_for_completion(&ctx.done);
-	dev_info(DEV, "bitmap %s of %u pages took %lu jiffies\n",
-			rw == WRITE ? "WRITE" : "READ",
-			count, jiffies - now);
+
+	/* summary for global bitmap IO */
+	if (flags == 0)
+		dev_info(DEV, "bitmap %s of %u pages took %lu jiffies\n",
+				rw == WRITE ? "WRITE" : "READ",
+				count, jiffies - now);
 
 	if (ctx.error) {
 		dev_alert(DEV, "we had at least one MD IO ERROR during bitmap IO\n");
@@ -1116,8 +1119,9 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned flags, unsigned lazy_w
 	}
 	now = b->bm_set;
 
-	dev_info(DEV, "%s (%lu bits) marked out-of-sync by on disk bit-map.\n",
-	     ppsize(ppb, now << (BM_BLOCK_SHIFT-10)), now);
+	if (flags == 0)
+		dev_info(DEV, "%s (%lu bits) marked out-of-sync by on disk bit-map.\n",
+		     ppsize(ppb, now << (BM_BLOCK_SHIFT-10)), now);
 
 	return err;
 }
