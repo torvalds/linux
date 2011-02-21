@@ -142,4 +142,28 @@
 #define MX23_INT_VDD5V_DROOP		64
 #define MX23_INT_DCDC4P2_BO		65
 
+/*
+ * APBH DMA
+ */
+#define MX23_DMA_SSP1			1
+#define MX23_DMA_SSP2			2
+#define MX23_DMA_GPMI0			4
+#define MX23_DMA_GPMI1			5
+#define MX23_DMA_GPMI2			6
+#define MX23_DMA_GPMI3			7
+
+/*
+ * APBX DMA
+ */
+#define MX23_DMA_ADC			0
+#define MX23_DMA_DAC			1
+#define MX23_DMA_SPDIF			2
+#define MX23_DMA_I2C			3
+#define MX23_DMA_SAIF0			4
+#define MX23_DMA_UART0_RX		6
+#define MX23_DMA_UART0_TX		7
+#define MX23_DMA_UART1_RX		8
+#define MX23_DMA_UART1_TX		9
+#define MX23_DMA_SAIF1			10
+
 #endif /* __MACH_MX23_H__ */
