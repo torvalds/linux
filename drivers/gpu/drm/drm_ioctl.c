@@ -268,6 +268,17 @@ int drm_getstats(struct drm_device *dev, void *data,
 }
 
 /**
+ * Get device/driver capabilities
+ */
+int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
+{
+	struct drm_get_cap *req = data;
+
+	req->value = 0;
+	return 0;
+}
+
+/**
  * Setversion ioctl.
  *
  * \param inode device inode.
