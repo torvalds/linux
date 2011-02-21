@@ -1262,7 +1262,7 @@ static int probe_point_line_walker(const char *fname, int lineno,
 	ret = call_probe_finder(NULL, pf);
 
 	/* Continue if no error, because the line will be in inline function */
-	return ret < 0 ?: 0;
+	return ret < 0 ? ret : 0;
 }
 
 /* Find probe point from its line number */
@@ -1484,6 +1484,8 @@ static int find_probes(int fd, struct probe_finder *pf)
 				pf->lno = pp->line;
 				ret = find_probe_point_by_line(pf);
 			}
+			if (ret != DWARF_CB_OK)
+				break;
 		}
 		off = noff;
 	}

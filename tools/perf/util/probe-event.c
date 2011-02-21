@@ -1832,9 +1832,12 @@ int add_perf_probe_events(struct perf_probe_event *pevs, int npevs,
 	}
 
 	/* Loop 2: add all events */
-	for (i = 0; i < npevs && ret >= 0; i++)
+	for (i = 0; i < npevs && ret >= 0; i++) {
 		ret = __add_probe_trace_events(pkgs[i].pev, pkgs[i].tevs,
 						pkgs[i].ntevs, force_add);
+		if (ret < 0)
+			break;
+	}
 end:
 	/* Loop 3: cleanup and free trace events  */
 	for (i = 0; i < npevs; i++) {
