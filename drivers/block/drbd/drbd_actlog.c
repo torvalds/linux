@@ -175,7 +175,6 @@ static struct lc_element *_al_get(struct drbd_conf *mdev, unsigned int enr)
 {
 	struct lc_element *al_ext;
 	struct lc_element *tmp;
-	unsigned long     al_flags = 0;
 	int wake;
 
 	spin_lock_irq(&mdev->al_lock);
@@ -190,19 +189,8 @@ static struct lc_element *_al_get(struct drbd_conf *mdev, unsigned int enr)
 			return NULL;
 		}
 	}
-	al_ext   = lc_get(mdev->act_log, enr);
-	al_flags = mdev->act_log->flags;
+	al_ext = lc_get(mdev->act_log, enr);
 	spin_unlock_irq(&mdev->al_lock);
-
-	/*
-	if (!al_ext) {
-		if (al_flags & LC_STARVING)
-			dev_warn(DEV, "Have to wait for LRU element (AL too small?)\n");
-		if (al_flags & LC_DIRTY)
-			dev_warn(DEV, "Ongoing AL update (AL device too slow?)\n");
-	}
-	*/
-
 	return al_ext;
 }
 
@@ -235,7 +223,7 @@ void drbd_al_begin_io(struct drbd_conf *mdev, sector_t sector)
 		mdev->al_writ_cnt++;
 
 		spin_lock_irq(&mdev->al_lock);
-		lc_changed(mdev->act_log, al_ext);
+		lc_committed(mdev->act_log);
 		spin_unlock_irq(&mdev->al_lock);
 		wake_up(&mdev->al_wait);
 	}
@@ -601,7 +589,7 @@ void drbd_al_shrink(struct drbd_conf *mdev)
 	struct lc_element *al_ext;
 	int i;
 
-	D_ASSERT(test_bit(__LC_DIRTY, &mdev->act_log->flags));
+	D_ASSERT(test_bit(__LC_LOCKED, &mdev->act_log->flags));
 
 	for (i = 0; i < mdev->act_log->nr_elements; i++) {
 		al_ext = lc_element_by_index(mdev->act_log, i);
@@ -708,7 +696,9 @@ static void drbd_try_clear_on_disk_bm(struct drbd_conf *mdev, sector_t sector,
 			}
 			ext->rs_left = rs_left;
 			ext->rs_failed = success ? 0 : count;
-			lc_changed(mdev->resync, &ext->lce);
+			/* we don't keep a persistent log of the resync lru,
+			 * we can commit any change right away. */
+			lc_committed(mdev->resync);
 		}
 		lc_put(mdev->resync, &ext->lce);
 		/* no race, we are within the al_lock! */
@@ -892,7 +882,7 @@ struct bm_extent *_bme_get(struct drbd_conf *mdev, unsigned int enr)
 		if (bm_ext->lce.lc_number != enr) {
 			bm_ext->rs_left = drbd_bm_e_weight(mdev, enr);
 			bm_ext->rs_failed = 0;
-			lc_changed(mdev->resync, &bm_ext->lce);
+			lc_committed(mdev->resync);
 			wakeup = 1;
 		}
 		if (bm_ext->lce.refcnt == 1)
@@ -908,7 +898,7 @@ struct bm_extent *_bme_get(struct drbd_conf *mdev, unsigned int enr)
 		if (rs_flags & LC_STARVING)
 			dev_warn(DEV, "Have to wait for element"
 			     " (resync LRU too small?)\n");
-		BUG_ON(rs_flags & LC_DIRTY);
+		BUG_ON(rs_flags & LC_LOCKED);
 	}
 
 	return bm_ext;
@@ -916,26 +906,12 @@ struct bm_extent *_bme_get(struct drbd_conf *mdev, unsigned int enr)
 
 static int _is_in_al(struct drbd_conf *mdev, unsigned int enr)
 {
-	struct lc_element *al_ext;
-	int rv = 0;
+	int rv;
 
 	spin_lock_irq(&mdev->al_lock);
-	if (unlikely(enr == mdev->act_log->new_number))
-		rv = 1;
-	else {
-		al_ext = lc_find(mdev->act_log, enr);
-		if (al_ext) {
-			if (al_ext->refcnt)
-				rv = 1;
-		}
-	}
+	rv = lc_is_used(mdev->act_log, enr);
 	spin_unlock_irq(&mdev->al_lock);
 
-	/*
-	if (unlikely(rv)) {
-		dev_info(DEV, "Delaying sync read until app's write is done\n");
-	}
-	*/
 	return rv;
 }
 
@@ -1065,13 +1041,13 @@ int drbd_try_rs_begin_io(struct drbd_conf *mdev, sector_t sector)
 			if (rs_flags & LC_STARVING)
 				dev_warn(DEV, "Have to wait for element"
 				     " (resync LRU too small?)\n");
-			BUG_ON(rs_flags & LC_DIRTY);
+			BUG_ON(rs_flags & LC_LOCKED);
 			goto try_again;
 		}
 		if (bm_ext->lce.lc_number != enr) {
 			bm_ext->rs_left = drbd_bm_e_weight(mdev, enr);
 			bm_ext->rs_failed = 0;
-			lc_changed(mdev->resync, &bm_ext->lce);
+			lc_committed(mdev->resync);
 			wake_up(&mdev->al_wait);
 			D_ASSERT(test_bit(BME_LOCKED, &bm_ext->flags) == 0);
 		}
@@ -1082,8 +1058,6 @@ int drbd_try_rs_begin_io(struct drbd_conf *mdev, sector_t sector)
 	}
 check_al:
 	for (i = 0; i < AL_EXT_PER_BM_SECT; i++) {
-		if (unlikely(al_enr+i == mdev->act_log->new_number))
-			goto try_again;
 		if (lc_is_used(mdev->act_log, al_enr+i))
 			goto try_again;
 	}
