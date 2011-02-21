@@ -9,7 +9,6 @@
 #include <linux/mount.h>
 #include <linux/compat.h>
 
-#define MLOG_MASK_PREFIX ML_INODE
 #include <cluster/masklog.h>
 
 #include "ocfs2.h"

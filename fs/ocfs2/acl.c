@@ -24,7 +24,6 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
-#define MLOG_MASK_PREFIX ML_INODE
 #include <cluster/masklog.h>
 
 #include "ocfs2.h"
