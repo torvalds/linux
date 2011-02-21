@@ -40,7 +40,6 @@
 #include <linux/pagemap.h>
 #include <linux/namei.h>
 
-#define MLOG_MASK_PREFIX ML_NAMEI
 #include <cluster/masklog.h>
 
 #include "ocfs2.h"
