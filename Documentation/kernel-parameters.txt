@@ -1271,10 +1271,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			6 (KERN_INFO)		informational
 			7 (KERN_DEBUG)		debug-level messages
 
-	log_buf_len=n	Sets the size of the printk ring buffer, in bytes.
-			Format: { n | nk | nM }
-			n must be a power of two.  The default size
-			is set in the kernel config file.
+	log_buf_len=n[KMG]	Sets the size of the printk ring buffer,
+			in bytes.  n must be a power of two.  The default
+			size is set in the kernel config file.
 
 	logo.nologo	[FB] Disables display of the built-in Linux logo.
 			This may be used to provide more screen space for
