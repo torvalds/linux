@@ -91,7 +91,6 @@ static struct mlog_attribute mlog_attrs[MLOG_MAX_BITS] = {
 	define_mask(DLM_THREAD),
 	define_mask(DLM_MASTER),
 	define_mask(DLM_RECOVERY),
-	define_mask(AIO),
 	define_mask(DLM_GLUE),
 	define_mask(VOTE),
 	define_mask(CONN),
