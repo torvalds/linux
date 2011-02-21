@@ -3466,7 +3466,7 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packet cmd,
 		   for temporal network outages! */
 		spin_unlock_irq(&mdev->tconn->req_lock);
 		dev_err(DEV, "Aborting Connect, can not thaw IO with an only Consistent peer\n");
-		tl_clear(mdev);
+		tl_clear(mdev->tconn);
 		drbd_uuid_new_current(mdev);
 		clear_bit(NEW_CUR_UUID, &mdev->flags);
 		drbd_force_state(mdev, NS2(conn, C_PROTOCOL_ERROR, susp, 0));
@@ -4025,7 +4025,7 @@ static int drbd_disconnected(int vnr, void *p, void *data)
 	mdev->p_uuid = NULL;
 
 	if (!is_susp(mdev->state))
-		tl_clear(mdev);
+		tl_clear(mdev->tconn);
 
 	drbd_md_sync(mdev);
 
@@ -4585,7 +4585,7 @@ static int got_BarrierAck(struct drbd_conf *mdev, enum drbd_packet cmd)
 {
 	struct p_barrier_ack *p = &mdev->tconn->meta.rbuf.barrier_ack;
 
-	tl_release(mdev, p->barrier, be32_to_cpu(p->set_size));
+	tl_release(mdev->tconn, p->barrier, be32_to_cpu(p->set_size));
 
 	if (mdev->state.conn == C_AHEAD &&
 	    atomic_read(&mdev->ap_in_flight) == 0 &&

@@ -1996,9 +1996,9 @@ static int drbd_nl_resume_io(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	reply->ret_code = drbd_request_state(mdev, NS3(susp, 0, susp_nod, 0, susp_fen, 0));
 	if (reply->ret_code == SS_SUCCESS) {
 		if (mdev->state.conn < C_CONNECTED)
-			tl_clear(mdev);
+			tl_clear(mdev->tconn);
 		if (mdev->state.disk == D_DISKLESS || mdev->state.disk == D_FAILED)
-			tl_restart(mdev, FAIL_FROZEN_DISK_IO);
+			tl_restart(mdev->tconn, FAIL_FROZEN_DISK_IO);
 	}
 	drbd_resume_io(mdev);
 

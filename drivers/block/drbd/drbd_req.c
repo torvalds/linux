@@ -885,7 +885,7 @@ allocate_barrier:
 	 * barrier packet, this request is queued within the same spinlock. */
 	if ((remote || send_oos) && mdev->tconn->unused_spare_tle &&
 	    test_and_clear_bit(CREATE_BARRIER, &mdev->flags)) {
-		_tl_add_barrier(mdev, mdev->tconn->unused_spare_tle);
+		_tl_add_barrier(mdev->tconn, mdev->tconn->unused_spare_tle);
 		mdev->tconn->unused_spare_tle = NULL;
 	} else {
 		D_ASSERT(!(remote && rw == WRITE &&

@@ -180,7 +180,7 @@ int _get_ldev_if_state(struct drbd_conf *mdev, enum drbd_disk_state mins)
  * Each &struct drbd_tl_epoch has a circular double linked list of requests
  * attached.
  */
-static int tl_init(struct drbd_conf *mdev)
+static int tl_init(struct drbd_tconn *tconn)
 {
 	struct drbd_tl_epoch *b;
 
@@ -195,21 +195,23 @@ static int tl_init(struct drbd_conf *mdev)
 	b->n_writes = 0;
 	b->w.cb = NULL; /* if this is != NULL, we need to dec_ap_pending in tl_clear */
 
-	mdev->tconn->oldest_tle = b;
-	mdev->tconn->newest_tle = b;
-	INIT_LIST_HEAD(&mdev->tconn->out_of_sequence_requests);
+	tconn->oldest_tle = b;
+	tconn->newest_tle = b;
+	INIT_LIST_HEAD(&tconn->out_of_sequence_requests);
 
 	return 1;
 }
 
-static void tl_cleanup(struct drbd_conf *mdev)
+static void tl_cleanup(struct drbd_tconn *tconn)
 {
-	D_ASSERT(mdev->tconn->oldest_tle == mdev->tconn->newest_tle);
-	D_ASSERT(list_empty(&mdev->tconn->out_of_sequence_requests));
-	kfree(mdev->tconn->oldest_tle);
-	mdev->tconn->oldest_tle = NULL;
-	kfree(mdev->tconn->unused_spare_tle);
-	mdev->tconn->unused_spare_tle = NULL;
+	if (tconn->oldest_tle != tconn->newest_tle)
+		conn_err(tconn, "ASSERT FAILED: oldest_tle == newest_tle\n");
+	if (!list_empty(&tconn->out_of_sequence_requests))
+		conn_err(tconn, "ASSERT FAILED: list_empty(out_of_sequence_requests)\n");
+	kfree(tconn->oldest_tle);
+	tconn->oldest_tle = NULL;
+	kfree(tconn->unused_spare_tle);
+	tconn->unused_spare_tle = NULL;
 }
 
 /**
@@ -219,7 +221,7 @@ static void tl_cleanup(struct drbd_conf *mdev)
  *
  * The caller must hold the req_lock.
  */
-void _tl_add_barrier(struct drbd_conf *mdev, struct drbd_tl_epoch *new)
+void _tl_add_barrier(struct drbd_tconn *tconn, struct drbd_tl_epoch *new)
 {
 	struct drbd_tl_epoch *newest_before;
 
@@ -229,13 +231,13 @@ void _tl_add_barrier(struct drbd_conf *mdev, struct drbd_tl_epoch *new)
 	new->next = NULL;
 	new->n_writes = 0;
 
-	newest_before = mdev->tconn->newest_tle;
+	newest_before = tconn->newest_tle;
 	/* never send a barrier number == 0, because that is special-cased
 	 * when using TCQ for our write ordering code */
 	new->br_number = (newest_before->br_number+1) ?: 1;
-	if (mdev->tconn->newest_tle != new) {
-		mdev->tconn->newest_tle->next = new;
-		mdev->tconn->newest_tle = new;
+	if (tconn->newest_tle != new) {
+		tconn->newest_tle->next = new;
+		tconn->newest_tle = new;
 	}
 }
 
@@ -249,31 +251,32 @@ void _tl_add_barrier(struct drbd_conf *mdev, struct drbd_tl_epoch *new)
  * &struct drbd_tl_epoch objects this function will cause a termination
  * of the connection.
  */
-void tl_release(struct drbd_conf *mdev, unsigned int barrier_nr,
-		       unsigned int set_size)
+void tl_release(struct drbd_tconn *tconn, unsigned int barrier_nr,
+		unsigned int set_size)
 {
+	struct drbd_conf *mdev;
 	struct drbd_tl_epoch *b, *nob; /* next old barrier */
 	struct list_head *le, *tle;
 	struct drbd_request *r;
 
-	spin_lock_irq(&mdev->tconn->req_lock);
+	spin_lock_irq(&tconn->req_lock);
 
-	b = mdev->tconn->oldest_tle;
+	b = tconn->oldest_tle;
 
 	/* first some paranoia code */
 	if (b == NULL) {
-		dev_err(DEV, "BAD! BarrierAck #%u received, but no epoch in tl!?\n",
-			barrier_nr);
+		conn_err(tconn, "BAD! BarrierAck #%u received, but no epoch in tl!?\n",
+			 barrier_nr);
 		goto bail;
 	}
 	if (b->br_number != barrier_nr) {
-		dev_err(DEV, "BAD! BarrierAck #%u received, expected #%u!\n",
-			barrier_nr, b->br_number);
+		conn_err(tconn, "BAD! BarrierAck #%u received, expected #%u!\n",
+			 barrier_nr, b->br_number);
 		goto bail;
 	}
 	if (b->n_writes != set_size) {
-		dev_err(DEV, "BAD! BarrierAck #%u received with n_writes=%u, expected n_writes=%u!\n",
-			barrier_nr, set_size, b->n_writes);
+		conn_err(tconn, "BAD! BarrierAck #%u received with n_writes=%u, expected n_writes=%u!\n",
+			 barrier_nr, set_size, b->n_writes);
 		goto bail;
 	}
 
@@ -296,28 +299,29 @@ void tl_release(struct drbd_conf *mdev, unsigned int barrier_nr,
 	   _req_mod(, BARRIER_ACKED) above.
 	   */
 	list_del_init(&b->requests);
+	mdev = b->w.mdev;
 
 	nob = b->next;
 	if (test_and_clear_bit(CREATE_BARRIER, &mdev->flags)) {
-		_tl_add_barrier(mdev, b);
+		_tl_add_barrier(tconn, b);
 		if (nob)
-			mdev->tconn->oldest_tle = nob;
+			tconn->oldest_tle = nob;
 		/* if nob == NULL b was the only barrier, and becomes the new
-		   barrier. Therefore mdev->tconn->oldest_tle points already to b */
+		   barrier. Therefore tconn->oldest_tle points already to b */
 	} else {
 		D_ASSERT(nob != NULL);
-		mdev->tconn->oldest_tle = nob;
+		tconn->oldest_tle = nob;
 		kfree(b);
 	}
 
-	spin_unlock_irq(&mdev->tconn->req_lock);
+	spin_unlock_irq(&tconn->req_lock);
 	dec_ap_pending(mdev);
 
 	return;
 
 bail:
-	spin_unlock_irq(&mdev->tconn->req_lock);
-	drbd_force_state(mdev, NS(conn, C_PROTOCOL_ERROR));
+	spin_unlock_irq(&tconn->req_lock);
+	conn_request_state(tconn, NS(conn, C_PROTOCOL_ERROR), CS_HARD);
 }
 
 
@@ -329,15 +333,15 @@ bail:
  * @what might be one of CONNECTION_LOST_WHILE_PENDING, RESEND, FAIL_FROZEN_DISK_IO,
  * RESTART_FROZEN_DISK_IO.
  */
-void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
+void _tl_restart(struct drbd_tconn *tconn, enum drbd_req_event what)
 {
 	struct drbd_tl_epoch *b, *tmp, **pn;
 	struct list_head *le, *tle, carry_reads;
 	struct drbd_request *req;
 	int rv, n_writes, n_reads;
 
-	b = mdev->tconn->oldest_tle;
-	pn = &mdev->tconn->oldest_tle;
+	b = tconn->oldest_tle;
+	pn = &tconn->oldest_tle;
 	while (b) {
 		n_writes = 0;
 		n_reads = 0;
@@ -356,11 +360,11 @@ void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
 				b->n_writes = n_writes;
 				if (b->w.cb == NULL) {
 					b->w.cb = w_send_barrier;
-					inc_ap_pending(mdev);
-					set_bit(CREATE_BARRIER, &mdev->flags);
+					inc_ap_pending(b->w.mdev);
+					set_bit(CREATE_BARRIER, &b->w.mdev->flags);
 				}
 
-				drbd_queue_work(&mdev->tconn->data.work, &b->w);
+				drbd_queue_work(&tconn->data.work, &b->w);
 			}
 			pn = &b->next;
 		} else {
@@ -374,11 +378,12 @@ void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
 			 * the newest barrier may not have been queued yet,
 			 * in which case w.cb is still NULL. */
 			if (b->w.cb != NULL)
-				dec_ap_pending(mdev);
+				dec_ap_pending(b->w.mdev);
 
-			if (b == mdev->tconn->newest_tle) {
+			if (b == tconn->newest_tle) {
 				/* recycle, but reinit! */
-				D_ASSERT(tmp == NULL);
+				if (tmp != NULL)
+					conn_err(tconn, "ASSERT FAILED tmp == NULL");
 				INIT_LIST_HEAD(&b->requests);
 				list_splice(&carry_reads, &b->requests);
 				INIT_LIST_HEAD(&b->w.list);
@@ -406,20 +411,23 @@ void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
  * by the requests on the transfer gets marked as our of sync. Called from the
  * receiver thread and the worker thread.
  */
-void tl_clear(struct drbd_conf *mdev)
+void tl_clear(struct drbd_tconn *tconn)
 {
+	struct drbd_conf *mdev;
 	struct list_head *le, *tle;
 	struct drbd_request *r;
+	int minor;
 
-	spin_lock_irq(&mdev->tconn->req_lock);
+	spin_lock_irq(&tconn->req_lock);
 
-	_tl_restart(mdev, CONNECTION_LOST_WHILE_PENDING);
+	_tl_restart(tconn, CONNECTION_LOST_WHILE_PENDING);
 
 	/* we expect this list to be empty. */
-	D_ASSERT(list_empty(&mdev->tconn->out_of_sequence_requests));
+	if (!list_empty(&tconn->out_of_sequence_requests))
+		conn_err(tconn, "ASSERT FAILED list_empty(&out_of_sequence_requests)\n");
 
 	/* but just in case, clean it up anyways! */
-	list_for_each_safe(le, tle, &mdev->tconn->out_of_sequence_requests) {
+	list_for_each_safe(le, tle, &tconn->out_of_sequence_requests) {
 		r = list_entry(le, struct drbd_request, tl_requests);
 		/* It would be nice to complete outside of spinlock.
 		 * But this is easier for now. */
@@ -427,16 +435,17 @@ void tl_clear(struct drbd_conf *mdev)
 	}
 
 	/* ensure bit indicating barrier is required is clear */
-	clear_bit(CREATE_BARRIER, &mdev->flags);
+	idr_for_each_entry(&tconn->volumes, mdev, minor)
+		clear_bit(CREATE_BARRIER, &mdev->flags);
 
-	spin_unlock_irq(&mdev->tconn->req_lock);
+	spin_unlock_irq(&tconn->req_lock);
 }
 
-void tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
+void tl_restart(struct drbd_tconn *tconn, enum drbd_req_event what)
 {
-	spin_lock_irq(&mdev->tconn->req_lock);
-	_tl_restart(mdev, what);
-	spin_unlock_irq(&mdev->tconn->req_lock);
+	spin_lock_irq(&tconn->req_lock);
+	_tl_restart(tconn, what);
+	spin_unlock_irq(&tconn->req_lock);
 }
 
 static int drbd_thread_setup(void *arg)
@@ -2199,6 +2208,9 @@ struct drbd_tconn *drbd_new_tconn(char *name)
 	if (!tconn->name)
 		goto fail;
 
+	if (!tl_init(tconn))
+		goto fail;
+
 	tconn->cstate = C_STANDALONE;
 	mutex_init(&tconn->cstate_mutex);
 	spin_lock_init(&tconn->req_lock);
@@ -2224,6 +2236,7 @@ struct drbd_tconn *drbd_new_tconn(char *name)
 	return tconn;
 
 fail:
+	tl_cleanup(tconn);
 	kfree(tconn->name);
 	kfree(tconn);
 
@@ -2316,9 +2329,6 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
 
 	if (drbd_bm_init(mdev))
 		goto out_no_bitmap;
-	/* no need to lock access, we are still initializing this minor device. */
-	if (!tl_init(mdev))
-		goto out_no_tl;
 	mdev->read_requests = RB_ROOT;
 	mdev->write_requests = RB_ROOT;
 
@@ -2334,8 +2344,6 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
 /* out_whatever_else:
 	kfree(mdev->current_epoch); */
 out_no_epoch:
-	tl_cleanup(mdev);
-out_no_tl:
 	drbd_bm_cleanup(mdev);
 out_no_bitmap:
 	__free_page(mdev->md_io_page);
@@ -2357,7 +2365,6 @@ out_no_tconn:
 void drbd_free_mdev(struct drbd_conf *mdev)
 {
 	kfree(mdev->current_epoch);
-	tl_cleanup(mdev);
 	if (mdev->bitmap) /* should no longer be there. */
 		drbd_bm_cleanup(mdev);
 	__free_page(mdev->md_io_page);

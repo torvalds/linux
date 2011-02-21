@@ -1173,10 +1173,10 @@ extern void drbd_calc_cpu_mask(struct drbd_tconn *tconn);
 #define drbd_calc_cpu_mask(A) ({})
 #endif
 extern void drbd_free_resources(struct drbd_conf *mdev);
-extern void tl_release(struct drbd_conf *mdev, unsigned int barrier_nr,
+extern void tl_release(struct drbd_tconn *, unsigned int barrier_nr,
 		       unsigned int set_size);
-extern void tl_clear(struct drbd_conf *mdev);
-extern void _tl_add_barrier(struct drbd_conf *, struct drbd_tl_epoch *);
+extern void tl_clear(struct drbd_tconn *);
+extern void _tl_add_barrier(struct drbd_tconn *, struct drbd_tl_epoch *);
 extern void drbd_free_sock(struct drbd_tconn *tconn);
 extern int drbd_send(struct drbd_tconn *tconn, struct socket *sock,
 		     void *buf, size_t size, unsigned msg_flags);
