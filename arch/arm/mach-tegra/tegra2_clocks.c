@@ -1218,9 +1218,7 @@ static void tegra_clk_shared_bus_init(struct clk *c)
 	c->max_rate = c->parent->max_rate;
 	c->u.shared_bus_user.rate = c->parent->max_rate;
 	c->state = OFF;
-#ifdef CONFIG_DEBUG_FS
 	c->set = true;
-#endif
 
 	spin_lock_irqsave(&c->parent->spinlock, flags);
 
