@@ -3014,7 +3014,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		printk(KERN_INFO "XGIfb: Video ROM usage disabled\n");
 	}
 	XGIhw_ext.pjCustomizedROMImage = NULL;
-	XGIhw_ext.bSkipDramSizing = 0;
 	XGIhw_ext.pQueryVGAConfigSpace = &XGIfb_query_VGA_config_space;
 	/* XGIhw_ext.pQueryNorthBridgeSpace = &XGIfb_query_north_bridge_space; */
 	strcpy(XGIhw_ext.szVBIOSVer, "0.84");

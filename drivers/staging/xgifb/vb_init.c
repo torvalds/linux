@@ -120,8 +120,6 @@ unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
 
 	/* unsigned long j, k; */
 
-	struct XGI_DSReg *pSR;
-
 	unsigned long Temp;
 
 	pVBInfo->ROMAddr = HwDeviceExtension->pjVirtualRomBase;
@@ -427,24 +425,9 @@ unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
 
 		XGINew_SetDRAMDefaultRegister340(HwDeviceExtension, pVBInfo->P3d4, pVBInfo);
 
-		if (HwDeviceExtension->bSkipDramSizing == 1) {
-			pSR = HwDeviceExtension->pSR;
-			if (pSR != NULL) {
-				while (pSR->jIdx != 0xFF) {
-					XGINew_SetReg1(pVBInfo->P3c4, pSR->jIdx, pSR->jVal);
-					pSR++;
-				}
-			}
-			/* XGINew_SetDRAMModeRegister340(pVBInfo); */
-		} /* SkipDramSizing */
-		else {
-			{
-				printk("20");
-				XGINew_SetDRAMSize_340(HwDeviceExtension, pVBInfo);
-			}
-			printk("21");
-
-		}
+		printk("20");
+		XGINew_SetDRAMSize_340(HwDeviceExtension, pVBInfo);
+		printk("21");
 	} /* XG40 */
 
 	printk("22");

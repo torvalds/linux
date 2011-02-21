@@ -101,8 +101,6 @@ struct xgi_hw_device_info
 
     unsigned char bIntegratedMMEnabled;/* supporting integration MM enable */
 
-    unsigned char bSkipDramSizing;     /* True: Skip video memory sizing. */
-
     unsigned char bSkipSense;
 
     unsigned char bIsPowerSaving;     /* True: XGIInit() is invoked by power management,
