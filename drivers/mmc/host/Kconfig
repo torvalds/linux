@@ -319,6 +319,15 @@ config MMC_MXC
 
 	  If unsure, say N.
 
+config MMC_MXS
+	tristate "Freescale MXS Multimedia Card Interface support"
+	depends on ARCH_MXS && MXS_DMA
+	help
+	  This selects the Freescale SSP MMC controller found on MXS based
+	  platforms like mx23/28.
+
+	  If unsure, say N.
+
 config MMC_TIFM_SD
 	tristate "TI Flash Media MMC/SD Interface support  (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && PCI
