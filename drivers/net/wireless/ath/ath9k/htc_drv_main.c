@@ -1204,6 +1204,14 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 		return -ENOBUFS;
 	}
 
+	if (((vif->type == NL80211_IFTYPE_AP) ||
+	     (vif->type == NL80211_IFTYPE_ADHOC)) &&
+	    ((priv->num_ap_vif + priv->num_ibss_vif) >= ATH9K_HTC_MAX_BCN_VIF)) {
+		ath_err(common, "Max. number of beaconing interfaces reached\n");
+		mutex_unlock(&priv->mutex);
+		return -ENOBUFS;
+	}
+
 	ath9k_htc_ps_wakeup(priv);
 	memset(&hvif, 0, sizeof(struct ath9k_htc_target_vif));
 	memcpy(&hvif.myaddr, vif->addr, ETH_ALEN);
@@ -1214,6 +1222,9 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		hvif.opmode = cpu_to_be32(HTC_M_IBSS);
+		break;
+	case NL80211_IFTYPE_AP:
+		hvif.opmode = cpu_to_be32(HTC_M_HOSTAP);
 		break;
 	default:
 		ath_err(common,

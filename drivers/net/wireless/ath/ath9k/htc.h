@@ -205,6 +205,7 @@ struct ath9k_htc_target_stats {
 } __packed;
 
 #define ATH9K_HTC_MAX_VIF 2
+#define ATH9K_HTC_MAX_BCN_VIF 2
 
 #define INC_VIF(_priv, _type) do {		\
 		switch (_type) {		\
@@ -213,6 +214,9 @@ struct ath9k_htc_target_stats {
 			break;			\
 		case NL80211_IFTYPE_ADHOC:	\
 			_priv->num_ibss_vif++;	\
+			break;			\
+		case NL80211_IFTYPE_AP:		\
+			_priv->num_ap_vif++;	\
 			break;			\
 		default:			\
 			break;			\
@@ -226,6 +230,9 @@ struct ath9k_htc_target_stats {
 			break;			\
 		case NL80211_IFTYPE_ADHOC:	\
 			_priv->num_ibss_vif--;	\
+			break;			\
+		case NL80211_IFTYPE_AP:		\
+			_priv->num_ap_vif--;	\
 			break;			\
 		default:			\
 			break;			\
@@ -395,6 +402,7 @@ struct ath9k_htc_priv {
 	u8 vif_sta_pos[ATH9K_HTC_MAX_VIF];
 	u8 num_ibss_vif;
 	u8 num_sta_vif;
+	u8 num_ap_vif;
 
 	u16 op_flags;
 	u16 curtxpow;
