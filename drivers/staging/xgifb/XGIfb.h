@@ -1,6 +1,5 @@
 #ifndef _LINUX_XGIFB
 #define _LINUX_XGIFB
-#include <linux/spinlock.h>
 #include <asm/ioctl.h>
 #include <asm/types.h>
 
@@ -189,8 +188,6 @@ struct video_info{
         unsigned short DstColor;
         unsigned long  XGI310_AccelDepth;
         unsigned long  CommandReg;
-
-        spinlock_t     lockaccel;
 
         unsigned int   pcibus;
         unsigned int   pcislot;
