@@ -667,10 +667,9 @@ static int drbd_may_do_local_read(struct drbd_conf *mdev, sector_t sector, int s
 		return 0;
 	if (mdev->state.disk <  D_INCONSISTENT)
 		return 0;
-	/* state.disk == D_INCONSISTENT   We will have a look at the BitMap */
-	nr_sectors = drbd_get_capacity(mdev->this_bdev);
 	esector = sector + (size >> 9) - 1;
 
+	nr_sectors = drbd_get_capacity(mdev->this_bdev);
 	D_ASSERT(sector  < nr_sectors);
 	D_ASSERT(esector < nr_sectors);
 
