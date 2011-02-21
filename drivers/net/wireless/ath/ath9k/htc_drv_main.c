@@ -1639,6 +1639,8 @@ static int ath9k_htc_ampdu_action(struct ieee80211_hw *hw,
 	struct ath9k_htc_sta *ista;
 	int ret = 0;
 
+	mutex_lock(&priv->mutex);
+
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
 		break;
@@ -1662,6 +1664,8 @@ static int ath9k_htc_ampdu_action(struct ieee80211_hw *hw,
 	default:
 		ath_err(ath9k_hw_common(priv->ah), "Unknown AMPDU action\n");
 	}
+
+	mutex_unlock(&priv->mutex);
 
 	return ret;
 }
