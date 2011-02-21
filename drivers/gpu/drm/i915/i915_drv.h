@@ -707,6 +707,8 @@ typedef struct drm_i915_private {
 
 	/* list of fbdev register on this device */
 	struct intel_fbdev *fbdev;
+
+	struct drm_property *broadcast_rgb_property;
 } drm_i915_private_t;
 
 struct drm_i915_gem_object {

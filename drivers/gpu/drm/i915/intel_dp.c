@@ -49,6 +49,7 @@ struct intel_dp {
 	uint8_t  link_configuration[DP_LINK_CONFIGURATION_SIZE];
 	bool has_audio;
 	int force_audio;
+	uint32_t color_range;
 	int dpms_mode;
 	uint8_t link_bw;
 	uint8_t lane_count;
@@ -741,8 +742,8 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	struct drm_crtc *crtc = intel_dp->base.base.crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-	intel_dp->DP = (DP_VOLTAGE_0_4 |
-		       DP_PRE_EMPHASIS_0);
+	intel_dp->DP = DP_VOLTAGE_0_4 | DP_PRE_EMPHASIS_0;
+	intel_dp->DP |= intel_dp->color_range;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 		intel_dp->DP |= DP_SYNC_HS_HIGH;
@@ -1680,6 +1681,7 @@ intel_dp_set_property(struct drm_connector *connector,
 		      struct drm_property *property,
 		      uint64_t val)
 {
+	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	int ret;
 
@@ -1705,6 +1707,14 @@ intel_dp_set_property(struct drm_connector *connector,
 			return 0;
 
 		intel_dp->has_audio = has_audio;
+		goto done;
+	}
+
+	if (property == dev_priv->broadcast_rgb_property) {
+		if (val == !!intel_dp->color_range)
+			return 0;
+
+		intel_dp->color_range = val ? DP_COLOR_RANGE_16_235 : 0;
 		goto done;
 	}
 
@@ -1827,6 +1837,8 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 		intel_dp->force_audio_property->values[1] = 1;
 		drm_connector_attach_property(connector, intel_dp->force_audio_property, 0);
 	}
+
+	intel_attach_broadcast_rgb_property(connector);
 }
 
 void

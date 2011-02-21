@@ -41,6 +41,7 @@ struct intel_hdmi {
 	struct intel_encoder base;
 	u32 sdvox_reg;
 	int ddc_bus;
+	uint32_t color_range;
 	bool has_hdmi_sink;
 	bool has_audio;
 	int force_audio;
@@ -124,6 +125,7 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 	u32 sdvox;
 
 	sdvox = SDVO_ENCODING_HDMI | SDVO_BORDER_ENABLE;
+	sdvox |= intel_hdmi->color_range;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 		sdvox |= SDVO_VSYNC_ACTIVE_HIGH;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
@@ -278,6 +280,7 @@ intel_hdmi_set_property(struct drm_connector *connector,
 		      uint64_t val)
 {
 	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
+	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	int ret;
 
 	ret = drm_connector_property_set_value(connector, property, val);
@@ -302,6 +305,14 @@ intel_hdmi_set_property(struct drm_connector *connector,
 			return 0;
 
 		intel_hdmi->has_audio = has_audio;
+		goto done;
+	}
+
+	if (property == dev_priv->broadcast_rgb_property) {
+		if (val == !!intel_hdmi->color_range)
+			return 0;
+
+		intel_hdmi->color_range = val ? SDVO_COLOR_RANGE_16_235 : 0;
 		goto done;
 	}
 
@@ -363,6 +374,8 @@ intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *c
 		intel_hdmi->force_audio_property->values[1] = 1;
 		drm_connector_attach_property(connector, intel_hdmi->force_audio_property, 0);
 	}
+
+	intel_attach_broadcast_rgb_property(connector);
 }
 
 void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)

@@ -237,6 +237,8 @@ struct intel_unpin_work {
 int intel_ddc_get_modes(struct drm_connector *c, struct i2c_adapter *adapter);
 extern bool intel_ddc_probe(struct intel_encoder *intel_encoder, int ddc_bus);
 
+extern void intel_attach_broadcast_rgb_property(struct drm_connector *connector);
+
 extern void intel_crt_init(struct drm_device *dev);
 extern void intel_hdmi_init(struct drm_device *dev, int sdvox_reg);
 void intel_dip_infoframe_csum(struct dip_infoframe *avi_if);
