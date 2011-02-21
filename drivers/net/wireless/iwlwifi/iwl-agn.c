@@ -86,7 +86,6 @@ MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("iwl4965");
 
 static int iwlagn_ant_coupling;
 static bool iwlagn_bt_ch_announce = 1;
@@ -3810,7 +3809,6 @@ static void iwlagn_bg_roc_done(struct work_struct *work)
 	mutex_unlock(&priv->mutex);
 }
 
-#ifdef CONFIG_IWL5000
 static int iwl_mac_remain_on_channel(struct ieee80211_hw *hw,
 				     struct ieee80211_channel *channel,
 				     enum nl80211_channel_type channel_type,
@@ -3866,7 +3864,6 @@ static int iwl_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
 
 	return 0;
 }
-#endif
 
 /*****************************************************************************
  *
@@ -4036,7 +4033,6 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 	kfree(priv->scan_cmd);
 }
 
-#ifdef CONFIG_IWL5000
 struct ieee80211_ops iwlagn_hw_ops = {
 	.tx = iwlagn_mac_tx,
 	.start = iwlagn_mac_start,
@@ -4061,7 +4057,6 @@ struct ieee80211_ops iwlagn_hw_ops = {
 	.remain_on_channel = iwl_mac_remain_on_channel,
 	.cancel_remain_on_channel = iwl_mac_cancel_remain_on_channel,
 };
-#endif
 
 static void iwl_hw_detect(struct iwl_priv *priv)
 {
@@ -4129,12 +4124,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (cfg->mod_params->disable_hw_scan) {
 		dev_printk(KERN_DEBUG, &(pdev->dev),
 			"sw scan support is deprecated\n");
-#ifdef CONFIG_IWL5000
 		iwlagn_hw_ops.hw_scan = NULL;
-#endif
-#ifdef CONFIG_IWL4965
-		iwl4965_hw_ops.hw_scan = NULL;
-#endif
 	}
 
 	hw = iwl_alloc_all(cfg);
@@ -4513,12 +4503,6 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 
 /* Hardware specific file defines the PCI IDs table for that hardware module */
 static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
-#ifdef CONFIG_IWL4965
-	{IWL_PCI_DEVICE(0x4229, PCI_ANY_ID, iwl4965_agn_cfg)},
-	{IWL_PCI_DEVICE(0x4230, PCI_ANY_ID, iwl4965_agn_cfg)},
-#endif /* CONFIG_IWL4965 */
-#ifdef CONFIG_IWL5000
-/* 5100 Series WiFi */
 	{IWL_PCI_DEVICE(0x4232, 0x1201, iwl5100_agn_cfg)}, /* Mini Card */
 	{IWL_PCI_DEVICE(0x4232, 0x1301, iwl5100_agn_cfg)}, /* Half Mini Card */
 	{IWL_PCI_DEVICE(0x4232, 0x1204, iwl5100_agn_cfg)}, /* Mini Card */
@@ -4703,8 +4687,6 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x0892, 0x0066, iwl230_bg_cfg)},
 	{IWL_PCI_DEVICE(0x0893, 0x0266, iwl230_bg_cfg)},
 	{IWL_PCI_DEVICE(0x0892, 0x0466, iwl230_bg_cfg)},
-
-#endif /* CONFIG_IWL5000 */
 
 	{0}
 };

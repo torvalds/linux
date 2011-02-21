@@ -43,13 +43,13 @@
 #include "iwl-prph.h"
 #include "iwl-fh.h"
 #include "iwl-debug.h"
-#include "iwl-4965-hw.h"
-#include "iwl-3945-hw.h"
 #include "iwl-agn-hw.h"
 #include "iwl-led.h"
 #include "iwl-power.h"
 #include "iwl-agn-rs.h"
 #include "iwl-agn-tt.h"
+
+#define U32_PAD(n)		((4-(n))&0x3)
 
 struct iwl_tx_queue;
 
