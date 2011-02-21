@@ -144,6 +144,11 @@ a fixed number of characters. This limit depends on the architecture
 and is between 256 and 4096 characters. It is defined in the file
 ./include/asm/setup.h as COMMAND_LINE_SIZE.
 
+Finally, the [KMG] suffix is commonly described after a number of kernel
+parameter values. These 'K', 'M', and 'G' letters represent the _binary_
+multipliers 'Kilo', 'Mega', and 'Giga', equalling 2^10, 2^20, and 2^30
+bytes respectively. Such letter suffixes can also be entirely omitted.
+
 
 	acpi=		[HW,ACPI,X86]
 			Advanced Configuration and Power Interface
