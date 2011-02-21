@@ -856,8 +856,8 @@ static void read_dct_base_mask(struct amd64_pvt *pvt)
 	prep_chip_selects(pvt);
 
 	for_each_chip_select(cs, 0, pvt) {
-		u32 reg0   = DCSB0 + (cs * 4);
-		u32 reg1   = DCSB1 + (cs * 4);
+		int reg0   = DCSB0 + (cs * 4);
+		int reg1   = DCSB1 + (cs * 4);
 		u32 *base0 = &pvt->csels[0].csbases[cs];
 		u32 *base1 = &pvt->csels[1].csbases[cs];
 
@@ -874,8 +874,8 @@ static void read_dct_base_mask(struct amd64_pvt *pvt)
 	}
 
 	for_each_chip_select_mask(cs, 0, pvt) {
-		u32 reg0   = DCSM0 + (cs * 4);
-		u32 reg1   = DCSM1 + (cs * 4);
+		int reg0   = DCSM0 + (cs * 4);
+		int reg1   = DCSM1 + (cs * 4);
 		u32 *mask0 = &pvt->csels[0].csmasks[cs];
 		u32 *mask1 = &pvt->csels[1].csmasks[cs];
 
@@ -947,7 +947,7 @@ static u64 get_error_address(struct mce *m)
 
 static void read_dram_base_limit_regs(struct amd64_pvt *pvt, unsigned range)
 {
-	u32 off = range << 3;
+	int off = range << 3;
 
 	amd64_read_pci_cfg(pvt->F1, DRAM_BASE_LO + off,  &pvt->ranges[range].base.lo);
 	amd64_read_pci_cfg(pvt->F1, DRAM_LIMIT_LO + off, &pvt->ranges[range].lim.lo);
