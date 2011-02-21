@@ -179,8 +179,19 @@ static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 
 	for (cpu = 0; cpu < cpus->nr; cpu++) {
 		int group_fd = -1;
-
-		evsel->attr.inherit = (cpus->map[cpu] < 0) && inherit;
+		/*
+		 * Don't allow mmap() of inherited per-task counters. This
+		 * would create a performance issue due to all children writing
+		 * to the same buffer.
+		 *
+		 * FIXME:
+		 * Proper fix is not to pass 'inherit' to perf_evsel__open*,
+		 * but a 'flags' parameter, with 'group' folded there as well,
+		 * then introduce a PERF_O_{MMAP,GROUP,INHERIT} enum, and if
+		 * O_MMAP is set, emit a warning if cpu < 0 and O_INHERIT is
+		 * set. Lets go for the minimal fix first tho.
+		 */
+		evsel->attr.inherit = (cpus->map[cpu] >= 0) && inherit;
 
 		for (thread = 0; thread < threads->nr; thread++) {
 
