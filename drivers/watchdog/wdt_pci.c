@@ -727,7 +727,7 @@ static void __devexit wdtpci_remove_one(struct pci_dev *pdev)
 }
 
 
-static struct pci_device_id wdtpci_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(wdtpci_pci_tbl) = {
 	{
 		.vendor	   = PCI_VENDOR_ID_ACCESSIO,
 		.device	   = PCI_DEVICE_ID_ACCESSIO_WDG_CSM,

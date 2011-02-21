@@ -262,7 +262,7 @@ static struct {
  * pci_driver, because the I/O Controller Hub has also other
  * functions that probably will be registered by other drivers.
  */
-static struct pci_device_id iTCO_wdt_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(iTCO_wdt_pci_tbl) = {
 	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801AA_0,	TCO_ICH)},
 	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801AB_0,	TCO_ICH0)},
 	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801BA_0,	TCO_ICH2)},
