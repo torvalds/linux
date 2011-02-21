@@ -409,14 +409,6 @@ struct ecc_settings {
 	} flags;
 };
 
-extern const char *tt_msgs[4];
-extern const char *ll_msgs[4];
-extern const char *rrrr_msgs[16];
-extern const char *to_msgs[2];
-extern const char *pp_msgs[4];
-extern const char *ii_msgs[4];
-extern const char *htlink_msgs[8];
-
 #ifdef CONFIG_EDAC_DEBUG
 #define NUM_DBG_ATTRS 5
 #else
