@@ -283,3 +283,22 @@ void ath9k_htc_beacon_config(struct ath9k_htc_priv *priv,
 		return;
 	}
 }
+
+void ath9k_htc_beacon_reconfig(struct ath9k_htc_priv *priv)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct htc_beacon_config *cur_conf = &priv->cur_beacon_conf;
+
+	switch (priv->ah->opmode) {
+	case NL80211_IFTYPE_STATION:
+		ath9k_htc_beacon_config_sta(priv, cur_conf);
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		ath9k_htc_beacon_config_adhoc(priv, cur_conf);
+		break;
+	default:
+		ath_dbg(common, ATH_DBG_CONFIG,
+			"Unsupported beaconing mode\n");
+		return;
+	}
+}

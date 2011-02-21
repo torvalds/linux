@@ -591,24 +591,22 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	ath9k_process_rate(hw, rx_status, rxbuf->rxstatus.rs_rate,
 			   rxbuf->rxstatus.rs_flags);
 
-	if (priv->op_flags & OP_ASSOCIATED) {
-		if (rxbuf->rxstatus.rs_rssi != ATH9K_RSSI_BAD &&
-		    !rxbuf->rxstatus.rs_moreaggr)
-			ATH_RSSI_LPF(priv->rx.last_rssi,
-				     rxbuf->rxstatus.rs_rssi);
+	if (rxbuf->rxstatus.rs_rssi != ATH9K_RSSI_BAD &&
+	    !rxbuf->rxstatus.rs_moreaggr)
+		ATH_RSSI_LPF(priv->rx.last_rssi,
+			     rxbuf->rxstatus.rs_rssi);
 
-		last_rssi = priv->rx.last_rssi;
+	last_rssi = priv->rx.last_rssi;
 
-		if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
-			rxbuf->rxstatus.rs_rssi = ATH_EP_RND(last_rssi,
-							     ATH_RSSI_EP_MULTIPLIER);
+	if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
+		rxbuf->rxstatus.rs_rssi = ATH_EP_RND(last_rssi,
+						     ATH_RSSI_EP_MULTIPLIER);
 
-		if (rxbuf->rxstatus.rs_rssi < 0)
-			rxbuf->rxstatus.rs_rssi = 0;
+	if (rxbuf->rxstatus.rs_rssi < 0)
+		rxbuf->rxstatus.rs_rssi = 0;
 
-		if (ieee80211_is_beacon(fc))
-			priv->ah->stats.avgbrssi = rxbuf->rxstatus.rs_rssi;
-	}
+	if (ieee80211_is_beacon(fc))
+		priv->ah->stats.avgbrssi = rxbuf->rxstatus.rs_rssi;
 
 	rx_status->mactime = be64_to_cpu(rxbuf->rxstatus.rs_tstamp);
 	rx_status->band = hw->conf.channel->band;

@@ -335,11 +335,10 @@ void ath_htc_cancel_btcoex_work(struct ath9k_htc_priv *priv);
 #define OP_SCANNING		   BIT(1)
 #define OP_LED_ASSOCIATED	   BIT(2)
 #define OP_LED_ON		   BIT(3)
-#define OP_ASSOCIATED		   BIT(4)
-#define OP_ENABLE_BEACON	   BIT(5)
-#define OP_LED_DEINIT		   BIT(6)
-#define OP_BT_PRIORITY_DETECTED    BIT(7)
-#define OP_BT_SCAN                 BIT(8)
+#define OP_ENABLE_BEACON	   BIT(4)
+#define OP_LED_DEINIT		   BIT(5)
+#define OP_BT_PRIORITY_DETECTED    BIT(6)
+#define OP_BT_SCAN                 BIT(7)
 
 struct ath9k_htc_priv {
 	struct device *dev;
@@ -370,6 +369,8 @@ struct ath9k_htc_priv {
 	u16 nstations;
 	u16 seq_no;
 	u32 bmiss_cnt;
+	bool rearm_ani;
+	bool reconfig_beacon;
 
 	struct ath9k_hw_cal_data caldata;
 
@@ -429,6 +430,7 @@ void ath9k_htc_reset(struct ath9k_htc_priv *priv);
 void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv);
 void ath9k_htc_beacon_config(struct ath9k_htc_priv *priv,
 			     struct ieee80211_vif *vif);
+void ath9k_htc_beacon_reconfig(struct ath9k_htc_priv *priv);
 void ath9k_htc_swba(struct ath9k_htc_priv *priv, u8 beacon_pending);
 
 void ath9k_htc_rxep(void *priv, struct sk_buff *skb,
@@ -441,7 +443,7 @@ void ath9k_htc_beaconep(void *drv_priv, struct sk_buff *skb,
 int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv);
 void ath9k_htc_station_work(struct work_struct *work);
 void ath9k_htc_aggr_work(struct work_struct *work);
-void ath9k_ani_work(struct work_struct *work);;
+void ath9k_ani_work(struct work_struct *work);
 void ath_start_ani(struct ath9k_htc_priv *priv);
 
 int ath9k_tx_init(struct ath9k_htc_priv *priv);

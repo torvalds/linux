@@ -105,6 +105,34 @@ void ath9k_ps_work(struct work_struct *work)
 	ath9k_htc_setpower(priv, ATH9K_PM_NETWORK_SLEEP);
 }
 
+static void ath9k_htc_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct ath9k_htc_priv *priv = data;
+	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+
+	if (bss_conf->assoc) {
+		priv->rearm_ani = true;
+		priv->reconfig_beacon = true;
+	}
+}
+
+static void ath9k_htc_vif_reconfig(struct ath9k_htc_priv *priv)
+{
+	priv->rearm_ani = false;
+	priv->reconfig_beacon = false;
+
+	ieee80211_iterate_active_interfaces_atomic(priv->hw,
+						   ath9k_htc_vif_iter, priv);
+	if (priv->rearm_ani)
+		ath_start_ani(priv);
+
+	if (priv->reconfig_beacon) {
+		ath9k_htc_ps_wakeup(priv);
+		ath9k_htc_beacon_reconfig(priv);
+		ath9k_htc_ps_restore(priv);
+	}
+}
+
 void ath9k_htc_reset(struct ath9k_htc_priv *priv)
 {
 	struct ath_hw *ah = priv->ah;
@@ -119,9 +147,7 @@ void ath9k_htc_reset(struct ath9k_htc_priv *priv)
 	mutex_lock(&priv->mutex);
 	ath9k_htc_ps_wakeup(priv);
 
-	if (priv->op_flags & OP_ASSOCIATED)
-		cancel_delayed_work_sync(&priv->ath9k_ani_work);
-
+	cancel_delayed_work_sync(&priv->ath9k_ani_work);
 	ieee80211_stop_queues(priv->hw);
 	htc_stop(priv->htc);
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
@@ -148,12 +174,7 @@ void ath9k_htc_reset(struct ath9k_htc_priv *priv)
 
 	WMI_CMD(WMI_ENABLE_INTR_CMDID);
 	htc_start(priv->htc);
-
-	if (priv->op_flags & OP_ASSOCIATED) {
-		ath9k_htc_beacon_config(priv, priv->vif);
-		ath_start_ani(priv);
-	}
-
+	ath9k_htc_vif_reconfig(priv);
 	ieee80211_wake_queues(priv->hw);
 
 	ath9k_htc_ps_restore(priv);
@@ -1491,13 +1512,10 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 		ath_dbg(common, ATH_DBG_CONFIG, "BSS Changed ASSOC %d\n",
 			bss_conf->assoc);
 
-		if (bss_conf->assoc) {
-			priv->op_flags |= OP_ASSOCIATED;
+		if (bss_conf->assoc)
 			ath_start_ani(priv);
-		} else {
-			priv->op_flags &= ~OP_ASSOCIATED;
+		else
 			cancel_delayed_work_sync(&priv->ath9k_ani_work);
-		}
 	}
 
 	if (changed & BSS_CHANGED_BSSID) {
@@ -1622,8 +1640,7 @@ static void ath9k_htc_sw_scan_start(struct ieee80211_hw *hw)
 	priv->op_flags |= OP_SCANNING;
 	spin_unlock_bh(&priv->beacon_lock);
 	cancel_work_sync(&priv->ps_work);
-	if (priv->op_flags & OP_ASSOCIATED)
-		cancel_delayed_work_sync(&priv->ath9k_ani_work);
+	cancel_delayed_work_sync(&priv->ath9k_ani_work);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -1632,14 +1649,11 @@ static void ath9k_htc_sw_scan_complete(struct ieee80211_hw *hw)
 	struct ath9k_htc_priv *priv = hw->priv;
 
 	mutex_lock(&priv->mutex);
-	ath9k_htc_ps_wakeup(priv);
 	spin_lock_bh(&priv->beacon_lock);
 	priv->op_flags &= ~OP_SCANNING;
 	spin_unlock_bh(&priv->beacon_lock);
-	if (priv->op_flags & OP_ASSOCIATED) {
-		ath9k_htc_beacon_config(priv, priv->vif);
-		ath_start_ani(priv);
-	}
+	ath9k_htc_ps_wakeup(priv);
+	ath9k_htc_vif_reconfig(priv);
 	ath9k_htc_ps_restore(priv);
 	mutex_unlock(&priv->mutex);
 }
