@@ -32,6 +32,7 @@
 #include "wmi.h"
 
 #define ATH_STA_SHORT_CALINTERVAL 1000    /* 1 second */
+#define ATH_AP_SHORT_CALINTERVAL  100     /* 100 ms */
 #define ATH_ANI_POLLINTERVAL      100     /* 100 ms */
 #define ATH_LONG_CALINTERVAL      30000   /* 30 seconds */
 #define ATH_RESTART_CALINTERVAL   1200000 /* 20 minutes */
@@ -378,6 +379,7 @@ void ath_htc_cancel_btcoex_work(struct ath9k_htc_priv *priv);
 #define OP_LED_DEINIT		   BIT(5)
 #define OP_BT_PRIORITY_DETECTED    BIT(6)
 #define OP_BT_SCAN                 BIT(7)
+#define OP_ANI_RUNNING             BIT(8)
 
 struct ath9k_htc_priv {
 	struct device *dev;
@@ -429,7 +431,7 @@ struct ath9k_htc_priv {
 	struct ath9k_htc_rx rx;
 	struct tasklet_struct tx_tasklet;
 	struct sk_buff_head tx_queue;
-	struct delayed_work ath9k_ani_work;
+	struct delayed_work ani_work;
 	struct work_struct ps_work;
 	struct work_struct fatal_work;
 
@@ -484,8 +486,9 @@ void ath9k_htc_beaconep(void *drv_priv, struct sk_buff *skb,
 int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv);
 void ath9k_htc_station_work(struct work_struct *work);
 void ath9k_htc_aggr_work(struct work_struct *work);
-void ath9k_ani_work(struct work_struct *work);
-void ath_start_ani(struct ath9k_htc_priv *priv);
+void ath9k_htc_ani_work(struct work_struct *work);
+void ath9k_htc_start_ani(struct ath9k_htc_priv *priv);
+void ath9k_htc_stop_ani(struct ath9k_htc_priv *priv);
 
 int ath9k_tx_init(struct ath9k_htc_priv *priv);
 void ath9k_tx_tasklet(unsigned long data);

@@ -679,7 +679,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 		     (unsigned long)priv);
 	tasklet_init(&priv->tx_tasklet, ath9k_tx_tasklet,
 		     (unsigned long)priv);
-	INIT_DELAYED_WORK(&priv->ath9k_ani_work, ath9k_ani_work);
+	INIT_DELAYED_WORK(&priv->ani_work, ath9k_htc_ani_work);
 	INIT_WORK(&priv->ps_work, ath9k_ps_work);
 	INIT_WORK(&priv->fatal_work, ath9k_fatal_work);
 

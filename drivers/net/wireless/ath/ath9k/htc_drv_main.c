@@ -124,7 +124,7 @@ static void ath9k_htc_vif_reconfig(struct ath9k_htc_priv *priv)
 	ieee80211_iterate_active_interfaces_atomic(priv->hw,
 						   ath9k_htc_vif_iter, priv);
 	if (priv->rearm_ani)
-		ath_start_ani(priv);
+		ath9k_htc_start_ani(priv);
 
 	if (priv->reconfig_beacon) {
 		ath9k_htc_ps_wakeup(priv);
@@ -192,7 +192,7 @@ void ath9k_htc_reset(struct ath9k_htc_priv *priv)
 	mutex_lock(&priv->mutex);
 	ath9k_htc_ps_wakeup(priv);
 
-	cancel_delayed_work_sync(&priv->ath9k_ani_work);
+	ath9k_htc_stop_ani(priv);
 	ieee80211_stop_queues(priv->hw);
 	htc_stop(priv->htc);
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
@@ -917,7 +917,7 @@ void ath9k_htc_debug_remove_root(void)
 /* ANI */
 /*******/
 
-void ath_start_ani(struct ath9k_htc_priv *priv)
+void ath9k_htc_start_ani(struct ath9k_htc_priv *priv)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	unsigned long timestamp = jiffies_to_msecs(jiffies);
@@ -926,15 +926,22 @@ void ath_start_ani(struct ath9k_htc_priv *priv)
 	common->ani.shortcal_timer = timestamp;
 	common->ani.checkani_timer = timestamp;
 
-	ieee80211_queue_delayed_work(common->hw, &priv->ath9k_ani_work,
+	priv->op_flags |= OP_ANI_RUNNING;
+
+	ieee80211_queue_delayed_work(common->hw, &priv->ani_work,
 				     msecs_to_jiffies(ATH_ANI_POLLINTERVAL));
 }
 
-void ath9k_ani_work(struct work_struct *work)
+void ath9k_htc_stop_ani(struct ath9k_htc_priv *priv)
+{
+	cancel_delayed_work_sync(&priv->ani_work);
+	priv->op_flags &= ~OP_ANI_RUNNING;
+}
+
+void ath9k_htc_ani_work(struct work_struct *work)
 {
 	struct ath9k_htc_priv *priv =
-		container_of(work, struct ath9k_htc_priv,
-			     ath9k_ani_work.work);
+		container_of(work, struct ath9k_htc_priv, ani_work.work);
 	struct ath_hw *ah = priv->ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	bool longcal = false;
@@ -943,7 +950,8 @@ void ath9k_ani_work(struct work_struct *work)
 	unsigned int timestamp = jiffies_to_msecs(jiffies);
 	u32 cal_interval, short_cal_interval;
 
-	short_cal_interval = ATH_STA_SHORT_CALINTERVAL;
+	short_cal_interval = (ah->opmode == NL80211_IFTYPE_AP) ?
+		ATH_AP_SHORT_CALINTERVAL : ATH_STA_SHORT_CALINTERVAL;
 
 	/* Only calibrate if awake */
 	if (ah->power_mode != ATH9K_PM_AWAKE)
@@ -1012,7 +1020,7 @@ set_timer:
 	if (!common->ani.caldone)
 		cal_interval = min(cal_interval, (u32)short_cal_interval);
 
-	ieee80211_queue_delayed_work(common->hw, &priv->ath9k_ani_work,
+	ieee80211_queue_delayed_work(common->hw, &priv->ani_work,
 				     msecs_to_jiffies(cal_interval));
 }
 
@@ -1166,7 +1174,7 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	cancel_work_sync(&priv->fatal_work);
 	cancel_work_sync(&priv->ps_work);
 	cancel_delayed_work_sync(&priv->ath9k_led_blink_work);
-	cancel_delayed_work_sync(&priv->ath9k_ani_work);
+	ath9k_htc_stop_ani(priv);
 	ath9k_led_stop_brightness(priv);
 
 	mutex_lock(&priv->mutex);
@@ -1271,6 +1279,10 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 	INC_VIF(priv, vif->type);
 	ath9k_htc_set_opmode(priv);
 
+	if ((priv->ah->opmode == NL80211_IFTYPE_AP) &&
+	    !(priv->op_flags & OP_ANI_RUNNING))
+		ath9k_htc_start_ani(priv);
+
 	ath_dbg(common, ATH_DBG_CONFIG,
 		"Attach a VIF of type: %d at idx: %d\n", vif->type, avp->index);
 
@@ -1306,6 +1318,17 @@ static void ath9k_htc_remove_interface(struct ieee80211_hw *hw,
 
 	DEC_VIF(priv, vif->type);
 	ath9k_htc_set_opmode(priv);
+
+	/*
+	 * Stop ANI only if there are no associated station interfaces.
+	 */
+	if ((vif->type == NL80211_IFTYPE_AP) && (priv->num_ap_vif == 0)) {
+		priv->rearm_ani = false;
+		ieee80211_iterate_active_interfaces_atomic(priv->hw,
+						   ath9k_htc_vif_iter, priv);
+		if (!priv->rearm_ani)
+			ath9k_htc_stop_ani(priv);
+	}
 
 	ath_dbg(common, ATH_DBG_CONFIG, "Detach Interface at idx: %d\n", avp->index);
 
@@ -1582,9 +1605,9 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 			bss_conf->assoc);
 
 		if (bss_conf->assoc)
-			ath_start_ani(priv);
+			ath9k_htc_start_ani(priv);
 		else
-			cancel_delayed_work_sync(&priv->ath9k_ani_work);
+			ath9k_htc_stop_ani(priv);
 	}
 
 	if (changed & BSS_CHANGED_BSSID) {
@@ -1713,7 +1736,7 @@ static void ath9k_htc_sw_scan_start(struct ieee80211_hw *hw)
 	priv->op_flags |= OP_SCANNING;
 	spin_unlock_bh(&priv->beacon_lock);
 	cancel_work_sync(&priv->ps_work);
-	cancel_delayed_work_sync(&priv->ath9k_ani_work);
+	ath9k_htc_stop_ani(priv);
 	mutex_unlock(&priv->mutex);
 }
 
