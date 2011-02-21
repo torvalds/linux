@@ -4242,6 +4242,11 @@ static int con_font_copy(struct vc_data *vc, struct console_font_op *op)
 
 int con_font_op(struct vc_data *vc, struct console_font_op *op)
 {
+	/* IF WE ENABLE CJK font, I won't let you guys set console font any way until
+	   we found a way to set console font that is unicode capable
+	 */
+	if(vc->vc_font.charcount > op->charcount)
+		return 0;
 	switch (op->op) {
 	case KD_FONT_OP_SET:
 		return con_font_set(vc, op);
