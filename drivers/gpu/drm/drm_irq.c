@@ -493,6 +493,12 @@ void drm_calc_timestamping_constants(struct drm_crtc *crtc)
 	/* Dot clock in Hz: */
 	dotclock = (u64) crtc->hwmode.clock * 1000;
 
+	/* Fields of interlaced scanout modes are only halve a frame duration.
+	 * Double the dotclock to get halve the frame-/line-/pixelduration.
+	 */
+	if (crtc->hwmode.flags & DRM_MODE_FLAG_INTERLACE)
+		dotclock *= 2;
+
 	/* Valid dotclock? */
 	if (dotclock > 0) {
 		/* Convert scanline length in pixels and video dot clock to
@@ -603,14 +609,6 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 	if (vtotal <= 0 || vdisplay <= 0 || framedur_ns == 0) {
 		DRM_DEBUG("crtc %d: Noop due to uninitialized mode.\n", crtc);
 		return -EAGAIN;
-	}
-
-	/* Don't know yet how to handle interlaced or
-	 * double scan modes. Just no-op for now.
-	 */
-	if (mode->flags & (DRM_MODE_FLAG_INTERLACE | DRM_MODE_FLAG_DBLSCAN)) {
-		DRM_DEBUG("crtc %d: Noop due to unsupported mode.\n", crtc);
-		return -ENOTSUPP;
 	}
 
 	/* Get current scanout position with system timestamp.
