@@ -188,20 +188,31 @@ static void ath9k_htc_beacon_config_adhoc(struct ath9k_htc_priv *priv,
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	enum ath9k_int imask = 0;
-	u32 nexttbtt, intval;
+	u32 nexttbtt, intval, tsftu;
 	__be32 htc_imask = 0;
 	int ret;
 	u8 cmd_rsp;
+	u64 tsf;
 
 	intval = bss_conf->beacon_interval & ATH9K_BEACON_PERIOD;
 	nexttbtt = intval;
+
+	/*
+	 * Pull nexttbtt forward to reflect the current TSF.
+	 */
+	tsf = ath9k_hw_gettsf64(priv->ah);
+	tsftu = TSF_TO_TU(tsf >> 32, tsf) + FUDGE;
+	do {
+		nexttbtt += intval;
+	} while (nexttbtt < tsftu);
+
 	intval |= ATH9K_BEACON_ENA;
 	if (priv->op_flags & OP_ENABLE_BEACON)
 		imask |= ATH9K_INT_SWBA;
 
-	ath_dbg(common, ATH_DBG_BEACON,
-		"IBSS Beacon config, intval: %d, imask: 0x%x\n",
-		bss_conf->beacon_interval, imask);
+	ath_dbg(common, ATH_DBG_CONFIG,
+		"IBSS Beacon config, intval: %d, nexttbtt: %u, imask: 0x%x\n",
+		bss_conf->beacon_interval, nexttbtt, imask);
 
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
 	ath9k_hw_beaconinit(priv->ah, nexttbtt, intval);
