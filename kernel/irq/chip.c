@@ -199,8 +199,8 @@ void irq_disable(struct irq_desc *desc)
 	irq_state_set_disabled(desc);
 	if (desc->irq_data.chip->irq_disable) {
 		desc->irq_data.chip->irq_disable(&desc->irq_data);
+		irq_state_set_masked(desc);
 	}
-	irq_state_set_masked(desc);
 }
 
 #ifndef CONFIG_GENERIC_HARDIRQS_NO_DEPRECATED
