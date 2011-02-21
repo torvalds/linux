@@ -361,7 +361,6 @@ static int raid0_run(mddev_t *mddev)
 	if (md_check_no_bitmap(mddev))
 		return -EINVAL;
 	blk_queue_max_hw_sectors(mddev->queue, mddev->chunk_sectors);
-	mddev->queue->queue_lock = &mddev->queue->__queue_lock;
 
 	/* if private is not null, we are here after takeover */
 	if (mddev->private == NULL) {
