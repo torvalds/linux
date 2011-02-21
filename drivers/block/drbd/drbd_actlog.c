@@ -546,7 +546,7 @@ cancel:
 }
 
 /**
- * drbd_al_apply_to_bm() - Sets the bitmap to diry(1) where covered ba active AL extents
+ * drbd_al_apply_to_bm() - Sets the bitmap to dirty(1) where covered by active AL extents
  * @mdev:	DRBD device.
  */
 void drbd_al_apply_to_bm(struct drbd_conf *mdev)
