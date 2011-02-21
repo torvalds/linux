@@ -1193,9 +1193,15 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 	mutex_lock(&priv->mutex);
 
 	if (priv->nvifs >= ATH9K_HTC_MAX_VIF) {
-		ret = -ENOBUFS;
 		mutex_unlock(&priv->mutex);
-		return ret;
+		return -ENOBUFS;
+	}
+
+	if (priv->num_ibss_vif ||
+	    (priv->nvifs && vif->type == NL80211_IFTYPE_ADHOC)) {
+		ath_err(common, "IBSS coexistence with other modes is not allowed\n");
+		mutex_unlock(&priv->mutex);
+		return -ENOBUFS;
 	}
 
 	ath9k_htc_ps_wakeup(priv);
@@ -1240,6 +1246,8 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 	priv->nvifs++;
 	priv->vif = vif;
 
+	INC_VIF(priv, vif->type);
+
 	ath_dbg(common, ATH_DBG_CONFIG,
 		"Attach a VIF of type: %d at idx: %d\n", vif->type, avp->index);
 
@@ -1272,6 +1280,8 @@ static void ath9k_htc_remove_interface(struct ieee80211_hw *hw,
 
 	ath9k_htc_remove_station(priv, vif, NULL);
 	priv->vif = NULL;
+
+	DEC_VIF(priv, vif->type);
 
 	ath_dbg(common, ATH_DBG_CONFIG, "Detach Interface at idx: %d\n", avp->index);
 
