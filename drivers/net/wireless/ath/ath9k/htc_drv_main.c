@@ -1140,7 +1140,8 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 
 	if (priv->nvifs >= ATH9K_HTC_MAX_VIF) {
 		ret = -ENOBUFS;
-		goto out;
+		mutex_unlock(&priv->mutex);
+		return ret;
 	}
 
 	ath9k_htc_ps_wakeup(priv);
@@ -1168,18 +1169,19 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 	if (ret)
 		goto out;
 
-	priv->nvifs++;
-
 	/*
 	 * We need a node in target to tx mgmt frames
 	 * before association.
 	 */
 	ret = ath9k_htc_add_station(priv, vif, NULL);
-	if (ret)
+	if (ret) {
+		WMI_CMD_BUF(WMI_VAP_REMOVE_CMDID, &hvif);
 		goto out;
+	}
 
 	priv->ah->opmode = vif->type;
 	priv->vif_slot |= (1 << avp->index);
+	priv->nvifs++;
 	priv->vif = vif;
 
 	ath_dbg(common, ATH_DBG_CONFIG,
