@@ -1988,17 +1988,19 @@ static inline void inc_ap_pending(struct drbd_conf *mdev)
 	atomic_inc(&mdev->ap_pending_cnt);
 }
 
-#define ERR_IF_CNT_IS_NEGATIVE(which)				\
-	if (atomic_read(&mdev->which) < 0)			\
+#define ERR_IF_CNT_IS_NEGATIVE(which, func, line)			\
+	if (atomic_read(&mdev->which) < 0)				\
 		dev_err(DEV, "in %s:%d: " #which " = %d < 0 !\n",	\
-		    __func__ , __LINE__ ,			\
-		    atomic_read(&mdev->which))
+			func, line,					\
+			atomic_read(&mdev->which))
 
-#define dec_ap_pending(mdev)	do {				\
-	typecheck(struct drbd_conf *, mdev);			\
-	if (atomic_dec_and_test(&mdev->ap_pending_cnt))		\
-		wake_up(&mdev->misc_wait);			\
-	ERR_IF_CNT_IS_NEGATIVE(ap_pending_cnt); } while (0)
+#define dec_ap_pending(mdev) _dec_ap_pending(mdev, __FUNCTION__, __LINE__)
+static inline void _dec_ap_pending(struct drbd_conf *mdev, const char *func, int line)
+{
+	if (atomic_dec_and_test(&mdev->ap_pending_cnt))
+		wake_up(&mdev->misc_wait);
+	ERR_IF_CNT_IS_NEGATIVE(ap_pending_cnt, func, line);
+}
 
 /* counts how many resync-related answers we still expect from the peer
  *		     increase			decrease
@@ -2011,10 +2013,12 @@ static inline void inc_rs_pending(struct drbd_conf *mdev)
 	atomic_inc(&mdev->rs_pending_cnt);
 }
 
-#define dec_rs_pending(mdev)	do {				\
-	typecheck(struct drbd_conf *, mdev);			\
-	atomic_dec(&mdev->rs_pending_cnt);			\
-	ERR_IF_CNT_IS_NEGATIVE(rs_pending_cnt); } while (0)
+#define dec_rs_pending(mdev) _dec_rs_pending(mdev, __FUNCTION__, __LINE__)
+static inline void _dec_rs_pending(struct drbd_conf *mdev, const char *func, int line)
+{
+	atomic_dec(&mdev->rs_pending_cnt);
+	ERR_IF_CNT_IS_NEGATIVE(rs_pending_cnt, func, line);
+}
 
 /* counts how many answers we still need to send to the peer.
  * increased on
@@ -2030,16 +2034,19 @@ static inline void inc_unacked(struct drbd_conf *mdev)
 	atomic_inc(&mdev->unacked_cnt);
 }
 
-#define dec_unacked(mdev)	do {				\
-	typecheck(struct drbd_conf *, mdev);			\
-	atomic_dec(&mdev->unacked_cnt);				\
-	ERR_IF_CNT_IS_NEGATIVE(unacked_cnt); } while (0)
+#define dec_unacked(mdev) _dec_unacked(mdev, __FUNCTION__, __LINE__)
+static inline void _dec_unacked(struct drbd_conf *mdev, const char *func, int line)
+{
+	atomic_dec(&mdev->unacked_cnt);
+	ERR_IF_CNT_IS_NEGATIVE(unacked_cnt, func, line);
+}
 
-#define sub_unacked(mdev, n)	do {				\
-	typecheck(struct drbd_conf *, mdev);			\
-	atomic_sub(n, &mdev->unacked_cnt);			\
-	ERR_IF_CNT_IS_NEGATIVE(unacked_cnt); } while (0)
-
+#define sub_unacked(mdev, n) _sub_unacked(mdev, n, __FUNCTION__, __LINE__)
+static inline void _sub_unacked(struct drbd_conf *mdev, int n, const char *func, int line)
+{
+	atomic_sub(n, &mdev->unacked_cnt);
+	ERR_IF_CNT_IS_NEGATIVE(unacked_cnt, func, line);
+}
 
 static inline void put_net_conf(struct drbd_tconn *tconn)
 {
