@@ -115,11 +115,6 @@ void XGIfb_syncaccel(void)
 
 }
 
-int fbcon_XGI_sync(struct fb_info *info)
-{
-	return 0;
-}
-
 void fbcon_XGI_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
 	if (!rect->width || !rect->height)
