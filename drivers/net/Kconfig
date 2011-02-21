@@ -238,8 +238,8 @@ source "drivers/net/arm/Kconfig"
 config AX88796
 	tristate "ASIX AX88796 NE2000 clone support"
 	depends on ARM || MIPS || SUPERH
-	select CRC32
-	select MII
+	select PHYLIB
+	select MDIO_BITBANG
 	help
 	  AX88796 driver, using platform bus to provide
 	  chip detection and resources
