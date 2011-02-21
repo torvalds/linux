@@ -36,19 +36,17 @@ DECLARE_EVENT_CLASS(jbd_commit,
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
-		__field(	char,	sync_commit		)
 		__field(	int,	transaction		)
 	),
 
 	TP_fast_assign(
 		__entry->dev		= journal->j_fs_dev->bd_dev;
-		__entry->sync_commit = commit_transaction->t_synchronous_commit;
 		__entry->transaction	= commit_transaction->t_tid;
 	),
 
-	TP_printk("dev %d,%d transaction %d sync %d",
+	TP_printk("dev %d,%d transaction %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->transaction, __entry->sync_commit)
+		  __entry->transaction)
 );
 
 DEFINE_EVENT(jbd_commit, jbd_start_commit,
@@ -87,19 +85,17 @@ TRACE_EVENT(jbd_drop_transaction,
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
-		__field(	char,	sync_commit		)
 		__field(	int,	transaction		)
 	),
 
 	TP_fast_assign(
 		__entry->dev		= journal->j_fs_dev->bd_dev;
-		__entry->sync_commit = commit_transaction->t_synchronous_commit;
 		__entry->transaction	= commit_transaction->t_tid;
 	),
 
-	TP_printk("dev %d,%d transaction %d sync %d",
+	TP_printk("dev %d,%d transaction %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->transaction, __entry->sync_commit)
+		  __entry->transaction)
 );
 
 TRACE_EVENT(jbd_end_commit,
@@ -109,21 +105,19 @@ TRACE_EVENT(jbd_end_commit,
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
-		__field(	char,	sync_commit		)
 		__field(	int,	transaction		)
 		__field(	int,	head			)
 	),
 
 	TP_fast_assign(
 		__entry->dev		= journal->j_fs_dev->bd_dev;
-		__entry->sync_commit = commit_transaction->t_synchronous_commit;
 		__entry->transaction	= commit_transaction->t_tid;
 		__entry->head		= journal->j_tail_sequence;
 	),
 
-	TP_printk("dev %d,%d transaction %d sync %d head %d",
+	TP_printk("dev %d,%d transaction %d head %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->transaction, __entry->sync_commit, __entry->head)
+		  __entry->transaction, __entry->head)
 );
 
 TRACE_EVENT(jbd_do_submit_data,
@@ -133,19 +127,17 @@ TRACE_EVENT(jbd_do_submit_data,
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
-		__field(	char,	sync_commit		)
 		__field(	int,	transaction		)
 	),
 
 	TP_fast_assign(
 		__entry->dev		= journal->j_fs_dev->bd_dev;
-		__entry->sync_commit = commit_transaction->t_synchronous_commit;
 		__entry->transaction	= commit_transaction->t_tid;
 	),
 
-	TP_printk("dev %d,%d transaction %d sync %d",
+	TP_printk("dev %d,%d transaction %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		   __entry->transaction, __entry->sync_commit)
+		   __entry->transaction)
 );
 
 TRACE_EVENT(jbd_cleanup_journal_tail,
