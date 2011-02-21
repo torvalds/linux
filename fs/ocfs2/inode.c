@@ -152,15 +152,15 @@ struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 blkno, unsigned flags,
 	/* inode was *not* in the inode cache. 2.6.x requires
 	 * us to do our own read_inode call and unlock it
 	 * afterwards. */
-	if (inode && inode->i_state & I_NEW) {
-		mlog(0, "Inode was not in inode cache, reading it.\n");
-		ocfs2_read_locked_inode(inode, &args);
-		unlock_new_inode(inode);
-	}
 	if (inode == NULL) {
 		inode = ERR_PTR(-ENOMEM);
 		mlog_errno(PTR_ERR(inode));
 		goto bail;
+	}
+	if (inode->i_state & I_NEW) {
+		mlog(0, "Inode was not in inode cache, reading it.\n");
+		ocfs2_read_locked_inode(inode, &args);
+		unlock_new_inode(inode);
 	}
 	if (is_bad_inode(inode)) {
 		iput(inode);
