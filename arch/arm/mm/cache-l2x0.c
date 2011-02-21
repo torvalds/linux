@@ -49,7 +49,13 @@ static inline void cache_wait(void __iomem *reg, unsigned long mask)
 static inline void cache_sync(void)
 {
 	void __iomem *base = l2x0_base;
+
+#ifdef CONFIG_ARM_ERRATA_753970
+	/* write to an unmmapped register */
+	writel_relaxed(0, base + L2X0_DUMMY_REG);
+#else
 	writel_relaxed(0, base + L2X0_CACHE_SYNC);
+#endif
 	cache_wait(base + L2X0_CACHE_SYNC, 1);
 }
 
