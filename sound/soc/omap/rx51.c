@@ -251,6 +251,7 @@ static const struct snd_soc_dapm_widget aic34_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("DMic", NULL),
 	SND_SOC_DAPM_HP("Headphone Jack", rx51_hp_event),
 	SND_SOC_DAPM_MIC("HS Mic", NULL),
+	SND_SOC_DAPM_LINE("FM Transmitter", NULL),
 };
 
 static const struct snd_soc_dapm_widget aic34_dapm_widgetsb[] = {
@@ -262,6 +263,8 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Ext Spk", NULL, "HPROUT"},
 	{"Headphone Jack", NULL, "LLOUT"},
 	{"Headphone Jack", NULL, "RLOUT"},
+	{"FM Transmitter", NULL, "LLOUT"},
+	{"FM Transmitter", NULL, "RLOUT"},
 
 	{"DMic Rate 64", NULL, "Mic Bias 2V"},
 	{"Mic Bias 2V", NULL, "DMic"},
@@ -292,6 +295,7 @@ static const struct snd_kcontrol_new aic34_rx51_controls[] = {
 		     rx51_get_input, rx51_set_input),
 	SOC_ENUM_EXT("Jack Function", rx51_enum[2],
 		     rx51_get_jack, rx51_set_jack),
+	SOC_DAPM_PIN_SWITCH("FM Transmitter"),
 };
 
 static const struct snd_kcontrol_new aic34_rx51_controlsb[] = {
