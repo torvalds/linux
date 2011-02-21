@@ -839,8 +839,25 @@ void __init setup_arch(char **cmdline_p)
 
 	if (__atags_pointer)
 		tags = phys_to_virt(__atags_pointer);
-	else if (mdesc->boot_params)
-		tags = phys_to_virt(mdesc->boot_params);
+	else if (mdesc->boot_params) {
+#ifdef CONFIG_MMU
+		/*
+		 * We still are executing with a minimal MMU mapping created
+		 * with the presumption that the machine default for this
+		 * is located in the first MB of RAM.  Anything else will
+		 * fault and silently hang the kernel at this point.
+		 */
+		if (mdesc->boot_params < PHYS_OFFSET ||
+		    mdesc->boot_params >= PHYS_OFFSET + SZ_1M) {
+			printk(KERN_WARNING
+			       "Default boot params at physical 0x%08lx out of reach\n",
+			       mdesc->boot_params);
+		} else
+#endif
+		{
+			tags = phys_to_virt(mdesc->boot_params);
+		}
+	}
 
 #if defined(CONFIG_DEPRECATED_PARAM_STRUCT)
 	/*
