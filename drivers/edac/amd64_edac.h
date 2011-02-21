@@ -180,10 +180,10 @@
 #define DRAM_BASE_LO			0x40
 #define DRAM_LIMIT_LO			0x44
 
-#define dram_intlv_en(pvt, i)		((pvt->ranges[i].base.lo >> 8) & 0x7)
-#define dram_rw(pvt, i)			(pvt->ranges[i].base.lo & 0x3)
-#define dram_intlv_sel(pvt, i)		((pvt->ranges[i].lim.lo >> 8) & 0x7)
-#define dram_dst_node(pvt, i)		(pvt->ranges[i].lim.lo & 0x7)
+#define dram_intlv_en(pvt, i)		((u8)((pvt->ranges[i].base.lo >> 8) & 0x7))
+#define dram_rw(pvt, i)			((u8)(pvt->ranges[i].base.lo & 0x3))
+#define dram_intlv_sel(pvt, i)		((u8)((pvt->ranges[i].lim.lo >> 8) & 0x7))
+#define dram_dst_node(pvt, i)		((u8)(pvt->ranges[i].lim.lo & 0x7))
 
 #define DHAR				0xf0
 #define dhar_valid(pvt)			((pvt)->dhar & BIT(0))

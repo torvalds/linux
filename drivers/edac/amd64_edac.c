@@ -621,7 +621,6 @@ static u64 input_addr_to_dram_addr(struct mem_ctl_info *mci, u64 input_addr)
 	BUG_ON(node_id > 7);
 
 	intlv_shift = num_node_interleave_bits(dram_intlv_en(pvt, 0));
-
 	if (intlv_shift == 0) {
 		debugf1("    InputAddr 0x%lx translates to DramAddr of "
 			"same value\n",	(unsigned long)input_addr);
@@ -1192,7 +1191,7 @@ static void read_dram_ctl_register(struct amd64_pvt *pvt)
 static u8 f1x_determine_channel(struct amd64_pvt *pvt, u64 sys_addr,
 				bool hi_range_sel, u8 intlv_en)
 {
-	u32 dct_sel_high = (pvt->dct_sel_lo >> 1) & 1;
+	u8 dct_sel_high = (pvt->dct_sel_lo >> 1) & 1;
 
 	if (dct_ganging_enabled(pvt))
 		return 0;
