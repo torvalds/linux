@@ -423,7 +423,13 @@ static struct miscdevice vpu_misc_device = {
 	.fops		= &vpu_fops,
 };
 
-#ifdef CONFIG_PM
+static void vpu_shutdown(struct platform_device *pdev)
+{
+	pr_info("shutdown...");
+	vpu_power_off();
+	pr_cont("done\n");
+}
+
 static int vpu_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	bool enabled = client.enabled;
@@ -451,10 +457,10 @@ static struct platform_driver vpu_pm_driver = {
 		.name  = "vpu",
 		.owner = THIS_MODULE,
 	},
+	.shutdown  = vpu_shutdown,
 	.suspend   = vpu_suspend,
 	.resume    = vpu_resume,
 };
-#endif
 
 static int __init vpu_init(void)
 {
@@ -504,10 +510,8 @@ static int __init vpu_init(void)
 
 	vpu_power_off();
 
-#ifdef CONFIG_PM
 	platform_device_register(&vpu_pm_device);
 	platform_driver_probe(&vpu_pm_driver, NULL);
-#endif
 	pr_info("init success\n");
 
 	return 0;
@@ -527,10 +531,8 @@ err_reserve_io:
 
 static void __exit vpu_exit(void)
 {
-#ifdef CONFIG_PM
 	platform_device_unregister(&vpu_pm_device);
 	platform_driver_unregister(&vpu_pm_driver);
-#endif
 
 	vpu_power_on();
 
