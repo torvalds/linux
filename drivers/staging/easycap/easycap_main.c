@@ -3258,7 +3258,7 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 		init_waitqueue_head(&peasycap->wq_trigger);
 
 		if (mutex_lock_interruptible(&mutex_dongle)) {
-				SAY("ERROR: cannot down mutex_dongle\n");
+			SAY("ERROR: cannot down mutex_dongle\n");
 			return -ERESTARTSYS;
 		} else {
 /*---------------------------------------------------------------------------*/
@@ -3476,10 +3476,10 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 				container_of(pv4l2_device, struct easycap, v4l2_device);
 		}
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
-}
+	}
 /*---------------------------------------------------------------------------*/
 	if ((USB_CLASS_VIDEO == bInterfaceClass) ||
-			(USB_CLASS_VENDOR_SPEC == bInterfaceClass)) {
+	    (USB_CLASS_VENDOR_SPEC == bInterfaceClass)) {
 		if (-1 == peasycap->video_interface) {
 			peasycap->video_interface = bInterfaceNumber;
 			JOM(4, "setting peasycap->video_interface=%i\n",
@@ -3494,7 +3494,7 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 			}
 		}
 	} else if ((USB_CLASS_AUDIO == bInterfaceClass) &&
-							(0x02 == bInterfaceSubClass)) {
+		   (0x02 == bInterfaceSubClass)) {
 		if (-1 == peasycap->audio_interface) {
 			peasycap->audio_interface = bInterfaceNumber;
 			JOM(4, "setting peasycap->audio_interface=%i\n",
@@ -4085,7 +4085,7 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 		break;
-}
+	}
 /*--------------------------------------------------------------------------*/
 /*
  *  INTERFACE 1 IS THE AUDIO CONTROL INTERFACE
@@ -4332,7 +4332,7 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 				JOM(4, "    purb->iso_frame_desc[j].length = %i;\n",
 						peasycap->audio_isoc_maxframesize);
 				JOM(4, "    }\n");
-				}
+			}
 
 			purb->interval = 1;
 			purb->dev = peasycap->pusb_device;
@@ -4377,10 +4377,10 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 			err("easycap_alsa_probe() returned %i\n", rc);
 			return -ENODEV;
 		} else {
-			JOM(8, "kref_get() with %i=peasycap->kref.refcount.counter\n",
-						(int)peasycap->kref.refcount.counter);
+			JOM(8, "kref_get() with %i=kref.refcount.counter\n",
+					peasycap->kref.refcount.counter);
 			kref_get(&peasycap->kref);
-			(peasycap->registered_audio)++;
+			peasycap->registered_audio++;
 		}
 
 #else /* CONFIG_EASYCAP_OSS */
@@ -4390,30 +4390,24 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 			usb_set_intfdata(pusb_interface, NULL);
 			return -ENODEV;
 		} else {
-			JOM(8, "kref_get() with %i=peasycap->kref.refcount.counter\n",
-						(int)peasycap->kref.refcount.counter);
+			JOM(8, "kref_get() with %i=kref.refcount.counter\n",
+					peasycap->kref.refcount.counter);
 			kref_get(&peasycap->kref);
-			(peasycap->registered_audio)++;
+			peasycap->registered_audio++;
 		}
-/*---------------------------------------------------------------------------*/
-/*
- *  LET THE USER KNOW WHAT NODE THE AUDIO DEVICE IS ATTACHED TO.
- */
-/*---------------------------------------------------------------------------*/
 		SAM("easyoss attached to minor #%d\n", pusb_interface->minor);
 #endif /* CONFIG_EASYCAP_OSS */
 
 		break;
-}
+	}
 /*---------------------------------------------------------------------------*/
 /*
  *  INTERFACES OTHER THAN 0, 1 AND 2 ARE UNEXPECTED
  */
 /*---------------------------------------------------------------------------*/
-		default: {
-			JOM(4, "ERROR: unexpected interface %i\n", bInterfaceNumber);
-			return -EINVAL;
-		}
+	default:
+		JOM(4, "ERROR: unexpected interface %i\n", bInterfaceNumber);
+		return -EINVAL;
 	}
 	SAM("ends successfully for interface %i\n", bInterfaceNumber);
 	return 0;
