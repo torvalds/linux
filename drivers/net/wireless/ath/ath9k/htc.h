@@ -210,6 +210,11 @@ struct ath9k_htc_vif {
 	u8 index;
 };
 
+struct ath9k_vif_iter_data {
+	const u8 *hw_macaddr;
+	u8 mask[ETH_ALEN];
+};
+
 #define ATH9K_HTC_MAX_STA 8
 #define ATH9K_HTC_MAX_TID 8
 
