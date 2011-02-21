@@ -24,7 +24,6 @@
 #include <bcmdevs.h>
 #include <bcmutils.h>
 #include <siutils.h>
-#include <bcmendian.h>
 #include <hndsoc.h>
 #include <sbchipc.h>
 #include <bcmotp.h>

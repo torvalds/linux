@@ -24,7 +24,6 @@
 #include <bcmutils.h>
 #include <bcmwifi.h>
 #include <siutils.h>
-#include <bcmendian.h>
 #include <pcicfg.h>
 #include <bcmsrom.h>
 #include <wlioctl.h>
@@ -7066,7 +7065,17 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	skb_pull(p, wlc->hwrxoff);
 
 	/* fixup rx header endianness */
-	ltoh16_buf((void *)rxh, sizeof(d11rxhdr_t));
+	rxh->RxFrameSize = le16_to_cpu(rxh->RxFrameSize);
+	rxh->PhyRxStatus_0 = le16_to_cpu(rxh->PhyRxStatus_0);
+	rxh->PhyRxStatus_1 = le16_to_cpu(rxh->PhyRxStatus_1);
+	rxh->PhyRxStatus_2 = le16_to_cpu(rxh->PhyRxStatus_2);
+	rxh->PhyRxStatus_3 = le16_to_cpu(rxh->PhyRxStatus_3);
+	rxh->PhyRxStatus_4 = le16_to_cpu(rxh->PhyRxStatus_4);
+	rxh->PhyRxStatus_5 = le16_to_cpu(rxh->PhyRxStatus_5);
+	rxh->RxStatus1 = le16_to_cpu(rxh->RxStatus1);
+	rxh->RxStatus2 = le16_to_cpu(rxh->RxStatus2);
+	rxh->RxTSFTime = le16_to_cpu(rxh->RxTSFTime);
+	rxh->RxChan = le16_to_cpu(rxh->RxChan);
 
 	/* MAC inserts 2 pad bytes for a4 headers or QoS or A-MSDU subframes */
 	if (rxh->RxStatus1 & RXS_PBPRES) {

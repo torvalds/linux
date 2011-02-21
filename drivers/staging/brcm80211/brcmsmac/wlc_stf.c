@@ -21,7 +21,6 @@
 #include <osl.h>
 #include <bcmutils.h>
 #include <siutils.h>
-#include <bcmendian.h>
 #include <proto/802.11.h>
 #include <wlioctl.h>
 #include <bcmwifi.h>

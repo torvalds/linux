@@ -26,7 +26,6 @@
 #include <bcmutils.h>
 #include <siutils.h>
 #include <bcmnvram.h>
-#include <bcmendian.h>
 #include <bcmdevs.h>
 #include <proto/802.1d.h>
 #include <proto/802.11.h>

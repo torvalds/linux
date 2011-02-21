@@ -19,7 +19,6 @@
 #include <osl.h>
 
 #include <bcmutils.h>
-#include <bcmendian.h>
 
 #include <asm/uaccess.h>
 

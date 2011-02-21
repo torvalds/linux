@@ -19,7 +19,6 @@
 #include <linux/netdevice.h>
 #include <osl.h>
 #include <bcmutils.h>
-#include <bcmendian.h>
 #include <dngl_stats.h>
 #include <dhd.h>
 #include <dhd_bus.h>

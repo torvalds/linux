@@ -22,7 +22,6 @@
 #include <wlioctl.h>
 
 #include <bcmutils.h>
-#include <bcmendian.h>
 
 #include <linux/if_arp.h>
 #include <asm/uaccess.h>

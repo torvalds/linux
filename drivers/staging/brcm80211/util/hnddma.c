@@ -21,7 +21,6 @@
 #include <bcmdefs.h>
 #include <bcmdevs.h>
 #include <osl.h>
-#include <bcmendian.h>
 #include <hndsoc.h>
 #include <bcmutils.h>
 #include <siutils.h>

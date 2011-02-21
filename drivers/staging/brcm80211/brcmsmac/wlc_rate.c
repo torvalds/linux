@@ -20,7 +20,6 @@
 #include <linux/module.h>
 #include <bcmutils.h>
 #include <siutils.h>
-#include <bcmendian.h>
 #include <wlioctl.h>
 
 #include <sbhndpio.h>

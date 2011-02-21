@@ -21,7 +21,6 @@
 
 #include <bcmutils.h>
 #include <bcmcdc.h>
-#include <bcmendian.h>
 
 #include <dngl_stats.h>
 #include <dhd.h>

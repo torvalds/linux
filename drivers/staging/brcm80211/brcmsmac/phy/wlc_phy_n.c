@@ -24,7 +24,6 @@
 #include <siutils.h>
 #include <sbchipc.h>
 #include <hndpmu.h>
-#include <bcmendian.h>
 
 #include <bcmdevs.h>
 #include <sbhndpio.h>

@@ -20,7 +20,6 @@
 #include <osl.h>
 #include <bcmutils.h>
 #include <siutils.h>
-#include <bcmendian.h>
 #include <bcmnvram.h>
 #include <sbchipc.h>
 #include <bcmsrom.h>

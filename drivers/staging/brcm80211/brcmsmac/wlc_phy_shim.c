@@ -32,7 +32,6 @@
 #include <proto/802.11.h>
 #include <bcmwifi.h>
 #include <siutils.h>
-#include <bcmendian.h>
 #include <wlioctl.h>
 #include <sbconfig.h>
 #include <sbchipc.h>

@@ -23,7 +23,6 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <bcmendian.h>
 #include <bcmnvram.h>
 #include <sbchipc.h>
 #include <bcmdevs.h>

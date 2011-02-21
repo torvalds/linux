@@ -25,7 +25,6 @@
 #include <hndsoc.h>
 #include <sbchipc.h>
 #include <bcmdevs.h>
-#include <bcmendian.h>
 #include <pcicfg.h>
 #include <siutils.h>
 #include <bcmsrom.h>
@@ -1436,6 +1435,18 @@ srom_cc_cmd(si_t *sih, struct osl_info *osh, void *ccregs, u32 cmd,
 		return (u16) R_REG(osh, &cc->sromdata);
 	else
 		return 0xffff;
+}
+
+static inline void ltoh16_buf(u16 *buf, unsigned int size)
+{
+	for (size /= 2; size; size--)
+		*(buf + size) = le16_to_cpu(*(buf + size));
+}
+
+static inline void htol16_buf(u16 *buf, unsigned int size)
+{
+	for (size /= 2; size; size--)
+		*(buf + size) = cpu_to_le16(*(buf + size));
 }
 
 /*

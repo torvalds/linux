@@ -19,7 +19,6 @@
 #ifdef mips
 #include <asm/paccess.h>
 #endif				/* mips */
-#include <bcmendian.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>

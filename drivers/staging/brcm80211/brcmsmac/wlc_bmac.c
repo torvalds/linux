@@ -27,7 +27,6 @@
 #include <bcmwifi.h>
 #include <bcmutils.h>
 #include <siutils.h>
-#include <bcmendian.h>
 #include <wlioctl.h>
 #include <sbconfig.h>
 #include <sbchipc.h>

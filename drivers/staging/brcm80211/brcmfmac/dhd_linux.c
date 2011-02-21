@@ -34,7 +34,6 @@
 #include <bcmdefs.h>
 #include <osl.h>
 #include <bcmutils.h>
-#include <bcmendian.h>
 
 #include <dngl_stats.h>
 #include <dhd.h>
