@@ -518,7 +518,7 @@ static void sync_completion(struct nvme_queue *nvmeq, void *ctx,
 						struct nvme_completion *cqe)
 {
 	struct sync_cmd_info *cmdinfo = ctx;
-	if ((unsigned long)cmdinfo == CMD_CTX_CANCELLED)
+	if (unlikely((unsigned long)cmdinfo == CMD_CTX_CANCELLED))
 		return;
 	if (unlikely((unsigned long)cmdinfo == CMD_CTX_COMPLETED)) {
 		dev_warn(nvmeq->q_dmadev,
