@@ -899,7 +899,7 @@ static struct fb_ops da8xx_fb_ops = {
 	.fb_blank = cfb_blank,
 };
 
-static int __init fb_probe(struct platform_device *device)
+static int __devinit fb_probe(struct platform_device *device)
 {
 	struct da8xx_lcdc_platform_data *fb_pdata =
 						device->dev.platform_data;
@@ -1165,7 +1165,7 @@ static int fb_resume(struct platform_device *dev)
 
 static struct platform_driver da8xx_fb_driver = {
 	.probe = fb_probe,
-	.remove = fb_remove,
+	.remove = __devexit_p(fb_remove),
 	.suspend = fb_suspend,
 	.resume = fb_resume,
 	.driver = {
