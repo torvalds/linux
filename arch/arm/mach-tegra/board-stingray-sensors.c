@@ -269,7 +269,7 @@ static void stingray_cap_prox_init(void)
 
 struct max9635_platform_data stingray_max9635_pdata = {
 	.configure = 0x80,
-	.threshold_timer = 0x19,
+	.threshold_timer = 0x04,	/* 400mS interrupt delay */
 	.def_low_threshold = 0xFE,
 	.def_high_threshold = 0xFF,
 	.lens_coeff = 20,
