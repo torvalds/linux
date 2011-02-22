@@ -1233,6 +1233,7 @@ static struct platform_driver pl330_driver = {
 	},
 	.probe		= pl330_probe,
 	.remove		= pl330_remove,
+	.shutdown             = pl330_remove,/* test */
 };
 
 static int __init pl330_init(void)
