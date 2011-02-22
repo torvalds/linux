@@ -1462,8 +1462,7 @@ static int find_probes(int fd, struct probe_finder *pf)
 	off = 0;
 	line_list__init(&pf->lcache);
 	/* Loop on CUs (Compilation Unit) */
-	while (!dwarf_nextcu(dbg, off, &noff, &cuhl, NULL, NULL, NULL) &&
-	       ret >= 0) {
+	while (!dwarf_nextcu(dbg, off, &noff, &cuhl, NULL, NULL, NULL)) {
 		/* Get the DIE(Debugging Information Entry) of this CU */
 		diep = dwarf_offdie(dbg, off + cuhl, &pf->cu_die);
 		if (!diep)
@@ -1484,7 +1483,7 @@ static int find_probes(int fd, struct probe_finder *pf)
 				pf->lno = pp->line;
 				ret = find_probe_point_by_line(pf);
 			}
-			if (ret != DWARF_CB_OK)
+			if (ret < 0)
 				break;
 		}
 		off = noff;
