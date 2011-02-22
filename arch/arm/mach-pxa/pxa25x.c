@@ -347,6 +347,7 @@ static struct platform_device *pxa25x_devices[] __initdata = {
 	&pxa25x_device_assp,
 	&pxa25x_device_pwm0,
 	&pxa25x_device_pwm1,
+	&pxa_device_asoc_platform,
 };
 
 static struct sys_device pxa25x_sysdev[] = {
