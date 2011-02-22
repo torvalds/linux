@@ -188,6 +188,7 @@ static inline int mp_find_ioapic(u32 gsi) { return 0; }
 struct io_apic_irq_attr;
 static inline int io_apic_set_pci_routing(struct device *dev, int irq,
 		 struct io_apic_irq_attr *irq_attr) { return 0; }
+static inline void mp_save_irq(struct mpc_intsrc *m) { };
 #endif
 
 #endif /* _ASM_X86_IO_APIC_H */
