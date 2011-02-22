@@ -53,15 +53,7 @@ struct wlc_bsscfg {
 	bool associated;	/* is BSS in ASSOCIATED state */
 	bool BSS;		/* infraustructure or adhac */
 	bool dtim_programmed;
-#ifdef LATER
-	bool _ap;		/* is this configuration an AP */
-	struct wlc_if *wlcif;	/* virtual interface, NULL for primary bsscfg */
-	void *sup;		/* pointer to supplicant state */
-	s8 sup_type;		/* type of supplicant */
-	bool sup_enable_wpa;	/* supplicant WPA on/off */
-	void *authenticator;	/* pointer to authenticator state */
-	bool sup_auth_pending;	/* flag for auth timeout */
-#endif
+
 	u8 SSID_len;		/* the length of SSID */
 	u8 SSID[IEEE80211_MAX_SSID_LEN]; /* SSID string */
 	struct scb *bcmc_scb[MAXBANDS];	/* one bcmc_scb per band */
