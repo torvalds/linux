@@ -1519,6 +1519,17 @@ TRACE_EVENT(ocfs2_read_virt_blocks,
 
 /* End of trace events for fs/ocfs2/extent_map.c. */
 
+/* Trace events for fs/ocfs2/slot_map.c. */
+
+DEFINE_OCFS2_UINT_EVENT(ocfs2_refresh_slot_info);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_map_slot_buffers);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_map_slot_buffers_block);
+
+DEFINE_OCFS2_INT_EVENT(ocfs2_find_slot);
+
+/* End of trace events for fs/ocfs2/slot_map.c. */
 #endif /* _TRACE_OCFS2_H */
 
 /* This part must be outside protection */
