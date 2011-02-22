@@ -1163,15 +1163,11 @@ static int ethoc_resume(struct platform_device *pdev)
 # define ethoc_resume  NULL
 #endif
 
-#ifdef CONFIG_OF
 static struct of_device_id ethoc_match[] = {
-	{
-		.compatible = "opencores,ethoc",
-	},
+	{ .compatible = "opencores,ethoc", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ethoc_match);
-#endif
 
 static struct platform_driver ethoc_driver = {
 	.probe   = ethoc_probe,
@@ -1181,9 +1177,7 @@ static struct platform_driver ethoc_driver = {
 	.driver  = {
 		.name = "ethoc",
 		.owner = THIS_MODULE,
-#ifdef CONFIG_OF
 		.of_match_table = ethoc_match,
-#endif
 	},
 };
 

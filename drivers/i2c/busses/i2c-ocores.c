@@ -330,9 +330,7 @@ static int __devinit ocores_i2c_probe(struct platform_device *pdev)
 	i2c->adap = ocores_adapter;
 	i2c_set_adapdata(&i2c->adap, i2c);
 	i2c->adap.dev.parent = &pdev->dev;
-#ifdef CONFIG_OF
 	i2c->adap.dev.of_node = pdev->dev.of_node;
-#endif
 
 	/* add i2c adapter to i2c tree */
 	ret = i2c_add_adapter(&i2c->adap);
@@ -390,15 +388,11 @@ static int ocores_i2c_resume(struct platform_device *pdev)
 #define ocores_i2c_resume	NULL
 #endif
 
-#ifdef CONFIG_OF
 static struct of_device_id ocores_i2c_match[] = {
-        {
-                .compatible = "opencores,i2c-ocores",
-        },
-        {},
+	{ .compatible = "opencores,i2c-ocores", },
+	{},
 };
 MODULE_DEVICE_TABLE(of, ocores_i2c_match);
-#endif
 
 /* work with hotplug and coldplug */
 MODULE_ALIAS("platform:ocores-i2c");
@@ -411,9 +405,7 @@ static struct platform_driver ocores_i2c_driver = {
 	.driver  = {
 		.owner = THIS_MODULE,
 		.name = "ocores-i2c",
-#ifdef CONFIG_OF
-                .of_match_table = ocores_i2c_match,
-#endif
+		.of_match_table = ocores_i2c_match,
 	},
 };
 

@@ -1557,9 +1557,7 @@ static int __devinit pxa2xx_spi_probe(struct platform_device *pdev)
 	drv_data->ssp = ssp;
 
 	master->dev.parent = &pdev->dev;
-#ifdef CONFIG_OF
 	master->dev.of_node = pdev->dev.of_node;
-#endif
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 

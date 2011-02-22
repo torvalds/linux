@@ -98,9 +98,7 @@ static int __devinit ce4100_spi_probe(struct pci_dev *dev,
 	pdev->dev.parent = &dev->dev;
 	pdev->dev.platform_data = &spi_info->spi_pdata;
 
-#ifdef CONFIG_OF
 	pdev->dev.of_node = dev->dev.of_node;
-#endif
 	pdev->dev.release = plat_dev_release;
 
 	spi_pdata->num_chipselect = dev->devfn;
