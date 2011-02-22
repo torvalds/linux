@@ -4033,8 +4033,6 @@ int __init l2cap_init(void)
 			BT_ERR("Failed to create L2CAP debug file");
 	}
 
-	BT_INFO("L2CAP socket layer initialized");
-
 	return 0;
 
 error:
