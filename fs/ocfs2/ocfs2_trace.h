@@ -133,6 +133,30 @@ DEFINE_EVENT(ocfs2__ull_ull, name,	\
 	TP_PROTO(unsigned long long val1, unsigned long long val2),	\
 	TP_ARGS(val1, val2))
 
+DECLARE_EVENT_CLASS(ocfs2__ull_ull_uint,
+	TP_PROTO(unsigned long long value1,
+		 unsigned long long value2, unsigned int value3),
+	TP_ARGS(value1, value2, value3),
+	TP_STRUCT__entry(
+		__field(unsigned long long, value1)
+		__field(unsigned long long, value2)
+		__field(unsigned int, value3)
+	),
+	TP_fast_assign(
+		__entry->value1 = value1;
+		__entry->value2 = value2;
+		__entry->value3 = value3;
+	),
+	TP_printk("%llu %llu %u",
+		  __entry->value1, __entry->value2, __entry->value3)
+);
+
+#define DEFINE_OCFS2_ULL_ULL_UINT_EVENT(name)	\
+DEFINE_EVENT(ocfs2__ull_ull_uint, name,	\
+	TP_PROTO(unsigned long long val1,	\
+		 unsigned long long val2, unsigned int val3),	\
+	TP_ARGS(val1, val2, val3))
+
 DECLARE_EVENT_CLASS(ocfs2__ull_uint_uint,
 	TP_PROTO(unsigned long long value1,
 		 unsigned int value2, unsigned int value3),
@@ -705,6 +729,245 @@ DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_test_suballoc_bit);
 DEFINE_OCFS2_ULL_EVENT(ocfs2_test_inode_bit);
 
 /* End of trace events for fs/ocfs2/suballoc.c. */
+
+/* Trace events for fs/ocfs2/refcounttree.c. */
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_validate_refcount_block);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_purge_refcount_trees);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_create_refcount_tree);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_create_refcount_tree_blkno);
+
+DEFINE_OCFS2_ULL_INT_INT_INT_EVENT(ocfs2_change_refcount_rec);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_expand_inline_ref_root);
+
+DEFINE_OCFS2_ULL_UINT_UINT_EVENT(ocfs2_divide_leaf_refcount_block);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_new_leaf_refcount_block);
+
+DECLARE_EVENT_CLASS(ocfs2__refcount_tree_ops,
+	TP_PROTO(unsigned long long blkno, int index,
+		 unsigned long long cpos,
+		 unsigned int clusters, unsigned int refcount),
+	TP_ARGS(blkno, index, cpos, clusters, refcount),
+	TP_STRUCT__entry(
+		__field(unsigned long long, blkno)
+		__field(int, index)
+		__field(unsigned long long, cpos)
+		__field(unsigned int, clusters)
+		__field(unsigned int, refcount)
+	),
+	TP_fast_assign(
+		__entry->blkno = blkno;
+		__entry->index = index;
+		__entry->cpos = cpos;
+		__entry->clusters = clusters;
+		__entry->refcount = refcount;
+	),
+	TP_printk("%llu %d %llu %u %u", __entry->blkno, __entry->index,
+		  __entry->cpos, __entry->clusters, __entry->refcount)
+);
+
+#define DEFINE_OCFS2_REFCOUNT_TREE_OPS_EVENT(name)	\
+DEFINE_EVENT(ocfs2__refcount_tree_ops, name,		\
+	TP_PROTO(unsigned long long blkno, int index,	\
+		 unsigned long long cpos,		\
+		 unsigned int count, unsigned int refcount),	\
+	TP_ARGS(blkno, index, cpos, count, refcount))
+
+DEFINE_OCFS2_REFCOUNT_TREE_OPS_EVENT(ocfs2_insert_refcount_rec);
+
+TRACE_EVENT(ocfs2_split_refcount_rec,
+	TP_PROTO(unsigned long long cpos,
+		 unsigned int clusters, unsigned int refcount,
+		 unsigned long long split_cpos,
+		 unsigned int split_clusters, unsigned int split_refcount),
+	TP_ARGS(cpos, clusters, refcount,
+		split_cpos, split_clusters, split_refcount),
+	TP_STRUCT__entry(
+		__field(unsigned long long, cpos)
+		__field(unsigned int, clusters)
+		__field(unsigned int, refcount)
+		__field(unsigned long long, split_cpos)
+		__field(unsigned int, split_clusters)
+		__field(unsigned int, split_refcount)
+	),
+	TP_fast_assign(
+		__entry->cpos = cpos;
+		__entry->clusters = clusters;
+		__entry->refcount = refcount;
+		__entry->split_cpos = split_cpos;
+		__entry->split_clusters = split_clusters;
+		__entry->split_refcount	= split_refcount;
+	),
+	TP_printk("%llu %u %u %llu %u %u",
+		  __entry->cpos, __entry->clusters, __entry->refcount,
+		  __entry->split_cpos, __entry->split_clusters,
+		  __entry->split_refcount)
+);
+
+DEFINE_OCFS2_REFCOUNT_TREE_OPS_EVENT(ocfs2_split_refcount_rec_insert);
+
+DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_increase_refcount_begin);
+
+DEFINE_OCFS2_ULL_UINT_UINT_EVENT(ocfs2_increase_refcount_change);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_increase_refcount_insert);
+
+DEFINE_OCFS2_ULL_UINT_UINT_EVENT(ocfs2_increase_refcount_split);
+
+DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_remove_refcount_extent);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_restore_refcount_block);
+
+DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_decrease_refcount_rec);
+
+TRACE_EVENT(ocfs2_decrease_refcount,
+	TP_PROTO(unsigned long long owner,
+		 unsigned long long cpos,
+		 unsigned int len, int delete),
+	TP_ARGS(owner, cpos, len, delete),
+	TP_STRUCT__entry(
+		__field(unsigned long long, owner)
+		__field(unsigned long long, cpos)
+		__field(unsigned int, len)
+		__field(int, delete)
+	),
+	TP_fast_assign(
+		__entry->owner = owner;
+		__entry->cpos = cpos;
+		__entry->len = len;
+		__entry->delete = delete;
+	),
+	TP_printk("%llu %llu %u %d",
+		  __entry->owner, __entry->cpos, __entry->len, __entry->delete)
+);
+
+DEFINE_OCFS2_ULL_UINT_UINT_UINT_EVENT(ocfs2_mark_extent_refcounted);
+
+DEFINE_OCFS2_ULL_UINT_UINT_UINT_EVENT(ocfs2_calc_refcount_meta_credits);
+
+TRACE_EVENT(ocfs2_calc_refcount_meta_credits_iterate,
+	TP_PROTO(int recs_add, unsigned long long cpos,
+		 unsigned int clusters, unsigned long long r_cpos,
+		 unsigned int r_clusters, unsigned int refcount, int index),
+	TP_ARGS(recs_add, cpos, clusters, r_cpos, r_clusters, refcount, index),
+	TP_STRUCT__entry(
+		__field(int, recs_add)
+		__field(unsigned long long, cpos)
+		__field(unsigned int, clusters)
+		__field(unsigned long long, r_cpos)
+		__field(unsigned int, r_clusters)
+		__field(unsigned int, refcount)
+		__field(int, index)
+	),
+	TP_fast_assign(
+		__entry->recs_add = recs_add;
+		__entry->cpos = cpos;
+		__entry->clusters = clusters;
+		__entry->r_cpos = r_cpos;
+		__entry->r_clusters = r_clusters;
+		__entry->refcount = refcount;
+		__entry->index = index;
+	),
+	TP_printk("%d %llu %u %llu %u %u %d",
+		  __entry->recs_add, __entry->cpos, __entry->clusters,
+		  __entry->r_cpos, __entry->r_clusters,
+		  __entry->refcount, __entry->index)
+);
+
+DEFINE_OCFS2_INT_INT_EVENT(ocfs2_add_refcount_flag);
+
+DEFINE_OCFS2_INT_INT_EVENT(ocfs2_prepare_refcount_change_for_del);
+
+DEFINE_OCFS2_INT_INT_EVENT(ocfs2_lock_refcount_allocators);
+
+DEFINE_OCFS2_ULL_UINT_UINT_UINT_EVENT(ocfs2_duplicate_clusters_by_page);
+
+DEFINE_OCFS2_ULL_UINT_UINT_UINT_EVENT(ocfs2_duplicate_clusters_by_jbd);
+
+TRACE_EVENT(ocfs2_clear_ext_refcount,
+	TP_PROTO(unsigned long long ino, unsigned int cpos,
+		 unsigned int len, unsigned int p_cluster,
+		 unsigned int ext_flags),
+	TP_ARGS(ino, cpos, len, p_cluster, ext_flags),
+	TP_STRUCT__entry(
+		__field(unsigned long long, ino)
+		__field(unsigned int, cpos)
+		__field(unsigned int, len)
+		__field(unsigned int, p_cluster)
+		__field(unsigned int, ext_flags)
+	),
+	TP_fast_assign(
+		__entry->ino = ino;
+		__entry->cpos = cpos;
+		__entry->len = len;
+		__entry->p_cluster = p_cluster;
+		__entry->ext_flags = ext_flags;
+	),
+	TP_printk("%llu %u %u %u %u",
+		  __entry->ino, __entry->cpos, __entry->len,
+		  __entry->p_cluster, __entry->ext_flags)
+);
+
+TRACE_EVENT(ocfs2_replace_clusters,
+	TP_PROTO(unsigned long long ino, unsigned int cpos,
+		 unsigned int old, unsigned int new, unsigned int len,
+		 unsigned int ext_flags),
+	TP_ARGS(ino, cpos, old, new, len, ext_flags),
+	TP_STRUCT__entry(
+		__field(unsigned long long, ino)
+		__field(unsigned int, cpos)
+		__field(unsigned int, old)
+		__field(unsigned int, new)
+		__field(unsigned int, len)
+		__field(unsigned int, ext_flags)
+	),
+	TP_fast_assign(
+		__entry->ino = ino;
+		__entry->cpos = cpos;
+		__entry->old = old;
+		__entry->new = new;
+		__entry->len = len;
+		__entry->ext_flags = ext_flags;
+	),
+	TP_printk("%llu %u %u %u %u %u",
+		  __entry->ino, __entry->cpos, __entry->old, __entry->new,
+		  __entry->len, __entry->ext_flags)
+);
+
+DEFINE_OCFS2_ULL_UINT_UINT_UINT_EVENT(ocfs2_make_clusters_writable);
+
+TRACE_EVENT(ocfs2_refcount_cow_hunk,
+	TP_PROTO(unsigned long long ino, unsigned int cpos,
+		 unsigned int write_len, unsigned int max_cpos,
+		 unsigned int cow_start, unsigned int cow_len),
+	TP_ARGS(ino, cpos, write_len, max_cpos, cow_start, cow_len),
+	TP_STRUCT__entry(
+		__field(unsigned long long, ino)
+		__field(unsigned int, cpos)
+		__field(unsigned int, write_len)
+		__field(unsigned int, max_cpos)
+		__field(unsigned int, cow_start)
+		__field(unsigned int, cow_len)
+	),
+	TP_fast_assign(
+		__entry->ino = ino;
+		__entry->cpos = cpos;
+		__entry->write_len = write_len;
+		__entry->max_cpos = max_cpos;
+		__entry->cow_start = cow_start;
+		__entry->cow_len = cow_len;
+	),
+	TP_printk("%llu %u %u %u %u %u",
+		  __entry->ino, __entry->cpos, __entry->write_len,
+		  __entry->max_cpos, __entry->cow_start, __entry->cow_len)
+);
+
+/* End of trace events for fs/ocfs2/refcounttree.c. */
 #endif /* _TRACE_OCFS2_H */
 
 /* This part must be outside protection */
