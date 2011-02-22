@@ -1124,6 +1124,8 @@ static int rtl8169_set_speed_xmii(struct net_device *dev,
 	struct rtl8169_private *tp = netdev_priv(dev);
 	int giga_ctrl, bmcr;
 
+	rtl_writephy(tp, 0x1f, 0x0000);
+
 	if (autoneg == AUTONEG_ENABLE) {
 		int auto_nego;
 
@@ -1152,18 +1154,6 @@ static int rtl8169_set_speed_xmii(struct net_device *dev,
 
 		bmcr = BMCR_ANENABLE | BMCR_ANRESTART;
 
-		if ((tp->mac_version == RTL_GIGA_MAC_VER_11) ||
-		    (tp->mac_version == RTL_GIGA_MAC_VER_12) ||
-		    (tp->mac_version >= RTL_GIGA_MAC_VER_17)) {
-			/*
-			 * Wake up the PHY.
-			 * Vendor specific (0x1f) and reserved (0x0e) MII
-			 * registers.
-			 */
-			rtl_writephy(tp, 0x1f, 0x0000);
-			rtl_writephy(tp, 0x0e, 0x0000);
-		}
-
 		rtl_writephy(tp, MII_ADVERTISE, auto_nego);
 		rtl_writephy(tp, MII_CTRL1000, giga_ctrl);
 	} else {
@@ -1178,8 +1168,6 @@ static int rtl8169_set_speed_xmii(struct net_device *dev,
 
 		if (duplex == DUPLEX_FULL)
 			bmcr |= BMCR_FULLDPLX;
-
-		rtl_writephy(tp, 0x1f, 0x0000);
 	}
 
 	tp->phy_1000_ctrl_reg = giga_ctrl;
