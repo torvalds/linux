@@ -1984,12 +1984,14 @@ static void iwlagn_print_uartmsg(struct iwl_priv *priv,
 		(BT_UART_MSG_FRAME6DISCOVERABLE_MSK & uart_msg->frame6) >>
 			BT_UART_MSG_FRAME6DISCOVERABLE_POS);
 
-	IWL_DEBUG_NOTIF(priv, "Sniff Activity = 0x%X, Inquiry/Page SR Mode = "
-			"0x%X, Connectable = 0x%X",
+	IWL_DEBUG_NOTIF(priv, "Sniff Activity = 0x%X, Page = "
+			"0x%X, Inquiry = 0x%X, Connectable = 0x%X",
 		(BT_UART_MSG_FRAME7SNIFFACTIVITY_MSK & uart_msg->frame7) >>
 			BT_UART_MSG_FRAME7SNIFFACTIVITY_POS,
-		(BT_UART_MSG_FRAME7INQUIRYPAGESRMODE_MSK & uart_msg->frame7) >>
-			BT_UART_MSG_FRAME7INQUIRYPAGESRMODE_POS,
+		(BT_UART_MSG_FRAME7PAGE_MSK & uart_msg->frame7) >>
+			BT_UART_MSG_FRAME7PAGE_POS,
+		(BT_UART_MSG_FRAME7INQUIRY_MSK & uart_msg->frame7) >>
+			BT_UART_MSG_FRAME7INQUIRY_POS,
 		(BT_UART_MSG_FRAME7CONNECTABLE_MSK & uart_msg->frame7) >>
 			BT_UART_MSG_FRAME7CONNECTABLE_POS);
 }
