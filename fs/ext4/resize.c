@@ -230,7 +230,7 @@ static int setup_new_group_blocks(struct super_block *sb,
 	}
 
 	/* Zero out all of the reserved backup group descriptor table blocks */
-	ext4_debug("clear inode table blocks %#04llx -> %#04llx\n",
+	ext4_debug("clear inode table blocks %#04llx -> %#04lx\n",
 			block, sbi->s_itb_per_group);
 	err = sb_issue_zeroout(sb, gdblocks + start + 1, reserved_gdb,
 			       GFP_NOFS);
@@ -248,7 +248,7 @@ static int setup_new_group_blocks(struct super_block *sb,
 
 	/* Zero out all of the inode table blocks */
 	block = input->inode_table;
-	ext4_debug("clear inode table blocks %#04llx -> %#04llx\n",
+	ext4_debug("clear inode table blocks %#04llx -> %#04lx\n",
 			block, sbi->s_itb_per_group);
 	err = sb_issue_zeroout(sb, block, sbi->s_itb_per_group, GFP_NOFS);
 	if (err)
