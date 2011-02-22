@@ -590,6 +590,16 @@ DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_local_alloc_new_window_result);
 
 /* End of trace events for fs/ocfs2/localalloc.c. */
 
+/* Trace events for fs/ocfs2/resize.c. */
+
+DEFINE_OCFS2_UINT_UINT_EVENT(ocfs2_update_last_group_and_inode);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_group_extend);
+
+DEFINE_OCFS2_ULL_UINT_UINT_UINT_EVENT(ocfs2_group_add);
+
+/* End of trace events for fs/ocfs2/resize.c. */
+
 /* Trace events for fs/ocfs2/suballoc.c. */
 
 DEFINE_OCFS2_ULL_EVENT(ocfs2_validate_group_descriptor);
