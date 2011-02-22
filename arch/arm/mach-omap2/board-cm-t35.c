@@ -401,14 +401,6 @@ static struct omap_dss_board_info cm_t35_dss_data = {
 	.default_device	= &cm_t35_dvi_device,
 };
 
-static struct platform_device cm_t35_dss_device = {
-	.name		= "omapdss",
-	.id		= -1,
-	.dev		= {
-		.platform_data = &cm_t35_dss_data,
-	},
-};
-
 static struct omap2_mcspi_device_config tdo24m_mcspi_config = {
 	.turbo_mode	= 0,
 	.single_channel	= 1,	/* 0: slave, 1: master */
@@ -468,7 +460,7 @@ static void __init cm_t35_init_display(void)
 	msleep(50);
 	gpio_set_value(lcd_en_gpio, 1);
 
-	err = platform_device_register(&cm_t35_dss_device);
+	err = omap_display_init(&cm_t35_dss_data);
 	if (err) {
 		pr_err("CM-T35: failed to register DSS device\n");
 		goto err_dev_reg;

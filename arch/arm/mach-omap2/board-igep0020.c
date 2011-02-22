@@ -485,14 +485,6 @@ static struct omap_dss_board_info igep2_dss_data = {
 	.default_device	= &igep2_dvi_device,
 };
 
-static struct platform_device igep2_dss_device = {
-	.name	= "omapdss",
-	.id	= -1,
-	.dev	= {
-		.platform_data = &igep2_dss_data,
-	},
-};
-
 static struct regulator_consumer_supply igep2_vpll2_supply =
 	REGULATOR_SUPPLY("vdds_dsi", "omapdss");
 
@@ -519,7 +511,6 @@ static void __init igep2_display_init(void)
 }
 
 static struct platform_device *igep2_devices[] __initdata = {
-	&igep2_dss_device,
 	&igep2_vwlan_device,
 };
 
@@ -694,6 +685,7 @@ static void __init igep2_init(void)
 	/* Register I2C busses and drivers */
 	igep2_i2c_init();
 	platform_add_devices(igep2_devices, ARRAY_SIZE(igep2_devices));
+	omap_display_init(&igep2_dss_data);
 	omap_serial_init();
 	usb_musb_init(&musb_board_data);
 	usb_ehci_init(&ehci_pdata);

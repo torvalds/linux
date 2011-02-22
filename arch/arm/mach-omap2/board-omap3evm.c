@@ -328,14 +328,6 @@ static struct omap_dss_board_info omap3_evm_dss_data = {
 	.default_device	= &omap3_evm_lcd_device,
 };
 
-static struct platform_device omap3_evm_dss_device = {
-	.name		= "omapdss",
-	.id		= -1,
-	.dev		= {
-		.platform_data = &omap3_evm_dss_data,
-	},
-};
-
 static struct regulator_consumer_supply omap3evm_vmmc1_supply = {
 	.supply			= "vmmc",
 };
@@ -631,10 +623,6 @@ static void __init omap3_evm_init_early(void)
 	omap2_init_common_devices(mt46h32m32lf6_sdrc_params, NULL);
 }
 
-static struct platform_device *omap3_evm_devices[] __initdata = {
-	&omap3_evm_dss_device,
-};
-
 static struct ehci_hcd_omap_platform_data ehci_pdata __initdata = {
 
 	.port_mode[0] = EHCI_HCD_OMAP_MODE_UNKNOWN,
@@ -672,7 +660,7 @@ static void __init omap3_evm_init(void)
 
 	omap3_evm_i2c_init();
 
-	platform_add_devices(omap3_evm_devices, ARRAY_SIZE(omap3_evm_devices));
+	omap_display_init(&omap3_evm_dss_data);
 
 	spi_register_board_info(omap3evm_spi_board_info,
 				ARRAY_SIZE(omap3evm_spi_board_info));

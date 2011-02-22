@@ -228,14 +228,6 @@ static struct omap_dss_board_info beagle_dss_data = {
 	.default_device = &beagle_dvi_device,
 };
 
-static struct platform_device beagle_dss_device = {
-	.name          = "omapdss",
-	.id            = -1,
-	.dev            = {
-		.platform_data = &beagle_dss_data,
-	},
-};
-
 static struct regulator_consumer_supply beagle_vdac_supply =
 	REGULATOR_SUPPLY("vdda_dac", "omapdss");
 
@@ -554,7 +546,6 @@ static void __init omap3_beagle_init_irq(void)
 static struct platform_device *omap3_beagle_devices[] __initdata = {
 	&leds_gpio,
 	&keys_gpio,
-	&beagle_dss_device,
 };
 
 static void __init omap3beagle_flash_init(void)
@@ -621,6 +612,7 @@ static void __init omap3_beagle_init(void)
 	omap3_beagle_i2c_init();
 	platform_add_devices(omap3_beagle_devices,
 			ARRAY_SIZE(omap3_beagle_devices));
+	omap_display_init(&beagle_dss_data);
 	omap_serial_init();
 
 	omap_mux_init_gpio(170, OMAP_PIN_INPUT);
