@@ -18,6 +18,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/err.h>
 #include <linux/sched.h>
 #include <linux/time.h>
 #include <linux/interrupt.h>
@@ -193,8 +194,21 @@ static struct irqaction tegra_timer_irq = {
 
 static void __init tegra_init_timer(void)
 {
+	struct clk *clk;
 	unsigned long rate = clk_measure_input_freq();
 	int ret;
+
+	clk = clk_get_sys("timer", NULL);
+	BUG_ON(IS_ERR(clk));
+	clk_enable(clk);
+
+	/*
+	 * rtc registers are used by read_persistent_clock, keep the rtc clock
+	 * enabled
+	 */
+	clk = clk_get_sys("rtc-tegra", NULL);
+	BUG_ON(IS_ERR(clk));
+	clk_enable(clk);
 
 #ifdef CONFIG_HAVE_ARM_TWD
 	twd_base = IO_ADDRESS(TEGRA_ARM_PERIF_BASE + 0x600);
@@ -239,8 +253,6 @@ static void __init tegra_init_timer(void)
 	tegra_clockevent.cpumask = cpu_all_mask;
 	tegra_clockevent.irq = tegra_timer_irq.irq;
 	clockevents_register_device(&tegra_clockevent);
-
-	return;
 }
 
 struct sys_timer tegra_timer = {
