@@ -1231,8 +1231,10 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
 		if (result == ZFCP_ERP_SUCCEEDED) {
 			register_service_level(&adapter->service_level);
 			queue_work(adapter->work_queue, &adapter->scan_work);
+			queue_work(adapter->work_queue, &adapter->ns_up_work);
 		} else
 			unregister_service_level(&adapter->service_level);
+
 		kref_put(&adapter->ref, zfcp_adapter_release);
 		break;
 	}

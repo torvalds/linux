@@ -720,6 +720,7 @@ struct fc_function_template zfcp_transport_functions = {
 	/* no functions registered for following dynamic attributes but
 	   directly set by LLDD */
 	.show_host_port_type = 1,
+	.show_host_symbolic_name = 1,
 	.show_host_speed = 1,
 	.show_host_port_id = 1,
 	.dd_bsg_size = sizeof(struct zfcp_fsf_ct_els),

@@ -84,6 +84,40 @@ struct zfcp_fc_gpn_ft_req {
 } __packed;
 
 /**
+ * struct zfcp_fc_gspn_req - container for ct header plus GSPN_ID request
+ * @ct_hdr: FC GS common transport header
+ * @gspn: GSPN_ID request
+ */
+struct zfcp_fc_gspn_req {
+	struct fc_ct_hdr	ct_hdr;
+	struct fc_gid_pn_resp	gspn;
+} __packed;
+
+/**
+ * struct zfcp_fc_gspn_rsp - container for ct header plus GSPN_ID response
+ * @ct_hdr: FC GS common transport header
+ * @gspn: GSPN_ID response
+ * @name: The name string of the GSPN_ID response
+ */
+struct zfcp_fc_gspn_rsp {
+	struct fc_ct_hdr	ct_hdr;
+	struct fc_gspn_resp	gspn;
+	char			name[FC_SYMBOLIC_NAME_SIZE];
+} __packed;
+
+/**
+ * struct zfcp_fc_rspn_req - container for ct header plus RSPN_ID request
+ * @ct_hdr: FC GS common transport header
+ * @rspn: RSPN_ID request
+ * @name: The name string of the RSPN_ID request
+ */
+struct zfcp_fc_rspn_req {
+	struct fc_ct_hdr	ct_hdr;
+	struct fc_ns_rspn	rspn;
+	char			name[FC_SYMBOLIC_NAME_SIZE];
+} __packed;
+
+/**
  * struct zfcp_fc_req - Container for FC ELS and CT requests sent from zfcp
  * @ct_els: data required for issuing fsf command
  * @sg_req: scatterlist entry for request data
@@ -107,6 +141,14 @@ struct zfcp_fc_req {
 			struct scatterlist sg_rsp2[ZFCP_FC_GPN_FT_NUM_BUFS - 1];
 			struct zfcp_fc_gpn_ft_req	req;
 		} gpn_ft;
+		struct {
+			struct zfcp_fc_gspn_req		req;
+			struct zfcp_fc_gspn_rsp		rsp;
+		} gspn;
+		struct {
+			struct zfcp_fc_rspn_req		req;
+			struct fc_ct_hdr		rsp;
+		} rspn;
 	} u;
 };
 
