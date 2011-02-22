@@ -175,6 +175,8 @@ extern void __init pre_init_apic_IRQ0(void);
 
 extern void mp_save_irq(struct mpc_intsrc *m);
 
+extern void disable_ioapic_support(void);
+
 #else  /* !CONFIG_X86_IO_APIC */
 
 #define io_apic_assign_pci_irqs 0
@@ -189,6 +191,7 @@ struct io_apic_irq_attr;
 static inline int io_apic_set_pci_routing(struct device *dev, int irq,
 		 struct io_apic_irq_attr *irq_attr) { return 0; }
 static inline void mp_save_irq(struct mpc_intsrc *m) { };
+static inline void disable_ioapic_support(void) { }
 #endif
 
 #endif /* _ASM_X86_IO_APIC_H */
