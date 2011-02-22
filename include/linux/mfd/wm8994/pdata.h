@@ -108,13 +108,16 @@ struct wm8994_pdata {
 	 */
 	int micdet_irq;
 
-        /* Microphone biases: 0=0.9*AVDD1 1=0.65*AVVD1 */
+        /* WM8994 microphone biases: 0=0.9*AVDD1 1=0.65*AVVD1 */
         unsigned int micbias1_lvl:1;
         unsigned int micbias2_lvl:1;
 
-        /* Jack detect threashold levels, see datasheet for values */
+        /* WM8994 jack detect threashold levels, see datasheet for values */
         unsigned int jd_scthr:2;
         unsigned int jd_thr:2;
+
+	/* WM8958 microphone bias configuration */
+	int micbias[2];
 };
 
 #endif
