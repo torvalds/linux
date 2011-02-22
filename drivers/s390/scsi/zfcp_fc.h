@@ -164,13 +164,20 @@ struct zfcp_fc_wka_ports {
  * zfcp_fc_scsi_to_fcp - setup FCP command with data from scsi_cmnd
  * @fcp: fcp_cmnd to setup
  * @scsi: scsi_cmnd where to get LUN, task attributes/flags and CDB
+ * @tm: task management flags to setup task management command
  */
 static inline
-void zfcp_fc_scsi_to_fcp(struct fcp_cmnd *fcp, struct scsi_cmnd *scsi)
+void zfcp_fc_scsi_to_fcp(struct fcp_cmnd *fcp, struct scsi_cmnd *scsi,
+			 u8 tm_flags)
 {
 	char tag[2];
 
 	int_to_scsilun(scsi->device->lun, (struct scsi_lun *) &fcp->fc_lun);
+
+	if (unlikely(tm_flags)) {
+		fcp->fc_tm_flags = tm_flags;
+		return;
+	}
 
 	if (scsi_populate_tag_msg(scsi, tag)) {
 		switch (tag[0]) {
@@ -195,19 +202,6 @@ void zfcp_fc_scsi_to_fcp(struct fcp_cmnd *fcp, struct scsi_cmnd *scsi)
 
 	if (scsi_get_prot_type(scsi) == SCSI_PROT_DIF_TYPE1)
 		fcp->fc_dl += fcp->fc_dl / scsi->device->sector_size * 8;
-}
-
-/**
- * zfcp_fc_fcp_tm - setup FCP command as task management command
- * @fcp: fcp_cmnd to setup
- * @dev: scsi_device where to send the task management command
- * @tm: task management flags to setup tm command
- */
-static inline
-void zfcp_fc_fcp_tm(struct fcp_cmnd *fcp, struct scsi_device *dev, u8 tm_flags)
-{
-	int_to_scsilun(dev->lun, (struct scsi_lun *) &fcp->fc_lun);
-	fcp->fc_tm_flags |= tm_flags;
 }
 
 /**
