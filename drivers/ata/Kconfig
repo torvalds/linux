@@ -311,6 +311,12 @@ config PATA_AMD
 
 	  If unsure, say N.
 
+config PATA_ARASAN_CF
+	tristate "ARASAN CompactFlash PATA Controller Support"
+	select DMA_ENGINE
+	help
+	  Say Y here to support the ARASAN CompactFlash PATA controller
+
 config PATA_ARTOP
 	tristate "ARTOP 6210/6260 PATA support"
 	depends on PCI

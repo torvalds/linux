@@ -557,6 +557,13 @@ S:	Maintained
 F:	drivers/net/appletalk/
 F:	net/appletalk/
 
+ARASAN COMPACT FLASH PATA CONTROLLER
+M:	Viresh Kumar <viresh.kumar@st.com>
+L:	linux-ide@vger.kernel.org
+S:	Maintained
+F:	include/linux/pata_arasan_cf_data.h
+F:	drivers/ata/pata_arasan_cf.c
+
 ARC FRAMEBUFFER DRIVER
 M:	Jaya Kumar <jayalk@intworks.biz>
 S:	Maintained
