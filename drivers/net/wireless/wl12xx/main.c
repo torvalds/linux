@@ -987,6 +987,17 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
 	wl->tx_queue_count++;
+
+	/*
+	 * The workqueue is slow to process the tx_queue and we need stop
+	 * the queue here, otherwise the queue will get too long.
+	 */
+	if (wl->tx_queue_count >= WL1271_TX_QUEUE_HIGH_WATERMARK) {
+		wl1271_debug(DEBUG_TX, "op_tx: stopping queues");
+		ieee80211_stop_queues(wl->hw);
+		set_bit(WL1271_FLAG_TX_QUEUE_STOPPED, &wl->flags);
+	}
+
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
 	/* queue the packet */
@@ -1000,19 +1011,6 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags))
 		ieee80211_queue_work(wl->hw, &wl->tx_work);
-
-	/*
-	 * The workqueue is slow to process the tx_queue and we need stop
-	 * the queue here, otherwise the queue will get too long.
-	 */
-	if (wl->tx_queue_count >= WL1271_TX_QUEUE_HIGH_WATERMARK) {
-		wl1271_debug(DEBUG_TX, "op_tx: stopping queues");
-
-		spin_lock_irqsave(&wl->wl_lock, flags);
-		ieee80211_stop_queues(wl->hw);
-		set_bit(WL1271_FLAG_TX_QUEUE_STOPPED, &wl->flags);
-		spin_unlock_irqrestore(&wl->wl_lock, flags);
-	}
 
 	return NETDEV_TX_OK;
 }
