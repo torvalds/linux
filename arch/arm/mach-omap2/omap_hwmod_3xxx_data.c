@@ -29,6 +29,7 @@
 #include "prm-regbits-34xx.h"
 #include "cm-regbits-34xx.h"
 #include "wd_timer.h"
+#include <mach/am35xx.h>
 
 /*
  * OMAP3xxx hardware module integration data
@@ -60,6 +61,7 @@ static struct omap_hwmod omap34xx_mcspi1;
 static struct omap_hwmod omap34xx_mcspi2;
 static struct omap_hwmod omap34xx_mcspi3;
 static struct omap_hwmod omap34xx_mcspi4;
+static struct omap_hwmod am35xx_usbhsotg_hwmod;
 
 static struct omap_hwmod omap3xxx_dma_system_hwmod;
 
@@ -112,7 +114,23 @@ static struct omap_hwmod omap3xxx_uart1_hwmod;
 static struct omap_hwmod omap3xxx_uart2_hwmod;
 static struct omap_hwmod omap3xxx_uart3_hwmod;
 static struct omap_hwmod omap3xxx_uart4_hwmod;
+static struct omap_hwmod omap3xxx_usbhsotg_hwmod;
 
+/* l3_core -> usbhsotg interface */
+static struct omap_hwmod_ocp_if omap3xxx_usbhsotg__l3 = {
+	.master		= &omap3xxx_usbhsotg_hwmod,
+	.slave		= &omap3xxx_l3_main_hwmod,
+	.clk		= "core_l3_ick",
+	.user		= OCP_USER_MPU,
+};
+
+/* l3_core -> am35xx_usbhsotg interface */
+static struct omap_hwmod_ocp_if am35xx_usbhsotg__l3 = {
+	.master		= &am35xx_usbhsotg_hwmod,
+	.slave		= &omap3xxx_l3_main_hwmod,
+	.clk		= "core_l3_ick",
+	.user		= OCP_USER_MPU,
+};
 /* L4_CORE -> L4_WKUP interface */
 static struct omap_hwmod_ocp_if omap3xxx_l4_core__l4_wkup = {
 	.master	= &omap3xxx_l4_core_hwmod,
@@ -306,6 +324,61 @@ static struct omap_hwmod_ocp_if omap3_l4_core__sr2 = {
 	.user		= OCP_USER_MPU,
 };
 
+/*
+* usbhsotg interface data
+*/
+
+static struct omap_hwmod_addr_space omap3xxx_usbhsotg_addrs[] = {
+	{
+		.pa_start	= OMAP34XX_HSUSB_OTG_BASE,
+		.pa_end		= OMAP34XX_HSUSB_OTG_BASE + SZ_4K - 1,
+		.flags		= ADDR_TYPE_RT
+	},
+};
+
+/* l4_core -> usbhsotg  */
+static struct omap_hwmod_ocp_if omap3xxx_l4_core__usbhsotg = {
+	.master		= &omap3xxx_l4_core_hwmod,
+	.slave		= &omap3xxx_usbhsotg_hwmod,
+	.clk		= "l4_ick",
+	.addr		= omap3xxx_usbhsotg_addrs,
+	.addr_cnt	= ARRAY_SIZE(omap3xxx_usbhsotg_addrs),
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_ocp_if *omap3xxx_usbhsotg_masters[] = {
+	&omap3xxx_usbhsotg__l3,
+};
+
+static struct omap_hwmod_ocp_if *omap3xxx_usbhsotg_slaves[] = {
+	&omap3xxx_l4_core__usbhsotg,
+};
+
+static struct omap_hwmod_addr_space am35xx_usbhsotg_addrs[] = {
+	{
+		.pa_start	= AM35XX_IPSS_USBOTGSS_BASE,
+		.pa_end		= AM35XX_IPSS_USBOTGSS_BASE + SZ_4K - 1,
+		.flags		= ADDR_TYPE_RT
+	},
+};
+
+/* l4_core -> usbhsotg  */
+static struct omap_hwmod_ocp_if am35xx_l4_core__usbhsotg = {
+	.master		= &omap3xxx_l4_core_hwmod,
+	.slave		= &am35xx_usbhsotg_hwmod,
+	.clk		= "l4_ick",
+	.addr		= am35xx_usbhsotg_addrs,
+	.addr_cnt	= ARRAY_SIZE(am35xx_usbhsotg_addrs),
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_ocp_if *am35xx_usbhsotg_masters[] = {
+	&am35xx_usbhsotg__l3,
+};
+
+static struct omap_hwmod_ocp_if *am35xx_usbhsotg_slaves[] = {
+	&am35xx_l4_core__usbhsotg,
+};
 /* Slave interfaces on the L4_CORE interconnect */
 static struct omap_hwmod_ocp_if *omap3xxx_l4_core_slaves[] = {
 	&omap3xxx_l3_main__l4_core,
@@ -1630,6 +1703,91 @@ static struct omap_hwmod omap34xx_mcspi4 = {
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 };
 
+/*
+ * usbhsotg
+ */
+static struct omap_hwmod_class_sysconfig omap3xxx_usbhsotg_sysc = {
+	.rev_offs	= 0x0400,
+	.sysc_offs	= 0x0404,
+	.syss_offs	= 0x0408,
+	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_MIDLEMODE|
+			  SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
+			  SYSC_HAS_AUTOIDLE),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
+			  MSTANDBY_FORCE | MSTANDBY_NO | MSTANDBY_SMART),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class usbotg_class = {
+	.name = "usbotg",
+	.sysc = &omap3xxx_usbhsotg_sysc,
+};
+/* usb_otg_hs */
+static struct omap_hwmod_irq_info omap3xxx_usbhsotg_mpu_irqs[] = {
+
+	{ .name = "mc", .irq = 92 },
+	{ .name = "dma", .irq = 93 },
+};
+
+static struct omap_hwmod omap3xxx_usbhsotg_hwmod = {
+	.name		= "usb_otg_hs",
+	.mpu_irqs	= omap3xxx_usbhsotg_mpu_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_usbhsotg_mpu_irqs),
+	.main_clk	= "hsotgusb_ick",
+	.prcm		= {
+		.omap2 = {
+			.prcm_reg_id = 1,
+			.module_bit = OMAP3430_EN_HSOTGUSB_SHIFT,
+			.module_offs = CORE_MOD,
+			.idlest_reg_id = 1,
+			.idlest_idle_bit = OMAP3430ES2_ST_HSOTGUSB_IDLE_SHIFT,
+			.idlest_stdby_bit = OMAP3430ES2_ST_HSOTGUSB_STDBY_SHIFT
+		},
+	},
+	.masters	= omap3xxx_usbhsotg_masters,
+	.masters_cnt	= ARRAY_SIZE(omap3xxx_usbhsotg_masters),
+	.slaves		= omap3xxx_usbhsotg_slaves,
+	.slaves_cnt	= ARRAY_SIZE(omap3xxx_usbhsotg_slaves),
+	.class		= &usbotg_class,
+
+	/*
+	 * Erratum ID: i479  idle_req / idle_ack mechanism potentially
+	 * broken when autoidle is enabled
+	 * workaround is to disable the autoidle bit at module level.
+	 */
+	.flags		= HWMOD_NO_OCP_AUTOIDLE | HWMOD_SWSUP_SIDLE
+				| HWMOD_SWSUP_MSTANDBY,
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430)
+};
+
+/* usb_otg_hs */
+static struct omap_hwmod_irq_info am35xx_usbhsotg_mpu_irqs[] = {
+
+	{ .name = "mc", .irq = 71 },
+};
+
+static struct omap_hwmod_class am35xx_usbotg_class = {
+	.name = "am35xx_usbotg",
+	.sysc = NULL,
+};
+
+static struct omap_hwmod am35xx_usbhsotg_hwmod = {
+	.name		= "am35x_otg_hs",
+	.mpu_irqs	= am35xx_usbhsotg_mpu_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(am35xx_usbhsotg_mpu_irqs),
+	.main_clk	= NULL,
+	.prcm = {
+		.omap2 = {
+		},
+	},
+	.masters	= am35xx_usbhsotg_masters,
+	.masters_cnt	= ARRAY_SIZE(am35xx_usbhsotg_masters),
+	.slaves		= am35xx_usbhsotg_slaves,
+	.slaves_cnt	= ARRAY_SIZE(am35xx_usbhsotg_slaves),
+	.class		= &am35xx_usbotg_class,
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430ES3_1)
+};
+
 static __initdata struct omap_hwmod *omap3xxx_hwmods[] = {
 	&omap3xxx_l3_main_hwmod,
 	&omap3xxx_l4_core_hwmod,
@@ -1667,6 +1825,13 @@ static __initdata struct omap_hwmod *omap3xxx_hwmods[] = {
 	&omap34xx_mcspi2,
 	&omap34xx_mcspi3,
 	&omap34xx_mcspi4,
+
+	/* usbotg class */
+	&omap3xxx_usbhsotg_hwmod,
+
+	/* usbotg for am35x */
+	&am35xx_usbhsotg_hwmod,
+
 	NULL,
 };
 
