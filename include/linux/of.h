@@ -103,7 +103,7 @@ extern void of_node_put(struct device_node *node);
 #endif
 
 /*
- * OF address retreival & translation
+ * OF address retrieval & translation
  */
 
 /* Helper to read a big number; size is in cells (not bytes) */
