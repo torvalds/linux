@@ -168,6 +168,18 @@ EXPORT_SYMBOL(ethtool_ntuple_flush);
 
 #define ETHTOOL_DEV_FEATURE_WORDS	1
 
+static void ethtool_get_features_compat(struct net_device *dev,
+	struct ethtool_get_features_block *features)
+{
+	if (!dev->ethtool_ops)
+		return;
+
+	/* getting RX checksum */
+	if (dev->ethtool_ops->get_rx_csum)
+		if (dev->ethtool_ops->get_rx_csum(dev))
+			features[0].active |= NETIF_F_RXCSUM;
+}
+
 static int ethtool_get_features(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_gfeatures cmd = {
@@ -184,6 +196,8 @@ static int ethtool_get_features(struct net_device *dev, void __user *useraddr)
 	};
 	u32 __user *sizeaddr;
 	u32 copy_size;
+
+	ethtool_get_features_compat(dev, features);
 
 	sizeaddr = useraddr + offsetof(struct ethtool_gfeatures, size);
 	if (get_user(copy_size, sizeaddr))
