@@ -95,13 +95,41 @@ nv50_graph_init_regs__nv(struct drm_device *dev)
 }
 
 static void
-nv50_graph_init_regs(struct drm_device *dev)
+nv50_graph_init_zcull(struct drm_device *dev)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	int i;
+
 	NV_DEBUG(dev, "\n");
 
-	nv_wr32(dev, NV04_PGRAPH_DEBUG_3,
-				(1 << 2) /* HW_CONTEXT_SWITCH_ENABLED */);
-	nv_wr32(dev, 0x402ca8, 0x800);
+	switch (dev_priv->chipset & 0xf0) {
+	case 0x50:
+	case 0x80:
+	case 0x90:
+		nv_wr32(dev, 0x402ca8, 0x00000800);
+		break;
+	case 0xa0:
+	default:
+		nv_wr32(dev, 0x402cc0, 0x00000000);
+		if (dev_priv->chipset == 0xa0 ||
+		    dev_priv->chipset == 0xaa ||
+		    dev_priv->chipset == 0xac) {
+			nv_wr32(dev, 0x402ca8, 0x00000802);
+		} else {
+			nv_wr32(dev, 0x402cc0, 0x00000000);
+			nv_wr32(dev, 0x402ca8, 0x00000002);
+		}
+
+		break;
+	}
+
+	/* zero out zcull regions */
+	for (i = 0; i < 8; i++) {
+		nv_wr32(dev, 0x402c20 + (i * 8), 0x00000000);
+		nv_wr32(dev, 0x402c24 + (i * 8), 0x00000000);
+		nv_wr32(dev, 0x402c28 + (i * 8), 0x00000000);
+		nv_wr32(dev, 0x402c2c + (i * 8), 0x00000000);
+	}
 }
 
 static int
@@ -136,6 +164,7 @@ nv50_graph_init_ctxctl(struct drm_device *dev)
 	}
 	kfree(cp);
 
+	nv_wr32(dev, 0x40008c, 0x00000004); /* HW_CTX_SWITCH_ENABLED */
 	nv_wr32(dev, 0x400320, 4);
 	nv_wr32(dev, NV40_PGRAPH_CTXCTL_CUR, 0);
 	nv_wr32(dev, NV20_PGRAPH_CHANNEL_CTX_POINTER, 0);
@@ -151,7 +180,7 @@ nv50_graph_init(struct drm_device *dev)
 
 	nv50_graph_init_reset(dev);
 	nv50_graph_init_regs__nv(dev);
-	nv50_graph_init_regs(dev);
+	nv50_graph_init_zcull(dev);
 
 	ret = nv50_graph_init_ctxctl(dev);
 	if (ret)
