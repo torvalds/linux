@@ -132,11 +132,11 @@ static int __init zfcp_module_init(void)
 	if (!zfcp_fc_req_cache)
 		goto out_fc_cache;
 
-	zfcp_data.scsi_transport_template =
+	zfcp_scsi_transport_template =
 		fc_attach_transport(&zfcp_transport_functions);
-	if (!zfcp_data.scsi_transport_template)
+	if (!zfcp_scsi_transport_template)
 		goto out_transport;
-	scsi_transport_reserve_device(zfcp_data.scsi_transport_template,
+	scsi_transport_reserve_device(zfcp_scsi_transport_template,
 				      sizeof(struct zfcp_scsi_dev));
 
 
@@ -160,7 +160,7 @@ static int __init zfcp_module_init(void)
 out_ccw_register:
 	misc_deregister(&zfcp_cfdc_misc);
 out_misc:
-	fc_release_transport(zfcp_data.scsi_transport_template);
+	fc_release_transport(zfcp_scsi_transport_template);
 out_transport:
 	kmem_cache_destroy(zfcp_fc_req_cache);
 out_fc_cache:
@@ -175,7 +175,7 @@ static void __exit zfcp_module_exit(void)
 {
 	ccw_driver_unregister(&zfcp_ccw_driver);
 	misc_deregister(&zfcp_cfdc_misc);
-	fc_release_transport(zfcp_data.scsi_transport_template);
+	fc_release_transport(zfcp_scsi_transport_template);
 	kmem_cache_destroy(zfcp_fc_req_cache);
 	kmem_cache_destroy(zfcp_fsf_qtcb_cache);
 }
@@ -413,7 +413,7 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	adapter->dma_parms.max_segment_size = ZFCP_QDIO_SBALE_LEN;
 	adapter->ccw_device->dev.dma_parms = &adapter->dma_parms;
 
-	if (!zfcp_adapter_scsi_register(adapter))
+	if (!zfcp_scsi_adapter_register(adapter))
 		return adapter;
 
 failed:
@@ -430,7 +430,7 @@ void zfcp_adapter_unregister(struct zfcp_adapter *adapter)
 	zfcp_destroy_adapter_work_queue(adapter);
 
 	zfcp_fc_wka_ports_force_offline(adapter->gs);
-	zfcp_adapter_scsi_unregister(adapter);
+	zfcp_scsi_adapter_unregister(adapter);
 	sysfs_remove_group(&cdev->dev.kobj, &zfcp_sysfs_adapter_attrs);
 
 	zfcp_erp_thread_kill(adapter);

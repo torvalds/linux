@@ -141,9 +141,9 @@ extern struct zfcp_fsf_req *zfcp_fsf_get_req(struct zfcp_qdio *,
 					     struct qdio_buffer *);
 
 /* zfcp_scsi.c */
-extern struct zfcp_data zfcp_data;
-extern int zfcp_adapter_scsi_register(struct zfcp_adapter *);
-extern void zfcp_adapter_scsi_unregister(struct zfcp_adapter *);
+extern struct scsi_transport_template *zfcp_scsi_transport_template;
+extern int zfcp_scsi_adapter_register(struct zfcp_adapter *);
+extern void zfcp_scsi_adapter_unregister(struct zfcp_adapter *);
 extern struct fc_function_template zfcp_transport_functions;
 extern void zfcp_scsi_rport_work(struct work_struct *);
 extern void zfcp_scsi_schedule_rport_register(struct zfcp_port *);

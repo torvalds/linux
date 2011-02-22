@@ -313,10 +313,4 @@ struct zfcp_fsf_req {
 	void			(*handler)(struct zfcp_fsf_req *);
 };
 
-/* driver data */
-struct zfcp_data {
-	struct scsi_host_template scsi_host_template;
-	struct scsi_transport_template *scsi_transport_template;
-};
-
 #endif /* ZFCP_DEF_H */
