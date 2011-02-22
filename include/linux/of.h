@@ -70,6 +70,11 @@ extern struct device_node *allnodes;
 extern struct device_node *of_chosen;
 extern rwlock_t devtree_lock;
 
+static inline bool of_have_populated_dt(void)
+{
+	return allnodes != NULL;
+}
+
 static inline bool of_node_is_root(const struct device_node *node)
 {
 	return node && (node->parent == NULL);
@@ -221,6 +226,13 @@ extern int prom_update_property(struct device_node *np,
 extern void of_attach_node(struct device_node *);
 extern void of_detach_node(struct device_node *);
 #endif
+
+#else
+
+static inline bool of_have_populated_dt(void)
+{
+	return false;
+}
 
 #endif /* CONFIG_OF */
 #endif /* _LINUX_OF_H */
