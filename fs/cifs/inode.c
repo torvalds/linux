@@ -878,7 +878,7 @@ retry_iget5_locked:
 }
 
 /* gets root inode */
-struct inode *cifs_root_iget(struct super_block *sb, unsigned long ino)
+struct inode *cifs_root_iget(struct super_block *sb)
 {
 	int xid;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
