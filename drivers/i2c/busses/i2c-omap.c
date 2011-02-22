@@ -1160,8 +1160,9 @@ static struct dev_pm_ops omap_i2c_pm_ops = {
 	.suspend = omap_i2c_suspend,
 	.resume = omap_i2c_resume,
 };
+#define OMAP_I2C_PM_OPS (&omap_i2c_pm_ops)
 #else
-#define omap_i2c_pm_ops NULL
+#define OMAP_I2C_PM_OPS NULL
 #endif
 
 static struct platform_driver omap_i2c_driver = {
@@ -1170,7 +1171,7 @@ static struct platform_driver omap_i2c_driver = {
 	.driver		= {
 		.name	= "omap_i2c",
 		.owner	= THIS_MODULE,
-		.pm     = &omap_i2c_pm_ops,
+		.pm	= OMAP_I2C_PM_OPS,
 	},
 };
 
