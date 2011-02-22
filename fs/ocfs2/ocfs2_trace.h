@@ -40,6 +40,23 @@ DEFINE_EVENT(ocfs2__uint, name,	\
 	TP_PROTO(unsigned int num),	\
 	TP_ARGS(num))
 
+DECLARE_EVENT_CLASS(ocfs2__ull,
+	TP_PROTO(unsigned long long blkno),
+	TP_ARGS(blkno),
+	TP_STRUCT__entry(
+		__field(unsigned long long, blkno)
+	),
+	TP_fast_assign(
+		__entry->blkno = blkno;
+	),
+	TP_printk("%llu", __entry->blkno)
+);
+
+#define DEFINE_OCFS2_ULL_EVENT(name)	\
+DEFINE_EVENT(ocfs2__ull, name,	\
+	TP_PROTO(unsigned long long num),	\
+	TP_ARGS(num))
+
 DECLARE_EVENT_CLASS(ocfs2__int_int,
 	TP_PROTO(int value1, int value2),
 	TP_ARGS(value1, value2),
@@ -57,6 +74,25 @@ DECLARE_EVENT_CLASS(ocfs2__int_int,
 #define DEFINE_OCFS2_INT_INT_EVENT(name)	\
 DEFINE_EVENT(ocfs2__int_int, name,	\
 	TP_PROTO(int val1, int val2),	\
+	TP_ARGS(val1, val2))
+
+DECLARE_EVENT_CLASS(ocfs2__uint_uint,
+	TP_PROTO(unsigned int value1, unsigned int value2),
+	TP_ARGS(value1, value2),
+	TP_STRUCT__entry(
+		__field(unsigned int, value1)
+		__field(unsigned int, value2)
+	),
+	TP_fast_assign(
+		__entry->value1 = value1;
+		__entry->value2 = value2;
+	),
+	TP_printk("%u %u", __entry->value1, __entry->value2)
+);
+
+#define DEFINE_OCFS2_UINT_UINT_EVENT(name)	\
+DEFINE_EVENT(ocfs2__uint_uint, name,	\
+	TP_PROTO(unsigned int val1, unsigned int val2),	\
 	TP_ARGS(val1, val2))
 
 DECLARE_EVENT_CLASS(ocfs2__ull_uint,
@@ -77,6 +113,49 @@ DECLARE_EVENT_CLASS(ocfs2__ull_uint,
 DEFINE_EVENT(ocfs2__ull_uint, name,	\
 	TP_PROTO(unsigned long long val1, unsigned int val2),	\
 	TP_ARGS(val1, val2))
+
+DECLARE_EVENT_CLASS(ocfs2__ull_ull,
+	TP_PROTO(unsigned long long value1, unsigned long long value2),
+	TP_ARGS(value1, value2),
+	TP_STRUCT__entry(
+		__field(unsigned long long, value1)
+		__field(unsigned long long, value2)
+	),
+	TP_fast_assign(
+		__entry->value1 = value1;
+		__entry->value2 = value2;
+	),
+	TP_printk("%llu %llu", __entry->value1, __entry->value2)
+);
+
+#define DEFINE_OCFS2_ULL_ULL_EVENT(name)	\
+DEFINE_EVENT(ocfs2__ull_ull, name,	\
+	TP_PROTO(unsigned long long val1, unsigned long long val2),	\
+	TP_ARGS(val1, val2))
+
+DECLARE_EVENT_CLASS(ocfs2__ull_uint_uint,
+	TP_PROTO(unsigned long long value1,
+		 unsigned int value2, unsigned int value3),
+	TP_ARGS(value1, value2, value3),
+	TP_STRUCT__entry(
+		__field(unsigned long long, value1)
+		__field(unsigned int, value2)
+		__field(unsigned int, value3)
+	),
+	TP_fast_assign(
+		__entry->value1 = value1;
+		__entry->value2 = value2;
+		__entry->value3	= value3;
+	),
+	TP_printk("%llu %u %u", __entry->value1,
+		  __entry->value2, __entry->value3)
+);
+
+#define DEFINE_OCFS2_ULL_UINT_UINT_EVENT(name)	\
+DEFINE_EVENT(ocfs2__ull_uint_uint, name,	\
+	TP_PROTO(unsigned long long val1,	\
+		 unsigned int val2, unsigned int val3),	\
+	TP_ARGS(val1, val2, val3))
 
 DECLARE_EVENT_CLASS(ocfs2__uint_uint_uint,
 	TP_PROTO(unsigned int value1, unsigned int value2,
@@ -125,6 +204,33 @@ DECLARE_EVENT_CLASS(ocfs2__ull_int_int_int,
 DEFINE_EVENT(ocfs2__ull_int_int_int, name,	\
 	TP_PROTO(unsigned long long ull, int value1,	\
 		 int value2, int value3),	\
+	TP_ARGS(ull, value1, value2, value3))
+
+DECLARE_EVENT_CLASS(ocfs2__ull_uint_uint_uint,
+	TP_PROTO(unsigned long long ull, unsigned int value1,
+		 unsigned int value2, unsigned int value3),
+	TP_ARGS(ull, value1, value2, value3),
+	TP_STRUCT__entry(
+		__field(unsigned long long, ull)
+		__field(unsigned int, value1)
+		__field(unsigned int, value2)
+		__field(unsigned int, value3)
+	),
+	TP_fast_assign(
+		__entry->ull = ull;
+		__entry->value1 = value1;
+		__entry->value2	= value2;
+		__entry->value3	= value3;
+	),
+	TP_printk("%llu %u %u %u",
+		  __entry->ull, __entry->value1,
+		  __entry->value2, __entry->value3)
+);
+
+#define DEFINE_OCFS2_ULL_UINT_UINT_UINT_EVENT(name)	\
+DEFINE_EVENT(ocfs2__ull_uint_uint_uint, name,	\
+	TP_PROTO(unsigned long long ull, unsigned int value1,	\
+		 unsigned int value2, unsigned int value3),	\
 	TP_ARGS(ull, value1, value2, value3))
 
 /* Trace events for fs/ocfs2/alloc.c. */
@@ -483,6 +589,112 @@ DEFINE_OCFS2_INT_INT_EVENT(ocfs2_local_alloc_new_window);
 DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_local_alloc_new_window_result);
 
 /* End of trace events for fs/ocfs2/localalloc.c. */
+
+/* Trace events for fs/ocfs2/suballoc.c. */
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_validate_group_descriptor);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_block_group_alloc_contig);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_block_group_alloc_discontig);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_block_group_alloc);
+
+DEFINE_OCFS2_UINT_UINT_EVENT(ocfs2_reserve_suballoc_bits_nospc);
+
+DEFINE_OCFS2_UINT_UINT_UINT_EVENT(ocfs2_reserve_suballoc_bits_no_new_group);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_reserve_new_inode_new_group);
+
+DEFINE_OCFS2_UINT_UINT_EVENT(ocfs2_block_group_set_bits);
+
+TRACE_EVENT(ocfs2_relink_block_group,
+	TP_PROTO(unsigned long long i_blkno, unsigned int chain,
+		 unsigned long long bg_blkno,
+		 unsigned long long prev_blkno),
+	TP_ARGS(i_blkno, chain, bg_blkno, prev_blkno),
+	TP_STRUCT__entry(
+		__field(unsigned long long, i_blkno)
+		__field(unsigned int, chain)
+		__field(unsigned long long, bg_blkno)
+		__field(unsigned long long, prev_blkno)
+	),
+	TP_fast_assign(
+		__entry->i_blkno = i_blkno;
+		__entry->chain = chain;
+		__entry->bg_blkno = bg_blkno;
+		__entry->prev_blkno = prev_blkno;
+	),
+	TP_printk("%llu %u %llu %llu",
+		  __entry->i_blkno, __entry->chain, __entry->bg_blkno,
+		  __entry->prev_blkno)
+);
+
+DEFINE_OCFS2_ULL_UINT_UINT_UINT_EVENT(ocfs2_cluster_group_search_wrong_max_bits);
+
+DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_cluster_group_search_max_block);
+
+DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_block_group_search_max_block);
+
+DEFINE_OCFS2_ULL_UINT_UINT_EVENT(ocfs2_search_chain_begin);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_search_chain_succ);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_search_chain_end);
+
+DEFINE_OCFS2_UINT_EVENT(ocfs2_claim_suballoc_bits);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_claim_new_inode_at_loc);
+
+DEFINE_OCFS2_UINT_UINT_EVENT(ocfs2_block_group_clear_bits);
+
+TRACE_EVENT(ocfs2_free_suballoc_bits,
+	TP_PROTO(unsigned long long inode, unsigned long long group,
+		 unsigned int start_bit, unsigned int count),
+	TP_ARGS(inode, group, start_bit, count),
+	TP_STRUCT__entry(
+		__field(unsigned long long, inode)
+		__field(unsigned long long, group)
+		__field(unsigned int, start_bit)
+		__field(unsigned int, count)
+	),
+	TP_fast_assign(
+		__entry->inode = inode;
+		__entry->group = group;
+		__entry->start_bit = start_bit;
+		__entry->count = count;
+	),
+	TP_printk("%llu %llu %u %u", __entry->inode, __entry->group,
+		  __entry->start_bit, __entry->count)
+);
+
+TRACE_EVENT(ocfs2_free_clusters,
+	TP_PROTO(unsigned long long bg_blkno, unsigned long long start_blk,
+		 unsigned int start_bit, unsigned int count),
+	TP_ARGS(bg_blkno, start_blk, start_bit, count),
+	TP_STRUCT__entry(
+		__field(unsigned long long, bg_blkno)
+		__field(unsigned long long, start_blk)
+		__field(unsigned int, start_bit)
+		__field(unsigned int, count)
+	),
+	TP_fast_assign(
+		__entry->bg_blkno = bg_blkno;
+		__entry->start_blk = start_blk;
+		__entry->start_bit = start_bit;
+		__entry->count = count;
+	),
+	TP_printk("%llu %llu %u %u", __entry->bg_blkno, __entry->start_blk,
+		  __entry->start_bit, __entry->count)
+);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_get_suballoc_slot_bit);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_test_suballoc_bit);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_test_inode_bit);
+
+/* End of trace events for fs/ocfs2/suballoc.c. */
 #endif /* _TRACE_OCFS2_H */
 
 /* This part must be outside protection */
