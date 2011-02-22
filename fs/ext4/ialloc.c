@@ -649,7 +649,7 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 		*group = parent_group + flex_size;
 		if (*group > ngroups)
 			*group = 0;
-		return find_group_orlov(sb, parent, group, mode, 0);
+		return find_group_orlov(sb, parent, group, mode, NULL);
 	}
 
 	/*

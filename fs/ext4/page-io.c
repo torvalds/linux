@@ -279,9 +279,9 @@ void ext4_io_submit(struct ext4_io_submit *io)
 		BUG_ON(bio_flagged(io->io_bio, BIO_EOPNOTSUPP));
 		bio_put(io->io_bio);
 	}
-	io->io_bio = 0;
+	io->io_bio = NULL;
 	io->io_op = 0;
-	io->io_end = 0;
+	io->io_end = NULL;
 }
 
 static int io_submit_init(struct ext4_io_submit *io,

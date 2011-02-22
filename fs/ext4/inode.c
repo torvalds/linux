@@ -720,7 +720,7 @@ allocated:
 	return ret;
 failed_out:
 	for (i = 0; i < index; i++)
-		ext4_free_blocks(handle, inode, 0, new_blocks[i], 1, 0);
+		ext4_free_blocks(handle, inode, NULL, new_blocks[i], 1, 0);
 	return ret;
 }
 
@@ -823,20 +823,20 @@ static int ext4_alloc_branch(handle_t *handle, struct inode *inode,
 	return err;
 failed:
 	/* Allocation failed, free what we already allocated */
-	ext4_free_blocks(handle, inode, 0, new_blocks[0], 1, 0);
+	ext4_free_blocks(handle, inode, NULL, new_blocks[0], 1, 0);
 	for (i = 1; i <= n ; i++) {
 		/*
 		 * branch[i].bh is newly allocated, so there is no
 		 * need to revoke the block, which is why we don't
 		 * need to set EXT4_FREE_BLOCKS_METADATA.
 		 */
-		ext4_free_blocks(handle, inode, 0, new_blocks[i], 1,
+		ext4_free_blocks(handle, inode, NULL, new_blocks[i], 1,
 				 EXT4_FREE_BLOCKS_FORGET);
 	}
 	for (i = n+1; i < indirect_blks; i++)
-		ext4_free_blocks(handle, inode, 0, new_blocks[i], 1, 0);
+		ext4_free_blocks(handle, inode, NULL, new_blocks[i], 1, 0);
 
-	ext4_free_blocks(handle, inode, 0, new_blocks[i], num, 0);
+	ext4_free_blocks(handle, inode, NULL, new_blocks[i], num, 0);
 
 	return err;
 }
@@ -924,7 +924,7 @@ err_out:
 		ext4_free_blocks(handle, inode, where[i].bh, 0, 1,
 				 EXT4_FREE_BLOCKS_FORGET);
 	}
-	ext4_free_blocks(handle, inode, 0, le32_to_cpu(where[num].key),
+	ext4_free_blocks(handle, inode, NULL, le32_to_cpu(where[num].key),
 			 blks, 0);
 
 	return err;
@@ -4228,7 +4228,7 @@ static int ext4_clear_blocks(handle_t *handle, struct inode *inode,
 	for (p = first; p < last; p++)
 		*p = 0;
 
-	ext4_free_blocks(handle, inode, 0, block_to_free, count, flags);
+	ext4_free_blocks(handle, inode, NULL, block_to_free, count, flags);
 	return 0;
 }
 
@@ -4416,7 +4416,7 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 			 * transaction where the data blocks are
 			 * actually freed.
 			 */
-			ext4_free_blocks(handle, inode, 0, nr, 1,
+			ext4_free_blocks(handle, inode, NULL, nr, 1,
 					 EXT4_FREE_BLOCKS_METADATA|
 					 EXT4_FREE_BLOCKS_FORGET);
 
@@ -4875,7 +4875,7 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 		return inode;
 
 	ei = EXT4_I(inode);
-	iloc.bh = 0;
+	iloc.bh = NULL;
 
 	ret = __ext4_get_inode_loc(inode, &iloc, 0);
 	if (ret < 0)
