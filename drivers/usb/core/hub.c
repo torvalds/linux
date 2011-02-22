@@ -1499,6 +1499,13 @@ void usb_set_device_state(struct usb_device *udev,
 EXPORT_SYMBOL_GPL(usb_set_device_state);
 
 /*
+ * Choose a device number.
+ *
+ * Device numbers are used as filenames in usbfs.  On USB-1.1 and
+ * USB-2.0 buses they are also used as device addresses, however on
+ * USB-3.0 buses the address is assigned by the controller hardware
+ * and it usually is not the same as the device number.
+ *
  * WUSB devices are simple: they have no hubs behind, so the mapping
  * device <-> virtual port number becomes 1:1. Why? to simplify the
  * life of the device connection logic in
@@ -1520,7 +1527,7 @@ EXPORT_SYMBOL_GPL(usb_set_device_state);
  * the HCD must setup data structures before issuing a set address
  * command to the hardware.
  */
-static void choose_address(struct usb_device *udev)
+static void choose_devnum(struct usb_device *udev)
 {
 	int		devnum;
 	struct usb_bus	*bus = udev->bus;
@@ -1545,7 +1552,7 @@ static void choose_address(struct usb_device *udev)
 	}
 }
 
-static void release_address(struct usb_device *udev)
+static void release_devnum(struct usb_device *udev)
 {
 	if (udev->devnum > 0) {
 		clear_bit(udev->devnum, udev->bus->devmap.devicemap);
@@ -1553,7 +1560,7 @@ static void release_address(struct usb_device *udev)
 	}
 }
 
-static void update_address(struct usb_device *udev, int devnum)
+static void update_devnum(struct usb_device *udev, int devnum)
 {
 	/* The address for a WUSB device is managed by wusbcore. */
 	if (!udev->wusb)
@@ -1600,7 +1607,8 @@ void usb_disconnect(struct usb_device **pdev)
 	 * this quiesces everyting except pending urbs.
 	 */
 	usb_set_device_state(udev, USB_STATE_NOTATTACHED);
-	dev_info (&udev->dev, "USB disconnect, address %d\n", udev->devnum);
+	dev_info(&udev->dev, "USB disconnect, device number %d\n",
+			udev->devnum);
 
 	usb_lock_device(udev);
 
@@ -1630,7 +1638,7 @@ void usb_disconnect(struct usb_device **pdev)
 	/* Free the device number and delete the parent's children[]
 	 * (or root_hub) pointer.
 	 */
-	release_address(udev);
+	release_devnum(udev);
 
 	/* Avoid races with recursively_mark_NOTATTACHED() */
 	spin_lock_irq(&device_state_lock);
@@ -2071,7 +2079,7 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 		case 0:
 			/* TRSTRCY = 10 ms; plus some extra */
 			msleep(10 + 40);
-			update_address(udev, 0);
+			update_devnum(udev, 0);
 			if (hcd->driver->reset_device) {
 				status = hcd->driver->reset_device(hcd, udev);
 				if (status < 0) {
@@ -2634,7 +2642,7 @@ static int hub_set_address(struct usb_device *udev, int devnum)
 				USB_REQ_SET_ADDRESS, 0, devnum, 0,
 				NULL, 0, USB_CTRL_SET_TIMEOUT);
 	if (retval == 0) {
-		update_address(udev, devnum);
+		update_devnum(udev, devnum);
 		/* Device now using proper address. */
 		usb_set_device_state(udev, USB_STATE_ADDRESS);
 		usb_ep0_reinit(udev);
@@ -2743,9 +2751,9 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	}
 	if (udev->speed != USB_SPEED_SUPER)
 		dev_info(&udev->dev,
-				"%s %s speed %sUSB device using %s and address %d\n",
+				"%s %s speed %sUSB device number %d using %s\n",
 				(udev->config) ? "reset" : "new", speed, type,
-				udev->bus->controller->driver->name, devnum);
+				devnum, udev->bus->controller->driver->name);
 
 	/* Set up TT records, if needed  */
 	if (hdev->tt) {
@@ -2775,10 +2783,6 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	 * value.
 	 */
 	for (i = 0; i < GET_DESCRIPTOR_TRIES; (++i, msleep(100))) {
-		/*
-		 * An xHCI controller cannot send any packets to a device until
-		 * a set address command successfully completes.
-		 */
 		if (USE_NEW_SCHEME(retry_counter) && !(hcd->driver->flags & HCD_USB3)) {
 			struct usb_device_descriptor *buf;
 			int r = 0;
@@ -2861,9 +2865,9 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 			if (udev->speed == USB_SPEED_SUPER) {
 				devnum = udev->devnum;
 				dev_info(&udev->dev,
-						"%s SuperSpeed USB device using %s and address %d\n",
+						"%s SuperSpeed USB device number %d using %s\n",
 						(udev->config) ? "reset" : "new",
-						udev->bus->controller->driver->name, devnum);
+						devnum, udev->bus->controller->driver->name);
 			}
 
 			/* cope with hardware quirkiness:
@@ -2926,7 +2930,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 fail:
 	if (retval) {
 		hub_port_disable(hub, port1, 0);
-		update_address(udev, devnum);	/* for disconnect processing */
+		update_devnum(udev, devnum);	/* for disconnect processing */
 	}
 	mutex_unlock(&usb_address0_mutex);
 	return retval;
@@ -3135,15 +3139,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 		else
 			udev->speed = USB_SPEED_UNKNOWN;
 
-		/*
-		 * Set the address.
-		 * Note xHCI needs to issue an address device command later
-		 * in the hub_port_init sequence for SS/HS/FS/LS devices,
-		 * and xHC will assign an address to the device. But use
-		 * kernel assigned address here, to avoid any address conflict
-		 * issue.
-		 */
-		choose_address(udev);
+		choose_devnum(udev);
 		if (udev->devnum <= 0) {
 			status = -ENOTCONN;	/* Don't retry */
 			goto loop;
@@ -3235,7 +3231,7 @@ loop_disable:
 		hub_port_disable(hub, port1, 1);
 loop:
 		usb_ep0_reinit(udev);
-		release_address(udev);
+		release_devnum(udev);
 		hub_free_dev(udev);
 		usb_put_dev(udev);
 		if ((status == -ENOTCONN) || (status == -ENOTSUPP))
