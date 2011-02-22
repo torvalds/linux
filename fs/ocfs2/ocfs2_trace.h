@@ -114,6 +114,25 @@ DEFINE_EVENT(ocfs2__ull_uint, name,	\
 	TP_PROTO(unsigned long long val1, unsigned int val2),	\
 	TP_ARGS(val1, val2))
 
+DECLARE_EVENT_CLASS(ocfs2__ull_int,
+	TP_PROTO(unsigned long long value1, int value2),
+	TP_ARGS(value1, value2),
+	TP_STRUCT__entry(
+		__field(unsigned long long, value1)
+		__field(int, value2)
+	),
+	TP_fast_assign(
+		__entry->value1	= value1;
+		__entry->value2	= value2;
+	),
+	TP_printk("%llu %d", __entry->value1, __entry->value2)
+);
+
+#define DEFINE_OCFS2_ULL_INT_EVENT(name)	\
+DEFINE_EVENT(ocfs2__ull_int, name,	\
+	TP_PROTO(unsigned long long val1, int val2),	\
+	TP_ARGS(val1, val2))
+
 DECLARE_EVENT_CLASS(ocfs2__ull_ull,
 	TP_PROTO(unsigned long long value1, unsigned long long value2),
 	TP_ARGS(value1, value2),
@@ -1354,6 +1373,123 @@ DEFINE_OCFS2_INT_EVENT(generic_file_aio_read_ret);
 
 /* End of trace events for fs/ocfs2/file.c. */
 
+/* Trace events for fs/ocfs2/inode.c. */
+
+TRACE_EVENT(ocfs2_iget_begin,
+	TP_PROTO(unsigned long long ino, unsigned int flags, int sysfile_type),
+	TP_ARGS(ino, flags, sysfile_type),
+	TP_STRUCT__entry(
+		__field(unsigned long long, ino)
+		__field(unsigned int, flags)
+		__field(int, sysfile_type)
+	),
+	TP_fast_assign(
+		__entry->ino = ino;
+		__entry->flags = flags;
+		__entry->sysfile_type = sysfile_type;
+	),
+	TP_printk("%llu %u %d", __entry->ino,
+		  __entry->flags, __entry->sysfile_type)
+);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_iget5_locked);
+
+TRACE_EVENT(ocfs2_iget_end,
+	TP_PROTO(void *inode, unsigned long long ino),
+	TP_ARGS(inode, ino),
+	TP_STRUCT__entry(
+		__field(void *, inode)
+		__field(unsigned long long, ino)
+	),
+	TP_fast_assign(
+		__entry->inode = inode;
+		__entry->ino = ino;
+	),
+	TP_printk("%p %llu", __entry->inode, __entry->ino)
+);
+
+TRACE_EVENT(ocfs2_find_actor,
+	TP_PROTO(void *inode, unsigned long long ino,
+		 void *args,  unsigned long long fi_blkno),
+	TP_ARGS(inode, ino, args, fi_blkno),
+	TP_STRUCT__entry(
+		__field(void *, inode)
+		__field(unsigned long long, ino)
+		__field(void *, args)
+		__field(unsigned long long, fi_blkno)
+	),
+	TP_fast_assign(
+		__entry->inode = inode;
+		__entry->ino = ino;
+		__entry->args = args;
+		__entry->fi_blkno = fi_blkno;
+	),
+	TP_printk("%p %llu %p %llu", __entry->inode, __entry->ino,
+		  __entry->args, __entry->fi_blkno)
+);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_populate_inode);
+
+DEFINE_OCFS2_ULL_INT_EVENT(ocfs2_read_locked_inode);
+
+DEFINE_OCFS2_INT_INT_EVENT(ocfs2_check_orphan_recovery_state);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_validate_inode_block);
+
+TRACE_EVENT(ocfs2_inode_is_valid_to_delete,
+	TP_PROTO(void *task, void *dc_task, unsigned long long ino,
+		 unsigned int flags),
+	TP_ARGS(task, dc_task, ino, flags),
+	TP_STRUCT__entry(
+		__field(void *, task)
+		__field(void *, dc_task)
+		__field(unsigned long long, ino)
+		__field(unsigned int, flags)
+	),
+	TP_fast_assign(
+		__entry->task = task;
+		__entry->dc_task = dc_task;
+		__entry->ino = ino;
+		__entry->flags = flags;
+	),
+	TP_printk("%p %p %llu %u", __entry->task, __entry->dc_task,
+		  __entry->ino, __entry->flags)
+);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_query_inode_wipe_begin);
+
+DEFINE_OCFS2_UINT_EVENT(ocfs2_query_inode_wipe_succ);
+
+DEFINE_OCFS2_INT_INT_EVENT(ocfs2_query_inode_wipe_end);
+
+DEFINE_OCFS2_ULL_INT_EVENT(ocfs2_cleanup_delete_inode);
+
+DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_delete_inode);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_clear_inode);
+
+DEFINE_OCFS2_ULL_UINT_UINT_EVENT(ocfs2_drop_inode);
+
+TRACE_EVENT(ocfs2_inode_revalidate,
+	TP_PROTO(void *inode, unsigned long long ino,
+		 unsigned int flags),
+	TP_ARGS(inode, ino, flags),
+	TP_STRUCT__entry(
+		__field(void *, inode)
+		__field(unsigned long long, ino)
+		__field(unsigned int, flags)
+	),
+	TP_fast_assign(
+		__entry->inode = inode;
+		__entry->ino = ino;
+		__entry->flags = flags;
+	),
+	TP_printk("%p %llu %u", __entry->inode, __entry->ino, __entry->flags)
+);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_mark_inode_dirty);
+
+/* End of trace events for fs/ocfs2/inode.c. */
 #endif /* _TRACE_OCFS2_H */
 
 /* This part must be outside protection */
