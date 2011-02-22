@@ -489,6 +489,11 @@ static struct clk init_clocks_off[] = {
 		.enable		= exynos4_clk_ip_peril_ctrl,
 		.ctrlbit	= (1 << 15),
 	}, {
+		.name		= "keypad",
+		.id		= -1,
+		.enable		= exynos4_clk_ip_perir_ctrl,
+		.ctrlbit	= (1 << 16),
+	}, {
 		.name		= "rtc",
 		.id		= -1,
 		.enable		= exynos4_clk_ip_perir_ctrl,
