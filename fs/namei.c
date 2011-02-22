@@ -1520,59 +1520,6 @@ return_err:
 	return err;
 }
 
-static inline int path_walk_rcu(const char *name, struct nameidata *nd)
-{
-	current->total_link_count = 0;
-
-	return link_path_walk(name, nd);
-}
-
-static inline int path_walk_simple(const char *name, struct nameidata *nd)
-{
-	current->total_link_count = 0;
-
-	return link_path_walk(name, nd);
-}
-
-static int path_walk(const char *name, struct nameidata *nd)
-{
-	struct path save = nd->path;
-	int result;
-
-	current->total_link_count = 0;
-
-	/* make sure the stuff we saved doesn't go away */
-	path_get(&save);
-
-	result = link_path_walk(name, nd);
-	if (result == -ESTALE) {
-		/* nd->path had been dropped */
-		current->total_link_count = 0;
-		nd->path = save;
-		nd->inode = save.dentry->d_inode;
-		path_get(&nd->path);
-		nd->flags |= LOOKUP_REVAL;
-		result = link_path_walk(name, nd);
-	}
-
-	path_put(&save);
-
-	return result;
-}
-
-static void path_finish_rcu(struct nameidata *nd)
-{
-	if (nd->flags & LOOKUP_RCU) {
-		/* RCU dangling. Cancel it. */
-		nd->flags &= ~LOOKUP_RCU;
-		nd->root.mnt = NULL;
-		rcu_read_unlock();
-		br_read_unlock(vfsmount_lock);
-	}
-	if (nd->file)
-		fput(nd->file);
-}
-
 static int path_init_rcu(int dfd, const char *name, unsigned int flags, struct nameidata *nd)
 {
 	int retval = 0;
@@ -1697,7 +1644,7 @@ out_fail:
 }
 
 /* Returns 0 and nd will be valid on success; Retuns error, otherwise. */
-static int do_path_lookup(int dfd, const char *name,
+static int path_lookupat(int dfd, const char *name,
 				unsigned int flags, struct nameidata *nd)
 {
 	int retval;
@@ -1716,29 +1663,45 @@ static int do_path_lookup(int dfd, const char *name,
 	 * be handled by restarting a traditional ref-walk (which will always
 	 * be able to complete).
 	 */
-	retval = path_init_rcu(dfd, name, flags, nd);
+	if (flags & LOOKUP_RCU)
+		retval = path_init_rcu(dfd, name, flags, nd);
+	else
+		retval = path_init(dfd, name, flags, nd);
+
 	if (unlikely(retval))
 		return retval;
-	retval = path_walk_rcu(name, nd);
-	path_finish_rcu(nd);
+
+	current->total_link_count = 0;
+	retval = link_path_walk(name, nd);
+
+	if (nd->flags & LOOKUP_RCU) {
+		/* RCU dangling. Cancel it. */
+		nd->flags &= ~LOOKUP_RCU;
+		nd->root.mnt = NULL;
+		rcu_read_unlock();
+		br_read_unlock(vfsmount_lock);
+	}
+
+	if (nd->file) {
+		fput(nd->file);
+		nd->file = NULL;
+	}
+
 	if (nd->root.mnt) {
 		path_put(&nd->root);
 		nd->root.mnt = NULL;
 	}
+	return retval;
+}
 
-	if (unlikely(retval == -ECHILD || retval == -ESTALE)) {
-		/* slower, locked walk */
-		if (retval == -ESTALE)
-			flags |= LOOKUP_REVAL;
-		retval = path_init(dfd, name, flags, nd);
-		if (unlikely(retval))
-			return retval;
-		retval = path_walk(name, nd);
-		if (nd->root.mnt) {
-			path_put(&nd->root);
-			nd->root.mnt = NULL;
-		}
-	}
+static int do_path_lookup(int dfd, const char *name,
+				unsigned int flags, struct nameidata *nd)
+{
+	int retval = path_lookupat(dfd, name, flags | LOOKUP_RCU, nd);
+	if (unlikely(retval == -ECHILD))
+		retval = path_lookupat(dfd, name, flags, nd);
+	if (unlikely(retval == -ESTALE))
+		retval = path_lookupat(dfd, name, flags | LOOKUP_REVAL, nd);
 
 	if (likely(!retval)) {
 		if (unlikely(!audit_dummy_context())) {
@@ -1746,7 +1709,6 @@ static int do_path_lookup(int dfd, const char *name,
 				audit_inode(name, nd->path.dentry);
 		}
 	}
-
 	return retval;
 }
 
@@ -1776,7 +1738,7 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 		    const char *name, unsigned int flags,
 		    struct nameidata *nd)
 {
-	int retval;
+	int result;
 
 	/* same as do_path_lookup */
 	nd->last_type = LAST_ROOT;
@@ -1790,15 +1752,27 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 	path_get(&nd->root);
 	nd->inode = nd->path.dentry->d_inode;
 
-	retval = path_walk(name, nd);
-	if (unlikely(!retval && !audit_dummy_context() && nd->path.dentry &&
+	current->total_link_count = 0;
+
+	result = link_path_walk(name, nd);
+	if (result == -ESTALE) {
+		/* nd->path had been dropped */
+		current->total_link_count = 0;
+		nd->path.dentry = dentry;
+		nd->path.mnt = mnt;
+		nd->inode = dentry->d_inode;
+		path_get(&nd->path);
+		nd->flags |= LOOKUP_REVAL;
+		result = link_path_walk(name, nd);
+	}
+	if (unlikely(!result && !audit_dummy_context() && nd->path.dentry &&
 				nd->inode))
 		audit_inode(name, nd->path.dentry);
 
 	path_put(&nd->root);
 	nd->root.mnt = NULL;
 
-	return retval;
+	return result;
 }
 
 static struct dentry *__lookup_hash(struct qstr *name,
@@ -2483,24 +2457,14 @@ out_filp2:
 
 creat:
 	/* OK, have to create the file. Find the parent. */
-	error = path_init_rcu(dfd, pathname,
-			LOOKUP_PARENT | (flags & LOOKUP_REVAL), &nd);
-	if (error)
-		goto out_filp;
-	error = path_walk_rcu(pathname, &nd);
-	path_finish_rcu(&nd);
-	if (unlikely(error == -ECHILD || error == -ESTALE)) {
-		/* slower, locked walk */
-		if (error == -ESTALE) {
+	error = path_lookupat(dfd, pathname, LOOKUP_PARENT | LOOKUP_RCU, &nd);
+	if (unlikely(error == -ECHILD))
+		error = path_lookupat(dfd, pathname, LOOKUP_PARENT, &nd);
+	if (unlikely(error == -ESTALE)) {
 reval:
-			flags |= LOOKUP_REVAL;
-		}
-		error = path_init(dfd, pathname,
-				LOOKUP_PARENT | (flags & LOOKUP_REVAL), &nd);
-		if (error)
-			goto out_filp;
-
-		error = path_walk_simple(pathname, &nd);
+		flags |= LOOKUP_REVAL;
+		error = path_lookupat(dfd, pathname,
+				LOOKUP_PARENT | LOOKUP_REVAL, &nd);
 	}
 	if (unlikely(error))
 		goto out_filp;
