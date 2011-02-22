@@ -1239,7 +1239,7 @@ static int __devexit kxtf9_remove(struct i2c_client *client)
 	kxtf9_device_power_off(tf9);
 	if (tf9->regulator)
 		regulator_put(tf9->regulator);
-	cancel_work_sync(&tf9->input_work);
+	cancel_delayed_work_sync(&tf9->input_work);
 	destroy_workqueue(tf9->input_work_queue);
 	kfree(tf9->pdata);
 	destroy_workqueue(tf9->irq_work_queue);
