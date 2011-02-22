@@ -86,9 +86,11 @@ static struct device_attribute xenbus_frontend_dev_attrs[] = {
 };
 
 static const struct dev_pm_ops xenbus_pm_ops = {
-	.suspend = xenbus_dev_suspend,
-	.resume  = xenbus_dev_resume,
-	.thaw  = xenbus_dev_cancel,
+	.suspend	= xenbus_dev_suspend,
+	.resume		= xenbus_dev_resume,
+	.freeze		= xenbus_dev_suspend,
+	.thaw		= xenbus_dev_cancel,
+	.restore	= xenbus_dev_resume,
 };
 
 static struct xen_bus_type xenbus_frontend = {
