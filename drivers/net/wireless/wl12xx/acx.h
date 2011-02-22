@@ -1155,6 +1155,13 @@ struct wl1271_acx_config_ps {
 	__le32 null_data_rate;
 } __packed;
 
+struct wl1271_acx_inconnection_sta {
+	struct acx_header header;
+
+	u8 addr[ETH_ALEN];
+	u8 padding1[2];
+} __packed;
+
 enum {
 	ACX_WAKE_UP_CONDITIONS      = 0x0002,
 	ACX_MEM_CFG                 = 0x0003,
@@ -1215,6 +1222,7 @@ enum {
 	ACX_GEN_FW_CMD              = 0x0070,
 	ACX_HOST_IF_CFG_BITMAP      = 0x0071,
 	ACX_MAX_TX_FAILURE          = 0x0072,
+	ACX_UPDATE_INCONNECTION_STA_LIST = 0x0073,
 	DOT11_RX_MSDU_LIFE_TIME     = 0x1004,
 	DOT11_CUR_TX_PWR            = 0x100D,
 	DOT11_RX_DOT11_MODE         = 0x1012,
@@ -1290,5 +1298,6 @@ int wl1271_acx_set_ba_receiver_session(struct wl1271 *wl, u8 tid_index, u16 ssn,
 int wl1271_acx_tsf_info(struct wl1271 *wl, u64 *mactime);
 int wl1271_acx_max_tx_retry(struct wl1271 *wl);
 int wl1271_acx_config_ps(struct wl1271 *wl);
+int wl1271_acx_set_inconnection_sta(struct wl1271 *wl, u8 *addr);
 
 #endif /* __WL1271_ACX_H__ */

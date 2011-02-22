@@ -70,6 +70,22 @@ static void wl1271_free_tx_id(struct wl1271 *wl, int id)
 	}
 }
 
+static void wl1271_tx_ap_update_inconnection_sta(struct wl1271 *wl,
+						 struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr;
+
+	/*
+	 * add the station to the known list before transmitting the
+	 * authentication response. this way it won't get de-authed by FW
+	 * when transmitting too soon.
+	 */
+	hdr = (struct ieee80211_hdr *)(skb->data +
+				       sizeof(struct wl1271_tx_hw_descr));
+	if (ieee80211_is_auth(hdr->frame_control))
+		wl1271_acx_set_inconnection_sta(wl, hdr->addr1);
+}
+
 static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
 				u32 buf_offset)
 {
@@ -237,6 +253,9 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct sk_buff *skb,
 	ret = wl1271_tx_allocate(wl, skb, extra, buf_offset);
 	if (ret < 0)
 		return ret;
+
+	if (wl->bss_type == BSS_TYPE_AP_BSS)
+		wl1271_tx_ap_update_inconnection_sta(wl, skb);
 
 	wl1271_tx_fill_hdr(wl, skb, extra, info);
 

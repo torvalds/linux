@@ -1541,3 +1541,28 @@ out:
 	kfree(config_ps);
 	return ret;
 }
+
+int wl1271_acx_set_inconnection_sta(struct wl1271 *wl, u8 *addr)
+{
+	struct wl1271_acx_inconnection_sta *acx = NULL;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx set inconnaction sta %pM", addr);
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx)
+		return -ENOMEM;
+
+	memcpy(acx->addr, addr, ETH_ALEN);
+
+	ret = wl1271_cmd_configure(wl, ACX_UPDATE_INCONNECTION_STA_LIST,
+				   acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx set inconnaction sta failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
