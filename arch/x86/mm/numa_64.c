@@ -205,6 +205,14 @@ static int __init numa_add_memblk_to(int nid, u64 start, u64 end,
 	return 0;
 }
 
+/**
+ * numa_remove_memblk_from - Remove one numa_memblk from a numa_meminfo
+ * @idx: Index of memblk to remove
+ * @mi: numa_meminfo to remove memblk from
+ *
+ * Remove @idx'th numa_memblk from @mi by shifting @mi->blk[] and
+ * decrementing @mi->nr_blks.
+ */
 void __init numa_remove_memblk_from(int idx, struct numa_meminfo *mi)
 {
 	mi->nr_blks--;
@@ -212,6 +220,17 @@ void __init numa_remove_memblk_from(int idx, struct numa_meminfo *mi)
 		(mi->nr_blks - idx) * sizeof(mi->blk[0]));
 }
 
+/**
+ * numa_add_memblk - Add one numa_memblk to numa_meminfo
+ * @nid: NUMA node ID of the new memblk
+ * @start: Start address of the new memblk
+ * @end: End address of the new memblk
+ *
+ * Add a new memblk to the default numa_meminfo.
+ *
+ * RETURNS:
+ * 0 on success, -errno on failure.
+ */
 int __init numa_add_memblk(int nid, u64 start, u64 end)
 {
 	return numa_add_memblk_to(nid, start, end, &numa_meminfo);
@@ -263,6 +282,16 @@ setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 	node_set_online(nodeid);
 }
 
+/**
+ * numa_cleanup_meminfo - Cleanup a numa_meminfo
+ * @mi: numa_meminfo to clean up
+ *
+ * Sanitize @mi by merging and removing unncessary memblks.  Also check for
+ * conflicts and clear unused memblks.
+ *
+ * RETURNS:
+ * 0 on success, -errno on failure.
+ */
 int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 {
 	const u64 low = 0;
@@ -353,9 +382,11 @@ static void __init numa_nodemask_from_meminfo(nodemask_t *nodemask,
 			node_set(mi->blk[i].nid, *nodemask);
 }
 
-/*
- * Reset distance table.  The current table is freed.  The next
- * numa_set_distance() call will create a new one.
+/**
+ * numa_reset_distance - Reset NUMA distance table
+ *
+ * The current table is freed.  The next numa_set_distance() call will
+ * create a new one.
  */
 void __init numa_reset_distance(void)
 {
@@ -370,10 +401,15 @@ void __init numa_reset_distance(void)
 	numa_distance = NULL;
 }
 
-/*
- * Set the distance between node @from to @to to @distance.  If distance
- * table doesn't exist, one which is large enough to accomodate all the
- * currently known nodes will be created.
+/**
+ * numa_set_distance - Set NUMA distance from one NUMA to another
+ * @from: the 'from' node to set distance
+ * @to: the 'to'  node to set distance
+ * @distance: NUMA distance
+ *
+ * Set the distance from node @from to @to to @distance.  If distance table
+ * doesn't exist, one which is large enough to accomodate all the currently
+ * known nodes will be created.
  */
 void __init numa_set_distance(int from, int to, int distance)
 {
