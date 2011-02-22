@@ -968,6 +968,130 @@ TRACE_EVENT(ocfs2_refcount_cow_hunk,
 );
 
 /* End of trace events for fs/ocfs2/refcounttree.c. */
+
+/* Trace events for fs/ocfs2/aops.c. */
+
+DECLARE_EVENT_CLASS(ocfs2__get_block,
+	TP_PROTO(unsigned long long ino, unsigned long long iblock,
+		 void *bh_result, int create),
+	TP_ARGS(ino, iblock, bh_result, create),
+	TP_STRUCT__entry(
+		__field(unsigned long long, ino)
+		__field(unsigned long long, iblock)
+		__field(void *, bh_result)
+		__field(int, create)
+	),
+	TP_fast_assign(
+		__entry->ino = ino;
+		__entry->iblock = iblock;
+		__entry->bh_result = bh_result;
+		__entry->create = create;
+	),
+	TP_printk("%llu %llu %p %d",
+		  __entry->ino, __entry->iblock,
+		  __entry->bh_result, __entry->create)
+);
+
+#define DEFINE_OCFS2_GET_BLOCK_EVENT(name)	\
+DEFINE_EVENT(ocfs2__get_block, name,	\
+	TP_PROTO(unsigned long long ino, unsigned long long iblock,	\
+		 void *bh_result, int create),	\
+	TP_ARGS(ino, iblock, bh_result, create))
+
+DEFINE_OCFS2_GET_BLOCK_EVENT(ocfs2_symlink_get_block);
+
+DEFINE_OCFS2_GET_BLOCK_EVENT(ocfs2_get_block);
+
+DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_get_block_end);
+
+DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_readpage);
+
+DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_writepage);
+
+DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_bmap);
+
+TRACE_EVENT(ocfs2_try_to_write_inline_data,
+	TP_PROTO(unsigned long long ino, unsigned int len,
+		 unsigned long long pos, unsigned int flags),
+	TP_ARGS(ino, len, pos, flags),
+	TP_STRUCT__entry(
+		__field(unsigned long long, ino)
+		__field(unsigned int, len)
+		__field(unsigned long long, pos)
+		__field(unsigned int, flags)
+	),
+	TP_fast_assign(
+		__entry->ino = ino;
+		__entry->len = len;
+		__entry->pos = pos;
+		__entry->flags = flags;
+	),
+	TP_printk("%llu %u %llu 0x%x",
+		  __entry->ino, __entry->len, __entry->pos, __entry->flags)
+);
+
+TRACE_EVENT(ocfs2_write_begin_nolock,
+	TP_PROTO(unsigned long long ino,
+		 long long i_size, unsigned int i_clusters,
+		 unsigned long long pos, unsigned int len,
+		 unsigned int flags, void *page,
+		 unsigned int clusters, unsigned int extents_to_split),
+	TP_ARGS(ino, i_size, i_clusters, pos, len, flags,
+		page, clusters, extents_to_split),
+	TP_STRUCT__entry(
+		__field(unsigned long long, ino)
+		__field(long long, i_size)
+		__field(unsigned int, i_clusters)
+		__field(unsigned long long, pos)
+		__field(unsigned int, len)
+		__field(unsigned int, flags)
+		__field(void *, page)
+		__field(unsigned int, clusters)
+		__field(unsigned int, extents_to_split)
+	),
+	TP_fast_assign(
+		__entry->ino = ino;
+		__entry->i_size = i_size;
+		__entry->i_clusters = i_clusters;
+		__entry->pos = pos;
+		__entry->len = len;
+		__entry->flags = flags;
+		__entry->page = page;
+		__entry->clusters = clusters;
+		__entry->extents_to_split = extents_to_split;
+	),
+	TP_printk("%llu %lld %u %llu %u %u %p %u %u",
+		  __entry->ino, __entry->i_size, __entry->i_clusters,
+		  __entry->pos, __entry->len,
+		  __entry->flags, __entry->page, __entry->clusters,
+		  __entry->extents_to_split)
+);
+
+TRACE_EVENT(ocfs2_write_end_inline,
+	TP_PROTO(unsigned long long ino,
+		 unsigned long long pos, unsigned int copied,
+		 unsigned int id_count, unsigned int features),
+	TP_ARGS(ino, pos, copied, id_count, features),
+	TP_STRUCT__entry(
+		__field(unsigned long long, ino)
+		__field(unsigned long long, pos)
+		__field(unsigned int, copied)
+		__field(unsigned int, id_count)
+		__field(unsigned int, features)
+	),
+	TP_fast_assign(
+		__entry->ino = ino;
+		__entry->pos = pos;
+		__entry->copied = copied;
+		__entry->id_count = id_count;
+		__entry->features = features;
+	),
+	TP_printk("%llu %llu %u %u %u",
+		  __entry->ino, __entry->pos, __entry->copied,
+		  __entry->id_count, __entry->features)
+);
+
+/* End of trace events for fs/ocfs2/aops.c. */
 #endif /* _TRACE_OCFS2_H */
 
 /* This part must be outside protection */
