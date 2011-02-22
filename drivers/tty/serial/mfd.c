@@ -47,6 +47,11 @@
 #define mfd_readl(obj, offset)		readl(obj->reg + offset)
 #define mfd_writel(obj, offset, val)	writel(val, obj->reg + offset)
 
+static int hsu_dma_enable;
+module_param(hsu_dma_enable, int, 0);
+MODULE_PARM_DESC(hsu_dma_enable, "It is a bitmap to set working mode, if \
+bit[x] is 1, then port[x] will work in DMA mode, otherwise in PIO mode.");
+
 struct hsu_dma_buffer {
 	u8		*buf;
 	dma_addr_t	dma_addr;
@@ -1367,6 +1372,12 @@ static void hsu_global_init(void)
 
 		serial_hsu_ports[i] = uport;
 		uport->index = i;
+
+		if (hsu_dma_enable & (1<<i))
+			uport->use_dma = 1;
+		else
+			uport->use_dma = 0;
+
 		uport++;
 	}
 
