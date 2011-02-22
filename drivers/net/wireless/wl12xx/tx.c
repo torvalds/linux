@@ -606,10 +606,14 @@ void wl1271_tx_reset_link_queues(struct wl1271 *wl, u8 hlid)
 	struct sk_buff *skb;
 	int i, total = 0;
 	unsigned long flags;
+	struct ieee80211_tx_info *info;
 
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
 		while ((skb = skb_dequeue(&wl->links[hlid].tx_queue[i]))) {
 			wl1271_debug(DEBUG_TX, "link freeing skb 0x%p", skb);
+			info = IEEE80211_SKB_CB(skb);
+			info->status.rates[0].idx = -1;
+			info->status.rates[0].count = 0;
 			ieee80211_tx_status(wl->hw, skb);
 			total++;
 		}
@@ -627,6 +631,7 @@ void wl1271_tx_reset(struct wl1271 *wl)
 {
 	int i;
 	struct sk_buff *skb;
+	struct ieee80211_tx_info *info;
 
 	/* TX failure */
 	if (wl->bss_type == BSS_TYPE_AP_BSS) {
@@ -639,6 +644,9 @@ void wl1271_tx_reset(struct wl1271 *wl)
 			while ((skb = skb_dequeue(&wl->tx_queue[i]))) {
 				wl1271_debug(DEBUG_TX, "freeing skb 0x%p",
 					     skb);
+				info = IEEE80211_SKB_CB(skb);
+				info->status.rates[0].idx = -1;
+				info->status.rates[0].count = 0;
 				ieee80211_tx_status(wl->hw, skb);
 			}
 		}
@@ -657,6 +665,9 @@ void wl1271_tx_reset(struct wl1271 *wl)
 			skb = wl->tx_frames[i];
 			wl1271_free_tx_id(wl, i);
 			wl1271_debug(DEBUG_TX, "freeing skb 0x%p", skb);
+			info = IEEE80211_SKB_CB(skb);
+			info->status.rates[0].idx = -1;
+			info->status.rates[0].count = 0;
 			ieee80211_tx_status(wl->hw, skb);
 		}
 }
