@@ -1520,80 +1520,6 @@ return_err:
 	return err;
 }
 
-static int path_init_rcu(int dfd, const char *name, unsigned int flags, struct nameidata *nd)
-{
-	int retval = 0;
-	int fput_needed;
-	struct file *file;
-
-	nd->last_type = LAST_ROOT; /* if there are only slashes... */
-	nd->flags = flags | LOOKUP_RCU;
-	nd->depth = 0;
-	nd->root.mnt = NULL;
-	nd->file = NULL;
-
-	if (*name=='/') {
-		struct fs_struct *fs = current->fs;
-		unsigned seq;
-
-		br_read_lock(vfsmount_lock);
-		rcu_read_lock();
-
-		do {
-			seq = read_seqcount_begin(&fs->seq);
-			nd->root = fs->root;
-			nd->path = nd->root;
-			nd->seq = __read_seqcount_begin(&nd->path.dentry->d_seq);
-		} while (read_seqcount_retry(&fs->seq, seq));
-
-	} else if (dfd == AT_FDCWD) {
-		struct fs_struct *fs = current->fs;
-		unsigned seq;
-
-		br_read_lock(vfsmount_lock);
-		rcu_read_lock();
-
-		do {
-			seq = read_seqcount_begin(&fs->seq);
-			nd->path = fs->pwd;
-			nd->seq = __read_seqcount_begin(&nd->path.dentry->d_seq);
-		} while (read_seqcount_retry(&fs->seq, seq));
-
-	} else {
-		struct dentry *dentry;
-
-		file = fget_light(dfd, &fput_needed);
-		retval = -EBADF;
-		if (!file)
-			goto out_fail;
-
-		dentry = file->f_path.dentry;
-
-		retval = -ENOTDIR;
-		if (!S_ISDIR(dentry->d_inode->i_mode))
-			goto fput_fail;
-
-		retval = file_permission(file, MAY_EXEC);
-		if (retval)
-			goto fput_fail;
-
-		nd->path = file->f_path;
-		if (fput_needed)
-			nd->file = file;
-
-		nd->seq = __read_seqcount_begin(&nd->path.dentry->d_seq);
-		br_read_lock(vfsmount_lock);
-		rcu_read_lock();
-	}
-	nd->inode = nd->path.dentry->d_inode;
-	return 0;
-
-fput_fail:
-	fput_light(file, fput_needed);
-out_fail:
-	return retval;
-}
-
 static int path_init(int dfd, const char *name, unsigned int flags, struct nameidata *nd)
 {
 	int retval = 0;
@@ -1604,13 +1530,34 @@ static int path_init(int dfd, const char *name, unsigned int flags, struct namei
 	nd->flags = flags;
 	nd->depth = 0;
 	nd->root.mnt = NULL;
+	nd->file = NULL;
 
 	if (*name=='/') {
-		set_root(nd);
+		if (flags & LOOKUP_RCU) {
+			br_read_lock(vfsmount_lock);
+			rcu_read_lock();
+			set_root_rcu(nd);
+		} else {
+			set_root(nd);
+			path_get(&nd->root);
+		}
 		nd->path = nd->root;
-		path_get(&nd->root);
 	} else if (dfd == AT_FDCWD) {
-		get_fs_pwd(current->fs, &nd->path);
+		if (flags & LOOKUP_RCU) {
+			struct fs_struct *fs = current->fs;
+			unsigned seq;
+
+			br_read_lock(vfsmount_lock);
+			rcu_read_lock();
+
+			do {
+				seq = read_seqcount_begin(&fs->seq);
+				nd->path = fs->pwd;
+				nd->seq = __read_seqcount_begin(&nd->path.dentry->d_seq);
+			} while (read_seqcount_retry(&fs->seq, seq));
+		} else {
+			get_fs_pwd(current->fs, &nd->path);
+		}
 	} else {
 		struct dentry *dentry;
 
@@ -1630,10 +1577,18 @@ static int path_init(int dfd, const char *name, unsigned int flags, struct namei
 			goto fput_fail;
 
 		nd->path = file->f_path;
-		path_get(&file->f_path);
-
-		fput_light(file, fput_needed);
+		if (flags & LOOKUP_RCU) {
+			if (fput_needed)
+				nd->file = file;
+			nd->seq = __read_seqcount_begin(&nd->path.dentry->d_seq);
+			br_read_lock(vfsmount_lock);
+			rcu_read_lock();
+		} else {
+			path_get(&file->f_path);
+			fput_light(file, fput_needed);
+		}
 	}
+
 	nd->inode = nd->path.dentry->d_inode;
 	return 0;
 
@@ -1663,10 +1618,7 @@ static int path_lookupat(int dfd, const char *name,
 	 * be handled by restarting a traditional ref-walk (which will always
 	 * be able to complete).
 	 */
-	if (flags & LOOKUP_RCU)
-		retval = path_init_rcu(dfd, name, flags, nd);
-	else
-		retval = path_init(dfd, name, flags, nd);
+	retval = path_init(dfd, name, flags, nd);
 
 	if (unlikely(retval))
 		return retval;
