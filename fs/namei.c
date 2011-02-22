@@ -613,19 +613,8 @@ do_revalidate_rcu(struct dentry *dentry, struct nameidata *nd)
 	return dentry;
 }
 
-static inline int need_reval_dot(struct dentry *dentry)
-{
-	if (likely(!(dentry->d_flags & DCACHE_OP_REVALIDATE)))
-		return 0;
-
-	if (likely(!(dentry->d_sb->s_type->fs_flags & FS_REVAL_DOT)))
-		return 0;
-
-	return 1;
-}
-
 /*
- * force_reval_path - force revalidation of a dentry
+ * handle_reval_path - force revalidation of a dentry
  *
  * In some situations the path walking code will trust dentries without
  * revalidating them. This causes problems for filesystems that depend on
@@ -639,27 +628,28 @@ static inline int need_reval_dot(struct dentry *dentry)
  * invalidate the dentry. It's up to the caller to handle putting references
  * to the path if necessary.
  */
-static int
-force_reval_path(struct path *path, struct nameidata *nd)
+static inline int handle_reval_path(struct nameidata *nd)
 {
+	struct dentry *dentry = nd->path.dentry;
 	int status;
-	struct dentry *dentry = path->dentry;
 
-	/*
-	 * only check on filesystems where it's possible for the dentry to
-	 * become stale.
-	 */
-	if (!need_reval_dot(dentry))
+	if (likely(!(nd->flags & LOOKUP_JUMPED)))
 		return 0;
 
+	if (likely(!(dentry->d_flags & DCACHE_OP_REVALIDATE)))
+		return 0;
+
+	if (likely(!(dentry->d_sb->s_type->fs_flags & FS_REVAL_DOT)))
+		return 0;
+
+	/* Note: we do not d_invalidate() */
 	status = d_revalidate(dentry, nd);
 	if (status > 0)
 		return 0;
 
-	if (!status) {
-		d_invalidate(dentry);
+	if (!status)
 		status = -ESTALE;
-	}
+
 	return status;
 }
 
@@ -728,6 +718,7 @@ static __always_inline int __vfs_follow_link(struct nameidata *nd, const char *l
 		path_put(&nd->path);
 		nd->path = nd->root;
 		path_get(&nd->root);
+		nd->flags |= LOOKUP_JUMPED;
 	}
 	nd->inode = nd->path.dentry->d_inode;
 
@@ -779,11 +770,8 @@ __do_follow_link(const struct path *link, struct nameidata *nd, void **p)
 		error = 0;
 		if (s)
 			error = __vfs_follow_link(nd, s);
-		else if (nd->last_type == LAST_BIND) {
-			error = force_reval_path(&nd->path, nd);
-			if (error)
-				path_put(&nd->path);
-		}
+		else if (nd->last_type == LAST_BIND)
+			nd->flags |= LOOKUP_JUMPED;
 	}
 	return error;
 }
@@ -1351,7 +1339,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 	while (*name=='/')
 		name++;
 	if (!*name)
-		goto return_reval;
+		goto return_base;
 
 	if (nd->depth)
 		lookup_flags = LOOKUP_FOLLOW | (nd->flags & LOOKUP_CONTINUE);
@@ -1385,12 +1373,16 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		type = LAST_NORM;
 		if (this.name[0] == '.') switch (this.len) {
 			case 2:
-				if (this.name[1] == '.')
+				if (this.name[1] == '.') {
 					type = LAST_DOTDOT;
+					nd->flags |= LOOKUP_JUMPED;
+				}
 				break;
 			case 1:
 				type = LAST_DOT;
 		}
+		if (likely(type == LAST_NORM))
+			nd->flags &= ~LOOKUP_JUMPED;
 
 		/* remove trailing slashes? */
 		if (!c)
@@ -1456,7 +1448,7 @@ last_component:
 				} else
 					follow_dotdot(nd);
 			}
-			goto return_reval;
+			goto return_base;
 		}
 		err = do_lookup(nd, &this, &next, &inode);
 		if (err)
@@ -1483,24 +1475,6 @@ last_component:
 lookup_parent:
 		nd->last = this;
 		nd->last_type = type;
-		if (type == LAST_NORM)
-			goto return_base;
-return_reval:
-		/*
-		 * We bypassed the ordinary revalidation routines.
-		 * We may need to check the cached dentry for staleness.
-		 */
-		if (need_reval_dot(nd->path.dentry)) {
-			if (nameidata_drop_rcu_last_maybe(nd))
-				return -ECHILD;
-			/* Note: we do not d_invalidate() */
-			err = d_revalidate(nd->path.dentry, nd);
-			if (!err)
-				err = -ESTALE;
-			if (err < 0)
-				break;
-			return 0;
-		}
 return_base:
 		if (nameidata_drop_rcu_last_maybe(nd))
 			return -ECHILD;
@@ -1523,7 +1497,7 @@ static int path_init(int dfd, const char *name, unsigned int flags, struct namei
 	struct file *file;
 
 	nd->last_type = LAST_ROOT; /* if there are only slashes... */
-	nd->flags = flags;
+	nd->flags = flags | LOOKUP_JUMPED;
 	nd->depth = 0;
 	nd->root.mnt = NULL;
 	nd->file = NULL;
@@ -1630,6 +1604,9 @@ static int path_lookupat(int dfd, const char *name,
 		br_read_unlock(vfsmount_lock);
 	}
 
+	if (!retval)
+		retval = handle_reval_path(nd);
+
 	if (nd->file) {
 		fput(nd->file);
 		nd->file = NULL;
@@ -1690,7 +1667,7 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 
 	/* same as do_path_lookup */
 	nd->last_type = LAST_ROOT;
-	nd->flags = flags;
+	nd->flags = flags | LOOKUP_JUMPED;
 	nd->depth = 0;
 
 	nd->path.dentry = dentry;
@@ -1703,6 +1680,8 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 	current->total_link_count = 0;
 
 	result = link_path_walk(name, nd);
+	if (!result)
+		result = handle_reval_path(nd);
 	if (result == -ESTALE) {
 		/* nd->path had been dropped */
 		current->total_link_count = 0;
@@ -1710,8 +1689,11 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 		nd->path.mnt = mnt;
 		nd->inode = dentry->d_inode;
 		path_get(&nd->path);
-		nd->flags |= LOOKUP_REVAL;
+		nd->flags = flags | LOOKUP_JUMPED | LOOKUP_REVAL;
+
 		result = link_path_walk(name, nd);
+		if (!result)
+			result = handle_reval_path(nd);
 	}
 	if (unlikely(!result && !audit_dummy_context() && nd->path.dentry &&
 				nd->inode))
@@ -2198,30 +2180,29 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 {
 	struct dentry *dir = nd->path.dentry;
 	struct file *filp;
-	int error = -EISDIR;
+	int error;
 
 	switch (nd->last_type) {
 	case LAST_DOTDOT:
 		follow_dotdot(nd);
 		dir = nd->path.dentry;
 	case LAST_DOT:
-		if (need_reval_dot(dir)) {
-			int status = d_revalidate(nd->path.dentry, nd);
-			if (!status)
-				status = -ESTALE;
-			if (status < 0) {
-				error = status;
-				goto exit;
-			}
-		}
 		/* fallthrough */
 	case LAST_ROOT:
+		error = handle_reval_path(nd);
+		if (error)
+			goto exit;
+		error = -EISDIR;
 		goto exit;
 	case LAST_BIND:
+		error = handle_reval_path(nd);
+		if (error)
+			goto exit;
 		audit_inode(pathname, dir);
 		goto ok;
 	}
 
+	error = -EISDIR;
 	/* trailing slashes? */
 	if (nd->last.name[nd->last.len])
 		goto exit;
@@ -2422,7 +2403,7 @@ reval:
 	/*
 	 * We have the parent and last component.
 	 */
-	nd.flags = flags;
+	nd.flags = (nd.flags & ~LOOKUP_PARENT) | flags;
 	filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
 	while (unlikely(!filp)) { /* trailing symlink */
 		struct path link = path;
