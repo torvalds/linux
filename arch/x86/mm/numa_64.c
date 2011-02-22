@@ -401,6 +401,44 @@ void __init numa_reset_distance(void)
 	numa_distance = NULL;
 }
 
+static int __init numa_alloc_distance(void)
+{
+	nodemask_t nodes_parsed;
+	size_t size;
+	int i, j, cnt = 0;
+	u64 phys;
+
+	/* size the new table and allocate it */
+	nodes_parsed = numa_nodes_parsed;
+	numa_nodemask_from_meminfo(&nodes_parsed, &numa_meminfo);
+
+	for_each_node_mask(i, nodes_parsed)
+		cnt = i;
+	size = ++cnt * sizeof(numa_distance[0]);
+
+	phys = memblock_find_in_range(0, (u64)max_pfn_mapped << PAGE_SHIFT,
+				      size, PAGE_SIZE);
+	if (phys == MEMBLOCK_ERROR) {
+		pr_warning("NUMA: Warning: can't allocate distance table!\n");
+		/* don't retry until explicitly reset */
+		numa_distance = (void *)1LU;
+		return -ENOMEM;
+	}
+	memblock_x86_reserve_range(phys, phys + size, "NUMA DIST");
+
+	numa_distance = __va(phys);
+	numa_distance_cnt = cnt;
+
+	/* fill with the default distances */
+	for (i = 0; i < cnt; i++)
+		for (j = 0; j < cnt; j++)
+			numa_distance[i * cnt + j] = i == j ?
+				LOCAL_DISTANCE : REMOTE_DISTANCE;
+	printk(KERN_DEBUG "NUMA: Initialized distance table, cnt=%d\n", cnt);
+
+	return 0;
+}
+
 /**
  * numa_set_distance - Set NUMA distance from one NUMA to another
  * @from: the 'from' node to set distance
@@ -413,41 +451,8 @@ void __init numa_reset_distance(void)
  */
 void __init numa_set_distance(int from, int to, int distance)
 {
-	if (!numa_distance) {
-		nodemask_t nodes_parsed;
-		size_t size;
-		int i, j, cnt = 0;
-		u64 phys;
-
-		/* size the new table and allocate it */
-		nodes_parsed = numa_nodes_parsed;
-		numa_nodemask_from_meminfo(&nodes_parsed, &numa_meminfo);
-
-		for_each_node_mask(i, nodes_parsed)
-			cnt = i;
-		size = ++cnt * sizeof(numa_distance[0]);
-
-		phys = memblock_find_in_range(0,
-					      (u64)max_pfn_mapped << PAGE_SHIFT,
-					      size, PAGE_SIZE);
-		if (phys == MEMBLOCK_ERROR) {
-			pr_warning("NUMA: Warning: can't allocate distance table!\n");
-			/* don't retry until explicitly reset */
-			numa_distance = (void *)1LU;
-			return;
-		}
-		memblock_x86_reserve_range(phys, phys + size, "NUMA DIST");
-
-		numa_distance = __va(phys);
-		numa_distance_cnt = cnt;
-
-		/* fill with the default distances */
-		for (i = 0; i < cnt; i++)
-			for (j = 0; j < cnt; j++)
-				numa_distance[i * cnt + j] = i == j ?
-					LOCAL_DISTANCE : REMOTE_DISTANCE;
-		printk(KERN_DEBUG "NUMA: Initialized distance table, cnt=%d\n", cnt);
-	}
+	if (!numa_distance && numa_alloc_distance() < 0)
+		return;
 
 	if (from >= numa_distance_cnt || to >= numa_distance_cnt) {
 		printk_once(KERN_DEBUG "NUMA: Debug: distance out of bound, from=%d to=%d distance=%d\n",
