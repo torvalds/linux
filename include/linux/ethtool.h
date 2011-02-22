@@ -591,6 +591,9 @@ struct ethtool_sfeatures {
  *      Probably there are other device-specific constraints on some features
  *      in the set. When %ETHTOOL_F_UNSUPPORTED is set, .valid is considered
  *      here as though ignored bits were cleared.
+ *   %ETHTOOL_F_COMPAT - some or all changes requested were made by calling
+ *      compatibility functions. Requested offload state cannot be properly
+ *      managed by kernel.
  *
  * Meaning of bits in the masks are obtained by %ETHTOOL_GSSET_INFO (number of
  * bits in the arrays - always multiple of 32) and %ETHTOOL_GSTRINGS commands
@@ -600,10 +603,12 @@ struct ethtool_sfeatures {
 enum ethtool_sfeatures_retval_bits {
 	ETHTOOL_F_UNSUPPORTED__BIT,
 	ETHTOOL_F_WISH__BIT,
+	ETHTOOL_F_COMPAT__BIT,
 };
 
 #define ETHTOOL_F_UNSUPPORTED   (1 << ETHTOOL_F_UNSUPPORTED__BIT)
 #define ETHTOOL_F_WISH          (1 << ETHTOOL_F_WISH__BIT)
+#define ETHTOOL_F_COMPAT        (1 << ETHTOOL_F_COMPAT__BIT)
 
 #ifdef __KERNEL__
 

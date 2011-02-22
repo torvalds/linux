@@ -178,6 +178,64 @@ static void ethtool_get_features_compat(struct net_device *dev,
 	if (dev->ethtool_ops->get_rx_csum)
 		if (dev->ethtool_ops->get_rx_csum(dev))
 			features[0].active |= NETIF_F_RXCSUM;
+
+	/* mark legacy-changeable features */
+	if (dev->ethtool_ops->set_sg)
+		features[0].available |= NETIF_F_SG;
+	if (dev->ethtool_ops->set_tx_csum)
+		features[0].available |= NETIF_F_ALL_CSUM;
+	if (dev->ethtool_ops->set_tso)
+		features[0].available |= NETIF_F_ALL_TSO;
+	if (dev->ethtool_ops->set_rx_csum)
+		features[0].available |= NETIF_F_RXCSUM;
+	if (dev->ethtool_ops->set_flags)
+		features[0].available |= flags_dup_features;
+}
+
+static int ethtool_set_feature_compat(struct net_device *dev,
+	int (*legacy_set)(struct net_device *, u32),
+	struct ethtool_set_features_block *features, u32 mask)
+{
+	u32 do_set;
+
+	if (!legacy_set)
+		return 0;
+
+	if (!(features[0].valid & mask))
+		return 0;
+
+	features[0].valid &= ~mask;
+
+	do_set = !!(features[0].requested & mask);
+
+	if (legacy_set(dev, do_set) < 0)
+		netdev_info(dev,
+			"Legacy feature change (%s) failed for 0x%08x\n",
+			do_set ? "set" : "clear", mask);
+
+	return 1;
+}
+
+static int ethtool_set_features_compat(struct net_device *dev,
+	struct ethtool_set_features_block *features)
+{
+	int compat;
+
+	if (!dev->ethtool_ops)
+		return 0;
+
+	compat  = ethtool_set_feature_compat(dev, dev->ethtool_ops->set_sg,
+		features, NETIF_F_SG);
+	compat |= ethtool_set_feature_compat(dev, dev->ethtool_ops->set_tx_csum,
+		features, NETIF_F_ALL_CSUM);
+	compat |= ethtool_set_feature_compat(dev, dev->ethtool_ops->set_tso,
+		features, NETIF_F_ALL_TSO);
+	compat |= ethtool_set_feature_compat(dev, dev->ethtool_ops->set_rx_csum,
+		features, NETIF_F_RXCSUM);
+	compat |= ethtool_set_feature_compat(dev, dev->ethtool_ops->set_flags,
+		features, flags_dup_features);
+
+	return compat;
 }
 
 static int ethtool_get_features(struct net_device *dev, void __user *useraddr)
@@ -233,6 +291,9 @@ static int ethtool_set_features(struct net_device *dev, void __user *useraddr)
 
 	if (features[0].valid & ~NETIF_F_ETHTOOL_BITS)
 		return -EINVAL;
+
+	if (ethtool_set_features_compat(dev, features))
+		ret |= ETHTOOL_F_COMPAT;
 
 	if (features[0].valid & ~dev->hw_features) {
 		features[0].valid &= dev->hw_features;
