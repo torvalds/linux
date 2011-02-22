@@ -5810,16 +5810,9 @@ static void task_clock_event_del(struct perf_event *event, int flags)
 
 static void task_clock_event_read(struct perf_event *event)
 {
-	u64 time;
-
-	if (!in_nmi()) {
-		update_context_time(event->ctx);
-		time = event->ctx->time;
-	} else {
-		u64 now = perf_clock();
-		u64 delta = now - event->ctx->timestamp;
-		time = event->ctx->time + delta;
-	}
+	u64 now = perf_clock();
+	u64 delta = now - event->ctx->timestamp;
+	u64 time = event->ctx->time + delta;
 
 	task_clock_event_update(event, time);
 }
