@@ -16,9 +16,7 @@
  *    2/3 chan to port 1, 4/5 chan to port 3. Even number chans
  *    are used for RX, odd chans for TX
  *
- * 2. In A0 stepping, UART will not support TX half empty flag
- *
- * 3. The RI/DSR/DCD/DTR are not pinned out, DCD & DSR are always
+ * 2. The RI/DSR/DCD/DTR are not pinned out, DCD & DSR are always
  *    asserted, only when the HW is reset the DDCD and DDSR will
  *    be triggered
  */
@@ -40,8 +38,6 @@
 #include <linux/pci.h>
 #include <linux/io.h>
 #include <linux/debugfs.h>
-
-#define  MFD_HSU_A0_STEPPING	1
 
 #define HSU_DMA_BUF_SIZE	2048
 
@@ -543,16 +539,9 @@ static void transmit_chars(struct uart_hsu_port *up)
 		return;
 	}
 
-#ifndef MFD_HSU_A0_STEPPING
+	/* The IRQ is for TX FIFO half-empty */
 	count = up->port.fifosize / 2;
-#else
-	/*
-	 * A0 only supports fully empty IRQ, and the first char written
-	 * into it won't clear the EMPT bit, so we may need be cautious
-	 * by useing a shorter buffer
-	 */
-	count = up->port.fifosize - 4;
-#endif
+
 	do {
 		serial_out(up, UART_TX, xmit->buf[xmit->tail]);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
@@ -761,9 +750,8 @@ static void serial_hsu_break_ctl(struct uart_port *port, int break_state)
 /*
  * What special to do:
  * 1. chose the 64B fifo mode
- * 2. make sure not to select half empty mode for A0 stepping
- * 3. start dma or pio depends on configuration
- * 4. we only allocate dma memory when needed
+ * 2. start dma or pio depends on configuration
+ * 3. we only allocate dma memory when needed
  */
 static int serial_hsu_startup(struct uart_port *port)
 {
@@ -967,10 +955,6 @@ serial_hsu_set_termios(struct uart_port *port, struct ktermios *termios,
 		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_HSU_64_32B;
 
 	fcr |= UART_FCR_HSU_64B_FIFO;
-#ifdef MFD_HSU_A0_STEPPING
-	/* A0 doesn't support half empty IRQ */
-	fcr |= UART_FCR_FULL_EMPT_TXI;
-#endif
 
 	/*
 	 * Ok, we're now changing the port state.  Do it with
