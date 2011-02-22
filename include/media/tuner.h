@@ -161,7 +161,7 @@
 enum tuner_mode {
 	T_RADIO		= 1 << V4L2_TUNER_RADIO,
 	T_ANALOG_TV     = 1 << V4L2_TUNER_ANALOG_TV,
-	T_DIGITAL_TV    = 1 << V4L2_TUNER_DIGITAL_TV,
+	/* Don't need to map V4L2_TUNER_DIGITAL_TV, as tuner-core won't use it */
 };
 
 /* Older boards only had a single tuner device. Nowadays multiple tuner

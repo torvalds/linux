@@ -588,8 +588,6 @@ static void tm6000_config_tuner(struct tm6000_core *dev)
 	tun_setup.mode_mask = 0;
 	if (dev->caps.has_tuner)
 		tun_setup.mode_mask |= (T_ANALOG_TV | T_RADIO);
-	if (dev->caps.has_dvb)
-		tun_setup.mode_mask |= T_DIGITAL_TV;
 
 	switch (dev->tuner_type) {
 	case TUNER_XC2028:
