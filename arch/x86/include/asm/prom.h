@@ -23,10 +23,17 @@
 #include <asm/irq_controller.h>
 
 #ifdef CONFIG_OF
+extern int of_ioapic;
+extern u64 initial_dtb;
 extern void add_dtb(u64 data);
+void x86_dtb_find_config(void);
+void x86_dtb_get_config(unsigned int unused);
 void add_interrupt_host(struct irq_domain *ih);
 #else
 static inline void add_dtb(u64 data) { }
+#define x86_dtb_find_config x86_init_noop
+#define x86_dtb_get_config x86_init_uint_noop
+#define of_ioapic 0
 #endif
 
 extern char cmd_line[COMMAND_LINE_SIZE];
