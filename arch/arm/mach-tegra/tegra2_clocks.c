@@ -946,9 +946,14 @@ static void tegra2_periph_clk_init(struct clk *c)
 	}
 
 	c->state = ON;
+
+	if (!c->u.periph.clk_num)
+		return;
+
 	if (!(clk_readl(CLK_OUT_ENB + PERIPH_CLK_TO_ENB_REG(c)) &
 			PERIPH_CLK_TO_ENB_BIT(c)))
 		c->state = OFF;
+
 	if (!(c->flags & PERIPH_NO_RESET))
 		if (clk_readl(RST_DEVICES + PERIPH_CLK_TO_ENB_REG(c)) &
 				PERIPH_CLK_TO_ENB_BIT(c))
@@ -961,6 +966,9 @@ static int tegra2_periph_clk_enable(struct clk *c)
 	unsigned long flags;
 	int refcount;
 	pr_debug("%s on clock %s\n", __func__, c->name);
+
+	if (!c->u.periph.clk_num)
+		return 0;
 
 	spin_lock_irqsave(&clock_register_lock, flags);
 
@@ -994,6 +1002,9 @@ static void tegra2_periph_clk_disable(struct clk *c)
 
 	pr_debug("%s on clock %s\n", __func__, c->name);
 
+	if (!c->u.periph.clk_num)
+		return;
+
 	spin_lock_irqsave(&clock_register_lock, flags);
 
 	if (c->refcnt)
@@ -1012,6 +1023,9 @@ static void tegra2_periph_clk_reset(struct clk *c, bool assert)
 
 	pr_debug("%s %s on clock %s\n", __func__,
 		 assert ? "assert" : "deassert", c->name);
+
+	BUG_ON(!c->u.periph.clk_num);
+
 	if (!(c->flags & PERIPH_NO_RESET))
 		clk_writel(PERIPH_CLK_TO_ENB_BIT(c),
 			   base + PERIPH_CLK_TO_ENB_SET_REG(c));
@@ -1182,6 +1196,10 @@ static void tegra2_clk_double_init(struct clk *c)
 	c->mul = 2;
 	c->div = 1;
 	c->state = ON;
+
+	if (!c->u.periph.clk_num)
+		return;
+
 	if (!(clk_readl(CLK_OUT_ENB + PERIPH_CLK_TO_ENB_REG(c)) &
 			PERIPH_CLK_TO_ENB_BIT(c)))
 		c->state = OFF;
@@ -1269,6 +1287,9 @@ static void tegra2_cdev_clk_init(struct clk *c)
 	/* We could un-tristate the cdev1 or cdev2 pingroup here; this is
 	 * currently done in the pinmux code. */
 	c->state = ON;
+
+	BUG_ON(!c->u.periph.clk_num);
+
 	if (!(clk_readl(CLK_OUT_ENB + PERIPH_CLK_TO_ENB_REG(c)) &
 			PERIPH_CLK_TO_ENB_BIT(c)))
 		c->state = OFF;
@@ -1276,6 +1297,8 @@ static void tegra2_cdev_clk_init(struct clk *c)
 
 static int tegra2_cdev_clk_enable(struct clk *c)
 {
+	BUG_ON(!c->u.periph.clk_num);
+
 	clk_writel(PERIPH_CLK_TO_ENB_BIT(c),
 		CLK_OUT_ENB_SET + PERIPH_CLK_TO_ENB_SET_REG(c));
 	return 0;
@@ -1283,6 +1306,8 @@ static int tegra2_cdev_clk_enable(struct clk *c)
 
 static void tegra2_cdev_clk_disable(struct clk *c)
 {
+	BUG_ON(!c->u.periph.clk_num);
+
 	clk_writel(PERIPH_CLK_TO_ENB_BIT(c),
 		CLK_OUT_ENB_CLR + PERIPH_CLK_TO_ENB_SET_REG(c));
 }
