@@ -122,9 +122,9 @@ static int __init zfcp_module_init(void)
 {
 	int retval = -ENOMEM;
 
-	zfcp_data.qtcb_cache = zfcp_cache_hw_align("zfcp_qtcb",
-					sizeof(struct fsf_qtcb));
-	if (!zfcp_data.qtcb_cache)
+	zfcp_fsf_qtcb_cache = zfcp_cache_hw_align("zfcp_fsf_qtcb",
+						  sizeof(struct fsf_qtcb));
+	if (!zfcp_fsf_qtcb_cache)
 		goto out_qtcb_cache;
 
 	zfcp_fc_req_cache = zfcp_cache_hw_align("zfcp_fc_req",
@@ -164,7 +164,7 @@ out_misc:
 out_transport:
 	kmem_cache_destroy(zfcp_fc_req_cache);
 out_fc_cache:
-	kmem_cache_destroy(zfcp_data.qtcb_cache);
+	kmem_cache_destroy(zfcp_fsf_qtcb_cache);
 out_qtcb_cache:
 	return retval;
 }
@@ -177,7 +177,7 @@ static void __exit zfcp_module_exit(void)
 	misc_deregister(&zfcp_cfdc_misc);
 	fc_release_transport(zfcp_data.scsi_transport_template);
 	kmem_cache_destroy(zfcp_fc_req_cache);
-	kmem_cache_destroy(zfcp_data.qtcb_cache);
+	kmem_cache_destroy(zfcp_fsf_qtcb_cache);
 }
 
 module_exit(zfcp_module_exit);
@@ -236,7 +236,7 @@ static int zfcp_allocate_low_mem_buffers(struct zfcp_adapter *adapter)
 		return -ENOMEM;
 
 	adapter->pool.qtcb_pool =
-		mempool_create_slab_pool(4, zfcp_data.qtcb_cache);
+		mempool_create_slab_pool(4, zfcp_fsf_qtcb_cache);
 	if (!adapter->pool.qtcb_pool)
 		return -ENOMEM;
 

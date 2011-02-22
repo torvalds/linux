@@ -18,6 +18,8 @@
 #include "zfcp_qdio.h"
 #include "zfcp_reqlist.h"
 
+struct kmem_cache *zfcp_fsf_qtcb_cache;
+
 static void zfcp_fsf_request_timeout_handler(unsigned long data)
 {
 	struct zfcp_adapter *adapter = (struct zfcp_adapter *) data;
@@ -83,7 +85,7 @@ void zfcp_fsf_req_free(struct zfcp_fsf_req *req)
 	}
 
 	if (likely(req->qtcb))
-		kmem_cache_free(zfcp_data.qtcb_cache, req->qtcb);
+		kmem_cache_free(zfcp_fsf_qtcb_cache, req->qtcb);
 	kfree(req);
 }
 
@@ -628,7 +630,7 @@ static struct fsf_qtcb *zfcp_qtcb_alloc(mempool_t *pool)
 	if (likely(pool))
 		qtcb = mempool_alloc(pool, GFP_ATOMIC);
 	else
-		qtcb = kmem_cache_alloc(zfcp_data.qtcb_cache, GFP_ATOMIC);
+		qtcb = kmem_cache_alloc(zfcp_fsf_qtcb_cache, GFP_ATOMIC);
 
 	if (unlikely(!qtcb))
 		return NULL;
