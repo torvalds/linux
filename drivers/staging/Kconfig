@@ -57,8 +57,6 @@ source "drivers/staging/dabusb/Kconfig"
 
 source "drivers/staging/se401/Kconfig"
 
-source "drivers/staging/usbvideo/Kconfig"
-
 source "drivers/staging/usbip/Kconfig"
 
 source "drivers/staging/winbond/Kconfig"
