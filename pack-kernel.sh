@@ -110,7 +110,7 @@ popd >/dev/null
 
 # tar kernel
 pushd $kerndir/../ >/dev/null
-package=$(basename $kerndir).tar.gz
+package=$(basename $kerndir).tar
 ex=$package.ex
 > $ex
 for file in ${FILES[@]}; do
@@ -120,7 +120,10 @@ for file in ${EXCLUDES[@]}; do
 	echo "$file" >> $ex
 done
 echo TAR $(pwd)/$package
-tar czf $package --numeric-owner --exclude-from $ex --exclude=.git --exclude=`basename $0` $(basename $kerndir)
+tar cf $package --numeric-owner --exclude-from $ex --exclude=.git --exclude=`basename $0` $(basename $kerndir)
+tar rf $package --numeric-owner --exclude=.git toolchain/arm-eabi-4.4.0
+echo GZIP $(pwd)/$package.gz
+gzip -9 -c $package > $package.gz
 rm $ex
 popd >/dev/null
 
