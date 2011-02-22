@@ -1322,6 +1322,18 @@ fail:
 	return PTR_ERR(dentry);
 }
 
+static inline int may_lookup(struct nameidata *nd)
+{
+	if (nd->flags & LOOKUP_RCU) {
+		int err = exec_permission(nd->inode, IPERM_FLAG_RCU);
+		if (err != -ECHILD)
+			return err;
+		if (nameidata_drop_rcu(nd))
+			return -ECHILD;
+	}
+	return exec_permission(nd->inode, 0);
+}
+
 /*
  * Name resolution.
  * This is the basic name resolution function, turning a pathname into
@@ -1352,17 +1364,8 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		unsigned int c;
 
 		nd->flags |= LOOKUP_CONTINUE;
-		if (nd->flags & LOOKUP_RCU) {
-			err = exec_permission(nd->inode, IPERM_FLAG_RCU);
-			if (err == -ECHILD) {
-				if (nameidata_drop_rcu(nd))
-					return -ECHILD;
-				goto exec_again;
-			}
-		} else {
-exec_again:
-			err = exec_permission(nd->inode, 0);
-		}
+
+		err = may_lookup(nd);
  		if (err)
 			break;
 
