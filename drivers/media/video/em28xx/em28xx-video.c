@@ -1452,7 +1452,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 			rc = em28xx_audio_analog_set(dev);
 		}
 	}
-	return rc;
+	return (rc < 0) ? rc : 0;
 }
 
 static int vidioc_g_tuner(struct file *file, void *priv,
