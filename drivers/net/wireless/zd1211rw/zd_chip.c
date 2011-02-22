@@ -142,8 +142,9 @@ int zd_ioread32v_locked(struct zd_chip *chip, u32 *values, const zd_addr_t *addr
 	return 0;
 }
 
-int _zd_iowrite32v_locked(struct zd_chip *chip, const struct zd_ioreq32 *ioreqs,
-	           unsigned int count)
+static int _zd_iowrite32v_async_locked(struct zd_chip *chip,
+				       const struct zd_ioreq32 *ioreqs,
+				       unsigned int count)
 {
 	int i, j, r;
 	struct zd_ioreq16 ioreqs16[USB_MAX_IOWRITE32_COUNT * 2];
@@ -170,7 +171,7 @@ int _zd_iowrite32v_locked(struct zd_chip *chip, const struct zd_ioreq32 *ioreqs,
 		ioreqs16[j+1].addr  = ioreqs[i].addr;
 	}
 
-	r = zd_usb_iowrite16v(&chip->usb, ioreqs16, count16);
+	r = zd_usb_iowrite16v_async(&chip->usb, ioreqs16, count16);
 #ifdef DEBUG
 	if (r) {
 		dev_dbg_f(zd_chip_dev(chip),
@@ -180,6 +181,20 @@ int _zd_iowrite32v_locked(struct zd_chip *chip, const struct zd_ioreq32 *ioreqs,
 	return r;
 }
 
+int _zd_iowrite32v_locked(struct zd_chip *chip, const struct zd_ioreq32 *ioreqs,
+			  unsigned int count)
+{
+	int r;
+
+	zd_usb_iowrite16v_async_start(&chip->usb);
+	r = _zd_iowrite32v_async_locked(chip, ioreqs, count);
+	if (r) {
+		zd_usb_iowrite16v_async_end(&chip->usb, 0);
+		return r;
+	}
+	return zd_usb_iowrite16v_async_end(&chip->usb, 50 /* ms */);
+}
+
 int zd_iowrite16a_locked(struct zd_chip *chip,
                   const struct zd_ioreq16 *ioreqs, unsigned int count)
 {
@@ -187,6 +202,8 @@ int zd_iowrite16a_locked(struct zd_chip *chip,
 	unsigned int i, j, t, max;
 
 	ZD_ASSERT(mutex_is_locked(&chip->mutex));
+	zd_usb_iowrite16v_async_start(&chip->usb);
+
 	for (i = 0; i < count; i += j + t) {
 		t = 0;
 		max = count-i;
@@ -199,8 +216,9 @@ int zd_iowrite16a_locked(struct zd_chip *chip,
 			}
 		}
 
-		r = zd_usb_iowrite16v(&chip->usb, &ioreqs[i], j);
+		r = zd_usb_iowrite16v_async(&chip->usb, &ioreqs[i], j);
 		if (r) {
+			zd_usb_iowrite16v_async_end(&chip->usb, 0);
 			dev_dbg_f(zd_chip_dev(chip),
 				  "error zd_usb_iowrite16v. Error number %d\n",
 				  r);
@@ -208,7 +226,7 @@ int zd_iowrite16a_locked(struct zd_chip *chip,
 		}
 	}
 
-	return 0;
+	return zd_usb_iowrite16v_async_end(&chip->usb, 50 /* ms */);
 }
 
 /* Writes a variable number of 32 bit registers. The functions will split
@@ -220,6 +238,8 @@ int zd_iowrite32a_locked(struct zd_chip *chip,
 {
 	int r;
 	unsigned int i, j, t, max;
+
+	zd_usb_iowrite16v_async_start(&chip->usb);
 
 	for (i = 0; i < count; i += j + t) {
 		t = 0;
@@ -233,8 +253,9 @@ int zd_iowrite32a_locked(struct zd_chip *chip,
 			}
 		}
 
-		r = _zd_iowrite32v_locked(chip, &ioreqs[i], j);
+		r = _zd_iowrite32v_async_locked(chip, &ioreqs[i], j);
 		if (r) {
+			zd_usb_iowrite16v_async_end(&chip->usb, 0);
 			dev_dbg_f(zd_chip_dev(chip),
 				"error _zd_iowrite32v_locked."
 				" Error number %d\n", r);
@@ -242,7 +263,7 @@ int zd_iowrite32a_locked(struct zd_chip *chip,
 		}
 	}
 
-	return 0;
+	return zd_usb_iowrite16v_async_end(&chip->usb, 50 /* ms */);
 }
 
 int zd_ioread16(struct zd_chip *chip, zd_addr_t addr, u16 *value)

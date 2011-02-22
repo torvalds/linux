@@ -217,8 +217,11 @@ struct zd_usb {
 	struct zd_usb_rx rx;
 	struct zd_usb_tx tx;
 	struct usb_interface *intf;
+	struct usb_anchor submitted_cmds;
+	struct urb *urb_async_waiting;
+	int cmd_error;
 	u8 req_buf[64]; /* zd_usb_iowrite16v needs 62 bytes */
-	u8 is_zd1211b:1, initialized:1, was_running:1;
+	u8 is_zd1211b:1, initialized:1, was_running:1, in_async:1;
 };
 
 #define zd_usb_dev(usb) (&usb->intf->dev)
@@ -270,6 +273,10 @@ static inline int zd_usb_ioread16(struct zd_usb *usb, u16 *value,
 	return zd_usb_ioread16v(usb, value, (const zd_addr_t *)&addr, 1);
 }
 
+void zd_usb_iowrite16v_async_start(struct zd_usb *usb);
+int zd_usb_iowrite16v_async_end(struct zd_usb *usb, unsigned int timeout);
+int zd_usb_iowrite16v_async(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
+			    unsigned int count);
 int zd_usb_iowrite16v(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
 	              unsigned int count);
 

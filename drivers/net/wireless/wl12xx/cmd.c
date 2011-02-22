@@ -286,6 +286,7 @@ int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 	join->rx_filter_options = cpu_to_le32(wl->rx_filter);
 	join->bss_type = bss_type;
 	join->basic_rate_set = cpu_to_le32(wl->basic_rate_set);
+	join->supported_rate_set = cpu_to_le32(wl->rate_set);
 
 	if (wl->band == IEEE80211_BAND_5GHZ)
 		join->bss_type |= WL1271_JOIN_CMD_BSS_TYPE_5GHZ;
@@ -302,6 +303,9 @@ int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 	/* reset TX security counters */
 	wl->tx_security_last_seq = 0;
 	wl->tx_security_seq = 0;
+
+	wl1271_debug(DEBUG_CMD, "cmd join: basic_rate_set=0x%x, rate_set=0x%x",
+		join->basic_rate_set, join->supported_rate_set);
 
 	ret = wl1271_cmd_send(wl, CMD_START_JOIN, join, sizeof(*join), 0);
 	if (ret < 0) {
@@ -454,7 +458,7 @@ out:
 	return ret;
 }
 
-int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode, u32 rates, bool send)
+int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode)
 {
 	struct wl1271_cmd_ps_params *ps_params = NULL;
 	int ret = 0;
@@ -468,10 +472,6 @@ int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode, u32 rates, bool send)
 	}
 
 	ps_params->ps_mode = ps_mode;
-	ps_params->send_null_data = send;
-	ps_params->retries = wl->conf.conn.psm_entry_nullfunc_retries;
-	ps_params->hang_over_period = wl->conf.conn.psm_entry_hangover_period;
-	ps_params->null_data_rate = cpu_to_le32(rates);
 
 	ret = wl1271_cmd_send(wl, CMD_SET_PS_MODE, ps_params,
 			      sizeof(*ps_params), 0);

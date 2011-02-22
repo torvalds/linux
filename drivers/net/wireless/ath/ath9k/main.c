@@ -15,6 +15,7 @@
  */
 
 #include <linux/nl80211.h>
+#include <linux/delay.h>
 #include "ath9k.h"
 #include "btcoex.h"
 
@@ -51,6 +52,21 @@ static u8 parse_mpdudensity(u8 mpdudensity)
 	default:
 		return 0;
 	}
+}
+
+static bool ath9k_has_pending_frames(struct ath_softc *sc, struct ath_txq *txq)
+{
+	bool pending = false;
+
+	spin_lock_bh(&txq->axq_lock);
+
+	if (txq->axq_depth || !list_empty(&txq->axq_acq))
+		pending = true;
+	else if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
+		pending = !list_empty(&txq->txq_fifo_pending);
+
+	spin_unlock_bh(&txq->axq_lock);
+	return pending;
 }
 
 bool ath9k_setpower(struct ath_softc *sc, enum ath9k_power_mode mode)
@@ -1117,12 +1133,6 @@ static int ath9k_start(struct ieee80211_hw *hw)
 			ath9k_btcoex_timer_resume(sc);
 	}
 
-	/* User has the option to provide pm-qos value as a module
-	 * parameter rather than using the default value of
-	 * 'ATH9K_PM_QOS_DEFAULT_VALUE'.
-	 */
-	pm_qos_update_request(&sc->pm_qos_req, ath9k_pm_qos_value);
-
 	if (ah->caps.pcie_lcr_extsync_en && common->bus_ops->extn_synch_en)
 		common->bus_ops->extn_synch_en(common);
 
@@ -1267,8 +1277,6 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	sc->sc_flags |= SC_OP_INVALID;
 
-	pm_qos_update_request(&sc->pm_qos_req, PM_QOS_DEFAULT_VALUE);
-
 	mutex_unlock(&sc->mutex);
 
 	ath_dbg(common, ATH_DBG_CONFIG, "Driver halt\n");
@@ -1291,24 +1299,10 @@ static void ath9k_reclaim_beacon(struct ath_softc *sc,
 {
 	struct ath_vif *avp = (void *)vif->drv_priv;
 
-	/* Disable SWBA interrupt */
-	sc->sc_ah->imask &= ~ATH9K_INT_SWBA;
-	ath9k_ps_wakeup(sc);
-	ath9k_hw_set_interrupts(sc->sc_ah, sc->sc_ah->imask);
-	ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
-	tasklet_kill(&sc->bcon_tasklet);
-	ath9k_ps_restore(sc);
-
+	ath9k_set_beaconing_status(sc, false);
 	ath_beacon_return(sc, avp);
+	ath9k_set_beaconing_status(sc, true);
 	sc->sc_flags &= ~SC_OP_BEACONS;
-
-	if (sc->nbcnvifs > 0) {
-		/* Re-enable beaconing */
-		sc->sc_ah->imask |= ATH9K_INT_SWBA;
-		ath9k_ps_wakeup(sc);
-		ath9k_hw_set_interrupts(sc->sc_ah, sc->sc_ah->imask);
-		ath9k_ps_restore(sc);
-	}
 }
 
 static void ath9k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
@@ -1436,16 +1430,17 @@ static void ath9k_do_vif_add_setup(struct ieee80211_hw *hw,
 
 	if (ath9k_uses_beacons(vif->type)) {
 		int error;
-		ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
 		/* This may fail because upper levels do not have beacons
 		 * properly configured yet.  That's OK, we assume it
 		 * will be properly configured and then we will be notified
 		 * in the info_changed method and set up beacons properly
 		 * there.
 		 */
+		ath9k_set_beaconing_status(sc, false);
 		error = ath_beacon_alloc(sc, vif);
 		if (!error)
 			ath_beacon_config(sc, vif);
+		ath9k_set_beaconing_status(sc, true);
 	}
 }
 
@@ -1676,8 +1671,9 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		else
 			sc->sc_flags &= ~SC_OP_OFFCHANNEL;
 
-		ath_dbg(common, ATH_DBG_CONFIG, "Set channel: %d MHz\n",
-			curchan->center_freq);
+		ath_dbg(common, ATH_DBG_CONFIG,
+			"Set channel: %d MHz type: %d\n",
+			curchan->center_freq, conf->channel_type);
 
 		ath9k_cmn_update_ichannel(&sc->sc_ah->channels[pos],
 					  curchan, conf->channel_type);
@@ -1723,6 +1719,8 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
+		ath_dbg(common, ATH_DBG_CONFIG,
+			"Set power: %d\n", conf->power_level);
 		sc->config.txpowlimit = 2 * conf->power_level;
 		ath9k_ps_wakeup(sc);
 		ath9k_cmn_update_txpow(ah, sc->curtxpow,
@@ -1886,6 +1884,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 				   u32 changed)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
@@ -1914,10 +1913,11 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	/* Enable transmission of beacons (AP, IBSS, MESH) */
 	if ((changed & BSS_CHANGED_BEACON) ||
 	    ((changed & BSS_CHANGED_BEACON_ENABLED) && bss_conf->enable_beacon)) {
-		ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
+		ath9k_set_beaconing_status(sc, false);
 		error = ath_beacon_alloc(sc, vif);
 		if (!error)
 			ath_beacon_config(sc, vif);
+		ath9k_set_beaconing_status(sc, true);
 	}
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
@@ -1940,21 +1940,26 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	/* Disable transmission of beacons */
-	if ((changed & BSS_CHANGED_BEACON_ENABLED) && !bss_conf->enable_beacon)
-		ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
+	if ((changed & BSS_CHANGED_BEACON_ENABLED) &&
+	    !bss_conf->enable_beacon) {
+		ath9k_set_beaconing_status(sc, false);
+		avp->is_bslot_active = false;
+		ath9k_set_beaconing_status(sc, true);
+	}
 
 	if (changed & BSS_CHANGED_BEACON_INT) {
-		sc->beacon_interval = bss_conf->beacon_int;
+		cur_conf->beacon_interval = bss_conf->beacon_int;
 		/*
 		 * In case of AP mode, the HW TSF has to be reset
 		 * when the beacon interval changes.
 		 */
 		if (vif->type == NL80211_IFTYPE_AP) {
 			sc->sc_flags |= SC_OP_TSF_RESET;
-			ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
+			ath9k_set_beaconing_status(sc, false);
 			error = ath_beacon_alloc(sc, vif);
 			if (!error)
 				ath_beacon_config(sc, vif);
+			ath9k_set_beaconing_status(sc, true);
 		} else {
 			ath_beacon_config(sc, vif);
 		}
@@ -2122,6 +2127,60 @@ static void ath9k_set_coverage_class(struct ieee80211_hw *hw, u8 coverage_class)
 	mutex_unlock(&sc->mutex);
 }
 
+static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
+{
+#define ATH_FLUSH_TIMEOUT	60 /* ms */
+	struct ath_softc *sc = hw->priv;
+	struct ath_txq *txq;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+	int i, j, npend = 0;
+
+	mutex_lock(&sc->mutex);
+
+	cancel_delayed_work_sync(&sc->tx_complete_work);
+
+	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
+		if (!ATH_TXQ_SETUP(sc, i))
+			continue;
+		txq = &sc->tx.txq[i];
+
+		if (!drop) {
+			for (j = 0; j < ATH_FLUSH_TIMEOUT; j++) {
+				if (!ath9k_has_pending_frames(sc, txq))
+					break;
+				usleep_range(1000, 2000);
+			}
+		}
+
+		if (drop || ath9k_has_pending_frames(sc, txq)) {
+			ath_dbg(common, ATH_DBG_QUEUE, "Drop frames from hw queue:%d\n",
+				txq->axq_qnum);
+			spin_lock_bh(&txq->axq_lock);
+			txq->txq_flush_inprogress = true;
+			spin_unlock_bh(&txq->axq_lock);
+
+			ath9k_ps_wakeup(sc);
+			ath9k_hw_stoptxdma(ah, txq->axq_qnum);
+			npend = ath9k_hw_numtxpending(ah, txq->axq_qnum);
+			ath9k_ps_restore(sc);
+			if (npend)
+				break;
+
+			ath_draintxq(sc, txq, false);
+			txq->txq_flush_inprogress = false;
+		}
+	}
+
+	if (npend) {
+		ath_reset(sc, false);
+		txq->txq_flush_inprogress = false;
+	}
+
+	ieee80211_queue_delayed_work(hw, &sc->tx_complete_work, 0);
+	mutex_unlock(&sc->mutex);
+}
+
 struct ieee80211_ops ath9k_ops = {
 	.tx 		    = ath9k_tx,
 	.start 		    = ath9k_start,
@@ -2143,4 +2202,5 @@ struct ieee80211_ops ath9k_ops = {
 	.get_survey	    = ath9k_get_survey,
 	.rfkill_poll        = ath9k_rfkill_poll_state,
 	.set_coverage_class = ath9k_set_coverage_class,
+	.flush		    = ath9k_flush,
 };

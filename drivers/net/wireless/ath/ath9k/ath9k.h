@@ -21,7 +21,6 @@
 #include <linux/device.h>
 #include <linux/leds.h>
 #include <linux/completion.h>
-#include <linux/pm_qos_params.h>
 
 #include "debug.h"
 #include "common.h"
@@ -56,8 +55,6 @@ struct ath_node;
 	} while (0)
 
 #define A_MAX(a, b) ((a) > (b) ? (a) : (b))
-
-#define ATH9K_PM_QOS_DEFAULT_VALUE	55
 
 #define TSF_TO_TU(_h,_l) \
 	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
@@ -192,6 +189,7 @@ struct ath_txq {
 	u32 axq_ampdu_depth;
 	bool stopped;
 	bool axq_tx_inprogress;
+	bool txq_flush_inprogress;
 	struct list_head axq_acq;
 	struct list_head txq_fifo[ATH_TXFIFO_DEPTH];
 	struct list_head txq_fifo_pending;
@@ -349,6 +347,7 @@ void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid
 
 struct ath_vif {
 	int av_bslot;
+	bool is_bslot_active;
 	__le64 tsf_adjust; /* TSF adjustment for staggered beacons */
 	enum nl80211_iftype av_opmode;
 	struct ath_buf *av_bcbuf;
@@ -371,7 +370,7 @@ struct ath_vif {
 #define IEEE80211_MS_TO_TU(x)           (((x) * 1000) / 1024)
 
 struct ath_beacon_config {
-	u16 beacon_interval;
+	int beacon_interval;
 	u16 listen_interval;
 	u16 dtim_period;
 	u16 bmiss_timeout;
@@ -403,6 +402,7 @@ void ath_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif);
 int ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_vif *vif);
 void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp);
 int ath_beaconq_config(struct ath_softc *sc);
+void ath9k_set_beaconing_status(struct ath_softc *sc, bool status);
 
 /*******/
 /* ANI */
@@ -633,8 +633,6 @@ struct ath_softc {
 	struct ath9k_hw_cal_data caldata;
 	int last_rssi;
 
-	int beacon_interval;
-
 #ifdef CONFIG_ATH9K_DEBUGFS
 	struct ath9k_debug debug;
 	spinlock_t nodes_lock;
@@ -649,8 +647,6 @@ struct ath_softc {
 	struct ath_descdma txsdma;
 
 	struct ath_ant_comb ant_comb;
-
-	struct pm_qos_request_list pm_qos_req;
 };
 
 void ath9k_tasklet(unsigned long data);
@@ -665,7 +661,6 @@ static inline void ath_read_cachesize(struct ath_common *common, int *csz)
 extern struct ieee80211_ops ath9k_ops;
 extern int ath9k_modparam_nohwcrypt;
 extern int led_blink;
-extern int ath9k_pm_qos_value;
 extern bool is_ath9k_unloaded;
 
 irqreturn_t ath_isr(int irq, void *dev);

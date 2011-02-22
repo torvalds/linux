@@ -1156,6 +1156,7 @@ void zd_usb_init(struct zd_usb *usb, struct ieee80211_hw *hw,
 	memset(usb, 0, sizeof(*usb));
 	usb->intf = usb_get_intf(intf);
 	usb_set_intfdata(usb->intf, hw);
+	init_usb_anchor(&usb->submitted_cmds);
 	init_usb_interrupt(usb);
 	init_usb_tx(usb);
 	init_usb_rx(usb);
@@ -1634,15 +1635,15 @@ int zd_usb_ioread16v(struct zd_usb *usb, u16 *values,
 
 	udev = zd_usb_to_usbdev(usb);
 	prepare_read_regs_int(usb);
-	r = usb_bulk_msg(udev, usb_sndbulkpipe(udev, EP_REGS_OUT),
-			 req, req_len, &actual_req_len, 50 /* ms */);
+	r = usb_interrupt_msg(udev, usb_sndintpipe(udev, EP_REGS_OUT),
+			      req, req_len, &actual_req_len, 50 /* ms */);
 	if (r) {
 		dev_dbg_f(zd_usb_dev(usb),
-			"error in usb_bulk_msg(). Error number %d\n", r);
+			"error in usb_interrupt_msg(). Error number %d\n", r);
 		goto error;
 	}
 	if (req_len != actual_req_len) {
-		dev_dbg_f(zd_usb_dev(usb), "error in usb_bulk_msg()\n"
+		dev_dbg_f(zd_usb_dev(usb), "error in usb_interrupt_msg()\n"
 			" req_len %d != actual_req_len %d\n",
 			req_len, actual_req_len);
 		r = -EIO;
@@ -1663,13 +1664,103 @@ error:
 	return r;
 }
 
-int zd_usb_iowrite16v(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
-	              unsigned int count)
+static void iowrite16v_urb_complete(struct urb *urb)
+{
+	struct zd_usb *usb = urb->context;
+
+	if (urb->status && !usb->cmd_error)
+		usb->cmd_error = urb->status;
+}
+
+static int zd_submit_waiting_urb(struct zd_usb *usb, bool last)
+{
+	int r = 0;
+	struct urb *urb = usb->urb_async_waiting;
+
+	if (!urb)
+		return 0;
+
+	usb->urb_async_waiting = NULL;
+
+	if (!last)
+		urb->transfer_flags |= URB_NO_INTERRUPT;
+
+	usb_anchor_urb(urb, &usb->submitted_cmds);
+	r = usb_submit_urb(urb, GFP_KERNEL);
+	if (r) {
+		usb_unanchor_urb(urb);
+		dev_dbg_f(zd_usb_dev(usb),
+			"error in usb_submit_urb(). Error number %d\n", r);
+		goto error;
+	}
+
+	/* fall-through with r == 0 */
+error:
+	usb_free_urb(urb);
+	return r;
+}
+
+void zd_usb_iowrite16v_async_start(struct zd_usb *usb)
+{
+	ZD_ASSERT(usb_anchor_empty(&usb->submitted_cmds));
+	ZD_ASSERT(usb->urb_async_waiting == NULL);
+	ZD_ASSERT(!usb->in_async);
+
+	ZD_ASSERT(mutex_is_locked(&zd_usb_to_chip(usb)->mutex));
+
+	usb->in_async = 1;
+	usb->cmd_error = 0;
+	usb->urb_async_waiting = NULL;
+}
+
+int zd_usb_iowrite16v_async_end(struct zd_usb *usb, unsigned int timeout)
+{
+	int r;
+
+	ZD_ASSERT(mutex_is_locked(&zd_usb_to_chip(usb)->mutex));
+	ZD_ASSERT(usb->in_async);
+
+	/* Submit last iowrite16v URB */
+	r = zd_submit_waiting_urb(usb, true);
+	if (r) {
+		dev_dbg_f(zd_usb_dev(usb),
+			"error in zd_submit_waiting_usb(). "
+			"Error number %d\n", r);
+
+		usb_kill_anchored_urbs(&usb->submitted_cmds);
+		goto error;
+	}
+
+	if (timeout)
+		timeout = usb_wait_anchor_empty_timeout(&usb->submitted_cmds,
+							timeout);
+	if (!timeout) {
+		usb_kill_anchored_urbs(&usb->submitted_cmds);
+		if (usb->cmd_error == -ENOENT) {
+			dev_dbg_f(zd_usb_dev(usb), "timed out");
+			r = -ETIMEDOUT;
+			goto error;
+		}
+	}
+
+	r = usb->cmd_error;
+error:
+	usb->in_async = 0;
+	return r;
+}
+
+int zd_usb_iowrite16v_async(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
+			    unsigned int count)
 {
 	int r;
 	struct usb_device *udev;
 	struct usb_req_write_regs *req = NULL;
-	int i, req_len, actual_req_len;
+	int i, req_len;
+	struct urb *urb;
+	struct usb_host_endpoint *ep;
+
+	ZD_ASSERT(mutex_is_locked(&zd_usb_to_chip(usb)->mutex));
+	ZD_ASSERT(usb->in_async);
 
 	if (count == 0)
 		return 0;
@@ -1685,17 +1776,23 @@ int zd_usb_iowrite16v(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
 		return -EWOULDBLOCK;
 	}
 
-	ZD_ASSERT(mutex_is_locked(&zd_usb_to_chip(usb)->mutex));
-	BUILD_BUG_ON(sizeof(struct usb_req_write_regs) +
-		     USB_MAX_IOWRITE16_COUNT * sizeof(struct reg_data) >
-		     sizeof(usb->req_buf));
-	BUG_ON(sizeof(struct usb_req_write_regs) +
-	       count * sizeof(struct reg_data) >
-	       sizeof(usb->req_buf));
+	udev = zd_usb_to_usbdev(usb);
+
+	ep = usb_pipe_endpoint(udev, usb_sndintpipe(udev, EP_REGS_OUT));
+	if (!ep)
+		return -ENOENT;
+
+	urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!urb)
+		return -ENOMEM;
 
 	req_len = sizeof(struct usb_req_write_regs) +
 		  count * sizeof(struct reg_data);
-	req = (void *)usb->req_buf;
+	req = kmalloc(req_len, GFP_KERNEL);
+	if (!req) {
+		r = -ENOMEM;
+		goto error;
+	}
 
 	req->id = cpu_to_le16(USB_REQ_WRITE_REGS);
 	for (i = 0; i < count; i++) {
@@ -1704,26 +1801,42 @@ int zd_usb_iowrite16v(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
 		rw->value = cpu_to_le16(ioreqs[i].value);
 	}
 
-	udev = zd_usb_to_usbdev(usb);
-	r = usb_bulk_msg(udev, usb_sndbulkpipe(udev, EP_REGS_OUT),
-			 req, req_len, &actual_req_len, 50 /* ms */);
+	usb_fill_int_urb(urb, udev, usb_sndintpipe(udev, EP_REGS_OUT),
+			 req, req_len, iowrite16v_urb_complete, usb,
+			 ep->desc.bInterval);
+	urb->transfer_flags |= URB_FREE_BUFFER | URB_SHORT_NOT_OK;
+
+	/* Submit previous URB */
+	r = zd_submit_waiting_urb(usb, false);
 	if (r) {
 		dev_dbg_f(zd_usb_dev(usb),
-			"error in usb_bulk_msg(). Error number %d\n", r);
-		goto error;
-	}
-	if (req_len != actual_req_len) {
-		dev_dbg_f(zd_usb_dev(usb),
-			"error in usb_bulk_msg()"
-			" req_len %d != actual_req_len %d\n",
-			req_len, actual_req_len);
-		r = -EIO;
+			"error in zd_submit_waiting_usb(). "
+			"Error number %d\n", r);
 		goto error;
 	}
 
-	/* FALL-THROUGH with r == 0 */
+	/* Delay submit so that URB_NO_INTERRUPT flag can be set for all URBs
+	 * of currect batch except for very last.
+	 */
+	usb->urb_async_waiting = urb;
+	return 0;
 error:
+	usb_free_urb(urb);
 	return r;
+}
+
+int zd_usb_iowrite16v(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
+			unsigned int count)
+{
+	int r;
+
+	zd_usb_iowrite16v_async_start(usb);
+	r = zd_usb_iowrite16v_async(usb, ioreqs, count);
+	if (r) {
+		zd_usb_iowrite16v_async_end(usb, 0);
+		return r;
+	}
+	return zd_usb_iowrite16v_async_end(usb, 50 /* ms */);
 }
 
 int zd_usb_rfwrite(struct zd_usb *usb, u32 value, u8 bits)
@@ -1794,15 +1907,15 @@ int zd_usb_rfwrite(struct zd_usb *usb, u32 value, u8 bits)
 	}
 
 	udev = zd_usb_to_usbdev(usb);
-	r = usb_bulk_msg(udev, usb_sndbulkpipe(udev, EP_REGS_OUT),
-			 req, req_len, &actual_req_len, 50 /* ms */);
+	r = usb_interrupt_msg(udev, usb_sndintpipe(udev, EP_REGS_OUT),
+			      req, req_len, &actual_req_len, 50 /* ms */);
 	if (r) {
 		dev_dbg_f(zd_usb_dev(usb),
-			"error in usb_bulk_msg(). Error number %d\n", r);
+			"error in usb_interrupt_msg(). Error number %d\n", r);
 		goto out;
 	}
 	if (req_len != actual_req_len) {
-		dev_dbg_f(zd_usb_dev(usb), "error in usb_bulk_msg()"
+		dev_dbg_f(zd_usb_dev(usb), "error in usb_interrupt_msg()"
 			" req_len %d != actual_req_len %d\n",
 			req_len, actual_req_len);
 		r = -EIO;

@@ -69,7 +69,6 @@ void rt2x00ht_create_tx_descriptor(struct queue_entry *entry,
 			txdesc->mcs |= 0x08;
 	}
 
-
 	/*
 	 * This frame is eligible for an AMPDU, however, don't aggregate
 	 * frames that are intended to probe a specific tx rate.

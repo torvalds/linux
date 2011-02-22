@@ -1055,6 +1055,7 @@ int ath_txq_update(struct ath_softc *sc, int qnum,
 int ath_cabq_update(struct ath_softc *sc)
 {
 	struct ath9k_tx_queue_info qi;
+	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
 	int qnum = sc->beacon.cabq->axq_qnum;
 
 	ath9k_hw_get_txq_props(sc->sc_ah, qnum, &qi);
@@ -1066,7 +1067,7 @@ int ath_cabq_update(struct ath_softc *sc)
 	else if (sc->config.cabqReadytime > ATH9K_READY_TIME_HI_BOUND)
 		sc->config.cabqReadytime = ATH9K_READY_TIME_HI_BOUND;
 
-	qi.tqi_readyTime = (sc->beacon_interval *
+	qi.tqi_readyTime = (cur_conf->beacon_interval *
 			    sc->config.cabqReadytime) / 100;
 	ath_txq_update(sc, qnum, &qi);
 
@@ -2013,7 +2014,8 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		spin_lock_bh(&txq->axq_lock);
 		if (list_empty(&txq->axq_q)) {
 			txq->axq_link = NULL;
-			if (sc->sc_flags & SC_OP_TXAGGR)
+			if (sc->sc_flags & SC_OP_TXAGGR &&
+			    !txq->txq_flush_inprogress)
 				ath_txq_schedule(sc, txq);
 			spin_unlock_bh(&txq->axq_lock);
 			break;
@@ -2070,6 +2072,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 
 		if (bf_is_ampdu_not_probing(bf))
 			txq->axq_ampdu_depth--;
+
 		spin_unlock_bh(&txq->axq_lock);
 
 		if (bf_held)
@@ -2093,7 +2096,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 
 		spin_lock_bh(&txq->axq_lock);
 
-		if (sc->sc_flags & SC_OP_TXAGGR)
+		if (sc->sc_flags & SC_OP_TXAGGR && !txq->txq_flush_inprogress)
 			ath_txq_schedule(sc, txq);
 		spin_unlock_bh(&txq->axq_lock);
 	}
@@ -2264,15 +2267,18 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 
 		spin_lock_bh(&txq->axq_lock);
 
-		if (!list_empty(&txq->txq_fifo_pending)) {
-			INIT_LIST_HEAD(&bf_head);
-			bf = list_first_entry(&txq->txq_fifo_pending,
-				struct ath_buf, list);
-			list_cut_position(&bf_head, &txq->txq_fifo_pending,
-				&bf->bf_lastbf->list);
-			ath_tx_txqaddbuf(sc, txq, &bf_head);
-		} else if (sc->sc_flags & SC_OP_TXAGGR)
-			ath_txq_schedule(sc, txq);
+		if (!txq->txq_flush_inprogress) {
+			if (!list_empty(&txq->txq_fifo_pending)) {
+				INIT_LIST_HEAD(&bf_head);
+				bf = list_first_entry(&txq->txq_fifo_pending,
+						      struct ath_buf, list);
+				list_cut_position(&bf_head,
+						  &txq->txq_fifo_pending,
+						  &bf->bf_lastbf->list);
+				ath_tx_txqaddbuf(sc, txq, &bf_head);
+			} else if (sc->sc_flags & SC_OP_TXAGGR)
+				ath_txq_schedule(sc, txq);
+		}
 		spin_unlock_bh(&txq->axq_lock);
 	}
 }

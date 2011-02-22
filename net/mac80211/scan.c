@@ -307,11 +307,15 @@ static void __ieee80211_scan_completed_finish(struct ieee80211_hw *hw,
 	mutex_lock(&local->mtx);
 	on_oper_chan = ieee80211_cfg_on_oper_channel(local);
 
+	WARN_ON(local->scanning & (SCAN_SW_SCANNING | SCAN_HW_SCANNING));
+
 	if (was_hw_scan || !on_oper_chan) {
 		if (WARN_ON(local->scan_channel))
 			local->scan_channel = NULL;
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
-	}
+	} else
+		/* Set power back to normal operating levels. */
+		ieee80211_hw_config(local, 0);
 
 	if (!was_hw_scan) {
 		bool on_oper_chan2;
@@ -376,6 +380,9 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local)
 	ieee80211_offchannel_enable_all_ps(local, false);
 
 	ieee80211_configure_filter(local);
+
+	/* We need to set power level at maximum rate for scanning. */
+	ieee80211_hw_config(local, 0);
 
 	ieee80211_queue_delayed_work(&local->hw,
 				     &local->scan_work,
@@ -517,8 +524,7 @@ static void ieee80211_scan_state_decision(struct ieee80211_local *local,
 
 	if (ieee80211_cfg_on_oper_channel(local)) {
 		/* We're currently on operating channel. */
-		if ((next_chan == local->oper_channel) &&
-		    (local->_oper_channel_type == NL80211_CHAN_NO_HT))
+		if (next_chan == local->oper_channel)
 			/* We don't need to move off of operating channel. */
 			local->next_scan_state = SCAN_SET_CHANNEL;
 		else
@@ -620,8 +626,7 @@ static void ieee80211_scan_state_set_channel(struct ieee80211_local *local,
 	local->scan_channel = chan;
 
 	/* Only call hw-config if we really need to change channels. */
-	if ((chan != local->hw.conf.channel) ||
-	    (local->hw.conf.channel_type != NL80211_CHAN_NO_HT))
+	if (chan != local->hw.conf.channel)
 		if (ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL))
 			skip = 1;
 

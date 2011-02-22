@@ -17,7 +17,7 @@ comment "CFG80211 needs to be enabled for MAC80211"
 if MAC80211 != n
 
 config MAC80211_HAS_RC
-	def_bool n
+	bool
 
 config MAC80211_RC_PID
 	bool "PID controller based rate control algorithm" if EXPERT

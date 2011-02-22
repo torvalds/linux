@@ -397,9 +397,9 @@ int p54_scan(struct p54_common *priv, u16 mode, u16 dwell)
 	union p54_scan_body_union *body;
 	struct p54_scan_tail_rate *rate;
 	struct pda_rssi_cal_entry *rssi;
+	struct p54_rssi_db_entry *rssi_data;
 	unsigned int i;
 	void *entry;
-	int band = priv->hw->conf.channel->band;
 	__le16 freq = cpu_to_le16(priv->hw->conf.channel->center_freq);
 
 	skb = p54_alloc_skb(priv, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*head) +
@@ -503,13 +503,14 @@ int p54_scan(struct p54_common *priv, u16 mode, u16 dwell)
 	}
 
 	rssi = (struct pda_rssi_cal_entry *) skb_put(skb, sizeof(*rssi));
-	rssi->mul = cpu_to_le16(priv->rssical_db[band].mul);
-	rssi->add = cpu_to_le16(priv->rssical_db[band].add);
+	rssi_data = p54_rssi_find(priv, le16_to_cpu(freq));
+	rssi->mul = cpu_to_le16(rssi_data->mul);
+	rssi->add = cpu_to_le16(rssi_data->add);
 	if (priv->rxhw == PDR_SYNTH_FRONTEND_LONGBOW) {
 		/* Longbow frontend needs ever more */
 		rssi = (void *) skb_put(skb, sizeof(*rssi));
-		rssi->mul = cpu_to_le16(priv->rssical_db[band].longbow_unkn);
-		rssi->add = cpu_to_le16(priv->rssical_db[band].longbow_unk2);
+		rssi->mul = cpu_to_le16(rssi_data->longbow_unkn);
+		rssi->add = cpu_to_le16(rssi_data->longbow_unk2);
 	}
 
 	if (priv->fw_var >= 0x509) {
@@ -523,6 +524,7 @@ int p54_scan(struct p54_common *priv, u16 mode, u16 dwell)
 	hdr->len = cpu_to_le16(skb->len - sizeof(*hdr));
 
 	p54_tx(priv, skb);
+	priv->cur_rssi = rssi_data;
 	return 0;
 
 err:

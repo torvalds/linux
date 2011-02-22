@@ -1832,7 +1832,7 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	 * IBSS mode (no proper uCode support for coex then).
 	 */
 	if (!bt_coex_active || priv->iw_mode == NL80211_IFTYPE_ADHOC) {
-		bt_cmd.flags = 0;
+		bt_cmd.flags = IWLAGN_BT_FLAG_COEX_MODE_DISABLED;
 	} else {
 		bt_cmd.flags = IWLAGN_BT_FLAG_COEX_MODE_3W <<
 					IWLAGN_BT_FLAG_COEX_MODE_SHIFT;
@@ -1868,6 +1868,11 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 		container_of(work, struct iwl_priv, bt_traffic_change_work);
 	struct iwl_rxon_context *ctx;
 	int smps_request = -1;
+
+	if (priv->bt_enable_flag == IWLAGN_BT_FLAG_COEX_MODE_DISABLED) {
+		/* bt coex disabled */
+		return;
+	}
 
 	/*
 	 * Note: bt_traffic_load can be overridden by scan complete and
@@ -2021,6 +2026,11 @@ void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_bt_coex_profile_notif *coex = &pkt->u.bt_coex_profile_notif;
 	struct iwl_bt_uart_msg *uart_msg = &coex->last_bt_uart_msg;
+
+	if (priv->bt_enable_flag == IWLAGN_BT_FLAG_COEX_MODE_DISABLED) {
+		/* bt coex disabled */
+		return;
+	}
 
 	IWL_DEBUG_NOTIF(priv, "BT Coex notification:\n");
 	IWL_DEBUG_NOTIF(priv, "    status: %d\n", coex->bt_status);

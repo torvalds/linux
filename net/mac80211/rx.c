@@ -832,18 +832,8 @@ ieee80211_rx_h_check(struct ieee80211_rx_data *rx)
 		      ieee80211_is_pspoll(hdr->frame_control)) &&
 		     rx->sdata->vif.type != NL80211_IFTYPE_ADHOC &&
 		     rx->sdata->vif.type != NL80211_IFTYPE_WDS &&
-		     (!rx->sta || !test_sta_flags(rx->sta, WLAN_STA_ASSOC)))) {
-		if ((!ieee80211_has_fromds(hdr->frame_control) &&
-		     !ieee80211_has_tods(hdr->frame_control) &&
-		     ieee80211_is_data(hdr->frame_control)) ||
-		    !(status->rx_flags & IEEE80211_RX_RA_MATCH)) {
-			/* Drop IBSS frames and frames for other hosts
-			 * silently. */
-			return RX_DROP_MONITOR;
-		}
-
+		     (!rx->sta || !test_sta_flags(rx->sta, WLAN_STA_ASSOC))))
 		return RX_DROP_MONITOR;
-	}
 
 	return RX_CONTINUE;
 }

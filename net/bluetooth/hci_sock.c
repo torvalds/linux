@@ -85,7 +85,8 @@ static struct bt_sock_list hci_sk_list = {
 };
 
 /* Send frame to RAW socket */
-void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
+void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb,
+							struct sock *skip_sk)
 {
 	struct sock *sk;
 	struct hlist_node *node;
@@ -96,6 +97,9 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 	sk_for_each(sk, node, &hci_sk_list.head) {
 		struct hci_filter *flt;
 		struct sk_buff *nskb;
+
+		if (sk == skip_sk)
+			continue;
 
 		if (sk->sk_state != BT_BOUND || hci_pi(sk)->hdev != hdev)
 			continue;

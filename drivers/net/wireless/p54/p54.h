@@ -116,7 +116,8 @@ struct p54_edcf_queue_param {
 	__le16 txop;
 } __packed;
 
-struct p54_rssi_linear_approximation {
+struct p54_rssi_db_entry {
+	u16 freq;
 	s16 mul;
 	s16 add;
 	s16 longbow_unkn;
@@ -197,13 +198,14 @@ struct p54_common {
 	u8 rx_diversity_mask;
 	u8 tx_diversity_mask;
 	unsigned int output_power;
+	struct p54_rssi_db_entry *cur_rssi;
 	int noise;
 	/* calibration, output power limit and rssi<->dBm conversation data */
 	struct pda_iq_autocal_entry *iq_autocal;
 	unsigned int iq_autocal_len;
 	struct p54_cal_database *curve_data;
 	struct p54_cal_database *output_limit;
-	struct p54_rssi_linear_approximation rssical_db[IEEE80211_NUM_BANDS];
+	struct p54_cal_database *rssi_db;
 	struct ieee80211_supported_band *band_table[IEEE80211_NUM_BANDS];
 
 	/* BBP/MAC state */
