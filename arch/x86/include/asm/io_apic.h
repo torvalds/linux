@@ -190,6 +190,24 @@ static inline int mp_find_ioapic(u32 gsi) { return 0; }
 struct io_apic_irq_attr;
 static inline int io_apic_set_pci_routing(struct device *dev, int irq,
 		 struct io_apic_irq_attr *irq_attr) { return 0; }
+
+static inline struct IO_APIC_route_entry **alloc_ioapic_entries(void)
+{
+	return NULL;
+}
+
+static inline void free_ioapic_entries(struct IO_APIC_route_entry **ent) { }
+static inline int save_IO_APIC_setup(struct IO_APIC_route_entry **ent)
+{
+	return -ENOMEM;
+}
+
+static inline void mask_IO_APIC_setup(struct IO_APIC_route_entry **ent) { }
+static inline int restore_IO_APIC_setup(struct IO_APIC_route_entry **ent)
+{
+	return -ENOMEM;
+}
+
 static inline void mp_save_irq(struct mpc_intsrc *m) { };
 static inline void disable_ioapic_support(void) { }
 #endif
