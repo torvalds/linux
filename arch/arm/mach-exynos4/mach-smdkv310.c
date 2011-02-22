@@ -15,6 +15,7 @@
 #include <linux/smsc911x.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
+#include <linux/input.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -24,6 +25,7 @@
 #include <plat/exynos4.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
+#include <plat/keypad.h>
 #include <plat/sdhci.h>
 #include <plat/iic.h>
 #include <plat/pd.h>
@@ -142,6 +144,25 @@ static struct platform_device smdkv310_smsc911x = {
 	},
 };
 
+static uint32_t smdkv310_keymap[] __initdata = {
+	/* KEY(row, col, keycode) */
+	KEY(0, 3, KEY_1), KEY(0, 4, KEY_2), KEY(0, 5, KEY_3),
+	KEY(0, 6, KEY_4), KEY(0, 7, KEY_5),
+	KEY(1, 3, KEY_A), KEY(1, 4, KEY_B), KEY(1, 5, KEY_C),
+	KEY(1, 6, KEY_D), KEY(1, 7, KEY_E)
+};
+
+static struct matrix_keymap_data smdkv310_keymap_data __initdata = {
+	.keymap		= smdkv310_keymap,
+	.keymap_size	= ARRAY_SIZE(smdkv310_keymap),
+};
+
+static struct samsung_keypad_platdata smdkv310_keypad_data __initdata = {
+	.keymap_data	= &smdkv310_keymap_data,
+	.rows		= 2,
+	.cols		= 8,
+};
+
 static struct i2c_board_info i2c_devs1[] __initdata = {
 	{I2C_BOARD_INFO("wm8994", 0x1a),},
 };
@@ -156,6 +177,7 @@ static struct platform_device *smdkv310_devices[] __initdata = {
 	&s3c_device_wdt,
 	&exynos4_device_ac97,
 	&exynos4_device_i2s0,
+	&samsung_device_keypad,
 	&exynos4_device_pd[PD_MFC],
 	&exynos4_device_pd[PD_G3D],
 	&exynos4_device_pd[PD_LCD0],
@@ -209,6 +231,8 @@ static void __init smdkv310_machine_init(void)
 	s3c_sdhci1_set_platdata(&smdkv310_hsmmc1_pdata);
 	s3c_sdhci2_set_platdata(&smdkv310_hsmmc2_pdata);
 	s3c_sdhci3_set_platdata(&smdkv310_hsmmc3_pdata);
+
+	samsung_keypad_set_platdata(&smdkv310_keypad_data);
 
 	platform_add_devices(smdkv310_devices, ARRAY_SIZE(smdkv310_devices));
 }
