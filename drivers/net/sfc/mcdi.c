@@ -94,14 +94,15 @@ static void efx_mcdi_copyin(struct efx_nic *efx, unsigned cmd,
 
 	efx_writed(efx, &hdr, pdu);
 
-	for (i = 0; i < inlen; i += 4)
+	for (i = 0; i < inlen; i += 4) {
 		_efx_writed(efx, *((__le32 *)(inbuf + i)), pdu + 4 + i);
-
-	/* Ensure the payload is written out before the header */
-	wmb();
+		/* use wmb() within loop to inhibit write combining */
+		wmb();
+	}
 
 	/* ring the doorbell with a distinctive value */
 	_efx_writed(efx, (__force __le32) 0x45789abc, doorbell);
+	wmb();
 }
 
 static void efx_mcdi_copyout(struct efx_nic *efx, u8 *outbuf, size_t outlen)

@@ -1104,8 +1104,8 @@ static int efx_init_io(struct efx_nic *efx)
 		rc = -EIO;
 		goto fail3;
 	}
-	efx->membase = ioremap_nocache(efx->membase_phys,
-				       efx->type->mem_map_size);
+	efx->membase = ioremap_wc(efx->membase_phys,
+				  efx->type->mem_map_size);
 	if (!efx->membase) {
 		netif_err(efx, probe, efx->net_dev,
 			  "could not map memory BAR at %llx+%x\n",
