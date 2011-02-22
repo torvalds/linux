@@ -7,6 +7,7 @@
  * Released under the GPL v2. (and only v2, not any later version)
  */
 #include "../browser.h"
+#include "../../annotate.h"
 #include "../helpline.h"
 #include "../libslang.h"
 #include "../../evlist.h"
@@ -18,6 +19,7 @@
 struct perf_top_browser {
 	struct ui_browser b;
 	struct rb_root	  root;
+	struct sym_entry  *selection;
 	float		  sum_ksamples;
 	int		  dso_width;
 	int		  dso_short_width;
@@ -60,6 +62,9 @@ static void perf_top_browser__write(struct ui_browser *browser, void *entry, int
 	slsmg_write_nstring(width >= syme->map->dso->long_name_len ?
 				syme->map->dso->long_name :
 				syme->map->dso->short_name, width);
+
+	if (current_entry)
+		top_browser->selection = syme;
 }
 
 static void perf_top_browser__update_rb_tree(struct perf_top_browser *browser)
@@ -80,21 +85,52 @@ static void perf_top_browser__update_rb_tree(struct perf_top_browser *browser)
 	browser->b.nr_entries = top->rb_entries;
 }
 
+static void perf_top_browser__annotate(struct perf_top_browser *browser)
+{
+	struct sym_entry *syme = browser->selection;
+	struct symbol *sym = sym_entry__symbol(syme);
+	struct annotation *notes = symbol__annotation(sym);
+	struct perf_top *top = browser->b.priv;
+
+	if (notes->src != NULL)
+		goto do_annotation;
+
+	pthread_mutex_lock(&notes->lock);
+
+	top->sym_filter_entry = NULL;
+
+	if (symbol__alloc_hist(sym, top->evlist->nr_entries) < 0) {
+		pr_err("Not enough memory for annotating '%s' symbol!\n",
+		       sym->name);
+		pthread_mutex_unlock(&notes->lock);
+		return;
+	}
+
+	top->sym_filter_entry = syme;
+
+	pthread_mutex_unlock(&notes->lock);
+do_annotation:
+	symbol__tui_annotate(sym, syme->map, 0, top->delay_secs * 1000);
+}
+
 static int perf_top_browser__run(struct perf_top_browser *browser)
 {
 	int key;
 	char title[160];
 	struct perf_top *top = browser->b.priv;
 	int delay_msecs = top->delay_secs * 1000;
+	int exit_keys[] = { 'a', NEWT_KEY_ENTER, NEWT_KEY_RIGHT, 0, };
 
 	perf_top_browser__update_rb_tree(browser);
         perf_top__header_snprintf(top, title, sizeof(title));
         perf_top__reset_sample_counters(top);
 
-	if (ui_browser__show(&browser->b, title, "ESC: exit") < 0)
+	if (ui_browser__show(&browser->b, title,
+			     "ESC: exit, ENTER|->|a: Live Annotate") < 0)
 		return -1;
 
 	newtFormSetTimer(browser->b.form, delay_msecs);
+	ui_browser__add_exit_keys(&browser->b, exit_keys);
 
 	while (1) {
 		key = ui_browser__run(&browser->b);
@@ -109,7 +145,12 @@ static int perf_top_browser__run(struct perf_top_browser *browser)
 			SLsmg_gotorc(0, 0);
 			slsmg_write_nstring(title, browser->b.width);
 			break;
-		case NEWT_KEY_TAB:
+		case 'a':
+		case NEWT_KEY_RIGHT:
+		case NEWT_KEY_ENTER:
+			if (browser->selection)
+				perf_top_browser__annotate(browser);
+			break;
 		default:
 			goto out;
 		}

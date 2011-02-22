@@ -44,6 +44,7 @@ struct perf_top {
 	pid_t		   target_pid, target_tid;
 	bool		   hide_kernel_symbols, hide_user_symbols, zero;
 	const char	   *cpu_list;
+	struct sym_entry   *sym_filter_entry;
 	struct perf_evsel  *sym_evsel;
 };
 

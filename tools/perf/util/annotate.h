@@ -90,12 +90,14 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
 
 #ifdef NO_NEWT_SUPPORT
 static inline int symbol__tui_annotate(struct symbol *sym __used,
-				       struct map *map __used, int evidx __used)
+				       struct map *map __used,
+				       int evidx __used, int refresh __used)
 {
 	return 0;
 }
 #else
-int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx);
+int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
+			 int refresh);
 #endif
 
 #endif	/* __PERF_ANNOTATE_H */

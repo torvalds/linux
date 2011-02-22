@@ -92,7 +92,6 @@ static bool			dump_symtab                     =  false;
 static struct winsize		winsize;
 
 static const char		*sym_filter			=   NULL;
-struct sym_entry		*sym_filter_entry		=   NULL;
 struct sym_entry		*sym_filter_entry_sched		=   NULL;
 static int			sym_pcnt_filter			=      5;
 
@@ -168,18 +167,19 @@ static int parse_source(struct sym_entry *syme)
 	pthread_mutex_lock(&notes->lock);
 
 	if (symbol__alloc_hist(sym, top.evlist->nr_entries) < 0) {
+		pthread_mutex_unlock(&notes->lock);
 		pr_err("Not enough memory for annotating '%s' symbol!\n",
 		       sym->name);
 		sleep(1);
-		goto out_unlock;
+		return err;
 	}
 
 	err = symbol__annotate(sym, syme->map, 0);
 	if (err == 0) {
 out_assign:
-	sym_filter_entry = syme;
+		top.sym_filter_entry = syme;
 	}
-out_unlock:
+
 	pthread_mutex_unlock(&notes->lock);
 	return err;
 }
@@ -195,7 +195,7 @@ static void record_precise_ip(struct sym_entry *syme, int counter, u64 ip)
 	struct annotation *notes;
 	struct symbol *sym;
 
-	if (syme != sym_filter_entry)
+	if (syme != top.sym_filter_entry)
 		return;
 
 	sym = sym_entry__symbol(syme);
@@ -275,8 +275,8 @@ static void print_sym_table(struct perf_session *session)
 		       session->hists.stats.total_lost);
 	}
 
-	if (sym_filter_entry) {
-		show_details(sym_filter_entry);
+	if (top.sym_filter_entry) {
+		show_details(top.sym_filter_entry);
 		return;
 	}
 
@@ -417,8 +417,8 @@ static void print_mapped_keys(void)
 {
 	char *name = NULL;
 
-	if (sym_filter_entry) {
-		struct symbol *sym = sym_entry__symbol(sym_filter_entry);
+	if (top.sym_filter_entry) {
+		struct symbol *sym = sym_entry__symbol(top.sym_filter_entry);
 		name = sym->name;
 	}
 
@@ -549,15 +549,15 @@ static void handle_keypress(struct perf_session *session, int c)
 				perf_session__fprintf_dsos(session, stderr);
 			exit(0);
 		case 's':
-			prompt_symbol(&sym_filter_entry, "Enter details symbol");
+			prompt_symbol(&top.sym_filter_entry, "Enter details symbol");
 			break;
 		case 'S':
-			if (!sym_filter_entry)
+			if (!top.sym_filter_entry)
 				break;
 			else {
-				struct sym_entry *syme = sym_filter_entry;
+				struct sym_entry *syme = top.sym_filter_entry;
 
-				sym_filter_entry = NULL;
+				top.sym_filter_entry = NULL;
 				__zero_source_counters(syme);
 			}
 			break;
@@ -656,7 +656,7 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 	syme->map = map;
 	symbol__annotate_init(map, sym);
 
-	if (!sym_filter_entry && sym_filter && !strcmp(name, sym_filter)) {
+	if (!top.sym_filter_entry && sym_filter && !strcmp(name, sym_filter)) {
 		/* schedule initial sym_filter_entry setup */
 		sym_filter_entry_sched = syme;
 		sym_filter = NULL;
@@ -750,13 +750,13 @@ static void perf_event__process_sample(const union perf_event *event,
 
 	/* let's see, whether we need to install initial sym_filter_entry */
 	if (sym_filter_entry_sched) {
-		sym_filter_entry = sym_filter_entry_sched;
+		top.sym_filter_entry = sym_filter_entry_sched;
 		sym_filter_entry_sched = NULL;
-		if (parse_source(sym_filter_entry) < 0) {
-			struct symbol *sym = sym_entry__symbol(sym_filter_entry);
+		if (parse_source(top.sym_filter_entry) < 0) {
+			struct symbol *sym = sym_entry__symbol(top.sym_filter_entry);
 
 			pr_err("Can't annotate %s", sym->name);
-			if (sym_filter_entry->map->dso->origin == DSO__ORIG_KERNEL) {
+			if (top.sym_filter_entry->map->dso->origin == DSO__ORIG_KERNEL) {
 				pr_err(": No vmlinux file was found in the path:\n");
 				machine__fprintf_vmlinux_path(machine, stderr);
 			} else
