@@ -537,6 +537,57 @@ static int wl1271_plt_init(struct wl1271 *wl)
 	return ret;
 }
 
+static void wl1271_irq_ps_regulate_link(struct wl1271 *wl, u8 hlid, u8 tx_blks)
+{
+	bool fw_ps;
+
+	/* only regulate station links */
+	if (hlid < WL1271_AP_STA_HLID_START)
+		return;
+
+	fw_ps = test_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map);
+
+	/*
+	 * Wake up from high level PS if the STA is asleep with too little
+	 * blocks in FW or if the STA is awake.
+	 */
+	if (!fw_ps || tx_blks < WL1271_PS_STA_MAX_BLOCKS)
+		wl1271_ps_link_end(wl, hlid);
+
+	/* Start high-level PS if the STA is asleep with enough blocks in FW */
+	else if (fw_ps && tx_blks >= WL1271_PS_STA_MAX_BLOCKS)
+		wl1271_ps_link_start(wl, hlid, true);
+}
+
+static void wl1271_irq_update_links_status(struct wl1271 *wl,
+				       struct wl1271_fw_ap_status *status)
+{
+	u32 cur_fw_ps_map;
+	u8 hlid;
+
+	cur_fw_ps_map = le32_to_cpu(status->link_ps_bitmap);
+	if (wl->ap_fw_ps_map != cur_fw_ps_map) {
+		wl1271_debug(DEBUG_PSM,
+			     "link ps prev 0x%x cur 0x%x changed 0x%x",
+			     wl->ap_fw_ps_map, cur_fw_ps_map,
+			     wl->ap_fw_ps_map ^ cur_fw_ps_map);
+
+		wl->ap_fw_ps_map = cur_fw_ps_map;
+	}
+
+	for (hlid = WL1271_AP_STA_HLID_START; hlid < AP_MAX_LINKS; hlid++) {
+		u8 cnt = status->tx_lnk_free_blks[hlid] -
+			wl->links[hlid].prev_freed_blks;
+
+		wl->links[hlid].prev_freed_blks =
+			status->tx_lnk_free_blks[hlid];
+		wl->links[hlid].allocated_blks -= cnt;
+
+		wl1271_irq_ps_regulate_link(wl, hlid,
+					    wl->links[hlid].allocated_blks);
+	}
+}
+
 static void wl1271_fw_status(struct wl1271 *wl,
 			     struct wl1271_fw_full_status *full_status)
 {
@@ -574,16 +625,9 @@ static void wl1271_fw_status(struct wl1271 *wl,
 	if (total)
 		clear_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags);
 
-	if (wl->bss_type == BSS_TYPE_AP_BSS) {
-		for (i = 0; i < AP_MAX_LINKS; i++) {
-			u8 cnt = status->tx_lnk_free_blks[i] -
-				wl->links[i].prev_freed_blks;
-
-			wl->links[i].prev_freed_blks =
-				status->tx_lnk_free_blks[i];
-			wl->links[i].allocated_blks -= cnt;
-		}
-	}
+	/* for AP update num of allocated TX blocks per link and ps status */
+	if (wl->bss_type == BSS_TYPE_AP_BSS)
+		wl1271_irq_update_links_status(wl, &full_status->ap);
 
 	/* update the host-chipset time offset */
 	getnstimeofday(&ts);
@@ -1241,6 +1285,8 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl)
 	wl->filters = 0;
 	wl1271_free_ap_keys(wl);
 	memset(wl->ap_hlid_map, 0, sizeof(wl->ap_hlid_map));
+	wl->ap_fw_ps_map = 0;
+	wl->ap_ps_map = 0;
 
 	for (i = 0; i < NUM_TX_QUEUES; i++)
 		wl->tx_blocks_freed[i] = 0;
@@ -2649,10 +2695,10 @@ static int wl1271_allocate_sta(struct wl1271 *wl,
 	}
 
 	wl_sta = (struct wl1271_station *)sta->drv_priv;
-
 	__set_bit(id, wl->ap_hlid_map);
 	wl_sta->hlid = WL1271_AP_STA_HLID_START + id;
 	*hlid = wl_sta->hlid;
+	memcpy(wl->links[wl_sta->hlid].addr, sta->addr, ETH_ALEN);
 	return 0;
 }
 
@@ -2664,7 +2710,10 @@ static void wl1271_free_sta(struct wl1271 *wl, u8 hlid)
 		return;
 
 	__clear_bit(id, wl->ap_hlid_map);
+	memset(wl->links[hlid].addr, 0, ETH_ALEN);
 	wl1271_tx_reset_link_queues(wl, hlid);
+	__clear_bit(hlid, &wl->ap_ps_map);
+	__clear_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map);
 }
 
 static int wl1271_op_sta_add(struct ieee80211_hw *hw,
@@ -3355,6 +3404,8 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->set_bss_type = MAX_BSS_TYPE;
 	wl->fw_bss_type = MAX_BSS_TYPE;
 	wl->last_tx_hlid = 0;
+	wl->ap_ps_map = 0;
+	wl->ap_fw_ps_map = 0;
 
 	memset(wl->tx_frames_map, 0, sizeof(wl->tx_frames_map));
 	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)

@@ -86,6 +86,26 @@ static void wl1271_tx_ap_update_inconnection_sta(struct wl1271 *wl,
 		wl1271_acx_set_inconnection_sta(wl, hdr->addr1);
 }
 
+static void wl1271_tx_regulate_link(struct wl1271 *wl, u8 hlid)
+{
+	bool fw_ps;
+	u8 tx_blks;
+
+	/* only regulate station links */
+	if (hlid < WL1271_AP_STA_HLID_START)
+		return;
+
+	fw_ps = test_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map);
+	tx_blks = wl->links[hlid].allocated_blks;
+
+	/*
+	 * if in FW PS and there is enough data in FW we can put the link
+	 * into high-level PS and clean out its TX queues.
+	 */
+	if (fw_ps && tx_blks >= WL1271_PS_STA_MAX_BLOCKS)
+		wl1271_ps_link_start(wl, hlid, true);
+}
+
 u8 wl1271_tx_get_hlid(struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *control = IEEE80211_SKB_CB(skb);
@@ -277,8 +297,10 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct sk_buff *skb,
 	if (ret < 0)
 		return ret;
 
-	if (wl->bss_type == BSS_TYPE_AP_BSS)
+	if (wl->bss_type == BSS_TYPE_AP_BSS) {
 		wl1271_tx_ap_update_inconnection_sta(wl, skb);
+		wl1271_tx_regulate_link(wl, hlid);
+	}
 
 	wl1271_tx_fill_hdr(wl, skb, extra, info, hlid);
 
