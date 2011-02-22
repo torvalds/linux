@@ -1490,6 +1490,35 @@ TRACE_EVENT(ocfs2_inode_revalidate,
 DEFINE_OCFS2_ULL_EVENT(ocfs2_mark_inode_dirty);
 
 /* End of trace events for fs/ocfs2/inode.c. */
+
+/* Trace events for fs/ocfs2/extent_map.c. */
+
+TRACE_EVENT(ocfs2_read_virt_blocks,
+	TP_PROTO(void *inode, unsigned long long vblock, int nr,
+		 void *bhs, unsigned int flags, void *validate),
+	TP_ARGS(inode, vblock, nr, bhs, flags, validate),
+	TP_STRUCT__entry(
+		__field(void *, inode)
+		__field(unsigned long long, vblock)
+		__field(int, nr)
+		__field(void *, bhs)
+		__field(unsigned int, flags)
+		__field(void *, validate)
+	),
+	TP_fast_assign(
+		__entry->inode = inode;
+		__entry->vblock = vblock;
+		__entry->nr = nr;
+		__entry->bhs = bhs;
+		__entry->flags = flags;
+		__entry->validate = validate;
+	),
+	TP_printk("%p %llu %d %p %x %p", __entry->inode, __entry->vblock,
+		  __entry->nr, __entry->bhs, __entry->flags, __entry->validate)
+);
+
+/* End of trace events for fs/ocfs2/extent_map.c. */
+
 #endif /* _TRACE_OCFS2_H */
 
 /* This part must be outside protection */

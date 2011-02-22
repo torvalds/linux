@@ -96,7 +96,6 @@
 #define ML_AIO		0x0000000000002000ULL /* ocfs2 aio read and write */
 #define ML_JOURNAL	0x0000000000004000ULL /* ocfs2 journalling functions */
 #define ML_SUPER	0x0000000000010000ULL /* ocfs2 mount / umount */
-#define ML_EXTENT_MAP	0x0000000000040000ULL /* ocfs2 extent map caching */
 #define ML_DLM_GLUE	0x0000000000080000ULL /* ocfs2 dlm glue layer */
 #define ML_BH_IO	0x0000000000100000ULL /* ocfs2 buffer I/O */
 #define ML_UPTODATE	0x0000000000200000ULL /* ocfs2 caching sequence #'s */
