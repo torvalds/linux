@@ -16,6 +16,7 @@
 
 #include <linux/of.h>
 #include <linux/types.h>
+#include <linux/pci.h>
 
 #include <asm/irq.h>
 #include <asm/atomic.h>
@@ -29,8 +30,21 @@ extern void add_dtb(u64 data);
 void x86_dtb_find_config(void);
 void x86_dtb_get_config(unsigned int unused);
 void add_interrupt_host(struct irq_domain *ih);
+void __cpuinit x86_of_pci_init(void);
+
+static inline struct device_node *pci_device_to_OF_node(struct pci_dev *pdev)
+{
+	return pdev ? pdev->dev.of_node : NULL;
+}
+
+static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
+{
+	return pci_device_to_OF_node(bus->self);
+}
+
 #else
 static inline void add_dtb(u64 data) { }
+static inline void x86_of_pci_init(void) { }
 #define x86_dtb_find_config x86_init_noop
 #define x86_dtb_get_config x86_init_uint_noop
 #define of_ioapic 0

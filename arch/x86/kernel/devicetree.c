@@ -9,11 +9,15 @@
 #include <linux/of_fdt.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/of_irq.h>
 #include <linux/slab.h>
+#include <linux/pci.h>
+#include <linux/of_pci.h>
 
 #include <asm/hpet.h>
 #include <asm/irq_controller.h>
 #include <asm/apic.h>
+#include <asm/pci_x86.h>
 
 __initdata u64 initial_dtb;
 char __initdata cmd_line[COMMAND_LINE_SIZE];
@@ -98,6 +102,85 @@ void __init add_dtb(u64 data)
 {
 	initial_dtb = data + offsetof(struct setup_data, data);
 }
+
+#ifdef CONFIG_PCI
+static int x86_of_pci_irq_enable(struct pci_dev *dev)
+{
+	struct of_irq oirq;
+	u32 virq;
+	int ret;
+	u8 pin;
+
+	ret = pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &pin);
+	if (ret)
+		return ret;
+	if (!pin)
+		return 0;
+
+	ret = of_irq_map_pci(dev, &oirq);
+	if (ret)
+		return ret;
+
+	virq = irq_create_of_mapping(oirq.controller, oirq.specifier,
+			oirq.size);
+	if (virq == 0)
+		return -EINVAL;
+	dev->irq = virq;
+	return 0;
+}
+
+static void x86_of_pci_irq_disable(struct pci_dev *dev)
+{
+}
+
+void __cpuinit x86_of_pci_init(void)
+{
+	struct device_node *np;
+
+	pcibios_enable_irq = x86_of_pci_irq_enable;
+	pcibios_disable_irq = x86_of_pci_irq_disable;
+
+	for_each_node_by_type(np, "pci") {
+		const void *prop;
+		struct pci_bus *bus;
+		unsigned int bus_min;
+		struct device_node *child;
+
+		prop = of_get_property(np, "bus-range", NULL);
+		if (!prop)
+			continue;
+		bus_min = be32_to_cpup(prop);
+
+		bus = pci_find_bus(0, bus_min);
+		if (!bus) {
+			printk(KERN_ERR "Can't find a node for bus %s.\n",
+					np->full_name);
+			continue;
+		}
+
+		if (bus->self)
+			bus->self->dev.of_node = np;
+		else
+			bus->dev.of_node = np;
+
+		for_each_child_of_node(np, child) {
+			struct pci_dev *dev;
+			u32 devfn;
+
+			prop = of_get_property(child, "reg", NULL);
+			if (!prop)
+				continue;
+
+			devfn = (be32_to_cpup(prop) >> 8) & 0xff;
+			dev = pci_get_slot(bus, devfn);
+			if (!dev)
+				continue;
+			dev->dev.of_node = child;
+			pci_dev_put(dev);
+		}
+	}
+}
+#endif
 
 static void __init dtb_setup_hpet(void)
 {
