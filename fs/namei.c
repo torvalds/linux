@@ -1362,6 +1362,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		unsigned long hash;
 		struct qstr this;
 		unsigned int c;
+		int type;
 
 		nd->flags |= LOOKUP_CONTINUE;
 
@@ -1381,6 +1382,16 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		this.len = name - (const char *) this.name;
 		this.hash = end_name_hash(hash);
 
+		type = LAST_NORM;
+		if (this.name[0] == '.') switch (this.len) {
+			case 2:
+				if (this.name[1] == '.')
+					type = LAST_DOTDOT;
+				break;
+			case 1:
+				type = LAST_DOT;
+		}
+
 		/* remove trailing slashes? */
 		if (!c)
 			goto last_component;
@@ -1393,21 +1404,17 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		 * to be able to know about the current root directory and
 		 * parent relationships.
 		 */
-		if (this.name[0] == '.') switch (this.len) {
-			default:
-				break;
-			case 2:
-				if (this.name[1] != '.')
-					break;
+		if (unlikely(type != LAST_NORM)) {
+			if (type == LAST_DOTDOT) {
 				if (nd->flags & LOOKUP_RCU) {
 					if (follow_dotdot_rcu(nd))
 						return -ECHILD;
 				} else
 					follow_dotdot(nd);
-				/* fallthrough */
-			case 1:
-				continue;
+			}
+			continue;
 		}
+
 		/* This does the actual lookups.. */
 		err = do_lookup(nd, &this, &next, &inode);
 		if (err)
@@ -1441,20 +1448,15 @@ last_component:
 		nd->flags &= lookup_flags | ~LOOKUP_CONTINUE;
 		if (lookup_flags & LOOKUP_PARENT)
 			goto lookup_parent;
-		if (this.name[0] == '.') switch (this.len) {
-			default:
-				break;
-			case 2:
-				if (this.name[1] != '.')
-					break;
+		if (unlikely(type != LAST_NORM)) {
+			if (type == LAST_DOTDOT) {
 				if (nd->flags & LOOKUP_RCU) {
 					if (follow_dotdot_rcu(nd))
 						return -ECHILD;
 				} else
 					follow_dotdot(nd);
-				/* fallthrough */
-			case 1:
-				goto return_reval;
+			}
+			goto return_reval;
 		}
 		err = do_lookup(nd, &this, &next, &inode);
 		if (err)
@@ -1480,14 +1482,8 @@ last_component:
 		goto return_base;
 lookup_parent:
 		nd->last = this;
-		nd->last_type = LAST_NORM;
-		if (this.name[0] != '.')
-			goto return_base;
-		if (this.len == 1)
-			nd->last_type = LAST_DOT;
-		else if (this.len == 2 && this.name[1] == '.')
-			nd->last_type = LAST_DOTDOT;
-		else
+		nd->last_type = type;
+		if (type == LAST_NORM)
 			goto return_base;
 return_reval:
 		/*
