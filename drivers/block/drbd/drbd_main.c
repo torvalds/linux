@@ -3003,7 +3003,7 @@ const char *cmdname(enum drbd_packet cmd)
 		[P_RECV_ACK]	        = "RecvAck",
 		[P_WRITE_ACK]	        = "WriteAck",
 		[P_RS_WRITE_ACK]	= "RSWriteAck",
-		[P_DISCARD_ACK]	        = "DiscardAck",
+		[P_DISCARD_WRITE]        = "DiscardWrite",
 		[P_NEG_ACK]	        = "NegAck",
 		[P_NEG_DREPLY]	        = "NegDReply",
 		[P_NEG_RS_DREPLY]	= "NegRSDReply",
@@ -3018,6 +3018,7 @@ const char *cmdname(enum drbd_packet cmd)
 		[P_COMPRESSED_BITMAP]   = "CBitmap",
 		[P_DELAY_PROBE]         = "DelayProbe",
 		[P_OUT_OF_SYNC]		= "OutOfSync",
+		[P_RETRY_WRITE]		= "RetryWrite",
 		[P_MAX_CMD]	        = NULL,
 	};
 
@@ -3030,6 +3031,38 @@ const char *cmdname(enum drbd_packet cmd)
 	if (cmd >= P_MAX_CMD)
 		return "Unknown";
 	return cmdnames[cmd];
+}
+
+/**
+ * drbd_wait_misc  -  wait for a request to make progress
+ * @mdev:	device associated with the request
+ * @i:		the struct drbd_interval embedded in struct drbd_request or
+ *		struct drbd_peer_request
+ */
+int drbd_wait_misc(struct drbd_conf *mdev, struct drbd_interval *i)
+{
+	struct net_conf *net_conf = mdev->tconn->net_conf;
+	DEFINE_WAIT(wait);
+	long timeout;
+
+	if (!net_conf)
+		return -ETIMEDOUT;
+	timeout = MAX_SCHEDULE_TIMEOUT;
+	if (net_conf->ko_count)
+		timeout = net_conf->timeout * HZ / 10 * net_conf->ko_count;
+
+	/* Indicate to wake up mdev->misc_wait on progress.  */
+	i->waiting = true;
+	prepare_to_wait(&mdev->misc_wait, &wait, TASK_INTERRUPTIBLE);
+	spin_unlock_irq(&mdev->tconn->req_lock);
+	timeout = schedule_timeout(timeout);
+	finish_wait(&mdev->misc_wait, &wait);
+	spin_lock_irq(&mdev->tconn->req_lock);
+	if (!timeout || mdev->state.conn < C_CONNECTED)
+		return -ETIMEDOUT;
+	if (signal_pending(current))
+		return -ERESTARTSYS;
+	return 0;
 }
 
 #ifdef CONFIG_DRBD_FAULT_INJECTION

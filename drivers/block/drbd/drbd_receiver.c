@@ -415,7 +415,7 @@ static int drbd_process_done_ee(struct drbd_conf *mdev)
 		drbd_free_net_ee(mdev, peer_req);
 
 	/* possible callbacks here:
-	 * e_end_block, and e_end_resync_block, e_send_discard_ack.
+	 * e_end_block, and e_end_resync_block, e_send_discard_write.
 	 * all ignore the last argument.
 	 */
 	list_for_each_entry_safe(peer_req, t, &work_list, w.list) {
@@ -1589,6 +1589,51 @@ static int receive_RSDataReply(struct drbd_conf *mdev, enum drbd_packet cmd,
 	return ok;
 }
 
+static int w_restart_write(struct drbd_work *w, int cancel)
+{
+	struct drbd_request *req = container_of(w, struct drbd_request, w);
+	struct drbd_conf *mdev = w->mdev;
+	struct bio *bio;
+	unsigned long start_time;
+	unsigned long flags;
+
+	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
+	if (!expect(req->rq_state & RQ_POSTPONED)) {
+		spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
+		return 0;
+	}
+	bio = req->master_bio;
+	start_time = req->start_time;
+	/* Postponed requests will not have their master_bio completed!  */
+	__req_mod(req, DISCARD_WRITE, NULL);
+	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
+
+	while (__drbd_make_request(mdev, bio, start_time))
+		/* retry */ ;
+	return 1;
+}
+
+static void restart_conflicting_writes(struct drbd_conf *mdev,
+				       sector_t sector, int size)
+{
+	struct drbd_interval *i;
+	struct drbd_request *req;
+
+	drbd_for_each_overlap(i, &mdev->write_requests, sector, size) {
+		if (!i->local)
+			continue;
+		req = container_of(i, struct drbd_request, i);
+		if (req->rq_state & RQ_LOCAL_PENDING ||
+		    !(req->rq_state & RQ_POSTPONED))
+			continue;
+		if (expect(list_empty(&req->w.list))) {
+			req->w.mdev = mdev;
+			req->w.cb = w_restart_write;
+			drbd_queue_work(&mdev->tconn->data.work, &req->w);
+		}
+	}
+}
+
 /* e_end_block() is called via drbd_process_done_ee().
  * this means this function only runs in the asender thread
  */
@@ -1622,6 +1667,8 @@ static int e_end_block(struct drbd_work *w, int cancel)
 		spin_lock_irq(&mdev->tconn->req_lock);
 		D_ASSERT(!drbd_interval_empty(&peer_req->i));
 		drbd_remove_epoch_entry_interval(mdev, peer_req);
+		if (peer_req->flags & EE_RESTART_REQUESTS)
+			restart_conflicting_writes(mdev, sector, peer_req->i.size);
 		spin_unlock_irq(&mdev->tconn->req_lock);
 	} else
 		D_ASSERT(drbd_interval_empty(&peer_req->i));
@@ -1631,18 +1678,30 @@ static int e_end_block(struct drbd_work *w, int cancel)
 	return ok;
 }
 
-static int e_send_discard_ack(struct drbd_work *w, int unused)
+static int e_send_ack(struct drbd_work *w, enum drbd_packet ack)
 {
+	struct drbd_conf *mdev = w->mdev;
 	struct drbd_peer_request *peer_req =
 		container_of(w, struct drbd_peer_request, w);
-	struct drbd_conf *mdev = w->mdev;
 	int ok;
 
-	D_ASSERT(mdev->tconn->net_conf->wire_protocol == DRBD_PROT_C);
-	ok = drbd_send_ack(mdev, P_DISCARD_ACK, peer_req);
+	ok = drbd_send_ack(mdev, ack, peer_req);
 	dec_unacked(mdev);
 
 	return ok;
+}
+
+static int e_send_discard_write(struct drbd_work *w, int unused)
+{
+	return e_send_ack(w, P_DISCARD_WRITE);
+}
+
+static int e_send_retry_write(struct drbd_work *w, int unused)
+{
+	struct drbd_tconn *tconn = w->mdev->tconn;
+
+	return e_send_ack(w, tconn->agreed_pro_version >= 100 ?
+			     P_RETRY_WRITE : P_DISCARD_WRITE);
 }
 
 static bool seq_greater(u32 a, u32 b)
@@ -1660,16 +1719,31 @@ static u32 seq_max(u32 a, u32 b)
 	return seq_greater(a, b) ? a : b;
 }
 
+static bool need_peer_seq(struct drbd_conf *mdev)
+{
+	struct drbd_tconn *tconn = mdev->tconn;
+
+	/*
+	 * We only need to keep track of the last packet_seq number of our peer
+	 * if we are in dual-primary mode and we have the discard flag set; see
+	 * handle_write_conflicts().
+	 */
+	return tconn->net_conf->two_primaries &&
+	       test_bit(DISCARD_CONCURRENT, &tconn->flags);
+}
+
 static void update_peer_seq(struct drbd_conf *mdev, unsigned int peer_seq)
 {
 	unsigned int old_peer_seq;
 
-	spin_lock(&mdev->peer_seq_lock);
-	old_peer_seq = mdev->peer_seq;
-	mdev->peer_seq = seq_max(mdev->peer_seq, peer_seq);
-	spin_unlock(&mdev->peer_seq_lock);
-	if (old_peer_seq != peer_seq)
-		wake_up(&mdev->seq_wait);
+	if (need_peer_seq(mdev)) {
+		spin_lock(&mdev->peer_seq_lock);
+		old_peer_seq = mdev->peer_seq;
+		mdev->peer_seq = seq_max(mdev->peer_seq, peer_seq);
+		spin_unlock(&mdev->peer_seq_lock);
+		if (old_peer_seq != peer_seq)
+			wake_up(&mdev->seq_wait);
+	}
 }
 
 /* Called from receive_Data.
@@ -1693,36 +1767,39 @@ static void update_peer_seq(struct drbd_conf *mdev, unsigned int peer_seq)
  *
  * returns 0 if we may process the packet,
  * -ERESTARTSYS if we were interrupted (by disconnect signal). */
-static int drbd_wait_peer_seq(struct drbd_conf *mdev, const u32 packet_seq)
+static int wait_for_and_update_peer_seq(struct drbd_conf *mdev, const u32 peer_seq)
 {
 	DEFINE_WAIT(wait);
-	unsigned int p_seq;
 	long timeout;
-	int ret = 0;
+	int ret;
+
+	if (!need_peer_seq(mdev))
+		return 0;
+
 	spin_lock(&mdev->peer_seq_lock);
 	for (;;) {
-		prepare_to_wait(&mdev->seq_wait, &wait, TASK_INTERRUPTIBLE);
-		if (!seq_greater(packet_seq, mdev->peer_seq + 1))
+		if (!seq_greater(peer_seq - 1, mdev->peer_seq)) {
+			mdev->peer_seq = seq_max(mdev->peer_seq, peer_seq);
+			ret = 0;
 			break;
+		}
 		if (signal_pending(current)) {
 			ret = -ERESTARTSYS;
 			break;
 		}
-		p_seq = mdev->peer_seq;
+		prepare_to_wait(&mdev->seq_wait, &wait, TASK_INTERRUPTIBLE);
 		spin_unlock(&mdev->peer_seq_lock);
 		timeout = mdev->tconn->net_conf->ping_timeo*HZ/10;
 		timeout = schedule_timeout(timeout);
 		spin_lock(&mdev->peer_seq_lock);
-		if (timeout == 0 && p_seq == mdev->peer_seq) {
+		if (!timeout) {
 			ret = -ETIMEDOUT;
 			dev_err(DEV, "Timed out waiting for missing ack packets; disconnecting\n");
 			break;
 		}
 	}
-	finish_wait(&mdev->seq_wait, &wait);
-	if (mdev->peer_seq+1 == packet_seq)
-		mdev->peer_seq++;
 	spin_unlock(&mdev->peer_seq_lock);
+	finish_wait(&mdev->seq_wait, &wait);
 	return ret;
 }
 
@@ -1737,6 +1814,139 @@ static unsigned long wire_flags_to_bio(struct drbd_conf *mdev, u32 dpf)
 		(dpf & DP_DISCARD ? REQ_DISCARD : 0);
 }
 
+static void fail_postponed_requests(struct drbd_conf *mdev, sector_t sector,
+				    unsigned int size)
+{
+	struct drbd_interval *i;
+
+    repeat:
+	drbd_for_each_overlap(i, &mdev->write_requests, sector, size) {
+		struct drbd_request *req;
+		struct bio_and_error m;
+
+		if (!i->local)
+			continue;
+		req = container_of(i, struct drbd_request, i);
+		if (!(req->rq_state & RQ_POSTPONED))
+			continue;
+		req->rq_state &= ~RQ_POSTPONED;
+		__req_mod(req, NEG_ACKED, &m);
+		spin_unlock_irq(&mdev->tconn->req_lock);
+		if (m.bio)
+			complete_master_bio(mdev, &m);
+		spin_lock_irq(&mdev->tconn->req_lock);
+		goto repeat;
+	}
+}
+
+static int handle_write_conflicts(struct drbd_conf *mdev,
+				  struct drbd_peer_request *peer_req)
+{
+	struct drbd_tconn *tconn = mdev->tconn;
+	bool resolve_conflicts = test_bit(DISCARD_CONCURRENT, &tconn->flags);
+	sector_t sector = peer_req->i.sector;
+	const unsigned int size = peer_req->i.size;
+	struct drbd_interval *i;
+	bool equal;
+	int err;
+
+	/*
+	 * Inserting the peer request into the write_requests tree will prevent
+	 * new conflicting local requests from being added.
+	 */
+	drbd_insert_interval(&mdev->write_requests, &peer_req->i);
+
+    repeat:
+	drbd_for_each_overlap(i, &mdev->write_requests, sector, size) {
+		if (i == &peer_req->i)
+			continue;
+
+		if (!i->local) {
+			/*
+			 * Our peer has sent a conflicting remote request; this
+			 * should not happen in a two-node setup.  Wait for the
+			 * earlier peer request to complete.
+			 */
+			err = drbd_wait_misc(mdev, i);
+			if (err)
+				goto out;
+			goto repeat;
+		}
+
+		equal = i->sector == sector && i->size == size;
+		if (resolve_conflicts) {
+			/*
+			 * If the peer request is fully contained within the
+			 * overlapping request, it can be discarded; otherwise,
+			 * it will be retried once all overlapping requests
+			 * have completed.
+			 */
+			bool discard = i->sector <= sector && i->sector +
+				       (i->size >> 9) >= sector + (size >> 9);
+
+			if (!equal)
+				dev_alert(DEV, "Concurrent writes detected: "
+					       "local=%llus +%u, remote=%llus +%u, "
+					       "assuming %s came first\n",
+					  (unsigned long long)i->sector, i->size,
+					  (unsigned long long)sector, size,
+					  discard ? "local" : "remote");
+
+			inc_unacked(mdev);
+			peer_req->w.cb = discard ? e_send_discard_write :
+						   e_send_retry_write;
+			list_add_tail(&peer_req->w.list, &mdev->done_ee);
+			wake_asender(mdev->tconn);
+
+			err = -ENOENT;
+			goto out;
+		} else {
+			struct drbd_request *req =
+				container_of(i, struct drbd_request, i);
+
+			if (!equal)
+				dev_alert(DEV, "Concurrent writes detected: "
+					       "local=%llus +%u, remote=%llus +%u\n",
+					  (unsigned long long)i->sector, i->size,
+					  (unsigned long long)sector, size);
+
+			if (req->rq_state & RQ_LOCAL_PENDING ||
+			    !(req->rq_state & RQ_POSTPONED)) {
+				/*
+				 * Wait for the node with the discard flag to
+				 * decide if this request will be discarded or
+				 * retried.  Requests that are discarded will
+				 * disappear from the write_requests tree.
+				 *
+				 * In addition, wait for the conflicting
+				 * request to finish locally before submitting
+				 * the conflicting peer request.
+				 */
+				err = drbd_wait_misc(mdev, &req->i);
+				if (err) {
+					_conn_request_state(mdev->tconn,
+							    NS(conn, C_TIMEOUT),
+							    CS_HARD);
+					fail_postponed_requests(mdev, sector, size);
+					goto out;
+				}
+				goto repeat;
+			}
+			/*
+			 * Remember to restart the conflicting requests after
+			 * the new peer request has completed.
+			 */
+			peer_req->flags |= EE_RESTART_REQUESTS;
+		}
+	}
+	err = 0;
+
+    out:
+	if (err)
+		drbd_remove_epoch_entry_interval(mdev, peer_req);
+	return err;
+}
+
 /* mirrored write */
 static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
 			unsigned int data_size)
@@ -1744,18 +1954,17 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
 	sector_t sector;
 	struct drbd_peer_request *peer_req;
 	struct p_data *p = &mdev->tconn->data.rbuf.data;
+	u32 peer_seq = be32_to_cpu(p->seq_num);
 	int rw = WRITE;
 	u32 dp_flags;
+	int err;
+
 
 	if (!get_ldev(mdev)) {
-		spin_lock(&mdev->peer_seq_lock);
-		if (mdev->peer_seq+1 == be32_to_cpu(p->seq_num))
-			mdev->peer_seq++;
-		spin_unlock(&mdev->peer_seq_lock);
-
+		err = wait_for_and_update_peer_seq(mdev, peer_seq);
 		drbd_send_ack_dp(mdev, P_NEG_ACK, p, data_size);
 		atomic_inc(&mdev->current_epoch->epoch_size);
-		return drbd_drain_block(mdev, data_size);
+		return drbd_drain_block(mdev, data_size) && err == 0;
 	}
 
 	/*
@@ -1785,137 +1994,22 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
 	atomic_inc(&peer_req->epoch->active);
 	spin_unlock(&mdev->epoch_lock);
 
-	/* I'm the receiver, I do hold a net_cnt reference. */
-	if (!mdev->tconn->net_conf->two_primaries) {
-		spin_lock_irq(&mdev->tconn->req_lock);
-	} else {
-		/* don't get the req_lock yet,
-		 * we may sleep in drbd_wait_peer_seq */
-		const int size = peer_req->i.size;
-		const int discard = test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags);
-		DEFINE_WAIT(wait);
-		int first;
-
-		D_ASSERT(mdev->tconn->net_conf->wire_protocol == DRBD_PROT_C);
-
-		/* conflict detection and handling:
-		 * 1. wait on the sequence number,
-		 *    in case this data packet overtook ACK packets.
-		 * 2. check for conflicting write requests.
-		 *
-		 * Note: for two_primaries, we are protocol C,
-		 * so there cannot be any request that is DONE
-		 * but still on the transfer log.
-		 *
-		 * if no conflicting request is found:
-		 *    submit.
-		 *
-		 * if any conflicting request is found
-		 * that has not yet been acked,
-		 * AND I have the "discard concurrent writes" flag:
-		 *	 queue (via done_ee) the P_DISCARD_ACK; OUT.
-		 *
-		 * if any conflicting request is found:
-		 *	 block the receiver, waiting on misc_wait
-		 *	 until no more conflicting requests are there,
-		 *	 or we get interrupted (disconnect).
-		 *
-		 *	 we do not just write after local io completion of those
-		 *	 requests, but only after req is done completely, i.e.
-		 *	 we wait for the P_DISCARD_ACK to arrive!
-		 *
-		 *	 then proceed normally, i.e. submit.
-		 */
-		if (drbd_wait_peer_seq(mdev, be32_to_cpu(p->seq_num)))
+	if (mdev->tconn->net_conf->two_primaries) {
+		err = wait_for_and_update_peer_seq(mdev, peer_seq);
+		if (err)
 			goto out_interrupted;
-
 		spin_lock_irq(&mdev->tconn->req_lock);
-
-		/*
-		 * Inserting the peer request into the write_requests tree will
-		 * prevent new conflicting local requests from being added.
-		 */
-		drbd_insert_interval(&mdev->write_requests, &peer_req->i);
-
-		first = 1;
-		for (;;) {
-			struct drbd_interval *i;
-			int have_unacked = 0;
-			int have_conflict = 0;
-			prepare_to_wait(&mdev->misc_wait, &wait,
-				TASK_INTERRUPTIBLE);
-
-			drbd_for_each_overlap(i, &mdev->write_requests, sector, size) {
-				struct drbd_request *req2;
-
-				if (i == &peer_req->i || !i->local)
-					continue;
-
-				/* only ALERT on first iteration,
-				 * we may be woken up early... */
-				if (first)
-					dev_alert(DEV, "%s[%u] Concurrent local write detected!"
-					      "	new: %llus +%u; pending: %llus +%u\n",
-					      current->comm, current->pid,
-					      (unsigned long long)sector, size,
-					      (unsigned long long)i->sector, i->size);
-
-				req2 = container_of(i, struct drbd_request, i);
-				if (req2->rq_state & RQ_NET_PENDING)
-					++have_unacked;
-				++have_conflict;
-				break;
-			}
-			if (!have_conflict)
-				break;
-
-			/* Discard Ack only for the _first_ iteration */
-			if (first && discard && have_unacked) {
-				dev_alert(DEV, "Concurrent write! [DISCARD BY FLAG] sec=%llus\n",
-				     (unsigned long long)sector);
-				drbd_remove_epoch_entry_interval(mdev, peer_req);
-				inc_unacked(mdev);
-				peer_req->w.cb = e_send_discard_ack;
-				list_add_tail(&peer_req->w.list, &mdev->done_ee);
-
-				spin_unlock_irq(&mdev->tconn->req_lock);
-
-				/* we could probably send that P_DISCARD_ACK ourselves,
-				 * but I don't like the receiver using the msock */
-
+		err = handle_write_conflicts(mdev, peer_req);
+		if (err) {
+			spin_unlock_irq(&mdev->tconn->req_lock);
+			if (err == -ENOENT) {
 				put_ldev(mdev);
-				wake_asender(mdev->tconn);
-				finish_wait(&mdev->misc_wait, &wait);
 				return true;
 			}
-
-			if (signal_pending(current)) {
-				drbd_remove_epoch_entry_interval(mdev, peer_req);
-				spin_unlock_irq(&mdev->tconn->req_lock);
-				finish_wait(&mdev->misc_wait, &wait);
-				goto out_interrupted;
-			}
-
-			/* Indicate to wake up mdev->misc_wait upon completion.  */
-			i->waiting = true;
-
-			spin_unlock_irq(&mdev->tconn->req_lock);
-			if (first) {
-				first = 0;
-				dev_alert(DEV, "Concurrent write! [W AFTERWARDS] "
-				     "sec=%llus\n", (unsigned long long)sector);
-			} else if (discard) {
-				/* we had none on the first iteration.
-				 * there must be none now. */
-				D_ASSERT(have_unacked == 0);
-			}
-			/* FIXME: Introduce a timeout here after which we disconnect.  */
-			schedule();
-			spin_lock_irq(&mdev->tconn->req_lock);
+			goto out_interrupted;
 		}
-		finish_wait(&mdev->misc_wait, &wait);
-	}
-
+	} else
+		spin_lock_irq(&mdev->tconn->req_lock);
 	list_add(&peer_req->w.list, &mdev->active_ee);
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
@@ -4393,9 +4487,13 @@ static int got_BlockAck(struct drbd_conf *mdev, enum drbd_packet cmd)
 		D_ASSERT(mdev->tconn->net_conf->wire_protocol == DRBD_PROT_B);
 		what = RECV_ACKED_BY_PEER;
 		break;
-	case P_DISCARD_ACK:
+	case P_DISCARD_WRITE:
 		D_ASSERT(mdev->tconn->net_conf->wire_protocol == DRBD_PROT_C);
-		what = CONFLICT_DISCARDED_BY_PEER;
+		what = DISCARD_WRITE;
+		break;
+	case P_RETRY_WRITE:
+		D_ASSERT(mdev->tconn->net_conf->wire_protocol == DRBD_PROT_C);
+		what = POSTPONE_WRITE;
 		break;
 	default:
 		D_ASSERT(0);
@@ -4446,6 +4544,7 @@ static int got_NegDReply(struct drbd_conf *mdev, enum drbd_packet cmd)
 	sector_t sector = be64_to_cpu(p->sector);
 
 	update_peer_seq(mdev, be32_to_cpu(p->seq_num));
+
 	dev_err(DEV, "Got NegDReply; Sector %llus, len %u; Fail original request.\n",
 	    (unsigned long long)sector, be32_to_cpu(p->blksize));
 
@@ -4567,7 +4666,7 @@ static struct asender_cmd *get_asender_cmd(int cmd)
 	[P_RECV_ACK]	    = { sizeof(struct p_block_ack), got_BlockAck },
 	[P_WRITE_ACK]	    = { sizeof(struct p_block_ack), got_BlockAck },
 	[P_RS_WRITE_ACK]    = { sizeof(struct p_block_ack), got_BlockAck },
-	[P_DISCARD_ACK]	    = { sizeof(struct p_block_ack), got_BlockAck },
+	[P_DISCARD_WRITE]   = { sizeof(struct p_block_ack), got_BlockAck },
 	[P_NEG_ACK]	    = { sizeof(struct p_block_ack), got_NegAck },
 	[P_NEG_DREPLY]	    = { sizeof(struct p_block_ack), got_NegDReply },
 	[P_NEG_RS_DREPLY]   = { sizeof(struct p_block_ack), got_NegRSDReply},
@@ -4578,6 +4677,7 @@ static struct asender_cmd *get_asender_cmd(int cmd)
 	[P_DELAY_PROBE]     = { sizeof(struct p_delay_probe93), got_skip },
 	[P_RS_CANCEL]       = { sizeof(struct p_block_ack), got_NegRSDReply},
 	[P_CONN_ST_CHG_REPLY]={ sizeof(struct p_req_state_reply), got_RqSReply },
+	[P_RETRY_WRITE]	    = { sizeof(struct p_block_ack), got_BlockAck },
 	[P_MAX_CMD]	    = { 0, NULL },
 	};
 	if (cmd > P_MAX_CMD || asender_tbl[cmd].process == NULL)

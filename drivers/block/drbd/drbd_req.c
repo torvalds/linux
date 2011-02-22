@@ -225,11 +225,15 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 	 *	the receiver,
 	 *	the bio_endio completion callbacks.
 	 */
+	if (s & RQ_LOCAL_PENDING)
+		return;
+	if (req->i.waiting) {
+		/* Retry all conflicting peer requests.  */
+		wake_up(&mdev->misc_wait);
+	}
 	if (s & RQ_NET_QUEUED)
 		return;
 	if (s & RQ_NET_PENDING)
-		return;
-	if (s & RQ_LOCAL_PENDING)
 		return;
 
 	if (req->master_bio) {
@@ -267,7 +271,7 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 			else
 				root = &mdev->read_requests;
 			drbd_remove_request_interval(root, req);
-		} else
+		} else if (!(s & RQ_POSTPONED))
 			D_ASSERT((s & (RQ_NET_MASK & ~RQ_NET_DONE)) == 0);
 
 		/* for writes we need to do some extra housekeeping */
@@ -277,8 +281,10 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 		/* Update disk stats */
 		_drbd_end_io_acct(mdev, req);
 
-		m->error = ok ? 0 : (error ?: -EIO);
-		m->bio = req->master_bio;
+		if (!(s & RQ_POSTPONED)) {
+			m->error = ok ? 0 : (error ?: -EIO);
+			m->bio = req->master_bio;
+		}
 		req->master_bio = NULL;
 	}
 
@@ -318,7 +324,9 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 {
 	struct drbd_conf *mdev = req->w.mdev;
 	int rv = 0;
-	m->bio = NULL;
+
+	if (m)
+		m->bio = NULL;
 
 	switch (what) {
 	default:
@@ -332,7 +340,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		*/
 
 	case TO_BE_SENT: /* via network */
-		/* reached via drbd_make_request_common
+		/* reached via __drbd_make_request
 		 * and from w_read_retry_remote */
 		D_ASSERT(!(req->rq_state & RQ_NET_MASK));
 		req->rq_state |= RQ_NET_PENDING;
@@ -340,7 +348,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		break;
 
 	case TO_BE_SUBMITTED: /* locally */
-		/* reached via drbd_make_request_common */
+		/* reached via __drbd_make_request */
 		D_ASSERT(!(req->rq_state & RQ_LOCAL_MASK));
 		req->rq_state |= RQ_LOCAL_PENDING;
 		break;
@@ -403,7 +411,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		 * no local disk,
 		 * or target area marked as invalid,
 		 * or just got an io-error. */
-		/* from drbd_make_request_common
+		/* from __drbd_make_request
 		 * or from bio_endio during read io-error recovery */
 
 		/* so we can verify the handle in the answer packet
@@ -422,7 +430,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 	case QUEUE_FOR_NET_WRITE:
 		/* assert something? */
-		/* from drbd_make_request_common only */
+		/* from __drbd_make_request only */
 
 		/* corresponding hlist_del is in _req_may_be_done() */
 		drbd_insert_interval(&mdev->write_requests, &req->i);
@@ -436,7 +444,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		 *
 		 * _req_add_to_epoch(req); this has to be after the
 		 * _maybe_start_new_epoch(req); which happened in
-		 * drbd_make_request_common, because we now may set the bit
+		 * __drbd_make_request, because we now may set the bit
 		 * again ourselves to close the current epoch.
 		 *
 		 * Add req to the (now) current epoch (barrier). */
@@ -446,7 +454,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		 * hurting performance. */
 		set_bit(UNPLUG_REMOTE, &mdev->flags);
 
-		/* see drbd_make_request_common,
+		/* see __drbd_make_request,
 		 * just after it grabs the req_lock */
 		D_ASSERT(test_bit(CREATE_BARRIER, &mdev->flags) == 0);
 
@@ -535,14 +543,10 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 	case WRITE_ACKED_BY_PEER_AND_SIS:
 		req->rq_state |= RQ_NET_SIS;
-	case CONFLICT_DISCARDED_BY_PEER:
+	case DISCARD_WRITE:
 		/* for discarded conflicting writes of multiple primaries,
 		 * there is no need to keep anything in the tl, potential
 		 * node crashes are covered by the activity log. */
-		if (what == CONFLICT_DISCARDED_BY_PEER)
-			dev_alert(DEV, "Got DiscardAck packet %llus +%u!"
-			      " DRBD is not a random data generator!\n",
-			      (unsigned long long)req->i.sector, req->i.size);
 		req->rq_state |= RQ_NET_DONE;
 		/* fall through */
 	case WRITE_ACKED_BY_PEER:
@@ -566,6 +570,17 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		dec_ap_pending(mdev);
 		atomic_sub(req->i.size >> 9, &mdev->ap_in_flight);
 		req->rq_state &= ~RQ_NET_PENDING;
+		_req_may_be_done_not_susp(req, m);
+		break;
+
+	case POSTPONE_WRITE:
+		/*
+		 * If this node has already detected the write conflict, the
+		 * worker will be waiting on misc_wait.  Wake it up once this
+		 * request has completed locally.
+		 */
+		D_ASSERT(req->rq_state & RQ_NET_PENDING);
+		req->rq_state |= RQ_POSTPONED;
 		_req_may_be_done_not_susp(req, m);
 		break;
 
@@ -688,24 +703,19 @@ static int complete_conflicting_writes(struct drbd_conf *mdev,
 				       sector_t sector, int size)
 {
 	for(;;) {
-		DEFINE_WAIT(wait);
 		struct drbd_interval *i;
+		int err;
 
 		i = drbd_find_overlap(&mdev->write_requests, sector, size);
 		if (!i)
 			return 0;
-		i->waiting = true;
-		prepare_to_wait(&mdev->misc_wait, &wait, TASK_INTERRUPTIBLE);
-		spin_unlock_irq(&mdev->tconn->req_lock);
-		schedule();
-		finish_wait(&mdev->misc_wait, &wait);
-		spin_lock_irq(&mdev->tconn->req_lock);
-		if (signal_pending(current))
-			return -ERESTARTSYS;
+		err = drbd_wait_misc(mdev, i);
+		if (err)
+			return err;
 	}
 }
 
-static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio, unsigned long start_time)
+int __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long start_time)
 {
 	const int rw = bio_rw(bio);
 	const int size = bio->bi_size;
@@ -811,7 +821,12 @@ allocate_barrier:
 	if (rw == WRITE) {
 		err = complete_conflicting_writes(mdev, sector, size);
 		if (err) {
+			if (err != -ERESTARTSYS)
+				_conn_request_state(mdev->tconn,
+						    NS(conn, C_TIMEOUT),
+						    CS_HARD);
 			spin_unlock_irq(&mdev->tconn->req_lock);
+			err = -EIO;
 			goto fail_free_complete;
 		}
 	}
@@ -1031,7 +1046,7 @@ int drbd_make_request(struct request_queue *q, struct bio *bio)
 
 	if (likely(s_enr == e_enr)) {
 		inc_ap_bio(mdev, 1);
-		return drbd_make_request_common(mdev, bio, start_time);
+		return __drbd_make_request(mdev, bio, start_time);
 	}
 
 	/* can this bio be split generically?
@@ -1069,10 +1084,10 @@ int drbd_make_request(struct request_queue *q, struct bio *bio)
 
 		D_ASSERT(e_enr == s_enr + 1);
 
-		while (drbd_make_request_common(mdev, &bp->bio1, start_time))
+		while (__drbd_make_request(mdev, &bp->bio1, start_time))
 			inc_ap_bio(mdev, 1);
 
-		while (drbd_make_request_common(mdev, &bp->bio2, start_time))
+		while (__drbd_make_request(mdev, &bp->bio2, start_time))
 			inc_ap_bio(mdev, 1);
 
 		dec_ap_bio(mdev);

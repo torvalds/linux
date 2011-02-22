@@ -200,7 +200,7 @@ enum drbd_packet {
 	P_RECV_ACK	      = 0x15, /* Used in protocol B */
 	P_WRITE_ACK	      = 0x16, /* Used in protocol C */
 	P_RS_WRITE_ACK	      = 0x17, /* Is a P_WRITE_ACK, additionally call set_in_sync(). */
-	P_DISCARD_ACK	      = 0x18, /* Used in proto C, two-primaries conflict detection */
+	P_DISCARD_WRITE	      = 0x18, /* Used in proto C, two-primaries conflict detection */
 	P_NEG_ACK	      = 0x19, /* Sent if local disk is unusable */
 	P_NEG_DREPLY	      = 0x1a, /* Local disk is broken... */
 	P_NEG_RS_DREPLY	      = 0x1b, /* Local disk is broken... */
@@ -223,8 +223,9 @@ enum drbd_packet {
 	P_RS_CANCEL           = 0x29, /* meta: Used to cancel RS_DATA_REQUEST packet by SyncSource */
 	P_CONN_ST_CHG_REQ     = 0x2a, /* data sock: Connection wide state request */
 	P_CONN_ST_CHG_REPLY   = 0x2b, /* meta sock: Connection side state req reply */
+	P_RETRY_WRITE	      = 0x2c, /* Protocol C: retry conflicting write request */
 
-	P_MAX_CMD	      = 0x2c,
+	P_MAX_CMD	      = 0x2d,
 	P_MAY_IGNORE	      = 0x100, /* Flag to test if (cmd > P_MAY_IGNORE) ... */
 	P_MAX_OPT_CMD	      = 0x101,
 
@@ -350,7 +351,7 @@ struct p_data {
  * commands which share a struct:
  *  p_block_ack:
  *   P_RECV_ACK (proto B), P_WRITE_ACK (proto C),
- *   P_DISCARD_ACK (proto C, two-primaries conflict detection)
+ *   P_DISCARD_WRITE (proto C, two-primaries conflict detection)
  *  p_block_req:
  *   P_DATA_REQUEST, P_RS_DATA_REQUEST
  */
@@ -361,7 +362,6 @@ struct p_block_ack {
 	u32	    blksize;
 	u32	    seq_num;
 } __packed;
-
 
 struct p_block_req {
 	struct p_header head;
@@ -655,6 +655,8 @@ struct drbd_work {
 
 #include "drbd_interval.h"
 
+extern int drbd_wait_misc(struct drbd_conf *, struct drbd_interval *);
+
 struct drbd_request {
 	struct drbd_work w;
 
@@ -752,12 +754,16 @@ enum {
 
 	/* This ee has a pointer to a digest instead of a block id */
 	__EE_HAS_DIGEST,
+
+	/* Conflicting local requests need to be restarted after this request */
+	__EE_RESTART_REQUESTS,
 };
 #define EE_CALL_AL_COMPLETE_IO (1<<__EE_CALL_AL_COMPLETE_IO)
 #define EE_MAY_SET_IN_SYNC     (1<<__EE_MAY_SET_IN_SYNC)
 #define	EE_RESUBMITTED         (1<<__EE_RESUBMITTED)
 #define EE_WAS_ERROR           (1<<__EE_WAS_ERROR)
 #define EE_HAS_DIGEST          (1<<__EE_HAS_DIGEST)
+#define EE_RESTART_REQUESTS	(1<<__EE_RESTART_REQUESTS)
 
 /* flag bits per mdev */
 enum {
@@ -1478,6 +1484,7 @@ extern void drbd_free_tconn(struct drbd_tconn *tconn);
 extern int proc_details;
 
 /* drbd_req */
+extern int __drbd_make_request(struct drbd_conf *, struct bio *, unsigned long);
 extern int drbd_make_request(struct request_queue *q, struct bio *bio);
 extern int drbd_read_remote(struct drbd_conf *mdev, struct drbd_request *req);
 extern int drbd_merge_bvec(struct request_queue *q, struct bvec_merge_data *bvm, struct bio_vec *bvec);
