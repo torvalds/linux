@@ -20,9 +20,11 @@
 #include <asm/irq.h>
 #include <asm/atomic.h>
 #include <asm/setup.h>
+#include <asm/irq_controller.h>
 
 #ifdef CONFIG_OF
 extern void add_dtb(u64 data);
+void add_interrupt_host(struct irq_domain *ih);
 #else
 static inline void add_dtb(u64 data) { }
 #endif

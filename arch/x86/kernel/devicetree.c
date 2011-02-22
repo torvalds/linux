@@ -3,19 +3,63 @@
  */
 #include <linux/bootmem.h>
 #include <linux/io.h>
+#include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 
+#include <asm/irq_controller.h>
+
 char __initdata cmd_line[COMMAND_LINE_SIZE];
+static LIST_HEAD(irq_domains);
+static DEFINE_RAW_SPINLOCK(big_irq_lock);
+
+void add_interrupt_host(struct irq_domain *ih)
+{
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&big_irq_lock, flags);
+	list_add(&ih->l, &irq_domains);
+	raw_spin_unlock_irqrestore(&big_irq_lock, flags);
+}
+
+static struct irq_domain *get_ih_from_node(struct device_node *controller)
+{
+	struct irq_domain *ih, *found = NULL;
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&big_irq_lock, flags);
+	list_for_each_entry(ih, &irq_domains, l) {
+		if (ih->controller ==  controller) {
+			found = ih;
+			break;
+		}
+	}
+	raw_spin_unlock_irqrestore(&big_irq_lock, flags);
+	return found;
+}
 
 unsigned int irq_create_of_mapping(struct device_node *controller,
 				   const u32 *intspec, unsigned int intsize)
 {
-	return intspec[0];
+	struct irq_domain *ih;
+	u32 virq, type;
+	int ret;
 
+	ih = get_ih_from_node(controller);
+	if (!ih)
+		return 0;
+	ret = ih->xlate(ih, intspec, intsize, &virq, &type);
+	if (ret)
+		return ret;
+	if (type == IRQ_TYPE_NONE)
+		return virq;
+	/* set the mask if it is different from current */
+	if (type == (irq_to_desc(virq)->status & IRQF_TRIGGER_MASK))
+		set_irq_type(virq, type);
+	return virq;
 }
 EXPORT_SYMBOL_GPL(irq_create_of_mapping);
 
