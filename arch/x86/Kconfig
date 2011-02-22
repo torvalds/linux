@@ -382,6 +382,8 @@ config X86_INTEL_CE
 	depends on X86_32
 	depends on X86_EXTENDED_PLATFORM
 	select X86_REBOOTFIXUPS
+	select OF
+	select OF_EARLY_FLATTREE
 	---help---
 	  Select for the Intel CE media processor (CE4100) SOC.
 	  This option compiles in support for the CE4100 SOC for settop
