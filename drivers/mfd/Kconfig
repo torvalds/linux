@@ -534,6 +534,13 @@ config AB8500_DEBUG
          Select this option if you want debug information using the debug
          filesystem, debugfs.
 
+config AB8500_GPADC
+	bool "AB8500 GPADC driver"
+	depends on AB8500_CORE && REGULATOR_AB8500
+	default y
+	help
+	  AB8500 GPADC driver used to convert Acc and battery/ac/usb voltage
+
 config AB3550_CORE
         bool "ST-Ericsson AB3550 Mixed Signal Circuit core functions"
 	select MFD_CORE
