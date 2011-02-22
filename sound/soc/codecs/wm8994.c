@@ -102,8 +102,6 @@ struct wm8994_priv {
 
 	wm8958_micdet_cb jack_cb;
 	void *jack_cb_data;
-	bool jack_is_mic;
-	bool jack_is_video;
 	int micdet_irq;
 
 	int revision;
@@ -2972,46 +2970,18 @@ static void wm8958_default_micdet(u16 status, void *data)
 	int report = 0;
 
 	/* If nothing present then clear our statuses */
-	if (!(status & WM8958_MICD_STS)) {
-		wm8994->jack_is_video = false;
-		wm8994->jack_is_mic = false;
+	if (!(status & WM8958_MICD_STS))
 		goto done;
-	}
 
-	/* Assume anything over 475 ohms is a microphone and remember
-	 * that we've seen one (since buttons override it) */
-	if (status & 0x600)
-		wm8994->jack_is_mic = true;
-	if (wm8994->jack_is_mic)
-		report |= SND_JACK_MICROPHONE;
-
-	/* Video has an impedence of approximately 75 ohms; assume
-	 * this isn't used as a button and remember it since buttons
-	 * override it. */
-	if (status & 0x40)
-		wm8994->jack_is_video = true;
-	if (wm8994->jack_is_video)
-		report |= SND_JACK_VIDEOOUT;
+	report = SND_JACK_MICROPHONE;
 
 	/* Everything else is buttons; just assign slots */
-	if (status & 0x4)
+	if (status & 0x1c0)
 		report |= SND_JACK_BTN_0;
-	if (status & 0x8)
-		report |= SND_JACK_BTN_1;
-	if (status & 0x10)
-		report |= SND_JACK_BTN_2;
-	if (status & 0x20)
-		report |= SND_JACK_BTN_3;
-	if (status & 0x80)
-		report |= SND_JACK_BTN_4;
-	if (status & 0x100)
-		report |= SND_JACK_BTN_5;
 
 done:
 	snd_soc_jack_report(wm8994->micdet[0].jack, report,
-			    SND_JACK_BTN_0 | SND_JACK_BTN_1 | SND_JACK_BTN_2 |
-			    SND_JACK_BTN_3 | SND_JACK_BTN_4 | SND_JACK_BTN_5 |
-			    SND_JACK_MICROPHONE | SND_JACK_VIDEOOUT);
+			    SND_JACK_BTN_0 | SND_JACK_MICROPHONE);
 }
 
 /**
