@@ -3,6 +3,12 @@
  */
 #include <linux/irqdesc.h>
 
+#ifdef CONFIG_SPARSE_IRQ
+# define IRQ_BITMAP_BITS	(NR_IRQS + 8196)
+#else
+# define IRQ_BITMAP_BITS	NR_IRQS
+#endif
+
 extern int noirqdebug;
 
 #define irq_data_to_desc(data)	container_of(data, struct irq_desc, irq_data)
