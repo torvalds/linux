@@ -191,10 +191,12 @@ enum {
 	bio_completion_id,
 };
 
+/* Special values must be a multiple of 4, and less than 0x1000 */
 #define CMD_CTX_BASE		(POISON_POINTER_DELTA + sync_completion_id)
 #define CMD_CTX_CANCELLED	(0x30C + CMD_CTX_BASE)
 #define CMD_CTX_COMPLETED	(0x310 + CMD_CTX_BASE)
 #define CMD_CTX_INVALID		(0x314 + CMD_CTX_BASE)
+#define CMD_CTX_FLUSH		(0x318 + CMD_CTX_BASE)
 
 static unsigned long free_cmdid(struct nvme_queue *nvmeq, int cmdid)
 {
@@ -416,6 +418,33 @@ static int nvme_map_bio(struct device *dev, struct nvme_bio *nbio,
 	return dma_map_sg(dev, nbio->sg, nbio->nents, dma_dir);
 }
 
+static int nvme_submit_flush(struct nvme_queue *nvmeq, struct nvme_ns *ns,
+								int cmdid)
+{
+	struct nvme_command *cmnd = &nvmeq->sq_cmds[nvmeq->sq_tail];
+
+	memset(cmnd, 0, sizeof(*cmnd));
+	cmnd->common.opcode = nvme_cmd_flush;
+	cmnd->common.command_id = cmdid;
+	cmnd->common.nsid = cpu_to_le32(ns->ns_id);
+
+	if (++nvmeq->sq_tail == nvmeq->q_depth)
+		nvmeq->sq_tail = 0;
+	writel(nvmeq->sq_tail, nvmeq->q_db);
+
+	return 0;
+}
+
+static int nvme_submit_flush_data(struct nvme_queue *nvmeq, struct nvme_ns *ns)
+{
+	int cmdid = alloc_cmdid(nvmeq, (void *)CMD_CTX_FLUSH,
+						sync_completion_id, IO_TIMEOUT);
+	if (unlikely(cmdid < 0))
+		return cmdid;
+
+	return nvme_submit_flush(nvmeq, ns, cmdid);
+}
+
 static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 								struct bio *bio)
 {
@@ -427,6 +456,12 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	u32 dsmgmt;
 	int psegs = bio_phys_segments(ns->queue, bio);
 
+	if ((bio->bi_rw & REQ_FLUSH) && psegs) {
+		result = nvme_submit_flush_data(nvmeq, ns);
+		if (result)
+			return result;
+	}
+
 	nbio = alloc_nbio(psegs, GFP_ATOMIC);
 	if (!nbio)
 		goto nomem;
@@ -436,6 +471,9 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	cmdid = alloc_cmdid(nvmeq, nbio, bio_completion_id, IO_TIMEOUT);
 	if (unlikely(cmdid < 0))
 		goto free_nbio;
+
+	if ((bio->bi_rw & REQ_FLUSH) && !psegs)
+		return nvme_submit_flush(nvmeq, ns, cmdid);
 
 	control = 0;
 	if (bio->bi_rw & REQ_FUA)
@@ -519,6 +557,8 @@ static void sync_completion(struct nvme_queue *nvmeq, void *ctx,
 {
 	struct sync_cmd_info *cmdinfo = ctx;
 	if (unlikely((unsigned long)cmdinfo == CMD_CTX_CANCELLED))
+		return;
+	if ((unsigned long)cmdinfo == CMD_CTX_FLUSH)
 		return;
 	if (unlikely((unsigned long)cmdinfo == CMD_CTX_COMPLETED)) {
 		dev_warn(nvmeq->q_dmadev,
