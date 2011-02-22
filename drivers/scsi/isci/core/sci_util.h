@@ -85,45 +85,6 @@
 #define sci_cb_make_physical_address(physical_addr, addr_upper, addr_lower) \
 	((physical_addr) = (addr_lower) | ((u64)addr_upper) << 32)
 
-
-/**
- * sci_physical_address_add() -
- *
- * This macro simply performs addition on an dma_addr_t type.  The
- * lower u32 value is "clipped" or "wrapped" back through 0.  When this occurs
- * the upper 32-bits are incremented by 1.
- */
-#define sci_physical_address_add(physical_address, value) \
-	{ \
-		u32 lower = lower_32_bits((physical_address)); \
-		u32 upper = upper_32_bits((physical_address)); \
- \
-		if (lower + (value) < lower) \
-			upper += 1; \
- \
-		lower += (value); \
-		sci_cb_make_physical_address(physical_address, upper, lower); \
-	}
-
-/**
- * sci_physical_address_subtract() -
- *
- * This macro simply performs subtraction on an dma_addr_t type.  The
- * lower u32 value is "clipped" or "wrapped" back through 0.  When this occurs
- * the upper 32-bits are decremented by 1.
- */
-#define sci_physical_address_subtract(physical_address, value) \
-	{ \
-		u32 lower = lower_32_bits((physical_address)); \
-		u32 upper = upper_32_bits((physical_address)); \
- \
-		if (lower - (value) > lower) \
-			upper -= 1; \
- \
-		lower -= (value); \
-		sci_cb_make_physical_address(physical_address, upper, lower); \
-	}
-
 /**
  * scic_word_copy_with_swap() - Copy the data from source to destination and
  *    swap the bytes during the copy.

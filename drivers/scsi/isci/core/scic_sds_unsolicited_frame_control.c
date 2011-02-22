@@ -109,7 +109,7 @@ void scic_sds_unsolicited_frame_control_set_address_table_count(
 static void scic_sds_unsolicited_frame_control_construct_frames(
 	struct scic_sds_unsolicited_frame_control *uf_control,
 	dma_addr_t uf_buffer_phys_address,
-	unsigned long uf_buffer_virt_address,
+	void *uf_buffer_virt_address,
 	u32 unused_uf_header_entries,
 	u32 used_uf_header_entries)
 {
@@ -118,7 +118,8 @@ static void scic_sds_unsolicited_frame_control_construct_frames(
 
 	/*
 	 * Program the unused buffers into the UF address table and the
-	 * controller's array of UFs. */
+	 * controller's array of UFs.
+	 */
 	for (index = 0; index < unused_uf_header_entries; index++) {
 		uf = &uf_control->buffers.array[index];
 
@@ -132,7 +133,8 @@ static void scic_sds_unsolicited_frame_control_construct_frames(
 
 	/*
 	 * Program the actual used UF buffers into the UF address table and
-	 * the controller's array of UFs. */
+	 * the controller's array of UFs.
+	 */
 	for (index = unused_uf_header_entries;
 	     index < unused_uf_header_entries + used_uf_header_entries;
 	     index++) {
@@ -140,17 +142,17 @@ static void scic_sds_unsolicited_frame_control_construct_frames(
 
 		uf_control->address_table.array[index] = uf_buffer_phys_address;
 
-		uf->buffer = (void *)uf_buffer_virt_address;
+		uf->buffer = uf_buffer_virt_address;
 		uf->header = &uf_control->headers.array[index];
 		uf->state  = UNSOLICITED_FRAME_EMPTY;
 
 		/*
-		 * Increment the address of the physical and virtual memory pointers
-		 * Everything is aligned on 1k boundary with an increment of 1k */
+		 * Increment the address of the physical and virtual memory
+		 * pointers. Everything is aligned on 1k boundary with an
+		 * increment of 1k.
+		 */
 		uf_buffer_virt_address += SCU_UNSOLICITED_FRAME_BUFFER_SIZE;
-		sci_physical_address_add(
-			uf_buffer_phys_address, SCU_UNSOLICITED_FRAME_BUFFER_SIZE
-			);
+		uf_buffer_phys_address += SCU_UNSOLICITED_FRAME_BUFFER_SIZE;
 	}
 }
 
@@ -177,6 +179,7 @@ void scic_sds_unsolicited_frame_control_construct(
 	u32 unused_uf_header_bytes;
 	u32 used_uf_header_bytes;
 	dma_addr_t uf_buffer_phys_address;
+	void *uf_buffer_virt_address;
 
 	/*
 	 * Prepare all of the memory sizes for the UF headers, UF address
@@ -193,9 +196,11 @@ void scic_sds_unsolicited_frame_control_construct(
 
 	/*
 	 * The Unsolicited Frame buffers are set at the start of the UF
-	 * memory descriptor entry.  The headers and address table will be
-	 * placed after the buffers. */
+	 * memory descriptor entry. The headers and address table will be
+	 * placed after the buffers.
+	 */
 	uf_buffer_phys_address = mde->physical_address;
+	uf_buffer_virt_address = mde->virtual_address;
 
 	/*
 	 * Program the location of the UF header table into the SCU.
@@ -205,34 +210,34 @@ void scic_sds_unsolicited_frame_control_construct(
 	 * - Program unused header entries to overlap with the last
 	 *   unsolicited frame.  The silicon will never DMA to these unused
 	 *   headers, since we program the UF address table pointers to
-	 *   NULL. */
-	uf_control->headers.physical_address = uf_buffer_phys_address;
-	sci_physical_address_add(
-		uf_control->headers.physical_address, used_uf_buffer_bytes);
-	sci_physical_address_subtract(
-		uf_control->headers.physical_address, unused_uf_header_bytes);
-	uf_control->headers.array
-		= (struct scu_unsolicited_frame_header *)
-		  scic_cb_get_virtual_address(
-		controller, uf_control->headers.physical_address
-		);
+	 *   NULL.
+	 */
+	uf_control->headers.physical_address =
+				uf_buffer_phys_address +
+				used_uf_buffer_bytes -
+				unused_uf_header_bytes;
+
+	uf_control->headers.array =
+				uf_buffer_virt_address +
+				used_uf_buffer_bytes -
+				unused_uf_header_bytes;
 
 	/*
 	 * Program the location of the UF address table into the SCU.
 	 * Notes:
 	 * - The address must align on a 64-bit boundary. Guaranteed to be on 64
 	 *   byte boundary already due to above programming headers being on a
-	 *   64-bit boundary and headers are on a 64-bytes in size. */
-	uf_control->address_table.physical_address = uf_buffer_phys_address;
-	sci_physical_address_add(
-		uf_control->address_table.physical_address, used_uf_buffer_bytes);
-	sci_physical_address_add(
-		uf_control->address_table.physical_address, used_uf_header_bytes);
-	uf_control->address_table.array
-		= (dma_addr_t *)
-		  scic_cb_get_virtual_address(
-		controller, uf_control->address_table.physical_address
-		);
+	 *   64-bit boundary and headers are on a 64-bytes in size.
+	 */
+	uf_control->address_table.physical_address =
+				uf_buffer_phys_address +
+				used_uf_buffer_bytes +
+				used_uf_header_bytes;
+
+	uf_control->address_table.array =
+				uf_buffer_virt_address +
+				used_uf_buffer_bytes +
+				used_uf_header_bytes;
 
 	uf_control->get = 0;
 
@@ -250,7 +255,7 @@ void scic_sds_unsolicited_frame_control_construct(
 	scic_sds_unsolicited_frame_control_construct_frames(
 		uf_control,
 		uf_buffer_phys_address,
-		(unsigned long)mde->virtual_address,
+		mde->virtual_address,
 		unused_uf_header_entries,
 		used_uf_header_entries
 		);
