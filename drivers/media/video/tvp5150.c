@@ -737,27 +737,6 @@ static int tvp5150_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 static int tvp5150_reset(struct v4l2_subdev *sd, u32 val)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
-	u8 msb_id, lsb_id, msb_rom, lsb_rom;
-
-	msb_id = tvp5150_read(sd, TVP5150_MSB_DEV_ID);
-	lsb_id = tvp5150_read(sd, TVP5150_LSB_DEV_ID);
-	msb_rom = tvp5150_read(sd, TVP5150_ROM_MAJOR_VER);
-	lsb_rom = tvp5150_read(sd, TVP5150_ROM_MINOR_VER);
-
-	if (msb_rom == 4 && lsb_rom == 0) { /* Is TVP5150AM1 */
-		v4l2_info(sd, "tvp%02x%02xam1 detected.\n", msb_id, lsb_id);
-
-		/* ITU-T BT.656.4 timing */
-		tvp5150_write(sd, TVP5150_REV_SELECT, 0);
-	} else {
-		if (msb_rom == 3 || lsb_rom == 0x21) { /* Is TVP5150A */
-			v4l2_info(sd, "tvp%02x%02xa detected.\n", msb_id, lsb_id);
-		} else {
-			v4l2_info(sd, "*** unknown tvp%02x%02x chip detected.\n",
-					msb_id, lsb_id);
-			v4l2_info(sd, "*** Rom ver is %d.%d\n", msb_rom, lsb_rom);
-		}
-	}
 
 	/* Initializes TVP5150 to its default values */
 	tvp5150_write_inittab(sd, tvp5150_init_default);
@@ -977,6 +956,7 @@ static int tvp5150_probe(struct i2c_client *c,
 {
 	struct tvp5150 *core;
 	struct v4l2_subdev *sd;
+	u8 msb_id, lsb_id, msb_rom, lsb_rom;
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(c->adapter,
@@ -991,6 +971,26 @@ static int tvp5150_probe(struct i2c_client *c,
 	v4l2_i2c_subdev_init(sd, c, &tvp5150_ops);
 	v4l_info(c, "chip found @ 0x%02x (%s)\n",
 		 c->addr << 1, c->adapter->name);
+
+	msb_id = tvp5150_read(sd, TVP5150_MSB_DEV_ID);
+	lsb_id = tvp5150_read(sd, TVP5150_LSB_DEV_ID);
+	msb_rom = tvp5150_read(sd, TVP5150_ROM_MAJOR_VER);
+	lsb_rom = tvp5150_read(sd, TVP5150_ROM_MINOR_VER);
+
+	if (msb_rom == 4 && lsb_rom == 0) { /* Is TVP5150AM1 */
+		v4l2_info(sd, "tvp%02x%02xam1 detected.\n", msb_id, lsb_id);
+
+		/* ITU-T BT.656.4 timing */
+		tvp5150_write(sd, TVP5150_REV_SELECT, 0);
+	} else {
+		if (msb_rom == 3 || lsb_rom == 0x21) { /* Is TVP5150A */
+			v4l2_info(sd, "tvp%02x%02xa detected.\n", msb_id, lsb_id);
+		} else {
+			v4l2_info(sd, "*** unknown tvp%02x%02x chip detected.\n",
+					msb_id, lsb_id);
+			v4l2_info(sd, "*** Rom ver is %d.%d\n", msb_rom, lsb_rom);
+		}
+	}
 
 	core->norm = V4L2_STD_ALL;	/* Default is autodetect */
 	core->input = TVP5150_COMPOSITE1;
