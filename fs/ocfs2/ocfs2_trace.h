@@ -204,6 +204,30 @@ DEFINE_EVENT(ocfs2__uint_uint_uint, name,	\
 		 unsigned int value3),	\
 	TP_ARGS(value1, value2, value3))
 
+DECLARE_EVENT_CLASS(ocfs2__ull_ull_ull,
+	TP_PROTO(unsigned long long value1,
+		 unsigned long long value2, unsigned long long value3),
+	TP_ARGS(value1, value2, value3),
+	TP_STRUCT__entry(
+		__field(unsigned long long, value1)
+		__field(unsigned long long, value2)
+		__field(unsigned long long, value3)
+	),
+	TP_fast_assign(
+		__entry->value1 = value1;
+		__entry->value2 = value2;
+		__entry->value3 = value3;
+	),
+	TP_printk("%llu %llu %llu",
+		  __entry->value1, __entry->value2, __entry->value3)
+);
+
+#define DEFINE_OCFS2_ULL_ULL_ULL_EVENT(name)	\
+DEFINE_EVENT(ocfs2__ull_ull_ull, name,	\
+	TP_PROTO(unsigned long long value1, unsigned long long value2,	\
+		 unsigned long long value3),	\
+	TP_ARGS(value1, value2, value3))
+
 DECLARE_EVENT_CLASS(ocfs2__ull_int_int_int,
 	TP_PROTO(unsigned long long ull, int value1, int value2, int value3),
 	TP_ARGS(ull, value1, value2, value3),
@@ -1116,6 +1140,219 @@ TRACE_EVENT(ocfs2_fault,
 );
 
 /* End of trace events for fs/ocfs2/mmap.c. */
+
+/* Trace events for fs/ocfs2/file.c. */
+
+DECLARE_EVENT_CLASS(ocfs2__file_ops,
+	TP_PROTO(void *inode, void *file, void *dentry,
+		 unsigned long long ino,
+		 unsigned int d_len, const unsigned char *d_name,
+		 unsigned long long para),
+	TP_ARGS(inode, file, dentry, ino, d_len, d_name, para),
+	TP_STRUCT__entry(
+		__field(void *, inode)
+		__field(void *, file)
+		__field(void *, dentry)
+		__field(unsigned long long, ino)
+		__field(unsigned int, d_len)
+		__string(d_name, d_name)
+		__field(unsigned long long, para)
+	),
+	TP_fast_assign(
+		__entry->inode = inode;
+		__entry->file = file;
+		__entry->dentry = dentry;
+		__entry->ino = ino;
+		__entry->d_len = d_len;
+		__assign_str(d_name, d_name);
+		__entry->para = para;
+	),
+	TP_printk("%p %p %p %llu %llu %.*s", __entry->inode, __entry->file,
+		  __entry->dentry, __entry->ino, __entry->para,
+		  __entry->d_len, __get_str(d_name))
+);
+
+#define DEFINE_OCFS2_FILE_OPS(name)				\
+DEFINE_EVENT(ocfs2__file_ops, name,				\
+TP_PROTO(void *inode, void *file, void *dentry,			\
+	 unsigned long long ino,				\
+	 unsigned int d_len, const unsigned char *d_name,	\
+	 unsigned long long mode),				\
+	TP_ARGS(inode, file, dentry, ino, d_len, d_name, mode))
+
+DEFINE_OCFS2_FILE_OPS(ocfs2_file_open);
+
+DEFINE_OCFS2_FILE_OPS(ocfs2_file_release);
+
+DEFINE_OCFS2_FILE_OPS(ocfs2_sync_file);
+
+DEFINE_OCFS2_FILE_OPS(ocfs2_file_aio_write);
+
+DEFINE_OCFS2_FILE_OPS(ocfs2_file_splice_write);
+
+DEFINE_OCFS2_FILE_OPS(ocfs2_file_splice_read);
+
+DEFINE_OCFS2_FILE_OPS(ocfs2_file_aio_read);
+
+DEFINE_OCFS2_ULL_ULL_ULL_EVENT(ocfs2_truncate_file);
+
+DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_truncate_file_error);
+
+TRACE_EVENT(ocfs2_extend_allocation,
+	TP_PROTO(unsigned long long ip_blkno, unsigned long long size,
+		 unsigned int clusters, unsigned int clusters_to_add,
+		 int why, int restart_func),
+	TP_ARGS(ip_blkno, size, clusters, clusters_to_add, why, restart_func),
+	TP_STRUCT__entry(
+		__field(unsigned long long, ip_blkno)
+		__field(unsigned long long, size)
+		__field(unsigned int, clusters)
+		__field(unsigned int, clusters_to_add)
+		__field(int, why)
+		__field(int, restart_func)
+	),
+	TP_fast_assign(
+		__entry->ip_blkno = ip_blkno;
+		__entry->size = size;
+		__entry->clusters = clusters;
+		__entry->clusters_to_add = clusters_to_add;
+		__entry->why = why;
+		__entry->restart_func = restart_func;
+	),
+	TP_printk("%llu %llu %u %u %d %d",
+		  __entry->ip_blkno, __entry->size, __entry->clusters,
+		  __entry->clusters_to_add, __entry->why, __entry->restart_func)
+);
+
+TRACE_EVENT(ocfs2_extend_allocation_end,
+	TP_PROTO(unsigned long long ino,
+		 unsigned int di_clusters, unsigned long long di_size,
+		 unsigned int ip_clusters, unsigned long long i_size),
+	TP_ARGS(ino, di_clusters, di_size, ip_clusters, i_size),
+	TP_STRUCT__entry(
+		__field(unsigned long long, ino)
+		__field(unsigned int, di_clusters)
+		__field(unsigned long long, di_size)
+		__field(unsigned int, ip_clusters)
+		__field(unsigned long long, i_size)
+	),
+	TP_fast_assign(
+		__entry->ino = ino;
+		__entry->di_clusters = di_clusters;
+		__entry->di_size = di_size;
+		__entry->ip_clusters = ip_clusters;
+		__entry->i_size = i_size;
+	),
+	TP_printk("%llu %u %llu %u %llu", __entry->ino, __entry->di_clusters,
+		  __entry->di_size, __entry->ip_clusters, __entry->i_size)
+);
+
+TRACE_EVENT(ocfs2_write_zero_page,
+	TP_PROTO(unsigned long long ino,
+		 unsigned long long abs_from, unsigned long long abs_to,
+		 unsigned long index, unsigned int zero_from,
+		 unsigned int zero_to),
+	TP_ARGS(ino, abs_from, abs_to, index, zero_from, zero_to),
+	TP_STRUCT__entry(
+		__field(unsigned long long, ino)
+		__field(unsigned long long, abs_from)
+		__field(unsigned long long, abs_to)
+		__field(unsigned long, index)
+		__field(unsigned int, zero_from)
+		__field(unsigned int, zero_to)
+	),
+	TP_fast_assign(
+		__entry->ino = ino;
+		__entry->abs_from = abs_from;
+		__entry->abs_to = abs_to;
+		__entry->index = index;
+		__entry->zero_from = zero_from;
+		__entry->zero_to = zero_to;
+	),
+	TP_printk("%llu %llu %llu %lu %u %u", __entry->ino,
+		  __entry->abs_from, __entry->abs_to,
+		  __entry->index, __entry->zero_from, __entry->zero_to)
+);
+
+DEFINE_OCFS2_ULL_ULL_ULL_EVENT(ocfs2_zero_extend_range);
+
+DEFINE_OCFS2_ULL_ULL_ULL_EVENT(ocfs2_zero_extend);
+
+TRACE_EVENT(ocfs2_setattr,
+	TP_PROTO(void *inode, void *dentry,
+		 unsigned long long ino,
+		 unsigned int d_len, const unsigned char *d_name,
+		 unsigned int ia_valid, unsigned int ia_mode,
+		 unsigned int ia_uid, unsigned int ia_gid),
+	TP_ARGS(inode, dentry, ino, d_len, d_name,
+		ia_valid, ia_mode, ia_uid, ia_gid),
+	TP_STRUCT__entry(
+		__field(void *, inode)
+		__field(void *, dentry)
+		__field(unsigned long long, ino)
+		__field(unsigned int, d_len)
+		__string(d_name, d_name)
+		__field(unsigned int, ia_valid)
+		__field(unsigned int, ia_mode)
+		__field(unsigned int, ia_uid)
+		__field(unsigned int, ia_gid)
+	),
+	TP_fast_assign(
+		__entry->inode = inode;
+		__entry->dentry = dentry;
+		__entry->ino = ino;
+		__entry->d_len = d_len;
+		__assign_str(d_name, d_name);
+		__entry->ia_valid = ia_valid;
+		__entry->ia_mode = ia_mode;
+		__entry->ia_uid = ia_uid;
+		__entry->ia_gid = ia_gid;
+	),
+	TP_printk("%p %p %llu %.*s %u %u %u %u", __entry->inode,
+		  __entry->dentry, __entry->ino, __entry->d_len,
+		  __get_str(d_name), __entry->ia_valid, __entry->ia_mode,
+		  __entry->ia_uid, __entry->ia_gid)
+);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_write_remove_suid);
+
+DEFINE_OCFS2_ULL_ULL_ULL_EVENT(ocfs2_zero_partial_clusters);
+
+DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_zero_partial_clusters_range1);
+
+DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_zero_partial_clusters_range2);
+
+DEFINE_OCFS2_ULL_ULL_ULL_EVENT(ocfs2_remove_inode_range);
+
+TRACE_EVENT(ocfs2_prepare_inode_for_write,
+	TP_PROTO(unsigned long long ino, unsigned long long saved_pos,
+		 int appending, unsigned long count,
+		 int *direct_io, int *has_refcount),
+	TP_ARGS(ino, saved_pos, appending, count, direct_io, has_refcount),
+	TP_STRUCT__entry(
+		__field(unsigned long long, ino)
+		__field(unsigned long long, saved_pos)
+		__field(int, appending)
+		__field(unsigned long, count)
+		__field(int, direct_io)
+		__field(int, has_refcount)
+	),
+	TP_fast_assign(
+		__entry->ino = ino;
+		__entry->saved_pos = saved_pos;
+		__entry->appending = appending;
+		__entry->count = count;
+		__entry->direct_io = direct_io ? *direct_io : -1;
+		__entry->has_refcount = has_refcount ? *has_refcount : -1;
+	),
+	TP_printk("%llu %llu %d %lu %d %d", __entry->ino,
+		  __entry->saved_pos, __entry->appending, __entry->count,
+		  __entry->direct_io, __entry->has_refcount)
+);
+
+DEFINE_OCFS2_INT_EVENT(generic_file_aio_read_ret);
+
+/* End of trace events for fs/ocfs2/file.c. */
 
 #endif /* _TRACE_OCFS2_H */
 
