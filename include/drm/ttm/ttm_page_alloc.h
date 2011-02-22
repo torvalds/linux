@@ -37,12 +37,14 @@
  * @cstate: ttm caching state for the page.
  * @count: number of pages to allocate.
  * @dma_address: The DMA (bus) address of pages (if TTM_PAGE_FLAG_DMA32 set).
+ * @dev: struct device for appropiate DMA accounting.
  */
 int ttm_get_pages(struct list_head *pages,
 		  int flags,
 		  enum ttm_caching_state cstate,
 		  unsigned count,
-		  dma_addr_t *dma_address);
+		  dma_addr_t *dma_address,
+		  struct device *dev);
 /**
  * Put linked list of pages to pool.
  *
@@ -52,12 +54,14 @@ int ttm_get_pages(struct list_head *pages,
  * @flags: ttm flags for page allocation.
  * @cstate: ttm caching state.
  * @dma_address: The DMA (bus) address of pages (if TTM_PAGE_FLAG_DMA32 set).
+ * @dev: struct device for appropiate DMA accounting.
  */
 void ttm_put_pages(struct list_head *pages,
 		   unsigned page_count,
 		   int flags,
 		   enum ttm_caching_state cstate,
-		   dma_addr_t *dma_address);
+		   dma_addr_t *dma_address,
+		   struct device *dev);
 /**
  * Initialize pool allocator.
  */

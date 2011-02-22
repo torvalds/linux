@@ -559,6 +559,7 @@ nouveau_mem_vram_init(struct drm_device *dev)
 	if (ret)
 		return ret;
 
+	dev_priv->ttm.bdev.dev = dev->dev;
 	ret = ttm_bo_device_init(&dev_priv->ttm.bdev,
 				 dev_priv->ttm.bo_global_ref.ref.object,
 				 &nouveau_bo_driver, DRM_FILE_PAGE_OFFSET,

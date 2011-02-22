@@ -664,7 +664,7 @@ out:
  */
 int ttm_get_pages(struct list_head *pages, int flags,
 		  enum ttm_caching_state cstate, unsigned count,
-		  dma_addr_t *dma_address)
+		  dma_addr_t *dma_address, struct device *dev)
 {
 	struct ttm_page_pool *pool = ttm_get_pool(flags, cstate);
 	struct page *p = NULL;
@@ -685,7 +685,7 @@ int ttm_get_pages(struct list_head *pages, int flags,
 		for (r = 0; r < count; ++r) {
 			if ((flags & TTM_PAGE_FLAG_DMA32) && dma_address) {
 				void *addr;
-				addr = dma_alloc_coherent(NULL, PAGE_SIZE,
+				addr = dma_alloc_coherent(dev, PAGE_SIZE,
 							  &dma_address[r],
 							  gfp_flags);
 				if (addr == NULL)
@@ -730,7 +730,7 @@ int ttm_get_pages(struct list_head *pages, int flags,
 			printk(KERN_ERR TTM_PFX
 			       "Failed to allocate extra pages "
 			       "for large request.");
-			ttm_put_pages(pages, 0, flags, cstate, NULL);
+			ttm_put_pages(pages, 0, flags, cstate, NULL, NULL);
 			return r;
 		}
 	}
@@ -741,7 +741,8 @@ int ttm_get_pages(struct list_head *pages, int flags,
 
 /* Put all pages in pages list to correct pool to wait for reuse */
 void ttm_put_pages(struct list_head *pages, unsigned page_count, int flags,
-		   enum ttm_caching_state cstate, dma_addr_t *dma_address)
+		   enum ttm_caching_state cstate, dma_addr_t *dma_address,
+		   struct device *dev)
 {
 	unsigned long irq_flags;
 	struct ttm_page_pool *pool = ttm_get_pool(flags, cstate);
@@ -757,7 +758,7 @@ void ttm_put_pages(struct list_head *pages, unsigned page_count, int flags,
 				void *addr = page_address(p);
 				WARN_ON(!addr || !dma_address[r]);
 				if (addr)
-					dma_free_coherent(NULL, PAGE_SIZE,
+					dma_free_coherent(dev, PAGE_SIZE,
 							  addr,
 							  dma_address[r]);
 				dma_address[r] = 0;
