@@ -303,19 +303,24 @@ int dpi_init_display(struct omap_dss_device *dssdev)
 {
 	DSSDBG("init_display\n");
 
+	if (cpu_is_omap34xx() && dpi.vdds_dsi_reg == NULL) {
+		struct regulator *vdds_dsi;
+
+		vdds_dsi = dss_get_vdds_dsi();
+
+		if (IS_ERR(vdds_dsi)) {
+			DSSERR("can't get VDDS_DSI regulator\n");
+			return PTR_ERR(vdds_dsi);
+		}
+
+		dpi.vdds_dsi_reg = vdds_dsi;
+	}
+
 	return 0;
 }
 
 int dpi_init(struct platform_device *pdev)
 {
-	if (cpu_is_omap34xx()) {
-		dpi.vdds_dsi_reg = dss_get_vdds_dsi();
-		if (IS_ERR(dpi.vdds_dsi_reg)) {
-			DSSERR("can't get VDDS_DSI regulator\n");
-			return PTR_ERR(dpi.vdds_dsi_reg);
-		}
-	}
-
 	return 0;
 }
 

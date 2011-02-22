@@ -305,17 +305,6 @@ static inline u32 venc_read_reg(int idx)
 	return l;
 }
 
-static struct regulator *venc_get_vdda_dac(void)
-{
-	struct regulator *reg;
-
-	reg = regulator_get(&venc.pdev->dev, "vdda_dac");
-	if (!IS_ERR(reg))
-		venc.vdda_dac_reg = reg;
-
-	return reg;
-}
-
 static void venc_write_config(const struct venc_config *config)
 {
 	DSSDBG("write venc conf\n");
@@ -655,6 +644,19 @@ int venc_init_display(struct omap_dss_device *dssdev)
 {
 	DSSDBG("init_display\n");
 
+	if (venc.vdda_dac_reg == NULL) {
+		struct regulator *vdda_dac;
+
+		vdda_dac = regulator_get(&venc.pdev->dev, "vdda_dac");
+
+		if (IS_ERR(vdda_dac)) {
+			DSSERR("can't get VDDA_DAC regulator\n");
+			return PTR_ERR(vdda_dac);
+		}
+
+		venc.vdda_dac_reg = vdda_dac;
+	}
+
 	return 0;
 }
 
@@ -732,13 +734,6 @@ static int omap_venchw_probe(struct platform_device *pdev)
 	if (!venc.base) {
 		DSSERR("can't ioremap VENC\n");
 		return -ENOMEM;
-	}
-
-	venc.vdda_dac_reg = venc_get_vdda_dac();
-	if (IS_ERR(venc.vdda_dac_reg)) {
-		iounmap(venc.base);
-		DSSERR("can't get VDDA_DAC regulator\n");
-		return PTR_ERR(venc.vdda_dac_reg);
 	}
 
 	venc_enable_clocks(1);

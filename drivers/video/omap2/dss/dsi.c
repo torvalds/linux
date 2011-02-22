@@ -291,20 +291,6 @@ static inline u32 dsi_read_reg(const struct dsi_reg idx)
 	return __raw_readl(dsi.base + idx.idx);
 }
 
-static struct regulator *dsi_get_vdds_dsi(void)
-{
-	struct regulator *reg;
-
-	if (dsi.vdds_dsi_reg != NULL)
-		return dsi.vdds_dsi_reg;
-
-	reg = regulator_get(&dsi.pdev->dev, "vdds_dsi");
-	if (!IS_ERR(reg))
-		dsi.vdds_dsi_reg = reg;
-
-	return reg;
-}
-
 
 void dsi_save_context(void)
 {
@@ -3236,6 +3222,19 @@ int dsi_init_display(struct omap_dss_device *dssdev)
 	dsi.vc[0].dssdev = dssdev;
 	dsi.vc[1].dssdev = dssdev;
 
+	if (dsi.vdds_dsi_reg == NULL) {
+		struct regulator *vdds_dsi;
+
+		vdds_dsi = regulator_get(&dsi.pdev->dev, "vdds_dsi");
+
+		if (IS_ERR(vdds_dsi)) {
+			DSSERR("can't get VDDS_DSI regulator\n");
+			return PTR_ERR(vdds_dsi);
+		}
+
+		dsi.vdds_dsi_reg = vdds_dsi;
+	}
+
 	return 0;
 }
 
@@ -3295,13 +3294,6 @@ static int dsi_init(struct platform_device *pdev)
 		goto err1;
 	}
 
-	dsi.vdds_dsi_reg = dsi_get_vdds_dsi();
-	if (IS_ERR(dsi.vdds_dsi_reg)) {
-		DSSERR("can't get VDDS_DSI regulator\n");
-		r = PTR_ERR(dsi.vdds_dsi_reg);
-		goto err2;
-	}
-
 	enable_clocks(1);
 
 	rev = dsi_read_reg(DSI_REVISION);
@@ -3311,8 +3303,6 @@ static int dsi_init(struct platform_device *pdev)
 	enable_clocks(0);
 
 	return 0;
-err2:
-	iounmap(dsi.base);
 err1:
 	destroy_workqueue(dsi.workqueue);
 	return r;

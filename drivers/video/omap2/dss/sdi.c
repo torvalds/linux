@@ -157,6 +157,19 @@ int sdi_init_display(struct omap_dss_device *dssdev)
 {
 	DSSDBG("SDI init\n");
 
+	if (sdi.vdds_sdi_reg == NULL) {
+		struct regulator *vdds_sdi;
+
+		vdds_sdi = dss_get_vdds_sdi();
+
+		if (IS_ERR(vdds_sdi)) {
+			DSSERR("can't get VDDS_SDI regulator\n");
+			return PTR_ERR(vdds_sdi);
+		}
+
+		sdi.vdds_sdi_reg = vdds_sdi;
+	}
+
 	return 0;
 }
 
@@ -165,11 +178,6 @@ int sdi_init(bool skip_init)
 	/* we store this for first display enable, then clear it */
 	sdi.skip_init = skip_init;
 
-	sdi.vdds_sdi_reg = dss_get_vdds_sdi();
-	if (IS_ERR(sdi.vdds_sdi_reg)) {
-		DSSERR("can't get VDDS_SDI regulator\n");
-		return PTR_ERR(sdi.vdds_sdi_reg);
-	}
 	/*
 	 * Enable clocks already here, otherwise there would be a toggle
 	 * of them until sdi_display_enable is called.
