@@ -984,6 +984,7 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct wl1271 *wl = hw->priv;
 	unsigned long flags;
 	int q;
+	u8 hlid = 0;
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
 	wl->tx_queue_count++;
@@ -1002,7 +1003,13 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	/* queue the packet */
 	q = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
-	skb_queue_tail(&wl->tx_queue[q], skb);
+	if (wl->bss_type == BSS_TYPE_AP_BSS) {
+		hlid = wl1271_tx_get_hlid(skb);
+		wl1271_debug(DEBUG_TX, "queue skb hlid %d q %d", hlid, q);
+		skb_queue_tail(&wl->links[hlid].tx_queue[q], skb);
+	} else {
+		skb_queue_tail(&wl->tx_queue[q], skb);
+	}
 
 	/*
 	 * The chip specific setup must run before the first TX packet -
@@ -2643,6 +2650,7 @@ static void wl1271_free_hlid(struct wl1271 *wl, u8 hlid)
 	int id = hlid - WL1271_AP_STA_HLID_START;
 
 	__clear_bit(id, wl->ap_hlid_map);
+	wl1271_tx_reset_link_queues(wl, hlid);
 }
 
 static int wl1271_op_sta_add(struct ieee80211_hw *hw,
@@ -3270,7 +3278,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	struct ieee80211_hw *hw;
 	struct platform_device *plat_dev = NULL;
 	struct wl1271 *wl;
-	int i, ret;
+	int i, j, ret;
 	unsigned int order;
 
 	hw = ieee80211_alloc_hw(sizeof(*wl), &wl1271_ops);
@@ -3298,6 +3306,10 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	for (i = 0; i < NUM_TX_QUEUES; i++)
 		skb_queue_head_init(&wl->tx_queue[i]);
 
+	for (i = 0; i < NUM_TX_QUEUES; i++)
+		for (j = 0; j < AP_MAX_LINKS; j++)
+			skb_queue_head_init(&wl->links[j].tx_queue[i]);
+
 	INIT_DELAYED_WORK(&wl->elp_work, wl1271_elp_work);
 	INIT_DELAYED_WORK(&wl->pspoll_work, wl1271_pspoll_work);
 	INIT_WORK(&wl->irq_work, wl1271_irq_work);
@@ -3323,6 +3335,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->bss_type = MAX_BSS_TYPE;
 	wl->set_bss_type = MAX_BSS_TYPE;
 	wl->fw_bss_type = MAX_BSS_TYPE;
+	wl->last_tx_hlid = 0;
 
 	memset(wl->tx_frames_map, 0, sizeof(wl->tx_frames_map));
 	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)

@@ -86,6 +86,27 @@ static void wl1271_tx_ap_update_inconnection_sta(struct wl1271 *wl,
 		wl1271_acx_set_inconnection_sta(wl, hdr->addr1);
 }
 
+u8 wl1271_tx_get_hlid(struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *control = IEEE80211_SKB_CB(skb);
+
+	if (control->control.sta) {
+		struct wl1271_station *wl_sta;
+
+		wl_sta = (struct wl1271_station *)
+				control->control.sta->drv_priv;
+		return wl_sta->hlid;
+	} else {
+		struct ieee80211_hdr *hdr;
+
+		hdr = (struct ieee80211_hdr *)skb->data;
+		if (ieee80211_is_mgmt(hdr->frame_control))
+			return WL1271_AP_GLOBAL_HLID;
+		else
+			return WL1271_AP_BROADCAST_HLID;
+	}
+}
+
 static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
 				u32 buf_offset)
 {
@@ -298,7 +319,7 @@ u32 wl1271_tx_enabled_rates_get(struct wl1271 *wl, u32 rate_set)
 	return enabled_rates;
 }
 
-static void handle_tx_low_watermark(struct wl1271 *wl)
+void wl1271_handle_tx_low_watermark(struct wl1271 *wl)
 {
 	unsigned long flags;
 
@@ -312,7 +333,7 @@ static void handle_tx_low_watermark(struct wl1271 *wl)
 	}
 }
 
-static struct sk_buff *wl1271_skb_dequeue(struct wl1271 *wl)
+static struct sk_buff *wl1271_sta_skb_dequeue(struct wl1271 *wl)
 {
 	struct sk_buff *skb = NULL;
 	unsigned long flags;
@@ -338,12 +359,69 @@ out:
 	return skb;
 }
 
+static struct sk_buff *wl1271_ap_skb_dequeue(struct wl1271 *wl)
+{
+	struct sk_buff *skb = NULL;
+	unsigned long flags;
+	int i, h, start_hlid;
+
+	/* start from the link after the last one */
+	start_hlid = (wl->last_tx_hlid + 1) % AP_MAX_LINKS;
+
+	/* dequeue according to AC, round robin on each link */
+	for (i = 0; i < AP_MAX_LINKS; i++) {
+		h = (start_hlid + i) % AP_MAX_LINKS;
+
+		skb = skb_dequeue(&wl->links[h].tx_queue[CONF_TX_AC_VO]);
+		if (skb)
+			goto out;
+		skb = skb_dequeue(&wl->links[h].tx_queue[CONF_TX_AC_VI]);
+		if (skb)
+			goto out;
+		skb = skb_dequeue(&wl->links[h].tx_queue[CONF_TX_AC_BE]);
+		if (skb)
+			goto out;
+		skb = skb_dequeue(&wl->links[h].tx_queue[CONF_TX_AC_BK]);
+		if (skb)
+			goto out;
+	}
+
+out:
+	if (skb) {
+		wl->last_tx_hlid = h;
+		spin_lock_irqsave(&wl->wl_lock, flags);
+		wl->tx_queue_count--;
+		spin_unlock_irqrestore(&wl->wl_lock, flags);
+	} else {
+		wl->last_tx_hlid = 0;
+	}
+
+	return skb;
+}
+
+static struct sk_buff *wl1271_skb_dequeue(struct wl1271 *wl)
+{
+	if (wl->bss_type == BSS_TYPE_AP_BSS)
+		return wl1271_ap_skb_dequeue(wl);
+
+	return wl1271_sta_skb_dequeue(wl);
+}
+
 static void wl1271_skb_queue_head(struct wl1271 *wl, struct sk_buff *skb)
 {
 	unsigned long flags;
 	int q = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
 
-	skb_queue_head(&wl->tx_queue[q], skb);
+	if (wl->bss_type == BSS_TYPE_AP_BSS) {
+		u8 hlid = wl1271_tx_get_hlid(skb);
+		skb_queue_head(&wl->links[hlid].tx_queue[q], skb);
+
+		/* make sure we dequeue the same packet next time */
+		wl->last_tx_hlid = (hlid + AP_MAX_LINKS - 1) % AP_MAX_LINKS;
+	} else {
+		skb_queue_head(&wl->tx_queue[q], skb);
+	}
+
 	spin_lock_irqsave(&wl->wl_lock, flags);
 	wl->tx_queue_count++;
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
@@ -406,7 +484,7 @@ out_ack:
 	if (sent_packets) {
 		/* interrupt the firmware with the new packets */
 		wl1271_write32(wl, WL1271_HOST_WR_ACCESS, wl->tx_packets_count);
-		handle_tx_low_watermark(wl);
+		wl1271_handle_tx_low_watermark(wl);
 	}
 
 out:
@@ -523,6 +601,27 @@ void wl1271_tx_complete(struct wl1271 *wl)
 	}
 }
 
+void wl1271_tx_reset_link_queues(struct wl1271 *wl, u8 hlid)
+{
+	struct sk_buff *skb;
+	int i, total = 0;
+	unsigned long flags;
+
+	for (i = 0; i < NUM_TX_QUEUES; i++) {
+		while ((skb = skb_dequeue(&wl->links[hlid].tx_queue[i]))) {
+			wl1271_debug(DEBUG_TX, "link freeing skb 0x%p", skb);
+			ieee80211_tx_status(wl->hw, skb);
+			total++;
+		}
+	}
+
+	spin_lock_irqsave(&wl->wl_lock, flags);
+	wl->tx_queue_count -= total;
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
+
+	wl1271_handle_tx_low_watermark(wl);
+}
+
 /* caller must hold wl->mutex */
 void wl1271_tx_reset(struct wl1271 *wl)
 {
@@ -530,19 +629,28 @@ void wl1271_tx_reset(struct wl1271 *wl)
 	struct sk_buff *skb;
 
 	/* TX failure */
-	for (i = 0; i < NUM_TX_QUEUES; i++) {
-		while ((skb = skb_dequeue(&wl->tx_queue[i]))) {
-			wl1271_debug(DEBUG_TX, "freeing skb 0x%p", skb);
-			ieee80211_tx_status(wl->hw, skb);
+	if (wl->bss_type == BSS_TYPE_AP_BSS) {
+		for (i = 0; i < AP_MAX_LINKS; i++)
+			wl1271_tx_reset_link_queues(wl, i);
+
+		wl->last_tx_hlid = 0;
+	} else {
+		for (i = 0; i < NUM_TX_QUEUES; i++) {
+			while ((skb = skb_dequeue(&wl->tx_queue[i]))) {
+				wl1271_debug(DEBUG_TX, "freeing skb 0x%p",
+					     skb);
+				ieee80211_tx_status(wl->hw, skb);
+			}
 		}
 	}
+
 	wl->tx_queue_count = 0;
 
 	/*
 	 * Make sure the driver is at a consistent state, in case this
 	 * function is called from a context other than interface removal.
 	 */
-	handle_tx_low_watermark(wl);
+	wl1271_handle_tx_low_watermark(wl);
 
 	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)
 		if (wl->tx_frames[i] != NULL) {
@@ -563,8 +671,8 @@ void wl1271_tx_flush(struct wl1271 *wl)
 
 	while (!time_after(jiffies, timeout)) {
 		mutex_lock(&wl->mutex);
-		wl1271_debug(DEBUG_TX, "flushing tx buffer: %d",
-			     wl->tx_frames_cnt);
+		wl1271_debug(DEBUG_TX, "flushing tx buffer: %d %d",
+			     wl->tx_frames_cnt, wl->tx_queue_count);
 		if ((wl->tx_frames_cnt == 0) && (wl->tx_queue_count == 0)) {
 			mutex_unlock(&wl->mutex);
 			return;
