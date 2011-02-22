@@ -5476,12 +5476,14 @@ int register_netdevice(struct net_device *dev)
 	 * software offloads (GSO and GRO).
 	 */
 	dev->hw_features |= NETIF_F_SOFT_FEATURES;
-	dev->wanted_features = (dev->features & dev->hw_features)
-		| NETIF_F_SOFT_FEATURES;
+	dev->features |= NETIF_F_SOFT_FEATURES;
+	dev->wanted_features = dev->features & dev->hw_features;
 
 	/* Avoid warning from netdev_fix_features() for GSO without SG */
-	if (!(dev->wanted_features & NETIF_F_SG))
+	if (!(dev->wanted_features & NETIF_F_SG)) {
 		dev->wanted_features &= ~NETIF_F_GSO;
+		dev->features &= ~NETIF_F_GSO;
+	}
 
 	/* Enable GRO and NETIF_F_HIGHDMA for vlans by default,
 	 * vlan_dev_init() will do the dev->features check, so these features
