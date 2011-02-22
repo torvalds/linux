@@ -295,6 +295,7 @@ void drbd_csum_bio(struct drbd_conf *mdev, struct crypto_hash *tfm, struct bio *
 	crypto_hash_final(&desc, digest);
 }
 
+/* MAYBE merge common code with w_e_end_ov_req */
 static int w_e_send_csum(struct drbd_work *w, int cancel)
 {
 	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
@@ -306,7 +307,7 @@ static int w_e_send_csum(struct drbd_work *w, int cancel)
 	if (unlikely(cancel))
 		goto out;
 
-	if (likely((peer_req->flags & EE_WAS_ERROR) != 0))
+	if (unlikely((peer_req->flags & EE_WAS_ERROR) != 0))
 		goto out;
 
 	digest_size = crypto_hash_digestsize(mdev->csums_tfm);
@@ -315,7 +316,7 @@ static int w_e_send_csum(struct drbd_work *w, int cancel)
 		sector_t sector = peer_req->i.sector;
 		unsigned int size = peer_req->i.size;
 		drbd_csum_ee(mdev, mdev->csums_tfm, peer_req, digest);
-		/* Free e and pages before send.
+		/* Free peer_req and pages before send.
 		 * In case we block on congestion, we could otherwise run into
 		 * some distributed deadlock, if the other side blocks on
 		 * congestion as well, because our receiver blocks in
@@ -1151,11 +1152,11 @@ int w_e_end_ov_reply(struct drbd_work *w, int cancel)
 		}
 	}
 
-		/* Free e and pages before send.
-		 * In case we block on congestion, we could otherwise run into
-		 * some distributed deadlock, if the other side blocks on
-		 * congestion as well, because our receiver blocks in
-		 * drbd_pp_alloc due to pp_in_use > max_buffers. */
+	/* Free peer_req and pages before send.
+	 * In case we block on congestion, we could otherwise run into
+	 * some distributed deadlock, if the other side blocks on
+	 * congestion as well, because our receiver blocks in
+	 * drbd_pp_alloc due to pp_in_use > max_buffers. */
 	drbd_free_ee(mdev, peer_req);
 	if (!eq)
 		drbd_ov_oos_found(mdev, sector, size);
