@@ -1171,8 +1171,8 @@ static int pair_device(struct sock *sk, u16 index, unsigned char *data, u16 len)
 	}
 
 	conn = hci_connect(hdev, ACL_LINK, &cp->bdaddr, sec_level, auth_type);
-	if (!conn) {
-		err = -ENOMEM;
+	if (IS_ERR(conn)) {
+		err = PTR_ERR(conn);
 		goto unlock;
 	}
 

@@ -431,10 +431,10 @@ struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst, __u8
 	if (type == LE_LINK) {
 		le = hci_conn_hash_lookup_ba(hdev, LE_LINK, dst);
 		if (le)
-			return NULL;
+			return ERR_PTR(-EBUSY);
 		le = hci_conn_add(hdev, LE_LINK, dst);
 		if (!le)
-			return NULL;
+			return ERR_PTR(-ENOMEM);
 		if (le->state == BT_OPEN)
 			hci_le_connect(le);
 
