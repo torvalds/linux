@@ -362,6 +362,9 @@ struct efx_channel {
 
 	unsigned int irq_count;
 	unsigned int irq_mod_score;
+#ifdef CONFIG_RFS_ACCEL
+	unsigned int rfs_filters_added;
+#endif
 
 	int rx_alloc_level;
 	int rx_alloc_push_pages;

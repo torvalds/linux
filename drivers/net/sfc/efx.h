@@ -76,6 +76,21 @@ extern int efx_filter_remove_filter(struct efx_nic *efx,
 				    struct efx_filter_spec *spec);
 extern void efx_filter_clear_rx(struct efx_nic *efx,
 				enum efx_filter_priority priority);
+#ifdef CONFIG_RFS_ACCEL
+extern int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
+			  u16 rxq_index, u32 flow_id);
+extern bool __efx_filter_rfs_expire(struct efx_nic *efx, unsigned quota);
+static inline void efx_filter_rfs_expire(struct efx_channel *channel)
+{
+	if (channel->rfs_filters_added >= 60 &&
+	    __efx_filter_rfs_expire(channel->efx, 100))
+		channel->rfs_filters_added -= 60;
+}
+#define efx_filter_rfs_enabled() 1
+#else
+static inline void efx_filter_rfs_expire(struct efx_channel *channel) {}
+#define efx_filter_rfs_enabled() 0
+#endif
 
 /* Channels */
 extern void efx_process_channel_now(struct efx_channel *channel);

@@ -2610,7 +2610,8 @@ set_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 		int rc;
 
 		/* Should we steer this flow to a different hardware queue? */
-		if (!skb_rx_queue_recorded(skb) || !dev->rx_cpu_rmap)
+		if (!skb_rx_queue_recorded(skb) || !dev->rx_cpu_rmap ||
+		    !(dev->features & NETIF_F_NTUPLE))
 			goto out;
 		rxq_index = cpu_rmap_lookup_index(dev->rx_cpu_rmap, next_cpu);
 		if (rxq_index == skb_get_rx_queue(skb))

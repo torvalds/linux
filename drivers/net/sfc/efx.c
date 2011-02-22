@@ -21,6 +21,7 @@
 #include <linux/ethtool.h>
 #include <linux/topology.h>
 #include <linux/gfp.h>
+#include <linux/cpu_rmap.h>
 #include "net_driver.h"
 #include "efx.h"
 #include "nic.h"
@@ -306,6 +307,8 @@ static int efx_poll(struct napi_struct *napi, int budget)
 			channel->irq_count = 0;
 			channel->irq_mod_score = 0;
 		}
+
+		efx_filter_rfs_expire(channel);
 
 		/* There is no race here; although napi_disable() will
 		 * only wait for napi_complete(), this isn't a problem
@@ -1175,10 +1178,32 @@ static int efx_wanted_channels(void)
 	return count;
 }
 
+static int
+efx_init_rx_cpu_rmap(struct efx_nic *efx, struct msix_entry *xentries)
+{
+#ifdef CONFIG_RFS_ACCEL
+	int i, rc;
+
+	efx->net_dev->rx_cpu_rmap = alloc_irq_cpu_rmap(efx->n_rx_channels);
+	if (!efx->net_dev->rx_cpu_rmap)
+		return -ENOMEM;
+	for (i = 0; i < efx->n_rx_channels; i++) {
+		rc = irq_cpu_rmap_add(efx->net_dev->rx_cpu_rmap,
+				      xentries[i].vector);
+		if (rc) {
+			free_irq_cpu_rmap(efx->net_dev->rx_cpu_rmap);
+			efx->net_dev->rx_cpu_rmap = NULL;
+			return rc;
+		}
+	}
+#endif
+	return 0;
+}
+
 /* Probe the number and type of interrupts we are able to obtain, and
  * the resulting numbers of channels and RX queues.
  */
-static void efx_probe_interrupts(struct efx_nic *efx)
+static int efx_probe_interrupts(struct efx_nic *efx)
 {
 	int max_channels =
 		min_t(int, efx->type->phys_addr_channels, EFX_MAX_CHANNELS);
@@ -1220,6 +1245,11 @@ static void efx_probe_interrupts(struct efx_nic *efx)
 				efx->n_tx_channels = efx->n_channels;
 				efx->n_rx_channels = efx->n_channels;
 			}
+			rc = efx_init_rx_cpu_rmap(efx, xentries);
+			if (rc) {
+				pci_disable_msix(efx->pci_dev);
+				return rc;
+			}
 			for (i = 0; i < n_channels; i++)
 				efx_get_channel(efx, i)->irq =
 					xentries[i].vector;
@@ -1253,6 +1283,8 @@ static void efx_probe_interrupts(struct efx_nic *efx)
 		efx->n_tx_channels = 1;
 		efx->legacy_irq = efx->pci_dev->irq;
 	}
+
+	return 0;
 }
 
 static void efx_remove_interrupts(struct efx_nic *efx)
@@ -1289,7 +1321,9 @@ static int efx_probe_nic(struct efx_nic *efx)
 
 	/* Determine the number of channels and queues by trying to hook
 	 * in MSI-X interrupts. */
-	efx_probe_interrupts(efx);
+	rc = efx_probe_interrupts(efx);
+	if (rc)
+		goto fail;
 
 	if (efx->n_channels > 1)
 		get_random_bytes(&efx->rx_hash_key, sizeof(efx->rx_hash_key));
@@ -1304,6 +1338,10 @@ static int efx_probe_nic(struct efx_nic *efx)
 	efx_init_irq_moderation(efx, tx_irq_mod_usec, rx_irq_mod_usec, true);
 
 	return 0;
+
+fail:
+	efx->type->remove(efx);
+	return rc;
 }
 
 static void efx_remove_nic(struct efx_nic *efx)
@@ -1837,6 +1875,9 @@ static const struct net_device_ops efx_netdev_ops = {
 	.ndo_poll_controller = efx_netpoll,
 #endif
 	.ndo_setup_tc		= efx_setup_tc,
+#ifdef CONFIG_RFS_ACCEL
+	.ndo_rx_flow_steer	= efx_filter_rfs,
+#endif
 };
 
 static void efx_update_name(struct efx_nic *efx)
@@ -2274,6 +2315,10 @@ static void efx_fini_struct(struct efx_nic *efx)
  */
 static void efx_pci_remove_main(struct efx_nic *efx)
 {
+#ifdef CONFIG_RFS_ACCEL
+	free_irq_cpu_rmap(efx->net_dev->rx_cpu_rmap);
+	efx->net_dev->rx_cpu_rmap = NULL;
+#endif
 	efx_nic_fini_interrupt(efx);
 	efx_fini_channels(efx);
 	efx_fini_port(efx);
