@@ -30,7 +30,6 @@
 #include <linux/swap.h>
 #include <linux/quotaops.h>
 
-#define MLOG_MASK_PREFIX ML_DISK_ALLOC
 #include <cluster/masklog.h>
 
 #include "ocfs2.h"

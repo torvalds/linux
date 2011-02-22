@@ -29,7 +29,6 @@
 #include <linux/highmem.h>
 #include <linux/bitops.h>
 
-#define MLOG_MASK_PREFIX ML_DISK_ALLOC
 #include <cluster/masklog.h>
 
 #include "ocfs2.h"

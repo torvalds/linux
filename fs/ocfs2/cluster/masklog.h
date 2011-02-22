@@ -95,7 +95,6 @@
 #define ML_DLM_RECOVERY	0x0000000000001000ULL /* dlm master functions */
 #define ML_AIO		0x0000000000002000ULL /* ocfs2 aio read and write */
 #define ML_JOURNAL	0x0000000000004000ULL /* ocfs2 journalling functions */
-#define ML_DISK_ALLOC	0x0000000000008000ULL /* ocfs2 disk allocation */
 #define ML_SUPER	0x0000000000010000ULL /* ocfs2 mount / umount */
 #define ML_FILE_IO	0x0000000000020000ULL /* ocfs2 file I/O */
 #define ML_EXTENT_MAP	0x0000000000040000ULL /* ocfs2 extent map caching */
