@@ -322,6 +322,10 @@ enum wl12xx_flags {
 struct wl1271_link {
 	/* AP-mode - TX queue per AC in link */
 	struct sk_buff_head tx_queue[NUM_TX_QUEUES];
+
+	/* accounting for allocated / available TX blocks in FW */
+	u8 allocated_blks;
+	u8 prev_freed_blks;
 };
 
 struct wl1271 {

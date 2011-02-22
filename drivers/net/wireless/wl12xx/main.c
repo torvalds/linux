@@ -574,6 +574,17 @@ static void wl1271_fw_status(struct wl1271 *wl,
 	if (total)
 		clear_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags);
 
+	if (wl->bss_type == BSS_TYPE_AP_BSS) {
+		for (i = 0; i < AP_MAX_LINKS; i++) {
+			u8 cnt = status->tx_lnk_free_blks[i] -
+				wl->links[i].prev_freed_blks;
+
+			wl->links[i].prev_freed_blks =
+				status->tx_lnk_free_blks[i];
+			wl->links[i].allocated_blks -= cnt;
+		}
+	}
+
 	/* update the host-chipset time offset */
 	getnstimeofday(&ts);
 	wl->time_offset = (timespec_to_ns(&ts) >> 10) -

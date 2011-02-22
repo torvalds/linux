@@ -108,7 +108,7 @@ u8 wl1271_tx_get_hlid(struct sk_buff *skb)
 }
 
 static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
-				u32 buf_offset)
+				u32 buf_offset, u8 hlid)
 {
 	struct wl1271_tx_hw_descr *desc;
 	u32 total_len = skb->len + sizeof(struct wl1271_tx_hw_descr) + extra;
@@ -137,6 +137,9 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
 
 		wl->tx_blocks_available -= total_blocks;
 
+		if (wl->bss_type == BSS_TYPE_AP_BSS)
+			wl->links[hlid].allocated_blks += total_blocks;
+
 		ret = 0;
 
 		wl1271_debug(DEBUG_TX,
@@ -150,7 +153,8 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
 }
 
 static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
-			      u32 extra, struct ieee80211_tx_info *control)
+			      u32 extra, struct ieee80211_tx_info *control,
+			      u8 hlid)
 {
 	struct timespec ts;
 	struct wl1271_tx_hw_descr *desc;
@@ -186,7 +190,7 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 	desc->tid = ac;
 
 	if (wl->bss_type != BSS_TYPE_AP_BSS) {
-		desc->aid = TX_HW_DEFAULT_AID;
+		desc->aid = hlid;
 
 		/* if the packets are destined for AP (have a STA entry)
 		   send them with AP rate policies, otherwise use default
@@ -196,25 +200,17 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 		else
 			rate_idx = ACX_TX_BASIC_RATE;
 	} else {
-		if (control->control.sta) {
-			struct wl1271_station *wl_sta;
-
-			wl_sta = (struct wl1271_station *)
-					control->control.sta->drv_priv;
-			desc->hlid = wl_sta->hlid;
+		desc->hlid = hlid;
+		switch (hlid) {
+		case WL1271_AP_GLOBAL_HLID:
+			rate_idx = ACX_TX_AP_MODE_MGMT_RATE;
+			break;
+		case WL1271_AP_BROADCAST_HLID:
+			rate_idx = ACX_TX_AP_MODE_BCST_RATE;
+			break;
+		default:
 			rate_idx = ac;
-		} else {
-			struct ieee80211_hdr *hdr;
-
-			hdr = (struct ieee80211_hdr *)
-						(skb->data + sizeof(*desc));
-			if (ieee80211_is_mgmt(hdr->frame_control)) {
-				desc->hlid = WL1271_AP_GLOBAL_HLID;
-				rate_idx = ACX_TX_AP_MODE_MGMT_RATE;
-			} else {
-				desc->hlid = WL1271_AP_BROADCAST_HLID;
-				rate_idx = ACX_TX_AP_MODE_BCST_RATE;
-			}
+			break;
 		}
 	}
 
@@ -245,6 +241,7 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct sk_buff *skb,
 	u32 extra = 0;
 	int ret = 0;
 	u32 total_len;
+	u8 hlid;
 
 	if (!skb)
 		return -EINVAL;
@@ -271,14 +268,19 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct sk_buff *skb,
 		}
 	}
 
-	ret = wl1271_tx_allocate(wl, skb, extra, buf_offset);
+	if (wl->bss_type == BSS_TYPE_AP_BSS)
+		hlid = wl1271_tx_get_hlid(skb);
+	else
+		hlid = TX_HW_DEFAULT_AID;
+
+	ret = wl1271_tx_allocate(wl, skb, extra, buf_offset, hlid);
 	if (ret < 0)
 		return ret;
 
 	if (wl->bss_type == BSS_TYPE_AP_BSS)
 		wl1271_tx_ap_update_inconnection_sta(wl, skb);
 
-	wl1271_tx_fill_hdr(wl, skb, extra, info);
+	wl1271_tx_fill_hdr(wl, skb, extra, info, hlid);
 
 	/*
 	 * The length of each packet is stored in terms of words. Thus, we must
@@ -635,8 +637,11 @@ void wl1271_tx_reset(struct wl1271 *wl)
 
 	/* TX failure */
 	if (wl->bss_type == BSS_TYPE_AP_BSS) {
-		for (i = 0; i < AP_MAX_LINKS; i++)
+		for (i = 0; i < AP_MAX_LINKS; i++) {
 			wl1271_tx_reset_link_queues(wl, i);
+			wl->links[i].allocated_blks = 0;
+			wl->links[i].prev_freed_blks = 0;
+		}
 
 		wl->last_tx_hlid = 0;
 	} else {
