@@ -152,6 +152,18 @@ NL_PACKET(new_c_uuid, 26,
 NL_RESPONSE(return_code_only, 27)
 #endif
 
+NL_PACKET(new_connection, 28, /* CHT_CTOR */
+	NL_STRING(	85,	T_MANDATORY,	name, DRBD_NL_OBJ_NAME_LEN)
+)
+
+NL_PACKET(new_minor, 29, /* CHT_CONN */
+	NL_INTEGER(	86,	T_MANDATORY,	minor)
+	NL_INTEGER(	87,	T_MANDATORY,	vol_nr)
+)
+
+NL_PACKET(del_minor, 30, ) /* CHT_MINOR */
+NL_PACKET(del_connection, 31, ) /* CHT_CONN */
+
 #undef NL_PACKET
 #undef NL_INTEGER
 #undef NL_INT64

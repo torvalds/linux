@@ -156,6 +156,9 @@ enum drbd_ret_code {
 	ERR_PIC_AFTER_DEP	= 156,
 	ERR_PIC_PEER_DEP	= 157,
 	ERR_CONN_NOT_KNOWN      = 158,
+	ERR_CONN_IN_USE         = 159,
+	ERR_MINOR_CONFIGURED    = 160,
+	ERR_MINOR_EXISTS	= 161,
 
 	/* insert new ones above this line */
 	AFTER_LAST_ERR_CODE

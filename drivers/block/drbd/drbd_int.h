@@ -1258,7 +1258,6 @@ extern int drbd_bmio_clear_n_write(struct drbd_conf *mdev);
 extern void drbd_go_diskless(struct drbd_conf *mdev);
 extern void drbd_ldev_destroy(struct drbd_conf *mdev);
 
-
 /* Meta data layout
    We reserve a 128MB Block (4k aligned)
    * either at the end of the backing device
@@ -1476,8 +1475,9 @@ extern wait_queue_head_t drbd_pp_wait;
 extern rwlock_t global_state_lock;
 
 extern int conn_lowest_minor(struct drbd_tconn *tconn);
-extern struct drbd_conf *drbd_new_device(unsigned int minor);
+enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, int vnr);
 extern void drbd_free_mdev(struct drbd_conf *mdev);
+extern void drbd_delete_device(unsigned int minor);
 
 struct drbd_tconn *drbd_new_tconn(char *name);
 extern void drbd_free_tconn(struct drbd_tconn *tconn);

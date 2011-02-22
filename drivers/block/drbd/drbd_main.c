@@ -614,13 +614,16 @@ char *drbd_task_to_thread_name(struct drbd_tconn *tconn, struct task_struct *tas
 	return thi ? thi->name : task->comm;
 }
 
-#ifdef CONFIG_SMP
 int conn_lowest_minor(struct drbd_tconn *tconn)
 {
 	int minor = 0;
-	idr_get_next(&tconn->volumes, &minor);
+
+	if (!idr_get_next(&tconn->volumes, &minor))
+		return -1;
 	return minor;
 }
+
+#ifdef CONFIG_SMP
 /**
  * drbd_calc_cpu_mask() - Generate CPU masks, spread over all CPUs
  * @mdev:	DRBD device.
@@ -2078,14 +2081,15 @@ static void drbd_release_ee_lists(struct drbd_conf *mdev)
 		dev_err(DEV, "%d EEs in net list found!\n", rr);
 }
 
-/* caution. no locking.
- * currently only used from module cleanup code. */
-static void drbd_delete_device(unsigned int minor)
+/* caution. no locking. */
+void drbd_delete_device(unsigned int minor)
 {
 	struct drbd_conf *mdev = minor_to_mdev(minor);
 
 	if (!mdev)
 		return;
+
+	idr_remove(&mdev->tconn->volumes, minor);
 
 	/* paranoia asserts */
 	D_ASSERT(mdev->open_cnt == 0);
@@ -2101,7 +2105,6 @@ static void drbd_delete_device(unsigned int minor)
 		bdput(mdev->this_bdev);
 
 	drbd_free_resources(mdev);
-	drbd_free_tconn(mdev->tconn);
 
 	drbd_release_ee_lists(mdev);
 
@@ -2223,6 +2226,9 @@ struct drbd_tconn *drbd_new_tconn(char *name)
 	if (!tconn->name)
 		goto fail;
 
+	if (!zalloc_cpumask_var(&tconn->cpu_mask, GFP_KERNEL))
+		goto fail;
+
 	if (!tl_init(tconn))
 		goto fail;
 
@@ -2252,6 +2258,7 @@ struct drbd_tconn *drbd_new_tconn(char *name)
 
 fail:
 	tl_cleanup(tconn);
+	free_cpumask_var(tconn->cpu_mask);
 	kfree(tconn->name);
 	kfree(tconn);
 
@@ -2265,6 +2272,7 @@ void drbd_free_tconn(struct drbd_tconn *tconn)
 	write_unlock_irq(&global_state_lock);
 	idr_destroy(&tconn->volumes);
 
+	free_cpumask_var(tconn->cpu_mask);
 	kfree(tconn->name);
 	kfree(tconn->int_dig_out);
 	kfree(tconn->int_dig_in);
@@ -2272,32 +2280,31 @@ void drbd_free_tconn(struct drbd_tconn *tconn)
 	kfree(tconn);
 }
 
-struct drbd_conf *drbd_new_device(unsigned int minor)
+enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, int vnr)
 {
 	struct drbd_conf *mdev;
 	struct gendisk *disk;
 	struct request_queue *q;
-	char conn_name[9]; /* drbd1234N */
-	int vnr;
+	int vnr_got = vnr;
+
+	mdev = minor_to_mdev(minor);
+	if (mdev)
+		return ERR_MINOR_EXISTS;
 
 	/* GFP_KERNEL, we are outside of all write-out paths */
 	mdev = kzalloc(sizeof(struct drbd_conf), GFP_KERNEL);
 	if (!mdev)
-		return NULL;
-	sprintf(conn_name, "drbd%d", minor);
-	mdev->tconn = drbd_new_tconn(conn_name);
-	if (!mdev->tconn)
-		goto out_no_tconn;
-	if (!idr_pre_get(&mdev->tconn->volumes, GFP_KERNEL))
-		goto out_no_cpumask;
-	if (idr_get_new(&mdev->tconn->volumes, mdev, &vnr))
-		goto out_no_cpumask;
-	if (vnr != 0) {
-		dev_err(DEV, "vnr = %d\n", vnr);
-		goto out_no_cpumask;
+		return ERR_NOMEM;
+
+	mdev->tconn = tconn;
+	if (!idr_pre_get(&tconn->volumes, GFP_KERNEL))
+		goto out_no_idr;
+	if (idr_get_new(&tconn->volumes, mdev, &vnr_got))
+		goto out_no_idr;
+	if (vnr_got != vnr) {
+		dev_err(DEV, "vnr_got (%d) != vnr (%d)\n", vnr_got, vnr);
+		goto out_no_q;
 	}
-	if (!zalloc_cpumask_var(&mdev->tconn->cpu_mask, GFP_KERNEL))
-		goto out_no_cpumask;
 
 	mdev->minor = minor;
 
@@ -2354,7 +2361,10 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
 	INIT_LIST_HEAD(&mdev->current_epoch->list);
 	mdev->epochs = 1;
 
-	return mdev;
+	minor_table[minor] = mdev;
+	add_disk(disk);
+
+	return NO_ERROR;
 
 /* out_whatever_else:
 	kfree(mdev->current_epoch); */
@@ -2367,12 +2377,10 @@ out_no_io_page:
 out_no_disk:
 	blk_cleanup_queue(q);
 out_no_q:
-	free_cpumask_var(mdev->tconn->cpu_mask);
-out_no_cpumask:
-	drbd_free_tconn(mdev->tconn);
-out_no_tconn:
+	idr_remove(&tconn->volumes, vnr_got);
+out_no_idr:
 	kfree(mdev);
-	return NULL;
+	return ERR_NOMEM;
 }
 
 /* counterpart of drbd_new_device.

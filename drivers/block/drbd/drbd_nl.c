@@ -443,40 +443,6 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 	return rv;
 }
 
-static struct drbd_conf *ensure_mdev(int minor, int create)
-{
-	struct drbd_conf *mdev;
-
-	if (minor >= minor_count)
-		return NULL;
-
-	mdev = minor_to_mdev(minor);
-
-	if (!mdev && create) {
-		struct gendisk *disk = NULL;
-		mdev = drbd_new_device(minor);
-
-		spin_lock_irq(&drbd_pp_lock);
-		if (minor_table[minor] == NULL) {
-			minor_table[minor] = mdev;
-			disk = mdev->vdisk;
-			mdev = NULL;
-		} /* else: we lost the race */
-		spin_unlock_irq(&drbd_pp_lock);
-
-		if (disk) /* we won the race above */
-			/* in case we ever add a drbd_delete_device(),
-			 * don't forget the del_gendisk! */
-			add_disk(disk);
-		else /* we lost the race above */
-			drbd_free_mdev(mdev);
-
-		mdev = minor_to_mdev(minor);
-	}
-
-	return mdev;
-}
-
 static int drbd_nl_primary(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 			   struct drbd_nl_cfg_reply *reply)
 {
@@ -1789,12 +1755,6 @@ static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *n
 	if (!expect(sc.al_extents <= DRBD_AL_EXTENTS_MAX))
 		sc.al_extents = DRBD_AL_EXTENTS_MAX;
 
-	/* to avoid spurious errors when configuring minors before configuring
-	 * the minors they depend on: if necessary, first create the minor we
-	 * depend on */
-	if (sc.after >= 0)
-		ensure_mdev(sc.after, 1);
-
 	/* most sanity checks done, try to assign the new sync-after
 	 * dependency.  need to hold the global lock in there,
 	 * to avoid a race in the dependency loop check. */
@@ -2184,13 +2144,73 @@ out:
 	return 0;
 }
 
+static int drbd_nl_new_conn(struct drbd_nl_cfg_req *nlp, struct drbd_nl_cfg_reply *reply)
+{
+	struct new_connection args;
+
+	if (!new_connection_from_tags(nlp->tag_list, &args)) {
+		reply->ret_code = ERR_MANDATORY_TAG;
+		return 0;
+	}
+
+	reply->ret_code = NO_ERROR;
+	if (!drbd_new_tconn(args.name))
+		reply->ret_code = ERR_NOMEM;
+
+	return 0;
+}
+
+static int drbd_nl_new_minor(struct drbd_tconn *tconn,
+		      struct drbd_nl_cfg_req *nlp, struct drbd_nl_cfg_reply *reply)
+{
+	struct new_minor args;
+
+	args.vol_nr = 0;
+	args.minor = 0;
+
+	if (!new_minor_from_tags(nlp->tag_list, &args)) {
+		reply->ret_code = ERR_MANDATORY_TAG;
+		return 0;
+	}
+
+	reply->ret_code = conn_new_minor(tconn, args.minor, args.vol_nr);
+
+	return 0;
+}
+
+static int drbd_nl_del_minor(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
+			     struct drbd_nl_cfg_reply *reply)
+{
+	if (mdev->state.disk == D_DISKLESS &&
+	    mdev->state.conn == C_STANDALONE &&
+	    mdev->state.role == R_SECONDARY) {
+		drbd_delete_device(mdev_to_minor(mdev));
+		reply->ret_code = NO_ERROR;
+	} else {
+		reply->ret_code = ERR_MINOR_CONFIGURED;
+	}
+	return 0;
+}
+
+static int drbd_nl_del_conn(struct drbd_tconn *tconn,
+			    struct drbd_nl_cfg_req *nlp, struct drbd_nl_cfg_reply *reply)
+{
+	if (conn_lowest_minor(tconn) < 0) {
+		drbd_free_tconn(tconn);
+		reply->ret_code = NO_ERROR;
+	} else {
+		reply->ret_code = ERR_CONN_IN_USE;
+	}
+
+	return 0;
+}
+
 enum cn_handler_type {
 	CHT_MINOR,
 	CHT_CONN,
 	CHT_CTOR,
 	/* CHT_RES, later */
 };
-
 struct cn_handler_struct {
 	enum cn_handler_type type;
 	union {
@@ -2235,6 +2255,10 @@ static struct cn_handler_struct cnd_table[] = {
 				    sizeof(struct get_timeout_flag_tag_len_struct)},
 	[ P_start_ov ]		= { CHT_MINOR, { &drbd_nl_start_ov },	0 },
 	[ P_new_c_uuid ]	= { CHT_MINOR, { &drbd_nl_new_c_uuid },	0 },
+	[ P_new_connection ]	= { CHT_CTOR,  { .constructor = &drbd_nl_new_conn }, 0 },
+	[ P_new_minor ]		= { CHT_CONN,  { .conn_based = &drbd_nl_new_minor }, 0 },
+	[ P_del_minor ]		= { CHT_MINOR, { &drbd_nl_del_minor },	0 },
+	[ P_del_connection ]    = { CHT_CONN,  { .conn_based = &drbd_nl_del_conn }, 0 },
 };
 
 static void drbd_connector_callback(struct cn_msg *req, struct netlink_skb_parms *nsp)
