@@ -65,7 +65,7 @@ static void ima_rdwr_violation_check(struct file *file)
 		goto out;
 	}
 
-	rc = ima_must_measure(NULL, inode, MAY_READ, FILE_CHECK);
+	rc = ima_must_measure(inode, MAY_READ, FILE_CHECK);
 	if (rc < 0)
 		goto out;
 
@@ -127,7 +127,7 @@ static int process_measurement(struct file *file, const unsigned char *filename,
 	if (!ima_initialized || !S_ISREG(inode->i_mode))
 		return 0;
 
-	rc = ima_must_measure(NULL, inode, mask, function);
+	rc = ima_must_measure(inode, mask, function);
 	if (rc != 0)
 		return rc;
 retry:
@@ -141,7 +141,7 @@ retry:
 
 	mutex_lock(&iint->mutex);
 
-	rc = ima_must_measure(iint, inode, mask, function);
+	rc = iint->flags & IMA_MEASURED ? 1 : 0;
 	if (rc != 0)
 		goto out;
 
