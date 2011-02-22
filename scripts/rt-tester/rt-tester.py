@@ -33,8 +33,6 @@ cmd_opcodes = {
     "lockintnowait" : "6",
     "lockcont"      : "7",
     "unlock"        : "8",
-    "lockbkl"       : "9",
-    "unlockbkl"     : "10",
     "signal"        : "11",
     "resetevent"    : "98",
     "reset"         : "99",

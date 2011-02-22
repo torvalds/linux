@@ -44,9 +44,8 @@ enum test_opcodes {
 	RTTEST_LOCKINTNOWAIT,	/* 6 Lock interruptible no wait in wakeup, data = lockindex */
 	RTTEST_LOCKCONT,	/* 7 Continue locking after the wakeup delay */
 	RTTEST_UNLOCK,		/* 8 Unlock, data = lockindex */
-	RTTEST_LOCKBKL,		/* 9 Was: Lock BKL */
-	RTTEST_UNLOCKBKL,	/* 10 Was: Unlock BKL */
-	RTTEST_SIGNAL,		/* 11 Signal other test thread, data = thread id */
+	/* 9, 10 - reserved for BKL commemoration */
+	RTTEST_SIGNAL = 11,	/* 11 Signal other test thread, data = thread id */
 	RTTEST_RESETEVENT = 98,	/* 98 Reset event counter */
 	RTTEST_RESET = 99,	/* 99 Reset all pending operations */
 };
