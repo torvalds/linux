@@ -28,6 +28,8 @@
 
 #define MX23EVK_LCD_ENABLE	MXS_GPIO_NR(1, 18)
 #define MX23EVK_BL_ENABLE	MXS_GPIO_NR(1, 28)
+#define MX23EVK_MMC0_WRITE_PROTECT	MXS_GPIO_NR(1, 30)
+#define MX23EVK_MMC0_SLOT_POWER		MXS_GPIO_NR(1, 29)
 
 static const iomux_cfg_t mx23evk_pads[] __initconst = {
 	/* duart */
@@ -73,6 +75,36 @@ static const iomux_cfg_t mx23evk_pads[] __initconst = {
 	MX23_PAD_LCD_RESET__GPIO_1_18 | MXS_PAD_CTRL,
 	/* backlight control */
 	MX23_PAD_PWM2__GPIO_1_28 | MXS_PAD_CTRL,
+
+	/* mmc */
+	MX23_PAD_SSP1_DATA0__SSP1_DATA0 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX23_PAD_SSP1_DATA1__SSP1_DATA1 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX23_PAD_SSP1_DATA2__SSP1_DATA2 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX23_PAD_SSP1_DATA3__SSP1_DATA3 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX23_PAD_GPMI_D08__SSP1_DATA4 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX23_PAD_GPMI_D09__SSP1_DATA5 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX23_PAD_GPMI_D10__SSP1_DATA6 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX23_PAD_GPMI_D11__SSP1_DATA7 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX23_PAD_SSP1_CMD__SSP1_CMD |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX23_PAD_SSP1_DETECT__SSP1_DETECT |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
+	MX23_PAD_SSP1_SCK__SSP1_SCK |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
+	/* write protect */
+	MX23_PAD_PWM4__GPIO_1_30 |
+		(MXS_PAD_4MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
+	/* slot power enable */
+	MX23_PAD_PWM3__GPIO_1_29 |
+		(MXS_PAD_4MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
 };
 
 /* mxsfb (lcdif) */
@@ -101,6 +133,11 @@ static const struct mxsfb_platform_data mx23evk_mxsfb_pdata __initconst = {
 	.ld_intf_width	= STMLCDIF_24BIT,
 };
 
+static struct mxs_mmc_platform_data mx23evk_mmc_pdata __initdata = {
+	.wp_gpio = MX23EVK_MMC0_WRITE_PROTECT,
+	.flags = SLOTF_8_BIT_CAPABLE,
+};
+
 static void __init mx23evk_init(void)
 {
 	int ret;
@@ -109,6 +146,13 @@ static void __init mx23evk_init(void)
 
 	mx23_add_duart();
 	mx23_add_auart0();
+
+	/* power on mmc slot by writing 0 to the gpio */
+	ret = gpio_request_one(MX23EVK_MMC0_SLOT_POWER, GPIOF_DIR_OUT,
+			       "mmc0-slot-power");
+	if (ret)
+		pr_warn("failed to request gpio mmc0-slot-power: %d\n", ret);
+	mx23_add_mxs_mmc(0, &mx23evk_mmc_pdata);
 
 	ret = gpio_request_one(MX23EVK_LCD_ENABLE, GPIOF_DIR_OUT, "lcd-enable");
 	if (ret)
