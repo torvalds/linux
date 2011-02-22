@@ -157,7 +157,7 @@ static int apply_microcode_amd(int cpu)
 static unsigned int verify_ucode_size(int cpu, const u8 *buf, unsigned int size)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
-	unsigned int max_size, actual_size;
+	u32 max_size, actual_size;
 
 #define F1XH_MPB_MAX_SIZE 2048
 #define F14H_MPB_MAX_SIZE 1824
@@ -175,7 +175,7 @@ static unsigned int verify_ucode_size(int cpu, const u8 *buf, unsigned int size)
 		break;
 	}
 
-	actual_size = buf[4] + (buf[5] << 8);
+	actual_size = *(u32 *)(buf + 4);
 
 	if (actual_size > size || actual_size > max_size) {
 		pr_err("section size mismatch\n");
@@ -191,7 +191,7 @@ get_next_ucode(int cpu, const u8 *buf, unsigned int size, unsigned int *mc_size)
 	struct microcode_header_amd *mc = NULL;
 	unsigned int actual_size = 0;
 
-	if (buf[0] != UCODE_UCODE_TYPE) {
+	if (*(u32 *)buf != UCODE_UCODE_TYPE) {
 		pr_err("invalid type field in container file section header\n");
 		goto out;
 	}
