@@ -5483,8 +5483,6 @@ int register_netdevice(struct net_device *dev)
 	if (!(dev->wanted_features & NETIF_F_SG))
 		dev->wanted_features &= ~NETIF_F_GSO;
 
-	netdev_update_features(dev);
-
 	/* Enable GRO and NETIF_F_HIGHDMA for vlans by default,
 	 * vlan_dev_init() will do the dev->features check, so these features
 	 * are enabled only if supported by underlying device.
@@ -5500,6 +5498,8 @@ int register_netdevice(struct net_device *dev)
 	if (ret)
 		goto err_uninit;
 	dev->reg_state = NETREG_REGISTERED;
+
+	netdev_update_features(dev);
 
 	/*
 	 *	Default initial state at registry is that the
