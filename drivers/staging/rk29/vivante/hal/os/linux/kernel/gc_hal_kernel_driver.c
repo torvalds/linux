@@ -466,7 +466,11 @@ static int drv_mmap(struct file * filp, struct vm_area_struct * vma)
         return -ENOTTY;
     }
 
-#if !gcdENABLE_MEM_CACHE
+#if (2==gcdENABLE_MEM_CACHE)
+    vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+#elif (1==gcdENABLE_MEM_CACHE)
+    // NULL
+#else
     vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 #endif
     vma->vm_flags    |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND;

@@ -267,9 +267,12 @@
 /*
     gcdENABLE_MEM_CACHE
 
-    配置GPU所使用的memory是否被ARM Cache住
+    配置GPU所使用的memory是否被ARM Cache或WriteCombine住
+    1: Cached
+    2: WriteCombine
+    
 */
-#define gcdENABLE_MEM_CACHE                 1
+#define gcdENABLE_MEM_CACHE                 2
 
 #endif /* __gc_hal_options_h_ */
 

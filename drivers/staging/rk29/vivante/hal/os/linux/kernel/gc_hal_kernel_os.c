@@ -1023,7 +1023,11 @@ gckOS_MapMemory(
         }
 #else
 
-#if !gcdENABLE_MEM_CACHE
+#if (2==gcdENABLE_MEM_CACHE)
+        mdlMap->vma->vm_page_prot = pgprot_writecombine(mdlMap->vma->vm_page_prot);
+#elif (1==gcdENABLE_MEM_CACHE)
+    // NULL
+#else
         mdlMap->vma->vm_page_prot = pgprot_noncached(mdlMap->vma->vm_page_prot);
 #endif
         mdlMap->vma->vm_flags |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_RESERVED;
@@ -1394,7 +1398,11 @@ gckOS_AllocateNonPagedMemory(
         }
 #else
 
-#if !gcdENABLE_MEM_CACHE
+#if (2==gcdENABLE_MEM_CACHE)
+        mdlMap->vma->vm_page_prot = pgprot_writecombine(mdlMap->vma->vm_page_prot);
+#elif (1==gcdENABLE_MEM_CACHE)
+        // NULL
+#else
         mdlMap->vma->vm_page_prot = pgprot_noncached(mdlMap->vma->vm_page_prot);
 #endif
         mdlMap->vma->vm_flags |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_RESERVED;
@@ -3014,7 +3022,11 @@ gceSTATUS gckOS_LockPages(
 
         mdlMap->vma->vm_flags |= VM_RESERVED;
         /* Make this mapping non-cached. */
-#if !gcdENABLE_MEM_CACHE
+#if (2==gcdENABLE_MEM_CACHE)
+        mdlMap->vma->vm_page_prot = pgprot_writecombine(mdlMap->vma->vm_page_prot);
+#elif (1==gcdENABLE_MEM_CACHE)
+        // NULL
+#else
         mdlMap->vma->vm_page_prot = pgprot_noncached(mdlMap->vma->vm_page_prot);
 #endif
 
@@ -5403,7 +5415,7 @@ gckOS_CacheFlush(
     IN gctSIZE_T Bytes
     )
 {
-#if gcdENABLE_MEM_CACHE
+#if (1==gcdENABLE_MEM_CACHE)
     dmac_clean_range(Logical, Logical+Bytes);
 #endif
     return gcvSTATUS_OK;
@@ -5439,7 +5451,7 @@ gckOS_CacheInvalidate(
     IN gctSIZE_T Bytes
     )
 {
-#if gcdENABLE_MEM_CACHE
+#if (1==gcdENABLE_MEM_CACHE)
     dmac_flush_range(Logical, Logical+Bytes);
 #endif
     return gcvSTATUS_OK;
