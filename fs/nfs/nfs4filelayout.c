@@ -369,8 +369,8 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 		goto out;
 	}
 
-	if (fl->stripe_unit % PAGE_SIZE) {
-		dprintk("%s Stripe unit (%u) not page aligned\n",
+	if (!fl->stripe_unit || fl->stripe_unit % PAGE_SIZE) {
+		dprintk("%s Invalid stripe unit (%u)\n",
 			__func__, fl->stripe_unit);
 		goto out;
 	}
