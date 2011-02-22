@@ -85,8 +85,6 @@ subsys_initcall(tegra_trimslice_pci_init);
 
 static void __init tegra_trimslice_init(void)
 {
-	tegra_common_init();
-
 	tegra_clk_init_from_table(trimslice_clk_init_table);
 
 	trimslice_pinmux_init();
@@ -97,8 +95,9 @@ static void __init tegra_trimslice_init(void)
 MACHINE_START(TRIMSLICE, "trimslice")
 	.boot_params	= 0x00000100,
 	.fixup		= tegra_trimslice_fixup,
-	.init_irq       = tegra_init_irq,
-	.init_machine   = tegra_trimslice_init,
 	.map_io         = tegra_map_common_io,
+	.init_early	= tegra_init_early,
+	.init_irq       = tegra_init_irq,
 	.timer          = &tegra_timer,
+	.init_machine   = tegra_trimslice_init,
 MACHINE_END

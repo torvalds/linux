@@ -72,7 +72,7 @@ void __init tegra_init_cache(void)
 
 }
 
-void __init tegra_common_init(void)
+void __init tegra_init_early(void)
 {
 	tegra_init_fuse();
 	tegra_init_clock();

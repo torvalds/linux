@@ -104,8 +104,6 @@ static __initdata struct tegra_clk_init_table harmony_clk_init_table[] = {
 
 static void __init tegra_harmony_init(void)
 {
-	tegra_common_init();
-
 	tegra_clk_init_from_table(harmony_clk_init_table);
 
 	harmony_pinmux_init();
@@ -116,8 +114,9 @@ static void __init tegra_harmony_init(void)
 MACHINE_START(HARMONY, "harmony")
 	.boot_params  = 0x00000100,
 	.fixup		= tegra_harmony_fixup,
-	.init_irq       = tegra_init_irq,
-	.init_machine   = tegra_harmony_init,
 	.map_io         = tegra_map_common_io,
+	.init_early	= tegra_init_early,
+	.init_irq       = tegra_init_irq,
 	.timer          = &tegra_timer,
+	.init_machine   = tegra_harmony_init,
 MACHINE_END
