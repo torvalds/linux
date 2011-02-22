@@ -119,6 +119,12 @@ void __init init_IRQ(void)
 	int i;
 
 	/*
+	 * We probably need a better place for this, but it works for
+	 * now ...
+	 */
+	x86_add_irq_domains();
+
+	/*
 	 * On cpu 0, Assign IRQ0_VECTOR..IRQ15_VECTOR's to IRQ 0..15.
 	 * If these IRQ's are handled by legacy interrupt-controllers like PIC,
 	 * then this configuration will likely be static after the boot. If

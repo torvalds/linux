@@ -320,3 +320,107 @@ void __init x86_dtb_get_config(unsigned int unused)
 	dtb_setup_hpet();
 	dtb_apic_setup();
 }
+
+#ifdef CONFIG_X86_IO_APIC
+
+struct of_ioapic_type {
+	u32 out_type;
+	u32 trigger;
+	u32 polarity;
+};
+
+static struct of_ioapic_type of_ioapic_type[] =
+{
+	{
+		.out_type	= IRQ_TYPE_EDGE_RISING,
+		.trigger	= IOAPIC_EDGE,
+		.polarity	= 1,
+	},
+	{
+		.out_type	= IRQ_TYPE_LEVEL_LOW,
+		.trigger	= IOAPIC_LEVEL,
+		.polarity	= 0,
+	},
+	{
+		.out_type	= IRQ_TYPE_LEVEL_HIGH,
+		.trigger	= IOAPIC_LEVEL,
+		.polarity	= 1,
+	},
+	{
+		.out_type	= IRQ_TYPE_EDGE_FALLING,
+		.trigger	= IOAPIC_EDGE,
+		.polarity	= 0,
+	},
+};
+
+static int ioapic_xlate(struct irq_domain *id, const u32 *intspec, u32 intsize,
+			u32 *out_hwirq, u32 *out_type)
+{
+	struct io_apic_irq_attr attr;
+	struct of_ioapic_type *it;
+	u32 line, idx, type;
+
+	if (intsize < 2)
+		return -EINVAL;
+
+	line = *intspec;
+	idx = (u32) id->priv;
+	*out_hwirq = line + mp_gsi_routing[idx].gsi_base;
+
+	intspec++;
+	type = *intspec;
+
+	if (type >= ARRAY_SIZE(of_ioapic_type))
+		return -EINVAL;
+
+	it = of_ioapic_type + type;
+	*out_type = it->out_type;
+
+	set_io_apic_irq_attr(&attr, idx, line, it->trigger, it->polarity);
+
+	return io_apic_setup_irq_pin(*out_hwirq, cpu_to_node(0), &attr);
+}
+
+static void __init ioapic_add_ofnode(struct device_node *np)
+{
+	struct resource r;
+	int i, ret;
+
+	ret = of_address_to_resource(np, 0, &r);
+	if (ret) {
+		printk(KERN_ERR "Failed to obtain address for %s\n",
+				np->full_name);
+		return;
+	}
+
+	for (i = 0; i < nr_ioapics; i++) {
+		if (r.start == mp_ioapics[i].apicaddr) {
+			struct irq_domain *id;
+
+			id = kzalloc(sizeof(*id), GFP_KERNEL);
+			BUG_ON(!id);
+			id->controller = np;
+			id->xlate = ioapic_xlate;
+			id->priv = (void *)i;
+			add_interrupt_host(id);
+			return;
+		}
+	}
+	printk(KERN_ERR "IOxAPIC at %s is not registered.\n", np->full_name);
+}
+
+void __init x86_add_irq_domains(void)
+{
+	struct device_node *dp;
+
+	if (!initial_boot_params)
+		return;
+
+	for_each_node_with_property(dp, "interrupt-controller") {
+		if (of_device_is_compatible(dp, "intel,ce4100-ioapic"))
+			ioapic_add_ofnode(dp);
+	}
+}
+#else
+void __init x86_add_irq_domains(void) { }
+#endif
