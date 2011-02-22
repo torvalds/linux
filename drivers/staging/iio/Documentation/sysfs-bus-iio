@@ -53,6 +53,31 @@ Description:
 		When the internal sampling clock can only take a small
 		discrete set of values, this file lists those available.
 
+What:		/sys/bus/iio/devices/deviceX/range
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Hardware dependent ADC Full Scale Range in mVolt.
+
+What:		/sys/bus/iio/devices/deviceX/range_available
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Hardware dependent supported vales for ADC Full Scale Range.
+
+What:		/sys/bus/iio/devices/deviceX/oversampling_ratio
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Hardware dependent ADC oversampling. Controls the sampling ratio
+		of the digital filter if available.
+
+What:		/sys/bus/iio/devices/deviceX/oversampling_ratio_available
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Hardware dependent values supported by the oversampling filter.
+
 What:		/sys/bus/iio/devices/deviceX/inY_raw
 What:		/sys/bus/iio/devices/deviceX/inY_supply_raw
 KernelVersion:	2.6.35
