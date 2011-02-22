@@ -1026,7 +1026,7 @@ static int dsi_set_lp_clk_divisor(struct omap_dss_device *dssdev)
 	unsigned lp_clk_div;
 	unsigned long lp_clk;
 
-	lp_clk_div = dssdev->phy.dsi.div.lp_clk_div;
+	lp_clk_div = dssdev->clocks.dsi.lp_clk_div;
 
 	if (lp_clk_div == 0 || lp_clk_div > dsi.lpdiv_max)
 		return -EINVAL;
@@ -3392,10 +3392,10 @@ static int dsi_configure_dsi_clocks(struct omap_dss_device *dssdev)
 
 	/* we always use DSS_CLK_SYSCK as input clock */
 	cinfo.use_sys_clk = true;
-	cinfo.regn  = dssdev->phy.dsi.div.regn;
-	cinfo.regm  = dssdev->phy.dsi.div.regm;
-	cinfo.regm_dispc = dssdev->phy.dsi.div.regm_dispc;
-	cinfo.regm_dsi = dssdev->phy.dsi.div.regm_dsi;
+	cinfo.regn  = dssdev->clocks.dsi.regn;
+	cinfo.regm  = dssdev->clocks.dsi.regm;
+	cinfo.regm_dispc = dssdev->clocks.dsi.regm_dispc;
+	cinfo.regm_dsi = dssdev->clocks.dsi.regm_dsi;
 	r = dsi_calc_clock_rates(dssdev, &cinfo);
 	if (r) {
 		DSSERR("Failed to calc dsi clocks\n");
@@ -3419,8 +3419,8 @@ static int dsi_configure_dispc_clocks(struct omap_dss_device *dssdev)
 
 	fck = dsi_get_pll_hsdiv_dispc_rate();
 
-	dispc_cinfo.lck_div = dssdev->phy.dsi.div.lck_div;
-	dispc_cinfo.pck_div = dssdev->phy.dsi.div.pck_div;
+	dispc_cinfo.lck_div = dssdev->clocks.dispc.lck_div;
+	dispc_cinfo.pck_div = dssdev->clocks.dispc.pck_div;
 
 	r = dispc_calc_clock_rates(fck, &dispc_cinfo);
 	if (r) {

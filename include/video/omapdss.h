@@ -399,18 +399,6 @@ struct omap_dss_device {
 			u8 data2_lane;
 			u8 data2_pol;
 
-			struct {
-				u16 regn;
-				u16 regm;
-				u16 regm_dispc;
-				u16 regm_dsi;
-
-				u16 lp_clk_div;
-
-				u16 lck_div;
-				u16 pck_div;
-			} div;
-
 			bool ext_te;
 			u8 ext_te_gpio;
 		} dsi;
@@ -420,6 +408,22 @@ struct omap_dss_device {
 			bool invert_polarity;
 		} venc;
 	} phy;
+
+	struct {
+		struct {
+			u16 lck_div;
+			u16 pck_div;
+		} dispc;
+
+		struct {
+			u16 regn;
+			u16 regm;
+			u16 regm_dispc;
+			u16 regm_dsi;
+
+			u16 lp_clk_div;
+		} dsi;
+	} clocks;
 
 	struct {
 		struct omap_video_timings timings;
