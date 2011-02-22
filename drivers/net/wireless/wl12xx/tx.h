@@ -53,8 +53,6 @@
 #define TX_HW_RESULT_QUEUE_LEN_MASK      0xf
 
 #define WL1271_TX_ALIGN_TO 4
-#define WL1271_TX_ALIGN(len) (((len) + WL1271_TX_ALIGN_TO - 1) & \
-			     ~(WL1271_TX_ALIGN_TO - 1))
 #define WL1271_TKIP_IV_SPACE 4
 
 struct wl1271_tx_hw_descr {

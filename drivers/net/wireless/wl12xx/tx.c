@@ -185,7 +185,7 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 	desc->reserved = 0;
 
 	/* align the length (and store in terms of words) */
-	pad = WL1271_TX_ALIGN(skb->len);
+	pad = ALIGN(skb->len, WL1271_TX_ALIGN_TO);
 	desc->length = cpu_to_le16(pad >> 2);
 
 	/* calculate number of padding bytes */
@@ -245,7 +245,7 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct sk_buff *skb,
 	 * pad the skb data to make sure its length is aligned.
 	 * The number of padding bytes is computed and set in wl1271_tx_fill_hdr
 	 */
-	total_len = WL1271_TX_ALIGN(skb->len);
+	total_len = ALIGN(skb->len, WL1271_TX_ALIGN_TO);
 	memcpy(wl->aggr_buf + buf_offset, skb->data, skb->len);
 	memset(wl->aggr_buf + buf_offset + skb->len, 0, total_len - skb->len);
 
