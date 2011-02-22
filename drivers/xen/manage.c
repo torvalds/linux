@@ -37,10 +37,18 @@ static enum shutdown_state shutting_down = SHUTDOWN_INVALID;
 #ifdef CONFIG_PM_SLEEP
 static int xen_hvm_suspend(void *data)
 {
+	int err;
 	struct sched_shutdown r = { .reason = SHUTDOWN_suspend };
 	int *cancelled = data;
 
 	BUG_ON(!irqs_disabled());
+
+	err = sysdev_suspend(PMSG_SUSPEND);
+	if (err) {
+		printk(KERN_ERR "xen_hvm_suspend: sysdev_suspend failed: %d\n",
+		       err);
+		return err;
+	}
 
 	*cancelled = HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
 
@@ -52,6 +60,8 @@ static int xen_hvm_suspend(void *data)
 		xen_console_resume();
 		xen_timer_resume();
 	}
+
+	sysdev_resume();
 
 	return 0;
 }

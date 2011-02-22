@@ -785,7 +785,7 @@ static int __init vmballoon_init(void)
 	if (x86_hyper != &x86_hyper_vmware)
 		return -ENODEV;
 
-	vmballoon_wq = create_freezeable_workqueue("vmmemctl");
+	vmballoon_wq = create_freezable_workqueue("vmmemctl");
 	if (!vmballoon_wq) {
 		pr_err("failed to create workqueue\n");
 		return -ENOMEM;

@@ -149,7 +149,7 @@ static struct regulator_init_data aquila_ldo2_data = {
 
 static struct regulator_init_data aquila_ldo3_data = {
 	.constraints	= {
-		.name		= "VUSB/MIPI_1.1V",
+		.name		= "VUSB+MIPI_1.1V",
 		.min_uV		= 1100000,
 		.max_uV		= 1100000,
 		.apply_uV	= 1,
@@ -197,7 +197,7 @@ static struct regulator_init_data aquila_ldo7_data = {
 
 static struct regulator_init_data aquila_ldo8_data = {
 	.constraints	= {
-		.name		= "VUSB/VADC_3.3V",
+		.name		= "VUSB+VADC_3.3V",
 		.min_uV		= 3300000,
 		.max_uV		= 3300000,
 		.apply_uV	= 1,
@@ -207,7 +207,7 @@ static struct regulator_init_data aquila_ldo8_data = {
 
 static struct regulator_init_data aquila_ldo9_data = {
 	.constraints	= {
-		.name		= "VCC/VCAM_2.8V",
+		.name		= "VCC+VCAM_2.8V",
 		.min_uV		= 2800000,
 		.max_uV		= 2800000,
 		.apply_uV	= 1,
@@ -381,9 +381,12 @@ static struct max8998_platform_data aquila_max8998_pdata = {
 	.buck1_set1	= S5PV210_GPH0(3),
 	.buck1_set2	= S5PV210_GPH0(4),
 	.buck2_set3	= S5PV210_GPH0(5),
-	.buck1_max_voltage1 = 1200000,
-	.buck1_max_voltage2 = 1200000,
-	.buck2_max_voltage = 1200000,
+	.buck1_voltage1	= 1200000,
+	.buck1_voltage2	= 1200000,
+	.buck1_voltage3	= 1200000,
+	.buck1_voltage4	= 1200000,
+	.buck2_voltage1	= 1200000,
+	.buck2_voltage2	= 1200000,
 };
 #endif
 
