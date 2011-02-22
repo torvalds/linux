@@ -61,6 +61,9 @@ static int nfs_map_numeric_to_string(__u32 id, char *buf, size_t buflen)
 
 #include <linux/slab.h>
 #include <linux/cred.h>
+#include <linux/sunrpc/sched.h>
+#include <linux/nfs4.h>
+#include <linux/nfs_fs_sb.h>
 #include <linux/nfs_idmap.h>
 #include <linux/keyctl.h>
 #include <linux/key-type.h>
@@ -257,17 +260,20 @@ int nfs_map_group_to_gid(const struct nfs_server *server, const char *name, size
 
 int nfs_map_uid_to_name(const struct nfs_server *server, __u32 uid, char *buf, size_t buflen)
 {
-	int ret;
-	ret = nfs_idmap_lookup_name(uid, "user", buf, buflen);
+	int ret = -EINVAL;
+
+	if (!(server->caps & NFS_CAP_UIDGID_NOMAP))
+		ret = nfs_idmap_lookup_name(uid, "user", buf, buflen);
 	if (ret < 0)
 		ret = nfs_map_numeric_to_string(uid, buf, buflen);
 	return ret;
 }
 int nfs_map_gid_to_group(const struct nfs_server *server, __u32 gid, char *buf, size_t buflen)
 {
-	int ret;
+	int ret = -EINVAL;
 
-	ret = nfs_idmap_lookup_name(gid, "group", buf, buflen);
+	if (!(server->caps & NFS_CAP_UIDGID_NOMAP))
+		ret = nfs_idmap_lookup_name(gid, "group", buf, buflen);
 	if (ret < 0)
 		ret = nfs_map_numeric_to_string(gid, buf, buflen);
 	return ret;
@@ -750,9 +756,10 @@ int nfs_map_group_to_gid(const struct nfs_server *server, const char *name, size
 int nfs_map_uid_to_name(const struct nfs_server *server, __u32 uid, char *buf, size_t buflen)
 {
 	struct idmap *idmap = server->nfs_client->cl_idmap;
-	int ret;
+	int ret = -EINVAL;
 
-	ret = nfs_idmap_name(idmap, &idmap->idmap_user_hash, uid, buf);
+	if (!(server->caps & NFS_CAP_UIDGID_NOMAP))
+		ret = nfs_idmap_name(idmap, &idmap->idmap_user_hash, uid, buf);
 	if (ret < 0)
 		ret = nfs_map_numeric_to_string(uid, buf, buflen);
 	return ret;
@@ -760,9 +767,10 @@ int nfs_map_uid_to_name(const struct nfs_server *server, __u32 uid, char *buf, s
 int nfs_map_gid_to_group(const struct nfs_server *server, __u32 uid, char *buf, size_t buflen)
 {
 	struct idmap *idmap = server->nfs_client->cl_idmap;
-	int ret;
+	int ret = -EINVAL;
 
-	ret = nfs_idmap_name(idmap, &idmap->idmap_group_hash, uid, buf);
+	if (!(server->caps & NFS_CAP_UIDGID_NOMAP))
+		ret = nfs_idmap_name(idmap, &idmap->idmap_group_hash, uid, buf);
 	if (ret < 0)
 		ret = nfs_map_numeric_to_string(uid, buf, buflen);
 	return ret;

@@ -1580,6 +1580,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			of returning the full 64-bit number.
 			The default is to return 64-bit inode numbers.
 
+	nfs.nfs4_disable_idmapping=
+			[NFSv4] When set, this option disables the NFSv4
+			idmapper on the client, but only if the mount
+			is using the 'sec=sys' security flavour. This may
+			make migration from legacy NFSv2/v3 systems easier
+			provided that the server has the appropriate support.
+			The default is to always enable NFSv4 idmapping.
+
 	nmi_debug=	[KNL,AVR32,SH] Specify one or more actions to take
 			when a NMI is triggered.
 			Format: [state][,regs][,debounce][,die]
