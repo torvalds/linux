@@ -107,7 +107,7 @@ struct zfcp_adapter_mempool {
 	mempool_t *scsi_req;
 	mempool_t *scsi_abort;
 	mempool_t *status_read_req;
-	mempool_t *status_read_data;
+	mempool_t *sr_data;
 	mempool_t *gid_pn;
 	mempool_t *qtcb_pool;
 };
@@ -319,7 +319,6 @@ struct zfcp_data {
 	struct scsi_transport_template *scsi_transport_template;
 	struct kmem_cache	*gpn_ft_cache;
 	struct kmem_cache	*qtcb_cache;
-	struct kmem_cache	*sr_buffer_cache;
 	struct kmem_cache	*gid_pn_cache;
 	struct kmem_cache	*adisc_cache;
 };

@@ -132,11 +132,6 @@ static int __init zfcp_module_init(void)
 	if (!zfcp_data.qtcb_cache)
 		goto out_qtcb_cache;
 
-	zfcp_data.sr_buffer_cache = zfcp_cache_hw_align("zfcp_sr",
-					sizeof(struct fsf_status_read_buffer));
-	if (!zfcp_data.sr_buffer_cache)
-		goto out_sr_cache;
-
 	zfcp_data.gid_pn_cache = zfcp_cache_hw_align("zfcp_gid",
 					sizeof(struct zfcp_fc_gid_pn));
 	if (!zfcp_data.gid_pn_cache)
@@ -181,8 +176,6 @@ out_transport:
 out_adisc_cache:
 	kmem_cache_destroy(zfcp_data.gid_pn_cache);
 out_gid_cache:
-	kmem_cache_destroy(zfcp_data.sr_buffer_cache);
-out_sr_cache:
 	kmem_cache_destroy(zfcp_data.qtcb_cache);
 out_qtcb_cache:
 	kmem_cache_destroy(zfcp_data.gpn_ft_cache);
@@ -199,7 +192,6 @@ static void __exit zfcp_module_exit(void)
 	fc_release_transport(zfcp_data.scsi_transport_template);
 	kmem_cache_destroy(zfcp_data.adisc_cache);
 	kmem_cache_destroy(zfcp_data.gid_pn_cache);
-	kmem_cache_destroy(zfcp_data.sr_buffer_cache);
 	kmem_cache_destroy(zfcp_data.qtcb_cache);
 	kmem_cache_destroy(zfcp_data.gpn_ft_cache);
 }
@@ -264,10 +256,10 @@ static int zfcp_allocate_low_mem_buffers(struct zfcp_adapter *adapter)
 	if (!adapter->pool.qtcb_pool)
 		return -ENOMEM;
 
-	adapter->pool.status_read_data =
-		mempool_create_slab_pool(FSF_STATUS_READS_RECOM,
-					 zfcp_data.sr_buffer_cache);
-	if (!adapter->pool.status_read_data)
+	BUILD_BUG_ON(sizeof(struct fsf_status_read_buffer) > PAGE_SIZE);
+	adapter->pool.sr_data =
+		mempool_create_page_pool(FSF_STATUS_READS_RECOM, 0);
+	if (!adapter->pool.sr_data)
 		return -ENOMEM;
 
 	adapter->pool.gid_pn =
@@ -290,8 +282,8 @@ static void zfcp_free_low_mem_buffers(struct zfcp_adapter *adapter)
 		mempool_destroy(adapter->pool.qtcb_pool);
 	if (adapter->pool.status_read_req)
 		mempool_destroy(adapter->pool.status_read_req);
-	if (adapter->pool.status_read_data)
-		mempool_destroy(adapter->pool.status_read_data);
+	if (adapter->pool.sr_data)
+		mempool_destroy(adapter->pool.sr_data);
 	if (adapter->pool.gid_pn)
 		mempool_destroy(adapter->pool.gid_pn);
 }

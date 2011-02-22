@@ -212,7 +212,7 @@ static void zfcp_fsf_status_read_handler(struct zfcp_fsf_req *req)
 
 	if (req->status & ZFCP_STATUS_FSFREQ_DISMISSED) {
 		zfcp_dbf_hba_fsf_uss("fssrh_1", req);
-		mempool_free(sr_buf, adapter->pool.status_read_data);
+		mempool_free(virt_to_page(sr_buf), adapter->pool.sr_data);
 		zfcp_fsf_req_free(req);
 		return;
 	}
@@ -265,7 +265,7 @@ static void zfcp_fsf_status_read_handler(struct zfcp_fsf_req *req)
 		break;
 	}
 
-	mempool_free(sr_buf, adapter->pool.status_read_data);
+	mempool_free(virt_to_page(sr_buf), adapter->pool.sr_data);
 	zfcp_fsf_req_free(req);
 
 	atomic_inc(&adapter->stat_miss);
@@ -723,6 +723,7 @@ int zfcp_fsf_status_read(struct zfcp_qdio *qdio)
 	struct zfcp_adapter *adapter = qdio->adapter;
 	struct zfcp_fsf_req *req;
 	struct fsf_status_read_buffer *sr_buf;
+	struct page *page;
 	int retval = -EIO;
 
 	spin_lock_irq(&qdio->req_q_lock);
@@ -736,11 +737,12 @@ int zfcp_fsf_status_read(struct zfcp_qdio *qdio)
 		goto out;
 	}
 
-	sr_buf = mempool_alloc(adapter->pool.status_read_data, GFP_ATOMIC);
-	if (!sr_buf) {
+	page = mempool_alloc(adapter->pool.sr_data, GFP_ATOMIC);
+	if (!page) {
 		retval = -ENOMEM;
 		goto failed_buf;
 	}
+	sr_buf = page_address(page);
 	memset(sr_buf, 0, sizeof(*sr_buf));
 	req->data = sr_buf;
 
@@ -755,7 +757,7 @@ int zfcp_fsf_status_read(struct zfcp_qdio *qdio)
 
 failed_req_send:
 	req->data = NULL;
-	mempool_free(sr_buf, adapter->pool.status_read_data);
+	mempool_free(virt_to_page(sr_buf), adapter->pool.sr_data);
 failed_buf:
 	zfcp_dbf_hba_fsf_uss("fssr__1", req);
 	zfcp_fsf_req_free(req);
