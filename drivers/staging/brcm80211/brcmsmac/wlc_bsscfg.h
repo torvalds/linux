@@ -111,7 +111,6 @@ struct wlc_bsscfg {
 	pmkid_t pmkid[MAXPMKID];	/* PMKID cache */
 	uint npmkid;		/* num cached PMKIDs */
 
-	wlc_bss_info_t *target_bss;	/* BSS parms during tran. to ASSOCIATED state */
 	wlc_bss_info_t *current_bss;	/* BSS parms in ASSOCIATED state */
 
 	/* PM states */

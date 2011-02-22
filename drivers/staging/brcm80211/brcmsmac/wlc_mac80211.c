@@ -789,7 +789,7 @@ void wlc_set_home_chanspec(struct wlc_info *wlc, chanspec_t chanspec)
 		FOREACH_BSS(wlc, idx, cfg) {
 			if (!cfg->associated)
 				continue;
-			cfg->target_bss->chanspec = chanspec;
+
 			cfg->current_bss->chanspec = chanspec;
 		}
 
@@ -3209,7 +3209,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 
 			wlc->default_bss->chanspec = chspec;
 			/* wlc_BSSinit() will sanitize the rateset before using it.. */
-			if (wlc->pub->up && !wlc->pub->associated &&
+			if (wlc->pub->up &&
 			    (WLC_BAND_PI_RADIO_CHANSPEC != chspec)) {
 				wlc_set_home_chanspec(wlc, chspec);
 				wlc_suspend_mac_and_wait(wlc);
