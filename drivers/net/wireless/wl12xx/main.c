@@ -2624,7 +2624,7 @@ static int wl1271_op_get_survey(struct ieee80211_hw *hw, int idx,
 	return 0;
 }
 
-static int wl1271_allocate_hlid(struct wl1271 *wl,
+static int wl1271_allocate_sta(struct wl1271 *wl,
 			     struct ieee80211_sta *sta,
 			     u8 *hlid)
 {
@@ -2645,9 +2645,12 @@ static int wl1271_allocate_hlid(struct wl1271 *wl,
 	return 0;
 }
 
-static void wl1271_free_hlid(struct wl1271 *wl, u8 hlid)
+static void wl1271_free_sta(struct wl1271 *wl, u8 hlid)
 {
 	int id = hlid - WL1271_AP_STA_HLID_START;
+
+	if (WARN_ON(!test_bit(id, wl->ap_hlid_map)))
+		return;
 
 	__clear_bit(id, wl->ap_hlid_map);
 	wl1271_tx_reset_link_queues(wl, hlid);
@@ -2671,13 +2674,13 @@ static int wl1271_op_sta_add(struct ieee80211_hw *hw,
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 add sta %d", (int)sta->aid);
 
-	ret = wl1271_allocate_hlid(wl, sta, &hlid);
+	ret = wl1271_allocate_sta(wl, sta, &hlid);
 	if (ret < 0)
 		goto out;
 
 	ret = wl1271_ps_elp_wakeup(wl, false);
 	if (ret < 0)
-		goto out;
+		goto out_free_sta;
 
 	ret = wl1271_cmd_add_sta(wl, sta, hlid);
 	if (ret < 0)
@@ -2685,6 +2688,10 @@ static int wl1271_op_sta_add(struct ieee80211_hw *hw,
 
 out_sleep:
 	wl1271_ps_elp_sleep(wl);
+
+out_free_sta:
+	if (ret < 0)
+		wl1271_free_sta(wl, hlid);
 
 out:
 	mutex_unlock(&wl->mutex);
@@ -2722,7 +2729,7 @@ static int wl1271_op_sta_remove(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out_sleep;
 
-	wl1271_free_hlid(wl, wl_sta->hlid);
+	wl1271_free_sta(wl, wl_sta->hlid);
 
 out_sleep:
 	wl1271_ps_elp_sleep(wl);
