@@ -1073,6 +1073,33 @@ static void __init __rcu_init_preempt(void)
 
 #include "rtmutex_common.h"
 
+#ifdef CONFIG_RCU_TRACE
+
+static void rcu_initiate_boost_trace(struct rcu_node *rnp)
+{
+	if (list_empty(&rnp->blkd_tasks))
+		rnp->n_balk_blkd_tasks++;
+	else if (rnp->exp_tasks == NULL && rnp->gp_tasks == NULL)
+		rnp->n_balk_exp_gp_tasks++;
+	else if (rnp->gp_tasks != NULL && rnp->boost_tasks != NULL)
+		rnp->n_balk_boost_tasks++;
+	else if (rnp->gp_tasks != NULL && rnp->qsmask != 0)
+		rnp->n_balk_notblocked++;
+	else if (rnp->gp_tasks != NULL &&
+		 ULONG_CMP_GE(jiffies, rnp->boost_time))
+		rnp->n_balk_notyet++;
+	else
+		rnp->n_balk_nos++;
+}
+
+#else /* #ifdef CONFIG_RCU_TRACE */
+
+static void rcu_initiate_boost_trace(struct rcu_node *rnp)
+{
+}
+
+#endif /* #else #ifdef CONFIG_RCU_TRACE */
+
 /*
  * Carry out RCU priority boosting on the task indicated by ->exp_tasks
  * or ->boost_tasks, advancing the pointer to the next task in the
@@ -1108,10 +1135,14 @@ static int rcu_boost(struct rcu_node *rnp)
 	 * expedited grace period must boost all blocked tasks, including
 	 * those blocking the pre-existing normal grace period.
 	 */
-	if (rnp->exp_tasks != NULL)
+	if (rnp->exp_tasks != NULL) {
 		tb = rnp->exp_tasks;
-	else
+		rnp->n_exp_boosts++;
+	} else {
 		tb = rnp->boost_tasks;
+		rnp->n_normal_boosts++;
+	}
+	rnp->n_tasks_boosted++;
 
 	/*
 	 * We boost task t by manufacturing an rt_mutex that appears to
@@ -1197,8 +1228,10 @@ static void rcu_initiate_boost(struct rcu_node *rnp)
 {
 	struct task_struct *t;
 
-	if (!rcu_preempt_blocked_readers_cgp(rnp) && rnp->exp_tasks == NULL)
+	if (!rcu_preempt_blocked_readers_cgp(rnp) && rnp->exp_tasks == NULL) {
+		rnp->n_balk_exp_gp_tasks++;
 		return;
+	}
 	if (rnp->exp_tasks != NULL ||
 	    (rnp->gp_tasks != NULL &&
 	     rnp->boost_tasks == NULL &&
@@ -1209,7 +1242,8 @@ static void rcu_initiate_boost(struct rcu_node *rnp)
 		t = rnp->boost_kthread_task;
 		if (t != NULL)
 			wake_up_process(t);
-	}
+	} else
+		rcu_initiate_boost_trace(rnp);
 }
 
 /*
