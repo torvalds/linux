@@ -354,67 +354,6 @@ void isci_host_deinit(struct isci_host *ihost)
 	scic_controller_reset(scic);
 }
 
-static int isci_verify_firmware(const struct firmware *fw,
-				struct isci_firmware *isci_fw)
-{
-	const u8 *tmp;
-
-	if (fw->size < ISCI_FIRMWARE_MIN_SIZE)
-		return -EINVAL;
-
-	tmp = fw->data;
-
-	/* 12th char should be the NULL terminate for the ID string */
-	if (tmp[11] != '\0')
-		return -EINVAL;
-
-	if (strncmp("#SCU MAGIC#", tmp, 11) != 0)
-		return -EINVAL;
-
-	isci_fw->id = tmp;
-	isci_fw->version = fw->data[ISCI_FW_VER_OFS];
-	isci_fw->subversion = fw->data[ISCI_FW_SUBVER_OFS];
-
-	tmp = fw->data + ISCI_FW_DATA_OFS;
-
-	while (*tmp != ISCI_FW_HDR_EOF) {
-		switch (*tmp) {
-		case ISCI_FW_HDR_PHYMASK:
-			tmp++;
-			isci_fw->phy_masks_size = *tmp;
-			tmp++;
-			isci_fw->phy_masks = (const u32 *)tmp;
-			tmp += sizeof(u32) * isci_fw->phy_masks_size;
-			break;
-
-		case ISCI_FW_HDR_PHYGEN:
-			tmp++;
-			isci_fw->phy_gens_size = *tmp;
-			tmp++;
-			isci_fw->phy_gens = (const u32 *)tmp;
-			tmp += sizeof(u32) * isci_fw->phy_gens_size;
-			break;
-
-		case ISCI_FW_HDR_SASADDR:
-			tmp++;
-			isci_fw->sas_addrs_size = *tmp;
-			tmp++;
-			isci_fw->sas_addrs = (const u64 *)tmp;
-			tmp += sizeof(u64) * isci_fw->sas_addrs_size;
-			break;
-
-		default:
-			pr_err("bad field in firmware binary blob\n");
-			return -EINVAL;
-		}
-	}
-
-	pr_info("isci firmware v%u.%u loaded.\n",
-	       isci_fw->version, isci_fw->subversion);
-
-	return SCI_SUCCESS;
-}
-
 static void __iomem *scu_base(struct isci_host *isci_host)
 {
 	struct pci_dev *pdev = isci_host->pdev;
@@ -442,8 +381,6 @@ int isci_host_init(struct isci_host *isci_host)
 	struct scic_sds_port *scic_port;
 	union scic_oem_parameters scic_oem_params;
 	union scic_user_parameters scic_user_params;
-	const struct firmware *fw = NULL;
-	struct isci_firmware *isci_fw = NULL;
 
 	INIT_LIST_HEAD(&isci_host->timer_list_struct.timers);
 	isci_timer_list_construct(
@@ -454,9 +391,11 @@ int isci_host_init(struct isci_host *isci_host)
 	controller = scic_controller_alloc(&isci_host->pdev->dev);
 
 	if (!controller) {
-		err = -ENOMEM;
-		dev_err(&isci_host->pdev->dev, "%s: failed (%d)\n", __func__, err);
-		goto out;
+		dev_err(&isci_host->pdev->dev,
+			"%s: failed (%d)\n",
+			__func__,
+			err);
+		return -ENOMEM;
 	}
 
 	isci_host->core_controller = controller;
@@ -476,8 +415,7 @@ int isci_host_init(struct isci_host *isci_host)
 			"%s: scic_controller_construct failed - status = %x\n",
 			__func__,
 			status);
-		err = -ENODEV;
-		goto out;
+		return -ENODEV;
 	}
 
 	isci_host->sas_ha.dev = &isci_host->pdev->dev;
@@ -487,93 +425,52 @@ int isci_host_init(struct isci_host *isci_host)
 	 * set association host adapter struct in core controller.
 	 */
 	sci_object_set_association(isci_host->core_controller,
-				   (void *)isci_host
-				   );
+				   (void *)isci_host);
 
 	/* grab initial values stored in the controller object for OEM and USER
 	 * parameters */
 	scic_oem_parameters_get(controller, &scic_oem_params);
 	scic_user_parameters_get(controller, &scic_user_params);
 
-	isci_fw = devm_kzalloc(&isci_host->pdev->dev,
-			       sizeof(struct isci_firmware),
-			       GFP_KERNEL);
-	if (!isci_fw) {
-		dev_warn(&isci_host->pdev->dev,
-			 "allocating firmware struct failed\n");
-		dev_warn(&isci_host->pdev->dev,
-			 "Default OEM configuration being used:"
-			 " 4 narrow ports, and default SAS Addresses\n");
-		goto set_default_params;
-	}
-
-	status = request_firmware(&fw, ISCI_FW_NAME, &isci_host->pdev->dev);
-	if (status) {
-		dev_warn(&isci_host->pdev->dev,
-			 "Loading firmware failed, using default values\n");
-		dev_warn(&isci_host->pdev->dev,
-			 "Default OEM configuration being used:"
-			 " 4 narrow ports, and default SAS Addresses\n");
-		goto set_default_params;
-	}
-	else {
-		status = isci_verify_firmware(fw, isci_fw);
-		if (status != SCI_SUCCESS) {
-			dev_warn(&isci_host->pdev->dev,
-				 "firmware verification failed\n");
-			dev_warn(&isci_host->pdev->dev,
-				 "Default OEM configuration being used:"
-				 " 4 narrow ports, and default SAS "
-				 "Addresses\n");
-			goto set_default_params;
-		}
-
-		/* grab any OEM and USER parameters specified at module load */
+	if (isci_firmware) {
+		/* grab any OEM and USER parameters specified in binary blob */
 		status = isci_parse_oem_parameters(&scic_oem_params,
-						   isci_host->id, isci_fw);
+						   isci_host->id,
+						   isci_firmware);
 		if (status != SCI_SUCCESS) {
 			dev_warn(&isci_host->pdev->dev,
 				 "parsing firmware oem parameters failed\n");
-			err = -EINVAL;
-			goto out;
+			return -EINVAL;
 		}
 
 		status = isci_parse_user_parameters(&scic_user_params,
-						    isci_host->id, isci_fw);
+						    isci_host->id,
+						    isci_firmware);
 		if (status != SCI_SUCCESS) {
 			dev_warn(&isci_host->pdev->dev,
 				 "%s: isci_parse_user_parameters"
 				 " failed\n", __func__);
-			err = -EINVAL;
-			goto out;
+			return -EINVAL;
 		}
-	}
-
- set_default_params:
-
-	status = scic_oem_parameters_set(isci_host->core_controller,
-					 &scic_oem_params
-					 );
-
-	if (status != SCI_SUCCESS) {
-		dev_warn(&isci_host->pdev->dev,
-			 "%s: scic_oem_parameters_set failed\n",
-			 __func__);
-		err = -ENODEV;
-		goto out;
-	}
+	} else {
+		status = scic_oem_parameters_set(isci_host->core_controller,
+						 &scic_oem_params);
+		if (status != SCI_SUCCESS) {
+			dev_warn(&isci_host->pdev->dev,
+				 "%s: scic_oem_parameters_set failed\n",
+				 __func__);
+			return -ENODEV;
+		}
 
 
-	status = scic_user_parameters_set(isci_host->core_controller,
-					  &scic_user_params
-					  );
-
-	if (status != SCI_SUCCESS) {
-		dev_warn(&isci_host->pdev->dev,
-			 "%s: scic_user_parameters_set failed\n",
-			 __func__);
-		err = -ENODEV;
-		goto out;
+		status = scic_user_parameters_set(isci_host->core_controller,
+						  &scic_user_params);
+		if (status != SCI_SUCCESS) {
+			dev_warn(&isci_host->pdev->dev,
+				 "%s: scic_user_parameters_set failed\n",
+				 __func__);
+			return -ENODEV;
+		}
 	}
 
 	status = scic_controller_initialize(isci_host->core_controller);
@@ -582,8 +479,7 @@ int isci_host_init(struct isci_host *isci_host)
 			 "%s: scic_controller_initialize failed -"
 			 " status = 0x%x\n",
 			 __func__, status);
-		err = -ENODEV;
-		goto out;
+		return -ENODEV;
 	}
 
 	tasklet_init(&isci_host->completion_tasklet,
@@ -598,7 +494,7 @@ int isci_host_init(struct isci_host *isci_host)
 	err = isci_host_mdl_allocate_coherent(isci_host);
 
 	if (err)
-		goto err_out;
+		return err;
 
 	/*
 	 * keep the pool alloc size around, will use it for a bounds checking
@@ -610,40 +506,27 @@ int isci_host_init(struct isci_host *isci_host)
 					       isci_host->dma_pool_alloc_size,
 					       SLAB_HWCACHE_ALIGN, 0);
 
-	if (!isci_host->dma_pool) {
-		err = -ENOMEM;
-		goto req_obj_err_out;
-	}
+	if (!isci_host->dma_pool)
+		return -ENOMEM;
 
-	for (index = 0; index < SCI_MAX_PORTS; index++) {
+	for (index = 0; index < SCI_MAX_PORTS; index++)
 		isci_port_init(&isci_host->isci_ports[index],
-			       isci_host, index);
-	}
+			       isci_host,
+			       index);
 
 	for (index = 0; index < SCI_MAX_PHYS; index++)
 		isci_phy_init(&isci_host->phys[index], isci_host, index);
 
 	/* Why are we doing this? Is this even necessary? */
-	memcpy(&isci_host->sas_addr[0], &isci_host->phys[0].sas_addr[0],
+	memcpy(&isci_host->sas_addr[0],
+	       &isci_host->phys[0].sas_addr[0],
 	       SAS_ADDR_SIZE);
 
 	/* Start the ports */
 	for (index = 0; index < SCI_MAX_PORTS; index++) {
-
 		scic_controller_get_port_handle(controller, index, &scic_port);
 		scic_port_start(scic_port);
 	}
 
-	goto out;
-
-/* SPB_Debug: destroy request object cache */
- req_obj_err_out:
-/* SPB_Debug: destroy remote object cache */
- err_out:
-/* SPB_Debug: undo controller init, construct and alloc, remove from parent
- * controller list. */
- out:
-	if (fw)
-		release_firmware(fw);
-	return err;
+	return 0;
 }

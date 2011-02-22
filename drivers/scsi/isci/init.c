@@ -82,6 +82,8 @@ static DEFINE_PCI_DEVICE_TABLE(isci_id_table) = {
 	{}
 };
 
+struct isci_firmware *isci_firmware;
+
 static int __devinit isci_pci_probe(
 	struct pci_dev *pdev,
 	const struct pci_device_id *device_id_p);
@@ -519,11 +521,73 @@ static void check_si_rev(struct pci_dev *pdev)
 		
 }
 
+static int isci_verify_firmware(const struct firmware *fw,
+				struct isci_firmware *isci_fw)
+{
+	const u8 *tmp;
+
+	if (fw->size < ISCI_FIRMWARE_MIN_SIZE)
+		return -EINVAL;
+
+	tmp = fw->data;
+
+	/* 12th char should be the NULL terminate for the ID string */
+	if (tmp[11] != '\0')
+		return -EINVAL;
+
+	if (strncmp("#SCU MAGIC#", tmp, 11) != 0)
+		return -EINVAL;
+
+	isci_fw->id = tmp;
+	isci_fw->version = fw->data[ISCI_FW_VER_OFS];
+	isci_fw->subversion = fw->data[ISCI_FW_SUBVER_OFS];
+
+	tmp = fw->data + ISCI_FW_DATA_OFS;
+
+	while (*tmp != ISCI_FW_HDR_EOF) {
+		switch (*tmp) {
+		case ISCI_FW_HDR_PHYMASK:
+			tmp++;
+			isci_fw->phy_masks_size = *tmp;
+			tmp++;
+			isci_fw->phy_masks = (const u32 *)tmp;
+			tmp += sizeof(u32) * isci_fw->phy_masks_size;
+			break;
+
+		case ISCI_FW_HDR_PHYGEN:
+			tmp++;
+			isci_fw->phy_gens_size = *tmp;
+			tmp++;
+			isci_fw->phy_gens = (const u32 *)tmp;
+			tmp += sizeof(u32) * isci_fw->phy_gens_size;
+			break;
+
+		case ISCI_FW_HDR_SASADDR:
+			tmp++;
+			isci_fw->sas_addrs_size = *tmp;
+			tmp++;
+			isci_fw->sas_addrs = (const u64 *)tmp;
+			tmp += sizeof(u64) * isci_fw->sas_addrs_size;
+			break;
+
+		default:
+			pr_err("bad field in firmware binary blob\n");
+			return -EINVAL;
+		}
+	}
+
+	pr_info("isci firmware v%u.%u loaded.\n",
+	       isci_fw->version, isci_fw->subversion);
+
+	return SCI_SUCCESS;
+}
+
 static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct isci_pci_info *pci_info;
 	int err, i;
 	struct isci_host *isci_host;
+	const struct firmware *fw = NULL;
 
 	check_si_rev(pdev);
 
@@ -531,6 +595,33 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 	if (!pci_info)
 		return -ENOMEM;
 	pci_set_drvdata(pdev, pci_info);
+
+	err = request_firmware(&fw, ISCI_FW_NAME, &pdev->dev);
+	if (err) {
+		dev_warn(&pdev->dev,
+			 "Loading firmware failed, using default values\n");
+		dev_warn(&pdev->dev,
+			 "Default OEM configuration being used:"
+			 " 4 narrow ports, and default SAS Addresses\n");
+	} else {
+		isci_firmware = devm_kzalloc(&pdev->dev,
+					     sizeof(struct isci_firmware),
+					     GFP_KERNEL);
+		if (isci_firmware) {
+			err = isci_verify_firmware(fw, isci_firmware);
+			if (err != SCI_SUCCESS) {
+				dev_warn(&pdev->dev,
+					 "firmware verification failed\n");
+				dev_warn(&pdev->dev,
+					 "Default OEM configuration being used:"
+					 " 4 narrow ports, and default SAS "
+					 "Addresses\n");
+				devm_kfree(&pdev->dev, isci_firmware);
+				isci_firmware = NULL;
+			}
+		}
+		release_firmware(fw);
+	}
 
 	err = isci_pci_init(pdev);
 	if (err)
