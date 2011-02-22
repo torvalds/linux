@@ -109,8 +109,8 @@ static const struct fec_platform_data mx25_fec_pdata __initconst = {
 	.phy    = PHY_INTERFACE_MODE_RMII,
 };
 
-#define FEC_ENABLE_GPIO		35
-#define FEC_RESET_B_GPIO	104
+#define FEC_ENABLE_GPIO		IMX_GPIO_NR(2, 3)
+#define FEC_RESET_B_GPIO	IMX_GPIO_NR(4, 8)
 
 static void __init mx25pdk_fec_reset(void)
 {
