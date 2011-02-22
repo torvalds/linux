@@ -844,7 +844,7 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const 
 	if (iap->ia_valid & ATTR_MODE)
 		len += 4;
 	if (iap->ia_valid & ATTR_UID) {
-		owner_namelen = nfs_map_uid_to_name(server->nfs_client, iap->ia_uid, owner_name, IDMAP_NAMESZ);
+		owner_namelen = nfs_map_uid_to_name(server, iap->ia_uid, owner_name, IDMAP_NAMESZ);
 		if (owner_namelen < 0) {
 			dprintk("nfs: couldn't resolve uid %d to string\n",
 					iap->ia_uid);
@@ -856,7 +856,7 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const 
 		len += 4 + (XDR_QUADLEN(owner_namelen) << 2);
 	}
 	if (iap->ia_valid & ATTR_GID) {
-		owner_grouplen = nfs_map_gid_to_group(server->nfs_client, iap->ia_gid, owner_group, IDMAP_NAMESZ);
+		owner_grouplen = nfs_map_gid_to_group(server, iap->ia_gid, owner_group, IDMAP_NAMESZ);
 		if (owner_grouplen < 0) {
 			dprintk("nfs: couldn't resolve gid %d to string\n",
 					iap->ia_gid);
@@ -3387,7 +3387,7 @@ out_overflow:
 }
 
 static int decode_attr_owner(struct xdr_stream *xdr, uint32_t *bitmap,
-		struct nfs_client *clp, uint32_t *uid, int may_sleep)
+		const struct nfs_server *server, uint32_t *uid, int may_sleep)
 {
 	uint32_t len;
 	__be32 *p;
@@ -3407,7 +3407,7 @@ static int decode_attr_owner(struct xdr_stream *xdr, uint32_t *bitmap,
 		if (!may_sleep) {
 			/* do nothing */
 		} else if (len < XDR_MAX_NETOBJ) {
-			if (nfs_map_name_to_uid(clp, (char *)p, len, uid) == 0)
+			if (nfs_map_name_to_uid(server, (char *)p, len, uid) == 0)
 				ret = NFS_ATTR_FATTR_OWNER;
 			else
 				dprintk("%s: nfs_map_name_to_uid failed!\n",
@@ -3425,7 +3425,7 @@ out_overflow:
 }
 
 static int decode_attr_group(struct xdr_stream *xdr, uint32_t *bitmap,
-		struct nfs_client *clp, uint32_t *gid, int may_sleep)
+		const struct nfs_server *server, uint32_t *gid, int may_sleep)
 {
 	uint32_t len;
 	__be32 *p;
@@ -3445,7 +3445,7 @@ static int decode_attr_group(struct xdr_stream *xdr, uint32_t *bitmap,
 		if (!may_sleep) {
 			/* do nothing */
 		} else if (len < XDR_MAX_NETOBJ) {
-			if (nfs_map_group_to_gid(clp, (char *)p, len, gid) == 0)
+			if (nfs_map_group_to_gid(server, (char *)p, len, gid) == 0)
 				ret = NFS_ATTR_FATTR_GROUP;
 			else
 				dprintk("%s: nfs_map_group_to_gid failed!\n",
@@ -3944,14 +3944,12 @@ static int decode_getfattr_attrs(struct xdr_stream *xdr, uint32_t *bitmap,
 		goto xdr_error;
 	fattr->valid |= status;
 
-	status = decode_attr_owner(xdr, bitmap, server->nfs_client,
-			&fattr->uid, may_sleep);
+	status = decode_attr_owner(xdr, bitmap, server, &fattr->uid, may_sleep);
 	if (status < 0)
 		goto xdr_error;
 	fattr->valid |= status;
 
-	status = decode_attr_group(xdr, bitmap, server->nfs_client,
-			&fattr->gid, may_sleep);
+	status = decode_attr_group(xdr, bitmap, server, &fattr->gid, may_sleep);
 	if (status < 0)
 		goto xdr_error;
 	fattr->valid |= status;
