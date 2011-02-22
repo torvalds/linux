@@ -44,6 +44,11 @@
 #define DA8XX_EMAC_RAM_OFFSET		0x0000
 #define DA8XX_EMAC_CTRL_RAM_SIZE	SZ_8K
 
+#define DA8XX_DMA_MMCSD0_RX	EDMA_CTLR_CHAN(0, 16)
+#define DA8XX_DMA_MMCSD0_TX	EDMA_CTLR_CHAN(0, 17)
+#define DA850_DMA_MMCSD1_RX	EDMA_CTLR_CHAN(1, 28)
+#define DA850_DMA_MMCSD1_TX	EDMA_CTLR_CHAN(1, 29)
+
 void __iomem *da8xx_syscfg0_base;
 void __iomem *da8xx_syscfg1_base;
 
@@ -566,13 +571,13 @@ static struct resource da8xx_mmcsd0_resources[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	{		/* DMA RX */
-		.start	= EDMA_CTLR_CHAN(0, 16),
-		.end	= EDMA_CTLR_CHAN(0, 16),
+		.start	= DA8XX_DMA_MMCSD0_RX,
+		.end	= DA8XX_DMA_MMCSD0_RX,
 		.flags	= IORESOURCE_DMA,
 	},
 	{		/* DMA TX */
-		.start	= EDMA_CTLR_CHAN(0, 17),
-		.end	= EDMA_CTLR_CHAN(0, 17),
+		.start	= DA8XX_DMA_MMCSD0_TX,
+		.end	= DA8XX_DMA_MMCSD0_TX,
 		.flags	= IORESOURCE_DMA,
 	},
 };
@@ -603,13 +608,13 @@ static struct resource da850_mmcsd1_resources[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	{		/* DMA RX */
-		.start	= EDMA_CTLR_CHAN(1, 28),
-		.end	= EDMA_CTLR_CHAN(1, 28),
+		.start	= DA850_DMA_MMCSD1_RX,
+		.end	= DA850_DMA_MMCSD1_RX,
 		.flags	= IORESOURCE_DMA,
 	},
 	{		/* DMA TX */
-		.start	= EDMA_CTLR_CHAN(1, 29),
-		.end	= EDMA_CTLR_CHAN(1, 29),
+		.start	= DA850_DMA_MMCSD1_TX,
+		.end	= DA850_DMA_MMCSD1_TX,
 		.flags	= IORESOURCE_DMA,
 	},
 };
