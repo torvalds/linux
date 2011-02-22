@@ -10,6 +10,8 @@
 #ifndef _ASMARM_PGALLOC_H
 #define _ASMARM_PGALLOC_H
 
+#include <linux/pagemap.h>
+
 #include <asm/domain.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/processor.h>
