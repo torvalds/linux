@@ -1328,10 +1328,9 @@ int wl1271_acx_set_ht_capabilities(struct wl1271 *wl,
 		/* get data from A-MPDU parameters field */
 		acx->ampdu_max_length = ht_cap->ampdu_factor;
 		acx->ampdu_min_spacing = ht_cap->ampdu_density;
-
-		memcpy(acx->mac_address, mac_address, ETH_ALEN);
 	}
 
+	memcpy(acx->mac_address, mac_address, ETH_ALEN);
 	acx->ht_capabilites = cpu_to_le32(ht_capabilites);
 
 	ret = wl1271_cmd_configure(wl, ACX_PEER_HT_CAP, acx, sizeof(*acx));
