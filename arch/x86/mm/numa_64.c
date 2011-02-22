@@ -789,17 +789,20 @@ static int __init split_nodes_size_interleave(struct numa_meminfo *ei,
  * Sets up the system RAM area from start_pfn to last_pfn according to the
  * numa=fake command-line option.
  */
-static bool __init numa_emulation(void)
+static void __init numa_emulation(struct numa_meminfo *numa_meminfo,
+				  int numa_dist_cnt)
 {
 	static struct numa_meminfo ei __initdata;
 	static struct numa_meminfo pi __initdata;
 	const u64 max_addr = max_pfn << PAGE_SHIFT;
-	int phys_dist_cnt = numa_distance_cnt;
 	u8 *phys_dist = NULL;
 	int i, j, ret;
 
+	if (!emu_cmdline)
+		goto no_emu;
+
 	memset(&ei, 0, sizeof(ei));
-	pi = numa_meminfo;
+	pi = *numa_meminfo;
 
 	for (i = 0; i < MAX_NUMNODES; i++)
 		emu_nid_to_phys[i] = NUMA_NO_NODE;
@@ -822,19 +825,19 @@ static bool __init numa_emulation(void)
 	}
 
 	if (ret < 0)
-		return false;
+		goto no_emu;
 
 	if (numa_cleanup_meminfo(&ei) < 0) {
 		pr_warning("NUMA: Warning: constructed meminfo invalid, disabling emulation\n");
-		return false;
+		goto no_emu;
 	}
 
 	/*
 	 * Copy the original distance table.  It's temporary so no need to
 	 * reserve it.
 	 */
-	if (phys_dist_cnt) {
-		size_t size = phys_dist_cnt * sizeof(numa_distance[0]);
+	if (numa_dist_cnt) {
+		size_t size = numa_dist_cnt * sizeof(phys_dist[0]);
 		u64 phys;
 
 		phys = memblock_find_in_range(0,
@@ -842,14 +845,18 @@ static bool __init numa_emulation(void)
 					      size, PAGE_SIZE);
 		if (phys == MEMBLOCK_ERROR) {
 			pr_warning("NUMA: Warning: can't allocate copy of distance table, disabling emulation\n");
-			return false;
+			goto no_emu;
 		}
 		phys_dist = __va(phys);
-		memcpy(phys_dist, numa_distance, size);
+
+		for (i = 0; i < numa_dist_cnt; i++)
+			for (j = 0; j < numa_dist_cnt; j++)
+				phys_dist[i * numa_dist_cnt + j] =
+					node_distance(i, j);
 	}
 
 	/* commit */
-	numa_meminfo = ei;
+	*numa_meminfo = ei;
 
 	/*
 	 * Transform __apicid_to_node table to use emulated nids by
@@ -878,18 +885,27 @@ static bool __init numa_emulation(void)
 			int physj = emu_nid_to_phys[j];
 			int dist;
 
-			if (physi >= phys_dist_cnt || physj >= phys_dist_cnt)
+			if (physi >= numa_dist_cnt || physj >= numa_dist_cnt)
 				dist = physi == physj ?
 					LOCAL_DISTANCE : REMOTE_DISTANCE;
 			else
-				dist = phys_dist[physi * phys_dist_cnt + physj];
+				dist = phys_dist[physi * numa_dist_cnt + physj];
 
 			numa_set_distance(i, j, dist);
 		}
 	}
-	return true;
+	return;
+
+no_emu:
+	/* No emulation.  Build identity emu_nid_to_phys[] for numa_add_cpu() */
+	for (i = 0; i < ARRAY_SIZE(emu_nid_to_phys); i++)
+		emu_nid_to_phys[i] = i;
 }
-#endif /* CONFIG_NUMA_EMU */
+#else	/* CONFIG_NUMA_EMU */
+static inline void numa_emulation(struct numa_meminfo *numa_meminfo,
+				  int numa_dist_cnt)
+{ }
+#endif	/* CONFIG_NUMA_EMU */
 
 static int __init dummy_numa_init(void)
 {
@@ -937,15 +953,9 @@ void __init initmem_init(void)
 
 		if (numa_cleanup_meminfo(&numa_meminfo) < 0)
 			continue;
-#ifdef CONFIG_NUMA_EMU
-		/*
-		 * If requested, try emulation.  If emulation is not used,
-		 * build identity emu_nid_to_phys[] for numa_add_cpu()
-		 */
-		if (!emu_cmdline || !numa_emulation())
-			for (j = 0; j < ARRAY_SIZE(emu_nid_to_phys); j++)
-				emu_nid_to_phys[j] = j;
-#endif
+
+		numa_emulation(&numa_meminfo, numa_distance_cnt);
+
 		if (numa_register_memblks(&numa_meminfo) < 0)
 			continue;
 
