@@ -80,6 +80,7 @@ extern void zfcp_erp_notify(struct zfcp_erp_action *, unsigned long);
 extern void zfcp_erp_timeout_handler(unsigned long);
 
 /* zfcp_fc.c */
+extern struct kmem_cache *zfcp_fc_req_cache;
 extern void zfcp_fc_enqueue_event(struct zfcp_adapter *,
 				enum fc_host_event_code event_code, u32);
 extern void zfcp_fc_post_event(struct work_struct *);

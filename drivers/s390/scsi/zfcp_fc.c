@@ -16,6 +16,8 @@
 #include "zfcp_ext.h"
 #include "zfcp_fc.h"
 
+struct kmem_cache *zfcp_fc_req_cache;
+
 static u32 zfcp_fc_rscn_range_mask[] = {
 	[ELS_ADDR_FMT_PORT]		= 0xFFFFFF,
 	[ELS_ADDR_FMT_AREA]		= 0xFFFF00,
@@ -419,11 +421,11 @@ void zfcp_fc_plogi_evaluate(struct zfcp_port *port, struct fc_els_flogi *plogi)
 
 static void zfcp_fc_adisc_handler(void *data)
 {
-	struct zfcp_fc_els_adisc *adisc = data;
-	struct zfcp_port *port = adisc->els.port;
-	struct fc_els_adisc *adisc_resp = &adisc->adisc_resp;
+	struct zfcp_fc_req *fc_req = data;
+	struct zfcp_port *port = fc_req->ct_els.port;
+	struct fc_els_adisc *adisc_resp = &fc_req->u.adisc.rsp;
 
-	if (adisc->els.status) {
+	if (fc_req->ct_els.status) {
 		/* request rejected or timed out */
 		zfcp_erp_port_forced_reopen(port, ZFCP_STATUS_COMMON_ERP_FAILED,
 					    "fcadh_1");
@@ -445,42 +447,42 @@ static void zfcp_fc_adisc_handler(void *data)
  out:
 	atomic_clear_mask(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
 	put_device(&port->dev);
-	kmem_cache_free(zfcp_data.adisc_cache, adisc);
+	kmem_cache_free(zfcp_fc_req_cache, fc_req);
 }
 
 static int zfcp_fc_adisc(struct zfcp_port *port)
 {
-	struct zfcp_fc_els_adisc *adisc;
+	struct zfcp_fc_req *fc_req;
 	struct zfcp_adapter *adapter = port->adapter;
+	struct Scsi_Host *shost = adapter->scsi_host;
 	int ret;
 
-	adisc = kmem_cache_zalloc(zfcp_data.adisc_cache, GFP_ATOMIC);
-	if (!adisc)
+	fc_req = kmem_cache_zalloc(zfcp_fc_req_cache, GFP_ATOMIC);
+	if (!fc_req)
 		return -ENOMEM;
 
-	adisc->els.port = port;
-	adisc->els.req = &adisc->req;
-	adisc->els.resp = &adisc->resp;
-	sg_init_one(adisc->els.req, &adisc->adisc_req,
+	fc_req->ct_els.port = port;
+	fc_req->ct_els.req = &fc_req->sg_req;
+	fc_req->ct_els.resp = &fc_req->sg_rsp;
+	sg_init_one(&fc_req->sg_req, &fc_req->u.adisc.req,
 		    sizeof(struct fc_els_adisc));
-	sg_init_one(adisc->els.resp, &adisc->adisc_resp,
+	sg_init_one(&fc_req->sg_rsp, &fc_req->u.adisc.rsp,
 		    sizeof(struct fc_els_adisc));
 
-	adisc->els.handler = zfcp_fc_adisc_handler;
-	adisc->els.handler_data = adisc;
+	fc_req->ct_els.handler = zfcp_fc_adisc_handler;
+	fc_req->ct_els.handler_data = fc_req;
 
 	/* acc. to FC-FS, hard_nport_id in ADISC should not be set for ports
 	   without FC-AL-2 capability, so we don't set it */
-	adisc->adisc_req.adisc_wwpn = fc_host_port_name(adapter->scsi_host);
-	adisc->adisc_req.adisc_wwnn = fc_host_node_name(adapter->scsi_host);
-	adisc->adisc_req.adisc_cmd = ELS_ADISC;
-	hton24(adisc->adisc_req.adisc_port_id,
-	       fc_host_port_id(adapter->scsi_host));
+	fc_req->u.adisc.req.adisc_wwpn = fc_host_port_name(shost);
+	fc_req->u.adisc.req.adisc_wwnn = fc_host_node_name(shost);
+	fc_req->u.adisc.req.adisc_cmd = ELS_ADISC;
+	hton24(fc_req->u.adisc.req.adisc_port_id, fc_host_port_id(shost));
 
-	ret = zfcp_fsf_send_els(adapter, port->d_id, &adisc->els,
+	ret = zfcp_fsf_send_els(adapter, port->d_id, &fc_req->ct_els,
 				ZFCP_FC_CTELS_TMO);
 	if (ret)
-		kmem_cache_free(zfcp_data.adisc_cache, adisc);
+		kmem_cache_free(zfcp_fc_req_cache, fc_req);
 
 	return ret;
 }

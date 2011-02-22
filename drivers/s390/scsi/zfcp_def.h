@@ -320,7 +320,6 @@ struct zfcp_data {
 	struct kmem_cache	*gpn_ft_cache;
 	struct kmem_cache	*qtcb_cache;
 	struct kmem_cache	*gid_pn_cache;
-	struct kmem_cache	*adisc_cache;
 };
 
 #endif /* ZFCP_DEF_H */

@@ -123,19 +123,22 @@ struct zfcp_fc_gpn_ft {
 };
 
 /**
- * struct zfcp_fc_els_adisc - everything required in zfcp for issuing ELS ADISC
- * @els: data required for issuing els fsf command
- * @req: scatterlist entry for ELS ADISC request
- * @resp: scatterlist entry for ELS ADISC response
- * @adisc_req: ELS ADISC request data
- * @adisc_resp: ELS ADISC response data
+ * struct zfcp_fc_req - Container for FC ELS and CT requests sent from zfcp
+ * @ct_els: data required for issuing fsf command
+ * @sg_req: scatterlist entry for request data
+ * @sg_rsp: scatterlist entry for response data
+ * @u: request specific data
  */
-struct zfcp_fc_els_adisc {
-	struct zfcp_fsf_ct_els els;
-	struct scatterlist req;
-	struct scatterlist resp;
-	struct fc_els_adisc adisc_req;
-	struct fc_els_adisc adisc_resp;
+struct zfcp_fc_req {
+	struct zfcp_fsf_ct_els				ct_els;
+	struct scatterlist				sg_req;
+	struct scatterlist				sg_rsp;
+	union {
+		struct {
+			struct fc_els_adisc		req;
+			struct fc_els_adisc		rsp;
+		} adisc;
+	} u;
 };
 
 /**
