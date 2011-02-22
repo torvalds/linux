@@ -1092,6 +1092,31 @@ TRACE_EVENT(ocfs2_write_end_inline,
 );
 
 /* End of trace events for fs/ocfs2/aops.c. */
+
+/* Trace events for fs/ocfs2/mmap.c. */
+
+TRACE_EVENT(ocfs2_fault,
+	TP_PROTO(unsigned long long ino,
+		 void *area, void *page, unsigned long pgoff),
+	TP_ARGS(ino, area, page, pgoff),
+	TP_STRUCT__entry(
+		__field(unsigned long long, ino)
+		__field(void *, area)
+		__field(void *, page)
+		__field(unsigned long, pgoff)
+	),
+	TP_fast_assign(
+		__entry->ino = ino;
+		__entry->area = area;
+		__entry->page = page;
+		__entry->pgoff = pgoff;
+	),
+	TP_printk("%llu %p %p %lu",
+		  __entry->ino, __entry->area, __entry->page, __entry->pgoff)
+);
+
+/* End of trace events for fs/ocfs2/mmap.c. */
+
 #endif /* _TRACE_OCFS2_H */
 
 /* This part must be outside protection */
