@@ -689,7 +689,8 @@ static int create_default_group(struct config_group *parent_group,
 			sd = child->d_fsdata;
 			sd->s_type |= CONFIGFS_USET_DEFAULT;
 		} else {
-			d_delete(child);
+			BUG_ON(child->d_inode);
+			d_drop(child);
 			dput(child);
 		}
 	}
@@ -1683,7 +1684,8 @@ int configfs_register_subsystem(struct configfs_subsystem *subsys)
 		err = configfs_attach_group(sd->s_element, &group->cg_item,
 					    dentry);
 		if (err) {
-			d_delete(dentry);
+			BUG_ON(dentry->d_inode);
+			d_drop(dentry);
 			dput(dentry);
 		} else {
 			spin_lock(&configfs_dirent_lock);
