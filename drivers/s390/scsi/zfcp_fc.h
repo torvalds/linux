@@ -84,28 +84,6 @@ struct zfcp_fc_gpn_ft_req {
 } __packed;
 
 /**
- * struct zfcp_fc_gpn_ft_resp - container for ct header plus gpn_ft response
- * @ct_hdr: FC GS common transport header
- * @gpn_ft: Array of gpn_ft response data to fill one memory page
- */
-struct zfcp_fc_gpn_ft_resp {
-	struct fc_ct_hdr	ct_hdr;
-	struct fc_gpn_ft_resp	gpn_ft[ZFCP_FC_GPN_FT_ENT_PAGE];
-} __packed;
-
-/**
- * struct zfcp_fc_gpn_ft - zfcp data for gpn_ft request
- * @ct: data passed to zfcp_fsf for issuing fsf request
- * @sg_req: scatter list entry for gpn_ft request
- * @sg_resp: scatter list entries for gpn_ft responses (per memory page)
- */
-struct zfcp_fc_gpn_ft {
-	struct zfcp_fsf_ct_els ct;
-	struct scatterlist sg_req;
-	struct scatterlist sg_resp[ZFCP_FC_GPN_FT_NUM_BUFS];
-};
-
-/**
  * struct zfcp_fc_req - Container for FC ELS and CT requests sent from zfcp
  * @ct_els: data required for issuing fsf command
  * @sg_req: scatterlist entry for request data
@@ -125,6 +103,10 @@ struct zfcp_fc_req {
 			struct zfcp_fc_gid_pn_req	req;
 			struct zfcp_fc_gid_pn_rsp	rsp;
 		} gid_pn;
+		struct {
+			struct scatterlist sg_rsp2[ZFCP_FC_GPN_FT_NUM_BUFS - 1];
+			struct zfcp_fc_gpn_ft_req	req;
+		} gpn_ft;
 	} u;
 };
 

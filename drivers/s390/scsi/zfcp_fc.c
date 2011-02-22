@@ -528,68 +528,42 @@ void zfcp_fc_test_link(struct zfcp_port *port)
 		put_device(&port->dev);
 }
 
-static void zfcp_free_sg_env(struct zfcp_fc_gpn_ft *gpn_ft, int buf_num)
+static struct zfcp_fc_req *zfcp_alloc_sg_env(int buf_num)
 {
-	struct scatterlist *sg = &gpn_ft->sg_req;
+	struct zfcp_fc_req *fc_req;
 
-	kmem_cache_free(zfcp_data.gpn_ft_cache, sg_virt(sg));
-	zfcp_sg_free_table(gpn_ft->sg_resp, buf_num);
-
-	kfree(gpn_ft);
-}
-
-static struct zfcp_fc_gpn_ft *zfcp_alloc_sg_env(int buf_num)
-{
-	struct zfcp_fc_gpn_ft *gpn_ft;
-	struct zfcp_fc_gpn_ft_req *req;
-
-	gpn_ft = kzalloc(sizeof(*gpn_ft), GFP_KERNEL);
-	if (!gpn_ft)
+	fc_req = kmem_cache_zalloc(zfcp_fc_req_cache, GFP_KERNEL);
+	if (!fc_req)
 		return NULL;
 
-	req = kmem_cache_zalloc(zfcp_data.gpn_ft_cache, GFP_KERNEL);
-	if (!req) {
-		kfree(gpn_ft);
-		gpn_ft = NULL;
-		goto out;
+	if (zfcp_sg_setup_table(&fc_req->sg_rsp, buf_num)) {
+		kmem_cache_free(zfcp_fc_req_cache, fc_req);
+		return NULL;
 	}
-	sg_init_one(&gpn_ft->sg_req, req, sizeof(*req));
 
-	if (zfcp_sg_setup_table(gpn_ft->sg_resp, buf_num)) {
-		zfcp_free_sg_env(gpn_ft, buf_num);
-		gpn_ft = NULL;
-	}
-out:
-	return gpn_ft;
+	sg_init_one(&fc_req->sg_req, &fc_req->u.gpn_ft.req,
+		    sizeof(struct zfcp_fc_gpn_ft_req));
+
+	return fc_req;
 }
 
-
-static int zfcp_fc_send_gpn_ft(struct zfcp_fc_gpn_ft *gpn_ft,
+static int zfcp_fc_send_gpn_ft(struct zfcp_fc_req *fc_req,
 			       struct zfcp_adapter *adapter, int max_bytes)
 {
-	struct zfcp_fsf_ct_els *ct = &gpn_ft->ct;
-	struct zfcp_fc_gpn_ft_req *req = sg_virt(&gpn_ft->sg_req);
+	struct zfcp_fsf_ct_els *ct_els = &fc_req->ct_els;
+	struct zfcp_fc_gpn_ft_req *req = &fc_req->u.gpn_ft.req;
 	DECLARE_COMPLETION_ONSTACK(completion);
 	int ret;
 
-	/* prepare CT IU for GPN_FT */
-	req->ct_hdr.ct_rev = FC_CT_REV;
-	req->ct_hdr.ct_fs_type = FC_FST_DIR;
-	req->ct_hdr.ct_fs_subtype = FC_NS_SUBTYPE;
-	req->ct_hdr.ct_options = 0;
-	req->ct_hdr.ct_cmd = FC_NS_GPN_FT;
-	req->ct_hdr.ct_mr_size = max_bytes / 4;
-	req->gpn_ft.fn_domain_id_scope = 0;
-	req->gpn_ft.fn_area_id_scope = 0;
+	zfcp_fc_ct_ns_init(&req->ct_hdr, FC_NS_GPN_FT, max_bytes);
 	req->gpn_ft.fn_fc4_type = FC_TYPE_FCP;
 
-	/* prepare zfcp_send_ct */
-	ct->handler = zfcp_fc_complete;
-	ct->handler_data = &completion;
-	ct->req = &gpn_ft->sg_req;
-	ct->resp = gpn_ft->sg_resp;
+	ct_els->handler = zfcp_fc_complete;
+	ct_els->handler_data = &completion;
+	ct_els->req = &fc_req->sg_req;
+	ct_els->resp = &fc_req->sg_rsp;
 
-	ret = zfcp_fsf_send_ct(&adapter->gs->ds, ct, NULL,
+	ret = zfcp_fsf_send_ct(&adapter->gs->ds, ct_els, NULL,
 			       ZFCP_FC_CTELS_TMO);
 	if (!ret)
 		wait_for_completion(&completion);
@@ -610,11 +584,11 @@ static void zfcp_fc_validate_port(struct zfcp_port *port, struct list_head *lh)
 	list_move_tail(&port->list, lh);
 }
 
-static int zfcp_fc_eval_gpn_ft(struct zfcp_fc_gpn_ft *gpn_ft,
+static int zfcp_fc_eval_gpn_ft(struct zfcp_fc_req *fc_req,
 			       struct zfcp_adapter *adapter, int max_entries)
 {
-	struct zfcp_fsf_ct_els *ct = &gpn_ft->ct;
-	struct scatterlist *sg = gpn_ft->sg_resp;
+	struct zfcp_fsf_ct_els *ct_els = &fc_req->ct_els;
+	struct scatterlist *sg = &fc_req->sg_rsp;
 	struct fc_ct_hdr *hdr = sg_virt(sg);
 	struct fc_gpn_ft_resp *acc = sg_virt(sg);
 	struct zfcp_port *port, *tmp;
@@ -623,7 +597,7 @@ static int zfcp_fc_eval_gpn_ft(struct zfcp_fc_gpn_ft *gpn_ft,
 	u32 d_id;
 	int ret = 0, x, last = 0;
 
-	if (ct->status)
+	if (ct_els->status)
 		return -EIO;
 
 	if (hdr->ct_cmd != FC_FS_ACC) {
@@ -687,7 +661,7 @@ void zfcp_fc_scan_ports(struct work_struct *work)
 	struct zfcp_adapter *adapter = container_of(work, struct zfcp_adapter,
 						    scan_work);
 	int ret, i;
-	struct zfcp_fc_gpn_ft *gpn_ft;
+	struct zfcp_fc_req *fc_req;
 	int chain, max_entries, buf_num, max_bytes;
 
 	chain = adapter->adapter_features & FSF_FEATURE_ELS_CT_CHAINED_SBALS;
@@ -702,21 +676,22 @@ void zfcp_fc_scan_ports(struct work_struct *work)
 	if (zfcp_fc_wka_port_get(&adapter->gs->ds))
 		return;
 
-	gpn_ft = zfcp_alloc_sg_env(buf_num);
-	if (!gpn_ft)
+	fc_req = zfcp_alloc_sg_env(buf_num);
+	if (!fc_req)
 		goto out;
 
 	for (i = 0; i < 3; i++) {
-		ret = zfcp_fc_send_gpn_ft(gpn_ft, adapter, max_bytes);
+		ret = zfcp_fc_send_gpn_ft(fc_req, adapter, max_bytes);
 		if (!ret) {
-			ret = zfcp_fc_eval_gpn_ft(gpn_ft, adapter, max_entries);
+			ret = zfcp_fc_eval_gpn_ft(fc_req, adapter, max_entries);
 			if (ret == -EAGAIN)
 				ssleep(1);
 			else
 				break;
 		}
 	}
-	zfcp_free_sg_env(gpn_ft, buf_num);
+	zfcp_sg_free_table(&fc_req->sg_rsp, buf_num);
+	kmem_cache_free(zfcp_fc_req_cache, fc_req);
 out:
 	zfcp_fc_wka_port_put(&adapter->gs->ds);
 }

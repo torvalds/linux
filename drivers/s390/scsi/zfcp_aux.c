@@ -122,11 +122,6 @@ static int __init zfcp_module_init(void)
 {
 	int retval = -ENOMEM;
 
-	zfcp_data.gpn_ft_cache = zfcp_cache_hw_align("zfcp_gpn",
-					sizeof(struct zfcp_fc_gpn_ft_req));
-	if (!zfcp_data.gpn_ft_cache)
-		goto out;
-
 	zfcp_data.qtcb_cache = zfcp_cache_hw_align("zfcp_qtcb",
 					sizeof(struct fsf_qtcb));
 	if (!zfcp_data.qtcb_cache)
@@ -171,8 +166,6 @@ out_transport:
 out_fc_cache:
 	kmem_cache_destroy(zfcp_data.qtcb_cache);
 out_qtcb_cache:
-	kmem_cache_destroy(zfcp_data.gpn_ft_cache);
-out:
 	return retval;
 }
 
@@ -185,7 +178,6 @@ static void __exit zfcp_module_exit(void)
 	fc_release_transport(zfcp_data.scsi_transport_template);
 	kmem_cache_destroy(zfcp_fc_req_cache);
 	kmem_cache_destroy(zfcp_data.qtcb_cache);
-	kmem_cache_destroy(zfcp_data.gpn_ft_cache);
 }
 
 module_exit(zfcp_module_exit);
