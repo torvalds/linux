@@ -156,6 +156,31 @@ static struct panel_config generic_dpi_panels[] = {
 		.power_off_delay	= 0,
 		.name			= "toppoly_tdo35s",
 	},
+
+	/* Samsung LTE430WQ-F0C */
+	{
+		{
+			.x_res		= 480,
+			.y_res		= 272,
+
+			.pixel_clock	= 9200,
+
+			.hfp		= 8,
+			.hsw		= 41,
+			.hbp		= 45 - 41,
+
+			.vfp		= 4,
+			.vsw		= 10,
+			.vbp		= 12 - 10,
+		},
+		.acbi			= 0x0,
+		.acb			= 0x0,
+		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
+						OMAP_DSS_LCD_IHS,
+		.power_on_delay		= 0,
+		.power_off_delay	= 0,
+		.name			= "samsung_lte430wq_f0c",
+	},
 };
 
 struct panel_drv_data {
