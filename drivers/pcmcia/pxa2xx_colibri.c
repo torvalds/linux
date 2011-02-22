@@ -181,6 +181,9 @@ static int __init colibri_pcmcia_init(void)
 {
 	int ret;
 
+	if (!machine_is_colibri() && !machine_is_colibri320())
+		return -ENODEV;
+
 	colibri_pcmcia_device = platform_device_alloc("pxa2xx-pcmcia", -1);
 	if (!colibri_pcmcia_device)
 		return -ENOMEM;
