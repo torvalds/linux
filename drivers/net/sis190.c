@@ -1915,9 +1915,10 @@ err_release_board:
 static void __devexit sis190_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
+	struct sis190_private *tp = netdev_priv(dev);
 
 	sis190_mii_remove(dev);
-	flush_scheduled_work();
+	cancel_work_sync(&tp->phy_task);
 	unregister_netdev(dev);
 	sis190_release_board(pdev);
 	pci_set_drvdata(pdev, NULL);

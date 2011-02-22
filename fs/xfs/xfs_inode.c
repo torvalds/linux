@@ -887,7 +887,7 @@ xfs_iread(
 	 * around for a while.  This helps to keep recently accessed
 	 * meta-data in-core longer.
 	 */
-	XFS_BUF_SET_REF(bp, XFS_INO_REF);
+	xfs_buf_set_ref(bp, XFS_INO_REF);
 
 	/*
 	 * Use xfs_trans_brelse() to release the buffer containing the
@@ -2000,15 +2000,31 @@ xfs_ifree_cluster(
 		 */
 		for (i = 0; i < ninodes; i++) {
 retry:
-			read_lock(&pag->pag_ici_lock);
+			rcu_read_lock();
 			ip = radix_tree_lookup(&pag->pag_ici_root,
 					XFS_INO_TO_AGINO(mp, (inum + i)));
 
-			/* Inode not in memory or stale, nothing to do */
-			if (!ip || xfs_iflags_test(ip, XFS_ISTALE)) {
-				read_unlock(&pag->pag_ici_lock);
+			/* Inode not in memory, nothing to do */
+			if (!ip) {
+				rcu_read_unlock();
 				continue;
 			}
+
+			/*
+			 * because this is an RCU protected lookup, we could
+			 * find a recently freed or even reallocated inode
+			 * during the lookup. We need to check under the
+			 * i_flags_lock for a valid inode here. Skip it if it
+			 * is not valid, the wrong inode or stale.
+			 */
+			spin_lock(&ip->i_flags_lock);
+			if (ip->i_ino != inum + i ||
+			    __xfs_iflags_test(ip, XFS_ISTALE)) {
+				spin_unlock(&ip->i_flags_lock);
+				rcu_read_unlock();
+				continue;
+			}
+			spin_unlock(&ip->i_flags_lock);
 
 			/*
 			 * Don't try to lock/unlock the current inode, but we
@@ -2019,11 +2035,11 @@ retry:
 			 */
 			if (ip != free_ip &&
 			    !xfs_ilock_nowait(ip, XFS_ILOCK_EXCL)) {
-				read_unlock(&pag->pag_ici_lock);
+				rcu_read_unlock();
 				delay(1);
 				goto retry;
 			}
-			read_unlock(&pag->pag_ici_lock);
+			rcu_read_unlock();
 
 			xfs_iflock(ip);
 			xfs_iflags_set(ip, XFS_ISTALE);
@@ -2629,7 +2645,7 @@ xfs_iflush_cluster(
 
 	mask = ~(((XFS_INODE_CLUSTER_SIZE(mp) >> mp->m_sb.sb_inodelog)) - 1);
 	first_index = XFS_INO_TO_AGINO(mp, ip->i_ino) & mask;
-	read_lock(&pag->pag_ici_lock);
+	rcu_read_lock();
 	/* really need a gang lookup range call here */
 	nr_found = radix_tree_gang_lookup(&pag->pag_ici_root, (void**)ilist,
 					first_index, inodes_per_cluster);
@@ -2640,9 +2656,21 @@ xfs_iflush_cluster(
 		iq = ilist[i];
 		if (iq == ip)
 			continue;
-		/* if the inode lies outside this cluster, we're done. */
-		if ((XFS_INO_TO_AGINO(mp, iq->i_ino) & mask) != first_index)
-			break;
+
+		/*
+		 * because this is an RCU protected lookup, we could find a
+		 * recently freed or even reallocated inode during the lookup.
+		 * We need to check under the i_flags_lock for a valid inode
+		 * here. Skip it if it is not valid or the wrong inode.
+		 */
+		spin_lock(&ip->i_flags_lock);
+		if (!ip->i_ino ||
+		    (XFS_INO_TO_AGINO(mp, iq->i_ino) & mask) != first_index) {
+			spin_unlock(&ip->i_flags_lock);
+			continue;
+		}
+		spin_unlock(&ip->i_flags_lock);
+
 		/*
 		 * Do an un-protected check to see if the inode is dirty and
 		 * is a candidate for flushing.  These checks will be repeated
@@ -2692,7 +2720,7 @@ xfs_iflush_cluster(
 	}
 
 out_free:
-	read_unlock(&pag->pag_ici_lock);
+	rcu_read_unlock();
 	kmem_free(ilist);
 out_put:
 	xfs_perag_put(pag);
@@ -2704,7 +2732,7 @@ cluster_corrupt_out:
 	 * Corruption detected in the clustering loop.  Invalidate the
 	 * inode buffer and shut down the filesystem.
 	 */
-	read_unlock(&pag->pag_ici_lock);
+	rcu_read_unlock();
 	/*
 	 * Clean up the buffer.  If it was B_DELWRI, just release it --
 	 * brelse can handle it with no problems.  If not, shut down the

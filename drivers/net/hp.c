@@ -162,9 +162,9 @@ static int __init hp_probe1(struct net_device *dev, int ioaddr)
 
 	/* Snarf the interrupt now.  Someday this could be moved to open(). */
 	if (dev->irq < 2) {
-		int irq_16list[] = { 11, 10, 5, 3, 4, 7, 9, 0};
-		int irq_8list[] = { 7, 5, 3, 4, 9, 0};
-		int *irqp = wordmode ? irq_16list : irq_8list;
+		static const int irq_16list[] = { 11, 10, 5, 3, 4, 7, 9, 0};
+		static const int irq_8list[] = { 7, 5, 3, 4, 9, 0};
+		const int *irqp = wordmode ? irq_16list : irq_8list;
 		do {
 			int irq = *irqp;
 			if (request_irq (irq, NULL, 0, "bogus", NULL) != -EBUSY) {

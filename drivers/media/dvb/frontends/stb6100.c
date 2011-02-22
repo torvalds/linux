@@ -51,7 +51,7 @@ module_param(verbose, int, 0644);
 		if (x > y)								\
 			printk(format, ##arg);						\
 	}										\
-} while(0)
+} while (0)
 
 struct stb6100_lkup {
 	u32 val_low;
@@ -117,7 +117,10 @@ static const struct stb6100_regmask stb6100_template[] = {
 	[STB6100_TEST3]		= { 0x00, 0xde },
 };
 
-static void stb6100_normalise_regs(u8 regs[])
+/*
+ * Currently unused. Some boards might need it in the future
+ */
+static inline void stb6100_normalise_regs(u8 regs[])
 {
 	int i;
 
@@ -157,13 +160,25 @@ static int stb6100_read_reg(struct stb6100_state *state, u8 reg)
 	u8 regs[STB6100_NUMREGS];
 	int rc;
 
+	struct i2c_msg msg = {
+		.addr	= state->config->tuner_address + reg,
+		.flags	= I2C_M_RD,
+		.buf	= regs,
+		.len	= 1
+	};
+
+	rc = i2c_transfer(state->i2c, &msg, 1);
+
 	if (unlikely(reg >= STB6100_NUMREGS)) {
 		dprintk(verbose, FE_ERROR, 1, "Invalid register offset 0x%x", reg);
 		return -EINVAL;
 	}
-	if ((rc = stb6100_read_regs(state, regs)) < 0)
-		return rc;
-	return (unsigned int)regs[reg];
+	if (unlikely(verbose > FE_DEBUG)) {
+		dprintk(verbose, FE_DEBUG, 1, "    Read from 0x%02x", state->config->tuner_address);
+		dprintk(verbose, FE_DEBUG, 1, "        %s: 0x%02x", stb6100_regnames[reg], regs[0]);
+	}
+
+	return (unsigned int)regs[0];
 }
 
 static int stb6100_write_reg_range(struct stb6100_state *state, u8 buf[], int start, int len)
@@ -211,20 +226,17 @@ static int stb6100_write_reg(struct stb6100_state *state, u8 reg, u8 data)
 	return stb6100_write_reg_range(state, &data, reg, 1);
 }
 
-static int stb6100_write_regs(struct stb6100_state *state, u8 regs[])
-{
-	stb6100_normalise_regs(regs);
-	return stb6100_write_reg_range(state, &regs[1], 1, STB6100_NUMREGS - 1);
-}
 
 static int stb6100_get_status(struct dvb_frontend *fe, u32 *status)
 {
 	int rc;
 	struct stb6100_state *state = fe->tuner_priv;
 
-	if ((rc = stb6100_read_reg(state, STB6100_LD)) < 0)
+	rc = stb6100_read_reg(state, STB6100_LD);
+	if (rc < 0) {
+		dprintk(verbose, FE_ERROR, 1, "%s failed", __func__);
 		return rc;
-
+	}
 	return (rc & STB6100_LD_LOCK) ? TUNER_STATUS_LOCKED : 0;
 }
 
@@ -234,7 +246,8 @@ static int stb6100_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 	u8 f;
 	struct stb6100_state *state = fe->tuner_priv;
 
-	if ((rc = stb6100_read_reg(state, STB6100_F)) < 0)
+	rc = stb6100_read_reg(state, STB6100_F);
+	if (rc < 0)
 		return rc;
 	f = rc & STB6100_F_F;
 
@@ -265,13 +278,20 @@ static int stb6100_set_bandwidth(struct dvb_frontend *fe, u32 bandwidth)
 	/* Turn on LPF bandwidth setting clock control,
 	 * set bandwidth, wait 10ms, turn off.
 	 */
-	if ((rc = stb6100_write_reg(state, STB6100_FCCK, 0x0d | STB6100_FCCK_FCCK)) < 0)
+	rc = stb6100_write_reg(state, STB6100_FCCK, 0x0d | STB6100_FCCK_FCCK);
+	if (rc < 0)
 		return rc;
-	if ((rc = stb6100_write_reg(state, STB6100_F, 0xc0 | tmp)) < 0)
+	rc = stb6100_write_reg(state, STB6100_F, 0xc0 | tmp);
+	if (rc < 0)
 		return rc;
-	msleep(1);
-	if ((rc = stb6100_write_reg(state, STB6100_FCCK, 0x0d)) < 0)
+
+	msleep(5);  /*  This is dangerous as another (related) thread may start */
+
+	rc = stb6100_write_reg(state, STB6100_FCCK, 0x0d);
+	if (rc < 0)
 		return rc;
+
+	msleep(10);  /*  This is dangerous as another (related) thread may start */
 
 	return 0;
 }
@@ -284,7 +304,8 @@ static int stb6100_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 	struct stb6100_state *state = fe->tuner_priv;
 	u8 regs[STB6100_NUMREGS];
 
-	if ((rc = stb6100_read_regs(state, regs)) < 0)
+	rc = stb6100_read_regs(state, regs);
+	if (rc < 0)
 		return rc;
 
 	odiv = (regs[STB6100_VCO] & STB6100_VCO_ODIV) >> STB6100_VCO_ODIV_SHIFT;
@@ -312,8 +333,7 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	u8 regs[STB6100_NUMREGS];
 	u8 g, psd2, odiv;
 
-	if ((rc = stb6100_read_regs(state, regs)) < 0)
-		return rc;
+	dprintk(verbose, FE_DEBUG, 1, "Version 2010-8-14 13:51");
 
 	if (fe->ops.get_frontend) {
 		dprintk(verbose, FE_DEBUG, 1, "Get frontend parameters");
@@ -321,96 +341,140 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	}
 	srate = p.u.qpsk.symbol_rate;
 
-	regs[STB6100_DLB] = 0xdc;
-	/* Disable LPEN */
-	regs[STB6100_LPEN] &= ~STB6100_LPEN_LPEN; /* PLL Loop disabled */
+	/* Set up tuner cleanly, LPF calibration on */
+	rc = stb6100_write_reg(state, STB6100_FCCK, 0x4d | STB6100_FCCK_FCCK);
+	if (rc < 0)
+		return rc;  /* allow LPF calibration */
 
-	if ((rc = stb6100_write_regs(state, regs)) < 0)
+	/* PLL Loop disabled, bias on, VCO on, synth on */
+	regs[STB6100_LPEN] = 0xeb;
+	rc = stb6100_write_reg(state, STB6100_LPEN, regs[STB6100_LPEN]);
+	if (rc < 0)
 		return rc;
 
-	/* Baseband gain.	*/
-	if (srate >= 15000000)
-		g = 9;  //  +4 dB
-	else if (srate >= 5000000)
-		g = 11; //  +8 dB
-	else
-		g = 14; // +14 dB
-
-	regs[STB6100_G] = (regs[STB6100_G] & ~STB6100_G_G) | g;
-	regs[STB6100_G] &= ~STB6100_G_GCT; /* mask GCT */
-	regs[STB6100_G] |= (1 << 5); /* 2Vp-p Mode */
+	/* Program the registers with their data values */
 
 	/* VCO divide ratio (LO divide ratio, VCO prescaler enable).	*/
 	if (frequency <= 1075000)
 		odiv = 1;
 	else
 		odiv = 0;
-	regs[STB6100_VCO] = (regs[STB6100_VCO] & ~STB6100_VCO_ODIV) | (odiv << STB6100_VCO_ODIV_SHIFT);
 
-	if ((frequency > 1075000) && (frequency <= 1325000))
-		psd2 = 0;
-	else
-		psd2 = 1;
-	regs[STB6100_K] = (regs[STB6100_K] & ~STB6100_K_PSD2) | (psd2 << STB6100_K_PSD2_SHIFT);
+	/* VCO enabled, seach clock off as per LL3.7, 3.4.1 */
+	regs[STB6100_VCO] = 0xe0 | (odiv << STB6100_VCO_ODIV_SHIFT);
 
 	/* OSM	*/
 	for (ptr = lkup;
 	     (ptr->val_high != 0) && !CHKRANGE(frequency, ptr->val_low, ptr->val_high);
 	     ptr++);
+
 	if (ptr->val_high == 0) {
 		printk(KERN_ERR "%s: frequency out of range: %u kHz\n", __func__, frequency);
 		return -EINVAL;
 	}
 	regs[STB6100_VCO] = (regs[STB6100_VCO] & ~STB6100_VCO_OSM) | ptr->reg;
+	rc = stb6100_write_reg(state, STB6100_VCO, regs[STB6100_VCO]);
+	if (rc < 0)
+		return rc;
 
+	if ((frequency > 1075000) && (frequency <= 1325000))
+		psd2 = 0;
+	else
+		psd2 = 1;
 	/* F(VCO) = F(LO) * (ODIV == 0 ? 2 : 4)			*/
 	fvco = frequency << (1 + odiv);
 	/* N(I) = floor(f(VCO) / (f(XTAL) * (PSD2 ? 2 : 1)))	*/
 	nint = fvco / (state->reference << psd2);
 	/* N(F) = round(f(VCO) / f(XTAL) * (PSD2 ? 2 : 1) - N(I)) * 2 ^ 9	*/
 	nfrac = DIV_ROUND_CLOSEST((fvco - (nint * state->reference << psd2))
-					 << (9 - psd2),
-				  state->reference);
+					 << (9 - psd2), state->reference);
+
+	/* NI */
+	regs[STB6100_NI] = nint;
+	rc = stb6100_write_reg(state, STB6100_NI, regs[STB6100_NI]);
+	if (rc < 0)
+		return rc;
+
+	/* NF */
+	regs[STB6100_NF_LSB] = nfrac;
+	rc = stb6100_write_reg(state, STB6100_NF_LSB, regs[STB6100_NF_LSB]);
+	if (rc < 0)
+		return rc;
+
+	/* K */
+	regs[STB6100_K] = (0x38 & ~STB6100_K_PSD2) | (psd2 << STB6100_K_PSD2_SHIFT);
+	regs[STB6100_K] = (regs[STB6100_K] & ~STB6100_K_NF_MSB) | ((nfrac >> 8) & STB6100_K_NF_MSB);
+	rc = stb6100_write_reg(state, STB6100_K, regs[STB6100_K]);
+	if (rc < 0)
+		return rc;
+
+	/* G Baseband gain. */
+	if (srate >= 15000000)
+		g = 9;  /*  +4 dB */
+	else if (srate >= 5000000)
+		g = 11; /*  +8 dB */
+	else
+		g = 14; /* +14 dB */
+
+	regs[STB6100_G] = (0x10 & ~STB6100_G_G) | g;
+	regs[STB6100_G] &= ~STB6100_G_GCT; /* mask GCT */
+	regs[STB6100_G] |= (1 << 5); /* 2Vp-p Mode */
+	rc = stb6100_write_reg(state, STB6100_G, regs[STB6100_G]);
+	if (rc < 0)
+		return rc;
+
+	/* F we don't write as it is set up in BW set */
+
+	/* DLB set DC servo loop BW to 160Hz (LLA 3.8 / 2.1) */
+	regs[STB6100_DLB] = 0xcc;
+	rc = stb6100_write_reg(state, STB6100_DLB, regs[STB6100_DLB]);
+	if (rc < 0)
+		return rc;
+
 	dprintk(verbose, FE_DEBUG, 1,
 		"frequency = %u, srate = %u, g = %u, odiv = %u, psd2 = %u, fxtal = %u, osm = %u, fvco = %u, N(I) = %u, N(F) = %u",
 		frequency, srate, (unsigned int)g, (unsigned int)odiv,
 		(unsigned int)psd2, state->reference,
 		ptr->reg, fvco, nint, nfrac);
-	regs[STB6100_NI] = nint;
-	regs[STB6100_NF_LSB] = nfrac;
-	regs[STB6100_K] = (regs[STB6100_K] & ~STB6100_K_NF_MSB) | ((nfrac >> 8) & STB6100_K_NF_MSB);
-	regs[STB6100_VCO] |= STB6100_VCO_OSCH;		/* VCO search enabled		*/
-	regs[STB6100_VCO] |= STB6100_VCO_OCK;		/* VCO search clock off		*/
-	regs[STB6100_FCCK] |= STB6100_FCCK_FCCK;	/* LPF BW setting clock enabled	*/
-	regs[STB6100_LPEN] &= ~STB6100_LPEN_LPEN;	/* PLL loop disabled		*/
-	/* Power up. */
-	regs[STB6100_LPEN] |= STB6100_LPEN_SYNP	| STB6100_LPEN_OSCP | STB6100_LPEN_BEN;
 
-	msleep(2);
-	if ((rc = stb6100_write_regs(state, regs)) < 0)
+	/* Set up the test registers */
+	regs[STB6100_TEST1] = 0x8f;
+	rc = stb6100_write_reg(state, STB6100_TEST1, regs[STB6100_TEST1]);
+	if (rc < 0)
+		return rc;
+	regs[STB6100_TEST3] = 0xde;
+	rc = stb6100_write_reg(state, STB6100_TEST3, regs[STB6100_TEST3]);
+	if (rc < 0)
+		return rc;
+
+	/* Bring up tuner according to LLA 3.7 3.4.1, step 2 */
+	regs[STB6100_LPEN] = 0xfb; /* PLL Loop enabled, bias on, VCO on, synth on */
+	rc = stb6100_write_reg(state, STB6100_LPEN, regs[STB6100_LPEN]);
+	if (rc < 0)
 		return rc;
 
 	msleep(2);
-	regs[STB6100_LPEN] |= STB6100_LPEN_LPEN;	/* PLL loop enabled		*/
-	if ((rc = stb6100_write_reg(state, STB6100_LPEN, regs[STB6100_LPEN])) < 0)
-		return rc;
 
+	/* Bring up tuner according to LLA 3.7 3.4.1, step 3 */
 	regs[STB6100_VCO] &= ~STB6100_VCO_OCK;		/* VCO fast search		*/
-	if ((rc = stb6100_write_reg(state, STB6100_VCO, regs[STB6100_VCO])) < 0)
+	rc = stb6100_write_reg(state, STB6100_VCO, regs[STB6100_VCO]);
+	if (rc < 0)
 		return rc;
 
-	msleep(10);					/* wait for LO to lock		*/
+	msleep(10);  /*  This is dangerous as another (related) thread may start */ /* wait for LO to lock */
+
 	regs[STB6100_VCO] &= ~STB6100_VCO_OSCH;		/* vco search disabled		*/
 	regs[STB6100_VCO] |= STB6100_VCO_OCK;		/* search clock off		*/
-	if ((rc = stb6100_write_reg(state, STB6100_VCO, regs[STB6100_VCO])) < 0)
-		return rc;
-	regs[STB6100_FCCK] &= ~STB6100_FCCK_FCCK;       /* LPF BW clock disabled	*/
-	stb6100_normalise_regs(regs);
-	if ((rc = stb6100_write_reg_range(state, &regs[1], 1, STB6100_NUMREGS - 3)) < 0)
+	rc = stb6100_write_reg(state, STB6100_VCO, regs[STB6100_VCO]);
+	if (rc < 0)
 		return rc;
 
-	msleep(100);
+	rc = stb6100_write_reg(state, STB6100_FCCK, 0x0d);
+	if (rc < 0)
+		return rc;  /* Stop LPF calibration */
 
+	msleep(10);  /*  This is dangerous as another (related) thread may start */
+		     /* wait for stabilisation, (should not be necessary)		*/
 	return 0;
 }
 
@@ -433,8 +497,8 @@ static int stb6100_init(struct dvb_frontend *fe)
 	state->bandwidth	= status->bandwidth * 1000;	/* Hz	*/
 	state->reference	= status->refclock / 1000;	/* kHz	*/
 
-	/* Set default bandwidth.	*/
-	return stb6100_set_bandwidth(fe, state->bandwidth);
+	/* Set default bandwidth. Modified, PN 13-May-10	*/
+	return 0;
 }
 
 static int stb6100_get_state(struct dvb_frontend *fe,

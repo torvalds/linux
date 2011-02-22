@@ -120,7 +120,6 @@ static struct clocksource clocksource_mxc = {
 	.rating		= 200,
 	.read		= mx1_2_get_cycles,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.shift 		= 20,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -131,9 +130,7 @@ static int __init mxc_clocksource_init(struct clk *timer_clk)
 	if (timer_is_v2())
 		clocksource_mxc.read = v2_get_cycles;
 
-	clocksource_mxc.mult = clocksource_hz2mult(c,
-					clocksource_mxc.shift);
-	clocksource_register(&clocksource_mxc);
+	clocksource_register_hz(&clocksource_mxc, c);
 
 	return 0;
 }

@@ -1295,17 +1295,9 @@ static void sparc_lance_get_drvinfo(struct net_device *dev, struct ethtool_drvin
 	strcpy(info->version, "2.02");
 }
 
-static u32 sparc_lance_get_link(struct net_device *dev)
-{
-	/* We really do not keep track of this, but this
-	 * is better than not reporting anything at all.
-	 */
-	return 1;
-}
-
 static const struct ethtool_ops sparc_lance_ethtool_ops = {
 	.get_drvinfo		= sparc_lance_get_drvinfo,
-	.get_link		= sparc_lance_get_link,
+	.get_link		= ethtool_op_get_link,
 };
 
 static const struct net_device_ops sparc_lance_ops = {

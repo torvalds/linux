@@ -88,12 +88,6 @@ extern void inet_twdr_hangman(unsigned long data);
 extern void inet_twdr_twkill_work(struct work_struct *work);
 extern void inet_twdr_twcal_tick(unsigned long data);
 
-#if (BITS_PER_LONG == 64)
-#define INET_TIMEWAIT_ADDRCMP_ALIGN_BYTES 8
-#else
-#define INET_TIMEWAIT_ADDRCMP_ALIGN_BYTES 4
-#endif
-
 struct inet_bind_bucket;
 
 /*
@@ -117,15 +111,15 @@ struct inet_timewait_sock {
 #define tw_hash			__tw_common.skc_hash
 #define tw_prot			__tw_common.skc_prot
 #define tw_net			__tw_common.skc_net
+#define tw_daddr        	__tw_common.skc_daddr
+#define tw_rcv_saddr    	__tw_common.skc_rcv_saddr
 	int			tw_timeout;
 	volatile unsigned char	tw_substate;
-	/* 3 bits hole, try to pack */
 	unsigned char		tw_rcv_wscale;
+
 	/* Socket demultiplex comparisons on incoming packets. */
-	/* these five are in inet_sock */
+	/* these three are in inet_sock */
 	__be16			tw_sport;
-	__be32			tw_daddr __attribute__((aligned(INET_TIMEWAIT_ADDRCMP_ALIGN_BYTES)));
-	__be32			tw_rcv_saddr;
 	__be16			tw_dport;
 	__u16			tw_num;
 	kmemcheck_bitfield_begin(flags);
@@ -191,10 +185,10 @@ static inline struct inet_timewait_sock *inet_twsk(const struct sock *sk)
 	return (struct inet_timewait_sock *)sk;
 }
 
-static inline __be32 inet_rcv_saddr(const struct sock *sk)
+static inline __be32 sk_rcv_saddr(const struct sock *sk)
 {
-	return likely(sk->sk_state != TCP_TIME_WAIT) ?
-		inet_sk(sk)->inet_rcv_saddr : inet_twsk(sk)->tw_rcv_saddr;
+/* both inet_sk() and inet_twsk() store rcv_saddr in skc_rcv_saddr */
+	return sk->__sk_common.skc_rcv_saddr;
 }
 
 extern void inet_twsk_put(struct inet_timewait_sock *tw);

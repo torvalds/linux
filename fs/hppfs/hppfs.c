@@ -632,9 +632,16 @@ void hppfs_evict_inode(struct inode *ino)
 	mntput(ino->i_sb->s_fs_info);
 }
 
+static void hppfs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kfree(HPPFS_I(inode));
+}
+
 static void hppfs_destroy_inode(struct inode *inode)
 {
-	kfree(HPPFS_I(inode));
+	call_rcu(&inode->i_rcu, hppfs_i_callback);
 }
 
 static const struct super_operations hppfs_sbops = {

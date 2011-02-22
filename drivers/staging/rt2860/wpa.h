@@ -32,13 +32,14 @@
 	Revision History:
 	Who			When			What
 	--------	----------		----------------------------------------------
-	Name		Date			Modification logs
+	Name			Date			Modification logs
+	Justin P. Mattock	11/07/2010		Fix a typo
 */
 
 #ifndef	__WPA_H__
 #define	__WPA_H__
 
-/* EAPOL Key descripter frame format related length */
+/* EAPOL Key descriptor frame format related length */
 #define LEN_KEY_DESC_NONCE			32
 #define LEN_KEY_DESC_IV				16
 #define LEN_KEY_DESC_RSC			8

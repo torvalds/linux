@@ -506,7 +506,7 @@ static struct i2o_driver i2o_scsi_driver = {
  *	Locks: takes the controller lock on error path only
  */
 
-static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
+static int i2o_scsi_queuecommand_lck(struct scsi_cmnd *SCpnt,
 				 void (*done) (struct scsi_cmnd *))
 {
 	struct i2o_controller *c;
@@ -688,7 +688,9 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 
       exit:
 	return rc;
-};
+}
+
+static DEF_SCSI_QCMD(i2o_scsi_queuecommand)
 
 /**
  *	i2o_scsi_abort - abort a running command

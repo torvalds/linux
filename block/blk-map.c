@@ -201,6 +201,9 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 	for (i = 0; i < iov_count; i++) {
 		unsigned long uaddr = (unsigned long)iov[i].iov_base;
 
+		if (!iov[i].iov_len)
+			return -EINVAL;
+
 		if (uaddr & queue_dma_alignment(q)) {
 			unaligned = 1;
 			break;

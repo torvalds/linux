@@ -54,7 +54,6 @@
 #include <linux/gfp.h>
 #include <linux/poll.h>
 #include <linux/usb.h>
-#include <linux/smp_lock.h>
 #include <linux/usbdevice_fs.h>
 #include <linux/usb/hcd.h>
 #include <linux/mutex.h>

@@ -204,6 +204,8 @@ int ccw_device_tm_start_timeout(struct ccw_device *, struct tcw *,
 			    unsigned long, u8, int);
 int ccw_device_tm_intrg(struct ccw_device *cdev);
 
+int ccw_device_get_mdc(struct ccw_device *cdev, u8 mask);
+
 extern int ccw_device_set_online(struct ccw_device *cdev);
 extern int ccw_device_set_offline(struct ccw_device *cdev);
 

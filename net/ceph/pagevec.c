@@ -13,8 +13,7 @@
  * build a vector of user pages
  */
 struct page **ceph_get_direct_page_vector(const char __user *data,
-						 int num_pages,
-						 loff_t off, size_t len)
+					  int num_pages, bool write_page)
 {
 	struct page **pages;
 	int rc;
@@ -25,24 +24,27 @@ struct page **ceph_get_direct_page_vector(const char __user *data,
 
 	down_read(&current->mm->mmap_sem);
 	rc = get_user_pages(current, current->mm, (unsigned long)data,
-			    num_pages, 0, 0, pages, NULL);
+			    num_pages, write_page, 0, pages, NULL);
 	up_read(&current->mm->mmap_sem);
-	if (rc < 0)
+	if (rc < num_pages)
 		goto fail;
 	return pages;
 
 fail:
-	kfree(pages);
+	ceph_put_page_vector(pages, rc > 0 ? rc : 0, false);
 	return ERR_PTR(rc);
 }
 EXPORT_SYMBOL(ceph_get_direct_page_vector);
 
-void ceph_put_page_vector(struct page **pages, int num_pages)
+void ceph_put_page_vector(struct page **pages, int num_pages, bool dirty)
 {
 	int i;
 
-	for (i = 0; i < num_pages; i++)
+	for (i = 0; i < num_pages; i++) {
+		if (dirty)
+			set_page_dirty_lock(pages[i]);
 		put_page(pages[i]);
+	}
 	kfree(pages);
 }
 EXPORT_SYMBOL(ceph_put_page_vector);

@@ -39,7 +39,7 @@ struct linux_dev_v2_funcs {
 	int (*v2_dev_open)(char *devpath);
 	void (*v2_dev_close)(int d);
 	int (*v2_dev_read)(int d, char *buf, int nbytes);
-	int (*v2_dev_write)(int d, char *buf, int nbytes);
+	int (*v2_dev_write)(int d, const char *buf, int nbytes);
 	int (*v2_dev_seek)(int d, int hi, int lo);
 
 	/* Never issued (multistage load support) */

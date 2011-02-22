@@ -274,10 +274,10 @@ EXPORT_SYMBOL(at91_get_gpio_value);
 static u32 wakeups[MAX_GPIO_BANKS];
 static u32 backups[MAX_GPIO_BANKS];
 
-static int gpio_irq_set_wake(unsigned pin, unsigned state)
+static int gpio_irq_set_wake(struct irq_data *d, unsigned state)
 {
-	unsigned	mask = pin_to_mask(pin);
-	unsigned	bank = (pin - PIN_BASE) / 32;
+	unsigned	mask = pin_to_mask(d->irq);
+	unsigned	bank = (d->irq - PIN_BASE) / 32;
 
 	if (unlikely(bank >= MAX_GPIO_BANKS))
 		return -EINVAL;
@@ -344,25 +344,25 @@ void at91_gpio_resume(void)
  * IRQ0..IRQ6 should be configurable, e.g. level vs edge triggering.
  */
 
-static void gpio_irq_mask(unsigned pin)
+static void gpio_irq_mask(struct irq_data *d)
 {
-	void __iomem	*pio = pin_to_controller(pin);
-	unsigned	mask = pin_to_mask(pin);
+	void __iomem	*pio = pin_to_controller(d->irq);
+	unsigned	mask = pin_to_mask(d->irq);
 
 	if (pio)
 		__raw_writel(mask, pio + PIO_IDR);
 }
 
-static void gpio_irq_unmask(unsigned pin)
+static void gpio_irq_unmask(struct irq_data *d)
 {
-	void __iomem	*pio = pin_to_controller(pin);
-	unsigned	mask = pin_to_mask(pin);
+	void __iomem	*pio = pin_to_controller(d->irq);
+	unsigned	mask = pin_to_mask(d->irq);
 
 	if (pio)
 		__raw_writel(mask, pio + PIO_IER);
 }
 
-static int gpio_irq_type(unsigned pin, unsigned type)
+static int gpio_irq_type(struct irq_data *d, unsigned type)
 {
 	switch (type) {
 	case IRQ_TYPE_NONE:
@@ -375,10 +375,10 @@ static int gpio_irq_type(unsigned pin, unsigned type)
 
 static struct irq_chip gpio_irqchip = {
 	.name		= "GPIO",
-	.mask		= gpio_irq_mask,
-	.unmask		= gpio_irq_unmask,
-	.set_type	= gpio_irq_type,
-	.set_wake	= gpio_irq_set_wake,
+	.irq_mask	= gpio_irq_mask,
+	.irq_unmask	= gpio_irq_unmask,
+	.irq_set_type	= gpio_irq_type,
+	.irq_set_wake	= gpio_irq_set_wake,
 };
 
 static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
@@ -393,7 +393,7 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 	pio = at91_gpio->regbase;
 
 	/* temporarily mask (level sensitive) parent IRQ */
-	desc->chip->ack(irq);
+	desc->irq_data.chip->irq_ack(&desc->irq_data);
 	for (;;) {
 		/* Reading ISR acks pending (edge triggered) GPIO interrupts.
 		 * When there none are pending, we're finished unless we need
@@ -419,7 +419,7 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 					 * another IRQ must be generated before it actually gets
 					 * here to be disabled on the GPIO controller.
 					 */
-					gpio_irq_mask(pin);
+					gpio_irq_mask(irq_get_irq_data(pin));
 				}
 				else
 					generic_handle_irq(pin);
@@ -429,7 +429,7 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 			isr >>= 1;
 		}
 	}
-	desc->chip->unmask(irq);
+	desc->irq_data.chip->irq_unmask(&desc->irq_data);
 	/* now it may re-trigger */
 }
 

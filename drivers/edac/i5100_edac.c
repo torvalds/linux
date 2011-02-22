@@ -611,20 +611,17 @@ static int i5100_set_scrub_rate(struct mem_ctl_info *mci, u32 bandwidth)
 
 	bandwidth = 5900000 * i5100_mc_scrben(dw);
 
-	return 0;
+	return bandwidth;
 }
 
-static int i5100_get_scrub_rate(struct mem_ctl_info *mci,
-				u32 *bandwidth)
+static int i5100_get_scrub_rate(struct mem_ctl_info *mci)
 {
 	struct i5100_priv *priv = mci->pvt_info;
 	u32 dw;
 
 	pci_read_config_dword(priv->mc, I5100_MC, &dw);
 
-	*bandwidth = 5900000 * i5100_mc_scrben(dw);
-
-	return 0;
+	return 5900000 * i5100_mc_scrben(dw);
 }
 
 static struct pci_dev *pci_get_device_func(unsigned vendor,

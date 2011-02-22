@@ -1,7 +1,6 @@
 config DVB_DM1105
 	tristate "SDMC DM1105 based PCI cards"
 	depends on DVB_CORE && PCI && I2C
-	depends on INPUT
 	select DVB_PLL if !DVB_FE_CUSTOMISE
 	select DVB_STV0299 if !DVB_FE_CUSTOMISE
 	select DVB_STV0288 if !DVB_FE_CUSTOMISE
@@ -9,7 +8,7 @@ config DVB_DM1105
 	select DVB_CX24116 if !DVB_FE_CUSTOMISE
 	select DVB_SI21XX if !DVB_FE_CUSTOMISE
 	select DVB_DS3000 if !DVB_FE_CUSTOMISE
-	depends on VIDEO_IR
+	depends on RC_CORE
 	help
 	  Support for cards based on the SDMC DM1105 PCI chip like
 	  DvbWorld 2002

@@ -17,11 +17,11 @@
 #include <linux/interrupt.h>
 #include <linux/clockchips.h>
 #include <linux/sched.h>
-#include <linux/cnt32_to_63.h>
 
 #include <asm/div64.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
+#include <asm/sched_clock.h>
 #include <mach/regs-ost.h>
 
 /*
@@ -32,29 +32,18 @@
  * long as there is always less than 582 seconds between successive
  * calls to sched_clock() which should always be the case in practice.
  */
+static DEFINE_CLOCK_DATA(cd);
 
-#define OSCR2NS_SCALE_FACTOR 10
-
-static unsigned long oscr2ns_scale;
-
-static void __init set_oscr2ns_scale(unsigned long oscr_rate)
+unsigned long long notrace sched_clock(void)
 {
-	unsigned long long v = 1000000000ULL << OSCR2NS_SCALE_FACTOR;
-	do_div(v, oscr_rate);
-	oscr2ns_scale = v;
-	/*
-	 * We want an even value to automatically clear the top bit
-	 * returned by cnt32_to_63() without an additional run time
-	 * instruction. So if the LSB is 1 then round it up.
-	 */
-	if (oscr2ns_scale & 1)
-		oscr2ns_scale++;
+	u32 cyc = OSCR;
+	return cyc_to_sched_clock(&cd, cyc, (u32)~0);
 }
 
-unsigned long long sched_clock(void)
+static void notrace pxa_update_sched_clock(void)
 {
-	unsigned long long v = cnt32_to_63(OSCR);
-	return (v * oscr2ns_scale) >> OSCR2NS_SCALE_FACTOR;
+	u32 cyc = OSCR;
+	update_sched_clock(&cd, cyc, (u32)~0);
 }
 
 
@@ -127,7 +116,6 @@ static struct clocksource cksrc_pxa_oscr0 = {
 	.rating         = 200,
 	.read           = pxa_read_oscr,
 	.mask           = CLOCKSOURCE_MASK(32),
-	.shift          = 20,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -145,7 +133,7 @@ static void __init pxa_timer_init(void)
 	OIER = 0;
 	OSSR = OSSR_M0 | OSSR_M1 | OSSR_M2 | OSSR_M3;
 
-	set_oscr2ns_scale(clock_tick_rate);
+	init_sched_clock(&cd, pxa_update_sched_clock, 32, clock_tick_rate);
 
 	ckevt_pxa_osmr0.mult =
 		div_sc(clock_tick_rate, NSEC_PER_SEC, ckevt_pxa_osmr0.shift);
@@ -155,12 +143,9 @@ static void __init pxa_timer_init(void)
 		clockevent_delta2ns(MIN_OSCR_DELTA * 2, &ckevt_pxa_osmr0) + 1;
 	ckevt_pxa_osmr0.cpumask = cpumask_of(0);
 
-	cksrc_pxa_oscr0.mult =
-		clocksource_hz2mult(clock_tick_rate, cksrc_pxa_oscr0.shift);
-
 	setup_irq(IRQ_OST0, &pxa_ost0_irq);
 
-	clocksource_register(&cksrc_pxa_oscr0);
+	clocksource_register_hz(&cksrc_pxa_oscr0, clock_tick_rate);
 	clockevents_register_device(&ckevt_pxa_osmr0);
 }
 

@@ -717,8 +717,8 @@ static const struct intel_agp_driver_description {
 	{ PCI_DEVICE_ID_INTEL_82820_UP_HB, "i820", &intel_820_driver },
 	{ PCI_DEVICE_ID_INTEL_82830_HB, "830M", &intel_830mp_driver },
 	{ PCI_DEVICE_ID_INTEL_82840_HB, "i840", &intel_840_driver },
-	{ PCI_DEVICE_ID_INTEL_82845_HB, "845G", &intel_845_driver },
-	{ PCI_DEVICE_ID_INTEL_82845G_HB, "830M", &intel_845_driver },
+	{ PCI_DEVICE_ID_INTEL_82845_HB, "i845", &intel_845_driver },
+	{ PCI_DEVICE_ID_INTEL_82845G_HB, "845G", &intel_845_driver },
 	{ PCI_DEVICE_ID_INTEL_82850_HB, "i850", &intel_850_driver },
 	{ PCI_DEVICE_ID_INTEL_82854_HB, "854", &intel_845_driver },
 	{ PCI_DEVICE_ID_INTEL_82855PM_HB, "855PM", &intel_845_driver },
@@ -828,13 +828,8 @@ static void __devexit agp_intel_remove(struct pci_dev *pdev)
 static int agp_intel_resume(struct pci_dev *pdev)
 {
 	struct agp_bridge_data *bridge = pci_get_drvdata(pdev);
-	int ret_val;
 
 	bridge->driver->configure();
-
-	ret_val = agp_rebind_memory();
-	if (ret_val != 0)
-		return ret_val;
 
 	return 0;
 }

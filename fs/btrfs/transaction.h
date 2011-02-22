@@ -62,6 +62,7 @@ struct btrfs_pending_snapshot {
 	struct btrfs_block_rsv block_rsv;
 	/* extra metadata reseration for relocation */
 	int error;
+	bool readonly;
 	struct list_head list;
 };
 

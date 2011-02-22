@@ -33,9 +33,8 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/input.h>
 #include <linux/spinlock.h>
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 
 #include "budget.h"
 
@@ -96,7 +95,7 @@ MODULE_PARM_DESC(ir_debug, "enable debugging information for IR decoding");
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 struct budget_ci_ir {
-	struct input_dev *dev;
+	struct rc_dev *dev;
 	struct tasklet_struct msp430_irq_tasklet;
 	char name[72]; /* 40 + 32 for (struct saa7146_dev).name */
 	char phys[32];
@@ -118,7 +117,7 @@ struct budget_ci {
 static void msp430_ir_interrupt(unsigned long data)
 {
 	struct budget_ci *budget_ci = (struct budget_ci *) data;
-	struct input_dev *dev = budget_ci->ir.dev;
+	struct rc_dev *dev = budget_ci->ir.dev;
 	u32 command = ttpci_budget_debiread(&budget_ci->budget, DEBINOSWAP, DEBIADDR_IR, 2, 1, 0) >> 8;
 
 	/*
@@ -160,19 +159,17 @@ static void msp430_ir_interrupt(unsigned long data)
 	    budget_ci->ir.rc5_device != (command & 0x1f))
 		return;
 
-	ir_keydown(dev, budget_ci->ir.ir_key, (command & 0x20) ? 1 : 0);
+	rc_keydown(dev, budget_ci->ir.ir_key, (command & 0x20) ? 1 : 0);
 }
 
 static int msp430_ir_init(struct budget_ci *budget_ci)
 {
 	struct saa7146_dev *saa = budget_ci->budget.dev;
-	struct input_dev *input_dev = budget_ci->ir.dev;
+	struct rc_dev *dev;
 	int error;
-	char *ir_codes = NULL;
 
-
-	budget_ci->ir.dev = input_dev = input_allocate_device();
-	if (!input_dev) {
+	dev = rc_allocate_device();
+	if (!dev) {
 		printk(KERN_ERR "budget_ci: IR interface initialisation failed\n");
 		return -ENOMEM;
 	}
@@ -182,19 +179,20 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	snprintf(budget_ci->ir.phys, sizeof(budget_ci->ir.phys),
 		 "pci-%s/ir0", pci_name(saa->pci));
 
-	input_dev->name = budget_ci->ir.name;
-
-	input_dev->phys = budget_ci->ir.phys;
-	input_dev->id.bustype = BUS_PCI;
-	input_dev->id.version = 1;
+	dev->driver_name = MODULE_NAME;
+	dev->input_name = budget_ci->ir.name;
+	dev->input_phys = budget_ci->ir.phys;
+	dev->input_id.bustype = BUS_PCI;
+	dev->input_id.version = 1;
+	dev->scanmask = 0xff;
 	if (saa->pci->subsystem_vendor) {
-		input_dev->id.vendor = saa->pci->subsystem_vendor;
-		input_dev->id.product = saa->pci->subsystem_device;
+		dev->input_id.vendor = saa->pci->subsystem_vendor;
+		dev->input_id.product = saa->pci->subsystem_device;
 	} else {
-		input_dev->id.vendor = saa->pci->vendor;
-		input_dev->id.product = saa->pci->device;
+		dev->input_id.vendor = saa->pci->vendor;
+		dev->input_id.product = saa->pci->device;
 	}
-	input_dev->dev.parent = &saa->pci->dev;
+	dev->dev.parent = &saa->pci->dev;
 
 	if (rc5_device < 0)
 		budget_ci->ir.rc5_device = IR_DEVICE_ANY;
@@ -208,7 +206,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	case 0x1011:
 	case 0x1012:
 		/* The hauppauge keymap is a superset of these remotes */
-		ir_codes = RC_MAP_HAUPPAUGE_NEW;
+		dev->map_name = RC_MAP_HAUPPAUGE_NEW;
 
 		if (rc5_device < 0)
 			budget_ci->ir.rc5_device = 0x1f;
@@ -218,23 +216,22 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	case 0x1019:
 	case 0x101a:
 		/* for the Technotrend 1500 bundled remote */
-		ir_codes = RC_MAP_TT_1500;
+		dev->map_name = RC_MAP_TT_1500;
 		break;
 	default:
 		/* unknown remote */
-		ir_codes = RC_MAP_BUDGET_CI_OLD;
+		dev->map_name = RC_MAP_BUDGET_CI_OLD;
 		break;
 	}
 
-	error = ir_input_register(input_dev, ir_codes, NULL, MODULE_NAME);
+	error = rc_register_device(dev);
 	if (error) {
 		printk(KERN_ERR "budget_ci: could not init driver for IR device (code %d)\n", error);
+		rc_free_device(dev);
 		return error;
 	}
 
-	/* note: these must be after input_register_device */
-	input_dev->rep[REP_DELAY] = 400;
-	input_dev->rep[REP_PERIOD] = 250;
+	budget_ci->ir.dev = dev;
 
 	tasklet_init(&budget_ci->ir.msp430_irq_tasklet, msp430_ir_interrupt,
 		     (unsigned long) budget_ci);
@@ -248,13 +245,12 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 static void msp430_ir_deinit(struct budget_ci *budget_ci)
 {
 	struct saa7146_dev *saa = budget_ci->budget.dev;
-	struct input_dev *dev = budget_ci->ir.dev;
 
 	SAA7146_IER_DISABLE(saa, MASK_06);
 	saa7146_setgpio(saa, 3, SAA7146_GPIO_INPUT);
 	tasklet_kill(&budget_ci->ir.msp430_irq_tasklet);
 
-	ir_input_unregister(dev);
+	rc_unregister_device(budget_ci->ir.dev);
 }
 
 static int ciintf_read_attribute_mem(struct dvb_ca_en50221 *ca, int slot, int address)

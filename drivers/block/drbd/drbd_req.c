@@ -258,7 +258,7 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 		if (!hlist_unhashed(&req->colision))
 			hlist_del(&req->colision);
 		else
-			D_ASSERT((s & RQ_NET_MASK) == 0);
+			D_ASSERT((s & (RQ_NET_MASK & ~RQ_NET_DONE)) == 0);
 
 		/* for writes we need to do some extra housekeeping */
 		if (rw == WRITE)
@@ -813,7 +813,8 @@ static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio)
 			     mdev->state.conn >= C_CONNECTED));
 
 	if (!(local || remote) && !is_susp(mdev->state)) {
-		dev_err(DEV, "IO ERROR: neither local nor remote disk\n");
+		if (__ratelimit(&drbd_ratelimit_state))
+			dev_err(DEV, "IO ERROR: neither local nor remote disk\n");
 		goto fail_free_complete;
 	}
 
@@ -942,12 +943,21 @@ allocate_barrier:
 	if (local) {
 		req->private_bio->bi_bdev = mdev->ldev->backing_bdev;
 
-		if (FAULT_ACTIVE(mdev, rw == WRITE ? DRBD_FAULT_DT_WR
-				     : rw == READ  ? DRBD_FAULT_DT_RD
-				     :               DRBD_FAULT_DT_RA))
+		/* State may have changed since we grabbed our reference on the
+		 * mdev->ldev member. Double check, and short-circuit to endio.
+		 * In case the last activity log transaction failed to get on
+		 * stable storage, and this is a WRITE, we may not even submit
+		 * this bio. */
+		if (get_ldev(mdev)) {
+			if (FAULT_ACTIVE(mdev, rw == WRITE ? DRBD_FAULT_DT_WR
+					     : rw == READ  ? DRBD_FAULT_DT_RD
+					     :               DRBD_FAULT_DT_RA))
+				bio_endio(req->private_bio, -EIO);
+			else
+				generic_make_request(req->private_bio);
+			put_ldev(mdev);
+		} else
 			bio_endio(req->private_bio, -EIO);
-		else
-			generic_make_request(req->private_bio);
 	}
 
 	/* we need to plug ALWAYS since we possibly need to kick lo_dev.
@@ -1019,20 +1029,6 @@ int drbd_make_request_26(struct request_queue *q, struct bio *bio)
 
 	if (drbd_fail_request_early(mdev, bio_data_dir(bio) & WRITE)) {
 		bio_endio(bio, -EPERM);
-		return 0;
-	}
-
-	/* Reject barrier requests if we know the underlying device does
-	 * not support them.
-	 * XXX: Need to get this info from peer as well some how so we
-	 * XXX: reject if EITHER side/data/metadata area does not support them.
-	 *
-	 * because of those XXX, this is not yet enabled,
-	 * i.e. in drbd_init_set_defaults we set the NO_BARRIER_SUPP bit.
-	 */
-	if (unlikely(bio->bi_rw & REQ_HARDBARRIER) && test_bit(NO_BARRIER_SUPP, &mdev->flags)) {
-		/* dev_warn(DEV, "Rejecting barrier request as underlying device does not support\n"); */
-		bio_endio(bio, -EOPNOTSUPP);
 		return 0;
 	}
 

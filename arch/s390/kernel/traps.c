@@ -365,12 +365,10 @@ static inline void __user *get_psw_address(struct pt_regs *regs,
 		((regs->psw.addr - (pgm_int_code >> 16)) & PSW_ADDR_INSN);
 }
 
-void __kprobes do_single_step(struct pt_regs *regs)
+void __kprobes do_per_trap(struct pt_regs *regs)
 {
-	if (notify_die(DIE_SSTEP, "sstep", regs, 0, 0,
-					SIGTRAP) == NOTIFY_STOP){
+	if (notify_die(DIE_SSTEP, "sstep", regs, 0, 0, SIGTRAP) == NOTIFY_STOP)
 		return;
-	}
 	if (tracehook_consider_fatal_signal(current, SIGTRAP))
 		force_sig(SIGTRAP, current);
 }
@@ -451,8 +449,8 @@ static inline void do_fp_trap(struct pt_regs *regs, void __user *location,
 		"floating point exception", regs, &si);
 }
 
-static void illegal_op(struct pt_regs *regs, long pgm_int_code,
-		       unsigned long trans_exc_code)
+static void __kprobes illegal_op(struct pt_regs *regs, long pgm_int_code,
+				 unsigned long trans_exc_code)
 {
 	siginfo_t info;
         __u8 opcode[6];
@@ -688,7 +686,7 @@ static void space_switch_exception(struct pt_regs *regs, long pgm_int_code,
 	do_trap(pgm_int_code, SIGILL, "space switch event", regs, &info);
 }
 
-asmlinkage void kernel_stack_overflow(struct pt_regs * regs)
+asmlinkage void __kprobes kernel_stack_overflow(struct pt_regs * regs)
 {
 	bust_spinlocks(1);
 	printk("Kernel stack overflow.\n");
@@ -733,5 +731,6 @@ void __init trap_init(void)
         pgm_check_table[0x15] = &operand_exception;
         pgm_check_table[0x1C] = &space_switch_exception;
         pgm_check_table[0x1D] = &hfp_sqrt_exception;
-	pfault_irq_init();
+	/* Enable machine checks early. */
+	local_mcck_enable();
 }

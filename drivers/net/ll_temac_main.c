@@ -238,7 +238,7 @@ static int temac_dma_bd_init(struct net_device *ndev)
 		goto out;
 	}
 	/* allocate the tx and rx ring buffer descriptors. */
-	/* returns a virtual addres and a physical address. */
+	/* returns a virtual address and a physical address. */
 	lp->tx_bd_v = dma_alloc_coherent(ndev->dev.parent,
 					 sizeof(*lp->tx_bd_v) * TX_BD_NUM,
 					 &lp->tx_bd_p, GFP_KERNEL);
@@ -692,7 +692,7 @@ static int temac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	cur_p->app0 = 0;
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		unsigned int csum_start_off = skb_transport_offset(skb);
+		unsigned int csum_start_off = skb_checksum_start_offset(skb);
 		unsigned int csum_index_off = csum_start_off + skb->csum_offset;
 
 		cur_p->app0 |= 1; /* TX Checksum Enabled */
@@ -952,7 +952,7 @@ static const struct attribute_group temac_attr_group = {
 	.attrs = temac_device_attrs,
 };
 
-static int __init
+static int __devinit
 temac_of_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct device_node *np;

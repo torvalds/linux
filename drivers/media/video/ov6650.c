@@ -754,7 +754,7 @@ static int ov6650_g_fmt(struct v4l2_subdev *sd,
 
 static bool is_unscaled_ok(int width, int height, struct v4l2_rect *rect)
 {
-	return (width > rect->width >> 1 || height > rect->height >> 1);
+	return width > rect->width >> 1 || height > rect->height >> 1;
 }
 
 static u8 to_clkrc(struct v4l2_fract *timeperframe,
@@ -839,8 +839,6 @@ static int ov6650_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 		dev_dbg(&client->dev, "pixel format SBGGR8_1X8 (untested)\n");
 		coma_mask |= COMA_BW | COMA_BYTE_SWAP | COMA_WORD_SWAP;
 		coma_set |= COMA_RAW_RGB | COMA_RGB;
-		break;
-	case 0:
 		break;
 	default:
 		dev_err(&client->dev, "Pixel format not handled: 0x%x\n", code);
@@ -1176,7 +1174,6 @@ static int ov6650_probe(struct i2c_client *client,
 
 	if (ret) {
 		icd->ops = NULL;
-		i2c_set_clientdata(client, NULL);
 		kfree(priv);
 	}
 
@@ -1187,7 +1184,6 @@ static int ov6650_remove(struct i2c_client *client)
 {
 	struct ov6650 *priv = to_ov6650(client);
 
-	i2c_set_clientdata(client, NULL);
 	kfree(priv);
 	return 0;
 }

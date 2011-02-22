@@ -651,7 +651,7 @@ static int s5pc110_read_bufferram(struct mtd_info *mtd, int area,
 	void __iomem *p;
 	void *buf = (void *) buffer;
 	dma_addr_t dma_src, dma_dst;
-	int err, page_dma = 0;
+	int err, ofs, page_dma = 0;
 	struct device *dev = &onenand->pdev->dev;
 
 	p = this->base + area;
@@ -677,10 +677,13 @@ static int s5pc110_read_bufferram(struct mtd_info *mtd, int area,
 		if (!page)
 			goto normal;
 
+		/* Page offset */
+		ofs = ((size_t) buf & ~PAGE_MASK);
 		page_dma = 1;
+
 		/* DMA routine */
 		dma_src = onenand->phys_base + (p - this->base);
-		dma_dst = dma_map_page(dev, page, 0, count, DMA_FROM_DEVICE);
+		dma_dst = dma_map_page(dev, page, ofs, count, DMA_FROM_DEVICE);
 	} else {
 		/* DMA routine */
 		dma_src = onenand->phys_base + (p - this->base);

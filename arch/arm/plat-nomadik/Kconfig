@@ -14,6 +14,7 @@ if PLAT_NOMADIK
 
 config HAS_MTU
 	bool
+	select HAVE_SCHED_CLOCK
 	help
 	  Support for Multi Timer Unit. MTU provides access
 	  to multiple interrupt generating programmable

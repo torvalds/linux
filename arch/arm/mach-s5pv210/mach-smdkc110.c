@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/serial_core.h>
 #include <linux/i2c.h>
+#include <linux/sysdev.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -80,6 +81,7 @@ static struct s3c_ide_platdata smdkc110_ide_pdata __initdata = {
 };
 
 static struct platform_device *smdkc110_devices[] __initdata = {
+	&samsung_asoc_dma,
 	&s5pv210_device_iis0,
 	&s5pv210_device_ac97,
 	&s5pv210_device_spdif,
@@ -93,6 +95,7 @@ static struct platform_device *smdkc110_devices[] __initdata = {
 
 static struct i2c_board_info smdkc110_i2c_devs0[] __initdata = {
 	{ I2C_BOARD_INFO("24c08", 0x50), },     /* Samsung S524AD0XD1 */
+	{ I2C_BOARD_INFO("wm8580", 0x1b), },
 };
 
 static struct i2c_board_info smdkc110_i2c_devs1[] __initdata = {

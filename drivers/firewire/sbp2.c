@@ -1468,7 +1468,7 @@ static int sbp2_map_scatterlist(struct sbp2_command_orb *orb,
 
 /* SCSI stack integration */
 
-static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
+static int sbp2_scsi_queuecommand_lck(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 {
 	struct sbp2_logical_unit *lu = cmd->device->hostdata;
 	struct fw_device *device = target_device(lu->tgt);
@@ -1533,6 +1533,8 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	kref_put(&orb->base.kref, free_orb);
 	return retval;
 }
+
+static DEF_SCSI_QCMD(sbp2_scsi_queuecommand)
 
 static int sbp2_scsi_slave_alloc(struct scsi_device *sdev)
 {

@@ -825,7 +825,7 @@ unsigned int cxgbi_sock_select_mss(struct cxgbi_sock *csk, unsigned int pmtu)
 	unsigned int idx;
 	struct dst_entry *dst = csk->dst;
 
-	csk->advmss = dst_metric(dst, RTAX_ADVMSS);
+	csk->advmss = dst_metric_advmss(dst);
 
 	if (csk->advmss > pmtu - 40)
 		csk->advmss = pmtu - 40;

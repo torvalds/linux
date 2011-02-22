@@ -212,6 +212,7 @@ static int s3c64xx_dma_start(struct s3c2410_dma_chan *chan)
 
 	config = readl(chan->regs + PL080S_CH_CONFIG);
 	config |= PL080_CONFIG_ENABLE;
+	config &= ~PL080_CONFIG_HALT;
 
 	pr_debug("%s: writing config %08x\n", __func__, config);
 	writel(config, chan->regs + PL080S_CH_CONFIG);
@@ -740,7 +741,7 @@ static int __init s3c64xx_dma_init(void)
 	/* Set all DMA configuration to be DMA, not SDMA */
 	writel(0xffffff, S3C_SYSREG(0x110));
 
-	/* Register standard DMA controlers */
+	/* Register standard DMA controllers */
 	s3c64xx_dma_init1(0, DMACH_UART0, IRQ_DMA0, 0x75000000);
 	s3c64xx_dma_init1(8, DMACH_PCM1_TX, IRQ_DMA1, 0x75100000);
 

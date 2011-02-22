@@ -25,8 +25,8 @@
 #include <linux/timer.h>
 #include <linux/io.h>
 #include <linux/seq_file.h>
+#include <linux/clkdev.h>
 
-#include <asm/clkdev.h>
 #include <mach/hardware.h>
 #include <mach/syscon.h>
 

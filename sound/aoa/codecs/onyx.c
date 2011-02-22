@@ -1114,7 +1114,6 @@ static int onyx_i2c_remove(struct i2c_client *client)
 	of_node_put(onyx->codec.node);
 	if (onyx->codec_info)
 		kfree(onyx->codec_info);
-	i2c_set_clientdata(client, onyx);
 	kfree(onyx);
 	return 0;
 }

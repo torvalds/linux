@@ -22,6 +22,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AK4535 if I2C
 	select SND_SOC_AK4642 if I2C
 	select SND_SOC_AK4671 if I2C
+	select SND_SOC_ALC5623 if I2C
 	select SND_SOC_CQ0093VC if MFD_DAVINCI_VOICECODEC
 	select SND_SOC_CS42L51 if I2C
 	select SND_SOC_CS4270 if I2C
@@ -43,7 +44,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TWL6040 if TWL4030_CORE
 	select SND_SOC_UDA134X
 	select SND_SOC_UDA1380 if I2C
-	select SND_SOC_WL1273 if WL1273_CORE
+	select SND_SOC_WL1273 if RADIO_WL1273
 	select SND_SOC_WM2000 if I2C
 	select SND_SOC_WM8350 if MFD_WM8350
 	select SND_SOC_WM8400 if MFD_WM8400
@@ -54,9 +55,11 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8727
 	select SND_SOC_WM8728 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8731 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8737 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8741 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8750 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8753 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8770 if SPI_MASTER
 	select SND_SOC_WM8776 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8804 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8900 if I2C
@@ -75,6 +78,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8990 if I2C
 	select SND_SOC_WM8993 if I2C
 	select SND_SOC_WM8994 if MFD_WM8994
+	select SND_SOC_WM8995 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM9081 if I2C
 	select SND_SOC_WM9090 if I2C
 	select SND_SOC_WM9705 if SND_SOC_AC97_BUS
@@ -130,6 +134,9 @@ config SND_SOC_AK4642
 config SND_SOC_AK4671
 	tristate
 
+config SND_SOC_ALC5623
+       tristate
+
 config SND_SOC_CQ0093VC
 	tristate
 
@@ -159,6 +166,9 @@ config SND_SOC_L3
 
 config SND_SOC_DA7210
         tristate
+
+config SND_SOC_DMIC
+	tristate
 
 config SND_SOC_MAX98088
        tristate
@@ -231,6 +241,9 @@ config SND_SOC_WM8728
 config SND_SOC_WM8731
 	tristate
 
+config SND_SOC_WM8737
+	tristate
+
 config SND_SOC_WM8741
 	tristate
 
@@ -238,6 +251,9 @@ config SND_SOC_WM8750
 	tristate
 
 config SND_SOC_WM8753
+	tristate
+
+config SND_SOC_WM8770
 	tristate
 
 config SND_SOC_WM8776
@@ -294,6 +310,9 @@ config SND_SOC_WM8993
 config SND_SOC_WM8994
 	tristate
 
+config SND_SOC_WM8995
+	tristate
+
 config SND_SOC_WM9081
 	tristate
 
@@ -318,3 +337,4 @@ config SND_SOC_WM2000
 
 config SND_SOC_WM9090
 	tristate
+

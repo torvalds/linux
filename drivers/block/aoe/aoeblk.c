@@ -180,9 +180,6 @@ aoeblk_make_request(struct request_queue *q, struct bio *bio)
 		BUG();
 		bio_endio(bio, -ENXIO);
 		return 0;
-	} else if (bio->bi_rw & REQ_HARDBARRIER) {
-		bio_endio(bio, -EOPNOTSUPP);
-		return 0;
 	} else if (bio->bi_io_vec == NULL) {
 		printk(KERN_ERR "aoe: bi_io_vec is NULL\n");
 		BUG();

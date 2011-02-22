@@ -111,17 +111,3 @@ void __init lacie_v2_hdd_power_init(int hdd_num)
 			pr_err("Failed to power up HDD%d\n", i + 1);
 	}
 }
-
-/*****************************************************************************
- * Timer
- ****************************************************************************/
-
-static void lacie_v2_timer_init(void)
-{
-	kirkwood_tclk = 166666667;
-	orion_time_init(IRQ_KIRKWOOD_BRIDGE, kirkwood_tclk);
-}
-
-struct sys_timer lacie_v2_timer = {
-	.init = lacie_v2_timer_init,
-};

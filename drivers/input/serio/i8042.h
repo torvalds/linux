@@ -89,15 +89,19 @@
 #ifdef DEBUG
 static unsigned long i8042_start_time;
 #define dbg_init() do { i8042_start_time = jiffies; } while (0)
-#define dbg(format, arg...) 							\
-	do { 									\
+#define dbg(format, arg...)							\
+	do {									\
 		if (i8042_debug)						\
-			printk(KERN_DEBUG __FILE__ ": " format " [%d]\n" ,	\
-	 			## arg, (int) (jiffies - i8042_start_time));	\
+			printk(KERN_DEBUG KBUILD_MODNAME ": [%d] " format,	\
+			       (int) (jiffies - i8042_start_time), ##arg);	\
 	} while (0)
 #else
 #define dbg_init() do { } while (0)
-#define dbg(format, arg...) do {} while (0)
+#define dbg(format, arg...)							\
+	do {									\
+		if (0)								\
+			printk(KERN_DEBUG pr_fmt(format), ##arg);		\
+	} while (0)
 #endif
 
 #endif /* _I8042_H */

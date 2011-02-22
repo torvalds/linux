@@ -33,7 +33,7 @@
  */
 int pcie_port_acpi_setup(struct pci_dev *port, int *srv_mask)
 {
-	acpi_status status;
+	struct acpi_pci_root *root;
 	acpi_handle handle;
 	u32 flags;
 
@@ -44,26 +44,11 @@ int pcie_port_acpi_setup(struct pci_dev *port, int *srv_mask)
 	if (!handle)
 		return -EINVAL;
 
-	flags = OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL
-		| OSC_PCI_EXPRESS_NATIVE_HP_CONTROL
-		| OSC_PCI_EXPRESS_PME_CONTROL;
-
-	if (pci_aer_available()) {
-		if (aer_acpi_firmware_first())
-			dev_dbg(&port->dev, "PCIe errors handled by BIOS.\n");
-		else
-			flags |= OSC_PCI_EXPRESS_AER_CONTROL;
-	}
-
-	status = acpi_pci_osc_control_set(handle, &flags,
-					OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL);
-	if (ACPI_FAILURE(status)) {
-		dev_dbg(&port->dev, "ACPI _OSC request failed (code %d)\n",
-			status);
+	root = acpi_pci_find_root(handle);
+	if (!root)
 		return -ENODEV;
-	}
 
-	dev_info(&port->dev, "ACPI _OSC control granted for 0x%02x\n", flags);
+	flags = root->osc_control_set;
 
 	*srv_mask = PCIE_PORT_SERVICE_VC;
 	if (flags & OSC_PCI_EXPRESS_NATIVE_HP_CONTROL)

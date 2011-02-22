@@ -268,6 +268,10 @@ static int basic_dump(struct tcf_proto *tp, unsigned long fh,
 		goto nla_put_failure;
 
 	nla_nest_end(skb, nest);
+
+	if (tcf_exts_dump_stats(skb, &f->exts, &basic_ext_map) < 0)
+		goto nla_put_failure;
+
 	return skb->len;
 
 nla_put_failure:

@@ -5,7 +5,7 @@
 #define M32R_MAX_PCC	2
 
 /*
- * M32R PC Card Controler
+ * M32R PC Card Controller
  */
 #define M32R_PCC0_BASE        0x00ef7000
 #define M32R_PCC1_BASE        0x00ef7020

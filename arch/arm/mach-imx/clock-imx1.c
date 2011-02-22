@@ -22,8 +22,7 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-
-#include <asm/clkdev.h>
+#include <linux/clkdev.h>
 
 #include <mach/clock.h>
 #include <mach/hardware.h>

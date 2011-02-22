@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_pci.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>

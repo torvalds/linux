@@ -229,6 +229,13 @@ void xhci_ring_device(struct xhci_hcd *xhci, int slot_id)
 static void xhci_disable_port(struct xhci_hcd *xhci, u16 wIndex,
 		u32 __iomem *addr, u32 port_status)
 {
+	/* Don't allow the USB core to disable SuperSpeed ports. */
+	if (xhci->port_array[wIndex] == 0x03) {
+		xhci_dbg(xhci, "Ignoring request to disable "
+				"SuperSpeed port.\n");
+		return;
+	}
+
 	/* Write 1 to disable the port */
 	xhci_writel(xhci, port_status | PORT_PE, addr);
 	port_status = xhci_readl(xhci, addr);

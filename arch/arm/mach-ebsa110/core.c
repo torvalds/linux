@@ -35,20 +35,20 @@
 #define IRQ_STAT		0xff000000	/* read */
 #define IRQ_MCLR		0xff000000	/* write */
 
-static void ebsa110_mask_irq(unsigned int irq)
+static void ebsa110_mask_irq(struct irq_data *d)
 {
-	__raw_writeb(1 << irq, IRQ_MCLR);
+	__raw_writeb(1 << d->irq, IRQ_MCLR);
 }
 
-static void ebsa110_unmask_irq(unsigned int irq)
+static void ebsa110_unmask_irq(struct irq_data *d)
 {
-	__raw_writeb(1 << irq, IRQ_MSET);
+	__raw_writeb(1 << d->irq, IRQ_MSET);
 }
 
 static struct irq_chip ebsa110_irq_chip = {
-	.ack	= ebsa110_mask_irq,
-	.mask	= ebsa110_mask_irq,
-	.unmask = ebsa110_unmask_irq,
+	.irq_ack	= ebsa110_mask_irq,
+	.irq_mask	= ebsa110_mask_irq,
+	.irq_unmask	= ebsa110_unmask_irq,
 };
  
 static void __init ebsa110_init_irq(void)

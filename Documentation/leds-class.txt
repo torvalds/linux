@@ -60,15 +60,18 @@ Hardware accelerated blink of LEDs
 
 Some LEDs can be programmed to blink without any CPU interaction. To
 support this feature, a LED driver can optionally implement the
-blink_set() function (see <linux/leds.h>). If implemented, triggers can
-attempt to use it before falling back to software timers. The blink_set()
-function should return 0 if the blink setting is supported, or -EINVAL
-otherwise, which means that LED blinking will be handled by software.
+blink_set() function (see <linux/leds.h>). To set an LED to blinking,
+however, it is better to use use the API function led_blink_set(),
+as it will check and implement software fallback if necessary.
 
-The blink_set() function should choose a user friendly blinking
-value if it is called with *delay_on==0 && *delay_off==0 parameters. In
-this case the driver should give back the chosen value through delay_on
-and delay_off parameters to the leds subsystem.
+To turn off blinking again, use the API function led_brightness_set()
+as that will not just set the LED brightness but also stop any software
+timers that may have been required for blinking.
+
+The blink_set() function should choose a user friendly blinking value
+if it is called with *delay_on==0 && *delay_off==0 parameters. In this
+case the driver should give back the chosen value through delay_on and
+delay_off parameters to the leds subsystem.
 
 Setting the brightness to zero with brightness_set() callback function
 should completely turn off the LED and cancel the previously programmed

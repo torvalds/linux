@@ -19,6 +19,8 @@
 #include <linux/kernel_stat.h>
 #include <linux/rcupdate.h>
 #include <linux/posix-timers.h>
+#include <linux/cpu.h>
+#include <linux/kprobes.h>
 
 #include <asm/s390_ext.h>
 #include <asm/timer.h>
@@ -121,7 +123,7 @@ void account_system_vtime(struct task_struct *tsk)
 }
 EXPORT_SYMBOL_GPL(account_system_vtime);
 
-void vtime_start_cpu(__u64 int_clock, __u64 enter_timer)
+void __kprobes vtime_start_cpu(__u64 int_clock, __u64 enter_timer)
 {
 	struct s390_idle_data *idle = &__get_cpu_var(s390_idle);
 	struct vtimer_queue *vq = &__get_cpu_var(virt_cpu_timer);
@@ -161,7 +163,7 @@ void vtime_start_cpu(__u64 int_clock, __u64 enter_timer)
 	idle->sequence++;
 }
 
-void vtime_stop_cpu(void)
+void __kprobes vtime_stop_cpu(void)
 {
 	struct s390_idle_data *idle = &__get_cpu_var(s390_idle);
 	struct vtimer_queue *vq = &__get_cpu_var(virt_cpu_timer);
@@ -322,6 +324,7 @@ static void do_cpu_timer_interrupt(unsigned int ext_int_code,
 	struct list_head cb_list;	/* the callback queue */
 	__u64 elapsed, next;
 
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_TMR]++;
 	INIT_LIST_HEAD(&cb_list);
 	vq = &__get_cpu_var(virt_cpu_timer);
 
@@ -566,6 +569,23 @@ void init_cpu_vtimer(void)
 	__ctl_set_bit(0,10);
 }
 
+static int __cpuinit s390_nohz_notify(struct notifier_block *self,
+				      unsigned long action, void *hcpu)
+{
+	struct s390_idle_data *idle;
+	long cpu = (long) hcpu;
+
+	idle = &per_cpu(s390_idle, cpu);
+	switch (action) {
+	case CPU_DYING:
+	case CPU_DYING_FROZEN:
+		idle->nohz_delay = 0;
+	default:
+		break;
+	}
+	return NOTIFY_OK;
+}
+
 void __init vtime_init(void)
 {
 	/* request the cpu timer external interrupt */
@@ -574,5 +594,6 @@ void __init vtime_init(void)
 
 	/* Enable cpu timer interrupts on the boot cpu. */
 	init_cpu_vtimer();
+	cpu_notifier(s390_nohz_notify, 0);
 }
 

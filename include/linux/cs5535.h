@@ -103,14 +103,20 @@ static inline int cs5535_has_vsa2(void)
 #define GPIO_POSITIVE_EDGE_STS	0x48
 #define GPIO_NEGATIVE_EDGE_STS	0x4C
 
+#define GPIO_FLTR7_AMOUNT	0xD8
+
 #define GPIO_MAP_X		0xE0
 #define GPIO_MAP_Y		0xE4
 #define GPIO_MAP_Z		0xE8
 #define GPIO_MAP_W		0xEC
 
+#define GPIO_FE7_SEL		0xF7
+
 void cs5535_gpio_set(unsigned offset, unsigned int reg);
 void cs5535_gpio_clear(unsigned offset, unsigned int reg);
 int cs5535_gpio_isset(unsigned offset, unsigned int reg);
+int cs5535_gpio_set_irq(unsigned group, unsigned irq);
+void cs5535_gpio_setup_event(unsigned offset, int pair, int pme);
 
 /* MFGPTs */
 

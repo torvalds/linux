@@ -47,12 +47,19 @@ static int __init pci_stub_init(void)
 	if (rc)
 		return rc;
 
+	/* no ids passed actually */
+	if (ids[0] == '\0')
+		return 0;
+
 	/* add ids specified in the module parameter */
 	p = ids;
 	while ((id = strsep(&p, ","))) {
 		unsigned int vendor, device, subvendor = PCI_ANY_ID,
 			subdevice = PCI_ANY_ID, class=0, class_mask=0;
 		int fields;
+
+		if (!strlen(id))
+			continue;
 
 		fields = sscanf(id, "%x:%x:%x:%x:%x:%x",
 				&vendor, &device, &subvendor, &subdevice,

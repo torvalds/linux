@@ -82,6 +82,15 @@
 		interrupt-parent = <&UIC0>;
 	};
 
+	CPM0: cpm {
+		compatible = "ibm,cpm";
+		dcr-access-method = "native";
+		dcr-reg = <0x0b0 0x003>;
+		unused-units = <0x00000000>;
+		idle-doze = <0x02000000>;
+		standby = <0xe3e74800>;
+	};
+
 	plb {
 		compatible = "ibm,plb-405ex", "ibm,plb4";
 		#address-cells = <1>;

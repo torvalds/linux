@@ -17,6 +17,11 @@ static int cap_sysctl(ctl_table *table, int op)
 	return 0;
 }
 
+static int cap_syslog(int type)
+{
+	return 0;
+}
+
 static int cap_quotactl(int cmds, int type, int id, struct super_block *sb)
 {
 	return 0;
@@ -543,7 +548,7 @@ static int cap_sem_semop(struct sem_array *sma, struct sembuf *sops,
 }
 
 #ifdef CONFIG_SECURITY_NETWORK
-static int cap_unix_stream_connect(struct socket *sock, struct socket *other,
+static int cap_unix_stream_connect(struct sock *sock, struct sock *other,
 				   struct sock *newsk)
 {
 	return 0;

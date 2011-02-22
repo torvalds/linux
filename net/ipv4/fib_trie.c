@@ -365,7 +365,7 @@ static struct tnode *tnode_alloc(size_t size)
 	if (size <= PAGE_SIZE)
 		return kzalloc(size, GFP_KERNEL);
 	else
-		return __vmalloc(size, GFP_KERNEL | __GFP_ZERO, PAGE_KERNEL);
+		return vzalloc(size);
 }
 
 static void __tnode_vfree(struct work_struct *arg)

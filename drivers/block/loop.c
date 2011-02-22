@@ -395,11 +395,7 @@ lo_splice_actor(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 	struct loop_device *lo = p->lo;
 	struct page *page = buf->page;
 	sector_t IV;
-	int size, ret;
-
-	ret = buf->ops->confirm(pipe, buf);
-	if (unlikely(ret))
-		return ret;
+	int size;
 
 	IV = ((sector_t) page->index << (PAGE_CACHE_SHIFT - 9)) +
 							(buf->offset >> 9);
@@ -480,12 +476,6 @@ static int do_bio_filebacked(struct loop_device *lo, struct bio *bio)
 
 	if (bio_rw(bio) == WRITE) {
 		struct file *file = lo->lo_backing_file;
-
-		/* REQ_HARDBARRIER is deprecated */
-		if (bio->bi_rw & REQ_HARDBARRIER) {
-			ret = -EOPNOTSUPP;
-			goto out;
-		}
 
 		if (bio->bi_rw & REQ_FLUSH) {
 			ret = vfs_fsync(file, 0);

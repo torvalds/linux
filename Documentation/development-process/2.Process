@@ -154,7 +154,7 @@ The stages that a patch goes through are, generally:
    inclusion, it should be accepted by a relevant subsystem maintainer -
    though this acceptance is not a guarantee that the patch will make it
    all the way to the mainline.  The patch will show up in the maintainer's
-   subsystem tree and into the staging trees (described below).  When the
+   subsystem tree and into the -next trees (described below).  When the
    process works, this step leads to more extensive review of the patch and
    the discovery of any problems resulting from the integration of this
    patch with work being done by others.
@@ -236,7 +236,7 @@ finding the right maintainer.  Sending patches directly to Linus is not
 normally the right way to go.
 
 
-2.4: STAGING TREES
+2.4: NEXT TREES
 
 The chain of subsystem trees guides the flow of patches into the kernel,
 but it also raises an interesting question: what if somebody wants to look
@@ -250,7 +250,7 @@ changes land in the mainline kernel.  One could pull changes from all of
 the interesting subsystem trees, but that would be a big and error-prone
 job.
 
-The answer comes in the form of staging trees, where subsystem trees are
+The answer comes in the form of -next trees, where subsystem trees are
 collected for testing and review.  The older of these trees, maintained by
 Andrew Morton, is called "-mm" (for memory management, which is how it got
 started).  The -mm tree integrates patches from a long list of subsystem
@@ -275,7 +275,7 @@ directory at:
 Use of the MMOTM tree is likely to be a frustrating experience, though;
 there is a definite chance that it will not even compile.
 
-The other staging tree, started more recently, is linux-next, maintained by
+The other -next tree, started more recently, is linux-next, maintained by
 Stephen Rothwell.  The linux-next tree is, by design, a snapshot of what
 the mainline is expected to look like after the next merge window closes.
 Linux-next trees are announced on the linux-kernel and linux-next mailing
@@ -303,12 +303,25 @@ volatility of linux-next tends to make it a difficult development target.
 See http://lwn.net/Articles/289013/ for more information on this topic, and
 stay tuned; much is still in flux where linux-next is involved.
 
-Besides the mmotm and linux-next trees, the kernel source tree now contains
-the drivers/staging/ directory and many sub-directories for drivers or
-filesystems that are on their way to being added to the kernel tree
-proper, but they remain in drivers/staging/ while they still need more
-work.
+2.4.1: STAGING TREES
 
+The kernel source tree now contains the drivers/staging/ directory, where
+many sub-directories for drivers or filesystems that are on their way to
+being added to the kernel tree live.  They remain in drivers/staging while
+they still need more work; once complete, they can be moved into the
+kernel proper.  This is a way to keep track of drivers that aren't
+up to Linux kernel coding or quality standards, but people may want to use
+them and track development.
+
+Greg Kroah-Hartman currently (as of 2.6.36) maintains the staging tree.
+Drivers that still need work are sent to him, with each driver having
+its own subdirectory in drivers/staging/.  Along with the driver source
+files, a TODO file should be present in the directory as well.  The TODO
+file lists the pending work that the driver needs for acceptance into
+the kernel proper, as well as a list of people that should be Cc'd for any
+patches to the driver.  Staging drivers that don't currently build should
+have their config entries depend upon CONFIG_BROKEN.  Once they can
+be successfully built without outside patches, CONFIG_BROKEN can be removed.
 
 2.5: TOOLS
 

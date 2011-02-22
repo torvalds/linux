@@ -83,19 +83,14 @@ void davinci_psc_config(unsigned int domain, unsigned int ctlr,
 		pdctl1 = __raw_readl(psc_base + PDCTL1);
 		pdctl1 |= 0x100;
 		__raw_writel(pdctl1, psc_base + PDCTL1);
-
-		do {
-			ptstat = __raw_readl(psc_base +
-					       PTSTAT);
-		} while (!(((ptstat >> domain) & 1) == 0));
 	} else {
 		ptcmd = 1 << domain;
 		__raw_writel(ptcmd, psc_base + PTCMD);
-
-		do {
-			ptstat = __raw_readl(psc_base + PTSTAT);
-		} while (!(((ptstat >> domain) & 1) == 0));
 	}
+
+	do {
+		ptstat = __raw_readl(psc_base + PTSTAT);
+	} while (!(((ptstat >> domain) & 1) == 0));
 
 	do {
 		mdstat = __raw_readl(psc_base + MDSTAT + 4 * id);

@@ -335,8 +335,6 @@ int iwch_post_terminate(struct iwch_qp *qhp, struct respQ_msg_t *rsp_msg);
 int iwch_post_zb_read(struct iwch_qp *qhp);
 int iwch_register_device(struct iwch_dev *dev);
 void iwch_unregister_device(struct iwch_dev *dev);
-int iwch_quiesce_qps(struct iwch_cq *chp);
-int iwch_resume_qps(struct iwch_cq *chp);
 void stop_read_rep_timer(struct iwch_qp *qhp);
 int iwch_register_mem(struct iwch_dev *rhp, struct iwch_pd *php,
 		      struct iwch_mr *mhp, int shift);

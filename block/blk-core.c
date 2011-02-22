@@ -33,7 +33,7 @@
 
 #include "blk.h"
 
-EXPORT_TRACEPOINT_SYMBOL_GPL(block_remap);
+EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_remap);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_rq_remap);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_complete);
 
@@ -64,13 +64,27 @@ static void drive_stat_acct(struct request *rq, int new_io)
 		return;
 
 	cpu = part_stat_lock();
-	part = disk_map_sector_rcu(rq->rq_disk, blk_rq_pos(rq));
 
-	if (!new_io)
+	if (!new_io) {
+		part = rq->part;
 		part_stat_inc(cpu, part, merges[rw]);
-	else {
+	} else {
+		part = disk_map_sector_rcu(rq->rq_disk, blk_rq_pos(rq));
+		if (!hd_struct_try_get(part)) {
+			/*
+			 * The partition is already being removed,
+			 * the request will be accounted on the disk only
+			 *
+			 * We take a reference on disk->part0 although that
+			 * partition will never be deleted, so we can treat
+			 * it as any other partition.
+			 */
+			part = &rq->rq_disk->part0;
+			hd_struct_get(part);
+		}
 		part_round_stats(cpu, part);
 		part_inc_in_flight(part, rw);
+		rq->part = part;
 	}
 
 	part_stat_unlock();
@@ -128,6 +142,7 @@ void blk_rq_init(struct request_queue *q, struct request *rq)
 	rq->ref_count = 1;
 	rq->start_time = jiffies;
 	set_start_time_ns(rq);
+	rq->part = NULL;
 }
 EXPORT_SYMBOL(blk_rq_init);
 
@@ -1194,13 +1209,6 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 	int where = ELEVATOR_INSERT_SORT;
 	int rw_flags;
 
-	/* REQ_HARDBARRIER is no more */
-	if (WARN_ONCE(bio->bi_rw & REQ_HARDBARRIER,
-		"block: HARDBARRIER is deprecated, use FLUSH/FUA instead\n")) {
-		bio_endio(bio, -EOPNOTSUPP);
-		return 0;
-	}
-
 	/*
 	 * low level driver can indicate that it wants pages above a
 	 * certain limit bounced to low memory (ie for highmem, or even
@@ -1336,9 +1344,9 @@ static inline void blk_partition_remap(struct bio *bio)
 		bio->bi_sector += p->start_sect;
 		bio->bi_bdev = bdev->bd_contains;
 
-		trace_block_remap(bdev_get_queue(bio->bi_bdev), bio,
-				    bdev->bd_dev,
-				    bio->bi_sector - p->start_sect);
+		trace_block_bio_remap(bdev_get_queue(bio->bi_bdev), bio,
+				      bdev->bd_dev,
+				      bio->bi_sector - p->start_sect);
 	}
 }
 
@@ -1351,7 +1359,7 @@ static void handle_bad_sector(struct bio *bio)
 			bdevname(bio->bi_bdev, b),
 			bio->bi_rw,
 			(unsigned long long)bio->bi_sector + bio_sectors(bio),
-			(long long)(bio->bi_bdev->bd_inode->i_size >> 9));
+			(long long)(i_size_read(bio->bi_bdev->bd_inode) >> 9));
 
 	set_bit(BIO_EOF, &bio->bi_flags);
 }
@@ -1404,7 +1412,7 @@ static inline int bio_check_eod(struct bio *bio, unsigned int nr_sectors)
 		return 0;
 
 	/* Test device or partition size, when known. */
-	maxsector = bio->bi_bdev->bd_inode->i_size >> 9;
+	maxsector = i_size_read(bio->bi_bdev->bd_inode) >> 9;
 	if (maxsector) {
 		sector_t sector = bio->bi_sector;
 
@@ -1507,7 +1515,7 @@ static inline void __generic_make_request(struct bio *bio)
 			goto end_io;
 
 		if (old_sector != -1)
-			trace_block_remap(q, bio, old_dev, old_sector);
+			trace_block_bio_remap(q, bio, old_dev, old_sector);
 
 		old_sector = bio->bi_sector;
 		old_dev = bio->bi_bdev->bd_dev;
@@ -1783,7 +1791,7 @@ static void blk_account_io_completion(struct request *req, unsigned int bytes)
 		int cpu;
 
 		cpu = part_stat_lock();
-		part = disk_map_sector_rcu(req->rq_disk, blk_rq_pos(req));
+		part = req->part;
 		part_stat_add(cpu, part, sectors[rw], bytes >> 9);
 		part_stat_unlock();
 	}
@@ -1803,13 +1811,14 @@ static void blk_account_io_done(struct request *req)
 		int cpu;
 
 		cpu = part_stat_lock();
-		part = disk_map_sector_rcu(req->rq_disk, blk_rq_pos(req));
+		part = req->part;
 
 		part_stat_inc(cpu, part, ios[rw]);
 		part_stat_add(cpu, part, ticks[rw], duration);
 		part_round_stats(cpu, part);
 		part_dec_in_flight(part, rw);
 
+		hd_struct_put(part);
 		part_stat_unlock();
 	}
 }
@@ -2613,7 +2622,9 @@ int __init blk_dev_init(void)
 	BUILD_BUG_ON(__REQ_NR_BITS > 8 *
 			sizeof(((struct request *)0)->cmd_flags));
 
-	kblockd_workqueue = create_workqueue("kblockd");
+	/* used for unplugging and affects IO latency/throughput - HIGHPRI */
+	kblockd_workqueue = alloc_workqueue("kblockd",
+					    WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
 	if (!kblockd_workqueue)
 		panic("Failed to create kblockd\n");
 

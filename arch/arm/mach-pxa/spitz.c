@@ -23,10 +23,12 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 #include <linux/spi/corgi_lcd.h>
-#include <linux/mtd/physmap.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/mtd/sharpsl.h>
+#include <linux/mtd/physmap.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/regulator/machine.h>
+#include <linux/io.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -41,9 +43,9 @@
 #include <mach/mmc.h>
 #include <mach/ohci.h>
 #include <mach/pxafb.h>
-#include <mach/pxa2xx_spi.h>
 #include <mach/spitz.h>
 #include <mach/sharpsl_pm.h>
+#include <mach/smemc.h>
 
 #include <plat/i2c.h>
 
@@ -929,9 +931,10 @@ static void spitz_poweroff(void)
 
 static void spitz_restart(char mode, const char *cmd)
 {
+	uint32_t msc0 = __raw_readl(MSC0);
 	/* Bootloader magic for a reboot */
-	if ((MSC0 & 0xffff0000) == 0x7ff00000)
-		MSC0 = (MSC0 & 0xffff) | 0x7ee00000;
+	if ((msc0 & 0xffff0000) == 0x7ff00000)
+		__raw_writel((msc0 & 0xffff) | 0x7ee00000, MSC0);
 
 	spitz_poweroff();
 }
@@ -980,7 +983,7 @@ static void __init spitz_fixup(struct machine_desc *desc,
 #ifdef CONFIG_MACH_SPITZ
 MACHINE_START(SPITZ, "SHARP Spitz")
 	.fixup		= spitz_fixup,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
 	.init_machine	= spitz_init,
 	.timer		= &pxa_timer,
@@ -990,7 +993,7 @@ MACHINE_END
 #ifdef CONFIG_MACH_BORZOI
 MACHINE_START(BORZOI, "SHARP Borzoi")
 	.fixup		= spitz_fixup,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
 	.init_machine	= spitz_init,
 	.timer		= &pxa_timer,
@@ -1000,7 +1003,7 @@ MACHINE_END
 #ifdef CONFIG_MACH_AKITA
 MACHINE_START(AKITA, "SHARP Akita")
 	.fixup		= spitz_fixup,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
 	.init_machine	= spitz_init,
 	.timer		= &pxa_timer,

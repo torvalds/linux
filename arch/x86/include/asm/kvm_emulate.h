@@ -15,6 +15,14 @@
 
 struct x86_emulate_ctxt;
 
+struct x86_exception {
+	u8 vector;
+	bool error_code_valid;
+	u16 error_code;
+	bool nested_page_fault;
+	u64 address; /* cr2 or nested page fault gpa */
+};
+
 /*
  * x86_emulate_ops:
  *
@@ -64,7 +72,8 @@ struct x86_emulate_ops {
 	 *  @bytes: [IN ] Number of bytes to read from memory.
 	 */
 	int (*read_std)(unsigned long addr, void *val,
-			unsigned int bytes, struct kvm_vcpu *vcpu, u32 *error);
+			unsigned int bytes, struct kvm_vcpu *vcpu,
+			struct x86_exception *fault);
 
 	/*
 	 * write_std: Write bytes of standard (non-emulated/special) memory.
@@ -74,7 +83,8 @@ struct x86_emulate_ops {
 	 *  @bytes: [IN ] Number of bytes to write to memory.
 	 */
 	int (*write_std)(unsigned long addr, void *val,
-			 unsigned int bytes, struct kvm_vcpu *vcpu, u32 *error);
+			 unsigned int bytes, struct kvm_vcpu *vcpu,
+			 struct x86_exception *fault);
 	/*
 	 * fetch: Read bytes of standard (non-emulated/special) memory.
 	 *        Used for instruction fetch.
@@ -83,7 +93,8 @@ struct x86_emulate_ops {
 	 *  @bytes: [IN ] Number of bytes to read from memory.
 	 */
 	int (*fetch)(unsigned long addr, void *val,
-			unsigned int bytes, struct kvm_vcpu *vcpu, u32 *error);
+		     unsigned int bytes, struct kvm_vcpu *vcpu,
+		     struct x86_exception *fault);
 
 	/*
 	 * read_emulated: Read bytes from emulated/special memory area.
@@ -94,7 +105,7 @@ struct x86_emulate_ops {
 	int (*read_emulated)(unsigned long addr,
 			     void *val,
 			     unsigned int bytes,
-			     unsigned int *error,
+			     struct x86_exception *fault,
 			     struct kvm_vcpu *vcpu);
 
 	/*
@@ -107,7 +118,7 @@ struct x86_emulate_ops {
 	int (*write_emulated)(unsigned long addr,
 			      const void *val,
 			      unsigned int bytes,
-			      unsigned int *error,
+			      struct x86_exception *fault,
 			      struct kvm_vcpu *vcpu);
 
 	/*
@@ -122,7 +133,7 @@ struct x86_emulate_ops {
 				const void *old,
 				const void *new,
 				unsigned int bytes,
-				unsigned int *error,
+				struct x86_exception *fault,
 				struct kvm_vcpu *vcpu);
 
 	int (*pio_in_emulated)(int size, unsigned short port, void *val,
@@ -159,7 +170,10 @@ struct operand {
 	};
 	union {
 		unsigned long *reg;
-		unsigned long mem;
+		struct segmented_address {
+			ulong ea;
+			unsigned seg;
+		} mem;
 	} addr;
 	union {
 		unsigned long val;
@@ -226,9 +240,8 @@ struct x86_emulate_ctxt {
 
 	bool perm_ok; /* do not check permissions if true */
 
-	int exception; /* exception that happens during emulation or -1 */
-	u32 error_code; /* error code for exception */
-	bool error_code_valid;
+	bool have_exception;
+	struct x86_exception exception;
 
 	/* decode cache */
 	struct decode_cache decode;
@@ -252,7 +265,7 @@ struct x86_emulate_ctxt {
 #define X86EMUL_MODE_HOST X86EMUL_MODE_PROT64
 #endif
 
-int x86_decode_insn(struct x86_emulate_ctxt *ctxt);
+int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len);
 #define EMULATION_FAILED -1
 #define EMULATION_OK 0
 #define EMULATION_RESTART 1

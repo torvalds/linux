@@ -38,6 +38,8 @@ OPTIONS
 --process::
         Select the processes to display, by name or PID
 
+--symfs=<directory>::
+        Look for files with symbols relative to this directory.
 
 SEE ALSO
 --------

@@ -135,7 +135,7 @@ jme_reset_phy_processor(struct jme_adapter *jme)
 
 static void
 jme_setup_wakeup_frame(struct jme_adapter *jme,
-		u32 *mask, u32 crc, int fnr)
+		       const u32 *mask, u32 crc, int fnr)
 {
 	int i;
 
@@ -163,7 +163,7 @@ jme_setup_wakeup_frame(struct jme_adapter *jme,
 static inline void
 jme_reset_mac_processor(struct jme_adapter *jme)
 {
-	u32 mask[WAKEUP_FRAME_MASK_DWNR] = {0, 0, 0, 0};
+	static const u32 mask[WAKEUP_FRAME_MASK_DWNR] = {0, 0, 0, 0};
 	u32 crc = 0xCDCDCDCD;
 	u32 gpreg0;
 	int i;
@@ -2076,12 +2076,11 @@ jme_change_mtu(struct net_device *netdev, int new_mtu)
 	}
 
 	if (new_mtu > 1900) {
-		netdev->features &= ~(NETIF_F_HW_CSUM |
-				NETIF_F_TSO |
-				NETIF_F_TSO6);
+		netdev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+				NETIF_F_TSO | NETIF_F_TSO6);
 	} else {
 		if (test_bit(JME_FLAG_TXCSUM, &jme->flags))
-			netdev->features |= NETIF_F_HW_CSUM;
+			netdev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 		if (test_bit(JME_FLAG_TSO, &jme->flags))
 			netdev->features |= NETIF_F_TSO | NETIF_F_TSO6;
 	}
@@ -2514,10 +2513,12 @@ jme_set_tx_csum(struct net_device *netdev, u32 on)
 	if (on) {
 		set_bit(JME_FLAG_TXCSUM, &jme->flags);
 		if (netdev->mtu <= 1900)
-			netdev->features |= NETIF_F_HW_CSUM;
+			netdev->features |=
+				NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	} else {
 		clear_bit(JME_FLAG_TXCSUM, &jme->flags);
-		netdev->features &= ~NETIF_F_HW_CSUM;
+		netdev->features &=
+				~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
 	}
 
 	return 0;
@@ -2797,7 +2798,8 @@ jme_init_one(struct pci_dev *pdev,
 	netdev->netdev_ops = &jme_netdev_ops;
 	netdev->ethtool_ops		= &jme_ethtool_ops;
 	netdev->watchdog_timeo		= TX_TIMEOUT;
-	netdev->features		=	NETIF_F_HW_CSUM |
+	netdev->features		=	NETIF_F_IP_CSUM |
+						NETIF_F_IPV6_CSUM |
 						NETIF_F_SG |
 						NETIF_F_TSO |
 						NETIF_F_TSO6 |

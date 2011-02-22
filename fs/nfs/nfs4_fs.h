@@ -44,6 +44,7 @@ enum nfs4_client_state {
 	NFS4CLNT_RECLAIM_REBOOT,
 	NFS4CLNT_RECLAIM_NOGRACE,
 	NFS4CLNT_DELEGRETURN,
+	NFS4CLNT_LAYOUTRECALL,
 	NFS4CLNT_SESSION_RESET,
 	NFS4CLNT_RECALL_SLOT,
 };
@@ -109,7 +110,7 @@ struct nfs_unique_id {
 struct nfs4_state_owner {
 	struct nfs_unique_id so_owner_id;
 	struct nfs_server    *so_server;
-	struct rb_node	     so_client_node;
+	struct rb_node	     so_server_node;
 
 	struct rpc_cred	     *so_cred;	 /* Associated cred */
 
@@ -227,12 +228,6 @@ struct nfs4_state_maintenance_ops {
 extern const struct dentry_operations nfs4_dentry_operations;
 extern const struct inode_operations nfs4_dir_inode_operations;
 
-/* inode.c */
-extern ssize_t nfs4_getxattr(struct dentry *, const char *, void *, size_t);
-extern int nfs4_setxattr(struct dentry *, const char *, const void *, size_t, int);
-extern ssize_t nfs4_listxattr(struct dentry *, char *, size_t);
-
-
 /* nfs4proc.c */
 extern int nfs4_proc_setclientid(struct nfs_client *, u32, unsigned short, struct rpc_cred *, struct nfs4_setclientid_res *);
 extern int nfs4_proc_setclientid_confirm(struct nfs_client *, struct nfs4_setclientid_res *arg, struct rpc_cred *);
@@ -241,11 +236,12 @@ extern int nfs4_proc_async_renew(struct nfs_client *, struct rpc_cred *);
 extern int nfs4_proc_renew(struct nfs_client *, struct rpc_cred *);
 extern int nfs4_init_clientid(struct nfs_client *, struct rpc_cred *);
 extern int nfs41_init_clientid(struct nfs_client *, struct rpc_cred *);
-extern int nfs4_do_close(struct path *path, struct nfs4_state *state, gfp_t gfp_mask, int wait);
+extern int nfs4_do_close(struct path *path, struct nfs4_state *state, gfp_t gfp_mask, int wait, bool roc);
 extern int nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *fhandle);
 extern int nfs4_proc_fs_locations(struct inode *dir, const struct qstr *name,
 		struct nfs4_fs_locations *fs_locations, struct page *page);
 extern void nfs4_release_lockowner(const struct nfs4_lock_state *);
+extern const struct xattr_handler *nfs4_xattr_handlers[];
 
 #if defined(CONFIG_NFS_V4_1)
 static inline struct nfs4_session *nfs4_get_session(const struct nfs_server *server)
@@ -331,7 +327,6 @@ extern void nfs_free_seqid(struct nfs_seqid *seqid);
 extern const nfs4_stateid zero_stateid;
 
 /* nfs4xdr.c */
-extern __be32 *nfs4_decode_dirent(struct xdr_stream *, struct nfs_entry *, struct nfs_server *, int);
 extern struct rpc_procinfo nfs4_procedures[];
 
 struct nfs4_mount_data;

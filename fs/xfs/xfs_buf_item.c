@@ -141,8 +141,7 @@ xfs_buf_item_log_check(
 #define		xfs_buf_item_log_check(x)
 #endif
 
-STATIC void	xfs_buf_error_relse(xfs_buf_t *bp);
-STATIC void	xfs_buf_do_callbacks(xfs_buf_t *bp, xfs_log_item_t *lip);
+STATIC void	xfs_buf_do_callbacks(struct xfs_buf *bp);
 
 /*
  * This returns the number of log iovecs needed to log the
@@ -428,13 +427,15 @@ xfs_buf_item_unpin(
 
 		if (remove) {
 			/*
-			 * We have to remove the log item from the transaction
-			 * as we are about to release our reference to the
-			 * buffer.  If we don't, the unlock that occurs later
-			 * in xfs_trans_uncommit() will ry to reference the
+			 * If we are in a transaction context, we have to
+			 * remove the log item from the transaction as we are
+			 * about to release our reference to the buffer.  If we
+			 * don't, the unlock that occurs later in
+			 * xfs_trans_uncommit() will try to reference the
 			 * buffer which we no longer have a hold on.
 			 */
-			xfs_trans_del_item(lip);
+			if (lip->li_desc)
+				xfs_trans_del_item(lip);
 
 			/*
 			 * Since the transaction no longer refers to the buffer,
@@ -450,7 +451,7 @@ xfs_buf_item_unpin(
 		 * xfs_trans_ail_delete() drops the AIL lock.
 		 */
 		if (bip->bli_flags & XFS_BLI_STALE_INODE) {
-			xfs_buf_do_callbacks(bp, (xfs_log_item_t *)bip);
+			xfs_buf_do_callbacks(bp);
 			XFS_BUF_SET_FSPRIVATE(bp, NULL);
 			XFS_BUF_CLR_IODONE_FUNC(bp);
 		} else {
@@ -918,15 +919,26 @@ xfs_buf_attach_iodone(
 	XFS_BUF_SET_IODONE_FUNC(bp, xfs_buf_iodone_callbacks);
 }
 
+/*
+ * We can have many callbacks on a buffer. Running the callbacks individually
+ * can cause a lot of contention on the AIL lock, so we allow for a single
+ * callback to be able to scan the remaining lip->li_bio_list for other items
+ * of the same type and callback to be processed in the first call.
+ *
+ * As a result, the loop walking the callback list below will also modify the
+ * list. it removes the first item from the list and then runs the callback.
+ * The loop then restarts from the new head of the list. This allows the
+ * callback to scan and modify the list attached to the buffer and we don't
+ * have to care about maintaining a next item pointer.
+ */
 STATIC void
 xfs_buf_do_callbacks(
-	xfs_buf_t	*bp,
-	xfs_log_item_t	*lip)
+	struct xfs_buf		*bp)
 {
-	xfs_log_item_t	*nlip;
+	struct xfs_log_item	*lip;
 
-	while (lip != NULL) {
-		nlip = lip->li_bio_list;
+	while ((lip = XFS_BUF_FSPRIVATE(bp, xfs_log_item_t *)) != NULL) {
+		XFS_BUF_SET_FSPRIVATE(bp, lip->li_bio_list);
 		ASSERT(lip->li_cb != NULL);
 		/*
 		 * Clear the next pointer so we don't have any
@@ -936,7 +948,6 @@ xfs_buf_do_callbacks(
 		 */
 		lip->li_bio_list = NULL;
 		lip->li_cb(bp, lip);
-		lip = nlip;
 	}
 }
 
@@ -949,127 +960,75 @@ xfs_buf_do_callbacks(
  */
 void
 xfs_buf_iodone_callbacks(
-	xfs_buf_t	*bp)
+	struct xfs_buf		*bp)
 {
-	xfs_log_item_t	*lip;
-	static ulong	lasttime;
-	static xfs_buftarg_t *lasttarg;
-	xfs_mount_t	*mp;
+	struct xfs_log_item	*lip = bp->b_fspriv;
+	struct xfs_mount	*mp = lip->li_mountp;
+	static ulong		lasttime;
+	static xfs_buftarg_t	*lasttarg;
 
-	ASSERT(XFS_BUF_FSPRIVATE(bp, void *) != NULL);
-	lip = XFS_BUF_FSPRIVATE(bp, xfs_log_item_t *);
+	if (likely(!XFS_BUF_GETERROR(bp)))
+		goto do_callbacks;
 
-	if (XFS_BUF_GETERROR(bp) != 0) {
-		/*
-		 * If we've already decided to shutdown the filesystem
-		 * because of IO errors, there's no point in giving this
-		 * a retry.
-		 */
-		mp = lip->li_mountp;
-		if (XFS_FORCED_SHUTDOWN(mp)) {
-			ASSERT(XFS_BUF_TARGET(bp) == mp->m_ddev_targp);
-			XFS_BUF_SUPER_STALE(bp);
-			trace_xfs_buf_item_iodone(bp, _RET_IP_);
-			xfs_buf_do_callbacks(bp, lip);
-			XFS_BUF_SET_FSPRIVATE(bp, NULL);
-			XFS_BUF_CLR_IODONE_FUNC(bp);
-			xfs_buf_ioend(bp, 0);
-			return;
-		}
+	/*
+	 * If we've already decided to shutdown the filesystem because of
+	 * I/O errors, there's no point in giving this a retry.
+	 */
+	if (XFS_FORCED_SHUTDOWN(mp)) {
+		XFS_BUF_SUPER_STALE(bp);
+		trace_xfs_buf_item_iodone(bp, _RET_IP_);
+		goto do_callbacks;
+	}
 
-		if ((XFS_BUF_TARGET(bp) != lasttarg) ||
-		    (time_after(jiffies, (lasttime + 5*HZ)))) {
-			lasttime = jiffies;
-			cmn_err(CE_ALERT, "Device %s, XFS metadata write error"
-					" block 0x%llx in %s",
-				XFS_BUFTARG_NAME(XFS_BUF_TARGET(bp)),
-			      (__uint64_t)XFS_BUF_ADDR(bp), mp->m_fsname);
-		}
-		lasttarg = XFS_BUF_TARGET(bp);
+	if (XFS_BUF_TARGET(bp) != lasttarg ||
+	    time_after(jiffies, (lasttime + 5*HZ))) {
+		lasttime = jiffies;
+		cmn_err(CE_ALERT, "Device %s, XFS metadata write error"
+				" block 0x%llx in %s",
+			XFS_BUFTARG_NAME(XFS_BUF_TARGET(bp)),
+		      (__uint64_t)XFS_BUF_ADDR(bp), mp->m_fsname);
+	}
+	lasttarg = XFS_BUF_TARGET(bp);
 
-		if (XFS_BUF_ISASYNC(bp)) {
-			/*
-			 * If the write was asynchronous then noone will be
-			 * looking for the error.  Clear the error state
-			 * and write the buffer out again delayed write.
-			 *
-			 * XXXsup This is OK, so long as we catch these
-			 * before we start the umount; we don't want these
-			 * DELWRI metadata bufs to be hanging around.
-			 */
-			XFS_BUF_ERROR(bp,0); /* errno of 0 unsets the flag */
+	/*
+	 * If the write was asynchronous then noone will be looking for the
+	 * error.  Clear the error state and write the buffer out again.
+	 *
+	 * During sync or umount we'll write all pending buffers again
+	 * synchronous, which will catch these errors if they keep hanging
+	 * around.
+	 */
+	if (XFS_BUF_ISASYNC(bp)) {
+		XFS_BUF_ERROR(bp, 0); /* errno of 0 unsets the flag */
 
-			if (!(XFS_BUF_ISSTALE(bp))) {
-				XFS_BUF_DELAYWRITE(bp);
-				XFS_BUF_DONE(bp);
-				XFS_BUF_SET_START(bp);
-			}
-			ASSERT(XFS_BUF_IODONE_FUNC(bp));
-			trace_xfs_buf_item_iodone_async(bp, _RET_IP_);
-			xfs_buf_relse(bp);
-		} else {
-			/*
-			 * If the write of the buffer was not asynchronous,
-			 * then we want to make sure to return the error
-			 * to the caller of bwrite().  Because of this we
-			 * cannot clear the B_ERROR state at this point.
-			 * Instead we install a callback function that
-			 * will be called when the buffer is released, and
-			 * that routine will clear the error state and
-			 * set the buffer to be written out again after
-			 * some delay.
-			 */
-			/* We actually overwrite the existing b-relse
-			   function at times, but we're gonna be shutting down
-			   anyway. */
-			XFS_BUF_SET_BRELSE_FUNC(bp,xfs_buf_error_relse);
+		if (!XFS_BUF_ISSTALE(bp)) {
+			XFS_BUF_DELAYWRITE(bp);
 			XFS_BUF_DONE(bp);
-			XFS_BUF_FINISH_IOWAIT(bp);
+			XFS_BUF_SET_START(bp);
 		}
+		ASSERT(XFS_BUF_IODONE_FUNC(bp));
+		trace_xfs_buf_item_iodone_async(bp, _RET_IP_);
+		xfs_buf_relse(bp);
 		return;
 	}
 
-	xfs_buf_do_callbacks(bp, lip);
+	/*
+	 * If the write of the buffer was synchronous, we want to make
+	 * sure to return the error to the caller of xfs_bwrite().
+	 */
+	XFS_BUF_STALE(bp);
+	XFS_BUF_DONE(bp);
+	XFS_BUF_UNDELAYWRITE(bp);
+
+	trace_xfs_buf_error_relse(bp, _RET_IP_);
+	xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
+
+do_callbacks:
+	xfs_buf_do_callbacks(bp);
 	XFS_BUF_SET_FSPRIVATE(bp, NULL);
 	XFS_BUF_CLR_IODONE_FUNC(bp);
 	xfs_buf_ioend(bp, 0);
 }
-
-/*
- * This is a callback routine attached to a buffer which gets an error
- * when being written out synchronously.
- */
-STATIC void
-xfs_buf_error_relse(
-	xfs_buf_t	*bp)
-{
-	xfs_log_item_t	*lip;
-	xfs_mount_t	*mp;
-
-	lip = XFS_BUF_FSPRIVATE(bp, xfs_log_item_t *);
-	mp = (xfs_mount_t *)lip->li_mountp;
-	ASSERT(XFS_BUF_TARGET(bp) == mp->m_ddev_targp);
-
-	XFS_BUF_STALE(bp);
-	XFS_BUF_DONE(bp);
-	XFS_BUF_UNDELAYWRITE(bp);
-	XFS_BUF_ERROR(bp,0);
-
-	trace_xfs_buf_error_relse(bp, _RET_IP_);
-
-	if (! XFS_FORCED_SHUTDOWN(mp))
-		xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
-	/*
-	 * We have to unpin the pinned buffers so do the
-	 * callbacks.
-	 */
-	xfs_buf_do_callbacks(bp, lip);
-	XFS_BUF_SET_FSPRIVATE(bp, NULL);
-	XFS_BUF_CLR_IODONE_FUNC(bp);
-	XFS_BUF_SET_BRELSE_FUNC(bp,NULL);
-	xfs_buf_relse(bp);
-}
-
 
 /*
  * This is the iodone() function for buffers which have been

@@ -653,7 +653,7 @@ static int mthca_map_reg(struct mthca_dev *dev,
 			 unsigned long offset, unsigned long size,
 			 void __iomem **map)
 {
-	unsigned long base = pci_resource_start(dev->pdev, 0);
+	phys_addr_t base = pci_resource_start(dev->pdev, 0);
 
 	*map = ioremap(base + offset, size);
 	if (!*map)

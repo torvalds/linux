@@ -292,18 +292,20 @@ int d40_phy_sg_to_lli(struct scatterlist *sg,
 		      struct d40_phy_lli *lli,
 		      dma_addr_t lli_phys,
 		      u32 reg_cfg,
-		      u32 data_width,
+		      u32 data_width1,
+		      u32 data_width2,
 		      int psize);
 
-int d40_phy_fill_lli(struct d40_phy_lli *lli,
-		     dma_addr_t data,
-		     u32 data_size,
-		     int psize,
-		     dma_addr_t next_lli,
-		     u32 reg_cfg,
-		     bool term_int,
-		     u32 data_width,
-		     bool is_device);
+struct d40_phy_lli *d40_phy_buf_to_lli(struct d40_phy_lli *lli,
+				       dma_addr_t data,
+				       u32 data_size,
+				       int psize,
+				       dma_addr_t next_lli,
+				       u32 reg_cfg,
+				       bool term_int,
+				       u32 data_width1,
+				       u32 data_width2,
+				       bool is_device);
 
 void d40_phy_lli_write(void __iomem *virtbase,
 		       u32 phy_chan_num,
@@ -312,12 +314,12 @@ void d40_phy_lli_write(void __iomem *virtbase,
 
 /* Logical channels */
 
-void d40_log_fill_lli(struct d40_log_lli *lli,
-		      dma_addr_t data,
-		      u32 data_size,
-		      u32 reg_cfg,
-		      u32 data_width,
-		      bool addr_inc);
+struct d40_log_lli *d40_log_buf_to_lli(struct d40_log_lli *lli_sg,
+				       dma_addr_t addr,
+				       int size,
+				       u32 lcsp13, /* src or dst*/
+				       u32 data_width1, u32 data_width2,
+				       bool addr_inc);
 
 int d40_log_sg_to_dev(struct scatterlist *sg,
 		      int sg_len,
@@ -332,7 +334,7 @@ int d40_log_sg_to_lli(struct scatterlist *sg,
 		      int sg_len,
 		      struct d40_log_lli *lli_sg,
 		      u32 lcsp13, /* src or dst*/
-		      u32 data_width);
+		      u32 data_width1, u32 data_width2);
 
 void d40_log_lli_lcpa_write(struct d40_log_lli_full *lcpa,
 			    struct d40_log_lli *lli_dst,

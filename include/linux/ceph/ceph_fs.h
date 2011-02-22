@@ -43,6 +43,10 @@
 #define CEPH_FEATURE_NOSRCADDR      (1<<1)
 #define CEPH_FEATURE_MONCLOCKCHECK  (1<<2)
 #define CEPH_FEATURE_FLOCK          (1<<3)
+#define CEPH_FEATURE_SUBSCRIBE2     (1<<4)
+#define CEPH_FEATURE_MONNAMES       (1<<5)
+#define CEPH_FEATURE_RECONNECT_SEQ  (1<<6)
+#define CEPH_FEATURE_DIRLAYOUTHASH  (1<<7)
 
 
 /*
@@ -55,10 +59,10 @@ struct ceph_file_layout {
 	__le32 fl_stripe_count;    /* over this many objects */
 	__le32 fl_object_size;     /* until objects are this big, then move to
 				      new objects */
-	__le32 fl_cas_hash;        /* 0 = none; 1 = sha256 */
+	__le32 fl_cas_hash;        /* UNUSED.  0 = none; 1 = sha256 */
 
 	/* pg -> disk layout */
-	__le32 fl_object_stripe_unit;  /* for per-object parity, if any */
+	__le32 fl_object_stripe_unit;  /* UNUSED.  for per-object parity, if any */
 
 	/* object -> pg layout */
 	__le32 fl_pg_preferred; /* preferred primary for pg (-1 for none) */
@@ -69,6 +73,12 @@ struct ceph_file_layout {
 
 int ceph_file_layout_is_valid(const struct ceph_file_layout *layout);
 
+struct ceph_dir_layout {
+	__u8   dl_dir_hash;   /* see ceph_hash.h for ids */
+	__u8   dl_unused1;
+	__u16  dl_unused2;
+	__u32  dl_unused3;
+} __attribute__ ((packed));
 
 /* crypto algorithms */
 #define CEPH_CRYPTO_NONE 0x0
@@ -457,7 +467,7 @@ struct ceph_mds_reply_inode {
 	struct ceph_timespec rctime;
 	struct ceph_frag_tree_head fragtree;  /* (must be at end of struct) */
 } __attribute__ ((packed));
-/* followed by frag array, then symlink string, then xattr blob */
+/* followed by frag array, symlink string, dir layout, xattr blob */
 
 /* reply_lease follows dname, and reply_inode */
 struct ceph_mds_reply_lease {

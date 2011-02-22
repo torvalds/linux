@@ -133,19 +133,18 @@ static struct omap_mbox1_priv omap1_mbox_dsp_priv = {
 	},
 };
 
-struct omap_mbox mbox_dsp_info = {
+static struct omap_mbox mbox_dsp_info = {
 	.name	= "dsp",
 	.ops	= &omap1_mbox_ops,
 	.priv	= &omap1_mbox_dsp_priv,
 };
 
-struct omap_mbox *omap1_mboxes[] = { &mbox_dsp_info, NULL };
+static struct omap_mbox *omap1_mboxes[] = { &mbox_dsp_info, NULL };
 
 static int __devinit omap1_mbox_probe(struct platform_device *pdev)
 {
 	struct resource *mem;
 	int ret;
-	int i;
 	struct omap_mbox **list;
 
 	list = omap1_mboxes;

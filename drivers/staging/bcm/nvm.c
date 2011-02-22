@@ -1,6 +1,56 @@
 #include "headers.h"
 
 #define DWORD unsigned int
+
+static INT BcmDoChipSelect(PMINI_ADAPTER Adapter, UINT offset);
+static INT BcmGetActiveDSD(PMINI_ADAPTER Adapter);
+static INT BcmGetActiveISO(PMINI_ADAPTER Adapter);
+static UINT BcmGetEEPROMSize(PMINI_ADAPTER Adapter);
+static INT BcmGetFlashCSInfo(PMINI_ADAPTER Adapter);
+static UINT BcmGetFlashSectorSize(PMINI_ADAPTER Adapter, UINT FlashSectorSizeSig, UINT FlashSectorSize);
+
+static VOID BcmValidateNvmType(PMINI_ADAPTER Adapter);
+static INT BcmGetNvmSize(PMINI_ADAPTER Adapter);
+static UINT BcmGetFlashSize(PMINI_ADAPTER Adapter);
+static NVM_TYPE BcmGetNvmType(PMINI_ADAPTER Adapter);
+
+static INT BcmGetSectionValEndOffset(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal);
+
+static B_UINT8 IsOffsetWritable(PMINI_ADAPTER Adapter, UINT uiOffset);
+static INT IsSectionWritable(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL Section);
+static INT IsSectionExistInVendorInfo(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL section);
+
+static INT ReadDSDPriority(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL dsd);
+static INT ReadDSDSignature(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL dsd);
+static INT ReadISOPriority(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL iso);
+static INT ReadISOSignature(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL iso);
+
+static INT CorruptDSDSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal);
+static INT CorruptISOSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal);
+static INT SaveHeaderIfPresent(PMINI_ADAPTER Adapter, PUCHAR pBuff, UINT uiSectAlignAddr);
+static INT WriteToFlashWithoutSectorErase(PMINI_ADAPTER Adapter, PUINT pBuff,
+					  FLASH2X_SECTION_VAL eFlash2xSectionVal,
+					  UINT uiOffset, UINT uiNumBytes);
+static FLASH2X_SECTION_VAL getHighestPriDSD(PMINI_ADAPTER Adapter);
+static FLASH2X_SECTION_VAL getHighestPriISO(PMINI_ADAPTER Adapter);
+
+static INT BeceemFlashBulkRead(
+	PMINI_ADAPTER Adapter,
+	PUINT pBuffer,
+	UINT uiOffset,
+	UINT uiNumBytes);
+
+static INT BeceemFlashBulkWrite(
+	PMINI_ADAPTER Adapter,
+	PUINT pBuffer,
+	UINT uiOffset,
+	UINT uiNumBytes,
+	BOOLEAN bVerify);
+
+static INT GetFlashBaseAddr(PMINI_ADAPTER Adapter);
+
+static INT ReadBeceemEEPROMBulk(PMINI_ADAPTER Adapter,UINT dwAddress, UINT *pdwData, UINT dwNumData);
+
 // Procedure:	ReadEEPROMStatusRegister
 //
 // Description: Reads the standard EEPROM Status Register.
@@ -228,213 +278,27 @@ INT ReadBeceemEEPROM( PMINI_ADAPTER Adapter,
 		ReadBeceemEEPROMBulk(Adapter, uiTempOffset + MAX_RW_SIZE, (PUINT)&uiData[4], 4);
 	}
 
-	OsalMemMove( (PUCHAR) pBuffer, ( ((PUCHAR)&uiData[0]) + uiByteOffset ), 4);
+	memcpy( (PUCHAR) pBuffer, ( ((PUCHAR)&uiData[0]) + uiByteOffset ), 4);
 
 	return STATUS_SUCCESS;
 } /* ReadBeceemEEPROM() */
 
 
-#if 0
-//-----------------------------------------------------------------------------
-// Procedure:	IsEEPROMWriteDone
-//
-// Description: Reads the SPI status to see the status of previous write.
-//
-// Arguments:
-//		Adapter    - ptr to Adapter object instance
-//
-// Returns:
-//		BOOLEAN - TRUE  - write went through
-//              - FALSE - Write Failed.
-//-----------------------------------------------------------------------------
-
-BOOLEAN IsEEPROMWriteDone(PMINI_ADAPTER Adapter)
-{
-	UINT uiRetries = 16;
-	//UINT uiStatus  = 0;
-	UINT value;
-
-	//sleep for 1.2ms ..worst case EEPROM write can take up to 1.2ms.
-	mdelay(2);
-
-	value = 0;
-	rdmalt(Adapter, EEPROM_SPI_Q_STATUS1_REG, &value, sizeof(value));
-
-	while(((value >> 14) & 1) == 1)
-	{
-		// EEPROM_SPI_Q_STATUS1_REG will be cleared only if write back to that.
-		value = (0x1 << 14);
-		wrmalt(Adapter, EEPROM_SPI_Q_STATUS1_REG,&value, sizeof(value));
-		udelay(1000);
-		uiRetries--;
-		if(uiRetries == 0)
-		{
-			return FALSE;
-		}
-		value = 0;
-		rdmalt(Adapter, EEPROM_SPI_Q_STATUS1_REG, &value, sizeof(value));
-	}
-	return TRUE;
-
-
-}
-
-
-//-----------------------------------------------------------------------------
-// Procedure:	ReadBeceemEEPROMBulk
-//
-// Description: This routine reads 16Byte data from EEPROM
-//
-// Arguments:
-//		Adapter     - ptr to Adapter object instance
-//          dwAddress - EEPROM Offset to read the data from.
-//          pdwData    - Pointer to double word where data needs to be stored in.
-//
-// Returns:
-//		OSAL_STATUS_CODE:
-//-----------------------------------------------------------------------------
-
-INT ReadBeceemEEPROMBulk(PMINI_ADAPTER Adapter,DWORD dwAddress, DWORD *pdwData)
-{
-	DWORD dwRetries = 16;
-	DWORD dwIndex = 0;
-	UINT value, tmpVal;
-
-
-	value = 0;
-	rdmalt (Adapter, 0x0f003008, &value, sizeof(value));
-
-	//read 0x0f003020 untill  bit 1 of 0x0f003008 is set.
-	while(((value >> 1) & 1) == 0)
-	{
-
-		rdmalt (Adapter, 0x0f003020, &tmpVal, sizeof(tmpVal));
-		dwRetries--;
-		if(dwRetries == 0)
-		{
-			return -1;
-		}
-		value = 0;
-		rdmalt (Adapter, 0x0f003008, &value, sizeof(value));
-	}
-
-	value = dwAddress | 0xfb000000;
-	wrmalt (Adapter, 0x0f003018, &value, sizeof(value));
-
-	udelay(1000);
-	value = 0;
-	for(dwIndex = 0;dwIndex < 4 ; dwIndex++)
-	{
-		value = 0;
-		rdmalt (Adapter, 0x0f003020, &value, sizeof(value));
-		pdwData[dwIndex] = value;
-
-		value = 0;
-		rdmalt (Adapter, 0x0f003020, &value, sizeof(value));
-		pdwData[dwIndex] |= (value << 8);
-
-		value = 0;
-		rdmalt (Adapter, 0x0f003020, &value, sizeof(value));
-		pdwData[dwIndex] |= (value << 16);
-
-		value = 0;
-		rdmalt (Adapter, 0x0f003020, &value, sizeof(value));
-		pdwData[dwIndex] |= (value << 24);
-
-	}
-	return 0;
-}
-
-//-----------------------------------------------------------------------------
-// Procedure:	ReadBeceemEEPROM
-//
-// Description: This routine reads 4Byte data from EEPROM
-//
-// Arguments:
-//		Adapter     - ptr to Adapter object instance
-//          dwAddress - EEPROM Offset to read the data from.
-//          pdwData    - Pointer to double word where data needs to be stored in.
-//
-// Returns:
-//		OSAL_STATUS_CODE:
-//-----------------------------------------------------------------------------
-
-INT ReadBeceemEEPROM(PMINI_ADAPTER Adapter,DWORD dwAddress, DWORD *pdwData)
-{
-
-	DWORD dwReadValue = 0;
-	DWORD dwRetries = 16, dwCompleteWord = 0;
-	UINT	value, tmpVal;
-
-	rdmalt(Adapter, 0x0f003008, &value, sizeof(value));
-	while (((value >> 1) & 1) == 0) {
-		rdmalt(Adapter, 0x0f003020, &tmpVal, sizeof(tmpVal));
-
-		if (dwRetries == 0) {
-			return -1;
-		}
-		rdmalt(Adapter, 0x0f003008, &value, sizeof(value));
-	}
-
-
-	//wrm (0x0f003018, 0xNbXXXXXX)      // N is the number of bytes u want to read  (0 means 1, f means 16,   b is the opcode for page read)
-	//     Follow it up by N executions of  rdm(0x0f003020) to read the rxed bytes from rx queue.
-	dwAddress |= 0x3b000000;
-	wrmalt(Adapter, 0x0f003018,&dwAddress,4);
-	mdelay(10);
-	rdmalt(Adapter, 0x0f003020,&dwReadValue,4);
-	dwCompleteWord=dwReadValue;
-	rdmalt(Adapter, 0x0f003020,&dwReadValue,4);
-	dwCompleteWord|=(dwReadValue<<8);
-	rdmalt(Adapter, 0x0f003020,&dwReadValue,4);
-	dwCompleteWord|=(dwReadValue<<16);
-	rdmalt(Adapter, 0x0f003020,&dwReadValue,4);
-	dwCompleteWord|=(dwReadValue<<24);
-
-	*pdwData = dwCompleteWord;
-
-	return 0;
-}
-#endif
 
 INT ReadMacAddressFromNVM(PMINI_ADAPTER Adapter)
 {
-	INT Status=0, i;
-	unsigned char puMacAddr[6] = {0};
-	INT AllZeroMac = 0;
-	INT AllFFMac = 0;
+	INT Status;
+	unsigned char puMacAddr[6];
 
 	Status = BeceemNVMRead(Adapter,
 			(PUINT)&puMacAddr[0],
 			INIT_PARAMS_1_MACADDRESS_ADDRESS,
 			MAC_ADDRESS_SIZE);
 
-	if(Status != STATUS_SUCCESS)
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Error in Reading the mac Addres with status :%d", Status);
-		return Status;
-	}
-
-	memcpy(Adapter->dev->dev_addr, puMacAddr, MAC_ADDRESS_SIZE);
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL,"Modem MAC Addr :");
-    BCM_DEBUG_PRINT_BUFFER(Adapter,DBG_TYPE_PRINTK, 0, DBG_LVL_ALL,&Adapter->dev->dev_addr[0],MAC_ADDRESS_SIZE);
-	for(i=0;i<MAC_ADDRESS_SIZE;i++)
-	{
-
-		if(Adapter->dev->dev_addr[i] == 0x00)
-			AllZeroMac++;
-		if(Adapter->dev->dev_addr[i] == 0xFF)
-			AllFFMac++;
-
-	}
-	//BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "\n");
-	if(AllZeroMac == MAC_ADDRESS_SIZE)
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL,"Warning :: MAC Address has all 00's");
-	if(AllFFMac == MAC_ADDRESS_SIZE)
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL,"Warning :: MAC Address has all FF's");
+	if(Status == STATUS_SUCCESS)
+		memcpy(Adapter->dev->dev_addr, puMacAddr, MAC_ADDRESS_SIZE);
 
 	return Status;
-
 }
 
 //-----------------------------------------------------------------------------
@@ -476,7 +340,7 @@ INT BeceemEEPROMBulkRead(
 		ReadBeceemEEPROMBulk(Adapter,uiTempOffset,(PUINT)&uiData[0],4);
 		if(uiBytesRemaining >= (MAX_RW_SIZE - uiExtraBytes))
 		{
-			OsalMemMove(pBuffer,(((PUCHAR)&uiData[0])+uiExtraBytes),MAX_RW_SIZE - uiExtraBytes);
+			memcpy(pBuffer,(((PUCHAR)&uiData[0])+uiExtraBytes),MAX_RW_SIZE - uiExtraBytes);
 
 			uiBytesRemaining -= (MAX_RW_SIZE - uiExtraBytes);
 			uiIndex += (MAX_RW_SIZE - uiExtraBytes);
@@ -484,7 +348,7 @@ INT BeceemEEPROMBulkRead(
 		}
 		else
 		{
-			OsalMemMove(pBuffer,(((PUCHAR)&uiData[0])+uiExtraBytes),uiBytesRemaining);
+			memcpy(pBuffer,(((PUCHAR)&uiData[0])+uiExtraBytes),uiBytesRemaining);
 			uiIndex += uiBytesRemaining;
 			uiOffset += uiBytesRemaining;
 			uiBytesRemaining = 0;
@@ -508,7 +372,7 @@ INT BeceemEEPROMBulkRead(
 			 * We read 4 Dwords of data */
 			if(0 == ReadBeceemEEPROMBulk(Adapter,uiOffset,&uiData[0],4))
 			{
-				OsalMemMove(pcBuff+uiIndex,&uiData[0],MAX_RW_SIZE);
+				memcpy(pcBuff+uiIndex,&uiData[0],MAX_RW_SIZE);
 				uiOffset += MAX_RW_SIZE;
 				uiBytesRemaining -= MAX_RW_SIZE;
 				uiIndex += MAX_RW_SIZE;
@@ -523,7 +387,7 @@ INT BeceemEEPROMBulkRead(
 		{
 			if(0 == ReadBeceemEEPROM(Adapter,uiOffset,&uiData[0]))
 			{
-				OsalMemMove(pcBuff+uiIndex,&uiData[0],4);
+				memcpy(pcBuff+uiIndex,&uiData[0],4);
 				uiOffset += 4;
 				uiBytesRemaining -= 4;
 				uiIndex +=4;
@@ -540,7 +404,7 @@ INT BeceemEEPROMBulkRead(
 			pCharBuff += uiIndex;
 			if(0 == ReadBeceemEEPROM(Adapter,uiOffset,&uiData[0]))
 			{
-				OsalMemMove(pCharBuff,&uiData[0],uiBytesRemaining);//copy only bytes requested.
+				memcpy(pCharBuff,&uiData[0],uiBytesRemaining);//copy only bytes requested.
 				uiBytesRemaining = 0;
 			}
 			else
@@ -571,7 +435,7 @@ INT BeceemEEPROMBulkRead(
 //		<FAILURE>			- if failed.
 //-----------------------------------------------------------------------------
 
-INT BeceemFlashBulkRead(
+static INT BeceemFlashBulkRead(
 	PMINI_ADAPTER Adapter,
 	PUINT pBuffer,
 	UINT uiOffset,
@@ -653,16 +517,8 @@ INT BeceemFlashBulkRead(
 //
 //-----------------------------------------------------------------------------
 
-UINT BcmGetFlashSize(PMINI_ADAPTER Adapter)
+static UINT BcmGetFlashSize(PMINI_ADAPTER Adapter)
 {
-#if 0
-	if(Adapter->bDDRInitDone)
-	{
-		return rdm(Adapter,FLASH_CONTIGIOUS_START_ADDR_AFTER_INIT|FLASH_SIZE_ADDR);
-	}
-
-	return rdm(Adapter,FLASH_CONTIGIOUS_START_ADDR_BEFORE_INIT|FLASH_SIZE_ADDR);
-#endif
 	if(IsFlash2x(Adapter))
 		return 	(Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + sizeof(DSD_HEADER));
 	else
@@ -684,7 +540,7 @@ UINT BcmGetFlashSize(PMINI_ADAPTER Adapter)
 //
 //-----------------------------------------------------------------------------
 
-UINT BcmGetEEPROMSize(PMINI_ADAPTER Adapter)
+static UINT BcmGetEEPROMSize(PMINI_ADAPTER Adapter)
 {
 	UINT uiData = 0;
 	UINT uiIndex = 0;
@@ -733,60 +589,6 @@ UINT BcmGetEEPROMSize(PMINI_ADAPTER Adapter)
 	return 0;
 }
 
-#if 0
-/***********************************************************************************/
-//
-//  WriteBeceemEEPROM: Writes 4 byte data to EEPROM offset.
-//
-//                     uiEEPROMOffset - Offset to be written to.
-//                     uiData         - Data to be written.
-//
-/***********************************************************************************/
-
-INT WriteBeceemEEPROM(PMINI_ADAPTER Adapter,UINT uiEEPROMOffset, UINT uiData)
-{
-	INT Status = 0;
-	ULONG ulRdBk = 0;
-	ULONG ulRetryCount = 3;
-	UINT value;
-
-	if(uiEEPROMOffset > EEPROM_END)
-	{
-
-		return -1;
-	}
-
-	uiData = htonl(uiData);
-	while(ulRetryCount--)
-	{
-		value = 0x06000000;
-		wrmalt(Adapter, 0x0F003018,&value, sizeof(value));//flush the EEPROM FIFO.
-		wrmalt(Adapter, 0x0F00301C,&uiData, sizeof(uiData));
-		value = 0x3A000000 | uiEEPROMOffset;
-		wrmalt(Adapter, 0x0F003018,&value, sizeof(value));
-		__udelay(100000);
-		//read back and verify.
-		Status = ReadBeceemEEPROM(Adapter,uiEEPROMOffset,(UINT *)&ulRdBk);
-		if(Status == 0)
-		{
-			if(ulRdBk == uiData)
-			{
-				return Status;
-			}
-			else
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "WriteBeceemEEPROM: Readback does not match\n");
-			}
-		}
-		else
-		{
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "WriteBeceemEEPROM: Readback failed\n");
-		}
-	}
-
-	return 0;
-}
-#endif
 
 //-----------------------------------------------------------------------------
 // Procedure:	FlashSectorErase
@@ -973,7 +775,7 @@ static INT flashWrite(
 // need not write 0xFFFFFFFF because write requires an erase and erase will
 // make whole sector 0xFFFFFFFF.
 //
-	if (!OsalMemCompare(pData, uiErasePattern, MAX_RW_SIZE))
+	if (!memcmp(pData, uiErasePattern, MAX_RW_SIZE))
 	{
 		return 0;
 	}
@@ -1138,7 +940,7 @@ static INT flashWriteStatus(
 // need not write 0xFFFFFFFF because write requires an erase and erase will
 // make whole sector 0xFFFFFFFF.
 //
-	if (!OsalMemCompare(pData,uiErasePattern,MAX_RW_SIZE))
+	if (!memcmp(pData,uiErasePattern,MAX_RW_SIZE))
 	{
 		return 0;
 	}
@@ -1332,7 +1134,7 @@ static ULONG BcmFlashUnProtectBlock(PMINI_ADAPTER Adapter,UINT uiOffset, UINT ui
 //
 //-----------------------------------------------------------------------------
 
-INT BeceemFlashBulkWrite(
+static INT BeceemFlashBulkWrite(
 	PMINI_ADAPTER Adapter,
 	PUINT pBuffer,
 	UINT uiOffset,
@@ -1353,15 +1155,6 @@ INT BeceemFlashBulkWrite(
 	UINT uiTemp 				= 0;
 	UINT index 					= 0;
 	UINT uiPartOffset 			= 0;
-	#if 0
-	struct timeval tv1 = {0};
-	struct timeval tv2 = {0};
-
-	struct timeval tr = {0};
-	struct timeval te = {0};
-	struct timeval tw = {0};
-	struct timeval twv = {0};
-	#endif
 
 #if defined(BCM_SHM_INTERFACE) && !defined(FLASH_DIRECT_ACCESS)
   Status = bcmflash_raw_write((uiOffset/FLASH_PART_SIZE),(uiOffset % FLASH_PART_SIZE),( unsigned char *)pBuffer,uiNumBytes);
@@ -1377,12 +1170,9 @@ INT BeceemFlashBulkWrite(
 	uiCurrSectOffsetAddr	= uiOffset & (Adapter->uiSectorSize - 1);
 	uiSectBoundary	  		= uiSectAlignAddr + Adapter->uiSectorSize;
 
-	//pTempBuff = OsalMemAlloc(MAX_SECTOR_SIZE,'!MVN');
-	pTempBuff = OsalMemAlloc(Adapter->uiSectorSize ,"!MVN");
+	pTempBuff = kmalloc(Adapter->uiSectorSize, GFP_KERNEL);
 	if(NULL == pTempBuff)
-	{
 		goto BeceemFlashBulkWrite_EXIT;
-	}
 //
 // check if the data to be written is overlapped accross sectors
 //
@@ -1399,7 +1189,6 @@ INT BeceemFlashBulkWrite(
 			uiNumSectTobeRead++;
 		}
 	}
-	#if 1
 	//Check whether Requested sector is writable or not in case of flash2x write. But if  write call is
 	// for DSD calibration, allow it without checking of sector permission
 
@@ -1420,7 +1209,6 @@ INT BeceemFlashBulkWrite(
 			 index = index + 1 ;
 		}
 	}
-	#endif
 	Adapter->SelectedChip = RESET_CHIP_SELECT;
 	while(uiNumSectTobeRead)
 	{
@@ -1448,13 +1236,13 @@ INT BeceemFlashBulkWrite(
 		if(uiNumSectTobeRead > 1)
 		{
 
-			OsalMemMove(&pTempBuff[uiCurrSectOffsetAddr],pcBuffer,uiSectBoundary-(uiSectAlignAddr+uiCurrSectOffsetAddr));
+			memcpy(&pTempBuff[uiCurrSectOffsetAddr],pcBuffer,uiSectBoundary-(uiSectAlignAddr+uiCurrSectOffsetAddr));
 			pcBuffer += ((uiSectBoundary-(uiSectAlignAddr+uiCurrSectOffsetAddr)));
 			uiNumBytes -= (uiSectBoundary-(uiSectAlignAddr+uiCurrSectOffsetAddr));
 		}
 		else
 		{
-				OsalMemMove(&pTempBuff[uiCurrSectOffsetAddr],pcBuffer,uiNumBytes);
+				memcpy(&pTempBuff[uiCurrSectOffsetAddr],pcBuffer,uiNumBytes);
 		}
 
 		if(IsFlash2x(Adapter))
@@ -1503,7 +1291,7 @@ INT BeceemFlashBulkWrite(
 				}
 				else
 				{
-					if(OsalMemCompare(ucReadBk,&pTempBuff[uiIndex],MAX_RW_SIZE))
+					if(memcmp(ucReadBk,&pTempBuff[uiIndex],MAX_RW_SIZE))
 					{
 						if(STATUS_SUCCESS != (*Adapter->fpFlashWriteWithStatusCheck)(Adapter,uiPartOffset+uiIndex,&pTempBuff[uiIndex]))
 						{
@@ -1541,10 +1329,8 @@ BeceemFlashBulkWrite_EXIT:
 	{
 		BcmRestoreBlockProtectStatus(Adapter,ulStatus);
 	}
-	if(pTempBuff)
-	{
-		OsalMemFree(pTempBuff,Adapter->uiSectorSize);
-	}
+	
+	kfree(pTempBuff);
 
 	Adapter->SelectedChip = RESET_CHIP_SELECT;
 	return Status;
@@ -1599,14 +1385,10 @@ static INT BeceemFlashBulkWriteStatus(
 	uiCurrSectOffsetAddr	= uiOffset & (Adapter->uiSectorSize - 1);
 	uiSectBoundary			= uiSectAlignAddr + Adapter->uiSectorSize;
 
-
-
-//	pTempBuff = OsalMemAlloc(MAX_SECTOR_SIZE,'!MVN');
-	pTempBuff = OsalMemAlloc(Adapter->uiSectorSize,"!MVN");
+	pTempBuff = kmalloc(Adapter->uiSectorSize, GFP_KERNEL);
 	if(NULL == pTempBuff)
-	{
 		goto BeceemFlashBulkWriteStatus_EXIT;
-	}
+
 //
 // check if the data to be written is overlapped accross sectors
 //
@@ -1662,13 +1444,13 @@ static INT BeceemFlashBulkWriteStatus(
 		if(uiNumSectTobeRead > 1)
 		{
 
-			OsalMemMove(&pTempBuff[uiCurrSectOffsetAddr],pcBuffer,uiSectBoundary-(uiSectAlignAddr+uiCurrSectOffsetAddr));
+			memcpy(&pTempBuff[uiCurrSectOffsetAddr],pcBuffer,uiSectBoundary-(uiSectAlignAddr+uiCurrSectOffsetAddr));
 			pcBuffer += ((uiSectBoundary-(uiSectAlignAddr+uiCurrSectOffsetAddr)));
 			uiNumBytes -= (uiSectBoundary-(uiSectAlignAddr+uiCurrSectOffsetAddr));
 		}
 		else
 		{
-			OsalMemMove(&pTempBuff[uiCurrSectOffsetAddr],pcBuffer,uiNumBytes);
+			memcpy(&pTempBuff[uiCurrSectOffsetAddr],pcBuffer,uiNumBytes);
 		}
 
 		if(IsFlash2x(Adapter))
@@ -1698,25 +1480,10 @@ static INT BeceemFlashBulkWriteStatus(
 		{
 			for(uiIndex = 0;uiIndex < Adapter->uiSectorSize;uiIndex += MAX_RW_SIZE)
 			{
-#if 0
-				if(0 == BeceemFlashBulkRead(Adapter,uiReadBk,uiOffsetFromSectStart+uiIndex + Adapter->ulFlashCalStart ,MAX_RW_SIZE))
-				{
-					for(uiReadIndex = 0;uiReadIndex < 4; uiReadIndex++)
-					{
-						if(*((PUINT)&pTempBuff[uiIndex+uiReadIndex*4]) != uiReadBk[uiReadIndex])
-						{
-							Status = -1;
-							goto BeceemFlashBulkWriteStatus_EXIT;
-
-						}
-					}
-
-				}
-#endif
 
 				if(STATUS_SUCCESS == BeceemFlashBulkRead(Adapter,(PUINT)ucReadBk,uiOffsetFromSectStart+uiIndex,MAX_RW_SIZE))
 				{
-					if(OsalMemCompare(ucReadBk,&pTempBuff[uiIndex],MAX_RW_SIZE))
+					if(memcmp(ucReadBk,&pTempBuff[uiIndex],MAX_RW_SIZE))
 					{
 						Status = STATUS_FAILURE;
 						goto BeceemFlashBulkWriteStatus_EXIT;
@@ -1747,10 +1514,8 @@ BeceemFlashBulkWriteStatus_EXIT:
 	{
 		BcmRestoreBlockProtectStatus(Adapter,ulStatus);
 	}
-	if(pTempBuff)
-	{
-		OsalMemFree(pTempBuff,Adapter->uiSectorSize);
-	}
+
+	kfree(pTempBuff);
 	Adapter->SelectedChip = RESET_CHIP_SELECT;
 	return Status;
 
@@ -1771,7 +1536,7 @@ BeceemFlashBulkWriteStatus_EXIT:
 
 INT PropagateCalParamsFromEEPROMToMemory(PMINI_ADAPTER Adapter)
 {
-	PCHAR pBuff = OsalMemAlloc(BUFFER_4K,"3MVN");
+	PCHAR pBuff = kmalloc(BUFFER_4K, GFP_KERNEL);
 	UINT uiEepromSize = 0;
 	UINT uiIndex = 0;
 	UINT uiBytesToCopy = 0;
@@ -1787,14 +1552,14 @@ INT PropagateCalParamsFromEEPROMToMemory(PMINI_ADAPTER Adapter)
 	if(0 != BeceemEEPROMBulkRead(Adapter,&uiEepromSize,EEPROM_SIZE_OFFSET,4))
 	{
 
-		OsalMemFree(pBuff,BUFFER_4K);
+		kfree(pBuff);
 		return -1;
 	}
 
 	uiEepromSize >>= 16;
 	if(uiEepromSize > 1024*1024)
 	{
-		OsalMemFree(pBuff,BUFFER_4K);
+		kfree(pBuff);
 		return -1;
 	}
 
@@ -1820,7 +1585,7 @@ INT PropagateCalParamsFromEEPROMToMemory(PMINI_ADAPTER Adapter)
 	wrmalt(Adapter, EEPROM_CAL_DATA_INTERNAL_LOC-4,&value, sizeof(value));
 	value = 0xbeadbead;
 	wrmalt(Adapter, EEPROM_CAL_DATA_INTERNAL_LOC-8,&value, sizeof(value));
-	OsalMemFree(pBuff,MAX_RW_SIZE);
+	kfree(pBuff);
 
 	return Status;
 
@@ -1873,16 +1638,13 @@ INT PropagateCalParamsFromFlashToMemory(PMINI_ADAPTER Adapter)
 		return -1;
 	}
 
-	pBuff = OsalMemAlloc(uiEepromSize, 0);
-
+	pBuff = kmalloc(uiEepromSize, GFP_KERNEL);
 	if ( pBuff == NULL )
-	{
 		return -1;
-	}
 
 	if(0 != BeceemNVMRead(Adapter,(PUINT)pBuff,uiCalStartAddr, uiEepromSize))
 	{
-		OsalMemFree(pBuff, 0);
+		kfree(pBuff);
 		return -1;
 	}
 
@@ -1905,7 +1667,7 @@ INT PropagateCalParamsFromFlashToMemory(PMINI_ADAPTER Adapter)
 		uiBytesToCopy = MIN(BUFFER_4K,uiEepromSize);
 	}
 
-	OsalMemFree(pBuff, 0);
+	kfree(pBuff);
 	return Status;
 
 }
@@ -1947,14 +1709,14 @@ static INT BeceemEEPROMReadBackandVerify(
 		{// for the requests more than or equal to MAX_RW_SIZE bytes, use bulk read function to make the access faster.
 			BeceemEEPROMBulkRead(Adapter,&auiData[0],uiOffset,MAX_RW_SIZE);
 
-			if(OsalMemCompare(&pBuffer[uiIndex],&auiData[0],MAX_RW_SIZE))
+			if(memcmp(&pBuffer[uiIndex],&auiData[0],MAX_RW_SIZE))
 			{
 				// re-write
 				BeceemEEPROMBulkWrite(Adapter,(PUCHAR)(pBuffer+uiIndex),uiOffset,MAX_RW_SIZE,FALSE);
 				mdelay(3);
 				BeceemEEPROMBulkRead(Adapter,&auiData[0],uiOffset,MAX_RW_SIZE);
 
-				if(OsalMemCompare(&pBuffer[uiIndex],&auiData[0],MAX_RW_SIZE))
+				if(memcmp(&pBuffer[uiIndex],&auiData[0],MAX_RW_SIZE))
 				{
 					return -1;
 				}
@@ -1986,7 +1748,7 @@ static INT BeceemEEPROMReadBackandVerify(
 		else
 		{ // Handle the reads less than 4 bytes...
 			uiData = 0;
-			OsalMemMove(&uiData,((PUCHAR)pBuffer)+(uiIndex*sizeof(UINT)),uiNumBytes);
+			memcpy(&uiData,((PUCHAR)pBuffer)+(uiIndex*sizeof(UINT)),uiNumBytes);
 			BeceemEEPROMBulkRead(Adapter,&uiRdbk,uiOffset,4);
 
 			if(memcmp(&uiData, &uiRdbk, uiNumBytes))
@@ -2186,7 +1948,7 @@ INT BeceemEEPROMBulkWrite(
 
 		if(uiBytesToCopy >= (16 -uiExtraBytes))
 		{
-			OsalMemMove((((PUCHAR)&uiData[0])+uiExtraBytes),pBuffer,MAX_RW_SIZE- uiExtraBytes);
+			memcpy((((PUCHAR)&uiData[0])+uiExtraBytes),pBuffer,MAX_RW_SIZE- uiExtraBytes);
 
 			if ( STATUS_FAILURE == BeceemEEPROMWritePage( Adapter, uiData, uiTempOffset ) )
 					return STATUS_FAILURE;
@@ -2197,7 +1959,7 @@ INT BeceemEEPROMBulkWrite(
 		}
 		else
 		{
-			OsalMemMove((((PUCHAR)&uiData[0])+uiExtraBytes),pBuffer,uiBytesToCopy);
+			memcpy((((PUCHAR)&uiData[0])+uiExtraBytes),pBuffer,uiBytesToCopy);
 
 			if ( STATUS_FAILURE == BeceemEEPROMWritePage( Adapter, uiData, uiTempOffset ) )
 					return STATUS_FAILURE;
@@ -2233,7 +1995,7 @@ INT BeceemEEPROMBulkWrite(
 	// To program non 16byte aligned data, read 16byte and then update.
 	//
 			BeceemEEPROMBulkRead(Adapter,&uiData[0],uiOffset,16);
-			OsalMemMove(&uiData[0],pBuffer+uiIndex,uiBytesToCopy);
+			memcpy(&uiData[0],pBuffer+uiIndex,uiBytesToCopy);
 
 
 			if ( STATUS_FAILURE == BeceemEEPROMWritePage( Adapter, uiData, uiOffset ) )
@@ -2535,7 +2297,7 @@ INT BcmUpdateSectorSize(PMINI_ADAPTER Adapter,UINT uiSectorSize)
 //
 //-----------------------------------------------------------------------------
 
-UINT BcmGetFlashSectorSize(PMINI_ADAPTER Adapter, UINT FlashSectorSizeSig, UINT FlashSectorSize)
+static UINT BcmGetFlashSectorSize(PMINI_ADAPTER Adapter, UINT FlashSectorSizeSig, UINT FlashSectorSize)
 {
 	UINT uiSectorSize = 0;
 	UINT uiSectorSig = 0;
@@ -2642,20 +2404,8 @@ static INT BcmInitEEPROMQueues(PMINI_ADAPTER Adapter)
 
 INT BcmInitNVM(PMINI_ADAPTER ps_adapter)
 {
-#ifdef BCM_SHM_INTERFACE
-#ifdef FLASH_DIRECT_ACCESS
-	unsigned int data,data1,data2 = 1;
-	wrm(ps_adapter, PAD_SELECT_REGISTER, &data2, 4);
-	data1 = rdm(ps_adapter,SYS_CFG,&data,4);
-	data1 = rdm(ps_adapter,SYS_CFG,&data,4);
-	data2 = (data | 0x80 | 0x8000);
-	wrm(ps_adapter,SYS_CFG, &data2,4); // over-write as Flash boot mode
-#endif
-	ps_adapter->eNVMType = NVM_FLASH;
-#else
 	BcmValidateNvmType(ps_adapter);
 	BcmInitEEPROMQueues(ps_adapter);
-#endif
 
 	if(ps_adapter->eNVMType == NVM_AUTODETECT)
 	{
@@ -2684,7 +2434,7 @@ INT BcmInitNVM(PMINI_ADAPTER ps_adapter)
 */
 /***************************************************************************/
 
-INT BcmGetNvmSize(PMINI_ADAPTER Adapter)
+static INT BcmGetNvmSize(PMINI_ADAPTER Adapter)
 {
 	if(Adapter->eNVMType == NVM_EEPROM)
 	{
@@ -2708,7 +2458,7 @@ INT BcmGetNvmSize(PMINI_ADAPTER Adapter)
 // Returns:
 //		<VOID>
 //-----------------------------------------------------------------------------
-VOID BcmValidateNvmType(PMINI_ADAPTER Adapter)
+static VOID BcmValidateNvmType(PMINI_ADAPTER Adapter)
 {
 
 	//
@@ -2775,7 +2525,7 @@ INT BcmAllocFlashCSStructure(PMINI_ADAPTER psAdapter)
 	if(psAdapter->psFlash2xCSInfo == NULL)
 	{
 		BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_PRINTK, 0, 0,"Can't Allocate memory for Flash 2.x");
-		bcm_kfree(psAdapter->psFlashCSInfo);
+		kfree(psAdapter->psFlashCSInfo);
 		return -ENOMEM;
 	}
 
@@ -2783,8 +2533,8 @@ INT BcmAllocFlashCSStructure(PMINI_ADAPTER psAdapter)
 	if(psAdapter->psFlash2xVendorInfo == NULL)
 	{
 		BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_PRINTK, 0, 0,"Can't Allocate Vendor Info Memory for Flash 2.x");
-		bcm_kfree(psAdapter->psFlashCSInfo);
-		bcm_kfree(psAdapter->psFlash2xCSInfo);
+		kfree(psAdapter->psFlashCSInfo);
+		kfree(psAdapter->psFlash2xCSInfo);
 		return -ENOMEM;
 	}
 
@@ -2798,9 +2548,9 @@ INT BcmDeAllocFlashCSStructure(PMINI_ADAPTER psAdapter)
 		BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_PRINTK, 0, 0," Adapter structure point is NULL");
 		return -EINVAL;
 	}
-	bcm_kfree(psAdapter->psFlashCSInfo);
-	bcm_kfree(psAdapter->psFlash2xCSInfo);
-	bcm_kfree(psAdapter->psFlash2xVendorInfo);
+	kfree(psAdapter->psFlashCSInfo);
+	kfree(psAdapter->psFlash2xCSInfo);
+	kfree(psAdapter->psFlash2xVendorInfo);
 	return STATUS_SUCCESS ;
 }
 
@@ -2954,7 +2704,7 @@ static INT	ConvertEndianOfCSStructure(PFLASH_CS_INFO psFlashCSInfo)
 	return STATUS_SUCCESS;
 }
 
-INT IsSectionExistInVendorInfo(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL section)
+static INT IsSectionExistInVendorInfo(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL section)
 {
  	return ( Adapter->uiVendorExtnFlag &&
  		(Adapter->psFlash2xVendorInfo->VendorSection[section].AccessFlags & FLASH2X_SECTION_PRESENT) &&
@@ -3052,7 +2802,7 @@ static VOID UpdateVendorInfo(PMINI_ADAPTER Adapter)
 //		<VOID>
 //-----------------------------------------------------------------------------
 
-INT BcmGetFlashCSInfo(PMINI_ADAPTER Adapter)
+static INT BcmGetFlashCSInfo(PMINI_ADAPTER Adapter)
 {
 	//FLASH_CS_INFO sFlashCsInfo = {0};
 
@@ -3070,7 +2820,6 @@ INT BcmGetFlashCSInfo(PMINI_ADAPTER Adapter)
 	memset(Adapter->psFlashCSInfo, 0 ,sizeof(FLASH_CS_INFO));
 	memset(Adapter->psFlash2xCSInfo, 0 ,sizeof(FLASH2X_CS_INFO));
 
-#ifndef BCM_SHM_INTERFACE
 	if(!Adapter->bDDRInitDone)
 	{
 		{
@@ -3079,7 +2828,6 @@ INT BcmGetFlashCSInfo(PMINI_ADAPTER Adapter)
 		}
 	}
 
-#endif
 
 	// Reading first 8 Bytes to get the Flash Layout
 	// MagicNumber(4 bytes) +FlashLayoutMinorVersion(2 Bytes) +FlashLayoutMajorVersion(2 Bytes)
@@ -3147,9 +2895,7 @@ INT BcmGetFlashCSInfo(PMINI_ADAPTER Adapter)
 			return STATUS_FAILURE;
 		}
 		ConvertEndianOf2XCSStructure(Adapter->psFlash2xCSInfo);
-#ifndef BCM_SHM_INTERFACE
 		BcmDumpFlash2XCSStructure(Adapter->psFlash2xCSInfo,Adapter);
-#endif
 		if((FLASH_CONTROL_STRUCT_SIGNATURE == Adapter->psFlash2xCSInfo->MagicNumber) &&
 		   (SCSI_FIRMWARE_MINOR_VERSION <= MINOR_VERSION(Adapter->psFlash2xCSInfo->SCSIFirmwareVersion)) &&
 		   (FLASH_SECTOR_SIZE_SIG == Adapter->psFlash2xCSInfo->FlashSectorSizeSig) &&
@@ -3181,21 +2927,10 @@ INT BcmGetFlashCSInfo(PMINI_ADAPTER Adapter)
 	Concerns: what if CS sector size does not match with this sector size ???
 	what is the indication of AccessBitMap  in CS in flash 2.x ????
 	*/
-#ifndef BCM_SHM_INTERFACE
 	Adapter->ulFlashID = BcmReadFlashRDID(Adapter);
-#endif
 
 	Adapter->uiFlashLayoutMajorVersion = uiFlashLayoutMajorVersion;
 
-	#if 0
-	if(FLASH_PART_SST25VF080B == Adapter->ulFlashID)
-	{
-	//
-	// 1MB flash has been selected. we have to use 64K as sector size no matter what is kept in FLASH_CS.
-	//
-		Adapter->uiSectorSize = 0x10000;
-	}
-	#endif
 
 	return STATUS_SUCCESS ;
 }
@@ -3214,7 +2949,7 @@ INT BcmGetFlashCSInfo(PMINI_ADAPTER Adapter)
 //
 //-----------------------------------------------------------------------------
 
-NVM_TYPE BcmGetNvmType(PMINI_ADAPTER Adapter)
+static NVM_TYPE BcmGetNvmType(PMINI_ADAPTER Adapter)
 {
 	UINT uiData = 0;
 
@@ -3569,39 +3304,6 @@ INT BcmFlash2xBulkWrite(
 }
 
 /**
-*	ReadDSDHeader : Read the DSD map for the DSD Section val provided in Argument.
-*	@Adapter : Beceem Private Data Structure
-*	@psDSDHeader :Pointer of the buffer where header has to be read
-*	@dsd :value of the Dyanmic DSD like DSD0 of DSD1 or DSD2
-*
-*	Return Value:-
-*		if suceeds return STATUS_SUCCESS or negative error code.
-**/
-INT ReadDSDHeader(PMINI_ADAPTER Adapter, PDSD_HEADER psDSDHeader, FLASH2X_SECTION_VAL dsd)
-{
-	INT Status = STATUS_SUCCESS;
-
-	Status =BcmFlash2xBulkRead(Adapter,
-						    (PUINT)psDSDHeader,
-							dsd,
-							Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader,
-							sizeof(DSD_HEADER));
-	if(Status == STATUS_SUCCESS)
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "DSDImageMagicNumber :0X%x", ntohl(psDSDHeader->DSDImageMagicNumber));
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "DSDImageSize :0X%x ",ntohl(psDSDHeader->DSDImageSize));
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "DSDImageCRC :0X%x",ntohl(psDSDHeader->DSDImageCRC));
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "DSDImagePriority :0X%x",ntohl(psDSDHeader->DSDImagePriority));
-	}
-	else
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"DSD Header read is failed with status :%d", Status);
-	}
-
-	return Status;
-}
-
-/**
 *	BcmGetActiveDSD : Set the Active DSD in Adapter Structure which has to be dumped in DDR
 *	@Adapter :-Drivers private Data Structure
 *
@@ -3609,7 +3311,7 @@ INT ReadDSDHeader(PMINI_ADAPTER Adapter, PDSD_HEADER psDSDHeader, FLASH2X_SECTIO
 *		Return STATUS_SUCESS if get sucess in setting the right DSD else negaive error code
 *
 **/
-INT BcmGetActiveDSD(PMINI_ADAPTER Adapter)
+static INT BcmGetActiveDSD(PMINI_ADAPTER Adapter)
 {
 	FLASH2X_SECTION_VAL uiHighestPriDSD = 0 ;
 
@@ -3647,39 +3349,6 @@ INT BcmGetActiveDSD(PMINI_ADAPTER Adapter)
 	return STATUS_SUCCESS;
 }
 
-/**
-*	ReadISOUnReservedBytes : Read the ISO map for the ISO Section val provided in Argument.
-*	@Adapter : Driver Private Data Structure
-*	@psISOHeader :Pointer of the location where header has to be read
-*	@IsoImage :value of the Dyanmic ISO like ISO_IMAGE1 of ISO_IMAGE2
-*
-*	Return Value:-
-*		if suceeds return STATUS_SUCCESS or negative error code.
-**/
-
-INT ReadISOHeader(PMINI_ADAPTER Adapter, PISO_HEADER psISOHeader, FLASH2X_SECTION_VAL IsoImage)
-{
-	INT Status = STATUS_SUCCESS;
-
-	Status = BcmFlash2xBulkRead(Adapter,
-					    (PUINT)psISOHeader,
-						IsoImage,
-						0,
-						sizeof(ISO_HEADER));
-
-	if(Status == STATUS_SUCCESS)
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "ISOImageMagicNumber :0X%x", ntohl(psISOHeader->ISOImageMagicNumber));
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "ISOImageSize :0X%x ",ntohl(psISOHeader->ISOImageSize));
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "ISOImageCRC :0X%x",ntohl(psISOHeader->ISOImageCRC));
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "ISOImagePriority :0X%x",ntohl(psISOHeader->ISOImagePriority));
-	}
-	else
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "ISO Header Read failed");
-	}
-	return Status;
-}
 
 /**
 *	BcmGetActiveISO :- Set the Active ISO in Adapter Data Structue
@@ -3691,7 +3360,7 @@ INT ReadISOHeader(PMINI_ADAPTER Adapter, PISO_HEADER psISOHeader, FLASH2X_SECTIO
 *
 **/
 
-INT BcmGetActiveISO(PMINI_ADAPTER Adapter)
+static INT BcmGetActiveISO(PMINI_ADAPTER Adapter)
 {
 
 	INT HighestPriISO = 0 ;
@@ -4588,7 +4257,7 @@ INT BcmCopyISO(PMINI_ADAPTER Adapter, FLASH2X_COPY_SECTION sCopySectStrut)
 
 	}
 
-	bcm_kfree(Buff);
+	kfree(Buff);
 
 	return Status;
 }
@@ -4789,7 +4458,7 @@ Return Value:-
 	Success :- Base Address of the Flash
 **/
 
-INT GetFlashBaseAddr(PMINI_ADAPTER Adapter)
+static INT GetFlashBaseAddr(PMINI_ADAPTER Adapter)
 {
 
 	UINT uiBaseAddr = 0;
@@ -4866,20 +4535,6 @@ INT	BcmCopySection(PMINI_ADAPTER Adapter,
 		return  -EINVAL;
 	}
 
-	#if 0
-	else
-	{
-		if((SrcSection == VSA0) || (SrcSection == VSA1) || (SrcSection == VSA2))
-		{
-			if((DstSection != VSA0) && (DstSection != VSA1) && (DstSection != VSA2))
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL,"Source and Destion secton is not of same type");
-				return -EINVAL;
-			}
-		}
-
-	}
-	#endif
 	//if offset zero means have to copy complete secton
 
 	if(numOfBytes == 0)
@@ -4954,7 +4609,7 @@ INT	BcmCopySection(PMINI_ADAPTER Adapter,
 				BytesToBeCopied = numOfBytes;
 		}
 	}while(numOfBytes > 0) ;
-	bcm_kfree(pBuff);
+	kfree(pBuff);
 	Adapter->bHeaderChangeAllowed = FALSE ;
 	return Status;
 }
@@ -4979,14 +4634,6 @@ INT SaveHeaderIfPresent(PMINI_ADAPTER Adapter, PUCHAR pBuff, UINT uiOffset)
 	UINT uiSectAlignAddr = 0;
 	UINT sig = 0;
 
-	#if 0
-	//if Chenges in Header is allowed, Return back
-	if(Adapter->bHeaderChangeAllowed == TRUE)
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "Header Change is allowed");
-		return STATUS_SUCCESS ;
-	}
-	#endif
 	//making the offset sector alligned
 	uiSectAlignAddr = uiOffset & ~(Adapter->uiSectorSize - 1);
 
@@ -5024,7 +4671,7 @@ INT SaveHeaderIfPresent(PMINI_ADAPTER Adapter, PUCHAR pBuff, UINT uiOffset)
 		//Replace Buffer content with Header
 		memcpy(pBuff +offsetToProtect,pTempBuff,HeaderSizeToProtect);
 
-		bcm_kfree(pTempBuff);
+		kfree(pTempBuff);
 	}
 	if(bHasHeader && Adapter->bSigCorrupted)
 	{
@@ -5044,29 +4691,7 @@ INT SaveHeaderIfPresent(PMINI_ADAPTER Adapter, PUCHAR pBuff, UINT uiOffset)
 
 	return STATUS_SUCCESS ;
 }
-INT BcmMakeFlashCSActive(PMINI_ADAPTER Adapter, UINT offset)
-{
-	UINT GPIOConfig = 0 ;
 
-
-	if(Adapter->bFlashRawRead == FALSE)
-	{
-		//Applicable for Flash2.x
-		if(IsFlash2x(Adapter) == FALSE)
-			return STATUS_SUCCESS;
-	}
-
-	if(offset/FLASH_PART_SIZE)
-	{
-		//bit[14..12] -> will select make Active CS1, CS2 or CS3
-		// Select CS1, CS2 and CS3 (CS0 is dedicated pin)
-		rdmalt(Adapter,FLASH_GPIO_CONFIG_REG, &GPIOConfig, 4);
-		GPIOConfig |= (7 << 12);
-		wrmalt(Adapter,FLASH_GPIO_CONFIG_REG, &GPIOConfig, 4);
-	}
-
-	return STATUS_SUCCESS ;
-}
 /**
 BcmDoChipSelect : This will selcet the appropriate chip for writing.
 @Adapater :- Bcm Driver Private Data Structure
@@ -5074,7 +4699,7 @@ BcmDoChipSelect : This will selcet the appropriate chip for writing.
 OutPut:-
 	Select the Appropriate chip and retrn status Sucess
 **/
-INT BcmDoChipSelect(PMINI_ADAPTER Adapter, UINT offset)
+static INT BcmDoChipSelect(PMINI_ADAPTER Adapter, UINT offset)
 {
 	UINT FlashConfig = 0;
 	INT ChipNum = 0;
@@ -5365,39 +4990,6 @@ INT WriteToFlashWithoutSectorErase(PMINI_ADAPTER Adapter,
 	return Status;
 }
 
-#if 0
-UINT getNumOfSubSectionWithWRPermisson(PMINI_ADAPTER Adapter, SECTION_TYPE secType)
-{
-
-	UINT numOfWRSubSec = 0;
-	switch(secType)
-	{
-		case ISO :
-			if(IsSectionWritable(Adapter,ISO_IMAGE1))
-				numOfWRSubSec = numOfWRSubSec + 1;
-			if(IsSectionWritable(Adapter,ISO_IMAGE2))
-				numOfWRSubSec = numOfWRSubSec + 1;
-			break;
-
-		case DSD :
-			if(IsSectionWritable(Adapter,DSD2))
-				numOfWRSubSec = numOfWRSubSec + 1;
-			if(IsSectionWritable(Adapter,DSD1))
-				numOfWRSubSec = numOfWRSubSec + 1;
-			if(IsSectionWritable(Adapter,DSD0))
-				numOfWRSubSec = numOfWRSubSec + 1;
-			break ;
-
-		case VSA :
-				//for VSA Add code Here
-		 default :
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL,"Invalid secton<%d> is passed", secType);\
-			numOfWRSubSec = 0;
-
-	}
-	return numOfWRSubSec;
-}
-#endif
 BOOLEAN IsSectionExistInFlash(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL section)
 {
 
@@ -5479,7 +5071,7 @@ INT IsSectionWritable(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL Section)
 		return Status ;
 }
 
-INT CorruptDSDSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
+static INT CorruptDSDSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
 {
 
 	PUCHAR pBuff = NULL;
@@ -5543,16 +5135,16 @@ INT CorruptDSDSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
 	else
 	{
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"BCM Signature is not present in header");
-		bcm_kfree(pBuff);
+		kfree(pBuff);
 		return STATUS_FAILURE;
 	}
 
-	bcm_kfree(pBuff);
+	kfree(pBuff);
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL,"Corrupted the signature");
 	return STATUS_SUCCESS ;
 }
 
-INT CorruptISOSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
+static INT CorruptISOSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
 {
 
 	PUCHAR pBuff = NULL;
@@ -5593,14 +5185,14 @@ INT CorruptISOSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
 	else
 	{
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"BCM Signature is not present in header");
-		bcm_kfree(pBuff);
+		kfree(pBuff);
 		return STATUS_FAILURE;
 	}
 
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL,"Corrupted the signature");
 	BCM_DEBUG_PRINT_BUFFER(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL,pBuff,MAX_RW_SIZE);
 
-	bcm_kfree(pBuff);
+	kfree(pBuff);
 	return STATUS_SUCCESS ;
 }
 

@@ -158,6 +158,7 @@ void		nfsd_lockd_shutdown(void);
 #define	nfserr_attrnotsupp	cpu_to_be32(NFSERR_ATTRNOTSUPP)
 #define	nfserr_bad_xdr		cpu_to_be32(NFSERR_BAD_XDR)
 #define	nfserr_openmode		cpu_to_be32(NFSERR_OPENMODE)
+#define	nfserr_badowner		cpu_to_be32(NFSERR_BADOWNER)
 #define	nfserr_locks_held	cpu_to_be32(NFSERR_LOCKS_HELD)
 #define	nfserr_op_illegal	cpu_to_be32(NFSERR_OP_ILLEGAL)
 #define	nfserr_grace		cpu_to_be32(NFSERR_GRACE)

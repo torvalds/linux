@@ -1316,6 +1316,10 @@ static int set_dac_range(struct task_struct *child,
 static long ppc_set_hwdebug(struct task_struct *child,
 		     struct ppc_hw_breakpoint *bp_info)
 {
+#ifndef CONFIG_PPC_ADV_DEBUG_REGS
+	unsigned long dabr;
+#endif
+
 	if (bp_info->version != 1)
 		return -ENOTSUPP;
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
@@ -1353,11 +1357,10 @@ static long ppc_set_hwdebug(struct task_struct *child,
 	/*
 	 * We only support one data breakpoint
 	 */
-	if (((bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_RW) == 0) ||
-	    ((bp_info->trigger_type & ~PPC_BREAKPOINT_TRIGGER_RW) != 0) ||
-	    (bp_info->trigger_type != PPC_BREAKPOINT_TRIGGER_WRITE) ||
-	    (bp_info->addr_mode != PPC_BREAKPOINT_MODE_EXACT) ||
-	    (bp_info->condition_mode != PPC_BREAKPOINT_CONDITION_NONE))
+	if ((bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_RW) == 0 ||
+	    (bp_info->trigger_type & ~PPC_BREAKPOINT_TRIGGER_RW) != 0 ||
+	    bp_info->addr_mode != PPC_BREAKPOINT_MODE_EXACT ||
+	    bp_info->condition_mode != PPC_BREAKPOINT_CONDITION_NONE)
 		return -EINVAL;
 
 	if (child->thread.dabr)
@@ -1366,7 +1369,14 @@ static long ppc_set_hwdebug(struct task_struct *child,
 	if ((unsigned long)bp_info->addr >= TASK_SIZE)
 		return -EIO;
 
-	child->thread.dabr = (unsigned long)bp_info->addr;
+	dabr = (unsigned long)bp_info->addr & ~7UL;
+	dabr |= DABR_TRANSLATION;
+	if (bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_READ)
+		dabr |= DABR_DATA_READ;
+	if (bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_WRITE)
+		dabr |= DABR_DATA_WRITE;
+
+	child->thread.dabr = dabr;
 
 	return 1;
 #endif /* !CONFIG_PPC_ADV_DEBUG_DVCS */

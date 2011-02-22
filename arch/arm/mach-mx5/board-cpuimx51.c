@@ -40,11 +40,11 @@
 #include "devices-imx51.h"
 #include "devices.h"
 
-#define CPUIMX51_USBH1_STP	(0*32 + 27)
-#define CPUIMX51_QUARTA_GPIO	(2*32 + 28)
-#define CPUIMX51_QUARTB_GPIO	(2*32 + 25)
-#define CPUIMX51_QUARTC_GPIO	(2*32 + 26)
-#define CPUIMX51_QUARTD_GPIO	(2*32 + 27)
+#define CPUIMX51_USBH1_STP	IMX_GPIO_NR(1, 27)
+#define CPUIMX51_QUARTA_GPIO	IMX_GPIO_NR(3, 28)
+#define CPUIMX51_QUARTB_GPIO	IMX_GPIO_NR(3, 25)
+#define CPUIMX51_QUARTC_GPIO	IMX_GPIO_NR(3, 26)
+#define CPUIMX51_QUARTD_GPIO	IMX_GPIO_NR(3, 27)
 #define CPUIMX51_QUARTA_IRQ	(MXC_INTERNAL_IRQS + CPUIMX51_QUARTA_GPIO)
 #define CPUIMX51_QUARTB_IRQ	(MXC_INTERNAL_IRQS + CPUIMX51_QUARTB_GPIO)
 #define CPUIMX51_QUARTC_IRQ	(MXC_INTERNAL_IRQS + CPUIMX51_QUARTC_GPIO)
@@ -113,7 +113,7 @@ static struct platform_device *devices[] __initdata = {
 #endif
 };
 
-static struct pad_desc eukrea_cpuimx51_pads[] = {
+static iomux_v3_cfg_t eukrea_cpuimx51_pads[] = {
 	/* UART1 */
 	MX51_PAD_UART1_RXD__UART1_RXD,
 	MX51_PAD_UART1_TXD__UART1_TXD,
@@ -121,15 +121,15 @@ static struct pad_desc eukrea_cpuimx51_pads[] = {
 	MX51_PAD_UART1_CTS__UART1_CTS,
 
 	/* I2C2 */
-	MX51_PAD_GPIO_1_2__I2C2_SCL,
-	MX51_PAD_GPIO_1_3__I2C2_SDA,
-	MX51_PAD_NANDF_D10__GPIO_3_30,
+	MX51_PAD_GPIO1_2__I2C2_SCL,
+	MX51_PAD_GPIO1_3__I2C2_SDA,
+	MX51_PAD_NANDF_D10__GPIO3_30,
 
 	/* QUART IRQ */
-	MX51_PAD_NANDF_D15__GPIO_3_25,
-	MX51_PAD_NANDF_D14__GPIO_3_26,
-	MX51_PAD_NANDF_D13__GPIO_3_27,
-	MX51_PAD_NANDF_D12__GPIO_3_28,
+	MX51_PAD_NANDF_D15__GPIO3_25,
+	MX51_PAD_NANDF_D14__GPIO3_26,
+	MX51_PAD_NANDF_D13__GPIO3_27,
+	MX51_PAD_NANDF_D12__GPIO3_28,
 
 	/* USB HOST1 */
 	MX51_PAD_USBH1_CLK__USBH1_CLK,
@@ -178,6 +178,8 @@ static int initialize_otg_port(struct platform_device *pdev)
 	void __iomem *usbother_base;
 
 	usb_base = ioremap(MX51_OTG_BASE_ADDR, SZ_4K);
+	if (!usb_base)
+		return -ENOMEM;
 	usbother_base = usb_base + MX5_USBOTHER_REGS_OFFSET;
 
 	/* Set the PHY clock to 19.2MHz */
@@ -196,6 +198,8 @@ static int initialize_usbh1_port(struct platform_device *pdev)
 	void __iomem *usbother_base;
 
 	usb_base = ioremap(MX51_OTG_BASE_ADDR, SZ_4K);
+	if (!usb_base)
+		return -ENOMEM;
 	usbother_base = usb_base + MX5_USBOTHER_REGS_OFFSET;
 
 	/* The clock for the USBH1 ULPI port will come externally from the PHY. */
@@ -292,7 +296,7 @@ static struct sys_timer mxc_timer = {
 
 MACHINE_START(EUKREA_CPUIMX51, "Eukrea CPUIMX51 Module")
 	/* Maintainer: Eric Bénard <eric@eukrea.com> */
-	.boot_params = PHYS_OFFSET + 0x100,
+	.boot_params = MX51_PHYS_OFFSET + 0x100,
 	.map_io = mx51_map_io,
 	.init_irq = mx51_init_irq,
 	.init_machine = eukrea_cpuimx51_init,

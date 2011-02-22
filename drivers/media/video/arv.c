@@ -712,7 +712,7 @@ static int ar_initialize(struct ar *ar)
 static const struct v4l2_file_operations ar_fops = {
 	.owner		= THIS_MODULE,
 	.read		= ar_read,
-	.ioctl		= video_ioctl2,
+	.unlocked_ioctl	= video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops ar_ioctl_ops = {

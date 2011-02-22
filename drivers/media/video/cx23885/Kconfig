@@ -5,7 +5,7 @@ config VIDEO_CX23885
 	select VIDEO_BTCX
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
-	depends on IR_CORE
+	depends on RC_CORE
 	select VIDEOBUF_DVB
 	select VIDEOBUF_DMA_SG
 	select VIDEO_CX25840

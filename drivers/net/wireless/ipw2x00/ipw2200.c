@@ -1973,6 +1973,13 @@ static void ipw_irq_tasklet(struct ipw_priv *priv)
 
 	inta = ipw_read32(priv, IPW_INTA_RW);
 	inta_mask = ipw_read32(priv, IPW_INTA_MASK_R);
+
+	if (inta == 0xFFFFFFFF) {
+		/* Hardware disappeared */
+		IPW_WARNING("TASKLET INTA == 0xFFFFFFFF\n");
+		/* Only handle the cached INTA values */
+		inta = 0;
+	}
 	inta &= (IPW_INTA_MASK_ALL & inta_mask);
 
 	/* Add any cached INTA values that need to be handled */

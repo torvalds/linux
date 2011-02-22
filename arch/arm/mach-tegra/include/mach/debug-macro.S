@@ -21,8 +21,8 @@
 #include <mach/io.h>
 
 	.macro  addruart, rp, rv
-        ldreq   \rp, =IO_APB_PHYS       @ physical
-        ldrne   \rv, =IO_APB_VIRT        @ virtual
+        ldr     \rp, =IO_APB_PHYS       @ physical
+        ldr     \rv, =IO_APB_VIRT        @ virtual
 #if defined(CONFIG_TEGRA_DEBUG_UART_NONE)
 #error "A debug UART must be selected in the kernel config to use DEBUG_LL"
 #elif defined(CONFIG_TEGRA_DEBUG_UARTA)

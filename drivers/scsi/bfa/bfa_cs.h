@@ -22,7 +22,7 @@
 #ifndef __BFA_CS_H__
 #define __BFA_CS_H__
 
-#include "bfa_os_inc.h"
+#include "bfad_drv.h"
 
 /*
  * BFA TRC
@@ -32,12 +32,20 @@
 #define BFA_TRC_MAX	(4 * 1024)
 #endif
 
+#define BFA_TRC_TS(_trcm)                               \
+	({                                              \
+		struct timeval tv;                      \
+							\
+		do_gettimeofday(&tv);                   \
+		(tv.tv_sec*1000000+tv.tv_usec);         \
+	})
+
 #ifndef BFA_TRC_TS
 #define BFA_TRC_TS(_trcm)	((_trcm)->ticks++)
 #endif
 
 struct bfa_trc_s {
-#ifdef __BIGENDIAN
+#ifdef __BIG_ENDIAN
 	u16	fileno;
 	u16	line;
 #else
@@ -99,13 +107,6 @@ bfa_trc_stop(struct bfa_trc_mod_s *trcm)
 	trcm->stopped = 1;
 }
 
-#ifdef FWTRC
-extern void dc_flush(void *data);
-#else
-#define dc_flush(data)
-#endif
-
-
 static inline void
 __bfa_trc(struct bfa_trc_mod_s *trcm, int fileno, int line, u64 data)
 {
@@ -119,12 +120,10 @@ __bfa_trc(struct bfa_trc_mod_s *trcm, int fileno, int line, u64 data)
 	trc->line = (u16) line;
 	trc->data.u64 = data;
 	trc->timestamp = BFA_TRC_TS(trcm);
-	dc_flush(trc);
 
 	trcm->tail = (trcm->tail + 1) & (BFA_TRC_MAX - 1);
 	if (trcm->tail == trcm->head)
 		trcm->head = (trcm->head + 1) & (BFA_TRC_MAX - 1);
-	dc_flush(trcm);
 }
 
 
@@ -141,41 +140,17 @@ __bfa_trc32(struct bfa_trc_mod_s *trcm, int fileno, int line, u32 data)
 	trc->line = (u16) line;
 	trc->data.u32.u32 = data;
 	trc->timestamp = BFA_TRC_TS(trcm);
-	dc_flush(trc);
 
 	trcm->tail = (trcm->tail + 1) & (BFA_TRC_MAX - 1);
 	if (trcm->tail == trcm->head)
 		trcm->head = (trcm->head + 1) & (BFA_TRC_MAX - 1);
-	dc_flush(trcm);
 }
-
-#ifndef BFA_PERF_BUILD
-#define bfa_trc_fp(_trcp, _data)	bfa_trc(_trcp, _data)
-#else
-#define bfa_trc_fp(_trcp, _data)
-#endif
-
-/*
- * @ BFA LOG interfaces
- */
-#define bfa_assert(__cond)	do {					\
-	if (!(__cond)) {						\
-		printk(KERN_ERR "assert(%s) failed at %s:%d\\n",         \
-		#__cond, __FILE__, __LINE__);				\
-	}								\
-} while (0)
 
 #define bfa_sm_fault(__mod, __event)	do {				\
 	bfa_trc(__mod, (((u32)0xDEAD << 16) | __event));		\
 	printk(KERN_ERR	"Assertion failure: %s:%d: %d",			\
 		__FILE__, __LINE__, (__event));				\
 } while (0)
-
-#ifndef BFA_PERF_BUILD
-#define bfa_assert_fp(__cond)	bfa_assert(__cond)
-#else
-#define bfa_assert_fp(__cond)
-#endif
 
 /* BFA queue definitions */
 #define bfa_q_first(_q) ((void *)(((struct list_head *) (_q))->next))
@@ -199,7 +174,6 @@ __bfa_trc32(struct bfa_trc_mod_s *trcm, int fileno, int line, u32 data)
 		bfa_q_prev(bfa_q_next(*((struct list_head **) _qe))) =	\
 				(struct list_head *) (_q);		\
 		bfa_q_next(_q) = bfa_q_next(*((struct list_head **) _qe));\
-		BFA_Q_DBG_INIT(*((struct list_head **) _qe));		\
 	} else {							\
 		*((struct list_head **) (_qe)) = (struct list_head *) NULL;\
 	}								\
@@ -214,7 +188,6 @@ __bfa_trc32(struct bfa_trc_mod_s *trcm, int fileno, int line, u32 data)
 		bfa_q_next(bfa_q_prev(*((struct list_head **) _qe))) =	\
 			(struct list_head *) (_q);			\
 		bfa_q_prev(_q) = bfa_q_prev(*(struct list_head **) _qe);\
-		BFA_Q_DBG_INIT(*((struct list_head **) _qe));		\
 	} else {							\
 		*((struct list_head **) (_qe)) = (struct list_head *) NULL;\
 	}								\
@@ -235,16 +208,6 @@ bfa_q_is_on_q_func(struct list_head *q, struct list_head *qe)
 	}
 	return 0;
 }
-
-/*
- * #ifdef BFA_DEBUG (Using bfa_assert to check for debug_build is not
- * consistent across modules)
- */
-#ifndef BFA_PERF_BUILD
-#define BFA_Q_DBG_INIT(_qe) bfa_q_qe_init(_qe)
-#else
-#define BFA_Q_DBG_INIT(_qe)
-#endif
 
 #define bfa_q_is_on_q(_q, _qe)      \
 	bfa_q_is_on_q_func(_q, (struct list_head *)(_qe))
@@ -360,5 +323,44 @@ bfa_wc_wait(struct bfa_wc_s *wc)
 {
 	bfa_wc_down(wc);
 }
+
+static inline void
+wwn2str(char *wwn_str, u64 wwn)
+{
+	union {
+		u64 wwn;
+		u8 byte[8];
+	} w;
+
+	w.wwn = wwn;
+	sprintf(wwn_str, "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x", w.byte[0],
+		w.byte[1], w.byte[2], w.byte[3], w.byte[4], w.byte[5],
+		w.byte[6], w.byte[7]);
+}
+
+static inline void
+fcid2str(char *fcid_str, u32 fcid)
+{
+	union {
+		u32 fcid;
+		u8 byte[4];
+	} f;
+
+	f.fcid = fcid;
+	sprintf(fcid_str, "%02x:%02x:%02x", f.byte[1], f.byte[2], f.byte[3]);
+}
+
+#define bfa_swap_3b(_x)				\
+	((((_x) & 0xff) << 16) |		\
+	((_x) & 0x00ff00) |			\
+	(((_x) & 0xff0000) >> 16))
+
+#ifndef __BIG_ENDIAN
+#define bfa_hton3b(_x)  bfa_swap_3b(_x)
+#else
+#define bfa_hton3b(_x)  (_x)
+#endif
+
+#define bfa_ntoh3b(_x)  bfa_hton3b(_x)
 
 #endif /* __BFA_CS_H__ */

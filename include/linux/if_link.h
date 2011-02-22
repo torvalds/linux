@@ -80,6 +80,24 @@ struct rtnl_link_ifmap {
 	__u8	port;
 };
 
+/*
+ * IFLA_AF_SPEC
+ *   Contains nested attributes for address family specific attributes.
+ *   Each address family may create a attribute with the address family
+ *   number as type and create its own attribute structure in it.
+ *
+ *   Example:
+ *   [IFLA_AF_SPEC] = {
+ *       [AF_INET] = {
+ *           [IFLA_INET_CONF] = ...,
+ *       },
+ *       [AF_INET6] = {
+ *           [IFLA_INET6_FLAGS] = ...,
+ *           [IFLA_INET6_CONF] = ...,
+ *       }
+ *   }
+ */
+
 enum {
 	IFLA_UNSPEC,
 	IFLA_ADDRESS,
@@ -116,6 +134,7 @@ enum {
 	IFLA_STATS64,
 	IFLA_VF_PORTS,
 	IFLA_PORT_SELF,
+	IFLA_AF_SPEC,
 	__IFLA_MAX
 };
 
@@ -127,6 +146,14 @@ enum {
 #define IFLA_RTA(r)  ((struct rtattr*)(((char*)(r)) + NLMSG_ALIGN(sizeof(struct ifinfomsg))))
 #define IFLA_PAYLOAD(n) NLMSG_PAYLOAD(n,sizeof(struct ifinfomsg))
 #endif
+
+enum {
+	IFLA_INET_UNSPEC,
+	IFLA_INET_CONF,
+	__IFLA_INET_MAX,
+};
+
+#define IFLA_INET_MAX (__IFLA_INET_MAX - 1)
 
 /* ifi_flags.
 
@@ -232,6 +259,7 @@ enum macvlan_mode {
 	MACVLAN_MODE_PRIVATE = 1, /* don't talk to other macvlans */
 	MACVLAN_MODE_VEPA    = 2, /* talk to other ports through ext bridge */
 	MACVLAN_MODE_BRIDGE  = 4, /* talk to bridge ports directly */
+	MACVLAN_MODE_PASSTHRU = 8,/* take over the underlying device */
 };
 
 /* SR-IOV virtual function management section */

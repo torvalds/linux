@@ -31,6 +31,7 @@
  */
 
 #include <linux/backlight.h>
+#include <linux/acpi.h>
 
 #include "drmP.h"
 #include "nouveau_drv.h"
@@ -58,7 +59,7 @@ static int nv40_set_intensity(struct backlight_device *bd)
 	return 0;
 }
 
-static struct backlight_ops nv40_bl_ops = {
+static const struct backlight_ops nv40_bl_ops = {
 	.options = BL_CORE_SUSPENDRESUME,
 	.get_brightness = nv40_get_intensity,
 	.update_status = nv40_set_intensity,
@@ -81,7 +82,7 @@ static int nv50_set_intensity(struct backlight_device *bd)
 	return 0;
 }
 
-static struct backlight_ops nv50_bl_ops = {
+static const struct backlight_ops nv50_bl_ops = {
 	.options = BL_CORE_SUSPENDRESUME,
 	.get_brightness = nv50_get_intensity,
 	.update_status = nv50_set_intensity,
@@ -135,6 +136,14 @@ static int nouveau_nv50_backlight_init(struct drm_device *dev)
 int nouveau_backlight_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+#ifdef CONFIG_ACPI
+	if (acpi_video_backlight_support()) {
+		NV_INFO(dev, "ACPI backlight interface available, "
+			     "not registering our own\n");
+		return 0;
+	}
+#endif
 
 	switch (dev_priv->card_type) {
 	case NV_40:

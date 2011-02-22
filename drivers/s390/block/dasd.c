@@ -11,6 +11,7 @@
 #define KMSG_COMPONENT "dasd"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/kernel_stat.h>
 #include <linux/kmod.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -368,6 +369,11 @@ dasd_state_ready_to_online(struct dasd_device * device)
 	device->state = DASD_STATE_ONLINE;
 	if (device->block) {
 		dasd_schedule_block_bh(device->block);
+		if ((device->features & DASD_FEATURE_USERAW)) {
+			disk = device->block->gdp;
+			kobject_uevent(&disk_to_dev(disk)->kobj, KOBJ_CHANGE);
+			return 0;
+		}
 		disk = device->block->bdev->bd_disk;
 		disk_part_iter_init(&piter, disk, DISK_PITER_INCL_PART0);
 		while ((part = disk_part_iter_next(&piter)))
@@ -393,7 +399,7 @@ static int dasd_state_online_to_ready(struct dasd_device *device)
 			return rc;
 	}
 	device->state = DASD_STATE_READY;
-	if (device->block) {
+	if (device->block && !(device->features & DASD_FEATURE_USERAW)) {
 		disk = device->block->bdev->bd_disk;
 		disk_part_iter_init(&piter, disk, DISK_PITER_INCL_PART0);
 		while ((part = disk_part_iter_next(&piter)))
@@ -744,10 +750,6 @@ struct dasd_ccw_req *dasd_smalloc_request(int magic, int cplength,
 	char *data;
 	int size;
 
-	/* Sanity checks */
-	BUG_ON(datasize > PAGE_SIZE ||
-	     (cplength*sizeof(struct ccw1)) > PAGE_SIZE);
-
 	size = (sizeof(struct dasd_ccw_req) + 7L) & -8L;
 	if (cplength > 0)
 		size += cplength * sizeof(struct ccw1);
@@ -853,7 +855,6 @@ int dasd_term_IO(struct dasd_ccw_req *cqr)
 		rc = ccw_device_clear(device->cdev, (long) cqr);
 		switch (rc) {
 		case 0:	/* termination successful */
-			cqr->retries--;
 			cqr->status = DASD_CQR_CLEAR_PENDING;
 			cqr->stopclk = get_clock();
 			cqr->starttime = 0;
@@ -905,6 +906,16 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 		return rc;
 	}
 	device = (struct dasd_device *) cqr->startdev;
+	if (((cqr->block &&
+	      test_bit(DASD_FLAG_LOCK_STOLEN, &cqr->block->base->flags)) ||
+	     test_bit(DASD_FLAG_LOCK_STOLEN, &device->flags)) &&
+	    !test_bit(DASD_CQR_ALLOW_SLOCK, &cqr->flags)) {
+		DBF_DEV_EVENT(DBF_DEBUG, device, "start_IO: return request %p "
+			      "because of stolen lock", cqr);
+		cqr->status = DASD_CQR_ERROR;
+		cqr->intrc = -EPERM;
+		return -EPERM;
+	}
 	if (cqr->retries < 0) {
 		/* internal error 14 - start_IO run out of retries */
 		sprintf(errorstring, "14 %p", cqr);
@@ -916,6 +927,11 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 	cqr->startclk = get_clock();
 	cqr->starttime = jiffies;
 	cqr->retries--;
+	if (!test_bit(DASD_CQR_VERIFY_PATH, &cqr->flags)) {
+		cqr->lpm &= device->path_data.opm;
+		if (!cqr->lpm)
+			cqr->lpm = device->path_data.opm;
+	}
 	if (cqr->cpmode == 1) {
 		rc = ccw_device_tm_start(device->cdev, cqr->cpaddr,
 					 (long) cqr, cqr->lpm);
@@ -928,35 +944,53 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 		cqr->status = DASD_CQR_IN_IO;
 		break;
 	case -EBUSY:
-		DBF_DEV_EVENT(DBF_DEBUG, device, "%s",
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			      "start_IO: device busy, retry later");
 		break;
 	case -ETIMEDOUT:
-		DBF_DEV_EVENT(DBF_DEBUG, device, "%s",
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			      "start_IO: request timeout, retry later");
 		break;
 	case -EACCES:
-		/* -EACCES indicates that the request used only a
-		 * subset of the available pathes and all these
-		 * pathes are gone.
-		 * Do a retry with all available pathes.
+		/* -EACCES indicates that the request used only a subset of the
+		 * available paths and all these paths are gone. If the lpm of
+		 * this request was only a subset of the opm (e.g. the ppm) then
+		 * we just do a retry with all available paths.
+		 * If we already use the full opm, something is amiss, and we
+		 * need a full path verification.
 		 */
-		cqr->lpm = LPM_ANYPATH;
-		DBF_DEV_EVENT(DBF_DEBUG, device, "%s",
-			      "start_IO: selected pathes gone,"
-			      " retry on all pathes");
+		if (test_bit(DASD_CQR_VERIFY_PATH, &cqr->flags)) {
+			DBF_DEV_EVENT(DBF_WARNING, device,
+				      "start_IO: selected paths gone (%x)",
+				      cqr->lpm);
+		} else if (cqr->lpm != device->path_data.opm) {
+			cqr->lpm = device->path_data.opm;
+			DBF_DEV_EVENT(DBF_DEBUG, device, "%s",
+				      "start_IO: selected paths gone,"
+				      " retry on all paths");
+		} else {
+			DBF_DEV_EVENT(DBF_WARNING, device, "%s",
+				      "start_IO: all paths in opm gone,"
+				      " do path verification");
+			dasd_generic_last_path_gone(device);
+			device->path_data.opm = 0;
+			device->path_data.ppm = 0;
+			device->path_data.npm = 0;
+			device->path_data.tbvpm =
+				ccw_device_get_path_mask(device->cdev);
+		}
 		break;
 	case -ENODEV:
-		DBF_DEV_EVENT(DBF_DEBUG, device, "%s",
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			      "start_IO: -ENODEV device gone, retry");
 		break;
 	case -EIO:
-		DBF_DEV_EVENT(DBF_DEBUG, device, "%s",
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			      "start_IO: -EIO device gone, retry");
 		break;
 	case -EINVAL:
 		/* most likely caused in power management context */
-		DBF_DEV_EVENT(DBF_DEBUG, device, "%s",
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			      "start_IO: -EINVAL device currently "
 			      "not accessible");
 		break;
@@ -1076,6 +1110,7 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	unsigned long long now;
 	int expires;
 
+	kstat_cpu(smp_processor_id()).irqs[IOINT_DAS]++;
 	if (IS_ERR(irb)) {
 		switch (PTR_ERR(irb)) {
 		case -EIO:
@@ -1094,16 +1129,11 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	}
 
 	now = get_clock();
-
-	/* check for unsolicited interrupts */
 	cqr = (struct dasd_ccw_req *) intparm;
-	if (!cqr || ((scsw_cc(&irb->scsw) == 1) &&
-		     (scsw_fctl(&irb->scsw) & SCSW_FCTL_START_FUNC) &&
-		     ((scsw_stctl(&irb->scsw) == SCSW_STCTL_STATUS_PEND) ||
-		      (scsw_stctl(&irb->scsw) == (SCSW_STCTL_STATUS_PEND |
-						  SCSW_STCTL_ALERT_STATUS))))) {
-		if (cqr && cqr->status == DASD_CQR_IN_IO)
-			cqr->status = DASD_CQR_QUEUED;
+	/* check for conditions that should be handled immediately */
+	if (!cqr ||
+	    !(scsw_dstat(&irb->scsw) == (DEV_STAT_CHN_END | DEV_STAT_DEV_END) &&
+	      scsw_cstat(&irb->scsw) == 0)) {
 		if (cqr)
 			memcpy(&cqr->irb, irb, sizeof(*irb));
 		device = dasd_device_from_cdev_locked(cdev);
@@ -1114,17 +1144,14 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 			dasd_put_device(device);
 			return;
 		}
-		device->discipline->dump_sense_dbf(device, irb,
-						   "unsolicited");
-		if ((device->features & DASD_FEATURE_ERPLOG))
-			device->discipline->dump_sense(device, cqr,
-						       irb);
-		dasd_device_clear_timer(device);
-		device->discipline->handle_unsolicited_interrupt(device,
-								 irb);
+		device->discipline->dump_sense_dbf(device, irb, "int");
+		if (device->features & DASD_FEATURE_ERPLOG)
+			device->discipline->dump_sense(device, cqr, irb);
+		device->discipline->check_for_device_change(device, cqr, irb);
 		dasd_put_device(device);
-		return;
 	}
+	if (!cqr)
+		return;
 
 	device = (struct dasd_device *) cqr->startdev;
 	if (!device ||
@@ -1164,25 +1191,19 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 					  struct dasd_ccw_req, devlist);
 		}
 	} else {  /* error */
-		memcpy(&cqr->irb, irb, sizeof(struct irb));
-		/* log sense for every failed I/O to s390 debugfeature */
-		dasd_log_sense_dbf(cqr, irb);
-		if (device->features & DASD_FEATURE_ERPLOG) {
-			dasd_log_sense(cqr, irb);
-		}
-
 		/*
 		 * If we don't want complex ERP for this request, then just
 		 * reset this and retry it in the fastpath
 		 */
 		if (!test_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags) &&
 		    cqr->retries > 0) {
-			if (cqr->lpm == LPM_ANYPATH)
+			if (cqr->lpm == device->path_data.opm)
 				DBF_DEV_EVENT(DBF_DEBUG, device,
 					      "default ERP in fastpath "
 					      "(%i retries left)",
 					      cqr->retries);
-			cqr->lpm    = LPM_ANYPATH;
+			if (!test_bit(DASD_CQR_VERIFY_PATH, &cqr->flags))
+				cqr->lpm = device->path_data.opm;
 			cqr->status = DASD_CQR_QUEUED;
 			next = cqr;
 		} else
@@ -1210,13 +1231,13 @@ enum uc_todo dasd_generic_uc_handler(struct ccw_device *cdev, struct irb *irb)
 		goto out;
 	if (test_bit(DASD_FLAG_OFFLINE, &device->flags) ||
 	   device->state != device->target ||
-	   !device->discipline->handle_unsolicited_interrupt){
+	   !device->discipline->check_for_device_change){
 		dasd_put_device(device);
 		goto out;
 	}
-
-	dasd_device_clear_timer(device);
-	device->discipline->handle_unsolicited_interrupt(device, irb);
+	if (device->discipline->dump_sense_dbf)
+		device->discipline->dump_sense_dbf(device, irb, "uc");
+	device->discipline->check_for_device_change(device, NULL, irb);
 	dasd_put_device(device);
 out:
 	return UC_TODO_RETRY;
@@ -1366,8 +1387,14 @@ static void __dasd_device_start_head(struct dasd_device *device)
 	cqr = list_entry(device->ccw_queue.next, struct dasd_ccw_req, devlist);
 	if (cqr->status != DASD_CQR_QUEUED)
 		return;
-	/* when device is stopped, return request to previous layer */
-	if (device->stopped) {
+	/* when device is stopped, return request to previous layer
+	 * exception: only the disconnect or unresumed bits are set and the
+	 * cqr is a path verification request
+	 */
+	if (device->stopped &&
+	    !(!(device->stopped & ~(DASD_STOPPED_DC_WAIT | DASD_UNRESUMED_PM))
+	      && test_bit(DASD_CQR_VERIFY_PATH, &cqr->flags))) {
+		cqr->intrc = -EAGAIN;
 		cqr->status = DASD_CQR_CLEARED;
 		dasd_schedule_device_bh(device);
 		return;
@@ -1382,6 +1409,23 @@ static void __dasd_device_start_head(struct dasd_device *device)
 		/* Hmpf, try again in 1/2 sec */
 		dasd_device_set_timer(device, 50);
 }
+
+static void __dasd_device_check_path_events(struct dasd_device *device)
+{
+	int rc;
+
+	if (device->path_data.tbvpm) {
+		if (device->stopped & ~(DASD_STOPPED_DC_WAIT |
+					DASD_UNRESUMED_PM))
+			return;
+		rc = device->discipline->verify_path(
+			device, device->path_data.tbvpm);
+		if (rc)
+			dasd_device_set_timer(device, 50);
+		else
+			device->path_data.tbvpm = 0;
+	}
+};
 
 /*
  * Go through all request on the dasd_device request queue,
@@ -1457,6 +1501,7 @@ static void dasd_device_tasklet(struct dasd_device *device)
 	__dasd_device_check_expire(device);
 	/* find final requests on ccw queue */
 	__dasd_device_process_ccw_queue(device, &final_queue);
+	__dasd_device_check_path_events(device);
 	spin_unlock_irq(get_ccwdev_lock(device->cdev));
 	/* Now call the callback function of requests with final status */
 	__dasd_device_process_final_queue(device, &final_queue);
@@ -1613,7 +1658,12 @@ static int _dasd_sleep_on(struct dasd_ccw_req *maincqr, int interruptible)
 			continue;
 		if (cqr->status != DASD_CQR_FILLED) /* could be failed */
 			continue;
-
+		if (test_bit(DASD_FLAG_LOCK_STOLEN, &device->flags) &&
+		    !test_bit(DASD_CQR_ALLOW_SLOCK, &cqr->flags)) {
+			cqr->status = DASD_CQR_FAILED;
+			cqr->intrc = -EPERM;
+			continue;
+		}
 		/* Non-temporary stop condition will trigger fail fast */
 		if (device->stopped & ~DASD_STOPPED_PENDING &&
 		    test_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags) &&
@@ -1621,7 +1671,6 @@ static int _dasd_sleep_on(struct dasd_ccw_req *maincqr, int interruptible)
 			cqr->status = DASD_CQR_FAILED;
 			continue;
 		}
-
 		/* Don't try to start requests if device is stopped */
 		if (interruptible) {
 			rc = wait_event_interruptible(
@@ -1706,13 +1755,18 @@ int dasd_sleep_on_immediatly(struct dasd_ccw_req *cqr)
 	int rc;
 
 	device = cqr->startdev;
+	if (test_bit(DASD_FLAG_LOCK_STOLEN, &device->flags) &&
+	    !test_bit(DASD_CQR_ALLOW_SLOCK, &cqr->flags)) {
+		cqr->status = DASD_CQR_FAILED;
+		cqr->intrc = -EPERM;
+		return -EIO;
+	}
 	spin_lock_irq(get_ccwdev_lock(device->cdev));
 	rc = _dasd_term_running_cqr(device);
 	if (rc) {
 		spin_unlock_irq(get_ccwdev_lock(device->cdev));
 		return rc;
 	}
-
 	cqr->callback = dasd_wakeup_cb;
 	cqr->callback_data = DASD_SLEEPON_START_TAG;
 	cqr->status = DASD_CQR_QUEUED;
@@ -2016,6 +2070,13 @@ static void __dasd_block_start_head(struct dasd_block *block)
 	list_for_each_entry(cqr, &block->ccw_queue, blocklist) {
 		if (cqr->status != DASD_CQR_FILLED)
 			continue;
+		if (test_bit(DASD_FLAG_LOCK_STOLEN, &block->base->flags) &&
+		    !test_bit(DASD_CQR_ALLOW_SLOCK, &cqr->flags)) {
+			cqr->status = DASD_CQR_FAILED;
+			cqr->intrc = -EPERM;
+			dasd_schedule_block_bh(block);
+			continue;
+		}
 		/* Non-temporary stop condition will trigger fail fast */
 		if (block->base->stopped & ~DASD_STOPPED_PENDING &&
 		    test_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags) &&
@@ -2201,8 +2262,20 @@ static void dasd_setup_queue(struct dasd_block *block)
 {
 	int max;
 
-	blk_queue_logical_block_size(block->request_queue, block->bp_block);
-	max = block->base->discipline->max_blocks << block->s2b_shift;
+	if (block->base->features & DASD_FEATURE_USERAW) {
+		/*
+		 * the max_blocks value for raw_track access is 256
+		 * it is higher than the native ECKD value because we
+		 * only need one ccw per track
+		 * so the max_hw_sectors are
+		 * 2048 x 512B = 1024kB = 16 tracks
+		 */
+		max = 2048;
+	} else {
+		max = block->base->discipline->max_blocks << block->s2b_shift;
+	}
+	blk_queue_logical_block_size(block->request_queue,
+				     block->bp_block);
 	blk_queue_max_hw_sectors(block->request_queue, max);
 	blk_queue_max_segments(block->request_queue, -1L);
 	/* with page sized segments we can translate each segement into
@@ -2588,10 +2661,53 @@ int dasd_generic_set_offline(struct ccw_device *cdev)
 	return 0;
 }
 
+int dasd_generic_last_path_gone(struct dasd_device *device)
+{
+	struct dasd_ccw_req *cqr;
+
+	dev_warn(&device->cdev->dev, "No operational channel path is left "
+		 "for the device\n");
+	DBF_DEV_EVENT(DBF_WARNING, device, "%s", "last path gone");
+	/* First of all call extended error reporting. */
+	dasd_eer_write(device, NULL, DASD_EER_NOPATH);
+
+	if (device->state < DASD_STATE_BASIC)
+		return 0;
+	/* Device is active. We want to keep it. */
+	list_for_each_entry(cqr, &device->ccw_queue, devlist)
+		if ((cqr->status == DASD_CQR_IN_IO) ||
+		    (cqr->status == DASD_CQR_CLEAR_PENDING)) {
+			cqr->status = DASD_CQR_QUEUED;
+			cqr->retries++;
+		}
+	dasd_device_set_stop_bits(device, DASD_STOPPED_DC_WAIT);
+	dasd_device_clear_timer(device);
+	dasd_schedule_device_bh(device);
+	return 1;
+}
+EXPORT_SYMBOL_GPL(dasd_generic_last_path_gone);
+
+int dasd_generic_path_operational(struct dasd_device *device)
+{
+	dev_info(&device->cdev->dev, "A channel path to the device has become "
+		 "operational\n");
+	DBF_DEV_EVENT(DBF_WARNING, device, "%s", "path operational");
+	dasd_device_remove_stop_bits(device, DASD_STOPPED_DC_WAIT);
+	if (device->stopped & DASD_UNRESUMED_PM) {
+		dasd_device_remove_stop_bits(device, DASD_UNRESUMED_PM);
+		dasd_restore_device(device);
+		return 1;
+	}
+	dasd_schedule_device_bh(device);
+	if (device->block)
+		dasd_schedule_block_bh(device->block);
+	return 1;
+}
+EXPORT_SYMBOL_GPL(dasd_generic_path_operational);
+
 int dasd_generic_notify(struct ccw_device *cdev, int event)
 {
 	struct dasd_device *device;
-	struct dasd_ccw_req *cqr;
 	int ret;
 
 	device = dasd_device_from_cdev_locked(cdev);
@@ -2602,40 +2718,63 @@ int dasd_generic_notify(struct ccw_device *cdev, int event)
 	case CIO_GONE:
 	case CIO_BOXED:
 	case CIO_NO_PATH:
-		/* First of all call extended error reporting. */
-		dasd_eer_write(device, NULL, DASD_EER_NOPATH);
-
-		if (device->state < DASD_STATE_BASIC)
-			break;
-		/* Device is active. We want to keep it. */
-		list_for_each_entry(cqr, &device->ccw_queue, devlist)
-			if (cqr->status == DASD_CQR_IN_IO) {
-				cqr->status = DASD_CQR_QUEUED;
-				cqr->retries++;
-			}
-		dasd_device_set_stop_bits(device, DASD_STOPPED_DC_WAIT);
-		dasd_device_clear_timer(device);
-		dasd_schedule_device_bh(device);
-		ret = 1;
+		device->path_data.opm = 0;
+		device->path_data.ppm = 0;
+		device->path_data.npm = 0;
+		ret = dasd_generic_last_path_gone(device);
 		break;
 	case CIO_OPER:
-		/* FIXME: add a sanity check. */
-		dasd_device_remove_stop_bits(device, DASD_STOPPED_DC_WAIT);
-		if (device->stopped & DASD_UNRESUMED_PM) {
-			dasd_device_remove_stop_bits(device, DASD_UNRESUMED_PM);
-			dasd_restore_device(device);
-			ret = 1;
-			break;
-		}
-		dasd_schedule_device_bh(device);
-		if (device->block)
-			dasd_schedule_block_bh(device->block);
 		ret = 1;
+		if (device->path_data.opm)
+			ret = dasd_generic_path_operational(device);
 		break;
 	}
 	dasd_put_device(device);
 	return ret;
 }
+
+void dasd_generic_path_event(struct ccw_device *cdev, int *path_event)
+{
+	int chp;
+	__u8 oldopm, eventlpm;
+	struct dasd_device *device;
+
+	device = dasd_device_from_cdev_locked(cdev);
+	if (IS_ERR(device))
+		return;
+	for (chp = 0; chp < 8; chp++) {
+		eventlpm = 0x80 >> chp;
+		if (path_event[chp] & PE_PATH_GONE) {
+			oldopm = device->path_data.opm;
+			device->path_data.opm &= ~eventlpm;
+			device->path_data.ppm &= ~eventlpm;
+			device->path_data.npm &= ~eventlpm;
+			if (oldopm && !device->path_data.opm)
+				dasd_generic_last_path_gone(device);
+		}
+		if (path_event[chp] & PE_PATH_AVAILABLE) {
+			device->path_data.opm &= ~eventlpm;
+			device->path_data.ppm &= ~eventlpm;
+			device->path_data.npm &= ~eventlpm;
+			device->path_data.tbvpm |= eventlpm;
+			dasd_schedule_device_bh(device);
+		}
+	}
+	dasd_put_device(device);
+}
+EXPORT_SYMBOL_GPL(dasd_generic_path_event);
+
+int dasd_generic_verify_path(struct dasd_device *device, __u8 lpm)
+{
+	if (!device->path_data.opm && lpm) {
+		device->path_data.opm = lpm;
+		dasd_generic_path_operational(device);
+	} else
+		device->path_data.opm |= lpm;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dasd_generic_verify_path);
+
 
 int dasd_generic_pm_freeze(struct ccw_device *cdev)
 {
@@ -2646,6 +2785,10 @@ int dasd_generic_pm_freeze(struct ccw_device *cdev)
 
 	if (IS_ERR(device))
 		return PTR_ERR(device);
+
+	if (device->discipline->freeze)
+		rc = device->discipline->freeze(device);
+
 	/* disallow new I/O  */
 	dasd_device_set_stop_bits(device, DASD_STOPPED_PM);
 	/* clear active requests */
@@ -2681,9 +2824,6 @@ int dasd_generic_pm_freeze(struct ccw_device *cdev)
 	spin_lock_irq(get_ccwdev_lock(cdev));
 	list_splice_tail(&freeze_queue, &device->ccw_queue);
 	spin_unlock_irq(get_ccwdev_lock(cdev));
-
-	if (device->discipline->freeze)
-		rc = device->discipline->freeze(device);
 
 	dasd_put_device(device);
 	return rc;

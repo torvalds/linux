@@ -858,7 +858,10 @@ void hostap_free_data(struct ap_data *ap)
 		return;
 	}
 
+	flush_work_sync(&ap->add_sta_proc_queue);
+
 #ifndef PRISM2_NO_KERNEL_IEEE80211_MGMT
+	flush_work_sync(&ap->wds_oper_queue);
 	if (ap->crypt)
 		ap->crypt->deinit(ap->crypt_priv);
 	ap->crypt = ap->crypt_priv = NULL;

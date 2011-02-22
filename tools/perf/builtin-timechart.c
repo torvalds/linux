@@ -32,6 +32,10 @@
 #include "util/session.h"
 #include "util/svghelper.h"
 
+#define SUPPORT_OLD_POWER_EVENTS 1
+#define PWR_EVENT_EXIT -1
+
+
 static char		const *input_name = "perf.data";
 static char		const *output_name = "output.svg";
 
@@ -272,19 +276,22 @@ static int cpus_cstate_state[MAX_CPUS];
 static u64 cpus_pstate_start_times[MAX_CPUS];
 static u64 cpus_pstate_state[MAX_CPUS];
 
-static int process_comm_event(event_t *event, struct perf_session *session __used)
+static int process_comm_event(event_t *event, struct sample_data *sample __used,
+			      struct perf_session *session __used)
 {
 	pid_set_comm(event->comm.tid, event->comm.comm);
 	return 0;
 }
 
-static int process_fork_event(event_t *event, struct perf_session *session __used)
+static int process_fork_event(event_t *event, struct sample_data *sample __used,
+			      struct perf_session *session __used)
 {
 	pid_fork(event->fork.pid, event->fork.ppid, event->fork.time);
 	return 0;
 }
 
-static int process_exit_event(event_t *event, struct perf_session *session __used)
+static int process_exit_event(event_t *event, struct sample_data *sample __used,
+			      struct perf_session *session __used)
 {
 	pid_exit(event->fork.pid, event->fork.time);
 	return 0;
@@ -298,11 +305,20 @@ struct trace_entry {
 	int			lock_depth;
 };
 
-struct power_entry {
+#ifdef SUPPORT_OLD_POWER_EVENTS
+static int use_old_power_events;
+struct power_entry_old {
 	struct trace_entry te;
 	u64	type;
 	u64	value;
 	u64	cpu_id;
+};
+#endif
+
+struct power_processor_entry {
+	struct trace_entry te;
+	u32	state;
+	u32	cpu_id;
 };
 
 #define TASK_COMM_LEN 16
@@ -470,48 +486,65 @@ static void sched_switch(int cpu, u64 timestamp, struct trace_entry *te)
 }
 
 
-static int process_sample_event(event_t *event, struct perf_session *session)
+static int process_sample_event(event_t *event __used,
+				struct sample_data *sample,
+				struct perf_session *session)
 {
-	struct sample_data data;
 	struct trace_entry *te;
 
-	memset(&data, 0, sizeof(data));
-
-	event__parse_sample(event, session->sample_type, &data);
-
 	if (session->sample_type & PERF_SAMPLE_TIME) {
-		if (!first_time || first_time > data.time)
-			first_time = data.time;
-		if (last_time < data.time)
-			last_time = data.time;
+		if (!first_time || first_time > sample->time)
+			first_time = sample->time;
+		if (last_time < sample->time)
+			last_time = sample->time;
 	}
 
-	te = (void *)data.raw_data;
-	if (session->sample_type & PERF_SAMPLE_RAW && data.raw_size > 0) {
+	te = (void *)sample->raw_data;
+	if (session->sample_type & PERF_SAMPLE_RAW && sample->raw_size > 0) {
 		char *event_str;
-		struct power_entry *pe;
-
-		pe = (void *)te;
-
+#ifdef SUPPORT_OLD_POWER_EVENTS
+		struct power_entry_old *peo;
+		peo = (void *)te;
+#endif
 		event_str = perf_header__find_event(te->type);
 
 		if (!event_str)
 			return 0;
 
-		if (strcmp(event_str, "power:power_start") == 0)
-			c_state_start(pe->cpu_id, data.time, pe->value);
+		if (strcmp(event_str, "power:cpu_idle") == 0) {
+			struct power_processor_entry *ppe = (void *)te;
+			if (ppe->state == (u32)PWR_EVENT_EXIT)
+				c_state_end(ppe->cpu_id, sample->time);
+			else
+				c_state_start(ppe->cpu_id, sample->time,
+					      ppe->state);
+		}
+		else if (strcmp(event_str, "power:cpu_frequency") == 0) {
+			struct power_processor_entry *ppe = (void *)te;
+			p_state_change(ppe->cpu_id, sample->time, ppe->state);
+		}
 
-		if (strcmp(event_str, "power:power_end") == 0)
-			c_state_end(pe->cpu_id, data.time);
+		else if (strcmp(event_str, "sched:sched_wakeup") == 0)
+			sched_wakeup(sample->cpu, sample->time, sample->pid, te);
 
-		if (strcmp(event_str, "power:power_frequency") == 0)
-			p_state_change(pe->cpu_id, data.time, pe->value);
+		else if (strcmp(event_str, "sched:sched_switch") == 0)
+			sched_switch(sample->cpu, sample->time, te);
 
-		if (strcmp(event_str, "sched:sched_wakeup") == 0)
-			sched_wakeup(data.cpu, data.time, data.pid, te);
+#ifdef SUPPORT_OLD_POWER_EVENTS
+		if (use_old_power_events) {
+			if (strcmp(event_str, "power:power_start") == 0)
+				c_state_start(peo->cpu_id, sample->time,
+					      peo->value);
 
-		if (strcmp(event_str, "sched:sched_switch") == 0)
-			sched_switch(data.cpu, data.time, te);
+			else if (strcmp(event_str, "power:power_end") == 0)
+				c_state_end(sample->cpu, sample->time);
+
+			else if (strcmp(event_str,
+					"power:power_frequency") == 0)
+				p_state_change(peo->cpu_id, sample->time,
+					       peo->value);
+		}
+#endif
 	}
 	return 0;
 }
@@ -937,7 +970,8 @@ static struct perf_event_ops event_ops = {
 
 static int __cmd_timechart(void)
 {
-	struct perf_session *session = perf_session__new(input_name, O_RDONLY, 0, false);
+	struct perf_session *session = perf_session__new(input_name, O_RDONLY,
+							 0, false, &event_ops);
 	int ret = -EINVAL;
 
 	if (session == NULL)
@@ -968,7 +1002,8 @@ static const char * const timechart_usage[] = {
 	NULL
 };
 
-static const char *record_args[] = {
+#ifdef SUPPORT_OLD_POWER_EVENTS
+static const char * const record_old_args[] = {
 	"record",
 	"-a",
 	"-R",
@@ -980,16 +1015,43 @@ static const char *record_args[] = {
 	"-e", "sched:sched_wakeup",
 	"-e", "sched:sched_switch",
 };
+#endif
+
+static const char * const record_new_args[] = {
+	"record",
+	"-a",
+	"-R",
+	"-f",
+	"-c", "1",
+	"-e", "power:cpu_frequency",
+	"-e", "power:cpu_idle",
+	"-e", "sched:sched_wakeup",
+	"-e", "sched:sched_switch",
+};
 
 static int __cmd_record(int argc, const char **argv)
 {
 	unsigned int rec_argc, i, j;
 	const char **rec_argv;
+	const char * const *record_args = record_new_args;
+	unsigned int record_elems = ARRAY_SIZE(record_new_args);
 
-	rec_argc = ARRAY_SIZE(record_args) + argc - 1;
+#ifdef SUPPORT_OLD_POWER_EVENTS
+	if (!is_valid_tracepoint("power:cpu_idle") &&
+	    is_valid_tracepoint("power:power_start")) {
+		use_old_power_events = 1;
+		record_args = record_old_args;
+		record_elems = ARRAY_SIZE(record_old_args);
+	}
+#endif
+
+	rec_argc = record_elems + argc - 1;
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
 
-	for (i = 0; i < ARRAY_SIZE(record_args); i++)
+	if (rec_argv == NULL)
+		return -ENOMEM;
+
+	for (i = 0; i < record_elems; i++)
 		rec_argv[i] = strdup(record_args[i]);
 
 	for (j = 1; j < (unsigned int)argc; j++, i++)
@@ -1018,6 +1080,8 @@ static const struct option options[] = {
 	OPT_CALLBACK('p', "process", NULL, "process",
 		      "process selector. Pass a pid or process name.",
 		       parse_process),
+	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
+		    "Look for files with symbols relative to this directory"),
 	OPT_END()
 };
 

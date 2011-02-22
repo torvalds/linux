@@ -12,7 +12,7 @@ SYNOPSIS
 
 DESCRIPTION
 -----------
-This command generates and displays a performance counter profile in realtime.
+This command generates and displays a performance counter profile in real time.
 
 
 OPTIONS
@@ -27,8 +27,8 @@ OPTIONS
 
 -C <cpu-list>::
 --cpu=<cpu>::
-Monitor only on the list of cpus provided. Multiple CPUs can be provided as a
-comma-sperated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
+Monitor only on the list of CPUs provided. Multiple CPUs can be provided as a
+comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
 Default is to monitor all CPUS.
 
 -d <seconds>::
@@ -50,6 +50,10 @@ Default is to monitor all CPUS.
 --count-filter=<count>::
 	Only display functions with more events than this.
 
+-g::
+--group::
+        Put the counters into a counter group.
+
 -F <freq>::
 --freq=<freq>::
 	Profile at this frequency.
@@ -68,7 +72,11 @@ Default is to monitor all CPUS.
 
 -p <pid>::
 --pid=<pid>::
-	Profile events on existing pid.
+	Profile events on existing Process ID.
+
+-t <tid>::
+--tid=<tid>::
+        Profile events on existing thread ID.
 
 -r <priority>::
 --realtime=<priority>::
@@ -77,6 +85,18 @@ Default is to monitor all CPUS.
 -s <symbol>::
 --sym-annotate=<symbol>::
         Annotate this symbol.
+
+-K::
+--hide_kernel_symbols::
+        Hide kernel symbols.
+
+-U::
+--hide_user_symbols::
+        Hide user symbols.
+
+-D::
+--dump-symtab::
+        Dump the symbol table used for profiling.
 
 -v::
 --verbose::

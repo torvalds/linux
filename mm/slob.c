@@ -678,11 +678,6 @@ int kmem_cache_shrink(struct kmem_cache *d)
 }
 EXPORT_SYMBOL(kmem_cache_shrink);
 
-int kmem_ptr_validate(struct kmem_cache *a, const void *b)
-{
-	return 0;
-}
-
 static unsigned int slob_ready __read_mostly;
 
 int slab_is_available(void)

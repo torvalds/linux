@@ -46,7 +46,7 @@ and run
 Other LG firmware can be extracted manually from US280D.sys
 only found in windows/system32/driver.
 
-dd if=US280D.sys ibs=1 skip=42616 count=3668 of=dvb-usb-lme2510-lg.fw
+dd if=US280D.sys ibs=1 skip=42360 count=3924 of=dvb-usb-lme2510-lg.fw
 
 for DM04 LME2510C (LG Tuner)
 ---------------------------

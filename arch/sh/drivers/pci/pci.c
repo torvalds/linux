@@ -382,13 +382,12 @@ static void __iomem *ioport_map_pci(struct pci_dev *dev,
 	struct pci_channel *chan = dev->sysdata;
 
 	if (unlikely(!chan->io_map_base)) {
-		chan->io_map_base = generic_io_base;
+		chan->io_map_base = sh_io_port_base;
 
 		if (pci_domains_supported)
 			panic("To avoid data corruption io_map_base MUST be "
 			      "set with multiple PCI domains.");
 	}
-
 
 	return (void __iomem *)(chan->io_map_base + port);
 }

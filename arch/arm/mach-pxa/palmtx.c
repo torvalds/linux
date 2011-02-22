@@ -241,7 +241,8 @@ static inline void palmtx_keys_init(void) {}
 /******************************************************************************
  * NAND Flash
  ******************************************************************************/
-#if defined(CONFIG_MTD_NAND_GPIO) || defined(CONFIG_MTD_NAND_GPIO_MODULE)
+#if defined(CONFIG_MTD_NAND_PLATFORM) || \
+	defined(CONFIG_MTD_NAND_PLATFORM_MODULE)
 static void palmtx_nand_cmd_ctl(struct mtd_info *mtd, int cmd,
 				 unsigned int ctrl)
 {
@@ -333,7 +334,7 @@ static struct map_desc palmtx_io_desc[] __initdata = {
 
 static void __init palmtx_map_io(void)
 {
-	pxa_map_io();
+	pxa27x_map_io();
 	iotable_init(palmtx_io_desc, ARRAY_SIZE(palmtx_io_desc));
 }
 

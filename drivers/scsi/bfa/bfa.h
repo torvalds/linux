@@ -17,7 +17,7 @@
 #ifndef __BFA_H__
 #define __BFA_H__
 
-#include "bfa_os_inc.h"
+#include "bfad_drv.h"
 #include "bfa_cs.h"
 #include "bfa_plog.h"
 #include "bfa_defs_svc.h"
@@ -33,7 +33,6 @@ typedef void    (*bfa_cb_cbfn_t) (void *cbarg, bfa_boolean_t complete);
  * Interrupt message handlers
  */
 void bfa_isr_unhandled(struct bfa_s *bfa, struct bfi_msg_s *m);
-void bfa_isr_bind(enum bfi_mclass mc, bfa_isr_func_t isr_func);
 
 /*
  * Request and response queue related defines
@@ -121,8 +120,8 @@ bfa_reqq_winit(struct bfa_reqq_wait_s *wqe, void (*qresume) (void *cbarg),
 									\
 		struct list_head *waitq = bfa_reqq(__bfa, __reqq);      \
 									\
-		bfa_assert(((__reqq) < BFI_IOC_MAX_CQS));      \
-		bfa_assert((__wqe)->qresume && (__wqe)->cbarg);      \
+		WARN_ON(((__reqq) >= BFI_IOC_MAX_CQS));			\
+		WARN_ON(!((__wqe)->qresume && (__wqe)->cbarg));		\
 									\
 		list_add_tail(&(__wqe)->qe, waitq);      \
 	} while (0)
@@ -297,7 +296,6 @@ void bfa_iocfc_attach(struct bfa_s *bfa, void *bfad,
 		      struct bfa_iocfc_cfg_s *cfg,
 		      struct bfa_meminfo_s *meminfo,
 		      struct bfa_pcidev_s *pcidev);
-void bfa_iocfc_detach(struct bfa_s *bfa);
 void bfa_iocfc_init(struct bfa_s *bfa);
 void bfa_iocfc_start(struct bfa_s *bfa);
 void bfa_iocfc_stop(struct bfa_s *bfa);
@@ -333,12 +331,9 @@ void bfa_hwct_msix_getvecs(struct bfa_s *bfa, u32 *vecmap, u32 *nvecs,
 			   u32 *maxvec);
 void bfa_hwct_msix_get_rme_range(struct bfa_s *bfa, u32 *start,
 				 u32 *end);
-void bfa_com_port_attach(struct bfa_s *bfa, struct bfa_meminfo_s *mi);
 void bfa_iocfc_get_bootwwns(struct bfa_s *bfa, u8 *nwwns, wwn_t *wwns);
 wwn_t bfa_iocfc_get_pwwn(struct bfa_s *bfa);
 wwn_t bfa_iocfc_get_nwwn(struct bfa_s *bfa);
-void bfa_iocfc_get_pbc_boot_cfg(struct bfa_s *bfa,
-				struct bfa_boot_pbc_s *pbcfg);
 int bfa_iocfc_get_pbc_vports(struct bfa_s *bfa,
 				struct bfi_pbc_vport_s *pbc_vport);
 
@@ -386,19 +381,11 @@ void bfa_cfg_get_meminfo(struct bfa_iocfc_cfg_s *cfg,
 void bfa_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 		struct bfa_meminfo_s *meminfo,
 		struct bfa_pcidev_s *pcidev);
-void bfa_init_trc(struct bfa_s *bfa, struct bfa_trc_mod_s *trcmod);
-void bfa_init_plog(struct bfa_s *bfa, struct bfa_plog_s *plog);
 void bfa_detach(struct bfa_s *bfa);
-void bfa_init(struct bfa_s *bfa);
-void bfa_start(struct bfa_s *bfa);
-void bfa_stop(struct bfa_s *bfa);
-void bfa_attach_fcs(struct bfa_s *bfa);
 void bfa_cb_init(void *bfad, bfa_status_t status);
 void bfa_cb_updateq(void *bfad, bfa_status_t status);
 
 bfa_boolean_t bfa_intx(struct bfa_s *bfa);
-void bfa_intx_disable(struct bfa_s *bfa);
-void bfa_intx_enable(struct bfa_s *bfa);
 void bfa_isr_enable(struct bfa_s *bfa);
 void bfa_isr_disable(struct bfa_s *bfa);
 
@@ -408,31 +395,14 @@ void bfa_comp_free(struct bfa_s *bfa, struct list_head *comp_q);
 
 typedef void (*bfa_cb_ioc_t) (void *cbarg, enum bfa_status status);
 void bfa_iocfc_get_attr(struct bfa_s *bfa, struct bfa_iocfc_attr_s *attr);
-void bfa_get_attr(struct bfa_s *bfa, struct bfa_ioc_attr_s *ioc_attr);
 
-void bfa_adapter_get_attr(struct bfa_s *bfa,
-			  struct bfa_adapter_attr_s *ad_attr);
-u64 bfa_adapter_get_id(struct bfa_s *bfa);
 
 bfa_status_t bfa_iocfc_israttr_set(struct bfa_s *bfa,
 				   struct bfa_iocfc_intr_attr_s *attr);
 
 void bfa_iocfc_enable(struct bfa_s *bfa);
 void bfa_iocfc_disable(struct bfa_s *bfa);
-void bfa_chip_reset(struct bfa_s *bfa);
-void bfa_timer_tick(struct bfa_s *bfa);
 #define bfa_timer_start(_bfa, _timer, _timercb, _arg, _timeout)		\
 	bfa_timer_begin(&(_bfa)->timer_mod, _timer, _timercb, _arg, _timeout)
-
-/*
- * BFA debug API functions
- */
-bfa_status_t bfa_debug_fwtrc(struct bfa_s *bfa, void *trcdata, int *trclen);
-bfa_status_t bfa_debug_fwsave(struct bfa_s *bfa, void *trcdata, int *trclen);
-bfa_status_t bfa_debug_fwcore(struct bfa_s *bfa, void *buf,
-			      u32 *offset, int *buflen);
-void bfa_debug_fwsave_clear(struct bfa_s *bfa);
-bfa_status_t bfa_fw_stats_get(struct bfa_s *bfa, void *data);
-bfa_status_t bfa_fw_stats_clear(struct bfa_s *bfa);
 
 #endif /* __BFA_H__ */

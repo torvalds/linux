@@ -55,7 +55,7 @@ static int max8925_list_voltage(struct regulator_dev *rdev, unsigned index)
 }
 
 static int max8925_set_voltage(struct regulator_dev *rdev,
-			       int min_uV, int max_uV)
+			       int min_uV, int max_uV, unsigned int *selector)
 {
 	struct max8925_regulator_info *info = rdev_get_drvdata(rdev);
 	unsigned char data, mask;
@@ -66,6 +66,7 @@ static int max8925_set_voltage(struct regulator_dev *rdev,
 		return -EINVAL;
 	}
 	data = (min_uV - info->min_uV + info->step_uV - 1) / info->step_uV;
+	*selector = data;
 	data <<= info->vol_shift;
 	mask = ((1 << info->vol_nbits) - 1) << info->vol_shift;
 

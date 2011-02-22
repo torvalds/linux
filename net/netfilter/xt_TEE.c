@@ -70,9 +70,9 @@ tee_tg_route4(struct sk_buff *skb, const struct xt_tee_tginfo *info)
 			return false;
 		fl.oif = info->priv->oif;
 	}
-	fl.nl_u.ip4_u.daddr = info->gw.ip;
-	fl.nl_u.ip4_u.tos   = RT_TOS(iph->tos);
-	fl.nl_u.ip4_u.scope = RT_SCOPE_UNIVERSE;
+	fl.fl4_dst = info->gw.ip;
+	fl.fl4_tos = RT_TOS(iph->tos);
+	fl.fl4_scope = RT_SCOPE_UNIVERSE;
 	if (ip_route_output_key(net, &rt, &fl) != 0)
 		return false;
 
@@ -150,9 +150,9 @@ tee_tg_route6(struct sk_buff *skb, const struct xt_tee_tginfo *info)
 			return false;
 		fl.oif = info->priv->oif;
 	}
-	fl.nl_u.ip6_u.daddr = info->gw.in6;
-	fl.nl_u.ip6_u.flowlabel = ((iph->flow_lbl[0] & 0xF) << 16) |
-				  (iph->flow_lbl[1] << 8) | iph->flow_lbl[2];
+	fl.fl6_dst = info->gw.in6;
+	fl.fl6_flowlabel = ((iph->flow_lbl[0] & 0xF) << 16) |
+			   (iph->flow_lbl[1] << 8) | iph->flow_lbl[2];
 	dst = ip6_route_output(net, NULL, &fl);
 	if (dst == NULL)
 		return false;

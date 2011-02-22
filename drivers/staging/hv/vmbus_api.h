@@ -115,28 +115,4 @@ struct hv_device {
 	void *Extension;
 };
 
-/* Vmbus driver object */
-struct vmbus_driver {
-	/* !! Must be the 1st field !! */
-	/* FIXME if ^, then someone is doing somthing stupid */
-	struct hv_driver Base;
-
-	/* Set by the caller */
-	struct hv_device * (*OnChildDeviceCreate)(struct hv_guid *DeviceType,
-						struct hv_guid *DeviceInstance,
-						struct vmbus_channel *channel);
-	void (*OnChildDeviceDestroy)(struct hv_device *device);
-	int (*OnChildDeviceAdd)(struct hv_device *RootDevice,
-				struct hv_device *ChildDevice);
-	void (*OnChildDeviceRemove)(struct hv_device *device);
-
-	/* Set by the callee */
-	int (*OnIsr)(struct hv_driver *driver);
-	void (*OnMsgDpc)(struct hv_driver *driver);
-	void (*OnEventDpc)(struct hv_driver *driver);
-	void (*GetChannelOffers)(void);
-};
-
-int VmbusInitialize(struct hv_driver *drv);
-
 #endif /* _VMBUS_API_H_ */

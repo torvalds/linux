@@ -70,31 +70,32 @@ static inline void ack_irqs(struct egpio_info *ei)
 			ei->ack_write, ei->ack_register << ei->bus_shift);
 }
 
-static void egpio_ack(unsigned int irq)
+static void egpio_ack(struct irq_data *data)
 {
 }
 
 /* There does not appear to be a way to proactively mask interrupts
  * on the egpio chip itself.  So, we simply ignore interrupts that
  * aren't desired. */
-static void egpio_mask(unsigned int irq)
+static void egpio_mask(struct irq_data *data)
 {
-	struct egpio_info *ei = get_irq_chip_data(irq);
-	ei->irqs_enabled &= ~(1 << (irq - ei->irq_start));
-	pr_debug("EGPIO mask %d %04x\n", irq, ei->irqs_enabled);
+	struct egpio_info *ei = irq_data_get_irq_chip_data(data);
+	ei->irqs_enabled &= ~(1 << (data->irq - ei->irq_start));
+	pr_debug("EGPIO mask %d %04x\n", data->irq, ei->irqs_enabled);
 }
-static void egpio_unmask(unsigned int irq)
+
+static void egpio_unmask(struct irq_data *data)
 {
-	struct egpio_info *ei = get_irq_chip_data(irq);
-	ei->irqs_enabled |= 1 << (irq - ei->irq_start);
-	pr_debug("EGPIO unmask %d %04x\n", irq, ei->irqs_enabled);
+	struct egpio_info *ei = irq_data_get_irq_chip_data(data);
+	ei->irqs_enabled |= 1 << (data->irq - ei->irq_start);
+	pr_debug("EGPIO unmask %d %04x\n", data->irq, ei->irqs_enabled);
 }
 
 static struct irq_chip egpio_muxed_chip = {
-	.name   = "htc-egpio",
-	.ack	= egpio_ack,
-	.mask   = egpio_mask,
-	.unmask = egpio_unmask,
+	.name		= "htc-egpio",
+	.irq_ack	= egpio_ack,
+	.irq_mask	= egpio_mask,
+	.irq_unmask	= egpio_unmask,
 };
 
 static void egpio_handler(unsigned int irq, struct irq_desc *desc)

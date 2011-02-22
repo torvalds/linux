@@ -829,7 +829,7 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 		goto err_uar_table_free;
 	}
 
-	priv->kar = ioremap(priv->driver_uar.pfn << PAGE_SHIFT, PAGE_SIZE);
+	priv->kar = ioremap((phys_addr_t) priv->driver_uar.pfn << PAGE_SHIFT, PAGE_SIZE);
 	if (!priv->kar) {
 		mlx4_err(dev, "Couldn't map kernel access region, "
 			 "aborting.\n");

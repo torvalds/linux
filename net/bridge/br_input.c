@@ -21,6 +21,10 @@
 /* Bridge group multicast address 802.1d (pg 51). */
 const u8 br_group_address[ETH_ALEN] = { 0x01, 0x80, 0xc2, 0x00, 0x00, 0x00 };
 
+/* Hook for brouter */
+br_should_route_hook_t __rcu *br_should_route_hook __read_mostly;
+EXPORT_SYMBOL(br_should_route_hook);
+
 static int br_pass_frame_up(struct sk_buff *skb)
 {
 	struct net_device *indev, *brdev = BR_INPUT_SKB_CB(skb)->brdev;
@@ -139,7 +143,7 @@ struct sk_buff *br_handle_frame(struct sk_buff *skb)
 {
 	struct net_bridge_port *p;
 	const unsigned char *dest = eth_hdr(skb)->h_dest;
-	int (*rhook)(struct sk_buff *skb);
+	br_should_route_hook_t *rhook;
 
 	if (unlikely(skb->pkt_type == PACKET_LOOPBACK))
 		return skb;
@@ -173,8 +177,8 @@ forward:
 	switch (p->state) {
 	case BR_STATE_FORWARDING:
 		rhook = rcu_dereference(br_should_route_hook);
-		if (rhook != NULL) {
-			if (rhook(skb))
+		if (rhook) {
+			if ((*rhook)(skb))
 				return skb;
 			dest = eth_hdr(skb)->h_dest;
 		}

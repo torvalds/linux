@@ -26,7 +26,7 @@
 	 * The interrupt numbering scheme is defined in the
 	 * interrupt controller spec.  To wit:
 	 *
-	 * Migrated the code from ARM MP port to be more consistant
+	 * Migrated the code from ARM MP port to be more consistent
 	 * with interrupt processing , the following still holds true
 	 * however, all interrupts are treated the same regardless of
 	 * if they are local IPI or PPI

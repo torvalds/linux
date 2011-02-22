@@ -200,4 +200,15 @@ struct gpio_port_s {
 
 #endif
 
+#include <mach-common/ports-a.h>
+#include <mach-common/ports-b.h>
+#include <mach-common/ports-c.h>
+#include <mach-common/ports-d.h>
+#include <mach-common/ports-e.h>
+#include <mach-common/ports-f.h>
+#include <mach-common/ports-g.h>
+#include <mach-common/ports-h.h>
+#include <mach-common/ports-i.h>
+#include <mach-common/ports-j.h>
+
 #endif /* _MACH_GPIO_H_ */

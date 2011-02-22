@@ -29,7 +29,6 @@
 #include <linux/gpio.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
-#include <linux/fsl_devices.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -40,13 +39,9 @@
 #include <mach/audmux.h>
 #include <mach/mxc_nand.h>
 #include <mach/irqs.h>
-#include <mach/mmc.h>
-#include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
-#include <mach/imxfb.h>
 
 #include "devices-imx27.h"
-#include "devices.h"
 
 #define OTG_PHY_CS_GPIO (GPIO_PORTB + 23)
 #define USBH2_PHY_CS_GPIO (GPIO_PORTB + 24)
@@ -171,11 +166,6 @@ pca100_nand_board_info __initconst = {
 	.hw_ecc = 1,
 };
 
-static struct platform_device *platform_devices[] __initdata = {
-	&mxc_w1_master_device,
-	&mxc_wdt,
-};
-
 static const struct imxi2c_platform_data pca100_i2c1_data __initconst = {
 	.bitrate = 100000,
 };
@@ -274,7 +264,7 @@ static void pca100_sdhc2_exit(struct device *dev, void *data)
 	free_irq(IRQ_GPIOC(29), data);
 }
 
-static struct imxmmc_platform_data sdhc_pdata = {
+static const struct imxmmc_platform_data sdhc_pdata __initconst = {
 	.init = pca100_sdhc2_init,
 	.exit = pca100_sdhc2_exit,
 };
@@ -286,7 +276,7 @@ static int otg_phy_init(struct platform_device *pdev)
 	return 0;
 }
 
-static struct mxc_usbh_platform_data otg_pdata = {
+static struct mxc_usbh_platform_data otg_pdata __initdata = {
 	.init	= otg_phy_init,
 	.portsc	= MXC_EHCI_MODE_ULPI,
 	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
@@ -298,14 +288,14 @@ static int usbh2_phy_init(struct platform_device *pdev)
 	return 0;
 }
 
-static struct mxc_usbh_platform_data usbh2_pdata = {
+static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
 	.init	= usbh2_phy_init,
 	.portsc	= MXC_EHCI_MODE_ULPI,
 	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 #endif
 
-static struct fsl_usb2_platform_data otg_device_pdata = {
+static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.operating_mode = FSL_USB2_DR_DEVICE,
 	.phy_mode       = FSL_USB2_PHY_ULPI,
 };
@@ -355,7 +345,7 @@ static struct imx_fb_videomode pca100_fb_modes[] = {
 	},
 };
 
-static struct imx_fb_platform_data pca100_fb_data = {
+static const struct imx_fb_platform_data pca100_fb_data __initconst = {
 	.mode = pca100_fb_modes,
 	.num_modes = ARRAY_SIZE(pca100_fb_modes),
 
@@ -389,7 +379,7 @@ static void __init pca100_init(void)
 
 	imx27_add_imx_uart0(&uart_pdata);
 
-	mxc_register_device(&mxc_sdhc_device1, &sdhc_pdata);
+	imx27_add_mxc_mmc(1, &sdhc_pdata);
 
 	imx27_add_mxc_nand(&pca100_nand_board_info);
 
@@ -417,23 +407,24 @@ static void __init pca100_init(void)
 		otg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
 				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
-		mxc_register_device(&mxc_otg_host, &otg_pdata);
+		imx27_add_mxc_ehci_otg(&otg_pdata);
 	}
 
 	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
 				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
-	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
+	imx27_add_mxc_ehci_hs(2, &usbh2_pdata);
 #endif
 	if (!otg_mode_host) {
 		gpio_set_value(OTG_PHY_CS_GPIO, 0);
-		mxc_register_device(&mxc_otg_udc_device, &otg_device_pdata);
+		imx27_add_fsl_usb2_udc(&otg_device_pdata);
 	}
 
-	mxc_register_device(&mxc_fb_device, &pca100_fb_data);
+	imx27_add_imx_fb(&pca100_fb_data);
 
 	imx27_add_fec(NULL);
-	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+	imx27_add_imx2_wdt(NULL);
+	imx27_add_mxc_w1(NULL);
 }
 
 static void __init pca100_timer_init(void)

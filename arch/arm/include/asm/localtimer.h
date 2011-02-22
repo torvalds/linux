@@ -30,7 +30,6 @@ asmlinkage void do_local_timer(struct pt_regs *);
 #include "smp_twd.h"
 
 #define local_timer_ack()	twd_timer_ack()
-#define local_timer_stop()	twd_timer_stop()
 
 #else
 
@@ -40,23 +39,12 @@ asmlinkage void do_local_timer(struct pt_regs *);
  */
 int local_timer_ack(void);
 
-/*
- * Stop a local timer interrupt.
- */
-void local_timer_stop(void);
-
 #endif
 
 /*
  * Setup a local timer interrupt for a CPU.
  */
 void local_timer_setup(struct clock_event_device *);
-
-#else
-
-static inline void local_timer_stop(void)
-{
-}
 
 #endif
 

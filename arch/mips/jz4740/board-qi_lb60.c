@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2009 Qi Hardware inc.,
  * Author: Xiangfu Liu <xiangfu@qi-hardware.com>
- * Copyright 2010, Lars-Petrer Clausen <lars@metafoo.de>
+ * Copyright 2010, Lars-Peter Clausen <lars@metafoo.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 or later
@@ -65,7 +65,7 @@ static struct nand_ecclayout qi_lb60_ecclayout_1gb = {
 
 /* Early prototypes of the QI LB60 had only 1GB of NAND.
  * In order to support these devices aswell the partition and ecc layout is
- * initalized depending on the NAND size */
+ * initialized depending on the NAND size */
 static struct mtd_partition qi_lb60_partitions_1gb[] = {
 	{
 		.name = "NAND BOOT partition",
@@ -235,7 +235,7 @@ static const unsigned int qi_lb60_keypad_rows[] = {
 	QI_LB60_GPIO_KEYIN(3),
 	QI_LB60_GPIO_KEYIN(4),
 	QI_LB60_GPIO_KEYIN(5),
-	QI_LB60_GPIO_KEYIN(7),
+	QI_LB60_GPIO_KEYIN(6),
 	QI_LB60_GPIO_KEYIN8,
 };
 
@@ -464,7 +464,7 @@ static int __init qi_lb60_board_setup(void)
 	board_gpio_setup();
 
 	if (qi_lb60_init_platform_devices())
-		panic("Failed to initalize platform devices\n");
+		panic("Failed to initialize platform devices\n");
 
 	return 0;
 }

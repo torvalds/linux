@@ -23,7 +23,7 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include "saa7164.h"
 
@@ -65,7 +65,7 @@ static int i2c_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs, int num)
 	}
 	return num;
 
- err:
+err:
 	return retval;
 }
 

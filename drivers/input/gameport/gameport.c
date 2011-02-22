@@ -18,13 +18,11 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/gameport.h>
-#include <linux/wait.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include <linux/kthread.h>
+#include <linux/workqueue.h>
 #include <linux/sched.h>	/* HZ */
 #include <linux/mutex.h>
-#include <linux/freezer.h>
 
 /*#include <asm/io.h>*/
 
@@ -123,7 +121,7 @@ static int gameport_measure_speed(struct gameport *gameport)
 	}
 
 	gameport_close(gameport);
-	return (cpu_data(raw_smp_processor_id()).loops_per_jiffy *
+	return (this_cpu_read(cpu_info.loops_per_jiffy) *
 		(unsigned long)HZ / (1000 / 50)) / (tx < 1 ? 1 : tx);
 
 #else
@@ -234,58 +232,22 @@ struct gameport_event {
 
 static DEFINE_SPINLOCK(gameport_event_lock);	/* protects gameport_event_list */
 static LIST_HEAD(gameport_event_list);
-static DECLARE_WAIT_QUEUE_HEAD(gameport_wait);
-static struct task_struct *gameport_task;
 
-static int gameport_queue_event(void *object, struct module *owner,
-				enum gameport_event_type event_type)
+static struct gameport_event *gameport_get_event(void)
 {
+	struct gameport_event *event = NULL;
 	unsigned long flags;
-	struct gameport_event *event;
-	int retval = 0;
 
 	spin_lock_irqsave(&gameport_event_lock, flags);
 
-	/*
-	 * Scan event list for the other events for the same gameport port,
-	 * starting with the most recent one. If event is the same we
-	 * do not need add new one. If event is of different type we
-	 * need to add this event and should not look further because
-	 * we need to preseve sequence of distinct events.
-	 */
-	list_for_each_entry_reverse(event, &gameport_event_list, node) {
-		if (event->object == object) {
-			if (event->type == event_type)
-				goto out;
-			break;
-		}
+	if (!list_empty(&gameport_event_list)) {
+		event = list_first_entry(&gameport_event_list,
+					 struct gameport_event, node);
+		list_del_init(&event->node);
 	}
 
-	event = kmalloc(sizeof(struct gameport_event), GFP_ATOMIC);
-	if (!event) {
-		pr_err("Not enough memory to queue event %d\n", event_type);
-		retval = -ENOMEM;
-		goto out;
-	}
-
-	if (!try_module_get(owner)) {
-		pr_warning("Can't get module reference, dropping event %d\n",
-			   event_type);
-		kfree(event);
-		retval = -EINVAL;
-		goto out;
-	}
-
-	event->type = event_type;
-	event->object = object;
-	event->owner = owner;
-
-	list_add_tail(&event->node, &gameport_event_list);
-	wake_up(&gameport_wait);
-
-out:
 	spin_unlock_irqrestore(&gameport_event_lock, flags);
-	return retval;
+	return event;
 }
 
 static void gameport_free_event(struct gameport_event *event)
@@ -319,24 +281,8 @@ static void gameport_remove_duplicate_events(struct gameport_event *event)
 	spin_unlock_irqrestore(&gameport_event_lock, flags);
 }
 
-static struct gameport_event *gameport_get_event(void)
-{
-	struct gameport_event *event = NULL;
-	unsigned long flags;
 
-	spin_lock_irqsave(&gameport_event_lock, flags);
-
-	if (!list_empty(&gameport_event_list)) {
-		event = list_first_entry(&gameport_event_list,
-					 struct gameport_event, node);
-		list_del_init(&event->node);
-	}
-
-	spin_unlock_irqrestore(&gameport_event_lock, flags);
-	return event;
-}
-
-static void gameport_handle_event(void)
+static void gameport_handle_events(struct work_struct *work)
 {
 	struct gameport_event *event;
 
@@ -366,6 +312,59 @@ static void gameport_handle_event(void)
 	}
 
 	mutex_unlock(&gameport_mutex);
+}
+
+static DECLARE_WORK(gameport_event_work, gameport_handle_events);
+
+static int gameport_queue_event(void *object, struct module *owner,
+				enum gameport_event_type event_type)
+{
+	unsigned long flags;
+	struct gameport_event *event;
+	int retval = 0;
+
+	spin_lock_irqsave(&gameport_event_lock, flags);
+
+	/*
+	 * Scan event list for the other events for the same gameport port,
+	 * starting with the most recent one. If event is the same we
+	 * do not need add new one. If event is of different type we
+	 * need to add this event and should not look further because
+	 * we need to preserve sequence of distinct events.
+	 */
+	list_for_each_entry_reverse(event, &gameport_event_list, node) {
+		if (event->object == object) {
+			if (event->type == event_type)
+				goto out;
+			break;
+		}
+	}
+
+	event = kmalloc(sizeof(struct gameport_event), GFP_ATOMIC);
+	if (!event) {
+		pr_err("Not enough memory to queue event %d\n", event_type);
+		retval = -ENOMEM;
+		goto out;
+	}
+
+	if (!try_module_get(owner)) {
+		pr_warning("Can't get module reference, dropping event %d\n",
+			   event_type);
+		kfree(event);
+		retval = -EINVAL;
+		goto out;
+	}
+
+	event->type = event_type;
+	event->object = object;
+	event->owner = owner;
+
+	list_add_tail(&event->node, &gameport_event_list);
+	schedule_work(&gameport_event_work);
+
+out:
+	spin_unlock_irqrestore(&gameport_event_lock, flags);
+	return retval;
 }
 
 /*
@@ -418,19 +417,6 @@ static struct gameport *gameport_get_pending_child(struct gameport *parent)
 	spin_unlock_irqrestore(&gameport_event_lock, flags);
 	return child;
 }
-
-static int gameport_thread(void *nothing)
-{
-	set_freezable();
-	do {
-		gameport_handle_event();
-		wait_event_freezable(gameport_wait,
-			kthread_should_stop() || !list_empty(&gameport_event_list));
-	} while (!kthread_should_stop());
-
-	return 0;
-}
-
 
 /*
  * Gameport port operations
@@ -814,13 +800,6 @@ static int __init gameport_init(void)
 		return error;
 	}
 
-	gameport_task = kthread_run(gameport_thread, NULL, "kgameportd");
-	if (IS_ERR(gameport_task)) {
-		bus_unregister(&gameport_bus);
-		error = PTR_ERR(gameport_task);
-		pr_err("Failed to start kgameportd, error: %d\n", error);
-		return error;
-	}
 
 	return 0;
 }
@@ -828,7 +807,12 @@ static int __init gameport_init(void)
 static void __exit gameport_exit(void)
 {
 	bus_unregister(&gameport_bus);
-	kthread_stop(gameport_task);
+
+	/*
+	 * There should not be any outstanding events but work may
+	 * still be scheduled so simply cancel it.
+	 */
+	cancel_work_sync(&gameport_event_work);
 }
 
 subsys_initcall(gameport_init);

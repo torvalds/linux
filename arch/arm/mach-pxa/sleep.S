@@ -14,7 +14,7 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <mach/hardware.h>
-
+#include <mach/smemc.h>
 #include <mach/pxa2xx-regs.h>
 
 #define MDREFR_KDIV	0x200a4000	// all banks
@@ -353,8 +353,8 @@ resume_turn_on_mmu:
 
 	@ Let us ensure we jump to resume_after_mmu only when the mcr above
 	@ actually took effect.  They call it the "cpwait" operation.
-	mrc	p15, 0, r1, c2, c0, 0		@ queue a dependency on CP15
-	sub	pc, r2, r1, lsr #32		@ jump to virtual addr
+	mrc	p15, 0, r0, c2, c0, 0		@ queue a dependency on CP15
+	sub	pc, r2, r0, lsr #32		@ jump to virtual addr
 	nop
 	nop
 	nop

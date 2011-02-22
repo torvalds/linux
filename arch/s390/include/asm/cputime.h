@@ -202,7 +202,7 @@ static inline void s390_idle_check(struct pt_regs *regs, __u64 int_clock,
 
 static inline int s390_nohz_delay(int cpu)
 {
-	return per_cpu(s390_idle, cpu).nohz_delay != 0;
+	return __get_cpu_var(s390_idle).nohz_delay != 0;
 }
 
 #define arch_needs_cpu(cpu) s390_nohz_delay(cpu)

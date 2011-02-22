@@ -38,7 +38,7 @@ static int agp_bridges_found;
 
 static void amd64_tlbflush(struct agp_memory *temp)
 {
-	k8_flush_garts();
+	amd_flush_garts();
 }
 
 static int amd64_insert_memory(struct agp_memory *mem, off_t pg_start, int type)
@@ -124,7 +124,7 @@ static int amd64_fetch_size(void)
 	u32 temp;
 	struct aper_size_info_32 *values;
 
-	dev = k8_northbridges.nb_misc[0];
+	dev = node_to_amd_nb(0)->misc;
 	if (dev==NULL)
 		return 0;
 
@@ -181,16 +181,15 @@ static int amd_8151_configure(void)
 	unsigned long gatt_bus = virt_to_phys(agp_bridge->gatt_table_real);
 	int i;
 
-	if (!k8_northbridges.gart_supported)
+	if (!amd_nb_has_feature(AMD_NB_GART))
 		return 0;
 
 	/* Configure AGP regs in each x86-64 host bridge. */
-	for (i = 0; i < k8_northbridges.num; i++) {
+	for (i = 0; i < amd_nb_num(); i++) {
 		agp_bridge->gart_bus_addr =
-				amd64_configure(k8_northbridges.nb_misc[i],
-						gatt_bus);
+			amd64_configure(node_to_amd_nb(i)->misc, gatt_bus);
 	}
-	k8_flush_garts();
+	amd_flush_garts();
 	return 0;
 }
 
@@ -200,11 +199,11 @@ static void amd64_cleanup(void)
 	u32 tmp;
 	int i;
 
-	if (!k8_northbridges.gart_supported)
+	if (!amd_nb_has_feature(AMD_NB_GART))
 		return;
 
-	for (i = 0; i < k8_northbridges.num; i++) {
-		struct pci_dev *dev = k8_northbridges.nb_misc[i];
+	for (i = 0; i < amd_nb_num(); i++) {
+		struct pci_dev *dev = node_to_amd_nb(i)->misc;
 		/* disable gart translation */
 		pci_read_config_dword(dev, AMD64_GARTAPERTURECTL, &tmp);
 		tmp &= ~GARTEN;
@@ -331,15 +330,15 @@ static __devinit int cache_nbs(struct pci_dev *pdev, u32 cap_ptr)
 {
 	int i;
 
-	if (cache_k8_northbridges() < 0)
+	if (amd_cache_northbridges() < 0)
 		return -ENODEV;
 
-	if (!k8_northbridges.gart_supported)
+	if (!amd_nb_has_feature(AMD_NB_GART))
 		return -ENODEV;
 
 	i = 0;
-	for (i = 0; i < k8_northbridges.num; i++) {
-		struct pci_dev *dev = k8_northbridges.nb_misc[i];
+	for (i = 0; i < amd_nb_num(); i++) {
+		struct pci_dev *dev = node_to_amd_nb(i)->misc;
 		if (fix_northbridge(dev, pdev, cap_ptr) < 0) {
 			dev_err(&dev->dev, "no usable aperture found\n");
 #ifdef __x86_64__
@@ -416,7 +415,7 @@ static int __devinit uli_agp_init(struct pci_dev *pdev)
 	}
 
 	/* shadow x86-64 registers into ULi registers */
-	pci_read_config_dword (k8_northbridges.nb_misc[0], AMD64_GARTAPERTUREBASE,
+	pci_read_config_dword (node_to_amd_nb(0)->misc, AMD64_GARTAPERTUREBASE,
 			       &httfea);
 
 	/* if x86-64 aperture base is beyond 4G, exit here */
@@ -484,7 +483,7 @@ static int nforce3_agp_init(struct pci_dev *pdev)
 	pci_write_config_dword(dev1, NVIDIA_X86_64_1_APSIZE, tmp);
 
 	/* shadow x86-64 registers into NVIDIA registers */
-	pci_read_config_dword (k8_northbridges.nb_misc[0], AMD64_GARTAPERTUREBASE,
+	pci_read_config_dword (node_to_amd_nb(0)->misc, AMD64_GARTAPERTUREBASE,
 			       &apbase);
 
 	/* if x86-64 aperture base is beyond 4G, exit here */
@@ -778,7 +777,7 @@ int __init agp_amd64_init(void)
 		}
 
 		/* First check that we have at least one AMD64 NB */
-		if (!pci_dev_present(k8_nb_ids))
+		if (!pci_dev_present(amd_nb_misc_ids))
 			return -ENODEV;
 
 		/* Look for any AGP bridge */

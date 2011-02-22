@@ -48,37 +48,6 @@ extern void prom_init(struct linux_romvec *rom_ptr);
 /* Boot argument acquisition, returns the boot command line string. */
 extern char *prom_getbootargs(void);
 
-/* Device utilities. */
-
-/* Map and unmap devices in IO space at virtual addresses. Note that the
- * virtual address you pass is a request and the prom may put your mappings
- * somewhere else, so check your return value as that is where your new
- * mappings really are!
- *
- * Another note, these are only available on V2 or higher proms!
- */
-extern char *prom_mapio(char *virt_hint, int io_space, unsigned int phys_addr, unsigned int num_bytes);
-extern void prom_unmapio(char *virt_addr, unsigned int num_bytes);
-
-/* Device operations. */
-
-/* Open the device described by the passed string.  Note, that the format
- * of the string is different on V0 vs. V2->higher proms.  The caller must
- * know what he/she is doing!  Returns the device descriptor, an int.
- */
-extern int prom_devopen(char *device_string);
-
-/* Close a previously opened device described by the passed integer
- * descriptor.
- */
-extern int prom_devclose(int device_handle);
-
-/* Do a seek operation on the device described by the passed integer
- * descriptor.
- */
-extern void prom_seek(int device_handle, unsigned int seek_hival,
-		      unsigned int seek_lowval);
-
 /* Miscellaneous routines, don't really fit in any category per se. */
 
 /* Reboot the machine with the command line passed. */
@@ -95,7 +64,7 @@ extern void prom_cmdline(void);
 /* Enter the prom, with no chance of continuation for the stand-alone
  * which calls this.
  */
-extern void prom_halt(void) __attribute__ ((noreturn));
+extern void __noreturn prom_halt(void);
 
 /* Set the PROM 'sync' callback function to the passed function pointer.
  * When the user gives the 'sync' command at the prom prompt while the
@@ -121,19 +90,8 @@ extern int prom_getrev(void);
 /* Get the prom firmware revision. */
 extern int prom_getprev(void);
 
-/* Character operations to/from the console.... */
-
-/* Non-blocking get character from console. */
-extern int prom_nbgetchar(void);
-
-/* Non-blocking put character to console. */
-extern int prom_nbputchar(char character);
-
-/* Blocking get character from console. */
-extern char prom_getchar(void);
-
-/* Blocking put character to console. */
-extern void prom_putchar(char character);
+/* Write a buffer of characters to the console. */
+extern void prom_console_write_buf(const char *buf, int len);
 
 /* Prom's internal routines, don't use in kernel/boot code. */
 extern void prom_printf(const char *fmt, ...);
@@ -147,25 +105,6 @@ extern void prom_write(const char *buf, unsigned int len);
 extern int prom_startcpu(int cpunode, struct linux_prom_registers *context_table,
 			 int context, char *program_counter);
 
-/* Stop the CPU with the passed device tree node. */
-extern int prom_stopcpu(int cpunode);
-
-/* Idle the CPU with the passed device tree node. */
-extern int prom_idlecpu(int cpunode);
-
-/* Re-Start the CPU with the passed device tree node. */
-extern int prom_restartcpu(int cpunode);
-
-/* PROM memory allocation facilities... */
-
-/* Allocated at possibly the given virtual address a chunk of the
- * indicated size.
- */
-extern char *prom_alloc(char *virt_hint, unsigned int size);
-
-/* Free a previously allocated chunk. */
-extern void prom_free(char *virt_addr, unsigned int size);
-
 /* Sun4/sun4c specific memory-management startup hook. */
 
 /* Map the passed segment in the given context at the passed
@@ -174,6 +113,8 @@ extern void prom_free(char *virt_addr, unsigned int size);
 extern void prom_putsegment(int context, unsigned long virt_addr,
 			    int physical_segment);
 
+/* Initialize the memory lists based upon the prom version. */
+void prom_meminit(void);
 
 /* PROM device tree traversal functions... */
 
@@ -208,18 +149,10 @@ extern int prom_getbool(phandle node, char *prop);
 /* Acquire a string property, null string on error. */
 extern void prom_getstring(phandle node, char *prop, char *buf, int bufsize);
 
-/* Does the passed node have the given "name"? YES=1 NO=0 */
-extern int prom_nodematch(phandle thisnode, char *name);
-
 /* Search all siblings starting at the passed node for "name" matching
  * the given string.  Returns the node on success, zero on failure.
  */
 extern phandle prom_searchsiblings(phandle node_start, char *name);
-
-/* Return the first property type, as a string, for the given node.
- * Returns a null string on error.
- */
-extern char *prom_firstprop(phandle node, char *buffer);
 
 /* Returns the next property after the passed property for the given
  * node.  Returns null string on failure.
@@ -229,16 +162,12 @@ extern char *prom_nextprop(phandle node, char *prev_property, char *buffer);
 /* Returns phandle of the path specified */
 extern phandle prom_finddevice(char *name);
 
-/* Returns 1 if the specified node has given property. */
-extern int prom_node_has_property(phandle node, char *property);
-
 /* Set the indicated property at the given node with the passed value.
  * Returns the number of bytes of your value that the prom took.
  */
 extern int prom_setprop(phandle node, const char *prop_name, char *prop_value,
 			int value_size);
 
-extern phandle prom_pathtoinode(char *path);
 extern phandle prom_inst2pkg(int);
 
 /* Dorking with Bus ranges... */
@@ -249,6 +178,8 @@ extern void prom_apply_obio_ranges(struct linux_prom_registers *obioregs, int nr
 /* Apply ranges of any prom node (and optionally parent node as well) to registers. */
 extern void prom_apply_generic_ranges(phandle node, phandle parent,
 				      struct linux_prom_registers *sbusregs, int nregs);
+
+void prom_ranges_init(void);
 
 /* CPU probing helpers.  */
 int cpu_find_by_instance(int instance, phandle *prom_node, int *mid);

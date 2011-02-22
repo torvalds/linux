@@ -1247,46 +1247,46 @@ static struct { struct fb_bitfield red, green, blue, transp; int bits_per_pixel;
 };
 
 /* initialized by setup, see explanation at end of file (search for MODULE_PARM_DESC) */
-static unsigned int mem;		/* "matrox:mem:xxxxxM" */
+static unsigned int mem;		/* "matroxfb:mem:xxxxxM" */
 static int option_precise_width = 1;	/* cannot be changed, option_precise_width==0 must imply noaccel */
-static int inv24;			/* "matrox:inv24" */
-static int cross4MB = -1;		/* "matrox:cross4MB" */
-static int disabled;			/* "matrox:disabled" */
-static int noaccel;			/* "matrox:noaccel" */
-static int nopan;			/* "matrox:nopan" */
-static int no_pci_retry;		/* "matrox:nopciretry" */
-static int novga;			/* "matrox:novga" */
-static int nobios;			/* "matrox:nobios" */
-static int noinit = 1;			/* "matrox:init" */
-static int inverse;			/* "matrox:inverse" */
-static int sgram;			/* "matrox:sgram" */
+static int inv24;			/* "matroxfb:inv24" */
+static int cross4MB = -1;		/* "matroxfb:cross4MB" */
+static int disabled;			/* "matroxfb:disabled" */
+static int noaccel;			/* "matroxfb:noaccel" */
+static int nopan;			/* "matroxfb:nopan" */
+static int no_pci_retry;		/* "matroxfb:nopciretry" */
+static int novga;			/* "matroxfb:novga" */
+static int nobios;			/* "matroxfb:nobios" */
+static int noinit = 1;			/* "matroxfb:init" */
+static int inverse;			/* "matroxfb:inverse" */
+static int sgram;			/* "matroxfb:sgram" */
 #ifdef CONFIG_MTRR
-static int mtrr = 1;			/* "matrox:nomtrr" */
+static int mtrr = 1;			/* "matroxfb:nomtrr" */
 #endif
-static int grayscale;			/* "matrox:grayscale" */
-static int dev = -1;			/* "matrox:dev:xxxxx" */
-static unsigned int vesa = ~0;		/* "matrox:vesa:xxxxx" */
-static int depth = -1;			/* "matrox:depth:xxxxx" */
-static unsigned int xres;		/* "matrox:xres:xxxxx" */
-static unsigned int yres;		/* "matrox:yres:xxxxx" */
-static unsigned int upper = ~0;		/* "matrox:upper:xxxxx" */
-static unsigned int lower = ~0;		/* "matrox:lower:xxxxx" */
-static unsigned int vslen;		/* "matrox:vslen:xxxxx" */
-static unsigned int left = ~0;		/* "matrox:left:xxxxx" */
-static unsigned int right = ~0;		/* "matrox:right:xxxxx" */
-static unsigned int hslen;		/* "matrox:hslen:xxxxx" */
-static unsigned int pixclock;		/* "matrox:pixclock:xxxxx" */
-static int sync = -1;			/* "matrox:sync:xxxxx" */
-static unsigned int fv;			/* "matrox:fv:xxxxx" */
-static unsigned int fh;			/* "matrox:fh:xxxxxk" */
-static unsigned int maxclk;		/* "matrox:maxclk:xxxxM" */
-static int dfp;				/* "matrox:dfp */
-static int dfp_type = -1;		/* "matrox:dfp:xxx */
-static int memtype = -1;		/* "matrox:memtype:xxx" */
-static char outputs[8];			/* "matrox:outputs:xxx" */
+static int grayscale;			/* "matroxfb:grayscale" */
+static int dev = -1;			/* "matroxfb:dev:xxxxx" */
+static unsigned int vesa = ~0;		/* "matroxfb:vesa:xxxxx" */
+static int depth = -1;			/* "matroxfb:depth:xxxxx" */
+static unsigned int xres;		/* "matroxfb:xres:xxxxx" */
+static unsigned int yres;		/* "matroxfb:yres:xxxxx" */
+static unsigned int upper = ~0;		/* "matroxfb:upper:xxxxx" */
+static unsigned int lower = ~0;		/* "matroxfb:lower:xxxxx" */
+static unsigned int vslen;		/* "matroxfb:vslen:xxxxx" */
+static unsigned int left = ~0;		/* "matroxfb:left:xxxxx" */
+static unsigned int right = ~0;		/* "matroxfb:right:xxxxx" */
+static unsigned int hslen;		/* "matroxfb:hslen:xxxxx" */
+static unsigned int pixclock;		/* "matroxfb:pixclock:xxxxx" */
+static int sync = -1;			/* "matroxfb:sync:xxxxx" */
+static unsigned int fv;			/* "matroxfb:fv:xxxxx" */
+static unsigned int fh;			/* "matroxfb:fh:xxxxxk" */
+static unsigned int maxclk;		/* "matroxfb:maxclk:xxxxM" */
+static int dfp;				/* "matroxfb:dfp */
+static int dfp_type = -1;		/* "matroxfb:dfp:xxx */
+static int memtype = -1;		/* "matroxfb:memtype:xxx" */
+static char outputs[8];			/* "matroxfb:outputs:xxx" */
 
 #ifndef MODULE
-static char videomode[64];		/* "matrox:mode:xxxxx" or "matrox:xxxxx" */
+static char videomode[64];		/* "matroxfb:mode:xxxxx" or "matroxfb:xxxxx" */
 #endif
 
 static int matroxfb_getmemory(struct matrox_fb_info *minfo,

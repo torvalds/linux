@@ -23,6 +23,9 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  * ALSA driver for Intel MID sound card chipset - holding private functions
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/io.h>
 #include <asm/intel_scu_ipc.h>
 #include <sound/core.h>
@@ -50,7 +53,7 @@ void period_elapsed(void *mad_substream)
 
 	if (stream->stream_status != RUNNING)
 		return;
-	pr_debug("sst: calling period elapsed\n");
+	pr_debug("calling period elapsed\n");
 	snd_pcm_period_elapsed(substream);
 	return;
 }
@@ -76,8 +79,8 @@ int snd_intelmad_alloc_stream(struct snd_pcm_substream *substream)
 	param.uc.pcm_params.period_count = substream->runtime->period_size;
 	param.uc.pcm_params.ring_buffer_addr =
 				virt_to_phys(substream->runtime->dma_area);
-	pr_debug("sst: period_cnt = %d\n", param.uc.pcm_params.period_count);
-	pr_debug("sst: sfreq= %d, wd_sz = %d\n",
+	pr_debug("period_cnt = %d\n", param.uc.pcm_params.period_count);
+	pr_debug("sfreq= %d, wd_sz = %d\n",
 		 param.uc.pcm_params.sfreq, param.uc.pcm_params.pcm_wd_sz);
 
 	str_params.sparams = param;
@@ -85,24 +88,22 @@ int snd_intelmad_alloc_stream(struct snd_pcm_substream *substream)
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		str_params.ops = STREAM_OPS_PLAYBACK;
-		pr_debug("sst: Playbck stream,Device %d\n", stream->device);
+		pr_debug("Playbck stream,Device %d\n", stream->device);
 	} else {
 		str_params.ops = STREAM_OPS_CAPTURE;
 		stream->device = SND_SST_DEVICE_CAPTURE;
-		pr_debug("sst: Capture stream,Device %d\n", stream->device);
+		pr_debug("Capture stream,Device %d\n", stream->device);
 	}
 	str_params.device_type = stream->device;
-	ret_val = intelmaddata->sstdrv_ops->control_set(SST_SND_ALLOC,
-					&str_params);
-	pr_debug("sst: SST_SND_PLAY/CAPTURE ret_val = %x\n",
-			ret_val);
+	ret_val = intelmaddata->sstdrv_ops->pcm_control->open(&str_params);
+	pr_debug("sst: SST_SND_PLAY/CAPTURE ret_val = %x\n", ret_val);
 	if (ret_val < 0)
 		return ret_val;
 
 	stream->stream_info.str_id = ret_val;
 	stream->stream_status = INIT;
 	stream->stream_info.buffer_ptr = 0;
-	pr_debug("sst: str id :  %d\n", stream->stream_info.str_id);
+	pr_debug("str id :  %d\n", stream->stream_info.str_id);
 
 	return ret_val;
 }
@@ -113,15 +114,15 @@ int snd_intelmad_init_stream(struct snd_pcm_substream *substream)
 	struct snd_intelmad *intelmaddata = snd_pcm_substream_chip(substream);
 	int ret_val;
 
-	pr_debug("sst: setting buffer ptr param\n");
+	pr_debug("setting buffer ptr param\n");
 	stream->stream_info.period_elapsed = period_elapsed;
 	stream->stream_info.mad_substream = substream;
 	stream->stream_info.buffer_ptr = 0;
 	stream->stream_info.sfreq = substream->runtime->rate;
-	ret_val = intelmaddata->sstdrv_ops->control_set(SST_SND_STREAM_INIT,
-					&stream->stream_info);
+	ret_val = intelmaddata->sstdrv_ops->pcm_control->device_control(
+			SST_SND_STREAM_INIT, &stream->stream_info);
 	if (ret_val)
-		pr_err("sst: control_set ret error %d\n", ret_val);
+		pr_err("control_set ret error %d\n", ret_val);
 	return ret_val;
 
 }
@@ -145,30 +146,29 @@ int sst_sc_reg_access(struct sc_reg_access *sc_access,
 		for (i = 0; i < num_val; i++) {
 			retval = intel_scu_ipc_iowrite8(sc_access[i].reg_addr,
 							sc_access[i].value);
-			if (retval) {
-				pr_err("sst: IPC write failed!!! %d\n", retval);
-				return retval;
-			}
+			if (retval)
+				goto err;
 		}
 	} else if (type == PMIC_READ) {
 		for (i = 0; i < num_val; i++) {
 			retval = intel_scu_ipc_ioread8(sc_access[i].reg_addr,
 							&(sc_access[i].value));
-			if (retval) {
-				pr_err("sst: IPC read failed!!!!!%d\n", retval);
-				return retval;
-			}
+			if (retval)
+				goto err;
 		}
 	} else {
 		for (i = 0; i < num_val; i++) {
 			retval = intel_scu_ipc_update_register(
 				sc_access[i].reg_addr, sc_access[i].value,
 				sc_access[i].mask);
-			if (retval) {
-				pr_err("sst: IPC Modify failed!!!%d\n", retval);
-				return retval;
-			}
+			if (retval)
+				goto err;
 		}
 	}
-	return retval;
+	return 0;
+err:
+	pr_err("IPC failed for cmd %d, %d\n", retval, type);
+	pr_err("reg:0x%2x addr:0x%2x\n",
+		sc_access[i].reg_addr, sc_access[i].value);
+ 	return retval;
 }

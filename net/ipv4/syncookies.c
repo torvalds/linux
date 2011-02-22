@@ -346,17 +346,14 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	 */
 	{
 		struct flowi fl = { .mark = sk->sk_mark,
-				    .nl_u = { .ip4_u =
-					      { .daddr = ((opt && opt->srr) ?
-							  opt->faddr :
-							  ireq->rmt_addr),
-						.saddr = ireq->loc_addr,
-						.tos = RT_CONN_FLAGS(sk) } },
+				    .fl4_dst = ((opt && opt->srr) ?
+						opt->faddr : ireq->rmt_addr),
+				    .fl4_src = ireq->loc_addr,
+				    .fl4_tos = RT_CONN_FLAGS(sk),
 				    .proto = IPPROTO_TCP,
 				    .flags = inet_sk_flowi_flags(sk),
-				    .uli_u = { .ports =
-					       { .sport = th->dest,
-						 .dport = th->source } } };
+				    .fl_ip_sport = th->dest,
+				    .fl_ip_dport = th->source };
 		security_req_classify_flow(req, &fl);
 		if (ip_route_output_key(sock_net(sk), &rt, &fl)) {
 			reqsk_free(req);

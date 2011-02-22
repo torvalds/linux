@@ -40,8 +40,7 @@ static __u8 *sony_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 
 	if ((sc->quirks & VAIO_RDESC_CONSTANT) &&
 			*rsize >= 56 && rdesc[54] == 0x81 && rdesc[55] == 0x07) {
-		dev_info(&hdev->dev, "Fixing up Sony Vaio VGX report "
-				"descriptor\n");
+		hid_info(hdev, "Fixing up Sony Vaio VGX report descriptor\n");
 		rdesc[55] = 0x06;
 	}
 	return rdesc;
@@ -89,7 +88,7 @@ static int sixaxis_set_operational_usb(struct hid_device *hdev)
 				 (3 << 8) | 0xf2, ifnum, buf, 17,
 				 USB_CTRL_GET_TIMEOUT);
 	if (ret < 0)
-		dev_err(&hdev->dev, "can't set operational mode\n");
+		hid_err(hdev, "can't set operational mode\n");
 
 	kfree(buf);
 
@@ -110,7 +109,7 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	sc = kzalloc(sizeof(*sc), GFP_KERNEL);
 	if (sc == NULL) {
-		dev_err(&hdev->dev, "can't alloc sony descriptor\n");
+		hid_err(hdev, "can't alloc sony descriptor\n");
 		return -ENOMEM;
 	}
 
@@ -119,14 +118,14 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	ret = hid_parse(hdev);
 	if (ret) {
-		dev_err(&hdev->dev, "parse failed\n");
+		hid_err(hdev, "parse failed\n");
 		goto err_free;
 	}
 
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT |
 			HID_CONNECT_HIDDEV_FORCE);
 	if (ret) {
-		dev_err(&hdev->dev, "hw start failed\n");
+		hid_err(hdev, "hw start failed\n");
 		goto err_free;
 	}
 

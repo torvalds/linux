@@ -21,7 +21,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 #define deb_ee(args...) dprintk(debug,0x02,args)
 
 /* Hauppauge NOVA-T USB2 keys */
-static struct ir_scancode ir_codes_haupp_table[] = {
+static struct rc_map_table rc_map_haupp_table[] = {
 	{ 0x1e00, KEY_0 },
 	{ 0x1e01, KEY_1 },
 	{ 0x1e02, KEY_2 },
@@ -91,14 +91,14 @@ static int nova_t_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 
 			deb_rc("raw key code 0x%02x, 0x%02x, 0x%02x to c: %02x d: %02x toggle: %d\n",key[1],key[2],key[3],custom,data,toggle);
 
-			for (i = 0; i < ARRAY_SIZE(ir_codes_haupp_table); i++) {
-				if (rc5_data(&ir_codes_haupp_table[i]) == data &&
-					rc5_custom(&ir_codes_haupp_table[i]) == custom) {
+			for (i = 0; i < ARRAY_SIZE(rc_map_haupp_table); i++) {
+				if (rc5_data(&rc_map_haupp_table[i]) == data &&
+					rc5_custom(&rc_map_haupp_table[i]) == custom) {
 
-					deb_rc("c: %x, d: %x\n", rc5_data(&ir_codes_haupp_table[i]),
-								 rc5_custom(&ir_codes_haupp_table[i]));
+					deb_rc("c: %x, d: %x\n", rc5_data(&rc_map_haupp_table[i]),
+								 rc5_custom(&rc_map_haupp_table[i]));
 
-					*event = ir_codes_haupp_table[i].keycode;
+					*event = rc_map_haupp_table[i].keycode;
 					*state = REMOTE_KEY_PRESSED;
 					if (st->old_toggle == toggle) {
 						if (st->last_repeat_count++ < 2)
@@ -197,8 +197,8 @@ static struct dvb_usb_device_properties nova_t_properties = {
 
 	.rc.legacy = {
 		.rc_interval      = 100,
-		.rc_key_map       = ir_codes_haupp_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_haupp_table),
+		.rc_map_table     = rc_map_haupp_table,
+		.rc_map_size      = ARRAY_SIZE(rc_map_haupp_table),
 		.rc_query         = nova_t_rc_query,
 	},
 

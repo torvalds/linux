@@ -1513,7 +1513,7 @@ static enum depca_type __init depca_shmem_probe (ulong *mem_start)
 	return adapter;
 }
 
-static int __init depca_isa_probe (struct platform_device *device)
+static int __devinit depca_isa_probe (struct platform_device *device)
 {
 	struct net_device *dev;
 	struct depca_private *lp;

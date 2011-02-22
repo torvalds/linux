@@ -322,59 +322,83 @@ static int b43_ratelimit(struct b43_wl *wl)
 
 void b43info(struct b43_wl *wl, const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	if (b43_modparam_verbose < B43_VERBOSITY_INFO)
 		return;
 	if (!b43_ratelimit(wl))
 		return;
+
 	va_start(args, fmt);
-	printk(KERN_INFO "b43-%s: ",
-	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan");
-	vprintk(fmt, args);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk(KERN_INFO "b43-%s: %pV",
+	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan", &vaf);
+
 	va_end(args);
 }
 
 void b43err(struct b43_wl *wl, const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	if (b43_modparam_verbose < B43_VERBOSITY_ERROR)
 		return;
 	if (!b43_ratelimit(wl))
 		return;
+
 	va_start(args, fmt);
-	printk(KERN_ERR "b43-%s ERROR: ",
-	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan");
-	vprintk(fmt, args);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk(KERN_ERR "b43-%s ERROR: %pV",
+	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan", &vaf);
+
 	va_end(args);
 }
 
 void b43warn(struct b43_wl *wl, const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	if (b43_modparam_verbose < B43_VERBOSITY_WARN)
 		return;
 	if (!b43_ratelimit(wl))
 		return;
+
 	va_start(args, fmt);
-	printk(KERN_WARNING "b43-%s warning: ",
-	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan");
-	vprintk(fmt, args);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk(KERN_WARNING "b43-%s warning: %pV",
+	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan", &vaf);
+
 	va_end(args);
 }
 
 void b43dbg(struct b43_wl *wl, const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	if (b43_modparam_verbose < B43_VERBOSITY_DEBUG)
 		return;
+
 	va_start(args, fmt);
-	printk(KERN_DEBUG "b43-%s debug: ",
-	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan");
-	vprintk(fmt, args);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk(KERN_DEBUG "b43-%s debug: %pV",
+	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan", &vaf);
+
 	va_end(args);
 }
 
@@ -1126,6 +1150,8 @@ void b43_wireless_core_reset(struct b43_wldev *dev, u32 flags)
 
 	flags |= B43_TMSLOW_PHYCLKEN;
 	flags |= B43_TMSLOW_PHYRESET;
+	if (dev->phy.type == B43_PHYTYPE_N)
+		flags |= B43_TMSLOW_PHY_BANDWIDTH_20MHZ; /* Make 20 MHz def */
 	ssb_device_enable(dev->dev, flags);
 	msleep(2);		/* Wait for the PLL to turn on. */
 
@@ -2095,8 +2121,10 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 		filename = "ucode13";
 	else if (rev == 14)
 		filename = "ucode14";
-	else if (rev >= 15)
+	else if (rev == 15)
 		filename = "ucode15";
+	else if ((rev >= 16) && (rev <= 20))
+		filename = "ucode16_mimo";
 	else
 		goto err_no_ucode;
 	err = b43_do_request_fw(ctx, filename, &fw->ucode);
@@ -2139,7 +2167,9 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 			goto err_no_initvals;
 		break;
 	case B43_PHYTYPE_N:
-		if ((rev >= 11) && (rev <= 12))
+		if (rev >= 16)
+			filename = "n0initvals16";
+		else if ((rev >= 11) && (rev <= 12))
 			filename = "n0initvals11";
 		else
 			goto err_no_initvals;
@@ -2183,7 +2213,9 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 			goto err_no_initvals;
 		break;
 	case B43_PHYTYPE_N:
-		if ((rev >= 11) && (rev <= 12))
+		if (rev >= 16)
+			filename = "n0bsinitvals16";
+		else if ((rev >= 11) && (rev <= 12))
 			filename = "n0bsinitvals11";
 		else
 			goto err_no_initvals;
@@ -4022,9 +4054,9 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 		if (phy_rev > 9)
 			unsupported = 1;
 		break;
-#ifdef CONFIG_B43_NPHY
+#ifdef CONFIG_B43_PHY_N
 	case B43_PHYTYPE_N:
-		if (phy_rev > 4)
+		if (phy_rev > 9)
 			unsupported = 1;
 		break;
 #endif
@@ -5067,7 +5099,7 @@ static void b43_print_driverinfo(void)
 #ifdef CONFIG_B43_PCMCIA
 	feat_pcmcia = "M";
 #endif
-#ifdef CONFIG_B43_NPHY
+#ifdef CONFIG_B43_PHY_N
 	feat_nphy = "N";
 #endif
 #ifdef CONFIG_B43_LEDS

@@ -45,6 +45,13 @@ foreach my $file (@files) {
 	close $in;
 
 	system $unifdef . " $tmpfile > $installdir/$file";
+	# unifdef will exit 0 on success, and will exit 1 when the
+	# file was processed successfully but no changes were made,
+	# so abort only when it's higher than that.
+	my $e = $? >> 8;
+	if ($e > 1) {
+		die "$tmpfile: $!\n";
+	}
 	unlink $tmpfile;
 }
 exit 0;

@@ -150,12 +150,19 @@ static struct inode *exofs_alloc_inode(struct super_block *sb)
 	return &oi->vfs_inode;
 }
 
+static void exofs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(exofs_inode_cachep, exofs_i(inode));
+}
+
 /*
  * Remove an inode from the cache
  */
 static void exofs_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(exofs_inode_cachep, exofs_i(inode));
+	call_rcu(&inode->i_rcu, exofs_i_callback);
 }
 
 /*

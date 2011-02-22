@@ -40,8 +40,8 @@
 #include <asm/system.h>
 
 #define user_mode(regs)			(((regs)->sr & 0x40000000)==0)
-#define user_stack_pointer(regs)	((unsigned long)(regs)->regs[15])
-#define kernel_stack_pointer(regs)	((unsigned long)(regs)->regs[15])
+#define user_stack_pointer(_regs)	((unsigned long)(_regs)->regs[15])
+#define kernel_stack_pointer(_regs)	((unsigned long)(_regs)->regs[15])
 #define instruction_pointer(regs)	((unsigned long)(regs)->pc)
 
 extern void show_regs(struct pt_regs *);

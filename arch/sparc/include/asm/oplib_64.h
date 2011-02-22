@@ -18,8 +18,8 @@ extern char prom_version[];
  */
 extern phandle prom_root_node;
 
-/* PROM stdin and stdout */
-extern int prom_stdin, prom_stdout;
+/* PROM stdout */
+extern int prom_stdout;
 
 /* /chosen node of the prom device tree, this stays constant after
  * initialization is complete.
@@ -67,27 +67,6 @@ extern void prom_init(void *cif_handler, void *cif_stack);
 /* Boot argument acquisition, returns the boot command line string. */
 extern char *prom_getbootargs(void);
 
-/* Device utilities. */
-
-/* Device operations. */
-
-/* Open the device described by the passed string.  Note, that the format
- * of the string is different on V0 vs. V2->higher proms.  The caller must
- * know what he/she is doing!  Returns the device descriptor, an int.
- */
-extern int prom_devopen(const char *device_string);
-
-/* Close a previously opened device described by the passed integer
- * descriptor.
- */
-extern int prom_devclose(int device_handle);
-
-/* Do a seek operation on the device described by the passed integer
- * descriptor.
- */
-extern void prom_seek(int device_handle, unsigned int seek_hival,
-		      unsigned int seek_lowval);
-
 /* Miscellaneous routines, don't really fit in any category per se. */
 
 /* Reboot the machine with the command line passed. */
@@ -109,33 +88,14 @@ extern void prom_halt(void) __attribute__ ((noreturn));
 /* Halt and power-off the machine. */
 extern void prom_halt_power_off(void) __attribute__ ((noreturn));
 
-/* Set the PROM 'sync' callback function to the passed function pointer.
- * When the user gives the 'sync' command at the prom prompt while the
- * kernel is still active, the prom will call this routine.
- *
- */
-typedef int (*callback_func_t)(long *cmd);
-extern void prom_setcallback(callback_func_t func_ptr);
-
 /* Acquire the IDPROM of the root node in the prom device tree.  This
  * gets passed a buffer where you would like it stuffed.  The return value
  * is the format type of this idprom or 0xff on error.
  */
 extern unsigned char prom_get_idprom(char *idp_buffer, int idpbuf_size);
 
-/* Character operations to/from the console.... */
-
-/* Non-blocking get character from console. */
-extern int prom_nbgetchar(void);
-
-/* Non-blocking put character to console. */
-extern int prom_nbputchar(char character);
-
-/* Blocking get character from console. */
-extern char prom_getchar(void);
-
-/* Blocking put character to console. */
-extern void prom_putchar(char character);
+/* Write a buffer of characters to the console. */
+extern void prom_console_write_buf(const char *buf, int len);
 
 /* Prom's internal routines, don't use in kernel/boot code. */
 extern void prom_printf(const char *fmt, ...);
@@ -279,9 +239,7 @@ extern phandle prom_finddevice(const char *name);
 extern int prom_setprop(phandle node, const char *prop_name, char *prop_value,
 			int value_size);
 
-extern phandle prom_pathtoinode(const char *path);
 extern phandle prom_inst2pkg(int);
-extern int prom_service_exists(const char *service_name);
 extern void prom_sun4v_guest_soft_state(void);
 
 extern int prom_ihandle2path(int handle, char *buffer, int bufsize);

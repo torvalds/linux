@@ -41,7 +41,7 @@
 #include <linux/device.h>
 #include <media/videobuf-dma-sg.h>
 #include <media/tveeprom.h>
-#include <media/ir-common.h>
+#include <media/rc-core.h>
 #include <media/ir-kbd-i2c.h>
 
 #include "bt848.h"
@@ -119,6 +119,33 @@ struct bttv_format {
 	int  flags;
 	int  hshift,vshift;   /* for planar modes   */
 };
+
+struct bttv_ir {
+	struct rc_dev           *dev;
+	struct timer_list       timer;
+
+	char                    name[32];
+	char                    phys[32];
+
+	/* Usual gpio signalling */
+	u32                     mask_keycode;
+	u32                     mask_keydown;
+	u32                     mask_keyup;
+	u32                     polling;
+	u32                     last_gpio;
+	int                     shift_by;
+	int                     start; // What should RC5_START() be
+	int                     addr; // What RC5_ADDR() should be.
+	int                     rc5_remote_gap;
+
+	/* RC5 gpio */
+	bool			rc5_gpio;   /* Is RC5 legacy GPIO enabled? */
+	u32                     last_bit;   /* last raw bit seen */
+	u32                     code;       /* raw code under construction */
+	struct timeval          base_time;  /* time of last seen code */
+	bool                    active;     /* building raw code */
+};
+
 
 /* ---------------------------------------------------------- */
 
@@ -305,7 +332,6 @@ struct bttv_pll_info {
 /* for gpio-connected remote control */
 struct bttv_input {
 	struct input_dev      *dev;
-	struct ir_input_state ir;
 	char                  name[32];
 	char                  phys[32];
 	u32                   mask_keycode;
@@ -338,12 +364,10 @@ struct bttv {
 	struct bttv_pll_info pll;
 	int triton1;
 	int gpioirq;
-	int (*custom_irq)(struct bttv *btv);
 
 	int use_i2c_hw;
 
 	/* old gpio interface */
-	wait_queue_head_t gpioq;
 	int shutdown;
 
 	void (*volume_gpio)(struct bttv *btv, __u16 volume);
@@ -368,7 +392,7 @@ struct bttv {
 
 	/* infrared remote */
 	int has_remote;
-	struct card_ir *remote;
+	struct bttv_ir *remote;
 
 	/* I2C remote data */
 	struct IR_i2c_init_data    init_data;

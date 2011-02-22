@@ -144,7 +144,6 @@ static int __init mxc_cpufreq_init(struct cpufreq_policy *policy)
 	imx_freq_table[i].frequency = CPUFREQ_TABLE_END;
 
 	policy->cur = clk_get_rate(cpu_clk) / 1000;
-	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	policy->min = policy->cpuinfo.min_freq = cpu_freq_khz_min;
 	policy->max = policy->cpuinfo.max_freq = cpu_freq_khz_max;
 

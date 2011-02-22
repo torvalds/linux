@@ -376,7 +376,7 @@ static int vidioc_s_audio(struct file *file, void *priv,
 
 static const struct v4l2_file_operations fmr2_fops = {
 	.owner          = THIS_MODULE,
-	.ioctl          = video_ioctl2,
+	.unlocked_ioctl = video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops fmr2_ioctl_ops = {
@@ -424,6 +424,10 @@ static int __init fmr2_init(void)
 	fmr2->vdev.release = video_device_release_empty;
 	video_set_drvdata(&fmr2->vdev, fmr2);
 
+	/* mute card - prevents noisy bootups */
+	fmr2_mute(fmr2->io);
+	fmr2_product_info(fmr2);
+
 	if (video_register_device(&fmr2->vdev, VFL_TYPE_RADIO, radio_nr) < 0) {
 		v4l2_device_unregister(v4l2_dev);
 		release_region(fmr2->io, 2);
@@ -431,11 +435,6 @@ static int __init fmr2_init(void)
 	}
 
 	v4l2_info(v4l2_dev, "SF16FMR2 radio card driver at 0x%x.\n", fmr2->io);
-	/* mute card - prevents noisy bootups */
-	mutex_lock(&fmr2->lock);
-	fmr2_mute(fmr2->io);
-	fmr2_product_info(fmr2);
-	mutex_unlock(&fmr2->lock);
 	debug_print((KERN_DEBUG "card_type %d\n", fmr2->card_type));
 	return 0;
 }

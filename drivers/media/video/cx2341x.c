@@ -853,9 +853,9 @@ int cx2341x_ctrl_query(const struct cx2341x_mpeg_params *params,
 }
 EXPORT_SYMBOL(cx2341x_ctrl_query);
 
-const char **cx2341x_ctrl_get_menu(const struct cx2341x_mpeg_params *p, u32 id)
+const char * const *cx2341x_ctrl_get_menu(const struct cx2341x_mpeg_params *p, u32 id)
 {
-	static const char *mpeg_stream_type_without_ts[] = {
+	static const char * const mpeg_stream_type_without_ts[] = {
 		"MPEG-2 Program Stream",
 		"",
 		"MPEG-1 System Stream",
@@ -952,7 +952,7 @@ int cx2341x_ext_ctrls(struct cx2341x_mpeg_params *params, int busy,
 	for (i = 0; i < ctrls->count; i++) {
 		struct v4l2_ext_control *ctrl = ctrls->controls + i;
 		struct v4l2_queryctrl qctrl;
-		const char **menu_items = NULL;
+		const char * const *menu_items = NULL;
 
 		qctrl.id = ctrl->id;
 		err = cx2341x_ctrl_query(params, &qctrl);
@@ -1135,7 +1135,7 @@ EXPORT_SYMBOL(cx2341x_update);
 
 static const char *cx2341x_menu_item(const struct cx2341x_mpeg_params *p, u32 id)
 {
-	const char **menu = cx2341x_ctrl_get_menu(p, id);
+	const char * const *menu = cx2341x_ctrl_get_menu(p, id);
 	struct v4l2_ext_control ctrl;
 
 	if (menu == NULL)

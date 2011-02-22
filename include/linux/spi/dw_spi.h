@@ -1,5 +1,6 @@
 #ifndef DW_SPI_HEADER_H
 #define DW_SPI_HEADER_H
+
 #include <linux/io.h>
 
 /* Bit fields in CTRLR0 */
@@ -82,6 +83,13 @@ struct dw_spi_reg {
 				though only low 16 bits matters */
 } __packed;
 
+struct dw_spi;
+struct dw_spi_dma_ops {
+	int (*dma_init)(struct dw_spi *dws);
+	void (*dma_exit)(struct dw_spi *dws);
+	int (*dma_transfer)(struct dw_spi *dws, int cs_change);
+};
+
 struct dw_spi {
 	struct spi_master	*master;
 	struct spi_device	*cur_dev;
@@ -136,13 +144,15 @@ struct dw_spi {
 	/* Dma info */
 	int			dma_inited;
 	struct dma_chan		*txchan;
+	struct scatterlist	tx_sgl;
 	struct dma_chan		*rxchan;
-	int			txdma_done;
-	int			rxdma_done;
-	u64			tx_param;
-	u64			rx_param;
+	struct scatterlist	rx_sgl;
+	int			dma_chan_done;
 	struct device		*dma_dev;
-	dma_addr_t		dma_addr;
+	dma_addr_t		dma_addr; /* phy address of the Data register */
+	struct dw_spi_dma_ops	*dma_ops;
+	void			*dma_priv; /* platform relate info */
+	struct pci_dev		*dmac;
 
 	/* Bus interface info */
 	void			*priv;
@@ -216,4 +226,8 @@ extern int dw_spi_add_host(struct dw_spi *dws);
 extern void dw_spi_remove_host(struct dw_spi *dws);
 extern int dw_spi_suspend_host(struct dw_spi *dws);
 extern int dw_spi_resume_host(struct dw_spi *dws);
+extern void dw_spi_xfer_done(struct dw_spi *dws);
+
+/* platform related setup */
+extern int dw_spi_mid_init(struct dw_spi *dws); /* Intel MID platforms */
 #endif /* DW_SPI_HEADER_H */

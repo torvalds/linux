@@ -15,7 +15,7 @@ int MS_ReaderCopyBlock(struct us_data *us, WORD oldphy, WORD newphy, WORD PhyBlo
 	if (result != USB_STOR_XFER_GOOD)
 		return USB_STOR_TRANSPORT_ERROR;
 
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength = 0x200*len;
 	bcb->Flags			= 0x00;
@@ -53,7 +53,7 @@ int MS_ReaderReadPage(struct us_data *us, DWORD PhyBlockAddr, BYTE PageNum, PDWO
 		return USB_STOR_TRANSPORT_ERROR;
 
 	// Read Page Data
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength = 0x200;
 	bcb->Flags			= 0x80;
@@ -69,7 +69,7 @@ int MS_ReaderReadPage(struct us_data *us, DWORD PhyBlockAddr, BYTE PageNum, PDWO
 		return USB_STOR_TRANSPORT_ERROR;
 
 	// Read Extra Data
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength = 0x4;
 	bcb->Flags			= 0x80;
@@ -108,7 +108,7 @@ int MS_ReaderEraseBlock(struct us_data *us, DWORD PhyBlockAddr)
 	if (result != USB_STOR_XFER_GOOD)
 		return USB_STOR_TRANSPORT_ERROR;
 
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength = 0x200;
 	bcb->Flags			= 0x80;
@@ -347,7 +347,7 @@ int MS_LibProcessBootBlock(struct us_data *us, WORD PhyBlock, BYTE *PageData)
 	BYTE                     *PageBuffer;
 	MS_LibTypeExtdat         ExtraData;
 
-	if ((PageBuffer = (BYTE *)kmalloc(MS_BYTES_PER_PAGE, GFP_KERNEL))==NULL)
+	if ((PageBuffer = kmalloc(MS_BYTES_PER_PAGE, GFP_KERNEL))==NULL)
 		return (DWORD)-1;
 
 	result = (DWORD)-1;
@@ -480,8 +480,8 @@ int MS_LibAllocLogicalMap(struct us_data *us)
 	DWORD  i;
 
 
-	us->MS_Lib.Phy2LogMap = (WORD *)kmalloc(us->MS_Lib.NumberOfPhyBlock * sizeof(WORD), GFP_KERNEL);
-	us->MS_Lib.Log2PhyMap = (WORD *)kmalloc(us->MS_Lib.NumberOfLogBlock * sizeof(WORD), GFP_KERNEL);
+	us->MS_Lib.Phy2LogMap = kmalloc(us->MS_Lib.NumberOfPhyBlock * sizeof(WORD), GFP_KERNEL);
+	us->MS_Lib.Log2PhyMap = kmalloc(us->MS_Lib.NumberOfLogBlock * sizeof(WORD), GFP_KERNEL);
 
 	if ((us->MS_Lib.Phy2LogMap == NULL) || (us->MS_Lib.Log2PhyMap == NULL))
 	{
@@ -610,8 +610,8 @@ int MS_LibAllocWriteBuf(struct us_data *us)
 {
 	us->MS_Lib.wrtblk = (WORD)-1;
 
-	us->MS_Lib.blkpag = (BYTE *)kmalloc(us->MS_Lib.PagesPerBlock * us->MS_Lib.BytesPerSector, GFP_KERNEL);
-	us->MS_Lib.blkext = (MS_LibTypeExtdat *)kmalloc(us->MS_Lib.PagesPerBlock * sizeof(MS_LibTypeExtdat), GFP_KERNEL);
+	us->MS_Lib.blkpag = kmalloc(us->MS_Lib.PagesPerBlock * us->MS_Lib.BytesPerSector, GFP_KERNEL);
+	us->MS_Lib.blkext = kmalloc(us->MS_Lib.PagesPerBlock * sizeof(MS_LibTypeExtdat), GFP_KERNEL);
 
 	if ((us->MS_Lib.blkpag == NULL) || (us->MS_Lib.blkext == NULL))
 	{
@@ -673,7 +673,7 @@ int MS_LibReadExtraBlock(struct us_data *us, DWORD PhyBlock, BYTE PageNum, BYTE 
 	//printk("MS_LibReadExtraBlock --- PhyBlock = %x, PageNum = %x, blen = %x\n", PhyBlock, PageNum, blen);
 
 	// Read Extra Data
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength = 0x4 * blen;
 	bcb->Flags			= 0x80;
@@ -700,7 +700,7 @@ int MS_LibReadExtra(struct us_data *us, DWORD PhyBlock, BYTE PageNum, MS_LibType
 	BYTE	ExtBuf[4];
 
 	//printk("MS_LibReadExtra --- PhyBlock = %x, PageNum = %x\n", PhyBlock, PageNum);
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength = 0x4;
 	bcb->Flags			= 0x80;
@@ -807,7 +807,7 @@ int MS_LibOverwriteExtra(struct us_data *us, DWORD PhyBlockAddr, BYTE PageNum, B
 	if (result != USB_STOR_XFER_GOOD)
 		return USB_STOR_TRANSPORT_ERROR;
 
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength = 0x4;
 	bcb->Flags			= 0x80;

@@ -338,6 +338,35 @@ static void device_remove_attributes(struct device *dev,
 			device_remove_file(dev, &attrs[i]);
 }
 
+static int device_add_bin_attributes(struct device *dev,
+				     struct bin_attribute *attrs)
+{
+	int error = 0;
+	int i;
+
+	if (attrs) {
+		for (i = 0; attr_name(attrs[i]); i++) {
+			error = device_create_bin_file(dev, &attrs[i]);
+			if (error)
+				break;
+		}
+		if (error)
+			while (--i >= 0)
+				device_remove_bin_file(dev, &attrs[i]);
+	}
+	return error;
+}
+
+static void device_remove_bin_attributes(struct device *dev,
+					 struct bin_attribute *attrs)
+{
+	int i;
+
+	if (attrs)
+		for (i = 0; attr_name(attrs[i]); i++)
+			device_remove_bin_file(dev, &attrs[i]);
+}
+
 static int device_add_groups(struct device *dev,
 			     const struct attribute_group **groups)
 {
@@ -378,12 +407,15 @@ static int device_add_attrs(struct device *dev)
 		error = device_add_attributes(dev, class->dev_attrs);
 		if (error)
 			return error;
+		error = device_add_bin_attributes(dev, class->dev_bin_attrs);
+		if (error)
+			goto err_remove_class_attrs;
 	}
 
 	if (type) {
 		error = device_add_groups(dev, type->groups);
 		if (error)
-			goto err_remove_class_attrs;
+			goto err_remove_class_bin_attrs;
 	}
 
 	error = device_add_groups(dev, dev->groups);
@@ -395,6 +427,9 @@ static int device_add_attrs(struct device *dev)
  err_remove_type_groups:
 	if (type)
 		device_remove_groups(dev, type->groups);
+ err_remove_class_bin_attrs:
+	if (class)
+		device_remove_bin_attributes(dev, class->dev_bin_attrs);
  err_remove_class_attrs:
 	if (class)
 		device_remove_attributes(dev, class->dev_attrs);
@@ -412,8 +447,10 @@ static void device_remove_attrs(struct device *dev)
 	if (type)
 		device_remove_groups(dev, type->groups);
 
-	if (class)
+	if (class) {
 		device_remove_attributes(dev, class->dev_attrs);
+		device_remove_bin_attributes(dev, class->dev_bin_attrs);
+	}
 }
 
 
@@ -610,7 +647,7 @@ class_dir_create_and_add(struct class *class, struct kobject *parent_kobj)
 	dir->class = class;
 	kobject_init(&dir->kobj, &class_dir_ktype);
 
-	dir->kobj.kset = &class->p->class_dirs;
+	dir->kobj.kset = &class->p->glue_dirs;
 
 	retval = kobject_add(&dir->kobj, parent_kobj, "%s", class->name);
 	if (retval < 0) {
@@ -635,7 +672,7 @@ static struct kobject *get_device_parent(struct device *dev,
 		if (sysfs_deprecated && dev->class == &block_class) {
 			if (parent && parent->class == &block_class)
 				return &parent->kobj;
-			return &block_class.p->class_subsys.kobj;
+			return &block_class.p->subsys.kobj;
 		}
 #endif
 
@@ -654,13 +691,13 @@ static struct kobject *get_device_parent(struct device *dev,
 		mutex_lock(&gdp_mutex);
 
 		/* find our class-directory at the parent and reference it */
-		spin_lock(&dev->class->p->class_dirs.list_lock);
-		list_for_each_entry(k, &dev->class->p->class_dirs.list, entry)
+		spin_lock(&dev->class->p->glue_dirs.list_lock);
+		list_for_each_entry(k, &dev->class->p->glue_dirs.list, entry)
 			if (k->parent == parent_kobj) {
 				kobj = kobject_get(k);
 				break;
 			}
-		spin_unlock(&dev->class->p->class_dirs.list_lock);
+		spin_unlock(&dev->class->p->glue_dirs.list_lock);
 		if (kobj) {
 			mutex_unlock(&gdp_mutex);
 			return kobj;
@@ -682,7 +719,7 @@ static void cleanup_glue_dir(struct device *dev, struct kobject *glue_dir)
 {
 	/* see if we live in a "glue" directory */
 	if (!glue_dir || !dev->class ||
-	    glue_dir->kset != &dev->class->p->class_dirs)
+	    glue_dir->kset != &dev->class->p->glue_dirs)
 		return;
 
 	kobject_put(glue_dir);
@@ -709,7 +746,7 @@ static int device_add_class_symlinks(struct device *dev)
 		return 0;
 
 	error = sysfs_create_link(&dev->kobj,
-				  &dev->class->p->class_subsys.kobj,
+				  &dev->class->p->subsys.kobj,
 				  "subsystem");
 	if (error)
 		goto out;
@@ -728,7 +765,7 @@ static int device_add_class_symlinks(struct device *dev)
 #endif
 
 	/* link in the class directory pointing to the device */
-	error = sysfs_create_link(&dev->class->p->class_subsys.kobj,
+	error = sysfs_create_link(&dev->class->p->subsys.kobj,
 				  &dev->kobj, dev_name(dev));
 	if (error)
 		goto out_device;
@@ -756,7 +793,7 @@ static void device_remove_class_symlinks(struct device *dev)
 	if (sysfs_deprecated && dev->class == &block_class)
 		return;
 #endif
-	sysfs_delete_link(&dev->class->p->class_subsys.kobj, &dev->kobj, dev_name(dev));
+	sysfs_delete_link(&dev->class->p->subsys.kobj, &dev->kobj, dev_name(dev));
 }
 
 /**
@@ -947,7 +984,7 @@ int device_add(struct device *dev)
 		mutex_lock(&dev->class->p->class_mutex);
 		/* tie the class to the device */
 		klist_add_tail(&dev->knode_class,
-			       &dev->class->p->class_devices);
+			       &dev->class->p->klist_devices);
 
 		/* notify any interfaces that the device is here */
 		list_for_each_entry(class_intf,
@@ -1513,6 +1550,8 @@ EXPORT_SYMBOL_GPL(device_destroy);
  * exclusion between two different calls of device_rename
  * on the same device to ensure that new_name is valid and
  * won't conflict with other devices.
+ *
+ * "Never use this function, bad things will happen" - gregkh
  */
 int device_rename(struct device *dev, const char *new_name)
 {
@@ -1535,7 +1574,7 @@ int device_rename(struct device *dev, const char *new_name)
 	}
 
 	if (dev->class) {
-		error = sysfs_rename_link(&dev->class->p->class_subsys.kobj,
+		error = sysfs_rename_link(&dev->class->p->subsys.kobj,
 			&dev->kobj, old_device_name, new_name);
 		if (error)
 			goto out;

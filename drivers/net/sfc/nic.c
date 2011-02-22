@@ -362,6 +362,35 @@ static inline void efx_notify_tx_desc(struct efx_tx_queue *tx_queue)
 			FR_AZ_TX_DESC_UPD_DWORD_P0, tx_queue->queue);
 }
 
+/* Write pointer and first descriptor for TX descriptor ring */
+static inline void efx_push_tx_desc(struct efx_tx_queue *tx_queue,
+				    const efx_qword_t *txd)
+{
+	unsigned write_ptr;
+	efx_oword_t reg;
+
+	BUILD_BUG_ON(FRF_AZ_TX_DESC_LBN != 0);
+	BUILD_BUG_ON(FR_AA_TX_DESC_UPD_KER != FR_BZ_TX_DESC_UPD_P0);
+
+	write_ptr = tx_queue->write_count & tx_queue->ptr_mask;
+	EFX_POPULATE_OWORD_2(reg, FRF_AZ_TX_DESC_PUSH_CMD, true,
+			     FRF_AZ_TX_DESC_WPTR, write_ptr);
+	reg.qword[0] = *txd;
+	efx_writeo_page(tx_queue->efx, &reg,
+			FR_BZ_TX_DESC_UPD_P0, tx_queue->queue);
+}
+
+static inline bool
+efx_may_push_tx_desc(struct efx_tx_queue *tx_queue, unsigned int write_count)
+{
+	unsigned empty_read_count = ACCESS_ONCE(tx_queue->empty_read_count);
+
+	if (empty_read_count == 0)
+		return false;
+
+	tx_queue->empty_read_count = 0;
+	return ((empty_read_count ^ write_count) & ~EFX_EMPTY_COUNT_VALID) == 0;
+}
 
 /* For each entry inserted into the software descriptor ring, create a
  * descriptor in the hardware TX descriptor ring (in host memory), and
@@ -373,6 +402,7 @@ void efx_nic_push_buffers(struct efx_tx_queue *tx_queue)
 	struct efx_tx_buffer *buffer;
 	efx_qword_t *txd;
 	unsigned write_ptr;
+	unsigned old_write_count = tx_queue->write_count;
 
 	BUG_ON(tx_queue->write_count == tx_queue->insert_count);
 
@@ -391,7 +421,15 @@ void efx_nic_push_buffers(struct efx_tx_queue *tx_queue)
 	} while (tx_queue->write_count != tx_queue->insert_count);
 
 	wmb(); /* Ensure descriptors are written before they are fetched */
-	efx_notify_tx_desc(tx_queue);
+
+	if (efx_may_push_tx_desc(tx_queue, old_write_count)) {
+		txd = efx_tx_desc(tx_queue,
+				  old_write_count & tx_queue->ptr_mask);
+		efx_push_tx_desc(tx_queue, txd);
+		++tx_queue->pushes;
+	} else {
+		efx_notify_tx_desc(tx_queue);
+	}
 }
 
 /* Allocate hardware resources for a TX queue */
@@ -894,46 +932,6 @@ efx_handle_generated_event(struct efx_channel *channel, efx_qword_t *event)
 			  channel->channel, EFX_QWORD_VAL(*event));
 }
 
-/* Global events are basically PHY events */
-static void
-efx_handle_global_event(struct efx_channel *channel, efx_qword_t *event)
-{
-	struct efx_nic *efx = channel->efx;
-	bool handled = false;
-
-	if (EFX_QWORD_FIELD(*event, FSF_AB_GLB_EV_G_PHY0_INTR) ||
-	    EFX_QWORD_FIELD(*event, FSF_AB_GLB_EV_XG_PHY0_INTR) ||
-	    EFX_QWORD_FIELD(*event, FSF_AB_GLB_EV_XFP_PHY0_INTR)) {
-		/* Ignored */
-		handled = true;
-	}
-
-	if ((efx_nic_rev(efx) >= EFX_REV_FALCON_B0) &&
-	    EFX_QWORD_FIELD(*event, FSF_BB_GLB_EV_XG_MGT_INTR)) {
-		efx->xmac_poll_required = true;
-		handled = true;
-	}
-
-	if (efx_nic_rev(efx) <= EFX_REV_FALCON_A1 ?
-	    EFX_QWORD_FIELD(*event, FSF_AA_GLB_EV_RX_RECOVERY) :
-	    EFX_QWORD_FIELD(*event, FSF_BB_GLB_EV_RX_RECOVERY)) {
-		netif_err(efx, rx_err, efx->net_dev,
-			  "channel %d seen global RX_RESET event. Resetting.\n",
-			  channel->channel);
-
-		atomic_inc(&efx->rx_reset);
-		efx_schedule_reset(efx, EFX_WORKAROUND_6555(efx) ?
-				   RESET_TYPE_RX_RECOVERY : RESET_TYPE_DISABLE);
-		handled = true;
-	}
-
-	if (!handled)
-		netif_err(efx, hw, efx->net_dev,
-			  "channel %d unknown global event "
-			  EFX_QWORD_FMT "\n", channel->channel,
-			  EFX_QWORD_VAL(*event));
-}
-
 static void
 efx_handle_driver_event(struct efx_channel *channel, efx_qword_t *event)
 {
@@ -1050,15 +1048,17 @@ int efx_nic_process_eventq(struct efx_channel *channel, int budget)
 		case FSE_AZ_EV_CODE_DRV_GEN_EV:
 			efx_handle_generated_event(channel, &event);
 			break;
-		case FSE_AZ_EV_CODE_GLOBAL_EV:
-			efx_handle_global_event(channel, &event);
-			break;
 		case FSE_AZ_EV_CODE_DRIVER_EV:
 			efx_handle_driver_event(channel, &event);
 			break;
 		case FSE_CZ_EV_CODE_MCDI_EV:
 			efx_mcdi_process_event(channel, &event);
 			break;
+		case FSE_AZ_EV_CODE_GLOBAL_EV:
+			if (efx->type->handle_global_event &&
+			    efx->type->handle_global_event(channel, &event))
+				break;
+			/* else fall through */
 		default:
 			netif_err(channel->efx, hw, channel->efx->net_dev,
 				  "channel %d unknown event type %d (data "
@@ -1418,6 +1418,12 @@ static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
 	u32 queues;
 	int syserr;
 
+	/* Could this be ours?  If interrupts are disabled then the
+	 * channel state may not be valid.
+	 */
+	if (!efx->legacy_irq_enabled)
+		return result;
+
 	/* Read the ISR which also ACKs the interrupts */
 	efx_readd(efx, &reg, FR_BZ_INT_ISR0);
 	queues = EFX_EXTRACT_DWORD(reg, 0, 31);
@@ -1664,7 +1670,7 @@ void efx_nic_init_common(struct efx_nic *efx)
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_RX_SPACER, 0xfe);
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_RX_SPACER_EN, 1);
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_ONE_PKT_PER_Q, 1);
-	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_PUSH_EN, 0);
+	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_PUSH_EN, 1);
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_DIS_NON_IP_EV, 1);
 	/* Enable SW_EV to inherit in char driver - assume harmless here */
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_SOFT_EVT_EN, 1);

@@ -103,8 +103,8 @@ struct ctlr_info
 	struct access_method access;
 
 	/* queue and queue Info */ 
-	struct hlist_head reqQ;
-	struct hlist_head cmpQ;
+	struct list_head reqQ;
+	struct list_head cmpQ;
 	unsigned int Qdepth;
 	unsigned int maxQsinceinit;
 	unsigned int maxSG;
@@ -200,9 +200,13 @@ struct ctlr_info
  * the above.
  */
 #define CCISS_BOARD_READY_WAIT_SECS (120)
+#define CCISS_BOARD_NOT_READY_WAIT_SECS (10)
 #define CCISS_BOARD_READY_POLL_INTERVAL_MSECS (100)
 #define CCISS_BOARD_READY_ITERATIONS \
 	((CCISS_BOARD_READY_WAIT_SECS * 1000) / \
+		CCISS_BOARD_READY_POLL_INTERVAL_MSECS)
+#define CCISS_BOARD_NOT_READY_ITERATIONS \
+	((CCISS_BOARD_NOT_READY_WAIT_SECS * 1000) / \
 		CCISS_BOARD_READY_POLL_INTERVAL_MSECS)
 #define CCISS_POST_RESET_PAUSE_MSECS (3000)
 #define CCISS_POST_RESET_NOOP_INTERVAL_MSECS (1000)

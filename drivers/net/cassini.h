@@ -2868,6 +2868,9 @@ struct cas {
 	dma_addr_t block_dvma, tx_tiny_dvma[N_TX_RINGS];
 	struct pci_dev *pdev;
 	struct net_device *dev;
+#if defined(CONFIG_OF)
+	struct device_node	*of_node;
+#endif
 
 	/* Firmware Info */
 	u16			fw_load_addr;

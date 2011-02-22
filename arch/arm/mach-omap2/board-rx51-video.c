@@ -14,7 +14,6 @@
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/mm.h>
-
 #include <asm/mach-types.h>
 #include <plat/display.h>
 #include <plat/vram.h>
@@ -49,8 +48,16 @@ static struct omap_dss_device rx51_lcd_device = {
 	.platform_disable	= rx51_lcd_disable,
 };
 
+static struct omap_dss_device  rx51_tv_device = {
+	.name			= "tv",
+	.type			= OMAP_DISPLAY_TYPE_VENC,
+	.driver_name		= "venc",
+	.phy.venc.type	        = OMAP_DSS_VENC_TYPE_COMPOSITE,
+};
+
 static struct omap_dss_device *rx51_dss_devices[] = {
 	&rx51_lcd_device,
+	&rx51_tv_device,
 };
 
 static struct omap_dss_board_info rx51_dss_board_info = {

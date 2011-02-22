@@ -156,15 +156,6 @@ static int cpufreq_set_cur_state(unsigned int cpu, int state)
 	return 0;
 }
 
-static int acpi_thermal_cpufreq_increase(unsigned int cpu)
-{
-	return -ENODEV;
-}
-static int acpi_thermal_cpufreq_decrease(unsigned int cpu)
-{
-	return -ENODEV;
-}
-
 #endif
 
 int acpi_processor_get_limit_info(struct acpi_processor *pr)

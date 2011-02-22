@@ -47,12 +47,12 @@ static void rxrpc_assess_MTU_size(struct rxrpc_peer *peer)
 	case AF_INET:
 		fl.oif = 0;
 		fl.proto = IPPROTO_UDP,
-		fl.nl_u.ip4_u.saddr = 0;
-		fl.nl_u.ip4_u.daddr = peer->srx.transport.sin.sin_addr.s_addr;
-		fl.nl_u.ip4_u.tos = 0;
+		fl.fl4_dst = peer->srx.transport.sin.sin_addr.s_addr;
+		fl.fl4_src = 0;
+		fl.fl4_tos = 0;
 		/* assume AFS.CM talking to AFS.FS */
-		fl.uli_u.ports.sport = htons(7001);
-		fl.uli_u.ports.dport = htons(7000);
+		fl.fl_ip_sport = htons(7001);
+		fl.fl_ip_dport = htons(7000);
 		break;
 	default:
 		BUG();

@@ -419,7 +419,7 @@ again:
 			unlock_kernel();
 			return -ENOSPC;
 		}
-		if (generic_permission(inode, MAY_WRITE, NULL) ||
+		if (generic_permission(inode, MAY_WRITE, 0, NULL) ||
 		    !S_ISREG(inode->i_mode) ||
 		    get_write_access(inode)) {
 			d_rehash(dentry);

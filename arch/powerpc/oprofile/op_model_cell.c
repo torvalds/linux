@@ -1469,7 +1469,7 @@ static int cell_global_start(struct op_counter_config *ctr)
  * The pm_interval register is setup to write the SPU PC value into the
  * trace buffer at the maximum rate possible.  The trace buffer is configured
  * to store the PCs, wrapping when it is full.  The performance counter is
- * intialized to the max hardware count minus the number of events, N, between
+ * initialized to the max hardware count minus the number of events, N, between
  * samples.  Once the N events have occured, a HW counter overflow occurs
  * causing the generation of a HW counter interrupt which also stops the
  * writing of the SPU PC values to the trace buffer.  Hence the last PC

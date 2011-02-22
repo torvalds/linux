@@ -416,6 +416,25 @@ nv_fix_nv40_hw_cursor(struct drm_device *dev, int head)
 }
 
 static inline void
+nv_set_crtc_base(struct drm_device *dev, int head, uint32_t offset)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	NVWriteCRTC(dev, head, NV_PCRTC_START, offset);
+
+	if (dev_priv->card_type == NV_04) {
+		/*
+		 * Hilarious, the 24th bit doesn't want to stick to
+		 * PCRTC_START...
+		 */
+		int cre_heb = NVReadVgaCrtc(dev, head, NV_CIO_CRE_HEB__INDEX);
+
+		NVWriteVgaCrtc(dev, head, NV_CIO_CRE_HEB__INDEX,
+			       (cre_heb & ~0x40) | ((offset >> 18) & 0x40));
+	}
+}
+
+static inline void
 nv_show_cursor(struct drm_device *dev, int head, bool show)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;

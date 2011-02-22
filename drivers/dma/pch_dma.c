@@ -1,6 +1,7 @@
 /*
  * Topcliff PCH DMA controller driver
  * Copyright (c) 2010 Intel Corporation
+ * Copyright (C) 2011 OKI SEMICONDUCTOR CO., LTD.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -259,11 +260,6 @@ static void pdc_dostart(struct pch_dma_chan *pd_chan, struct pch_dma_desc* desc)
 		return;
 	}
 
-	channel_writel(pd_chan, DEV_ADDR, desc->regs.dev_addr);
-	channel_writel(pd_chan, MEM_ADDR, desc->regs.mem_addr);
-	channel_writel(pd_chan, SIZE, desc->regs.size);
-	channel_writel(pd_chan, NEXT, desc->regs.next);
-
 	dev_dbg(chan2dev(&pd_chan->chan), "chan %d -> dev_addr: %x\n",
 		pd_chan->chan.chan_id, desc->regs.dev_addr);
 	dev_dbg(chan2dev(&pd_chan->chan), "chan %d -> mem_addr: %x\n",
@@ -273,10 +269,16 @@ static void pdc_dostart(struct pch_dma_chan *pd_chan, struct pch_dma_desc* desc)
 	dev_dbg(chan2dev(&pd_chan->chan), "chan %d -> next: %x\n",
 		pd_chan->chan.chan_id, desc->regs.next);
 
-	if (list_empty(&desc->tx_list))
+	if (list_empty(&desc->tx_list)) {
+		channel_writel(pd_chan, DEV_ADDR, desc->regs.dev_addr);
+		channel_writel(pd_chan, MEM_ADDR, desc->regs.mem_addr);
+		channel_writel(pd_chan, SIZE, desc->regs.size);
+		channel_writel(pd_chan, NEXT, desc->regs.next);
 		pdc_set_mode(&pd_chan->chan, DMA_CTL0_ONESHOT);
-	else
+	} else {
+		channel_writel(pd_chan, NEXT, desc->txd.phys);
 		pdc_set_mode(&pd_chan->chan, DMA_CTL0_SG);
+	}
 
 	val = dma_readl(pd, CTL2);
 	val |= 1 << (DMA_CTL2_START_SHIFT_BITS + pd_chan->chan.chan_id);
@@ -920,12 +922,19 @@ static void __devexit pch_dma_remove(struct pci_dev *pdev)
 }
 
 /* PCI Device ID of DMA device */
-#define PCI_DEVICE_ID_PCH_DMA_8CH        0x8810
-#define PCI_DEVICE_ID_PCH_DMA_4CH        0x8815
+#define PCI_VENDOR_ID_ROHM             0x10DB
+#define PCI_DEVICE_ID_EG20T_PCH_DMA_8CH        0x8810
+#define PCI_DEVICE_ID_EG20T_PCH_DMA_4CH        0x8815
+#define PCI_DEVICE_ID_ML7213_DMA1_8CH	0x8026
+#define PCI_DEVICE_ID_ML7213_DMA2_8CH	0x802B
+#define PCI_DEVICE_ID_ML7213_DMA3_4CH	0x8034
 
 static const struct pci_device_id pch_dma_id_table[] = {
-	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_PCH_DMA_8CH), 8 },
-	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_PCH_DMA_4CH), 4 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_EG20T_PCH_DMA_8CH), 8 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_EG20T_PCH_DMA_4CH), 4 },
+	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_DMA1_8CH), 8}, /* UART Video */
+	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_DMA2_8CH), 8}, /* PCMIF SPI */
+	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_DMA3_4CH), 4}, /* FPGA */
 	{ 0, },
 };
 
@@ -953,6 +962,7 @@ static void __exit pch_dma_exit(void)
 module_init(pch_dma_init);
 module_exit(pch_dma_exit);
 
-MODULE_DESCRIPTION("Topcliff PCH DMA controller driver");
+MODULE_DESCRIPTION("Intel EG20T PCH / OKI SEMICONDUCTOR ML7213 IOH "
+		   "DMA controller driver");
 MODULE_AUTHOR("Yong Wang <yong.y.wang@intel.com>");
 MODULE_LICENSE("GPL v2");

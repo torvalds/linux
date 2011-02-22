@@ -35,30 +35,11 @@
  */
 
 #include "core.h"
-#include "dbg.h"
-#include "bearer.h"
 #include "port.h"
-#include "link.h"
-#include "zone.h"
-#include "addr.h"
 #include "name_table.h"
-#include "node.h"
 #include "config.h"
-#include "discover.h"
 
-struct subscr_data {
-	char usr_handle[8];
-	u32 domain;
-	u32 port_ref;
-	struct list_head subd_list;
-};
-
-struct manager {
-	u32 user_ref;
-	u32 port_ref;
-};
-
-static struct manager mng = { 0};
+static u32 config_port_ref;
 
 static DEFINE_SPINLOCK(config_lock);
 
@@ -83,10 +64,8 @@ int tipc_cfg_append_tlv(struct sk_buff *buf, int tlv_type,
 	struct tlv_desc *tlv = (struct tlv_desc *)skb_tail_pointer(buf);
 	int new_tlv_space = TLV_SPACE(tlv_data_size);
 
-	if (skb_tailroom(buf) < new_tlv_space) {
-		dbg("tipc_cfg_append_tlv unable to append TLV\n");
+	if (skb_tailroom(buf) < new_tlv_space)
 		return 0;
-	}
 	skb_put(buf, new_tlv_space);
 	tlv->tlv_type = htons(tlv_type);
 	tlv->tlv_len  = htons(TLV_LENGTH(tlv_data_size));
@@ -281,38 +260,6 @@ static struct sk_buff *cfg_set_max_ports(void)
 	return tipc_cfg_reply_none();
 }
 
-static struct sk_buff *cfg_set_max_zones(void)
-{
-	u32 value;
-
-	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
-		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
-	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
-	if (value == tipc_max_zones)
-		return tipc_cfg_reply_none();
-	if (value != delimit(value, 1, 255))
-		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
-						   " (max zones must be 1-255)");
-	if (tipc_mode == TIPC_NET_MODE)
-		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
-			" (cannot change max zones once TIPC has joined a network)");
-	tipc_max_zones = value;
-	return tipc_cfg_reply_none();
-}
-
-static struct sk_buff *cfg_set_max_clusters(void)
-{
-	u32 value;
-
-	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
-		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
-	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
-	if (value != delimit(value, 1, 1))
-		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
-						   " (max clusters fixed at 1)");
-	return tipc_cfg_reply_none();
-}
-
 static struct sk_buff *cfg_set_max_nodes(void)
 {
 	u32 value;
@@ -329,19 +276,6 @@ static struct sk_buff *cfg_set_max_nodes(void)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 			" (cannot change max nodes once TIPC has joined a network)");
 	tipc_max_nodes = value;
-	return tipc_cfg_reply_none();
-}
-
-static struct sk_buff *cfg_set_max_slaves(void)
-{
-	u32 value;
-
-	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
-		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
-	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
-	if (value != 0)
-		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
-						   " (max secondary nodes fixed at 0)");
 	return tipc_cfg_reply_none();
 }
 
@@ -388,8 +322,7 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	} else if (!tipc_remote_management) {
 		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NO_REMOTE);
 		goto exit;
-	}
-	else if (cmd >= 0x4000) {
+	} else if (cmd >= 0x4000) {
 		u32 domain = 0;
 
 		if ((tipc_nametbl_translate(TIPC_ZM_SRV, 0, &domain) == 0) ||
@@ -464,17 +397,8 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	case TIPC_CMD_SET_MAX_SUBSCR:
 		rep_tlv_buf = cfg_set_max_subscriptions();
 		break;
-	case TIPC_CMD_SET_MAX_ZONES:
-		rep_tlv_buf = cfg_set_max_zones();
-		break;
-	case TIPC_CMD_SET_MAX_CLUSTERS:
-		rep_tlv_buf = cfg_set_max_clusters();
-		break;
 	case TIPC_CMD_SET_MAX_NODES:
 		rep_tlv_buf = cfg_set_max_nodes();
-		break;
-	case TIPC_CMD_SET_MAX_SLAVES:
-		rep_tlv_buf = cfg_set_max_slaves();
 		break;
 	case TIPC_CMD_SET_NETID:
 		rep_tlv_buf = cfg_set_netid();
@@ -491,17 +415,8 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	case TIPC_CMD_GET_MAX_SUBSCR:
 		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_max_subscriptions);
 		break;
-	case TIPC_CMD_GET_MAX_ZONES:
-		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_max_zones);
-		break;
-	case TIPC_CMD_GET_MAX_CLUSTERS:
-		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_max_clusters);
-		break;
 	case TIPC_CMD_GET_MAX_NODES:
 		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_max_nodes);
-		break;
-	case TIPC_CMD_GET_MAX_SLAVES:
-		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_max_slaves);
 		break;
 	case TIPC_CMD_GET_NETID:
 		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_net_id);
@@ -509,6 +424,15 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	case TIPC_CMD_NOT_NET_ADMIN:
 		rep_tlv_buf =
 			tipc_cfg_reply_error_string(TIPC_CFG_NOT_NET_ADMIN);
+		break;
+	case TIPC_CMD_SET_MAX_ZONES:
+	case TIPC_CMD_GET_MAX_ZONES:
+	case TIPC_CMD_SET_MAX_SLAVES:
+	case TIPC_CMD_GET_MAX_SLAVES:
+	case TIPC_CMD_SET_MAX_CLUSTERS:
+	case TIPC_CMD_GET_MAX_CLUSTERS:
+		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
+							  " (obsolete command)");
 		break;
 	default:
 		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
@@ -572,20 +496,16 @@ int tipc_cfg_init(void)
 	struct tipc_name_seq seq;
 	int res;
 
-	res = tipc_attach(&mng.user_ref, NULL, NULL);
-	if (res)
-		goto failed;
-
-	res = tipc_createport(mng.user_ref, NULL, TIPC_CRITICAL_IMPORTANCE,
+	res = tipc_createport(NULL, TIPC_CRITICAL_IMPORTANCE,
 			      NULL, NULL, NULL,
 			      NULL, cfg_named_msg_event, NULL,
-			      NULL, &mng.port_ref);
+			      NULL, &config_port_ref);
 	if (res)
 		goto failed;
 
 	seq.type = TIPC_CFG_SRV;
 	seq.lower = seq.upper = tipc_own_addr;
-	res = tipc_nametbl_publish_rsv(mng.port_ref, TIPC_ZONE_SCOPE, &seq);
+	res = tipc_nametbl_publish_rsv(config_port_ref, TIPC_ZONE_SCOPE, &seq);
 	if (res)
 		goto failed;
 
@@ -593,15 +513,13 @@ int tipc_cfg_init(void)
 
 failed:
 	err("Unable to create configuration service\n");
-	tipc_detach(mng.user_ref);
-	mng.user_ref = 0;
 	return res;
 }
 
 void tipc_cfg_stop(void)
 {
-	if (mng.user_ref) {
-		tipc_detach(mng.user_ref);
-		mng.user_ref = 0;
+	if (config_port_ref) {
+		tipc_deleteport(config_port_ref);
+		config_port_ref = 0;
 	}
 }

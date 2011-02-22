@@ -633,12 +633,18 @@ EXPORT_SYMBOL(of_device_alloc);
  * @np: pointer to node to create device for
  * @bus_id: name to assign device
  * @parent: Linux device model parent device.
+ *
+ * Returns pointer to created platform device, or NULL if a device was not
+ * registered.  Unavailable devices will not get registered.
  */
 struct platform_device *of_platform_device_create(struct device_node *np,
 					    const char *bus_id,
 					    struct device *parent)
 {
 	struct platform_device *dev;
+
+	if (!of_device_is_available(np))
+		return NULL;
 
 	dev = of_device_alloc(np, bus_id, parent);
 	if (!dev)
@@ -683,8 +689,9 @@ static int of_platform_bus_create(const struct device_node *bus,
 		pr_debug("   create child: %s\n", child->full_name);
 		dev = of_platform_device_create(child, NULL, parent);
 		if (dev == NULL)
-			rc = -ENOMEM;
-		else if (!of_match_node(matches, child))
+			continue;
+
+		if (!of_match_node(matches, child))
 			continue;
 		if (rc == 0) {
 			pr_debug("   and sub busses\n");
@@ -733,10 +740,9 @@ int of_platform_bus_probe(struct device_node *root,
 	if (of_match_node(matches, root)) {
 		pr_debug(" root match, create all sub devices\n");
 		dev = of_platform_device_create(root, NULL, parent);
-		if (dev == NULL) {
-			rc = -ENOMEM;
+		if (dev == NULL)
 			goto bail;
-		}
+
 		pr_debug(" create all sub busses\n");
 		rc = of_platform_bus_create(root, matches, &dev->dev);
 		goto bail;
@@ -748,9 +754,9 @@ int of_platform_bus_probe(struct device_node *root,
 		pr_debug("  match: %s\n", child->full_name);
 		dev = of_platform_device_create(child, NULL, parent);
 		if (dev == NULL)
-			rc = -ENOMEM;
-		else
-			rc = of_platform_bus_create(child, matches, &dev->dev);
+			continue;
+
+		rc = of_platform_bus_create(child, matches, &dev->dev);
 		if (rc) {
 			of_node_put(child);
 			break;

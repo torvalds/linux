@@ -85,8 +85,7 @@ static int arcmsr_abort(struct scsi_cmnd *);
 static int arcmsr_bus_reset(struct scsi_cmnd *);
 static int arcmsr_bios_param(struct scsi_device *sdev,
 		struct block_device *bdev, sector_t capacity, int *info);
-static int arcmsr_queue_command(struct scsi_cmnd *cmd,
-					void (*done) (struct scsi_cmnd *));
+static int arcmsr_queue_command(struct Scsi_Host *h, struct scsi_cmnd *cmd);
 static int arcmsr_probe(struct pci_dev *pdev,
 				const struct pci_device_id *id);
 static void arcmsr_remove(struct pci_dev *pdev);
@@ -1172,9 +1171,8 @@ static int arcmsr_build_ccb(struct AdapterControlBlock *acb,
 	arcmsr_cdb->msgPages = arccdbsize/0x100 + (arccdbsize % 0x100 ? 1 : 0);
 	if ( arccdbsize > 256)
 		arcmsr_cdb->Flags |= ARCMSR_CDB_FLAG_SGL_BSIZE;
-	if (pcmd->cmnd[0]|WRITE_6 || pcmd->cmnd[0]|WRITE_10 || pcmd->cmnd[0]|WRITE_12 ){
+	if (pcmd->sc_data_direction == DMA_TO_DEVICE)
 		arcmsr_cdb->Flags |= ARCMSR_CDB_FLAG_WRITE;
-	}
 	ccb->arc_cdb_size = arccdbsize;
 	return SUCCESS;
 }
@@ -2081,7 +2079,7 @@ static void arcmsr_handle_virtual_command(struct AdapterControlBlock *acb,
 	}
 }
 
-static int arcmsr_queue_command(struct scsi_cmnd *cmd,
+static int arcmsr_queue_command_lck(struct scsi_cmnd *cmd,
 	void (* done)(struct scsi_cmnd *))
 {
 	struct Scsi_Host *host = cmd->device->host;
@@ -2123,6 +2121,8 @@ static int arcmsr_queue_command(struct scsi_cmnd *cmd,
 	arcmsr_post_ccb(acb, ccb);
 	return 0;
 }
+
+static DEF_SCSI_QCMD(arcmsr_queue_command)
 
 static bool arcmsr_get_hba_config(struct AdapterControlBlock *acb)
 {

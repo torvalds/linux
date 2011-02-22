@@ -67,6 +67,10 @@ static unsigned int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug,"enable debug messages [dvb]");
 
+static unsigned int dvb_buf_tscnt = 32;
+module_param(dvb_buf_tscnt, int, 0644);
+MODULE_PARM_DESC(dvb_buf_tscnt, "DVB Buffer TS count [dvb]");
+
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 #define dprintk(level,fmt, arg...)	if (debug >= level) \
@@ -80,10 +84,10 @@ static int dvb_buf_setup(struct videobuf_queue *q,
 	struct cx8802_dev *dev = q->priv_data;
 
 	dev->ts_packet_size  = 188 * 4;
-	dev->ts_packet_count = 32;
+	dev->ts_packet_count = dvb_buf_tscnt;
 
 	*size  = dev->ts_packet_size * dev->ts_packet_count;
-	*count = 32;
+	*count = dvb_buf_tscnt;
 	return 0;
 }
 

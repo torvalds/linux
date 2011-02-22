@@ -86,7 +86,7 @@ static int fan_get_cur_state(struct thermal_cooling_device *cdev, unsigned long
 	if (!device)
 		return -EINVAL;
 
-	result = acpi_bus_get_power(device->handle, &acpi_state);
+	result = acpi_bus_update_power(device->handle, &acpi_state);
 	if (result)
 		return result;
 
@@ -123,7 +123,6 @@ static struct thermal_cooling_device_ops fan_cooling_ops = {
 static int acpi_fan_add(struct acpi_device *device)
 {
 	int result = 0;
-	int state = 0;
 	struct thermal_cooling_device *cdev;
 
 	if (!device)
@@ -132,15 +131,11 @@ static int acpi_fan_add(struct acpi_device *device)
 	strcpy(acpi_device_name(device), "Fan");
 	strcpy(acpi_device_class(device), ACPI_FAN_CLASS);
 
-	result = acpi_bus_get_power(device->handle, &state);
+	result = acpi_bus_update_power(device->handle, NULL);
 	if (result) {
-		printk(KERN_ERR PREFIX "Reading power state\n");
+		printk(KERN_ERR PREFIX "Setting initial power state\n");
 		goto end;
 	}
-
-	device->flags.force_power_state = 1;
-	acpi_bus_set_power(device->handle, state);
-	device->flags.force_power_state = 0;
 
 	cdev = thermal_cooling_device_register("Fan", device,
 						&fan_cooling_ops);
@@ -200,22 +195,14 @@ static int acpi_fan_suspend(struct acpi_device *device, pm_message_t state)
 
 static int acpi_fan_resume(struct acpi_device *device)
 {
-	int result = 0;
-	int power_state = 0;
+	int result;
 
 	if (!device)
 		return -EINVAL;
 
-	result = acpi_bus_get_power(device->handle, &power_state);
-	if (result) {
-		printk(KERN_ERR PREFIX
-				  "Error reading fan power state\n");
-		return result;
-	}
-
-	device->flags.force_power_state = 1;
-	acpi_bus_set_power(device->handle, power_state);
-	device->flags.force_power_state = 0;
+	result = acpi_bus_update_power(device->handle, NULL);
+	if (result)
+		printk(KERN_ERR PREFIX "Error updating fan power state\n");
 
 	return result;
 }

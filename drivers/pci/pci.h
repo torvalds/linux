@@ -22,8 +22,13 @@ extern void pci_remove_firmware_label_files(struct pci_dev *pdev);
 #endif
 extern void pci_cleanup_rom(struct pci_dev *dev);
 #ifdef HAVE_PCI_MMAP
+enum pci_mmap_api {
+	PCI_MMAP_SYSFS,	/* mmap on /sys/bus/pci/devices/<BDF>/resource<N> */
+	PCI_MMAP_PROCFS	/* mmap on /proc/bus/pci/<BDF> */
+};
 extern int pci_mmap_fits(struct pci_dev *pdev, int resno,
-			 struct vm_area_struct *vma);
+			 struct vm_area_struct *vmai,
+			 enum pci_mmap_api mmap_api);
 #endif
 int pci_probe_reset_function(struct pci_dev *dev);
 
@@ -68,6 +73,12 @@ extern int __pci_pme_wakeup(struct pci_dev *dev, void *ign);
 extern void pci_pm_init(struct pci_dev *dev);
 extern void platform_pci_wakeup_init(struct pci_dev *dev);
 extern void pci_allocate_cap_save_buffers(struct pci_dev *dev);
+
+static inline void pci_wakeup_event(struct pci_dev *dev)
+{
+	/* Wait 100 ms before the system can be put into a sleep state. */
+	pm_wakeup_event(&dev->dev, 100);
+}
 
 static inline bool pci_is_bridge(struct pci_dev *pci_dev)
 {
@@ -133,14 +144,6 @@ extern void pci_msi_init_pci_dev(struct pci_dev *dev);
 #else
 static inline void pci_no_msi(void) { }
 static inline void pci_msi_init_pci_dev(struct pci_dev *dev) { }
-#endif
-
-#ifdef CONFIG_PCIEAER
-void pci_no_aer(void);
-bool pci_aer_available(void);
-#else
-static inline void pci_no_aer(void) { }
-static inline bool pci_aer_available(void) { return false; }
 #endif
 
 static inline int pci_no_d1d2(struct pci_dev *dev)

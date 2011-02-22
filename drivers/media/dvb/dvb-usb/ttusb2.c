@@ -43,6 +43,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 struct ttusb2_state {
 	u8 id;
+	u16 last_rc_key;
 };
 
 static int ttusb2_msg(struct dvb_usb_device *d, u8 cmd,
@@ -127,6 +128,33 @@ static struct i2c_algorithm ttusb2_i2c_algo = {
 	.master_xfer   = ttusb2_i2c_xfer,
 	.functionality = ttusb2_i2c_func,
 };
+
+/* command to poll IR receiver (copied from pctv452e.c) */
+#define CMD_GET_IR_CODE     0x1b
+
+/* IR */
+static int tt3650_rc_query(struct dvb_usb_device *d)
+{
+	int ret;
+	u8 rx[9]; /* A CMD_GET_IR_CODE reply is 9 bytes long */
+	struct ttusb2_state *st = d->priv;
+	ret = ttusb2_msg(d, CMD_GET_IR_CODE, NULL, 0, rx, sizeof(rx));
+	if (ret != 0)
+		return ret;
+
+	if (rx[8] & 0x01) {
+		/* got a "press" event */
+		st->last_rc_key = (rx[3] << 8) | rx[2];
+		deb_info("%s: cmd=0x%02x sys=0x%02x\n", __func__, rx[2], rx[3]);
+		rc_keydown(d->rc_dev, st->last_rc_key, 0);
+	} else if (st->last_rc_key) {
+		rc_keyup(d->rc_dev);
+		st->last_rc_key = 0;
+	}
+
+	return 0;
+}
+
 
 /* Callbacks for DVB USB */
 static int ttusb2_identify_state (struct usb_device *udev, struct
@@ -344,6 +372,13 @@ static struct dvb_usb_device_properties ttusb2_properties_ct3650 = {
 	.usb_ctrl = CYPRESS_FX2,
 
 	.size_of_priv = sizeof(struct ttusb2_state),
+
+	.rc.core = {
+		.rc_interval      = 150, /* Less than IR_KEYPRESS_TIMEOUT */
+		.rc_codes         = RC_MAP_TT_1500,
+		.rc_query         = tt3650_rc_query,
+		.allowed_protos   = RC_TYPE_UNKNOWN,
+	},
 
 	.num_adapters = 1,
 	.adapter = {

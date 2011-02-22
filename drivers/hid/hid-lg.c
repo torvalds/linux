@@ -53,23 +53,22 @@ static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 
 	if ((quirks & LG_RDESC) && *rsize >= 90 && rdesc[83] == 0x26 &&
 			rdesc[84] == 0x8c && rdesc[85] == 0x02) {
-		dev_info(&hdev->dev, "fixing up Logitech keyboard report "
-				"descriptor\n");
+		hid_info(hdev,
+			 "fixing up Logitech keyboard report descriptor\n");
 		rdesc[84] = rdesc[89] = 0x4d;
 		rdesc[85] = rdesc[90] = 0x10;
 	}
 	if ((quirks & LG_RDESC_REL_ABS) && *rsize >= 50 &&
 			rdesc[32] == 0x81 && rdesc[33] == 0x06 &&
 			rdesc[49] == 0x81 && rdesc[50] == 0x06) {
-		dev_info(&hdev->dev, "fixing up rel/abs in Logitech "
-				"report descriptor\n");
+		hid_info(hdev,
+			 "fixing up rel/abs in Logitech report descriptor\n");
 		rdesc[33] = rdesc[50] = 0x02;
 	}
 	if ((quirks & LG_FF4) && *rsize >= 101 &&
 			rdesc[41] == 0x95 && rdesc[42] == 0x0B &&
 			rdesc[47] == 0x05 && rdesc[48] == 0x09) {
-		dev_info(&hdev->dev, "fixing up Logitech Speed Force Wireless "
-			"button descriptor\n");
+		hid_info(hdev, "fixing up Logitech Speed Force Wireless button descriptor\n");
 		rdesc[41] = 0x05;
 		rdesc[42] = 0x09;
 		rdesc[47] = 0x95;
@@ -288,7 +287,7 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	ret = hid_parse(hdev);
 	if (ret) {
-		dev_err(&hdev->dev, "parse failed\n");
+		hid_err(hdev, "parse failed\n");
 		goto err_free;
 	}
 
@@ -297,7 +296,7 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	ret = hid_hw_start(hdev, connect_mask);
 	if (ret) {
-		dev_err(&hdev->dev, "hw start failed\n");
+		hid_err(hdev, "hw start failed\n");
 		goto err_free;
 	}
 

@@ -635,9 +635,10 @@ static int gfar_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	if (wol->wolopts & ~WAKE_MAGIC)
 		return -EINVAL;
 
+	device_set_wakeup_enable(&dev->dev, wol->wolopts & WAKE_MAGIC);
+
 	spin_lock_irqsave(&priv->bflock, flags);
-	priv->wol_en = wol->wolopts & WAKE_MAGIC ? 1 : 0;
-	device_set_wakeup_enable(&dev->dev, priv->wol_en);
+	priv->wol_en =  !!device_may_wakeup(&dev->dev);
 	spin_unlock_irqrestore(&priv->bflock, flags);
 
 	return 0;

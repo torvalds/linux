@@ -5,12 +5,15 @@
  * See COPYING in the top level directory of the kernel tree.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
 #include <linux/hwmon.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/dmi.h>
 
 #include <acpi/acpi.h>
 #include <acpi/acpixf.h>
@@ -19,6 +22,21 @@
 
 
 #define ATK_HID "ATK0110"
+
+static bool new_if;
+module_param(new_if, bool, 0);
+MODULE_PARM_DESC(new_if, "Override detection heuristic and force the use of the new ATK0110 interface");
+
+static const struct dmi_system_id __initconst atk_force_new_if[] = {
+	{
+		/* Old interface has broken MCH temp monitoring */
+		.ident = "Asus Sabertooth X58",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "SABERTOOTH X58")
+		}
+	},
+	{ }
+};
 
 /* Minimum time between readings, enforced in order to avoid
  * hogging the CPU.
@@ -1300,7 +1318,9 @@ static int atk_probe_if(struct atk_data *data)
 	 * analysis of multiple DSDTs indicates that when both interfaces
 	 * are present the new one (GGRP/GITM) is not functional.
 	 */
-	if (data->rtmp_handle && data->rvlt_handle && data->rfan_handle)
+	if (new_if)
+		dev_info(dev, "Overriding interface detection\n");
+	if (data->rtmp_handle && data->rvlt_handle && data->rfan_handle && !new_if)
 		data->old_interface = true;
 	else if (data->enumerate_handle && data->read_handle &&
 			data->write_handle)
@@ -1414,14 +1434,16 @@ static int __init atk0110_init(void)
 
 	/* Make sure it's safe to access the device through ACPI */
 	if (!acpi_resources_are_enforced()) {
-		pr_err("atk: Resources not safely usable due to "
-		       "acpi_enforce_resources kernel parameter\n");
+		pr_err("Resources not safely usable due to acpi_enforce_resources kernel parameter\n");
 		return -EBUSY;
 	}
 
+	if (dmi_check_system(atk_force_new_if))
+		new_if = true;
+
 	ret = acpi_bus_register_driver(&atk_driver);
 	if (ret)
-		pr_info("atk: acpi_bus_register_driver failed: %d\n", ret);
+		pr_info("acpi_bus_register_driver failed: %d\n", ret);
 
 	return ret;
 }

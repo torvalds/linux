@@ -2318,7 +2318,7 @@ static int gigaset_probe(struct usb_interface *interface,
 		 __func__, le16_to_cpu(udev->descriptor.idVendor),
 		 le16_to_cpu(udev->descriptor.idProduct));
 
-	/* allocate memory for our device state and intialize it */
+	/* allocate memory for our device state and initialize it */
 	cs = gigaset_initcs(driver, BAS_CHANNELS, 0, 0, cidmode,
 			    GIGASET_MODULENAME);
 	if (!cs)
@@ -2576,7 +2576,7 @@ static int __init bas_gigaset_init(void)
 {
 	int result;
 
-	/* allocate memory for our driver state and intialize it */
+	/* allocate memory for our driver state and initialize it */
 	driver = gigaset_initdriver(GIGASET_MINOR, GIGASET_MINORS,
 				    GIGASET_MODULENAME, GIGASET_DEVNAME,
 				    &gigops, THIS_MODULE);

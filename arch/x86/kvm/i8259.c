@@ -575,6 +575,8 @@ struct kvm_pic *kvm_create_pic(struct kvm *kvm)
 	s->pics[1].elcr_mask = 0xde;
 	s->pics[0].pics_state = s;
 	s->pics[1].pics_state = s;
+	s->pics[0].isr_ack = 0xff;
+	s->pics[1].isr_ack = 0xff;
 
 	/*
 	 * Initialize PIO device

@@ -549,10 +549,9 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	{
 		struct flowi fl = { .oif = ipc.oif,
 				    .mark = sk->sk_mark,
-				    .nl_u = { .ip4_u =
-					      { .daddr = daddr,
-						.saddr = saddr,
-						.tos = tos } },
+				    .fl4_dst = daddr,
+				    .fl4_src = saddr,
+				    .fl4_tos = tos,
 				    .proto = inet->hdrincl ? IPPROTO_RAW :
 							     sk->sk_protocol,
 				  };

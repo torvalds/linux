@@ -36,6 +36,7 @@ extern int qla2x00_load_risc(struct scsi_qla_host *, uint32_t *);
 extern int qla24xx_load_risc(scsi_qla_host_t *, uint32_t *);
 extern int qla81xx_load_risc(scsi_qla_host_t *, uint32_t *);
 
+extern int qla2x00_perform_loop_resync(scsi_qla_host_t *);
 extern int qla2x00_loop_resync(scsi_qla_host_t *);
 
 extern int qla2x00_fabric_login(scsi_qla_host_t *, fc_port_t *, uint16_t *);
@@ -45,11 +46,14 @@ extern void qla2x00_update_fcports(scsi_qla_host_t *);
 
 extern int qla2x00_abort_isp(scsi_qla_host_t *);
 extern void qla2x00_abort_isp_cleanup(scsi_qla_host_t *);
+extern void qla82xx_quiescent_state_cleanup(scsi_qla_host_t *);
 
 extern void qla2x00_update_fcport(scsi_qla_host_t *, fc_port_t *);
 
 extern void qla2x00_alloc_fw_dump(scsi_qla_host_t *);
 extern void qla2x00_try_to_stop_firmware(scsi_qla_host_t *);
+
+extern int qla2x00_get_thermal_temp(scsi_qla_host_t *, uint16_t *, uint16_t *);
 
 extern void qla84xx_put_chip(struct scsi_qla_host *);
 
@@ -68,6 +72,7 @@ extern void qla2x00_async_adisc_done(struct scsi_qla_host *, fc_port_t *,
 extern void qla2x00_async_tm_cmd_done(struct scsi_qla_host *, fc_port_t *,
 	struct srb_iocb *);
 extern void *qla2x00_alloc_iocbs(struct scsi_qla_host *, srb_t *);
+extern int qla24xx_update_fcport_fcp_prio(scsi_qla_host_t *, fc_port_t *);
 
 extern fc_port_t *
 qla2x00_alloc_fcport(scsi_qla_host_t *, gfp_t );
@@ -90,7 +95,6 @@ extern int ql2xfwloadbin;
 extern int ql2xetsenable;
 extern int ql2xshiftctondsd;
 extern int ql2xdbwr;
-extern int ql2xdontresethba;
 extern int ql2xasynctmfenable;
 extern int ql2xgffidenable;
 extern int ql2xenabledif;
@@ -549,9 +553,11 @@ extern void qla82xx_rom_unlock(struct qla_hw_data *);
 
 /* ISP 8021 IDC */
 extern void qla82xx_clear_drv_active(struct qla_hw_data *);
+extern uint32_t  qla82xx_wait_for_state_change(scsi_qla_host_t *, uint32_t);
 extern int qla82xx_idc_lock(struct qla_hw_data *);
 extern void qla82xx_idc_unlock(struct qla_hw_data *);
 extern int qla82xx_device_state_handler(scsi_qla_host_t *);
+extern void qla82xx_clear_qsnt_ready(scsi_qla_host_t *);
 
 extern void qla2x00_set_model_info(scsi_qla_host_t *, uint8_t *,
     size_t, char *);

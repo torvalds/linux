@@ -2074,7 +2074,7 @@ static void qib_6120_config_ctxts(struct qib_devdata *dd)
 }
 
 static void qib_update_6120_usrhead(struct qib_ctxtdata *rcd, u64 hd,
-				    u32 updegr, u32 egrhd)
+				    u32 updegr, u32 egrhd, u32 npkts)
 {
 	qib_write_ureg(rcd->dd, ur_rcvhdrhead, hd, rcd->ctxt);
 	if (updegr)

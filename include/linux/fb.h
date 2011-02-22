@@ -1092,6 +1092,8 @@ extern int fb_parse_edid(unsigned char *edid, struct fb_var_screeninfo *var);
 extern const unsigned char *fb_firmware_edid(struct device *device);
 extern void fb_edid_to_monspecs(unsigned char *edid,
 				struct fb_monspecs *specs);
+extern void fb_edid_add_monspecs(unsigned char *edid,
+				 struct fb_monspecs *specs);
 extern void fb_destroy_modedb(struct fb_videomode *modedb);
 extern int fb_find_mode_cvt(struct fb_videomode *mode, int margins, int rb);
 extern unsigned char *fb_ddc_read(struct i2c_adapter *adapter);
@@ -1122,6 +1124,7 @@ extern const struct fb_videomode *fb_find_best_display(const struct fb_monspecs 
 
 /* drivers/video/fbcmap.c */
 extern int fb_alloc_cmap(struct fb_cmap *cmap, int len, int transp);
+extern int fb_alloc_cmap_gfp(struct fb_cmap *cmap, int len, int transp, gfp_t flags);
 extern void fb_dealloc_cmap(struct fb_cmap *cmap);
 extern int fb_copy_cmap(const struct fb_cmap *from, struct fb_cmap *to);
 extern int fb_cmap_to_user(const struct fb_cmap *from, struct fb_cmap_user *to);
@@ -1149,6 +1152,7 @@ struct fb_videomode {
 
 extern const char *fb_mode_option;
 extern const struct fb_videomode vesa_modes[];
+extern const struct fb_videomode cea_modes[64];
 
 struct fb_modelist {
 	struct list_head list;

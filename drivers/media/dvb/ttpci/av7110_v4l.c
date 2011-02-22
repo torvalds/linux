@@ -100,6 +100,7 @@ static struct v4l2_input inputs[4] = {
 		.tuner		= 0, /* ignored */
 		.std		= V4L2_STD_PAL_BG|V4L2_STD_NTSC_M,
 		.status		= 0,
+		.capabilities	= V4L2_IN_CAP_STD,
 	}, {
 		.index		= 1,
 		.name		= "Television",
@@ -108,6 +109,7 @@ static struct v4l2_input inputs[4] = {
 		.tuner		= 0,
 		.std		= V4L2_STD_PAL_BG|V4L2_STD_NTSC_M,
 		.status		= 0,
+		.capabilities	= V4L2_IN_CAP_STD,
 	}, {
 		.index		= 2,
 		.name		= "Video",
@@ -116,6 +118,7 @@ static struct v4l2_input inputs[4] = {
 		.tuner		= 0,
 		.std		= V4L2_STD_PAL_BG|V4L2_STD_NTSC_M,
 		.status		= 0,
+		.capabilities	= V4L2_IN_CAP_STD,
 	}, {
 		.index		= 3,
 		.name		= "Y/C",
@@ -124,6 +127,7 @@ static struct v4l2_input inputs[4] = {
 		.tuner		= 0,
 		.std		= V4L2_STD_PAL_BG|V4L2_STD_NTSC_M,
 		.status		= 0,
+		.capabilities	= V4L2_IN_CAP_STD,
 	}
 };
 

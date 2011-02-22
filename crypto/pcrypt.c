@@ -455,7 +455,8 @@ static int pcrypt_init_padata(struct padata_pcrypt *pcrypt,
 
 	get_online_cpus();
 
-	pcrypt->wq = create_workqueue(name);
+	pcrypt->wq = alloc_workqueue(name,
+				     WQ_MEM_RECLAIM | WQ_CPU_INTENSIVE, 1);
 	if (!pcrypt->wq)
 		goto err;
 
@@ -504,7 +505,6 @@ err:
 
 static void pcrypt_fini_padata(struct padata_pcrypt *pcrypt)
 {
-	kobject_put(&pcrypt->pinst->kobj);
 	free_cpumask_var(pcrypt->cb_cpumask->mask);
 	kfree(pcrypt->cb_cpumask);
 

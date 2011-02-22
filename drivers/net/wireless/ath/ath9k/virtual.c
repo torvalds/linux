@@ -107,6 +107,7 @@ int ath9k_wiphy_add(struct ath_softc *sc)
 	aphy->sc = sc;
 	aphy->hw = hw;
 	sc->sec_wiphy[i] = aphy;
+	aphy->last_rssi = ATH_RSSI_DUMMY_MARKER;
 	spin_unlock_bh(&sc->wiphy_lock);
 
 	memcpy(addr, common->macaddr, ETH_ALEN);
@@ -186,7 +187,7 @@ static int ath9k_send_nullfunc(struct ath_wiphy *aphy,
 	info->control.rates[1].idx = -1;
 
 	memset(&txctl, 0, sizeof(struct ath_tx_control));
-	txctl.txq = &sc->tx.txq[sc->tx.hwq_map[WME_AC_VO]];
+	txctl.txq = sc->tx.txq_map[WME_AC_VO];
 	txctl.frame_type = ps ? ATH9K_IFT_PAUSE : ATH9K_IFT_UNPAUSE;
 
 	if (ath_tx_start(aphy->hw, skb, &txctl) != 0)
@@ -287,7 +288,6 @@ void ath9k_wiphy_chan_work(struct work_struct *work)
 	/* sync hw configuration for hw code */
 	common->hw = aphy->hw;
 
-	ath_update_chainmask(sc, sc->chan_is_ht);
 	if (ath_set_channel(sc, aphy->hw,
 			    &sc->sc_ah->channels[sc->chan_idx]) < 0) {
 		printk(KERN_DEBUG "ath9k: Failed to set channel for new "
@@ -304,13 +304,12 @@ void ath9k_wiphy_chan_work(struct work_struct *work)
  * ath9k version of ieee80211_tx_status() for TX frames that are generated
  * internally in the driver.
  */
-void ath9k_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
+void ath9k_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb, int ftype)
 {
 	struct ath_wiphy *aphy = hw->priv;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 
-	if ((tx_info->pad[0] & ATH_TX_INFO_FRAME_TYPE_PAUSE) &&
-	    aphy->state == ATH_WIPHY_PAUSING) {
+	if (ftype == ATH9K_IFT_PAUSE && aphy->state == ATH_WIPHY_PAUSING) {
 		if (!(tx_info->flags & IEEE80211_TX_STAT_ACK)) {
 			printk(KERN_DEBUG "ath9k: %s: no ACK for pause "
 			       "frame\n", wiphy_name(hw->wiphy));
@@ -656,10 +655,9 @@ void ath9k_set_wiphy_idle(struct ath_wiphy *aphy, bool idle)
 	struct ath_softc *sc = aphy->sc;
 
 	aphy->idle = idle;
-	ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_CONFIG,
-		  "Marking %s as %s\n",
-		  wiphy_name(aphy->hw->wiphy),
-		  idle ? "idle" : "not-idle");
+	ath_dbg(ath9k_hw_common(sc->sc_ah), ATH_DBG_CONFIG,
+		"Marking %s as %sidle\n",
+		wiphy_name(aphy->hw->wiphy), idle ? "" : "not-");
 }
 /* Only bother starting a queue on an active virtual wiphy */
 bool ath_mac80211_start_queue(struct ath_softc *sc, u16 skb_queue)

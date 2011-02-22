@@ -349,7 +349,6 @@ static struct irq_chip dino_interrupt_type = {
 	.name	= "GSC-PCI",
 	.unmask	= dino_unmask_irq,
 	.mask	= dino_mask_irq,
-	.ack	= no_ack_irq,
 };
 
 

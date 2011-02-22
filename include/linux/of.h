@@ -23,8 +23,6 @@
 
 #include <asm/byteorder.h>
 
-#ifdef CONFIG_OF
-
 typedef u32 phandle;
 typedef u32 ihandle;
 
@@ -64,6 +62,8 @@ struct device_node {
 	struct of_irq_controller *irq_trans;
 #endif
 };
+
+#ifdef CONFIG_OF
 
 /* Pointer for first entry in chain of all nodes. */
 extern struct device_node *allnodes;

@@ -24,8 +24,6 @@
 #define REG_READ_D(_ah, _reg) \
 	ath9k_hw_common(_ah)->ops->read((_ah), (_reg))
 
-static struct dentry *ath9k_debugfs_root;
-
 static int ath9k_debugfs_open(struct inode *inode, struct file *file)
 {
 	file->private_data = inode->i_private;
@@ -461,16 +459,16 @@ static ssize_t read_file_wiphy(struct file *file, char __user *user_buf,
 
 	/* Put variable-length stuff down here, and check for overflows. */
 	for (i = 0; i < sc->num_sec_wiphy; i++) {
-		struct ath_wiphy *aphy = sc->sec_wiphy[i];
-		if (aphy == NULL)
+		struct ath_wiphy *aphy_tmp = sc->sec_wiphy[i];
+		if (aphy_tmp == NULL)
 			continue;
-		chan = aphy->hw->conf.channel;
+		chan = aphy_tmp->hw->conf.channel;
 		len += snprintf(buf + len, sizeof(buf) - len,
 			"secondary: %s (%s chan=%d ht=%d)\n",
-			wiphy_name(aphy->hw->wiphy),
-			ath_wiphy_state_str(aphy->state),
+			wiphy_name(aphy_tmp->hw->wiphy),
+			ath_wiphy_state_str(aphy_tmp->state),
 			ieee80211_frequency_to_channel(chan->center_freq),
-			aphy->chan_is_ht);
+						       aphy_tmp->chan_is_ht);
 	}
 	if (len > sizeof(buf))
 		len = sizeof(buf);
@@ -585,10 +583,10 @@ static const struct file_operations fops_wiphy = {
 	do {								\
 		len += snprintf(buf + len, size - len,			\
 				"%s%13u%11u%10u%10u\n", str,		\
-		sc->debug.stats.txstats[sc->tx.hwq_map[WME_AC_BE]].elem, \
-		sc->debug.stats.txstats[sc->tx.hwq_map[WME_AC_BK]].elem, \
-		sc->debug.stats.txstats[sc->tx.hwq_map[WME_AC_VI]].elem, \
-		sc->debug.stats.txstats[sc->tx.hwq_map[WME_AC_VO]].elem); \
+		sc->debug.stats.txstats[WME_AC_BE].elem, \
+		sc->debug.stats.txstats[WME_AC_BK].elem, \
+		sc->debug.stats.txstats[WME_AC_VI].elem, \
+		sc->debug.stats.txstats[WME_AC_VO].elem); \
 } while(0)
 
 static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
@@ -630,33 +628,35 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	return retval;
 }
 
-void ath_debug_stat_tx(struct ath_softc *sc, struct ath_txq *txq,
-		       struct ath_buf *bf, struct ath_tx_status *ts)
+void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
+		       struct ath_tx_status *ts)
 {
-	TX_STAT_INC(txq->axq_qnum, tx_pkts_all);
-	sc->debug.stats.txstats[txq->axq_qnum].tx_bytes_all += bf->bf_mpdu->len;
+	int qnum = skb_get_queue_mapping(bf->bf_mpdu);
+
+	TX_STAT_INC(qnum, tx_pkts_all);
+	sc->debug.stats.txstats[qnum].tx_bytes_all += bf->bf_mpdu->len;
 
 	if (bf_isampdu(bf)) {
 		if (bf_isxretried(bf))
-			TX_STAT_INC(txq->axq_qnum, a_xretries);
+			TX_STAT_INC(qnum, a_xretries);
 		else
-			TX_STAT_INC(txq->axq_qnum, a_completed);
+			TX_STAT_INC(qnum, a_completed);
 	} else {
-		TX_STAT_INC(txq->axq_qnum, completed);
+		TX_STAT_INC(qnum, completed);
 	}
 
 	if (ts->ts_status & ATH9K_TXERR_FIFO)
-		TX_STAT_INC(txq->axq_qnum, fifo_underrun);
+		TX_STAT_INC(qnum, fifo_underrun);
 	if (ts->ts_status & ATH9K_TXERR_XTXOP)
-		TX_STAT_INC(txq->axq_qnum, xtxop);
+		TX_STAT_INC(qnum, xtxop);
 	if (ts->ts_status & ATH9K_TXERR_TIMER_EXPIRED)
-		TX_STAT_INC(txq->axq_qnum, timer_exp);
+		TX_STAT_INC(qnum, timer_exp);
 	if (ts->ts_flags & ATH9K_TX_DESC_CFG_ERR)
-		TX_STAT_INC(txq->axq_qnum, desc_cfg_err);
+		TX_STAT_INC(qnum, desc_cfg_err);
 	if (ts->ts_flags & ATH9K_TX_DATA_UNDERRUN)
-		TX_STAT_INC(txq->axq_qnum, data_underrun);
+		TX_STAT_INC(qnum, data_underrun);
 	if (ts->ts_flags & ATH9K_TX_DELIM_UNDERRUN)
-		TX_STAT_INC(txq->axq_qnum, delim_underrun);
+		TX_STAT_INC(qnum, delim_underrun);
 }
 
 static const struct file_operations fops_xmit = {
@@ -876,11 +876,8 @@ int ath9k_init_debug(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_softc *sc = (struct ath_softc *) common->priv;
 
-	if (!ath9k_debugfs_root)
-		return -ENOENT;
-
-	sc->debug.debugfs_phy = debugfs_create_dir(wiphy_name(sc->hw->wiphy),
-						      ath9k_debugfs_root);
+	sc->debug.debugfs_phy = debugfs_create_dir("ath9k",
+						   sc->hw->wiphy->debugfsdir);
 	if (!sc->debug.debugfs_phy)
 		return -ENOMEM;
 
@@ -933,29 +930,7 @@ int ath9k_init_debug(struct ath_hw *ah)
 	sc->debug.regidx = 0;
 	return 0;
 err:
-	ath9k_exit_debug(ah);
-	return -ENOMEM;
-}
-
-void ath9k_exit_debug(struct ath_hw *ah)
-{
-	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath_softc *sc = (struct ath_softc *) common->priv;
-
 	debugfs_remove_recursive(sc->debug.debugfs_phy);
-}
-
-int ath9k_debug_create_root(void)
-{
-	ath9k_debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (!ath9k_debugfs_root)
-		return -ENOENT;
-
-	return 0;
-}
-
-void ath9k_debug_remove_root(void)
-{
-	debugfs_remove(ath9k_debugfs_root);
-	ath9k_debugfs_root = NULL;
+	sc->debug.debugfs_phy = NULL;
+	return -ENOMEM;
 }

@@ -69,6 +69,7 @@
 #include <linux/highmem.h>
 
 #include <linux/mmc/host.h>
+#include <linux/mmc/sdio.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -493,10 +494,14 @@ static void at91_mci_send_command(struct at91mci_host *host, struct mmc_command 
 		else if (data->flags & MMC_DATA_WRITE)
 			cmdr |= AT91_MCI_TRCMD_START;
 
-		if (data->flags & MMC_DATA_STREAM)
-			cmdr |= AT91_MCI_TRTYP_STREAM;
-		if (data->blocks > 1)
-			cmdr |= AT91_MCI_TRTYP_MULTIPLE;
+		if (cmd->opcode == SD_IO_RW_EXTENDED) {
+			cmdr |= AT91_MCI_TRTYP_SDIO_BLOCK;
+		} else {
+			if (data->flags & MMC_DATA_STREAM)
+				cmdr |= AT91_MCI_TRTYP_STREAM;
+			if (data->blocks > 1)
+				cmdr |= AT91_MCI_TRTYP_MULTIPLE;
+		}
 	}
 	else {
 		block_length = 0;

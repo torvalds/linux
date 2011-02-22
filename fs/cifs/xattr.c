@@ -30,10 +30,11 @@
 
 #define MAX_EA_VALUE_SIZE 65535
 #define CIFS_XATTR_DOS_ATTRIB "user.DosAttrib"
+#define CIFS_XATTR_CIFS_ACL "system.cifs_acl"
 #define CIFS_XATTR_USER_PREFIX "user."
 #define CIFS_XATTR_SYSTEM_PREFIX "system."
 #define CIFS_XATTR_OS2_PREFIX "os2."
-#define CIFS_XATTR_SECURITY_PREFIX ".security"
+#define CIFS_XATTR_SECURITY_PREFIX "security."
 #define CIFS_XATTR_TRUSTED_PREFIX "trusted."
 #define XATTR_TRUSTED_PREFIX_LEN  8
 #define XATTR_SECURITY_PREFIX_LEN 9
@@ -277,29 +278,8 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 				cifs_sb->local_nls,
 				cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
-#ifdef CONFIG_CIFS_EXPERIMENTAL
-		else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) {
-			__u16 fid;
-			int oplock = 0;
-			struct cifs_ntsd *pacl = NULL;
-			__u32 buflen = 0;
-			if (experimEnabled)
-				rc = CIFSSMBOpen(xid, pTcon, full_path,
-					FILE_OPEN, GENERIC_READ, 0, &fid,
-					&oplock, NULL, cifs_sb->local_nls,
-					cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
-			/* else rc is EOPNOTSUPP from above */
-
-			if (rc == 0) {
-				rc = CIFSSMBGetCIFSACL(xid, pTcon, fid, &pacl,
-						      &buflen);
-				CIFSSMBClose(xid, pTcon, fid);
-			}
-		}
-#endif /* EXPERIMENTAL */
 #else
-		cFYI(1, "query POSIX ACL not supported yet");
+		cFYI(1, "Query POSIX ACL not supported yet");
 #endif /* CONFIG_CIFS_POSIX */
 	} else if (strncmp(ea_name, POSIX_ACL_XATTR_DEFAULT,
 			  strlen(POSIX_ACL_XATTR_DEFAULT)) == 0) {
@@ -311,8 +291,33 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 				cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
 #else
-		cFYI(1, "query POSIX default ACL not supported yet");
-#endif
+		cFYI(1, "Query POSIX default ACL not supported yet");
+#endif /* CONFIG_CIFS_POSIX */
+	} else if (strncmp(ea_name, CIFS_XATTR_CIFS_ACL,
+				strlen(CIFS_XATTR_CIFS_ACL)) == 0) {
+#ifdef CONFIG_CIFS_ACL
+			u32 acllen;
+			struct cifs_ntsd *pacl;
+
+			pacl = get_cifs_acl(cifs_sb, direntry->d_inode,
+						full_path, &acllen);
+			if (IS_ERR(pacl)) {
+				rc = PTR_ERR(pacl);
+				cERROR(1, "%s: error %zd getting sec desc",
+						__func__, rc);
+			} else {
+				if (ea_value) {
+					if (acllen > buf_size)
+						acllen = -ERANGE;
+					else
+						memcpy(ea_value, pacl, acllen);
+				}
+				rc = acllen;
+				kfree(pacl);
+			}
+#else
+		cFYI(1, "Query CIFS ACL not supported yet");
+#endif /* CONFIG_CIFS_ACL */
 	} else if (strncmp(ea_name,
 		  CIFS_XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) == 0) {
 		cFYI(1, "Trusted xattr namespace not supported yet");

@@ -36,8 +36,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dai.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 
 #include <mach/dm365.h>
@@ -116,7 +114,7 @@ static int cq93vc_set_bias_level(struct snd_soc_codec *codec,
 			     DAVINCI_VC_REG12_POWER_ALL_OFF);
 		break;
 	}
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 
 	return 0;
 }

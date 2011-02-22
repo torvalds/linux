@@ -214,7 +214,7 @@ decode_and_add_ds(__be32 **pp, struct inode *inode)
 
 	/* ipv6 length plus port is legal */
 	if (rlen > INET6_ADDRSTRLEN + 8) {
-		dprintk("%s Invalid address, length %d\n", __func__,
+		dprintk("%s: Invalid address, length %d\n", __func__,
 			rlen);
 		goto out_err;
 	}
@@ -225,6 +225,11 @@ decode_and_add_ds(__be32 **pp, struct inode *inode)
 	/* replace the port dots with dashes for the in4_pton() delimiter*/
 	for (i = 0; i < 2; i++) {
 		char *res = strrchr(buf, '.');
+		if (!res) {
+			dprintk("%s: Failed finding expected dots in port\n",
+				__func__);
+			goto out_free;
+		}
 		*res = '-';
 	}
 
@@ -240,7 +245,7 @@ decode_and_add_ds(__be32 **pp, struct inode *inode)
 	port = htons((tmp[0] << 8) | (tmp[1]));
 
 	ds = nfs4_pnfs_ds_add(inode, ip_addr, port);
-	dprintk("%s Decoded address and port %s\n", __func__, buf);
+	dprintk("%s: Decoded address and port %s\n", __func__, buf);
 out_free:
 	kfree(buf);
 out_err:

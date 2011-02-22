@@ -330,6 +330,7 @@ static ssize_t lirc_write(struct file *file, const char *buf, size_t n,
 	/* enable receiver */
 	Ser2UTCR3 = UTCR3_RXE|UTCR3_RIE;
 #endif
+	kfree(tx_buf);
 	return count;
 }
 

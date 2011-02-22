@@ -482,10 +482,17 @@ static int nor_erase_prepare(struct ubi_device *ubi, int pnum)
 	uint32_t data = 0;
 	struct ubi_vid_hdr vid_hdr;
 
-	addr = (loff_t)pnum * ubi->peb_size + ubi->vid_hdr_aloffset;
+	/*
+	 * It is important to first invalidate the EC header, and then the VID
+	 * header. Otherwise a power cut may lead to valid EC header and
+	 * invalid VID header, in which case UBI will treat this PEB as
+	 * corrupted and will try to preserve it, and print scary warnings (see
+	 * the header comment in scan.c for more information).
+	 */
+	addr = (loff_t)pnum * ubi->peb_size;
 	err = ubi->mtd->write(ubi->mtd, addr, 4, &written, (void *)&data);
 	if (!err) {
-		addr -= ubi->vid_hdr_aloffset;
+		addr += ubi->vid_hdr_aloffset;
 		err = ubi->mtd->write(ubi->mtd, addr, 4, &written,
 				      (void *)&data);
 		if (!err)
@@ -494,18 +501,24 @@ static int nor_erase_prepare(struct ubi_device *ubi, int pnum)
 
 	/*
 	 * We failed to write to the media. This was observed with Spansion
-	 * S29GL512N NOR flash. Most probably the eraseblock erasure was
-	 * interrupted at a very inappropriate moment, so it became unwritable.
-	 * In this case we probably anyway have garbage in this PEB.
+	 * S29GL512N NOR flash. Most probably the previously eraseblock erasure
+	 * was interrupted at a very inappropriate moment, so it became
+	 * unwritable. In this case we probably anyway have garbage in this
+	 * PEB.
 	 */
 	err1 = ubi_io_read_vid_hdr(ubi, pnum, &vid_hdr, 0);
-	if (err1 == UBI_IO_BAD_HDR_EBADMSG || err1 == UBI_IO_BAD_HDR)
-		/*
-		 * The VID header is corrupted, so we can safely erase this
-		 * PEB and not afraid that it will be treated as a valid PEB in
-		 * case of an unclean reboot.
-		 */
-		return 0;
+	if (err1 == UBI_IO_BAD_HDR_EBADMSG || err1 == UBI_IO_BAD_HDR) {
+		struct ubi_ec_hdr ec_hdr;
+
+		err1 = ubi_io_read_ec_hdr(ubi, pnum, &ec_hdr, 0);
+		if (err1 == UBI_IO_BAD_HDR_EBADMSG || err1 == UBI_IO_BAD_HDR)
+			/*
+			 * Both VID and EC headers are corrupted, so we can
+			 * safely erase this PEB and not afraid that it will be
+			 * treated as a valid PEB in case of an unclean reboot.
+			 */
+			return 0;
+	}
 
 	/*
 	 * The PEB contains a valid VID header, but we cannot invalidate it.

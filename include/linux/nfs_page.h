@@ -29,6 +29,7 @@
  */
 enum {
 	PG_BUSY = 0,
+	PG_MAPPED,
 	PG_CLEAN,
 	PG_NEED_COMMIT,
 	PG_NEED_RESCHED,

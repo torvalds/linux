@@ -38,7 +38,6 @@
 #include <asm/unaligned.h>
 #include <linux/platform_device.h>
 #include <linux/workqueue.h>
-#include <linux/pm_runtime.h>
 
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
@@ -1330,6 +1329,8 @@ static int map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
 	 */
 
 	if (usb_endpoint_xfer_control(&urb->ep->desc)) {
+		if (hcd->self.uses_pio_for_control)
+			return ret;
 		if (hcd->self.uses_dma) {
 			urb->setup_dma = dma_map_single(
 					hcd->self.controller,

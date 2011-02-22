@@ -699,7 +699,8 @@ DEFINE_WINDOW_IO(32)
 #define DEVICE_PCI(dev) NULL
 #endif
 
-#define VORTEX_PCI(vp) (((vp)->gendev) ? DEVICE_PCI((vp)->gendev) : NULL)
+#define VORTEX_PCI(vp)							\
+	((struct pci_dev *) (((vp)->gendev) ? DEVICE_PCI((vp)->gendev) : NULL))
 
 #ifdef CONFIG_EISA
 #define DEVICE_EISA(dev) (((dev)->bus == &eisa_bus_type) ? to_eisa_device((dev)) : NULL)
@@ -707,7 +708,8 @@ DEFINE_WINDOW_IO(32)
 #define DEVICE_EISA(dev) NULL
 #endif
 
-#define VORTEX_EISA(vp) (((vp)->gendev) ? DEVICE_EISA((vp)->gendev) : NULL)
+#define VORTEX_EISA(vp)							\
+	((struct eisa_device *) (((vp)->gendev) ? DEVICE_EISA((vp)->gendev) : NULL))
 
 /* The action to take with a media selection timer tick.
    Note that we deviate from the 3Com order by checking 10base2 before AUI.

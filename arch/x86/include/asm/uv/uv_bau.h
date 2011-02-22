@@ -26,20 +26,22 @@
  * BAU_SB_DESCRIPTOR_BASE register, set 1 is located at BASE + 512,
  * set 2 is at BASE + 2*512, set 3 at BASE + 3*512, and so on.
  *
- * We will use 31 sets, one for sending BAU messages from each of the 32
+ * We will use one set for sending BAU messages from each of the
  * cpu's on the uvhub.
  *
  * TLB shootdown will use the first of the 8 descriptors of each set.
  * Each of the descriptors is 64 bytes in size (8*64 = 512 bytes in a set).
  */
 
+#define MAX_CPUS_PER_UVHUB		64
+#define MAX_CPUS_PER_SOCKET		32
+#define UV_ADP_SIZE			64 /* hardware-provided max. */
+#define UV_CPUS_PER_ACT_STATUS		32 /* hardware-provided max. */
 #define UV_ITEMS_PER_DESCRIPTOR		8
 /* the 'throttle' to prevent the hardware stay-busy bug */
 #define MAX_BAU_CONCURRENT		3
-#define UV_CPUS_PER_ACT_STATUS		32
 #define UV_ACT_STATUS_MASK		0x3
 #define UV_ACT_STATUS_SIZE		2
-#define UV_ADP_SIZE			32
 #define UV_DISTRIBUTION_SIZE		256
 #define UV_SW_ACK_NPENDING		8
 #define UV_NET_ENDPOINT_INTD		0x38
@@ -100,7 +102,6 @@
  * number of destination side software ack resources
  */
 #define DEST_NUM_RESOURCES		8
-#define MAX_CPUS_PER_NODE		32
 /*
  * completion statuses for sending a TLB flush message
  */

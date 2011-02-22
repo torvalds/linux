@@ -937,14 +937,13 @@ pci_save_state(struct pci_dev *dev)
  * pci_restore_state - Restore the saved state of a PCI device
  * @dev: - PCI device that we're dealing with
  */
-int 
-pci_restore_state(struct pci_dev *dev)
+void pci_restore_state(struct pci_dev *dev)
 {
 	int i;
 	u32 val;
 
 	if (!dev->state_saved)
-		return 0;
+		return;
 
 	/* PCI Express register must be restored first */
 	pci_restore_pcie_state(dev);
@@ -968,8 +967,6 @@ pci_restore_state(struct pci_dev *dev)
 	pci_restore_iov_state(dev);
 
 	dev->state_saved = false;
-
-	return 0;
 }
 
 static int do_pci_enable_device(struct pci_dev *dev, int bars)
@@ -1006,6 +1003,18 @@ static int __pci_enable_device_flags(struct pci_dev *dev,
 {
 	int err;
 	int i, bars = 0;
+
+	/*
+	 * Power state could be unknown at this point, either due to a fresh
+	 * boot or a device removal call.  So get the current power state
+	 * so that things like MSI message writing will behave as expected
+	 * (e.g. if the device really is in D0 at enable time).
+	 */
+	if (dev->pm_cap) {
+		u16 pmcsr;
+		pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
+		dev->current_state = (pmcsr & PCI_PM_CTRL_STATE_MASK);
+	}
 
 	if (atomic_add_return(1, &dev->enable_cnt) > 1)
 		return 0;		/* already enabled */
@@ -1288,22 +1297,6 @@ bool pci_check_pme_status(struct pci_dev *dev)
 	return ret;
 }
 
-/*
- * Time to wait before the system can be put into a sleep state after reporting
- * a wakeup event signaled by a PCI device.
- */
-#define PCI_WAKEUP_COOLDOWN	100
-
-/**
- * pci_wakeup_event - Report a wakeup event related to a given PCI device.
- * @dev: Device to report the wakeup event for.
- */
-void pci_wakeup_event(struct pci_dev *dev)
-{
-	if (device_may_wakeup(&dev->dev))
-		pm_wakeup_event(&dev->dev, PCI_WAKEUP_COOLDOWN);
-}
-
 /**
  * pci_pme_wakeup - Wake up a PCI device if its PME Status bit is set.
  * @dev: Device to handle.
@@ -1315,8 +1308,8 @@ void pci_wakeup_event(struct pci_dev *dev)
 static int pci_pme_wakeup(struct pci_dev *dev, void *ign)
 {
 	if (pci_check_pme_status(dev)) {
-		pm_request_resume(&dev->dev);
 		pci_wakeup_event(dev);
+		pm_request_resume(&dev->dev);
 	}
 	return 0;
 }

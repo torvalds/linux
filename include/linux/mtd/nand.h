@@ -448,6 +448,8 @@ struct nand_buffers {
  *			See the defines for further explanation.
  * @badblockpos:	[INTERN] position of the bad block marker in the oob
  *			area.
+ * @badblockbits:	[INTERN] number of bits to left-shift the bad block
+ *			number
  * @cellinfo:		[INTERN] MLC/multichip data from chip ident
  * @numchips:		[INTERN] number of physical chips
  * @chipsize:		[INTERN] the size of one chip for multichip arrays

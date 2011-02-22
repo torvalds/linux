@@ -30,7 +30,6 @@
 #include <linux/i2c/tsc2007.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
-#include <linux/fsl_devices.h>
 #include <linux/i2c-gpio.h>
 
 #include <asm/mach-types.h>
@@ -43,7 +42,6 @@
 #include <mach/common.h>
 #include <mach/iomux-mx35.h>
 #include <mach/mxc_nand.h>
-#include <mach/mxc_ehci.h>
 
 #include "devices-imx35.h"
 #include "devices.h"
@@ -74,11 +72,7 @@ static struct i2c_board_info eukrea_cpuimx35_i2c_devices[] = {
 	},
 };
 
-static struct platform_device *devices[] __initdata = {
-	&imx_wdt_device0,
-};
-
-static struct pad_desc eukrea_cpuimx35_pads[] = {
+static iomux_v3_cfg_t eukrea_cpuimx35_pads[] = {
 	/* UART1 */
 	MX35_PAD_CTS1__UART1_CTS,
 	MX35_PAD_RTS1__UART1_RTS,
@@ -117,18 +111,18 @@ static const struct mxc_nand_platform_data
 	.flash_bbt	= 1,
 };
 
-static struct mxc_usbh_platform_data __maybe_unused otg_pdata = {
+static const struct mxc_usbh_platform_data otg_pdata __initconst = {
 	.portsc	= MXC_EHCI_MODE_UTMI,
 	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 
-static struct mxc_usbh_platform_data __maybe_unused usbh1_pdata = {
+static const struct mxc_usbh_platform_data usbh1_pdata __initconst = {
 	.portsc	= MXC_EHCI_MODE_SERIAL,
 	.flags	= MXC_EHCI_INTERFACE_SINGLE_UNI | MXC_EHCI_INTERNAL_PHY |
 		  MXC_EHCI_IPPUE_DOWN,
 };
 
-static struct fsl_usb2_platform_data otg_device_pdata = {
+static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.operating_mode	= FSL_USB2_DR_DEVICE,
 	.phy_mode	= FSL_USB2_PHY_UTMI,
 	.workaround	= FLS_USB2_WORKAROUND_ENGCM09152,
@@ -158,7 +152,7 @@ static void __init mxc_board_init(void)
 			ARRAY_SIZE(eukrea_cpuimx35_pads));
 
 	imx35_add_fec(NULL);
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+	imx35_add_imx2_wdt(NULL);
 
 	imx35_add_imx_uart0(&uart_pdata);
 	imx35_add_mxc_nand(&eukrea_cpuimx35_nand_board_info);
@@ -168,11 +162,11 @@ static void __init mxc_board_init(void)
 	imx35_add_imx_i2c0(&eukrea_cpuimx35_i2c0_data);
 
 	if (otg_mode_host)
-		mxc_register_device(&mxc_otg_host, &otg_pdata);
+		imx35_add_mxc_ehci_otg(&otg_pdata);
 	else
-		mxc_register_device(&mxc_otg_udc_device, &otg_device_pdata);
+		imx35_add_fsl_usb2_udc(&otg_device_pdata);
 
-	mxc_register_device(&mxc_usbh1, &usbh1_pdata);
+	imx35_add_mxc_ehci_hs(&usbh1_pdata);
 
 #ifdef CONFIG_MACH_EUKREA_MBIMXSD35_BASEBOARD
 	eukrea_mbimxsd35_baseboard_init();

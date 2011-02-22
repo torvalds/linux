@@ -97,6 +97,7 @@ struct soc_camera_host_ops {
 #define SOCAM_SENSOR_INVERT_DATA	(1 << 4)
 
 struct i2c_board_info;
+struct regulator_bulk_data;
 
 struct soc_camera_link {
 	/* Camera bus id, used to match a camera and a bus */
@@ -107,6 +108,10 @@ struct soc_camera_link {
 	struct i2c_board_info *board_info;
 	const char *module_name;
 	void *priv;
+
+	/* Optional regulators that have to be managed on power on/off events */
+	struct regulator_bulk_data *regulators;
+	int num_regulators;
 
 	/*
 	 * For non-I2C devices platform platform has to provide methods to

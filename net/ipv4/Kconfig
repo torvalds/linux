@@ -432,7 +432,9 @@ config INET_DIAG
 	---help---
 	  Support for INET (TCP, DCCP, etc) socket monitoring interface used by
 	  native Linux tools such as ss. ss is included in iproute2, currently
-	  downloadable at <http://linux-net.osdl.org/index.php/Iproute2>.
+	  downloadable at:
+	  
+	    http://www.linuxfoundation.org/collaborate/workgroups/networking/iproute2
 
 	  If unsure, say Y.
 

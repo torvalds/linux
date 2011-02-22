@@ -231,7 +231,7 @@ _GLOBAL(mpc83xx_enter_deep_sleep)
 	ori	r4, r4, 0x002a
 	mtspr	SPRN_DBAT0L, r4
 	lis	r8, TMP_VIRT_IMMR@h
-	ori	r4, r8, 0x001e	/* 1 MByte accessable from Kernel Space only */
+	ori	r4, r8, 0x001e	/* 1 MByte accessible from Kernel Space only */
 	mtspr	SPRN_DBAT0U, r4
 	isync
 
@@ -241,7 +241,7 @@ _GLOBAL(mpc83xx_enter_deep_sleep)
 	ori	r4, r4, 0x002a
 	mtspr	SPRN_DBAT1L, r4
 	lis	r9, (TMP_VIRT_IMMR + 0x01000000)@h
-	ori	r4, r9, 0x001e	/* 1 MByte accessable from Kernel Space only */
+	ori	r4, r9, 0x001e	/* 1 MByte accessible from Kernel Space only */
 	mtspr	SPRN_DBAT1U, r4
 	isync
 
@@ -253,7 +253,7 @@ _GLOBAL(mpc83xx_enter_deep_sleep)
 	li	r4, 0x0002
 	mtspr	SPRN_DBAT2L, r4
 	lis	r4, KERNELBASE@h
-	ori	r4, r4, 0x001e	/* 1 MByte accessable from Kernel Space only */
+	ori	r4, r4, 0x001e	/* 1 MByte accessible from Kernel Space only */
 	mtspr	SPRN_DBAT2U, r4
 	isync
 

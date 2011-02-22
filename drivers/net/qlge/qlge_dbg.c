@@ -1317,9 +1317,28 @@ void ql_gen_reg_dump(struct ql_adapter *qdev,
 	status = ql_get_ets_regs(qdev, &mpi_coredump->ets[0]);
 	if (status)
 		return;
+}
 
-	if (test_bit(QL_FRC_COREDUMP, &qdev->flags))
+void ql_get_dump(struct ql_adapter *qdev, void *buff)
+{
+	/*
+	 * If the dump has already been taken and is stored
+	 * in our internal buffer and if force dump is set then
+	 * just start the spool to dump it to the log file
+	 * and also, take a snapshot of the general regs to
+	 * to the user's buffer or else take complete dump
+	 * to the user's buffer if force is not set.
+	 */
+
+	if (!test_bit(QL_FRC_COREDUMP, &qdev->flags)) {
+		if (!ql_core_dump(qdev, buff))
+			ql_soft_reset_mpi_risc(qdev);
+		else
+			netif_err(qdev, drv, qdev->ndev, "coredump failed!\n");
+	} else {
+		ql_gen_reg_dump(qdev, buff);
 		ql_get_core_dump(qdev);
+	}
 }
 
 /* Coredump to messages log file using separate worker thread */

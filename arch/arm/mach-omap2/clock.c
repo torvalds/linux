@@ -24,14 +24,12 @@
 #include <linux/bitops.h>
 
 #include <plat/clock.h>
-#include <plat/clockdomain.h>
+#include "clockdomain.h"
 #include <plat/cpu.h>
 #include <plat/prcm.h>
 
 #include "clock.h"
-#include "prm.h"
-#include "prm-regbits-24xx.h"
-#include "cm.h"
+#include "cm2xxx_3xxx.h"
 #include "cm-regbits-24xx.h"
 #include "cm-regbits-34xx.h"
 

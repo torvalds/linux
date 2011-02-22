@@ -130,7 +130,7 @@ void cmci_recheck(void)
 	unsigned long flags;
 	int banks;
 
-	if (!mce_available(&current_cpu_data) || !cmci_supported(&banks))
+	if (!mce_available(__this_cpu_ptr(&cpu_info)) || !cmci_supported(&banks))
 		return;
 	local_irq_save(flags);
 	machine_check_poll(MCP_TIMESTAMP, &__get_cpu_var(mce_banks_owned));

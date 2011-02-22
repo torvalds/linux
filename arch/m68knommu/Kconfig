@@ -2,6 +2,7 @@ config M68K
 	bool
 	default y
 	select HAVE_IDE
+	select HAVE_GENERIC_HARDIRQS
 
 config MMU
 	bool
@@ -48,14 +49,6 @@ config GENERIC_HWEIGHT
 	bool
 	default y
 
-config GENERIC_HARDIRQS
-	bool
-	default y
-
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	bool
-	default y
-
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
@@ -74,6 +67,16 @@ config GENERIC_CLOCKEVENTS
 
 config NO_IOPORT
 	def_bool y
+
+config COLDFIRE_SW_A7
+	bool
+	default n
+
+config HAVE_CACHE_SPLIT
+	bool
+
+config HAVE_CACHE_CB
+	bool
 
 source "init/Kconfig"
 
@@ -107,69 +110,90 @@ config M68360
 
 config M5206
 	bool "MCF5206"
+	select COLDFIRE_SW_A7
 	help
 	  Motorola ColdFire 5206 processor support.
 
 config M5206e
 	bool "MCF5206e"
+	select COLDFIRE_SW_A7
 	help
 	  Motorola ColdFire 5206e processor support.
 
 config M520x
 	bool "MCF520x"
 	select GENERIC_CLOCKEVENTS
+	select HAVE_CACHE_SPLIT
 	help
 	   Freescale Coldfire 5207/5208 processor support.
 
 config M523x
 	bool "MCF523x"
 	select GENERIC_CLOCKEVENTS
+	select HAVE_CACHE_SPLIT
 	help
 	  Freescale Coldfire 5230/1/2/4/5 processor support
 
 config M5249
 	bool "MCF5249"
+	select COLDFIRE_SW_A7
 	help
 	  Motorola ColdFire 5249 processor support.
 
 config M5271
 	bool "MCF5271"
+	select HAVE_CACHE_SPLIT
 	help
 	  Freescale (Motorola) ColdFire 5270/5271 processor support.
 
 config M5272
 	bool "MCF5272"
+	select COLDFIRE_SW_A7
 	help
 	  Motorola ColdFire 5272 processor support.
 
 config M5275
 	bool "MCF5275"
+	select HAVE_CACHE_SPLIT
 	help
 	  Freescale (Motorola) ColdFire 5274/5275 processor support.
 
 config M528x
 	bool "MCF528x"
 	select GENERIC_CLOCKEVENTS
+	select HAVE_CACHE_SPLIT
 	help
 	  Motorola ColdFire 5280/5282 processor support.
 
 config M5307
 	bool "MCF5307"
+	select COLDFIRE_SW_A7
+	select HAVE_CACHE_CB
 	help
 	  Motorola ColdFire 5307 processor support.
 
 config M532x
 	bool "MCF532x"
+	select HAVE_CACHE_CB
 	help
 	  Freescale (Motorola) ColdFire 532x processor support.
 
 config M5407
 	bool "MCF5407"
+	select COLDFIRE_SW_A7
+	select HAVE_CACHE_CB
 	help
 	  Motorola ColdFire 5407 processor support.
 
+config M547x
+	bool "MCF547x"
+	select HAVE_CACHE_CB
+	help
+	  Freescale ColdFire 5470/5471/5472/5473/5474/5475 processor support.
+
 config M548x
 	bool "MCF548x"
+	select HAVE_CACHE_CB
 	help
 	  Freescale ColdFire 5480/5481/5482/5483/5484/5485 processor support.
 
@@ -181,9 +205,14 @@ config M527x
 	select GENERIC_CLOCKEVENTS
 	default y
 
+config M54xx
+	bool
+	depends on (M548x || M547x)
+	default y
+
 config COLDFIRE
 	bool
-	depends on (M5206 || M5206e || M520x || M523x || M5249 || M527x || M5272 || M528x || M5307 || M532x || M5407 || M548x)
+	depends on (M5206 || M5206e || M520x || M523x || M5249 || M527x || M5272 || M528x || M5307 || M532x || M5407 || M54xx)
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	default y
@@ -230,6 +259,46 @@ config OLDMASK
 	  Build support for the older revision ColdFire 5307 silicon.
 	  Specifically this is the 1H55J mask revision.
 
+if HAVE_CACHE_SPLIT
+choice
+	prompt "Split Cache Configuration"
+	default CACHE_I
+
+config CACHE_I
+	bool "Instruction"
+	help
+	  Use all of the ColdFire CPU cache memory as an instruction cache.
+
+config CACHE_D
+	bool "Data"
+	help
+	  Use all of the ColdFire CPU cache memory as a data cache.
+
+config CACHE_BOTH
+	bool "Both"
+	help
+	  Split the ColdFire CPU cache, and use half as an instruction cache
+	  and half as a data cache.
+endchoice
+endif
+
+if HAVE_CACHE_CB
+choice
+	prompt "Data cache mode"
+	default CACHE_WRITETHRU
+
+config CACHE_WRITETHRU
+	bool "Write-through"
+	help
+	  The ColdFire CPU cache is set into Write-through mode.
+
+config CACHE_COPYBACK
+	bool "Copy-back"
+	help
+	  The ColdFire CPU cache is set into Copy-back mode.
+endchoice
+endif
+
 comment "Platform"
 
 config PILOT3
@@ -245,16 +314,16 @@ config XCOPILOT_BUGS
 	  Support the bugs of Xcopilot.
 
 config UC5272
-        bool 'Arcturus Networks uC5272 dimm board support'
-        depends on M5272
-        help
-          Support for the Arcturus Networks uC5272 dimm board.
+	bool 'Arcturus Networks uC5272 dimm board support'
+	depends on M5272
+	help
+	  Support for the Arcturus Networks uC5272 dimm board.
 
 config UC5282
-       bool "Arcturus Networks uC5282 board support"
-          depends on M528x
-       help
-          Support for the Arcturus Networks uC5282 dimm board.
+	bool "Arcturus Networks uC5282 board support"
+	depends on M528x
+	help
+	  Support for the Arcturus Networks uC5282 dimm board.
 
 config UCSIMM
 	bool "uCsimm module support"
@@ -279,7 +348,7 @@ config DIRECT_IO_ACCESS
 	depends on (UCSIMM || UCDIMM || DRAGEN2)
 	help
 	  Disable the CPU internal registers protection in user mode,
-          to allow a user application to read/write them.
+	  to allow a user application to read/write them.
 
 config INIT_LCD
 	bool "Initialize LCD"
@@ -517,7 +586,7 @@ config EMAC_INC
 	depends on (SOM5282EM)
 
 config SNEHA
-        bool
+	bool
 	default y
 	depends on CPU16B
 

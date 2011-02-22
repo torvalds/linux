@@ -25,6 +25,7 @@
 #include <linux/power_supply.h>
 #include <linux/gpio_keys.h>
 #include <linux/mtd/physmap.h>
+#include <linux/usb/gpio_vbus.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -116,6 +117,7 @@ static unsigned long palmtc_pin_config[] __initdata = {
 /******************************************************************************
  * SD/MMC card controller
  ******************************************************************************/
+#if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
 static struct pxamci_platform_data palmtc_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
 	.gpio_power		= GPIO_NR_PALMTC_SD_POWER,
@@ -124,9 +126,18 @@ static struct pxamci_platform_data palmtc_mci_platform_data = {
 	.detect_delay_ms	= 200,
 };
 
+static void __init palmtc_mmc_init(void)
+{
+	pxa_set_mci_info(&palmtc_mci_platform_data);
+}
+#else
+static inline void palmtc_mmc_init(void) {}
+#endif
+
 /******************************************************************************
  * GPIO keys
  ******************************************************************************/
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
 static struct gpio_keys_button palmtc_pxa_buttons[] = {
 	{KEY_F8, GPIO_NR_PALMTC_HOTSYNC_BUTTON, 1, "HotSync Button", EV_KEY, 1},
 };
@@ -144,9 +155,18 @@ static struct platform_device palmtc_pxa_keys = {
 	},
 };
 
+static void __init palmtc_keys_init(void)
+{
+	platform_device_register(&palmtc_pxa_keys);
+}
+#else
+static inline void palmtc_keys_init(void) {}
+#endif
+
 /******************************************************************************
  * Backlight
  ******************************************************************************/
+#if defined(CONFIG_BACKLIGHT_PWM) || defined(CONFIG_BACKLIGHT_PWM_MODULE)
 static int palmtc_backlight_init(struct device *dev)
 {
 	int ret;
@@ -196,17 +216,35 @@ static struct platform_device palmtc_backlight = {
 	},
 };
 
+static void __init palmtc_pwm_init(void)
+{
+	platform_device_register(&palmtc_backlight);
+}
+#else
+static inline void palmtc_pwm_init(void) {}
+#endif
+
 /******************************************************************************
  * IrDA
  ******************************************************************************/
+#if defined(CONFIG_IRDA) || defined(CONFIG_IRDA_MODULE)
 static struct pxaficp_platform_data palmtc_ficp_platform_data = {
 	.gpio_pwdown		= GPIO_NR_PALMTC_IR_DISABLE,
 	.transceiver_cap	= IR_SIRMODE | IR_OFF,
 };
 
+static void __init palmtc_irda_init(void)
+{
+	pxa_set_ficp_info(&palmtc_ficp_platform_data);
+}
+#else
+static inline void palmtc_irda_init(void) {}
+#endif
+
 /******************************************************************************
  * Keyboard
  ******************************************************************************/
+#if defined(CONFIG_KEYBOARD_MATRIX) || defined(CONFIG_KEYBOARD_MATRIX_MODULE)
 static const uint32_t palmtc_matrix_keys[] = {
 	KEY(0, 0, KEY_F1),
 	KEY(0, 1, KEY_X),
@@ -290,27 +328,103 @@ static struct platform_device palmtc_keyboard = {
 		.platform_data = &palmtc_keypad_platform_data,
 	},
 };
+static void __init palmtc_mkp_init(void)
+{
+	platform_device_register(&palmtc_keyboard);
+}
+#else
+static inline void palmtc_mkp_init(void) {}
+#endif
 
 /******************************************************************************
  * UDC
  ******************************************************************************/
-static struct pxa2xx_udc_mach_info palmtc_udc_info __initdata = {
+#if defined(CONFIG_USB_GADGET_PXA25X)||defined(CONFIG_USB_GADGET_PXA25X_MODULE)
+static struct gpio_vbus_mach_info palmtc_udc_info = {
 	.gpio_vbus		= GPIO_NR_PALMTC_USB_DETECT_N,
 	.gpio_vbus_inverted	= 1,
 	.gpio_pullup		= GPIO_NR_PALMTC_USB_POWER,
 };
 
+static struct platform_device palmtc_gpio_vbus = {
+	.name	= "gpio-vbus",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &palmtc_udc_info,
+	},
+};
+
+static void __init palmtc_udc_init(void)
+{
+	platform_device_register(&palmtc_gpio_vbus);
+};
+#else
+static inline void palmtc_udc_init(void) {}
+#endif
+
 /******************************************************************************
  * Touchscreen / Battery / GPIO-extender
  ******************************************************************************/
-static struct platform_device palmtc_ucb1400_core = {
+#if	defined(CONFIG_TOUCHSCREEN_UCB1400) || \
+	defined(CONFIG_TOUCHSCREEN_UCB1400_MODULE)
+static struct platform_device palmtc_ucb1400_device = {
 	.name	= "ucb1400_core",
 	.id	= -1,
 };
 
+static void __init palmtc_ts_init(void)
+{
+	pxa_set_ac97_info(NULL);
+	platform_device_register(&palmtc_ucb1400_device);
+}
+#else
+static inline void palmtc_ts_init(void) {}
+#endif
+
+/******************************************************************************
+ * LEDs
+ ******************************************************************************/
+#if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
+struct gpio_led palmtc_gpio_leds[] = {
+{
+	.name			= "palmtc:green:user",
+	.default_trigger	= "none",
+	.gpio			= GPIO_NR_PALMTC_LED_POWER,
+	.active_low		= 1,
+}, {
+	.name			= "palmtc:vibra:vibra",
+	.default_trigger	= "none",
+	.gpio			= GPIO_NR_PALMTC_VIBRA_POWER,
+	.active_low		= 1,
+}
+
+};
+
+static struct gpio_led_platform_data palmtc_gpio_led_info = {
+	.leds		= palmtc_gpio_leds,
+	.num_leds	= ARRAY_SIZE(palmtc_gpio_leds),
+};
+
+static struct platform_device palmtc_leds = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &palmtc_gpio_led_info,
+	}
+};
+
+static void __init palmtc_leds_init(void)
+{
+	platform_device_register(&palmtc_leds);
+}
+#else
+static inline void palmtc_leds_init(void) {}
+#endif
+
 /******************************************************************************
  * NOR Flash
  ******************************************************************************/
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 static struct resource palmtc_flash_resource = {
 	.start	= PXA_CS0_PHYS,
 	.end	= PXA_CS0_PHYS + SZ_16M - 1,
@@ -356,24 +470,33 @@ static struct platform_device palmtc_flash = {
 	},
 };
 
+static void __init palmtc_nor_init(void)
+{
+	platform_device_register(&palmtc_flash);
+}
+#else
+static inline void palmtc_nor_init(void) {}
+#endif
+
 /******************************************************************************
  * Framebuffer
  ******************************************************************************/
+#if defined(CONFIG_FB_PXA) || defined(CONFIG_FB_PXA_MODULE)
 static struct pxafb_mode_info palmtc_lcd_modes[] = {
-{
-	.pixclock	= 115384,
-	.xres		= 320,
-	.yres		= 320,
-	.bpp		= 16,
+	{
+		.pixclock	= 115384,
+		.xres		= 320,
+		.yres		= 320,
+		.bpp		= 16,
 
-	.left_margin	= 27,
-	.right_margin	= 7,
-	.upper_margin	= 7,
-	.lower_margin	= 8,
+		.left_margin	= 27,
+		.right_margin	= 7,
+		.upper_margin	= 7,
+		.lower_margin	= 8,
 
-	.hsync_len	= 6,
-	.vsync_len	= 1,
-},
+		.hsync_len	= 6,
+		.vsync_len	= 1,
+	},
 };
 
 static struct pxafb_mach_info palmtc_lcd_screen = {
@@ -382,17 +505,17 @@ static struct pxafb_mach_info palmtc_lcd_screen = {
 	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL,
 };
 
+static void __init palmtc_lcd_init(void)
+{
+	set_pxa_fb_info(&palmtc_lcd_screen);
+}
+#else
+static inline void palmtc_lcd_init(void) {}
+#endif
+
 /******************************************************************************
  * Machine init
  ******************************************************************************/
-static struct platform_device *devices[] __initdata = {
-	&palmtc_backlight,
-	&palmtc_ucb1400_core,
-	&palmtc_keyboard,
-	&palmtc_pxa_keys,
-	&palmtc_flash,
-};
-
 static void __init palmtc_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(palmtc_pin_config));
@@ -402,18 +525,21 @@ static void __init palmtc_init(void)
 	pxa_set_stuart_info(NULL);
 	pxa_set_hwuart_info(NULL);
 
-	set_pxa_fb_info(&palmtc_lcd_screen);
-	pxa_set_mci_info(&palmtc_mci_platform_data);
-	pxa_set_udc_info(&palmtc_udc_info);
-	pxa_set_ac97_info(NULL);
-	pxa_set_ficp_info(&palmtc_ficp_platform_data);
-
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+	palmtc_mmc_init();
+	palmtc_keys_init();
+	palmtc_pwm_init();
+	palmtc_irda_init();
+	palmtc_mkp_init();
+	palmtc_udc_init();
+	palmtc_ts_init();
+	palmtc_nor_init();
+	palmtc_lcd_init();
+	palmtc_leds_init();
 };
 
 MACHINE_START(PALMTC, "Palm Tungsten|C")
 	.boot_params 	= 0xa0000100,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa25x_map_io,
 	.init_irq	= pxa25x_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= palmtc_init

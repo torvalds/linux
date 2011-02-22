@@ -1281,6 +1281,9 @@ int gpio_request_one(unsigned gpio, unsigned long flags, const char *label)
 		err = gpio_direction_output(gpio,
 				(flags & GPIOF_INIT_HIGH) ? 1 : 0);
 
+	if (err)
+		gpio_free(gpio);
+
 	return err;
 }
 EXPORT_SYMBOL_GPL(gpio_request_one);

@@ -57,28 +57,11 @@ cabriolet_disable_irq(unsigned int irq)
 	cabriolet_update_irq_hw(irq, cached_irq_mask |= 1UL << irq);
 }
 
-static unsigned int
-cabriolet_startup_irq(unsigned int irq)
-{ 
-	cabriolet_enable_irq(irq);
-	return 0; /* never anything pending */
-}
-
-static void
-cabriolet_end_irq(unsigned int irq)
-{ 
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		cabriolet_enable_irq(irq);
-}
-
 static struct irq_chip cabriolet_irq_type = {
 	.name		= "CABRIOLET",
-	.startup	= cabriolet_startup_irq,
-	.shutdown	= cabriolet_disable_irq,
-	.enable		= cabriolet_enable_irq,
-	.disable	= cabriolet_disable_irq,
-	.ack		= cabriolet_disable_irq,
-	.end		= cabriolet_end_irq,
+	.unmask		= cabriolet_enable_irq,
+	.mask		= cabriolet_disable_irq,
+	.mask_ack	= cabriolet_disable_irq,
 };
 
 static void 
@@ -122,8 +105,9 @@ common_init_irq(void (*srm_dev_int)(unsigned long v))
 		outb(0xff, 0x806);
 
 		for (i = 16; i < 35; ++i) {
-			irq_desc[i].status = IRQ_DISABLED | IRQ_LEVEL;
-			irq_desc[i].chip = &cabriolet_irq_type;
+			set_irq_chip_and_handler(i, &cabriolet_irq_type,
+				handle_level_irq);
+			irq_to_desc(i)->status |= IRQ_LEVEL;
 		}
 	}
 

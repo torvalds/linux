@@ -260,7 +260,7 @@ static int vidioc_s_audio(struct file *file, void *priv,
 
 static const struct v4l2_file_operations fmi_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= video_ioctl2,
+	.unlocked_ioctl	= video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops fmi_ioctl_ops = {
@@ -382,6 +382,9 @@ static int __init fmi_init(void)
 
 	mutex_init(&fmi->lock);
 
+	/* mute card - prevents noisy bootups */
+	fmi_mute(fmi);
+
 	if (video_register_device(&fmi->vdev, VFL_TYPE_RADIO, radio_nr) < 0) {
 		v4l2_device_unregister(v4l2_dev);
 		release_region(fmi->io, 2);
@@ -391,8 +394,6 @@ static int __init fmi_init(void)
 	}
 
 	v4l2_info(v4l2_dev, "card driver at 0x%x\n", fmi->io);
-	/* mute card - prevents noisy bootups */
-	fmi_mute(fmi);
 	return 0;
 }
 

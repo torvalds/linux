@@ -53,6 +53,9 @@ static int (*sa11x0_pcmcia_hw_init[])(struct device *dev) = {
 #if defined(CONFIG_SA1100_H3100) || defined(CONFIG_SA1100_H3600)
 	pcmcia_h3600_init,
 #endif
+#ifdef CONFIG_SA1100_NANOENGINE
+	pcmcia_nanoengine_init,
+#endif
 #ifdef CONFIG_SA1100_SHANNON
 	pcmcia_shannon_init,
 #endif
@@ -64,7 +67,7 @@ static int (*sa11x0_pcmcia_hw_init[])(struct device *dev) = {
 #endif
 };
 
-static int sa11x0_drv_pcmcia_probe(struct platform_device *dev)
+static int __devinit sa11x0_drv_pcmcia_probe(struct platform_device *dev)
 {
 	int i, ret = -ENODEV;
 

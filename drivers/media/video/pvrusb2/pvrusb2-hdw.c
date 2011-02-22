@@ -2088,16 +2088,14 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 			   " Setting up with specified i2c address 0x%x",
 			   mid, i2caddr[0]);
 		sd = v4l2_i2c_new_subdev(&hdw->v4l2_dev, &hdw->i2c_adap,
-					 NULL, fname,
-					 i2caddr[0], NULL);
+					 fname, i2caddr[0], NULL);
 	} else {
 		pvr2_trace(PVR2_TRACE_INIT,
 			   "Module ID %u:"
 			   " Setting up with address probe list",
 			   mid);
 		sd = v4l2_i2c_new_subdev(&hdw->v4l2_dev, &hdw->i2c_adap,
-						NULL, fname,
-						0, i2caddr);
+					 fname, 0, i2caddr);
 	}
 
 	if (!sd) {

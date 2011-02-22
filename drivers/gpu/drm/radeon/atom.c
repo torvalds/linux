@@ -112,6 +112,7 @@ static uint32_t atom_iio_execute(struct atom_context *ctx, int base,
 			base += 3;
 			break;
 		case ATOM_IIO_WRITE:
+			(void)ctx->card->ioreg_read(ctx->card, CU16(base + 1));
 			ctx->card->ioreg_write(ctx->card, CU16(base + 1), temp);
 			base += 3;
 			break;
@@ -733,16 +734,16 @@ static void atom_op_jump(atom_exec_context *ctx, int *ptr, int arg)
 static void atom_op_mask(atom_exec_context *ctx, int *ptr, int arg)
 {
 	uint8_t attr = U8((*ptr)++);
-	uint32_t dst, src1, src2, saved;
+	uint32_t dst, mask, src, saved;
 	int dptr = *ptr;
 	SDEBUG("   dst: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
-	SDEBUG("   src1: ");
-	src1 = atom_get_src_direct(ctx, ((attr >> 3) & 7), ptr);
-	SDEBUG("   src2: ");
-	src2 = atom_get_src(ctx, attr, ptr);
-	dst &= src1;
-	dst |= src2;
+	mask = atom_get_src_direct(ctx, ((attr >> 3) & 7), ptr);
+	SDEBUG("   mask: 0x%08x", mask);
+	SDEBUG("   src: ");
+	src = atom_get_src(ctx, attr, ptr);
+	dst &= mask;
+	dst |= src;
 	SDEBUG("   dst: ");
 	atom_put_dst(ctx, arg, attr, &dptr, dst, saved);
 }

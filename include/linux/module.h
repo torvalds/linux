@@ -58,6 +58,12 @@ struct module_attribute {
 	void (*free)(struct module *);
 };
 
+struct module_version_attribute {
+	struct module_attribute mattr;
+	const char *module_name;
+	const char *version;
+};
+
 struct module_kobject
 {
 	struct kobject kobj;
@@ -161,7 +167,28 @@ extern struct module __this_module;
   Using this automatically adds a checksum of the .c files and the
   local headers in "srcversion".
 */
+
+#if defined(MODULE) || !defined(CONFIG_SYSFS)
 #define MODULE_VERSION(_version) MODULE_INFO(version, _version)
+#else
+#define MODULE_VERSION(_version)					\
+	extern ssize_t __modver_version_show(struct module_attribute *,	\
+					     struct module *, char *);	\
+	static struct module_version_attribute __modver_version_attr	\
+	__used								\
+    __attribute__ ((__section__ ("__modver"),aligned(sizeof(void *)))) \
+	= {								\
+		.mattr	= {						\
+			.attr	= {					\
+				.name	= "version",			\
+				.mode	= S_IRUGO,			\
+			},						\
+			.show	= __modver_version_show,		\
+		},							\
+		.module_name	= KBUILD_MODNAME,			\
+		.version	= _version,				\
+	}
+#endif
 
 /* Optional firmware file (or files) needed by the module
  * format is simply firmware file name.  Multiple firmware
@@ -307,6 +334,9 @@ struct module
 
 	/* The size of the executable code in each section.  */
 	unsigned int init_text_size, core_text_size;
+
+	/* Size of RO sections of the module (text+rodata) */
+	unsigned int init_ro_size, core_ro_size;
 
 	/* Arch-specific module values */
 	struct mod_arch_specific arch;
@@ -517,7 +547,7 @@ static inline void __module_get(struct module *module)
 #define symbol_put_addr(p) do { } while(0)
 
 #endif /* CONFIG_MODULE_UNLOAD */
-int use_module(struct module *a, struct module *b);
+int ref_module(struct module *a, struct module *b);
 
 /* This is a #define so the string doesn't get put in every .o file */
 #define module_name(mod)			\
@@ -672,7 +702,6 @@ static inline int module_get_iter_tracepoints(struct tracepoint_iter *iter)
 {
 	return 0;
 }
-
 #endif /* CONFIG_MODULES */
 
 #ifdef CONFIG_SYSFS
@@ -687,6 +716,13 @@ extern int module_sysfs_initialized;
 
 #define __MODULE_STRING(x) __stringify(x)
 
+#ifdef CONFIG_DEBUG_SET_MODULE_RONX
+extern void set_all_modules_text_rw(void);
+extern void set_all_modules_text_ro(void);
+#else
+static inline void set_all_modules_text_rw(void) { }
+static inline void set_all_modules_text_ro(void) { }
+#endif
 
 #ifdef CONFIG_GENERIC_BUG
 void module_bug_finalize(const Elf_Ehdr *, const Elf_Shdr *,

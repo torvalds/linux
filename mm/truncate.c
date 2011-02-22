@@ -390,6 +390,10 @@ invalidate_complete_page2(struct address_space *mapping, struct page *page)
 	__remove_from_page_cache(page);
 	spin_unlock_irq(&mapping->tree_lock);
 	mem_cgroup_uncharge_cache_page(page);
+
+	if (mapping->a_ops->freepage)
+		mapping->a_ops->freepage(page);
+
 	page_cache_release(page);	/* pagecache ref */
 	return 1;
 failed:
@@ -545,13 +549,12 @@ EXPORT_SYMBOL(truncate_pagecache);
  * @inode: inode
  * @newsize: new file size
  *
- * truncate_setsize updastes i_size update and performs pagecache
- * truncation (if necessary) for a file size updates. It will be
- * typically be called from the filesystem's setattr function when
- * ATTR_SIZE is passed in.
+ * truncate_setsize updates i_size and performs pagecache truncation (if
+ * necessary) to @newsize. It will be typically be called from the filesystem's
+ * setattr function when ATTR_SIZE is passed in.
  *
- * Must be called with inode_mutex held and after all filesystem
- * specific block truncation has been performed.
+ * Must be called with inode_mutex held and before all filesystem specific
+ * block truncation has been performed.
  */
 void truncate_setsize(struct inode *inode, loff_t newsize)
 {

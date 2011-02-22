@@ -17,7 +17,14 @@
 #include <linux/etherdevice.h>
 #include <linux/bfin_mac.h>
 
+/*
+ * Disable hardware checksum for bug #5600 if writeback cache is
+ * enabled. Otherwize, corrupted RX packet will be sent up stack
+ * without error mark.
+ */
+#ifndef CONFIG_BFIN_EXTMEM_WRITEBACK
 #define BFIN_MAC_CSUM_OFFLOAD
+#endif
 
 #define TX_RECLAIM_JIFFIES (HZ / 5)
 
@@ -68,13 +75,15 @@ struct bfin_mac_local {
 	 */
 	struct net_device_stats stats;
 
-	unsigned char Mac[6];	/* MAC address of the board */
 	spinlock_t lock;
 
 	int wol;		/* Wake On Lan */
 	int irq_wake_requested;
 	struct timer_list tx_reclaim_timer;
 	struct net_device *ndev;
+
+	/* Data for EMAC_VLAN1 regs */
+	u16 vlan1_mask, vlan2_mask;
 
 	/* MII and PHY stuffs */
 	int old_link;          /* used by bf537_adjust_link */

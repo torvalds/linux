@@ -40,6 +40,7 @@
 #include <linux/of_mdio.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
+#include <linux/of_net.h>
 
 #include <linux/vmalloc.h>
 #include <asm/pgtable.h>

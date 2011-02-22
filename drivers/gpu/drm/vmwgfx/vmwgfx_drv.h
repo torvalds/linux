@@ -264,7 +264,6 @@ struct vmw_private {
 	 */
 
 	struct vmw_sw_context ctx;
-	uint32_t val_seq;
 	struct mutex cmdbuf_mutex;
 
 	/**

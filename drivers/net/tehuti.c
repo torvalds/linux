@@ -12,7 +12,7 @@
 /*
  * RX HW/SW interaction overview
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- * There are 2 types of RX communication channels betwean driver and NIC.
+ * There are 2 types of RX communication channels between driver and NIC.
  * 1) RX Free Fifo - RXF - holds descriptors of empty buffers to accept incoming
  * traffic. This Fifo is filled by SW and is readen by HW. Each descriptor holds
  * info about buffer's location, size and ID. An ID field is used to identify a
@@ -324,7 +324,7 @@ static int bdx_fw_load(struct bdx_priv *priv)
 	ENTER;
 	master = READ_REG(priv, regINIT_SEMAPHORE);
 	if (!READ_REG(priv, regINIT_STATUS) && master) {
-		rc = request_firmware(&fw, "tehuti/firmware.bin", &priv->pdev->dev);
+		rc = request_firmware(&fw, "tehuti/bdx.bin", &priv->pdev->dev);
 		if (rc)
 			goto out;
 		bdx_tx_push_desc_safe(priv, (char *)fw->data, fw->size);
@@ -821,7 +821,7 @@ static void bdx_setmulti(struct net_device *ndev)
 		}
 
 		/* use PMF to accept first MAC_MCST_NUM (15) addresses */
-		/* TBD: sort addreses and write them in ascending order
+		/* TBD: sort addresses and write them in ascending order
 		 * into RX_MAC_MCST regs. we skip this phase now and accept ALL
 		 * multicast frames throu IMF */
 		/* accept the rest of addresses throu IMF */
@@ -1346,7 +1346,7 @@ static void print_rxfd(struct rxf_desc *rxfd)
 /*
  * TX HW/SW interaction overview
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- * There are 2 types of TX communication channels betwean driver and NIC.
+ * There are 2 types of TX communication channels between driver and NIC.
  * 1) TX Free Fifo - TXF - holds ack descriptors for sent packets
  * 2) TX Data Fifo - TXD - holds descriptors of full buffers.
  *
@@ -2510,4 +2510,4 @@ module_exit(bdx_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(BDX_DRV_DESC);
-MODULE_FIRMWARE("tehuti/firmware.bin");
+MODULE_FIRMWARE("tehuti/bdx.bin");

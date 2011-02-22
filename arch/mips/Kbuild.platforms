@@ -2,6 +2,7 @@
 
 platforms += alchemy
 platforms += ar7
+platforms += ath79
 platforms += bcm47xx
 platforms += bcm63xx
 platforms += cavium-octeon

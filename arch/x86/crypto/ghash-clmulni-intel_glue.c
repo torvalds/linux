@@ -10,6 +10,7 @@
  * by the Free Software Foundation.
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>

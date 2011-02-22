@@ -951,7 +951,9 @@ static int usbatm_atm_init(struct usbatm_data *instance)
 	 * condition: callbacks we register can be executed at once, before we have
 	 * initialized the struct atm_dev.  To protect against this, all callbacks
 	 * abort if atm_dev->dev_data is NULL. */
-	atm_dev = atm_dev_register(instance->driver_name, &usbatm_atm_devops, -1, NULL);
+	atm_dev = atm_dev_register(instance->driver_name,
+				   &instance->usb_intf->dev, &usbatm_atm_devops,
+				   -1, NULL);
 	if (!atm_dev) {
 		usb_err(instance, "%s: failed to register ATM device!\n", __func__);
 		return -1;
@@ -965,14 +967,6 @@ static int usbatm_atm_init(struct usbatm_data *instance)
 
 	/* temp init ATM device, set to 128kbit */
 	atm_dev->link_rate = 128 * 1000 / 424;
-
-	ret = sysfs_create_link(&atm_dev->class_dev.kobj,
-				&instance->usb_intf->dev.kobj, "device");
-	if (ret) {
-		atm_err(instance, "%s: sysfs_create_link failed: %d\n",
-					__func__, ret);
-		goto fail_sysfs;
-	}
 
 	if (instance->driver->atm_start && ((ret = instance->driver->atm_start(instance, atm_dev)) < 0)) {
 		atm_err(instance, "%s: atm_start failed: %d!\n", __func__, ret);
@@ -992,8 +986,6 @@ static int usbatm_atm_init(struct usbatm_data *instance)
 	return 0;
 
  fail:
-	sysfs_remove_link(&atm_dev->class_dev.kobj, "device");
- fail_sysfs:
 	instance->atm_dev = NULL;
 	atm_dev_deregister(atm_dev); /* usbatm_atm_dev_close will eventually be called */
 	return ret;
@@ -1329,7 +1321,6 @@ void usbatm_usb_disconnect(struct usb_interface *intf)
 
 	/* ATM finalize */
 	if (instance->atm_dev) {
-		sysfs_remove_link(&instance->atm_dev->class_dev.kobj, "device");
 		atm_dev_deregister(instance->atm_dev);
 		instance->atm_dev = NULL;
 	}

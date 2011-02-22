@@ -319,8 +319,16 @@ static s32 ixgbe_check_for_rst_pf(struct ixgbe_hw *hw, u16 vf_number)
 	u32 vflre = 0;
 	s32 ret_val = IXGBE_ERR_MBX;
 
-	if (hw->mac.type == ixgbe_mac_82599EB)
+	switch (hw->mac.type) {
+	case ixgbe_mac_82599EB:
 		vflre = IXGBE_READ_REG(hw, IXGBE_VFLRE(reg_offset));
+		break;
+	case ixgbe_mac_X540:
+		vflre = IXGBE_READ_REG(hw, IXGBE_VFLREC(reg_offset));
+		break;
+	default:
+		break;
+	}
 
 	if (vflre & (1 << vf_shift)) {
 		ret_val = 0;
@@ -439,22 +447,26 @@ void ixgbe_init_mbx_params_pf(struct ixgbe_hw *hw)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 
-	if (hw->mac.type != ixgbe_mac_82599EB)
-		return;
+	switch (hw->mac.type) {
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
+		mbx->timeout = 0;
+		mbx->usec_delay = 0;
 
-	mbx->timeout = 0;
-	mbx->usec_delay = 0;
+		mbx->size = IXGBE_VFMAILBOX_SIZE;
 
-	mbx->size = IXGBE_VFMAILBOX_SIZE;
-
-	mbx->stats.msgs_tx = 0;
-	mbx->stats.msgs_rx = 0;
-	mbx->stats.reqs = 0;
-	mbx->stats.acks = 0;
-	mbx->stats.rsts = 0;
+		mbx->stats.msgs_tx = 0;
+		mbx->stats.msgs_rx = 0;
+		mbx->stats.reqs = 0;
+		mbx->stats.acks = 0;
+		mbx->stats.rsts = 0;
+		break;
+	default:
+		break;
+	}
 }
 
-struct ixgbe_mbx_operations mbx_ops_82599 = {
+struct ixgbe_mbx_operations mbx_ops_generic = {
 	.read                   = ixgbe_read_mbx_pf,
 	.write                  = ixgbe_write_mbx_pf,
 	.read_posted            = ixgbe_read_posted_mbx,

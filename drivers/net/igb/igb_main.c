@@ -73,6 +73,8 @@ static DEFINE_PCI_DEVICE_TABLE(igb_pci_tbl) = {
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82580_COPPER_DUAL), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_DH89XXCC_SGMII), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_DH89XXCC_SERDES), board_82575 },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_DH89XXCC_BACKPLANE), board_82575 },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_DH89XXCC_SFP), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82576), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_NS), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_NS_SERDES), board_82575 },
@@ -1654,7 +1656,7 @@ void igb_reset(struct igb_adapter *adapter)
 	if (adapter->vfs_allocated_count) {
 		int i;
 		for (i = 0 ; i < adapter->vfs_allocated_count; i++)
-			adapter->vf_data[i].flags = 0;
+			adapter->vf_data[i].flags &= IGB_VF_FLAG_PF_SET_MAC;
 
 		/* ping all the active vfs to let them know we are going down */
 		igb_ping_all_vfs(adapter);
@@ -1729,12 +1731,13 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	struct igb_adapter *adapter;
 	struct e1000_hw *hw;
 	u16 eeprom_data = 0;
+	s32 ret_val;
 	static int global_quad_port_a; /* global quad port a indication */
 	const struct e1000_info *ei = igb_info_tbl[ent->driver_data];
 	unsigned long mmio_start, mmio_len;
 	int err, pci_using_dac;
 	u16 eeprom_apme_mask = IGB_EEPROM_APME;
-	u32 part_num;
+	u8 part_str[E1000_PBANUM_LENGTH];
 
 	/* Catch broken hardware that put the wrong VF device ID in
 	 * the PCIe SR-IOV capability.
@@ -2000,10 +2003,10 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 		   "unknown"),
 		 netdev->dev_addr);
 
-	igb_read_part_num(hw, &part_num);
-	dev_info(&pdev->dev, "%s: PBA No: %06x-%03x\n", netdev->name,
-		(part_num >> 8), (part_num & 0xff));
-
+	ret_val = igb_read_part_string(hw, part_str, E1000_PBANUM_LENGTH);
+	if (ret_val)
+		strcpy(part_str, "Unknown");
+	dev_info(&pdev->dev, "%s: PBA No: %s\n", netdev->name, part_str);
 	dev_info(&pdev->dev,
 		"Using %s interrupts. %d rx queue(s), %d tx queue(s)\n",
 		adapter->msix_entries ? "MSI-X" :
@@ -2049,13 +2052,16 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
-	/* flush_scheduled work may reschedule our watchdog task, so
-	 * explicitly disable watchdog tasks from being rescheduled  */
+	/*
+	 * The watchdog timer may be rescheduled, so explicitly
+	 * disable watchdog from being rescheduled.
+	 */
 	set_bit(__IGB_DOWN, &adapter->state);
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_info_timer);
 
-	flush_scheduled_work();
+	cancel_work_sync(&adapter->reset_task);
+	cancel_work_sync(&adapter->watchdog_task);
 
 #ifdef CONFIG_IGB_DCA
 	if (adapter->flags & IGB_FLAG_DCA_ENABLED) {
@@ -2436,10 +2442,9 @@ int igb_setup_tx_resources(struct igb_ring *tx_ring)
 	int size;
 
 	size = sizeof(struct igb_buffer) * tx_ring->count;
-	tx_ring->buffer_info = vmalloc(size);
+	tx_ring->buffer_info = vzalloc(size);
 	if (!tx_ring->buffer_info)
 		goto err;
-	memset(tx_ring->buffer_info, 0, size);
 
 	/* round up to nearest 4K */
 	tx_ring->size = tx_ring->count * sizeof(union e1000_adv_tx_desc);
@@ -2587,10 +2592,9 @@ int igb_setup_rx_resources(struct igb_ring *rx_ring)
 	int size, desc_len;
 
 	size = sizeof(struct igb_buffer) * rx_ring->count;
-	rx_ring->buffer_info = vmalloc(size);
+	rx_ring->buffer_info = vzalloc(size);
 	if (!rx_ring->buffer_info)
 		goto err;
-	memset(rx_ring->buffer_info, 0, size);
 
 	desc_len = sizeof(union e1000_adv_rx_desc);
 
@@ -3362,6 +3366,45 @@ static void igb_set_rx_mode(struct net_device *netdev)
 	igb_restore_vf_multicasts(adapter);
 }
 
+static void igb_check_wvbr(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 wvbr = 0;
+
+	switch (hw->mac.type) {
+	case e1000_82576:
+	case e1000_i350:
+		if (!(wvbr = rd32(E1000_WVBR)))
+			return;
+		break;
+	default:
+		break;
+	}
+
+	adapter->wvbr |= wvbr;
+}
+
+#define IGB_STAGGERED_QUEUE_OFFSET 8
+
+static void igb_spoof_check(struct igb_adapter *adapter)
+{
+	int j;
+
+	if (!adapter->wvbr)
+		return;
+
+	for(j = 0; j < adapter->vfs_allocated_count; j++) {
+		if (adapter->wvbr & (1 << j) ||
+		    adapter->wvbr & (1 << (j + IGB_STAGGERED_QUEUE_OFFSET))) {
+			dev_warn(&adapter->pdev->dev,
+				"Spoof event(s) detected on VF %d\n", j);
+			adapter->wvbr &=
+				~((1 << j) |
+				  (1 << (j + IGB_STAGGERED_QUEUE_OFFSET)));
+		}
+	}
+}
+
 /* Need to wait a few seconds after link up to get diagnostic information from
  * the phy */
 static void igb_update_phy_info(unsigned long data)
@@ -3520,6 +3563,8 @@ static void igb_watchdog_task(struct work_struct *work)
 	} else {
 		wr32(E1000_ICS, E1000_ICS_RXDMT0);
 	}
+
+	igb_spoof_check(adapter);
 
 	/* Reset the timer */
 	if (!test_bit(__IGB_DOWN, &adapter->state))
@@ -4517,6 +4562,10 @@ static irqreturn_t igb_msix_other(int irq, void *data)
 	if (icr & E1000_ICR_DOUTSYNC) {
 		/* HW is reporting DMA is out of sync */
 		adapter->stats.doosync++;
+		/* The DMA Out of Sync is also indication of a spoof event
+		 * in IOV mode. Check the Wrong VM Behavior register to
+		 * see if it is really a spoof event. */
+		igb_check_wvbr(adapter);
 	}
 
 	/* Check for a mailbox event */
@@ -4969,8 +5018,8 @@ static int igb_set_vf_vlan(struct igb_adapter *adapter, u32 *msgbuf, u32 vf)
 
 static inline void igb_vf_reset(struct igb_adapter *adapter, u32 vf)
 {
-	/* clear flags */
-	adapter->vf_data[vf].flags &= ~(IGB_VF_FLAG_PF_SET_MAC);
+	/* clear flags - except flag that indicates PF has set the MAC */
+	adapter->vf_data[vf].flags &= IGB_VF_FLAG_PF_SET_MAC;
 	adapter->vf_data[vf].last_nack = jiffies;
 
 	/* reset offloads to defaults */
@@ -5024,7 +5073,7 @@ static void igb_vf_reset_msg(struct igb_adapter *adapter, u32 vf)
 	reg = rd32(E1000_VFRE);
 	wr32(E1000_VFRE, reg | (1 << vf));
 
-	adapter->vf_data[vf].flags = IGB_VF_FLAG_CTS;
+	adapter->vf_data[vf].flags |= IGB_VF_FLAG_CTS;
 
 	/* reply to reset with ack and vf mac address */
 	msgbuf[0] = E1000_VF_RESET | E1000_VT_MSGTYPE_ACK;
@@ -5103,7 +5152,14 @@ static void igb_rcv_msg_from_vf(struct igb_adapter *adapter, u32 vf)
 
 	switch ((msgbuf[0] & 0xFFFF)) {
 	case E1000_VF_SET_MAC_ADDR:
-		retval = igb_set_vf_mac_addr(adapter, msgbuf, vf);
+		retval = -EINVAL;
+		if (!(vf_data->flags & IGB_VF_FLAG_PF_SET_MAC))
+			retval = igb_set_vf_mac_addr(adapter, msgbuf, vf);
+		else
+			dev_warn(&pdev->dev,
+				 "VF %d attempted to override administratively "
+				 "set MAC address\nReload the VF driver to "
+				 "resume operations\n", vf);
 		break;
 	case E1000_VF_SET_PROMISC:
 		retval = igb_set_vf_promisc(adapter, msgbuf, vf);
@@ -5115,8 +5171,12 @@ static void igb_rcv_msg_from_vf(struct igb_adapter *adapter, u32 vf)
 		retval = igb_set_vf_rlpml(adapter, msgbuf[1], vf);
 		break;
 	case E1000_VF_SET_VLAN:
-		if (adapter->vf_data[vf].pf_vlan)
-			retval = -1;
+		retval = -1;
+		if (vf_data->pf_vlan)
+			dev_warn(&pdev->dev,
+				 "VF %d attempted to override administratively "
+				 "set VLAN tag\nReload the VF driver to "
+				 "resume operations\n", vf);
 		else
 			retval = igb_set_vf_vlan(adapter, msgbuf, vf);
 		break;
@@ -6580,6 +6640,8 @@ static void igb_vmm_control(struct igb_adapter *adapter)
 	if (adapter->vfs_allocated_count) {
 		igb_vmdq_set_loopback_pf(hw, true);
 		igb_vmdq_set_replication_pf(hw, true);
+		igb_vmdq_set_anti_spoofing_pf(hw, true,
+						adapter->vfs_allocated_count);
 	} else {
 		igb_vmdq_set_loopback_pf(hw, false);
 		igb_vmdq_set_replication_pf(hw, false);

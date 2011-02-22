@@ -96,16 +96,16 @@ struct neighbour {
 	struct neigh_parms	*parms;
 	unsigned long		confirmed;
 	unsigned long		updated;
-	__u8			flags;
-	__u8			nud_state;
-	__u8			type;
-	__u8			dead;
+	rwlock_t		lock;
 	atomic_t		refcnt;
 	struct sk_buff_head	arp_queue;
 	struct timer_list	timer;
 	unsigned long		used;
 	atomic_t		probes;
-	rwlock_t		lock;
+	__u8			flags;
+	__u8			nud_state;
+	__u8			type;
+	__u8			dead;
 	seqlock_t		ha_lock;
 	unsigned char		ha[ALIGN(MAX_ADDR_LEN, sizeof(unsigned long))];
 	struct hh_cache		*hh;
@@ -303,7 +303,7 @@ static inline void neigh_confirm(struct neighbour *neigh)
 
 static inline int neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 {
-	unsigned long now = ACCESS_ONCE(jiffies);
+	unsigned long now = jiffies;
 	
 	if (neigh->used != now)
 		neigh->used = now;

@@ -375,7 +375,10 @@ static void ql_get_drvinfo(struct net_device *ndev,
 	strncpy(drvinfo->bus_info, pci_name(qdev->pdev), 32);
 	drvinfo->n_stats = 0;
 	drvinfo->testinfo_len = 0;
-	drvinfo->regdump_len = 0;
+	if (!test_bit(QL_FRC_COREDUMP, &qdev->flags))
+		drvinfo->regdump_len = sizeof(struct ql_mpi_coredump);
+	else
+		drvinfo->regdump_len = sizeof(struct ql_reg_dump);
 	drvinfo->eedump_len = 0;
 }
 
@@ -547,7 +550,12 @@ static void ql_self_test(struct net_device *ndev,
 
 static int ql_get_regs_len(struct net_device *ndev)
 {
-	return sizeof(struct ql_reg_dump);
+	struct ql_adapter *qdev = netdev_priv(ndev);
+
+	if (!test_bit(QL_FRC_COREDUMP, &qdev->flags))
+		return sizeof(struct ql_mpi_coredump);
+	else
+		return sizeof(struct ql_reg_dump);
 }
 
 static void ql_get_regs(struct net_device *ndev,
@@ -555,7 +563,12 @@ static void ql_get_regs(struct net_device *ndev,
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
 
-	ql_gen_reg_dump(qdev, p);
+	ql_get_dump(qdev, p);
+	qdev->core_is_dumped = 0;
+	if (!test_bit(QL_FRC_COREDUMP, &qdev->flags))
+		regs->len = sizeof(struct ql_mpi_coredump);
+	else
+		regs->len = sizeof(struct ql_reg_dump);
 }
 
 static int ql_get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)

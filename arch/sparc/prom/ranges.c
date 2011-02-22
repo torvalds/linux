@@ -13,8 +13,8 @@
 #include <asm/types.h>
 #include <asm/system.h>
 
-struct linux_prom_ranges promlib_obio_ranges[PROMREG_MAX];
-int num_obio_ranges;
+static struct linux_prom_ranges promlib_obio_ranges[PROMREG_MAX];
+static int num_obio_ranges;
 
 /* Adjust register values based upon the ranges parameters. */
 static void
@@ -35,7 +35,7 @@ prom_adjust_regs(struct linux_prom_registers *regp, int nregs,
 	}
 }
 
-void
+static void
 prom_adjust_ranges(struct linux_prom_ranges *ranges1, int nranges1,
 		   struct linux_prom_ranges *ranges2, int nranges2)
 {

@@ -505,7 +505,7 @@ void sym_log_bus_error(struct Scsi_Host *shost)
  * queuecommand method.  Entered with the host adapter lock held and
  * interrupts disabled.
  */
-static int sym53c8xx_queue_command(struct scsi_cmnd *cmd,
+static int sym53c8xx_queue_command_lck(struct scsi_cmnd *cmd,
 					void (*done)(struct scsi_cmnd *))
 {
 	struct sym_hcb *np = SYM_SOFTC_PTR(cmd);
@@ -535,6 +535,8 @@ static int sym53c8xx_queue_command(struct scsi_cmnd *cmd,
 		return SCSI_MLQUEUE_HOST_BUSY;
 	return 0;
 }
+
+static DEF_SCSI_QCMD(sym53c8xx_queue_command)
 
 /*
  *  Linux entry point of the interrupt handler.
@@ -1864,7 +1866,7 @@ static pci_ers_result_t sym2_io_slot_dump(struct pci_dev *pdev)
  *
  * This routine is similar to sym_set_workarounds(), except
  * that, at this point, we already know that the device was
- * successfully intialized at least once before, and so most
+ * successfully initialized at least once before, and so most
  * of the steps taken there are un-needed here.
  */
 static void sym2_reset_workarounds(struct pci_dev *pdev)

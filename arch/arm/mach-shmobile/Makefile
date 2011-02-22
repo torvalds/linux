@@ -9,14 +9,34 @@ obj-y				:= timer.o console.o clock.o pm_runtime.o
 obj-$(CONFIG_ARCH_SH7367)	+= setup-sh7367.o clock-sh7367.o intc-sh7367.o
 obj-$(CONFIG_ARCH_SH7377)	+= setup-sh7377.o clock-sh7377.o intc-sh7377.o
 obj-$(CONFIG_ARCH_SH7372)	+= setup-sh7372.o clock-sh7372.o intc-sh7372.o
+obj-$(CONFIG_ARCH_SH73A0)	+= setup-sh73a0.o clock-sh73a0.o intc-sh73a0.o
+
+# SMP objects
+smp-y				:= platsmp.o headsmp.o
+smp-$(CONFIG_HOTPLUG_CPU)	+= hotplug.o
+smp-$(CONFIG_LOCAL_TIMERS)	+= localtimer.o
+smp-$(CONFIG_ARCH_SH73A0)	+= smp-sh73a0.o
 
 # Pinmux setup
-pfc-$(CONFIG_ARCH_SH7367)	:= pfc-sh7367.o
-pfc-$(CONFIG_ARCH_SH7377)	:= pfc-sh7377.o
-pfc-$(CONFIG_ARCH_SH7372)	:= pfc-sh7372.o
-obj-$(CONFIG_GENERIC_GPIO)	+= $(pfc-y)
+pfc-y				:=
+pfc-$(CONFIG_ARCH_SH7367)	+= pfc-sh7367.o
+pfc-$(CONFIG_ARCH_SH7377)	+= pfc-sh7377.o
+pfc-$(CONFIG_ARCH_SH7372)	+= pfc-sh7372.o
+pfc-$(CONFIG_ARCH_SH73A0)	+= pfc-sh73a0.o
+
+# IRQ objects
+obj-$(CONFIG_ARCH_SH7367)	+= entry-intc.o
+obj-$(CONFIG_ARCH_SH7377)	+= entry-intc.o
+obj-$(CONFIG_ARCH_SH7372)	+= entry-intc.o
+obj-$(CONFIG_ARCH_SH73A0)	+= entry-gic.o
 
 # Board objects
 obj-$(CONFIG_MACH_G3EVM)	+= board-g3evm.o
 obj-$(CONFIG_MACH_G4EVM)	+= board-g4evm.o
 obj-$(CONFIG_MACH_AP4EVB)	+= board-ap4evb.o
+obj-$(CONFIG_MACH_AG5EVM)	+= board-ag5evm.o
+obj-$(CONFIG_MACH_MACKEREL)	+= board-mackerel.o
+
+# Framework support
+obj-$(CONFIG_SMP)		+= $(smp-y)
+obj-$(CONFIG_GENERIC_GPIO)	+= $(pfc-y)

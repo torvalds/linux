@@ -417,7 +417,7 @@ static int __devexit ds1374_remove(struct i2c_client *client)
 		mutex_unlock(&ds1374->mutex);
 
 		free_irq(client->irq, client);
-		flush_scheduled_work();
+		cancel_work_sync(&ds1374->work);
 	}
 
 	rtc_device_unregister(ds1374->rtc);

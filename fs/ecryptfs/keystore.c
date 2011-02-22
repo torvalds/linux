@@ -59,7 +59,7 @@ static int process_request_key_err(long err_code)
 		break;
 	default:
 		ecryptfs_printk(KERN_WARNING, "Unknown error code: "
-				"[0x%.16x]\n", err_code);
+				"[0x%.16lx]\n", err_code);
 		rc = -EINVAL;
 	}
 	return rc;
@@ -130,7 +130,7 @@ int ecryptfs_write_packet_length(char *dest, size_t size,
 	} else {
 		rc = -EINVAL;
 		ecryptfs_printk(KERN_WARNING,
-				"Unsupported packet size: [%d]\n", size);
+				"Unsupported packet size: [%zd]\n", size);
 	}
 	return rc;
 }
@@ -1672,7 +1672,7 @@ decrypt_passphrase_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 	       auth_tok->session_key.decrypted_key_size);
 	crypt_stat->flags |= ECRYPTFS_KEY_VALID;
 	if (unlikely(ecryptfs_verbosity > 0)) {
-		ecryptfs_printk(KERN_DEBUG, "FEK of size [%d]:\n",
+		ecryptfs_printk(KERN_DEBUG, "FEK of size [%zd]:\n",
 				crypt_stat->key_size);
 		ecryptfs_dump_hex(crypt_stat->key,
 				  crypt_stat->key_size);
@@ -1754,7 +1754,7 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 			if (ECRYPTFS_SIG_SIZE != tag_11_contents_size) {
 				ecryptfs_printk(KERN_ERR, "Expected "
 						"signature of size [%d]; "
-						"read size [%d]\n",
+						"read size [%zd]\n",
 						ECRYPTFS_SIG_SIZE,
 						tag_11_contents_size);
 				rc = -EIO;
@@ -1787,8 +1787,8 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 			goto out_wipe_list;
 			break;
 		default:
-			ecryptfs_printk(KERN_DEBUG, "No packet at offset "
-					"[%d] of the file header; hex value of "
+			ecryptfs_printk(KERN_DEBUG, "No packet at offset [%zd] "
+					"of the file header; hex value of "
 					"character is [0x%.2x]\n", i, src[i]);
 			next_packet_is_auth_tok_packet = 0;
 		}
@@ -1864,8 +1864,8 @@ found_matching_auth_tok:
 				"session key for authentication token with sig "
 				"[%.*s]; rc = [%d]. Removing auth tok "
 				"candidate from the list and searching for "
-				"the next match.\n", candidate_auth_tok_sig,
-				ECRYPTFS_SIG_SIZE_HEX, rc);
+				"the next match.\n", ECRYPTFS_SIG_SIZE_HEX,
+				candidate_auth_tok_sig,	rc);
 		list_for_each_entry_safe(auth_tok_list_item,
 					 auth_tok_list_item_tmp,
 					 &auth_tok_list, list) {
@@ -2168,7 +2168,7 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 	if (encrypted_session_key_valid) {
 		ecryptfs_printk(KERN_DEBUG, "encrypted_session_key_valid != 0; "
 				"using auth_tok->session_key.encrypted_key, "
-				"where key_rec->enc_key_size = [%d]\n",
+				"where key_rec->enc_key_size = [%zd]\n",
 				key_rec->enc_key_size);
 		memcpy(key_rec->enc_key,
 		       auth_tok->session_key.encrypted_key,
@@ -2198,7 +2198,7 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 	if (rc < 1 || rc > 2) {
 		ecryptfs_printk(KERN_ERR, "Error generating scatterlist "
 				"for crypt_stat session key; expected rc = 1; "
-				"got rc = [%d]. key_rec->enc_key_size = [%d]\n",
+				"got rc = [%d]. key_rec->enc_key_size = [%zd]\n",
 				rc, key_rec->enc_key_size);
 		rc = -ENOMEM;
 		goto out;
@@ -2209,7 +2209,7 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 		ecryptfs_printk(KERN_ERR, "Error generating scatterlist "
 				"for crypt_stat encrypted session key; "
 				"expected rc = 1; got rc = [%d]. "
-				"key_rec->enc_key_size = [%d]\n", rc,
+				"key_rec->enc_key_size = [%zd]\n", rc,
 				key_rec->enc_key_size);
 		rc = -ENOMEM;
 		goto out;
@@ -2224,7 +2224,7 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 		goto out;
 	}
 	rc = 0;
-	ecryptfs_printk(KERN_DEBUG, "Encrypting [%d] bytes of the key\n",
+	ecryptfs_printk(KERN_DEBUG, "Encrypting [%zd] bytes of the key\n",
 			crypt_stat->key_size);
 	rc = crypto_blkcipher_encrypt(&desc, dst_sg, src_sg,
 				      (*key_rec).enc_key_size);
@@ -2235,7 +2235,7 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 	}
 	ecryptfs_printk(KERN_DEBUG, "This should be the encrypted key:\n");
 	if (ecryptfs_verbosity > 0) {
-		ecryptfs_printk(KERN_DEBUG, "EFEK of size [%d]:\n",
+		ecryptfs_printk(KERN_DEBUG, "EFEK of size [%zd]:\n",
 				key_rec->enc_key_size);
 		ecryptfs_dump_hex(key_rec->enc_key,
 				  key_rec->enc_key_size);

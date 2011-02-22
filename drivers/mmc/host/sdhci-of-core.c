@@ -13,6 +13,7 @@
  * your option) any later version.
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -20,8 +21,12 @@
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/mmc/host.h>
+#ifdef CONFIG_PPC
 #include <asm/machdep.h>
+#endif
 #include "sdhci-of.h"
 #include "sdhci.h"
 
@@ -112,7 +117,11 @@ static bool __devinit sdhci_of_wp_inverted(struct device_node *np)
 		return true;
 
 	/* Old device trees don't have the wp-inverted property. */
+#ifdef CONFIG_PPC
 	return machine_is(mpc837x_rdb) || machine_is(mpc837x_mds);
+#else
+	return false;
+#endif
 }
 
 static int __devinit sdhci_of_probe(struct platform_device *ofdev,
@@ -122,7 +131,7 @@ static int __devinit sdhci_of_probe(struct platform_device *ofdev,
 	struct sdhci_of_data *sdhci_of_data = match->data;
 	struct sdhci_host *host;
 	struct sdhci_of_host *of_host;
-	const u32 *clk;
+	const __be32 *clk;
 	int size;
 	int ret;
 
@@ -166,7 +175,7 @@ static int __devinit sdhci_of_probe(struct platform_device *ofdev,
 
 	clk = of_get_property(np, "clock-frequency", &size);
 	if (clk && size == sizeof(*clk) && *clk)
-		of_host->clock = *clk;
+		of_host->clock = be32_to_cpup(clk);
 
 	ret = sdhci_add_host(host);
 	if (ret)

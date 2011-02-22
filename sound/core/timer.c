@@ -34,8 +34,8 @@
 #include <sound/initval.h>
 #include <linux/kmod.h>
 
-#if defined(CONFIG_SND_HPET) || defined(CONFIG_SND_HPET_MODULE)
-#define DEFAULT_TIMER_LIMIT 3
+#if defined(CONFIG_SND_HRTIMER) || defined(CONFIG_SND_HRTIMER_MODULE)
+#define DEFAULT_TIMER_LIMIT 4
 #elif defined(CONFIG_SND_RTCTIMER) || defined(CONFIG_SND_RTCTIMER_MODULE)
 #define DEFAULT_TIMER_LIMIT 2
 #else
@@ -51,6 +51,9 @@ module_param(timer_limit, int, 0444);
 MODULE_PARM_DESC(timer_limit, "Maximum global timers in system.");
 module_param(timer_tstamp_monotonic, int, 0444);
 MODULE_PARM_DESC(timer_tstamp_monotonic, "Use posix monotonic clock source for timestamps (default).");
+
+MODULE_ALIAS_CHARDEV(CONFIG_SND_MAJOR, SNDRV_MINOR_TIMER);
+MODULE_ALIAS("devname:snd/timer");
 
 struct snd_timer_user {
 	struct snd_timer_instance *timeri;

@@ -22,7 +22,7 @@ static int my3126_interrupt_enable(struct cphy *cphy)
 
 static int my3126_interrupt_disable(struct cphy *cphy)
 {
-	cancel_rearming_delayed_work(&cphy->phy_update);
+	cancel_delayed_work_sync(&cphy->phy_update);
 	return 0;
 }
 

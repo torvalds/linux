@@ -959,7 +959,7 @@ static void mcs_disconnect(struct usb_interface *intf)
 	if (!mcs)
 		return;
 
-	flush_scheduled_work();
+	cancel_work_sync(&mcs->work);
 
 	unregister_netdev(mcs->netdev);
 	free_netdev(mcs->netdev);

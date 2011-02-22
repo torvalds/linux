@@ -475,11 +475,8 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 {
 	struct net_bridge_port *p;
 
-	if (!br_port_exists(dev))
-		return -EINVAL;
-
-	p = br_port_get(dev);
-	if (p->br != br)
+	p = br_port_get_rtnl(dev);
+	if (!p || p->br != br)
 		return -EINVAL;
 
 	del_nbp(p);

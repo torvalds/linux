@@ -58,8 +58,6 @@ MODULE_AUTHOR("Ville Nuorvala");
 MODULE_DESCRIPTION("IPv6 tunneling device");
 MODULE_LICENSE("GPL");
 
-#define IPV6_TLV_TEL_DST_SIZE 8
-
 #ifdef IP6_TNL_DEBUG
 #define IP6_TNL_TRACE(x...) printk(KERN_DEBUG "%s:" x "\n", __func__)
 #else
@@ -1175,6 +1173,8 @@ static void ip6_tnl_link_config(struct ip6_tnl *t)
 				sizeof (struct ipv6hdr);
 
 			dev->mtu = rt->rt6i_dev->mtu - sizeof (struct ipv6hdr);
+			if (!(t->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT))
+				dev->mtu-=8;
 
 			if (dev->mtu < IPV6_MIN_MTU)
 				dev->mtu = IPV6_MIN_MTU;
@@ -1363,12 +1363,17 @@ static const struct net_device_ops ip6_tnl_netdev_ops = {
 
 static void ip6_tnl_dev_setup(struct net_device *dev)
 {
+	struct ip6_tnl *t;
+
 	dev->netdev_ops = &ip6_tnl_netdev_ops;
 	dev->destructor = ip6_dev_free;
 
 	dev->type = ARPHRD_TUNNEL6;
 	dev->hard_header_len = LL_MAX_HEADER + sizeof (struct ipv6hdr);
 	dev->mtu = ETH_DATA_LEN - sizeof (struct ipv6hdr);
+	t = netdev_priv(dev);
+	if (!(t->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT))
+		dev->mtu-=8;
 	dev->flags |= IFF_NOARP;
 	dev->addr_len = sizeof(struct in6_addr);
 	dev->features |= NETIF_F_NETNS_LOCAL;

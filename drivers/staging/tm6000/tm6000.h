@@ -266,6 +266,7 @@ struct tm6000_fh {
 int tm6000_tuner_callback(void *ptr, int component, int command, int arg);
 int tm6000_xc5000_callback(void *ptr, int component, int command, int arg);
 int tm6000_cards_setup(struct tm6000_core *dev);
+void tm6000_flash_led(struct tm6000_core *dev, u8 state);
 
 /* In tm6000-core.c */
 
@@ -332,6 +333,8 @@ int tm6000_queue_init(struct tm6000_core *dev);
 int tm6000_ir_init(struct tm6000_core *dev);
 int tm6000_ir_fini(struct tm6000_core *dev);
 void tm6000_ir_wait(struct tm6000_core *dev, u8 state);
+int tm6000_ir_int_start(struct tm6000_core *dev);
+void tm6000_ir_int_stop(struct tm6000_core *dev);
 
 /* Debug stuff */
 

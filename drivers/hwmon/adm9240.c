@@ -20,7 +20,7 @@
  * Alarms	16-bit map of active alarms
  * Analog Out	0..1250 mV output
  *
- * Chassis Intrusion: clear CI latch with 'echo 1 > chassis_clear'
+ * Chassis Intrusion: clear CI latch with 'echo 0 > intrusion0_alarm'
  *
  * Test hardware: Intel SE440BX-2 desktop motherboard --Grant
  *
@@ -476,12 +476,15 @@ static ssize_t set_aout(struct device *dev,
 static DEVICE_ATTR(aout_output, S_IRUGO | S_IWUSR, show_aout, set_aout);
 
 /* chassis_clear */
-static ssize_t chassis_clear(struct device *dev,
+static ssize_t chassis_clear_legacy(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	unsigned long val = simple_strtol(buf, NULL, 10);
+
+	dev_warn(dev, "Attribute chassis_clear is deprecated, "
+		 "use intrusion0_alarm instead\n");
 
 	if (val == 1) {
 		i2c_smbus_write_byte_data(client,
@@ -490,7 +493,29 @@ static ssize_t chassis_clear(struct device *dev,
 	}
 	return count;
 }
-static DEVICE_ATTR(chassis_clear, S_IWUSR, NULL, chassis_clear);
+static DEVICE_ATTR(chassis_clear, S_IWUSR, NULL, chassis_clear_legacy);
+
+static ssize_t chassis_clear(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct adm9240_data *data = i2c_get_clientdata(client);
+	unsigned long val;
+
+	if (strict_strtoul(buf, 10, &val) || val != 0)
+		return -EINVAL;
+
+	mutex_lock(&data->update_lock);
+	i2c_smbus_write_byte_data(client, ADM9240_REG_CHASSIS_CLEAR, 0x80);
+	data->valid = 0;		/* Force cache refresh */
+	mutex_unlock(&data->update_lock);
+	dev_dbg(&client->dev, "chassis intrusion latch cleared\n");
+
+	return count;
+}
+static SENSOR_DEVICE_ATTR(intrusion0_alarm, S_IRUGO | S_IWUSR, show_alarm,
+		chassis_clear, 12);
 
 static struct attribute *adm9240_attributes[] = {
 	&sensor_dev_attr_in0_input.dev_attr.attr,
@@ -532,6 +557,7 @@ static struct attribute *adm9240_attributes[] = {
 	&dev_attr_alarms.attr,
 	&dev_attr_aout_output.attr,
 	&dev_attr_chassis_clear.attr,
+	&sensor_dev_attr_intrusion0_alarm.dev_attr.attr,
 	&dev_attr_cpu0_vid.attr,
 	NULL
 };

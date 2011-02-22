@@ -1268,7 +1268,7 @@ struct xfrm_state * xfrm_state_migrate(struct xfrm_state *x,
 
 	return xc;
 error:
-	kfree(xc);
+	xfrm_state_put(xc);
 	return NULL;
 }
 EXPORT_SYMBOL(xfrm_state_migrate);

@@ -387,7 +387,7 @@ static int __devinit sh4_soc_dai_probe(struct platform_device *pdev)
 
 static int __devexit sh4_soc_dai_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_dai(&pdev->dev, ARRAY_SIZE(sh4_ssi_dai));
+	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(sh4_ssi_dai));
 	return 0;
 }
 

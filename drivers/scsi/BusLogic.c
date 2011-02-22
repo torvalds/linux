@@ -2807,7 +2807,7 @@ static int BusLogic_host_reset(struct scsi_cmnd * SCpnt)
   Outgoing Mailbox for execution by the associated Host Adapter.
 */
 
-static int BusLogic_QueueCommand(struct scsi_cmnd *Command, void (*CompletionRoutine) (struct scsi_cmnd *))
+static int BusLogic_QueueCommand_lck(struct scsi_cmnd *Command, void (*CompletionRoutine) (struct scsi_cmnd *))
 {
 	struct BusLogic_HostAdapter *HostAdapter = (struct BusLogic_HostAdapter *) Command->device->host->hostdata;
 	struct BusLogic_TargetFlags *TargetFlags = &HostAdapter->TargetFlags[Command->device->id];
@@ -2994,6 +2994,7 @@ static int BusLogic_QueueCommand(struct scsi_cmnd *Command, void (*CompletionRou
 	return 0;
 }
 
+static DEF_SCSI_QCMD(BusLogic_QueueCommand)
 
 #if 0
 /*

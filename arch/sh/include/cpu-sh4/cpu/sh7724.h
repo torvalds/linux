@@ -303,4 +303,7 @@ enum {
 	SHDMA_SLAVE_SDHI1_RX,
 };
 
+extern struct clk sh7724_fsimcka_clk;
+extern struct clk sh7724_fsimckb_clk;
+
 #endif /* __ASM_SH7724_H__ */

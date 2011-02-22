@@ -164,13 +164,10 @@ struct ath9k_debug {
 };
 
 int ath9k_init_debug(struct ath_hw *ah);
-void ath9k_exit_debug(struct ath_hw *ah);
 
-int ath9k_debug_create_root(void);
-void ath9k_debug_remove_root(void);
 void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status);
-void ath_debug_stat_tx(struct ath_softc *sc, struct ath_txq *txq,
-		       struct ath_buf *bf, struct ath_tx_status *ts);
+void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
+		       struct ath_tx_status *ts);
 void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs);
 
 #else
@@ -180,26 +177,12 @@ static inline int ath9k_init_debug(struct ath_hw *ah)
 	return 0;
 }
 
-static inline void ath9k_exit_debug(struct ath_hw *ah)
-{
-}
-
-static inline int ath9k_debug_create_root(void)
-{
-	return 0;
-}
-
-static inline void ath9k_debug_remove_root(void)
-{
-}
-
 static inline void ath_debug_stat_interrupt(struct ath_softc *sc,
 					    enum ath9k_int status)
 {
 }
 
 static inline void ath_debug_stat_tx(struct ath_softc *sc,
-				     struct ath_txq *txq,
 				     struct ath_buf *bf,
 				     struct ath_tx_status *ts)
 {

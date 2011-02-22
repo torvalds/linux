@@ -436,56 +436,55 @@ static ssize_t mci_reset_counters_store(struct mem_ctl_info *mci,
 	return count;
 }
 
-/* memory scrubbing */
+/* Memory scrubbing interface:
+ *
+ * A MC driver can limit the scrubbing bandwidth based on the CPU type.
+ * Therefore, ->set_sdram_scrub_rate should be made to return the actual
+ * bandwidth that is accepted or 0 when scrubbing is to be disabled.
+ *
+ * Negative value still means that an error has occurred while setting
+ * the scrub rate.
+ */
 static ssize_t mci_sdram_scrub_rate_store(struct mem_ctl_info *mci,
 					  const char *data, size_t count)
 {
 	unsigned long bandwidth = 0;
-	int err;
+	int new_bw = 0;
 
-	if (!mci->set_sdram_scrub_rate) {
-		edac_printk(KERN_WARNING, EDAC_MC,
-			    "Memory scrub rate setting not implemented!\n");
+	if (!mci->set_sdram_scrub_rate)
 		return -EINVAL;
-	}
 
 	if (strict_strtoul(data, 10, &bandwidth) < 0)
 		return -EINVAL;
 
-	err = mci->set_sdram_scrub_rate(mci, (u32)bandwidth);
-	if (err) {
-		edac_printk(KERN_DEBUG, EDAC_MC,
-			    "Failed setting scrub rate to %lu\n", bandwidth);
-		return -EINVAL;
-	}
-	else {
-		edac_printk(KERN_DEBUG, EDAC_MC,
-			    "Scrub rate set to: %lu\n", bandwidth);
+	new_bw = mci->set_sdram_scrub_rate(mci, bandwidth);
+	if (new_bw >= 0) {
+		edac_printk(KERN_DEBUG, EDAC_MC, "Scrub rate set to %d\n", new_bw);
 		return count;
 	}
+
+	edac_printk(KERN_DEBUG, EDAC_MC, "Error setting scrub rate to: %lu\n", bandwidth);
+	return -EINVAL;
 }
 
+/*
+ * ->get_sdram_scrub_rate() return value semantics same as above.
+ */
 static ssize_t mci_sdram_scrub_rate_show(struct mem_ctl_info *mci, char *data)
 {
-	u32 bandwidth = 0;
-	int err;
+	int bandwidth = 0;
 
-	if (!mci->get_sdram_scrub_rate) {
-		edac_printk(KERN_WARNING, EDAC_MC,
-			    "Memory scrub rate reading not implemented\n");
+	if (!mci->get_sdram_scrub_rate)
 		return -EINVAL;
+
+	bandwidth = mci->get_sdram_scrub_rate(mci);
+	if (bandwidth < 0) {
+		edac_printk(KERN_DEBUG, EDAC_MC, "Error reading scrub rate\n");
+		return bandwidth;
 	}
 
-	err = mci->get_sdram_scrub_rate(mci, &bandwidth);
-	if (err) {
-		edac_printk(KERN_DEBUG, EDAC_MC, "Error reading scrub rate\n");
-		return err;
-	}
-	else {
-		edac_printk(KERN_DEBUG, EDAC_MC,
-			    "Read scrub rate: %d\n", bandwidth);
-		return sprintf(data, "%d\n", bandwidth);
-	}
+	edac_printk(KERN_DEBUG, EDAC_MC, "Read scrub rate: %d\n", bandwidth);
+	return sprintf(data, "%d\n", bandwidth);
 }
 
 /* default attribute files for the MCI object */

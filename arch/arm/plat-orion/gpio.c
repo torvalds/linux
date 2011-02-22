@@ -232,20 +232,19 @@ EXPORT_SYMBOL(orion_gpio_set_blink);
  *        polarity    LEVEL          mask
  *
  ****************************************************************************/
-
-static void gpio_irq_ack(u32 irq)
+static void gpio_irq_ack(struct irq_data *d)
 {
-	int type = irq_desc[irq].status & IRQ_TYPE_SENSE_MASK;
+	int type = irq_desc[d->irq].status & IRQ_TYPE_SENSE_MASK;
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
-		int pin = irq_to_gpio(irq);
+		int pin = irq_to_gpio(d->irq);
 		writel(~(1 << (pin & 31)), GPIO_EDGE_CAUSE(pin));
 	}
 }
 
-static void gpio_irq_mask(u32 irq)
+static void gpio_irq_mask(struct irq_data *d)
 {
-	int pin = irq_to_gpio(irq);
-	int type = irq_desc[irq].status & IRQ_TYPE_SENSE_MASK;
+	int pin = irq_to_gpio(d->irq);
+	int type = irq_desc[d->irq].status & IRQ_TYPE_SENSE_MASK;
 	u32 reg = (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) ?
 		GPIO_EDGE_MASK(pin) : GPIO_LEVEL_MASK(pin);
 	u32 u = readl(reg);
@@ -253,10 +252,10 @@ static void gpio_irq_mask(u32 irq)
 	writel(u, reg);
 }
 
-static void gpio_irq_unmask(u32 irq)
+static void gpio_irq_unmask(struct irq_data *d)
 {
-	int pin = irq_to_gpio(irq);
-	int type = irq_desc[irq].status & IRQ_TYPE_SENSE_MASK;
+	int pin = irq_to_gpio(d->irq);
+	int type = irq_desc[d->irq].status & IRQ_TYPE_SENSE_MASK;
 	u32 reg = (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) ?
 		GPIO_EDGE_MASK(pin) : GPIO_LEVEL_MASK(pin);
 	u32 u = readl(reg);
@@ -264,20 +263,20 @@ static void gpio_irq_unmask(u32 irq)
 	writel(u, reg);
 }
 
-static int gpio_irq_set_type(u32 irq, u32 type)
+static int gpio_irq_set_type(struct irq_data *d, u32 type)
 {
-	int pin = irq_to_gpio(irq);
+	int pin = irq_to_gpio(d->irq);
 	struct irq_desc *desc;
 	u32 u;
 
 	u = readl(GPIO_IO_CONF(pin)) & (1 << (pin & 31));
 	if (!u) {
 		printk(KERN_ERR "orion gpio_irq_set_type failed "
-				"(irq %d, pin %d).\n", irq, pin);
+				"(irq %d, pin %d).\n", d->irq, pin);
 		return -EINVAL;
 	}
 
-	desc = irq_desc + irq;
+	desc = irq_desc + d->irq;
 
 	/*
 	 * Set edge/level type.
@@ -287,7 +286,7 @@ static int gpio_irq_set_type(u32 irq, u32 type)
 	} else if (type & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW)) {
 		desc->handle_irq = handle_level_irq;
 	} else {
-		printk(KERN_ERR "failed to set irq=%d (type=%d)\n", irq, type);
+		printk(KERN_ERR "failed to set irq=%d (type=%d)\n", d->irq, type);
 		return -EINVAL;
 	}
 
@@ -325,10 +324,10 @@ static int gpio_irq_set_type(u32 irq, u32 type)
 
 struct irq_chip orion_gpio_irq_chip = {
 	.name		= "orion_gpio_irq",
-	.ack		= gpio_irq_ack,
-	.mask		= gpio_irq_mask,
-	.unmask		= gpio_irq_unmask,
-	.set_type	= gpio_irq_set_type,
+	.irq_ack	= gpio_irq_ack,
+	.irq_mask	= gpio_irq_mask,
+	.irq_unmask	= gpio_irq_unmask,
+	.irq_set_type	= gpio_irq_set_type,
 };
 
 void orion_gpio_irq_handler(int pinoff)

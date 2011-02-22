@@ -1,3 +1,25 @@
+Release Date    : Tues.  Dec 14, 2010 17:00:00 PST 2010 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford
+Current Version : 00.00.05.29-rc1
+Old Version     : 00.00.04.31-rc1
+    1. Rename megaraid_sas.c to megaraid_sas_base.c.
+    2. Update GPL headers.
+    3. Add MSI-X support and 'msix_disable' module parameter.
+    4. Use lowest memory bar (for SR-IOV VF support).
+    5. Add struct megasas_instance_temlate changes, and change all code to use
+       new instance entries:
+
+       irqreturn_t (*service_isr )(int irq, void *devp);
+       void (*tasklet)(unsigned long);
+       u32 (*init_adapter)(struct megasas_instance *);
+       u32 (*build_and_issue_cmd) (struct megasas_instance *,
+       struct scsi_cmnd *);
+       void (*issue_dcmd) (struct megasas_instance *instance,
+                              struct megasas_cmd *cmd);
+
+   6. Add code to support MegaRAID 9265/9285 controllers device id (0x5b).
+-------------------------------------------------------------------------------
 1 Release Date    : Thur.  May 03, 2010 09:12:45 PST 2009 -
 			(emaild-id:megaraidlinux@lsi.com)
 			Bo Yang

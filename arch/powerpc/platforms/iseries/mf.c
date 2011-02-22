@@ -1045,71 +1045,9 @@ static const struct file_operations mf_side_proc_fops = {
 	.write		= mf_side_proc_write,
 };
 
-#if 0
-static void mf_getSrcHistory(char *buffer, int size)
-{
-	struct IplTypeReturnStuff return_stuff;
-	struct pending_event *ev = new_pending_event();
-	int rc = 0;
-	char *pages[4];
-
-	pages[0] = kmalloc(4096, GFP_ATOMIC);
-	pages[1] = kmalloc(4096, GFP_ATOMIC);
-	pages[2] = kmalloc(4096, GFP_ATOMIC);
-	pages[3] = kmalloc(4096, GFP_ATOMIC);
-	if ((ev == NULL) || (pages[0] == NULL) || (pages[1] == NULL)
-			 || (pages[2] == NULL) || (pages[3] == NULL))
-		return -ENOMEM;
-
-	return_stuff.xType = 0;
-	return_stuff.xRc = 0;
-	return_stuff.xDone = 0;
-	ev->event.hp_lp_event.xSubtype = 6;
-	ev->event.hp_lp_event.x.xSubtypeData =
-		subtype_data('M', 'F', 'V', 'I');
-	ev->event.data.vsp_cmd.xEvent = &return_stuff;
-	ev->event.data.vsp_cmd.cmd = 4;
-	ev->event.data.vsp_cmd.lp_index = HvLpConfig_getLpIndex();
-	ev->event.data.vsp_cmd.result_code = 0xFF;
-	ev->event.data.vsp_cmd.reserved = 0;
-	ev->event.data.vsp_cmd.sub_data.page[0] = iseries_hv_addr(pages[0]);
-	ev->event.data.vsp_cmd.sub_data.page[1] = iseries_hv_addr(pages[1]);
-	ev->event.data.vsp_cmd.sub_data.page[2] = iseries_hv_addr(pages[2]);
-	ev->event.data.vsp_cmd.sub_data.page[3] = iseries_hv_addr(pages[3]);
-	mb();
-	if (signal_event(ev) != 0)
-		return;
-
- 	while (return_stuff.xDone != 1)
- 		udelay(10);
- 	if (return_stuff.xRc == 0)
- 		memcpy(buffer, pages[0], size);
-	kfree(pages[0]);
-	kfree(pages[1]);
-	kfree(pages[2]);
-	kfree(pages[3]);
-}
-#endif
-
 static int mf_src_proc_show(struct seq_file *m, void *v)
 {
-#if 0
-	int len;
-
-	mf_getSrcHistory(page, count);
-	len = count;
-	len -= off;
-	if (len < count) {
-		*eof = 1;
-		if (len <= 0)
-			return 0;
-	} else
-		len = count;
-	*start = page + off;
-	return len;
-#else
 	return 0;
-#endif
 }
 
 static int mf_src_proc_open(struct inode *inode, struct file *file)

@@ -47,7 +47,7 @@ static ssize_t ecryptfs_read_update_atime(struct kiocb *iocb,
 				const struct iovec *iov,
 				unsigned long nr_segs, loff_t pos)
 {
-	int rc;
+	ssize_t rc;
 	struct dentry *lower_dentry;
 	struct vfsmount *lower_vfsmount;
 	struct file *file = iocb->ki_filp;
@@ -191,18 +191,16 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 				      | ECRYPTFS_ENCRYPTED);
 	}
 	mutex_unlock(&crypt_stat->cs_mutex);
-	if (!ecryptfs_inode_to_private(inode)->lower_file) {
-		rc = ecryptfs_init_persistent_file(ecryptfs_dentry);
-		if (rc) {
-			printk(KERN_ERR "%s: Error attempting to initialize "
-			       "the persistent file for the dentry with name "
-			       "[%s]; rc = [%d]\n", __func__,
-			       ecryptfs_dentry->d_name.name, rc);
-			goto out_free;
-		}
+	rc = ecryptfs_init_persistent_file(ecryptfs_dentry);
+	if (rc) {
+		printk(KERN_ERR "%s: Error attempting to initialize "
+			"the persistent file for the dentry with name "
+			"[%s]; rc = [%d]\n", __func__,
+			ecryptfs_dentry->d_name.name, rc);
+		goto out_free;
 	}
-	if ((ecryptfs_inode_to_private(inode)->lower_file->f_flags & O_RDONLY)
-	    && !(file->f_flags & O_RDONLY)) {
+	if ((ecryptfs_inode_to_private(inode)->lower_file->f_flags & O_ACCMODE)
+	    == O_RDONLY && (file->f_flags & O_ACCMODE) != O_RDONLY) {
 		rc = -EPERM;
 		printk(KERN_WARNING "%s: Lower persistent file is RO; eCryptfs "
 		       "file must hence be opened RO\n", __func__);
@@ -243,9 +241,9 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 		}
 	}
 	mutex_unlock(&crypt_stat->cs_mutex);
-	ecryptfs_printk(KERN_DEBUG, "inode w/ addr = [0x%p], i_ino = [0x%.16x] "
-			"size: [0x%.16x]\n", inode, inode->i_ino,
-			i_size_read(inode));
+	ecryptfs_printk(KERN_DEBUG, "inode w/ addr = [0x%p], i_ino = "
+			"[0x%.16lx] size: [0x%.16llx]\n", inode, inode->i_ino,
+			(unsigned long long)i_size_read(inode));
 	goto out;
 out_free:
 	kmem_cache_free(ecryptfs_file_info_cache,

@@ -590,6 +590,10 @@ int kvm_emulate_halt(struct kvm_vcpu *vcpu);
 int kvm_pal_emul(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run);
 void kvm_sal_emul(struct kvm_vcpu *vcpu);
 
+#define __KVM_HAVE_ARCH_VM_ALLOC 1
+struct kvm *kvm_arch_alloc_vm(void);
+void kvm_arch_free_vm(struct kvm *kvm);
+
 #endif /* __ASSEMBLY__*/
 
 #endif

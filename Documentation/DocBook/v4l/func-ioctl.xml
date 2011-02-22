@@ -34,8 +34,7 @@
       <varlistentry>
 	<term><parameter>request</parameter></term>
 	<listitem>
-	  <para>V4L2 ioctl request code as defined in the <link
-linkend="videodev">videodev.h</link> header file, for example
+	  <para>V4L2 ioctl request code as defined in the <filename>videodev2.h</filename> header file, for example
 VIDIOC_QUERYCAP.</para>
 	</listitem>
       </varlistentry>
@@ -57,7 +56,7 @@ file descriptor. An ioctl <parameter>request</parameter> has encoded
 in it whether the argument is an input, output or read/write
 parameter, and the size of the argument <parameter>argp</parameter> in
 bytes. Macros and defines specifying V4L2 ioctl requests are located
-in the <link linkend="videodev">videodev.h</link> header file.
+in the <filename>videodev2.h</filename> header file.
 Applications should use their own copy, not include the version in the
 kernel sources on the system they compile on. All V4L2 ioctl requests,
 their respective function and parameters are specified in <xref

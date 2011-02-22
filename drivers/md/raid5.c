@@ -1721,7 +1721,6 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 		set_bit(Faulty, &rdev->flags);
 		printk(KERN_ALERT
 		       "md/raid:%s: Disk failure on %s, disabling device.\n"
-		       KERN_ALERT
 		       "md/raid:%s: Operation continuing on %d devices.\n",
 		       mdname(mddev),
 		       bdevname(rdev->bdev, b),
@@ -4237,7 +4236,7 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 		wait_event(conf->wait_for_overlap,
 			   atomic_read(&conf->reshape_stripes)==0);
 		mddev->reshape_position = conf->reshape_progress;
-		mddev->curr_resync_completed = mddev->curr_resync;
+		mddev->curr_resync_completed = sector_nr;
 		conf->reshape_checkpoint = jiffies;
 		set_bit(MD_CHANGE_DEVS, &mddev->flags);
 		md_wakeup_thread(mddev->thread);
@@ -4338,7 +4337,7 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 		wait_event(conf->wait_for_overlap,
 			   atomic_read(&conf->reshape_stripes) == 0);
 		mddev->reshape_position = conf->reshape_progress;
-		mddev->curr_resync_completed = mddev->curr_resync + reshape_sectors;
+		mddev->curr_resync_completed = sector_nr;
 		conf->reshape_checkpoint = jiffies;
 		set_bit(MD_CHANGE_DEVS, &mddev->flags);
 		md_wakeup_thread(mddev->thread);
@@ -5339,7 +5338,7 @@ static int raid5_spare_active(mddev_t *mddev)
 		    && !test_bit(Faulty, &tmp->rdev->flags)
 		    && !test_and_set_bit(In_sync, &tmp->rdev->flags)) {
 			count++;
-			sysfs_notify_dirent(tmp->rdev->sysfs_state);
+			sysfs_notify_dirent_safe(tmp->rdev->sysfs_state);
 		}
 	}
 	spin_lock_irqsave(&conf->device_lock, flags);
@@ -5528,8 +5527,8 @@ static int raid5_start_reshape(mddev_t *mddev)
 		return -ENOSPC;
 
 	list_for_each_entry(rdev, &mddev->disks, same_set)
-		if (rdev->raid_disk < 0 &&
-		    !test_bit(Faulty, &rdev->flags))
+		if ((rdev->raid_disk < 0 || rdev->raid_disk >= conf->raid_disks)
+		     && !test_bit(Faulty, &rdev->flags))
 			spares++;
 
 	if (spares - mddev->degraded < mddev->delta_disks - conf->max_degraded)
@@ -5589,6 +5588,11 @@ static int raid5_start_reshape(mddev_t *mddev)
 					/* Failure here is OK */;
 			} else
 				break;
+		} else if (rdev->raid_disk >= conf->previous_raid_disks
+			   && !test_bit(Faulty, &rdev->flags)) {
+			/* This is a spare that was manually added */
+			set_bit(In_sync, &rdev->flags);
+			added_devices++;
 		}
 
 	/* When a reshape changes the number of devices, ->degraded

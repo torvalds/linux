@@ -607,7 +607,7 @@ struct t3_vpd {
  *
  *	Read a 32-bit word from a location in VPD EEPROM using the card's PCI
  *	VPD ROM capability.  A zero is written to the flag bit when the
- *	addres is written to the control register.  The hardware device will
+ *	address is written to the control register.  The hardware device will
  *	set the flag to 1 when 4 bytes have been read into the data register.
  */
 int t3_seeprom_read(struct adapter *adapter, u32 addr, __le32 *data)
@@ -1562,7 +1562,7 @@ static void tp_intr_handler(struct adapter *adapter)
 		{0}
 	};
 
-	static struct intr_info tp_intr_info_t3c[] = {
+	static const struct intr_info tp_intr_info_t3c[] = {
 		{0x1fffffff, "TP parity error", -1, 1},
 		{F_FLMRXFLSTEMPTY, "TP out of Rx pages", -1, 1},
 		{F_FLMTXFLSTEMPTY, "TP out of Tx pages", -1, 1},

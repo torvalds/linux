@@ -159,7 +159,9 @@ struct ocfs2_lock_res {
 	char                     l_name[OCFS2_LOCK_ID_MAX_LEN];
 	unsigned int             l_ro_holders;
 	unsigned int             l_ex_holders;
-	unsigned char            l_level;
+	signed char		 l_level;
+	signed char		 l_requested;
+	signed char		 l_blocking;
 
 	/* Data packed - type enum ocfs2_lock_type */
 	unsigned char            l_type;
@@ -169,8 +171,6 @@ struct ocfs2_lock_res {
 	unsigned char            l_action;
 	/* Data packed - enum type ocfs2_unlock_action */
 	unsigned char            l_unlock_action;
-	unsigned char            l_requested;
-	unsigned char            l_blocking;
 	unsigned int             l_pending_gen;
 
 	spinlock_t               l_lock;
@@ -420,6 +420,11 @@ struct ocfs2_super
 	struct inode			*osb_tl_inode;
 	struct buffer_head		*osb_tl_bh;
 	struct delayed_work		osb_truncate_log_wq;
+	/*
+	 * How many clusters in our truncate log.
+	 * It must be protected by osb_tl_inode->i_mutex.
+	 */
+	unsigned int truncated_clusters;
 
 	struct ocfs2_node_map		osb_recovering_orphan_dirs;
 	unsigned int			*osb_orphan_wipes;

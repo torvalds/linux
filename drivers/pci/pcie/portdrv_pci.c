@@ -57,6 +57,22 @@ __setup("pcie_ports=", pcie_port_setup);
 
 /* global data */
 
+/**
+ * pcie_clear_root_pme_status - Clear root port PME interrupt status.
+ * @dev: PCIe root port or event collector.
+ */
+void pcie_clear_root_pme_status(struct pci_dev *dev)
+{
+	int rtsta_pos;
+	u32 rtsta;
+
+	rtsta_pos = pci_pcie_cap(dev) + PCI_EXP_RTSTA;
+
+	pci_read_config_dword(dev, rtsta_pos, &rtsta);
+	rtsta |= PCI_EXP_RTSTA_PME;
+	pci_write_config_dword(dev, rtsta_pos, rtsta);
+}
+
 static int pcie_portdrv_restore_config(struct pci_dev *dev)
 {
 	int retval;
@@ -69,6 +85,20 @@ static int pcie_portdrv_restore_config(struct pci_dev *dev)
 }
 
 #ifdef CONFIG_PM
+static int pcie_port_resume_noirq(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	/*
+	 * Some BIOSes forget to clear Root PME Status bits after system wakeup
+	 * which breaks ACPI-based runtime wakeup on PCI Express, so clear those
+	 * bits now just in case (shouldn't hurt).
+	 */
+	if(pdev->pcie_type == PCI_EXP_TYPE_ROOT_PORT)
+		pcie_clear_root_pme_status(pdev);
+	return 0;
+}
+
 static const struct dev_pm_ops pcie_portdrv_pm_ops = {
 	.suspend	= pcie_port_device_suspend,
 	.resume		= pcie_port_device_resume,
@@ -76,6 +106,7 @@ static const struct dev_pm_ops pcie_portdrv_pm_ops = {
 	.thaw		= pcie_port_device_resume,
 	.poweroff	= pcie_port_device_suspend,
 	.restore	= pcie_port_device_resume,
+	.resume_noirq	= pcie_port_resume_noirq,
 };
 
 #define PCIE_PORTDRV_PM_OPS	(&pcie_portdrv_pm_ops)
@@ -327,10 +358,8 @@ static int __init pcie_portdrv_init(void)
 {
 	int retval;
 
-	if (pcie_ports_disabled) {
-		pcie_no_aspm();
-		return -EACCES;
-	}
+	if (pcie_ports_disabled)
+		return pci_register_driver(&pcie_portdriver);
 
 	dmi_check_system(pcie_portdrv_dmi_table);
 

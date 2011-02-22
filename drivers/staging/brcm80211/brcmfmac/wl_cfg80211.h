@@ -54,34 +54,36 @@ struct wl_ibss;
 
 #define WL_DBG_LEVEL 1		/* 0 invalidates all debug messages.
 				 default is 1 */
-#define	WL_ERR(args)									\
-do {										\
-	if (wl_dbg_level & WL_DBG_ERR) {				\
-		if (net_ratelimit()) {						\
-			printk(KERN_ERR "ERROR @%s : ", __func__);	\
-			printk args;						\
-		} 								\
-	}									\
+#define	WL_ERR(fmt, args...)					\
+do {								\
+	if (wl_dbg_level & WL_DBG_ERR) {			\
+		if (net_ratelimit()) {				\
+			printk(KERN_ERR "ERROR @%s : " fmt,	\
+			       __func__, ##args);		\
+		}						\
+	}							\
 } while (0)
-#define	WL_INFO(args)									\
-do {										\
-	if (wl_dbg_level & WL_DBG_INFO) {				\
-		if (net_ratelimit()) {						\
-			printk(KERN_ERR "INFO @%s : ", __func__);	\
-			printk args;						\
-		}								\
-	}									\
+
+#define	WL_INFO(fmt, args...)					\
+do {								\
+	if (wl_dbg_level & WL_DBG_INFO) {			\
+		if (net_ratelimit()) {				\
+			printk(KERN_ERR "INFO @%s : " fmt,	\
+			       __func__, ##args);		\
+		}						\
+	}							\
 } while (0)
+
 #if (WL_DBG_LEVEL > 0)
-#define	WL_DBG(args)								\
-do {									\
+#define	WL_DBG(fmt, args...)					\
+do {								\
 	if (wl_dbg_level & WL_DBG_DBG) {			\
-		printk(KERN_ERR "DEBUG @%s :", __func__);	\
-		printk args;							\
-	}									\
+		printk(KERN_ERR "DEBUG @%s :" fmt,		\
+		       __func__, ##args);			\
+	}							\
 } while (0)
 #else				/* !(WL_DBG_LEVEL > 0) */
-#define	WL_DBG(args)
+#define	WL_DBG(fmt, args...) noprintk(fmt, ##args)
 #endif				/* (WL_DBG_LEVEL > 0) */
 
 #define WL_SCAN_RETRY_MAX	3	/* used for ibss scan */
@@ -237,7 +239,7 @@ struct wl_ibss {
 struct wl_profile {
 	u32 mode;
 	struct wlc_ssid ssid;
-	u8 bssid[ETHER_ADDR_LEN];
+	u8 bssid[ETH_ALEN];
 	u16 beacon_interval;
 	u8 dtim_period;
 	struct wl_security sec;

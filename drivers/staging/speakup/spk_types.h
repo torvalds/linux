@@ -52,7 +52,7 @@ typedef int (*special_func)(struct vc_data *vc, u_char type, u_char ch,
 
 #define COLOR_BUFFER_SIZE 160
 
-struct spk_highlight_color_track{
+struct spk_highlight_color_track {
 	/* Count of each background color */
 	unsigned int bgcount[8];
 	/* Buffer for characters drawn with each background color */

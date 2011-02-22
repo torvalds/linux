@@ -29,11 +29,14 @@
  *  This file contains all init functions
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/pci.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
 #include <linux/firmware.h>
 #include <linux/miscdevice.h>
+#include <linux/pm_runtime.h>
 #include <asm/mrst.h>
 #include "intel_sst.h"
 #include "intel_sst_ioctl.h"
@@ -169,17 +172,17 @@ static int __devinit intel_sst_probe(struct pci_dev *pci,
 {
 	int i, ret = 0;
 
-	pr_debug("sst: Probe for DID %x\n", pci->device);
+	pr_debug("Probe for DID %x\n", pci->device);
 	mutex_lock(&drv_ctx_lock);
 	if (sst_drv_ctx) {
-		pr_err("sst: Only one sst handle is supported\n");
+		pr_err("Only one sst handle is supported\n");
 		mutex_unlock(&drv_ctx_lock);
 		return -EBUSY;
 	}
 
 	sst_drv_ctx = kzalloc(sizeof(*sst_drv_ctx), GFP_KERNEL);
 	if (!sst_drv_ctx) {
-		pr_err("sst: intel_sst malloc fail\n");
+		pr_err("malloc fail\n");
 		mutex_unlock(&drv_ctx_lock);
 		return -ENOMEM;
 	}
@@ -226,7 +229,7 @@ static int __devinit intel_sst_probe(struct pci_dev *pci,
 	spin_lock_init(&sst_drv_ctx->list_spin_lock);
 
 	sst_drv_ctx->max_streams = pci_id->driver_data;
-	pr_debug("sst: Got drv data max stream %d\n",
+	pr_debug("Got drv data max stream %d\n",
 				sst_drv_ctx->max_streams);
 	for (i = 1; i <= sst_drv_ctx->max_streams; i++) {
 		struct stream_info *stream = &sst_drv_ctx->streams[i];
@@ -241,18 +244,18 @@ static int __devinit intel_sst_probe(struct pci_dev *pci,
 			sst_drv_ctx->mmap_mem =
 				kzalloc(sst_drv_ctx->mmap_len, GFP_KERNEL);
 			if (sst_drv_ctx->mmap_mem) {
-				pr_debug("sst: Got memory %p size 0x%x\n",
+				pr_debug("Got memory %p size 0x%x\n",
 					sst_drv_ctx->mmap_mem,
 					sst_drv_ctx->mmap_len);
 				break;
 			}
 			if (sst_drv_ctx->mmap_len < (SST_MMAP_STEP*PAGE_SIZE)) {
-				pr_err("sst: mem alloc fail...abort!!\n");
+				pr_err("mem alloc fail...abort!!\n");
 				ret = -ENOMEM;
 				goto free_process_reply_wq;
 			}
 			sst_drv_ctx->mmap_len -= (SST_MMAP_STEP * PAGE_SIZE);
-			pr_debug("sst:mem alloc failed...trying %d\n",
+			pr_debug("mem alloc failed...trying %d\n",
 						sst_drv_ctx->mmap_len);
 		}
 	}
@@ -260,7 +263,7 @@ static int __devinit intel_sst_probe(struct pci_dev *pci,
 	/* Init the device */
 	ret = pci_enable_device(pci);
 	if (ret) {
-		pr_err("sst: device cant be enabled\n");
+		pr_err("device cant be enabled\n");
 		goto do_free_mem;
 	}
 	sst_drv_ctx->pci = pci_dev_get(pci);
@@ -273,25 +276,25 @@ static int __devinit intel_sst_probe(struct pci_dev *pci,
 	sst_drv_ctx->shim = pci_ioremap_bar(pci, 1);
 	if (!sst_drv_ctx->shim)
 		goto do_release_regions;
-	pr_debug("sst: SST Shim Ptr %p\n", sst_drv_ctx->shim);
+	pr_debug("SST Shim Ptr %p\n", sst_drv_ctx->shim);
 
 	/* Shared SRAM */
 	sst_drv_ctx->mailbox = pci_ioremap_bar(pci, 2);
 	if (!sst_drv_ctx->mailbox)
 		goto do_unmap_shim;
-	pr_debug("sst: SRAM Ptr %p\n", sst_drv_ctx->mailbox);
+	pr_debug("SRAM Ptr %p\n", sst_drv_ctx->mailbox);
 
 	/* IRAM */
 	sst_drv_ctx->iram = pci_ioremap_bar(pci, 3);
 	if (!sst_drv_ctx->iram)
 		goto do_unmap_sram;
-	pr_debug("sst:IRAM Ptr %p\n", sst_drv_ctx->iram);
+	pr_debug("IRAM Ptr %p\n", sst_drv_ctx->iram);
 
 	/* DRAM */
 	sst_drv_ctx->dram = pci_ioremap_bar(pci, 4);
 	if (!sst_drv_ctx->dram)
 		goto do_unmap_iram;
-	pr_debug("sst: DRAM Ptr %p\n", sst_drv_ctx->dram);
+	pr_debug("DRAM Ptr %p\n", sst_drv_ctx->dram);
 
 	mutex_lock(&sst_drv_ctx->sst_lock);
 	sst_drv_ctx->sst_state = SST_UN_INIT;
@@ -301,26 +304,31 @@ static int __devinit intel_sst_probe(struct pci_dev *pci,
 		IRQF_SHARED, SST_DRV_NAME, sst_drv_ctx);
 	if (ret)
 		goto do_unmap_dram;
-	pr_debug("sst: Registered IRQ 0x%x\n", pci->irq);
+	pr_debug("Registered IRQ 0x%x\n", pci->irq);
+
+	/*Register LPE Control as misc driver*/
+	ret = misc_register(&lpe_ctrl);
+	if (ret) {
+		pr_err("couldn't register control device\n");
+		goto do_free_irq;
+	}
 
 	if (sst_drv_ctx->pci_id == SST_MRST_PCI_ID) {
 		ret = misc_register(&lpe_dev);
 		if (ret) {
-			pr_err("sst: couldn't register LPE device\n");
-			goto do_free_irq;
-		}
-
-		/*Register LPE Control as misc driver*/
-		ret = misc_register(&lpe_ctrl);
-		if (ret) {
-			pr_err("sst: couldn't register misc driver\n");
-			goto do_free_irq;
-		}
+ 			pr_err("couldn't register misc driver\n");
+			goto do_free_misc;
+ 		}
 	}
 	sst_drv_ctx->lpe_stalled = 0;
-	pr_debug("sst: ...successfully done!!!\n");
+	pm_runtime_set_active(&pci->dev);
+	pm_runtime_enable(&pci->dev);
+	pm_runtime_allow(&pci->dev);
+	pr_debug("...successfully done!!!\n");
 	return ret;
 
+do_free_misc:
+	misc_deregister(&lpe_ctrl);
 do_free_irq:
 	free_irq(pci->irq, sst_drv_ctx);
 do_unmap_dram:
@@ -347,7 +355,7 @@ free_mad_wq:
 	destroy_workqueue(sst_drv_ctx->mad_wq);
 do_free_drv_ctx:
 	kfree(sst_drv_ctx);
-	pr_err("sst: Probe failed with 0x%x\n", ret);
+	pr_err("Probe failed with 0x%x\n", ret);
 	return ret;
 }
 
@@ -365,10 +373,9 @@ static void __devexit intel_sst_remove(struct pci_dev *pci)
 	mutex_lock(&sst_drv_ctx->sst_lock);
 	sst_drv_ctx->sst_state = SST_UN_INIT;
 	mutex_unlock(&sst_drv_ctx->sst_lock);
-	if (sst_drv_ctx->pci_id == SST_MRST_PCI_ID) {
+	misc_deregister(&lpe_ctrl);
+	if (sst_drv_ctx->pci_id == SST_MRST_PCI_ID)
 		misc_deregister(&lpe_dev);
-		misc_deregister(&lpe_ctrl);
-	}
 	free_irq(pci->irq, sst_drv_ctx);
 	iounmap(sst_drv_ctx->dram);
 	iounmap(sst_drv_ctx->iram);
@@ -404,10 +411,12 @@ int intel_sst_suspend(struct pci_dev *pci, pm_message_t state)
 {
 	union config_status_reg csr;
 
-	pr_debug("sst: intel_sst_suspend called\n");
+	pr_debug("intel_sst_suspend called\n");
 
-	if (sst_drv_ctx->pb_streams != 0 || sst_drv_ctx->cp_streams != 0)
-		return -EPERM;
+	if (sst_drv_ctx->stream_cnt) {
+		pr_err("active streams,not able to suspend\n");
+		return -EBUSY;
+	}
 	/*Assert RESET on LPE Processor*/
 	csr.full = sst_shim_read(sst_drv_ctx->shim, SST_CSR);
 	csr.full = csr.full | 0x2;
@@ -434,23 +443,51 @@ int intel_sst_resume(struct pci_dev *pci)
 {
 	int ret = 0;
 
-	pr_debug("sst: intel_sst_resume called\n");
+	pr_debug("intel_sst_resume called\n");
 	if (sst_drv_ctx->sst_state != SST_SUSPENDED) {
-		pr_err("sst: SST is not in suspended state\n");
-		return -EPERM;
+		pr_err("SST is not in suspended state\n");
+		return 0;
 	}
 	sst_drv_ctx = pci_get_drvdata(pci);
 	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
 	ret = pci_enable_device(pci);
 	if (ret)
-		pr_err("sst: device cant be enabled\n");
+		pr_err("device cant be enabled\n");
 
 	mutex_lock(&sst_drv_ctx->sst_lock);
 	sst_drv_ctx->sst_state = SST_UN_INIT;
 	mutex_unlock(&sst_drv_ctx->sst_lock);
 	return 0;
 }
+
+static int intel_sst_runtime_suspend(struct device *dev)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	pr_debug("runtime_suspend called\n");
+	return intel_sst_suspend(pci_dev, PMSG_SUSPEND);
+}
+
+static int intel_sst_runtime_resume(struct device *dev)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	pr_debug("runtime_resume called\n");
+	return intel_sst_resume(pci_dev);
+}
+
+static int intel_sst_runtime_idle(struct device *dev)
+{
+	pr_debug("runtime_idle called\n");
+	if (sst_drv_ctx->stream_cnt == 0 && sst_drv_ctx->am_cnt == 0)
+		pm_schedule_suspend(dev, SST_SUSPEND_DELAY);
+	return -EBUSY;
+}
+
+static const struct dev_pm_ops intel_sst_pm = {
+	.runtime_suspend = intel_sst_runtime_suspend,
+	.runtime_resume = intel_sst_runtime_resume,
+	.runtime_idle = intel_sst_runtime_idle,
+};
 
 /* PCI Routines */
 static struct pci_device_id intel_sst_ids[] = {
@@ -468,6 +505,9 @@ static struct pci_driver driver = {
 #ifdef CONFIG_PM
 	.suspend = intel_sst_suspend,
 	.resume = intel_sst_resume,
+	.driver = {
+		.pm = &intel_sst_pm,
+	},
 #endif
 };
 
@@ -482,14 +522,14 @@ static int __init intel_sst_init(void)
 {
 	/* Init all variables, data structure etc....*/
 	int ret = 0;
-	pr_debug("sst: INFO: ******** SST DRIVER loading.. Ver: %s\n",
+	pr_debug("INFO: ******** SST DRIVER loading.. Ver: %s\n",
 				       SST_DRIVER_VERSION);
 
 	mutex_init(&drv_ctx_lock);
 	/* Register with PCI */
 	ret = pci_register_driver(&driver);
 	if (ret)
-		pr_err("sst: PCI register failed\n");
+		pr_err("PCI register failed\n");
 	return ret;
 }
 
@@ -504,7 +544,7 @@ static void __exit intel_sst_exit(void)
 {
 	pci_unregister_driver(&driver);
 
-	pr_debug("sst: driver unloaded\n");
+	pr_debug("driver unloaded\n");
 	return;
 }
 

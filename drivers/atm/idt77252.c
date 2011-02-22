@@ -3698,7 +3698,8 @@ idt77252_init_one(struct pci_dev *pcidev, const struct pci_device_id *id)
 		goto err_out_iounmap;
 	}
 
-	dev = atm_dev_register("idt77252", &idt77252_ops, -1, NULL);
+	dev = atm_dev_register("idt77252", &pcidev->dev, &idt77252_ops, -1,
+			       NULL);
 	if (!dev) {
 		printk("%s: can't register atm device\n", card->name);
 		err = -EIO;

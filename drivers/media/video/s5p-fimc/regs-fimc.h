@@ -165,6 +165,9 @@
 #define S5P_CISTATUS_VVALID_A		(1 << 15)
 #define S5P_CISTATUS_VVALID_B		(1 << 14)
 
+/* Indexes to the last and the currently processed buffer. */
+#define S5P_CISTATUS2			0x68
+
 /* Image capture control */
 #define S5P_CIIMGCPT			0xc0
 #define S5P_CIIMGCPT_IMGCPTEN		(1 << 31)

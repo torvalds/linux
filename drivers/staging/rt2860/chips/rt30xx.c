@@ -28,10 +28,11 @@
 	rt30xx.c
 
 	Abstract:
-	Specific funcitons and variables for RT30xx.
+	Specific functions and variables for RT30xx.
 
 	Revision History:
-	Who         When          What
+	Who         		When            What
+	Justin P. Mattock	11/07/2010	Fix some typos
 	--------    ----------    ----------------------------------------------
 */
 
@@ -53,7 +54,7 @@ struct rt_reg_pair RT30xx_RFRegTable[] = {
 	,
 	{RF_R06, 0x02}
 	,
-	{RF_R07, 0x70}
+	{RF_R07, 0x60}
 	,
 	{RF_R09, 0x0F}
 	,
@@ -89,7 +90,7 @@ struct rt_reg_pair RT30xx_RFRegTable[] = {
 
 u8 NUM_RF_REG_PARMS = (sizeof(RT30xx_RFRegTable) / sizeof(struct rt_reg_pair));
 
-/* Antenna divesity use GPIO3 and EESK pin for control */
+/* Antenna diversity use GPIO3 and EESK pin for control */
 /* Antenna and EEPROM access are both using EESK pin, */
 /* Therefor we should avoid accessing EESK at the same time */
 /* Then restore antenna after EEPROM access */
@@ -243,7 +244,7 @@ void RTMPFilterCalibration(struct rt_rtmp_adapter *pAd)
 				break;
 			}
 
-			/* prevent infinite loop cause driver hang. */
+			/* prevent infinite loop; causes driver hang. */
 			if (loopcnt++ > 100) {
 				DBGPRINT(RT_DEBUG_ERROR,
 					 ("RTMPFilterCalibration - can't find a valid value, loopcnt=%d stop calibrating",
@@ -441,7 +442,7 @@ void RT30xxReverseRFSleepModeSetup(struct rt_rtmp_adapter *pAd)
 
 		/* VCO_IC, RF R7 register Bit 4 & Bit 5 to 1 */
 		RT30xxReadRFRegister(pAd, RF_R07, &RFValue);
-		RFValue |= 0x30;
+		RFValue |= 0x20;
 		RT30xxWriteRFRegister(pAd, RF_R07, RFValue);
 
 		/* Idoh, RF R9 register Bit 1, Bit 2 & Bit 3 to 1 */

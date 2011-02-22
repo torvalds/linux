@@ -21,17 +21,22 @@ extern void s3c244x_init_clocks(int xtal);
 #else
 #define s3c244x_init_clocks NULL
 #define s3c244x_init_uarts NULL
-#define s3c244x_map_io NULL
 #endif
 
 #ifdef CONFIG_CPU_S3C2440
 extern  int s3c2440_init(void);
+
+extern void s3c2440_map_io(void);
 #else
 #define s3c2440_init NULL
+#define s3c2440_map_io NULL
 #endif
 
 #ifdef CONFIG_CPU_S3C2442
 extern  int s3c2442_init(void);
+
+extern void s3c2442_map_io(void);
 #else
 #define s3c2442_init NULL
+#define s3c2442_map_io NULL
 #endif

@@ -59,6 +59,8 @@ relocate_new_kernel:
 	ldr r2,kexec_boot_atags
 	mov pc,lr
 
+	.align
+
 	.globl kexec_start_address
 kexec_start_address:
 	.long	0x0

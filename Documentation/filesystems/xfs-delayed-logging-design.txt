@@ -794,17 +794,6 @@ designed.
 
 Roadmap:
 
-2.6.37 Remove experimental tag from mount option
-	=> should be roughly 6 months after initial merge
-	=> enough time to:
-		=> gain confidence and fix problems reported by early
-		   adopters (a.k.a. guinea pigs)
-		=> address worst performance regressions and undesired
-		   behaviours
-		=> start tuning/optimising code for parallelism
-		=> start tuning/optimising algorithms consuming
-		   excessive CPU time
-
 2.6.39 Switch default mount option to use delayed logging
 	=> should be roughly 12 months after initial merge
 	=> enough time to shake out remaining problems before next round of

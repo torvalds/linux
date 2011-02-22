@@ -608,7 +608,7 @@ static void cmi9880_free(struct hda_codec *codec)
 /*
  */
 
-static const char *cmi9880_models[CMI_MODELS] = {
+static const char * const cmi9880_models[CMI_MODELS] = {
 	[CMI_MINIMAL]	= "minimal",
 	[CMI_MIN_FP]	= "min_fp",
 	[CMI_FULL]	= "full",

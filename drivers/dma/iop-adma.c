@@ -1261,7 +1261,7 @@ out:
 	return err;
 }
 
-#ifdef CONFIG_MD_RAID6_PQ
+#ifdef CONFIG_RAID6_PQ
 static int __devinit
 iop_adma_pq_zero_sum_self_test(struct iop_adma_device *device)
 {
@@ -1584,7 +1584,7 @@ static int __devinit iop_adma_probe(struct platform_device *pdev)
 
 	if (dma_has_cap(DMA_PQ, dma_dev->cap_mask) &&
 	    dma_has_cap(DMA_PQ_VAL, dma_dev->cap_mask)) {
-		#ifdef CONFIG_MD_RAID6_PQ
+		#ifdef CONFIG_RAID6_PQ
 		ret = iop_adma_pq_zero_sum_self_test(adev);
 		dev_dbg(&pdev->dev, "pq self test returned %d\n", ret);
 		#else

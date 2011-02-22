@@ -21,7 +21,6 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
@@ -52,6 +51,7 @@ static struct usb_driver usb_serial_driver = {
 	.suspend =	usb_serial_suspend,
 	.resume =	usb_serial_resume,
 	.no_dynamic_id = 	1,
+	.supports_autosuspend =	1,
 };
 
 /* There is no MODULE_DEVICE_TABLE for usbserial.c.  Instead
@@ -1347,6 +1347,12 @@ int usb_serial_register(struct usb_serial_driver *driver)
 
 	if (!driver->description)
 		driver->description = driver->driver.name;
+	if (!driver->usb_driver) {
+		WARN(1, "Serial driver %s has no usb_driver\n",
+				driver->description);
+		return -EINVAL;
+	}
+	driver->usb_driver->supports_autosuspend = 1;
 
 	/* Add this device to our list of devices */
 	mutex_lock(&table_lock);

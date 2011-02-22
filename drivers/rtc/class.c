@@ -16,6 +16,7 @@
 #include <linux/kdev_t.h>
 #include <linux/idr.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 
 #include "rtc-core.h"
 
@@ -151,6 +152,18 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	spin_lock_init(&rtc->irq_lock);
 	spin_lock_init(&rtc->irq_task_lock);
 	init_waitqueue_head(&rtc->irq_queue);
+
+	/* Init timerqueue */
+	timerqueue_init_head(&rtc->timerqueue);
+	INIT_WORK(&rtc->irqwork, rtc_timer_do_work);
+	/* Init aie timer */
+	rtc_timer_init(&rtc->aie_timer, rtc_aie_update_irq, (void *)rtc);
+	/* Init uie timer */
+	rtc_timer_init(&rtc->uie_rtctimer, rtc_uie_update_irq, (void *)rtc);
+	/* Init pie timer */
+	hrtimer_init(&rtc->pie_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	rtc->pie_timer.function = rtc_pie_update_irq;
+	rtc->pie_enabled = 0;
 
 	strlcpy(rtc->name, name, RTC_DEVICE_NAME_SIZE);
 	dev_set_name(&rtc->dev, "rtc%d", id);

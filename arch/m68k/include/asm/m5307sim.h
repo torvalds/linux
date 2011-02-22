@@ -14,6 +14,11 @@
 #define	m5307sim_h
 /****************************************************************************/
 
+#define	CPU_NAME		"COLDFIRE(m5307)"
+#define	CPU_INSTR_PER_JIFFY	3
+
+#include <asm/m53xxacr.h>
+
 /*
  *	Define the 5307 SIM register set addresses.
  */
@@ -94,6 +99,17 @@
 #define	MCFSIM_PADAT		(MCF_MBAR + 0x248)
 
 /*
+ *  UART module.
+ */
+#if defined(CONFIG_NETtel) || defined(CONFIG_SECUREEDGEMP3)
+#define MCFUART_BASE1		0x200           /* Base address of UART1 */
+#define MCFUART_BASE2		0x1c0           /* Base address of UART2 */
+#else
+#define MCFUART_BASE1		0x1c0           /* Base address of UART1 */
+#define MCFUART_BASE2		0x200           /* Base address of UART2 */
+#endif
+
+/*
  * Generic GPIO support
  */
 #define MCFGPIO_PIN_MAX			16
@@ -145,33 +161,6 @@
  */
 #define	MCF_IRQ_TIMER		30		/* Timer0, Level 6 */
 #define	MCF_IRQ_PROFILER	31		/* Timer1, Level 7 */
-
-/*
- *	Define the Cache register flags.
- */
-#define	CACR_EC			(1<<31)
-#define	CACR_ESB		(1<<29)
-#define	CACR_DPI		(1<<28)
-#define	CACR_HLCK		(1<<27)
-#define	CACR_CINVA		(1<<24)
-#define	CACR_DNFB		(1<<10)
-#define	CACR_DCM_WTHRU		(0<<8)
-#define	CACR_DCM_WBACK		(1<<8)
-#define	CACR_DCM_OFF_PRE	(2<<8)
-#define	CACR_DCM_OFF_IMP	(3<<8)
-#define	CACR_DW			(1<<5)
-
-#define	ACR_BASE_POS		24
-#define	ACR_MASK_POS		16
-#define	ACR_ENABLE		(1<<15)
-#define	ACR_USER		(0<<13)
-#define	ACR_SUPER		(1<<13)
-#define	ACR_ANY			(2<<13)
-#define	ACR_CM_WTHRU		(0<<5)
-#define	ACR_CM_WBACK		(1<<5)
-#define	ACR_CM_OFF_PRE		(2<<5)
-#define	ACR_CM_OFF_IMP		(3<<5)
-#define	ACR_WPROTECT		(1<<2)
 
 /****************************************************************************/
 #endif	/* m5307sim_h */

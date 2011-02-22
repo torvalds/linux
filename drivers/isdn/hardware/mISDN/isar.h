@@ -44,7 +44,7 @@ struct isar_ch {
 struct isar_hw {
 	struct	isar_ch	ch[2];
 	void		*hw;
-	spinlock_t	*hwlock;	/* lock HW acccess */
+	spinlock_t	*hwlock;	/* lock HW access */
 	char		*name;
 	struct module	*owner;
 	read_reg_func	*read_reg;

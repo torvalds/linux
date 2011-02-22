@@ -1488,7 +1488,7 @@ int snd_ctl_create(struct snd_card *card)
 }
 
 /*
- * Frequently used control callbacks
+ * Frequently used control callbacks/helpers
  */
 int snd_ctl_boolean_mono_info(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_info *uinfo)
@@ -1513,3 +1513,29 @@ int snd_ctl_boolean_stereo_info(struct snd_kcontrol *kcontrol,
 }
 
 EXPORT_SYMBOL(snd_ctl_boolean_stereo_info);
+
+/**
+ * snd_ctl_enum_info - fills the info structure for an enumerated control
+ * @info: the structure to be filled
+ * @channels: the number of the control's channels; often one
+ * @items: the number of control values; also the size of @names
+ * @names: an array containing the names of all control values
+ *
+ * Sets all required fields in @info to their appropriate values.
+ * If the control's accessibility is not the default (readable and writable),
+ * the caller has to fill @info->access.
+ */
+int snd_ctl_enum_info(struct snd_ctl_elem_info *info, unsigned int channels,
+		      unsigned int items, const char *const names[])
+{
+	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	info->count = channels;
+	info->value.enumerated.items = items;
+	if (info->value.enumerated.item >= items)
+		info->value.enumerated.item = items - 1;
+	strlcpy(info->value.enumerated.name,
+		names[info->value.enumerated.item],
+		sizeof(info->value.enumerated.name));
+	return 0;
+}
+EXPORT_SYMBOL(snd_ctl_enum_info);

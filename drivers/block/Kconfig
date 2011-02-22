@@ -464,6 +464,7 @@ config XEN_BLKDEV_FRONTEND
 	tristate "Xen virtual block device support"
 	depends on XEN
 	default y
+	select XEN_XENBUS_FRONTEND
 	help
 	  This driver implements the front-end of the Xen virtual
 	  block device driver.  It communicates with a back-end driver

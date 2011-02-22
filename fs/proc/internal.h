@@ -96,7 +96,8 @@ extern spinlock_t proc_subdir_lock;
 struct dentry *proc_pid_lookup(struct inode *dir, struct dentry * dentry, struct nameidata *);
 int proc_pid_readdir(struct file * filp, void * dirent, filldir_t filldir);
 unsigned long task_vsize(struct mm_struct *);
-int task_statm(struct mm_struct *, int *, int *, int *, int *);
+unsigned long task_statm(struct mm_struct *,
+	unsigned long *, unsigned long *, unsigned long *, unsigned long *);
 void task_mem(struct seq_file *, struct mm_struct *);
 
 static inline struct proc_dir_entry *pde_get(struct proc_dir_entry *pde)
@@ -108,7 +109,7 @@ void pde_put(struct proc_dir_entry *pde);
 
 extern struct vfsmount *proc_mnt;
 int proc_fill_super(struct super_block *);
-struct inode *proc_get_inode(struct super_block *, unsigned int, struct proc_dir_entry *);
+struct inode *proc_get_inode(struct super_block *, struct proc_dir_entry *);
 
 /*
  * These are generic /proc routines that use the internal

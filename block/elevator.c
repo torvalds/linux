@@ -429,7 +429,7 @@ void elv_dispatch_sort(struct request_queue *q, struct request *rq)
 	q->nr_sorted--;
 
 	boundary = q->end_sector;
-	stop_flags = REQ_SOFTBARRIER | REQ_HARDBARRIER | REQ_STARTED;
+	stop_flags = REQ_SOFTBARRIER | REQ_STARTED;
 	list_for_each_prev(entry, &q->queue_head) {
 		struct request *pos = list_entry_rq(entry);
 
@@ -691,7 +691,7 @@ void elv_insert(struct request_queue *q, struct request *rq, int where)
 void __elv_add_request(struct request_queue *q, struct request *rq, int where,
 		       int plug)
 {
-	if (rq->cmd_flags & (REQ_SOFTBARRIER | REQ_HARDBARRIER)) {
+	if (rq->cmd_flags & REQ_SOFTBARRIER) {
 		/* barriers are scheduling boundary, update end_sector */
 		if (rq->cmd_type == REQ_TYPE_FS ||
 		    (rq->cmd_flags & REQ_DISCARD)) {

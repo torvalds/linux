@@ -139,20 +139,26 @@ static unsigned long expires_ljiffies;
  */
 
 static struct dst_entry *ipv4_dst_check(struct dst_entry *dst, u32 cookie);
+static unsigned int	 ipv4_default_advmss(const struct dst_entry *dst);
+static unsigned int	 ipv4_default_mtu(const struct dst_entry *dst);
 static void		 ipv4_dst_destroy(struct dst_entry *dst);
-static void		 ipv4_dst_ifdown(struct dst_entry *dst,
-					 struct net_device *dev, int how);
 static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst);
 static void		 ipv4_link_failure(struct sk_buff *skb);
 static void		 ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu);
 static int rt_garbage_collect(struct dst_ops *ops);
 
+static void ipv4_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
+			    int how)
+{
+}
 
 static struct dst_ops ipv4_dst_ops = {
 	.family =		AF_INET,
 	.protocol =		cpu_to_be16(ETH_P_IP),
 	.gc =			rt_garbage_collect,
 	.check =		ipv4_dst_check,
+	.default_advmss =	ipv4_default_advmss,
+	.default_mtu =		ipv4_default_mtu,
 	.destroy =		ipv4_dst_destroy,
 	.ifdown =		ipv4_dst_ifdown,
 	.negative_advice =	ipv4_negative_advice,
@@ -381,8 +387,7 @@ static int rt_cache_seq_show(struct seq_file *seq, void *v)
 			(__force u32)r->rt_gateway,
 			r->rt_flags, atomic_read(&r->dst.__refcnt),
 			r->dst.__use, 0, (__force u32)r->rt_src,
-			(dst_metric(&r->dst, RTAX_ADVMSS) ?
-			     (int)dst_metric(&r->dst, RTAX_ADVMSS) + 40 : 0),
+			dst_metric_advmss(&r->dst) + 40,
 			dst_metric(&r->dst, RTAX_WINDOW),
 			(int)((dst_metric(&r->dst, RTAX_RTT) >> 3) +
 			      dst_metric(&r->dst, RTAX_RTTVAR)),
@@ -621,7 +626,7 @@ static inline int rt_fast_clean(struct rtable *rth)
 	/* Kill broadcast/multicast entries very aggresively, if they
 	   collide in hash table with more useful entries */
 	return (rth->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST)) &&
-		rth->fl.iif && rth->dst.rt_next;
+		rt_is_input_route(rth) && rth->dst.rt_next;
 }
 
 static inline int rt_valuable(struct rtable *rth)
@@ -666,7 +671,7 @@ static inline u32 rt_score(struct rtable *rt)
 	if (rt_valuable(rt))
 		score |= (1<<31);
 
-	if (!rt->fl.iif ||
+	if (rt_is_output_route(rt) ||
 	    !(rt->rt_flags & (RTCF_BROADCAST|RTCF_MULTICAST|RTCF_LOCAL)))
 		score |= (1<<30);
 
@@ -682,17 +687,17 @@ static inline bool rt_caching(const struct net *net)
 static inline bool compare_hash_inputs(const struct flowi *fl1,
 					const struct flowi *fl2)
 {
-	return ((((__force u32)fl1->nl_u.ip4_u.daddr ^ (__force u32)fl2->nl_u.ip4_u.daddr) |
-		((__force u32)fl1->nl_u.ip4_u.saddr ^ (__force u32)fl2->nl_u.ip4_u.saddr) |
+	return ((((__force u32)fl1->fl4_dst ^ (__force u32)fl2->fl4_dst) |
+		((__force u32)fl1->fl4_src ^ (__force u32)fl2->fl4_src) |
 		(fl1->iif ^ fl2->iif)) == 0);
 }
 
 static inline int compare_keys(struct flowi *fl1, struct flowi *fl2)
 {
-	return (((__force u32)fl1->nl_u.ip4_u.daddr ^ (__force u32)fl2->nl_u.ip4_u.daddr) |
-		((__force u32)fl1->nl_u.ip4_u.saddr ^ (__force u32)fl2->nl_u.ip4_u.saddr) |
+	return (((__force u32)fl1->fl4_dst ^ (__force u32)fl2->fl4_dst) |
+		((__force u32)fl1->fl4_src ^ (__force u32)fl2->fl4_src) |
 		(fl1->mark ^ fl2->mark) |
-		(*(u16 *)&fl1->nl_u.ip4_u.tos ^ *(u16 *)&fl2->nl_u.ip4_u.tos) |
+		(*(u16 *)&fl1->fl4_tos ^ *(u16 *)&fl2->fl4_tos) |
 		(fl1->oif ^ fl2->oif) |
 		(fl1->iif ^ fl2->iif)) == 0;
 }
@@ -712,13 +717,15 @@ static inline int rt_is_expired(struct rtable *rth)
  * Can be called by a softirq or a process.
  * In the later case, we want to be reschedule if necessary
  */
-static void rt_do_flush(int process_context)
+static void rt_do_flush(struct net *net, int process_context)
 {
 	unsigned int i;
 	struct rtable *rth, *next;
-	struct rtable * tail;
 
 	for (i = 0; i <= rt_hash_mask; i++) {
+		struct rtable __rcu **pprev;
+		struct rtable *list;
+
 		if (process_context && need_resched())
 			cond_resched();
 		rth = rcu_dereference_raw(rt_hash_table[i].chain);
@@ -726,50 +733,32 @@ static void rt_do_flush(int process_context)
 			continue;
 
 		spin_lock_bh(rt_hash_lock_addr(i));
-#ifdef CONFIG_NET_NS
-		{
-		struct rtable __rcu **prev;
-		struct rtable *p;
 
-		rth = rcu_dereference_protected(rt_hash_table[i].chain,
+		list = NULL;
+		pprev = &rt_hash_table[i].chain;
+		rth = rcu_dereference_protected(*pprev,
 			lockdep_is_held(rt_hash_lock_addr(i)));
 
-		/* defer releasing the head of the list after spin_unlock */
-		for (tail = rth; tail;
-		     tail = rcu_dereference_protected(tail->dst.rt_next,
-				lockdep_is_held(rt_hash_lock_addr(i))))
-			if (!rt_is_expired(tail))
-				break;
-		if (rth != tail)
-			rt_hash_table[i].chain = tail;
+		while (rth) {
+			next = rcu_dereference_protected(rth->dst.rt_next,
+				lockdep_is_held(rt_hash_lock_addr(i)));
 
-		/* call rt_free on entries after the tail requiring flush */
-		prev = &rt_hash_table[i].chain;
-		for (p = rcu_dereference_protected(*prev,
-				lockdep_is_held(rt_hash_lock_addr(i)));
-		     p != NULL;
-		     p = next) {
-			next = rcu_dereference_protected(p->dst.rt_next,
-				lockdep_is_held(rt_hash_lock_addr(i)));
-			if (!rt_is_expired(p)) {
-				prev = &p->dst.rt_next;
+			if (!net ||
+			    net_eq(dev_net(rth->dst.dev), net)) {
+				rcu_assign_pointer(*pprev, next);
+				rcu_assign_pointer(rth->dst.rt_next, list);
+				list = rth;
 			} else {
-				*prev = next;
-				rt_free(p);
+				pprev = &rth->dst.rt_next;
 			}
+			rth = next;
 		}
-		}
-#else
-		rth = rcu_dereference_protected(rt_hash_table[i].chain,
-			lockdep_is_held(rt_hash_lock_addr(i)));
-		rcu_assign_pointer(rt_hash_table[i].chain, NULL);
-		tail = NULL;
-#endif
+
 		spin_unlock_bh(rt_hash_lock_addr(i));
 
-		for (; rth != tail; rth = next) {
-			next = rcu_dereference_protected(rth->dst.rt_next, 1);
-			rt_free(rth);
+		for (; list; list = next) {
+			next = rcu_dereference_protected(list->dst.rt_next, 1);
+			rt_free(list);
 		}
 	}
 }
@@ -917,13 +906,13 @@ void rt_cache_flush(struct net *net, int delay)
 {
 	rt_cache_invalidate(net);
 	if (delay >= 0)
-		rt_do_flush(!in_softirq());
+		rt_do_flush(net, !in_softirq());
 }
 
 /* Flush previous cache invalidated entries from the cache */
-void rt_cache_flush_batch(void)
+void rt_cache_flush_batch(struct net *net)
 {
-	rt_do_flush(!in_softirq());
+	rt_do_flush(net, !in_softirq());
 }
 
 static void rt_emergency_hash_rebuild(struct net *net)
@@ -1124,7 +1113,7 @@ restart:
 		 */
 
 		rt->dst.flags |= DST_NOCACHE;
-		if (rt->rt_type == RTN_UNICAST || rt->fl.iif == 0) {
+		if (rt->rt_type == RTN_UNICAST || rt_is_output_route(rt)) {
 			int err = arp_bind_neighbour(&rt->dst);
 			if (err) {
 				if (net_ratelimit())
@@ -1222,7 +1211,7 @@ restart:
 	/* Try to bind route to arp only if it is output
 	   route or unicast forwarding path.
 	 */
-	if (rt->rt_type == RTN_UNICAST || rt->fl.iif == 0) {
+	if (rt->rt_type == RTN_UNICAST || rt_is_output_route(rt)) {
 		int err = arp_bind_neighbour(&rt->dst);
 		if (err) {
 			spin_unlock_bh(rt_hash_lock_addr(hash));
@@ -1287,7 +1276,7 @@ void rt_bind_peer(struct rtable *rt, int create)
 {
 	struct inet_peer *peer;
 
-	peer = inet_getpeer(rt->rt_dst, create);
+	peer = inet_getpeer_v4(rt->rt_dst, create);
 
 	if (peer && cmpxchg(&rt->peer, NULL, peer) != NULL)
 		inet_putpeer(peer);
@@ -1404,7 +1393,7 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 				if (rth->fl.fl4_dst != daddr ||
 				    rth->fl.fl4_src != skeys[i] ||
 				    rth->fl.oif != ikeys[k] ||
-				    rth->fl.iif != 0 ||
+				    rt_is_input_route(rth) ||
 				    rt_is_expired(rth) ||
 				    !net_eq(dev_net(rth->dst.dev), net)) {
 					rthp = &rth->dst.rt_next;
@@ -1433,8 +1422,6 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 				rt->dst.child		= NULL;
 				if (rt->dst.dev)
 					dev_hold(rt->dst.dev);
-				if (rt->idev)
-					in_dev_hold(rt->idev);
 				rt->dst.obsolete	= -1;
 				rt->dst.lastuse	= jiffies;
 				rt->dst.path		= &rt->dst;
@@ -1666,7 +1653,7 @@ unsigned short ip_rt_frag_needed(struct net *net, struct iphdr *iph,
 				    rth->rt_dst != daddr ||
 				    rth->rt_src != iph->saddr ||
 				    rth->fl.oif != ikeys[k] ||
-				    rth->fl.iif != 0 ||
+				    rt_is_input_route(rth) ||
 				    dst_metric_locked(&rth->dst, RTAX_MTU) ||
 				    !net_eq(dev_net(rth->dst.dev), net) ||
 				    rt_is_expired(rth))
@@ -1686,11 +1673,14 @@ unsigned short ip_rt_frag_needed(struct net *net, struct iphdr *iph,
 					if (mtu < dst_mtu(&rth->dst)) {
 						dst_confirm(&rth->dst);
 						if (mtu < ip_rt_min_pmtu) {
+							u32 lock = dst_metric(&rth->dst,
+									      RTAX_LOCK);
 							mtu = ip_rt_min_pmtu;
-							rth->dst.metrics[RTAX_LOCK-1] |=
-								(1 << RTAX_MTU);
+							lock |= (1 << RTAX_MTU);
+							dst_metric_set(&rth->dst, RTAX_LOCK,
+								       lock);
 						}
-						rth->dst.metrics[RTAX_MTU-1] = mtu;
+						dst_metric_set(&rth->dst, RTAX_MTU, mtu);
 						dst_set_expires(&rth->dst,
 							ip_rt_mtu_expires);
 					}
@@ -1708,10 +1698,11 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 	if (dst_mtu(dst) > mtu && mtu >= 68 &&
 	    !(dst_metric_locked(dst, RTAX_MTU))) {
 		if (mtu < ip_rt_min_pmtu) {
+			u32 lock = dst_metric(dst, RTAX_LOCK);
 			mtu = ip_rt_min_pmtu;
-			dst->metrics[RTAX_LOCK-1] |= (1 << RTAX_MTU);
+			dst_metric_set(dst, RTAX_LOCK, lock | (1 << RTAX_MTU));
 		}
-		dst->metrics[RTAX_MTU-1] = mtu;
+		dst_metric_set(dst, RTAX_MTU, mtu);
 		dst_set_expires(dst, ip_rt_mtu_expires);
 		call_netevent_notifiers(NETEVENT_PMTU_UPDATE, dst);
 	}
@@ -1728,33 +1719,13 @@ static void ipv4_dst_destroy(struct dst_entry *dst)
 {
 	struct rtable *rt = (struct rtable *) dst;
 	struct inet_peer *peer = rt->peer;
-	struct in_device *idev = rt->idev;
 
 	if (peer) {
 		rt->peer = NULL;
 		inet_putpeer(peer);
 	}
-
-	if (idev) {
-		rt->idev = NULL;
-		in_dev_put(idev);
-	}
 }
 
-static void ipv4_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
-			    int how)
-{
-	struct rtable *rt = (struct rtable *) dst;
-	struct in_device *idev = rt->idev;
-	if (dev != dev_net(dev)->loopback_dev && idev && idev->dev == dev) {
-		struct in_device *loopback_idev =
-			in_dev_get(dev_net(dev)->loopback_dev);
-		if (loopback_idev) {
-			rt->idev = loopback_idev;
-			in_dev_put(idev);
-		}
-	}
-}
 
 static void ipv4_link_failure(struct sk_buff *skb)
 {
@@ -1790,7 +1761,7 @@ void ip_rt_get_source(u8 *addr, struct rtable *rt)
 	__be32 src;
 	struct fib_result res;
 
-	if (rt->fl.iif == 0)
+	if (rt_is_output_route(rt))
 		src = rt->rt_src;
 	else {
 		rcu_read_lock();
@@ -1814,38 +1785,55 @@ static void set_class_tag(struct rtable *rt, u32 tag)
 }
 #endif
 
+static unsigned int ipv4_default_advmss(const struct dst_entry *dst)
+{
+	unsigned int advmss = dst_metric_raw(dst, RTAX_ADVMSS);
+
+	if (advmss == 0) {
+		advmss = max_t(unsigned int, dst->dev->mtu - 40,
+			       ip_rt_min_advmss);
+		if (advmss > 65535 - 40)
+			advmss = 65535 - 40;
+	}
+	return advmss;
+}
+
+static unsigned int ipv4_default_mtu(const struct dst_entry *dst)
+{
+	unsigned int mtu = dst->dev->mtu;
+
+	if (unlikely(dst_metric_locked(dst, RTAX_MTU))) {
+		const struct rtable *rt = (const struct rtable *) dst;
+
+		if (rt->rt_gateway != rt->rt_dst && mtu > 576)
+			mtu = 576;
+	}
+
+	if (mtu > IP_MAX_MTU)
+		mtu = IP_MAX_MTU;
+
+	return mtu;
+}
+
 static void rt_set_nexthop(struct rtable *rt, struct fib_result *res, u32 itag)
 {
+	struct dst_entry *dst = &rt->dst;
 	struct fib_info *fi = res->fi;
 
 	if (fi) {
 		if (FIB_RES_GW(*res) &&
 		    FIB_RES_NH(*res).nh_scope == RT_SCOPE_LINK)
 			rt->rt_gateway = FIB_RES_GW(*res);
-		memcpy(rt->dst.metrics, fi->fib_metrics,
-		       sizeof(rt->dst.metrics));
-		if (fi->fib_mtu == 0) {
-			rt->dst.metrics[RTAX_MTU-1] = rt->dst.dev->mtu;
-			if (dst_metric_locked(&rt->dst, RTAX_MTU) &&
-			    rt->rt_gateway != rt->rt_dst &&
-			    rt->dst.dev->mtu > 576)
-				rt->dst.metrics[RTAX_MTU-1] = 576;
-		}
+		dst_import_metrics(dst, fi->fib_metrics);
 #ifdef CONFIG_NET_CLS_ROUTE
-		rt->dst.tclassid = FIB_RES_NH(*res).nh_tclassid;
+		dst->tclassid = FIB_RES_NH(*res).nh_tclassid;
 #endif
-	} else
-		rt->dst.metrics[RTAX_MTU-1]= rt->dst.dev->mtu;
+	}
 
-	if (dst_metric(&rt->dst, RTAX_HOPLIMIT) == 0)
-		rt->dst.metrics[RTAX_HOPLIMIT-1] = sysctl_ip_default_ttl;
-	if (dst_mtu(&rt->dst) > IP_MAX_MTU)
-		rt->dst.metrics[RTAX_MTU-1] = IP_MAX_MTU;
-	if (dst_metric(&rt->dst, RTAX_ADVMSS) == 0)
-		rt->dst.metrics[RTAX_ADVMSS-1] = max_t(unsigned int, rt->dst.dev->mtu - 40,
-				       ip_rt_min_advmss);
-	if (dst_metric(&rt->dst, RTAX_ADVMSS) > 65535 - 40)
-		rt->dst.metrics[RTAX_ADVMSS-1] = 65535 - 40;
+	if (dst_mtu(dst) > IP_MAX_MTU)
+		dst_metric_set(dst, RTAX_MTU, IP_MAX_MTU);
+	if (dst_metric_raw(dst, RTAX_ADVMSS) > 65535 - 40)
+		dst_metric_set(dst, RTAX_ADVMSS, 65535 - 40);
 
 #ifdef CONFIG_NET_CLS_ROUTE
 #ifdef CONFIG_IP_MULTIPLE_TABLES
@@ -1910,7 +1898,6 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	rth->fl.iif	= dev->ifindex;
 	rth->dst.dev	= init_net.loopback_dev;
 	dev_hold(rth->dst.dev);
-	rth->idev	= in_dev_get(rth->dst.dev);
 	rth->fl.oif	= 0;
 	rth->rt_gateway	= daddr;
 	rth->rt_spec_dst= spec_dst;
@@ -2050,7 +2037,6 @@ static int __mkroute_input(struct sk_buff *skb,
 		rth->fl.iif	= in_dev->dev->ifindex;
 	rth->dst.dev	= (out_dev)->dev;
 	dev_hold(rth->dst.dev);
-	rth->idev	= in_dev_get(rth->dst.dev);
 	rth->fl.oif 	= 0;
 	rth->rt_spec_dst= spec_dst;
 
@@ -2111,12 +2097,10 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 {
 	struct fib_result res;
 	struct in_device *in_dev = __in_dev_get_rcu(dev);
-	struct flowi fl = { .nl_u = { .ip4_u =
-				      { .daddr = daddr,
-					.saddr = saddr,
-					.tos = tos,
-					.scope = RT_SCOPE_UNIVERSE,
-				      } },
+	struct flowi fl = { .fl4_dst	= daddr,
+			    .fl4_src	= saddr,
+			    .fl4_tos	= tos,
+			    .fl4_scope	= RT_SCOPE_UNIVERSE,
 			    .mark = skb->mark,
 			    .iif = dev->ifindex };
 	unsigned	flags = 0;
@@ -2231,7 +2215,6 @@ local_input:
 	rth->fl.iif	= dev->ifindex;
 	rth->dst.dev	= net->loopback_dev;
 	dev_hold(rth->dst.dev);
-	rth->idev	= in_dev_get(rth->dst.dev);
 	rth->rt_gateway	= daddr;
 	rth->rt_spec_dst= spec_dst;
 	rth->dst.input= ip_local_deliver;
@@ -2417,9 +2400,6 @@ static int __mkroute_output(struct rtable **result,
 	if (!rth)
 		return -ENOBUFS;
 
-	in_dev_hold(in_dev);
-	rth->idev = in_dev;
-
 	atomic_set(&rth->dst.__refcnt, 1);
 	rth->dst.flags= DST_HOST;
 	if (IN_DEV_CONF_GET(in_dev, NOXFRM))
@@ -2506,14 +2486,11 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 				const struct flowi *oldflp)
 {
 	u32 tos	= RT_FL_TOS(oldflp);
-	struct flowi fl = { .nl_u = { .ip4_u =
-				      { .daddr = oldflp->fl4_dst,
-					.saddr = oldflp->fl4_src,
-					.tos = tos & IPTOS_RT_MASK,
-					.scope = ((tos & RTO_ONLINK) ?
-						  RT_SCOPE_LINK :
-						  RT_SCOPE_UNIVERSE),
-				      } },
+	struct flowi fl = { .fl4_dst = oldflp->fl4_dst,
+			    .fl4_src = oldflp->fl4_src,
+			    .fl4_tos = tos & IPTOS_RT_MASK,
+			    .fl4_scope = ((tos & RTO_ONLINK) ?
+					  RT_SCOPE_LINK : RT_SCOPE_UNIVERSE),
 			    .mark = oldflp->mark,
 			    .iif = net->loopback_dev->ifindex,
 			    .oif = oldflp->oif };
@@ -2585,9 +2562,10 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 			goto out;
 
 		/* RACE: Check return value of inet_select_addr instead. */
-		if (rcu_dereference(dev_out->ip_ptr) == NULL)
-			goto out;	/* Wrong error code */
-
+		if (!(dev_out->flags & IFF_UP) || !__in_dev_get_rcu(dev_out)) {
+			err = -ENETUNREACH;
+			goto out;
+		}
 		if (ipv4_is_local_multicast(oldflp->fl4_dst) ||
 		    ipv4_is_lbcast(oldflp->fl4_dst)) {
 			if (!fl.fl4_src)
@@ -2648,8 +2626,12 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 	}
 
 	if (res.type == RTN_LOCAL) {
-		if (!fl.fl4_src)
-			fl.fl4_src = fl.fl4_dst;
+		if (!fl.fl4_src) {
+			if (res.fi->fib_prefsrc)
+				fl.fl4_src = res.fi->fib_prefsrc;
+			else
+				fl.fl4_src = fl.fl4_dst;
+		}
 		dev_out = net->loopback_dev;
 		fl.oif = dev_out->ifindex;
 		res.fi = NULL;
@@ -2695,7 +2677,7 @@ int __ip_route_output_key(struct net *net, struct rtable **rp,
 		rth = rcu_dereference_bh(rth->dst.rt_next)) {
 		if (rth->fl.fl4_dst == flp->fl4_dst &&
 		    rth->fl.fl4_src == flp->fl4_src &&
-		    rth->fl.iif == 0 &&
+		    rt_is_output_route(rth) &&
 		    rth->fl.oif == flp->oif &&
 		    rth->fl.mark == flp->mark &&
 		    !((rth->fl.fl4_tos ^ flp->fl4_tos) &
@@ -2751,7 +2733,7 @@ static int ipv4_dst_blackhole(struct net *net, struct rtable **rp, struct flowi 
 		new->__use = 1;
 		new->input = dst_discard;
 		new->output = dst_discard;
-		memcpy(new->metrics, ort->dst.metrics, RTAX_MAX*sizeof(u32));
+		dst_copy_metrics(new, &ort->dst);
 
 		new->dev = ort->dst.dev;
 		if (new->dev)
@@ -2759,9 +2741,6 @@ static int ipv4_dst_blackhole(struct net *net, struct rtable **rp, struct flowi 
 
 		rt->fl = ort->fl;
 
-		rt->idev = ort->idev;
-		if (rt->idev)
-			in_dev_hold(rt->idev);
 		rt->rt_genid = rt_genid(net);
 		rt->rt_flags = ort->rt_flags;
 		rt->rt_type = ort->rt_type;
@@ -2853,7 +2832,7 @@ static int rt_fill_info(struct net *net,
 	if (rt->dst.tclassid)
 		NLA_PUT_U32(skb, RTA_FLOW, rt->dst.tclassid);
 #endif
-	if (rt->fl.iif)
+	if (rt_is_input_route(rt))
 		NLA_PUT_BE32(skb, RTA_PREFSRC, rt->rt_spec_dst);
 	else if (rt->rt_src != rt->fl.fl4_src)
 		NLA_PUT_BE32(skb, RTA_PREFSRC, rt->rt_src);
@@ -2861,7 +2840,7 @@ static int rt_fill_info(struct net *net,
 	if (rt->rt_dst != rt->rt_gateway)
 		NLA_PUT_BE32(skb, RTA_GATEWAY, rt->rt_gateway);
 
-	if (rtnetlink_put_metrics(skb, rt->dst.metrics) < 0)
+	if (rtnetlink_put_metrics(skb, dst_metrics_ptr(&rt->dst)) < 0)
 		goto nla_put_failure;
 
 	if (rt->fl.mark)
@@ -2878,7 +2857,7 @@ static int rt_fill_info(struct net *net,
 		}
 	}
 
-	if (rt->fl.iif) {
+	if (rt_is_input_route(rt)) {
 #ifdef CONFIG_IP_MROUTE
 		__be32 dst = rt->rt_dst;
 
@@ -2973,13 +2952,9 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void 
 			err = -rt->dst.error;
 	} else {
 		struct flowi fl = {
-			.nl_u = {
-				.ip4_u = {
-					.daddr = dst,
-					.saddr = src,
-					.tos = rtm->rtm_tos,
-				},
-			},
+			.fl4_dst = dst,
+			.fl4_src = src,
+			.fl4_tos = rtm->rtm_tos,
 			.oif = tb[RTA_OIF] ? nla_get_u32(tb[RTA_OIF]) : 0,
 			.mark = mark,
 		};

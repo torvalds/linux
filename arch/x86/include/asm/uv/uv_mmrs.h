@@ -5,7 +5,7 @@
  *
  * SGI UV MMR definitions
  *
- * Copyright (C) 2007-2008 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2007-2010 Silicon Graphics, Inc. All rights reserved.
  */
 
 #ifndef _ASM_X86_UV_UV_MMRS_H
@@ -754,6 +754,23 @@ union uvh_lb_bau_sb_descriptor_base_u {
 };
 
 /* ========================================================================= */
+/*                   UVH_LB_TARGET_PHYSICAL_APIC_ID_MASK                     */
+/* ========================================================================= */
+#define UVH_LB_TARGET_PHYSICAL_APIC_ID_MASK 0x320130UL
+#define UVH_LB_TARGET_PHYSICAL_APIC_ID_MASK_32 0x009f0
+
+#define UVH_LB_TARGET_PHYSICAL_APIC_ID_MASK_BIT_ENABLES_SHFT 0
+#define UVH_LB_TARGET_PHYSICAL_APIC_ID_MASK_BIT_ENABLES_MASK 0x00000000ffffffffUL
+
+union uvh_lb_target_physical_apic_id_mask_u {
+	unsigned long v;
+	struct uvh_lb_target_physical_apic_id_mask_s {
+		unsigned long bit_enables : 32;  /* RW */
+		unsigned long rsvd_32_63  : 32;  /*    */
+	} s;
+};
+
+/* ========================================================================= */
 /*                               UVH_NODE_ID                                 */
 /* ========================================================================= */
 #define UVH_NODE_ID 0x0UL
@@ -806,6 +823,78 @@ union uvh_node_present_table_u {
 };
 
 /* ========================================================================= */
+/*                 UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_0_MMR                  */
+/* ========================================================================= */
+#define UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_0_MMR 0x16000c8UL
+
+#define UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_0_MMR_BASE_SHFT 24
+#define UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_0_MMR_BASE_MASK 0x00000000ff000000UL
+#define UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_0_MMR_M_ALIAS_SHFT 48
+#define UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_0_MMR_M_ALIAS_MASK 0x001f000000000000UL
+#define UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_0_MMR_ENABLE_SHFT 63
+#define UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_0_MMR_ENABLE_MASK 0x8000000000000000UL
+
+union uvh_rh_gam_alias210_overlay_config_0_mmr_u {
+    unsigned long	v;
+    struct uvh_rh_gam_alias210_overlay_config_0_mmr_s {
+	unsigned long	rsvd_0_23: 24;  /*    */
+	unsigned long	base    :  8;  /* RW */
+	unsigned long	rsvd_32_47: 16;  /*    */
+	unsigned long	m_alias :  5;  /* RW */
+	unsigned long	rsvd_53_62: 10;  /*    */
+	unsigned long	enable  :  1;  /* RW */
+    } s;
+};
+
+/* ========================================================================= */
+/*                 UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_1_MMR                  */
+/* ========================================================================= */
+#define UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_1_MMR 0x16000d8UL
+
+#define UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_1_MMR_BASE_SHFT 24
+#define UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_1_MMR_BASE_MASK 0x00000000ff000000UL
+#define UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_1_MMR_M_ALIAS_SHFT 48
+#define UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_1_MMR_M_ALIAS_MASK 0x001f000000000000UL
+#define UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_1_MMR_ENABLE_SHFT 63
+#define UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_1_MMR_ENABLE_MASK 0x8000000000000000UL
+
+union uvh_rh_gam_alias210_overlay_config_1_mmr_u {
+    unsigned long	v;
+    struct uvh_rh_gam_alias210_overlay_config_1_mmr_s {
+	unsigned long	rsvd_0_23: 24;  /*    */
+	unsigned long	base    :  8;  /* RW */
+	unsigned long	rsvd_32_47: 16;  /*    */
+	unsigned long	m_alias :  5;  /* RW */
+	unsigned long	rsvd_53_62: 10;  /*    */
+	unsigned long	enable  :  1;  /* RW */
+    } s;
+};
+
+/* ========================================================================= */
+/*                 UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_2_MMR                  */
+/* ========================================================================= */
+#define UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_2_MMR 0x16000e8UL
+
+#define UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_2_MMR_BASE_SHFT 24
+#define UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_2_MMR_BASE_MASK 0x00000000ff000000UL
+#define UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_2_MMR_M_ALIAS_SHFT 48
+#define UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_2_MMR_M_ALIAS_MASK 0x001f000000000000UL
+#define UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_2_MMR_ENABLE_SHFT 63
+#define UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_2_MMR_ENABLE_MASK 0x8000000000000000UL
+
+union uvh_rh_gam_alias210_overlay_config_2_mmr_u {
+    unsigned long	v;
+    struct uvh_rh_gam_alias210_overlay_config_2_mmr_s {
+	unsigned long	rsvd_0_23: 24;  /*    */
+	unsigned long	base    :  8;  /* RW */
+	unsigned long	rsvd_32_47: 16;  /*    */
+	unsigned long	m_alias :  5;  /* RW */
+	unsigned long	rsvd_53_62: 10;  /*    */
+	unsigned long	enable  :  1;  /* RW */
+    } s;
+};
+
+/* ========================================================================= */
 /*                UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_0_MMR                  */
 /* ========================================================================= */
 #define UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_0_MMR 0x16000d0UL
@@ -853,6 +942,29 @@ union uvh_rh_gam_alias210_redirect_config_2_mmr_u {
 	unsigned long	rsvd_0_23 : 24;  /*    */
 	unsigned long	dest_base : 22;  /* RW */
 	unsigned long	rsvd_46_63: 18;  /*    */
+    } s;
+};
+
+/* ========================================================================= */
+/*                          UVH_RH_GAM_CONFIG_MMR                            */
+/* ========================================================================= */
+#define UVH_RH_GAM_CONFIG_MMR 0x1600000UL
+
+#define UVH_RH_GAM_CONFIG_MMR_M_SKT_SHFT 0
+#define UVH_RH_GAM_CONFIG_MMR_M_SKT_MASK 0x000000000000003fUL
+#define UVH_RH_GAM_CONFIG_MMR_N_SKT_SHFT 6
+#define UVH_RH_GAM_CONFIG_MMR_N_SKT_MASK 0x00000000000003c0UL
+#define UVH_RH_GAM_CONFIG_MMR_MMIOL_CFG_SHFT 12
+#define UVH_RH_GAM_CONFIG_MMR_MMIOL_CFG_MASK 0x0000000000001000UL
+
+union uvh_rh_gam_config_mmr_u {
+    unsigned long	v;
+    struct uvh_rh_gam_config_mmr_s {
+	unsigned long	m_skt     :  6;  /* RW */
+	unsigned long	n_skt     :  4;  /* RW */
+	unsigned long	rsvd_10_11:  2;  /*    */
+	unsigned long	mmiol_cfg :  1;  /* RW */
+	unsigned long	rsvd_13_63: 51;  /*    */
     } s;
 };
 
@@ -987,97 +1099,5 @@ union uvh_rtc1_int_config_u {
     } s;
 };
 
-/* ========================================================================= */
-/*                          UVH_SI_ADDR_MAP_CONFIG                           */
-/* ========================================================================= */
-#define UVH_SI_ADDR_MAP_CONFIG 0xc80000UL
 
-#define UVH_SI_ADDR_MAP_CONFIG_M_SKT_SHFT 0
-#define UVH_SI_ADDR_MAP_CONFIG_M_SKT_MASK 0x000000000000003fUL
-#define UVH_SI_ADDR_MAP_CONFIG_N_SKT_SHFT 8
-#define UVH_SI_ADDR_MAP_CONFIG_N_SKT_MASK 0x0000000000000f00UL
-
-union uvh_si_addr_map_config_u {
-    unsigned long	v;
-    struct uvh_si_addr_map_config_s {
-	unsigned long	m_skt :  6;  /* RW */
-	unsigned long	rsvd_6_7:  2;  /*    */
-	unsigned long	n_skt :  4;  /* RW */
-	unsigned long	rsvd_12_63: 52;  /*    */
-    } s;
-};
-
-/* ========================================================================= */
-/*                       UVH_SI_ALIAS0_OVERLAY_CONFIG                        */
-/* ========================================================================= */
-#define UVH_SI_ALIAS0_OVERLAY_CONFIG 0xc80008UL
-
-#define UVH_SI_ALIAS0_OVERLAY_CONFIG_BASE_SHFT 24
-#define UVH_SI_ALIAS0_OVERLAY_CONFIG_BASE_MASK 0x00000000ff000000UL
-#define UVH_SI_ALIAS0_OVERLAY_CONFIG_M_ALIAS_SHFT 48
-#define UVH_SI_ALIAS0_OVERLAY_CONFIG_M_ALIAS_MASK 0x001f000000000000UL
-#define UVH_SI_ALIAS0_OVERLAY_CONFIG_ENABLE_SHFT 63
-#define UVH_SI_ALIAS0_OVERLAY_CONFIG_ENABLE_MASK 0x8000000000000000UL
-
-union uvh_si_alias0_overlay_config_u {
-    unsigned long	v;
-    struct uvh_si_alias0_overlay_config_s {
-	unsigned long	rsvd_0_23: 24;  /*    */
-	unsigned long	base    :  8;  /* RW */
-	unsigned long	rsvd_32_47: 16;  /*    */
-	unsigned long	m_alias :  5;  /* RW */
-	unsigned long	rsvd_53_62: 10;  /*    */
-	unsigned long	enable  :  1;  /* RW */
-    } s;
-};
-
-/* ========================================================================= */
-/*                       UVH_SI_ALIAS1_OVERLAY_CONFIG                        */
-/* ========================================================================= */
-#define UVH_SI_ALIAS1_OVERLAY_CONFIG 0xc80010UL
-
-#define UVH_SI_ALIAS1_OVERLAY_CONFIG_BASE_SHFT 24
-#define UVH_SI_ALIAS1_OVERLAY_CONFIG_BASE_MASK 0x00000000ff000000UL
-#define UVH_SI_ALIAS1_OVERLAY_CONFIG_M_ALIAS_SHFT 48
-#define UVH_SI_ALIAS1_OVERLAY_CONFIG_M_ALIAS_MASK 0x001f000000000000UL
-#define UVH_SI_ALIAS1_OVERLAY_CONFIG_ENABLE_SHFT 63
-#define UVH_SI_ALIAS1_OVERLAY_CONFIG_ENABLE_MASK 0x8000000000000000UL
-
-union uvh_si_alias1_overlay_config_u {
-    unsigned long	v;
-    struct uvh_si_alias1_overlay_config_s {
-	unsigned long	rsvd_0_23: 24;  /*    */
-	unsigned long	base    :  8;  /* RW */
-	unsigned long	rsvd_32_47: 16;  /*    */
-	unsigned long	m_alias :  5;  /* RW */
-	unsigned long	rsvd_53_62: 10;  /*    */
-	unsigned long	enable  :  1;  /* RW */
-    } s;
-};
-
-/* ========================================================================= */
-/*                       UVH_SI_ALIAS2_OVERLAY_CONFIG                        */
-/* ========================================================================= */
-#define UVH_SI_ALIAS2_OVERLAY_CONFIG 0xc80018UL
-
-#define UVH_SI_ALIAS2_OVERLAY_CONFIG_BASE_SHFT 24
-#define UVH_SI_ALIAS2_OVERLAY_CONFIG_BASE_MASK 0x00000000ff000000UL
-#define UVH_SI_ALIAS2_OVERLAY_CONFIG_M_ALIAS_SHFT 48
-#define UVH_SI_ALIAS2_OVERLAY_CONFIG_M_ALIAS_MASK 0x001f000000000000UL
-#define UVH_SI_ALIAS2_OVERLAY_CONFIG_ENABLE_SHFT 63
-#define UVH_SI_ALIAS2_OVERLAY_CONFIG_ENABLE_MASK 0x8000000000000000UL
-
-union uvh_si_alias2_overlay_config_u {
-    unsigned long	v;
-    struct uvh_si_alias2_overlay_config_s {
-	unsigned long	rsvd_0_23: 24;  /*    */
-	unsigned long	base    :  8;  /* RW */
-	unsigned long	rsvd_32_47: 16;  /*    */
-	unsigned long	m_alias :  5;  /* RW */
-	unsigned long	rsvd_53_62: 10;  /*    */
-	unsigned long	enable  :  1;  /* RW */
-    } s;
-};
-
-
-#endif /* _ASM_X86_UV_UV_MMRS_H */
+#endif /* __ASM_UV_MMRS_X86_H__ */

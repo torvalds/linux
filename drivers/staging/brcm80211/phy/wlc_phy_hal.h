@@ -122,11 +122,7 @@ typedef struct shared_phy shared_phy_t;
 
 struct phy_pub;
 
-#ifdef WLC_HIGH_ONLY
-typedef struct wlc_rpc_phy wlc_phy_t;
-#else
 typedef struct phy_pub wlc_phy_t;
-#endif
 
 typedef struct shared_phy_params {
 	void *osh;
@@ -150,7 +146,6 @@ typedef struct shared_phy_params {
 	u32 boardflags2;
 } shared_phy_params_t;
 
-#ifdef WLC_LOW
 
 extern shared_phy_t *wlc_phy_shared_attach(shared_phy_params_t *shp);
 extern void wlc_phy_shared_detach(shared_phy_t *phy_sh);
@@ -189,7 +184,6 @@ extern void wlc_phy_set_deaf(wlc_phy_t *ppi, bool user_flag);
 extern void wlc_phy_switch_radio(wlc_phy_t *ppi, bool on);
 extern void wlc_phy_anacore(wlc_phy_t *ppi, bool on);
 
-#endif				/* WLC_LOW */
 
 extern void wlc_phy_BSSinit(wlc_phy_t *ppi, bool bonlyap, int rssi);
 

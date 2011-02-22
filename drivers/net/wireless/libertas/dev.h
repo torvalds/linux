@@ -36,6 +36,7 @@ struct lbs_private {
 	/* CFG80211 */
 	struct wireless_dev *wdev;
 	bool wiphy_registered;
+	bool stopping;
 	struct cfg80211_scan_request *scan_req;
 	u8 assoc_bss[ETH_ALEN];
 	u8 disassoc_reason;
@@ -137,6 +138,7 @@ struct lbs_private {
 	uint32_t wol_criteria;
 	uint8_t wol_gpio;
 	uint8_t wol_gap;
+	bool ehs_remove_supported;
 
 	/* Transmitting */
 	int tx_pending_len;		/* -1 while building packet */

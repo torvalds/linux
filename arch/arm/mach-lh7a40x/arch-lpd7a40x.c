@@ -159,7 +159,7 @@ static void __init lpd7a40x_init (void)
 #endif
 }
 
-static void lh7a40x_ack_cpld_irq (u32 irq)
+static void lh7a40x_ack_cpld_irq(struct irq_data *d)
 {
 	/* CPLD doesn't have ack capability, but some devices may */
 
@@ -167,14 +167,14 @@ static void lh7a40x_ack_cpld_irq (u32 irq)
 	/* The touch control *must* mask the interrupt because the
 	 * interrupt bit is read by the driver to determine if the pen
 	 * is still down. */
-	if (irq == IRQ_TOUCH)
+	if (d->irq == IRQ_TOUCH)
 		CPLD_INTERRUPTS |= CPLD_INTMASK_TOUCH;
 #endif
 }
 
-static void lh7a40x_mask_cpld_irq (u32 irq)
+static void lh7a40x_mask_cpld_irq(struct irq_data *d)
 {
-	switch (irq) {
+	switch (d->irq) {
 	case IRQ_LPD7A40X_ETH_INT:
 		CPLD_INTERRUPTS |= CPLD_INTMASK_ETHERNET;
 		break;
@@ -186,9 +186,9 @@ static void lh7a40x_mask_cpld_irq (u32 irq)
 	}
 }
 
-static void lh7a40x_unmask_cpld_irq (u32 irq)
+static void lh7a40x_unmask_cpld_irq(struct irq_data *d)
 {
-	switch (irq) {
+	switch (d->irq) {
 	case IRQ_LPD7A40X_ETH_INT:
 		CPLD_INTERRUPTS &= ~CPLD_INTMASK_ETHERNET;
 		break;
@@ -201,17 +201,17 @@ static void lh7a40x_unmask_cpld_irq (u32 irq)
 }
 
 static struct irq_chip lpd7a40x_cpld_chip = {
-	.name	= "CPLD",
-	.ack	= lh7a40x_ack_cpld_irq,
-	.mask	= lh7a40x_mask_cpld_irq,
-	.unmask	= lh7a40x_unmask_cpld_irq,
+	.name		= "CPLD",
+	.irq_ack	= lh7a40x_ack_cpld_irq,
+	.irq_mask	= lh7a40x_mask_cpld_irq,
+	.irq_unmask	= lh7a40x_unmask_cpld_irq,
 };
 
 static void lpd7a40x_cpld_handler (unsigned int irq, struct irq_desc *desc)
 {
 	unsigned int mask = CPLD_INTERRUPTS;
 
-	desc->chip->ack (irq);
+	desc->irq_data.chip->irq_ack(&desc->irq_data);
 
 	if ((mask & (1<<0)) == 0)	/* WLAN */
 		generic_handle_irq(IRQ_LPD7A40X_ETH_INT);
@@ -221,7 +221,8 @@ static void lpd7a40x_cpld_handler (unsigned int irq, struct irq_desc *desc)
 		generic_handle_irq(IRQ_TOUCH);
 #endif
 
-	desc->chip->unmask (irq); /* Level-triggered need this */
+	/* Level-triggered need this */
+	desc->irq_data.chip->irq_unmask(&desc->irq_data);
 }
 
 

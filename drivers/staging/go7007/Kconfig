@@ -1,10 +1,10 @@
 config VIDEO_GO7007
 	tristate "WIS GO7007 MPEG encoder support"
-	depends on VIDEO_DEV && PCI && I2C && INPUT
+	depends on VIDEO_DEV && PCI && I2C
 	depends on BKL # please fix
 	depends on SND
 	select VIDEOBUF_DMA_SG
-	depends on VIDEO_IR
+	depends on RC_CORE
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select SND_PCM

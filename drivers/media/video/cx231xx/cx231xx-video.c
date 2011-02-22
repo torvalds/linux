@@ -2044,15 +2044,6 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 	return videobuf_dqbuf(&fh->vb_vidq, b, file->f_flags & O_NONBLOCK);
 }
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-static int vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
-{
-	struct cx231xx_fh *fh = priv;
-
-	return videobuf_cgmbuf(&fh->vb_vidq, mbuf, 8);
-}
-#endif
-
 /* ----------------------------------------------------------- */
 /* RADIO ESPECIFIC IOCTLS                                      */
 /* ----------------------------------------------------------- */
@@ -2506,9 +2497,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register             = vidioc_g_register,
 	.vidioc_s_register             = vidioc_s_register,
-#endif
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf                   = vidiocgmbuf,
 #endif
 };
 

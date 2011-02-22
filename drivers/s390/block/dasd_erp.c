@@ -96,7 +96,8 @@ dasd_default_erp_action(struct dasd_ccw_req *cqr)
 		DBF_DEV_EVENT(DBF_DEBUG, device,
                              "default ERP called (%i retries left)",
                              cqr->retries);
-		cqr->lpm    = LPM_ANYPATH;
+		if (!test_bit(DASD_CQR_VERIFY_PATH, &cqr->flags))
+			cqr->lpm = device->path_data.opm;
 		cqr->status = DASD_CQR_FILLED;
         } else {
 		pr_err("%s: default ERP has run out of retries and failed\n",

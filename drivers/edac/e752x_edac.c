@@ -983,11 +983,11 @@ static int set_sdram_scrub_rate(struct mem_ctl_info *mci, u32 new_bw)
 
 	pci_write_config_word(pdev, E752X_MCHSCRB, scrubrates[i].scrubval);
 
-	return 0;
+	return scrubrates[i].bandwidth;
 }
 
 /* Convert current scrub rate value into byte/sec bandwidth */
-static int get_sdram_scrub_rate(struct mem_ctl_info *mci, u32 *bw)
+static int get_sdram_scrub_rate(struct mem_ctl_info *mci)
 {
 	const struct scrubrate *scrubrates;
 	struct e752x_pvt *pvt = (struct e752x_pvt *) mci->pvt_info;
@@ -1013,10 +1013,8 @@ static int get_sdram_scrub_rate(struct mem_ctl_info *mci, u32 *bw)
 			"Invalid sdram scrub control value: 0x%x\n", scrubval);
 		return -1;
 	}
+	return scrubrates[i].bandwidth;
 
-	*bw = scrubrates[i].bandwidth;
-
-	return 0;
 }
 
 /* Return 1 if dual channel mode is active.  Else return 0. */

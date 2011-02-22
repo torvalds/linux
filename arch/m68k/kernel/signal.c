@@ -51,8 +51,6 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
-asmlinkage int do_signal(sigset_t *oldset, struct pt_regs *regs);
-
 const int frame_extra_sizes[16] = {
   [1]	= -1, /* sizeof(((struct frame *)0)->un.fmt1), */
   [2]	= sizeof(((struct frame *)0)->un.fmt2),
@@ -74,51 +72,21 @@ const int frame_extra_sizes[16] = {
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
  */
-asmlinkage int do_sigsuspend(struct pt_regs *regs)
+asmlinkage int
+sys_sigsuspend(int unused0, int unused1, old_sigset_t mask)
 {
-	old_sigset_t mask = regs->d3;
-	sigset_t saveset;
-
 	mask &= _BLOCKABLE;
-	saveset = current->blocked;
+	spin_lock_irq(&current->sighand->siglock);
+	current->saved_sigmask = current->blocked;
 	siginitset(&current->blocked, mask);
 	recalc_sigpending();
+	spin_unlock_irq(&current->sighand->siglock);
 
-	regs->d0 = -EINTR;
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		if (do_signal(&saveset, regs))
-			return -EINTR;
-	}
-}
+	current->state = TASK_INTERRUPTIBLE;
+	schedule();
+	set_restore_sigmask();
 
-asmlinkage int
-do_rt_sigsuspend(struct pt_regs *regs)
-{
-	sigset_t __user *unewset = (sigset_t __user *)regs->d1;
-	size_t sigsetsize = (size_t)regs->d2;
-	sigset_t saveset, newset;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(sigset_t))
-		return -EINVAL;
-
-	if (copy_from_user(&newset, unewset, sizeof(newset)))
-		return -EFAULT;
-	sigdelsetmask(&newset, ~_BLOCKABLE);
-
-	saveset = current->blocked;
-	current->blocked = newset;
-	recalc_sigpending();
-
-	regs->d0 = -EINTR;
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		if (do_signal(&saveset, regs))
-			return -EINTR;
-	}
+	return -ERESTARTNOHAND;
 }
 
 asmlinkage int
@@ -132,10 +100,10 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 		old_sigset_t mask;
 		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
 		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
-		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer))
+		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer) ||
+		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
+		    __get_user(mask, &act->sa_mask))
 			return -EFAULT;
-		__get_user(new_ka.sa.sa_flags, &act->sa_flags);
-		__get_user(mask, &act->sa_mask);
 		siginitset(&new_ka.sa.sa_mask, mask);
 	}
 
@@ -144,10 +112,10 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 	if (!ret && oact) {
 		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
 		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
-		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer))
+		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer) ||
+		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
+		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
 			return -EFAULT;
-		__put_user(old_ka.sa.sa_flags, &oact->sa_flags);
-		__put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask);
 	}
 
 	return ret;
@@ -318,36 +286,10 @@ out:
 	return err;
 }
 
-static inline int
-restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *usc, void __user *fp,
-		   int *pd0)
+static int mangle_kernel_stack(struct pt_regs *regs, int formatvec,
+			       void __user *fp)
 {
-	int fsize, formatvec;
-	struct sigcontext context;
-	int err;
-
-	/* Always make any pending restarted system calls return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
-
-	/* get previous context */
-	if (copy_from_user(&context, usc, sizeof(context)))
-		goto badframe;
-
-	/* restore passed registers */
-	regs->d1 = context.sc_d1;
-	regs->a0 = context.sc_a0;
-	regs->a1 = context.sc_a1;
-	regs->sr = (regs->sr & 0xff00) | (context.sc_sr & 0xff);
-	regs->pc = context.sc_pc;
-	regs->orig_d0 = -1;		/* disable syscall checks */
-	wrusp(context.sc_usp);
-	formatvec = context.sc_formatvec;
-	regs->format = formatvec >> 12;
-	regs->vector = formatvec & 0xfff;
-
-	err = restore_fpu_state(&context);
-
-	fsize = frame_extra_sizes[regs->format];
+	int fsize = frame_extra_sizes[formatvec >> 12];
 	if (fsize < 0) {
 		/*
 		 * user process trying to return with weird frame format
@@ -355,16 +297,22 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *usc, void __u
 #ifdef DEBUG
 		printk("user process returning with weird frame format\n");
 #endif
-		goto badframe;
+		return 1;
 	}
-
-	/* OK.	Make room on the supervisor stack for the extra junk,
-	 * if necessary.
-	 */
-
-	if (fsize) {
+	if (!fsize) {
+		regs->format = formatvec >> 12;
+		regs->vector = formatvec & 0xfff;
+	} else {
 		struct switch_stack *sw = (struct switch_stack *)regs - 1;
-		regs->d0 = context.sc_d0;
+		unsigned long buf[fsize / 2]; /* yes, twice as much */
+
+		/* that'll make sure that expansion won't crap over data */
+		if (copy_from_user(buf + fsize / 4, fp, fsize))
+			return 1;
+
+		/* point of no return */
+		regs->format = formatvec >> 12;
+		regs->vector = formatvec & 0xfff;
 #define frame_offset (sizeof(struct pt_regs)+sizeof(struct switch_stack))
 		__asm__ __volatile__
 			("   movel %0,%/a0\n\t"
@@ -376,30 +324,50 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *usc, void __u
 			 "   lea %/sp@(%c3),%/a0\n\t" /* add offset of fmt */
 			 "   lsrl  #2,%1\n\t"
 			 "   subql #1,%1\n\t"
-			 "2: movesl %4@+,%2\n\t"
-			 "3: movel %2,%/a0@+\n\t"
+			 /* copy to the gap we'd made */
+			 "2: movel %4@+,%/a0@+\n\t"
 			 "   dbra %1,2b\n\t"
 			 "   bral ret_from_signal\n"
-			 "4:\n"
-			 ".section __ex_table,\"a\"\n"
-			 "   .align 4\n"
-			 "   .long 2b,4b\n"
-			 "   .long 3b,4b\n"
-			 ".previous"
 			 : /* no outputs, it doesn't ever return */
 			 : "a" (sw), "d" (fsize), "d" (frame_offset/4-1),
-			   "n" (frame_offset), "a" (fp)
+			   "n" (frame_offset), "a" (buf + fsize/4)
 			 : "a0");
 #undef frame_offset
-		/*
-		 * If we ever get here an exception occurred while
-		 * building the above stack-frame.
-		 */
-		goto badframe;
 	}
+	return 0;
+}
 
-	*pd0 = context.sc_d0;
-	return err;
+static inline int
+restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *usc, void __user *fp)
+{
+	int formatvec;
+	struct sigcontext context;
+	int err;
+
+	/* Always make any pending restarted system calls return -EINTR */
+	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+
+	/* get previous context */
+	if (copy_from_user(&context, usc, sizeof(context)))
+		goto badframe;
+
+	/* restore passed registers */
+	regs->d0 = context.sc_d0;
+	regs->d1 = context.sc_d1;
+	regs->a0 = context.sc_a0;
+	regs->a1 = context.sc_a1;
+	regs->sr = (regs->sr & 0xff00) | (context.sc_sr & 0xff);
+	regs->pc = context.sc_pc;
+	regs->orig_d0 = -1;		/* disable syscall checks */
+	wrusp(context.sc_usp);
+	formatvec = context.sc_formatvec;
+
+	err = restore_fpu_state(&context);
+
+	if (err || mangle_kernel_stack(regs, formatvec, fp))
+		goto badframe;
+
+	return 0;
 
 badframe:
 	return 1;
@@ -407,9 +375,9 @@ badframe:
 
 static inline int
 rt_restore_ucontext(struct pt_regs *regs, struct switch_stack *sw,
-		    struct ucontext __user *uc, int *pd0)
+		    struct ucontext __user *uc)
 {
-	int fsize, temp;
+	int temp;
 	greg_t __user *gregs = uc->uc_mcontext.gregs;
 	unsigned long usp;
 	int err;
@@ -443,65 +411,16 @@ rt_restore_ucontext(struct pt_regs *regs, struct switch_stack *sw,
 	regs->sr = (regs->sr & 0xff00) | (temp & 0xff);
 	regs->orig_d0 = -1;		/* disable syscall checks */
 	err |= __get_user(temp, &uc->uc_formatvec);
-	regs->format = temp >> 12;
-	regs->vector = temp & 0xfff;
 
 	err |= rt_restore_fpu_state(uc);
 
-	if (do_sigaltstack(&uc->uc_stack, NULL, usp) == -EFAULT)
+	if (err || do_sigaltstack(&uc->uc_stack, NULL, usp) == -EFAULT)
 		goto badframe;
 
-	fsize = frame_extra_sizes[regs->format];
-	if (fsize < 0) {
-		/*
-		 * user process trying to return with weird frame format
-		 */
-#ifdef DEBUG
-		printk("user process returning with weird frame format\n");
-#endif
+	if (mangle_kernel_stack(regs, temp, &uc->uc_extra))
 		goto badframe;
-	}
 
-	/* OK.	Make room on the supervisor stack for the extra junk,
-	 * if necessary.
-	 */
-
-	if (fsize) {
-#define frame_offset (sizeof(struct pt_regs)+sizeof(struct switch_stack))
-		__asm__ __volatile__
-			("   movel %0,%/a0\n\t"
-			 "   subl %1,%/a0\n\t"     /* make room on stack */
-			 "   movel %/a0,%/sp\n\t"  /* set stack pointer */
-			 /* move switch_stack and pt_regs */
-			 "1: movel %0@+,%/a0@+\n\t"
-			 "   dbra %2,1b\n\t"
-			 "   lea %/sp@(%c3),%/a0\n\t" /* add offset of fmt */
-			 "   lsrl  #2,%1\n\t"
-			 "   subql #1,%1\n\t"
-			 "2: movesl %4@+,%2\n\t"
-			 "3: movel %2,%/a0@+\n\t"
-			 "   dbra %1,2b\n\t"
-			 "   bral ret_from_signal\n"
-			 "4:\n"
-			 ".section __ex_table,\"a\"\n"
-			 "   .align 4\n"
-			 "   .long 2b,4b\n"
-			 "   .long 3b,4b\n"
-			 ".previous"
-			 : /* no outputs, it doesn't ever return */
-			 : "a" (sw), "d" (fsize), "d" (frame_offset/4-1),
-			   "n" (frame_offset), "a" (&uc->uc_extra)
-			 : "a0");
-#undef frame_offset
-		/*
-		 * If we ever get here an exception occurred while
-		 * building the above stack-frame.
-		 */
-		goto badframe;
-	}
-
-	*pd0 = regs->d0;
-	return err;
+	return 0;
 
 badframe:
 	return 1;
@@ -514,7 +433,6 @@ asmlinkage int do_sigreturn(unsigned long __unused)
 	unsigned long usp = rdusp();
 	struct sigframe __user *frame = (struct sigframe __user *)(usp - 4);
 	sigset_t set;
-	int d0;
 
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
@@ -528,9 +446,9 @@ asmlinkage int do_sigreturn(unsigned long __unused)
 	current->blocked = set;
 	recalc_sigpending();
 
-	if (restore_sigcontext(regs, &frame->sc, frame + 1, &d0))
+	if (restore_sigcontext(regs, &frame->sc, frame + 1))
 		goto badframe;
-	return d0;
+	return regs->d0;
 
 badframe:
 	force_sig(SIGSEGV, current);
@@ -544,7 +462,6 @@ asmlinkage int do_rt_sigreturn(unsigned long __unused)
 	unsigned long usp = rdusp();
 	struct rt_sigframe __user *frame = (struct rt_sigframe __user *)(usp - 4);
 	sigset_t set;
-	int d0;
 
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
@@ -555,9 +472,9 @@ asmlinkage int do_rt_sigreturn(unsigned long __unused)
 	current->blocked = set;
 	recalc_sigpending();
 
-	if (rt_restore_ucontext(regs, sw, &frame->uc, &d0))
+	if (rt_restore_ucontext(regs, sw, &frame->uc))
 		goto badframe;
-	return d0;
+	return regs->d0;
 
 badframe:
 	force_sig(SIGSEGV, current);
@@ -775,7 +692,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
 	return (void __user *)((usp - frame_size) & -8UL);
 }
 
-static void setup_frame (int sig, struct k_sigaction *ka,
+static int setup_frame (int sig, struct k_sigaction *ka,
 			 sigset_t *set, struct pt_regs *regs)
 {
 	struct sigframe __user *frame;
@@ -793,10 +710,8 @@ static void setup_frame (int sig, struct k_sigaction *ka,
 
 	frame = get_sigframe(ka, regs, sizeof(*frame) + fsize);
 
-	if (fsize) {
+	if (fsize)
 		err |= copy_to_user (frame + 1, regs + 1, fsize);
-		regs->stkadj = fsize;
-	}
 
 	err |= __put_user((current_thread_info()->exec_domain
 			   && current_thread_info()->exec_domain->signal_invmap
@@ -826,11 +741,21 @@ static void setup_frame (int sig, struct k_sigaction *ka,
 
 	push_cache ((unsigned long) &frame->retcode);
 
-	/* Set up registers for signal handler */
+	/*
+	 * Set up registers for signal handler.  All the state we are about
+	 * to destroy is successfully copied to sigframe.
+	 */
 	wrusp ((unsigned long) frame);
 	regs->pc = (unsigned long) ka->sa.sa_handler;
 
-adjust_stack:
+	/*
+	 * This is subtle; if we build more than one sigframe, all but the
+	 * first one will see frame format 0 and have fsize == 0, so we won't
+	 * screw stkadj.
+	 */
+	if (fsize)
+		regs->stkadj = fsize;
+
 	/* Prepare to skip over the extra stuff in the exception frame.  */
 	if (regs->stkadj) {
 		struct pt_regs *tregs =
@@ -845,14 +770,14 @@ adjust_stack:
 		tregs->pc = regs->pc;
 		tregs->sr = regs->sr;
 	}
-	return;
+	return 0;
 
 give_sigsegv:
 	force_sigsegv(sig, current);
-	goto adjust_stack;
+	return err;
 }
 
-static void setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
+static int setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 			    sigset_t *set, struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
@@ -869,10 +794,8 @@ static void setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	frame = get_sigframe(ka, regs, sizeof(*frame));
 
-	if (fsize) {
+	if (fsize)
 		err |= copy_to_user (&frame->uc.uc_extra, regs + 1, fsize);
-		regs->stkadj = fsize;
-	}
 
 	err |= __put_user((current_thread_info()->exec_domain
 			   && current_thread_info()->exec_domain->signal_invmap
@@ -914,11 +837,21 @@ static void setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	push_cache ((unsigned long) &frame->retcode);
 
-	/* Set up registers for signal handler */
+	/*
+	 * Set up registers for signal handler.  All the state we are about
+	 * to destroy is successfully copied to sigframe.
+	 */
 	wrusp ((unsigned long) frame);
 	regs->pc = (unsigned long) ka->sa.sa_handler;
 
-adjust_stack:
+	/*
+	 * This is subtle; if we build more than one sigframe, all but the
+	 * first one will see frame format 0 and have fsize == 0, so we won't
+	 * screw stkadj.
+	 */
+	if (fsize)
+		regs->stkadj = fsize;
+
 	/* Prepare to skip over the extra stuff in the exception frame.  */
 	if (regs->stkadj) {
 		struct pt_regs *tregs =
@@ -933,11 +866,11 @@ adjust_stack:
 		tregs->pc = regs->pc;
 		tregs->sr = regs->sr;
 	}
-	return;
+	return 0;
 
 give_sigsegv:
 	force_sigsegv(sig, current);
-	goto adjust_stack;
+	return err;
 }
 
 static inline void
@@ -995,6 +928,7 @@ static void
 handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
 	      sigset_t *oldset, struct pt_regs *regs)
 {
+	int err;
 	/* are we from a system call? */
 	if (regs->orig_d0 >= 0)
 		/* If so, check system call restarting.. */
@@ -1002,17 +936,24 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	/* set up the stack frame */
 	if (ka->sa.sa_flags & SA_SIGINFO)
-		setup_rt_frame(sig, ka, info, oldset, regs);
+		err = setup_rt_frame(sig, ka, info, oldset, regs);
 	else
-		setup_frame(sig, ka, oldset, regs);
+		err = setup_frame(sig, ka, oldset, regs);
 
-	if (ka->sa.sa_flags & SA_ONESHOT)
-		ka->sa.sa_handler = SIG_DFL;
+	if (err)
+		return;
 
 	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
 	if (!(ka->sa.sa_flags & SA_NODEFER))
 		sigaddset(&current->blocked,sig);
 	recalc_sigpending();
+
+	if (test_thread_flag(TIF_DELAYED_TRACE)) {
+		regs->sr &= ~0x8000;
+		send_sig(SIGTRAP, current, 1);
+	}
+
+	clear_thread_flag(TIF_RESTORE_SIGMASK);
 }
 
 /*
@@ -1020,22 +961,25 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
  * want to handle. Thus you cannot kill init even with a SIGKILL even by
  * mistake.
  */
-asmlinkage int do_signal(sigset_t *oldset, struct pt_regs *regs)
+asmlinkage void do_signal(struct pt_regs *regs)
 {
 	siginfo_t info;
 	struct k_sigaction ka;
 	int signr;
+	sigset_t *oldset;
 
 	current->thread.esp0 = (unsigned long) regs;
 
-	if (!oldset)
+	if (test_thread_flag(TIF_RESTORE_SIGMASK))
+		oldset = &current->saved_sigmask;
+	else
 		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
 		handle_signal(signr, &ka, &info, oldset, regs);
-		return 1;
+		return;
 	}
 
 	/* Did we come from a system call? */
@@ -1043,5 +987,9 @@ asmlinkage int do_signal(sigset_t *oldset, struct pt_regs *regs)
 		/* Restart the system call - no handlers present */
 		handle_restart(regs, NULL, 0);
 
-	return 0;
+	/* If there's no signal to deliver, we just restore the saved mask.  */
+	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
+		clear_thread_flag(TIF_RESTORE_SIGMASK);
+		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
+	}
 }

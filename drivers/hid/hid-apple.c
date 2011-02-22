@@ -16,6 +16,8 @@
  * any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>
@@ -57,6 +59,27 @@ struct apple_key_translation {
 	u16 from;
 	u16 to;
 	u8 flags;
+};
+
+static const struct apple_key_translation macbookair_fn_keys[] = {
+	{ KEY_BACKSPACE, KEY_DELETE },
+	{ KEY_ENTER,	KEY_INSERT },
+	{ KEY_F1,	KEY_BRIGHTNESSDOWN, APPLE_FLAG_FKEY },
+	{ KEY_F2,	KEY_BRIGHTNESSUP,   APPLE_FLAG_FKEY },
+	{ KEY_F3,	KEY_SCALE,          APPLE_FLAG_FKEY },
+	{ KEY_F4,	KEY_DASHBOARD,      APPLE_FLAG_FKEY },
+	{ KEY_F6,	KEY_PREVIOUSSONG,   APPLE_FLAG_FKEY },
+	{ KEY_F7,	KEY_PLAYPAUSE,      APPLE_FLAG_FKEY },
+	{ KEY_F8,	KEY_NEXTSONG,       APPLE_FLAG_FKEY },
+	{ KEY_F9,	KEY_MUTE,           APPLE_FLAG_FKEY },
+	{ KEY_F10,	KEY_VOLUMEDOWN,     APPLE_FLAG_FKEY },
+	{ KEY_F11,	KEY_VOLUMEUP,       APPLE_FLAG_FKEY },
+	{ KEY_F12,	KEY_EJECTCD,        APPLE_FLAG_FKEY },
+	{ KEY_UP,	KEY_PAGEUP },
+	{ KEY_DOWN,	KEY_PAGEDOWN },
+	{ KEY_LEFT,	KEY_HOME },
+	{ KEY_RIGHT,	KEY_END },
+	{ }
 };
 
 static const struct apple_key_translation apple_fn_keys[] = {
@@ -146,7 +169,7 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 		struct hid_usage *usage, __s32 value)
 {
 	struct apple_sc *asc = hid_get_drvdata(hid);
-	const struct apple_key_translation *trans;
+	const struct apple_key_translation *trans, *table;
 
 	if (usage->code == KEY_FN) {
 		asc->fn_on = !!value;
@@ -157,10 +180,16 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 	if (fnmode) {
 		int do_translate;
 
-		trans = apple_find_translation((hid->product < 0x21d ||
-					hid->product >= 0x300) ?
-					powerbook_fn_keys : apple_fn_keys,
-					usage->code);
+		if (hid->product >= USB_DEVICE_ID_APPLE_WELLSPRING4_ANSI &&
+				hid->product <= USB_DEVICE_ID_APPLE_WELLSPRING4A_JIS)
+			table = macbookair_fn_keys;
+		else if (hid->product < 0x21d || hid->product >= 0x300)
+			table = powerbook_fn_keys;
+		else
+			table = apple_fn_keys;
+
+		trans = apple_find_translation (table, usage->code);
+
 		if (trans) {
 			if (test_bit(usage->code, asc->pressed_fn))
 				do_translate = 1;
@@ -253,8 +282,8 @@ static __u8 *apple_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 
 	if ((asc->quirks & APPLE_RDESC_JIS) && *rsize >= 60 &&
 			rdesc[53] == 0x65 && rdesc[59] == 0x65) {
-		dev_info(&hdev->dev, "fixing up MacBook JIS keyboard report "
-				"descriptor\n");
+		hid_info(hdev,
+			 "fixing up MacBook JIS keyboard report descriptor\n");
 		rdesc[53] = rdesc[59] = 0xe7;
 	}
 	return rdesc;
@@ -324,7 +353,7 @@ static int apple_probe(struct hid_device *hdev,
 
 	asc = kzalloc(sizeof(*asc), GFP_KERNEL);
 	if (asc == NULL) {
-		dev_err(&hdev->dev, "can't alloc apple descriptor\n");
+		hid_err(hdev, "can't alloc apple descriptor\n");
 		return -ENOMEM;
 	}
 
@@ -334,7 +363,7 @@ static int apple_probe(struct hid_device *hdev,
 
 	ret = hid_parse(hdev);
 	if (ret) {
-		dev_err(&hdev->dev, "parse failed\n");
+		hid_err(hdev, "parse failed\n");
 		goto err_free;
 	}
 
@@ -345,7 +374,7 @@ static int apple_probe(struct hid_device *hdev,
 
 	ret = hid_hw_start(hdev, connect_mask);
 	if (ret) {
-		dev_err(&hdev->dev, "hw start failed\n");
+		hid_err(hdev, "hw start failed\n");
 		goto err_free;
 	}
 
@@ -440,6 +469,18 @@ static const struct hid_device_id apple_devices[] = {
 		.driver_data = APPLE_HAS_FN | APPLE_ISO_KEYBOARD },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING3_JIS),
 		.driver_data = APPLE_HAS_FN | APPLE_RDESC_JIS },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING4_ANSI),
+		.driver_data = APPLE_HAS_FN },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING4_ISO),
+		.driver_data = APPLE_HAS_FN | APPLE_ISO_KEYBOARD },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING4_JIS),
+		.driver_data = APPLE_HAS_FN | APPLE_RDESC_JIS },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING4A_ANSI),
+		.driver_data = APPLE_HAS_FN },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING4A_ISO),
+		.driver_data = APPLE_HAS_FN | APPLE_ISO_KEYBOARD },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING4A_JIS),
+		.driver_data = APPLE_HAS_FN | APPLE_RDESC_JIS },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_ALU_WIRELESS_2009_ANSI),
 		.driver_data = APPLE_NUMLOCK_EMULATION | APPLE_HAS_FN },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_ALU_WIRELESS_2009_ISO),
@@ -473,7 +514,7 @@ static int __init apple_init(void)
 
 	ret = hid_register_driver(&apple_driver);
 	if (ret)
-		printk(KERN_ERR "can't register apple driver\n");
+		pr_err("can't register apple driver\n");
 
 	return ret;
 }

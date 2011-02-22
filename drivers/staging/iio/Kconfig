@@ -42,11 +42,15 @@ config IIO_TRIGGER
 
 source "drivers/staging/iio/accel/Kconfig"
 source "drivers/staging/iio/adc/Kconfig"
+source "drivers/staging/iio/addac/Kconfig"
+source "drivers/staging/iio/dac/Kconfig"
+source "drivers/staging/iio/dds/Kconfig"
 source "drivers/staging/iio/gyro/Kconfig"
 source "drivers/staging/iio/imu/Kconfig"
 source "drivers/staging/iio/light/Kconfig"
 source "drivers/staging/iio/magnetometer/Kconfig"
-
+source "drivers/staging/iio/meter/Kconfig"
+source "drivers/staging/iio/resolver/Kconfig"
 source "drivers/staging/iio/trigger/Kconfig"
 
 endif # IIO

@@ -54,7 +54,7 @@ static inline int ext2_acl_count(size_t size)
 #ifdef CONFIG_EXT2_FS_POSIX_ACL
 
 /* acl.c */
-extern int ext2_check_acl (struct inode *, int);
+extern int ext2_check_acl (struct inode *, int, unsigned int);
 extern int ext2_acl_chmod (struct inode *);
 extern int ext2_init_acl (struct inode *, struct inode *);
 

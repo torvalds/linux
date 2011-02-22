@@ -34,7 +34,7 @@ void __init stmp3xxx_init_irq(struct irq_chip *chip)
 
 	/* Disable all interrupts initially */
 	for (i = 0; i < NR_REAL_IRQS; i++) {
-		chip->mask(i);
+		chip->irq_mask(irq_get_irq_data(i));
 		set_irq_chip(i, chip);
 		set_irq_handler(i, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);

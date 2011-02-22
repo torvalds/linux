@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -51,12 +51,14 @@ char ixgbevf_driver_name[] = "ixgbevf";
 static const char ixgbevf_driver_string[] =
 	"Intel(R) 82599 Virtual Function";
 
-#define DRV_VERSION "1.0.0-k0"
+#define DRV_VERSION "1.0.19-k0"
 const char ixgbevf_driver_version[] = DRV_VERSION;
-static char ixgbevf_copyright[] = "Copyright (c) 2009 Intel Corporation.";
+static char ixgbevf_copyright[] =
+	"Copyright (c) 2009 - 2010 Intel Corporation.";
 
 static const struct ixgbevf_info *ixgbevf_info_tbl[] = {
-	[board_82599_vf] = &ixgbevf_vf_info,
+	[board_82599_vf] = &ixgbevf_82599_vf_info,
+	[board_X540_vf]  = &ixgbevf_X540_vf_info,
 };
 
 /* ixgbevf_pci_tbl - PCI Device ID Table
@@ -70,6 +72,8 @@ static const struct ixgbevf_info *ixgbevf_info_tbl[] = {
 static struct pci_device_id ixgbevf_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_VF),
 	board_82599_vf},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540_VF),
+	board_X540_vf},
 
 	/* required last entry */
 	{0, }
@@ -2488,10 +2492,9 @@ int ixgbevf_setup_tx_resources(struct ixgbevf_adapter *adapter,
 	int size;
 
 	size = sizeof(struct ixgbevf_tx_buffer) * tx_ring->count;
-	tx_ring->tx_buffer_info = vmalloc(size);
+	tx_ring->tx_buffer_info = vzalloc(size);
 	if (!tx_ring->tx_buffer_info)
 		goto err;
-	memset(tx_ring->tx_buffer_info, 0, size);
 
 	/* round up to nearest 4K */
 	tx_ring->size = tx_ring->count * sizeof(union ixgbe_adv_tx_desc);
@@ -2555,14 +2558,13 @@ int ixgbevf_setup_rx_resources(struct ixgbevf_adapter *adapter,
 	int size;
 
 	size = sizeof(struct ixgbevf_rx_buffer) * rx_ring->count;
-	rx_ring->rx_buffer_info = vmalloc(size);
+	rx_ring->rx_buffer_info = vzalloc(size);
 	if (!rx_ring->rx_buffer_info) {
 		hw_dbg(&adapter->hw,
 		       "Unable to vmalloc buffer memory for "
 		       "the receive descriptor ring\n");
 		goto alloc_failed;
 	}
-	memset(rx_ring->rx_buffer_info, 0, size);
 
 	/* Round up to nearest 4K */
 	rx_ring->size = rx_ring->count * sizeof(union ixgbe_adv_rx_desc);
@@ -3424,10 +3426,6 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 	if (hw->mac.ops.get_bus_info)
 		hw->mac.ops.get_bus_info(hw);
 
-
-	netif_carrier_off(netdev);
-	netif_tx_stop_all_queues(netdev);
-
 	strcpy(netdev->name, "eth%d");
 
 	err = register_netdev(netdev);
@@ -3435,6 +3433,8 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 		goto err_register;
 
 	adapter->netdev_registered = true;
+
+	netif_carrier_off(netdev);
 
 	ixgbevf_init_last_counter_stats(adapter);
 
@@ -3487,9 +3487,8 @@ static void __devexit ixgbevf_remove(struct pci_dev *pdev)
 
 	del_timer_sync(&adapter->watchdog_timer);
 
+	cancel_work_sync(&adapter->reset_task);
 	cancel_work_sync(&adapter->watchdog_task);
-
-	flush_scheduled_work();
 
 	if (adapter->netdev_registered) {
 		unregister_netdev(netdev);

@@ -157,10 +157,9 @@ static void udf_bitmap_free_blocks(struct super_block *sb,
 				udf_debug("bit %ld already set\n", bit + i);
 				udf_debug("byte=%2x\n",
 					((char *)bh->b_data)[(bit + i) >> 3]);
-			} else {
-				udf_add_free_space(sb, sbi->s_partition, 1);
 			}
 		}
+		udf_add_free_space(sb, sbi->s_partition, count);
 		mark_buffer_dirty(bh);
 		if (overflow) {
 			block += count;

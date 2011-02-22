@@ -669,6 +669,13 @@ printk("\n");
 	DBG(KERN_DEBUG "enable_irq(%d): eoi(%p, 0x%x)\n", irq,
 			vi->eoi_addr, vi->eoi_data);
 	iosapic_eoi(vi->eoi_addr, vi->eoi_data);
+}
+
+static void iosapic_eoi_irq(unsigned int irq)
+{
+	struct vector_info *vi = get_irq_chip_data(irq);
+
+	iosapic_eoi(vi->eoi_addr, vi->eoi_data);
 	cpu_eoi_irq(irq);
 }
 
@@ -705,6 +712,7 @@ static struct irq_chip iosapic_interrupt_type = {
 	.unmask	=	iosapic_unmask_irq,
 	.mask	=	iosapic_mask_irq,
 	.ack	=	cpu_ack_irq,
+	.eoi	=	iosapic_eoi_irq,
 #ifdef CONFIG_SMP
 	.set_affinity =	iosapic_set_affinity_irq,
 #endif

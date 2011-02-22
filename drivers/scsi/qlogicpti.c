@@ -1003,7 +1003,7 @@ static int qlogicpti_slave_configure(struct scsi_device *sdev)
  *
  * "This code must fly." -davem
  */
-static int qlogicpti_queuecommand(struct scsi_cmnd *Cmnd, void (*done)(struct scsi_cmnd *))
+static int qlogicpti_queuecommand_lck(struct scsi_cmnd *Cmnd, void (*done)(struct scsi_cmnd *))
 {
 	struct Scsi_Host *host = Cmnd->device->host;
 	struct qlogicpti *qpti = (struct qlogicpti *) host->hostdata;
@@ -1051,6 +1051,8 @@ toss_command:
 	done(Cmnd);
 	return 1;
 }
+
+static DEF_SCSI_QCMD(qlogicpti_queuecommand)
 
 static int qlogicpti_return_status(struct Status_Entry *sts, int id)
 {

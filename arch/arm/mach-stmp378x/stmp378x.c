@@ -47,7 +47,7 @@
 /*
  * IRQ handling
  */
-static void stmp378x_ack_irq(unsigned int irq)
+static void stmp378x_ack_irq(struct irq_data *d)
 {
 	/* Tell ICOLL to release IRQ line */
 	__raw_writel(0, REGS_ICOLL_BASE + HW_ICOLL_VECTOR);
@@ -60,24 +60,24 @@ static void stmp378x_ack_irq(unsigned int irq)
 	(void)__raw_readl(REGS_ICOLL_BASE + HW_ICOLL_STAT);
 }
 
-static void stmp378x_mask_irq(unsigned int irq)
+static void stmp378x_mask_irq(struct irq_data *d)
 {
 	/* IRQ disable */
 	stmp3xxx_clearl(BM_ICOLL_INTERRUPTn_ENABLE,
-			REGS_ICOLL_BASE + HW_ICOLL_INTERRUPTn + irq * 0x10);
+			REGS_ICOLL_BASE + HW_ICOLL_INTERRUPTn + d->irq * 0x10);
 }
 
-static void stmp378x_unmask_irq(unsigned int irq)
+static void stmp378x_unmask_irq(struct irq_data *d)
 {
 	/* IRQ enable */
 	stmp3xxx_setl(BM_ICOLL_INTERRUPTn_ENABLE,
-		      REGS_ICOLL_BASE + HW_ICOLL_INTERRUPTn + irq * 0x10);
+		      REGS_ICOLL_BASE + HW_ICOLL_INTERRUPTn + d->irq * 0x10);
 }
 
 static struct irq_chip stmp378x_chip = {
-	.ack	= stmp378x_ack_irq,
-	.mask	= stmp378x_mask_irq,
-	.unmask = stmp378x_unmask_irq,
+	.irq_ack	= stmp378x_ack_irq,
+	.irq_mask	= stmp378x_mask_irq,
+	.irq_unmask	= stmp378x_unmask_irq,
 };
 
 void __init stmp378x_init_irq(void)

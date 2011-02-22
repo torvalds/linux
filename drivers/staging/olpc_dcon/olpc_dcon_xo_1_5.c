@@ -195,9 +195,9 @@ static void dcon_set_dconload_xo_1_5(int val)
 	}
 }
 
-static int dcon_read_status_xo_1_5(void) 
+static u8 dcon_read_status_xo_1_5(void)
 {
-	int status;
+	u8 status;
 	
 	if (!dcon_was_irq())
 		return -1;

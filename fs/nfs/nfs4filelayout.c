@@ -82,7 +82,7 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 {
 	struct nfs4_file_layout_dsaddr *dsaddr;
 	int status = -EINVAL;
-	struct nfs_server *nfss = NFS_SERVER(lo->inode);
+	struct nfs_server *nfss = NFS_SERVER(lo->plh_inode);
 
 	dprintk("--> %s\n", __func__);
 
@@ -101,7 +101,7 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 	/* find and reference the deviceid */
 	dsaddr = nfs4_fl_find_get_deviceid(nfss->nfs_client, id);
 	if (dsaddr == NULL) {
-		dsaddr = get_device_info(lo->inode, id);
+		dsaddr = get_device_info(lo->plh_inode, id);
 		if (dsaddr == NULL)
 			goto out;
 	}
@@ -243,7 +243,7 @@ filelayout_alloc_lseg(struct pnfs_layout_hdr *layoutid,
 static void
 filelayout_free_lseg(struct pnfs_layout_segment *lseg)
 {
-	struct nfs_server *nfss = NFS_SERVER(lseg->layout->inode);
+	struct nfs_server *nfss = NFS_SERVER(lseg->pls_layout->plh_inode);
 	struct nfs4_filelayout_segment *fl = FILELAYOUT_LSEG(lseg);
 
 	dprintk("--> %s\n", __func__);

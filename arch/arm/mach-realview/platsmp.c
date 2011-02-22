@@ -19,7 +19,6 @@
 #include <asm/cacheflush.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
-#include <asm/localtimer.h>
 #include <asm/unified.h>
 
 #include <mach/board-eb.h>
@@ -37,6 +36,19 @@ extern void realview_secondary_startup(void);
  */
 volatile int __cpuinitdata pen_release = -1;
 
+/*
+ * Write pen_release in a way that is guaranteed to be visible to all
+ * observers, irrespective of whether they're taking part in coherency
+ * or not.  This is necessary for the hotplug code to work reliably.
+ */
+static void __cpuinit write_pen_release(int val)
+{
+	pen_release = val;
+	smp_wmb();
+	__cpuc_flush_dcache_area((void *)&pen_release, sizeof(pen_release));
+	outer_clean_range(__pa(&pen_release), __pa(&pen_release + 1));
+}
+
 static void __iomem *scu_base_addr(void)
 {
 	if (machine_is_realview_eb_mp())
@@ -50,33 +62,22 @@ static void __iomem *scu_base_addr(void)
 		return (void __iomem *)0;
 }
 
-static inline unsigned int get_core_count(void)
-{
-	void __iomem *scu_base = scu_base_addr();
-	if (scu_base)
-		return scu_get_core_count(scu_base);
-	return 1;
-}
-
 static DEFINE_SPINLOCK(boot_lock);
 
 void __cpuinit platform_secondary_init(unsigned int cpu)
 {
-	trace_hardirqs_off();
-
 	/*
 	 * if any interrupts are already enabled for the primary
 	 * core (e.g. timer irq), then they will not have been enabled
 	 * for us: do so
 	 */
-	gic_cpu_init(0, gic_cpu_base_addr);
+	gic_secondary_init(0);
 
 	/*
 	 * let the primary processor know we're out of the
 	 * pen, then head off into the C entry point
 	 */
-	pen_release = -1;
-	smp_wmb();
+	write_pen_release(-1);
 
 	/*
 	 * Synchronise with the boot thread.
@@ -103,20 +104,14 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * Note that "pen_release" is the hardware CPU ID, whereas
 	 * "cpu" is Linux's internal ID.
 	 */
-	pen_release = cpu;
-	flush_cache_all();
+	write_pen_release(cpu);
 
 	/*
-	 * XXX
-	 *
-	 * This is a later addition to the booting protocol: the
-	 * bootMonitor now puts secondary cores into WFI, so
-	 * poke_milo() no longer gets the cores moving; we need
-	 * to send a soft interrupt to wake the secondary core.
-	 * Use smp_cross_call() for this, since there's little
-	 * point duplicating the code here
+	 * Send the secondary CPU a soft interrupt, thereby causing
+	 * the boot monitor to read the system wide flags register,
+	 * and branch to the address found there.
 	 */
-	smp_cross_call(cpumask_of(cpu));
+	smp_cross_call(cpumask_of(cpu), 1);
 
 	timeout = jiffies + (1 * HZ);
 	while (time_before(jiffies, timeout)) {
@@ -136,48 +131,18 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	return pen_release != -1 ? -ENOSYS : 0;
 }
 
-static void __init poke_milo(void)
-{
-	/* nobody is to be released from the pen yet */
-	pen_release = -1;
-
-	/*
-	 * Write the address of secondary startup into the system-wide flags
-	 * register. The BootMonitor waits for this register to become
-	 * non-zero.
-	 */
-	__raw_writel(BSYM(virt_to_phys(realview_secondary_startup)),
-		     __io_address(REALVIEW_SYS_FLAGSSET));
-
-	mb();
-}
-
 /*
  * Initialise the CPU possible map early - this describes the CPUs
  * which may be present or become present in the system.
  */
 void __init smp_init_cpus(void)
 {
-	unsigned int i, ncores = get_core_count();
+	void __iomem *scu_base = scu_base_addr();
+	unsigned int i, ncores;
 
-	for (i = 0; i < ncores; i++)
-		set_cpu_possible(i, true);
-}
-
-void __init smp_prepare_cpus(unsigned int max_cpus)
-{
-	unsigned int ncores = get_core_count();
-	unsigned int cpu = smp_processor_id();
-	int i;
+	ncores = scu_base ? scu_get_core_count(scu_base) : 1;
 
 	/* sanity check */
-	if (ncores == 0) {
-		printk(KERN_ERR
-		       "Realview: strange CM count of 0? Default to 1\n");
-
-		ncores = 1;
-	}
-
 	if (ncores > NR_CPUS) {
 		printk(KERN_WARNING
 		       "Realview: no. of cores (%d) greater than configured "
@@ -186,13 +151,13 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		ncores = NR_CPUS;
 	}
 
-	smp_store_cpu_info(cpu);
+	for (i = 0; i < ncores; i++)
+		set_cpu_possible(i, true);
+}
 
-	/*
-	 * are we trying to boot more cores than exist?
-	 */
-	if (max_cpus > ncores)
-		max_cpus = ncores;
+void __init platform_smp_prepare_cpus(unsigned int max_cpus)
+{
+	int i;
 
 	/*
 	 * Initialise the present map, which describes the set of CPUs
@@ -201,21 +166,14 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	for (i = 0; i < max_cpus; i++)
 		set_cpu_present(i, true);
 
-	/*
-	 * Initialise the SCU if there are more than one CPU and let
-	 * them know where to start. Note that, on modern versions of
-	 * MILO, the "poke" doesn't actually do anything until each
-	 * individual core is sent a soft interrupt to get it out of
-	 * WFI
-	 */
-	if (max_cpus > 1) {
-		/*
-		 * Enable the local timer or broadcast device for the
-		 * boot CPU, but only if we have more than one CPU.
-		 */
-		percpu_timer_setup();
+	scu_enable(scu_base_addr());
 
-		scu_enable(scu_base_addr());
-		poke_milo();
-	}
+	/*
+	 * Write the address of secondary startup into the
+	 * system-wide flags register. The BootMonitor waits
+	 * until it receives a soft interrupt, and then the
+	 * secondary CPU branches to this address.
+	 */
+	__raw_writel(BSYM(virt_to_phys(realview_secondary_startup)),
+		     __io_address(REALVIEW_SYS_FLAGSSET));
 }

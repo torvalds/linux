@@ -46,7 +46,7 @@
 static int generic_NCR5380_abort(Scsi_Cmnd *);
 static int generic_NCR5380_detect(struct scsi_host_template *);
 static int generic_NCR5380_release_resources(struct Scsi_Host *);
-static int generic_NCR5380_queue_command(Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));
+static int generic_NCR5380_queue_command(struct Scsi_Host *, struct scsi_cmnd *);
 static int generic_NCR5380_bus_reset(Scsi_Cmnd *);
 static const char* generic_NCR5380_info(struct Scsi_Host *);
 

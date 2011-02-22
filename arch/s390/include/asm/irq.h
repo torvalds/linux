@@ -1,23 +1,33 @@
 #ifndef _ASM_IRQ_H
 #define _ASM_IRQ_H
 
-#ifdef __KERNEL__
 #include <linux/hardirq.h>
-
-/*
- * the definition of irqs has changed in 2.5.46:
- * NR_IRQS is no longer the number of i/o
- * interrupts (65536), but rather the number
- * of interrupt classes (2).
- * Only external and i/o interrupts make much sense here (CH).
- */
 
 enum interruption_class {
 	EXTERNAL_INTERRUPT,
 	IO_INTERRUPT,
-
+	EXTINT_CLK,
+	EXTINT_IPI,
+	EXTINT_TMR,
+	EXTINT_TLA,
+	EXTINT_PFL,
+	EXTINT_DSD,
+	EXTINT_VRT,
+	EXTINT_SCP,
+	EXTINT_IUC,
+	IOINT_QAI,
+	IOINT_QDI,
+	IOINT_DAS,
+	IOINT_C15,
+	IOINT_C70,
+	IOINT_TAP,
+	IOINT_VMR,
+	IOINT_LCS,
+	IOINT_CLW,
+	IOINT_CTC,
+	IOINT_APB,
+	NMI_NMI,
 	NR_IRQS,
 };
 
-#endif /* __KERNEL__ */
-#endif
+#endif /* _ASM_IRQ_H */

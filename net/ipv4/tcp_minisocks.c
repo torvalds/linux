@@ -49,6 +49,56 @@ struct inet_timewait_death_row tcp_death_row = {
 };
 EXPORT_SYMBOL_GPL(tcp_death_row);
 
+/* VJ's idea. Save last timestamp seen from this destination
+ * and hold it at least for normal timewait interval to use for duplicate
+ * segment detection in subsequent connections, before they enter synchronized
+ * state.
+ */
+
+static int tcp_remember_stamp(struct sock *sk)
+{
+	const struct inet_connection_sock *icsk = inet_csk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_peer *peer;
+	bool release_it;
+
+	peer = icsk->icsk_af_ops->get_peer(sk, &release_it);
+	if (peer) {
+		if ((s32)(peer->tcp_ts - tp->rx_opt.ts_recent) <= 0 ||
+		    ((u32)get_seconds() - peer->tcp_ts_stamp > TCP_PAWS_MSL &&
+		     peer->tcp_ts_stamp <= (u32)tp->rx_opt.ts_recent_stamp)) {
+			peer->tcp_ts_stamp = (u32)tp->rx_opt.ts_recent_stamp;
+			peer->tcp_ts = tp->rx_opt.ts_recent;
+		}
+		if (release_it)
+			inet_putpeer(peer);
+		return 1;
+	}
+
+	return 0;
+}
+
+static int tcp_tw_remember_stamp(struct inet_timewait_sock *tw)
+{
+	struct sock *sk = (struct sock *) tw;
+	struct inet_peer *peer;
+
+	peer = twsk_getpeer(sk);
+	if (peer) {
+		const struct tcp_timewait_sock *tcptw = tcp_twsk(sk);
+
+		if ((s32)(peer->tcp_ts - tcptw->tw_ts_recent) <= 0 ||
+		    ((u32)get_seconds() - peer->tcp_ts_stamp > TCP_PAWS_MSL &&
+		     peer->tcp_ts_stamp <= (u32)tcptw->tw_ts_recent_stamp)) {
+			peer->tcp_ts_stamp = (u32)tcptw->tw_ts_recent_stamp;
+			peer->tcp_ts	   = tcptw->tw_ts_recent;
+		}
+		inet_putpeer(peer);
+		return 1;
+	}
+	return 0;
+}
+
 static __inline__ int tcp_in_window(u32 seq, u32 end_seq, u32 s_win, u32 e_win)
 {
 	if (seq == s_win)
@@ -149,14 +199,9 @@ kill_with_rst:
 			tcptw->tw_ts_recent	  = tmp_opt.rcv_tsval;
 		}
 
-		/* I am shamed, but failed to make it more elegant.
-		 * Yes, it is direct reference to IP, which is impossible
-		 * to generalize to IPv6. Taking into account that IPv6
-		 * do not understand recycling in any case, it not
-		 * a big problem in practice. --ANK */
-		if (tw->tw_family == AF_INET &&
-		    tcp_death_row.sysctl_tw_recycle && tcptw->tw_ts_recent_stamp &&
-		    tcp_v4_tw_remember_stamp(tw))
+		if (tcp_death_row.sysctl_tw_recycle &&
+		    tcptw->tw_ts_recent_stamp &&
+		    tcp_tw_remember_stamp(tw))
 			inet_twsk_schedule(tw, &tcp_death_row, tw->tw_timeout,
 					   TCP_TIMEWAIT_LEN);
 		else
@@ -274,7 +319,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 	int recycle_ok = 0;
 
 	if (tcp_death_row.sysctl_tw_recycle && tp->rx_opt.ts_recent_stamp)
-		recycle_ok = icsk->icsk_af_ops->remember_stamp(sk);
+		recycle_ok = tcp_remember_stamp(sk);
 
 	if (tcp_death_row.tw_count < tcp_death_row.sysctl_max_tw_buckets)
 		tw = inet_twsk_alloc(sk, state);
@@ -347,7 +392,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		 * socket up.  We've got bigger problems than
 		 * non-graceful socket closings.
 		 */
-		LIMIT_NETDEBUG(KERN_INFO "TCP: time wait bucket table overflow\n");
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPTIMEWAITOVERFLOW);
 	}
 
 	tcp_update_metrics(sk);

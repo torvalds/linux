@@ -88,10 +88,11 @@ static ssize_t edac_inject_bank_store(struct kobject *kobj,
 		return -EINVAL;
 	}
 
-	if (value > 5) {
-		printk(KERN_ERR "Non-existant MCE bank: %lu\n", value);
-		return -EINVAL;
-	}
+	if (value > 5)
+		if (boot_cpu_data.x86 != 0x15 || value > 6) {
+			printk(KERN_ERR "Non-existant MCE bank: %lu\n", value);
+			return -EINVAL;
+		}
 
 	i_mce.bank = value;
 
@@ -139,7 +140,7 @@ static int __init edac_init_mce_inject(void)
 	return 0;
 
 err_sysfs_create:
-	while (i-- >= 0)
+	while (--i >= 0)
 		sysfs_remove_file(mce_kobj, &sysfs_attrs[i]->attr);
 
 	kobject_del(mce_kobj);

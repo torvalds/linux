@@ -181,7 +181,11 @@
 /* Incorrect Timer Pulse Width in Single-Shot PWM_OUT Mode with External Clock */
 #define ANOMALY_05000254 (__SILICON_REVISION__ > 3)
 /* Interrupt/Exception During Short Hardware Loop May Cause Bad Instruction Fetches */
-#define ANOMALY_05000257 (__SILICON_REVISION__ < 5)
+/* Tempoary work around for kgdb bug 6333 in SMP kernel. It looks coreb hangs in exception
+ * without handling anomaly 05000257 properly on bf561 v0.5. This work around may change
+ * after the behavior and the root cause are confirmed with hardware team.
+ */
+#define ANOMALY_05000257 (__SILICON_REVISION__ < 5 || (__SILICON_REVISION__ == 5 && CONFIG_SMP))
 /* Instruction Cache Is Corrupted When Bits 9 and 12 of the ICPLB Data Registers Differ */
 #define ANOMALY_05000258 (__SILICON_REVISION__ < 5)
 /* ICPLB_STATUS MMR Register May Be Corrupted */

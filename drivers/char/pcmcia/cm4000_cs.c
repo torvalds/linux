@@ -979,8 +979,9 @@ static ssize_t cmm_read(struct file *filp, __user char *buf, size_t count,
 		if (dev->flags0 & 1) {
 			set_bit(IS_CMM_ABSENT, &dev->flags);
 			rc = -ENODEV;
+		} else {
+			rc = -EIO;
 		}
-		rc = -EIO;
 		goto release_io;
 	}
 

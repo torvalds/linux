@@ -202,7 +202,7 @@ simscsi_readwrite10 (struct scsi_cmnd *sc, int mode)
 }
 
 static int
-simscsi_queuecommand (struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
+simscsi_queuecommand_lck (struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 {
 	unsigned int target_id = sc->device->id;
 	char fname[MAX_ROOT_LEN+16];
@@ -325,6 +325,8 @@ simscsi_queuecommand (struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 	tasklet_schedule(&simscsi_tasklet);
 	return 0;
 }
+
+static DEF_SCSI_QCMD(simscsi_queuecommand)
 
 static int
 simscsi_host_reset (struct scsi_cmnd *sc)

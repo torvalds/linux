@@ -194,14 +194,7 @@ __account_scheduler_latency(struct task_struct *tsk, int usecs, int inter)
 
 	account_global_scheduler_latency(tsk, &lat);
 
-	/*
-	 * short term hack; if we're > 32 we stop; future we recycle:
-	 */
-	tsk->latency_record_count++;
-	if (tsk->latency_record_count >= LT_SAVECOUNT)
-		goto out_unlock;
-
-	for (i = 0; i < LT_SAVECOUNT; i++) {
+	for (i = 0; i < tsk->latency_record_count; i++) {
 		struct latency_record *mylat;
 		int same = 1;
 
@@ -227,8 +220,14 @@ __account_scheduler_latency(struct task_struct *tsk, int usecs, int inter)
 		}
 	}
 
+	/*
+	 * short term hack; if we're > 32 we stop; future we recycle:
+	 */
+	if (tsk->latency_record_count >= LT_SAVECOUNT)
+		goto out_unlock;
+
 	/* Allocated a new one: */
-	i = tsk->latency_record_count;
+	i = tsk->latency_record_count++;
 	memcpy(&tsk->latency_record[i], &lat, sizeof(struct latency_record));
 
 out_unlock:
@@ -242,24 +241,19 @@ static int lstats_show(struct seq_file *m, void *v)
 	seq_puts(m, "Latency Top version : v0.1\n");
 
 	for (i = 0; i < MAXLR; i++) {
-		if (latency_record[i].backtrace[0]) {
+		struct latency_record *lr = &latency_record[i];
+
+		if (lr->backtrace[0]) {
 			int q;
-			seq_printf(m, "%i %lu %lu ",
-				latency_record[i].count,
-				latency_record[i].time,
-				latency_record[i].max);
+			seq_printf(m, "%i %lu %lu",
+				   lr->count, lr->time, lr->max);
 			for (q = 0; q < LT_BACKTRACEDEPTH; q++) {
-				char sym[KSYM_SYMBOL_LEN];
-				char *c;
-				if (!latency_record[i].backtrace[q])
+				unsigned long bt = lr->backtrace[q];
+				if (!bt)
 					break;
-				if (latency_record[i].backtrace[q] == ULONG_MAX)
+				if (bt == ULONG_MAX)
 					break;
-				sprint_symbol(sym, latency_record[i].backtrace[q]);
-				c = strchr(sym, '+');
-				if (c)
-					*c = 0;
-				seq_printf(m, "%s ", sym);
+				seq_printf(m, " %ps", (void *)bt);
 			}
 			seq_printf(m, "\n");
 		}

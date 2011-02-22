@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -275,9 +275,11 @@ enum ixbgevf_state_t {
 
 enum ixgbevf_boards {
 	board_82599_vf,
+	board_X540_vf,
 };
 
-extern struct ixgbevf_info ixgbevf_vf_info;
+extern struct ixgbevf_info ixgbevf_82599_vf_info;
+extern struct ixgbevf_info ixgbevf_X540_vf_info;
 extern struct ixgbe_mac_operations ixgbevf_mbx_ops;
 
 /* needed by ethtool.c */

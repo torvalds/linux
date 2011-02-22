@@ -19,12 +19,23 @@
 #ifndef _TIOMAP_
 #define _TIOMAP_
 
-#include <plat/powerdomain.h>
-#include <plat/clockdomain.h>
+/*
+ * XXX These powerdomain.h/clockdomain.h includes are wrong and should
+ * be removed.  No driver should call pwrdm_* or clkdm_* functions
+ * directly; they should rely on OMAP core code to do this.
+ */
+#include <mach-omap2/powerdomain.h>
+#include <mach-omap2/clockdomain.h>
+/*
+ * XXX These mach-omap2/ includes are wrong and should be removed.  No
+ * driver should read or write to PRM/CM registers directly; they
+ * should rely on OMAP core code to do this.
+ */
+#include <mach-omap2/cm2xxx_3xxx.h>
 #include <mach-omap2/prm-regbits-34xx.h>
 #include <mach-omap2/cm-regbits-34xx.h>
-#include <dspbridge/dsp-mmu.h>
 #include <dspbridge/devdefs.h>
+#include <hw_defs.h>
 #include <dspbridge/dspioctl.h>	/* for bridge_ioctl_extproc defn */
 #include <dspbridge/sync.h>
 #include <dspbridge/clk.h>
@@ -306,18 +317,6 @@ static const struct bpwr_clk_t bpwr_clks[] = {
 
 #define CLEAR_BIT_INDEX(reg, index)   (reg &= ~(1 << (index)))
 
-struct shm_segs {
-	u32 seg0_da;
-	u32 seg0_pa;
-	u32 seg0_va;
-	u32 seg0_size;
-	u32 seg1_da;
-	u32 seg1_pa;
-	u32 seg1_va;
-	u32 seg1_size;
-};
-
-
 /* This Bridge driver's device context: */
 struct bridge_dev_context {
 	struct dev_object *hdev_obj;	/* Handle to Bridge device object. */
@@ -328,6 +327,7 @@ struct bridge_dev_context {
 	 */
 	u32 dw_dsp_ext_base_addr;	/* See the comment above */
 	u32 dw_api_reg_base;	/* API mem map'd registers */
+	void __iomem *dw_dsp_mmu_base;	/* DSP MMU Mapped registers */
 	u32 dw_api_clk_base;	/* CLK Registers */
 	u32 dw_dsp_clk_m2_base;	/* DSP Clock Module m2 */
 	u32 dw_public_rhea;	/* Pub Rhea */
@@ -339,8 +339,7 @@ struct bridge_dev_context {
 	u32 dw_internal_size;	/* Internal memory size */
 
 	struct omap_mbox *mbox;		/* Mail box handle */
-	struct iommu *dsp_mmu;      /* iommu for iva2 handler */
-	struct shm_segs sh_s;
+
 	struct cfg_hostres *resources;	/* Host Resources */
 
 	/*
@@ -353,6 +352,7 @@ struct bridge_dev_context {
 
 	/* TC Settings */
 	bool tc_word_swap_on;	/* Traffic Controller Word Swap */
+	struct pg_table_attrs *pt_attrs;
 	u32 dsp_per_clks;
 };
 

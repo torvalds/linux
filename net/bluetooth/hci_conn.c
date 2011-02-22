@@ -39,7 +39,7 @@
 #include <net/sock.h>
 
 #include <asm/system.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -66,7 +66,8 @@ void hci_acl_connect(struct hci_conn *conn)
 	bacpy(&cp.bdaddr, &conn->dst);
 	cp.pscan_rep_mode = 0x02;
 
-	if ((ie = hci_inquiry_cache_lookup(hdev, &conn->dst))) {
+	ie = hci_inquiry_cache_lookup(hdev, &conn->dst);
+	if (ie) {
 		if (inquiry_entry_age(ie) <= INQUIRY_ENTRY_AGE_MAX) {
 			cp.pscan_rep_mode = ie->data.pscan_rep_mode;
 			cp.pscan_mode     = ie->data.pscan_mode;
@@ -368,29 +369,29 @@ struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst, __u8
 
 	BT_DBG("%s dst %s", hdev->name, batostr(dst));
 
-	if (!(acl = hci_conn_hash_lookup_ba(hdev, ACL_LINK, dst))) {
-		if (!(acl = hci_conn_add(hdev, ACL_LINK, dst)))
+	acl = hci_conn_hash_lookup_ba(hdev, ACL_LINK, dst);
+	if (!acl) {
+		acl = hci_conn_add(hdev, ACL_LINK, dst);
+		if (!acl)
 			return NULL;
 	}
 
 	hci_conn_hold(acl);
 
 	if (acl->state == BT_OPEN || acl->state == BT_CLOSED) {
-		acl->sec_level = sec_level;
+		acl->sec_level = BT_SECURITY_LOW;
+		acl->pending_sec_level = sec_level;
 		acl->auth_type = auth_type;
 		hci_acl_connect(acl);
-	} else {
-		if (acl->sec_level < sec_level)
-			acl->sec_level = sec_level;
-		if (acl->auth_type < auth_type)
-			acl->auth_type = auth_type;
 	}
 
 	if (type == ACL_LINK)
 		return acl;
 
-	if (!(sco = hci_conn_hash_lookup_ba(hdev, type, dst))) {
-		if (!(sco = hci_conn_add(hdev, type, dst))) {
+	sco = hci_conn_hash_lookup_ba(hdev, type, dst);
+	if (!sco) {
+		sco = hci_conn_add(hdev, type, dst);
+		if (!sco) {
 			hci_conn_put(acl);
 			return NULL;
 		}
@@ -437,10 +438,16 @@ static int hci_conn_auth(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 {
 	BT_DBG("conn %p", conn);
 
+	if (conn->pending_sec_level > sec_level)
+		sec_level = conn->pending_sec_level;
+
 	if (sec_level > conn->sec_level)
-		conn->sec_level = sec_level;
+		conn->pending_sec_level = sec_level;
 	else if (conn->link_mode & HCI_LM_AUTH)
 		return 1;
+
+	/* Make sure we preserve an existing MITM requirement*/
+	auth_type |= (conn->auth_type & 0x01);
 
 	conn->auth_type = auth_type;
 
@@ -647,10 +654,12 @@ int hci_get_conn_list(void __user *arg)
 
 	size = sizeof(req) + req.conn_num * sizeof(*ci);
 
-	if (!(cl = kmalloc(size, GFP_KERNEL)))
+	cl = kmalloc(size, GFP_KERNEL);
+	if (!cl)
 		return -ENOMEM;
 
-	if (!(hdev = hci_dev_get(req.dev_id))) {
+	hdev = hci_dev_get(req.dev_id);
+	if (!hdev) {
 		kfree(cl);
 		return -ENODEV;
 	}

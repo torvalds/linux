@@ -440,7 +440,6 @@ static int gfs2_lookup_root(struct super_block *sb, struct dentry **dptr,
 		iput(inode);
 		return -ENOMEM;
 	}
-	dentry->d_op = &gfs2_dops;
 	*dptr = dentry;
 	return 0;
 }
@@ -1106,6 +1105,7 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 
 	sb->s_magic = GFS2_MAGIC;
 	sb->s_op = &gfs2_super_ops;
+	sb->s_d_op = &gfs2_dops;
 	sb->s_export_op = &gfs2_export_ops;
 	sb->s_xattr = gfs2_xattr_handlers;
 	sb->s_qcop = &gfs2_quotactl_ops;
@@ -1268,7 +1268,7 @@ static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
 {
 	struct block_device *bdev;
 	struct super_block *s;
-	fmode_t mode = FMODE_READ;
+	fmode_t mode = FMODE_READ | FMODE_EXCL;
 	int error;
 	struct gfs2_args args;
 	struct gfs2_sbd *sdp;
@@ -1276,7 +1276,7 @@ static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
 	if (!(flags & MS_RDONLY))
 		mode |= FMODE_WRITE;
 
-	bdev = open_bdev_exclusive(dev_name, mode, fs_type);
+	bdev = blkdev_get_by_path(dev_name, mode, fs_type);
 	if (IS_ERR(bdev))
 		return ERR_CAST(bdev);
 
@@ -1298,7 +1298,7 @@ static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
 		goto error_bdev;
 
 	if (s->s_root)
-		close_bdev_exclusive(bdev, mode);
+		blkdev_put(bdev, mode);
 
 	memset(&args, 0, sizeof(args));
 	args.ar_quota = GFS2_QUOTA_DEFAULT;
@@ -1342,7 +1342,7 @@ error_super:
 	deactivate_locked_super(s);
 	return ERR_PTR(error);
 error_bdev:
-	close_bdev_exclusive(bdev, mode);
+	blkdev_put(bdev, mode);
 	return ERR_PTR(error);
 }
 

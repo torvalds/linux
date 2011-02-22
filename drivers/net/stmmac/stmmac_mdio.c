@@ -53,7 +53,7 @@ static int stmmac_mdio_read(struct mii_bus *bus, int phyaddr, int phyreg)
 	int data;
 	u16 regValue = (((phyaddr << 11) & (0x0000F800)) |
 			((phyreg << 6) & (0x000007C0)));
-	regValue |= MII_BUSY | ((priv->mii_clk_csr & 7) << 2);
+	regValue |= MII_BUSY | ((priv->plat->clk_csr & 7) << 2);
 
 	do {} while (((readl(priv->ioaddr + mii_address)) & MII_BUSY) == 1);
 	writel(regValue, priv->ioaddr + mii_address);
@@ -85,7 +85,7 @@ static int stmmac_mdio_write(struct mii_bus *bus, int phyaddr, int phyreg,
 	    (((phyaddr << 11) & (0x0000F800)) | ((phyreg << 6) & (0x000007C0)))
 	    | MII_WRITE;
 
-	value |= MII_BUSY | ((priv->mii_clk_csr & 7) << 2);
+	value |= MII_BUSY | ((priv->plat->clk_csr & 7) << 2);
 
 
 	/* Wait until any existing MII operation is complete */
@@ -114,7 +114,7 @@ static int stmmac_mdio_reset(struct mii_bus *bus)
 
 	if (priv->phy_reset) {
 		pr_debug("stmmac_mdio_reset: calling phy_reset\n");
-		priv->phy_reset(priv->bsp_priv);
+		priv->phy_reset(priv->plat->bsp_priv);
 	}
 
 	/* This is a workaround for problems with the STE101P PHY.
@@ -157,7 +157,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 	new_bus->read = &stmmac_mdio_read;
 	new_bus->write = &stmmac_mdio_write;
 	new_bus->reset = &stmmac_mdio_reset;
-	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%x", priv->bus_id);
+	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%x", priv->plat->bus_id);
 	new_bus->priv = ndev;
 	new_bus->irq = irqlist;
 	new_bus->phy_mask = priv->phy_mask;

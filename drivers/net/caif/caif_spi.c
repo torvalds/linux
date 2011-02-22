@@ -635,8 +635,8 @@ int cfspi_spi_probe(struct platform_device *pdev)
 
 	ndev = alloc_netdev(sizeof(struct cfspi),
 			"cfspi%d", cfspi_setup);
-	if (!dev)
-		return -ENODEV;
+	if (!ndev)
+		return -ENOMEM;
 
 	cfspi = netdev_priv(ndev);
 	netif_stop_queue(ndev);

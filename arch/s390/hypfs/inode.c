@@ -46,8 +46,6 @@ static const struct super_operations hypfs_s_ops;
 /* start of list of all dentries, which have to be deleted on update */
 static struct dentry *hypfs_last_dentry;
 
-struct dentry *hypfs_dbfs_dir;
-
 static void hypfs_update_update(struct super_block *sb)
 {
 	struct hypfs_sb_info *sb_info = sb->s_fs_info;
@@ -471,13 +469,12 @@ static int __init hypfs_init(void)
 {
 	int rc;
 
-	hypfs_dbfs_dir = debugfs_create_dir("s390_hypfs", NULL);
-	if (IS_ERR(hypfs_dbfs_dir))
-		return PTR_ERR(hypfs_dbfs_dir);
-
+	rc = hypfs_dbfs_init();
+	if (rc)
+		return rc;
 	if (hypfs_diag_init()) {
 		rc = -ENODATA;
-		goto fail_debugfs_remove;
+		goto fail_dbfs_exit;
 	}
 	if (hypfs_vm_init()) {
 		rc = -ENODATA;
@@ -499,9 +496,8 @@ fail_hypfs_vm_exit:
 	hypfs_vm_exit();
 fail_hypfs_diag_exit:
 	hypfs_diag_exit();
-fail_debugfs_remove:
-	debugfs_remove(hypfs_dbfs_dir);
-
+fail_dbfs_exit:
+	hypfs_dbfs_exit();
 	pr_err("Initialization of hypfs failed with rc=%i\n", rc);
 	return rc;
 }
@@ -510,7 +506,7 @@ static void __exit hypfs_exit(void)
 {
 	hypfs_diag_exit();
 	hypfs_vm_exit();
-	debugfs_remove(hypfs_dbfs_dir);
+	hypfs_dbfs_exit();
 	unregister_filesystem(&hypfs_type);
 	kobject_put(s390_kobj);
 }

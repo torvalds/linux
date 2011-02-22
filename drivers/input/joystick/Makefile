@@ -7,6 +7,7 @@
 obj-$(CONFIG_JOYSTICK_A3D)		+= a3d.o
 obj-$(CONFIG_JOYSTICK_ADI)		+= adi.o
 obj-$(CONFIG_JOYSTICK_AMIGA)		+= amijoy.o
+obj-$(CONFIG_JOYSTICK_AS5011)		+= as5011.o
 obj-$(CONFIG_JOYSTICK_ANALOG)		+= analog.o
 obj-$(CONFIG_JOYSTICK_COBRA)		+= cobra.o
 obj-$(CONFIG_JOYSTICK_DB9)		+= db9.o

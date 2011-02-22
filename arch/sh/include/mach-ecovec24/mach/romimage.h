@@ -35,7 +35,7 @@
 #define HIZCRA		0xa4050158
 #define PGDR		0xa405012c
 
-extern inline void mmcif_update_progress(int nr)
+static inline void mmcif_update_progress(int nr)
 {
 	/* disable Hi-Z for LED pins */
 	__raw_writew(__raw_readw(HIZCRA) & ~(1 << 1), HIZCRA);

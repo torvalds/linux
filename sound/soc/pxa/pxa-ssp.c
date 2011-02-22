@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/pxa2xx_ssp.h>
 
 #include <asm/irq.h>
 
@@ -33,7 +34,6 @@
 #include <mach/hardware.h>
 #include <mach/dma.h>
 #include <mach/audio.h>
-#include <plat/ssp.h>
 
 #include "../../arm/pxa2xx-pcm.h"
 #include "pxa-ssp.h"

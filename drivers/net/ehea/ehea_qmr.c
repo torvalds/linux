@@ -26,6 +26,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include "ehea.h"
@@ -45,7 +47,7 @@ static void *hw_qpageit_get_inc(struct hw_queue *queue)
 		queue->current_q_offset -= queue->pagesize;
 		retvalue = NULL;
 	} else if (((u64) retvalue) & (EHEA_PAGESIZE-1)) {
-		ehea_error("not on pageboundary");
+		pr_err("not on pageboundary\n");
 		retvalue = NULL;
 	}
 	return retvalue;
@@ -58,15 +60,15 @@ static int hw_queue_ctor(struct hw_queue *queue, const u32 nr_of_pages,
 	int i, k;
 
 	if ((pagesize > PAGE_SIZE) || (!pages_per_kpage)) {
-		ehea_error("pagesize conflict! kernel pagesize=%d, "
-			   "ehea pagesize=%d", (int)PAGE_SIZE, (int)pagesize);
+		pr_err("pagesize conflict! kernel pagesize=%d, ehea pagesize=%d\n",
+		       (int)PAGE_SIZE, (int)pagesize);
 		return -EINVAL;
 	}
 
 	queue->queue_length = nr_of_pages * pagesize;
 	queue->queue_pages = kmalloc(nr_of_pages * sizeof(void *), GFP_KERNEL);
 	if (!queue->queue_pages) {
-		ehea_error("no mem for queue_pages");
+		pr_err("no mem for queue_pages\n");
 		return -ENOMEM;
 	}
 
@@ -130,7 +132,7 @@ struct ehea_cq *ehea_create_cq(struct ehea_adapter *adapter,
 
 	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
 	if (!cq) {
-		ehea_error("no mem for cq");
+		pr_err("no mem for cq\n");
 		goto out_nomem;
 	}
 
@@ -147,7 +149,7 @@ struct ehea_cq *ehea_create_cq(struct ehea_adapter *adapter,
 	hret = ehea_h_alloc_resource_cq(adapter->handle, &cq->attr,
 					&cq->fw_handle, &cq->epas);
 	if (hret != H_SUCCESS) {
-		ehea_error("alloc_resource_cq failed");
+		pr_err("alloc_resource_cq failed\n");
 		goto out_freemem;
 	}
 
@@ -159,7 +161,7 @@ struct ehea_cq *ehea_create_cq(struct ehea_adapter *adapter,
 	for (counter = 0; counter < cq->attr.nr_pages; counter++) {
 		vpage = hw_qpageit_get_inc(&cq->hw_queue);
 		if (!vpage) {
-			ehea_error("hw_qpageit_get_inc failed");
+			pr_err("hw_qpageit_get_inc failed\n");
 			goto out_kill_hwq;
 		}
 
@@ -168,9 +170,8 @@ struct ehea_cq *ehea_create_cq(struct ehea_adapter *adapter,
 					     0, EHEA_CQ_REGISTER_ORIG,
 					     cq->fw_handle, rpage, 1);
 		if (hret < H_SUCCESS) {
-			ehea_error("register_rpage_cq failed ehea_cq=%p "
-				   "hret=%llx counter=%i act_pages=%i",
-				   cq, hret, counter, cq->attr.nr_pages);
+			pr_err("register_rpage_cq failed ehea_cq=%p hret=%llx counter=%i act_pages=%i\n",
+			       cq, hret, counter, cq->attr.nr_pages);
 			goto out_kill_hwq;
 		}
 
@@ -178,14 +179,14 @@ struct ehea_cq *ehea_create_cq(struct ehea_adapter *adapter,
 			vpage = hw_qpageit_get_inc(&cq->hw_queue);
 
 			if ((hret != H_SUCCESS) || (vpage)) {
-				ehea_error("registration of pages not "
-					   "complete hret=%llx\n", hret);
+				pr_err("registration of pages not complete hret=%llx\n",
+				       hret);
 				goto out_kill_hwq;
 			}
 		} else {
 			if (hret != H_PAGE_REGISTERED) {
-				ehea_error("CQ: registration of page failed "
-					   "hret=%llx\n", hret);
+				pr_err("CQ: registration of page failed hret=%llx\n",
+				       hret);
 				goto out_kill_hwq;
 			}
 		}
@@ -241,7 +242,7 @@ int ehea_destroy_cq(struct ehea_cq *cq)
 	}
 
 	if (hret != H_SUCCESS) {
-		ehea_error("destroy CQ failed");
+		pr_err("destroy CQ failed\n");
 		return -EIO;
 	}
 
@@ -259,7 +260,7 @@ struct ehea_eq *ehea_create_eq(struct ehea_adapter *adapter,
 
 	eq = kzalloc(sizeof(*eq), GFP_KERNEL);
 	if (!eq) {
-		ehea_error("no mem for eq");
+		pr_err("no mem for eq\n");
 		return NULL;
 	}
 
@@ -272,21 +273,21 @@ struct ehea_eq *ehea_create_eq(struct ehea_adapter *adapter,
 	hret = ehea_h_alloc_resource_eq(adapter->handle,
 					&eq->attr, &eq->fw_handle);
 	if (hret != H_SUCCESS) {
-		ehea_error("alloc_resource_eq failed");
+		pr_err("alloc_resource_eq failed\n");
 		goto out_freemem;
 	}
 
 	ret = hw_queue_ctor(&eq->hw_queue, eq->attr.nr_pages,
 			    EHEA_PAGESIZE, sizeof(struct ehea_eqe));
 	if (ret) {
-		ehea_error("can't allocate eq pages");
+		pr_err("can't allocate eq pages\n");
 		goto out_freeres;
 	}
 
 	for (i = 0; i < eq->attr.nr_pages; i++) {
 		vpage = hw_qpageit_get_inc(&eq->hw_queue);
 		if (!vpage) {
-			ehea_error("hw_qpageit_get_inc failed");
+			pr_err("hw_qpageit_get_inc failed\n");
 			hret = H_RESOURCE;
 			goto out_kill_hwq;
 		}
@@ -370,7 +371,7 @@ int ehea_destroy_eq(struct ehea_eq *eq)
 	}
 
 	if (hret != H_SUCCESS) {
-		ehea_error("destroy EQ failed");
+		pr_err("destroy EQ failed\n");
 		return -EIO;
 	}
 
@@ -395,7 +396,7 @@ int ehea_qp_alloc_register(struct ehea_qp *qp, struct hw_queue *hw_queue,
 	for (cnt = 0; cnt < nr_pages; cnt++) {
 		vpage = hw_qpageit_get_inc(hw_queue);
 		if (!vpage) {
-			ehea_error("hw_qpageit_get_inc failed");
+			pr_err("hw_qpageit_get_inc failed\n");
 			goto out_kill_hwq;
 		}
 		rpage = virt_to_abs(vpage);
@@ -403,7 +404,7 @@ int ehea_qp_alloc_register(struct ehea_qp *qp, struct hw_queue *hw_queue,
 					     0, h_call_q_selector,
 					     qp->fw_handle, rpage, 1);
 		if (hret < H_SUCCESS) {
-			ehea_error("register_rpage_qp failed");
+			pr_err("register_rpage_qp failed\n");
 			goto out_kill_hwq;
 		}
 	}
@@ -432,7 +433,7 @@ struct ehea_qp *ehea_create_qp(struct ehea_adapter *adapter,
 
 	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
 	if (!qp) {
-		ehea_error("no mem for qp");
+		pr_err("no mem for qp\n");
 		return NULL;
 	}
 
@@ -441,7 +442,7 @@ struct ehea_qp *ehea_create_qp(struct ehea_adapter *adapter,
 	hret = ehea_h_alloc_resource_qp(adapter->handle, init_attr, pd,
 					&qp->fw_handle, &qp->epas);
 	if (hret != H_SUCCESS) {
-		ehea_error("ehea_h_alloc_resource_qp failed");
+		pr_err("ehea_h_alloc_resource_qp failed\n");
 		goto out_freemem;
 	}
 
@@ -455,7 +456,7 @@ struct ehea_qp *ehea_create_qp(struct ehea_adapter *adapter,
 				     init_attr->act_wqe_size_enc_sq, adapter,
 				     0);
 	if (ret) {
-		ehea_error("can't register for sq ret=%x", ret);
+		pr_err("can't register for sq ret=%x\n", ret);
 		goto out_freeres;
 	}
 
@@ -465,7 +466,7 @@ struct ehea_qp *ehea_create_qp(struct ehea_adapter *adapter,
 				     init_attr->act_wqe_size_enc_rq1,
 				     adapter, 1);
 	if (ret) {
-		ehea_error("can't register for rq1 ret=%x", ret);
+		pr_err("can't register for rq1 ret=%x\n", ret);
 		goto out_kill_hwsq;
 	}
 
@@ -476,7 +477,7 @@ struct ehea_qp *ehea_create_qp(struct ehea_adapter *adapter,
 					     init_attr->act_wqe_size_enc_rq2,
 					     adapter, 2);
 		if (ret) {
-			ehea_error("can't register for rq2 ret=%x", ret);
+			pr_err("can't register for rq2 ret=%x\n", ret);
 			goto out_kill_hwr1q;
 		}
 	}
@@ -488,7 +489,7 @@ struct ehea_qp *ehea_create_qp(struct ehea_adapter *adapter,
 					     init_attr->act_wqe_size_enc_rq3,
 					     adapter, 3);
 		if (ret) {
-			ehea_error("can't register for rq3 ret=%x", ret);
+			pr_err("can't register for rq3 ret=%x\n", ret);
 			goto out_kill_hwr2q;
 		}
 	}
@@ -553,7 +554,7 @@ int ehea_destroy_qp(struct ehea_qp *qp)
 	}
 
 	if (hret != H_SUCCESS) {
-		ehea_error("destroy QP failed");
+		pr_err("destroy QP failed\n");
 		return -EIO;
 	}
 
@@ -842,7 +843,7 @@ static u64 ehea_reg_mr_section(int top, int dir, int idx, u64 *pt,
 		    (hret != H_PAGE_REGISTERED)) {
 			ehea_h_free_resource(adapter->handle, mr->handle,
 					     FORCE_FREE);
-			ehea_error("register_rpage_mr failed");
+			pr_err("register_rpage_mr failed\n");
 			return hret;
 		}
 	}
@@ -896,7 +897,7 @@ int ehea_reg_kernel_mr(struct ehea_adapter *adapter, struct ehea_mr *mr)
 
 	pt = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!pt) {
-		ehea_error("no mem");
+		pr_err("no mem\n");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -906,14 +907,14 @@ int ehea_reg_kernel_mr(struct ehea_adapter *adapter, struct ehea_mr *mr)
 					&mr->handle, &mr->lkey);
 
 	if (hret != H_SUCCESS) {
-		ehea_error("alloc_resource_mr failed");
+		pr_err("alloc_resource_mr failed\n");
 		ret = -EIO;
 		goto out;
 	}
 
 	if (!ehea_bmap) {
 		ehea_h_free_resource(adapter->handle, mr->handle, FORCE_FREE);
-		ehea_error("no busmap available");
+		pr_err("no busmap available\n");
 		ret = -EIO;
 		goto out;
 	}
@@ -929,7 +930,7 @@ int ehea_reg_kernel_mr(struct ehea_adapter *adapter, struct ehea_mr *mr)
 
 	if (hret != H_SUCCESS) {
 		ehea_h_free_resource(adapter->handle, mr->handle, FORCE_FREE);
-		ehea_error("registering mr failed");
+		pr_err("registering mr failed\n");
 		ret = -EIO;
 		goto out;
 	}
@@ -952,7 +953,7 @@ int ehea_rem_mr(struct ehea_mr *mr)
 	hret = ehea_h_free_resource(mr->adapter->handle, mr->handle,
 				    FORCE_FREE);
 	if (hret != H_SUCCESS) {
-		ehea_error("destroy MR failed");
+		pr_err("destroy MR failed\n");
 		return -EIO;
 	}
 
@@ -987,14 +988,14 @@ void print_error_data(u64 *data)
 		length = EHEA_PAGESIZE;
 
 	if (type == EHEA_AER_RESTYPE_QP)
-		ehea_error("QP (resource=%llX) state: AER=0x%llX, AERR=0x%llX, "
-			   "port=%llX", resource, data[6], data[12], data[22]);
+		pr_err("QP (resource=%llX) state: AER=0x%llX, AERR=0x%llX, port=%llX\n",
+		       resource, data[6], data[12], data[22]);
 	else if (type == EHEA_AER_RESTYPE_CQ)
-		ehea_error("CQ (resource=%llX) state: AER=0x%llX", resource,
-			   data[6]);
+		pr_err("CQ (resource=%llX) state: AER=0x%llX\n",
+		       resource, data[6]);
 	else if (type == EHEA_AER_RESTYPE_EQ)
-		ehea_error("EQ (resource=%llX) state: AER=0x%llX", resource,
-			   data[6]);
+		pr_err("EQ (resource=%llX) state: AER=0x%llX\n",
+		       resource, data[6]);
 
 	ehea_dump(data, length, "error data");
 }
@@ -1008,7 +1009,7 @@ u64 ehea_error_data(struct ehea_adapter *adapter, u64 res_handle,
 
 	rblock = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!rblock) {
-		ehea_error("Cannot allocate rblock memory.");
+		pr_err("Cannot allocate rblock memory\n");
 		goto out;
 	}
 
@@ -1020,9 +1021,9 @@ u64 ehea_error_data(struct ehea_adapter *adapter, u64 res_handle,
 		*aerr = rblock[12];
 		print_error_data(rblock);
 	} else if (ret == H_R_STATE) {
-		ehea_error("No error data available: %llX.", res_handle);
+		pr_err("No error data available: %llX\n", res_handle);
 	} else
-		ehea_error("Error data could not be fetched: %llX", res_handle);
+		pr_err("Error data could not be fetched: %llX\n", res_handle);
 
 	free_page((unsigned long)rblock);
 out:

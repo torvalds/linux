@@ -395,8 +395,8 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	 * by the port.
 	 */
 	if ((phba->sli_rev == LPFC_SLI_REV4) &&
-		(pport->fc_flag & FC_VFI_REGISTERED)) {
-		rc = lpfc_sli4_init_vpi(phba, vpi);
+	    (pport->fc_flag & FC_VFI_REGISTERED)) {
+		rc = lpfc_sli4_init_vpi(vport);
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_VPORT,
 					"1838 Failed to INIT_VPI on vpi %d "
@@ -418,7 +418,7 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 
 	if ((phba->link_state < LPFC_LINK_UP) ||
 	    (pport->port_state < LPFC_FABRIC_CFG_LINK) ||
-	    (phba->fc_topology == TOPOLOGY_LOOP)) {
+	    (phba->fc_topology == LPFC_TOPOLOGY_LOOP)) {
 		lpfc_vport_set_state(vport, FC_VPORT_LINKDOWN);
 		rc = VPORT_OK;
 		goto out;
@@ -514,7 +514,7 @@ enable_vport(struct fc_vport *fc_vport)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	if ((phba->link_state < LPFC_LINK_UP) ||
-	    (phba->fc_topology == TOPOLOGY_LOOP)) {
+	    (phba->fc_topology == LPFC_TOPOLOGY_LOOP)) {
 		lpfc_vport_set_state(vport, FC_VPORT_LINKDOWN);
 		return VPORT_OK;
 	}
@@ -665,7 +665,7 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
 	    ndlp->nlp_state == NLP_STE_UNMAPPED_NODE &&
 	    phba->link_state >= LPFC_LINK_UP &&
-	    phba->fc_topology != TOPOLOGY_LOOP) {
+	    phba->fc_topology != LPFC_TOPOLOGY_LOOP) {
 		if (vport->cfg_enable_da_id) {
 			timeout = msecs_to_jiffies(phba->fc_ratov * 2000);
 			if (!lpfc_ns_cmd(vport, SLI_CTNS_DA_ID, 0, 0))

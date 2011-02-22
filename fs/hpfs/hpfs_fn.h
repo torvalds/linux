@@ -233,7 +233,7 @@ void hpfs_mark_4buffers_dirty(struct quad_buffer_head *);
 
 /* dentry.c */
 
-void hpfs_set_dentry_operations(struct dentry *);
+extern const struct dentry_operations hpfs_dentry_operations;
 
 /* dir.c */
 

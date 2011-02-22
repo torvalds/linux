@@ -37,8 +37,9 @@
  */
 extern inline void __set_hae(unsigned long new_hae)
 {
-	unsigned long flags;
-	local_irq_save(flags);
+	unsigned long flags = swpipl(IPL_MAX);
+
+	barrier();
 
 	alpha_mv.hae_cache = new_hae;
 	*alpha_mv.hae_register = new_hae;
@@ -46,7 +47,8 @@ extern inline void __set_hae(unsigned long new_hae)
 	/* Re-read to make sure it was written.  */
 	new_hae = *alpha_mv.hae_register;
 
-	local_irq_restore(flags);
+	setipl(flags);
+	barrier();
 }
 
 extern inline void set_hae(unsigned long new_hae)

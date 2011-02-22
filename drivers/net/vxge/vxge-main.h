@@ -29,6 +29,9 @@
 
 #define PCI_DEVICE_ID_TITAN_WIN		0x5733
 #define PCI_DEVICE_ID_TITAN_UNI		0x5833
+#define VXGE_HW_TITAN1_PCI_REVISION	1
+#define VXGE_HW_TITAN1A_PCI_REVISION	2
+
 #define	VXGE_USE_DEFAULT		0xffffffff
 #define VXGE_HW_VPATH_MSIX_ACTIVE	4
 #define VXGE_ALARM_MSIX_ID		2
@@ -53,11 +56,13 @@
 
 #define VXGE_TTI_BTIMER_VAL 250000
 
-#define VXGE_TTI_LTIMER_VAL 1000
-#define VXGE_TTI_RTIMER_VAL 0
-#define VXGE_RTI_BTIMER_VAL 250
-#define VXGE_RTI_LTIMER_VAL 100
-#define VXGE_RTI_RTIMER_VAL 0
+#define VXGE_TTI_LTIMER_VAL	1000
+#define VXGE_T1A_TTI_LTIMER_VAL	80
+#define VXGE_TTI_RTIMER_VAL	0
+#define VXGE_T1A_TTI_RTIMER_VAL	400
+#define VXGE_RTI_BTIMER_VAL	250
+#define VXGE_RTI_LTIMER_VAL	100
+#define VXGE_RTI_RTIMER_VAL	0
 #define VXGE_FIFO_INDICATE_MAX_PKTS VXGE_DEF_FIFO_LENGTH
 #define VXGE_ISR_POLLING_CNT 	8
 #define VXGE_MAX_CONFIG_DEV	0xFF
@@ -76,14 +81,32 @@
 #define TTI_TX_UFC_B	40
 #define TTI_TX_UFC_C	60
 #define TTI_TX_UFC_D	100
+#define TTI_T1A_TX_UFC_A	30
+#define TTI_T1A_TX_UFC_B	80
+/* Slope - (max_mtu - min_mtu)/(max_mtu_ufc - min_mtu_ufc) */
+/* Slope - 93 */
+/* 60 - 9k Mtu, 140 - 1.5k mtu */
+#define TTI_T1A_TX_UFC_C(mtu)	(60 + ((VXGE_HW_MAX_MTU - mtu) / 93))
 
-#define RTI_RX_URANGE_A	5
-#define RTI_RX_URANGE_B	15
-#define RTI_RX_URANGE_C	40
-#define RTI_RX_UFC_A	1
-#define RTI_RX_UFC_B	5
-#define RTI_RX_UFC_C	10
-#define RTI_RX_UFC_D	15
+/* Slope - 37 */
+/* 100 - 9k Mtu, 300 - 1.5k mtu */
+#define TTI_T1A_TX_UFC_D(mtu)	(100 + ((VXGE_HW_MAX_MTU - mtu) / 37))
+
+
+#define RTI_RX_URANGE_A		5
+#define RTI_RX_URANGE_B		15
+#define RTI_RX_URANGE_C		40
+#define RTI_T1A_RX_URANGE_A	1
+#define RTI_T1A_RX_URANGE_B	20
+#define RTI_T1A_RX_URANGE_C	50
+#define RTI_RX_UFC_A		1
+#define RTI_RX_UFC_B		5
+#define RTI_RX_UFC_C		10
+#define RTI_RX_UFC_D		15
+#define RTI_T1A_RX_UFC_B	20
+#define RTI_T1A_RX_UFC_C	50
+#define RTI_T1A_RX_UFC_D	60
+
 
 /* Milli secs timer period */
 #define VXGE_TIMER_DELAY		10000
@@ -145,15 +168,15 @@ struct vxge_config {
 
 	int		addr_learn_en;
 
-	int		rth_steering;
-	int		rth_algorithm;
-	int		rth_hash_type_tcpipv4;
-	int		rth_hash_type_ipv4;
-	int		rth_hash_type_tcpipv6;
-	int		rth_hash_type_ipv6;
-	int		rth_hash_type_tcpipv6ex;
-	int		rth_hash_type_ipv6ex;
-	int		rth_bkt_sz;
+	u32		rth_steering:2,
+			rth_algorithm:2,
+			rth_hash_type_tcpipv4:1,
+			rth_hash_type_ipv4:1,
+			rth_hash_type_tcpipv6:1,
+			rth_hash_type_ipv6:1,
+			rth_hash_type_tcpipv6ex:1,
+			rth_hash_type_ipv6ex:1,
+			rth_bkt_sz:8;
 	int		rth_jhash_golden_ratio;
 	int		tx_steering_type;
 	int 	fifo_indicate_max_pkts;
@@ -248,8 +271,9 @@ struct vxge_ring {
 	 */
 	int driver_id;
 
-	 /* copy of the flag indicating whether rx_csum is to be used */
-	u32 rx_csum;
+	/* copy of the flag indicating whether rx_csum is to be used */
+	u32 rx_csum:1,
+	    rx_hwts:1;
 
 	int pkts_processed;
 	int budget;
@@ -281,8 +305,8 @@ struct vxge_vpath {
 	int is_configured;
 	int is_open;
 	struct vxgedev *vdev;
-	u8 (macaddr)[ETH_ALEN];
-	u8 (macmask)[ETH_ALEN];
+	u8 macaddr[ETH_ALEN];
+	u8 macmask[ETH_ALEN];
 
 #define VXGE_MAX_LEARN_MAC_ADDR_CNT	2048
 	/* mac addresses currently programmed into NIC */
@@ -327,7 +351,9 @@ struct vxgedev {
 	u16		all_multi_flg;
 
 	 /* A flag indicating whether rx_csum is to be used or not. */
-	u32	rx_csum;
+	u32	rx_csum:1,
+		rx_hwts:1,
+		titan1:1;
 
 	struct vxge_msix_entry *vxge_entries;
 	struct msix_entry *entries;
@@ -369,6 +395,7 @@ struct vxgedev {
 	u32 		level_err;
 	u32 		level_trace;
 	char		fw_version[VXGE_HW_FW_STRLEN];
+	struct work_struct reset_task;
 };
 
 struct vxge_rx_priv {
@@ -387,8 +414,6 @@ struct vxge_tx_priv {
 	static int p = val; \
 	module_param(p, int, 0)
 
-#define vxge_os_bug(fmt...)		{ printk(fmt); BUG(); }
-
 #define vxge_os_timer(timer, handle, arg, exp) do { \
 		init_timer(&timer); \
 		timer.function = handle; \
@@ -396,7 +421,10 @@ struct vxge_tx_priv {
 		mod_timer(&timer, (jiffies + exp)); \
 	} while (0);
 
-extern void vxge_initialize_ethtool_ops(struct net_device *ndev);
+void vxge_initialize_ethtool_ops(struct net_device *ndev);
+enum vxge_hw_status vxge_reset_all_vpaths(struct vxgedev *vdev);
+int vxge_fw_upgrade(struct vxgedev *vdev, char *fw_name, int override);
+
 /**
  * #define VXGE_DEBUG_INIT: debug for initialization functions
  * #define VXGE_DEBUG_TX	 : debug transmit related functions

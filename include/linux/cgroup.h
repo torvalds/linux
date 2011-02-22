@@ -564,7 +564,7 @@ struct cgroup_iter {
 /*
  * To iterate across the tasks in a cgroup:
  *
- * 1) call cgroup_iter_start to intialize an iterator
+ * 1) call cgroup_iter_start to initialize an iterator
  *
  * 2) call cgroup_iter_next() to retrieve member tasks until it
  *    returns NULL or until you want to end the iteration
