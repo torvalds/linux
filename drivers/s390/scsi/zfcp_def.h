@@ -319,7 +319,6 @@ struct zfcp_data {
 	struct scsi_transport_template *scsi_transport_template;
 	struct kmem_cache	*gpn_ft_cache;
 	struct kmem_cache	*qtcb_cache;
-	struct kmem_cache	*gid_pn_cache;
 };
 
 #endif /* ZFCP_DEF_H */

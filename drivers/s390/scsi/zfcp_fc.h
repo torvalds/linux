@@ -64,31 +64,14 @@ struct zfcp_fc_gid_pn_req {
 } __packed;
 
 /**
- * struct zfcp_fc_gid_pn_resp - container for ct header plus gid_pn response
+ * struct zfcp_fc_gid_pn_rsp - container for ct header plus gid_pn response
  * @ct_hdr: FC GS common transport header
  * @gid_pn: GID_PN response
  */
-struct zfcp_fc_gid_pn_resp {
+struct zfcp_fc_gid_pn_rsp {
 	struct fc_ct_hdr	ct_hdr;
 	struct fc_gid_pn_resp	gid_pn;
 } __packed;
-
-/**
- * struct zfcp_fc_gid_pn - everything required in zfcp for gid_pn request
- * @ct: data passed to zfcp_fsf for issuing fsf request
- * @sg_req: scatterlist entry for request data
- * @sg_resp: scatterlist entry for response data
- * @gid_pn_req: GID_PN request data
- * @gid_pn_resp: GID_PN response data
- */
-struct zfcp_fc_gid_pn {
-	struct zfcp_fsf_ct_els ct;
-	struct scatterlist sg_req;
-	struct scatterlist sg_resp;
-	struct zfcp_fc_gid_pn_req gid_pn_req;
-	struct zfcp_fc_gid_pn_resp gid_pn_resp;
-	struct zfcp_port *port;
-};
 
 /**
  * struct zfcp_fc_gpn_ft - container for ct header plus gpn_ft request
@@ -138,6 +121,10 @@ struct zfcp_fc_req {
 			struct fc_els_adisc		req;
 			struct fc_els_adisc		rsp;
 		} adisc;
+		struct {
+			struct zfcp_fc_gid_pn_req	req;
+			struct zfcp_fc_gid_pn_rsp	rsp;
+		} gid_pn;
 	} u;
 };
 

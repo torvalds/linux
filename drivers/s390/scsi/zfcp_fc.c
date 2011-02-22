@@ -262,24 +262,18 @@ void zfcp_fc_incoming_els(struct zfcp_fsf_req *fsf_req)
 		zfcp_fc_incoming_rscn(fsf_req);
 }
 
-static void zfcp_fc_ns_gid_pn_eval(void *data)
+static void zfcp_fc_ns_gid_pn_eval(struct zfcp_fc_req *fc_req)
 {
-	struct zfcp_fc_gid_pn *gid_pn = data;
-	struct zfcp_fsf_ct_els *ct = &gid_pn->ct;
-	struct zfcp_fc_gid_pn_req *gid_pn_req = sg_virt(ct->req);
-	struct zfcp_fc_gid_pn_resp *gid_pn_resp = sg_virt(ct->resp);
-	struct zfcp_port *port = gid_pn->port;
+	struct zfcp_fsf_ct_els *ct_els = &fc_req->ct_els;
+	struct zfcp_fc_gid_pn_rsp *gid_pn_rsp = &fc_req->u.gid_pn.rsp;
 
-	if (ct->status)
+	if (ct_els->status)
 		return;
-	if (gid_pn_resp->ct_hdr.ct_cmd != FC_FS_ACC)
+	if (gid_pn_rsp->ct_hdr.ct_cmd != FC_FS_ACC)
 		return;
 
-	/* paranoia */
-	if (gid_pn_req->gid_pn.fn_wwpn != port->wwpn)
-		return;
 	/* looks like a valid d_id */
-	port->d_id = ntoh24(gid_pn_resp->gid_pn.fp_fid);
+	ct_els->port->d_id = ntoh24(gid_pn_rsp->gid_pn.fp_fid);
 }
 
 static void zfcp_fc_complete(void *data)
@@ -287,69 +281,73 @@ static void zfcp_fc_complete(void *data)
 	complete(data);
 }
 
+static void zfcp_fc_ct_ns_init(struct fc_ct_hdr *ct_hdr, u16 cmd, u16 mr_size)
+{
+	ct_hdr->ct_rev = FC_CT_REV;
+	ct_hdr->ct_fs_type = FC_FST_DIR;
+	ct_hdr->ct_fs_subtype = FC_NS_SUBTYPE;
+	ct_hdr->ct_cmd = cmd;
+	ct_hdr->ct_mr_size = mr_size / 4;
+}
+
 static int zfcp_fc_ns_gid_pn_request(struct zfcp_port *port,
-				     struct zfcp_fc_gid_pn *gid_pn)
+				     struct zfcp_fc_req *fc_req)
 {
 	struct zfcp_adapter *adapter = port->adapter;
 	DECLARE_COMPLETION_ONSTACK(completion);
+	struct zfcp_fc_gid_pn_req *gid_pn_req = &fc_req->u.gid_pn.req;
+	struct zfcp_fc_gid_pn_rsp *gid_pn_rsp = &fc_req->u.gid_pn.rsp;
 	int ret;
 
 	/* setup parameters for send generic command */
-	gid_pn->port = port;
-	gid_pn->ct.handler = zfcp_fc_complete;
-	gid_pn->ct.handler_data = &completion;
-	gid_pn->ct.req = &gid_pn->sg_req;
-	gid_pn->ct.resp = &gid_pn->sg_resp;
-	sg_init_one(&gid_pn->sg_req, &gid_pn->gid_pn_req,
-		    sizeof(struct zfcp_fc_gid_pn_req));
-	sg_init_one(&gid_pn->sg_resp, &gid_pn->gid_pn_resp,
-		    sizeof(struct zfcp_fc_gid_pn_resp));
+	fc_req->ct_els.port = port;
+	fc_req->ct_els.handler = zfcp_fc_complete;
+	fc_req->ct_els.handler_data = &completion;
+	fc_req->ct_els.req = &fc_req->sg_req;
+	fc_req->ct_els.resp = &fc_req->sg_rsp;
+	sg_init_one(&fc_req->sg_req, gid_pn_req, sizeof(*gid_pn_req));
+	sg_init_one(&fc_req->sg_rsp, gid_pn_rsp, sizeof(*gid_pn_rsp));
 
-	/* setup nameserver request */
-	gid_pn->gid_pn_req.ct_hdr.ct_rev = FC_CT_REV;
-	gid_pn->gid_pn_req.ct_hdr.ct_fs_type = FC_FST_DIR;
-	gid_pn->gid_pn_req.ct_hdr.ct_fs_subtype = FC_NS_SUBTYPE;
-	gid_pn->gid_pn_req.ct_hdr.ct_options = 0;
-	gid_pn->gid_pn_req.ct_hdr.ct_cmd = FC_NS_GID_PN;
-	gid_pn->gid_pn_req.ct_hdr.ct_mr_size = ZFCP_FC_CT_SIZE_PAGE / 4;
-	gid_pn->gid_pn_req.gid_pn.fn_wwpn = port->wwpn;
+	zfcp_fc_ct_ns_init(&gid_pn_req->ct_hdr,
+			   FC_NS_GID_PN, ZFCP_FC_CT_SIZE_PAGE);
+	gid_pn_req->gid_pn.fn_wwpn = port->wwpn;
 
-	ret = zfcp_fsf_send_ct(&adapter->gs->ds, &gid_pn->ct,
+	ret = zfcp_fsf_send_ct(&adapter->gs->ds, &fc_req->ct_els,
 			       adapter->pool.gid_pn_req,
 			       ZFCP_FC_CTELS_TMO);
 	if (!ret) {
 		wait_for_completion(&completion);
-		zfcp_fc_ns_gid_pn_eval(gid_pn);
+		zfcp_fc_ns_gid_pn_eval(fc_req);
 	}
 	return ret;
 }
 
 /**
- * zfcp_fc_ns_gid_pn_request - initiate GID_PN nameserver request
+ * zfcp_fc_ns_gid_pn - initiate GID_PN nameserver request
  * @port: port where GID_PN request is needed
  * return: -ENOMEM on error, 0 otherwise
  */
 static int zfcp_fc_ns_gid_pn(struct zfcp_port *port)
 {
 	int ret;
-	struct zfcp_fc_gid_pn *gid_pn;
+	struct zfcp_fc_req *fc_req;
 	struct zfcp_adapter *adapter = port->adapter;
 
-	gid_pn = mempool_alloc(adapter->pool.gid_pn, GFP_ATOMIC);
-	if (!gid_pn)
+	fc_req = mempool_alloc(adapter->pool.gid_pn, GFP_ATOMIC);
+	if (!fc_req)
 		return -ENOMEM;
 
-	memset(gid_pn, 0, sizeof(*gid_pn));
+	memset(fc_req, 0, sizeof(*fc_req));
 
 	ret = zfcp_fc_wka_port_get(&adapter->gs->ds);
 	if (ret)
 		goto out;
 
-	ret = zfcp_fc_ns_gid_pn_request(port, gid_pn);
+	ret = zfcp_fc_ns_gid_pn_request(port, fc_req);
 
 	zfcp_fc_wka_port_put(&adapter->gs->ds);
 out:
-	mempool_free(gid_pn, adapter->pool.gid_pn);
+	mempool_free(fc_req, adapter->pool.gid_pn);
 	return ret;
 }
 
