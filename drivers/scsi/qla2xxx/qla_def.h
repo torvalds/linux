@@ -2402,13 +2402,13 @@ struct qla_hw_data {
 	volatile struct {
 		uint32_t	mbox_int		:1;
 		uint32_t	mbox_busy		:1;
-
 		uint32_t	disable_risc_code_load	:1;
 		uint32_t	enable_64bit_addressing	:1;
 		uint32_t	enable_lip_reset	:1;
 		uint32_t	enable_target_reset	:1;
 		uint32_t	enable_lip_full_login	:1;
 		uint32_t	enable_led_scheme	:1;
+
 		uint32_t	msi_enabled		:1;
 		uint32_t	msix_enabled		:1;
 		uint32_t	disable_serdes		:1;
@@ -2417,6 +2417,7 @@ struct qla_hw_data {
 		uint32_t	pci_channel_io_perm_failure	:1;
 		uint32_t	fce_enabled		:1;
 		uint32_t	fac_supported		:1;
+
 		uint32_t	chip_reset_done		:1;
 		uint32_t	port0			:1;
 		uint32_t	running_gold_fw		:1;
@@ -2424,9 +2425,11 @@ struct qla_hw_data {
 		uint32_t	cpu_affinity_enabled	:1;
 		uint32_t	disable_msix_handshake	:1;
 		uint32_t	fcp_prio_enabled	:1;
-		uint32_t	fw_hung	:1;
-		uint32_t        quiesce_owner:1;
+		uint32_t	isp82xx_fw_hung:1;
+
+		uint32_t	quiesce_owner:1;
 		uint32_t	thermal_supported:1;
+		uint32_t	isp82xx_reset_hdlr_active:1;
 		/* 26 bits */
 	} flags;
 

@@ -1967,7 +1967,7 @@ qla2x00_fw_ready(scsi_qla_host_t *vha)
 		} else {
 			/* Mailbox cmd failed. Timeout on min_wait. */
 			if (time_after_eq(jiffies, mtime) ||
-			    (IS_QLA82XX(ha) && ha->flags.fw_hung))
+				ha->flags.isp82xx_fw_hung)
 				break;
 		}
 
@@ -3980,13 +3980,8 @@ qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 
 	if (!ha->flags.eeh_busy) {
 		/* Make sure for ISP 82XX IO DMA is complete */
-		if (IS_QLA82XX(ha)) {
-			if (qla2x00_eh_wait_for_pending_commands(vha, 0, 0,
-				WAIT_HOST) == QLA_SUCCESS) {
-				DEBUG2(qla_printk(KERN_INFO, ha,
-				"Done wait for pending commands\n"));
-			}
-		}
+		if (IS_QLA82XX(ha))
+			qla82xx_chip_reset_cleanup(vha);
 
 		/* Requeue all commands in outstanding command list. */
 		qla2x00_abort_all_cmds(vha, DID_RESET << 16);

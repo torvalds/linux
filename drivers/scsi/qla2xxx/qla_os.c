@@ -3793,7 +3793,7 @@ qla2xxx_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 		ha->flags.eeh_busy = 1;
 		/* For ISP82XX complete any pending mailbox cmd */
 		if (IS_QLA82XX(ha)) {
-			ha->flags.fw_hung = 1;
+			ha->flags.isp82xx_fw_hung = 1;
 			if (ha->flags.mbox_busy) {
 				ha->flags.mbox_int = 1;
 				DEBUG2(qla_printk(KERN_ERR, ha,
@@ -3933,7 +3933,7 @@ uint32_t qla82xx_error_recovery(scsi_qla_host_t *base_vha)
 			qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
 			    QLA82XX_DEV_READY);
 			qla82xx_idc_unlock(ha);
-			ha->flags.fw_hung = 0;
+			ha->flags.isp82xx_fw_hung = 0;
 			rval = qla82xx_restart_isp(base_vha);
 			qla82xx_idc_lock(ha);
 			/* Clear driver state register */
@@ -3946,7 +3946,7 @@ uint32_t qla82xx_error_recovery(scsi_qla_host_t *base_vha)
 		    "This devfn is not reset owner = 0x%x\n", ha->pdev->devfn));
 		if ((qla82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE) ==
 		    QLA82XX_DEV_READY)) {
-			ha->flags.fw_hung = 0;
+			ha->flags.isp82xx_fw_hung = 0;
 			rval = qla82xx_restart_isp(base_vha);
 			qla82xx_idc_lock(ha);
 			qla82xx_set_drv_active(base_vha);
