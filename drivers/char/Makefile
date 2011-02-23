@@ -5,13 +5,7 @@
 obj-y				+= mem.o random.o
 obj-$(CONFIG_TTY_PRINTK)	+= ttyprintk.o
 obj-y				+= misc.o
-obj-$(CONFIG_MVME147_SCC)	+= generic_serial.o vme_scc.o
-obj-$(CONFIG_MVME162_SCC)	+= generic_serial.o vme_scc.o
-obj-$(CONFIG_BVME6000_SCC)	+= generic_serial.o vme_scc.o
-obj-$(CONFIG_A2232)		+= ser_a2232.o generic_serial.o
 obj-$(CONFIG_ATARI_DSP56K)	+= dsp56k.o
-obj-$(CONFIG_SX)		+= sx.o generic_serial.o
-obj-$(CONFIG_RIO)		+= rio/ generic_serial.o
 obj-$(CONFIG_RAW_DRIVER)	+= raw.o
 obj-$(CONFIG_SGI_SNSC)		+= snsc.o snsc_event.o
 obj-$(CONFIG_MSPEC)		+= mspec.o
