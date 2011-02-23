@@ -2066,9 +2066,10 @@ config SCx200HR_TIMER
 
 config OLPC
 	bool "One Laptop Per Child support"
-	select GPIOLIB
-	select OLPC_OPENFIRMWARE
 	depends on !X86_PAE
+	select GPIOLIB
+	select OF
+	select OLPC_OPENFIRMWARE_DT if PROC_DEVICETREE
 	---help---
 	  Add support for detecting the unique features of the OLPC
 	  XO hardware.
@@ -2078,11 +2079,6 @@ config OLPC_XO1
 	depends on OLPC && MFD_CS5535
 	---help---
 	  Add support for non-essential features of the OLPC XO-1 laptop.
-
-config OLPC_OPENFIRMWARE
-	bool
-	select OF
-	select OLPC_OPENFIRMWARE_DT if PROC_DEVICETREE
 
 config OLPC_OPENFIRMWARE_DT
 	bool
