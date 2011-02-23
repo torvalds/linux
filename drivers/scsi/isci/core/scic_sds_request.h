@@ -389,14 +389,13 @@ extern const struct scic_sds_io_request_state_handler scic_sds_smp_request_start
  * This macro copys the SGL Element data from the host os to the hardware SGL
  * elment data
  */
-#define SCU_SGL_COPY(os_handle, scu_sge, os_sge) \
+#define SCU_SGL_COPY(scu_sge, os_sge) \
 	{ \
-		(scu_sge).length = \
-			scic_cb_sge_get_length_field(os_handle, os_sge); \
+		(scu_sge).length = sg_dma_len(sg); \
 		(scu_sge).address_upper = \
-			upper_32_bits(scic_cb_sge_get_address_field(os_handle, os_sge)); \
+			upper_32_bits(sg_dma_address(sg)); \
 		(scu_sge).address_lower = \
-			lower_32_bits(scic_cb_sge_get_address_field(os_handle, os_sge)); \
+			lower_32_bits(sg_dma_address(sg)); \
 		(scu_sge).address_modifier = 0;	\
 	}
 

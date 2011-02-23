@@ -175,17 +175,17 @@ void scic_sds_stp_request_assign_buffers(
  * determine what is common for SSP/SMP/STP task context structures.
  */
 static void scu_sata_reqeust_construct_task_context(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sds_request,
 	struct scu_task_context *task_context)
 {
-	dma_addr_t physical_address;
-	struct scic_sds_controller *owning_controller;
+	dma_addr_t dma_addr;
+	struct scic_sds_controller *controller;
 	struct scic_sds_remote_device *target_device;
 	struct scic_sds_port *target_port;
 
-	owning_controller = scic_sds_request_get_controller(this_request);
-	target_device = scic_sds_request_get_device(this_request);
-	target_port = scic_sds_request_get_port(this_request);
+	controller = scic_sds_request_get_controller(sds_request);
+	target_device = scic_sds_request_get_device(sds_request);
+	target_port = scic_sds_request_get_port(sds_request);
 
 	/* Fill in the TC with the its required data */
 	task_context->abort = 0;
@@ -194,7 +194,7 @@ static void scu_sata_reqeust_construct_task_context(
 	task_context->connection_rate =
 		scic_remote_device_get_connection_rate(target_device);
 	task_context->protocol_engine_index =
-		scic_sds_controller_get_protocol_engine_group(owning_controller);
+		scic_sds_controller_get_protocol_engine_group(controller);
 	task_context->logical_port_index =
 		scic_sds_port_get_index(target_port);
 	task_context->protocol_type = SCU_TASK_CONTEXT_PROTOCOL_STP;
@@ -202,7 +202,7 @@ static void scu_sata_reqeust_construct_task_context(
 	task_context->context_type = SCU_TASK_CONTEXT_TYPE;
 
 	task_context->remote_node_index =
-		scic_sds_remote_device_get_index(this_request->target_device);
+		scic_sds_remote_device_get_index(sds_request->target_device);
 	task_context->command_code = 0;
 
 	task_context->link_layer_control = 0;
@@ -219,53 +219,50 @@ static void scu_sata_reqeust_construct_task_context(
 		(sizeof(struct sata_fis_reg_h2d) - sizeof(u32)) / sizeof(u32);
 
 	/* Set the first word of the H2D REG FIS */
-	task_context->type.words[0] = *(u32 *)this_request->command_buffer;
+	task_context->type.words[0] = *(u32 *)sds_request->command_buffer;
 
-	if (this_request->was_tag_assigned_by_user) {
-		/* Build the task context now since we have already read the data */
-		this_request->post_context = (
-			SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC
-			| (
-				scic_sds_controller_get_protocol_engine_group(owning_controller)
-				<< SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT
-				)
-			| (
-				scic_sds_port_get_index(target_port)
-				<< SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT
-				)
-			| scic_sds_io_tag_get_index(this_request->io_tag)
-			);
+	if (sds_request->was_tag_assigned_by_user) {
+		/*
+		 * Build the task context now since we have already read
+		 * the data
+		 */
+		sds_request->post_context =
+			(SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
+			 (scic_sds_controller_get_protocol_engine_group(
+							controller) <<
+			  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
+			 (scic_sds_port_get_index(target_port) <<
+			  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
+			 scic_sds_io_tag_get_index(sds_request->io_tag));
 	} else {
-		/* Build the task context now since we have already read the data */
-		this_request->post_context = (
-			SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC
-			| (
-				scic_sds_controller_get_protocol_engine_group(owning_controller)
-				<< SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT
-				)
-			| (
-				scic_sds_port_get_index(target_port)
-				<< SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT
-				)
-			/* This is not assigned because we have to wait until we get a TCi */
-			);
+		/*
+		 * Build the task context now since we have already read
+		 * the data.
+		 * I/O tag index is not assigned because we have to wait
+		 * until we get a TCi.
+		 */
+		sds_request->post_context =
+			(SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
+			 (scic_sds_controller_get_protocol_engine_group(
+							controller) <<
+			  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
+			 (scic_sds_port_get_index(target_port) <<
+			  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT));
 	}
 
 	/*
-	 * Copy the physical address for the command buffer to the SCU Task Context
-	 * We must offset the command buffer by 4 bytes because the first 4 bytes are
-	 * transfered in the body of the TC */
-	scic_cb_io_request_get_physical_address(
-		scic_sds_request_get_controller(this_request),
-		this_request,
-		((char *)this_request->command_buffer) + sizeof(u32),
-		&physical_address
-		);
+	 * Copy the physical address for the command buffer to the SCU Task
+	 * Context. We must offset the command buffer by 4 bytes because the
+	 * first 4 bytes are transfered in the body of the TC.
+	 */
+	dma_addr =
+		scic_io_request_get_dma_addr(sds_request,
+						(char *)sds_request->
+							command_buffer +
+							sizeof(u32));
 
-	task_context->command_iu_upper =
-		upper_32_bits(physical_address);
-	task_context->command_iu_lower =
-		lower_32_bits(physical_address);
+	task_context->command_iu_upper = upper_32_bits(dma_addr);
+	task_context->command_iu_lower = lower_32_bits(dma_addr);
 
 	/* SATA Requests do not have a response buffer */
 	task_context->response_iu_upper = 0;

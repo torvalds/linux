@@ -84,3 +84,18 @@ void *scic_request_get_virt_addr(struct scic_sds_request *sci_req, dma_addr_t ph
 	return (char *)ireq + offset;
 }
 
+dma_addr_t scic_io_request_get_dma_addr(struct scic_sds_request *sds_request,
+					void *virt_addr)
+{
+	struct isci_request *isci_request =
+		(struct isci_request *)sci_object_get_association(sds_request);
+
+	char *requested_addr = (char *)virt_addr;
+	char *base_addr = (char *)isci_request;
+
+	BUG_ON(requested_addr < base_addr);
+	BUG_ON((requested_addr - base_addr) >=
+			isci_request->request_alloc_size);
+
+	return isci_request->request_daddr + (requested_addr - base_addr);
+}

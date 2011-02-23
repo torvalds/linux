@@ -234,37 +234,36 @@ enum sci_status scic_io_request_construct_smp(
  *
  */
 static void scu_smp_request_construct_task_context(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sds_request,
 	struct smp_request *smp_request)
 {
-	dma_addr_t physical_address;
-	struct scic_sds_controller *owning_controller;
+	dma_addr_t dma_addr;
+	struct scic_sds_controller *controller;
 	struct scic_sds_remote_device *target_device;
 	struct scic_sds_port *target_port;
 	struct scu_task_context *task_context;
 
 	/* byte swap the smp request. */
-	scic_word_copy_with_swap(
-		this_request->command_buffer,
-		(u32 *)smp_request,
-		sizeof(struct smp_request) / sizeof(u32)
-		);
+	scic_word_copy_with_swap(sds_request->command_buffer,
+				 (u32 *)smp_request,
+				 sizeof(struct smp_request) / sizeof(u32));
 
-	task_context = scic_sds_request_get_task_context(this_request);
+	task_context = scic_sds_request_get_task_context(sds_request);
 
-	owning_controller = scic_sds_request_get_controller(this_request);
-	target_device = scic_sds_request_get_device(this_request);
-	target_port = scic_sds_request_get_port(this_request);
+	controller = scic_sds_request_get_controller(sds_request);
+	target_device = scic_sds_request_get_device(sds_request);
+	target_port = scic_sds_request_get_port(sds_request);
 
 	/*
 	 * Fill in the TC with the its required data
-	 * 00h */
+	 * 00h
+	 */
 	task_context->priority = 0;
 	task_context->initiator_request = 1;
 	task_context->connection_rate =
 		scic_remote_device_get_connection_rate(target_device);
 	task_context->protocol_engine_index =
-		scic_sds_controller_get_protocol_engine_group(owning_controller);
+		scic_sds_controller_get_protocol_engine_group(controller);
 	task_context->logical_port_index =
 		scic_sds_port_get_index(target_port);
 	task_context->protocol_type = SCU_TASK_CONTEXT_PROTOCOL_SMP;
@@ -273,7 +272,8 @@ static void scu_smp_request_construct_task_context(
 	task_context->context_type = SCU_TASK_CONTEXT_TYPE;
 
 	/* 04h */
-	task_context->remote_node_index = this_request->target_device->rnc->remote_node_index;
+	task_context->remote_node_index =
+		sds_request->target_device->rnc->remote_node_index;
 	task_context->command_code = 0;
 	task_context->task_type = SCU_TASK_TYPE_SMP_REQUEST;
 
@@ -289,7 +289,8 @@ static void scu_smp_request_construct_task_context(
 	task_context->address_modifier = 0;
 
 	/* 10h */
-	task_context->ssp_command_iu_length = smp_request->header.request_length;
+	task_context->ssp_command_iu_length =
+		smp_request->header.request_length;
 
 	/* 14h */
 	task_context->transfer_length_bytes = 0;
@@ -298,59 +299,57 @@ static void scu_smp_request_construct_task_context(
 	 * 18h ~ 30h, protocol specific
 	 * since commandIU has been build by framework at this point, we just
 	 * copy the frist DWord from command IU to this location. */
-	memcpy((void *)(&task_context->type.smp), this_request->command_buffer, sizeof(u32));
+	memcpy((void *)(&task_context->type.smp),
+	       sds_request->command_buffer,
+	       sizeof(u32));
 
 	/*
 	 * 40h
-	 * "For SMP you could program it to zero. We would prefer that way so that
-	 * done code will be consistent." - Venki */
+	 * "For SMP you could program it to zero. We would prefer that way
+	 * so that done code will be consistent." - Venki
+	 */
 	task_context->task_phase = 0;
 
-	if (this_request->was_tag_assigned_by_user) {
-		/* Build the task context now since we have already read the data */
-		this_request->post_context = (
-			SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC
-			| (
-				scic_sds_controller_get_protocol_engine_group(owning_controller)
-				<< SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT
-				)
-			| (
-				scic_sds_port_get_index(target_port)
-				<< SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT
-				)
-			| scic_sds_io_tag_get_index(this_request->io_tag)
-			);
+	if (sds_request->was_tag_assigned_by_user) {
+		/*
+		 * Build the task context now since we have already read
+		 * the data
+		 */
+		sds_request->post_context =
+			(SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
+			 (scic_sds_controller_get_protocol_engine_group(
+							controller) <<
+			  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
+			 (scic_sds_port_get_index(target_port) <<
+			  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
+			 scic_sds_io_tag_get_index(sds_request->io_tag));
 	} else {
-		/* Build the task context now since we have already read the data */
-		this_request->post_context = (
-			SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC
-			| (
-				scic_sds_controller_get_protocol_engine_group(owning_controller)
-				<< SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT
-				)
-			| (
-				scic_sds_port_get_index(target_port)
-				<< SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT
-				)
-			/* This is not assigned because we have to wait until we get a TCi */
-			);
+		/*
+		 * Build the task context now since we have already read
+		 * the data.
+		 * I/O tag index is not assigned because we have to wait
+		 * until we get a TCi.
+		 */
+		sds_request->post_context =
+			(SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
+			 (scic_sds_controller_get_protocol_engine_group(
+							controller) <<
+			  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
+			 (scic_sds_port_get_index(target_port) <<
+			  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT));
 	}
 
 	/*
-	 * Copy the physical address for the command buffer to the SCU Task Context
-	 * command buffer should not contain command header. */
-	scic_cb_io_request_get_physical_address(
-		scic_sds_request_get_controller(this_request),
-		this_request,
-		((char *)(this_request->command_buffer) + sizeof(u32)),
-		&physical_address
-		);
+	 * Copy the physical address for the command buffer to the SCU Task
+	 * Context command buffer should not contain command header.
+	 */
+	dma_addr = scic_io_request_get_dma_addr(sds_request,
+						(char *)
+						(sds_request->command_buffer) +
+						sizeof(u32));
 
-	task_context->command_iu_upper =
-		upper_32_bits(physical_address);
-	task_context->command_iu_lower =
-		lower_32_bits(physical_address);
-
+	task_context->command_iu_upper = upper_32_bits(dma_addr);
+	task_context->command_iu_lower = lower_32_bits(dma_addr);
 
 	/* SMP response comes as UF, so no need to set response IU address. */
 	task_context->response_iu_upper = 0;

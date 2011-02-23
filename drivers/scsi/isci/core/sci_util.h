@@ -102,4 +102,7 @@ void scic_word_copy_with_swap(u32 *destination, u32 *source, u32 word_count);
 void *scic_request_get_virt_addr(struct scic_sds_request *sds_request,
 				 dma_addr_t phys_addr);
 
+dma_addr_t scic_io_request_get_dma_addr(struct scic_sds_request *sds_request,
+					void *virt_addr);
+
 #endif /* _SCI_UTIL_H_ */

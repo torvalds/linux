@@ -253,30 +253,26 @@ enum sci_status scic_sds_stp_packet_request_process_status_fis(
  *
  */
 void scic_sds_stp_packet_internal_request_sense_build_sgl(
-	struct scic_sds_request *this_request)
+	struct scic_sds_request *sds_request)
 {
 	void *sge;
 	struct scu_sgl_element_pair *scu_sgl_list   = NULL;
 	struct scu_task_context *task_context;
-	dma_addr_t physical_address;
+	dma_addr_t dma_addr;
 
 	struct sci_ssp_response_iu *rsp_iu =
-		(struct sci_ssp_response_iu *)this_request->response_buffer;
+		(struct sci_ssp_response_iu *)sds_request->response_buffer;
 
 	sge =  (void *)&rsp_iu->data[0];
 
-	task_context = (struct scu_task_context *)this_request->task_context_buffer;
+	task_context =
+		(struct scu_task_context *)sds_request->task_context_buffer;
 	scu_sgl_list = &task_context->sgl_pair_ab;
 
-	scic_cb_io_request_get_physical_address(
-		scic_sds_request_get_controller(this_request),
-		this_request,
-		((char *)sge),
-		&physical_address
-		);
+	dma_addr = scic_io_request_get_dma_addr(sds_request, sge);
 
-	scu_sgl_list->A.address_upper = sci_cb_physical_address_upper(physical_address);
-	scu_sgl_list->A.address_lower = sci_cb_physical_address_lower(physical_address);
+	scu_sgl_list->A.address_upper = upper_32_bits(dma_addr);
+	scu_sgl_list->A.address_lower = lower_32_bits(dma_addr);
 	scu_sgl_list->A.length = task_context->transfer_length_bytes;
 	scu_sgl_list->A.address_modifier = 0;
 

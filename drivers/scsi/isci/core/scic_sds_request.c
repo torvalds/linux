@@ -259,56 +259,70 @@ static struct scu_sgl_element_pair *scic_sds_request_get_sgl_element_pair(
  *    the Scatter-Gather List.
  *
  */
-void scic_sds_request_build_sgl(
-	struct scic_sds_request *this_request)
+void scic_sds_request_build_sgl(struct scic_sds_request *sds_request)
 {
-	void *os_sge;
-	void *os_handle;
-	dma_addr_t physical_address;
-	u32 sgl_pair_index = 0;
-	struct scu_sgl_element_pair *scu_sgl_list   = NULL;
-	struct scu_sgl_element_pair *previous_pair  = NULL;
+	struct isci_request *isci_request =
+		(struct isci_request *)sci_object_get_association(sds_request);
+	struct isci_host *isci_host = isci_request->isci_host;
+	struct sas_task *task = isci_request_access_task(isci_request);
+	struct scatterlist *sg = NULL;
+	dma_addr_t dma_addr;
+	u32 sg_idx = 0;
+	struct scu_sgl_element_pair *scu_sg   = NULL;
+	struct scu_sgl_element_pair *prev_sg  = NULL;
 
-	os_handle = scic_sds_request_get_user_request(this_request);
-	scic_cb_io_request_get_next_sge(os_handle, NULL, &os_sge);
+	if (task->num_scatter > 0) {
+		sg = task->scatter;
 
-	while (os_sge != NULL) {
-		scu_sgl_list =
-			scic_sds_request_get_sgl_element_pair(this_request, sgl_pair_index);
+		while (sg) {
+			scu_sg = scic_sds_request_get_sgl_element_pair(
+					sds_request,
+					sg_idx);
 
-		SCU_SGL_COPY(os_handle, scu_sgl_list->A, os_sge);
+			SCU_SGL_COPY(scu_sg->A, sg);
 
-		scic_cb_io_request_get_next_sge(os_handle, os_sge, &os_sge);
+			sg = sg_next(sg);
 
-		if (os_sge != NULL) {
-			SCU_SGL_COPY(os_handle, scu_sgl_list->B, os_sge);
+			if (sg) {
+				SCU_SGL_COPY(scu_sg->B, sg);
+				sg = sg_next(sg);
+			} else
+				SCU_SGL_ZERO(scu_sg->B);
 
-			scic_cb_io_request_get_next_sge(os_handle, os_sge, &os_sge);
-		} else {
-			SCU_SGL_ZERO(scu_sgl_list->B);
+			if (prev_sg) {
+				dma_addr =
+					scic_io_request_get_dma_addr(
+							sds_request,
+							scu_sg);
+
+				prev_sg->next_pair_upper =
+					upper_32_bits(dma_addr);
+				prev_sg->next_pair_lower =
+					lower_32_bits(dma_addr);
+			}
+
+			prev_sg = scu_sg;
+			sg_idx++;
 		}
+	} else {	/* handle when no sg */
+		scu_sg = scic_sds_request_get_sgl_element_pair(sds_request,
+							       sg_idx);
 
-		if (previous_pair != NULL) {
-			scic_cb_io_request_get_physical_address(
-				scic_sds_request_get_controller(this_request),
-				this_request,
-				scu_sgl_list,
-				&physical_address
-				);
+		dma_addr = dma_map_single(&isci_host->pdev->dev,
+					  task->scatter,
+					  task->total_xfer_len,
+					  task->data_dir);
 
-			previous_pair->next_pair_upper =
-				upper_32_bits(physical_address);
-			previous_pair->next_pair_lower =
-				lower_32_bits(physical_address);
-		}
+		isci_request->zero_scatter_daddr = dma_addr;
 
-		previous_pair = scu_sgl_list;
-		sgl_pair_index++;
+		scu_sg->A.length = task->total_xfer_len;
+		scu_sg->A.address_upper = upper_32_bits(dma_addr);
+		scu_sg->A.address_lower = lower_32_bits(dma_addr);
 	}
 
-	if (scu_sgl_list != NULL) {
-		scu_sgl_list->next_pair_upper = 0;
-		scu_sgl_list->next_pair_lower = 0;
+	if (scu_sg) {
+		scu_sg->next_pair_upper = 0;
+		scu_sg->next_pair_lower = 0;
 	}
 }
 
@@ -473,17 +487,17 @@ static void scic_sds_task_request_build_ssp_task_iu(
  *
  */
 static void scu_ssp_reqeust_construct_task_context(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *sds_request,
 	struct scu_task_context *task_context)
 {
-	dma_addr_t physical_address;
-	struct scic_sds_controller *owning_controller;
+	dma_addr_t dma_addr;
+	struct scic_sds_controller *controller;
 	struct scic_sds_remote_device *target_device;
 	struct scic_sds_port *target_port;
 
-	owning_controller = scic_sds_request_get_controller(this_request);
-	target_device = scic_sds_request_get_device(this_request);
-	target_port = scic_sds_request_get_port(this_request);
+	controller = scic_sds_request_get_controller(sds_request);
+	target_device = scic_sds_request_get_device(sds_request);
+	target_port = scic_sds_request_get_port(sds_request);
 
 	/* Fill in the TC with the its required data */
 	task_context->abort = 0;
@@ -492,7 +506,7 @@ static void scu_ssp_reqeust_construct_task_context(
 	task_context->connection_rate =
 		scic_remote_device_get_connection_rate(target_device);
 	task_context->protocol_engine_index =
-		scic_sds_controller_get_protocol_engine_group(owning_controller);
+		scic_sds_controller_get_protocol_engine_group(controller);
 	task_context->logical_port_index =
 		scic_sds_port_get_index(target_port);
 	task_context->protocol_type = SCU_TASK_CONTEXT_PROTOCOL_SSP;
@@ -500,7 +514,7 @@ static void scu_ssp_reqeust_construct_task_context(
 	task_context->context_type = SCU_TASK_CONTEXT_TYPE;
 
 	task_context->remote_node_index =
-		scic_sds_remote_device_get_index(this_request->target_device);
+		scic_sds_remote_device_get_index(sds_request->target_device);
 	task_context->command_code = 0;
 
 	task_context->link_layer_control = 0;
@@ -515,61 +529,55 @@ static void scu_ssp_reqeust_construct_task_context(
 	/* task_context->type.ssp.tag = this_request->io_tag; */
 	task_context->task_phase = 0x01;
 
-	if (this_request->was_tag_assigned_by_user) {
-		/* Build the task context now since we have already read the data */
-		this_request->post_context = (
-			SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC
-			| (
-				scic_sds_controller_get_protocol_engine_group(owning_controller)
-				<< SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT
-				)
-			| (
-				scic_sds_port_get_index(target_port)
-				<< SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT
-				)
-			| scic_sds_io_tag_get_index(this_request->io_tag)
-			);
+	if (sds_request->was_tag_assigned_by_user) {
+		/*
+		 * Build the task context now since we have already read
+		 * the data
+		 */
+		sds_request->post_context =
+			(SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
+			 (scic_sds_controller_get_protocol_engine_group(
+							controller) <<
+			  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
+			 (scic_sds_port_get_index(target_port) <<
+			  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
+			 scic_sds_io_tag_get_index(sds_request->io_tag));
 	} else {
-		/* Build the task context now since we have already read the data */
-		this_request->post_context = (
-			SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC
-			| (
-				scic_sds_controller_get_protocol_engine_group(owning_controller)
-				<< SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT
-				)
-			| (
-				scic_sds_port_get_index(target_port)
-				<< SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT
-				)
-			/* This is not assigned because we have to wait until we get a TCi */
-			);
+		/*
+		 * Build the task context now since we have already read
+		 * the data
+		 *
+		 * I/O tag index is not assigned because we have to wait
+		 * until we get a TCi
+		 */
+		sds_request->post_context =
+			(SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
+			 (scic_sds_controller_get_protocol_engine_group(
+							owning_controller) <<
+			  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
+			 (scic_sds_port_get_index(target_port) <<
+			  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT));
 	}
 
-	/* Copy the physical address for the command buffer to the SCU Task Context */
-	scic_cb_io_request_get_physical_address(
-		scic_sds_request_get_controller(this_request),
-		this_request,
-		this_request->command_buffer,
-		&physical_address
-		);
+	/*
+	 * Copy the physical address for the command buffer to the
+	 * SCU Task Context
+	 */
+	dma_addr = scic_io_request_get_dma_addr(sds_request,
+						sds_request->command_buffer);
 
-	task_context->command_iu_upper =
-		upper_32_bits(physical_address);
-	task_context->command_iu_lower =
-		lower_32_bits(physical_address);
+	task_context->command_iu_upper = upper_32_bits(dma_addr);
+	task_context->command_iu_lower = lower_32_bits(dma_addr);
 
-	/* Copy the physical address for the response buffer to the SCU Task Context */
-	scic_cb_io_request_get_physical_address(
-		scic_sds_request_get_controller(this_request),
-		this_request,
-		this_request->response_buffer,
-		&physical_address
-		);
+	/*
+	 * Copy the physical address for the response buffer to the
+	 * SCU Task Context
+	 */
+	dma_addr = scic_io_request_get_dma_addr(sds_request,
+						sds_request->response_buffer);
 
-	task_context->response_iu_upper =
-		upper_32_bits(physical_address);
-	task_context->response_iu_lower =
-		lower_32_bits(physical_address);
+	task_context->response_iu_upper = upper_32_bits(dma_addr);
+	task_context->response_iu_lower = lower_32_bits(dma_addr);
 }
 
 /**
