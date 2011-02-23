@@ -1389,6 +1389,7 @@ int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry)
 		rc = -ENOMEM;
 		goto out;
 	}
+	/* Zeroed page ensures the in-header unencrypted i_size is set to 0 */
 	rc = ecryptfs_write_headers_virt(virt, virt_len, &size, crypt_stat,
 					 ecryptfs_dentry);
 	if (unlikely(rc)) {
