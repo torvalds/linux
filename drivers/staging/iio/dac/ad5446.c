@@ -132,10 +132,22 @@ static const struct ad5446_chip_info ad5446_chip_info_tbl[] = {
 		.left_shift = 0,
 		.store_sample = ad5542_store_sample,
 	},
+	[ID_AD5543] = {
+		.bits = 16,
+		.storagebits = 16,
+		.left_shift = 0,
+		.store_sample = ad5542_store_sample,
+	},
 	[ID_AD5512A] = {
 		.bits = 12,
 		.storagebits = 16,
 		.left_shift = 4,
+		.store_sample = ad5542_store_sample,
+	},
+	[ID_AD5553] = {
+		.bits = 14,
+		.storagebits = 16,
+		.left_shift = 0,
 		.store_sample = ad5542_store_sample,
 	},
 	[ID_AD5620_2500] = {
