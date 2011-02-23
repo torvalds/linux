@@ -70,6 +70,7 @@ static void perf_top_browser__write(struct ui_browser *browser, void *entry, int
 static void perf_top_browser__update_rb_tree(struct perf_top_browser *browser)
 {
 	struct perf_top *top = browser->b.priv;
+	u64 top_idx = browser->b.top_idx;
 
 	browser->root = RB_ROOT;
 	browser->b.top = NULL;
@@ -82,7 +83,29 @@ static void perf_top_browser__update_rb_tree(struct perf_top_browser *browser)
 		if (browser->sym_width + browser->dso_width > browser->b.width - 29)
 			browser->sym_width = browser->b.width - browser->dso_width - 29;
 	}
+
+	/*
+	 * Adjust the ui_browser indexes since the entries in the browser->root
+	 * rb_tree may have changed, then seek it from start, so that we get a
+	 * possible new top of the screen.
+ 	 */
 	browser->b.nr_entries = top->rb_entries;
+
+	if (top_idx >= browser->b.nr_entries) {
+		if (browser->b.height >= browser->b.nr_entries)
+			top_idx = browser->b.nr_entries - browser->b.height;
+		else
+			top_idx = 0;
+	}
+
+	if (browser->b.index >= top_idx + browser->b.height)
+		browser->b.index = top_idx + browser->b.index - browser->b.top_idx;
+
+	if (browser->b.index >= browser->b.nr_entries)
+		browser->b.index = browser->b.nr_entries - 1;
+
+	browser->b.top_idx = top_idx;
+	browser->b.seek(&browser->b, top_idx, SEEK_SET);
 }
 
 static void perf_top_browser__annotate(struct perf_top_browser *browser)
