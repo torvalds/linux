@@ -160,8 +160,6 @@ static const struct block_device_operations drbd_ops = {
 	.release = drbd_release,
 };
 
-#define ARRY_SIZE(A) (sizeof(A)/sizeof(A[0]))
-
 #ifdef __CHECKER__
 /* When checking with sparse, and this is an inline function, sparse will
    give tons of false positives. When this is a real functions sparse works.
