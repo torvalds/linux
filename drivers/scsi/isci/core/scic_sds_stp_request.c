@@ -486,45 +486,34 @@ void *scic_stp_io_request_get_d2h_reg_address(
  * - if there are more SGL element pairs - advance to the next pair and return
  * element A struct scu_sgl_element*
  */
-struct scu_sgl_element *scic_sds_stp_request_pio_get_next_sgl(
-	struct scic_sds_stp_request *this_request
-	) {
+struct scu_sgl_element *scic_sds_stp_request_pio_get_next_sgl(struct scic_sds_stp_request *stp_req)
+{
 	struct scu_sgl_element *current_sgl;
+	struct scic_sds_request *sci_req = &stp_req->parent;
+	struct scic_sds_request_pio_sgl *pio_sgl = &stp_req->type.pio.request_current;
 
-	if (this_request->type.pio.request_current.sgl_set == SCU_SGL_ELEMENT_PAIR_A) {
-		if (
-			(this_request->type.pio.request_current.sgl_pair->B.address_lower == 0)
-			&& (this_request->type.pio.request_current.sgl_pair->B.address_upper == 0)
-			) {
+	if (pio_sgl->sgl_set == SCU_SGL_ELEMENT_PAIR_A) {
+		if (pio_sgl->sgl_pair->B.address_lower == 0 &&
+		    pio_sgl->sgl_pair->B.address_upper == 0) {
 			current_sgl = NULL;
 		} else {
-			this_request->type.pio.request_current.sgl_set = SCU_SGL_ELEMENT_PAIR_B;
-			current_sgl = &(this_request->type.pio.request_current.sgl_pair->B);
+			pio_sgl->sgl_set = SCU_SGL_ELEMENT_PAIR_B;
+			current_sgl = &pio_sgl->sgl_pair->B;
 		}
 	} else {
-		if (
-			(this_request->type.pio.request_current.sgl_pair->next_pair_lower == 0)
-			&& (this_request->type.pio.request_current.sgl_pair->next_pair_upper == 0)
-			) {
+		if (pio_sgl->sgl_pair->next_pair_lower == 0 &&
+		    pio_sgl->sgl_pair->next_pair_upper == 0) {
 			current_sgl = NULL;
 		} else {
-			dma_addr_t physical_address;
+			u64 phys_addr;
 
-			sci_cb_make_physical_address(
-				physical_address,
-				this_request->type.pio.request_current.sgl_pair->next_pair_upper,
-				this_request->type.pio.request_current.sgl_pair->next_pair_lower
-				);
+			phys_addr = pio_sgl->sgl_pair->next_pair_upper;
+			phys_addr <<= 32;
+			phys_addr |= pio_sgl->sgl_pair->next_pair_lower;
 
-			this_request->type.pio.request_current.sgl_pair =
-				(struct scu_sgl_element_pair *)scic_cb_get_virtual_address(
-					this_request->parent.owning_controller,
-					physical_address
-					);
-
-			this_request->type.pio.request_current.sgl_set = SCU_SGL_ELEMENT_PAIR_A;
-
-			current_sgl = &(this_request->type.pio.request_current.sgl_pair->A);
+			pio_sgl->sgl_pair = scic_request_get_virt_addr(sci_req, phys_addr);
+			pio_sgl->sgl_set = SCU_SGL_ELEMENT_PAIR_A;
+			current_sgl = &pio_sgl->sgl_pair->A;
 		}
 	}
 
@@ -882,82 +871,51 @@ static enum sci_status scic_sds_stp_request_pio_data_out_transmit_data(
 
 /**
  *
- * @this_request: The request that is used for the SGL processing.
+ * @stp_request: The request that is used for the SGL processing.
  * @data_buffer: The buffer of data to be copied.
  * @length: The length of the data transfer.
  *
  * Copy the data from the buffer for the length specified to the IO reqeust SGL
  * specified data region. enum sci_status
  */
-static enum sci_status scic_sds_stp_request_pio_data_in_copy_data_buffer(
-	struct scic_sds_stp_request *this_request,
-	u8 *data_buffer,
-	u32 length)
+static enum sci_status
+scic_sds_stp_request_pio_data_in_copy_data_buffer(struct scic_sds_stp_request *stp_req,
+						  u8 *data_buf, u32 len)
 {
-	enum sci_status status;
-	struct scu_sgl_element *current_sgl;
-	u32 sgl_offset;
-	u32 data_offset;
-	u8 *source_address;
-	u8 *destination_address;
-	u32 copy_length;
+	struct scic_sds_request *sci_req;
+	struct isci_request *ireq;
+	u8 *src_addr;
+	int copy_len;
+	struct sas_task *task;
+	struct scatterlist *sg;
+	void *kaddr;
+	int total_len = len;
 
-	/* Initial setup to get the current working SGL and the offset within the buffer */
-	current_sgl =
-		(this_request->type.pio.request_current.sgl_set == SCU_SGL_ELEMENT_PAIR_A) ?
-		&(this_request->type.pio.request_current.sgl_pair->A) :
-		&(this_request->type.pio.request_current.sgl_pair->B);
+	sci_req = &stp_req->parent;
+	ireq = scic_sds_request_get_user_request(sci_req);
+	task = isci_request_access_task(ireq);
+	src_addr = data_buf;
 
-	sgl_offset = this_request->type.pio.request_current.sgl_offset;
+	if (task->num_scatter > 0) {
+		sg = task->scatter;
 
-	source_address = data_buffer;
-	data_offset = 0;
+		while (total_len > 0) {
+			struct page *page = sg_page(sg);
 
-	status = SCI_SUCCESS;
-
-	/* While we are still doing Ok and there is more data to transfer */
-	while (
-		(length > 0)
-		&& (status == SCI_SUCCESS)
-		) {
-		if (current_sgl->length == sgl_offset) {
-			/* This SGL has been exauhasted so we need to get the next SGL */
-			current_sgl = scic_sds_stp_request_pio_get_next_sgl(this_request);
-
-			if (current_sgl == NULL)
-				status = SCI_FAILURE;
-			else
-				sgl_offset = 0;
-		} else {
-			dma_addr_t physical_address;
-
-			sci_cb_make_physical_address(
-				physical_address,
-				current_sgl->address_upper,
-				current_sgl->address_lower
-				);
-
-			destination_address = (u8 *)scic_cb_get_virtual_address(
-				this_request->parent.owning_controller,
-				physical_address
-				);
-
-			source_address += data_offset;
-			destination_address += sgl_offset;
-
-			copy_length = min(length, current_sgl->length - sgl_offset);
-
-			memcpy(destination_address, source_address, copy_length);
-
-			length -= copy_length;
-			sgl_offset += copy_length;
-			data_offset += copy_length;
+			copy_len = min_t(int, total_len, sg_dma_len(sg));
+			kaddr = kmap_atomic(page, KM_IRQ0);
+			memcpy(kaddr + sg->offset, src_addr, copy_len);
+			kunmap_atomic(kaddr, KM_IRQ0);
+			total_len -= copy_len;
+			src_addr += copy_len;
+			sg = sg_next(sg);
 		}
+	} else {
+		BUG_ON(task->total_xfer_len < total_len);
+		memcpy(task->scatter, src_addr, total_len);
 	}
 
-	this_request->type.pio.request_current.sgl_offset = sgl_offset;
-
-	return status;
+	return SCI_SUCCESS;
 }
 
 /**

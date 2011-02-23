@@ -400,6 +400,14 @@ extern const struct scic_sds_io_request_state_handler scic_sds_smp_request_start
 		(scu_sge).address_modifier = 0;	\
 	}
 
+/**
+ * scic_sds_request_get_user_request() -
+ *
+ * This is a helper macro to return the os handle for this request object.
+ */
+#define scic_sds_request_get_user_request(request) \
+	((request)->user_request)
+
 /*
  * *****************************************************************************
  * * CORE REQUEST PROTOTYPES

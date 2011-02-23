@@ -84,6 +84,7 @@
 #include "host.h"
 #include "timers.h"
 #include "sci_status.h"
+#include "request.h"
 
 extern struct kmem_cache *isci_kmem_cache;
 extern struct isci_firmware *isci_firmware;

@@ -100,15 +100,6 @@
  * **************************************************************************** */
 
 /**
- * scic_sds_request_get_user_request() -
- *
- * This is a helper macro to return the os handle for this request object.
- */
-#define scic_sds_request_get_user_request(request) \
-	((request)->user_request)
-
-
-/**
  * scic_ssp_io_request_get_object_size() -
  *
  * This macro returns the sizeof memory required to store the an SSP IO

@@ -116,7 +116,7 @@ struct scic_sds_stp_request {
 			 */
 			u8 sat_protocol;
 
-			struct {
+			struct scic_sds_request_pio_sgl {
 				struct scu_sgl_element_pair *sgl_pair;
 				u8 sgl_set;
 				u32 sgl_offset;

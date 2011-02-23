@@ -53,7 +53,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <linux/kernel.h>
 #include "sci_util.h"
+#include "sci_environment.h"
 
 void scic_word_copy_with_swap(
 	u32 *destination,
@@ -66,5 +68,19 @@ void scic_word_copy_with_swap(
 		source++;
 		destination++;
 	}
+}
+
+void *scic_request_get_virt_addr(struct scic_sds_request *sci_req, dma_addr_t phys_addr)
+{
+	struct isci_request *ireq = sci_object_get_association(sci_req);
+	dma_addr_t offset;
+
+	BUG_ON(phys_addr < ireq->request_daddr);
+
+	offset = phys_addr - ireq->request_daddr;
+
+	BUG_ON(offset >= ireq->request_alloc_size);
+
+	return (char *)ireq + offset;
 }
 
