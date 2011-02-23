@@ -1700,15 +1700,15 @@ static u16 x8_vectors[] = {
 	0x0100, 0x0200, 0x0400, 0x0800, 0x1000, 0x2000, 0x4000, 0x8000,
 };
 
-static int decode_syndrome(u16 syndrome, u16 *vectors, int num_vecs,
-			   int v_dim)
+static int decode_syndrome(u16 syndrome, u16 *vectors, unsigned num_vecs,
+			   unsigned v_dim)
 {
 	unsigned int i, err_sym;
 
 	for (err_sym = 0; err_sym < num_vecs / v_dim; err_sym++) {
 		u16 s = syndrome;
-		int v_idx =  err_sym * v_dim;
-		int v_end = (err_sym + 1) * v_dim;
+		unsigned v_idx =  err_sym * v_dim;
+		unsigned v_end = (err_sym + 1) * v_dim;
 
 		/* walk over all 16 bits of the syndrome */
 		for (i = 1; i < (1U << 16); i <<= 1) {
