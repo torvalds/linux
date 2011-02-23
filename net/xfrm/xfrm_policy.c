@@ -51,7 +51,7 @@ static void xfrm_policy_put_afinfo(struct xfrm_policy_afinfo *afinfo);
 static void xfrm_init_pmtu(struct dst_entry *dst);
 static int stale_bundle(struct dst_entry *dst);
 static int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *xdst,
-			  struct flowi *fl, int family, int strict);
+			  const struct flowi *fl, int family);
 
 
 static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
@@ -2210,7 +2210,7 @@ static struct dst_entry *xfrm_dst_check(struct dst_entry *dst, u32 cookie)
 
 static int stale_bundle(struct dst_entry *dst)
 {
-	return !xfrm_bundle_ok(NULL, (struct xfrm_dst *)dst, NULL, AF_UNSPEC, 0);
+	return !xfrm_bundle_ok(NULL, (struct xfrm_dst *)dst, NULL, AF_UNSPEC);
 }
 
 void xfrm_dst_ifdown(struct dst_entry *dst, struct net_device *dev)
@@ -2283,7 +2283,7 @@ static void xfrm_init_pmtu(struct dst_entry *dst)
  */
 
 static int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
-		struct flowi *fl, int family, int strict)
+			  const struct flowi *fl, int family)
 {
 	struct dst_entry *dst = &first->u.dst;
 	struct xfrm_dst *last;
@@ -2318,11 +2318,6 @@ static int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
 			return 0;
 		if (xdst->num_pols > 0 &&
 		    xdst->policy_genid != atomic_read(&xdst->pols[0]->genid))
-			return 0;
-
-		if (strict && fl &&
-		    !(dst->xfrm->outer_mode->flags & XFRM_MODE_FLAG_TUNNEL) &&
-		    !xfrm_state_addr_flow_check(dst->xfrm, fl, family))
 			return 0;
 
 		mtu = dst_mtu(dst->child);
