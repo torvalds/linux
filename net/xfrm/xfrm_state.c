@@ -746,7 +746,7 @@ static void xfrm_hash_grow_check(struct net *net, int have_hash_collision)
 }
 
 static void xfrm_state_look_at(struct xfrm_policy *pol, struct xfrm_state *x,
-			       struct flowi *fl, unsigned short family,
+			       const struct flowi *fl, unsigned short family,
 			       xfrm_address_t *daddr, xfrm_address_t *saddr,
 			       struct xfrm_state **best, int *acq_in_progress,
 			       int *error)
