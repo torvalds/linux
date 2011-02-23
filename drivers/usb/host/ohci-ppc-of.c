@@ -80,8 +80,7 @@ static const struct hc_driver ohci_ppc_of_hc_driver = {
 };
 
 
-static int __devinit
-ohci_hcd_ppc_of_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit ohci_hcd_ppc_of_probe(struct platform_device *op)
 {
 	struct device_node *dn = op->dev.of_node;
 	struct usb_hcd *hcd;
@@ -201,14 +200,12 @@ static int ohci_hcd_ppc_of_remove(struct platform_device *op)
 	return 0;
 }
 
-static int ohci_hcd_ppc_of_shutdown(struct platform_device *op)
+static void ohci_hcd_ppc_of_shutdown(struct platform_device *op)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
 
         if (hcd->driver->shutdown)
                 hcd->driver->shutdown(hcd);
-
-	return 0;
 }
 
 
@@ -243,7 +240,7 @@ MODULE_DEVICE_TABLE(of, ohci_hcd_ppc_of_match);
 #endif
 
 
-static struct of_platform_driver ohci_hcd_ppc_of_driver = {
+static struct platform_driver ohci_hcd_ppc_of_driver = {
 	.probe		= ohci_hcd_ppc_of_probe,
 	.remove		= ohci_hcd_ppc_of_remove,
 	.shutdown 	= ohci_hcd_ppc_of_shutdown,

@@ -1306,24 +1306,24 @@ static int __init ehci_hcd_init(void)
 #endif
 
 #ifdef OF_PLATFORM_DRIVER
-	retval = of_register_platform_driver(&OF_PLATFORM_DRIVER);
+	retval = platform_driver_register(&OF_PLATFORM_DRIVER);
 	if (retval < 0)
 		goto clean3;
 #endif
 
 #ifdef XILINX_OF_PLATFORM_DRIVER
-	retval = of_register_platform_driver(&XILINX_OF_PLATFORM_DRIVER);
+	retval = platform_driver_register(&XILINX_OF_PLATFORM_DRIVER);
 	if (retval < 0)
 		goto clean4;
 #endif
 	return retval;
 
 #ifdef XILINX_OF_PLATFORM_DRIVER
-	/* of_unregister_platform_driver(&XILINX_OF_PLATFORM_DRIVER); */
+	/* platform_driver_unregister(&XILINX_OF_PLATFORM_DRIVER); */
 clean4:
 #endif
 #ifdef OF_PLATFORM_DRIVER
-	of_unregister_platform_driver(&OF_PLATFORM_DRIVER);
+	platform_driver_unregister(&OF_PLATFORM_DRIVER);
 clean3:
 #endif
 #ifdef PS3_SYSTEM_BUS_DRIVER
@@ -1351,10 +1351,10 @@ module_init(ehci_hcd_init);
 static void __exit ehci_hcd_cleanup(void)
 {
 #ifdef XILINX_OF_PLATFORM_DRIVER
-	of_unregister_platform_driver(&XILINX_OF_PLATFORM_DRIVER);
+	platform_driver_unregister(&XILINX_OF_PLATFORM_DRIVER);
 #endif
 #ifdef OF_PLATFORM_DRIVER
-	of_unregister_platform_driver(&OF_PLATFORM_DRIVER);
+	platform_driver_unregister(&OF_PLATFORM_DRIVER);
 #endif
 #ifdef PLATFORM_DRIVER
 	platform_driver_unregister(&PLATFORM_DRIVER);

@@ -1180,7 +1180,7 @@ static int __init ohci_hcd_mod_init(void)
 #endif
 
 #ifdef OF_PLATFORM_DRIVER
-	retval = of_register_platform_driver(&OF_PLATFORM_DRIVER);
+	retval = platform_driver_register(&OF_PLATFORM_DRIVER);
 	if (retval < 0)
 		goto error_of_platform;
 #endif
@@ -1239,7 +1239,7 @@ static int __init ohci_hcd_mod_init(void)
  error_sa1111:
 #endif
 #ifdef OF_PLATFORM_DRIVER
-	of_unregister_platform_driver(&OF_PLATFORM_DRIVER);
+	platform_driver_unregister(&OF_PLATFORM_DRIVER);
  error_of_platform:
 #endif
 #ifdef PLATFORM_DRIVER
@@ -1287,7 +1287,7 @@ static void __exit ohci_hcd_mod_exit(void)
 	sa1111_driver_unregister(&SA1111_DRIVER);
 #endif
 #ifdef OF_PLATFORM_DRIVER
-	of_unregister_platform_driver(&OF_PLATFORM_DRIVER);
+	platform_driver_unregister(&OF_PLATFORM_DRIVER);
 #endif
 #ifdef PLATFORM_DRIVER
 	platform_driver_unregister(&PLATFORM_DRIVER);
