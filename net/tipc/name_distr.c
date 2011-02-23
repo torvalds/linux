@@ -214,7 +214,7 @@ exit:
 }
 
 /**
- * node_is_down - remove publication associated with a failed node
+ * named_purge_publ - remove publication associated with a failed node
  *
  * Invoked for each publication issued by a newly failed node.
  * Removes publication structure from name table & deletes it.
@@ -223,7 +223,7 @@ exit:
  * publication. Nudge this item's key to distinguish it from the other.
  */
 
-static void node_is_down(struct publication *publ)
+static void named_purge_publ(struct publication *publ)
 {
 	struct publication *p;
 
@@ -269,7 +269,8 @@ void tipc_named_recv(struct sk_buff *buf)
 				tipc_nodesub_subscribe(&publ->subscr,
 						       msg_orignode(msg),
 						       publ,
-						       (net_ev_handler)node_is_down);
+						       (net_ev_handler)
+						       named_purge_publ);
 			}
 		} else if (msg_type(msg) == WITHDRAWAL) {
 			publ = tipc_nametbl_remove_publ(ntohl(item->type),
