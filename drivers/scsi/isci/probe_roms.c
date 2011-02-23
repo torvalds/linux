@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/firmware.h>
 #include <linux/uaccess.h>
+#include <linux/efi.h>
 #include <asm/probe_roms.h>
 
 #include "isci.h"
@@ -35,6 +36,15 @@
 #include "scic_remote_device.h"
 #include "sci_environment.h"
 #include "probe_roms.h"
+
+struct efi_variable {
+	efi_char16_t  VariableName[1024/sizeof(efi_char16_t)];
+	efi_guid_t    VendorGuid;
+	unsigned long DataSize;
+	__u8          Data[1024];
+	efi_status_t  Status;
+	__u32         Attributes;
+} __attribute__((packed));
 
 struct isci_orom *isci_request_oprom(struct pci_dev *pdev)
 {
@@ -128,6 +138,60 @@ struct isci_orom *isci_request_firmware(struct pci_dev *pdev, const struct firmw
 
  out:
 	release_firmware(fw);
+
+	return orom;
+}
+
+static struct efi *get_efi(void)
+{
+	#ifdef CONFIG_EFI
+	return &efi;
+	#else
+	return NULL;
+	#endif
+}
+
+struct isci_orom *isci_get_efi_var(struct pci_dev *pdev)
+{
+	struct efi_variable *evar;
+	efi_status_t status;
+	struct isci_orom *orom = NULL;
+
+	evar = devm_kzalloc(&pdev->dev,
+			    sizeof(struct efi_variable),
+			    GFP_KERNEL);
+	if (!evar) {
+		dev_warn(&pdev->dev,
+			 "Unable to allocate memory for EFI var\n");
+		return NULL;
+	}
+
+	evar->DataSize = 1024;
+	evar->VendorGuid = ISCI_EFI_VENDOR_GUID;
+	evar->Attributes = ISCI_EFI_ATTRIBUTES;
+
+	if (get_efi())
+		status = get_efi()->get_variable(evar->VariableName,
+						 &evar->VendorGuid,
+						 &evar->Attributes,
+						 &evar->DataSize,
+						 evar->Data);
+	else
+		status = EFI_NOT_FOUND;
+
+	if (status == EFI_SUCCESS)
+		orom = (struct isci_orom *)evar->Data;
+	else
+		dev_warn(&pdev->dev,
+			 "Unable to obtain EFI variable for OEM parms\n");
+
+	if (orom && memcmp(orom->hdr.signature, ISCI_ROM_SIG,
+			   strlen(ISCI_ROM_SIG)) != 0)
+		dev_warn(&pdev->dev,
+			 "Verifying OROM signature failed\n");
+
+	if (!orom)
+		devm_kfree(&pdev->dev, evar);
 
 	return orom;
 }
