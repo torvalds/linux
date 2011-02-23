@@ -295,12 +295,23 @@ fallback:
 	}
 
 	if (dso->origin == DSO__ORIG_KERNEL) {
+		char bf[BUILD_ID_SIZE * 2 + 16] = " with build id ";
+		char *build_id_msg = NULL;
+
 		if (dso->annotate_warned)
 			goto out_free_filename;
+
+		if (dso->has_build_id) {
+			build_id__sprintf(dso->build_id,
+					  sizeof(dso->build_id), bf + 15);
+			build_id_msg = bf;
+		}
 		err = -ENOENT;
 		dso->annotate_warned = 1;
-		pr_err("Can't annotate %s: No vmlinux file was found in the "
-		       "path\n", sym->name);
+		pr_err("Can't annotate %s: No vmlinux file%s was found in the "
+		       "path.\nPlease use 'perf buildid-cache -av vmlinux' or "
+		       "--vmlinux vmlinux.\n",
+		       sym->name, build_id_msg ?: "");
 		goto out_free_filename;
 	}
 

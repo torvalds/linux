@@ -924,14 +924,6 @@ int hists__browse(struct hists *self, const char *helpline,
 		if (choice == annotate) {
 			struct hist_entry *he;
 do_annotate:
-			if (browser->selection->map->dso->origin == DSO__ORIG_KERNEL) {
-				browser->selection->map->dso->annotate_warned = 1;
-				ui_helpline__puts("No vmlinux file found, can't "
-						 "annotate with just a "
-						 "kallsyms file");
-				continue;
-			}
-
 			he = hist_browser__selected_entry(browser);
 			if (he == NULL)
 				continue;
