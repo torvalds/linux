@@ -292,30 +292,8 @@ s32 ixgbe_dcb_hw_pfc_config(struct ixgbe_hw *hw, u8 pfc_en)
 }
 
 s32 ixgbe_dcb_hw_ets_config(struct ixgbe_hw *hw,
-			    u16 *refill, u16 *max, u8 *bwg_id, u8 *tsa)
+			    u16 *refill, u16 *max, u8 *bwg_id, u8 *prio_type)
 {
-	int i;
-	u8 prio_type[IEEE_8021QAZ_MAX_TCS];
-
-	/* Map TSA onto CEE prio type */
-	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
-		switch (tsa[i]) {
-		case IEEE_8021QAZ_TSA_STRICT:
-			prio_type[i] = 2;
-			break;
-		case IEEE_8021QAZ_TSA_ETS:
-			prio_type[i] = 0;
-			break;
-		default:
-			/* Hardware only supports priority strict or
-			 * ETS transmission selection algorithms if
-			 * we receive some other value from dcbnl
-			 * throw an error
-			 */
-			return -EINVAL;
-		}
-	}
-
 	switch (hw->mac.type) {
 	case ixgbe_mac_82598EB:
 		ixgbe_dcb_config_rx_arbiter_82598(hw, refill, max,
