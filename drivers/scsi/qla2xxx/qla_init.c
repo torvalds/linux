@@ -3943,6 +3943,7 @@ qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct scsi_qla_host *vp;
 	unsigned long flags;
+	fc_port_t *fcport;
 
 	vha->flags.online = 0;
 	ha->flags.chip_reset_done = 0;
@@ -3977,6 +3978,22 @@ qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 			atomic_set(&vha->loop_down_timer,
 			    LOOP_DOWN_TIME);
 	}
+
+	/* Clear all async request states across all VPs. */
+	list_for_each_entry(fcport, &vha->vp_fcports, list)
+		fcport->flags &= ~(FCF_LOGIN_NEEDED | FCF_ASYNC_SENT);
+	spin_lock_irqsave(&ha->vport_slock, flags);
+	list_for_each_entry(vp, &ha->vp_list, list) {
+		atomic_inc(&vp->vref_count);
+		spin_unlock_irqrestore(&ha->vport_slock, flags);
+
+		list_for_each_entry(fcport, &vp->vp_fcports, list)
+			fcport->flags &= ~(FCF_LOGIN_NEEDED | FCF_ASYNC_SENT);
+
+		spin_lock_irqsave(&ha->vport_slock, flags);
+		atomic_dec(&vp->vref_count);
+	}
+	spin_unlock_irqrestore(&ha->vport_slock, flags);
 
 	if (!ha->flags.eeh_busy) {
 		/* Make sure for ISP 82XX IO DMA is complete */
