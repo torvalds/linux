@@ -28,6 +28,13 @@ config MACH_RK29_MALATA
 	bool "ROCKCHIP Board Rk29 For Malata"
         help
 	  Support for the ROCKCHIP Board For Rk29 Malata.
+
+config MACH_RK29_PHONESDK
+	depends on ARCH_RK29
+	bool "ROCKCHIP Board Rk29 For Phone Sdk"
+        help
+	  Support for the ROCKCHIP Board For Rk29 Phone Sdk.
+
 endchoice
 
 config RK29_MEM_SIZE_M
