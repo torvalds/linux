@@ -1447,7 +1447,7 @@ static void __init setup_IO_APIC_irqs(void)
 void setup_IO_APIC_irq_extra(u32 gsi)
 {
 	int apic_id = 0, pin, idx, irq, node = cpu_to_node(0);
-	struct irq_cfg *cfg;
+	struct io_apic_irq_attr attr;
 
 	/*
 	 * Convert 'gsi' to 'ioapic.pin'.
@@ -1467,21 +1467,17 @@ void setup_IO_APIC_irq_extra(u32 gsi)
 	if (apic_id == 0 || irq < NR_IRQS_LEGACY)
 		return;
 
-	cfg = alloc_irq_and_cfg_at(irq, node);
-	if (!cfg)
-		return;
-
-	add_pin_to_irq_node(cfg, node, apic_id, pin);
-
 	if (test_bit(pin, mp_ioapic_routing[apic_id].pin_programmed)) {
 		pr_debug("Pin %d-%d already programmed\n",
 			 mp_ioapics[apic_id].apicid, pin);
 		return;
 	}
-	set_bit(pin, mp_ioapic_routing[apic_id].pin_programmed);
 
-	setup_ioapic_irq(apic_id, pin, irq, cfg,
-			irq_trigger(idx), irq_polarity(idx));
+	set_io_apic_irq_attr(&attr, apic_id, pin, irq_trigger(idx),
+			     irq_polarity(idx));
+
+	if (!io_apic_setup_irq_pin(irq, node, &attr))
+		set_bit(pin, mp_ioapic_routing[apic_id].pin_programmed);
 }
 
 /*
