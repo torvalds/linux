@@ -1388,9 +1388,19 @@ static struct {
 	DECLARE_BITMAP(pin_programmed, MP_MAX_IOAPIC_PIN + 1);
 } mp_ioapic_routing[MAX_IO_APICS];
 
+static bool __init io_apic_pin_not_connected(int idx, int apic_id, int pin)
+{
+	if (idx != -1)
+		return false;
+
+	apic_printk(APIC_VERBOSE, KERN_DEBUG " apic %d pin %d not connected\n",
+		    mp_ioapics[apic_id].apicid, pin);
+	return true;
+}
+
 static void __init setup_IO_APIC_irqs(void)
 {
-	int apic_id, pin, idx, irq, notcon = 0;
+	int apic_id, pin, idx, irq;
 	int node = cpu_to_node(0);
 	struct irq_cfg *cfg;
 
@@ -1399,22 +1409,8 @@ static void __init setup_IO_APIC_irqs(void)
 	for (apic_id = 0; apic_id < nr_ioapics; apic_id++)
 	for (pin = 0; pin < nr_ioapic_registers[apic_id]; pin++) {
 		idx = find_irq_entry(apic_id, pin, mp_INT);
-		if (idx == -1) {
-			if (!notcon) {
-				notcon = 1;
-				apic_printk(APIC_VERBOSE,
-					KERN_DEBUG " %d-%d",
-					mp_ioapics[apic_id].apicid, pin);
-			} else
-				apic_printk(APIC_VERBOSE, " %d-%d",
-					mp_ioapics[apic_id].apicid, pin);
+		if (io_apic_pin_not_connected(idx, apic_id, pin))
 			continue;
-		}
-		if (notcon) {
-			apic_printk(APIC_VERBOSE,
-				" (apicid-pin) not connected\n");
-			notcon = 0;
-		}
 
 		irq = pin_2_irq(idx, apic_id, pin);
 
@@ -1441,10 +1437,6 @@ static void __init setup_IO_APIC_irqs(void)
 		setup_ioapic_irq(apic_id, pin, irq, cfg, irq_trigger(idx),
 				  irq_polarity(idx));
 	}
-
-	if (notcon)
-		apic_printk(APIC_VERBOSE,
-			" (apicid-pin) not connected\n");
 }
 
 /*
