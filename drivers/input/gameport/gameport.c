@@ -360,7 +360,7 @@ static int gameport_queue_event(void *object, struct module *owner,
 	event->owner = owner;
 
 	list_add_tail(&event->node, &gameport_event_list);
-	schedule_work(&gameport_event_work);
+	queue_work(system_long_wq, &gameport_event_work);
 
 out:
 	spin_unlock_irqrestore(&gameport_event_lock, flags);
