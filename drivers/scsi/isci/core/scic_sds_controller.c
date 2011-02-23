@@ -1997,8 +1997,7 @@ static void scic_sds_controller_set_default_config_parameters(
 	this_controller->user_parameters.sds1.ssp_inactivity_timeout = 5;
 	this_controller->user_parameters.sds1.stp_max_occupancy_timeout = 5;
 	this_controller->user_parameters.sds1.ssp_max_occupancy_timeout = 20;
-	this_controller->user_parameters.sds1.no_outbound_task_timeout = 5;
-
+	this_controller->user_parameters.sds1.no_outbound_task_timeout = 20;
 }
 
 
