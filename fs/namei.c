@@ -2169,16 +2169,25 @@ exit:
 	return ERR_PTR(error);
 }
 
+struct open_flags {
+	int open_flag;
+	int mode;
+	int acc_mode;
+	int intent;
+};
+
 /*
  * Handle O_CREAT case for do_filp_open
  */
 static struct file *do_last(struct nameidata *nd, struct path *path,
-			    int open_flag, int acc_mode,
-			    int mode, const char *pathname)
+			    const struct open_flags *op, const char *pathname)
 {
 	struct dentry *dir = nd->path.dentry;
 	struct file *filp;
 	int error;
+
+	nd->flags &= ~LOOKUP_PARENT;
+	nd->flags |= op->intent;
 
 	switch (nd->last_type) {
 	case LAST_DOTDOT:
@@ -2233,7 +2242,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		error = mnt_want_write(nd->path.mnt);
 		if (error)
 			goto exit_mutex_unlock;
-		error = __open_namei_create(nd, path, open_flag, mode);
+		error = __open_namei_create(nd, path, op->open_flag, op->mode);
 		if (error) {
 			mnt_drop_write(nd->path.mnt);
 			goto exit;
@@ -2242,7 +2251,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		mnt_drop_write(nd->path.mnt);
 		path_put(&nd->path);
 		if (!IS_ERR(filp)) {
-			error = ima_file_check(filp, acc_mode);
+			error = ima_file_check(filp, op->acc_mode);
 			if (error) {
 				fput(filp);
 				filp = ERR_PTR(error);
@@ -2258,7 +2267,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	audit_inode(pathname, path->dentry);
 
 	error = -EEXIST;
-	if (open_flag & O_EXCL)
+	if (op->open_flag & O_EXCL)
 		goto exit_dput;
 
 	error = follow_managed(path, nd->flags);
@@ -2278,7 +2287,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	if (S_ISDIR(nd->inode->i_mode))
 		goto exit;
 ok:
-	filp = finish_open(nd, open_flag, acc_mode);
+	filp = finish_open(nd, op->open_flag, op->acc_mode);
 	return filp;
 
 exit_mutex_unlock:
@@ -2304,7 +2313,8 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	struct path path;
 	int count = 0;
 	int flag = open_to_namei_flags(open_flag);
-	int flags;
+	int flags = 0;
+	struct open_flags op;
 
 	if (!(open_flag & O_CREAT))
 		mode = 0;
@@ -2321,6 +2331,8 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	if (open_flag & __O_SYNC)
 		open_flag |= O_DSYNC;
 
+	op.open_flag = open_flag;
+
 	if (!acc_mode)
 		acc_mode = MAY_OPEN | ACC_MODE(open_flag);
 
@@ -2333,12 +2345,15 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	if (open_flag & O_APPEND)
 		acc_mode |= MAY_APPEND;
 
-	flags = LOOKUP_OPEN;
+	op.acc_mode = acc_mode;
+
+	op.intent = LOOKUP_OPEN;
 	if (open_flag & O_CREAT) {
-		flags |= LOOKUP_CREATE;
+		op.intent |= LOOKUP_CREATE;
 		if (open_flag & O_EXCL)
-			flags |= LOOKUP_EXCL;
+			op.intent |= LOOKUP_EXCL;
 	}
+
 	if (open_flag & O_DIRECTORY)
 		flags |= LOOKUP_DIRECTORY;
 	if (!(open_flag & O_NOFOLLOW))
@@ -2357,7 +2372,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 		goto creat;
 
 	/* !O_CREAT, simple open */
-	error = do_path_lookup(dfd, pathname, flags, &nd);
+	error = do_path_lookup(dfd, pathname, flags | op.intent, &nd);
 	if (unlikely(error))
 		goto out_filp2;
 	error = -ELOOP;
@@ -2384,14 +2399,14 @@ out_filp2:
 
 creat:
 	/* OK, have to create the file. Find the parent. */
-	error = path_lookupat(dfd, pathname, LOOKUP_PARENT | LOOKUP_RCU, &nd);
+	error = path_lookupat(dfd, pathname,
+			LOOKUP_PARENT | LOOKUP_RCU | flags, &nd);
 	if (unlikely(error == -ECHILD))
-		error = path_lookupat(dfd, pathname, LOOKUP_PARENT, &nd);
+		error = path_lookupat(dfd, pathname, LOOKUP_PARENT | flags, &nd);
 	if (unlikely(error == -ESTALE)) {
 reval:
 		flags |= LOOKUP_REVAL;
-		error = path_lookupat(dfd, pathname,
-				LOOKUP_PARENT | LOOKUP_REVAL, &nd);
+		error = path_lookupat(dfd, pathname, LOOKUP_PARENT | flags, &nd);
 	}
 	if (unlikely(error))
 		goto out_filp;
@@ -2401,8 +2416,7 @@ reval:
 	/*
 	 * We have the parent and last component.
 	 */
-	nd.flags = (nd.flags & ~LOOKUP_PARENT) | flags;
-	filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
+	filp = do_last(&nd, &path, &op, pathname);
 	while (unlikely(!filp)) { /* trailing symlink */
 		struct path link = path;
 		struct inode *linki = link.dentry->d_inode;
@@ -2424,13 +2438,12 @@ reval:
 		 * just set LAST_BIND.
 		 */
 		nd.flags |= LOOKUP_PARENT;
+		nd.flags &= ~(LOOKUP_OPEN|LOOKUP_CREATE|LOOKUP_EXCL);
 		error = __do_follow_link(&link, &nd, &cookie);
-		if (unlikely(error)) {
+		if (unlikely(error))
 			filp = ERR_PTR(error);
-		} else {
-			nd.flags &= ~LOOKUP_PARENT;
-			filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
-		}
+		else
+			filp = do_last(&nd, &path, &op, pathname);
 		if (!IS_ERR(cookie) && linki->i_op->put_link)
 			linki->i_op->put_link(link.dentry, &nd, cookie);
 		path_put(&link);
