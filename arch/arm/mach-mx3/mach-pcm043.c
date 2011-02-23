@@ -219,9 +219,9 @@ static iomux_v3_cfg_t pcm043_pads[] = {
 	MX35_PAD_SD1_DATA3__ESDHC1_DAT3,
 };
 
-#define AC97_GPIO_TXFS	(1 * 32 + 31)
-#define AC97_GPIO_TXD	(1 * 32 + 28)
-#define AC97_GPIO_RESET	(1 * 32 + 0)
+#define AC97_GPIO_TXFS	IMX_GPIO_NR(2, 31)
+#define AC97_GPIO_TXD	IMX_GPIO_NR(2, 28)
+#define AC97_GPIO_RESET	IMX_GPIO_NR(2, 0)
 
 static void pcm043_ac97_warm_reset(struct snd_ac97 *ac97)
 {

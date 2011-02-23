@@ -60,7 +60,7 @@ static struct tsc2007_platform_data tsc2007_info = {
 	.x_plate_ohms		= 180,
 };
 
-#define TSC2007_IRQGPIO		(2 * 32 + 2)
+#define TSC2007_IRQGPIO		IMX_GPIO_NR(3, 2)
 static struct i2c_board_info eukrea_cpuimx35_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("pcf8563", 0x51),
