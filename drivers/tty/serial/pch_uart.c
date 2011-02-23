@@ -1370,6 +1370,8 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	priv->port.line = num++;
 	priv->trigger = PCH_UART_HAL_TRIGGER_M;
 
+	spin_lock_init(&priv->port.lock);
+
 	pci_set_drvdata(pdev, priv);
 	pch_uart_hal_request(pdev, fifosize, base_baud);
 
