@@ -58,6 +58,9 @@ struct tipc_sock {
 #define tipc_sk(sk) ((struct tipc_sock *)(sk))
 #define tipc_sk_port(sk) ((struct tipc_port *)(tipc_sk(sk)->p))
 
+#define tipc_rx_ready(sock) (!skb_queue_empty(&sock->sk->sk_receive_queue) || \
+			(sock->state == SS_DISCONNECTING))
+
 static int backlog_rcv(struct sock *sk, struct sk_buff *skb);
 static u32 dispatch(struct tipc_port *tport, struct sk_buff *buf);
 static void wakeupdispatch(struct tipc_port *tport);
@@ -911,6 +914,7 @@ static int recv_msg(struct kiocb *iocb, struct socket *sock,
 	struct tipc_port *tport = tipc_sk_port(sk);
 	struct sk_buff *buf;
 	struct tipc_msg *msg;
+	long timeout;
 	unsigned int sz;
 	u32 err;
 	int res;
@@ -927,6 +931,7 @@ static int recv_msg(struct kiocb *iocb, struct socket *sock,
 		goto exit;
 	}
 
+	timeout = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 restart:
 
 	/* Look for a message in receive queue; wait if necessary */
@@ -936,17 +941,15 @@ restart:
 			res = -ENOTCONN;
 			goto exit;
 		}
-		if (flags & MSG_DONTWAIT) {
-			res = -EWOULDBLOCK;
+		if (timeout <= 0L) {
+			res = timeout ? timeout : -EWOULDBLOCK;
 			goto exit;
 		}
 		release_sock(sk);
-		res = wait_event_interruptible(*sk_sleep(sk),
-			(!skb_queue_empty(&sk->sk_receive_queue) ||
-			 (sock->state == SS_DISCONNECTING)));
+		timeout = wait_event_interruptible_timeout(*sk_sleep(sk),
+							   tipc_rx_ready(sock),
+							   timeout);
 		lock_sock(sk);
-		if (res)
-			goto exit;
 	}
 
 	/* Look at first message in receive queue */
@@ -1034,6 +1037,7 @@ static int recv_stream(struct kiocb *iocb, struct socket *sock,
 	struct tipc_port *tport = tipc_sk_port(sk);
 	struct sk_buff *buf;
 	struct tipc_msg *msg;
+	long timeout;
 	unsigned int sz;
 	int sz_to_copy, target, needed;
 	int sz_copied = 0;
@@ -1054,7 +1058,7 @@ static int recv_stream(struct kiocb *iocb, struct socket *sock,
 	}
 
 	target = sock_rcvlowat(sk, flags & MSG_WAITALL, buf_len);
-
+	timeout = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 restart:
 
 	/* Look for a message in receive queue; wait if necessary */
@@ -1064,17 +1068,15 @@ restart:
 			res = -ENOTCONN;
 			goto exit;
 		}
-		if (flags & MSG_DONTWAIT) {
-			res = -EWOULDBLOCK;
+		if (timeout <= 0L) {
+			res = timeout ? timeout : -EWOULDBLOCK;
 			goto exit;
 		}
 		release_sock(sk);
-		res = wait_event_interruptible(*sk_sleep(sk),
-			(!skb_queue_empty(&sk->sk_receive_queue) ||
-			 (sock->state == SS_DISCONNECTING)));
+		timeout = wait_event_interruptible_timeout(*sk_sleep(sk),
+							   tipc_rx_ready(sock),
+							   timeout);
 		lock_sock(sk);
-		if (res)
-			goto exit;
 	}
 
 	/* Look at first message in receive queue */
