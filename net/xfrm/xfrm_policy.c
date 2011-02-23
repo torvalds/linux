@@ -1506,7 +1506,7 @@ free_dst:
 }
 
 static int inline
-xfrm_dst_alloc_copy(void **target, void *src, int size)
+xfrm_dst_alloc_copy(void **target, const void *src, int size)
 {
 	if (!*target) {
 		*target = kmalloc(size, GFP_ATOMIC);
@@ -1530,7 +1530,7 @@ xfrm_dst_update_parent(struct dst_entry *dst, struct xfrm_selector *sel)
 }
 
 static int inline
-xfrm_dst_update_origin(struct dst_entry *dst, struct flowi *fl)
+xfrm_dst_update_origin(struct dst_entry *dst, const struct flowi *fl)
 {
 #ifdef CONFIG_XFRM_SUB_POLICY
 	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
