@@ -58,7 +58,7 @@ static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
 						int dir);
 
 static inline int
-__xfrm4_selector_match(struct xfrm_selector *sel, struct flowi *fl)
+__xfrm4_selector_match(struct xfrm_selector *sel, const struct flowi *fl)
 {
 	return  addr_match(&fl->fl4_dst, &sel->daddr, sel->prefixlen_d) &&
 		addr_match(&fl->fl4_src, &sel->saddr, sel->prefixlen_s) &&
@@ -69,7 +69,7 @@ __xfrm4_selector_match(struct xfrm_selector *sel, struct flowi *fl)
 }
 
 static inline int
-__xfrm6_selector_match(struct xfrm_selector *sel, struct flowi *fl)
+__xfrm6_selector_match(struct xfrm_selector *sel, const struct flowi *fl)
 {
 	return  addr_match(&fl->fl6_dst, &sel->daddr, sel->prefixlen_d) &&
 		addr_match(&fl->fl6_src, &sel->saddr, sel->prefixlen_s) &&
@@ -79,8 +79,8 @@ __xfrm6_selector_match(struct xfrm_selector *sel, struct flowi *fl)
 		(fl->oif == sel->ifindex || !sel->ifindex);
 }
 
-int xfrm_selector_match(struct xfrm_selector *sel, struct flowi *fl,
-		    unsigned short family)
+int xfrm_selector_match(struct xfrm_selector *sel, const struct flowi *fl,
+			unsigned short family)
 {
 	switch (family) {
 	case AF_INET:

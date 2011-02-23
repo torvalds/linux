@@ -843,7 +843,8 @@ __be16 xfrm_flowi_dport(const struct flowi *fl)
 	return port;
 }
 
-extern int xfrm_selector_match(struct xfrm_selector *sel, struct flowi *fl,
+extern int xfrm_selector_match(struct xfrm_selector *sel,
+			       const struct flowi *fl,
 			       unsigned short family);
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
