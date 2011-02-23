@@ -2013,6 +2013,122 @@ DEFINE_OCFS2_UINT_INT_EVENT(ocfs2_acquire_dquot);
 DEFINE_OCFS2_UINT_INT_EVENT(ocfs2_mark_dquot_dirty);
 
 /* End of trace events for fs/ocfs2/quota_global.c. */
+
+/* Trace events for fs/ocfs2/dir.c. */
+DEFINE_OCFS2_INT_EVENT(ocfs2_search_dirblock);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_validate_dir_block);
+
+DEFINE_OCFS2_POINTER_EVENT(ocfs2_find_entry_el);
+
+TRACE_EVENT(ocfs2_dx_dir_search,
+	TP_PROTO(unsigned long long ino, int namelen, const char *name,
+		 unsigned int major_hash, unsigned int minor_hash,
+		 unsigned long long blkno),
+	TP_ARGS(ino, namelen, name, major_hash, minor_hash, blkno),
+	TP_STRUCT__entry(
+		__field(unsigned long long, ino)
+		__field(int, namelen)
+		__string(name, name)
+		__field(unsigned int, major_hash)
+		__field(unsigned int,minor_hash)
+		__field(unsigned long long, blkno)
+	),
+	TP_fast_assign(
+		__entry->ino = ino;
+		__entry->namelen = namelen;
+		__assign_str(name, name);
+		__entry->major_hash = major_hash;
+		__entry->minor_hash = minor_hash;
+		__entry->blkno = blkno;
+	),
+	TP_printk("%llu %.*s %u %u %llu", __entry->ino,
+		   __entry->namelen, __get_str(name),
+		  __entry->major_hash, __entry->minor_hash, __entry->blkno)
+);
+
+DEFINE_OCFS2_UINT_UINT_EVENT(ocfs2_dx_dir_search_leaf_info);
+
+DEFINE_OCFS2_ULL_INT_EVENT(ocfs2_delete_entry_dx);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_readdir);
+
+TRACE_EVENT(ocfs2_find_files_on_disk,
+	TP_PROTO(int namelen, const char *name, void *blkno,
+		 unsigned long long dir),
+	TP_ARGS(namelen, name, blkno, dir),
+	TP_STRUCT__entry(
+		__field(int, namelen)
+		__string(name, name)
+		__field(void *, blkno)
+		__field(unsigned long long, dir)
+	),
+	TP_fast_assign(
+		__entry->namelen = namelen;
+		__assign_str(name, name);
+		__entry->blkno = blkno;
+		__entry->dir = dir;
+	),
+	TP_printk("%.*s %p %llu", __entry->namelen, __get_str(name),
+		  __entry->blkno, __entry->dir)
+);
+
+TRACE_EVENT(ocfs2_check_dir_for_entry,
+	TP_PROTO(unsigned long long dir, int namelen, const char *name),
+	TP_ARGS(dir, namelen, name),
+	TP_STRUCT__entry(
+		__field(unsigned long long, dir)
+		__field(int, namelen)
+		__string(name, name)
+	),
+	TP_fast_assign(
+		__entry->dir = dir;
+		__entry->namelen = namelen;
+		__assign_str(name, name);
+	),
+	TP_printk("%llu %.*s", __entry->dir,
+		  __entry->namelen, __get_str(name))
+);
+
+DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_dx_dir_attach_index);
+
+DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_dx_dir_format_cluster);
+
+TRACE_EVENT(ocfs2_dx_dir_index_root_block,
+	TP_PROTO(unsigned long long dir,
+		 unsigned int major_hash, unsigned int minor_hash,
+		 int namelen, const char *name, unsigned int num_used),
+	TP_ARGS(dir, major_hash, minor_hash, namelen, name, num_used),
+	TP_STRUCT__entry(
+		__field(unsigned long long, dir)
+		__field(unsigned int, major_hash)
+		__field(unsigned int, minor_hash)
+		__field(int, namelen)
+		__string(name, name)
+		__field(unsigned int, num_used)
+	),
+	TP_fast_assign(
+		__entry->dir = dir;
+		__entry->major_hash = major_hash;
+		__entry->minor_hash = minor_hash;
+		__entry->namelen = namelen;
+		__assign_str(name, name);
+		__entry->num_used = num_used;
+	),
+	TP_printk("%llu %x %x %.*s %u", __entry->dir,
+		  __entry->major_hash, __entry->minor_hash,
+		   __entry->namelen, __get_str(name), __entry->num_used)
+);
+
+DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_extend_dir);
+
+DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_dx_dir_rebalance);
+
+DEFINE_OCFS2_UINT_UINT_UINT_EVENT(ocfs2_dx_dir_rebalance_split);
+
+DEFINE_OCFS2_ULL_INT_EVENT(ocfs2_prepare_dir_for_insert);
+
+/* End of trace events for fs/ocfs2/dir.c. */
 #endif /* _TRACE_OCFS2_H */
 
 /* This part must be outside protection */
