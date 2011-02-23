@@ -1231,8 +1231,17 @@ static snd_pcm_uframes_t hdspm_hw_pointer(struct hdspm *hdspm)
 	int position;
 
 	position = hdspm_read(hdspm, HDSPM_statusRegister);
-	position &= HDSPM_BufferPositionMask;
-	position /= 4; /* Bytes per sample */
+
+	switch (hdspm->io_type) {
+	case RayDAT:
+	case AIO:
+		position &= HDSPM_BufferPositionMask;
+		position /= 4; /* Bytes per sample */
+		break;
+	default:
+		position = (position & HDSPM_BufferID) ?
+			(hdspm->period_bytes / 4) : 0;
+	}
 
 	return position;
 }
