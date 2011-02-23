@@ -28,6 +28,7 @@ struct timer_rand_state;
  * @lock:		locking for SMP
  * @affinity_notify:	context for notification of affinity changes
  * @pending_mask:	pending rebalanced interrupts
+ * @threads_oneshot:	bitfield to handle shared oneshot threads
  * @threads_active:	number of irqaction threads currently running
  * @wait_for_threads:	wait queue for sync_irq to wait for threaded handlers
  * @dir:		/proc/irq/ procfs entry
@@ -86,6 +87,7 @@ struct irq_desc {
 	cpumask_var_t		pending_mask;
 #endif
 #endif
+	unsigned long		threads_oneshot;
 	atomic_t		threads_active;
 	wait_queue_head_t       wait_for_threads;
 #ifdef CONFIG_PROC_FS

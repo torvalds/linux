@@ -99,6 +99,7 @@ typedef irqreturn_t (*irq_handler_t)(int, void *);
  * @thread_fn:	interupt handler function for threaded interrupts
  * @thread:	thread pointer for threaded interrupts
  * @thread_flags:	flags related to @thread
+ * @thread_mask:	bitmask for keeping track of @thread activity
  */
 struct irqaction {
 	irq_handler_t handler;
@@ -109,6 +110,7 @@ struct irqaction {
 	irq_handler_t thread_fn;
 	struct task_struct *thread;
 	unsigned long thread_flags;
+	unsigned long thread_mask;
 	const char *name;
 	struct proc_dir_entry *dir;
 } ____cacheline_internodealigned_in_smp;
