@@ -3658,15 +3658,6 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 	if (hw->mac.type == ixgbe_mac_82598EB)
 		netif_set_gso_max_size(adapter->netdev, 32768);
 
-#ifdef CONFIG_FCOE
-	if (adapter->netdev->features & NETIF_F_FCOE_MTU)
-		max_frame = max(max_frame, IXGBE_FCOE_JUMBO_FRAME_SIZE);
-#endif
-
-	ixgbe_dcb_calculate_tc_credits(hw, &adapter->dcb_cfg, max_frame,
-					DCB_TX_CONFIG);
-	ixgbe_dcb_calculate_tc_credits(hw, &adapter->dcb_cfg, max_frame,
-					DCB_RX_CONFIG);
 
 	/* Enable VLAN tag insert/strip */
 	adapter->netdev->features |= NETIF_F_HW_VLAN_RX;
@@ -3674,7 +3665,26 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 	hw->mac.ops.set_vfta(&adapter->hw, 0, 0, true);
 
 	/* reconfigure the hardware */
-	ixgbe_dcb_hw_config(hw, &adapter->dcb_cfg);
+	if (adapter->dcbx_cap & (DCB_CAP_DCBX_HOST | DCB_CAP_DCBX_VER_CEE)) {
+#ifdef CONFIG_FCOE
+		if (adapter->netdev->features & NETIF_F_FCOE_MTU)
+			max_frame = max(max_frame, IXGBE_FCOE_JUMBO_FRAME_SIZE);
+#endif
+		ixgbe_dcb_calculate_tc_credits(hw, &adapter->dcb_cfg, max_frame,
+						DCB_TX_CONFIG);
+		ixgbe_dcb_calculate_tc_credits(hw, &adapter->dcb_cfg, max_frame,
+						DCB_RX_CONFIG);
+		ixgbe_dcb_hw_config(hw, &adapter->dcb_cfg);
+	} else {
+		struct net_device *dev = adapter->netdev;
+
+		if (adapter->ixgbe_ieee_ets)
+			dev->dcbnl_ops->ieee_setets(dev,
+						    adapter->ixgbe_ieee_ets);
+		if (adapter->ixgbe_ieee_pfc)
+			dev->dcbnl_ops->ieee_setpfc(dev,
+						    adapter->ixgbe_ieee_pfc);
+	}
 
 	/* Enable RSS Hash per TC */
 	if (hw->mac.type != ixgbe_mac_82598EB) {
