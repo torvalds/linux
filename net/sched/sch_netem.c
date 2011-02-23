@@ -562,8 +562,7 @@ static void netem_destroy(struct Qdisc *sch)
 static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	const struct netem_sched_data *q = qdisc_priv(sch);
-	unsigned char *b = skb_tail_pointer(skb);
-	struct nlattr *nla = (struct nlattr *) b;
+	struct nlattr *nla = (struct nlattr *) skb_tail_pointer(skb);
 	struct tc_netem_qopt qopt;
 	struct tc_netem_corr cor;
 	struct tc_netem_reorder reorder;
@@ -590,12 +589,10 @@ static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
 	corrupt.correlation = q->corrupt_cor.rho;
 	NLA_PUT(skb, TCA_NETEM_CORRUPT, sizeof(corrupt), &corrupt);
 
-	nla->nla_len = skb_tail_pointer(skb) - b;
-
-	return skb->len;
+	return nla_nest_end(skb, nla);
 
 nla_put_failure:
-	nlmsg_trim(skb, b);
+	nlmsg_trim(skb, nla);
 	return -1;
 }
 
