@@ -18,3 +18,10 @@ extern const struct imx_imx_uart_3irq_data imx1_imx_uart_data[] __initconst;
 	imx_add_imx_uart_3irq(&imx1_imx_uart_data[id], pdata)
 #define imx1_add_imx_uart0(pdata)	imx1_add_imx_uart(0, pdata)
 #define imx1_add_imx_uart1(pdata)	imx1_add_imx_uart(1, pdata)
+
+extern const struct imx_spi_imx_data imx1_cspi_data[] __initconst;
+#define imx1_add_cspi(id, pdata)   \
+	imx_add_spi_imx(&imx1_cspi_data[id], pdata)
+
+#define imx1_add_spi_imx0(pdata) imx1_add_cspi(0, pdata)
+#define imx1_add_spi_imx1(pdata) imx1_add_cspi(1, pdata)
