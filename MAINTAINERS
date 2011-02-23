@@ -4514,14 +4514,14 @@ S:	Maintained
 F:	sound/soc/omap/
 
 OMAP FRAMEBUFFER SUPPORT
-M:	Tomi Valkeinen <tomi.valkeinen@nokia.com>
+M:	Tomi Valkeinen <tomi.valkeinen@ti.com>
 L:	linux-fbdev@vger.kernel.org
 L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	drivers/video/omap/
 
 OMAP DISPLAY SUBSYSTEM and FRAMEBUFFER SUPPORT (DSS2)
-M:	Tomi Valkeinen <tomi.valkeinen@nokia.com>
+M:	Tomi Valkeinen <tomi.valkeinen@ti.com>
 L:	linux-omap@vger.kernel.org
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
