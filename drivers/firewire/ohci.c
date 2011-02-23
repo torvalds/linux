@@ -2706,6 +2706,10 @@ static int ohci_start_iso(struct fw_iso_context *base,
 	u32 control = IR_CONTEXT_ISOCH_HEADER, match;
 	int index;
 
+	/* the controller cannot start without any queued packets */
+	if (ctx->context.last->branch_address == 0)
+		return -ENODATA;
+
 	switch (ctx->base.type) {
 	case FW_ISO_CONTEXT_TRANSMIT:
 		index = ctx - ohci->it_context_list;
