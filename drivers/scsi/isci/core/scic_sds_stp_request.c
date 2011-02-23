@@ -1602,9 +1602,11 @@ static enum sci_status scic_sds_stp_request_udma_await_tc_completion_tc_completi
 	/*
 	 * / @todo Check to see if any of these completion status need to wait for
 	 * /       the device to host register fis. */
+	/* / @todo We can retry the command for SCU_TASK_DONE_CMD_LL_R_ERR - this comes only for B0 */
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_INV_FIS_LEN):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_MAX_PLD_ERR):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_LL_R_ERR):
+	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_CMD_LL_R_ERR):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_CRC_ERR):
 		scic_sds_remote_device_suspend(
 			this_request->parent.target_device,
