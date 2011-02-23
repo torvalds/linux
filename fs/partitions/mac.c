@@ -29,10 +29,9 @@ static inline void mac_fix_string(char *stg, int len)
 
 int mac_partition(struct parsed_partitions *state)
 {
-	int slot = 1;
 	Sector sect;
 	unsigned char *data;
-	int blk, blocks_in_map;
+	int slot, blocks_in_map;
 	unsigned secsize;
 #ifdef CONFIG_PPC_PMAC
 	int found_root = 0;
@@ -59,10 +58,14 @@ int mac_partition(struct parsed_partitions *state)
 		put_dev_sector(sect);
 		return 0;		/* not a MacOS disk */
 	}
-	strlcat(state->pp_buf, " [mac]", PAGE_SIZE);
 	blocks_in_map = be32_to_cpu(part->map_count);
-	for (blk = 1; blk <= blocks_in_map; ++blk) {
-		int pos = blk * secsize;
+	if (blocks_in_map < 0 || blocks_in_map >= DISK_MAX_PARTS) {
+		put_dev_sector(sect);
+		return 0;
+	}
+	strlcat(state->pp_buf, " [mac]", PAGE_SIZE);
+	for (slot = 1; slot <= blocks_in_map; ++slot) {
+		int pos = slot * secsize;
 		put_dev_sector(sect);
 		data = read_part_sector(state, pos/512, &sect);
 		if (!data)
@@ -113,13 +116,11 @@ int mac_partition(struct parsed_partitions *state)
 			}
 
 			if (goodness > found_root_goodness) {
-				found_root = blk;
+				found_root = slot;
 				found_root_goodness = goodness;
 			}
 		}
 #endif /* CONFIG_PPC_PMAC */
-
-		++slot;
 	}
 #ifdef CONFIG_PPC_PMAC
 	if (found_root_goodness)

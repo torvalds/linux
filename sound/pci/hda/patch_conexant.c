@@ -3410,7 +3410,7 @@ static void cx_auto_parse_output(struct hda_codec *codec)
 		}
 	}
 	spec->multiout.dac_nids = spec->private_dac_nids;
-	spec->multiout.max_channels = nums * 2;
+	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 
 	if (cfg->hp_outs > 0)
 		spec->auto_mute = 1;
@@ -3729,9 +3729,9 @@ static int cx_auto_init(struct hda_codec *codec)
 	return 0;
 }
 
-static int cx_auto_add_volume(struct hda_codec *codec, const char *basename,
+static int cx_auto_add_volume_idx(struct hda_codec *codec, const char *basename,
 			      const char *dir, int cidx,
-			      hda_nid_t nid, int hda_dir)
+			      hda_nid_t nid, int hda_dir, int amp_idx)
 {
 	static char name[32];
 	static struct snd_kcontrol_new knew[] = {
@@ -3743,7 +3743,8 @@ static int cx_auto_add_volume(struct hda_codec *codec, const char *basename,
 
 	for (i = 0; i < 2; i++) {
 		struct snd_kcontrol *kctl;
-		knew[i].private_value = HDA_COMPOSE_AMP_VAL(nid, 3, 0, hda_dir);
+		knew[i].private_value = HDA_COMPOSE_AMP_VAL(nid, 3, amp_idx,
+							    hda_dir);
 		knew[i].subdevice = HDA_SUBDEV_AMP_FLAG;
 		knew[i].index = cidx;
 		snprintf(name, sizeof(name), "%s%s %s", basename, dir, sfx[i]);
@@ -3758,6 +3759,9 @@ static int cx_auto_add_volume(struct hda_codec *codec, const char *basename,
 	}
 	return 0;
 }
+
+#define cx_auto_add_volume(codec, str, dir, cidx, nid, hda_dir)		\
+	cx_auto_add_volume_idx(codec, str, dir, cidx, nid, hda_dir, 0)
 
 #define cx_auto_add_pb_volume(codec, nid, str, idx)			\
 	cx_auto_add_volume(codec, str, " Playback", idx, nid, HDA_OUTPUT)
@@ -3808,29 +3812,60 @@ static int cx_auto_build_input_controls(struct hda_codec *codec)
 	struct conexant_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	static const char *prev_label;
-	int i, err, cidx;
+	int i, err, cidx, conn_len;
+	hda_nid_t conn[HDA_MAX_CONNECTIONS];
 
-	err = cx_auto_add_volume(codec, "Capture", "", 0, spec->adc_nids[0],
-				 HDA_INPUT);
-	if (err < 0)
-		return err;
+	int multi_adc_volume = 0; /* If the ADC nid has several input volumes */
+	int adc_nid = spec->adc_nids[0];
+
+	conn_len = snd_hda_get_connections(codec, adc_nid, conn,
+					   HDA_MAX_CONNECTIONS);
+	if (conn_len < 0)
+		return conn_len;
+
+	multi_adc_volume = cfg->num_inputs > 1 && conn_len > 1;
+	if (!multi_adc_volume) {
+		err = cx_auto_add_volume(codec, "Capture", "", 0, adc_nid,
+					 HDA_INPUT);
+		if (err < 0)
+			return err;
+	}
+
 	prev_label = NULL;
 	cidx = 0;
 	for (i = 0; i < cfg->num_inputs; i++) {
 		hda_nid_t nid = cfg->inputs[i].pin;
 		const char *label;
-		if (!(get_wcaps(codec, nid) & AC_WCAP_IN_AMP))
+		int j;
+		int pin_amp = get_wcaps(codec, nid) & AC_WCAP_IN_AMP;
+		if (!pin_amp && !multi_adc_volume)
 			continue;
+
 		label = hda_get_autocfg_input_label(codec, cfg, i);
 		if (label == prev_label)
 			cidx++;
 		else
 			cidx = 0;
 		prev_label = label;
-		err = cx_auto_add_volume(codec, label, " Capture", cidx,
-					 nid, HDA_INPUT);
-		if (err < 0)
-			return err;
+
+		if (pin_amp) {
+			err = cx_auto_add_volume(codec, label, " Boost", cidx,
+						 nid, HDA_INPUT);
+			if (err < 0)
+				return err;
+		}
+
+		if (!multi_adc_volume)
+			continue;
+		for (j = 0; j < conn_len; j++) {
+			if (conn[j] == nid) {
+				err = cx_auto_add_volume_idx(codec, label,
+				    " Capture", cidx, adc_nid, HDA_INPUT, j);
+				if (err < 0)
+					return err;
+				break;
+			}
+		}
 	}
 	return 0;
 }

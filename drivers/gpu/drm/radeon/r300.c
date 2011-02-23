@@ -910,6 +910,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
 			break;
 		case R300_TX_FORMAT_X16:
+		case R300_TX_FORMAT_FL_I16:
 		case R300_TX_FORMAT_Y8X8:
 		case R300_TX_FORMAT_Z5Y6X5:
 		case R300_TX_FORMAT_Z6Y5X5:
@@ -922,6 +923,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
 			break;
 		case R300_TX_FORMAT_Y16X16:
+		case R300_TX_FORMAT_FL_I16A16:
 		case R300_TX_FORMAT_Z11Y11X10:
 		case R300_TX_FORMAT_Z10Y11X11:
 		case R300_TX_FORMAT_W8Z8Y8X8:

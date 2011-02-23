@@ -632,8 +632,7 @@ int ecryptfs_interpose(struct dentry *hidden_dentry,
 		       u32 flags);
 int ecryptfs_lookup_and_interpose_lower(struct dentry *ecryptfs_dentry,
 					struct dentry *lower_dentry,
-					struct inode *ecryptfs_dir_inode,
-					struct nameidata *ecryptfs_nd);
+					struct inode *ecryptfs_dir_inode);
 int ecryptfs_decode_and_decrypt_filename(char **decrypted_name,
 					 size_t *decrypted_name_size,
 					 struct dentry *ecryptfs_dentry,

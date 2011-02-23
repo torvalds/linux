@@ -2722,6 +2722,7 @@ static struct dst_ops ipv4_dst_blackhole_ops = {
 	.destroy		=	ipv4_dst_destroy,
 	.check			=	ipv4_blackhole_dst_check,
 	.default_mtu		=	ipv4_blackhole_default_mtu,
+	.default_advmss		=	ipv4_default_advmss,
 	.update_pmtu		=	ipv4_rt_blackhole_update_pmtu,
 };
 

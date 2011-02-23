@@ -557,9 +557,9 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 
 			/* use recommended ref_div for ss */
 			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
-				pll->flags |= RADEON_PLL_PREFER_MINM_OVER_MAXP;
 				if (ss_enabled) {
 					if (ss->refdiv) {
+						pll->flags |= RADEON_PLL_PREFER_MINM_OVER_MAXP;
 						pll->flags |= RADEON_PLL_USE_REF_DIV;
 						pll->reference_div = ss->refdiv;
 						if (ASIC_IS_AVIVO(rdev))
@@ -662,10 +662,12 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 						   index, (uint32_t *)&args);
 				adjusted_clock = le32_to_cpu(args.v3.sOutput.ulDispPllFreq) * 10;
 				if (args.v3.sOutput.ucRefDiv) {
+					pll->flags |= RADEON_PLL_USE_FRAC_FB_DIV;
 					pll->flags |= RADEON_PLL_USE_REF_DIV;
 					pll->reference_div = args.v3.sOutput.ucRefDiv;
 				}
 				if (args.v3.sOutput.ucPostDiv) {
+					pll->flags |= RADEON_PLL_USE_FRAC_FB_DIV;
 					pll->flags |= RADEON_PLL_USE_POST_DIV;
 					pll->post_div = args.v3.sOutput.ucPostDiv;
 				}
