@@ -102,11 +102,11 @@ struct flow_cache_ops {
 };
 
 typedef struct flow_cache_object *(*flow_resolve_t)(
-		struct net *net, struct flowi *key, u16 family,
+		struct net *net, const struct flowi *key, u16 family,
 		u8 dir, struct flow_cache_object *oldobj, void *ctx);
 
 extern struct flow_cache_object *flow_cache_lookup(
-		struct net *net, struct flowi *key, u16 family,
+		struct net *net, const struct flowi *key, u16 family,
 		u8 dir, flow_resolve_t resolver, void *ctx);
 
 extern void flow_cache_flush(void);

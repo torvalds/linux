@@ -954,7 +954,7 @@ __xfrm_policy_lookup(struct net *net, const struct flowi *fl, u16 family, u8 dir
 }
 
 static struct flow_cache_object *
-xfrm_policy_lookup(struct net *net, struct flowi *fl, u16 family,
+xfrm_policy_lookup(struct net *net, const struct flowi *fl, u16 family,
 		   u8 dir, struct flow_cache_object *old_obj, void *ctx)
 {
 	struct xfrm_policy *pol;
@@ -990,7 +990,8 @@ static inline int policy_to_flow_dir(int dir)
 	}
 }
 
-static struct xfrm_policy *xfrm_sk_policy_lookup(struct sock *sk, int dir, struct flowi *fl)
+static struct xfrm_policy *xfrm_sk_policy_lookup(struct sock *sk, int dir,
+						 const struct flowi *fl)
 {
 	struct xfrm_policy *pol;
 
@@ -1629,7 +1630,7 @@ xfrm_resolve_and_create_bundle(struct xfrm_policy **pols, int num_pols,
 }
 
 static struct flow_cache_object *
-xfrm_bundle_lookup(struct net *net, struct flowi *fl, u16 family, u8 dir,
+xfrm_bundle_lookup(struct net *net, const struct flowi *fl, u16 family, u8 dir,
 		   struct flow_cache_object *oldflo, void *ctx)
 {
 	struct dst_entry *dst_orig = (struct dst_entry *)ctx;
@@ -1733,7 +1734,8 @@ error:
  * At the moment we eat a raw IP route. Mostly to speed up lookups
  * on interfaces with disabled IPsec.
  */
-int __xfrm_lookup(struct net *net, struct dst_entry **dst_p, struct flowi *fl,
+int __xfrm_lookup(struct net *net, struct dst_entry **dst_p,
+		  const struct flowi *fl,
 		  struct sock *sk, int flags)
 {
 	struct xfrm_policy *pols[XFRM_POLICY_TYPE_MAX];
@@ -1889,7 +1891,8 @@ dropdst:
 }
 EXPORT_SYMBOL(__xfrm_lookup);
 
-int xfrm_lookup(struct net *net, struct dst_entry **dst_p, struct flowi *fl,
+int xfrm_lookup(struct net *net, struct dst_entry **dst_p,
+		const struct flowi *fl,
 		struct sock *sk, int flags)
 {
 	int err = __xfrm_lookup(net, dst_p, fl, sk, flags);
