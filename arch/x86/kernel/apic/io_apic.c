@@ -128,6 +128,9 @@ static int __init parse_noapic(char *str)
 }
 early_param("noapic", parse_noapic);
 
+static int io_apic_setup_irq_pin_once(unsigned int irq, int node,
+				      struct io_apic_irq_attr *attr);
+
 /* Will be called in mpparse/acpi/sfi codes for saving IRQ info */
 void mp_save_irq(struct mpc_intsrc *m)
 {
@@ -1457,17 +1460,10 @@ void setup_IO_APIC_irq_extra(u32 gsi)
 	if (apic_id == 0 || irq < NR_IRQS_LEGACY)
 		return;
 
-	if (test_bit(pin, mp_ioapic_routing[apic_id].pin_programmed)) {
-		pr_debug("Pin %d-%d already programmed\n",
-			 mp_ioapics[apic_id].apicid, pin);
-		return;
-	}
-
 	set_io_apic_irq_attr(&attr, apic_id, pin, irq_trigger(idx),
 			     irq_polarity(idx));
 
-	if (!io_apic_setup_irq_pin(irq, node, &attr))
-		set_bit(pin, mp_ioapic_routing[apic_id].pin_programmed);
+	io_apic_setup_irq_pin_once(irq, node, &attr);
 }
 
 /*
@@ -3601,6 +3597,24 @@ io_apic_setup_irq_pin(unsigned int irq, int node, struct io_apic_irq_attr *attr)
 	return ret;
 }
 
+static int io_apic_setup_irq_pin_once(unsigned int irq, int node,
+				      struct io_apic_irq_attr *attr)
+{
+	unsigned int id = attr->ioapic, pin = attr->ioapic_pin;
+	int ret;
+
+	/* Avoid redundant programming */
+	if (test_bit(pin, mp_ioapic_routing[id].pin_programmed)) {
+		pr_debug("Pin %d-%d already programmed\n",
+			 mp_ioapics[id].apicid, pin);
+		return 0;
+	}
+	ret = io_apic_setup_irq_pin(irq, node, attr);
+	if (!ret)
+		set_bit(pin, mp_ioapic_routing[id].pin_programmed);
+	return ret;
+}
+
 static int __init io_apic_get_redir_entries(int ioapic)
 {
 	union IO_APIC_reg_01	reg_01;
@@ -3655,8 +3669,8 @@ int __init arch_probe_nr_irqs(void)
 }
 #endif
 
-static int __io_apic_set_pci_routing(struct device *dev, int irq,
-				struct io_apic_irq_attr *irq_attr)
+int io_apic_set_pci_routing(struct device *dev, int irq,
+			    struct io_apic_irq_attr *irq_attr)
 {
 	int node;
 
@@ -3668,28 +3682,7 @@ static int __io_apic_set_pci_routing(struct device *dev, int irq,
 
 	node = dev ? dev_to_node(dev) : cpu_to_node(0);
 
-	return io_apic_setup_irq_pin(irq, node, irq_attr);
-}
-
-int io_apic_set_pci_routing(struct device *dev, int irq,
-				struct io_apic_irq_attr *irq_attr)
-{
-	int ioapic, pin;
-	/*
-	 * Avoid pin reprogramming.  PRTs typically include entries
-	 * with redundant pin->gsi mappings (but unique PCI devices);
-	 * we only program the IOAPIC on the first.
-	 */
-	ioapic = irq_attr->ioapic;
-	pin = irq_attr->ioapic_pin;
-	if (test_bit(pin, mp_ioapic_routing[ioapic].pin_programmed)) {
-		pr_debug("Pin %d-%d already programmed\n",
-			 mp_ioapics[ioapic].apicid, pin);
-		return 0;
-	}
-	set_bit(pin, mp_ioapic_routing[ioapic].pin_programmed);
-
-	return __io_apic_set_pci_routing(dev, irq, irq_attr);
+	return io_apic_setup_irq_pin_once(irq, node, irq_attr);
 }
 
 #ifdef CONFIG_X86_32
