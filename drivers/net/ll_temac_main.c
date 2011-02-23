@@ -952,8 +952,7 @@ static const struct attribute_group temac_attr_group = {
 	.attrs = temac_device_attrs,
 };
 
-static int __devinit
-temac_of_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit temac_of_probe(struct platform_device *op)
 {
 	struct device_node *np;
 	struct temac_local *lp;
@@ -1123,7 +1122,7 @@ static struct of_device_id temac_of_match[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(of, temac_of_match);
 
-static struct of_platform_driver temac_of_driver = {
+static struct platform_driver temac_of_driver = {
 	.probe = temac_of_probe,
 	.remove = __devexit_p(temac_of_remove),
 	.driver = {
@@ -1135,13 +1134,13 @@ static struct of_platform_driver temac_of_driver = {
 
 static int __init temac_init(void)
 {
-	return of_register_platform_driver(&temac_of_driver);
+	return platform_driver_register(&temac_of_driver);
 }
 module_init(temac_init);
 
 static void __exit temac_exit(void)
 {
-	of_unregister_platform_driver(&temac_of_driver);
+	platform_driver_unregister(&temac_of_driver);
 }
 module_exit(temac_exit);
 

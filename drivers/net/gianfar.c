@@ -123,8 +123,7 @@ static irqreturn_t gfar_interrupt(int irq, void *dev_id);
 static void adjust_link(struct net_device *dev);
 static void init_registers(struct net_device *dev);
 static int init_phy(struct net_device *dev);
-static int gfar_probe(struct platform_device *ofdev,
-		const struct of_device_id *match);
+static int gfar_probe(struct platform_device *ofdev);
 static int gfar_remove(struct platform_device *ofdev);
 static void free_skb_resources(struct gfar_private *priv);
 static void gfar_set_multi(struct net_device *dev);
@@ -957,8 +956,7 @@ static void gfar_detect_errata(struct gfar_private *priv)
 
 /* Set up the ethernet device structure, private data,
  * and anything else we need before we start */
-static int gfar_probe(struct platform_device *ofdev,
-		const struct of_device_id *match)
+static int gfar_probe(struct platform_device *ofdev)
 {
 	u32 tempval;
 	struct net_device *dev = NULL;
@@ -3256,7 +3254,7 @@ static struct of_device_id gfar_match[] =
 MODULE_DEVICE_TABLE(of, gfar_match);
 
 /* Structure for a device driver */
-static struct of_platform_driver gfar_driver = {
+static struct platform_driver gfar_driver = {
 	.driver = {
 		.name = "fsl-gianfar",
 		.owner = THIS_MODULE,
@@ -3269,12 +3267,12 @@ static struct of_platform_driver gfar_driver = {
 
 static int __init gfar_init(void)
 {
-	return of_register_platform_driver(&gfar_driver);
+	return platform_driver_register(&gfar_driver);
 }
 
 static void __exit gfar_exit(void)
 {
-	of_unregister_platform_driver(&gfar_driver);
+	platform_driver_unregister(&gfar_driver);
 }
 
 module_init(gfar_init);

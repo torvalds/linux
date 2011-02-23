@@ -1242,8 +1242,7 @@ fail_and_cleanup:
 /* QEC can be the parent of either QuadEthernet or a BigMAC.  We want
  * the latter.
  */
-static int __devinit bigmac_sbus_probe(struct platform_device *op,
-				       const struct of_device_id *match)
+static int __devinit bigmac_sbus_probe(struct platform_device *op)
 {
 	struct device *parent = op->dev.parent;
 	struct platform_device *qec_op;
@@ -1289,7 +1288,7 @@ static const struct of_device_id bigmac_sbus_match[] = {
 
 MODULE_DEVICE_TABLE(of, bigmac_sbus_match);
 
-static struct of_platform_driver bigmac_sbus_driver = {
+static struct platform_driver bigmac_sbus_driver = {
 	.driver = {
 		.name = "sunbmac",
 		.owner = THIS_MODULE,
@@ -1301,12 +1300,12 @@ static struct of_platform_driver bigmac_sbus_driver = {
 
 static int __init bigmac_init(void)
 {
-	return of_register_platform_driver(&bigmac_sbus_driver);
+	return platform_driver_register(&bigmac_sbus_driver);
 }
 
 static void __exit bigmac_exit(void)
 {
-	of_unregister_platform_driver(&bigmac_sbus_driver);
+	platform_driver_unregister(&bigmac_sbus_driver);
 }
 
 module_init(bigmac_init);

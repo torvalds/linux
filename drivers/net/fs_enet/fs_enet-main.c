@@ -998,8 +998,7 @@ static const struct net_device_ops fs_enet_netdev_ops = {
 #endif
 };
 
-static int __devinit fs_enet_probe(struct platform_device *ofdev,
-                                   const struct of_device_id *match)
+static int __devinit fs_enet_probe(struct platform_device *ofdev)
 {
 	struct net_device *ndev;
 	struct fs_enet_private *fep;
@@ -1008,11 +1007,14 @@ static int __devinit fs_enet_probe(struct platform_device *ofdev,
 	const u8 *mac_addr;
 	int privsize, len, ret = -ENODEV;
 
+	if (!ofdev->dev.of_match)
+		return -EINVAL;
+
 	fpi = kzalloc(sizeof(*fpi), GFP_KERNEL);
 	if (!fpi)
 		return -ENOMEM;
 
-	if (!IS_FEC(match)) {
+	if (!IS_FEC(ofdev->dev.of_match)) {
 		data = of_get_property(ofdev->dev.of_node, "fsl,cpm-command", &len);
 		if (!data || len != 4)
 			goto out_free_fpi;
@@ -1047,7 +1049,7 @@ static int __devinit fs_enet_probe(struct platform_device *ofdev,
 	fep->dev = &ofdev->dev;
 	fep->ndev = ndev;
 	fep->fpi = fpi;
-	fep->ops = match->data;
+	fep->ops = ofdev->dev.of_match->data;
 
 	ret = fep->ops->setup_data(ndev);
 	if (ret)
@@ -1156,7 +1158,7 @@ static struct of_device_id fs_enet_match[] = {
 };
 MODULE_DEVICE_TABLE(of, fs_enet_match);
 
-static struct of_platform_driver fs_enet_driver = {
+static struct platform_driver fs_enet_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "fs_enet",
@@ -1168,12 +1170,12 @@ static struct of_platform_driver fs_enet_driver = {
 
 static int __init fs_init(void)
 {
-	return of_register_platform_driver(&fs_enet_driver);
+	return platform_driver_register(&fs_enet_driver);
 }
 
 static void __exit fs_cleanup(void)
 {
-	of_unregister_platform_driver(&fs_enet_driver);
+	platform_driver_unregister(&fs_enet_driver);
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
