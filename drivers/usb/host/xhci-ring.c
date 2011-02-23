@@ -501,9 +501,6 @@ void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 	addr = xhci_trb_virt_to_dma(state->new_deq_seg, state->new_deq_ptr);
 	xhci_dbg(xhci, "New dequeue pointer = 0x%llx (DMA)\n",
 			(unsigned long long) addr);
-	xhci_dbg(xhci, "Setting dequeue pointer in internal ring state.\n");
-	ep_ring->dequeue = state->new_deq_ptr;
-	ep_ring->deq_seg = state->new_deq_seg;
 }
 
 static void td_to_noop(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
@@ -945,9 +942,26 @@ static void handle_set_deq_completion(struct xhci_hcd *xhci,
 	} else {
 		xhci_dbg(xhci, "Successful Set TR Deq Ptr cmd, deq = @%08llx\n",
 				ep_ctx->deq);
+		if (xhci_trb_virt_to_dma(dev->eps[ep_index].queued_deq_seg,
+					dev->eps[ep_index].queued_deq_ptr) ==
+				(ep_ctx->deq & ~(EP_CTX_CYCLE_MASK))) {
+			/* Update the ring's dequeue segment and dequeue pointer
+			 * to reflect the new position.
+			 */
+			ep_ring->deq_seg = dev->eps[ep_index].queued_deq_seg;
+			ep_ring->dequeue = dev->eps[ep_index].queued_deq_ptr;
+		} else {
+			xhci_warn(xhci, "Mismatch between completed Set TR Deq "
+					"Ptr command & xHCI internal state.\n");
+			xhci_warn(xhci, "ep deq seg = %p, deq ptr = %p\n",
+					dev->eps[ep_index].queued_deq_seg,
+					dev->eps[ep_index].queued_deq_ptr);
+		}
 	}
 
 	dev->eps[ep_index].ep_state &= ~SET_DEQ_PENDING;
+	dev->eps[ep_index].queued_deq_seg = NULL;
+	dev->eps[ep_index].queued_deq_ptr = NULL;
 	/* Restart any rings with pending URBs */
 	ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
 }
@@ -3283,6 +3297,7 @@ static int queue_set_tr_deq(struct xhci_hcd *xhci, int slot_id,
 	u32 trb_ep_index = EP_ID_FOR_TRB(ep_index);
 	u32 trb_stream_id = STREAM_ID_FOR_TRB(stream_id);
 	u32 type = TRB_TYPE(TRB_SET_DEQ);
+	struct xhci_virt_ep *ep;
 
 	addr = xhci_trb_virt_to_dma(deq_seg, deq_ptr);
 	if (addr == 0) {
@@ -3291,6 +3306,14 @@ static int queue_set_tr_deq(struct xhci_hcd *xhci, int slot_id,
 				deq_seg, deq_ptr);
 		return 0;
 	}
+	ep = &xhci->devs[slot_id]->eps[ep_index];
+	if ((ep->ep_state & SET_DEQ_PENDING)) {
+		xhci_warn(xhci, "WARN Cannot submit Set TR Deq Ptr\n");
+		xhci_warn(xhci, "A Set TR Deq Ptr command is pending.\n");
+		return 0;
+	}
+	ep->queued_deq_seg = deq_seg;
+	ep->queued_deq_ptr = deq_ptr;
 	return queue_command(xhci, lower_32_bits(addr) | cycle_state,
 			upper_32_bits(addr), trb_stream_id,
 			trb_slot_id | trb_ep_index | type, false);

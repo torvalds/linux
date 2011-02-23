@@ -644,6 +644,9 @@ struct xhci_ep_ctx {
 #define AVG_TRB_LENGTH_FOR_EP(p)	((p) & 0xffff)
 #define MAX_ESIT_PAYLOAD_FOR_EP(p)	(((p) & 0xffff) << 16)
 
+/* deq bitmasks */
+#define EP_CTX_CYCLE_MASK		(1 << 0)
+
 
 /**
  * struct xhci_input_control_context
@@ -746,6 +749,12 @@ struct xhci_virt_ep {
 	struct timer_list	stop_cmd_timer;
 	int			stop_cmds_pending;
 	struct xhci_hcd		*xhci;
+	/* Dequeue pointer and dequeue segment for a submitted Set TR Dequeue
+	 * command.  We'll need to update the ring's dequeue segment and dequeue
+	 * pointer after the command completes.
+	 */
+	struct xhci_segment	*queued_deq_seg;
+	union xhci_trb		*queued_deq_ptr;
 	/*
 	 * Sometimes the xHC can not process isochronous endpoint ring quickly
 	 * enough, and it will miss some isoc tds on the ring and generate
