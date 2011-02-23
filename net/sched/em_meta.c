@@ -401,7 +401,7 @@ META_COLLECTOR(int_sk_sndbuf)
 META_COLLECTOR(int_sk_alloc)
 {
 	SKIP_NONLOCAL(skb);
-	dst->value = skb->sk->sk_allocation;
+	dst->value = (__force int) skb->sk->sk_allocation;
 }
 
 META_COLLECTOR(int_sk_route_caps)
