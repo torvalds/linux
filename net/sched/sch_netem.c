@@ -308,6 +308,16 @@ static void netem_reset(struct Qdisc *sch)
 	qdisc_watchdog_cancel(&q->watchdog);
 }
 
+static void dist_free(struct disttable *d)
+{
+	if (d) {
+		if (is_vmalloc_addr(d))
+			vfree(d);
+		else
+			kfree(d);
+	}
+}
+
 /*
  * Distribution data is a variable size payload containing
  * signed 16 bit values.
@@ -315,16 +325,20 @@ static void netem_reset(struct Qdisc *sch)
 static int get_dist_table(struct Qdisc *sch, const struct nlattr *attr)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
-	unsigned long n = nla_len(attr)/sizeof(__s16);
+	size_t n = nla_len(attr)/sizeof(__s16);
 	const __s16 *data = nla_data(attr);
 	spinlock_t *root_lock;
 	struct disttable *d;
 	int i;
+	size_t s;
 
 	if (n > 65536)
 		return -EINVAL;
 
-	d = kmalloc(sizeof(*d) + n*sizeof(d->table[0]), GFP_KERNEL);
+	s = sizeof(struct disttable) + n * sizeof(s16);
+	d = kmalloc(s, GFP_KERNEL);
+	if (!d)
+		d = vmalloc(s);
 	if (!d)
 		return -ENOMEM;
 
@@ -335,7 +349,7 @@ static int get_dist_table(struct Qdisc *sch, const struct nlattr *attr)
 	root_lock = qdisc_root_sleeping_lock(sch);
 
 	spin_lock_bh(root_lock);
-	kfree(q->delay_dist);
+	dist_free(q->delay_dist);
 	q->delay_dist = d;
 	spin_unlock_bh(root_lock);
 	return 0;
@@ -556,7 +570,7 @@ static void netem_destroy(struct Qdisc *sch)
 
 	qdisc_watchdog_cancel(&q->watchdog);
 	qdisc_destroy(q->qdisc);
-	kfree(q->delay_dist);
+	dist_free(q->delay_dist);
 }
 
 static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
