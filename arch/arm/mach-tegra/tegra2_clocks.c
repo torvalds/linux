@@ -1823,8 +1823,8 @@ static struct clk tegra_clk_d = {
 };
 
 /* dap_mclk1, belongs to the cdev1 pingroup. */
-static struct clk tegra_dev1_clk = {
-	.name      = "clk_dev1",
+static struct clk tegra_clk_cdev1 = {
+	.name      = "cdev1",
 	.ops       = &tegra_cdev_clk_ops,
 	.rate      = 26000000,
 	.max_rate  = 26000000,
@@ -1834,8 +1834,8 @@ static struct clk tegra_dev1_clk = {
 };
 
 /* dap_mclk2, belongs to the cdev2 pingroup. */
-static struct clk tegra_dev2_clk = {
-	.name      = "clk_dev2",
+static struct clk tegra_clk_cdev2 = {
+	.name      = "cdev2",
 	.ops       = &tegra_cdev_clk_ops,
 	.rate      = 26000000,
 	.max_rate  = 26000000,
@@ -2276,8 +2276,8 @@ struct clk *tegra_ptr_clks[] = {
 	&tegra_clk_hclk,
 	&tegra_clk_pclk,
 	&tegra_clk_d,
-	&tegra_dev1_clk,
-	&tegra_dev2_clk,
+	&tegra_clk_cdev1,
+	&tegra_clk_cdev2,
 	&tegra_clk_virtual_cpu,
 	&tegra_clk_blink,
 	&tegra_clk_cop,
