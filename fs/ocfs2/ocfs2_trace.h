@@ -1530,6 +1530,13 @@ DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_map_slot_buffers_block);
 DEFINE_OCFS2_INT_EVENT(ocfs2_find_slot);
 
 /* End of trace events for fs/ocfs2/slot_map.c. */
+
+/* Trace events for fs/ocfs2/heartbeat.c. */
+
+DEFINE_OCFS2_INT_EVENT(ocfs2_do_node_down);
+
+/* End of trace events for fs/ocfs2/heartbeat.c. */
+
 #endif /* _TRACE_OCFS2_H */
 
 /* This part must be outside protection */
