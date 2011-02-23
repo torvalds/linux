@@ -616,7 +616,7 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 			continue;
 
 		board_cfg = &ch->cfg.board_cfg;
-		if (try_module_get(board_cfg->owner) && board_cfg->display_on) {
+		if (board_cfg->display_on && try_module_get(board_cfg->owner)) {
 			board_cfg->display_on(board_cfg->board_data, ch->info);
 			module_put(board_cfg->owner);
 		}
@@ -661,7 +661,7 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 		}
 
 		board_cfg = &ch->cfg.board_cfg;
-		if (try_module_get(board_cfg->owner) && board_cfg->display_off) {
+		if (board_cfg->display_off && try_module_get(board_cfg->owner)) {
 			board_cfg->display_off(board_cfg->board_data);
 			module_put(board_cfg->owner);
 		}
@@ -1228,7 +1228,7 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 
 	switch(action) {
 	case FB_EVENT_SUSPEND:
-		if (try_module_get(board_cfg->owner) && board_cfg->display_off) {
+		if (board_cfg->display_off && try_module_get(board_cfg->owner)) {
 			board_cfg->display_off(board_cfg->board_data);
 			module_put(board_cfg->owner);
 		}
@@ -1241,7 +1241,7 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 		mutex_unlock(&ch->open_lock);
 
 		/* HDMI must be enabled before LCDC configuration */
-		if (try_module_get(board_cfg->owner) && board_cfg->display_on) {
+		if (board_cfg->display_on && try_module_get(board_cfg->owner)) {
 			board_cfg->display_on(board_cfg->board_data, info);
 			module_put(board_cfg->owner);
 		}
