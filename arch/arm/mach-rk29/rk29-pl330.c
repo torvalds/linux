@@ -1226,6 +1226,72 @@ static int pl330_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int pl330_shutdown(struct platform_device *pdev)
+{
+	struct rk29_pl330_dmac *dmac, *d;
+	struct rk29_pl330_chan *ch;
+	unsigned long flags;
+	int del, found;
+
+	if (!pdev->dev.platform_data)
+		return -EINVAL;
+
+	spin_lock_irqsave(&res_lock, flags);
+
+	found = 0;
+	list_for_each_entry(d, &dmac_list, node)
+		if (d->pi->dev == &pdev->dev) {
+			found = 1;
+			break;
+		}
+
+	if (!found) {
+		spin_unlock_irqrestore(&res_lock, flags);
+		return 0;
+	}
+
+	dmac = d;
+
+	/* Remove all Channels that are managed only by this DMAC */
+	list_for_each_entry(ch, &chan_list, node) {
+
+		/* Only channels that are handled by this DMAC */
+		if (iface_of_dmac(dmac, ch->id))
+			del = 1;
+		else
+			continue;
+
+		/* Don't remove if some other DMAC has it too */
+		list_for_each_entry(d, &dmac_list, node)
+			if (d != dmac && iface_of_dmac(d, ch->id)) {
+				del = 0;
+				break;
+			}
+
+		if (del) {
+			//spin_unlock_irqrestore(&res_lock, flags);
+  
+                                          if (!ch || chan_free(ch))
+                                                goto shutdown_exit;
+  
+
+			/* Stop any active xfer, Flushe the queue and do callbacks */
+	                            pl330_chan_ctrl(ch->pl330_chan_id, PL330_OP_FLUSH);
+			//spin_lock_irqsave(&res_lock, flags);
+			list_del(&ch->node);
+			kfree(ch);
+		}
+	}
+
+	/* Remove the DMAC */
+	list_del(&dmac->node);
+	kfree(dmac);
+shutdown_exit:
+	spin_unlock_irqrestore(&res_lock, flags);
+
+	return 0;
+}
+
 static struct platform_driver pl330_driver = {
 	.driver		= {
 		.owner	= THIS_MODULE,
@@ -1233,7 +1299,7 @@ static struct platform_driver pl330_driver = {
 	},
 	.probe		= pl330_probe,
 	.remove		= pl330_remove,
-	.shutdown             = pl330_remove,/* test */
+	.shutdown             = pl330_shutdown,/* test */
 };
 
 static int __init pl330_init(void)
