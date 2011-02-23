@@ -127,6 +127,10 @@ static void tegra_setup_audio_out_dock_headset_on(void)
 	pdata->state->stdac_primary_speaker = CPCAP_AUDIO_OUT_EMU_STEREO;
 	pdata->state->stdac_secondary_speaker = CPCAP_AUDIO_OUT_EMU_STEREO;
 	cpcap_audio_set_audio_state(pdata->state);
+
+	/* turn off the headset and speaker amplifiers */
+	gpio_direction_output(pdata->speaker_gpio, 0);
+	gpio_direction_output(pdata->headset_gpio, 0);
 }
 
 static void tegra_setup_audio_in_mute(void)
