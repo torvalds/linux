@@ -902,17 +902,15 @@ static struct omap_hwmod *_lookup(const char *name)
  * @data: not used; pass NULL
  *
  * Called by omap_hwmod_setup_all() (after omap2_clk_init()).
- * Resolves all clock names embedded in the hwmod.  Returns -EINVAL if
- * the omap_hwmod has not yet been registered or if the clocks have
- * already been initialized, 0 on success, or a non-zero error on
- * failure.
+ * Resolves all clock names embedded in the hwmod.  Returns 0 on
+ * success, or a negative error code on failure.
  */
 static int _init_clocks(struct omap_hwmod *oh, void *data)
 {
 	int ret = 0;
 
-	if (!oh || (oh->_state != _HWMOD_STATE_REGISTERED))
-		return -EINVAL;
+	if (oh->_state != _HWMOD_STATE_REGISTERED)
+		return 0;
 
 	pr_debug("omap_hwmod: %s: looking up clocks\n", oh->name);
 
@@ -1351,13 +1349,15 @@ static int _shutdown(struct omap_hwmod *oh)
  * @oh: struct omap_hwmod *
  *
  * Writes the CLOCKACTIVITY bits @clockact to the hwmod @oh
- * OCP_SYSCONFIG register.  Returns -EINVAL if the hwmod is in the
- * wrong state or returns 0.
+ * OCP_SYSCONFIG register.  Returns 0.
  */
 static int _setup(struct omap_hwmod *oh, void *data)
 {
 	int i, r;
 	u8 postsetup_state;
+
+	if (oh->_state != _HWMOD_STATE_CLKS_INITED)
+		return 0;
 
 	/* Set iclk autoidle mode */
 	if (oh->slaves_cnt > 0) {
@@ -1621,6 +1621,9 @@ int __init omap_hwmod_register(struct omap_hwmod **ohs)
  */
 static int __init _populate_mpu_rt_base(struct omap_hwmod *oh, void *data)
 {
+	if (oh->_state != _HWMOD_STATE_REGISTERED)
+		return 0;
+
 	if (oh->_int_flags & _HWMOD_NO_MPU_PORT)
 		return 0;
 
