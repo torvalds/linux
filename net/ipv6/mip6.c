@@ -203,7 +203,8 @@ static inline int mip6_report_rl_allow(struct timeval *stamp,
 	return allow;
 }
 
-static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb, struct flowi *fl)
+static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb,
+			       const struct flowi *fl)
 {
 	struct net *net = xs_net(x);
 	struct inet6_skb_parm *opt = (struct inet6_skb_parm *)skb->cb;

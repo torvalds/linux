@@ -1907,7 +1907,7 @@ int xfrm_lookup(struct net *net, struct dst_entry **dst_p, struct flowi *fl,
 EXPORT_SYMBOL(xfrm_lookup);
 
 static inline int
-xfrm_secpath_reject(int idx, struct sk_buff *skb, struct flowi *fl)
+xfrm_secpath_reject(int idx, struct sk_buff *skb, const struct flowi *fl)
 {
 	struct xfrm_state *x;
 
