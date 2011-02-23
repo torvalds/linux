@@ -38,7 +38,6 @@
 #include "phy.h"
 #include "mac.h"
 #include "dm.h"
-#include "fw.h"
 #include "hw.h"
 #include "trx.h"
 #include "led.h"
@@ -1190,8 +1189,8 @@ int rtl92cu_hw_init(struct ieee80211_hw *hw)
 	}
 	rtlhal->last_hmeboxnum = 0; /* h2c */
 	_rtl92cu_phy_param_tab_init(hw);
-	rtl92c_phy_mac_config(hw);
-	rtl92c_phy_bb_config(hw);
+	rtl92cu_phy_mac_config(hw);
+	rtl92cu_phy_bb_config(hw);
 	rtlphy->rf_mode = RF_OP_BY_SW_3WIRE;
 	rtl92c_phy_rf_config(hw);
 	if (IS_VENDOR_UMC_A_CUT(rtlhal->version) &&
@@ -1203,7 +1202,7 @@ int rtl92cu_hw_init(struct ieee80211_hw *hw)
 						 RF_CHNLBW, RFREG_OFFSET_MASK);
 	rtlphy->rfreg_chnlval[1] = rtl_get_rfreg(hw, (enum radio_path)1,
 						 RF_CHNLBW, RFREG_OFFSET_MASK);
-	rtl92c_bb_block_on(hw);
+	rtl92cu_bb_block_on(hw);
 	rtl_cam_reset_all_entry(hw);
 	rtl92cu_enable_hw_security_config(hw);
 	ppsc->rfpwr_state = ERFON;

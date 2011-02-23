@@ -33,11 +33,8 @@
 #include "def.h"
 #include "phy.h"
 #include "dm.h"
-#include "fw.h"
 
-#include "../rtl8192c/dm_common.c"
-
-void rtl92c_dm_dynamic_txpower(struct ieee80211_hw *hw)
+void rtl92cu_dm_dynamic_txpower(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
