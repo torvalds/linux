@@ -129,7 +129,6 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 			netdev->netdev_ops->ndo_stop(netdev);
 		ixgbe_clear_interrupt_scheme(adapter);
 
-		adapter->flags &= ~IXGBE_FLAG_RSS_ENABLED;
 		switch (adapter->hw.mac.type) {
 		case ixgbe_mac_82598EB:
 			adapter->last_lfc_mode = adapter->hw.fc.current_mode;
@@ -162,7 +161,6 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 			adapter->temp_dcb_cfg.pfc_mode_enable = false;
 			adapter->dcb_cfg.pfc_mode_enable = false;
 			adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
-			adapter->flags |= IXGBE_FLAG_RSS_ENABLED;
 			switch (adapter->hw.mac.type) {
 			case ixgbe_mac_82599EB:
 			case ixgbe_mac_X540:

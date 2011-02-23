@@ -2892,17 +2892,20 @@ static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 					);
 
 	switch (mask) {
+#ifdef CONFIG_IXGBE_DCB
+	case (IXGBE_FLAG_DCB_ENABLED | IXGBE_FLAG_RSS_ENABLED):
+		mrqc = IXGBE_MRQC_RTRSS8TCEN;
+		break;
+	case (IXGBE_FLAG_DCB_ENABLED):
+		mrqc = IXGBE_MRQC_RT8TCEN;
+		break;
+#endif /* CONFIG_IXGBE_DCB */
 	case (IXGBE_FLAG_RSS_ENABLED):
 		mrqc = IXGBE_MRQC_RSSEN;
 		break;
 	case (IXGBE_FLAG_SRIOV_ENABLED):
 		mrqc = IXGBE_MRQC_VMDQEN;
 		break;
-#ifdef CONFIG_IXGBE_DCB
-	case (IXGBE_FLAG_DCB_ENABLED):
-		mrqc = IXGBE_MRQC_RT8TCEN;
-		break;
-#endif /* CONFIG_IXGBE_DCB */
 	default:
 		break;
 	}
@@ -3672,6 +3675,23 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 
 	/* reconfigure the hardware */
 	ixgbe_dcb_hw_config(hw, &adapter->dcb_cfg);
+
+	/* Enable RSS Hash per TC */
+	if (hw->mac.type != ixgbe_mac_82598EB) {
+		int i;
+		u32 reg = 0;
+
+		for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
+			u8 msb = 0;
+			u8 cnt = adapter->netdev->tc_to_txq[i].count;
+
+			while (cnt >>= 1)
+				msb++;
+
+			reg |= msb << IXGBE_RQTC_SHIFT_TC(i);
+		}
+		IXGBE_WRITE_REG(hw, IXGBE_RQTC, reg);
+	}
 }
 
 #endif
@@ -7343,8 +7363,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
 		adapter->flags &= ~(IXGBE_FLAG_RSS_ENABLED |
 				    IXGBE_FLAG_DCB_ENABLED);
-	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED)
-		adapter->flags &= ~IXGBE_FLAG_RSS_ENABLED;
 
 #ifdef CONFIG_IXGBE_DCB
 	netdev->dcbnl_ops = &dcbnl_ops;
