@@ -896,8 +896,7 @@ static struct snd_pcm_ops fsl_dma_ops = {
 	.pointer	= fsl_dma_pointer,
 };
 
-static int __devinit fsl_soc_dma_probe(struct platform_device *pdev,
-				       const struct of_device_id *match)
+static int __devinit fsl_soc_dma_probe(struct platform_device *pdev)
  {
 	struct dma_object *dma;
 	struct device_node *np = pdev->dev.of_node;
@@ -979,7 +978,7 @@ static const struct of_device_id fsl_soc_dma_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, fsl_soc_dma_ids);
 
-static struct of_platform_driver fsl_soc_dma_driver = {
+static struct platform_driver fsl_soc_dma_driver = {
 	.driver = {
 		.name = "fsl-pcm-audio",
 		.owner = THIS_MODULE,
@@ -993,12 +992,12 @@ static int __init fsl_soc_dma_init(void)
 {
 	pr_info("Freescale Elo DMA ASoC PCM Driver\n");
 
-	return of_register_platform_driver(&fsl_soc_dma_driver);
+	return platform_driver_register(&fsl_soc_dma_driver);
 }
 
 static void __exit fsl_soc_dma_exit(void)
 {
-	of_unregister_platform_driver(&fsl_soc_dma_driver);
+	platform_driver_unregister(&fsl_soc_dma_driver);
 }
 
 module_init(fsl_soc_dma_init);
