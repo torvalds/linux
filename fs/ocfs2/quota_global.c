@@ -11,7 +11,6 @@
 #include <linux/writeback.h>
 #include <linux/workqueue.h>
 
-#define MLOG_MASK_PREFIX ML_QUOTA
 #include <cluster/masklog.h>
 
 #include "ocfs2_fs.h"
@@ -27,6 +26,7 @@
 #include "super.h"
 #include "buffer_head_io.h"
 #include "quota.h"
+#include "ocfs2_trace.h"
 
 /*
  * Locking of quotas with OCFS2 is rather complex. Here are rules that
@@ -132,8 +132,7 @@ int ocfs2_validate_quota_block(struct super_block *sb, struct buffer_head *bh)
 	struct ocfs2_disk_dqtrailer *dqt =
 		ocfs2_block_dqtrailer(sb->s_blocksize, bh->b_data);
 
-	mlog(0, "Validating quota block %llu\n",
-	     (unsigned long long)bh->b_blocknr);
+	trace_ocfs2_validate_quota_block((unsigned long long)bh->b_blocknr);
 
 	BUG_ON(!buffer_uptodate(bh));
 
@@ -509,9 +508,10 @@ int __ocfs2_sync_dquot(struct dquot *dquot, int freeing)
 	olditime = dquot->dq_dqb.dqb_itime;
 	oldbtime = dquot->dq_dqb.dqb_btime;
 	ocfs2_global_disk2memdqb(dquot, &dqblk);
-	mlog(0, "Syncing global dquot %u space %lld+%lld, inodes %lld+%lld\n",
-	     dquot->dq_id, dquot->dq_dqb.dqb_curspace, (long long)spacechange,
-	     dquot->dq_dqb.dqb_curinodes, (long long)inodechange);
+	trace_ocfs2_sync_dquot(dquot->dq_id, dquot->dq_dqb.dqb_curspace,
+			       (long long)spacechange,
+			       dquot->dq_dqb.dqb_curinodes,
+			       (long long)inodechange);
 	if (!test_bit(DQ_LASTSET_B + QIF_SPACE_B, &dquot->dq_flags))
 		dquot->dq_dqb.dqb_curspace += spacechange;
 	if (!test_bit(DQ_LASTSET_B + QIF_INODES_B, &dquot->dq_flags))
@@ -595,8 +595,8 @@ static int ocfs2_sync_dquot_helper(struct dquot *dquot, unsigned long type)
 	struct ocfs2_super *osb = OCFS2_SB(sb);
 	int status = 0;
 
-	mlog(0, "id=%u qtype=%u type=%lu device=%s\n", dquot->dq_id,
-		   dquot->dq_type, type, sb->s_id);
+	trace_ocfs2_sync_dquot_helper(dquot->dq_id, dquot->dq_type,
+				      type, sb->s_id);
 	if (type != dquot->dq_type)
 		goto out;
 	status = ocfs2_lock_global_qf(oinfo, 1);
@@ -647,7 +647,7 @@ static int ocfs2_write_dquot(struct dquot *dquot)
 	struct ocfs2_super *osb = OCFS2_SB(dquot->dq_sb);
 	int status = 0;
 
-	mlog(0, "id=%u, type=%d", dquot->dq_id, dquot->dq_type);
+	trace_ocfs2_write_dquot(dquot->dq_id, dquot->dq_type);
 
 	handle = ocfs2_start_trans(osb, OCFS2_QWRITE_CREDITS);
 	if (IS_ERR(handle)) {
@@ -685,7 +685,7 @@ static int ocfs2_release_dquot(struct dquot *dquot)
 	struct ocfs2_super *osb = OCFS2_SB(dquot->dq_sb);
 	int status = 0;
 
-	mlog(0, "id=%u, type=%d", dquot->dq_id, dquot->dq_type);
+	trace_ocfs2_release_dquot(dquot->dq_id, dquot->dq_type);
 
 	mutex_lock(&dquot->dq_lock);
 	/* Check whether we are not racing with some other dqget() */
@@ -743,7 +743,7 @@ static int ocfs2_acquire_dquot(struct dquot *dquot)
 	int need_alloc = ocfs2_global_qinit_alloc(sb, type);
 	handle_t *handle;
 
-	mlog(0, "id=%u, type=%d", dquot->dq_id, type);
+	trace_ocfs2_acquire_dquot(dquot->dq_id, type);
 	mutex_lock(&dquot->dq_lock);
 	/*
 	 * We need an exclusive lock, because we're going to update use count
@@ -830,7 +830,7 @@ static int ocfs2_mark_dquot_dirty(struct dquot *dquot)
 	handle_t *handle;
 	struct ocfs2_super *osb = OCFS2_SB(sb);
 
-	mlog(0, "id=%u, type=%d", dquot->dq_id, type);
+	trace_ocfs2_mark_dquot_dirty(dquot->dq_id, type);
 
 	/* In case user set some limits, sync dquot immediately to global
 	 * quota file so that information propagates quicker */

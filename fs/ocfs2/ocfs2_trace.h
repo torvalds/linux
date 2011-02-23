@@ -110,6 +110,25 @@ DEFINE_EVENT(ocfs2__int_int, name,	\
 	TP_PROTO(int val1, int val2),	\
 	TP_ARGS(val1, val2))
 
+DECLARE_EVENT_CLASS(ocfs2__uint_int,
+	TP_PROTO(unsigned int value1, int value2),
+	TP_ARGS(value1, value2),
+	TP_STRUCT__entry(
+		__field(unsigned int, value1)
+		__field(int, value2)
+	),
+	TP_fast_assign(
+		__entry->value1	= value1;
+		__entry->value2	= value2;
+	),
+	TP_printk("%u %d", __entry->value1, __entry->value2)
+);
+
+#define DEFINE_OCFS2_UINT_INT_EVENT(name)	\
+DEFINE_EVENT(ocfs2__uint_int, name,	\
+	TP_PROTO(unsigned int val1, int val2),	\
+	TP_ARGS(val1, val2))
+
 DECLARE_EVENT_CLASS(ocfs2__uint_uint,
 	TP_PROTO(unsigned int value1, unsigned int value2),
 	TP_ARGS(value1, value2),
@@ -1935,6 +1954,65 @@ DEFINE_OCFS2_INT_EVENT(ocfs2_finish_quota_recovery);
 DEFINE_OCFS2_ULL_ULL_UINT_EVENT(olq_set_dquot);
 
 /* End of trace events for fs/ocfs2/quota_local.c. */
+
+/* Trace events for fs/ocfs2/quota_global.c. */
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_validate_quota_block);
+
+TRACE_EVENT(ocfs2_sync_dquot,
+	TP_PROTO(unsigned int dq_id, long long dqb_curspace,
+		 long long spacechange, long long curinodes,
+		 long long inodechange),
+	TP_ARGS(dq_id, dqb_curspace, spacechange, curinodes, inodechange),
+	TP_STRUCT__entry(
+		__field(unsigned int, dq_id)
+		__field(long long, dqb_curspace)
+		__field(long long, spacechange)
+		__field(long long, curinodes)
+		__field(long long, inodechange)
+	),
+	TP_fast_assign(
+		__entry->dq_id = dq_id;
+		__entry->dqb_curspace = dqb_curspace;
+		__entry->spacechange = spacechange;
+		__entry->curinodes = curinodes;
+		__entry->inodechange = inodechange;
+	),
+	TP_printk("%u %lld %lld %lld %lld", __entry->dq_id,
+		  __entry->dqb_curspace, __entry->spacechange,
+		  __entry->curinodes, __entry->inodechange)
+);
+
+TRACE_EVENT(ocfs2_sync_dquot_helper,
+	TP_PROTO(unsigned int dq_id, unsigned int dq_type, unsigned long type,
+		 const char *s_id),
+	TP_ARGS(dq_id, dq_type, type, s_id),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, dq_id)
+		__field(unsigned int, dq_type)
+		__field(unsigned long, type)
+		__string(s_id, s_id)
+	),
+	TP_fast_assign(
+		__entry->dq_id = dq_id;
+		__entry->dq_type = dq_type;
+		__entry->type = type;
+		__assign_str(s_id, s_id);
+	),
+	TP_printk("%u %u %lu %s", __entry->dq_id, __entry->dq_type,
+		  __entry->type, __get_str(s_id))
+);
+
+DEFINE_OCFS2_UINT_INT_EVENT(ocfs2_write_dquot);
+
+DEFINE_OCFS2_UINT_INT_EVENT(ocfs2_release_dquot);
+
+DEFINE_OCFS2_UINT_INT_EVENT(ocfs2_acquire_dquot);
+
+DEFINE_OCFS2_UINT_INT_EVENT(ocfs2_mark_dquot_dirty);
+
+/* End of trace events for fs/ocfs2/quota_global.c. */
 #endif /* _TRACE_OCFS2_H */
 
 /* This part must be outside protection */

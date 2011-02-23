@@ -102,7 +102,6 @@ static struct mlog_attribute mlog_attrs[MLOG_MAX_BITS] = {
 	define_mask(CONN),
 	define_mask(QUORUM),
 	define_mask(EXPORT),
-	define_mask(QUOTA),
 	define_mask(BASTS),
 	define_mask(CLUSTER),
 	define_mask(ERROR),
