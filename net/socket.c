@@ -2648,7 +2648,8 @@ static int bond_ioctl(struct net *net, unsigned int cmd,
 
 		old_fs = get_fs();
 		set_fs(KERNEL_DS);
-		err = dev_ioctl(net, cmd, &kifr);
+		err = dev_ioctl(net, cmd,
+				(struct ifreq __user __force *) &kifr);
 		set_fs(old_fs);
 
 		return err;
@@ -2757,7 +2758,7 @@ static int compat_sioc_ifmap(struct net *net, unsigned int cmd,
 
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
-	err = dev_ioctl(net, cmd, (void __user *)&ifr);
+	err = dev_ioctl(net, cmd, (void  __user __force *)&ifr);
 	set_fs(old_fs);
 
 	if (cmd == SIOCGIFMAP && !err) {
@@ -2862,7 +2863,8 @@ static int routing_ioctl(struct net *net, struct socket *sock,
 		ret |= __get_user(rtdev, &(ur4->rt_dev));
 		if (rtdev) {
 			ret |= copy_from_user(devname, compat_ptr(rtdev), 15);
-			r4.rt_dev = devname; devname[15] = 0;
+			r4.rt_dev = (char __user __force *)devname;
+			devname[15] = 0;
 		} else
 			r4.rt_dev = NULL;
 
