@@ -26,7 +26,6 @@
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/delay.h>
-#include <linux/interrupt.h>
 #include <linux/seq_file.h>
 #include <linux/clk.h>
 
@@ -79,7 +78,6 @@ static struct {
 	enum dss_clk_source dispc_clk_source;
 
 	u32		ctx[DSS_SZ_REGS / sizeof(u32)];
-	int		dss_irq;
 } dss;
 
 static void dss_clk_enable_all_no_ctx(void);
@@ -495,31 +493,6 @@ found:
 	return 0;
 }
 
-
-
-static irqreturn_t dss_irq_handler_omap2(int irq, void *arg)
-{
-	dispc_irq_handler();
-
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t dss_irq_handler_omap3(int irq, void *arg)
-{
-	u32 irqstatus;
-
-	irqstatus = dss_read_reg(DSS_IRQSTATUS);
-
-	if (irqstatus & (1<<0))	/* DISPC_IRQ */
-		dispc_irq_handler();
-#ifdef CONFIG_OMAP2_DSS_DSI
-	if (irqstatus & (1<<1))	/* DSI_IRQ */
-		dsi_irq_handler();
-#endif
-
-	return IRQ_HANDLED;
-}
-
 static int _omap_dss_wait_reset(void)
 {
 	int t = 0;
@@ -610,30 +583,12 @@ static int dss_init(bool skip_init)
 	REG_FLD_MOD(DSS_CONTROL, 0, 2, 2);	/* venc clock mode = normal */
 #endif
 
-	dss.dss_irq = platform_get_irq(dss.pdev, 0);
-	if (dss.dss_irq < 0) {
-		DSSERR("omap2 dss: platform_get_irq failed\n");
-		r = -ENODEV;
-		goto fail1;
-	}
-
-	r = request_irq(dss.dss_irq,
-		cpu_is_omap24xx()
-		? dss_irq_handler_omap2
-		: dss_irq_handler_omap3,
-		0, "OMAP DSS", NULL);
-
-	if (r < 0) {
-		DSSERR("omap2 dss: request_irq failed\n");
-		goto fail1;
-	}
-
 	if (cpu_is_omap34xx()) {
 		dss.dpll4_m4_ck = clk_get(NULL, "dpll4_m4_ck");
 		if (IS_ERR(dss.dpll4_m4_ck)) {
 			DSSERR("Failed to get dpll4_m4_ck\n");
 			r = PTR_ERR(dss.dpll4_m4_ck);
-			goto fail2;
+			goto fail1;
 		}
 	}
 
@@ -648,8 +603,6 @@ static int dss_init(bool skip_init)
 
 	return 0;
 
-fail2:
-	free_irq(dss.dss_irq, NULL);
 fail1:
 	iounmap(dss.base);
 fail0:
@@ -660,8 +613,6 @@ static void dss_exit(void)
 {
 	if (cpu_is_omap34xx())
 		clk_put(dss.dpll4_m4_ck);
-
-	free_irq(dss.dss_irq, NULL);
 
 	iounmap(dss.base);
 }

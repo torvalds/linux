@@ -32,6 +32,7 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/hardirq.h>
+#include <linux/interrupt.h>
 
 #include <plat/sram.h>
 #include <plat/clock.h>
@@ -178,6 +179,7 @@ struct dispc_irq_stats {
 static struct {
 	struct platform_device *pdev;
 	void __iomem    *base;
+	int irq;
 
 	u32	fifo_size[3];
 
@@ -2865,10 +2867,10 @@ static void print_irq_status(u32 status)
  * but we presume they are on because we got an IRQ. However,
  * an irq handler may turn the clocks off, so we may not have
  * clock later in the function. */
-void dispc_irq_handler(void)
+static irqreturn_t omap_dispc_irq_handler(int irq, void *arg)
 {
 	int i;
-	u32 irqstatus;
+	u32 irqstatus, irqenable;
 	u32 handledirqs = 0;
 	u32 unhandled_errors;
 	struct omap_dispc_isr_data *isr_data;
@@ -2877,6 +2879,13 @@ void dispc_irq_handler(void)
 	spin_lock(&dispc.irq_lock);
 
 	irqstatus = dispc_read_reg(DISPC_IRQSTATUS);
+	irqenable = dispc_read_reg(DISPC_IRQENABLE);
+
+	/* IRQ is not for us */
+	if (!(irqstatus & irqenable)) {
+		spin_unlock(&dispc.irq_lock);
+		return IRQ_NONE;
+	}
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
 	spin_lock(&dispc.irq_stats_lock);
@@ -2928,6 +2937,8 @@ void dispc_irq_handler(void)
 	}
 
 	spin_unlock(&dispc.irq_lock);
+
+	return IRQ_HANDLED;
 }
 
 static void dispc_error_worker(struct work_struct *work)
@@ -3322,6 +3333,7 @@ int dispc_setup_plane(enum omap_plane plane,
 static int omap_dispchw_probe(struct platform_device *pdev)
 {
 	u32 rev;
+	int r = 0;
 	struct resource *dispc_mem;
 
 	dispc.pdev = pdev;
@@ -3338,12 +3350,27 @@ static int omap_dispchw_probe(struct platform_device *pdev)
 	dispc_mem = platform_get_resource(dispc.pdev, IORESOURCE_MEM, 0);
 	if (!dispc_mem) {
 		DSSERR("can't get IORESOURCE_MEM DISPC\n");
-		return -EINVAL;
+		r = -EINVAL;
+		goto fail0;
 	}
 	dispc.base = ioremap(dispc_mem->start, resource_size(dispc_mem));
 	if (!dispc.base) {
 		DSSERR("can't ioremap DISPC\n");
-		return -ENOMEM;
+		r = -ENOMEM;
+		goto fail0;
+	}
+	dispc.irq = platform_get_irq(dispc.pdev, 0);
+	if (dispc.irq < 0) {
+		DSSERR("platform_get_irq failed\n");
+		r = -ENODEV;
+		goto fail1;
+	}
+
+	r = request_irq(dispc.irq, omap_dispc_irq_handler, IRQF_SHARED,
+		"OMAP DISPC", dispc.pdev);
+	if (r < 0) {
+		DSSERR("request_irq failed\n");
+		goto fail1;
 	}
 
 	enable_clocks(1);
@@ -3361,10 +3388,15 @@ static int omap_dispchw_probe(struct platform_device *pdev)
 	enable_clocks(0);
 
 	return 0;
+fail1:
+	iounmap(dispc.base);
+fail0:
+	return r;
 }
 
 static int omap_dispchw_remove(struct platform_device *pdev)
 {
+	free_irq(dispc.irq, dispc.pdev);
 	iounmap(dispc.base);
 	return 0;
 }

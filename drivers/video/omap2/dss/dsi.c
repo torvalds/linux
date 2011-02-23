@@ -222,6 +222,7 @@ static struct
 {
 	struct platform_device *pdev;
 	void __iomem	*base;
+	int irq;
 
 	struct dsi_clock_info current_cinfo;
 
@@ -480,12 +481,16 @@ static void print_irq_status_cio(u32 status)
 static int debug_irq;
 
 /* called from dss */
-void dsi_irq_handler(void)
+static irqreturn_t omap_dsi_irq_handler(int irq, void *arg)
 {
 	u32 irqstatus, vcstatus, ciostatus;
 	int i;
 
 	irqstatus = dsi_read_reg(DSI_IRQSTATUS);
+
+	/* IRQ is not for us */
+	if (!irqstatus)
+		return IRQ_NONE;
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
 	spin_lock(&dsi.irq_stats_lock);
@@ -564,8 +569,8 @@ void dsi_irq_handler(void)
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
 	spin_unlock(&dsi.irq_stats_lock);
 #endif
+	return IRQ_HANDLED;
 }
-
 
 static void _dsi_initialize_irq(void)
 {
@@ -3293,6 +3298,19 @@ static int dsi_init(struct platform_device *pdev)
 		r = -ENOMEM;
 		goto err1;
 	}
+	dsi.irq	= platform_get_irq(dsi.pdev, 0);
+	if (dsi.irq < 0) {
+		DSSERR("platform_get_irq failed\n");
+		r = -ENODEV;
+		goto err2;
+	}
+
+	r = request_irq(dsi.irq, omap_dsi_irq_handler, IRQF_SHARED,
+		"OMAP DSI1", dsi.pdev);
+	if (r < 0) {
+		DSSERR("request_irq failed\n");
+		goto err2;
+	}
 
 	enable_clocks(1);
 
@@ -3303,6 +3321,8 @@ static int dsi_init(struct platform_device *pdev)
 	enable_clocks(0);
 
 	return 0;
+err2:
+	iounmap(dsi.base);
 err1:
 	destroy_workqueue(dsi.workqueue);
 	return r;
@@ -3315,6 +3335,7 @@ static void dsi_exit(void)
 		dsi.vdds_dsi_reg = NULL;
 	}
 
+	free_irq(dsi.irq, dsi.pdev);
 	iounmap(dsi.base);
 
 	destroy_workqueue(dsi.workqueue);

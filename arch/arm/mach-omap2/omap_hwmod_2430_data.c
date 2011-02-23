@@ -1268,10 +1268,6 @@ static struct omap_hwmod_class omap2430_dss_hwmod_class = {
 	.sysc = &omap2430_dss_sysc,
 };
 
-/* dss */
-static struct omap_hwmod_irq_info omap2430_dss_irqs[] = {
-	{ .irq = 25 },
-};
 static struct omap_hwmod_dma_info omap2430_dss_sdma_chs[] = {
 	{ .name = "dispc", .dma_req = 5 },
 };
@@ -1314,8 +1310,6 @@ static struct omap_hwmod omap2430_dss_core_hwmod = {
 	.name		= "dss_core",
 	.class		= &omap2430_dss_hwmod_class,
 	.main_clk	= "dss1_fck", /* instead of dss_fck */
-	.mpu_irqs	= omap2430_dss_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap2430_dss_irqs),
 	.sdma_reqs	= omap2430_dss_sdma_chs,
 	.sdma_reqs_cnt	= ARRAY_SIZE(omap2430_dss_sdma_chs),
 	.prcm		= {
@@ -1358,6 +1352,10 @@ static struct omap_hwmod_class omap2430_dispc_hwmod_class = {
 	.sysc = &omap2430_dispc_sysc,
 };
 
+static struct omap_hwmod_irq_info omap2430_dispc_irqs[] = {
+	{ .irq = 25 },
+};
+
 static struct omap_hwmod_addr_space omap2430_dss_dispc_addrs[] = {
 	{
 		.pa_start	= 0x48050400,
@@ -1384,6 +1382,8 @@ static struct omap_hwmod_ocp_if *omap2430_dss_dispc_slaves[] = {
 static struct omap_hwmod omap2430_dss_dispc_hwmod = {
 	.name		= "dss_dispc",
 	.class		= &omap2430_dispc_hwmod_class,
+	.mpu_irqs	= omap2430_dispc_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(omap2430_dispc_irqs),
 	.main_clk	= "dss1_fck",
 	.prcm		= {
 		.omap2 = {
