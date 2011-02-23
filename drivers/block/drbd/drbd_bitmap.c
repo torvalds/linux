@@ -953,8 +953,7 @@ static void bm_async_io_complete(struct bio *bio, int error)
 
 static void bm_page_io_async(struct bm_aio_ctx *ctx, int page_nr, int rw) __must_hold(local)
 {
-	/* we are process context. we always get a bio */
-	struct bio *bio = bio_alloc(GFP_NOIO, 1);
+	struct bio *bio = bio_alloc_drbd(GFP_NOIO);
 	struct drbd_conf *mdev = ctx->mdev;
 	struct drbd_bitmap *b = mdev->bitmap;
 	struct page *page;

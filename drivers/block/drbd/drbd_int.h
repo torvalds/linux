@@ -1522,6 +1522,12 @@ extern wait_queue_head_t drbd_pp_wait;
 #define DRBD_MIN_POOL_PAGES	128
 extern mempool_t *drbd_md_io_page_pool;
 
+/* We also need to make sure we get a bio
+ * when we need it for housekeeping purposes */
+extern struct bio_set *drbd_md_io_bio_set;
+/* to allocate from that set */
+extern struct bio *bio_alloc_drbd(gfp_t gfp_mask);
+
 extern rwlock_t global_state_lock;
 
 extern struct drbd_conf *drbd_new_device(unsigned int minor);

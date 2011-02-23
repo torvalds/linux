@@ -140,6 +140,7 @@ struct kmem_cache *drbd_al_ext_cache;	/* activity log extents */
 mempool_t *drbd_request_mempool;
 mempool_t *drbd_ee_mempool;
 mempool_t *drbd_md_io_page_pool;
+struct bio_set *drbd_md_io_bio_set;
 
 /* I do not use a standard mempool, because:
    1) I want to hand out the pre-allocated objects first.
@@ -159,6 +160,25 @@ static const struct block_device_operations drbd_ops = {
 	.open =    drbd_open,
 	.release = drbd_release,
 };
+
+static void bio_destructor_drbd(struct bio *bio)
+{
+	bio_free(bio, drbd_md_io_bio_set);
+}
+
+struct bio *bio_alloc_drbd(gfp_t gfp_mask)
+{
+	struct bio *bio;
+
+	if (!drbd_md_io_bio_set)
+		return bio_alloc(gfp_mask, 1);
+
+	bio = bio_alloc_bioset(gfp_mask, 1, drbd_md_io_bio_set);
+	if (!bio)
+		return NULL;
+	bio->bi_destructor = bio_destructor_drbd;
+	return bio;
+}
 
 #ifdef __CHECKER__
 /* When checking with sparse, and this is an inline function, sparse will
@@ -3263,6 +3283,8 @@ static void drbd_destroy_mempools(void)
 
 	/* D_ASSERT(atomic_read(&drbd_pp_vacant)==0); */
 
+	if (drbd_md_io_bio_set)
+		bioset_free(drbd_md_io_bio_set);
 	if (drbd_md_io_page_pool)
 		mempool_destroy(drbd_md_io_page_pool);
 	if (drbd_ee_mempool)
@@ -3278,6 +3300,7 @@ static void drbd_destroy_mempools(void)
 	if (drbd_al_ext_cache)
 		kmem_cache_destroy(drbd_al_ext_cache);
 
+	drbd_md_io_bio_set   = NULL;
 	drbd_md_io_page_pool = NULL;
 	drbd_ee_mempool      = NULL;
 	drbd_request_mempool = NULL;
@@ -3303,6 +3326,7 @@ static int drbd_create_mempools(void)
 	drbd_al_ext_cache    = NULL;
 	drbd_pp_pool         = NULL;
 	drbd_md_io_page_pool = NULL;
+	drbd_md_io_bio_set   = NULL;
 
 	/* caches */
 	drbd_request_cache = kmem_cache_create(
@@ -3326,6 +3350,12 @@ static int drbd_create_mempools(void)
 		goto Enomem;
 
 	/* mempools */
+#ifdef COMPAT_HAVE_BIOSET_CREATE
+	drbd_md_io_bio_set = bioset_create(DRBD_MIN_POOL_PAGES, 0);
+	if (drbd_md_io_bio_set == NULL)
+		goto Enomem;
+#endif
+
 	drbd_md_io_page_pool = mempool_create_page_pool(DRBD_MIN_POOL_PAGES, 0);
 	if (drbd_md_io_page_pool == NULL)
 		goto Enomem;

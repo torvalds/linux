@@ -1106,7 +1106,11 @@ int drbd_submit_ee(struct drbd_conf *mdev, struct drbd_epoch_entry *e,
 	/* In most cases, we will only need one bio.  But in case the lower
 	 * level restrictions happen to be different at this offset on this
 	 * side than those of the sending peer, we may need to submit the
-	 * request in more than one bio. */
+	 * request in more than one bio.
+	 *
+	 * Plain bio_alloc is good enough here, this is no DRBD internally
+	 * generated bio, but a bio allocated on behalf of the peer.
+	 */
 next_bio:
 	bio = bio_alloc(GFP_NOIO, nr_pages);
 	if (!bio) {
