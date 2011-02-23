@@ -381,6 +381,20 @@ static int __init tegra_gpio_init(void)
 
 postcore_initcall(tegra_gpio_init);
 
+void __init tegra_gpio_config(struct tegra_gpio_table *table, int num)
+{
+	int i;
+
+	for (i = 0; i < num; i++) {
+		int gpio = table[i].gpio;
+
+		if (table[i].enable)
+			tegra_gpio_enable(gpio);
+		else
+			tegra_gpio_disable(gpio);
+	}
+}
+
 #ifdef	CONFIG_DEBUG_FS
 
 #include <linux/debugfs.h>
