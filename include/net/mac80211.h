@@ -599,9 +599,10 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  *	the frame.
  * @RX_FLAG_FAILED_PLCP_CRC: Set this flag if the PCLP check failed on
  *	the frame.
- * @RX_FLAG_TSFT: The timestamp passed in the RX status (@mactime field)
- *	is valid. This is useful in monitor mode and necessary for beacon frames
- *	to enable IBSS merging.
+ * @RX_FLAG_MACTIME_MPDU: The timestamp passed in the RX status (@mactime
+ *	field) is valid and contains the time the first symbol of the MPDU
+ *	was received. This is useful in monitor mode and for proper IBSS
+ *	merging.
  * @RX_FLAG_SHORTPRE: Short preamble was used for this frame
  * @RX_FLAG_HT: HT MCS was used and rate_idx is MCS index
  * @RX_FLAG_40MHZ: HT40 (40 MHz) was used
@@ -614,7 +615,7 @@ enum mac80211_rx_flags {
 	RX_FLAG_IV_STRIPPED	= 1<<4,
 	RX_FLAG_FAILED_FCS_CRC	= 1<<5,
 	RX_FLAG_FAILED_PLCP_CRC = 1<<6,
-	RX_FLAG_TSFT		= 1<<7,
+	RX_FLAG_MACTIME_MPDU	= 1<<7,
 	RX_FLAG_SHORTPRE	= 1<<8,
 	RX_FLAG_HT		= 1<<9,
 	RX_FLAG_40MHZ		= 1<<10,

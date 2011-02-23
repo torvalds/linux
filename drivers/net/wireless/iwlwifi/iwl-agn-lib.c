@@ -1173,7 +1173,7 @@ void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 
 	/* TSF isn't reliable. In order to allow smooth user experience,
 	 * this W/A doesn't propagate it to the mac80211 */
-	/*rx_status.flag |= RX_FLAG_TSFT;*/
+	/*rx_status.flag |= RX_FLAG_MACTIME_MPDU;*/
 
 	priv->ucode_beacon_time = le32_to_cpu(phy_res->beacon_time_stamp);
 

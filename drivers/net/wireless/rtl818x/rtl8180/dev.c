@@ -146,7 +146,7 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 			rx_status.freq = dev->conf.channel->center_freq;
 			rx_status.band = dev->conf.channel->band;
 			rx_status.mactime = le64_to_cpu(entry->tsft);
-			rx_status.flag |= RX_FLAG_TSFT;
+			rx_status.flag |= RX_FLAG_MACTIME_MPDU;
 			if (flags & RTL818X_RX_DESC_FLAG_CRC32_ERR)
 				rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
 
