@@ -168,8 +168,8 @@ drbd_insert_fault(struct drbd_conf *mdev, unsigned int type) {
 /* 4th incarnation of the disk layout. */
 #define DRBD_MD_MAGIC (DRBD_MAGIC+4)
 
-extern struct drbd_conf **minor_table;
 extern struct ratelimit_state drbd_ratelimit_state;
+extern struct idr minors;
 extern struct list_head drbd_tconns;
 
 /* on the wire */
@@ -1109,11 +1109,7 @@ struct drbd_conf {
 
 static inline struct drbd_conf *minor_to_mdev(unsigned int minor)
 {
-	struct drbd_conf *mdev;
-
-	mdev = minor < minor_count ? minor_table[minor] : NULL;
-
-	return mdev;
+	return (struct drbd_conf *)idr_find(&minors, minor);
 }
 
 static inline unsigned int mdev_to_minor(struct drbd_conf *mdev)

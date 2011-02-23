@@ -74,7 +74,7 @@ MODULE_AUTHOR("Philipp Reisner <phil@linbit.com>, "
 MODULE_DESCRIPTION("drbd - Distributed Replicated Block Device v" REL_VERSION);
 MODULE_VERSION(REL_VERSION);
 MODULE_LICENSE("GPL");
-MODULE_PARM_DESC(minor_count, "Maximum number of drbd devices ("
+MODULE_PARM_DESC(minor_count, "Approximate number of drbd devices ("
 		 __stringify(DRBD_MINOR_COUNT_MIN) "-" __stringify(DRBD_MINOR_COUNT_MAX) ")");
 MODULE_ALIAS_BLOCKDEV_MAJOR(DRBD_MAJOR);
 
@@ -120,7 +120,7 @@ module_param_string(usermode_helper, usermode_helper, sizeof(usermode_helper), 0
 /* in 2.6.x, our device mapping and config info contains our virtual gendisks
  * as member "struct gendisk *vdisk;"
  */
-struct drbd_conf **minor_table;
+struct idr minors;
 struct list_head drbd_tconns;  /* list of struct drbd_tconn */
 
 struct kmem_cache *drbd_request_cache;
@@ -2118,11 +2118,13 @@ void drbd_delete_device(unsigned int minor)
 	 * allocated from drbd_new_device
 	 * and actually free the mdev itself */
 	drbd_free_mdev(mdev);
+	idr_remove(&minors, minor);
 }
 
 static void drbd_cleanup(void)
 {
 	unsigned int i;
+	struct drbd_conf *mdev;
 
 	unregister_reboot_notifier(&drbd_notifier);
 
@@ -2139,16 +2141,12 @@ static void drbd_cleanup(void)
 
 	drbd_nl_cleanup();
 
-	if (minor_table) {
-		i = minor_count;
-		while (i--)
-			drbd_delete_device(i);
-		drbd_destroy_mempools();
-	}
-
-	kfree(minor_table);
-
+	idr_for_each_entry(&minors, mdev, i)
+		drbd_delete_device(i);
+	drbd_destroy_mempools();
 	unregister_blkdev(DRBD_MAJOR, "drbd");
+
+	idr_destroy(&minors);
 
 	printk(KERN_INFO "drbd: module cleanup done.\n");
 }
@@ -2286,6 +2284,7 @@ enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, 
 	struct gendisk *disk;
 	struct request_queue *q;
 	int vnr_got = vnr;
+	int minor_got = minor;
 
 	mdev = minor_to_mdev(minor);
 	if (mdev)
@@ -2361,13 +2360,20 @@ enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, 
 	INIT_LIST_HEAD(&mdev->current_epoch->list);
 	mdev->epochs = 1;
 
-	minor_table[minor] = mdev;
+	if (!idr_pre_get(&minors, GFP_KERNEL))
+		goto out_no_minor_idr;
+	if (idr_get_new(&minors, mdev, &minor_got))
+		goto out_no_minor_idr;
+	if (minor_got != minor) {
+		idr_remove(&minors, minor_got);
+		goto out_no_minor_idr;
+	}
 	add_disk(disk);
 
 	return NO_ERROR;
 
-/* out_whatever_else:
-	kfree(mdev->current_epoch); */
+out_no_minor_idr:
+	kfree(mdev->current_epoch);
 out_no_epoch:
 	drbd_bm_cleanup(mdev);
 out_no_bitmap:
@@ -2406,7 +2412,7 @@ int __init drbd_init(void)
 
 	if (minor_count < DRBD_MINOR_COUNT_MIN || minor_count > DRBD_MINOR_COUNT_MAX) {
 		printk(KERN_ERR
-			"drbd: invalid minor_count (%d)\n", minor_count);
+		       "drbd: invalid minor_count (%d)\n", minor_count);
 #ifdef MODULE
 		return -EINVAL;
 #else
@@ -2436,10 +2442,7 @@ int __init drbd_init(void)
 	init_waitqueue_head(&drbd_pp_wait);
 
 	drbd_proc = NULL; /* play safe for drbd_cleanup */
-	minor_table = kzalloc(sizeof(struct drbd_conf *)*minor_count,
-				GFP_KERNEL);
-	if (!minor_table)
-		goto Enomem;
+	idr_init(&minors);
 
 	err = drbd_create_mempools();
 	if (err)
@@ -2460,7 +2463,6 @@ int __init drbd_init(void)
 	printk(KERN_INFO "drbd: %s\n", drbd_buildtag());
 	printk(KERN_INFO "drbd: registered as block device major %d\n",
 		DRBD_MAJOR);
-	printk(KERN_INFO "drbd: minor_table @ 0x%p\n", minor_table);
 
 	return 0; /* Success! */
 

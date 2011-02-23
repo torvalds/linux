@@ -284,7 +284,7 @@ static void drbd_pp_free(struct drbd_conf *mdev, struct page *page, int is_net)
 	atomic_t *a = is_net ? &mdev->pp_in_use_by_net : &mdev->pp_in_use;
 	int i;
 
-	if (drbd_pp_vacant > (DRBD_MAX_BIO_SIZE/PAGE_SIZE)*minor_count)
+	if (drbd_pp_vacant > (DRBD_MAX_BIO_SIZE/PAGE_SIZE) * minor_count)
 		i = page_chain_free(page);
 	else {
 		struct page *tmp;

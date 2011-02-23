@@ -1349,10 +1349,7 @@ static int _drbd_pause_after(struct drbd_conf *mdev)
 	struct drbd_conf *odev;
 	int i, rv = 0;
 
-	for (i = 0; i < minor_count; i++) {
-		odev = minor_to_mdev(i);
-		if (!odev)
-			continue;
+	idr_for_each_entry(&minors, odev, i) {
 		if (odev->state.conn == C_STANDALONE && odev->state.disk == D_DISKLESS)
 			continue;
 		if (!_drbd_may_sync_now(odev))
@@ -1374,10 +1371,7 @@ static int _drbd_resume_next(struct drbd_conf *mdev)
 	struct drbd_conf *odev;
 	int i, rv = 0;
 
-	for (i = 0; i < minor_count; i++) {
-		odev = minor_to_mdev(i);
-		if (!odev)
-			continue;
+	idr_for_each_entry(&minors, odev, i) {
 		if (odev->state.conn == C_STANDALONE && odev->state.disk == D_DISKLESS)
 			continue;
 		if (odev->state.aftr_isp) {

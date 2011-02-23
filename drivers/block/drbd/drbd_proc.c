@@ -194,7 +194,7 @@ static void resync_dump_detail(struct seq_file *seq, struct lc_element *e)
 
 static int drbd_seq_show(struct seq_file *seq, void *v)
 {
-	int i, hole = 0;
+	int i, prev_i = -1;
 	const char *sn;
 	struct drbd_conf *mdev;
 
@@ -227,16 +227,10 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 	 oos .. known out-of-sync kB
 	*/
 
-	for (i = 0; i < minor_count; i++) {
-		mdev = minor_to_mdev(i);
-		if (!mdev) {
-			hole = 1;
-			continue;
-		}
-		if (hole) {
-			hole = 0;
+	idr_for_each_entry(&minors, mdev, i) {
+		if (prev_i != i - 1)
 			seq_printf(seq, "\n");
-		}
+		prev_i = i;
 
 		sn = drbd_conn_str(mdev->state.conn);
 
