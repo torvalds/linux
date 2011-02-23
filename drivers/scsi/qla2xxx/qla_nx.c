@@ -3557,6 +3557,8 @@ qla82xx_device_state_handler(scsi_qla_host_t *vha)
 			break;
 		case QLA82XX_DEV_NEED_RESET:
 			qla82xx_need_reset_handler(vha);
+			dev_init_timeout = jiffies +
+				(ha->nx_dev_init_timeout * HZ);
 			break;
 		case QLA82XX_DEV_NEED_QUIESCENT:
 			qla82xx_need_qsnt_handler(vha);
