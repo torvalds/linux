@@ -1586,7 +1586,7 @@ static int xfrm_expand_policies(const struct flowi *fl, u16 family,
 
 static struct xfrm_dst *
 xfrm_resolve_and_create_bundle(struct xfrm_policy **pols, int num_pols,
-			       struct flowi *fl, u16 family,
+			       const struct flowi *fl, u16 family,
 			       struct dst_entry *dst_orig)
 {
 	struct net *net = xp_net(pols[0]);
