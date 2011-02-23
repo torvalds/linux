@@ -22,6 +22,7 @@
 #include <linux/mmc/host.h>
 #include <linux/delay.h>
 #include <linux/i2c/twl.h>
+#include <linux/regulator/machine.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
@@ -147,6 +148,25 @@ static void __init omap_2430sdp_init_early(void)
 	omap2_init_common_devices(NULL, NULL);
 }
 
+static struct regulator_consumer_supply sdp2430_vmmc1_supplies[] = {
+	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.0"),
+};
+
+/* VMMC1 for OMAP VDD_MMC1 (i/o) and MMC1 card */
+static struct regulator_init_data sdp2430_vmmc1 = {
+	.constraints = {
+		.min_uV			= 1850000,
+		.max_uV			= 3150000,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_VOLTAGE
+					| REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(sdp2430_vmmc1_supplies),
+	.consumer_supplies	= &sdp2430_vmmc1_supplies[0],
+};
+
 static struct twl4030_gpio_platform_data sdp2430_gpio_data = {
 	.gpio_base	= OMAP_MAX_GPIO_LINES,
 	.irq_base	= TWL4030_GPIO_IRQ_BASE,
@@ -159,6 +179,7 @@ static struct twl4030_platform_data sdp2430_twldata = {
 
 	/* platform_data for children goes here */
 	.gpio		= &sdp2430_gpio_data,
+	.vmmc1		= &sdp2430_vmmc1,
 };
 
 static struct i2c_board_info __initdata sdp2430_i2c_boardinfo[] = {

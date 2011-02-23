@@ -433,7 +433,7 @@ static void __init omap_ldp_init(void)
 	omap_serial_init();
 	usb_musb_init(&musb_board_data);
 	board_nand_init(ldp_nand_partitions,
-		ARRAY_SIZE(ldp_nand_partitions), ZOOM_NAND_CS);
+		ARRAY_SIZE(ldp_nand_partitions), ZOOM_NAND_CS, 0);
 
 	omap2_hsmmc_init(mmc);
 	/* link regulators to MMC adapters */

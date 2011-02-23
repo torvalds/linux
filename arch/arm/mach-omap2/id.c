@@ -6,7 +6,7 @@
  * Copyright (C) 2005 Nokia Corporation
  * Written by Tony Lindgren <tony@atomide.com>
  *
- * Copyright (C) 2009 Texas Instruments
+ * Copyright (C) 2009-11 Texas Instruments
  * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -328,7 +328,7 @@ static void __init omap4_check_revision(void)
 	 */
 	idcode = read_tap_reg(OMAP_TAP_IDCODE);
 	hawkeye = (idcode >> 12) & 0xffff;
-	rev = (idcode >> 28) & 0xff;
+	rev = (idcode >> 28) & 0xf;
 
 	/*
 	 * Few initial ES2.0 samples IDCODE is same as ES1.0
@@ -347,22 +347,31 @@ static void __init omap4_check_revision(void)
 			omap_chip.oc |= CHIP_IS_OMAP4430ES1;
 			break;
 		case 1:
-			omap_revision = OMAP4430_REV_ES2_0;
-			omap_chip.oc |= CHIP_IS_OMAP4430ES2;
-			break;
 		default:
 			omap_revision = OMAP4430_REV_ES2_0;
 			omap_chip.oc |= CHIP_IS_OMAP4430ES2;
-	}
-	break;
+		}
+		break;
+	case 0xb95c:
+		switch (rev) {
+		case 3:
+			omap_revision = OMAP4430_REV_ES2_1;
+			omap_chip.oc |= CHIP_IS_OMAP4430ES2_1;
+			break;
+		case 4:
+		default:
+			omap_revision = OMAP4430_REV_ES2_2;
+			omap_chip.oc |= CHIP_IS_OMAP4430ES2_2;
+		}
+		break;
 	default:
-		/* Unknown default to latest silicon rev as default*/
-		omap_revision = OMAP4430_REV_ES2_0;
-		omap_chip.oc |= CHIP_IS_OMAP4430ES2;
+		/* Unknown default to latest silicon rev as default */
+		omap_revision = OMAP4430_REV_ES2_2;
+		omap_chip.oc |= CHIP_IS_OMAP4430ES2_2;
 	}
 
-	pr_info("OMAP%04x ES%d.0\n",
-			omap_rev() >> 16, ((omap_rev() >> 12) & 0xf) + 1);
+	pr_info("OMAP%04x ES%d.%d\n", omap_rev() >> 16,
+		((omap_rev() >> 12) & 0xf), ((omap_rev() >> 8) & 0xf));
 }
 
 #define OMAP3_SHOW_FEATURE(feat)		\

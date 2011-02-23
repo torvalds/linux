@@ -350,6 +350,11 @@ void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 				mmc->slots[0].after_set_reg = NULL;
 			}
 			break;
+		case 4:
+		case 5:
+			mmc->slots[0].before_set_reg = NULL;
+			mmc->slots[0].after_set_reg = NULL;
+			break;
 		default:
 			pr_err("MMC%d configuration not supported!\n", c->mmc);
 			kfree(mmc);

@@ -63,7 +63,7 @@ struct omap2_onenand {
 	struct completion dma_done;
 	int dma_channel;
 	int freq;
-	int (*setup)(void __iomem *base, int freq);
+	int (*setup)(void __iomem *base, int *freq_ptr);
 	struct regulator *regulator;
 };
 
@@ -148,11 +148,9 @@ static int omap2_onenand_wait(struct mtd_info *mtd, int state)
 			wait_err("controller error", state, ctrl, intr);
 			return -EIO;
 		}
-		if ((intr & intr_flags) != intr_flags) {
-			wait_err("timeout", state, ctrl, intr);
-			return -EIO;
-		}
-		return 0;
+		if ((intr & intr_flags) == intr_flags)
+			return 0;
+		/* Continue in wait for interrupt branch */
 	}
 
 	if (state != FL_READING) {
@@ -581,7 +579,7 @@ static int __adjust_timing(struct device *dev, void *data)
 
 	/* DMA is not in use so this is all that is needed */
 	/* Revisit for OMAP3! */
-	ret = c->setup(c->onenand.base, c->freq);
+	ret = c->setup(c->onenand.base, &c->freq);
 
 	return ret;
 }
@@ -673,7 +671,7 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 	}
 
 	if (pdata->onenand_setup != NULL) {
-		r = pdata->onenand_setup(c->onenand.base, c->freq);
+		r = pdata->onenand_setup(c->onenand.base, &c->freq);
 		if (r < 0) {
 			dev_err(&pdev->dev, "Onenand platform setup failed: "
 				"%d\n", r);
@@ -718,8 +716,8 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 	}
 
 	dev_info(&pdev->dev, "initializing on CS%d, phys base 0x%08lx, virtual "
-		 "base %p\n", c->gpmc_cs, c->phys_base,
-		 c->onenand.base);
+		 "base %p, freq %d MHz\n", c->gpmc_cs, c->phys_base,
+		 c->onenand.base, c->freq);
 
 	c->pdev = pdev;
 	c->mtd.name = dev_name(&pdev->dev);
@@ -753,24 +751,6 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 
 	if ((r = onenand_scan(&c->mtd, 1)) < 0)
 		goto err_release_regulator;
-
-	switch ((c->onenand.version_id >> 4) & 0xf) {
-	case 0:
-		c->freq = 40;
-		break;
-	case 1:
-		c->freq = 54;
-		break;
-	case 2:
-		c->freq = 66;
-		break;
-	case 3:
-		c->freq = 83;
-		break;
-	case 4:
-		c->freq = 104;
-		break;
-	}
 
 #ifdef CONFIG_MTD_PARTITIONS
 	r = parse_mtd_partitions(&c->mtd, part_probes, &c->parts, 0);
