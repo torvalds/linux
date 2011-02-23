@@ -315,7 +315,14 @@ static void bio_completion(struct nvme_queue *nvmeq, void *ctx,
 	dma_unmap_sg(nvmeq->q_dmadev, nbio->sg, nbio->nents,
 			bio_data_dir(bio) ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 	free_nbio(nvmeq, nbio);
-	bio_endio(bio, status ? -EIO : 0);
+	if (status)
+		bio_endio(bio, -EIO);
+	if (bio->bi_vcnt > bio->bi_idx) {
+		bio_list_add(&nvmeq->sq_cong, bio);
+		wake_up_process(nvme_thread);
+	} else {
+		bio_endio(bio, 0);
+	}
 }
 
 /* length is in bytes */
@@ -393,29 +400,41 @@ static struct nvme_prps *nvme_setup_prps(struct nvme_dev *dev,
 	return prps;
 }
 
+/* NVMe scatterlists require no holes in the virtual address */
+#define BIOVEC_NOT_VIRT_MERGEABLE(vec1, vec2)	((vec2)->bv_offset || \
+			(((vec1)->bv_offset + (vec1)->bv_len) % PAGE_SIZE))
+
 static int nvme_map_bio(struct device *dev, struct nvme_bio *nbio,
 		struct bio *bio, enum dma_data_direction dma_dir, int psegs)
 {
 	struct bio_vec *bvec, *bvprv = NULL;
 	struct scatterlist *sg = NULL;
-	int i, nsegs = 0;
+	int i, old_idx, length = 0, nsegs = 0;
 
 	sg_init_table(nbio->sg, psegs);
+	old_idx = bio->bi_idx;
 	bio_for_each_segment(bvec, bio, i) {
 		if (bvprv && BIOVEC_PHYS_MERGEABLE(bvprv, bvec)) {
 			sg->length += bvec->bv_len;
 		} else {
-			/* Check bvprv && offset == 0 */
+			if (bvprv && BIOVEC_NOT_VIRT_MERGEABLE(bvprv, bvec))
+				break;
 			sg = sg ? sg + 1 : nbio->sg;
 			sg_set_page(sg, bvec->bv_page, bvec->bv_len,
 							bvec->bv_offset);
 			nsegs++;
 		}
+		length += bvec->bv_len;
 		bvprv = bvec;
 	}
+	bio->bi_idx = i;
 	nbio->nents = nsegs;
 	sg_mark_end(sg);
-	return dma_map_sg(dev, nbio->sg, nbio->nents, dma_dir);
+	if (dma_map_sg(dev, nbio->sg, nbio->nents, dma_dir) == 0) {
+		bio->bi_idx = old_idx;
+		return -ENOMEM;
+	}
+	return length;
 }
 
 static int nvme_submit_flush(struct nvme_queue *nvmeq, struct nvme_ns *ns,
@@ -451,7 +470,7 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	struct nvme_command *cmnd;
 	struct nvme_bio *nbio;
 	enum dma_data_direction dma_dir;
-	int cmdid, result = -ENOMEM;
+	int cmdid, length, result = -ENOMEM;
 	u16 control;
 	u32 dsmgmt;
 	int psegs = bio_phys_segments(ns->queue, bio);
@@ -496,16 +515,17 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 		dma_dir = DMA_FROM_DEVICE;
 	}
 
-	result = -ENOMEM;
-	if (nvme_map_bio(nvmeq->q_dmadev, nbio, bio, dma_dir, psegs) == 0)
+	result = nvme_map_bio(nvmeq->q_dmadev, nbio, bio, dma_dir, psegs);
+	if (result < 0)
 		goto free_nbio;
+	length = result;
 
 	cmnd->rw.command_id = cmdid;
 	cmnd->rw.nsid = cpu_to_le32(ns->ns_id);
 	nbio->prps = nvme_setup_prps(nvmeq->dev, &cmnd->common, nbio->sg,
-								bio->bi_size);
+								length);
 	cmnd->rw.slba = cpu_to_le64(bio->bi_sector >> (ns->lba_shift - 9));
-	cmnd->rw.length = cpu_to_le16((bio->bi_size >> ns->lba_shift) - 1);
+	cmnd->rw.length = cpu_to_le16((length >> ns->lba_shift) - 1);
 	cmnd->rw.control = cpu_to_le16(control);
 	cmnd->rw.dsmgmt = cpu_to_le32(dsmgmt);
 
