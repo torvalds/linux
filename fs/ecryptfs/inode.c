@@ -161,7 +161,6 @@ static int ecryptfs_initialize_file(struct dentry *ecryptfs_dentry)
 		crypt_stat->flags &= ~(ECRYPTFS_ENCRYPTED);
 		goto out;
 	}
-	crypt_stat->flags |= ECRYPTFS_NEW_FILE;
 	ecryptfs_printk(KERN_DEBUG, "Initializing crypto context\n");
 	rc = ecryptfs_new_file_context(ecryptfs_dentry);
 	if (rc) {
