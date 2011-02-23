@@ -464,6 +464,7 @@ enum {
 	TCA_NETEM_DELAY_DIST,
 	TCA_NETEM_REORDER,
 	TCA_NETEM_CORRUPT,
+	TCA_NETEM_LOSS,
 	__TCA_NETEM_MAX,
 };
 
@@ -492,6 +493,31 @@ struct tc_netem_reorder {
 struct tc_netem_corrupt {
 	__u32	probability;
 	__u32	correlation;
+};
+
+enum {
+	NETEM_LOSS_UNSPEC,
+	NETEM_LOSS_GI,		/* General Intuitive - 4 state model */
+	NETEM_LOSS_GE,		/* Gilbert Elliot models */
+	__NETEM_LOSS_MAX
+};
+#define NETEM_LOSS_MAX (__NETEM_LOSS_MAX - 1)
+
+/* State transition probablities for 4 state model */
+struct tc_netem_gimodel {
+	__u32	p13;
+	__u32	p31;
+	__u32	p32;
+	__u32	p14;
+	__u32	p23;
+};
+
+/* Gilbert-Elliot models */
+struct tc_netem_gemodel {
+	__u32 p;
+	__u32 r;
+	__u32 h;
+	__u32 k1;
 };
 
 #define NETEM_DIST_SCALE	8192
