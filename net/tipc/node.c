@@ -327,7 +327,7 @@ static void node_cleanup_finished(unsigned long node_addr)
 
 static void node_lost_contact(struct tipc_node *n_ptr)
 {
-	struct tipc_node_subscr *ns, *tns;
+	struct tipc_node_subscr *ns;
 	char addr_string[16];
 	u32 i;
 
@@ -365,11 +365,12 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 	}
 
 	/* Notify subscribers */
-	list_for_each_entry_safe(ns, tns, &n_ptr->nsub, nodesub_list) {
-		ns->node = NULL;
-		list_del_init(&ns->nodesub_list);
-		tipc_k_signal((Handler)ns->handle_node_down,
-			      (unsigned long)ns->usr_handle);
+	list_for_each_entry(ns, &n_ptr->nsub, nodesub_list) {
+		if (ns->handle_node_down) {
+			tipc_k_signal((Handler)ns->handle_node_down,
+				      (unsigned long)ns->usr_handle);
+			ns->handle_node_down = NULL;
+		}
 	}
 
 	/* Prevent re-contact with node until all cleanup is done */

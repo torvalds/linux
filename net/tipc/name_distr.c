@@ -2,7 +2,7 @@
  * net/tipc/name_distr.c: TIPC name distribution code
  *
  * Copyright (c) 2000-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -221,7 +221,6 @@ exit:
  * In rare cases the link may have come back up again when this
  * function is called, and we have two items representing the same
  * publication. Nudge this item's key to distinguish it from the other.
- * (Note: Publication's node subscription is already unsubscribed.)
  */
 
 static void node_is_down(struct publication *publ)
@@ -232,6 +231,8 @@ static void node_is_down(struct publication *publ)
 	publ->key += 1222345;
 	p = tipc_nametbl_remove_publ(publ->type, publ->lower,
 				     publ->node, publ->ref, publ->key);
+	if (p)
+		tipc_nodesub_unsubscribe(&p->subscr);
 	write_unlock_bh(&tipc_nametbl_lock);
 
 	if (p != publ) {
