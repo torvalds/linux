@@ -941,7 +941,7 @@ fail:
 }
 
 static struct xfrm_policy *
-__xfrm_policy_lookup(struct net *net, struct flowi *fl, u16 family, u8 dir)
+__xfrm_policy_lookup(struct net *net, const struct flowi *fl, u16 family, u8 dir)
 {
 #ifdef CONFIG_XFRM_SUB_POLICY
 	struct xfrm_policy *pol;
@@ -1542,7 +1542,7 @@ xfrm_dst_update_origin(struct dst_entry *dst, struct flowi *fl)
 #endif
 }
 
-static int xfrm_expand_policies(struct flowi *fl, u16 family,
+static int xfrm_expand_policies(const struct flowi *fl, u16 family,
 				struct xfrm_policy **pols,
 				int *num_pols, int *num_xfrms)
 {
