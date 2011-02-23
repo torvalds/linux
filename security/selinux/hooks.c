@@ -3915,7 +3915,6 @@ static int selinux_sock_rcv_skb_compat(struct sock *sk, struct sk_buff *skb,
 {
 	int err = 0;
 	struct sk_security_struct *sksec = sk->sk_security;
-	u32 peer_sid;
 	u32 sk_sid = sksec->sid;
 	struct common_audit_data ad;
 	char *addrp;
@@ -3934,20 +3933,10 @@ static int selinux_sock_rcv_skb_compat(struct sock *sk, struct sk_buff *skb,
 			return err;
 	}
 
-	if (selinux_policycap_netpeer) {
-		err = selinux_skb_peerlbl_sid(skb, family, &peer_sid);
-		if (err)
-			return err;
-		err = avc_has_perm(sk_sid, peer_sid,
-				   SECCLASS_PEER, PEER__RECV, &ad);
-		if (err)
-			selinux_netlbl_err(skb, err, 0);
-	} else {
-		err = selinux_netlbl_sock_rcv_skb(sksec, skb, family, &ad);
-		if (err)
-			return err;
-		err = selinux_xfrm_sock_rcv_skb(sksec->sid, skb, &ad);
-	}
+	err = selinux_netlbl_sock_rcv_skb(sksec, skb, family, &ad);
+	if (err)
+		return err;
+	err = selinux_xfrm_sock_rcv_skb(sksec->sid, skb, &ad);
 
 	return err;
 }
@@ -4442,9 +4431,8 @@ static unsigned int selinux_ip_postroute_compat(struct sk_buff *skb,
 				 SECCLASS_PACKET, PACKET__SEND, &ad))
 			return NF_DROP_ERR(-ECONNREFUSED);
 
-	if (selinux_policycap_netpeer)
-		if (selinux_xfrm_postroute_last(sksec->sid, skb, &ad, proto))
-			return NF_DROP_ERR(-ECONNREFUSED);
+	if (selinux_xfrm_postroute_last(sksec->sid, skb, &ad, proto))
+		return NF_DROP_ERR(-ECONNREFUSED);
 
 	return NF_ACCEPT;
 }
