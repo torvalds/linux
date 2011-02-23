@@ -311,9 +311,21 @@ void irq_enter(void)
 }
 
 #ifdef __ARCH_IRQ_EXIT_IRQS_DISABLED
-# define invoke_softirq()	__do_softirq()
+static inline void invoke_softirq(void)
+{
+	if (!force_irqthreads)
+		__do_softirq();
+	else
+		wakeup_softirqd();
+}
 #else
-# define invoke_softirq()	do_softirq()
+static inline void invoke_softirq(void)
+{
+	if (!force_irqthreads)
+		do_softirq();
+	else
+		wakeup_softirqd();
+}
 #endif
 
 /*

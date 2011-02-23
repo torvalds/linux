@@ -17,6 +17,17 @@
 
 #include "internals.h"
 
+#ifdef CONFIG_IRQ_FORCED_THREADING
+__read_mostly bool force_irqthreads;
+
+static int __init setup_forced_irqthreads(char *arg)
+{
+	force_irqthreads = true;
+	return 0;
+}
+early_param("threadirqs", setup_forced_irqthreads);
+#endif
+
 /**
  *	synchronize_irq - wait for pending IRQ handlers (on other CPUs)
  *	@irq: interrupt number to wait for
@@ -702,6 +713,32 @@ irq_thread_check_affinity(struct irq_desc *desc, struct irqaction *action) { }
 #endif
 
 /*
+ * Interrupts which are not explicitely requested as threaded
+ * interrupts rely on the implicit bh/preempt disable of the hard irq
+ * context. So we need to disable bh here to avoid deadlocks and other
+ * side effects.
+ */
+static void
+irq_forced_thread_fn(struct irq_desc *desc, struct irqaction *action)
+{
+	local_bh_disable();
+	action->thread_fn(action->irq, action->dev_id);
+	irq_finalize_oneshot(desc, action, false);
+	local_bh_enable();
+}
+
+/*
+ * Interrupts explicitely requested as threaded interupts want to be
+ * preemtible - many of them need to sleep and wait for slow busses to
+ * complete.
+ */
+static void irq_thread_fn(struct irq_desc *desc, struct irqaction *action)
+{
+	action->thread_fn(action->irq, action->dev_id);
+	irq_finalize_oneshot(desc, action, false);
+}
+
+/*
  * Interrupt handler thread
  */
 static int irq_thread(void *data)
@@ -711,7 +748,14 @@ static int irq_thread(void *data)
 	};
 	struct irqaction *action = data;
 	struct irq_desc *desc = irq_to_desc(action->irq);
+	void (*handler_fn)(struct irq_desc *desc, struct irqaction *action);
 	int wake;
+
+	if (force_irqthreads & test_bit(IRQTF_FORCED_THREAD,
+					&action->thread_flags))
+		handler_fn = irq_forced_thread_fn;
+	else
+		handler_fn = irq_thread_fn;
 
 	sched_setscheduler(current, SCHED_FIFO, &param);
 	current->irqaction = action;
@@ -736,10 +780,7 @@ static int irq_thread(void *data)
 			raw_spin_unlock_irq(&desc->lock);
 		} else {
 			raw_spin_unlock_irq(&desc->lock);
-
-			action->thread_fn(action->irq, action->dev_id);
-
-			irq_finalize_oneshot(desc, action, false);
+			handler_fn(desc, action);
 		}
 
 		wake = atomic_dec_and_test(&desc->threads_active);
@@ -787,6 +828,22 @@ void exit_irq_thread(void)
 	 * soon to be gone threaded handler.
 	 */
 	set_bit(IRQTF_DIED, &tsk->irqaction->flags);
+}
+
+static void irq_setup_forced_threading(struct irqaction *new)
+{
+	if (!force_irqthreads)
+		return;
+	if (new->flags & (IRQF_NO_THREAD | IRQF_PERCPU | IRQF_ONESHOT))
+		return;
+
+	new->flags |= IRQF_ONESHOT;
+
+	if (!new->thread_fn) {
+		set_bit(IRQTF_FORCED_THREAD, &new->thread_flags);
+		new->thread_fn = new->handler;
+		new->handler = irq_default_primary_handler;
+	}
 }
 
 /*
@@ -838,6 +895,8 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 		 * dummy function which warns when called.
 		 */
 		new->handler = irq_nested_primary_handler;
+	} else {
+		irq_setup_forced_threading(new);
 	}
 
 	/*

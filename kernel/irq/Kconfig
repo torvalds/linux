@@ -38,6 +38,9 @@ config HARDIRQS_SW_RESEND
 config IRQ_PREFLOW_FASTEOI
        bool
 
+config IRQ_FORCED_THREADING
+       bool
+
 config SPARSE_IRQ
 	bool "Support sparse irq numbering"
 	depends on HAVE_SPARSE_IRQ

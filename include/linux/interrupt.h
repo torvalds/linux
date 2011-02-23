@@ -383,6 +383,13 @@ static inline int disable_irq_wake(unsigned int irq)
 }
 #endif /* CONFIG_GENERIC_HARDIRQS */
 
+
+#ifdef CONFIG_IRQ_FORCED_THREADING
+extern bool force_irqthreads;
+#else
+#define force_irqthreads	(0)
+#endif
+
 #ifndef __ARCH_SET_SOFTIRQ_PENDING
 #define set_softirq_pending(x) (local_softirq_pending() = (x))
 #define or_softirq_pending(x)  (local_softirq_pending() |= (x))

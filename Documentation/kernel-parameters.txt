@@ -2436,6 +2436,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			<deci-seconds>: poll all this frequency
 			0: no polling (default)
 
+	threadirqs	[KNL]
+			Force threading of all interrupt handlers except those
+			marked explicitely IRQF_NO_THREAD.
+
 	topology=	[S390]
 			Format: {off | on}
 			Specify if the kernel should make use of the cpu
