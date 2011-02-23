@@ -790,7 +790,7 @@ static __inline__ int addr_match(void *token1, void *token2, int prefixlen)
 }
 
 static __inline__
-__be16 xfrm_flowi_sport(struct flowi *fl)
+__be16 xfrm_flowi_sport(const struct flowi *fl)
 {
 	__be16 port;
 	switch(fl->proto) {
@@ -817,7 +817,7 @@ __be16 xfrm_flowi_sport(struct flowi *fl)
 }
 
 static __inline__
-__be16 xfrm_flowi_dport(struct flowi *fl)
+__be16 xfrm_flowi_dport(const struct flowi *fl)
 {
 	__be16 port;
 	switch(fl->proto) {
@@ -1127,7 +1127,7 @@ static inline int xfrm6_policy_check_reverse(struct sock *sk, int dir,
 #endif
 
 static __inline__
-xfrm_address_t *xfrm_flowi_daddr(struct flowi *fl, unsigned short family)
+xfrm_address_t *xfrm_flowi_daddr(const struct flowi *fl, unsigned short family)
 {
 	switch (family){
 	case AF_INET:
@@ -1139,7 +1139,7 @@ xfrm_address_t *xfrm_flowi_daddr(struct flowi *fl, unsigned short family)
 }
 
 static __inline__
-xfrm_address_t *xfrm_flowi_saddr(struct flowi *fl, unsigned short family)
+xfrm_address_t *xfrm_flowi_saddr(const struct flowi *fl, unsigned short family)
 {
 	switch (family){
 	case AF_INET:
@@ -1151,7 +1151,7 @@ xfrm_address_t *xfrm_flowi_saddr(struct flowi *fl, unsigned short family)
 }
 
 static __inline__
-void xfrm_flowi_addr_get(struct flowi *fl,
+void xfrm_flowi_addr_get(const struct flowi *fl,
 			 xfrm_address_t *saddr, xfrm_address_t *daddr,
 			 unsigned short family)
 {
@@ -1204,7 +1204,7 @@ xfrm_state_addr_check(struct xfrm_state *x,
 }
 
 static __inline__ int
-xfrm_state_addr_flow_check(struct xfrm_state *x, struct flowi *fl,
+xfrm_state_addr_flow_check(struct xfrm_state *x, const struct flowi *fl,
 			   unsigned short family)
 {
 	switch (family) {
