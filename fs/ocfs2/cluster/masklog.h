@@ -104,7 +104,6 @@
 #define ML_CONN		0x0000000004000000ULL /* net connection management */
 #define ML_QUORUM	0x0000000008000000ULL /* net connection quorum */
 #define ML_EXPORT	0x0000000010000000ULL /* ocfs2 export operations */
-#define ML_XATTR	0x0000000020000000ULL /* ocfs2 extended attributes */
 #define ML_QUOTA	0x0000000040000000ULL /* ocfs2 quota operations */
 #define ML_BASTS	0x0000000100000000ULL /* dlmglue asts and basts */
 #define ML_RESERVATIONS	0x0000000200000000ULL /* ocfs2 alloc reservations */

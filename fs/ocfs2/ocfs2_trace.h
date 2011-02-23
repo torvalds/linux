@@ -74,6 +74,23 @@ DEFINE_EVENT(ocfs2__pointer, name,	\
 	TP_PROTO(void *pointer),	\
 	TP_ARGS(pointer))
 
+DECLARE_EVENT_CLASS(ocfs2__string,
+	TP_PROTO(const char *name),
+	TP_ARGS(name),
+	TP_STRUCT__entry(
+		__string(name,name)
+	),
+	TP_fast_assign(
+		__assign_str(name, name);
+	),
+	TP_printk("%s", __get_str(name))
+);
+
+#define DEFINE_OCFS2_STRING_EVENT(name)	\
+DEFINE_EVENT(ocfs2__string, name,	\
+	TP_PROTO(const char *name),	\
+	TP_ARGS(name))
+
 DECLARE_EVENT_CLASS(ocfs2__int_int,
 	TP_PROTO(int value1, int value2),
 	TP_ARGS(value1, value2),
@@ -316,6 +333,33 @@ DEFINE_EVENT(ocfs2__ull_uint_uint_uint, name,	\
 	TP_PROTO(unsigned long long ull, unsigned int value1,	\
 		 unsigned int value2, unsigned int value3),	\
 	TP_ARGS(ull, value1, value2, value3))
+
+DECLARE_EVENT_CLASS(ocfs2__ull_ull_uint_uint,
+	TP_PROTO(unsigned long long value1, unsigned long long value2,
+		 unsigned int value3, unsigned int value4),
+	TP_ARGS(value1, value2, value3, value4),
+	TP_STRUCT__entry(
+		__field(unsigned long long, value1)
+		__field(unsigned long long, value2)
+		__field(unsigned int, value3)
+		__field(unsigned int, value4)
+	),
+	TP_fast_assign(
+		__entry->value1 = value1;
+		__entry->value2 = value2;
+		__entry->value3 = value3;
+		__entry->value4 = value4;
+	),
+	TP_printk("%llu %llu %u %u",
+		  __entry->value1, __entry->value2,
+		  __entry->value3, __entry->value4)
+);
+
+#define DEFINE_OCFS2_ULL_ULL_UINT_UINT_EVENT(name)	\
+DEFINE_EVENT(ocfs2__ull_ull_uint_uint, name,	\
+	TP_PROTO(unsigned long long ull, unsigned long long ull1,	\
+		 unsigned int value2, unsigned int value3),	\
+	TP_ARGS(ull, ull1, value2, value3))
 
 /* Trace events for fs/ocfs2/alloc.c. */
 DECLARE_EVENT_CLASS(ocfs2__btree_ops,
@@ -1645,6 +1689,126 @@ TRACE_EVENT(ocfs2_initialize_super,
 );
 
 /* End of trace events for fs/ocfs2/super.c. */
+
+/* Trace events for fs/ocfs2/xattr.c. */
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_validate_xattr_block);
+
+DEFINE_OCFS2_UINT_EVENT(ocfs2_xattr_extend_allocation);
+
+TRACE_EVENT(ocfs2_init_xattr_set_ctxt,
+	TP_PROTO(const char *name, int meta, int clusters, int credits),
+	TP_ARGS(name, meta, clusters, credits),
+	TP_STRUCT__entry(
+		__string(name, name)
+		__field(int, meta)
+		__field(int, clusters)
+		__field(int, credits)
+	),
+	TP_fast_assign(
+		__assign_str(name, name);
+		__entry->meta = meta;
+		__entry->clusters = clusters;
+		__entry->credits = credits;
+	),
+	TP_printk("%s %d %d %d", __get_str(name), __entry->meta,
+		  __entry->clusters, __entry->credits)
+);
+
+DECLARE_EVENT_CLASS(ocfs2__xattr_find,
+	TP_PROTO(unsigned long long ino, const char *name, int name_index,
+		 unsigned int hash, unsigned long long location,
+		 int xe_index),
+	TP_ARGS(ino, name, name_index, hash, location, xe_index),
+	TP_STRUCT__entry(
+		__field(unsigned long long, ino)
+		__string(name, name)
+		__field(int, name_index)
+		__field(unsigned int, hash)
+		__field(unsigned long long, location)
+		__field(int, xe_index)
+	),
+	TP_fast_assign(
+		__entry->ino = ino;
+		__assign_str(name, name);
+		__entry->name_index = name_index;
+		__entry->hash = hash;
+		__entry->location = location;
+		__entry->xe_index = xe_index;
+	),
+	TP_printk("%llu %s %d %u %llu %d", __entry->ino, __get_str(name),
+		  __entry->name_index, __entry->hash, __entry->location,
+		  __entry->xe_index)
+);
+
+#define DEFINE_OCFS2_XATTR_FIND_EVENT(name)					\
+DEFINE_EVENT(ocfs2__xattr_find, name,					\
+TP_PROTO(unsigned long long ino, const char *name, int name_index,	\
+	 unsigned int hash, unsigned long long bucket,			\
+	 int xe_index),							\
+	TP_ARGS(ino, name, name_index, hash, bucket, xe_index))
+
+DEFINE_OCFS2_XATTR_FIND_EVENT(ocfs2_xattr_bucket_find);
+
+DEFINE_OCFS2_XATTR_FIND_EVENT(ocfs2_xattr_index_block_find);
+
+DEFINE_OCFS2_XATTR_FIND_EVENT(ocfs2_xattr_index_block_find_rec);
+
+DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_iterate_xattr_buckets);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_iterate_xattr_bucket);
+
+DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_cp_xattr_block_to_bucket_begin);
+
+DEFINE_OCFS2_UINT_UINT_UINT_EVENT(ocfs2_cp_xattr_block_to_bucket_end);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_xattr_create_index_block_begin);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_xattr_create_index_block);
+
+DEFINE_OCFS2_ULL_UINT_UINT_UINT_EVENT(ocfs2_defrag_xattr_bucket);
+
+DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_mv_xattr_bucket_cross_cluster);
+
+DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_divide_xattr_bucket_begin);
+
+DEFINE_OCFS2_UINT_UINT_UINT_EVENT(ocfs2_divide_xattr_bucket_move);
+
+DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_cp_xattr_bucket);
+
+DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_mv_xattr_buckets);
+
+DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_adjust_xattr_cross_cluster);
+
+DEFINE_OCFS2_ULL_ULL_UINT_UINT_EVENT(ocfs2_add_new_xattr_cluster_begin);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_add_new_xattr_cluster);
+
+DEFINE_OCFS2_ULL_UINT_UINT_EVENT(ocfs2_add_new_xattr_cluster_insert);
+
+DEFINE_OCFS2_ULL_ULL_UINT_UINT_EVENT(ocfs2_extend_xattr_bucket);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_add_new_xattr_bucket);
+
+DEFINE_OCFS2_ULL_UINT_UINT_EVENT(ocfs2_xattr_bucket_value_truncate);
+
+DEFINE_OCFS2_ULL_ULL_UINT_UINT_EVENT(ocfs2_rm_xattr_cluster);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_reflink_xattr_header);
+
+DEFINE_OCFS2_ULL_INT_EVENT(ocfs2_create_empty_xattr_block);
+
+DEFINE_OCFS2_STRING_EVENT(ocfs2_xattr_set_entry_bucket);
+
+DEFINE_OCFS2_STRING_EVENT(ocfs2_xattr_set_entry_index_block);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_xattr_bucket_value_refcount);
+
+DEFINE_OCFS2_ULL_UINT_UINT_EVENT(ocfs2_reflink_xattr_buckets);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_reflink_xattr_rec);
+
+/* End of trace events for fs/ocfs2/xattr.c. */
 #endif /* _TRACE_OCFS2_H */
 
 /* This part must be outside protection */
