@@ -495,6 +495,7 @@ struct tc_netem_corrupt {
 };
 
 #define NETEM_DIST_SCALE	8192
+#define NETEM_DIST_MAX		16384
 
 /* DRR */
 
