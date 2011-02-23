@@ -81,9 +81,9 @@ int tipc_in_scope(u32 domain, u32 addr)
 {
 	if (!domain || (domain == addr))
 		return 1;
-	if (domain == (addr & 0xfffff000u)) /* domain <Z.C.0> */
+	if (domain == tipc_cluster_mask(addr)) /* domain <Z.C.0> */
 		return 1;
-	if (domain == (addr & 0xff000000u)) /* domain <Z.0.0> */
+	if (domain == tipc_zone_mask(addr)) /* domain <Z.0.0> */
 		return 1;
 	return 0;
 }
