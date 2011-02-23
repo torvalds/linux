@@ -130,23 +130,26 @@ void pll_disable(uint32_t pll);
 extern int internal_pwr_rail_ctl_auto(unsigned rail_id, bool enable);
 
 #define CLK_7X30(clk_name, clk_id, clk_dev, clk_flags) {	\
-	.name = clk_name, \
-	.id = L_7X30_##clk_id, \
-	.remote_id = P_##clk_id, \
-	.flags = clk_flags, \
-	.dev = clk_dev, \
-	.dbg_name = #clk_id, \
+	.con_id = clk_name, \
+	.dev_id = clk_dev, \
+	.clk = &(struct clk){ \
+		.id = L_7X30_##clk_id, \
+		.remote_id = P_##clk_id, \
+		.flags = clk_flags, \
+		.dbg_name = #clk_id, \
+	}, \
 	}
 
 #define CLK_7X30S(clk_name, l_id, r_id, clk_dev, clk_flags) {	\
-	.name = clk_name, \
-	.id = L_7X30_##l_id, \
-	.remote_id = P_##r_id, \
-	.flags = clk_flags, \
-	.dev = clk_dev, \
-	.dbg_name = #l_id, \
-	.ops = &clk_ops_pcom, \
+	.con_id = clk_name, \
+	.dev_id = clk_dev, \
+	.clk = &(struct clk){ \
+		.id = L_7X30_##l_id, \
+		.remote_id = P_##r_id, \
+		.flags = clk_flags, \
+		.dbg_name = #l_id, \
+		.ops = &clk_ops_pcom, \
+	}, \
 	}
 
 #endif
-

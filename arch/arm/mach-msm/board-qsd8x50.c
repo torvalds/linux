@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/usb/msm_hsusb.h>
 #include <linux/err.h>
+#include <linux/clkdev.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

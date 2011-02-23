@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 
 #include <linux/dma-mapping.h>
+#include <linux/clkdev.h>
 #include <mach/irqs.h>
 #include <mach/msm_iomap.h>
 #include <mach/dma.h>
@@ -129,7 +130,7 @@ struct platform_device msm_device_hsusb_host = {
 	},
 };
 
-struct clk msm_clocks_7x30[] = {
+struct clk_lookup msm_clocks_7x30[] = {
 	CLK_PCOM("adm_clk",	ADM_CLK,	NULL, 0),
 	CLK_PCOM("adsp_clk",	ADSP_CLK,	NULL, 0),
 	CLK_PCOM("cam_m_clk",	CAM_M_CLK,	NULL, 0),
@@ -181,7 +182,7 @@ struct clk msm_clocks_7x30[] = {
 	CLK_7X30S("tv_src_clk",	TV_CLK, 	TV_ENC_CLK,	NULL, 0),
 	CLK_PCOM("tv_dac_clk",	TV_DAC_CLK,	NULL, 0),
 	CLK_PCOM("tv_enc_clk",	TV_ENC_CLK,	NULL, 0),
-	CLK_PCOM("uart_clk",	UART2_CLK,	&msm_device_uart2.dev, 0),
+	CLK_PCOM("uart_clk",	UART2_CLK,	"msm_serial.1", 0),
 	CLK_PCOM("usb_phy_clk",	USB_PHY_CLK,	NULL, 0),
 	CLK_PCOM("usb_hs_clk",		USB_HS_CLK,		NULL, OFF),
 	CLK_PCOM("usb_hs_pclk",		USB_HS_P_CLK,		NULL, OFF),

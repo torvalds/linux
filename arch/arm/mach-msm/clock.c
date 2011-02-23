@@ -19,6 +19,11 @@
 #include <linux/err.h>
 #include <linux/spinlock.h>
 #include <linux/pm_qos_params.h>
+#include <linux/mutex.h>
+#include <linux/clk.h>
+#include <linux/string.h>
+#include <linux/module.h>
+#include <linux/clkdev.h>
 
 #include "clock.h"
 
@@ -29,32 +34,6 @@ static LIST_HEAD(clocks);
 /*
  * Standard clock functions defined in include/linux/clk.h
  */
-struct clk *clk_get(struct device *dev, const char *id)
-{
-	struct clk *clk;
-
-	mutex_lock(&clocks_mutex);
-
-	list_for_each_entry(clk, &clocks, list)
-		if (!strcmp(id, clk->name) && clk->dev == dev)
-			goto found_it;
-
-	list_for_each_entry(clk, &clocks, list)
-		if (!strcmp(id, clk->name) && clk->dev == NULL)
-			goto found_it;
-
-	clk = ERR_PTR(-ENOENT);
-found_it:
-	mutex_unlock(&clocks_mutex);
-	return clk;
-}
-EXPORT_SYMBOL(clk_get);
-
-void clk_put(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(clk_put);
-
 int clk_enable(struct clk *clk)
 {
 	unsigned long flags;
@@ -157,13 +136,15 @@ EXPORT_SYMBOL(clk_set_flags);
  */
 static struct clk *ebi1_clk;
 
-void __init msm_clock_init(struct clk *clock_tbl, unsigned num_clocks)
+void __init msm_clock_init(struct clk_lookup *clock_tbl, unsigned num_clocks)
 {
 	unsigned n;
 
 	mutex_lock(&clocks_mutex);
-	for (n = 0; n < num_clocks; n++)
-		list_add_tail(&clock_tbl[n].list, &clocks);
+	for (n = 0; n < num_clocks; n++) {
+		clkdev_add(&clock_tbl[n]);
+		list_add_tail(&clock_tbl[n].clk->list, &clocks);
+	}
 	mutex_unlock(&clocks_mutex);
 
 	ebi1_clk = clk_get(NULL, "ebi1_clk");

@@ -126,13 +126,15 @@ extern struct clk_ops clk_ops_pcom;
 int pc_clk_reset(unsigned id, enum clk_reset_action action);
 
 #define CLK_PCOM(clk_name, clk_id, clk_dev, clk_flags) {	\
-	.name = clk_name, \
-	.id = P_##clk_id, \
-	.remote_id = P_##clk_id, \
-	.ops = &clk_ops_pcom, \
-	.flags = clk_flags, \
-	.dev = clk_dev, \
-	.dbg_name = #clk_id, \
+	.con_id = clk_name, \
+	.dev_id = clk_dev, \
+	.clk = &(struct clk){ \
+		.id = P_##clk_id, \
+		.remote_id = P_##clk_id, \
+		.ops = &clk_ops_pcom, \
+		.flags = clk_flags, \
+		.dbg_name = #clk_id, \
+	}, \
 	}
 
 #endif
