@@ -616,7 +616,6 @@ void scic_sds_controller_afe_initialization(struct scic_sds_controller *scic)
 		scu_afe_register_write(scic, afe_bias_control, 0x00005500);
 	else
 		scu_afe_register_write(scic, afe_bias_control, 0x00005A00);
-	
 
 	scic_cb_stall_execution(AFE_REGISTER_WRITE_DELAY);
 
@@ -625,7 +624,7 @@ void scic_sds_controller_afe_initialization(struct scic_sds_controller *scic)
 		scu_afe_register_write(scic, afe_pll_control0, 0x80040A08);
 	else
 		scu_afe_register_write(scic, afe_pll_control0, 0x80040908);
-		
+
 	scic_cb_stall_execution(AFE_REGISTER_WRITE_DELAY);
 
 	/* Wait for the PLL to lock */
@@ -1962,17 +1961,16 @@ void scic_sds_controller_release_frame(
  *    configuration parameters to their default values.
  *
  */
-static void scic_sds_controller_set_default_config_parameters(
-	struct scic_sds_controller *this_controller)
+static void scic_sds_controller_set_default_config_parameters(struct scic_sds_controller *scic)
 {
 	u16 index;
 
 	/* Default to no SSC operation. */
-	this_controller->oem_parameters.sds1.controller.do_enable_ssc = false;
+	scic->oem_parameters.sds1.controller.do_enable_ssc = false;
 
 	/* Initialize all of the port parameter information to narrow ports. */
 	for (index = 0; index < SCI_MAX_PORTS; index++) {
-		this_controller->oem_parameters.sds1.ports[index].phy_mask = 0;
+		scic->oem_parameters.sds1.ports[index].phy_mask = 0;
 	}
 
 	/* Initialize all of the phy parameter information. */
@@ -1980,24 +1978,27 @@ static void scic_sds_controller_set_default_config_parameters(
 		/*
 		 * Default to 3G (i.e. Gen 2) for now.  User can override if
 		 * they choose. */
-		this_controller->user_parameters.sds1.phys[index].max_speed_generation = 2;
+		scic->user_parameters.sds1.phys[index].max_speed_generation = 2;
+
+		/* the frequencies cannot be 0 */
+		scic->user_parameters.sds1.phys[index].align_insertion_frequency = 0x7f;
+		scic->user_parameters.sds1.phys[index].in_connection_align_insertion_frequency = 0xff;
+		scic->user_parameters.sds1.phys[index].notify_enable_spin_up_insertion_frequency = 0x33;
 
 		/*
 		 * Previous Vitesse based expanders had a arbitration issue that
 		 * is worked around by having the upper 32-bits of SAS address
 		 * with a value greater then the Vitesse company identifier.
 		 * Hence, usage of 0x5FCFFFFF. */
-		this_controller->oem_parameters.sds1.phys[index].sas_address.low
-			= 0x00000001;
-		this_controller->oem_parameters.sds1.phys[index].sas_address.high
-			= 0x5FCFFFFF;
+		scic->oem_parameters.sds1.phys[index].sas_address.low = 0x00000001;
+		scic->oem_parameters.sds1.phys[index].sas_address.high = 0x5FCFFFFF;
 	}
 
-	this_controller->user_parameters.sds1.stp_inactivity_timeout = 5;
-	this_controller->user_parameters.sds1.ssp_inactivity_timeout = 5;
-	this_controller->user_parameters.sds1.stp_max_occupancy_timeout = 5;
-	this_controller->user_parameters.sds1.ssp_max_occupancy_timeout = 20;
-	this_controller->user_parameters.sds1.no_outbound_task_timeout = 20;
+	scic->user_parameters.sds1.stp_inactivity_timeout = 5;
+	scic->user_parameters.sds1.ssp_inactivity_timeout = 5;
+	scic->user_parameters.sds1.stp_max_occupancy_timeout = 5;
+	scic->user_parameters.sds1.ssp_max_occupancy_timeout = 20;
+	scic->user_parameters.sds1.no_outbound_task_timeout = 20;
 }
 
 
@@ -2103,9 +2104,9 @@ u32 scic_controller_get_suggested_start_timeout(
 	 *       per interval - 1 (once OEM parameters are supported).
 	 *       Currently we assume only 1 phy per interval. */
 
-	return (SCIC_SDS_SIGNATURE_FIS_TIMEOUT
+	return SCIC_SDS_SIGNATURE_FIS_TIMEOUT
 		+ SCIC_SDS_CONTROLLER_PHY_START_TIMEOUT
-		+ ((SCI_MAX_PHYS - 1) * SCIC_SDS_CONTROLLER_POWER_CONTROL_INTERVAL));
+		+ ((SCI_MAX_PHYS - 1) * SCIC_SDS_CONTROLLER_POWER_CONTROL_INTERVAL);
 }
 
 /* --------------------------------------------------------------------------- */
@@ -2489,15 +2490,28 @@ enum sci_status scic_user_parameters_set(
 		 * Validate the user parameters.  If they are not legal, then
 		 * return a failure. */
 		for (index = 0; index < SCI_MAX_PHYS; index++) {
-			if (!
-			    (scic_parms->sds1.phys[index].max_speed_generation
+			if (!(scic_parms->sds1.phys[index].max_speed_generation
 			     <= SCIC_SDS_PARM_MAX_SPEED
 			     && scic_parms->sds1.phys[index].max_speed_generation
-			     > SCIC_SDS_PARM_NO_SPEED
-			    )
+			     > SCIC_SDS_PARM_NO_SPEED))
+				return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+
+			if (scic_parms->sds1.phys[index].in_connection_align_insertion_frequency < 3)
+				return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+			if (
+			    (scic_parms->sds1.phys[index].in_connection_align_insertion_frequency < 3) ||
+			    (scic_parms->sds1.phys[index].align_insertion_frequency == 0) ||
+			    (scic_parms->sds1.phys[index].notify_enable_spin_up_insertion_frequency == 0)
 			    )
 				return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 		}
+
+		if ((scic_parms->sds1.stp_inactivity_timeout == 0) ||
+		   (scic_parms->sds1.ssp_inactivity_timeout == 0) ||
+		   (scic_parms->sds1.stp_max_occupancy_timeout == 0) ||
+		   (scic_parms->sds1.ssp_max_occupancy_timeout == 0) ||
+		   (scic_parms->sds1.no_outbound_task_timeout == 0))
+			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 
 		memcpy(&scic->user_parameters, scic_parms, sizeof(*scic_parms));
 

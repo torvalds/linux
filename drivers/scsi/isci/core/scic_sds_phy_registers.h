@@ -217,6 +217,14 @@
 #define SCU_SAS_ENSPINUP_WRITE(phy, value) \
 	scu_link_layer_register_write(phy, notify_enable_spinup_control, value)
 
+/* This macro reads the CLKSM register */
+#define SCU_SAS_CLKSM_READ(phy) \
+	scu_link_layer_register_read(phy, clock_skew_management)
+
+/* This macro writes the CLKSM register */
+#define SCU_SAS_CLKSM_WRITE(phy, value) \
+	scu_link_layer_register_write(phy, clock_skew_management, value)
+
 /* / This macro reads the PHY Capacity register */
 #define SCU_SAS_PHYCAP_READ(phy) \
 	scu_link_layer_register_read(phy, phy_capabilities)

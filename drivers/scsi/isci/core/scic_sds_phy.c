@@ -125,6 +125,7 @@ static enum sci_status scic_sds_phy_link_layer_initialization(
 	u32 parity_check = 0;
 	u32 parity_count = 0;
 	u32 link_layer_control;
+	u32 clksm_value = 0;
 
 	this_phy->link_layer_registers = link_layer_registers;
 
@@ -199,7 +200,20 @@ static enum sci_status scic_sds_phy_link_layer_initialization(
 	SCU_SAS_PHYCAP_WRITE(this_phy, phy_capabilities.u.all);
 
 	/* Set the enable spinup period but disable the ability to send notify enable spinup */
-	SCU_SAS_ENSPINUP_WRITE(this_phy, SCU_ENSPINUP_GEN_VAL(COUNT, 0x33));
+	SCU_SAS_ENSPINUP_WRITE(this_phy, SCU_ENSPINUP_GEN_VAL(COUNT,
+		this_phy->owning_port->owning_controller->user_parameters.sds1.
+		phys[this_phy->phy_index].notify_enable_spin_up_insertion_frequency));
+
+	/* Write the ALIGN Insertion Ferequency for connected phy and inpendent of connected state */
+	clksm_value = SCU_ALIGN_INSERTION_FREQUENCY_GEN_VAL(CONNECTED,
+		this_phy->owning_port->owning_controller->user_parameters.sds1.
+			phys[this_phy->phy_index].in_connection_align_insertion_frequency);
+
+	clksm_value |= SCU_ALIGN_INSERTION_FREQUENCY_GEN_VAL(GENERAL,
+		this_phy->owning_port->owning_controller->user_parameters.sds1.
+			phys[this_phy->phy_index].align_insertion_frequency);
+
+	SCU_SAS_CLKSM_WRITE(this_phy, clksm_value);
 
 #if defined(CONFIG_PBG_HBA_A0) || defined(CONFIG_PBG_HBA_A2) || defined(CONFIG_PBG_HBA_BETA)
 	/* / @todo Provide a way to write this register correctly */
