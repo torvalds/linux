@@ -43,6 +43,7 @@ struct clk_ops {
 	unsigned (*get_rate)(unsigned id);
 	unsigned (*is_enabled)(unsigned id);
 	long (*round_rate)(unsigned id, unsigned rate);
+	bool (*is_local)(unsigned id);
 };
 
 struct clk {

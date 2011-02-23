@@ -19,7 +19,6 @@
 #include <linux/debugfs.h>
 #include <linux/clk.h>
 #include "clock.h"
-#include "clock-pcom.h"
 
 static int clock_debug_rate_set(void *data, u64 val)
 {
@@ -79,7 +78,7 @@ static int clock_debug_local_get(void *data, u64 *val)
 {
 	struct clk *clock = data;
 
-	*val = clock->ops != &clk_ops_pcom;
+	*val = clock->ops->is_local(clock->id);
 
 	return 0;
 }

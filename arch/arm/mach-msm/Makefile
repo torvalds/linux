@@ -1,7 +1,6 @@
 obj-y += io.o idle.o timer.o
-ifdef CONFIG_MSM_PROC_COMM
+obj-y += clock.o
 obj-$(CONFIG_DEBUG_FS) += clock-debug.o
-endif
 
 obj-$(CONFIG_MSM_VIC) += irq-vic.o
 obj-$(CONFIG_MSM_IOMMU) += iommu.o iommu_dev.o devices-iommu.o
@@ -9,11 +8,8 @@ obj-$(CONFIG_MSM_IOMMU) += iommu.o iommu_dev.o devices-iommu.o
 obj-$(CONFIG_ARCH_MSM7X00A) += dma.o irq.o acpuclock-arm11.o
 obj-$(CONFIG_ARCH_MSM7X30) += dma.o
 obj-$(CONFIG_ARCH_QSD8X50) += dma.o sirc.o
-obj-$(CONFIG_ARCH_MSM8X60) += clock-dummy.o
-obj-$(CONFIG_ARCH_MSM8960) += clock-dummy.o
 
 obj-$(CONFIG_MSM_PROC_COMM) += proc_comm.o clock-pcom.o vreg.o
-obj-$(CONFIG_MSM_PROC_COMM) += clock.o
 
 obj-$(CONFIG_MSM_SMD) += smd.o smd_debug.o
 obj-$(CONFIG_MSM_SMD) += last_radio_log.o

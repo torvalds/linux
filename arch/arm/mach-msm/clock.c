@@ -21,9 +21,6 @@
 #include <linux/pm_qos_params.h>
 
 #include "clock.h"
-#include "proc_comm.h"
-#include "clock-7x30.h"
-#include "clock-pcom.h"
 
 static DEFINE_MUTEX(clocks_mutex);
 static DEFINE_SPINLOCK(clocks_lock);
@@ -84,8 +81,6 @@ EXPORT_SYMBOL(clk_disable);
 
 int clk_reset(struct clk *clk, enum clk_reset_action action)
 {
-	if (!clk->ops->reset)
-		clk->ops->reset = &pc_clk_reset;
 	return clk->ops->reset(clk->remote_id, action);
 }
 EXPORT_SYMBOL(clk_reset);
@@ -162,23 +157,13 @@ EXPORT_SYMBOL(clk_set_flags);
  */
 static struct clk *ebi1_clk;
 
-static void __init set_clock_ops(struct clk *clk)
-{
-	if (!clk->ops) {
-		clk->ops = &clk_ops_pcom;
-		clk->id = clk->remote_id;
-	}
-}
-
 void __init msm_clock_init(struct clk *clock_tbl, unsigned num_clocks)
 {
 	unsigned n;
 
 	mutex_lock(&clocks_mutex);
-	for (n = 0; n < num_clocks; n++) {
-		set_clock_ops(&clock_tbl[n]);
+	for (n = 0; n < num_clocks; n++)
 		list_add_tail(&clock_tbl[n].list, &clocks);
-	}
 	mutex_unlock(&clocks_mutex);
 
 	ebi1_clk = clk_get(NULL, "ebi1_clk");

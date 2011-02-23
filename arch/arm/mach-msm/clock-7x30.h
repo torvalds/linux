@@ -145,6 +145,7 @@ extern int internal_pwr_rail_ctl_auto(unsigned rail_id, bool enable);
 	.flags = clk_flags, \
 	.dev = clk_dev, \
 	.dbg_name = #l_id, \
+	.ops = &clk_ops_pcom, \
 	}
 
 #endif
