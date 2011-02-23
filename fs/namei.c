@@ -754,6 +754,13 @@ __do_follow_link(const struct path *link, struct nameidata *nd, void **p)
 	if (link->mnt == nd->path.mnt)
 		mntget(link->mnt);
 
+	error = security_inode_follow_link(link->dentry, nd);
+	if (error) {
+		*p = ERR_PTR(error); /* no ->put_link(), please */
+		path_put(&nd->path);
+		return error;
+	}
+
 	nd->last_type = LAST_BIND;
 	*p = dentry->d_inode->i_op->follow_link(dentry, nd);
 	error = PTR_ERR(*p);
@@ -791,9 +798,6 @@ static inline int do_follow_link(struct inode *inode, struct path *path, struct 
 		goto loop;
 	BUG_ON(nd->depth >= MAX_NESTED_LINKS);
 	cond_resched();
-	err = security_inode_follow_link(path->dentry, nd);
-	if (err)
-		goto loop;
 	current->link_count++;
 	current->total_link_count++;
 	nd->depth++;
@@ -2420,9 +2424,6 @@ reval:
 		 * just set LAST_BIND.
 		 */
 		nd.flags |= LOOKUP_PARENT;
-		error = security_inode_follow_link(link.dentry, &nd);
-		if (error)
-			goto exit_dput;
 		error = __do_follow_link(&link, &nd, &cookie);
 		if (unlikely(error)) {
 			if (!IS_ERR(cookie) && linki->i_op->put_link)
