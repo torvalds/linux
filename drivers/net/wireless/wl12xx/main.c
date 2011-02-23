@@ -482,6 +482,10 @@ static int wl1271_plt_init(struct wl1271 *wl)
 	if (ret < 0)
 		goto out_free_memmap;
 
+	ret = wl1271_acx_sta_mem_cfg(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
 	/* Default fragmentation threshold */
 	ret = wl1271_acx_frag_threshold(wl, wl->conf.tx.frag_threshold);
 	if (ret < 0)
@@ -533,6 +537,57 @@ static int wl1271_plt_init(struct wl1271 *wl)
 	return ret;
 }
 
+static void wl1271_irq_ps_regulate_link(struct wl1271 *wl, u8 hlid, u8 tx_blks)
+{
+	bool fw_ps;
+
+	/* only regulate station links */
+	if (hlid < WL1271_AP_STA_HLID_START)
+		return;
+
+	fw_ps = test_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map);
+
+	/*
+	 * Wake up from high level PS if the STA is asleep with too little
+	 * blocks in FW or if the STA is awake.
+	 */
+	if (!fw_ps || tx_blks < WL1271_PS_STA_MAX_BLOCKS)
+		wl1271_ps_link_end(wl, hlid);
+
+	/* Start high-level PS if the STA is asleep with enough blocks in FW */
+	else if (fw_ps && tx_blks >= WL1271_PS_STA_MAX_BLOCKS)
+		wl1271_ps_link_start(wl, hlid, true);
+}
+
+static void wl1271_irq_update_links_status(struct wl1271 *wl,
+				       struct wl1271_fw_ap_status *status)
+{
+	u32 cur_fw_ps_map;
+	u8 hlid;
+
+	cur_fw_ps_map = le32_to_cpu(status->link_ps_bitmap);
+	if (wl->ap_fw_ps_map != cur_fw_ps_map) {
+		wl1271_debug(DEBUG_PSM,
+			     "link ps prev 0x%x cur 0x%x changed 0x%x",
+			     wl->ap_fw_ps_map, cur_fw_ps_map,
+			     wl->ap_fw_ps_map ^ cur_fw_ps_map);
+
+		wl->ap_fw_ps_map = cur_fw_ps_map;
+	}
+
+	for (hlid = WL1271_AP_STA_HLID_START; hlid < AP_MAX_LINKS; hlid++) {
+		u8 cnt = status->tx_lnk_free_blks[hlid] -
+			wl->links[hlid].prev_freed_blks;
+
+		wl->links[hlid].prev_freed_blks =
+			status->tx_lnk_free_blks[hlid];
+		wl->links[hlid].allocated_blks -= cnt;
+
+		wl1271_irq_ps_regulate_link(wl, hlid,
+					    wl->links[hlid].allocated_blks);
+	}
+}
+
 static void wl1271_fw_status(struct wl1271 *wl,
 			     struct wl1271_fw_full_status *full_status)
 {
@@ -569,6 +624,10 @@ static void wl1271_fw_status(struct wl1271 *wl,
 	/* if more blocks are available now, tx work can be scheduled */
 	if (total)
 		clear_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags);
+
+	/* for AP update num of allocated TX blocks per link and ps status */
+	if (wl->bss_type == BSS_TYPE_AP_BSS)
+		wl1271_irq_update_links_status(wl, &full_status->ap);
 
 	/* update the host-chipset time offset */
 	getnstimeofday(&ts);
@@ -980,14 +1039,32 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct wl1271 *wl = hw->priv;
 	unsigned long flags;
 	int q;
+	u8 hlid = 0;
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
 	wl->tx_queue_count++;
+
+	/*
+	 * The workqueue is slow to process the tx_queue and we need stop
+	 * the queue here, otherwise the queue will get too long.
+	 */
+	if (wl->tx_queue_count >= WL1271_TX_QUEUE_HIGH_WATERMARK) {
+		wl1271_debug(DEBUG_TX, "op_tx: stopping queues");
+		ieee80211_stop_queues(wl->hw);
+		set_bit(WL1271_FLAG_TX_QUEUE_STOPPED, &wl->flags);
+	}
+
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
 	/* queue the packet */
 	q = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
-	skb_queue_tail(&wl->tx_queue[q], skb);
+	if (wl->bss_type == BSS_TYPE_AP_BSS) {
+		hlid = wl1271_tx_get_hlid(skb);
+		wl1271_debug(DEBUG_TX, "queue skb hlid %d q %d", hlid, q);
+		skb_queue_tail(&wl->links[hlid].tx_queue[q], skb);
+	} else {
+		skb_queue_tail(&wl->tx_queue[q], skb);
+	}
 
 	/*
 	 * The chip specific setup must run before the first TX packet -
@@ -996,19 +1073,6 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags))
 		ieee80211_queue_work(wl->hw, &wl->tx_work);
-
-	/*
-	 * The workqueue is slow to process the tx_queue and we need stop
-	 * the queue here, otherwise the queue will get too long.
-	 */
-	if (wl->tx_queue_count >= WL1271_TX_QUEUE_HIGH_WATERMARK) {
-		wl1271_debug(DEBUG_TX, "op_tx: stopping queues");
-
-		spin_lock_irqsave(&wl->wl_lock, flags);
-		ieee80211_stop_queues(wl->hw);
-		set_bit(WL1271_FLAG_TX_QUEUE_STOPPED, &wl->flags);
-		spin_unlock_irqrestore(&wl->wl_lock, flags);
-	}
 
 	return NETDEV_TX_OK;
 }
@@ -1221,6 +1285,8 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl)
 	wl->filters = 0;
 	wl1271_free_ap_keys(wl);
 	memset(wl->ap_hlid_map, 0, sizeof(wl->ap_hlid_map));
+	wl->ap_fw_ps_map = 0;
+	wl->ap_ps_map = 0;
 
 	for (i = 0; i < NUM_TX_QUEUES; i++)
 		wl->tx_blocks_freed[i] = 0;
@@ -2218,6 +2284,8 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 	u32 sta_rate_set = 0;
 	int ret;
 	struct ieee80211_sta *sta;
+	bool sta_exists = false;
+	struct ieee80211_sta_ht_cap sta_ht_cap;
 
 	if (is_ibss) {
 		ret = wl1271_bss_beacon_info_changed(wl, vif, bss_conf,
@@ -2289,16 +2357,20 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 		if (sta->ht_cap.ht_supported)
 			sta_rate_set |=
 			    (sta->ht_cap.mcs.rx_mask[0] << HW_HT_RATES_OFFSET);
+		sta_ht_cap = sta->ht_cap;
+		sta_exists = true;
+	}
+	rcu_read_unlock();
 
+	if (sta_exists) {
 		/* handle new association with HT and HT information change */
 		if ((changed & BSS_CHANGED_HT) &&
 		    (bss_conf->channel_type != NL80211_CHAN_NO_HT)) {
-			ret = wl1271_acx_set_ht_capabilities(wl, &sta->ht_cap,
+			ret = wl1271_acx_set_ht_capabilities(wl, &sta_ht_cap,
 							     true);
 			if (ret < 0) {
 				wl1271_warning("Set ht cap true failed %d",
 					       ret);
-				rcu_read_unlock();
 				goto out;
 			}
 			ret = wl1271_acx_set_ht_information(wl,
@@ -2306,23 +2378,20 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 			if (ret < 0) {
 				wl1271_warning("Set ht information failed %d",
 					       ret);
-				rcu_read_unlock();
 				goto out;
 			}
 		}
 		/* handle new association without HT and disassociation */
 		else if (changed & BSS_CHANGED_ASSOC) {
-			ret = wl1271_acx_set_ht_capabilities(wl, &sta->ht_cap,
+			ret = wl1271_acx_set_ht_capabilities(wl, &sta_ht_cap,
 							     false);
 			if (ret < 0) {
 				wl1271_warning("Set ht cap false failed %d",
 					       ret);
-				rcu_read_unlock();
 				goto out;
 			}
 		}
 	}
-	rcu_read_unlock();
 
 	if ((changed & BSS_CHANGED_ASSOC)) {
 		if (bss_conf->assoc) {
@@ -2612,7 +2681,7 @@ static int wl1271_op_get_survey(struct ieee80211_hw *hw, int idx,
 	return 0;
 }
 
-static int wl1271_allocate_hlid(struct wl1271 *wl,
+static int wl1271_allocate_sta(struct wl1271 *wl,
 			     struct ieee80211_sta *sta,
 			     u8 *hlid)
 {
@@ -2626,18 +2695,25 @@ static int wl1271_allocate_hlid(struct wl1271 *wl,
 	}
 
 	wl_sta = (struct wl1271_station *)sta->drv_priv;
-
 	__set_bit(id, wl->ap_hlid_map);
 	wl_sta->hlid = WL1271_AP_STA_HLID_START + id;
 	*hlid = wl_sta->hlid;
+	memcpy(wl->links[wl_sta->hlid].addr, sta->addr, ETH_ALEN);
 	return 0;
 }
 
-static void wl1271_free_hlid(struct wl1271 *wl, u8 hlid)
+static void wl1271_free_sta(struct wl1271 *wl, u8 hlid)
 {
 	int id = hlid - WL1271_AP_STA_HLID_START;
 
+	if (WARN_ON(!test_bit(id, wl->ap_hlid_map)))
+		return;
+
 	__clear_bit(id, wl->ap_hlid_map);
+	memset(wl->links[hlid].addr, 0, ETH_ALEN);
+	wl1271_tx_reset_link_queues(wl, hlid);
+	__clear_bit(hlid, &wl->ap_ps_map);
+	__clear_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map);
 }
 
 static int wl1271_op_sta_add(struct ieee80211_hw *hw,
@@ -2658,13 +2734,13 @@ static int wl1271_op_sta_add(struct ieee80211_hw *hw,
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 add sta %d", (int)sta->aid);
 
-	ret = wl1271_allocate_hlid(wl, sta, &hlid);
+	ret = wl1271_allocate_sta(wl, sta, &hlid);
 	if (ret < 0)
 		goto out;
 
 	ret = wl1271_ps_elp_wakeup(wl, false);
 	if (ret < 0)
-		goto out;
+		goto out_free_sta;
 
 	ret = wl1271_cmd_add_sta(wl, sta, hlid);
 	if (ret < 0)
@@ -2672,6 +2748,10 @@ static int wl1271_op_sta_add(struct ieee80211_hw *hw,
 
 out_sleep:
 	wl1271_ps_elp_sleep(wl);
+
+out_free_sta:
+	if (ret < 0)
+		wl1271_free_sta(wl, hlid);
 
 out:
 	mutex_unlock(&wl->mutex);
@@ -2709,7 +2789,7 @@ static int wl1271_op_sta_remove(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out_sleep;
 
-	wl1271_free_hlid(wl, wl_sta->hlid);
+	wl1271_free_sta(wl, wl_sta->hlid);
 
 out_sleep:
 	wl1271_ps_elp_sleep(wl);
@@ -3212,7 +3292,9 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 		IEEE80211_HW_SUPPORTS_UAPSD |
 		IEEE80211_HW_HAS_RATE_CONTROL |
 		IEEE80211_HW_CONNECTION_MONITOR |
-		IEEE80211_HW_SUPPORTS_CQM_RSSI;
+		IEEE80211_HW_SUPPORTS_CQM_RSSI |
+		IEEE80211_HW_REPORTS_TX_ACK_STATUS |
+		IEEE80211_HW_AP_LINK_PS;
 
 	wl->hw->wiphy->cipher_suites = cipher_suites;
 	wl->hw->wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
@@ -3264,7 +3346,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	struct ieee80211_hw *hw;
 	struct platform_device *plat_dev = NULL;
 	struct wl1271 *wl;
-	int i, ret;
+	int i, j, ret;
 	unsigned int order;
 
 	hw = ieee80211_alloc_hw(sizeof(*wl), &wl1271_ops);
@@ -3292,6 +3374,10 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	for (i = 0; i < NUM_TX_QUEUES; i++)
 		skb_queue_head_init(&wl->tx_queue[i]);
 
+	for (i = 0; i < NUM_TX_QUEUES; i++)
+		for (j = 0; j < AP_MAX_LINKS; j++)
+			skb_queue_head_init(&wl->links[j].tx_queue[i]);
+
 	INIT_DELAYED_WORK(&wl->elp_work, wl1271_elp_work);
 	INIT_DELAYED_WORK(&wl->pspoll_work, wl1271_pspoll_work);
 	INIT_WORK(&wl->irq_work, wl1271_irq_work);
@@ -3317,6 +3403,9 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->bss_type = MAX_BSS_TYPE;
 	wl->set_bss_type = MAX_BSS_TYPE;
 	wl->fw_bss_type = MAX_BSS_TYPE;
+	wl->last_tx_hlid = 0;
+	wl->ap_ps_map = 0;
+	wl->ap_fw_ps_map = 0;
 
 	memset(wl->tx_frames_map, 0, sizeof(wl->tx_frames_map));
 	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)
@@ -3412,5 +3501,5 @@ module_param_named(debug_level, wl12xx_debug_level, uint, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(debug_level, "wl12xx debugging level");
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Luciano Coelho <luciano.coelho@nokia.com>");
+MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
 MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@nokia.com>");

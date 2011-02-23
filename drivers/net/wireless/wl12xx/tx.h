@@ -53,8 +53,6 @@
 #define TX_HW_RESULT_QUEUE_LEN_MASK      0xf
 
 #define WL1271_TX_ALIGN_TO 4
-#define WL1271_TX_ALIGN(len) (((len) + WL1271_TX_ALIGN_TO - 1) & \
-			     ~(WL1271_TX_ALIGN_TO - 1))
 #define WL1271_TKIP_IV_SPACE 4
 
 struct wl1271_tx_hw_descr {
@@ -152,5 +150,8 @@ void wl1271_tx_flush(struct wl1271 *wl);
 u8 wl1271_rate_to_idx(int rate, enum ieee80211_band band);
 u32 wl1271_tx_enabled_rates_get(struct wl1271 *wl, u32 rate_set);
 u32 wl1271_tx_min_rate_get(struct wl1271 *wl);
+u8 wl1271_tx_get_hlid(struct sk_buff *skb);
+void wl1271_tx_reset_link_queues(struct wl1271 *wl, u8 hlid);
+void wl1271_handle_tx_low_watermark(struct wl1271 *wl);
 
 #endif
