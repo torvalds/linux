@@ -2426,15 +2426,12 @@ reval:
 		nd.flags |= LOOKUP_PARENT;
 		error = __do_follow_link(&link, &nd, &cookie);
 		if (unlikely(error)) {
-			if (!IS_ERR(cookie) && linki->i_op->put_link)
-				linki->i_op->put_link(link.dentry, &nd, cookie);
-			/* nd.path had been dropped */
-			nd.path = link;
-			goto out_path;
+			filp = ERR_PTR(error);
+		} else {
+			nd.flags &= ~LOOKUP_PARENT;
+			filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
 		}
-		nd.flags &= ~LOOKUP_PARENT;
-		filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
-		if (linki->i_op->put_link)
+		if (!IS_ERR(cookie) && linki->i_op->put_link)
 			linki->i_op->put_link(link.dentry, &nd, cookie);
 		path_put(&link);
 	}
