@@ -298,8 +298,8 @@ static int __unmap_grant_pages(struct grant_map *map, int offset, int pages)
 	if (map->notify.flags & UNMAP_NOTIFY_CLEAR_BYTE) {
 		int pgno = (map->notify.addr >> PAGE_SHIFT);
 		if (pgno >= offset && pgno < offset + pages && use_ptemod) {
-			void __user *tmp;
-			tmp = map->vma->vm_start + map->notify.addr;
+			void __user *tmp = (void __user *)
+				map->vma->vm_start + map->notify.addr;
 			err = copy_to_user(tmp, &err, 1);
 			if (err)
 				return err;
