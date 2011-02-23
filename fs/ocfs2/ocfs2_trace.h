@@ -1925,6 +1925,16 @@ TRACE_EVENT(ocfs2_resmap_claimed_bits_end,
 );
 
 /* End of trace events for fs/ocfs2/reservations.c. */
+
+/* Trace events for fs/ocfs2/quota_local.c. */
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_recover_local_quota_file);
+
+DEFINE_OCFS2_INT_EVENT(ocfs2_finish_quota_recovery);
+
+DEFINE_OCFS2_ULL_ULL_UINT_EVENT(olq_set_dquot);
+
+/* End of trace events for fs/ocfs2/quota_local.c. */
 #endif /* _TRACE_OCFS2_H */
 
 /* This part must be outside protection */
