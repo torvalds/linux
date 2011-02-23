@@ -3322,6 +3322,16 @@ F:	Documentation/wimax/README.i2400m
 F:	drivers/net/wimax/i2400m/
 F:	include/linux/wimax/i2400m.h
 
+INTEL PRO/WIRELESS 3945ABG/BG NETWORK CONNECTION SUPPORT
+L:	linux-wireless@vger.kernel.org
+S:	Orphan
+F:	drivers/net/wireless/iwlegacy/
+
+INTEL WIRELESS WIFI 4965AGN NETWORK CONNECTION SUPPORT
+L:	linux-wireless@vger.kernel.org
+S:	Orphan
+F:	drivers/net/wireless/iwlegacy/
+
 INTEL WIRELESS WIFI LINK (iwlwifi)
 M:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
 M:	Intel Linux Wireless <ilw@linux.intel.com>
