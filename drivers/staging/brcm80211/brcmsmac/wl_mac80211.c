@@ -172,7 +172,9 @@ static int wl_ops_start(struct ieee80211_hw *hw)
 	*/
 
 	ieee80211_wake_queues(hw);
+	WL_LOCK(wl);
 	blocked = wl_rfkill_set_hw_state(wl);
+	WL_UNLOCK(wl);
 	if (!blocked)
 		wiphy_rfkill_stop_polling(wl->pub->ieee_hw->wiphy);
 
@@ -351,7 +353,9 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 			val = 1;
 		else
 			val = 0;
+		WL_LOCK(wl);
 		wlc_set(wl->wlc, WLC_SET_SHORTSLOT_OVERRIDE, val);
+		WL_UNLOCK(wl);
 	}
 
 	if (changed & BSS_CHANGED_HT) {
@@ -380,8 +384,10 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 		/* BSSID changed, for whatever reason (IBSS and managed mode) */
 		WL_NONE("%s: new BSSID: aid %d  bss:%pM\n", __func__,
 			info->aid, info->bssid);
+		WL_LOCK(wl);
 		wlc_set_addrmatch(wl->wlc, RCM_BSSID_OFFSET,
 				  info->bssid);
+		WL_UNLOCK(wl);
 	}
 	if (changed & BSS_CHANGED_BEACON) {
 		/* Beacon data changed, retrieve new beacon (beaconing modes) */
@@ -609,6 +615,7 @@ wl_ops_ampdu_action(struct ieee80211_hw *hw,
 	struct scb *scb = (struct scb *)sta->drv_priv;
 #endif
 	struct wl_info *wl = hw->priv;
+	int status;
 
 	ASSERT(scb->magic == SCB_MAGIC);
 	switch (action) {
@@ -619,7 +626,10 @@ wl_ops_ampdu_action(struct ieee80211_hw *hw,
 		WL_NONE("%s: action = IEEE80211_AMPDU_RX_STOP\n", __func__);
 		break;
 	case IEEE80211_AMPDU_TX_START:
-		if (!wlc_aggregatable(wl->wlc, tid)) {
+		WL_LOCK(wl);
+		status = wlc_aggregatable(wl->wlc, tid);
+		WL_UNLOCK(wl);
+		if (!status) {
 			/* WL_ERROR("START: tid %d is not agg' able, return FAILURE to stack\n", tid); */
 			return -1;
 		}
@@ -1215,6 +1225,7 @@ static void wl_remove(struct pci_dev *pdev)
 {
 	struct wl_info *wl;
 	struct ieee80211_hw *hw;
+	int status;
 
 	hw = pci_get_drvdata(pdev);
 	wl = HW_TO_WL(hw);
@@ -1223,7 +1234,10 @@ static void wl_remove(struct pci_dev *pdev)
 		return;
 	}
 
-	if (!wlc_chipmatch(pdev->vendor, pdev->device)) {
+	WL_LOCK(wl);
+	status = wlc_chipmatch(pdev->vendor, pdev->device);
+	WL_UNLOCK(wl);
+	if (!status) {
 		WL_ERROR("wl: wl_remove: wlc_chipmatch failed\n");
 		return;
 	}
