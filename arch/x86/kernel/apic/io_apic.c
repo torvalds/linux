@@ -1216,10 +1216,6 @@ void __setup_vector_irq(int cpu)
 static struct irq_chip ioapic_chip;
 static struct irq_chip ir_ioapic_chip;
 
-#define IOAPIC_AUTO     -1
-#define IOAPIC_EDGE     0
-#define IOAPIC_LEVEL    1
-
 #ifdef CONFIG_X86_32
 static inline int IO_APIC_irq_trigger(int irq)
 {
