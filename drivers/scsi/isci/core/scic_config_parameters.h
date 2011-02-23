@@ -114,7 +114,7 @@ struct scic_sds_controller;
  *
  */
 struct scic_sds_user_parameters {
-	struct {
+	struct sci_phy_user_params {
 		/**
 		 * This field specifies the NOTIFY (ENABLE SPIN UP) primitive
 		 * insertion frequency for this phy index.
@@ -250,7 +250,7 @@ struct scic_sds_oem_parameters {
 
 	} ports[SCI_MAX_PORTS];
 
-	struct {
+	struct sci_phy_oem_params {
 		/**
 		 * This field specifies the SAS address to be transmitted on
 		 * for this phy index.

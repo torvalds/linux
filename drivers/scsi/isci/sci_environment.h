@@ -108,5 +108,19 @@ enum {
 
 extern int isci_si_rev;
 
+static inline bool is_a0(void)
+{
+	return isci_si_rev == ISCI_SI_REVA0;
+}
+
+static inline bool is_a2(void)
+{
+	return isci_si_rev == ISCI_SI_REVA2;
+}
+
+static inline bool is_b0(void)
+{
+	return isci_si_rev > ISCI_SI_REVA2;
+}
 
 #endif

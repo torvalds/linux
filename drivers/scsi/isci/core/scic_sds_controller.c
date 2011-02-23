@@ -584,21 +584,6 @@ void scic_sds_controller_enable_port_task_scheduler(
  */
 #define AFE_REGISTER_WRITE_DELAY 10
 
-static bool is_a0(void)
-{
-	return isci_si_rev == ISCI_SI_REVA0;
-}
-
-static bool is_a2(void)
-{
-	return isci_si_rev == ISCI_SI_REVA2;
-}
-
-static bool is_b0(void)
-{
-	return isci_si_rev > ISCI_SI_REVA2;
-}
-
 /* Initialize the AFE for this phy index. We need to read the AFE setup from
  * the OEM parameters none
  */

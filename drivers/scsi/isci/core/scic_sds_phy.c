@@ -111,62 +111,55 @@ static enum sci_status scic_sds_phy_transport_layer_initialization(
 
 /**
  * This method will initialize the phy link layer registers
- * @this_phy:
+ * @sci_phy:
  * @link_layer_registers:
  *
  * enum sci_status
  */
-static enum sci_status scic_sds_phy_link_layer_initialization(
-	struct scic_sds_phy *this_phy,
-	struct scu_link_layer_registers __iomem *link_layer_registers)
+static enum sci_status
+scic_sds_phy_link_layer_initialization(struct scic_sds_phy *sci_phy,
+				       struct scu_link_layer_registers __iomem *link_layer_registers)
 {
+	struct scic_sds_controller *scic = sci_phy->owning_port->owning_controller;
+	int phy_idx = sci_phy->phy_index;
+	struct sci_phy_user_params *phy_user = &scic->user_parameters.sds1.phys[phy_idx];
+	struct sci_phy_oem_params *phy_oem = &scic->oem_parameters.sds1.phys[phy_idx];
 	u32 phy_configuration;
 	struct sas_capabilities phy_capabilities;
 	u32 parity_check = 0;
 	u32 parity_count = 0;
-	u32 link_layer_control;
+	u32 llctl, link_rate;
 	u32 clksm_value = 0;
 
-	this_phy->link_layer_registers = link_layer_registers;
+	sci_phy->link_layer_registers = link_layer_registers;
 
 	/* Set our IDENTIFY frame data */
 	#define SCI_END_DEVICE 0x01
 
-	SCU_SAS_TIID_WRITE(
-		this_phy,
-		(SCU_SAS_TIID_GEN_BIT(SMP_INITIATOR)
-		 | SCU_SAS_TIID_GEN_BIT(SSP_INITIATOR)
-		 | SCU_SAS_TIID_GEN_BIT(STP_INITIATOR)
-		 | SCU_SAS_TIID_GEN_BIT(DA_SATA_HOST)
-		 | SCU_SAS_TIID_GEN_VAL(DEVICE_TYPE, SCI_END_DEVICE))
-		);
+	SCU_SAS_TIID_WRITE(sci_phy, (SCU_SAS_TIID_GEN_BIT(SMP_INITIATOR) |
+				     SCU_SAS_TIID_GEN_BIT(SSP_INITIATOR) |
+				     SCU_SAS_TIID_GEN_BIT(STP_INITIATOR) |
+				     SCU_SAS_TIID_GEN_BIT(DA_SATA_HOST) |
+				     SCU_SAS_TIID_GEN_VAL(DEVICE_TYPE, SCI_END_DEVICE)));
 
 	/* Write the device SAS Address */
-	SCU_SAS_TIDNH_WRITE(this_phy, 0xFEDCBA98);
-	SCU_SAS_TIDNL_WRITE(this_phy, this_phy->phy_index);
+	SCU_SAS_TIDNH_WRITE(sci_phy, 0xFEDCBA98);
+	SCU_SAS_TIDNL_WRITE(sci_phy, phy_idx);
 
 	/* Write the source SAS Address */
-	SCU_SAS_TISSAH_WRITE(
-		this_phy,
-		this_phy->owning_port->owning_controller->oem_parameters.sds1.phys[
-			this_phy->phy_index].sas_address.high
-		);
-	SCU_SAS_TISSAL_WRITE(
-		this_phy,
-		this_phy->owning_port->owning_controller->oem_parameters.sds1.phys[
-			this_phy->phy_index].sas_address.low
-		);
+	SCU_SAS_TISSAH_WRITE(sci_phy, phy_oem->sas_address.high);
+	SCU_SAS_TISSAL_WRITE(sci_phy, phy_oem->sas_address.low);
 
 	/* Clear and Set the PHY Identifier */
-	SCU_SAS_TIPID_WRITE(this_phy, 0x00000000);
-	SCU_SAS_TIPID_WRITE(this_phy, SCU_SAS_TIPID_GEN_VALUE(ID, this_phy->phy_index));
+	SCU_SAS_TIPID_WRITE(sci_phy, 0x00000000);
+	SCU_SAS_TIPID_WRITE(sci_phy, SCU_SAS_TIPID_GEN_VALUE(ID, phy_idx));
 
 	/* Change the initial state of the phy configuration register */
-	phy_configuration = SCU_SAS_PCFG_READ(this_phy);
+	phy_configuration = SCU_SAS_PCFG_READ(sci_phy);
 
 	/* Hold OOB state machine in reset */
 	phy_configuration |=  SCU_SAS_PCFG_GEN_BIT(OOB_RESET);
-	SCU_SAS_PCFG_WRITE(this_phy, phy_configuration);
+	SCU_SAS_PCFG_WRITE(sci_phy, phy_configuration);
 
 	/* Configure the SNW capabilities */
 	phy_capabilities.u.all = 0;
@@ -174,8 +167,7 @@ static enum sci_status scic_sds_phy_link_layer_initialization(
 	phy_capabilities.u.bits.gen3_without_ssc_supported = 1;
 	phy_capabilities.u.bits.gen2_without_ssc_supported = 1;
 	phy_capabilities.u.bits.gen1_without_ssc_supported = 1;
-	if (this_phy->owning_port->owning_controller->oem_parameters.sds1.
-	    controller.do_enable_ssc == true) {
+	if (scic->oem_parameters.sds1.controller.do_enable_ssc == true) {
 		phy_capabilities.u.bits.gen3_with_ssc_supported = 1;
 		phy_capabilities.u.bits.gen2_with_ssc_supported = 1;
 		phy_capabilities.u.bits.gen1_with_ssc_supported = 1;
@@ -197,93 +189,66 @@ static enum sci_status scic_sds_phy_link_layer_initialization(
 	if ((parity_count % 2) != 0)
 		phy_capabilities.u.bits.parity = 1;
 
-	SCU_SAS_PHYCAP_WRITE(this_phy, phy_capabilities.u.all);
+	SCU_SAS_PHYCAP_WRITE(sci_phy, phy_capabilities.u.all);
 
-	/* Set the enable spinup period but disable the ability to send notify enable spinup */
-	SCU_SAS_ENSPINUP_WRITE(this_phy, SCU_ENSPINUP_GEN_VAL(COUNT,
-		this_phy->owning_port->owning_controller->user_parameters.sds1.
-		phys[this_phy->phy_index].notify_enable_spin_up_insertion_frequency));
+	/* Set the enable spinup period but disable the ability to send
+	 * notify enable spinup
+	 */
+	SCU_SAS_ENSPINUP_WRITE(sci_phy, SCU_ENSPINUP_GEN_VAL(COUNT,
+			       phy_user->notify_enable_spin_up_insertion_frequency));
 
-	/* Write the ALIGN Insertion Ferequency for connected phy and inpendent of connected state */
+	/* Write the ALIGN Insertion Ferequency for connected phy and
+	 * inpendent of connected state
+	 */
 	clksm_value = SCU_ALIGN_INSERTION_FREQUENCY_GEN_VAL(CONNECTED,
-		this_phy->owning_port->owning_controller->user_parameters.sds1.
-			phys[this_phy->phy_index].in_connection_align_insertion_frequency);
+			phy_user->in_connection_align_insertion_frequency);
 
 	clksm_value |= SCU_ALIGN_INSERTION_FREQUENCY_GEN_VAL(GENERAL,
-		this_phy->owning_port->owning_controller->user_parameters.sds1.
-			phys[this_phy->phy_index].align_insertion_frequency);
+			phy_user->align_insertion_frequency);
 
-	SCU_SAS_CLKSM_WRITE(this_phy, clksm_value);
+	SCU_SAS_CLKSM_WRITE(sci_phy, clksm_value);
 
-#if defined(CONFIG_PBG_HBA_A0) || defined(CONFIG_PBG_HBA_A2) || defined(CONFIG_PBG_HBA_BETA)
-	/* / @todo Provide a way to write this register correctly */
-	scu_link_layer_register_write(this_phy, afe_lookup_table_control, 0x02108421);
-#else
-	/* / @todo Provide a way to write this register correctly */
-	scu_link_layer_register_write(this_phy, afe_lookup_table_control, 0x0e739ce7);
-#endif
+	/* @todo Provide a way to write this register correctly */
+	scu_link_layer_register_write(sci_phy, afe_lookup_table_control, 0x02108421);
 
-	link_layer_control = SCU_SAS_LLCTL_GEN_VAL(
-		NO_OUTBOUND_TASK_TIMEOUT,
-		(u8)this_phy->owning_port->owning_controller->
-		user_parameters.sds1.no_outbound_task_timeout
-		);
+	llctl = SCU_SAS_LLCTL_GEN_VAL(NO_OUTBOUND_TASK_TIMEOUT,
+		(u8)scic->user_parameters.sds1.no_outbound_task_timeout);
 
-/* #define COMPILED_MAX_LINK_RATE SCU_SAS_LINK_LAYER_CONTROL_MAX_LINK_RATE_GEN1 */
-/* #define COMPILED_MAX_LINK_RATE SCU_SAS_LINK_LAYER_CONTROL_MAX_LINK_RATE_GEN2 */
-#define COMPILED_MAX_LINK_RATE SCU_SAS_LINK_LAYER_CONTROL_MAX_LINK_RATE_GEN3
-
-	if (this_phy->owning_port->owning_controller->user_parameters.sds1.
-	    phys[this_phy->phy_index].max_speed_generation == SCIC_SDS_PARM_GEN3_SPEED) {
-		link_layer_control |= SCU_SAS_LLCTL_GEN_VAL(
-			MAX_LINK_RATE, COMPILED_MAX_LINK_RATE
-			);
-	} else if (this_phy->owning_port->owning_controller->user_parameters.sds1.
-		   phys[this_phy->phy_index].max_speed_generation == SCIC_SDS_PARM_GEN2_SPEED) {
-		link_layer_control |= SCU_SAS_LLCTL_GEN_VAL(
-			MAX_LINK_RATE,
-			min(
-				SCU_SAS_LINK_LAYER_CONTROL_MAX_LINK_RATE_GEN2,
-				COMPILED_MAX_LINK_RATE)
-			);
-	} else {
-		link_layer_control |= SCU_SAS_LLCTL_GEN_VAL(
-			MAX_LINK_RATE,
-			min(
-				SCU_SAS_LINK_LAYER_CONTROL_MAX_LINK_RATE_GEN1,
-				COMPILED_MAX_LINK_RATE)
-			);
+	switch(phy_user->max_speed_generation) {
+	case SCIC_SDS_PARM_GEN3_SPEED:
+		link_rate = SCU_SAS_LINK_LAYER_CONTROL_MAX_LINK_RATE_GEN3;
+		break;
+	case SCIC_SDS_PARM_GEN2_SPEED:
+		link_rate = SCU_SAS_LINK_LAYER_CONTROL_MAX_LINK_RATE_GEN2;
+		break;
+	default:
+		link_rate = SCU_SAS_LINK_LAYER_CONTROL_MAX_LINK_RATE_GEN1;
+		break;
 	}
+	llctl |= SCU_SAS_LLCTL_GEN_VAL(MAX_LINK_RATE, link_rate);
 
-	scu_link_layer_register_write(
-		this_phy, link_layer_control, link_layer_control
-		);
+	scu_link_layer_register_write(sci_phy, link_layer_control, llctl);
 
-	/*
-	 * Program the max ARB time for the PHY to 700us so we inter-operate with
-	 * the PMC expander which shuts down PHYs if the expander PHY generates too
-	 * many breaks.  This time value will guarantee that the initiator PHY will
-	 * generate the break. */
-#if defined(CONFIG_PBG_HBA_A0) || defined(CONFIG_PBG_HBA_A2)
-	scu_link_layer_register_write(
-		this_phy,
-		maximum_arbitration_wait_timer_timeout,
-		SCIC_SDS_PHY_MAX_ARBITRATION_WAIT_TIME
-		);
-#endif  /* defined(CONFIG_PBG_HBA_A0) || defined(CONFIG_PBG_HBA_A2) */
+	if (is_a0() || is_a2()) {
+		/* Program the max ARB time for the PHY to 700us so we inter-operate with
+		 * the PMC expander which shuts down PHYs if the expander PHY generates too
+		 * many breaks.  This time value will guarantee that the initiator PHY will
+		 * generate the break.
+		 */
+		scu_link_layer_register_write(sci_phy,
+					      maximum_arbitration_wait_timer_timeout,
+					      SCIC_SDS_PHY_MAX_ARBITRATION_WAIT_TIME);
+	}
 
 	/*
 	 * Set the link layer hang detection to 500ms (0x1F4) from its default
 	 * value of 128ms.  Max value is 511 ms. */
-	scu_link_layer_register_write(
-		this_phy, link_layer_hang_detection_timeout, 0x1F4
-		);
+	scu_link_layer_register_write(sci_phy, link_layer_hang_detection_timeout,
+				      0x1F4);
 
 	/* We can exit the initial state to the stopped state */
-	sci_base_state_machine_change_state(
-		scic_sds_phy_get_base_state_machine(this_phy),
-		SCI_BASE_PHY_STATE_STOPPED
-		);
+	sci_base_state_machine_change_state(scic_sds_phy_get_base_state_machine(sci_phy),
+					    SCI_BASE_PHY_STATE_STOPPED);
 
 	return SCI_SUCCESS;
 }
