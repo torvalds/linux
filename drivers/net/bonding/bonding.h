@@ -269,7 +269,8 @@ struct bonding {
  *
  * Caller must hold bond lock for read
  */
-static inline struct slave *bond_get_slave_by_dev(struct bonding *bond, struct net_device *slave_dev)
+static inline struct slave *bond_get_slave_by_dev(struct bonding *bond,
+						  struct net_device *slave_dev)
 {
 	struct slave *slave = NULL;
 	int i;
@@ -280,7 +281,7 @@ static inline struct slave *bond_get_slave_by_dev(struct bonding *bond, struct n
 		}
 	}
 
-	return 0;
+	return NULL;
 }
 
 static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
