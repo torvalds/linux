@@ -29,12 +29,8 @@
 #define err(fmt, args...) \
 	printk(KERN_ERR "%s:%d: " fmt "\n", __func__, __LINE__, ##args)
 
-#ifdef DEBUG
 #define dbg(fmt, args...) \
-	printk(KERN_DEBUG "%s:%d: " fmt "\n", __func__, __LINE__, ##args)
-#else
-#define dbg(fmt, args...)
-#endif
+	pr_debug("%s:%d: " fmt "\n", __func__, __LINE__, ##args)
 
 /* Time to wait for next frame VSYNC interrupt while stopping operation. */
 #define FIMC_SHUTDOWN_TIMEOUT	((100*HZ)/1000)
