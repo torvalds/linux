@@ -5836,17 +5836,19 @@ static int snd_hdspm_playback_open(struct snd_pcm_substream *substream)
 		snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
 				&hdspm_hw_constraints_aes32_sample_rates);
 	} else {
-		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-				snd_hdspm_hw_rule_out_channels, hdspm,
-				SNDRV_PCM_HW_PARAM_CHANNELS, -1);
-		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-				snd_hdspm_hw_rule_out_channels_rate, hdspm,
-				SNDRV_PCM_HW_PARAM_RATE, -1);
-
 		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
 				snd_hdspm_hw_rule_rate_out_channels, hdspm,
 				SNDRV_PCM_HW_PARAM_CHANNELS, -1);
 	}
+
+	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+			snd_hdspm_hw_rule_out_channels, hdspm,
+			SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+
+	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+			snd_hdspm_hw_rule_out_channels_rate, hdspm,
+			SNDRV_PCM_HW_PARAM_RATE, -1);
+
 	return 0;
 }
 
@@ -5904,17 +5906,19 @@ static int snd_hdspm_capture_open(struct snd_pcm_substream *substream)
 		snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
 				&hdspm_hw_constraints_aes32_sample_rates);
 	} else {
-		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-				     snd_hdspm_hw_rule_in_channels, hdspm,
-				     SNDRV_PCM_HW_PARAM_CHANNELS, -1);
-		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-				    snd_hdspm_hw_rule_in_channels_rate, hdspm,
-				    SNDRV_PCM_HW_PARAM_RATE, -1);
-
 		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-				    snd_hdspm_hw_rule_rate_in_channels, hdspm,
-				    SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+				snd_hdspm_hw_rule_rate_in_channels, hdspm,
+				SNDRV_PCM_HW_PARAM_CHANNELS, -1);
 	}
+
+	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+			snd_hdspm_hw_rule_in_channels, hdspm,
+			SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+
+	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+			snd_hdspm_hw_rule_in_channels_rate, hdspm,
+			SNDRV_PCM_HW_PARAM_RATE, -1);
+
 	return 0;
 }
 
