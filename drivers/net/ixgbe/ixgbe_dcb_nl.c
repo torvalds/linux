@@ -416,6 +416,8 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 	if (adapter->dcb_set_bitmap & (BIT_PG_TX|BIT_PG_RX)) {
 		u16 refill[MAX_TRAFFIC_CLASS], max[MAX_TRAFFIC_CLASS];
 		u8 bwg_id[MAX_TRAFFIC_CLASS], prio_type[MAX_TRAFFIC_CLASS];
+		/* Priority to TC mapping in CEE case default to 1:1 */
+		u8 prio_tc[MAX_TRAFFIC_CLASS] = {0, 1, 2, 3, 4, 5, 6, 7};
 		int max_frame = adapter->netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
 
 #ifdef CONFIG_FCOE
@@ -437,7 +439,7 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 				      DCB_TX_CONFIG, prio_type);
 
 		ixgbe_dcb_hw_ets_config(&adapter->hw, refill, max,
-					bwg_id, prio_type);
+					bwg_id, prio_type, prio_tc);
 	}
 
 	if (adapter->dcb_cfg.pfc_mode_enable)
@@ -645,6 +647,7 @@ static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 	__u8 prio_type[IEEE_8021QAZ_MAX_TCS];
 	int max_frame = dev->mtu + ETH_HLEN + ETH_FCS_LEN;
 	int i, err;
+	__u64 *p = (__u64 *) ets->prio_tc;
 	/* naively give each TC a bwg to map onto CEE hardware */
 	__u8 bwg_id[IEEE_8021QAZ_MAX_TCS] = {0, 1, 2, 3, 4, 5, 6, 7};
 
@@ -679,9 +682,14 @@ static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 		}
 	}
 
+	if (*p)
+		ixgbe_dcbnl_set_state(dev, 1);
+	else
+		ixgbe_dcbnl_set_state(dev, 0);
+
 	ixgbe_ieee_credits(ets->tc_tx_bw, refill, max, max_frame);
 	err = ixgbe_dcb_hw_ets_config(&adapter->hw, refill, max,
-				      bwg_id, prio_type);
+				      bwg_id, prio_type, ets->prio_tc);
 	return err;
 }
 

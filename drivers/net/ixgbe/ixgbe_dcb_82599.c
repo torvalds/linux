@@ -85,7 +85,8 @@ s32 ixgbe_dcb_config_rx_arbiter_82599(struct ixgbe_hw *hw,
 				      u16 *refill,
 				      u16 *max,
 				      u8 *bwg_id,
-				      u8 *prio_type)
+				      u8 *prio_type,
+				      u8 *prio_tc)
 {
 	u32    reg           = 0;
 	u32    credit_refill = 0;
@@ -102,7 +103,7 @@ s32 ixgbe_dcb_config_rx_arbiter_82599(struct ixgbe_hw *hw,
 	/* Map all traffic classes to their UP, 1 to 1 */
 	reg = 0;
 	for (i = 0; i < MAX_TRAFFIC_CLASS; i++)
-		reg |= (i << (i * IXGBE_RTRUP2TC_UP_SHIFT));
+		reg |= (prio_tc[i] << (i * IXGBE_RTRUP2TC_UP_SHIFT));
 	IXGBE_WRITE_REG(hw, IXGBE_RTRUP2TC, reg);
 
 	/* Configure traffic class credits and priority */
@@ -194,7 +195,8 @@ s32 ixgbe_dcb_config_tx_data_arbiter_82599(struct ixgbe_hw *hw,
 					   u16 *refill,
 					   u16 *max,
 					   u8 *bwg_id,
-					   u8 *prio_type)
+					   u8 *prio_type,
+					   u8 *prio_tc)
 {
 	u32 reg;
 	u8 i;
@@ -211,7 +213,7 @@ s32 ixgbe_dcb_config_tx_data_arbiter_82599(struct ixgbe_hw *hw,
 	/* Map all traffic classes to their UP, 1 to 1 */
 	reg = 0;
 	for (i = 0; i < MAX_TRAFFIC_CLASS; i++)
-		reg |= (i << (i * IXGBE_RTTUP2TC_UP_SHIFT));
+		reg |= (prio_tc[i] << (i * IXGBE_RTTUP2TC_UP_SHIFT));
 	IXGBE_WRITE_REG(hw, IXGBE_RTTUP2TC, reg);
 
 	/* Configure traffic class credits and priority */
@@ -424,15 +426,16 @@ static s32 ixgbe_dcb_config_82599(struct ixgbe_hw *hw)
  */
 s32 ixgbe_dcb_hw_config_82599(struct ixgbe_hw *hw,
 			      u8 rx_pba, u8 pfc_en, u16 *refill,
-			      u16 *max, u8 *bwg_id, u8 *prio_type)
+			      u16 *max, u8 *bwg_id, u8 *prio_type, u8 *prio_tc)
 {
 	ixgbe_dcb_config_packet_buffers_82599(hw, rx_pba);
 	ixgbe_dcb_config_82599(hw);
-	ixgbe_dcb_config_rx_arbiter_82599(hw, refill, max, bwg_id, prio_type);
+	ixgbe_dcb_config_rx_arbiter_82599(hw, refill, max, bwg_id,
+					  prio_type, prio_tc);
 	ixgbe_dcb_config_tx_desc_arbiter_82599(hw, refill, max,
 					       bwg_id, prio_type);
 	ixgbe_dcb_config_tx_data_arbiter_82599(hw, refill, max,
-					       bwg_id, prio_type);
+					       bwg_id, prio_type, prio_tc);
 	ixgbe_dcb_config_pfc_82599(hw, pfc_en);
 	ixgbe_dcb_config_tc_stats_82599(hw);
 
