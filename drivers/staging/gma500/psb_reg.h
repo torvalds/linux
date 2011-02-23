@@ -14,7 +14,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 
+ * this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA..
  *
  **************************************************************************/
@@ -568,10 +568,10 @@
 #define PSB_PM_SSC		    0x20
 #define PSB_PM_SSS		    0x30
 #define PSB_PWRGT_DISPLAY_MASK	    0xc /*on a different BA than video/gfx*/
-#define MDFLD_PWRGT_DISPLAY_A_CNTR  0x0000000c 
-#define MDFLD_PWRGT_DISPLAY_B_CNTR  0x0000c000 
-#define MDFLD_PWRGT_DISPLAY_C_CNTR  0x00030000 
-#define MDFLD_PWRGT_DISP_MIPI_CNTR  0x000c0000 
+#define MDFLD_PWRGT_DISPLAY_A_CNTR  0x0000000c
+#define MDFLD_PWRGT_DISPLAY_B_CNTR  0x0000c000
+#define MDFLD_PWRGT_DISPLAY_C_CNTR  0x00030000
+#define MDFLD_PWRGT_DISP_MIPI_CNTR  0x000c0000
 #define MDFLD_PWRGT_DISPLAY_CNTR    (MDFLD_PWRGT_DISPLAY_A_CNTR | MDFLD_PWRGT_DISPLAY_B_CNTR | MDFLD_PWRGT_DISPLAY_C_CNTR | MDFLD_PWRGT_DISP_MIPI_CNTR)// 0x000fc00c
 // Display SSS register bits are different in A0 vs. B0
 #define PSB_PWRGT_GFX_MASK	    0x3
@@ -582,7 +582,7 @@
 #define MDFLD_PWRGT_DISPLAY_A_STS_B0	0x0000000c
 #define MDFLD_PWRGT_DISPLAY_B_STS_B0  	0x0000c000
 #define MDFLD_PWRGT_DISPLAY_C_STS_B0  	0x00030000
-#define MDFLD_PWRGT_DISP_MIPI_STS  0x000c0000 
+#define MDFLD_PWRGT_DISP_MIPI_STS  0x000c0000
 #define MDFLD_PWRGT_DISPLAY_STS_A0    (MDFLD_PWRGT_DISPLAY_A_STS | MDFLD_PWRGT_DISPLAY_B_STS | MDFLD_PWRGT_DISPLAY_C_STS | MDFLD_PWRGT_DISP_MIPI_STS)// 0x000fc00c
 #define MDFLD_PWRGT_DISPLAY_STS_B0    (MDFLD_PWRGT_DISPLAY_A_STS_B0 | MDFLD_PWRGT_DISPLAY_B_STS_B0 | MDFLD_PWRGT_DISPLAY_C_STS_B0 | MDFLD_PWRGT_DISP_MIPI_STS)// 0x000fc00c
 #endif

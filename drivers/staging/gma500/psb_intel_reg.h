@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2009, Intel Corporation.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
  * version 2, as published by the Free Software Foundation.
@@ -11,7 +11,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 
+ * this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 #ifndef __PSB_INTEL_REG_H__
@@ -589,7 +589,7 @@ struct dpst_guardband {
 /*
  * Some BIOS scratch area registers.  The 845 (and 830?) store the amount
  * of video memory available to the BIOS in SWF1.
- */ 
+ */
 #define SWF0			0x71410
 #define SWF1			0x71414
 #define SWF2			0x71418
@@ -695,12 +695,12 @@ struct dpst_guardband {
  */
 #define MRST_DPLL_A		0x0f014
 #define MDFLD_DPLL_B		0x0f018
-#define MDFLD_INPUT_REF_SEL	(1 << 14) 
-#define MDFLD_VCO_SEL		(1 << 16) 
+#define MDFLD_INPUT_REF_SEL	(1 << 14)
+#define MDFLD_VCO_SEL		(1 << 16)
 #define DPLLA_MODE_LVDS		(2 << 26)	/* mrst */
-#define MDFLD_PLL_LATCHEN	(1 << 28) 
-#define MDFLD_PWR_GATE_EN	(1 << 30) 
-#define MDFLD_P1_MASK		(0x1FF << 17) 
+#define MDFLD_PLL_LATCHEN	(1 << 28)
+#define MDFLD_PWR_GATE_EN	(1 << 30)
+#define MDFLD_P1_MASK		(0x1FF << 17)
 #define MRST_FPA0		0x0f040
 #define MRST_FPA1		0x0f044
 #define MDFLD_DPLL_DIV0		0x0f048
@@ -1094,8 +1094,8 @@ Bits D7 and D3 are not used.
   #define DCS_PIXEL_FORMAT_3bbp	 	0x1
   #define DCS_PIXEL_FORMAT_8bbp 	0x2
   #define DCS_PIXEL_FORMAT_12bbp 	0x3
-  #define DCS_PIXEL_FORMAT_16bbp	0x5 
-  #define DCS_PIXEL_FORMAT_18bbp	0x6 
+  #define DCS_PIXEL_FORMAT_16bbp	0x5
+  #define DCS_PIXEL_FORMAT_18bbp	0x6
   #define DCS_PIXEL_FORMAT_24bbp 	0x7
 #define write_mem_cont               0x3c
 /* ************************************************************************* *\
@@ -1190,7 +1190,7 @@ gamma settings.
 						 * byte alignment
 						 */
 #define DBI_CB_TIME_OUT 0xFFFF
-#define GEN_FB_TIME_OUT 2000 
+#define GEN_FB_TIME_OUT 2000
 #define ALIGNMENT_32BYTE_MASK		(~(BIT0|BIT1|BIT2|BIT3|BIT4))
 #define SKU_83 						0x01
 #define SKU_100 					0x02

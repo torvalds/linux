@@ -119,7 +119,7 @@ static int save_display_registers(struct drm_device *dev)
 			crtc->funcs->save(crtc);
 		}
 	}
-	
+
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		connector->funcs->save(connector);
 	}
@@ -194,7 +194,7 @@ void ospm_suspend_display(struct drm_device *dev)
 		return;
 
 	save_display_registers(dev);
-		
+
 	if (dev_priv->iLVDS_enable) {
 		/*shutdown the panel*/
 		PSB_WVDC32(0, PP_CONTROL);
@@ -243,7 +243,7 @@ void ospm_resume_display(struct pci_dev *pdev)
 	struct psb_gtt *pg = dev_priv->pg;
 
 	printk(KERN_ALERT "%s \n", __func__);
-		
+
 #ifdef OSPM_GFX_DPK
 	printk(KERN_ALERT "%s \n", __func__);
 #endif
@@ -263,7 +263,7 @@ void ospm_resume_display(struct pci_dev *pdev)
 	 * above.
 	 */
 	/*psb_gtt_init(dev_priv->pg, 1);*/
-	
+
 	restore_display_registers(dev);
 }
 
@@ -356,7 +356,7 @@ int ospm_power_suspend(struct pci_dev *pdev, pm_message_t state)
         int videoenc_access_count;
         int videodec_access_count;
         int display_access_count;
-    	bool suspend_pci = true; 
+    	bool suspend_pci = true;
 
 	if(gbSuspendInProgress || gbResumeInProgress)
         {
@@ -518,7 +518,7 @@ void ospm_power_island_down(int islands)
 
 	if (islands & OSPM_DISPLAY_ISLAND) {
 		pwr_mask = PSB_PWRGT_DISPLAY_MASK;
-	
+
 		outl(pwr_mask, (dev_priv->ospm_base + PSB_PM_SSC));
 
 		while (true) {
@@ -529,7 +529,7 @@ void ospm_power_island_down(int islands)
 				udelay(10);
 		}
 	}
-#endif	
+#endif
 }
 
 
@@ -553,9 +553,9 @@ bool ospm_power_is_hw_on(int hw_islands)
  * specified island's hw so don't power it off.  If force_on is true,
  * this will power on the specified island if it is off.
  * Otherwise, this will return false and the caller is expected to not
- * access the hw.  
- * 
- * NOTE *** If this is called from and interrupt handler or other atomic 
+ * access the hw.
+ *
+ * NOTE *** If this is called from and interrupt handler or other atomic
  * context, then it will return false if we are in the middle of a
  * power state transition and the caller will be expected to handle that
  * even if force_on is set to true.
@@ -563,7 +563,7 @@ bool ospm_power_is_hw_on(int hw_islands)
 bool ospm_power_using_hw_begin(int hw_island, UHBUsage usage)
 {
         return 1;	/*FIXMEAC */
-#if 0         
+#if 0
 	bool ret = true;
 	bool island_is_off = false;
 	bool b_atomic = (in_interrupt() || in_atomic());
@@ -702,7 +702,7 @@ increase_count:
 		mutex_unlock(&power_mutex);
 
 	return ret;
-#endif	
+#endif
 }
 
 
@@ -739,7 +739,7 @@ void ospm_power_using_hw_end(int hw_island)
 	WARN_ON(atomic_read(&g_videoenc_access_count) < 0);
 	WARN_ON(atomic_read(&g_videodec_access_count) < 0);
 	WARN_ON(atomic_read(&g_display_access_count) < 0);
-#endif	
+#endif
 }
 
 int ospm_runtime_pm_allow(struct drm_device * dev)
@@ -750,9 +750,9 @@ int ospm_runtime_pm_allow(struct drm_device * dev)
 void ospm_runtime_pm_forbid(struct drm_device * dev)
 {
 	struct drm_psb_private * dev_priv = dev->dev_private;
-	
+
 	DRM_INFO("%s\n", __FUNCTION__);
-	
+
 	pm_runtime_forbid(&dev->pdev->dev);
 	dev_priv->rpm_enabled = 0;
 }

@@ -12,7 +12,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 
+ * this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  **************************************************************************/
@@ -232,7 +232,7 @@ enum {
 #define MDFLD_DSR_MIPI_CONTROL	BIT6
 #define MDFLD_DSR_2D_3D 	(MDFLD_DSR_2D_3D_0 | MDFLD_DSR_2D_3D_2)
 
-#define MDFLD_DSR_RR 45 
+#define MDFLD_DSR_RR 45
 #define MDFLD_DPU_ENABLE BIT31
 #define MDFLD_DSR_FULLSCREEN BIT30
 #define MDFLD_DSR_DELAY (DRM_HZ / MDFLD_DSR_RR)
@@ -344,9 +344,9 @@ struct psb_video_ctx {
 
 struct drm_psb_private {
 	/*
-	 * DSI info. 
+	 * DSI info.
 	 */
-	void * dbi_dsr_info;	
+	void * dbi_dsr_info;
 	void * dsi_configs[2];
 
 	/*
@@ -387,7 +387,7 @@ struct drm_psb_private {
 	uint8_t *sgx_reg;
 	uint8_t *vdc_reg;
 	uint32_t gatt_free_offset;
-	
+
 	/* IMG video context */
 	struct list_head video_ctx;
 
