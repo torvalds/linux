@@ -99,7 +99,6 @@
 #define ML_BH_IO	0x0000000000100000ULL /* ocfs2 buffer I/O */
 #define ML_UPTODATE	0x0000000000200000ULL /* ocfs2 caching sequence #'s */
 #define ML_VOTE		0x0000000001000000ULL /* ocfs2 node messaging  */
-#define ML_DCACHE	0x0000000002000000ULL /* ocfs2 dcache operations */
 #define ML_CONN		0x0000000004000000ULL /* net connection management */
 #define ML_QUORUM	0x0000000008000000ULL /* net connection quorum */
 #define ML_EXPORT	0x0000000010000000ULL /* ocfs2 export operations */

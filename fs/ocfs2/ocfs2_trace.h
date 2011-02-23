@@ -2364,6 +2364,105 @@ TRACE_EVENT(ocfs2_orphan_del,
 );
 
 /* End of trace events for fs/ocfs2/namei.c. */
+
+/* Trace events for fs/ocfs2/dcache.c. */
+
+TRACE_EVENT(ocfs2_dentry_revalidate,
+	TP_PROTO(void *dentry, int len, const char *name),
+	TP_ARGS(dentry, len, name),
+	TP_STRUCT__entry(
+		__field(void *, dentry)
+		__field(int, len)
+		__string(name, name)
+	),
+	TP_fast_assign(
+		__entry->dentry = dentry;
+		__entry->len = len;
+		__assign_str(name, name);
+	),
+	TP_printk("%p %.*s", __entry->dentry, __entry->len, __get_str(name))
+);
+
+TRACE_EVENT(ocfs2_dentry_revalidate_negative,
+	TP_PROTO(int len, const char *name, unsigned long pgen,
+		 unsigned long gen),
+	TP_ARGS(len, name, pgen, gen),
+	TP_STRUCT__entry(
+		__field(int, len)
+		__string(name, name)
+		__field(unsigned long, pgen)
+		__field(unsigned long, gen)
+	),
+	TP_fast_assign(
+		__entry->len = len;
+		__assign_str(name, name);
+		__entry->pgen = pgen;
+		__entry->gen = gen;
+	),
+	TP_printk("%.*s %lu %lu", __entry->len, __get_str(name),
+		  __entry->pgen, __entry->gen)
+);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_dentry_revalidate_delete);
+
+DEFINE_OCFS2_ULL_INT_EVENT(ocfs2_dentry_revalidate_orphaned);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_dentry_revalidate_nofsdata);
+
+DEFINE_OCFS2_INT_EVENT(ocfs2_dentry_revalidate_ret);
+
+TRACE_EVENT(ocfs2_find_local_alias,
+	TP_PROTO(int len, const char *name),
+	TP_ARGS(len, name),
+	TP_STRUCT__entry(
+		__field(int, len)
+		__string(name, name)
+	),
+	TP_fast_assign(
+		__entry->len = len;
+		__assign_str(name, name);
+	),
+	TP_printk("%.*s", __entry->len, __get_str(name))
+);
+
+TRACE_EVENT(ocfs2_dentry_attach_lock,
+	TP_PROTO(int len, const char *name,
+		 unsigned long long parent, void *fsdata),
+	TP_ARGS(len, name, parent, fsdata),
+	TP_STRUCT__entry(
+		__field(int, len)
+		__string(name, name)
+		__field(unsigned long long, parent)
+		__field(void *, fsdata)
+	),
+	TP_fast_assign(
+		__entry->len = len;
+		__assign_str(name, name);
+		__entry->parent = parent;
+		__entry->fsdata = fsdata;
+	),
+	TP_printk("%.*s %llu %p", __entry->len, __get_str(name),
+		  __entry->parent, __entry->fsdata)
+);
+
+TRACE_EVENT(ocfs2_dentry_attach_lock_found,
+	TP_PROTO(const char *name, unsigned long long parent,
+		 unsigned long long ino),
+	TP_ARGS(name, parent, ino),
+	TP_STRUCT__entry(
+		__string(name, name)
+		__field(unsigned long long, parent)
+		__field(unsigned long long, ino)
+	),
+	TP_fast_assign(
+		__assign_str(name, name);
+		__entry->parent = parent;
+		__entry->ino = ino;
+	),
+	TP_printk("%s %llu %llu", __get_str(name), __entry->parent, __entry->ino)
+);
+
+/* End of trace events for fs/ocfs2/dcache.c. */
 #endif /* _TRACE_OCFS2_H */
 
 /* This part must be outside protection */
