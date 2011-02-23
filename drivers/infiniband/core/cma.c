@@ -308,11 +308,13 @@ static inline void release_mc(struct kref *kref)
 	kfree(mc);
 }
 
-static void cma_detach_from_dev(struct rdma_id_private *id_priv)
+static void cma_release_dev(struct rdma_id_private *id_priv)
 {
+	mutex_lock(&lock);
 	list_del(&id_priv->list);
 	cma_deref_dev(id_priv->cma_dev);
 	id_priv->cma_dev = NULL;
+	mutex_unlock(&lock);
 }
 
 static int cma_set_qkey(struct rdma_id_private *id_priv)
@@ -373,6 +375,7 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv)
 	enum rdma_link_layer dev_ll = dev_addr->dev_type == ARPHRD_INFINIBAND ?
 		IB_LINK_LAYER_INFINIBAND : IB_LINK_LAYER_ETHERNET;
 
+	mutex_lock(&lock);
 	iboe_addr_get_sgid(dev_addr, &iboe_gid);
 	memcpy(&gid, dev_addr->src_dev_addr +
 	       rdma_addr_gid_offset(dev_addr), sizeof gid);
@@ -398,6 +401,7 @@ out:
 	if (!ret)
 		cma_attach_to_dev(id_priv, cma_dev);
 
+	mutex_unlock(&lock);
 	return ret;
 }
 
@@ -904,9 +908,14 @@ void rdma_destroy_id(struct rdma_cm_id *id)
 	state = cma_exch(id_priv, CMA_DESTROYING);
 	cma_cancel_operation(id_priv, state);
 
-	mutex_lock(&lock);
+	/*
+	 * Wait for any active callback to finish.  New callbacks will find
+	 * the id_priv state set to destroying and abort.
+	 */
+	mutex_lock(&id_priv->handler_mutex);
+	mutex_unlock(&id_priv->handler_mutex);
+
 	if (id_priv->cma_dev) {
-		mutex_unlock(&lock);
 		switch (rdma_node_get_transport(id_priv->id.device->node_type)) {
 		case RDMA_TRANSPORT_IB:
 			if (id_priv->cm_id.ib && !IS_ERR(id_priv->cm_id.ib))
@@ -920,10 +929,8 @@ void rdma_destroy_id(struct rdma_cm_id *id)
 			break;
 		}
 		cma_leave_mc_groups(id_priv);
-		mutex_lock(&lock);
-		cma_detach_from_dev(id_priv);
+		cma_release_dev(id_priv);
 	}
-	mutex_unlock(&lock);
 
 	cma_release_port(id_priv);
 	cma_deref_id(id_priv);
@@ -1200,9 +1207,7 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	}
 
 	mutex_lock_nested(&conn_id->handler_mutex, SINGLE_DEPTH_NESTING);
-	mutex_lock(&lock);
 	ret = cma_acquire_dev(conn_id);
-	mutex_unlock(&lock);
 	if (ret)
 		goto release_conn_id;
 
@@ -1401,9 +1406,7 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 		goto out;
 	}
 
-	mutex_lock(&lock);
 	ret = cma_acquire_dev(conn_id);
-	mutex_unlock(&lock);
 	if (ret) {
 		mutex_unlock(&conn_id->handler_mutex);
 		rdma_destroy_id(new_cm_id);
@@ -1966,20 +1969,11 @@ static void addr_handler(int status, struct sockaddr *src_addr,
 
 	memset(&event, 0, sizeof event);
 	mutex_lock(&id_priv->handler_mutex);
-
-	/*
-	 * Grab mutex to block rdma_destroy_id() from removing the device while
-	 * we're trying to acquire it.
-	 */
-	mutex_lock(&lock);
-	if (!cma_comp_exch(id_priv, CMA_ADDR_QUERY, CMA_ADDR_RESOLVED)) {
-		mutex_unlock(&lock);
+	if (!cma_comp_exch(id_priv, CMA_ADDR_QUERY, CMA_ADDR_RESOLVED))
 		goto out;
-	}
 
 	if (!status && !id_priv->cma_dev)
 		status = cma_acquire_dev(id_priv);
-	mutex_unlock(&lock);
 
 	if (status) {
 		if (!cma_comp_exch(id_priv, CMA_ADDR_RESOLVED, CMA_ADDR_BOUND))
@@ -2280,9 +2274,7 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr)
 		if (ret)
 			goto err1;
 
-		mutex_lock(&lock);
 		ret = cma_acquire_dev(id_priv);
-		mutex_unlock(&lock);
 		if (ret)
 			goto err1;
 	}
@@ -2294,11 +2286,8 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr)
 
 	return 0;
 err2:
-	if (id_priv->cma_dev) {
-		mutex_lock(&lock);
-		cma_detach_from_dev(id_priv);
-		mutex_unlock(&lock);
-	}
+	if (id_priv->cma_dev)
+		cma_release_dev(id_priv);
 err1:
 	cma_comp_exch(id_priv, CMA_ADDR_BOUND, CMA_IDLE);
 	return ret;
