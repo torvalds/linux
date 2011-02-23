@@ -6462,9 +6462,9 @@ static int __devinit snd_hdspm_create(struct snd_card *card,
 
 		hdspm->channel_map_in_ss = hdspm->channel_map_out_ss =
 			channel_map_unity_ss;
-		hdspm->channel_map_in_ds = hdspm->channel_map_out_ss =
+		hdspm->channel_map_in_ds = hdspm->channel_map_out_ds =
 			channel_map_unity_ss;
-		hdspm->channel_map_in_qs = hdspm->channel_map_out_ss =
+		hdspm->channel_map_in_qs = hdspm->channel_map_out_qs =
 			channel_map_unity_ss;
 
 		hdspm->port_names_in_ss = hdspm->port_names_out_ss =
