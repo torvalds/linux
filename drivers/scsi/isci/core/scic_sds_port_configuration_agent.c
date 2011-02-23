@@ -676,28 +676,40 @@ static void scic_sds_apc_agent_configure_ports(
 }
 
 /**
- *
- * @controller: This is the controller object that receives the link up
+ * scic_sds_apc_agent_link_up - handle apc link up events
+ * @scic: This is the controller object that receives the link up
  *    notification.
- * @port: This is the port object associated with the phy.  If the is no
+ * @sci_port: This is the port object associated with the phy.  If the is no
  *    associated port this is an NULL.
- * @phy: This is the phy object which has gone link up.
+ * @sci_phy: This is the phy object which has gone link up.
  *
  * This method handles the automatic port configuration for link up
  * notifications. Is it possible to get a link down notification from a phy
  * that has no assocoated port?
  */
-static void scic_sds_apc_agent_link_up(
-	struct scic_sds_controller *controller,
-	struct scic_sds_port_configuration_agent *port_agent,
-	struct scic_sds_port *port,
-	struct scic_sds_phy *phy)
+static void scic_sds_apc_agent_link_up(struct scic_sds_controller *scic,
+				       struct scic_sds_port_configuration_agent *port_agent,
+				       struct scic_sds_port *sci_port,
+				       struct scic_sds_phy *sci_phy)
 {
-	BUG_ON(port != NULL);
+	u8 phy_index  = sci_phy->phy_index;
 
-	port_agent->phy_ready_mask |= (1 << scic_sds_phy_get_index(phy));
+	if (!sci_port) {
+		/* the phy is not the part of this port */
+		port_agent->phy_ready_mask |= 1 << phy_index;
+		scic_sds_apc_agent_configure_ports(scic, port_agent, sci_phy, true);
+	} else {
+		/* the phy is already the part of the port */
+		u32 port_state = sci_port->parent.state_machine.current_state_id;
 
-	scic_sds_apc_agent_configure_ports(controller, port_agent, phy, true);
+		/* if the PORT'S state is resetting then the link up is from
+		 * port hard reset in this case, we need to tell the port
+		 * that link up is recieved
+		 */
+		BUG_ON(port_state != SCI_BASE_PORT_STATE_RESETTING);
+		port_agent->phy_ready_mask |= 1 << phy_index;
+		scic_sds_port_link_up(sci_port, sci_phy);
+	}
 }
 
 /**
