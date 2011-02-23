@@ -939,9 +939,8 @@ static void bm_async_io_complete(struct bio *bio, int error)
 
 	bm_page_unlock_io(mdev, idx);
 
-	/* FIXME give back to page pool */
 	if (ctx->flags & BM_AIO_COPY_PAGES)
-		put_page(bio->bi_io_vec[0].bv_page);
+		mempool_free(bio->bi_io_vec[0].bv_page, drbd_md_io_page_pool);
 
 	bio_put(bio);
 
@@ -978,10 +977,8 @@ static void bm_page_io_async(struct bm_aio_ctx *ctx, int page_nr, int rw) __must
 	bm_set_page_unchanged(b->bm_pages[page_nr]);
 
 	if (ctx->flags & BM_AIO_COPY_PAGES) {
-		/* FIXME alloc_page is good enough for now, but actually needs
-		 * to use pre-allocated page pool */
 		void *src, *dest;
-		page = alloc_page(__GFP_HIGHMEM|__GFP_WAIT);
+		page = mempool_alloc(drbd_md_io_page_pool, __GFP_HIGHMEM|__GFP_WAIT);
 		dest = kmap_atomic(page);
 		src = kmap_atomic(b->bm_pages[page_nr]);
 		memcpy(dest, src, PAGE_SIZE);
@@ -993,6 +990,8 @@ static void bm_page_io_async(struct bm_aio_ctx *ctx, int page_nr, int rw) __must
 
 	bio->bi_bdev = mdev->ldev->md_bdev;
 	bio->bi_sector = on_disk_sector;
+	/* bio_add_page of a single page to an empty bio will always succeed,
+	 * according to api.  Do we want to assert that? */
 	bio_add_page(bio, page, len, 0);
 	bio->bi_private = ctx;
 	bio->bi_end_io = bm_async_io_complete;
