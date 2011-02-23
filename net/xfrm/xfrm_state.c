@@ -785,7 +785,7 @@ static void xfrm_state_look_at(struct xfrm_policy *pol, struct xfrm_state *x,
 
 struct xfrm_state *
 xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
-		struct flowi *fl, struct xfrm_tmpl *tmpl,
+		const struct flowi *fl, struct xfrm_tmpl *tmpl,
 		struct xfrm_policy *pol, int *err,
 		unsigned short family)
 {

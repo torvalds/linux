@@ -1328,8 +1328,10 @@ extern int xfrm_state_walk(struct net *net, struct xfrm_state_walk *walk,
 			   int (*func)(struct xfrm_state *, int, void*), void *);
 extern void xfrm_state_walk_done(struct xfrm_state_walk *walk);
 extern struct xfrm_state *xfrm_state_alloc(struct net *net);
-extern struct xfrm_state *xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr, 
-					  struct flowi *fl, struct xfrm_tmpl *tmpl,
+extern struct xfrm_state *xfrm_state_find(xfrm_address_t *daddr,
+					  xfrm_address_t *saddr, 
+					  const struct flowi *fl,
+					  struct xfrm_tmpl *tmpl,
 					  struct xfrm_policy *pol, int *err,
 					  unsigned short family);
 extern struct xfrm_state *xfrm_stateonly_find(struct net *net, u32 mark,
