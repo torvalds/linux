@@ -3679,45 +3679,17 @@ int __init arch_probe_nr_irqs(void)
 static int __io_apic_set_pci_routing(struct device *dev, int irq,
 				struct io_apic_irq_attr *irq_attr)
 {
-	struct irq_cfg *cfg;
 	int node;
-	int ioapic, pin;
-	int trigger, polarity;
 
-	ioapic = irq_attr->ioapic;
 	if (!IO_APIC_IRQ(irq)) {
 		apic_printk(APIC_QUIET,KERN_ERR "IOAPIC[%d]: Invalid reference to IRQ 0\n",
-			ioapic);
+			    irq_attr->ioapic);
 		return -EINVAL;
 	}
 
-	if (dev)
-		node = dev_to_node(dev);
-	else
-		node = cpu_to_node(0);
+	node = dev ? dev_to_node(dev) : cpu_to_node(0);
 
-	cfg = alloc_irq_and_cfg_at(irq, node);
-	if (!cfg)
-		return 0;
-
-	pin = irq_attr->ioapic_pin;
-	trigger = irq_attr->trigger;
-	polarity = irq_attr->polarity;
-
-	/*
-	 * IRQs < 16 are already in the irq_2_pin[] map
-	 */
-	if (irq >= legacy_pic->nr_legacy_irqs) {
-		if (__add_pin_to_irq_node(cfg, node, ioapic, pin)) {
-			printk(KERN_INFO "can not add pin %d for irq %d\n",
-				pin, irq);
-			return 0;
-		}
-	}
-
-	setup_ioapic_irq(ioapic, pin, irq, cfg, trigger, polarity);
-
-	return 0;
+	return io_apic_setup_irq_pin(irq, node, irq_attr);
 }
 
 int io_apic_set_pci_routing(struct device *dev, int irq,
