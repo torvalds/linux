@@ -67,7 +67,7 @@ static int xfrm6_get_saddr(struct net *net,
 	return 0;
 }
 
-static int xfrm6_get_tos(struct flowi *fl)
+static int xfrm6_get_tos(const struct flowi *fl)
 {
 	return 0;
 }

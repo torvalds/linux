@@ -1256,7 +1256,7 @@ xfrm_tmpl_resolve(struct xfrm_policy **pols, int npols, struct flowi *fl,
  * still valid.
  */
 
-static inline int xfrm_get_tos(struct flowi *fl, int family)
+static inline int xfrm_get_tos(const struct flowi *fl, int family)
 {
 	struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
 	int tos;
