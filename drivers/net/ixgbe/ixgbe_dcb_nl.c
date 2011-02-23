@@ -709,6 +709,35 @@ static int ixgbe_dcbnl_ieee_setpfc(struct net_device *dev,
 	return err;
 }
 
+static int ixgbe_dcbnl_ieee_setapp(struct net_device *dev,
+				   struct dcb_app *app)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+
+	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_IEEE))
+		return -EINVAL;
+#ifdef IXGBE_FCOE
+	if (app->selector == 1 && app->protocol == ETH_P_FCOE) {
+		if (adapter->fcoe.tc == app->priority)
+			goto setapp;
+
+		/* In IEEE mode map up to tc 1:1 */
+		adapter->fcoe.tc = app->priority;
+		adapter->fcoe.up = app->priority;
+
+		/* Force hardware reset required to push FCoE
+		 * setup on {tx|rx}_rings
+		 */
+		adapter->dcb_set_bitmap |= BIT_APP_UPCHG;
+		ixgbe_dcbnl_set_all(dev);
+	}
+
+setapp:
+#endif
+	dcb_setapp(dev, app);
+	return 0;
+}
+
 static u8 ixgbe_dcbnl_getdcbx(struct net_device *dev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
@@ -759,6 +788,7 @@ const struct dcbnl_rtnl_ops dcbnl_ops = {
 	.ieee_setets	= ixgbe_dcbnl_ieee_setets,
 	.ieee_getpfc	= ixgbe_dcbnl_ieee_getpfc,
 	.ieee_setpfc	= ixgbe_dcbnl_ieee_setpfc,
+	.ieee_setapp	= ixgbe_dcbnl_ieee_setapp,
 	.getstate	= ixgbe_dcbnl_get_state,
 	.setstate	= ixgbe_dcbnl_set_state,
 	.getpermhwaddr	= ixgbe_dcbnl_get_perm_hw_addr,
