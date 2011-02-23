@@ -6,6 +6,8 @@
 
 #define OLPC_OFW_SIG 0x2057464F	/* aka "OFW " */
 
+#ifdef CONFIG_OLPC
+
 extern bool olpc_ofw_is_installed(void);
 
 /* run an OFW command by calling into the firmware */
@@ -23,6 +25,11 @@ extern void setup_olpc_ofw_pgd(void);
 
 /* check if OFW was detected during boot */
 extern bool olpc_ofw_present(void);
+
+#else /* !CONFIG_OLPC */
+static inline void olpc_ofw_detect(void) { }
+static inline void setup_olpc_ofw_pgd(void) { }
+#endif /* !CONFIG_OLPC */
 
 #ifdef CONFIG_OF_PROMTREE
 extern void olpc_dt_build_devicetree(void);
