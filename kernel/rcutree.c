@@ -1480,18 +1480,14 @@ static void rcu_process_callbacks(void)
 static void invoke_rcu_cpu_kthread(void)
 {
 	unsigned long flags;
-	wait_queue_head_t *q;
-	int cpu;
 
 	local_irq_save(flags);
-	cpu = smp_processor_id();
-	per_cpu(rcu_cpu_has_work, cpu) = 1;
-	if (per_cpu(rcu_cpu_kthread_task, cpu) == NULL) {
+	__this_cpu_write(rcu_cpu_has_work, 1);
+	if (__this_cpu_read(rcu_cpu_kthread_task) == NULL) {
 		local_irq_restore(flags);
 		return;
 	}
-	q = &per_cpu(rcu_cpu_wq, cpu);
-	wake_up(q);
+	wake_up(&__get_cpu_var(rcu_cpu_wq));
 	local_irq_restore(flags);
 }
 
