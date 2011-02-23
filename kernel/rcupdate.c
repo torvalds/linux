@@ -147,12 +147,12 @@ static int rcuhead_fixup_init(void *addr, enum debug_obj_state state)
 		 * attempt any fixup and just print a warning.
 		 */
 #ifndef CONFIG_PREEMPT
-		WARN_ON(1);
+		WARN_ON_ONCE(1);
 		return 0;
 #endif
 		if (rcu_preempt_depth() != 0 || preempt_count() != 0 ||
 		    irqs_disabled()) {
-			WARN_ON(1);
+			WARN_ON_ONCE(1);
 			return 0;
 		}
 		rcu_barrier();
@@ -196,12 +196,12 @@ static int rcuhead_fixup_activate(void *addr, enum debug_obj_state state)
 		 * attempt any fixup and just print a warning.
 		 */
 #ifndef CONFIG_PREEMPT
-		WARN_ON(1);
+		WARN_ON_ONCE(1);
 		return 0;
 #endif
 		if (rcu_preempt_depth() != 0 || preempt_count() != 0 ||
 		    irqs_disabled()) {
-			WARN_ON(1);
+			WARN_ON_ONCE(1);
 			return 0;
 		}
 		rcu_barrier();
@@ -233,12 +233,12 @@ static int rcuhead_fixup_free(void *addr, enum debug_obj_state state)
 		 * attempt any fixup and just print a warning.
 		 */
 #ifndef CONFIG_PREEMPT
-		WARN_ON(1);
+		WARN_ON_ONCE(1);
 		return 0;
 #endif
 		if (rcu_preempt_depth() != 0 || preempt_count() != 0 ||
 		    irqs_disabled()) {
-			WARN_ON(1);
+			WARN_ON_ONCE(1);
 			return 0;
 		}
 		rcu_barrier();
