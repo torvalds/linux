@@ -1401,8 +1401,8 @@ static bool __init io_apic_pin_not_connected(int idx, int apic_id, int pin)
 static void __init __io_apic_setup_irqs(unsigned int apic_id)
 {
 	int idx, node = cpu_to_node(0);
+	struct io_apic_irq_attr attr;
 	unsigned int pin, irq;
-	struct irq_cfg *cfg;
 
 	for (pin = 0; pin < nr_ioapic_registers[apic_id]; pin++) {
 		idx = find_irq_entry(apic_id, pin, mp_INT);
@@ -1419,20 +1419,13 @@ static void __init __io_apic_setup_irqs(unsigned int apic_id)
 		 * installed and if it returns 1:
 		 */
 		if (apic->multi_timer_check &&
-				apic->multi_timer_check(apic_id, irq))
+		    apic->multi_timer_check(apic_id, irq))
 			continue;
 
-		cfg = alloc_irq_and_cfg_at(irq, node);
-		if (!cfg)
-			continue;
+		set_io_apic_irq_attr(&attr, apic_id, pin, irq_trigger(idx),
+				     irq_polarity(idx));
 
-		add_pin_to_irq_node(cfg, node, apic_id, pin);
-		/*
-		 * don't mark it in pin_programmed, so later acpi could
-		 * set it correctly when irq < 16
-		 */
-		setup_ioapic_irq(apic_id, pin, irq, cfg, irq_trigger(idx),
-				  irq_polarity(idx));
+		io_apic_setup_irq_pin(irq, node, &attr);
 	}
 }
 
