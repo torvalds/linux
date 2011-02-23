@@ -80,13 +80,15 @@ static int __devinit of_platform_serial_setup(struct platform_device *ofdev,
 /*
  * Try to register a serial port
  */
-static int __devinit of_platform_serial_probe(struct platform_device *ofdev,
-						const struct of_device_id *id)
+static int __devinit of_platform_serial_probe(struct platform_device *ofdev)
 {
 	struct of_serial_info *info;
 	struct uart_port port;
 	int port_type;
 	int ret;
+
+	if (!ofdev->dev.of_match)
+		return -EINVAL;
 
 	if (of_find_property(ofdev->dev.of_node, "used-by-rtas", NULL))
 		return -EBUSY;
@@ -95,7 +97,7 @@ static int __devinit of_platform_serial_probe(struct platform_device *ofdev,
 	if (info == NULL)
 		return -ENOMEM;
 
-	port_type = (unsigned long)id->data;
+	port_type = (unsigned long)ofdev->dev.of_match->data;
 	ret = of_platform_serial_setup(ofdev, port_type, &port);
 	if (ret)
 		goto out;
@@ -174,7 +176,7 @@ static struct of_device_id __devinitdata of_platform_serial_table[] = {
 	{ /* end of list */ },
 };
 
-static struct of_platform_driver of_platform_serial_driver = {
+static struct platform_driver of_platform_serial_driver = {
 	.driver = {
 		.name = "of_serial",
 		.owner = THIS_MODULE,
@@ -186,13 +188,13 @@ static struct of_platform_driver of_platform_serial_driver = {
 
 static int __init of_platform_serial_init(void)
 {
-	return of_register_platform_driver(&of_platform_serial_driver);
+	return platform_driver_register(&of_platform_serial_driver);
 }
 module_init(of_platform_serial_init);
 
 static void __exit of_platform_serial_exit(void)
 {
-	return of_unregister_platform_driver(&of_platform_serial_driver);
+	return platform_driver_unregister(&of_platform_serial_driver);
 };
 module_exit(of_platform_serial_exit);
 

@@ -1399,7 +1399,7 @@ static void __devinit sunzilog_init_hw(struct uart_sunzilog_port *up)
 
 static int zilog_irq = -1;
 
-static int __devinit zs_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit zs_probe(struct platform_device *op)
 {
 	static int kbm_inst, uart_inst;
 	int inst;
@@ -1540,7 +1540,7 @@ static const struct of_device_id zs_match[] = {
 };
 MODULE_DEVICE_TABLE(of, zs_match);
 
-static struct of_platform_driver zs_driver = {
+static struct platform_driver zs_driver = {
 	.driver = {
 		.name = "zs",
 		.owner = THIS_MODULE,
@@ -1576,7 +1576,7 @@ static int __init sunzilog_init(void)
 			goto out_free_tables;
 	}
 
-	err = of_register_platform_driver(&zs_driver);
+	err = platform_driver_register(&zs_driver);
 	if (err)
 		goto out_unregister_uart;
 
@@ -1604,7 +1604,7 @@ out:
 	return err;
 
 out_unregister_driver:
-	of_unregister_platform_driver(&zs_driver);
+	platform_driver_unregister(&zs_driver);
 
 out_unregister_uart:
 	if (num_sunzilog) {
@@ -1619,7 +1619,7 @@ out_free_tables:
 
 static void __exit sunzilog_exit(void)
 {
-	of_unregister_platform_driver(&zs_driver);
+	platform_driver_unregister(&zs_driver);
 
 	if (zilog_irq != -1) {
 		struct uart_sunzilog_port *up = sunzilog_irq_chain;
