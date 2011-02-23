@@ -14,6 +14,7 @@
 /*#define DEBUG*/
 
 #include <linux/sched.h>
+#include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/videodev2.h>
 #include <linux/io.h>
@@ -57,7 +58,6 @@ enum fimc_dev_flags {
 	ST_IDLE,
 	ST_OUTDMA_RUN,
 	ST_M2M_PEND,
-	ST_M2M_SHUT,
 	/* for capture node */
 	ST_CAPT_PEND,
 	ST_CAPT_RUN,
@@ -70,13 +70,6 @@ enum fimc_dev_flags {
 
 #define fimc_capture_running(dev) test_bit(ST_CAPT_RUN, &(dev)->state)
 #define fimc_capture_pending(dev) test_bit(ST_CAPT_PEND, &(dev)->state)
-
-#define fimc_capture_active(dev) \
-	(test_bit(ST_CAPT_RUN, &(dev)->state) || \
-	 test_bit(ST_CAPT_PEND, &(dev)->state))
-
-#define fimc_capture_streaming(dev) \
-	test_bit(ST_CAPT_STREAM, &(dev)->state)
 
 enum fimc_datapath {
 	FIMC_CAMERA,
@@ -119,6 +112,7 @@ enum fimc_color_fmt {
 #define	FIMC_DST_FMT		(1 << 4)
 #define	FIMC_CTX_M2M		(1 << 5)
 #define	FIMC_CTX_CAP		(1 << 6)
+#define	FIMC_CTX_SHUT		(1 << 7)
 
 /* Image conversion flags */
 #define	FIMC_IN_DMA_ACCESS_TILED	(1 << 0)
@@ -476,6 +470,38 @@ struct fimc_ctx {
 	struct v4l2_m2m_ctx	*m2m_ctx;
 };
 
+static inline bool fimc_capture_active(struct fimc_dev *fimc)
+{
+	unsigned long flags;
+	bool ret;
+
+	spin_lock_irqsave(&fimc->slock, flags);
+	ret = !!(fimc->state & (1 << ST_CAPT_RUN) ||
+		 fimc->state & (1 << ST_CAPT_PEND));
+	spin_unlock_irqrestore(&fimc->slock, flags);
+	return ret;
+}
+
+static inline void fimc_ctx_state_lock_set(u32 state, struct fimc_ctx *ctx)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ctx->slock, flags);
+	ctx->state |= state;
+	spin_unlock_irqrestore(&ctx->slock, flags);
+}
+
+static inline bool fimc_ctx_state_is_set(u32 mask, struct fimc_ctx *ctx)
+{
+	unsigned long flags;
+	bool ret;
+
+	spin_lock_irqsave(&ctx->slock, flags);
+	ret = (ctx->state & mask) == mask;
+	spin_unlock_irqrestore(&ctx->slock, flags);
+	return ret;
+}
+
 static inline int tiled_fmt(struct fimc_fmt *fmt)
 {
 	return fmt->fourcc == V4L2_PIX_FMT_NV12MT;
@@ -535,7 +561,7 @@ static inline struct fimc_frame *ctx_get_frame(struct fimc_ctx *ctx,
 	struct fimc_frame *frame;
 
 	if (V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE == type) {
-		if (ctx->state & FIMC_CTX_M2M)
+		if (fimc_ctx_state_is_set(FIMC_CTX_M2M, ctx))
 			frame = &ctx->s_frame;
 		else
 			return ERR_PTR(-EINVAL);

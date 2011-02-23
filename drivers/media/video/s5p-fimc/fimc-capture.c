@@ -252,14 +252,9 @@ static int stop_streaming(struct vb2_queue *q)
 {
 	struct fimc_ctx *ctx = q->drv_priv;
 	struct fimc_dev *fimc = ctx->fimc_dev;
-	unsigned long flags;
 
-	spin_lock_irqsave(&fimc->slock, flags);
-	if (!fimc_capture_running(fimc) && !fimc_capture_pending(fimc)) {
-		spin_unlock_irqrestore(&fimc->slock, flags);
+	if (!fimc_capture_active(fimc))
 		return -EINVAL;
-	}
-	spin_unlock_irqrestore(&fimc->slock, flags);
 
 	return fimc_stop_capture(fimc);
 }
@@ -773,7 +768,7 @@ static int fimc_cap_s_crop(struct file *file, void *fh,
 				      ctx->d_frame.width, ctx->d_frame.height,
 				      ctx->rotation);
 	if (ret) {
-		v4l2_err(&fimc->vid_cap.v4l2_dev, "Out of the scaler range");
+		v4l2_err(&fimc->vid_cap.v4l2_dev, "Out of the scaler range\n");
 		return ret;
 	}
 
