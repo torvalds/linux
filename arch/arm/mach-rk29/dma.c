@@ -11,7 +11,7 @@ static u64 dma_dmamask = DMA_BIT_MASK(32);
 static struct resource rk29_dmac0_resource[] = {
 	[0] = {
 		.start  = RK29_SDMAC0_PHYS,//RK29_DMAC0_PHYS,
-		.end    = RK29_SDMAC0_PHYS + RK29_SDMAC0_SIZE,
+		.end    = RK29_SDMAC0_PHYS + RK29_SDMAC0_SIZE -1,
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -30,7 +30,7 @@ static struct rk29_pl330_platdata rk29_dmac0_pdata = {
 		[4] = DMACH_I2S_2CH_TX,
 		[5] = DMACH_I2S_2CH_RX,
 		[6] = DMACH_SPDIF,
-        [7] = DMACH_MAX,
+                            [7] = DMACH_MAX,
 		[8] = DMACH_MAX,
 		[9] = DMACH_MAX,
 		[10] = DMACH_MAX,
@@ -57,7 +57,7 @@ static struct platform_device rk29_device_dmac0 = {
 static struct resource rk29_dmac2_resource[] = {
 	[0] = {
 		.start  = RK29_DMA2_PHYS,
-		.end    = RK29_DMA2_PHYS + RK29_DMA2_SIZE,
+		.end    = RK29_DMA2_PHYS + RK29_DMA2_SIZE - 1,
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -84,7 +84,7 @@ static struct rk29_pl330_platdata rk29_dmac2_pdata = {
 		[12] = DMACH_SPI1_TX,
 		[13] = DMACH_SPI1_RX,
 		[14] = DMACH_PID_FILTER, 
-        [15] = DMACH_DMAC0_MEMTOMEM,
+                            [15] = DMACH_DMAC0_MEMTOMEM,
 		[16] = DMACH_MAX,
 	},
 };
