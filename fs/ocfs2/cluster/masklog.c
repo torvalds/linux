@@ -93,7 +93,6 @@ static struct mlog_attribute mlog_attrs[MLOG_MAX_BITS] = {
 	define_mask(DLM_RECOVERY),
 	define_mask(AIO),
 	define_mask(JOURNAL),
-	define_mask(SUPER),
 	define_mask(DLM_GLUE),
 	define_mask(BH_IO),
 	define_mask(UPTODATE),

@@ -57,6 +57,23 @@ DEFINE_EVENT(ocfs2__ull, name,	\
 	TP_PROTO(unsigned long long num),	\
 	TP_ARGS(num))
 
+DECLARE_EVENT_CLASS(ocfs2__pointer,
+	TP_PROTO(void *pointer),
+	TP_ARGS(pointer),
+	TP_STRUCT__entry(
+		__field(void *, pointer)
+	),
+	TP_fast_assign(
+		__entry->pointer = pointer;
+	),
+	TP_printk("%p", __entry->pointer)
+);
+
+#define DEFINE_OCFS2_POINTER_EVENT(name)	\
+DEFINE_EVENT(ocfs2__pointer, name,	\
+	TP_PROTO(void *pointer),	\
+	TP_ARGS(pointer))
+
 DECLARE_EVENT_CLASS(ocfs2__int_int,
 	TP_PROTO(int value1, int value2),
 	TP_ARGS(value1, value2),
@@ -1537,6 +1554,97 @@ DEFINE_OCFS2_INT_EVENT(ocfs2_do_node_down);
 
 /* End of trace events for fs/ocfs2/heartbeat.c. */
 
+/* Trace events for fs/ocfs2/super.c. */
+
+TRACE_EVENT(ocfs2_remount,
+	TP_PROTO(unsigned long s_flags, unsigned long osb_flags, int flags),
+	TP_ARGS(s_flags, osb_flags, flags),
+	TP_STRUCT__entry(
+		__field(unsigned long, s_flags)
+		__field(unsigned long, osb_flags)
+		__field(int, flags)
+	),
+	TP_fast_assign(
+		__entry->s_flags = s_flags;
+		__entry->osb_flags = osb_flags;
+		__entry->flags = flags;
+	),
+	TP_printk("%lu %lu %d", __entry->s_flags,
+		  __entry->osb_flags, __entry->flags)
+);
+
+TRACE_EVENT(ocfs2_fill_super,
+	TP_PROTO(void *sb, void *data, int silent),
+	TP_ARGS(sb, data, silent),
+	TP_STRUCT__entry(
+		__field(void *, sb)
+		__field(void *, data)
+		__field(int, silent)
+	),
+	TP_fast_assign(
+		__entry->sb = sb;
+		__entry->data = data;
+		__entry->silent = silent;
+	),
+	TP_printk("%p %p %d", __entry->sb,
+		  __entry->data, __entry->silent)
+);
+
+TRACE_EVENT(ocfs2_parse_options,
+	TP_PROTO(int is_remount, char *options),
+	TP_ARGS(is_remount, options),
+	TP_STRUCT__entry(
+		__field(int, is_remount)
+		__string(options, options)
+	),
+	TP_fast_assign(
+		__entry->is_remount = is_remount;
+		__assign_str(options, options);
+	),
+	TP_printk("%d %s", __entry->is_remount, __get_str(options))
+);
+
+DEFINE_OCFS2_POINTER_EVENT(ocfs2_put_super);
+
+TRACE_EVENT(ocfs2_statfs,
+	TP_PROTO(void *sb, void *buf),
+	TP_ARGS(sb, buf),
+	TP_STRUCT__entry(
+		__field(void *, sb)
+		__field(void *, buf)
+	),
+	TP_fast_assign(
+		__entry->sb = sb;
+		__entry->buf = buf;
+	),
+	TP_printk("%p %p", __entry->sb, __entry->buf)
+);
+
+DEFINE_OCFS2_POINTER_EVENT(ocfs2_dismount_volume);
+
+TRACE_EVENT(ocfs2_initialize_super,
+	TP_PROTO(char *label, char *uuid_str, unsigned long long root_dir,
+		 unsigned long long system_dir, int cluster_bits),
+	TP_ARGS(label, uuid_str, root_dir, system_dir, cluster_bits),
+	TP_STRUCT__entry(
+		__string(label, label)
+		__string(uuid_str, uuid_str)
+		__field(unsigned long long, root_dir)
+		__field(unsigned long long, system_dir)
+		__field(int, cluster_bits)
+	),
+	TP_fast_assign(
+		__assign_str(label, label);
+		__assign_str(uuid_str, uuid_str);
+		__entry->root_dir = root_dir;
+		__entry->system_dir = system_dir;
+		__entry->cluster_bits = cluster_bits;
+	),
+	TP_printk("%s %s %llu %llu %d", __get_str(label), __get_str(uuid_str),
+		  __entry->root_dir, __entry->system_dir, __entry->cluster_bits)
+);
+
+/* End of trace events for fs/ocfs2/super.c. */
 #endif /* _TRACE_OCFS2_H */
 
 /* This part must be outside protection */

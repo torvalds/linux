@@ -45,7 +45,6 @@
 #define CREATE_TRACE_POINTS
 #include "ocfs2_trace.h"
 
-#define MLOG_MASK_PREFIX ML_SUPER
 #include <cluster/masklog.h>
 
 #include "ocfs2.h"
@@ -680,12 +679,9 @@ static int ocfs2_remount(struct super_block *sb, int *flags, char *data)
 		}
 
 		if (*flags & MS_RDONLY) {
-			mlog(0, "Going to ro mode.\n");
 			sb->s_flags |= MS_RDONLY;
 			osb->osb_flags |= OCFS2_OSB_SOFT_RO;
 		} else {
-			mlog(0, "Making ro filesystem writeable.\n");
-
 			if (osb->osb_flags & OCFS2_OSB_ERROR_FS) {
 				mlog(ML_ERROR, "Cannot remount RDWR "
 				     "filesystem due to previous errors.\n");
@@ -703,6 +699,7 @@ static int ocfs2_remount(struct super_block *sb, int *flags, char *data)
 			sb->s_flags &= ~MS_RDONLY;
 			osb->osb_flags &= ~OCFS2_OSB_SOFT_RO;
 		}
+		trace_ocfs2_remount(sb->s_flags, osb->osb_flags, *flags);
 unlock_osb:
 		spin_unlock(&osb->osb_lock);
 		/* Enable quota accounting after remounting RW */
@@ -1028,7 +1025,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	char nodestr[8];
 	struct ocfs2_blockcheck_stats stats;
 
-	mlog(0, "%p, %p, %i", sb, data, silent);
+	trace_ocfs2_fill_super(sb, data, silent);
 
 	if (!ocfs2_parse_options(sb, data, &parsed_options, 0)) {
 		status = -EINVAL;
@@ -1315,8 +1312,7 @@ static int ocfs2_parse_options(struct super_block *sb,
 	char *p;
 	u32 tmp;
 
-	mlog(0, "remount: %d, options: \"%s\"\n", is_remount,
-	     options ? options : "(none)");
+	trace_ocfs2_parse_options(is_remount, options ? options : "(none)");
 
 	mopt->commit_interval = 0;
 	mopt->mount_opt = OCFS2_MOUNT_NOINTR;
@@ -1692,7 +1688,7 @@ static void __exit ocfs2_exit(void)
 
 static void ocfs2_put_super(struct super_block *sb)
 {
-	mlog(0, "(0x%p)\n", sb);
+	trace_ocfs2_put_super(sb);
 
 	ocfs2_sync_blockdev(sb);
 	ocfs2_dismount_volume(sb, 0);
@@ -1707,7 +1703,7 @@ static int ocfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct buffer_head *bh = NULL;
 	struct inode *inode = NULL;
 
-	mlog(0, "(%p, %p)\n", dentry->d_sb, buf);
+	trace_ocfs2_statfs(dentry->d_sb, buf);
 
 	osb = OCFS2_SB(dentry->d_sb);
 
@@ -1928,7 +1924,7 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 	struct ocfs2_super *osb = NULL;
 	char nodestr[8];
 
-	mlog(0, "(0x%p)\n", sb);
+	trace_ocfs2_dismount_volume(sb);
 
 	BUG_ON(!sb);
 	osb = OCFS2_SB(sb);
@@ -2143,7 +2139,6 @@ static int ocfs2_initialize_super(struct super_block *sb,
 		status = -EINVAL;
 		goto bail;
 	}
-	mlog(0, "max_slots for this device: %u\n", osb->max_slots);
 
 	ocfs2_orphan_scan_init(osb);
 
@@ -2282,7 +2277,6 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	osb->s_clustersize_bits =
 		le32_to_cpu(di->id2.i_super.s_clustersize_bits);
 	osb->s_clustersize = 1 << osb->s_clustersize_bits;
-	mlog(0, "clusterbits=%d\n", osb->s_clustersize_bits);
 
 	if (osb->s_clustersize < OCFS2_MIN_CLUSTERSIZE ||
 	    osb->s_clustersize > OCFS2_MAX_CLUSTERSIZE) {
@@ -2321,11 +2315,10 @@ static int ocfs2_initialize_super(struct super_block *sb,
 		le64_to_cpu(di->id2.i_super.s_first_cluster_group);
 	osb->fs_generation = le32_to_cpu(di->i_fs_generation);
 	osb->uuid_hash = le32_to_cpu(di->id2.i_super.s_uuid_hash);
-	mlog(0, "vol_label: %s\n", osb->vol_label);
-	mlog(0, "uuid: %s\n", osb->uuid_str);
-	mlog(0, "root_blkno=%llu, system_dir_blkno=%llu\n",
-	     (unsigned long long)osb->root_blkno,
-	     (unsigned long long)osb->system_dir_blkno);
+	trace_ocfs2_initialize_super(osb->vol_label, osb->uuid_str,
+				     (unsigned long long)osb->root_blkno,
+				     (unsigned long long)osb->system_dir_blkno,
+				     osb->s_clustersize_bits);
 
 	osb->osb_dlm_debug = ocfs2_new_dlm_debug();
 	if (!osb->osb_dlm_debug) {
@@ -2499,8 +2492,6 @@ static int ocfs2_check_volume(struct ocfs2_super *osb)
 		/* we complete the recovery process after we've marked
 		 * ourselves as mounted. */
 	}
-
-	mlog(0, "Journal loaded.\n");
 
 	status = ocfs2_load_local_alloc(osb);
 	if (status < 0) {
