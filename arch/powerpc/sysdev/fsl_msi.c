@@ -273,8 +273,7 @@ static int fsl_of_msi_remove(struct platform_device *ofdev)
 	return 0;
 }
 
-static int __devinit fsl_of_msi_probe(struct platform_device *dev,
-				const struct of_device_id *match)
+static int __devinit fsl_of_msi_probe(struct platform_device *dev)
 {
 	struct fsl_msi *msi;
 	struct resource res;
@@ -282,10 +281,14 @@ static int __devinit fsl_of_msi_probe(struct platform_device *dev,
 	int rc;
 	int virt_msir;
 	const u32 *p;
-	struct fsl_msi_feature *features = match->data;
+	struct fsl_msi_feature *features;
 	struct fsl_msi_cascade_data *cascade_data = NULL;
 	int len;
 	u32 offset;
+
+	if (!dev->dev.of_match)
+		return -EINVAL;
+	features = dev->dev.of_match->data;
 
 	printk(KERN_DEBUG "Setting up Freescale MSI support\n");
 
@@ -411,7 +414,7 @@ static const struct of_device_id fsl_of_msi_ids[] = {
 	{}
 };
 
-static struct of_platform_driver fsl_of_msi_driver = {
+static struct platform_driver fsl_of_msi_driver = {
 	.driver = {
 		.name = "fsl-msi",
 		.owner = THIS_MODULE,
@@ -423,7 +426,7 @@ static struct of_platform_driver fsl_of_msi_driver = {
 
 static __init int fsl_of_msi_init(void)
 {
-	return of_register_platform_driver(&fsl_of_msi_driver);
+	return platform_driver_register(&fsl_of_msi_driver);
 }
 
 subsys_initcall(fsl_of_msi_init);

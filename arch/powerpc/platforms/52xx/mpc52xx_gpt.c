@@ -721,8 +721,7 @@ static inline int mpc52xx_gpt_wdt_setup(struct mpc52xx_gpt_priv *gpt,
 /* ---------------------------------------------------------------------
  * of_platform bus binding code
  */
-static int __devinit mpc52xx_gpt_probe(struct platform_device *ofdev,
-				       const struct of_device_id *match)
+static int __devinit mpc52xx_gpt_probe(struct platform_device *ofdev)
 {
 	struct mpc52xx_gpt_priv *gpt;
 
@@ -781,7 +780,7 @@ static const struct of_device_id mpc52xx_gpt_match[] = {
 	{}
 };
 
-static struct of_platform_driver mpc52xx_gpt_driver = {
+static struct platform_driver mpc52xx_gpt_driver = {
 	.driver = {
 		.name = "mpc52xx-gpt",
 		.owner = THIS_MODULE,
@@ -793,10 +792,7 @@ static struct of_platform_driver mpc52xx_gpt_driver = {
 
 static int __init mpc52xx_gpt_init(void)
 {
-	if (of_register_platform_driver(&mpc52xx_gpt_driver))
-		pr_err("error registering MPC52xx GPT driver\n");
-
-	return 0;
+	return platform_driver_register(&mpc52xx_gpt_driver);
 }
 
 /* Make sure GPIOs and IRQs get set up before anyone tries to use them */

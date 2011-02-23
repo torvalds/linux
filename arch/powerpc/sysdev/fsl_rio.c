@@ -1570,8 +1570,7 @@ err_ops:
 
 /* The probe function for RapidIO peer-to-peer network.
  */
-static int __devinit fsl_of_rio_rpn_probe(struct platform_device *dev,
-				     const struct of_device_id *match)
+static int __devinit fsl_of_rio_rpn_probe(struct platform_device *dev)
 {
 	int rc;
 	printk(KERN_INFO "Setting up RapidIO peer-to-peer network %s\n",
@@ -1594,7 +1593,7 @@ static const struct of_device_id fsl_of_rio_rpn_ids[] = {
 	{},
 };
 
-static struct of_platform_driver fsl_of_rio_rpn_driver = {
+static struct platform_driver fsl_of_rio_rpn_driver = {
 	.driver = {
 		.name = "fsl-of-rio",
 		.owner = THIS_MODULE,
@@ -1605,7 +1604,7 @@ static struct of_platform_driver fsl_of_rio_rpn_driver = {
 
 static __init int fsl_of_rio_rpn_init(void)
 {
-	return of_register_platform_driver(&fsl_of_rio_rpn_driver);
+	return platform_driver_register(&fsl_of_rio_rpn_driver);
 }
 
 subsys_initcall(fsl_of_rio_rpn_init);

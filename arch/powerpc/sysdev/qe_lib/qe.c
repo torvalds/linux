@@ -659,8 +659,7 @@ static int qe_resume(struct platform_device *ofdev)
 	return 0;
 }
 
-static int qe_probe(struct platform_device *ofdev,
-		    const struct of_device_id *id)
+static int qe_probe(struct platform_device *ofdev)
 {
 	return 0;
 }
@@ -670,7 +669,7 @@ static const struct of_device_id qe_ids[] = {
 	{ },
 };
 
-static struct of_platform_driver qe_driver = {
+static struct platform_driver qe_driver = {
 	.driver = {
 		.name = "fsl-qe",
 		.owner = THIS_MODULE,
@@ -682,7 +681,7 @@ static struct of_platform_driver qe_driver = {
 
 static int __init qe_drv_init(void)
 {
-	return of_register_platform_driver(&qe_driver);
+	return platform_driver_register(&qe_driver);
 }
 device_initcall(qe_drv_init);
 #endif /* defined(CONFIG_SUSPEND) && defined(CONFIG_PPC_85xx) */
