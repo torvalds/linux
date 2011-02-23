@@ -24,7 +24,7 @@
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 
-#define VERSION "1.2"
+#define VERSION "1.3"
 
 /*	Network Emulation Queuing algorithm.
 	====================================
@@ -310,8 +310,6 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	struct sk_buff *skb2;
 	int ret;
 	int count = 1;
-
-	pr_debug("netem_enqueue skb=%p\n", skb);
 
 	/* Random duplication */
 	if (q->duplicate && q->duplicate >= get_crandom(&q->dup_cor))
@@ -633,7 +631,7 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt)
 
 	ret = fifo_set_limit(q->qdisc, qopt->limit);
 	if (ret) {
-		pr_debug("netem: can't set fifo limit\n");
+		pr_info("netem: can't set fifo limit\n");
 		return ret;
 	}
 
@@ -769,13 +767,13 @@ static int netem_init(struct Qdisc *sch, struct nlattr *opt)
 	q->qdisc = qdisc_create_dflt(sch->dev_queue, &tfifo_qdisc_ops,
 				     TC_H_MAKE(sch->handle, 1));
 	if (!q->qdisc) {
-		pr_debug("netem: qdisc create failed\n");
+		pr_notice("netem: qdisc create tfifo qdisc failed\n");
 		return -ENOMEM;
 	}
 
 	ret = netem_change(sch, opt);
 	if (ret) {
-		pr_debug("netem: change failed\n");
+		pr_info("netem: change failed\n");
 		qdisc_destroy(q->qdisc);
 	}
 	return ret;
