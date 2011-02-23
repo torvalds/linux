@@ -1126,6 +1126,8 @@ static int enic_set_port_profile(struct enic *enic, u8 *mac)
 	if (err)
 		return err;
 
+	enic_reset_addr_lists(enic);
+
 	switch (enic->pp.request) {
 
 	case PORT_REQUEST_ASSOCIATE:
