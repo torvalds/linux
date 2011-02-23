@@ -1809,6 +1809,122 @@ DEFINE_OCFS2_ULL_UINT_UINT_EVENT(ocfs2_reflink_xattr_buckets);
 DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_reflink_xattr_rec);
 
 /* End of trace events for fs/ocfs2/xattr.c. */
+
+/* Trace events for fs/ocfs2/reservations.c. */
+
+DEFINE_OCFS2_UINT_UINT_EVENT(ocfs2_resv_insert);
+
+DEFINE_OCFS2_ULL_UINT_UINT_UINT_EVENT(ocfs2_resmap_find_free_bits_begin);
+
+DEFINE_OCFS2_UINT_UINT_EVENT(ocfs2_resmap_find_free_bits_end);
+
+TRACE_EVENT(ocfs2_resv_find_window_begin,
+	TP_PROTO(unsigned int r_start, unsigned int r_end, unsigned int goal,
+		 unsigned int wanted, int empty_root),
+	TP_ARGS(r_start, r_end, goal, wanted, empty_root),
+	TP_STRUCT__entry(
+		__field(unsigned int, r_start)
+		__field(unsigned int, r_end)
+		__field(unsigned int, goal)
+		__field(unsigned int, wanted)
+		__field(int, empty_root)
+	),
+	TP_fast_assign(
+		__entry->r_start = r_start;
+		__entry->r_end = r_end;
+		__entry->goal = goal;
+		__entry->wanted = wanted;
+		__entry->empty_root = empty_root;
+	),
+	TP_printk("%u %u %u %u %d", __entry->r_start, __entry->r_end,
+		  __entry->goal, __entry->wanted, __entry->empty_root)
+);
+
+DEFINE_OCFS2_UINT_UINT_EVENT(ocfs2_resv_find_window_prev);
+
+DEFINE_OCFS2_INT_INT_EVENT(ocfs2_resv_find_window_next);
+
+DEFINE_OCFS2_UINT_UINT_UINT_EVENT(ocfs2_cannibalize_resv_begin);
+
+TRACE_EVENT(ocfs2_cannibalize_resv_end,
+	TP_PROTO(unsigned int start, unsigned int end, unsigned int len,
+		 unsigned int last_start, unsigned int last_len),
+	TP_ARGS(start, end, len, last_start, last_len),
+	TP_STRUCT__entry(
+		__field(unsigned int, start)
+		__field(unsigned int, end)
+		__field(unsigned int, len)
+		__field(unsigned int, last_start)
+		__field(unsigned int, last_len)
+	),
+	TP_fast_assign(
+		__entry->start = start;
+		__entry->end = end;
+		__entry->len = len;
+		__entry->last_start = last_start;
+		__entry->last_len = last_len;
+	),
+	TP_printk("%u %u %u %u %u", __entry->start, __entry->end,
+		  __entry->len, __entry->last_start, __entry->last_len)
+);
+
+DEFINE_OCFS2_UINT_UINT_EVENT(ocfs2_resmap_resv_bits);
+
+TRACE_EVENT(ocfs2_resmap_claimed_bits_begin,
+	TP_PROTO(unsigned int cstart, unsigned int cend, unsigned int clen,
+		 unsigned int r_start, unsigned int r_end, unsigned int r_len,
+		 unsigned int last_start, unsigned int last_len),
+	TP_ARGS(cstart, cend, clen, r_start, r_end,
+		r_len, last_start, last_len),
+	TP_STRUCT__entry(
+		__field(unsigned int, cstart)
+		__field(unsigned int, cend)
+		__field(unsigned int, clen)
+		__field(unsigned int, r_start)
+		__field(unsigned int, r_end)
+		__field(unsigned int, r_len)
+		__field(unsigned int, last_start)
+		__field(unsigned int, last_len)
+	),
+	TP_fast_assign(
+		__entry->cstart = cstart;
+		__entry->cend = cend;
+		__entry->clen = clen;
+		__entry->r_start = r_start;
+		__entry->r_end = r_end;
+		__entry->r_len = r_len;
+		__entry->last_start = last_start;
+		__entry->last_len = last_len;
+	),
+	TP_printk("%u %u %u %u %u %u %u %u",
+		  __entry->cstart, __entry->cend, __entry->clen,
+		  __entry->r_start, __entry->r_end, __entry->r_len,
+		  __entry->last_start, __entry->last_len)
+);
+
+TRACE_EVENT(ocfs2_resmap_claimed_bits_end,
+	TP_PROTO(unsigned int start, unsigned int end, unsigned int len,
+		 unsigned int last_start, unsigned int last_len),
+	TP_ARGS(start, end, len, last_start, last_len),
+	TP_STRUCT__entry(
+		__field(unsigned int, start)
+		__field(unsigned int, end)
+		__field(unsigned int, len)
+		__field(unsigned int, last_start)
+		__field(unsigned int, last_len)
+	),
+	TP_fast_assign(
+		__entry->start = start;
+		__entry->end = end;
+		__entry->len = len;
+		__entry->last_start = last_start;
+		__entry->last_len = last_len;
+	),
+	TP_printk("%u %u %u %u %u", __entry->start, __entry->end,
+		  __entry->len, __entry->last_start, __entry->last_len)
+);
+
+/* End of trace events for fs/ocfs2/reservations.c. */
 #endif /* _TRACE_OCFS2_H */
 
 /* This part must be outside protection */
