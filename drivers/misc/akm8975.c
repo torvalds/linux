@@ -154,12 +154,12 @@ static void akm8975_ecs_report_value(struct akm8975_data *akm, short *rbuf)
 		input_report_rel(data->input_dev, REL_RX, rbuf[0]);
 		input_report_rel(data->input_dev, REL_RY, rbuf[1]);
 		input_report_rel(data->input_dev, REL_RZ, rbuf[2]);
-		input_report_rel(data->input_dev, REL_WHEEL, rbuf[4]);
+		input_report_rel(data->input_dev, REL_HWHEEL, rbuf[4]);
 	}
 
 	if (mv_flag) {
 		input_report_rel(data->input_dev, REL_DIAL, rbuf[9]);
-		input_report_rel(data->input_dev, REL_HWHEEL, rbuf[10]);
+		input_report_rel(data->input_dev, REL_WHEEL, rbuf[10]);
 		input_report_rel(data->input_dev, REL_MISC, rbuf[11]);
 	}
 	mutex_unlock(&akm->flags_lock);
@@ -540,12 +540,12 @@ int akm8975_probe(struct i2c_client *client,
 	input_set_capability(akm->input_dev, EV_REL, REL_RZ);
 
 	/* status of orientation sensor */
-	input_set_capability(akm->input_dev, EV_REL, REL_WHEEL);
+	input_set_capability(akm->input_dev, EV_REL, REL_HWHEEL);
 
 	/* x-axis of raw magnetic vector */
 	input_set_capability(akm->input_dev, EV_REL, REL_DIAL);
 	/* y-axis of raw magnetic vector */
-	input_set_capability(akm->input_dev, EV_REL, REL_HWHEEL);
+	input_set_capability(akm->input_dev, EV_REL, REL_WHEEL);
 	/* z-axis of raw magnetic vector */
 	input_set_capability(akm->input_dev, EV_REL, REL_MISC);
 
