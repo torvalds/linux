@@ -1157,9 +1157,8 @@ xfrm_get_saddr(struct net *net, xfrm_address_t *local, xfrm_address_t *remote,
 /* Resolve list of templates for the flow, given policy. */
 
 static int
-xfrm_tmpl_resolve_one(struct xfrm_policy *policy, struct flowi *fl,
-		      struct xfrm_state **xfrm,
-		      unsigned short family)
+xfrm_tmpl_resolve_one(struct xfrm_policy *policy, const struct flowi *fl,
+		      struct xfrm_state **xfrm, unsigned short family)
 {
 	struct net *net = xp_net(policy);
 	int nx;
@@ -1214,9 +1213,8 @@ fail:
 }
 
 static int
-xfrm_tmpl_resolve(struct xfrm_policy **pols, int npols, struct flowi *fl,
-		  struct xfrm_state **xfrm,
-		  unsigned short family)
+xfrm_tmpl_resolve(struct xfrm_policy **pols, int npols, const struct flowi *fl,
+		  struct xfrm_state **xfrm, unsigned short family)
 {
 	struct xfrm_state *tp[XFRM_MAX_DEPTH];
 	struct xfrm_state **tpp = (npols > 1) ? tp : xfrm;
