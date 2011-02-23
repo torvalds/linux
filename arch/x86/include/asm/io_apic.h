@@ -151,6 +151,8 @@ void setup_IO_APIC_irq_extra(u32 gsi);
 extern void ioapic_and_gsi_init(void);
 extern void ioapic_insert_resources(void);
 
+int io_apic_setup_irq_pin(unsigned int irq, int node, struct io_apic_irq_attr *attr);
+
 extern struct IO_APIC_route_entry **alloc_ioapic_entries(void);
 extern void free_ioapic_entries(struct IO_APIC_route_entry **ioapic_entries);
 extern int save_IO_APIC_setup(struct IO_APIC_route_entry **ioapic_entries);

@@ -3607,6 +3607,21 @@ int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 }
 #endif /* CONFIG_HT_IRQ */
 
+int
+io_apic_setup_irq_pin(unsigned int irq, int node, struct io_apic_irq_attr *attr)
+{
+	struct irq_cfg *cfg = alloc_irq_and_cfg_at(irq, node);
+	int ret;
+
+	if (!cfg)
+		return -EINVAL;
+	ret = __add_pin_to_irq_node(cfg, node, attr->ioapic, attr->ioapic_pin);
+	if (!ret)
+		setup_ioapic_irq(attr->ioapic, attr->ioapic_pin, irq, cfg,
+				 attr->trigger, attr->polarity);
+	return ret;
+}
+
 int __init io_apic_get_redir_entries (int ioapic)
 {
 	union IO_APIC_reg_01	reg_01;
