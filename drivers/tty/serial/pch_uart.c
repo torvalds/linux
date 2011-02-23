@@ -636,8 +636,7 @@ static void pch_dma_tx_complete(void *arg)
 	priv->tx_dma_use = 0;
 	priv->nent = 0;
 	kfree(priv->sg_tx_p);
-	if (uart_circ_chars_pending(xmit))
-		pch_uart_hal_enable_interrupt(priv, PCH_UART_HAL_TX_INT);
+	pch_uart_hal_enable_interrupt(priv, PCH_UART_HAL_TX_INT);
 }
 
 static int pop_tx(struct eg20t_port *priv, int size)
@@ -787,6 +786,14 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
 
 	if (!priv->start_tx) {
 		dev_info(priv->port.dev, "%s:Tx isn't started. (%lu)\n",
+			__func__, jiffies);
+		pch_uart_hal_disable_interrupt(priv, PCH_UART_HAL_TX_INT);
+		priv->tx_empty = 1;
+		return 0;
+	}
+
+	if (priv->tx_dma_use) {
+		dev_dbg(priv->port.dev, "%s:Tx is not completed. (%lu)\n",
 			__func__, jiffies);
 		pch_uart_hal_disable_interrupt(priv, PCH_UART_HAL_TX_INT);
 		priv->tx_empty = 1;
