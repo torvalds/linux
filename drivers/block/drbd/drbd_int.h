@@ -1496,10 +1496,31 @@ extern struct kmem_cache *drbd_al_ext_cache;	/* activity log extents */
 extern mempool_t *drbd_request_mempool;
 extern mempool_t *drbd_ee_mempool;
 
-extern struct page *drbd_pp_pool; /* drbd's page pool */
+/* drbd's page pool, used to buffer data received from the peer,
+ * or data requested by the peer.
+ *
+ * This does not have an emergency reserve.
+ *
+ * When allocating from this pool, it first takes pages from the pool.
+ * Only if the pool is depleted will try to allocate from the system.
+ *
+ * The assumption is that pages taken from this pool will be processed,
+ * and given back, "quickly", and then can be recycled, so we can avoid
+ * frequent calls to alloc_page(), and still will be able to make progress even
+ * under memory pressure.
+ */
+extern struct page *drbd_pp_pool;
 extern spinlock_t   drbd_pp_lock;
 extern int	    drbd_pp_vacant;
 extern wait_queue_head_t drbd_pp_wait;
+
+/* We also need a standard (emergency-reserve backed) page pool
+ * for meta data IO (activity log, bitmap).
+ * We can keep it global, as long as it is used as "N pages at a time".
+ * 128 should be plenty, currently we probably can get away with as few as 1.
+ */
+#define DRBD_MIN_POOL_PAGES	128
+extern mempool_t *drbd_md_io_page_pool;
 
 extern rwlock_t global_state_lock;
 
