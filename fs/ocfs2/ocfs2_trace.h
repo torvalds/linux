@@ -2129,6 +2129,241 @@ DEFINE_OCFS2_UINT_UINT_UINT_EVENT(ocfs2_dx_dir_rebalance_split);
 DEFINE_OCFS2_ULL_INT_EVENT(ocfs2_prepare_dir_for_insert);
 
 /* End of trace events for fs/ocfs2/dir.c. */
+
+/* Trace events for fs/ocfs2/namei.c. */
+
+DECLARE_EVENT_CLASS(ocfs2__dentry_ops,
+	TP_PROTO(void *dir, void *dentry, int name_len, const char *name,
+		 unsigned long long dir_blkno, unsigned long long extra),
+	TP_ARGS(dir, dentry, name_len, name, dir_blkno, extra),
+	TP_STRUCT__entry(
+		__field(void *, dir)
+		__field(void *, dentry)
+		__field(int, name_len)
+		__string(name, name)
+		__field(unsigned long long, dir_blkno)
+		__field(unsigned long long, extra)
+	),
+	TP_fast_assign(
+		__entry->dir = dir;
+		__entry->dentry = dentry;
+		__entry->name_len = name_len;
+		__assign_str(name, name);
+		__entry->dir_blkno = dir_blkno;
+		__entry->extra = extra;
+	),
+	TP_printk("%p %p %.*s %llu %llu", __entry->dir, __entry->dentry,
+		  __entry->name_len, __get_str(name),
+		  __entry->dir_blkno, __entry->extra)
+);
+
+#define DEFINE_OCFS2_DENTRY_OPS(name)					\
+DEFINE_EVENT(ocfs2__dentry_ops, name,					\
+TP_PROTO(void *dir, void *dentry, int name_len, const char *name,	\
+	 unsigned long long dir_blkno, unsigned long long extra),	\
+	TP_ARGS(dir, dentry, name_len, name, dir_blkno, extra))
+
+DEFINE_OCFS2_DENTRY_OPS(ocfs2_lookup);
+
+DEFINE_OCFS2_DENTRY_OPS(ocfs2_mkdir);
+
+DEFINE_OCFS2_DENTRY_OPS(ocfs2_create);
+
+DEFINE_OCFS2_DENTRY_OPS(ocfs2_unlink);
+
+DEFINE_OCFS2_DENTRY_OPS(ocfs2_symlink_create);
+
+DEFINE_OCFS2_DENTRY_OPS(ocfs2_mv_orphaned_inode_to_new);
+
+DEFINE_OCFS2_POINTER_EVENT(ocfs2_lookup_ret);
+
+TRACE_EVENT(ocfs2_mknod,
+	TP_PROTO(void *dir, void *dentry, int name_len, const char *name,
+		 unsigned long long dir_blkno, unsigned long dev, int mode),
+	TP_ARGS(dir, dentry, name_len, name, dir_blkno, dev, mode),
+	TP_STRUCT__entry(
+		__field(void *, dir)
+		__field(void *, dentry)
+		__field(int, name_len)
+		__string(name, name)
+		__field(unsigned long long, dir_blkno)
+		__field(unsigned long, dev)
+		__field(int, mode)
+	),
+	TP_fast_assign(
+		__entry->dir = dir;
+		__entry->dentry = dentry;
+		__entry->name_len = name_len;
+		__assign_str(name, name);
+		__entry->dir_blkno = dir_blkno;
+		__entry->dev = dev;
+		__entry->mode = mode;
+	),
+	TP_printk("%p %p %.*s %llu %lu %d", __entry->dir, __entry->dentry,
+		  __entry->name_len, __get_str(name),
+		  __entry->dir_blkno, __entry->dev, __entry->mode)
+);
+
+TRACE_EVENT(ocfs2_link,
+	TP_PROTO(unsigned long long ino, int old_len, const char *old_name,
+		 int name_len, const char *name),
+	TP_ARGS(ino, old_len, old_name, name_len, name),
+	TP_STRUCT__entry(
+		__field(unsigned long long, ino)
+		__field(int, old_len)
+		__string(old_name, old_name)
+		__field(int, name_len)
+		__string(name, name)
+	),
+	TP_fast_assign(
+		__entry->ino = ino;
+		__entry->old_len = old_len;
+		__assign_str(old_name, old_name);
+		__entry->name_len = name_len;
+		__assign_str(name, name);
+	),
+	TP_printk("%llu %.*s %.*s", __entry->ino,
+		  __entry->old_len, __get_str(old_name),
+		  __entry->name_len, __get_str(name))
+);
+
+DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_unlink_noent);
+
+DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_double_lock);
+
+DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_double_lock_end);
+
+TRACE_EVENT(ocfs2_rename,
+	TP_PROTO(void *old_dir, void *old_dentry,
+		 void *new_dir, void *new_dentry,
+		 int old_len, const char *old_name,
+		 int new_len, const char *new_name),
+	TP_ARGS(old_dir, old_dentry, new_dir, new_dentry,
+		old_len, old_name, new_len, new_name),
+	TP_STRUCT__entry(
+		__field(void *, old_dir)
+		__field(void *, old_dentry)
+		__field(void *, new_dir)
+		__field(void *, new_dentry)
+		__field(int, old_len)
+		__string(old_name, old_name)
+		__field(int, new_len)
+		__string(new_name, new_name)
+	),
+	TP_fast_assign(
+		__entry->old_dir = old_dir;
+		__entry->old_dentry = old_dentry;
+		__entry->new_dir = new_dir;
+		__entry->new_dentry = new_dentry;
+		__entry->old_len = old_len;
+		__assign_str(old_name, old_name);
+		__entry->new_len = new_len;
+		__assign_str(new_name, new_name);
+	),
+	TP_printk("%p %p %p %p %.*s %.*s",
+		  __entry->old_dir, __entry->old_dentry,
+		  __entry->new_dir, __entry->new_dentry,
+		  __entry->old_len, __get_str(old_name),
+		  __entry->new_len, __get_str(new_name))
+);
+
+TRACE_EVENT(ocfs2_rename_target_exists,
+	TP_PROTO(int new_len, const char *new_name),
+	TP_ARGS(new_len, new_name),
+	TP_STRUCT__entry(
+		__field(int, new_len)
+		__string(new_name, new_name)
+	),
+	TP_fast_assign(
+		__entry->new_len = new_len;
+		__assign_str(new_name, new_name);
+	),
+	TP_printk("%.*s", __entry->new_len, __get_str(new_name))
+);
+
+DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_rename_disagree);
+
+TRACE_EVENT(ocfs2_rename_over_existing,
+	TP_PROTO(unsigned long long new_blkno, void *new_bh,
+		 unsigned long long newdi_blkno),
+	TP_ARGS(new_blkno, new_bh, newdi_blkno),
+	TP_STRUCT__entry(
+		__field(unsigned long long, new_blkno)
+		__field(void *, new_bh)
+		__field(unsigned long long, newdi_blkno)
+	),
+	TP_fast_assign(
+		__entry->new_blkno = new_blkno;
+		__entry->new_bh = new_bh;
+		__entry->newdi_blkno = newdi_blkno;
+	),
+	TP_printk("%llu %p %llu", __entry->new_blkno, __entry->new_bh,
+		  __entry->newdi_blkno)
+);
+
+DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_create_symlink_data);
+
+TRACE_EVENT(ocfs2_symlink_begin,
+	TP_PROTO(void *dir, void *dentry, const char *symname,
+		 int len, const char *name),
+	TP_ARGS(dir, dentry, symname, len, name),
+	TP_STRUCT__entry(
+		__field(void *, dir)
+		__field(void *, dentry)
+		__field(const char *, symname)
+		__field(int, len)
+		__string(name, name)
+	),
+	TP_fast_assign(
+		__entry->dir = dir;
+		__entry->dentry = dentry;
+		__entry->symname = symname;
+		__entry->len = len;
+		__assign_str(name, name);
+	),
+	TP_printk("%p %p %s %.*s", __entry->dir, __entry->dentry,
+		  __entry->symname, __entry->len, __get_str(name))
+);
+
+TRACE_EVENT(ocfs2_blkno_stringify,
+	TP_PROTO(unsigned long long blkno, const char *name, int namelen),
+	TP_ARGS(blkno, name, namelen),
+	TP_STRUCT__entry(
+		__field(unsigned long long, blkno)
+		__string(name, name)
+		__field(int, namelen)
+	),
+	TP_fast_assign(
+		__entry->blkno = blkno;
+		__assign_str(name, name);
+		__entry->namelen = namelen;
+	),
+	TP_printk("%llu %s %d", __entry->blkno, __get_str(name),
+		  __entry->namelen)
+);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_orphan_add_begin);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_orphan_add_end);
+
+TRACE_EVENT(ocfs2_orphan_del,
+	TP_PROTO(unsigned long long dir, const char *name, int namelen),
+	TP_ARGS(dir, name, namelen),
+	TP_STRUCT__entry(
+		__field(unsigned long long, dir)
+		__string(name, name)
+		__field(int, namelen)
+	),
+	TP_fast_assign(
+		__entry->dir = dir;
+		__assign_str(name, name);
+		__entry->namelen = namelen;
+	),
+	TP_printk("%llu %s %d", __entry->dir, __get_str(name),
+		  __entry->namelen)
+);
+
+/* End of trace events for fs/ocfs2/namei.c. */
 #endif /* _TRACE_OCFS2_H */
 
 /* This part must be outside protection */
