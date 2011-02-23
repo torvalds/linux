@@ -404,8 +404,7 @@ static int xilinxfb_release(struct device *dev)
  * OF bus binding
  */
 
-static int __devinit
-xilinxfb_of_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit xilinxfb_of_probe(struct platform_device *op)
 {
 	const u32 *prop;
 	u32 *p;
@@ -417,8 +416,6 @@ xilinxfb_of_probe(struct platform_device *op, const struct of_device_id *match)
 
 	/* Copy with the default pdata (not a ptr reference!) */
 	pdata = xilinx_fb_default_pdata;
-
-	dev_dbg(&op->dev, "xilinxfb_of_probe(%p, %p)\n", op, match);
 
 	/* Allocate the driver data region */
 	drvdata = kzalloc(sizeof(*drvdata), GFP_KERNEL);
@@ -505,7 +502,7 @@ static struct of_device_id xilinxfb_of_match[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(of, xilinxfb_of_match);
 
-static struct of_platform_driver xilinxfb_of_driver = {
+static struct platform_driver xilinxfb_of_driver = {
 	.probe = xilinxfb_of_probe,
 	.remove = __devexit_p(xilinxfb_of_remove),
 	.driver = {
@@ -523,13 +520,13 @@ static struct of_platform_driver xilinxfb_of_driver = {
 static int __init
 xilinxfb_init(void)
 {
-	return of_register_platform_driver(&xilinxfb_of_driver);
+	return platform_driver_register(&xilinxfb_of_driver);
 }
 
 static void __exit
 xilinxfb_cleanup(void)
 {
-	of_unregister_platform_driver(&xilinxfb_of_driver);
+	platform_driver_unregister(&xilinxfb_of_driver);
 }
 
 module_init(xilinxfb_init);
