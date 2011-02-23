@@ -911,9 +911,8 @@ int usb_serial_probe(struct usb_interface *interface,
 			dev_err(&interface->dev, "No free urbs available\n");
 			goto probe_error;
 		}
-		buffer_size = serial->type->bulk_in_size;
-		if (!buffer_size)
-			buffer_size = le16_to_cpu(endpoint->wMaxPacketSize);
+		buffer_size = max_t(int, serial->type->bulk_in_size,
+				le16_to_cpu(endpoint->wMaxPacketSize));
 		port->bulk_in_size = buffer_size;
 		port->bulk_in_endpointAddress = endpoint->bEndpointAddress;
 		port->bulk_in_buffer = kmalloc(buffer_size, GFP_KERNEL);
