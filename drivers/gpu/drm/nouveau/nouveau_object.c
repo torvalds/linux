@@ -909,7 +909,7 @@ nouveau_gpuobj_channel_takedown(struct nouveau_channel *chan)
 	nouveau_vm_ref(NULL, &chan->vm, chan->vm_pd);
 	nouveau_gpuobj_ref(NULL, &chan->vm_pd);
 
-	if (chan->ramin_heap.free_stack.next)
+	if (drm_mm_initialized(&chan->ramin_heap))
 		drm_mm_takedown(&chan->ramin_heap);
 	nouveau_gpuobj_ref(NULL, &chan->ramin);
 }
