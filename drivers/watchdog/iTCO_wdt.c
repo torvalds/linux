@@ -247,7 +247,7 @@ static struct {
 	{NULL, 0}
 };
 
-#define ITCO_PCI_DEVICE(dev, data) 	\
+#define ITCO_PCI_DEVICE(dev, data) \
 	.vendor = PCI_VENDOR_ID_INTEL,	\
 	.device = dev,			\
 	.subvendor = PCI_ANY_ID,	\

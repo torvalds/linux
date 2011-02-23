@@ -31,7 +31,7 @@
  *		Jeff Garzik	:	PCI cleanups
  *		Tigran Aivazian	:	Restructured wdtpci_init_one() to handle
  *					failures
- *		Joel Becker 	:	Added WDIOC_GET/SETTIMEOUT
+ *		Joel Becker	:	Added WDIOC_GET/SETTIMEOUT
  *		Zwane Mwaikambo	:	Magic char closing, locking changes,
  *					cleanups
  *		Matt Domsch	:	nowayout module option
@@ -764,7 +764,7 @@ static void __exit wdtpci_cleanup(void)
 
 
 /**
- * 	wdtpci_init:
+ *	wdtpci_init:
  *
  *	Set up the WDT watchdog board. All we have to do is grab the
  *	resources we require and bitch if anyone beat us to them.

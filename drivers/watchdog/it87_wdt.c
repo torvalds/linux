@@ -54,7 +54,7 @@
 /* Defaults for Module Parameter */
 #define DEFAULT_NOGAMEPORT	0
 #define DEFAULT_EXCLUSIVE	1
-#define DEFAULT_TIMEOUT 	60
+#define DEFAULT_TIMEOUT		60
 #define DEFAULT_TESTMODE	0
 #define DEFAULT_NOWAYOUT	WATCHDOG_NOWAYOUT
 
@@ -70,9 +70,9 @@
 /* Configuration Registers and Functions */
 #define LDNREG		0x07
 #define CHIPID		0x20
-#define CHIPREV 	0x22
+#define CHIPREV		0x22
 #define ACTREG		0x30
-#define BASEREG 	0x60
+#define BASEREG		0x60
 
 /* Chip Id numbers */
 #define NO_DEV_ID	0xffff
@@ -86,7 +86,7 @@
 #define IT8726_ID	0x8726	/* the data sheet suggest wrongly 0x8716 */
 
 /* GPIO Configuration Registers LDN=0x07 */
-#define WDTCTRL 	0x71
+#define WDTCTRL		0x71
 #define WDTCFG		0x72
 #define WDTVALLSB	0x73
 #define WDTVALMSB	0x74
@@ -107,7 +107,7 @@
 #define WDT_INT_MASK	0x0f
 
 /* CIR Configuration Register LDN=0x0a */
-#define CIR_ILS 	0x70
+#define CIR_ILS		0x70
 
 /* The default Base address is not always available, we use this */
 #define CIR_BASE	0x0208

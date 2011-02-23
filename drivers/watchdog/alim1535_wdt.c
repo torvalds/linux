@@ -362,12 +362,12 @@ static int __init ali_find_watchdog(void)
  */
 
 static const struct file_operations ali_fops = {
-	.owner 		=	THIS_MODULE,
-	.llseek 	=	no_llseek,
+	.owner		=	THIS_MODULE,
+	.llseek		=	no_llseek,
 	.write		=	ali_write,
 	.unlocked_ioctl =	ali_ioctl,
-	.open 		=	ali_open,
-	.release 	=	ali_release,
+	.open		=	ali_open,
+	.release	=	ali_release,
 };
 
 static struct miscdevice ali_miscdev = {
