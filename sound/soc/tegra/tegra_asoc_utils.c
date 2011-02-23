@@ -101,6 +101,7 @@ int tegra_asoc_utils_set_rate(struct tegra_asoc_utils_data *data, int srate,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(tegra_asoc_utils_set_rate);
 
 int tegra_asoc_utils_init(struct tegra_asoc_utils_data *data,
 			  struct device *dev)
@@ -139,6 +140,7 @@ err_put_pll_a:
 err:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(tegra_asoc_utils_init);
 
 void tegra_asoc_utils_fini(struct tegra_asoc_utils_data *data)
 {
@@ -146,4 +148,8 @@ void tegra_asoc_utils_fini(struct tegra_asoc_utils_data *data)
 	clk_put(data->clk_pll_a_out0);
 	clk_put(data->clk_pll_a);
 }
+EXPORT_SYMBOL_GPL(tegra_asoc_utils_fini);
 
+MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
+MODULE_DESCRIPTION("Tegra ASoC utility code");
+MODULE_LICENSE("GPL");
