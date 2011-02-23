@@ -1466,6 +1466,67 @@ static void bond_setup_by_slave(struct net_device *bond_dev,
 	bond->setup_by_slave = 1;
 }
 
+/* On bonding slaves other than the currently active slave, suppress
+ * duplicates except for 802.3ad ETH_P_SLOW, alb non-mcast/bcast, and
+ * ARP on active-backup slaves with arp_validate enabled.
+ */
+static bool bond_should_deliver_exact_match(struct sk_buff *skb,
+					    struct net_device *slave_dev,
+					    struct net_device *bond_dev)
+{
+	if (slave_dev->priv_flags & IFF_SLAVE_INACTIVE) {
+		if (slave_dev->priv_flags & IFF_SLAVE_NEEDARP &&
+		    skb->protocol == __cpu_to_be16(ETH_P_ARP))
+			return false;
+
+		if (bond_dev->priv_flags & IFF_MASTER_ALB &&
+		    skb->pkt_type != PACKET_BROADCAST &&
+		    skb->pkt_type != PACKET_MULTICAST)
+				return false;
+
+		if (bond_dev->priv_flags & IFF_MASTER_8023AD &&
+		    skb->protocol == __cpu_to_be16(ETH_P_SLOW))
+			return false;
+
+		return true;
+	}
+	return false;
+}
+
+static struct sk_buff *bond_handle_frame(struct sk_buff *skb)
+{
+	struct net_device *slave_dev;
+	struct net_device *bond_dev;
+
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (unlikely(!skb))
+		return NULL;
+	slave_dev = skb->dev;
+	bond_dev = ACCESS_ONCE(slave_dev->master);
+	if (unlikely(!bond_dev))
+		return skb;
+
+	if (bond_dev->priv_flags & IFF_MASTER_ARPMON)
+		slave_dev->last_rx = jiffies;
+
+	if (bond_should_deliver_exact_match(skb, slave_dev, bond_dev)) {
+		skb->deliver_no_wcard = 1;
+		return skb;
+	}
+
+	skb->dev = bond_dev;
+
+	if (bond_dev->priv_flags & IFF_MASTER_ALB &&
+	    bond_dev->priv_flags & IFF_BRIDGE_PORT &&
+	    skb->pkt_type == PACKET_HOST) {
+		u16 *dest = (u16 *) eth_hdr(skb)->h_dest;
+
+		memcpy(dest, bond_dev->dev_addr, ETH_ALEN);
+	}
+
+	return skb;
+}
+
 /* enslave device <slave> to bond device <master> */
 int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 {
@@ -1642,11 +1703,17 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		pr_debug("Error %d calling netdev_set_bond_master\n", res);
 		goto err_restore_mac;
 	}
+	res = netdev_rx_handler_register(slave_dev, bond_handle_frame, NULL);
+	if (res) {
+		pr_debug("Error %d calling netdev_rx_handler_register\n", res);
+		goto err_unset_master;
+	}
+
 	/* open the slave since the application closed it */
 	res = dev_open(slave_dev);
 	if (res) {
 		pr_debug("Opening slave %s failed\n", slave_dev->name);
-		goto err_unset_master;
+		goto err_unreg_rxhandler;
 	}
 
 	new_slave->dev = slave_dev;
@@ -1856,6 +1923,9 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 err_close:
 	dev_close(slave_dev);
 
+err_unreg_rxhandler:
+	netdev_rx_handler_unregister(slave_dev);
+
 err_unset_master:
 	netdev_set_bond_master(slave_dev, NULL);
 
@@ -2037,6 +2107,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 		netif_addr_unlock_bh(bond_dev);
 	}
 
+	netdev_rx_handler_unregister(slave_dev);
 	netdev_set_bond_master(slave_dev, NULL);
 
 	slave_disable_netpoll(slave);
@@ -2150,6 +2221,7 @@ static int bond_release_all(struct net_device *bond_dev)
 			netif_addr_unlock_bh(bond_dev);
 		}
 
+		netdev_rx_handler_unregister(slave_dev);
 		netdev_set_bond_master(slave_dev, NULL);
 
 		slave_disable_netpoll(slave);
