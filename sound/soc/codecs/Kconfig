@@ -33,6 +33,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX98088 if I2C
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_PCM3008
+	select SND_SOC_SGTL5000 if I2C
 	select SND_SOC_SN95031 if INTEL_SCU_IPC
 	select SND_SOC_SPDIF
 	select SND_SOC_SSM2602 if I2C
@@ -181,6 +182,10 @@ config SND_SOC_MAX98088
 
 config SND_SOC_PCM3008
        tristate
+
+#Freescale sgtl5000 codec
+config SND_SOC_SGTL5000
+	tristate
 
 config SND_SOC_SN95031
 	tristate
