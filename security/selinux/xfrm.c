@@ -112,7 +112,7 @@ int selinux_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_secid, u8 dir)
  */
 
 int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x, struct xfrm_policy *xp,
-			struct flowi *fl)
+			const struct flowi *fl)
 {
 	u32 state_sid;
 	int rc;
