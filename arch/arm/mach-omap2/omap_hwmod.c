@@ -162,9 +162,6 @@ static LIST_HEAD(omap_hwmod_list);
 /* mpu_oh: used to add/remove MPU initiator from sleepdep list */
 static struct omap_hwmod *mpu_oh;
 
-/* inited: 0 if omap_hwmod_init() has not yet been called; 1 otherwise */
-static u8 inited;
-
 
 /* Private functions */
 
@@ -1595,26 +1592,20 @@ int omap_hwmod_for_each(int (*fn)(struct omap_hwmod *oh, void *data),
  */
 int __init omap_hwmod_init(struct omap_hwmod **ohs)
 {
-	struct omap_hwmod *oh;
-	int r;
-
-	if (inited)
-		return -EINVAL;
-
-	inited = 1;
+	int r, i;
 
 	if (!ohs)
 		return 0;
 
-	oh = *ohs;
-	while (oh) {
-		if (omap_chip_is(oh->omap_chip)) {
-			r = _register(oh);
-			WARN(r, "omap_hwmod: %s: _register returned "
-			     "%d\n", oh->name, r);
-		}
-		oh = *++ohs;
-	}
+	i = 0;
+	do {
+		if (!omap_chip_is(ohs[i]->omap_chip))
+			continue;
+
+		r = _register(ohs[i]);
+		WARN(r, "omap_hwmod: %s: _register returned %d\n", ohs[i]->name,
+		     r);
+	} while (ohs[++i]);
 
 	return 0;
 }
