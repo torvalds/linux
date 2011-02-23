@@ -4272,8 +4272,7 @@ static struct snd_kcontrol_new snd_hdspm_controls_madiface[] = {
 	HDSPM_SYNC_CHECK("MADI SyncCheck", 0),
 	HDSPM_TX_64("TX 64 channels mode", 0),
 	HDSPM_C_TMS("Clear Track Marker", 0),
-	HDSPM_SAFE_MODE("Safe Mode", 0),
-	HDSPM_INPUT_SELECT("Input Select", 0),
+	HDSPM_SAFE_MODE("Safe Mode", 0)
 };
 
 static struct snd_kcontrol_new snd_hdspm_controls_aio[] = {
