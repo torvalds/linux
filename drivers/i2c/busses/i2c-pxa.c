@@ -34,9 +34,9 @@
 #include <linux/clk.h>
 #include <linux/slab.h>
 #include <linux/io.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/irq.h>
-#include <plat/i2c.h>
 
 struct pxa_reg_layout {
 	u32 ibmr;

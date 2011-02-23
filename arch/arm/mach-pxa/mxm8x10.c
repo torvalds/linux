@@ -22,8 +22,8 @@
 #include <linux/serial_8250.h>
 #include <linux/dm9000.h>
 #include <linux/gpio.h>
+#include <linux/i2c/pxa-i2c.h>
 
-#include <plat/i2c.h>
 #include <plat/pxa3xx_nand.h>
 
 #include <mach/pxafb.h>
