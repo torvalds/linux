@@ -3945,7 +3945,11 @@ qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 	unsigned long flags;
 	fc_port_t *fcport;
 
-	vha->flags.online = 0;
+	/* For ISP82XX, driver waits for completion of the commands.
+	 * online flag should be set.
+	 */
+	if (!IS_QLA82XX(ha))
+		vha->flags.online = 0;
 	ha->flags.chip_reset_done = 0;
 	clear_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 	ha->qla_stats.total_isp_aborts++;
@@ -3953,7 +3957,10 @@ qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 	qla_printk(KERN_INFO, ha,
 	    "Performing ISP error recovery - ha= %p.\n", ha);
 
-	/* Chip reset does not apply to 82XX */
+	/* For ISP82XX, reset_chip is just disabling interrupts.
+	 * Driver waits for the completion of the commands.
+	 * the interrupts need to be enabled.
+	 */
 	if (!IS_QLA82XX(ha))
 		ha->isp_ops->reset_chip(vha);
 
@@ -3997,8 +4004,14 @@ qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 
 	if (!ha->flags.eeh_busy) {
 		/* Make sure for ISP 82XX IO DMA is complete */
-		if (IS_QLA82XX(ha))
+		if (IS_QLA82XX(ha)) {
 			qla82xx_chip_reset_cleanup(vha);
+
+			/* Done waiting for pending commands.
+			 * Reset the online flag.
+			 */
+			vha->flags.online = 0;
+		}
 
 		/* Requeue all commands in outstanding command list. */
 		qla2x00_abort_all_cmds(vha, DID_RESET << 16);
