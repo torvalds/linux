@@ -173,18 +173,16 @@ static int __devinit sparcspkr_probe(struct device *dev)
 	return 0;
 }
 
-static int sparcspkr_shutdown(struct platform_device *dev)
+static void sparcspkr_shutdown(struct platform_device *dev)
 {
 	struct sparcspkr_state *state = dev_get_drvdata(&dev->dev);
 	struct input_dev *input_dev = state->input_dev;
 
 	/* turn off the speaker */
 	state->event(input_dev, EV_SND, SND_BELL, 0);
-
-	return 0;
 }
 
-static int __devinit bbc_beep_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit bbc_beep_probe(struct platform_device *op)
 {
 	struct sparcspkr_state *state;
 	struct bbc_beep_info *info;
@@ -258,7 +256,7 @@ static const struct of_device_id bbc_beep_match[] = {
 	{},
 };
 
-static struct of_platform_driver bbc_beep_driver = {
+static struct platform_driver bbc_beep_driver = {
 	.driver = {
 		.name = "bbcbeep",
 		.owner = THIS_MODULE,
@@ -269,7 +267,7 @@ static struct of_platform_driver bbc_beep_driver = {
 	.shutdown	= sparcspkr_shutdown,
 };
 
-static int __devinit grover_beep_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit grover_beep_probe(struct platform_device *op)
 {
 	struct sparcspkr_state *state;
 	struct grover_beep_info *info;
@@ -340,7 +338,7 @@ static const struct of_device_id grover_beep_match[] = {
 	{},
 };
 
-static struct of_platform_driver grover_beep_driver = {
+static struct platform_driver grover_beep_driver = {
 	.driver = {
 		.name = "groverbeep",
 		.owner = THIS_MODULE,
@@ -353,12 +351,12 @@ static struct of_platform_driver grover_beep_driver = {
 
 static int __init sparcspkr_init(void)
 {
-	int err = of_register_platform_driver(&bbc_beep_driver);
+	int err = platform_driver_register(&bbc_beep_driver);
 
 	if (!err) {
-		err = of_register_platform_driver(&grover_beep_driver);
+		err = platform_driver_register(&grover_beep_driver);
 		if (err)
-			of_unregister_platform_driver(&bbc_beep_driver);
+			platform_driver_unregister(&bbc_beep_driver);
 	}
 
 	return err;
@@ -366,8 +364,8 @@ static int __init sparcspkr_init(void)
 
 static void __exit sparcspkr_exit(void)
 {
-	of_unregister_platform_driver(&bbc_beep_driver);
-	of_unregister_platform_driver(&grover_beep_driver);
+	platform_driver_unregister(&bbc_beep_driver);
+	platform_driver_unregister(&grover_beep_driver);
 }
 
 module_init(sparcspkr_init);

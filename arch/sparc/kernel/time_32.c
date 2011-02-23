@@ -142,7 +142,7 @@ static struct platform_device m48t59_rtc = {
 	},
 };
 
-static int __devinit clock_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit clock_probe(struct platform_device *op)
 {
 	struct device_node *dp = op->dev.of_node;
 	const char *model = of_get_property(dp, "model", NULL);
@@ -176,7 +176,7 @@ static struct of_device_id __initdata clock_match[] = {
 	{},
 };
 
-static struct of_platform_driver clock_driver = {
+static struct platform_driver clock_driver = {
 	.probe		= clock_probe,
 	.driver = {
 		.name = "rtc",
@@ -189,7 +189,7 @@ static struct of_platform_driver clock_driver = {
 /* Probe for the mostek real time clock chip. */
 static int __init clock_init(void)
 {
-	return of_register_platform_driver(&clock_driver);
+	return platform_driver_register(&clock_driver);
 }
 /* Must be after subsys_initcall() so that busses are probed.  Must
  * be before device_initcall() because things like the RTC driver

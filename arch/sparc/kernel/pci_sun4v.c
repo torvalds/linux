@@ -918,8 +918,7 @@ static int __devinit pci_sun4v_pbm_init(struct pci_pbm_info *pbm,
 	return 0;
 }
 
-static int __devinit pci_sun4v_probe(struct platform_device *op,
-				     const struct of_device_id *match)
+static int __devinit pci_sun4v_probe(struct platform_device *op)
 {
 	const struct linux_prom64_registers *regs;
 	static int hvapi_negotiated = 0;
@@ -1008,7 +1007,7 @@ static struct of_device_id __initdata pci_sun4v_match[] = {
 	{},
 };
 
-static struct of_platform_driver pci_sun4v_driver = {
+static struct platform_driver pci_sun4v_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
@@ -1019,7 +1018,7 @@ static struct of_platform_driver pci_sun4v_driver = {
 
 static int __init pci_sun4v_init(void)
 {
-	return of_register_platform_driver(&pci_sun4v_driver);
+	return platform_driver_register(&pci_sun4v_driver);
 }
 
 subsys_initcall(pci_sun4v_init);
