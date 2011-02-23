@@ -127,6 +127,7 @@ struct tegra_dma_channel {
 
 #define  NV_DMA_MAX_CHANNELS  32
 
+static bool tegra_dma_initialized;
 static DEFINE_MUTEX(tegra_dma_lock);
 
 static DECLARE_BITMAP(channel_usage, NV_DMA_MAX_CHANNELS);
@@ -351,6 +352,9 @@ struct tegra_dma_channel *tegra_dma_allocate_channel(int mode)
 {
 	int channel;
 	struct tegra_dma_channel *ch = NULL;
+
+	if (WARN_ON(!tegra_dma_initialized))
+		return NULL;
 
 	mutex_lock(&tegra_dma_lock);
 
@@ -678,6 +682,8 @@ int __init tegra_dma_init(void)
 	void __iomem *addr;
 	struct clk *c;
 
+	bitmap_fill(channel_usage, NV_DMA_MAX_CHANNELS);
+
 	c = clk_get_sys("tegra-dma", NULL);
 	if (IS_ERR(c)) {
 		pr_err("Unable to get clock for APB DMA\n");
@@ -696,17 +702,8 @@ int __init tegra_dma_init(void)
 	writel(0xFFFFFFFFul >> (31 - TEGRA_SYSTEM_DMA_CH_MAX),
 	       addr + APB_DMA_IRQ_MASK_SET);
 
-	memset(channel_usage, 0, sizeof(channel_usage));
-	memset(dma_channels, 0, sizeof(dma_channels));
-
-	/* Reserve all the channels we are not supposed to touch */
-	for (i = 0; i < TEGRA_SYSTEM_DMA_CH_MIN; i++)
-		__set_bit(i, channel_usage);
-
 	for (i = TEGRA_SYSTEM_DMA_CH_MIN; i <= TEGRA_SYSTEM_DMA_CH_MAX; i++) {
 		struct tegra_dma_channel *ch = &dma_channels[i];
-
-		__clear_bit(i, channel_usage);
 
 		ch->id = i;
 		snprintf(ch->name, TEGRA_DMA_NAME_SIZE, "dma_channel_%d", i);
@@ -726,14 +723,15 @@ int __init tegra_dma_init(void)
 			goto fail;
 		}
 		ch->irq = irq;
+
+		__clear_bit(i, channel_usage);
 	}
 	/* mark the shared channel allocated */
 	__set_bit(TEGRA_SYSTEM_DMA_CH_MIN, channel_usage);
 
-	for (i = TEGRA_SYSTEM_DMA_CH_MAX+1; i < NV_DMA_MAX_CHANNELS; i++)
-		__set_bit(i, channel_usage);
+	tegra_dma_initialized = true;
 
-	return ret;
+	return 0;
 fail:
 	writel(0, addr + APB_DMA_GEN);
 	for (i = TEGRA_SYSTEM_DMA_CH_MIN; i <= TEGRA_SYSTEM_DMA_CH_MAX; i++) {
