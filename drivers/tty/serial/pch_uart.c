@@ -1089,7 +1089,12 @@ static int pch_uart_startup(struct uart_port *port)
 
 	priv = container_of(port, struct eg20t_port, port);
 	priv->tx_empty = 1;
-	port->uartclk = priv->base_baud;
+
+	if (port->uartclk)
+		priv->base_baud = port->uartclk;
+	else
+		port->uartclk = priv->base_baud;
+
 	pch_uart_hal_disable_interrupt(priv, PCH_UART_HAL_ALL_INT);
 	ret = pch_uart_hal_set_line(priv, default_baud,
 			      PCH_UART_HAL_PARITY_NONE, PCH_UART_HAL_8BIT,
