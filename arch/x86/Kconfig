@@ -2080,18 +2080,12 @@ config OLPC_XO1
 	  Add support for non-essential features of the OLPC XO-1 laptop.
 
 config OLPC_OPENFIRMWARE
-	bool "Support for OLPC's Open Firmware"
-	depends on !X86_PAE
-	default n
+	bool
 	select OF
-	help
-	  This option adds support for the implementation of Open Firmware
-	  that is used on the OLPC XO-1 Children's Machine.
-	  If unsure, say N here.
+	select OLPC_OPENFIRMWARE_DT if PROC_DEVICETREE
 
 config OLPC_OPENFIRMWARE_DT
 	bool
-	default y if OLPC_OPENFIRMWARE && PROC_DEVICETREE
 	select OF_PROMTREE
 
 endif # X86_32
