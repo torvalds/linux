@@ -390,8 +390,7 @@ static int mpc52xx_spi_transfer(struct spi_device *spi, struct spi_message *m)
 /*
  * OF Platform Bus Binding
  */
-static int __devinit mpc52xx_spi_probe(struct platform_device *op,
-				       const struct of_device_id *match)
+static int __devinit mpc52xx_spi_probe(struct platform_device *op)
 {
 	struct spi_master *master;
 	struct mpc52xx_spi *ms;
@@ -556,7 +555,7 @@ static const struct of_device_id mpc52xx_spi_match[] __devinitconst = {
 };
 MODULE_DEVICE_TABLE(of, mpc52xx_spi_match);
 
-static struct of_platform_driver mpc52xx_spi_of_driver = {
+static struct platform_driver mpc52xx_spi_of_driver = {
 	.driver = {
 		.name = "mpc52xx-spi",
 		.owner = THIS_MODULE,
@@ -568,13 +567,13 @@ static struct of_platform_driver mpc52xx_spi_of_driver = {
 
 static int __init mpc52xx_spi_init(void)
 {
-	return of_register_platform_driver(&mpc52xx_spi_of_driver);
+	return platform_driver_register(&mpc52xx_spi_of_driver);
 }
 module_init(mpc52xx_spi_init);
 
 static void __exit mpc52xx_spi_exit(void)
 {
-	of_unregister_platform_driver(&mpc52xx_spi_of_driver);
+	platform_driver_unregister(&mpc52xx_spi_of_driver);
 }
 module_exit(mpc52xx_spi_exit);
 
