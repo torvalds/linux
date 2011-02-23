@@ -765,10 +765,11 @@ static inline void xfrm_state_hold(struct xfrm_state *x)
 	atomic_inc(&x->refcnt);
 }
 
-static __inline__ int addr_match(void *token1, void *token2, int prefixlen)
+static inline bool addr_match(const void *token1, const void *token2,
+			      int prefixlen)
 {
-	__be32 *a1 = token1;
-	__be32 *a2 = token2;
+	const __be32 *a1 = token1;
+	const __be32 *a2 = token2;
 	int pdw;
 	int pbi;
 
@@ -777,7 +778,7 @@ static __inline__ int addr_match(void *token1, void *token2, int prefixlen)
 
 	if (pdw)
 		if (memcmp(a1, a2, pdw << 2))
-			return 0;
+			return false;
 
 	if (pbi) {
 		__be32 mask;
@@ -785,10 +786,10 @@ static __inline__ int addr_match(void *token1, void *token2, int prefixlen)
 		mask = htonl((0xffffffff) << (32 - pbi));
 
 		if ((a1[pdw] ^ a2[pdw]) & mask)
-			return 0;
+			return false;
 	}
 
-	return 1;
+	return true;
 }
 
 static __inline__
