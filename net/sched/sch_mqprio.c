@@ -311,7 +311,9 @@ static int mqprio_dump_class(struct Qdisc *sch, unsigned long cl,
 }
 
 static int mqprio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
-			       struct gnet_dump *d)
+				   struct gnet_dump *d)
+	__releases(d->lock)
+	__acquires(d->lock)
 {
 	struct net_device *dev = qdisc_dev(sch);
 
@@ -389,7 +391,7 @@ static const struct Qdisc_class_ops mqprio_class_ops = {
 	.dump_stats	= mqprio_dump_class_stats,
 };
 
-struct Qdisc_ops mqprio_qdisc_ops __read_mostly = {
+static struct Qdisc_ops mqprio_qdisc_ops __read_mostly = {
 	.cl_ops		= &mqprio_class_ops,
 	.id		= "mqprio",
 	.priv_size	= sizeof(struct mqprio_sched),
