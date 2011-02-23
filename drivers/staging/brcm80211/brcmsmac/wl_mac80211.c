@@ -231,6 +231,9 @@ wl_ops_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	WL_UNLOCK(wl);
 }
 
+/*
+ * precondition: perimeter lock has been acquired
+ */
 static int
 ieee_set_channel(struct ieee80211_hw *hw, struct ieee80211_channel *chan,
 		 enum nl80211_channel_type type)
@@ -681,6 +684,9 @@ static const struct ieee80211_ops wl_ops = {
 	.rfkill_poll = wl_ops_rfkill_poll,
 };
 
+/*
+ * is called in wl_pci_probe() context, therefore no locking required.
+ */
 static int wl_set_hint(struct wl_info *wl, char *abbrev)
 {
 	WL_NONE("%s: Sending country code %c%c to MAC80211\n",
@@ -698,6 +704,9 @@ static int wl_set_hint(struct wl_info *wl, char *abbrev)
  * is defined, wl_attach will never be called, and thus, gcc will issue
  * a warning that this function is defined but not used if we declare
  * it as static.
+ *
+ *
+ * is called in wl_pci_probe() context, therefore no locking required.
  */
 static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 			    uint bustype, void *btparam, uint irq)
@@ -995,6 +1004,9 @@ static struct ieee80211_supported_band wl_band_5GHz_nphy = {
 		   }
 };
 
+/*
+ * is called in wl_pci_probe() context, therefore no locking required.
+ */
 static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 {
 	struct wl_info *wl = HW_TO_WL(hw);
@@ -1039,6 +1051,9 @@ static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 	return 0;
 }
 
+/*
+ * is called in wl_pci_probe() context, therefore no locking required.
+ */
 static int ieee_hw_init(struct ieee80211_hw *hw)
 {
 	hw->flags = IEEE80211_HW_SIGNAL_DBM
@@ -1071,6 +1086,7 @@ static int ieee_hw_init(struct ieee80211_hw *hw)
  * This function determines if a device pointed to by pdev is a WL device,
  * and if so, performs a wl_attach() on it.
  *
+ * Perimeter lock is initialized in the course of this function.
  */
 int __devinit
 wl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -1194,6 +1210,10 @@ static int wl_resume(struct pci_dev *pdev)
 	return err;
 }
 
+/*
+* called from both kernel as from wl_*()
+* precondition: perimeter lock is not acquired.
+*/
 static void wl_remove(struct pci_dev *pdev)
 {
 	struct wl_info *wl;
@@ -1299,6 +1319,8 @@ module_exit(wl_module_exit);
  * This function frees resources owned by the WL device pointed to
  * by the wl parameter.
  *
+ * precondition: can both be called locked and unlocked
+ *
  */
 void wl_free(struct wl_info *wl)
 {
@@ -1358,7 +1380,10 @@ void wl_free(struct wl_info *wl)
 	osl_detach(osh);
 }
 
-/* transmit a packet */
+/*
+ * transmit a packet
+ * precondition: perimeter lock has been acquired
+ */
 static int BCMFASTPATH wl_start(struct sk_buff *skb, struct wl_info *wl)
 {
 	if (!wl)
@@ -1374,12 +1399,18 @@ wl_start_int(struct wl_info *wl, struct ieee80211_hw *hw, struct sk_buff *skb)
 	return NETDEV_TX_OK;
 }
 
+/*
+ * precondition: perimeter lock has been acquired
+ */
 void wl_txflowcontrol(struct wl_info *wl, struct wl_if *wlif, bool state,
 		      int prio)
 {
 	WL_ERROR("Shouldn't be here %s\n", __func__);
 }
 
+/*
+ * precondition: perimeter lock has been acquired
+ */
 void wl_init(struct wl_info *wl)
 {
 	WL_TRACE("wl%d: wl_init\n", wl->pub->unit);
@@ -1389,6 +1420,9 @@ void wl_init(struct wl_info *wl)
 	wlc_init(wl->wlc);
 }
 
+/*
+ * precondition: perimeter lock has been acquired
+ */
 uint wl_reset(struct wl_info *wl)
 {
 	WL_TRACE("wl%d: wl_reset\n", wl->pub->unit);
@@ -1414,6 +1448,9 @@ void BCMFASTPATH wl_intrson(struct wl_info *wl)
 	INT_UNLOCK(wl, flags);
 }
 
+/*
+ * precondition: perimeter lock has been acquired
+ */
 bool wl_alloc_dma_resources(struct wl_info *wl, uint addrwidth)
 {
 	return true;
@@ -1439,6 +1476,9 @@ void wl_intrsrestore(struct wl_info *wl, u32 macintmask)
 	INT_UNLOCK(wl, flags);
 }
 
+/*
+ * precondition: perimeter lock has been acquired
+ */
 int wl_up(struct wl_info *wl)
 {
 	int error = 0;
@@ -1451,6 +1491,9 @@ int wl_up(struct wl_info *wl)
 	return error;
 }
 
+/*
+ * precondition: perimeter lock has been acquired
+ */
 void wl_down(struct wl_info *wl)
 {
 	uint callbacks, ret_val = 0;
@@ -1545,6 +1588,9 @@ static void wl_link_down(struct wl_info *wl, char *ifname)
 	WL_NONE("wl%d: link down (%s)\n", wl->pub->unit, ifname);
 }
 
+/*
+ * precondition: perimeter lock has been acquired
+ */
 void wl_event(struct wl_info *wl, char *ifname, wlc_event_t *e)
 {
 
@@ -1561,11 +1607,17 @@ void wl_event(struct wl_info *wl, char *ifname, wlc_event_t *e)
 	}
 }
 
+/*
+ * is called by the kernel from software irq context
+ */
 static void wl_timer(unsigned long data)
 {
 	_wl_timer((wl_timer_t *) data);
 }
 
+/*
+* precondition: perimeter lock is not acquired
+ */
 static void _wl_timer(wl_timer_t *t)
 {
 	WL_LOCK(t->wl);
@@ -1587,6 +1639,12 @@ static void _wl_timer(wl_timer_t *t)
 	WL_UNLOCK(t->wl);
 }
 
+/*
+ * Adds a timer to the list. Caller supplies a timer function.
+ * Is called from wlc.
+ *
+ * precondition: perimeter lock has been acquired
+ */
 wl_timer_t *wl_init_timer(struct wl_info *wl, void (*fn) (void *arg), void *arg,
 			  const char *name)
 {
@@ -1620,6 +1678,8 @@ wl_timer_t *wl_init_timer(struct wl_info *wl, void (*fn) (void *arg), void *arg,
 
 /* BMAC_NOTE: Add timer adds only the kernel timer since it's going to be more accurate
  * as well as it's easier to make it periodic
+ *
+ * precondition: perimeter lock has been acquired
  */
 void wl_add_timer(struct wl_info *wl, wl_timer_t *t, uint ms, int periodic)
 {
@@ -1640,7 +1700,11 @@ void wl_add_timer(struct wl_info *wl, wl_timer_t *t, uint ms, int periodic)
 	add_timer(&t->timer);
 }
 
-/* return true if timer successfully deleted, false if still pending */
+/*
+ * return true if timer successfully deleted, false if still pending
+ *
+ * precondition: perimeter lock has been acquired
+ */
 bool wl_del_timer(struct wl_info *wl, wl_timer_t *t)
 {
 	if (t->set) {
@@ -1654,6 +1718,9 @@ bool wl_del_timer(struct wl_info *wl, wl_timer_t *t)
 	return true;
 }
 
+/*
+ * precondition: perimeter lock has been acquired
+ */
 void wl_free_timer(struct wl_info *wl, wl_timer_t *t)
 {
 	wl_timer_t *tmp;
@@ -1688,6 +1755,11 @@ void wl_free_timer(struct wl_info *wl, wl_timer_t *t)
 
 }
 
+/*
+ * runs in software irq context
+ *
+ * precondition: perimeter lock is not acquired
+ */
 static int wl_linux_watchdog(void *ctx)
 {
 	struct wl_info *wl = (struct wl_info *) ctx;
@@ -1735,6 +1807,9 @@ char *wl_firmwares[WL_MAX_FW] = {
 	NULL
 };
 
+/*
+ * precondition: perimeter lock has been acquired
+ */
 int wl_ucode_init_buf(struct wl_info *wl, void **pbuf, u32 idx)
 {
 	int i, entry;
@@ -1763,6 +1838,10 @@ fail:
 	return BCME_NOTFOUND;
 }
 
+/*
+ * Precondition: Since this function is called in wl_pci_probe() context,
+ * no locking is required.
+ */
 int wl_ucode_init_uint(struct wl_info *wl, u32 *data, u32 idx)
 {
 	int i, entry;
@@ -1784,6 +1863,10 @@ int wl_ucode_init_uint(struct wl_info *wl, u32 *data, u32 idx)
 	return -1;
 }
 
+/*
+ * Precondition: Since this function is called in wl_pci_probe() context,
+ * no locking is required.
+ */
 static int wl_request_fw(struct wl_info *wl, struct pci_dev *pdev)
 {
 	int status;
@@ -1822,11 +1905,18 @@ static int wl_request_fw(struct wl_info *wl, struct pci_dev *pdev)
 	return wl_ucode_data_init(wl);
 }
 
+/*
+ * precondition: can both be called locked and unlocked
+ */
 void wl_ucode_free_buf(void *p)
 {
 	kfree(p);
 }
 
+/*
+ * Precondition: Since this function is called in wl_pci_probe() context,
+ * no locking is required.
+ */
 static void wl_release_fw(struct wl_info *wl)
 {
 	int i;
@@ -1839,6 +1929,9 @@ static void wl_release_fw(struct wl_info *wl)
 
 /*
  * checks validity of all firmware images loaded from user space
+ *
+ * Precondition: Since this function is called in wl_pci_probe() context,
+ * no locking is required.
  */
 int wl_check_firmwares(struct wl_info *wl)
 {
@@ -1886,6 +1979,9 @@ int wl_check_firmwares(struct wl_info *wl)
 	return rc;
 }
 
+/*
+ * precondition: perimeter lock has been acquired
+ */
 bool wl_rfkill_set_hw_state(struct wl_info *wl)
 {
 	bool blocked = wlc_check_radio_disabled(wl->wlc);

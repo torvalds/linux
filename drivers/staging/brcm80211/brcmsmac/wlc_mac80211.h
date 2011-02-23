@@ -825,8 +825,6 @@ extern void wlc_get_rcmta(struct wlc_info *wlc, int idx,
 #endif
 extern void wlc_set_rcmta(struct wlc_info *wlc, int idx,
 			  const u8 *addr);
-extern void wlc_set_addrmatch(struct wlc_info *wlc, int match_reg_offset,
-			      const u8 *addr);
 extern void wlc_read_tsf(struct wlc_info *wlc, u32 *tsf_l_ptr,
 			 u32 *tsf_h_ptr);
 extern void wlc_set_cwmin(struct wlc_info *wlc, u16 newmin);
