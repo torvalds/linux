@@ -2078,14 +2078,14 @@ static void scic_sds_request_completed_state_enter(
 
 	/* Tell the SCI_USER that the IO request is complete */
 	if (this_request->is_task_management_request == false) {
-		scic_cb_io_request_complete(
+		isci_event_io_request_complete(
 			scic_sds_request_get_controller(this_request),
 			scic_sds_request_get_device(this_request),
 			this_request,
 			this_request->sci_status
 			);
 	} else {
-		scic_cb_task_request_complete(
+		isci_event_task_request_complete(
 			scic_sds_request_get_controller(this_request),
 			scic_sds_request_get_device(this_request),
 			this_request,

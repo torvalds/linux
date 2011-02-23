@@ -565,7 +565,7 @@ enum sci_status scic_sds_port_initialize(
 	 * the timer and start the state machine */
 	if (this_port->physical_port_index != SCI_MAX_PORTS) {
 		/* / @todo should we create the timer at create time? */
-		this_port->timer_handle = scic_cb_timer_create(
+		this_port->timer_handle = isci_event_timer_create(
 			scic_sds_port_get_controller(this_port),
 			scic_sds_port_timeout_handler,
 			this_port
@@ -727,7 +727,9 @@ void scic_sds_port_activate_phy(
 	scic_sds_controller_clear_invalid_phy(controller, the_phy);
 
 	if (do_notify_user == true)
-		scic_cb_port_link_up(this_port->owning_controller, this_port, the_phy);
+		isci_event_port_link_up(this_port->owning_controller,
+					this_port,
+					the_phy);
 }
 
 /**
@@ -735,7 +737,8 @@ void scic_sds_port_activate_phy(
  * @this_port: This is the port on which the phy should be deactivated.
  * @the_phy: This is the specific phy that is no longer active in the port.
  * @do_notify_user: This parameter specifies whether to inform the user (via
- *    scic_cb_port_link_down()) as to the fact that a new phy as become ready.
+ *    isci_event_port_link_down()) as to the fact that a new phy as become
+ *    ready.
  *
  * This method will deactivate the supplied phy in the port. none
  */
@@ -752,7 +755,9 @@ void scic_sds_port_deactivate_phy(
 	SCU_PCSPExCR_WRITE(this_port, the_phy->phy_index, the_phy->phy_index);
 
 	if (do_notify_user == true)
-		scic_cb_port_link_down(this_port->owning_controller, this_port, the_phy);
+		isci_event_port_link_down(this_port->owning_controller,
+					  this_port,
+					  the_phy);
 }
 
 /**
@@ -775,7 +780,7 @@ static void scic_sds_port_invalid_link_up(
 	if ((controller->invalid_phy_mask & (1 << the_phy->phy_index)) == 0) {
 		scic_sds_controller_set_invalid_phy(controller, the_phy);
 
-		scic_cb_port_invalid_link_up(controller, this_port, the_phy);
+		isci_event_port_invalid_link_up(controller, this_port, the_phy);
 	}
 }
 
@@ -933,7 +938,7 @@ static void scic_sds_port_timeout_handler(void *port)
 			this_port);
 	} else if (current_state == SCI_BASE_PORT_STATE_STOPPING) {
 		/* if the port is still stopping then the stop has not completed */
-		scic_cb_port_stop_complete(
+		isci_event_port_stop_complete(
 			scic_sds_port_get_controller(this_port),
 			port,
 			SCI_FAILURE_TIMEOUT
@@ -1030,7 +1035,7 @@ void scic_sds_port_broadcast_change_received(
 	struct scic_sds_phy *this_phy)
 {
 	/* notify the user. */
-	scic_cb_port_bc_change_primitive_received(
+	isci_event_port_bc_change_primitive_received(
 		this_port->owning_controller, this_port, this_phy
 		);
 }
@@ -1259,7 +1264,7 @@ static enum sci_status scic_sds_port_ready_operational_substate_reset_handler(
 		status = scic_sds_phy_reset(selected_phy);
 
 		if (status == SCI_SUCCESS) {
-			scic_cb_timer_start(
+			isci_event_timer_start(
 				scic_sds_port_get_controller(this_port),
 				this_port->timer_handle,
 				timeout
@@ -1610,7 +1615,7 @@ static void scic_sds_port_ready_substate_operational_enter(
 		this_port, SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL
 		);
 
-	scic_cb_port_ready(
+	isci_event_port_ready(
 		scic_sds_port_get_controller(this_port), this_port
 		);
 
@@ -1640,7 +1645,7 @@ static void scic_sds_port_ready_substate_operational_exit(
 {
 	struct scic_sds_port *this_port = (struct scic_sds_port *)object;
 
-	scic_cb_port_not_ready(
+	isci_event_port_not_ready(
 		scic_sds_port_get_controller(this_port),
 		this_port,
 		this_port->not_ready_reason
@@ -1670,7 +1675,7 @@ static void scic_sds_port_ready_substate_configuring_enter(
 		);
 
 	if (this_port->active_phy_mask == 0) {
-		scic_cb_port_not_ready(
+		isci_event_port_not_ready(
 			scic_sds_port_get_controller(this_port),
 			this_port,
 			SCIC_PORT_NOT_READY_NO_ACTIVE_PHYS
@@ -2544,14 +2549,14 @@ static void scic_sds_port_ready_state_enter(
 		SCI_BASE_PORT_STATE_RESETTING
 		== this_port->parent.state_machine.previous_state_id
 		) {
-		scic_cb_port_hard_reset_complete(
+		isci_event_port_hard_reset_complete(
 			scic_sds_port_get_controller(this_port),
 			this_port,
 			SCI_SUCCESS
 			);
 	} else {
 		/* Notify the caller that the port is not yet ready */
-		scic_cb_port_not_ready(
+		isci_event_port_not_ready(
 			scic_sds_port_get_controller(this_port),
 			this_port,
 			SCIC_PORT_NOT_READY_NO_ACTIVE_PHYS
@@ -2615,7 +2620,7 @@ static void scic_sds_port_resetting_state_exit(
 
 	this_port = (struct scic_sds_port *)object;
 
-	scic_cb_timer_stop(
+	isci_event_timer_stop(
 		scic_sds_port_get_controller(this_port),
 		this_port->timer_handle
 		);
@@ -2655,7 +2660,7 @@ static void scic_sds_port_stopping_state_exit(
 
 	this_port = (struct scic_sds_port *)object;
 
-	scic_cb_timer_stop(
+	isci_event_timer_stop(
 		scic_sds_port_get_controller(this_port),
 		this_port->timer_handle
 		);
@@ -2681,7 +2686,7 @@ static void scic_sds_port_failed_state_enter(
 		SCI_BASE_PORT_STATE_FAILED
 		);
 
-	scic_cb_port_hard_reset_complete(
+	isci_event_port_hard_reset_complete(
 		scic_sds_port_get_controller(this_port),
 		this_port,
 		SCI_FAILURE_TIMEOUT

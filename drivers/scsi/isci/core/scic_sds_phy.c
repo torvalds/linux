@@ -370,7 +370,7 @@ enum sci_status scic_sds_phy_initialize(
 	struct scu_link_layer_registers __iomem *link_layer_registers)
 {
 	/* Create the SIGNATURE FIS Timeout timer for this phy */
-	sci_phy->sata_timeout_timer = scic_cb_timer_create(
+	sci_phy->sata_timeout_timer = isci_event_timer_create(
 		scic_sds_phy_get_controller(sci_phy),
 		scic_sds_phy_sata_timeout,
 		sci_phy
@@ -1746,7 +1746,7 @@ static void scic_sds_phy_starting_await_sata_phy_substate_enter(
 		this_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN
 		);
 
-	scic_cb_timer_start(
+	isci_event_timer_start(
 		scic_sds_phy_get_controller(this_phy),
 		this_phy->sata_timeout_timer,
 		SCIC_SDS_SATA_LINK_TRAINING_TIMEOUT
@@ -1768,7 +1768,7 @@ static void scic_sds_phy_starting_await_sata_phy_substate_exit(
 
 	this_phy = (struct scic_sds_phy *)object;
 
-	scic_cb_timer_stop(
+	isci_event_timer_stop(
 		scic_sds_phy_get_controller(this_phy),
 		this_phy->sata_timeout_timer
 		);
@@ -1793,7 +1793,7 @@ static void scic_sds_phy_starting_await_sata_speed_substate_enter(
 		this_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN
 		);
 
-	scic_cb_timer_start(
+	isci_event_timer_start(
 		scic_sds_phy_get_controller(this_phy),
 		this_phy->sata_timeout_timer,
 		SCIC_SDS_SATA_LINK_TRAINING_TIMEOUT
@@ -1815,7 +1815,7 @@ static void scic_sds_phy_starting_await_sata_speed_substate_exit(
 
 	this_phy = (struct scic_sds_phy *)object;
 
-	scic_cb_timer_stop(
+	isci_event_timer_stop(
 		scic_sds_phy_get_controller(this_phy),
 		this_phy->sata_timeout_timer
 		);
@@ -1854,7 +1854,7 @@ static void scic_sds_phy_starting_await_sig_fis_uf_substate_enter(
 		 * condition is cleared. */
 		scic_sds_phy_resume(this_phy);
 
-		scic_cb_timer_start(
+		isci_event_timer_start(
 			scic_sds_phy_get_controller(this_phy),
 			this_phy->sata_timeout_timer,
 			SCIC_SDS_SIGNATURE_FIS_TIMEOUT
@@ -1879,7 +1879,7 @@ static void scic_sds_phy_starting_await_sig_fis_uf_substate_exit(
 
 	this_phy = (struct scic_sds_phy *)object;
 
-	scic_cb_timer_stop(
+	isci_event_timer_stop(
 		scic_sds_phy_get_controller(this_phy),
 		this_phy->sata_timeout_timer
 		);

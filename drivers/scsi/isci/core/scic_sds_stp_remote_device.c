@@ -667,7 +667,7 @@ static void scic_sds_stp_remote_device_ready_idle_substate_resume_complete_handl
 	 * the ready notification. */
 	if (this_device->ready_substate_machine.previous_state_id
 	    != SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ) {
-		scic_cb_remote_device_ready(
+		isci_event_remote_device_ready(
 			scic_sds_remote_device_get_controller(this_device), this_device
 			);
 	}
@@ -741,7 +741,7 @@ static void scic_sds_stp_remote_device_ready_cmd_substate_enter(
 		SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD
 		);
 
-	scic_cb_remote_device_not_ready(
+	isci_event_remote_device_not_ready(
 		scic_sds_remote_device_get_controller(this_device),
 		this_device,
 		SCIC_REMOTE_DEVICE_NOT_READY_SATA_REQUEST_STARTED
@@ -799,7 +799,7 @@ static void scic_sds_stp_remote_device_ready_ncq_error_substate_enter(
 
 	if (this_device->not_ready_reason ==
 	    SCIC_REMOTE_DEVICE_NOT_READY_SATA_SDB_ERROR_FIS_RECEIVED) {
-		scic_cb_remote_device_not_ready(
+		isci_event_remote_device_not_ready(
 			scic_sds_remote_device_get_controller(this_device),
 			this_device,
 			this_device->not_ready_reason

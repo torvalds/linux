@@ -1817,7 +1817,7 @@ static void scic_sds_remote_device_stopped_state_enter(
 	 * the stop operation has completed. */
 	if (this_device->parent.state_machine.previous_state_id
 	    == SCI_BASE_REMOTE_DEVICE_STATE_STOPPING) {
-		scic_cb_remote_device_stop_complete(
+		isci_event_remote_device_stop_complete(
 			scic_sds_remote_device_get_controller(this_device),
 			this_device,
 			SCI_SUCCESS
@@ -1848,7 +1848,7 @@ static void scic_sds_remote_device_starting_state_enter(
 		SCI_BASE_REMOTE_DEVICE_STATE_STARTING
 		);
 
-	scic_cb_remote_device_not_ready(
+	isci_event_remote_device_not_ready(
 		the_controller,
 		this_device,
 		SCIC_REMOTE_DEVICE_NOT_READY_START_REQUESTED
@@ -1871,7 +1871,7 @@ static void scic_sds_remote_device_starting_state_exit(
 	/*
 	 * / @todo Check the device object for the proper return code for this
 	 * /       callback */
-	scic_cb_remote_device_start_complete(
+	isci_event_remote_device_start_complete(
 		scic_sds_remote_device_get_controller(this_device),
 		this_device,
 		SCI_SUCCESS
@@ -1905,7 +1905,7 @@ static void scic_sds_remote_device_ready_state_enter(
 	if (this_device->has_ready_substate_machine) {
 		sci_base_state_machine_start(&this_device->ready_substate_machine);
 	} else {
-		scic_cb_remote_device_ready(the_controller, this_device);
+		isci_event_remote_device_ready(the_controller, this_device);
 	}
 }
 
@@ -1928,7 +1928,7 @@ static void scic_sds_remote_device_ready_state_exit(
 	if (this_device->has_ready_substate_machine) {
 		sci_base_state_machine_stop(&this_device->ready_substate_machine);
 	} else {
-		scic_cb_remote_device_not_ready(
+		isci_event_remote_device_not_ready(
 			the_controller,
 			this_device,
 			SCIC_REMOTE_DEVICE_NOT_READY_STOP_REQUESTED

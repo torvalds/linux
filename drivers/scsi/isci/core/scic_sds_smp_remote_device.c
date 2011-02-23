@@ -265,7 +265,7 @@ static void scic_sds_smp_remote_device_ready_idle_substate_enter(
 		SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE
 		);
 
-	scic_cb_remote_device_ready(
+	isci_event_remote_device_ready(
 		scic_sds_remote_device_get_controller(this_device), this_device);
 }
 
@@ -291,7 +291,7 @@ static void scic_sds_smp_remote_device_ready_cmd_substate_enter(
 		SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD
 		);
 
-	scic_cb_remote_device_not_ready(
+	isci_event_remote_device_not_ready(
 		scic_sds_remote_device_get_controller(this_device),
 		this_device,
 		SCIC_REMOTE_DEVICE_NOT_READY_SMP_REQUEST_STARTED

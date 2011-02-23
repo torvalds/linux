@@ -463,7 +463,7 @@ static void scic_sds_mpc_agent_link_down(
 			) {
 			port_agent->timer_pending = true;
 
-			scic_cb_timer_start(
+			isci_event_timer_start(
 				controller,
 				port_agent->timer,
 				SCIC_SDS_MPC_RECONFIGURATION_TIMEOUT
@@ -542,12 +542,12 @@ static void scic_sds_apc_agent_start_timer(
 	u32 timeout)
 {
 	if (port_agent->timer_pending) {
-		scic_cb_timer_stop(controller, port_agent->timer);
+		isci_event_timer_stop(controller, port_agent->timer);
 	}
 
 	port_agent->timer_pending = true;
 
-	scic_cb_timer_start(controller, port_agent->timer, timeout);
+	isci_event_timer_start(controller, port_agent->timer, timeout);
 }
 
 /**
@@ -830,7 +830,7 @@ enum sci_status scic_sds_port_configuration_agent_initialize(
 		port_agent->link_up_handler = scic_sds_mpc_agent_link_up;
 		port_agent->link_down_handler = scic_sds_mpc_agent_link_down;
 
-		port_agent->timer = scic_cb_timer_create(
+		port_agent->timer = isci_event_timer_create(
 			controller,
 			scic_sds_mpc_agent_timeout_handler,
 			controller
@@ -841,7 +841,7 @@ enum sci_status scic_sds_port_configuration_agent_initialize(
 		port_agent->link_up_handler = scic_sds_apc_agent_link_up;
 		port_agent->link_down_handler = scic_sds_apc_agent_link_down;
 
-		port_agent->timer = scic_cb_timer_create(
+		port_agent->timer = isci_event_timer_create(
 			controller,
 			scic_sds_apc_agent_timeout_handler,
 			controller

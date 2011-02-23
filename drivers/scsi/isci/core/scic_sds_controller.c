@@ -256,7 +256,7 @@ static void scic_sds_controller_phy_startup_timeout_handler(
 void scic_sds_controller_initialize_phy_startup(
 	struct scic_sds_controller *this_controller)
 {
-	this_controller->phy_startup_timer = scic_cb_timer_create(
+	this_controller->phy_startup_timer = isci_event_timer_create(
 		this_controller,
 		scic_sds_controller_phy_startup_timeout_handler,
 		this_controller
@@ -275,7 +275,7 @@ void scic_sds_controller_initialize_phy_startup(
 void scic_sds_controller_initialize_power_control(
 	struct scic_sds_controller *this_controller)
 {
-	this_controller->power_control.timer = scic_cb_timer_create(
+	this_controller->power_control.timer = isci_event_timer_create(
 		this_controller,
 		scic_sds_controller_power_control_timer_handler,
 		this_controller
@@ -734,7 +734,7 @@ static void scic_sds_controller_transition_to_ready(
 			SCI_BASE_CONTROLLER_STATE_READY
 			);
 
-		scic_cb_controller_start_complete(this_controller, status);
+		isci_event_controller_start_complete(this_controller, status);
 	}
 }
 
@@ -757,7 +757,7 @@ void scic_sds_controller_timeout_handler(
 		sci_base_state_machine_change_state(
 			scic_sds_controller_get_base_state_machine(scic),
 			SCI_BASE_CONTROLLER_STATE_FAILED);
-		scic_cb_controller_stop_complete(scic, SCI_FAILURE_TIMEOUT);
+		isci_event_controller_stop_complete(scic, SCI_FAILURE_TIMEOUT);
 	} else	/* / @todo Now what do we want to do in this case? */
 		dev_err(scic_to_dev(scic),
 			"%s: Controller timer fired when controller was not "
@@ -823,7 +823,7 @@ enum sci_status scic_sds_controller_stop_ports(struct scic_sds_controller *scic)
 static void scic_sds_controller_phy_timer_start(
 	struct scic_sds_controller *this_controller)
 {
-	scic_cb_timer_start(
+	isci_event_timer_start(
 		this_controller,
 		this_controller->phy_startup_timer,
 		SCIC_SDS_CONTROLLER_PHY_START_TIMEOUT
@@ -840,7 +840,7 @@ static void scic_sds_controller_phy_timer_start(
 void scic_sds_controller_phy_timer_stop(
 	struct scic_sds_controller *this_controller)
 {
-	scic_cb_timer_stop(
+	isci_event_timer_stop(
 		this_controller,
 		this_controller->phy_startup_timer
 		);
@@ -1041,7 +1041,7 @@ enum sci_status scic_sds_controller_stop_devices(
 static void scic_sds_controller_power_control_timer_start(
 	struct scic_sds_controller *this_controller)
 {
-	scic_cb_timer_start(
+	isci_event_timer_start(
 		this_controller, this_controller->power_control.timer,
 		SCIC_SDS_CONTROLLER_POWER_CONTROL_INTERVAL
 		);
@@ -2809,7 +2809,7 @@ static enum sci_status scic_sds_controller_reset_state_initialize_handler(
 		SCI_BASE_CONTROLLER_STATE_INITIALIZING
 		);
 
-	this_controller->timeout_timer = scic_cb_timer_create(
+	this_controller->timeout_timer = isci_event_timer_create(
 		this_controller,
 		(void (*)(void *))scic_sds_controller_timeout_handler,
 		(void (*)(void *))controller);
@@ -3040,7 +3040,7 @@ static enum sci_status scic_sds_controller_initialized_state_start_handler(
 	if (SCI_SUCCESS == result) {
 		scic_sds_controller_start_next_phy(this_controller);
 
-		scic_cb_timer_start(this_controller,
+		isci_event_timer_start(this_controller,
 				    this_controller->timeout_timer,
 				    timeout);
 
@@ -3130,7 +3130,7 @@ static enum sci_status scic_sds_controller_ready_state_stop_handler(
 
 	this_controller = (struct scic_sds_controller *)controller;
 
-	scic_cb_timer_start(this_controller,
+	isci_event_timer_start(this_controller,
 			    this_controller->timeout_timer,
 			    timeout);
 
@@ -3578,7 +3578,7 @@ static void scic_sds_controller_starting_state_exit(
 {
 	struct scic_sds_controller *scic = (struct scic_sds_controller *)object;
 
-	scic_cb_timer_stop(scic, scic->timeout_timer);
+	isci_event_timer_stop(scic, scic->timeout_timer);
 }
 
 /**
@@ -3660,7 +3660,7 @@ static void scic_sds_controller_stopping_state_exit(
 
 	this_controller = (struct scic_sds_controller *)object;
 
-	scic_cb_timer_stop(this_controller, this_controller->timeout_timer);
+	isci_event_timer_stop(this_controller, this_controller->timeout_timer);
 }
 
 /**
