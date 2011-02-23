@@ -70,7 +70,6 @@
 #include "scic_sds_smp_request.h"
 #include "scic_sds_stp_request.h"
 #include "scic_sds_unsolicited_frame_control.h"
-#include "scic_user_callback.h"
 #include "sci_environment.h"
 #include "sci_util.h"
 #include "scu_completion_codes.h"
@@ -413,25 +412,26 @@ static void scic_sds_ssp_io_request_assign_buffers(
  *
  */
 static void scic_sds_io_request_build_ssp_command_iu(
-	struct scic_sds_request *this_request)
+	struct scic_sds_request *sds_request)
 {
 	struct sci_ssp_command_iu *command_frame;
-	void *os_handle;
 	u32 cdb_length;
 	u32 *cdb_buffer;
+	struct isci_request *isci_request =
+		(struct isci_request *)sci_object_get_association(sds_request);
 
 	command_frame =
-		(struct sci_ssp_command_iu *)this_request->command_buffer;
-
-	os_handle = scic_sds_request_get_user_request(this_request);
+		(struct sci_ssp_command_iu *)sds_request->command_buffer;
 
 	command_frame->lun_upper = 0;
-	command_frame->lun_lower = scic_cb_ssp_io_request_get_lun(os_handle);
+	command_frame->lun_lower =
+		isci_request_ssp_io_request_get_lun(isci_request);
 
 	((u32 *)command_frame)[2] = 0;
 
-	cdb_length = scic_cb_ssp_io_request_get_cdb_length(os_handle);
-	cdb_buffer = (u32 *)scic_cb_ssp_io_request_get_cdb_address(os_handle);
+	cdb_length = isci_request_ssp_io_request_get_cdb_length(isci_request);
+	cdb_buffer = (u32 *)isci_request_ssp_io_request_get_cdb_address(
+					isci_request);
 
 	if (cdb_length > 16) {
 		command_frame->additional_cdb_length = cdb_length - 16;
@@ -446,9 +446,9 @@ static void scic_sds_io_request_build_ssp_command_iu(
 
 	command_frame->enable_first_burst = 0;
 	command_frame->task_priority =
-		scic_cb_ssp_io_request_get_command_priority(os_handle);
+		isci_request_ssp_io_request_get_command_priority(isci_request);
 	command_frame->task_attribute =
-		scic_cb_ssp_io_request_get_task_attribute(os_handle);
+		isci_request_ssp_io_request_get_task_attribute(isci_request);
 }
 
 
@@ -458,25 +458,26 @@ static void scic_sds_io_request_build_ssp_command_iu(
  *
  */
 static void scic_sds_task_request_build_ssp_task_iu(
-	struct scic_sds_request *this_request)
+	struct scic_sds_request *sds_request)
 {
 	struct sci_ssp_task_iu *command_frame;
-	void *os_handle;
+	struct isci_request *isci_request =
+		(struct isci_request *)sci_object_get_association(sds_request);
 
 	command_frame =
-		(struct sci_ssp_task_iu *)this_request->command_buffer;
-
-	os_handle = scic_sds_request_get_user_request(this_request);
+		(struct sci_ssp_task_iu *)sds_request->command_buffer;
 
 	command_frame->lun_upper = 0;
-	command_frame->lun_lower = scic_cb_ssp_task_request_get_lun(os_handle);
+	command_frame->lun_lower = isci_request_ssp_io_request_get_lun(
+					isci_request);
 
 	((u32 *)command_frame)[2] = 0;
 
 	command_frame->task_function =
-		scic_cb_ssp_task_request_get_function(os_handle);
+		isci_task_ssp_request_get_function(isci_request);
 	command_frame->task_tag =
-		scic_cb_ssp_task_request_get_io_tag_to_manage(os_handle);
+		isci_task_ssp_request_get_io_tag_to_manage(
+				isci_request);
 }
 
 
@@ -899,18 +900,15 @@ enum sci_status scic_task_request_construct(
 enum sci_status scic_io_request_construct_basic_ssp(
 	struct scic_sds_request *sci_req)
 {
-	void *os_handle;
+	struct isci_request *isci_request =
+		(struct isci_request *)sci_object_get_association(sci_req);
 
 	sci_req->protocol = SCIC_SSP_PROTOCOL;
 
-	os_handle = scic_sds_request_get_user_request(sci_req);
-
 	scu_ssp_io_request_construct_task_context(
 		sci_req,
-		scic_cb_io_request_get_data_direction(os_handle),
-		scic_cb_io_request_get_transfer_length(os_handle)
-		);
-
+		isci_request_io_request_get_data_direction(isci_request),
+		isci_request_io_request_get_transfer_length(isci_request));
 
 	scic_sds_io_request_build_ssp_command_iu(sci_req);
 
@@ -941,7 +939,8 @@ enum sci_status scic_task_request_construct_ssp(
 }
 
 
-enum sci_status scic_io_request_construct_basic_sata(struct scic_sds_request *sci_req)
+enum sci_status scic_io_request_construct_basic_sata(
+		struct scic_sds_request *sci_req)
 {
 	enum sci_status status;
 	struct scic_sds_stp_request *stp_req;
@@ -949,15 +948,18 @@ enum sci_status scic_io_request_construct_basic_sata(struct scic_sds_request *sc
 	u32 len;
 	enum dma_data_direction dir;
 	bool copy = false;
+	struct isci_request *isci_request =
+		(struct isci_request *)sci_object_get_association(sci_req);
+	struct sas_task *task = isci_request_access_task(isci_request);
 
 	stp_req = container_of(sci_req, typeof(*stp_req), parent);
 
 	sci_req->protocol = SCIC_STP_PROTOCOL;
 
-	len = scic_cb_io_request_get_transfer_length(sci_req->user_request);
-	dir = scic_cb_io_request_get_data_direction(sci_req->user_request);
-	proto = scic_cb_request_get_sat_protocol(sci_req->user_request);
-	copy = scic_cb_io_request_do_copy_rx_frames(stp_req->parent.user_request);
+	len = isci_request_io_request_get_transfer_length(isci_request);
+	dir = isci_request_io_request_get_data_direction(isci_request);
+	proto = isci_sata_get_sat_protocol(isci_request);
+	copy = (task->data_dir == DMA_NONE) ? false : true;
 
 	status = scic_io_request_construct_sata(sci_req, proto, len, dir, copy);
 
@@ -975,7 +977,11 @@ enum sci_status scic_task_request_construct_sata(
 	struct scic_sds_request *sci_req)
 {
 	enum sci_status status;
-	u8 sat_protocol = scic_cb_request_get_sat_protocol(sci_req->user_request);
+	u8 sat_protocol;
+	struct isci_request *isci_request =
+		(struct isci_request *)sci_object_get_association(sci_req);
+
+	sat_protocol = isci_sata_get_sat_protocol(isci_request);
 
 	switch (sat_protocol) {
 	case SAT_PROTOCOL_ATA_HARD_RESET:
@@ -1172,27 +1178,28 @@ enum sci_status scic_sds_io_request_frame_handler(
  *    the response data.
  *
  */
-void scic_sds_io_request_copy_response(
-	struct scic_sds_request *this_request)
+void scic_sds_io_request_copy_response(struct scic_sds_request *sds_request)
 {
 	void *response_buffer;
 	u32 user_response_length;
 	u32 core_response_length;
 	struct sci_ssp_response_iu *ssp_response;
+	struct isci_request *isci_request =
+		(struct isci_request *)sci_object_get_association(sds_request);
 
-	ssp_response = (struct sci_ssp_response_iu *)this_request->response_buffer;
+	ssp_response =
+		(struct sci_ssp_response_iu *)sds_request->response_buffer;
 
-	response_buffer = scic_cb_ssp_task_request_get_response_data_address(
-		this_request->user_request
-		);
+	response_buffer =
+		isci_task_ssp_request_get_response_data_address(
+				isci_request);
 
-	user_response_length = scic_cb_ssp_task_request_get_response_data_length(
-		this_request->user_request
-		);
+	user_response_length =
+		isci_task_ssp_request_get_response_data_length(
+				isci_request);
 
 	core_response_length = sci_ssp_get_response_data_length(
-		ssp_response->response_data_length
-		);
+					ssp_response->response_data_length);
 
 	user_response_length = min(user_response_length, core_response_length);
 

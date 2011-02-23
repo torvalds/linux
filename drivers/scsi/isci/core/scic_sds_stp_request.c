@@ -67,7 +67,6 @@
 #include "scic_sds_stp_pio_request.h"
 #include "scic_sds_stp_request.h"
 #include "scic_sds_unsolicited_frame_control.h"
-#include "scic_user_callback.h"
 #include "sci_environment.h"
 #include "sci_util.h"
 #include "scu_completion_codes.h"

@@ -61,7 +61,6 @@
 /*#include "task.h"*/
 #include "timers.h"
 #include "remote_device.h"
-#include "scic_user_callback.h"
 
 #define DRV_NAME "isci"
 #define SCI_PCI_BAR_COUNT 2

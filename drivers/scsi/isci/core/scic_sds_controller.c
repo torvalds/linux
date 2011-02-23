@@ -66,7 +66,6 @@
 #include "scic_sds_port.h"
 #include "scic_sds_remote_device.h"
 #include "scic_sds_request.h"
-#include "scic_user_callback.h"
 #include "sci_environment.h"
 #include "sci_util.h"
 #include "scu_completion_codes.h"
@@ -594,7 +593,7 @@ void scic_sds_controller_afe_initialization(struct scic_sds_controller *scic)
 
 	/* Clear DFX Status registers */
 	scu_afe_register_write(scic, afe_dfx_master_control0, 0x0081000f);
-	scic_cb_stall_execution(AFE_REGISTER_WRITE_DELAY);
+	udelay(AFE_REGISTER_WRITE_DELAY);
 
 	/* Configure bias currents to normal */
 	if (is_a0())
@@ -602,7 +601,7 @@ void scic_sds_controller_afe_initialization(struct scic_sds_controller *scic)
 	else
 		scu_afe_register_write(scic, afe_bias_control, 0x00005A00);
 
-	scic_cb_stall_execution(AFE_REGISTER_WRITE_DELAY);
+	udelay(AFE_REGISTER_WRITE_DELAY);
 
 	/* Enable PLL */
 	if (is_b0())
@@ -610,35 +609,35 @@ void scic_sds_controller_afe_initialization(struct scic_sds_controller *scic)
 	else
 		scu_afe_register_write(scic, afe_pll_control0, 0x80040908);
 
-	scic_cb_stall_execution(AFE_REGISTER_WRITE_DELAY);
+	udelay(AFE_REGISTER_WRITE_DELAY);
 
 	/* Wait for the PLL to lock */
 	do {
 		afe_status = scu_afe_register_read(
 			scic, afe_common_block_status);
-		scic_cb_stall_execution(AFE_REGISTER_WRITE_DELAY);
+		udelay(AFE_REGISTER_WRITE_DELAY);
 	} while ((afe_status & 0x00001000) == 0);
 
 	if (is_b0()) {
 		/* Shorten SAS SNW lock time (RxLock timer value from 76 us to 50 us) */
 		scu_afe_register_write(scic, afe_pmsn_master_control0, 0x7bcc96ad);
-		scic_cb_stall_execution(AFE_REGISTER_WRITE_DELAY);
+		udelay(AFE_REGISTER_WRITE_DELAY);
 	}
 
 	for (phy_id = 0; phy_id < SCI_MAX_PHYS; phy_id++) {
 		if (is_b0()) {
 			 /* Configure transmitter SSC parameters */
 			scu_afe_txreg_write(scic, phy_id, afe_tx_ssc_control, 0x00030000);
-			scic_cb_stall_execution(AFE_REGISTER_WRITE_DELAY);
+			udelay(AFE_REGISTER_WRITE_DELAY);
 		} else {
 			/*
 			 * All defaults, except the Receive Word Alignament/Comma Detect
 			 * Enable....(0xe800) */
 			scu_afe_txreg_write(scic, phy_id, afe_xcvr_control0, 0x00004512);
-			scic_cb_stall_execution(AFE_REGISTER_WRITE_DELAY);
+			udelay(AFE_REGISTER_WRITE_DELAY);
 
 			scu_afe_txreg_write(scic, phy_id, afe_xcvr_control1, 0x0050100F);
-			scic_cb_stall_execution(AFE_REGISTER_WRITE_DELAY);
+			udelay(AFE_REGISTER_WRITE_DELAY);
 		}
 
 		/*
@@ -651,26 +650,26 @@ void scic_sds_controller_afe_initialization(struct scic_sds_controller *scic)
 		else {
 			 /* Power down TX and RX (PWRDNTX and PWRDNRX) */
 			scu_afe_txreg_write(scic, phy_id, afe_channel_control, 0x000003d7);
-			scic_cb_stall_execution(AFE_REGISTER_WRITE_DELAY);
+			udelay(AFE_REGISTER_WRITE_DELAY);
 
 			/*
 			 * Power up TX and RX out from power down (PWRDNTX and PWRDNRX)
 			 * & increase TX int & ext bias 20%....(0xe85c) */
 			scu_afe_txreg_write(scic, phy_id, afe_channel_control, 0x000003d4);
 		}
-		scic_cb_stall_execution(AFE_REGISTER_WRITE_DELAY);
+		udelay(AFE_REGISTER_WRITE_DELAY);
 
 		if (is_a0() || is_a2()) {
 			/* Enable TX equalization (0xe824) */
 			scu_afe_txreg_write(scic, phy_id, afe_tx_control, 0x00040000);
-			scic_cb_stall_execution(AFE_REGISTER_WRITE_DELAY);
+			udelay(AFE_REGISTER_WRITE_DELAY);
 		}
 
 		/*
 		 * RDPI=0x0(RX Power On), RXOOBDETPDNC=0x0, TPD=0x0(TX Power On),
 		 * RDD=0x0(RX Detect Enabled) ....(0xe800) */
 		scu_afe_txreg_write(scic, phy_id, afe_xcvr_control0, 0x00004100);
-		scic_cb_stall_execution(AFE_REGISTER_WRITE_DELAY);
+		udelay(AFE_REGISTER_WRITE_DELAY);
 
 		/* Leave DFE/FFE on */
 		if (is_a0())
@@ -679,28 +678,28 @@ void scic_sds_controller_afe_initialization(struct scic_sds_controller *scic)
 			scu_afe_txreg_write(scic, phy_id, afe_rx_ssc_control0, 0x3F11103F);
 		else {
 			scu_afe_txreg_write(scic, phy_id, afe_rx_ssc_control0, 0x3F11103F);
-			scic_cb_stall_execution(AFE_REGISTER_WRITE_DELAY);
+			udelay(AFE_REGISTER_WRITE_DELAY);
 			/* Enable TX equalization (0xe824) */
 			scu_afe_txreg_write(scic, phy_id, afe_tx_control, 0x00040000);
 		}
-		scic_cb_stall_execution(AFE_REGISTER_WRITE_DELAY);
+		udelay(AFE_REGISTER_WRITE_DELAY);
 
 		scu_afe_txreg_write(scic, phy_id, afe_tx_amp_control0, 0x000E7C03);
-		scic_cb_stall_execution(AFE_REGISTER_WRITE_DELAY);
+		udelay(AFE_REGISTER_WRITE_DELAY);
 
 		scu_afe_txreg_write(scic, phy_id, afe_tx_amp_control1, 0x000E7C03);
-		scic_cb_stall_execution(AFE_REGISTER_WRITE_DELAY);
+		udelay(AFE_REGISTER_WRITE_DELAY);
 
 		scu_afe_txreg_write(scic, phy_id, afe_tx_amp_control2, 0x000E7C03);
-		scic_cb_stall_execution(AFE_REGISTER_WRITE_DELAY);
+		udelay(AFE_REGISTER_WRITE_DELAY);
 
 		scu_afe_txreg_write(scic, phy_id, afe_tx_amp_control3, 0x000E7C03);
-		scic_cb_stall_execution(AFE_REGISTER_WRITE_DELAY);
+		udelay(AFE_REGISTER_WRITE_DELAY);
 	}
 
 	/* Transfer control to the PEs */
 	scu_afe_register_write(scic, afe_dfx_master_control0, 0x00010f00);
-	scic_cb_stall_execution(AFE_REGISTER_WRITE_DELAY);
+	udelay(AFE_REGISTER_WRITE_DELAY);
 }
 
 /*
@@ -2446,7 +2445,7 @@ void scic_sds_controller_reset_hardware(
 	SMU_SMUSRCR_WRITE(scic, 0xFFFFFFFF);
 
 	/* Delay for 1ms to before clearing the CQP and UFQPR. */
-	scic_cb_stall_execution(1000);
+	udelay(1000);
 
 	/* The write to the CQGR clears the CQP */
 	SMU_CQGR_WRITE(scic, 0x00000000);
@@ -2840,7 +2839,7 @@ static enum sci_status scic_sds_controller_reset_state_initialize_handler(
 
 		while (terminate_loop-- && (result != SCI_SUCCESS)) {
 			/* Loop until the hardware reports success */
-			scic_cb_stall_execution(SCU_CONTEXT_RAM_INIT_STALL_TIME);
+			udelay(SCU_CONTEXT_RAM_INIT_STALL_TIME);
 			status = SMU_SMUCSR_READ(this_controller);
 
 			if ((status & SCU_RAM_INIT_COMPLETED) == SCU_RAM_INIT_COMPLETED) {

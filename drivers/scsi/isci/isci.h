@@ -86,6 +86,8 @@
 #include "sci_status.h"
 #include "request.h"
 #include "events.h"
+#include "task.h"
+#include "sata.h"
 
 extern struct kmem_cache *isci_kmem_cache;
 extern struct isci_firmware *isci_firmware;

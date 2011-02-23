@@ -55,7 +55,6 @@
 
 #if !defined(_ISCI_REMOTE_DEVICE_H_)
 #define _ISCI_REMOTE_DEVICE_H_
-#include "scic_user_callback.h"
 
 struct isci_host;
 struct scic_sds_remote_device;

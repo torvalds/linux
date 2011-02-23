@@ -64,7 +64,6 @@
 #include "scic_sds_remote_device.h"
 #include "scic_sds_remote_node_context.h"
 #include "scic_sds_request.h"
-#include "scic_user_callback.h"
 #include "sci_environment.h"
 #include "sci_util.h"
 #include "scu_event_codes.h"

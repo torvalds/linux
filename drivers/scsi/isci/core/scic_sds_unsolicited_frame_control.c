@@ -64,7 +64,6 @@
 #include "scic_sds_unsolicited_frame_control.h"
 #include "scu_registers.h"
 #include "scic_sds_controller.h"
-#include "scic_user_callback.h"
 #include "sci_util.h"
 #include "sci_environment.h"
 

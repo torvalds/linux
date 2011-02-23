@@ -62,7 +62,6 @@
 #include "scic_sds_port.h"
 #include "scic_sds_remote_device.h"
 #include "scic_sds_request.h"
-#include "scic_user_callback.h"
 #include "sci_environment.h"
 #include "sci_util.h"
 #include "scu_event_codes.h"
@@ -217,52 +216,56 @@ static enum sci_status scic_sds_stp_remote_device_ready_substate_start_request_h
  * @device:
  * @request:
  *
- * If this is a softreset we may want to have a different substate. enum sci_status
+ * If this is a softreset we may want to have a different substate.
+ * enum sci_status
  */
 static enum sci_status scic_sds_stp_remote_device_ready_idle_substate_start_io_handler(
-	struct sci_base_remote_device *device,
-	struct sci_base_request *request)
+	struct sci_base_remote_device *base_device,
+	struct sci_base_request *base_request)
 {
 	enum sci_status status;
-	struct scic_sds_remote_device *this_device = (struct scic_sds_remote_device *)device;
-	struct scic_sds_request *io_request  = (struct scic_sds_request *)request;
+	struct scic_sds_remote_device *device =
+		(struct scic_sds_remote_device *)&base_device->parent;
+	struct scic_sds_request *sds_request  =
+		(struct scic_sds_request *)&base_request->parent;
+	struct isci_request *isci_request =
+		(struct isci_request *)sci_object_get_association(sds_request);
 
 
 	/* Will the port allow the io request to start? */
-	status = this_device->owning_port->state_handlers->start_io_handler(
-		this_device->owning_port,
-		this_device,
-		io_request
-		);
+	status = device->owning_port->state_handlers->start_io_handler(
+			device->owning_port,
+			device,
+			sds_request);
 
 	if (status == SCI_SUCCESS) {
 		status =
-			scic_sds_remote_node_context_start_io(this_device->rnc, io_request);
+			scic_sds_remote_node_context_start_io(device->rnc,
+							      sds_request);
+
+		if (status == SCI_SUCCESS)
+			status =
+				sds_request->state_handlers->
+					parent.start_handler(base_request);
 
 		if (status == SCI_SUCCESS) {
-			status = io_request->state_handlers->parent.start_handler(request);
-		}
-
-		if (status == SCI_SUCCESS) {
-			if (
-				scic_cb_request_get_sat_protocol(io_request->user_request)
-				== SAT_PROTOCOL_FPDMA
-				) {
+			if (isci_sata_get_sat_protocol(isci_request) ==
+					SAT_PROTOCOL_FPDMA)
 				sci_base_state_machine_change_state(
-					&this_device->ready_substate_machine,
-					SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ
-					);
-			} else {
-				this_device->working_request = io_request;
+					&device->ready_substate_machine,
+					SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ);
+			else {
+				device->working_request = sds_request;
 
 				sci_base_state_machine_change_state(
-					&this_device->ready_substate_machine,
-					SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD
-					);
+					&device->ready_substate_machine,
+					SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD);
 			}
 		}
 
-		scic_sds_remote_device_start_request(this_device, io_request, status);
+		scic_sds_remote_device_start_request(device,
+						     sds_request,
+						     status);
 	}
 
 	return status;
@@ -304,35 +307,38 @@ static enum sci_status scic_sds_stp_remote_device_ready_idle_substate_event_hand
  * ***************************************************************************** */
 
 static enum sci_status scic_sds_stp_remote_device_ready_ncq_substate_start_io_handler(
-	struct sci_base_remote_device *device,
-	struct sci_base_request *request)
+	struct sci_base_remote_device *base_device,
+	struct sci_base_request *base_request)
 {
 	enum sci_status status;
-	struct scic_sds_remote_device *this_device = (struct scic_sds_remote_device *)device;
-	struct scic_sds_request *io_request  = (struct scic_sds_request *)request;
+	struct scic_sds_remote_device *device =
+		(struct scic_sds_remote_device *)&base_device->parent;
+	struct scic_sds_request *sds_request  =
+		(struct scic_sds_request *)&base_request->parent;
+	struct isci_request *isci_request =
+		(struct isci_request *)sci_object_get_association(sds_request);
 
-	if (
-		scic_cb_request_get_sat_protocol(io_request->user_request)
-		== SAT_PROTOCOL_FPDMA
-		) {
-		status = this_device->owning_port->state_handlers->start_io_handler(
-			this_device->owning_port,
-			this_device,
-			io_request
-			);
+	if (isci_sata_get_sat_protocol(isci_request) == SAT_PROTOCOL_FPDMA) {
+		status = device->owning_port->state_handlers->start_io_handler(
+				device->owning_port,
+				device,
+				sds_request);
 
 		if (status == SCI_SUCCESS) {
-			status = scic_sds_remote_node_context_start_io(this_device->rnc, io_request);
+			status = scic_sds_remote_node_context_start_io(
+					device->rnc,
+					sds_request);
 
-			if (status == SCI_SUCCESS) {
-				status = io_request->state_handlers->parent.start_handler(request);
-			}
+			if (status == SCI_SUCCESS)
+				status = sds_request->state_handlers->
+					parent.start_handler(base_request);
 
-			scic_sds_remote_device_start_request(this_device, io_request, status);
+			scic_sds_remote_device_start_request(device,
+							     sds_request,
+							     status);
 		}
-	} else {
+	} else
 		status = SCI_FAILURE_INVALID_STATE;
-	}
 
 	return status;
 }

@@ -324,7 +324,7 @@ int isci_task_send_lu_reset_sata(
 
 	/* Leave SRST high for a bit. */
 	#define ISCI_SRST_ASSERT_DELAY 100 /* usecs */
-	scic_cb_stall_execution(ISCI_SRST_ASSERT_DELAY);
+	udelay(ISCI_SRST_ASSERT_DELAY);
 
 	/* Deassert SRST. */
 	isci_task_build_tmf(&tmf, isci_device, isci_tmf_sata_srst_low,
