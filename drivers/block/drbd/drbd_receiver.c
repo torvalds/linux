@@ -1734,14 +1734,15 @@ static bool need_peer_seq(struct drbd_conf *mdev)
 
 static void update_peer_seq(struct drbd_conf *mdev, unsigned int peer_seq)
 {
-	unsigned int old_peer_seq;
+	unsigned int newest_peer_seq;
 
 	if (need_peer_seq(mdev)) {
 		spin_lock(&mdev->peer_seq_lock);
-		old_peer_seq = mdev->peer_seq;
-		mdev->peer_seq = seq_max(mdev->peer_seq, peer_seq);
+		newest_peer_seq = seq_max(mdev->peer_seq, peer_seq);
+		mdev->peer_seq = newest_peer_seq;
 		spin_unlock(&mdev->peer_seq_lock);
-		if (old_peer_seq != peer_seq)
+		/* wake up only if we actually changed mdev->peer_seq */
+		if (peer_seq == newest_peer_seq)
 			wake_up(&mdev->seq_wait);
 	}
 }
