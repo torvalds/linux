@@ -2292,19 +2292,14 @@ exit:
 	return ERR_PTR(error);
 }
 
-/*
- * Note that the low bits of the passed in "open_flag"
- * are not the same as in the local variable "flag". See
- * open_to_namei_flags() for more details.
- */
-struct file *do_filp_open(int dfd, const char *pathname,
+static struct file *path_openat(int dfd, const char *pathname,
 		const struct open_flags *op, int flags)
 {
 	struct file *filp;
 	struct nameidata nd;
-	int error;
 	struct path path;
 	int count = 0;
+	int error;
 
 	filp = get_empty_filp();
 	if (!filp)
@@ -2319,42 +2314,27 @@ struct file *do_filp_open(int dfd, const char *pathname,
 		goto creat;
 
 	/* !O_CREAT, simple open */
-	error = do_path_lookup(dfd, pathname, flags | op->intent, &nd);
+	error = path_lookupat(dfd, pathname, flags | op->intent, &nd);
 	if (unlikely(error))
-		goto out_filp2;
+		goto out_filp;
 	error = -ELOOP;
 	if (!(nd.flags & LOOKUP_FOLLOW)) {
 		if (nd.inode->i_op->follow_link)
-			goto out_path2;
+			goto out_path;
 	}
 	error = -ENOTDIR;
 	if (nd.flags & LOOKUP_DIRECTORY) {
 		if (!nd.inode->i_op->lookup)
-			goto out_path2;
+			goto out_path;
 	}
 	audit_inode(pathname, nd.path.dentry);
 	filp = finish_open(&nd, op->open_flag, op->acc_mode);
-out2:
 	release_open_intent(&nd);
 	return filp;
 
-out_path2:
-	path_put(&nd.path);
-out_filp2:
-	filp = ERR_PTR(error);
-	goto out2;
-
 creat:
 	/* OK, have to create the file. Find the parent. */
-	error = path_lookupat(dfd, pathname,
-			LOOKUP_PARENT | LOOKUP_RCU | flags, &nd);
-	if (unlikely(error == -ECHILD))
-		error = path_lookupat(dfd, pathname, LOOKUP_PARENT | flags, &nd);
-	if (unlikely(error == -ESTALE)) {
-reval:
-		flags |= LOOKUP_REVAL;
-		error = path_lookupat(dfd, pathname, LOOKUP_PARENT | flags, &nd);
-	}
+	error = path_lookupat(dfd, pathname, LOOKUP_PARENT | flags, &nd);
 	if (unlikely(error))
 		goto out_filp;
 	if (unlikely(!audit_dummy_context()))
@@ -2398,8 +2378,6 @@ reval:
 out:
 	if (nd.root.mnt)
 		path_put(&nd.root);
-	if (filp == ERR_PTR(-ESTALE) && !(flags & LOOKUP_REVAL))
-		goto reval;
 	release_open_intent(&nd);
 	return filp;
 
@@ -2410,6 +2388,19 @@ out_path:
 out_filp:
 	filp = ERR_PTR(error);
 	goto out;
+}
+
+struct file *do_filp_open(int dfd, const char *pathname,
+		const struct open_flags *op, int flags)
+{
+	struct file *filp;
+
+	filp = path_openat(dfd, pathname, op, flags | LOOKUP_RCU);
+	if (unlikely(filp == ERR_PTR(-ECHILD)))
+		filp = path_openat(dfd, pathname, op, flags);
+	if (unlikely(filp == ERR_PTR(-ESTALE)))
+		filp = path_openat(dfd, pathname, op, flags | LOOKUP_REVAL);
+	return filp;
 }
 
 /**
