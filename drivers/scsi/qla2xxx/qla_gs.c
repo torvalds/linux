@@ -1972,7 +1972,7 @@ qla2x00_gff_id(scsi_qla_host_t *vha, sw_info_t *list)
 			    "scsi(%ld): GFF_ID issue IOCB failed "
 			    "(%d).\n", vha->host_no, rval));
 		} else if (qla2x00_chk_ms_status(vha, ms_pkt, ct_rsp,
-			       "GPN_ID") != QLA_SUCCESS) {
+			       "GFF_ID") != QLA_SUCCESS) {
 			DEBUG2_3(printk(KERN_INFO
 			    "scsi(%ld): GFF_ID IOCB status had a "
 			    "failure status code\n", vha->host_no));
