@@ -2462,22 +2462,19 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 		    "-- completion status (%x).\n", __func__,
 		    vha->host_no, le16_to_cpu(sts->comp_status)));
 		rval = QLA_FUNCTION_FAILED;
-	} else if (!(le16_to_cpu(sts->scsi_status) &
-	    SS_RESPONSE_INFO_LEN_VALID)) {
-		DEBUG2_3_11(printk("%s(%ld): failed to complete IOCB "
-		    "-- no response info (%x).\n", __func__, vha->host_no,
-		    le16_to_cpu(sts->scsi_status)));
-		rval = QLA_FUNCTION_FAILED;
-	} else if (le32_to_cpu(sts->rsp_data_len) < 4) {
-		DEBUG2_3_11(printk("%s(%ld): failed to complete IOCB "
-		    "-- not enough response info (%d).\n", __func__,
-		    vha->host_no, le32_to_cpu(sts->rsp_data_len)));
-		rval = QLA_FUNCTION_FAILED;
-	} else if (sts->data[3]) {
-		DEBUG2_3_11(printk("%s(%ld): failed to complete IOCB "
-		    "-- response (%x).\n", __func__,
-		    vha->host_no, sts->data[3]));
-		rval = QLA_FUNCTION_FAILED;
+	} else if (le16_to_cpu(sts->scsi_status) &
+	    SS_RESPONSE_INFO_LEN_VALID) {
+		if (le32_to_cpu(sts->rsp_data_len) < 4) {
+			DEBUG2_3_11(printk("%s(%ld): ignoring inconsistent "
+			    "data length -- not enough response info (%d).\n",
+			    __func__, vha->host_no,
+			    le32_to_cpu(sts->rsp_data_len)));
+		} else if (sts->data[3]) {
+			DEBUG2_3_11(printk("%s(%ld): failed to complete IOCB "
+			    "-- response (%x).\n", __func__,
+			    vha->host_no, sts->data[3]));
+			rval = QLA_FUNCTION_FAILED;
+		}
 	}
 
 	/* Issue marker IOCB. */
