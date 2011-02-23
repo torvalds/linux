@@ -21,7 +21,7 @@ static int xfrm4_init_flags(struct xfrm_state *x)
 }
 
 static void
-__xfrm4_init_tempsel(struct xfrm_selector *sel, struct flowi *fl)
+__xfrm4_init_tempsel(struct xfrm_selector *sel, const struct flowi *fl)
 {
 	sel->daddr.a4 = fl->fl4_dst;
 	sel->saddr.a4 = fl->fl4_src;

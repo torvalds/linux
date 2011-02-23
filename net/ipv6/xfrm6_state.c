@@ -20,7 +20,7 @@
 #include <net/addrconf.h>
 
 static void
-__xfrm6_init_tempsel(struct xfrm_selector *sel, struct flowi *fl)
+__xfrm6_init_tempsel(struct xfrm_selector *sel, const struct flowi *fl)
 {
 	/* Initialize temporary selector matching only
 	 * to current session. */
