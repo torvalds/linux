@@ -126,6 +126,8 @@ static struct grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count)
 		add->pages[i] = alloc_page(GFP_KERNEL | __GFP_HIGHMEM);
 		if (add->pages[i] == NULL)
 			goto err;
+		add->map_ops[i].handle = -1;
+		add->unmap_ops[i].handle = -1;
 	}
 
 	add->index = 0;
@@ -248,7 +250,7 @@ static int find_grant_ptes(pte_t *pte, pgtable_t token,
 			  map->grants[pgnr].ref,
 			  map->grants[pgnr].domid);
 	gnttab_set_unmap_op(&map->unmap_ops[pgnr], pte_maddr, flags,
-			    0 /* handle */);
+			    -1 /* handle */);
 	return 0;
 }
 
@@ -259,7 +261,7 @@ static int map_grant_pages(struct grant_map *map)
 
 	if (!use_ptemod) {
 		/* Note: it could already be mapped */
-		if (map->map_ops[0].handle)
+		if (map->map_ops[0].handle != -1)
 			return 0;
 		for (i = 0; i < map->count; i++) {
 			addr = (phys_addr_t)
@@ -268,7 +270,7 @@ static int map_grant_pages(struct grant_map *map)
 				map->grants[i].ref,
 				map->grants[i].domid);
 			gnttab_set_unmap_op(&map->unmap_ops[i], addr,
-				map->flags, 0 /* handle */);
+				map->flags, -1 /* handle */);
 		}
 	}
 
@@ -280,7 +282,11 @@ static int map_grant_pages(struct grant_map *map)
 	for (i = 0; i < map->count; i++) {
 		if (map->map_ops[i].status)
 			err = -EINVAL;
-		map->unmap_ops[i].handle = map->map_ops[i].handle;
+		else {
+			BUG_ON(map->map_ops[i].handle == -1);
+			map->unmap_ops[i].handle = map->map_ops[i].handle;
+			pr_debug("map handle=%d\n", map->map_ops[i].handle);
+		}
 	}
 	return err;
 }
@@ -313,7 +319,10 @@ static int __unmap_grant_pages(struct grant_map *map, int offset, int pages)
 	for (i = 0; i < pages; i++) {
 		if (map->unmap_ops[offset+i].status)
 			err = -EINVAL;
-		map->unmap_ops[offset+i].handle = 0;
+		pr_debug("unmap handle=%d st=%d\n",
+			map->unmap_ops[offset+i].handle,
+			map->unmap_ops[offset+i].status);
+		map->unmap_ops[offset+i].handle = -1;
 	}
 	return err;
 }
@@ -328,13 +337,13 @@ static int unmap_grant_pages(struct grant_map *map, int offset, int pages)
 	 * already unmapped some of the grants. Only unmap valid ranges.
 	 */
 	while (pages && !err) {
-		while (pages && !map->unmap_ops[offset].handle) {
+		while (pages && map->unmap_ops[offset].handle == -1) {
 			offset++;
 			pages--;
 		}
 		range = 0;
 		while (range < pages) {
-			if (!map->unmap_ops[offset+range].handle) {
+			if (map->unmap_ops[offset+range].handle == -1) {
 				range--;
 				break;
 			}
