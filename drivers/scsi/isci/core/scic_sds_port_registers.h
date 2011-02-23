@@ -64,29 +64,6 @@
  */
 
 /**
- * scu_transport_layer_read() -
- *
- * Macro to read the transport layer register associated with this port object.
- */
-#define scu_transport_layer_read(port, reg) \
-	scu_register_read(\
-		scic_sds_port_get_controller(port), \
-		(port)->transport_layer_registers->reg \
-		)
-
-/**
- * scu_transport_layer_write() -
- *
- * Macro to write the transport layer register associated with this port object.
- */
-#define scu_transport_layer_write(port, reg, value) \
-	scu_register_write(\
-		scic_sds_port_get_controller(port), \
-		(port)->transport_layer_registers->reg,	\
-		(value)	\
-		)
-
-/**
  * scu_port_task_scheduler_read() -
  *
  * Macro to read the port task scheduler register associated with this port
@@ -117,59 +94,6 @@
 		(port)->viit_registers->reg, \
 		(value)	\
 		)
-
-/*
- * ****************************************************************************
- * * Transport Layer registers controlled by the port object
- * **************************************************************************** */
-
-/**
- * SCU_TLCR_READ() -
- *
- * This macro reads the Transport layer control register
- */
-#define SCU_TLCR_READ(port) \
-	scu_transport_layer_read(port, control)
-
-/**
- * SCU_TLCR_WRITE() -
- *
- * This macro writes the Transport layer control register
- */
-#define SCU_TLCR_WRITE(port, value) \
-	scu_transport_layer_write(port, control, value)
-
-/**
- * SCU_TLADTR_READ() -
- *
- * This macro reads the Transport layer address translation register
- */
-#define SCU_TLADTR_READ(port) \
-	scu_transport_layer_read(port, address_translation)
-
-/**
- * SCU_TLADTR_WRITE() -
- *
- * This macro writes the Transport layer address translation register
- */
-#define SCU_TLADTR_WRITE(port) \
-	scu_transport_layer_write(port, address_translation, value)
-
-/**
- * SCU_STPTLDARNI_WRITE() -
- *
- * This macro writes the STP Transport Layer Direct Attached RNi register.
- */
-#define SCU_STPTLDARNI_WRITE(port, index) \
-	scu_transport_layer_write(port, stp_rni, index)
-
-/**
- * SCU_STPTLDARNI_READ() -
- *
- * This macro reads the STP Transport Layer Direct Attached RNi register.
- */
-#define SCU_STPTLDARNI_READ(port) \
-	scu_transport_layer_read(port, stp_rni)
 
 /*
  * ****************************************************************************

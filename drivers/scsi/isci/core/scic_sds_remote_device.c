@@ -1210,11 +1210,6 @@ static enum sci_status scic_sds_remote_device_stopped_state_destruct_handler(
 		SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX
 		);
 
-	scic_sds_port_set_direct_attached_device_id(
-		this_device->owning_port,
-		SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX
-		);
-
 	sci_base_state_machine_change_state(
 		scic_sds_remote_device_get_base_state_machine(this_device),
 		SCI_BASE_REMOTE_DEVICE_STATE_FINAL
@@ -2017,11 +2012,6 @@ static void scic_sds_remote_device_resetting_state_exit(
 	struct sci_base_object *object)
 {
 	struct scic_sds_remote_device *this_device = (struct scic_sds_remote_device *)object;
-
-	scic_sds_port_set_direct_attached_device_id(
-		scic_sds_remote_device_get_port(this_device),
-		this_device->rnc->remote_node_index
-		);
 
 	scic_sds_remote_node_context_resume(this_device->rnc, NULL, NULL);
 }

@@ -62,6 +62,7 @@
 #include "scic_sds_phy.h"
 #include "scic_sds_phy_registers.h"
 #include "scic_sds_port.h"
+#include "scic_sds_remote_node_context.h"
 #include "scic_user_callback.h"
 #include "sci_environment.h"
 #include "sci_util.h"
@@ -84,6 +85,31 @@ enum sas_linkrate sci_phy_linkrate(struct scic_sds_phy *sci_phy)
  * ***************************************************************************** */
 
 /**
+ * This method will initialize the phy transport layer registers
+ * @this_phy:
+ * @transport_layer_registers
+ *
+ * enum sci_status
+ */
+static enum sci_status scic_sds_phy_transport_layer_initialization(
+	struct scic_sds_phy *this_phy,
+	struct scu_transport_layer_registers __iomem *transport_layer_registers)
+{
+	u32 tl_control;
+
+	this_phy->transport_layer_registers = transport_layer_registers;
+
+	SCU_STPTLDARNI_WRITE(this_phy, SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX);
+
+	/* Hardware team recommends that we enable the STP prefetch for all transports */
+	tl_control = SCU_TLCR_READ(this_phy);
+	tl_control |= SCU_TLCR_GEN_BIT(STP_WRITE_DATA_PREFETCH);
+	SCU_TLCR_WRITE(this_phy, tl_control);
+
+	return SCI_SUCCESS;
+}
+
+/**
  * This method will initialize the phy link layer registers
  * @this_phy:
  * @link_layer_registers:
@@ -92,7 +118,7 @@ enum sas_linkrate sci_phy_linkrate(struct scic_sds_phy *sci_phy)
  */
 static enum sci_status scic_sds_phy_link_layer_initialization(
 	struct scic_sds_phy *this_phy,
-	struct scu_link_layer_registers *link_layer_registers)
+	struct scu_link_layer_registers __iomem *link_layer_registers)
 {
 	u32 phy_configuration;
 	struct sas_capabilities phy_capabilities;
@@ -361,7 +387,8 @@ void scic_sds_phy_set_port(
  */
 enum sci_status scic_sds_phy_initialize(
 	struct scic_sds_phy *sci_phy,
-	struct scu_link_layer_registers *link_layer_registers)
+	struct scu_transport_layer_registers __iomem *transport_layer_registers,
+	struct scu_link_layer_registers __iomem *link_layer_registers)
 {
 	/* Create the SIGNATURE FIS Timeout timer for this phy */
 	sci_phy->sata_timeout_timer = scic_cb_timer_create(
@@ -369,6 +396,9 @@ enum sci_status scic_sds_phy_initialize(
 		scic_sds_phy_sata_timeout,
 		sci_phy
 		);
+
+	/* Perfrom the initialization of the TL hardware */
+	scic_sds_phy_transport_layer_initialization(sci_phy, transport_layer_registers);
 
 	/* Perofrm the initialization of the PE hardware */
 	scic_sds_phy_link_layer_initialization(sci_phy, link_layer_registers);
@@ -384,6 +414,31 @@ enum sci_status scic_sds_phy_initialize(
 	return SCI_SUCCESS;
 }
 
+/**
+ * This method assigns the direct attached device ID for this phy.
+ *
+ * @this_phy The phy for which the direct attached device id is to
+ *       be assigned.
+ * @device_id The direct attached device ID to assign to the phy.
+ *       This will either be the RNi for the device or an invalid RNi if there
+ *       is no current device assigned to the phy.
+ */
+void scic_sds_phy_setup_transport(
+	struct scic_sds_phy *this_phy,
+	u32 device_id)
+{
+	u32 tl_control;
+
+	SCU_STPTLDARNI_WRITE(this_phy, device_id);
+
+	/*
+	 * The read should guarantee that the first write gets posted
+	 * before the next write
+	 */
+	tl_control = SCU_TLCR_READ(this_phy);
+	tl_control |= SCU_TLCR_GEN_BIT(CLEAR_TCI_NCQ_MAPPING_TABLE);
+	SCU_TLCR_WRITE(this_phy, tl_control);
+}
 
 /**
  *
@@ -398,10 +453,9 @@ void scic_sds_phy_suspend(
 	u32 scu_sas_pcfg_value;
 
 	scu_sas_pcfg_value = SCU_SAS_PCFG_READ(this_phy);
-
 	scu_sas_pcfg_value |= SCU_SAS_PCFG_GEN_BIT(SUSPEND_PROTOCOL_ENGINE);
-
 	SCU_SAS_PCFG_WRITE(this_phy, scu_sas_pcfg_value);
+	scic_sds_phy_setup_transport(this_phy, SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX);
 }
 
 /**

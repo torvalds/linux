@@ -180,17 +180,12 @@ struct scic_sds_port {
 	struct sci_base_state_machine ready_substate_machine;
 
 	/* / Memory mapped hardware register space */
-	/**
-	 * This field is the pointer to the transport layer register for the SCU
-	 * hardware.
-	 */
-	struct scu_transport_layer_registers *transport_layer_registers;
 
 	/**
 	 * This field is the pointer to the port task scheduler registers for the SCU
 	 * hardware.
 	 */
-	struct scu_port_task_scheduler_registers *port_task_scheduler_registers;
+	struct scu_port_task_scheduler_registers __iomem *port_task_scheduler_registers;
 
 	/**
 	 * This field is identical for all port objects and points to the port task
@@ -202,7 +197,7 @@ struct scic_sds_port {
 	/**
 	 * This field is the VIIT register space for ths port object.
 	 */
-	struct scu_viit_entry *viit_registers;
+	struct scu_viit_entry __iomem *viit_registers;
 
 };
 
@@ -345,10 +340,9 @@ void scic_sds_port_construct(
 
 enum sci_status scic_sds_port_initialize(
 	struct scic_sds_port *this_port,
-	void *transport_layer_registers,
-	void *port_task_scheduler_registers,
-	void *port_configuration_regsiter,
-	void *viit_registers);
+	void __iomem *port_task_scheduler_registers,
+	void __iomem *port_configuration_regsiter,
+	void __iomem *viit_registers);
 
 /* --------------------------------------------------------------------------- */
 
@@ -360,7 +354,7 @@ enum sci_status scic_sds_port_remove_phy(
 	struct scic_sds_port *this_port,
 	struct scic_sds_phy *the_phy);
 
-void scic_sds_port_set_direct_attached_device_id(
+void scic_sds_port_setup_transports(
 	struct scic_sds_port *this_port,
 	u32 device_id);
 

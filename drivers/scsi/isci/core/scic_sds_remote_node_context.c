@@ -689,11 +689,6 @@ static enum sci_status scic_sds_remote_node_context_tx_suspended_state_resume_ha
 	} else if (protocols.u.bits.attached_stp_target == 1) {
 		if (this_rnc->device->is_direct_attached) {
 			/* @todo Fix this since I am being silly in writing to the STPTLDARNI register. */
-			scic_sds_port_set_direct_attached_device_id(
-				this_rnc->device->owning_port,
-				this_rnc->remote_node_index
-				);
-
 			sci_base_state_machine_change_state(
 				&this_rnc->state_machine,
 				SCIC_SDS_REMOTE_NODE_CONTEXT_RESUMING_STATE
@@ -986,7 +981,7 @@ static void scic_sds_remote_node_context_validate_context_buffer(
 			);
 
 		if (this_rnc->device->is_direct_attached) {
-			scic_sds_port_set_direct_attached_device_id(
+			scic_sds_port_setup_transports(
 				this_rnc->device->owning_port,
 				this_rnc->remote_node_index
 				);
@@ -1016,13 +1011,6 @@ static void scic_sds_remote_node_context_invalidate_context_buffer(
 		this_rnc->device,
 		SCU_CONTEXT_COMMAND_POST_RNC_INVALIDATE
 		);
-
-	if (this_rnc->device->is_direct_attached) {
-		scic_sds_port_set_direct_attached_device_id(
-			this_rnc->device->owning_port,
-			SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX
-			);
-	}
 }
 
 /*
@@ -1112,6 +1100,7 @@ static void scic_sds_remote_node_context_resuming_state_enter(
 	struct sci_base_object *object)
 {
 	struct scic_sds_remote_node_context *rnc;
+	struct smp_discover_response_protocols protocols;
 
 	rnc = (struct scic_sds_remote_node_context *)object;
 
@@ -1120,6 +1109,20 @@ static void scic_sds_remote_node_context_resuming_state_enter(
 		scic_sds_remote_node_context_state_handler_table,
 		SCIC_SDS_REMOTE_NODE_CONTEXT_RESUMING_STATE
 		);
+
+	/*
+	 * For direct attached SATA devices we need to clear the TLCR
+	 * NCQ to TCi tag mapping on the phy and in cases where we
+	 * resume because of a target reset we also need to update
+	 * the STPTLDARNI register with the RNi of the device
+	 */
+	scic_remote_device_get_protocols(rnc->device, &protocols);
+
+	if ((protocols.u.bits.attached_stp_target == 1) &&
+	    (rnc->device->is_direct_attached)) {
+		scic_sds_port_setup_transports(
+			rnc->device->owning_port, rnc->remote_node_index);
+	}
 
 	scic_sds_remote_device_post_request(
 		rnc->device,

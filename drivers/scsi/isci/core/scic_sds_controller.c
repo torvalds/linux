@@ -2919,6 +2919,7 @@ static enum sci_status scic_sds_controller_reset_state_initialize_handler(
 		     index++) {
 			result = scic_sds_phy_initialize(
 				&this_controller->phy_table[index],
+				&this_controller->scu_registers->peg0.pe[index].tl,
 				&this_controller->scu_registers->peg0.pe[index].ll
 				);
 		}
@@ -2932,7 +2933,6 @@ static enum sci_status scic_sds_controller_reset_state_initialize_handler(
 		     index++) {
 			result = scic_sds_port_initialize(
 				&this_controller->port_table[index],
-				&this_controller->scu_registers->peg0.pe[index].tl,
 				&this_controller->scu_registers->peg0.ptsg.port[index],
 				&this_controller->scu_registers->peg0.ptsg.protocol_engine,
 				&this_controller->scu_registers->peg0.viit[index]

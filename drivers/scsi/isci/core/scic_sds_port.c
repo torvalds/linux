@@ -531,7 +531,6 @@ void scic_sds_port_construct(
 
 	this_port->timer_handle = NULL;
 
-	this_port->transport_layer_registers = NULL;
 	this_port->port_task_scheduler_registers = NULL;
 
 	for (index = 0; index < SCI_MAX_PHYS; index++) {
@@ -553,29 +552,13 @@ void scic_sds_port_construct(
  */
 enum sci_status scic_sds_port_initialize(
 	struct scic_sds_port *this_port,
-	void *transport_layer_registers,
-	void *port_task_scheduler_registers,
-	void *port_configuration_regsiter,
-	void *viit_registers)
+	void __iomem *port_task_scheduler_registers,
+	void __iomem *port_configuration_regsiter,
+	void __iomem *viit_registers)
 {
-	u32 tl_control;
-
-	this_port->transport_layer_registers      = transport_layer_registers;
 	this_port->port_task_scheduler_registers  = port_task_scheduler_registers;
 	this_port->port_pe_configuration_register = port_configuration_regsiter;
 	this_port->viit_registers                 = viit_registers;
-
-	scic_sds_port_set_direct_attached_device_id(
-		this_port,
-		SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX
-		);
-
-	/*
-	 * Hardware team recommends that we enable the STP prefetch
-	 * for all ports */
-	tl_control = SCU_TLCR_READ(this_port);
-	tl_control |= SCU_TLCR_GEN_BIT(STP_WRITE_DATA_PREFETCH);
-	SCU_TLCR_WRITE(this_port, tl_control);
 
 	/*
 	 * If this is not the dummy port make the assignment of
@@ -693,28 +676,24 @@ enum sci_status scic_port_hard_reset(
 }
 
 /**
- *
- * @this_port: The port for which the direct attached device id is to be
- *    assigned.
- *
  * This method assigns the direct attached device ID for this port.
+ *
+ * @param[in] this_port The port for which the direct attached device id is to
+ *       be assigned.
+ * @param[in] device_id The direct attached device ID to assign to the port.
+ *       This will be the RNi for the device
  */
-void scic_sds_port_set_direct_attached_device_id(
+void scic_sds_port_setup_transports(
 	struct scic_sds_port *this_port,
 	u32 device_id)
 {
-	u32 tl_control;
+	u8 index;
 
-	SCU_STPTLDARNI_WRITE(this_port, device_id);
-
-	/*
-	 * The read should guarntee that the first write gets posted
-	 * before the next write */
-	tl_control = SCU_TLCR_READ(this_port);
-	tl_control |= SCU_TLCR_GEN_BIT(CLEAR_TCI_NCQ_MAPPING_TABLE);
-	SCU_TLCR_WRITE(this_port, tl_control);
+	for (index = 0; index < SCI_MAX_PHYS; index++) {
+		if (this_port->active_phy_mask & (1 << index))
+			scic_sds_phy_setup_transport(this_port->phy_table[index], device_id);
+	}
 }
-
 
 /**
  *
@@ -1550,16 +1529,12 @@ static void scic_sds_port_suspend_port_task_scheduler(
 	struct scic_sds_port *this_port)
 {
 	u32 pts_control_value;
-	u32 tl_control_value;
 
 	pts_control_value = scu_port_task_scheduler_read(this_port, control);
-	tl_control_value = scu_transport_layer_read(this_port, control);
 
 	pts_control_value |= SCU_PTSxCR_GEN_BIT(SUSPEND);
-	tl_control_value  |= SCU_TLCR_GEN_BIT(CLEAR_TCI_NCQ_MAPPING_TABLE);
 
 	scu_port_task_scheduler_write(this_port, control, pts_control_value);
-	scu_transport_layer_write(this_port, control, tl_control_value);
 }
 
 /**
@@ -2623,11 +2598,6 @@ static void scic_sds_port_resetting_state_enter(
 
 	scic_sds_port_set_base_state_handlers(
 		this_port, SCI_BASE_PORT_STATE_RESETTING
-		);
-
-	scic_sds_port_set_direct_attached_device_id(
-		this_port,
-		SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX
 		);
 }
 

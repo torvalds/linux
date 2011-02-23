@@ -248,9 +248,15 @@ struct scic_sds_phy {
 	struct sci_base_state_machine starting_substate_machine;
 
 	/**
+	 * This field is the pointer to the transport layer register for the SCU
+	 * hardware.
+	 */
+	struct scu_transport_layer_registers __iomem *transport_layer_registers;
+
+	/**
 	 * This field points to the link layer register set within the SCU.
 	 */
-	struct scu_link_layer_registers *link_layer_registers;
+	struct scu_link_layer_registers __iomem *link_layer_registers;
 
 };
 
@@ -383,7 +389,8 @@ void scic_sds_phy_set_port(
 
 enum sci_status scic_sds_phy_initialize(
 	struct scic_sds_phy *this_phy,
-	struct scu_link_layer_registers *link_layer_registers);
+	struct scu_transport_layer_registers __iomem *transport_layer_registers,
+	struct scu_link_layer_registers __iomem *link_layer_registers);
 
 enum sci_status scic_sds_phy_start(
 	struct scic_sds_phy *this_phy);
@@ -401,6 +408,10 @@ void scic_sds_phy_suspend(
 
 void scic_sds_phy_resume(
 	struct scic_sds_phy *this_phy);
+
+void scic_sds_phy_setup_transport(
+	struct scic_sds_phy *this_phy,
+	u32 device_id);
 
 /* --------------------------------------------------------------------------- */
 

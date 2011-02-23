@@ -65,6 +65,59 @@
 
 #include "scic_sds_controller.h"
 
+/* **************************************************************************
+ * * SCU TRANSPORT LAYER REGISTER OPERATIONS
+ * ************************************************************************** */
+
+/**
+ * Macro to read the transport layer register associated with this phy
+ * object.
+ */
+#define scu_transport_layer_read(phy, reg) \
+	scu_register_read( \
+		scic_sds_phy_get_controller(phy), \
+		(phy)->transport_layer_registers->reg \
+		)
+
+/**
+ * Macro to write the transport layer register associated with this phy
+ * object.
+ */
+#define scu_transport_layer_write(phy, reg, value) \
+	scu_register_write( \
+		scic_sds_phy_get_controller(phy), \
+		(phy)->transport_layer_registers->reg, \
+		(value) \
+		)
+
+/* **************************************************************************
+ * * Transport Layer registers controlled by the phy object
+ * ************************************************************************** */
+
+/* This macro reads the Transport layer control register */
+#define SCU_TLCR_READ(phy) \
+	scu_transport_layer_read(phy, control)
+
+/* This macro writes the Transport layer control register */
+#define SCU_TLCR_WRITE(phy, value) \
+	scu_transport_layer_write(phy, control, value)
+
+/* This macro reads the Transport layer address translation register */
+#define SCU_TLADTR_READ(phy) \
+	scu_transport_layer_read(phy, address_translation)
+
+/* This macro writes the Transport layer address translation register */
+#define SCU_TLADTR_WRITE(phy) \
+	scu_transport_layer_write(phy, address_translation, value)
+
+/* This macro writes the STP Transport Layer Direct Attached RNi register */
+#define SCU_STPTLDARNI_WRITE(phy, index) \
+	scu_transport_layer_write(phy, stp_rni, index)
+
+/* This macro reads the STP Transport Layer Direct Attached RNi register */
+#define SCU_STPTLDARNI_READ(phy) \
+	scu_transport_layer_read(phy, stp_rni)
+
 /*
  * *****************************************************************************
  * * SCU LINK LAYER REGISTER OPERATIONS
