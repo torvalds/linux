@@ -1524,6 +1524,7 @@ extern u32 radeon_get_scratch(drm_radeon_private_t *dev_priv, int index);
 #define R600_CP_RB_CNTL                                        0xc104
 #       define R600_RB_BUFSZ(x)                                ((x) << 0)
 #       define R600_RB_BLKSZ(x)                                ((x) << 8)
+#	define R600_BUF_SWAP_32BIT		               (2 << 16)
 #       define R600_RB_NO_UPDATE                               (1 << 27)
 #       define R600_RB_RPTR_WR_ENA                             (1 << 31)
 #define R600_CP_RB_RPTR_WR                                     0xc108

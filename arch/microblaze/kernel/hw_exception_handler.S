@@ -147,10 +147,6 @@
 	#if CONFIG_XILINX_MICROBLAZE0_USE_BARREL > 0
 	#define BSRLI(rD, rA, imm)	\
 		bsrli rD, rA, imm
-	#elif CONFIG_XILINX_MICROBLAZE0_USE_DIV > 0
-	#define BSRLI(rD, rA, imm)	\
-		ori rD, r0, (1 << imm);	\
-		idivu rD, rD, rA
 	#else
 	#define BSRLI(rD, rA, imm) BSRLI ## imm (rD, rA)
 	/* Only the used shift constants defined here - add more if needed */

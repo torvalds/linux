@@ -2076,8 +2076,8 @@ static void __init setup_cpu_spec(unsigned long offset, struct cpu_spec *s)
 	 * pointer on ppc64 and booke as we are running at 0 in real mode
 	 * on ppc64 and reloc_offset is always 0 on booke.
 	 */
-	if (s->cpu_setup) {
-		s->cpu_setup(offset, s);
+	if (t->cpu_setup) {
+		t->cpu_setup(offset, t);
 	}
 #endif /* CONFIG_PPC64 || CONFIG_BOOKE */
 }

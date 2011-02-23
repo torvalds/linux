@@ -790,6 +790,8 @@ struct file *nameidata_to_filp(struct nameidata *nd)
 
 	/* Pick up the filp from the open intent */
 	filp = nd->intent.open.file;
+	nd->intent.open.file = NULL;
+
 	/* Has the filesystem initialised the file for us? */
 	if (filp->f_path.dentry == NULL) {
 		path_get(&nd->path);

@@ -787,9 +787,9 @@ static int radeon_ttm_debugfs_init(struct radeon_device *rdev)
 		radeon_mem_types_list[i].show = &radeon_mm_dump_table;
 		radeon_mem_types_list[i].driver_features = 0;
 		if (i == 0)
-			radeon_mem_types_list[i].data = &rdev->mman.bdev.man[TTM_PL_VRAM].priv;
+			radeon_mem_types_list[i].data = rdev->mman.bdev.man[TTM_PL_VRAM].priv;
 		else
-			radeon_mem_types_list[i].data = &rdev->mman.bdev.man[TTM_PL_TT].priv;
+			radeon_mem_types_list[i].data = rdev->mman.bdev.man[TTM_PL_TT].priv;
 
 	}
 	/* Add ttm page pool to debugfs */

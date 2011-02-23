@@ -113,6 +113,11 @@ static struct dst_ops ip6_dst_ops_template = {
 	.local_out		=	__ip6_local_out,
 };
 
+static unsigned int ip6_blackhole_default_mtu(const struct dst_entry *dst)
+{
+	return 0;
+}
+
 static void ip6_rt_blackhole_update_pmtu(struct dst_entry *dst, u32 mtu)
 {
 }
@@ -122,6 +127,8 @@ static struct dst_ops ip6_dst_blackhole_ops = {
 	.protocol		=	cpu_to_be16(ETH_P_IPV6),
 	.destroy		=	ip6_dst_destroy,
 	.check			=	ip6_dst_check,
+	.default_mtu		=	ip6_blackhole_default_mtu,
+	.default_advmss		=	ip6_default_advmss,
 	.update_pmtu		=	ip6_rt_blackhole_update_pmtu,
 };
 
@@ -194,7 +201,6 @@ static void ip6_dst_destroy(struct dst_entry *dst)
 		in6_dev_put(idev);
 	}
 	if (peer) {
-		BUG_ON(!(rt->rt6i_flags & RTF_CACHE));
 		rt->rt6i_peer = NULL;
 		inet_putpeer(peer);
 	}
@@ -203,9 +209,6 @@ static void ip6_dst_destroy(struct dst_entry *dst)
 void rt6_bind_peer(struct rt6_info *rt, int create)
 {
 	struct inet_peer *peer;
-
-	if (WARN_ON(!(rt->rt6i_flags & RTF_CACHE)))
-		return;
 
 	peer = inet_getpeer_v6(&rt->rt6i_dst.addr, create);
 	if (peer && cmpxchg(&rt->rt6i_peer, NULL, peer) != NULL)

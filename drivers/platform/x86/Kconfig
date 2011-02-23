@@ -227,7 +227,7 @@ config SONYPI_COMPAT
 config IDEAPAD_LAPTOP
 	tristate "Lenovo IdeaPad Laptop Extras"
 	depends on ACPI
-	depends on RFKILL
+	depends on RFKILL && INPUT
 	select INPUT_SPARSEKMAP
 	help
 	  This is a driver for the rfkill switches on Lenovo IdeaPad netbooks.

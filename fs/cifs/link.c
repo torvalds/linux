@@ -55,8 +55,9 @@ symlink_hash(unsigned int link_len, const char *link_str, u8 *md5_hash)
 
 	md5 = crypto_alloc_shash("md5", 0, 0);
 	if (IS_ERR(md5)) {
+		rc = PTR_ERR(md5);
 		cERROR(1, "%s: Crypto md5 allocation error %d\n", __func__, rc);
-		return PTR_ERR(md5);
+		return rc;
 	}
 	size = sizeof(struct shash_desc) + crypto_shash_descsize(md5);
 	sdescmd5 = kmalloc(size, GFP_KERNEL);

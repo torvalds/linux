@@ -885,7 +885,7 @@ S:	Supported
 
 ARM/QUALCOMM MSM MACHINE SUPPORT
 M:	David Brown <davidb@codeaurora.org>
-M:	Daniel Walker <dwalker@codeaurora.org>
+M:	Daniel Walker <dwalker@fifo99.com>
 M:	Bryan Huntsman <bryanh@codeaurora.org>
 L:	linux-arm-msm@vger.kernel.org
 F:	arch/arm/mach-msm/
@@ -978,6 +978,8 @@ S:	Maintained
 F:	arch/arm/plat-samsung/
 F:	arch/arm/plat-s3c24xx/
 F:	arch/arm/plat-s5p/
+F:	drivers/*/*s3c2410*
+F:	drivers/*/*/*s3c2410*
 
 ARM/S3C2410 ARM ARCHITECTURE
 M:	Ben Dooks <ben-linux@fluff.org>
@@ -2124,6 +2126,7 @@ S:	Supported
 F:	fs/dlm/
 
 DMA GENERIC OFFLOAD ENGINE SUBSYSTEM
+M:	Vinod Koul <vinod.koul@intel.com>
 M:	Dan Williams <dan.j.williams@intel.com>
 S:	Supported
 F:	drivers/dma/
@@ -2772,6 +2775,15 @@ F:	Documentation/isdn/README.gigaset
 F:	drivers/isdn/gigaset/
 F:	include/linux/gigaset_dev.h
 
+GPIO SUBSYSTEM
+M:	Grant Likely <grant.likely@secretlab.ca>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+T:	git git://git.secretlab.ca/git/linux-2.6.git
+F:	Documentation/gpio/gpio.txt
+F:	drivers/gpio/
+F:	include/linux/gpio*
+
 GRETH 10/100/1G Ethernet MAC device driver
 M:	Kristoffer Glembo <kristoffer@gaisler.com>
 L:	netdev@vger.kernel.org
@@ -2861,7 +2873,6 @@ M:	Guenter Roeck <guenter.roeck@ericsson.com>
 L:	lm-sensors@lm-sensors.org
 W:	http://www.lm-sensors.org/
 T:	quilt kernel.org/pub/linux/kernel/people/jdelvare/linux-2.6/jdelvare-hwmon/
-T:	quilt kernel.org/pub/linux/kernel/people/groeck/linux-staging/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/groeck/linux-staging.git
 S:	Maintained
 F:	Documentation/hwmon/
@@ -4589,7 +4600,7 @@ F:	drivers/i2c/busses/i2c-ocores.c
 
 OPEN FIRMWARE AND FLATTENED DEVICE TREE
 M:	Grant Likely <grant.likely@secretlab.ca>
-L:	devicetree-discuss@lists.ozlabs.org
+L:	devicetree-discuss@lists.ozlabs.org (moderated for non-subscribers)
 W:	http://fdt.secretlab.ca
 T:	git git://git.secretlab.ca/git/linux-2.6.git
 S:	Maintained
@@ -5549,12 +5560,11 @@ S:	Supported
 F:	drivers/scsi/be2iscsi/
 
 SERVER ENGINES 10Gbps NIC - BladeEngine 2 DRIVER
-M:	Sathya Perla <sathyap@serverengines.com>
-M:	Subbu Seetharaman <subbus@serverengines.com>
-M:	Sarveshwar Bandi <sarveshwarb@serverengines.com>
-M:	Ajit Khaparde <ajitk@serverengines.com>
+M:	Sathya Perla <sathya.perla@emulex.com>
+M:	Subbu Seetharaman <subbu.seetharaman@emulex.com>
+M:	Ajit Khaparde <ajit.khaparde@emulex.com>
 L:	netdev@vger.kernel.org
-W:	http://www.serverengines.com
+W:	http://www.emulex.com
 S:	Supported
 F:	drivers/net/benet/
 
@@ -5614,18 +5624,20 @@ F:	include/linux/sfi*.h
 
 SIMTEC EB110ATX (Chalice CATS)
 P:	Ben Dooks
-M:	Vincent Sanders <support@simtec.co.uk>
+P:	Vincent Sanders <vince@simtec.co.uk>
+M:	Simtec Linux Team <linux@simtec.co.uk>
 W:	http://www.simtec.co.uk/products/EB110ATX/
 S:	Supported
 
 SIMTEC EB2410ITX (BAST)
 P:	Ben Dooks
-M:	Vincent Sanders <support@simtec.co.uk>
+P:	Vincent Sanders <vince@simtec.co.uk>
+M:	Simtec Linux Team <linux@simtec.co.uk>
 W:	http://www.simtec.co.uk/products/EB2410ITX/
 S:	Supported
-F:	arch/arm/mach-s3c2410/
-F:	drivers/*/*s3c2410*
-F:	drivers/*/*/*s3c2410*
+F:	arch/arm/mach-s3c2410/mach-bast.c
+F:	arch/arm/mach-s3c2410/bast-ide.c
+F:	arch/arm/mach-s3c2410/bast-irq.c
 
 TI DAVINCI MACHINE SUPPORT
 M:	Kevin Hilman <khilman@deeprootsystems.com>
@@ -6783,12 +6795,12 @@ S:	Maintained
 F:	drivers/net/wireless/wl1251/*
 
 WL1271 WIRELESS DRIVER
-M:	Luciano Coelho <luciano.coelho@nokia.com>
+M:	Luciano Coelho <coelho@ti.com>
 L:	linux-wireless@vger.kernel.org
-W:	http://wireless.kernel.org
+W:	http://wireless.kernel.org/en/users/Drivers/wl12xx
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/luca/wl12xx.git
 S:	Maintained
-F:	drivers/net/wireless/wl12xx/wl1271*
+F:	drivers/net/wireless/wl12xx/
 F:	include/linux/wl12xx.h
 
 WL3501 WIRELESS PCMCIA CARD DRIVER

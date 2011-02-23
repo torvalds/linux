@@ -79,6 +79,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 #include <linux/dmapool.h>
 #include <linux/dmaengine.h>
 #include <linux/amba/bus.h>
@@ -235,16 +236,19 @@ static void pl08x_start_txd(struct pl08x_dma_chan *plchan,
 }
 
 /*
- * Overall DMAC remains enabled always.
+ * Pause the channel by setting the HALT bit.
  *
- * Disabling individual channels could lose data.
+ * For M->P transfers, pause the DMAC first and then stop the peripheral -
+ * the FIFO can only drain if the peripheral is still requesting data.
+ * (note: this can still timeout if the DMAC FIFO never drains of data.)
  *
- * Disable the peripheral DMA after disabling the DMAC in order to allow
- * the DMAC FIFO to drain, and hence allow the channel to show inactive
+ * For P->M transfers, disable the peripheral first to stop it filling
+ * the DMAC FIFO, and then pause the DMAC.
  */
 static void pl08x_pause_phy_chan(struct pl08x_phy_chan *ch)
 {
 	u32 val;
+	int timeout;
 
 	/* Set the HALT bit and wait for the FIFO to drain */
 	val = readl(ch->base + PL080_CH_CONFIG);
@@ -252,8 +256,13 @@ static void pl08x_pause_phy_chan(struct pl08x_phy_chan *ch)
 	writel(val, ch->base + PL080_CH_CONFIG);
 
 	/* Wait for channel inactive */
-	while (pl08x_phy_channel_busy(ch))
-		cpu_relax();
+	for (timeout = 1000; timeout; timeout--) {
+		if (!pl08x_phy_channel_busy(ch))
+			break;
+		udelay(1);
+	}
+	if (pl08x_phy_channel_busy(ch))
+		pr_err("pl08x: channel%u timeout waiting for pause\n", ch->id);
 }
 
 static void pl08x_resume_phy_chan(struct pl08x_phy_chan *ch)
@@ -267,19 +276,24 @@ static void pl08x_resume_phy_chan(struct pl08x_phy_chan *ch)
 }
 
 
-/* Stops the channel */
-static void pl08x_stop_phy_chan(struct pl08x_phy_chan *ch)
+/*
+ * pl08x_terminate_phy_chan() stops the channel, clears the FIFO and
+ * clears any pending interrupt status.  This should not be used for
+ * an on-going transfer, but as a method of shutting down a channel
+ * (eg, when it's no longer used) or terminating a transfer.
+ */
+static void pl08x_terminate_phy_chan(struct pl08x_driver_data *pl08x,
+	struct pl08x_phy_chan *ch)
 {
-	u32 val;
+	u32 val = readl(ch->base + PL080_CH_CONFIG);
 
-	pl08x_pause_phy_chan(ch);
+	val &= ~(PL080_CONFIG_ENABLE | PL080_CONFIG_ERR_IRQ_MASK |
+	         PL080_CONFIG_TC_IRQ_MASK);
 
-	/* Disable channel */
-	val = readl(ch->base + PL080_CH_CONFIG);
-	val &= ~PL080_CONFIG_ENABLE;
-	val &= ~PL080_CONFIG_ERR_IRQ_MASK;
-	val &= ~PL080_CONFIG_TC_IRQ_MASK;
 	writel(val, ch->base + PL080_CH_CONFIG);
+
+	writel(1 << ch->id, pl08x->base + PL080_ERR_CLEAR);
+	writel(1 << ch->id, pl08x->base + PL080_TC_CLEAR);
 }
 
 static inline u32 get_bytes_in_cctl(u32 cctl)
@@ -404,13 +418,12 @@ static inline void pl08x_put_phy_channel(struct pl08x_driver_data *pl08x,
 {
 	unsigned long flags;
 
+	spin_lock_irqsave(&ch->lock, flags);
+
 	/* Stop the channel and clear its interrupts */
-	pl08x_stop_phy_chan(ch);
-	writel((1 << ch->id), pl08x->base + PL080_ERR_CLEAR);
-	writel((1 << ch->id), pl08x->base + PL080_TC_CLEAR);
+	pl08x_terminate_phy_chan(pl08x, ch);
 
 	/* Mark it as free */
-	spin_lock_irqsave(&ch->lock, flags);
 	ch->serving = NULL;
 	spin_unlock_irqrestore(&ch->lock, flags);
 }
@@ -1449,7 +1462,7 @@ static int pl08x_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 		plchan->state = PL08X_CHAN_IDLE;
 
 		if (plchan->phychan) {
-			pl08x_stop_phy_chan(plchan->phychan);
+			pl08x_terminate_phy_chan(pl08x, plchan->phychan);
 
 			/*
 			 * Mark physical channel as free and free any slave
