@@ -3653,10 +3653,8 @@ validate_npar_config(struct qlcnic_adapter *adapter,
 		if (adapter->npars[pci_func].type != QLCNIC_TYPE_NIC)
 			return QL_STATUS_INVALID_PARAM;
 
-		if (!IS_VALID_BW(np_cfg[i].min_bw)
-				|| !IS_VALID_BW(np_cfg[i].max_bw)
-				|| !IS_VALID_RX_QUEUES(np_cfg[i].max_rx_queues)
-				|| !IS_VALID_TX_QUEUES(np_cfg[i].max_tx_queues))
+		if (!IS_VALID_BW(np_cfg[i].min_bw) ||
+		    !IS_VALID_BW(np_cfg[i].max_bw))
 			return QL_STATUS_INVALID_PARAM;
 	}
 	return 0;
