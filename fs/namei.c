@@ -539,14 +539,6 @@ err_unlock:
 	return -ECHILD;
 }
 
-/* Try to drop out of rcu-walk mode if we were in it, otherwise do nothing.  */
-static inline int nameidata_drop_rcu_last_maybe(struct nameidata *nd)
-{
-	if (likely(nd->flags & LOOKUP_RCU))
-		return nameidata_drop_rcu_last(nd);
-	return 0;
-}
-
 /**
  * release_open_intent - free up open intent resources
  * @nd: pointer to nameidata
@@ -1339,7 +1331,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 	while (*name=='/')
 		name++;
 	if (!*name)
-		goto return_base;
+		return 0;
 
 	if (nd->depth)
 		lookup_flags = LOOKUP_FOLLOW | (nd->flags & LOOKUP_CONTINUE);
@@ -1448,7 +1440,7 @@ last_component:
 				} else
 					follow_dotdot(nd);
 			}
-			goto return_base;
+			return 0;
 		}
 		err = do_lookup(nd, &this, &next, &inode);
 		if (err)
@@ -1471,13 +1463,10 @@ last_component:
 			if (!nd->inode->i_op->lookup)
 				break;
 		}
-		goto return_base;
+		return 0;
 lookup_parent:
 		nd->last = this;
 		nd->last_type = type;
-return_base:
-		if (nameidata_drop_rcu_last_maybe(nd))
-			return -ECHILD;
 		return 0;
 out_dput:
 		if (!(nd->flags & LOOKUP_RCU))
@@ -1598,10 +1587,15 @@ static int path_lookupat(int dfd, const char *name,
 
 	if (nd->flags & LOOKUP_RCU) {
 		/* RCU dangling. Cancel it. */
-		nd->flags &= ~LOOKUP_RCU;
-		nd->root.mnt = NULL;
-		rcu_read_unlock();
-		br_read_unlock(vfsmount_lock);
+		if (!retval) {
+			if (nameidata_drop_rcu_last(nd))
+				retval = -ECHILD;
+		} else {
+			nd->flags &= ~LOOKUP_RCU;
+			nd->root.mnt = NULL;
+			rcu_read_unlock();
+			br_read_unlock(vfsmount_lock);
+		}
 	}
 
 	if (!retval)
