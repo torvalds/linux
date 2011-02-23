@@ -1082,7 +1082,7 @@ static int hdspm_external_sample_rate(struct hdspm *hdspm)
 	case AES32:
 		status2 = hdspm_read(hdspm, HDSPM_statusRegister2);
 		status = hdspm_read(hdspm, HDSPM_statusRegister);
-		timecode =	hdspm_read(hdspm, HDSPM_timecodeRegister);
+		timecode = hdspm_read(hdspm, HDSPM_timecodeRegister);
 
 		syncref = hdspm_autosync_ref(hdspm);
 
@@ -2114,6 +2114,29 @@ static int snd_hdspm_get_autosync_sample_rate(struct snd_kcontrol *kcontrol,
 			ucontrol->value.enumerated.item[0] =
 				hdspm_get_s1_sample_rate(hdspm,
 						ucontrol->id.index-1);
+		}
+
+	case AES32:
+
+		switch (kcontrol->private_value) {
+		case 0: /* WC */
+			ucontrol->value.enumerated.item[0] =
+				hdspm_get_wc_sample_rate(hdspm);
+			break;
+		case 9: /* TCO */
+			ucontrol->value.enumerated.item[0] =
+				hdspm_get_tco_sample_rate(hdspm);
+			break;
+		case 10: /* SYNC_IN */
+			ucontrol->value.enumerated.item[0] =
+				hdspm_get_sync_in_sample_rate(hdspm);
+			break;
+		default: /* AES1 to AES8 */
+			ucontrol->value.enumerated.item[0] =
+				hdspm_get_s1_sample_rate(hdspm,
+						kcontrol->private_value-1);
+			break;
+
 		}
 	default:
 		break;
@@ -3803,9 +3826,9 @@ static int snd_hdspm_get_sync_check(struct snd_kcontrol *kcontrol,
 			val = hdspm_tco_sync_check(hdspm); break;
 		case 10 /* SYNC IN */:
 			val = hdspm_sync_in_sync_check(hdspm); break;
-		default:
+		default: /* AES1 to AES8 */
 			 val = hdspm_aes_sync_check(hdspm,
-					 ucontrol->id.index-1);
+					 kcontrol->private_value-1);
 		}
 
 	}
