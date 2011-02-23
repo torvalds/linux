@@ -513,6 +513,7 @@ int radeon_ttm_init(struct radeon_device *rdev)
 	if (r) {
 		return r;
 	}
+	rdev->mman.bdev.dev = rdev->dev;
 	/* No others user of address space so set it to 0 */
 	r = ttm_bo_device_init(&rdev->mman.bdev,
 			       rdev->mman.bo_global_ref.ref.object,
@@ -647,6 +648,7 @@ struct radeon_ttm_backend {
 	unsigned long			num_pages;
 	struct page			**pages;
 	struct page			*dummy_read_page;
+	dma_addr_t			*dma_addrs;
 	bool				populated;
 	bool				bound;
 	unsigned			offset;
@@ -655,12 +657,14 @@ struct radeon_ttm_backend {
 static int radeon_ttm_backend_populate(struct ttm_backend *backend,
 				       unsigned long num_pages,
 				       struct page **pages,
-				       struct page *dummy_read_page)
+				       struct page *dummy_read_page,
+				       dma_addr_t *dma_addrs)
 {
 	struct radeon_ttm_backend *gtt;
 
 	gtt = container_of(backend, struct radeon_ttm_backend, backend);
 	gtt->pages = pages;
+	gtt->dma_addrs = dma_addrs;
 	gtt->num_pages = num_pages;
 	gtt->dummy_read_page = dummy_read_page;
 	gtt->populated = true;
@@ -673,6 +677,7 @@ static void radeon_ttm_backend_clear(struct ttm_backend *backend)
 
 	gtt = container_of(backend, struct radeon_ttm_backend, backend);
 	gtt->pages = NULL;
+	gtt->dma_addrs = NULL;
 	gtt->num_pages = 0;
 	gtt->dummy_read_page = NULL;
 	gtt->populated = false;
@@ -693,7 +698,7 @@ static int radeon_ttm_backend_bind(struct ttm_backend *backend,
 		     gtt->num_pages, bo_mem, backend);
 	}
 	r = radeon_gart_bind(gtt->rdev, gtt->offset,
-			     gtt->num_pages, gtt->pages);
+			     gtt->num_pages, gtt->pages, gtt->dma_addrs);
 	if (r) {
 		DRM_ERROR("failed to bind %lu pages at 0x%08X\n",
 			  gtt->num_pages, gtt->offset);
