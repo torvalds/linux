@@ -1452,7 +1452,7 @@ static int _setup(struct omap_hwmod *oh, void *data)
  */
 static int __init _register(struct omap_hwmod *oh)
 {
-	int ret, ms_id;
+	int ms_id;
 
 	if (!oh || !oh->name || !oh->class || !oh->class->name ||
 	    (oh->_state != _HWMOD_STATE_UNKNOWN))
@@ -1475,9 +1475,14 @@ static int __init _register(struct omap_hwmod *oh)
 
 	oh->_state = _HWMOD_STATE_REGISTERED;
 
-	ret = 0;
+	/*
+	 * XXX Rather than doing a strcmp(), this should test a flag
+	 * set in the hwmod data, inserted by the autogenerator code.
+	 */
+	if (!strcmp(oh->name, MPU_INITIATOR_NAME))
+		mpu_oh = oh;
 
-	return ret;
+	return 0;
 }
 
 
@@ -1632,21 +1637,23 @@ static int __init _populate_mpu_rt_base(struct omap_hwmod *oh, void *data)
  *
  * Must be called after omap2_clk_init().  Resolves the struct clk names
  * to struct clk pointers for each registered omap_hwmod.  Also calls
- * _setup() on each hwmod.  Returns 0.
+ * _setup() on each hwmod.  Returns 0 upon success or -EINVAL upon error.
  */
 static int __init omap_hwmod_setup_all(void)
 {
 	int r;
+
+	if (!mpu_oh) {
+		pr_err("omap_hwmod: %s: MPU initiator hwmod %s not yet registered\n",
+		       __func__, MPU_INITIATOR_NAME);
+		return -EINVAL;
+	}
 
 	r = omap_hwmod_for_each(_populate_mpu_rt_base, NULL);
 
 	/* XXX check return value */
 	r = omap_hwmod_for_each(_init_clocks, NULL);
 	WARN(r, "omap_hwmod: %s: _init_clocks failed\n", __func__);
-
-	mpu_oh = omap_hwmod_lookup(MPU_INITIATOR_NAME);
-	WARN(!mpu_oh, "omap_hwmod: could not find MPU initiator hwmod %s\n",
-	     MPU_INITIATOR_NAME);
 
 	omap_hwmod_for_each(_setup, NULL);
 
