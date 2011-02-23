@@ -25,7 +25,6 @@
 #include <asm/hardware/cache-l2x0.h>
 
 #include <mach/iomap.h>
-#include <mach/dma.h>
 #include <mach/system.h>
 
 #include "board.h"
@@ -81,7 +80,4 @@ void __init tegra_init_early(void)
 	tegra_init_clock();
 	tegra_clk_init_from_table(common_clk_init_table);
 	tegra_init_cache();
-#ifdef CONFIG_TEGRA_SYSTEM_DMA
-	tegra_dma_init();
-#endif
 }
