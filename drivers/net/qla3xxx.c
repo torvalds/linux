@@ -379,7 +379,7 @@ static void fm93c56a_select(struct ql3_adapter *qdev)
 {
 	struct ql3xxx_port_registers __iomem *port_regs =
 			qdev->mem_map_registers;
-	u32 *spir = &port_regs->CommonRegs.serialPortInterfaceReg;
+	__iomem u32 *spir = &port_regs->CommonRegs.serialPortInterfaceReg;
 
 	qdev->eeprom_cmd_data = AUBURN_EEPROM_CS_1;
 	ql_write_nvram_reg(qdev, spir, ISP_NVRAM_MASK | qdev->eeprom_cmd_data);
@@ -398,7 +398,7 @@ static void fm93c56a_cmd(struct ql3_adapter *qdev, u32 cmd, u32 eepromAddr)
 	u32 previousBit;
 	struct ql3xxx_port_registers __iomem *port_regs =
 			qdev->mem_map_registers;
-	u32 *spir = &port_regs->CommonRegs.serialPortInterfaceReg;
+	__iomem u32 *spir = &port_regs->CommonRegs.serialPortInterfaceReg;
 
 	/* Clock in a zero, then do the start bit */
 	ql_write_nvram_reg(qdev, spir,
@@ -467,7 +467,7 @@ static void fm93c56a_deselect(struct ql3_adapter *qdev)
 {
 	struct ql3xxx_port_registers __iomem *port_regs =
 			qdev->mem_map_registers;
-	u32 *spir = &port_regs->CommonRegs.serialPortInterfaceReg;
+	__iomem u32 *spir = &port_regs->CommonRegs.serialPortInterfaceReg;
 
 	qdev->eeprom_cmd_data = AUBURN_EEPROM_CS_0;
 	ql_write_nvram_reg(qdev, spir, ISP_NVRAM_MASK | qdev->eeprom_cmd_data);
@@ -483,7 +483,7 @@ static void fm93c56a_datain(struct ql3_adapter *qdev, unsigned short *value)
 	u32 dataBit;
 	struct ql3xxx_port_registers __iomem *port_regs =
 			qdev->mem_map_registers;
-	u32 *spir = &port_regs->CommonRegs.serialPortInterfaceReg;
+	__iomem u32 *spir = &port_regs->CommonRegs.serialPortInterfaceReg;
 
 	/* Read the data bits */
 	/* The first bit is a dummy.  Clock right over it. */
@@ -3011,7 +3011,7 @@ static int ql_adapter_initialize(struct ql3_adapter *qdev)
 	u32 value;
 	struct ql3xxx_port_registers __iomem *port_regs =
 		qdev->mem_map_registers;
-	u32 *spir = &port_regs->CommonRegs.serialPortInterfaceReg;
+	__iomem u32 *spir = &port_regs->CommonRegs.serialPortInterfaceReg;
 	struct ql3xxx_host_memory_registers __iomem *hmem_regs =
 		(void __iomem *)port_regs;
 	u32 delay = 10;
