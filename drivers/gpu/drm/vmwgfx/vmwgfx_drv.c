@@ -322,7 +322,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	ttm_lock_set_kill(&dev_priv->fbdev_master.lock, false, SIGTERM);
 	dev_priv->active_master = &dev_priv->fbdev_master;
 
-	dev_priv->bdev.dev = dev->dev;
+
 	ret = ttm_bo_device_init(&dev_priv->bdev,
 				 dev_priv->bo_global_ref.ref.object,
 				 &vmw_bo_driver, VMWGFX_FILE_PAGE_OFFSET,
