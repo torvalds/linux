@@ -171,9 +171,7 @@ static int wl_ops_start(struct ieee80211_hw *hw)
 	  WL_NONE("%s : Initial channel: %d\n", __func__, curchan->hw_value);
 	*/
 
-	WL_LOCK(wl);
 	ieee80211_wake_queues(hw);
-	WL_UNLOCK(wl);
 	blocked = wl_rfkill_set_hw_state(wl);
 	if (!blocked)
 		wiphy_rfkill_stop_polling(wl->pub->ieee_hw->wiphy);
@@ -185,9 +183,8 @@ static void wl_ops_stop(struct ieee80211_hw *hw)
 {
 	struct wl_info *wl = hw->priv;
 	ASSERT(wl);
-	WL_LOCK(wl);
 	ieee80211_stop_queues(hw);
-	WL_UNLOCK(wl);
+	return;
 }
 
 static int
@@ -1988,8 +1985,10 @@ bool wl_rfkill_set_hw_state(struct wl_info *wl)
 
 	WL_NONE("%s: update hw state: blocked=%s\n", __func__,
 		blocked ? "true" : "false");
+	WL_UNLOCK(wl);
 	wiphy_rfkill_set_hw_state(wl->pub->ieee_hw->wiphy, blocked);
 	if (blocked)
 		wiphy_rfkill_start_polling(wl->pub->ieee_hw->wiphy);
+	WL_LOCK(wl);
 	return blocked;
 }
