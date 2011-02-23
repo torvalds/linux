@@ -428,7 +428,7 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 	dprintk("--> %s\n", __func__);
 
 	if (fl->pattern_offset > lgr->range.offset) {
-		dprintk("%s pattern_offset %lld to large\n",
+		dprintk("%s pattern_offset %lld too large\n",
 				__func__, fl->pattern_offset);
 		goto out;
 	}
