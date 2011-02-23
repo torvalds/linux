@@ -1390,7 +1390,7 @@ static inline int xfrm_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 
 static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 					    struct xfrm_state **xfrm, int nx,
-					    struct flowi *fl,
+					    const struct flowi *fl,
 					    struct dst_entry *dst)
 {
 	struct net *net = xp_net(policy);
