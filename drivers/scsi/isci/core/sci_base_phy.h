@@ -115,9 +115,6 @@ enum sci_base_phy_states {
 	 * Simply the final state for the base phy state machine.
 	 */
 	SCI_BASE_PHY_STATE_FINAL,
-
-	SCI_BASE_PHY_MAX_STATES
-
 };
 
 /**
@@ -138,9 +135,7 @@ struct sci_base_phy {
 	struct sci_base_state_machine state_machine;
 };
 
-typedef enum sci_status (*SCI_BASE_PHY_HANDLER_T)(
-	struct sci_base_phy *
-	);
+typedef enum sci_status (*sci_base_phy_handler_t)(struct sci_base_phy *);
 
 /**
  * struct sci_base_phy_state_handler - This structure contains all of the state
@@ -155,25 +150,25 @@ struct sci_base_phy_state_handler {
 	 * The start_handler specifies the method invoked when there is an
 	 * attempt to start a phy.
 	 */
-	SCI_BASE_PHY_HANDLER_T start_handler;
+	sci_base_phy_handler_t start_handler;
 
 	/**
 	 * The stop_handler specifies the method invoked when there is an
 	 * attempt to stop a phy.
 	 */
-	SCI_BASE_PHY_HANDLER_T stop_handler;
+	sci_base_phy_handler_t stop_handler;
 
 	/**
 	 * The reset_handler specifies the method invoked when there is an
 	 * attempt to reset a phy.
 	 */
-	SCI_BASE_PHY_HANDLER_T reset_handler;
+	sci_base_phy_handler_t reset_handler;
 
 	/**
 	 * The destruct_handler specifies the method invoked when attempting to
 	 * destruct a phy.
 	 */
-	SCI_BASE_PHY_HANDLER_T destruct_handler;
+	sci_base_phy_handler_t destruct_handler;
 
 };
 

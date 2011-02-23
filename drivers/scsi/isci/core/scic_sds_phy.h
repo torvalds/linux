@@ -146,11 +146,6 @@ enum SCIC_SDS_PHY_STARTING_SUBSTATES {
 	 * Exit state for this state machine
 	 */
 	SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL,
-
-	/**
-	 * Maximum number of substates for the STARTING state machine
-	 */
-	SCIC_SDS_PHY_STARTING_MAX_SUBSTATES
 };
 
 struct scic_sds_port;
@@ -248,7 +243,7 @@ struct scic_sds_phy {
 	 */
 	void *sata_timeout_timer;
 
-	struct scic_sds_phy_state_handler *state_handlers;
+	const struct scic_sds_phy_state_handler *state_handlers;
 
 	struct sci_base_state_machine starting_substate_machine;
 
@@ -260,9 +255,9 @@ struct scic_sds_phy {
 };
 
 
-typedef enum sci_status (*SCIC_SDS_PHY_EVENT_HANDLER_T)(struct scic_sds_phy *, u32);
-typedef enum sci_status (*SCIC_SDS_PHY_FRAME_HANDLER_T)(struct scic_sds_phy *, u32);
-typedef enum sci_status (*SCIC_SDS_PHY_POWER_HANDLER_T)(struct scic_sds_phy *);
+typedef enum sci_status (*scic_sds_phy_event_handler_t)(struct scic_sds_phy *, u32);
+typedef enum sci_status (*scic_sds_phy_frame_handler_t)(struct scic_sds_phy *, u32);
+typedef enum sci_status (*scic_sds_phy_power_handler_t)(struct scic_sds_phy *);
 
 /**
  * struct scic_sds_phy_state_handler -
@@ -278,25 +273,24 @@ struct scic_sds_phy_state_handler {
 	/**
 	 * The state handler for unsolicited frames received from the SCU hardware.
 	 */
-	SCIC_SDS_PHY_FRAME_HANDLER_T frame_handler;
+	scic_sds_phy_frame_handler_t frame_handler;
 
 	/**
 	 * The state handler for events received from the SCU hardware.
 	 */
-	SCIC_SDS_PHY_EVENT_HANDLER_T event_handler;
+	scic_sds_phy_event_handler_t event_handler;
 
 	/**
 	 * The state handler for staggered spinup.
 	 */
-	SCIC_SDS_PHY_POWER_HANDLER_T consume_power_handler;
+	scic_sds_phy_power_handler_t consume_power_handler;
 
 };
 
-extern struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[];
+extern const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[];
 extern const struct sci_base_state scic_sds_phy_state_table[];
 extern const struct sci_base_state scic_sds_phy_starting_substates[];
-extern struct scic_sds_phy_state_handler
-	scic_sds_phy_starting_substate_handler_table[];
+extern const struct scic_sds_phy_state_handler scic_sds_phy_starting_substate_handler_table[];
 
 
 /**
