@@ -126,6 +126,17 @@ config NET_SCH_RED
 	  To compile this code as a module, choose M here: the
 	  module will be called sch_red.
 
+config NET_SCH_SFB
+	tristate "Stochastic Fair Blue (SFB)"
+	---help---
+	  Say Y here if you want to use the Stochastic Fair Blue (SFB)
+	  packet scheduling algorithm.
+
+	  See the top of <file:net/sched/sch_sfb.c> for more details.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called sch_sfb.
+
 config NET_SCH_SFQ
 	tristate "Stochastic Fairness Queueing (SFQ)"
 	---help---
