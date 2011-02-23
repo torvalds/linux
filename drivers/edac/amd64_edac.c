@@ -768,8 +768,7 @@ static enum edac_type amd64_determine_edac_cap(struct amd64_pvt *pvt)
 	return edac_cap;
 }
 
-
-static void amd64_debug_display_dimm_sizes(int ctrl, struct amd64_pvt *pvt);
+static void amd64_debug_display_dimm_sizes(struct amd64_pvt *, u8);
 
 static void amd64_dump_dramcfg_low(u32 dclr, int chan)
 {
@@ -817,13 +816,13 @@ static void dump_misc_regs(struct amd64_pvt *pvt)
 
 	debugf1("  DramHoleValid: %s\n", dhar_valid(pvt) ? "yes" : "no");
 
-	amd64_debug_display_dimm_sizes(0, pvt);
+	amd64_debug_display_dimm_sizes(pvt, 0);
 
 	/* everything below this point is Fam10h and above */
 	if (boot_cpu_data.x86 == 0xf)
 		return;
 
-	amd64_debug_display_dimm_sizes(1, pvt);
+	amd64_debug_display_dimm_sizes(pvt, 1);
 
 	amd64_info("using %s syndromes.\n", ((pvt->ecc_sym_sz == 8) ? "x8" : "x4"));
 
@@ -1536,7 +1535,7 @@ static void f1x_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
  * debug routine to display the memory sizes of all logical DIMMs and its
  * CSROWs
  */
-static void amd64_debug_display_dimm_sizes(int ctrl, struct amd64_pvt *pvt)
+static void amd64_debug_display_dimm_sizes(struct amd64_pvt *pvt, u8 ctrl)
 {
 	int dimm, size0, size1, factor = 0;
 	u32 *dcsb = ctrl ? pvt->csels[1].csbases : pvt->csels[0].csbases;
