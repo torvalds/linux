@@ -813,21 +813,6 @@ out_disable:
 
 #ifdef CONFIG_IXGBE_DCB
 /**
- * ixgbe_fcoe_getapp - retrieves current user priority bitmap for FCoE
- * @adapter : ixgbe adapter
- *
- * Finds out the corresponding user priority bitmap from the current
- * traffic class that FCoE belongs to. Returns 0 as the invalid user
- * priority bitmap to indicate an error.
- *
- * Returns : 802.1p user priority bitmap for FCoE
- */
-u8 ixgbe_fcoe_getapp(struct ixgbe_adapter *adapter)
-{
-	return 1 << adapter->fcoe.up;
-}
-
-/**
  * ixgbe_fcoe_setapp - sets the user priority bitmap for FCoE
  * @adapter : ixgbe adapter
  * @up : 802.1p user priority bitmap
