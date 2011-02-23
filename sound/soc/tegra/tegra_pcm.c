@@ -161,8 +161,8 @@ static int tegra_pcm_open(struct snd_pcm_substream *substream)
 	prtd->dma_req[1].dev = prtd;
 
 	prtd->dma_chan = tegra_dma_allocate_channel(TEGRA_DMA_MODE_ONESHOT);
-	if (IS_ERR(prtd->dma_chan)) {
-		ret = PTR_ERR(prtd->dma_chan);
+	if (prtd->dma_chan == NULL) {
+		ret = -ENOMEM;
 		goto err;
 	}
 
