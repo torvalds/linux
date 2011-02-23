@@ -1398,15 +1398,12 @@ static bool __init io_apic_pin_not_connected(int idx, int apic_id, int pin)
 	return true;
 }
 
-static void __init setup_IO_APIC_irqs(void)
+static void __init __io_apic_setup_irqs(unsigned int apic_id)
 {
-	int apic_id, pin, idx, irq;
-	int node = cpu_to_node(0);
+	int idx, node = cpu_to_node(0);
+	unsigned int pin, irq;
 	struct irq_cfg *cfg;
 
-	apic_printk(APIC_VERBOSE, KERN_DEBUG "init IO_APIC IRQs\n");
-
-	for (apic_id = 0; apic_id < nr_ioapics; apic_id++)
 	for (pin = 0; pin < nr_ioapic_registers[apic_id]; pin++) {
 		idx = find_irq_entry(apic_id, pin, mp_INT);
 		if (io_apic_pin_not_connected(idx, apic_id, pin))
@@ -1437,6 +1434,16 @@ static void __init setup_IO_APIC_irqs(void)
 		setup_ioapic_irq(apic_id, pin, irq, cfg, irq_trigger(idx),
 				  irq_polarity(idx));
 	}
+}
+
+static void __init setup_IO_APIC_irqs(void)
+{
+	unsigned int apic_id;
+
+	apic_printk(APIC_VERBOSE, KERN_DEBUG "init IO_APIC IRQs\n");
+
+	for (apic_id = 0; apic_id < nr_ioapics; apic_id++)
+		__io_apic_setup_irqs(apic_id);
 }
 
 /*
