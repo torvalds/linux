@@ -667,6 +667,12 @@ static char *texts_ports_aio_out_qs[] = {
 	"Phone.L", "Phone.R"
 };
 
+static char *texts_ports_aes32[] = {
+	"AES.1", "AES.2", "AES.3", "AES.4", "AES.5", "AES.6", "AES.7",
+	"AES.8", "AES.9.", "AES.10", "AES.11", "AES.12", "AES.13", "AES.14",
+	"AES.15", "AES.16"
+};
+
 /* These tables map the ALSA channels 1..N to the channels that we
    need to use in order to find the relevant channel buffer. RME
    refers to this kind of mapping as between "the ADAT channel and
@@ -808,6 +814,17 @@ static char channel_map_aio_out_qs[HDSPM_MAX_CHANNELS] = {
 	12, 16,			/* adat out */
 	6, 7,			/* phone out */
 	-1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1
+};
+
+static char channel_map_aes32[HDSPM_MAX_CHANNELS] = {
+	0, 1, 2, 3, 4, 5, 6, 7,
+	8, 9, 10, 11, 12, 13, 14, 15,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
@@ -6396,6 +6413,29 @@ static int __devinit snd_hdspm_create(struct snd_card *card,
 
 	switch (hdspm->io_type) {
 	case AES32:
+		hdspm->ss_in_channels = hdspm->ss_out_channels = 16;
+		hdspm->ds_in_channels = hdspm->ds_out_channels = 16;
+		hdspm->qs_in_channels = hdspm->qs_out_channels = 16;
+
+		hdspm->channel_map_in_ss = hdspm->channel_map_out_ss =
+			channel_map_aes32;
+		hdspm->channel_map_in_ds = hdspm->channel_map_out_ds =
+			channel_map_aes32;
+		hdspm->channel_map_in_qs = hdspm->channel_map_out_qs =
+			channel_map_aes32;
+		hdspm->port_names_in_ss = hdspm->port_names_out_ss =
+			texts_ports_aes32;
+		hdspm->port_names_in_ds = hdspm->port_names_out_ds =
+			texts_ports_aes32;
+		hdspm->port_names_in_qs = hdspm->port_names_out_qs =
+			texts_ports_aes32;
+
+		hdspm->max_channels_out = hdspm->max_channels_in = 16;
+		hdspm->port_names_in = hdspm->port_names_out =
+			texts_ports_aes32;
+		hdspm->channel_map_in = hdspm->channel_map_out =
+			channel_map_aes32;
+
 		break;
 
 	case MADI:
