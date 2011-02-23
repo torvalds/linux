@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,20 +60,95 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
-#ifndef __iwl_legacy_h__
-#define __iwl_legacy_h__
 
-/* mac80211 handlers */
-int iwl_legacy_mac_config(struct ieee80211_hw *hw, u32 changed);
-void iwl_legacy_mac_reset_tsf(struct ieee80211_hw *hw);
-void iwl_legacy_mac_bss_info_changed(struct ieee80211_hw *hw,
-				     struct ieee80211_vif *vif,
-				     struct ieee80211_bss_conf *bss_conf,
-				     u32 changes);
-void iwl_legacy_tx_cmd_protection(struct iwl_priv *priv,
-				struct ieee80211_tx_info *info,
-				__le16 fc, __le32 *tx_flags);
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/init.h>
 
-irqreturn_t iwl_isr_legacy(int irq, void *data);
+#include <net/mac80211.h>
 
-#endif /* __iwl_legacy_h__ */
+#include "iwl-commands.h"
+#include "iwl-dev.h"
+#include "iwl-core.h"
+#include "iwl-debug.h"
+#include "iwl-4965.h"
+#include "iwl-io.h"
+
+/******************************************************************************
+ *
+ * EEPROM related functions
+ *
+******************************************************************************/
+
+/*
+ * The device's EEPROM semaphore prevents conflicts between driver and uCode
+ * when accessing the EEPROM; each access is a series of pulses to/from the
+ * EEPROM chip, not a single event, so even reads could conflict if they
+ * weren't arbitrated by the semaphore.
+ */
+int iwl4965_eeprom_acquire_semaphore(struct iwl_priv *priv)
+{
+	u16 count;
+	int ret;
+
+	for (count = 0; count < EEPROM_SEM_RETRY_LIMIT; count++) {
+		/* Request semaphore */
+		iwl_legacy_set_bit(priv, CSR_HW_IF_CONFIG_REG,
+			    CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
+
+		/* See if we got it */
+		ret = iwl_poll_bit(priv, CSR_HW_IF_CONFIG_REG,
+				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
+				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
+				EEPROM_SEM_TIMEOUT);
+		if (ret >= 0) {
+			IWL_DEBUG_IO(priv,
+				"Acquired semaphore after %d tries.\n",
+				count+1);
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
+void iwl4965_eeprom_release_semaphore(struct iwl_priv *priv)
+{
+	iwl_legacy_clear_bit(priv, CSR_HW_IF_CONFIG_REG,
+		CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
+
+}
+
+int iwl4965_eeprom_check_version(struct iwl_priv *priv)
+{
+	u16 eeprom_ver;
+	u16 calib_ver;
+
+	eeprom_ver = iwl_legacy_eeprom_query16(priv, EEPROM_VERSION);
+	calib_ver = iwl_legacy_eeprom_query16(priv,
+			EEPROM_4965_CALIB_VERSION_OFFSET);
+
+	if (eeprom_ver < priv->cfg->eeprom_ver ||
+	    calib_ver < priv->cfg->eeprom_calib_ver)
+		goto err;
+
+	IWL_INFO(priv, "device EEPROM VER=0x%x, CALIB=0x%x\n",
+		 eeprom_ver, calib_ver);
+
+	return 0;
+err:
+	IWL_ERR(priv, "Unsupported (too old) EEPROM VER=0x%x < 0x%x "
+		  "CALIB=0x%x < 0x%x\n",
+		  eeprom_ver, priv->cfg->eeprom_ver,
+		  calib_ver,  priv->cfg->eeprom_calib_ver);
+	return -EINVAL;
+
+}
+
+void iwl4965_eeprom_get_mac(const struct iwl_priv *priv, u8 *mac)
+{
+	const u8 *addr = iwl_legacy_eeprom_query_addr(priv,
+					EEPROM_MAC_ADDRESS);
+	memcpy(mac, addr, ETH_ALEN);
+}

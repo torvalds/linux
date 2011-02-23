@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -64,7 +64,7 @@ static const struct ieee80211_tpt_blink iwl_blink[] = {
 /*
  * Adjust led blink rate to compensate on a MAC Clock difference on every HW
  * Led blink rate analysis showed an average deviation of 0% on 3945,
- * 5% on 4965 HW and 20% on 5000 series and up.
+ * 5% on 4965 HW.
  * Need to compensate on the led on/off time per HW according to the deviation
  * to achieve the desired led frequency
  * The calculation is: (100-averageDeviation)/100 * blinkTime
@@ -72,7 +72,7 @@ static const struct ieee80211_tpt_blink iwl_blink[] = {
  *     compensation = (100 - averageDeviation) * 64 / 100
  *     NewBlinkTime = (compensation * BlinkTime) / 64
  */
-static inline u8 iwl_blink_compensation(struct iwl_priv *priv,
+static inline u8 iwl_legacy_blink_compensation(struct iwl_priv *priv,
 				    u8 time, u16 compensation)
 {
 	if (!compensation) {
@@ -85,7 +85,7 @@ static inline u8 iwl_blink_compensation(struct iwl_priv *priv,
 }
 
 /* Set led pattern command */
-static int iwl_led_cmd(struct iwl_priv *priv,
+static int iwl_legacy_led_cmd(struct iwl_priv *priv,
 		       unsigned long on,
 		       unsigned long off)
 {
@@ -103,9 +103,9 @@ static int iwl_led_cmd(struct iwl_priv *priv,
 
 	IWL_DEBUG_LED(priv, "Led blink time compensation=%u\n",
 			priv->cfg->base_params->led_compensation);
-	led_cmd.on = iwl_blink_compensation(priv, on,
+	led_cmd.on = iwl_legacy_blink_compensation(priv, on,
 				priv->cfg->base_params->led_compensation);
-	led_cmd.off = iwl_blink_compensation(priv, off,
+	led_cmd.off = iwl_legacy_blink_compensation(priv, off,
 				priv->cfg->base_params->led_compensation);
 
 	ret = priv->cfg->ops->led->cmd(priv, &led_cmd);
@@ -116,7 +116,7 @@ static int iwl_led_cmd(struct iwl_priv *priv,
 	return ret;
 }
 
-static void iwl_led_brightness_set(struct led_classdev *led_cdev,
+static void iwl_legacy_led_brightness_set(struct led_classdev *led_cdev,
 				   enum led_brightness brightness)
 {
 	struct iwl_priv *priv = container_of(led_cdev, struct iwl_priv, led);
@@ -125,19 +125,19 @@ static void iwl_led_brightness_set(struct led_classdev *led_cdev,
 	if (brightness > 0)
 		on = IWL_LED_SOLID;
 
-	iwl_led_cmd(priv, on, 0);
+	iwl_legacy_led_cmd(priv, on, 0);
 }
 
-static int iwl_led_blink_set(struct led_classdev *led_cdev,
+static int iwl_legacy_led_blink_set(struct led_classdev *led_cdev,
 			     unsigned long *delay_on,
 			     unsigned long *delay_off)
 {
 	struct iwl_priv *priv = container_of(led_cdev, struct iwl_priv, led);
 
-	return iwl_led_cmd(priv, *delay_on, *delay_off);
+	return iwl_legacy_led_cmd(priv, *delay_on, *delay_off);
 }
 
-void iwl_leds_init(struct iwl_priv *priv)
+void iwl_legacy_leds_init(struct iwl_priv *priv)
 {
 	int mode = led_mode;
 	int ret;
@@ -147,8 +147,8 @@ void iwl_leds_init(struct iwl_priv *priv)
 
 	priv->led.name = kasprintf(GFP_KERNEL, "%s-led",
 				   wiphy_name(priv->hw->wiphy));
-	priv->led.brightness_set = iwl_led_brightness_set;
-	priv->led.blink_set = iwl_led_blink_set;
+	priv->led.brightness_set = iwl_legacy_led_brightness_set;
+	priv->led.blink_set = iwl_legacy_led_blink_set;
 	priv->led.max_brightness = 1;
 
 	switch (mode) {
@@ -175,8 +175,9 @@ void iwl_leds_init(struct iwl_priv *priv)
 
 	priv->led_registered = true;
 }
+EXPORT_SYMBOL(iwl_legacy_leds_init);
 
-void iwl_leds_exit(struct iwl_priv *priv)
+void iwl_legacy_leds_exit(struct iwl_priv *priv)
 {
 	if (!priv->led_registered)
 		return;
@@ -184,3 +185,4 @@ void iwl_leds_exit(struct iwl_priv *priv)
 	led_classdev_unregister(&priv->led);
 	kfree(priv->led.name);
 }
+EXPORT_SYMBOL(iwl_legacy_leds_exit);

@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -164,12 +164,11 @@ struct iwl3945_eeprom {
 /*
  * Per-channel regulatory data.
  *
- * Each channel that *might* be supported by 3945 or 4965 has a fixed location
+ * Each channel that *might* be supported by 3945 has a fixed location
  * in EEPROM containing EEPROM_CHANNEL_* usage flags (LSB) and max regulatory
  * txpower (MSB).
  *
- * Entries immediately below are for 20 MHz channel width.  HT40 (40 MHz)
- * channels (only for 4965, not supported by 3945) appear later in the EEPROM.
+ * Entries immediately below are for 20 MHz channel width.
  *
  * 2.4 GHz channels 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
  */
