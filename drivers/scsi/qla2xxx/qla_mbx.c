@@ -71,6 +71,13 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		return QLA_FUNCTION_TIMEOUT;
 	}
 
+	if (ha->flags.isp82xx_fw_hung) {
+		/* Setting Link-Down error */
+		mcp->mb[0] = MBS_LINK_DOWN_ERROR;
+		rval = QLA_FUNCTION_FAILED;
+		goto premature_exit;
+	}
+
 	/*
 	 * Wait for active mailbox commands to finish by waiting at most tov
 	 * seconds. This is to serialize actual issuing of mailbox cmds during
@@ -81,13 +88,6 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		DEBUG2_3_11(printk("%s(%ld): cmd access timeout. "
 		    "Exiting.\n", __func__, base_vha->host_no));
 		return QLA_FUNCTION_TIMEOUT;
-	}
-
-	if (ha->flags.isp82xx_fw_hung) {
-		/* Setting Link-Down error */
-		mcp->mb[0] = MBS_LINK_DOWN_ERROR;
-		rval = QLA_FUNCTION_FAILED;
-		goto premature_exit;
 	}
 
 	ha->flags.mbox_busy = 1;
