@@ -656,7 +656,7 @@ void xfrm_sad_getinfo(struct net *net, struct xfrmk_sadinfo *si)
 EXPORT_SYMBOL(xfrm_sad_getinfo);
 
 static int
-xfrm_init_tempstate(struct xfrm_state *x, struct flowi *fl,
+xfrm_init_tempstate(struct xfrm_state *x, const struct flowi *fl,
 		    struct xfrm_tmpl *tmpl,
 		    xfrm_address_t *daddr, xfrm_address_t *saddr,
 		    unsigned short family)
