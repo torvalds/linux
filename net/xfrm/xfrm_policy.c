@@ -864,7 +864,7 @@ EXPORT_SYMBOL(xfrm_policy_walk_done);
  *
  * Returns 0 if policy found, else an -errno.
  */
-static int xfrm_policy_match(struct xfrm_policy *pol, struct flowi *fl,
+static int xfrm_policy_match(struct xfrm_policy *pol, const struct flowi *fl,
 			     u8 type, u16 family, int dir)
 {
 	struct xfrm_selector *sel = &pol->selector;
@@ -884,7 +884,7 @@ static int xfrm_policy_match(struct xfrm_policy *pol, struct flowi *fl,
 }
 
 static struct xfrm_policy *xfrm_policy_lookup_bytype(struct net *net, u8 type,
-						     struct flowi *fl,
+						     const struct flowi *fl,
 						     u16 family, u8 dir)
 {
 	int err;
