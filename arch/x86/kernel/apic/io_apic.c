@@ -821,7 +821,7 @@ static int EISA_ELCR(unsigned int irq)
 #define default_MCA_trigger(idx)	(1)
 #define default_MCA_polarity(idx)	default_ISA_polarity(idx)
 
-static int MPBIOS_polarity(int idx)
+static int irq_polarity(int idx)
 {
 	int bus = mp_irqs[idx].srcbus;
 	int polarity;
@@ -863,7 +863,7 @@ static int MPBIOS_polarity(int idx)
 	return polarity;
 }
 
-static int MPBIOS_trigger(int idx)
+static int irq_trigger(int idx)
 {
 	int bus = mp_irqs[idx].srcbus;
 	int trigger;
@@ -933,16 +933,6 @@ static int MPBIOS_trigger(int idx)
 		}
 	}
 	return trigger;
-}
-
-static inline int irq_polarity(int idx)
-{
-	return MPBIOS_polarity(idx);
-}
-
-static inline int irq_trigger(int idx)
-{
-	return MPBIOS_trigger(idx);
 }
 
 static int pin_2_irq(int idx, int apic, int pin)
