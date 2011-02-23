@@ -279,7 +279,7 @@ struct xfrm_policy_afinfo {
 					     int nfheader_len);
 	int			(*fill_dst)(struct xfrm_dst *xdst,
 					    struct net_device *dev,
-					    struct flowi *fl);
+					    const struct flowi *fl);
 };
 
 extern int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo);

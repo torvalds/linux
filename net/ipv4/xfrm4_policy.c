@@ -68,7 +68,7 @@ static int xfrm4_init_path(struct xfrm_dst *path, struct dst_entry *dst,
 }
 
 static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
-			  struct flowi *fl)
+			  const struct flowi *fl)
 {
 	struct rtable *rt = (struct rtable *)xdst->route;
 

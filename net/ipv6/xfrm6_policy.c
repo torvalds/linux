@@ -87,7 +87,7 @@ static int xfrm6_init_path(struct xfrm_dst *path, struct dst_entry *dst,
 }
 
 static int xfrm6_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
-			  struct flowi *fl)
+			  const struct flowi *fl)
 {
 	struct rt6_info *rt = (struct rt6_info*)xdst->route;
 

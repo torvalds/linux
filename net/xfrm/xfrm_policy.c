@@ -1369,7 +1369,7 @@ static inline int xfrm_init_path(struct xfrm_dst *path, struct dst_entry *dst,
 }
 
 static inline int xfrm_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
-				struct flowi *fl)
+				const struct flowi *fl)
 {
 	struct xfrm_policy_afinfo *afinfo =
 		xfrm_policy_get_afinfo(xdst->u.dst.ops->family);
