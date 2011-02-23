@@ -2169,13 +2169,6 @@ exit:
 	return ERR_PTR(error);
 }
 
-struct open_flags {
-	int open_flag;
-	int mode;
-	int acc_mode;
-	int intent;
-};
-
 /*
  * Handle O_CREAT case for do_filp_open
  */
@@ -2305,74 +2298,28 @@ exit:
  * open_to_namei_flags() for more details.
  */
 struct file *do_filp_open(int dfd, const char *pathname,
-		int open_flag, int mode, int acc_mode)
+		const struct open_flags *op, int flags)
 {
 	struct file *filp;
 	struct nameidata nd;
 	int error;
 	struct path path;
 	int count = 0;
-	int flag = open_to_namei_flags(open_flag);
-	int flags = 0;
-	struct open_flags op;
-
-	if (!(open_flag & O_CREAT))
-		mode = 0;
-
-	/* Must never be set by userspace */
-	open_flag &= ~FMODE_NONOTIFY;
-
-	/*
-	 * O_SYNC is implemented as __O_SYNC|O_DSYNC.  As many places only
-	 * check for O_DSYNC if the need any syncing at all we enforce it's
-	 * always set instead of having to deal with possibly weird behaviour
-	 * for malicious applications setting only __O_SYNC.
-	 */
-	if (open_flag & __O_SYNC)
-		open_flag |= O_DSYNC;
-
-	op.open_flag = open_flag;
-
-	if (!acc_mode)
-		acc_mode = MAY_OPEN | ACC_MODE(open_flag);
-
-	/* O_TRUNC implies we need access checks for write permissions */
-	if (open_flag & O_TRUNC)
-		acc_mode |= MAY_WRITE;
-
-	/* Allow the LSM permission hook to distinguish append 
-	   access from general write access. */
-	if (open_flag & O_APPEND)
-		acc_mode |= MAY_APPEND;
-
-	op.acc_mode = acc_mode;
-
-	op.intent = LOOKUP_OPEN;
-	if (open_flag & O_CREAT) {
-		op.intent |= LOOKUP_CREATE;
-		if (open_flag & O_EXCL)
-			op.intent |= LOOKUP_EXCL;
-	}
-
-	if (open_flag & O_DIRECTORY)
-		flags |= LOOKUP_DIRECTORY;
-	if (!(open_flag & O_NOFOLLOW))
-		flags |= LOOKUP_FOLLOW;
 
 	filp = get_empty_filp();
 	if (!filp)
 		return ERR_PTR(-ENFILE);
 
-	filp->f_flags = open_flag;
+	filp->f_flags = op->open_flag;
 	nd.intent.open.file = filp;
-	nd.intent.open.flags = flag;
-	nd.intent.open.create_mode = mode;
+	nd.intent.open.flags = open_to_namei_flags(op->open_flag);
+	nd.intent.open.create_mode = op->mode;
 
-	if (open_flag & O_CREAT)
+	if (op->open_flag & O_CREAT)
 		goto creat;
 
 	/* !O_CREAT, simple open */
-	error = do_path_lookup(dfd, pathname, flags | op.intent, &nd);
+	error = do_path_lookup(dfd, pathname, flags | op->intent, &nd);
 	if (unlikely(error))
 		goto out_filp2;
 	error = -ELOOP;
@@ -2386,7 +2333,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 			goto out_path2;
 	}
 	audit_inode(pathname, nd.path.dentry);
-	filp = finish_open(&nd, open_flag, acc_mode);
+	filp = finish_open(&nd, op->open_flag, op->acc_mode);
 out2:
 	release_open_intent(&nd);
 	return filp;
@@ -2416,7 +2363,7 @@ reval:
 	/*
 	 * We have the parent and last component.
 	 */
-	filp = do_last(&nd, &path, &op, pathname);
+	filp = do_last(&nd, &path, op, pathname);
 	while (unlikely(!filp)) { /* trailing symlink */
 		struct path link = path;
 		struct inode *linki = link.dentry->d_inode;
@@ -2443,7 +2390,7 @@ reval:
 		if (unlikely(error))
 			filp = ERR_PTR(error);
 		else
-			filp = do_last(&nd, &path, &op, pathname);
+			filp = do_last(&nd, &path, op, pathname);
 		if (!IS_ERR(cookie) && linki->i_op->put_link)
 			linki->i_op->put_link(link.dentry, &nd, cookie);
 		path_put(&link);
@@ -2464,23 +2411,6 @@ out_filp:
 	filp = ERR_PTR(error);
 	goto out;
 }
-
-/**
- * filp_open - open file and return file pointer
- *
- * @filename:	path to open
- * @flags:	open flags as per the open(2) second argument
- * @mode:	mode for the new file if O_CREAT is set, else ignored
- *
- * This is the helper to open a file from kernelspace if you really
- * have to.  But in generally you should not do this, so please move
- * along, nothing to see here..
- */
-struct file *filp_open(const char *filename, int flags, int mode)
-{
-	return do_filp_open(AT_FDCWD, filename, flags, mode, 0);
-}
-EXPORT_SYMBOL(filp_open);
 
 /**
  * lookup_create - lookup a dentry, creating it if it doesn't exist
