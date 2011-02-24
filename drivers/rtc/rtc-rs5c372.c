@@ -299,14 +299,6 @@ rs5c_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 		if (rs5c->type == rtc_rs5c372a
 				&& (buf & RS5C372A_CTRL1_SL1))
 			return -ENOIOCTLCMD;
-	case RTC_AIE_OFF:
-	case RTC_AIE_ON:
-		/* these irq management calls only make sense for chips
-		 * which are wired up to an IRQ.
-		 */
-		if (!rs5c->has_irq)
-			return -ENOIOCTLCMD;
-		break;
 	default:
 		return -ENOIOCTLCMD;
 	}
@@ -317,12 +309,6 @@ rs5c_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 
 	addr = RS5C_ADDR(RS5C_REG_CTRL1);
 	switch (cmd) {
-	case RTC_AIE_OFF:	/* alarm off */
-		buf &= ~RS5C_CTRL1_AALE;
-		break;
-	case RTC_AIE_ON:	/* alarm on */
-		buf |= RS5C_CTRL1_AALE;
-		break;
 	case RTC_UIE_OFF:	/* update off */
 		buf &= ~RS5C_CTRL1_CT_MASK;
 		break;
@@ -345,6 +331,39 @@ rs5c_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 #else
 #define	rs5c_rtc_ioctl	NULL
 #endif
+
+
+static int rs5c_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
+{
+	struct i2c_client	*client = to_i2c_client(dev);
+	struct rs5c372		*rs5c = i2c_get_clientdata(client);
+	unsigned char		buf;
+	int			status, addr;
+
+	buf = rs5c->regs[RS5C_REG_CTRL1];
+
+	if (!rs5c->has_irq)
+		return -EINVAL;
+
+	status = rs5c_get_regs(rs5c);
+	if (status < 0)
+		return status;
+
+	addr = RS5C_ADDR(RS5C_REG_CTRL1);
+	if (enabled)
+		buf |= RS5C_CTRL1_AALE;
+	else
+		buf &= ~RS5C_CTRL1_AALE;
+
+	if (i2c_smbus_write_byte_data(client, addr, buf) < 0) {
+		printk(KERN_WARNING "%s: can't update alarm\n",
+			rs5c->rtc->name);
+		status = -EIO;
+	} else
+		rs5c->regs[RS5C_REG_CTRL1] = buf;
+
+	return status;
+}
 
 
 /* NOTE:  Since RTC_WKALM_{RD,SET} were originally defined for EFI,
@@ -466,6 +485,7 @@ static const struct rtc_class_ops rs5c372_rtc_ops = {
 	.set_time	= rs5c372_rtc_set_time,
 	.read_alarm	= rs5c_read_alarm,
 	.set_alarm	= rs5c_set_alarm,
+	.alarm_irq_enable = rs5c_rtc_alarm_irq_enable,
 };
 
 #if defined(CONFIG_RTC_INTF_SYSFS) || defined(CONFIG_RTC_INTF_SYSFS_MODULE)

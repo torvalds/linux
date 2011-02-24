@@ -546,6 +546,8 @@ config USB_GADGET_CI13XXX_MSM
 	  ci13xxx_udc core.
 	  This driver depends on OTG driver for PHY initialization,
 	  clock management, powering up VBUS, and power management.
+	  This driver is not supported on boards like trout which
+	  has an external PHY.
 
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module called "ci13xxx_msm" and force all

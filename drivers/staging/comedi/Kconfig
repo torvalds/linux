@@ -439,6 +439,7 @@ config COMEDI_NI_AT_AO
 config COMEDI_NI_ATMIO
 	tristate "NI AT-MIO E series ISA-PNP card support"
 	depends on ISAPNP && COMEDI_NI_TIO && COMEDI_NI_COMMON
+	select COMEDI_8255
 	default N
 	---help---
 	  Enable support for National Instruments AT-MIO E series cards
@@ -1040,6 +1041,8 @@ config COMEDI_NI_PCIDIO
 config COMEDI_NI_PCIMIO
 	tristate "NI PCI-MIO-E series and M series support"
 	depends on COMEDI_NI_TIO && COMEDI_NI_COMMON
+	select COMEDI_8255
+	select COMEDI_FC
 	default N
 	---help---
 	  Enable support for National Instruments PCI-MIO-E series and M series
@@ -1164,6 +1167,7 @@ config COMEDI_NI_LABPC_CS
 config COMEDI_NI_MIO_CS
 	tristate "NI DAQCard E series PCMCIA support"
 	depends on COMEDI_NI_TIO && COMEDI_NI_COMMON
+	select COMEDI_8255
 	select COMEDI_FC
 	default N
 	---help---
@@ -1268,7 +1272,6 @@ config COMEDI_MITE
 config COMEDI_NI_TIO
 	tristate "NI general purpose counter support"
 	depends on COMEDI_MITE
-	select COMEDI_8255
 	default N
 	---help---
 	  Enable support for National Instruments general purpose counters.

@@ -86,7 +86,7 @@ int ath5k_hw_get_frame_duration(struct ath5k_hw *ah,
 	if (!ah->ah_bwmode) {
 		dur = ieee80211_generic_frame_duration(sc->hw,
 						NULL, len, rate);
-		return dur;
+		return le16_to_cpu(dur);
 	}
 
 	bitrate = rate->bitrate;
@@ -264,8 +264,6 @@ static inline void ath5k_hw_write_rate_duration(struct ath5k_hw *ah)
 		 * ieee80211_duration() for a brief description of
 		 * what rate we should choose to TX ACKs. */
 		tx_time = ath5k_hw_get_frame_duration(ah, 10, rate);
-
-		tx_time = le16_to_cpu(tx_time);
 
 		ath5k_hw_reg_write(ah, tx_time, reg);
 

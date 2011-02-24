@@ -2,7 +2,7 @@
 *******************************************************************************
 **        O.S   : Linux
 **   FILE NAME  : arcmsr.h
-**        BY    : Erich Chen
+**        BY    : Nick Cheng
 **   Description: SCSI RAID Device Driver for
 **                ARECA RAID Host adapter
 *******************************************************************************
@@ -46,8 +46,12 @@
 struct device_attribute;
 /*The limit of outstanding scsi command that firmware can handle*/
 #define ARCMSR_MAX_OUTSTANDING_CMD						256
-#define ARCMSR_MAX_FREECCB_NUM							320
-#define ARCMSR_DRIVER_VERSION		     "Driver Version 1.20.00.15 2010/02/02"
+#ifdef CONFIG_XEN
+	#define ARCMSR_MAX_FREECCB_NUM	160
+#else
+	#define ARCMSR_MAX_FREECCB_NUM	320
+#endif
+#define ARCMSR_DRIVER_VERSION		     "Driver Version 1.20.00.15 2010/08/05"
 #define ARCMSR_SCSI_INITIATOR_ID						255
 #define ARCMSR_MAX_XFER_SECTORS							512
 #define ARCMSR_MAX_XFER_SECTORS_B						4096
@@ -60,7 +64,6 @@ struct device_attribute;
 #define ARCMSR_MAX_HBB_POSTQUEUE						264
 #define ARCMSR_MAX_XFER_LEN							0x26000 /* 152K */
 #define ARCMSR_CDB_SG_PAGE_LENGTH						256 
-#define SCSI_CMD_ARECA_SPECIFIC						0xE1
 #ifndef PCI_DEVICE_ID_ARECA_1880
 #define PCI_DEVICE_ID_ARECA_1880 0x1880
  #endif

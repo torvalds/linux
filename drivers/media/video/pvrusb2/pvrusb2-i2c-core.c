@@ -597,7 +597,6 @@ static void pvr2_i2c_register_ir(struct pvr2_hdw *hdw)
 		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
 		init_data->type                  = RC_TYPE_RC5;
 		init_data->name                  = hdw->hdw_desc->description;
-		init_data->polling_interval      = 260; /* ms From lirc_zilog */
 		/* IR Receiver */
 		info.addr          = 0x71;
 		info.platform_data = init_data;

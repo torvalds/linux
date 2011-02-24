@@ -2628,15 +2628,15 @@ exit:
 
 static void hso_free_tiomget(struct hso_serial *serial)
 {
-	struct hso_tiocmget *tiocmget = serial->tiocmget;
+	struct hso_tiocmget *tiocmget;
+	if (!serial)
+		return;
+	tiocmget = serial->tiocmget;
 	if (tiocmget) {
-		if (tiocmget->urb) {
-			usb_free_urb(tiocmget->urb);
-			tiocmget->urb = NULL;
-		}
+		usb_free_urb(tiocmget->urb);
+		tiocmget->urb = NULL;
 		serial->tiocmget = NULL;
 		kfree(tiocmget);
-
 	}
 }
 

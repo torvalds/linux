@@ -764,7 +764,6 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 {
 	int rc = 0;
 	int xid, i;
-	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
 	struct cifsFileInfo *cifsFile = NULL;
 	char *current_entry;
@@ -774,8 +773,6 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 	unsigned int max_len;
 
 	xid = GetXid();
-
-	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 
 	/*
 	 * Ensure FindFirst doesn't fail before doing filldir() for '.' and

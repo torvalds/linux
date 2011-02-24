@@ -337,8 +337,13 @@ cifs_echo_request(struct work_struct *work)
 	struct TCP_Server_Info *server = container_of(work,
 					struct TCP_Server_Info, echo.work);
 
-	/* no need to ping if we got a response recently */
-	if (time_before(jiffies, server->lstrp + SMB_ECHO_INTERVAL - HZ))
+	/*
+	 * We cannot send an echo until the NEGOTIATE_PROTOCOL request is
+	 * done, which is indicated by maxBuf != 0. Also, no need to ping if
+	 * we got a response recently
+	 */
+	if (server->maxBuf == 0 ||
+	    time_before(jiffies, server->lstrp + SMB_ECHO_INTERVAL - HZ))
 		goto requeue_echo;
 
 	rc = CIFSSMBEcho(server);
@@ -578,14 +583,23 @@ incomplete_rcv:
 		else if (reconnect == 1)
 			continue;
 
-		length += 4; /* account for rfc1002 hdr */
+		total_read += 4; /* account for rfc1002 hdr */
 
+		dump_smb(smb_buffer, total_read);
 
-		dump_smb(smb_buffer, length);
-		if (checkSMB(smb_buffer, smb_buffer->Mid, total_read+4)) {
-			cifs_dump_mem("Bad SMB: ", smb_buffer, 48);
-			continue;
-		}
+		/*
+		 * We know that we received enough to get to the MID as we
+		 * checked the pdu_length earlier. Now check to see
+		 * if the rest of the header is OK. We borrow the length
+		 * var for the rest of the loop to avoid a new stack var.
+		 *
+		 * 48 bytes is enough to display the header and a little bit
+		 * into the payload for debugging purposes.
+		 */
+		length = checkSMB(smb_buffer, smb_buffer->Mid, total_read);
+		if (length != 0)
+			cifs_dump_mem("Bad SMB: ", smb_buffer,
+					min_t(unsigned int, total_read, 48));
 
 		mid_entry = NULL;
 		server->lstrp = jiffies;
@@ -597,7 +611,8 @@ incomplete_rcv:
 			if ((mid_entry->mid == smb_buffer->Mid) &&
 			    (mid_entry->midState == MID_REQUEST_SUBMITTED) &&
 			    (mid_entry->command == smb_buffer->Command)) {
-				if (check2ndT2(smb_buffer,server->maxBuf) > 0) {
+				if (length == 0 &&
+				   check2ndT2(smb_buffer, server->maxBuf) > 0) {
 					/* We have a multipart transact2 resp */
 					isMultiRsp = true;
 					if (mid_entry->resp_buf) {
@@ -632,12 +647,17 @@ incomplete_rcv:
 				mid_entry->resp_buf = smb_buffer;
 				mid_entry->largeBuf = isLargeBuf;
 multi_t2_fnd:
-				mid_entry->midState = MID_RESPONSE_RECEIVED;
-				list_del_init(&mid_entry->qhead);
-				mid_entry->callback(mid_entry);
+				if (length == 0)
+					mid_entry->midState =
+							MID_RESPONSE_RECEIVED;
+				else
+					mid_entry->midState =
+							MID_RESPONSE_MALFORMED;
 #ifdef CONFIG_CIFS_STATS2
 				mid_entry->when_received = jiffies;
 #endif
+				list_del_init(&mid_entry->qhead);
+				mid_entry->callback(mid_entry);
 				break;
 			}
 			mid_entry = NULL;
@@ -653,6 +673,9 @@ multi_t2_fnd:
 				else
 					smallbuf = NULL;
 			}
+		} else if (length != 0) {
+			/* response sanity checks failed */
+			continue;
 		} else if (!is_valid_oplock_break(smb_buffer, server) &&
 			   !isMultiRsp) {
 			cERROR(1, "No task to wake, unknown frame received! "

@@ -210,7 +210,7 @@ void
 cpm_install_handler(int vec, void (*handler)(), void *dev_id)
 {
 
-	request_irq(vec, handler, IRQ_FLG_LOCK, "timer", dev_id);
+	request_irq(vec, handler, 0, "timer", dev_id);
 
 /* 	if (cpm_vecs[vec].handler != 0) */
 /* 		printk(KERN_INFO "CPM interrupt %x replacing %x\n", */

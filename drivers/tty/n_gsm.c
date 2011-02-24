@@ -2414,6 +2414,7 @@ static int gsmld_config(struct tty_struct *tty, struct gsm_mux *gsm,
 
 	gsm->initiator = c->initiator;
 	gsm->mru = c->mru;
+	gsm->mtu = c->mtu;
 	gsm->encoding = c->encapsulation;
 	gsm->adaption = c->adaption;
 	gsm->n2 = c->n2;

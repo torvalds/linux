@@ -167,7 +167,7 @@ reread:
 		break;
 	case cpu_to_be16(HFSP_WRAP_MAGIC):
 		if (!hfsplus_read_mdb(sbi->s_vhdr, &wd))
-			goto out;
+			goto out_free_backup_vhdr;
 		wd.ablk_size >>= HFSPLUS_SECTOR_SHIFT;
 		part_start += wd.ablk_start + wd.embed_start * wd.ablk_size;
 		part_size = wd.embed_count * wd.ablk_size;
@@ -179,7 +179,7 @@ reread:
 		 * (should do this only for cdrom/loop though)
 		 */
 		if (hfs_part_find(sb, &part_start, &part_size))
-			goto out;
+			goto out_free_backup_vhdr;
 		goto reread;
 	}
 

@@ -584,10 +584,14 @@ static void queue_realm_cap_snaps(struct ceph_snap_realm *realm)
 	if (lastinode)
 		iput(lastinode);
 
-	dout("queue_realm_cap_snaps %p %llx children\n", realm, realm->ino);
-	list_for_each_entry(child, &realm->children, child_item)
-		queue_realm_cap_snaps(child);
+	list_for_each_entry(child, &realm->children, child_item) {
+		dout("queue_realm_cap_snaps %p %llx queue child %p %llx\n",
+		     realm, realm->ino, child, child->ino);
+		list_del_init(&child->dirty_item);
+		list_add(&child->dirty_item, &realm->dirty_item);
+	}
 
+	list_del_init(&realm->dirty_item);
 	dout("queue_realm_cap_snaps %p %llx done\n", realm, realm->ino);
 }
 
@@ -683,7 +687,9 @@ more:
 	 * queue cap snaps _after_ we've built the new snap contexts,
 	 * so that i_head_snapc can be set appropriately.
 	 */
-	list_for_each_entry(realm, &dirty_realms, dirty_item) {
+	while (!list_empty(&dirty_realms)) {
+		realm = list_first_entry(&dirty_realms, struct ceph_snap_realm,
+					 dirty_item);
 		queue_realm_cap_snaps(realm);
 	}
 
