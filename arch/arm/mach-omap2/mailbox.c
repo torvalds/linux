@@ -398,14 +398,14 @@ static int __devinit omap2_mbox_probe(struct platform_device *pdev)
 	else if (cpu_is_omap34xx()) {
 		list = omap3_mboxes;
 
-		list[0]->irq = platform_get_irq_byname(pdev, "dsp");
+		list[0]->irq = platform_get_irq(pdev, 0);
 	}
 #endif
 #if defined(CONFIG_ARCH_OMAP2)
 	else if (cpu_is_omap2430()) {
 		list = omap2_mboxes;
 
-		list[0]->irq = platform_get_irq_byname(pdev, "dsp");
+		list[0]->irq = platform_get_irq(pdev, 0);
 	} else if (cpu_is_omap2420()) {
 		list = omap2_mboxes;
 
@@ -417,8 +417,7 @@ static int __devinit omap2_mbox_probe(struct platform_device *pdev)
 	else if (cpu_is_omap44xx()) {
 		list = omap4_mboxes;
 
-		list[0]->irq = list[1]->irq =
-			platform_get_irq_byname(pdev, "mbox");
+		list[0]->irq = list[1]->irq = platform_get_irq(pdev, 0);
 	}
 #endif
 	else {
