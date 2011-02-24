@@ -35,8 +35,8 @@
 
 static struct platform_device **omap_mcbsp_devices;
 
-void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
-					int size)
+void omap_mcbsp_register_board_cfg(struct resource *res, int res_count,
+			struct omap_mcbsp_platform_data *config, int size)
 {
 	int i;
 
@@ -54,6 +54,8 @@ void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
 		new_mcbsp = platform_device_alloc("omap-mcbsp", i + 1);
 		if (!new_mcbsp)
 			continue;
+		platform_device_add_resources(new_mcbsp, &res[i * res_count],
+					res_count);
 		new_mcbsp->dev.platform_data = &config[i];
 		ret = platform_device_add(new_mcbsp);
 		if (ret) {
@@ -65,8 +67,8 @@ void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
 }
 
 #else
-void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
-					int size)
+void omap_mcbsp_register_board_cfg(struct resource *res, int res_count,
+			struct omap_mcbsp_platform_data *config, int size)
 {  }
 #endif
 

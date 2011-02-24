@@ -1649,7 +1649,8 @@ static const struct attribute_group sidetone_attr_group = {
 
 static int __devinit omap_st_add(struct omap_mcbsp *mcbsp)
 {
-	struct omap_mcbsp_platform_data *pdata = mcbsp->pdata;
+	struct platform_device *pdev;
+	struct resource *res;
 	struct omap_mcbsp_st_data *st_data;
 	int err;
 
@@ -1659,7 +1660,10 @@ static int __devinit omap_st_add(struct omap_mcbsp *mcbsp)
 		goto err1;
 	}
 
-	st_data->io_base_st = ioremap(pdata->phys_base_st, SZ_4K);
+	pdev = container_of(mcbsp->dev, struct platform_device, dev);
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sidetone");
+	st_data->io_base_st = ioremap(res->start, resource_size(res));
 	if (!st_data->io_base_st) {
 		err = -ENOMEM;
 		goto err2;
@@ -1748,6 +1752,7 @@ static int __devinit omap_mcbsp_probe(struct platform_device *pdev)
 	struct omap_mcbsp_platform_data *pdata = pdev->dev.platform_data;
 	struct omap_mcbsp *mcbsp;
 	int id = pdev->id - 1;
+	struct resource *res;
 	int ret = 0;
 
 	if (!pdata) {
@@ -1777,25 +1782,59 @@ static int __devinit omap_mcbsp_probe(struct platform_device *pdev)
 	mcbsp->dma_tx_lch = -1;
 	mcbsp->dma_rx_lch = -1;
 
-	mcbsp->phys_base = pdata->phys_base;
-	mcbsp->io_base = ioremap(pdata->phys_base, SZ_4K);
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpu");
+	if (!res) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (!res) {
+			dev_err(&pdev->dev, "%s:mcbsp%d has invalid memory"
+					"resource\n", __func__, pdev->id);
+			ret = -ENOMEM;
+			goto exit;
+		}
+	}
+	mcbsp->phys_base = res->start;
+	omap_mcbsp_cache_size = resource_size(res);
+	mcbsp->io_base = ioremap(res->start, resource_size(res));
 	if (!mcbsp->io_base) {
 		ret = -ENOMEM;
 		goto err_ioremap;
 	}
 
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dma");
+	if (!res)
+		mcbsp->phys_dma_base = mcbsp->phys_base;
+	else
+		mcbsp->phys_dma_base = res->start;
+
 	/* Default I/O is IRQ based */
 	mcbsp->io_type = OMAP_MCBSP_IRQ_IO;
-	mcbsp->tx_irq = pdata->tx_irq;
-	mcbsp->rx_irq = pdata->rx_irq;
-	mcbsp->dma_rx_sync = pdata->dma_rx_sync;
-	mcbsp->dma_tx_sync = pdata->dma_tx_sync;
+
+	mcbsp->tx_irq = platform_get_irq_byname(pdev, "tx");
+	mcbsp->rx_irq = platform_get_irq_byname(pdev, "rx");
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "rx");
+	if (!res) {
+		dev_err(&pdev->dev, "%s:mcbsp%d has invalid rx DMA channel\n",
+					__func__, pdev->id);
+		ret = -ENODEV;
+		goto err_res;
+	}
+	mcbsp->dma_rx_sync = res->start;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "tx");
+	if (!res) {
+		dev_err(&pdev->dev, "%s:mcbsp%d has invalid tx DMA channel\n",
+					__func__, pdev->id);
+		ret = -ENODEV;
+		goto err_res;
+	}
+	mcbsp->dma_tx_sync = res->start;
 
 	mcbsp->iclk = clk_get(&pdev->dev, "ick");
 	if (IS_ERR(mcbsp->iclk)) {
 		ret = PTR_ERR(mcbsp->iclk);
 		dev_err(&pdev->dev, "unable to get ick: %d\n", ret);
-		goto err_iclk;
+		goto err_res;
 	}
 
 	mcbsp->fclk = clk_get(&pdev->dev, "fck");
@@ -1817,7 +1856,7 @@ static int __devinit omap_mcbsp_probe(struct platform_device *pdev)
 
 err_fclk:
 	clk_put(mcbsp->iclk);
-err_iclk:
+err_res:
 	iounmap(mcbsp->io_base);
 err_ioremap:
 	kfree(mcbsp);

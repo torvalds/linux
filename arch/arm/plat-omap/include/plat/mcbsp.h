@@ -63,9 +63,12 @@ static struct platform_device omap_mcbsp##port_nr = {	\
 #define OMAP34XX_MCBSP4_BASE	0x49026000
 #define OMAP34XX_MCBSP5_BASE	0x48096000
 
-#define OMAP44XX_MCBSP1_BASE	0x49022000
-#define OMAP44XX_MCBSP2_BASE	0x49024000
-#define OMAP44XX_MCBSP3_BASE	0x49026000
+#define OMAP44XX_MCBSP1_BASE	0x40122000
+#define OMAP44XX_MCBSP1_DMA_BASE	0x49022000
+#define OMAP44XX_MCBSP2_BASE	0x40124000
+#define OMAP44XX_MCBSP2_DMA_BASE	0x49024000
+#define OMAP44XX_MCBSP3_BASE	0x40126000
+#define OMAP44XX_MCBSP3_DMA_BASE	0x49026000
 #define OMAP44XX_MCBSP4_BASE	0x48096000
 
 #if defined(CONFIG_ARCH_OMAP15XX) || defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
@@ -431,6 +434,7 @@ struct omap_mcbsp_st_data {
 struct omap_mcbsp {
 	struct device *dev;
 	unsigned long phys_base;
+	unsigned long phys_dma_base;
 	void __iomem *io_base;
 	u8 id;
 	u8 free;
@@ -474,8 +478,8 @@ extern int omap_mcbsp_count, omap_mcbsp_cache_size;
 #define id_to_mcbsp_ptr(id)		mcbsp_ptr[id];
 
 int omap_mcbsp_init(void);
-void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
-					int size);
+void omap_mcbsp_register_board_cfg(struct resource *res, int res_count,
+			struct omap_mcbsp_platform_data *config, int size);
 void omap_mcbsp_config(unsigned int id, const struct omap_mcbsp_reg_cfg * config);
 #ifdef CONFIG_ARCH_OMAP3
 void omap_mcbsp_set_tx_threshold(unsigned int id, u16 threshold);
