@@ -763,6 +763,12 @@ out:
 	return irq;
 }
 
+
+int xen_pirq_from_irq(unsigned irq)
+{
+	return pirq_from_irq(irq);
+}
+EXPORT_SYMBOL_GPL(xen_pirq_from_irq);
 int bind_evtchn_to_irq(unsigned int evtchn)
 {
 	int irq;

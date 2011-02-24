@@ -95,6 +95,9 @@ int xen_destroy_irq(int irq);
 /* Return irq from pirq */
 int xen_irq_from_pirq(unsigned pirq);
 
+/* Return the pirq allocated to the irq. */
+int xen_pirq_from_irq(unsigned irq);
+
 /* Determine whether to ignore this IRQ if it is passed to a guest. */
 int xen_test_irq_shared(int irq);
 
