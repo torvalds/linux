@@ -196,7 +196,7 @@ static int tenxpress_phy_init(struct efx_nic *efx)
 		if (rc < 0)
 			return rc;
 
-		rc = efx_mdio_check_mmds(efx, TENXPRESS_REQUIRED_DEVS, 0);
+		rc = efx_mdio_check_mmds(efx, TENXPRESS_REQUIRED_DEVS);
 		if (rc < 0)
 			return rc;
 	}

@@ -193,7 +193,7 @@ static int txc_reset_phy(struct efx_nic *efx)
 		goto fail;
 
 	/* Check that all the MMDs we expect are present and responding. */
-	rc = efx_mdio_check_mmds(efx, TXC_REQUIRED_DEVS, 0);
+	rc = efx_mdio_check_mmds(efx, TXC_REQUIRED_DEVS);
 	if (rc < 0)
 		goto fail;
 
