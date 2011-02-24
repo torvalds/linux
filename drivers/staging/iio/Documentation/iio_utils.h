@@ -374,7 +374,7 @@ inline int build_channel_array(const char *device_dir,
 		}
 	}
 	/* reorder so that the array is in index order*/
-	current = malloc(sizeof(**ci_array)**counter);
+	current = malloc(sizeof(**ci_array)*(*counter));
 	if (current == NULL) {
 		ret = -ENOMEM;
 		goto error_cleanup_array;
