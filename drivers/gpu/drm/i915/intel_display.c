@@ -1630,19 +1630,19 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		struct drm_i915_gem_object *obj = to_intel_framebuffer(old_fb)->obj;
 
 		wait_event(dev_priv->pending_flip_queue,
+			   atomic_read(&dev_priv->mm.wedged) ||
 			   atomic_read(&obj->pending_flip) == 0);
 
 		/* Big Hammer, we also need to ensure that any pending
 		 * MI_WAIT_FOR_EVENT inside a user batch buffer on the
 		 * current scanout is retired before unpinning the old
 		 * framebuffer.
+		 *
+		 * This should only fail upon a hung GPU, in which case we
+		 * can safely continue.
 		 */
 		ret = i915_gem_object_flush_gpu(obj, false);
-		if (ret) {
-			i915_gem_object_unpin(to_intel_framebuffer(crtc->fb)->obj);
-			mutex_unlock(&dev->struct_mutex);
-			return ret;
-		}
+		(void) ret;
 	}
 
 	ret = intel_pipe_set_base_atomic(crtc, crtc->fb, x, y,
@@ -2045,6 +2045,31 @@ static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 		   atomic_read(&obj->pending_flip) == 0);
 }
 
+static bool intel_crtc_driving_pch(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct intel_encoder *encoder;
+
+	/*
+	 * If there's a non-PCH eDP on this crtc, it must be DP_A, and that
+	 * must be driven by its own crtc; no sharing is possible.
+	 */
+	list_for_each_entry(encoder, &mode_config->encoder_list, base.head) {
+		if (encoder->base.crtc != crtc)
+			continue;
+
+		switch (encoder->type) {
+		case INTEL_OUTPUT_EDP:
+			if (!intel_encoder_is_pch_edp(&encoder->base))
+				return false;
+			continue;
+		}
+	}
+
+	return true;
+}
+
 static void ironlake_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -2053,6 +2078,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
 	u32 reg, temp;
+	bool is_pch_port = false;
 
 	if (intel_crtc->active)
 		return;
@@ -2066,7 +2092,56 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 			I915_WRITE(PCH_LVDS, temp | LVDS_PORT_EN);
 	}
 
-	ironlake_fdi_enable(crtc);
+	is_pch_port = intel_crtc_driving_pch(crtc);
+
+	if (is_pch_port)
+		ironlake_fdi_enable(crtc);
+	else {
+		/* disable CPU FDI tx and PCH FDI rx */
+		reg = FDI_TX_CTL(pipe);
+		temp = I915_READ(reg);
+		I915_WRITE(reg, temp & ~FDI_TX_ENABLE);
+		POSTING_READ(reg);
+
+		reg = FDI_RX_CTL(pipe);
+		temp = I915_READ(reg);
+		temp &= ~(0x7 << 16);
+		temp |= (I915_READ(PIPECONF(pipe)) & PIPE_BPC_MASK) << 11;
+		I915_WRITE(reg, temp & ~FDI_RX_ENABLE);
+
+		POSTING_READ(reg);
+		udelay(100);
+
+		/* Ironlake workaround, disable clock pointer after downing FDI */
+		if (HAS_PCH_IBX(dev))
+			I915_WRITE(FDI_RX_CHICKEN(pipe),
+				   I915_READ(FDI_RX_CHICKEN(pipe) &
+					     ~FDI_RX_PHASE_SYNC_POINTER_ENABLE));
+
+		/* still set train pattern 1 */
+		reg = FDI_TX_CTL(pipe);
+		temp = I915_READ(reg);
+		temp &= ~FDI_LINK_TRAIN_NONE;
+		temp |= FDI_LINK_TRAIN_PATTERN_1;
+		I915_WRITE(reg, temp);
+
+		reg = FDI_RX_CTL(pipe);
+		temp = I915_READ(reg);
+		if (HAS_PCH_CPT(dev)) {
+			temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
+			temp |= FDI_LINK_TRAIN_PATTERN_1_CPT;
+		} else {
+			temp &= ~FDI_LINK_TRAIN_NONE;
+			temp |= FDI_LINK_TRAIN_PATTERN_1;
+		}
+		/* BPC in FDI rx is consistent with that in PIPECONF */
+		temp &= ~(0x07 << 16);
+		temp |= (I915_READ(PIPECONF(pipe)) & PIPE_BPC_MASK) << 11;
+		I915_WRITE(reg, temp);
+
+		POSTING_READ(reg);
+		udelay(100);
+	}
 
 	/* Enable panel fitting for LVDS */
 	if (dev_priv->pch_pf_size &&
@@ -2099,6 +2174,10 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 		I915_WRITE(reg, temp | DISPLAY_PLANE_ENABLE);
 		intel_flush_display_plane(dev, plane);
 	}
+
+	/* Skip the PCH stuff if possible */
+	if (!is_pch_port)
+		goto done;
 
 	/* For PCH output, training FDI link */
 	if (IS_GEN6(dev))
@@ -2184,7 +2263,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	I915_WRITE(reg, temp | TRANS_ENABLE);
 	if (wait_for(I915_READ(reg) & TRANS_STATE_ENABLE, 100))
 		DRM_ERROR("failed to enable transcoder %d\n", pipe);
-
+done:
 	intel_crtc_load_lut(crtc);
 	intel_update_fbc(dev);
 	intel_crtc_update_cursor(crtc, true);
