@@ -165,15 +165,4 @@ enum {
 	PEP_IND_READY,
 };
 
-#ifdef CONFIG_PHONET_PIPECTRLR
-#define PNS_PEP_CONNECT_UTID           0x02
-#define PNS_PIPE_CREATED_IND_UTID      0x04
-#define PNS_PIPE_ENABLE_UTID           0x0A
-#define PNS_PIPE_ENABLED_IND_UTID      0x0C
-#define PNS_PIPE_DISABLE_UTID          0x0F
-#define PNS_PIPE_DISABLED_IND_UTID     0x11
-#define PNS_PEP_DISCONNECT_UTID        0x06
-
-#endif /* CONFIG_PHONET_PIPECTRLR */
-
 #endif

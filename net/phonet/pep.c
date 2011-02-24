@@ -172,8 +172,7 @@ static int pipe_get_flow_info(struct sock *sk, struct sk_buff *skb,
 	return 0;
 }
 
-static int pipe_handler_send_req(struct sock *sk, u8 utid,
-		u8 msg_id, gfp_t priority)
+static int pipe_handler_send_req(struct sock *sk, u8 msg_id, gfp_t priority)
 {
 	int len;
 	struct pnpipehdr *ph;
@@ -212,7 +211,7 @@ static int pipe_handler_send_req(struct sock *sk, u8 utid,
 	__skb_push(skb, sizeof(*ph));
 	skb_reset_transport_header(skb);
 	ph = pnp_hdr(skb);
-	ph->utid = utid;
+	ph->utid = msg_id; /* whatever */
 	ph->message_id = msg_id;
 	ph->pipe_handle = pn->pipe_handle;
 	ph->error_code = PN_PIPE_NO_ERROR;
@@ -220,8 +219,7 @@ static int pipe_handler_send_req(struct sock *sk, u8 utid,
 	return pn_skb_send(sk, skb, NULL);
 }
 
-static int pipe_handler_send_created_ind(struct sock *sk,
-		u8 utid, u8 msg_id)
+static int pipe_handler_send_created_ind(struct sock *sk, u8 msg_id)
 {
 	int err_code;
 	struct pnpipehdr *ph;
@@ -254,7 +252,7 @@ static int pipe_handler_send_created_ind(struct sock *sk,
 	__skb_push(skb, sizeof(*ph));
 	skb_reset_transport_header(skb);
 	ph = pnp_hdr(skb);
-	ph->utid = utid;
+	ph->utid = 0;
 	ph->message_id = msg_id;
 	ph->pipe_handle = pn->pipe_handle;
 	ph->error_code = err_code;
@@ -262,7 +260,7 @@ static int pipe_handler_send_created_ind(struct sock *sk,
 	return pn_skb_send(sk, skb, NULL);
 }
 
-static int pipe_handler_send_ind(struct sock *sk, u8 utid, u8 msg_id)
+static int pipe_handler_send_ind(struct sock *sk, u8 msg_id)
 {
 	int err_code;
 	struct pnpipehdr *ph;
@@ -287,7 +285,7 @@ static int pipe_handler_send_ind(struct sock *sk, u8 utid, u8 msg_id)
 	__skb_push(skb, sizeof(*ph));
 	skb_reset_transport_header(skb);
 	ph = pnp_hdr(skb);
-	ph->utid = utid;
+	ph->utid = 0;
 	ph->message_id = msg_id;
 	ph->pipe_handle = pn->pipe_handle;
 	ph->error_code = err_code;
@@ -297,16 +295,9 @@ static int pipe_handler_send_ind(struct sock *sk, u8 utid, u8 msg_id)
 
 static int pipe_handler_enable_pipe(struct sock *sk, int enable)
 {
-	int utid, req;
+	u8 id = enable ? PNS_PEP_ENABLE_REQ : PNS_PEP_DISABLE_REQ;
 
-	if (enable) {
-		utid = PNS_PIPE_ENABLE_UTID;
-		req = PNS_PEP_ENABLE_REQ;
-	} else {
-		utid = PNS_PIPE_DISABLE_UTID;
-		req = PNS_PEP_DISABLE_REQ;
-	}
-	return pipe_handler_send_req(sk, utid, req, GFP_ATOMIC);
+	return pipe_handler_send_req(sk, id, GFP_KERNEL);
 }
 #endif
 
@@ -538,8 +529,7 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 
 #ifdef CONFIG_PHONET_PIPECTRLR
 	case PNS_PEP_ENABLE_RESP:
-		pipe_handler_send_ind(sk, PNS_PIPE_ENABLED_IND_UTID,
-				PNS_PIPE_ENABLED_IND);
+		pipe_handler_send_ind(sk, PNS_PIPE_ENABLED_IND);
 
 		if (!pn_flow_safe(pn->tx_fc)) {
 			atomic_set(&pn->tx_credits, 1);
@@ -573,8 +563,7 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 #ifdef CONFIG_PHONET_PIPECTRLR
 	case PNS_PEP_DISABLE_RESP:
 		atomic_set(&pn->tx_credits, 0);
-		pipe_handler_send_ind(sk, PNS_PIPE_DISABLED_IND_UTID,
-				PNS_PIPE_DISABLED_IND);
+		pipe_handler_send_ind(sk, PNS_PIPE_DISABLED_IND);
 		sk->sk_state = TCP_SYN_RECV;
 		pn->rx_credits = 0;
 		break;
@@ -678,7 +667,6 @@ static int pep_connresp_rcv(struct sock *sk, struct sk_buff *skb)
 	u8 host_pref_rx_fc[3] = {3, 2, 1}, host_req_tx_fc[3] = {3, 2, 1};
 	u8 remote_pref_rx_fc[3], remote_req_tx_fc[3];
 	u8 negotiated_rx_fc, negotiated_tx_fc;
-	int ret;
 
 	pipe_get_flow_info(sk, skb, remote_pref_rx_fc,
 			remote_req_tx_fc);
@@ -697,12 +685,7 @@ static int pep_connresp_rcv(struct sock *sk, struct sk_buff *skb)
 	pn->tx_fc = negotiated_tx_fc;
 	sk->sk_state_change(sk);
 
-	ret = pipe_handler_send_created_ind(sk,
-			PNS_PIPE_CREATED_IND_UTID,
-			PNS_PIPE_CREATED_IND
-			);
-
-	return ret;
+	return pipe_handler_send_created_ind(sk, PNS_PIPE_CREATED_IND);
 }
 #endif
 
@@ -943,9 +926,7 @@ static void pep_sock_close(struct sock *sk, long timeout)
 		pipe_do_remove(sk);
 #else
 		/* send pep disconnect request */
-		pipe_handler_send_req(sk,
-				PNS_PEP_DISCONNECT_UTID, PNS_PEP_DISCONNECT_REQ,
-				GFP_KERNEL);
+		pipe_handler_send_req(sk, PNS_PEP_DISCONNECT_REQ, GFP_KERNEL);
 		sk->sk_state = TCP_CLOSE;
 #endif
 	}
@@ -1034,9 +1015,7 @@ static int pep_sock_connect(struct sock *sk, struct sockaddr *addr, int len)
 
 	pn->pn_sk.dobject = pn_sockaddr_get_object(spn);
 	pn->pn_sk.resource = pn_sockaddr_get_resource(spn);
-	return pipe_handler_send_req(sk,
-			PNS_PEP_CONNECT_UTID, PNS_PEP_CONNECT_REQ,
-			GFP_ATOMIC);
+	return pipe_handler_send_req(sk, PNS_PEP_CONNECT_REQ, GFP_KERNEL);
 }
 #endif
 
