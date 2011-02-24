@@ -809,7 +809,7 @@ static irqreturn_t iommu_fault_handler(int irq, void *data)
 	iopgd = iopgd_offset(obj, da);
 
 	if (!iopgd_is_table(*iopgd)) {
-		dev_err(obj->dev, "%s: da:%08x pgd:%p *pgd:%08x\n", __func__,
+		dev_err(obj->dev, "%s: da:%08x pgd:%p *pgd:%08x\n", obj->name,
 			da, iopgd, *iopgd);
 		return IRQ_NONE;
 	}
@@ -817,7 +817,7 @@ static irqreturn_t iommu_fault_handler(int irq, void *data)
 	iopte = iopte_offset(iopgd, da);
 
 	dev_err(obj->dev, "%s: da:%08x pgd:%p *pgd:%08x pte:%p *pte:%08x\n",
-		__func__, da, iopgd, *iopgd, iopte, *iopte);
+		obj->name, da, iopgd, *iopgd, iopte, *iopte);
 
 	return IRQ_NONE;
 }
