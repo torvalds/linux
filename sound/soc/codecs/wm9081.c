@@ -1363,7 +1363,7 @@ MODULE_DEVICE_TABLE(i2c, wm9081_i2c_id);
 
 static struct i2c_driver wm9081_i2c_driver = {
 	.driver = {
-		.name = "wm9081-codec",
+		.name = "wm9081",
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm9081_i2c_probe,
