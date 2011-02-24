@@ -506,7 +506,7 @@ struct xfrm_policy {
 	struct xfrm_tmpl       	xfrm_vec[XFRM_MAX_DEPTH];
 };
 
-static inline struct net *xp_net(struct xfrm_policy *xp)
+static inline struct net *xp_net(const struct xfrm_policy *xp)
 {
 	return read_pnet(&xp->xp_net);
 }
