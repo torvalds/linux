@@ -2649,6 +2649,8 @@ DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_read_blocks_sync);
 
 DEFINE_OCFS2_ULL_EVENT(ocfs2_read_blocks_sync_jbd);
 
+DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_read_blocks_from_disk);
+
 DEFINE_OCFS2_ULL_INT_INT_INT_EVENT(ocfs2_read_blocks_bh);
 
 DEFINE_OCFS2_ULL_INT_INT_INT_EVENT(ocfs2_read_blocks_end);
@@ -2688,6 +2690,46 @@ TRACE_EVENT(ocfs2_read_blocks_begin,
 );
 
 /* End of trace events for fs/ocfs2/buffer_head_io.c. */
+
+/* Trace events for fs/ocfs2/uptodate.c. */
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_purge_copied_metadata_tree);
+
+DEFINE_OCFS2_ULL_UINT_UINT_EVENT(ocfs2_metadata_cache_purge);
+
+DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_buffer_cached_begin);
+
+TRACE_EVENT(ocfs2_buffer_cached_end,
+	TP_PROTO(int index, void *item),
+	TP_ARGS(index, item),
+	TP_STRUCT__entry(
+		__field(int, index)
+		__field(void *, item)
+	),
+	TP_fast_assign(
+		__entry->index = index;
+		__entry->item = item;
+	),
+	TP_printk("%d %p", __entry->index, __entry->item)
+);
+
+DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_append_cache_array);
+
+DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_insert_cache_tree);
+
+DEFINE_OCFS2_ULL_UINT_UINT_EVENT(ocfs2_expand_cache);
+
+DEFINE_OCFS2_ULL_UINT_UINT_EVENT(ocfs2_set_buffer_uptodate);
+
+DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_set_buffer_uptodate_begin);
+
+DEFINE_OCFS2_ULL_UINT_UINT_EVENT(ocfs2_remove_metadata_array);
+
+DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_remove_metadata_tree);
+
+DEFINE_OCFS2_ULL_ULL_UINT_UINT_EVENT(ocfs2_remove_block_from_cache);
+
+/* End of trace events for fs/ocfs2/uptodate.c. */
 #endif /* _TRACE_OCFS2_H */
 
 /* This part must be outside protection */

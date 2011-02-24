@@ -247,8 +247,7 @@ int ocfs2_read_blocks(struct ocfs2_caching_info *ci, u64 block, int nr,
 		 */
 
 		if (!ignore_cache && !ocfs2_buffer_uptodate(ci, bh)) {
-			mlog(ML_UPTODATE,
-			     "bh (%llu), owner %llu not uptodate\n",
+			trace_ocfs2_read_blocks_from_disk(
 			     (unsigned long long)bh->b_blocknr,
 			     (unsigned long long)ocfs2_metadata_cache_owner(ci));
 			/* We're using ignore_cache here to say
