@@ -11,7 +11,11 @@ config FB_OMAP
 config FB_OMAP_LCD_VGA
         bool "Use LCD in VGA mode"
 	        depends on MACH_OMAP_3430SDP || MACH_OMAP_LDP
-
+		help
+		  Set LCD resolution as VGA (640 X 480).
+		  Default resolution without this option is QVGA(320 X 240).
+		  Please take a look at drivers/video/omap/lcd_ldp.c file
+		  for lcd driver code.
 choice
 	depends on FB_OMAP && MACH_OVERO
 	prompt "Screen resolution"
