@@ -704,18 +704,6 @@ the start of smb requests and responses can be enabled via:
 
 	echo 1 > /proc/fs/cifs/traceSMB
 
-Two other experimental features are under development. To test these
-requires enabling CONFIG_CIFS_EXPERIMENTAL
-
-	cifsacl support needed to retrieve approximated mode bits based on
-		the contents on the CIFS ACL.
-
-	lease support: cifs will check the oplock state before calling into
-	the vfs to see if we can grant a lease on a file.
-
-	DNOTIFY fcntl: needed for support of directory change 
-			    notification and perhaps later for file leases)
-
 Per share (per client mount) statistics are available in /proc/fs/cifs/Stats
 if the kernel was configured with cifs statistics enabled.  The statistics
 represent the number of successful (ie non-zero return code from the server) 

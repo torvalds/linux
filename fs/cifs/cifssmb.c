@@ -2516,7 +2516,17 @@ querySymLinkRetry:
 	return rc;
 }
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
+#ifdef CONFIG_CIFS_SYMLINK_EXPERIMENTAL
+/*
+ *	Recent Windows versions now create symlinks more frequently
+ *	and they use the "reparse point" mechanism below.  We can of course
+ *	do symlinks nicely to Samba and other servers which support the
+ *	CIFS Unix Extensions and we can also do SFU symlinks and "client only"
+ *	"MF" symlinks optionally, but for recent Windows we really need to
+ *	reenable the code below and fix the cifs_symlink callers to handle this.
+ *	In the interim this code has been moved to its own config option so
+ *	it is not compiled in by default until callers fixed up and more tested.
+ */
 int
 CIFSSMBQueryReparseLinkInfo(const int xid, struct cifsTconInfo *tcon,
 			const unsigned char *searchName,
@@ -2618,7 +2628,7 @@ qreparse_out:
 
 	return rc;
 }
-#endif /* CIFS_EXPERIMENTAL */
+#endif /* CIFS_SYMLINK_EXPERIMENTAL */ /* BB temporarily unused */
 
 #ifdef CONFIG_CIFS_POSIX
 
