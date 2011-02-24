@@ -32,6 +32,7 @@
 #include <plat/display.h>
 #include <plat/clock.h>
 #include "dss.h"
+#include "dss_features.h"
 
 #define DSS_SZ_REGS			SZ_512
 
@@ -110,10 +111,11 @@ void dss_save_context(void)
 	SR(SYSCONFIG);
 	SR(CONTROL);
 
-#ifdef CONFIG_OMAP2_DSS_SDI
-	SR(SDI_CONTROL);
-	SR(PLL_CONTROL);
-#endif
+	if (dss_feat_get_supported_displays(OMAP_DSS_CHANNEL_LCD) &
+			OMAP_DISPLAY_TYPE_SDI) {
+		SR(SDI_CONTROL);
+		SR(PLL_CONTROL);
+	}
 }
 
 void dss_restore_context(void)
@@ -124,10 +126,11 @@ void dss_restore_context(void)
 	RR(SYSCONFIG);
 	RR(CONTROL);
 
-#ifdef CONFIG_OMAP2_DSS_SDI
-	RR(SDI_CONTROL);
-	RR(PLL_CONTROL);
-#endif
+	if (dss_feat_get_supported_displays(OMAP_DSS_CHANNEL_LCD) &
+			OMAP_DISPLAY_TYPE_SDI) {
+		RR(SDI_CONTROL);
+		RR(PLL_CONTROL);
+	}
 }
 
 #undef SR
@@ -259,9 +262,13 @@ void dss_dump_regs(struct seq_file *s)
 	DUMPREG(DSS_SYSSTATUS);
 	DUMPREG(DSS_IRQSTATUS);
 	DUMPREG(DSS_CONTROL);
-	DUMPREG(DSS_SDI_CONTROL);
-	DUMPREG(DSS_PLL_CONTROL);
-	DUMPREG(DSS_SDI_STATUS);
+
+	if (dss_feat_get_supported_displays(OMAP_DSS_CHANNEL_LCD) &
+			OMAP_DISPLAY_TYPE_SDI) {
+		DUMPREG(DSS_SDI_CONTROL);
+		DUMPREG(DSS_PLL_CONTROL);
+		DUMPREG(DSS_SDI_STATUS);
+	}
 
 	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 #undef DUMPREG
