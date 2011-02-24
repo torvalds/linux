@@ -2543,6 +2543,105 @@ DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_encode_fh_parent);
 DEFINE_OCFS2_INT_EVENT(ocfs2_encode_fh_type);
 
 /* End of trace events for fs/ocfs2/export.c. */
+
+/* Trace events for fs/ocfs2/journal.c. */
+
+DEFINE_OCFS2_UINT_EVENT(ocfs2_commit_cache_begin);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_commit_cache_end);
+
+DEFINE_OCFS2_INT_INT_EVENT(ocfs2_extend_trans);
+
+DEFINE_OCFS2_INT_EVENT(ocfs2_extend_trans_restart);
+
+DEFINE_OCFS2_ULL_ULL_UINT_UINT_EVENT(ocfs2_journal_access);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_journal_dirty);
+
+DEFINE_OCFS2_ULL_ULL_UINT_EVENT(ocfs2_journal_init);
+
+DEFINE_OCFS2_UINT_EVENT(ocfs2_journal_init_maxlen);
+
+DEFINE_OCFS2_INT_EVENT(ocfs2_journal_shutdown);
+
+DEFINE_OCFS2_POINTER_EVENT(ocfs2_journal_shutdown_wait);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_complete_recovery);
+
+DEFINE_OCFS2_INT_EVENT(ocfs2_complete_recovery_end);
+
+TRACE_EVENT(ocfs2_complete_recovery_slot,
+	TP_PROTO(int slot, unsigned long long la_ino,
+		 unsigned long long tl_ino, void *qrec),
+	TP_ARGS(slot, la_ino, tl_ino, qrec),
+	TP_STRUCT__entry(
+		__field(int, slot)
+		__field(unsigned long long, la_ino)
+		__field(unsigned long long, tl_ino)
+		__field(void *, qrec)
+	),
+	TP_fast_assign(
+		__entry->slot = slot;
+		__entry->la_ino = la_ino;
+		__entry->tl_ino = tl_ino;
+		__entry->qrec = qrec;
+	),
+	TP_printk("%d %llu %llu %p", __entry->slot, __entry->la_ino,
+		  __entry->tl_ino, __entry->qrec)
+);
+
+DEFINE_OCFS2_INT_INT_EVENT(ocfs2_recovery_thread_node);
+
+DEFINE_OCFS2_INT_EVENT(ocfs2_recovery_thread_end);
+
+TRACE_EVENT(ocfs2_recovery_thread,
+	TP_PROTO(int node_num, int osb_node_num, int disable,
+		 void *recovery_thread, int map_set),
+	TP_ARGS(node_num, osb_node_num, disable, recovery_thread, map_set),
+	TP_STRUCT__entry(
+		__field(int, node_num)
+		__field(int, osb_node_num)
+		__field(int,disable)
+		__field(void *, recovery_thread)
+		__field(int,map_set)
+	),
+	TP_fast_assign(
+		__entry->node_num = node_num;
+		__entry->osb_node_num = osb_node_num;
+		__entry->disable = disable;
+		__entry->recovery_thread = recovery_thread;
+		__entry->map_set = map_set;
+	),
+	TP_printk("%d %d %d %p %d", __entry->node_num,
+		   __entry->osb_node_num, __entry->disable,
+		   __entry->recovery_thread, __entry->map_set)
+);
+
+DEFINE_OCFS2_UINT_UINT_UINT_EVENT(ocfs2_replay_journal_recovered);
+
+DEFINE_OCFS2_INT_EVENT(ocfs2_replay_journal_lock_err);
+
+DEFINE_OCFS2_INT_EVENT(ocfs2_replay_journal_skip);
+
+DEFINE_OCFS2_UINT_UINT_UINT_EVENT(ocfs2_recover_node);
+
+DEFINE_OCFS2_UINT_UINT_EVENT(ocfs2_recover_node_skip);
+
+DEFINE_OCFS2_UINT_UINT_EVENT(ocfs2_mark_dead_nodes);
+
+DEFINE_OCFS2_UINT_UINT_UINT_EVENT(ocfs2_queue_orphan_scan_begin);
+
+DEFINE_OCFS2_UINT_UINT_UINT_EVENT(ocfs2_queue_orphan_scan_end);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_orphan_filldir);
+
+DEFINE_OCFS2_INT_EVENT(ocfs2_recover_orphans);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_recover_orphans_iput);
+
+DEFINE_OCFS2_INT_EVENT(ocfs2_wait_on_mount);
+
+/* End of trace events for fs/ocfs2/journal.c. */
 #endif /* _TRACE_OCFS2_H */
 
 /* This part must be outside protection */
