@@ -1727,7 +1727,7 @@ void xfrm_replay_advance(struct xfrm_state *x, __be32 net_seq)
 static LIST_HEAD(xfrm_km_list);
 static DEFINE_RWLOCK(xfrm_km_lock);
 
-void km_policy_notify(struct xfrm_policy *xp, int dir, struct km_event *c)
+void km_policy_notify(struct xfrm_policy *xp, int dir, const struct km_event *c)
 {
 	struct xfrm_mgr *km;
 
@@ -1738,7 +1738,7 @@ void km_policy_notify(struct xfrm_policy *xp, int dir, struct km_event *c)
 	read_unlock(&xfrm_km_lock);
 }
 
-void km_state_notify(struct xfrm_state *x, struct km_event *c)
+void km_state_notify(struct xfrm_state *x, const struct km_event *c)
 {
 	struct xfrm_mgr *km;
 	read_lock(&xfrm_km_lock);

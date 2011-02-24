@@ -1582,7 +1582,7 @@ static inline size_t xfrm_aevent_msgsize(void)
 	       + nla_total_size(4); /* XFRM_AE_ETHR */
 }
 
-static int build_aevent(struct sk_buff *skb, struct xfrm_state *x, struct km_event *c)
+static int build_aevent(struct sk_buff *skb, struct xfrm_state *x, const struct km_event *c)
 {
 	struct xfrm_aevent_id *id;
 	struct nlmsghdr *nlh;
@@ -2220,7 +2220,7 @@ static inline size_t xfrm_expire_msgsize(void)
 	       + nla_total_size(sizeof(struct xfrm_mark));
 }
 
-static int build_expire(struct sk_buff *skb, struct xfrm_state *x, struct km_event *c)
+static int build_expire(struct sk_buff *skb, struct xfrm_state *x, const struct km_event *c)
 {
 	struct xfrm_user_expire *ue;
 	struct nlmsghdr *nlh;
@@ -2242,7 +2242,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static int xfrm_exp_state_notify(struct xfrm_state *x, struct km_event *c)
+static int xfrm_exp_state_notify(struct xfrm_state *x, const struct km_event *c)
 {
 	struct net *net = xs_net(x);
 	struct sk_buff *skb;
@@ -2259,7 +2259,7 @@ static int xfrm_exp_state_notify(struct xfrm_state *x, struct km_event *c)
 	return nlmsg_multicast(net->xfrm.nlsk, skb, 0, XFRMNLGRP_EXPIRE, GFP_ATOMIC);
 }
 
-static int xfrm_aevent_state_notify(struct xfrm_state *x, struct km_event *c)
+static int xfrm_aevent_state_notify(struct xfrm_state *x, const struct km_event *c)
 {
 	struct net *net = xs_net(x);
 	struct sk_buff *skb;
@@ -2274,7 +2274,7 @@ static int xfrm_aevent_state_notify(struct xfrm_state *x, struct km_event *c)
 	return nlmsg_multicast(net->xfrm.nlsk, skb, 0, XFRMNLGRP_AEVENTS, GFP_ATOMIC);
 }
 
-static int xfrm_notify_sa_flush(struct km_event *c)
+static int xfrm_notify_sa_flush(const struct km_event *c)
 {
 	struct net *net = c->net;
 	struct xfrm_usersa_flush *p;
@@ -2330,7 +2330,7 @@ static inline size_t xfrm_sa_len(struct xfrm_state *x)
 	return l;
 }
 
-static int xfrm_notify_sa(struct xfrm_state *x, struct km_event *c)
+static int xfrm_notify_sa(struct xfrm_state *x, const struct km_event *c)
 {
 	struct net *net = xs_net(x);
 	struct xfrm_usersa_info *p;
@@ -2387,7 +2387,7 @@ nla_put_failure:
 	return -1;
 }
 
-static int xfrm_send_state_notify(struct xfrm_state *x, struct km_event *c)
+static int xfrm_send_state_notify(struct xfrm_state *x, const struct km_event *c)
 {
 
 	switch (c->event) {
@@ -2546,7 +2546,7 @@ static inline size_t xfrm_polexpire_msgsize(struct xfrm_policy *xp)
 }
 
 static int build_polexpire(struct sk_buff *skb, struct xfrm_policy *xp,
-			   int dir, struct km_event *c)
+			   int dir, const struct km_event *c)
 {
 	struct xfrm_user_polexpire *upe;
 	struct nlmsghdr *nlh;
@@ -2576,7 +2576,7 @@ nlmsg_failure:
 	return -EMSGSIZE;
 }
 
-static int xfrm_exp_policy_notify(struct xfrm_policy *xp, int dir, struct km_event *c)
+static int xfrm_exp_policy_notify(struct xfrm_policy *xp, int dir, const struct km_event *c)
 {
 	struct net *net = xp_net(xp);
 	struct sk_buff *skb;
@@ -2591,7 +2591,7 @@ static int xfrm_exp_policy_notify(struct xfrm_policy *xp, int dir, struct km_eve
 	return nlmsg_multicast(net->xfrm.nlsk, skb, 0, XFRMNLGRP_EXPIRE, GFP_ATOMIC);
 }
 
-static int xfrm_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *c)
+static int xfrm_notify_policy(struct xfrm_policy *xp, int dir, const struct km_event *c)
 {
 	struct net *net = xp_net(xp);
 	struct xfrm_userpolicy_info *p;
@@ -2656,7 +2656,7 @@ nlmsg_failure:
 	return -1;
 }
 
-static int xfrm_notify_policy_flush(struct km_event *c)
+static int xfrm_notify_policy_flush(const struct km_event *c)
 {
 	struct net *net = c->net;
 	struct nlmsghdr *nlh;
@@ -2681,7 +2681,7 @@ nlmsg_failure:
 	return -1;
 }
 
-static int xfrm_send_policy_notify(struct xfrm_policy *xp, int dir, struct km_event *c)
+static int xfrm_send_policy_notify(struct xfrm_policy *xp, int dir, const struct km_event *c)
 {
 
 	switch (c->event) {

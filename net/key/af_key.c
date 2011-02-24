@@ -1429,7 +1429,7 @@ static inline int event2keytype(int event)
 }
 
 /* ADD/UPD/DEL */
-static int key_notify_sa(struct xfrm_state *x, struct km_event *c)
+static int key_notify_sa(struct xfrm_state *x, const struct km_event *c)
 {
 	struct sk_buff *skb;
 	struct sadb_msg *hdr;
@@ -1688,7 +1688,7 @@ static int unicast_flush_resp(struct sock *sk, struct sadb_msg *ihdr)
 	return pfkey_broadcast(skb, GFP_ATOMIC, BROADCAST_ONE, sk, sock_net(sk));
 }
 
-static int key_notify_sa_flush(struct km_event *c)
+static int key_notify_sa_flush(const struct km_event *c)
 {
 	struct sk_buff *skb;
 	struct sadb_msg *hdr;
@@ -2123,7 +2123,7 @@ static int pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, in
 	return 0;
 }
 
-static int key_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *c)
+static int key_notify_policy(struct xfrm_policy *xp, int dir, const struct km_event *c)
 {
 	struct sk_buff *out_skb;
 	struct sadb_msg *out_hdr;
@@ -2660,7 +2660,7 @@ static int pfkey_spddump(struct sock *sk, struct sk_buff *skb, struct sadb_msg *
 	return pfkey_do_dump(pfk);
 }
 
-static int key_notify_policy_flush(struct km_event *c)
+static int key_notify_policy_flush(const struct km_event *c)
 {
 	struct sk_buff *skb_out;
 	struct sadb_msg *hdr;
@@ -2914,12 +2914,12 @@ static void dump_esp_combs(struct sk_buff *skb, struct xfrm_tmpl *t)
 	}
 }
 
-static int key_notify_policy_expire(struct xfrm_policy *xp, struct km_event *c)
+static int key_notify_policy_expire(struct xfrm_policy *xp, const struct km_event *c)
 {
 	return 0;
 }
 
-static int key_notify_sa_expire(struct xfrm_state *x, struct km_event *c)
+static int key_notify_sa_expire(struct xfrm_state *x, const struct km_event *c)
 {
 	struct sk_buff *out_skb;
 	struct sadb_msg *out_hdr;
@@ -2949,7 +2949,7 @@ static int key_notify_sa_expire(struct xfrm_state *x, struct km_event *c)
 	return 0;
 }
 
-static int pfkey_send_notify(struct xfrm_state *x, struct km_event *c)
+static int pfkey_send_notify(struct xfrm_state *x, const struct km_event *c)
 {
 	struct net *net = x ? xs_net(x) : c->net;
 	struct netns_pfkey *net_pfkey = net_generic(net, pfkey_net_id);
@@ -2976,7 +2976,7 @@ static int pfkey_send_notify(struct xfrm_state *x, struct km_event *c)
 	return 0;
 }
 
-static int pfkey_send_policy_notify(struct xfrm_policy *xp, int dir, struct km_event *c)
+static int pfkey_send_policy_notify(struct xfrm_policy *xp, int dir, const struct km_event *c)
 {
 	if (xp && xp->type != XFRM_POLICY_TYPE_MAIN)
 		return 0;
