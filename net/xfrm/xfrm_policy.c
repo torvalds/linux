@@ -1933,7 +1933,7 @@ xfrm_secpath_reject(int idx, struct sk_buff *skb, const struct flowi *fl)
  */
 
 static inline int
-xfrm_state_ok(struct xfrm_tmpl *tmpl, struct xfrm_state *x,
+xfrm_state_ok(const struct xfrm_tmpl *tmpl, const struct xfrm_state *x,
 	      unsigned short family)
 {
 	if (xfrm_state_kern(x))
