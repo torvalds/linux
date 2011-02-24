@@ -122,7 +122,7 @@ struct mt_class mt_classes[] = {
 	{ }
 };
 
-static void mt_feature_mapping(struct hid_device *hdev, struct hid_input *hi,
+static void mt_feature_mapping(struct hid_device *hdev,
 		struct hid_field *field, struct hid_usage *usage)
 {
 	if (usage->hid == HID_DG_INPUTMODE) {

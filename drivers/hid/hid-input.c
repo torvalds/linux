@@ -290,14 +290,6 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		goto ignore;
 	}
 
-	if (field->report_type == HID_FEATURE_REPORT) {
-		if (device->driver->feature_mapping) {
-			device->driver->feature_mapping(device, hidinput, field,
-				usage);
-		}
-		goto ignore;
-	}
-
 	if (device->driver->input_mapping) {
 		int ret = device->driver->input_mapping(device, hidinput, field,
 				usage, &bit, &max);
@@ -835,6 +827,24 @@ static void hidinput_close(struct input_dev *dev)
 	hid_hw_close(hid);
 }
 
+static void report_features(struct hid_device *hid)
+{
+	struct hid_driver *drv = hid->driver;
+	struct hid_report_enum *rep_enum;
+	struct hid_report *rep;
+	int i, j;
+
+	if (!drv->feature_mapping)
+		return;
+
+	rep_enum = &hid->report_enum[HID_FEATURE_REPORT];
+	list_for_each_entry(rep, &rep_enum->report_list, list)
+		for (i = 0; i < rep->maxfield; i++)
+			for (j = 0; j < rep->field[i]->maxusage; j++)
+				drv->feature_mapping(hid, rep->field[i],
+						     rep->field[i]->usage + j);
+}
+
 /*
  * Register the input device; print a message.
  * Configure the input layer interface
@@ -863,7 +873,9 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 			return -1;
 	}
 
-	for (k = HID_INPUT_REPORT; k <= HID_FEATURE_REPORT; k++) {
+	report_features(hid);
+
+	for (k = HID_INPUT_REPORT; k <= HID_OUTPUT_REPORT; k++) {
 		if (k == HID_OUTPUT_REPORT &&
 			hid->quirks & HID_QUIRK_SKIP_OUTPUT_REPORTS)
 			continue;
