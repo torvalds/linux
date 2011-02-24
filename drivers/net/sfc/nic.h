@@ -142,19 +142,13 @@ static inline struct falcon_board *falcon_board(struct efx_nic *efx)
 
 /**
  * struct siena_nic_data - Siena NIC state
- * @fw_version: Management controller firmware version
- * @fw_build: Firmware build number
  * @mcdi: Management-Controller-to-Driver Interface
  * @wol_filter_id: Wake-on-LAN packet filter id
  */
 struct siena_nic_data {
-	u64 fw_version;
-	u32 fw_build;
 	struct efx_mcdi_iface mcdi;
 	int wol_filter_id;
 };
-
-extern void siena_print_fwver(struct efx_nic *efx, char *buf, size_t len);
 
 extern struct efx_nic_type falcon_a1_nic_type;
 extern struct efx_nic_type falcon_b0_nic_type;

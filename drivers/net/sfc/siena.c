@@ -227,13 +227,6 @@ static int siena_probe_nic(struct efx_nic *efx)
 	if (rc)
 		goto fail1;
 
-	rc = efx_mcdi_fwver(efx, &nic_data->fw_version, &nic_data->fw_build);
-	if (rc) {
-		netif_err(efx, probe, efx->net_dev,
-			  "Failed to read MCPU firmware version - rc %d\n", rc);
-		goto fail1; /* MCPU absent? */
-	}
-
 	/* Let the BMC know that the driver is now in charge of link and
 	 * filter settings. We must do this before we reset the NIC */
 	rc = efx_mcdi_drv_attach(efx, true, &already_attached);
@@ -512,16 +505,6 @@ static void siena_start_nic_stats(struct efx_nic *efx)
 static void siena_stop_nic_stats(struct efx_nic *efx)
 {
 	efx_mcdi_mac_stats(efx, efx->stats_buffer.dma_addr, 0, 0, 0);
-}
-
-void siena_print_fwver(struct efx_nic *efx, char *buf, size_t len)
-{
-	struct siena_nic_data *nic_data = efx->nic_data;
-	snprintf(buf, len, "%u.%u.%u.%u",
-		 (unsigned int)(nic_data->fw_version >> 48),
-		 (unsigned int)(nic_data->fw_version >> 32 & 0xffff),
-		 (unsigned int)(nic_data->fw_version >> 16 & 0xffff),
-		 (unsigned int)(nic_data->fw_version & 0xffff));
 }
 
 /**************************************************************************
