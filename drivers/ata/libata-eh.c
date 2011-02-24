@@ -1618,7 +1618,7 @@ static void ata_eh_analyze_serror(struct ata_link *link)
 	 * host links.  For disabled PMP links, only N bit is
 	 * considered as X bit is left at 1 for link plugging.
 	 */
-	if (link->lpm_policy != ATA_LPM_MAX_POWER)
+	if (link->lpm_policy > ATA_LPM_MAX_POWER)
 		hotplug_mask = 0;	/* hotplug doesn't work w/ LPM */
 	else if (!(link->flags & ATA_LFLAG_DISABLED) || ata_is_host_link(link))
 		hotplug_mask = SERR_PHYRDY_CHG | SERR_DEV_XCHG;
