@@ -100,7 +100,6 @@ struct rcu_preempt_ctrlblk {
 	u8 completed;		/* Last grace period completed. */
 				/*  If all three are equal, RCU is idle. */
 #ifdef CONFIG_RCU_BOOST
-	s8 boosted_this_gp;	/* Has boosting already happened? */
 	unsigned long boost_time; /* When to start boosting (jiffies) */
 #endif /* #ifdef CONFIG_RCU_BOOST */
 #ifdef CONFIG_RCU_TRACE
@@ -112,7 +111,6 @@ struct rcu_preempt_ctrlblk {
 	unsigned long n_normal_balk_blkd_tasks;
 	unsigned long n_normal_balk_gp_tasks;
 	unsigned long n_normal_balk_boost_tasks;
-	unsigned long n_normal_balk_boosted;
 	unsigned long n_normal_balk_notyet;
 	unsigned long n_normal_balk_nos;
 	unsigned long n_exp_balk_blkd_tasks;
@@ -219,36 +217,19 @@ static void show_tiny_preempt_stats(struct seq_file *m)
 		   "N."[!rcu_preempt_ctrlblk.gp_tasks],
 		   "E."[!rcu_preempt_ctrlblk.exp_tasks]);
 #ifdef CONFIG_RCU_BOOST
-	seq_printf(m, "             ttb=%c btg=",
-		   "B."[!rcu_preempt_ctrlblk.boost_tasks]);
-	switch (rcu_preempt_ctrlblk.boosted_this_gp) {
-	case -1:
-		seq_puts(m, "exp");
-		break;
-	case 0:
-		seq_puts(m, "no");
-		break;
-	case 1:
-		seq_puts(m, "begun");
-		break;
-	case 2:
-		seq_puts(m, "done");
-		break;
-	default:
-		seq_printf(m, "?%d?", rcu_preempt_ctrlblk.boosted_this_gp);
-	}
-	seq_printf(m, " ntb=%lu neb=%lu nnb=%lu j=%04x bt=%04x\n",
+	seq_printf(m, "%sttb=%c ntb=%lu neb=%lu nnb=%lu j=%04x bt=%04x\n",
+		   "             ",
+		   "B."[!rcu_preempt_ctrlblk.boost_tasks],
 		   rcu_preempt_ctrlblk.n_tasks_boosted,
 		   rcu_preempt_ctrlblk.n_exp_boosts,
 		   rcu_preempt_ctrlblk.n_normal_boosts,
 		   (int)(jiffies & 0xffff),
 		   (int)(rcu_preempt_ctrlblk.boost_time & 0xffff));
-	seq_printf(m, "             %s: nt=%lu gt=%lu bt=%lu b=%lu ny=%lu nos=%lu\n",
+	seq_printf(m, "             %s: nt=%lu gt=%lu bt=%lu ny=%lu nos=%lu\n",
 		   "normal balk",
 		   rcu_preempt_ctrlblk.n_normal_balk_blkd_tasks,
 		   rcu_preempt_ctrlblk.n_normal_balk_gp_tasks,
 		   rcu_preempt_ctrlblk.n_normal_balk_boost_tasks,
-		   rcu_preempt_ctrlblk.n_normal_balk_boosted,
 		   rcu_preempt_ctrlblk.n_normal_balk_notyet,
 		   rcu_preempt_ctrlblk.n_normal_balk_nos);
 	seq_printf(m, "             exp balk: bt=%lu nos=%lu\n",
@@ -277,7 +258,6 @@ static int rcu_boost(void)
 	if (rcu_preempt_ctrlblk.boost_tasks == NULL)
 		return 0;  /* Nothing to boost. */
 	raw_local_irq_save(flags);
-	rcu_preempt_ctrlblk.boosted_this_gp++;
 	t = container_of(rcu_preempt_ctrlblk.boost_tasks, struct task_struct,
 			 rcu_node_entry);
 	np = rcu_next_node_entry(t);
@@ -287,7 +267,6 @@ static int rcu_boost(void)
 	raw_local_irq_restore(flags);
 	rt_mutex_lock(&mtx);
 	RCU_TRACE(rcu_preempt_ctrlblk.n_tasks_boosted++);
-	rcu_preempt_ctrlblk.boosted_this_gp++;
 	rt_mutex_unlock(&mtx);
 	return rcu_preempt_ctrlblk.boost_tasks != NULL;
 }
@@ -310,7 +289,6 @@ static int rcu_initiate_boost(void)
 	}
 	if (rcu_preempt_ctrlblk.gp_tasks != NULL &&
 	    rcu_preempt_ctrlblk.boost_tasks == NULL &&
-	    rcu_preempt_ctrlblk.boosted_this_gp == 0 &&
 	    ULONG_CMP_GE(jiffies, rcu_preempt_ctrlblk.boost_time)) {
 		rcu_preempt_ctrlblk.boost_tasks = rcu_preempt_ctrlblk.gp_tasks;
 		invoke_rcu_kthread();
@@ -331,7 +309,6 @@ static void rcu_initiate_expedited_boost(void)
 	if (!list_empty(&rcu_preempt_ctrlblk.blkd_tasks)) {
 		rcu_preempt_ctrlblk.boost_tasks =
 			rcu_preempt_ctrlblk.blkd_tasks.next;
-		rcu_preempt_ctrlblk.boosted_this_gp = -1;
 		invoke_rcu_kthread();
 		RCU_TRACE(rcu_preempt_ctrlblk.n_exp_boosts++);
 	} else
@@ -347,8 +324,6 @@ static void rcu_initiate_expedited_boost(void)
 static void rcu_preempt_boost_start_gp(void)
 {
 	rcu_preempt_ctrlblk.boost_time = jiffies + RCU_BOOST_DELAY_JIFFIES;
-	if (rcu_preempt_ctrlblk.boosted_this_gp > 0)
-		rcu_preempt_ctrlblk.boosted_this_gp = 0;
 }
 
 #else /* #ifdef CONFIG_RCU_BOOST */
@@ -934,8 +909,6 @@ static void rcu_initiate_boost_trace(void)
 		rcu_preempt_ctrlblk.n_normal_balk_gp_tasks++;
 	else if (rcu_preempt_ctrlblk.boost_tasks != NULL)
 		rcu_preempt_ctrlblk.n_normal_balk_boost_tasks++;
-	else if (rcu_preempt_ctrlblk.boosted_this_gp != 0)
-		rcu_preempt_ctrlblk.n_normal_balk_boosted++;
 	else if (!ULONG_CMP_GE(jiffies, rcu_preempt_ctrlblk.boost_time))
 		rcu_preempt_ctrlblk.n_normal_balk_notyet++;
 	else
