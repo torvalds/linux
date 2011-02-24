@@ -118,13 +118,14 @@ static void wbsoft_configure_filter(struct ieee80211_hw *dev,
 	*total_flags = new_flags;
 }
 
-static int wbsoft_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
+static void wbsoft_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct wbsoft_priv *priv = dev->priv;
 
 	if (priv->sMlmeFrame.IsInUsed != PACKET_FREE_TO_USE) {
 		priv->sMlmeFrame.wNumTxMMPDUDiscarded++;
-		return NETDEV_TX_BUSY;
+		kfree_skb(skb);
+		return;
 	}
 
 	priv->sMlmeFrame.IsInUsed = PACKET_COME_FROM_MLME;
@@ -140,8 +141,6 @@ static int wbsoft_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	 */
 
 	Mds_Tx(priv);
-
-	return NETDEV_TX_OK;
 }
 
 static int wbsoft_start(struct ieee80211_hw *dev)

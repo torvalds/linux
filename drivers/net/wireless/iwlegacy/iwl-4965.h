@@ -253,7 +253,7 @@ void iwl4965_eeprom_release_semaphore(struct iwl_priv *priv);
 int  iwl4965_eeprom_check_version(struct iwl_priv *priv);
 
 /* mac80211 handlers (for 4965) */
-int iwl4965_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
+void iwl4965_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
 int iwl4965_mac_start(struct ieee80211_hw *hw);
 void iwl4965_mac_stop(struct ieee80211_hw *hw);
 void iwl4965_configure_filter(struct ieee80211_hw *hw,

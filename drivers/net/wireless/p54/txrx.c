@@ -696,7 +696,7 @@ static u8 p54_convert_algo(u32 cipher)
 	}
 }
 
-int p54_tx_80211(struct ieee80211_hw *dev, struct sk_buff *skb)
+void p54_tx_80211(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct p54_common *priv = dev->priv;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -717,12 +717,8 @@ int p54_tx_80211(struct ieee80211_hw *dev, struct sk_buff *skb)
 			    &hdr_flags, &aid, &burst_allowed);
 
 	if (p54_tx_qos_accounting_alloc(priv, skb, queue)) {
-		if (!IS_QOS_QUEUE(queue)) {
-			dev_kfree_skb_any(skb);
-			return NETDEV_TX_OK;
-		} else {
-			return NETDEV_TX_BUSY;
-		}
+		dev_kfree_skb_any(skb);
+		return;
 	}
 
 	padding = (unsigned long)(skb->data - (sizeof(*hdr) + sizeof(*txhdr))) & 3;
@@ -865,5 +861,4 @@ int p54_tx_80211(struct ieee80211_hw *dev, struct sk_buff *skb)
 	p54info->extra_len = extra_len;
 
 	p54_tx(priv, skb);
-	return NETDEV_TX_OK;
 }

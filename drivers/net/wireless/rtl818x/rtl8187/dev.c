@@ -227,7 +227,7 @@ static void rtl8187_tx_cb(struct urb *urb)
 	}
 }
 
-static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
+static void rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct rtl8187_priv *priv = dev->priv;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -241,7 +241,7 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
 		kfree_skb(skb);
-		return NETDEV_TX_OK;
+		return;
 	}
 
 	flags = skb->len;
@@ -309,8 +309,6 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 		kfree_skb(skb);
 	}
 	usb_free_urb(urb);
-
-	return NETDEV_TX_OK;
 }
 
 static void rtl8187_rx_cb(struct urb *urb)

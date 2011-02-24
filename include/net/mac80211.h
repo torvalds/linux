@@ -1801,7 +1801,7 @@ enum ieee80211_ampdu_mlme_action {
  *	aborted before it expires. This callback may sleep.
  */
 struct ieee80211_ops {
-	int (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
+	void (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
 	int (*start)(struct ieee80211_hw *hw);
 	void (*stop)(struct ieee80211_hw *hw);
 	int (*add_interface)(struct ieee80211_hw *hw,

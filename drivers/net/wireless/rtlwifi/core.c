@@ -82,7 +82,7 @@ static void rtl_op_stop(struct ieee80211_hw *hw)
 	mutex_unlock(&rtlpriv->locks.conf_mutex);
 }
 
-static int rtl_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void rtl_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
@@ -97,11 +97,10 @@ static int rtl_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	rtlpriv->intf_ops->adapter_tx(hw, skb);
 
-	return NETDEV_TX_OK;
+	return;
 
 err_free:
 	dev_kfree_skb_any(skb);
-	return NETDEV_TX_OK;
 }
 
 static int rtl_op_add_interface(struct ieee80211_hw *hw,

@@ -1036,7 +1036,7 @@ set_timer:
 /* mac80211 Callbacks */
 /**********************/
 
-static int ath9k_htc_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void ath9k_htc_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr;
 	struct ath9k_htc_priv *priv = hw->priv;
@@ -1049,7 +1049,7 @@ static int ath9k_htc_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	padsize = padpos & 3;
 	if (padsize && skb->len > padpos) {
 		if (skb_headroom(skb) < padsize)
-			return -1;
+			goto fail_tx;
 		skb_push(skb, padsize);
 		memmove(skb->data, skb->data + padsize, padpos);
 	}
@@ -1070,11 +1070,10 @@ static int ath9k_htc_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		goto fail_tx;
 	}
 
-	return 0;
+	return;
 
 fail_tx:
 	dev_kfree_skb_any(skb);
-	return 0;
 }
 
 static int ath9k_htc_start(struct ieee80211_hw *hw)

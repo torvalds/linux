@@ -1573,7 +1573,7 @@ static void mwl8k_txq_deinit(struct ieee80211_hw *hw, int index)
 	txq->txd = NULL;
 }
 
-static int
+static void
 mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 {
 	struct mwl8k_priv *priv = hw->priv;
@@ -1635,7 +1635,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 		wiphy_debug(hw->wiphy,
 			    "failed to dma map skb, dropping TX frame.\n");
 		dev_kfree_skb(skb);
-		return NETDEV_TX_OK;
+		return;
 	}
 
 	spin_lock_bh(&priv->tx_lock);
@@ -1672,8 +1672,6 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	mwl8k_tx_start(priv);
 
 	spin_unlock_bh(&priv->tx_lock);
-
-	return NETDEV_TX_OK;
 }
 
 
@@ -3742,22 +3740,19 @@ static void mwl8k_rx_poll(unsigned long data)
 /*
  * Core driver operations.
  */
-static int mwl8k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void mwl8k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct mwl8k_priv *priv = hw->priv;
 	int index = skb_get_queue_mapping(skb);
-	int rc;
 
 	if (!priv->radio_on) {
 		wiphy_debug(hw->wiphy,
 			    "dropped TX frame since radio disabled\n");
 		dev_kfree_skb(skb);
-		return NETDEV_TX_OK;
+		return;
 	}
 
-	rc = mwl8k_txq_xmit(hw, index, skb);
-
-	return rc;
+	mwl8k_txq_xmit(hw, index, skb);
 }
 
 static int mwl8k_start(struct ieee80211_hw *hw)

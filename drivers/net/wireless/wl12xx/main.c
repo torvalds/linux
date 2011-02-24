@@ -1034,7 +1034,7 @@ int wl1271_plt_stop(struct wl1271 *wl)
 	return ret;
 }
 
-static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct wl1271 *wl = hw->priv;
 	unsigned long flags;
@@ -1073,8 +1073,6 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags))
 		ieee80211_queue_work(wl->hw, &wl->tx_work);
-
-	return NETDEV_TX_OK;
 }
 
 static struct notifier_block wl1271_dev_notifier = {

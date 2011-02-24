@@ -356,7 +356,7 @@ iwlagn_remove_notification(struct iwl_priv *priv,
 			   struct iwl_notification_wait *wait_entry);
 
 /* mac80211 handlers (for 4965) */
-int iwlagn_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
+void iwlagn_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
 int iwlagn_mac_start(struct ieee80211_hw *hw);
 void iwlagn_mac_stop(struct ieee80211_hw *hw);
 void iwlagn_configure_filter(struct ieee80211_hw *hw,

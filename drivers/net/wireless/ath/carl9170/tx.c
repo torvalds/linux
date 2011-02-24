@@ -1339,7 +1339,7 @@ err_unlock_rcu:
 	return false;
 }
 
-int carl9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+void carl9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ar9170 *ar = hw->priv;
 	struct ieee80211_tx_info *info;
@@ -1373,12 +1373,11 @@ int carl9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	}
 
 	carl9170_tx(ar);
-	return NETDEV_TX_OK;
+	return;
 
 err_free:
 	ar->tx_dropped++;
 	dev_kfree_skb_any(skb);
-	return NETDEV_TX_OK;
 }
 
 void carl9170_tx_scheduler(struct ar9170 *ar)

@@ -5,9 +5,9 @@
 #include "ieee80211_i.h"
 #include "driver-trace.h"
 
-static inline int drv_tx(struct ieee80211_local *local, struct sk_buff *skb)
+static inline void drv_tx(struct ieee80211_local *local, struct sk_buff *skb)
 {
-	return local->ops->tx(&local->hw, skb);
+	local->ops->tx(&local->hw, skb);
 }
 
 static inline int drv_start(struct ieee80211_local *local)

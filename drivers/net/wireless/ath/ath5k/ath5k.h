@@ -1164,8 +1164,8 @@ struct ath5k_txq;
 
 void set_beacon_filter(struct ieee80211_hw *hw, bool enable);
 bool ath_any_vif_assoc(struct ath5k_softc *sc);
-int ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
-		   struct ath5k_txq *txq);
+void ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
+		    struct ath5k_txq *txq);
 int ath5k_init_hw(struct ath5k_softc *sc);
 int ath5k_stop_hw(struct ath5k_softc *sc);
 void ath5k_mode_setup(struct ath5k_softc *sc, struct ieee80211_vif *vif);

@@ -1142,8 +1142,7 @@ mutex_unlock:
 	return r;
 }
 
-static int ath9k_tx(struct ieee80211_hw *hw,
-		    struct sk_buff *skb)
+static void ath9k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
@@ -1200,10 +1199,9 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 		goto exit;
 	}
 
-	return 0;
+	return;
 exit:
 	dev_kfree_skb_any(skb);
-	return 0;
 }
 
 static void ath9k_stop(struct ieee80211_hw *hw)

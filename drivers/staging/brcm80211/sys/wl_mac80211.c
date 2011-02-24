@@ -104,9 +104,6 @@ static int wl_request_fw(struct wl_info *wl, struct pci_dev *pdev);
 static void wl_release_fw(struct wl_info *wl);
 
 /* local prototypes */
-static int wl_start(struct sk_buff *skb, struct wl_info *wl);
-static int wl_start_int(struct wl_info *wl, struct ieee80211_hw *hw,
-			struct sk_buff *skb);
 static void wl_dpc(unsigned long data);
 
 MODULE_AUTHOR("Broadcom Corporation");
@@ -135,7 +132,6 @@ module_param(phymsglevel, int, 0);
 
 #define HW_TO_WL(hw)	 (hw->priv)
 #define WL_TO_HW(wl)	  (wl->pub->ieee_hw)
-static int wl_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
 static int wl_ops_start(struct ieee80211_hw *hw);
 static void wl_ops_stop(struct ieee80211_hw *hw);
 static int wl_ops_add_interface(struct ieee80211_hw *hw,
@@ -173,20 +169,18 @@ static int wl_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			   enum ieee80211_ampdu_mlme_action action,
 			   struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 
-static int wl_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void wl_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
-	int status;
 	struct wl_info *wl = hw->priv;
 	WL_LOCK(wl);
 	if (!wl->pub->up) {
 		WL_ERROR("ops->tx called while down\n");
-		status = -ENETDOWN;
+		kfree_skb(skb);
 		goto done;
 	}
-	status = wl_start(skb, wl);
+	wlc_sendpkt_mac80211(wl->wlc, skb, hw);
  done:
 	WL_UNLOCK(wl);
-	return status;
 }
 
 static int wl_ops_start(struct ieee80211_hw *hw)
@@ -1314,22 +1308,6 @@ void wl_free(struct wl_info *wl)
 
 
 	osl_detach(osh);
-}
-
-/* transmit a packet */
-static int BCMFASTPATH wl_start(struct sk_buff *skb, struct wl_info *wl)
-{
-	if (!wl)
-		return -ENETDOWN;
-
-	return wl_start_int(wl, WL_TO_HW(wl), skb);
-}
-
-static int BCMFASTPATH
-wl_start_int(struct wl_info *wl, struct ieee80211_hw *hw, struct sk_buff *skb)
-{
-	wlc_sendpkt_mac80211(wl->wlc, skb, hw);
-	return NETDEV_TX_OK;
 }
 
 void wl_txflowcontrol(struct wl_info *wl, struct wl_if *wlif, bool state,

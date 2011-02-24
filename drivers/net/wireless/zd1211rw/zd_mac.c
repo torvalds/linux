@@ -850,7 +850,7 @@ static int fill_ctrlset(struct zd_mac *mac,
  * control block of the skbuff will be initialized. If necessary the incoming
  * mac80211 queues will be stopped.
  */
-static int zd_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void zd_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -865,11 +865,10 @@ static int zd_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	r = zd_usb_tx(&mac->chip.usb, skb);
 	if (r)
 		goto fail;
-	return 0;
+	return;
 
 fail:
 	dev_kfree_skb(skb);
-	return 0;
 }
 
 /**

@@ -1518,7 +1518,7 @@ unlock:
 * TX Handling *
 \*************/
 
-int
+void
 ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
 	       struct ath5k_txq *txq)
 {
@@ -1567,11 +1567,10 @@ ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
 		spin_unlock_irqrestore(&sc->txbuflock, flags);
 		goto drop_packet;
 	}
-	return NETDEV_TX_OK;
+	return;
 
 drop_packet:
 	dev_kfree_skb_any(skb);
-	return NETDEV_TX_OK;
 }
 
 static void
