@@ -306,7 +306,6 @@ static struct regulator_init_data goni_ldo3_data = {
 		.min_uV		= 1100000,
 		.max_uV		= 1100000,
 		.apply_uV	= 1,
-		.always_on	= 1,
 	},
 };
 
@@ -325,6 +324,7 @@ static struct regulator_init_data goni_ldo5_data = {
 		.min_uV		= 2800000,
 		.max_uV		= 2800000,
 		.apply_uV	= 1,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
 	},
 	.num_consumer_supplies = ARRAY_SIZE(goni_ldo5_consumers),
 	.consumer_supplies = goni_ldo5_consumers,
@@ -355,7 +355,6 @@ static struct regulator_init_data goni_ldo8_data = {
 		.min_uV		= 3300000,
 		.max_uV		= 3300000,
 		.apply_uV	= 1,
-		.always_on	= 1,
 	},
 };
 
@@ -365,7 +364,6 @@ static struct regulator_init_data goni_ldo9_data = {
 		.min_uV		= 2800000,
 		.max_uV		= 2800000,
 		.apply_uV	= 1,
-		.always_on	= 1,
 	},
 };
 
@@ -397,7 +395,6 @@ static struct regulator_init_data goni_ldo12_data = {
 		.min_uV		= 1200000,
 		.max_uV		= 1200000,
 		.apply_uV	= 1,
-		.always_on	= 1,
 	},
 };
 
@@ -431,7 +428,6 @@ static struct regulator_init_data goni_ldo15_data = {
 		.min_uV		= 3300000,
 		.max_uV		= 3300000,
 		.apply_uV	= 1,
-		.always_on	= 1,
 	},
 };
 
@@ -441,7 +437,6 @@ static struct regulator_init_data goni_ldo16_data = {
 		.min_uV		= 1800000,
 		.max_uV		= 1800000,
 		.apply_uV	= 1,
-		.always_on	= 1,
 	},
 };
 
