@@ -582,6 +582,8 @@ out:
 	/* Get the CPE error record and log it */
 	ia64_mca_log_sal_error_record(SAL_INFO_TYPE_CPE);
 
+	local_irq_disable();
+
 	return IRQ_HANDLED;
 }
 
