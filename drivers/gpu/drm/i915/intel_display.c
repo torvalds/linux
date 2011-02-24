@@ -6575,7 +6575,7 @@ static void ironlake_disable_rc6(struct drm_device *dev)
 		POSTING_READ(RSTDBYCTL);
 	}
 
-	ironlake_disable_rc6(dev);
+	ironlake_teardown_rc6(dev);
 }
 
 static int ironlake_setup_rc6(struct drm_device *dev)
