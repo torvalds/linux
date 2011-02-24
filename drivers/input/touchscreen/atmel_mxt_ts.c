@@ -630,74 +630,6 @@ static int mxt_check_reg_init(struct mxt_data *data)
 	return 0;
 }
 
-static int mxt_check_matrix_size(struct mxt_data *data)
-{
-	const struct mxt_platform_data *pdata = data->pdata;
-	struct device *dev = &data->client->dev;
-	int mode = -1;
-	int error;
-	u8 val;
-
-	dev_dbg(dev, "Number of X lines: %d\n", pdata->x_line);
-	dev_dbg(dev, "Number of Y lines: %d\n", pdata->y_line);
-
-	switch (pdata->x_line) {
-	case 0 ... 15:
-		if (pdata->y_line <= 14)
-			mode = 0;
-		break;
-	case 16:
-		if (pdata->y_line <= 12)
-			mode = 1;
-		if (pdata->y_line == 13 || pdata->y_line == 14)
-			mode = 0;
-		break;
-	case 17:
-		if (pdata->y_line <= 11)
-			mode = 2;
-		if (pdata->y_line == 12 || pdata->y_line == 13)
-			mode = 1;
-		break;
-	case 18:
-		if (pdata->y_line <= 10)
-			mode = 3;
-		if (pdata->y_line == 11 || pdata->y_line == 12)
-			mode = 2;
-		break;
-	case 19:
-		if (pdata->y_line <= 9)
-			mode = 4;
-		if (pdata->y_line == 10 || pdata->y_line == 11)
-			mode = 3;
-		break;
-	case 20:
-		mode = 4;
-	}
-
-	if (mode < 0) {
-		dev_err(dev, "Invalid X/Y lines\n");
-		return -EINVAL;
-	}
-
-	error = mxt_read_object(data, MXT_SPT_CTECONFIG,
-				MXT_CTE_MODE, &val);
-	if (error)
-		return error;
-
-	if (mode == val)
-		return 0;
-
-	/* Change the CTE configuration */
-	mxt_write_object(data, MXT_SPT_CTECONFIG,
-			MXT_CTE_CTRL, 1);
-	mxt_write_object(data, MXT_SPT_CTECONFIG,
-			MXT_CTE_MODE, mode);
-	mxt_write_object(data, MXT_SPT_CTECONFIG,
-			MXT_CTE_CTRL, 0);
-
-	return 0;
-}
-
 static int mxt_make_highchg(struct mxt_data *data)
 {
 	struct device *dev = &data->client->dev;
@@ -861,11 +793,6 @@ static int mxt_initialize(struct mxt_data *data)
 
 	/* Check register init values */
 	error = mxt_check_reg_init(data);
-	if (error)
-		return error;
-
-	/* Check X/Y matrix size */
-	error = mxt_check_matrix_size(data);
 	if (error)
 		return error;
 
