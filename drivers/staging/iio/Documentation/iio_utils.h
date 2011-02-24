@@ -290,15 +290,17 @@ inline int build_channel_array(const char *device_dir,
 			fscanf(sysfsfp, "%u", &ret);
 			if (ret == 1)
 				(*counter)++;
+			count++;
 			fclose(sysfsfp);
 			free(filename);
 		}
-	*ci_array = malloc(sizeof(**ci_array)*(*counter));
+	*ci_array = malloc(sizeof(**ci_array)*count);
 	if (*ci_array == NULL) {
 		ret = -ENOMEM;
 		goto error_close_dir;
 	}
 	seekdir(dp, 0);
+	count = 0;
 	while (ent = readdir(dp), ent != NULL) {
 		if (strcmp(ent->d_name + strlen(ent->d_name) - strlen("_en"),
 			   "_en") == 0) {
