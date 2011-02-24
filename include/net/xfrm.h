@@ -954,7 +954,7 @@ secpath_reset(struct sk_buff *skb)
 }
 
 static inline int
-xfrm_addr_any(xfrm_address_t *addr, unsigned short family)
+xfrm_addr_any(const xfrm_address_t *addr, unsigned short family)
 {
 	switch (family) {
 	case AF_INET:
