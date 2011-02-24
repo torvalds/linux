@@ -224,6 +224,8 @@ union scic_user_parameters {
  */
 #define SCIC_SDS_PARM_PHY_MASK_MAX 0xF
 
+#define MAX_CONCURRENT_DEVICE_SPIN_UP_COUNT 4
+
 /**
  * This structure/union specifies the various different OEM parameter sets
  *    available.  Each type is specific to a hardware controller version.
@@ -237,7 +239,6 @@ union scic_oem_parameters {
 	 * 1.
 	 */
 	struct scic_sds_oem_params sds1;
-
 };
 
 /**

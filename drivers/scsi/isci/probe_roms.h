@@ -86,6 +86,20 @@ struct isci_orom *isci_get_efi_var(struct pci_dev *pdev);
 #define ISCI_EFI_ATTRIBUTES	0
 #define ISCI_EFI_VAR_NAME	"isci_oemb"
 
+/* Allowed PORT configuration modes APC Automatic PORT configuration mode is
+ * defined by the OEM configuration parameters providing no PHY_MASK parameters
+ * for any PORT. i.e. There are no phys assigned to any of the ports at start.
+ * MPC Manual PORT configuration mode is defined by the OEM configuration
+ * parameters providing a PHY_MASK value for any PORT.  It is assumed that any
+ * PORT with no PHY_MASK is an invalid port and not all PHYs must be assigned.
+ * A PORT_PHY mask that assigns just a single PHY to a port and no other PHYs
+ * being assigned is sufficient to declare manual PORT configuration.
+ */
+enum SCIC_PORT_CONFIGURATION_MODE {
+	SCIC_PORT_MANUAL_CONFIGURATION_MODE = 0,
+	SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE = 1
+};
+
 struct sci_bios_oem_param_block_hdr {
 	uint8_t signature[ISCI_ROM_SIG_SIZE];
 	uint16_t total_block_length;

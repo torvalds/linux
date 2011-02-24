@@ -822,7 +822,7 @@ enum sci_status scic_sds_port_configuration_agent_initialize(
 	enum sci_status status = SCI_SUCCESS;
 	enum SCIC_PORT_CONFIGURATION_MODE mode;
 
-	mode = scic_sds_controller_get_port_configuration_mode(controller);
+	mode = controller->oem_parameters.sds1.controller.mode_type;
 
 	if (mode == SCIC_PORT_MANUAL_CONFIGURATION_MODE) {
 		status = scic_sds_mpc_agent_validate_phy_configuration(controller, port_agent);

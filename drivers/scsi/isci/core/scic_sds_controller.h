@@ -122,23 +122,6 @@ enum SCIC_SDS_CONTROLLER_MEMORY_DESCRIPTORS {
 
 
 /**
- *
- *
- * Allowed PORT configuration modes APC Automatic PORT configuration mode is
- * defined by the OEM configuration parameters providing no PHY_MASK parameters
- * for any PORT. i.e. There are no phys assigned to any of the ports at start.
- * MPC Manual PORT configuration mode is defined by the OEM configuration
- * parameters providing a PHY_MASK value for any PORT.  It is assumed that any
- * PORT with no PHY_MASK is an invalid port and not all PHYs must be assigned.
- * A PORT_PHY mask that assigns just a single PHY to a port and no other PHYs
- * being assigned is sufficient to declare manual PORT configuration.
- */
-enum SCIC_PORT_CONFIGURATION_MODE {
-	SCIC_PORT_MANUAL_CONFIGURATION_MODE,
-	SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE
-};
-
-/**
  * struct scic_power_control -
  *
  * This structure defines the fields for managing power control for direct
@@ -162,6 +145,11 @@ struct scic_power_control {
 	 * requesters field.
 	 */
 	u8 phys_waiting;
+
+	/**
+	 * This field is used to keep track of how many phys have been granted to consume power
+	 */
+	u8 phys_granted_power;
 
 	/**
 	 * This field is an array of phys that we are waiting on. The phys are direct
@@ -557,14 +545,6 @@ extern const struct sci_base_state scic_sds_controller_state_table[];
 /* --------------------------------------------------------------------------- */
 
 u32 scic_sds_controller_get_object_size(void);
-
-/* --------------------------------------------------------------------------- */
-
-
-/* --------------------------------------------------------------------------- */
-
-enum SCIC_PORT_CONFIGURATION_MODE scic_sds_controller_get_port_configuration_mode(
-	struct scic_sds_controller *this_controller);
 
 /* --------------------------------------------------------------------------- */
 

@@ -1,5 +1,6 @@
 #ifndef _CREATE_FW_H_
 #define _CREATE_FW_H_
+#include "../probe_roms.h"
 
 
 /* we are configuring for 2 SCUs */
@@ -24,15 +25,15 @@ static const int num_elements = 2;
  * if there is a port/phy on which you do not wish to override the default
  * values, use the value assigned to UNINIT_PARAM (255).
  */
+/* discovery mode type (port auto config mode by default ) */
 #ifdef MPC
+static const int mode_type = SCIC_PORT_MANUAL_CONFIGURATION_MODE;
 static const __u8 phy_mask[2][4] = { {1, 2, 4, 8},
 				     {1, 2, 4, 8} };
 #else	/* APC (default) */
+static const int mode_type = SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE;
 static const __u8 phy_mask[2][4];
 #endif
-
-/* discovery mode type (port auto config mode by default ) */
-static const int mode_type;
 
 /* Maximum number of concurrent device spin up */
 static const int max_num_concurrent_dev_spin_up = 1;

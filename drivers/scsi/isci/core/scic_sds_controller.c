@@ -293,6 +293,7 @@ void scic_sds_controller_initialize_power_control(
 		);
 
 	this_controller->power_control.phys_waiting = 0;
+	this_controller->power_control.phys_granted_power = 0;
 }
 
 /* --------------------------------------------------------------------------- */
@@ -770,31 +771,6 @@ void scic_sds_controller_timeout_handler(
 			__func__);
 }
 
-/**
- * scic_sds_controller_get_port_configuration_mode
- * @this_controller: This is the controller to use to determine if we are using
- *    manual or automatic port configuration.
- *
- * SCIC_PORT_CONFIGURATION_MODE
- */
-enum SCIC_PORT_CONFIGURATION_MODE scic_sds_controller_get_port_configuration_mode(
-	struct scic_sds_controller *this_controller)
-{
-	u32 index;
-	enum SCIC_PORT_CONFIGURATION_MODE mode;
-
-	mode = SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE;
-
-	for (index = 0; index < SCI_MAX_PORTS; index++) {
-		if (this_controller->oem_parameters.sds1.ports[index].phy_mask != 0) {
-			mode = SCIC_PORT_MANUAL_CONFIGURATION_MODE;
-			break;
-		}
-	}
-
-	return mode;
-}
-
 enum sci_status scic_sds_controller_stop_ports(struct scic_sds_controller *scic)
 {
 	u32 index;
@@ -859,7 +835,7 @@ void scic_sds_controller_phy_timer_stop(
 
 /**
  * This method is called internally by the controller object to start the next
- *    phy on the controller.  If all the phys have been starte, then this
+ *    phy on the controller.  If all the phys have been started, then this
  *    method will attempt to transition the controller to the READY state and
  *    inform the user (scic_cb_controller_start_complete()).
  * @this_controller: This parameter specifies the controller object for which
@@ -867,101 +843,88 @@ void scic_sds_controller_phy_timer_stop(
  *
  * enum sci_status
  */
-enum sci_status scic_sds_controller_start_next_phy(
-	struct scic_sds_controller *this_controller)
+enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_controller *scic)
 {
+	struct scic_sds_oem_params *oem = &scic->oem_parameters.sds1;
+	struct scic_sds_phy *sci_phy;
 	enum sci_status status;
 
 	status = SCI_SUCCESS;
 
-	if (this_controller->phy_startup_timer_pending == false) {
-		if (this_controller->next_phy_to_start == SCI_MAX_PHYS) {
-			bool is_controller_start_complete = true;
-			struct scic_sds_phy *the_phy;
-			u8 index;
+	if (scic->phy_startup_timer_pending)
+		return status;
 
-			for (index = 0; index < SCI_MAX_PHYS; index++) {
-				the_phy = &this_controller->phy_table[index];
+	if (scic->next_phy_to_start >= SCI_MAX_PHYS) {
+		bool is_controller_start_complete = true;
+		u32 state;
+		u8 index;
 
-				if (scic_sds_phy_get_port(the_phy) != NULL) {
-					/**
-					 * The controller start operation is complete if and only
-					 * if:
-					 * - all links have been given an opportunity to start
-					 * - have no indication of a connected device
-					 * - have an indication of a connected device and it has
-					 *   finished the link training process.
-					 */
-					if (
-						(
-							(the_phy->is_in_link_training == false)
-							&& (the_phy->parent.state_machine.current_state_id
-							    == SCI_BASE_PHY_STATE_INITIAL)
-						)
-						|| (
-							(the_phy->is_in_link_training == false)
-							&& (the_phy->parent.state_machine.current_state_id
-							    == SCI_BASE_PHY_STATE_STOPPED)
-							)
-						|| (
-							(the_phy->is_in_link_training == true)
-							&& (the_phy->parent.state_machine.current_state_id
-							    == SCI_BASE_PHY_STATE_STARTING)
-							)
-						) {
-						is_controller_start_complete = false;
-						break;
-					}
-				}
+		for (index = 0; index < SCI_MAX_PHYS; index++) {
+			sci_phy = &scic->phy_table[index];
+			state = sci_phy->parent.state_machine.current_state_id;
+
+			if (!scic_sds_phy_get_port(sci_phy))
+				continue;
+
+			/* The controller start operation is complete iff:
+			 * - all links have been given an opportunity to start
+			 * - have no indication of a connected device
+			 * - have an indication of a connected device and it has
+			 *   finished the link training process.
+			 */
+			if ((sci_phy->is_in_link_training == false &&
+			     state == SCI_BASE_PHY_STATE_INITIAL) ||
+			    (sci_phy->is_in_link_training == false &&
+			     state == SCI_BASE_PHY_STATE_STOPPED) ||
+			    (sci_phy->is_in_link_training == true &&
+			     state == SCI_BASE_PHY_STATE_STARTING)) {
+				is_controller_start_complete = false;
+				break;
 			}
-
-			/*
-			 * The controller has successfully finished the start process.
-			 * Inform the SCI Core user and transition to the READY state. */
-			if (is_controller_start_complete == true) {
-				scic_sds_controller_transition_to_ready(
-					this_controller, SCI_SUCCESS
-					);
-				scic_sds_controller_phy_timer_stop(this_controller);
-			}
-		} else {
-			struct scic_sds_phy *the_phy;
-
-			the_phy = &this_controller->phy_table[this_controller->next_phy_to_start];
-
-			if (
-				scic_sds_controller_get_port_configuration_mode(this_controller)
-				== SCIC_PORT_MANUAL_CONFIGURATION_MODE
-				) {
-				if (scic_sds_phy_get_port(the_phy) == NULL) {
-					this_controller->next_phy_to_start++;
-
-					/*
-					 * Caution recursion ahead be forwarned
-					 *
-					 * The PHY was never added to a PORT in MPC mode so start the next phy in sequence
-					 * This phy will never go link up and will not draw power the OEM parameters either
-					 * configured the phy incorrectly for the PORT or it was never assigned to a PORT */
-					return scic_sds_controller_start_next_phy(this_controller);
-				}
-			}
-
-			status = scic_sds_phy_start(the_phy);
-
-			if (status == SCI_SUCCESS) {
-				scic_sds_controller_phy_timer_start(this_controller);
-			} else {
-				dev_warn(scic_to_dev(this_controller),
-					 "%s: Controller stop operation failed "
-					 "to stop phy %d because of status "
-					 "%d.\n",
-					 __func__,
-					 this_controller->phy_table[this_controller->next_phy_to_start].phy_index,
-					 status);
-			}
-
-			this_controller->next_phy_to_start++;
 		}
+
+		/*
+		 * The controller has successfully finished the start process.
+		 * Inform the SCI Core user and transition to the READY state. */
+		if (is_controller_start_complete == true) {
+			scic_sds_controller_transition_to_ready(scic, SCI_SUCCESS);
+			scic_sds_controller_phy_timer_stop(scic);
+		}
+	} else {
+		sci_phy = &scic->phy_table[scic->next_phy_to_start];
+
+		if (oem->controller.mode_type == SCIC_PORT_MANUAL_CONFIGURATION_MODE) {
+			if (scic_sds_phy_get_port(sci_phy) == NULL) {
+				scic->next_phy_to_start++;
+
+				/* Caution recursion ahead be forwarned
+				 *
+				 * The PHY was never added to a PORT in MPC mode
+				 * so start the next phy in sequence This phy
+				 * will never go link up and will not draw power
+				 * the OEM parameters either configured the phy
+				 * incorrectly for the PORT or it was never
+				 * assigned to a PORT
+				 */
+				return scic_sds_controller_start_next_phy(scic);
+			}
+		}
+
+		status = scic_sds_phy_start(sci_phy);
+
+		if (status == SCI_SUCCESS) {
+			scic_sds_controller_phy_timer_start(scic);
+		} else {
+			dev_warn(scic_to_dev(scic),
+				 "%s: Controller stop operation failed "
+				 "to stop phy %d because of status "
+				 "%d.\n",
+				 __func__,
+				 scic->phy_table[scic->next_phy_to_start].phy_index,
+				 status);
+		}
+
+		scic->next_phy_to_start++;
 	}
 
 	return status;
@@ -1059,6 +1022,31 @@ static void scic_sds_controller_power_control_timer_start(
 }
 
 /**
+ * This method stops the power control timer for this controller object.
+ *
+ * @param scic
+ */
+void scic_sds_controller_power_control_timer_stop(struct scic_sds_controller *scic)
+{
+	if (scic->power_control.timer_started) {
+		isci_event_timer_stop(scic, scic->power_control.timer);
+		scic->power_control.timer_started = false;
+	}
+}
+
+/**
+ * This method stops and starts the power control timer for this controller object.
+ *
+ * @param scic
+ */
+void scic_sds_controller_power_control_timer_restart(
+	struct scic_sds_controller *scic)
+{
+	scic_sds_controller_power_control_timer_stop(scic);
+	scic_sds_controller_power_control_timer_start(scic);
+}
+
+/**
  *
  *
  *
@@ -1069,6 +1057,8 @@ static void scic_sds_controller_power_control_timer_handler(
 	struct scic_sds_controller *this_controller;
 
 	this_controller = (struct scic_sds_controller *)controller;
+
+	this_controller->power_control.phys_granted_power = 0;
 
 	if (this_controller->power_control.phys_waiting == 0) {
 		this_controller->power_control.timer_started = false;
@@ -1081,19 +1071,24 @@ static void scic_sds_controller_power_control_timer_handler(
 		     && (this_controller->power_control.phys_waiting != 0);
 		     i++) {
 			if (this_controller->power_control.requesters[i] != NULL) {
-				the_phy = this_controller->power_control.requesters[i];
-				this_controller->power_control.requesters[i] = NULL;
-				this_controller->power_control.phys_waiting--;
-				break;
+				if (this_controller->power_control.phys_granted_power <
+				    this_controller->oem_parameters.sds1.controller.max_concurrent_dev_spin_up) {
+					the_phy = this_controller->power_control.requesters[i];
+					this_controller->power_control.requesters[i] = NULL;
+					this_controller->power_control.phys_waiting--;
+					this_controller->power_control.phys_granted_power++;
+					scic_sds_phy_consume_power_handler(the_phy);
+				} else {
+					break;
+				}
 			}
 		}
 
 		/*
 		 * It doesn't matter if the power list is empty, we need to start the
-		 * timer in case another phy becomes ready. */
+		 * timer in case another phy becomes ready.
+		 */
 		scic_sds_controller_power_control_timer_start(this_controller);
-
-		scic_sds_phy_consume_power_handler(the_phy);
 	}
 }
 
@@ -1109,15 +1104,20 @@ void scic_sds_controller_power_control_queue_insert(
 {
 	BUG_ON(the_phy == NULL);
 
-	if (
-		(this_controller->power_control.timer_started)
-		&& (this_controller->power_control.requesters[the_phy->phy_index] == NULL)
-		) {
+	if (this_controller->power_control.phys_granted_power <
+	    this_controller->oem_parameters.sds1.controller.max_concurrent_dev_spin_up) {
+		this_controller->power_control.phys_granted_power++;
+		scic_sds_phy_consume_power_handler(the_phy);
+
+		/*
+		 * stop and start the power_control timer. When the timer fires, the
+		 * no_of_phys_granted_power will be set to 0
+		 */
+		scic_sds_controller_power_control_timer_restart(this_controller);
+	} else {
+		/* Add the phy in the waiting list */
 		this_controller->power_control.requesters[the_phy->phy_index] = the_phy;
 		this_controller->power_control.phys_waiting++;
-	} else {
-		scic_sds_controller_power_control_timer_start(this_controller);
-		scic_sds_phy_consume_power_handler(the_phy);
 	}
 }
 
@@ -2021,13 +2021,19 @@ void scic_sds_controller_release_frame(
  * This method sets user parameters and OEM parameters to default values.
  *    Users can override these values utilizing the scic_user_parameters_set()
  *    and scic_oem_parameters_set() methods.
- * @controller: This parameter specifies the controller for which to set the
+ * @scic: This parameter specifies the controller for which to set the
  *    configuration parameters to their default values.
  *
  */
 static void scic_sds_controller_set_default_config_parameters(struct scic_sds_controller *scic)
 {
 	u16 index;
+
+	/* Default to APC mode. */
+	scic->oem_parameters.sds1.controller.mode_type = SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE;
+
+	/* Default to APC mode. */
+	scic->oem_parameters.sds1.controller.max_concurrent_dev_spin_up = 1;
 
 	/* Default to no SSC operation. */
 	scic->oem_parameters.sds1.controller.do_enable_ssc = false;
@@ -2607,6 +2613,7 @@ enum sci_status scic_oem_parameters_set(
 		    == SCI_BASE_CONTROLLER_STATE_INITIALIZED)
 		) {
 		u16 index;
+		u8  combined_phy_mask = 0;
 
 		/*
 		 * Validate the oem parameters.  If they are not legal, then
@@ -2625,6 +2632,24 @@ enum sci_status scic_oem_parameters_set(
 				return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 			}
 		}
+
+		if (scic_parms->sds1.controller.mode_type == SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE) {
+			for (index = 0; index < SCI_MAX_PHYS; index++) {
+				if (scic_parms->sds1.ports[index].phy_mask != 0)
+					return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+			}
+		} else if (scic_parms->sds1.controller.mode_type == SCIC_PORT_MANUAL_CONFIGURATION_MODE) {
+			for (index = 0; index < SCI_MAX_PHYS; index++)
+				combined_phy_mask |= scic_parms->sds1.ports[index].phy_mask;
+
+			if (combined_phy_mask == 0)
+				return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+		} else {
+			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+		}
+
+		if (scic_parms->sds1.controller.max_concurrent_dev_spin_up > MAX_CONCURRENT_DEVICE_SPIN_UP_COUNT)
+			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 
 		memcpy(&scic->oem_parameters, scic_parms, sizeof(*scic_parms));
 		return SCI_SUCCESS;
