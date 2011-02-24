@@ -113,7 +113,7 @@ inline int iioutils_get_type(unsigned *is_signed,
 	DIR *dp;
 	char *scan_el_dir, *builtname, *builtname_generic, *filename = 0;
 	char signchar;
-	unsigned sizeint, padint;
+	unsigned padint;
 	const struct dirent *ent;
 
 	ret = asprintf(&scan_el_dir, FORMAT_SCAN_ELEMENTS_DIR, device_dir);
@@ -159,7 +159,7 @@ inline int iioutils_get_type(unsigned *is_signed,
 			fscanf(sysfsfp,
 			       "%c%u/%u", &signchar, bits_used, &padint);
 			*bytes = padint / 8;
-			if (sizeint == 64)
+			if (*bits_used == 64)
 				*mask = ~0;
 			else
 				*mask = (1 << *bits_used) - 1;
