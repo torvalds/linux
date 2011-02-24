@@ -116,6 +116,7 @@ struct ad799x_state {
 	struct work_struct		poll_work;
 	struct work_struct		work_thresh;
 	atomic_t			protect_ring;
+	size_t				d_size;
 	struct iio_trigger		*trig;
 	struct regulator		*reg;
 	s64				last_timestamp;
