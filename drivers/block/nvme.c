@@ -156,7 +156,7 @@ static struct nvme_cmd_info *nvme_cmd_info(struct nvme_queue *nvmeq)
 static int alloc_cmdid(struct nvme_queue *nvmeq, void *ctx, int handler,
 							unsigned timeout)
 {
-	int depth = nvmeq->q_depth;
+	int depth = nvmeq->q_depth - 1;
 	struct nvme_cmd_info *info = nvme_cmd_info(nvmeq);
 	int cmdid;
 
