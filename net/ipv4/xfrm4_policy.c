@@ -19,8 +19,8 @@
 static struct xfrm_policy_afinfo xfrm4_policy_afinfo;
 
 static struct dst_entry *xfrm4_dst_lookup(struct net *net, int tos,
-					  xfrm_address_t *saddr,
-					  xfrm_address_t *daddr)
+					  const xfrm_address_t *saddr,
+					  const xfrm_address_t *daddr)
 {
 	struct flowi fl = {
 		.fl4_dst = daddr->a4,
