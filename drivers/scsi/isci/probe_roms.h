@@ -73,6 +73,7 @@ struct isci_orom *isci_get_efi_var(struct pci_dev *pdev);
 #else
 #define SCI_MAX_PORTS 4
 #define SCI_MAX_PHYS 4
+#define SCI_MAX_CONTROLLERS 2
 #endif
 
 #define ISCI_FW_NAME		"isci/isci_firmware.bin"
@@ -82,9 +83,11 @@ struct isci_orom *isci_get_efi_var(struct pci_dev *pdev);
 #define ISCI_ROM_SIG		"ISCUOEMB"
 #define ISCI_ROM_SIG_SIZE	8
 
-#define ISCI_EFI_VENDOR_GUID	NULL_GUID
+#define ISCI_EFI_VENDOR_GUID	\
+	EFI_GUID(0x193dfefa, 0xa445, 0x4302, 0x99, 0xd8, 0xef, 0x3a, 0xad, \
+			0x1a, 0x04, 0xc6)
 #define ISCI_EFI_ATTRIBUTES	0
-#define ISCI_EFI_VAR_NAME	"isci_oemb"
+#define ISCI_EFI_VAR_NAME	"RST_SCU_OEM"
 
 /* Allowed PORT configuration modes APC Automatic PORT configuration mode is
  * defined by the OEM configuration parameters providing no PHY_MASK parameters
@@ -138,7 +141,7 @@ struct scic_sds_oem_params {
 
 struct isci_orom {
 	struct sci_bios_oem_param_block_hdr hdr;
-	struct scic_sds_oem_params ctrl[2];
+	struct scic_sds_oem_params ctrl[SCI_MAX_CONTROLLERS];
 } __attribute__ ((packed));
 
 #endif
