@@ -549,6 +549,10 @@ You should also set these fields:
   Otherwise you give it a pointer to a struct mutex_lock and before any
   of the v4l2_file_operations is called this lock will be taken by the
   core and released afterwards.
+- prio: keeps track of the priorities. Used to implement VIDIOC_G/S_PRIORITY.
+  If left to NULL, then it will use the struct v4l2_prio_state in v4l2_device.
+  If you want to have a separate priority state per (group of) device node(s),
+  then you can point it to your own struct v4l2_prio_state.
 - parent: you only set this if v4l2_device was registered with NULL as
   the parent device struct. This only happens in cases where one hardware
   device has multiple PCI devices that all share the same v4l2_device core.
@@ -559,8 +563,10 @@ You should also set these fields:
   PCI device it is setup without a parent device. But when the struct
   video_device is setup you do know which parent PCI device to use.
 
-If you use v4l2_ioctl_ops, then you should set either .unlocked_ioctl or
-.ioctl to video_ioctl2 in your v4l2_file_operations struct.
+If you use v4l2_ioctl_ops, then you should set .unlocked_ioctl to video_ioctl2
+in your v4l2_file_operations struct.
+
+Do not use .ioctl! This is deprecated and will go away in the future.
 
 The v4l2_file_operations struct is a subset of file_operations. The main
 difference is that the inode argument is omitted since it is never used.
@@ -753,39 +759,24 @@ struct v4l2_fh
 --------------
 
 struct v4l2_fh provides a way to easily keep file handle specific data
-that is used by the V4L2 framework. Using v4l2_fh is optional for
-drivers.
+that is used by the V4L2 framework. New drivers must use struct v4l2_fh
+since it is also used to implement priority handling (VIDIOC_G/S_PRIORITY).
 
 The users of v4l2_fh (in the V4L2 framework, not the driver) know
 whether a driver uses v4l2_fh as its file->private_data pointer by
-testing the V4L2_FL_USES_V4L2_FH bit in video_device->flags.
-
-Useful functions:
-
-- v4l2_fh_init()
-
-  Initialise the file handle. This *MUST* be performed in the driver's
-  v4l2_file_operations->open() handler.
-
-- v4l2_fh_add()
-
-  Add a v4l2_fh to video_device file handle list. May be called after
-  initialising the file handle.
-
-- v4l2_fh_del()
-
-  Unassociate the file handle from video_device(). The file handle
-  exit function may now be called.
-
-- v4l2_fh_exit()
-
-  Uninitialise the file handle. After uninitialisation the v4l2_fh
-  memory can be freed.
+testing the V4L2_FL_USES_V4L2_FH bit in video_device->flags. This bit is
+set whenever v4l2_fh_init() is called.
 
 struct v4l2_fh is allocated as a part of the driver's own file handle
-structure and is set to file->private_data in the driver's open
-function by the driver. Drivers can extract their own file handle
-structure by using the container_of macro. Example:
+structure and file->private_data is set to it in the driver's open
+function by the driver.
+
+In many cases the struct v4l2_fh will be embedded in a larger structure.
+In that case you should call v4l2_fh_init+v4l2_fh_add in open() and
+v4l2_fh_del+v4l2_fh_exit in release().
+
+Drivers can extract their own file handle structure by using the container_of
+macro. Example:
 
 struct my_fh {
 	int blah;
@@ -802,15 +793,21 @@ int my_open(struct file *file)
 
 	...
 
-	ret = v4l2_fh_init(&my_fh->fh, vfd);
-	if (ret)
-		return ret;
-
-	v4l2_fh_add(&my_fh->fh);
-
-	file->private_data = &my_fh->fh;
+	my_fh = kzalloc(sizeof(*my_fh), GFP_KERNEL);
 
 	...
+
+	ret = v4l2_fh_init(&my_fh->fh, vfd);
+	if (ret) {
+		kfree(my_fh);
+		return ret;
+	}
+
+	...
+
+	file->private_data = &my_fh->fh;
+	v4l2_fh_add(&my_fh->fh);
+	return 0;
 }
 
 int my_release(struct file *file)
@@ -819,7 +816,64 @@ int my_release(struct file *file)
 	struct my_fh *my_fh = container_of(fh, struct my_fh, fh);
 
 	...
+	v4l2_fh_del(&my_fh->fh);
+	v4l2_fh_exit(&my_fh->fh);
+	kfree(my_fh);
+	return 0;
 }
+
+Below is a short description of the v4l2_fh functions used:
+
+int v4l2_fh_init(struct v4l2_fh *fh, struct video_device *vdev)
+
+  Initialise the file handle. This *MUST* be performed in the driver's
+  v4l2_file_operations->open() handler.
+
+void v4l2_fh_add(struct v4l2_fh *fh)
+
+  Add a v4l2_fh to video_device file handle list. Must be called once the
+  file handle is completely initialized.
+
+void v4l2_fh_del(struct v4l2_fh *fh)
+
+  Unassociate the file handle from video_device(). The file handle
+  exit function may now be called.
+
+void v4l2_fh_exit(struct v4l2_fh *fh)
+
+  Uninitialise the file handle. After uninitialisation the v4l2_fh
+  memory can be freed.
+
+
+If struct v4l2_fh is not embedded, then you can use these helper functions:
+
+int v4l2_fh_open(struct file *filp)
+
+  This allocates a struct v4l2_fh, initializes it and adds it to the struct
+  video_device associated with the file struct.
+
+int v4l2_fh_release(struct file *filp)
+
+  This deletes it from the struct video_device associated with the file
+  struct, uninitialised the v4l2_fh and frees it.
+
+These two functions can be plugged into the v4l2_file_operation's open() and
+release() ops.
+
+
+Several drivers need to do something when the first file handle is opened and
+when the last file handle closes. Two helper functions were added to check
+whether the v4l2_fh struct is the only open filehandle of the associated
+device node:
+
+int v4l2_fh_is_singular(struct v4l2_fh *fh)
+
+  Returns 1 if the file handle is the only open file handle, else 0.
+
+int v4l2_fh_is_singular_file(struct file *filp)
+
+  Same, but it calls v4l2_fh_is_singular with filp->private_data.
+
 
 V4L2 events
 -----------
