@@ -15,10 +15,6 @@ struct meminfo;
 struct sys_timer;
 
 struct machine_desc {
-	/*
-	 * Note! The first two elements are used
-	 * by assembler code in head.S, head-common.S
-	 */
 	unsigned int		nr;		/* architecture number	*/
 	const char		*name;		/* architecture name	*/
 	unsigned long		boot_params;	/* tagged list		*/
