@@ -216,13 +216,17 @@ struct efx_tx_queue {
  *	If both this and skb are %NULL, the buffer slot is currently free.
  * @data: Pointer to ethernet header
  * @len: Buffer length, in bytes.
+ * @is_page: Indicates if @page is valid. If false, @skb is valid.
  */
 struct efx_rx_buffer {
 	dma_addr_t dma_addr;
-	struct sk_buff *skb;
-	struct page *page;
+	union {
+		struct sk_buff *skb;
+		struct page *page;
+	} u;
 	char *data;
 	unsigned int len;
+	bool is_page;
 };
 
 /**
