@@ -364,6 +364,7 @@ static ssize_t dwc_otg_enable_store( struct device *_dev,
         if (_core_if->hcd_cb && _core_if->hcd_cb->suspend) {
                 _core_if->hcd_cb->suspend( _core_if->hcd_cb->p, val);
         }
+        udelay(3);
         clk_disable(otg_dev->phyclk);
         clk_disable(otg_dev->ahbclk);
 	}
@@ -956,6 +957,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	
     *otg_phy_con1 = regval;
     
+    udelay(3);
     clk_disable(phyclk);
     clk_disable(ahbclk);
 #endif
@@ -983,7 +985,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
     regval |= (0x01<<13);    // software control
 
     *otg_phy_con1 = regval;
-    
+    udelay(3);
     clk_disable(phyclk);
     clk_disable(ahbclk);
 #endif

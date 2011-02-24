@@ -1,16 +1,16 @@
 ##############################################################################
 #  
-#    Copyright (c) 2005 - 2010 by Vivante Corp.  All rights reserved.
+#    Copyright (c) 2005 - 2011 by Vivante Corp.  All rights reserved.
 #  
 #    The material in this file is confidential and contains trade secrets
 #    of Vivante Corporation. This is proprietary information owned by
-#    Vivante Corporation. No part of this work may be disclosed, 
-#    reproduced, copied, transmitted, or used in any way for any purpose, 
+#    Vivante Corporation. No part of this work may be disclosed,
+#    reproduced, copied, transmitted, or used in any way for any purpose,
 #    without the express written permission of Vivante Corporation.
 #  
 ##############################################################################
 #  
-#    Auto-generated file on 12/17/2010. Do not edit!!!
+#    Auto-generated file on 1/7/2011. Do not edit!!!
 #  
 ##############################################################################
 
@@ -279,6 +279,7 @@ EXPORTS
 	gco2D_SetAutoFlushCycles
 	gco2D_ProfileEngine
 	gco2D_GetMaximumDataCount
+	gco2D_EnableDither
 
 
 !IFNDEF VIVANTE_NO_3D

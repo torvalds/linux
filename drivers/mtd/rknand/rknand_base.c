@@ -208,12 +208,12 @@ static int rk28xxnand_write(struct mtd_info *mtd, loff_t from, size_t len,
 	int sector = len>>9;
 	int LBA = (int)(from>>9);
 	//printk("*");
-	//printk(KERN_NOTICE "write: from=%lx,len=%x\n",(int)from,len);
+    //printk(KERN_NOTICE "write: from=%lx,len=%x\n",(int)from,len);
 	if(sector)// cmy
 	{
 		if(LBA < SysImageWriteEndAdd)//0x4E000)
 		{
-			printk(">>> FtlWriteImage: LBA=0x%08X  sector=%d\n",LBA, sector);
+			NAND_DEBUG(NAND_DEBUG_LEVEL0,">>> FtlWriteImage: LBA=0x%08X  sector=%d\n",LBA, sector);
             ret = rknand_queue_write(LBA, sector, (void *)buf,1);
         }
 		else

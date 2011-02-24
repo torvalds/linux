@@ -9,7 +9,7 @@
  */
 #include "ov5640.h"
 
-struct reginfo sensor_af_firmware[] =
+static struct reginfo sensor_af_firmware[] =
 {
 	SEQUENCE_END,SEQUENCE_END
 };

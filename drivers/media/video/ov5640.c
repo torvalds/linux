@@ -643,7 +643,36 @@ static struct reginfo sensor_sxga[] =
 
 	{SEQUENCE_END, 0x00}
 };
-
+/* 1024X768 XGA */
+static struct reginfo sensor_xga[] =
+{
+	{0x3800 ,0x1 },
+	{0x3801 ,0x8A},
+	{0x3802 ,0x0 },
+	{0x3803 ,0xA },
+	{0x3804 ,0xA },
+	{0x3805 ,0x20},
+	{0x3806 ,0x7 },
+	{0x3807 ,0x98},
+	{0x3808 ,0x4 },
+	{0x3809 ,0x0 },
+	{0x380a ,0x3 },
+	{0x380b ,0x0 },
+	{0x380c ,0xc },
+	{0x380d ,0x80},
+	{0x380e ,0x7 },
+	{0x380f ,0xd0},
+	{0x5001 ,0x7f},
+	{0x5680 ,0x0 },
+	{0x5681 ,0x0 },
+	{0x5682 ,0xA },
+	{0x5683 ,0x20},
+	{0x5684 ,0x0 },
+	{0x5685 ,0x0 },
+	{0x5686 ,0x7 },
+	{0x5687 ,0x98},
+	{SEQUENCE_END, 0x00}
+};
 /* 800X600 SVGA*/
 static struct reginfo sensor_svga[] =
 {
@@ -1262,6 +1291,9 @@ static int sensor_suspend(struct soc_camera_device *icd, pm_message_t pm_msg);
 static int sensor_resume(struct soc_camera_device *icd);
 static int sensor_set_bus_param(struct soc_camera_device *icd,unsigned long flags);
 static unsigned long sensor_query_bus_param(struct soc_camera_device *icd);
+static int sensor_set_effect(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value);
+static int sensor_set_whiteBalance(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value);
+static int sensor_deactivate(struct i2c_client *client);
 
 static struct soc_camera_ops sensor_ops =
 {
@@ -1312,6 +1344,8 @@ typedef struct sensor_info_priv_s
 	int affm_reinit;
     int flash;
     int exposure;
+	bool snap2preview;
+	bool video2preview;
     unsigned char mirror;                                        /* HFLIP */
     unsigned char flip;                                          /* VFLIP */
     struct reginfo *winseqe_cur_addr;
@@ -1350,9 +1384,6 @@ struct sensor
 	struct rk29camera_platform_data *sensor_io_request;
 };
 
-static int sensor_deactivate(struct i2c_client *client);
-
-
 static struct sensor* to_sensor(const struct i2c_client *client)
 {
     return container_of(i2c_get_clientdata(client), struct sensor, subdev);
@@ -1361,11 +1392,22 @@ static struct sensor* to_sensor(const struct i2c_client *client)
 static int sensor_task_lock(struct i2c_client *client, int lock)
 {
 #if CONFIG_SENSOR_I2C_NOSCHED
+	int cnt = 3;
     struct sensor *sensor = to_sensor(client);
 
 	if (lock) {
-		if (atomic_read(&sensor->tasklock_cnt) == 0)
+		if (atomic_read(&sensor->tasklock_cnt) == 0) {
+			while ((atomic_read(&client->adapter->bus_lock.count) < 1) && (cnt>0)) {
+				SENSOR_TR("\n %s will obtain i2c in atomic, but i2c bus is locked! Wait...\n",SENSOR_NAME_STRING());
+				msleep(35);
+				cnt--;
+			}
+			if ((atomic_read(&client->adapter->bus_lock.count) < 1) && (cnt<=0)) {
+				SENSOR_TR("\n %s obtain i2c fail in atomic!!\n",SENSOR_NAME_STRING());
+				goto sensor_task_lock_err;
+			}
 			preempt_disable();
+		}
 
 		atomic_add(1, &sensor->tasklock_cnt);
 	} else {
@@ -1378,6 +1420,8 @@ static int sensor_task_lock(struct i2c_client *client, int lock)
 	}
 #endif
 	return 0;
+sensor_task_lock_err:
+	return -1;
 }
 
 /* sensor register write */
@@ -1469,7 +1513,8 @@ static int sensor_write_array(struct i2c_client *client, struct reginfo *regarra
 #endif
 
 	cnt = 0;
-	sensor_task_lock(client, 1);
+	if (sensor_task_lock(client, 1) < 0)
+		goto sensor_write_array_end;
     while (regarray[i].reg != SEQUENCE_END)
     {
     	#if CONFIG_SENSOR_Focus
@@ -2050,7 +2095,8 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 	}
 
     /* soft reset */
-	sensor_task_lock(client,1);
+	if (sensor_task_lock(client,1)<0)
+		goto sensor_INIT_ERR;
     ret = sensor_write(client, 0x3008, 0x80);
     if (ret != 0) {
         SENSOR_TR("%s soft reset sensor failed\n",SENSOR_NAME_STRING());
@@ -2247,7 +2293,9 @@ static bool sensor_fmt_capturechk(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
     bool ret = false;
 
-	if ((f->fmt.pix.width == 1280) && (f->fmt.pix.height == 1024)) {
+	if ((f->fmt.pix.width == 1024) && (f->fmt.pix.height == 768)) {
+		ret = true;
+	} else if ((f->fmt.pix.width == 1280) && (f->fmt.pix.height == 1024)) {
 		ret = true;
 	} else if ((f->fmt.pix.width == 1600) && (f->fmt.pix.height == 1200)) {
 		ret = true;
@@ -2261,11 +2309,27 @@ static bool sensor_fmt_capturechk(struct v4l2_subdev *sd, struct v4l2_format *f)
 		SENSOR_DG("%s %dx%d is capture format\n", __FUNCTION__, f->fmt.pix.width, f->fmt.pix.height);
 	return ret;
 }
+static bool sensor_fmt_videochk(struct v4l2_subdev *sd, struct v4l2_format *f)
+{
+    bool ret = false;
+
+	if ((f->fmt.pix.width == 1280) && (f->fmt.pix.height == 720)) {
+		ret = true;
+	} else if ((f->fmt.pix.width == 1920) && (f->fmt.pix.height == 1080)) {
+		ret = true;
+	}
+
+	if (ret == true)
+		SENSOR_DG("%s %dx%d is video format\n", __FUNCTION__, f->fmt.pix.width, f->fmt.pix.height);
+	return ret;
+}
 static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
     struct i2c_client *client = sd->priv;
     struct sensor *sensor = to_sensor(client);
     struct v4l2_pix_format *pix = &f->fmt.pix;
+	const struct v4l2_queryctrl *qctrl;
+	struct soc_camera_device *icd = client->dev.platform_data;
     struct reginfo *winseqe_set_addr=NULL;
     int ret = 0, set_w,set_h;
 
@@ -2327,6 +2391,12 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
         winseqe_set_addr = sensor_svga;
         set_w = 800;
         set_h = 600;
+    }
+	else if (((set_w <= 1024) && (set_h <= 768)) && sensor_xga[0].reg)
+    {
+        winseqe_set_addr = sensor_xga;
+        set_w = 1024;
+        set_h = 768;
     }
 	else if (((set_w <= 1280) && (set_h <= 720)) && sensor_720p[0].reg)
     {
@@ -2402,6 +2472,27 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 
 		if (sensor_fmt_capturechk(sd,f) == true) {				    /* ddl@rock-chips.com : Capture */
 			sensor_ae_transfer(client);
+			qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_EFFECT);
+			sensor_set_effect(icd, qctrl,sensor->info_priv.effect);
+			if (sensor->info_priv.whiteBalance != 0) {
+				qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_DO_WHITE_BALANCE);
+				sensor_set_whiteBalance(icd, qctrl,sensor->info_priv.whiteBalance);
+			}
+			sensor->info_priv.snap2preview = true;
+		} else if (sensor_fmt_videochk(sd,f) == true) {			/* ddl@rock-chips.com : Video */
+			qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_EFFECT);
+			sensor_set_effect(icd, qctrl,sensor->info_priv.effect);
+
+			sensor->info_priv.video2preview = true;
+		} else if ((sensor->info_priv.snap2preview == true) || (sensor->info_priv.video2preview == true)) {
+			qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_EFFECT);
+			sensor_set_effect(icd, qctrl,sensor->info_priv.effect);
+			if (sensor->info_priv.snap2preview == true) {
+				qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_DO_WHITE_BALANCE);
+				sensor_set_whiteBalance(icd, qctrl,sensor->info_priv.whiteBalance);
+			}
+			sensor->info_priv.video2preview = false;
+			sensor->info_priv.snap2preview = false;
 		}
         SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),__FUNCTION__,set_w,set_h);
     }

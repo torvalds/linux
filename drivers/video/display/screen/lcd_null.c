@@ -6,7 +6,7 @@
 #include <mach/iomux.h>
 #include "screen.h"
 
-void set_lcd_info(struct rk29fb_screen *screen)
+void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info)
 {
     memset(screen, 0, sizeof(struct rk29fb_screen));
     screen->face = OUT_P666;

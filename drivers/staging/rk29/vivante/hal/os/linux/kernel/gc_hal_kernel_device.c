@@ -577,8 +577,13 @@ gckGALDEVICE_Construct(
         {
             /* map internal memory */
             device->internalPhysical  = (gctPHYS_ADDR)physical;
+#if gcdENABLE_MEM_CACHE
+            device->internalLogical   = (gctPOINTER)ioremap_cached(
+                    physical, device->internalSize);
+#else
             device->internalLogical   = (gctPOINTER)ioremap_nocache(
                     physical, device->internalSize);
+#endif
 
             gcmkASSERT(device->internalLogical != NULL);
 
@@ -605,9 +610,13 @@ gckGALDEVICE_Construct(
         {
             /* map internal memory */
             device->externalPhysical = (gctPHYS_ADDR)physical;
+#if gcdENABLE_MEM_CACHE
+            device->externalLogical = (gctPOINTER)ioremap_cached(
+                    physical, device->externalSize);
+#else
             device->externalLogical = (gctPOINTER)ioremap_nocache(
                     physical, device->externalSize);
-
+#endif
             gcmkASSERT(device->externalLogical != NULL);
 
             physical += device->externalSize;
@@ -719,7 +728,11 @@ gckGALDEVICE_Construct(
 
             device->contiguousPhysical = (gctPHYS_ADDR) ContiguousBase;
             device->contiguousSize     = ContiguousSize;
+#if gcdENABLE_MEM_CACHE
+            device->contiguousBase     = (gctPOINTER) ioremap_cached(ContiguousBase, ContiguousSize);
+#else
             device->contiguousBase     = (gctPOINTER) ioremap_nocache(ContiguousBase, ContiguousSize);
+#endif
             device->contiguousMapped   = gcvTRUE;
 
             if (device->contiguousBase == gcvNULL)

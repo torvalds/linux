@@ -17,12 +17,13 @@ config KEYS_RK29
 	default y
 	help
 		rk29 keyboard drivers(gpio and adc)
+
 config SYNAPTICS_SO340010
 	tristate "Synaptics So340010 TouchPad KEY"
-	depends on ARCH_RK29
-	default y
+	depends on I2C
 	help
 	   "Synaptics So340010 Touch Key (I2C) driver"
+
 config KEYBOARD_AAED2000
 	tristate "AAED-2000 keyboard"
 	depends on MACH_AAED2000

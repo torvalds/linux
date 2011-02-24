@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2010 by Vivante Corp.
+*    Copyright (C) 2005 - 2011 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -758,6 +758,7 @@ gckCOMMAND_Commit(
     gctBOOL semaAcquired = gcvFALSE;
     gctINT32 atomValue;
     gctBOOL atomIncremented = gcvFALSE;
+    gctUINT32 process, thread;
     gctBOOL powerAcquired = gcvFALSE;
 
     gcmkHEADER_ARG("Command=0x%x CommandBuffer=0x%x Context=0x%x",
@@ -791,10 +792,40 @@ gckCOMMAND_Commit(
     hardware = Command->kernel->hardware;
     gcmkVERIFY_OBJECT(hardware, gcvOBJ_HARDWARE);
 
-    /* Grab the power mutex. */
-    gcmkONERROR(
-        gckOS_AcquireMutex(Command->os, hardware->powerMutex, gcvINFINITE));
-    powerAcquired = gcvTRUE;
+    /* Get current process and thread IDs. */
+    gcmkONERROR(gckOS_GetProcessID(&process));
+    gcmkONERROR(gckOS_GetThreadID(&thread));
+
+    /* Try to acquire the power mutex. */
+    status = gckOS_AcquireMutex(Command->os, hardware->powerMutex, 0);
+
+    if (status == gcvSTATUS_OK)
+    {
+        hardware->powerProcess = process;
+        hardware->powerThread  = thread;
+        powerAcquired = gcvTRUE;
+    }
+    else if (status == gcvSTATUS_TIMEOUT)
+    {
+        /* Check if we already own this mutex. */
+        if ((hardware->powerProcess != process)
+        ||  (hardware->powerThread  != thread)
+        )
+        {
+            /* Acquire the power mutex. */
+            gcmkONERROR(
+                gckOS_AcquireMutex(Command->os,
+                                   hardware->powerMutex, gcvINFINITE));
+
+            hardware->powerProcess = process;
+            hardware->powerThread  = thread;
+            powerAcquired = gcvTRUE;
+        }
+    }
+    else
+    {
+        gcmkONERROR(status);
+    }
 
     /* Increment the commit atom. */
     gcmkONERROR(gckOS_AtomIncrement(Command->os,
@@ -802,9 +833,12 @@ gckCOMMAND_Commit(
                                     &atomValue));
     atomIncremented = gcvTRUE;
 
-    /* Release the power mutex. */
-    gcmkONERROR(gckOS_ReleaseMutex(Command->os, hardware->powerMutex));
-    powerAcquired = gcvFALSE;
+    if (powerAcquired)
+    {
+        /* Release the power mutex. */
+        gcmkONERROR(gckOS_ReleaseMutex(Command->os, hardware->powerMutex));
+        powerAcquired = gcvFALSE;
+    }
 
     /* Notify the system the GPU has a commit. */
     gcmkONERROR(gckOS_Broadcast(Command->os,
@@ -1371,8 +1405,10 @@ gckCOMMAND_Reserve(
     gctSIZE_T requiredBytes, bytes;
     gctBOOL acquired = gcvFALSE;
     gctBOOL semaAcquired = gcvTRUE;
+    gckHARDWARE hardware = gcvNULL;
     gctINT32 atomValue;
     gctBOOL atomIncremented = gcvFALSE;
+    gctUINT32 process, thread;
     gctBOOL powerAcquired = gcvFALSE;
 
     gcmkHEADER_ARG("Command=0x%x RequestedBytes=%lu", Command, RequestedBytes);
@@ -1380,21 +1416,57 @@ gckCOMMAND_Reserve(
     /* Verify the arguments. */
     gcmkVERIFY_OBJECT(Command, gcvOBJ_COMMAND);
 
-    /* Grab the power mutex. */
-    gcmkONERROR(gckOS_AcquireMutex(Command->os,
-                                   Command->kernel->hardware->powerMutex,
-                                   gcvINFINITE));
-    powerAcquired = gcvTRUE;
+    /* Extract the gckHARDWARE objects. */
+    hardware = Command->kernel->hardware;
+    gcmkVERIFY_OBJECT(hardware, gcvOBJ_HARDWARE);
+
+    /* Get current process and thread IDs. */
+    gcmkONERROR(gckOS_GetProcessID(&process));
+    gcmkONERROR(gckOS_GetThreadID(&thread));
+
+    /* Try to acquire the power mutex. */
+    status = gckOS_AcquireMutex(Command->os, hardware->powerMutex, 0);
+
+    if (status == gcvSTATUS_OK)
+    {
+        hardware->powerProcess = process;
+        hardware->powerThread  = thread;
+        powerAcquired = gcvTRUE;
+    }
+    else if (status == gcvSTATUS_TIMEOUT)
+    {
+        /* Check if we already own this mutex. */
+        if ((hardware->powerProcess != process)
+        ||  (hardware->powerThread  != thread)
+        )
+        {
+            /* Acquire the power mutex. */
+            gcmkONERROR(
+                gckOS_AcquireMutex(Command->os,
+                                   hardware->powerMutex, gcvINFINITE));
+
+            hardware->powerProcess = process;
+            hardware->powerThread  = thread;
+            powerAcquired = gcvTRUE;
+        }
+    }
+    else
+    {
+        gcmkONERROR(status);
+    }
 
     /* Increment the commit atom. */
     gcmkONERROR(
         gckOS_AtomIncrement(Command->os, Command->atomCommit, &atomValue));
     atomIncremented = gcvTRUE;
 
-    /* Release the power mutex. */
-    gcmkONERROR(gckOS_ReleaseMutex(Command->os,
-                                   Command->kernel->hardware->powerMutex));
-    powerAcquired = gcvFALSE;
+    if (powerAcquired)
+    {
+        /* Release the power mutex. */
+        gcmkONERROR(gckOS_ReleaseMutex(Command->os,
+                                       Command->kernel->hardware->powerMutex));
+        powerAcquired = gcvFALSE;
+    }
 
     /* Notify the system the GPU has a commit. */
     gcmkONERROR(gckOS_Broadcast(Command->os,

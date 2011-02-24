@@ -19,6 +19,7 @@ struct dentry;
 #define FBIOPUTCMAP		0x4605
 #define FBIOPAN_DISPLAY		0x4606
 #define FBIOPUT_16OR32      0x4607
+#define FBIOPUT_FBPHYADD    0x4608
 #ifdef __KERNEL__
 #define FBIO_CURSOR            _IOWR('F', 0x08, struct fb_cursor_user)
 #else

@@ -1552,7 +1552,7 @@ int rk28_usb_suspend( int exitsuspend )
         pcd->phy_suspend = 1;
         *otg_phy_con1 |= (0x01<<2);
         *otg_phy_con1 &= ~(0x01<<3);    // enter suspend.
-        udelay(1);
+        udelay(3);
         clk_disable(pcd->otg_dev->phyclk);
         clk_disable(pcd->otg_dev->ahbclk);
         //*otg_phy_con1 &= ~(0x01<<2);

@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2010 by Vivante Corp.
+*    Copyright (C) 2005 - 2011 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -1022,7 +1022,14 @@ gckOS_MapMemory(
             return gcvSTATUS_OUT_OF_RESOURCES;
         }
 #else
+
+#if (2==gcdENABLE_MEM_CACHE)
+        mdlMap->vma->vm_page_prot = pgprot_writecombine(mdlMap->vma->vm_page_prot);
+#elif (1==gcdENABLE_MEM_CACHE)
+    // NULL
+#else
         mdlMap->vma->vm_page_prot = pgprot_noncached(mdlMap->vma->vm_page_prot);
+#endif
         mdlMap->vma->vm_flags |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_RESERVED;
         mdlMap->vma->vm_pgoff = 0;
 
@@ -1257,7 +1264,11 @@ gckOS_AllocateNonPagedMemory(
     }
 
     vaddr           = (gctPOINTER)page_address(page);
+#if gcdENABLE_MEM_CACHE
+    addr            = ioremap_cached(virt_to_phys(vaddr), size);
+#else
     addr            = ioremap_nocache(virt_to_phys(vaddr), size);
+#endif
     mdl->dmaHandle  = virt_to_phys(vaddr);
     mdl->kaddr      = vaddr;
 
@@ -1386,7 +1397,14 @@ gckOS_AllocateNonPagedMemory(
             return gcvSTATUS_OUT_OF_RESOURCES;
         }
 #else
+
+#if (2==gcdENABLE_MEM_CACHE)
+        mdlMap->vma->vm_page_prot = pgprot_writecombine(mdlMap->vma->vm_page_prot);
+#elif (1==gcdENABLE_MEM_CACHE)
+        // NULL
+#else
         mdlMap->vma->vm_page_prot = pgprot_noncached(mdlMap->vma->vm_page_prot);
+#endif
         mdlMap->vma->vm_flags |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_RESERVED;
         mdlMap->vma->vm_pgoff = 0;
 
@@ -1943,8 +1961,11 @@ gceSTATUS gckOS_MapPhysical(
     {
         /* Map memory as cached memory. */
         request_mem_region(physical, Bytes, "MapRegion");
+#if gcdENABLE_MEM_CACHE
+        logical = (gctPOINTER) ioremap_cached(physical, Bytes);
+#else
         logical = (gctPOINTER) ioremap_nocache(physical, Bytes);
-
+#endif
         if (logical == NULL)
         {
             gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_OS,
@@ -3001,7 +3022,13 @@ gceSTATUS gckOS_LockPages(
 
         mdlMap->vma->vm_flags |= VM_RESERVED;
         /* Make this mapping non-cached. */
+#if (2==gcdENABLE_MEM_CACHE)
+        mdlMap->vma->vm_page_prot = pgprot_writecombine(mdlMap->vma->vm_page_prot);
+#elif (1==gcdENABLE_MEM_CACHE)
+        // NULL
+#else
         mdlMap->vma->vm_page_prot = pgprot_noncached(mdlMap->vma->vm_page_prot);
+#endif
 
         addr = mdl->addr;
 
@@ -5388,6 +5415,9 @@ gckOS_CacheFlush(
     IN gctSIZE_T Bytes
     )
 {
+#if (1==gcdENABLE_MEM_CACHE)
+    dmac_clean_range(Logical, Logical+Bytes);
+#endif
     return gcvSTATUS_OK;
 }
 
@@ -5421,6 +5451,9 @@ gckOS_CacheInvalidate(
     IN gctSIZE_T Bytes
     )
 {
+#if (1==gcdENABLE_MEM_CACHE)
+    dmac_flush_range(Logical, Logical+Bytes);
+#endif
     return gcvSTATUS_OK;
 }
 
@@ -5515,7 +5548,8 @@ gckOS_Broadcast(
 
         /* Put GPU ON. */
         gcmkONERROR(
-            gckHARDWARE_SetPowerManagementState(Hardware, gcvPOWER_ON));
+            gckHARDWARE_SetPowerManagementState(Hardware,
+                                                gcvPOWER_ON_BROADCAST));
         break;
 
     case gcvBROADCAST_GPU_STUCK:

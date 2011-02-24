@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2010 by Vivante Corp.
+*    Copyright (C) 2005 - 2011 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,10 @@
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 *
 *****************************************************************************/
+
+
+
+
 #include "gc_hal.h"
 #include "gc_hal_kernel.h"
 
@@ -418,7 +422,10 @@ gckHARDWARE_Construct(
     gcmkONERROR(gckHARDWARE_SetFastClear(hardware, -1, -1));
 
     /* Set power state to ON. */
-    hardware->chipPowerState = gcvPOWER_ON;
+    hardware->chipPowerState    = gcvPOWER_ON;
+    hardware->broadcast         = gcvFALSE;
+    hardware->settingPowerState = gcvFALSE;
+
     hardware->lastWaitLink   = ~0U;
 
     gcmkONERROR(gckOS_CreateMutex(Os, &hardware->powerMutex));
@@ -2858,10 +2865,8 @@ gckHARDWARE_SetPowerManagementState(
     gckCOMMAND command = gcvNULL;
     gckOS os;
     gctUINT flag, clock;
-#if 0      // dkm del  
     gctPOINTER buffer;
     gctSIZE_T bytes, requested;
-#endif
     gctBOOL acquired = gcvFALSE;
     gctBOOL reserved = gcvFALSE;
     gctBOOL mutexAcquired = gcvFALSE;
@@ -2959,6 +2964,13 @@ gckHARDWARE_SetPowerManagementState(
     /* Convert the broadcast power state. */
     switch (State)
     {
+    case gcvPOWER_ON_BROADCAST:
+        /* Convert to ON and and not we are inside broadcast. */
+        State     = gcvPOWER_ON;
+        stall     = gcvFALSE;
+        broadcast = gcvTRUE;
+        break;
+
     case gcvPOWER_SUSPEND_ATPOWERON:
         /* Convert to SUSPEND and don't wait for STALL. */
         State = gcvPOWER_SUSPEND;
@@ -2972,25 +2984,25 @@ gckHARDWARE_SetPowerManagementState(
         break;
 
     case gcvPOWER_IDLE_BROADCAST:
-        /* Convert to IDLE and note we are inside breoadcast. */
+        /* Convert to IDLE and note we are inside broadcast. */
         State     = gcvPOWER_IDLE;
         broadcast = gcvTRUE;
         break;
 
     case gcvPOWER_SUSPEND_BROADCAST:
-        /* Convert to SUSPEND and note we are inside breoadcast. */
+        /* Convert to SUSPEND and note we are inside broadcast. */
         State     = gcvPOWER_SUSPEND;
         broadcast = gcvTRUE;
         break;
 
     case gcvPOWER_OFF_BROADCAST:
-        /* Convert to OFF and note we are inside breoadcast. */
+        /* Convert to OFF and note we are inside broadcast. */
         State     = gcvPOWER_OFF;
         broadcast = gcvTRUE;
         break;
 
     case gcvPOWER_OFF_RECOVERY:
-        /* Convert to OFF and note we are inside breoadcast. */
+        /* Convert to OFF and note we are inside broadcast. */
         State     = gcvPOWER_OFF;
         stall     = gcvFALSE;
         broadcast = gcvTRUE;
@@ -3046,7 +3058,7 @@ gckHARDWARE_SetPowerManagementState(
     flag  = flags[Hardware->chipPowerState][State];
     clock = clocks[State];
 
-    if (flag == 0)
+    if ((flag == 0) || (Hardware->settingPowerState))
     {
         /* Release the power mutex. */
         gcmkONERROR(gckOS_ReleaseMutex(os, Hardware->powerMutex));
@@ -3055,6 +3067,20 @@ gckHARDWARE_SetPowerManagementState(
         gcmkFOOTER_NO();
         return gcvSTATUS_OK;
     }
+
+    if (broadcast && !Hardware->broadcast
+    &&  (Hardware->chipPowerState == gcvPOWER_OFF)
+    )
+    {
+        /* Release the power mutex. */
+        gcmkONERROR(gckOS_ReleaseMutex(os, Hardware->powerMutex));
+
+        /* No broadcast while GPU is forced power off. */
+        gcmkFOOTER_NO();
+        return gcvSTATUS_CHIP_NOT_READY;
+    }
+
+    Hardware->settingPowerState = gcvTRUE;
 
     gcmkASSERT(Hardware->kernel          != gcvNULL);
     gcmkASSERT(Hardware->kernel->command != gcvNULL);
@@ -3097,7 +3123,6 @@ gckHARDWARE_SetPowerManagementState(
 
         else
         {
-#if 0      // dkm del    
             /* Get the size of the flush command. */
             gcmkONERROR(gckHARDWARE_Flush(Hardware,
                                           gcvFLUSH_ALL,
@@ -3122,7 +3147,6 @@ gckHARDWARE_SetPowerManagementState(
 
             /* Wait to finish all commands. */
             gcmkONERROR(gckCOMMAND_Stall(command));
-#endif  
         }
     }
 
@@ -3195,7 +3219,9 @@ gckHARDWARE_SetPowerManagementState(
     }
 
     /* Save the new power state. */
-    Hardware->chipPowerState = State;
+    Hardware->chipPowerState    = State;
+    Hardware->broadcast         = broadcast;
+    Hardware->settingPowerState = gcvFALSE;
 
     /* Release the power mutex. */
     gcmkONERROR(gckOS_ReleaseMutex(os, Hardware->powerMutex));
@@ -3220,6 +3246,8 @@ OnError:
 
     if (mutexAcquired)
     {
+        Hardware->settingPowerState = gcvFALSE;
+
         gcmkVERIFY_OK(gckOS_ReleaseMutex(Hardware->os, Hardware->powerMutex));
     }
 

@@ -36,7 +36,7 @@
 									
 #define RK29_UDELAY_TIME(scl_rate)			((400*1000)/(scl_rate))
 /*max ACK delay time = RK29_I2C_ACK_TIMEOUT_COUNT * RK29_UDELAY_TIME(scl_rate)   us */
-#define RK29_I2C_ACK_TIMEOUT_COUNT			(10 * 1000)
+#define RK29_I2C_ACK_TIMEOUT_COUNT			(100 * 1000)
 /*max STOP delay time = RK29_I2C_STOP_TIMEOUT_COUNT * RK29_UDELAY_TIME(scl_rate)   us */
 #define RK29_I2C_STOP_TIMEOUT_COUNT			1000
 /*max START delay time = RK29_I2C_START_TIMEOUT_COUNT * RK29_UDELAY_TIME(scl_rate)   us */

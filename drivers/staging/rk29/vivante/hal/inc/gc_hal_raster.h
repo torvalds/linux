@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2010 by Vivante Corp.
+*    Copyright (C) 2005 - 2011 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -771,6 +771,13 @@ gceSTATUS
 gco2D_ProfileEngine(
 	IN gco2D Engine,
 	OPTIONAL gcs2D_PROFILE_PTR Profile
+	);
+
+/* Enable or disable 2D dithering. */
+gceSTATUS
+gco2D_EnableDither(
+	IN gco2D Engine,
+	IN gctBOOL Enable
 	);
 
 #ifdef __cplusplus

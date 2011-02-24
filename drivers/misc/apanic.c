@@ -216,8 +216,8 @@ static void mtd_panic_erase(void)
 	struct apanic_data *ctx = &drv_ctx;
 #ifdef CONFIG_MTD_RKNAND
 	size_t wlen;
-	memset(ctx->bounce, 0, sizeof(struct panic_header));
-	ctx->mtd->write(ctx->mtd, 0, sizeof(struct panic_header), &wlen, ctx->bounce);
+	memset(ctx->bounce, 0, ctx->mtd->writesize);
+	ctx->mtd->write(ctx->mtd, 0, ctx->mtd->writesize, &wlen, ctx->bounce);
 #else
 	struct erase_info erase;
 	DECLARE_WAITQUEUE(wait, current);
