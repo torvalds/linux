@@ -219,14 +219,25 @@ static bool choke_match_flow(struct sk_buff *skb1,
 	return *ports1 == *ports2;
 }
 
+struct choke_skb_cb {
+	u16 classid;
+};
+
+static inline struct choke_skb_cb *choke_skb_cb(const struct sk_buff *skb)
+{
+	BUILD_BUG_ON(sizeof(skb->cb) <
+		sizeof(struct qdisc_skb_cb) + sizeof(struct choke_skb_cb));
+	return (struct choke_skb_cb *)qdisc_skb_cb(skb)->data;
+}
+
 static inline void choke_set_classid(struct sk_buff *skb, u16 classid)
 {
-	*(unsigned int *)(qdisc_skb_cb(skb)->data) = classid;
+	choke_skb_cb(skb)->classid = classid;
 }
 
 static u16 choke_get_classid(const struct sk_buff *skb)
 {
-	return *(unsigned int *)(qdisc_skb_cb(skb)->data);
+	return choke_skb_cb(skb)->classid;
 }
 
 /*
