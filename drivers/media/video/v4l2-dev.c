@@ -573,6 +573,12 @@ int __video_register_device(struct video_device *vdev, int type, int nr,
 			vdev->parent = vdev->v4l2_dev->dev;
 		if (vdev->ctrl_handler == NULL)
 			vdev->ctrl_handler = vdev->v4l2_dev->ctrl_handler;
+		/* If the prio state pointer is NULL, and if the driver doesn't
+		   handle priorities itself, then use the v4l2_device prio
+		   state. */
+		if (vdev->prio == NULL && vdev->ioctl_ops &&
+				vdev->ioctl_ops->vidioc_s_priority == NULL)
+			vdev->prio = &vdev->v4l2_dev->prio;
 	}
 
 	/* Part 2: find a free minor, device node number and device index. */

@@ -89,6 +89,9 @@ struct video_device
 	/* Control handler associated with this device node. May be NULL. */
 	struct v4l2_ctrl_handler *ctrl_handler;
 
+	/* Priority state. If NULL, then v4l2_dev->prio will be used. */
+	struct v4l2_prio_state *prio;
+
 	/* device info */
 	char name[32];
 	int vfl_type;

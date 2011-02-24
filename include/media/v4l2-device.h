@@ -23,6 +23,7 @@
 
 #include <media/media-device.h>
 #include <media/v4l2-subdev.h>
+#include <media/v4l2-dev.h>
 
 /* Each instance of a V4L2 device should create the v4l2_device struct,
    either stand-alone or embedded in a larger struct.
@@ -55,6 +56,8 @@ struct v4l2_device {
 			unsigned int notification, void *arg);
 	/* The control handler. May be NULL. */
 	struct v4l2_ctrl_handler *ctrl_handler;
+	/* Device's priority state */
+	struct v4l2_prio_state prio;
 	/* BKL replacement mutex. Temporary solution only. */
 	struct mutex ioctl_lock;
 };
