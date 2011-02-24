@@ -81,6 +81,8 @@ static struct platform_device omap_mcbsp##port_nr = {	\
 #define OMAP_MCBSP_REG_DRR1	0x02
 #define OMAP_MCBSP_REG_DXR2	0x04
 #define OMAP_MCBSP_REG_DXR1	0x06
+#define OMAP_MCBSP_REG_DRR	0x02
+#define OMAP_MCBSP_REG_DXR	0x06
 #define OMAP_MCBSP_REG_SPCR2	0x08
 #define OMAP_MCBSP_REG_SPCR1	0x0a
 #define OMAP_MCBSP_REG_RCR2	0x0c
@@ -423,6 +425,7 @@ struct omap_mcbsp_platform_data {
 	unsigned long phys_base_st;
 #endif
 	u16 buffer_size;
+	unsigned int mcbsp_config_type;
 };
 
 struct omap_mcbsp_st_data {
@@ -473,6 +476,7 @@ struct omap_mcbsp {
 	u16 max_rx_thres;
 #endif
 	void *reg_cache;
+	unsigned int mcbsp_config_type;
 };
 
 /**
@@ -540,6 +544,9 @@ int omap_mcbsp_set_io_type(unsigned int id, omap_mcbsp_io_type_t io_type);
 /* McBSP signal muxing API */
 void omap2_mcbsp1_mux_clkr_src(u8 mux);
 void omap2_mcbsp1_mux_fsr_src(u8 mux);
+
+int omap_mcbsp_dma_ch_params(unsigned int id, unsigned int stream);
+int omap_mcbsp_dma_reg_params(unsigned int id, unsigned int stream);
 
 #ifdef CONFIG_ARCH_OMAP3
 /* Sidetone specific API */

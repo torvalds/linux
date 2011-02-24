@@ -126,6 +126,8 @@ static int omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 		return -ENOMEM;
 	}
 
+	pdata->mcbsp_config_type = oh->class->rev;
+
 	if (oh->class->rev == MCBSP_CONFIG_TYPE3) {
 		if (id == 2)
 			/* The FIFO has 1024 + 256 locations */

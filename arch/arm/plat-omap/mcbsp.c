@@ -229,6 +229,69 @@ void omap_mcbsp_config(unsigned int id, const struct omap_mcbsp_reg_cfg *config)
 }
 EXPORT_SYMBOL(omap_mcbsp_config);
 
+/**
+ * omap_mcbsp_dma_params - returns the dma channel number
+ * @id - mcbsp id
+ * @stream - indicates the direction of data flow (rx or tx)
+ *
+ * Returns the dma channel number for the rx channel or tx channel
+ * based on the value of @stream for the requested mcbsp given by @id
+ */
+int omap_mcbsp_dma_ch_params(unsigned int id, unsigned int stream)
+{
+	struct omap_mcbsp *mcbsp;
+
+	if (!omap_mcbsp_check_valid_id(id)) {
+		printk(KERN_ERR "%s: Invalid id (%d)\n", __func__, id + 1);
+		return -ENODEV;
+	}
+	mcbsp = id_to_mcbsp_ptr(id);
+
+	if (stream)
+		return mcbsp->dma_rx_sync;
+	else
+		return mcbsp->dma_tx_sync;
+}
+EXPORT_SYMBOL(omap_mcbsp_dma_ch_params);
+
+/**
+ * omap_mcbsp_dma_reg_params - returns the address of mcbsp data register
+ * @id - mcbsp id
+ * @stream - indicates the direction of data flow (rx or tx)
+ *
+ * Returns the address of mcbsp data transmit register or data receive register
+ * to be used by DMA for transferring/receiving data based on the value of
+ * @stream for the requested mcbsp given by @id
+ */
+int omap_mcbsp_dma_reg_params(unsigned int id, unsigned int stream)
+{
+	struct omap_mcbsp *mcbsp;
+	int data_reg;
+
+	if (!omap_mcbsp_check_valid_id(id)) {
+		printk(KERN_ERR "%s: Invalid id (%d)\n", __func__, id + 1);
+		return -ENODEV;
+	}
+	mcbsp = id_to_mcbsp_ptr(id);
+
+	data_reg = mcbsp->phys_dma_base;
+
+	if (mcbsp->mcbsp_config_type < MCBSP_CONFIG_TYPE2) {
+		if (stream)
+			data_reg += OMAP_MCBSP_REG_DRR1;
+		else
+			data_reg += OMAP_MCBSP_REG_DXR1;
+	} else {
+		if (stream)
+			data_reg += OMAP_MCBSP_REG_DRR;
+		else
+			data_reg += OMAP_MCBSP_REG_DXR;
+	}
+
+	return data_reg;
+}
+EXPORT_SYMBOL(omap_mcbsp_dma_reg_params);
+
 #ifdef CONFIG_ARCH_OMAP3
 static struct omap_device *find_omap_device_by_dev(struct device *dev)
 {
@@ -1835,6 +1898,7 @@ static int __devinit omap_mcbsp_probe(struct platform_device *pdev)
 	mcbsp->pdata = pdata;
 	mcbsp->dev = &pdev->dev;
 	mcbsp_ptr[id] = mcbsp;
+	mcbsp->mcbsp_config_type = pdata->mcbsp_config_type;
 	platform_set_drvdata(pdev, mcbsp);
 	pm_runtime_enable(mcbsp->dev);
 
