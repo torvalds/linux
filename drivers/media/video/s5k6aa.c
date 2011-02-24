@@ -22,6 +22,16 @@
 #include <mach/rk29_camera.h>
 #include <linux/delay.h>
 #include "s5k6aa.h"
+static int debug;
+module_param(debug, int, S_IRUGO|S_IWUSR);
+
+#define dprintk(level, fmt, arg...) do {			\
+	if (debug >= level) 					\
+	printk(KERN_WARNING fmt , ## arg); } while (0)
+
+#define SENSOR_TR(format, ...) printk(KERN_ERR format, ## __VA_ARGS__)
+#define SENSOR_DG(format, ...) dprintk(0, format, ## __VA_ARGS__)
+
 
 #define _CONS(a,b) a##b
 #define CONS(a,b) _CONS(a,b)
@@ -30,10 +40,16 @@
 #define _STR(x) __STR(x)
 #define STR(x) _STR(x)
 
+#define MIN(x,y)   ((x<y) ? x: y)
+#define MAX(x,y)    ((x>y) ? x: y)
+
 /* Sensor Driver Configuration */
 #define SENSOR_NAME s5k6aa
 #define SENSOR_V4L2_IDENT V4L2_IDENT_S5K66A
 #define SENSOR_ID 0x06aa
+#define SENSOR_ID_REG 0x015a
+#define SENSOR_RESET_REG SEQUENCE_END
+#define SENSOR_RESET_VAL 0x00
 #define SENSOR_MIN_WIDTH    640
 #define SENSOR_MIN_HEIGHT   480
 #define SENSOR_MAX_WIDTH    1280
@@ -55,29 +71,14 @@
 #define CONFIG_SENSOR_Flash         0
 #define CONFIG_SENSOR_Mirror        0
 #define CONFIG_SENSOR_Flip          0
+#define CONFIG_SENSOR_Focus         0
 
-#define CONFIG_SENSOR_I2C_SPEED     100000       /* Hz */
 
-#define CONFIG_SENSOR_TR      0
-#define CONFIG_SENSOR_DEBUG	  0
+#define CONFIG_SENSOR_I2C_SPEED     250000       /* Hz */
+/* Sensor write register continues by preempt_disable/preempt_enable for current process not be scheduled */
+#define CONFIG_SENSOR_I2C_NOSCHED   0
+#define CONFIG_SENSOR_I2C_RDWRCHK   0
 
-#define SENSOR_NAME_STRING(a) STR(CONS(SENSOR_NAME, a))
-#define SENSOR_NAME_VARFUN(a) CONS(SENSOR_NAME, a)
-
-#define MIN(x,y)   ((x<y) ? x: y)
-#define MAX(x,y)    ((x>y) ? x: y)
-
-#if (CONFIG_SENSOR_TR)
-	#define SENSOR_TR(format, ...)      printk(format, ## __VA_ARGS__)
-#else
-	#define SENSOR_TR(format, ...)
-#endif
-
-#if (CONFIG_SENSOR_DEBUG)
-        #define SENSOR_DG(format, ...)      printk(format, ## __VA_ARGS__)
-#else
-        #define SENSOR_DG(format, ...)
-#endif
 
 #define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING |\
                           SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_HIGH |\
@@ -92,11 +93,20 @@
 #define COLOR_TEMPERATURE_HOME_DN       2500
 #define COLOR_TEMPERATURE_HOME_UP       3500
 
-struct reginfo
-{
-    u16 reg;
-    u16 val;
-};
+#define SENSOR_NAME_STRING(a) STR(CONS(SENSOR_NAME, a))
+#define SENSOR_NAME_VARFUN(a) CONS(SENSOR_NAME, a)
+
+#define SENSOR_AF_IS_ERR    (0x00<<0)
+#define SENSOR_AF_IS_OK		(0x01<<0)
+
+#if CONFIG_SENSOR_Focus
+#define SENSOR_AF_MODE_INFINITY    0
+#define SENSOR_AF_MODE_MACRO       1
+#define SENSOR_AF_MODE_FIXED       2
+#define SENSOR_AF_MODE_AUTO        3
+#define SENSOR_AF_MODE_CONTINUOUS  4
+#define SENSOR_AF_MODE_CLOSE       5
+#endif
 
 /* init 640X480 SVGA */
 static struct reginfo sensor_init_data[] =
@@ -5012,6 +5022,9 @@ static int sensor_suspend(struct soc_camera_device *icd, pm_message_t pm_msg);
 static int sensor_resume(struct soc_camera_device *icd);
 static int sensor_set_bus_param(struct soc_camera_device *icd,unsigned long flags);
 static unsigned long sensor_query_bus_param(struct soc_camera_device *icd);
+static int sensor_set_effect(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value);
+static int sensor_set_whiteBalance(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value);
+static int sensor_deactivate(struct i2c_client *client);
 
 static struct soc_camera_ops sensor_ops =
 {
@@ -5035,6 +5048,17 @@ static struct soc_camera_ops sensor_ops =
 static const struct soc_camera_data_format sensor_colour_formats[] = {
 	JPG_FMT(SENSOR_NAME_STRING(YUYV), 16, V4L2_PIX_FMT_YUYV),
 };
+enum sensor_work_state
+{
+	sensor_work_ready = 0,
+	sensor_working,
+};
+struct sensor_work
+{
+	struct i2c_client *client;
+	struct delayed_work dwork;
+	enum sensor_work_state state;
+};
 
 typedef struct sensor_info_priv_s
 {
@@ -5046,21 +5070,51 @@ typedef struct sensor_info_priv_s
     int scene;
     int digitalzoom;
     int focus;
+	int auto_focus;
+	int affm_reinit;
     int flash;
     int exposure;
     unsigned char mirror;                                        /* HFLIP */
     unsigned char flip;                                          /* VFLIP */
-    unsigned int winseqe_cur_addr;
+	bool snap2preview;
+	bool video2preview;
+	int capture_w;
+	int capture_h;
+	int preview_w;
+	int preview_h;
+    struct reginfo *winseqe_cur_addr;
 	unsigned int pixfmt;
-
+	unsigned int enable;
+	unsigned int funmodule_state;
 } sensor_info_priv_t;
+
+
+
+struct sensor_parameter
+{
+	unsigned short int preview_maxlines;
+	unsigned short int preview_exposure;
+	unsigned short int preview_line_width;
+	unsigned short int preview_gain;
+
+	unsigned short int capture_framerate;
+	unsigned short int preview_framerate;
+};
 
 struct sensor
 {
     struct v4l2_subdev subdev;
     struct i2c_client *client;
     sensor_info_priv_t info_priv;
+	struct sensor_parameter parameter;
+	struct workqueue_struct *sensor_wq;
+	struct sensor_work sensor_wk;
+	struct mutex wq_lock;
     int model;	/* V4L2_IDENT_OV* codes from v4l2-chip-ident.h */
+#if CONFIG_SENSOR_I2C_NOSCHED
+	atomic_t tasklock_cnt;
+#endif
+	struct rk29camera_platform_data *sensor_io_request;
 };
 
 static struct sensor* to_sensor(const struct i2c_client *client)
@@ -5068,34 +5122,95 @@ static struct sensor* to_sensor(const struct i2c_client *client)
     return container_of(i2c_get_clientdata(client), struct sensor, subdev);
 }
 
+static int sensor_task_lock(struct i2c_client *client, int lock)
+{
+#if CONFIG_SENSOR_I2C_NOSCHED
+	int cnt = 3;
+    struct sensor *sensor = to_sensor(client);
+
+	if (lock) {
+		if (atomic_read(&sensor->tasklock_cnt) == 0) {
+			while ((atomic_read(&client->adapter->bus_lock.count) < 1) && (cnt>0)) {
+				SENSOR_TR("\n %s will obtain i2c in atomic, but i2c bus is locked! Wait...\n",SENSOR_NAME_STRING());
+				msleep(35);
+				cnt--;
+			}
+			if ((atomic_read(&client->adapter->bus_lock.count) < 1) && (cnt<=0)) {
+				SENSOR_TR("\n %s obtain i2c fail in atomic!!\n",SENSOR_NAME_STRING());
+				goto sensor_task_lock_err;
+			}
+			preempt_disable();
+		}
+
+		atomic_add(1, &sensor->tasklock_cnt);
+	} else {
+		if (atomic_read(&sensor->tasklock_cnt) > 0) {
+			atomic_sub(1, &sensor->tasklock_cnt);
+
+			if (atomic_read(&sensor->tasklock_cnt) == 0)
+				preempt_enable();
+		}
+	}
+#endif
+	return 0;
+sensor_task_lock_err:
+	return -1;
+}
+
 /* sensor register write */
 static int sensor_write(struct i2c_client *client, u16 reg, u16 val)
 {
+    int err=0,cnt;
     u8 buf[4];
     struct i2c_msg msg[1];
-    int err = 0;
 
-	if(reg != SEQUENCE_WAIT_MS) {
-    	buf[0] = reg >> 8;
-    	buf[1] = reg & 0xFF;
-    	buf[2] = val>> 8;
-    	buf[3] = val & 0xFF;
-
-    	msg->addr = client->addr;
-    	msg->flags = client->flags;
-    	msg->buf = buf;
-    	msg->len = sizeof(buf);
-    	msg->scl_rate = CONFIG_SENSOR_I2C_SPEED;         /* ddl@rock-chips.com : 100kHz */
-    	msg->read_type = 0;               /* fpga i2c:0==I2C_NORMAL : direct use number not enum for don't want include spi_fpga.h */
-
-    	err = i2c_transfer(client->adapter, msg, 1);
-		if (err < 0) {
-			SENSOR_TR("%s write reg(0x%x val:0x%x) failed!",SENSOR_NAME_STRING(),reg,val);
+	switch (reg)
+	{
+		case SEQUENCE_WAIT_MS:
+		{
+			msleep(val);
+			break;
 		}
-	} else {
-   	 	msleep(val);
-	}
 
+		case SEQUENCE_WAIT_US:
+		{
+			udelay(val);
+			break;
+		}
+
+		case SEQUENCE_PROPERTY:
+		{
+			break;
+		}
+		default:
+		{
+		    buf[0] = reg >> 8;
+		    buf[1] = reg & 0xFF;
+		    buf[2] = val >> 8;
+			buf[3] = val & 0xFF;
+
+		    msg->addr = client->addr;
+		    msg->flags = client->flags;
+		    msg->buf = buf;
+		    msg->len = sizeof(buf);
+		    msg->scl_rate = CONFIG_SENSOR_I2C_SPEED;         /* ddl@rock-chips.com : 100kHz */
+		    msg->read_type = 0;               /* fpga i2c:0==I2C_NORMAL : direct use number not enum for don't want include spi_fpga.h */
+
+		    cnt = 3;
+		    err = -EAGAIN;
+
+		    while ((cnt-- > 0) && (err < 0)) {                       /* ddl@rock-chips.com :  Transfer again if transent is failed   */
+		        err = i2c_transfer(client->adapter, msg, 1);
+
+		        if (err >= 0) {
+		            return 0;
+		        } else {
+		            SENSOR_TR("\n %s write reg(0x%x, val:0x%x) failed, try to write again!\n",SENSOR_NAME_STRING(),reg, val);
+		            udelay(10);
+		        }
+		    }
+		}
+	}
     return err;
 }
 
@@ -5139,33 +5254,145 @@ static int sensor_read(struct i2c_client *client, u16 reg, u16 *val)
 /* write a array of registers  */
 static int sensor_write_array(struct i2c_client *client, struct reginfo *regarray)
 {
-    int err, cnt;
+    int err = 0, cnt;
     int i = 0;
-    u16 val00;
+#if CONFIG_SENSOR_I2C_RDWRCHK
+	char valchk;
+#endif
 
 	cnt = 0;
-    while (regarray[i].reg != SEQUENCE_END) {
+	if (sensor_task_lock(client, 1) < 0)
+		goto sensor_write_array_end;
+    while (regarray[i].reg != SEQUENCE_END)
+    {
+
         err = sensor_write(client, regarray[i].reg, regarray[i].val);
-        if (err < 0) {
+        if (err < 0)
+        {
             if (cnt-- > 0) {
 			    SENSOR_TR("%s..write failed current reg:0x%x, Write array again !\n", SENSOR_NAME_STRING(),regarray[i].reg);
 				i = 0;
 				continue;
             } else {
                 SENSOR_TR("%s..write array failed!!!\n", SENSOR_NAME_STRING());
-                return -EPERM;
+                err = -EPERM;
+				goto sensor_write_array_end;
             }
         } else {
-            sensor_read(client, regarray[i].reg, &val00);
-            if (val00 != regarray[i].val) {
-            	SENSOR_TR("%s write reg(0x%x val:0x%x) fail\n",SENSOR_NAME_STRING(),regarray[i].reg,val00);	
-            }	
+        #if CONFIG_SENSOR_I2C_RDWRCHK
+			sensor_read(client, regarray[i].reg, &valchk);
+			if (valchk != regarray[i].val)
+				SENSOR_TR("%s Reg:0x%x write(0x%x, 0x%x) fail\n",SENSOR_NAME_STRING(), regarray[i].reg, regarray[i].val, valchk);
+		#endif
         }
-        	
-        	
+
+        i++;
+    }
+
+sensor_write_array_end:
+	sensor_task_lock(client,0);
+    return err;
+}
+
+#if CONFIG_SENSOR_I2C_RDWRCHK
+static int sensor_readchk_array(struct i2c_client *client, struct reginfo *regarray)
+{
+    int cnt;
+    int i = 0;
+	char valchk;
+
+	cnt = 0;
+	valchk = 0;
+    while (regarray[i].reg != SEQUENCE_END)
+    {
+		sensor_read(client, regarray[i].reg, &valchk);
+		if (valchk != regarray[i].val)
+			SENSOR_TR("%s Reg:0x%x read(0x%x, 0x%x) error\n",SENSOR_NAME_STRING(), regarray[i].reg, regarray[i].val, valchk);
+
         i++;
     }
     return 0;
+}
+#endif
+#if CONFIG_SENSOR_Focus
+
+static int sensor_af_single(struct i2c_client *client)
+{
+	int ret = 0;
+
+
+sensor_af_single_end:
+	return ret;
+}
+
+static int sensor_af_const(struct i2c_client *client)
+{
+	int ret = 0;
+
+sensor_af_const_end:
+	return ret;
+}
+
+static int sensor_af_zoneupdate(struct i2c_client *client)
+{
+	int ret = 0;
+
+sensor_af_zoneupdate_end:
+	return ret;
+}
+
+static int sensor_af_init(struct i2c_client *client)
+{
+	int ret = 0;
+
+	return ret;
+}
+#endif
+
+static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd cmd, int on)
+{
+	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	int ret = 0;
+
+
+	switch (cmd)
+	{
+		case Sensor_PowerDown:
+		{
+			if (icl->powerdown) {
+				ret = icl->powerdown(icd->pdev, on);
+				if (ret == RK29_CAM_IO_SUCCESS) {
+					if (on == 0) {
+						mdelay(2);
+						if (icl->reset)
+							icl->reset(icd->pdev);
+					}
+				} else if (ret == RK29_CAM_EIO_REQUESTFAIL) {
+					ret = -ENODEV;
+					goto sensor_power_end;
+				}
+			}
+			break;
+		}
+		case Sensor_Flash:
+		{
+			struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
+    		struct sensor *sensor = to_sensor(client);
+
+			if (sensor->sensor_io_request && sensor->sensor_io_request->sensor_ioctrl) {
+				sensor->sensor_io_request->sensor_ioctrl(icd->pdev,Cam_Flash, on);
+			}
+			break;
+		}
+		default:
+		{
+			SENSOR_TR("%s power cmd(0x%x) is unknown!",SENSOR_NAME_STRING(),cmd);
+			break;
+		}
+	}
+
+sensor_power_end:
+	return ret;
 }
 
 static int sensor_init(struct v4l2_subdev *sd, u32 val)
@@ -5174,32 +5401,43 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     struct soc_camera_device *icd = client->dev.platform_data;
     struct sensor *sensor = to_sensor(client);
 	const struct v4l2_queryctrl *qctrl;
-    u16 value;
     int ret,pid = 0;
 
     SENSOR_DG("\n%s..%s.. \n",SENSOR_NAME_STRING(),__FUNCTION__);
-	#if 0
+
+	if (sensor_ioctrl(icd, Sensor_PowerDown, 0) < 0) {
+		ret = -ENODEV;
+		goto sensor_INIT_ERR;
+	}
+
     /* soft reset */
-    ret = sensor_write(client, 0x001a, 0x0011);
-    if (ret != 0)
-    {
+	if (sensor_task_lock(client,1)<0)
+		goto sensor_INIT_ERR;
+
+#if (SENSOR_RESET_REG != SEQUENCE_END)
+    ret = sensor_write(client, SENSOR_RESET_REG, SENSOR_RESET_VAL);
+    if (ret != 0) {
         SENSOR_TR("%s soft reset sensor failed\n",SENSOR_NAME_STRING());
         ret = -ENODEV;
 		goto sensor_INIT_ERR;
     }
 
     mdelay(5);  //delay 5 microseconds
-
+#endif
 
 	/* check if it is an sensor sensor */
-    ret = sensor_read(client, 0x015a, &value);
+#if (SENSOR_ID_REG != SEQUENCE_END)
+    ret = sensor_read(client, SENSOR_ID_REG, &pid);
     if (ret != 0) {
-        SENSOR_TR("read chip id high byte failed\n");
+        SENSOR_TR("read chip id failed\n");
         ret = -ENODEV;
         goto sensor_INIT_ERR;
     }
-    pid = value;
-    SENSOR_DG("\n %s  pid = 0x%x\n", SENSOR_NAME_STRING(), pid);
+
+    SENSOR_DG("\n %s  pid = 0x%x \n", SENSOR_NAME_STRING(), pid);
+#else
+	pid = SENSOR_ID;
+#endif
     if (pid == SENSOR_ID) {
         sensor->model = SENSOR_V4L2_IDENT;
     } else {
@@ -5207,7 +5445,6 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
         ret = -ENODEV;
         goto sensor_INIT_ERR;
     }
-	#endif
 
     ret = sensor_write_array(client, sensor_init_data);
     if (ret != 0)
@@ -5215,10 +5452,8 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
         SENSOR_TR("error: %s initial failed\n",SENSOR_NAME_STRING());
         goto sensor_INIT_ERR;
     }
-
-    icd->user_width = SENSOR_INIT_WIDTH;
-    icd->user_height = SENSOR_INIT_HEIGHT;
-    sensor->info_priv.winseqe_cur_addr  = (int)SENSOR_INIT_WINSEQADR;
+	sensor_task_lock(client,0);
+    sensor->info_priv.winseqe_cur_addr  = SENSOR_INIT_WINSEQADR;
 	sensor->info_priv.pixfmt = SENSOR_INIT_PIXFMT;
 
     /* sensor sensor information for initialization  */
@@ -5255,34 +5490,36 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
         sensor->info_priv.digitalzoom = qctrl->default_value;
 
     /* ddl@rock-chips.com : if sensor support auto focus and flash, programer must run focus and flash code  */
-	#if CONFIG_SENSOR_Focus
-    sensor_set_focus();
-    qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_FOCUS_ABSOLUTE);
+	qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_FOCUS_ABSOLUTE);
 	if (qctrl)
         sensor->info_priv.focus = qctrl->default_value;
-	#endif
 
 	#if CONFIG_SENSOR_Flash
-	sensor_set_flash();
 	qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_FLASH);
 	if (qctrl)
         sensor->info_priv.flash = qctrl->default_value;
     #endif
-
-    SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),__FUNCTION__,icd->user_width,icd->user_height);
+    SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),((val == 0)?__FUNCTION__:"sensor_reinit"),icd->user_width,icd->user_height);
 
     return 0;
 sensor_INIT_ERR:
+	sensor_task_lock(client,0);
+	sensor_deactivate(client);
     return ret;
 }
 
-static int sensor_deactivate(struct v4l2_subdev *sd)
+static int sensor_deactivate(struct i2c_client *client)
 {
-	struct i2c_client *client = sd->priv;
+	struct soc_camera_device *icd = client->dev.platform_data;
 
-	SENSOR_DG("\n%s..%s.. \n",SENSOR_NAME_STRING(),__FUNCTION__);
+	SENSOR_DG("\n%s..%s.. Enter\n",SENSOR_NAME_STRING(),__FUNCTION__);
 
 	/* ddl@rock-chips.com : all sensor output pin must change to input for other sensor */
+	sensor_task_lock(client, 1);
+
+	/* ddl@rock-chips.com : sensor config init width , because next open sensor quickly(soc_camera_open -> Try to configure with default parameters) */
+	icd->user_width = SENSOR_INIT_WIDTH;
+    icd->user_height = SENSOR_INIT_HEIGHT;
 
 	return 0;
 }
@@ -5295,56 +5532,40 @@ static int sensor_suspend(struct soc_camera_device *icd, pm_message_t pm_msg)
 {
     int ret;
     struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-    struct soc_camera_link *icl;
 
-
-    if (pm_msg.event == PM_EVENT_SUSPEND)
-    {
+    if (pm_msg.event == PM_EVENT_SUSPEND) {
         SENSOR_DG("\n %s Enter Suspend.. \n", SENSOR_NAME_STRING());
         ret = sensor_write_array(client, sensor_power_down_sequence) ;
-        if (ret != 0)
-        {
+        if (ret != 0) {
             SENSOR_TR("\n %s..%s WriteReg Fail.. \n", SENSOR_NAME_STRING(),__FUNCTION__);
             return ret;
-        }
-        else
-        {
-            icl = to_soc_camera_link(icd);
-            if (icl->power) {
-                ret = icl->power(icd->pdev, 0);
-                if (ret < 0) {
-				    SENSOR_TR("\n %s suspend fail for turn on power!\n", SENSOR_NAME_STRING());
-                    return -EINVAL;
-                }
+        } else {
+            ret = sensor_ioctrl(icd, Sensor_PowerDown, 1);
+            if (ret < 0) {
+			    SENSOR_TR("\n %s suspend fail for turn on power!\n", SENSOR_NAME_STRING());
+                return -EINVAL;
             }
         }
-    }
-    else
-    {
+    } else {
         SENSOR_TR("\n %s cann't suppout Suspend..\n",SENSOR_NAME_STRING());
         return -EINVAL;
     }
+
     return 0;
 }
 
 static int sensor_resume(struct soc_camera_device *icd)
 {
-    struct soc_camera_link *icl;
-    int ret;
+	int ret;
 
-    icl = to_soc_camera_link(icd);
-    if (icl->power) {
-        ret = icl->power(icd->pdev, 1);
-        if (ret < 0) {
-			SENSOR_TR("\n %s resume fail for turn on power!\n", SENSOR_NAME_STRING());
-            return -EINVAL;
-        }
+    ret = sensor_ioctrl(icd, Sensor_PowerDown, 0);
+    if (ret < 0) {
+		SENSOR_TR("\n %s resume fail for turn on power!\n", SENSOR_NAME_STRING());
+        return -EINVAL;
     }
 
 	SENSOR_DG("\n %s Enter Resume.. \n", SENSOR_NAME_STRING());
-
-    return 0;
-
+	return 0;
 }
 
 static int sensor_set_bus_param(struct soc_camera_device *icd,
@@ -5375,6 +5596,41 @@ static int sensor_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
     pix->colorspace		= V4L2_COLORSPACE_JPEG;
 
     return 0;
+}
+static bool sensor_fmt_capturechk(struct v4l2_subdev *sd, struct v4l2_format *f)
+{
+    bool ret = false;
+
+	if ((f->fmt.pix.width == 1024) && (f->fmt.pix.height == 768)) {
+		ret = true;
+	} else if ((f->fmt.pix.width == 1280) && (f->fmt.pix.height == 1024)) {
+		ret = true;
+	} else if ((f->fmt.pix.width == 1600) && (f->fmt.pix.height == 1200)) {
+		ret = true;
+	} else if ((f->fmt.pix.width == 2048) && (f->fmt.pix.height == 1536)) {
+		ret = true;
+	} else if ((f->fmt.pix.width == 2592) && (f->fmt.pix.height == 1944)) {
+		ret = true;
+	}
+
+	if (ret == true)
+		SENSOR_DG("%s %dx%d is capture format\n", __FUNCTION__, f->fmt.pix.width, f->fmt.pix.height);
+	return ret;
+}
+
+static bool sensor_fmt_videochk(struct v4l2_subdev *sd, struct v4l2_format *f)
+{
+    bool ret = false;
+
+	if ((f->fmt.pix.width == 1280) && (f->fmt.pix.height == 720)) {
+		ret = true;
+	} else if ((f->fmt.pix.width == 1920) && (f->fmt.pix.height == 1080)) {
+		ret = true;
+	}
+
+	if (ret == true)
+		SENSOR_DG("%s %dx%d is video format\n", __FUNCTION__, f->fmt.pix.width, f->fmt.pix.height);
+	return ret;
 }
 static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
@@ -6175,13 +6431,25 @@ static int sensor_s_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_control
         return 0;
     }
 }
+static int sensor_s_stream(struct v4l2_subdev *sd, int enable)
+{
+	struct i2c_client *client = sd->priv;
+    struct sensor *sensor = to_sensor(client);
 
+	if (enable == 1) {
+		sensor->info_priv.enable = 1;
+	} else if (enable == 0) {
+		sensor->info_priv.enable = 0;
+	}
+
+sensor_s_stream_end:
+	return 0;
+}
 /* Interface active, can use i2c. If it fails, it can indeed mean, that
  * this wasn't our capture interface, so, we wait for the right one */
 static int sensor_video_probe(struct soc_camera_device *icd,
 			       struct i2c_client *client)
 {
-    u16 value;
     int ret,pid = 0;
     struct sensor *sensor = to_sensor(client);
 
@@ -6190,28 +6458,38 @@ static int sensor_video_probe(struct soc_camera_device *icd,
     if (!icd->dev.parent ||
 	    to_soc_camera_host(icd->dev.parent)->nr != icd->iface)
 		return -ENODEV;
-	#if 0
+
+	if (sensor_ioctrl(icd, Sensor_PowerDown, 0) < 0) {
+		ret = -ENODEV;
+		goto sensor_video_probe_err;
+	}
+
     /* soft reset */
-    ret = sensor_write(client, 0x001a, 0x0011);
-    if (ret != 0)
-    {
+#if (SENSOR_RESET_REG != SEQUENCE_END)
+    ret = sensor_write(client, SENSOR_RESET_REG, SENSOR_RESET_VAL);
+    if (ret != 0) {
         SENSOR_TR("%s soft reset sensor failed\n",SENSOR_NAME_STRING());
         ret = -ENODEV;
-	goto sensor_video_probe_err;
+		goto sensor_INIT_ERR;
     }
 
     mdelay(5);  //delay 5 microseconds
+#endif
 
 	/* check if it is an sensor sensor */
-	sensor_write(client, 0xFCFC, 0x7000);
-    ret = sensor_read(client, 0x015a, &value);
+#if (SENSOR_ID_REG != SEQUENCE_END)
+    ret = sensor_read(client, SENSOR_ID_REG, &pid);
     if (ret != 0) {
-        SENSOR_TR("read chip id high byte failed\n");
+        SENSOR_TR("read chip id failed\n");
         ret = -ENODEV;
         goto sensor_video_probe_err;
     }
-    pid = value;
-    SENSOR_DG("\n %s .. pid = 0x%x\n", SENSOR_NAME_STRING(), pid);
+
+    SENSOR_DG("\n %s  pid = 0x%x \n", SENSOR_NAME_STRING(), pid);
+#else
+	pid = SENSOR_ID;
+#endif
+
     if (pid == SENSOR_ID) {
         sensor->model = SENSOR_V4L2_IDENT;
     } else {
@@ -6219,7 +6497,6 @@ static int sensor_video_probe(struct soc_camera_device *icd,
         ret = -ENODEV;
         goto sensor_video_probe_err;
     }
-    #endif
 
     icd->formats = sensor_colour_formats;
     icd->num_formats = ARRAY_SIZE(sensor_colour_formats);
@@ -6227,21 +6504,31 @@ static int sensor_video_probe(struct soc_camera_device *icd,
     return 0;
 
 sensor_video_probe_err:
-
     return ret;
 }
 static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
+	struct i2c_client *client = sd->priv;
+    struct sensor *sensor = to_sensor(client);
+
 	SENSOR_DG("\n%s..%s..cmd:%x \n",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
 	switch (cmd)
 	{
 		case RK29_CAM_SUBDEV_DEACTIVATE:
 		{
-			sensor_deactivate(sd);
+			sensor_deactivate(client);
+			break;
+		}
+		case RK29_CAM_SUBDEV_IOREQUEST:
+		{
+			sensor->sensor_io_request = (struct rk29camera_platform_data*)arg;
 			break;
 		}
 		default:
+		{
+			SENSOR_TR("%s %s cmd(0x%x) is unknown !\n",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
 			break;
+		}
 	}
 
 	return 0;
@@ -6261,6 +6548,7 @@ static struct v4l2_subdev_video_ops sensor_subdev_video_ops = {
 	.s_fmt		= sensor_s_fmt,
 	.g_fmt		= sensor_g_fmt,
 	.try_fmt	= sensor_try_fmt,
+	.s_stream   = sensor_s_stream,
 };
 
 static struct v4l2_subdev_ops sensor_subdev_ops = {
