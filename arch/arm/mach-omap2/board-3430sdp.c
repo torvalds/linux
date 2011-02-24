@@ -315,9 +315,6 @@ static struct omap_board_config_kernel sdp3430_config[] __initdata = {
 
 static void __init omap_3430sdp_init_early(void)
 {
-	omap_board_config = sdp3430_config;
-	omap_board_config_size = ARRAY_SIZE(sdp3430_config);
-	omap3_pm_init_cpuidle(omap3_cpuidle_params_table);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(hyb18m512160af6_sdrc_params, NULL);
 }
@@ -788,6 +785,9 @@ static struct omap_musb_board_data musb_board_data = {
 static void __init omap_3430sdp_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
+	omap_board_config = sdp3430_config;
+	omap_board_config_size = ARRAY_SIZE(sdp3430_config);
+	omap3_pm_init_cpuidle(omap3_cpuidle_params_table);
 	omap3430_i2c_init();
 	omap_display_init(&sdp3430_dss_data);
 	if (omap_rev() > OMAP3430_REV_ES1_0)

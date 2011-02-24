@@ -292,8 +292,6 @@ static struct omap_board_config_kernel h4_config[] __initdata = {
 
 static void __init omap_h4_init_early(void)
 {
-	omap_board_config = h4_config;
-	omap_board_config_size = ARRAY_SIZE(h4_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
 }
@@ -333,6 +331,9 @@ static struct omap_board_mux board_mux[] __initdata = {
 static void __init omap_h4_init(void)
 {
 	omap2420_mux_init(board_mux, OMAP_PACKAGE_ZAF);
+
+	omap_board_config = h4_config;
+	omap_board_config_size = ARRAY_SIZE(h4_config);
 
 	/*
 	 * Make sure the serial ports are muxed on at this point.

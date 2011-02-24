@@ -732,8 +732,6 @@ static struct omap_board_config_kernel omap3_evm_config[] __initdata = {
 
 static void __init omap3_evm_init_early(void)
 {
-	omap_board_config = omap3_evm_config;
-	omap_board_config_size = ARRAY_SIZE(omap3_evm_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(mt46h32m32lf6_sdrc_params, NULL);
 }
@@ -823,6 +821,9 @@ static void __init omap3_evm_init(void)
 		omap3_mux_init(omap36x_board_mux, OMAP_PACKAGE_CBB);
 	else
 		omap3_mux_init(omap35x_board_mux, OMAP_PACKAGE_CBB);
+
+	omap_board_config = omap3_evm_config;
+	omap_board_config_size = ARRAY_SIZE(omap3_evm_config);
 
 	omap3_evm_i2c_init();
 

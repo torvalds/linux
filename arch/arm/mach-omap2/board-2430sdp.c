@@ -142,8 +142,6 @@ static struct omap_board_config_kernel sdp2430_config[] __initdata = {
 
 static void __init omap_2430sdp_init_early(void)
 {
-	omap_board_config = sdp2430_config;
-	omap_board_config_size = ARRAY_SIZE(sdp2430_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
 }
@@ -245,6 +243,9 @@ static void __init omap_2430sdp_init(void)
 	int ret;
 
 	omap2430_mux_init(board_mux, OMAP_PACKAGE_ZAC);
+
+	omap_board_config = sdp2430_config;
+	omap_board_config_size = ARRAY_SIZE(sdp2430_config);
 
 	omap2430_i2c_init();
 

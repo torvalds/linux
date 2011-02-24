@@ -325,8 +325,6 @@ static struct omap_board_config_kernel sdp4430_config[] __initdata = {
 
 static void __init omap_4430sdp_init_early(void)
 {
-	omap_board_config = sdp4430_config;
-	omap_board_config_size = ARRAY_SIZE(sdp4430_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
 #ifdef CONFIG_OMAP_32K_TIMER
@@ -639,6 +637,9 @@ static void __init omap_4430sdp_init(void)
 	if (omap_rev() == OMAP4430_REV_ES1_0)
 		package = OMAP_PACKAGE_CBL;
 	omap4_mux_init(board_mux, package);
+
+	omap_board_config = sdp4430_config;
+	omap_board_config_size = ARRAY_SIZE(sdp4430_config);
 
 	omap4_i2c_init();
 	omap_sfh7741prox_init();

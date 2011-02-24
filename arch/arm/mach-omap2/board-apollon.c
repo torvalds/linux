@@ -276,8 +276,6 @@ static struct omap_board_config_kernel apollon_config[] __initdata = {
 
 static void __init omap_apollon_init_early(void)
 {
-	omap_board_config = apollon_config;
-	omap_board_config_size = ARRAY_SIZE(apollon_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
 }
@@ -319,6 +317,8 @@ static void __init omap_apollon_init(void)
 	u32 v;
 
 	omap2420_mux_init(board_mux, OMAP_PACKAGE_ZAC);
+	omap_board_config = apollon_config;
+	omap_board_config_size = ARRAY_SIZE(apollon_config);
 
 	apollon_init_smc91x();
 	apollon_led_init();

@@ -290,8 +290,6 @@ static struct omap_board_config_kernel ldp_config[] __initdata = {
 
 static void __init omap_ldp_init_early(void)
 {
-	omap_board_config = ldp_config;
-	omap_board_config_size = ARRAY_SIZE(ldp_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
 }
@@ -422,6 +420,8 @@ static struct mtd_partition ldp_nand_partitions[] = {
 static void __init omap_ldp_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
+	omap_board_config = ldp_config;
+	omap_board_config_size = ARRAY_SIZE(ldp_config);
 	ldp_init_smsc911x();
 	omap_i2c_init();
 	platform_add_devices(ldp_devices, ARRAY_SIZE(ldp_devices));
