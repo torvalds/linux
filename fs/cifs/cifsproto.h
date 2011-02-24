@@ -386,6 +386,12 @@ extern int calc_seckey(struct cifsSesInfo *);
 extern void calc_lanman_hash(const char *password, const char *cryptkey,
 				bool encrypt, char *lnm_session_key);
 #endif /* CIFS_WEAK_PW_HASH */
+#ifdef CONFIG_CIFS_DNOTIFY_EXPERIMENTAL /* unused temporarily */
+extern int CIFSSMBNotify(const int xid, struct cifsTconInfo *tcon,
+			const int notify_subdirs, const __u16 netfid,
+			__u32 filter, struct file *file, int multishot,
+			const struct nls_table *nls_codepage);
+#endif /* was needed for dnotify, and will be needed for inotify when VFS fix */
 extern int CIFSSMBCopy(int xid,
 			struct cifsTconInfo *source_tcon,
 			const char *fromName,
@@ -393,10 +399,6 @@ extern int CIFSSMBCopy(int xid,
 			const char *toName, const int flags,
 			const struct nls_table *nls_codepage,
 			int remap_special_chars);
-extern int CIFSSMBNotify(const int xid, struct cifsTconInfo *tcon,
-			const int notify_subdirs, const __u16 netfid,
-			__u32 filter, struct file *file, int multishot,
-			const struct nls_table *nls_codepage);
 extern ssize_t CIFSSMBQAllEAs(const int xid, struct cifsTconInfo *tcon,
 			const unsigned char *searchName,
 			const unsigned char *ea_name, char *EAData,

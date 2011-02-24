@@ -780,10 +780,12 @@ GLOBAL_EXTERN spinlock_t		cifs_tcp_ses_lock;
  */
 GLOBAL_EXTERN spinlock_t	cifs_file_list_lock;
 
+#ifdef CONFIG_CIFS_DNOTIFY_EXPERIMENTAL /* unused temporarily */
 /* Outstanding dir notify requests */
 GLOBAL_EXTERN struct list_head GlobalDnotifyReqList;
 /* DirNotify response queue */
 GLOBAL_EXTERN struct list_head GlobalDnotifyRsp_Q;
+#endif /* was needed for dnotify, and will be needed for inotify when VFS fix */
 
 /*
  * Global transaction id (XID) information
