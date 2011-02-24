@@ -37,8 +37,8 @@ __xfrm4_init_tempsel(struct xfrm_selector *sel, const struct flowi *fl)
 }
 
 static void
-xfrm4_init_temprop(struct xfrm_state *x, struct xfrm_tmpl *tmpl,
-		   xfrm_address_t *daddr, xfrm_address_t *saddr)
+xfrm4_init_temprop(struct xfrm_state *x, const struct xfrm_tmpl *tmpl,
+		   const xfrm_address_t *daddr, const xfrm_address_t *saddr)
 {
 	x->id = tmpl->id;
 	if (x->id.daddr.a4 == 0)

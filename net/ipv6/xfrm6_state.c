@@ -38,8 +38,8 @@ __xfrm6_init_tempsel(struct xfrm_selector *sel, const struct flowi *fl)
 }
 
 static void
-xfrm6_init_temprop(struct xfrm_state *x, struct xfrm_tmpl *tmpl,
-		   xfrm_address_t *daddr, xfrm_address_t *saddr)
+xfrm6_init_temprop(struct xfrm_state *x, const struct xfrm_tmpl *tmpl,
+		   const xfrm_address_t *daddr, const xfrm_address_t *saddr)
 {
 	x->id = tmpl->id;
 	if (ipv6_addr_any((struct in6_addr*)&x->id.daddr))
