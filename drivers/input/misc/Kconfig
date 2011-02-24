@@ -12,6 +12,9 @@ menuconfig INPUT_MISC
 
 if INPUT_MISC
 
+config INPUT_PSENSOR_ISL29028
+	tristate "isl29028 psensor input support"
+
 config INPUT_LPSENSOR_CM3602
 	tristate "l/p sensor input support"
 	

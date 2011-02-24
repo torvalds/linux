@@ -541,6 +541,14 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.irq			= RK29_PIN0_PA4,
 	},
 #endif
+#if defined (CONFIG_INPUT_PSENSOR_ISL29028)
+	{
+		.type           = "isl29028",
+		.addr           = 0x44,
+		.flags          = 0,
+		.irq            = RK29_PIN4_PD3,
+	},
+#endif
 };
 #endif
 
