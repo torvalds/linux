@@ -1105,7 +1105,7 @@ int xfrm_sk_policy_insert(struct sock *sk, int dir, struct xfrm_policy *pol)
 	return 0;
 }
 
-static struct xfrm_policy *clone_policy(struct xfrm_policy *old, int dir)
+static struct xfrm_policy *clone_policy(const struct xfrm_policy *old, int dir)
 {
 	struct xfrm_policy *newp = xfrm_policy_alloc(xp_net(old), GFP_ATOMIC);
 
