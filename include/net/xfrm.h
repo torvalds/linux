@@ -1178,8 +1178,8 @@ void xfrm_flowi_addr_get(const struct flowi *fl,
 }
 
 static __inline__ int
-__xfrm4_state_addr_check(struct xfrm_state *x,
-			 xfrm_address_t *daddr, xfrm_address_t *saddr)
+__xfrm4_state_addr_check(const struct xfrm_state *x,
+			 const xfrm_address_t *daddr, const xfrm_address_t *saddr)
 {
 	if (daddr->a4 == x->id.daddr.a4 &&
 	    (saddr->a4 == x->props.saddr.a4 || !saddr->a4 || !x->props.saddr.a4))
@@ -1188,8 +1188,8 @@ __xfrm4_state_addr_check(struct xfrm_state *x,
 }
 
 static __inline__ int
-__xfrm6_state_addr_check(struct xfrm_state *x,
-			 xfrm_address_t *daddr, xfrm_address_t *saddr)
+__xfrm6_state_addr_check(const struct xfrm_state *x,
+			 const xfrm_address_t *daddr, const xfrm_address_t *saddr)
 {
 	if (!ipv6_addr_cmp((struct in6_addr *)daddr, (struct in6_addr *)&x->id.daddr) &&
 	    (!ipv6_addr_cmp((struct in6_addr *)saddr, (struct in6_addr *)&x->props.saddr)|| 
@@ -1200,8 +1200,8 @@ __xfrm6_state_addr_check(struct xfrm_state *x,
 }
 
 static __inline__ int
-xfrm_state_addr_check(struct xfrm_state *x,
-		      xfrm_address_t *daddr, xfrm_address_t *saddr,
+xfrm_state_addr_check(const struct xfrm_state *x,
+		      const xfrm_address_t *daddr, const xfrm_address_t *saddr,
 		      unsigned short family)
 {
 	switch (family) {
@@ -1214,23 +1214,23 @@ xfrm_state_addr_check(struct xfrm_state *x,
 }
 
 static __inline__ int
-xfrm_state_addr_flow_check(struct xfrm_state *x, const struct flowi *fl,
+xfrm_state_addr_flow_check(const struct xfrm_state *x, const struct flowi *fl,
 			   unsigned short family)
 {
 	switch (family) {
 	case AF_INET:
 		return __xfrm4_state_addr_check(x,
-						(xfrm_address_t *)&fl->fl4_dst,
-						(xfrm_address_t *)&fl->fl4_src);
+						(const xfrm_address_t *)&fl->fl4_dst,
+						(const xfrm_address_t *)&fl->fl4_src);
 	case AF_INET6:
 		return __xfrm6_state_addr_check(x,
-						(xfrm_address_t *)&fl->fl6_dst,
-						(xfrm_address_t *)&fl->fl6_src);
+						(const xfrm_address_t *)&fl->fl6_dst,
+						(const xfrm_address_t *)&fl->fl6_src);
 	}
 	return 0;
 }
 
-static inline int xfrm_state_kern(struct xfrm_state *x)
+static inline int xfrm_state_kern(const struct xfrm_state *x)
 {
 	return atomic_read(&x->tunnel_users);
 }
