@@ -73,10 +73,19 @@ static const enum omap_display_type omap2_dss_supported_displays[] = {
 	OMAP_DISPLAY_TYPE_VENC,
 };
 
-static const enum omap_display_type omap3_dss_supported_displays[] = {
+static const enum omap_display_type omap3430_dss_supported_displays[] = {
 	/* OMAP_DSS_CHANNEL_LCD */
 	OMAP_DISPLAY_TYPE_DPI | OMAP_DISPLAY_TYPE_DBI |
 	OMAP_DISPLAY_TYPE_SDI | OMAP_DISPLAY_TYPE_DSI,
+
+	/* OMAP_DSS_CHANNEL_DIGIT */
+	OMAP_DISPLAY_TYPE_VENC,
+};
+
+static const enum omap_display_type omap3630_dss_supported_displays[] = {
+	/* OMAP_DSS_CHANNEL_LCD */
+	OMAP_DISPLAY_TYPE_DPI | OMAP_DISPLAY_TYPE_DBI |
+	OMAP_DISPLAY_TYPE_DSI,
 
 	/* OMAP_DSS_CHANNEL_DIGIT */
 	OMAP_DISPLAY_TYPE_VENC,
@@ -161,7 +170,7 @@ static struct omap_dss_features omap3430_dss_features = {
 
 	.num_mgrs = 2,
 	.num_ovls = 3,
-	.supported_displays = omap3_dss_supported_displays,
+	.supported_displays = omap3430_dss_supported_displays,
 	.supported_color_modes = omap3_dss_supported_color_modes,
 };
 
@@ -176,7 +185,7 @@ static struct omap_dss_features omap3630_dss_features = {
 
 	.num_mgrs = 2,
 	.num_ovls = 3,
-	.supported_displays = omap3_dss_supported_displays,
+	.supported_displays = omap3630_dss_supported_displays,
 	.supported_color_modes = omap3_dss_supported_color_modes,
 };
 
