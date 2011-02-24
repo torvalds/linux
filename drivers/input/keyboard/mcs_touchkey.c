@@ -212,6 +212,14 @@ static int __devexit mcs_touchkey_remove(struct i2c_client *client)
 	return 0;
 }
 
+static void mcs_touchkey_shutdown(struct i2c_client *client)
+{
+	struct mcs_touchkey_data *data = i2c_get_clientdata(client);
+
+	if (data->poweron)
+		data->poweron(false);
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int mcs_touchkey_suspend(struct device *dev)
 {
@@ -262,6 +270,7 @@ static struct i2c_driver mcs_touchkey_driver = {
 	},
 	.probe		= mcs_touchkey_probe,
 	.remove		= __devexit_p(mcs_touchkey_remove),
+	.shutdown       = mcs_touchkey_shutdown,
 	.id_table	= mcs_touchkey_id,
 };
 
