@@ -108,70 +108,6 @@ static int pep_reply(struct sock *sk, struct sk_buff *oskb,
 #define PAD 0x00
 
 #ifdef CONFIG_PHONET_PIPECTRLR
-static u8 pipe_negotiate_fc(u8 *host_fc, u8 *remote_fc, int len)
-{
-	int i, j;
-	u8 base_fc, final_fc;
-
-	for (i = 0; i < len; i++) {
-		base_fc = host_fc[i];
-		for (j = 0; j < len; j++) {
-			if (remote_fc[j] == base_fc) {
-				final_fc = base_fc;
-				goto done;
-			}
-		}
-	}
-	return -EINVAL;
-
-done:
-	return final_fc;
-
-}
-
-static int pipe_get_flow_info(struct sock *sk, struct sk_buff *skb,
-		u8 *pref_rx_fc, u8 *req_tx_fc)
-{
-	struct pnpipehdr *hdr;
-	u8 n_sb;
-
-	if (!pskb_may_pull(skb, sizeof(*hdr) + 4))
-		return -EINVAL;
-
-	hdr = pnp_hdr(skb);
-	n_sb = hdr->data[4];
-
-	__skb_pull(skb, sizeof(*hdr) + 4);
-	while (n_sb > 0) {
-		u8 type, buf[3], len = sizeof(buf);
-		u8 *data = pep_get_sb(skb, &type, &len, buf);
-
-		if (data == NULL)
-			return -EINVAL;
-
-		switch (type) {
-		case PN_PIPE_SB_REQUIRED_FC_TX:
-			if (len < 3 || (data[2] | data[3] | data[4]) > 3)
-				break;
-			req_tx_fc[0] = data[2];
-			req_tx_fc[1] = data[3];
-			req_tx_fc[2] = data[4];
-			break;
-
-		case PN_PIPE_SB_PREFERRED_FC_RX:
-			if (len < 3 || (data[2] | data[3] | data[4]) > 3)
-				break;
-			pref_rx_fc[0] = data[2];
-			pref_rx_fc[1] = data[3];
-			pref_rx_fc[2] = data[4];
-			break;
-
-		}
-		n_sb--;
-	}
-	return 0;
-}
-
 static int pipe_handler_send_req(struct sock *sk, u8 msg_id, gfp_t priority)
 {
 	int len;
@@ -661,28 +597,61 @@ static void pipe_destruct(struct sock *sk)
 }
 
 #ifdef CONFIG_PHONET_PIPECTRLR
+static u8 pipe_negotiate_fc(const u8 *fcs, unsigned n)
+{
+	unsigned i;
+	u8 final_fc = PN_NO_FLOW_CONTROL;
+
+	for (i = 0; i < n; i++) {
+		u8 fc = fcs[i];
+
+		if (fc > final_fc && fc < PN_MAX_FLOW_CONTROL)
+			final_fc = fc;
+	}
+	return final_fc;
+}
+
 static int pep_connresp_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	struct pep_sock *pn = pep_sk(sk);
-	u8 host_pref_rx_fc[3] = {3, 2, 1}, host_req_tx_fc[3] = {3, 2, 1};
-	u8 remote_pref_rx_fc[3], remote_req_tx_fc[3];
-	u8 negotiated_rx_fc, negotiated_tx_fc;
+	struct pnpipehdr *hdr;
+	u8 n_sb;
 
-	pipe_get_flow_info(sk, skb, remote_pref_rx_fc,
-			remote_req_tx_fc);
-	negotiated_tx_fc = pipe_negotiate_fc(remote_req_tx_fc,
-			host_pref_rx_fc,
-			sizeof(host_pref_rx_fc));
-	negotiated_rx_fc = pipe_negotiate_fc(host_req_tx_fc,
-			remote_pref_rx_fc,
-			sizeof(host_pref_rx_fc));
+	if (!pskb_pull(skb, sizeof(*hdr) + 4))
+		return -EINVAL;
+
+	hdr = pnp_hdr(skb);
+
+	/* Parse sub-blocks */
+	n_sb = hdr->data[4];
+	while (n_sb > 0) {
+		u8 type, buf[6], len = sizeof(buf);
+		const u8 *data = pep_get_sb(skb, &type, &len, buf);
+
+		if (data == NULL)
+			return -EINVAL;
+
+		switch (type) {
+		case PN_PIPE_SB_REQUIRED_FC_TX:
+			if (len < 2 || len < data[0])
+				break;
+			pn->tx_fc = pipe_negotiate_fc(data + 2, len - 2);
+			break;
+
+		case PN_PIPE_SB_PREFERRED_FC_RX:
+			if (len < 2 || len < data[0])
+				break;
+			pn->rx_fc = pipe_negotiate_fc(data + 2, len - 2);
+			break;
+
+		}
+		n_sb--;
+	}
 
 	sk->sk_state = TCP_SYN_RECV;
 	sk->sk_backlog_rcv = pipe_do_rcv;
 	sk->sk_destruct = pipe_destruct;
 	pn->rx_credits = 0;
-	pn->rx_fc = negotiated_rx_fc;
-	pn->tx_fc = negotiated_tx_fc;
 	sk->sk_state_change(sk);
 
 	return pipe_handler_send_created_ind(sk, PNS_PIPE_CREATED_IND);

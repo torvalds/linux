@@ -154,6 +154,7 @@ enum {
 	PN_LEGACY_FLOW_CONTROL,
 	PN_ONE_CREDIT_FLOW_CONTROL,
 	PN_MULTI_CREDIT_FLOW_CONTROL,
+	PN_MAX_FLOW_CONTROL,
 };
 
 #define pn_flow_safe(fc) ((fc) >> 1)
