@@ -421,8 +421,8 @@ struct omap_mcbsp_platform_data {
 #ifdef CONFIG_ARCH_OMAP3
 	/* Sidetone block for McBSP 2 and 3 */
 	unsigned long phys_base_st;
-	u16 buffer_size;
 #endif
+	u16 buffer_size;
 };
 
 struct omap_mcbsp_st_data {
