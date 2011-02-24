@@ -47,7 +47,6 @@ struct pep_sock {
 	u8			aligned;
 #ifdef CONFIG_PHONET_PIPECTRLR
 	u8			pipe_state;
-	struct sockaddr_pn	remote_pep;
 #endif
 };
 

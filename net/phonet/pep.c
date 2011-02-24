@@ -50,11 +50,6 @@
 #define CREDITS_MAX	10
 #define CREDITS_THR	7
 
-static const struct sockaddr_pn pipe_srv = {
-	.spn_family = AF_PHONET,
-	.spn_resource = 0xD9, /* pipe service */
-};
-
 #define pep_sb_size(s) (((s) + 5) & ~3) /* 2-bytes head, 32-bits aligned */
 
 /* Get the next TLV sub-block. */
@@ -88,6 +83,7 @@ static int pep_reply(struct sock *sk, struct sk_buff *oskb,
 	const struct pnpipehdr *oph = pnp_hdr(oskb);
 	struct pnpipehdr *ph;
 	struct sk_buff *skb;
+	struct sockaddr_pn peer;
 
 	skb = alloc_skb(MAX_PNPIPE_HEADER + len, priority);
 	if (!skb)
@@ -105,7 +101,8 @@ static int pep_reply(struct sock *sk, struct sk_buff *oskb,
 	ph->pipe_handle = oph->pipe_handle;
 	ph->error_code = code;
 
-	return pn_skb_send(sk, skb, &pipe_srv);
+	pn_skb_get_src_sockaddr(oskb, &peer);
+	return pn_skb_send(sk, skb, &peer);
 }
 
 #define PAD 0x00
@@ -220,7 +217,7 @@ static int pipe_handler_send_req(struct sock *sk, u8 utid,
 	ph->pipe_handle = pn->pipe_handle;
 	ph->error_code = PN_PIPE_NO_ERROR;
 
-	return pn_skb_send(sk, skb, &pn->remote_pep);
+	return pn_skb_send(sk, skb, NULL);
 }
 
 static int pipe_handler_send_created_ind(struct sock *sk,
@@ -262,7 +259,7 @@ static int pipe_handler_send_created_ind(struct sock *sk,
 	ph->pipe_handle = pn->pipe_handle;
 	ph->error_code = err_code;
 
-	return pn_skb_send(sk, skb, &pn->remote_pep);
+	return pn_skb_send(sk, skb, NULL);
 }
 
 static int pipe_handler_send_ind(struct sock *sk, u8 utid, u8 msg_id)
@@ -295,7 +292,7 @@ static int pipe_handler_send_ind(struct sock *sk, u8 utid, u8 msg_id)
 	ph->pipe_handle = pn->pipe_handle;
 	ph->error_code = err_code;
 
-	return pn_skb_send(sk, skb, &pn->remote_pep);
+	return pn_skb_send(sk, skb, NULL);
 }
 
 static int pipe_handler_enable_pipe(struct sock *sk, int enable)
@@ -396,11 +393,7 @@ static int pipe_snd_status(struct sock *sk, u8 type, u8 status, gfp_t priority)
 	ph->data[3] = PAD;
 	ph->data[4] = status;
 
-#ifdef CONFIG_PHONET_PIPECTRLR
-	return pn_skb_send(sk, skb, &pn->remote_pep);
-#else
-	return pn_skb_send(sk, skb, &pipe_srv);
-#endif
+	return pn_skb_send(sk, skb, NULL);
 }
 
 /* Send our RX flow control information to the sender.
@@ -722,7 +715,7 @@ static int pep_connreq_rcv(struct sock *sk, struct sk_buff *skb)
 	struct sock *newsk;
 	struct pep_sock *newpn, *pn = pep_sk(sk);
 	struct pnpipehdr *hdr;
-	struct sockaddr_pn dst;
+	struct sockaddr_pn dst, src;
 	u16 peer_type;
 	u8 pipe_handle, enabled, n_sb;
 	u8 aligned = 0;
@@ -789,8 +782,10 @@ static int pep_connreq_rcv(struct sock *sk, struct sk_buff *skb)
 
 	newpn = pep_sk(newsk);
 	pn_skb_get_dst_sockaddr(skb, &dst);
+	pn_skb_get_src_sockaddr(skb, &src);
 	newpn->pn_sk.sobject = pn_sockaddr_get_object(&dst);
-	newpn->pn_sk.resource = pn->pn_sk.resource;
+	newpn->pn_sk.dobject = pn_sockaddr_get_object(&src);
+	newpn->pn_sk.resource = pn_sockaddr_get_resource(&dst);
 	skb_queue_head_init(&newpn->ctrlreq_queue);
 	newpn->pipe_handle = pipe_handle;
 	atomic_set(&newpn->tx_credits, 0);
@@ -925,7 +920,7 @@ static int pipe_do_remove(struct sock *sk)
 	ph->pipe_handle = pn->pipe_handle;
 	ph->data[0] = PAD;
 
-	return pn_skb_send(sk, skb, &pipe_srv);
+	return pn_skb_send(sk, skb, NULL);
 }
 
 /* associated socket ceases to exist */
@@ -1042,10 +1037,10 @@ out:
 static int pep_sock_connect(struct sock *sk, struct sockaddr *addr, int len)
 {
 	struct pep_sock *pn = pep_sk(sk);
-	struct sockaddr_pn *spn =  (struct sockaddr_pn *)addr;
+	const struct sockaddr_pn *spn = (struct sockaddr_pn *)addr;
 
-	memcpy(&pn->remote_pep, spn, sizeof(struct sockaddr_pn));
-
+	pn->pn_sk.dobject = pn_sockaddr_get_object(spn);
+	pn->pn_sk.resource = pn_sockaddr_get_resource(spn);
 	return pipe_handler_send_req(sk,
 			PNS_PEP_CONNECT_UTID, PNS_PEP_CONNECT_REQ,
 			GFP_ATOMIC);
@@ -1222,11 +1217,7 @@ static int pipe_skb_send(struct sock *sk, struct sk_buff *skb)
 	} else
 		ph->message_id = PNS_PIPE_DATA;
 	ph->pipe_handle = pn->pipe_handle;
-#ifdef CONFIG_PHONET_PIPECTRLR
-	err = pn_skb_send(sk, skb, &pn->remote_pep);
-#else
-	err = pn_skb_send(sk, skb, &pipe_srv);
-#endif
+	err = pn_skb_send(sk, skb, NULL);
 
 	if (err && pn_flow_safe(pn->tx_fc))
 		atomic_inc(&pn->tx_credits);
