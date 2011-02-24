@@ -104,6 +104,9 @@ static int iommu_enable(struct iommu *obj)
 	if (!obj)
 		return -EINVAL;
 
+	if (!arch_iommu)
+		return -ENODEV;
+
 	clk_enable(obj->clk);
 
 	err = arch_iommu->enable(obj);
