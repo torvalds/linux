@@ -23,6 +23,7 @@
 #include <plat/cpu.h>
 #include <plat/mcbsp.h>
 #include <plat/omap_device.h>
+#include <linux/pm_runtime.h>
 
 #include "control.h"
 
@@ -83,7 +84,7 @@ int omap2_mcbsp_set_clks_src(u8 id, u8 fck_src_id)
 		return -EINVAL;
 	}
 
-	clk_disable(mcbsp->fclk);
+	pm_runtime_put_sync(mcbsp->dev);
 
 	r = clk_set_parent(mcbsp->fclk, fck_src);
 	if (IS_ERR_VALUE(r)) {
@@ -93,7 +94,7 @@ int omap2_mcbsp_set_clks_src(u8 id, u8 fck_src_id)
 		return -EINVAL;
 	}
 
-	clk_enable(mcbsp->fclk);
+	pm_runtime_get_sync(mcbsp->dev);
 
 	clk_put(fck_src);
 

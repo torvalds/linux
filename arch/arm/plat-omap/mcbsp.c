@@ -28,6 +28,7 @@
 #include <plat/dma.h>
 #include <plat/mcbsp.h>
 #include <plat/omap_device.h>
+#include <linux/pm_runtime.h>
 
 /* XXX These "sideways" includes are a sign that something is wrong */
 #include "../mach-omap2/cm2xxx_3xxx.h"
@@ -757,8 +758,7 @@ int omap_mcbsp_request(unsigned int id)
 	if (mcbsp->pdata && mcbsp->pdata->ops && mcbsp->pdata->ops->request)
 		mcbsp->pdata->ops->request(id);
 
-	clk_enable(mcbsp->iclk);
-	clk_enable(mcbsp->fclk);
+	pm_runtime_get_sync(mcbsp->dev);
 
 	/* Do procedure specific to omap34xx arch, if applicable */
 	omap34xx_mcbsp_request(mcbsp);
@@ -806,8 +806,7 @@ err_clk_disable:
 	/* Do procedure specific to omap34xx arch, if applicable */
 	omap34xx_mcbsp_free(mcbsp);
 
-	clk_disable(mcbsp->fclk);
-	clk_disable(mcbsp->iclk);
+	pm_runtime_put_sync(mcbsp->dev);
 
 	spin_lock(&mcbsp->lock);
 	mcbsp->free = true;
@@ -837,8 +836,7 @@ void omap_mcbsp_free(unsigned int id)
 	/* Do procedure specific to omap34xx arch, if applicable */
 	omap34xx_mcbsp_free(mcbsp);
 
-	clk_disable(mcbsp->fclk);
-	clk_disable(mcbsp->iclk);
+	pm_runtime_put_sync(mcbsp->dev);
 
 	if (mcbsp->io_type == OMAP_MCBSP_IRQ_IO) {
 		/* Free IRQs */
@@ -1827,32 +1825,24 @@ static int __devinit omap_mcbsp_probe(struct platform_device *pdev)
 	}
 	mcbsp->dma_tx_sync = res->start;
 
-	mcbsp->iclk = clk_get(&pdev->dev, "ick");
-	if (IS_ERR(mcbsp->iclk)) {
-		ret = PTR_ERR(mcbsp->iclk);
-		dev_err(&pdev->dev, "unable to get ick: %d\n", ret);
-		goto err_res;
-	}
-
 	mcbsp->fclk = clk_get(&pdev->dev, "fck");
 	if (IS_ERR(mcbsp->fclk)) {
 		ret = PTR_ERR(mcbsp->fclk);
 		dev_err(&pdev->dev, "unable to get fck: %d\n", ret);
-		goto err_fclk;
+		goto err_res;
 	}
 
 	mcbsp->pdata = pdata;
 	mcbsp->dev = &pdev->dev;
 	mcbsp_ptr[id] = mcbsp;
 	platform_set_drvdata(pdev, mcbsp);
+	pm_runtime_enable(mcbsp->dev);
 
 	/* Initialize mcbsp properties for OMAP34XX if needed / applicable */
 	omap34xx_device_init(mcbsp);
 
 	return 0;
 
-err_fclk:
-	clk_put(mcbsp->iclk);
 err_res:
 	iounmap(mcbsp->io_base);
 err_ioremap:
@@ -1875,7 +1865,6 @@ static int __devexit omap_mcbsp_remove(struct platform_device *pdev)
 		omap34xx_device_exit(mcbsp);
 
 		clk_put(mcbsp->fclk);
-		clk_put(mcbsp->iclk);
 
 		iounmap(mcbsp->io_base);
 		kfree(mcbsp);
