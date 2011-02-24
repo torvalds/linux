@@ -894,7 +894,7 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(struct net *net, u8 type,
 {
 	int err;
 	struct xfrm_policy *pol, *ret;
-	xfrm_address_t *daddr, *saddr;
+	const xfrm_address_t *daddr, *saddr;
 	struct hlist_node *entry;
 	struct hlist_head *chain;
 	u32 priority = ~0U;
