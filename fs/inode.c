@@ -540,11 +540,14 @@ void evict_inodes(struct super_block *sb)
 /**
  * invalidate_inodes	- attempt to free all inodes on a superblock
  * @sb:		superblock to operate on
+ * @kill_dirty: flag to guide handling of dirty inodes
  *
  * Attempts to free all inodes for a given superblock.  If there were any
  * busy inodes return a non-zero value, else zero.
+ * If @kill_dirty is set, discard dirty inodes too, otherwise treat
+ * them as busy.
  */
-int invalidate_inodes(struct super_block *sb)
+int invalidate_inodes(struct super_block *sb, bool kill_dirty)
 {
 	int busy = 0;
 	struct inode *inode, *next;
@@ -556,6 +559,10 @@ int invalidate_inodes(struct super_block *sb)
 	list_for_each_entry_safe(inode, next, &sb->s_inodes, i_sb_list) {
 		if (inode->i_state & (I_NEW | I_FREEING | I_WILL_FREE))
 			continue;
+		if (inode->i_state & I_DIRTY && !kill_dirty) {
+			busy = 1;
+			continue;
+		}
 		if (atomic_read(&inode->i_count)) {
 			busy = 1;
 			continue;
