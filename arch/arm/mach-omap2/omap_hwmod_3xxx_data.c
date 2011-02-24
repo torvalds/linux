@@ -1852,6 +1852,10 @@ static struct omap_hwmod_ocp_if *omap3xxx_mcbsp2_slaves[] = {
 	&omap3xxx_l4_per__mcbsp2,
 };
 
+static struct omap_mcbsp_dev_attr omap34xx_mcbsp2_dev_attr = {
+	.sidetone	= "mcbsp2_sidetone",
+};
+
 static struct omap_hwmod omap3xxx_mcbsp2_hwmod = {
 	.name		= "mcbsp2",
 	.class		= &omap3xxx_mcbsp_hwmod_class,
@@ -1871,6 +1875,7 @@ static struct omap_hwmod omap3xxx_mcbsp2_hwmod = {
 	},
 	.slaves		= omap3xxx_mcbsp2_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap3xxx_mcbsp2_slaves),
+	.dev_attr	= &omap34xx_mcbsp2_dev_attr,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 };
 
@@ -1910,6 +1915,10 @@ static struct omap_hwmod_ocp_if *omap3xxx_mcbsp3_slaves[] = {
 	&omap3xxx_l4_per__mcbsp3,
 };
 
+static struct omap_mcbsp_dev_attr omap34xx_mcbsp3_dev_attr = {
+	.sidetone       = "mcbsp3_sidetone",
+};
+
 static struct omap_hwmod omap3xxx_mcbsp3_hwmod = {
 	.name		= "mcbsp3",
 	.class		= &omap3xxx_mcbsp_hwmod_class,
@@ -1929,6 +1938,7 @@ static struct omap_hwmod omap3xxx_mcbsp3_hwmod = {
 	},
 	.slaves		= omap3xxx_mcbsp3_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap3xxx_mcbsp3_slaves),
+	.dev_attr	= &omap34xx_mcbsp3_dev_attr,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 };
 

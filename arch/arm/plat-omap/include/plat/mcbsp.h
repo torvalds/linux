@@ -475,6 +475,15 @@ struct omap_mcbsp {
 #endif
 	void *reg_cache;
 };
+
+/**
+ * omap_mcbsp_dev_attr - OMAP McBSP device attributes for omap_hwmod
+ * @sidetone: name of the sidetone device
+ */
+struct omap_mcbsp_dev_attr {
+	const char *sidetone;
+};
+
 extern struct omap_mcbsp **mcbsp_ptr;
 extern int omap_mcbsp_count, omap_mcbsp_cache_size;
 
