@@ -1044,8 +1044,6 @@ static int btusb_probe(struct usb_interface *intf,
 
 	usb_set_intfdata(intf, data);
 
-	usb_enable_autosuspend(interface_to_usbdev(intf));
-
 	return 0;
 }
 
