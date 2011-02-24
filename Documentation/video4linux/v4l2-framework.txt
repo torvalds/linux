@@ -181,6 +181,21 @@ static int __devinit drv_probe(struct pci_dev *pdev,
 	state->instance = atomic_inc_return(&drv_instance) - 1;
 }
 
+If you have multiple device nodes then it can be difficult to know when it is
+safe to unregister v4l2_device. For this purpose v4l2_device has refcounting
+support. The refcount is increased whenever video_register_device is called and
+it is decreased whenever that device node is released. When the refcount reaches
+zero, then the v4l2_device release() callback is called. You can do your final
+cleanup there.
+
+If other device nodes (e.g. ALSA) are created, then you can increase and
+decrease the refcount manually as well by calling:
+
+void v4l2_device_get(struct v4l2_device *v4l2_dev);
+
+or:
+
+int v4l2_device_put(struct v4l2_device *v4l2_dev);
 
 struct v4l2_subdev
 ------------------
