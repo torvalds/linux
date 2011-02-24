@@ -566,6 +566,17 @@ static void p54_flush(struct ieee80211_hw *dev, bool drop)
 	WARN(total, "tx flush timeout, unresponsive firmware");
 }
 
+static void p54_set_coverage_class(struct ieee80211_hw *dev, u8 coverage_class)
+{
+	struct p54_common *priv = dev->priv;
+
+	mutex_lock(&priv->conf_mutex);
+	/* support all coverage class values as in 802.11-2007 Table 7-27 */
+	priv->coverage_class = clamp_t(u8, coverage_class, 0, 31);
+	p54_set_edcf(priv);
+	mutex_unlock(&priv->conf_mutex);
+}
+
 static const struct ieee80211_ops p54_ops = {
 	.tx			= p54_tx_80211,
 	.start			= p54_start,
@@ -584,6 +595,7 @@ static const struct ieee80211_ops p54_ops = {
 	.conf_tx		= p54_conf_tx,
 	.get_stats		= p54_get_stats,
 	.get_survey		= p54_get_survey,
+	.set_coverage_class	= p54_set_coverage_class,
 };
 
 struct ieee80211_hw *p54_init_common(size_t priv_data_len)
