@@ -2,7 +2,7 @@
  * net/tipc/net.c: TIPC network routing code
  *
  * Copyright (c) 1995-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -115,6 +115,7 @@ static int net_start(void)
 	tipc_net.nodes = kcalloc(tipc_max_nodes + 1,
 				 sizeof(*tipc_net.nodes), GFP_ATOMIC);
 	tipc_net.highest_node = 0;
+	atomic_set(&tipc_net.links, 0);
 
 	return tipc_net.nodes ? 0 : -ENOMEM;
 }
