@@ -37,6 +37,8 @@ static struct platform_device omap_mcbsp##port_nr = {	\
 	.id	= OMAP_MCBSP##port_nr,			\
 }
 
+#define MCBSP_CONFIG_TYPE2	0x2
+
 #define OMAP7XX_MCBSP1_BASE	0xfffb1000
 #define OMAP7XX_MCBSP2_BASE	0xfffb1800
 
