@@ -743,8 +743,6 @@ static struct i2c_driver cs4270_i2c_driver = {
 
 static int __init cs4270_init(void)
 {
-	pr_info("Cirrus Logic CS4270 ALSA SoC Codec Driver\n");
-
 	return i2c_add_driver(&cs4270_i2c_driver);
 }
 module_init(cs4270_init);
