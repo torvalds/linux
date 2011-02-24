@@ -109,6 +109,8 @@ static struct omap_hwmod omap2420_uart2_hwmod;
 static struct omap_hwmod omap2420_uart3_hwmod;
 static struct omap_hwmod omap2420_i2c1_hwmod;
 static struct omap_hwmod omap2420_i2c2_hwmod;
+static struct omap_hwmod omap2420_mcbsp1_hwmod;
+static struct omap_hwmod omap2420_mcbsp2_hwmod;
 
 /* l4 core -> mcspi1 interface */
 static struct omap_hwmod_addr_space omap2420_mcspi1_addr_space[] = {
@@ -1390,6 +1392,129 @@ static struct omap_hwmod omap2420_mcspi2_hwmod = {
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP2420),
 };
 
+/*
+ * 'mcbsp' class
+ * multi channel buffered serial port controller
+ */
+
+static struct omap_hwmod_class omap2420_mcbsp_hwmod_class = {
+	.name = "mcbsp",
+};
+
+/* mcbsp1 */
+static struct omap_hwmod_irq_info omap2420_mcbsp1_irqs[] = {
+	{ .name = "tx", .irq = 59 },
+	{ .name = "rx", .irq = 60 },
+};
+
+static struct omap_hwmod_dma_info omap2420_mcbsp1_sdma_chs[] = {
+	{ .name = "rx", .dma_req = 32 },
+	{ .name = "tx", .dma_req = 31 },
+};
+
+static struct omap_hwmod_addr_space omap2420_mcbsp1_addrs[] = {
+	{
+		.name		= "mpu",
+		.pa_start	= 0x48074000,
+		.pa_end		= 0x480740ff,
+		.flags		= ADDR_TYPE_RT
+	},
+};
+
+/* l4_core -> mcbsp1 */
+static struct omap_hwmod_ocp_if omap2420_l4_core__mcbsp1 = {
+	.master		= &omap2420_l4_core_hwmod,
+	.slave		= &omap2420_mcbsp1_hwmod,
+	.clk		= "mcbsp1_ick",
+	.addr		= omap2420_mcbsp1_addrs,
+	.addr_cnt	= ARRAY_SIZE(omap2420_mcbsp1_addrs),
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* mcbsp1 slave ports */
+static struct omap_hwmod_ocp_if *omap2420_mcbsp1_slaves[] = {
+	&omap2420_l4_core__mcbsp1,
+};
+
+static struct omap_hwmod omap2420_mcbsp1_hwmod = {
+	.name		= "mcbsp1",
+	.class		= &omap2420_mcbsp_hwmod_class,
+	.mpu_irqs	= omap2420_mcbsp1_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(omap2420_mcbsp1_irqs),
+	.sdma_reqs	= omap2420_mcbsp1_sdma_chs,
+	.sdma_reqs_cnt	= ARRAY_SIZE(omap2420_mcbsp1_sdma_chs),
+	.main_clk	= "mcbsp1_fck",
+	.prcm		= {
+		.omap2 = {
+			.prcm_reg_id = 1,
+			.module_bit = OMAP24XX_EN_MCBSP1_SHIFT,
+			.module_offs = CORE_MOD,
+			.idlest_reg_id = 1,
+			.idlest_idle_bit = OMAP24XX_ST_MCBSP1_SHIFT,
+		},
+	},
+	.slaves		= omap2420_mcbsp1_slaves,
+	.slaves_cnt	= ARRAY_SIZE(omap2420_mcbsp1_slaves),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP2420),
+};
+
+/* mcbsp2 */
+static struct omap_hwmod_irq_info omap2420_mcbsp2_irqs[] = {
+	{ .name = "tx", .irq = 62 },
+	{ .name = "rx", .irq = 63 },
+};
+
+static struct omap_hwmod_dma_info omap2420_mcbsp2_sdma_chs[] = {
+	{ .name = "rx", .dma_req = 34 },
+	{ .name = "tx", .dma_req = 33 },
+};
+
+static struct omap_hwmod_addr_space omap2420_mcbsp2_addrs[] = {
+	{
+		.name		= "mpu",
+		.pa_start	= 0x48076000,
+		.pa_end		= 0x480760ff,
+		.flags		= ADDR_TYPE_RT
+	},
+};
+
+/* l4_core -> mcbsp2 */
+static struct omap_hwmod_ocp_if omap2420_l4_core__mcbsp2 = {
+	.master		= &omap2420_l4_core_hwmod,
+	.slave		= &omap2420_mcbsp2_hwmod,
+	.clk		= "mcbsp2_ick",
+	.addr		= omap2420_mcbsp2_addrs,
+	.addr_cnt	= ARRAY_SIZE(omap2420_mcbsp2_addrs),
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* mcbsp2 slave ports */
+static struct omap_hwmod_ocp_if *omap2420_mcbsp2_slaves[] = {
+	&omap2420_l4_core__mcbsp2,
+};
+
+static struct omap_hwmod omap2420_mcbsp2_hwmod = {
+	.name		= "mcbsp2",
+	.class		= &omap2420_mcbsp_hwmod_class,
+	.mpu_irqs	= omap2420_mcbsp2_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(omap2420_mcbsp2_irqs),
+	.sdma_reqs	= omap2420_mcbsp2_sdma_chs,
+	.sdma_reqs_cnt	= ARRAY_SIZE(omap2420_mcbsp2_sdma_chs),
+	.main_clk	= "mcbsp2_fck",
+	.prcm		= {
+		.omap2 = {
+			.prcm_reg_id = 1,
+			.module_bit = OMAP24XX_EN_MCBSP2_SHIFT,
+			.module_offs = CORE_MOD,
+			.idlest_reg_id = 1,
+			.idlest_idle_bit = OMAP24XX_ST_MCBSP2_SHIFT,
+		},
+	},
+	.slaves		= omap2420_mcbsp2_slaves,
+	.slaves_cnt	= ARRAY_SIZE(omap2420_mcbsp2_slaves),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP2420),
+};
+
 static __initdata struct omap_hwmod *omap2420_hwmods[] = {
 	&omap2420_l3_main_hwmod,
 	&omap2420_l4_core_hwmod,
@@ -1420,6 +1545,10 @@ static __initdata struct omap_hwmod *omap2420_hwmods[] = {
 
 	/* mailbox class */
 	&omap2420_mailbox_hwmod,
+
+	/* mcbsp class */
+	&omap2420_mcbsp1_hwmod,
+	&omap2420_mcbsp2_hwmod,
 
 	/* mcspi class */
 	&omap2420_mcspi1_hwmod,
