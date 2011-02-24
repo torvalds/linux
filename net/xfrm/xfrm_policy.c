@@ -1956,7 +1956,7 @@ xfrm_state_ok(const struct xfrm_tmpl *tmpl, const struct xfrm_state *x,
  * Otherwise "-2 - errored_index" is returned.
  */
 static inline int
-xfrm_policy_ok(struct xfrm_tmpl *tmpl, struct sec_path *sp, int start,
+xfrm_policy_ok(const struct xfrm_tmpl *tmpl, const struct sec_path *sp, int start,
 	       unsigned short family)
 {
 	int idx = start;
