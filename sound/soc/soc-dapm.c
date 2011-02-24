@@ -1242,7 +1242,7 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 
 		if (p->connect)
 			ret += snprintf(buf + ret, PAGE_SIZE - ret,
-					" in  %s %s\n",
+					" in  \"%s\" \"%s\"\n",
 					p->name ? p->name : "static",
 					p->source->name);
 	}
@@ -1252,7 +1252,7 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 
 		if (p->connect)
 			ret += snprintf(buf + ret, PAGE_SIZE - ret,
-					" out %s %s\n",
+					" out \"%s\" \"%s\"\n",
 					p->name ? p->name : "static",
 					p->sink->name);
 	}
