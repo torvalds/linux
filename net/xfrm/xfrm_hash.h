@@ -4,29 +4,32 @@
 #include <linux/xfrm.h>
 #include <linux/socket.h>
 
-static inline unsigned int __xfrm4_addr_hash(xfrm_address_t *addr)
+static inline unsigned int __xfrm4_addr_hash(const xfrm_address_t *addr)
 {
 	return ntohl(addr->a4);
 }
 
-static inline unsigned int __xfrm6_addr_hash(xfrm_address_t *addr)
+static inline unsigned int __xfrm6_addr_hash(const xfrm_address_t *addr)
 {
 	return ntohl(addr->a6[2] ^ addr->a6[3]);
 }
 
-static inline unsigned int __xfrm4_daddr_saddr_hash(xfrm_address_t *daddr, xfrm_address_t *saddr)
+static inline unsigned int __xfrm4_daddr_saddr_hash(const xfrm_address_t *daddr,
+						    const xfrm_address_t *saddr)
 {
 	u32 sum = (__force u32)daddr->a4 + (__force u32)saddr->a4;
 	return ntohl((__force __be32)sum);
 }
 
-static inline unsigned int __xfrm6_daddr_saddr_hash(xfrm_address_t *daddr, xfrm_address_t *saddr)
+static inline unsigned int __xfrm6_daddr_saddr_hash(const xfrm_address_t *daddr,
+						    const xfrm_address_t *saddr)
 {
 	return ntohl(daddr->a6[2] ^ daddr->a6[3] ^
 		     saddr->a6[2] ^ saddr->a6[3]);
 }
 
-static inline unsigned int __xfrm_dst_hash(xfrm_address_t *daddr, xfrm_address_t *saddr,
+static inline unsigned int __xfrm_dst_hash(const xfrm_address_t *daddr,
+					   const xfrm_address_t *saddr,
 					   u32 reqid, unsigned short family,
 					   unsigned int hmask)
 {
@@ -42,8 +45,8 @@ static inline unsigned int __xfrm_dst_hash(xfrm_address_t *daddr, xfrm_address_t
 	return (h ^ (h >> 16)) & hmask;
 }
 
-static inline unsigned __xfrm_src_hash(xfrm_address_t *daddr,
-				       xfrm_address_t *saddr,
+static inline unsigned __xfrm_src_hash(const xfrm_address_t *daddr,
+				       const xfrm_address_t *saddr,
 				       unsigned short family,
 				       unsigned int hmask)
 {
@@ -60,8 +63,8 @@ static inline unsigned __xfrm_src_hash(xfrm_address_t *daddr,
 }
 
 static inline unsigned int
-__xfrm_spi_hash(xfrm_address_t *daddr, __be32 spi, u8 proto, unsigned short family,
-		unsigned int hmask)
+__xfrm_spi_hash(const xfrm_address_t *daddr, __be32 spi, u8 proto,
+		unsigned short family, unsigned int hmask)
 {
 	unsigned int h = (__force u32)spi ^ proto;
 	switch (family) {
@@ -80,10 +83,11 @@ static inline unsigned int __idx_hash(u32 index, unsigned int hmask)
 	return (index ^ (index >> 8)) & hmask;
 }
 
-static inline unsigned int __sel_hash(struct xfrm_selector *sel, unsigned short family, unsigned int hmask)
+static inline unsigned int __sel_hash(const struct xfrm_selector *sel,
+				      unsigned short family, unsigned int hmask)
 {
-	xfrm_address_t *daddr = &sel->daddr;
-	xfrm_address_t *saddr = &sel->saddr;
+	const xfrm_address_t *daddr = &sel->daddr;
+	const xfrm_address_t *saddr = &sel->saddr;
 	unsigned int h = 0;
 
 	switch (family) {
@@ -107,7 +111,9 @@ static inline unsigned int __sel_hash(struct xfrm_selector *sel, unsigned short 
 	return h & hmask;
 }
 
-static inline unsigned int __addr_hash(xfrm_address_t *daddr, xfrm_address_t *saddr, unsigned short family, unsigned int hmask)
+static inline unsigned int __addr_hash(const xfrm_address_t *daddr,
+				       const xfrm_address_t *saddr,
+				       unsigned short family, unsigned int hmask)
 {
 	unsigned int h = 0;
 

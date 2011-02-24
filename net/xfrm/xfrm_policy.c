@@ -311,7 +311,9 @@ static inline unsigned int idx_hash(struct net *net, u32 index)
 	return __idx_hash(index, net->xfrm.policy_idx_hmask);
 }
 
-static struct hlist_head *policy_hash_bysel(struct net *net, struct xfrm_selector *sel, unsigned short family, int dir)
+static struct hlist_head *policy_hash_bysel(struct net *net,
+					    const struct xfrm_selector *sel,
+					    unsigned short family, int dir)
 {
 	unsigned int hmask = net->xfrm.policy_bydst[dir].hmask;
 	unsigned int hash = __sel_hash(sel, family, hmask);
@@ -321,7 +323,10 @@ static struct hlist_head *policy_hash_bysel(struct net *net, struct xfrm_selecto
 		net->xfrm.policy_bydst[dir].table + hash);
 }
 
-static struct hlist_head *policy_hash_direct(struct net *net, xfrm_address_t *daddr, xfrm_address_t *saddr, unsigned short family, int dir)
+static struct hlist_head *policy_hash_direct(struct net *net,
+					     const xfrm_address_t *daddr,
+					     const xfrm_address_t *saddr,
+					     unsigned short family, int dir)
 {
 	unsigned int hmask = net->xfrm.policy_bydst[dir].hmask;
 	unsigned int hash = __addr_hash(daddr, saddr, family, hmask);
