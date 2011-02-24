@@ -92,8 +92,8 @@ int xfrm_selector_match(const struct xfrm_selector *sel, const struct flowi *fl,
 }
 
 static inline struct dst_entry *__xfrm_dst_lookup(struct net *net, int tos,
-						  xfrm_address_t *saddr,
-						  xfrm_address_t *daddr,
+						  const xfrm_address_t *saddr,
+						  const xfrm_address_t *daddr,
 						  int family)
 {
 	struct xfrm_policy_afinfo *afinfo;
