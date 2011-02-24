@@ -380,10 +380,8 @@ static struct xhci_segment *find_trb_seg(
 	while (cur_seg->trbs > trb ||
 			&cur_seg->trbs[TRBS_PER_SEGMENT - 1] < trb) {
 		generic_trb = &cur_seg->trbs[TRBS_PER_SEGMENT - 1].generic;
-		if ((generic_trb->field[3] & TRB_TYPE_BITMASK) ==
-				TRB_TYPE(TRB_LINK) &&
-				(generic_trb->field[3] & LINK_TOGGLE))
-			*cycle_state = ~(*cycle_state) & 0x1;
+		if (generic_trb->field[3] & LINK_TOGGLE)
+			*cycle_state ^= 0x1;
 		cur_seg = cur_seg->next;
 		if (cur_seg == start_seg)
 			/* Looped over the entire list.  Oops! */
@@ -492,7 +490,7 @@ void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 	trb = &state->new_deq_ptr->generic;
 	if ((trb->field[3] & TRB_TYPE_BITMASK) == TRB_TYPE(TRB_LINK) &&
 				(trb->field[3] & LINK_TOGGLE))
-		state->new_cycle_state = ~(state->new_cycle_state) & 0x1;
+		state->new_cycle_state ^= 0x1;
 	next_trb(xhci, ep_ring, &state->new_deq_seg, &state->new_deq_ptr);
 
 	/*
