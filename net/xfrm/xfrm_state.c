@@ -658,7 +658,7 @@ EXPORT_SYMBOL(xfrm_sad_getinfo);
 
 static int
 xfrm_init_tempstate(struct xfrm_state *x, const struct flowi *fl,
-		    struct xfrm_tmpl *tmpl,
+		    const struct xfrm_tmpl *tmpl,
 		    xfrm_address_t *daddr, xfrm_address_t *saddr,
 		    unsigned short family)
 {
