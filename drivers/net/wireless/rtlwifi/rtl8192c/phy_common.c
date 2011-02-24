@@ -644,9 +644,9 @@ void rtl92c_phy_set_beacon_hw_reg(struct ieee80211_hw *hw, u16 beaconinterval)
 }
 EXPORT_SYMBOL(rtl92c_phy_set_beacon_hw_reg);
 
-static u8 _rtl92c_phy_dbm_to_txpwr_Idx(struct ieee80211_hw *hw,
-				       enum wireless_mode wirelessmode,
-				       long power_indbm)
+u8 _rtl92c_phy_dbm_to_txpwr_Idx(struct ieee80211_hw *hw,
+				enum wireless_mode wirelessmode,
+				long power_indbm)
 {
 	u8 txpwridx;
 	long offset;
@@ -676,9 +676,9 @@ static u8 _rtl92c_phy_dbm_to_txpwr_Idx(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(_rtl92c_phy_dbm_to_txpwr_Idx);
 
-static long _rtl92c_phy_txpwr_idx_to_dbm(struct ieee80211_hw *hw,
-					 enum wireless_mode wirelessmode,
-					 u8 txpwridx)
+long _rtl92c_phy_txpwr_idx_to_dbm(struct ieee80211_hw *hw,
+				  enum wireless_mode wirelessmode,
+				  u8 txpwridx)
 {
 	long offset;
 	long pwrout_dbm;

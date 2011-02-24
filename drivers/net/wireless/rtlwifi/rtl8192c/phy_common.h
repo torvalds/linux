@@ -228,12 +228,12 @@ void rtl92ce_phy_set_rf_on(struct ieee80211_hw *hw);
 void rtl92c_phy_set_io(struct ieee80211_hw *hw);
 void rtl92c_bb_block_on(struct ieee80211_hw *hw);
 u32 _rtl92c_phy_calculate_bit_shift(u32 bitmask);
-static long _rtl92c_phy_txpwr_idx_to_dbm(struct ieee80211_hw *hw,
-					 enum wireless_mode wirelessmode,
-					 u8 txpwridx);
-static u8 _rtl92c_phy_dbm_to_txpwr_Idx(struct ieee80211_hw *hw,
-				       enum wireless_mode wirelessmode,
-				       long power_indbm);
+long _rtl92c_phy_txpwr_idx_to_dbm(struct ieee80211_hw *hw,
+				  enum wireless_mode wirelessmode,
+				  u8 txpwridx);
+u8 _rtl92c_phy_dbm_to_txpwr_Idx(struct ieee80211_hw *hw,
+				enum wireless_mode wirelessmode,
+				long power_indbm);
 void _rtl92c_phy_init_bb_rf_register_definition(struct ieee80211_hw *hw);
 static bool _rtl92c_phy_set_sw_chnl_cmdarray(struct swchnlcmd *cmdtable,
 					     u32 cmdtableidx, u32 cmdtablesz,
