@@ -111,6 +111,12 @@ Description:
 		sensor is associated with one part of a compound device (e.g.
 		a gyroscope axis).
 
+What:		/sys/bus/iio/devices/deviceX/tempX_input
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Scaled temperature measurement in milli degrees Celsius.
+
 What:		/sys/bus/iio/devices/deviceX/accel_x_raw
 What:		/sys/bus/iio/devices/deviceX/accel_y_raw
 What:		/sys/bus/iio/devices/deviceX/accel_z_raw
