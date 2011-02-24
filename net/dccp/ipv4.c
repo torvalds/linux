@@ -43,6 +43,7 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	struct inet_sock *inet = inet_sk(sk);
 	struct dccp_sock *dp = dccp_sk(sk);
 	const struct sockaddr_in *usin = (struct sockaddr_in *)uaddr;
+	__be16 orig_sport, orig_dport;
 	struct rtable *rt;
 	__be32 daddr, nexthop;
 	int tmp;
@@ -63,10 +64,12 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		nexthop = inet->opt->faddr;
 	}
 
+	orig_sport = inet->inet_sport;
+	orig_dport = usin->sin_port;
 	tmp = ip_route_connect(&rt, nexthop, inet->inet_saddr,
 			       RT_CONN_FLAGS(sk), sk->sk_bound_dev_if,
 			       IPPROTO_DCCP,
-			       inet->inet_sport, usin->sin_port, sk, 1);
+			       orig_sport, orig_dport, sk, 1);
 	if (tmp < 0)
 		return tmp;
 
@@ -99,8 +102,9 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (err != 0)
 		goto failure;
 
-	err = ip_route_newports(&rt, IPPROTO_DCCP, inet->inet_sport,
-				inet->inet_dport, sk);
+	err = ip_route_newports(&rt, IPPROTO_DCCP,
+				orig_sport, orig_dport,
+				inet->inet_sport, inet->inet_dport, sk);
 	if (err != 0)
 		goto failure;
 
