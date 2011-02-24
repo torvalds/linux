@@ -19,10 +19,10 @@
 #include <linux/string.h>
 #include <linux/io.h>
 #include <linux/spinlock.h>
+#include <linux/clkdev.h>
 
 #include <mach/hardware.h>
 
-#include <asm/clkdev.h>
 #include <asm/div64.h>
 
 

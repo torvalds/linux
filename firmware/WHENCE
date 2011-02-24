@@ -699,9 +699,9 @@ Found in hex form in kernel source.
 
 Driver: BNX2 - Broadcom NetXtremeII
 
-File: bnx2/bnx2-mips-06-6.0.15.fw
+File: bnx2/bnx2-mips-06-6.2.1.fw
 File: bnx2/bnx2-rv2p-06-6.0.15.fw
-File: bnx2/bnx2-mips-09-6.0.17.fw
+File: bnx2/bnx2-mips-09-6.2.1.fw
 File: bnx2/bnx2-rv2p-09-6.0.17.fw
 File: bnx2/bnx2-rv2p-09ax-6.0.17.fw
 

@@ -237,7 +237,12 @@
 #define GSBI11_QUP_IRQ				(GIC_SPI_START + 194)
 #define INT_UART12DM_IRQ			(GIC_SPI_START + 195)
 #define GSBI12_QUP_IRQ				(GIC_SPI_START + 196)
-/*SPI 197 to 216 arent used in 8x60*/
+
+/*SPI 197 to 209 arent used in 8x60*/
+#define SMMU_GFX2D1_CB_SC_SECURE_IRQ            (GIC_SPI_START + 210)
+#define SMMU_GFX2D1_CB_SC_NON_SECURE_IRQ        (GIC_SPI_START + 211)
+
+/*SPI 212 to 216 arent used in 8x60*/
 #define SMPSS_SPARE_1				(GIC_SPI_START + 217)
 #define SMPSS_SPARE_2				(GIC_SPI_START + 218)
 #define SMPSS_SPARE_3				(GIC_SPI_START + 219)

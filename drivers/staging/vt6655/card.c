@@ -2058,7 +2058,7 @@ bool CARDbSoftwareReset (void *pDeviceHandler)
 QWORD CARDqGetTSFOffset (unsigned char byRxRate, QWORD qwTSF1, QWORD qwTSF2)
 {
     QWORD   qwTSFOffset;
-    unsigned short wRxBcnTSFOffst= 0;;
+    unsigned short wRxBcnTSFOffst= 0;
 
     HIDWORD(qwTSFOffset) = 0;
     LODWORD(qwTSFOffset) = 0;

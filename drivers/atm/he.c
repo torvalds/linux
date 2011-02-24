@@ -366,7 +366,7 @@ he_init_one(struct pci_dev *pci_dev, const struct pci_device_id *pci_ent)
 		goto init_one_failure;
 	}
 
-	atm_dev = atm_dev_register(DEV_LABEL, &he_ops, -1, NULL);
+	atm_dev = atm_dev_register(DEV_LABEL, &pci_dev->dev, &he_ops, -1, NULL);
 	if (!atm_dev) {
 		err = -ENODEV;
 		goto init_one_failure;

@@ -89,7 +89,7 @@ int RTMPAllocTxRxRingMemory(struct rt_rtmp_adapter *pAd)
 
 			if (pAd->TxDescRing[num].AllocVa == NULL) {
 				ErrorValue = ERRLOG_OUT_OF_SHARED_MEMORY;
-				DBGPRINT_ERR(("Failed to allocate a big buffer\n"));
+				DBGPRINT_ERR("Failed to allocate a big buffer\n");
 				Status = NDIS_STATUS_RESOURCES;
 				break;
 			}
@@ -121,7 +121,7 @@ int RTMPAllocTxRxRingMemory(struct rt_rtmp_adapter *pAd)
 
 			if (pAd->TxBufSpace[num].AllocVa == NULL) {
 				ErrorValue = ERRLOG_OUT_OF_SHARED_MEMORY;
-				DBGPRINT_ERR(("Failed to allocate a big buffer\n"));
+				DBGPRINT_ERR("Failed to allocate a big buffer\n");
 				Status = NDIS_STATUS_RESOURCES;
 				break;
 			}
@@ -197,7 +197,7 @@ int RTMPAllocTxRxRingMemory(struct rt_rtmp_adapter *pAd)
 
 		if (pAd->MgmtDescRing.AllocVa == NULL) {
 			ErrorValue = ERRLOG_OUT_OF_SHARED_MEMORY;
-			DBGPRINT_ERR(("Failed to allocate a big buffer\n"));
+			DBGPRINT_ERR("Failed to allocate a big buffer\n");
 			Status = NDIS_STATUS_RESOURCES;
 			break;
 		}
@@ -251,7 +251,7 @@ int RTMPAllocTxRxRingMemory(struct rt_rtmp_adapter *pAd)
 
 		if (pAd->RxDescRing.AllocVa == NULL) {
 			ErrorValue = ERRLOG_OUT_OF_SHARED_MEMORY;
-			DBGPRINT_ERR(("Failed to allocate a big buffer\n"));
+			DBGPRINT_ERR("Failed to allocate a big buffer\n");
 			Status = NDIS_STATUS_RESOURCES;
 			break;
 		}
@@ -304,7 +304,7 @@ int RTMPAllocTxRxRingMemory(struct rt_rtmp_adapter *pAd)
 			/* Error handling */
 			if (pDmaBuf->AllocVa == NULL) {
 				ErrorValue = ERRLOG_OUT_OF_SHARED_MEMORY;
-				DBGPRINT_ERR(("Failed to allocate RxRing's 1st buffer\n"));
+				DBGPRINT_ERR("Failed to allocate RxRing's 1st buffer\n");
 				Status = NDIS_STATUS_RESOURCES;
 				break;
 			}

@@ -118,28 +118,6 @@ void __init sh_mv_setup(void)
 		sh_mv.mv_##elem = generic_##elem; \
 } while (0)
 
-#ifdef CONFIG_HAS_IOPORT
-
-#ifdef P2SEG
-	__set_io_port_base(P2SEG);
-#else
-	__set_io_port_base(0);
-#endif
-
-	mv_set(inb);	mv_set(inw);	mv_set(inl);
-	mv_set(outb);	mv_set(outw);	mv_set(outl);
-
-	mv_set(inb_p);	mv_set(inw_p);	mv_set(inl_p);
-	mv_set(outb_p);	mv_set(outw_p);	mv_set(outl_p);
-
-	mv_set(insb);	mv_set(insw);	mv_set(insl);
-	mv_set(outsb);	mv_set(outsw);	mv_set(outsl);
-
-	mv_set(ioport_map);
-	mv_set(ioport_unmap);
-
-#endif
-
 	mv_set(irq_demux);
 	mv_set(mode_pins);
 	mv_set(mem_init);

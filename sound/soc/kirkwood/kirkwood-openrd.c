@@ -86,7 +86,7 @@ static int __init openrd_client_init(void)
 {
 	int ret;
 
-	if (!machine_is_openrd_client())
+	if (!machine_is_openrd_client() && !machine_is_openrd_ultimate())
 		return 0;
 
 	openrd_client_snd_device = platform_device_alloc("soc-audio", -1);

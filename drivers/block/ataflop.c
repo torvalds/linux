@@ -1399,7 +1399,7 @@ static struct request *set_next_request(void)
 {
 	struct request_queue *q;
 	int old_pos = fdc_queue;
-	struct request *rq;
+	struct request *rq = NULL;
 
 	do {
 		q = unit[fdc_queue].disk->queue;

@@ -2794,7 +2794,7 @@ u8 *GetSuiteFromRSNIE(u8 *rsnie,
 
 	/* Check length */
 	if ((len <= 0) || (pEid->Len != len)) {
-		DBGPRINT_ERR(("%s : The length is invalid\n", __func__));
+		DBGPRINT_ERR("%s : The length is invalid\n", __func__);
 		return NULL;
 	}
 	/* Check WPA or WPA2 */
@@ -2803,14 +2803,13 @@ u8 *GetSuiteFromRSNIE(u8 *rsnie,
 		u16 ucount;
 
 		if (len < sizeof(struct rt_rsnie)) {
-			DBGPRINT_ERR(("%s : The length is too short for WPA\n",
-				      __func__));
+			DBGPRINT_ERR("%s : The length is too short for WPA\n", __func__);
 			return NULL;
 		}
 		/* Get the count of pairwise cipher */
 		ucount = cpu2le16(pRsnie->ucount);
 		if (ucount > 2) {
-			DBGPRINT_ERR(("%s : The count(%d) of pairwise cipher is invlaid\n", __func__, ucount));
+			DBGPRINT_ERR("%s : The count(%d) of pairwise cipher is invlaid\n", __func__, ucount);
 			return NULL;
 		}
 		/* Get the group cipher */
@@ -2836,14 +2835,13 @@ u8 *GetSuiteFromRSNIE(u8 *rsnie,
 		isWPA2 = TRUE;
 
 		if (len < sizeof(struct rt_rsnie2)) {
-			DBGPRINT_ERR(("%s : The length is too short for WPA2\n",
-				      __func__));
+			DBGPRINT_ERR("%s : The length is too short for WPA2\n", __func__);
 			return NULL;
 		}
 		/* Get the count of pairwise cipher */
 		ucount = cpu2le16(pRsnie->ucount);
 		if (ucount > 2) {
-			DBGPRINT_ERR(("%s : The count(%d) of pairwise cipher is invlaid\n", __func__, ucount));
+			DBGPRINT_ERR("%s : The count(%d) of pairwise cipher is invlaid\n", __func__, ucount);
 			return NULL;
 		}
 		/* Get the group cipher */
@@ -2863,7 +2861,7 @@ u8 *GetSuiteFromRSNIE(u8 *rsnie,
 		offset = sizeof(struct rt_rsnie2) + (4 * (ucount - 1));
 
 	} else {
-		DBGPRINT_ERR(("%s : Unknown IE (%d)\n", __func__, pEid->Eid));
+		DBGPRINT_ERR("%s : Unknown IE (%d)\n", __func__, pEid->Eid);
 		return NULL;
 	}
 
@@ -2872,8 +2870,7 @@ u8 *GetSuiteFromRSNIE(u8 *rsnie,
 	len -= offset;
 
 	if (len < sizeof(struct rt_rsnie_auth)) {
-		DBGPRINT_ERR(("%s : The length of RSNIE is too short\n",
-			      __func__));
+		DBGPRINT_ERR("%s : The length of RSNIE is too short\n", __func__);
 		return NULL;
 	}
 	/* pointer to AKM count */
@@ -2882,8 +2879,7 @@ u8 *GetSuiteFromRSNIE(u8 *rsnie,
 	/* Get the count of pairwise cipher */
 	acount = cpu2le16(pAkm->acount);
 	if (acount > 2) {
-		DBGPRINT_ERR(("%s : The count(%d) of AKM is invlaid\n",
-			      __func__, acount));
+		DBGPRINT_ERR("%s : The count(%d) of AKM is invlaid\n", __func__, acount);
 		return NULL;
 	}
 	/* Get the AKM suite */
@@ -2910,7 +2906,7 @@ u8 *GetSuiteFromRSNIE(u8 *rsnie,
 			return pBuf;
 		}
 	} else {
-		DBGPRINT_ERR(("%s : it can't get any more information beyond AKM \n", __func__));
+		DBGPRINT_ERR("%s : it can't get any more information beyond AKM \n", __func__);
 		return NULL;
 	}
 

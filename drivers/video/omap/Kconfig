@@ -1,7 +1,7 @@
 config FB_OMAP
 	tristate "OMAP frame buffer support (EXPERIMENTAL)"
-	depends on FB && ARCH_OMAP && (OMAP2_DSS = "n")
-
+	depends on FB && (OMAP2_DSS = "n")
+	depends on ARCH_OMAP1 || ARCH_OMAP2 || ARCH_OMAP3
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT

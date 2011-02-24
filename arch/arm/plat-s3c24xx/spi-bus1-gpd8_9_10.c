@@ -31,8 +31,8 @@ void s3c24xx_spi_gpiocfg_bus1_gpd8_9_10(struct s3c2410_spi_info *spi,
 	} else {
 		s3c_gpio_cfgpin(S3C2410_GPD(8), S3C2410_GPIO_INPUT);
 		s3c_gpio_cfgpin(S3C2410_GPD(9), S3C2410_GPIO_INPUT);
-		s3c_gpio_cfgpull(S3C2410_GPD(10), S3C_GPIO_PULL_NONE);
-		s3c_gpio_cfgpull(S3C2410_GPD(9), S3C_GPIO_PULL_NONE);
-		s3c_gpio_cfgpull(S3C2410_GPD(8), S3C_GPIO_PULL_NONE);
+		s3c_gpio_setpull(S3C2410_GPD(10), S3C_GPIO_PULL_NONE);
+		s3c_gpio_setpull(S3C2410_GPD(9), S3C_GPIO_PULL_NONE);
+		s3c_gpio_setpull(S3C2410_GPD(8), S3C_GPIO_PULL_NONE);
 	}
 }

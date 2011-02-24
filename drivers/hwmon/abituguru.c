@@ -20,6 +20,9 @@
     the custom Abit uGuru chip found on Abit uGuru motherboards. Note: because
     of lack of specs the CPU/RAM voltage & frequency control is not supported!
 */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/init.h>
@@ -219,6 +222,10 @@ struct abituguru_data {
 	u8 pwms; /* actual number of pwms found */
 	u8 pwm_settings[ABIT_UGURU_MAX_PWMS][5];
 };
+
+static const char *never_happen = "This should never happen.";
+static const char *report_this =
+	"Please report this to the abituguru maintainer (see MAINTAINERS)";
 
 /* wait till the uguru is in the specified state */
 static int abituguru_wait(struct abituguru_data *data, u8 state)
@@ -438,8 +445,7 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 
 	/* Test val is sane / usable for sensor type detection. */
 	if ((val < 10u) || (val > 250u)) {
-		printk(KERN_WARNING ABIT_UGURU_NAME
-			": bank1-sensor: %d reading (%d) too close to limits, "
+		pr_warn("bank1-sensor: %d reading (%d) too close to limits, "
 			"unable to determine sensor type, skipping sensor\n",
 			(int)sensor_addr, (int)val);
 		/* assume no sensor is there for sensors for which we can't
@@ -535,10 +541,8 @@ abituguru_detect_bank1_sensor_type_exit:
 				3) == 3)
 			break;
 	if (i == 3) {
-		printk(KERN_ERR ABIT_UGURU_NAME
-			": Fatal error could not restore original settings. "
-			"This should never happen please report this to the "
-			"abituguru maintainer (see MAINTAINERS)\n");
+		pr_err("Fatal error could not restore original settings. %s %s\n",
+		       never_happen, report_this);
 		return -ENODEV;
 	}
 	return ret;
@@ -1268,14 +1272,12 @@ static int __devinit abituguru_probe(struct platform_device *pdev)
 	}
 	/* Fail safe check, this should never happen! */
 	if (sysfs_names_free < 0) {
-		printk(KERN_ERR ABIT_UGURU_NAME ": Fatal error ran out of "
-		       "space for sysfs attr names. This should never "
-		       "happen please report to the abituguru maintainer "
-		       "(see MAINTAINERS)\n");
+		pr_err("Fatal error ran out of space for sysfs attr names. %s %s",
+		       never_happen, report_this);
 		res = -ENAMETOOLONG;
 		goto abituguru_probe_error;
 	}
-	printk(KERN_INFO ABIT_UGURU_NAME ": found Abit uGuru\n");
+	pr_info("found Abit uGuru\n");
 
 	/* Register sysfs hooks */
 	for (i = 0; i < sysfs_attr_i; i++)
@@ -1432,8 +1434,7 @@ static int __init abituguru_detect(void)
 		"0x%02X\n", (unsigned int)data_val, (unsigned int)cmd_val);
 
 	if (force) {
-		printk(KERN_INFO ABIT_UGURU_NAME ": Assuming Abit uGuru is "
-				"present because of \"force\" parameter\n");
+		pr_info("Assuming Abit uGuru is present because of \"force\" parameter\n");
 		return ABIT_UGURU_BASE;
 	}
 
@@ -1467,8 +1468,7 @@ static int __init abituguru_init(void)
 
 	abituguru_pdev = platform_device_alloc(ABIT_UGURU_NAME, address);
 	if (!abituguru_pdev) {
-		printk(KERN_ERR ABIT_UGURU_NAME
-			": Device allocation failed\n");
+		pr_err("Device allocation failed\n");
 		err = -ENOMEM;
 		goto exit_driver_unregister;
 	}
@@ -1479,15 +1479,13 @@ static int __init abituguru_init(void)
 
 	err = platform_device_add_resources(abituguru_pdev, &res, 1);
 	if (err) {
-		printk(KERN_ERR ABIT_UGURU_NAME
-			": Device resource addition failed (%d)\n", err);
+		pr_err("Device resource addition failed (%d)\n", err);
 		goto exit_device_put;
 	}
 
 	err = platform_device_add(abituguru_pdev);
 	if (err) {
-		printk(KERN_ERR ABIT_UGURU_NAME
-			": Device addition failed (%d)\n", err);
+		pr_err("Device addition failed (%d)\n", err);
 		goto exit_device_put;
 	}
 

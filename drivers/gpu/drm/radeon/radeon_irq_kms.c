@@ -64,8 +64,6 @@ void radeon_driver_irq_preinstall_kms(struct drm_device *dev)
 	struct radeon_device *rdev = dev->dev_private;
 	unsigned i;
 
-	INIT_WORK(&rdev->hotplug_work, radeon_hotplug_work_func);
-
 	/* Disable *all* interrupts */
 	rdev->irq.sw_int = false;
 	rdev->irq.gui_idle = false;
@@ -112,9 +110,14 @@ void radeon_driver_irq_uninstall_kms(struct drm_device *dev)
 
 int radeon_irq_kms_init(struct radeon_device *rdev)
 {
+	int i;
 	int r = 0;
 
+	INIT_WORK(&rdev->hotplug_work, radeon_hotplug_work_func);
+
 	spin_lock_init(&rdev->irq.sw_lock);
+	for (i = 0; i < rdev->num_crtc; i++)
+		spin_lock_init(&rdev->irq.pflip_lock[i]);
 	r = drm_vblank_init(rdev->ddev, rdev->num_crtc);
 	if (r) {
 		return r;
@@ -152,6 +155,7 @@ void radeon_irq_kms_fini(struct radeon_device *rdev)
 		if (rdev->msi_enabled)
 			pci_disable_msi(rdev->pdev);
 	}
+	flush_work_sync(&rdev->hotplug_work);
 }
 
 void radeon_irq_kms_sw_irq_get(struct radeon_device *rdev)

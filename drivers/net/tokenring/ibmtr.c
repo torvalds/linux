@@ -657,8 +657,9 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 #ifndef PCMCIA
 	/* finish figuring the shared RAM address */
 	if (cardpresent == TR_ISA) {
-		static __u32 ram_bndry_mask[] =
-			{ 0xffffe000, 0xffffc000, 0xffff8000, 0xffff0000 };
+		static const __u32 ram_bndry_mask[] = {
+			0xffffe000, 0xffffc000, 0xffff8000, 0xffff0000
+		};
 		__u32 new_base, rrr_32, chk_base, rbm;
 
 		rrr_32=readb(ti->mmio+ACA_OFFSET+ACA_RW+RRR_ODD) >> 2 & 0x03;

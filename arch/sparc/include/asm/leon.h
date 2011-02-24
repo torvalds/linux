@@ -224,6 +224,18 @@ static inline void sparc_leon3_disable_cache(void)
 			  "sta %%l2, [%%g0] 2\n\t" : : : "l1", "l2");
 };
 
+static inline unsigned long sparc_leon3_asr17(void)
+{
+	u32 asr17;
+	__asm__ __volatile__ ("rd %%asr17, %0\n\t" : "=r"(asr17));
+	return asr17;
+};
+
+static inline int sparc_leon3_cpuid(void)
+{
+	return sparc_leon3_asr17() >> 28;
+}
+
 #endif /*!__ASSEMBLY__*/
 
 #ifdef CONFIG_SMP

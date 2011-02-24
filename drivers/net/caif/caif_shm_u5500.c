@@ -5,13 +5,13 @@
  * License terms: GNU General Public License (GPL) version 2
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ":" __func__ "():" fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ":" fmt
 
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
-#include <mach/mbox.h>
+#include <mach/mbox-db5500.h>
 #include <net/caif/caif_shm.h>
 
 MODULE_LICENSE("GPL");

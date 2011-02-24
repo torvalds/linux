@@ -284,7 +284,7 @@ static int __init sh7785lcr_devices_setup(void)
 	return platform_add_devices(sh7785lcr_devices,
 				    ARRAY_SIZE(sh7785lcr_devices));
 }
-__initcall(sh7785lcr_devices_setup);
+device_initcall(sh7785lcr_devices_setup);
 
 /* Initialize IRQ setting */
 void __init init_sh7785lcr_IRQ(void)

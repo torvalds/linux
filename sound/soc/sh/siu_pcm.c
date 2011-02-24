@@ -29,7 +29,7 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
-#include <sound/soc-dai.h>
+#include <sound/soc.h>
 
 #include <asm/siu.h>
 

@@ -1,31 +1,46 @@
 
 /**
- * struct bus_type_private - structure to hold the private to the driver core portions of the bus_type structure.
+ * struct subsys_private - structure to hold the private to the driver core portions of the bus_type/class structure.
  *
- * @subsys - the struct kset that defines this bus.  This is the main kobject
- * @drivers_kset - the list of drivers associated with this bus
- * @devices_kset - the list of devices associated with this bus
+ * @subsys - the struct kset that defines this subsystem
+ * @devices_kset - the list of devices associated
+ *
+ * @drivers_kset - the list of drivers associated
  * @klist_devices - the klist to iterate over the @devices_kset
  * @klist_drivers - the klist to iterate over the @drivers_kset
  * @bus_notifier - the bus notifier list for anything that cares about things
- * on this bus.
+ *                 on this bus.
  * @bus - pointer back to the struct bus_type that this structure is associated
- * with.
+ *        with.
+ *
+ * @class_interfaces - list of class_interfaces associated
+ * @glue_dirs - "glue" directory to put in-between the parent device to
+ *              avoid namespace conflicts
+ * @class_mutex - mutex to protect the children, devices, and interfaces lists.
+ * @class - pointer back to the struct class that this structure is associated
+ *          with.
  *
  * This structure is the one that is the actual kobject allowing struct
- * bus_type to be statically allocated safely.  Nothing outside of the driver
- * core should ever touch these fields.
+ * bus_type/class to be statically allocated safely.  Nothing outside of the
+ * driver core should ever touch these fields.
  */
-struct bus_type_private {
+struct subsys_private {
 	struct kset subsys;
-	struct kset *drivers_kset;
 	struct kset *devices_kset;
+
+	struct kset *drivers_kset;
 	struct klist klist_devices;
 	struct klist klist_drivers;
 	struct blocking_notifier_head bus_notifier;
 	unsigned int drivers_autoprobe:1;
 	struct bus_type *bus;
+
+	struct list_head class_interfaces;
+	struct kset glue_dirs;
+	struct mutex class_mutex;
+	struct class *class;
 };
+#define to_subsys_private(obj) container_of(obj, struct subsys_private, subsys.kobj)
 
 struct driver_private {
 	struct kobject kobj;
@@ -35,33 +50,6 @@ struct driver_private {
 	struct device_driver *driver;
 };
 #define to_driver(obj) container_of(obj, struct driver_private, kobj)
-
-
-/**
- * struct class_private - structure to hold the private to the driver core portions of the class structure.
- *
- * @class_subsys - the struct kset that defines this class.  This is the main kobject
- * @class_devices - list of devices associated with this class
- * @class_interfaces - list of class_interfaces associated with this class
- * @class_dirs - "glue" directory for virtual devices associated with this class
- * @class_mutex - mutex to protect the children, devices, and interfaces lists.
- * @class - pointer back to the struct class that this structure is associated
- * with.
- *
- * This structure is the one that is the actual kobject allowing struct
- * class to be statically allocated safely.  Nothing outside of the driver
- * core should ever touch these fields.
- */
-struct class_private {
-	struct kset class_subsys;
-	struct klist class_devices;
-	struct list_head class_interfaces;
-	struct kset class_dirs;
-	struct mutex class_mutex;
-	struct class *class;
-};
-#define to_class(obj)	\
-	container_of(obj, struct class_private, class_subsys.kobj)
 
 /**
  * struct device_private - structure to hold the private to the driver core portions of the device structure.

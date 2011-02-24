@@ -551,7 +551,7 @@ void __init omap_vram_reserve_sdram_memblock(void)
 	if (!size)
 		return;
 
-	size = PAGE_ALIGN(size);
+	size = ALIGN(size, SZ_2M);
 
 	if (paddr) {
 		if (paddr & ~PAGE_MASK) {
@@ -576,7 +576,7 @@ void __init omap_vram_reserve_sdram_memblock(void)
 			return;
 		}
 	} else {
-		paddr = memblock_alloc(size, PAGE_SIZE);
+		paddr = memblock_alloc(size, SZ_2M);
 	}
 
 	memblock_free(paddr, size);

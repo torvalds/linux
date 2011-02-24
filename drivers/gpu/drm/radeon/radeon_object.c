@@ -55,6 +55,7 @@ static void radeon_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	list_del_init(&bo->list);
 	mutex_unlock(&bo->rdev->gem.mutex);
 	radeon_bo_clear_surface_reg(bo);
+	drm_gem_object_release(&bo->gem_base);
 	kfree(bo);
 }
 
@@ -70,7 +71,7 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 	u32 c = 0;
 
 	rbo->placement.fpfn = 0;
-	rbo->placement.lpfn = rbo->rdev->mc.active_vram_size >> PAGE_SHIFT;
+	rbo->placement.lpfn = 0;
 	rbo->placement.placement = rbo->placements;
 	rbo->placement.busy_placement = rbo->placements;
 	if (domain & RADEON_GEM_DOMAIN_VRAM)
@@ -86,14 +87,17 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 	rbo->placement.num_busy_placement = c;
 }
 
-int radeon_bo_create(struct radeon_device *rdev, struct drm_gem_object *gobj,
+int radeon_bo_create(struct radeon_device *rdev,
 		     unsigned long size, int byte_align, bool kernel, u32 domain,
 		     struct radeon_bo **bo_ptr)
 {
 	struct radeon_bo *bo;
 	enum ttm_bo_type type;
-	int page_align = roundup(byte_align, PAGE_SIZE) >> PAGE_SHIFT;
+	unsigned long page_align = roundup(byte_align, PAGE_SIZE) >> PAGE_SHIFT;
+	unsigned long max_size = 0;
 	int r;
+
+	size = ALIGN(size, PAGE_SIZE);
 
 	if (unlikely(rdev->mman.bdev.dev_mapping == NULL)) {
 		rdev->mman.bdev.dev_mapping = rdev->ddev->dev_mapping;
@@ -105,12 +109,25 @@ int radeon_bo_create(struct radeon_device *rdev, struct drm_gem_object *gobj,
 	}
 	*bo_ptr = NULL;
 
+	/* maximun bo size is the minimun btw visible vram and gtt size */
+	max_size = min(rdev->mc.visible_vram_size, rdev->mc.gtt_size);
+	if ((page_align << PAGE_SHIFT) >= max_size) {
+		printk(KERN_WARNING "%s:%d alloc size %ldM bigger than %ldMb limit\n",
+			__func__, __LINE__, page_align  >> (20 - PAGE_SHIFT), max_size >> 20);
+		return -ENOMEM;
+	}
+
 retry:
 	bo = kzalloc(sizeof(struct radeon_bo), GFP_KERNEL);
 	if (bo == NULL)
 		return -ENOMEM;
+	r = drm_gem_object_init(rdev->ddev, &bo->gem_base, size);
+	if (unlikely(r)) {
+		kfree(bo);
+		return r;
+	}
 	bo->rdev = rdev;
-	bo->gobj = gobj;
+	bo->gem_base.driver_private = NULL;
 	bo->surface_reg = -1;
 	INIT_LIST_HEAD(&bo->list);
 	radeon_ttm_placement_from_domain(bo, domain);
@@ -133,12 +150,9 @@ retry:
 		return r;
 	}
 	*bo_ptr = bo;
-	if (gobj) {
-		mutex_lock(&bo->rdev->gem.mutex);
-		list_add_tail(&bo->list, &rdev->gem.objects);
-		mutex_unlock(&bo->rdev->gem.mutex);
-	}
+
 	trace_radeon_bo_create(bo);
+
 	return 0;
 }
 
@@ -251,7 +265,6 @@ int radeon_bo_evict_vram(struct radeon_device *rdev)
 void radeon_bo_force_delete(struct radeon_device *rdev)
 {
 	struct radeon_bo *bo, *n;
-	struct drm_gem_object *gobj;
 
 	if (list_empty(&rdev->gem.objects)) {
 		return;
@@ -259,16 +272,14 @@ void radeon_bo_force_delete(struct radeon_device *rdev)
 	dev_err(rdev->dev, "Userspace still has active objects !\n");
 	list_for_each_entry_safe(bo, n, &rdev->gem.objects, list) {
 		mutex_lock(&rdev->ddev->struct_mutex);
-		gobj = bo->gobj;
 		dev_err(rdev->dev, "%p %p %lu %lu force free\n",
-			gobj, bo, (unsigned long)gobj->size,
-			*((unsigned long *)&gobj->refcount));
+			&bo->gem_base, bo, (unsigned long)bo->gem_base.size,
+			*((unsigned long *)&bo->gem_base.refcount));
 		mutex_lock(&bo->rdev->gem.mutex);
 		list_del_init(&bo->list);
 		mutex_unlock(&bo->rdev->gem.mutex);
 		radeon_bo_unref(&bo);
-		gobj->driver_private = NULL;
-		drm_gem_object_unreference(gobj);
+		drm_gem_object_unreference(&bo->gem_base);
 		mutex_unlock(&rdev->ddev->struct_mutex);
 	}
 }

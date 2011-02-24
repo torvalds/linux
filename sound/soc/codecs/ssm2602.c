@@ -38,7 +38,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 
 #include "ssm2602.h"
@@ -207,10 +206,11 @@ static const struct snd_soc_dapm_route audio_conn[] = {
 
 static int ssm2602_add_widgets(struct snd_soc_codec *codec)
 {
-	snd_soc_dapm_new_controls(codec, ssm2602_dapm_widgets,
-				  ARRAY_SIZE(ssm2602_dapm_widgets));
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_add_routes(codec, audio_conn, ARRAY_SIZE(audio_conn));
+	snd_soc_dapm_new_controls(dapm, ssm2602_dapm_widgets,
+				  ARRAY_SIZE(ssm2602_dapm_widgets));
+	snd_soc_dapm_add_routes(dapm, audio_conn, ARRAY_SIZE(audio_conn));
 
 	return 0;
 }
@@ -493,7 +493,7 @@ static int ssm2602_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	}
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 	return 0;
 }
 

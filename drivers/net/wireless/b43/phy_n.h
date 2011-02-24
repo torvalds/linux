@@ -782,7 +782,7 @@ struct b43_phy_n {
 	u16 mphase_txcal_numcmds;
 	u16 mphase_txcal_bestcoeffs[11];
 
-	u8 txpwrctrl;
+	bool txpwrctrl;
 	u16 txcal_bbmult;
 	u16 txiqlocal_bestc[11];
 	bool txiqlocal_coeffsvalid;

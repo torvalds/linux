@@ -136,7 +136,7 @@ static void cx18_mdl_send_to_dvb(struct cx18_stream *s, struct cx18_mdl *mdl)
 {
 	struct cx18_buffer *buf;
 
-	if (!s->dvb.enabled || mdl->bytesused == 0)
+	if (s->dvb == NULL || !s->dvb->enabled || mdl->bytesused == 0)
 		return;
 
 	/* We ignore mdl and buf readpos accounting here - it doesn't matter */
@@ -146,7 +146,7 @@ static void cx18_mdl_send_to_dvb(struct cx18_stream *s, struct cx18_mdl *mdl)
 		buf = list_first_entry(&mdl->buf_list, struct cx18_buffer,
 				       list);
 		if (buf->bytesused)
-			dvb_dmx_swfilter(&s->dvb.demux,
+			dvb_dmx_swfilter(&s->dvb->demux,
 					 buf->buf, buf->bytesused);
 		return;
 	}
@@ -154,7 +154,7 @@ static void cx18_mdl_send_to_dvb(struct cx18_stream *s, struct cx18_mdl *mdl)
 	list_for_each_entry(buf, &mdl->buf_list, list) {
 		if (buf->bytesused == 0)
 			break;
-		dvb_dmx_swfilter(&s->dvb.demux, buf->buf, buf->bytesused);
+		dvb_dmx_swfilter(&s->dvb->demux, buf->buf, buf->bytesused);
 	}
 }
 

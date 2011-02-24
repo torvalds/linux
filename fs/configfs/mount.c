@@ -101,6 +101,7 @@ static int configfs_fill_super(struct super_block *sb, void *data, int silent)
 	configfs_root_group.cg_item.ci_dentry = root;
 	root->d_fsdata = &configfs_root;
 	sb->s_root = root;
+	sb->s_d_op = &configfs_dentry_ops; /* the rest get that */
 	return 0;
 }
 

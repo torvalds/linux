@@ -275,7 +275,7 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 	dev->base_addr = ioaddr+WD_NIC_OFFSET;
 
 	if (dev->irq < 2) {
-		int irqmap[] = {9,3,5,7,10,11,15,4};
+		static const int irqmap[] = {9, 3, 5, 7, 10, 11, 15, 4};
 		int reg1 = inb(ioaddr+1);
 		int reg4 = inb(ioaddr+4);
 		if (ancient || reg1 == 0xff) {	/* Ack!! No way to read the IRQ! */

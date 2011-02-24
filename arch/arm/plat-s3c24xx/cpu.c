@@ -88,7 +88,7 @@ static struct cpu_table cpu_ids[] __initdata = {
 	{
 		.idcode		= 0x32440000,
 		.idmask		= 0xffffffff,
-		.map_io		= s3c244x_map_io,
+		.map_io		= s3c2440_map_io,
 		.init_clocks	= s3c244x_init_clocks,
 		.init_uarts	= s3c244x_init_uarts,
 		.init		= s3c2440_init,
@@ -97,7 +97,7 @@ static struct cpu_table cpu_ids[] __initdata = {
 	{
 		.idcode		= 0x32440001,
 		.idmask		= 0xffffffff,
-		.map_io		= s3c244x_map_io,
+		.map_io		= s3c2440_map_io,
 		.init_clocks	= s3c244x_init_clocks,
 		.init_uarts	= s3c244x_init_uarts,
 		.init		= s3c2440_init,
@@ -106,7 +106,7 @@ static struct cpu_table cpu_ids[] __initdata = {
 	{
 		.idcode		= 0x32440aaa,
 		.idmask		= 0xffffffff,
-		.map_io		= s3c244x_map_io,
+		.map_io		= s3c2442_map_io,
 		.init_clocks	= s3c244x_init_clocks,
 		.init_uarts	= s3c244x_init_uarts,
 		.init		= s3c2442_init,
@@ -115,7 +115,7 @@ static struct cpu_table cpu_ids[] __initdata = {
 	{
 		.idcode		= 0x32440aab,
 		.idmask		= 0xffffffff,
-		.map_io		= s3c244x_map_io,
+		.map_io		= s3c2442_map_io,
 		.init_clocks	= s3c244x_init_clocks,
 		.init_uarts	= s3c244x_init_uarts,
 		.init		= s3c2442_init,

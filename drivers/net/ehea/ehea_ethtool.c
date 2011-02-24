@@ -26,6 +26,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "ehea.h"
 #include "ehea_phyp.h"
 
@@ -118,10 +120,10 @@ doit:
 	ret = ehea_set_portspeed(port, sp);
 
 	if (!ret)
-		ehea_info("%s: Port speed successfully set: %dMbps "
-			  "%s Duplex",
-			  port->netdev->name, port->port_speed,
-			  port->full_duplex == 1 ? "Full" : "Half");
+		netdev_info(dev,
+			    "Port speed successfully set: %dMbps %s Duplex\n",
+			    port->port_speed,
+			    port->full_duplex == 1 ? "Full" : "Half");
 out:
 	return ret;
 }
@@ -134,10 +136,10 @@ static int ehea_nway_reset(struct net_device *dev)
 	ret = ehea_set_portspeed(port, EHEA_SPEED_AUTONEG);
 
 	if (!ret)
-		ehea_info("%s: Port speed successfully set: %dMbps "
-			  "%s Duplex",
-			  port->netdev->name, port->port_speed,
-			  port->full_duplex == 1 ? "Full" : "Half");
+		netdev_info(port->netdev,
+			    "Port speed successfully set: %dMbps %s Duplex\n",
+			    port->port_speed,
+			    port->full_duplex == 1 ? "Full" : "Half");
 	return ret;
 }
 
@@ -261,6 +263,20 @@ static void ehea_get_ethtool_stats(struct net_device *dev,
 
 }
 
+static int ehea_set_flags(struct net_device *dev, u32 data)
+{
+	/* Avoid changing the VLAN flags */
+	if ((data & (ETH_FLAG_RXVLAN | ETH_FLAG_TXVLAN)) !=
+	    (ethtool_op_get_flags(dev) & (ETH_FLAG_RXVLAN |
+					  ETH_FLAG_TXVLAN))){
+		return -EINVAL;
+	}
+
+	return ethtool_op_set_flags(dev, data, ETH_FLAG_LRO
+					| ETH_FLAG_TXVLAN
+					| ETH_FLAG_RXVLAN);
+}
+
 const struct ethtool_ops ehea_ethtool_ops = {
 	.get_settings = ehea_get_settings,
 	.get_drvinfo = ehea_get_drvinfo,
@@ -273,6 +289,8 @@ const struct ethtool_ops ehea_ethtool_ops = {
 	.get_ethtool_stats = ehea_get_ethtool_stats,
 	.get_rx_csum = ehea_get_rx_csum,
 	.set_settings = ehea_set_settings,
+	.get_flags = ethtool_op_get_flags,
+	.set_flags = ehea_set_flags,
 	.nway_reset = ehea_nway_reset,		/* Restart autonegotiation */
 };
 

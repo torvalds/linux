@@ -2145,13 +2145,15 @@ static void ext3_clear_blocks(handle_t *handle, struct inode *inode,
 	if (try_to_extend_transaction(handle, inode)) {
 		if (bh) {
 			BUFFER_TRACE(bh, "call ext3_journal_dirty_metadata");
-			ext3_journal_dirty_metadata(handle, bh);
+			if (ext3_journal_dirty_metadata(handle, bh))
+				return;
 		}
 		ext3_mark_inode_dirty(handle, inode);
 		truncate_restart_transaction(handle, inode);
 		if (bh) {
 			BUFFER_TRACE(bh, "retaking write access");
-			ext3_journal_get_write_access(handle, bh);
+			if (ext3_journal_get_write_access(handle, bh))
+				return;
 		}
 	}
 

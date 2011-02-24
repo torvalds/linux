@@ -120,9 +120,6 @@ config SMP
 
 	  If you don't know what to do, say N.
 
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	def_bool y
-
 config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
 	range 2 32
@@ -131,7 +128,7 @@ config NR_CPUS
 
 config HIGHMEM
 	bool "Highmem support (EXPERIMENTAL)"
-	depends on !64BIT && EXPERIMENTAL
+	depends on !64BIT && BROKEN
 	default n
 	help
 	  This was used to allow UML to run with big amounts of memory.

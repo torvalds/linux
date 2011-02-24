@@ -39,7 +39,8 @@ static const struct snd_pcm_hardware oxygen_stereo_hardware = {
 		SNDRV_PCM_INFO_MMAP_VALID |
 		SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_PAUSE |
-		SNDRV_PCM_INFO_SYNC_START,
+		SNDRV_PCM_INFO_SYNC_START |
+		SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
 	.formats = SNDRV_PCM_FMTBIT_S16_LE |
 		   SNDRV_PCM_FMTBIT_S32_LE,
 	.rates = SNDRV_PCM_RATE_32000 |
@@ -65,7 +66,8 @@ static const struct snd_pcm_hardware oxygen_multichannel_hardware = {
 		SNDRV_PCM_INFO_MMAP_VALID |
 		SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_PAUSE |
-		SNDRV_PCM_INFO_SYNC_START,
+		SNDRV_PCM_INFO_SYNC_START |
+		SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
 	.formats = SNDRV_PCM_FMTBIT_S16_LE |
 		   SNDRV_PCM_FMTBIT_S32_LE,
 	.rates = SNDRV_PCM_RATE_32000 |
@@ -91,7 +93,8 @@ static const struct snd_pcm_hardware oxygen_ac97_hardware = {
 		SNDRV_PCM_INFO_MMAP_VALID |
 		SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_PAUSE |
-		SNDRV_PCM_INFO_SYNC_START,
+		SNDRV_PCM_INFO_SYNC_START |
+		SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	.rates = SNDRV_PCM_RATE_48000,
 	.rate_min = 48000,
@@ -140,7 +143,7 @@ static int oxygen_open(struct snd_pcm_substream *substream,
 		runtime->hw.rate_min = 44100;
 		break;
 	case PCM_MULTICH:
-		runtime->hw.channels_max = chip->model.dac_channels;
+		runtime->hw.channels_max = chip->model.dac_channels_pcm;
 		break;
 	}
 	if (chip->model.pcm_hardware_filter)
@@ -271,17 +274,6 @@ static unsigned int oxygen_rate(struct snd_pcm_hw_params *hw_params)
 	}
 }
 
-unsigned int oxygen_default_i2s_mclk(struct oxygen *chip,
-				     unsigned int channel,
-				     struct snd_pcm_hw_params *hw_params)
-{
-	if (params_rate(hw_params) <= 96000)
-		return OXYGEN_I2S_MCLK_256;
-	else
-		return OXYGEN_I2S_MCLK_128;
-}
-EXPORT_SYMBOL(oxygen_default_i2s_mclk);
-
 static unsigned int oxygen_i2s_bits(struct snd_pcm_hw_params *hw_params)
 {
 	if (params_format(hw_params) == SNDRV_PCM_FORMAT_S32_LE)
@@ -341,6 +333,26 @@ static int oxygen_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static u16 get_mclk(struct oxygen *chip, unsigned int channel,
+		    struct snd_pcm_hw_params *params)
+{
+	unsigned int mclks, shift;
+
+	if (channel == PCM_MULTICH)
+		mclks = chip->model.dac_mclks;
+	else
+		mclks = chip->model.adc_mclks;
+
+	if (params_rate(params) <= 48000)
+		shift = 0;
+	else if (params_rate(params) <= 96000)
+		shift = 2;
+	else
+		shift = 4;
+
+	return OXYGEN_I2S_MCLK(mclks >> shift);
+}
+
 static int oxygen_rec_a_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *hw_params)
 {
@@ -357,8 +369,8 @@ static int oxygen_rec_a_hw_params(struct snd_pcm_substream *substream,
 			     OXYGEN_REC_FORMAT_A_MASK);
 	oxygen_write16_masked(chip, OXYGEN_I2S_A_FORMAT,
 			      oxygen_rate(hw_params) |
-			      chip->model.get_i2s_mclk(chip, PCM_A, hw_params) |
 			      chip->model.adc_i2s_format |
+			      get_mclk(chip, PCM_A, hw_params) |
 			      oxygen_i2s_bits(hw_params),
 			      OXYGEN_I2S_RATE_MASK |
 			      OXYGEN_I2S_FORMAT_MASK |
@@ -393,9 +405,8 @@ static int oxygen_rec_b_hw_params(struct snd_pcm_substream *substream,
 	if (!is_ac97)
 		oxygen_write16_masked(chip, OXYGEN_I2S_B_FORMAT,
 				      oxygen_rate(hw_params) |
-				      chip->model.get_i2s_mclk(chip, PCM_B,
-							       hw_params) |
 				      chip->model.adc_i2s_format |
+				      get_mclk(chip, PCM_B, hw_params) |
 				      oxygen_i2s_bits(hw_params),
 				      OXYGEN_I2S_RATE_MASK |
 				      OXYGEN_I2S_FORMAT_MASK |
@@ -476,8 +487,7 @@ static int oxygen_multich_hw_params(struct snd_pcm_substream *substream,
 	oxygen_write16_masked(chip, OXYGEN_I2S_MULTICH_FORMAT,
 			      oxygen_rate(hw_params) |
 			      chip->model.dac_i2s_format |
-			      chip->model.get_i2s_mclk(chip, PCM_MULTICH,
-						       hw_params) |
+			      get_mclk(chip, PCM_MULTICH, hw_params) |
 			      oxygen_i2s_bits(hw_params),
 			      OXYGEN_I2S_RATE_MASK |
 			      OXYGEN_I2S_FORMAT_MASK |
@@ -530,7 +540,10 @@ static int oxygen_prepare(struct snd_pcm_substream *substream)
 	oxygen_set_bits8(chip, OXYGEN_DMA_FLUSH, channel_mask);
 	oxygen_clear_bits8(chip, OXYGEN_DMA_FLUSH, channel_mask);
 
-	chip->interrupt_mask |= channel_mask;
+	if (substream->runtime->no_period_wakeup)
+		chip->interrupt_mask &= ~channel_mask;
+	else
+		chip->interrupt_mask |= channel_mask;
 	oxygen_write16(chip, OXYGEN_INTERRUPT_MASK, chip->interrupt_mask);
 	spin_unlock_irq(&chip->reg_lock);
 	return 0;

@@ -25,6 +25,7 @@
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/mtd/sharpsl.h>
 
 #include <mach/hardware.h>
@@ -43,7 +44,6 @@
 #include <mach/irda.h>
 #include <mach/poodle.h>
 #include <mach/pxafb.h>
-#include <mach/pxa2xx_spi.h>
 #include <plat/i2c.h>
 
 #include <asm/hardware/scoop.h>
@@ -466,7 +466,7 @@ static void __init fixup_poodle(struct machine_desc *desc,
 
 MACHINE_START(POODLE, "SHARP Poodle")
 	.fixup		= fixup_poodle,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa25x_map_io,
 	.nr_irqs	= POODLE_NR_IRQS,	/* 4 for LoCoMo */
 	.init_irq	= pxa25x_init_irq,
 	.timer		= &pxa_timer,

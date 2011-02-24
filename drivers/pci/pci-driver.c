@@ -338,7 +338,7 @@ static int pci_call_probe(struct pci_driver *drv, struct pci_dev *dev,
 }
 
 /**
- * __pci_device_probe()
+ * __pci_device_probe - check if a driver wants to claim a specific PCI device
  * @drv: driver to call to check if it wants the PCI device
  * @pci_dev: PCI device being probed
  * 
@@ -449,7 +449,8 @@ static int pci_restore_standard_config(struct pci_dev *pci_dev)
 			return error;
 	}
 
-	return pci_restore_state(pci_dev);
+	pci_restore_state(pci_dev);
+	return 0;
 }
 
 static void pci_pm_default_resume_early(struct pci_dev *pci_dev)

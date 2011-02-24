@@ -1692,8 +1692,7 @@ static void qib_7220_quiet_serdes(struct qib_pportdata *ppd)
 	ppd->lflags &= ~QIBL_IB_AUTONEG_INPROG;
 	spin_unlock_irqrestore(&ppd->lflags_lock, flags);
 	wake_up(&ppd->cpspec->autoneg_wait);
-	cancel_delayed_work(&ppd->cpspec->autoneg_work);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&ppd->cpspec->autoneg_work);
 
 	shutdown_7220_relock_poll(ppd->dd);
 	val = qib_read_kreg64(ppd->dd, kr_xgxs_cfg);
@@ -2297,7 +2296,7 @@ static void qib_7220_config_ctxts(struct qib_devdata *dd)
 	nchipctxts = qib_read_kreg32(dd, kr_portcnt);
 	dd->cspec->numctxts = nchipctxts;
 	if (qib_n_krcv_queues > 1) {
-		dd->qpn_mask = 0x3f;
+		dd->qpn_mask = 0x3e;
 		dd->first_user_ctxt = qib_n_krcv_queues * dd->num_pports;
 		if (dd->first_user_ctxt > nchipctxts)
 			dd->first_user_ctxt = nchipctxts;
@@ -2703,7 +2702,7 @@ static int qib_7220_set_loopback(struct qib_pportdata *ppd, const char *what)
 }
 
 static void qib_update_7220_usrhead(struct qib_ctxtdata *rcd, u64 hd,
-				    u32 updegr, u32 egrhd)
+				    u32 updegr, u32 egrhd, u32 npkts)
 {
 	qib_write_ureg(rcd->dd, ur_rcvhdrhead, hd, rcd->ctxt);
 	if (updegr)
@@ -3515,8 +3514,8 @@ static void try_7220_autoneg(struct qib_pportdata *ppd)
 
 	toggle_7220_rclkrls(ppd->dd);
 	/* 2 msec is minimum length of a poll cycle */
-	schedule_delayed_work(&ppd->cpspec->autoneg_work,
-			      msecs_to_jiffies(2));
+	queue_delayed_work(ib_wq, &ppd->cpspec->autoneg_work,
+			   msecs_to_jiffies(2));
 }
 
 /*

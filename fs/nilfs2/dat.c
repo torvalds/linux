@@ -335,7 +335,7 @@ int nilfs_dat_move(struct inode *dat, __u64 vblocknr, sector_t blocknr)
 	 * the device at this point.
 	 *
 	 * To prevent nilfs_dat_translate() from returning the
-	 * uncommited block number, this makes a copy of the entry
+	 * uncommitted block number, this makes a copy of the entry
 	 * buffer and redirects nilfs_dat_translate() to the copy.
 	 */
 	if (!buffer_nilfs_redirected(entry_bh)) {

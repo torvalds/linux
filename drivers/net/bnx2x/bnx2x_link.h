@@ -65,6 +65,22 @@
 #define FW_PARAM_MDIO_CTRL_OFFSET 16
 #define FW_PARAM_SET(phy_addr, phy_type, mdio_access) \
 	(phy_addr | phy_type | mdio_access << FW_PARAM_MDIO_CTRL_OFFSET)
+
+#define PFC_BRB_MAC_PAUSE_XOFF_THRESHOLD_PAUSEABLE		170
+#define PFC_BRB_MAC_PAUSE_XOFF_THRESHOLD_NON_PAUSEABLE		0
+
+#define PFC_BRB_MAC_PAUSE_XON_THRESHOLD_PAUSEABLE			250
+#define PFC_BRB_MAC_PAUSE_XON_THRESHOLD_NON_PAUSEABLE		0
+
+#define PFC_BRB_MAC_FULL_XOFF_THRESHOLD_PAUSEABLE			10
+#define PFC_BRB_MAC_FULL_XOFF_THRESHOLD_NON_PAUSEABLE		90
+
+#define PFC_BRB_MAC_FULL_XON_THRESHOLD_PAUSEABLE			50
+#define PFC_BRB_MAC_FULL_XON_THRESHOLD_NON_PAUSEABLE		250
+
+#define PFC_BRB_FULL_LB_XOFF_THRESHOLD				170
+#define PFC_BRB_FULL_LB_XON_THRESHOLD				250
+
 /***********************************************************/
 /*                         Structs                         */
 /***********************************************************/
@@ -216,6 +232,7 @@ struct link_params {
 
 	u32 feature_config_flags;
 #define FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED (1<<0)
+#define FEATURE_CONFIG_PFC_ENABLED		(1<<1)
 #define FEATURE_CONFIG_BC_SUPPORTS_OPT_MDL_VRFY	(1<<2)
 #define FEATURE_CONFIG_BC_SUPPORTS_DUAL_PHY_OPT_MDL_VRFY	(1<<3)
 	/* Will be populated during common init */
@@ -332,4 +349,43 @@ u8 bnx2x_phy_probe(struct link_params *params);
 u8 bnx2x_fan_failure_det_req(struct bnx2x *bp, u32 shmem_base,
 			     u32 shmem2_base, u8 port);
 
+/* PFC port configuration params */
+struct bnx2x_nig_brb_pfc_port_params {
+	/* NIG */
+	u32 pause_enable;
+	u32 llfc_out_en;
+	u32 llfc_enable;
+	u32 pkt_priority_to_cos;
+	u32 rx_cos0_priority_mask;
+	u32 rx_cos1_priority_mask;
+	u32 llfc_high_priority_classes;
+	u32 llfc_low_priority_classes;
+	/* BRB */
+	u32 cos0_pauseable;
+	u32 cos1_pauseable;
+};
+
+/**
+ * Used to update the PFC attributes in EMAC, BMAC, NIG and BRB
+ * when link is already up
+ */
+void bnx2x_update_pfc(struct link_params *params,
+		      struct link_vars *vars,
+		      struct bnx2x_nig_brb_pfc_port_params *pfc_params);
+
+
+/* Used to configure the ETS to disable */
+void bnx2x_ets_disabled(struct link_params *params);
+
+/* Used to configure the ETS to BW limited */
+void bnx2x_ets_bw_limit(const struct link_params *params, const u32 cos0_bw,
+						const u32 cos1_bw);
+
+/* Used to configure the ETS to strict */
+u8 bnx2x_ets_strict(const struct link_params *params, const u8 strict_cos);
+
+/* Read pfc statistic*/
+void bnx2x_pfc_statistic(struct link_params *params, struct link_vars *vars,
+						 u32 pfc_frames_sent[2],
+						 u32 pfc_frames_received[2]);
 #endif /* BNX2X_LINK_H */

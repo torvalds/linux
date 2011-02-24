@@ -36,36 +36,35 @@
 #include <plat/common.h>
 #include <plat/board.h>
 
-static int p2_keymap[] = {
-	KEY(0,0,KEY_UP),
-	KEY(0,1,KEY_RIGHT),
-	KEY(0,2,KEY_LEFT),
-	KEY(0,3,KEY_DOWN),
-	KEY(0,4,KEY_ENTER),
-	KEY(1,0,KEY_F10),
-	KEY(1,1,KEY_SEND),
-	KEY(1,2,KEY_END),
-	KEY(1,3,KEY_VOLUMEDOWN),
-	KEY(1,4,KEY_VOLUMEUP),
-	KEY(1,5,KEY_RECORD),
-	KEY(2,0,KEY_F9),
-	KEY(2,1,KEY_3),
-	KEY(2,2,KEY_6),
-	KEY(2,3,KEY_9),
-	KEY(2,4,KEY_KPDOT),
-	KEY(3,0,KEY_BACK),
-	KEY(3,1,KEY_2),
-	KEY(3,2,KEY_5),
-	KEY(3,3,KEY_8),
-	KEY(3,4,KEY_0),
-	KEY(3,5,KEY_KPSLASH),
-	KEY(4,0,KEY_HOME),
-	KEY(4,1,KEY_1),
-	KEY(4,2,KEY_4),
-	KEY(4,3,KEY_7),
-	KEY(4,4,KEY_KPASTERISK),
-	KEY(4,5,KEY_POWER),
-	0
+static const unsigned int p2_keymap[] = {
+	KEY(0, 0, KEY_UP),
+	KEY(1, 0, KEY_RIGHT),
+	KEY(2, 0, KEY_LEFT),
+	KEY(3, 0, KEY_DOWN),
+	KEY(4, 0, KEY_ENTER),
+	KEY(0, 1, KEY_F10),
+	KEY(1, 1, KEY_SEND),
+	KEY(2, 1, KEY_END),
+	KEY(3, 1, KEY_VOLUMEDOWN),
+	KEY(4, 1, KEY_VOLUMEUP),
+	KEY(5, 1, KEY_RECORD),
+	KEY(0, 2, KEY_F9),
+	KEY(1, 2, KEY_3),
+	KEY(2, 2, KEY_6),
+	KEY(3, 2, KEY_9),
+	KEY(4, 2, KEY_KPDOT),
+	KEY(0, 3, KEY_BACK),
+	KEY(1, 3, KEY_2),
+	KEY(2, 3, KEY_5),
+	KEY(3, 3, KEY_8),
+	KEY(4, 3, KEY_0),
+	KEY(5, 3, KEY_KPSLASH),
+	KEY(0, 4, KEY_HOME),
+	KEY(1, 4, KEY_1),
+	KEY(2, 4, KEY_4),
+	KEY(3, 4, KEY_7),
+	KEY(4, 4, KEY_KPASTERISK),
+	KEY(5, 4, KEY_POWER),
 };
 
 static struct smc91x_platdata smc91x_info = {
@@ -211,13 +210,17 @@ static struct resource kp_resources[] = {
 	},
 };
 
+static const struct matrix_keymap_data p2_keymap_data = {
+	.keymap		= p2_keymap,
+	.keymap_size	= ARRAY_SIZE(p2_keymap),
+};
+
 static struct omap_kp_platform_data kp_data = {
 	.rows		= 8,
 	.cols		= 8,
-	.keymap		= p2_keymap,
-	.keymapsize	= ARRAY_SIZE(p2_keymap),
+	.keymap_data	= &p2_keymap_data,
 	.delay		= 4,
-	.dbounce	= 1,
+	.dbounce	= true,
 };
 
 static struct platform_device kp_device = {
@@ -251,8 +254,19 @@ static struct omap_board_config_kernel perseus2_config[] __initdata = {
 	{ OMAP_TAG_LCD,		&perseus2_lcd_config },
 };
 
+static void __init perseus2_init_smc91x(void)
+{
+	fpga_write(1, H2P2_DBG_FPGA_LAN_RESET);
+	mdelay(50);
+	fpga_write(fpga_read(H2P2_DBG_FPGA_LAN_RESET) & ~1,
+		   H2P2_DBG_FPGA_LAN_RESET);
+	mdelay(50);
+}
+
 static void __init omap_perseus2_init(void)
 {
+	perseus2_init_smc91x();
+
 	if (gpio_request(P2_NAND_RB_GPIO_PIN, "NAND ready") < 0)
 		BUG();
 	gpio_direction_input(P2_NAND_RB_GPIO_PIN);
@@ -280,21 +294,10 @@ static void __init omap_perseus2_init(void)
 	omap_register_i2c_bus(1, 100, NULL, 0);
 }
 
-static void __init perseus2_init_smc91x(void)
-{
-	fpga_write(1, H2P2_DBG_FPGA_LAN_RESET);
-	mdelay(50);
-	fpga_write(fpga_read(H2P2_DBG_FPGA_LAN_RESET) & ~1,
-		   H2P2_DBG_FPGA_LAN_RESET);
-	mdelay(50);
-}
-
 static void __init omap_perseus2_init_irq(void)
 {
 	omap1_init_common_hw();
 	omap_init_irq();
-	omap_gpio_init();
-	perseus2_init_smc91x();
 }
 /* Only FPGA needs to be mapped here. All others are done with ioremap */
 static struct map_desc omap_perseus2_io_desc[] __initdata = {

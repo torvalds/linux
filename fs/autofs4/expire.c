@@ -26,10 +26,6 @@ static inline int autofs4_can_expire(struct dentry *dentry,
 	if (ino == NULL)
 		return 0;
 
-	/* No point expiring a pending mount */
-	if (ino->flags & AUTOFS_INF_PENDING)
-		return 0;
-
 	if (!do_now) {
 		/* Too young to die */
 		if (!timeout || time_after(ino->last_used + timeout, now))
@@ -56,7 +52,7 @@ static int autofs4_mount_busy(struct vfsmount *mnt, struct dentry *dentry)
 
 	path_get(&path);
 
-	if (!follow_down(&path))
+	if (!follow_down_one(&path))
 		goto done;
 
 	if (is_autofs4_dentry(path.dentry)) {
@@ -91,24 +87,64 @@ done:
 }
 
 /*
- * Calculate next entry in top down tree traversal.
- * From next_mnt in namespace.c - elegant.
+ * Calculate and dget next entry in top down tree traversal.
  */
-static struct dentry *next_dentry(struct dentry *p, struct dentry *root)
+static struct dentry *get_next_positive_dentry(struct dentry *prev,
+						struct dentry *root)
 {
-	struct list_head *next = p->d_subdirs.next;
+	struct list_head *next;
+	struct dentry *p, *ret;
 
+	if (prev == NULL)
+		return dget(root);
+
+	spin_lock(&autofs4_lock);
+relock:
+	p = prev;
+	spin_lock(&p->d_lock);
+again:
+	next = p->d_subdirs.next;
 	if (next == &p->d_subdirs) {
 		while (1) {
-			if (p == root)
+			struct dentry *parent;
+
+			if (p == root) {
+				spin_unlock(&p->d_lock);
+				spin_unlock(&autofs4_lock);
+				dput(prev);
 				return NULL;
+			}
+
+			parent = p->d_parent;
+			if (!spin_trylock(&parent->d_lock)) {
+				spin_unlock(&p->d_lock);
+				cpu_relax();
+				goto relock;
+			}
+			spin_unlock(&p->d_lock);
 			next = p->d_u.d_child.next;
-			if (next != &p->d_parent->d_subdirs)
+			p = parent;
+			if (next != &parent->d_subdirs)
 				break;
-			p = p->d_parent;
 		}
 	}
-	return list_entry(next, struct dentry, d_u.d_child);
+	ret = list_entry(next, struct dentry, d_u.d_child);
+
+	spin_lock_nested(&ret->d_lock, DENTRY_D_LOCK_NESTED);
+	/* Negative dentry - try next */
+	if (!simple_positive(ret)) {
+		spin_unlock(&p->d_lock);
+		p = ret;
+		goto again;
+	}
+	dget_dlock(ret);
+	spin_unlock(&ret->d_lock);
+	spin_unlock(&p->d_lock);
+	spin_unlock(&autofs4_lock);
+
+	dput(prev);
+
+	return ret;
 }
 
 /*
@@ -158,17 +194,10 @@ static int autofs4_tree_busy(struct vfsmount *mnt,
 	if (!simple_positive(top))
 		return 1;
 
-	spin_lock(&dcache_lock);
-	for (p = top; p; p = next_dentry(p, top)) {
-		/* Negative dentry - give up */
-		if (!simple_positive(p))
-			continue;
-
+	p = NULL;
+	while ((p = get_next_positive_dentry(p, top))) {
 		DPRINTK("dentry %p %.*s",
 			p, (int) p->d_name.len, p->d_name.name);
-
-		p = dget(p);
-		spin_unlock(&dcache_lock);
 
 		/*
 		 * Is someone visiting anywhere in the subtree ?
@@ -198,16 +227,13 @@ static int autofs4_tree_busy(struct vfsmount *mnt,
 			else
 				ino_count++;
 
-			if (atomic_read(&p->d_count) > ino_count) {
+			if (p->d_count > ino_count) {
 				top_ino->last_used = jiffies;
 				dput(p);
 				return 1;
 			}
 		}
-		dput(p);
-		spin_lock(&dcache_lock);
 	}
-	spin_unlock(&dcache_lock);
 
 	/* Timeout of a tree mount is ultimately determined by its top dentry */
 	if (!autofs4_can_expire(top, timeout, do_now))
@@ -226,32 +252,21 @@ static struct dentry *autofs4_check_leaves(struct vfsmount *mnt,
 	DPRINTK("parent %p %.*s",
 		parent, (int)parent->d_name.len, parent->d_name.name);
 
-	spin_lock(&dcache_lock);
-	for (p = parent; p; p = next_dentry(p, parent)) {
-		/* Negative dentry - give up */
-		if (!simple_positive(p))
-			continue;
-
+	p = NULL;
+	while ((p = get_next_positive_dentry(p, parent))) {
 		DPRINTK("dentry %p %.*s",
 			p, (int) p->d_name.len, p->d_name.name);
-
-		p = dget(p);
-		spin_unlock(&dcache_lock);
 
 		if (d_mountpoint(p)) {
 			/* Can we umount this guy */
 			if (autofs4_mount_busy(mnt, p))
-				goto cont;
+				continue;
 
 			/* Can we expire this guy */
 			if (autofs4_can_expire(p, timeout, do_now))
 				return p;
 		}
-cont:
-		dput(p);
-		spin_lock(&dcache_lock);
 	}
-	spin_unlock(&dcache_lock);
 	return NULL;
 }
 
@@ -264,6 +279,7 @@ struct dentry *autofs4_expire_direct(struct super_block *sb,
 	unsigned long timeout;
 	struct dentry *root = dget(sb->s_root);
 	int do_now = how & AUTOFS_EXP_IMMEDIATE;
+	struct autofs_info *ino;
 
 	if (!root)
 		return NULL;
@@ -272,17 +288,21 @@ struct dentry *autofs4_expire_direct(struct super_block *sb,
 	timeout = sbi->exp_timeout;
 
 	spin_lock(&sbi->fs_lock);
+	ino = autofs4_dentry_ino(root);
+	/* No point expiring a pending mount */
+	if (ino->flags & AUTOFS_INF_PENDING) {
+		spin_unlock(&sbi->fs_lock);
+		return NULL;
+	}
+	managed_dentry_set_transit(root);
 	if (!autofs4_direct_busy(mnt, root, timeout, do_now)) {
 		struct autofs_info *ino = autofs4_dentry_ino(root);
-		if (d_mountpoint(root)) {
-			ino->flags |= AUTOFS_INF_MOUNTPOINT;
-			root->d_mounted--;
-		}
 		ino->flags |= AUTOFS_INF_EXPIRING;
 		init_completion(&ino->expire_complete);
 		spin_unlock(&sbi->fs_lock);
 		return root;
 	}
+	managed_dentry_clear_transit(root);
 	spin_unlock(&sbi->fs_lock);
 	dput(root);
 
@@ -302,8 +322,8 @@ struct dentry *autofs4_expire_indirect(struct super_block *sb,
 {
 	unsigned long timeout;
 	struct dentry *root = sb->s_root;
+	struct dentry *dentry;
 	struct dentry *expired = NULL;
-	struct list_head *next;
 	int do_now = how & AUTOFS_EXP_IMMEDIATE;
 	int exp_leaves = how & AUTOFS_EXP_LEAVES;
 	struct autofs_info *ino;
@@ -315,25 +335,14 @@ struct dentry *autofs4_expire_indirect(struct super_block *sb,
 	now = jiffies;
 	timeout = sbi->exp_timeout;
 
-	spin_lock(&dcache_lock);
-	next = root->d_subdirs.next;
-
-	/* On exit from the loop expire is set to a dgot dentry
-	 * to expire or it's NULL */
-	while ( next != &root->d_subdirs ) {
-		struct dentry *dentry = list_entry(next, struct dentry, d_u.d_child);
-
-		/* Negative dentry - give up */
-		if (!simple_positive(dentry)) {
-			next = next->next;
-			continue;
-		}
-
-		dentry = dget(dentry);
-		spin_unlock(&dcache_lock);
-
+	dentry = NULL;
+	while ((dentry = get_next_positive_dentry(dentry, root))) {
 		spin_lock(&sbi->fs_lock);
 		ino = autofs4_dentry_ino(dentry);
+		/* No point expiring a pending mount */
+		if (ino->flags & AUTOFS_INF_PENDING)
+			goto cont;
+		managed_dentry_set_transit(dentry);
 
 		/*
 		 * Case 1: (i) indirect mount or top level pseudo direct mount
@@ -347,7 +356,7 @@ struct dentry *autofs4_expire_indirect(struct super_block *sb,
 
 			/* Path walk currently on this dentry? */
 			ino_count = atomic_read(&ino->count) + 2;
-			if (atomic_read(&dentry->d_count) > ino_count)
+			if (dentry->d_count > ino_count)
 				goto next;
 
 			/* Can we umount this guy */
@@ -369,7 +378,7 @@ struct dentry *autofs4_expire_indirect(struct super_block *sb,
 		if (!exp_leaves) {
 			/* Path walk currently on this dentry? */
 			ino_count = atomic_read(&ino->count) + 1;
-			if (atomic_read(&dentry->d_count) > ino_count)
+			if (dentry->d_count > ino_count)
 				goto next;
 
 			if (!autofs4_tree_busy(mnt, dentry, timeout, do_now)) {
@@ -383,7 +392,7 @@ struct dentry *autofs4_expire_indirect(struct super_block *sb,
 		} else {
 			/* Path walk currently on this dentry? */
 			ino_count = atomic_read(&ino->count) + 1;
-			if (atomic_read(&dentry->d_count) > ino_count)
+			if (dentry->d_count > ino_count)
 				goto next;
 
 			expired = autofs4_check_leaves(mnt, dentry, timeout, do_now);
@@ -393,12 +402,10 @@ struct dentry *autofs4_expire_indirect(struct super_block *sb,
 			}
 		}
 next:
+		managed_dentry_clear_transit(dentry);
+cont:
 		spin_unlock(&sbi->fs_lock);
-		dput(dentry);
-		spin_lock(&dcache_lock);
-		next = next->next;
 	}
-	spin_unlock(&dcache_lock);
 	return NULL;
 
 found:
@@ -408,9 +415,13 @@ found:
 	ino->flags |= AUTOFS_INF_EXPIRING;
 	init_completion(&ino->expire_complete);
 	spin_unlock(&sbi->fs_lock);
-	spin_lock(&dcache_lock);
+	spin_lock(&autofs4_lock);
+	spin_lock(&expired->d_parent->d_lock);
+	spin_lock_nested(&expired->d_lock, DENTRY_D_LOCK_NESTED);
 	list_move(&expired->d_parent->d_subdirs, &expired->d_u.d_child);
-	spin_unlock(&dcache_lock);
+	spin_unlock(&expired->d_lock);
+	spin_unlock(&expired->d_parent->d_lock);
+	spin_unlock(&autofs4_lock);
 	return expired;
 }
 
@@ -473,6 +484,8 @@ int autofs4_expire_run(struct super_block *sb,
 	spin_lock(&sbi->fs_lock);
 	ino = autofs4_dentry_ino(dentry);
 	ino->flags &= ~AUTOFS_INF_EXPIRING;
+	if (!d_unhashed(dentry))
+		managed_dentry_clear_transit(dentry);
 	complete_all(&ino->expire_complete);
 	spin_unlock(&sbi->fs_lock);
 
@@ -498,11 +511,18 @@ int autofs4_do_expire_multi(struct super_block *sb, struct vfsmount *mnt,
 		ret = autofs4_wait(sbi, dentry, NFY_EXPIRE);
 
 		spin_lock(&sbi->fs_lock);
-		if (ino->flags & AUTOFS_INF_MOUNTPOINT) {
-			sb->s_root->d_mounted++;
-			ino->flags &= ~AUTOFS_INF_MOUNTPOINT;
-		}
 		ino->flags &= ~AUTOFS_INF_EXPIRING;
+		spin_lock(&dentry->d_lock);
+		if (ret)
+			__managed_dentry_clear_transit(dentry);
+		else {
+			if ((IS_ROOT(dentry) ||
+			    (autofs_type_indirect(sbi->type) &&
+			     IS_ROOT(dentry->d_parent))) &&
+			    !(dentry->d_flags & DCACHE_NEED_AUTOMOUNT))
+				__managed_dentry_set_automount(dentry);
+		}
+		spin_unlock(&dentry->d_lock);
 		complete_all(&ino->expire_complete);
 		spin_unlock(&sbi->fs_lock);
 		dput(dentry);

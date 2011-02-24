@@ -10,4 +10,5 @@ ccflags-y := -Wall
 ccflags-y += -DEASYCAP_IS_VIDEODEV_CLIENT
 ccflags-y += -DEASYCAP_NEEDS_V4L2_DEVICE_H
 ccflags-y += -DEASYCAP_NEEDS_V4L2_FOPS
+ccflags-y += -DEASYCAP_NEEDS_UNLOCKED_IOCTL
 

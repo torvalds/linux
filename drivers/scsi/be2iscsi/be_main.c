@@ -3785,7 +3785,7 @@ static int beiscsi_alloc_pdu(struct iscsi_task *task, uint8_t opcode)
 	dma_addr_t paddr;
 
 	io_task->cmd_bhs = pci_pool_alloc(beiscsi_sess->bhs_pool,
-					  GFP_KERNEL, &paddr);
+					  GFP_ATOMIC, &paddr);
 	if (!io_task->cmd_bhs)
 		return -ENOMEM;
 	io_task->bhs_pa.u.a64.address = paddr;
@@ -3914,7 +3914,8 @@ static void beiscsi_cleanup_task(struct iscsi_task *task)
 			io_task->psgl_handle = NULL;
 		}
 	} else {
-		if ((task->hdr->opcode & ISCSI_OPCODE_MASK) == ISCSI_OP_LOGIN)
+		if (task->hdr &&
+		   ((task->hdr->opcode & ISCSI_OPCODE_MASK) == ISCSI_OP_LOGIN))
 			return;
 		if (io_task->psgl_handle) {
 			spin_lock(&phba->mgmt_sgl_lock);

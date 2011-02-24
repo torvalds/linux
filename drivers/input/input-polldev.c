@@ -8,6 +8,8 @@
  * the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/jiffies.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
@@ -33,8 +35,7 @@ static int input_polldev_start_workqueue(void)
 	if (!polldev_users) {
 		polldev_wq = create_singlethread_workqueue("ipolldevd");
 		if (!polldev_wq) {
-			printk(KERN_ERR "input-polldev: failed to create "
-				"ipolldevd workqueue\n");
+			pr_err("failed to create ipolldevd workqueue\n");
 			retval = -ENOMEM;
 			goto out;
 		}

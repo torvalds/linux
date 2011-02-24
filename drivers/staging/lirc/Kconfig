@@ -14,26 +14,19 @@ if LIRC_STAGING
 
 config LIRC_BT829
         tristate "BT829 based hardware"
-	depends on LIRC_STAGING && PCI
+	depends on LIRC && PCI
 	help
 	  Driver for the IR interface on BT829-based hardware
 
-config LIRC_I2C
-	tristate "I2C Based IR Receivers"
-	depends on LIRC_STAGING && I2C
-	help
-	  Driver for I2C-based IR receivers, such as those commonly
-	  found onboard Hauppauge PVR-150/250/350 video capture cards
-
 config LIRC_IGORPLUGUSB
 	tristate "Igor Cesko's USB IR Receiver"
-	depends on LIRC_STAGING && USB
+	depends on LIRC && USB
 	help
 	  Driver for Igor Cesko's USB IR Receiver
 
 config LIRC_IMON
 	tristate "Legacy SoundGraph iMON Receiver and Display"
-	depends on LIRC_STAGING && USB
+	depends on LIRC && USB
 	help
 	  Driver for the original SoundGraph iMON IR Receiver and Display
 
@@ -41,31 +34,31 @@ config LIRC_IMON
 
 config LIRC_IT87
 	tristate "ITE IT87XX CIR Port Receiver"
-	depends on LIRC_STAGING && PNP
+	depends on LIRC && PNP
 	help
 	  Driver for the ITE IT87xx IR Receiver
 
 config LIRC_ITE8709
 	tristate "ITE8709 CIR Port Receiver"
-	depends on LIRC_STAGING && PNP
+	depends on LIRC && PNP
 	help
 	  Driver for the ITE8709 IR Receiver
 
 config LIRC_PARALLEL
 	tristate "Homebrew Parallel Port Receiver"
-	depends on LIRC_STAGING && PARPORT
+	depends on LIRC && PARPORT
 	help
 	  Driver for Homebrew Parallel Port Receivers
 
 config LIRC_SASEM
 	tristate "Sasem USB IR Remote"
-	depends on LIRC_STAGING && USB
+	depends on LIRC && USB
 	help
 	  Driver for the Sasem OnAir Remocon-V or Dign HV5 HTPC IR/VFD Module
 
 config LIRC_SERIAL
 	tristate "Homebrew Serial Port Receiver"
-	depends on LIRC_STAGING
+	depends on LIRC
 	help
 	  Driver for Homebrew Serial Port Receivers
 
@@ -78,19 +71,19 @@ config LIRC_SERIAL_TRANSMITTER
 
 config LIRC_SIR
 	tristate "Built-in SIR IrDA port"
-	depends on LIRC_STAGING
+	depends on LIRC
 	help
 	  Driver for the SIR IrDA port
 
 config LIRC_TTUSBIR
 	tristate "Technotrend USB IR Receiver"
-	depends on LIRC_STAGING && USB
+	depends on LIRC && USB
 	help
 	  Driver for the Technotrend USB IR Receiver
 
 config LIRC_ZILOG
 	tristate "Zilog/Hauppauge IR Transmitter"
-	depends on LIRC_STAGING && I2C
+	depends on LIRC && I2C
 	help
 	  Driver for the Zilog/Hauppauge IR Transmitter, found on
 	  PVR-150/500, HVR-1200/1250/1700/1800, HD-PVR and other cards

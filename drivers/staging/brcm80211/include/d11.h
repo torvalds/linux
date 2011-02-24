@@ -17,13 +17,6 @@
 #ifndef	_D11_H
 #define	_D11_H
 
-#include <bcmdefs.h>
-#include <bcmdevs.h>
-#include <hndsoc.h>
-#include <sbhndpio.h>
-#include <sbhnddma.h>
-#include <proto/802.11.h>
-
 /* This marks the start of a packed structure section. */
 #include <packed_section_start.h>
 

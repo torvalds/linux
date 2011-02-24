@@ -43,7 +43,6 @@ struct sys_timer {
 #endif
 };
 
-extern struct sys_timer *system_timer;
 extern void timer_tick(void);
 
 #endif

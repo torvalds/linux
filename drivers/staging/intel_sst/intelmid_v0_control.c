@@ -26,6 +26,8 @@
  *  This file contains the control operations of vendor 1
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/pci.h>
 #include <linux/file.h>
 #include "intel_sst.h"
@@ -151,7 +153,7 @@ static int fs_power_up_pb(unsigned int port)
 	if (retval)
 		return retval;
 
-	pr_debug("sst: in fs power up pb\n");
+	pr_debug("in fs power up pb\n");
 	return fs_enable_audiodac(UNMUTE);
 }
 
@@ -173,7 +175,7 @@ static int fs_power_down_pb(void)
 	if (retval)
 		return retval;
 
-	pr_debug("sst: in fsl power down pb\n");
+	pr_debug("in fsl power down pb\n");
 	return fs_enable_audiodac(UNMUTE);
 }
 
@@ -380,7 +382,7 @@ static int fs_set_pcm_audio_params(int sfreq, int word_size, int num_channel)
 		sst_sc_reg_access(sc_access, PMIC_READ_MODIFY, 2);
 
 	}
-	pr_debug("sst: sfreq:%d,Register value = %x\n", sfreq, config1);
+	pr_debug("sfreq:%d,Register value = %x\n", sfreq, config1);
 
 	if (word_size == 24) {
 		sc_access[0].reg_addr  = AUDIOPORT1;
@@ -438,18 +440,18 @@ static int fs_set_selected_input_dev(u8 value)
 
 	switch (value) {
 	case AMIC:
-		pr_debug("sst: Selecting amic not supported in mono cfg\n");
+		pr_debug("Selecting amic not supported in mono cfg\n");
 		return sst_sc_reg_access(sc_access_mic, PMIC_READ_MODIFY, 2);
 		break;
 
 	case HS_MIC:
-		pr_debug("sst: Selecting hsmic\n");
+		pr_debug("Selecting hsmic\n");
 		return sst_sc_reg_access(sc_access_hsmic,
 				PMIC_READ_MODIFY, 2);
 		break;
 
 	case DMIC:
-		pr_debug("sst: Selecting dmic\n");
+		pr_debug("Selecting dmic\n");
 		return sst_sc_reg_access(sc_access_dmic, PMIC_READ_MODIFY, 2);
 		break;
 
@@ -505,7 +507,7 @@ static int fs_set_mute(int dev_id, u8 value)
 		return retval;
 
 
-	pr_debug("sst: dev_id:0x%x value:0x%x\n", dev_id, value);
+	pr_debug("dev_id:0x%x value:0x%x\n", dev_id, value);
 	switch (dev_id) {
 	case PMIC_SND_DMIC_MUTE:
 		sc_access[0].reg_addr = MICCTRL;
@@ -606,7 +608,7 @@ static int fs_set_vol(int dev_id, int value)
 
 	switch (dev_id) {
 	case PMIC_SND_LEFT_PB_VOL:
-		pr_debug("sst: PMIC_SND_LEFT_PB_VOL:%d\n", value);
+		pr_debug("PMIC_SND_LEFT_PB_VOL:%d\n", value);
 		sc_access[0].value = sc_access[1].value = value;
 		sc_access[0].reg_addr = AUD16;
 		sc_access[1].reg_addr = AUD15;
@@ -616,7 +618,7 @@ static int fs_set_vol(int dev_id, int value)
 		break;
 
 	case PMIC_SND_RIGHT_PB_VOL:
-		pr_debug("sst: PMIC_SND_RIGHT_PB_VOL:%d\n", value);
+		pr_debug("PMIC_SND_RIGHT_PB_VOL:%d\n", value);
 		sc_access[0].value = sc_access[1].value = value;
 		sc_access[0].reg_addr = AUD17;
 		sc_access[1].reg_addr = AUD15;
@@ -629,7 +631,7 @@ static int fs_set_vol(int dev_id, int value)
 		reg_num = 2;
 		break;
 	case PMIC_SND_CAPTURE_VOL:
-		pr_debug("sst: PMIC_SND_CAPTURE_VOL:%d\n", value);
+		pr_debug("PMIC_SND_CAPTURE_VOL:%d\n", value);
 		sc_access[0].reg_addr = MICLICTRL1;
 		sc_access[1].reg_addr = MICLICTRL2;
 		sc_access[2].reg_addr = DMICCTRL1;
@@ -726,17 +728,17 @@ static int fs_get_vol(int dev_id, int *value)
 
 	switch (dev_id) {
 	case PMIC_SND_CAPTURE_VOL:
-		pr_debug("sst: PMIC_SND_CAPTURE_VOL\n");
+		pr_debug("PMIC_SND_CAPTURE_VOL\n");
 		sc_access.reg_addr = MICLICTRL1;
 		mask = (MASK5|MASK4|MASK3|MASK2|MASK1|MASK0);
 		break;
 	case PMIC_SND_LEFT_PB_VOL:
-		pr_debug("sst: PMIC_SND_LEFT_PB_VOL\n");
+		pr_debug("PMIC_SND_LEFT_PB_VOL\n");
 		sc_access.reg_addr = AUD16;
 		mask = (MASK5|MASK4|MASK3|MASK2|MASK1|MASK0);
 		break;
 	case PMIC_SND_RIGHT_PB_VOL:
-		pr_debug("sst: PMIC_SND_RT_PB_VOL\n");
+		pr_debug("PMIC_SND_RT_PB_VOL\n");
 		sc_access.reg_addr = AUD17;
 		mask = (MASK5|MASK4|MASK3|MASK2|MASK1|MASK0);
 		break;
@@ -745,9 +747,9 @@ static int fs_get_vol(int dev_id, int *value)
 	}
 
 	retval = sst_sc_reg_access(&sc_access, PMIC_READ, 1);
-	pr_debug("sst: value read = 0x%x\n", sc_access.value);
+	pr_debug("value read = 0x%x\n", sc_access.value);
 	*value = (int) (sc_access.value & mask);
-	pr_debug("sst: value returned = 0x%x\n", *value);
+	pr_debug("value returned = 0x%x\n", *value);
 	return retval;
 }
 

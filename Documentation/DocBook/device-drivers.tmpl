@@ -217,8 +217,8 @@ X!Isound/sound_firmware.c
   <chapter id="uart16x50">
      <title>16x50 UART Driver</title>
 !Iinclude/linux/serial_core.h
-!Edrivers/serial/serial_core.c
-!Edrivers/serial/8250.c
+!Edrivers/tty/serial/serial_core.c
+!Edrivers/tty/serial/8250.c
   </chapter>
 
   <chapter id="fbdev">
@@ -303,6 +303,10 @@ X!Idrivers/video/console/fonts.c
 !Edrivers/input/input.c
 !Edrivers/input/ff-core.c
 !Edrivers/input/ff-memless.c
+     </sect1>
+     <sect1><title>Multitouch Library</title>
+!Iinclude/linux/input/mt.h
+!Edrivers/input/input-mt.c
      </sect1>
      <sect1><title>Polled input devices</title>
 !Iinclude/linux/input-polldev.h

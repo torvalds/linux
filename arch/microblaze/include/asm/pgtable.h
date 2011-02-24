@@ -444,8 +444,9 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 	*ptep = pte;
 }
 
-static inline int ptep_test_and_clear_young(struct mm_struct *mm,
-		unsigned long addr, pte_t *ptep)
+#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
+static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
+		unsigned long address, pte_t *ptep)
 {
 	return (pte_update(ptep, _PAGE_ACCESSED, 0) & _PAGE_ACCESSED) != 0;
 }
@@ -457,6 +458,7 @@ static inline int ptep_test_and_clear_dirty(struct mm_struct *mm,
 		(_PAGE_DIRTY | _PAGE_HWWRITE), 0) & _PAGE_DIRTY) != 0;
 }
 
+#define __HAVE_ARCH_PTEP_GET_AND_CLEAR
 static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 		unsigned long addr, pte_t *ptep)
 {

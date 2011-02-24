@@ -92,10 +92,12 @@ enum fip_state {
  * @timer_work:	   &work_struct for doing keep-alives and resets.
  * @recv_work:	   &work_struct for receiving FIP frames.
  * @fip_recv_list: list of received FIP frames.
+ * @flogi_req:	   clone of FLOGI request sent
  * @rnd_state:	   state for pseudo-random number generator.
  * @port_id:	   proposed or selected local-port ID.
  * @user_mfs:	   configured maximum FC frame size, including FC header.
  * @flogi_oxid:    exchange ID of most recent fabric login.
+ * @flogi_req_send: send of FLOGI requested
  * @flogi_count:   number of FLOGI attempts in AUTO mode.
  * @map_dest:	   use the FC_MAP mode for destination MAC addresses.
  * @spma:	   supports SPMA server-provided MACs mode
@@ -106,6 +108,7 @@ enum fip_state {
  * @update_mac:    LLD-supplied function to handle changes to MAC addresses.
  * @get_src_addr:  LLD-supplied function to supply a source MAC address.
  * @ctlr_mutex:	   lock protecting this structure.
+ * @ctlr_lock:     spinlock covering flogi_req
  *
  * This structure is used by all FCoE drivers.  It contains information
  * needed by all FCoE low-level drivers (LLDs) as well as internal state
@@ -126,12 +129,14 @@ struct fcoe_ctlr {
 	struct work_struct timer_work;
 	struct work_struct recv_work;
 	struct sk_buff_head fip_recv_list;
+	struct sk_buff *flogi_req;
 
 	struct rnd_state rnd_state;
 	u32 port_id;
 
 	u16 user_mfs;
 	u16 flogi_oxid;
+	u8 flogi_req_send;
 	u8 flogi_count;
 	u8 map_dest;
 	u8 spma;
@@ -143,6 +148,7 @@ struct fcoe_ctlr {
 	void (*update_mac)(struct fc_lport *, u8 *addr);
 	u8 * (*get_src_addr)(struct fc_lport *);
 	struct mutex ctlr_mutex;
+	spinlock_t ctlr_lock;
 };
 
 /**
@@ -155,6 +161,7 @@ struct fcoe_ctlr {
  * @fcf_mac:	 Ethernet address of the FCF
  * @vfid:	 virtual fabric ID
  * @pri:	 selection priority, smaller values are better
+ * @flogi_sent:	 current FLOGI sent to this FCF
  * @flags:	 flags received from advertisement
  * @fka_period:	 keep-alive period, in jiffies
  *
@@ -176,6 +183,7 @@ struct fcoe_fcf {
 	u8 fcf_mac[ETH_ALEN];
 
 	u8 pri;
+	u8 flogi_sent;
 	u16 flags;
 	u32 fka_period;
 	u8 fd_flags:1;

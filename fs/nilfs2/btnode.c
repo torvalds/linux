@@ -104,8 +104,7 @@ int nilfs_btnode_submit_block(struct address_space *btnc, __u64 blocknr,
 	if (pblocknr == 0) {
 		pblocknr = blocknr;
 		if (inode->i_ino != NILFS_DAT_INO) {
-			struct inode *dat =
-				nilfs_dat_inode(NILFS_I_NILFS(inode));
+			struct inode *dat = NILFS_I_NILFS(inode)->ns_dat;
 
 			/* blocknr is a virtual block number */
 			err = nilfs_dat_translate(dat, blocknr, &pblocknr);

@@ -1,14 +1,11 @@
 /*
- * Copyright 2007-2008 Analog Devices Inc.
+ * Copyright 2007-2010 Analog Devices Inc.
  *
- * Licensed under the GPL-2 or later
+ * Licensed under the GPL-2 or later.
  */
 
 #ifndef _CDEF_BF525_H
 #define _CDEF_BF525_H
-
-/* include all Core registers and bit definitions */
-#include "defBF525.h"
 
 /* BF525 is BF522 + USB */
 #include "cdefBF522.h"

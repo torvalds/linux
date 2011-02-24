@@ -11,79 +11,24 @@
  * option) any later version.
  */
 
-/dts-v1/;
+/include/ "mpc5200b.dtsi"
 
 / {
 	model = "manroland,uc101";
 	compatible = "manroland,uc101";
-	#address-cells = <1>;
-	#size-cells = <1>;
-	interrupt-parent = <&mpc5200_pic>;
-
-	cpus {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		PowerPC,5200@0 {
-			device_type = "cpu";
-			reg = <0>;
-			d-cache-line-size = <32>;
-			i-cache-line-size = <32>;
-			d-cache-size = <0x4000>;	// L1, 16K
-			i-cache-size = <0x4000>;	// L1, 16K
-			timebase-frequency = <0>;	// from bootloader
-			bus-frequency = <0>;		// from bootloader
-			clock-frequency = <0>;		// from bootloader
-		};
-	};
-
-	memory {
-		device_type = "memory";
-		reg = <0x00000000 0x04000000>;	// 64MB
-	};
 
 	soc5200@f0000000 {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "fsl,mpc5200b-immr";
-		ranges = <0 0xf0000000 0x0000c000>;
-		reg = <0xf0000000 0x00000100>;
-		bus-frequency = <0>;		// from bootloader
-		system-frequency = <0>;		// from bootloader
-
-		cdm@200 {
-			compatible = "fsl,mpc5200b-cdm","fsl,mpc5200-cdm";
-			reg = <0x200 0x38>;
-		};
-
-		mpc5200_pic: interrupt-controller@500 {
-			// 5200 interrupts are encoded into two levels;
-			interrupt-controller;
-			#interrupt-cells = <3>;
-			compatible = "fsl,mpc5200b-pic","fsl,mpc5200-pic";
-			reg = <0x500 0x80>;
-		};
-
 		gpt0: timer@600 {	// General Purpose Timer in GPIO mode
-			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
-			reg = <0x600 0x10>;
-			interrupts = <1 9 0>;
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
 
 		gpt1: timer@610 {	// General Purpose Timer in GPIO mode
-			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
-			reg = <0x610 0x10>;
-			interrupts = <1 10 0>;
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
 
 		gpt2: timer@620 {	// General Purpose Timer in GPIO mode
-			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
-			reg = <0x620 0x10>;
-			interrupts = <1 11 0>;
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
@@ -97,118 +42,85 @@
 		};
 
 		gpt4: timer@640 {	// General Purpose Timer in GPIO mode
-			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
-			reg = <0x640 0x10>;
-			interrupts = <1 13 0>;
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
 
 		gpt5: timer@650 {	// General Purpose Timer in GPIO mode
-			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
-			reg = <0x650 0x10>;
-			interrupts = <1 14 0>;
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
 
 		gpt6: timer@660 {	// General Purpose Timer in GPIO mode
-			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
-			reg = <0x660 0x10>;
-			interrupts = <1 15 0>;
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
 
 		gpt7: timer@670 {	// General Purpose Timer in GPIO mode
-			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
-			reg = <0x670 0x10>;
-			interrupts = <1 16 0>;
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
 
-		gpio_simple: gpio@b00 {
-			compatible = "fsl,mpc5200b-gpio","fsl,mpc5200-gpio";
-			reg = <0xb00 0x40>;
-			interrupts = <1 7 0>;
-			gpio-controller;
-			#gpio-cells = <2>;
+		rtc@800 {
+			status = "disabled";
 		};
 
-		gpio_wkup: gpio@c00 {
-			compatible = "fsl,mpc5200b-gpio-wkup","fsl,mpc5200-gpio-wkup";
-			reg = <0xc00 0x40>;
-			interrupts = <1 8 0 0 3 0>;
-			gpio-controller;
-			#gpio-cells = <2>;
+		can@900 {
+			status = "disabled";
 		};
 
-		dma-controller@1200 {
-			compatible = "fsl,mpc5200b-bestcomm","fsl,mpc5200-bestcomm";
-			reg = <0x1200 0x80>;
-			interrupts = <3 0 0  3 1 0  3 2 0  3 3 0
-			              3 4 0  3 5 0  3 6 0  3 7 0
-			              3 8 0  3 9 0  3 10 0  3 11 0
-			              3 12 0  3 13 0  3 14 0  3 15 0>;
+		can@980 {
+			status = "disabled";
 		};
 
-		xlb@1f00 {
-			compatible = "fsl,mpc5200b-xlb","fsl,mpc5200-xlb";
-			reg = <0x1f00 0x100>;
+		spi@f00 {
+			status = "disabled";
 		};
 
-		serial@2000 { /* PSC1 in UART mode */
+		usb@1000 {
+			status = "disabled";
+		};
+
+		psc@2000 {	// PSC1
 			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
-			reg = <0x2000 0x100>;
-			interrupts = <2 1 0>;
 		};
 
-		serial@2200 { /* PSC2 in UART mode */
+		psc@2200 {	// PSC2
 			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
-			reg = <0x2200 0x100>;
-			interrupts = <2 2 0>;
 		};
 
-		serial@2c00 {		/* PSC6 in UART mode */
+		psc@2400 {	// PSC3
+			status = "disabled";
+		};
+
+		psc@2600 {	// PSC4
+			status = "disabled";
+		};
+
+		psc@2800 {	// PSC5
+			status = "disabled";
+		};
+
+		psc@2c00 {	// PSC6
 			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
-			reg = <0x2c00 0x100>;
-			interrupts = <2 4 0>;
 		};
 
 		ethernet@3000 {
-			compatible = "fsl,mpc5200b-fec","fsl,mpc5200-fec";
-			reg = <0x3000 0x400>;
-			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <2 5 0>;
 			phy-handle = <&phy0>;
 		};
 
 		mdio@3000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			compatible = "fsl,mpc5200b-mdio","fsl,mpc5200-mdio";
-			reg = <0x3000 0x400>;	// fec range, since we need to setup fec interrupts
-			interrupts = <2 5 0>;	// these are for "mii command finished", not link changes & co.
-
 			phy0: ethernet-phy@0 {
 				compatible = "intel,lxt971";
 				reg = <0>;
 			};
 		};
 
-		ata@3a00 {
-			compatible = "fsl,mpc5200b-ata","fsl,mpc5200-ata";
-			reg = <0x3a00 0x100>;
-			interrupts = <2 7 0>;
+		i2c@3d00 {
+			status = "disabled";
 		};
 
 		i2c@3d40 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			compatible = "fsl,mpc5200b-i2c","fsl,mpc5200-i2c","fsl-i2c";
-			reg = <0x3d40 0x40>;
-			interrupts = <2 16 0>;
 			fsl,preserve-clocking;
 			clock-frequency = <400000>;
 
@@ -221,19 +133,13 @@
 				reg = <0x51>;
 			};
 		};
+	};
 
-		sram@8000 {
-			compatible = "fsl,mpc5200b-sram","fsl,mpc5200-sram";
-			reg = <0x8000 0x4000>;
-		};
+	pci@f0000d00 {
+		status = "disabled";
 	};
 
 	localbus {
-		compatible = "fsl,mpc5200b-lpb","fsl,mpc5200-lpb","simple-bus";
-
-		#address-cells = <2>;
-		#size-cells = <1>;
-
 		ranges = <0 0 0xff800000 0x00800000
 			  1 0 0x80000000 0x00800000
 			  3 0 0x80000000 0x00800000>;

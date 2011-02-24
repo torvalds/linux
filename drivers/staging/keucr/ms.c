@@ -347,7 +347,7 @@ int MS_LibProcessBootBlock(struct us_data *us, WORD PhyBlock, BYTE *PageData)
 	BYTE                     *PageBuffer;
 	MS_LibTypeExtdat         ExtraData;
 
-	if ((PageBuffer = (BYTE *)kmalloc(MS_BYTES_PER_PAGE, GFP_KERNEL))==NULL)
+	if ((PageBuffer = kmalloc(MS_BYTES_PER_PAGE, GFP_KERNEL))==NULL)
 		return (DWORD)-1;
 
 	result = (DWORD)-1;
@@ -480,8 +480,8 @@ int MS_LibAllocLogicalMap(struct us_data *us)
 	DWORD  i;
 
 
-	us->MS_Lib.Phy2LogMap = (WORD *)kmalloc(us->MS_Lib.NumberOfPhyBlock * sizeof(WORD), GFP_KERNEL);
-	us->MS_Lib.Log2PhyMap = (WORD *)kmalloc(us->MS_Lib.NumberOfLogBlock * sizeof(WORD), GFP_KERNEL);
+	us->MS_Lib.Phy2LogMap = kmalloc(us->MS_Lib.NumberOfPhyBlock * sizeof(WORD), GFP_KERNEL);
+	us->MS_Lib.Log2PhyMap = kmalloc(us->MS_Lib.NumberOfLogBlock * sizeof(WORD), GFP_KERNEL);
 
 	if ((us->MS_Lib.Phy2LogMap == NULL) || (us->MS_Lib.Log2PhyMap == NULL))
 	{
@@ -610,8 +610,8 @@ int MS_LibAllocWriteBuf(struct us_data *us)
 {
 	us->MS_Lib.wrtblk = (WORD)-1;
 
-	us->MS_Lib.blkpag = (BYTE *)kmalloc(us->MS_Lib.PagesPerBlock * us->MS_Lib.BytesPerSector, GFP_KERNEL);
-	us->MS_Lib.blkext = (MS_LibTypeExtdat *)kmalloc(us->MS_Lib.PagesPerBlock * sizeof(MS_LibTypeExtdat), GFP_KERNEL);
+	us->MS_Lib.blkpag = kmalloc(us->MS_Lib.PagesPerBlock * us->MS_Lib.BytesPerSector, GFP_KERNEL);
+	us->MS_Lib.blkext = kmalloc(us->MS_Lib.PagesPerBlock * sizeof(MS_LibTypeExtdat), GFP_KERNEL);
 
 	if ((us->MS_Lib.blkpag == NULL) || (us->MS_Lib.blkext == NULL))
 	{

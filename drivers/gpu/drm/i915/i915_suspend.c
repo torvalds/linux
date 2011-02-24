@@ -235,9 +235,20 @@ static void i915_restore_vga(struct drm_device *dev)
 static void i915_save_modeset_reg(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	int i;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
+
+	/* Cursor state */
+	dev_priv->saveCURACNTR = I915_READ(CURACNTR);
+	dev_priv->saveCURAPOS = I915_READ(CURAPOS);
+	dev_priv->saveCURABASE = I915_READ(CURABASE);
+	dev_priv->saveCURBCNTR = I915_READ(CURBCNTR);
+	dev_priv->saveCURBPOS = I915_READ(CURBPOS);
+	dev_priv->saveCURBBASE = I915_READ(CURBBASE);
+	if (IS_GEN2(dev))
+		dev_priv->saveCURSIZE = I915_READ(CURSIZE);
 
 	if (HAS_PCH_SPLIT(dev)) {
 		dev_priv->savePCH_DREF_CONTROL = I915_READ(PCH_DREF_CONTROL);
@@ -357,6 +368,28 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 	}
 	i915_save_palette(dev, PIPE_B);
 	dev_priv->savePIPEBSTAT = I915_READ(PIPEBSTAT);
+
+	/* Fences */
+	switch (INTEL_INFO(dev)->gen) {
+	case 6:
+		for (i = 0; i < 16; i++)
+			dev_priv->saveFENCE[i] = I915_READ64(FENCE_REG_SANDYBRIDGE_0 + (i * 8));
+		break;
+	case 5:
+	case 4:
+		for (i = 0; i < 16; i++)
+			dev_priv->saveFENCE[i] = I915_READ64(FENCE_REG_965_0 + (i * 8));
+		break;
+	case 3:
+		if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
+			for (i = 0; i < 8; i++)
+				dev_priv->saveFENCE[i+8] = I915_READ(FENCE_REG_945_8 + (i * 4));
+	case 2:
+		for (i = 0; i < 8; i++)
+			dev_priv->saveFENCE[i] = I915_READ(FENCE_REG_830_0 + (i * 4));
+		break;
+	}
+
 	return;
 }
 
@@ -365,9 +398,32 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int dpll_a_reg, fpa0_reg, fpa1_reg;
 	int dpll_b_reg, fpb0_reg, fpb1_reg;
+	int i;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
+
+	/* Fences */
+	switch (INTEL_INFO(dev)->gen) {
+	case 6:
+		for (i = 0; i < 16; i++)
+			I915_WRITE64(FENCE_REG_SANDYBRIDGE_0 + (i * 8), dev_priv->saveFENCE[i]);
+		break;
+	case 5:
+	case 4:
+		for (i = 0; i < 16; i++)
+			I915_WRITE64(FENCE_REG_965_0 + (i * 8), dev_priv->saveFENCE[i]);
+		break;
+	case 3:
+	case 2:
+		if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
+			for (i = 0; i < 8; i++)
+				I915_WRITE(FENCE_REG_945_8 + (i * 4), dev_priv->saveFENCE[i+8]);
+		for (i = 0; i < 8; i++)
+			I915_WRITE(FENCE_REG_830_0 + (i * 4), dev_priv->saveFENCE[i]);
+		break;
+	}
+
 
 	if (HAS_PCH_SPLIT(dev)) {
 		dpll_a_reg = PCH_DPLL_A;
@@ -529,6 +585,16 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 	I915_WRITE(DSPBCNTR, dev_priv->saveDSPBCNTR);
 	I915_WRITE(DSPBADDR, I915_READ(DSPBADDR));
 
+	/* Cursor state */
+	I915_WRITE(CURAPOS, dev_priv->saveCURAPOS);
+	I915_WRITE(CURACNTR, dev_priv->saveCURACNTR);
+	I915_WRITE(CURABASE, dev_priv->saveCURABASE);
+	I915_WRITE(CURBPOS, dev_priv->saveCURBPOS);
+	I915_WRITE(CURBCNTR, dev_priv->saveCURBCNTR);
+	I915_WRITE(CURBBASE, dev_priv->saveCURBBASE);
+	if (IS_GEN2(dev))
+		I915_WRITE(CURSIZE, dev_priv->saveCURSIZE);
+
 	return;
 }
 
@@ -542,16 +608,6 @@ void i915_save_display(struct drm_device *dev)
 	/* This is only meaningful in non-KMS mode */
 	/* Don't save them in KMS mode */
 	i915_save_modeset_reg(dev);
-
-	/* Cursor state */
-	dev_priv->saveCURACNTR = I915_READ(CURACNTR);
-	dev_priv->saveCURAPOS = I915_READ(CURAPOS);
-	dev_priv->saveCURABASE = I915_READ(CURABASE);
-	dev_priv->saveCURBCNTR = I915_READ(CURBCNTR);
-	dev_priv->saveCURBPOS = I915_READ(CURBPOS);
-	dev_priv->saveCURBBASE = I915_READ(CURBBASE);
-	if (IS_GEN2(dev))
-		dev_priv->saveCURSIZE = I915_READ(CURSIZE);
 
 	/* CRT state */
 	if (HAS_PCH_SPLIT(dev)) {
@@ -657,16 +713,6 @@ void i915_restore_display(struct drm_device *dev)
 	/* Don't restore them in KMS mode */
 	i915_restore_modeset_reg(dev);
 
-	/* Cursor state */
-	I915_WRITE(CURAPOS, dev_priv->saveCURAPOS);
-	I915_WRITE(CURACNTR, dev_priv->saveCURACNTR);
-	I915_WRITE(CURABASE, dev_priv->saveCURABASE);
-	I915_WRITE(CURBPOS, dev_priv->saveCURBPOS);
-	I915_WRITE(CURBCNTR, dev_priv->saveCURBCNTR);
-	I915_WRITE(CURBBASE, dev_priv->saveCURBBASE);
-	if (IS_GEN2(dev))
-		I915_WRITE(CURSIZE, dev_priv->saveCURSIZE);
-
 	/* CRT state */
 	if (HAS_PCH_SPLIT(dev))
 		I915_WRITE(PCH_ADPA, dev_priv->saveADPA);
@@ -694,7 +740,7 @@ void i915_restore_display(struct drm_device *dev)
 		I915_WRITE(PCH_PP_OFF_DELAYS, dev_priv->savePP_OFF_DELAYS);
 		I915_WRITE(PCH_PP_DIVISOR, dev_priv->savePP_DIVISOR);
 		I915_WRITE(PCH_PP_CONTROL, dev_priv->savePP_CONTROL);
-		I915_WRITE(MCHBAR_RENDER_STANDBY,
+		I915_WRITE(RSTDBYCTL,
 			   dev_priv->saveMCHBAR_RENDER_STANDBY);
 	} else {
 		I915_WRITE(PFIT_PGM_RATIOS, dev_priv->savePFIT_PGM_RATIOS);
@@ -765,14 +811,16 @@ int i915_save_state(struct drm_device *dev)
 		dev_priv->saveFDI_RXA_IMR = I915_READ(FDI_RXA_IMR);
 		dev_priv->saveFDI_RXB_IMR = I915_READ(FDI_RXB_IMR);
 		dev_priv->saveMCHBAR_RENDER_STANDBY =
-			I915_READ(MCHBAR_RENDER_STANDBY);
+			I915_READ(RSTDBYCTL);
 	} else {
 		dev_priv->saveIER = I915_READ(IER);
 		dev_priv->saveIMR = I915_READ(IMR);
 	}
 
-	if (HAS_PCH_SPLIT(dev))
+	if (IS_IRONLAKE_M(dev))
 		ironlake_disable_drps(dev);
+	if (IS_GEN6(dev))
+		gen6_disable_rps(dev);
 
 	/* Cache mode state */
 	dev_priv->saveCACHE_MODE_0 = I915_READ(CACHE_MODE_0);
@@ -788,28 +836,6 @@ int i915_save_state(struct drm_device *dev)
 	for (i = 0; i < 3; i++)
 		dev_priv->saveSWF2[i] = I915_READ(SWF30 + (i << 2));
 
-	/* Fences */
-	switch (INTEL_INFO(dev)->gen) {
-	case 6:
-		for (i = 0; i < 16; i++)
-			dev_priv->saveFENCE[i] = I915_READ64(FENCE_REG_SANDYBRIDGE_0 + (i * 8));
-		break;
-	case 5:
-	case 4:
-		for (i = 0; i < 16; i++)
-			dev_priv->saveFENCE[i] = I915_READ64(FENCE_REG_965_0 + (i * 8));
-		break;
-	case 3:
-		if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
-			for (i = 0; i < 8; i++)
-				dev_priv->saveFENCE[i+8] = I915_READ(FENCE_REG_945_8 + (i * 4));
-	case 2:
-		for (i = 0; i < 8; i++)
-			dev_priv->saveFENCE[i] = I915_READ(FENCE_REG_830_0 + (i * 4));
-		break;
-
-	}
-
 	return 0;
 }
 
@@ -822,27 +848,6 @@ int i915_restore_state(struct drm_device *dev)
 
 	/* Hardware status page */
 	I915_WRITE(HWS_PGA, dev_priv->saveHWS);
-
-	/* Fences */
-	switch (INTEL_INFO(dev)->gen) {
-	case 6:
-		for (i = 0; i < 16; i++)
-			I915_WRITE64(FENCE_REG_SANDYBRIDGE_0 + (i * 8), dev_priv->saveFENCE[i]);
-		break;
-	case 5:
-	case 4:
-		for (i = 0; i < 16; i++)
-			I915_WRITE64(FENCE_REG_965_0 + (i * 8), dev_priv->saveFENCE[i]);
-		break;
-	case 3:
-	case 2:
-		if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
-			for (i = 0; i < 8; i++)
-				I915_WRITE(FENCE_REG_945_8 + (i * 4), dev_priv->saveFENCE[i+8]);
-		for (i = 0; i < 8; i++)
-			I915_WRITE(FENCE_REG_830_0 + (i * 4), dev_priv->saveFENCE[i]);
-		break;
-	}
 
 	i915_restore_display(dev);
 
@@ -860,12 +865,15 @@ int i915_restore_state(struct drm_device *dev)
 	}
 
 	/* Clock gating state */
-	intel_init_clock_gating(dev);
+	intel_enable_clock_gating(dev);
 
-	if (HAS_PCH_SPLIT(dev)) {
+	if (IS_IRONLAKE_M(dev)) {
 		ironlake_enable_drps(dev);
 		intel_init_emon(dev);
 	}
+
+	if (IS_GEN6(dev))
+		gen6_enable_rps(dev_priv);
 
 	/* Cache mode state */
 	I915_WRITE (CACHE_MODE_0, dev_priv->saveCACHE_MODE_0 | 0xffff0000);

@@ -149,6 +149,7 @@ struct radeon_tmds_pll {
 #define RADEON_PLL_PREFER_CLOSEST_LOWER (1 << 11)
 #define RADEON_PLL_USE_POST_DIV         (1 << 12)
 #define RADEON_PLL_IS_LCD               (1 << 13)
+#define RADEON_PLL_PREFER_MINM_OVER_MAXP (1 << 14)
 
 struct radeon_pll {
 	/* reference frequency */
@@ -379,6 +380,7 @@ struct radeon_encoder {
 	int hdmi_audio_workaround;
 	int hdmi_buffer_status;
 	bool is_ext_encoder;
+	u16 caps;
 };
 
 struct radeon_connector_atom_dig {
@@ -509,13 +511,21 @@ extern bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
 					     struct radeon_atom_ss *ss,
 					     int id, u32 clock);
 
-extern void radeon_compute_pll(struct radeon_pll *pll,
-			       uint64_t freq,
-			       uint32_t *dot_clock_p,
-			       uint32_t *fb_div_p,
-			       uint32_t *frac_fb_div_p,
-			       uint32_t *ref_div_p,
-			       uint32_t *post_div_p);
+extern void radeon_compute_pll_legacy(struct radeon_pll *pll,
+				      uint64_t freq,
+				      uint32_t *dot_clock_p,
+				      uint32_t *fb_div_p,
+				      uint32_t *frac_fb_div_p,
+				      uint32_t *ref_div_p,
+				      uint32_t *post_div_p);
+
+extern void radeon_compute_pll_avivo(struct radeon_pll *pll,
+				     u32 freq,
+				     u32 *dot_clock_p,
+				     u32 *fb_div_p,
+				     u32 *frac_fb_div_p,
+				     u32 *ref_div_p,
+				     u32 *post_div_p);
 
 extern void radeon_setup_encoder_clones(struct drm_device *dev);
 
@@ -566,7 +576,7 @@ extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
 
 extern bool radeon_combios_check_hardcoded_edid(struct radeon_device *rdev);
 extern struct edid *
-radeon_combios_get_hardcoded_edid(struct radeon_device *rdev);
+radeon_bios_get_hardcoded_edid(struct radeon_device *rdev);
 extern bool radeon_atom_get_clock_info(struct drm_device *dev);
 extern bool radeon_combios_get_clock_info(struct drm_device *dev);
 extern struct radeon_encoder_atom_dig *
@@ -665,4 +675,5 @@ void radeon_fb_output_poll_changed(struct radeon_device *rdev);
 
 void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id);
 
+int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bool tiled);
 #endif

@@ -1106,51 +1106,6 @@ static inline void configure_usart3_pins(unsigned pins)
 static struct platform_device *__initdata at91_uarts[ATMEL_MAX_UART];	/* the UARTs to use */
 struct platform_device *atmel_default_console_device;	/* the serial console device */
 
-void __init __deprecated at91_init_serial(struct at91_uart_config *config)
-{
-	int i;
-
-	/* Fill in list of supported UARTs */
-	for (i = 0; i < config->nr_tty; i++) {
-		switch (config->tty_map[i]) {
-			case 0:
-				configure_usart0_pins(ATMEL_UART_CTS | ATMEL_UART_RTS);
-				at91_uarts[i] = &at91rm9200_uart0_device;
-				at91_clock_associate("usart0_clk", &at91rm9200_uart0_device.dev, "usart");
-				break;
-			case 1:
-				configure_usart1_pins(ATMEL_UART_CTS | ATMEL_UART_RTS | ATMEL_UART_DSR | ATMEL_UART_DTR | ATMEL_UART_DCD | ATMEL_UART_RI);
-				at91_uarts[i] = &at91rm9200_uart1_device;
-				at91_clock_associate("usart1_clk", &at91rm9200_uart1_device.dev, "usart");
-				break;
-			case 2:
-				configure_usart2_pins(0);
-				at91_uarts[i] = &at91rm9200_uart2_device;
-				at91_clock_associate("usart2_clk", &at91rm9200_uart2_device.dev, "usart");
-				break;
-			case 3:
-				configure_usart3_pins(0);
-				at91_uarts[i] = &at91rm9200_uart3_device;
-				at91_clock_associate("usart3_clk", &at91rm9200_uart3_device.dev, "usart");
-				break;
-			case 4:
-				configure_dbgu_pins();
-				at91_uarts[i] = &at91rm9200_dbgu_device;
-				at91_clock_associate("mck", &at91rm9200_dbgu_device.dev, "usart");
-				break;
-			default:
-				continue;
-		}
-		at91_uarts[i]->id = i;		/* update ID number to mapped ID */
-	}
-
-	/* Set serial console device */
-	if (config->console_tty < ATMEL_MAX_UART)
-		atmel_default_console_device = at91_uarts[config->console_tty];
-	if (!atmel_default_console_device)
-		printk(KERN_INFO "AT91: No default serial console defined.\n");
-}
-
 void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pins)
 {
 	struct platform_device *pdev;

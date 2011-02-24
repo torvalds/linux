@@ -1633,18 +1633,11 @@ static int parse_audio_extension_unit(struct mixer_build *state, int unitid, voi
 static int mixer_ctl_selector_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	struct usb_mixer_elem_info *cval = kcontrol->private_data;
-	char **itemlist = (char **)kcontrol->private_value;
+	const char **itemlist = (const char **)kcontrol->private_value;
 
 	if (snd_BUG_ON(!itemlist))
 		return -EINVAL;
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = cval->max;
-	if (uinfo->value.enumerated.item >= cval->max)
-		uinfo->value.enumerated.item = cval->max - 1;
-	strlcpy(uinfo->value.enumerated.name, itemlist[uinfo->value.enumerated.item],
-		sizeof(uinfo->value.enumerated.name));
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, cval->max, itemlist);
 }
 
 /* get callback for selector unit */

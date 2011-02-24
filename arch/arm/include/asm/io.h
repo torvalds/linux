@@ -95,6 +95,15 @@ static inline void __iomem *__typesafe_io(unsigned long addr)
 	return (void __iomem *)addr;
 }
 
+/* IO barriers */
+#ifdef CONFIG_ARM_DMA_MEM_BUFFERABLE
+#define __iormb()		rmb()
+#define __iowmb()		wmb()
+#else
+#define __iormb()		do { } while (0)
+#define __iowmb()		do { } while (0)
+#endif
+
 /*
  * Now, pick up the machine-defined IO definitions
  */
@@ -125,17 +134,17 @@ static inline void __iomem *__typesafe_io(unsigned long addr)
  * The {in,out}[bwl] macros are for emulating x86-style PCI/ISA IO space.
  */
 #ifdef __io
-#define outb(v,p)		__raw_writeb(v,__io(p))
-#define outw(v,p)		__raw_writew((__force __u16) \
-					cpu_to_le16(v),__io(p))
-#define outl(v,p)		__raw_writel((__force __u32) \
-					cpu_to_le32(v),__io(p))
+#define outb(v,p)	({ __iowmb(); __raw_writeb(v,__io(p)); })
+#define outw(v,p)	({ __iowmb(); __raw_writew((__force __u16) \
+					cpu_to_le16(v),__io(p)); })
+#define outl(v,p)	({ __iowmb(); __raw_writel((__force __u32) \
+					cpu_to_le32(v),__io(p)); })
 
-#define inb(p)	({ __u8 __v = __raw_readb(__io(p)); __v; })
+#define inb(p)	({ __u8 __v = __raw_readb(__io(p)); __iormb(); __v; })
 #define inw(p)	({ __u16 __v = le16_to_cpu((__force __le16) \
-			__raw_readw(__io(p))); __v; })
+			__raw_readw(__io(p))); __iormb(); __v; })
 #define inl(p)	({ __u32 __v = le32_to_cpu((__force __le32) \
-			__raw_readl(__io(p))); __v; })
+			__raw_readl(__io(p))); __iormb(); __v; })
 
 #define outsb(p,d,l)		__raw_writesb(__io(p),d,l)
 #define outsw(p,d,l)		__raw_writesw(__io(p),d,l)
@@ -192,14 +201,6 @@ extern void _memset_io(volatile void __iomem *, int, size_t);
 #define writel_relaxed(v,c)	((void)__raw_writel((__force u32) \
 					cpu_to_le32(v),__mem_pci(c)))
 
-#ifdef CONFIG_ARM_DMA_MEM_BUFFERABLE
-#define __iormb()		rmb()
-#define __iowmb()		wmb()
-#else
-#define __iormb()		do { } while (0)
-#define __iowmb()		do { } while (0)
-#endif
-
 #define readb(c)		({ u8  __v = readb_relaxed(c); __iormb(); __v; })
 #define readw(c)		({ u16 __v = readw_relaxed(c); __iormb(); __v; })
 #define readl(c)		({ u32 __v = readl_relaxed(c); __iormb(); __v; })
@@ -241,18 +242,15 @@ extern void _memset_io(volatile void __iomem *, int, size_t);
  *
  */
 #ifndef __arch_ioremap
-#define ioremap(cookie,size)		__arm_ioremap(cookie, size, MT_DEVICE)
-#define ioremap_nocache(cookie,size)	__arm_ioremap(cookie, size, MT_DEVICE)
-#define ioremap_cached(cookie,size)	__arm_ioremap(cookie, size, MT_DEVICE_CACHED)
-#define ioremap_wc(cookie,size)		__arm_ioremap(cookie, size, MT_DEVICE_WC)
-#define iounmap(cookie)			__iounmap(cookie)
-#else
+#define __arch_ioremap			__arm_ioremap
+#define __arch_iounmap			__iounmap
+#endif
+
 #define ioremap(cookie,size)		__arch_ioremap((cookie), (size), MT_DEVICE)
 #define ioremap_nocache(cookie,size)	__arch_ioremap((cookie), (size), MT_DEVICE)
 #define ioremap_cached(cookie,size)	__arch_ioremap((cookie), (size), MT_DEVICE_CACHED)
 #define ioremap_wc(cookie,size)		__arch_ioremap((cookie), (size), MT_DEVICE_WC)
-#define iounmap(cookie)			__arch_iounmap(cookie)
-#endif
+#define iounmap				__arch_iounmap
 
 /*
  * io{read,write}{8,16,32} macros

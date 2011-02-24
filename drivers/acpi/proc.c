@@ -311,7 +311,9 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 			   dev->pnp.bus_id,
 			   (u32) dev->wakeup.sleep_state,
 			   dev->wakeup.flags.run_wake ? '*' : ' ',
-			   dev->wakeup.state.enabled ? "enabled" : "disabled");
+			   (device_may_wakeup(&dev->dev)
+			     || (ldev && device_may_wakeup(ldev))) ?
+			       "enabled" : "disabled");
 		if (ldev)
 			seq_printf(seq, "%s:%s",
 				   ldev->bus ? ldev->bus->name : "no-bus",
@@ -328,8 +330,10 @@ static void physical_device_enable_wakeup(struct acpi_device *adev)
 {
 	struct device *dev = acpi_get_physical_device(adev->handle);
 
-	if (dev && device_can_wakeup(dev))
-		device_set_wakeup_enable(dev, adev->wakeup.state.enabled);
+	if (dev && device_can_wakeup(dev)) {
+		bool enable = !device_may_wakeup(dev);
+		device_set_wakeup_enable(dev, enable);
+	}
 }
 
 static ssize_t
@@ -341,7 +345,6 @@ acpi_system_write_wakeup_device(struct file *file,
 	char strbuf[5];
 	char str[5] = "";
 	unsigned int len = count;
-	struct acpi_device *found_dev = NULL;
 
 	if (len > 4)
 		len = 4;
@@ -361,33 +364,13 @@ acpi_system_write_wakeup_device(struct file *file,
 			continue;
 
 		if (!strncmp(dev->pnp.bus_id, str, 4)) {
-			dev->wakeup.state.enabled =
-			    dev->wakeup.state.enabled ? 0 : 1;
-			found_dev = dev;
-			break;
-		}
-	}
-	if (found_dev) {
-		physical_device_enable_wakeup(found_dev);
-		list_for_each_safe(node, next, &acpi_wakeup_device_list) {
-			struct acpi_device *dev = container_of(node,
-							       struct
-							       acpi_device,
-							       wakeup_list);
-
-			if ((dev != found_dev) &&
-			    (dev->wakeup.gpe_number ==
-			     found_dev->wakeup.gpe_number)
-			    && (dev->wakeup.gpe_device ==
-				found_dev->wakeup.gpe_device)) {
-				printk(KERN_WARNING
-				       "ACPI: '%s' and '%s' have the same GPE, "
-				       "can't disable/enable one separately\n",
-				       dev->pnp.bus_id, found_dev->pnp.bus_id);
-				dev->wakeup.state.enabled =
-				    found_dev->wakeup.state.enabled;
+			if (device_can_wakeup(&dev->dev)) {
+				bool enable = !device_may_wakeup(&dev->dev);
+				device_set_wakeup_enable(&dev->dev, enable);
+			} else {
 				physical_device_enable_wakeup(dev);
 			}
+			break;
 		}
 	}
 	mutex_unlock(&acpi_device_lock);

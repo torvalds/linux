@@ -44,7 +44,7 @@ int __init ext4_init_pageio(void)
 	if (io_page_cachep == NULL)
 		return -ENOMEM;
 	io_end_cachep = KMEM_CACHE(ext4_io_end, SLAB_RECLAIM_ACCOUNT);
-	if (io_page_cachep == NULL) {
+	if (io_end_cachep == NULL) {
 		kmem_cache_destroy(io_page_cachep);
 		return -ENOMEM;
 	}
@@ -158,11 +158,8 @@ static void ext4_end_io_work(struct work_struct *work)
 
 ext4_io_end_t *ext4_init_io_end(struct inode *inode, gfp_t flags)
 {
-	ext4_io_end_t *io = NULL;
-
-	io = kmem_cache_alloc(io_end_cachep, flags);
+	ext4_io_end_t *io = kmem_cache_zalloc(io_end_cachep, flags);
 	if (io) {
-		memset(io, 0, sizeof(*io));
 		atomic_inc(&EXT4_I(inode)->i_ioend_count);
 		io->inode = inode;
 		INIT_WORK(&io->work, ext4_end_io_work);

@@ -46,19 +46,14 @@ static int pfifo_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 
 static int pfifo_tail_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 {
-	struct sk_buff *skb_head;
 	struct fifo_sched_data *q = qdisc_priv(sch);
 
 	if (likely(skb_queue_len(&sch->q) < q->limit))
 		return qdisc_enqueue_tail(skb, sch);
 
 	/* queue full, remove one skb to fulfill the limit */
-	skb_head = qdisc_dequeue_head(sch);
-	sch->bstats.bytes -= qdisc_pkt_len(skb_head);
-	sch->bstats.packets--;
+	__qdisc_queue_drop_head(sch, &sch->q);
 	sch->qstats.drops++;
-	kfree_skb(skb_head);
-
 	qdisc_enqueue_tail(skb, sch);
 
 	return NET_XMIT_CN;

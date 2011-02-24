@@ -48,7 +48,7 @@ static int zfcp_ccw_activate(struct ccw_device *cdev)
 
 	zfcp_erp_set_adapter_status(adapter, ZFCP_STATUS_COMMON_RUNNING);
 	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED,
-				"ccresu2", NULL);
+				"ccresu2");
 	zfcp_erp_wait(adapter);
 	flush_work(&adapter->scan_work);
 
@@ -182,7 +182,7 @@ static int zfcp_ccw_set_offline(struct ccw_device *cdev)
 	if (!adapter)
 		return 0;
 
-	zfcp_erp_adapter_shutdown(adapter, 0, "ccsoff1", NULL);
+	zfcp_erp_adapter_shutdown(adapter, 0, "ccsoff1");
 	zfcp_erp_wait(adapter);
 
 	zfcp_ccw_adapter_put(adapter);
@@ -207,24 +207,24 @@ static int zfcp_ccw_notify(struct ccw_device *cdev, int event)
 	switch (event) {
 	case CIO_GONE:
 		dev_warn(&cdev->dev, "The FCP device has been detached\n");
-		zfcp_erp_adapter_shutdown(adapter, 0, "ccnoti1", NULL);
+		zfcp_erp_adapter_shutdown(adapter, 0, "ccnoti1");
 		break;
 	case CIO_NO_PATH:
 		dev_warn(&cdev->dev,
 			 "The CHPID for the FCP device is offline\n");
-		zfcp_erp_adapter_shutdown(adapter, 0, "ccnoti2", NULL);
+		zfcp_erp_adapter_shutdown(adapter, 0, "ccnoti2");
 		break;
 	case CIO_OPER:
 		dev_info(&cdev->dev, "The FCP device is operational again\n");
 		zfcp_erp_set_adapter_status(adapter,
 					    ZFCP_STATUS_COMMON_RUNNING);
 		zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED,
-					"ccnoti4", NULL);
+					"ccnoti4");
 		break;
 	case CIO_BOXED:
 		dev_warn(&cdev->dev, "The FCP device did not respond within "
 				     "the specified time\n");
-		zfcp_erp_adapter_shutdown(adapter, 0, "ccnoti5", NULL);
+		zfcp_erp_adapter_shutdown(adapter, 0, "ccnoti5");
 		break;
 	}
 
@@ -243,7 +243,7 @@ static void zfcp_ccw_shutdown(struct ccw_device *cdev)
 	if (!adapter)
 		return;
 
-	zfcp_erp_adapter_shutdown(adapter, 0, "ccshut1", NULL);
+	zfcp_erp_adapter_shutdown(adapter, 0, "ccshut1");
 	zfcp_erp_wait(adapter);
 	zfcp_erp_thread_kill(adapter);
 

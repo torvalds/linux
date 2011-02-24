@@ -25,9 +25,9 @@
 
 #include "clock.h"
 #include "clock3xxx.h"
-#include "prm.h"
+#include "prm2xxx_3xxx.h"
 #include "prm-regbits-34xx.h"
-#include "cm.h"
+#include "cm2xxx_3xxx.h"
 #include "cm-regbits-34xx.h"
 
 /*
@@ -94,7 +94,7 @@ static int __init omap3xxx_clk_arch_init(void)
 
 	ret = omap2_clk_switch_mpurate_at_boot("dpll1_ck");
 	if (!ret)
-		omap2_clk_print_new_rates("osc_sys_ck", "arm_fck", "core_ck");
+		omap2_clk_print_new_rates("osc_sys_ck", "core_ck", "arm_fck");
 
 	return ret;
 }

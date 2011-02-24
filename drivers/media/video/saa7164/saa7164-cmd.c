@@ -122,8 +122,8 @@ int saa7164_irq_dequeue(struct saa7164_dev *dev)
 				return ret;
 		}
 
-		/* It's unlikely to have more than 4 or 5 pending messages, ensure we exit
-		 * at some point regardles.
+		/* It's unlikely to have more than 4 or 5 pending messages,
+		 * ensure we exit at some point regardless.
 		 */
 	} while (i++ < 32);
 
@@ -186,7 +186,8 @@ int saa7164_cmd_dequeue(struct saa7164_dev *dev)
 	return SAA_OK;
 }
 
-int saa7164_cmd_set(struct saa7164_dev *dev, struct tmComResInfo* msg, void *buf)
+int saa7164_cmd_set(struct saa7164_dev *dev, struct tmComResInfo *msg,
+	void *buf)
 {
 	struct tmComResBusInfo *bus = &dev->bus;
 	u8 cmd_sent;
@@ -292,7 +293,8 @@ int saa7164_cmd_wait(struct saa7164_dev *dev, u8 seqno)
 			 * We typically are signalled in < 50ms but it can
 			 * take MUCH longer.
 			 */
-			wait_event_timeout(*q, dev->cmds[seqno].signalled, (HZ * waitsecs));
+			wait_event_timeout(*q, dev->cmds[seqno].signalled,
+				(HZ * waitsecs));
 			r = time_before(jiffies, stamp + (HZ * waitsecs));
 			if (r)
 				ret = SAA_OK;

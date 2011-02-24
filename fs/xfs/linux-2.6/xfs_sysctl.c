@@ -18,6 +18,7 @@
 #include "xfs.h"
 #include <linux/sysctl.h>
 #include <linux/proc_fs.h>
+#include "xfs_error.h"
 
 static struct ctl_table_header *xfs_table_header;
 
@@ -51,6 +52,26 @@ xfs_stats_clear_proc_handler(
 
 	return ret;
 }
+
+STATIC int
+xfs_panic_mask_proc_handler(
+	ctl_table	*ctl,
+	int		write,
+	void		__user *buffer,
+	size_t		*lenp,
+	loff_t		*ppos)
+{
+	int		ret, *valp = ctl->data;
+
+	ret = proc_dointvec_minmax(ctl, write, buffer, lenp, ppos);
+	if (!ret && write) {
+		xfs_panic_mask = *valp;
+#ifdef DEBUG
+		xfs_panic_mask |= (XFS_PTAG_SHUTDOWN_CORRUPT | XFS_PTAG_LOGRES);
+#endif
+	}
+	return ret;
+}
 #endif /* CONFIG_PROC_FS */
 
 static ctl_table xfs_table[] = {
@@ -77,7 +98,7 @@ static ctl_table xfs_table[] = {
 		.data		= &xfs_params.panic_mask.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.proc_handler	= xfs_panic_mask_proc_handler,
 		.extra1		= &xfs_params.panic_mask.min,
 		.extra2		= &xfs_params.panic_mask.max
 	},

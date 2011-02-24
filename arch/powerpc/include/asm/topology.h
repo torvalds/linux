@@ -106,8 +106,21 @@ static inline void sysfs_remove_device_from_node(struct sys_device *dev,
 						int nid)
 {
 }
-
 #endif /* CONFIG_NUMA */
+
+#if defined(CONFIG_NUMA) && defined(CONFIG_PPC_SPLPAR)
+extern int start_topology_update(void);
+extern int stop_topology_update(void);
+#else
+static inline int start_topology_update(void)
+{
+	return 0;
+}
+static inline int stop_topology_update(void)
+{
+	return 0;
+}
+#endif /* CONFIG_NUMA && CONFIG_PPC_SPLPAR */
 
 #include <asm-generic/topology.h>
 

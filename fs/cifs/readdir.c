@@ -79,7 +79,7 @@ cifs_readdir_lookup(struct dentry *parent, struct qstr *name,
 	cFYI(1, "For %s", name->name);
 
 	if (parent->d_op && parent->d_op->d_hash)
-		parent->d_op->d_hash(parent, name);
+		parent->d_op->d_hash(parent, parent->d_inode, name);
 	else
 		name->hash = full_name_hash(name->name, name->len);
 
@@ -101,11 +101,6 @@ cifs_readdir_lookup(struct dentry *parent, struct qstr *name,
 		dput(dentry);
 		return NULL;
 	}
-
-	if (cifs_sb_master_tcon(CIFS_SB(sb))->nocase)
-		dentry->d_op = &cifs_ci_dentry_ops;
-	else
-		dentry->d_op = &cifs_dentry_ops;
 
 	alias = d_materialise_unique(dentry, inode);
 	if (alias != NULL) {
@@ -160,6 +155,7 @@ cifs_dir_info_to_fattr(struct cifs_fattr *fattr, FILE_DIRECTORY_INFO *info,
 	fattr->cf_cifsattrs = le32_to_cpu(info->ExtFileAttributes);
 	fattr->cf_eof = le64_to_cpu(info->EndOfFile);
 	fattr->cf_bytes = le64_to_cpu(info->AllocationSize);
+	fattr->cf_createtime = le64_to_cpu(info->CreationTime);
 	fattr->cf_atime = cifs_NTtimeToUnix(info->LastAccessTime);
 	fattr->cf_ctime = cifs_NTtimeToUnix(info->ChangeTime);
 	fattr->cf_mtime = cifs_NTtimeToUnix(info->LastWriteTime);
@@ -226,26 +222,29 @@ static int initiate_cifs_search(const int xid, struct file *file)
 	char *full_path = NULL;
 	struct cifsFileInfo *cifsFile;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
-	struct tcon_link *tlink;
+	struct tcon_link *tlink = NULL;
 	struct cifsTconInfo *pTcon;
 
-	tlink = cifs_sb_tlink(cifs_sb);
-	if (IS_ERR(tlink))
-		return PTR_ERR(tlink);
-	pTcon = tlink_tcon(tlink);
-
-	if (file->private_data == NULL)
-		file->private_data =
-			kzalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
 	if (file->private_data == NULL) {
-		rc = -ENOMEM;
-		goto error_exit;
+		tlink = cifs_sb_tlink(cifs_sb);
+		if (IS_ERR(tlink))
+			return PTR_ERR(tlink);
+
+		cifsFile = kzalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
+		if (cifsFile == NULL) {
+			rc = -ENOMEM;
+			goto error_exit;
+		}
+		file->private_data = cifsFile;
+		cifsFile->tlink = cifs_get_tlink(tlink);
+		pTcon = tlink_tcon(tlink);
+	} else {
+		cifsFile = file->private_data;
+		pTcon = tlink_tcon(cifsFile->tlink);
 	}
 
-	cifsFile = file->private_data;
 	cifsFile->invalidHandle = true;
 	cifsFile->srch_inf.endOfSearch = false;
-	cifsFile->tlink = cifs_get_tlink(tlink);
 
 	full_path = build_path_from_dentry(file->f_path.dentry);
 	if (full_path == NULL) {
@@ -756,18 +755,6 @@ static int cifs_filldir(char *pfindEntry, struct file *file, filldir_t filldir,
 	rc = filldir(direntry, qstring.name, qstring.len, file->f_pos,
 		     ino, fattr.cf_dtype);
 
-	/*
-	 * we can not return filldir errors to the caller since they are
-	 * "normal" when the stat blocksize is too small - we return remapped
-	 * error instead
-	 *
-	 * FIXME: This looks bogus. filldir returns -EOVERFLOW in the above
-	 * case already. Why should we be clobbering other errors from it?
-	 */
-	if (rc) {
-		cFYI(1, "filldir rc = %d", rc);
-		rc = -EOVERFLOW;
-	}
 	dput(tmp_dentry);
 	return rc;
 }
@@ -777,7 +764,6 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 {
 	int rc = 0;
 	int xid, i;
-	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
 	struct cifsFileInfo *cifsFile = NULL;
 	char *current_entry;
@@ -787,8 +773,6 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 	unsigned int max_len;
 
 	xid = GetXid();
-
-	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 
 	/*
 	 * Ensure FindFirst doesn't fail before doing filldir() for '.' and

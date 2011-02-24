@@ -754,6 +754,8 @@ struct drm_nouveau_private {
 
 	struct nouveau_fbdev *nfbdev;
 	struct apertures_struct *apertures;
+
+	bool powered_down;
 };
 
 static inline struct drm_nouveau_private *

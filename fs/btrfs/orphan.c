@@ -56,8 +56,12 @@ int btrfs_del_orphan_item(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 
 	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
-	if (ret)
+	if (ret < 0)
 		goto out;
+	if (ret) {
+		ret = -ENOENT;
+		goto out;
+	}
 
 	ret = btrfs_del_item(trans, root, path);
 

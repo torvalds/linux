@@ -72,6 +72,7 @@ enum spec2_op {
 enum spec3_op {
 	ext_op, dextm_op, dextu_op, dext_op,
 	ins_op, dinsm_op, dinsu_op, dins_op,
+	lx_op = 0x0a,
 	bshfl_op = 0x20,
 	dbshfl_op = 0x24,
 	rdhwr_op = 0x3b
@@ -176,6 +177,19 @@ enum cop1x_func {
 enum mad_func {
 	madd_fp_op      = 0x08, msub_fp_op      = 0x0a,
 	nmadd_fp_op     = 0x0c, nmsub_fp_op     = 0x0e
+};
+
+/*
+ * func field for special3 lx opcodes (Cavium Octeon).
+ */
+enum lx_func {
+	lwx_op	= 0x00,
+	lhx_op	= 0x04,
+	lbux_op	= 0x06,
+	ldx_op	= 0x08,
+	lwux_op	= 0x10,
+	lhux_op	= 0x14,
+	lbx_op	= 0x16,
 };
 
 /*

@@ -238,7 +238,7 @@ int nfs_map_gid_to_group(struct nfs_client *clp, __u32 gid, char *buf, size_t bu
 	return nfs_idmap_lookup_name(gid, "group", buf, buflen);
 }
 
-#else  /* CONFIG_NFS_USE_IDMAPPER not defined */
+#else  /* CONFIG_NFS_USE_NEW_IDMAPPER not defined */
 
 #include <linux/module.h>
 #include <linux/mutex.h>

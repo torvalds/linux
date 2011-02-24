@@ -1092,6 +1092,10 @@ static int vpe_open(struct inode *inode, struct file *filp)
 
 	/* this of-course trashes what was there before... */
 	v->pbuffer = vmalloc(P_SIZE);
+	if (!v->pbuffer) {
+		pr_warning("VPE loader: unable to allocate memory\n");
+		return -ENOMEM;
+	}
 	v->plen = P_SIZE;
 	v->load_addr = NULL;
 	v->len = 0;
@@ -1149,10 +1153,9 @@ static int vpe_release(struct inode *inode, struct file *filp)
 	if (ret < 0)
 		v->shared_ptr = NULL;
 
-	// cleanup any temp buffers
-	if (v->pbuffer)
-		vfree(v->pbuffer);
+	vfree(v->pbuffer);
 	v->plen = 0;
+
 	return ret;
 }
 
@@ -1168,11 +1171,6 @@ static ssize_t vpe_write(struct file *file, const char __user * buffer,
 	v = get_vpe(tclimit);
 	if (v == NULL)
 		return -ENODEV;
-
-	if (v->pbuffer == NULL) {
-		printk(KERN_ERR "VPE loader: no buffer for program\n");
-		return -ENOMEM;
-	}
 
 	if ((count + v->len) > v->plen) {
 		printk(KERN_WARNING

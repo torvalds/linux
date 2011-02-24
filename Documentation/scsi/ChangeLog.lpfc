@@ -573,7 +573,7 @@ Changes from 20041018 to 20041123
 	* Backround nodev_timeout processing to DPC This enables us to
 	  unblock (stop dev_loss_tmo) when appopriate.
 	* Fix array discovery with multiple luns.  The max_luns was 0 at
-	  the time the host structure was intialized.  lpfc_cfg_params
+	  the time the host structure was initialized.  lpfc_cfg_params
 	  then set the max_luns to the correct value afterwards.
 	* Remove unused define LPFC_MAX_LUN and set the default value of
 	  lpfc_max_lun parameter to 512.

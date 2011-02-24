@@ -2,6 +2,7 @@
 #define __WL12XX_80211_H__
 
 #include <linux/if_ether.h>	/* ETH_ALEN */
+#include <linux/if_arp.h>
 
 /* RATES */
 #define IEEE80211_CCK_RATE_1MB		        0x02
@@ -133,11 +134,17 @@ struct wl12xx_qos_null_data_template {
 	__le16 qos_ctl;
 } __packed;
 
-struct wl12xx_probe_req_template {
-	struct ieee80211_header header;
-	struct wl12xx_ie_ssid ssid;
-	struct wl12xx_ie_rates rates;
-	struct wl12xx_ie_rates ext_rates;
+struct wl12xx_arp_rsp_template {
+	struct ieee80211_hdr_3addr hdr;
+
+	u8 llc_hdr[sizeof(rfc1042_header)];
+	u16 llc_type;
+
+	struct arphdr arp_hdr;
+	u8 sender_hw[ETH_ALEN];
+	u32 sender_ip;
+	u8 target_hw[ETH_ALEN];
+	u32 target_ip;
 } __packed;
 
 

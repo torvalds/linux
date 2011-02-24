@@ -70,7 +70,7 @@ prom_cmdline(void)
 /* Drop into the prom, but completely terminate the program.
  * No chance of continuing.
  */
-void
+void __noreturn
 prom_halt(void)
 {
 	unsigned long flags;

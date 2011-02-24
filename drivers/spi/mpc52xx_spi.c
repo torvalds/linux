@@ -563,7 +563,7 @@ static struct of_platform_driver mpc52xx_spi_of_driver = {
 		.of_match_table = mpc52xx_spi_match,
 	},
 	.probe = mpc52xx_spi_probe,
-	.remove = __exit_p(mpc52xx_spi_remove),
+	.remove = __devexit_p(mpc52xx_spi_remove),
 };
 
 static int __init mpc52xx_spi_init(void)

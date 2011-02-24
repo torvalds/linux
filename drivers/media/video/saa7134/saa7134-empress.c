@@ -553,7 +553,7 @@ static int empress_fini(struct saa7134_dev *dev)
 
 	if (NULL == dev->empress_dev)
 		return 0;
-	flush_scheduled_work();
+	flush_work_sync(&dev->empress_workqueue);
 	video_unregister_device(dev->empress_dev);
 	dev->empress_dev = NULL;
 	return 0;

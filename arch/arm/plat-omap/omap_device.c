@@ -280,6 +280,34 @@ static void _add_optional_clock_alias(struct omap_device *od,
 /* Public functions for use by core code */
 
 /**
+ * omap_device_get_context_loss_count - get lost context count
+ * @od: struct omap_device *
+ *
+ * Using the primary hwmod, query the context loss count for this
+ * device.
+ *
+ * Callers should consider context for this device lost any time this
+ * function returns a value different than the value the caller got
+ * the last time it called this function.
+ *
+ * If any hwmods exist for the omap_device assoiated with @pdev,
+ * return the context loss counter for that hwmod, otherwise return
+ * zero.
+ */
+u32 omap_device_get_context_loss_count(struct platform_device *pdev)
+{
+	struct omap_device *od;
+	u32 ret = 0;
+
+	od = _find_by_pdev(pdev);
+
+	if (od->hwmods_cnt)
+		ret = omap_hwmod_get_context_loss_count(od->hwmods[0]);
+
+	return ret;
+}
+
+/**
  * omap_device_count_resources - count number of struct resource entries needed
  * @od: struct omap_device *
  *

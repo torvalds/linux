@@ -1198,7 +1198,7 @@ static int __init m8xx_probe(struct platform_device *ofdev,
 	out_be32(M8XX_PGCRX(1),
 		 M8XX_PGCRX_CXOE | (mk_int_int_mask(hwirq) << 16));
 
-	/* intialize the fixed memory windows */
+	/* initialize the fixed memory windows */
 
 	for (i = 0; i < PCMCIA_SOCKETS_NO; i++) {
 		for (m = 0; m < PCMCIA_MEM_WIN_NO; m++) {

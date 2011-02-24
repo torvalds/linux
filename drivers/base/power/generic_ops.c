@@ -39,7 +39,7 @@ EXPORT_SYMBOL_GPL(pm_generic_runtime_idle);
  *
  * If PM operations are defined for the @dev's driver and they include
  * ->runtime_suspend(), execute it and return its error code.  Otherwise,
- * return -EINVAL.
+ * return 0.
  */
 int pm_generic_runtime_suspend(struct device *dev)
 {
@@ -58,7 +58,7 @@ EXPORT_SYMBOL_GPL(pm_generic_runtime_suspend);
  *
  * If PM operations are defined for the @dev's driver and they include
  * ->runtime_resume(), execute it and return its error code.  Otherwise,
- * return -EINVAL.
+ * return 0.
  */
 int pm_generic_runtime_resume(struct device *dev)
 {
@@ -185,7 +185,7 @@ static int __pm_generic_resume(struct device *dev, int event)
 		return 0;
 
 	ret = callback(dev);
-	if (!ret) {
+	if (!ret && pm_runtime_enabled(dev)) {
 		pm_runtime_disable(dev);
 		pm_runtime_set_active(dev);
 		pm_runtime_enable(dev);

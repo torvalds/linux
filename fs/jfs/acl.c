@@ -114,10 +114,14 @@ out:
 	return rc;
 }
 
-int jfs_check_acl(struct inode *inode, int mask)
+int jfs_check_acl(struct inode *inode, int mask, unsigned int flags)
 {
-	struct posix_acl *acl = jfs_get_acl(inode, ACL_TYPE_ACCESS);
+	struct posix_acl *acl;
 
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
+
+	acl = jfs_get_acl(inode, ACL_TYPE_ACCESS);
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
 	if (acl) {

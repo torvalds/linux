@@ -2,6 +2,28 @@
 #include <linux/topology.h>
 #include <linux/module.h>
 #include <linux/bootmem.h>
+#include <asm/numa.h>
+#include <asm/acpi.h>
+
+int __initdata numa_off;
+
+static __init int numa_setup(char *opt)
+{
+	if (!opt)
+		return -EINVAL;
+	if (!strncmp(opt, "off", 3))
+		numa_off = 1;
+#ifdef CONFIG_NUMA_EMU
+	if (!strncmp(opt, "fake=", 5))
+		numa_emu_cmdline(opt + 5);
+#endif
+#ifdef CONFIG_ACPI_NUMA
+	if (!strncmp(opt, "noacpi", 6))
+		acpi_numa = -1;
+#endif
+	return 0;
+}
+early_param("numa", numa_setup);
 
 /*
  * Which logical CPUs are on which nodes

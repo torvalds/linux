@@ -596,13 +596,23 @@ static void nouveau_switcheroo_set_state(struct pci_dev *pdev,
 	pm_message_t pmm = { .event = PM_EVENT_SUSPEND };
 	if (state == VGA_SWITCHEROO_ON) {
 		printk(KERN_ERR "VGA switcheroo: switched nouveau on\n");
+		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		nouveau_pci_resume(pdev);
 		drm_kms_helper_poll_enable(dev);
+		dev->switch_power_state = DRM_SWITCH_POWER_ON;
 	} else {
 		printk(KERN_ERR "VGA switcheroo: switched nouveau off\n");
+		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		drm_kms_helper_poll_disable(dev);
 		nouveau_pci_suspend(pdev, pmm);
+		dev->switch_power_state = DRM_SWITCH_POWER_OFF;
 	}
+}
+
+static void nouveau_switcheroo_reprobe(struct pci_dev *pdev)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	nouveau_fbcon_output_poll_changed(dev);
 }
 
 static bool nouveau_switcheroo_can_switch(struct pci_dev *pdev)
@@ -625,6 +635,7 @@ nouveau_card_init(struct drm_device *dev)
 
 	vga_client_register(dev->pdev, dev, NULL, nouveau_vga_set_decode);
 	vga_switcheroo_register_client(dev->pdev, nouveau_switcheroo_set_state,
+				       nouveau_switcheroo_reprobe,
 				       nouveau_switcheroo_can_switch);
 
 	/* Initialise internal driver API hooks */
@@ -1054,6 +1065,7 @@ err_out:
 
 void nouveau_lastclose(struct drm_device *dev)
 {
+	vga_switcheroo_process_delayed_switch();
 }
 
 int nouveau_unload(struct drm_device *dev)
@@ -1091,9 +1103,9 @@ int nouveau_ioctl_getparam(struct drm_device *dev, void *data,
 		getparam->value = dev->pci_device;
 		break;
 	case NOUVEAU_GETPARAM_BUS_TYPE:
-		if (drm_device_is_agp(dev))
+		if (drm_pci_device_is_agp(dev))
 			getparam->value = NV_AGP;
-		else if (drm_device_is_pcie(dev))
+		else if (drm_pci_device_is_pcie(dev))
 			getparam->value = NV_PCIE;
 		else
 			getparam->value = NV_PCI;

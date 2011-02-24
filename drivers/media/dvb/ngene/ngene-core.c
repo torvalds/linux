@@ -1304,7 +1304,6 @@ static void ngene_stop(struct ngene *dev)
 static int ngene_start(struct ngene *dev)
 {
 	int stat;
-	unsigned long flags;
 	int i;
 
 	pci_set_master(dev->pci_dev);
@@ -1337,6 +1336,8 @@ static int ngene_start(struct ngene *dev)
 #ifdef CONFIG_PCI_MSI
 	/* enable MSI if kernel and card support it */
 	if (pci_msi_enabled() && dev->card_info->msi_supported) {
+		unsigned long flags;
+
 		ngwritel(0, NGENE_INT_ENABLE);
 		free_irq(dev->pci_dev->irq, dev);
 		stat = pci_enable_msi(dev->pci_dev);
@@ -1515,7 +1516,7 @@ static int init_channels(struct ngene *dev)
 
 void __devexit ngene_remove(struct pci_dev *pdev)
 {
-	struct ngene *dev = (struct ngene *)pci_get_drvdata(pdev);
+	struct ngene *dev = pci_get_drvdata(pdev);
 	int i;
 
 	tasklet_kill(&dev->event_tasklet);
@@ -1536,12 +1537,11 @@ int __devinit ngene_probe(struct pci_dev *pci_dev,
 	if (pci_enable_device(pci_dev) < 0)
 		return -ENODEV;
 
-	dev = vmalloc(sizeof(struct ngene));
+	dev = vzalloc(sizeof(struct ngene));
 	if (dev == NULL) {
 		stat = -ENOMEM;
 		goto fail0;
 	}
-	memset(dev, 0, sizeof(struct ngene));
 
 	dev->pci_dev = pci_dev;
 	dev->card_info = (struct ngene_info *)id->driver_data;

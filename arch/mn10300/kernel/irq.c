@@ -459,7 +459,7 @@ void migrate_irqs(void)
 			tmp = CROSS_GxICR(irq, new);
 
 			x &= GxICR_LEVEL | GxICR_ENABLE;
-			if (GxICR(irq) & GxICR_REQUEST) {
+			if (GxICR(irq) & GxICR_REQUEST)
 				x |= GxICR_REQUEST | GxICR_DETECT;
 			CROSS_GxICR(irq, new) = x;
 			tmp = CROSS_GxICR(irq, new);

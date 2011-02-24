@@ -516,6 +516,7 @@ int main(int argc, char *argv[])
 			default:
 				fprintf(stderr, "Unknown nla_type %d\n",
 					na->nla_type);
+			case TASKSTATS_TYPE_NULL:
 				break;
 			}
 			na = (struct nlattr *) (GENLMSG_DATA(&msg) + len);

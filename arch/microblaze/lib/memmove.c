@@ -182,7 +182,7 @@ void *memmove(void *v_dst, const void *v_src, __kernel_size_t c)
 			for (; c >= 4; c -= 4) {
 				value = *--i_src;
 				*--i_dst = buf_hold | ((value & 0xFF000000)>> 24);
-				buf_hold = (value & 0xFFFFFF) << 8;;
+				buf_hold = (value & 0xFFFFFF) << 8;
 			}
 #endif
 			/* Realign the source */

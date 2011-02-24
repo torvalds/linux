@@ -37,9 +37,15 @@
 #ifndef __ASM_GNTTAB_H__
 #define __ASM_GNTTAB_H__
 
-#include <asm/xen/hypervisor.h>
+#include <asm/page.h>
+
+#include <xen/interface/xen.h>
 #include <xen/interface/grant_table.h>
+
+#include <asm/xen/hypervisor.h>
 #include <asm/xen/grant_table.h>
+
+#include <xen/features.h>
 
 /* NR_GRANT_FRAMES must be less than or equal to that configured in Xen */
 #define NR_GRANT_FRAMES 4
@@ -107,6 +113,37 @@ void gnttab_grant_foreign_access_ref(grant_ref_t ref, domid_t domid,
 void gnttab_grant_foreign_transfer_ref(grant_ref_t, domid_t domid,
 				       unsigned long pfn);
 
+static inline void
+gnttab_set_map_op(struct gnttab_map_grant_ref *map, phys_addr_t addr,
+		  uint32_t flags, grant_ref_t ref, domid_t domid)
+{
+	if (flags & GNTMAP_contains_pte)
+		map->host_addr = addr;
+	else if (xen_feature(XENFEAT_auto_translated_physmap))
+		map->host_addr = __pa(addr);
+	else
+		map->host_addr = addr;
+
+	map->flags = flags;
+	map->ref = ref;
+	map->dom = domid;
+}
+
+static inline void
+gnttab_set_unmap_op(struct gnttab_unmap_grant_ref *unmap, phys_addr_t addr,
+		    uint32_t flags, grant_handle_t handle)
+{
+	if (flags & GNTMAP_contains_pte)
+		unmap->host_addr = addr;
+	else if (xen_feature(XENFEAT_auto_translated_physmap))
+		unmap->host_addr = __pa(addr);
+	else
+		unmap->host_addr = addr;
+
+	unmap->handle = handle;
+	unmap->dev_bus_addr = 0;
+}
+
 int arch_gnttab_map_shared(unsigned long *frames, unsigned long nr_gframes,
 			   unsigned long max_nr_gframes,
 			   struct grant_entry **__shared);
@@ -117,5 +154,10 @@ extern unsigned long xen_hvm_resume_frames;
 unsigned int gnttab_max_grant_frames(void);
 
 #define gnttab_map_vaddr(map) ((void *)(map.host_virt_addr))
+
+int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
+		    struct page **pages, unsigned int count);
+int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
+		      struct page **pages, unsigned int count);
 
 #endif /* __ASM_GNTTAB_H__ */

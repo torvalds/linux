@@ -546,7 +546,7 @@ static int __init jz4740_gpio_init(void)
 	for (i = 0; i < ARRAY_SIZE(jz4740_gpio_chips); ++i)
 		jz4740_gpio_chip_init(&jz4740_gpio_chips[i], i);
 
-	printk(KERN_INFO "JZ4740 GPIO initalized\n");
+	printk(KERN_INFO "JZ4740 GPIO initialized\n");
 
 	return 0;
 }

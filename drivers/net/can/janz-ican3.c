@@ -1114,11 +1114,6 @@ static bool ican3_txok(struct ican3_dev *mod)
 /*
  * Recieve one CAN frame from the hardware
  *
- * This works like the core of a NAPI function, but is intended to be called
- * from workqueue context instead. This driver already needs a workqueue to
- * process control messages, so we use the workqueue instead of using NAPI.
- * This was done to simplify locking.
- *
  * CONTEXT: must be called from user context
  */
 static int ican3_recv_skb(struct ican3_dev *mod)
@@ -1251,7 +1246,6 @@ static irqreturn_t ican3_irq(int irq, void *dev_id)
  * Reset an ICAN module to its power-on state
  *
  * CONTEXT: no network device registered
- * LOCKING: work function disabled
  */
 static int ican3_reset_module(struct ican3_dev *mod)
 {
@@ -1261,9 +1255,6 @@ static int ican3_reset_module(struct ican3_dev *mod)
 
 	/* disable interrupts so no more work is scheduled */
 	iowrite8(1 << mod->num, &mod->ctrl->int_disable);
-
-	/* flush any pending work */
-	flush_scheduled_work();
 
 	/* the first unallocated page in the DPM is #9 */
 	mod->free_page = DPM_FREE_START;
@@ -1627,7 +1618,7 @@ static ssize_t ican3_sysfs_set_term(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(termination, S_IWUGO | S_IRUGO, ican3_sysfs_show_term,
+static DEVICE_ATTR(termination, S_IWUSR | S_IRUGO, ican3_sysfs_show_term,
 						   ican3_sysfs_set_term);
 
 static struct attribute *ican3_sysfs_attrs[] = {

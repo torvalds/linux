@@ -121,7 +121,7 @@ void __init auxio_power_probe(void)
 	node = prom_searchsiblings(node, "obio");
 	node = prom_getchild(node);
 	node = prom_searchsiblings(node, "power");
-	if (node == 0 || node == -1)
+	if (node == 0 || (s32)node == -1)
 		return;
 
 	/* Map the power control register. */

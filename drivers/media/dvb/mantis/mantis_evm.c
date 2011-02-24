@@ -111,7 +111,7 @@ void mantis_evmgr_exit(struct mantis_ca *ca)
 	struct mantis_pci *mantis = ca->ca_priv;
 
 	dprintk(MANTIS_DEBUG, 1, "Mantis Host I/F Event manager exiting");
-	flush_scheduled_work();
+	flush_work_sync(&ca->hif_evm_work);
 	mantis_hif_exit(ca);
 	mantis_pcmcia_exit(ca);
 }

@@ -49,7 +49,9 @@ This information is subject to change.
 #include <linux/input.h>
 #include <sys/ioctl.h>
 
-unsigned long features[1 + FF_MAX/sizeof(unsigned long)];
+#define BITS_TO_LONGS(x) \
+	(((x) + 8 * sizeof (unsigned long) - 1) / (8 * sizeof (unsigned long)))
+unsigned long features[BITS_TO_LONGS(FF_CNT)];
 int ioctl(int file_descriptor, int request, unsigned long *features);
 
 "request" must be EVIOCGBIT(EV_FF, size of features array in bytes )

@@ -34,8 +34,8 @@
 struct bfa_iocfc_intr_attr_s {
 	u8		coalesce;	/*  enable/disable coalescing */
 	u8		rsvd[3];
-	u16	latency;	/*  latency in microseconds   */
-	u16	delay;		/*  delay in microseconds     */
+	__be16	latency;	/*  latency in microseconds   */
+	__be16	delay;		/*  delay in microseconds     */
 };
 
 /*
@@ -743,7 +743,7 @@ struct bfa_port_cfg_s {
 	u8	 qos_enabled;	/*  qos enabled or not		*/
 	u8	 cfg_hardalpa;	/*  is hard alpa configured	*/
 	u8	 hardalpa;	/*  configured hard alpa	*/
-	u16 maxfrsize;	/*  maximum frame size		*/
+	__be16	 maxfrsize;	/*  maximum frame size		*/
 	u8	 rx_bbcredit;	/*  receive buffer credits	*/
 	u8	 tx_bbcredit;	/*  transmit buffer credits	*/
 	u8	 ratelimit;	/*  ratelimit enabled or not	*/
@@ -843,7 +843,7 @@ struct bfa_fcport_fcf_s {
 	u8	 fka_disabled;   /*  FKA is disabled	  */
 	u8	 maxsz_verified; /*  FCoE max size verified   */
 	u8	 fc_map[3];      /*  FC map		   */
-	u16	vlan;	   /*  FCoE vlan tag/priority   */
+	__be16	 vlan;	   /*  FCoE vlan tag/priority   */
 	u32	fka_adv_per;    /*  FIP  ka advert. period   */
 	mac_t	   mac;	    /*  FCF mac		  */
 };

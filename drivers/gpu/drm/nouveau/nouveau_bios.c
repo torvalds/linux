@@ -1927,7 +1927,7 @@ init_ltime(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	 * offset      (8  bit): opcode
 	 * offset + 1  (16 bit): time
 	 *
-	 * Sleep for "time" miliseconds.
+	 * Sleep for "time" milliseconds.
 	 */
 
 	unsigned time = ROM16(bios->data[offset + 1]);
@@ -1935,7 +1935,7 @@ init_ltime(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	if (!iexec->execute)
 		return 3;
 
-	BIOSLOG(bios, "0x%04X: Sleeping for 0x%04X miliseconds\n",
+	BIOSLOG(bios, "0x%04X: Sleeping for 0x%04X milliseconds\n",
 		offset, time);
 
 	msleep(time);

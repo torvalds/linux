@@ -1599,10 +1599,7 @@ hfsc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	if (cl->qdisc->q.qlen == 1)
 		set_active(cl, qdisc_pkt_len(skb));
 
-	cl->bstats.packets++;
-	cl->bstats.bytes += qdisc_pkt_len(skb);
-	sch->bstats.packets++;
-	sch->bstats.bytes += qdisc_pkt_len(skb);
+	bstats_update(&cl->bstats, skb);
 	sch->q.qlen++;
 
 	return NET_XMIT_SUCCESS;
@@ -1668,6 +1665,7 @@ hfsc_dequeue(struct Qdisc *sch)
 	}
 
 	sch->flags &= ~TCQ_F_THROTTLED;
+	qdisc_bstats_update(sch, skb);
 	sch->q.qlen--;
 
 	return skb;

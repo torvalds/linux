@@ -177,7 +177,7 @@ struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned flags,
 		 * interrupt level will suddenly eat the receive_queue.
 		 *
 		 * Look at current nfs client by the way...
-		 * However, this function was corrent in any case. 8)
+		 * However, this function was correct in any case. 8)
 		 */
 		unsigned long cpu_flags;
 

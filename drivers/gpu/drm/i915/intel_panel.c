@@ -125,15 +125,55 @@ static int is_backlight_combination_mode(struct drm_device *dev)
 	return 0;
 }
 
+static u32 i915_read_blc_pwm_ctl(struct drm_i915_private *dev_priv)
+{
+	u32 val;
+
+	/* Restore the CTL value if it lost, e.g. GPU reset */
+
+	if (HAS_PCH_SPLIT(dev_priv->dev)) {
+		val = I915_READ(BLC_PWM_PCH_CTL2);
+		if (dev_priv->saveBLC_PWM_CTL2 == 0) {
+			dev_priv->saveBLC_PWM_CTL2 = val;
+		} else if (val == 0) {
+			I915_WRITE(BLC_PWM_PCH_CTL2,
+				   dev_priv->saveBLC_PWM_CTL);
+			val = dev_priv->saveBLC_PWM_CTL;
+		}
+	} else {
+		val = I915_READ(BLC_PWM_CTL);
+		if (dev_priv->saveBLC_PWM_CTL == 0) {
+			dev_priv->saveBLC_PWM_CTL = val;
+			dev_priv->saveBLC_PWM_CTL2 = I915_READ(BLC_PWM_CTL2);
+		} else if (val == 0) {
+			I915_WRITE(BLC_PWM_CTL,
+				   dev_priv->saveBLC_PWM_CTL);
+			I915_WRITE(BLC_PWM_CTL2,
+				   dev_priv->saveBLC_PWM_CTL2);
+			val = dev_priv->saveBLC_PWM_CTL;
+		}
+	}
+
+	return val;
+}
+
 u32 intel_panel_get_max_backlight(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 max;
 
+	max = i915_read_blc_pwm_ctl(dev_priv);
+	if (max == 0) {
+		/* XXX add code here to query mode clock or hardware clock
+		 * and program max PWM appropriately.
+		 */
+		printk_once(KERN_WARNING "fixme: max PWM is zero.\n");
+		return 1;
+	}
+
 	if (HAS_PCH_SPLIT(dev)) {
-		max = I915_READ(BLC_PWM_PCH_CTL2) >> 16;
+		max >>= 16;
 	} else {
-		max = I915_READ(BLC_PWM_CTL);
 		if (IS_PINEVIEW(dev)) {
 			max >>= 17;
 		} else {
@@ -144,14 +184,6 @@ u32 intel_panel_get_max_backlight(struct drm_device *dev)
 
 		if (is_backlight_combination_mode(dev))
 			max *= 0xff;
-	}
-
-	if (max == 0) {
-		/* XXX add code here to query mode clock or hardware clock
-		 * and program max PWM appropriately.
-		 */
-		DRM_ERROR("fixme: max PWM is zero.\n");
-		max = 1;
 	}
 
 	DRM_DEBUG_DRIVER("max backlight PWM = %d\n", max);
@@ -217,4 +249,35 @@ void intel_panel_set_backlight(struct drm_device *dev, u32 level)
 	} else
 		tmp &= ~BACKLIGHT_DUTY_CYCLE_MASK;
 	I915_WRITE(BLC_PWM_CTL, tmp | level);
+}
+
+void intel_panel_disable_backlight(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->backlight_enabled) {
+		dev_priv->backlight_level = intel_panel_get_backlight(dev);
+		dev_priv->backlight_enabled = false;
+	}
+
+	intel_panel_set_backlight(dev, 0);
+}
+
+void intel_panel_enable_backlight(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->backlight_level == 0)
+		dev_priv->backlight_level = intel_panel_get_max_backlight(dev);
+
+	intel_panel_set_backlight(dev, dev_priv->backlight_level);
+	dev_priv->backlight_enabled = true;
+}
+
+void intel_panel_setup_backlight(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	dev_priv->backlight_level = intel_panel_get_backlight(dev);
+	dev_priv->backlight_enabled = dev_priv->backlight_level != 0;
 }

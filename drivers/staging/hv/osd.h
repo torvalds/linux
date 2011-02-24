@@ -50,21 +50,17 @@ struct osd_waitevent {
 
 /* Osd routines */
 
-extern void *osd_VirtualAllocExec(unsigned int size);
+extern void *osd_virtual_alloc_exec(unsigned int size);
 
-extern void *osd_PageAlloc(unsigned int count);
-extern void osd_PageFree(void *page, unsigned int count);
+extern void *osd_page_alloc(unsigned int count);
+extern void osd_page_free(void *page, unsigned int count);
 
-extern struct osd_waitevent *osd_WaitEventCreate(void);
-extern void osd_WaitEventSet(struct osd_waitevent *waitEvent);
-extern int osd_WaitEventWait(struct osd_waitevent *waitEvent);
+extern struct osd_waitevent *osd_waitevent_create(void);
+extern void osd_waitevent_set(struct osd_waitevent *wait_event);
+extern int osd_waitevent_wait(struct osd_waitevent *wait_event);
 
-/* If >0, waitEvent got signaled. If ==0, timeout. If < 0, error */
-extern int osd_WaitEventWaitEx(struct osd_waitevent *waitEvent,
-			       u32 TimeoutInMs);
-
-int osd_schedule_callback(struct workqueue_struct *wq,
-			  void (*func)(void *),
-			  void *data);
+/* If >0, wait_event got signaled. If ==0, timeout. If < 0, error */
+extern int osd_waitevent_waitex(struct osd_waitevent *wait_event,
+			       u32 timeout_in_ms);
 
 #endif /* _OSD_H_ */

@@ -195,10 +195,7 @@ static inline void sleep_schedulable(int ms)
 
 static inline u8 *_malloc(u32 sz)
 {
-	u8 *pbuf;
-
-	pbuf =	kmalloc(sz, GFP_ATOMIC);
-	return pbuf;
+	return	kmalloc(sz, GFP_ATOMIC);
 }
 
 static inline unsigned char _cancel_timer_ex(struct timer_list *ptimer)
@@ -220,34 +217,22 @@ static inline void flush_signals_thread(void)
 
 static inline u32 _RND8(u32 sz)
 {
-	u32	val;
-
-	val = ((sz >> 3) + ((sz & 7) ? 1 : 0)) << 3;
-	return val;
+	return ((sz >> 3) + ((sz & 7) ? 1 : 0)) << 3;
 }
 
 static inline u32 _RND128(u32 sz)
 {
-	u32	val;
-
-	val = ((sz >> 7) + ((sz & 127) ? 1 : 0)) << 7;
-	return val;
+	return ((sz >> 7) + ((sz & 127) ? 1 : 0)) << 7;
 }
 
 static inline u32 _RND256(u32 sz)
 {
-	u32	val;
-
-	val = ((sz >> 8) + ((sz & 255) ? 1 : 0)) << 8;
-	return val;
+	return ((sz >> 8) + ((sz & 255) ? 1 : 0)) << 8;
 }
 
 static inline u32 _RND512(u32 sz)
 {
-	u32	val;
-
-	val = ((sz >> 9) + ((sz & 511) ? 1 : 0)) << 9;
-	return val;
+	return ((sz >> 9) + ((sz & 511) ? 1 : 0)) << 9;
 }
 
 #define STRUCT_PACKED __attribute__ ((packed))

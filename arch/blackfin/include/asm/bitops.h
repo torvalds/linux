@@ -108,7 +108,9 @@ static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
 #define smp_mb__before_clear_bit()	barrier()
 #define smp_mb__after_clear_bit()	barrier()
 
+#define test_bit __skip_test_bit
 #include <asm-generic/bitops/non-atomic.h>
+#undef test_bit
 
 #endif /* CONFIG_SMP */
 

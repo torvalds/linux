@@ -335,7 +335,7 @@ out:
 	return ret;
 }
 
-static struct flash_info *__init sst25l_match_device(struct spi_device *spi)
+static struct flash_info *__devinit sst25l_match_device(struct spi_device *spi)
 {
 	struct flash_info *flash_info = NULL;
 	struct spi_message m;
@@ -375,7 +375,7 @@ static struct flash_info *__init sst25l_match_device(struct spi_device *spi)
 	return flash_info;
 }
 
-static int __init sst25l_probe(struct spi_device *spi)
+static int __devinit sst25l_probe(struct spi_device *spi)
 {
 	struct flash_info *flash_info;
 	struct sst25l_flash *flash;

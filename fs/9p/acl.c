@@ -28,7 +28,7 @@ static struct posix_acl *__v9fs_get_acl(struct p9_fid *fid, char *name)
 {
 	ssize_t size;
 	void *value = NULL;
-	struct posix_acl *acl = NULL;;
+	struct posix_acl *acl = NULL;
 
 	size = v9fs_fid_xattr_get(fid, name, NULL, 0);
 	if (size > 0) {
@@ -91,10 +91,13 @@ static struct posix_acl *v9fs_get_cached_acl(struct inode *inode, int type)
 	return acl;
 }
 
-int v9fs_check_acl(struct inode *inode, int mask)
+int v9fs_check_acl(struct inode *inode, int mask, unsigned int flags)
 {
 	struct posix_acl *acl;
 	struct v9fs_session_info *v9ses;
+
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
 
 	v9ses = v9fs_inode2v9ses(inode);
 	if ((v9ses->flags & V9FS_ACCESS_MASK) != V9FS_ACCESS_CLIENT) {
@@ -362,7 +365,7 @@ static int v9fs_xattr_set_acl(struct dentry *dentry, const char *name,
 	case ACL_TYPE_DEFAULT:
 		name = POSIX_ACL_XATTR_DEFAULT;
 		if (!S_ISDIR(inode->i_mode)) {
-			retval = -EINVAL;
+			retval = acl ? -EINVAL : 0;
 			goto err_out;
 		}
 		break;

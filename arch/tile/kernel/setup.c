@@ -840,7 +840,7 @@ static int __init topology_init(void)
 	for_each_online_node(i)
 		register_one_node(i);
 
-	for_each_present_cpu(i)
+	for (i = 0; i < smp_height * smp_width; ++i)
 		register_cpu(&cpu_devices[i], i);
 
 	return 0;

@@ -268,7 +268,7 @@
 
 /* Compatibility Error : IR Disabled */
 #define IR_LOGINFO_COMPAT_ERROR_RAID_DISABLED                  (0x00010030)
-/* Compatibility Error : Inquiry Comand failed */
+/* Compatibility Error : Inquiry Command failed */
 #define IR_LOGINFO_COMPAT_ERROR_INQUIRY_FAILED                 (0x00010031)
 /* Compatibility Error : Device not direct access device */
 #define IR_LOGINFO_COMPAT_ERROR_NOT_DIRECT_ACCESS              (0x00010032)

@@ -199,7 +199,7 @@ static int init_i2c_module(struct i2c_adapter *adapter, const char *type,
 	struct go7007 *go = i2c_get_adapdata(adapter);
 	struct v4l2_device *v4l2_dev = &go->v4l2_dev;
 
-	if (v4l2_i2c_new_subdev(v4l2_dev, adapter, NULL, type, addr, NULL))
+	if (v4l2_i2c_new_subdev(v4l2_dev, adapter, type, addr, NULL))
 		return 0;
 
 	printk(KERN_INFO "go7007: probing for module i2c:%s failed\n", type);
@@ -624,7 +624,7 @@ struct go7007 *go7007_alloc(struct go7007_board_info *board, struct device *dev)
 	go->dvd_mode = 0;
 	go->interlace_coding = 0;
 	for (i = 0; i < 4; ++i)
-		go->modet[i].enable = 0;;
+		go->modet[i].enable = 0;
 	for (i = 0; i < 1624; ++i)
 		go->modet_map[i] = 0;
 	go->audio_deliver = NULL;

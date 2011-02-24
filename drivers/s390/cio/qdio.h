@@ -91,6 +91,12 @@ enum qdio_irq_states {
 #define AC1_SC_QEBSM_AVAILABLE		0x02	/* available for subchannel */
 #define AC1_SC_QEBSM_ENABLED		0x01	/* enabled for subchannel */
 
+/* SIGA flags */
+#define QDIO_SIGA_WRITE		0x00
+#define QDIO_SIGA_READ		0x01
+#define QDIO_SIGA_SYNC		0x02
+#define QDIO_SIGA_QEBSM_FLAG	0x80
+
 #ifdef CONFIG_64BIT
 static inline int do_sqbs(u64 token, unsigned char state, int queue,
 			  int *start, int *count)
@@ -142,10 +148,9 @@ struct siga_flag {
 	u8 input:1;
 	u8 output:1;
 	u8 sync:1;
-	u8 no_sync_ti:1;
-	u8 no_sync_out_ti:1;
-	u8 no_sync_out_pci:1;
-	u8:2;
+	u8 sync_after_ai:1;
+	u8 sync_out_after_pci:1;
+	u8:3;
 } __attribute__ ((packed));
 
 struct chsc_ssqd_area {
@@ -202,6 +207,7 @@ struct qdio_dev_perf_stat {
 	unsigned int inbound_queue_full;
 	unsigned int outbound_call;
 	unsigned int outbound_handler;
+	unsigned int outbound_queue_full;
 	unsigned int fast_requeue;
 	unsigned int target_full;
 	unsigned int eqbs;
@@ -245,10 +251,10 @@ struct qdio_input_q {
 struct qdio_output_q {
 	/* PCIs are enabled for the queue */
 	int pci_out_enabled;
-	/* IQDIO: output multiple buffers (enhanced SIGA) */
-	int use_enh_siga;
 	/* timer to check for more outbound work */
 	struct timer_list timer;
+	/* used SBALs before tasklet schedule */
+	int scan_threshold;
 };
 
 /*
@@ -383,12 +389,13 @@ static inline int multicast_outbound(struct qdio_q *q)
 	(q->irq_ptr->qib.ac & QIB_AC_OUTBOUND_PCI_SUPPORTED)
 #define is_qebsm(q)			(q->irq_ptr->sch_token != 0)
 
-#define need_siga_sync_thinint(q)	(!q->irq_ptr->siga_flag.no_sync_ti)
-#define need_siga_sync_out_thinint(q)	(!q->irq_ptr->siga_flag.no_sync_out_ti)
 #define need_siga_in(q)			(q->irq_ptr->siga_flag.input)
 #define need_siga_out(q)		(q->irq_ptr->siga_flag.output)
-#define need_siga_sync(q)		(q->irq_ptr->siga_flag.sync)
-#define siga_syncs_out_pci(q)		(q->irq_ptr->siga_flag.no_sync_out_pci)
+#define need_siga_sync(q)		(unlikely(q->irq_ptr->siga_flag.sync))
+#define need_siga_sync_after_ai(q)	\
+	(unlikely(q->irq_ptr->siga_flag.sync_after_ai))
+#define need_siga_sync_out_after_pci(q)	\
+	(unlikely(q->irq_ptr->siga_flag.sync_out_after_pci))
 
 #define for_each_input_queue(irq_ptr, q, i)	\
 	for (i = 0, q = irq_ptr->input_qs[0];	\
@@ -423,9 +430,9 @@ struct indicator_t {
 
 extern struct indicator_t *q_indicators;
 
-static inline int shared_ind(struct qdio_irq *irq_ptr)
+static inline int shared_ind(u32 *dsci)
 {
-	return irq_ptr->dsci == &q_indicators[TIQDIO_SHARED_IND].ind;
+	return dsci == &q_indicators[TIQDIO_SHARED_IND].ind;
 }
 
 /* prototypes for thin interrupt */

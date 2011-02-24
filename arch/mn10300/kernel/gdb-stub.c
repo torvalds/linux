@@ -1194,7 +1194,8 @@ static int gdbstub(struct pt_regs *regs, enum exception_code excep)
 
 	asm volatile("mov mdr,%0" : "=d"(mdr));
 	local_save_flags(epsw);
-	local_change_intr_mask_level(NUM2EPSW_IM(CONFIG_GDBSTUB_IRQ_LEVEL + 1));
+	arch_local_change_intr_mask_level(
+		NUM2EPSW_IM(CONFIG_GDBSTUB_IRQ_LEVEL + 1));
 
 	gdbstub_store_fpu();
 

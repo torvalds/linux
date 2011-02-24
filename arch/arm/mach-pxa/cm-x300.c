@@ -857,7 +857,7 @@ static void __init cm_x300_fixup(struct machine_desc *mdesc, struct tag *tags,
 
 MACHINE_START(CM_X300, "CM-X300 module")
 	.boot_params	= 0xa0000100,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa3xx_map_io,
 	.init_irq	= pxa3xx_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= cm_x300_init,

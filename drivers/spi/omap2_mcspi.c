@@ -397,7 +397,7 @@ omap2_mcspi_txrx_dma(struct spi_device *spi, struct spi_transfer *xfer)
 
 	if (tx != NULL) {
 		wait_for_completion(&mcspi_dma->dma_tx_completion);
-		dma_unmap_single(NULL, xfer->tx_dma, count, DMA_TO_DEVICE);
+		dma_unmap_single(&spi->dev, xfer->tx_dma, count, DMA_TO_DEVICE);
 
 		/* for TX_ONLY mode, be sure all words have shifted out */
 		if (rx == NULL) {
@@ -412,7 +412,7 @@ omap2_mcspi_txrx_dma(struct spi_device *spi, struct spi_transfer *xfer)
 
 	if (rx != NULL) {
 		wait_for_completion(&mcspi_dma->dma_rx_completion);
-		dma_unmap_single(NULL, xfer->rx_dma, count, DMA_FROM_DEVICE);
+		dma_unmap_single(&spi->dev, xfer->rx_dma, count, DMA_FROM_DEVICE);
 		omap2_mcspi_set_enable(spi, 0);
 
 		if (l & OMAP2_MCSPI_CHCONF_TURBO) {
@@ -1025,11 +1025,6 @@ static int omap2_mcspi_transfer(struct spi_device *spi, struct spi_message *m)
 		if (m->is_dma_mapped || len < DMA_MIN_BYTES)
 			continue;
 
-		/* Do DMA mapping "early" for better error reporting and
-		 * dcache use.  Note that if dma_unmap_single() ever starts
-		 * to do real work on ARM, we'd need to clean up mappings
-		 * for previous transfers on *ALL* exits of this loop...
-		 */
 		if (tx_buf != NULL) {
 			t->tx_dma = dma_map_single(&spi->dev, (void *) tx_buf,
 					len, DMA_TO_DEVICE);
@@ -1046,7 +1041,7 @@ static int omap2_mcspi_transfer(struct spi_device *spi, struct spi_message *m)
 				dev_dbg(&spi->dev, "dma %cX %d bytes error\n",
 						'R', len);
 				if (tx_buf != NULL)
-					dma_unmap_single(NULL, t->tx_dma,
+					dma_unmap_single(&spi->dev, t->tx_dma,
 							len, DMA_TO_DEVICE);
 				return -EINVAL;
 			}
@@ -1305,10 +1300,49 @@ static int __exit omap2_mcspi_remove(struct platform_device *pdev)
 /* work with hotplug and coldplug */
 MODULE_ALIAS("platform:omap2_mcspi");
 
+#ifdef	CONFIG_SUSPEND
+/*
+ * When SPI wake up from off-mode, CS is in activate state. If it was in
+ * unactive state when driver was suspend, then force it to unactive state at
+ * wake up.
+ */
+static int omap2_mcspi_resume(struct device *dev)
+{
+	struct spi_master	*master = dev_get_drvdata(dev);
+	struct omap2_mcspi	*mcspi = spi_master_get_devdata(master);
+	struct omap2_mcspi_cs *cs;
+
+	omap2_mcspi_enable_clocks(mcspi);
+	list_for_each_entry(cs, &omap2_mcspi_ctx[master->bus_num - 1].cs,
+			    node) {
+		if ((cs->chconf0 & OMAP2_MCSPI_CHCONF_FORCE) == 0) {
+
+			/*
+			 * We need to toggle CS state for OMAP take this
+			 * change in account.
+			 */
+			MOD_REG_BIT(cs->chconf0, OMAP2_MCSPI_CHCONF_FORCE, 1);
+			__raw_writel(cs->chconf0, cs->base + OMAP2_MCSPI_CHCONF0);
+			MOD_REG_BIT(cs->chconf0, OMAP2_MCSPI_CHCONF_FORCE, 0);
+			__raw_writel(cs->chconf0, cs->base + OMAP2_MCSPI_CHCONF0);
+		}
+	}
+	omap2_mcspi_disable_clocks(mcspi);
+	return 0;
+}
+#else
+#define	omap2_mcspi_resume	NULL
+#endif
+
+static const struct dev_pm_ops omap2_mcspi_pm_ops = {
+	.resume = omap2_mcspi_resume,
+};
+
 static struct platform_driver omap2_mcspi_driver = {
 	.driver = {
 		.name =		"omap2_mcspi",
 		.owner =	THIS_MODULE,
+		.pm =		&omap2_mcspi_pm_ops
 	},
 	.remove =	__exit_p(omap2_mcspi_remove),
 };

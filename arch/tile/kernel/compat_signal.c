@@ -290,12 +290,12 @@ long compat_sys_sigaltstack(const struct compat_sigaltstack __user *uss_ptr,
 	return ret;
 }
 
+/* The assembly shim for this function arranges to ignore the return value. */
 long compat_sys_rt_sigreturn(struct pt_regs *regs)
 {
 	struct compat_rt_sigframe __user *frame =
 		(struct compat_rt_sigframe __user *) compat_ptr(regs->sp);
 	sigset_t set;
-	long r0;
 
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
@@ -308,13 +308,13 @@ long compat_sys_rt_sigreturn(struct pt_regs *regs)
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &r0))
+	if (restore_sigcontext(regs, &frame->uc.uc_mcontext))
 		goto badframe;
 
 	if (compat_sys_sigaltstack(&frame->uc.uc_stack, NULL, regs) != 0)
 		goto badframe;
 
-	return r0;
+	return 0;
 
 badframe:
 	force_sig(SIGSEGV, current);

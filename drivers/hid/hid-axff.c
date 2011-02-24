@@ -73,14 +73,14 @@ static int axff_init(struct hid_device *hid)
 	int error;
 
 	if (list_empty(report_list)) {
-		dev_err(&hid->dev, "no output reports found\n");
+		hid_err(hid, "no output reports found\n");
 		return -ENODEV;
 	}
 
 	report = list_first_entry(report_list, struct hid_report, list);
 
 	if (report->maxfield < 4) {
-		dev_err(&hid->dev, "no fields in the report: %d\n", report->maxfield);
+		hid_err(hid, "no fields in the report: %d\n", report->maxfield);
 		return -ENODEV;
 	}
 
@@ -101,7 +101,7 @@ static int axff_init(struct hid_device *hid)
 	axff->report->field[3]->value[0] = 0x00;
 	usbhid_submit_report(hid, axff->report, USB_DIR_OUT);
 
-	dev_info(&hid->dev, "Force Feedback for ACRUX game controllers by Sergei Kolzun<x0r@dv-life.ru>\n");
+	hid_info(hid, "Force Feedback for ACRUX game controllers by Sergei Kolzun<x0r@dv-life.ru>\n");
 
 	return 0;
 
@@ -114,17 +114,17 @@ static int ax_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	int error;
 
-	dev_dbg(&hdev->dev, "ACRUX HID hardware probe...");
+	dev_dbg(&hdev->dev, "ACRUX HID hardware probe...\n");
 
 	error = hid_parse(hdev);
 	if (error) {
-		dev_err(&hdev->dev, "parse failed\n");
+		hid_err(hdev, "parse failed\n");
 		return error;
 	}
 
 	error = hid_hw_start(hdev, HID_CONNECT_DEFAULT & ~HID_CONNECT_FF);
 	if (error) {
-		dev_err(&hdev->dev, "hw start failed\n");
+		hid_err(hdev, "hw start failed\n");
 		return error;
 	}
 
@@ -134,7 +134,7 @@ static int ax_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		 * Do not fail device initialization completely as device
 		 * may still be partially operable, just warn.
 		 */
-		dev_warn(&hdev->dev,
+		hid_warn(hdev,
 			 "Failed to enable force feedback support, error: %d\n",
 			 error);
 	}

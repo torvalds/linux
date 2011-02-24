@@ -866,7 +866,6 @@ static void bfin_gpio_unmask_irq(unsigned int irq)
 	u32 pintbit = PINT_BIT(pint_val);
 	u32 bank = PINT_2_BANK(pint_val);
 
-	pint[bank]->request = pintbit;
 	pint[bank]->mask_set = pintbit;
 }
 

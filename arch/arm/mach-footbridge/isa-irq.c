@@ -30,61 +30,61 @@
 
 #include "common.h"
 
-static void isa_mask_pic_lo_irq(unsigned int irq)
+static void isa_mask_pic_lo_irq(struct irq_data *d)
 {
-	unsigned int mask = 1 << (irq & 7);
+	unsigned int mask = 1 << (d->irq & 7);
 
 	outb(inb(PIC_MASK_LO) | mask, PIC_MASK_LO);
 }
 
-static void isa_ack_pic_lo_irq(unsigned int irq)
+static void isa_ack_pic_lo_irq(struct irq_data *d)
 {
-	unsigned int mask = 1 << (irq & 7);
+	unsigned int mask = 1 << (d->irq & 7);
 
 	outb(inb(PIC_MASK_LO) | mask, PIC_MASK_LO);
 	outb(0x20, PIC_LO);
 }
 
-static void isa_unmask_pic_lo_irq(unsigned int irq)
+static void isa_unmask_pic_lo_irq(struct irq_data *d)
 {
-	unsigned int mask = 1 << (irq & 7);
+	unsigned int mask = 1 << (d->irq & 7);
 
 	outb(inb(PIC_MASK_LO) & ~mask, PIC_MASK_LO);
 }
 
 static struct irq_chip isa_lo_chip = {
-	.ack	= isa_ack_pic_lo_irq,
-	.mask	= isa_mask_pic_lo_irq,
-	.unmask = isa_unmask_pic_lo_irq,
+	.irq_ack	= isa_ack_pic_lo_irq,
+	.irq_mask	= isa_mask_pic_lo_irq,
+	.irq_unmask	= isa_unmask_pic_lo_irq,
 };
 
-static void isa_mask_pic_hi_irq(unsigned int irq)
+static void isa_mask_pic_hi_irq(struct irq_data *d)
 {
-	unsigned int mask = 1 << (irq & 7);
+	unsigned int mask = 1 << (d->irq & 7);
 
 	outb(inb(PIC_MASK_HI) | mask, PIC_MASK_HI);
 }
 
-static void isa_ack_pic_hi_irq(unsigned int irq)
+static void isa_ack_pic_hi_irq(struct irq_data *d)
 {
-	unsigned int mask = 1 << (irq & 7);
+	unsigned int mask = 1 << (d->irq & 7);
 
 	outb(inb(PIC_MASK_HI) | mask, PIC_MASK_HI);
 	outb(0x62, PIC_LO);
 	outb(0x20, PIC_HI);
 }
 
-static void isa_unmask_pic_hi_irq(unsigned int irq)
+static void isa_unmask_pic_hi_irq(struct irq_data *d)
 {
-	unsigned int mask = 1 << (irq & 7);
+	unsigned int mask = 1 << (d->irq & 7);
 
 	outb(inb(PIC_MASK_HI) & ~mask, PIC_MASK_HI);
 }
 
 static struct irq_chip isa_hi_chip = {
-	.ack	= isa_ack_pic_hi_irq,
-	.mask	= isa_mask_pic_hi_irq,
-	.unmask = isa_unmask_pic_hi_irq,
+	.irq_ack	= isa_ack_pic_hi_irq,
+	.irq_mask	= isa_mask_pic_hi_irq,
+	.irq_unmask	= isa_unmask_pic_hi_irq,
 };
 
 static void

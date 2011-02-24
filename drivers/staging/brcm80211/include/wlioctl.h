@@ -33,82 +33,9 @@
 #define BWL_DEFAULT_PACKING
 #include <packed_section_start.h>
 
-/* Legacy structure to help keep backward compatible wl tool and tray app */
-
-#define	LEGACY_WL_BSS_INFO_VERSION	107	/* older version of wl_bss_info struct */
-
-typedef struct wl_bss_info_107 {
-	u32 version;		/* version field */
-	u32 length;		/* byte length of data in this record,
-				 * starting at version and including IEs
-				 */
-	struct ether_addr BSSID;
-	u16 beacon_period;	/* units are Kusec */
-	u16 capability;	/* Capability information */
-	u8 SSID_len;
-	u8 SSID[32];
-	struct {
-		uint count;	/* # rates in this set */
-		u8 rates[16];	/* rates in 500kbps units w/hi bit set if basic */
-	} rateset;		/* supported rates */
-	u8 channel;		/* Channel no. */
-	u16 atim_window;	/* units are Kusec */
-	u8 dtim_period;	/* DTIM period */
-	s16 RSSI;		/* receive signal strength (in dBm) */
-	s8 phy_noise;		/* noise (in dBm) */
-	u32 ie_length;	/* byte length of Information Elements */
-	/* variable length Information Elements */
-} wl_bss_info_107_t;
-
-/*
- * Per-BSS information structure.
- */
-
-#define	LEGACY2_WL_BSS_INFO_VERSION	108	/* old version of wl_bss_info struct */
-
-/* BSS info structure
- * Applications MUST CHECK ie_offset field and length field to access IEs and
- * next bss_info structure in a vector (in wl_scan_results_t)
- */
-typedef struct wl_bss_info_108 {
-	u32 version;		/* version field */
-	u32 length;		/* byte length of data in this record,
-				 * starting at version and including IEs
-				 */
-	struct ether_addr BSSID;
-	u16 beacon_period;	/* units are Kusec */
-	u16 capability;	/* Capability information */
-	u8 SSID_len;
-	u8 SSID[32];
-	struct {
-		uint count;	/* # rates in this set */
-		u8 rates[16];	/* rates in 500kbps units w/hi bit set if basic */
-	} rateset;		/* supported rates */
-	chanspec_t chanspec;	/* chanspec for bss */
-	u16 atim_window;	/* units are Kusec */
-	u8 dtim_period;	/* DTIM period */
-	s16 RSSI;		/* receive signal strength (in dBm) */
-	s8 phy_noise;		/* noise (in dBm) */
-
-	u8 n_cap;		/* BSS is 802.11N Capable */
-	u32 nbss_cap;	/* 802.11N BSS Capabilities (based on HT_CAP_*) */
-	u8 ctl_ch;		/* 802.11N BSS control channel number */
-	u32 reserved32[1];	/* Reserved for expansion of BSS properties */
-	u8 flags;		/* flags */
-	u8 reserved[3];	/* Reserved for expansion of BSS properties */
-	u8 basic_mcs[MCSSET_LEN];	/* 802.11N BSS required MCS set */
-
-	u16 ie_offset;	/* offset at which IEs start, from beginning */
-	u32 ie_length;	/* byte length of Information Elements */
-	/* Add new fields here */
-	/* variable length Information Elements */
-} wl_bss_info_108_t;
-
 #ifdef BRCM_FULLMAC
+
 #define	WL_BSS_INFO_VERSION	108	/* current ver of wl_bss_info struct */
-#else
-#define	WL_BSS_INFO_VERSION	109	/* current ver of wl_bss_info struct */
-#endif
 
 /* BSS info structure
  * Applications MUST CHECK ie_offset field and length field to access IEs and
@@ -148,12 +75,14 @@ typedef struct wl_bss_info {
 	/* Add new fields here */
 	/* variable length Information Elements */
 } wl_bss_info_t;
+#endif /* BRCM_FULLMAC */
 
 typedef struct wlc_ssid {
 	u32 SSID_len;
 	unsigned char SSID[32];
 } wlc_ssid_t;
 
+#ifdef BRCM_FULLMAC
 typedef struct chan_scandata {
 	u8 txpower;
 	u8 pad;
@@ -308,6 +237,7 @@ typedef struct wl_probe_params {
 	struct ether_addr bssid;
 	struct ether_addr mac;
 } wl_probe_params_t;
+#endif /* BRCM_FULLMAC */
 
 #define WL_NUMRATES		16	/* max # of rates in a rateset */
 typedef struct wl_rateset {
@@ -315,6 +245,7 @@ typedef struct wl_rateset {
 	u8 rates[WL_NUMRATES];	/* rates in 500kbps units w/hi bit set if basic */
 } wl_rateset_t;
 
+#ifdef BRCM_FULLMAC
 typedef struct wl_rateset_args {
 	u32 count;		/* # rates in this set */
 	u8 rates[WL_NUMRATES];	/* rates in 500kbps units w/hi bit set if basic */
@@ -351,6 +282,8 @@ typedef struct wl_join_params {
 					 */
 } wl_join_params_t;
 #define WL_JOIN_PARAMS_FIXED_SIZE 	(sizeof(wl_join_params_t) - sizeof(chanspec_t))
+
+#endif /* BRCM_FULLMAC */
 
 /* defines used by the nrate iovar */
 #define NRATE_MCS_INUSE	0x00000080	/* MSC in use,indicates b0-6 holds an mcs */
@@ -391,6 +324,7 @@ typedef struct {
 
 #define HIGHEST_SINGLE_STREAM_MCS	7	/* MCS values greater than this enable multiple streams */
 
+#ifdef BRCM_FULLMAC
 #define MAX_CCA_CHANNELS 38	/* Max number of 20 Mhz wide channels */
 #define MAX_CCA_SECS     60	/* CCA keeps this many seconds history */
 
@@ -428,8 +362,11 @@ typedef struct {
 	cca_congest_t secs[1];	/* Data */
 } cca_congest_channel_req_t;
 
+#endif /* BRCM_FULLMAC */
+
 #define WLC_CNTRY_BUF_SZ	4	/* Country string is 3 bytes + NUL */
 
+#ifdef BRCM_FULLMAC
 typedef struct wl_country {
 	char country_abbrev[WLC_CNTRY_BUF_SZ];	/* nul-terminated country code used in
 						 * the Country IE
@@ -516,6 +453,7 @@ typedef struct wl_rm_rep {
 	wl_rm_rep_elt_t rep[1];	/* variable length block of reports */
 } wl_rm_rep_t;
 #define WL_RM_REP_FIXED_LEN	8
+#endif /* BRCM_FULLMAC */
 
 /* Enumerate crypto algorithms */
 #define	CRYPTO_ALGO_OFF			0
@@ -621,28 +559,6 @@ typedef struct wl_led_info {
 	u8 activehi;
 } wl_led_info_t;
 
-/* flags */
-#define WLC_ASSOC_REQ_IS_REASSOC 0x01	/* assoc req was actually a reassoc */
-
-/* srom read/write struct passed through ioctl */
-typedef struct {
-	uint byteoff;		/* byte offset */
-	uint nbytes;		/* number of bytes */
-	u16 buf[1];
-} srom_rw_t;
-
-/* similar cis (srom or otp) struct [iovar: may not be aligned] */
-typedef struct {
-	u32 source;		/* cis source */
-	u32 byteoff;		/* byte offset */
-	u32 nbytes;		/* number of bytes */
-	/* data follows here */
-} cis_rw_t;
-
-#define WLC_CIS_DEFAULT	0	/* built-in default */
-#define WLC_CIS_SROM	1	/* source is sprom */
-#define WLC_CIS_OTP	2	/* source is otp */
-
 /* R_REG and W_REG struct passed through ioctl */
 typedef struct {
 	u32 byteoff;		/* byte offset of the field in d11regs_t */
@@ -651,102 +567,14 @@ typedef struct {
 	uint band;		/* band (optional) */
 } rw_reg_t;
 
-/* Structure used by GET/SET_ATTEN ioctls - it controls power in b/g-band */
-/* PCL - Power Control Loop */
-/* current gain setting is replaced by user input */
-#define WL_ATTEN_APP_INPUT_PCL_OFF	0	/* turn off PCL, apply supplied input */
-#define WL_ATTEN_PCL_ON			1	/* turn on PCL */
-/* current gain setting is maintained */
-#define WL_ATTEN_PCL_OFF		2	/* turn off PCL. */
 
-typedef struct {
-	u16 auto_ctrl;	/* WL_ATTEN_XX */
-	u16 bb;		/* Baseband attenuation */
-	u16 radio;		/* Radio attenuation */
-	u16 txctl1;		/* Radio TX_CTL1 value */
-} atten_t;
-
-/* Per-AC retry parameters */
-struct wme_tx_params_s {
-	u8 short_retry;
-	u8 short_fallback;
-	u8 long_retry;
-	u8 long_fallback;
-	u16 max_rate;	/* In units of 512 Kbps */
-};
-
-typedef struct wme_tx_params_s wme_tx_params_t;
-
-#define WL_WME_TX_PARAMS_IO_BYTES (sizeof(wme_tx_params_t) * AC_COUNT)
-
-/* defines used by poweridx iovar - it controls power in a-band */
-/* current gain setting is maintained */
-#define WL_PWRIDX_PCL_OFF	-2	/* turn off PCL.  */
-#define WL_PWRIDX_PCL_ON	-1	/* turn on PCL */
-#define WL_PWRIDX_LOWER_LIMIT	-2	/* lower limit */
-#define WL_PWRIDX_UPPER_LIMIT	63	/* upper limit */
-/* value >= 0 causes
- *	- input to be set to that value
- *	- PCL to be off
- */
-
-/* Used to get specific link/ac parameters */
-typedef struct {
-	int ac;
-	u8 val;
-	struct ether_addr ea;
-} link_val_t;
-
-#define BCM_MAC_STATUS_INDICATION	(0x40010200L)
-
-typedef struct {
-	u16 ver;		/* version of this struct */
-	u16 len;		/* length in bytes of this structure */
-	u16 cap;		/* sta's advertised capabilities */
-	u32 flags;		/* flags defined below */
-	u32 idle;		/* time since data pkt rx'd from sta */
-	struct ether_addr ea;	/* Station address */
-	wl_rateset_t rateset;	/* rateset in use */
-	u32 in;		/* seconds elapsed since associated */
-	u32 listen_interval_inms;	/* Min Listen interval in ms for this STA */
-	u32 tx_pkts;		/* # of packets transmitted */
-	u32 tx_failures;	/* # of packets failed */
-	u32 rx_ucast_pkts;	/* # of unicast packets received */
-	u32 rx_mcast_pkts;	/* # of multicast packets received */
-	u32 tx_rate;		/* Rate of last successful tx frame */
-	u32 rx_rate;		/* Rate of last successful rx frame */
-	u32 rx_decrypt_succeeds;	/* # of packet decrypted successfully */
-	u32 rx_decrypt_failures;	/* # of packet decrypted unsuccessfully */
-} sta_info_t;
-
-#define WL_OLD_STAINFO_SIZE	offsetof(sta_info_t, tx_pkts)
-
-#define WL_STA_VER		3
-
-/* Flags for sta_info_t indicating properties of STA */
-#define WL_STA_BRCM		0x1	/* Running a Broadcom driver */
-#define WL_STA_WME		0x2	/* WMM association */
-#define WL_STA_ABCAP		0x4
-#define WL_STA_AUTHE		0x8	/* Authenticated */
-#define WL_STA_ASSOC		0x10	/* Associated */
-#define WL_STA_AUTHO		0x20	/* Authorized */
-#define WL_STA_WDS		0x40	/* Wireless Distribution System */
-#define WL_STA_WDS_LINKUP	0x80	/* WDS traffic/probes flowing properly */
-#define WL_STA_PS		0x100	/* STA is in power save mode from AP's viewpoint */
-#define WL_STA_APSD_BE		0x200	/* APSD delv/trigger for AC_BE is default enabled */
-#define WL_STA_APSD_BK		0x400	/* APSD delv/trigger for AC_BK is default enabled */
-#define WL_STA_APSD_VI		0x800	/* APSD delv/trigger for AC_VI is default enabled */
-#define WL_STA_APSD_VO		0x1000	/* APSD delv/trigger for AC_VO is default enabled */
-#define WL_STA_N_CAP		0x2000	/* STA 802.11n capable */
-#define WL_STA_SCBSTATS		0x4000	/* Per STA debug stats */
-
-#define WL_WDS_LINKUP		WL_STA_WDS_LINKUP	/* deprecated */
-
+#ifdef BRCM_FULLMAC
 /* Used to get specific STA parameters */
 typedef struct {
 	u32 val;
 	struct ether_addr ea;
 } scb_val_t;
+#endif /* BRCM_FULLMAC */
 
 /* channel encoding */
 typedef struct channel_info {
@@ -770,6 +598,7 @@ typedef struct get_pktcnt {
 	uint rx_ocast_good_pkt;	/* unicast packets destined for others */
 } get_pktcnt_t;
 
+#ifdef BRCM_FULLMAC
 /* Linux network driver ioctl encoding */
 typedef struct wl_ioctl {
 	uint cmd;		/* common ioctl definition */
@@ -779,11 +608,8 @@ typedef struct wl_ioctl {
 	uint used;		/* bytes read or written (optional) */
 	uint needed;		/* bytes needed (optional) */
 } wl_ioctl_t;
+#endif /* BRCM_FULLMAC */
 
-/* reference to wl_ioctl_t struct used by usermode driver */
-#define ioctl_subtype	set	/* subtype param */
-#define ioctl_pid	used	/* pid param */
-#define ioctl_status	needed	/* status param */
 
 /*
  * Structure for passing hardware and software
@@ -810,45 +636,11 @@ typedef struct wlc_rev_info {
 
 #define WL_REV_INFO_LEGACY_LENGTH	48
 
-#define WL_BRAND_MAX 10
-typedef struct wl_instance_info {
-	uint instance;
-	char brand[WL_BRAND_MAX];
-} wl_instance_info_t;
-
-/* structure to change size of tx fifo */
-typedef struct wl_txfifo_sz {
-	u16 magic;
-	u16 fifo;
-	u16 size;
-} wl_txfifo_sz_t;
-/* magic pattern used for mismatch driver and wl */
-#define WL_TXFIFO_SZ_MAGIC	0xa5a5
-
-/* Transfer info about an IOVar from the driver */
-/* Max supported IOV name size in bytes, + 1 for nul termination */
-#define WLC_IOV_NAME_LEN 30
-typedef struct wlc_iov_trx_s {
-	u8 module;
-	u8 type;
-	char name[WLC_IOV_NAME_LEN];
-} wlc_iov_trx_t;
-
-/* check this magic number */
-#define WLC_IOCTL_MAGIC		0x14e46c77
-
-#define PROC_ENTRY_NAME "brcm_debug"
-/* bump this number if you change the ioctl interface */
-#define WLC_IOCTL_VERSION	1
-
 #ifdef BRCM_FULLMAC
-#define	WLC_IOCTL_MAXLEN	8192
-#else
-#define	WLC_IOCTL_MAXLEN		3072	/* max length ioctl buffer required */
-#endif
 #define	WLC_IOCTL_SMLEN			256	/* "small" length ioctl buffer required */
 #define WLC_IOCTL_MEDLEN		1536	/* "med" length ioctl buffer required */
-#define WLC_SAMPLECOLLECT_MAXLEN	10240	/* Max Sample Collect buffer for two cores */
+#define	WLC_IOCTL_MAXLEN	8192
+#endif
 
 /* common ioctl definitions */
 #define WLC_GET_MAGIC				0
@@ -1399,23 +1191,6 @@ typedef struct {
 #define WL_TX_POWER_MCS40_FIRST	        28
 #define WL_TX_POWER_MCS40_NUM	        17
 
-typedef struct {
-	u32 flags;
-	chanspec_t chanspec;	/* txpwr report for this channel */
-	chanspec_t local_chanspec;	/* channel on which we are associated */
-	u8 local_max;	/* local max according to the AP */
-	u8 local_constraint;	/* local constraint according to the AP */
-	s8 antgain[2];	/* Ant gain for each band - from SROM */
-	u8 rf_cores;		/* count of RF Cores being reported */
-	u8 est_Pout[4];	/* Latest tx power out estimate per RF
-				 * chain without adjustment
-				 */
-	u8 est_Pout_cck;	/* Latest CCK tx power out estimate */
-	u8 user_limit[WL_TX_POWER_RATES_LEGACY];	/* User limit */
-	u8 reg_limit[WL_TX_POWER_RATES_LEGACY];	/* Regulatory power limit */
-	u8 board_limit[WL_TX_POWER_RATES_LEGACY];	/* Max power board can support (SROM) */
-	u8 target[WL_TX_POWER_RATES_LEGACY];	/* Latest target power */
-} tx_power_legacy2_t;
 
 #define WL_TX_POWER_RATES	       101
 #define WL_TX_POWER_CCK_FIRST	       0
@@ -1848,63 +1623,6 @@ struct ampdu_retry_tid {
 	u8 retry;		/* retry value */
 };
 
-/* structure for addts arguments */
-/* For ioctls that take a list of TSPEC */
-struct tslist {
-	int count;		/* number of tspecs */
-	struct tsinfo_arg tsinfo[1];	/* variable length array of tsinfo */
-};
-
-/* structure for addts/delts arguments */
-typedef struct tspec_arg {
-	u16 version;		/* see definition of TSPEC_ARG_VERSION */
-	u16 length;		/* length of entire structure */
-	uint flag;		/* bit field */
-	/* TSPEC Arguments */
-	struct tsinfo_arg tsinfo;	/* TS Info bit field */
-	u16 nom_msdu_size;	/* (Nominal or fixed) MSDU Size (bytes) */
-	u16 max_msdu_size;	/* Maximum MSDU Size (bytes) */
-	uint min_srv_interval;	/* Minimum Service Interval (us) */
-	uint max_srv_interval;	/* Maximum Service Interval (us) */
-	uint inactivity_interval;	/* Inactivity Interval (us) */
-	uint suspension_interval;	/* Suspension Interval (us) */
-	uint srv_start_time;	/* Service Start Time (us) */
-	uint min_data_rate;	/* Minimum Data Rate (bps) */
-	uint mean_data_rate;	/* Mean Data Rate (bps) */
-	uint peak_data_rate;	/* Peak Data Rate (bps) */
-	uint max_burst_size;	/* Maximum Burst Size (bytes) */
-	uint delay_bound;	/* Delay Bound (us) */
-	uint min_phy_rate;	/* Minimum PHY Rate (bps) */
-	u16 surplus_bw;	/* Surplus Bandwidth Allowance (range 1.0 to 8.0) */
-	u16 medium_time;	/* Medium Time (32 us/s periods) */
-	u8 dialog_token;	/* dialog token */
-} tspec_arg_t;
-
-/* tspec arg for desired station */
-typedef struct tspec_per_sta_arg {
-	struct ether_addr ea;
-	struct tspec_arg ts;
-} tspec_per_sta_arg_t;
-
-/* structure for max bandwidth for each access category */
-typedef struct wme_max_bandwidth {
-	u32 ac[AC_COUNT];	/* max bandwidth for each access category */
-} wme_max_bandwidth_t;
-
-#define WL_WME_MBW_PARAMS_IO_BYTES (sizeof(wme_max_bandwidth_t))
-
-/* current version of wl_tspec_arg_t struct */
-#define	TSPEC_ARG_VERSION		2	/* current version of wl_tspec_arg_t struct */
-#define TSPEC_ARG_LENGTH		55	/* argument length from tsinfo to medium_time */
-#define TSPEC_DEFAULT_DIALOG_TOKEN	42	/* default dialog token */
-#define TSPEC_DEFAULT_SBW_FACTOR	0x3000	/* default surplus bw */
-
-/* define for flag */
-#define TSPEC_PENDING		0	/* TSPEC pending */
-#define TSPEC_ACCEPTED		1	/* TSPEC accepted */
-#define TSPEC_REJECTED		2	/* TSPEC rejected */
-#define TSPEC_UNKNOWN		3	/* TSPEC unknown */
-#define TSPEC_STATUS_MASK	7	/* TSPEC status mask */
 
 /* Software feature flag defines used by wlfeatureflag */
 #define WL_SWFL_NOHWRADIO	0x0004
@@ -1913,16 +1631,6 @@ typedef struct wme_max_bandwidth {
 
 #define WL_LIFETIME_MAX 0xFFFF	/* Max value in ms */
 
-/*
- * Dongle pattern matching filter.
- */
-
-/* Packet filter types. Currently, only pattern matching is supported. */
-typedef enum wl_pkt_filter_type {
-	WL_PKT_FILTER_TYPE_PATTERN_MATCH	/* Pattern matching filter */
-} wl_pkt_filter_type_t;
-
-#define WL_PKT_FILTER_TYPE wl_pkt_filter_type_t
 
 /* Pattern matching filter. Specifies an offset within received packets to
  * start matching, the pattern to match, the size of the pattern, and a bitmask
@@ -1957,20 +1665,6 @@ typedef struct wl_pkt_filter_enable {
 	u32 enable;		/* Enable/disable bool */
 } wl_pkt_filter_enable_t;
 
-/* IOVAR "pkt_filter_list" parameter. Used to retrieve a list of installed filters. */
-typedef struct wl_pkt_filter_list {
-	u32 num;		/* Number of installed packet filters */
-	wl_pkt_filter_t filter[1];	/* Variable array of packet filters. */
-} wl_pkt_filter_list_t;
-
-#define WL_PKT_FILTER_LIST_FIXED_LEN	  offsetof(wl_pkt_filter_list_t, filter)
-
-/* IOVAR "pkt_filter_stats" parameter. Used to retrieve debug statistics. */
-typedef struct wl_pkt_filter_stats {
-	u32 num_pkts_matched;	/* # filter matches for specified filter id */
-	u32 num_pkts_forwarded;	/* # packets fwded from dongle to host for all filters */
-	u32 num_pkts_discarded;	/* # packets discarded by dongle for all filters */
-} wl_pkt_filter_stats_t;
 
 #define	WLC_RSSI_INVALID	 0	/* invalid RSSI value */
 

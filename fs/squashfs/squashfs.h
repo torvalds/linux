@@ -27,11 +27,6 @@
 
 #define WARNING(s, args...)	pr_warning("SQUASHFS: "s, ## args)
 
-static inline struct squashfs_inode_info *squashfs_i(struct inode *inode)
-{
-	return list_entry(inode, struct squashfs_inode_info, vfs_inode);
-}
-
 /* block.c */
 extern int squashfs_read_data(struct super_block *, void **, u64, int, u64 *,
 				int, int);
@@ -104,6 +99,3 @@ extern const struct xattr_handler *squashfs_xattr_handlers[];
 
 /* zlib_wrapper.c */
 extern const struct squashfs_decompressor squashfs_zlib_comp_ops;
-
-/* lzo_wrapper.c */
-extern const struct squashfs_decompressor squashfs_lzo_comp_ops;

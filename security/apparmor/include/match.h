@@ -15,6 +15,7 @@
 #ifndef __AA_MATCH_H
 #define __AA_MATCH_H
 
+#include <linux/kref.h>
 #include <linux/workqueue.h>
 
 #define DFA_NOMATCH			0
@@ -27,7 +28,7 @@
  * The format used for transition tables is based on the GNU flex table
  * file format (--tables-file option; see Table File Format in the flex
  * info pages and the flex sources for documentation). The magic number
- * used in the header is 0x1B5E783D insted of 0xF13C57B1 though, because
+ * used in the header is 0x1B5E783D instead of 0xF13C57B1 though, because
  * the YY_ID_CHK (check) and YY_ID_DEF (default) tables are used
  * slightly differently (see the apparmor-parser package).
  */

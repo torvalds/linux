@@ -29,7 +29,7 @@
 /* Returns TRUE, if the radio is enabled in hardware. */
 bool b43legacy_is_hw_radio_enabled(struct b43legacy_wldev *dev)
 {
-	if (dev->phy.rev >= 3) {
+	if (dev->dev->id.revision >= 3) {
 		if (!(b43legacy_read32(dev, B43legacy_MMIO_RADIO_HWENABLED_HI)
 		      & B43legacy_MMIO_RADIO_HWENABLED_HI_MASK))
 			return 1;

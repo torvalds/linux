@@ -26,25 +26,6 @@
  * IOC local definitions
  */
 
-#define bfa_ioc_timer_start(__ioc)					\
-	mod_timer(&(__ioc)->ioc_timer, jiffies +	\
-			msecs_to_jiffies(BFA_IOC_TOV))
-#define bfa_ioc_timer_stop(__ioc)   del_timer(&(__ioc)->ioc_timer)
-
-#define bfa_ioc_recovery_timer_start(__ioc)				\
-	mod_timer(&(__ioc)->ioc_timer, jiffies +	\
-			msecs_to_jiffies(BFA_IOC_TOV_RECOVER))
-
-#define bfa_sem_timer_start(__ioc)					\
-	mod_timer(&(__ioc)->sem_timer, jiffies +	\
-			msecs_to_jiffies(BFA_IOC_HWSEM_TOV))
-#define bfa_sem_timer_stop(__ioc)	del_timer(&(__ioc)->sem_timer)
-
-#define bfa_hb_timer_start(__ioc)					\
-	mod_timer(&(__ioc)->hb_timer, jiffies +		\
-			msecs_to_jiffies(BFA_IOC_HB_TOV))
-#define bfa_hb_timer_stop(__ioc)	del_timer(&(__ioc)->hb_timer)
-
 /**
  * Asic specific macros : see bfa_hw_cb.c and bfa_hw_ct.c for details.
  */
@@ -55,11 +36,16 @@
 			((__ioc)->ioc_hwif->ioc_firmware_unlock(__ioc))
 #define bfa_ioc_reg_init(__ioc) ((__ioc)->ioc_hwif->ioc_reg_init(__ioc))
 #define bfa_ioc_map_port(__ioc) ((__ioc)->ioc_hwif->ioc_map_port(__ioc))
-#define bfa_ioc_notify_hbfail(__ioc)			\
-			((__ioc)->ioc_hwif->ioc_notify_hbfail(__ioc))
-
-#define bfa_ioc_is_optrom(__ioc)	\
-	(bfa_cb_image_get_size(BFA_IOC_FWIMG_TYPE(__ioc)) < BFA_IOC_FWIMG_MINSZ)
+#define bfa_ioc_notify_fail(__ioc)			\
+			((__ioc)->ioc_hwif->ioc_notify_fail(__ioc))
+#define bfa_ioc_sync_join(__ioc)			\
+			((__ioc)->ioc_hwif->ioc_sync_join(__ioc))
+#define bfa_ioc_sync_leave(__ioc)			\
+			((__ioc)->ioc_hwif->ioc_sync_leave(__ioc))
+#define bfa_ioc_sync_ack(__ioc)				\
+			((__ioc)->ioc_hwif->ioc_sync_ack(__ioc))
+#define bfa_ioc_sync_complete(__ioc)			\
+			((__ioc)->ioc_hwif->ioc_sync_complete(__ioc))
 
 #define bfa_ioc_mbox_cmd_pending(__ioc)		\
 			(!list_empty(&((__ioc)->mbox_mod.cmd_q)) || \
@@ -85,6 +71,12 @@ static void bfa_ioc_recover(struct bfa_ioc *ioc);
 static void bfa_ioc_check_attr_wwns(struct bfa_ioc *ioc);
 static void bfa_ioc_disable_comp(struct bfa_ioc *ioc);
 static void bfa_ioc_lpu_stop(struct bfa_ioc *ioc);
+static void bfa_ioc_fail_notify(struct bfa_ioc *ioc);
+static void bfa_ioc_pf_enabled(struct bfa_ioc *ioc);
+static void bfa_ioc_pf_disabled(struct bfa_ioc *ioc);
+static void bfa_ioc_pf_initfailed(struct bfa_ioc *ioc);
+static void bfa_ioc_pf_failed(struct bfa_ioc *ioc);
+static void bfa_ioc_pf_fwmismatch(struct bfa_ioc *ioc);
 static void bfa_ioc_boot(struct bfa_ioc *ioc, u32 boot_type,
 			 u32 boot_param);
 static u32 bfa_ioc_smem_pgnum(struct bfa_ioc *ioc, u32 fmaddr);
@@ -101,52 +93,154 @@ static void bfa_ioc_get_adapter_manufacturer(struct bfa_ioc *ioc,
 						char *manufacturer);
 static void bfa_ioc_get_adapter_model(struct bfa_ioc *ioc, char *model);
 static u64 bfa_ioc_get_pwwn(struct bfa_ioc *ioc);
-static mac_t bfa_ioc_get_mfg_mac(struct bfa_ioc *ioc);
 
 /**
- * IOC state machine events
+ * IOC state machine definitions/declarations
  */
 enum ioc_event {
-	IOC_E_ENABLE		= 1,	/*!< IOC enable request		*/
-	IOC_E_DISABLE		= 2,	/*!< IOC disable request	*/
-	IOC_E_TIMEOUT		= 3,	/*!< f/w response timeout	*/
-	IOC_E_FWREADY		= 4,	/*!< f/w initialization done	*/
-	IOC_E_FWRSP_GETATTR	= 5,	/*!< IOC get attribute response	*/
-	IOC_E_FWRSP_ENABLE	= 6,	/*!< enable f/w response	*/
-	IOC_E_FWRSP_DISABLE	= 7,	/*!< disable f/w response	*/
-	IOC_E_HBFAIL		= 8,	/*!< heartbeat failure		*/
-	IOC_E_HWERROR		= 9,	/*!< hardware error interrupt	*/
-	IOC_E_SEMLOCKED		= 10,	/*!< h/w semaphore is locked	*/
-	IOC_E_DETACH		= 11,	/*!< driver detach cleanup	*/
+	IOC_E_RESET		= 1,	/*!< IOC reset request		*/
+	IOC_E_ENABLE		= 2,	/*!< IOC enable request		*/
+	IOC_E_DISABLE		= 3,	/*!< IOC disable request	*/
+	IOC_E_DETACH		= 4,	/*!< driver detach cleanup	*/
+	IOC_E_ENABLED		= 5,	/*!< f/w enabled		*/
+	IOC_E_FWRSP_GETATTR	= 6,	/*!< IOC get attribute response	*/
+	IOC_E_DISABLED		= 7,	/*!< f/w disabled		*/
+	IOC_E_INITFAILED	= 8,	/*!< failure notice by iocpf sm	*/
+	IOC_E_PFAILED		= 9,	/*!< failure notice by iocpf sm	*/
+	IOC_E_HBFAIL		= 10,	/*!< heartbeat failure		*/
+	IOC_E_HWERROR		= 11,	/*!< hardware error interrupt	*/
+	IOC_E_TIMEOUT		= 12,	/*!< timeout			*/
 };
 
+bfa_fsm_state_decl(bfa_ioc, uninit, struct bfa_ioc, enum ioc_event);
 bfa_fsm_state_decl(bfa_ioc, reset, struct bfa_ioc, enum ioc_event);
-bfa_fsm_state_decl(bfa_ioc, fwcheck, struct bfa_ioc, enum ioc_event);
-bfa_fsm_state_decl(bfa_ioc, mismatch, struct bfa_ioc, enum ioc_event);
-bfa_fsm_state_decl(bfa_ioc, semwait, struct bfa_ioc, enum ioc_event);
-bfa_fsm_state_decl(bfa_ioc, hwinit, struct bfa_ioc, enum ioc_event);
 bfa_fsm_state_decl(bfa_ioc, enabling, struct bfa_ioc, enum ioc_event);
 bfa_fsm_state_decl(bfa_ioc, getattr, struct bfa_ioc, enum ioc_event);
 bfa_fsm_state_decl(bfa_ioc, op, struct bfa_ioc, enum ioc_event);
-bfa_fsm_state_decl(bfa_ioc, initfail, struct bfa_ioc, enum ioc_event);
-bfa_fsm_state_decl(bfa_ioc, hbfail, struct bfa_ioc, enum ioc_event);
+bfa_fsm_state_decl(bfa_ioc, fail_retry, struct bfa_ioc, enum ioc_event);
+bfa_fsm_state_decl(bfa_ioc, fail, struct bfa_ioc, enum ioc_event);
 bfa_fsm_state_decl(bfa_ioc, disabling, struct bfa_ioc, enum ioc_event);
 bfa_fsm_state_decl(bfa_ioc, disabled, struct bfa_ioc, enum ioc_event);
 
 static struct bfa_sm_table ioc_sm_table[] = {
+	{BFA_SM(bfa_ioc_sm_uninit), BFA_IOC_UNINIT},
 	{BFA_SM(bfa_ioc_sm_reset), BFA_IOC_RESET},
-	{BFA_SM(bfa_ioc_sm_fwcheck), BFA_IOC_FWMISMATCH},
-	{BFA_SM(bfa_ioc_sm_mismatch), BFA_IOC_FWMISMATCH},
-	{BFA_SM(bfa_ioc_sm_semwait), BFA_IOC_SEMWAIT},
-	{BFA_SM(bfa_ioc_sm_hwinit), BFA_IOC_HWINIT},
-	{BFA_SM(bfa_ioc_sm_enabling), BFA_IOC_HWINIT},
+	{BFA_SM(bfa_ioc_sm_enabling), BFA_IOC_ENABLING},
 	{BFA_SM(bfa_ioc_sm_getattr), BFA_IOC_GETATTR},
 	{BFA_SM(bfa_ioc_sm_op), BFA_IOC_OPERATIONAL},
-	{BFA_SM(bfa_ioc_sm_initfail), BFA_IOC_INITFAIL},
-	{BFA_SM(bfa_ioc_sm_hbfail), BFA_IOC_HBFAIL},
+	{BFA_SM(bfa_ioc_sm_fail_retry), BFA_IOC_INITFAIL},
+	{BFA_SM(bfa_ioc_sm_fail), BFA_IOC_FAIL},
 	{BFA_SM(bfa_ioc_sm_disabling), BFA_IOC_DISABLING},
 	{BFA_SM(bfa_ioc_sm_disabled), BFA_IOC_DISABLED},
 };
+
+/**
+ * IOCPF state machine definitions/declarations
+ */
+
+/*
+ * Forward declareations for iocpf state machine
+ */
+static void bfa_iocpf_enable(struct bfa_ioc *ioc);
+static void bfa_iocpf_disable(struct bfa_ioc *ioc);
+static void bfa_iocpf_fail(struct bfa_ioc *ioc);
+static void bfa_iocpf_initfail(struct bfa_ioc *ioc);
+static void bfa_iocpf_getattrfail(struct bfa_ioc *ioc);
+static void bfa_iocpf_stop(struct bfa_ioc *ioc);
+
+/**
+ * IOCPF state machine events
+ */
+enum iocpf_event {
+	IOCPF_E_ENABLE		= 1,	/*!< IOCPF enable request	*/
+	IOCPF_E_DISABLE		= 2,	/*!< IOCPF disable request	*/
+	IOCPF_E_STOP		= 3,	/*!< stop on driver detach	*/
+	IOCPF_E_FWREADY	 	= 4,	/*!< f/w initialization done	*/
+	IOCPF_E_FWRSP_ENABLE	= 5,	/*!< enable f/w response	*/
+	IOCPF_E_FWRSP_DISABLE	= 6,	/*!< disable f/w response	*/
+	IOCPF_E_FAIL		= 7,	/*!< failure notice by ioc sm	*/
+	IOCPF_E_INITFAIL	= 8,	/*!< init fail notice by ioc sm	*/
+	IOCPF_E_GETATTRFAIL	= 9,	/*!< init fail notice by ioc sm	*/
+	IOCPF_E_SEMLOCKED	= 10,   /*!< h/w semaphore is locked	*/
+	IOCPF_E_TIMEOUT		= 11,   /*!< f/w response timeout	*/
+};
+
+/**
+ * IOCPF states
+ */
+enum bfa_iocpf_state {
+	BFA_IOCPF_RESET		= 1,	/*!< IOC is in reset state */
+	BFA_IOCPF_SEMWAIT	= 2,	/*!< Waiting for IOC h/w semaphore */
+	BFA_IOCPF_HWINIT	= 3,	/*!< IOC h/w is being initialized */
+	BFA_IOCPF_READY		= 4,	/*!< IOCPF is initialized */
+	BFA_IOCPF_INITFAIL	= 5,	/*!< IOCPF failed */
+	BFA_IOCPF_FAIL		= 6,	/*!< IOCPF failed */
+	BFA_IOCPF_DISABLING	= 7,	/*!< IOCPF is being disabled */
+	BFA_IOCPF_DISABLED	= 8,	/*!< IOCPF is disabled */
+	BFA_IOCPF_FWMISMATCH	= 9,	/*!< IOC f/w different from drivers */
+};
+
+bfa_fsm_state_decl(bfa_iocpf, reset, struct bfa_iocpf, enum iocpf_event);
+bfa_fsm_state_decl(bfa_iocpf, fwcheck, struct bfa_iocpf, enum iocpf_event);
+bfa_fsm_state_decl(bfa_iocpf, mismatch, struct bfa_iocpf, enum iocpf_event);
+bfa_fsm_state_decl(bfa_iocpf, semwait, struct bfa_iocpf, enum iocpf_event);
+bfa_fsm_state_decl(bfa_iocpf, hwinit, struct bfa_iocpf, enum iocpf_event);
+bfa_fsm_state_decl(bfa_iocpf, enabling, struct bfa_iocpf, enum iocpf_event);
+bfa_fsm_state_decl(bfa_iocpf, ready, struct bfa_iocpf, enum iocpf_event);
+bfa_fsm_state_decl(bfa_iocpf, initfail_sync, struct bfa_iocpf,
+						enum iocpf_event);
+bfa_fsm_state_decl(bfa_iocpf, initfail, struct bfa_iocpf, enum iocpf_event);
+bfa_fsm_state_decl(bfa_iocpf, fail_sync, struct bfa_iocpf, enum iocpf_event);
+bfa_fsm_state_decl(bfa_iocpf, fail, struct bfa_iocpf, enum iocpf_event);
+bfa_fsm_state_decl(bfa_iocpf, disabling, struct bfa_iocpf, enum iocpf_event);
+bfa_fsm_state_decl(bfa_iocpf, disabling_sync, struct bfa_iocpf,
+						enum iocpf_event);
+bfa_fsm_state_decl(bfa_iocpf, disabled, struct bfa_iocpf, enum iocpf_event);
+
+static struct bfa_sm_table iocpf_sm_table[] = {
+	{BFA_SM(bfa_iocpf_sm_reset), BFA_IOCPF_RESET},
+	{BFA_SM(bfa_iocpf_sm_fwcheck), BFA_IOCPF_FWMISMATCH},
+	{BFA_SM(bfa_iocpf_sm_mismatch), BFA_IOCPF_FWMISMATCH},
+	{BFA_SM(bfa_iocpf_sm_semwait), BFA_IOCPF_SEMWAIT},
+	{BFA_SM(bfa_iocpf_sm_hwinit), BFA_IOCPF_HWINIT},
+	{BFA_SM(bfa_iocpf_sm_enabling), BFA_IOCPF_HWINIT},
+	{BFA_SM(bfa_iocpf_sm_ready), BFA_IOCPF_READY},
+	{BFA_SM(bfa_iocpf_sm_initfail_sync), BFA_IOCPF_INITFAIL},
+	{BFA_SM(bfa_iocpf_sm_initfail), BFA_IOCPF_INITFAIL},
+	{BFA_SM(bfa_iocpf_sm_fail_sync), BFA_IOCPF_FAIL},
+	{BFA_SM(bfa_iocpf_sm_fail), BFA_IOCPF_FAIL},
+	{BFA_SM(bfa_iocpf_sm_disabling), BFA_IOCPF_DISABLING},
+	{BFA_SM(bfa_iocpf_sm_disabling_sync), BFA_IOCPF_DISABLING},
+	{BFA_SM(bfa_iocpf_sm_disabled), BFA_IOCPF_DISABLED},
+};
+
+/**
+ * IOC State Machine
+ */
+
+/**
+ * Beginning state. IOC uninit state.
+ */
+static void
+bfa_ioc_sm_uninit_entry(struct bfa_ioc *ioc)
+{
+}
+
+/**
+ * IOC is in uninit state.
+ */
+static void
+bfa_ioc_sm_uninit(struct bfa_ioc *ioc, enum ioc_event event)
+{
+	switch (event) {
+	case IOC_E_RESET:
+		bfa_fsm_set_state(ioc, bfa_ioc_sm_reset);
+		break;
+
+	default:
+		bfa_sm_fault(ioc, event);
+	}
+}
 
 /**
  * Reset entry actions -- initialize state machine
@@ -154,19 +248,18 @@ static struct bfa_sm_table ioc_sm_table[] = {
 static void
 bfa_ioc_sm_reset_entry(struct bfa_ioc *ioc)
 {
-	ioc->retry_count = 0;
-	ioc->auto_recover = bfa_nw_auto_recover;
+	bfa_fsm_set_state(&ioc->iocpf, bfa_iocpf_sm_reset);
 }
 
 /**
- * Beginning state. IOC is in reset state.
+ * IOC is in reset state.
  */
 static void
 bfa_ioc_sm_reset(struct bfa_ioc *ioc, enum ioc_event event)
 {
 	switch (event) {
 	case IOC_E_ENABLE:
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_fwcheck);
+		bfa_fsm_set_state(ioc, bfa_ioc_sm_enabling);
 		break;
 
 	case IOC_E_DISABLE:
@@ -174,6 +267,51 @@ bfa_ioc_sm_reset(struct bfa_ioc *ioc, enum ioc_event event)
 		break;
 
 	case IOC_E_DETACH:
+		bfa_fsm_set_state(ioc, bfa_ioc_sm_uninit);
+		break;
+
+	default:
+		bfa_sm_fault(ioc, event);
+	}
+}
+
+static void
+bfa_ioc_sm_enabling_entry(struct bfa_ioc *ioc)
+{
+	bfa_iocpf_enable(ioc);
+}
+
+/**
+ * Host IOC function is being enabled, awaiting response from firmware.
+ * Semaphore is acquired.
+ */
+static void
+bfa_ioc_sm_enabling(struct bfa_ioc *ioc, enum ioc_event event)
+{
+	switch (event) {
+	case IOC_E_ENABLED:
+		bfa_fsm_set_state(ioc, bfa_ioc_sm_getattr);
+		break;
+
+	case IOC_E_PFAILED:
+		/* !!! fall through !!! */
+	case IOC_E_HWERROR:
+		ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_IOC_FAILURE);
+		bfa_fsm_set_state(ioc, bfa_ioc_sm_fail_retry);
+		if (event != IOC_E_PFAILED)
+			bfa_iocpf_initfail(ioc);
+		break;
+
+	case IOC_E_DISABLE:
+		bfa_fsm_set_state(ioc, bfa_ioc_sm_disabling);
+		break;
+
+	case IOC_E_DETACH:
+		bfa_fsm_set_state(ioc, bfa_ioc_sm_uninit);
+		bfa_iocpf_stop(ioc);
+		break;
+
+	case IOC_E_ENABLE:
 		break;
 
 	default:
@@ -185,229 +323,14 @@ bfa_ioc_sm_reset(struct bfa_ioc *ioc, enum ioc_event event)
  * Semaphore should be acquired for version check.
  */
 static void
-bfa_ioc_sm_fwcheck_entry(struct bfa_ioc *ioc)
-{
-	bfa_ioc_hw_sem_get(ioc);
-}
-
-/**
- * Awaiting h/w semaphore to continue with version check.
- */
-static void
-bfa_ioc_sm_fwcheck(struct bfa_ioc *ioc, enum ioc_event event)
-{
-	switch (event) {
-	case IOC_E_SEMLOCKED:
-		if (bfa_ioc_firmware_lock(ioc)) {
-			ioc->retry_count = 0;
-			bfa_fsm_set_state(ioc, bfa_ioc_sm_hwinit);
-		} else {
-			bfa_nw_ioc_hw_sem_release(ioc);
-			bfa_fsm_set_state(ioc, bfa_ioc_sm_mismatch);
-		}
-		break;
-
-	case IOC_E_DISABLE:
-		bfa_ioc_disable_comp(ioc);
-		/* fall through */
-
-	case IOC_E_DETACH:
-		bfa_ioc_hw_sem_get_cancel(ioc);
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_reset);
-		break;
-
-	case IOC_E_FWREADY:
-		break;
-
-	default:
-		bfa_sm_fault(ioc, event);
-	}
-}
-
-/**
- * Notify enable completion callback and generate mismatch AEN.
- */
-static void
-bfa_ioc_sm_mismatch_entry(struct bfa_ioc *ioc)
-{
-	/**
-	 * Provide enable completion callback and AEN notification only once.
-	 */
-	if (ioc->retry_count == 0)
-		ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_IOC_FAILURE);
-	ioc->retry_count++;
-	bfa_ioc_timer_start(ioc);
-}
-
-/**
- * Awaiting firmware version match.
- */
-static void
-bfa_ioc_sm_mismatch(struct bfa_ioc *ioc, enum ioc_event event)
-{
-	switch (event) {
-	case IOC_E_TIMEOUT:
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_fwcheck);
-		break;
-
-	case IOC_E_DISABLE:
-		bfa_ioc_disable_comp(ioc);
-		/* fall through */
-
-	case IOC_E_DETACH:
-		bfa_ioc_timer_stop(ioc);
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_reset);
-		break;
-
-	case IOC_E_FWREADY:
-		break;
-
-	default:
-		bfa_sm_fault(ioc, event);
-	}
-}
-
-/**
- * Request for semaphore.
- */
-static void
-bfa_ioc_sm_semwait_entry(struct bfa_ioc *ioc)
-{
-	bfa_ioc_hw_sem_get(ioc);
-}
-
-/**
- * Awaiting semaphore for h/w initialzation.
- */
-static void
-bfa_ioc_sm_semwait(struct bfa_ioc *ioc, enum ioc_event event)
-{
-	switch (event) {
-	case IOC_E_SEMLOCKED:
-		ioc->retry_count = 0;
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_hwinit);
-		break;
-
-	case IOC_E_DISABLE:
-		bfa_ioc_hw_sem_get_cancel(ioc);
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_disabled);
-		break;
-
-	default:
-		bfa_sm_fault(ioc, event);
-	}
-}
-
-static void
-bfa_ioc_sm_hwinit_entry(struct bfa_ioc *ioc)
-{
-	bfa_ioc_timer_start(ioc);
-	bfa_ioc_reset(ioc, false);
-}
-
-/**
- * @brief
- * Hardware is being initialized. Interrupts are enabled.
- * Holding hardware semaphore lock.
- */
-static void
-bfa_ioc_sm_hwinit(struct bfa_ioc *ioc, enum ioc_event event)
-{
-	switch (event) {
-	case IOC_E_FWREADY:
-		bfa_ioc_timer_stop(ioc);
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_enabling);
-		break;
-
-	case IOC_E_HWERROR:
-		bfa_ioc_timer_stop(ioc);
-		/* fall through */
-
-	case IOC_E_TIMEOUT:
-		ioc->retry_count++;
-		if (ioc->retry_count < BFA_IOC_HWINIT_MAX) {
-			bfa_ioc_timer_start(ioc);
-			bfa_ioc_reset(ioc, true);
-			break;
-		}
-
-		bfa_nw_ioc_hw_sem_release(ioc);
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_initfail);
-		break;
-
-	case IOC_E_DISABLE:
-		bfa_nw_ioc_hw_sem_release(ioc);
-		bfa_ioc_timer_stop(ioc);
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_disabled);
-		break;
-
-	default:
-		bfa_sm_fault(ioc, event);
-	}
-}
-
-static void
-bfa_ioc_sm_enabling_entry(struct bfa_ioc *ioc)
-{
-	bfa_ioc_timer_start(ioc);
-	bfa_ioc_send_enable(ioc);
-}
-
-/**
- * Host IOC function is being enabled, awaiting response from firmware.
- * Semaphore is acquired.
- */
-static void
-bfa_ioc_sm_enabling(struct bfa_ioc *ioc, enum ioc_event event)
-{
-	switch (event) {
-	case IOC_E_FWRSP_ENABLE:
-		bfa_ioc_timer_stop(ioc);
-		bfa_nw_ioc_hw_sem_release(ioc);
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_getattr);
-		break;
-
-	case IOC_E_HWERROR:
-		bfa_ioc_timer_stop(ioc);
-		/* fall through */
-
-	case IOC_E_TIMEOUT:
-		ioc->retry_count++;
-		if (ioc->retry_count < BFA_IOC_HWINIT_MAX) {
-			writel(BFI_IOC_UNINIT,
-				      ioc->ioc_regs.ioc_fwstate);
-			bfa_fsm_set_state(ioc, bfa_ioc_sm_hwinit);
-			break;
-		}
-
-		bfa_nw_ioc_hw_sem_release(ioc);
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_initfail);
-		break;
-
-	case IOC_E_DISABLE:
-		bfa_ioc_timer_stop(ioc);
-		bfa_nw_ioc_hw_sem_release(ioc);
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_disabled);
-		break;
-
-	case IOC_E_FWREADY:
-		bfa_ioc_send_enable(ioc);
-		break;
-
-	default:
-		bfa_sm_fault(ioc, event);
-	}
-}
-
-static void
 bfa_ioc_sm_getattr_entry(struct bfa_ioc *ioc)
 {
-	bfa_ioc_timer_start(ioc);
+	mod_timer(&ioc->ioc_timer, jiffies +
+		msecs_to_jiffies(BFA_IOC_TOV));
 	bfa_ioc_send_getattr(ioc);
 }
 
 /**
- * @brief
  * IOC configuration in progress. Timer is active.
  */
 static void
@@ -415,22 +338,28 @@ bfa_ioc_sm_getattr(struct bfa_ioc *ioc, enum ioc_event event)
 {
 	switch (event) {
 	case IOC_E_FWRSP_GETATTR:
-		bfa_ioc_timer_stop(ioc);
+		del_timer(&ioc->ioc_timer);
 		bfa_ioc_check_attr_wwns(ioc);
 		bfa_fsm_set_state(ioc, bfa_ioc_sm_op);
 		break;
 
+	case IOC_E_PFAILED:
 	case IOC_E_HWERROR:
-		bfa_ioc_timer_stop(ioc);
+		del_timer(&ioc->ioc_timer);
 		/* fall through */
-
 	case IOC_E_TIMEOUT:
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_initfail);
+		ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_IOC_FAILURE);
+		bfa_fsm_set_state(ioc, bfa_ioc_sm_fail_retry);
+		if (event != IOC_E_PFAILED)
+			bfa_iocpf_getattrfail(ioc);
 		break;
 
 	case IOC_E_DISABLE:
-		bfa_ioc_timer_stop(ioc);
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_disabled);
+		del_timer(&ioc->ioc_timer);
+		bfa_fsm_set_state(ioc, bfa_ioc_sm_disabling);
+		break;
+
+	case IOC_E_ENABLE:
 		break;
 
 	default:
@@ -457,17 +386,19 @@ bfa_ioc_sm_op(struct bfa_ioc *ioc, enum ioc_event event)
 		bfa_fsm_set_state(ioc, bfa_ioc_sm_disabling);
 		break;
 
+	case IOC_E_PFAILED:
 	case IOC_E_HWERROR:
-	case IOC_E_FWREADY:
-		/**
-		 * Hard error or IOC recovery by other function.
-		 * Treat it same as heartbeat failure.
-		 */
 		bfa_ioc_hb_stop(ioc);
 		/* !!! fall through !!! */
-
 	case IOC_E_HBFAIL:
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_hbfail);
+		bfa_ioc_fail_notify(ioc);
+		if (ioc->iocpf.auto_recover)
+			bfa_fsm_set_state(ioc, bfa_ioc_sm_fail_retry);
+		else
+			bfa_fsm_set_state(ioc, bfa_ioc_sm_fail);
+
+		if (event != IOC_E_PFAILED)
+			bfa_iocpf_fail(ioc);
 		break;
 
 	default:
@@ -478,31 +409,27 @@ bfa_ioc_sm_op(struct bfa_ioc *ioc, enum ioc_event event)
 static void
 bfa_ioc_sm_disabling_entry(struct bfa_ioc *ioc)
 {
-	bfa_ioc_timer_start(ioc);
-	bfa_ioc_send_disable(ioc);
+	bfa_iocpf_disable(ioc);
 }
 
 /**
- * IOC is being disabled
+ * IOC is being desabled
  */
 static void
 bfa_ioc_sm_disabling(struct bfa_ioc *ioc, enum ioc_event event)
 {
 	switch (event) {
-	case IOC_E_FWRSP_DISABLE:
-		bfa_ioc_timer_stop(ioc);
+	case IOC_E_DISABLED:
 		bfa_fsm_set_state(ioc, bfa_ioc_sm_disabled);
 		break;
 
 	case IOC_E_HWERROR:
-		bfa_ioc_timer_stop(ioc);
 		/*
-		 * !!! fall through !!!
+		 * No state change.  Will move to disabled state
+		 * after iocpf sm completes failure processing and
+		 * moves to disabled state.
 		 */
-
-	case IOC_E_TIMEOUT:
-		writel(BFI_IOC_FAIL, ioc->ioc_regs.ioc_fwstate);
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_disabled);
+		bfa_iocpf_fail(ioc);
 		break;
 
 	default:
@@ -511,7 +438,7 @@ bfa_ioc_sm_disabling(struct bfa_ioc *ioc, enum ioc_event event)
 }
 
 /**
- * IOC disable completion entry.
+ * IOC desable completion entry.
  */
 static void
 bfa_ioc_sm_disabled_entry(struct bfa_ioc *ioc)
@@ -524,19 +451,16 @@ bfa_ioc_sm_disabled(struct bfa_ioc *ioc, enum ioc_event event)
 {
 	switch (event) {
 	case IOC_E_ENABLE:
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_semwait);
+		bfa_fsm_set_state(ioc, bfa_ioc_sm_enabling);
 		break;
 
 	case IOC_E_DISABLE:
 		ioc->cbfn->disable_cbfn(ioc->bfa);
 		break;
 
-	case IOC_E_FWREADY:
-		break;
-
 	case IOC_E_DETACH:
-		bfa_ioc_firmware_unlock(ioc);
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_reset);
+		bfa_fsm_set_state(ioc, bfa_ioc_sm_uninit);
+		bfa_iocpf_stop(ioc);
 		break;
 
 	default:
@@ -545,33 +469,45 @@ bfa_ioc_sm_disabled(struct bfa_ioc *ioc, enum ioc_event event)
 }
 
 static void
-bfa_ioc_sm_initfail_entry(struct bfa_ioc *ioc)
+bfa_ioc_sm_fail_retry_entry(struct bfa_ioc *ioc)
 {
-	ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_IOC_FAILURE);
-	bfa_ioc_timer_start(ioc);
 }
 
 /**
- * @brief
- * Hardware initialization failed.
+ * Hardware initialization retry.
  */
 static void
-bfa_ioc_sm_initfail(struct bfa_ioc *ioc, enum ioc_event event)
+bfa_ioc_sm_fail_retry(struct bfa_ioc *ioc, enum ioc_event event)
 {
 	switch (event) {
+	case IOC_E_ENABLED:
+		bfa_fsm_set_state(ioc, bfa_ioc_sm_getattr);
+		break;
+
+	case IOC_E_PFAILED:
+	case IOC_E_HWERROR:
+		/**
+		 * Initialization retry failed.
+		 */
+		ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_IOC_FAILURE);
+		if (event != IOC_E_PFAILED)
+			bfa_iocpf_initfail(ioc);
+		break;
+
+	case IOC_E_INITFAILED:
+		bfa_fsm_set_state(ioc, bfa_ioc_sm_fail);
+		break;
+
+	case IOC_E_ENABLE:
+		break;
+
 	case IOC_E_DISABLE:
-		bfa_ioc_timer_stop(ioc);
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_disabled);
+		bfa_fsm_set_state(ioc, bfa_ioc_sm_disabling);
 		break;
 
 	case IOC_E_DETACH:
-		bfa_ioc_timer_stop(ioc);
-		bfa_ioc_firmware_unlock(ioc);
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_reset);
-		break;
-
-	case IOC_E_TIMEOUT:
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_semwait);
+		bfa_fsm_set_state(ioc, bfa_ioc_sm_uninit);
+		bfa_iocpf_stop(ioc);
 		break;
 
 	default:
@@ -580,80 +516,605 @@ bfa_ioc_sm_initfail(struct bfa_ioc *ioc, enum ioc_event event)
 }
 
 static void
-bfa_ioc_sm_hbfail_entry(struct bfa_ioc *ioc)
+bfa_ioc_sm_fail_entry(struct bfa_ioc *ioc)
 {
-	struct list_head			*qe;
-	struct bfa_ioc_hbfail_notify *notify;
-
-	/**
-	 * Mark IOC as failed in hardware and stop firmware.
-	 */
-	bfa_ioc_lpu_stop(ioc);
-	writel(BFI_IOC_FAIL, ioc->ioc_regs.ioc_fwstate);
-
-	/**
-	 * Notify other functions on HB failure.
-	 */
-	bfa_ioc_notify_hbfail(ioc);
-
-	/**
-	 * Notify driver and common modules registered for notification.
-	 */
-	ioc->cbfn->hbfail_cbfn(ioc->bfa);
-	list_for_each(qe, &ioc->hb_notify_q) {
-		notify = (struct bfa_ioc_hbfail_notify *) qe;
-		notify->cbfn(notify->cbarg);
-	}
-
-	/**
-	 * Flush any queued up mailbox requests.
-	 */
-	bfa_ioc_mbox_hbfail(ioc);
-
-	/**
-	 * Trigger auto-recovery after a delay.
-	 */
-	if (ioc->auto_recover)
-		mod_timer(&ioc->ioc_timer, jiffies +
-			msecs_to_jiffies(BFA_IOC_TOV_RECOVER));
 }
 
 /**
- * @brief
- * IOC heartbeat failure.
+ * IOC failure.
  */
 static void
-bfa_ioc_sm_hbfail(struct bfa_ioc *ioc, enum ioc_event event)
+bfa_ioc_sm_fail(struct bfa_ioc *ioc, enum ioc_event event)
 {
 	switch (event) {
-
 	case IOC_E_ENABLE:
 		ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_IOC_FAILURE);
 		break;
 
 	case IOC_E_DISABLE:
-		if (ioc->auto_recover)
-			bfa_ioc_timer_stop(ioc);
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_disabled);
+		bfa_fsm_set_state(ioc, bfa_ioc_sm_disabling);
 		break;
 
-	case IOC_E_TIMEOUT:
-		bfa_fsm_set_state(ioc, bfa_ioc_sm_semwait);
-		break;
-
-	case IOC_E_FWREADY:
-		/**
-		 * Recovery is already initiated by other function.
-		 */
+	case IOC_E_DETACH:
+		bfa_fsm_set_state(ioc, bfa_ioc_sm_uninit);
+		bfa_iocpf_stop(ioc);
 		break;
 
 	case IOC_E_HWERROR:
-		/*
-		 * HB failure notification, ignore.
-		 */
+		/* HB failure notification, ignore. */
 		break;
+
 	default:
 		bfa_sm_fault(ioc, event);
+	}
+}
+
+/**
+ * IOCPF State Machine
+ */
+
+/**
+ * Reset entry actions -- initialize state machine
+ */
+static void
+bfa_iocpf_sm_reset_entry(struct bfa_iocpf *iocpf)
+{
+	iocpf->retry_count = 0;
+	iocpf->auto_recover = bfa_nw_auto_recover;
+}
+
+/**
+ * Beginning state. IOC is in reset state.
+ */
+static void
+bfa_iocpf_sm_reset(struct bfa_iocpf *iocpf, enum iocpf_event event)
+{
+	switch (event) {
+	case IOCPF_E_ENABLE:
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_fwcheck);
+		break;
+
+	case IOCPF_E_STOP:
+		break;
+
+	default:
+		bfa_sm_fault(iocpf->ioc, event);
+	}
+}
+
+/**
+ * Semaphore should be acquired for version check.
+ */
+static void
+bfa_iocpf_sm_fwcheck_entry(struct bfa_iocpf *iocpf)
+{
+	bfa_ioc_hw_sem_get(iocpf->ioc);
+}
+
+/**
+ * Awaiting h/w semaphore to continue with version check.
+ */
+static void
+bfa_iocpf_sm_fwcheck(struct bfa_iocpf *iocpf, enum iocpf_event event)
+{
+	struct bfa_ioc *ioc = iocpf->ioc;
+
+	switch (event) {
+	case IOCPF_E_SEMLOCKED:
+		if (bfa_ioc_firmware_lock(ioc)) {
+			if (bfa_ioc_sync_complete(ioc)) {
+				iocpf->retry_count = 0;
+				bfa_ioc_sync_join(ioc);
+				bfa_fsm_set_state(iocpf, bfa_iocpf_sm_hwinit);
+			} else {
+				bfa_ioc_firmware_unlock(ioc);
+				bfa_nw_ioc_hw_sem_release(ioc);
+				mod_timer(&ioc->sem_timer, jiffies +
+					msecs_to_jiffies(BFA_IOC_HWSEM_TOV));
+			}
+		} else {
+			bfa_nw_ioc_hw_sem_release(ioc);
+			bfa_fsm_set_state(iocpf, bfa_iocpf_sm_mismatch);
+		}
+		break;
+
+	case IOCPF_E_DISABLE:
+		bfa_ioc_hw_sem_get_cancel(ioc);
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_reset);
+		bfa_ioc_pf_disabled(ioc);
+		break;
+
+	case IOCPF_E_STOP:
+		bfa_ioc_hw_sem_get_cancel(ioc);
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_reset);
+		break;
+
+	default:
+		bfa_sm_fault(ioc, event);
+	}
+}
+
+/**
+ * Notify enable completion callback
+ */
+static void
+bfa_iocpf_sm_mismatch_entry(struct bfa_iocpf *iocpf)
+{
+	/* Call only the first time sm enters fwmismatch state. */
+	if (iocpf->retry_count == 0)
+		bfa_ioc_pf_fwmismatch(iocpf->ioc);
+
+	iocpf->retry_count++;
+	mod_timer(&(iocpf->ioc)->iocpf_timer, jiffies +
+		msecs_to_jiffies(BFA_IOC_TOV));
+}
+
+/**
+ * Awaiting firmware version match.
+ */
+static void
+bfa_iocpf_sm_mismatch(struct bfa_iocpf *iocpf, enum iocpf_event event)
+{
+	struct bfa_ioc *ioc = iocpf->ioc;
+
+	switch (event) {
+	case IOCPF_E_TIMEOUT:
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_fwcheck);
+		break;
+
+	case IOCPF_E_DISABLE:
+		del_timer(&ioc->iocpf_timer);
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_reset);
+		bfa_ioc_pf_disabled(ioc);
+		break;
+
+	case IOCPF_E_STOP:
+		del_timer(&ioc->iocpf_timer);
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_reset);
+		break;
+
+	default:
+		bfa_sm_fault(ioc, event);
+	}
+}
+
+/**
+ * Request for semaphore.
+ */
+static void
+bfa_iocpf_sm_semwait_entry(struct bfa_iocpf *iocpf)
+{
+	bfa_ioc_hw_sem_get(iocpf->ioc);
+}
+
+/**
+ * Awaiting semaphore for h/w initialzation.
+ */
+static void
+bfa_iocpf_sm_semwait(struct bfa_iocpf *iocpf, enum iocpf_event event)
+{
+	struct bfa_ioc *ioc = iocpf->ioc;
+
+	switch (event) {
+	case IOCPF_E_SEMLOCKED:
+		if (bfa_ioc_sync_complete(ioc)) {
+			bfa_ioc_sync_join(ioc);
+			bfa_fsm_set_state(iocpf, bfa_iocpf_sm_hwinit);
+		} else {
+			bfa_nw_ioc_hw_sem_release(ioc);
+			mod_timer(&ioc->sem_timer, jiffies +
+				msecs_to_jiffies(BFA_IOC_HWSEM_TOV));
+		}
+		break;
+
+	case IOCPF_E_DISABLE:
+		bfa_ioc_hw_sem_get_cancel(ioc);
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_disabling_sync);
+		break;
+
+	default:
+		bfa_sm_fault(ioc, event);
+	}
+}
+
+static void
+bfa_iocpf_sm_hwinit_entry(struct bfa_iocpf *iocpf)
+{
+	mod_timer(&(iocpf->ioc)->iocpf_timer, jiffies +
+		msecs_to_jiffies(BFA_IOC_TOV));
+	bfa_ioc_reset(iocpf->ioc, 0);
+}
+
+/**
+ * Hardware is being initialized. Interrupts are enabled.
+ * Holding hardware semaphore lock.
+ */
+static void
+bfa_iocpf_sm_hwinit(struct bfa_iocpf *iocpf, enum iocpf_event event)
+{
+	struct bfa_ioc *ioc = iocpf->ioc;
+
+	switch (event) {
+	case IOCPF_E_FWREADY:
+		del_timer(&ioc->iocpf_timer);
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_enabling);
+		break;
+
+	case IOCPF_E_INITFAIL:
+		del_timer(&ioc->iocpf_timer);
+		/*
+		 * !!! fall through !!!
+		 */
+
+	case IOCPF_E_TIMEOUT:
+		bfa_nw_ioc_hw_sem_release(ioc);
+		if (event == IOCPF_E_TIMEOUT)
+			bfa_ioc_pf_failed(ioc);
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_initfail_sync);
+		break;
+
+	case IOCPF_E_DISABLE:
+		del_timer(&ioc->iocpf_timer);
+		bfa_ioc_sync_leave(ioc);
+		bfa_nw_ioc_hw_sem_release(ioc);
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_disabled);
+		break;
+
+	default:
+		bfa_sm_fault(ioc, event);
+	}
+}
+
+static void
+bfa_iocpf_sm_enabling_entry(struct bfa_iocpf *iocpf)
+{
+	mod_timer(&(iocpf->ioc)->iocpf_timer, jiffies +
+		msecs_to_jiffies(BFA_IOC_TOV));
+	bfa_ioc_send_enable(iocpf->ioc);
+}
+
+/**
+ * Host IOC function is being enabled, awaiting response from firmware.
+ * Semaphore is acquired.
+ */
+static void
+bfa_iocpf_sm_enabling(struct bfa_iocpf *iocpf, enum iocpf_event event)
+{
+	struct bfa_ioc *ioc = iocpf->ioc;
+
+	switch (event) {
+	case IOCPF_E_FWRSP_ENABLE:
+		del_timer(&ioc->iocpf_timer);
+		bfa_nw_ioc_hw_sem_release(ioc);
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_ready);
+		break;
+
+	case IOCPF_E_INITFAIL:
+		del_timer(&ioc->iocpf_timer);
+		/*
+		 * !!! fall through !!!
+		 */
+	case IOCPF_E_TIMEOUT:
+		bfa_nw_ioc_hw_sem_release(ioc);
+		if (event == IOCPF_E_TIMEOUT)
+			bfa_ioc_pf_failed(ioc);
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_initfail_sync);
+		break;
+
+	case IOCPF_E_DISABLE:
+		del_timer(&ioc->iocpf_timer);
+		bfa_nw_ioc_hw_sem_release(ioc);
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_disabling);
+		break;
+
+	case IOCPF_E_FWREADY:
+		bfa_ioc_send_enable(ioc);
+		break;
+
+	default:
+		bfa_sm_fault(ioc, event);
+	}
+}
+
+static bool
+bfa_nw_ioc_is_operational(struct bfa_ioc *ioc)
+{
+	return bfa_fsm_cmp_state(ioc, bfa_ioc_sm_op);
+}
+
+static void
+bfa_iocpf_sm_ready_entry(struct bfa_iocpf *iocpf)
+{
+	bfa_ioc_pf_enabled(iocpf->ioc);
+}
+
+static void
+bfa_iocpf_sm_ready(struct bfa_iocpf *iocpf, enum iocpf_event event)
+{
+	struct bfa_ioc *ioc = iocpf->ioc;
+
+	switch (event) {
+	case IOCPF_E_DISABLE:
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_disabling);
+		break;
+
+	case IOCPF_E_GETATTRFAIL:
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_initfail_sync);
+		break;
+
+	case IOCPF_E_FAIL:
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_fail_sync);
+		break;
+
+	case IOCPF_E_FWREADY:
+		bfa_ioc_pf_failed(ioc);
+		if (bfa_nw_ioc_is_operational(ioc))
+			bfa_fsm_set_state(iocpf, bfa_iocpf_sm_fail_sync);
+		else
+			bfa_fsm_set_state(iocpf, bfa_iocpf_sm_initfail_sync);
+		break;
+
+	default:
+		bfa_sm_fault(ioc, event);
+	}
+}
+
+static void
+bfa_iocpf_sm_disabling_entry(struct bfa_iocpf *iocpf)
+{
+	mod_timer(&(iocpf->ioc)->iocpf_timer, jiffies +
+		msecs_to_jiffies(BFA_IOC_TOV));
+	bfa_ioc_send_disable(iocpf->ioc);
+}
+
+/**
+ * IOC is being disabled
+ */
+static void
+bfa_iocpf_sm_disabling(struct bfa_iocpf *iocpf, enum iocpf_event event)
+{
+	struct bfa_ioc *ioc = iocpf->ioc;
+
+	switch (event) {
+	case IOCPF_E_FWRSP_DISABLE:
+	case IOCPF_E_FWREADY:
+		del_timer(&ioc->iocpf_timer);
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_disabling_sync);
+		break;
+
+	case IOCPF_E_FAIL:
+		del_timer(&ioc->iocpf_timer);
+		/*
+		 * !!! fall through !!!
+		 */
+
+	case IOCPF_E_TIMEOUT:
+		writel(BFI_IOC_FAIL, ioc->ioc_regs.ioc_fwstate);
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_disabling_sync);
+		break;
+
+	case IOCPF_E_FWRSP_ENABLE:
+		break;
+
+	default:
+		bfa_sm_fault(ioc, event);
+	}
+}
+
+static void
+bfa_iocpf_sm_disabling_sync_entry(struct bfa_iocpf *iocpf)
+{
+	bfa_ioc_hw_sem_get(iocpf->ioc);
+}
+
+/**
+ * IOC hb ack request is being removed.
+ */
+static void
+bfa_iocpf_sm_disabling_sync(struct bfa_iocpf *iocpf, enum iocpf_event event)
+{
+	struct bfa_ioc *ioc = iocpf->ioc;
+
+	switch (event) {
+	case IOCPF_E_SEMLOCKED:
+		bfa_ioc_sync_leave(ioc);
+		bfa_nw_ioc_hw_sem_release(ioc);
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_disabled);
+		break;
+
+	case IOCPF_E_FAIL:
+		break;
+
+	default:
+		bfa_sm_fault(ioc, event);
+	}
+}
+
+/**
+ * IOC disable completion entry.
+ */
+static void
+bfa_iocpf_sm_disabled_entry(struct bfa_iocpf *iocpf)
+{
+	bfa_ioc_pf_disabled(iocpf->ioc);
+}
+
+static void
+bfa_iocpf_sm_disabled(struct bfa_iocpf *iocpf, enum iocpf_event event)
+{
+	struct bfa_ioc *ioc = iocpf->ioc;
+
+	switch (event) {
+	case IOCPF_E_ENABLE:
+		iocpf->retry_count = 0;
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_semwait);
+		break;
+
+	case IOCPF_E_STOP:
+		bfa_ioc_firmware_unlock(ioc);
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_reset);
+		break;
+
+	default:
+		bfa_sm_fault(ioc, event);
+	}
+}
+
+static void
+bfa_iocpf_sm_initfail_sync_entry(struct bfa_iocpf *iocpf)
+{
+	bfa_ioc_hw_sem_get(iocpf->ioc);
+}
+
+/**
+ * Hardware initialization failed.
+ */
+static void
+bfa_iocpf_sm_initfail_sync(struct bfa_iocpf *iocpf, enum iocpf_event event)
+{
+	struct bfa_ioc *ioc = iocpf->ioc;
+
+	switch (event) {
+	case IOCPF_E_SEMLOCKED:
+		bfa_ioc_notify_fail(ioc);
+		bfa_ioc_sync_ack(ioc);
+		iocpf->retry_count++;
+		if (iocpf->retry_count >= BFA_IOC_HWINIT_MAX) {
+			bfa_ioc_sync_leave(ioc);
+			bfa_nw_ioc_hw_sem_release(ioc);
+			bfa_fsm_set_state(iocpf, bfa_iocpf_sm_initfail);
+		} else {
+			if (bfa_ioc_sync_complete(ioc))
+				bfa_fsm_set_state(iocpf, bfa_iocpf_sm_hwinit);
+			else {
+				bfa_nw_ioc_hw_sem_release(ioc);
+				bfa_fsm_set_state(iocpf, bfa_iocpf_sm_semwait);
+			}
+		}
+		break;
+
+	case IOCPF_E_DISABLE:
+		bfa_ioc_hw_sem_get_cancel(ioc);
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_disabling_sync);
+		break;
+
+	case IOCPF_E_STOP:
+		bfa_ioc_hw_sem_get_cancel(ioc);
+		bfa_ioc_firmware_unlock(ioc);
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_reset);
+		break;
+
+	case IOCPF_E_FAIL:
+		break;
+
+	default:
+		bfa_sm_fault(ioc, event);
+	}
+}
+
+static void
+bfa_iocpf_sm_initfail_entry(struct bfa_iocpf *iocpf)
+{
+	bfa_ioc_pf_initfailed(iocpf->ioc);
+}
+
+/**
+ * Hardware initialization failed.
+ */
+static void
+bfa_iocpf_sm_initfail(struct bfa_iocpf *iocpf, enum iocpf_event event)
+{
+	struct bfa_ioc *ioc = iocpf->ioc;
+
+	switch (event) {
+	case IOCPF_E_DISABLE:
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_disabled);
+		break;
+
+	case IOCPF_E_STOP:
+		bfa_ioc_firmware_unlock(ioc);
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_reset);
+		break;
+
+	default:
+		bfa_sm_fault(ioc, event);
+	}
+}
+
+static void
+bfa_iocpf_sm_fail_sync_entry(struct bfa_iocpf *iocpf)
+{
+	/**
+	 * Mark IOC as failed in hardware and stop firmware.
+	 */
+	bfa_ioc_lpu_stop(iocpf->ioc);
+
+	/**
+	 * Flush any queued up mailbox requests.
+	 */
+	bfa_ioc_mbox_hbfail(iocpf->ioc);
+	bfa_ioc_hw_sem_get(iocpf->ioc);
+}
+
+/**
+ * IOC is in failed state.
+ */
+static void
+bfa_iocpf_sm_fail_sync(struct bfa_iocpf *iocpf, enum iocpf_event event)
+{
+	struct bfa_ioc *ioc = iocpf->ioc;
+
+	switch (event) {
+	case IOCPF_E_SEMLOCKED:
+		iocpf->retry_count = 0;
+		bfa_ioc_sync_ack(ioc);
+		bfa_ioc_notify_fail(ioc);
+		if (!iocpf->auto_recover) {
+			bfa_ioc_sync_leave(ioc);
+			bfa_nw_ioc_hw_sem_release(ioc);
+			bfa_fsm_set_state(iocpf, bfa_iocpf_sm_fail);
+		} else {
+			if (bfa_ioc_sync_complete(ioc))
+				bfa_fsm_set_state(iocpf, bfa_iocpf_sm_hwinit);
+			else {
+				bfa_nw_ioc_hw_sem_release(ioc);
+				bfa_fsm_set_state(iocpf, bfa_iocpf_sm_semwait);
+			}
+		}
+		break;
+
+	case IOCPF_E_DISABLE:
+		bfa_ioc_hw_sem_get_cancel(ioc);
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_disabling_sync);
+		break;
+
+	case IOCPF_E_FAIL:
+		break;
+
+	default:
+		bfa_sm_fault(ioc, event);
+	}
+}
+
+static void
+bfa_iocpf_sm_fail_entry(struct bfa_iocpf *iocpf)
+{
+}
+
+/**
+ * @brief
+ * IOC is in failed state.
+ */
+static void
+bfa_iocpf_sm_fail(struct bfa_iocpf *iocpf, enum iocpf_event event)
+{
+	switch (event) {
+	case IOCPF_E_DISABLE:
+		bfa_fsm_set_state(iocpf, bfa_iocpf_sm_disabled);
+		break;
+
+	default:
+		bfa_sm_fault(iocpf->ioc, event);
 	}
 }
 
@@ -676,14 +1137,6 @@ bfa_ioc_disable_comp(struct bfa_ioc *ioc)
 		notify = (struct bfa_ioc_hbfail_notify *) qe;
 		notify->cbfn(notify->cbarg);
 	}
-}
-
-void
-bfa_nw_ioc_sem_timeout(void *ioc_arg)
-{
-	struct bfa_ioc *ioc = (struct bfa_ioc *) ioc_arg;
-
-	bfa_ioc_hw_sem_get(ioc);
 }
 
 bool
@@ -725,7 +1178,7 @@ bfa_ioc_hw_sem_get(struct bfa_ioc *ioc)
 	 */
 	r32 = readl(ioc->ioc_regs.ioc_sem_reg);
 	if (r32 == 0) {
-		bfa_fsm_send_event(ioc, IOC_E_SEMLOCKED);
+		bfa_fsm_send_event(&ioc->iocpf, IOCPF_E_SEMLOCKED);
 		return;
 	}
 
@@ -865,12 +1318,6 @@ bfa_ioc_fwver_valid(struct bfa_ioc *ioc)
 {
 	struct bfi_ioc_image_hdr fwhdr, *drv_fwhdr;
 
-	/**
-	 * If bios/efi boot (flash based) -- return true
-	 */
-	if (bfa_ioc_is_optrom(ioc))
-		return true;
-
 	bfa_nw_ioc_fwver_get(ioc, &fwhdr);
 	drv_fwhdr = (struct bfi_ioc_image_hdr *)
 		bfa_cb_image_get_chunk(BFA_IOC_FWIMG_TYPE(ioc), 0);
@@ -934,20 +1381,15 @@ bfa_ioc_hwinit(struct bfa_ioc *ioc, bool force)
 	/**
 	 * If IOC function is disabled and firmware version is same,
 	 * just re-enable IOC.
-	 *
-	 * If option rom, IOC must not be in operational state. With
-	 * convergence, IOC will be in operational state when 2nd driver
-	 * is loaded.
 	 */
-	if (ioc_fwstate == BFI_IOC_DISABLED ||
-	    (!bfa_ioc_is_optrom(ioc) && ioc_fwstate == BFI_IOC_OP)) {
+	if (ioc_fwstate == BFI_IOC_DISABLED || ioc_fwstate == BFI_IOC_OP) {
 		/**
 		 * When using MSI-X any pending firmware ready event should
 		 * be flushed. Otherwise MSI-X interrupts are not delivered.
 		 */
 		bfa_ioc_msgflush(ioc);
 		ioc->cbfn->reset_cbfn(ioc->bfa);
-		bfa_fsm_send_event(ioc, IOC_E_FWREADY);
+		bfa_fsm_send_event(&ioc->iocpf, IOCPF_E_FWREADY);
 		return;
 	}
 
@@ -1033,7 +1475,6 @@ bfa_nw_ioc_hb_check(void *cbarg)
 
 	hb_count = readl(ioc->ioc_regs.heartbeat);
 	if (ioc->hb_count == hb_count) {
-		pr_crit("Firmware heartbeat failure at %d", hb_count);
 		bfa_ioc_recover(ioc);
 		return;
 	} else {
@@ -1078,11 +1519,6 @@ bfa_ioc_download_fw(struct bfa_ioc *ioc, u32 boot_type,
 	 */
 	bfa_ioc_lmem_init(ioc);
 
-	/**
-	 * Flash based firmware boot
-	 */
-	if (bfa_ioc_is_optrom(ioc))
-		boot_type = BFI_BOOT_TYPE_FLASH;
 	fwimg = bfa_cb_image_get_chunk(BFA_IOC_FWIMG_TYPE(ioc), chunkno);
 
 	pgnum = bfa_ioc_smem_pgnum(ioc, loff);
@@ -1209,6 +1645,55 @@ bfa_ioc_mbox_hbfail(struct bfa_ioc *ioc)
 		bfa_q_deq(&mod->cmd_q, &cmd);
 }
 
+static void
+bfa_ioc_fail_notify(struct bfa_ioc *ioc)
+{
+	struct list_head		*qe;
+	struct bfa_ioc_hbfail_notify	*notify;
+
+	/**
+	 * Notify driver and common modules registered for notification.
+	 */
+	ioc->cbfn->hbfail_cbfn(ioc->bfa);
+	list_for_each(qe, &ioc->hb_notify_q) {
+		notify = (struct bfa_ioc_hbfail_notify *) qe;
+		notify->cbfn(notify->cbarg);
+	}
+}
+
+static void
+bfa_ioc_pf_enabled(struct bfa_ioc *ioc)
+{
+	bfa_fsm_send_event(ioc, IOC_E_ENABLED);
+}
+
+static void
+bfa_ioc_pf_disabled(struct bfa_ioc *ioc)
+{
+	bfa_fsm_send_event(ioc, IOC_E_DISABLED);
+}
+
+static void
+bfa_ioc_pf_initfailed(struct bfa_ioc *ioc)
+{
+	bfa_fsm_send_event(ioc, IOC_E_INITFAILED);
+}
+
+static void
+bfa_ioc_pf_failed(struct bfa_ioc *ioc)
+{
+	bfa_fsm_send_event(ioc, IOC_E_PFAILED);
+}
+
+static void
+bfa_ioc_pf_fwmismatch(struct bfa_ioc *ioc)
+{
+	/**
+	 * Provide enable completion callback and AEN notification.
+	 */
+	ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_IOC_FAILURE);
+}
+
 /**
  * IOC public
  */
@@ -1304,6 +1789,7 @@ static void
 bfa_ioc_isr(struct bfa_ioc *ioc, struct bfi_mbmsg *m)
 {
 	union bfi_ioc_i2h_msg_u	*msg;
+	struct bfa_iocpf *iocpf = &ioc->iocpf;
 
 	msg = (union bfi_ioc_i2h_msg_u *) m;
 
@@ -1314,15 +1800,15 @@ bfa_ioc_isr(struct bfa_ioc *ioc, struct bfi_mbmsg *m)
 		break;
 
 	case BFI_IOC_I2H_READY_EVENT:
-		bfa_fsm_send_event(ioc, IOC_E_FWREADY);
+		bfa_fsm_send_event(iocpf, IOCPF_E_FWREADY);
 		break;
 
 	case BFI_IOC_I2H_ENABLE_REPLY:
-		bfa_fsm_send_event(ioc, IOC_E_FWRSP_ENABLE);
+		bfa_fsm_send_event(iocpf, IOCPF_E_FWRSP_ENABLE);
 		break;
 
 	case BFI_IOC_I2H_DISABLE_REPLY:
-		bfa_fsm_send_event(ioc, IOC_E_FWRSP_DISABLE);
+		bfa_fsm_send_event(iocpf, IOCPF_E_FWRSP_DISABLE);
 		break;
 
 	case BFI_IOC_I2H_GETATTR_REPLY:
@@ -1348,11 +1834,13 @@ bfa_nw_ioc_attach(struct bfa_ioc *ioc, void *bfa, struct bfa_ioc_cbfn *cbfn)
 	ioc->fcmode	= false;
 	ioc->pllinit	= false;
 	ioc->dbg_fwsave_once = true;
+	ioc->iocpf.ioc  = ioc;
 
 	bfa_ioc_mbox_attach(ioc);
 	INIT_LIST_HEAD(&ioc->hb_notify_q);
 
-	bfa_fsm_set_state(ioc, bfa_ioc_sm_reset);
+	bfa_fsm_set_state(ioc, bfa_ioc_sm_uninit);
+	bfa_fsm_send_event(ioc, IOC_E_RESET);
 }
 
 /**
@@ -1657,7 +2145,40 @@ bfa_ioc_get_adapter_model(struct bfa_ioc *ioc, char *model)
 static enum bfa_ioc_state
 bfa_ioc_get_state(struct bfa_ioc *ioc)
 {
-	return bfa_sm_to_state(ioc_sm_table, ioc->fsm);
+	enum bfa_iocpf_state iocpf_st;
+	enum bfa_ioc_state ioc_st = bfa_sm_to_state(ioc_sm_table, ioc->fsm);
+
+	if (ioc_st == BFA_IOC_ENABLING ||
+		ioc_st == BFA_IOC_FAIL || ioc_st == BFA_IOC_INITFAIL) {
+
+		iocpf_st = bfa_sm_to_state(iocpf_sm_table, ioc->iocpf.fsm);
+
+		switch (iocpf_st) {
+		case BFA_IOCPF_SEMWAIT:
+			ioc_st = BFA_IOC_SEMWAIT;
+			break;
+
+		case BFA_IOCPF_HWINIT:
+			ioc_st = BFA_IOC_HWINIT;
+			break;
+
+		case BFA_IOCPF_FWMISMATCH:
+			ioc_st = BFA_IOC_FWMISMATCH;
+			break;
+
+		case BFA_IOCPF_FAIL:
+			ioc_st = BFA_IOC_FAIL;
+			break;
+
+		case BFA_IOCPF_INITFAIL:
+			ioc_st = BFA_IOC_INITFAIL;
+			break;
+
+		default:
+			break;
+		}
+	}
+	return ioc_st;
 }
 
 void
@@ -1689,28 +2210,7 @@ bfa_ioc_get_pwwn(struct bfa_ioc *ioc)
 mac_t
 bfa_nw_ioc_get_mac(struct bfa_ioc *ioc)
 {
-	/*
-	 * Currently mfg mac is used as FCoE enode mac (not configured by PBC)
-	 */
-	if (bfa_ioc_get_type(ioc) == BFA_IOC_TYPE_FCoE)
-		return bfa_ioc_get_mfg_mac(ioc);
-	else
-		return ioc->attr->mac;
-}
-
-static mac_t
-bfa_ioc_get_mfg_mac(struct bfa_ioc *ioc)
-{
-	mac_t	m;
-
-	m = ioc->attr->mfg_mac;
-	if (bfa_mfg_is_old_wwn_mac_model(ioc->attr->card_type))
-		m.mac[MAC_ADDRLEN - 1] += bfa_ioc_pcifn(ioc);
-	else
-		bfa_mfg_increment_wwn_mac(&(m.mac[MAC_ADDRLEN-3]),
-			bfa_ioc_pcifn(ioc));
-
-	return m;
+	return ioc->attr->mac;
 }
 
 /**
@@ -1719,8 +2219,13 @@ bfa_ioc_get_mfg_mac(struct bfa_ioc *ioc)
 static void
 bfa_ioc_recover(struct bfa_ioc *ioc)
 {
-	bfa_ioc_stats(ioc, ioc_hbfails);
-	bfa_fsm_send_event(ioc, IOC_E_HBFAIL);
+	u16 bdf;
+
+	bdf = (ioc->pcidev.pci_slot << 8 | ioc->pcidev.pci_func << 3 |
+					ioc->pcidev.device_id);
+
+	pr_crit("Firmware heartbeat failure at %d", bdf);
+	BUG_ON(1);
 }
 
 static void
@@ -1728,5 +2233,61 @@ bfa_ioc_check_attr_wwns(struct bfa_ioc *ioc)
 {
 	if (bfa_ioc_get_type(ioc) == BFA_IOC_TYPE_LL)
 		return;
+}
 
+/**
+ * @dg hal_iocpf_pvt BFA IOC PF private functions
+ * @{
+ */
+
+static void
+bfa_iocpf_enable(struct bfa_ioc *ioc)
+{
+	bfa_fsm_send_event(&ioc->iocpf, IOCPF_E_ENABLE);
+}
+
+static void
+bfa_iocpf_disable(struct bfa_ioc *ioc)
+{
+	bfa_fsm_send_event(&ioc->iocpf, IOCPF_E_DISABLE);
+}
+
+static void
+bfa_iocpf_fail(struct bfa_ioc *ioc)
+{
+	bfa_fsm_send_event(&ioc->iocpf, IOCPF_E_FAIL);
+}
+
+static void
+bfa_iocpf_initfail(struct bfa_ioc *ioc)
+{
+	bfa_fsm_send_event(&ioc->iocpf, IOCPF_E_INITFAIL);
+}
+
+static void
+bfa_iocpf_getattrfail(struct bfa_ioc *ioc)
+{
+	bfa_fsm_send_event(&ioc->iocpf, IOCPF_E_GETATTRFAIL);
+}
+
+static void
+bfa_iocpf_stop(struct bfa_ioc *ioc)
+{
+	bfa_fsm_send_event(&ioc->iocpf, IOCPF_E_STOP);
+}
+
+void
+bfa_nw_iocpf_timeout(void *ioc_arg)
+{
+	struct bfa_ioc  *ioc = (struct bfa_ioc *) ioc_arg;
+
+	bfa_fsm_send_event(&ioc->iocpf, IOCPF_E_TIMEOUT);
+}
+
+void
+bfa_nw_iocpf_sem_timeout(void *ioc_arg)
+{
+	struct bfa_ioc  *ioc = (struct bfa_ioc *) ioc_arg;
+
+	bfa_ioc_hw_sem_get(ioc);
 }

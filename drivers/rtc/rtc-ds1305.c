@@ -813,7 +813,7 @@ static int __devexit ds1305_remove(struct spi_device *spi)
 	if (spi->irq) {
 		set_bit(FLAG_EXITING, &ds1305->flags);
 		free_irq(spi->irq, ds1305);
-		flush_scheduled_work();
+		cancel_work_sync(&ds1305->work);
 	}
 
 	rtc_device_unregister(ds1305->rtc);

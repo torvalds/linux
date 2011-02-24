@@ -17,12 +17,17 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/bitops.h>
+#include <linux/delay.h>
 #include <wlc_cfg.h>
 #include <qmath.h>
 #include <osl.h>
-#include <linuxver.h>
+#include <linux/pci.h>
 #include <siutils.h>
 #include <hndpmu.h>
+
+#include <bcmdevs.h>
+#include <sbhndpio.h>
+#include <sbhnddma.h>
 
 #include <wlc_phy_radio.h>
 #include <wlc_phy_int.h>
@@ -1327,7 +1332,7 @@ static void wlc_lcnphy_clear_tx_power_offsets(phy_info_t *pi)
 	u32 data_buf[64];
 	phytbl_info_t tab;
 
-	bzero(data_buf, sizeof(data_buf));
+	memset(data_buf, 0, sizeof(data_buf));
 
 	tab.tbl_id = LCNPHY_TBL_ID_TXPWRCTL;
 	tab.tbl_width = 32;
@@ -1951,7 +1956,7 @@ wlc_lcnphy_tx_iqlo_cal(phy_info_t *pi,
 	band_idx = (CHSPEC_IS5G(pi->radio_chanspec) ? 1 : 0);
 
 	cal_gains = *target_gains;
-	bzero(ncorr_override, sizeof(ncorr_override));
+	memset(ncorr_override, 0, sizeof(ncorr_override));
 	for (j = 0; j < iqcal_gainparams_numgains_lcnphy[band_idx]; j++) {
 		if (hash == tbl_iqcal_gainparams_lcnphy[band_idx][j][0]) {
 			cal_gains.gm_gain =
@@ -2529,7 +2534,7 @@ static void wlc_lcnphy_clear_papd_comptable(phy_info_t *pi)
 	tab.tbl_width = 32;
 	tab.tbl_offset = 0;
 
-	bzero(temp_offset, sizeof(temp_offset));
+	memset(temp_offset, 0, sizeof(temp_offset));
 	for (j = 1; j < 128; j += 2)
 		temp_offset[j] = 0x80000;
 

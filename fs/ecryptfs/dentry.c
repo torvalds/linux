@@ -44,12 +44,17 @@
  */
 static int ecryptfs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	struct dentry *lower_dentry = ecryptfs_dentry_to_lower(dentry);
-	struct vfsmount *lower_mnt = ecryptfs_dentry_to_lower_mnt(dentry);
+	struct dentry *lower_dentry;
+	struct vfsmount *lower_mnt;
 	struct dentry *dentry_save;
 	struct vfsmount *vfsmount_save;
 	int rc = 1;
 
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	lower_dentry = ecryptfs_dentry_to_lower(dentry);
+	lower_mnt = ecryptfs_dentry_to_lower_mnt(dentry);
 	if (!lower_dentry->d_op || !lower_dentry->d_op->d_revalidate)
 		goto out;
 	dentry_save = nd->path.dentry;

@@ -155,10 +155,10 @@ static inline void update_edge_detect(struct pxa_gpio_chip *c)
 	__raw_writel(gfer, c->regbase + GFER_OFFSET);
 }
 
-static int pxa_gpio_irq_type(unsigned int irq, unsigned int type)
+static int pxa_gpio_irq_type(struct irq_data *d, unsigned int type)
 {
 	struct pxa_gpio_chip *c;
-	int gpio = irq_to_gpio(irq);
+	int gpio = irq_to_gpio(d->irq);
 	unsigned long gpdr, mask = GPIO_bit(gpio);
 
 	c = gpio_to_chip(gpio);
@@ -195,7 +195,7 @@ static int pxa_gpio_irq_type(unsigned int irq, unsigned int type)
 
 	update_edge_detect(c);
 
-	pr_debug("%s: IRQ%d (GPIO%d) - edge%s%s\n", __func__, irq, gpio,
+	pr_debug("%s: IRQ%d (GPIO%d) - edge%s%s\n", __func__, d->irq, gpio,
 		((type & IRQ_TYPE_EDGE_RISING)  ? " rising"  : ""),
 		((type & IRQ_TYPE_EDGE_FALLING) ? " falling" : ""));
 	return 0;
@@ -227,17 +227,17 @@ static void pxa_gpio_demux_handler(unsigned int irq, struct irq_desc *desc)
 	} while (loop);
 }
 
-static void pxa_ack_muxed_gpio(unsigned int irq)
+static void pxa_ack_muxed_gpio(struct irq_data *d)
 {
-	int gpio = irq_to_gpio(irq);
+	int gpio = irq_to_gpio(d->irq);
 	struct pxa_gpio_chip *c = gpio_to_chip(gpio);
 
 	__raw_writel(GPIO_bit(gpio), c->regbase + GEDR_OFFSET);
 }
 
-static void pxa_mask_muxed_gpio(unsigned int irq)
+static void pxa_mask_muxed_gpio(struct irq_data *d)
 {
-	int gpio = irq_to_gpio(irq);
+	int gpio = irq_to_gpio(d->irq);
 	struct pxa_gpio_chip *c = gpio_to_chip(gpio);
 	uint32_t grer, gfer;
 
@@ -249,9 +249,9 @@ static void pxa_mask_muxed_gpio(unsigned int irq)
 	__raw_writel(gfer, c->regbase + GFER_OFFSET);
 }
 
-static void pxa_unmask_muxed_gpio(unsigned int irq)
+static void pxa_unmask_muxed_gpio(struct irq_data *d)
 {
-	int gpio = irq_to_gpio(irq);
+	int gpio = irq_to_gpio(d->irq);
 	struct pxa_gpio_chip *c = gpio_to_chip(gpio);
 
 	c->irq_mask |= GPIO_bit(gpio);
@@ -260,10 +260,10 @@ static void pxa_unmask_muxed_gpio(unsigned int irq)
 
 static struct irq_chip pxa_muxed_gpio_chip = {
 	.name		= "GPIO",
-	.ack		= pxa_ack_muxed_gpio,
-	.mask		= pxa_mask_muxed_gpio,
-	.unmask		= pxa_unmask_muxed_gpio,
-	.set_type	= pxa_gpio_irq_type,
+	.irq_ack	= pxa_ack_muxed_gpio,
+	.irq_mask	= pxa_mask_muxed_gpio,
+	.irq_unmask	= pxa_unmask_muxed_gpio,
+	.irq_set_type	= pxa_gpio_irq_type,
 };
 
 void __init pxa_init_gpio(int mux_irq, int start, int end, set_wake_t fn)
@@ -291,7 +291,7 @@ void __init pxa_init_gpio(int mux_irq, int start, int end, set_wake_t fn)
 
 	/* Install handler for GPIO>=2 edge detect interrupts */
 	set_irq_chained_handler(mux_irq, pxa_gpio_demux_handler);
-	pxa_muxed_gpio_chip.set_wake = fn;
+	pxa_muxed_gpio_chip.irq_set_wake = fn;
 }
 
 #ifdef CONFIG_PM

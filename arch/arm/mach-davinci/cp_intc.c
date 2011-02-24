@@ -26,30 +26,30 @@ static inline void cp_intc_write(unsigned long value, unsigned offset)
 	__raw_writel(value, davinci_intc_base + offset);
 }
 
-static void cp_intc_ack_irq(unsigned int irq)
+static void cp_intc_ack_irq(struct irq_data *d)
 {
-	cp_intc_write(irq, CP_INTC_SYS_STAT_IDX_CLR);
+	cp_intc_write(d->irq, CP_INTC_SYS_STAT_IDX_CLR);
 }
 
 /* Disable interrupt */
-static void cp_intc_mask_irq(unsigned int irq)
+static void cp_intc_mask_irq(struct irq_data *d)
 {
 	/* XXX don't know why we need to disable nIRQ here... */
 	cp_intc_write(1, CP_INTC_HOST_ENABLE_IDX_CLR);
-	cp_intc_write(irq, CP_INTC_SYS_ENABLE_IDX_CLR);
+	cp_intc_write(d->irq, CP_INTC_SYS_ENABLE_IDX_CLR);
 	cp_intc_write(1, CP_INTC_HOST_ENABLE_IDX_SET);
 }
 
 /* Enable interrupt */
-static void cp_intc_unmask_irq(unsigned int irq)
+static void cp_intc_unmask_irq(struct irq_data *d)
 {
-	cp_intc_write(irq, CP_INTC_SYS_ENABLE_IDX_SET);
+	cp_intc_write(d->irq, CP_INTC_SYS_ENABLE_IDX_SET);
 }
 
-static int cp_intc_set_irq_type(unsigned int irq, unsigned int flow_type)
+static int cp_intc_set_irq_type(struct irq_data *d, unsigned int flow_type)
 {
-	unsigned reg		= BIT_WORD(irq);
-	unsigned mask		= BIT_MASK(irq);
+	unsigned reg		= BIT_WORD(d->irq);
+	unsigned mask		= BIT_MASK(d->irq);
 	unsigned polarity	= cp_intc_read(CP_INTC_SYS_POLARITY(reg));
 	unsigned type		= cp_intc_read(CP_INTC_SYS_TYPE(reg));
 
@@ -85,18 +85,18 @@ static int cp_intc_set_irq_type(unsigned int irq, unsigned int flow_type)
  * generic drivers which call {enable|disable}_irq_wake for
  * wake up interrupt sources (eg RTC on DA850).
  */
-static int cp_intc_set_wake(unsigned int irq, unsigned int on)
+static int cp_intc_set_wake(struct irq_data *d, unsigned int on)
 {
 	return 0;
 }
 
 static struct irq_chip cp_intc_irq_chip = {
 	.name		= "cp_intc",
-	.ack		= cp_intc_ack_irq,
-	.mask		= cp_intc_mask_irq,
-	.unmask		= cp_intc_unmask_irq,
-	.set_type	= cp_intc_set_irq_type,
-	.set_wake	= cp_intc_set_wake,
+	.irq_ack	= cp_intc_ack_irq,
+	.irq_mask	= cp_intc_mask_irq,
+	.irq_unmask	= cp_intc_unmask_irq,
+	.irq_set_type	= cp_intc_set_irq_type,
+	.irq_set_wake	= cp_intc_set_wake,
 };
 
 void __init cp_intc_init(void)

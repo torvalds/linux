@@ -407,16 +407,16 @@ static irqreturn_t max8925_tsc_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void max8925_irq_lock(unsigned int irq)
+static void max8925_irq_lock(struct irq_data *data)
 {
-	struct max8925_chip *chip = get_irq_chip_data(irq);
+	struct max8925_chip *chip = irq_data_get_irq_chip_data(data);
 
 	mutex_lock(&chip->irq_lock);
 }
 
-static void max8925_irq_sync_unlock(unsigned int irq)
+static void max8925_irq_sync_unlock(struct irq_data *data)
 {
-	struct max8925_chip *chip = get_irq_chip_data(irq);
+	struct max8925_chip *chip = irq_data_get_irq_chip_data(data);
 	struct max8925_irq_data *irq_data;
 	static unsigned char cache_chg[2] = {0xff, 0xff};
 	static unsigned char cache_on[2] = {0xff, 0xff};
@@ -492,25 +492,25 @@ static void max8925_irq_sync_unlock(unsigned int irq)
 	mutex_unlock(&chip->irq_lock);
 }
 
-static void max8925_irq_enable(unsigned int irq)
+static void max8925_irq_enable(struct irq_data *data)
 {
-	struct max8925_chip *chip = get_irq_chip_data(irq);
-	max8925_irqs[irq - chip->irq_base].enable
-		= max8925_irqs[irq - chip->irq_base].offs;
+	struct max8925_chip *chip = irq_data_get_irq_chip_data(data);
+	max8925_irqs[data->irq - chip->irq_base].enable
+		= max8925_irqs[data->irq - chip->irq_base].offs;
 }
 
-static void max8925_irq_disable(unsigned int irq)
+static void max8925_irq_disable(struct irq_data *data)
 {
-	struct max8925_chip *chip = get_irq_chip_data(irq);
-	max8925_irqs[irq - chip->irq_base].enable = 0;
+	struct max8925_chip *chip = irq_data_get_irq_chip_data(data);
+	max8925_irqs[data->irq - chip->irq_base].enable = 0;
 }
 
 static struct irq_chip max8925_irq_chip = {
 	.name		= "max8925",
-	.bus_lock	= max8925_irq_lock,
-	.bus_sync_unlock = max8925_irq_sync_unlock,
-	.enable		= max8925_irq_enable,
-	.disable	= max8925_irq_disable,
+	.irq_bus_lock	= max8925_irq_lock,
+	.irq_bus_sync_unlock = max8925_irq_sync_unlock,
+	.irq_enable	= max8925_irq_enable,
+	.irq_disable	= max8925_irq_disable,
 };
 
 static int max8925_irq_init(struct max8925_chip *chip, int irq,

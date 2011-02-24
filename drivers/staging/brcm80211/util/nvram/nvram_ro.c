@@ -49,7 +49,7 @@ static char *findvar(char *vars, char *lim, const char *name);
 /* copy flash to ram */
 static void get_flash_nvram(si_t *sih, struct nvram_header *nvh)
 {
-	osl_t *osh;
+	struct osl_info *osh;
 	uint nvs, bufsz;
 	vars_t *new;
 
@@ -133,7 +133,7 @@ static char *findvar(char *vars, char *lim, const char *name)
 	len = strlen(name);
 
 	for (s = vars; (s < lim) && *s;) {
-		if ((bcmp(s, name, len) == 0) && (s[len] == '='))
+		if ((memcmp(s, name, len) == 0) && (s[len] == '='))
 			return &s[len + 1];
 
 		while (*s++)

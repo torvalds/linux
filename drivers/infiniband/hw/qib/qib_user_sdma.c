@@ -382,6 +382,7 @@ static void qib_user_sdma_free_pkt_list(struct device *dev,
 
 		kmem_cache_free(pq->pkt_slab, pkt);
 	}
+	INIT_LIST_HEAD(list);
 }
 
 /*

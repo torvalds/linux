@@ -28,7 +28,7 @@
 #include <asm/siu.h>
 
 #include <sound/control.h>
-#include <sound/soc-dai.h>
+#include <sound/soc.h>
 
 #include "siu.h"
 

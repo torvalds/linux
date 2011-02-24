@@ -13,6 +13,7 @@
  */
 
 #include <crypto/internal/hash.h>
+#include <crypto/padlock.h>
 #include <crypto/sha.h>
 #include <linux/err.h>
 #include <linux/module.h>
@@ -22,13 +23,6 @@
 #include <linux/kernel.h>
 #include <linux/scatterlist.h>
 #include <asm/i387.h>
-#include "padlock.h"
-
-#ifdef CONFIG_64BIT
-#define STACK_ALIGN 16
-#else
-#define STACK_ALIGN 4
-#endif
 
 struct padlock_sha_desc {
 	struct shash_desc fallback;

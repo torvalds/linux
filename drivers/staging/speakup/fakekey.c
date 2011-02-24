@@ -62,7 +62,6 @@ void speakup_remove_virtual_keyboard(void)
 {
 	if (virt_keyboard != NULL) {
 		input_unregister_device(virt_keyboard);
-		input_free_device(virt_keyboard);
 		virt_keyboard = NULL;
 	}
 }
@@ -79,10 +78,10 @@ void speakup_fake_down_arrow(void)
 	/* don't change CPU */
 	preempt_disable();
 
-	__get_cpu_var(reporting_keystroke) = true;
+	__this_cpu_write(reporting_keystroke, true);
 	input_report_key(virt_keyboard, KEY_DOWN, PRESSED);
 	input_report_key(virt_keyboard, KEY_DOWN, RELEASED);
-	__get_cpu_var(reporting_keystroke) = false;
+	__this_cpu_write(reporting_keystroke, false);
 
 	/* reenable preemption */
 	preempt_enable();
@@ -96,10 +95,5 @@ void speakup_fake_down_arrow(void)
 	 */
 bool speakup_fake_key_pressed(void)
 {
-	bool is_pressed;
-
-	is_pressed = get_cpu_var(reporting_keystroke);
-	put_cpu_var(reporting_keystroke);
-
-	return is_pressed;
+	return this_cpu_read(reporting_keystroke);
 }

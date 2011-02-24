@@ -29,12 +29,11 @@
 #include <linux/vfs.h>
 #include <linux/mount.h>
 #include <linux/seq_file.h>
-
-#include <linux/ncp_fs.h>
+#include <linux/namei.h>
 
 #include <net/sock.h>
 
-#include "ncplib_kernel.h"
+#include "ncp_fs.h"
 #include "getopt.h"
 
 #define NCP_DEFAULT_FILE_MODE 0600
@@ -58,9 +57,16 @@ static struct inode *ncp_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
+static void ncp_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(ncp_inode_cachep, NCP_FINFO(inode));
+}
+
 static void ncp_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(ncp_inode_cachep, NCP_FINFO(inode));
+	call_rcu(&inode->i_rcu, ncp_i_callback);
 }
 
 static void init_once(void *foo)
@@ -309,7 +315,12 @@ static void ncp_stop_tasks(struct ncp_server *server) {
 	sk->sk_write_space  = server->write_space;
 	release_sock(sk);
 	del_timer_sync(&server->timeout_tm);
-	flush_scheduled_work();
+
+	flush_work_sync(&server->rcv.tq);
+	if (sk->sk_socket->type == SOCK_STREAM)
+		flush_work_sync(&server->tx.tq);
+	else
+		flush_work_sync(&server->timeout_tq);
 }
 
 static int  ncp_show_options(struct seq_file *seq, struct vfsmount *mnt)
@@ -531,6 +542,7 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 	sb->s_blocksize_bits = 10;
 	sb->s_magic = NCP_SUPER_MAGIC;
 	sb->s_op = &ncp_sops;
+	sb->s_d_op = &ncp_dentry_operations;
 	sb->s_bdi = &server->bdi;
 
 	server = NCP_SBP(sb);
@@ -710,7 +722,6 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 	sb->s_root = d_alloc_root(root_inode);
         if (!sb->s_root)
 		goto out_no_root;
-	sb->s_root->d_op = &ncp_root_dentry_operations;
 	return 0;
 
 out_no_root:

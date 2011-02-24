@@ -92,6 +92,7 @@ extern int radeon_tv;
 extern int radeon_audio;
 extern int radeon_disp_priority;
 extern int radeon_hw_i2c;
+extern int radeon_pcie_gen2;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
@@ -178,10 +179,10 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev);
 void radeon_atombios_get_power_modes(struct radeon_device *rdev);
 void radeon_atom_set_voltage(struct radeon_device *rdev, u16 level);
 void rs690_pm_info(struct radeon_device *rdev);
-extern u32 rv6xx_get_temp(struct radeon_device *rdev);
-extern u32 rv770_get_temp(struct radeon_device *rdev);
-extern u32 evergreen_get_temp(struct radeon_device *rdev);
-extern u32 sumo_get_temp(struct radeon_device *rdev);
+extern int rv6xx_get_temp(struct radeon_device *rdev);
+extern int rv770_get_temp(struct radeon_device *rdev);
+extern int evergreen_get_temp(struct radeon_device *rdev);
+extern int sumo_get_temp(struct radeon_device *rdev);
 
 /*
  * Fences.
@@ -257,8 +258,9 @@ struct radeon_bo {
 	int				surface_reg;
 	/* Constant after initialization */
 	struct radeon_device		*rdev;
-	struct drm_gem_object		*gobj;
+	struct drm_gem_object		gem_base;
 };
+#define gem_to_radeon_bo(gobj) container_of((gobj), struct radeon_bo, gem_base)
 
 struct radeon_bo_list {
 	struct ttm_validate_buffer tv;
@@ -287,6 +289,15 @@ int radeon_gem_object_pin(struct drm_gem_object *obj, uint32_t pin_domain,
 			  uint64_t *gpu_addr);
 void radeon_gem_object_unpin(struct drm_gem_object *obj);
 
+int radeon_mode_dumb_create(struct drm_file *file_priv,
+			    struct drm_device *dev,
+			    struct drm_mode_create_dumb *args);
+int radeon_mode_dumb_mmap(struct drm_file *filp,
+			  struct drm_device *dev,
+			  uint32_t handle, uint64_t *offset_p);
+int radeon_mode_dumb_destroy(struct drm_file *file_priv,
+			     struct drm_device *dev,
+			     uint32_t handle);
 
 /*
  * GART structures, functions & helpers
@@ -318,6 +329,7 @@ struct radeon_gart {
 	union radeon_gart_table		table;
 	struct page			**pages;
 	dma_addr_t			*pages_addr;
+	bool				*ttm_alloced;
 	bool				ready;
 };
 
@@ -330,7 +342,8 @@ void radeon_gart_fini(struct radeon_device *rdev);
 void radeon_gart_unbind(struct radeon_device *rdev, unsigned offset,
 			int pages);
 int radeon_gart_bind(struct radeon_device *rdev, unsigned offset,
-		     int pages, struct page **pagelist);
+		     int pages, struct page **pagelist,
+		     dma_addr_t *dma_addr);
 
 
 /*
@@ -739,6 +752,7 @@ enum radeon_int_thermal_type {
 	THERMAL_TYPE_RV770,
 	THERMAL_TYPE_EVERGREEN,
 	THERMAL_TYPE_SUMO,
+	THERMAL_TYPE_NI,
 };
 
 struct radeon_voltage {
@@ -810,8 +824,7 @@ struct radeon_pm {
 	fixed20_12		sclk;
 	fixed20_12		mclk;
 	fixed20_12		needed_bandwidth;
-	/* XXX: use a define for num power modes */
-	struct radeon_power_state power_state[8];
+	struct radeon_power_state *power_state;
 	/* number of valid power states */
 	int                     num_power_states;
 	int                     current_power_state_index;
@@ -822,6 +835,9 @@ struct radeon_pm {
 	u32                     current_sclk;
 	u32                     current_mclk;
 	u32                     current_vddc;
+	u32                     default_sclk;
+	u32                     default_mclk;
+	u32                     default_vddc;
 	struct radeon_i2c_chan *i2c_bus;
 	/* selected pm method */
 	enum radeon_pm_method     pm_method;
@@ -1031,6 +1047,7 @@ struct evergreen_asic {
 	unsigned tiling_npipes;
 	unsigned tiling_group_size;
 	unsigned tile_config;
+	struct r100_gpu_lockup	lockup;
 };
 
 union radeon_asic_config {
@@ -1147,11 +1164,11 @@ struct radeon_device {
 	const struct firmware *me_fw;	/* all family ME firmware */
 	const struct firmware *pfp_fw;	/* r6/700 PFP firmware */
 	const struct firmware *rlc_fw;	/* r6/700 RLC firmware */
+	const struct firmware *mc_fw;	/* NI MC firmware */
 	struct r600_blit r600_blit;
 	struct r700_vram_scratch vram_scratch;
 	int msi_enabled; /* msi enabled */
 	struct r600_ih ih; /* r6/700 interrupt ring */
-	struct workqueue_struct *wq;
 	struct work_struct hotplug_work;
 	int num_crtc; /* number of crtcs */
 	struct mutex dc_hw_i2c_mutex; /* display controller hw i2c mutex */
@@ -1166,10 +1183,10 @@ struct radeon_device {
 	uint8_t			audio_status_bits;
 	uint8_t			audio_category_code;
 
-	bool powered_down;
 	struct notifier_block acpi_nb;
-	/* only one userspace can use Hyperz features at a time */
+	/* only one userspace can use Hyperz features or CMASK at a time */
 	struct drm_file *hyperz_filp;
+	struct drm_file *cmask_filp;
 	/* i2c buses */
 	struct radeon_i2c_chan *i2c_bus[RADEON_MAX_I2C_BUS];
 };
@@ -1180,19 +1197,6 @@ int radeon_device_init(struct radeon_device *rdev,
 		       uint32_t flags);
 void radeon_device_fini(struct radeon_device *rdev);
 int radeon_gpu_wait_for_idle(struct radeon_device *rdev);
-
-/* r600 blit */
-int r600_blit_prepare_copy(struct radeon_device *rdev, int size_bytes);
-void r600_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence);
-void r600_kms_blit_copy(struct radeon_device *rdev,
-			u64 src_gpu_addr, u64 dst_gpu_addr,
-			int size_bytes);
-/* evergreen blit */
-int evergreen_blit_prepare_copy(struct radeon_device *rdev, int size_bytes);
-void evergreen_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence);
-void evergreen_kms_blit_copy(struct radeon_device *rdev,
-			     u64 src_gpu_addr, u64 dst_gpu_addr,
-			     int size_bytes);
 
 static inline uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg)
 {
@@ -1244,6 +1248,8 @@ static inline void r100_io_wreg(struct radeon_device *rdev, u32 reg, u32 v)
  */
 #define RREG8(reg) readb(((void __iomem *)rdev->rmmio) + (reg))
 #define WREG8(reg, v) writeb(v, ((void __iomem *)rdev->rmmio) + (reg))
+#define RREG16(reg) readw(((void __iomem *)rdev->rmmio) + (reg))
+#define WREG16(reg, v) writew(v, ((void __iomem *)rdev->rmmio) + (reg))
 #define RREG32(reg) r100_mm_rreg(rdev, (reg))
 #define DREG32(reg) printk(KERN_INFO "REGISTER: " #reg " : 0x%08X\n", r100_mm_rreg(rdev, (reg)))
 #define WREG32(reg, v) r100_mm_wreg(rdev, (reg), (v))
@@ -1317,6 +1323,14 @@ void r100_pll_errata_after_index(struct radeon_device *rdev);
 		(rdev->family == CHIP_RV410) ||			\
 		(rdev->family == CHIP_RS400) ||			\
 		(rdev->family == CHIP_RS480))
+#define ASIC_IS_X2(rdev) ((rdev->ddev->pdev->device == 0x9441) || \
+		(rdev->ddev->pdev->device == 0x9443) || \
+		(rdev->ddev->pdev->device == 0x944B) || \
+		(rdev->ddev->pdev->device == 0x9506) || \
+		(rdev->ddev->pdev->device == 0x9509) || \
+		(rdev->ddev->pdev->device == 0x950F) || \
+		(rdev->ddev->pdev->device == 0x689C) || \
+		(rdev->ddev->pdev->device == 0x689D))
 #define ASIC_IS_AVIVO(rdev) ((rdev->family >= CHIP_RS600))
 #define ASIC_IS_DCE2(rdev) ((rdev->family == CHIP_RS600)  ||	\
 			    (rdev->family == CHIP_RS690)  ||	\
@@ -1325,7 +1339,9 @@ void r100_pll_errata_after_index(struct radeon_device *rdev);
 #define ASIC_IS_DCE3(rdev) ((rdev->family >= CHIP_RV620))
 #define ASIC_IS_DCE32(rdev) ((rdev->family >= CHIP_RV730))
 #define ASIC_IS_DCE4(rdev) ((rdev->family >= CHIP_CEDAR))
-#define ASIC_IS_DCE41(rdev) ((rdev->family >= CHIP_PALM))
+#define ASIC_IS_DCE41(rdev) ((rdev->family >= CHIP_PALM) && \
+			     (rdev->flags & RADEON_IS_IGP))
+#define ASIC_IS_DCE5(rdev) ((rdev->family >= CHIP_BARTS))
 
 /*
  * BIOS helpers.
@@ -1432,118 +1448,15 @@ extern void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc
 extern int radeon_resume_kms(struct drm_device *dev);
 extern int radeon_suspend_kms(struct drm_device *dev, pm_message_t state);
 
-/* r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280 */
-extern void r100_gpu_lockup_update(struct r100_gpu_lockup *lockup, struct radeon_cp *cp);
-extern bool r100_gpu_cp_is_lockup(struct radeon_device *rdev, struct r100_gpu_lockup *lockup, struct radeon_cp *cp);
-
-/* rv200,rv250,rv280 */
-extern void r200_set_safe_registers(struct radeon_device *rdev);
-
-/* r300,r350,rv350,rv370,rv380 */
-extern void r300_set_reg_safe(struct radeon_device *rdev);
-extern void r300_mc_program(struct radeon_device *rdev);
-extern void r300_mc_init(struct radeon_device *rdev);
-extern void r300_clock_startup(struct radeon_device *rdev);
-extern int r300_mc_wait_for_idle(struct radeon_device *rdev);
-extern int rv370_pcie_gart_init(struct radeon_device *rdev);
-extern void rv370_pcie_gart_fini(struct radeon_device *rdev);
-extern int rv370_pcie_gart_enable(struct radeon_device *rdev);
-extern void rv370_pcie_gart_disable(struct radeon_device *rdev);
-
-/* r420,r423,rv410 */
-extern u32 r420_mc_rreg(struct radeon_device *rdev, u32 reg);
-extern void r420_mc_wreg(struct radeon_device *rdev, u32 reg, u32 v);
-extern int r420_debugfs_pipes_info_init(struct radeon_device *rdev);
-extern void r420_pipes_init(struct radeon_device *rdev);
-
-/* rv515 */
-struct rv515_mc_save {
-	u32 d1vga_control;
-	u32 d2vga_control;
-	u32 vga_render_control;
-	u32 vga_hdp_control;
-	u32 d1crtc_control;
-	u32 d2crtc_control;
-};
-extern void rv515_bandwidth_avivo_update(struct radeon_device *rdev);
-extern void rv515_vga_render_disable(struct radeon_device *rdev);
-extern void rv515_set_safe_registers(struct radeon_device *rdev);
-extern void rv515_mc_stop(struct radeon_device *rdev, struct rv515_mc_save *save);
-extern void rv515_mc_resume(struct radeon_device *rdev, struct rv515_mc_save *save);
-extern void rv515_clock_startup(struct radeon_device *rdev);
-extern void rv515_debugfs(struct radeon_device *rdev);
-extern int rv515_suspend(struct radeon_device *rdev);
-
-/* rs400 */
-extern int rs400_gart_init(struct radeon_device *rdev);
-extern int rs400_gart_enable(struct radeon_device *rdev);
-extern void rs400_gart_adjust_size(struct radeon_device *rdev);
-extern void rs400_gart_disable(struct radeon_device *rdev);
-extern void rs400_gart_fini(struct radeon_device *rdev);
-
-/* rs600 */
-extern void rs600_set_safe_registers(struct radeon_device *rdev);
-extern int rs600_irq_set(struct radeon_device *rdev);
-extern void rs600_irq_disable(struct radeon_device *rdev);
-
-/* rs690, rs740 */
-extern void rs690_line_buffer_adjust(struct radeon_device *rdev,
-					struct drm_display_mode *mode1,
-					struct drm_display_mode *mode2);
-
-/* r600, rv610, rv630, rv620, rv635, rv670, rs780, rs880 */
-extern bool r600_card_posted(struct radeon_device *rdev);
-extern void r600_cp_stop(struct radeon_device *rdev);
-extern int r600_cp_start(struct radeon_device *rdev);
-extern void r600_ring_init(struct radeon_device *rdev, unsigned ring_size);
-extern int r600_cp_resume(struct radeon_device *rdev);
-extern void r600_cp_fini(struct radeon_device *rdev);
-extern int r600_count_pipe_bits(uint32_t val);
-extern int r600_mc_wait_for_idle(struct radeon_device *rdev);
-extern int r600_pcie_gart_init(struct radeon_device *rdev);
-extern void r600_pcie_gart_tlb_flush(struct radeon_device *rdev);
-extern int r600_ib_test(struct radeon_device *rdev);
-extern int r600_ring_test(struct radeon_device *rdev);
-extern void r600_scratch_init(struct radeon_device *rdev);
-extern int r600_blit_init(struct radeon_device *rdev);
-extern void r600_blit_fini(struct radeon_device *rdev);
-extern int r600_init_microcode(struct radeon_device *rdev);
-extern int r600_asic_reset(struct radeon_device *rdev);
-/* r600 irq */
-extern int r600_irq_init(struct radeon_device *rdev);
-extern void r600_irq_fini(struct radeon_device *rdev);
-extern void r600_ih_ring_init(struct radeon_device *rdev, unsigned ring_size);
-extern int r600_irq_set(struct radeon_device *rdev);
-extern void r600_irq_suspend(struct radeon_device *rdev);
-extern void r600_disable_interrupts(struct radeon_device *rdev);
-extern void r600_rlc_stop(struct radeon_device *rdev);
-/* r600 audio */
-extern int r600_audio_init(struct radeon_device *rdev);
-extern int r600_audio_tmds_index(struct drm_encoder *encoder);
-extern void r600_audio_set_clock(struct drm_encoder *encoder, int clock);
-extern int r600_audio_channels(struct radeon_device *rdev);
-extern int r600_audio_bits_per_sample(struct radeon_device *rdev);
-extern int r600_audio_rate(struct radeon_device *rdev);
-extern uint8_t r600_audio_status_bits(struct radeon_device *rdev);
-extern uint8_t r600_audio_category_code(struct radeon_device *rdev);
-extern void r600_audio_schedule_polling(struct radeon_device *rdev);
-extern void r600_audio_enable_polling(struct drm_encoder *encoder);
-extern void r600_audio_disable_polling(struct drm_encoder *encoder);
-extern void r600_audio_fini(struct radeon_device *rdev);
-extern void r600_hdmi_init(struct drm_encoder *encoder);
+/*
+ * r600 functions used by radeon_encoder.c
+ */
 extern void r600_hdmi_enable(struct drm_encoder *encoder);
 extern void r600_hdmi_disable(struct drm_encoder *encoder);
 extern void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode);
-extern int r600_hdmi_buffer_status_changed(struct drm_encoder *encoder);
-extern void r600_hdmi_update_audio_settings(struct drm_encoder *encoder);
 
-extern void r700_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
-extern void r700_cp_stop(struct radeon_device *rdev);
-extern void r700_cp_fini(struct radeon_device *rdev);
-extern void evergreen_disable_interrupt_state(struct radeon_device *rdev);
-extern int evergreen_irq_set(struct radeon_device *rdev);
-extern int evergreen_blit_init(struct radeon_device *rdev);
-extern void evergreen_blit_fini(struct radeon_device *rdev);
+extern int ni_init_microcode(struct radeon_device *rdev);
+extern int btc_mc_load_microcode(struct radeon_device *rdev);
 
 /* radeon_acpi.c */ 
 #if defined(CONFIG_ACPI) 
@@ -1551,14 +1464,6 @@ extern int radeon_acpi_init(struct radeon_device *rdev);
 #else 
 static inline int radeon_acpi_init(struct radeon_device *rdev) { return 0; } 
 #endif 
-
-/* evergreen */
-struct evergreen_mc_save {
-	u32 vga_control[6];
-	u32 vga_render_control;
-	u32 vga_hdp_control;
-	u32 crtc_control[6];
-};
 
 #include "radeon_object.h"
 

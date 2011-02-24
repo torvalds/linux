@@ -28,7 +28,6 @@
 #include "cifsproto.h"
 #include "cifs_debug.h"
 #include "cifs_fs_sb.h"
-#include "md5.h"
 
 #define CIFS_MF_SYMLINK_LEN_OFFSET (4+1)
 #define CIFS_MF_SYMLINK_MD5_OFFSET (CIFS_MF_SYMLINK_LEN_OFFSET+(4+1))
@@ -47,6 +46,45 @@
 	md5_hash[12], md5_hash[13], md5_hash[14], md5_hash[15]
 
 static int
+symlink_hash(unsigned int link_len, const char *link_str, u8 *md5_hash)
+{
+	int rc;
+	unsigned int size;
+	struct crypto_shash *md5;
+	struct sdesc *sdescmd5;
+
+	md5 = crypto_alloc_shash("md5", 0, 0);
+	if (IS_ERR(md5)) {
+		rc = PTR_ERR(md5);
+		cERROR(1, "%s: Crypto md5 allocation error %d\n", __func__, rc);
+		return rc;
+	}
+	size = sizeof(struct shash_desc) + crypto_shash_descsize(md5);
+	sdescmd5 = kmalloc(size, GFP_KERNEL);
+	if (!sdescmd5) {
+		rc = -ENOMEM;
+		cERROR(1, "%s: Memory allocation failure\n", __func__);
+		goto symlink_hash_err;
+	}
+	sdescmd5->shash.tfm = md5;
+	sdescmd5->shash.flags = 0x0;
+
+	rc = crypto_shash_init(&sdescmd5->shash);
+	if (rc) {
+		cERROR(1, "%s: Could not init md5 shash\n", __func__);
+		goto symlink_hash_err;
+	}
+	crypto_shash_update(&sdescmd5->shash, link_str, link_len);
+	rc = crypto_shash_final(&sdescmd5->shash, md5_hash);
+
+symlink_hash_err:
+	crypto_free_shash(md5);
+	kfree(sdescmd5);
+
+	return rc;
+}
+
+static int
 CIFSParseMFSymlink(const u8 *buf,
 		   unsigned int buf_len,
 		   unsigned int *_link_len,
@@ -56,7 +94,6 @@ CIFSParseMFSymlink(const u8 *buf,
 	unsigned int link_len;
 	const char *md5_str1;
 	const char *link_str;
-	struct MD5Context md5_ctx;
 	u8 md5_hash[16];
 	char md5_str2[34];
 
@@ -70,9 +107,11 @@ CIFSParseMFSymlink(const u8 *buf,
 	if (rc != 1)
 		return -EINVAL;
 
-	cifs_MD5_init(&md5_ctx);
-	cifs_MD5_update(&md5_ctx, (const u8 *)link_str, link_len);
-	cifs_MD5_final(md5_hash, &md5_ctx);
+	rc = symlink_hash(link_len, link_str, md5_hash);
+	if (rc) {
+		cFYI(1, "%s: MD5 hash failure: %d\n", __func__, rc);
+		return rc;
+	}
 
 	snprintf(md5_str2, sizeof(md5_str2),
 		 CIFS_MF_SYMLINK_MD5_FORMAT,
@@ -94,9 +133,9 @@ CIFSParseMFSymlink(const u8 *buf,
 static int
 CIFSFormatMFSymlink(u8 *buf, unsigned int buf_len, const char *link_str)
 {
+	int rc;
 	unsigned int link_len;
 	unsigned int ofs;
-	struct MD5Context md5_ctx;
 	u8 md5_hash[16];
 
 	if (buf_len != CIFS_MF_SYMLINK_FILE_SIZE)
@@ -107,9 +146,11 @@ CIFSFormatMFSymlink(u8 *buf, unsigned int buf_len, const char *link_str)
 	if (link_len > CIFS_MF_SYMLINK_LINK_MAXLEN)
 		return -ENAMETOOLONG;
 
-	cifs_MD5_init(&md5_ctx);
-	cifs_MD5_update(&md5_ctx, (const u8 *)link_str, link_len);
-	cifs_MD5_final(md5_hash, &md5_ctx);
+	rc = symlink_hash(link_len, link_str, md5_hash);
+	if (rc) {
+		cFYI(1, "%s: MD5 hash failure: %d\n", __func__, rc);
+		return rc;
+	}
 
 	snprintf(buf, buf_len,
 		 CIFS_MF_SYMLINK_LEN_FORMAT CIFS_MF_SYMLINK_MD5_FORMAT,
@@ -524,10 +565,6 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 			cFYI(1, "Create symlink ok, getinodeinfo fail rc = %d",
 			      rc);
 		} else {
-			if (pTcon->nocase)
-				direntry->d_op = &cifs_ci_dentry_ops;
-			else
-				direntry->d_op = &cifs_dentry_ops;
 			d_instantiate(direntry, newinode);
 		}
 	}

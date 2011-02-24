@@ -21,6 +21,8 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "cx25821.h"
 #include <linux/i2c.h>
 
@@ -32,10 +34,11 @@ static unsigned int i2c_scan;
 module_param(i2c_scan, int, 0444);
 MODULE_PARM_DESC(i2c_scan, "scan i2c bus at insmod time");
 
-#define dprintk(level, fmt, arg...)\
-	do { if (i2c_debug >= level)\
-		printk(KERN_DEBUG "%s/0: " fmt, dev->name, ## arg);\
-	} while (0)
+#define dprintk(level, fmt, arg...)					\
+do {									\
+	if (i2c_debug >= level)						\
+		printk(KERN_DEBUG "%s/0: " fmt, dev->name, ##arg);	\
+} while (0)
 
 #define I2C_WAIT_DELAY 32
 #define I2C_WAIT_RETRY 64
@@ -98,7 +101,7 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 		if (!i2c_slave_did_ack(i2c_adap))
 			return -EIO;
 
-		dprintk(1, "%s() returns 0\n", __func__);
+		dprintk(1, "%s(): returns 0\n", __func__);
 		return 0;
 	}
 
@@ -163,7 +166,7 @@ eio:
 	retval = -EIO;
 err:
 	if (i2c_debug)
-		printk(KERN_ERR " ERR: %d\n", retval);
+		pr_err(" ERR: %d\n", retval);
 	return retval;
 }
 
@@ -187,7 +190,7 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 		if (!i2c_slave_did_ack(i2c_adap))
 			return -EIO;
 
-		dprintk(1, "%s() returns 0\n", __func__);
+		dprintk(1, "%s(): returns 0\n", __func__);
 		return 0;
 	}
 
@@ -227,7 +230,7 @@ eio:
 	retval = -EIO;
 err:
 	if (i2c_debug)
-		printk(KERN_ERR " ERR: %d\n", retval);
+		pr_err(" ERR: %d\n", retval);
 	return retval;
 }
 

@@ -1,7 +1,7 @@
 #ifndef _IR_I2C
 #define _IR_I2C
 
-#include <media/ir-common.h>
+#include <media/rc-core.h>
 
 #define DEFAULT_POLLING_INTERVAL	100	/* ms */
 
@@ -9,11 +9,9 @@ struct IR_i2c;
 
 struct IR_i2c {
 	char		       *ir_codes;
-
 	struct i2c_client      *c;
-	struct input_dev       *input;
-	struct ir_input_state  ir;
-	u64                    ir_type;
+	struct rc_dev          *rc;
+
 	/* Used to avoid fast repeating */
 	unsigned char          old;
 
@@ -39,13 +37,16 @@ enum ir_kbd_get_key_fn {
 struct IR_i2c_init_data {
 	char			*ir_codes;
 	const char		*name;
-	u64			type; /* IR_TYPE_RC5, etc */
+	u64			type; /* RC_TYPE_RC5, etc */
 	u32			polling_interval; /* 0 means DEFAULT_POLLING_INTERVAL */
+
 	/*
 	 * Specify either a function pointer or a value indicating one of
 	 * ir_kbd_i2c's internal get_key functions
 	 */
 	int                    (*get_key)(struct IR_i2c*, u32*, u32*);
 	enum ir_kbd_get_key_fn internal_get_key_func;
+
+	struct rc_dev		*rc_dev;
 };
 #endif

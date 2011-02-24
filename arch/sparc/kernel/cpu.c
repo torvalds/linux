@@ -375,5 +375,5 @@ static int __init cpu_type_probe(void)
 	return 0;
 }
 
-arch_initcall(cpu_type_probe);
+early_initcall(cpu_type_probe);
 #endif

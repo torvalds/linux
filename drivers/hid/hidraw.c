@@ -19,6 +19,8 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -122,15 +124,15 @@ static ssize_t hidraw_write(struct file *file, const char __user *buffer, size_t
 	}
 
 	if (count > HID_MAX_BUFFER_SIZE) {
-		printk(KERN_WARNING "hidraw: pid %d passed too large report\n",
-				task_pid_nr(current));
+		hid_warn(dev, "pid %d passed too large report\n",
+			 task_pid_nr(current));
 		ret = -EINVAL;
 		goto out;
 	}
 
 	if (count < 2) {
-		printk(KERN_WARNING "hidraw: pid %d passed too short report\n",
-				task_pid_nr(current));
+		hid_warn(dev, "pid %d passed too short report\n",
+			 task_pid_nr(current));
 		ret = -EINVAL;
 		goto out;
 	}
@@ -192,15 +194,13 @@ static int hidraw_open(struct inode *inode, struct file *file)
 
 	dev = hidraw_table[minor];
 	if (!dev->open++) {
-		if (dev->hid->ll_driver->power) {
-			err = dev->hid->ll_driver->power(dev->hid, PM_HINT_FULLON);
-			if (err < 0)
-				goto out_unlock;
-		}
-		err = dev->hid->ll_driver->open(dev->hid);
+		err = hid_hw_power(dev->hid, PM_HINT_FULLON);
+		if (err < 0)
+			goto out_unlock;
+
+		err = hid_hw_open(dev->hid);
 		if (err < 0) {
-			if (dev->hid->ll_driver->power)
-				dev->hid->ll_driver->power(dev->hid, PM_HINT_NORMAL);
+			hid_hw_power(dev->hid, PM_HINT_NORMAL);
 			dev->open--;
 		}
 	}
@@ -229,9 +229,8 @@ static int hidraw_release(struct inode * inode, struct file * file)
 	dev = hidraw_table[minor];
 	if (!--dev->open) {
 		if (list->hidraw->exist) {
-			if (dev->hid->ll_driver->power)
-				dev->hid->ll_driver->power(dev->hid, PM_HINT_NORMAL);
-			dev->hid->ll_driver->close(dev->hid);
+			hid_hw_power(dev->hid, PM_HINT_NORMAL);
+			hid_hw_close(dev->hid);
 		} else {
 			kfree(list->hidraw);
 		}
@@ -345,6 +344,9 @@ static const struct file_operations hidraw_ops = {
 	.open =         hidraw_open,
 	.release =      hidraw_release,
 	.unlocked_ioctl = hidraw_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl   = hidraw_ioctl,
+#endif
 	.llseek =	noop_llseek,
 };
 
@@ -433,7 +435,7 @@ void hidraw_disconnect(struct hid_device *hid)
 	device_destroy(hidraw_class, MKDEV(hidraw_major, hidraw->minor));
 
 	if (hidraw->open) {
-		hid->ll_driver->close(hid);
+		hid_hw_close(hid);
 		wake_up_interruptible(&hidraw->wait);
 	} else {
 		kfree(hidraw);
@@ -452,7 +454,7 @@ int __init hidraw_init(void)
 	hidraw_major = MAJOR(dev_id);
 
 	if (result < 0) {
-		printk(KERN_WARNING "hidraw: can't get major number\n");
+		pr_warn("can't get major number\n");
 		result = 0;
 		goto out;
 	}

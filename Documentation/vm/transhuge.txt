@@ -1,0 +1,298 @@
+= Transparent Hugepage Support =
+
+== Objective ==
+
+Performance critical computing applications dealing with large memory
+working sets are already running on top of libhugetlbfs and in turn
+hugetlbfs. Transparent Hugepage Support is an alternative means of
+using huge pages for the backing of virtual memory with huge pages
+that supports the automatic promotion and demotion of page sizes and
+without the shortcomings of hugetlbfs.
+
+Currently it only works for anonymous memory mappings but in the
+future it can expand over the pagecache layer starting with tmpfs.
+
+The reason applications are running faster is because of two
+factors. The first factor is almost completely irrelevant and it's not
+of significant interest because it'll also have the downside of
+requiring larger clear-page copy-page in page faults which is a
+potentially negative effect. The first factor consists in taking a
+single page fault for each 2M virtual region touched by userland (so
+reducing the enter/exit kernel frequency by a 512 times factor). This
+only matters the first time the memory is accessed for the lifetime of
+a memory mapping. The second long lasting and much more important
+factor will affect all subsequent accesses to the memory for the whole
+runtime of the application. The second factor consist of two
+components: 1) the TLB miss will run faster (especially with
+virtualization using nested pagetables but almost always also on bare
+metal without virtualization) and 2) a single TLB entry will be
+mapping a much larger amount of virtual memory in turn reducing the
+number of TLB misses. With virtualization and nested pagetables the
+TLB can be mapped of larger size only if both KVM and the Linux guest
+are using hugepages but a significant speedup already happens if only
+one of the two is using hugepages just because of the fact the TLB
+miss is going to run faster.
+
+== Design ==
+
+- "graceful fallback": mm components which don't have transparent
+  hugepage knowledge fall back to breaking a transparent hugepage and
+  working on the regular pages and their respective regular pmd/pte
+  mappings
+
+- if a hugepage allocation fails because of memory fragmentation,
+  regular pages should be gracefully allocated instead and mixed in
+  the same vma without any failure or significant delay and without
+  userland noticing
+
+- if some task quits and more hugepages become available (either
+  immediately in the buddy or through the VM), guest physical memory
+  backed by regular pages should be relocated on hugepages
+  automatically (with khugepaged)
+
+- it doesn't require memory reservation and in turn it uses hugepages
+  whenever possible (the only possible reservation here is kernelcore=
+  to avoid unmovable pages to fragment all the memory but such a tweak
+  is not specific to transparent hugepage support and it's a generic
+  feature that applies to all dynamic high order allocations in the
+  kernel)
+
+- this initial support only offers the feature in the anonymous memory
+  regions but it'd be ideal to move it to tmpfs and the pagecache
+  later
+
+Transparent Hugepage Support maximizes the usefulness of free memory
+if compared to the reservation approach of hugetlbfs by allowing all
+unused memory to be used as cache or other movable (or even unmovable
+entities). It doesn't require reservation to prevent hugepage
+allocation failures to be noticeable from userland. It allows paging
+and all other advanced VM features to be available on the
+hugepages. It requires no modifications for applications to take
+advantage of it.
+
+Applications however can be further optimized to take advantage of
+this feature, like for example they've been optimized before to avoid
+a flood of mmap system calls for every malloc(4k). Optimizing userland
+is by far not mandatory and khugepaged already can take care of long
+lived page allocations even for hugepage unaware applications that
+deals with large amounts of memory.
+
+In certain cases when hugepages are enabled system wide, application
+may end up allocating more memory resources. An application may mmap a
+large region but only touch 1 byte of it, in that case a 2M page might
+be allocated instead of a 4k page for no good. This is why it's
+possible to disable hugepages system-wide and to only have them inside
+MADV_HUGEPAGE madvise regions.
+
+Embedded systems should enable hugepages only inside madvise regions
+to eliminate any risk of wasting any precious byte of memory and to
+only run faster.
+
+Applications that gets a lot of benefit from hugepages and that don't
+risk to lose memory by using hugepages, should use
+madvise(MADV_HUGEPAGE) on their critical mmapped regions.
+
+== sysfs ==
+
+Transparent Hugepage Support can be entirely disabled (mostly for
+debugging purposes) or only enabled inside MADV_HUGEPAGE regions (to
+avoid the risk of consuming more memory resources) or enabled system
+wide. This can be achieved with one of:
+
+echo always >/sys/kernel/mm/transparent_hugepage/enabled
+echo madvise >/sys/kernel/mm/transparent_hugepage/enabled
+echo never >/sys/kernel/mm/transparent_hugepage/enabled
+
+It's also possible to limit defrag efforts in the VM to generate
+hugepages in case they're not immediately free to madvise regions or
+to never try to defrag memory and simply fallback to regular pages
+unless hugepages are immediately available. Clearly if we spend CPU
+time to defrag memory, we would expect to gain even more by the fact
+we use hugepages later instead of regular pages. This isn't always
+guaranteed, but it may be more likely in case the allocation is for a
+MADV_HUGEPAGE region.
+
+echo always >/sys/kernel/mm/transparent_hugepage/defrag
+echo madvise >/sys/kernel/mm/transparent_hugepage/defrag
+echo never >/sys/kernel/mm/transparent_hugepage/defrag
+
+khugepaged will be automatically started when
+transparent_hugepage/enabled is set to "always" or "madvise, and it'll
+be automatically shutdown if it's set to "never".
+
+khugepaged runs usually at low frequency so while one may not want to
+invoke defrag algorithms synchronously during the page faults, it
+should be worth invoking defrag at least in khugepaged. However it's
+also possible to disable defrag in khugepaged:
+
+echo yes >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
+echo no >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
+
+You can also control how many pages khugepaged should scan at each
+pass:
+
+/sys/kernel/mm/transparent_hugepage/khugepaged/pages_to_scan
+
+and how many milliseconds to wait in khugepaged between each pass (you
+can set this to 0 to run khugepaged at 100% utilization of one core):
+
+/sys/kernel/mm/transparent_hugepage/khugepaged/scan_sleep_millisecs
+
+and how many milliseconds to wait in khugepaged if there's an hugepage
+allocation failure to throttle the next allocation attempt.
+
+/sys/kernel/mm/transparent_hugepage/khugepaged/alloc_sleep_millisecs
+
+The khugepaged progress can be seen in the number of pages collapsed:
+
+/sys/kernel/mm/transparent_hugepage/khugepaged/pages_collapsed
+
+for each pass:
+
+/sys/kernel/mm/transparent_hugepage/khugepaged/full_scans
+
+== Boot parameter ==
+
+You can change the sysfs boot time defaults of Transparent Hugepage
+Support by passing the parameter "transparent_hugepage=always" or
+"transparent_hugepage=madvise" or "transparent_hugepage=never"
+(without "") to the kernel command line.
+
+== Need of application restart ==
+
+The transparent_hugepage/enabled values only affect future
+behavior. So to make them effective you need to restart any
+application that could have been using hugepages. This also applies to
+the regions registered in khugepaged.
+
+== get_user_pages and follow_page ==
+
+get_user_pages and follow_page if run on a hugepage, will return the
+head or tail pages as usual (exactly as they would do on
+hugetlbfs). Most gup users will only care about the actual physical
+address of the page and its temporary pinning to release after the I/O
+is complete, so they won't ever notice the fact the page is huge. But
+if any driver is going to mangle over the page structure of the tail
+page (like for checking page->mapping or other bits that are relevant
+for the head page and not the tail page), it should be updated to jump
+to check head page instead (while serializing properly against
+split_huge_page() to avoid the head and tail pages to disappear from
+under it, see the futex code to see an example of that, hugetlbfs also
+needed special handling in futex code for similar reasons).
+
+NOTE: these aren't new constraints to the GUP API, and they match the
+same constrains that applies to hugetlbfs too, so any driver capable
+of handling GUP on hugetlbfs will also work fine on transparent
+hugepage backed mappings.
+
+In case you can't handle compound pages if they're returned by
+follow_page, the FOLL_SPLIT bit can be specified as parameter to
+follow_page, so that it will split the hugepages before returning
+them. Migration for example passes FOLL_SPLIT as parameter to
+follow_page because it's not hugepage aware and in fact it can't work
+at all on hugetlbfs (but it instead works fine on transparent
+hugepages thanks to FOLL_SPLIT). migration simply can't deal with
+hugepages being returned (as it's not only checking the pfn of the
+page and pinning it during the copy but it pretends to migrate the
+memory in regular page sizes and with regular pte/pmd mappings).
+
+== Optimizing the applications ==
+
+To be guaranteed that the kernel will map a 2M page immediately in any
+memory region, the mmap region has to be hugepage naturally
+aligned. posix_memalign() can provide that guarantee.
+
+== Hugetlbfs ==
+
+You can use hugetlbfs on a kernel that has transparent hugepage
+support enabled just fine as always. No difference can be noted in
+hugetlbfs other than there will be less overall fragmentation. All
+usual features belonging to hugetlbfs are preserved and
+unaffected. libhugetlbfs will also work fine as usual.
+
+== Graceful fallback ==
+
+Code walking pagetables but unware about huge pmds can simply call
+split_huge_page_pmd(mm, pmd) where the pmd is the one returned by
+pmd_offset. It's trivial to make the code transparent hugepage aware
+by just grepping for "pmd_offset" and adding split_huge_page_pmd where
+missing after pmd_offset returns the pmd. Thanks to the graceful
+fallback design, with a one liner change, you can avoid to write
+hundred if not thousand of lines of complex code to make your code
+hugepage aware.
+
+If you're not walking pagetables but you run into a physical hugepage
+but you can't handle it natively in your code, you can split it by
+calling split_huge_page(page). This is what the Linux VM does before
+it tries to swapout the hugepage for example.
+
+Example to make mremap.c transparent hugepage aware with a one liner
+change:
+
+diff --git a/mm/mremap.c b/mm/mremap.c
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -41,6 +41,7 @@ static pmd_t *get_old_pmd(struct mm_stru
+		return NULL;
+
+	pmd = pmd_offset(pud, addr);
++	split_huge_page_pmd(mm, pmd);
+	if (pmd_none_or_clear_bad(pmd))
+		return NULL;
+
+== Locking in hugepage aware code ==
+
+We want as much code as possible hugepage aware, as calling
+split_huge_page() or split_huge_page_pmd() has a cost.
+
+To make pagetable walks huge pmd aware, all you need to do is to call
+pmd_trans_huge() on the pmd returned by pmd_offset. You must hold the
+mmap_sem in read (or write) mode to be sure an huge pmd cannot be
+created from under you by khugepaged (khugepaged collapse_huge_page
+takes the mmap_sem in write mode in addition to the anon_vma lock). If
+pmd_trans_huge returns false, you just fallback in the old code
+paths. If instead pmd_trans_huge returns true, you have to take the
+mm->page_table_lock and re-run pmd_trans_huge. Taking the
+page_table_lock will prevent the huge pmd to be converted into a
+regular pmd from under you (split_huge_page can run in parallel to the
+pagetable walk). If the second pmd_trans_huge returns false, you
+should just drop the page_table_lock and fallback to the old code as
+before. Otherwise you should run pmd_trans_splitting on the pmd. In
+case pmd_trans_splitting returns true, it means split_huge_page is
+already in the middle of splitting the page. So if pmd_trans_splitting
+returns true it's enough to drop the page_table_lock and call
+wait_split_huge_page and then fallback the old code paths. You are
+guaranteed by the time wait_split_huge_page returns, the pmd isn't
+huge anymore. If pmd_trans_splitting returns false, you can proceed to
+process the huge pmd and the hugepage natively. Once finished you can
+drop the page_table_lock.
+
+== compound_lock, get_user_pages and put_page ==
+
+split_huge_page internally has to distribute the refcounts in the head
+page to the tail pages before clearing all PG_head/tail bits from the
+page structures. It can do that easily for refcounts taken by huge pmd
+mappings. But the GUI API as created by hugetlbfs (that returns head
+and tail pages if running get_user_pages on an address backed by any
+hugepage), requires the refcount to be accounted on the tail pages and
+not only in the head pages, if we want to be able to run
+split_huge_page while there are gup pins established on any tail
+page. Failure to be able to run split_huge_page if there's any gup pin
+on any tail page, would mean having to split all hugepages upfront in
+get_user_pages which is unacceptable as too many gup users are
+performance critical and they must work natively on hugepages like
+they work natively on hugetlbfs already (hugetlbfs is simpler because
+hugetlbfs pages cannot be splitted so there wouldn't be requirement of
+accounting the pins on the tail pages for hugetlbfs). If we wouldn't
+account the gup refcounts on the tail pages during gup, we won't know
+anymore which tail page is pinned by gup and which is not while we run
+split_huge_page. But we still have to add the gup pin to the head page
+too, to know when we can free the compound page in case it's never
+splitted during its lifetime. That requires changing not just
+get_page, but put_page as well so that when put_page runs on a tail
+page (and only on a tail page) it will find its respective head page,
+and then it will decrease the head page refcount in addition to the
+tail page refcount. To obtain a head page reliably and to decrease its
+refcount without race conditions, put_page has to serialize against
+__split_huge_page_refcount using a special per-page lock called
+compound_lock.

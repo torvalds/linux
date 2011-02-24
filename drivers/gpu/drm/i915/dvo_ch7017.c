@@ -242,7 +242,7 @@ fail:
 
 static enum drm_connector_status ch7017_detect(struct intel_dvo_device *dvo)
 {
-	return connector_status_unknown;
+	return connector_status_connected;
 }
 
 static enum drm_mode_status ch7017_mode_valid(struct intel_dvo_device *dvo,

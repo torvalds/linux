@@ -46,8 +46,7 @@ static int tcf_skbedit(struct sk_buff *skb, struct tc_action *a,
 
 	spin_lock(&d->tcf_lock);
 	d->tcf_tm.lastuse = jiffies;
-	d->tcf_bstats.bytes += qdisc_pkt_len(skb);
-	d->tcf_bstats.packets++;
+	bstats_update(&d->tcf_bstats, skb);
 
 	if (d->flags & SKBEDIT_F_PRIORITY)
 		skb->priority = d->priority;

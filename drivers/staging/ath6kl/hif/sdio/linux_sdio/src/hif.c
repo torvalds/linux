@@ -876,7 +876,7 @@ HIFAckInterrupt(HIF_DEVICE *device)
 void
 HIFUnMaskInterrupt(HIF_DEVICE *device)
 {
-    int ret;;
+    int ret;
 
     AR_DEBUG_ASSERT(device != NULL);
     AR_DEBUG_ASSERT(device->func != NULL);
@@ -1188,7 +1188,7 @@ addHifDevice(struct sdio_func *func)
     HIF_DEVICE *hifdevice;
     AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: addHifDevice\n"));
     AR_DEBUG_ASSERT(func != NULL);
-    hifdevice = (HIF_DEVICE *)kzalloc(sizeof(HIF_DEVICE), GFP_KERNEL);
+    hifdevice = kzalloc(sizeof(HIF_DEVICE), GFP_KERNEL);
     AR_DEBUG_ASSERT(hifdevice != NULL);
 #if HIF_USE_DMA_BOUNCE_BUFFER
     hifdevice->dma_buffer = kmalloc(HIF_DMA_BUFFER_SIZE, GFP_KERNEL);

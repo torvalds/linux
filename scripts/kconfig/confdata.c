@@ -440,12 +440,11 @@ static void conf_write_string(bool headerfile, const char *name,
 	fputs("\"\n", out);
 }
 
-static void conf_write_symbol(struct symbol *sym, enum symbol_type type,
-                              FILE *out, bool write_no)
+static void conf_write_symbol(struct symbol *sym, FILE *out, bool write_no)
 {
 	const char *str;
 
-	switch (type) {
+	switch (sym->type) {
 	case S_BOOLEAN:
 	case S_TRISTATE:
 		switch (sym_get_tristate_value(sym)) {
@@ -532,7 +531,7 @@ int conf_write_defconfig(const char *filename)
 						goto next_menu;
 				}
 			}
-			conf_write_symbol(sym, sym->type, out, true);
+			conf_write_symbol(sym, out, true);
 		}
 next_menu:
 		if (menu->list != NULL) {
@@ -561,7 +560,6 @@ int conf_write(const char *name)
 	const char *basename;
 	const char *str;
 	char dirname[PATH_MAX+1], tmpname[PATH_MAX+1], newname[PATH_MAX+1];
-	enum symbol_type type;
 	time_t now;
 	int use_timestamp = 1;
 	char *env;
@@ -633,14 +631,8 @@ int conf_write(const char *name)
 			if (!(sym->flags & SYMBOL_WRITE))
 				goto next;
 			sym->flags &= ~SYMBOL_WRITE;
-			type = sym->type;
-			if (type == S_TRISTATE) {
-				sym_calc_value(modules_sym);
-				if (modules_sym->curr.tri == no)
-					type = S_BOOLEAN;
-			}
 			/* Write config symbol to file */
-			conf_write_symbol(sym, type, out, true);
+			conf_write_symbol(sym, out, true);
 		}
 
 next:
@@ -833,8 +825,7 @@ int conf_write_autoconf(void)
 		       " * Automatically generated C config: don't edit\n"
 		       " * %s\n"
 		       " * %s"
-		       " */\n"
-		       "#define AUTOCONF_INCLUDED\n",
+		       " */\n",
 		       rootmenu.prompt->text, ctime(&now));
 
 	for_all_symbols(i, sym) {
@@ -843,7 +834,7 @@ int conf_write_autoconf(void)
 			continue;
 
 		/* write symbol to config file */
-		conf_write_symbol(sym, sym->type, out, false);
+		conf_write_symbol(sym, out, false);
 
 		/* update autoconf and tristate files */
 		switch (sym->type) {
@@ -946,7 +937,7 @@ static void randomize_choice_values(struct symbol *csym)
 	int cnt, def;
 
 	/*
-	 * If choice is mod then we may have more items slected
+	 * If choice is mod then we may have more items selected
 	 * and if no then no-one.
 	 * In both cases stop.
 	 */
@@ -1042,10 +1033,10 @@ void conf_set_all_new_symbols(enum conf_def_mode mode)
 
 	/*
 	 * We have different type of choice blocks.
-	 * If curr.tri equal to mod then we can select several
+	 * If curr.tri equals to mod then we can select several
 	 * choice symbols in one block.
 	 * In this case we do nothing.
-	 * If curr.tri equal yes then only one symbol can be
+	 * If curr.tri equals yes then only one symbol can be
 	 * selected in a choice block and we set it to yes,
 	 * and the rest to no.
 	 */

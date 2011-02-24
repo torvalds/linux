@@ -33,7 +33,6 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/pcm_params.h>
 
 #include <asm/dma.h>
@@ -120,7 +119,7 @@ static struct snd_soc_dai_link bf5xx_ssm2602_dai = {
 	.cpu_dai_name = "bf5xx-i2s",
 	.codec_dai_name = "ssm2602-hifi",
 	.platform_name = "bf5xx-pcm-audio",
-	.codec_name = "ssm2602-codec.0-0x1b",
+	.codec_name = "ssm2602-codec.0-001b",
 	.ops = &bf5xx_ssm2602_ops,
 };
 

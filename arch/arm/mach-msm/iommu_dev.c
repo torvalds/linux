@@ -346,7 +346,7 @@ static struct platform_driver msm_iommu_ctx_driver = {
 	.remove		= msm_iommu_ctx_remove,
 };
 
-static int msm_iommu_driver_init(void)
+static int __init msm_iommu_driver_init(void)
 {
 	int ret;
 	ret = platform_driver_register(&msm_iommu_driver);
@@ -365,7 +365,7 @@ error:
 	return ret;
 }
 
-static void msm_iommu_driver_exit(void)
+static void __exit msm_iommu_driver_exit(void)
 {
 	platform_driver_unregister(&msm_iommu_ctx_driver);
 	platform_driver_unregister(&msm_iommu_driver);

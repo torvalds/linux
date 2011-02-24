@@ -551,7 +551,7 @@
 #define   S_000360_CUR2_LOCK(x)                        (((x) & 0x1) << 31)
 #define   G_000360_CUR2_LOCK(x)                        (((x) >> 31) & 0x1)
 #define   C_000360_CUR2_LOCK                           0x7FFFFFFF
-#define R_0003C2_GENMO_WT                            0x0003C0
+#define R_0003C2_GENMO_WT                            0x0003C2
 #define   S_0003C2_GENMO_MONO_ADDRESS_B(x)             (((x) & 0x1) << 0)
 #define   G_0003C2_GENMO_MONO_ADDRESS_B(x)             (((x) >> 0) & 0x1)
 #define   C_0003C2_GENMO_MONO_ADDRESS_B                0xFE

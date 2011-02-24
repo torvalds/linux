@@ -151,13 +151,15 @@ extern void __cpu_copy_user_highpage(struct page *to, struct page *from,
 #define clear_page(page)	memset((void *)(page), 0, PAGE_SIZE)
 extern void copy_page(void *to, const void *from);
 
+typedef unsigned long pteval_t;
+
 #undef STRICT_MM_TYPECHECKS
 
 #ifdef STRICT_MM_TYPECHECKS
 /*
  * These are used to make use of C type-checking..
  */
-typedef struct { unsigned long pte; } pte_t;
+typedef struct { pteval_t pte; } pte_t;
 typedef struct { unsigned long pmd; } pmd_t;
 typedef struct { unsigned long pgd[2]; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
@@ -175,7 +177,7 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 /*
  * .. while these make it easier on the compiler
  */
-typedef unsigned long pte_t;
+typedef pteval_t pte_t;
 typedef unsigned long pmd_t;
 typedef unsigned long pgd_t[2];
 typedef unsigned long pgprot_t;

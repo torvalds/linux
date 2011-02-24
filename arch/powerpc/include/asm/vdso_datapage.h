@@ -116,9 +116,7 @@ struct vdso_data {
 
 #endif /* CONFIG_PPC64 */
 
-#ifdef __KERNEL__
 extern struct vdso_data *vdso_data;
-#endif
 
 #endif /* __ASSEMBLY__ */
 

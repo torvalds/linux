@@ -35,7 +35,7 @@ neponset_irq_handler(unsigned int irq, struct irq_desc *desc)
 		/*
 		 * Acknowledge the parent IRQ.
 		 */
-		desc->chip->ack(irq);
+		desc->irq_data.chip->irq_ack(&desc->irq_data);
 
 		/*
 		 * Read the interrupt reason register.  Let's have all
@@ -53,7 +53,7 @@ neponset_irq_handler(unsigned int irq, struct irq_desc *desc)
 		 * recheck the register for any pending IRQs.
 		 */
 		if (irr & (IRR_ETHERNET | IRR_USAR)) {
-			desc->chip->mask(irq);
+			desc->irq_data.chip->irq_mask(&desc->irq_data);
 
 			/*
 			 * Ack the interrupt now to prevent re-entering
@@ -61,7 +61,7 @@ neponset_irq_handler(unsigned int irq, struct irq_desc *desc)
 			 * since we'll check the IRR register prior to
 			 * leaving.
 			 */
-			desc->chip->ack(irq);
+			desc->irq_data.chip->irq_ack(&desc->irq_data);
 
 			if (irr & IRR_ETHERNET) {
 				generic_handle_irq(IRQ_NEPONSET_SMC9196);
@@ -71,7 +71,7 @@ neponset_irq_handler(unsigned int irq, struct irq_desc *desc)
 				generic_handle_irq(IRQ_NEPONSET_USAR);
 			}
 
-			desc->chip->unmask(irq);
+			desc->irq_data.chip->irq_unmask(&desc->irq_data);
 		}
 
 		if (irr & IRR_SA1111) {

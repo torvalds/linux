@@ -951,9 +951,6 @@ SYSCALL_DEFINE2(osf_utimes, const char __user *, filename,
 	return do_utimes(AT_FDCWD, filename, tvs ? tv : NULL, 0);
 }
 
-#define MAX_SELECT_SECONDS \
-	((unsigned long) (MAX_SCHEDULE_TIMEOUT / HZ)-1)
-
 SYSCALL_DEFINE5(osf_select, int, n, fd_set __user *, inp, fd_set __user *, outp,
 		fd_set __user *, exp, struct timeval32 __user *, tvp)
 {

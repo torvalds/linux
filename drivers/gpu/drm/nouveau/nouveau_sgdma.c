@@ -12,6 +12,7 @@ struct nouveau_sgdma_be {
 	struct drm_device *dev;
 
 	dma_addr_t *pages;
+	bool *ttm_alloced;
 	unsigned nr_pages;
 
 	u64 offset;
@@ -20,7 +21,8 @@ struct nouveau_sgdma_be {
 
 static int
 nouveau_sgdma_populate(struct ttm_backend *be, unsigned long num_pages,
-		       struct page **pages, struct page *dummy_read_page)
+		       struct page **pages, struct page *dummy_read_page,
+		       dma_addr_t *dma_addrs)
 {
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)be;
 	struct drm_device *dev = nvbe->dev;
@@ -34,15 +36,25 @@ nouveau_sgdma_populate(struct ttm_backend *be, unsigned long num_pages,
 	if (!nvbe->pages)
 		return -ENOMEM;
 
+	nvbe->ttm_alloced = kmalloc(sizeof(bool) * num_pages, GFP_KERNEL);
+	if (!nvbe->ttm_alloced)
+		return -ENOMEM;
+
 	nvbe->nr_pages = 0;
 	while (num_pages--) {
-		nvbe->pages[nvbe->nr_pages] =
-			pci_map_page(dev->pdev, pages[nvbe->nr_pages], 0,
+		if (dma_addrs[nvbe->nr_pages] != DMA_ERROR_CODE) {
+			nvbe->pages[nvbe->nr_pages] =
+					dma_addrs[nvbe->nr_pages];
+		 	nvbe->ttm_alloced[nvbe->nr_pages] = true;
+		} else {
+			nvbe->pages[nvbe->nr_pages] =
+				pci_map_page(dev->pdev, pages[nvbe->nr_pages], 0,
 				     PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-		if (pci_dma_mapping_error(dev->pdev,
-					  nvbe->pages[nvbe->nr_pages])) {
-			be->func->clear(be);
-			return -EFAULT;
+			if (pci_dma_mapping_error(dev->pdev,
+						  nvbe->pages[nvbe->nr_pages])) {
+				be->func->clear(be);
+				return -EFAULT;
+			}
 		}
 
 		nvbe->nr_pages++;
@@ -65,11 +77,14 @@ nouveau_sgdma_clear(struct ttm_backend *be)
 			be->func->unbind(be);
 
 		while (nvbe->nr_pages--) {
-			pci_unmap_page(dev->pdev, nvbe->pages[nvbe->nr_pages],
+			if (!nvbe->ttm_alloced[nvbe->nr_pages])
+				pci_unmap_page(dev->pdev, nvbe->pages[nvbe->nr_pages],
 				       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
 		}
 		kfree(nvbe->pages);
+		kfree(nvbe->ttm_alloced);
 		nvbe->pages = NULL;
+		nvbe->ttm_alloced = NULL;
 		nvbe->nr_pages = 0;
 	}
 }

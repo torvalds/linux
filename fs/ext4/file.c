@@ -104,6 +104,7 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 {
 	struct super_block *sb = inode->i_sb;
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+	struct ext4_inode_info *ei = EXT4_I(inode);
 	struct vfsmount *mnt = filp->f_path.mnt;
 	struct path path;
 	char buf[64], *cp;
@@ -126,6 +127,27 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 			       sizeof(sbi->s_es->s_last_mounted));
 			ext4_mark_super_dirty(sb);
 		}
+	}
+	/*
+	 * Set up the jbd2_inode if we are opening the inode for
+	 * writing and the journal is present
+	 */
+	if (sbi->s_journal && !ei->jinode && (filp->f_mode & FMODE_WRITE)) {
+		struct jbd2_inode *jinode = jbd2_alloc_inode(GFP_KERNEL);
+
+		spin_lock(&inode->i_lock);
+		if (!ei->jinode) {
+			if (!jinode) {
+				spin_unlock(&inode->i_lock);
+				return -ENOMEM;
+			}
+			ei->jinode = jinode;
+			jbd2_journal_init_jbd_inode(ei->jinode, inode);
+			jinode = NULL;
+		}
+		spin_unlock(&inode->i_lock);
+		if (unlikely(jinode != NULL))
+			jbd2_free_inode(jinode);
 	}
 	return dquot_file_open(inode, filp);
 }
@@ -188,6 +210,7 @@ const struct file_operations ext4_file_operations = {
 	.fsync		= ext4_sync_file,
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= generic_file_splice_write,
+	.fallocate	= ext4_fallocate,
 };
 
 const struct inode_operations ext4_file_inode_operations = {
@@ -201,7 +224,6 @@ const struct inode_operations ext4_file_inode_operations = {
 	.removexattr	= generic_removexattr,
 #endif
 	.check_acl	= ext4_check_acl,
-	.fallocate	= ext4_fallocate,
 	.fiemap		= ext4_fiemap,
 };
 

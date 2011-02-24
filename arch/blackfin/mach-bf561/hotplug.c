@@ -6,7 +6,9 @@
  */
 
 #include <asm/blackfin.h>
+#include <asm/irq.h>
 #include <asm/smp.h>
+
 #define SIC_SYSIRQ(irq)	(irq - (IRQ_CORETMR + 1))
 
 int hotplug_coreb;

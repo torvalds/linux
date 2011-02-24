@@ -68,7 +68,7 @@ static void avivo_crtc_load_lut(struct drm_crtc *crtc)
 	WREG32(AVIVO_D1GRPH_LUT_SEL + radeon_crtc->crtc_offset, radeon_crtc->crtc_id);
 }
 
-static void evergreen_crtc_load_lut(struct drm_crtc *crtc)
+static void dce4_crtc_load_lut(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
@@ -96,6 +96,66 @@ static void evergreen_crtc_load_lut(struct drm_crtc *crtc)
 		       (radeon_crtc->lut_g[i] << 10) |
 		       (radeon_crtc->lut_b[i] << 0));
 	}
+}
+
+static void dce5_crtc_load_lut(struct drm_crtc *crtc)
+{
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	int i;
+
+	DRM_DEBUG_KMS("%d\n", radeon_crtc->crtc_id);
+
+	WREG32(NI_INPUT_CSC_CONTROL + radeon_crtc->crtc_offset,
+	       (NI_INPUT_CSC_GRPH_MODE(NI_INPUT_CSC_BYPASS) |
+		NI_INPUT_CSC_OVL_MODE(NI_INPUT_CSC_BYPASS)));
+	WREG32(NI_PRESCALE_GRPH_CONTROL + radeon_crtc->crtc_offset,
+	       NI_GRPH_PRESCALE_BYPASS);
+	WREG32(NI_PRESCALE_OVL_CONTROL + radeon_crtc->crtc_offset,
+	       NI_OVL_PRESCALE_BYPASS);
+	WREG32(NI_INPUT_GAMMA_CONTROL + radeon_crtc->crtc_offset,
+	       (NI_GRPH_INPUT_GAMMA_MODE(NI_INPUT_GAMMA_USE_LUT) |
+		NI_OVL_INPUT_GAMMA_MODE(NI_INPUT_GAMMA_USE_LUT)));
+
+	WREG32(EVERGREEN_DC_LUT_CONTROL + radeon_crtc->crtc_offset, 0);
+
+	WREG32(EVERGREEN_DC_LUT_BLACK_OFFSET_BLUE + radeon_crtc->crtc_offset, 0);
+	WREG32(EVERGREEN_DC_LUT_BLACK_OFFSET_GREEN + radeon_crtc->crtc_offset, 0);
+	WREG32(EVERGREEN_DC_LUT_BLACK_OFFSET_RED + radeon_crtc->crtc_offset, 0);
+
+	WREG32(EVERGREEN_DC_LUT_WHITE_OFFSET_BLUE + radeon_crtc->crtc_offset, 0xffff);
+	WREG32(EVERGREEN_DC_LUT_WHITE_OFFSET_GREEN + radeon_crtc->crtc_offset, 0xffff);
+	WREG32(EVERGREEN_DC_LUT_WHITE_OFFSET_RED + radeon_crtc->crtc_offset, 0xffff);
+
+	WREG32(EVERGREEN_DC_LUT_RW_MODE + radeon_crtc->crtc_offset, 0);
+	WREG32(EVERGREEN_DC_LUT_WRITE_EN_MASK + radeon_crtc->crtc_offset, 0x00000007);
+
+	WREG32(EVERGREEN_DC_LUT_RW_INDEX + radeon_crtc->crtc_offset, 0);
+	for (i = 0; i < 256; i++) {
+		WREG32(EVERGREEN_DC_LUT_30_COLOR + radeon_crtc->crtc_offset,
+		       (radeon_crtc->lut_r[i] << 20) |
+		       (radeon_crtc->lut_g[i] << 10) |
+		       (radeon_crtc->lut_b[i] << 0));
+	}
+
+	WREG32(NI_DEGAMMA_CONTROL + radeon_crtc->crtc_offset,
+	       (NI_GRPH_DEGAMMA_MODE(NI_DEGAMMA_BYPASS) |
+		NI_OVL_DEGAMMA_MODE(NI_DEGAMMA_BYPASS) |
+		NI_ICON_DEGAMMA_MODE(NI_DEGAMMA_BYPASS) |
+		NI_CURSOR_DEGAMMA_MODE(NI_DEGAMMA_BYPASS)));
+	WREG32(NI_GAMUT_REMAP_CONTROL + radeon_crtc->crtc_offset,
+	       (NI_GRPH_GAMUT_REMAP_MODE(NI_GAMUT_REMAP_BYPASS) |
+		NI_OVL_GAMUT_REMAP_MODE(NI_GAMUT_REMAP_BYPASS)));
+	WREG32(NI_REGAMMA_CONTROL + radeon_crtc->crtc_offset,
+	       (NI_GRPH_REGAMMA_MODE(NI_REGAMMA_BYPASS) |
+		NI_OVL_REGAMMA_MODE(NI_REGAMMA_BYPASS)));
+	WREG32(NI_OUTPUT_CSC_CONTROL + radeon_crtc->crtc_offset,
+	       (NI_OUTPUT_CSC_GRPH_MODE(NI_OUTPUT_CSC_BYPASS) |
+		NI_OUTPUT_CSC_OVL_MODE(NI_OUTPUT_CSC_BYPASS)));
+	/* XXX match this to the depth of the crtc fmt block, move to modeset? */
+	WREG32(0x6940 + radeon_crtc->crtc_offset, 0);
+
 }
 
 static void legacy_crtc_load_lut(struct drm_crtc *crtc)
@@ -130,8 +190,10 @@ void radeon_crtc_load_lut(struct drm_crtc *crtc)
 	if (!crtc->enabled)
 		return;
 
-	if (ASIC_IS_DCE4(rdev))
-		evergreen_crtc_load_lut(crtc);
+	if (ASIC_IS_DCE5(rdev))
+		dce5_crtc_load_lut(crtc);
+	else if (ASIC_IS_DCE4(rdev))
+		dce4_crtc_load_lut(crtc);
 	else if (ASIC_IS_AVIVO(rdev))
 		avivo_crtc_load_lut(crtc);
 	else
@@ -309,7 +371,7 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	new_radeon_fb = to_radeon_framebuffer(fb);
 	/* schedule unpin of the old buffer */
 	obj = old_radeon_fb->obj;
-	rbo = obj->driver_private;
+	rbo = gem_to_radeon_bo(obj);
 	work->old_rbo = rbo;
 	INIT_WORK(&work->work, radeon_unpin_work_func);
 
@@ -329,7 +391,7 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 
 	/* pin the new buffer */
 	obj = new_radeon_fb->obj;
-	rbo = obj->driver_private;
+	rbo = gem_to_radeon_bo(obj);
 
 	DRM_DEBUG_DRIVER("flip-ioctl() cur_fbo = %p, cur_bbo = %p\n",
 			 work->old_rbo, rbo);
@@ -679,9 +741,17 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 	if (!radeon_connector->edid) {
 		radeon_connector->edid = drm_get_edid(&radeon_connector->base, &radeon_connector->ddc_bus->adapter);
 	}
-	/* some servers provide a hardcoded edid in rom for KVMs */
-	if (!radeon_connector->edid)
-		radeon_connector->edid = radeon_combios_get_hardcoded_edid(rdev);
+
+	if (!radeon_connector->edid) {
+		if (rdev->is_atom_bios) {
+			/* some laptops provide a hardcoded edid in rom for LCDs */
+			if (((radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_LVDS) ||
+			     (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)))
+				radeon_connector->edid = radeon_bios_get_hardcoded_edid(rdev);
+		} else
+			/* some servers provide a hardcoded edid in rom for KVMs */
+			radeon_connector->edid = radeon_bios_get_hardcoded_edid(rdev);
+	}
 	if (radeon_connector->edid) {
 		drm_mode_connector_update_edid_property(&radeon_connector->base, radeon_connector->edid);
 		ret = drm_add_edid_modes(&radeon_connector->base, radeon_connector->edid);
@@ -710,6 +780,115 @@ static int radeon_ddc_dump(struct drm_connector *connector)
 	return ret;
 }
 
+/* avivo */
+static void avivo_get_fb_div(struct radeon_pll *pll,
+			     u32 target_clock,
+			     u32 post_div,
+			     u32 ref_div,
+			     u32 *fb_div,
+			     u32 *frac_fb_div)
+{
+	u32 tmp = post_div * ref_div;
+
+	tmp *= target_clock;
+	*fb_div = tmp / pll->reference_freq;
+	*frac_fb_div = tmp % pll->reference_freq;
+}
+
+static u32 avivo_get_post_div(struct radeon_pll *pll,
+			      u32 target_clock)
+{
+	u32 vco, post_div, tmp;
+
+	if (pll->flags & RADEON_PLL_USE_POST_DIV)
+		return pll->post_div;
+
+	if (pll->flags & RADEON_PLL_PREFER_MINM_OVER_MAXP) {
+		if (pll->flags & RADEON_PLL_IS_LCD)
+			vco = pll->lcd_pll_out_min;
+		else
+			vco = pll->pll_out_min;
+	} else {
+		if (pll->flags & RADEON_PLL_IS_LCD)
+			vco = pll->lcd_pll_out_max;
+		else
+			vco = pll->pll_out_max;
+	}
+
+	post_div = vco / target_clock;
+	tmp = vco % target_clock;
+
+	if (pll->flags & RADEON_PLL_PREFER_MINM_OVER_MAXP) {
+		if (tmp)
+			post_div++;
+	} else {
+		if (!tmp)
+			post_div--;
+	}
+
+	return post_div;
+}
+
+#define MAX_TOLERANCE 10
+
+void radeon_compute_pll_avivo(struct radeon_pll *pll,
+			      u32 freq,
+			      u32 *dot_clock_p,
+			      u32 *fb_div_p,
+			      u32 *frac_fb_div_p,
+			      u32 *ref_div_p,
+			      u32 *post_div_p)
+{
+	u32 target_clock = freq / 10;
+	u32 post_div = avivo_get_post_div(pll, target_clock);
+	u32 ref_div = pll->min_ref_div;
+	u32 fb_div = 0, frac_fb_div = 0, tmp;
+
+	if (pll->flags & RADEON_PLL_USE_REF_DIV)
+		ref_div = pll->reference_div;
+
+	if (pll->flags & RADEON_PLL_USE_FRAC_FB_DIV) {
+		avivo_get_fb_div(pll, target_clock, post_div, ref_div, &fb_div, &frac_fb_div);
+		frac_fb_div = (100 * frac_fb_div) / pll->reference_freq;
+		if (frac_fb_div >= 5) {
+			frac_fb_div -= 5;
+			frac_fb_div = frac_fb_div / 10;
+			frac_fb_div++;
+		}
+		if (frac_fb_div >= 10) {
+			fb_div++;
+			frac_fb_div = 0;
+		}
+	} else {
+		while (ref_div <= pll->max_ref_div) {
+			avivo_get_fb_div(pll, target_clock, post_div, ref_div,
+					 &fb_div, &frac_fb_div);
+			if (frac_fb_div >= (pll->reference_freq / 2))
+				fb_div++;
+			frac_fb_div = 0;
+			tmp = (pll->reference_freq * fb_div) / (post_div * ref_div);
+			tmp = (tmp * 10000) / target_clock;
+
+			if (tmp > (10000 + MAX_TOLERANCE))
+				ref_div++;
+			else if (tmp >= (10000 - MAX_TOLERANCE))
+				break;
+			else
+				ref_div++;
+		}
+	}
+
+	*dot_clock_p = ((pll->reference_freq * fb_div * 10) + (pll->reference_freq * frac_fb_div)) /
+		(ref_div * post_div * 10);
+	*fb_div_p = fb_div;
+	*frac_fb_div_p = frac_fb_div;
+	*ref_div_p = ref_div;
+	*post_div_p = post_div;
+	DRM_DEBUG_KMS("%d, pll dividers - fb: %d.%d ref: %d, post %d\n",
+		      *dot_clock_p, fb_div, frac_fb_div, ref_div, post_div);
+}
+
+/* pre-avivo */
 static inline uint32_t radeon_div(uint64_t n, uint32_t d)
 {
 	uint64_t mod;
@@ -720,13 +899,13 @@ static inline uint32_t radeon_div(uint64_t n, uint32_t d)
 	return n;
 }
 
-void radeon_compute_pll(struct radeon_pll *pll,
-			uint64_t freq,
-			uint32_t *dot_clock_p,
-			uint32_t *fb_div_p,
-			uint32_t *frac_fb_div_p,
-			uint32_t *ref_div_p,
-			uint32_t *post_div_p)
+void radeon_compute_pll_legacy(struct radeon_pll *pll,
+			       uint64_t freq,
+			       uint32_t *dot_clock_p,
+			       uint32_t *fb_div_p,
+			       uint32_t *frac_fb_div_p,
+			       uint32_t *ref_div_p,
+			       uint32_t *post_div_p)
 {
 	uint32_t min_ref_div = pll->min_ref_div;
 	uint32_t max_ref_div = pll->max_ref_div;
@@ -756,6 +935,9 @@ void radeon_compute_pll(struct radeon_pll *pll,
 		pll_out_max = pll->pll_out_max;
 	}
 
+	if (pll_out_min > 64800)
+		pll_out_min = 64800;
+
 	if (pll->flags & RADEON_PLL_USE_REF_DIV)
 		min_ref_div = max_ref_div = pll->reference_div;
 	else {
@@ -779,7 +961,7 @@ void radeon_compute_pll(struct radeon_pll *pll,
 		max_fractional_feed_div = pll->max_frac_feedback_div;
 	}
 
-	for (post_div = max_post_div; post_div >= min_post_div; --post_div) {
+	for (post_div = min_post_div; post_div <= max_post_div; ++post_div) {
 		uint32_t ref_div;
 
 		if ((pll->flags & RADEON_PLL_NO_ODD_POST_DIV) && (post_div & 1))
@@ -895,6 +1077,10 @@ void radeon_compute_pll(struct radeon_pll *pll,
 	*frac_fb_div_p = best_frac_feedback_div;
 	*ref_div_p = best_ref_div;
 	*post_div_p = best_post_div;
+	DRM_DEBUG_KMS("%d %d, pll dividers - fb: %d.%d ref: %d, post %d\n",
+		      freq, best_freq / 1000, best_feedback_div, best_frac_feedback_div,
+		      best_ref_div, best_post_div);
+
 }
 
 static void radeon_user_framebuffer_destroy(struct drm_framebuffer *fb)
@@ -1111,7 +1297,10 @@ int radeon_modeset_init(struct radeon_device *rdev)
 
 	rdev->ddev->mode_config.funcs = (void *)&radeon_mode_funcs;
 
-	if (ASIC_IS_AVIVO(rdev)) {
+	if (ASIC_IS_DCE5(rdev)) {
+		rdev->ddev->mode_config.max_width = 16384;
+		rdev->ddev->mode_config.max_height = 16384;
+	} else if (ASIC_IS_AVIVO(rdev)) {
 		rdev->ddev->mode_config.max_width = 8192;
 		rdev->ddev->mode_config.max_height = 8192;
 	} else {

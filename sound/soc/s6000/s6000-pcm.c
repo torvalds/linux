@@ -473,7 +473,7 @@ static int s6000_pcm_new(struct snd_card *card,
 	}
 
 	res = request_irq(params->irq, s6000_pcm_irq, IRQF_SHARED,
-			  s6000_soc_platform.name, pcm);
+			  "s6000-audio", pcm);
 	if (res) {
 		printk(KERN_ERR "s6000-pcm couldn't get IRQ\n");
 		return res;

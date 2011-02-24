@@ -23,7 +23,7 @@
 #include <asm/bootinfo.h>
 #include <asm/mach-jz4740/base.h>
 
-void jz4740_init_cmdline(int argc, char *argv[])
+static __init void jz4740_init_cmdline(int argc, char *argv[])
 {
 	unsigned int count = COMMAND_LINE_SIZE - 1;
 	int i;

@@ -366,6 +366,7 @@ t613		17a1:0128	TASCORP JPEG Webcam, NGS Cyclops
 vc032x		17ef:4802	Lenovo Vc0323+MI1310_SOC
 pac207		2001:f115	D-Link DSB-C120
 sq905c		2770:9050	Disney pix micro (CIF)
+sq905c		2770:9051	Lego Bionicle
 sq905c		2770:9052	Disney pix micro 2 (VGA)
 sq905c		2770:905c	All 11 known cameras with this ID
 sq905		2770:9120	All 24 known cameras with this ID

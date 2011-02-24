@@ -312,17 +312,10 @@ static void pci_dma_dev_setup_dart(struct pci_dev *dev)
 
 static void pci_dma_bus_setup_dart(struct pci_bus *bus)
 {
-	struct device_node *dn;
-
 	if (!iommu_table_dart_inited) {
 		iommu_table_dart_inited = 1;
 		iommu_table_dart_setup();
 	}
-
-	dn = pci_bus_to_OF_node(bus);
-
-	if (dn)
-		PCI_DN(dn)->iommu_table = &iommu_table_dart;
 }
 
 static bool dart_device_on_pcie(struct device *dev)
@@ -373,7 +366,7 @@ void __init iommu_init_early_dart(void)
 	if (dn == NULL) {
 		dn = of_find_compatible_node(NULL, "dart", "u4-dart");
 		if (dn == NULL)
-			goto bail;
+			return;	/* use default direct_dma_ops */
 		dart_is_u4 = 1;
 	}
 

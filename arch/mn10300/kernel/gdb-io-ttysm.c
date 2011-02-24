@@ -87,7 +87,8 @@ void __init gdbstub_io_init(void)
 	tmp = *gdbstub_port->_control;
 
 	/* permit level 0 IRQs only */
-	local_change_intr_mask_level(NUM2EPSW_IM(CONFIG_GDBSTUB_IRQ_LEVEL + 1));
+	arch_local_change_intr_mask_level(
+		NUM2EPSW_IM(CONFIG_GDBSTUB_IRQ_LEVEL + 1));
 }
 
 /*

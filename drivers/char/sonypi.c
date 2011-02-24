@@ -1434,7 +1434,7 @@ static int __devexit sonypi_remove(struct platform_device *dev)
 	sonypi_disable();
 
 	synchronize_irq(sonypi_device.irq);
-	flush_scheduled_work();
+	flush_work_sync(&sonypi_device.input_work);
 
 	if (useinput) {
 		input_unregister_device(sonypi_device.input_key_dev);

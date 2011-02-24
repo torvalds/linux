@@ -482,7 +482,7 @@ void saa7164_gpio_setup(struct saa7164_dev *dev)
 		saa7164_api_clear_gpiobit(dev, PCIEBRIDGE_UNITID, 2);
 		saa7164_api_clear_gpiobit(dev, PCIEBRIDGE_UNITID, 3);
 
-		msleep(10);
+		msleep(20);
 
 		saa7164_api_set_gpiobit(dev, PCIEBRIDGE_UNITID, 2);
 		saa7164_api_set_gpiobit(dev, PCIEBRIDGE_UNITID, 3);

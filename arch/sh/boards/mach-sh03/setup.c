@@ -96,7 +96,7 @@ static int __init sh03_devices_setup(void)
 
 	return platform_add_devices(sh03_devices, ARRAY_SIZE(sh03_devices));
 }
-__initcall(sh03_devices_setup);
+device_initcall(sh03_devices_setup);
 
 static struct sh_machine_vector mv_sh03 __initmv = {
 	.mv_name		= "Interface (CTP/PCI-SH03)",

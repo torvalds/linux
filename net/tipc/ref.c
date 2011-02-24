@@ -89,7 +89,7 @@ struct ref_table {
  * have a reference value of 0 (although this is unlikely).
  */
 
-static struct ref_table tipc_ref_table = { NULL };
+static struct ref_table tipc_ref_table;
 
 static DEFINE_RWLOCK(ref_table_lock);
 
@@ -178,14 +178,12 @@ u32 tipc_ref_acquire(void *object, spinlock_t **lock)
 		next_plus_upper = entry->ref;
 		tipc_ref_table.first_free = next_plus_upper & index_mask;
 		ref = (next_plus_upper & ~index_mask) + index;
-	}
-	else if (tipc_ref_table.init_point < tipc_ref_table.capacity) {
+	} else if (tipc_ref_table.init_point < tipc_ref_table.capacity) {
 		index = tipc_ref_table.init_point++;
 		entry = &(tipc_ref_table.entries[index]);
 		spin_lock_init(&entry->lock);
 		ref = tipc_ref_table.start_mask + index;
-	}
-	else {
+	} else {
 		ref = 0;
 	}
 	write_unlock_bh(&ref_table_lock);

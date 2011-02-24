@@ -1,11 +1,12 @@
 /*
- * ehci-omap.c - driver for USBHOST on OMAP 34xx processor
+ * ehci-omap.c - driver for USBHOST on OMAP3/4 processors
  *
- * Bus Glue for OMAP34xx USBHOST 3 port EHCI controller
- * Tested on OMAP3430 ES2.0 SDP
+ * Bus Glue for the EHCI controllers in OMAP3/4
+ * Tested on several OMAP3 boards, and OMAP4 Pandaboard
  *
- * Copyright (C) 2007-2008 Texas Instruments, Inc.
+ * Copyright (C) 2007-2010 Texas Instruments, Inc.
  *	Author: Vikram Pandita <vikram.pandita@ti.com>
+ *	Author: Anand Gadiyar <gadiyar@ti.com>
  *
  * Copyright (C) 2009 Nokia Corporation
  *	Contact: Felipe Balbi <felipe.balbi@nokia.com>
@@ -26,11 +27,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
- * TODO (last updated Feb 12, 2010):
+ * TODO (last updated Nov 21, 2010):
  *	- add kernel-doc
  *	- enable AUTOIDLE
  *	- add suspend/resume
  *	- move workarounds to board-files
+ *	- factor out code common to OHCI
+ *	- add HSIC and TLL support
+ *	- convert to use hwmod and runtime PM
  */
 
 #include <linux/platform_device.h>
@@ -86,9 +90,9 @@
 #define	OMAP_TLL_ULPI_SCRATCH_REGISTER(num)		(0x816 + 0x100 * num)
 
 #define OMAP_TLL_CHANNEL_COUNT				3
-#define OMAP_TLL_CHANNEL_1_EN_MASK			(1 << 1)
-#define OMAP_TLL_CHANNEL_2_EN_MASK			(1 << 2)
-#define OMAP_TLL_CHANNEL_3_EN_MASK			(1 << 4)
+#define OMAP_TLL_CHANNEL_1_EN_MASK			(1 << 0)
+#define OMAP_TLL_CHANNEL_2_EN_MASK			(1 << 1)
+#define OMAP_TLL_CHANNEL_3_EN_MASK			(1 << 2)
 
 /* UHH Register Set */
 #define	OMAP_UHH_REVISION				(0x00)
@@ -114,6 +118,23 @@
 #define OMAP_UHH_HOSTCONFIG_P2_CONNECT_STATUS		(1 << 9)
 #define OMAP_UHH_HOSTCONFIG_P3_CONNECT_STATUS		(1 << 10)
 
+/* OMAP4-specific defines */
+#define OMAP4_UHH_SYSCONFIG_IDLEMODE_CLEAR		(3 << 2)
+#define OMAP4_UHH_SYSCONFIG_NOIDLE			(1 << 2)
+
+#define OMAP4_UHH_SYSCONFIG_STDBYMODE_CLEAR		(3 << 4)
+#define OMAP4_UHH_SYSCONFIG_NOSTDBY			(1 << 4)
+#define OMAP4_UHH_SYSCONFIG_SOFTRESET			(1 << 0)
+
+#define OMAP4_P1_MODE_CLEAR				(3 << 16)
+#define OMAP4_P1_MODE_TLL				(1 << 16)
+#define OMAP4_P1_MODE_HSIC				(3 << 16)
+#define OMAP4_P2_MODE_CLEAR				(3 << 18)
+#define OMAP4_P2_MODE_TLL				(1 << 18)
+#define OMAP4_P2_MODE_HSIC				(3 << 18)
+
+#define OMAP_REV2_TLL_CHANNEL_COUNT			2
+
 #define	OMAP_UHH_DEBUG_CSR				(0x44)
 
 /* EHCI Register Set */
@@ -126,6 +147,17 @@
 #define	EHCI_INSNREG05_ULPI_REGADD_SHIFT		16
 #define	EHCI_INSNREG05_ULPI_EXTREGADD_SHIFT		8
 #define	EHCI_INSNREG05_ULPI_WRDATA_SHIFT		0
+
+/* Values of UHH_REVISION - Note: these are not given in the TRM */
+#define OMAP_EHCI_REV1	0x00000010	/* OMAP3 */
+#define OMAP_EHCI_REV2	0x50700100	/* OMAP4 */
+
+#define is_omap_ehci_rev1(x)	(x->omap_ehci_rev == OMAP_EHCI_REV1)
+#define is_omap_ehci_rev2(x)	(x->omap_ehci_rev == OMAP_EHCI_REV2)
+
+#define is_ehci_phy_mode(x)	(x == EHCI_HCD_OMAP_MODE_PHY)
+#define is_ehci_tll_mode(x)	(x == EHCI_HCD_OMAP_MODE_TLL)
+#define is_ehci_hsic_mode(x)	(x == EHCI_HCD_OMAP_MODE_HSIC)
 
 /*-------------------------------------------------------------------------*/
 
@@ -156,10 +188,14 @@ struct ehci_hcd_omap {
 	struct device		*dev;
 
 	struct clk		*usbhost_ick;
-	struct clk		*usbhost2_120m_fck;
-	struct clk		*usbhost1_48m_fck;
+	struct clk		*usbhost_hs_fck;
+	struct clk		*usbhost_fs_fck;
 	struct clk		*usbtll_fck;
 	struct clk		*usbtll_ick;
+	struct clk		*xclk60mhsp1_ck;
+	struct clk		*xclk60mhsp2_ck;
+	struct clk		*utmi_p1_fck;
+	struct clk		*utmi_p2_fck;
 
 	/* FIXME the following two workarounds are
 	 * board specific not silicon-specific so these
@@ -176,6 +212,9 @@ struct ehci_hcd_omap {
 	/* phy reset workaround */
 	int			phy_reset;
 
+	/* IP revision */
+	u32			omap_ehci_rev;
+
 	/* desired phy_mode: TLL, PHY */
 	enum ehci_hcd_omap_mode	port_mode[OMAP3_HS_USB_PORTS];
 
@@ -191,13 +230,14 @@ struct ehci_hcd_omap {
 
 /*-------------------------------------------------------------------------*/
 
-static void omap_usb_utmi_init(struct ehci_hcd_omap *omap, u8 tll_channel_mask)
+static void omap_usb_utmi_init(struct ehci_hcd_omap *omap, u8 tll_channel_mask,
+				u8 tll_channel_count)
 {
 	unsigned reg;
 	int i;
 
 	/* Program the 3 TLL channels upfront */
-	for (i = 0; i < OMAP_TLL_CHANNEL_COUNT; i++) {
+	for (i = 0; i < tll_channel_count; i++) {
 		reg = ehci_omap_readl(omap->tll_base, OMAP_TLL_CHANNEL_CONF(i));
 
 		/* Disable AutoIdle, BitStuffing and use SDR Mode */
@@ -217,7 +257,7 @@ static void omap_usb_utmi_init(struct ehci_hcd_omap *omap, u8 tll_channel_mask)
 	ehci_omap_writel(omap->tll_base, OMAP_TLL_SHARED_CONF, reg);
 
 	/* Enable channels now */
-	for (i = 0; i < OMAP_TLL_CHANNEL_COUNT; i++) {
+	for (i = 0; i < tll_channel_count; i++) {
 		reg = ehci_omap_readl(omap->tll_base, OMAP_TLL_CHANNEL_CONF(i));
 
 		/* Enable only the reg that is needed */
@@ -286,19 +326,19 @@ static int omap_start_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 	}
 	clk_enable(omap->usbhost_ick);
 
-	omap->usbhost2_120m_fck = clk_get(omap->dev, "usbhost_120m_fck");
-	if (IS_ERR(omap->usbhost2_120m_fck)) {
-		ret = PTR_ERR(omap->usbhost2_120m_fck);
+	omap->usbhost_hs_fck = clk_get(omap->dev, "hs_fck");
+	if (IS_ERR(omap->usbhost_hs_fck)) {
+		ret = PTR_ERR(omap->usbhost_hs_fck);
 		goto err_host_120m_fck;
 	}
-	clk_enable(omap->usbhost2_120m_fck);
+	clk_enable(omap->usbhost_hs_fck);
 
-	omap->usbhost1_48m_fck = clk_get(omap->dev, "usbhost_48m_fck");
-	if (IS_ERR(omap->usbhost1_48m_fck)) {
-		ret = PTR_ERR(omap->usbhost1_48m_fck);
+	omap->usbhost_fs_fck = clk_get(omap->dev, "fs_fck");
+	if (IS_ERR(omap->usbhost_fs_fck)) {
+		ret = PTR_ERR(omap->usbhost_fs_fck);
 		goto err_host_48m_fck;
 	}
-	clk_enable(omap->usbhost1_48m_fck);
+	clk_enable(omap->usbhost_fs_fck);
 
 	if (omap->phy_reset) {
 		/* Refer: ISSUE1 */
@@ -333,6 +373,80 @@ static int omap_start_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 	}
 	clk_enable(omap->usbtll_ick);
 
+	omap->omap_ehci_rev = ehci_omap_readl(omap->uhh_base,
+						OMAP_UHH_REVISION);
+	dev_dbg(omap->dev, "OMAP UHH_REVISION 0x%x\n",
+					omap->omap_ehci_rev);
+
+	/*
+	 * Enable per-port clocks as needed (newer controllers only).
+	 * - External ULPI clock for PHY mode
+	 * - Internal clocks for TLL and HSIC modes (TODO)
+	 */
+	if (is_omap_ehci_rev2(omap)) {
+		switch (omap->port_mode[0]) {
+		case EHCI_HCD_OMAP_MODE_PHY:
+			omap->xclk60mhsp1_ck = clk_get(omap->dev,
+							"xclk60mhsp1_ck");
+			if (IS_ERR(omap->xclk60mhsp1_ck)) {
+				ret = PTR_ERR(omap->xclk60mhsp1_ck);
+				dev_err(omap->dev,
+					"Unable to get Port1 ULPI clock\n");
+			}
+
+			omap->utmi_p1_fck = clk_get(omap->dev,
+							"utmi_p1_gfclk");
+			if (IS_ERR(omap->utmi_p1_fck)) {
+				ret = PTR_ERR(omap->utmi_p1_fck);
+				dev_err(omap->dev,
+					"Unable to get utmi_p1_fck\n");
+			}
+
+			ret = clk_set_parent(omap->utmi_p1_fck,
+						omap->xclk60mhsp1_ck);
+			if (ret != 0) {
+				dev_err(omap->dev,
+					"Unable to set P1 f-clock\n");
+			}
+			break;
+		case EHCI_HCD_OMAP_MODE_TLL:
+			/* TODO */
+		default:
+			break;
+		}
+		switch (omap->port_mode[1]) {
+		case EHCI_HCD_OMAP_MODE_PHY:
+			omap->xclk60mhsp2_ck = clk_get(omap->dev,
+							"xclk60mhsp2_ck");
+			if (IS_ERR(omap->xclk60mhsp2_ck)) {
+				ret = PTR_ERR(omap->xclk60mhsp2_ck);
+				dev_err(omap->dev,
+					"Unable to get Port2 ULPI clock\n");
+			}
+
+			omap->utmi_p2_fck = clk_get(omap->dev,
+							"utmi_p2_gfclk");
+			if (IS_ERR(omap->utmi_p2_fck)) {
+				ret = PTR_ERR(omap->utmi_p2_fck);
+				dev_err(omap->dev,
+					"Unable to get utmi_p2_fck\n");
+			}
+
+			ret = clk_set_parent(omap->utmi_p2_fck,
+						omap->xclk60mhsp2_ck);
+			if (ret != 0) {
+				dev_err(omap->dev,
+					"Unable to set P2 f-clock\n");
+			}
+			break;
+		case EHCI_HCD_OMAP_MODE_TLL:
+			/* TODO */
+		default:
+			break;
+		}
+	}
+
+
 	/* perform TLL soft reset, and wait until reset is complete */
 	ehci_omap_writel(omap->tll_base, OMAP_USBTLL_SYSCONFIG,
 			OMAP_USBTLL_SYSCONFIG_SOFTRESET);
@@ -360,12 +474,20 @@ static int omap_start_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 
 	/* Put UHH in NoIdle/NoStandby mode */
 	reg = ehci_omap_readl(omap->uhh_base, OMAP_UHH_SYSCONFIG);
-	reg |= (OMAP_UHH_SYSCONFIG_ENAWAKEUP
-			| OMAP_UHH_SYSCONFIG_SIDLEMODE
-			| OMAP_UHH_SYSCONFIG_CACTIVITY
-			| OMAP_UHH_SYSCONFIG_MIDLEMODE);
-	reg &= ~OMAP_UHH_SYSCONFIG_AUTOIDLE;
+	if (is_omap_ehci_rev1(omap)) {
+		reg |= (OMAP_UHH_SYSCONFIG_ENAWAKEUP
+				| OMAP_UHH_SYSCONFIG_SIDLEMODE
+				| OMAP_UHH_SYSCONFIG_CACTIVITY
+				| OMAP_UHH_SYSCONFIG_MIDLEMODE);
+		reg &= ~OMAP_UHH_SYSCONFIG_AUTOIDLE;
 
+
+	} else if (is_omap_ehci_rev2(omap)) {
+		reg &= ~OMAP4_UHH_SYSCONFIG_IDLEMODE_CLEAR;
+		reg |= OMAP4_UHH_SYSCONFIG_NOIDLE;
+		reg &= ~OMAP4_UHH_SYSCONFIG_STDBYMODE_CLEAR;
+		reg |= OMAP4_UHH_SYSCONFIG_NOSTDBY;
+	}
 	ehci_omap_writel(omap->uhh_base, OMAP_UHH_SYSCONFIG, reg);
 
 	reg = ehci_omap_readl(omap->uhh_base, OMAP_UHH_HOSTCONFIG);
@@ -376,40 +498,56 @@ static int omap_start_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 			| OMAP_UHH_HOSTCONFIG_INCR16_BURST_EN);
 	reg &= ~OMAP_UHH_HOSTCONFIG_INCRX_ALIGN_EN;
 
-	if (omap->port_mode[0] == EHCI_HCD_OMAP_MODE_UNKNOWN)
-		reg &= ~OMAP_UHH_HOSTCONFIG_P1_CONNECT_STATUS;
-	if (omap->port_mode[1] == EHCI_HCD_OMAP_MODE_UNKNOWN)
-		reg &= ~OMAP_UHH_HOSTCONFIG_P2_CONNECT_STATUS;
-	if (omap->port_mode[2] == EHCI_HCD_OMAP_MODE_UNKNOWN)
-		reg &= ~OMAP_UHH_HOSTCONFIG_P3_CONNECT_STATUS;
+	if (is_omap_ehci_rev1(omap)) {
+		if (omap->port_mode[0] == EHCI_HCD_OMAP_MODE_UNKNOWN)
+			reg &= ~OMAP_UHH_HOSTCONFIG_P1_CONNECT_STATUS;
+		if (omap->port_mode[1] == EHCI_HCD_OMAP_MODE_UNKNOWN)
+			reg &= ~OMAP_UHH_HOSTCONFIG_P2_CONNECT_STATUS;
+		if (omap->port_mode[2] == EHCI_HCD_OMAP_MODE_UNKNOWN)
+			reg &= ~OMAP_UHH_HOSTCONFIG_P3_CONNECT_STATUS;
 
-	/* Bypass the TLL module for PHY mode operation */
-	if (cpu_is_omap3430() && (omap_rev() <= OMAP3430_REV_ES2_1)) {
-		dev_dbg(omap->dev, "OMAP3 ES version <= ES2.1\n");
-		if ((omap->port_mode[0] == EHCI_HCD_OMAP_MODE_PHY) ||
-			(omap->port_mode[1] == EHCI_HCD_OMAP_MODE_PHY) ||
-				(omap->port_mode[2] == EHCI_HCD_OMAP_MODE_PHY))
-			reg &= ~OMAP_UHH_HOSTCONFIG_ULPI_BYPASS;
-		else
-			reg |= OMAP_UHH_HOSTCONFIG_ULPI_BYPASS;
-	} else {
-		dev_dbg(omap->dev, "OMAP3 ES version > ES2.1\n");
-		if (omap->port_mode[0] == EHCI_HCD_OMAP_MODE_PHY)
-			reg &= ~OMAP_UHH_HOSTCONFIG_ULPI_P1_BYPASS;
-		else if (omap->port_mode[0] == EHCI_HCD_OMAP_MODE_TLL)
-			reg |= OMAP_UHH_HOSTCONFIG_ULPI_P1_BYPASS;
+		/* Bypass the TLL module for PHY mode operation */
+		if (cpu_is_omap3430() && (omap_rev() <= OMAP3430_REV_ES2_1)) {
+			dev_dbg(omap->dev, "OMAP3 ES version <= ES2.1\n");
+			if (is_ehci_phy_mode(omap->port_mode[0]) ||
+				is_ehci_phy_mode(omap->port_mode[1]) ||
+					is_ehci_phy_mode(omap->port_mode[2]))
+				reg &= ~OMAP_UHH_HOSTCONFIG_ULPI_BYPASS;
+			else
+				reg |= OMAP_UHH_HOSTCONFIG_ULPI_BYPASS;
+		} else {
+			dev_dbg(omap->dev, "OMAP3 ES version > ES2.1\n");
+			if (is_ehci_phy_mode(omap->port_mode[0]))
+				reg &= ~OMAP_UHH_HOSTCONFIG_ULPI_P1_BYPASS;
+			else if (is_ehci_tll_mode(omap->port_mode[0]))
+				reg |= OMAP_UHH_HOSTCONFIG_ULPI_P1_BYPASS;
 
-		if (omap->port_mode[1] == EHCI_HCD_OMAP_MODE_PHY)
-			reg &= ~OMAP_UHH_HOSTCONFIG_ULPI_P2_BYPASS;
-		else if (omap->port_mode[1] == EHCI_HCD_OMAP_MODE_TLL)
-			reg |= OMAP_UHH_HOSTCONFIG_ULPI_P2_BYPASS;
+			if (is_ehci_phy_mode(omap->port_mode[1]))
+				reg &= ~OMAP_UHH_HOSTCONFIG_ULPI_P2_BYPASS;
+			else if (is_ehci_tll_mode(omap->port_mode[1]))
+				reg |= OMAP_UHH_HOSTCONFIG_ULPI_P2_BYPASS;
 
-		if (omap->port_mode[2] == EHCI_HCD_OMAP_MODE_PHY)
-			reg &= ~OMAP_UHH_HOSTCONFIG_ULPI_P3_BYPASS;
-		else if (omap->port_mode[2] == EHCI_HCD_OMAP_MODE_TLL)
-			reg |= OMAP_UHH_HOSTCONFIG_ULPI_P3_BYPASS;
+			if (is_ehci_phy_mode(omap->port_mode[2]))
+				reg &= ~OMAP_UHH_HOSTCONFIG_ULPI_P3_BYPASS;
+			else if (is_ehci_tll_mode(omap->port_mode[2]))
+				reg |= OMAP_UHH_HOSTCONFIG_ULPI_P3_BYPASS;
+		}
+	} else if (is_omap_ehci_rev2(omap)) {
+		/* Clear port mode fields for PHY mode*/
+		reg &= ~OMAP4_P1_MODE_CLEAR;
+		reg &= ~OMAP4_P2_MODE_CLEAR;
 
+		if (is_ehci_tll_mode(omap->port_mode[0]))
+			reg |= OMAP4_P1_MODE_TLL;
+		else if (is_ehci_hsic_mode(omap->port_mode[0]))
+			reg |= OMAP4_P1_MODE_HSIC;
+
+		if (is_ehci_tll_mode(omap->port_mode[1]))
+			reg |= OMAP4_P2_MODE_TLL;
+		else if (is_ehci_hsic_mode(omap->port_mode[1]))
+			reg |= OMAP4_P2_MODE_HSIC;
 	}
+
 	ehci_omap_writel(omap->uhh_base, OMAP_UHH_HOSTCONFIG, reg);
 	dev_dbg(omap->dev, "UHH setup done, uhh_hostconfig=%x\n", reg);
 
@@ -438,7 +576,7 @@ static int omap_start_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 			tll_ch_mask |= OMAP_TLL_CHANNEL_3_EN_MASK;
 
 		/* Enable UTMI mode for required TLL channels */
-		omap_usb_utmi_init(omap, tll_ch_mask);
+		omap_usb_utmi_init(omap, tll_ch_mask, OMAP_TLL_CHANNEL_COUNT);
 	}
 
 	if (omap->phy_reset) {
@@ -464,6 +602,14 @@ static int omap_start_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 	return 0;
 
 err_sys_status:
+	clk_disable(omap->utmi_p2_fck);
+	clk_put(omap->utmi_p2_fck);
+	clk_disable(omap->xclk60mhsp2_ck);
+	clk_put(omap->xclk60mhsp2_ck);
+	clk_disable(omap->utmi_p1_fck);
+	clk_put(omap->utmi_p1_fck);
+	clk_disable(omap->xclk60mhsp1_ck);
+	clk_put(omap->xclk60mhsp1_ck);
 	clk_disable(omap->usbtll_ick);
 	clk_put(omap->usbtll_ick);
 
@@ -472,8 +618,8 @@ err_tll_ick:
 	clk_put(omap->usbtll_fck);
 
 err_tll_fck:
-	clk_disable(omap->usbhost1_48m_fck);
-	clk_put(omap->usbhost1_48m_fck);
+	clk_disable(omap->usbhost_fs_fck);
+	clk_put(omap->usbhost_fs_fck);
 
 	if (omap->phy_reset) {
 		if (gpio_is_valid(omap->reset_gpio_port[0]))
@@ -484,8 +630,8 @@ err_tll_fck:
 	}
 
 err_host_48m_fck:
-	clk_disable(omap->usbhost2_120m_fck);
-	clk_put(omap->usbhost2_120m_fck);
+	clk_disable(omap->usbhost_hs_fck);
+	clk_put(omap->usbhost_hs_fck);
 
 err_host_120m_fck:
 	clk_disable(omap->usbhost_ick);
@@ -503,6 +649,8 @@ static void omap_stop_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 
 	/* Reset OMAP modules for insmod/rmmod to work */
 	ehci_omap_writel(omap->uhh_base, OMAP_UHH_SYSCONFIG,
+			is_omap_ehci_rev2(omap) ?
+			OMAP4_UHH_SYSCONFIG_SOFTRESET :
 			OMAP_UHH_SYSCONFIG_SOFTRESET);
 	while (!(ehci_omap_readl(omap->uhh_base, OMAP_UHH_SYSSTATUS)
 				& (1 << 0))) {
@@ -550,22 +698,48 @@ static void omap_stop_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 		omap->usbhost_ick = NULL;
 	}
 
-	if (omap->usbhost1_48m_fck != NULL) {
-		clk_disable(omap->usbhost1_48m_fck);
-		clk_put(omap->usbhost1_48m_fck);
-		omap->usbhost1_48m_fck = NULL;
+	if (omap->usbhost_fs_fck != NULL) {
+		clk_disable(omap->usbhost_fs_fck);
+		clk_put(omap->usbhost_fs_fck);
+		omap->usbhost_fs_fck = NULL;
 	}
 
-	if (omap->usbhost2_120m_fck != NULL) {
-		clk_disable(omap->usbhost2_120m_fck);
-		clk_put(omap->usbhost2_120m_fck);
-		omap->usbhost2_120m_fck = NULL;
+	if (omap->usbhost_hs_fck != NULL) {
+		clk_disable(omap->usbhost_hs_fck);
+		clk_put(omap->usbhost_hs_fck);
+		omap->usbhost_hs_fck = NULL;
 	}
 
 	if (omap->usbtll_ick != NULL) {
 		clk_disable(omap->usbtll_ick);
 		clk_put(omap->usbtll_ick);
 		omap->usbtll_ick = NULL;
+	}
+
+	if (is_omap_ehci_rev2(omap)) {
+		if (omap->xclk60mhsp1_ck != NULL) {
+			clk_disable(omap->xclk60mhsp1_ck);
+			clk_put(omap->xclk60mhsp1_ck);
+			omap->xclk60mhsp1_ck = NULL;
+		}
+
+		if (omap->utmi_p1_fck != NULL) {
+			clk_disable(omap->utmi_p1_fck);
+			clk_put(omap->utmi_p1_fck);
+			omap->utmi_p1_fck = NULL;
+		}
+
+		if (omap->xclk60mhsp2_ck != NULL) {
+			clk_disable(omap->xclk60mhsp2_ck);
+			clk_put(omap->xclk60mhsp2_ck);
+			omap->xclk60mhsp2_ck = NULL;
+		}
+
+		if (omap->utmi_p2_fck != NULL) {
+			clk_disable(omap->utmi_p2_fck);
+			clk_put(omap->utmi_p2_fck);
+			omap->utmi_p2_fck = NULL;
+		}
 	}
 
 	if (omap->phy_reset) {

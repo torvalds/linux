@@ -74,23 +74,13 @@ int drm_irq_by_busid(struct drm_device *dev, void *data,
 {
 	struct drm_irq_busid *p = data;
 
-	if (drm_core_check_feature(dev, DRIVER_USE_PLATFORM_DEVICE))
+	if (!dev->driver->bus->irq_by_busid)
 		return -EINVAL;
 
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
 		return -EINVAL;
 
-	if ((p->busnum >> 8) != drm_get_pci_domain(dev) ||
-	    (p->busnum & 0xff) != dev->pdev->bus->number ||
-	    p->devnum != PCI_SLOT(dev->pdev->devfn) || p->funcnum != PCI_FUNC(dev->pdev->devfn))
-		return -EINVAL;
-
-	p->irq = dev->pdev->irq;
-
-	DRM_DEBUG("%d:%d:%d => IRQ %d\n", p->busnum, p->devnum, p->funcnum,
-		  p->irq);
-
-	return 0;
+	return dev->driver->bus->irq_by_busid(dev, p);
 }
 
 /*
@@ -1047,10 +1037,13 @@ static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 	struct timeval now;
 	unsigned long flags;
 	unsigned int seq;
+	int ret;
 
 	e = kzalloc(sizeof *e, GFP_KERNEL);
-	if (e == NULL)
-		return -ENOMEM;
+	if (e == NULL) {
+		ret = -ENOMEM;
+		goto err_put;
+	}
 
 	e->pipe = pipe;
 	e->base.pid = current->pid;
@@ -1064,9 +1057,8 @@ static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 	spin_lock_irqsave(&dev->event_lock, flags);
 
 	if (file_priv->event_space < sizeof e->event) {
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-		kfree(e);
-		return -ENOMEM;
+		ret = -EBUSY;
+		goto err_unlock;
 	}
 
 	file_priv->event_space -= sizeof e->event;
@@ -1086,20 +1078,30 @@ static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 
 	e->event.sequence = vblwait->request.sequence;
 	if ((seq - vblwait->request.sequence) <= (1 << 23)) {
+		e->event.sequence = seq;
 		e->event.tv_sec = now.tv_sec;
 		e->event.tv_usec = now.tv_usec;
-		drm_vblank_put(dev, e->pipe);
+		drm_vblank_put(dev, pipe);
 		list_add_tail(&e->base.link, &e->base.file_priv->event_list);
 		wake_up_interruptible(&e->base.file_priv->event_wait);
+		vblwait->reply.sequence = seq;
 		trace_drm_vblank_event_delivered(current->pid, pipe,
 						 vblwait->request.sequence);
 	} else {
 		list_add_tail(&e->base.link, &dev->vblank_event_list);
+		vblwait->reply.sequence = vblwait->request.sequence;
 	}
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	return 0;
+
+err_unlock:
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+	kfree(e);
+err_put:
+	drm_vblank_put(dev, pipe);
+	return ret;
 }
 
 /**
@@ -1238,7 +1240,7 @@ void drm_handle_vblank_events(struct drm_device *dev, int crtc)
  * Drivers should call this routine in their vblank interrupt handlers to
  * update the vblank counter and send any signals that may be pending.
  */
-void drm_handle_vblank(struct drm_device *dev, int crtc)
+bool drm_handle_vblank(struct drm_device *dev, int crtc)
 {
 	u32 vblcount;
 	s64 diff_ns;
@@ -1246,7 +1248,7 @@ void drm_handle_vblank(struct drm_device *dev, int crtc)
 	unsigned long irqflags;
 
 	if (!dev->num_crtcs)
-		return;
+		return false;
 
 	/* Need timestamp lock to prevent concurrent execution with
 	 * vblank enable/disable, as this would cause inconsistent
@@ -1257,7 +1259,7 @@ void drm_handle_vblank(struct drm_device *dev, int crtc)
 	/* Vblank irq handling disabled. Nothing to do. */
 	if (!dev->vblank_enabled[crtc]) {
 		spin_unlock_irqrestore(&dev->vblank_time_lock, irqflags);
-		return;
+		return false;
 	}
 
 	/* Fetch corresponding timestamp for this vblank interval from
@@ -1299,5 +1301,6 @@ void drm_handle_vblank(struct drm_device *dev, int crtc)
 	drm_handle_vblank_events(dev, crtc);
 
 	spin_unlock_irqrestore(&dev->vblank_time_lock, irqflags);
+	return true;
 }
 EXPORT_SYMBOL(drm_handle_vblank);

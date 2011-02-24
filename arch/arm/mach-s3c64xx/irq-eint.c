@@ -30,41 +30,41 @@
 #include <plat/pm.h>
 
 #define eint_offset(irq)	((irq) - IRQ_EINT(0))
-#define eint_irq_to_bit(irq)	(1 << eint_offset(irq))
+#define eint_irq_to_bit(irq)	((u32)(1 << eint_offset(irq)))
 
-static inline void s3c_irq_eint_mask(unsigned int irq)
+static inline void s3c_irq_eint_mask(struct irq_data *data)
 {
 	u32 mask;
 
 	mask = __raw_readl(S3C64XX_EINT0MASK);
-	mask |= eint_irq_to_bit(irq);
+	mask |= (u32)data->chip_data;
 	__raw_writel(mask, S3C64XX_EINT0MASK);
 }
 
-static void s3c_irq_eint_unmask(unsigned int irq)
+static void s3c_irq_eint_unmask(struct irq_data *data)
 {
 	u32 mask;
 
 	mask = __raw_readl(S3C64XX_EINT0MASK);
-	mask &= ~eint_irq_to_bit(irq);
+	mask &= ~((u32)data->chip_data);
 	__raw_writel(mask, S3C64XX_EINT0MASK);
 }
 
-static inline void s3c_irq_eint_ack(unsigned int irq)
+static inline void s3c_irq_eint_ack(struct irq_data *data)
 {
-	__raw_writel(eint_irq_to_bit(irq), S3C64XX_EINT0PEND);
+	__raw_writel((u32)data->chip_data, S3C64XX_EINT0PEND);
 }
 
-static void s3c_irq_eint_maskack(unsigned int irq)
+static void s3c_irq_eint_maskack(struct irq_data *data)
 {
 	/* compiler should in-line these */
-	s3c_irq_eint_mask(irq);
-	s3c_irq_eint_ack(irq);
+	s3c_irq_eint_mask(data);
+	s3c_irq_eint_ack(data);
 }
 
-static int s3c_irq_eint_set_type(unsigned int irq, unsigned int type)
+static int s3c_irq_eint_set_type(struct irq_data *data, unsigned int type)
 {
-	int offs = eint_offset(irq);
+	int offs = eint_offset(data->irq);
 	int pin, pin_val;
 	int shift;
 	u32 ctrl, mask;
@@ -140,12 +140,12 @@ static int s3c_irq_eint_set_type(unsigned int irq, unsigned int type)
 
 static struct irq_chip s3c_irq_eint = {
 	.name		= "s3c-eint",
-	.mask		= s3c_irq_eint_mask,
-	.unmask		= s3c_irq_eint_unmask,
-	.mask_ack	= s3c_irq_eint_maskack,
-	.ack		= s3c_irq_eint_ack,
-	.set_type	= s3c_irq_eint_set_type,
-	.set_wake	= s3c_irqext_wake,
+	.irq_mask	= s3c_irq_eint_mask,
+	.irq_unmask	= s3c_irq_eint_unmask,
+	.irq_mask_ack	= s3c_irq_eint_maskack,
+	.irq_ack	= s3c_irq_eint_ack,
+	.irq_set_type	= s3c_irq_eint_set_type,
+	.irq_set_wake	= s3c_irqext_wake,
 };
 
 /* s3c_irq_demux_eint
@@ -198,6 +198,7 @@ static int __init s3c64xx_init_irq_eint(void)
 
 	for (irq = IRQ_EINT(0); irq <= IRQ_EINT(27); irq++) {
 		set_irq_chip(irq, &s3c_irq_eint);
+		set_irq_chip_data(irq, (void *)eint_irq_to_bit(irq));
 		set_irq_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}

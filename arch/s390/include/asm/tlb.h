@@ -22,6 +22,7 @@
  */
 
 #include <linux/mm.h>
+#include <linux/pagemap.h>
 #include <linux/swap.h>
 #include <asm/processor.h>
 #include <asm/pgalloc.h>

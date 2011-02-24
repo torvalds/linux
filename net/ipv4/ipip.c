@@ -463,13 +463,9 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	{
 		struct flowi fl = {
 			.oif = tunnel->parms.link,
-			.nl_u = {
-				.ip4_u = {
-					.daddr = dst,
-					.saddr = tiph->saddr,
-					.tos = RT_TOS(tos)
-				}
-			},
+			.fl4_dst = dst,
+			.fl4_src= tiph->saddr,
+			.fl4_tos = RT_TOS(tos),
 			.proto = IPPROTO_IPIP
 		};
 
@@ -589,13 +585,9 @@ static void ipip_tunnel_bind_dev(struct net_device *dev)
 	if (iph->daddr) {
 		struct flowi fl = {
 			.oif = tunnel->parms.link,
-			.nl_u = {
-				.ip4_u = {
-					.daddr = iph->daddr,
-					.saddr = iph->saddr,
-					.tos = RT_TOS(iph->tos)
-				}
-			},
+			.fl4_dst = iph->daddr,
+			.fl4_src = iph->saddr,
+			.fl4_tos = RT_TOS(iph->tos),
 			.proto = IPPROTO_IPIP
 		};
 		struct rtable *rt;
@@ -921,3 +913,4 @@ static void __exit ipip_fini(void)
 module_init(ipip_init);
 module_exit(ipip_fini);
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("tunl0");

@@ -140,7 +140,7 @@ void __init init_se7206_IRQ(void)
 	make_se7206_irq(IRQ1_IRQ); /* ATA */
 	make_se7206_irq(IRQ3_IRQ); /* SLOT / PCM */
 
-	__raw_writew(__raw_readw(INTC_ICR1) | 0x000b, INTC_ICR); /* ICR1 */
+	__raw_writew(__raw_readw(INTC_ICR1) | 0x000b, INTC_ICR1); /* ICR1 */
 
 	/* FPGA System register setup*/
 	__raw_writew(0x0000,INTSTS0); /* Clear INTSTS0 */

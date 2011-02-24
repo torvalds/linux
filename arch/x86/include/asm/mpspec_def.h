@@ -15,13 +15,6 @@
 
 #ifdef CONFIG_X86_32
 # define MAX_MPC_ENTRY 1024
-# define MAX_APICS      256
-#else
-# if NR_CPUS <= 255
-#  define MAX_APICS     255
-# else
-#  define MAX_APICS   32768
-# endif
 #endif
 
 /* Intel MP Floating Pointer Structure */

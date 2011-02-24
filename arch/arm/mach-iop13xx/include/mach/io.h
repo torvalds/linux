@@ -35,7 +35,7 @@ extern u32 iop13xx_atux_mem_base;
 extern size_t iop13xx_atue_mem_size;
 extern size_t iop13xx_atux_mem_size;
 
-#define __arch_ioremap(a, s, f) __iop13xx_ioremap(a, s, f)
-#define __arch_iounmap(a)	 __iop13xx_iounmap(a)
+#define __arch_ioremap	__iop13xx_ioremap
+#define __arch_iounmap	__iop13xx_iounmap
 
 #endif

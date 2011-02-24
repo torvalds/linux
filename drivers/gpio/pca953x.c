@@ -228,30 +228,30 @@ static int pca953x_gpio_to_irq(struct gpio_chip *gc, unsigned off)
 	return chip->irq_base + off;
 }
 
-static void pca953x_irq_mask(unsigned int irq)
+static void pca953x_irq_mask(struct irq_data *d)
 {
-	struct pca953x_chip *chip = get_irq_chip_data(irq);
+	struct pca953x_chip *chip = irq_data_get_irq_chip_data(d);
 
-	chip->irq_mask &= ~(1 << (irq - chip->irq_base));
+	chip->irq_mask &= ~(1 << (d->irq - chip->irq_base));
 }
 
-static void pca953x_irq_unmask(unsigned int irq)
+static void pca953x_irq_unmask(struct irq_data *d)
 {
-	struct pca953x_chip *chip = get_irq_chip_data(irq);
+	struct pca953x_chip *chip = irq_data_get_irq_chip_data(d);
 
-	chip->irq_mask |= 1 << (irq - chip->irq_base);
+	chip->irq_mask |= 1 << (d->irq - chip->irq_base);
 }
 
-static void pca953x_irq_bus_lock(unsigned int irq)
+static void pca953x_irq_bus_lock(struct irq_data *d)
 {
-	struct pca953x_chip *chip = get_irq_chip_data(irq);
+	struct pca953x_chip *chip = irq_data_get_irq_chip_data(d);
 
 	mutex_lock(&chip->irq_lock);
 }
 
-static void pca953x_irq_bus_sync_unlock(unsigned int irq)
+static void pca953x_irq_bus_sync_unlock(struct irq_data *d)
 {
-	struct pca953x_chip *chip = get_irq_chip_data(irq);
+	struct pca953x_chip *chip = irq_data_get_irq_chip_data(d);
 	uint16_t new_irqs;
 	uint16_t level;
 
@@ -268,15 +268,15 @@ static void pca953x_irq_bus_sync_unlock(unsigned int irq)
 	mutex_unlock(&chip->irq_lock);
 }
 
-static int pca953x_irq_set_type(unsigned int irq, unsigned int type)
+static int pca953x_irq_set_type(struct irq_data *d, unsigned int type)
 {
-	struct pca953x_chip *chip = get_irq_chip_data(irq);
-	uint16_t level = irq - chip->irq_base;
+	struct pca953x_chip *chip = irq_data_get_irq_chip_data(d);
+	uint16_t level = d->irq - chip->irq_base;
 	uint16_t mask = 1 << level;
 
 	if (!(type & IRQ_TYPE_EDGE_BOTH)) {
 		dev_err(&chip->client->dev, "irq %d: unsupported type %d\n",
-			irq, type);
+			d->irq, type);
 		return -EINVAL;
 	}
 
@@ -295,11 +295,11 @@ static int pca953x_irq_set_type(unsigned int irq, unsigned int type)
 
 static struct irq_chip pca953x_irq_chip = {
 	.name			= "pca953x",
-	.mask			= pca953x_irq_mask,
-	.unmask			= pca953x_irq_unmask,
-	.bus_lock		= pca953x_irq_bus_lock,
-	.bus_sync_unlock	= pca953x_irq_bus_sync_unlock,
-	.set_type		= pca953x_irq_set_type,
+	.irq_mask		= pca953x_irq_mask,
+	.irq_unmask		= pca953x_irq_unmask,
+	.irq_bus_lock		= pca953x_irq_bus_lock,
+	.irq_bus_sync_unlock	= pca953x_irq_bus_sync_unlock,
+	.irq_set_type		= pca953x_irq_set_type,
 };
 
 static uint16_t pca953x_irq_pending(struct pca953x_chip *chip)

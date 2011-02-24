@@ -135,7 +135,7 @@ void        musycc_serv_req (mpi_t *, u_int32_t);
 void        musycc_update_timeslots (mpi_t *);
 
 extern void musycc_update_tx_thp (mch_t *);
-extern int  log_level;
+extern int  cxt1e1_log_level;
 extern int  cxt1e1_max_mru;
 extern int  cxt1e1_max_mtu;
 extern int  max_rxdesc_used, max_rxdesc_default;
@@ -168,12 +168,12 @@ sbecom_set_loglevel (int d)
                                                          * for card 0 only */
     } else
     {
-        if (log_level != d)
+        if (cxt1e1_log_level != d)
         {
-            pr_info("log level changed from %d to %d\n", log_level, d);
-            log_level = d;          /* set new */
+            pr_info("log level changed from %d to %d\n", cxt1e1_log_level, d);
+            cxt1e1_log_level = d;          /* set new */
         } else
-            pr_info("log level is %d\n", log_level);
+            pr_info("log level is %d\n", cxt1e1_log_level);
     }
 }
 
@@ -513,7 +513,7 @@ checkPorts (ci_t * ci)
             if ((value == 0x1c) || (value == 0x19) || (value == 0x12))
                 c4_loop_port (ci, portnum, COMET_MDIAG_LBOFF);  /* take port out of any
                                                                  * loopbk mode */
-            if (log_level >= LOG_DEBUG)
+            if (cxt1e1_log_level >= LOG_DEBUG)
                 if (value != 0x3f)
                     pr_warning("%s: BOC value = %x on Port %d\n",
                                ci->devname, value, portnum);
@@ -533,7 +533,7 @@ c4_watchdog (ci_t * ci)
 {
     if (drvr_state != SBE_DRVR_AVAILABLE)
     {
-        if (log_level >= LOG_MONITOR)
+        if (cxt1e1_log_level >= LOG_MONITOR)
             pr_info("drvr not available (%x)\n", drvr_state);
         return;
     }
@@ -794,19 +794,19 @@ c4_loop_port (ci_t * ci, int portnum, u_int8_t cmd)
         }
 
         pci_write_32 ((u_int32_t *) &comet->mdiag, cmd);
-        if (log_level >= LOG_WARN)
+        if (cxt1e1_log_level >= LOG_WARN)
             pr_info("%s: loopback mode changed to %2x from %2x on Port %d\n",
                     ci->devname, cmd, loopValue, portnum);
         loopValue = pci_read_32 ((u_int32_t *) &comet->mdiag) & COMET_MDIAG_LBMASK;
         if (loopValue != cmd)
         {
-            if (log_level >= LOG_ERROR)
+            if (cxt1e1_log_level >= LOG_ERROR)
                 pr_info("%s: write to loop register failed, unknown state for Port %d\n",
                         ci->devname, portnum);
         }
     } else
     {
-        if (log_level >= LOG_WARN)
+        if (cxt1e1_log_level >= LOG_WARN)
             pr_info("%s: loopback already in that mode (%2x)\n",
                     ci->devname, loopValue);
     }
@@ -997,7 +997,7 @@ c4_set_port (ci_t * ci, int portnum)
     pi = &ci->port[portnum];
     pp = &ci->port[portnum].p;
     e1mode = IS_FRAME_ANY_E1 (pp->port_mode);
-    if (log_level >= LOG_MONITOR2)
+    if (cxt1e1_log_level >= LOG_MONITOR2)
     {
         pr_info("%s: c4_set_port[%d]:  entered, e1mode = %x, openchans %d.\n",
                 ci->devname,
@@ -1278,12 +1278,12 @@ c4_fifo_alloc (mpi_t * pi, int chan, int *len)
     }
     if (max != *len)
     {
-        if (log_level >= LOG_WARN)
+        if (cxt1e1_log_level >= LOG_WARN)
             pr_info("%s: wanted to allocate %d fifo space, but got only %d\n",
                     pi->up->devname, *len, max);
         *len = max;
     }
-    if (log_level >= LOG_DEBUG)
+    if (cxt1e1_log_level >= LOG_DEBUG)
         pr_info("%s: allocated %d fifo at %d for channel %d/%d\n",
                 pi->up->devname, max, start, chan, pi->p.portnum);
     for (i = maxstart; i < (maxstart + max); i++)
@@ -1296,7 +1296,7 @@ c4_fifo_free (mpi_t * pi, int chan)
 {
     int         i;
 
-    if (log_level >= LOG_DEBUG)
+    if (cxt1e1_log_level >= LOG_DEBUG)
         pr_info("%s: deallocated fifo for channel %d/%d\n",
                 pi->up->devname, chan, pi->p.portnum);
     for (i = 0; i < 32; i++)
@@ -1321,7 +1321,7 @@ c4_chan_up (ci_t * ci, int channum)
         return ENOENT;
     if (ch->state == UP)
     {
-        if (log_level >= LOG_MONITOR)
+        if (cxt1e1_log_level >= LOG_MONITOR)
             pr_info("%s: channel already UP, graceful early exit\n",
                     ci->devname);
         return 0;
@@ -1334,7 +1334,7 @@ c4_chan_up (ci_t * ci, int channum)
     {
         if (ch->p.bitmask[i] & pi->tsm[i])
         {
-            if (1 || log_level >= LOG_WARN)
+            if (1 || cxt1e1_log_level >= LOG_WARN)
             {
                 pr_info("%s: c4_chan_up[%d] EINVAL (attempt to cfg in-use or unavailable TimeSlot[%d])\n",
                         ci->devname, channum, i);
@@ -1351,7 +1351,7 @@ c4_chan_up (ci_t * ci, int channum)
     nbuf = nts / 8 ? nts / 8 : 1;
     if (!nbuf)
     {
-        /* if( log_level >= LOG_WARN)  */
+        /* if( cxt1e1_log_level >= LOG_WARN)  */
         pr_info("%s: c4_chan_up[%d] ENOBUFS (no TimeSlots assigned)\n",
                 ci->devname, channum);
         return ENOBUFS;             /* this should not happen */
@@ -1420,7 +1420,7 @@ c4_chan_up (ci_t * ci, int channum)
 
 #if 0
     /* DEBUG INFO */
-    if (log_level >= LOG_MONITOR)
+    if (cxt1e1_log_level >= LOG_MONITOR)
         pr_info("%s: mode %x rxnum %d (rxused %d def %d) txnum %d (txused %d def %d)\n",
                 ci->devname, ch->p.chan_mode,
                 rxnum, max_rxdesc_used, max_rxdesc_default,
@@ -1451,7 +1451,7 @@ c4_chan_up (ci_t * ci, int channum)
 
                if (!(m = OS_mem_token_alloc (cxt1e1_max_mru)))
         {
-            if (log_level >= LOG_MONITOR)
+            if (cxt1e1_log_level >= LOG_MONITOR)
                 pr_info("%s: c4_chan_up[%d] - token alloc failure, size = %d.\n",
                                                ci->devname, channum, cxt1e1_max_mru);
             goto errfree;

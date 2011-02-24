@@ -39,4 +39,10 @@ config CAMSIG_MINOTAUR
 	help
 	  Board supply package for CSP Minotaur
 
+config DNP5370
+	bool "SSV Dil/NetPC DNP/5370"
+	depends on (BF537)
+	help
+	  Board supply package for DNP/5370 DIL64 module
+
 endchoice

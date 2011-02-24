@@ -545,10 +545,15 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev, unsigned int framesize)
 
 	/* De-allocates all pending stuff */
 	tm6000_uninit_isoc(dev);
+	/* Stop interrupt USB pipe */
+	tm6000_ir_int_stop(dev);
 
 	usb_set_interface(dev->udev,
 			  dev->isoc_in.bInterfaceNumber,
 			  dev->isoc_in.bAlternateSetting);
+
+	/* Start interrupt USB pipe */
+	tm6000_ir_int_start(dev);
 
 	pipe = usb_rcvisocpipe(dev->udev,
 			       dev->isoc_in.endp->desc.bEndpointAddress &
@@ -985,15 +990,6 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	return videobuf_dqbuf(&fh->vb_vidq, p,
 				file->f_flags & O_NONBLOCK);
 }
-
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-static int vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
-{
-	struct tm6000_fh  *fh = priv;
-
-	return videobuf_cgmbuf(&fh->vb_vidq, mbuf, 8);
-}
-#endif
 
 static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 {
@@ -1438,9 +1434,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_querybuf          = vidioc_querybuf,
 	.vidioc_qbuf              = vidioc_qbuf,
 	.vidioc_dqbuf             = vidioc_dqbuf,
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf              = vidiocgmbuf,
-#endif
 };
 
 static struct video_device tm6000_template = {
@@ -1457,29 +1450,55 @@ static struct video_device tm6000_template = {
  * ------------------------------------------------------------------
  */
 
-int tm6000_v4l2_register(struct tm6000_core *dev)
+static struct video_device *vdev_init(struct tm6000_core *dev,
+		const struct video_device
+		*template, const char *type_name)
 {
-	int ret = -1;
 	struct video_device *vfd;
 
 	vfd = video_device_alloc();
-	if(!vfd) {
+	if (NULL == vfd)
+		return NULL;
+
+	*vfd = *template;
+	vfd->v4l2_dev = &dev->v4l2_dev;
+	vfd->release = video_device_release;
+	vfd->debug = tm6000_debug;
+	vfd->lock = &dev->lock;
+
+	snprintf(vfd->name, sizeof(vfd->name), "%s %s", dev->name, type_name);
+
+	video_set_drvdata(vfd, dev);
+	return vfd;
+}
+
+int tm6000_v4l2_register(struct tm6000_core *dev)
+{
+	int ret = -1;
+
+	dev->vfd = vdev_init(dev, &tm6000_template, "video");
+
+	if (!dev->vfd) {
+		printk(KERN_INFO "%s: can't register video device\n",
+		       dev->name);
 		return -ENOMEM;
 	}
-	dev->vfd = vfd;
 
 	/* init video dma queues */
 	INIT_LIST_HEAD(&dev->vidq.active);
 	INIT_LIST_HEAD(&dev->vidq.queued);
 
-	memcpy(dev->vfd, &tm6000_template, sizeof(*(dev->vfd)));
-	dev->vfd->debug = tm6000_debug;
-	dev->vfd->lock = &dev->lock;
-
-	vfd->v4l2_dev = &dev->v4l2_dev;
-	video_set_drvdata(vfd, dev);
-
 	ret = video_register_device(dev->vfd, VFL_TYPE_GRABBER, video_nr);
+
+	if (ret < 0) {
+		printk(KERN_INFO "%s: can't register video device\n",
+		       dev->name);
+		return ret;
+	}
+
+	printk(KERN_INFO "%s: registered device %s\n",
+	       dev->name, video_device_node_name(dev->vfd));
+
 	printk(KERN_INFO "Trident TVMaster TM5600/TM6000/TM6010 USB2 board (Load status: %d)\n", ret);
 	return ret;
 }

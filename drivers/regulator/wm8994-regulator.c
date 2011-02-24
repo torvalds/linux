@@ -86,7 +86,7 @@ static int wm8994_ldo1_list_voltage(struct regulator_dev *rdev,
 	return (selector * 100000) + 2400000;
 }
 
-static int wm8994_ldo1_get_voltage(struct regulator_dev *rdev)
+static int wm8994_ldo1_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct wm8994_ldo *ldo = rdev_get_drvdata(rdev);
 	int val;
@@ -95,13 +95,11 @@ static int wm8994_ldo1_get_voltage(struct regulator_dev *rdev)
 	if (val < 0)
 		return val;
 
-	val = (val & WM8994_LDO1_VSEL_MASK) >> WM8994_LDO1_VSEL_SHIFT;
-
-	return wm8994_ldo1_list_voltage(rdev, val);
+	return (val & WM8994_LDO1_VSEL_MASK) >> WM8994_LDO1_VSEL_SHIFT;
 }
 
 static int wm8994_ldo1_set_voltage(struct regulator_dev *rdev,
-				   int min_uV, int max_uV)
+				   int min_uV, int max_uV, unsigned *s)
 {
 	struct wm8994_ldo *ldo = rdev_get_drvdata(rdev);
 	int selector, v;
@@ -111,6 +109,7 @@ static int wm8994_ldo1_set_voltage(struct regulator_dev *rdev,
 	if (v < 0 || v > max_uV)
 		return -EINVAL;
 
+	*s = selector;
 	selector <<= WM8994_LDO1_VSEL_SHIFT;
 
 	return wm8994_set_bits(ldo->wm8994, WM8994_LDO_1,
@@ -124,20 +123,29 @@ static struct regulator_ops wm8994_ldo1_ops = {
 	.enable_time = wm8994_ldo_enable_time,
 
 	.list_voltage = wm8994_ldo1_list_voltage,
-	.get_voltage = wm8994_ldo1_get_voltage,
+	.get_voltage_sel = wm8994_ldo1_get_voltage_sel,
 	.set_voltage = wm8994_ldo1_set_voltage,
 };
 
 static int wm8994_ldo2_list_voltage(struct regulator_dev *rdev,
 				    unsigned int selector)
 {
+	struct wm8994_ldo *ldo = rdev_get_drvdata(rdev);
+
 	if (selector > WM8994_LDO2_MAX_SELECTOR)
 		return -EINVAL;
 
-	return (selector * 100000) + 900000;
+	switch (ldo->wm8994->type) {
+	case WM8994:
+		return (selector * 100000) + 900000;
+	case WM8958:
+		return (selector * 100000) + 1000000;
+	default:
+		return -EINVAL;
+	}
 }
 
-static int wm8994_ldo2_get_voltage(struct regulator_dev *rdev)
+static int wm8994_ldo2_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct wm8994_ldo *ldo = rdev_get_drvdata(rdev);
 	int val;
@@ -146,22 +154,31 @@ static int wm8994_ldo2_get_voltage(struct regulator_dev *rdev)
 	if (val < 0)
 		return val;
 
-	val = (val & WM8994_LDO2_VSEL_MASK) >> WM8994_LDO2_VSEL_SHIFT;
-
-	return wm8994_ldo2_list_voltage(rdev, val);
+	return (val & WM8994_LDO2_VSEL_MASK) >> WM8994_LDO2_VSEL_SHIFT;
 }
 
 static int wm8994_ldo2_set_voltage(struct regulator_dev *rdev,
-				   int min_uV, int max_uV)
+				   int min_uV, int max_uV, unsigned *s)
 {
 	struct wm8994_ldo *ldo = rdev_get_drvdata(rdev);
 	int selector, v;
 
-	selector = (min_uV - 900000) / 100000;
+	switch (ldo->wm8994->type) {
+	case WM8994:
+		selector = (min_uV - 900000) / 100000;
+		break;
+	case WM8958:
+		selector = (min_uV - 1000000) / 100000;
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	v = wm8994_ldo2_list_voltage(rdev, selector);
 	if (v < 0 || v > max_uV)
 		return -EINVAL;
 
+	*s = selector;
 	selector <<= WM8994_LDO2_VSEL_SHIFT;
 
 	return wm8994_set_bits(ldo->wm8994, WM8994_LDO_2,
@@ -175,7 +192,7 @@ static struct regulator_ops wm8994_ldo2_ops = {
 	.enable_time = wm8994_ldo_enable_time,
 
 	.list_voltage = wm8994_ldo2_list_voltage,
-	.get_voltage = wm8994_ldo2_get_voltage,
+	.get_voltage_sel = wm8994_ldo2_get_voltage_sel,
 	.set_voltage = wm8994_ldo2_set_voltage,
 };
 

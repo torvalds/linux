@@ -6,6 +6,36 @@
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM kvm
 
+#define ERSN(x) { KVM_EXIT_##x, "KVM_EXIT_" #x }
+
+#define kvm_trace_exit_reason						\
+	ERSN(UNKNOWN), ERSN(EXCEPTION), ERSN(IO), ERSN(HYPERCALL),	\
+	ERSN(DEBUG), ERSN(HLT), ERSN(MMIO), ERSN(IRQ_WINDOW_OPEN),	\
+	ERSN(SHUTDOWN), ERSN(FAIL_ENTRY), ERSN(INTR), ERSN(SET_TPR),	\
+	ERSN(TPR_ACCESS), ERSN(S390_SIEIC), ERSN(S390_RESET), ERSN(DCR),\
+	ERSN(NMI), ERSN(INTERNAL_ERROR), ERSN(OSI)
+
+TRACE_EVENT(kvm_userspace_exit,
+	    TP_PROTO(__u32 reason, int errno),
+	    TP_ARGS(reason, errno),
+
+	TP_STRUCT__entry(
+		__field(	__u32,		reason		)
+		__field(	int,		errno		)
+	),
+
+	TP_fast_assign(
+		__entry->reason		= reason;
+		__entry->errno		= errno;
+	),
+
+	TP_printk("reason %s (%d)",
+		  __entry->errno < 0 ?
+		  (__entry->errno == -EINTR ? "restart" : "error") :
+		  __print_symbolic(__entry->reason, kvm_trace_exit_reason),
+		  __entry->errno < 0 ? -__entry->errno : __entry->reason)
+);
+
 #if defined(__KVM_HAVE_IOAPIC)
 TRACE_EVENT(kvm_set_irq,
 	TP_PROTO(unsigned int gsi, int level, int irq_source_id),
@@ -184,6 +214,97 @@ TRACE_EVENT(kvm_age_page,
 		  __entry->hva, __entry->gfn,
 		  __entry->referenced ? "YOUNG" : "OLD")
 );
+
+#ifdef CONFIG_KVM_ASYNC_PF
+DECLARE_EVENT_CLASS(kvm_async_get_page_class,
+
+	TP_PROTO(u64 gva, u64 gfn),
+
+	TP_ARGS(gva, gfn),
+
+	TP_STRUCT__entry(
+		__field(__u64, gva)
+		__field(u64, gfn)
+	),
+
+	TP_fast_assign(
+		__entry->gva = gva;
+		__entry->gfn = gfn;
+	),
+
+	TP_printk("gva = %#llx, gfn = %#llx", __entry->gva, __entry->gfn)
+);
+
+DEFINE_EVENT(kvm_async_get_page_class, kvm_try_async_get_page,
+
+	TP_PROTO(u64 gva, u64 gfn),
+
+	TP_ARGS(gva, gfn)
+);
+
+DEFINE_EVENT(kvm_async_get_page_class, kvm_async_pf_doublefault,
+
+	TP_PROTO(u64 gva, u64 gfn),
+
+	TP_ARGS(gva, gfn)
+);
+
+DECLARE_EVENT_CLASS(kvm_async_pf_nopresent_ready,
+
+	TP_PROTO(u64 token, u64 gva),
+
+	TP_ARGS(token, gva),
+
+	TP_STRUCT__entry(
+		__field(__u64, token)
+		__field(__u64, gva)
+	),
+
+	TP_fast_assign(
+		__entry->token = token;
+		__entry->gva = gva;
+	),
+
+	TP_printk("token %#llx gva %#llx", __entry->token, __entry->gva)
+
+);
+
+DEFINE_EVENT(kvm_async_pf_nopresent_ready, kvm_async_pf_not_present,
+
+	TP_PROTO(u64 token, u64 gva),
+
+	TP_ARGS(token, gva)
+);
+
+DEFINE_EVENT(kvm_async_pf_nopresent_ready, kvm_async_pf_ready,
+
+	TP_PROTO(u64 token, u64 gva),
+
+	TP_ARGS(token, gva)
+);
+
+TRACE_EVENT(
+	kvm_async_pf_completed,
+	TP_PROTO(unsigned long address, struct page *page, u64 gva),
+	TP_ARGS(address, page, gva),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, address)
+		__field(pfn_t, pfn)
+		__field(u64, gva)
+		),
+
+	TP_fast_assign(
+		__entry->address = address;
+		__entry->pfn = page ? page_to_pfn(page) : 0;
+		__entry->gva = gva;
+		),
+
+	TP_printk("gva %#llx address %#lx pfn %#llx",  __entry->gva,
+		  __entry->address, __entry->pfn)
+);
+
+#endif
 
 #endif /* _TRACE_KVM_MAIN_H */
 

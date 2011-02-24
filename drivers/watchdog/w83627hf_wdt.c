@@ -42,7 +42,7 @@
 
 #include <asm/system.h>
 
-#define WATCHDOG_NAME "w83627hf/thf/hg WDT"
+#define WATCHDOG_NAME "w83627hf/thf/hg/dhg WDT"
 #define PFX WATCHDOG_NAME ": "
 #define WATCHDOG_TIMEOUT 60		/* 60 sec default timeout */
 
@@ -89,7 +89,7 @@ static void w83627hf_select_wd_register(void)
 		c = ((inb_p(WDT_EFDR) & 0xf7) | 0x04); /* select WDT0 */
 		outb_p(0x2b, WDT_EFER);
 		outb_p(c, WDT_EFDR);	/* set GPIO3 to WDT0 */
-	} else if (c == 0x88) {	/* W83627EHF */
+	} else if (c == 0x88 || c == 0xa0) {	/* W83627EHF / W83627DHG */
 		outb_p(0x2d, WDT_EFER); /* select GPIO5 */
 		c = inb_p(WDT_EFDR) & ~0x01; /* PIN77 -> WDT0# */
 		outb_p(0x2d, WDT_EFER);
@@ -129,6 +129,8 @@ static void w83627hf_init(void)
 	t = inb_p(WDT_EFDR);      /* read CRF5 */
 	t &= ~0x0C;               /* set second mode & disable keyboard
 				    turning off watchdog */
+	t |= 0x02;		  /* enable the WDTO# output low pulse
+				    to the KBRST# pin (PIN60) */
 	outb_p(t, WDT_EFDR);    /* Write back to CRF5 */
 
 	outb_p(0xF7, WDT_EFER); /* Select CRF7 */
@@ -321,7 +323,7 @@ static int __init wdt_init(void)
 {
 	int ret;
 
-	printk(KERN_INFO "WDT driver for the Winbond(TM) W83627HF/THF/HG Super I/O chip initialising.\n");
+	printk(KERN_INFO "WDT driver for the Winbond(TM) W83627HF/THF/HG/DHG Super I/O chip initialising.\n");
 
 	if (wdt_set_heartbeat(timeout)) {
 		wdt_set_heartbeat(WATCHDOG_TIMEOUT);

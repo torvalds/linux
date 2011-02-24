@@ -141,6 +141,10 @@ static int __devinit sdhci_pxa_probe(struct platform_device *pdev)
 	if (pdata->quirks)
 		host->quirks |= pdata->quirks;
 
+	/* If slot design supports 8 bit data, indicate this to MMC. */
+	if (pdata->flags & PXA_FLAG_SD_8_BIT_CAPABLE_SLOT)
+		host->mmc->caps |= MMC_CAP_8_BIT_DATA;
+
 	ret = sdhci_add_host(host);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add host\n");

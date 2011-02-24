@@ -156,12 +156,12 @@ static struct drm_conn_prop_enum_list drm_connector_enum_list[] =
 	{ DRM_MODE_CONNECTOR_SVIDEO, "SVIDEO", 0 },
 	{ DRM_MODE_CONNECTOR_LVDS, "LVDS", 0 },
 	{ DRM_MODE_CONNECTOR_Component, "Component", 0 },
-	{ DRM_MODE_CONNECTOR_9PinDIN, "9-pin DIN", 0 },
-	{ DRM_MODE_CONNECTOR_DisplayPort, "DisplayPort", 0 },
-	{ DRM_MODE_CONNECTOR_HDMIA, "HDMI Type A", 0 },
-	{ DRM_MODE_CONNECTOR_HDMIB, "HDMI Type B", 0 },
+	{ DRM_MODE_CONNECTOR_9PinDIN, "DIN", 0 },
+	{ DRM_MODE_CONNECTOR_DisplayPort, "DP", 0 },
+	{ DRM_MODE_CONNECTOR_HDMIA, "HDMI-A", 0 },
+	{ DRM_MODE_CONNECTOR_HDMIB, "HDMI-B", 0 },
 	{ DRM_MODE_CONNECTOR_TV, "TV", 0 },
-	{ DRM_MODE_CONNECTOR_eDP, "Embedded DisplayPort", 0 },
+	{ DRM_MODE_CONNECTOR_eDP, "eDP", 0 },
 };
 
 static struct drm_prop_enum_list drm_encoder_enum_list[] =
@@ -2673,4 +2673,57 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 out:
 	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
+}
+
+void drm_mode_config_reset(struct drm_device *dev)
+{
+	struct drm_crtc *crtc;
+	struct drm_encoder *encoder;
+	struct drm_connector *connector;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+		if (crtc->funcs->reset)
+			crtc->funcs->reset(crtc);
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
+		if (encoder->funcs->reset)
+			encoder->funcs->reset(encoder);
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+		if (connector->funcs->reset)
+			connector->funcs->reset(connector);
+}
+EXPORT_SYMBOL(drm_mode_config_reset);
+
+int drm_mode_create_dumb_ioctl(struct drm_device *dev,
+			       void *data, struct drm_file *file_priv)
+{
+	struct drm_mode_create_dumb *args = data;
+
+	if (!dev->driver->dumb_create)
+		return -ENOSYS;
+	return dev->driver->dumb_create(file_priv, dev, args);
+}
+
+int drm_mode_mmap_dumb_ioctl(struct drm_device *dev,
+			     void *data, struct drm_file *file_priv)
+{
+	struct drm_mode_map_dumb *args = data;
+
+	/* call driver ioctl to get mmap offset */
+	if (!dev->driver->dumb_map_offset)
+		return -ENOSYS;
+
+	return dev->driver->dumb_map_offset(file_priv, dev, args->handle, &args->offset);
+}
+
+int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
+				void *data, struct drm_file *file_priv)
+{
+	struct drm_mode_destroy_dumb *args = data;
+
+	if (!dev->driver->dumb_destroy)
+		return -ENOSYS;
+
+	return dev->driver->dumb_destroy(file_priv, dev, args->handle);
 }

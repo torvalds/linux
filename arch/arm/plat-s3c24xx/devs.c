@@ -194,7 +194,6 @@ void __init s3c24xx_ts_set_platdata(struct s3c2410_ts_mach_info *hard_s3c2410ts_
 	memcpy(&s3c2410ts_info, hard_s3c2410ts_info, sizeof(struct s3c2410_ts_mach_info));
 	s3c_device_ts.dev.platform_data = &s3c2410ts_info;
 }
-EXPORT_SYMBOL(s3c24xx_ts_set_platdata);
 
 /* USB Device (Gadget)*/
 
@@ -258,21 +257,6 @@ struct platform_device s3c_device_iis = {
 };
 
 EXPORT_SYMBOL(s3c_device_iis);
-
-/* ASoC PCM DMA */
-
-static u64 s3c_device_audio_dmamask = 0xffffffffUL;
-
-struct platform_device s3c_device_pcm = {
-	.name		  = "s3c24xx-pcm-audio",
-	.id		  = -1,
-	.dev              = {
-		.dma_mask = &s3c_device_audio_dmamask,
-		.coherent_dma_mask = 0xffffffffUL
-	}
-};
-
-EXPORT_SYMBOL(s3c_device_pcm);
 
 /* RTC */
 
@@ -496,8 +480,10 @@ static struct resource s3c_ac97_resource[] = {
 	},
 };
 
+static u64 s3c_device_audio_dmamask = 0xffffffffUL;
+
 struct platform_device s3c_device_ac97 = {
-	.name		  = "s3c-ac97",
+	.name		  = "samsung-ac97",
 	.id		  = -1,
 	.num_resources	  = ARRAY_SIZE(s3c_ac97_resource),
 	.resource	  = s3c_ac97_resource,

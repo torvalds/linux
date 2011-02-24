@@ -2365,8 +2365,6 @@ E: acme@redhat.com
 W: http://oops.ghostprotocols.net:81/blog/
 P: 1024D/9224DF01 D5DF E3BB E3C8 BCBB F8AD  841A B6AB 4681 9224 DF01
 D: IPX, LLC, DCCP, cyc2x, wl3501_cs, net/ hacks
-S: R. Brasílio Itiberê, 4270/1010 - Água Verde
-S: 80240-060 - Curitiba - Paraná
 S: Brazil
 
 N: Karsten Merker
@@ -2813,8 +2811,8 @@ D: CDROM driver "sonycd535" (Sony CDU-535/531)
 N: Stelian Pop
 E: stelian@popies.net
 P: 1024D/EDBB6147 7B36 0E07 04BC 11DC A7A0  D3F7 7185 9E7A EDBB 6147
-D: sonypi, meye drivers, mct_u232 usb serial hacks
-S: Paris, France
+D: random kernel hacks
+S: Paimpont, France
 
 N: Pete Popov
 E: pete_popov@yahoo.com

@@ -24,6 +24,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -67,8 +69,7 @@ static ssize_t lm70_sense_temp(struct device *dev,
 	 */
 	status = spi_write_then_read(spi, NULL, 0, &rxbuf[0], 2);
 	if (status < 0) {
-		printk(KERN_WARNING
-		"spi_write_then_read failed with status %d\n", status);
+		pr_warn("spi_write_then_read failed with status %d\n", status);
 		goto out;
 	}
 	raw = (rxbuf[0] << 8) + rxbuf[1];

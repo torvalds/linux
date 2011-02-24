@@ -197,11 +197,6 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 		sdata->bss = &sdata->u.ap;
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
-		if (!ieee80211_vif_is_mesh(&sdata->vif))
-			break;
-		/* mesh ifaces must set allmulti to forward mcast traffic */
-		atomic_inc(&local->iff_allmultis);
-		break;
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_MONITOR:
 	case NL80211_IFTYPE_ADHOC:
@@ -225,6 +220,8 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 		/* we're brought up, everything changes */
 		hw_reconf_flags = ~0;
 		ieee80211_led_radio(local, true);
+		ieee80211_mod_tpt_led_trig(local,
+					   IEEE80211_TPT_LEDTRIG_FL_RADIO, 0);
 	}
 
 	/*
@@ -273,12 +270,7 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 				goto err_stop;
 		}
 
-		if (ieee80211_vif_is_mesh(&sdata->vif)) {
-			local->fif_other_bss++;
-			ieee80211_configure_filter(local);
-
-			ieee80211_start_mesh(sdata);
-		} else if (sdata->vif.type == NL80211_IFTYPE_AP) {
+		if (sdata->vif.type == NL80211_IFTYPE_AP) {
 			local->fif_pspoll++;
 			local->fif_probe_req++;
 
@@ -503,18 +495,6 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		ieee80211_adjust_monitor_flags(sdata, -1);
 		ieee80211_configure_filter(local);
 		break;
-	case NL80211_IFTYPE_MESH_POINT:
-		if (ieee80211_vif_is_mesh(&sdata->vif)) {
-			/* other_bss and allmulti are always set on mesh
-			 * ifaces */
-			local->fif_other_bss--;
-			atomic_dec(&local->iff_allmultis);
-
-			ieee80211_configure_filter(local);
-
-			ieee80211_stop_mesh(sdata);
-		}
-		/* fall through */
 	default:
 		flush_work(&sdata->work);
 		/*
@@ -1204,12 +1184,6 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 	if (ret)
 		goto fail;
 
-	if (ieee80211_vif_is_mesh(&sdata->vif) &&
-	    params && params->mesh_id_len)
-		ieee80211_sdata_set_mesh_id(sdata,
-					    params->mesh_id_len,
-					    params->mesh_id);
-
 	mutex_lock(&local->iflist_mtx);
 	list_add_tail_rcu(&sdata->list, &local->interfaces);
 	mutex_unlock(&local->iflist_mtx);
@@ -1290,8 +1264,9 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
 	int count = 0;
-	bool working = false, scanning = false;
+	bool working = false, scanning = false, hw_roc = false;
 	struct ieee80211_work *wk;
+	unsigned int led_trig_start = 0, led_trig_stop = 0;
 
 #ifdef CONFIG_PROVE_LOCKING
 	WARN_ON(debug_locks && !lockdep_rtnl_is_held() &&
@@ -1333,6 +1308,9 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 		local->scan_sdata->vif.bss_conf.idle = false;
 	}
 
+	if (local->hw_roc_channel)
+		hw_roc = true;
+
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (sdata->old_idle == sdata->vif.bss_conf.idle)
 			continue;
@@ -1341,6 +1319,20 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_IDLE);
 	}
 
+	if (working || scanning || hw_roc)
+		led_trig_start |= IEEE80211_TPT_LEDTRIG_FL_WORK;
+	else
+		led_trig_stop |= IEEE80211_TPT_LEDTRIG_FL_WORK;
+
+	if (count)
+		led_trig_start |= IEEE80211_TPT_LEDTRIG_FL_CONNECTED;
+	else
+		led_trig_stop |= IEEE80211_TPT_LEDTRIG_FL_CONNECTED;
+
+	ieee80211_mod_tpt_led_trig(local, led_trig_start, led_trig_stop);
+
+	if (hw_roc)
+		return ieee80211_idle_off(local, "hw remain-on-channel");
 	if (working)
 		return ieee80211_idle_off(local, "working");
 	if (scanning)

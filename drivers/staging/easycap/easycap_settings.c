@@ -33,11 +33,15 @@
  *  THE LEAST SIGNIFICANT BIT OF easycap_standard.mask HAS MEANING:
  *                         0 => 25 fps
  *                         1 => 30 fps
+ *
+ *  THE MOST  SIGNIFICANT BIT OF easycap_standard.mask HAS MEANING:
+ *                         0 => full framerate
+ *                         1 => 20%  framerate
  */
 /*---------------------------------------------------------------------------*/
 const struct easycap_standard easycap_standard[] = {
 {
-.mask = 0x000F & PAL_BGHIN ,
+.mask = 0x00FF & PAL_BGHIN ,
 .v4l2_standard = {
 	.index = PAL_BGHIN,
 	.id = (V4L2_STD_PAL_B | V4L2_STD_PAL_G | V4L2_STD_PAL_H | \
@@ -50,7 +54,7 @@ const struct easycap_standard easycap_standard[] = {
 },
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 {
-.mask = 0x000F & NTSC_N_443 ,
+.mask = 0x00FF & NTSC_N_443 ,
 .v4l2_standard = {
 	.index = NTSC_N_443,
 	.id = V4L2_STD_UNKNOWN,
@@ -62,7 +66,7 @@ const struct easycap_standard easycap_standard[] = {
 },
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 {
-.mask = 0x000F & PAL_Nc ,
+.mask = 0x00FF & PAL_Nc ,
 .v4l2_standard = {
 	.index = PAL_Nc,
 	.id = V4L2_STD_PAL_Nc,
@@ -74,7 +78,7 @@ const struct easycap_standard easycap_standard[] = {
 },
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 {
-.mask = 0x000F & NTSC_N ,
+.mask = 0x00FF & NTSC_N ,
 .v4l2_standard = {
 	.index = NTSC_N,
 	.id = V4L2_STD_UNKNOWN,
@@ -86,7 +90,7 @@ const struct easycap_standard easycap_standard[] = {
 },
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 {
-.mask = 0x000F & SECAM ,
+.mask = 0x00FF & SECAM ,
 .v4l2_standard = {
 	.index = SECAM,
 	.id = V4L2_STD_SECAM,
@@ -98,7 +102,7 @@ const struct easycap_standard easycap_standard[] = {
 },
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 {
-.mask = 0x000F & NTSC_M ,
+.mask = 0x00FF & NTSC_M ,
 .v4l2_standard = {
 	.index = NTSC_M,
 	.id = V4L2_STD_NTSC_M,
@@ -110,7 +114,7 @@ const struct easycap_standard easycap_standard[] = {
 },
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 {
-.mask = 0x000F & NTSC_M_JP ,
+.mask = 0x00FF & NTSC_M_JP ,
 .v4l2_standard = {
 	.index = NTSC_M_JP,
 	.id = V4L2_STD_NTSC_M_JP,
@@ -122,7 +126,7 @@ const struct easycap_standard easycap_standard[] = {
 },
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 {
-.mask = 0x000F & PAL_60 ,
+.mask = 0x00FF & PAL_60 ,
 .v4l2_standard = {
 	.index = PAL_60,
 	.id = V4L2_STD_PAL_60,
@@ -134,7 +138,7 @@ const struct easycap_standard easycap_standard[] = {
 },
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 {
-.mask = 0x000F & NTSC_443 ,
+.mask = 0x00FF & NTSC_443 ,
 .v4l2_standard = {
 	.index = NTSC_443,
 	.id = V4L2_STD_NTSC_443,
@@ -146,12 +150,134 @@ const struct easycap_standard easycap_standard[] = {
 },
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 {
-.mask = 0x000F & PAL_M ,
+.mask = 0x00FF & PAL_M ,
 .v4l2_standard = {
 	.index = PAL_M,
 	.id = V4L2_STD_PAL_M,
 	.name = "PAL_M",
 	.frameperiod = {1, 30},
+	.framelines = 525,
+	.reserved = {0, 0, 0, 0}
+}
+},
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+{
+.mask = 0x8000 | (0x00FF & PAL_BGHIN_SLOW),
+.v4l2_standard = {
+	.index = PAL_BGHIN_SLOW,
+	.id = (V4L2_STD_PAL_B | V4L2_STD_PAL_G | V4L2_STD_PAL_H | \
+				V4L2_STD_PAL_I | V4L2_STD_PAL_N | \
+					(((v4l2_std_id)0x01) << 32)),
+	.name = "PAL_BGHIN_SLOW",
+	.frameperiod = {1, 5},
+	.framelines = 625,
+	.reserved = {0, 0, 0, 0}
+}
+},
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+{
+.mask = 0x8000 | (0x00FF & NTSC_N_443_SLOW),
+.v4l2_standard = {
+	.index = NTSC_N_443_SLOW,
+	.id = (V4L2_STD_UNKNOWN | (((v4l2_std_id)0x11) << 32)),
+	.name = "NTSC_N_443_SLOW",
+	.frameperiod = {1, 5},
+	.framelines = 480,
+	.reserved = {0, 0, 0, 0}
+}
+},
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+{
+.mask = 0x8000 | (0x00FF & PAL_Nc_SLOW),
+.v4l2_standard = {
+	.index = PAL_Nc_SLOW,
+	.id = (V4L2_STD_PAL_Nc | (((v4l2_std_id)0x01) << 32)),
+	.name = "PAL_Nc_SLOW",
+	.frameperiod = {1, 5},
+	.framelines = 625,
+	.reserved = {0, 0, 0, 0}
+}
+},
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+{
+.mask = 0x8000 | (0x00FF & NTSC_N_SLOW),
+.v4l2_standard = {
+	.index = NTSC_N_SLOW,
+	.id = (V4L2_STD_UNKNOWN | (((v4l2_std_id)0x21) << 32)),
+	.name = "NTSC_N_SLOW",
+	.frameperiod = {1, 5},
+	.framelines = 525,
+	.reserved = {0, 0, 0, 0}
+}
+},
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+{
+.mask = 0x8000 | (0x00FF & SECAM_SLOW),
+.v4l2_standard = {
+	.index = SECAM_SLOW,
+	.id = (V4L2_STD_SECAM | (((v4l2_std_id)0x01) << 32)),
+	.name = "SECAM_SLOW",
+	.frameperiod = {1, 5},
+	.framelines = 625,
+	.reserved = {0, 0, 0, 0}
+}
+},
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+{
+.mask = 0x8000 | (0x00FF & NTSC_M_SLOW),
+.v4l2_standard = {
+	.index = NTSC_M_SLOW,
+	.id = (V4L2_STD_NTSC_M | (((v4l2_std_id)0x01) << 32)),
+	.name = "NTSC_M_SLOW",
+	.frameperiod = {1, 6},
+	.framelines = 525,
+	.reserved = {0, 0, 0, 0}
+}
+},
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+{
+.mask = 0x8000 | (0x00FF & NTSC_M_JP_SLOW),
+.v4l2_standard = {
+	.index = NTSC_M_JP_SLOW,
+	.id = (V4L2_STD_NTSC_M_JP | (((v4l2_std_id)0x01) << 32)),
+	.name = "NTSC_M_JP_SLOW",
+	.frameperiod = {1, 6},
+	.framelines = 525,
+	.reserved = {0, 0, 0, 0}
+}
+},
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+{
+.mask = 0x8000 | (0x00FF & PAL_60_SLOW),
+.v4l2_standard = {
+	.index = PAL_60_SLOW,
+	.id = (V4L2_STD_PAL_60 | (((v4l2_std_id)0x01) << 32)),
+	.name = "PAL_60_SLOW",
+	.frameperiod = {1, 6},
+	.framelines = 525,
+	.reserved = {0, 0, 0, 0}
+}
+},
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+{
+.mask = 0x8000 | (0x00FF & NTSC_443_SLOW),
+.v4l2_standard = {
+	.index = NTSC_443_SLOW,
+	.id = (V4L2_STD_NTSC_443 | (((v4l2_std_id)0x01) << 32)),
+	.name = "NTSC_443_SLOW",
+	.frameperiod = {1, 6},
+	.framelines = 525,
+	.reserved = {0, 0, 0, 0}
+}
+},
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+{
+.mask = 0x8000 | (0x00FF & PAL_M_SLOW),
+.v4l2_standard = {
+	.index = PAL_M_SLOW,
+	.id = (V4L2_STD_PAL_M | (((v4l2_std_id)0x01) << 32)),
+	.name = "PAL_M_SLOW",
+	.frameperiod = {1, 6},
 	.framelines = 525,
 	.reserved = {0, 0, 0, 0}
 }
@@ -165,15 +291,16 @@ const struct easycap_standard easycap_standard[] = {
 /*
  *  THE 16-BIT easycap_format.mask HAS MEANING:
  *    (least significant) BIT  0:     0 => PAL, 25 FPS;   1 => NTSC, 30 FPS
- *                        BITS 1-3:   RESERVED FOR DIFFERENTIATING STANDARDS
- *                        BITS 4-7:   NUMBER OF BYTES PER PIXEL
+ *                        BITS 2-4:   RESERVED FOR DIFFERENTIATING STANDARDS
+ *                        BITS 5-7:   NUMBER OF BYTES PER PIXEL
  *                        BIT  8:     0 => NATIVE BYTE ORDER;  1 => SWAPPED
  *                        BITS 9-10:  RESERVED FOR OTHER BYTE PERMUTATIONS
- *                        BIT 11:     0 => UNDECIMATED;  1 => DECIMATED
- *                        BIT 12:     0 => OFFER FRAMES; 1 => OFFER FIELDS
- *     (most significant) BITS 13-15: RESERVED FOR OTHER FIELD ORDER OPTIONS
+ *                        BIT 11:     0 => UNDECIMATED;    1 => DECIMATED
+ *                        BIT 12:     0 => OFFER FRAMES;   1 => OFFER FIELDS
+ *                        BIT 13:     0 => FULL FRAMERATE; 1 => REDUCED
+ *     (most significant) BITS 14-15: RESERVED FOR OTHER FIELD/FRAME OPTIONS
  *  IT FOLLOWS THAT:
- *     bytesperpixel IS         ((0x00F0 & easycap_format.mask) >> 4)
+ *     bytesperpixel IS         ((0x00E0 & easycap_format.mask) >> 5)
  *     byteswaporder IS true IF (0 != (0x0100 & easycap_format.mask))
  *
  *     decimatepixel IS true IF (0 != (0x0800 & easycap_format.mask))
@@ -197,62 +324,132 @@ for (i = 0, n = 0; i < STANDARD_MANY; i++) {
 	mask1 = 0x0000;
 	switch (i) {
 	case PAL_BGHIN: {
-		mask1 = PAL_BGHIN;
+		mask1 = 0x1F & PAL_BGHIN;
 		strcpy(&name1[0], "PAL_BGHIN");
 		colorspace = V4L2_COLORSPACE_470_SYSTEM_BG;
 		break;
 	}
 	case SECAM: {
-		mask1 = SECAM;
+		mask1 = 0x1F & SECAM;
 		strcpy(&name1[0], "SECAM");
 		colorspace = V4L2_COLORSPACE_470_SYSTEM_BG;
 		break;
 	}
 	case PAL_Nc: {
-		mask1 = PAL_Nc;
+		mask1 = 0x1F & PAL_Nc;
 		strcpy(&name1[0], "PAL_Nc");
 		colorspace = V4L2_COLORSPACE_470_SYSTEM_BG;
 		break;
 	}
 	case PAL_60: {
-		mask1 = PAL_60;
+		mask1 = 0x1F & PAL_60;
 		strcpy(&name1[0], "PAL_60");
 		colorspace = V4L2_COLORSPACE_470_SYSTEM_BG;
 		break;
 	}
 	case PAL_M: {
-		mask1 = PAL_M;
+		mask1 = 0x1F & PAL_M;
 		strcpy(&name1[0], "PAL_M");
 		colorspace = V4L2_COLORSPACE_470_SYSTEM_BG;
 		break;
 	}
 	case NTSC_M: {
-		mask1 = NTSC_M;
+		mask1 = 0x1F & NTSC_M;
 		strcpy(&name1[0], "NTSC_M");
 		colorspace = V4L2_COLORSPACE_470_SYSTEM_M;
 		break;
 	}
 	case NTSC_443: {
-		mask1 = NTSC_443;
+		mask1 = 0x1F & NTSC_443;
 		strcpy(&name1[0], "NTSC_443");
 		colorspace = V4L2_COLORSPACE_470_SYSTEM_M;
 		break;
 	}
 	case NTSC_M_JP: {
-		mask1 = NTSC_M_JP;
+		mask1 = 0x1F & NTSC_M_JP;
 		strcpy(&name1[0], "NTSC_M_JP");
 		colorspace = V4L2_COLORSPACE_470_SYSTEM_M;
 		break;
 	}
 	case NTSC_N: {
-		mask1 = NTSC_M;
+		mask1 = 0x1F & NTSC_M;
 		strcpy(&name1[0], "NTSC_N");
 		colorspace = V4L2_COLORSPACE_470_SYSTEM_M;
 		break;
 	}
 	case NTSC_N_443: {
-		mask1 = NTSC_N_443;
+		mask1 = 0x1F & NTSC_N_443;
 		strcpy(&name1[0], "NTSC_N_443");
+		colorspace = V4L2_COLORSPACE_470_SYSTEM_M;
+		break;
+	}
+	case PAL_BGHIN_SLOW: {
+		mask1 = 0x001F & PAL_BGHIN_SLOW;
+		mask1 |= 0x0200;
+		strcpy(&name1[0], "PAL_BGHIN_SLOW");
+		colorspace = V4L2_COLORSPACE_470_SYSTEM_BG;
+		break;
+	}
+	case SECAM_SLOW: {
+		mask1 = 0x001F & SECAM_SLOW;
+		mask1 |= 0x0200;
+		strcpy(&name1[0], "SECAM_SLOW");
+		colorspace = V4L2_COLORSPACE_470_SYSTEM_BG;
+		break;
+	}
+	case PAL_Nc_SLOW: {
+		mask1 = 0x001F & PAL_Nc_SLOW;
+		mask1 |= 0x0200;
+		strcpy(&name1[0], "PAL_Nc_SLOW");
+		colorspace = V4L2_COLORSPACE_470_SYSTEM_BG;
+		break;
+	}
+	case PAL_60_SLOW: {
+		mask1 = 0x001F & PAL_60_SLOW;
+		mask1 |= 0x0200;
+		strcpy(&name1[0], "PAL_60_SLOW");
+		colorspace = V4L2_COLORSPACE_470_SYSTEM_BG;
+		break;
+	}
+	case PAL_M_SLOW: {
+		mask1 = 0x001F & PAL_M_SLOW;
+		mask1 |= 0x0200;
+		strcpy(&name1[0], "PAL_M_SLOW");
+		colorspace = V4L2_COLORSPACE_470_SYSTEM_BG;
+		break;
+	}
+	case NTSC_M_SLOW: {
+		mask1 = 0x001F & NTSC_M_SLOW;
+		mask1 |= 0x0200;
+		strcpy(&name1[0], "NTSC_M_SLOW");
+		colorspace = V4L2_COLORSPACE_470_SYSTEM_M;
+		break;
+	}
+	case NTSC_443_SLOW: {
+		mask1 = 0x001F & NTSC_443_SLOW;
+		mask1 |= 0x0200;
+		strcpy(&name1[0], "NTSC_443_SLOW");
+		colorspace = V4L2_COLORSPACE_470_SYSTEM_M;
+		break;
+	}
+	case NTSC_M_JP_SLOW: {
+		mask1 = 0x001F & NTSC_M_JP_SLOW;
+		mask1 |= 0x0200;
+		strcpy(&name1[0], "NTSC_M_JP_SLOW");
+		colorspace = V4L2_COLORSPACE_470_SYSTEM_M;
+		break;
+	}
+	case NTSC_N_SLOW: {
+		mask1 = 0x001F & NTSC_N_SLOW;
+		mask1 |= 0x0200;
+		strcpy(&name1[0], "NTSC_N_SLOW");
+		colorspace = V4L2_COLORSPACE_470_SYSTEM_M;
+		break;
+	}
+	case NTSC_N_443_SLOW: {
+		mask1 = 0x001F & NTSC_N_443_SLOW;
+		mask1 |= 0x0200;
+		strcpy(&name1[0], "NTSC_N_443_SLOW");
 		colorspace = V4L2_COLORSPACE_470_SYSTEM_M;
 		break;
 	}
@@ -311,39 +508,39 @@ for (i = 0, n = 0; i < STANDARD_MANY; i++) {
 			case FMT_UYVY: {
 				strcpy(&name3[0], "_" STRINGIZE(FMT_UYVY));
 				pixelformat = V4L2_PIX_FMT_UYVY;
-				mask3 |= (0x02 << 4);
+				mask3 |= (0x02 << 5);
 				break;
 			}
 			case FMT_YUY2: {
 				strcpy(&name3[0], "_" STRINGIZE(FMT_YUY2));
 				pixelformat = V4L2_PIX_FMT_YUYV;
-				mask3 |= (0x02 << 4);
+				mask3 |= (0x02 << 5);
 				mask3 |= 0x0100;
 				break;
 			}
 			case FMT_RGB24: {
 				strcpy(&name3[0], "_" STRINGIZE(FMT_RGB24));
 				pixelformat = V4L2_PIX_FMT_RGB24;
-				mask3 |= (0x03 << 4);
+				mask3 |= (0x03 << 5);
 				break;
 			}
 			case FMT_RGB32: {
 				strcpy(&name3[0], "_" STRINGIZE(FMT_RGB32));
 				pixelformat = V4L2_PIX_FMT_RGB32;
-				mask3 |= (0x04 << 4);
+				mask3 |= (0x04 << 5);
 				break;
 			}
 			case FMT_BGR24: {
 				strcpy(&name3[0], "_" STRINGIZE(FMT_BGR24));
 				pixelformat = V4L2_PIX_FMT_BGR24;
-				mask3 |= (0x03 << 4);
+				mask3 |= (0x03 << 5);
 				mask3 |= 0x0100;
 				break;
 			}
 			case FMT_BGR32: {
 				strcpy(&name3[0], "_" STRINGIZE(FMT_BGR32));
 				pixelformat = V4L2_PIX_FMT_BGR32;
-				mask3 |= (0x04 << 4);
+				mask3 |= (0x04 << 5);
 				mask3 |= 0x0100;
 				break;
 			}
@@ -363,13 +560,8 @@ for (i = 0, n = 0; i < STANDARD_MANY; i++) {
 				}
 				case FIELD_INTERLACED: {
 					strcpy(&name4[0], "-i");
-					field = V4L2_FIELD_INTERLACED;
-					break;
-				}
-				case FIELD_ALTERNATE: {
-					strcpy(&name4[0], "-a");
 					mask4 |= 0x1000;
-					field = V4L2_FIELD_ALTERNATE;
+					field = V4L2_FIELD_INTERLACED;
 					break;
 				}
 				default:
@@ -413,7 +605,7 @@ return n;
 }
 /*---------------------------------------------------------------------------*/
 struct v4l2_queryctrl easycap_control[] = \
- {{
+{{
 .id       = V4L2_CID_BRIGHTNESS,
 .type     = V4L2_CTRL_TYPE_INTEGER,
 .name     = "Brightness",
@@ -485,5 +677,5 @@ struct v4l2_queryctrl easycap_control[] = \
 {
 .id = 0xFFFFFFFF
 }
- };
+};
 /*****************************************************************************/

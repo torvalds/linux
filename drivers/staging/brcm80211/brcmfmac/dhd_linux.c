@@ -32,7 +32,6 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <bcmdefs.h>
-#include <linuxver.h>
 #include <osl.h>
 #include <bcmutils.h>
 #include <bcmendian.h>
@@ -211,7 +210,7 @@ typedef struct dhd_if {
 	int idx;		/* iface idx in dongle */
 	int state;		/* interface state */
 	uint subunit;		/* subunit */
-	u8 mac_addr[ETHER_ADDR_LEN];	/* assigned MAC address */
+	u8 mac_addr[ETH_ALEN];	/* assigned MAC address */
 	bool attached;		/* Delayed attachment when unset */
 	bool txflowcontrol;	/* Per interface flow control indicator */
 	char name[IFNAMSIZ];	/* linux interface name */
@@ -709,7 +708,7 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 
 	/* Send down the multicast list first. */
 
-	buflen = sizeof("mcast_list") + sizeof(cnt) + (cnt * ETHER_ADDR_LEN);
+	buflen = sizeof("mcast_list") + sizeof(cnt) + (cnt * ETH_ALEN);
 	bufp = buf = kmalloc(buflen, GFP_ATOMIC);
 	if (!bufp) {
 		DHD_ERROR(("%s: out of memory for mcast_list, cnt %d\n",
@@ -727,8 +726,8 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 	netdev_for_each_mc_addr(ha, dev) {
 		if (!cnt)
 			break;
-		memcpy(bufp, ha->addr, ETHER_ADDR_LEN);
-		bufp += ETHER_ADDR_LEN;
+		memcpy(bufp, ha->addr, ETH_ALEN);
+		bufp += ETH_ALEN;
 		cnt--;
 	}
 
@@ -812,7 +811,7 @@ _dhd_set_mac_address(dhd_info_t *dhd, int ifidx, struct ether_addr *addr)
 
 	DHD_TRACE(("%s enter\n", __func__));
 	if (!bcm_mkiovar
-	    ("cur_etheraddr", (char *)addr, ETHER_ADDR_LEN, buf, 32)) {
+	    ("cur_etheraddr", (char *)addr, ETH_ALEN, buf, 32)) {
 		DHD_ERROR(("%s: mkiovar failed for cur_etheraddr\n",
 			   dhd_ifname(&dhd->pub, ifidx)));
 		return -1;
@@ -828,7 +827,7 @@ _dhd_set_mac_address(dhd_info_t *dhd, int ifidx, struct ether_addr *addr)
 		DHD_ERROR(("%s: set cur_etheraddr failed\n",
 			   dhd_ifname(&dhd->pub, ifidx)));
 	} else {
-		memcpy(dhd->iflist[ifidx]->net->dev_addr, addr, ETHER_ADDR_LEN);
+		memcpy(dhd->iflist[ifidx]->net->dev_addr, addr, ETH_ALEN);
 	}
 
 	return ret;
@@ -998,7 +997,7 @@ static int dhd_set_mac_address(struct net_device *dev, void *addr)
 		return -1;
 
 	ASSERT(dhd->sysioc_tsk);
-	memcpy(&dhd->macvalue, sa->sa_data, ETHER_ADDR_LEN);
+	memcpy(&dhd->macvalue, sa->sa_data, ETH_ALEN);
 	dhd->set_macaddress = true;
 	up(&dhd->sysioc_sem);
 
@@ -1019,7 +1018,7 @@ static void dhd_set_multicast_list(struct net_device *dev)
 	up(&dhd->sysioc_sem);
 }
 
-int dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
+int dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pktbuf)
 {
 	int ret;
 	dhd_info_t *dhd = (dhd_info_t *) (dhdp->info);
@@ -1029,13 +1028,13 @@ int dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
 		return -ENODEV;
 
 	/* Update multicast statistic */
-	if (PKTLEN(pktbuf) >= ETHER_ADDR_LEN) {
-		u8 *pktdata = (u8 *) PKTDATA(pktbuf);
+	if (pktbuf->len >= ETH_ALEN) {
+		u8 *pktdata = (u8 *) (pktbuf->data);
 		struct ether_header *eh = (struct ether_header *)pktdata;
 
-		if (ETHER_ISMULTI(eh->ether_dhost))
+		if (is_multicast_ether_addr(eh->ether_dhost))
 			dhdp->tx_multicast++;
-		if (ntoh16(eh->ether_type) == ETHER_TYPE_802_1X)
+		if (ntoh16(eh->ether_type) == ETH_P_PAE)
 			atomic_inc(&dhd->pend_8021x_cnt);
 	}
 
@@ -1052,6 +1051,32 @@ int dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
 
 	return ret;
 }
+
+static inline void *
+osl_pkt_frmnative(struct osl_info *osh, struct sk_buff *skb)
+{
+	struct sk_buff *nskb;
+
+	for (nskb = skb; nskb; nskb = nskb->next)
+		osh->pktalloced++;
+
+	return (void *)skb;
+}
+#define PKTFRMNATIVE(osh, skb)	\
+	osl_pkt_frmnative((osh), (struct sk_buff *)(skb))
+
+static inline struct sk_buff *
+osl_pkt_tonative(struct osl_info *osh, void *pkt)
+{
+	struct sk_buff *nskb;
+
+	for (nskb = (struct sk_buff *)pkt; nskb; nskb = nskb->next)
+		osh->pktalloced--;
+
+	return (struct sk_buff *)pkt;
+}
+#define PKTTONATIVE(osh, pkt)	\
+	osl_pkt_tonative((osh), (pkt))
 
 static int dhd_start_xmit(struct sk_buff *skb, struct net_device *net)
 {
@@ -1133,13 +1158,15 @@ void dhd_txflowcontrol(dhd_pub_t *dhdp, int ifidx, bool state)
 		netif_wake_queue(net);
 }
 
-void dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt)
+void dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pktbuf,
+		  int numpkt)
 {
 	dhd_info_t *dhd = (dhd_info_t *) dhdp->info;
 	struct sk_buff *skb;
 	unsigned char *eth;
 	uint len;
-	void *data, *pnext, *save_pktbuf;
+	void *data;
+	struct sk_buff *pnext, *save_pktbuf;
 	int i;
 	dhd_if_t *ifp;
 	wl_event_msg_t event;
@@ -1150,8 +1177,8 @@ void dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt)
 
 	for (i = 0; pktbuf && i < numpkt; i++, pktbuf = pnext) {
 
-		pnext = PKTNEXT(pktbuf);
-		PKTSETNEXT(pktbuf, NULL);
+		pnext = pktbuf->next;
+		pktbuf->next = NULL;
 
 		skb = PKTTONATIVE(dhdp->osh, pktbuf);
 
@@ -1190,7 +1217,7 @@ void dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt)
 		/* Process special event packets and then discard them */
 		if (ntoh16(skb->protocol) == ETHER_TYPE_BRCM)
 			dhd_wl_host_event(dhd, &ifidx,
-					  skb->mac_header,
+					  skb_mac_header(skb),
 					  &event, &data);
 
 		ASSERT(ifidx < DHD_MAX_IFS && dhd->iflist[ifidx]);
@@ -1223,7 +1250,7 @@ void dhd_event(struct dhd_info *dhd, char *evpkt, int evlen, int ifidx)
 	return;
 }
 
-void dhd_txcomplete(dhd_pub_t *dhdp, void *txp, bool success)
+void dhd_txcomplete(dhd_pub_t *dhdp, struct sk_buff *txp, bool success)
 {
 	uint ifidx;
 	dhd_info_t *dhd = (dhd_info_t *) (dhdp->info);
@@ -1232,10 +1259,10 @@ void dhd_txcomplete(dhd_pub_t *dhdp, void *txp, bool success)
 
 	dhd_prot_hdrpull(dhdp, &ifidx, txp);
 
-	eh = (struct ether_header *)PKTDATA(txp);
+	eh = (struct ether_header *)(txp->data);
 	type = ntoh16(eh->ether_type);
 
-	if (type == ETHER_TYPE_802_1X)
+	if (type == ETH_P_PAE)
 		atomic_dec(&dhd->pend_8021x_cnt);
 
 }
@@ -1621,6 +1648,51 @@ static int dhd_ethtool(dhd_info_t *dhd, void *uaddr)
 	return 0;
 }
 
+static s16 linuxbcmerrormap[] = { 0,	/* 0 */
+	-EINVAL,		/* BCME_ERROR */
+	-EINVAL,		/* BCME_BADARG */
+	-EINVAL,		/* BCME_BADOPTION */
+	-EINVAL,		/* BCME_NOTUP */
+	-EINVAL,		/* BCME_NOTDOWN */
+	-EINVAL,		/* BCME_NOTAP */
+	-EINVAL,		/* BCME_NOTSTA */
+	-EINVAL,		/* BCME_BADKEYIDX */
+	-EINVAL,		/* BCME_RADIOOFF */
+	-EINVAL,		/* BCME_NOTBANDLOCKED */
+	-EINVAL,		/* BCME_NOCLK */
+	-EINVAL,		/* BCME_BADRATESET */
+	-EINVAL,		/* BCME_BADBAND */
+	-E2BIG,			/* BCME_BUFTOOSHORT */
+	-E2BIG,			/* BCME_BUFTOOLONG */
+	-EBUSY,			/* BCME_BUSY */
+	-EINVAL,		/* BCME_NOTASSOCIATED */
+	-EINVAL,		/* BCME_BADSSIDLEN */
+	-EINVAL,		/* BCME_OUTOFRANGECHAN */
+	-EINVAL,		/* BCME_BADCHAN */
+	-EFAULT,		/* BCME_BADADDR */
+	-ENOMEM,		/* BCME_NORESOURCE */
+	-EOPNOTSUPP,		/* BCME_UNSUPPORTED */
+	-EMSGSIZE,		/* BCME_BADLENGTH */
+	-EINVAL,		/* BCME_NOTREADY */
+	-EPERM,			/* BCME_NOTPERMITTED */
+	-ENOMEM,		/* BCME_NOMEM */
+	-EINVAL,		/* BCME_ASSOCIATED */
+	-ERANGE,		/* BCME_RANGE */
+	-EINVAL,		/* BCME_NOTFOUND */
+	-EINVAL,		/* BCME_WME_NOT_ENABLED */
+	-EINVAL,		/* BCME_TSPEC_NOTFOUND */
+	-EINVAL,		/* BCME_ACM_NOTSUPPORTED */
+	-EINVAL,		/* BCME_NOT_WME_ASSOCIATION */
+	-EIO,			/* BCME_SDIO_ERROR */
+	-ENODEV,		/* BCME_DONGLE_DOWN */
+	-EINVAL,		/* BCME_VERSION */
+	-EIO,			/* BCME_TXFAIL */
+	-EIO,			/* BCME_RXFAIL */
+	-EINVAL,		/* BCME_NODEVICE */
+	-EINVAL,		/* BCME_NMODE_DISABLED */
+	-ENODATA,		/* BCME_NONRESIDENT */
+};
+
 static int dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 {
 	dhd_info_t *dhd = *(dhd_info_t **) netdev_priv(net);
@@ -1742,7 +1814,12 @@ done:
 	if (buf)
 		kfree(buf);
 
-	return OSL_ERROR(bcmerror);
+	if (bcmerror > 0)
+		bcmerror = 0;
+	else if (bcmerror < BCME_LAST)
+		bcmerror = BCME_ERROR;
+
+	return linuxbcmerrormap[-bcmerror];
 }
 
 static int dhd_stop(struct net_device *net)
@@ -1789,7 +1866,7 @@ static int dhd_open(struct net_device *net)
 		}
 		atomic_set(&dhd->pend_8021x_cnt, 0);
 
-		memcpy(net->dev_addr, dhd->pub.mac.octet, ETHER_ADDR_LEN);
+		memcpy(net->dev_addr, dhd->pub.mac.octet, ETH_ALEN);
 
 #ifdef TOE
 		/* Get current TOE mode from dongle */
@@ -1814,12 +1891,12 @@ static int dhd_open(struct net_device *net)
 	return ret;
 }
 
-osl_t *dhd_osl_attach(void *pdev, uint bustype)
+struct osl_info *dhd_osl_attach(void *pdev, uint bustype)
 {
-	return osl_attach(pdev, bustype, true);
+	return osl_attach(pdev, bustype);
 }
 
-void dhd_osl_detach(osl_t *osh)
+void dhd_osl_detach(struct osl_info *osh)
 {
 	osl_detach(osh);
 }
@@ -1845,7 +1922,7 @@ dhd_add_if(dhd_info_t *dhd, int ifidx, void *handle, char *name,
 	dhd->iflist[ifidx] = ifp;
 	strlcpy(ifp->name, name, IFNAMSIZ);
 	if (mac_addr != NULL)
-		memcpy(&ifp->mac_addr, mac_addr, ETHER_ADDR_LEN);
+		memcpy(&ifp->mac_addr, mac_addr, ETH_ALEN);
 
 	if (handle == NULL) {
 		ifp->state = WLC_E_IF_ADD;
@@ -1877,7 +1954,8 @@ void dhd_del_if(dhd_info_t *dhd, int ifidx)
 	up(&dhd->sysioc_sem);
 }
 
-dhd_pub_t *dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
+dhd_pub_t *dhd_attach(struct osl_info *osh, struct dhd_bus *bus,
+			uint bus_hdrlen)
 {
 	dhd_info_t *dhd = NULL;
 	struct net_device *net;
@@ -2199,19 +2277,11 @@ static struct net_device_ops dhd_ops_pri = {
 	.ndo_set_multicast_list = dhd_set_multicast_list
 };
 
-static struct net_device_ops dhd_ops_virt = {
-	.ndo_get_stats = dhd_get_stats,
-	.ndo_do_ioctl = dhd_ioctl_entry,
-	.ndo_start_xmit = dhd_start_xmit,
-	.ndo_set_mac_address = dhd_set_mac_address,
-	.ndo_set_multicast_list = dhd_set_multicast_list
-};
-
 int dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 {
 	dhd_info_t *dhd = (dhd_info_t *) dhdp->info;
 	struct net_device *net;
-	u8 temp_addr[ETHER_ADDR_LEN] = {
+	u8 temp_addr[ETH_ALEN] = {
 		0x00, 0x90, 0x4c, 0x11, 0x22, 0x33};
 
 	DHD_TRACE(("%s: ifidx %d\n", __func__, ifidx));
@@ -2229,7 +2299,7 @@ int dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 	 */
 	if (ifidx != 0) {
 		/* for virtual interfaces use the primary MAC  */
-		memcpy(temp_addr, dhd->pub.mac.octet, ETHER_ADDR_LEN);
+		memcpy(temp_addr, dhd->pub.mac.octet, ETH_ALEN);
 
 	}
 
@@ -2257,7 +2327,7 @@ int dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 
 	dhd->pub.rxsz = net->mtu + net->hard_header_len + dhd->pub.hdrlen;
 
-	memcpy(net->dev_addr, temp_addr, ETHER_ADDR_LEN);
+	memcpy(net->dev_addr, temp_addr, ETH_ALEN);
 
 	if (register_netdev(net) != 0) {
 		DHD_ERROR(("%s: couldn't register the net device\n",

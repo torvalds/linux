@@ -46,30 +46,30 @@
 #define ICTLR_COP_IER_CLR	0x38
 #define ICTLR_COP_IEP_CLASS	0x3c
 
-static void (*gic_mask_irq)(unsigned int irq);
-static void (*gic_unmask_irq)(unsigned int irq);
+static void (*tegra_gic_mask_irq)(struct irq_data *d);
+static void (*tegra_gic_unmask_irq)(struct irq_data *d);
 
-#define irq_to_ictlr(irq) (((irq)-32) >> 5)
+#define irq_to_ictlr(irq) (((irq) - 32) >> 5)
 static void __iomem *tegra_ictlr_base = IO_ADDRESS(TEGRA_PRIMARY_ICTLR_BASE);
-#define ictlr_to_virt(ictlr) (tegra_ictlr_base + (ictlr)*0x100)
+#define ictlr_to_virt(ictlr) (tegra_ictlr_base + (ictlr) * 0x100)
 
-static void tegra_mask(unsigned int irq)
+static void tegra_mask(struct irq_data *d)
 {
-	void __iomem *addr = ictlr_to_virt(irq_to_ictlr(irq));
-	gic_mask_irq(irq);
-	writel(1<<(irq&31), addr+ICTLR_CPU_IER_CLR);
+	void __iomem *addr = ictlr_to_virt(irq_to_ictlr(d->irq));
+	tegra_gic_mask_irq(d);
+	writel(1 << (d->irq & 31), addr+ICTLR_CPU_IER_CLR);
 }
 
-static void tegra_unmask(unsigned int irq)
+static void tegra_unmask(struct irq_data *d)
 {
-	void __iomem *addr = ictlr_to_virt(irq_to_ictlr(irq));
-	gic_unmask_irq(irq);
-	writel(1<<(irq&31), addr+ICTLR_CPU_IER_SET);
+	void __iomem *addr = ictlr_to_virt(irq_to_ictlr(d->irq));
+	tegra_gic_unmask_irq(d);
+	writel(1<<(d->irq&31), addr+ICTLR_CPU_IER_SET);
 }
 
 #ifdef CONFIG_PM
 
-static int tegra_set_wake(unsigned int irq, unsigned int on)
+static int tegra_set_wake(struct irq_data *d, unsigned int on)
 {
 	return 0;
 }
@@ -77,10 +77,10 @@ static int tegra_set_wake(unsigned int irq, unsigned int on)
 
 static struct irq_chip tegra_irq = {
 	.name		= "PPI",
-	.mask		= tegra_mask,
-	.unmask		= tegra_unmask,
+	.irq_mask	= tegra_mask,
+	.irq_unmask	= tegra_unmask,
 #ifdef CONFIG_PM
-	.set_wake	= tegra_set_wake,
+	.irq_set_wake	= tegra_set_wake,
 #endif
 };
 
@@ -94,15 +94,15 @@ void __init tegra_init_irq(void)
 		writel(0, ictlr_to_virt(i) + ICTLR_CPU_IEP_CLASS);
 	}
 
-	gic_dist_init(0, IO_ADDRESS(TEGRA_ARM_INT_DIST_BASE), 29);
-	gic_cpu_init(0, IO_ADDRESS(TEGRA_ARM_PERIF_BASE + 0x100));
+	gic_init(0, 29, IO_ADDRESS(TEGRA_ARM_INT_DIST_BASE),
+		 IO_ADDRESS(TEGRA_ARM_PERIF_BASE + 0x100));
 
 	gic = get_irq_chip(29);
-	gic_unmask_irq = gic->unmask;
-	gic_mask_irq = gic->mask;
-	tegra_irq.ack = gic->ack;
+	tegra_gic_unmask_irq = gic->irq_unmask;
+	tegra_gic_mask_irq = gic->irq_mask;
+	tegra_irq.irq_ack = gic->irq_ack;
 #ifdef CONFIG_SMP
-	tegra_irq.set_affinity = gic->set_affinity;
+	tegra_irq.irq_set_affinity = gic->irq_set_affinity;
 #endif
 
 	for (i = INT_PRI_BASE; i < INT_GPIO_BASE; i++) {

@@ -21,9 +21,8 @@
 #include <linux/amba/mmci.h>
 #include <linux/io.h>
 #include <linux/gfp.h>
+#include <linux/clkdev.h>
 
-#include <asm/clkdev.h>
-#include <mach/clkdev.h>
 #include <mach/hardware.h>
 #include <mach/platform.h>
 #include <asm/irq.h>
@@ -41,7 +40,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
-#include <plat/timer-sp.h>
+#include <asm/hardware/timer-sp.h>
 
 #include "common.h"
 
@@ -147,61 +146,61 @@ static void __init intcp_map_io(void)
 #define sic_writel	__raw_writel
 #define sic_readl	__raw_readl
 
-static void cic_mask_irq(unsigned int irq)
+static void cic_mask_irq(struct irq_data *d)
 {
-	irq -= IRQ_CIC_START;
+	unsigned int irq = d->irq - IRQ_CIC_START;
 	cic_writel(1 << irq, INTCP_VA_CIC_BASE + IRQ_ENABLE_CLEAR);
 }
 
-static void cic_unmask_irq(unsigned int irq)
+static void cic_unmask_irq(struct irq_data *d)
 {
-	irq -= IRQ_CIC_START;
+	unsigned int irq = d->irq - IRQ_CIC_START;
 	cic_writel(1 << irq, INTCP_VA_CIC_BASE + IRQ_ENABLE_SET);
 }
 
 static struct irq_chip cic_chip = {
-	.name	= "CIC",
-	.ack	= cic_mask_irq,
-	.mask	= cic_mask_irq,
-	.unmask	= cic_unmask_irq,
+	.name		= "CIC",
+	.irq_ack	= cic_mask_irq,
+	.irq_mask	= cic_mask_irq,
+	.irq_unmask	= cic_unmask_irq,
 };
 
-static void pic_mask_irq(unsigned int irq)
+static void pic_mask_irq(struct irq_data *d)
 {
-	irq -= IRQ_PIC_START;
+	unsigned int irq = d->irq - IRQ_PIC_START;
 	pic_writel(1 << irq, INTCP_VA_PIC_BASE + IRQ_ENABLE_CLEAR);
 }
 
-static void pic_unmask_irq(unsigned int irq)
+static void pic_unmask_irq(struct irq_data *d)
 {
-	irq -= IRQ_PIC_START;
+	unsigned int irq = d->irq - IRQ_PIC_START;
 	pic_writel(1 << irq, INTCP_VA_PIC_BASE + IRQ_ENABLE_SET);
 }
 
 static struct irq_chip pic_chip = {
-	.name	= "PIC",
-	.ack	= pic_mask_irq,
-	.mask	= pic_mask_irq,
-	.unmask = pic_unmask_irq,
+	.name		= "PIC",
+	.irq_ack	= pic_mask_irq,
+	.irq_mask	= pic_mask_irq,
+	.irq_unmask	= pic_unmask_irq,
 };
 
-static void sic_mask_irq(unsigned int irq)
+static void sic_mask_irq(struct irq_data *d)
 {
-	irq -= IRQ_SIC_START;
+	unsigned int irq = d->irq - IRQ_SIC_START;
 	sic_writel(1 << irq, INTCP_VA_SIC_BASE + IRQ_ENABLE_CLEAR);
 }
 
-static void sic_unmask_irq(unsigned int irq)
+static void sic_unmask_irq(struct irq_data *d)
 {
-	irq -= IRQ_SIC_START;
+	unsigned int irq = d->irq - IRQ_SIC_START;
 	sic_writel(1 << irq, INTCP_VA_SIC_BASE + IRQ_ENABLE_SET);
 }
 
 static struct irq_chip sic_chip = {
-	.name	= "SIC",
-	.ack	= sic_mask_irq,
-	.mask	= sic_mask_irq,
-	.unmask	= sic_unmask_irq,
+	.name		= "SIC",
+	.irq_ack	= sic_mask_irq,
+	.irq_mask	= sic_mask_irq,
+	.irq_unmask	= sic_unmask_irq,
 };
 
 static void

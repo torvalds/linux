@@ -43,6 +43,12 @@ enum environment_cap {
  * @intersect: indicates whether the wireless core should intersect
  * 	the requested regulatory domain with the presently set regulatory
  * 	domain.
+ * @processed: indicates whether or not this requests has already been
+ *	processed. When the last request is processed it means that the
+ *	currently regulatory domain set on cfg80211 is updated from
+ *	CRDA and can be used by other regulatory requests. When a
+ *	the last request is not yet processed we must yield until it
+ *	is processed before processing any new requests.
  * @country_ie_checksum: checksum of the last processed and accepted
  * 	country IE
  * @country_ie_env: lets us know if the AP is telling us we are outdoor,
@@ -54,6 +60,7 @@ struct regulatory_request {
 	enum nl80211_reg_initiator initiator;
 	char alpha2[2];
 	bool intersect;
+	bool processed;
 	enum environment_cap country_ie_env;
 	struct list_head list;
 };

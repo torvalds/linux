@@ -107,6 +107,7 @@ void __iomem *omap_device_get_rt_va(struct omap_device *od);
 int omap_device_align_pm_lat(struct platform_device *pdev,
 			     u32 new_wakeup_lat_limit);
 struct powerdomain *omap_device_get_pwrdm(struct omap_device *od);
+u32 omap_device_get_context_loss_count(struct platform_device *pdev);
 
 /* Other */
 

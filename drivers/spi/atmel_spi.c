@@ -341,9 +341,9 @@ static void atmel_spi_next_message(struct spi_master *master)
 /*
  * For DMA, tx_buf/tx_dma have the same relationship as rx_buf/rx_dma:
  *  - The buffer is either valid for CPU access, else NULL
- *  - If the buffer is valid, so is its DMA addresss
+ *  - If the buffer is valid, so is its DMA address
  *
- * This driver manages the dma addresss unless message->is_dma_mapped.
+ * This driver manages the dma address unless message->is_dma_mapped.
  */
 static int
 atmel_spi_dma_map_xfer(struct atmel_spi *as, struct spi_transfer *xfer)
@@ -352,8 +352,12 @@ atmel_spi_dma_map_xfer(struct atmel_spi *as, struct spi_transfer *xfer)
 
 	xfer->tx_dma = xfer->rx_dma = INVALID_DMA_ADDRESS;
 	if (xfer->tx_buf) {
+		/* tx_buf is a const void* where we need a void * for the dma
+		 * mapping */
+		void *nonconst_tx = (void *)xfer->tx_buf;
+
 		xfer->tx_dma = dma_map_single(dev,
-				(void *) xfer->tx_buf, xfer->len,
+				nonconst_tx, xfer->len,
 				DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, xfer->tx_dma))
 			return -ENOMEM;

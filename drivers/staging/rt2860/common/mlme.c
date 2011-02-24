@@ -550,7 +550,7 @@ void MlmeHandler(struct rt_rtmp_adapter *pAd)
 			Elem->MsgLen = 0;
 
 		} else {
-			DBGPRINT_ERR(("MlmeHandler: MlmeQueue empty\n"));
+			DBGPRINT_ERR("MlmeHandler: MlmeQueue empty\n");
 		}
 	}
 
@@ -4698,8 +4698,7 @@ BOOLEAN MlmeEnqueue(struct rt_rtmp_adapter *pAd,
 
 	/* First check the size, it MUST not exceed the mlme queue size */
 	if (MsgLen > MGMT_DMA_BUFFER_SIZE) {
-		DBGPRINT_ERR(("MlmeEnqueue: msg too large, size = %ld \n",
-			      MsgLen));
+		DBGPRINT_ERR("MlmeEnqueue: msg too large, size = %ld \n", MsgLen);
 		return FALSE;
 	}
 
@@ -4762,12 +4761,12 @@ BOOLEAN MlmeEnqueueForRecv(struct rt_rtmp_adapter *pAd,
 	if (RTMP_TEST_FLAG
 	    (pAd,
 	     fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST)) {
-		DBGPRINT_ERR(("MlmeEnqueueForRecv: fRTMP_ADAPTER_HALT_IN_PROGRESS\n"));
+		DBGPRINT_ERR("MlmeEnqueueForRecv: fRTMP_ADAPTER_HALT_IN_PROGRESS\n");
 		return FALSE;
 	}
 	/* First check the size, it MUST not exceed the mlme queue size */
 	if (MsgLen > MGMT_DMA_BUFFER_SIZE) {
-		DBGPRINT_ERR(("MlmeEnqueueForRecv: frame too large, size = %ld \n", MsgLen));
+		DBGPRINT_ERR("MlmeEnqueueForRecv: frame too large, size = %ld \n", MsgLen);
 		return FALSE;
 	}
 
@@ -4777,7 +4776,7 @@ BOOLEAN MlmeEnqueueForRecv(struct rt_rtmp_adapter *pAd,
 
 	{
 		if (!MsgTypeSubst(pAd, pFrame, &Machine, &MsgType)) {
-			DBGPRINT_ERR(("MlmeEnqueueForRecv: un-recongnized mgmt->subtype=%d\n", pFrame->Hdr.FC.SubType));
+			DBGPRINT_ERR("MlmeEnqueueForRecv: un-recongnized mgmt->subtype=%d\n", pFrame->Hdr.FC.SubType);
 			return FALSE;
 		}
 	}
@@ -4867,7 +4866,7 @@ void MlmeRestartStateMachine(struct rt_rtmp_adapter *pAd)
 			Elem->MsgLen = 0;
 
 		} else {
-			DBGPRINT_ERR(("MlmeRestartStateMachine: MlmeQueue empty\n"));
+			DBGPRINT_ERR("MlmeRestartStateMachine: MlmeQueue empty\n");
 		}
 	}
 #endif /* RTMP_MAC_PCI // */

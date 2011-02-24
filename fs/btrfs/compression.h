@@ -19,24 +19,27 @@
 #ifndef __BTRFS_COMPRESSION_
 #define __BTRFS_COMPRESSION_
 
-int btrfs_zlib_decompress(unsigned char *data_in,
-			  struct page *dest_page,
-			  unsigned long start_byte,
-			  size_t srclen, size_t destlen);
-int btrfs_zlib_compress_pages(struct address_space *mapping,
-			      u64 start, unsigned long len,
-			      struct page **pages,
-			      unsigned long nr_dest_pages,
-			      unsigned long *out_pages,
-			      unsigned long *total_in,
-			      unsigned long *total_out,
-			      unsigned long max_out);
-int btrfs_zlib_decompress_biovec(struct page **pages_in,
-			      u64 disk_start,
-			      struct bio_vec *bvec,
-			      int vcnt,
-			      size_t srclen);
-void btrfs_zlib_exit(void);
+int btrfs_init_compress(void);
+void btrfs_exit_compress(void);
+
+int btrfs_compress_pages(int type, struct address_space *mapping,
+			 u64 start, unsigned long len,
+			 struct page **pages,
+			 unsigned long nr_dest_pages,
+			 unsigned long *out_pages,
+			 unsigned long *total_in,
+			 unsigned long *total_out,
+			 unsigned long max_out);
+int btrfs_decompress_biovec(int type, struct page **pages_in, u64 disk_start,
+			    struct bio_vec *bvec, int vcnt, size_t srclen);
+int btrfs_decompress(int type, unsigned char *data_in, struct page *dest_page,
+		     unsigned long start_byte, size_t srclen, size_t destlen);
+int btrfs_decompress_buf2page(char *buf, unsigned long buf_start,
+			      unsigned long total_out, u64 disk_start,
+			      struct bio_vec *bvec, int vcnt,
+			      unsigned long *page_index,
+			      unsigned long *pg_offset);
+
 int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 				  unsigned long len, u64 disk_start,
 				  unsigned long compressed_len,
@@ -44,4 +47,37 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 				  unsigned long nr_pages);
 int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 				 int mirror_num, unsigned long bio_flags);
+
+struct btrfs_compress_op {
+	struct list_head *(*alloc_workspace)(void);
+
+	void (*free_workspace)(struct list_head *workspace);
+
+	int (*compress_pages)(struct list_head *workspace,
+			      struct address_space *mapping,
+			      u64 start, unsigned long len,
+			      struct page **pages,
+			      unsigned long nr_dest_pages,
+			      unsigned long *out_pages,
+			      unsigned long *total_in,
+			      unsigned long *total_out,
+			      unsigned long max_out);
+
+	int (*decompress_biovec)(struct list_head *workspace,
+				 struct page **pages_in,
+				 u64 disk_start,
+				 struct bio_vec *bvec,
+				 int vcnt,
+				 size_t srclen);
+
+	int (*decompress)(struct list_head *workspace,
+			  unsigned char *data_in,
+			  struct page *dest_page,
+			  unsigned long start_byte,
+			  size_t srclen, size_t destlen);
+};
+
+extern struct btrfs_compress_op btrfs_zlib_compress;
+extern struct btrfs_compress_op btrfs_lzo_compress;
+
 #endif

@@ -45,13 +45,9 @@ struct drm_hash_item {
 };
 
 struct drm_open_hash {
-	unsigned int size;
-	unsigned int order;
-	unsigned int fill;
 	struct hlist_head *table;
-	int use_vmalloc;
+	u8 order;
 };
-
 
 extern int drm_ht_create(struct drm_open_hash *ht, unsigned int order);
 extern int drm_ht_insert_item(struct drm_open_hash *ht, struct drm_hash_item *item);

@@ -874,7 +874,7 @@ Possible values are:
  - KVM_MP_STATE_HALTED:          the vcpu has executed a HLT instruction and
                                  is waiting for an interrupt
  - KVM_MP_STATE_SIPI_RECEIVED:   the vcpu has just received a SIPI (vector
-                                 accesible via KVM_GET_VCPU_EVENTS)
+                                 accessible via KVM_GET_VCPU_EVENTS)
 
 This ioctl is only useful after KVM_CREATE_IRQCHIP.  Without an in-kernel
 irqchip, the multiprocessing state must be maintained by userspace.
@@ -1084,6 +1084,184 @@ of 4 instructions that make up a hypercall.
 
 If any additional field gets added to this structure later on, a bit for that
 additional piece of information will be set in the flags bitmap.
+
+4.47 KVM_ASSIGN_PCI_DEVICE
+
+Capability: KVM_CAP_DEVICE_ASSIGNMENT
+Architectures: x86 ia64
+Type: vm ioctl
+Parameters: struct kvm_assigned_pci_dev (in)
+Returns: 0 on success, -1 on error
+
+Assigns a host PCI device to the VM.
+
+struct kvm_assigned_pci_dev {
+	__u32 assigned_dev_id;
+	__u32 busnr;
+	__u32 devfn;
+	__u32 flags;
+	__u32 segnr;
+	union {
+		__u32 reserved[11];
+	};
+};
+
+The PCI device is specified by the triple segnr, busnr, and devfn.
+Identification in succeeding service requests is done via assigned_dev_id. The
+following flags are specified:
+
+/* Depends on KVM_CAP_IOMMU */
+#define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
+
+4.48 KVM_DEASSIGN_PCI_DEVICE
+
+Capability: KVM_CAP_DEVICE_DEASSIGNMENT
+Architectures: x86 ia64
+Type: vm ioctl
+Parameters: struct kvm_assigned_pci_dev (in)
+Returns: 0 on success, -1 on error
+
+Ends PCI device assignment, releasing all associated resources.
+
+See KVM_CAP_DEVICE_ASSIGNMENT for the data structure. Only assigned_dev_id is
+used in kvm_assigned_pci_dev to identify the device.
+
+4.49 KVM_ASSIGN_DEV_IRQ
+
+Capability: KVM_CAP_ASSIGN_DEV_IRQ
+Architectures: x86 ia64
+Type: vm ioctl
+Parameters: struct kvm_assigned_irq (in)
+Returns: 0 on success, -1 on error
+
+Assigns an IRQ to a passed-through device.
+
+struct kvm_assigned_irq {
+	__u32 assigned_dev_id;
+	__u32 host_irq;
+	__u32 guest_irq;
+	__u32 flags;
+	union {
+		struct {
+			__u32 addr_lo;
+			__u32 addr_hi;
+			__u32 data;
+		} guest_msi;
+		__u32 reserved[12];
+	};
+};
+
+The following flags are defined:
+
+#define KVM_DEV_IRQ_HOST_INTX    (1 << 0)
+#define KVM_DEV_IRQ_HOST_MSI     (1 << 1)
+#define KVM_DEV_IRQ_HOST_MSIX    (1 << 2)
+
+#define KVM_DEV_IRQ_GUEST_INTX   (1 << 8)
+#define KVM_DEV_IRQ_GUEST_MSI    (1 << 9)
+#define KVM_DEV_IRQ_GUEST_MSIX   (1 << 10)
+
+It is not valid to specify multiple types per host or guest IRQ. However, the
+IRQ type of host and guest can differ or can even be null.
+
+4.50 KVM_DEASSIGN_DEV_IRQ
+
+Capability: KVM_CAP_ASSIGN_DEV_IRQ
+Architectures: x86 ia64
+Type: vm ioctl
+Parameters: struct kvm_assigned_irq (in)
+Returns: 0 on success, -1 on error
+
+Ends an IRQ assignment to a passed-through device.
+
+See KVM_ASSIGN_DEV_IRQ for the data structure. The target device is specified
+by assigned_dev_id, flags must correspond to the IRQ type specified on
+KVM_ASSIGN_DEV_IRQ. Partial deassignment of host or guest IRQ is allowed.
+
+4.51 KVM_SET_GSI_ROUTING
+
+Capability: KVM_CAP_IRQ_ROUTING
+Architectures: x86 ia64
+Type: vm ioctl
+Parameters: struct kvm_irq_routing (in)
+Returns: 0 on success, -1 on error
+
+Sets the GSI routing table entries, overwriting any previously set entries.
+
+struct kvm_irq_routing {
+	__u32 nr;
+	__u32 flags;
+	struct kvm_irq_routing_entry entries[0];
+};
+
+No flags are specified so far, the corresponding field must be set to zero.
+
+struct kvm_irq_routing_entry {
+	__u32 gsi;
+	__u32 type;
+	__u32 flags;
+	__u32 pad;
+	union {
+		struct kvm_irq_routing_irqchip irqchip;
+		struct kvm_irq_routing_msi msi;
+		__u32 pad[8];
+	} u;
+};
+
+/* gsi routing entry types */
+#define KVM_IRQ_ROUTING_IRQCHIP 1
+#define KVM_IRQ_ROUTING_MSI 2
+
+No flags are specified so far, the corresponding field must be set to zero.
+
+struct kvm_irq_routing_irqchip {
+	__u32 irqchip;
+	__u32 pin;
+};
+
+struct kvm_irq_routing_msi {
+	__u32 address_lo;
+	__u32 address_hi;
+	__u32 data;
+	__u32 pad;
+};
+
+4.52 KVM_ASSIGN_SET_MSIX_NR
+
+Capability: KVM_CAP_DEVICE_MSIX
+Architectures: x86 ia64
+Type: vm ioctl
+Parameters: struct kvm_assigned_msix_nr (in)
+Returns: 0 on success, -1 on error
+
+Set the number of MSI-X interrupts for an assigned device. This service can
+only be called once in the lifetime of an assigned device.
+
+struct kvm_assigned_msix_nr {
+	__u32 assigned_dev_id;
+	__u16 entry_nr;
+	__u16 padding;
+};
+
+#define KVM_MAX_MSIX_PER_DEV		256
+
+4.53 KVM_ASSIGN_SET_MSIX_ENTRY
+
+Capability: KVM_CAP_DEVICE_MSIX
+Architectures: x86 ia64
+Type: vm ioctl
+Parameters: struct kvm_assigned_msix_entry (in)
+Returns: 0 on success, -1 on error
+
+Specifies the routing of an MSI-X assigned device interrupt to a GSI. Setting
+the GSI vector to zero means disabling the interrupt.
+
+struct kvm_assigned_msix_entry {
+	__u32 assigned_dev_id;
+	__u32 gsi;
+	__u16 entry; /* The index of entry in the MSI-X table */
+	__u16 padding[3];
+};
 
 5. The kvm_run structure
 

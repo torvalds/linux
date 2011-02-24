@@ -31,7 +31,8 @@
 	Data path subroutines
 
 	Revision History:
-	Who 		When			What
+	Who 	  		When		What
+	Justin P. Mattock	11/07/2010	Fix typos
 	--------	----------		----------------------------------------------
 */
 #include "../rt_config.h"
@@ -257,8 +258,8 @@ void STARxDataFrameAnnounce(struct rt_rtmp_adapter *pAd,
 		    && (pAd->CommonCfg.bDisableReordering == 0)) {
 			Indicate_AMPDU_Packet(pAd, pRxBlk, FromWhichBSSID);
 		} else {
-			/* Determin the destination of the EAP frame */
-			/*  to WPA state machine or upper layer */
+			/* Determine the destination of the EAP frame */
+			/* to WPA state machine or upper layer */
 			STARxEAPOLFrameIndicate(pAd, pEntry, pRxBlk,
 						FromWhichBSSID);
 		}
@@ -644,7 +645,7 @@ void STAHandleRxMgmtFrame(struct rt_rtmp_adapter *pAd, struct rt_rx_blk *pRxBlk)
 
 		/* First check the size, it MUST not exceed the mlme queue size */
 		if (pRxWI->MPDUtotalByteCount > MGMT_DMA_BUFFER_SIZE) {
-			DBGPRINT_ERR(("STAHandleRxMgmtFrame: frame too large, size = %d \n", pRxWI->MPDUtotalByteCount));
+			DBGPRINT_ERR("STAHandleRxMgmtFrame: frame too large, size = %d \n", pRxWI->MPDUtotalByteCount);
 			break;
 		}
 
@@ -853,7 +854,7 @@ Return Value:
 	NONE
 
 Note:
-	This function do early checking and classification for send-out packet.
+	This function does early checking and classification for send-out packet.
 	You only can put OS-depened & STA related code in here.
 ========================================================================
 */
@@ -943,7 +944,7 @@ int STASendPacket(struct rt_rtmp_adapter *pAd, void *pPacket)
 		DBGPRINT(RT_DEBUG_ERROR,
 			 ("STASendPacket --> pSrcBufVA == NULL !SrcBufLen=%x\n",
 			  SrcBufLen));
-		/* Resourece is low, system did not allocate virtual address */
+		/* Resource is low, system did not allocate virtual address */
 		/* return NDIS_STATUS_FAILURE directly to upper layer */
 		RELEASE_NDIS_PACKET(pAd, pPacket, NDIS_STATUS_FAILURE);
 		return NDIS_STATUS_FAILURE;
@@ -979,7 +980,7 @@ int STASendPacket(struct rt_rtmp_adapter *pAd, void *pPacket)
 		DBGPRINT(RT_DEBUG_ERROR,
 			("STASendPacket->Cannot find pEntry(%pM) in MacTab!\n",
 				pSrcBufVA));
-		/* Resourece is low, system did not allocate virtual address */
+		/* Resource is low, system did not allocate virtual address */
 		/* return NDIS_STATUS_FAILURE directly to upper layer */
 		RELEASE_NDIS_PACKET(pAd, pPacket, NDIS_STATUS_FAILURE);
 		return NDIS_STATUS_FAILURE;
@@ -1057,9 +1058,9 @@ int STASendPacket(struct rt_rtmp_adapter *pAd, void *pPacket)
 
 	/* STEP 2. Check the requirement of RTS: */
 	/*         If multiple fragment required, RTS is required only for the first fragment */
-	/*         if the fragment size large than RTS threshold */
+	/*         if the fragment size is larger than RTS threshold */
 	/*     For RT28xx, Let ASIC send RTS/CTS */
-/*      RTMP_SET_PACKET_RTS(pPacket, 0); */
+	/*      RTMP_SET_PACKET_RTS(pPacket, 0); */
 	if (NumberOfFrag > 1)
 		RTSRequired =
 		    (pAd->CommonCfg.FragmentThreshold >
@@ -1171,8 +1172,8 @@ int STASendPacket(struct rt_rtmp_adapter *pAd, void *pPacket)
 	========================================================================
 
 	Routine Description:
-		This subroutine will scan through releative ring descriptor to find
-		out avaliable free ring descriptor and compare with request size.
+		This subroutine will scan through relative ring descriptor to find
+		out available free ring descriptor and compare with request size.
 
 	Arguments:
 		pAd Pointer to our adapter
@@ -1588,7 +1589,7 @@ static inline u8 *STA_Build_ARalink_Frame_Header(struct rt_rtmp_adapter *pAd,
 		pHeaderBufPtr += 2;
 		pTxBlk->MpduHeaderLen += 2;
 	}
-	/* padding at front of LLC header. LLC header should at 4-bytes aligment. */
+	/* padding at front of LLC header. LLC header should at 4-bytes alignment. */
 	pTxBlk->HdrPadLen = (unsigned long)pHeaderBufPtr;
 	pHeaderBufPtr = (u8 *)ROUND_UP(pHeaderBufPtr, 4);
 	pTxBlk->HdrPadLen = (unsigned long)(pHeaderBufPtr - pTxBlk->HdrPadLen);
@@ -2014,7 +2015,7 @@ void STA_Legacy_Frame_Tx(struct rt_rtmp_adapter *pAd, struct rt_tx_blk *pTxBlk)
 		pHeaderBufPtr += 2;
 		pTxBlk->MpduHeaderLen += 2;
 	}
-	/* The remaining content of MPDU header should locate at 4-octets aligment */
+	/* The remaining content of MPDU header should locate at 4-octets alignment */
 	pTxBlk->HdrPadLen = (unsigned long)pHeaderBufPtr;
 	pHeaderBufPtr = (u8 *)ROUND_UP(pHeaderBufPtr, 4);
 	pTxBlk->HdrPadLen = (unsigned long)(pHeaderBufPtr - pTxBlk->HdrPadLen);
@@ -2114,7 +2115,7 @@ void STA_ARalink_Frame_Tx(struct rt_rtmp_adapter *pAd, struct rt_tx_blk *pTxBlk)
 			    STA_Build_ARalink_Frame_Header(pAd, pTxBlk);
 
 			/* It's ok write the TxWI here, because the TxWI->MPDUtotalByteCount */
-			/*      will be updated after final frame was handled. */
+			/* will be updated after final frame was handled. */
 			RTMPWriteTxWI_Data(pAd,
 					   (struct rt_txwi *) (&pTxBlk->
 							  HeaderBuf
@@ -2291,8 +2292,8 @@ void STA_Fragment_Frame_Tx(struct rt_rtmp_adapter *pAd, struct rt_tx_blk *pTxBlk
 				      pTxBlk->pExtraLlcSnapEncap, pTxBlk->pKey,
 				      0);
 
-		/* NOTE: DON'T refer the skb->len directly after following copy. Becasue the length is not adjust */
-		/*                      to correct lenght, refer to pTxBlk->SrcBufLen for the packet length in following progress. */
+		/* NOTE: DON'T refer the skb->len directly after following copy. Because the length is not adjusted */
+		/*                      to correct length, refer to pTxBlk->SrcBufLen for the packet length in following progress. */
 		NdisMoveMemory(pTxBlk->pSrcBufData + pTxBlk->SrcBufLen,
 			       &pAd->PrivateInfo.Tx.MIC[0], 8);
 		/*skb_put((RTPKT_TO_OSPKT(pTxBlk->pPacket))->tail, 8); */
@@ -2301,7 +2302,7 @@ void STA_Fragment_Frame_Tx(struct rt_rtmp_adapter *pAd, struct rt_tx_blk *pTxBlk
 		pTxBlk->CipherAlg = CIPHER_TKIP_NO_MIC;
 	}
 	/* */
-	/* calcuate the overhead bytes that encryption algorithm may add. This */
+	/* calculate the overhead bytes that encryption algorithm may add. This */
 	/* affects the calculate of "duration" field */
 	/* */
 	if ((pTxBlk->CipherAlg == CIPHER_WEP64)

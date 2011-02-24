@@ -22,9 +22,8 @@
 #include <linux/amba/clcd.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/clkdev.h>
 
-#include <asm/clkdev.h>
-#include <mach/clkdev.h>
 #include <asm/hardware/icst.h>
 #include <mach/lm.h>
 #include <mach/impd1.h>

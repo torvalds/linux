@@ -13,3 +13,5 @@ obj-$(CONFIG_SH_ESPT)		+= board-espt.o
 obj-$(CONFIG_SH_POLARIS)	+= board-polaris.o
 obj-$(CONFIG_SH_TITAN)		+= board-titan.o
 obj-$(CONFIG_SH_SH7757LCR)	+= board-sh7757lcr.o
+obj-$(CONFIG_SH_APSH4A3A)	+= board-apsh4a3a.o
+obj-$(CONFIG_SH_APSH4AD0A)	+= board-apsh4ad0a.o

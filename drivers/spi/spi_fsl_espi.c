@@ -258,18 +258,18 @@ static int fsl_espi_bufs(struct spi_device *spi, struct spi_transfer *t)
 	return mpc8xxx_spi->count;
 }
 
-static void fsl_espi_addr2cmd(unsigned int addr, u8 *cmd)
+static inline void fsl_espi_addr2cmd(unsigned int addr, u8 *cmd)
 {
-	if (cmd[1] && cmd[2] && cmd[3]) {
+	if (cmd) {
 		cmd[1] = (u8)(addr >> 16);
 		cmd[2] = (u8)(addr >> 8);
 		cmd[3] = (u8)(addr >> 0);
 	}
 }
 
-static unsigned int fsl_espi_cmd2addr(u8 *cmd)
+static inline unsigned int fsl_espi_cmd2addr(u8 *cmd)
 {
-	if (cmd[1] && cmd[2] && cmd[3])
+	if (cmd)
 		return cmd[1] << 16 | cmd[2] << 8 | cmd[3] << 0;
 
 	return 0;
@@ -395,9 +395,11 @@ static void fsl_espi_rw_trans(struct spi_message *m,
 			}
 		}
 
-		addr = fsl_espi_cmd2addr(local_buf);
-		addr += pos;
-		fsl_espi_addr2cmd(addr, local_buf);
+		if (pos > 0) {
+			addr = fsl_espi_cmd2addr(local_buf);
+			addr += pos;
+			fsl_espi_addr2cmd(addr, local_buf);
+		}
 
 		espi_trans->n_tx = n_tx;
 		espi_trans->n_rx = trans_len;
@@ -507,16 +509,29 @@ void fsl_espi_cpu_irq(struct mpc8xxx_spi *mspi, u32 events)
 
 	/* We need handle RX first */
 	if (events & SPIE_NE) {
-		u32 rx_data;
+		u32 rx_data, tmp;
+		u8 rx_data_8;
 
 		/* Spin until RX is done */
 		while (SPIE_RXCNT(events) < min(4, mspi->len)) {
 			cpu_relax();
 			events = mpc8xxx_spi_read_reg(&reg_base->event);
 		}
-		mspi->len -= 4;
 
-		rx_data = mpc8xxx_spi_read_reg(&reg_base->receive);
+		if (mspi->len >= 4) {
+			rx_data = mpc8xxx_spi_read_reg(&reg_base->receive);
+		} else {
+			tmp = mspi->len;
+			rx_data = 0;
+			while (tmp--) {
+				rx_data_8 = in_8((u8 *)&reg_base->receive);
+				rx_data |= (rx_data_8 << (tmp * 8));
+			}
+
+			rx_data <<= (4 - mspi->len) * 8;
+		}
+
+		mspi->len -= 4;
 
 		if (mspi->rx)
 			mspi->get_rx(rx_data, mspi);

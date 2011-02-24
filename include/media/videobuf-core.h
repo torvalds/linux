@@ -17,10 +17,6 @@
 #define _VIDEOBUF_CORE_H
 
 #include <linux/poll.h>
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-#define __MIN_V4L1
-#include <linux/videodev.h>
-#endif
 #include <linux/videodev2.h>
 
 #define UNSET (-1U)
@@ -212,10 +208,6 @@ int videobuf_qbuf(struct videobuf_queue *q,
 		  struct v4l2_buffer *b);
 int videobuf_dqbuf(struct videobuf_queue *q,
 		   struct v4l2_buffer *b, int nonblocking);
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-int videobuf_cgmbuf(struct videobuf_queue *q,
-		    struct video_mbuf *mbuf, int count);
-#endif
 int videobuf_streamon(struct videobuf_queue *q);
 int videobuf_streamoff(struct videobuf_queue *q);
 

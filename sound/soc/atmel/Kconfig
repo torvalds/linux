@@ -16,7 +16,8 @@ config SND_ATMEL_SOC_SSC
 
 config SND_AT91_SOC_SAM9G20_WM8731
 	tristate "SoC Audio support for WM8731-based At91sam9g20 evaluation board"
-	depends on ATMEL_SSC && ARCH_AT91SAM9G20 && SND_ATMEL_SOC
+	depends on ATMEL_SSC && ARCH_AT91SAM9G20 && SND_ATMEL_SOC && \
+                   AT91_PROGRAMMABLE_CLOCKS
 	select SND_ATMEL_SOC_SSC
 	select SND_SOC_WM8731
 	help
@@ -25,7 +26,7 @@ config SND_AT91_SOC_SAM9G20_WM8731
 
 config SND_AT32_SOC_PLAYPAQ
         tristate "SoC Audio support for PlayPaq with WM8510"
-        depends on SND_ATMEL_SOC && BOARD_PLAYPAQ
+        depends on SND_ATMEL_SOC && BOARD_PLAYPAQ && AT91_PROGRAMMABLE_CLOCKS
         select SND_ATMEL_SOC_SSC
         select SND_SOC_WM8510
         help

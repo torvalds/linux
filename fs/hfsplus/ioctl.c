@@ -28,7 +28,7 @@ static int hfsplus_ioctl_getflags(struct file *file, int __user *user_flags)
 
 	if (inode->i_flags & S_IMMUTABLE)
 		flags |= FS_IMMUTABLE_FL;
-	if (inode->i_flags |= S_APPEND)
+	if (inode->i_flags & S_APPEND)
 		flags |= FS_APPEND_FL;
 	if (hip->userflags & HFSPLUS_FLG_NODUMP)
 		flags |= FS_NODUMP_FL;
@@ -147,9 +147,11 @@ int hfsplus_setxattr(struct dentry *dentry, const char *name,
 			res = -ERANGE;
 	} else
 		res = -EOPNOTSUPP;
-	if (!res)
+	if (!res) {
 		hfs_bnode_write(fd.bnode, &entry, fd.entryoffset,
 				sizeof(struct hfsplus_cat_file));
+		hfsplus_mark_inode_dirty(inode, HFSPLUS_I_CAT_DIRTY);
+	}
 out:
 	hfs_find_exit(&fd);
 	return res;

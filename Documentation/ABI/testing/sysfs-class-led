@@ -26,3 +26,12 @@ Description:
 		scheduler is chosen. Trigger specific parameters can appear in
 		/sys/class/leds/<led> once a given trigger is selected.
 
+What:		/sys/class/leds/<led>/inverted
+Date:		January 2011
+KernelVersion:	2.6.38
+Contact:	Richard Purdie <rpurdie@rpsys.net>
+Description:
+		Invert the LED on/off state. This parameter is specific to
+		gpio and backlight triggers. In case of the backlight trigger,
+		it is usefull when driving a LED which is intended to indicate
+		a device in a standby like state.

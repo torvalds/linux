@@ -1,6 +1,0 @@
-This is an obsolete driver for ancient stradis hardware.
-We couldn't find anyone with this hardware in order to port it to use V4L2.
-
-If nobody take care on it, the driver will be removed for 2.6.38.
-
-Please send patches to linux-media@vger.kernel.org

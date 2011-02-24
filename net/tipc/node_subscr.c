@@ -35,10 +35,8 @@
  */
 
 #include "core.h"
-#include "dbg.h"
 #include "node_subscr.h"
 #include "node.h"
-#include "addr.h"
 
 /**
  * tipc_nodesub_subscribe - create "node down" subscription for specified node

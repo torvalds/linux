@@ -3359,7 +3359,6 @@ static int udc_probe(struct udc *dev)
 	dev_set_name(&dev->gadget.dev, "gadget");
 	dev->gadget.dev.release = gadget_release;
 	dev->gadget.name = name;
-	dev->gadget.name = name;
 	dev->gadget.is_dualspeed = 1;
 
 	/* init registers, interrupts, ... */

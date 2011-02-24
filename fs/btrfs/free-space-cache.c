@@ -290,7 +290,7 @@ int load_free_space_cache(struct btrfs_fs_info *fs_info,
 		       (unsigned long long)BTRFS_I(inode)->generation,
 		       (unsigned long long)generation,
 		       (unsigned long long)block_group->key.objectid);
-		goto out;
+		goto free_cache;
 	}
 
 	if (!num_entries)
@@ -524,6 +524,12 @@ int btrfs_write_out_cache(struct btrfs_root *root,
 		return 0;
 	}
 
+	node = rb_first(&block_group->free_space_offset);
+	if (!node) {
+		iput(inode);
+		return 0;
+	}
+
 	last_index = (i_size_read(inode) - 1) >> PAGE_CACHE_SHIFT;
 	filemap_write_and_wait(inode->i_mapping);
 	btrfs_wait_ordered_range(inode, inode->i_size &
@@ -542,10 +548,6 @@ int btrfs_write_out_cache(struct btrfs_root *root,
 	 * our entries.
 	 */
 	first_page_offset = (sizeof(u32) * num_checksums) + sizeof(u64);
-
-	node = rb_first(&block_group->free_space_offset);
-	if (!node)
-		goto out_free;
 
 	/*
 	 * Lock all pages first so we can lock the extent safely.

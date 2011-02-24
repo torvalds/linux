@@ -362,10 +362,6 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 	drm_fb_helper_fill_fix(info, fb->pitch, fb->depth);
 	drm_fb_helper_fill_var(info, &nfbdev->helper, sizes->fb_width, sizes->fb_height);
 
-	/* FIXME: we really shouldn't expose mmio space at all */
-	info->fix.mmio_start = pci_resource_start(pdev, 1);
-	info->fix.mmio_len = pci_resource_len(pdev, 1);
-
 	/* Set aperture base/size for vesafb takeover */
 	info->apertures = dev_priv->apertures;
 	if (!info->apertures) {

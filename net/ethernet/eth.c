@@ -347,10 +347,11 @@ void ether_setup(struct net_device *dev)
 EXPORT_SYMBOL(ether_setup);
 
 /**
- * alloc_etherdev_mq - Allocates and sets up an Ethernet device
+ * alloc_etherdev_mqs - Allocates and sets up an Ethernet device
  * @sizeof_priv: Size of additional driver-private structure to be allocated
  *	for this Ethernet device
- * @queue_count: The number of queues this device has.
+ * @txqs: The number of TX queues this device has.
+ * @rxqs: The number of RX queues this device has.
  *
  * Fill in the fields of the device structure with Ethernet-generic
  * values. Basically does everything except registering the device.
@@ -360,11 +361,12 @@ EXPORT_SYMBOL(ether_setup);
  * this private data area.
  */
 
-struct net_device *alloc_etherdev_mq(int sizeof_priv, unsigned int queue_count)
+struct net_device *alloc_etherdev_mqs(int sizeof_priv, unsigned int txqs,
+				      unsigned int rxqs)
 {
-	return alloc_netdev_mq(sizeof_priv, "eth%d", ether_setup, queue_count);
+	return alloc_netdev_mqs(sizeof_priv, "eth%d", ether_setup, txqs, rxqs);
 }
-EXPORT_SYMBOL(alloc_etherdev_mq);
+EXPORT_SYMBOL(alloc_etherdev_mqs);
 
 static size_t _format_mac_addr(char *buf, int buflen,
 			       const unsigned char *addr, int len)

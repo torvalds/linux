@@ -239,6 +239,7 @@ struct ceph_inode_info {
 	unsigned i_ceph_flags;
 	unsigned long i_release_count;
 
+	struct ceph_dir_layout i_dir_layout;
 	struct ceph_file_layout i_layout;
 	char *i_symlink;
 
@@ -665,7 +666,7 @@ extern void ceph_queue_invalidate(struct inode *inode);
 extern void ceph_queue_writeback(struct inode *inode);
 
 extern int ceph_do_getattr(struct inode *inode, int mask);
-extern int ceph_permission(struct inode *inode, int mask);
+extern int ceph_permission(struct inode *inode, int mask, unsigned int flags);
 extern int ceph_setattr(struct dentry *dentry, struct iattr *attr);
 extern int ceph_getattr(struct vfsmount *mnt, struct dentry *dentry,
 			struct kstat *stat);
@@ -768,6 +769,7 @@ extern void ceph_dentry_lru_add(struct dentry *dn);
 extern void ceph_dentry_lru_touch(struct dentry *dn);
 extern void ceph_dentry_lru_del(struct dentry *dn);
 extern void ceph_invalidate_dentry_lease(struct dentry *dentry);
+extern unsigned ceph_dentry_hash(struct dentry *dn);
 
 /*
  * our d_ops vary depending on whether the inode is live,

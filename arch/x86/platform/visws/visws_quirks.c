@@ -171,7 +171,7 @@ static void __init MP_processor_info(struct mpc_cpu *m)
 	ver = m->apicver;
 	if ((ver >= 0x14 && m->apicid >= 0xff) || m->apicid >= 0xf) {
 		printk(KERN_ERR "Processor #%d INVALID. (Max ID: %d).\n",
-			m->apicid, MAX_APICS);
+			m->apicid, MAX_LOCAL_APIC);
 		return;
 	}
 

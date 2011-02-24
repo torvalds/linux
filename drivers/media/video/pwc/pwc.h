@@ -275,7 +275,6 @@ extern int pwc_trace;
 extern int pwc_mbufs;
 
 /** functions in pwc-if.c */
-int pwc_try_video_mode(struct pwc_device *pdev, int width, int height, int new_fps, int new_compression, int new_snapshot);
 int pwc_handle_frame(struct pwc_device *pdev);
 void pwc_next_image(struct pwc_device *pdev);
 int pwc_isoc_init(struct pwc_device *pdev);

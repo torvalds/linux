@@ -60,6 +60,7 @@
 #include <linux/notifier.h>
 #include <linux/if_arp.h>
 #include <linux/netfilter_ipv4.h>
+#include <linux/compat.h>
 #include <net/ipip.h>
 #include <net/checksum.h>
 #include <net/netlink.h>
@@ -1434,6 +1435,81 @@ int ipmr_ioctl(struct sock *sk, int cmd, void __user *arg)
 	}
 }
 
+#ifdef CONFIG_COMPAT
+struct compat_sioc_sg_req {
+	struct in_addr src;
+	struct in_addr grp;
+	compat_ulong_t pktcnt;
+	compat_ulong_t bytecnt;
+	compat_ulong_t wrong_if;
+};
+
+struct compat_sioc_vif_req {
+	vifi_t	vifi;		/* Which iface */
+	compat_ulong_t icount;
+	compat_ulong_t ocount;
+	compat_ulong_t ibytes;
+	compat_ulong_t obytes;
+};
+
+int ipmr_compat_ioctl(struct sock *sk, unsigned int cmd, void __user *arg)
+{
+	struct compat_sioc_sg_req sr;
+	struct compat_sioc_vif_req vr;
+	struct vif_device *vif;
+	struct mfc_cache *c;
+	struct net *net = sock_net(sk);
+	struct mr_table *mrt;
+
+	mrt = ipmr_get_table(net, raw_sk(sk)->ipmr_table ? : RT_TABLE_DEFAULT);
+	if (mrt == NULL)
+		return -ENOENT;
+
+	switch (cmd) {
+	case SIOCGETVIFCNT:
+		if (copy_from_user(&vr, arg, sizeof(vr)))
+			return -EFAULT;
+		if (vr.vifi >= mrt->maxvif)
+			return -EINVAL;
+		read_lock(&mrt_lock);
+		vif = &mrt->vif_table[vr.vifi];
+		if (VIF_EXISTS(mrt, vr.vifi)) {
+			vr.icount = vif->pkt_in;
+			vr.ocount = vif->pkt_out;
+			vr.ibytes = vif->bytes_in;
+			vr.obytes = vif->bytes_out;
+			read_unlock(&mrt_lock);
+
+			if (copy_to_user(arg, &vr, sizeof(vr)))
+				return -EFAULT;
+			return 0;
+		}
+		read_unlock(&mrt_lock);
+		return -EADDRNOTAVAIL;
+	case SIOCGETSGCNT:
+		if (copy_from_user(&sr, arg, sizeof(sr)))
+			return -EFAULT;
+
+		rcu_read_lock();
+		c = ipmr_cache_find(mrt, sr.src.s_addr, sr.grp.s_addr);
+		if (c) {
+			sr.pktcnt = c->mfc_un.res.pkt;
+			sr.bytecnt = c->mfc_un.res.bytes;
+			sr.wrong_if = c->mfc_un.res.wrong_if;
+			rcu_read_unlock();
+
+			if (copy_to_user(arg, &sr, sizeof(sr)))
+				return -EFAULT;
+			return 0;
+		}
+		rcu_read_unlock();
+		return -EADDRNOTAVAIL;
+	default:
+		return -ENOIOCTLCMD;
+	}
+}
+#endif
+
 
 static int ipmr_device_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
@@ -1537,13 +1613,9 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 	if (vif->flags & VIFF_TUNNEL) {
 		struct flowi fl = {
 			.oif = vif->link,
-			.nl_u = {
-				.ip4_u = {
-					.daddr = vif->remote,
-					.saddr = vif->local,
-					.tos = RT_TOS(iph->tos)
-				}
-			},
+			.fl4_dst = vif->remote,
+			.fl4_src = vif->local,
+			.fl4_tos = RT_TOS(iph->tos),
 			.proto = IPPROTO_IPIP
 		};
 
@@ -1553,12 +1625,8 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 	} else {
 		struct flowi fl = {
 			.oif = vif->link,
-			.nl_u = {
-				.ip4_u = {
-					.daddr = iph->daddr,
-					.tos = RT_TOS(iph->tos)
-				}
-			},
+			.fl4_dst = iph->daddr,
+			.fl4_tos = RT_TOS(iph->tos),
 			.proto = IPPROTO_IPIP
 		};
 
@@ -1654,7 +1722,7 @@ static int ip_mr_forward(struct net *net, struct mr_table *mrt,
 	if (mrt->vif_table[vif].dev != skb->dev) {
 		int true_vifi;
 
-		if (skb_rtable(skb)->fl.iif == 0) {
+		if (rt_is_output_route(skb_rtable(skb))) {
 			/* It is our own packet, looped back.
 			 * Very complicated situation...
 			 *

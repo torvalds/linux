@@ -466,10 +466,4 @@ drm_agp_bind_pages(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_agp_bind_pages);
 
-void drm_agp_chipset_flush(struct drm_device *dev)
-{
-	agp_flush_chipset(dev->agp->bridge);
-}
-EXPORT_SYMBOL(drm_agp_chipset_flush);
-
 #endif /* __OS_HAS_AGP */

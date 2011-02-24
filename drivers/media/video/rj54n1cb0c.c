@@ -1460,7 +1460,6 @@ static int rj54n1_remove(struct i2c_client *client)
 	icd->ops = NULL;
 	if (icl->free_bus)
 		icl->free_bus(icl);
-	client->driver = NULL;
 	kfree(rj54n1);
 
 	return 0;

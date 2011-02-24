@@ -64,7 +64,7 @@ struct expr *expr_alloc_or(struct expr *e1, struct expr *e2)
 	return e2 ? expr_alloc_two(E_OR, e1, e2) : e1;
 }
 
-struct expr *expr_copy(struct expr *org)
+struct expr *expr_copy(const struct expr *org)
 {
 	struct expr *e;
 
@@ -1011,6 +1011,48 @@ int expr_compare_type(enum expr_type t1, enum expr_type t2)
 	printf("[%dgt%d?]", t1, t2);
 	return 0;
 #endif
+}
+
+static inline struct expr *
+expr_get_leftmost_symbol(const struct expr *e)
+{
+
+	if (e == NULL)
+		return NULL;
+
+	while (e->type != E_SYMBOL)
+		e = e->left.expr;
+
+	return expr_copy(e);
+}
+
+/*
+ * Given expression `e1' and `e2', returns the leaf of the longest
+ * sub-expression of `e1' not containing 'e2.
+ */
+struct expr *expr_simplify_unmet_dep(struct expr *e1, struct expr *e2)
+{
+	struct expr *ret;
+
+	switch (e1->type) {
+	case E_OR:
+		return expr_alloc_and(
+		    expr_simplify_unmet_dep(e1->left.expr, e2),
+		    expr_simplify_unmet_dep(e1->right.expr, e2));
+	case E_AND: {
+		struct expr *e;
+		e = expr_alloc_and(expr_copy(e1), expr_copy(e2));
+		e = expr_eliminate_dups(e);
+		ret = (!expr_eq(e, e1)) ? e1 : NULL;
+		expr_free(e);
+		break;
+		}
+	default:
+		ret = e1;
+		break;
+	}
+
+	return expr_get_leftmost_symbol(ret);
 }
 
 void expr_print(struct expr *e, void (*fn)(void *, struct symbol *, const char *), void *data, int prevtoken)

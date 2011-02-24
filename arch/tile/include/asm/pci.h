@@ -15,7 +15,29 @@
 #ifndef _ASM_TILE_PCI_H
 #define _ASM_TILE_PCI_H
 
-#include <asm/pci-bridge.h>
+#include <linux/pci.h>
+
+/*
+ * Structure of a PCI controller (host bridge)
+ */
+struct pci_controller {
+	int index;		/* PCI domain number */
+	struct pci_bus *root_bus;
+
+	int first_busno;
+	int last_busno;
+
+	int hv_cfg_fd[2];	/* config{0,1} fds for this PCIe controller */
+	int hv_mem_fd;		/* fd to Hypervisor for MMIO operations */
+
+	struct pci_ops *ops;
+
+	int irq_base;		/* Base IRQ from the Hypervisor	*/
+	int plx_gen1;		/* flag for PLX Gen 1 configuration */
+
+	/* Address ranges that are routed to this controller/bridge. */
+	struct resource mem_resources[3];
+};
 
 /*
  * The hypervisor maps the entirety of CPA-space as bus addresses, so
@@ -24,56 +46,12 @@
  */
 #define PCI_DMA_BUS_IS_PHYS     1
 
-struct pci_controller *pci_bus_to_hose(int bus);
-unsigned char __init common_swizzle(struct pci_dev *dev, unsigned char *pinp);
 int __init tile_pci_init(void);
-void pci_iounmap(struct pci_dev *dev, void __iomem *addr);
+
 void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long max);
+static inline void pci_iounmap(struct pci_dev *dev, void __iomem *addr) {}
+
 void __devinit pcibios_fixup_bus(struct pci_bus *bus);
-
-int __devinit _tile_cfg_read(struct pci_controller *hose,
-				    int bus,
-				    int slot,
-				    int function,
-				    int offset,
-				    int size,
-				    u32 *val);
-int __devinit _tile_cfg_write(struct pci_controller *hose,
-				     int bus,
-				     int slot,
-				     int function,
-				     int offset,
-				     int size,
-				     u32 val);
-
-/*
- * These are used to to config reads and writes in the early stages of
- * setup before the driver infrastructure has been set up enough to be
- * able to do config reads and writes.
- */
-#define early_cfg_read(where, size, value) \
-	_tile_cfg_read(controller, \
-		       current_bus, \
-		       pci_slot, \
-		       pci_fn, \
-		       where, \
-		       size, \
-		       value)
-
-#define early_cfg_write(where, size, value) \
-	_tile_cfg_write(controller, \
-		       current_bus, \
-		       pci_slot, \
-		       pci_fn, \
-		       where, \
-		       size, \
-		       value)
-
-
-
-#define PCICFG_BYTE	1
-#define PCICFG_WORD	2
-#define PCICFG_DWORD	4
 
 #define	TILE_NUM_PCIE	2
 
@@ -88,41 +66,38 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 }
 
 /*
- * I/O space is currently not supported.
+ * pcibios_assign_all_busses() tells whether or not the bus numbers
+ * should be reassigned, in case the BIOS didn't do it correctly, or
+ * in case we don't have a BIOS and we want to let Linux do it.
  */
+static inline int pcibios_assign_all_busses(void)
+{
+	return 1;
+}
 
-#define TILE_PCIE_LOWER_IO		0x0
-#define TILE_PCIE_UPPER_IO		0x10000
-#define TILE_PCIE_PCIE_IO_SIZE		0x0000FFFF
-
-#define _PAGE_NO_CACHE		0
-#define _PAGE_GUARDED		0
-
-
-#define pcibios_assign_all_busses()    pci_assign_all_buses
-extern int pci_assign_all_buses;
-
+/*
+ * No special bus mastering setup handling.
+ */
 static inline void pcibios_set_master(struct pci_dev *dev)
 {
-	/* No special bus mastering setup handling */
 }
 
 #define PCIBIOS_MIN_MEM		0
-#define PCIBIOS_MIN_IO		TILE_PCIE_LOWER_IO
+#define PCIBIOS_MIN_IO		0
 
 /*
  * This flag tells if the platform is TILEmpower that needs
  * special configuration for the PLX switch chip.
  */
-extern int blade_pci;
+extern int tile_plx_gen1;
+
+/* Use any cpu for PCI. */
+#define cpumask_of_pcibus(bus) cpu_online_mask
 
 /* implement the pci_ DMA API in terms of the generic device dma_ one */
 #include <asm-generic/pci-dma-compat.h>
 
 /* generic pci stuff */
 #include <asm-generic/pci.h>
-
-/* Use any cpu for PCI. */
-#define cpumask_of_pcibus(bus) cpu_online_mask
 
 #endif /* _ASM_TILE_PCI_H */

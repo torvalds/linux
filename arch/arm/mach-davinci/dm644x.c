@@ -302,7 +302,7 @@ static struct clk_lookup dm644x_clks[] = {
 	CLK("davinci_emac.1", NULL, &emac_clk),
 	CLK("i2c_davinci.1", NULL, &i2c_clk),
 	CLK("palm_bk3710", NULL, &ide_clk),
-	CLK("davinci-asp", NULL, &asp_clk),
+	CLK("davinci-mcbsp", NULL, &asp_clk),
 	CLK("davinci_mmc.0", NULL, &mmcsd_clk),
 	CLK(NULL, "spi", &spi_clk),
 	CLK(NULL, "gpio", &gpio_clk),
@@ -580,7 +580,7 @@ static struct resource dm644x_asp_resources[] = {
 };
 
 static struct platform_device dm644x_asp_device = {
-	.name		= "davinci-asp",
+	.name		= "davinci-mcbsp",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(dm644x_asp_resources),
 	.resource	= dm644x_asp_resources,

@@ -5,6 +5,7 @@
 #include <asm/cputable.h>
 #include <asm/thread_info.h>
 #include <asm/page.h>
+#include <asm/ptrace.h>
 
 /*
  * load_up_altivec(unused, unused, tsk)

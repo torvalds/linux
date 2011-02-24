@@ -1,0 +1,15 @@
+config VIDEO_USBVIDEO
+	tristate
+
+config USB_VICAM
+	tristate "USB 3com HomeConnect (aka vicam) support (DEPRECATED)"
+	depends on VIDEO_DEV && VIDEO_V4L2_COMMON && USB
+	select VIDEO_USBVIDEO
+	---help---
+	  Say Y here if you have 3com homeconnect camera (vicam).
+
+	  This driver uses the deprecated V4L1 API and will be removed in
+	  2.6.39, unless someone converts it to the V4L2 API.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called vicam.

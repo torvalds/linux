@@ -508,8 +508,7 @@ static int tcf_csum(struct sk_buff *skb,
 
 	spin_lock(&p->tcf_lock);
 	p->tcf_tm.lastuse = jiffies;
-	p->tcf_bstats.bytes += qdisc_pkt_len(skb);
-	p->tcf_bstats.packets++;
+	bstats_update(&p->tcf_bstats, skb);
 	action = p->tcf_action;
 	update_flags = p->update_flags;
 	spin_unlock(&p->tcf_lock);

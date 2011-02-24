@@ -2,6 +2,18 @@
 # Makefile for industrial I/O accelerometer drivers
 #
 
+adis16201-y             := adis16201_core.o
+adis16201-$(CONFIG_IIO_RING_BUFFER) += adis16201_ring.o adis16201_trigger.o
+obj-$(CONFIG_ADIS16201) += adis16201.o
+
+adis16203-y             := adis16203_core.o
+adis16203-$(CONFIG_IIO_RING_BUFFER) += adis16203_ring.o adis16203_trigger.o
+obj-$(CONFIG_ADIS16203) += adis16203.o
+
+adis16204-y             := adis16204_core.o
+adis16204-$(CONFIG_IIO_RING_BUFFER) += adis16204_ring.o adis16204_trigger.o
+obj-$(CONFIG_ADIS16204) += adis16204.o
+
 adis16209-y             := adis16209_core.o
 adis16209-$(CONFIG_IIO_RING_BUFFER) += adis16209_ring.o adis16209_trigger.o
 obj-$(CONFIG_ADIS16209) += adis16209.o

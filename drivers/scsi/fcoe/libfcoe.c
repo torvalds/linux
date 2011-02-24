@@ -54,6 +54,7 @@ MODULE_LICENSE("GPL v2");
 static void fcoe_ctlr_timeout(unsigned long);
 static void fcoe_ctlr_timer_work(struct work_struct *);
 static void fcoe_ctlr_recv_work(struct work_struct *);
+static int fcoe_ctlr_flogi_retry(struct fcoe_ctlr *);
 
 static void fcoe_ctlr_vn_start(struct fcoe_ctlr *);
 static int fcoe_ctlr_vn_recv(struct fcoe_ctlr *, struct sk_buff *);
@@ -176,6 +177,7 @@ void fcoe_ctlr_init(struct fcoe_ctlr *fip, enum fip_state mode)
 	fip->mode = mode;
 	INIT_LIST_HEAD(&fip->fcfs);
 	mutex_init(&fip->ctlr_mutex);
+	spin_lock_init(&fip->ctlr_lock);
 	fip->flogi_oxid = FC_XID_UNKNOWN;
 	setup_timer(&fip->timer, fcoe_ctlr_timeout, (unsigned long)fip);
 	INIT_WORK(&fip->timer_work, fcoe_ctlr_timer_work);
@@ -229,6 +231,49 @@ void fcoe_ctlr_destroy(struct fcoe_ctlr *fip)
 	cancel_work_sync(&fip->timer_work);
 }
 EXPORT_SYMBOL(fcoe_ctlr_destroy);
+
+/**
+ * fcoe_ctlr_announce() - announce new FCF selection
+ * @fip: The FCoE controller
+ *
+ * Also sets the destination MAC for FCoE and control packets
+ *
+ * Called with neither ctlr_mutex nor ctlr_lock held.
+ */
+static void fcoe_ctlr_announce(struct fcoe_ctlr *fip)
+{
+	struct fcoe_fcf *sel;
+	struct fcoe_fcf *fcf;
+
+	mutex_lock(&fip->ctlr_mutex);
+	spin_lock_bh(&fip->ctlr_lock);
+
+	kfree_skb(fip->flogi_req);
+	fip->flogi_req = NULL;
+	list_for_each_entry(fcf, &fip->fcfs, list)
+		fcf->flogi_sent = 0;
+
+	spin_unlock_bh(&fip->ctlr_lock);
+	sel = fip->sel_fcf;
+
+	if (sel && !compare_ether_addr(sel->fcf_mac, fip->dest_addr))
+		goto unlock;
+	if (!is_zero_ether_addr(fip->dest_addr)) {
+		printk(KERN_NOTICE "libfcoe: host%d: "
+		       "FIP Fibre-Channel Forwarder MAC %pM deselected\n",
+		       fip->lp->host->host_no, fip->dest_addr);
+		memset(fip->dest_addr, 0, ETH_ALEN);
+	}
+	if (sel) {
+		printk(KERN_INFO "libfcoe: host%d: FIP selected "
+		       "Fibre-Channel Forwarder MAC %pM\n",
+		       fip->lp->host->host_no, sel->fcf_mac);
+		memcpy(fip->dest_addr, sel->fcf_mac, ETH_ALEN);
+		fip->map_dest = 0;
+	}
+unlock:
+	mutex_unlock(&fip->ctlr_mutex);
+}
 
 /**
  * fcoe_ctlr_fcoe_size() - Return the maximum FCoE size required for VN_Port
@@ -564,6 +609,9 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip, struct fc_lport *lport,
  * The caller must check that the length is a multiple of 4.
  * The SKB must have enough headroom (28 bytes) and tailroom (8 bytes).
  * The the skb must also be an fc_frame.
+ *
+ * This is called from the lower-level driver with spinlocks held,
+ * so we must not take a mutex here.
  */
 int fcoe_ctlr_els_send(struct fcoe_ctlr *fip, struct fc_lport *lport,
 		       struct sk_buff *skb)
@@ -601,7 +649,15 @@ int fcoe_ctlr_els_send(struct fcoe_ctlr *fip, struct fc_lport *lport,
 	switch (op) {
 	case ELS_FLOGI:
 		op = FIP_DT_FLOGI;
-		break;
+		if (fip->mode == FIP_MODE_VN2VN)
+			break;
+		spin_lock_bh(&fip->ctlr_lock);
+		kfree_skb(fip->flogi_req);
+		fip->flogi_req = skb;
+		fip->flogi_req_send = 1;
+		spin_unlock_bh(&fip->ctlr_lock);
+		schedule_work(&fip->timer_work);
+		return -EINPROGRESS;
 	case ELS_FDISC:
 		if (ntoh24(fh->fh_s_id))
 			return 0;
@@ -922,11 +978,9 @@ static void fcoe_ctlr_recv_adv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	}
 	mtu_valid = fcoe_ctlr_mtu_valid(fcf);
 	fcf->time = jiffies;
-	if (!found) {
-		LIBFCOE_FIP_DBG(fip, "New FCF for fab %16.16llx "
-				"map %x val %d\n",
-				fcf->fabric_name, fcf->fc_map, mtu_valid);
-	}
+	if (!found)
+		LIBFCOE_FIP_DBG(fip, "New FCF fab %16.16llx mac %pM\n",
+				fcf->fabric_name, fcf->fcf_mac);
 
 	/*
 	 * If this advertisement is not solicited and our max receive size
@@ -943,6 +997,17 @@ static void fcoe_ctlr_recv_adv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	 */
 	if (first && time_after(jiffies, fip->sol_time + sol_tov))
 		fcoe_ctlr_solicit(fip, NULL);
+
+	/*
+	 * Put this FCF at the head of the list for priority among equals.
+	 * This helps in the case of an NPV switch which insists we use
+	 * the FCF that answers multicast solicitations, not the others that
+	 * are sending periodic multicast advertisements.
+	 */
+	if (mtu_valid) {
+		list_del(&fcf->list);
+		list_add(&fcf->list, &fip->fcfs);
+	}
 
 	/*
 	 * If this is the first validated FCF, note the time and
@@ -1061,18 +1126,24 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	els_op = *(u8 *)(fh + 1);
 
 	if ((els_dtype == FIP_DT_FLOGI || els_dtype == FIP_DT_FDISC) &&
-	    sub == FIP_SC_REP && els_op == ELS_LS_ACC &&
-	    fip->mode != FIP_MODE_VN2VN) {
-		if (!is_valid_ether_addr(granted_mac)) {
-			LIBFCOE_FIP_DBG(fip,
-				"Invalid MAC address %pM in FIP ELS\n",
-				granted_mac);
-			goto drop;
-		}
-		memcpy(fr_cb(fp)->granted_mac, granted_mac, ETH_ALEN);
+	    sub == FIP_SC_REP && fip->mode != FIP_MODE_VN2VN) {
+		if (els_op == ELS_LS_ACC) {
+			if (!is_valid_ether_addr(granted_mac)) {
+				LIBFCOE_FIP_DBG(fip,
+					"Invalid MAC address %pM in FIP ELS\n",
+					granted_mac);
+				goto drop;
+			}
+			memcpy(fr_cb(fp)->granted_mac, granted_mac, ETH_ALEN);
 
-		if (fip->flogi_oxid == ntohs(fh->fh_ox_id))
-			fip->flogi_oxid = FC_XID_UNKNOWN;
+			if (fip->flogi_oxid == ntohs(fh->fh_ox_id)) {
+				fip->flogi_oxid = FC_XID_UNKNOWN;
+				if (els_dtype == FIP_DT_FLOGI)
+					fcoe_ctlr_announce(fip);
+			}
+		} else if (els_dtype == FIP_DT_FLOGI &&
+			   !fcoe_ctlr_flogi_retry(fip))
+			goto drop;	/* retrying FLOGI so drop reject */
 	}
 
 	if ((desc_cnt == 0) || ((els_op != ELS_LS_RJT) &&
@@ -1326,20 +1397,39 @@ drop:
  * fcoe_ctlr_select() - Select the best FCF (if possible)
  * @fip: The FCoE controller
  *
+ * Returns the selected FCF, or NULL if none are usable.
+ *
  * If there are conflicting advertisements, no FCF can be chosen.
+ *
+ * If there is already a selected FCF, this will choose a better one or
+ * an equivalent one that hasn't already been sent a FLOGI.
  *
  * Called with lock held.
  */
-static void fcoe_ctlr_select(struct fcoe_ctlr *fip)
+static struct fcoe_fcf *fcoe_ctlr_select(struct fcoe_ctlr *fip)
 {
 	struct fcoe_fcf *fcf;
-	struct fcoe_fcf *best = NULL;
+	struct fcoe_fcf *best = fip->sel_fcf;
+	struct fcoe_fcf *first;
+
+	first = list_first_entry(&fip->fcfs, struct fcoe_fcf, list);
 
 	list_for_each_entry(fcf, &fip->fcfs, list) {
-		LIBFCOE_FIP_DBG(fip, "consider FCF for fab %16.16llx "
-				"VFID %d map %x val %d\n",
-				fcf->fabric_name, fcf->vfid,
-				fcf->fc_map, fcoe_ctlr_mtu_valid(fcf));
+		LIBFCOE_FIP_DBG(fip, "consider FCF fab %16.16llx "
+				"VFID %d mac %pM map %x val %d "
+				"sent %u pri %u\n",
+				fcf->fabric_name, fcf->vfid, fcf->fcf_mac,
+				fcf->fc_map, fcoe_ctlr_mtu_valid(fcf),
+				fcf->flogi_sent, fcf->pri);
+		if (fcf->fabric_name != first->fabric_name ||
+		    fcf->vfid != first->vfid ||
+		    fcf->fc_map != first->fc_map) {
+			LIBFCOE_FIP_DBG(fip, "Conflicting fabric, VFID, "
+					"or FC-MAP\n");
+			return NULL;
+		}
+		if (fcf->flogi_sent)
+			continue;
 		if (!fcoe_ctlr_fcf_usable(fcf)) {
 			LIBFCOE_FIP_DBG(fip, "FCF for fab %16.16llx "
 					"map %x %svalid %savailable\n",
@@ -1349,21 +1439,131 @@ static void fcoe_ctlr_select(struct fcoe_ctlr *fip)
 					"" : "un");
 			continue;
 		}
-		if (!best) {
-			best = fcf;
-			continue;
-		}
-		if (fcf->fabric_name != best->fabric_name ||
-		    fcf->vfid != best->vfid ||
-		    fcf->fc_map != best->fc_map) {
-			LIBFCOE_FIP_DBG(fip, "Conflicting fabric, VFID, "
-					"or FC-MAP\n");
-			return;
-		}
-		if (fcf->pri < best->pri)
+		if (!best || fcf->pri < best->pri || best->flogi_sent)
 			best = fcf;
 	}
 	fip->sel_fcf = best;
+	if (best) {
+		LIBFCOE_FIP_DBG(fip, "using FCF mac %pM\n", best->fcf_mac);
+		fip->port_ka_time = jiffies +
+			msecs_to_jiffies(FIP_VN_KA_PERIOD);
+		fip->ctlr_ka_time = jiffies + best->fka_period;
+		if (time_before(fip->ctlr_ka_time, fip->timer.expires))
+			mod_timer(&fip->timer, fip->ctlr_ka_time);
+	}
+	return best;
+}
+
+/**
+ * fcoe_ctlr_flogi_send_locked() - send FIP-encapsulated FLOGI to current FCF
+ * @fip: The FCoE controller
+ *
+ * Returns non-zero error if it could not be sent.
+ *
+ * Called with ctlr_mutex and ctlr_lock held.
+ * Caller must verify that fip->sel_fcf is not NULL.
+ */
+static int fcoe_ctlr_flogi_send_locked(struct fcoe_ctlr *fip)
+{
+	struct sk_buff *skb;
+	struct sk_buff *skb_orig;
+	struct fc_frame_header *fh;
+	int error;
+
+	skb_orig = fip->flogi_req;
+	if (!skb_orig)
+		return -EINVAL;
+
+	/*
+	 * Clone and send the FLOGI request.  If clone fails, use original.
+	 */
+	skb = skb_clone(skb_orig, GFP_ATOMIC);
+	if (!skb) {
+		skb = skb_orig;
+		fip->flogi_req = NULL;
+	}
+	fh = (struct fc_frame_header *)skb->data;
+	error = fcoe_ctlr_encaps(fip, fip->lp, FIP_DT_FLOGI, skb,
+				 ntoh24(fh->fh_d_id));
+	if (error) {
+		kfree_skb(skb);
+		return error;
+	}
+	fip->send(fip, skb);
+	fip->sel_fcf->flogi_sent = 1;
+	return 0;
+}
+
+/**
+ * fcoe_ctlr_flogi_retry() - resend FLOGI request to a new FCF if possible
+ * @fip: The FCoE controller
+ *
+ * Returns non-zero error code if there's no FLOGI request to retry or
+ * no alternate FCF available.
+ */
+static int fcoe_ctlr_flogi_retry(struct fcoe_ctlr *fip)
+{
+	struct fcoe_fcf *fcf;
+	int error;
+
+	mutex_lock(&fip->ctlr_mutex);
+	spin_lock_bh(&fip->ctlr_lock);
+	LIBFCOE_FIP_DBG(fip, "re-sending FLOGI - reselect\n");
+	fcf = fcoe_ctlr_select(fip);
+	if (!fcf || fcf->flogi_sent) {
+		kfree_skb(fip->flogi_req);
+		fip->flogi_req = NULL;
+		error = -ENOENT;
+	} else {
+		fcoe_ctlr_solicit(fip, NULL);
+		error = fcoe_ctlr_flogi_send_locked(fip);
+	}
+	spin_unlock_bh(&fip->ctlr_lock);
+	mutex_unlock(&fip->ctlr_mutex);
+	return error;
+}
+
+
+/**
+ * fcoe_ctlr_flogi_send() - Handle sending of FIP FLOGI.
+ * @fip: The FCoE controller that timed out
+ *
+ * Done here because fcoe_ctlr_els_send() can't get mutex.
+ *
+ * Called with ctlr_mutex held.  The caller must not hold ctlr_lock.
+ */
+static void fcoe_ctlr_flogi_send(struct fcoe_ctlr *fip)
+{
+	struct fcoe_fcf *fcf;
+
+	spin_lock_bh(&fip->ctlr_lock);
+	fcf = fip->sel_fcf;
+	if (!fcf || !fip->flogi_req_send)
+		goto unlock;
+
+	LIBFCOE_FIP_DBG(fip, "sending FLOGI\n");
+
+	/*
+	 * If this FLOGI is being sent due to a timeout retry
+	 * to the same FCF as before, select a different FCF if possible.
+	 */
+	if (fcf->flogi_sent) {
+		LIBFCOE_FIP_DBG(fip, "sending FLOGI - reselect\n");
+		fcf = fcoe_ctlr_select(fip);
+		if (!fcf || fcf->flogi_sent) {
+			LIBFCOE_FIP_DBG(fip, "sending FLOGI - clearing\n");
+			list_for_each_entry(fcf, &fip->fcfs, list)
+				fcf->flogi_sent = 0;
+			fcf = fcoe_ctlr_select(fip);
+		}
+	}
+	if (fcf) {
+		fcoe_ctlr_flogi_send_locked(fip);
+		fip->flogi_req_send = 0;
+	} else /* XXX */
+		LIBFCOE_FIP_DBG(fip, "No FCF selected - defer send\n");
+unlock:
+	spin_unlock_bh(&fip->ctlr_lock);
 }
 
 /**
@@ -1411,34 +1611,16 @@ static void fcoe_ctlr_timer_work(struct work_struct *work)
 	sel = fip->sel_fcf;
 	if (!sel && fip->sel_time) {
 		if (time_after_eq(jiffies, fip->sel_time)) {
-			fcoe_ctlr_select(fip);
-			sel = fip->sel_fcf;
+			sel = fcoe_ctlr_select(fip);
 			fip->sel_time = 0;
 		} else if (time_after(next_timer, fip->sel_time))
 			next_timer = fip->sel_time;
 	}
 
-	if (sel != fcf) {
-		fcf = sel;		/* the old FCF may have been freed */
-		if (sel) {
-			printk(KERN_INFO "libfcoe: host%d: FIP selected "
-			       "Fibre-Channel Forwarder MAC %pM\n",
-			       fip->lp->host->host_no, sel->fcf_mac);
-			memcpy(fip->dest_addr, sel->fcf_mac, ETH_ALEN);
-			fip->map_dest = 0;
-			fip->port_ka_time = jiffies +
-				msecs_to_jiffies(FIP_VN_KA_PERIOD);
-			fip->ctlr_ka_time = jiffies + sel->fka_period;
-			if (time_after(next_timer, fip->ctlr_ka_time))
-				next_timer = fip->ctlr_ka_time;
-		} else {
-			printk(KERN_NOTICE "libfcoe: host%d: "
-			       "FIP Fibre-Channel Forwarder timed out.	"
-			       "Starting FCF discovery.\n",
-			       fip->lp->host->host_no);
-			reset = 1;
-		}
-	}
+	if (sel && fip->flogi_req_send)
+		fcoe_ctlr_flogi_send(fip);
+	else if (!sel && fcf)
+		reset = 1;
 
 	if (sel && !sel->fd_flags) {
 		if (time_after_eq(jiffies, fip->ctlr_ka_time)) {
@@ -2475,7 +2657,7 @@ static void fcoe_ctlr_vn_timeout(struct fcoe_ctlr *fip)
 	case FIP_ST_LINK_WAIT:
 		goto unlock;
 	default:
-		WARN(1, "unexpected state %d", fip->state);
+		WARN(1, "unexpected state %d\n", fip->state);
 		goto unlock;
 	}
 	mod_timer(&fip->timer, next_time);

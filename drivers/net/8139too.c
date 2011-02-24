@@ -1092,10 +1092,11 @@ err_out:
 static void __devexit rtl8139_remove_one (struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata (pdev);
+	struct rtl8139_private *tp = netdev_priv(dev);
 
 	assert (dev != NULL);
 
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&tp->thread);
 
 	unregister_netdev (dev);
 

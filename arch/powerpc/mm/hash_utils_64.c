@@ -1070,7 +1070,7 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 		  unsigned long access, unsigned long trap)
 {
 	unsigned long vsid;
-	void *pgdir;
+	pgd_t *pgdir;
 	pte_t *ptep;
 	unsigned long flags;
 	int rc, ssize, local = 0;

@@ -166,9 +166,6 @@ static void __init simpad_map_io(void)
 	PCFR = 0;
 	PSDR = 0;
 
-	sa11x0_register_mtd(&simpad_flash_data, simpad_flash_resources,
-			      ARRAY_SIZE(simpad_flash_resources));
-	sa11x0_register_mcp(&simpad_mcp_data);
 }
 
 static void simpad_power_off(void)
@@ -215,6 +212,10 @@ static int __init simpad_init(void)
 	int ret;
 
 	pm_power_off = simpad_power_off;
+
+	sa11x0_register_mtd(&simpad_flash_data, simpad_flash_resources,
+			      ARRAY_SIZE(simpad_flash_resources));
+	sa11x0_register_mcp(&simpad_mcp_data);
 
 	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	if(ret)

@@ -17,28 +17,33 @@
 #include <linux/string.h>
 #include <bcmdefs.h>
 #include <wlc_cfg.h>
-#include <linuxver.h>
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <osl.h>
 #include <bcmutils.h>
 #include <siutils.h>
 #include <wlioctl.h>
 #include <wlc_pub.h>
 #include <wlc_key.h>
+#include <sbhndpio.h>
+#include <sbhnddma.h>
+#include <wlc_event.h>
 #include <wlc_mac80211.h>
 #include <wlc_alloc.h>
+#include <wl_dbg.h>
 
-static wlc_pub_t *wlc_pub_malloc(osl_t *osh, uint unit, uint *err,
-				 uint devid);
-static void wlc_pub_mfree(osl_t *osh, wlc_pub_t *pub);
+static struct wlc_pub *wlc_pub_malloc(struct osl_info *osh, uint unit,
+				      uint *err, uint devid);
+static void wlc_pub_mfree(struct osl_info *osh, struct wlc_pub *pub);
 static void wlc_tunables_init(wlc_tunables_t *tunables, uint devid);
 
-void *wlc_calloc(osl_t *osh, uint unit, uint size)
+void *wlc_calloc(struct osl_info *osh, uint unit, uint size)
 {
 	void *item;
 
 	item = kzalloc(size, GFP_ATOMIC);
 	if (item == NULL)
-		WL_ERROR(("wl%d: %s: out of memory\n", unit, __func__));
+		WL_ERROR("wl%d: %s: out of memory\n", unit, __func__);
 	return item;
 }
 
@@ -58,18 +63,14 @@ void wlc_tunables_init(wlc_tunables_t *tunables, uint devid)
 	tunables->ampdudatahiwat = WLC_AMPDUDATAHIWAT;
 	tunables->rxbnd = RXBND;
 	tunables->txsbnd = TXSBND;
-#if defined(WLC_HIGH_ONLY) && defined(NTXD_USB_4319)
-	if (devid == BCM4319_CHIP_ID) {
-		tunables->ntxd = NTXD_USB_4319;
-	}
-#endif				/* WLC_HIGH_ONLY */
 }
 
-static wlc_pub_t *wlc_pub_malloc(osl_t *osh, uint unit, uint *err, uint devid)
+static struct wlc_pub *wlc_pub_malloc(struct osl_info *osh, uint unit,
+				      uint *err, uint devid)
 {
-	wlc_pub_t *pub;
+	struct wlc_pub *pub;
 
-	pub = (wlc_pub_t *) wlc_calloc(osh, unit, sizeof(wlc_pub_t));
+	pub = (struct wlc_pub *) wlc_calloc(osh, unit, sizeof(struct wlc_pub));
 	if (pub == NULL) {
 		*err = 1001;
 		goto fail;
@@ -99,7 +100,7 @@ static wlc_pub_t *wlc_pub_malloc(osl_t *osh, uint unit, uint *err, uint devid)
 	return NULL;
 }
 
-static void wlc_pub_mfree(osl_t *osh, wlc_pub_t *pub)
+static void wlc_pub_mfree(struct osl_info *osh, struct wlc_pub *pub)
 {
 	if (pub == NULL)
 		return;
@@ -114,7 +115,7 @@ static void wlc_pub_mfree(osl_t *osh, wlc_pub_t *pub)
 	kfree(pub);
 }
 
-wlc_bsscfg_t *wlc_bsscfg_malloc(osl_t *osh, uint unit)
+wlc_bsscfg_t *wlc_bsscfg_malloc(struct osl_info *osh, uint unit)
 {
 	wlc_bsscfg_t *cfg;
 
@@ -134,7 +135,7 @@ wlc_bsscfg_t *wlc_bsscfg_malloc(osl_t *osh, uint unit)
 	return NULL;
 }
 
-void wlc_bsscfg_mfree(osl_t *osh, wlc_bsscfg_t *cfg)
+void wlc_bsscfg_mfree(struct osl_info *osh, wlc_bsscfg_t *cfg)
 {
 	if (cfg == NULL)
 		return;
@@ -155,7 +156,7 @@ void wlc_bsscfg_mfree(osl_t *osh, wlc_bsscfg_t *cfg)
 	kfree(cfg);
 }
 
-void wlc_bsscfg_ID_assign(wlc_info_t *wlc, wlc_bsscfg_t *bsscfg)
+void wlc_bsscfg_ID_assign(struct wlc_info *wlc, wlc_bsscfg_t *bsscfg)
 {
 	bsscfg->ID = wlc->next_bsscfg_ID;
 	wlc->next_bsscfg_ID++;
@@ -164,11 +165,13 @@ void wlc_bsscfg_ID_assign(wlc_info_t *wlc, wlc_bsscfg_t *bsscfg)
 /*
  * The common driver entry routine. Error codes should be unique
  */
-wlc_info_t *wlc_attach_malloc(osl_t *osh, uint unit, uint *err, uint devid)
+struct wlc_info *wlc_attach_malloc(struct osl_info *osh, uint unit, uint *err,
+			      uint devid)
 {
-	wlc_info_t *wlc;
+	struct wlc_info *wlc;
 
-	wlc = (wlc_info_t *) wlc_calloc(osh, unit, sizeof(wlc_info_t));
+	wlc = (struct wlc_info *) wlc_calloc(osh, unit,
+					     sizeof(struct wlc_info));
 	if (wlc == NULL) {
 		*err = 1002;
 		goto fail;
@@ -176,7 +179,7 @@ wlc_info_t *wlc_attach_malloc(osl_t *osh, uint unit, uint *err, uint devid)
 
 	wlc->hwrxoff = WL_HWRXOFF;
 
-	/* allocate wlc_pub_t state structure */
+	/* allocate struct wlc_pub state structure */
 	wlc->pub = wlc_pub_malloc(osh, unit, err, devid);
 	if (wlc->pub == NULL) {
 		*err = 1003;
@@ -184,17 +187,16 @@ wlc_info_t *wlc_attach_malloc(osl_t *osh, uint unit, uint *err, uint devid)
 	}
 	wlc->pub->wlc = wlc;
 
-	/* allocate wlc_hw_info_t state structure */
+	/* allocate struct wlc_hw_info state structure */
 
-	wlc->hw = (wlc_hw_info_t *)wlc_calloc(osh, unit,
-		sizeof(wlc_hw_info_t));
+	wlc->hw = (struct wlc_hw_info *)wlc_calloc(osh, unit,
+		sizeof(struct wlc_hw_info));
 	if (wlc->hw == NULL) {
 		*err = 1005;
 		goto fail;
 	}
 	wlc->hw->wlc = wlc;
 
-#ifdef WLC_LOW
 	wlc->hw->bandstate[0] = (wlc_hwband_t *)wlc_calloc(osh, unit,
 		(sizeof(wlc_hwband_t) * MAXBANDS));
 	if (wlc->hw->bandstate[0] == NULL) {
@@ -209,7 +211,6 @@ wlc_info_t *wlc_attach_malloc(osl_t *osh, uint unit, uint *err, uint devid)
 			     (sizeof(wlc_hwband_t) * i));
 		}
 	}
-#endif				/* WLC_LOW */
 
 	wlc->modulecb = (modulecb_t *)wlc_calloc(osh, unit,
 		sizeof(modulecb_t) * WLC_MAXMODULES);
@@ -266,8 +267,8 @@ wlc_info_t *wlc_attach_malloc(osl_t *osh, uint unit, uint *err, uint devid)
 		goto fail;
 	}
 
-	wlc->bandstate[0] = (wlcband_t *)wlc_calloc(osh, unit,
-				(sizeof(wlcband_t) * MAXBANDS));
+	wlc->bandstate[0] = (struct wlcband *)wlc_calloc(osh, unit,
+				(sizeof(struct wlcband)*MAXBANDS));
 	if (wlc->bandstate[0] == NULL) {
 		*err = 1025;
 		goto fail;
@@ -276,12 +277,13 @@ wlc_info_t *wlc_attach_malloc(osl_t *osh, uint unit, uint *err, uint devid)
 
 		for (i = 1; i < MAXBANDS; i++) {
 			wlc->bandstate[i] =
-			    (wlcband_t *) ((unsigned long)wlc->bandstate[0] +
-					   (sizeof(wlcband_t) * i));
+			    (struct wlcband *) ((unsigned long)wlc->bandstate[0]
+			    + (sizeof(struct wlcband)*i));
 		}
 	}
 
-	wlc->corestate = (wlccore_t *)wlc_calloc(osh, unit, sizeof(wlccore_t));
+	wlc->corestate = (struct wlccore *)wlc_calloc(osh, unit,
+						      sizeof(struct wlccore));
 	if (wlc->corestate == NULL) {
 		*err = 1026;
 		goto fail;
@@ -301,7 +303,7 @@ wlc_info_t *wlc_attach_malloc(osl_t *osh, uint unit, uint *err, uint devid)
 	return NULL;
 }
 
-void wlc_detach_mfree(wlc_info_t *wlc, osl_t *osh)
+void wlc_detach_mfree(struct wlc_info *wlc, struct osl_info *osh)
 {
 	if (wlc == NULL)
 		return;
@@ -355,12 +357,10 @@ void wlc_detach_mfree(wlc_info_t *wlc, osl_t *osh)
 	}
 
 	if (wlc->hw) {
-#ifdef WLC_LOW
 		if (wlc->hw->bandstate[0]) {
 			kfree(wlc->hw->bandstate[0]);
 			wlc->hw->bandstate[0] = NULL;
 		}
-#endif
 
 		/* free hw struct */
 		kfree(wlc->hw);

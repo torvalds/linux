@@ -739,6 +739,8 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 	    && cpu_has_tlb)
 		c->tlbsize += (config4 & MIPS_CONF4_MMUSIZEEXT) * 0x40;
 
+	c->kscratch_mask = (config4 >> 16) & 0xff;
+
 	return config4 & MIPS_CONF_M;
 }
 
@@ -905,7 +907,8 @@ static inline void cpu_probe_broadcom(struct cpuinfo_mips *c, unsigned int cpu)
 {
 	decode_configs(c);
 	switch (c->processor_id & 0xff00) {
-	case PRID_IMP_BMIPS32:
+	case PRID_IMP_BMIPS32_REV4:
+	case PRID_IMP_BMIPS32_REV8:
 		c->cputype = CPU_BMIPS32;
 		__cpu_name[cpu] = "Broadcom BMIPS32";
 		break;
@@ -932,10 +935,6 @@ static inline void cpu_probe_broadcom(struct cpuinfo_mips *c, unsigned int cpu)
 		c->cputype = CPU_BMIPS5000;
 		__cpu_name[cpu] = "Broadcom BMIPS5000";
 		c->options |= MIPS_CPU_ULRI;
-		break;
-	case PRID_IMP_BMIPS4KC:
-		c->cputype = CPU_4KC;
-		__cpu_name[cpu] = "MIPS 4Kc";
 		break;
 	}
 }

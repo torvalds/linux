@@ -222,7 +222,7 @@ enum musb_g_ep0_state {
 #endif
 
 /* TUSB mapping: "flat" plus ep0 special cases */
-#if	defined(CONFIG_USB_TUSB6010)
+#if	defined(CONFIG_USB_MUSB_TUSB6010)
 #define musb_ep_select(_mbase, _epnum) \
 	musb_writeb((_mbase), MUSB_INDEX, (_epnum))
 #define	MUSB_EP_OFFSET			MUSB_TUSB_OFFSET
@@ -253,6 +253,29 @@ enum musb_g_ep0_state {
 
 /******************************** TYPES *************************************/
 
+/**
+ * struct musb_platform_ops - Operations passed to musb_core by HW glue layer
+ * @init:	turns on clocks, sets up platform-specific registers, etc
+ * @exit:	undoes @init
+ * @set_mode:	forcefully changes operating mode
+ * @try_ilde:	tries to idle the IP
+ * @vbus_status: returns vbus status if possible
+ * @set_vbus:	forces vbus status
+ */
+struct musb_platform_ops {
+	int	(*init)(struct musb *musb);
+	int	(*exit)(struct musb *musb);
+
+	void	(*enable)(struct musb *musb);
+	void	(*disable)(struct musb *musb);
+
+	int	(*set_mode)(struct musb *musb, u8 mode);
+	void	(*try_idle)(struct musb *musb, unsigned long timeout);
+
+	int	(*vbus_status)(struct musb *musb);
+	void	(*set_vbus)(struct musb *musb, int on);
+};
+
 /*
  * struct musb_hw_ep - endpoint hardware (bidirectional)
  *
@@ -263,7 +286,7 @@ struct musb_hw_ep {
 	void __iomem		*fifo;
 	void __iomem		*regs;
 
-#ifdef CONFIG_USB_TUSB6010
+#ifdef CONFIG_USB_MUSB_TUSB6010
 	void __iomem		*conf;
 #endif
 
@@ -280,7 +303,7 @@ struct musb_hw_ep {
 	struct dma_channel	*tx_channel;
 	struct dma_channel	*rx_channel;
 
-#ifdef CONFIG_USB_TUSB6010
+#ifdef CONFIG_USB_MUSB_TUSB6010
 	/* TUSB has "asynchronous" and "synchronous" dma modes */
 	dma_addr_t		fifo_async;
 	dma_addr_t		fifo_sync;
@@ -323,14 +346,43 @@ static inline struct usb_request *next_out_request(struct musb_hw_ep *hw_ep)
 #endif
 }
 
+struct musb_csr_regs {
+	/* FIFO registers */
+	u16 txmaxp, txcsr, rxmaxp, rxcsr;
+	u16 rxfifoadd, txfifoadd;
+	u8 txtype, txinterval, rxtype, rxinterval;
+	u8 rxfifosz, txfifosz;
+	u8 txfunaddr, txhubaddr, txhubport;
+	u8 rxfunaddr, rxhubaddr, rxhubport;
+};
+
+struct musb_context_registers {
+
+#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
+    defined(CONFIG_ARCH_OMAP4)
+	u32 otg_sysconfig, otg_forcestandby;
+#endif
+	u8 power;
+	u16 intrtxe, intrrxe;
+	u8 intrusbe;
+	u16 frame;
+	u8 index, testmode;
+
+	u8 devctl, busctl, misc;
+
+	struct musb_csr_regs index_regs[MUSB_C_NUM_EPS];
+};
+
 /*
  * struct musb - Driver instance data.
  */
 struct musb {
 	/* device lock */
 	spinlock_t		lock;
-	struct clk		*clock;
-	struct clk		*phy_clock;
+
+	const struct musb_platform_ops *ops;
+	struct musb_context_registers context;
+
 	irqreturn_t		(*isr)(int, void *);
 	struct work_struct	irq_work;
 	u16			hwvers;
@@ -359,11 +411,7 @@ struct musb {
 
 	struct timer_list	otg_timer;
 #endif
-
-	/* called with IRQs blocked; ON/nonzero implies starting a session,
-	 * and waiting at least a_wait_vrise_tmout.
-	 */
-	void			(*board_set_vbus)(struct musb *, int is_on);
+	struct notifier_block	nb;
 
 	struct dma_controller	*dma_controller;
 
@@ -371,7 +419,7 @@ struct musb {
 	void __iomem		*ctrl_base;
 	void __iomem		*mregs;
 
-#ifdef CONFIG_USB_TUSB6010
+#ifdef CONFIG_USB_MUSB_TUSB6010
 	dma_addr_t		async;
 	dma_addr_t		sync;
 	void __iomem		*sync_va;
@@ -397,8 +445,6 @@ struct musb {
 
 	u8 board_mode;		/* enum musb_mode */
 	int			(*board_set_power)(int state);
-
-	int			(*set_clock)(struct clk *clk, int is_active);
 
 	u8			min_power;	/* vbus for periph, in mA/2 */
 
@@ -457,52 +503,6 @@ struct musb {
 	struct proc_dir_entry *proc_entry;
 #endif
 };
-
-#ifdef CONFIG_PM
-struct musb_csr_regs {
-	/* FIFO registers */
-	u16 txmaxp, txcsr, rxmaxp, rxcsr;
-	u16 rxfifoadd, txfifoadd;
-	u8 txtype, txinterval, rxtype, rxinterval;
-	u8 rxfifosz, txfifosz;
-	u8 txfunaddr, txhubaddr, txhubport;
-	u8 rxfunaddr, rxhubaddr, rxhubport;
-};
-
-struct musb_context_registers {
-
-#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
-    defined(CONFIG_ARCH_OMAP4)
-	u32 otg_sysconfig, otg_forcestandby;
-#endif
-	u8 power;
-	u16 intrtxe, intrrxe;
-	u8 intrusbe;
-	u16 frame;
-	u8 index, testmode;
-
-	u8 devctl, busctl, misc;
-
-	struct musb_csr_regs index_regs[MUSB_C_NUM_EPS];
-};
-
-#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
-    defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_BLACKFIN)
-extern void musb_platform_save_context(struct musb *musb,
-		struct musb_context_registers *musb_context);
-extern void musb_platform_restore_context(struct musb *musb,
-		struct musb_context_registers *musb_context);
-#else
-#define musb_platform_save_context(m, x)	do {} while (0)
-#define musb_platform_restore_context(m, x)	do {} while (0)
-#endif
-
-#endif
-
-static inline void musb_set_vbus(struct musb *musb, int is_on)
-{
-	musb->board_set_vbus(musb, is_on);
-}
 
 #ifdef CONFIG_USB_GADGET_MUSB_HDRC
 static inline struct musb *gadget_to_musb(struct usb_gadget *g)
@@ -592,29 +592,63 @@ extern void musb_load_testpacket(struct musb *);
 
 extern irqreturn_t musb_interrupt(struct musb *);
 
-extern void musb_platform_enable(struct musb *musb);
-extern void musb_platform_disable(struct musb *musb);
-
 extern void musb_hnp_stop(struct musb *musb);
 
-extern int musb_platform_set_mode(struct musb *musb, u8 musb_mode);
+static inline void musb_platform_set_vbus(struct musb *musb, int is_on)
+{
+	if (musb->ops->set_vbus)
+		musb->ops->set_vbus(musb, is_on);
+}
 
-#if defined(CONFIG_USB_TUSB6010) || defined(CONFIG_BLACKFIN) || \
-	defined(CONFIG_ARCH_DAVINCI_DA8XX) || \
-	defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
-	defined(CONFIG_ARCH_OMAP4)
-extern void musb_platform_try_idle(struct musb *musb, unsigned long timeout);
-#else
-#define musb_platform_try_idle(x, y)		do {} while (0)
-#endif
+static inline void musb_platform_enable(struct musb *musb)
+{
+	if (musb->ops->enable)
+		musb->ops->enable(musb);
+}
 
-#if defined(CONFIG_USB_TUSB6010) || defined(CONFIG_BLACKFIN)
-extern int musb_platform_get_vbus_status(struct musb *musb);
-#else
-#define musb_platform_get_vbus_status(x)	0
-#endif
+static inline void musb_platform_disable(struct musb *musb)
+{
+	if (musb->ops->disable)
+		musb->ops->disable(musb);
+}
 
-extern int __init musb_platform_init(struct musb *musb, void *board_data);
-extern int musb_platform_exit(struct musb *musb);
+static inline int musb_platform_set_mode(struct musb *musb, u8 mode)
+{
+	if (!musb->ops->set_mode)
+		return 0;
+
+	return musb->ops->set_mode(musb, mode);
+}
+
+static inline void musb_platform_try_idle(struct musb *musb,
+		unsigned long timeout)
+{
+	if (musb->ops->try_idle)
+		musb->ops->try_idle(musb, timeout);
+}
+
+static inline int musb_platform_get_vbus_status(struct musb *musb)
+{
+	if (!musb->ops->vbus_status)
+		return 0;
+
+	return musb->ops->vbus_status(musb);
+}
+
+static inline int musb_platform_init(struct musb *musb)
+{
+	if (!musb->ops->init)
+		return -EINVAL;
+
+	return musb->ops->init(musb);
+}
+
+static inline int musb_platform_exit(struct musb *musb)
+{
+	if (!musb->ops->exit)
+		return -EINVAL;
+
+	return musb->ops->exit(musb);
+}
 
 #endif	/* __MUSB_CORE_H__ */

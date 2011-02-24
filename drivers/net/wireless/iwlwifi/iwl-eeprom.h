@@ -110,8 +110,17 @@ enum {
 };
 
 /* SKU Capabilities */
+/* 3945 only */
 #define EEPROM_SKU_CAP_SW_RF_KILL_ENABLE                (1 << 0)
 #define EEPROM_SKU_CAP_HW_RF_KILL_ENABLE                (1 << 1)
+
+/* 5000 and up */
+#define EEPROM_SKU_CAP_BAND_POS				(4)
+#define EEPROM_SKU_CAP_BAND_SELECTION	                \
+		(3 << EEPROM_SKU_CAP_BAND_POS)
+#define EEPROM_SKU_CAP_11N_ENABLE	                (1 << 6)
+#define EEPROM_SKU_CAP_AMT_ENABLE	                (1 << 7)
+#define EEPROM_SKU_CAP_IPAN_ENABLE	                (1 << 8)
 
 /* *regulatory* channel data format in eeprom, one for each channel.
  * There are separate entries for HT40 (40 MHz) vs. normal (20 MHz) channels. */
@@ -120,6 +129,17 @@ struct iwl_eeprom_channel {
 	s8 max_power_avg;	/* max power (dBm) on this chnl, limit 31 */
 } __packed;
 
+enum iwl_eeprom_enhanced_txpwr_flags {
+	IWL_EEPROM_ENH_TXP_FL_VALID		= BIT(0),
+	IWL_EEPROM_ENH_TXP_FL_BAND_52G		= BIT(1),
+	IWL_EEPROM_ENH_TXP_FL_OFDM		= BIT(2),
+	IWL_EEPROM_ENH_TXP_FL_40MHZ		= BIT(3),
+	IWL_EEPROM_ENH_TXP_FL_HT_AP		= BIT(4),
+	IWL_EEPROM_ENH_TXP_FL_RES1		= BIT(5),
+	IWL_EEPROM_ENH_TXP_FL_RES2		= BIT(6),
+	IWL_EEPROM_ENH_TXP_FL_COMMON_TYPE	= BIT(7),
+};
+
 /**
  * iwl_eeprom_enhanced_txpwr structure
  *    This structure presents the enhanced regulatory tx power limit layout
@@ -127,21 +147,23 @@ struct iwl_eeprom_channel {
  *    Enhanced regulatory tx power portion of eeprom image can be broken down
  *    into individual structures; each one is 8 bytes in size and contain the
  *    following information
- * @common: (desc + channel) not used by driver, should _NOT_ be "zero"
+ * @flags: entry flags
+ * @channel: channel number
  * @chain_a_max_pwr: chain a max power in 1/2 dBm
  * @chain_b_max_pwr: chain b max power in 1/2 dBm
  * @chain_c_max_pwr: chain c max power in 1/2 dBm
- * @reserved: not used, should be "zero"
+ * @delta_20_in_40: 20-in-40 deltas (hi/lo)
  * @mimo2_max_pwr: mimo2 max power in 1/2 dBm
  * @mimo3_max_pwr: mimo3 max power in 1/2 dBm
  *
  */
 struct iwl_eeprom_enhanced_txpwr {
-	__le16 common;
+	u8 flags;
+	u8 channel;
 	s8 chain_a_max;
 	s8 chain_b_max;
 	s8 chain_c_max;
-	s8 reserved;
+	u8 delta_20_in_40;
 	s8 mimo2_max;
 	s8 mimo3_max;
 } __packed;
@@ -186,6 +208,8 @@ struct iwl_eeprom_enhanced_txpwr {
 #define EEPROM_LINK_CALIBRATION      (2*0x67)
 #define EEPROM_LINK_PROCESS_ADJST    (2*0x68)
 #define EEPROM_LINK_OTHERS           (2*0x69)
+#define EEPROM_LINK_TXP_LIMIT        (2*0x6a)
+#define EEPROM_LINK_TXP_LIMIT_SIZE   (2*0x6b)
 
 /* agn regulatory - indirect access */
 #define EEPROM_REG_BAND_1_CHANNELS       ((0x08)\
@@ -206,59 +230,6 @@ struct iwl_eeprom_enhanced_txpwr {
 /* 6000 regulatory - indirect access */
 #define EEPROM_6000_REG_BAND_24_HT40_CHANNELS  ((0x80)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 14  bytes */
-
-/* 6000 and up regulatory tx power - indirect access */
-/* max. elements per section */
-#define EEPROM_MAX_TXPOWER_SECTION_ELEMENTS	(8)
-#define EEPROM_TXPOWER_COMMON_HT40_INDEX	(2)
-
-/**
- * Partition the enhanced tx power portion of eeprom image into
- * 10 sections based on band, modulation, frequency and channel
- *
- * Section 1: all CCK channels
- * Section 2: all 2.4 GHz OFDM (Legacy, HT and HT40 ) channels
- * Section 3: all 5.2 GHz OFDM (Legacy, HT and HT40) channels
- * Section 4: 2.4 GHz 20MHz channels: 1, 2, 10, 11. Both Legacy and HT
- * Section 5: 2.4 GHz 40MHz channels: 1, 2, 6, 7, 9, (_above_)
- * Section 6: 5.2 GHz 20MHz channels: 36, 64, 100, both Legacy and HT
- * Section 7: 5.2 GHz 40MHz channels: 36, 60, 100 (_above_)
- * Section 8: 2.4 GHz channel 13, Both Legacy and HT
- * Section 9: 2.4 GHz channel 140, Both Legacy and HT
- * Section 10: 2.4 GHz 40MHz channels: 132, 44 (_above_)
- */
-/* 2.4 GHz band: CCK */
-#define EEPROM_LB_CCK_20_COMMON       ((0xA8)\
-		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 8 bytes */
-/* 2.4 GHz band: 20MHz-Legacy, 20MHz-HT, 40MHz-HT */
-#define EEPROM_LB_OFDM_COMMON       ((0xB0)\
-		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 24 bytes */
-/* 5.2 GHz band: 20MHz-Legacy, 20MHz-HT, 40MHz-HT */
-#define EEPROM_HB_OFDM_COMMON       ((0xC8)\
-		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 24 bytes */
-/* 2.4GHz band channels:
- *	1Legacy, 1HT, 2Legacy, 2HT, 10Legacy, 10HT, 11Legacy, 11HT */
-#define EEPROM_LB_OFDM_20_BAND       ((0xE0)\
-		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 64 bytes */
-/* 2.4 GHz band HT40 channels: (1,+1) (2,+1) (6,+1) (7,+1) (9,+1) */
-#define EEPROM_LB_OFDM_HT40_BAND       ((0x120)\
-		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 40 bytes */
-/* 5.2GHz band channels: 36Legacy, 36HT, 64Legacy, 64HT, 100Legacy, 100HT */
-#define EEPROM_HB_OFDM_20_BAND       ((0x148)\
-		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 48 bytes */
-/* 5.2 GHz band HT40 channels: (36,+1) (60,+1) (100,+1) */
-#define EEPROM_HB_OFDM_HT40_BAND       ((0x178)\
-		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 24 bytes */
-/* 2.4 GHz band, channnel 13: Legacy, HT */
-#define EEPROM_LB_OFDM_20_CHANNEL_13       ((0x190)\
-		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 16 bytes */
-/* 5.2 GHz band, channnel 140: Legacy, HT */
-#define EEPROM_HB_OFDM_20_CHANNEL_140       ((0x1A0)\
-		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 16 bytes */
-/* 5.2 GHz band, HT40 channnels (132,+1) (44,+1) */
-#define EEPROM_HB_OFDM_HT40_BAND_1       ((0x1B0)\
-		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 16 bytes */
-
 
 /* 5050 Specific */
 #define EEPROM_5050_TX_POWER_VERSION    (4)
@@ -389,6 +360,8 @@ struct iwl_eeprom_calib_info {
 #define INDIRECT_CALIBRATION        0x00040000
 #define INDIRECT_PROCESS_ADJST      0x00050000
 #define INDIRECT_OTHERS             0x00060000
+#define INDIRECT_TXP_LIMIT          0x00070000
+#define INDIRECT_TXP_LIMIT_SIZE     0x00080000
 #define INDIRECT_ADDRESS            0x00100000
 
 /* General */
@@ -397,11 +370,10 @@ struct iwl_eeprom_calib_info {
 #define EEPROM_BOARD_REVISION               (2*0x35)	/* 2  bytes */
 #define EEPROM_BOARD_PBA_NUMBER             (2*0x3B+1)	/* 9  bytes */
 #define EEPROM_VERSION                      (2*0x44)	/* 2  bytes */
-#define EEPROM_SKU_CAP                      (2*0x45)	/* 1  bytes */
+#define EEPROM_SKU_CAP                      (2*0x45)	/* 2  bytes */
 #define EEPROM_OEM_MODE                     (2*0x46)	/* 2  bytes */
 #define EEPROM_WOWLAN_MODE                  (2*0x47)	/* 2  bytes */
 #define EEPROM_RADIO_CONFIG                 (2*0x48)	/* 2  bytes */
-#define EEPROM_3945_M_VERSION               (2*0x4A)	/* 1  bytes */
 #define EEPROM_NUM_MAC_ADDRESS              (2*0x4C)	/* 2  bytes */
 
 /* The following masks are to be applied on EEPROM_RADIO_CONFIG */
@@ -504,6 +476,7 @@ struct iwl_eeprom_ops {
 int iwl_eeprom_init(struct iwl_priv *priv);
 void iwl_eeprom_free(struct iwl_priv *priv);
 int  iwl_eeprom_check_version(struct iwl_priv *priv);
+int  iwl_eeprom_check_sku(struct iwl_priv *priv);
 const u8 *iwl_eeprom_query_addr(const struct iwl_priv *priv, size_t offset);
 int iwlcore_eeprom_verify_signature(struct iwl_priv *priv);
 u16 iwl_eeprom_query16(const struct iwl_priv *priv, size_t offset);

@@ -102,10 +102,8 @@ extern struct agp_memory *agp_allocate_memory(struct agp_bridge_data *, size_t, 
 extern int agp_copy_info(struct agp_bridge_data *, struct agp_kern_info *);
 extern int agp_bind_memory(struct agp_memory *, off_t);
 extern int agp_unbind_memory(struct agp_memory *);
-extern int agp_rebind_memory(void);
 extern void agp_enable(struct agp_bridge_data *, u32);
 extern struct agp_bridge_data *agp_backend_acquire(struct pci_dev *);
 extern void agp_backend_release(struct agp_bridge_data *);
-extern void agp_flush_chipset(struct agp_bridge_data *);
 
 #endif				/* _AGP_BACKEND_H */

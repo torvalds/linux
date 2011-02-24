@@ -128,6 +128,7 @@ ebt_basic_match(const struct ebt_entry *e, const struct sk_buff *skb,
                 const struct net_device *in, const struct net_device *out)
 {
 	const struct ethhdr *h = eth_hdr(skb);
+	const struct net_bridge_port *p;
 	__be16 ethproto;
 	int verdict, i;
 
@@ -148,13 +149,11 @@ ebt_basic_match(const struct ebt_entry *e, const struct sk_buff *skb,
 	if (FWINV2(ebt_dev_check(e->out, out), EBT_IOUT))
 		return 1;
 	/* rcu_read_lock()ed by nf_hook_slow */
-	if (in && br_port_exists(in) &&
-	    FWINV2(ebt_dev_check(e->logical_in, br_port_get_rcu(in)->br->dev),
-		   EBT_ILOGICALIN))
+	if (in && (p = br_port_get_rcu(in)) != NULL &&
+	    FWINV2(ebt_dev_check(e->logical_in, p->br->dev), EBT_ILOGICALIN))
 		return 1;
-	if (out && br_port_exists(out) &&
-	    FWINV2(ebt_dev_check(e->logical_out, br_port_get_rcu(out)->br->dev),
-		   EBT_ILOGICALOUT))
+	if (out && (p = br_port_get_rcu(out)) != NULL &&
+	    FWINV2(ebt_dev_check(e->logical_out, p->br->dev), EBT_ILOGICALOUT))
 		return 1;
 
 	if (e->bitmask & EBT_SOURCEMAC) {
@@ -1148,7 +1147,7 @@ ebt_register_table(struct net *net, const struct ebt_table *input_table)
 	void *p;
 
 	if (input_table == NULL || (repl = input_table->table) == NULL ||
-	    repl->entries == 0 || repl->entries_size == 0 ||
+	    repl->entries == NULL || repl->entries_size == 0 ||
 	    repl->counters != NULL || input_table->private != NULL) {
 		BUGPRINT("Bad table data for ebt_register_table!!!\n");
 		return ERR_PTR(-EINVAL);

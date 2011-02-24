@@ -68,25 +68,25 @@ void __init aaec2000_map_io(void)
 /*
  * Interrupt handling routines
  */
-static void aaec2000_int_ack(unsigned int irq)
+static void aaec2000_int_ack(struct irq_data *d)
 {
-	IRQ_INTSR = 1 << irq;
+	IRQ_INTSR = 1 << d->irq;
 }
 
-static void aaec2000_int_mask(unsigned int irq)
+static void aaec2000_int_mask(struct irq_data *d)
 {
-	IRQ_INTENC |= (1 << irq);
+	IRQ_INTENC |= (1 << d->irq);
 }
 
-static void aaec2000_int_unmask(unsigned int irq)
+static void aaec2000_int_unmask(struct irq_data *d)
 {
-	IRQ_INTENS |= (1 << irq);
+	IRQ_INTENS |= (1 << d->irq);
 }
 
 static struct irq_chip aaec2000_irq_chip = {
-	.ack	= aaec2000_int_ack,
-	.mask	= aaec2000_int_mask,
-	.unmask	= aaec2000_int_unmask,
+	.irq_ack	= aaec2000_int_ack,
+	.irq_mask	= aaec2000_int_mask,
+	.irq_unmask	= aaec2000_int_unmask,
 };
 
 void __init aaec2000_init_irq(void)

@@ -42,7 +42,7 @@
  */
 #define PMCRAID_DRIVER_NAME		"PMC MaxRAID"
 #define PMCRAID_DEVFILE			"pmcsas"
-#define PMCRAID_DRIVER_VERSION		"2.0.3"
+#define PMCRAID_DRIVER_VERSION		"1.0.3"
 #define PMCRAID_DRIVER_DATE		__DATE__
 
 #define PMCRAID_FW_VERSION_1		0x002
@@ -333,11 +333,9 @@ struct pmcraid_config_table_entry {
 	__u8  lun[PMCRAID_LUN_LEN];
 } __attribute__((packed, aligned(4)));
 
-/* extended configuration table sizes are of 64 bytes in size */
-#define PMCRAID_CFGTE_EXT_SIZE	32
+/* extended configuration table sizes are also of 32 bytes in size */
 struct pmcraid_config_table_entry_ext {
 	struct pmcraid_config_table_entry cfgte;
-	__u8  cfgte_ext[PMCRAID_CFGTE_EXT_SIZE];
 };
 
 /* resource types (config_table_entry.resource_type values) */

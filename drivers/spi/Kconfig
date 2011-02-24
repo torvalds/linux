@@ -53,6 +53,14 @@ if SPI_MASTER
 
 comment "SPI Master Controller Drivers"
 
+config SPI_ATH79
+	tristate "Atheros AR71XX/AR724X/AR913X SPI controller driver"
+	depends on ATH79 && GENERIC_GPIO
+	select SPI_BITBANG
+	help
+	  This enables support for the SPI controller present on the
+	  Atheros AR71XX/AR724X/AR913X SoCs.
+
 config SPI_ATMEL
 	tristate "Atmel SPI Controller"
 	depends on (ARCH_AT91 || AVR32)
@@ -111,11 +119,14 @@ config SPI_COLDFIRE_QSPI
 	  will be called coldfire_qspi.
 
 config SPI_DAVINCI
-	tristate "SPI controller driver for DaVinci/DA8xx SoC's"
+	tristate "Texas Instruments DaVinci/DA8x/OMAP-L/AM1x SoC SPI controller"
 	depends on SPI_MASTER && ARCH_DAVINCI
 	select SPI_BITBANG
 	help
-	  SPI master controller for DaVinci and DA8xx SPI modules.
+	  SPI master controller for DaVinci/DA8x/OMAP-L/AM1x SPI modules.
+
+	  This driver can also be built as a module. The module will be called
+	  davinci_spi.
 
 config SPI_EP93XX
 	tristate "Cirrus Logic EP93xx SPI controller"
@@ -153,10 +164,10 @@ config SPI_IMX_VER_0_4
 	def_bool y if ARCH_MX31
 
 config SPI_IMX_VER_0_7
-	def_bool y if ARCH_MX25 || ARCH_MX35 || ARCH_MX51
+	def_bool y if ARCH_MX25 || ARCH_MX35 || ARCH_MX51 || ARCH_MX53
 
 config SPI_IMX_VER_2_3
-	def_bool y if ARCH_MX51
+	def_bool y if ARCH_MX51 || ARCH_MX53
 
 config SPI_IMX
 	tristate "Freescale i.MX SPI controllers"
@@ -267,12 +278,15 @@ config SPI_PPC4xx
 
 config SPI_PXA2XX
 	tristate "PXA2xx SSP SPI master"
-	depends on ARCH_PXA && EXPERIMENTAL
-	select PXA_SSP
+	depends on (ARCH_PXA || (X86_32 && PCI)) && EXPERIMENTAL
+	select PXA_SSP if ARCH_PXA
 	help
-	  This enables using a PXA2xx SSP port as a SPI master controller.
-	  The driver can be configured to use any SSP port and additional
-	  documentation can be found a Documentation/spi/pxa2xx.
+	  This enables using a PXA2xx or Sodaville SSP port as a SPI master
+	  controller. The driver can be configured to use any SSP port and
+	  additional documentation can be found a Documentation/spi/pxa2xx.
+
+config SPI_PXA2XX_PCI
+	def_bool SPI_PXA2XX && X86_32 && PCI
 
 config SPI_S3C24XX
 	tristate "Samsung S3C24XX series SPI"
@@ -304,8 +318,8 @@ config SPI_S3C24XX_GPIO
 
 config SPI_S3C64XX
 	tristate "Samsung S3C64XX series type SPI"
-	depends on ARCH_S3C64XX && EXPERIMENTAL
-	select S3C64XX_DMA
+	depends on (ARCH_S3C64XX || ARCH_S5P64X0)
+	select S3C64XX_DMA if ARCH_S3C64XX
 	help
 	  SPI driver for Samsung S3C64XX and newer SoCs.
 
@@ -353,7 +367,6 @@ config SPI_XILINX
 	tristate "Xilinx SPI controller common module"
 	depends on HAS_IOMEM && EXPERIMENTAL
 	select SPI_BITBANG
-	select SPI_XILINX_OF if (XILINX_VIRTEX || MICROBLAZE)
 	help
 	  This exposes the SPI controller IP from the Xilinx EDK.
 
@@ -361,19 +374,6 @@ config SPI_XILINX
 	  Product Specification document (DS464) for hardware details.
 
 	  Or for the DS570, see "XPS Serial Peripheral Interface (SPI) (v2.00b)"
-
-config SPI_XILINX_OF
-	tristate "Xilinx SPI controller OF device"
-	depends on SPI_XILINX && (XILINX_VIRTEX || MICROBLAZE)
-	help
-	  This is the OF driver for the SPI controller IP from the Xilinx EDK.
-
-config SPI_XILINX_PLTFM
-	tristate "Xilinx SPI controller platform device"
-	depends on SPI_XILINX
-	help
-	  This is the platform driver for the SPI controller IP
-	  from the Xilinx EDK.
 
 config SPI_NUC900
 	tristate "Nuvoton NUC900 series SPI"
@@ -395,6 +395,10 @@ config SPI_DESIGNWARE
 config SPI_DW_PCI
 	tristate "PCI interface driver for DW SPI core"
 	depends on SPI_DESIGNWARE && PCI
+
+config SPI_DW_MID_DMA
+	bool "DMA support for DW SPI controller on Intel Moorestown platform"
+	depends on SPI_DW_PCI && INTEL_MID_DMAC
 
 config SPI_DW_MMIO
 	tristate "Memory-mapped io interface driver for DW SPI core"

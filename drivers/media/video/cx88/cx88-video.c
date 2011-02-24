@@ -40,7 +40,6 @@
 #include "cx88.h"
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
-#include <media/wm8775.h>
 
 MODULE_DESCRIPTION("v4l2 driver module for cx2388x based TV cards");
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
@@ -977,7 +976,6 @@ int cx88_set_control(struct cx88_core *core, struct v4l2_control *ctl)
 	const struct cx88_ctrl *c = NULL;
 	u32 value,mask;
 	int i;
-	struct v4l2_control client_ctl;
 
 	for (i = 0; i < CX8800_CTLS; i++) {
 		if (cx8800_ctls[i].v.id == ctl->id) {
@@ -991,27 +989,6 @@ int cx88_set_control(struct cx88_core *core, struct v4l2_control *ctl)
 		ctl->value = c->v.minimum;
 	if (ctl->value > c->v.maximum)
 		ctl->value = c->v.maximum;
-
-	/* Pass changes onto any WM8775 */
-	client_ctl.id = ctl->id;
-	switch (ctl->id) {
-	case V4L2_CID_AUDIO_MUTE:
-		client_ctl.value = ctl->value;
-		break;
-	case V4L2_CID_AUDIO_VOLUME:
-		client_ctl.value = (ctl->value) ?
-			(0x90 + ctl->value) << 8 : 0;
-		break;
-	case V4L2_CID_AUDIO_BALANCE:
-		client_ctl.value = ctl->value << 9;
-		break;
-	default:
-		client_ctl.id = 0;
-		break;
-	}
-	if (client_ctl.id)
-		call_hw(core, WM8775_GID, core, s_ctrl, &client_ctl);
-
 	mask=c->mask;
 	switch (ctl->id) {
 	case V4L2_CID_AUDIO_BALANCE:
@@ -1178,15 +1155,6 @@ static int vidioc_enum_fmt_vid_cap (struct file *file, void  *priv,
 
 	return 0;
 }
-
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-static int vidiocgmbuf (struct file *file, void *priv, struct video_mbuf *mbuf)
-{
-	struct cx8800_fh           *fh  = priv;
-
-	return videobuf_cgmbuf (get_queue(fh), mbuf, 8);
-}
-#endif
 
 static int vidioc_reqbufs (struct file *file, void *priv, struct v4l2_requestbuffers *p)
 {
@@ -1558,9 +1526,7 @@ static int radio_queryctrl (struct file *file, void *priv,
 	if (c->id <  V4L2_CID_BASE ||
 		c->id >= V4L2_CID_LASTP1)
 		return -EINVAL;
-	if (c->id == V4L2_CID_AUDIO_MUTE ||
-		c->id == V4L2_CID_AUDIO_VOLUME ||
-		c->id == V4L2_CID_AUDIO_BALANCE) {
+	if (c->id == V4L2_CID_AUDIO_MUTE) {
 		for (i = 0; i < CX8800_CTLS; i++) {
 			if (cx8800_ctls[i].v.id == c->id)
 				break;
@@ -1731,9 +1697,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_ctrl        = vidioc_s_ctrl,
 	.vidioc_streamon      = vidioc_streamon,
 	.vidioc_streamoff     = vidioc_streamoff,
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf          = vidiocgmbuf,
-#endif
 	.vidioc_g_tuner       = vidioc_g_tuner,
 	.vidioc_s_tuner       = vidioc_s_tuner,
 	.vidioc_g_frequency   = vidioc_g_frequency,
@@ -1895,14 +1858,13 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 
 	if (core->board.audio_chip == V4L2_IDENT_WM8775)
 		v4l2_i2c_new_subdev(&core->v4l2_dev, &core->i2c_adap,
-				NULL, "wm8775", 0x36 >> 1, NULL);
+				"wm8775", 0x36 >> 1, NULL);
 
 	if (core->board.audio_chip == V4L2_IDENT_TVAUDIO) {
 		/* This probes for a tda9874 as is used on some
 		   Pixelview Ultra boards. */
-		v4l2_i2c_new_subdev(&core->v4l2_dev,
-				&core->i2c_adap,
-				NULL, "tvaudio", 0, I2C_ADDRS(0xb0 >> 1));
+		v4l2_i2c_new_subdev(&core->v4l2_dev, &core->i2c_adap,
+				"tvaudio", 0, I2C_ADDRS(0xb0 >> 1));
 	}
 
 	switch (core->boardnr) {

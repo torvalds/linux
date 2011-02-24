@@ -3,7 +3,7 @@
  * Inventra (Multidrop) Highspeed Dual-Role Controllers:  (M)HDRC.
  *
  * Board initialization should put one of these into dev->platform_data,
- * probably on some platform_device named "musb_hdrc".  It encapsulates
+ * probably on some platform_device named "musb-hdrc".  It encapsulates
  * key configuration differences between boards.
  */
 
@@ -120,14 +120,14 @@ struct musb_hdrc_platform_data {
 	/* Power the device on or off */
 	int		(*set_power)(int state);
 
-	/* Turn device clock on or off */
-	int		(*set_clock)(struct clk *clock, int is_on);
-
 	/* MUSB configuration-specific details */
 	struct musb_hdrc_config	*config;
 
 	/* Architecture specific board data	*/
 	void		*board_data;
+
+	/* Platform specific struct musb_ops pointer */
+	const void	*platform_ops;
 };
 
 

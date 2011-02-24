@@ -183,16 +183,16 @@ bfin_jc_circ_write(const unsigned char *buf, int count)
 }
 
 #ifndef CONFIG_BFIN_JTAG_COMM_CONSOLE
-# define acquire_console_sem()
-# define release_console_sem()
+# define console_lock()
+# define console_unlock()
 #endif
 static int
 bfin_jc_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
 	int i;
-	acquire_console_sem();
+	console_lock();
 	i = bfin_jc_circ_write(buf, count);
-	release_console_sem();
+	console_unlock();
 	wake_up_process(bfin_jc_kthread);
 	return i;
 }

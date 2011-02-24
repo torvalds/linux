@@ -154,12 +154,15 @@ static int try_to_fill_dentry(struct dentry *dentry, struct super_block *sb, str
  * yet completely filled in, and revalidate has to delay such
  * lookups..
  */
-static int autofs_revalidate(struct dentry * dentry, struct nameidata *nd)
+static int autofs_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
 	struct inode * dir;
 	struct autofs_sb_info *sbi;
 	struct autofs_dir_ent *ent;
 	int res;
+
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
 
 	lock_kernel();
 	dir = dentry->d_parent->d_inode;
@@ -237,7 +240,7 @@ static struct dentry *autofs_root_lookup(struct inode *dir, struct dentry *dentr
 	 *
 	 * We need to do this before we release the directory semaphore.
 	 */
-	dentry->d_op = &autofs_dentry_operations;
+	d_set_d_op(dentry, &autofs_dentry_operations);
 	dentry->d_flags |= DCACHE_AUTOFS_PENDING;
 	d_add(dentry, NULL);
 
