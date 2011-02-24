@@ -4051,6 +4051,7 @@ wlc_lcnphy_a1(phy_info_t *pi, int cal_type, int num_levels, int step_size_lg2)
 
 	phy_c32 = kmalloc(sizeof(u16) * 20, GFP_ATOMIC);
 	if (NULL == phy_c32) {
+		kfree(ptr);
 		return;
 	}
 	phy_c26 = read_phy_reg(pi, 0x6da);
