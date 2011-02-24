@@ -2461,8 +2461,88 @@ TRACE_EVENT(ocfs2_dentry_attach_lock_found,
 	),
 	TP_printk("%s %llu %llu", __get_str(name), __entry->parent, __entry->ino)
 );
-
 /* End of trace events for fs/ocfs2/dcache.c. */
+
+/* Trace events for fs/ocfs2/export.c. */
+
+TRACE_EVENT(ocfs2_get_dentry_begin,
+	TP_PROTO(void *sb, void *handle, unsigned long long blkno),
+	TP_ARGS(sb, handle, blkno),
+	TP_STRUCT__entry(
+		__field(void *, sb)
+		__field(void *, handle)
+		__field(unsigned long long, blkno)
+	),
+	TP_fast_assign(
+		__entry->sb = sb;
+		__entry->handle = handle;
+		__entry->blkno = blkno;
+	),
+	TP_printk("%p %p %llu", __entry->sb, __entry->handle, __entry->blkno)
+);
+
+DEFINE_OCFS2_INT_INT_EVENT(ocfs2_get_dentry_test_bit);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_get_dentry_stale);
+
+DEFINE_OCFS2_ULL_UINT_UINT_EVENT(ocfs2_get_dentry_generation);
+
+DEFINE_OCFS2_POINTER_EVENT(ocfs2_get_dentry_end);
+
+TRACE_EVENT(ocfs2_get_parent,
+	TP_PROTO(void *child, int len, const char *name,
+		 unsigned long long ino),
+	TP_ARGS(child, len, name, ino),
+	TP_STRUCT__entry(
+		__field(void *,	child)
+		__field(int, len)
+		__string(name, name)
+		__field(unsigned long long, ino)
+	),
+	TP_fast_assign(
+		__entry->child = child;
+		__entry->len = len;
+		__assign_str(name, name);
+		__entry->ino = ino;
+	),
+	TP_printk("%p %.*s %llu", __entry->child, __entry->len,
+		  __get_str(name), __entry->ino)
+);
+
+DEFINE_OCFS2_POINTER_EVENT(ocfs2_get_parent_end);
+
+TRACE_EVENT(ocfs2_encode_fh_begin,
+	TP_PROTO(void *dentry, int name_len, const char *name,
+		 void *fh, int len, int connectable),
+	TP_ARGS(dentry, name_len, name, fh, len, connectable),
+	TP_STRUCT__entry(
+		__field(void *, dentry)
+		__field(int, name_len)
+		__string(name, name)
+		__field(void *, fh)
+		__field(int, len)
+		__field(int, connectable)
+	),
+	TP_fast_assign(
+		__entry->dentry = dentry;
+		__entry->name_len = name_len;
+		__assign_str(name, name);
+		__entry->fh = fh;
+		__entry->len = len;
+		__entry->connectable = connectable;
+	),
+	TP_printk("%p %.*s %p %d %d", __entry->dentry, __entry->name_len,
+		  __get_str(name), __entry->fh, __entry->len,
+		  __entry->connectable)
+);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_encode_fh_self);
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_encode_fh_parent);
+
+DEFINE_OCFS2_INT_EVENT(ocfs2_encode_fh_type);
+
+/* End of trace events for fs/ocfs2/export.c. */
 #endif /* _TRACE_OCFS2_H */
 
 /* This part must be outside protection */

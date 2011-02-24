@@ -101,7 +101,6 @@
 #define ML_VOTE		0x0000000001000000ULL /* ocfs2 node messaging  */
 #define ML_CONN		0x0000000004000000ULL /* net connection management */
 #define ML_QUORUM	0x0000000008000000ULL /* net connection quorum */
-#define ML_EXPORT	0x0000000010000000ULL /* ocfs2 export operations */
 #define ML_BASTS	0x0000000100000000ULL /* dlmglue asts and basts */
 #define ML_CLUSTER	0x0000000400000000ULL /* cluster stack */
 
