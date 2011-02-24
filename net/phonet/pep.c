@@ -527,7 +527,6 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 
 #ifdef CONFIG_PHONET_PIPECTRLR
 	case PNS_PEP_DISCONNECT_RESP:
-		pn->pipe_state = PIPE_IDLE;
 		sk->sk_state = TCP_CLOSE;
 		break;
 #endif
@@ -539,7 +538,6 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 
 #ifdef CONFIG_PHONET_PIPECTRLR
 	case PNS_PEP_ENABLE_RESP:
-		pn->pipe_state = PIPE_ENABLED;
 		pipe_handler_send_ind(sk, PNS_PIPE_ENABLED_IND_UTID,
 				PNS_PIPE_ENABLED_IND);
 
@@ -574,7 +572,6 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 
 #ifdef CONFIG_PHONET_PIPECTRLR
 	case PNS_PEP_DISABLE_RESP:
-		pn->pipe_state = PIPE_DISABLED;
 		atomic_set(&pn->tx_credits, 0);
 		pipe_handler_send_ind(sk, PNS_PIPE_DISABLED_IND_UTID,
 				PNS_PIPE_DISABLED_IND);
@@ -692,7 +689,6 @@ static int pep_connresp_rcv(struct sock *sk, struct sk_buff *skb)
 			remote_pref_rx_fc,
 			sizeof(host_pref_rx_fc));
 
-	pn->pipe_state = PIPE_DISABLED;
 	sk->sk_state = TCP_SYN_RECV;
 	sk->sk_backlog_rcv = pipe_do_rcv;
 	sk->sk_destruct = pipe_destruct;
@@ -941,21 +937,18 @@ static void pep_sock_close(struct sock *sk, long timeout)
 		sk_for_each_safe(sknode, p, n, &pn->ackq)
 			sk_del_node_init(sknode);
 		sk->sk_state = TCP_CLOSE;
-	} else if ((1 << sk->sk_state) & (TCPF_SYN_RECV|TCPF_ESTABLISHED))
+	} else if ((1 << sk->sk_state) & (TCPF_SYN_RECV|TCPF_ESTABLISHED)) {
+#ifndef CONFIG_PHONET_PIPECTRLR
 		/* Forcefully remove dangling Phonet pipe */
 		pipe_do_remove(sk);
-
-#ifdef CONFIG_PHONET_PIPECTRLR
-	if (pn->pipe_state != PIPE_IDLE) {
+#else
 		/* send pep disconnect request */
 		pipe_handler_send_req(sk,
 				PNS_PEP_DISCONNECT_UTID, PNS_PEP_DISCONNECT_REQ,
 				GFP_KERNEL);
-
-		pn->pipe_state = PIPE_IDLE;
 		sk->sk_state = TCP_CLOSE;
-	}
 #endif
+	}
 
 	ifindex = pn->ifindex;
 	pn->ifindex = 0;
@@ -1101,10 +1094,6 @@ static int pep_setsockopt(struct sock *sk, int level, int optname,
 #ifdef CONFIG_PHONET_PIPECTRLR
 	case PNPIPE_PIPE_HANDLE:
 		if (val) {
-			if (pn->pipe_state > PIPE_IDLE) {
-				err = -EFAULT;
-				break;
-			}
 			pn->pipe_handle = val;
 			break;
 		}
@@ -1138,7 +1127,7 @@ static int pep_setsockopt(struct sock *sk, int level, int optname,
 
 #ifdef CONFIG_PHONET_PIPECTRLR
 	case PNPIPE_ENABLE:
-		if (pn->pipe_state <= PIPE_IDLE) {
+		if ((1 << sk->sk_state) & ~(TCPF_SYN_RECV|TCPF_ESTABLISHED)) {
 			err = -ENOTCONN;
 			break;
 		}
@@ -1177,9 +1166,7 @@ static int pep_getsockopt(struct sock *sk, int level, int optname,
 
 #ifdef CONFIG_PHONET_PIPECTRLR
 	case PNPIPE_ENABLE:
-		if (pn->pipe_state <= PIPE_IDLE)
-			return -ENOTCONN;
-		val = pn->pipe_state != PIPE_DISABLED;
+		val = sk->sk_state == TCP_ESTABLISHED;
 		break;
 #endif
 

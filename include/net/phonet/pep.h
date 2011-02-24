@@ -45,9 +45,6 @@ struct pep_sock {
 	u8			tx_fc;	/* TX flow control */
 	u8			init_enable;	/* auto-enable at creation */
 	u8			aligned;
-#ifdef CONFIG_PHONET_PIPECTRLR
-	u8			pipe_state;
-#endif
 };
 
 static inline struct pep_sock *pep_sk(struct sock *sk)
@@ -177,12 +174,6 @@ enum {
 #define PNS_PIPE_DISABLED_IND_UTID     0x11
 #define PNS_PEP_DISCONNECT_UTID        0x06
 
-/* Used for tracking state of a pipe */
-enum {
-	PIPE_IDLE,
-	PIPE_DISABLED,
-	PIPE_ENABLED,
-};
 #endif /* CONFIG_PHONET_PIPECTRLR */
 
 #endif
