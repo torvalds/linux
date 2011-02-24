@@ -341,11 +341,6 @@ static int siena_init_nic(struct efx_nic *efx)
 	       FRF_CZ_RX_RSS_IPV6_TKEY_HI_WIDTH / 8);
 	efx_writeo(efx, &temp, FR_CZ_RX_RSS_IPV6_REG3);
 
-	if (efx_nic_rx_xoff_thresh >= 0 || efx_nic_rx_xon_thresh >= 0)
-		/* No MCDI operation has been defined to set thresholds */
-		netif_err(efx, hw, efx->net_dev,
-			  "ignoring RX flow control thresholds\n");
-
 	/* Enable event logging */
 	rc = efx_mcdi_log_ctrl(efx, true, false, 0);
 	if (rc)

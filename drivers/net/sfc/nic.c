@@ -41,26 +41,6 @@
 #define RX_DC_ENTRIES 64
 #define RX_DC_ENTRIES_ORDER 3
 
-/* RX FIFO XOFF watermark
- *
- * When the amount of the RX FIFO increases used increases past this
- * watermark send XOFF. Only used if RX flow control is enabled (ethtool -A)
- * This also has an effect on RX/TX arbitration
- */
-int efx_nic_rx_xoff_thresh = -1;
-module_param_named(rx_xoff_thresh_bytes, efx_nic_rx_xoff_thresh, int, 0644);
-MODULE_PARM_DESC(rx_xoff_thresh_bytes, "RX fifo XOFF threshold");
-
-/* RX FIFO XON watermark
- *
- * When the amount of the RX FIFO used decreases below this
- * watermark send XON. Only used if TX flow control is enabled (ethtool -A)
- * This also has an effect on RX/TX arbitration
- */
-int efx_nic_rx_xon_thresh = -1;
-module_param_named(rx_xon_thresh_bytes, efx_nic_rx_xon_thresh, int, 0644);
-MODULE_PARM_DESC(rx_xon_thresh_bytes, "RX fifo XON threshold");
-
 /* If EFX_MAX_INT_ERRORS internal errors occur within
  * EFX_INT_ERROR_EXPIRE seconds, we consider the NIC broken and
  * disable it.
