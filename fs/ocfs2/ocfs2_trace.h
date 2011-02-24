@@ -2642,6 +2642,52 @@ DEFINE_OCFS2_ULL_EVENT(ocfs2_recover_orphans_iput);
 DEFINE_OCFS2_INT_EVENT(ocfs2_wait_on_mount);
 
 /* End of trace events for fs/ocfs2/journal.c. */
+
+/* Trace events for fs/ocfs2/buffer_head_io.c. */
+
+DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_read_blocks_sync);
+
+DEFINE_OCFS2_ULL_EVENT(ocfs2_read_blocks_sync_jbd);
+
+DEFINE_OCFS2_ULL_INT_INT_INT_EVENT(ocfs2_read_blocks_bh);
+
+DEFINE_OCFS2_ULL_INT_INT_INT_EVENT(ocfs2_read_blocks_end);
+
+TRACE_EVENT(ocfs2_write_block,
+	TP_PROTO(unsigned long long block, void *ci),
+	TP_ARGS(block, ci),
+	TP_STRUCT__entry(
+		__field(unsigned long long, block)
+		__field(void *, ci)
+	),
+	TP_fast_assign(
+		__entry->block = block;
+		__entry->ci = ci;
+	),
+	TP_printk("%llu %p", __entry->block, __entry->ci)
+);
+
+TRACE_EVENT(ocfs2_read_blocks_begin,
+	TP_PROTO(void *ci, unsigned long long block,
+		 unsigned int nr, int flags),
+	TP_ARGS(ci, block, nr, flags),
+	TP_STRUCT__entry(
+		__field(void *, ci)
+		__field(unsigned long long, block)
+		__field(unsigned int, nr)
+		__field(int, flags)
+	),
+	TP_fast_assign(
+		__entry->ci = ci;
+		__entry->block = block;
+		__entry->nr = nr;
+		__entry->flags = flags;
+	),
+	TP_printk("%p %llu %u %d", __entry->ci, __entry->block,
+		  __entry->nr, __entry->flags)
+);
+
+/* End of trace events for fs/ocfs2/buffer_head_io.c. */
 #endif /* _TRACE_OCFS2_H */
 
 /* This part must be outside protection */
