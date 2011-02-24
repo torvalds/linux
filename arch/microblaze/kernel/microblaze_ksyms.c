@@ -46,3 +46,14 @@ EXPORT_SYMBOL(empty_zero_page);
 #endif
 
 EXPORT_SYMBOL(mbc);
+
+extern void __divsi3(void);
+EXPORT_SYMBOL(__divsi3);
+extern void __modsi3(void);
+EXPORT_SYMBOL(__modsi3);
+extern void __mulsi3(void);
+EXPORT_SYMBOL(__mulsi3);
+extern void __udivsi3(void);
+EXPORT_SYMBOL(__udivsi3);
+extern void __umodsi3(void);
+EXPORT_SYMBOL(__umodsi3);
