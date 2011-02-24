@@ -428,19 +428,19 @@ static int pn_socket_listen(struct socket *sock, int backlog)
 	struct sock *sk = sock->sk;
 	int err = 0;
 
-	if (sock->state != SS_UNCONNECTED)
-		return -EINVAL;
 	if (pn_socket_autobind(sock))
 		return -ENOBUFS;
 
 	lock_sock(sk);
-	if (sk->sk_state != TCP_CLOSE) {
+	if (sock->state != SS_UNCONNECTED) {
 		err = -EINVAL;
 		goto out;
 	}
 
-	sk->sk_state = TCP_LISTEN;
-	sk->sk_ack_backlog = 0;
+	if (sk->sk_state != TCP_LISTEN) {
+		sk->sk_state = TCP_LISTEN;
+		sk->sk_ack_backlog = 0;
+	}
 	sk->sk_max_ack_backlog = backlog;
 out:
 	release_sock(sk);
