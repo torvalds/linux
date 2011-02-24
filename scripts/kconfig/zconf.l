@@ -299,6 +299,7 @@ void zconf_initscan(const char *name)
 
 void zconf_nextfile(const char *name)
 {
+	struct file *iter;
 	struct file *file = file_lookup(name);
 	struct buffer *buf = malloc(sizeof(*buf));
 	memset(buf, 0, sizeof(*buf));
@@ -314,16 +315,24 @@ void zconf_nextfile(const char *name)
 	buf->parent = current_buf;
 	current_buf = buf;
 
-	if (file->flags & FILE_BUSY) {
-		printf("%s:%d: do not source '%s' from itself\n",
-		       zconf_curname(), zconf_lineno(), name);
-		exit(1);
-	}
-	if (file->flags & FILE_SCANNED) {
-		printf("%s:%d: file '%s' is already sourced from '%s'\n",
-		       zconf_curname(), zconf_lineno(), name,
-		       file->parent->name);
-		exit(1);
+	for (iter = current_file->parent; iter; iter = iter->parent ) {
+		if (!strcmp(current_file->name,iter->name) ) {
+			printf("%s:%d: recursive inclusion detected. "
+			       "Inclusion path:\n  current file : '%s'\n",
+			       zconf_curname(), zconf_lineno(),
+			       zconf_curname());
+			iter = current_file->parent;
+			while (iter && \
+			       strcmp(iter->name,current_file->name)) {
+				printf("  included from: '%s:%d'\n",
+				       iter->name, iter->lineno-1);
+				iter = iter->parent;
+			}
+			if (iter)
+				printf("  included from: '%s:%d'\n",
+				       iter->name, iter->lineno+1);
+			exit(1);
+		}
 	}
 	file->flags |= FILE_BUSY;
 	file->lineno = 1;
