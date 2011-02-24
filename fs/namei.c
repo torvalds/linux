@@ -1407,22 +1407,19 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		err = do_lookup(nd, &this, &next, &inode);
 		if (err)
 			break;
-		err = -ENOENT;
-		if (!inode)
-			goto out_dput;
 
-		if (inode->i_op->follow_link) {
+		if (inode && inode->i_op->follow_link) {
 			err = do_follow_link(inode, &next, nd);
 			if (err)
 				goto return_err;
 			nd->inode = nd->path.dentry->d_inode;
-			err = -ENOENT;
-			if (!nd->inode)
-				break;
 		} else {
 			path_to_nameidata(&next, nd);
 			nd->inode = inode;
 		}
+		err = -ENOENT;
+		if (!nd->inode)
+			break;
 		err = -ENOTDIR; 
 		if (!nd->inode->i_op->lookup)
 			break;
@@ -1472,10 +1469,6 @@ lookup_parent:
 		nd->last = this;
 		nd->last_type = type;
 		return 0;
-out_dput:
-		if (!(nd->flags & LOOKUP_RCU))
-			path_put_conditional(&next, nd);
-		break;
 	}
 	if (!(nd->flags & LOOKUP_RCU))
 		path_put(&nd->path);
