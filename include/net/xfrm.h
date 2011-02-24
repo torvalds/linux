@@ -1334,8 +1334,8 @@ extern int xfrm_state_walk(struct net *net, struct xfrm_state_walk *walk,
 			   int (*func)(struct xfrm_state *, int, void*), void *);
 extern void xfrm_state_walk_done(struct xfrm_state_walk *walk);
 extern struct xfrm_state *xfrm_state_alloc(struct net *net);
-extern struct xfrm_state *xfrm_state_find(xfrm_address_t *daddr,
-					  xfrm_address_t *saddr, 
+extern struct xfrm_state *xfrm_state_find(const xfrm_address_t *daddr,
+					  const xfrm_address_t *saddr,
 					  const struct flowi *fl,
 					  struct xfrm_tmpl *tmpl,
 					  struct xfrm_policy *pol, int *err,
