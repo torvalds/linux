@@ -1812,6 +1812,10 @@ static int __devinit omap_mcbsp_probe(struct platform_device *pdev)
 	mcbsp->tx_irq = platform_get_irq_byname(pdev, "tx");
 	mcbsp->rx_irq = platform_get_irq_byname(pdev, "rx");
 
+	/* From OMAP4 there will be a single irq line */
+	if (mcbsp->tx_irq == -ENXIO)
+		mcbsp->tx_irq = platform_get_irq(pdev, 0);
+
 	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "rx");
 	if (!res) {
 		dev_err(&pdev->dev, "%s:mcbsp%d has invalid rx DMA channel\n",

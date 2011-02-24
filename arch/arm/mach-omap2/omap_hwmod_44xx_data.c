@@ -25,6 +25,7 @@
 #include <plat/gpio.h>
 #include <plat/dma.h>
 #include <plat/mcspi.h>
+#include <plat/mcbsp.h>
 
 #include "omap_hwmod_common_data.h"
 
@@ -2737,6 +2738,7 @@ static struct omap_hwmod_class_sysconfig omap44xx_mcbsp_sysc = {
 static struct omap_hwmod_class omap44xx_mcbsp_hwmod_class = {
 	.name	= "mcbsp",
 	.sysc	= &omap44xx_mcbsp_sysc,
+	.rev	= MCBSP_CONFIG_TYPE4,
 };
 
 /* mcbsp1 */
@@ -2752,6 +2754,7 @@ static struct omap_hwmod_dma_info omap44xx_mcbsp1_sdma_reqs[] = {
 
 static struct omap_hwmod_addr_space omap44xx_mcbsp1_addrs[] = {
 	{
+		.name		= "mpu",
 		.pa_start	= 0x40122000,
 		.pa_end		= 0x401220ff,
 		.flags		= ADDR_TYPE_RT
@@ -2770,6 +2773,7 @@ static struct omap_hwmod_ocp_if omap44xx_l4_abe__mcbsp1 = {
 
 static struct omap_hwmod_addr_space omap44xx_mcbsp1_dma_addrs[] = {
 	{
+		.name		= "dma",
 		.pa_start	= 0x49022000,
 		.pa_end		= 0x490220ff,
 		.flags		= ADDR_TYPE_RT
@@ -2823,6 +2827,7 @@ static struct omap_hwmod_dma_info omap44xx_mcbsp2_sdma_reqs[] = {
 
 static struct omap_hwmod_addr_space omap44xx_mcbsp2_addrs[] = {
 	{
+		.name		= "mpu",
 		.pa_start	= 0x40124000,
 		.pa_end		= 0x401240ff,
 		.flags		= ADDR_TYPE_RT
@@ -2841,6 +2846,7 @@ static struct omap_hwmod_ocp_if omap44xx_l4_abe__mcbsp2 = {
 
 static struct omap_hwmod_addr_space omap44xx_mcbsp2_dma_addrs[] = {
 	{
+		.name		= "dma",
 		.pa_start	= 0x49024000,
 		.pa_end		= 0x490240ff,
 		.flags		= ADDR_TYPE_RT
@@ -2894,6 +2900,7 @@ static struct omap_hwmod_dma_info omap44xx_mcbsp3_sdma_reqs[] = {
 
 static struct omap_hwmod_addr_space omap44xx_mcbsp3_addrs[] = {
 	{
+		.name		= "mpu",
 		.pa_start	= 0x40126000,
 		.pa_end		= 0x401260ff,
 		.flags		= ADDR_TYPE_RT
@@ -2912,6 +2919,7 @@ static struct omap_hwmod_ocp_if omap44xx_l4_abe__mcbsp3 = {
 
 static struct omap_hwmod_addr_space omap44xx_mcbsp3_dma_addrs[] = {
 	{
+		.name		= "dma",
 		.pa_start	= 0x49026000,
 		.pa_end		= 0x490260ff,
 		.flags		= ADDR_TYPE_RT
