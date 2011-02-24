@@ -183,10 +183,11 @@ static int wl_ops_start(struct ieee80211_hw *hw)
 
 static void wl_ops_stop(struct ieee80211_hw *hw)
 {
+#ifdef BRCMDBG
 	struct wl_info *wl = hw->priv;
 	ASSERT(wl);
+#endif /*BRCMDBG*/
 	ieee80211_stop_queues(hw);
-	return;
 }
 
 static int
