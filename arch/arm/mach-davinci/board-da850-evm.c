@@ -29,6 +29,8 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/tps6507x.h>
 #include <linux/input/tps6507x-ts.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/flash.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -38,6 +40,7 @@
 #include <mach/nand.h>
 #include <mach/mux.h>
 #include <mach/aemif.h>
+#include <mach/spi.h>
 
 #define DA850_EVM_PHY_ID		"0:00"
 #define DA850_LCD_PWR_PIN		GPIO_TO_PIN(2, 8)
@@ -47,6 +50,70 @@
 #define DA850_MMCSD_WP_PIN		GPIO_TO_PIN(4, 1)
 
 #define DA850_MII_MDIO_CLKEN_PIN	GPIO_TO_PIN(2, 6)
+
+static struct mtd_partition da850evm_spiflash_part[] = {
+	[0] = {
+		.name = "UBL",
+		.offset = 0,
+		.size = SZ_64K,
+		.mask_flags = MTD_WRITEABLE,
+	},
+	[1] = {
+		.name = "U-Boot",
+		.offset = MTDPART_OFS_APPEND,
+		.size = SZ_512K,
+		.mask_flags = MTD_WRITEABLE,
+	},
+	[2] = {
+		.name = "U-Boot-Env",
+		.offset = MTDPART_OFS_APPEND,
+		.size = SZ_64K,
+		.mask_flags = MTD_WRITEABLE,
+	},
+	[3] = {
+		.name = "Kernel",
+		.offset = MTDPART_OFS_APPEND,
+		.size = SZ_2M + SZ_512K,
+		.mask_flags = 0,
+	},
+	[4] = {
+		.name = "Filesystem",
+		.offset = MTDPART_OFS_APPEND,
+		.size = SZ_4M,
+		.mask_flags = 0,
+	},
+	[5] = {
+		.name = "MAC-Address",
+		.offset = SZ_8M - SZ_64K,
+		.size = SZ_64K,
+		.mask_flags = MTD_WRITEABLE,
+	},
+};
+
+static struct flash_platform_data da850evm_spiflash_data = {
+	.name		= "m25p80",
+	.parts		= da850evm_spiflash_part,
+	.nr_parts	= ARRAY_SIZE(da850evm_spiflash_part),
+	.type		= "m25p64",
+};
+
+static struct davinci_spi_config da850evm_spiflash_cfg = {
+	.io_type	= SPI_IO_TYPE_DMA,
+	.c2tdelay	= 8,
+	.t2cdelay	= 8,
+};
+
+static struct spi_board_info da850evm_spi_info[] = {
+	{
+		.modalias		= "m25p80",
+		.platform_data		= &da850evm_spiflash_data,
+		.controller_data	= &da850evm_spiflash_cfg,
+		.mode			= SPI_MODE_0,
+		.max_speed_hz		= 30000000,
+		.bus_num		= 1,
+		.chip_select		= 0,
+	},
+};
 
 static struct mtd_partition da850_evm_norflash_partition[] = {
 	{
@@ -1166,6 +1233,12 @@ static __init void da850_evm_init(void)
 	ret = da850_register_pm(&da850_pm_device);
 	if (ret)
 		pr_warning("da850_evm_init: suspend registration failed: %d\n",
+				ret);
+
+	ret = da8xx_register_spi(1, da850evm_spi_info,
+				 ARRAY_SIZE(da850evm_spi_info));
+	if (ret)
+		pr_warning("da850_evm_init: spi 1 registration failed: %d\n",
 				ret);
 }
 
