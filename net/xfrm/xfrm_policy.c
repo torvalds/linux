@@ -2736,8 +2736,8 @@ EXPORT_SYMBOL_GPL(xfrm_audit_policy_delete);
 #endif
 
 #ifdef CONFIG_XFRM_MIGRATE
-static int xfrm_migrate_selector_match(struct xfrm_selector *sel_cmp,
-				       struct xfrm_selector *sel_tgt)
+static int xfrm_migrate_selector_match(const struct xfrm_selector *sel_cmp,
+				       const struct xfrm_selector *sel_tgt)
 {
 	if (sel_cmp->proto == IPSEC_ULPROTO_ANY) {
 		if (sel_tgt->family == sel_cmp->family &&
@@ -2757,7 +2757,7 @@ static int xfrm_migrate_selector_match(struct xfrm_selector *sel_cmp,
 	return 0;
 }
 
-static struct xfrm_policy * xfrm_migrate_policy_find(struct xfrm_selector *sel,
+static struct xfrm_policy * xfrm_migrate_policy_find(const struct xfrm_selector *sel,
 						     u8 dir, u8 type)
 {
 	struct xfrm_policy *pol, *ret = NULL;
@@ -2897,7 +2897,7 @@ static int xfrm_migrate_check(const struct xfrm_migrate *m, int num_migrate)
 	return 0;
 }
 
-int xfrm_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
+int xfrm_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
 		 struct xfrm_migrate *m, int num_migrate,
 		 struct xfrm_kmaddress *k)
 {

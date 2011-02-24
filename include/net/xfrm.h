@@ -1493,7 +1493,7 @@ extern int km_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
 extern struct xfrm_state * xfrm_migrate_state_find(struct xfrm_migrate *m);
 extern struct xfrm_state * xfrm_state_migrate(struct xfrm_state *x,
 					      struct xfrm_migrate *m);
-extern int xfrm_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
+extern int xfrm_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
 			struct xfrm_migrate *m, int num_bundles,
 			struct xfrm_kmaddress *k);
 #endif
