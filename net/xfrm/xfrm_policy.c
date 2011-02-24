@@ -1525,7 +1525,7 @@ xfrm_dst_alloc_copy(void **target, const void *src, int size)
 }
 
 static int inline
-xfrm_dst_update_parent(struct dst_entry *dst, struct xfrm_selector *sel)
+xfrm_dst_update_parent(struct dst_entry *dst, const struct xfrm_selector *sel)
 {
 #ifdef CONFIG_XFRM_SUB_POLICY
 	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
