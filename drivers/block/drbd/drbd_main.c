@@ -1242,7 +1242,7 @@ static int _drbd_send_ack(struct drbd_conf *mdev, enum drbd_packet cmd,
 	p.sector   = sector;
 	p.block_id = block_id;
 	p.blksize  = blksize;
-	p.seq_num  = cpu_to_be32(atomic_add_return(1, &mdev->packet_seq));
+	p.seq_num  = cpu_to_be32(atomic_inc_return(&mdev->packet_seq));
 
 	if (!mdev->tconn->meta.socket || mdev->state.conn < C_CONNECTED)
 		return false;
@@ -1530,7 +1530,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 	prepare_header(mdev, &p.head, P_DATA, sizeof(p) - sizeof(struct p_header) + dgs + req->i.size);
 	p.sector   = cpu_to_be64(req->i.sector);
 	p.block_id = (unsigned long)req;
-	p.seq_num  = cpu_to_be32(req->seq_num = atomic_add_return(1, &mdev->packet_seq));
+	p.seq_num  = cpu_to_be32(req->seq_num = atomic_inc_return(&mdev->packet_seq));
 
 	dp_flags = bio_flags_to_wire(mdev, req->master_bio->bi_rw);
 
