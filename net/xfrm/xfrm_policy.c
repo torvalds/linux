@@ -1994,7 +1994,7 @@ int __xfrm_decode_session(struct sk_buff *skb, struct flowi *fl,
 }
 EXPORT_SYMBOL(__xfrm_decode_session);
 
-static inline int secpath_has_nontransport(struct sec_path *sp, int k, int *idxp)
+static inline int secpath_has_nontransport(const struct sec_path *sp, int k, int *idxp)
 {
 	for (; k < sp->len; k++) {
 		if (sp->xvec[k]->props.mode != XFRM_MODE_TRANSPORT) {
