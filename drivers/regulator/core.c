@@ -2565,8 +2565,11 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 			init_data->consumer_supplies[i].dev,
 			init_data->consumer_supplies[i].dev_name,
 			init_data->consumer_supplies[i].supply);
-		if (ret < 0)
+		if (ret < 0) {
+			dev_err(dev, "Failed to set supply %s\n",
+				init_data->consumer_supplies[i].supply);
 			goto unset_supplies;
+		}
 	}
 
 	list_add(&rdev->list, &regulator_list);
