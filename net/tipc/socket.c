@@ -2,7 +2,7 @@
  * net/tipc/socket.c: TIPC socket API
  *
  * Copyright (c) 2001-2007, Ericsson AB
- * Copyright (c) 2004-2008, Wind River Systems
+ * Copyright (c) 2004-2008, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -241,7 +241,6 @@ static int tipc_create(struct net *net, struct socket *sock, int protocol,
 			tipc_set_portunreliable(tp_ptr->ref, 1);
 	}
 
-	atomic_inc(&tipc_user_count);
 	return 0;
 }
 
@@ -321,7 +320,6 @@ static int release(struct socket *sock)
 	sock_put(sk);
 	sock->sk = NULL;
 
-	atomic_dec(&tipc_user_count);
 	return res;
 }
 
@@ -495,6 +493,8 @@ static int dest_name_check(struct sockaddr_tipc *dest, struct msghdr *m)
 	if (likely(dest->addr.name.name.type != TIPC_CFG_SRV))
 		return -EACCES;
 
+	if (!m->msg_iovlen || (m->msg_iov[0].iov_len < sizeof(hdr)))
+		return -EMSGSIZE;
 	if (copy_from_user(&hdr, m->msg_iov[0].iov_base, sizeof(hdr)))
 		return -EFAULT;
 	if ((ntohs(hdr.tcm_type) & 0xC000) && (!capable(CAP_NET_ADMIN)))

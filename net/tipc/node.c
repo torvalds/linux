@@ -2,7 +2,7 @@
  * net/tipc/node.c: TIPC node management routines
  *
  * Copyright (c) 2000-2006, Ericsson AB
- * Copyright (c) 2005-2006, Wind River Systems
+ * Copyright (c) 2005-2006, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -238,7 +238,7 @@ struct tipc_node *tipc_node_attach_link(struct link *l_ptr)
 			return n_ptr;
 		}
 		err("Attempt to establish second link on <%s> to %s\n",
-		    l_ptr->b_ptr->publ.name,
+		    l_ptr->b_ptr->name,
 		    tipc_addr_string_fill(addr_string, l_ptr->addr));
 	}
 	return NULL;

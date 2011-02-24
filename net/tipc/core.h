@@ -2,7 +2,7 @@
  * net/tipc/core.h: Include file for TIPC global declarations
  *
  * Copyright (c) 2005-2006, Ericsson AB
- * Copyright (c) 2005-2007, Wind River Systems
+ * Copyright (c) 2005-2007, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -161,7 +161,6 @@ extern int tipc_remote_management;
 extern int tipc_mode;
 extern int tipc_random;
 extern const char tipc_alphabet[];
-extern atomic_t tipc_user_count;
 
 
 /*

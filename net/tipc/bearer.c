@@ -2,7 +2,7 @@
  * net/tipc/bearer.c: TIPC bearer code
  *
  * Copyright (c) 1996-2006, Ericsson AB
- * Copyright (c) 2004-2006, Wind River Systems
+ * Copyright (c) 2004-2006, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@
 static struct media media_list[MAX_MEDIA];
 static u32 media_count;
 
-struct bearer tipc_bearers[MAX_BEARERS];
+struct tipc_bearer tipc_bearers[MAX_BEARERS];
 
 /**
  * media_name_valid - validate media name
@@ -278,13 +278,13 @@ static int bearer_name_validate(const char *name,
  * bearer_find - locates bearer object with matching bearer name
  */
 
-static struct bearer *bearer_find(const char *name)
+static struct tipc_bearer *bearer_find(const char *name)
 {
-	struct bearer *b_ptr;
+	struct tipc_bearer *b_ptr;
 	u32 i;
 
 	for (i = 0, b_ptr = tipc_bearers; i < MAX_BEARERS; i++, b_ptr++) {
-		if (b_ptr->active && (!strcmp(b_ptr->publ.name, name)))
+		if (b_ptr->active && (!strcmp(b_ptr->name, name)))
 			return b_ptr;
 	}
 	return NULL;
@@ -294,16 +294,16 @@ static struct bearer *bearer_find(const char *name)
  * tipc_bearer_find_interface - locates bearer object with matching interface name
  */
 
-struct bearer *tipc_bearer_find_interface(const char *if_name)
+struct tipc_bearer *tipc_bearer_find_interface(const char *if_name)
 {
-	struct bearer *b_ptr;
+	struct tipc_bearer *b_ptr;
 	char *b_if_name;
 	u32 i;
 
 	for (i = 0, b_ptr = tipc_bearers; i < MAX_BEARERS; i++, b_ptr++) {
 		if (!b_ptr->active)
 			continue;
-		b_if_name = strchr(b_ptr->publ.name, ':') + 1;
+		b_if_name = strchr(b_ptr->name, ':') + 1;
 		if (!strcmp(b_if_name, if_name))
 			return b_ptr;
 	}
@@ -318,7 +318,7 @@ struct sk_buff *tipc_bearer_get_names(void)
 {
 	struct sk_buff *buf;
 	struct media *m_ptr;
-	struct bearer *b_ptr;
+	struct tipc_bearer *b_ptr;
 	int i, j;
 
 	buf = tipc_cfg_reply_alloc(MAX_BEARERS * TLV_SPACE(TIPC_MAX_BEARER_NAME));
@@ -331,8 +331,8 @@ struct sk_buff *tipc_bearer_get_names(void)
 			b_ptr = &tipc_bearers[j];
 			if (b_ptr->active && (b_ptr->media == m_ptr)) {
 				tipc_cfg_append_tlv(buf, TIPC_TLV_BEARER_NAME,
-						    b_ptr->publ.name,
-						    strlen(b_ptr->publ.name) + 1);
+						    b_ptr->name,
+						    strlen(b_ptr->name) + 1);
 			}
 		}
 	}
@@ -340,14 +340,14 @@ struct sk_buff *tipc_bearer_get_names(void)
 	return buf;
 }
 
-void tipc_bearer_add_dest(struct bearer *b_ptr, u32 dest)
+void tipc_bearer_add_dest(struct tipc_bearer *b_ptr, u32 dest)
 {
 	tipc_nmap_add(&b_ptr->nodes, dest);
 	tipc_disc_update_link_req(b_ptr->link_req);
 	tipc_bcbearer_sort();
 }
 
-void tipc_bearer_remove_dest(struct bearer *b_ptr, u32 dest)
+void tipc_bearer_remove_dest(struct tipc_bearer *b_ptr, u32 dest)
 {
 	tipc_nmap_remove(&b_ptr->nodes, dest);
 	tipc_disc_update_link_req(b_ptr->link_req);
@@ -362,12 +362,12 @@ void tipc_bearer_remove_dest(struct bearer *b_ptr, u32 dest)
  * bearer.lock must be taken before calling
  * Returns binary true(1) ore false(0)
  */
-static int bearer_push(struct bearer *b_ptr)
+static int bearer_push(struct tipc_bearer *b_ptr)
 {
 	u32 res = 0;
 	struct link *ln, *tln;
 
-	if (b_ptr->publ.blocked)
+	if (b_ptr->blocked)
 		return 0;
 
 	while (!list_empty(&b_ptr->cong_links) && (res != PUSH_FAILED)) {
@@ -382,13 +382,13 @@ static int bearer_push(struct bearer *b_ptr)
 	return list_empty(&b_ptr->cong_links);
 }
 
-void tipc_bearer_lock_push(struct bearer *b_ptr)
+void tipc_bearer_lock_push(struct tipc_bearer *b_ptr)
 {
 	int res;
 
-	spin_lock_bh(&b_ptr->publ.lock);
+	spin_lock_bh(&b_ptr->lock);
 	res = bearer_push(b_ptr);
-	spin_unlock_bh(&b_ptr->publ.lock);
+	spin_unlock_bh(&b_ptr->lock);
 	if (res)
 		tipc_bcbearer_push();
 }
@@ -398,16 +398,14 @@ void tipc_bearer_lock_push(struct bearer *b_ptr)
  * Interrupt enabling new requests after bearer congestion or blocking:
  * See bearer_send().
  */
-void tipc_continue(struct tipc_bearer *tb_ptr)
+void tipc_continue(struct tipc_bearer *b_ptr)
 {
-	struct bearer *b_ptr = (struct bearer *)tb_ptr;
-
-	spin_lock_bh(&b_ptr->publ.lock);
+	spin_lock_bh(&b_ptr->lock);
 	b_ptr->continue_count++;
 	if (!list_empty(&b_ptr->cong_links))
 		tipc_k_signal((Handler)tipc_bearer_lock_push, (unsigned long)b_ptr);
-	b_ptr->publ.blocked = 0;
-	spin_unlock_bh(&b_ptr->publ.lock);
+	b_ptr->blocked = 0;
+	spin_unlock_bh(&b_ptr->lock);
 }
 
 /*
@@ -418,7 +416,7 @@ void tipc_continue(struct tipc_bearer *tb_ptr)
  * bearer.lock is busy
  */
 
-static void tipc_bearer_schedule_unlocked(struct bearer *b_ptr, struct link *l_ptr)
+static void tipc_bearer_schedule_unlocked(struct tipc_bearer *b_ptr, struct link *l_ptr)
 {
 	list_move_tail(&l_ptr->link_list, &b_ptr->cong_links);
 }
@@ -431,11 +429,11 @@ static void tipc_bearer_schedule_unlocked(struct bearer *b_ptr, struct link *l_p
  * bearer.lock is free
  */
 
-void tipc_bearer_schedule(struct bearer *b_ptr, struct link *l_ptr)
+void tipc_bearer_schedule(struct tipc_bearer *b_ptr, struct link *l_ptr)
 {
-	spin_lock_bh(&b_ptr->publ.lock);
+	spin_lock_bh(&b_ptr->lock);
 	tipc_bearer_schedule_unlocked(b_ptr, l_ptr);
-	spin_unlock_bh(&b_ptr->publ.lock);
+	spin_unlock_bh(&b_ptr->lock);
 }
 
 
@@ -444,18 +442,18 @@ void tipc_bearer_schedule(struct bearer *b_ptr, struct link *l_ptr)
  * and if there is, try to resolve it before returning.
  * 'tipc_net_lock' is read_locked when this function is called
  */
-int tipc_bearer_resolve_congestion(struct bearer *b_ptr, struct link *l_ptr)
+int tipc_bearer_resolve_congestion(struct tipc_bearer *b_ptr, struct link *l_ptr)
 {
 	int res = 1;
 
 	if (list_empty(&b_ptr->cong_links))
 		return 1;
-	spin_lock_bh(&b_ptr->publ.lock);
+	spin_lock_bh(&b_ptr->lock);
 	if (!bearer_push(b_ptr)) {
 		tipc_bearer_schedule_unlocked(b_ptr, l_ptr);
 		res = 0;
 	}
-	spin_unlock_bh(&b_ptr->publ.lock);
+	spin_unlock_bh(&b_ptr->lock);
 	return res;
 }
 
@@ -463,9 +461,9 @@ int tipc_bearer_resolve_congestion(struct bearer *b_ptr, struct link *l_ptr)
  * tipc_bearer_congested - determines if bearer is currently congested
  */
 
-int tipc_bearer_congested(struct bearer *b_ptr, struct link *l_ptr)
+int tipc_bearer_congested(struct tipc_bearer *b_ptr, struct link *l_ptr)
 {
-	if (unlikely(b_ptr->publ.blocked))
+	if (unlikely(b_ptr->blocked))
 		return 1;
 	if (likely(list_empty(&b_ptr->cong_links)))
 		return 0;
@@ -478,7 +476,7 @@ int tipc_bearer_congested(struct bearer *b_ptr, struct link *l_ptr)
 
 int tipc_enable_bearer(const char *name, u32 bcast_scope, u32 priority)
 {
-	struct bearer *b_ptr;
+	struct tipc_bearer *b_ptr;
 	struct media *m_ptr;
 	struct bearer_name b_name;
 	char addr_string[16];
@@ -528,7 +526,7 @@ restart:
 			bearer_id = i;
 			continue;
 		}
-		if (!strcmp(name, tipc_bearers[i].publ.name)) {
+		if (!strcmp(name, tipc_bearers[i].name)) {
 			warn("Bearer <%s> rejected, already enabled\n", name);
 			goto failed;
 		}
@@ -551,8 +549,8 @@ restart:
 	}
 
 	b_ptr = &tipc_bearers[bearer_id];
-	strcpy(b_ptr->publ.name, name);
-	res = m_ptr->enable_bearer(&b_ptr->publ);
+	strcpy(b_ptr->name, name);
+	res = m_ptr->enable_bearer(b_ptr);
 	if (res) {
 		warn("Bearer <%s> rejected, enable failure (%d)\n", name, -res);
 		goto failed;
@@ -568,9 +566,9 @@ restart:
 	INIT_LIST_HEAD(&b_ptr->links);
 	if (m_ptr->bcast) {
 		b_ptr->link_req = tipc_disc_init_link_req(b_ptr, &m_ptr->bcast_addr,
-							  bcast_scope, 2);
+							  bcast_scope);
 	}
-	spin_lock_init(&b_ptr->publ.lock);
+	spin_lock_init(&b_ptr->lock);
 	write_unlock_bh(&tipc_net_lock);
 	info("Enabled bearer <%s>, discovery domain %s, priority %u\n",
 	     name, tipc_addr_string_fill(addr_string, bcast_scope), priority);
@@ -587,7 +585,7 @@ failed:
 
 int tipc_block_bearer(const char *name)
 {
-	struct bearer *b_ptr = NULL;
+	struct tipc_bearer *b_ptr = NULL;
 	struct link *l_ptr;
 	struct link *temp_l_ptr;
 
@@ -600,8 +598,8 @@ int tipc_block_bearer(const char *name)
 	}
 
 	info("Blocking bearer <%s>\n", name);
-	spin_lock_bh(&b_ptr->publ.lock);
-	b_ptr->publ.blocked = 1;
+	spin_lock_bh(&b_ptr->lock);
+	b_ptr->blocked = 1;
 	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
 		struct tipc_node *n_ptr = l_ptr->owner;
 
@@ -609,7 +607,7 @@ int tipc_block_bearer(const char *name)
 		tipc_link_reset(l_ptr);
 		spin_unlock_bh(&n_ptr->lock);
 	}
-	spin_unlock_bh(&b_ptr->publ.lock);
+	spin_unlock_bh(&b_ptr->lock);
 	read_unlock_bh(&tipc_net_lock);
 	return 0;
 }
@@ -620,27 +618,27 @@ int tipc_block_bearer(const char *name)
  * Note: This routine assumes caller holds tipc_net_lock.
  */
 
-static void bearer_disable(struct bearer *b_ptr)
+static void bearer_disable(struct tipc_bearer *b_ptr)
 {
 	struct link *l_ptr;
 	struct link *temp_l_ptr;
 
-	info("Disabling bearer <%s>\n", b_ptr->publ.name);
+	info("Disabling bearer <%s>\n", b_ptr->name);
 	tipc_disc_stop_link_req(b_ptr->link_req);
-	spin_lock_bh(&b_ptr->publ.lock);
+	spin_lock_bh(&b_ptr->lock);
 	b_ptr->link_req = NULL;
-	b_ptr->publ.blocked = 1;
-	b_ptr->media->disable_bearer(&b_ptr->publ);
+	b_ptr->blocked = 1;
+	b_ptr->media->disable_bearer(b_ptr);
 	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
 		tipc_link_delete(l_ptr);
 	}
-	spin_unlock_bh(&b_ptr->publ.lock);
-	memset(b_ptr, 0, sizeof(struct bearer));
+	spin_unlock_bh(&b_ptr->lock);
+	memset(b_ptr, 0, sizeof(struct tipc_bearer));
 }
 
 int tipc_disable_bearer(const char *name)
 {
-	struct bearer *b_ptr;
+	struct tipc_bearer *b_ptr;
 	int res;
 
 	write_lock_bh(&tipc_net_lock);
