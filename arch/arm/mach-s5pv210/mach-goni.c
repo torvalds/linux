@@ -271,8 +271,16 @@ static void __init goni_tsp_init(void)
 /* MAX8998 regulators */
 #if defined(CONFIG_REGULATOR_MAX8998) || defined(CONFIG_REGULATOR_MAX8998_MODULE)
 
+static struct regulator_consumer_supply goni_ldo3_consumers[] = {
+	REGULATOR_SUPPLY("vusb_a", "s3c-hsotg"),
+};
+
 static struct regulator_consumer_supply goni_ldo5_consumers[] = {
 	REGULATOR_SUPPLY("vmmc", "s3c-sdhci.0"),
+};
+
+static struct regulator_consumer_supply goni_ldo8_consumers[] = {
+	REGULATOR_SUPPLY("vusb_d", "s3c-hsotg"),
 };
 
 static struct regulator_consumer_supply goni_ldo11_consumers[] = {
@@ -306,7 +314,10 @@ static struct regulator_init_data goni_ldo3_data = {
 		.min_uV		= 1100000,
 		.max_uV		= 1100000,
 		.apply_uV	= 1,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
 	},
+	.num_consumer_supplies = ARRAY_SIZE(goni_ldo3_consumers),
+	.consumer_supplies = goni_ldo3_consumers,
 };
 
 static struct regulator_init_data goni_ldo4_data = {
@@ -355,7 +366,10 @@ static struct regulator_init_data goni_ldo8_data = {
 		.min_uV		= 3300000,
 		.max_uV		= 3300000,
 		.apply_uV	= 1,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
 	},
+	.num_consumer_supplies = ARRAY_SIZE(goni_ldo8_consumers),
+	.consumer_supplies = goni_ldo8_consumers,
 };
 
 static struct regulator_init_data goni_ldo9_data = {
