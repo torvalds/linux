@@ -168,6 +168,9 @@ int main(int argc, char **argv)
 		}
 	}
 
+	if (device_name == NULL)
+		return -1;
+
 	/* Find the device requested */
 	dev_num = find_type_by_name(device_name, "device");
 	if (dev_num < 0) {
