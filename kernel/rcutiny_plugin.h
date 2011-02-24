@@ -339,7 +339,7 @@ static void rcu_initiate_expedited_boost(void)
 	raw_local_irq_restore(flags);
 }
 
-#define RCU_BOOST_DELAY_JIFFIES DIV_ROUND_UP(CONFIG_RCU_BOOST_DELAY * HZ, 1000);
+#define RCU_BOOST_DELAY_JIFFIES DIV_ROUND_UP(CONFIG_RCU_BOOST_DELAY * HZ, 1000)
 
 /*
  * Do priority-boost accounting for the start of a new grace period.
@@ -418,7 +418,7 @@ static void rcu_preempt_cpu_qs(void)
 	if (!rcu_preempt_gp_in_progress())
 		return;
 	/*
-	 * Check up on boosting.  If there are no readers blocking the
+	 * Check up on boosting.  If there are readers blocking the
 	 * current grace period, leave.
 	 */
 	if (rcu_initiate_boost())
@@ -578,7 +578,7 @@ static void rcu_read_unlock_special(struct task_struct *t)
 		empty = !rcu_preempt_blocked_readers_cgp();
 		empty_exp = rcu_preempt_ctrlblk.exp_tasks == NULL;
 		np = rcu_next_node_entry(t);
-		list_del(&t->rcu_node_entry);
+		list_del_init(&t->rcu_node_entry);
 		if (&t->rcu_node_entry == rcu_preempt_ctrlblk.gp_tasks)
 			rcu_preempt_ctrlblk.gp_tasks = np;
 		if (&t->rcu_node_entry == rcu_preempt_ctrlblk.exp_tasks)
@@ -587,7 +587,6 @@ static void rcu_read_unlock_special(struct task_struct *t)
 		if (&t->rcu_node_entry == rcu_preempt_ctrlblk.boost_tasks)
 			rcu_preempt_ctrlblk.boost_tasks = np;
 #endif /* #ifdef CONFIG_RCU_BOOST */
-		INIT_LIST_HEAD(&t->rcu_node_entry);
 
 		/*
 		 * If this was the last task on the current list, and if
