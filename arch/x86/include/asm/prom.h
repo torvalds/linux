@@ -30,7 +30,6 @@ extern void add_dtb(u64 data);
 extern void x86_add_irq_domains(void);
 void x86_dtb_find_config(void);
 void x86_dtb_get_config(unsigned int unused);
-void add_interrupt_host(struct irq_domain *ih);
 void __cpuinit x86_of_pci_init(void);
 
 static inline struct device_node *pci_device_to_OF_node(struct pci_dev *pdev)

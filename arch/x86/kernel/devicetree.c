@@ -26,7 +26,7 @@ static DEFINE_RAW_SPINLOCK(big_irq_lock);
 
 int __initdata of_ioapic;
 
-void add_interrupt_host(struct irq_domain *ih)
+static void add_interrupt_host(struct irq_domain *ih)
 {
 	unsigned long flags;
 
@@ -115,7 +115,7 @@ static struct of_device_id __initdata ce4100_ids[] = {
 
 static int __init add_bus_probe(void)
 {
-	if (!initial_boot_params)
+	if (!of_have_populated_dt())
 		return 0;
 
 	return of_platform_bus_probe(NULL, ce4100_ids, NULL);
@@ -203,6 +203,7 @@ void __cpuinit x86_of_pci_init(void)
 
 static void __init dtb_setup_hpet(void)
 {
+#ifdef CONFIG_HPET_TIMER
 	struct device_node *dn;
 	struct resource r;
 	int ret;
@@ -216,6 +217,7 @@ static void __init dtb_setup_hpet(void)
 		return;
 	}
 	hpet_address = r.start;
+#endif
 }
 
 static void __init dtb_lapic_setup(void)
@@ -288,7 +290,8 @@ void __init x86_dtb_find_config(void)
 		printk(KERN_ERR "Missing device tree!.\n");
 }
 
-void __init x86_dtb_get_config(unsigned int unused)
+#ifdef CONFIG_OF_FLATTREE
+static void __init x86_flattree_get_config(void)
 {
 	u32 size, map_len;
 	void *new_dtb;
@@ -317,6 +320,18 @@ void __init x86_dtb_get_config(unsigned int unused)
 	of_scan_flat_dt(early_init_dt_scan_root, NULL);
 
 	unflatten_device_tree();
+}
+#else
+static inline void x86_flattree_get_config(void) { }
+#endif
+
+void __init x86_dtb_get_config(unsigned int unused)
+{
+	x86_flattree_get_config();
+
+	if (!of_have_populated_dt())
+		return;
+
 	dtb_setup_hpet();
 	dtb_apic_setup();
 }
@@ -413,7 +428,7 @@ void __init x86_add_irq_domains(void)
 {
 	struct device_node *dp;
 
-	if (!initial_boot_params)
+	if (!of_have_populated_dt())
 		return;
 
 	for_each_node_with_property(dp, "interrupt-controller") {
