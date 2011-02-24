@@ -754,7 +754,6 @@ static void xfrm_hash_grow_check(struct net *net, int have_hash_collision)
 
 static void xfrm_state_look_at(struct xfrm_policy *pol, struct xfrm_state *x,
 			       const struct flowi *fl, unsigned short family,
-			       xfrm_address_t *daddr, xfrm_address_t *saddr,
 			       struct xfrm_state **best, int *acq_in_progress,
 			       int *error)
 {
@@ -820,7 +819,7 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 		    tmpl->mode == x->props.mode &&
 		    tmpl->id.proto == x->id.proto &&
 		    (tmpl->id.spi == x->id.spi || !tmpl->id.spi))
-			xfrm_state_look_at(pol, x, fl, encap_family, daddr, saddr,
+			xfrm_state_look_at(pol, x, fl, encap_family,
 					   &best, &acquire_in_progress, &error);
 	}
 	if (best)
@@ -836,7 +835,7 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 		    tmpl->mode == x->props.mode &&
 		    tmpl->id.proto == x->id.proto &&
 		    (tmpl->id.spi == x->id.spi || !tmpl->id.spi))
-			xfrm_state_look_at(pol, x, fl, encap_family, daddr, saddr,
+			xfrm_state_look_at(pol, x, fl, encap_family,
 					   &best, &acquire_in_progress, &error);
 	}
 
