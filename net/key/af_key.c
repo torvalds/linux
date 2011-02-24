@@ -690,7 +690,7 @@ static inline int pfkey_mode_to_xfrm(int mode)
 	}
 }
 
-static unsigned int pfkey_sockaddr_fill(xfrm_address_t *xaddr, __be16 port,
+static unsigned int pfkey_sockaddr_fill(const xfrm_address_t *xaddr, __be16 port,
 				       struct sockaddr *sa,
 				       unsigned short family)
 {
@@ -3318,7 +3318,7 @@ static int pfkey_send_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, 
 
 #ifdef CONFIG_NET_KEY_MIGRATE
 static int set_sadb_address(struct sk_buff *skb, int sasize, int type,
-			    struct xfrm_selector *sel)
+			    const struct xfrm_selector *sel)
 {
 	struct sadb_address *addr;
 	addr = (struct sadb_address *)skb_put(skb, sizeof(struct sadb_address) + sasize);
@@ -3348,7 +3348,7 @@ static int set_sadb_address(struct sk_buff *skb, int sasize, int type,
 }
 
 
-static int set_sadb_kmaddress(struct sk_buff *skb, struct xfrm_kmaddress *k)
+static int set_sadb_kmaddress(struct sk_buff *skb, const struct xfrm_kmaddress *k)
 {
 	struct sadb_x_kmaddress *kma;
 	u8 *sa;
@@ -3376,7 +3376,7 @@ static int set_sadb_kmaddress(struct sk_buff *skb, struct xfrm_kmaddress *k)
 static int set_ipsecrequest(struct sk_buff *skb,
 			    uint8_t proto, uint8_t mode, int level,
 			    uint32_t reqid, uint8_t family,
-			    xfrm_address_t *src, xfrm_address_t *dst)
+			    const xfrm_address_t *src, const xfrm_address_t *dst)
 {
 	struct sadb_x_ipsecrequest *rq;
 	u8 *sa;
@@ -3404,9 +3404,9 @@ static int set_ipsecrequest(struct sk_buff *skb,
 #endif
 
 #ifdef CONFIG_NET_KEY_MIGRATE
-static int pfkey_send_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
-			      struct xfrm_migrate *m, int num_bundles,
-			      struct xfrm_kmaddress *k)
+static int pfkey_send_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
+			      const struct xfrm_migrate *m, int num_bundles,
+			      const struct xfrm_kmaddress *k)
 {
 	int i;
 	int sasize_sel;
@@ -3415,7 +3415,7 @@ static int pfkey_send_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
 	struct sk_buff *skb;
 	struct sadb_msg *hdr;
 	struct sadb_x_policy *pol;
-	struct xfrm_migrate *mp;
+	const struct xfrm_migrate *mp;
 
 	if (type != XFRM_POLICY_TYPE_MAIN)
 		return 0;
@@ -3513,9 +3513,9 @@ err:
 	return -EINVAL;
 }
 #else
-static int pfkey_send_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
-			      struct xfrm_migrate *m, int num_bundles,
-			      struct xfrm_kmaddress *k)
+static int pfkey_send_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
+			      const struct xfrm_migrate *m, int num_bundles,
+			      const struct xfrm_kmaddress *k)
 {
 	return -ENOPROTOOPT;
 }

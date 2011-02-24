@@ -1986,7 +1986,7 @@ static int xfrm_do_migrate(struct sk_buff *skb, struct nlmsghdr *nlh,
 #endif
 
 #ifdef CONFIG_XFRM_MIGRATE
-static int copy_to_user_migrate(struct xfrm_migrate *m, struct sk_buff *skb)
+static int copy_to_user_migrate(const struct xfrm_migrate *m, struct sk_buff *skb)
 {
 	struct xfrm_user_migrate um;
 
@@ -2004,7 +2004,7 @@ static int copy_to_user_migrate(struct xfrm_migrate *m, struct sk_buff *skb)
 	return nla_put(skb, XFRMA_MIGRATE, sizeof(um), &um);
 }
 
-static int copy_to_user_kmaddress(struct xfrm_kmaddress *k, struct sk_buff *skb)
+static int copy_to_user_kmaddress(const struct xfrm_kmaddress *k, struct sk_buff *skb)
 {
 	struct xfrm_user_kmaddress uk;
 
@@ -2025,11 +2025,11 @@ static inline size_t xfrm_migrate_msgsize(int num_migrate, int with_kma)
 	      + userpolicy_type_attrsize();
 }
 
-static int build_migrate(struct sk_buff *skb, struct xfrm_migrate *m,
-			 int num_migrate, struct xfrm_kmaddress *k,
-			 struct xfrm_selector *sel, u8 dir, u8 type)
+static int build_migrate(struct sk_buff *skb, const struct xfrm_migrate *m,
+			 int num_migrate, const struct xfrm_kmaddress *k,
+			 const struct xfrm_selector *sel, u8 dir, u8 type)
 {
-	struct xfrm_migrate *mp;
+	const struct xfrm_migrate *mp;
 	struct xfrm_userpolicy_id *pol_id;
 	struct nlmsghdr *nlh;
 	int i;
@@ -2061,9 +2061,9 @@ nlmsg_failure:
 	return -EMSGSIZE;
 }
 
-static int xfrm_send_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
-			     struct xfrm_migrate *m, int num_migrate,
-			     struct xfrm_kmaddress *k)
+static int xfrm_send_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
+			     const struct xfrm_migrate *m, int num_migrate,
+			     const struct xfrm_kmaddress *k)
 {
 	struct net *net = &init_net;
 	struct sk_buff *skb;
@@ -2079,9 +2079,9 @@ static int xfrm_send_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
 	return nlmsg_multicast(net->xfrm.nlsk, skb, 0, XFRMNLGRP_MIGRATE, GFP_ATOMIC);
 }
 #else
-static int xfrm_send_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
-			     struct xfrm_migrate *m, int num_migrate,
-			     struct xfrm_kmaddress *k)
+static int xfrm_send_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
+			     const struct xfrm_migrate *m, int num_migrate,
+			     const struct xfrm_kmaddress *k)
 {
 	return -ENOPROTOOPT;
 }
