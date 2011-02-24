@@ -29,14 +29,14 @@ static char temp_stack[4096];
 #endif
 
 /**
- * acpi_save_state_mem - save kernel state
+ * acpi_suspend_lowlevel - save kernel state
  *
  * Create an identity mapped page table and copy the wakeup routine to
  * low memory.
  *
  * Note that this is too late to change acpi_wakeup_address.
  */
-int acpi_save_state_mem(void)
+int acpi_suspend_lowlevel(void)
 {
 	struct wakeup_header *header;
 
@@ -107,16 +107,9 @@ int acpi_save_state_mem(void)
        saved_magic = 0x123456789abcdef0L;
 #endif /* CONFIG_64BIT */
 
+	do_suspend_lowlevel();
 	return 0;
 }
-
-/*
- * acpi_restore_state - undo effects of acpi_save_state_mem
- */
-void acpi_restore_state_mem(void)
-{
-}
-
 
 /**
  * acpi_reserve_wakeup_memory - do _very_ early ACPI initialisation
