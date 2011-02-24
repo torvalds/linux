@@ -66,8 +66,7 @@ static const struct dss_reg_field omap3_dss_reg_fields[] = {
 
 static const enum omap_display_type omap2_dss_supported_displays[] = {
 	/* OMAP_DSS_CHANNEL_LCD */
-	OMAP_DISPLAY_TYPE_DPI | OMAP_DISPLAY_TYPE_DBI |
-	OMAP_DISPLAY_TYPE_SDI | OMAP_DISPLAY_TYPE_DSI,
+	OMAP_DISPLAY_TYPE_DPI | OMAP_DISPLAY_TYPE_DBI,
 
 	/* OMAP_DSS_CHANNEL_DIGIT */
 	OMAP_DISPLAY_TYPE_VENC,
