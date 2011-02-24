@@ -2788,7 +2788,7 @@ static struct xfrm_policy * xfrm_migrate_policy_find(struct xfrm_selector *sel,
 	return ret;
 }
 
-static int migrate_tmpl_match(struct xfrm_migrate *m, struct xfrm_tmpl *t)
+static int migrate_tmpl_match(const struct xfrm_migrate *m, const struct xfrm_tmpl *t)
 {
 	int match = 0;
 
@@ -2858,7 +2858,7 @@ static int xfrm_policy_migrate(struct xfrm_policy *pol,
 	return 0;
 }
 
-static int xfrm_migrate_check(struct xfrm_migrate *m, int num_migrate)
+static int xfrm_migrate_check(const struct xfrm_migrate *m, int num_migrate)
 {
 	int i, j;
 
