@@ -152,21 +152,21 @@ struct dsi_clock_info {
 	unsigned long fint;
 	unsigned long clkin4ddr;
 	unsigned long clkin;
-	unsigned long dsi1_pll_fclk;
-	unsigned long dsi2_pll_fclk;
+	unsigned long dsi_pll_hsdiv_dispc_clk;	/* DSI1_PLL_CLK */
+	unsigned long dsi_pll_hsdiv_dsi_clk;	/* DSI2_PLL_CLK */
 
 	unsigned long lp_clk;
 
 	/* dividers */
 	u16 regn;
 	u16 regm;
-	u16 regm3;
-	u16 regm4;
+	u16 regm_dispc;	/* REGM3 */
+	u16 regm_dsi;	/* REGM4 */
 
 	u16 lp_clk_div;
 
 	u8 highfreq;
-	bool use_dss2_fck;
+	bool use_sys_clk;
 };
 
 struct seq_file;
@@ -278,7 +278,7 @@ void dsi_restore_context(void);
 
 int dsi_init_display(struct omap_dss_device *display);
 void dsi_irq_handler(void);
-unsigned long dsi_get_dsi1_pll_rate(void);
+unsigned long dsi_get_pll_hsdiv_dispc_rate(void);
 int dsi_pll_set_clock_div(struct dsi_clock_info *cinfo);
 int dsi_pll_calc_clock_div_pck(bool is_tft, unsigned long req_pck,
 		struct dsi_clock_info *cinfo,
@@ -289,8 +289,8 @@ void dsi_pll_uninit(void);
 void dsi_get_overlay_fifo_thresholds(enum omap_plane plane,
 		u32 fifo_size, enum omap_burst_size *burst_size,
 		u32 *fifo_low, u32 *fifo_high);
-void dsi_wait_dsi1_pll_active(void);
-void dsi_wait_dsi2_pll_active(void);
+void dsi_wait_pll_hsdiv_dispc_active(void);
+void dsi_wait_pll_hsdiv_dsi_active(void);
 #else
 static inline int dsi_init_platform_driver(void)
 {
@@ -299,10 +299,10 @@ static inline int dsi_init_platform_driver(void)
 static inline void dsi_uninit_platform_driver(void)
 {
 }
-static inline void dsi_wait_dsi1_pll_active(void)
+static inline void dsi_wait_pll_hsdiv_dispc_active(void)
 {
 }
-static inline void dsi_wait_dsi2_pll_active(void)
+static inline void dsi_wait_pll_hsdiv_dsi_active(void)
 {
 }
 #endif

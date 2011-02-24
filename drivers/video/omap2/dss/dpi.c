@@ -63,7 +63,7 @@ static int dpi_set_dsi_clk(struct omap_dss_device *dssdev, bool is_tft,
 	if (r)
 		return r;
 
-	*fck = dsi_cinfo.dsi1_pll_fclk;
+	*fck = dsi_cinfo.dsi_pll_hsdiv_dispc_clk;
 	*lck_div = dispc_cinfo.lck_div;
 	*pck_div = dispc_cinfo.pck_div;
 
@@ -271,7 +271,7 @@ int dpi_check_timings(struct omap_dss_device *dssdev,
 		if (r)
 			return r;
 
-		fck = dsi_cinfo.dsi1_pll_fclk;
+		fck = dsi_cinfo.dsi_pll_hsdiv_dispc_clk;
 		lck_div = dispc_cinfo.lck_div;
 		pck_div = dispc_cinfo.pck_div;
 	}

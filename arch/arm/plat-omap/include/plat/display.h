@@ -403,8 +403,8 @@ struct omap_dss_device {
 			struct {
 				u16 regn;
 				u16 regm;
-				u16 regm3;
-				u16 regm4;
+				u16 regm_dispc;
+				u16 regm_dsi;
 
 				u16 lp_clk_div;
 

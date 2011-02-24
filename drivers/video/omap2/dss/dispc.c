@@ -2338,7 +2338,7 @@ unsigned long dispc_fclk_rate(void)
 		r = dss_clk_get_rate(DSS_CLK_FCK);
 	else
 #ifdef CONFIG_OMAP2_DSS_DSI
-		r = dsi_get_dsi1_pll_rate();
+		r = dsi_get_pll_hsdiv_dispc_rate();
 #else
 	BUG();
 #endif
