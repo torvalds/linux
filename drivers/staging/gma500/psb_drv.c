@@ -446,6 +446,7 @@ static int psb_do_init(struct drm_device *dev)
 		goto out_err;
 	}
 
+
 	stolen_gtt = (pg->stolen_size >> PAGE_SHIFT) * 4;
 	stolen_gtt = (stolen_gtt + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	stolen_gtt =
@@ -471,6 +472,7 @@ static int psb_do_init(struct drm_device *dev)
 		     _PSB_CC_REVISION_DESIGNER_SHIFT);
 	}
 
+
 	spin_lock_init(&dev_priv->irqmask_lock);
 
 	tt_pages = (pg->gatt_pages < PSB_TT_PRIV0_PLIMIT) ?
@@ -479,6 +481,14 @@ static int psb_do_init(struct drm_device *dev)
 	tt_pages -= tt_start >> PAGE_SHIFT;
 	dev_priv->sizes.ta_mem_size = 0;
 
+	PSB_WSGX32(0x00000000, PSB_CR_BIF_BANK0);
+	PSB_WSGX32(0x00000000, PSB_CR_BIF_BANK1);
+	PSB_RSGX32(PSB_CR_BIF_BANK1);
+        PSB_WSGX32(PSB_RSGX32(PSB_CR_BIF_CTRL) | _PSB_MMU_ER_MASK,
+							PSB_CR_BIF_CTRL);
+	psb_spank(dev_priv);
+       
+      	PSB_WSGX32(pg->mmu_gatt_start, PSB_CR_BIF_TWOD_REQ_BASE);
 
 	/* TT region managed by TTM. */
 	if (!ttm_bo_init_mm(bdev, TTM_PL_TT,
@@ -499,7 +509,6 @@ static int psb_do_init(struct drm_device *dev)
 		dev_priv->sizes.mmu_size =
 			PSB_MEM_TT_START / (1024*1024);
 	}
-
 
 	PSB_DEBUG_INIT("Init MSVDX\n");
 	return 0;
@@ -786,6 +795,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev_priv->pipestat[1] = 0;
 	dev_priv->pipestat[2] = 0;
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
+	PSB_WVDC32(0xFFFFFFFF, PSB_HWSTAM);
 	PSB_WVDC32(0x00000000, PSB_INT_ENABLE_R);
 	PSB_WVDC32(0xFFFFFFFF, PSB_INT_MASK_R);
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);

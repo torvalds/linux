@@ -279,10 +279,11 @@ static struct fb_ops psbfb_ops = {
 	.fb_set_par = drm_fb_helper_set_par,
 	.fb_blank = drm_fb_helper_blank,
 	.fb_setcolreg = psbfb_setcolreg,
-	.fb_fillrect = cfb_fillrect,
-	.fb_copyarea = cfb_copyarea,
-	.fb_imageblit = cfb_imageblit,
+	.fb_fillrect = psbfb_fillrect,
+	.fb_copyarea = psbfb_copyarea,
+	.fb_imageblit = psbfb_imageblit,
 	.fb_mmap = psbfb_mmap,
+	.fb_sync = psbfb_sync,
 };
 
 static struct drm_framebuffer *psb_framebuffer_create
@@ -394,6 +395,7 @@ static struct drm_framebuffer *psb_user_framebuffer_create
 	strcpy(info->fix.id, "psbfb");
 
 	info->flags = FBINFO_DEFAULT;
+	info->fix.accel = FB_ACCEL_I830;	/*FIXMEAC*/
 	info->fbops = &psbfb_ops;
 
 	info->fix.smem_start = dev->mode_config.fb_base;

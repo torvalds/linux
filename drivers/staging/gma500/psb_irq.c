@@ -256,6 +256,7 @@ irqreturn_t psb_irq_handler(DRM_IRQ_ARGS)
 		PSB_WSGX32(s2, PSB_CR_EVENT_HOST_CLEAR2);
 		/* if s & _PSB_CE_TWOD_COMPLETE we have 2D done but
 		   we may as well poll even if we add that ! */
+		handled = 1;
 	}
 
 	PSB_WVDC32(vdc_stat, PSB_INT_IDENTITY_R);
@@ -300,9 +301,10 @@ void psb_irq_preinstall_islands(struct drm_device *dev, int hw_islands)
 						_MDFLD_PIPEC_EVENT_FLAG;
 		}
 	}
+/* NO I DONT WANT ANY IRQS GRRR FIXMEAC */
 	if (hw_islands & OSPM_GRAPHICS_ISLAND)
 		dev_priv->vdc_irq_mask |= _PSB_IRQ_SGX_FLAG;
-
+/* */
 	/*This register is safe even if display island is off*/
 	PSB_WVDC32(~dev_priv->vdc_irq_mask, PSB_INT_MASK_R);
 

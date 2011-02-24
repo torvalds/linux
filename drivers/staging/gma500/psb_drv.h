@@ -919,6 +919,19 @@ extern int psbfb_kms_on_ioctl(struct drm_device *dev, void *data,
 extern void *psbfb_vdc_reg(struct drm_device* dev);
 
 /*
+ * psb_2d.c
+ */
+extern void psbfb_fillrect(struct fb_info *info,
+					const struct fb_fillrect *rect);
+extern void psbfb_copyarea(struct fb_info *info,
+					const struct fb_copyarea *region);
+extern void psbfb_imageblit(struct fb_info *info,
+					const struct fb_image *image);
+extern int psbfb_sync(struct fb_info *info);
+
+extern void psb_spank(struct drm_psb_private *dev_priv);
+
+/*
  *psb_reset.c
  */
 
