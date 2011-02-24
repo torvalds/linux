@@ -869,10 +869,11 @@ EXPORT_SYMBOL(xfrm_policy_walk_done);
  *
  * Returns 0 if policy found, else an -errno.
  */
-static int xfrm_policy_match(struct xfrm_policy *pol, const struct flowi *fl,
+static int xfrm_policy_match(const struct xfrm_policy *pol,
+			     const struct flowi *fl,
 			     u8 type, u16 family, int dir)
 {
-	struct xfrm_selector *sel = &pol->selector;
+	const struct xfrm_selector *sel = &pol->selector;
 	int match, ret = -ESRCH;
 
 	if (pol->family != family ||
