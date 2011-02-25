@@ -1039,7 +1039,6 @@ static void ip6mr_cache_resolve(struct net *net, struct mr6_table *mrt,
 
 	while((skb = __skb_dequeue(&uc->mfc_un.unres.unresolved))) {
 		if (ipv6_hdr(skb)->version == 0) {
-			int err;
 			struct nlmsghdr *nlh = (struct nlmsghdr *)skb_pull(skb, sizeof(struct ipv6hdr));
 
 			if (__ip6mr_fill_mroute(mrt, skb, c, NLMSG_DATA(nlh)) > 0) {
@@ -1050,7 +1049,7 @@ static void ip6mr_cache_resolve(struct net *net, struct mr6_table *mrt,
 				skb_trim(skb, nlh->nlmsg_len);
 				((struct nlmsgerr *)NLMSG_DATA(nlh))->error = -EMSGSIZE;
 			}
-			err = rtnl_unicast(skb, net, NETLINK_CB(skb).pid);
+			rtnl_unicast(skb, net, NETLINK_CB(skb).pid);
 		} else
 			ip6_mr_forward(net, mrt, skb, c);
 	}
