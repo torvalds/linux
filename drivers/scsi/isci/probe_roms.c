@@ -92,24 +92,14 @@ struct isci_orom *isci_request_oprom(struct pci_dev *pdev)
 enum sci_status isci_parse_oem_parameters(union scic_oem_parameters *oem_params,
 					  struct isci_orom *orom, int scu_index)
 {
-	int i;
-
 	/* check for valid inputs */
-	if (!(scu_index >= 0
-	      && scu_index < SCI_MAX_CONTROLLERS
-	      && oem_params != NULL))
+	if (scu_index < 0 || scu_index > SCI_MAX_CONTROLLERS ||
+	    scu_index > orom->hdr.num_elements || !oem_params)
 		return -EINVAL;
 
-	for (i = 0; i < SCI_MAX_PHYS; i++) {
-		oem_params->sds1.phys[i].sas_address.low =
-			orom->ctrl[scu_index].phys[i].sas_address.low;
-		oem_params->sds1.phys[i].sas_address.high =
-			orom->ctrl[scu_index].phys[i].sas_address.high;
-	}
-
-	for (i = 0; i < SCI_MAX_PORTS; i++)
-		oem_params->sds1.ports[i].phy_mask =
-			orom->ctrl[scu_index].ports[i].phy_mask;
+	memcpy(oem_params,
+	       &orom->ctrl[scu_index],
+	       sizeof(struct scic_sds_oem_params));
 
 	return 0;
 }
