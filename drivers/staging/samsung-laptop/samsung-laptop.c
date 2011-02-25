@@ -115,7 +115,7 @@ static struct sabi_config sabi_configs[] = {
 	{
 		.test_string = "SECLINUX",
 
-		.main_function = 0x4c59,
+		.main_function = 0x4c49,
 
 		.header_offsets = {
 			.port = 0x00,
