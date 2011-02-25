@@ -3538,6 +3538,9 @@ int __init omap3xxx_clk_init(void)
 			omap2_init_clk_clkdm(c->lk.clk);
 		}
 
+	/* Disable autoidle on all clocks; let the PM code enable it later */
+	omap_clk_disable_autoidle_all();
+
 	recalculate_root_clocks();
 
 	pr_info("Clocking rate (Crystal/Core/MPU): %ld.%01ld/%ld/%ld MHz\n",
@@ -3551,7 +3554,8 @@ int __init omap3xxx_clk_init(void)
 	clk_enable_init_clocks();
 
 	/*
-	 * Lock DPLL5 and put it in autoidle.
+	 * Lock DPLL5 -- here only until other device init code can
+	 * handle this
 	 */
 	if (!cpu_is_ti816x() && (omap_rev() >= OMAP3430_REV_ES2_0))
 		omap3_clk_lock_dpll5();

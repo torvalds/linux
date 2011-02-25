@@ -1913,6 +1913,9 @@ int __init omap2420_clk_init(void)
 		omap2_init_clk_clkdm(c->lk.clk);
 	}
 
+	/* Disable autoidle on all clocks; let the PM code enable it later */
+	omap_clk_disable_autoidle_all();
+
 	/* Check the MPU rate set by bootloader */
 	clkrate = omap2xxx_clk_get_core_rate(&dpll_ck);
 	for (prcm = rate_table; prcm->mpu_speed; prcm++) {

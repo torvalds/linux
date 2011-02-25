@@ -3309,6 +3309,9 @@ int __init omap4xxx_clk_init(void)
 			omap2_init_clk_clkdm(c->lk.clk);
 		}
 
+	/* Disable autoidle on all clocks; let the PM code enable it later */
+	omap_clk_disable_autoidle_all();
+
 	recalculate_root_clocks();
 
 	/*
