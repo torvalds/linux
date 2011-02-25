@@ -2133,7 +2133,7 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 {
 #define ATH_FLUSH_TIMEOUT	60 /* ms */
 	struct ath_softc *sc = hw->priv;
-	struct ath_txq *txq;
+	struct ath_txq *txq = NULL;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	int i, j, npend = 0;
