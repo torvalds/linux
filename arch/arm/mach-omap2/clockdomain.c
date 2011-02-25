@@ -400,12 +400,6 @@ int clkdm_add_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 	struct clkdm_dep *cd;
 	int ret = 0;
 
-	if (!cpu_is_omap24xx() && !cpu_is_omap34xx()) {
-		pr_err("clockdomain: %s/%s: %s: not yet implemented\n",
-		       clkdm1->name, clkdm2->name, __func__);
-		return -EINVAL;
-	}
-
 	if (!clkdm1 || !clkdm2)
 		return -EINVAL;
 
@@ -446,12 +440,6 @@ int clkdm_del_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 {
 	struct clkdm_dep *cd;
 	int ret = 0;
-
-	if (!cpu_is_omap24xx() && !cpu_is_omap34xx()) {
-		pr_err("clockdomain: %s/%s: %s: not yet implemented\n",
-		       clkdm1->name, clkdm2->name, __func__);
-		return -EINVAL;
-	}
 
 	if (!clkdm1 || !clkdm2)
 		return -EINVAL;
@@ -501,12 +489,6 @@ int clkdm_read_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 	if (!clkdm1 || !clkdm2)
 		return -EINVAL;
 
-	if (!cpu_is_omap24xx() && !cpu_is_omap34xx()) {
-		pr_err("clockdomain: %s/%s: %s: not yet implemented\n",
-		       clkdm1->name, clkdm2->name, __func__);
-		return -EINVAL;
-	}
-
 	cd = _clkdm_deps_lookup(clkdm2, clkdm1->wkdep_srcs);
 	if (IS_ERR(cd))
 		ret = PTR_ERR(cd);
@@ -536,12 +518,6 @@ int clkdm_read_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
  */
 int clkdm_clear_all_wkdeps(struct clockdomain *clkdm)
 {
-	if (!cpu_is_omap24xx() && !cpu_is_omap34xx()) {
-		pr_err("clockdomain: %s: %s: not yet implemented\n",
-		       clkdm->name, __func__);
-		return -EINVAL;
-	}
-
 	if (!clkdm)
 		return -EINVAL;
 
