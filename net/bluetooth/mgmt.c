@@ -302,6 +302,9 @@ static int set_powered(struct sock *sk, u16 index, unsigned char *data, u16 len)
 
 	BT_DBG("request for hci%u", index);
 
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_SET_POWERED, EINVAL);
+
 	hdev = hci_dev_get(index);
 	if (!hdev)
 		return cmd_status(sk, index, MGMT_OP_SET_POWERED, ENODEV);
@@ -350,6 +353,9 @@ static int set_discoverable(struct sock *sk, u16 index, unsigned char *data,
 	cp = (void *) data;
 
 	BT_DBG("request for hci%u", index);
+
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_SET_DISCOVERABLE, EINVAL);
 
 	hdev = hci_dev_get(index);
 	if (!hdev)
@@ -408,6 +414,9 @@ static int set_connectable(struct sock *sk, u16 index, unsigned char *data,
 	cp = (void *) data;
 
 	BT_DBG("request for hci%u", index);
+
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_SET_CONNECTABLE, EINVAL);
 
 	hdev = hci_dev_get(index);
 	if (!hdev)
@@ -499,6 +508,9 @@ static int set_pairable(struct sock *sk, u16 index, unsigned char *data,
 
 	BT_DBG("request for hci%u", index);
 
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_SET_PAIRABLE, EINVAL);
+
 	hdev = hci_dev_get(index);
 	if (!hdev)
 		return cmd_status(sk, index, MGMT_OP_SET_PAIRABLE, ENODEV);
@@ -569,6 +581,9 @@ static int add_uuid(struct sock *sk, u16 index, unsigned char *data, u16 len)
 
 	BT_DBG("request for hci%u", index);
 
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_ADD_UUID, EINVAL);
+
 	hdev = hci_dev_get(index);
 	if (!hdev)
 		return cmd_status(sk, index, MGMT_OP_ADD_UUID, ENODEV);
@@ -610,6 +625,9 @@ static int remove_uuid(struct sock *sk, u16 index, unsigned char *data, u16 len)
 	cp = (void *) data;
 
 	BT_DBG("request for hci%u", index);
+
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_REMOVE_UUID, EINVAL);
 
 	hdev = hci_dev_get(index);
 	if (!hdev)
@@ -663,6 +681,9 @@ static int set_dev_class(struct sock *sk, u16 index, unsigned char *data,
 
 	BT_DBG("request for hci%u", index);
 
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_SET_DEV_CLASS, EINVAL);
+
 	hdev = hci_dev_get(index);
 	if (!hdev)
 		return cmd_status(sk, index, MGMT_OP_SET_DEV_CLASS, ENODEV);
@@ -691,6 +712,10 @@ static int set_service_cache(struct sock *sk, u16 index,  unsigned char *data,
 	int err;
 
 	cp = (void *) data;
+
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_SET_SERVICE_CACHE,
+									EINVAL);
 
 	hdev = hci_dev_get(index);
 	if (!hdev)
@@ -726,6 +751,10 @@ static int load_keys(struct sock *sk, u16 index, unsigned char *data, u16 len)
 	int i;
 
 	cp = (void *) data;
+
+	if (len < sizeof(*cp))
+		return -EINVAL;
+
 	key_count = get_unaligned_le16(&cp->key_count);
 
 	expected_len = sizeof(*cp) + key_count * sizeof(struct mgmt_key_info);
@@ -775,6 +804,9 @@ static int remove_key(struct sock *sk, u16 index, unsigned char *data, u16 len)
 
 	cp = (void *) data;
 
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_REMOVE_KEY, EINVAL);
+
 	hdev = hci_dev_get(index);
 	if (!hdev)
 		return cmd_status(sk, index, MGMT_OP_REMOVE_KEY, ENODEV);
@@ -820,6 +852,9 @@ static int disconnect(struct sock *sk, u16 index, unsigned char *data, u16 len)
 	BT_DBG("");
 
 	cp = (void *) data;
+
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_DISCONNECT, EINVAL);
 
 	hdev = hci_dev_get(index);
 	if (!hdev)
@@ -931,6 +966,9 @@ static int pin_code_reply(struct sock *sk, u16 index, unsigned char *data,
 
 	cp = (void *) data;
 
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_PIN_CODE_REPLY, EINVAL);
+
 	hdev = hci_dev_get(index);
 	if (!hdev)
 		return cmd_status(sk, index, MGMT_OP_PIN_CODE_REPLY, ENODEV);
@@ -975,6 +1013,10 @@ static int pin_code_neg_reply(struct sock *sk, u16 index, unsigned char *data,
 
 	cp = (void *) data;
 
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_PIN_CODE_NEG_REPLY,
+									EINVAL);
+
 	hdev = hci_dev_get(index);
 	if (!hdev)
 		return cmd_status(sk, index, MGMT_OP_PIN_CODE_NEG_REPLY,
@@ -1016,6 +1058,10 @@ static int set_io_capability(struct sock *sk, u16 index, unsigned char *data,
 	BT_DBG("");
 
 	cp = (void *) data;
+
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_SET_IO_CAPABILITY,
+									EINVAL);
 
 	hdev = hci_dev_get(index);
 	if (!hdev)
@@ -1107,6 +1153,9 @@ static int pair_device(struct sock *sk, u16 index, unsigned char *data, u16 len)
 
 	cp = (void *) data;
 
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_PAIR_DEVICE, EINVAL);
+
 	hdev = hci_dev_get(index);
 	if (!hdev)
 		return cmd_status(sk, index, MGMT_OP_PAIR_DEVICE, ENODEV);
@@ -1177,6 +1226,9 @@ static int user_confirm_reply(struct sock *sk, u16 index, unsigned char *data,
 		mgmt_op = MGMT_OP_USER_CONFIRM_NEG_REPLY;
 		hci_op = HCI_OP_USER_CONFIRM_NEG_REPLY;
 	}
+
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, mgmt_op, EINVAL);
 
 	hdev = hci_dev_get(index);
 	if (!hdev)
