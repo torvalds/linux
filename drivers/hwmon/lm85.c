@@ -1281,6 +1281,15 @@ static int lm85_detect(struct i2c_client *client, struct i2c_board_info *info)
 	return 0;
 }
 
+static void lm85_remove_files(struct i2c_client *client, struct lm85_data *data)
+{
+	sysfs_remove_group(&client->dev.kobj, &lm85_group);
+	if (!data->has_vid5)
+		sysfs_remove_group(&client->dev.kobj, &lm85_group_in4);
+	if (data->type == emc6d100)
+		sysfs_remove_group(&client->dev.kobj, &lm85_group_in567);
+}
+
 static int lm85_probe(struct i2c_client *client,
 		      const struct i2c_device_id *id)
 {
@@ -1349,10 +1358,7 @@ static int lm85_probe(struct i2c_client *client,
 
 	/* Error out and cleanup code */
  err_remove_files:
-	sysfs_remove_group(&client->dev.kobj, &lm85_group);
-	sysfs_remove_group(&client->dev.kobj, &lm85_group_in4);
-	if (data->type == emc6d100)
-		sysfs_remove_group(&client->dev.kobj, &lm85_group_in567);
+	lm85_remove_files(client, data);
  err_kfree:
 	kfree(data);
 	return err;
@@ -1362,10 +1368,7 @@ static int lm85_remove(struct i2c_client *client)
 {
 	struct lm85_data *data = i2c_get_clientdata(client);
 	hwmon_device_unregister(data->hwmon_dev);
-	sysfs_remove_group(&client->dev.kobj, &lm85_group);
-	sysfs_remove_group(&client->dev.kobj, &lm85_group_in4);
-	if (data->type == emc6d100)
-		sysfs_remove_group(&client->dev.kobj, &lm85_group_in567);
+	lm85_remove_files(client, data);
 	kfree(data);
 	return 0;
 }
