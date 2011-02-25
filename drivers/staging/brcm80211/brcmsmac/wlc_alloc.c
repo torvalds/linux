@@ -146,17 +146,8 @@ static void wlc_bsscfg_mfree(wlc_bsscfg_t *cfg)
 	if (cfg == NULL)
 		return;
 
-	if (cfg->maclist) {
-		kfree(cfg->maclist);
-		cfg->maclist = NULL;
-	}
-
-	if (cfg->current_bss != NULL) {
-		wlc_bss_info_t *current_bss = cfg->current_bss;
-		kfree(current_bss);
-		cfg->current_bss = NULL;
-	}
-
+	kfree(cfg->maclist);
+	kfree(cfg->current_bss);
 	kfree(cfg);
 }
 
@@ -310,65 +301,19 @@ void wlc_detach_mfree(struct wlc_info *wlc)
 	if (wlc == NULL)
 		return;
 
-	if (wlc->modulecb) {
-		kfree(wlc->modulecb);
-		wlc->modulecb = NULL;
-	}
-
-	if (wlc->default_bss) {
-		kfree(wlc->default_bss);
-		wlc->default_bss = NULL;
-	}
-	if (wlc->cfg) {
-		wlc_bsscfg_mfree(osh, wlc->cfg);
-		wlc->cfg = NULL;
-	}
-
-	if (wlc->pkt_callback && wlc->pub && wlc->pub->tunables) {
-		kfree(wlc->pkt_callback);
-		wlc->pkt_callback = NULL;
-	}
-
-	if (wlc->wsec_def_keys[0])
-		kfree(wlc->wsec_def_keys[0]);
-	if (wlc->protection) {
-		kfree(wlc->protection);
-		wlc->protection = NULL;
-	}
-
-	if (wlc->stf) {
-		kfree(wlc->stf);
-		wlc->stf = NULL;
-	}
-
-	if (wlc->bandstate[0])
-		kfree(wlc->bandstate[0]);
-
-	if (wlc->corestate) {
-		if (wlc->corestate->macstat_snapshot) {
-			kfree(wlc->corestate->macstat_snapshot);
-			wlc->corestate->macstat_snapshot = NULL;
-		}
-		kfree(wlc->corestate);
-		wlc->corestate = NULL;
-	}
-
-	if (wlc->pub) {
-		/* free pub struct */
-		wlc_pub_mfree(osh, wlc->pub);
-		wlc->pub = NULL;
-	}
-
-	if (wlc->hw) {
-		if (wlc->hw->bandstate[0]) {
-			kfree(wlc->hw->bandstate[0]);
-			wlc->hw->bandstate[0] = NULL;
-		}
-
-		/* free hw struct */
-		kfree(wlc->hw);
-		wlc->hw = NULL;
-	}
+	wlc_bsscfg_mfree(wlc->cfg);
+	wlc_pub_mfree(wlc->pub);
+	kfree(wlc->modulecb);
+	kfree(wlc->default_bss);
+	kfree(wlc->pkt_callback);
+	kfree(wlc->wsec_def_keys[0]);
+	kfree(wlc->protection);
+	kfree(wlc->stf);
+	kfree(wlc->bandstate[0]);
+	kfree(wlc->corestate->macstat_snapshot);
+	kfree(wlc->corestate);
+	kfree(wlc->hw->bandstate[0]);
+	kfree(wlc->hw);
 
 	/* free the wlc */
 	kfree(wlc);

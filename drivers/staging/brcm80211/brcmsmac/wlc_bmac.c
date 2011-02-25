@@ -1044,10 +1044,8 @@ int wlc_bmac_detach(struct wlc_info *wlc)
 	wlc_phy_shim_detach(wlc_hw->physhim);
 
 	/* free vars */
-	if (wlc_hw->vars) {
-		kfree(wlc_hw->vars);
-		wlc_hw->vars = NULL;
-	}
+	kfree(wlc_hw->vars);
+	wlc_hw->vars = NULL;
 
 	if (wlc_hw->sih) {
 		si_detach(wlc_hw->sih);

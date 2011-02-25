@@ -83,9 +83,6 @@ wlc_phy_shim_info_t *wlc_phy_shim_attach(struct wlc_hw_info *wlc_hw,
 
 void wlc_phy_shim_detach(wlc_phy_shim_info_t *physhim)
 {
-	if (!physhim)
-		return;
-
 	kfree(physhim);
 }
 

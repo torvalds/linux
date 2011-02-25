@@ -161,9 +161,6 @@ struct antsel_info *wlc_antsel_attach(struct wlc_info *wlc,
 
 void wlc_antsel_detach(struct antsel_info *asi)
 {
-	if (!asi)
-		return;
-
 	kfree(asi);
 }
 

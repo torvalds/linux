@@ -683,8 +683,7 @@ wlc_cm_info_t *wlc_channel_mgr_attach(struct wlc_info *wlc)
 
 void wlc_channel_mgr_detach(wlc_cm_info_t *wlc_cm)
 {
-	if (wlc_cm)
-		kfree(wlc_cm);
+	kfree(wlc_cm);
 }
 
 u8 wlc_channel_locale_flags_in_band(wlc_cm_info_t *wlc_cm, uint bandunit)

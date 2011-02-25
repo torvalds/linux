@@ -232,9 +232,7 @@ void wlc_ampdu_detach(struct ampdu_info *ampdu)
 
 	/* free all ini's which were to be freed on callbacks which were never called */
 	for (i = 0; i < AMPDU_INI_FREE; i++) {
-		if (ampdu->ini_free[i]) {
-			kfree(ampdu->ini_free[i]);
-		}
+		kfree(ampdu->ini_free[i]);
 	}
 
 	wlc_module_unregister(ampdu->wlc->pub, "ampdu", ampdu);
