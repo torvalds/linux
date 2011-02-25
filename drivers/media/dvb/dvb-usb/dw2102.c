@@ -1,6 +1,6 @@
 /* DVB USB framework compliant Linux driver for the
 *	DVBWorld DVB-S 2101, 2102, DVB-S2 2104, DVB-C 3101,
-*	TeVii S600, S630, S650,
+*	TeVii S600, S630, S650, S480
 *	Prof 1100, 7500,
  *	Geniatech SU3000 Cards
 * Copyright (C) 2008,2009 Igor M. Liplianin (liplianin@me.by)
@@ -54,6 +54,14 @@
 
 #ifndef USB_PID_TEVII_S660
 #define USB_PID_TEVII_S660 0xd660
+#endif
+
+#ifndef USB_PID_TEVII_S480_1
+#define USB_PID_TEVII_S480_1 0xd481
+#endif
+
+#ifndef USB_PID_TEVII_S480_2
+#define USB_PID_TEVII_S480_2 0xd482
 #endif
 
 #ifndef USB_PID_PROF_1100
@@ -1430,6 +1438,8 @@ static struct usb_device_id dw2102_table[] = {
 	{USB_DEVICE(0x3034, 0x7500)},
 	{USB_DEVICE(0x1f4d, 0x3000)},
 	{USB_DEVICE(USB_VID_TERRATEC, 0x00a8)},
+	{USB_DEVICE(0x9022, USB_PID_TEVII_S480_1)},
+	{USB_DEVICE(0x9022, USB_PID_TEVII_S480_2)},
 	{ }
 };
 
@@ -1748,6 +1758,18 @@ static struct dvb_usb_device_description d660 = {
 	{NULL},
 };
 
+static struct dvb_usb_device_description d480_1 = {
+	"TeVii S480.1 USB",
+	{&dw2102_table[12], NULL},
+	{NULL},
+};
+
+static struct dvb_usb_device_description d480_2 = {
+	"TeVii S480.2 USB",
+	{&dw2102_table[13], NULL},
+	{NULL},
+};
+
 struct dvb_usb_device_properties *p7500;
 static struct dvb_usb_device_description d7500 = {
 	"Prof 7500 USB DVB-S2",
@@ -1828,7 +1850,10 @@ static int dw2102_probe(struct usb_interface *intf,
 	memcpy(s660, &s6x0_properties,
 			sizeof(struct dvb_usb_device_properties));
 	s660->firmware = "dvb-usb-s660.fw";
+	s660->num_device_descs = 3;
 	s660->devices[0] = d660;
+	s660->devices[1] = d480_1;
+	s660->devices[2] = d480_2;
 	s660->adapter->frontend_attach = ds3000_frontend_attach;
 
 	p7500 = kzalloc(sizeof(struct dvb_usb_device_properties), GFP_KERNEL);
@@ -1893,7 +1918,7 @@ module_exit(dw2102_module_exit);
 MODULE_AUTHOR("Igor M. Liplianin (c) liplianin@me.by");
 MODULE_DESCRIPTION("Driver for DVBWorld DVB-S 2101, 2102, DVB-S2 2104,"
 				" DVB-C 3101 USB2.0,"
-				" TeVii S600, S630, S650, S660 USB2.0,"
+				" TeVii S600, S630, S650, S660, S480,"
 				" Prof 1100, 7500 USB2.0,"
 				" Geniatech SU3000 devices");
 MODULE_VERSION("0.1");
