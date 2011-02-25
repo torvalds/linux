@@ -110,19 +110,21 @@ obj-$(CONFIG_ARCH_OMAP3)		+= clockdomain.o \
 obj-$(CONFIG_ARCH_OMAP4)		+= clockdomain.o \
 					   clockdomain44xx.o \
 					   clockdomains44xx_data.o
+
 # Clock framework
 obj-$(CONFIG_ARCH_OMAP2)		+= $(clock-common) clock2xxx.o \
 					   clkt2xxx_sys.o \
 					   clkt2xxx_dpllcore.o \
 					   clkt2xxx_virt_prcm_set.o \
 					   clkt2xxx_apll.o clkt2xxx_osc.o \
-					   clkt2xxx_dpll.o
+					   clkt2xxx_dpll.o clkt_iclk.o
 obj-$(CONFIG_SOC_OMAP2420)		+= clock2420_data.o
 obj-$(CONFIG_SOC_OMAP2430)		+= clock2430.o clock2430_data.o
 obj-$(CONFIG_ARCH_OMAP3)		+= $(clock-common) clock3xxx.o \
 					   clock34xx.o clkt34xx_dpll3m2.o \
 					   clock3517.o clock36xx.o \
-					   dpll3xxx.o clock3xxx_data.o
+					   dpll3xxx.o clock3xxx_data.o \
+					   clkt_iclk.o
 obj-$(CONFIG_ARCH_OMAP4)		+= $(clock-common) clock44xx_data.o \
 					   dpll3xxx.o dpll44xx.o
 
