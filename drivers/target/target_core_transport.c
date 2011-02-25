@@ -1207,7 +1207,7 @@ transport_get_task_from_execute_queue(struct se_device *dev)
  *
  *
  */
-static void transport_remove_task_from_execute_queue(
+void transport_remove_task_from_execute_queue(
 	struct se_task *task,
 	struct se_device *dev)
 {
@@ -5549,7 +5549,8 @@ static void transport_generic_wait_for_tasks(
 
 		atomic_set(&T_TASK(cmd)->transport_lun_stop, 0);
 	}
-	if (!atomic_read(&T_TASK(cmd)->t_transport_active))
+	if (!atomic_read(&T_TASK(cmd)->t_transport_active) ||
+	     atomic_read(&T_TASK(cmd)->t_transport_aborted))
 		goto remove;
 
 	atomic_set(&T_TASK(cmd)->t_transport_stop, 1);
@@ -5956,6 +5957,9 @@ static void transport_processing_shutdown(struct se_device *dev)
 
 			atomic_set(&task->task_active, 0);
 			atomic_set(&task->task_stop, 0);
+		} else {
+			if (atomic_read(&task->task_execute_queue) != 0)
+				transport_remove_task_from_execute_queue(task, dev);
 		}
 		__transport_stop_task_timer(task, &flags);
 
