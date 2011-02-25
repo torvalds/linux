@@ -10,6 +10,7 @@
 #include "../../annotate.h"
 #include "../helpline.h"
 #include "../libslang.h"
+#include "../util.h"
 #include "../../evlist.h"
 #include "../../hist.h"
 #include "../../sort.h"
@@ -174,6 +175,12 @@ static int perf_top_browser__run(struct perf_top_browser *browser)
 			if (browser->selection)
 				perf_top_browser__annotate(browser);
 			break;
+		case NEWT_KEY_LEFT:
+			continue;
+		case NEWT_KEY_ESCAPE:
+			if (!ui__dialog_yesno("Do you really want to exit?"))
+				continue;
+			/* Fall thru */
 		default:
 			goto out;
 		}
