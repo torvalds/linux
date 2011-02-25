@@ -263,20 +263,16 @@ struct dmi_system_event_log {
 	u8	supported_log_type_descriptos[0];
 } __packed;
 
-static const struct dmi_system_event_log *to_sel(const struct dmi_header *dh)
-{
-	return (const struct dmi_system_event_log *)dh;
-}
-
 #define DMI_SYSFS_SEL_FIELD(_field) \
 static ssize_t dmi_sysfs_sel_##_field(struct dmi_sysfs_entry *entry, \
 				      const struct dmi_header *dh, \
 				      char *buf) \
 { \
-	const struct dmi_system_event_log *sel = to_sel(dh); \
-	if (sizeof(*sel) > dmi_entry_length(dh)) \
+	struct dmi_system_event_log sel; \
+	if (sizeof(sel) > dmi_entry_length(dh)) \
 		return -EIO; \
-	return sprintf(buf, "%u\n", sel->_field); \
+	memcpy(&sel, dh, sizeof(sel)); \
+	return sprintf(buf, "%u\n", sel._field); \
 } \
 static DMI_SYSFS_MAPPED_ATTR(sel, _field)
 
@@ -403,26 +399,28 @@ static ssize_t dmi_sel_raw_read_helper(struct dmi_sysfs_entry *entry,
 				       void *_state)
 {
 	struct dmi_read_state *state = _state;
-	const struct dmi_system_event_log *sel = to_sel(dh);
+	struct dmi_system_event_log sel;
 
-	if (sizeof(*sel) > dmi_entry_length(dh))
+	if (sizeof(sel) > dmi_entry_length(dh))
 		return -EIO;
 
-	switch (sel->access_method) {
+	memcpy(&sel, dh, sizeof(sel));
+
+	switch (sel.access_method) {
 	case DMI_SEL_ACCESS_METHOD_IO8:
 	case DMI_SEL_ACCESS_METHOD_IO2x8:
 	case DMI_SEL_ACCESS_METHOD_IO16:
-		return dmi_sel_raw_read_io(entry, sel, state->buf,
+		return dmi_sel_raw_read_io(entry, &sel, state->buf,
 					   state->pos, state->count);
 	case DMI_SEL_ACCESS_METHOD_PHYS32:
-		return dmi_sel_raw_read_phys32(entry, sel, state->buf,
+		return dmi_sel_raw_read_phys32(entry, &sel, state->buf,
 					       state->pos, state->count);
 	case DMI_SEL_ACCESS_METHOD_GPNV:
 		pr_info("dmi-sysfs: GPNV support missing.\n");
 		return -EIO;
 	default:
 		pr_info("dmi-sysfs: Unknown access method %02x\n",
-			sel->access_method);
+			sel.access_method);
 		return -EIO;
 	}
 }
@@ -595,7 +593,7 @@ static void __init dmi_sysfs_register_handle(const struct dmi_header *dh,
 	}
 
 	/* Set the key */
-	entry->dh = *dh;
+	memcpy(&entry->dh, dh, sizeof(*dh));
 	entry->instance = instance_counts[dh->type]++;
 	entry->position = position_count++;
 
