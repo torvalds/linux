@@ -298,8 +298,6 @@ static const short da850_evm_nor_pins[] = {
 	-1
 };
 
-static u32 ui_card_detected;
-
 #if defined(CONFIG_MMC_DAVINCI) || \
     defined(CONFIG_MMC_DAVINCI_MODULE)
 #define HAS_MMC 1
@@ -311,7 +309,7 @@ static inline void da850_evm_setup_nor_nand(void)
 {
 	int ret = 0;
 
-	if (ui_card_detected & !HAS_MMC) {
+	if (!HAS_MMC) {
 		ret = davinci_cfg_reg_list(da850_evm_nand_pins);
 		if (ret)
 			pr_warning("da850_evm_init: nand mux setup failed: "
@@ -461,7 +459,6 @@ static int da850_evm_ui_expander_setup(struct i2c_client *client, unsigned gpio,
 		goto exp_setup_keys_fail;
 	}
 
-	ui_card_detected = 1;
 	pr_info("DA850/OMAP-L138 EVM UI card detected\n");
 
 	da850_evm_setup_nor_nand();
