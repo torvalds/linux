@@ -588,7 +588,7 @@ struct sysinfo {
 
 /**
  * BUILD_BUG_ON - break compile if a condition is true.
- * @cond: the condition which the compiler should know is false.
+ * @condition: the condition which the compiler should know is false.
  *
  * If you have some code which relies on certain constants being equal, or
  * other compile-time-evaluated condition, you should use BUILD_BUG_ON to

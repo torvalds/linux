@@ -936,8 +936,11 @@ int radeon_resume_kms(struct drm_device *dev)
 int radeon_gpu_reset(struct radeon_device *rdev)
 {
 	int r;
+	int resched;
 
 	radeon_save_bios_scratch_regs(rdev);
+	/* block TTM */
+	resched = ttm_bo_lock_delayed_workqueue(&rdev->mman.bdev);
 	radeon_suspend(rdev);
 
 	r = radeon_asic_reset(rdev);
@@ -946,6 +949,7 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 		radeon_resume(rdev);
 		radeon_restore_bios_scratch_regs(rdev);
 		drm_helper_resume_force_mode(rdev->ddev);
+		ttm_bo_unlock_delayed_workqueue(&rdev->mman.bdev, resched);
 		return 0;
 	}
 	/* bad news, how to tell it to userspace ? */

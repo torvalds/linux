@@ -241,21 +241,15 @@ void __init xen_build_dynamic_phys_to_machine(void)
 		 * As long as the mfn_list has enough entries to completely
 		 * fill a p2m page, pointing into the array is ok. But if
 		 * not the entries beyond the last pfn will be undefined.
-		 * And guessing that the 'what-ever-there-is' does not take it
-		 * too kindly when changing it to invalid markers, a new page
-		 * is allocated, initialized and filled with the valid part.
 		 */
 		if (unlikely(pfn + P2M_PER_PAGE > max_pfn)) {
 			unsigned long p2midx;
-			unsigned long *p2m = extend_brk(PAGE_SIZE, PAGE_SIZE);
-			p2m_init(p2m);
 
-			for (p2midx = 0; pfn + p2midx < max_pfn; p2midx++) {
-				p2m[p2midx] = mfn_list[pfn + p2midx];
-			}
-			p2m_top[topidx][mididx] = p2m;
-		} else
-			p2m_top[topidx][mididx] = &mfn_list[pfn];
+			p2midx = max_pfn % P2M_PER_PAGE;
+			for ( ; p2midx < P2M_PER_PAGE; p2midx++)
+				mfn_list[pfn + p2midx] = INVALID_P2M_ENTRY;
+		}
+		p2m_top[topidx][mididx] = &mfn_list[pfn];
 	}
 
 	m2p_override_init();

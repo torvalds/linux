@@ -1725,6 +1725,9 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 			ar9003_hw_set_paprd_txdesc(sc->sc_ah, bf->bf_desc,
 						   bf->bf_state.bfs_paprd);
 
+		if (txctl->paprd)
+			bf->bf_state.bfs_paprd_timestamp = jiffies;
+
 		ath_tx_send_normal(sc, txctl->txq, tid, &bf_head);
 	}
 
@@ -1886,7 +1889,9 @@ static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,
 	bf->bf_buf_addr = 0;
 
 	if (bf->bf_state.bfs_paprd) {
-		if (!sc->paprd_pending)
+		if (time_after(jiffies,
+				bf->bf_state.bfs_paprd_timestamp +
+				msecs_to_jiffies(ATH_PAPRD_TIMEOUT)))
 			dev_kfree_skb_any(skb);
 		else
 			complete(&sc->paprd_complete);
@@ -2113,9 +2118,7 @@ static void ath_tx_complete_poll_work(struct work_struct *work)
 	if (needreset) {
 		ath_dbg(ath9k_hw_common(sc->sc_ah), ATH_DBG_RESET,
 			"tx hung, resetting the chip\n");
-		ath9k_ps_wakeup(sc);
 		ath_reset(sc, true);
-		ath9k_ps_restore(sc);
 	}
 
 	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work,

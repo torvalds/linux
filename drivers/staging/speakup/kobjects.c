@@ -332,7 +332,7 @@ static ssize_t silent_store(struct kobject *kobj, struct kobj_attribute *attr,
 	unsigned long flags;
 
 	len = strlen(buf);
-	if (len > 0 || len < 3) {
+	if (len > 0 && len < 3) {
 		ch = buf[0];
 		if (ch == '\n')
 			ch = '0';

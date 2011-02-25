@@ -174,7 +174,9 @@
  *   address/value pairs. Don't overdue it, though, x <= 2^4 must hold!
  */
 #define MI_LOAD_REGISTER_IMM(x)	MI_INSTR(0x22, 2*x-1)
-#define MI_FLUSH_DW		MI_INSTR(0x26, 2) /* for GEN6 */
+#define MI_FLUSH_DW		MI_INSTR(0x26, 1) /* for GEN6 */
+#define   MI_INVALIDATE_TLB	(1<<18)
+#define   MI_INVALIDATE_BSD	(1<<7)
 #define MI_BATCH_BUFFER		MI_INSTR(0x30, 1)
 #define   MI_BATCH_NON_SECURE	(1)
 #define   MI_BATCH_NON_SECURE_I965 (1<<8)
@@ -1551,17 +1553,7 @@
 
 /* Backlight control */
 #define BLC_PWM_CTL		0x61254
-#define   BACKLIGHT_MODULATION_FREQ_SHIFT		(17)
 #define BLC_PWM_CTL2		0x61250 /* 965+ only */
-#define   BLM_COMBINATION_MODE (1 << 30)
-/*
- * This is the most significant 15 bits of the number of backlight cycles in a
- * complete cycle of the modulated backlight control.
- *
- * The actual value is this field multiplied by two.
- */
-#define   BACKLIGHT_MODULATION_FREQ_MASK		(0x7fff << 17)
-#define   BLM_LEGACY_MODE				(1 << 16)
 /*
  * This is the number of cycles out of the backlight modulation cycle for which
  * the backlight is on.

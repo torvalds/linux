@@ -722,10 +722,10 @@ static void update_cfs_load(struct cfs_rq *cfs_rq, int global_update)
 	u64 now, delta;
 	unsigned long load = cfs_rq->load.weight;
 
-	if (!cfs_rq)
+	if (cfs_rq->tg == &root_task_group)
 		return;
 
-	now = rq_of(cfs_rq)->clock;
+	now = rq_of(cfs_rq)->clock_task;
 	delta = now - cfs_rq->load_stamp;
 
 	/* truncate load history at 4 idle periods */
@@ -829,9 +829,6 @@ static void update_cfs_shares(struct cfs_rq *cfs_rq, long weight_delta)
 	struct task_group *tg;
 	struct sched_entity *se;
 	long shares;
-
-	if (!cfs_rq)
-		return;
 
 	tg = cfs_rq->tg;
 	se = tg->se[cpu_of(rq_of(cfs_rq))];
@@ -1432,7 +1429,7 @@ static inline unsigned long effective_load(struct task_group *tg, int cpu,
 
 static int wake_affine(struct sched_domain *sd, struct task_struct *p, int sync)
 {
-	unsigned long this_load, load;
+	s64 this_load, load;
 	int idx, this_cpu, prev_cpu;
 	unsigned long tl_per_task;
 	struct task_group *tg;
@@ -1471,8 +1468,8 @@ static int wake_affine(struct sched_domain *sd, struct task_struct *p, int sync)
 	 * Otherwise check if either cpus are near enough in load to allow this
 	 * task to be woken on this_cpu.
 	 */
-	if (this_load) {
-		unsigned long this_eff_load, prev_eff_load;
+	if (this_load > 0) {
+		s64 this_eff_load, prev_eff_load;
 
 		this_eff_load = 100;
 		this_eff_load *= power_of(prev_cpu);

@@ -251,6 +251,27 @@ static int intel_hdmi_get_modes(struct drm_connector *connector)
 				   &dev_priv->gmbus[intel_hdmi->ddc_bus].adapter);
 }
 
+static bool
+intel_hdmi_detect_audio(struct drm_connector *connector)
+{
+	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
+	struct drm_i915_private *dev_priv = connector->dev->dev_private;
+	struct edid *edid;
+	bool has_audio = false;
+
+	edid = drm_get_edid(connector,
+			    &dev_priv->gmbus[intel_hdmi->ddc_bus].adapter);
+	if (edid) {
+		if (edid->input & DRM_EDID_INPUT_DIGITAL)
+			has_audio = drm_detect_monitor_audio(edid);
+
+		connector->display_info.raw_edid = NULL;
+		kfree(edid);
+	}
+
+	return has_audio;
+}
+
 static int
 intel_hdmi_set_property(struct drm_connector *connector,
 		      struct drm_property *property,
@@ -264,17 +285,23 @@ intel_hdmi_set_property(struct drm_connector *connector,
 		return ret;
 
 	if (property == intel_hdmi->force_audio_property) {
-		if (val == intel_hdmi->force_audio)
+		int i = val;
+		bool has_audio;
+
+		if (i == intel_hdmi->force_audio)
 			return 0;
 
-		intel_hdmi->force_audio = val;
+		intel_hdmi->force_audio = i;
 
-		if (val > 0 && intel_hdmi->has_audio)
-			return 0;
-		if (val < 0 && !intel_hdmi->has_audio)
+		if (i == 0)
+			has_audio = intel_hdmi_detect_audio(connector);
+		else
+			has_audio = i > 0;
+
+		if (has_audio == intel_hdmi->has_audio)
 			return 0;
 
-		intel_hdmi->has_audio = val > 0;
+		intel_hdmi->has_audio = has_audio;
 		goto done;
 	}
 

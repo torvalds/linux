@@ -97,26 +97,29 @@ u32 evergreen_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 }
 
 /* get temperature in millidegrees */
-u32 evergreen_get_temp(struct radeon_device *rdev)
+int evergreen_get_temp(struct radeon_device *rdev)
 {
 	u32 temp = (RREG32(CG_MULT_THERMAL_STATUS) & ASIC_T_MASK) >>
 		ASIC_T_SHIFT;
 	u32 actual_temp = 0;
 
-	if ((temp >> 10) & 1)
-		actual_temp = 0;
-	else if ((temp >> 9) & 1)
+	if (temp & 0x400)
+		actual_temp = -256;
+	else if (temp & 0x200)
 		actual_temp = 255;
-	else
-		actual_temp = (temp >> 1) & 0xff;
+	else if (temp & 0x100) {
+		actual_temp = temp & 0x1ff;
+		actual_temp |= ~0x1ff;
+	} else
+		actual_temp = temp & 0xff;
 
-	return actual_temp * 1000;
+	return (actual_temp * 1000) / 2;
 }
 
-u32 sumo_get_temp(struct radeon_device *rdev)
+int sumo_get_temp(struct radeon_device *rdev)
 {
 	u32 temp = RREG32(CG_THERMAL_STATUS) & 0xff;
-	u32 actual_temp = (temp >> 1) & 0xff;
+	int actual_temp = temp - 49;
 
 	return actual_temp * 1000;
 }
@@ -1182,6 +1185,22 @@ static void evergreen_mc_program(struct radeon_device *rdev)
 /*
  * CP.
  */
+void evergreen_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
+{
+	/* set to DX10/11 mode */
+	radeon_ring_write(rdev, PACKET3(PACKET3_MODE_CONTROL, 0));
+	radeon_ring_write(rdev, 1);
+	/* FIXME: implement */
+	radeon_ring_write(rdev, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
+	radeon_ring_write(rdev,
+#ifdef __BIG_ENDIAN
+			  (2 << 0) |
+#endif
+			  (ib->gpu_addr & 0xFFFFFFFC));
+	radeon_ring_write(rdev, upper_32_bits(ib->gpu_addr) & 0xFF);
+	radeon_ring_write(rdev, ib->length_dw);
+}
+
 
 static int evergreen_cp_load_microcode(struct radeon_device *rdev)
 {
@@ -1192,7 +1211,11 @@ static int evergreen_cp_load_microcode(struct radeon_device *rdev)
 		return -EINVAL;
 
 	r700_cp_stop(rdev);
-	WREG32(CP_RB_CNTL, RB_NO_UPDATE | (15 << 8) | (3 << 0));
+	WREG32(CP_RB_CNTL,
+#ifdef __BIG_ENDIAN
+	       BUF_SWAP_32BIT |
+#endif
+	       RB_NO_UPDATE | RB_BLKSZ(15) | RB_BUFSZ(3));
 
 	fw_data = (const __be32 *)rdev->pfp_fw->data;
 	WREG32(CP_PFP_UCODE_ADDR, 0);
@@ -1233,7 +1256,7 @@ static int evergreen_cp_start(struct radeon_device *rdev)
 	cp_me = 0xff;
 	WREG32(CP_ME_CNTL, cp_me);
 
-	r = radeon_ring_lock(rdev, evergreen_default_size + 15);
+	r = radeon_ring_lock(rdev, evergreen_default_size + 19);
 	if (r) {
 		DRM_ERROR("radeon: cp failed to lock ring (%d).\n", r);
 		return r;
@@ -1265,6 +1288,11 @@ static int evergreen_cp_start(struct radeon_device *rdev)
 	radeon_ring_write(rdev, 0xffffffff);
 	radeon_ring_write(rdev, 0xffffffff);
 	radeon_ring_write(rdev, 0xffffffff);
+
+	radeon_ring_write(rdev, 0xc0026900);
+	radeon_ring_write(rdev, 0x00000316);
+	radeon_ring_write(rdev, 0x0000000e); /* VGT_VERTEX_REUSE_BLOCK_CNTL */
+	radeon_ring_write(rdev, 0x00000010); /*  */
 
 	radeon_ring_unlock_commit(rdev);
 
@@ -1306,7 +1334,11 @@ int evergreen_cp_resume(struct radeon_device *rdev)
 	WREG32(CP_RB_WPTR, 0);
 
 	/* set the wb address wether it's enabled or not */
-	WREG32(CP_RB_RPTR_ADDR, (rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFFFFFFFC);
+	WREG32(CP_RB_RPTR_ADDR,
+#ifdef __BIG_ENDIAN
+	       RB_RPTR_SWAP(2) |
+#endif
+	       ((rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFFFFFFFC));
 	WREG32(CP_RB_RPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFF);
 	WREG32(SCRATCH_ADDR, ((rdev->wb.gpu_addr + RADEON_WB_SCRATCH_OFFSET) >> 8) & 0xFFFFFFFF);
 
@@ -2072,6 +2104,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	WREG32(VGT_CACHE_INVALIDATION, vgt_cache_invalidation);
 
 	WREG32(VGT_GS_VERTEX_REUSE, 16);
+	WREG32(PA_SU_LINE_STIPPLE_VALUE, 0);
 	WREG32(PA_SC_LINE_STIPPLE_STATE, 0);
 
 	WREG32(VGT_VERTEX_REUSE_BLOCK_CNTL, 14);
@@ -2606,8 +2639,8 @@ restart_ih:
 	while (rptr != wptr) {
 		/* wptr/rptr are in bytes! */
 		ring_index = rptr / 4;
-		src_id =  rdev->ih.ring[ring_index] & 0xff;
-		src_data = rdev->ih.ring[ring_index + 1] & 0xfffffff;
+		src_id =  le32_to_cpu(rdev->ih.ring[ring_index]) & 0xff;
+		src_data = le32_to_cpu(rdev->ih.ring[ring_index + 1]) & 0xfffffff;
 
 		switch (src_id) {
 		case 1: /* D1 vblank/vline */

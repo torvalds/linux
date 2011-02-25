@@ -405,7 +405,7 @@ config CPU_V6
 config CPU_32v6K
 	bool "Support ARM V6K processor extensions" if !SMP
 	depends on CPU_V6 || CPU_V7
-	default y if SMP && !(ARCH_MX3 || ARCH_OMAP2)
+	default y if SMP
 	help
 	  Say Y here if your ARMv6 processor supports the 'K' extension.
 	  This enables the kernel to use some instructions not present
@@ -416,7 +416,7 @@ config CPU_32v6K
 # ARMv7
 config CPU_V7
 	bool "Support ARM V7 processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB || MACH_REALVIEW_PBX
-	select CPU_32v6K if !ARCH_OMAP2
+	select CPU_32v6K
 	select CPU_32v7
 	select CPU_ABRT_EV7
 	select CPU_PABRT_V7
@@ -644,7 +644,7 @@ config ARM_THUMBEE
 
 config SWP_EMULATE
 	bool "Emulate SWP/SWPB instructions"
-	depends on CPU_V7 && !CPU_V6
+	depends on !CPU_USE_DOMAINS && CPU_V7 && !CPU_V6
 	select HAVE_PROC_CPU if PROC_FS
 	default y if SMP
 	help

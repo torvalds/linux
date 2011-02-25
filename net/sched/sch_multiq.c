@@ -83,7 +83,6 @@ multiq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 
 	ret = qdisc_enqueue(skb, qdisc);
 	if (ret == NET_XMIT_SUCCESS) {
-		qdisc_bstats_update(sch, skb);
 		sch->q.qlen++;
 		return NET_XMIT_SUCCESS;
 	}
@@ -112,6 +111,7 @@ static struct sk_buff *multiq_dequeue(struct Qdisc *sch)
 			qdisc = q->queues[q->curband];
 			skb = qdisc->dequeue(qdisc);
 			if (skb) {
+				qdisc_bstats_update(sch, skb);
 				sch->q.qlen--;
 				return skb;
 			}

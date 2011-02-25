@@ -583,7 +583,7 @@ static int dcbnl_getapp(struct net_device *netdev, struct nlattr **tb,
 	u8 up, idtype;
 	int ret = -EINVAL;
 
-	if (!tb[DCB_ATTR_APP] || !netdev->dcbnl_ops->getapp)
+	if (!tb[DCB_ATTR_APP])
 		goto out;
 
 	ret = nla_parse_nested(app_tb, DCB_APP_ATTR_MAX, tb[DCB_ATTR_APP],
@@ -604,7 +604,16 @@ static int dcbnl_getapp(struct net_device *netdev, struct nlattr **tb,
 		goto out;
 
 	id = nla_get_u16(app_tb[DCB_APP_ATTR_ID]);
-	up = netdev->dcbnl_ops->getapp(netdev, idtype, id);
+
+	if (netdev->dcbnl_ops->getapp) {
+		up = netdev->dcbnl_ops->getapp(netdev, idtype, id);
+	} else {
+		struct dcb_app app = {
+					.selector = idtype,
+					.protocol = id,
+				     };
+		up = dcb_getapp(netdev, &app);
+	}
 
 	/* send this back */
 	dcbnl_skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
@@ -617,6 +626,9 @@ static int dcbnl_getapp(struct net_device *netdev, struct nlattr **tb,
 	dcb->cmd = DCB_CMD_GAPP;
 
 	app_nest = nla_nest_start(dcbnl_skb, DCB_ATTR_APP);
+	if (!app_nest)
+		goto out_cancel;
+
 	ret = nla_put_u8(dcbnl_skb, DCB_APP_ATTR_IDTYPE, idtype);
 	if (ret)
 		goto out_cancel;
@@ -1604,6 +1616,10 @@ EXPORT_SYMBOL(dcb_getapp);
 u8 dcb_setapp(struct net_device *dev, struct dcb_app *new)
 {
 	struct dcb_app_type *itr;
+	struct dcb_app_type event;
+
+	memcpy(&event.name, dev->name, sizeof(event.name));
+	memcpy(&event.app, new, sizeof(event.app));
 
 	spin_lock(&dcb_lock);
 	/* Search for existing match and replace */
@@ -1635,7 +1651,7 @@ u8 dcb_setapp(struct net_device *dev, struct dcb_app *new)
 	}
 out:
 	spin_unlock(&dcb_lock);
-	call_dcbevent_notifiers(DCB_APP_EVENT, new);
+	call_dcbevent_notifiers(DCB_APP_EVENT, &event);
 	return 0;
 }
 EXPORT_SYMBOL(dcb_setapp);
