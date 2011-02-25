@@ -82,6 +82,10 @@ u16 MR_TargetIdToLdGet(u32 ldTgtId, struct MR_FW_RAID_MAP_ALL *map);
 struct MR_LD_RAID *MR_LdRaidGet(u32 ld, struct MR_FW_RAID_MAP_ALL *map);
 
 u16 MR_GetLDTgtId(u32 ld, struct MR_FW_RAID_MAP_ALL *map);
+
+void
+megasas_check_and_restore_queue_depth(struct megasas_instance *instance);
+
 u8 MR_ValidateMapInfo(struct MR_FW_RAID_MAP_ALL *map,
 		      struct LD_LOAD_BALANCE_INFO *lbInfo);
 u16 get_updated_dev_handle(struct LD_LOAD_BALANCE_INFO *lbInfo,
@@ -1746,7 +1750,7 @@ complete_cmd_fusion(struct megasas_instance *instance)
 	wmb();
 	writel(fusion->last_reply_idx,
 	       &instance->reg_set->reply_post_host_index);
-
+	megasas_check_and_restore_queue_depth(instance);
 	return IRQ_HANDLED;
 }
 
