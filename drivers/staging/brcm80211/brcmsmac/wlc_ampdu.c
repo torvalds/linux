@@ -14,9 +14,11 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include <linux/kernel.h>
-#include <wlc_cfg.h>
-#include <bcmdefs.h>
+#include <net/mac80211.h>
+
+#include <proto/802.1d.h>
 #include <osl.h>
+#include <bcmdefs.h>
 #include <bcmutils.h>
 #include <siutils.h>
 #include <wlioctl.h>
@@ -24,17 +26,21 @@
 #include <sbhnddma.h>
 #include <hnddma.h>
 #include <d11.h>
-#include <wlc_rate.h>
-#include <wlc_pub.h>
-#include <wlc_key.h>
-#include <wlc_mac80211.h>
-#include <wlc_phy_hal.h>
-#include <wlc_antsel.h>
-#include <wlc_scb.h>
-#include <net/mac80211.h>
-#include <wlc_ampdu.h>
-#include <wl_export.h>
-#include <wl_dbg.h>
+
+#include "wlc_types.h"
+#include "wlc_cfg.h"
+#include "wlc_rate.h"
+#include "wlc_scb.h"
+#include "wlc_pub.h"
+#include "wlc_key.h"
+#include "phy/wlc_phy_hal.h"
+#include "wlc_antsel.h"
+#include "wl_export.h"
+#include "wl_dbg.h"
+#include "wlc_bsscfg.h"
+#include "wlc_channel.h"
+#include "wlc_mac80211.h"
+#include "wlc_ampdu.h"
 
 /*
  *	Disable AMPDU statistics counters for now

@@ -17,8 +17,6 @@
 #ifndef _WLC_BSSCFG_H_
 #define _WLC_BSSCFG_H_
 
-#include <wlc_types.h>
-
 /* Check if a particular BSS config is AP or STA */
 #define BSSCFG_AP(cfg)		(0)
 #define BSSCFG_STA(cfg)		(1)
@@ -27,8 +25,6 @@
 
 /* forward declarations */
 typedef struct wlc_bsscfg wlc_bsscfg_t;
-
-#include <wlc_rate.h>
 
 #define NTXRATE			64	/* # tx MPDUs rate is reported for */
 #define MAXMACLIST		64	/* max # source MAC matches */

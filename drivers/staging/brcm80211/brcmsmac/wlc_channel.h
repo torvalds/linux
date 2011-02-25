@@ -17,8 +17,6 @@
 #ifndef _WLC_CHANNEL_H_
 #define _WLC_CHANNEL_H_
 
-#include <wlc_phy_hal.h>
-
 #define WLC_TXPWR_DB_FACTOR 4	/* conversion for phy txpwr cacluations that use .25 dB units */
 
 struct wlc_info;

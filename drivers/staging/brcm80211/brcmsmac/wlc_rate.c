@@ -14,21 +14,25 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include <linux/kernel.h>
-#include <bcmdefs.h>
-#include <wlc_cfg.h>
-#include <osl.h>
 #include <linux/module.h>
+
+#include <proto/802.11.h>
+#include <proto/802.1d.h>
+#include <bcmdefs.h>
+#include <osl.h>
 #include <bcmutils.h>
 #include <siutils.h>
 #include <wlioctl.h>
-
-#include <sbhndpio.h>
 #include <sbhnddma.h>
-#include <proto/802.11.h>
-#include <d11.h>
-#include <wlc_rate.h>
-#include <wl_dbg.h>
-#include <wlc_pub.h>
+
+#include "wlc_types.h"
+#include "sbhndpio.h"
+#include "d11.h"
+#include "wl_dbg.h"
+#include "wlc_cfg.h"
+#include "wlc_scb.h"
+#include "wlc_pub.h"
+#include "wlc_rate.h"
 
 /* Rate info per rate: It tells whether a rate is ofdm or not and its phy_rate value */
 const u8 rate_info[WLC_MAXRATE + 1] = {

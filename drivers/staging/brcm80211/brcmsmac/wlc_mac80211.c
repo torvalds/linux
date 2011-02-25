@@ -16,10 +16,11 @@
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/etherdevice.h>
-#include <linux/string.h>
+#include <net/mac80211.h>
+
+#include <proto/802.1d.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>
-#include <wlc_cfg.h>
 #include <osl.h>
 #include <bcmutils.h>
 #include <bcmwifi.h>
@@ -27,29 +28,32 @@
 #include <pcicfg.h>
 #include <bcmsrom.h>
 #include <wlioctl.h>
-#include <sbhndpio.h>
 #include <sbhnddma.h>
 #include <hnddma.h>
 #include <hndpmu.h>
-#include <d11.h>
-#include <wlc_rate.h>
-#include <wlc_pub.h>
-#include <wlc_key.h>
-#include <wlc_bsscfg.h>
-#include <wlc_channel.h>
-#include <wlc_mac80211.h>
-#include <wlc_bmac.h>
-#include <wlc_scb.h>
-#include <wlc_phy_hal.h>
-#include <wlc_phy_shim.h>
-#include <wlc_antsel.h>
-#include <wlc_stf.h>
-#include <wlc_ampdu.h>
-#include <wl_export.h>
+
+#include "sbhndpio.h"
+#include "d11.h"
+#include "wlc_types.h"
+#include "wlc_cfg.h"
+#include "wlc_rate.h"
+#include "wlc_scb.h"
+#include "wlc_pub.h"
+#include "wlc_key.h"
+#include "wlc_bsscfg.h"
+#include "phy/wlc_phy_hal.h"
+#include "wlc_channel.h"
+#include "wlc_mac80211.h"
+#include "wlc_bmac.h"
+#include "wlc_phy_hal.h"
+#include "wlc_phy_shim.h"
+#include "wlc_antsel.h"
+#include "wlc_stf.h"
+#include "wlc_ampdu.h"
+#include "wl_export.h"
 #include "d11ucode_ext.h"
-#include <wlc_alloc.h>
-#include <net/mac80211.h>
-#include <wl_dbg.h>
+#include "wlc_alloc.h"
+#include "wl_dbg.h"
 
 /*
  *	Disable statistics counting for WME

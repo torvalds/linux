@@ -18,35 +18,35 @@
 
 #include <linux/kernel.h>
 #include <linux/etherdevice.h>
-#include <linux/string.h>
+#include <linux/types.h>
 #include <linux/pci_ids.h>
-#include <bcmdefs.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/sched.h>
-#include <osl.h>
-#define WLC_MAXBSSCFG		1	/* single BSS configs */
-
-#include <wlc_cfg.h>
+#include <linux/firmware.h>
 #include <net/mac80211.h>
-#include <phy_version.h>
+
+#include <proto/802.1d.h>
+#include <bcmdefs.h>
+#include <osl.h>
 #include <bcmutils.h>
 #include <pcicfg.h>
 #include <wlioctl.h>
-#include <wlc_key.h>
-#include <sbhndpio.h>
 #include <sbhnddma.h>
-#include <wlc_channel.h>
-#include <wlc_pub.h>
-#include <wlc_scb.h>
-#include <wl_dbg.h>
-#include <wl_export.h>
 
-#include <wl_mac80211.h>
-#include <linux/firmware.h>
-#include <wl_ucode.h>
-#include <d11ucode_ext.h>
-
+#include "wlc_cfg.h"
+#include "phy/phy_version.h"
+#include "wlc_key.h"
+#include "sbhndpio.h"
+#include "phy/wlc_phy_hal.h"
+#include "wlc_channel.h"
+#include "wlc_scb.h"
+#include "wlc_pub.h"
+#include "wl_dbg.h"
+#include "wl_export.h"
+#include "wl_ucode.h"
+#include "d11ucode_ext.h"
+#include "wl_mac80211.h"
 
 static void wl_timer(unsigned long data);
 static void _wl_timer(wl_timer_t *t);

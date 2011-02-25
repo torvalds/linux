@@ -15,24 +15,33 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/string.h>
-#include <bcmdefs.h>
-#include <wlc_cfg.h>
-#include <osl.h>
+#include <linux/types.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+
+#include <proto/802.1d.h>
+#include <osl.h>
+#include <bcmdefs.h>
 #include <bcmutils.h>
 #include <siutils.h>
-#include <sbhndpio.h>
 #include <sbhnddma.h>
 #include <wlioctl.h>
-#include <wlc_pub.h>
-#include <wlc_key.h>
-#include <wlc_mac80211.h>
-#include <wlc_bmac.h>
-#include <wlc_stf.h>
-#include <wlc_channel.h>
-#include <wl_dbg.h>
+
+#include "wlc_types.h"
+#include "sbhndpio.h"
+#include "d11.h"
+#include "wlc_cfg.h"
+#include "wlc_scb.h"
+#include "wlc_pub.h"
+#include "wlc_key.h"
+#include "phy/wlc_phy_hal.h"
+#include "wlc_bmac.h"
+#include "wlc_rate.h"
+#include "wlc_channel.h"
+#include "wlc_bsscfg.h"
+#include "wlc_mac80211.h"
+#include "wlc_stf.h"
+#include "wl_dbg.h"
 
 #define	VALID_CHANNEL20_DB(wlc, val) wlc_valid_channel20_db((wlc)->cmi, val)
 #define	VALID_CHANNEL20_IN_BAND(wlc, bandunit, val) \

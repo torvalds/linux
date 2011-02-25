@@ -14,22 +14,30 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include <linux/kernel.h>
-#include <linux/string.h>
-#include <bcmdefs.h>
-#include <wlc_cfg.h>
-#include <linux/module.h>
-#include <linux/pci.h>
+#include <linux/types.h>
+
+#include <proto/802.1d.h>
 #include <osl.h>
+#include <bcmdefs.h>
 #include <bcmutils.h>
 #include <siutils.h>
 #include <wlioctl.h>
-#include <wlc_pub.h>
-#include <wlc_key.h>
-#include <sbhndpio.h>
 #include <sbhnddma.h>
-#include <wlc_mac80211.h>
-#include <wlc_alloc.h>
-#include <wl_dbg.h>
+
+#include "sbhndpio.h"
+#include "d11.h"
+#include "wlc_types.h"
+#include "wlc_cfg.h"
+#include "wlc_scb.h"
+#include "wlc_pub.h"
+#include "wlc_key.h"
+#include "wlc_alloc.h"
+#include "wl_dbg.h"
+#include "wlc_rate.h"
+#include "wlc_bsscfg.h"
+#include "phy/wlc_phy_hal.h"
+#include "wlc_channel.h"
+#include "wlc_mac80211.h"
 
 static struct wlc_bsscfg *wlc_bsscfg_malloc(struct osl_info *osh, uint unit);
 static void wlc_bsscfg_mfree(struct osl_info *osh, struct wlc_bsscfg *cfg);

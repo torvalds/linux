@@ -22,38 +22,42 @@
  */
 
 #include <linux/kernel.h>
-#include <bcmdefs.h>
-#include <wlc_cfg.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <osl.h>
-#include <bcmutils.h>
 
 #include <proto/802.11.h>
+#include <proto/802.1d.h>
+#include <osl.h>
+#include <bcmdefs.h>
+#include <bcmutils.h>
 #include <bcmwifi.h>
 #include <siutils.h>
 #include <wlioctl.h>
 #include <sbconfig.h>
 #include <sbchipc.h>
 #include <pcicfg.h>
-#include <sbhndpio.h>
 #include <sbhnddma.h>
 #include <hnddma.h>
 #include <hndpmu.h>
-#include <d11.h>
-#include <wlc_rate.h>
-#include <wlc_pub.h>
-#include <wlc_channel.h>
-#include <bcmsrom.h>
-#include <wlc_key.h>
 
-#include <wlc_mac80211.h>
-
-#include <wlc_bmac.h>
-#include <wlc_phy_shim.h>
-#include <wlc_phy_hal.h>
-#include <wl_export.h>
-#include <wl_dbg.h>
+#include "wlc_types.h"
+#include "wl_dbg.h"
+#include "sbhndpio.h"
+#include "wlc_cfg.h"
+#include "d11.h"
+#include "wlc_rate.h"
+#include "wlc_scb.h"
+#include "wlc_pub.h"
+#include "phy/wlc_phy_hal.h"
+#include "wlc_channel.h"
+#include "bcmsrom.h"
+#include "wlc_key.h"
+#include "wlc_bmac.h"
+#include "wlc_phy_hal.h"
+#include "wl_export.h"
+#include "wlc_bsscfg.h"
+#include "wlc_mac80211.h"
+#include "wlc_phy_shim.h"
 
 /* PHY SHIM module specific state */
 struct wlc_phy_shim_info {

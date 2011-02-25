@@ -16,57 +16,50 @@
 
 
 #include <linux/kernel.h>
-#include <wlc_cfg.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <bcmdefs.h>
-#include <osl.h>
+
 #include <proto/802.11.h>
+#include <proto/802.1d.h>
+#include <osl.h>
+#include <bcmdefs.h>
+#include <bcmdevs.h>
 #include <bcmwifi.h>
-#include <bcmutils.h>
 #include <siutils.h>
+#include <bcmsrom.h>
+#include <bcmotp.h>
+#include <bcmutils.h>
 #include <wlioctl.h>
 #include <sbconfig.h>
 #include <sbchipc.h>
 #include <pcicfg.h>
-#include <sbhndpio.h>
 #include <sbhnddma.h>
 #include <hnddma.h>
 #include <hndpmu.h>
-#include <d11.h>
-#include <wlc_rate.h>
-#include <wlc_pub.h>
-#include <wlc_channel.h>
-#include <bcmsrom.h>
-#include <wlc_key.h>
-#include <bcmdevs.h>
-/* BMAC_NOTE: a WLC_HIGH compile include of wlc.h adds in more structures and type
- * dependencies. Need to include these to files to allow a clean include of wlc.h
- * with WLC_HIGH defined.
- * At some point we may be able to skip the include of wlc.h and instead just
- * define a stub wlc_info and band struct to allow rpc calls to get the rpc handle.
- */
-#include <wlc_mac80211.h>
-#include <wlc_bmac.h>
-#include <wlc_phy_shim.h>
-#include <wlc_phy_hal.h>
-#include <wl_export.h>
+
+#include "wlc_types.h"
+#include "sbhndpio.h"
+#include "d11.h"
+#include "wlc_cfg.h"
+#include "wlc_rate.h"
+#include "wlc_scb.h"
+#include "wlc_pub.h"
+#include "wlc_key.h"
+#include "wlc_phy_shim.h"
+#include "phy/wlc_phy_hal.h"
+#include "wlc_channel.h"
+#include "wlc_bsscfg.h"
+#include "wlc_mac80211.h"
+#include "wl_export.h"
 #include "wl_ucode.h"
 #include "d11ucode_ext.h"
-#include <bcmotp.h>
-
-/* BMAC_NOTE: With WLC_HIGH defined, some fns in this file make calls to high level
- * functions defined in the headers below. We should be eliminating those calls and
- * will be able to delete these include lines.
- */
-#include <wlc_antsel.h>
-
-#include <pcie_core.h>
-
-#include <wlc_alloc.h>
-#include <wl_dbg.h>
+#include "wlc_antsel.h"
+#include "pcie_core.h"
+#include "wlc_alloc.h"
+#include "wl_dbg.h"
+#include "wlc_bmac.h"
 
 #define	TIMER_INTERVAL_WATCHDOG_BMAC	1000	/* watchdog timer, in unit of ms */
 

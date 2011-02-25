@@ -17,10 +17,6 @@
 #ifndef _wlc_pub_h_
 #define _wlc_pub_h_
 
-#include <wlioctl.h>
-#include <wlc_types.h>
-#include <wlc_scb.h>
-
 #define	WLC_NUMRATES	16	/* max # of rates in a rateset */
 #define	MAXMULTILIST	32	/* max # multicast addresses */
 #define	D11_PHY_HDR_LEN	6	/* Phy header length - 6 bytes */

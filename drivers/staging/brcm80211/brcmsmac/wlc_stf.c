@@ -16,28 +16,34 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <wlc_cfg.h>
+
+#include <proto/802.11.h>
+#include <proto/802.1d.h>
+
 #include <bcmdefs.h>
 #include <osl.h>
 #include <bcmutils.h>
 #include <siutils.h>
-#include <proto/802.11.h>
 #include <wlioctl.h>
 #include <bcmwifi.h>
-#include <sbhndpio.h>
 #include <sbhnddma.h>
-#include <d11.h>
-#include <wlc_rate.h>
-#include <wlc_pub.h>
-#include <wlc_key.h>
-#include <wlc_channel.h>
-#include <wlc_bsscfg.h>
-#include <wlc_mac80211.h>
-#include <wlc_scb.h>
-#include <wl_export.h>
-#include <wlc_bmac.h>
-#include <wlc_stf.h>
-#include <wl_dbg.h>
+
+#include "wlc_types.h"
+#include "sbhndpio.h"
+#include "d11.h"
+#include "wl_dbg.h"
+#include "wlc_cfg.h"
+#include "wlc_rate.h"
+#include "wlc_scb.h"
+#include "wlc_pub.h"
+#include "wlc_key.h"
+#include "phy/wlc_phy_hal.h"
+#include "wlc_channel.h"
+#include "wlc_bsscfg.h"
+#include "wlc_mac80211.h"
+#include "wl_export.h"
+#include "wlc_bmac.h"
+#include "wlc_stf.h"
 
 #define MIN_SPATIAL_EXPANSION	0
 #define MAX_SPATIAL_EXPANSION	1

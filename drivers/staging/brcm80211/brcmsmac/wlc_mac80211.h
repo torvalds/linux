@@ -17,12 +17,6 @@
 #ifndef _wlc_h_
 #define _wlc_h_
 
-#include <wlioctl.h>
-#include <wlc_phy_hal.h>
-#include <wlc_channel.h>
-#include <wlc_bsscfg.h>
-#include <wlc_scb.h>
-
 #define MA_WINDOW_SZ		8	/* moving average window size */
 #define	WL_HWRXOFF		38	/* chip rx buffer offset */
 #define	INVCHANNEL		255	/* invalid channel */

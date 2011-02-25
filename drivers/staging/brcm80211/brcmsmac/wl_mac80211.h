@@ -17,8 +17,6 @@
 #ifndef _wl_mac80211_h_
 #define _wl_mac80211_h_
 
-#include <wlc_types.h>
-
 /* BMAC Note: High-only driver is no longer working in softirq context as it needs to block and
  * sleep so perimeter lock has to be a semaphore instead of spinlock. This requires timers to be
  * submitted to workqueue instead of being on kernel timer

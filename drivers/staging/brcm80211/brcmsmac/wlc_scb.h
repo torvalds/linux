@@ -17,8 +17,6 @@
 #ifndef _wlc_scb_h_
 #define _wlc_scb_h_
 
-#include <proto/802.1d.h>
-
 extern bool wlc_aggregatable(struct wlc_info *wlc, u8 tid);
 
 #define AMPDU_TX_BA_MAX_WSIZE	64	/* max Tx ba window size (in pdu) */
