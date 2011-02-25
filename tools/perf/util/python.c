@@ -8,6 +8,11 @@
 #include "cpumap.h"
 #include "thread_map.h"
 
+/* Define PyVarObject_HEAD_INIT for python 2.5 */
+#ifndef PyVarObject_HEAD_INIT
+# define PyVarObject_HEAD_INIT(type, size) PyObject_HEAD_INIT(type) size,
+#endif
+
 struct throttle_event {
 	struct perf_event_header header;
 	u64			 time;
