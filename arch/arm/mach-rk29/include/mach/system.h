@@ -23,6 +23,7 @@
 #else
 #define restart_dbg(format, arg...) do {} while (0)
 #endif
+extern void rk29_arch_reset(int mode, const char *cmd);
 
 static inline void arch_reset(int  mode, const char *cmd)
 {
@@ -31,8 +32,8 @@ static inline void arch_reset(int  mode, const char *cmd)
 	*  debug trace
 	*/
 	restart_dbg("%s->%s->%d->mode=%c cmd=%s",__FILE__,__FUNCTION__,__LINE__,mode,cmd);
-	printk("Can't reboot. Please open rk2818 power manage!!\n");
-	for(;;);
+
+	rk29_arch_reset(mode, cmd);
 }
 
 static inline void arch_idle(void)
