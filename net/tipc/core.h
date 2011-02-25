@@ -147,7 +147,6 @@ void tipc_msg_dbg(struct print_buf *, struct tipc_msg *, const char *);
  */
 
 extern u32 tipc_own_addr;
-extern int tipc_max_nodes;
 extern int tipc_max_ports;
 extern int tipc_max_subscriptions;
 extern int tipc_max_publications;

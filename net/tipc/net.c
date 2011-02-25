@@ -114,8 +114,7 @@ atomic_t tipc_num_links;
 
 static int net_start(void)
 {
-	tipc_nodes = kcalloc(tipc_max_nodes + 1,
-				 sizeof(*tipc_nodes), GFP_ATOMIC);
+	tipc_nodes = kcalloc(4096, sizeof(*tipc_nodes), GFP_ATOMIC);
 	tipc_highest_node = 0;
 	atomic_set(&tipc_num_links, 0);
 
