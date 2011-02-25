@@ -982,6 +982,8 @@ static int ds3000_set_frontend(struct dvb_frontend *fe,
 
 	dprintk("%s() ", __func__);
 
+	if (state->config->set_ts_params)
+		state->config->set_ts_params(fe, 0);
 	/* Tune */
 	/* unknown */
 	ds3000_tuner_writereg(state, 0x07, 0x02);

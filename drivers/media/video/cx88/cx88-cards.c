@@ -1953,6 +1953,18 @@ static const struct cx88_board cx88_boards[] = {
 		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
+	[CX88_BOARD_TEVII_S464] = {
+		.name           = "TeVii S464 DVB-S/S2",
+		.tuner_type     = UNSET,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_DVB,
+			.vmux   = 0,
+		} },
+		.mpeg           = CX88_MPEG_DVB,
+	},
 	[CX88_BOARD_OMICOM_SS4_PCI] = {
 		.name           = "Omicom SS4 DVB-S/S2 PCI",
 		.tuner_type     = UNSET,
@@ -2528,6 +2540,10 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0xd460,
 		.subdevice = 0x9022,
 		.card      = CX88_BOARD_TEVII_S460,
+	}, {
+		.subvendor = 0xd464,
+		.subdevice = 0x9022,
+		.card      = CX88_BOARD_TEVII_S464,
 	}, {
 		.subvendor = 0xA044,
 		.subdevice = 0x2011,
@@ -3286,6 +3302,7 @@ static void cx88_card_setup(struct cx88_core *core)
 	}
 	case  CX88_BOARD_TEVII_S420:
 	case  CX88_BOARD_TEVII_S460:
+	case  CX88_BOARD_TEVII_S464:
 	case  CX88_BOARD_OMICOM_SS4_PCI:
 	case  CX88_BOARD_TBS_8910:
 	case  CX88_BOARD_TBS_8920:
