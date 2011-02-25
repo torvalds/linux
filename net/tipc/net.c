@@ -39,6 +39,7 @@
 #include "name_distr.h"
 #include "subscr.h"
 #include "port.h"
+#include "node.h"
 #include "config.h"
 
 /*
@@ -108,27 +109,21 @@
 */
 
 DEFINE_RWLOCK(tipc_net_lock);
-struct tipc_node **tipc_nodes;
-u32 tipc_highest_node;
 atomic_t tipc_num_links;
 
 static int net_start(void)
 {
-	tipc_nodes = kcalloc(4096, sizeof(*tipc_nodes), GFP_ATOMIC);
-	tipc_highest_node = 0;
 	atomic_set(&tipc_num_links, 0);
 
-	return tipc_nodes ? 0 : -ENOMEM;
+	return 0;
 }
 
 static void net_stop(void)
 {
-	u32 n_num;
+	struct tipc_node *node, *t_node;
 
-	for (n_num = 1; n_num <= tipc_highest_node; n_num++)
-		tipc_node_delete(tipc_nodes[n_num]);
-	kfree(tipc_nodes);
-	tipc_nodes = NULL;
+	list_for_each_entry_safe(node, t_node, &tipc_node_list, list)
+		tipc_node_delete(node);
 }
 
 static void net_route_named_msg(struct sk_buff *buf)

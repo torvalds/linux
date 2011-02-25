@@ -44,7 +44,29 @@ static void node_established_contact(struct tipc_node *n_ptr);
 
 static DEFINE_SPINLOCK(node_create_lock);
 
+static struct hlist_head node_htable[NODE_HTABLE_SIZE];
+LIST_HEAD(tipc_node_list);
+static u32 tipc_num_nodes;
 u32 tipc_own_tag;
+
+/**
+ * tipc_node_find - locate specified node object, if it exists
+ */
+
+struct tipc_node *tipc_node_find(u32 addr)
+{
+	struct tipc_node *node;
+	struct hlist_node *pos;
+
+	if (unlikely(!in_own_cluster(addr)))
+		return NULL;
+
+	hlist_for_each_entry(node, pos, &node_htable[tipc_hashfn(addr)], hash) {
+		if (node->addr == addr)
+			return node;
+	}
+	return NULL;
+}
 
 /**
  * tipc_node_create - create neighboring node
@@ -58,8 +80,7 @@ u32 tipc_own_tag;
 
 struct tipc_node *tipc_node_create(u32 addr)
 {
-	struct tipc_node *n_ptr;
-	u32 n_num;
+	struct tipc_node *n_ptr, *temp_node;
 
 	spin_lock_bh(&node_create_lock);
 
@@ -78,12 +99,19 @@ struct tipc_node *tipc_node_create(u32 addr)
 
 	n_ptr->addr = addr;
 	spin_lock_init(&n_ptr->lock);
+	INIT_HLIST_NODE(&n_ptr->hash);
+	INIT_LIST_HEAD(&n_ptr->list);
 	INIT_LIST_HEAD(&n_ptr->nsub);
 
-	n_num = tipc_node(addr);
-	tipc_nodes[n_num] = n_ptr;
-	if (n_num > tipc_highest_node)
-		tipc_highest_node = n_num;
+	hlist_add_head(&n_ptr->hash, &node_htable[tipc_hashfn(addr)]);
+
+	list_for_each_entry(temp_node, &tipc_node_list, list) {
+		if (n_ptr->addr < temp_node->addr)
+			break;
+	}
+	list_add_tail(&n_ptr->list, &temp_node->list);
+
+	tipc_num_nodes++;
 
 	spin_unlock_bh(&node_create_lock);
 	return n_ptr;
@@ -91,18 +119,11 @@ struct tipc_node *tipc_node_create(u32 addr)
 
 void tipc_node_delete(struct tipc_node *n_ptr)
 {
-	u32 n_num;
-
-	if (!n_ptr)
-		return;
-
-	n_num = tipc_node(n_ptr->addr);
-	tipc_nodes[n_num] = NULL;
+	list_del(&n_ptr->list);
+	hlist_del(&n_ptr->hash);
 	kfree(n_ptr);
 
-	while (!tipc_nodes[tipc_highest_node])
-		if (--tipc_highest_node == 0)
-			break;
+	tipc_num_nodes--;
 }
 
 
@@ -379,7 +400,6 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 	struct tipc_node *n_ptr;
 	struct tipc_node_info node_info;
 	u32 payload_size;
-	u32 n_num;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_NET_ADDR))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
@@ -390,15 +410,14 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 						   " (network address)");
 
 	read_lock_bh(&tipc_net_lock);
-	if (!tipc_nodes) {
+	if (!tipc_num_nodes) {
 		read_unlock_bh(&tipc_net_lock);
 		return tipc_cfg_reply_none();
 	}
 
 	/* For now, get space for all other nodes */
 
-	payload_size = TLV_SPACE(sizeof(node_info)) *
-		(tipc_highest_node - 1);
+	payload_size = TLV_SPACE(sizeof(node_info)) * tipc_num_nodes;
 	if (payload_size > 32768u) {
 		read_unlock_bh(&tipc_net_lock);
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
@@ -412,9 +431,8 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 
 	/* Add TLVs for all nodes in scope */
 
-	for (n_num = 1; n_num <= tipc_highest_node; n_num++) {
-		n_ptr = tipc_nodes[n_num];
-		if (!n_ptr || !tipc_in_scope(domain, n_ptr->addr))
+	list_for_each_entry(n_ptr, &tipc_node_list, list) {
+		if (!tipc_in_scope(domain, n_ptr->addr))
 			continue;
 		node_info.addr = htonl(n_ptr->addr);
 		node_info.up = htonl(tipc_node_is_up(n_ptr));
@@ -433,7 +451,6 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 	struct tipc_node *n_ptr;
 	struct tipc_link_info link_info;
 	u32 payload_size;
-	u32 n_num;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_NET_ADDR))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
@@ -472,11 +489,10 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 
 	/* Add TLVs for any other links in scope */
 
-	for (n_num = 1; n_num <= tipc_highest_node; n_num++) {
+	list_for_each_entry(n_ptr, &tipc_node_list, list) {
 		u32 i;
 
-		n_ptr = tipc_nodes[n_num];
-		if (!n_ptr || !tipc_in_scope(domain, n_ptr->addr))
+		if (!tipc_in_scope(domain, n_ptr->addr))
 			continue;
 		tipc_node_lock(n_ptr);
 		for (i = 0; i < MAX_BEARERS; i++) {

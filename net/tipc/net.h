@@ -37,10 +37,6 @@
 #ifndef _TIPC_NET_H
 #define _TIPC_NET_H
 
-struct tipc_node;
-
-extern struct tipc_node **tipc_nodes;
-extern u32 tipc_highest_node;
 extern atomic_t tipc_num_links;
 
 extern rwlock_t tipc_net_lock;
