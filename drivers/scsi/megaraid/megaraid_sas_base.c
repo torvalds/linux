@@ -2613,7 +2613,9 @@ megasas_transition_to_ready(struct megasas_instance* instance)
 		case MFI_STATE_FAULT:
 
 			printk(KERN_DEBUG "megasas: FW in FAULT state!!\n");
-			return -ENODEV;
+			max_wait = MEGASAS_RESET_WAIT_TIME;
+			cur_state = MFI_STATE_FAULT;
+			break;
 
 		case MFI_STATE_WAIT_HANDSHAKE:
 			/*
