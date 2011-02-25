@@ -524,6 +524,48 @@ static int p54_get_survey(struct ieee80211_hw *dev, int idx,
 	return 0;
 }
 
+static unsigned int p54_flush_count(struct p54_common *priv)
+{
+	unsigned int total = 0, i;
+
+	BUILD_BUG_ON(P54_QUEUE_NUM > ARRAY_SIZE(priv->tx_stats));
+
+	/*
+	 * Because the firmware has the sole control over any frames
+	 * in the P54_QUEUE_BEACON or P54_QUEUE_SCAN queues, they
+	 * don't really count as pending or active.
+	 */
+	for (i = P54_QUEUE_MGMT; i < P54_QUEUE_NUM; i++)
+		total += priv->tx_stats[i].len;
+	return total;
+}
+
+static void p54_flush(struct ieee80211_hw *dev, bool drop)
+{
+	struct p54_common *priv = dev->priv;
+	unsigned int total, i;
+
+	/*
+	 * Currently, it wouldn't really matter if we wait for one second
+	 * or 15 minutes. But once someone gets around and completes the
+	 * TODOs [ancel stuck frames / reset device] in p54_work, it will
+	 * suddenly make sense to wait that long.
+	 */
+	i = P54_STATISTICS_UPDATE * 2 / 20;
+
+	/*
+	 * In this case no locking is required because as we speak the
+	 * queues have already been stopped and no new frames can sneak
+	 * up from behind.
+	 */
+	while ((total = p54_flush_count(priv) && i--)) {
+		/* waste time */
+		msleep(20);
+	}
+
+	WARN(total, "tx flush timeout, unresponsive firmware");
+}
+
 static const struct ieee80211_ops p54_ops = {
 	.tx			= p54_tx_80211,
 	.start			= p54_start,
@@ -536,6 +578,7 @@ static const struct ieee80211_ops p54_ops = {
 	.sta_remove		= p54_sta_add_remove,
 	.set_key		= p54_set_key,
 	.config			= p54_config,
+	.flush			= p54_flush,
 	.bss_info_changed	= p54_bss_info_changed,
 	.configure_filter	= p54_configure_filter,
 	.conf_tx		= p54_conf_tx,
@@ -611,7 +654,7 @@ EXPORT_SYMBOL_GPL(p54_init_common);
 
 int p54_register_common(struct ieee80211_hw *dev, struct device *pdev)
 {
-	struct p54_common *priv = dev->priv;
+	struct p54_common __maybe_unused *priv = dev->priv;
 	int err;
 
 	err = ieee80211_register_hw(dev);
@@ -642,10 +685,12 @@ void p54_free_common(struct ieee80211_hw *dev)
 	kfree(priv->iq_autocal);
 	kfree(priv->output_limit);
 	kfree(priv->curve_data);
+	kfree(priv->rssi_db);
 	kfree(priv->used_rxkeys);
 	priv->iq_autocal = NULL;
 	priv->output_limit = NULL;
 	priv->curve_data = NULL;
+	priv->rssi_db = NULL;
 	priv->used_rxkeys = NULL;
 	ieee80211_free_hw(dev);
 }

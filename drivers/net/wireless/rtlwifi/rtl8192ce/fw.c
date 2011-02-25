@@ -133,17 +133,15 @@ static void _rtl92c_write_fw(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	bool is_version_b;
 	u8 *bufferPtr = (u8 *) buffer;
 
 	RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE, ("FW size is %d bytes,\n", size));
 
-	is_version_b = IS_CHIP_VER_B(version);
-	if (is_version_b) {
+	if (IS_CHIP_VER_B(version)) {
 		u32 pageNums, remainSize;
 		u32 page, offset;
 
-		if (rtlhal->hw_type == HARDWARE_TYPE_RTL8192CE)
+		if (IS_HARDWARE_TYPE_8192CE(rtlhal))
 			_rtl92c_fill_dummy(bufferPtr, &size);
 
 		pageNums = size / FW_8192C_PAGE_SIZE;
@@ -231,14 +229,14 @@ int rtl92c_download_fw(struct ieee80211_hw *hw)
 	u32 fwsize;
 	int err;
 	enum version_8192c version = rtlhal->version;
+	const struct firmware *firmware;
 
-	const struct firmware *firmware = NULL;
-
+	printk(KERN_INFO "rtl8192cu: Loading firmware file %s\n",
+	       rtlpriv->cfg->fw_name);
 	err = request_firmware(&firmware, rtlpriv->cfg->fw_name,
 			       rtlpriv->io.dev);
 	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 ("Failed to request firmware!\n"));
+		printk(KERN_ERR "rtl8192cu: Firmware loading failed\n");
 		return 1;
 	}
 
@@ -318,12 +316,12 @@ static void _rtl92c_fill_h2c_command(struct ieee80211_hw *hw,
 
 	while (true) {
 		spin_lock_irqsave(&rtlpriv->locks.h2c_lock, flag);
-		if (rtlhal->b_h2c_setinprogress) {
+		if (rtlhal->h2c_setinprogress) {
 			RT_TRACE(rtlpriv, COMP_CMD, DBG_LOUD,
 				 ("H2C set in progress! Wait to set.."
 				  "element_id(%d).\n", element_id));
 
-			while (rtlhal->b_h2c_setinprogress) {
+			while (rtlhal->h2c_setinprogress) {
 				spin_unlock_irqrestore(&rtlpriv->locks.h2c_lock,
 						       flag);
 				h2c_waitcounter++;
@@ -339,7 +337,7 @@ static void _rtl92c_fill_h2c_command(struct ieee80211_hw *hw,
 			}
 			spin_unlock_irqrestore(&rtlpriv->locks.h2c_lock, flag);
 		} else {
-			rtlhal->b_h2c_setinprogress = true;
+			rtlhal->h2c_setinprogress = true;
 			spin_unlock_irqrestore(&rtlpriv->locks.h2c_lock, flag);
 			break;
 		}
@@ -495,7 +493,7 @@ static void _rtl92c_fill_h2c_command(struct ieee80211_hw *hw,
 	}
 
 	spin_lock_irqsave(&rtlpriv->locks.h2c_lock, flag);
-	rtlhal->b_h2c_setinprogress = false;
+	rtlhal->h2c_setinprogress = false;
 	spin_unlock_irqrestore(&rtlpriv->locks.h2c_lock, flag);
 
 	RT_TRACE(rtlpriv, COMP_CMD, DBG_LOUD, ("go out\n"));
@@ -507,7 +505,7 @@ void rtl92c_fill_h2c_cmd(struct ieee80211_hw *hw,
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	u32 tmp_cmdbuf[2];
 
-	if (rtlhal->bfw_ready == false) {
+	if (rtlhal->fw_ready == false) {
 		RT_ASSERT(false, ("return H2C cmd because of Fw "
 				  "download fail!!!\n"));
 		return;
@@ -558,39 +556,6 @@ void rtl92c_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode)
 		      u1_h2c_set_pwrmode, 3);
 	rtl92c_fill_h2c_cmd(hw, H2C_SETPWRMODE, 3, u1_h2c_set_pwrmode);
 
-}
-
-static bool _rtl92c_cmd_send_packet(struct ieee80211_hw *hw,
-				    struct sk_buff *skb)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-	struct rtl8192_tx_ring *ring;
-	struct rtl_tx_desc *pdesc;
-	u8 own;
-	unsigned long flags;
-	struct sk_buff *pskb = NULL;
-
-	ring = &rtlpci->tx_ring[BEACON_QUEUE];
-
-	pskb = __skb_dequeue(&ring->queue);
-	if (pskb)
-		kfree_skb(pskb);
-
-	spin_lock_irqsave(&rtlpriv->locks.irq_th_lock, flags);
-
-	pdesc = &ring->desc[0];
-	own = (u8) rtlpriv->cfg->ops->get_desc((u8 *) pdesc, true, HW_DESC_OWN);
-
-	rtlpriv->cfg->ops->fill_tx_cmddesc(hw, (u8 *) pdesc, 1, 1, skb);
-
-	__skb_queue_tail(&ring->queue, skb);
-
-	spin_unlock_irqrestore(&rtlpriv->locks.irq_th_lock, flags);
-
-	rtlpriv->cfg->ops->tx_polling(hw, BEACON_QUEUE);
-
-	return true;
 }
 
 #define BEACON_PG		0 /*->1*/
@@ -776,7 +741,7 @@ void rtl92c_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished)
 	memcpy((u8 *) skb_put(skb, totalpacketlen),
 	       &reserved_page_packet, totalpacketlen);
 
-	rtstatus = _rtl92c_cmd_send_packet(hw, skb);
+	rtstatus = rtlpriv->cfg->ops->cmd_send_packet(hw, skb);
 
 	if (rtstatus)
 		b_dlok = true;

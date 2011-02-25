@@ -57,7 +57,7 @@ void rtl92ce_sw_led_on(struct ieee80211_hw *hw, struct rtl_led *pled)
 			 ("switch case not process\n"));
 		break;
 	}
-	pled->b_ledon = true;
+	pled->ledon = true;
 }
 
 void rtl92ce_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
@@ -76,7 +76,7 @@ void rtl92ce_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
 		break;
 	case LED_PIN_LED0:
 		ledcfg &= 0xf0;
-		if (pcipriv->ledctl.bled_opendrain == true)
+		if (pcipriv->ledctl.led_opendrain == true)
 			rtl_write_byte(rtlpriv, REG_LEDCFG2,
 				       (ledcfg | BIT(1) | BIT(5) | BIT(6)));
 		else
@@ -92,7 +92,7 @@ void rtl92ce_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
 			 ("switch case not process\n"));
 		break;
 	}
-	pled->b_ledon = false;
+	pled->ledon = false;
 }
 
 void rtl92ce_init_sw_leds(struct ieee80211_hw *hw)

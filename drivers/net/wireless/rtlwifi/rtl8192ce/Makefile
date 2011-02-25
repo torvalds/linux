@@ -10,3 +10,5 @@ rtl8192ce-objs :=		\
 		trx.o
 
 obj-$(CONFIG_RTL8192CE) += rtl8192ce.o
+
+ccflags-y += -D__CHECK_ENDIAN__

@@ -46,13 +46,13 @@ int rtl92c_init_sw_vars(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 
-	rtlpriv->dm.b_dm_initialgain_enable = 1;
+	rtlpriv->dm.dm_initialgain_enable = 1;
 	rtlpriv->dm.dm_flag = 0;
-	rtlpriv->dm.b_disable_framebursting = 0;;
+	rtlpriv->dm.disable_framebursting = 0;
 	rtlpriv->dm.thermalvalue = 0;
 	rtlpci->transmit_config = CFENDFORM | BIT(12) | BIT(13);
 
-	rtlpci->receive_config = (RCR_APPFCS |
+	rtlpci->receive_config = (RCR_APP_FCS |
 				  RCR_AMF |
 				  RCR_ADF |
 				  RCR_APP_MIC |
@@ -135,6 +135,7 @@ static struct rtl_hal_ops rtl8192ce_hal_ops = {
 	.set_bbreg = rtl92c_phy_set_bb_reg,
 	.get_rfreg = rtl92c_phy_query_rf_reg,
 	.set_rfreg = rtl92c_phy_set_rf_reg,
+	.cmd_send_packet = _rtl92c_cmd_send_packet,
 };
 
 static struct rtl_mod_params rtl92ce_mod_params = {

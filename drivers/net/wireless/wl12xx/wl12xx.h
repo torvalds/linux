@@ -130,7 +130,7 @@ extern u32 wl12xx_debug_level;
 
 
 
-#define WL1271_FW_NAME "wl1271-fw.bin"
+#define WL1271_FW_NAME "wl1271-fw-2.bin"
 #define WL1271_AP_FW_NAME "wl1271-fw-ap.bin"
 
 #define WL1271_NVS_NAME "wl1271-nvs.bin"
@@ -214,8 +214,8 @@ struct wl1271_stats {
 /* Broadcast and Global links + links to stations */
 #define AP_MAX_LINKS               (AP_MAX_STATIONS + 2)
 
-/* FW status registers */
-struct wl1271_fw_status {
+/* FW status registers common for AP/STA */
+struct wl1271_fw_common_status {
 	__le32 intr;
 	u8  fw_rx_counter;
 	u8  drv_rx_counter;
@@ -224,6 +224,11 @@ struct wl1271_fw_status {
 	__le32 rx_pkt_descs[NUM_RX_PKT_DESC];
 	__le32 tx_released_blks[NUM_TX_QUEUES];
 	__le32 fw_localtime;
+} __packed;
+
+/* FW status registers for AP */
+struct wl1271_fw_ap_status {
+	struct wl1271_fw_common_status common;
 
 	/* Next fields valid only in AP FW */
 
@@ -237,6 +242,24 @@ struct wl1271_fw_status {
 	u8 tx_lnk_free_blks[AP_MAX_LINKS];
 	u8 padding_1[1];
 } __packed;
+
+/* FW status registers for STA */
+struct wl1271_fw_sta_status {
+	struct wl1271_fw_common_status common;
+
+	u8  tx_total;
+	u8  reserved1;
+	__le16 reserved2;
+} __packed;
+
+struct wl1271_fw_full_status {
+	union {
+		struct wl1271_fw_common_status common;
+		struct wl1271_fw_sta_status sta;
+		struct wl1271_fw_ap_status ap;
+	};
+} __packed;
+
 
 struct wl1271_rx_mem_pool_addr {
 	u32 addr;
@@ -278,6 +301,24 @@ struct wl1271_ap_key {
 	u16 tx_seq_16;
 };
 
+enum wl12xx_flags {
+	WL1271_FLAG_STA_ASSOCIATED,
+	WL1271_FLAG_JOINED,
+	WL1271_FLAG_GPIO_POWER,
+	WL1271_FLAG_TX_QUEUE_STOPPED,
+	WL1271_FLAG_IN_ELP,
+	WL1271_FLAG_PSM,
+	WL1271_FLAG_PSM_REQUESTED,
+	WL1271_FLAG_IRQ_PENDING,
+	WL1271_FLAG_IRQ_RUNNING,
+	WL1271_FLAG_IDLE,
+	WL1271_FLAG_IDLE_REQUESTED,
+	WL1271_FLAG_PSPOLL_FAILURE,
+	WL1271_FLAG_STA_STATE_SENT,
+	WL1271_FLAG_FW_TX_BUSY,
+	WL1271_FLAG_AP_STARTED
+};
+
 struct wl1271 {
 	struct platform_device *plat_dev;
 	struct ieee80211_hw *hw;
@@ -296,22 +337,6 @@ struct wl1271 {
 	enum wl1271_state state;
 	struct mutex mutex;
 
-#define WL1271_FLAG_STA_RATES_CHANGED  (0)
-#define WL1271_FLAG_STA_ASSOCIATED     (1)
-#define WL1271_FLAG_JOINED             (2)
-#define WL1271_FLAG_GPIO_POWER         (3)
-#define WL1271_FLAG_TX_QUEUE_STOPPED   (4)
-#define WL1271_FLAG_IN_ELP             (5)
-#define WL1271_FLAG_PSM                (6)
-#define WL1271_FLAG_PSM_REQUESTED      (7)
-#define WL1271_FLAG_IRQ_PENDING        (8)
-#define WL1271_FLAG_IRQ_RUNNING        (9)
-#define WL1271_FLAG_IDLE              (10)
-#define WL1271_FLAG_IDLE_REQUESTED    (11)
-#define WL1271_FLAG_PSPOLL_FAILURE    (12)
-#define WL1271_FLAG_STA_STATE_SENT    (13)
-#define WL1271_FLAG_FW_TX_BUSY        (14)
-#define WL1271_FLAG_AP_STARTED        (15)
 	unsigned long flags;
 
 	struct wl1271_partition_set part;
@@ -405,7 +430,6 @@ struct wl1271 {
 	 *	bits 16-23 - 802.11n   MCS index mask
 	 * support only 1 stream, thus only 8 bits for the MCS rates (0-7).
 	 */
-	u32 sta_rate_set;
 	u32 basic_rate_set;
 	u32 basic_rate;
 	u32 rate_set;
@@ -445,7 +469,7 @@ struct wl1271 {
 	u32 buffer_cmd;
 	u32 buffer_busyword[WL1271_BUSY_WORD_CNT];
 
-	struct wl1271_fw_status *fw_status;
+	struct wl1271_fw_full_status *fw_status;
 	struct wl1271_tx_hw_res_if *tx_res_if;
 
 	struct ieee80211_vif *vif;

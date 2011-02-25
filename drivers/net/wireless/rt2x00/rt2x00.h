@@ -189,6 +189,7 @@ struct rt2x00_chip {
 #define RT3572		0x3572
 #define RT3593		0x3593	/* PCIe */
 #define RT3883		0x3883	/* WSOC */
+#define RT5390         0x5390  /* 2.4GHz */
 
 	u16 rf;
 	u16 rev;
@@ -225,6 +226,8 @@ struct channel_info {
 struct antenna_setup {
 	enum antenna rx;
 	enum antenna tx;
+	u8 rx_chain_num;
+	u8 tx_chain_num;
 };
 
 /*
@@ -665,6 +668,7 @@ enum rt2x00_flags {
 	 */
 	CONFIG_SUPPORT_HW_BUTTON,
 	CONFIG_SUPPORT_HW_CRYPTO,
+	CONFIG_SUPPORT_POWER_LIMIT,
 	DRIVER_SUPPORT_CONTROL_FILTERS,
 	DRIVER_SUPPORT_CONTROL_FILTER_PSPOLL,
 	DRIVER_SUPPORT_PRE_TBTT_INTERRUPT,

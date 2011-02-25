@@ -220,7 +220,8 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 			ah->ah_radio = AR5K_RF5112;
 			ah->ah_single_chip = false;
 			ah->ah_radio_5ghz_revision = AR5K_SREV_RAD_5112B;
-		} else if (ah->ah_mac_version == (AR5K_SREV_AR2415 >> 4)) {
+		} else if (ah->ah_mac_version == (AR5K_SREV_AR2415 >> 4) ||
+			ah->ah_mac_version == (AR5K_SREV_AR2315_R6 >> 4)) {
 			ah->ah_radio = AR5K_RF2316;
 			ah->ah_single_chip = true;
 			ah->ah_radio_5ghz_revision = AR5K_SREV_RAD_2316;

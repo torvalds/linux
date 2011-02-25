@@ -2313,7 +2313,9 @@ static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 	notif_bss_info->frame_len =
 	    offsetof(struct ieee80211_mgmt,
 		     u.beacon.variable) + wl_get_ielen(wl);
-	freq = ieee80211_channel_to_frequency(notif_bss_info->channel);
+	freq = ieee80211_channel_to_frequency(notif_bss_info->channel,
+					      band->band);
+
 	channel = ieee80211_get_channel(wiphy, freq);
 
 	WL_DBG("SSID : \"%s\", rssi %d, channel %d, capability : 0x04%x, bssid %pM\n",

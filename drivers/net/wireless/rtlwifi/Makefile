@@ -8,6 +8,10 @@ rtlwifi-objs	:=		\
 		pci.o		\
 		ps.o		\
 		rc.o		\
-		regd.o
+		regd.o		\
+		usb.o
 
 obj-$(CONFIG_RTL8192CE)		+= rtl8192ce/
+obj-$(CONFIG_RTL8192CU)		+= rtl8192cu/
+
+ccflags-y += -D__CHECK_ENDIAN__

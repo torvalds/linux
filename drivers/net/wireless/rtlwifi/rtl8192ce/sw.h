@@ -33,5 +33,7 @@
 int rtl92c_init_sw_vars(struct ieee80211_hw *hw);
 void rtl92c_deinit_sw_vars(struct ieee80211_hw *hw);
 void rtl92c_init_var_map(struct ieee80211_hw *hw);
+bool _rtl92c_cmd_send_packet(struct ieee80211_hw *hw,
+			     struct sk_buff *skb);
 
 #endif

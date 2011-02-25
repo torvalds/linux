@@ -1071,6 +1071,12 @@ void ieee80211_sta_rx_notify(struct ieee80211_sub_if_data *sdata,
 	if (is_multicast_ether_addr(hdr->addr1))
 		return;
 
+	/*
+	 * In case we receive frames after disassociation.
+	 */
+	if (!sdata->u.mgd.associated)
+		return;
+
 	ieee80211_sta_reset_conn_monitor(sdata);
 }
 
@@ -2294,6 +2300,7 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	else
 		wk->type = IEEE80211_WORK_DIRECT_PROBE;
 	wk->chan = req->bss->channel;
+	wk->chan_type = NL80211_CHAN_NO_HT;
 	wk->sdata = sdata;
 	wk->done = ieee80211_probe_auth_done;
 
@@ -2443,6 +2450,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		memcpy(wk->assoc.prev_bssid, req->prev_bssid, ETH_ALEN);
 
 	wk->chan = req->bss->channel;
+	wk->chan_type = NL80211_CHAN_NO_HT;
 	wk->sdata = sdata;
 	wk->done = ieee80211_assoc_done;
 	if (!bss->dtim_period &&

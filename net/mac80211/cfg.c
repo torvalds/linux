@@ -1863,6 +1863,7 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 
 	wk->type = IEEE80211_WORK_OFFCHANNEL_TX;
 	wk->chan = chan;
+	wk->chan_type = channel_type;
 	wk->sdata = sdata;
 	wk->done = ieee80211_offchan_tx_done;
 	wk->offchan_tx.frame = skb;

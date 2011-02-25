@@ -1,8 +1,10 @@
 config AR9170_USB
-	tristate "Atheros AR9170 802.11n USB support"
+	tristate "Atheros AR9170 802.11n USB support (OBSOLETE)"
 	depends on USB && MAC80211
 	select FW_LOADER
 	help
+	  This driver is going to get replaced by carl9170.
+
 	  This is a driver for the Atheros "otus" 802.11n USB devices.
 
 	  These devices require additional firmware (2 files).

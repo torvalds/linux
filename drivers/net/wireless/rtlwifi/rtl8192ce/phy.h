@@ -57,8 +57,6 @@
 #define IQK_MAC_REG_NUM			4
 
 #define RF90_PATH_MAX			2
-#define CHANNEL_MAX_NUMBER		14
-#define CHANNEL_GROUP_MAX		3
 
 #define CT_OFFSET_MAC_ADDR		0X16
 
@@ -78,9 +76,7 @@
 #define CT_OFFSET_CUSTOMER_ID		0x7F
 
 #define RTL92C_MAX_PATH_NUM		2
-#define CHANNEL_MAX_NUMBER		14
-#define CHANNEL_GROUP_MAX		3
-
+#define LLT_LAST_ENTRY_OF_TX_PKT_BUFFER	255
 enum swchnlcmd_id {
 	CMDID_END,
 	CMDID_SET_TXPOWEROWER_LEVEL,
@@ -233,5 +229,6 @@ void rtl92c_phy_config_bb_external_pa(struct ieee80211_hw *hw);
 void rtl92ce_phy_set_rf_on(struct ieee80211_hw *hw);
 bool rtl92c_phy_set_io_cmd(struct ieee80211_hw *hw, enum io_type iotype);
 void rtl92c_phy_set_io(struct ieee80211_hw *hw);
+void rtl92c_bb_block_on(struct ieee80211_hw *hw);
 
 #endif
