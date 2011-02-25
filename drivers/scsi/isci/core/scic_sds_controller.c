@@ -796,7 +796,11 @@ enum sci_status scic_sds_controller_stop_ports(struct scic_sds_controller *scic)
 	enum sci_status status = SCI_SUCCESS;
 
 	for (index = 0; index < scic->logical_port_entries; index++) {
-		port_status = scic_port_stop(&scic->port_table[index]);
+		struct scic_sds_port *sci_port = &scic->port_table[index];
+		SCI_BASE_PORT_HANDLER_T stop;
+
+		stop = sci_port->state_handlers->parent.stop_handler;
+		port_status = stop(&sci_port->parent);
 
 		if ((port_status != SCI_SUCCESS) &&
 		    (port_status != SCI_FAILURE_INVALID_STATE)) {
@@ -806,7 +810,7 @@ enum sci_status scic_sds_controller_stop_ports(struct scic_sds_controller *scic)
 				 "%s: Controller stop operation failed to "
 				 "stop port %d because of status %d.\n",
 				 __func__,
-				 scic->port_table[index].logical_port_index,
+				 sci_port->logical_port_index,
 				 port_status);
 		}
 	}
@@ -3003,7 +3007,7 @@ static enum sci_status scic_sds_controller_initialized_state_start_handler(
 		scic_sds_controller_ram_initialization(this_controller);
 	}
 
-	if (SCI_SUCCESS == result) {
+	if (result == SCI_SUCCESS) {
 		/* Build the TCi free pool */
 		sci_pool_initialize(this_controller->tci_pool);
 		for (index = 0; index < this_controller->task_context_entries; index++) {
@@ -3017,7 +3021,7 @@ static enum sci_status scic_sds_controller_initialized_state_start_handler(
 			);
 	}
 
-	if (SCI_SUCCESS == result) {
+	if (result == SCI_SUCCESS) {
 		/*
 		 * Before anything else lets make sure we will not be interrupted
 		 * by the hardware. */
@@ -3036,7 +3040,15 @@ static enum sci_status scic_sds_controller_initialized_state_start_handler(
 		scic_sds_controller_initialize_unsolicited_frame_queue(this_controller);
 	}
 
-	if (SCI_SUCCESS == result) {
+	/* Start all of the ports on this controller */
+	for (index = 0; index < this_controller->logical_port_entries &&
+			result == SCI_SUCCESS; index++) {
+		struct scic_sds_port *sci_port = &this_controller->port_table[index];
+
+		result = sci_port->state_handlers->parent.start_handler(&sci_port->parent);
+	}
+
+	if (result == SCI_SUCCESS) {
 		scic_sds_controller_start_next_phy(this_controller);
 
 		isci_event_timer_start(this_controller,

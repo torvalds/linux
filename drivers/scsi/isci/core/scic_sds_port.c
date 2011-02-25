@@ -67,6 +67,7 @@
 #include "scic_sds_remote_node_context.h"
 #include "scic_sds_request.h"
 #include "sci_environment.h"
+#include "scic_sds_controller_registers.h"
 
 
 static void scic_sds_port_invalid_link_up(
@@ -78,6 +79,7 @@ static void scic_sds_port_timeout_handler(
 #define SCIC_SDS_PORT_MAX_TIMER_COUNT  (SCI_MAX_PORTS)
 
 #define SCIC_SDS_PORT_HARD_RESET_TIMEOUT  (1000)
+#define SCU_DUMMY_INDEX    (0xFFFF)
 
 void sci_base_port_construct(
 	struct sci_base_port *base_port,
@@ -474,67 +476,131 @@ void scic_sds_port_get_attached_protocols(
 }
 
 /**
- * This method returns the amount of memory requred for a port object.
+ * scic_sds_port_construct_dummy_rnc() - create dummy rnc for si workaround
  *
- * u32
+ * @sci_port: logical port on which we need to create the remote node context
+ * @rni: remote node index for this remote node context.
+ *
+ * This routine will construct a dummy remote node context data structure
+ * This structure will be posted to the hardware to work around a scheduler
+ * error in the hardware.
  */
+void scic_sds_port_construct_dummy_rnc(struct scic_sds_port *sci_port, u16 rni)
+{
+	union scu_remote_node_context *rnc;
+
+	rnc = &sci_port->owning_controller->remote_node_context_table[rni];
+
+	memset(rnc, 0, sizeof(union scu_remote_node_context));
+
+	rnc->ssp.remote_sas_address_hi = 0;
+	rnc->ssp.remote_sas_address_lo = 0;
+
+	rnc->ssp.remote_node_index = rni;
+	rnc->ssp.remote_node_port_width = 1;
+	rnc->ssp.logical_port_index = sci_port->physical_port_index;
+
+	rnc->ssp.nexus_loss_timer_enable = false;
+	rnc->ssp.check_bit = false;
+	rnc->ssp.is_valid = true;
+	rnc->ssp.is_remote_node_context = true;
+	rnc->ssp.function_number = 0;
+	rnc->ssp.arbitration_wait_time = 0;
+}
 
 /**
- * This method returns the minimum number of timers required for all port
- *    objects.
+ * scic_sds_port_construct_dummy_task() - create dummy task for si workaround
+ * @sci_port The logical port on which we need to create the
+ *            remote node context.
+ *            context.
+ * @tci The remote node index for this remote node context.
  *
- * u32
+ * This routine will construct a dummy task context data structure.  This
+ * structure will be posted to the hardwre to work around a scheduler error
+ * in the hardware.
+ *
  */
+void scic_sds_port_construct_dummy_task(struct scic_sds_port *sci_port, u16 tci)
+{
+	struct scu_task_context *task_context;
 
-/**
- * This method returns the maximum number of timers required for all port
- *    objects.
- *
- * u32
- */
+	task_context = scic_sds_controller_get_task_context_buffer(sci_port->owning_controller, tci);
 
-/**
- *
- * @this_port:
- * @port_index:
- *
- *
- */
-void scic_sds_port_construct(
-	struct scic_sds_port *this_port,
-	u8 port_index,
-	struct scic_sds_controller *owning_controller)
+	memset(task_context, 0, sizeof(struct scu_task_context));
+
+	task_context->abort = 0;
+	task_context->priority = 0;
+	task_context->initiator_request = 1;
+	task_context->connection_rate = 1;
+	task_context->protocol_engine_index = 0;
+	task_context->logical_port_index = sci_port->physical_port_index;
+	task_context->protocol_type = SCU_TASK_CONTEXT_PROTOCOL_SSP;
+	task_context->task_index = scic_sds_io_tag_get_index(tci);
+	task_context->valid = SCU_TASK_CONTEXT_VALID;
+	task_context->context_type = SCU_TASK_CONTEXT_TYPE;
+
+	task_context->remote_node_index = sci_port->reserved_rni;
+	task_context->command_code = 0;
+
+	task_context->link_layer_control = 0;
+	task_context->do_not_dma_ssp_good_response = 1;
+	task_context->strict_ordering = 0;
+	task_context->control_frame = 0;
+	task_context->timeout_enable = 0;
+	task_context->block_guard_enable = 0;
+
+	task_context->address_modifier = 0;
+
+	task_context->task_phase = 0x01;
+}
+
+void scic_sds_port_destroy_dummy_resources(struct scic_sds_port *sci_port)
+{
+	struct scic_sds_controller *scic = sci_port->owning_controller;
+
+	if (sci_port->reserved_tci != SCU_DUMMY_INDEX)
+		scic_controller_free_io_tag(scic, sci_port->reserved_tci);
+
+	if (sci_port->reserved_rni != SCU_DUMMY_INDEX)
+		scic_sds_remote_node_table_release_remote_node_index(&scic->available_remote_nodes,
+								     1, sci_port->reserved_rni);
+
+	sci_port->reserved_rni = SCU_DUMMY_INDEX;
+	sci_port->reserved_tci = SCU_DUMMY_INDEX;
+}
+
+void scic_sds_port_construct(struct scic_sds_port *sci_port, u8 port_index,
+			     struct scic_sds_controller *scic)
 {
 	u32 index;
 
-	sci_base_port_construct(
-		&this_port->parent,
-		scic_sds_port_state_table
-		);
+	sci_base_port_construct(&sci_port->parent, scic_sds_port_state_table);
 
 	sci_base_state_machine_construct(
-		scic_sds_port_get_ready_substate_machine(this_port),
-		&this_port->parent.parent,
+		scic_sds_port_get_ready_substate_machine(sci_port),
+		&sci_port->parent.parent,
 		scic_sds_port_ready_substate_table,
 		SCIC_SDS_PORT_READY_SUBSTATE_WAITING
 		);
 
-	this_port->logical_port_index  = SCIC_SDS_DUMMY_PORT;
-	this_port->physical_port_index = port_index;
-	this_port->active_phy_mask     = 0;
+	sci_port->logical_port_index  = SCIC_SDS_DUMMY_PORT;
+	sci_port->physical_port_index = port_index;
+	sci_port->active_phy_mask     = 0;
 
-	this_port->owning_controller = owning_controller;
+	sci_port->owning_controller = scic;
 
-	this_port->started_request_count = 0;
-	this_port->assigned_device_count = 0;
+	sci_port->started_request_count = 0;
+	sci_port->assigned_device_count = 0;
 
-	this_port->timer_handle = NULL;
+	sci_port->reserved_rni = SCU_DUMMY_INDEX;
+	sci_port->reserved_tci = SCU_DUMMY_INDEX;
 
-	this_port->port_task_scheduler_registers = NULL;
+	sci_port->timer_handle = NULL;
 
-	for (index = 0; index < SCI_MAX_PHYS; index++) {
-		this_port->phy_table[index] = NULL;
-	}
+	sci_port->port_task_scheduler_registers = NULL;
+
+	for (index = 0; index < SCI_MAX_PHYS; index++)
+		sci_port->phy_table[index] = NULL;
 }
 
 /**
@@ -634,18 +700,10 @@ void scic_sds_port_general_link_up_handler(
 	}
 }
 
-
-enum sci_status scic_port_start(struct scic_sds_port *port)
-{
-	return port->state_handlers->parent.start_handler(&port->parent);
-}
-
-
 enum sci_status scic_port_stop(struct scic_sds_port *port)
 {
 	return port->state_handlers->parent.stop_handler(&port->parent);
 }
-
 
 enum sci_status scic_port_get_properties(
 	struct scic_sds_port *port,
@@ -1542,6 +1600,58 @@ static void scic_sds_port_suspend_port_task_scheduler(
 }
 
 /**
+ * scic_sds_port_post_dummy_request() - post dummy/workaround request
+ * @sci_port: port to post task
+ *
+ * Prevent the hardware scheduler from posting new requests to the front
+ * of the scheduler queue causing a starvation problem for currently
+ * ongoing requests.
+ *
+ */
+void scic_sds_port_post_dummy_request(struct scic_sds_port *sci_port)
+{
+	u32 command;
+	struct scu_task_context *task_context;
+	struct scic_sds_controller *scic = sci_port->owning_controller;
+	u16 tci = sci_port->reserved_tci;
+
+	task_context = scic_sds_controller_get_task_context_buffer(scic, tci);
+
+	task_context->abort = 0;
+
+	command = SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
+		  sci_port->physical_port_index << SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT |
+		  tci;
+
+	scic_sds_controller_post_request(scic, command);
+}
+
+/**
+ * This routine will abort the dummy request.  This will alow the hardware to
+ * power down parts of the silicon to save power.
+ *
+ * @sci_port: The port on which the task must be aborted.
+ *
+ */
+void scic_sds_port_abort_dummy_request(struct scic_sds_port *sci_port)
+{
+	struct scic_sds_controller *scic = sci_port->owning_controller;
+	u16 tci = sci_port->reserved_tci;
+	struct scu_task_context *tc;
+	u32 command;
+
+	tc = scic_sds_controller_get_task_context_buffer(scic, tci);
+
+	tc->abort = 1;
+
+	command = SCU_CONTEXT_COMMAND_REQUEST_POST_TC_ABORT |
+		  sci_port->physical_port_index << SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT |
+		  tci;
+
+	scic_sds_controller_post_request(scic, command);
+}
+
+/**
  *
  * @this_port: This is the struct scic_sds_port object to resume.
  *
@@ -1583,6 +1693,12 @@ static void scic_sds_port_ready_substate_waiting_enter(
 		);
 
 	scic_sds_port_suspend_port_task_scheduler(this_port);
+
+	/* Kill the dummy task for this port if it has not yet posted
+	 * the hardware will treat this as a NOP and just return abort
+	 * complete.
+	 */
+	scic_sds_port_abort_dummy_request(this_port);
 
 	this_port->not_ready_reason = SCIC_PORT_NOT_READY_NO_ACTIVE_PHYS;
 
@@ -1629,6 +1745,11 @@ static void scic_sds_port_ready_substate_operational_enter(
 	scic_sds_port_update_viit_entry(this_port);
 
 	scic_sds_port_resume_port_task_scheduler(this_port);
+
+	/* Post the dummy task for the port so the hardware can schedule
+	 * io correctly
+	 */
+	scic_sds_port_post_dummy_request(this_port);
 }
 
 /**
@@ -2062,6 +2183,7 @@ static enum sci_status scic_sds_port_general_complete_io_handler(
  * **************************************************************************** */
 
 /**
+ * scic_sds_port_stopped_state_start_handler() - stop a port from "started"
  *
  * @port: This is the struct sci_base_port object which is cast into a struct scic_sds_port
  *    object.
@@ -2075,13 +2197,14 @@ static enum sci_status scic_sds_port_general_complete_io_handler(
  * start request is successful and the struct scic_sds_port object has transitioned to
  * the SCI_BASE_PORT_STATE_READY.
  */
-static enum sci_status scic_sds_port_stopped_state_start_handler(
-	struct sci_base_port *port)
+static enum sci_status scic_sds_port_stopped_state_start_handler(struct sci_base_port *base_port)
 {
+	struct scic_sds_port *sci_port = container_of(base_port, typeof(*sci_port), parent);
+	struct scic_sds_controller *scic = sci_port->owning_controller;
+	enum sci_status status = SCI_SUCCESS;
 	u32 phy_mask;
-	struct scic_sds_port *this_port = (struct scic_sds_port *)port;
 
-	if (this_port->assigned_device_count > 0) {
+	if (sci_port->assigned_device_count > 0) {
 		/*
 		 * / @todo This is a start failure operation because there are still
 		 * /       devices assigned to this port.  There must be no devices
@@ -2089,22 +2212,56 @@ static enum sci_status scic_sds_port_stopped_state_start_handler(
 		return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
 	}
 
-	phy_mask = scic_sds_port_get_phys(this_port);
+	sci_port->timer_handle = isci_event_timer_create(scic,
+							 scic_sds_port_timeout_handler,
+							 sci_port);
 
-	/*
-	 * There are one or more phys assigned to this port.  Make sure
-	 * the port's phy mask is in fact legal and supported by the
-	 * silicon. */
-	if (scic_sds_port_is_phy_mask_valid(this_port, phy_mask) == true) {
-		sci_base_state_machine_change_state(
-			scic_sds_port_get_base_state_machine(this_port),
-			SCI_BASE_PORT_STATE_READY
-			);
+	if (!sci_port->timer_handle)
+		return SCI_FAILURE_INSUFFICIENT_RESOURCES;
 
-		return SCI_SUCCESS;
+	if (sci_port->reserved_rni == SCU_DUMMY_INDEX) {
+		u16 rni = scic_sds_remote_node_table_allocate_remote_node(&scic->available_remote_nodes, 1);
+
+		if (rni != SCU_DUMMY_INDEX)
+			scic_sds_port_construct_dummy_rnc(sci_port, rni);
+		else
+			status = SCI_FAILURE_INSUFFICIENT_RESOURCES;
+		sci_port->reserved_rni = rni;
 	}
 
-	return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
+	if (sci_port->reserved_tci == SCU_DUMMY_INDEX) {
+		/* Allocate a TCI and remove the sequence nibble */
+		u16 tci = scic_controller_allocate_io_tag(scic);
+
+		if (tci != SCU_DUMMY_INDEX)
+			scic_sds_port_construct_dummy_task(sci_port, tci);
+		else
+			status = SCI_FAILURE_INSUFFICIENT_RESOURCES;
+		sci_port->reserved_tci = tci;
+	}
+
+	if (status == SCI_SUCCESS) {
+		phy_mask = scic_sds_port_get_phys(sci_port);
+
+		/*
+		 * There are one or more phys assigned to this port.  Make sure
+		 * the port's phy mask is in fact legal and supported by the
+		 * silicon.
+		 */
+		if (scic_sds_port_is_phy_mask_valid(sci_port, phy_mask) == true) {
+			sci_base_state_machine_change_state(
+				scic_sds_port_get_base_state_machine(sci_port),
+				SCI_BASE_PORT_STATE_READY);
+
+			return SCI_SUCCESS;
+		} else
+			status = SCI_FAILURE;
+	}
+
+	if (status != SCI_SUCCESS)
+		scic_sds_port_destroy_dummy_resources(sci_port);
+
+	return status;
 }
 
 /**
@@ -2467,6 +2624,52 @@ static void scic_sds_port_disable_port_task_scheduler(
 	scu_port_task_scheduler_write(this_port, control, pts_control_value);
 }
 
+void scic_sds_port_post_dummy_remote_node(struct scic_sds_port *sci_port)
+{
+	struct scic_sds_controller *scic = sci_port->owning_controller;
+	u8 phys_index = sci_port->physical_port_index;
+	union scu_remote_node_context *rnc;
+	u16 rni = sci_port->reserved_rni;
+	u32 command;
+
+	rnc = &scic->remote_node_context_table[rni];
+	rnc->ssp.is_valid = true;
+
+	command = SCU_CONTEXT_COMMAND_POST_RNC_32 |
+		  phys_index << SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT | rni;
+
+	scic_sds_controller_post_request(scic, command);
+
+	/* ensure hardware has seen the post rnc command and give it
+	 * ample time to act before sending the suspend
+	 */
+	SMU_ISR_READ(scic); /* flush */
+	udelay(10);
+
+	command = SCU_CONTEXT_COMMAND_POST_RNC_SUSPEND_TX_RX |
+		  phys_index << SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT | rni;
+
+	scic_sds_controller_post_request(scic, command);
+}
+
+void scic_sds_port_invalidate_dummy_remote_node(struct scic_sds_port *sci_port)
+{
+	struct scic_sds_controller *scic = sci_port->owning_controller;
+	u8 phys_index = sci_port->physical_port_index;
+	union scu_remote_node_context *rnc;
+	u16 rni = sci_port->reserved_rni;
+	u32 command;
+
+	rnc = &scic->remote_node_context_table[rni];
+
+	rnc->ssp.is_valid = false;
+
+	command = SCU_CONTEXT_COMMAND_POST_RNC_INVALIDATE |
+		  phys_index << SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT | rni;
+
+	scic_sds_controller_post_request(scic, command);
+}
+
 /*
  * ******************************************************************************
  * *  PORT STATE METHODS
@@ -2562,6 +2765,9 @@ static void scic_sds_port_ready_state_enter(
 			);
 	}
 
+	/* Post and suspend the dummy remote node context for this port. */
+	scic_sds_port_post_dummy_remote_node(this_port);
+
 	/* Start the ready substate machine */
 	sci_base_state_machine_start(
 		scic_sds_port_get_ready_substate_machine(this_port)
@@ -2583,6 +2789,8 @@ static void scic_sds_port_ready_state_exit(
 	this_port = (struct scic_sds_port *)object;
 
 	sci_base_state_machine_stop(&this_port->ready_substate_machine);
+
+	scic_sds_port_invalidate_dummy_remote_node(this_port);
 }
 
 /**
@@ -2663,6 +2871,8 @@ static void scic_sds_port_stopping_state_exit(
 		scic_sds_port_get_controller(this_port),
 		this_port->timer_handle
 		);
+
+	scic_sds_port_destroy_dummy_resources(this_port);
 }
 
 /**

@@ -147,23 +147,6 @@ enum sci_status scic_port_get_properties(
 	struct scic_sds_port *port,
 	struct scic_port_properties *properties);
 
-
-
-/**
- * scic_port_start() - This method will make the port ready for operation.
- *    Prior to calling the start method IO operation is not possible.
- * @port: This parameter specifies the port to be started.
- *
- * Indicate if the port was successfully started. SCI_SUCCESS This value is
- * returned if the port was successfully started. SCI_WARNING_ALREADY_IN_STATE
- * This value is returned if the port is in the process of starting.
- * SCI_FAILURE_INVALID_PORT This value is returned if the supplied port is not
- * valid. SCI_FAILURE_INVALID_STATE This value is returned if a start operation
- * can't be completed due to the state of port.
- */
-enum sci_status scic_port_start(
-	struct scic_sds_port *port);
-
 /**
  * scic_port_stop() - This method will make the port no longer ready for
  *    operation.  After invoking this method IO operation is not possible.

@@ -73,6 +73,12 @@
 #define SCIC_SDS_DUMMY_PORT   0xFF
 
 /**
+ * This constant defines the value utilized by SCI Components to indicate
+ * an invalid handle.
+ */
+#define SCI_INVALID_HANDLE 0x0
+
+/**
  * enum SCIC_SDS_PORT_READY_SUBSTATES -
  *
  * This enumeration depicts all of the states for the core port ready substate
@@ -133,6 +139,9 @@ struct scic_sds_port {
 	 * port operations.
 	 */
 	u8 active_phy_mask;
+
+	u16 reserved_rni;
+	u16 reserved_tci;
 
 	/**
 	 * This field contains the count of the io requests started on this port

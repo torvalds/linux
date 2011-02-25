@@ -381,7 +381,6 @@ int isci_host_init(struct isci_host *isci_host)
 	int index = 0;
 	enum sci_status status;
 	struct scic_sds_controller *controller;
-	struct scic_sds_port *scic_port;
 	union scic_oem_parameters scic_oem_params;
 	union scic_user_parameters scic_user_params;
 
@@ -516,12 +515,6 @@ int isci_host_init(struct isci_host *isci_host)
 
 	for (index = 0; index < SCI_MAX_PHYS; index++)
 		isci_phy_init(&isci_host->phys[index], isci_host, index);
-
-	/* Start the ports */
-	for (index = 0; index < SCI_MAX_PORTS; index++) {
-		scic_controller_get_port_handle(controller, index, &scic_port);
-		scic_port_start(scic_port);
-	}
 
 	return 0;
 }
