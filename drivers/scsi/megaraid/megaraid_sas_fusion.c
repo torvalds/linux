@@ -1461,7 +1461,7 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 			 MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 	}
 	io_request->RaidContext.VirtualDiskTgtId = device_id;
-	io_request->LUN[0] = scmd->device->lun;
+	io_request->LUN[1] = scmd->device->lun;
 	io_request->DataLength = scsi_bufflen(scmd);
 }
 
@@ -1485,7 +1485,7 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 	device_id = MEGASAS_DEV_INDEX(instance, scp);
 
 	/* Zero out some fields so they don't get reused */
-	io_request->LUN[0] = 0;
+	io_request->LUN[1] = 0;
 	io_request->CDB.EEDP32.PrimaryReferenceTag = 0;
 	io_request->CDB.EEDP32.PrimaryApplicationTagMask = 0;
 	io_request->EEDPFlags = 0;
