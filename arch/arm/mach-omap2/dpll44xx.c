@@ -76,3 +76,9 @@ void omap4_dpllmx_deny_gatectrl(struct clk *clk)
 	v |= mask;
 	__raw_writel(v, clk->clksel_reg);
 }
+
+const struct clkops clkops_omap4_dpllmx_ops = {
+	.allow_idle	= omap4_dpllmx_allow_gatectrl,
+	.deny_idle	= omap4_dpllmx_deny_gatectrl,
+};
+
