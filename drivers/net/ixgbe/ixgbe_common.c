@@ -745,7 +745,7 @@ static s32 ixgbe_acquire_eeprom(struct ixgbe_hw *hw)
 	u32 eec;
 	u32 i;
 
-	if (ixgbe_acquire_swfw_sync(hw, IXGBE_GSSR_EEP_SM) != 0)
+	if (hw->mac.ops.acquire_swfw_sync(hw, IXGBE_GSSR_EEP_SM) != 0)
 		status = IXGBE_ERR_SWFW_SYNC;
 
 	if (status == 0) {
@@ -768,7 +768,7 @@ static s32 ixgbe_acquire_eeprom(struct ixgbe_hw *hw)
 			IXGBE_WRITE_REG(hw, IXGBE_EEC, eec);
 			hw_dbg(hw, "Could not acquire EEPROM grant\n");
 
-			ixgbe_release_swfw_sync(hw, IXGBE_GSSR_EEP_SM);
+			hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_EEP_SM);
 			status = IXGBE_ERR_EEPROM;
 		}
 

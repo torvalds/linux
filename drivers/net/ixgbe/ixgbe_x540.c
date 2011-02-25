@@ -287,7 +287,7 @@ static s32 ixgbe_read_eerd_X540(struct ixgbe_hw *hw, u16 offset, u16 *data)
 {
 	s32 status;
 
-	if (ixgbe_acquire_swfw_sync_X540(hw, IXGBE_GSSR_EEP_SM) == 0)
+	if (hw->mac.ops.acquire_swfw_sync(hw, IXGBE_GSSR_EEP_SM) == 0)
 		status = ixgbe_read_eerd_generic(hw, offset, data);
 	else
 		status = IXGBE_ERR_SWFW_SYNC;
@@ -320,7 +320,7 @@ static s32 ixgbe_write_eewr_X540(struct ixgbe_hw *hw, u16 offset, u16 data)
 	       (data << IXGBE_EEPROM_RW_REG_DATA) |
 	       IXGBE_EEPROM_RW_REG_START;
 
-	if (ixgbe_acquire_swfw_sync_X540(hw, IXGBE_GSSR_EEP_SM) == 0) {
+	if (hw->mac.ops.acquire_swfw_sync(hw, IXGBE_GSSR_EEP_SM) == 0) {
 		status = ixgbe_poll_eerd_eewr_done(hw, IXGBE_NVM_POLL_WRITE);
 		if (status != 0) {
 			hw_dbg(hw, "Eeprom write EEWR timed out\n");
@@ -695,6 +695,8 @@ static struct ixgbe_mac_operations mac_ops_X540 = {
 	.setup_sfp              = NULL,
 	.set_mac_anti_spoofing  = &ixgbe_set_mac_anti_spoofing,
 	.set_vlan_anti_spoofing = &ixgbe_set_vlan_anti_spoofing,
+	.acquire_swfw_sync      = &ixgbe_acquire_swfw_sync_X540,
+	.release_swfw_sync      = &ixgbe_release_swfw_sync_X540,
 };
 
 static struct ixgbe_eeprom_operations eeprom_ops_X540 = {

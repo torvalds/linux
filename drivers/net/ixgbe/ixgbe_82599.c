@@ -112,7 +112,8 @@ static s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 			goto setup_sfp_out;
 
 		/* PHY config will finish before releasing the semaphore */
-		ret_val = ixgbe_acquire_swfw_sync(hw, IXGBE_GSSR_MAC_CSR_SM);
+		ret_val = hw->mac.ops.acquire_swfw_sync(hw,
+		                                        IXGBE_GSSR_MAC_CSR_SM);
 		if (ret_val != 0) {
 			ret_val = IXGBE_ERR_SWFW_SYNC;
 			goto setup_sfp_out;
@@ -2044,6 +2045,9 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.setup_sfp              = &ixgbe_setup_sfp_modules_82599,
 	.set_mac_anti_spoofing  = &ixgbe_set_mac_anti_spoofing,
 	.set_vlan_anti_spoofing = &ixgbe_set_vlan_anti_spoofing,
+	.acquire_swfw_sync      = &ixgbe_acquire_swfw_sync,
+	.release_swfw_sync      = &ixgbe_release_swfw_sync,
+
 };
 
 static struct ixgbe_eeprom_operations eeprom_ops_82599 = {
