@@ -367,10 +367,27 @@ static enum sci_status scic_sds_stp_remote_device_ready_ncq_substate_frame_handl
 		);
 
 	if (status == SCI_SUCCESS) {
-		if (
-			(frame_header->fis_type == SATA_FIS_TYPE_SETDEVBITS)
-			&& (frame_header->status & ATA_STATUS_REG_ERROR_BIT)
-			) {
+		if (frame_header->fis_type == SATA_FIS_TYPE_SETDEVBITS &&
+		    (frame_header->status & ATA_STATUS_REG_ERROR_BIT)) {
+			this_device->not_ready_reason =
+				SCIC_REMOTE_DEVICE_NOT_READY_SATA_SDB_ERROR_FIS_RECEIVED;
+
+			/*
+			 * / @todo Check sactive and complete associated IO
+			 * if any.
+			 */
+
+			sci_base_state_machine_change_state(
+				&this_device->ready_substate_machine,
+				SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR
+				);
+		} else if (frame_header->fis_type == SATA_FIS_TYPE_REGD2H &&
+			   (frame_header->status & ATA_STATUS_REG_ERROR_BIT)) {
+
+			/*
+			 * Some devices return D2H FIS when an NCQ error is detected.
+			 * Treat this like an SDB error FIS ready reason.
+			 */
 			this_device->not_ready_reason =
 				SCIC_REMOTE_DEVICE_NOT_READY_SATA_SDB_ERROR_FIS_RECEIVED;
 
