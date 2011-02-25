@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/skbuff.h>
+#include <linux/vmalloc.h>
 #include <linux/rtnetlink.h>
 
 #include <net/netlink.h>
