@@ -844,15 +844,15 @@ static void sh_mmcif_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct sh_mmcif_host *host = mmc_priv(mmc);
 	struct sh_mmcif_plat_data *p = host->pd->dev.platform_data;
 
-	if (ios->power_mode == MMC_POWER_OFF) {
-		/* clock stop */
-		sh_mmcif_clock_control(host, 0);
-		if (p->down_pwr)
-			p->down_pwr(host->pd);
-		return;
-	} else if (ios->power_mode == MMC_POWER_UP) {
+	if (ios->power_mode == MMC_POWER_UP) {
 		if (p->set_pwr)
 			p->set_pwr(host->pd, ios->power_mode);
+	} else if (ios->power_mode == MMC_POWER_OFF || !ios->clock) {
+		/* clock stop */
+		sh_mmcif_clock_control(host, 0);
+		if (ios->power_mode == MMC_POWER_OFF && p->down_pwr)
+			p->down_pwr(host->pd);
+		return;
 	}
 
 	if (ios->clock)
