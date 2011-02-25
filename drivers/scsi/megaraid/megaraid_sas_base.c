@@ -134,7 +134,11 @@ spinlock_t poll_aen_lock;
 void
 megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 		     u8 alt_status);
-
+static u32
+megasas_read_fw_status_reg_gen2(struct megasas_register_set __iomem *regs);
+static int
+megasas_adp_reset_gen2(struct megasas_instance *instance,
+		       struct megasas_register_set __iomem *reg_set);
 static irqreturn_t megasas_isr(int irq, void *devp);
 static u32
 megasas_init_adapter_mfi(struct megasas_instance *instance);
@@ -554,6 +558,8 @@ static int
 megasas_clear_intr_skinny(struct megasas_register_set __iomem *regs)
 {
 	u32 status;
+	u32 mfiStatus = 0;
+
 	/*
 	 * Check if it is our interrupt
 	 */
@@ -562,6 +568,15 @@ megasas_clear_intr_skinny(struct megasas_register_set __iomem *regs)
 	if (!(status & MFI_SKINNY_ENABLE_INTERRUPT_MASK)) {
 		return 0;
 	}
+
+	/*
+	 * Check if it is our interrupt
+	 */
+	if ((megasas_read_fw_status_reg_gen2(regs) & MFI_STATE_MASK) ==
+	    MFI_STATE_FAULT) {
+		mfiStatus = MFI_INTR_FLAG_FIRMWARE_STATE_CHANGE;
+	} else
+		mfiStatus = MFI_INTR_FLAG_REPLY_MESSAGE;
 
 	/*
 	 * Clear the interrupt by writing back the same value
@@ -573,7 +588,7 @@ megasas_clear_intr_skinny(struct megasas_register_set __iomem *regs)
 	*/
 	readl(&regs->outbound_intr_status);
 
-	return 1;
+	return mfiStatus;
 }
 
 /**
@@ -597,17 +612,6 @@ megasas_fire_cmd_skinny(struct megasas_instance *instance,
 }
 
 /**
- * megasas_adp_reset_skinny -	For controller reset
- * @regs:				MFI register set
- */
-static int
-megasas_adp_reset_skinny(struct megasas_instance *instance,
-			struct megasas_register_set __iomem *regs)
-{
-	return 0;
-}
-
-/**
  * megasas_check_reset_skinny -	For controller reset check
  * @regs:				MFI register set
  */
@@ -625,7 +629,7 @@ static struct megasas_instance_template megasas_instance_template_skinny = {
 	.disable_intr = megasas_disable_intr_skinny,
 	.clear_intr = megasas_clear_intr_skinny,
 	.read_fw_status_reg = megasas_read_fw_status_reg_skinny,
-	.adp_reset = megasas_adp_reset_skinny,
+	.adp_reset = megasas_adp_reset_gen2,
 	.check_reset = megasas_check_reset_skinny,
 	.service_isr = megasas_isr,
 	.tasklet = megasas_complete_cmd_dpc,
@@ -740,20 +744,28 @@ megasas_adp_reset_gen2(struct megasas_instance *instance,
 {
 	u32			retry = 0 ;
 	u32			HostDiag;
+	u32			*seq_offset = &reg_set->seq_offset;
+	u32			*hostdiag_offset = &reg_set->host_diag;
 
-	writel(0, &reg_set->seq_offset);
-	writel(4, &reg_set->seq_offset);
-	writel(0xb, &reg_set->seq_offset);
-	writel(2, &reg_set->seq_offset);
-	writel(7, &reg_set->seq_offset);
-	writel(0xd, &reg_set->seq_offset);
+	if (instance->instancet == &megasas_instance_template_skinny) {
+		seq_offset = &reg_set->fusion_seq_offset;
+		hostdiag_offset = &reg_set->fusion_host_diag;
+	}
+
+	writel(0, seq_offset);
+	writel(4, seq_offset);
+	writel(0xb, seq_offset);
+	writel(2, seq_offset);
+	writel(7, seq_offset);
+	writel(0xd, seq_offset);
+
 	msleep(1000);
 
-	HostDiag = (u32)readl(&reg_set->host_diag);
+	HostDiag = (u32)readl(hostdiag_offset);
 
 	while ( !( HostDiag & DIAG_WRITE_ENABLE) ) {
 		msleep(100);
-		HostDiag = (u32)readl(&reg_set->host_diag);
+		HostDiag = (u32)readl(hostdiag_offset);
 		printk(KERN_NOTICE "RESETGEN2: retry=%x, hostdiag=%x\n",
 					retry, HostDiag);
 
@@ -764,14 +776,14 @@ megasas_adp_reset_gen2(struct megasas_instance *instance,
 
 	printk(KERN_NOTICE "ADP_RESET_GEN2: HostDiag=%x\n", HostDiag);
 
-	writel((HostDiag | DIAG_RESET_ADAPTER), &reg_set->host_diag);
+	writel((HostDiag | DIAG_RESET_ADAPTER), hostdiag_offset);
 
 	ssleep(10);
 
-	HostDiag = (u32)readl(&reg_set->host_diag);
+	HostDiag = (u32)readl(hostdiag_offset);
 	while ( ( HostDiag & DIAG_RESET_ADAPTER) ) {
 		msleep(100);
-		HostDiag = (u32)readl(&reg_set->host_diag);
+		HostDiag = (u32)readl(hostdiag_offset);
 		printk(KERN_NOTICE "RESET_GEN2: retry=%x, hostdiag=%x\n",
 				retry, HostDiag);
 
