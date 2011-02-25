@@ -58,7 +58,7 @@ static inline void i8042_write_command(int val)
 
 static inline int i8042_platform_init(void)
 {
-	if (!request_region(I8042_REGION_START, I8042_REGION_SIZE, "i8042"))
+	if (!request_mem_region(I8042_REGION_START, I8042_REGION_SIZE, "i8042"))
 		return -EBUSY;
 
 	i8042_reset = 1;
@@ -67,7 +67,7 @@ static inline int i8042_platform_init(void)
 
 static inline void i8042_platform_exit(void)
 {
-	release_region(I8042_REGION_START, I8042_REGION_SIZE);
+	release_mem_region(I8042_REGION_START, I8042_REGION_SIZE);
 }
 
 #endif /* _I8042_UNICORE32_H */
