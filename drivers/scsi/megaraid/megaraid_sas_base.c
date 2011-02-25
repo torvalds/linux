@@ -18,12 +18,13 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
  *  FILE: megaraid_sas_base.c
- *  Version : v00.00.05.29-rc1
+ *  Version : v00.00.05.34-rc1
  *
  *  Authors: LSI Corporation
  *           Sreenivas Bagalkote
  *           Sumant Patro
  *           Bo Yang
+ *           Adam Radford <linuxraid@lsi.com>
  *
  *  Send feedback to: <megaraidlinux@lsi.com>
  *
