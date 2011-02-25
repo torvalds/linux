@@ -132,7 +132,7 @@ static inline void wusb_dev_put(struct wusb_dev *wusb_dev)
 }
 
 /**
- * Wireless USB Host Controlller root hub "fake" ports
+ * Wireless USB Host Controller root hub "fake" ports
  * (state and device information)
  *
  * Wireless USB is wireless, so there are no ports; but we
