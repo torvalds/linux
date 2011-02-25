@@ -152,6 +152,8 @@ struct dw_mci {
 
 	/* Workaround flags */
 	u32			quirks;
+
+	struct regulator	*vmmc;	/* Power regulator */
 };
 
 /* DMA ops for Internal/External DMAC interface */

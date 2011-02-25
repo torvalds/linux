@@ -32,6 +32,7 @@
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/dw_mmc.h>
 #include <linux/bitops.h>
+#include <linux/regulator/consumer.h>
 
 #include "dw_mmc.h"
 
@@ -1440,6 +1441,13 @@ static int __init dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	}
 #endif /* CONFIG_MMC_DW_IDMAC */
 
+	host->vmmc = regulator_get(mmc_dev(mmc), "vmmc");
+	if (IS_ERR(host->vmmc)) {
+		printk(KERN_INFO "%s: no vmmc regulator found\n", mmc_hostname(mmc));
+		host->vmmc = NULL;
+	} else
+		regulator_enable(host->vmmc);
+
 	if (dw_mci_get_cd(mmc))
 		set_bit(DW_MMC_CARD_PRESENT, &slot->flags);
 	else
@@ -1704,6 +1712,12 @@ err_dmaunmap:
 			  host->sg_cpu, host->sg_dma);
 	iounmap(host->regs);
 
+	if (host->vmmc) {
+		regulator_disable(host->vmmc);
+		regulator_put(host->vmmc);
+	}
+
+
 err_freehost:
 	kfree(host);
 	return ret;
@@ -1735,6 +1749,11 @@ static int __exit dw_mci_remove(struct platform_device *pdev)
 	if (host->use_dma && host->dma_ops->exit)
 		host->dma_ops->exit(host);
 
+	if (host->vmmc) {
+		regulator_disable(host->vmmc);
+		regulator_put(host->vmmc);
+	}
+
 	iounmap(host->regs);
 
 	kfree(host);
@@ -1750,6 +1769,9 @@ static int dw_mci_suspend(struct platform_device *pdev, pm_message_t mesg)
 	int i, ret;
 	struct dw_mci *host = platform_get_drvdata(pdev);
 
+	if (host->vmmc)
+		regulator_enable(host->vmmc);
+
 	for (i = 0; i < host->num_slots; i++) {
 		struct dw_mci_slot *slot = host->slot[i];
 		if (!slot)
@@ -1764,6 +1786,9 @@ static int dw_mci_suspend(struct platform_device *pdev, pm_message_t mesg)
 			return ret;
 		}
 	}
+
+	if (host->vmmc)
+		regulator_disable(host->vmmc);
 
 	return 0;
 }
