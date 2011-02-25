@@ -296,7 +296,7 @@ static struct dpll_data dpll1_dd = {
 
 static struct clk dpll1_ck = {
 	.name		= "dpll1_ck",
-	.ops		= &clkops_null,
+	.ops		= &clkops_omap3_noncore_dpll_ops,
 	.parent		= &sys_ck,
 	.dpll_data	= &dpll1_dd,
 	.round_rate	= &omap2_dpll_round_rate,
