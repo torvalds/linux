@@ -1756,7 +1756,8 @@ static void at76_mac80211_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		if (compare_ether_addr(priv->bssid, mgmt->bssid)) {
 			memcpy(priv->bssid, mgmt->bssid, ETH_ALEN);
 			ieee80211_queue_work(hw, &priv->work_join_bssid);
-			return NETDEV_TX_BUSY;
+			dev_kfree_skb_any(skb);
+			return;
 		}
 	}
 
