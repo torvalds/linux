@@ -1,16 +1,16 @@
 /* DVB USB framework compliant Linux driver for the
-*	DVBWorld DVB-S 2101, 2102, DVB-S2 2104, DVB-C 3101,
-*	TeVii S600, S630, S650, S480
-*	Prof 1100, 7500,
+ *	DVBWorld DVB-S 2101, 2102, DVB-S2 2104, DVB-C 3101,
+ *	TeVii S600, S630, S650, S660, S480,
+ *	Prof 1100, 7500,
  *	Geniatech SU3000 Cards
-* Copyright (C) 2008,2009 Igor M. Liplianin (liplianin@me.by)
-*
-*	This program is free software; you can redistribute it and/or modify it
-*	under the terms of the GNU General Public License as published by the
-*	Free Software Foundation, version 2.
-*
-* see Documentation/dvb/README.dvb-usb for more information
-*/
+ * Copyright (C) 2008-2011 Igor M. Liplianin (liplianin@me.by)
+ *
+ *	This program is free software; you can redistribute it and/or modify it
+ *	under the terms of the GNU General Public License as published by the
+ *	Free Software Foundation, version 2.
+ *
+ * see Documentation/dvb/README.dvb-usb for more information
+ */
 #include "dw2102.h"
 #include "si21xx.h"
 #include "stv0299.h"
