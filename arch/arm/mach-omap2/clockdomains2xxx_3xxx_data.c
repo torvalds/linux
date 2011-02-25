@@ -856,5 +856,5 @@ static struct clockdomain *clockdomains_omap2[] __initdata = {
 
 void __init omap2_clockdomains_init(void)
 {
-	clkdm_init(clockdomains_omap2, clkdm_autodeps);
+	clkdm_init(clockdomains_omap2, clkdm_autodeps, NULL);
 }

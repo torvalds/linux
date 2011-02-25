@@ -305,5 +305,5 @@ static struct clockdomain *clockdomains_omap44xx[] __initdata = {
 
 void __init omap44xx_clockdomains_init(void)
 {
-	clkdm_init(clockdomains_omap44xx, NULL);
+	clkdm_init(clockdomains_omap44xx, NULL, NULL);
 }

@@ -116,7 +116,42 @@ struct clockdomain {
 	struct list_head node;
 };
 
-void clkdm_init(struct clockdomain **clkdms, struct clkdm_autodep *autodeps);
+/**
+ * struct clkdm_ops - Arch specfic function implementations
+ * @clkdm_add_wkdep: Add a wakeup dependency between clk domains
+ * @clkdm_del_wkdep: Delete a wakeup dependency between clk domains
+ * @clkdm_read_wkdep: Read wakeup dependency state between clk domains
+ * @clkdm_clear_all_wkdeps: Remove all wakeup dependencies from the clk domain
+ * @clkdm_add_sleepdep: Add a sleep dependency between clk domains
+ * @clkdm_del_sleepdep: Delete a sleep dependency between clk domains
+ * @clkdm_read_sleepdep: Read sleep dependency state between clk domains
+ * @clkdm_clear_all_sleepdeps: Remove all sleep dependencies from the clk domain
+ * @clkdm_sleep: Force a clockdomain to sleep
+ * @clkdm_wakeup: Force a clockdomain to wakeup
+ * @clkdm_allow_idle: Enable hw supervised idle transitions for clock domain
+ * @clkdm_deny_idle: Disable hw supervised idle transitions for clock domain
+ * @clkdm_clk_enable: Put the clkdm in right state for a clock enable
+ * @clkdm_clk_disable: Put the clkdm in right state for a clock disable
+ */
+struct clkdm_ops {
+	int	(*clkdm_add_wkdep)(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
+	int	(*clkdm_del_wkdep)(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
+	int	(*clkdm_read_wkdep)(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
+	int	(*clkdm_clear_all_wkdeps)(struct clockdomain *clkdm);
+	int	(*clkdm_add_sleepdep)(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
+	int	(*clkdm_del_sleepdep)(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
+	int	(*clkdm_read_sleepdep)(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
+	int	(*clkdm_clear_all_sleepdeps)(struct clockdomain *clkdm);
+	int	(*clkdm_sleep)(struct clockdomain *clkdm);
+	int	(*clkdm_wakeup)(struct clockdomain *clkdm);
+	void	(*clkdm_allow_idle)(struct clockdomain *clkdm);
+	void	(*clkdm_deny_idle)(struct clockdomain *clkdm);
+	int	(*clkdm_clk_enable)(struct clockdomain *clkdm);
+	int	(*clkdm_clk_disable)(struct clockdomain *clkdm);
+};
+
+void clkdm_init(struct clockdomain **clkdms, struct clkdm_autodep *autodeps,
+			struct clkdm_ops *custom_funcs);
 struct clockdomain *clkdm_lookup(const char *name);
 
 int clkdm_for_each(int (*fn)(struct clockdomain *clkdm, void *user),

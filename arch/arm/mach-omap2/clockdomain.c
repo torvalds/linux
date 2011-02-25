@@ -44,6 +44,7 @@ static LIST_HEAD(clkdm_list);
 /* array of clockdomain deps to be added/removed when clkdm in hwsup mode */
 static struct clkdm_autodep *autodeps;
 
+static struct clkdm_ops *arch_clkdm;
 
 /* Private functions */
 
@@ -292,6 +293,7 @@ static void _disable_hwsup(struct clockdomain *clkdm)
  * clkdm_init - set up the clockdomain layer
  * @clkdms: optional pointer to an array of clockdomains to register
  * @init_autodeps: optional pointer to an array of autodeps to register
+ * @custom_funcs: func pointers for arch specfic implementations
  *
  * Set up internal state.  If a pointer to an array of clockdomains
  * @clkdms was supplied, loop through the list of clockdomains,
@@ -300,11 +302,17 @@ static void _disable_hwsup(struct clockdomain *clkdm)
  * @init_autodeps was provided, register those.  No return value.
  */
 void clkdm_init(struct clockdomain **clkdms,
-		struct clkdm_autodep *init_autodeps)
+		struct clkdm_autodep *init_autodeps,
+		struct clkdm_ops *custom_funcs)
 {
 	struct clockdomain **c = NULL;
 	struct clockdomain *clkdm;
 	struct clkdm_autodep *autodep = NULL;
+
+	if (!custom_funcs)
+		WARN(1, "No custom clkdm functions registered\n");
+	else
+		arch_clkdm = custom_funcs;
 
 	if (clkdms)
 		for (c = clkdms; *c; c++)
