@@ -1,14 +1,16 @@
 /*
  * Samsung Laptop driver
  *
- * Copyright (C) 2009 Greg Kroah-Hartman (gregkh@suse.de)
- * Copyright (C) 2009 Novell Inc.
+ * Copyright (C) 2009,2011 Greg Kroah-Hartman (gregkh@suse.de)
+ * Copyright (C) 2009,2011 Novell Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
  *
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -232,6 +234,7 @@ static int sabi_get_command(u8 command, struct sabi_retval *sretval)
 {
 	int retval = 0;
 	u16 port = readw(sabi + sabi_config->header_offsets.port);
+	u8 complete, iface_data;
 
 	mutex_lock(&sabi_mutex);
 
@@ -248,27 +251,25 @@ static int sabi_get_command(u8 command, struct sabi_retval *sretval)
 	outb(readb(sabi + sabi_config->header_offsets.re_mem), port);
 
 	/* see if the command actually succeeded */
-	if (readb(sabi_iface + SABI_IFACE_COMPLETE) == 0xaa &&
-	    readb(sabi_iface + SABI_IFACE_DATA) != 0xff) {
-		/*
-		 * It did!
-		 * Save off the data into a structure so the caller use it.
-		 * Right now we only care about the first 4 bytes,
-		 * I suppose there are commands that need more, but I don't
-		 * know about them.
-		 */
-		sretval->retval[0] = readb(sabi_iface + SABI_IFACE_DATA);
-		sretval->retval[1] = readb(sabi_iface + SABI_IFACE_DATA + 1);
-		sretval->retval[2] = readb(sabi_iface + SABI_IFACE_DATA + 2);
-		sretval->retval[3] = readb(sabi_iface + SABI_IFACE_DATA + 3);
+	complete = readb(sabi_iface + SABI_IFACE_COMPLETE);
+	iface_data = readb(sabi_iface + SABI_IFACE_DATA);
+	if (complete != 0xaa || iface_data == 0xff) {
+		pr_warn("SABI get command 0x%02x failed with completion flag 0x%02x and data 0x%02x\n",
+		        command, complete, iface_data);
+		retval = -EINVAL;
 		goto exit;
 	}
+	/*
+	 * Save off the data into a structure so the caller use it.
+	 * Right now we only want the first 4 bytes,
+	 * There are commands that need more, but not for the ones we
+	 * currently care about.
+	 */
+	sretval->retval[0] = readb(sabi_iface + SABI_IFACE_DATA);
+	sretval->retval[1] = readb(sabi_iface + SABI_IFACE_DATA + 1);
+	sretval->retval[2] = readb(sabi_iface + SABI_IFACE_DATA + 2);
+	sretval->retval[3] = readb(sabi_iface + SABI_IFACE_DATA + 3);
 
-	/* Something bad happened, so report it and error out */
-	printk(KERN_WARNING "SABI command 0x%02x failed with completion flag 0x%02x and output 0x%02x\n",
-		command, readb(sabi_iface + SABI_IFACE_COMPLETE),
-		readb(sabi_iface + SABI_IFACE_DATA));
-	retval = -EINVAL;
 exit:
 	mutex_unlock(&sabi_mutex);
 	return retval;
@@ -279,6 +280,7 @@ static int sabi_set_command(u8 command, u8 data)
 {
 	int retval = 0;
 	u16 port = readw(sabi + sabi_config->header_offsets.port);
+	u8 complete, iface_data;
 
 	mutex_lock(&sabi_mutex);
 
@@ -296,18 +298,14 @@ static int sabi_set_command(u8 command, u8 data)
 	outb(readb(sabi + sabi_config->header_offsets.re_mem), port);
 
 	/* see if the command actually succeeded */
-	if (readb(sabi_iface + SABI_IFACE_COMPLETE) == 0xaa &&
-	    readb(sabi_iface + SABI_IFACE_DATA) != 0xff) {
-		/* it did! */
-		goto exit;
+	complete = readb(sabi_iface + SABI_IFACE_COMPLETE);
+	iface_data = readb(sabi_iface + SABI_IFACE_DATA);
+	if (complete != 0xaa || iface_data == 0xff) {
+		pr_warn("SABI set command 0x%02x failed with completion flag 0x%02x and data 0x%02x\n",
+		       command, complete, iface_data);
+		retval = -EINVAL;
 	}
 
-	/* Something bad happened, so report it and error out */
-	printk(KERN_WARNING "SABI command 0x%02x failed with completion flag 0x%02x and output 0x%02x\n",
-		command, readb(sabi_iface + SABI_IFACE_COMPLETE),
-		readb(sabi_iface + SABI_IFACE_DATA));
-	retval = -EINVAL;
-exit:
 	mutex_unlock(&sabi_mutex);
 	return retval;
 }
@@ -488,7 +486,7 @@ static DEVICE_ATTR(performance_level, S_IWUSR | S_IRUGO,
 
 static int __init dmi_check_cb(const struct dmi_system_id *id)
 {
-	printk(KERN_INFO KBUILD_MODNAME ": found laptop model '%s'\n",
+	pr_info("found laptop model '%s'\n",
 		id->ident);
 	return 0;
 }
@@ -670,7 +668,7 @@ static int __init samsung_init(void)
 
 	f0000_segment = ioremap(0xf0000, 0xffff);
 	if (!f0000_segment) {
-		printk(KERN_ERR "Can't map the segment at 0xf0000\n");
+		pr_err("Can't map the segment at 0xf0000\n");
 		return -EINVAL;
 	}
 
@@ -683,7 +681,7 @@ static int __init samsung_init(void)
 	}
 
 	if (loca == 0xffff) {
-		printk(KERN_ERR "This computer does not support SABI\n");
+		pr_err("This computer does not support SABI\n");
 		goto error_no_signature;
 	}
 
@@ -714,7 +712,7 @@ static int __init samsung_init(void)
 	ifaceP += readw(sabi + sabi_config->header_offsets.data_offset) & 0x0ffff;
 	sabi_iface = ioremap(ifaceP, 16);
 	if (!sabi_iface) {
-		printk(KERN_ERR "Can't remap %x\n", ifaceP);
+		pr_err("Can't remap %x\n", ifaceP);
 		goto exit;
 	}
 	if (debug) {
@@ -734,7 +732,7 @@ static int __init samsung_init(void)
 		retval = sabi_set_command(sabi_config->commands.set_linux,
 					  0x81);
 		if (retval) {
-			printk(KERN_ERR KBUILD_MODNAME ": Linux mode was not set!\n");
+			pr_warn("Linux mode was not set!\n");
 			goto error_no_platform;
 		}
 	}
