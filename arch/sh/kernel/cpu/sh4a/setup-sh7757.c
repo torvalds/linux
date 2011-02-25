@@ -124,12 +124,36 @@ static struct platform_device tmu1_device = {
 	.num_resources	= ARRAY_SIZE(tmu1_resources),
 };
 
+static struct resource spi0_resources[] = {
+	[0] = {
+		.start	= 0xfe002000,
+		.end	= 0xfe0020ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 86,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device spi0_device = {
+	.name	= "sh_spi",
+	.id	= 0,
+	.dev	= {
+		.dma_mask		= NULL,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(spi0_resources),
+	.resource	= spi0_resources,
+};
+
 static struct platform_device *sh7757_devices[] __initdata = {
 	&scif2_device,
 	&scif3_device,
 	&scif4_device,
 	&tmu0_device,
 	&tmu1_device,
+	&spi0_device,
 };
 
 static int __init sh7757_devices_setup(void)
