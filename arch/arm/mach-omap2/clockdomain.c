@@ -355,7 +355,7 @@ void clkdm_init(struct clockdomain **clkdms,
 	 */
 	list_for_each_entry(clkdm, &clkdm_list, node) {
 		if (clkdm->flags & CLKDM_CAN_FORCE_WAKEUP)
-			omap2_clkdm_wakeup(clkdm);
+			clkdm_wakeup(clkdm);
 		else if (clkdm->flags & CLKDM_CAN_DISABLE_AUTO)
 			omap2_clkdm_deny_idle(clkdm);
 
@@ -765,7 +765,7 @@ int clkdm_clear_all_sleepdeps(struct clockdomain *clkdm)
 }
 
 /**
- * omap2_clkdm_sleep - force clockdomain sleep transition
+ * clkdm_sleep - force clockdomain sleep transition
  * @clkdm: struct clockdomain *
  *
  * Instruct the CM to force a sleep transition on the specified
@@ -773,7 +773,7 @@ int clkdm_clear_all_sleepdeps(struct clockdomain *clkdm)
  * clockdomain does not support software-initiated sleep; 0 upon
  * success.
  */
-int omap2_clkdm_sleep(struct clockdomain *clkdm)
+int clkdm_sleep(struct clockdomain *clkdm)
 {
 	if (!clkdm)
 		return -EINVAL;
@@ -784,33 +784,16 @@ int omap2_clkdm_sleep(struct clockdomain *clkdm)
 		return -EINVAL;
 	}
 
+	if (!arch_clkdm || !arch_clkdm->clkdm_sleep)
+		return -EINVAL;
+
 	pr_debug("clockdomain: forcing sleep on %s\n", clkdm->name);
 
-	if (cpu_is_omap24xx()) {
-
-		omap2_cm_set_mod_reg_bits(OMAP24XX_FORCESTATE_MASK,
-			    clkdm->pwrdm.ptr->prcm_offs, OMAP2_PM_PWSTCTRL);
-
-	} else if (cpu_is_omap34xx()) {
-
-		omap3xxx_cm_clkdm_force_sleep(clkdm->pwrdm.ptr->prcm_offs,
-					      clkdm->clktrctrl_mask);
-
-	} else if (cpu_is_omap44xx()) {
-
-		omap4_cminst_clkdm_force_sleep(clkdm->prcm_partition,
-					       clkdm->cm_inst,
-					       clkdm->clkdm_offs);
-
-	} else {
-		BUG();
-	};
-
-	return 0;
+	return arch_clkdm->clkdm_sleep(clkdm);
 }
 
 /**
- * omap2_clkdm_wakeup - force clockdomain wakeup transition
+ * clkdm_wakeup - force clockdomain wakeup transition
  * @clkdm: struct clockdomain *
  *
  * Instruct the CM to force a wakeup transition on the specified
@@ -818,7 +801,7 @@ int omap2_clkdm_sleep(struct clockdomain *clkdm)
  * clockdomain does not support software-controlled wakeup; 0 upon
  * success.
  */
-int omap2_clkdm_wakeup(struct clockdomain *clkdm)
+int clkdm_wakeup(struct clockdomain *clkdm)
 {
 	if (!clkdm)
 		return -EINVAL;
@@ -829,29 +812,12 @@ int omap2_clkdm_wakeup(struct clockdomain *clkdm)
 		return -EINVAL;
 	}
 
+	if (!arch_clkdm || !arch_clkdm->clkdm_wakeup)
+		return -EINVAL;
+
 	pr_debug("clockdomain: forcing wakeup on %s\n", clkdm->name);
 
-	if (cpu_is_omap24xx()) {
-
-		omap2_cm_clear_mod_reg_bits(OMAP24XX_FORCESTATE_MASK,
-			      clkdm->pwrdm.ptr->prcm_offs, OMAP2_PM_PWSTCTRL);
-
-	} else if (cpu_is_omap34xx()) {
-
-		omap3xxx_cm_clkdm_force_wakeup(clkdm->pwrdm.ptr->prcm_offs,
-					       clkdm->clktrctrl_mask);
-
-	} else if (cpu_is_omap44xx()) {
-
-		omap4_cminst_clkdm_force_wakeup(clkdm->prcm_partition,
-						clkdm->cm_inst,
-						clkdm->clkdm_offs);
-
-	} else {
-		BUG();
-	};
-
-	return 0;
+	return arch_clkdm->clkdm_wakeup(clkdm);
 }
 
 /**
@@ -990,7 +956,7 @@ int omap2_clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
 		_clkdm_add_autodeps(clkdm);
 		_enable_hwsup(clkdm);
 	} else {
-		omap2_clkdm_wakeup(clkdm);
+		clkdm_wakeup(clkdm);
 	}
 
 	pwrdm_wait_transition(clkdm->pwrdm.ptr);
@@ -1062,7 +1028,7 @@ int omap2_clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk)
 		_clkdm_del_autodeps(clkdm);
 		_enable_hwsup(clkdm);
 	} else {
-		omap2_clkdm_sleep(clkdm);
+		clkdm_sleep(clkdm);
 	}
 
 	pwrdm_clkdm_state_switch(clkdm);

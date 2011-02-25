@@ -993,7 +993,7 @@ static int __init clkdms_setup(struct clockdomain *clkdm, void *unused)
 		omap2_clkdm_allow_idle(clkdm);
 	else if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP &&
 		 atomic_read(&clkdm->usecount) == 0)
-		omap2_clkdm_sleep(clkdm);
+		clkdm_sleep(clkdm);
 	return 0;
 }
 

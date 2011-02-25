@@ -20,6 +20,7 @@
 #include "cm2xxx_3xxx.h"
 #include "cm-regbits-24xx.h"
 #include "cm-regbits-34xx.h"
+#include "prm-regbits-24xx.h"
 #include "clockdomain.h"
 
 static int omap2_clkdm_add_wkdep(struct clockdomain *clkdm1,
@@ -111,11 +112,43 @@ static int omap3_clkdm_clear_all_sleepdeps(struct clockdomain *clkdm)
 	return 0;
 }
 
+static int omap2_clkdm_sleep(struct clockdomain *clkdm)
+{
+	omap2_cm_set_mod_reg_bits(OMAP24XX_FORCESTATE_MASK,
+				clkdm->pwrdm.ptr->prcm_offs,
+				OMAP2_PM_PWSTCTRL);
+	return 0;
+}
+
+static int omap2_clkdm_wakeup(struct clockdomain *clkdm)
+{
+	omap2_cm_clear_mod_reg_bits(OMAP24XX_FORCESTATE_MASK,
+				clkdm->pwrdm.ptr->prcm_offs,
+				OMAP2_PM_PWSTCTRL);
+	return 0;
+}
+
+static int omap3_clkdm_sleep(struct clockdomain *clkdm)
+{
+	omap3xxx_cm_clkdm_force_sleep(clkdm->pwrdm.ptr->prcm_offs,
+				clkdm->clktrctrl_mask);
+	return 0;
+}
+
+static int omap3_clkdm_wakeup(struct clockdomain *clkdm)
+{
+	omap3xxx_cm_clkdm_force_wakeup(clkdm->pwrdm.ptr->prcm_offs,
+				clkdm->clktrctrl_mask);
+	return 0;
+}
+
 struct clkdm_ops omap2_clkdm_operations = {
 	.clkdm_add_wkdep	= omap2_clkdm_add_wkdep,
 	.clkdm_del_wkdep	= omap2_clkdm_del_wkdep,
 	.clkdm_read_wkdep	= omap2_clkdm_read_wkdep,
 	.clkdm_clear_all_wkdeps	= omap2_clkdm_clear_all_wkdeps,
+	.clkdm_sleep		= omap2_clkdm_sleep,
+	.clkdm_wakeup		= omap2_clkdm_wakeup,
 };
 
 struct clkdm_ops omap3_clkdm_operations = {
@@ -127,4 +160,6 @@ struct clkdm_ops omap3_clkdm_operations = {
 	.clkdm_del_sleepdep	= omap3_clkdm_del_sleepdep,
 	.clkdm_read_sleepdep	= omap3_clkdm_read_sleepdep,
 	.clkdm_clear_all_sleepdeps	= omap3_clkdm_clear_all_sleepdeps,
+	.clkdm_sleep		= omap3_clkdm_sleep,
+	.clkdm_wakeup		= omap3_clkdm_wakeup,
 };

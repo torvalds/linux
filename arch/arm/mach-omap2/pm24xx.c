@@ -370,7 +370,7 @@ static int __init clkdms_setup(struct clockdomain *clkdm, void *unused)
 		omap2_clkdm_allow_idle(clkdm);
 	else if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP &&
 		 atomic_read(&clkdm->usecount) == 0)
-		omap2_clkdm_sleep(clkdm);
+		clkdm_sleep(clkdm);
 	return 0;
 }
 
@@ -405,11 +405,11 @@ static void __init prcm_setup_regs(void)
 
 	pwrdm = clkdm_get_pwrdm(dsp_clkdm);
 	pwrdm_set_next_pwrst(pwrdm, PWRDM_POWER_OFF);
-	omap2_clkdm_sleep(dsp_clkdm);
+	clkdm_sleep(dsp_clkdm);
 
 	pwrdm = clkdm_get_pwrdm(gfx_clkdm);
 	pwrdm_set_next_pwrst(pwrdm, PWRDM_POWER_OFF);
-	omap2_clkdm_sleep(gfx_clkdm);
+	clkdm_sleep(gfx_clkdm);
 
 	/*
 	 * Clear clockdomain wakeup dependencies and enable
