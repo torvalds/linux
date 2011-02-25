@@ -40,8 +40,16 @@ struct mod_arch_specific {
 #define MODULE_ARCH_VERMAGIC_P2V ""
 #endif
 
+/* Add instruction set architecture tag to distinguish ARM/Thumb kernels */
+#ifdef CONFIG_THUMB2_KERNEL
+#define MODULE_ARCH_VERMAGIC_ARMTHUMB "thumb2 "
+#else
+#define MODULE_ARCH_VERMAGIC_ARMTHUMB ""
+#endif
+
 #define MODULE_ARCH_VERMAGIC \
 	MODULE_ARCH_VERMAGIC_ARMVSN \
+	MODULE_ARCH_VERMAGIC_ARMTHUMB \
 	MODULE_ARCH_VERMAGIC_P2V
 
 #endif /* _ASM_ARM_MODULE_H */
