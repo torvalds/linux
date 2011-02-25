@@ -658,7 +658,7 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 		len = roundup(len, 4);
 		ampdu_len += (len + (ndelim + 1) * AMPDU_DELIMITER_LEN);
 
-		dma_len += (u16) pkttotlen(osh, p);
+		dma_len += (u16) pkttotlen(p);
 
 		WL_AMPDU_TX("wl%d: wlc_sendampdu: ampdu_len %d seg_cnt %d null delim %d\n",
 			    wlc->pub->unit, ampdu_len, seg_cnt, ndelim);
@@ -755,7 +755,7 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 			    ((u8) (p->priority) == tid)) {
 
 				plen =
-				    pkttotlen(osh, p) + AMPDU_MAX_MPDU_OVERHEAD;
+				    pkttotlen(p) + AMPDU_MAX_MPDU_OVERHEAD;
 				plen = max(scb_ampdu->min_len, plen);
 
 				if ((plen + ampdu_len) > maxlen) {

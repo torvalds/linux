@@ -3309,7 +3309,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 		}
 
 		pfirst = bus->glom;
-		dlen = (u16) pkttotlen(osh, pfirst);
+		dlen = (u16) pkttotlen(pfirst);
 
 		/* Do an SDIO read for the superframe.  Configurable iovar to
 		 * read directly into the chained packet, or allocate a large

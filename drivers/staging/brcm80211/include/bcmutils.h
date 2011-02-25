@@ -142,7 +142,7 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 /* packet */
 	extern uint pktfrombuf(struct osl_info *osh, struct sk_buff *p,
 			       uint offset, int len, unsigned char *buf);
-	extern uint pkttotlen(struct osl_info *osh, struct sk_buff *p);
+	extern uint pkttotlen(struct sk_buff *p);
 
 /* ethernet address */
 	extern int bcm_ether_atoe(char *p, u8 *ea);

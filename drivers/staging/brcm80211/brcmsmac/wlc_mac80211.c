@@ -5125,7 +5125,7 @@ wlc_prec_enq_head(struct wlc_info *wlc, struct pktq *q, struct sk_buff *pkt,
 				  tx_failed[WME_PRIO2AC(p->priority)].packets);
 			WLCNTADD(wlc->pub->_wme_cnt->
 				 tx_failed[WME_PRIO2AC(p->priority)].bytes,
-				 pkttotlen(wlc->osh, p));
+				 pkttotlen(p));
 		}
 		pkt_buf_free_skb(wlc->osh, p, true);
 		wlc->pub->_cnt->txnobuf++;
@@ -5776,7 +5776,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	       FC_SUBTYPE_ANY_QOS(fc));
 
 	/* compute length of frame in bytes for use in PLCP computations */
-	len = pkttotlen(osh, p);
+	len = pkttotlen(p);
 	phylen = len + FCS_LEN;
 
 	/* If WEP enabled, add room in phylen for the additional bytes of
@@ -6702,7 +6702,7 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 			tx_info->flags |= IEEE80211_TX_STAT_ACK;
 	}
 
-	totlen = pkttotlen(osh, p);
+	totlen = pkttotlen(p);
 	free_pdu = true;
 
 	wlc_txfifo_complete(wlc, queue, 1);

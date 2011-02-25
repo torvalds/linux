@@ -104,7 +104,7 @@ uint pktfrombuf(struct osl_info *osh, struct sk_buff *p, uint offset, int len,
 	return ret;
 }
 /* return total length of buffer chain */
-uint BCMFASTPATH pkttotlen(struct osl_info *osh, struct sk_buff *p)
+uint BCMFASTPATH pkttotlen(struct sk_buff *p)
 {
 	uint total;
 
