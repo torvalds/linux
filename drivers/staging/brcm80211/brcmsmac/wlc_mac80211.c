@@ -861,8 +861,7 @@ void wlc_set_chanspec(struct wlc_info *wlc, chanspec_t chanspec)
 
 	/* init antenna selection */
 	if (CHSPEC_WLC_BW(old_chanspec) != CHSPEC_WLC_BW(chanspec)) {
-		if (WLANTSEL_ENAB(wlc))
-			wlc_antsel_init(wlc->asi);
+		wlc_antsel_init(wlc->asi);
 
 		/* Fix the hardware rateset based on bw.
 		 * Mainly add MCS32 for 40Mhz, remove MCS 32 for 20Mhz
@@ -1308,8 +1307,7 @@ static void WLBANDINITFN(wlc_bsinit) (struct wlc_info *wlc)
 	wlc_ucode_mac_upd(wlc);
 
 	/* init antenna selection */
-	if (WLANTSEL_ENAB(wlc))
-		wlc_antsel_init(wlc->asi);
+	wlc_antsel_init(wlc->asi);
 
 }
 
@@ -2003,15 +2001,13 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	/* initialize radio_mpc_disable according to wlc->mpc */
 	wlc_radio_mpc_upd(wlc);
 
-	if (WLANTSEL_ENAB(wlc)) {
-		if ((wlc->pub->sih->chip) == BCM43235_CHIP_ID) {
-			if ((getintvar(wlc->pub->vars, "aa2g") == 7) ||
-			    (getintvar(wlc->pub->vars, "aa5g") == 7)) {
-				wlc_bmac_antsel_set(wlc->hw, 1);
-			}
-		} else {
-			wlc_bmac_antsel_set(wlc->hw, wlc->asi->antsel_avail);
+	if ((wlc->pub->sih->chip) == BCM43235_CHIP_ID) {
+		if ((getintvar(wlc->pub->vars, "aa2g") == 7) ||
+		    (getintvar(wlc->pub->vars, "aa5g") == 7)) {
+			wlc_bmac_antsel_set(wlc->hw, 1);
 		}
+	} else {
+		wlc_bmac_antsel_set(wlc->hw, wlc->asi->antsel_avail);
 	}
 
 	if (perr)
@@ -5753,11 +5749,9 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	u32 rate_val[2];
 	bool hwtkmic = false;
 	u16 mimo_ctlchbw = PHY_TXC1_BW_20MHZ;
-#ifdef WLANTSEL
 #define ANTCFG_NONE 0xFF
 	u8 antcfg = ANTCFG_NONE;
 	u8 fbantcfg = ANTCFG_NONE;
-#endif
 	uint phyctl1_stf = 0;
 	u16 durid = 0;
 	struct ieee80211_tx_rate *txrate[2];
@@ -5891,8 +5885,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 			ASSERT(RSPEC_ACTIVE(rspec[k]));
 			rspec[k] = WLC_RATE_1M;
 		} else {
-			if (WLANTSEL_ENAB(wlc) &&
-			    !is_multicast_ether_addr(h->addr1)) {
+			if (!is_multicast_ether_addr(h->addr1)) {
 				/* set tx antenna config */
 				wlc_antsel_antcfg_get(wlc->asi, false, false, 0,
 						      0, &antcfg, &fbantcfg);

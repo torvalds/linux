@@ -69,10 +69,6 @@
 #define SSLPNCONF	SSLPNPHY_DEFAULT
 #endif
 
-#define BAND2G
-#define BAND5G
-#define WLANTSEL	1
-
 /********************************************************************
  * Phy/Core Configuration.  Defines macros to to check core phy/rev *
  * compile-time configuration.  Defines default core support.       *
@@ -280,7 +276,5 @@
 
 #define WLBANDINITDATA(_data)	_data
 #define WLBANDINITFN(_fn)	_fn
-
-#define WLANTSEL_ENAB(wlc)	1
 
 #endif				/* _wlc_cfg_h_ */

@@ -1178,8 +1178,7 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 	wlc_send_q(wlc, wlc->active_queue);
 
 	/* update rate state */
-	if (WLANTSEL_ENAB(wlc))
-		antselid = wlc_antsel_antsel2id(wlc->asi, mimoantsel);
+	antselid = wlc_antsel_antsel2id(wlc->asi, mimoantsel);
 
 	wlc_txfifo_complete(wlc, queue, ampdu->txpkt_weight);
 }

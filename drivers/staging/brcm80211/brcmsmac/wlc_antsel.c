@@ -16,8 +16,6 @@
 
 #include <wlc_cfg.h>
 
-#ifdef WLANTSEL
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -327,5 +325,3 @@ static int wlc_antsel_cfgupd(struct antsel_info *asi, wlc_antselcfg_t *antsel)
 
 	return 0;
 }
-
-#endif				/* WLANTSEL */

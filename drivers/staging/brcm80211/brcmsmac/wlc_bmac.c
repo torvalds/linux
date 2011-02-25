@@ -2582,39 +2582,39 @@ static void wlc_gpio_init(struct wlc_info *wlc)
 	gc = gm = 0;
 
 	/* Allocate GPIOs for mimo antenna diversity feature */
-	if (WLANTSEL_ENAB(wlc)) {
-		if (wlc_hw->antsel_type == ANTSEL_2x3) {
-			/* Enable antenna diversity, use 2x3 mode */
-			wlc_bmac_mhf(wlc_hw, MHF3, MHF3_ANTSEL_EN,
-				     MHF3_ANTSEL_EN, WLC_BAND_ALL);
-			wlc_bmac_mhf(wlc_hw, MHF3, MHF3_ANTSEL_MODE,
-				     MHF3_ANTSEL_MODE, WLC_BAND_ALL);
+	if (wlc_hw->antsel_type == ANTSEL_2x3) {
+		/* Enable antenna diversity, use 2x3 mode */
+		wlc_bmac_mhf(wlc_hw, MHF3, MHF3_ANTSEL_EN,
+			     MHF3_ANTSEL_EN, WLC_BAND_ALL);
+		wlc_bmac_mhf(wlc_hw, MHF3, MHF3_ANTSEL_MODE,
+			     MHF3_ANTSEL_MODE, WLC_BAND_ALL);
 
-			/* init superswitch control */
-			wlc_phy_antsel_init(wlc_hw->band->pi, false);
+		/* init superswitch control */
+		wlc_phy_antsel_init(wlc_hw->band->pi, false);
 
-		} else if (wlc_hw->antsel_type == ANTSEL_2x4) {
-			ASSERT((gm & BOARD_GPIO_12) == 0);
-			gm |= gc |= (BOARD_GPIO_12 | BOARD_GPIO_13);
-			/* The board itself is powered by these GPIOs (when not sending pattern)
-			 * So set them high
-			 */
-			OR_REG(osh, &regs->psm_gpio_oe,
-			       (BOARD_GPIO_12 | BOARD_GPIO_13));
-			OR_REG(osh, &regs->psm_gpio_out,
-			       (BOARD_GPIO_12 | BOARD_GPIO_13));
+	} else if (wlc_hw->antsel_type == ANTSEL_2x4) {
+		ASSERT((gm & BOARD_GPIO_12) == 0);
+		gm |= gc |= (BOARD_GPIO_12 | BOARD_GPIO_13);
+		/*
+		 * The board itself is powered by these GPIOs
+		 * (when not sending pattern) so set them high
+		 */
+		OR_REG(osh, &regs->psm_gpio_oe,
+		       (BOARD_GPIO_12 | BOARD_GPIO_13));
+		OR_REG(osh, &regs->psm_gpio_out,
+		       (BOARD_GPIO_12 | BOARD_GPIO_13));
 
-			/* Enable antenna diversity, use 2x4 mode */
-			wlc_bmac_mhf(wlc_hw, MHF3, MHF3_ANTSEL_EN,
-				     MHF3_ANTSEL_EN, WLC_BAND_ALL);
-			wlc_bmac_mhf(wlc_hw, MHF3, MHF3_ANTSEL_MODE, 0,
-				     WLC_BAND_ALL);
+		/* Enable antenna diversity, use 2x4 mode */
+		wlc_bmac_mhf(wlc_hw, MHF3, MHF3_ANTSEL_EN,
+			     MHF3_ANTSEL_EN, WLC_BAND_ALL);
+		wlc_bmac_mhf(wlc_hw, MHF3, MHF3_ANTSEL_MODE, 0,
+			     WLC_BAND_ALL);
 
-			/* Configure the desired clock to be 4Mhz */
-			wlc_bmac_write_shm(wlc_hw, M_ANTSEL_CLKDIV,
-					   ANTSEL_CLKDIV_4MHZ);
-		}
+		/* Configure the desired clock to be 4Mhz */
+		wlc_bmac_write_shm(wlc_hw, M_ANTSEL_CLKDIV,
+				   ANTSEL_CLKDIV_4MHZ);
 	}
+
 	/* gpio 9 controls the PA.  ucode is responsible for wiggling out and oe */
 	if (wlc_hw->boardflags & BFL_PACTRL)
 		gm |= gc |= BOARD_GPIO_PACTRL;
