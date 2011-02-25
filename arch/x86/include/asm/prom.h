@@ -28,9 +28,8 @@ extern int of_ioapic;
 extern u64 initial_dtb;
 extern void add_dtb(u64 data);
 extern void x86_add_irq_domains(void);
-void x86_dtb_find_config(void);
-void x86_dtb_get_config(unsigned int unused);
 void __cpuinit x86_of_pci_init(void);
+void x86_dtb_init(void);
 
 static inline struct device_node *pci_device_to_OF_node(struct pci_dev *pdev)
 {
@@ -46,8 +45,7 @@ static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
 static inline void add_dtb(u64 data) { }
 static inline void x86_add_irq_domains(void) { }
 static inline void x86_of_pci_init(void) { }
-#define x86_dtb_find_config x86_init_noop
-#define x86_dtb_get_config x86_init_uint_noop
+static inline void x86_dtb_init(void) { }
 #define of_ioapic 0
 #endif
 

@@ -1563,7 +1563,7 @@ static int apic_verify(void)
 	return 0;
 }
 
-int apic_force_enable(void)
+int apic_force_enable(unsigned long addr)
 {
 	u32 h, l;
 
@@ -1579,7 +1579,7 @@ int apic_force_enable(void)
 	if (!(l & MSR_IA32_APICBASE_ENABLE)) {
 		pr_info("Local APIC disabled by BIOS -- reenabling.\n");
 		l &= ~MSR_IA32_APICBASE_BASE;
-		l |= MSR_IA32_APICBASE_ENABLE | APIC_DEFAULT_PHYS_BASE;
+		l |= MSR_IA32_APICBASE_ENABLE | addr;
 		wrmsr(MSR_IA32_APICBASE, l, h);
 		enabled_via_apicbase = 1;
 	}
@@ -1620,7 +1620,7 @@ static int __init detect_init_APIC(void)
 				"you can enable it with \"lapic\"\n");
 			return -1;
 		}
-		if (apic_force_enable())
+		if (apic_force_enable(APIC_DEFAULT_PHYS_BASE))
 			return -1;
 	} else {
 		if (apic_verify())

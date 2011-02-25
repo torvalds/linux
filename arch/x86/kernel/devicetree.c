@@ -26,6 +26,7 @@ static DEFINE_RAW_SPINLOCK(big_irq_lock);
 
 int __initdata of_ioapic;
 
+#ifdef CONFIG_X86_IO_APIC
 static void add_interrupt_host(struct irq_domain *ih)
 {
 	unsigned long flags;
@@ -34,6 +35,7 @@ static void add_interrupt_host(struct irq_domain *ih)
 	list_add(&ih->l, &irq_domains);
 	raw_spin_unlock_irqrestore(&big_irq_lock, flags);
 }
+#endif
 
 static struct irq_domain *get_ih_from_node(struct device_node *controller)
 {
@@ -223,18 +225,28 @@ static void __init dtb_setup_hpet(void)
 static void __init dtb_lapic_setup(void)
 {
 #ifdef CONFIG_X86_LOCAL_APIC
-	if (apic_force_enable())
+	struct device_node *dn;
+	struct resource r;
+	int ret;
+
+	dn = of_find_compatible_node(NULL, NULL, "intel,ce4100-lapic");
+	if (!dn)
 		return;
 
+	ret = of_address_to_resource(dn, 0, &r);
+	if (WARN_ON(ret))
+		return;
+
+	/* Did the boot loader setup the local APIC ? */
+	if (!cpu_has_apic) {
+		if (apic_force_enable(r.start))
+			return;
+	}
 	smp_found_config = 1;
 	pic_mode = 1;
-	/* Required for ioapic registration */
-	set_fixmap_nocache(FIX_APIC_BASE, mp_lapic_addr);
-	if (boot_cpu_physical_apicid == -1U)
-		boot_cpu_physical_apicid = read_apic_id();
-
+	register_lapic_address(r.start);
 	generic_processor_info(boot_cpu_physical_apicid,
-			GET_APIC_VERSION(apic_read(APIC_LVR)));
+			       GET_APIC_VERSION(apic_read(APIC_LVR)));
 #endif
 }
 
@@ -259,9 +271,6 @@ static void __init dtb_ioapic_setup(void)
 {
 	struct device_node *dn;
 
-	if (!smp_found_config)
-		return;
-
 	for_each_compatible_node(dn, NULL, "intel,ce4100-ioapic")
 		dtb_add_ioapic(dn);
 
@@ -270,7 +279,6 @@ static void __init dtb_ioapic_setup(void)
 		return;
 	}
 	printk(KERN_ERR "Error: No information about IO-APIC in OF.\n");
-	smp_found_config = 0;
 }
 #else
 static void __init dtb_ioapic_setup(void) {}
@@ -280,14 +288,6 @@ static void __init dtb_apic_setup(void)
 {
 	dtb_lapic_setup();
 	dtb_ioapic_setup();
-}
-
-void __init x86_dtb_find_config(void)
-{
-	if (initial_dtb)
-		smp_found_config = 1;
-	else
-		printk(KERN_ERR "Missing device tree!.\n");
 }
 
 #ifdef CONFIG_OF_FLATTREE
@@ -325,7 +325,7 @@ static void __init x86_flattree_get_config(void)
 static inline void x86_flattree_get_config(void) { }
 #endif
 
-void __init x86_dtb_get_config(unsigned int unused)
+void __init x86_dtb_init(void)
 {
 	x86_flattree_get_config();
 
