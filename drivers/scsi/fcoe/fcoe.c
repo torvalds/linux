@@ -1548,7 +1548,7 @@ static inline int fcoe_filter_frames(struct fc_lport *lport,
 		return -EINVAL;
 	}
 
-	if (!fr_flags(fp) & FCPHF_CRC_UNCHECKED ||
+	if (!(fr_flags(fp) & FCPHF_CRC_UNCHECKED) ||
 	    le32_to_cpu(fr_crc(fp)) == ~crc32(~0, skb->data, skb->len)) {
 		fr_flags(fp) &= ~FCPHF_CRC_UNCHECKED;
 		return 0;
