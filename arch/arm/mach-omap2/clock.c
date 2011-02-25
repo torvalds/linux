@@ -261,7 +261,8 @@ void omap2_clk_disable(struct clk *clk)
 
 	pr_debug("clock: %s: disabling in hardware\n", clk->name);
 
-	clk->ops->disable(clk);
+	if (clk->ops && clk->ops->disable)
+		clk->ops->disable(clk);
 
 	if (clk->clkdm)
 		clkdm_clk_disable(clk->clkdm, clk);
@@ -312,10 +313,13 @@ int omap2_clk_enable(struct clk *clk)
 		}
 	}
 
-	ret = clk->ops->enable(clk);
-	if (ret) {
-		WARN(1, "clock: %s: could not enable: %d\n", clk->name, ret);
-		goto oce_err3;
+	if (clk->ops && clk->ops->enable) {
+		ret = clk->ops->enable(clk);
+		if (ret) {
+			WARN(1, "clock: %s: could not enable: %d\n",
+			     clk->name, ret);
+			goto oce_err3;
+		}
 	}
 
 	return 0;
