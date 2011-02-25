@@ -1660,8 +1660,13 @@ static int stv0900_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			| FE_HAS_VITERBI
 			| FE_HAS_SYNC
 			| FE_HAS_LOCK;
-	} else
+		if (state->config->set_lock_led)
+			state->config->set_lock_led(fe, 1);
+	} else {
+		if (state->config->set_lock_led)
+			state->config->set_lock_led(fe, 0);
 		dprintk("DEMOD LOCK FAIL\n");
+	}
 
 	return 0;
 }
@@ -1831,6 +1836,9 @@ static void stv0900_release(struct dvb_frontend *fe)
 
 	dprintk("%s\n", __func__);
 
+	if (state->config->set_lock_led)
+		state->config->set_lock_led(fe, 0);
+
 	if ((--(state->internal->dmds_used)) <= 0) {
 
 		dprintk("%s: Actually removing\n", __func__);
@@ -1840,6 +1848,18 @@ static void stv0900_release(struct dvb_frontend *fe)
 	}
 
 	kfree(state);
+}
+
+static int stv0900_sleep(struct dvb_frontend *fe)
+{
+	struct stv0900_state *state = fe->demodulator_priv;
+
+	dprintk("%s\n", __func__);
+
+	if (state->config->set_lock_led)
+		state->config->set_lock_led(fe, 0);
+
+	return 0;
 }
 
 static int stv0900_get_frontend(struct dvb_frontend *fe,
@@ -1876,6 +1896,7 @@ static struct dvb_frontend_ops stv0900_ops = {
 	.release			= stv0900_release,
 	.init				= stv0900_init,
 	.get_frontend                   = stv0900_get_frontend,
+	.sleep				= stv0900_sleep,
 	.get_frontend_algo		= stv0900_frontend_algo,
 	.i2c_gate_ctrl			= stv0900_i2c_gate_ctrl,
 	.diseqc_send_master_cmd		= stv0900_send_master_cmd,

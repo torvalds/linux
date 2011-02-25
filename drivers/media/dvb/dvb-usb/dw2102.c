@@ -70,6 +70,7 @@
 #define DW2102_VOLTAGE_CTRL (0x1800)
 #define SU3000_STREAM_CTRL (0x1900)
 #define DW2102_RC_QUERY (0x1a00)
+#define DW2102_LED_CTRL (0x1b00)
 
 #define	err_str "did not find the firmware file. (%s) " \
 		"Please see linux/Documentation/dvb/ for more details " \
@@ -509,6 +510,15 @@ static int s6x0_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 					obuf, 2, DW210X_WRITE_MSG);
 			break;
 		}
+		case (DW2102_LED_CTRL): {
+			u8 obuf[2];
+
+			obuf[0] = 5;
+			obuf[1] = msg[j].buf[0];
+			ret = dw210x_op_rw(d->udev, 0x8a, 0, 0,
+					obuf, 2, DW210X_WRITE_MSG);
+			break;
+		}
 		/*case 0x55: cx24116
 		case 0x6a: stv0903
 		case 0x68: ds3000, stv0903
@@ -844,6 +854,24 @@ static int dw210x_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 	return 0;
 }
 
+static void dw210x_led_ctrl(struct dvb_frontend *fe, int offon)
+{
+	static u8 led_off[] = { 0 };
+	static u8 led_on[] = { 1 };
+	struct i2c_msg msg = {
+		.addr = DW2102_LED_CTRL,
+		.flags = 0,
+		.buf = led_off,
+		.len = 1
+	};
+	struct dvb_usb_adapter *udev_adap =
+		(struct dvb_usb_adapter *)(fe->dvb->priv);
+
+	if (offon)
+		msg.buf = led_on;
+	i2c_transfer(&udev_adap->dev->i2c_adap, &msg, 1);
+}
+
 static struct stv0299_config sharp_z0194a_config = {
 	.demod_address = 0x68,
 	.inittab = sharp_z0194a_inittab,
@@ -923,6 +951,7 @@ static struct stv0900_config prof_7500_stv0900_config = {
 	.tun1_adc = 0,/* 2 Vpp */
 	.path1_mode = 3,
 	.tun1_type = 3,
+	.set_lock_led = dw210x_led_ctrl,
 };
 
 static struct ds3000_config su3000_ds3000_config = {
