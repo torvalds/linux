@@ -264,11 +264,12 @@ static int wlc_iovar_rangecheck(struct wlc_info *wlc, u32 val,
 static u8 wlc_local_constraint_qdbm(struct wlc_info *wlc);
 
 /* send and receive */
-static wlc_txq_info_t *wlc_txq_alloc(struct wlc_info *wlc,
-				     struct osl_info *osh);
+static struct wlc_txq_info *wlc_txq_alloc(struct wlc_info *wlc,
+					  struct osl_info *osh);
 static void wlc_txq_free(struct wlc_info *wlc, struct osl_info *osh,
-			 wlc_txq_info_t *qi);
-static void wlc_txflowcontrol_signal(struct wlc_info *wlc, wlc_txq_info_t *qi,
+			 struct wlc_txq_info *qi);
+static void wlc_txflowcontrol_signal(struct wlc_info *wlc,
+				     struct wlc_txq_info *qi,
 				     bool on, int prio);
 static void wlc_txflowcontrol_reset(struct wlc_info *wlc);
 static u16 wlc_compute_airtime(struct wlc_info *wlc, ratespec_t rspec,
@@ -1728,7 +1729,7 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	uint err = 0;
 	uint j;
 	struct wlc_pub *pub;
-	wlc_txq_info_t *qi;
+	struct wlc_txq_info *qi;
 	uint n_disabled;
 
 	WL_NONE("wl%d: %s: vendor 0x%x device 0x%x\n",
@@ -2170,7 +2171,7 @@ uint wlc_detach(struct wlc_info *wlc)
 
 	{
 		/* free dumpcb list */
-		dumpcb_t *prev, *ptr;
+		struct dumpcb_s *prev, *ptr;
 		prev = ptr = wlc->dumpcb_head;
 		while (ptr) {
 			ptr = prev->next;
@@ -2676,7 +2677,7 @@ uint wlc_down(struct wlc_info *wlc)
 	uint callbacks = 0;
 	int i;
 	bool dev_gone = false;
-	wlc_txq_info_t *qi;
+	struct wlc_txq_info *qi;
 
 	WL_TRACE("wl%d: %s:\n", wlc->pub->unit, __func__);
 
@@ -4346,7 +4347,7 @@ int wlc_module_unregister(struct wlc_pub *pub, const char *name, void *hdl)
 	for (i = 0; i < WLC_MAXMODULES; i++) {
 		if (!strcmp(wlc->modulecb[i].name, name) &&
 		    (wlc->modulecb[i].hdl == hdl)) {
-			memset(&wlc->modulecb[i], 0, sizeof(modulecb_t));
+			memset(&wlc->modulecb[i], 0, sizeof(struct modulecb));
 			return 0;
 		}
 	}
@@ -5145,7 +5146,7 @@ void BCMFASTPATH wlc_txq_enq(void *ctx, struct scb *scb, struct sk_buff *sdu,
 			     uint prec)
 {
 	struct wlc_info *wlc = (struct wlc_info *) ctx;
-	wlc_txq_info_t *qi = wlc->active_queue;	/* Check me */
+	struct wlc_txq_info *qi = wlc->active_queue;	/* Check me */
 	struct pktq *q = &qi->q;
 	int prio;
 
@@ -5217,7 +5218,7 @@ wlc_sendpkt_mac80211(struct wlc_info *wlc, struct sk_buff *sdu,
 	return 0;
 }
 
-void BCMFASTPATH wlc_send_q(struct wlc_info *wlc, wlc_txq_info_t *qi)
+void BCMFASTPATH wlc_send_q(struct wlc_info *wlc, struct wlc_txq_info *qi)
 {
 	struct sk_buff *pkt[DOT11_MAXNUMFRAGS];
 	int prec;
@@ -7001,10 +7002,9 @@ wlc_recvctl(struct wlc_info *wlc, struct osl_info *osh, d11rxhdr_t *rxh,
 	return;
 }
 
-void wlc_bss_list_free(struct wlc_info *wlc, wlc_bss_list_t *bss_list)
+void wlc_bss_list_free(struct wlc_info *wlc, struct wlc_bss_list *bss_list)
 {
 	uint index;
-	wlc_bss_info_t *bi;
 
 	if (!bss_list) {
 		WL_ERROR("%s: Attempting to free NULL list\n", __func__);
@@ -7012,11 +7012,8 @@ void wlc_bss_list_free(struct wlc_info *wlc, wlc_bss_list_t *bss_list)
 	}
 	/* inspect all BSS descriptor */
 	for (index = 0; index < bss_list->count; index++) {
-		bi = bss_list->ptrs[index];
-		if (bi) {
-			kfree(bi);
-			bss_list->ptrs[index] = NULL;
-		}
+		kfree(bss_list->ptrs[index]);
+		bss_list->ptrs[index] = NULL;
 	}
 	bss_list->count = 0;
 }
@@ -8322,7 +8319,8 @@ void wlc_ht_mimops_cap_update(struct wlc_info *wlc, u8 mimops_mode)
 
 /* check for the particular priority flow control bit being set */
 bool
-wlc_txflowcontrol_prio_isset(struct wlc_info *wlc, wlc_txq_info_t *q, int prio)
+wlc_txflowcontrol_prio_isset(struct wlc_info *wlc, struct wlc_txq_info *q,
+			     int prio)
 {
 	uint prio_mask;
 
@@ -8337,7 +8335,7 @@ wlc_txflowcontrol_prio_isset(struct wlc_info *wlc, wlc_txq_info_t *q, int prio)
 }
 
 /* propogate the flow control to all interfaces using the given tx queue */
-void wlc_txflowcontrol(struct wlc_info *wlc, wlc_txq_info_t *qi,
+void wlc_txflowcontrol(struct wlc_info *wlc, struct wlc_txq_info *qi,
 		       bool on, int prio)
 {
 	uint prio_bits;
@@ -8380,8 +8378,8 @@ void wlc_txflowcontrol(struct wlc_info *wlc, wlc_txq_info_t *qi,
 }
 
 void
-wlc_txflowcontrol_override(struct wlc_info *wlc, wlc_txq_info_t *qi, bool on,
-			   uint override)
+wlc_txflowcontrol_override(struct wlc_info *wlc, struct wlc_txq_info *qi,
+			   bool on, uint override)
 {
 	uint prev_override;
 
@@ -8429,7 +8427,7 @@ wlc_txflowcontrol_override(struct wlc_info *wlc, wlc_txq_info_t *qi, bool on,
 
 static void wlc_txflowcontrol_reset(struct wlc_info *wlc)
 {
-	wlc_txq_info_t *qi;
+	struct wlc_txq_info *qi;
 
 	for (qi = wlc->tx_queues; qi != NULL; qi = qi->next) {
 		if (qi->stopped) {
@@ -8440,7 +8438,7 @@ static void wlc_txflowcontrol_reset(struct wlc_info *wlc)
 }
 
 static void
-wlc_txflowcontrol_signal(struct wlc_info *wlc, wlc_txq_info_t *qi, bool on,
+wlc_txflowcontrol_signal(struct wlc_info *wlc, struct wlc_txq_info *qi, bool on,
 			 int prio)
 {
 	struct wlc_if *wlcif;
@@ -8451,40 +8449,40 @@ wlc_txflowcontrol_signal(struct wlc_info *wlc, wlc_txq_info_t *qi, bool on,
 	}
 }
 
-static wlc_txq_info_t *wlc_txq_alloc(struct wlc_info *wlc, struct osl_info *osh)
+static struct wlc_txq_info *wlc_txq_alloc(struct wlc_info *wlc,
+					  struct osl_info *osh)
 {
-	wlc_txq_info_t *qi, *p;
+	struct wlc_txq_info *qi, *p;
 
-	qi = (wlc_txq_info_t *) wlc_calloc(osh, wlc->pub->unit,
-					   sizeof(wlc_txq_info_t));
-	if (qi == NULL) {
-		return NULL;
+	qi = wlc_calloc(osh, wlc->pub->unit, sizeof(struct wlc_txq_info));
+	if (qi != NULL) {
+		/*
+		 * Have enough room for control packets along with HI watermark
+		 * Also, add room to txq for total psq packets if all the SCBs
+		 * leave PS mode. The watermark for flowcontrol to OS packets
+		 * will remain the same
+		 */
+		pktq_init(&qi->q, WLC_PREC_COUNT,
+			  (2 * wlc->pub->tunables->datahiwat) + PKTQ_LEN_DEFAULT
+			  + wlc->pub->psq_pkts_total);
+
+		/* add this queue to the the global list */
+		p = wlc->tx_queues;
+		if (p == NULL) {
+			wlc->tx_queues = qi;
+		} else {
+			while (p->next != NULL)
+				p = p->next;
+			p->next = qi;
+		}
 	}
-
-	/* Have enough room for control packets along with HI watermark */
-	/* Also, add room to txq for total psq packets if all the SCBs leave PS mode */
-	/* The watermark for flowcontrol to OS packets will remain the same */
-	pktq_init(&qi->q, WLC_PREC_COUNT,
-		  (2 * wlc->pub->tunables->datahiwat) + PKTQ_LEN_DEFAULT +
-		  wlc->pub->psq_pkts_total);
-
-	/* add this queue to the the global list */
-	p = wlc->tx_queues;
-	if (p == NULL) {
-		wlc->tx_queues = qi;
-	} else {
-		while (p->next != NULL)
-			p = p->next;
-		p->next = qi;
-	}
-
 	return qi;
 }
 
 static void wlc_txq_free(struct wlc_info *wlc, struct osl_info *osh,
-			 wlc_txq_info_t *qi)
+			 struct wlc_txq_info *qi)
 {
-	wlc_txq_info_t *p;
+	struct wlc_txq_info *p;
 
 	if (qi == NULL)
 		return;

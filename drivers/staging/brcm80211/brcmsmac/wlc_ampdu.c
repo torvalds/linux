@@ -494,7 +494,7 @@ wlc_ampdu_agg(struct ampdu_info *ampdu, struct scb *scb, struct sk_buff *p,
 }
 
 int BCMFASTPATH
-wlc_sendampdu(struct ampdu_info *ampdu, wlc_txq_info_t *qi,
+wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 	      struct sk_buff **pdu, int prec)
 {
 	struct wlc_info *wlc;

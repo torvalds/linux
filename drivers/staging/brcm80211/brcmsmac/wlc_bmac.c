@@ -1012,7 +1012,7 @@ static void wlc_bmac_info_init(struct wlc_hw_info *wlc_hw)
 int wlc_bmac_detach(struct wlc_info *wlc)
 {
 	uint i;
-	wlc_hwband_t *band;
+	struct wlc_hwband *band;
 	struct wlc_hw_info *wlc_hw = wlc->hw;
 	int callbacks;
 
@@ -1397,7 +1397,7 @@ wlc_bmac_mhf(struct wlc_hw_info *wlc_hw, u8 idx, u16 mask, u16 val,
 		M_HOST_FLAGS1, M_HOST_FLAGS2, M_HOST_FLAGS3, M_HOST_FLAGS4,
 		M_HOST_FLAGS5
 	};
-	wlc_hwband_t *band;
+	struct wlc_hwband *band;
 
 	ASSERT((val & ~mask) == 0);
 	ASSERT(idx < MHFMAX);
@@ -1445,7 +1445,7 @@ wlc_bmac_mhf(struct wlc_hw_info *wlc_hw, u8 idx, u16 mask, u16 val,
 
 u16 wlc_bmac_mhf_get(struct wlc_hw_info *wlc_hw, u8 idx, int bands)
 {
-	wlc_hwband_t *band;
+	struct wlc_hwband *band;
 	ASSERT(idx < MHFMAX);
 
 	switch (bands) {

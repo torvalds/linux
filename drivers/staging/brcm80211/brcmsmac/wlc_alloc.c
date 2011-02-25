@@ -204,8 +204,8 @@ struct wlc_info *wlc_attach_malloc(struct osl_info *osh, uint unit, uint *err,
 	}
 	wlc->hw->wlc = wlc;
 
-	wlc->hw->bandstate[0] = (wlc_hwband_t *)wlc_calloc(osh, unit,
-		(sizeof(wlc_hwband_t) * MAXBANDS));
+	wlc->hw->bandstate[0] = wlc_calloc(osh, unit,
+		(sizeof(struct wlc_hwband) * MAXBANDS));
 	if (wlc->hw->bandstate[0] == NULL) {
 		*err = 1006;
 		goto fail;
@@ -213,14 +213,14 @@ struct wlc_info *wlc_attach_malloc(struct osl_info *osh, uint unit, uint *err,
 		int i;
 
 		for (i = 1; i < MAXBANDS; i++) {
-			wlc->hw->bandstate[i] = (wlc_hwband_t *)
+			wlc->hw->bandstate[i] = (struct wlc_hwband *)
 			    ((unsigned long)wlc->hw->bandstate[0] +
-			     (sizeof(wlc_hwband_t) * i));
+			     (sizeof(struct wlc_hwband) * i));
 		}
 	}
 
-	wlc->modulecb = (modulecb_t *)wlc_calloc(osh, unit,
-		sizeof(modulecb_t) * WLC_MAXMODULES);
+	wlc->modulecb = wlc_calloc(osh, unit,
+		sizeof(struct modulecb) * WLC_MAXMODULES);
 	if (wlc->modulecb == NULL) {
 		*err = 1009;
 		goto fail;
@@ -240,8 +240,8 @@ struct wlc_info *wlc_attach_malloc(struct osl_info *osh, uint unit, uint *err,
 	}
 	wlc_bsscfg_ID_assign(wlc, wlc->cfg);
 
-	wlc->pkt_callback = (pkt_cb_t *)wlc_calloc(osh, unit,
-		(sizeof(pkt_cb_t) * (wlc->pub->tunables->maxpktcb + 1)));
+	wlc->pkt_callback = wlc_calloc(osh, unit,
+		(sizeof(struct pkt_cb) * (wlc->pub->tunables->maxpktcb + 1)));
 	if (wlc->pkt_callback == NULL) {
 		*err = 1013;
 		goto fail;
@@ -261,14 +261,14 @@ struct wlc_info *wlc_attach_malloc(struct osl_info *osh, uint unit, uint *err,
 		}
 	}
 
-	wlc->protection = (wlc_protection_t *)wlc_calloc(osh, unit,
-		sizeof(wlc_protection_t));
+	wlc->protection = wlc_calloc(osh, unit,
+		sizeof(struct wlc_protection));
 	if (wlc->protection == NULL) {
 		*err = 1016;
 		goto fail;
 	}
 
-	wlc->stf = (wlc_stf_t *)wlc_calloc(osh, unit, sizeof(wlc_stf_t));
+	wlc->stf = wlc_calloc(osh, unit, sizeof(struct wlc_stf));
 	if (wlc->stf == NULL) {
 		*err = 1017;
 		goto fail;

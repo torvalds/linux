@@ -36,11 +36,11 @@
 #define TXOFF (D11_TXH_LEN + D11_PHY_HDR_LEN)
 
 /* For managing scan result lists */
-typedef struct wlc_bss_list {
+struct wlc_bss_list {
 	uint count;
 	bool beacon;		/* set for beacon, cleared for probe response */
 	wlc_bss_info_t *ptrs[MAXBSS];
-} wlc_bss_list_t;
+};
 
 #define	SW_TIMER_MAC_STAT_UPD		30	/* periodic MAC stats update */
 
@@ -200,7 +200,7 @@ extern const u8 prio2fifo[];
 
 #define WLCWLUNIT(wlc)		((wlc)->pub->unit)
 
-typedef struct wlc_protection {
+struct wlc_protection {
 	bool _g;		/* use g spec protection, driver internal */
 	s8 g_override;	/* override for use of g spec protection */
 	u8 gmode_user;	/* user config gmode, operating band->gmode is different */
@@ -225,10 +225,10 @@ typedef struct wlc_protection {
 	uint ht20in40_ovlp_timeout;	/* #sec until 20MHz overlapping OPMODE gone */
 	uint ht20in40_ibss_timeout;	/* #sec until 20MHz-only HT station bcns gone */
 	uint non_gf_ibss_timeout;	/* #sec until non-GF bcns gone */
-} wlc_protection_t;
+};
 
 /* anything affects the single/dual streams/antenna operation */
-typedef struct wlc_stf {
+struct wlc_stf {
 	u8 hw_txchain;	/* HW txchain bitmap cfg */
 	u8 txchain;		/* txchain bitmap being used */
 	u8 txstreams;	/* number of txchains being used */
@@ -252,7 +252,7 @@ typedef struct wlc_stf {
 	s8 ldpc;		/* AUTO/ON/OFF ldpc cap supported */
 	u8 txcore[MAX_STREAMS_SUPPORTED + 1];	/* bitmap of selected core for each Nsts */
 	s8 spatial_policy;
-} wlc_stf_t;
+};
 
 #define WLC_STF_SS_STBC_TX(wlc, scb) \
 	(((wlc)->stf->txstreams > 1) && (((wlc)->band->band_stf_stbc_tx == ON) || \
@@ -330,15 +330,15 @@ struct wlcband {
 /* tx completion callback takes 3 args */
 typedef void (*pkcb_fn_t) (struct wlc_info *wlc, uint txstatus, void *arg);
 
-typedef struct pkt_cb {
+struct pkt_cb {
 	pkcb_fn_t fn;		/* function to call when tx frame completes */
 	void *arg;		/* void arg for fn */
 	u8 nextidx;		/* index of next call back if threading */
 	bool entered;		/* recursion check */
-} pkt_cb_t;
+};
 
-	/* module control blocks */
-typedef struct modulecb {
+/* module control blocks */
+struct modulecb {
 	char name[32];		/* module name : NULL indicates empty array member */
 	const bcm_iovar_t *iovars;	/* iovar table */
 	void *hdl;		/* handle passed when handler 'doiovar' is called */
@@ -349,15 +349,15 @@ typedef struct modulecb {
 				 * number of timers that could not be
 				 * freed.
 				 */
-} modulecb_t;
+};
 
-	/* dump control blocks */
-typedef struct dumpcb_s {
+/* dump control blocks */
+struct dumpcb_s {
 	const char *name;	/* dump name */
 	dump_fn_t dump_fn;	/* 'wl dump' handler */
 	void *dump_fn_arg;
 	struct dumpcb_s *next;
-} dumpcb_t;
+};
 
 /* virtual interface */
 struct wlc_if {
@@ -379,7 +379,7 @@ struct wlc_if {
 /* flags for the interface */
 #define WLC_IF_LINKED		0x02	/* this interface is linked to a wl_if */
 
-typedef struct wlc_hwband {
+struct wlc_hwband {
 	int bandtype;		/* WLC_BAND_2G, WLC_BAND_5G */
 	uint bandunit;		/* bandstate[] index */
 	u16 mhfs[MHFMAX];	/* MHF array shadow */
@@ -394,7 +394,7 @@ typedef struct wlc_hwband {
 	u16 radiorev;
 	wlc_phy_t *pi;		/* pointer to phy specific information */
 	bool abgphy_encore;
-} wlc_hwband_t;
+};
 
 struct wlc_hw_info {
 	struct osl_info *osh;		/* pointer to os handle */
@@ -424,8 +424,8 @@ struct wlc_hw_info {
 	d11regs_t *regs;	/* pointer to device registers */
 	void *physhim;		/* phy shim layer handler */
 	void *phy_sh;		/* pointer to shared phy state */
-	wlc_hwband_t *band;	/* pointer to active per-band state */
-	wlc_hwband_t *bandstate[MAXBANDS];	/* per-band state (one per phy/radio) */
+	struct wlc_hwband *band;/* pointer to active per-band state */
+	struct wlc_hwband *bandstate[MAXBANDS];/* band state per phy/radio */
 	u16 bmac_phytxant;	/* cache of high phytxant state */
 	bool shortslot;		/* currently using 11g ShortSlot timing */
 	u16 SRL;		/* 802.11 dot11ShortRetryLimit */
@@ -478,11 +478,11 @@ struct wlc_hw_info {
  * if they belong to the same flow of traffic from the device. For multi-channel
  * operation there are independent TX Queues for each channel.
  */
-typedef struct wlc_txq_info {
+struct wlc_txq_info {
 	struct wlc_txq_info *next;
 	struct pktq q;
 	uint stopped;		/* tx flow control bits */
-} wlc_txq_info_t;
+};
 
 /*
  * Principal common (os-independent) software data structure.
@@ -634,7 +634,7 @@ struct wlc_info {
 	bool bcmcfifo_drain;	/* TX_BCMC_FIFO is set to drain */
 
 	/* tx queue */
-	wlc_txq_info_t *tx_queues;	/* common TX Queue list */
+	struct wlc_txq_info *tx_queues;	/* common TX Queue list */
 
 	/* security */
 	wsec_key_t *wsec_keys[WSEC_MAX_KEYS];	/* dynamic key storage */
@@ -642,8 +642,8 @@ struct wlc_info {
 	bool wsec_swkeys;	/* indicates that all keys should be
 				 * treated as sw keys (used for debugging)
 				 */
-	modulecb_t *modulecb;
-	dumpcb_t *dumpcb_head;
+	struct modulecb *modulecb;
+	struct dumpcb_s *dumpcb_head;
 
 	u8 mimoft;		/* SIGN or 11N */
 	u8 mimo_band_bwcap;	/* bw cap per band type */
@@ -710,12 +710,12 @@ struct wlc_info {
 	bool ignore_bcns;	/* override: ignore non shortslot bcns in a 11g network */
 	bool legacy_probe;	/* restricts probe requests to CCK rates */
 
-	wlc_protection_t *protection;
+	struct wlc_protection *protection;
 	s8 PLCPHdr_override;	/* 802.11b Preamble Type override */
 
-	wlc_stf_t *stf;
+	struct wlc_stf *stf;
 
-	pkt_cb_t *pkt_callback;	/* tx completion callback handlers */
+	struct pkt_cb *pkt_callback;	/* tx completion callback handlers */
 
 	u32 txretried;	/* tx retried number in one msdu */
 
@@ -747,7 +747,9 @@ struct wlc_info {
 	u16 next_bsscfg_ID;
 
 	struct wlc_if *wlcif_list;	/* linked list of wlc_if structs */
-	wlc_txq_info_t *active_queue;	/* txq for the currently active transmit context */
+	struct wlc_txq_info *active_queue; /* txq for the currently active
+					    * transmit context
+					    */
 	u32 mpc_dur;		/* total time (ms) in mpc mode except for the
 				 * portion since radio is turned off last time
 				 */
@@ -852,13 +854,14 @@ extern int wlc_set_gmode(struct wlc_info *wlc, u8 gmode, bool config);
 extern void wlc_mac_bcn_promisc_change(struct wlc_info *wlc, bool promisc);
 extern void wlc_mac_bcn_promisc(struct wlc_info *wlc);
 extern void wlc_mac_promisc(struct wlc_info *wlc);
-extern void wlc_txflowcontrol(struct wlc_info *wlc, wlc_txq_info_t *qi, bool on,
-			      int prio);
-extern void wlc_txflowcontrol_override(struct wlc_info *wlc, wlc_txq_info_t *qi,
+extern void wlc_txflowcontrol(struct wlc_info *wlc, struct wlc_txq_info *qi,
+			      bool on, int prio);
+extern void wlc_txflowcontrol_override(struct wlc_info *wlc,
+				       struct wlc_txq_info *qi,
 				       bool on, uint override);
 extern bool wlc_txflowcontrol_prio_isset(struct wlc_info *wlc,
-					 wlc_txq_info_t *qi, int prio);
-extern void wlc_send_q(struct wlc_info *wlc, wlc_txq_info_t *qi);
+					 struct wlc_txq_info *qi, int prio);
+extern void wlc_send_q(struct wlc_info *wlc, struct wlc_txq_info *qi);
 extern int wlc_prep_pdu(struct wlc_info *wlc, struct sk_buff *pdu, uint *fifo);
 
 extern u16 wlc_calc_lsig_len(struct wlc_info *wlc, ratespec_t ratespec,
@@ -958,6 +961,7 @@ extern bool wlc_ps_allowed(struct wlc_info *wlc);
 extern bool wlc_stay_awake(struct wlc_info *wlc);
 extern void wlc_wme_initparams_sta(struct wlc_info *wlc, wme_param_ie_t *pe);
 
-extern void wlc_bss_list_free(struct wlc_info *wlc, wlc_bss_list_t *bss_list);
+extern void wlc_bss_list_free(struct wlc_info *wlc,
+			      struct wlc_bss_list *bss_list);
 extern void wlc_ht_mimops_cap_update(struct wlc_info *wlc, u8 mimops_mode);
 #endif				/* _wlc_h_ */
