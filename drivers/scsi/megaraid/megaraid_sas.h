@@ -723,6 +723,7 @@ struct megasas_ctrl_info {
 						MEGASAS_MAX_DEV_PER_CHANNEL)
 
 #define MEGASAS_MAX_SECTORS                    (2*1024)
+#define MEGASAS_MAX_SECTORS_IEEE		(2*128)
 #define MEGASAS_DBG_LVL				1
 
 #define MEGASAS_FW_BUSY				1

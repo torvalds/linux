@@ -3824,6 +3824,10 @@ static int megasas_io_attach(struct megasas_instance *instance)
 			instance->max_fw_cmds - MEGASAS_INT_CMDS;
 	host->this_id = instance->init_id;
 	host->sg_tablesize = instance->max_num_sge;
+
+	if (instance->fw_support_ieee)
+		instance->max_sectors_per_req = MEGASAS_MAX_SECTORS_IEEE;
+
 	/*
 	 * Check if the module parameter value for max_sectors can be used
 	 */
