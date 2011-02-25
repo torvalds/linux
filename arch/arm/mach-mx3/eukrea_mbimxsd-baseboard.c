@@ -167,7 +167,7 @@ static iomux_v3_cfg_t eukrea_mbimxsd_pads[] = {
 
 #define GPIO_LED1	IMX_GPIO_NR(3, 29)
 #define GPIO_SWITCH1	IMX_GPIO_NR(3, 25)
-#define GPIO_LCDPWR	(4)
+#define GPIO_LCDPWR	IMX_GPIO_NR(1, 4)
 
 static void eukrea_mbimxsd_lcd_power_set(struct plat_lcd_data *pd,
 				   unsigned int power)
@@ -301,7 +301,6 @@ void __init eukrea_mbimxsd35_baseboard_init(void)
 
 	gpio_request(GPIO_LCDPWR, "LCDPWR");
 	gpio_direction_output(GPIO_LCDPWR, 1);
-	gpio_free(GPIO_LCDPWR);
 
 	i2c_register_board_info(0, eukrea_mbimxsd_i2c_devices,
 				ARRAY_SIZE(eukrea_mbimxsd_i2c_devices));
