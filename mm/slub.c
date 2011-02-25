@@ -807,14 +807,24 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags, void 
 static inline void slab_free_hook(struct kmem_cache *s, void *x)
 {
 	kmemleak_free_recursive(x, s->flags);
-}
 
-static inline void slab_free_hook_irq(struct kmem_cache *s, void *object)
-{
-	kmemcheck_slab_free(s, object, s->objsize);
-	debug_check_no_locks_freed(object, s->objsize);
-	if (!(s->flags & SLAB_DEBUG_OBJECTS))
-		debug_check_no_obj_freed(object, s->objsize);
+	/*
+	 * Trouble is that we may no longer disable interupts in the fast path
+	 * So in order to make the debug calls that expect irqs to be
+	 * disabled we need to disable interrupts temporarily.
+	 */
+#if defined(CONFIG_KMEMCHECK) || defined(CONFIG_LOCKDEP)
+	{
+		unsigned long flags;
+
+		local_irq_save(flags);
+		kmemcheck_slab_free(s, x, s->objsize);
+		debug_check_no_locks_freed(x, s->objsize);
+		if (!(s->flags & SLAB_DEBUG_OBJECTS))
+			debug_check_no_obj_freed(x, s->objsize);
+		local_irq_restore(flags);
+	}
+#endif
 }
 
 /*
@@ -1100,9 +1110,6 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags,
 		void *object) {}
 
 static inline void slab_free_hook(struct kmem_cache *s, void *x) {}
-
-static inline void slab_free_hook_irq(struct kmem_cache *s,
-		void *object) {}
 
 #endif /* CONFIG_SLUB_DEBUG */
 
@@ -1908,8 +1915,6 @@ static __always_inline void slab_free(struct kmem_cache *s,
 
 	local_irq_save(flags);
 	c = __this_cpu_ptr(s->cpu_slab);
-
-	slab_free_hook_irq(s, x);
 
 	if (likely(page == c->page && c->node != NUMA_NO_NODE)) {
 		set_freepointer(s, object, c->freelist);
