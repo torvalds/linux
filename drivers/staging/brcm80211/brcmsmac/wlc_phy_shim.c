@@ -46,7 +46,6 @@
 #include <wlc_channel.h>
 #include <bcmsrom.h>
 #include <wlc_key.h>
-#include <wlc_event.h>
 
 #include <wlc_mac80211.h>
 

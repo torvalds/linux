@@ -37,7 +37,6 @@
 #include <wlc_key.h>
 #include <wlc_bsscfg.h>
 #include <wlc_channel.h>
-#include <wlc_event.h>
 #include <wlc_mac80211.h>
 #include <wlc_bmac.h>
 #include <wlc_scb.h>
@@ -46,7 +45,6 @@
 #include <wlc_antsel.h>
 #include <wlc_stf.h>
 #include <wlc_ampdu.h>
-#include <wlc_event.h>
 #include <wl_export.h>
 #include "d11ucode_ext.h"
 #include <wlc_alloc.h>
@@ -304,7 +302,6 @@ static void wlc_ht_update_sgi_rx(struct wlc_info *wlc, int val);
 static void wlc_ht_update_ldpc(struct wlc_info *wlc, s8 val);
 static void wlc_war16165(struct wlc_info *wlc, bool tx);
 
-static void wlc_process_eventq(void *arg);
 static void wlc_wme_retries_write(struct wlc_info *wlc);
 static bool wlc_attach_stf_ant_init(struct wlc_info *wlc);
 static uint wlc_attach_module(struct wlc_info *wlc);
@@ -1699,15 +1696,6 @@ static uint wlc_attach_module(struct wlc_info *wlc)
 		goto fail;
 	}
 
-	/* Initialize event queue; needed before following calls */
-	wlc->eventq =
-	    wlc_eventq_attach(wlc->pub, wlc, wlc->wl, wlc_process_eventq);
-	if (wlc->eventq == NULL) {
-		WL_ERROR("wl%d: wlc_attach: wlc_eventq_attachfailed\n", unit);
-		err = 57;
-		goto fail;
-	}
-
 	if ((wlc_stf_attach(wlc) != 0)) {
 		WL_ERROR("wl%d: wlc_attach: wlc_stf_attach failed\n", unit);
 		err = 68;
@@ -2158,11 +2146,6 @@ uint wlc_detach(struct wlc_info *wlc)
 	/* delete software timers */
 	if (!wlc_radio_monitor_stop(wlc))
 		callbacks++;
-
-	if (wlc->eventq) {
-		wlc_eventq_detach(wlc->eventq);
-		wlc->eventq = NULL;
-	}
 
 	wlc_channel_mgr_detach(wlc->cmi);
 
@@ -2739,12 +2722,6 @@ uint wlc_down(struct wlc_info *wlc)
 		pktq_flush(wlc->osh, &qi->q, true, NULL, 0);
 		ASSERT(pktq_empty(&qi->q));
 	}
-
-	/* flush event queue.
-	 * Should be the last thing done after all the events are generated
-	 * Just delivers the events synchronously instead of waiting for a timer
-	 */
-	callbacks += wlc_eventq_down(wlc->eventq);
 
 	callbacks += wlc_bmac_down_finish(wlc->hw);
 
@@ -8022,23 +7999,6 @@ static void wlc_bss_default_init(struct wlc_info *wlc)
 
 	if (N_ENAB(wlc->pub))
 		bi->flags |= WLC_BSS_HT;
-}
-
-/* Deferred event processing */
-static void wlc_process_eventq(void *arg)
-{
-	struct wlc_info *wlc = (struct wlc_info *) arg;
-	wlc_event_t *etmp;
-
-	while ((etmp = wlc_eventq_deq(wlc->eventq))) {
-		/* Perform OS specific event processing */
-		wl_event(wlc->wl, etmp->event.ifname, etmp);
-		if (etmp->data) {
-			kfree(etmp->data);
-			etmp->data = NULL;
-		}
-		wlc_event_free(wlc->eventq, etmp);
-	}
 }
 
 void

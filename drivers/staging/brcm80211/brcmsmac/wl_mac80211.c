@@ -1590,35 +1590,6 @@ static void BCMFASTPATH wl_dpc(unsigned long data)
 	WL_UNLOCK(wl);
 }
 
-static void wl_link_up(struct wl_info *wl, char *ifname)
-{
-	WL_NONE("wl%d: link up (%s)\n", wl->pub->unit, ifname);
-}
-
-static void wl_link_down(struct wl_info *wl, char *ifname)
-{
-	WL_NONE("wl%d: link down (%s)\n", wl->pub->unit, ifname);
-}
-
-/*
- * precondition: perimeter lock has been acquired
- */
-void wl_event(struct wl_info *wl, char *ifname, wlc_event_t *e)
-{
-
-	switch (e->event.event_type) {
-	case WLC_E_LINK:
-	case WLC_E_NDIS_LINK:
-		if (e->event.flags & WLC_EVENT_MSG_LINK)
-			wl_link_up(wl, ifname);
-		else
-			wl_link_down(wl, ifname);
-		break;
-	case WLC_E_RADIO:
-		break;
-	}
-}
-
 /*
  * is called by the kernel from software irq context
  */

@@ -27,7 +27,6 @@
 #include <wlc_rate.h>
 #include <wlc_pub.h>
 #include <wlc_key.h>
-#include <wlc_event.h>
 #include <wlc_mac80211.h>
 #include <wlc_phy_hal.h>
 #include <wlc_antsel.h>

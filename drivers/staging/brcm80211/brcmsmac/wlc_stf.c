@@ -32,7 +32,6 @@
 #include <wlc_key.h>
 #include <wlc_channel.h>
 #include <wlc_bsscfg.h>
-#include <wlc_event.h>
 #include <wlc_mac80211.h>
 #include <wlc_scb.h>
 #include <wl_export.h>

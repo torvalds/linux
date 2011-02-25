@@ -642,9 +642,6 @@ struct wlc_info {
 	/* tx queue */
 	wlc_txq_info_t *tx_queues;	/* common TX Queue list */
 
-	/* event */
-	wlc_eventq_t *eventq;	/* event queue for deferred processing */
-
 	/* security */
 	wsec_key_t *wsec_keys[WSEC_MAX_KEYS];	/* dynamic key storage */
 	wsec_key_t *wsec_def_keys[WLC_DEFAULT_KEYS];	/* default key storage */

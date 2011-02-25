@@ -27,7 +27,6 @@
 #include <wlc_key.h>
 #include <sbhndpio.h>
 #include <sbhnddma.h>
-#include <wlc_event.h>
 #include <wlc_mac80211.h>
 #include <wlc_alloc.h>
 #include <wl_dbg.h>
