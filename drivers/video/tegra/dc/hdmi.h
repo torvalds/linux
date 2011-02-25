@@ -180,4 +180,10 @@ struct hdmi_audio_infoframe {
 #define HDMI_AUDIO_CXT_HE_AAC_V2	0x2
 #define HDMI_AUDIO_CXT_MPEG_SURROUND	0x3
 
+struct tegra_dc_hdmi_data;
+
+unsigned long tegra_hdmi_readl(struct tegra_dc_hdmi_data *hdmi,
+				unsigned long reg);
+void tegra_hdmi_writel(struct tegra_dc_hdmi_data *hdmi,
+				unsigned long val, unsigned long reg);
 #endif

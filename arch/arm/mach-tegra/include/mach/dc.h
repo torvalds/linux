@@ -73,9 +73,13 @@ struct tegra_dc_out {
 	int	(*disable)(void);
 };
 
-#define TEGRA_DC_OUT_HOTPLUG_HIGH	(0 << 1)
-#define TEGRA_DC_OUT_HOTPLUG_LOW	(1 << 1)
-#define TEGRA_DC_OUT_HOTPLUG_MASK	(1 << 1)
+/* bits for tegra_dc_out.flags */
+#define TEGRA_DC_OUT_HOTPLUG_HIGH		(0 << 1)
+#define TEGRA_DC_OUT_HOTPLUG_LOW		(1 << 1)
+#define TEGRA_DC_OUT_HOTPLUG_MASK		(1 << 1)
+#define TEGRA_DC_OUT_NVHDCP_POLICY_ALWAYS_ON	(0 << 2)
+#define TEGRA_DC_OUT_NVHDCP_POLICY_ON_DEMAND	(1 << 2)
+#define TEGRA_DC_OUT_NVHDCP_POLICY_MASK		(1 << 2)
 
 #define TEGRA_DC_ALIGN_MSB		0
 #define TEGRA_DC_ALIGN_LSB		1

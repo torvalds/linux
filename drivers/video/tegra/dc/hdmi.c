@@ -32,11 +32,14 @@
 #include <mach/fb.h>
 #include <mach/nvhost.h>
 
+#include <video/tegrafb.h>
+
 #include "dc_reg.h"
 #include "dc_priv.h"
 #include "hdmi_reg.h"
 #include "hdmi.h"
 #include "edid.h"
+#include "nvhdcp.h"
 
 /* datasheet claims this will always be 216MHz */
 #define HDMI_AUDIOCLK_FREQ		216000000
@@ -46,6 +49,7 @@
 struct tegra_dc_hdmi_data {
 	struct tegra_dc			*dc;
 	struct tegra_edid		*edid;
+	struct tegra_nvhdcp		*nvhdcp;
 	struct delayed_work		work;
 
 	struct resource			*base_res;
@@ -206,13 +210,13 @@ static const struct tegra_hdmi_audio_config
 }
 
 
-static inline unsigned long tegra_hdmi_readl(struct tegra_dc_hdmi_data *hdmi,
+unsigned long tegra_hdmi_readl(struct tegra_dc_hdmi_data *hdmi,
 					     unsigned long reg)
 {
 	return readl(hdmi->base + reg * 4);
 }
 
-static inline void tegra_hdmi_writel(struct tegra_dc_hdmi_data *hdmi,
+void tegra_hdmi_writel(struct tegra_dc_hdmi_data *hdmi,
 				     unsigned long val, unsigned long reg)
 {
 	writel(val, hdmi->base + reg * 4);
@@ -468,6 +472,7 @@ static bool tegra_dc_hdmi_detect(struct tegra_dc *dc)
 
 fail:
 	switch_set_state(&hdmi->hpd_switch, 0);
+	tegra_nvhdcp_set_plug(hdmi->nvhdcp, 0);
 	return false;
 }
 
@@ -510,6 +515,7 @@ static void tegra_dc_hdmi_suspend(struct tegra_dc *dc)
 	unsigned long flags;
 
 	spin_lock_irqsave(&hdmi->suspend_lock, flags);
+	tegra_nvhdcp_suspend(hdmi->nvhdcp);
 	hdmi->suspended = true;
 	spin_unlock_irqrestore(&hdmi->suspend_lock, flags);
 }
@@ -605,6 +611,14 @@ static int tegra_dc_hdmi_init(struct tegra_dc *dc)
 		goto err_free_irq;
 	}
 
+	hdmi->nvhdcp = tegra_nvhdcp_create(hdmi, dc->ndev->id,
+			dc->out->dcc_bus);
+	if (IS_ERR_OR_NULL(hdmi->nvhdcp)) {
+		dev_err(&dc->ndev->dev, "hdmi: can't create nvhdcp\n");
+		err = PTR_ERR(hdmi->nvhdcp);
+		goto err_edid_destroy;
+	}
+
 	INIT_DELAYED_WORK(&hdmi->work, tegra_dc_hdmi_detect_worker);
 
 	hdmi->dc = dc;
@@ -624,8 +638,18 @@ static int tegra_dc_hdmi_init(struct tegra_dc *dc)
 
 	tegra_dc_set_outdata(dc, hdmi);
 
+	/* boards can select default content protection policy */
+	if (dc->out->flags & TEGRA_DC_OUT_NVHDCP_POLICY_ON_DEMAND) {
+		tegra_nvhdcp_set_policy(hdmi->nvhdcp,
+			TEGRA_NVHDCP_POLICY_ON_DEMAND);
+	} else {
+		tegra_nvhdcp_set_policy(hdmi->nvhdcp,
+			TEGRA_NVHDCP_POLICY_ALWAYS_ON);
+	}
 	return 0;
 
+err_edid_destroy:
+	tegra_edid_destroy(hdmi->edid);
 err_free_irq:
 	free_irq(gpio_to_irq(dc->out->hotplug_gpio), dc);
 err_put_clock:
@@ -657,6 +681,7 @@ static void tegra_dc_hdmi_destroy(struct tegra_dc *dc)
 	clk_put(hdmi->disp1_clk);
 	clk_put(hdmi->disp2_clk);
 	tegra_edid_destroy(hdmi->edid);
+	tegra_nvhdcp_destroy(hdmi->nvhdcp);
 
 	kfree(hdmi);
 
@@ -1108,15 +1133,21 @@ static void tegra_dc_hdmi_enable(struct tegra_dc *dc)
 	tegra_dc_writel(dc, DISP_CTRL_MODE_C_DISPLAY, DC_CMD_DISPLAY_COMMAND);
 	tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
 	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
+
+	if (!hdmi->dvi)
+		tegra_nvhdcp_set_plug(hdmi->nvhdcp, 1);
 }
 
 static void tegra_dc_hdmi_disable(struct tegra_dc *dc)
 {
 	struct tegra_dc_hdmi_data *hdmi = tegra_dc_get_outdata(dc);
 
+	tegra_nvhdcp_set_plug(hdmi->nvhdcp, 0);
+
 	tegra_periph_reset_assert(hdmi->clk);
 	clk_disable(hdmi->clk);
 }
+
 struct tegra_dc_out_ops tegra_dc_hdmi_ops = {
 	.init = tegra_dc_hdmi_init,
 	.destroy = tegra_dc_hdmi_destroy,

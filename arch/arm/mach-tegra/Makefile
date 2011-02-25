@@ -1,4 +1,5 @@
 obj-y                                   += common.o
+obj-y                                   += apbio.o
 obj-y                                   += io.o
 obj-y                                   += irq.o legacy_irq.o
 obj-y					+= syncpt.o
@@ -12,6 +13,7 @@ obj-y                                   += delay.o
 obj-y                                   += powergate.o
 obj-y					+= suspend.o
 obj-y					+= fuse.o
+obj-y                                   += kfuse.o
 obj-y					+= tegra_i2s_audio.o
 obj-y					+= tegra_spdif_audio.o
 obj-y					+= mc.o

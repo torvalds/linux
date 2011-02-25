@@ -54,6 +54,7 @@
 #define L2X0_LINE_TAG			0xF30
 #define L2X0_DEBUG_CTRL			0xF40
 #define L2X0_PREFETCH_OFFSET		0xF60
+#define L2X0_PWR_CTRL			0xF80
 
 #ifndef __ASSEMBLY__
 extern void __init l2x0_init(void __iomem *base, __u32 aux_val, __u32 aux_mask);

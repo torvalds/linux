@@ -170,6 +170,8 @@ int tegra_edid_get_monspecs(struct tegra_edid *edid, struct fb_monspecs *specs)
 	int extension_blocks;
 
 	ret = tegra_edid_read_block(edid, 0, edid->data);
+	if (ret)
+		return ret;
 
 	memset(specs, 0x0, sizeof(struct fb_monspecs));
 	fb_edid_to_monspecs(edid->data, specs);
