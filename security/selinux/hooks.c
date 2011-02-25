@@ -24,9 +24,11 @@
  */
 
 #include <linux/init.h>
+#include <linux/kd.h>
 #include <linux/kernel.h>
 #include <linux/tracehook.h>
 #include <linux/errno.h>
+#include <linux/ext2_fs.h>
 #include <linux/sched.h>
 #include <linux/security.h>
 #include <linux/xattr.h>
@@ -36,6 +38,7 @@
 #include <linux/mman.h>
 #include <linux/slab.h>
 #include <linux/pagemap.h>
+#include <linux/proc_fs.h>
 #include <linux/swap.h>
 #include <linux/spinlock.h>
 #include <linux/syscalls.h>
@@ -2849,16 +2852,47 @@ static int selinux_file_ioctl(struct file *file, unsigned int cmd,
 			      unsigned long arg)
 {
 	const struct cred *cred = current_cred();
-	u32 av = 0;
+	int error = 0;
 
-	if (_IOC_DIR(cmd) & _IOC_WRITE)
-		av |= FILE__WRITE;
-	if (_IOC_DIR(cmd) & _IOC_READ)
-		av |= FILE__READ;
-	if (!av)
-		av = FILE__IOCTL;
+	switch (cmd) {
+	case FIONREAD:
+	/* fall through */
+	case FIBMAP:
+	/* fall through */
+	case FIGETBSZ:
+	/* fall through */
+	case EXT2_IOC_GETFLAGS:
+	/* fall through */
+	case EXT2_IOC_GETVERSION:
+		error = file_has_perm(cred, file, FILE__GETATTR);
+		break;
 
-	return file_has_perm(cred, file, av);
+	case EXT2_IOC_SETFLAGS:
+	/* fall through */
+	case EXT2_IOC_SETVERSION:
+		error = file_has_perm(cred, file, FILE__SETATTR);
+		break;
+
+	/* sys_ioctl() checks */
+	case FIONBIO:
+	/* fall through */
+	case FIOASYNC:
+		error = file_has_perm(cred, file, 0);
+		break;
+
+	case KDSKBENT:
+	case KDSKBSENT:
+		error = task_has_capability(current, cred, CAP_SYS_TTY_CONFIG,
+					    SECURITY_CAP_AUDIT);
+		break;
+
+	/* default case assumes that the command will go
+	 * to the file's ioctl() function.
+	 */
+	default:
+		error = file_has_perm(cred, file, FILE__IOCTL);
+	}
+	return error;
 }
 
 static int default_noexec;
