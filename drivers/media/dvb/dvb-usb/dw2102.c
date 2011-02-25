@@ -1546,8 +1546,6 @@ static struct dvb_usb_device_properties dw2102_properties = {
 	.adapter = {
 		{
 			.frontend_attach = dw2102_frontend_attach,
-			.streaming_ctrl = NULL,
-			.tuner_attach = NULL,
 			.stream = {
 				.type = USB_BULK,
 				.count = 8,
@@ -1599,8 +1597,6 @@ static struct dvb_usb_device_properties dw2104_properties = {
 	.adapter = {
 		{
 			.frontend_attach = dw2104_frontend_attach,
-			.streaming_ctrl = NULL,
-			/*.tuner_attach = dw2104_tuner_attach,*/
 			.stream = {
 				.type = USB_BULK,
 				.count = 8,
@@ -1648,7 +1644,6 @@ static struct dvb_usb_device_properties dw3101_properties = {
 	.adapter = {
 		{
 			.frontend_attach = dw3101_frontend_attach,
-			.streaming_ctrl = NULL,
 			.tuner_attach = dw3101_tuner_attach,
 			.stream = {
 				.type = USB_BULK,
@@ -1692,8 +1687,6 @@ static struct dvb_usb_device_properties s6x0_properties = {
 	.adapter = {
 		{
 			.frontend_attach = zl100313_frontend_attach,
-			.streaming_ctrl = NULL,
-			.tuner_attach = NULL,
 			.stream = {
 				.type = USB_BULK,
 				.count = 8,
