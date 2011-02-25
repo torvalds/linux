@@ -434,6 +434,8 @@ config CPU_SUBTYPE_SH7757
 	select CPU_SH4A
 	select CPU_SHX2
 	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select USB_ARCH_HAS_OHCI
+	select USB_ARCH_HAS_EHCI
 	help
 	  Select SH7757 if you have a SH4A SH7757 CPU.
 
