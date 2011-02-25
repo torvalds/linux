@@ -176,7 +176,11 @@ int omap2_clkdm_sleep(struct clockdomain *clkdm);
 int omap2_clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk);
 int omap2_clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk);
 
-extern void __init omap2_clockdomains_init(void);
+extern void __init omap2xxx_clockdomains_init(void);
+extern void __init omap3xxx_clockdomains_init(void);
 extern void __init omap44xx_clockdomains_init(void);
+
+extern struct clkdm_ops omap2_clkdm_operations;
+extern struct clkdm_ops omap3_clkdm_operations;
 
 #endif
