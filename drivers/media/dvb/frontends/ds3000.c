@@ -967,22 +967,21 @@ static int ds3000_set_carrier_offset(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int ds3000_tune(struct dvb_frontend *fe,
+static int ds3000_set_frontend(struct dvb_frontend *fe,
 				struct dvb_frontend_parameters *p)
 {
 	struct ds3000_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
 	int i;
-	u8 status, mlpf, mlpf_new, mlpf_max, mlpf_min, nlpf, div4;
+	fe_status_t status;
+	u8 mlpf, mlpf_new, mlpf_max, mlpf_min, nlpf, div4;
 	s32 offset_khz;
 	u16 value, ndiv;
 	u32 f3db;
 
 	dprintk("%s() ", __func__);
 
-	/* Reset status register */
-	status = 0;
 	/* Tune */
 	/* unknown */
 	ds3000_tuner_writereg(state, 0x07, 0x02);
@@ -1218,10 +1217,16 @@ static int ds3000_tune(struct dvb_frontend *fe,
 	return 0;
 }
 
+static int ds3000_tune(struct dvb_frontend *fe,
+			struct dvb_frontend_parameters *p)
+{
+	return ds3000_set_frontend(fe, p);
+}
+
 static enum dvbfe_algo ds3000_get_algo(struct dvb_frontend *fe)
 {
 	dprintk("%s()\n", __func__);
-	return DVBFE_ALGO_SW;
+	return DVBFE_ALGO_HW;
 }
 
 /*
@@ -1296,7 +1301,8 @@ static struct dvb_frontend_ops ds3000_ops = {
 
 	.set_property = ds3000_set_property,
 	.get_property = ds3000_get_property,
-	.set_frontend = ds3000_tune,
+	.set_frontend = ds3000_set_frontend,
+	.tune = ds3000_tune,
 };
 
 module_param(debug, int, 0644);
