@@ -1770,7 +1770,7 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 		   && 4 == WLC_NUMRXIVS));
 
 	/* allocate struct wlc_info state and its substructures */
-	wlc = (struct wlc_info *) wlc_attach_malloc(osh, unit, &err, device);
+	wlc = (struct wlc_info *) wlc_attach_malloc(unit, &err, device);
 	if (wlc == NULL)
 		goto fail;
 	wlc->osh = osh;
@@ -2194,7 +2194,7 @@ uint wlc_detach(struct wlc_info *wlc)
 	for (i = 0; i < WLC_MAXMODULES; i++)
 		ASSERT(wlc->modulecb[i].name[0] == '\0');
 
-	wlc_detach_mfree(wlc, wlc->osh);
+	wlc_detach_mfree(wlc);
 	return callbacks;
 }
 
@@ -8450,7 +8450,7 @@ static struct wlc_txq_info *wlc_txq_alloc(struct wlc_info *wlc,
 {
 	struct wlc_txq_info *qi, *p;
 
-	qi = wlc_calloc(osh, wlc->pub->unit, sizeof(struct wlc_txq_info));
+	qi = wlc_calloc(wlc->pub->unit, sizeof(struct wlc_txq_info));
 	if (qi != NULL) {
 		/*
 		 * Have enough room for control packets along with HI watermark
