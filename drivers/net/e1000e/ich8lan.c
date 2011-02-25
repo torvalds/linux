@@ -140,6 +140,11 @@
 #define I82579_LPI_CTRL			PHY_REG(772, 20)
 #define I82579_LPI_CTRL_ENABLE_MASK	0x6000
 
+/* EMI Registers */
+#define I82579_EMI_ADDR         0x10
+#define I82579_EMI_DATA         0x11
+#define I82579_LPI_UPDATE_TIMER 0x4805	/* in 40ns units + 40 ns base value */
+
 /* Strapping Option Register - RO */
 #define E1000_STRAP                     0x0000C
 #define E1000_STRAP_SMBUS_ADDRESS_MASK  0x00FE0000
@@ -1723,11 +1728,25 @@ static s32 e1000_post_phy_reset_ich8lan(struct e1000_hw *hw)
 	/* Configure the LCD with the OEM bits in NVM */
 	ret_val = e1000_oem_bits_config_ich8lan(hw, true);
 
-	/* Ungate automatic PHY configuration on non-managed 82579 */
-	if ((hw->mac.type == e1000_pch2lan) &&
-	    !(er32(FWSM) & E1000_ICH_FWSM_FW_VALID)) {
-		msleep(10);
-		e1000_gate_hw_phy_config_ich8lan(hw, false);
+	if (hw->mac.type == e1000_pch2lan) {
+		/* Ungate automatic PHY configuration on non-managed 82579 */
+		if (!(er32(FWSM) & E1000_ICH_FWSM_FW_VALID)) {
+			msleep(10);
+			e1000_gate_hw_phy_config_ich8lan(hw, false);
+		}
+
+		/* Set EEE LPI Update Timer to 200usec */
+		ret_val = hw->phy.ops.acquire(hw);
+		if (ret_val)
+			goto out;
+		ret_val = hw->phy.ops.write_reg_locked(hw, I82579_EMI_ADDR,
+						       I82579_LPI_UPDATE_TIMER);
+		if (ret_val)
+			goto release;
+		ret_val = hw->phy.ops.write_reg_locked(hw, I82579_EMI_DATA,
+						       0x1387);
+release:
+		hw->phy.ops.release(hw);
 	}
 
 out:
