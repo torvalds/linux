@@ -307,9 +307,9 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	 * the interconnect to PCIe mode.
 	 */
 	fwsm = er32(FWSM);
-	if (!(fwsm & E1000_ICH_FWSM_FW_VALID)) {
+	if (!(fwsm & E1000_ICH_FWSM_FW_VALID) && !e1000_check_reset_block(hw)) {
 		ctrl = er32(CTRL);
-		ctrl |=  E1000_CTRL_LANPHYPC_OVERRIDE;
+		ctrl |= E1000_CTRL_LANPHYPC_OVERRIDE;
 		ctrl &= ~E1000_CTRL_LANPHYPC_VALUE;
 		ew32(CTRL, ctrl);
 		udelay(10);
@@ -336,7 +336,7 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 		goto out;
 
 	/* Ungate automatic PHY configuration on non-managed 82579 */
-	if ((hw->mac.type == e1000_pch2lan)  &&
+	if ((hw->mac.type == e1000_pch2lan) &&
 	    !(fwsm & E1000_ICH_FWSM_FW_VALID)) {
 		msleep(10);
 		e1000_gate_hw_phy_config_ich8lan(hw, false);
@@ -371,7 +371,7 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	case e1000_phy_82579:
 		phy->ops.check_polarity = e1000_check_polarity_82577;
 		phy->ops.force_speed_duplex =
-			e1000_phy_force_speed_duplex_82577;
+		    e1000_phy_force_speed_duplex_82577;
 		phy->ops.get_cable_length = e1000_get_cable_length_82577;
 		phy->ops.get_info = e1000_get_phy_info_82577;
 		phy->ops.commit = e1000e_phy_sw_reset;
