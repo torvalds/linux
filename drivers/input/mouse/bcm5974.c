@@ -390,10 +390,6 @@ static int report_tp_state(struct bcm5974 *dev, int size)
 		ptest = int2bound(&c->p, raw_p);
 		origin = raw2int(f->origin);
 
-		/* set the integrated button if applicable */
-		if (c->tp_type == TYPE2)
-			ibt = raw2int(dev->tp_data[BUTTON_TYPE2]);
-
 		/* while tracking finger still valid, count all fingers */
 		if (ptest > PRESSURE_LOW && origin) {
 			abs_p = ptest;
@@ -411,6 +407,10 @@ static int report_tp_state(struct bcm5974 *dev, int size)
 			}
 		}
 	}
+
+	/* set the integrated button if applicable */
+	if (c->tp_type == TYPE2)
+		ibt = raw2int(dev->tp_data[BUTTON_TYPE2]);
 
 	if (dev->fingers < nmin)
 		dev->fingers = nmin;
