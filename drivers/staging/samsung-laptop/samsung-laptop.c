@@ -108,12 +108,12 @@ struct sabi_performance_level {
 struct sabi_config {
 	const char *test_string;
 	u16 main_function;
-	struct sabi_header_offsets header_offsets;
-	struct sabi_commands commands;
-	struct sabi_performance_level performance_levels[4];
+	const struct sabi_header_offsets header_offsets;
+	const struct sabi_commands commands;
+	const struct sabi_performance_level performance_levels[4];
 };
 
-static struct sabi_config sabi_configs[] = {
+static const struct sabi_config sabi_configs[] = {
 	{
 		.test_string = "SECLINUX",
 
@@ -211,7 +211,7 @@ static struct sabi_config sabi_configs[] = {
 	{ },
 };
 
-static struct sabi_config *sabi_config;
+static const struct sabi_config *sabi_config;
 
 static void __iomem *sabi;
 static void __iomem *sabi_iface;
@@ -467,7 +467,7 @@ static ssize_t set_performance_level(struct device *dev,
 	if (count >= 1) {
 		int i;
 		for (i = 0; sabi_config->performance_levels[i].name; ++i) {
-			struct sabi_performance_level *level =
+			const struct sabi_performance_level *level =
 				&sabi_config->performance_levels[i];
 			if (!strncasecmp(level->name, buf, strlen(level->name))) {
 				sabi_set_command(sabi_config->commands.set_performance_level,
