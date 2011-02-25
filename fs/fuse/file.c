@@ -86,18 +86,52 @@ struct fuse_file *fuse_file_get(struct fuse_file *ff)
 	return ff;
 }
 
-static void fuse_release_end(struct fuse_conn *fc, struct fuse_req *req)
+static void fuse_release_async(struct work_struct *work)
 {
-	path_put(&req->misc.release.path);
+	struct fuse_req *req;
+	struct fuse_conn *fc;
+	struct path path;
+
+	req = container_of(work, struct fuse_req, misc.release.work);
+	path = req->misc.release.path;
+	fc = get_fuse_conn(path.dentry->d_inode);
+
+	fuse_put_request(fc, req);
+	path_put(&path);
 }
 
-static void fuse_file_put(struct fuse_file *ff)
+static void fuse_release_end(struct fuse_conn *fc, struct fuse_req *req)
+{
+	if (fc->destroy_req) {
+		/*
+		 * If this is a fuseblk mount, then it's possible that
+		 * releasing the path will result in releasing the
+		 * super block and sending the DESTROY request.  If
+		 * the server is single threaded, this would hang.
+		 * For this reason do the path_put() in a separate
+		 * thread.
+		 */
+		atomic_inc(&req->count);
+		INIT_WORK(&req->misc.release.work, fuse_release_async);
+		schedule_work(&req->misc.release.work);
+	} else {
+		path_put(&req->misc.release.path);
+	}
+}
+
+static void fuse_file_put(struct fuse_file *ff, bool sync)
 {
 	if (atomic_dec_and_test(&ff->count)) {
 		struct fuse_req *req = ff->reserved_req;
 
-		req->end = fuse_release_end;
-		fuse_request_send_background(ff->fc, req);
+		if (sync) {
+			fuse_request_send(ff->fc, req);
+			path_put(&req->misc.release.path);
+			fuse_put_request(ff->fc, req);
+		} else {
+			req->end = fuse_release_end;
+			fuse_request_send_background(ff->fc, req);
+		}
 		kfree(ff);
 	}
 }
@@ -219,8 +253,12 @@ void fuse_release_common(struct file *file, int opcode)
 	 * Normally this will send the RELEASE request, however if
 	 * some asynchronous READ or WRITE requests are outstanding,
 	 * the sending will be delayed.
+	 *
+	 * Make the release synchronous if this is a fuseblk mount,
+	 * synchronous RELEASE is allowed (and desirable) in this case
+	 * because the server can be trusted not to screw up.
 	 */
-	fuse_file_put(ff);
+	fuse_file_put(ff, ff->fc->destroy_req != NULL);
 }
 
 static int fuse_open(struct inode *inode, struct file *file)
@@ -549,7 +587,7 @@ static void fuse_readpages_end(struct fuse_conn *fc, struct fuse_req *req)
 		unlock_page(page);
 	}
 	if (req->ff)
-		fuse_file_put(req->ff);
+		fuse_file_put(req->ff, false);
 }
 
 static void fuse_send_readpages(struct fuse_req *req, struct file *file)
@@ -1129,7 +1167,7 @@ static ssize_t fuse_direct_write(struct file *file, const char __user *buf,
 static void fuse_writepage_free(struct fuse_conn *fc, struct fuse_req *req)
 {
 	__free_page(req->pages[0]);
-	fuse_file_put(req->ff);
+	fuse_file_put(req->ff, false);
 }
 
 static void fuse_writepage_finish(struct fuse_conn *fc, struct fuse_req *req)
