@@ -1608,6 +1608,21 @@ static struct clk sdma_ick = {
 	.recalc		= &followparent_recalc,
 };
 
+/*
+ * The enable_reg/enable_bit in this clock is only used for CM_AUTOIDLE
+ * accesses derived from this data.
+ */
+static struct clk sdrc_ick = {
+	.name		= "sdrc_ick",
+	.ops		= &clkops_omap2_iclk_idle_only,
+	.parent		= &core_l3_ck,
+	.flags		= ENABLE_ON_INIT,
+	.clkdm_name	= "core_l3_clkdm",
+	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_ICLKEN3),
+	.enable_bit	= OMAP24XX_AUTO_SDRC_SHIFT,
+	.recalc		= &followparent_recalc,
+};
+
 static struct clk vlynq_ick = {
 	.name		= "vlynq_ick",
 	.ops		= &clkops_omap2_dflt_wait,
@@ -1869,6 +1884,7 @@ static struct omap_clk omap2420_clks[] = {
 	CLK(NULL,	"gpmc_fck",	&gpmc_fck,	CK_242X),
 	CLK(NULL,	"sdma_fck",	&sdma_fck,	CK_242X),
 	CLK(NULL,	"sdma_ick",	&sdma_ick,	CK_242X),
+	CLK(NULL,	"sdrc_ick",	&sdrc_ick,	CK_242X),
 	CLK(NULL,	"vlynq_ick",	&vlynq_ick,	CK_242X),
 	CLK(NULL,	"vlynq_fck",	&vlynq_fck,	CK_242X),
 	CLK(NULL,	"des_ick",	&des_ick,	CK_242X),
