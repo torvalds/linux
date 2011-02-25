@@ -3901,9 +3901,26 @@ fail_set_dma_mask:
 static int __devinit
 megasas_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	int rval;
+	int rval, pos;
 	struct Scsi_Host *host;
 	struct megasas_instance *instance;
+	u16 control = 0;
+
+	/* Reset MSI-X in the kdump kernel */
+	if (reset_devices) {
+		pos = pci_find_capability(pdev, PCI_CAP_ID_MSIX);
+		if (pos) {
+			pci_read_config_word(pdev, msi_control_reg(pos),
+					     &control);
+			if (control & PCI_MSIX_FLAGS_ENABLE) {
+				dev_info(&pdev->dev, "resetting MSI-X\n");
+				pci_write_config_word(pdev,
+						      msi_control_reg(pos),
+						      control &
+						      ~PCI_MSIX_FLAGS_ENABLE);
+			}
+		}
+	}
 
 	/*
 	 * Announce PCI information

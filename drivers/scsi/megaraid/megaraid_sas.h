@@ -1477,4 +1477,7 @@ struct megasas_mgmt_info {
 	int max_index;
 };
 
+#define msi_control_reg(base) (base + PCI_MSI_FLAGS)
+#define PCI_MSIX_FLAGS_ENABLE (1 << 15)
+
 #endif				/*LSI_MEGARAID_SAS_H */
