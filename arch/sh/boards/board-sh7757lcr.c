@@ -104,6 +104,21 @@ static struct platform_device *sh7757lcr_devices[] __initdata = {
 	&sh7757_eth1_device,
 };
 
+static struct flash_platform_data spi_flash_data = {
+	.name = "m25p80",
+	.type = "m25px64",
+};
+
+static struct spi_board_info spi_board_info[] = {
+	{
+		.modalias = "m25p80",
+		.max_speed_hz = 25000000,
+		.bus_num = 0,
+		.chip_select = 1,
+		.platform_data = &spi_flash_data,
+	},
+};
+
 static int __init sh7757lcr_devices_setup(void)
 {
 	/* RGMII (PTA) */
@@ -331,6 +346,10 @@ static int __init sh7757lcr_devices_setup(void)
 	gpio_direction_output(GPIO_PTT6, 0);
 	gpio_request(GPIO_PTT5, NULL);		/* eMMC_PRST# */
 	gpio_direction_output(GPIO_PTT5, 1);
+
+	/* register SPI device information */
+	spi_register_board_info(spi_board_info,
+				ARRAY_SIZE(spi_board_info));
 
 	/* General platform */
 	return platform_add_devices(sh7757lcr_devices,
