@@ -3544,7 +3544,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	* Setup tasklet for cmd completion
 	*/
 
-	tasklet_init(&instance->isr_tasklet, megasas_complete_cmd_dpc,
+	tasklet_init(&instance->isr_tasklet, instance->instancet->tasklet,
 		(unsigned long)instance);
 
 	/* Initialize the cmd completion timer */
