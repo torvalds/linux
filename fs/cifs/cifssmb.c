@@ -541,10 +541,6 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 		server->secType = RawNTLMSSP;
 	else if (secFlags & CIFSSEC_MAY_LANMAN)
 		server->secType = LANMAN;
-/* #ifdef CONFIG_CIFS_EXPERIMENTAL
-	else if (secFlags & CIFSSEC_MAY_PLNTXT)
-		server->secType = ??
-#endif */
 	else {
 		rc = -EOPNOTSUPP;
 		cERROR(1, "Invalid security type");
