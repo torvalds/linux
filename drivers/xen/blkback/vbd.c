@@ -63,8 +63,8 @@ int vbd_create(blkif_t *blkif, blkif_vdev_t handle, unsigned major,
 
 	vbd->pdevice  = MKDEV(major, minor);
 
-	bdev = open_by_devnum(vbd->pdevice,
-			      vbd->readonly ? FMODE_READ : FMODE_WRITE);
+	bdev = blkdev_get_by_dev(vbd->pdevice, vbd->readonly ?
+				 FMODE_READ : FMODE_WRITE, NULL);
 
 	if (IS_ERR(bdev)) {
 		DPRINTK("vbd_creat: device %08x could not be opened.\n",
