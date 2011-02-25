@@ -23,7 +23,6 @@
 #include <wlioctl.h>
 #include <sbhnddma.h>
 
-#include "sbhndpio.h"
 #include "d11.h"
 #include "wlc_types.h"
 #include "wlc_cfg.h"

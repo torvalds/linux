@@ -41,7 +41,6 @@
 
 #include "wlc_types.h"
 #include "wl_dbg.h"
-#include "sbhndpio.h"
 #include "wlc_cfg.h"
 #include "d11.h"
 #include "wlc_rate.h"

@@ -30,7 +30,6 @@
 #include <sbhnddma.h>
 #include <wlioctl.h>
 
-#include "sbhndpio.h"
 #include "d11.h"
 #include "wlc_rate.h"
 #include "wlc_key.h"

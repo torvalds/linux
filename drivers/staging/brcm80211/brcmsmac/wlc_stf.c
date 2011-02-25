@@ -28,7 +28,6 @@
 #include <sbhnddma.h>
 
 #include "wlc_types.h"
-#include "sbhndpio.h"
 #include "d11.h"
 #include "wl_dbg.h"
 #include "wlc_cfg.h"

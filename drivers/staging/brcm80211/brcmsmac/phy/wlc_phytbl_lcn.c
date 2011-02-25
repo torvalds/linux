@@ -15,7 +15,6 @@
  */
 
 #include <linux/types.h>
-#include <sbhndpio.h>
 #include <sbhnddma.h>
 #include <osl.h>
 #include <wlc_phy_int.h>

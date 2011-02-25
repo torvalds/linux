@@ -31,7 +31,6 @@
 #include <hnddma.h>
 #include <hndpmu.h>
 
-#include "sbhndpio.h"
 #include "d11.h"
 #include "wlc_types.h"
 #include "wlc_cfg.h"

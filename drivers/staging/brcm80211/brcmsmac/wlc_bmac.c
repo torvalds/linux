@@ -39,7 +39,6 @@
 #include <hndpmu.h>
 
 #include "wlc_types.h"
-#include "sbhndpio.h"
 #include "d11.h"
 #include "wlc_cfg.h"
 #include "wlc_rate.h"

@@ -35,11 +35,12 @@
 #include <wlioctl.h>
 #include <sbhnddma.h>
 
+#include "phy/wlc_phy_int.h"
+#include "d11.h"
+#include "wlc_types.h"
 #include "wlc_cfg.h"
 #include "phy/phy_version.h"
 #include "wlc_key.h"
-#include "sbhndpio.h"
-#include "phy/wlc_phy_hal.h"
 #include "wlc_channel.h"
 #include "wlc_scb.h"
 #include "wlc_pub.h"

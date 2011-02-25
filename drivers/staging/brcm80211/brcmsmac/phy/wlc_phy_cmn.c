@@ -26,7 +26,6 @@
 #include <bcmnvram.h>
 #include <sbchipc.h>
 #include <bcmdevs.h>
-#include <sbhndpio.h>
 #include <sbhnddma.h>
 
 #include <wlc_phy_int.h>

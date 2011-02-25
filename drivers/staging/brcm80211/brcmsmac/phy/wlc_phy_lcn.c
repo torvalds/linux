@@ -26,7 +26,6 @@
 #include <hndpmu.h>
 
 #include <bcmdevs.h>
-#include <sbhndpio.h>
 #include <sbhnddma.h>
 
 #include <wlc_phy_radio.h>

@@ -21,7 +21,6 @@
 #include <bcmutils.h>
 #include <siutils.h>
 #include <wlioctl.h>
-#include <sbhndpio.h>
 #include <sbhnddma.h>
 #include <hnddma.h>
 #include <d11.h>

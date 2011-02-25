@@ -59,6 +59,37 @@ typedef volatile struct {
 	u32 intmask;
 } intctrlregs_t;
 
+/* PIO structure,
+ *  support two PIO format: 2 bytes access and 4 bytes access
+ *  basic FIFO register set is per channel(transmit or receive)
+ *  a pair of channels is defined for convenience
+ */
+/* 2byte-wide pio register set per channel(xmt or rcv) */
+typedef volatile struct {
+	u16 fifocontrol;
+	u16 fifodata;
+	u16 fifofree;	/* only valid in xmt channel, not in rcv channel */
+	u16 PAD;
+} pio2regs_t;
+
+/* a pair of pio channels(tx and rx) */
+typedef volatile struct {
+	pio2regs_t tx;
+	pio2regs_t rx;
+} pio2regp_t;
+
+/* 4byte-wide pio register set per channel(xmt or rcv) */
+typedef volatile struct {
+	u32 fifocontrol;
+	u32 fifodata;
+} pio4regs_t;
+
+/* a pair of pio channels(tx and rx) */
+typedef volatile struct {
+	pio4regs_t tx;
+	pio4regs_t rx;
+} pio4regp_t;
+
 /* read: 32-bit register that can be read as 32-bit or as 2 16-bit
  * write: only low 16b-it half can be written
  */
