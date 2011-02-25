@@ -4039,12 +4039,6 @@ megasas_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	else
 		INIT_WORK(&instance->work_init, process_fw_state_change_wq);
 
-	/*
-	 * Initialize MFI Firmware
-	 */
-	if (megasas_init_fw(instance))
-		goto fail_init_mfi;
-
 	/* Try to enable MSI-X */
 	if ((instance->pdev->device != PCI_DEVICE_ID_LSI_SAS1078R) &&
 	    (instance->pdev->device != PCI_DEVICE_ID_LSI_SAS1078DE) &&
@@ -4052,6 +4046,12 @@ megasas_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	    !msix_disable && !pci_enable_msix(instance->pdev,
 					      &instance->msixentry, 1))
 		instance->msi_flag = 1;
+
+	/*
+	 * Initialize MFI Firmware
+	 */
+	if (megasas_init_fw(instance))
+		goto fail_init_mfi;
 
 	/*
 	 * Register IRQ
@@ -4106,13 +4106,13 @@ megasas_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	free_irq(instance->msi_flag ? instance->msixentry.vector :
 		 instance->pdev->irq, instance);
 fail_irq:
-	if (instance->msi_flag)
-		pci_disable_msix(instance->pdev);
 	if (instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION)
 		megasas_release_fusion(instance);
 	else
 		megasas_release_mfi(instance);
       fail_init_mfi:
+	if (instance->msi_flag)
+		pci_disable_msix(instance->pdev);
       fail_alloc_dma_buf:
 	if (instance->evt_detail)
 		pci_free_consistent(pdev, sizeof(struct megasas_evt_detail),
@@ -4295,6 +4295,10 @@ megasas_resume(struct pci_dev *pdev)
 	if (megasas_set_dma_mask(pdev))
 		goto fail_set_dma_mask;
 
+	/* Now re-enable MSI-X */
+	if (instance->msi_flag)
+		pci_enable_msix(instance->pdev, &instance->msixentry, 1);
+
 	/*
 	 * Initialize MFI Firmware
 	 */
@@ -4330,10 +4334,6 @@ megasas_resume(struct pci_dev *pdev)
 
 	tasklet_init(&instance->isr_tasklet, instance->instancet->tasklet,
 		     (unsigned long)instance);
-
-	/* Now re-enable MSI-X */
-	if (instance->msi_flag)
-		pci_enable_msix(instance->pdev, &instance->msixentry, 1);
 
 	/*
 	 * Register IRQ
