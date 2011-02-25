@@ -140,7 +140,7 @@ int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
 	switch (sleep_switch) {
 	case FORCEWAKEUP_SWITCH:
 		if (pwrdm->pwrdm_clkdms[0]->flags & CLKDM_CAN_ENABLE_AUTO)
-			omap2_clkdm_allow_idle(pwrdm->pwrdm_clkdms[0]);
+			clkdm_allow_idle(pwrdm->pwrdm_clkdms[0]);
 		else
 			clkdm_sleep(pwrdm->pwrdm_clkdms[0]);
 		break;

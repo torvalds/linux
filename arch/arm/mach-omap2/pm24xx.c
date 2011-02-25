@@ -367,7 +367,7 @@ static int __init clkdms_setup(struct clockdomain *clkdm, void *unused)
 	clkdm_clear_all_sleepdeps(clkdm);
 
 	if (clkdm->flags & CLKDM_CAN_ENABLE_AUTO)
-		omap2_clkdm_allow_idle(clkdm);
+		clkdm_allow_idle(clkdm);
 	else if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP &&
 		 atomic_read(&clkdm->usecount) == 0)
 		clkdm_sleep(clkdm);

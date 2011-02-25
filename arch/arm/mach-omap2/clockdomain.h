@@ -167,8 +167,8 @@ int clkdm_del_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
 int clkdm_read_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
 int clkdm_clear_all_sleepdeps(struct clockdomain *clkdm);
 
-void omap2_clkdm_allow_idle(struct clockdomain *clkdm);
-void omap2_clkdm_deny_idle(struct clockdomain *clkdm);
+void clkdm_allow_idle(struct clockdomain *clkdm);
+void clkdm_deny_idle(struct clockdomain *clkdm);
 
 int clkdm_wakeup(struct clockdomain *clkdm);
 int clkdm_sleep(struct clockdomain *clkdm);
@@ -179,6 +179,8 @@ int omap2_clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk);
 extern void __init omap2xxx_clockdomains_init(void);
 extern void __init omap3xxx_clockdomains_init(void);
 extern void __init omap44xx_clockdomains_init(void);
+extern void _clkdm_add_autodeps(struct clockdomain *clkdm);
+extern void _clkdm_del_autodeps(struct clockdomain *clkdm);
 
 extern struct clkdm_ops omap2_clkdm_operations;
 extern struct clkdm_ops omap3_clkdm_operations;

@@ -29,7 +29,21 @@ static int omap4_clkdm_wakeup(struct clockdomain *clkdm)
 	return 0;
 }
 
+static void omap4_clkdm_allow_idle(struct clockdomain *clkdm)
+{
+	omap4_cminst_clkdm_enable_hwsup(clkdm->prcm_partition,
+					clkdm->cm_inst, clkdm->clkdm_offs);
+}
+
+static void omap4_clkdm_deny_idle(struct clockdomain *clkdm)
+{
+	omap4_cminst_clkdm_disable_hwsup(clkdm->prcm_partition,
+					clkdm->cm_inst, clkdm->clkdm_offs);
+}
+
 struct clkdm_ops omap4_clkdm_operations = {
 	.clkdm_sleep		= omap4_clkdm_sleep,
 	.clkdm_wakeup		= omap4_clkdm_wakeup,
+	.clkdm_allow_idle	= omap4_clkdm_allow_idle,
+	.clkdm_deny_idle	= omap4_clkdm_deny_idle,
 };
