@@ -379,7 +379,10 @@ static void __init prcm_setup_regs(void)
 	int i, num_mem_banks;
 	struct powerdomain *pwrdm;
 
-	/* Enable autoidle */
+	/*
+	 * Enable autoidle
+	 * XXX This should be handled by hwmod code or PRCM init code
+	 */
 	omap2_prm_write_mod_reg(OMAP24XX_AUTOIDLE_MASK, OCP_MOD,
 			  OMAP2_PRCM_SYSCONFIG_OFFSET);
 
@@ -417,64 +420,6 @@ static void __init prcm_setup_regs(void)
 	 */
 	clkdm_for_each(clkdms_setup, NULL);
 	clkdm_add_wkdep(mpu_clkdm, wkup_clkdm);
-
-	/* Enable clock autoidle for all domains */
-	omap2_cm_write_mod_reg(OMAP24XX_AUTO_CAM_MASK |
-			       OMAP24XX_AUTO_MAILBOXES_MASK |
-			       OMAP24XX_AUTO_WDT4_MASK |
-			       OMAP2420_AUTO_WDT3_MASK |
-			       OMAP24XX_AUTO_MSPRO_MASK |
-			       OMAP2420_AUTO_MMC_MASK |
-			       OMAP24XX_AUTO_FAC_MASK |
-			       OMAP2420_AUTO_EAC_MASK |
-			       OMAP24XX_AUTO_HDQ_MASK |
-			       OMAP24XX_AUTO_UART2_MASK |
-			       OMAP24XX_AUTO_UART1_MASK |
-			       OMAP24XX_AUTO_I2C2_MASK |
-			       OMAP24XX_AUTO_I2C1_MASK |
-			       OMAP24XX_AUTO_MCSPI2_MASK |
-			       OMAP24XX_AUTO_MCSPI1_MASK |
-			       OMAP24XX_AUTO_MCBSP2_MASK |
-			       OMAP24XX_AUTO_MCBSP1_MASK |
-			       OMAP24XX_AUTO_GPT12_MASK |
-			       OMAP24XX_AUTO_GPT11_MASK |
-			       OMAP24XX_AUTO_GPT10_MASK |
-			       OMAP24XX_AUTO_GPT9_MASK |
-			       OMAP24XX_AUTO_GPT8_MASK |
-			       OMAP24XX_AUTO_GPT7_MASK |
-			       OMAP24XX_AUTO_GPT6_MASK |
-			       OMAP24XX_AUTO_GPT5_MASK |
-			       OMAP24XX_AUTO_GPT4_MASK |
-			       OMAP24XX_AUTO_GPT3_MASK |
-			       OMAP24XX_AUTO_GPT2_MASK |
-			       OMAP2420_AUTO_VLYNQ_MASK |
-			       OMAP24XX_AUTO_DSS_MASK,
-			       CORE_MOD, CM_AUTOIDLE1);
-	omap2_cm_write_mod_reg(OMAP24XX_AUTO_UART3_MASK |
-			       OMAP24XX_AUTO_SSI_MASK |
-			       OMAP24XX_AUTO_USB_MASK,
-			       CORE_MOD, CM_AUTOIDLE2);
-	omap2_cm_write_mod_reg(OMAP24XX_AUTO_SDRC_MASK |
-			       OMAP24XX_AUTO_GPMC_MASK |
-			       OMAP24XX_AUTO_SDMA_MASK,
-			       CORE_MOD, CM_AUTOIDLE3);
-	omap2_cm_write_mod_reg(OMAP24XX_AUTO_PKA_MASK |
-			       OMAP24XX_AUTO_AES_MASK |
-			       OMAP24XX_AUTO_RNG_MASK |
-			       OMAP24XX_AUTO_SHA_MASK |
-			       OMAP24XX_AUTO_DES_MASK,
-			       CORE_MOD, OMAP24XX_CM_AUTOIDLE4);
-
-	omap2_cm_write_mod_reg(OMAP2420_AUTO_DSP_IPI_MASK, OMAP24XX_DSP_MOD,
-			       CM_AUTOIDLE);
-
-	omap2_cm_write_mod_reg(OMAP24XX_AUTO_OMAPCTRL_MASK |
-			       OMAP24XX_AUTO_WDT1_MASK |
-			       OMAP24XX_AUTO_MPU_WDT_MASK |
-			       OMAP24XX_AUTO_GPIOS_MASK |
-			       OMAP24XX_AUTO_32KSYNC_MASK |
-			       OMAP24XX_AUTO_GPT1_MASK,
-			       WKUP_MOD, CM_AUTOIDLE);
 
 	/* REVISIT: Configure number of 32 kHz clock cycles for sys_clk
 	 * stabilisation */
