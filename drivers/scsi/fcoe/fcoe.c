@@ -2130,7 +2130,13 @@ void fcoe_percpu_clean(struct fc_lport *lport)
 int fcoe_reset(struct Scsi_Host *shost)
 {
 	struct fc_lport *lport = shost_priv(shost);
-	fc_lport_reset(lport);
+	struct fcoe_port *port = lport_priv(lport);
+	struct fcoe_interface *fcoe = port->priv;
+
+	fcoe_ctlr_link_down(&fcoe->ctlr);
+	fcoe_clean_pending_queue(fcoe->ctlr.lp);
+	if (!fcoe_link_ok(fcoe->ctlr.lp))
+		fcoe_ctlr_link_up(&fcoe->ctlr);
 	return 0;
 }
 
