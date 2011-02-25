@@ -85,6 +85,10 @@ struct su3000_state {
 	u8 initialized;
 };
 
+struct s6x0_state {
+	int (*old_set_voltage)(struct dvb_frontend *f, fe_sec_voltage_t v);
+};
+
 /* debug */
 static int dvb_usb_dw2102_debug;
 module_param_named(debug, dvb_usb_dw2102_debug, int, 0644);
@@ -854,6 +858,19 @@ static int dw210x_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 	return 0;
 }
 
+static int s660_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+{
+	struct dvb_usb_adapter *d =
+		(struct dvb_usb_adapter *)(fe->dvb->priv);
+	struct s6x0_state *st = (struct s6x0_state *)d->dev->priv;
+
+	dw210x_set_voltage(fe, voltage);
+	if (st->old_set_voltage)
+		st->old_set_voltage(fe, voltage);
+
+	return 0;
+}
+
 static void dw210x_led_ctrl(struct dvb_frontend *fe, int offon)
 {
 	static u8 led_off[] = { 0 };
@@ -1105,15 +1122,19 @@ static int stv0288_frontend_attach(struct dvb_usb_adapter *d)
 
 static int ds3000_frontend_attach(struct dvb_usb_adapter *d)
 {
+	struct s6x0_state *st = (struct s6x0_state *)d->dev->priv;
+
 	d->fe = dvb_attach(ds3000_attach, &dw2104_ds3000_config,
 			&d->dev->i2c_adap);
-	if (d->fe != NULL) {
-		d->fe->ops.set_voltage = dw210x_set_voltage;
-		info("Attached ds3000+ds2020!\n");
-		return 0;
-	}
 
-	return -EIO;
+	if (d->fe == NULL)
+		return -EIO;
+
+	st->old_set_voltage = d->fe->ops.set_voltage;
+	d->fe->ops.set_voltage = s660_set_voltage;
+	info("Attached ds3000+ds2020!\n");
+
+	return 0;
 }
 
 static int prof_7500_frontend_attach(struct dvb_usb_adapter *d)
@@ -1669,6 +1690,7 @@ static struct dvb_usb_device_properties dw3101_properties = {
 static struct dvb_usb_device_properties s6x0_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = DEVICE_SPECIFIC,
+	.size_of_priv = sizeof(struct s6x0_state),
 	.firmware = "dvb-usb-s630.fw",
 	.no_reconnect = 1,
 
