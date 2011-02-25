@@ -729,7 +729,9 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
 	struct dw_mci_board *brd = slot->host->pdata;
 
 	/* Use platform get_cd function, else try onboard card detect */
-	if (brd->get_cd)
+	if (brd->quirks & DW_MCI_QUIRK_BROKEN_CARD_DETECTION)
+		present = 1;
+	else if (brd->get_cd)
 		present = !brd->get_cd(slot->id);
 	else
 		present = (mci_readl(slot->host, CDETECT) & (1 << slot->id))
@@ -1403,7 +1405,11 @@ static int __init dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	if (host->pdata->setpower)
 		host->pdata->setpower(id, 0);
 
-	mmc->caps = 0;
+	if (host->pdata->caps)
+		mmc->caps = host->pdata->caps;
+	else
+		mmc->caps = 0;
+
 	if (host->pdata->get_bus_wd)
 		if (host->pdata->get_bus_wd(slot->id) >= 4)
 			mmc->caps |= MMC_CAP_4_BIT_DATA;

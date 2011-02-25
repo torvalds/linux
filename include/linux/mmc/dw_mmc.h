@@ -166,11 +166,13 @@ struct dw_mci_dma_ops {
 
 /* IP Quirks/flags. */
 /* DTO fix for command transmission with IDMAC configured */
-#define DW_MCI_QUIRK_IDMAC_DTO		BIT(0)
+#define DW_MCI_QUIRK_IDMAC_DTO			BIT(0)
 /* delay needed between retries on some 2.11a implementations */
-#define DW_MCI_QUIRK_RETRY_DELAY	BIT(1)
+#define DW_MCI_QUIRK_RETRY_DELAY		BIT(1)
 /* High Speed Capable - Supports HS cards (upto 50MHz) */
-#define DW_MCI_QUIRK_HIGHSPEED		BIT(2)
+#define DW_MCI_QUIRK_HIGHSPEED			BIT(2)
+/* Unreliable card detection */
+#define DW_MCI_QUIRK_BROKEN_CARD_DETECTION	BIT(3)
 
 
 struct dma_pdata;
@@ -189,6 +191,8 @@ struct dw_mci_board {
 
 	u32 quirks; /* Workaround / Quirk flags */
 	unsigned int bus_hz; /* Bus speed */
+
+	unsigned int caps;	/* Capabilities */
 
 	/* delay in mS before detecting cards after interrupt */
 	u32 detect_delay_ms;
