@@ -414,7 +414,8 @@ static int __init numa_alloc_distance(void)
 
 	for_each_node_mask(i, nodes_parsed)
 		cnt = i;
-	size = ++cnt * sizeof(numa_distance[0]);
+	cnt++;
+	size = cnt * cnt * sizeof(numa_distance[0]);
 
 	phys = memblock_find_in_range(0, (u64)max_pfn_mapped << PAGE_SHIFT,
 				      size, PAGE_SIZE);
