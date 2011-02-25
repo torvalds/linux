@@ -50,22 +50,6 @@ extern uint osl_pci_slot(struct osl_info *osh);
 
 #define BUS_SWAP32(v)		(v)
 
-extern void *osl_dma_alloc_consistent(struct osl_info *osh, uint size,
-				      u16 align, uint *tot, unsigned long *pap);
-
-#ifdef BRCM_FULLMAC
-#define	DMA_ALLOC_CONSISTENT(osh, size, pap, dmah, alignbits) \
-	osl_dma_alloc_consistent((osh), (size), (0), (tot), (pap))
-#else
-#define	DMA_ALLOC_CONSISTENT(osh, size, align, tot, pap, dmah) \
-	osl_dma_alloc_consistent((osh), (size), (align), (tot), (pap))
-#endif /* BRCM_FULLMAC */
-
-#define	DMA_FREE_CONSISTENT(osh, va, size, pa, dmah) \
-	osl_dma_free_consistent((osh), (void *)(va), (size), (pa))
-extern void osl_dma_free_consistent(struct osl_info *osh, void *va,
-				    uint size, unsigned long pa);
-
 /* map/unmap direction */
 #define	DMA_TX	1		/* TX direction for DMA */
 #define	DMA_RX	2		/* RX direction for DMA */

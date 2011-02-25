@@ -32,6 +32,10 @@
 #include <asm/addrspace.h>
 #endif
 
+#ifdef BRCM_FULLMAC
+#error "hnddma.c shouldn't be needed for FULLMAC"
+#endif
+
 /* debug/trace */
 #ifdef BCMDBG
 #define	DMA_ERROR(args) \
@@ -527,6 +531,18 @@ static bool _dma_alloc(dma_info_t *di, uint direction)
 	return dma64_alloc(di, direction);
 }
 
+void *dma_alloc_consistent(struct osl_info *osh, uint size, u16 align_bits,
+			       uint *alloced, unsigned long *pap)
+{
+	if (align_bits) {
+		u16 align = (1 << align_bits);
+		if (!IS_ALIGNED(PAGE_SIZE, align))
+			size += align;
+		*alloced = size;
+	}
+	return pci_alloc_consistent(osh->pdev, size, (dma_addr_t *) pap);
+}
+
 /* !! may be called with core in reset */
 static void _dma_detach(dma_info_t *di)
 {
@@ -539,15 +555,13 @@ static void _dma_detach(dma_info_t *di)
 
 	/* free dma descriptor rings */
 	if (di->txd64)
-		DMA_FREE_CONSISTENT(di->osh,
-				    ((s8 *)di->txd64 -
-				    di->txdalign), di->txdalloc,
-				    (di->txdpaorig), &di->tx_dmah);
+		pci_free_consistent(di->osh->pdev, di->txdalloc,
+				    ((s8 *)di->txd64 - di->txdalign),
+				    (di->txdpaorig));
 	if (di->rxd64)
-		DMA_FREE_CONSISTENT(di->osh,
-				    ((s8 *)di->rxd64 -
-				    di->rxdalign), di->rxdalloc,
-				    (di->rxdpaorig), &di->rx_dmah);
+		pci_free_consistent(di->osh->pdev, di->rxdalloc,
+				    ((s8 *)di->rxd64 - di->rxdalign),
+				    (di->rxdpaorig));
 
 	/* free packet pointer vectors */
 	if (di->txp)
@@ -1080,8 +1094,8 @@ static void *dma_ringalloc(struct osl_info *osh, u32 boundary, uint size,
 	u32 desc_strtaddr;
 	u32 alignbytes = 1 << *alignbits;
 
-	va = DMA_ALLOC_CONSISTENT(osh, size, *alignbits, alloced, descpa,
-		dmah);
+	va = dma_alloc_consistent(osh, size, *alignbits, alloced, descpa);
+
 	if (NULL == va)
 		return NULL;
 
@@ -1089,9 +1103,9 @@ static void *dma_ringalloc(struct osl_info *osh, u32 boundary, uint size,
 	if (((desc_strtaddr + size - 1) & boundary) != (desc_strtaddr
 							& boundary)) {
 		*alignbits = dma_align_sizetobits(size);
-		DMA_FREE_CONSISTENT(osh, va, size, *descpa, dmah);
-		va = DMA_ALLOC_CONSISTENT(osh, size, *alignbits, alloced,
-					  descpa, dmah);
+		pci_free_consistent(osh->pdev, size, va, *descpa);
+		va = dma_alloc_consistent(osh, size, *alignbits,
+			alloced, descpa);
 	}
 	return va;
 }

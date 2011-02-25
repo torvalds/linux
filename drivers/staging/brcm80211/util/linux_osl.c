@@ -139,28 +139,6 @@ uint osl_pci_slot(struct osl_info *osh)
 	return PCI_SLOT(((struct pci_dev *)osh->pdev)->devfn);
 }
 
-void *osl_dma_alloc_consistent(struct osl_info *osh, uint size, u16 align_bits,
-			       uint *alloced, unsigned long *pap)
-{
-	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
-
-	if (align_bits) {
-		u16 align = (1 << align_bits);
-		if (!IS_ALIGNED(PAGE_SIZE, align))
-			size += align;
-		*alloced = size;
-	}
-	return pci_alloc_consistent(osh->pdev, size, (dma_addr_t *) pap);
-}
-
-void osl_dma_free_consistent(struct osl_info *osh, void *va, uint size,
-			     unsigned long pa)
-{
-	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
-
-	pci_free_consistent(osh->pdev, size, va, (dma_addr_t) pa);
-}
-
 #if defined(BCMDBG_ASSERT)
 void osl_assert(char *exp, char *file, int line)
 {
