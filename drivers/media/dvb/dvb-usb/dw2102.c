@@ -1,7 +1,8 @@
 /* DVB USB framework compliant Linux driver for the
 *	DVBWorld DVB-S 2101, 2102, DVB-S2 2104, DVB-C 3101,
 *	TeVii S600, S630, S650,
-*	Prof 1100, 7500 Cards
+*	Prof 1100, 7500,
+ *	Geniatech SU3000 Cards
 * Copyright (C) 2008,2009 Igor M. Liplianin (liplianin@me.by)
 *
 *	This program is free software; you can redistribute it and/or modify it
@@ -67,6 +68,7 @@
 #define REG_21_SYMBOLRATE_BYTE2 0x21
 /* on my own*/
 #define DW2102_VOLTAGE_CTRL (0x1800)
+#define SU3000_STREAM_CTRL (0x1900)
 #define DW2102_RC_QUERY (0x1a00)
 
 #define	err_str "did not find the firmware file. (%s) " \
@@ -76,6 +78,10 @@
 struct rc_map_dvb_usb_table_table {
 	struct rc_map_table *rc_keys;
 	int rc_keys_size;
+};
+
+struct su3000_state {
+	u8 initialized;
 };
 
 /* debug */
@@ -570,6 +576,70 @@ static int s6x0_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	return num;
 }
 
+static int su3000_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
+								int num)
+{
+	struct dvb_usb_device *d = i2c_get_adapdata(adap);
+	u8 obuf[0x40], ibuf[0x40];
+
+	if (!d)
+		return -ENODEV;
+	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
+		return -EAGAIN;
+
+	switch (num) {
+	case 1:
+		switch (msg[0].addr) {
+		case SU3000_STREAM_CTRL:
+			obuf[0] = msg[0].buf[0] + 0x36;
+			obuf[1] = 3;
+			obuf[2] = 0;
+			if (dvb_usb_generic_rw(d, obuf, 3, ibuf, 0, 0) < 0)
+				err("i2c transfer failed.");
+			break;
+		case DW2102_RC_QUERY:
+			obuf[0] = 0x10;
+			if (dvb_usb_generic_rw(d, obuf, 1, ibuf, 2, 0) < 0)
+				err("i2c transfer failed.");
+			msg[0].buf[1] = ibuf[0];
+			msg[0].buf[0] = ibuf[1];
+			break;
+		default:
+			/* always i2c write*/
+			obuf[0] = 0x08;
+			obuf[1] = msg[0].addr;
+			obuf[2] = msg[0].len;
+
+			memcpy(&obuf[3], msg[0].buf, msg[0].len);
+
+			if (dvb_usb_generic_rw(d, obuf, msg[0].len + 3,
+						ibuf, 1, 0) < 0)
+				err("i2c transfer failed.");
+
+		}
+		break;
+	case 2:
+		/* always i2c read */
+		obuf[0] = 0x09;
+		obuf[1] = msg[0].len;
+		obuf[2] = msg[1].len;
+		obuf[3] = msg[0].addr;
+		memcpy(&obuf[4], msg[0].buf, msg[0].len);
+
+		if (dvb_usb_generic_rw(d, obuf, msg[0].len + 4,
+					ibuf, msg[1].len + 1, 0) < 0)
+			err("i2c transfer failed.");
+
+		memcpy(msg[1].buf, &ibuf[1], msg[1].len);
+		break;
+	default:
+		warn("more than 2 i2c messages at a time is not handled yet.");
+		break;
+	}
+	mutex_unlock(&d->i2c_mutex);
+	return num;
+}
+
 static u32 dw210x_i2c_func(struct i2c_adapter *adapter)
 {
 	return I2C_FUNC_I2C;
@@ -602,6 +672,11 @@ static struct i2c_algorithm dw3101_i2c_algo = {
 
 static struct i2c_algorithm s6x0_i2c_algo = {
 	.master_xfer = s6x0_i2c_transfer,
+	.functionality = dw210x_i2c_func,
+};
+
+static struct i2c_algorithm su3000_i2c_algo = {
+	.master_xfer = su3000_i2c_transfer,
 	.functionality = dw210x_i2c_func,
 };
 
@@ -668,6 +743,82 @@ static int s6x0_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 	memcpy(mac, eeprom + 16, 6);
 	return 0;
 };
+
+static int su3000_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
+{
+	static u8 command_start[] = {0x00};
+	static u8 command_stop[] = {0x01};
+	struct i2c_msg msg = {
+		.addr = SU3000_STREAM_CTRL,
+		.flags = 0,
+		.buf = onoff ? command_start : command_stop,
+		.len = 1
+	};
+
+	i2c_transfer(&adap->dev->i2c_adap, &msg, 1);
+
+	return 0;
+}
+
+static int su3000_power_ctrl(struct dvb_usb_device *d, int i)
+{
+	struct su3000_state *state = (struct su3000_state *)d->priv;
+	u8 obuf[] = {0xde, 0};
+
+	info("%s: %d, initialized %d\n", __func__, i, state->initialized);
+
+	if (i && !state->initialized) {
+		state->initialized = 1;
+		/* reset board */
+		dvb_usb_generic_rw(d, obuf, 2, NULL, 0, 0);
+	}
+
+	return 0;
+}
+
+static int su3000_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
+{
+	int i;
+	u8 obuf[] = { 0x1f, 0xf0 };
+	u8 ibuf[] = { 0 };
+	struct i2c_msg msg[] = {
+		{
+			.addr = 0x51,
+			.flags = 0,
+			.buf = obuf,
+			.len = 2,
+		}, {
+			.addr = 0x51,
+			.flags = I2C_M_RD,
+			.buf = ibuf,
+			.len = 1,
+
+		}
+	};
+
+	for (i = 0; i < 6; i++) {
+		obuf[1] = 0xf0 + i;
+		if (i2c_transfer(&d->i2c_adap, msg, 2) != 2)
+			break;
+		else
+			mac[i] = ibuf[0];
+
+		debug_dump(mac, 6, printk);
+	}
+
+	return 0;
+}
+
+static int su3000_identify_state(struct usb_device *udev,
+				 struct dvb_usb_device_properties *props,
+				 struct dvb_usb_device_description **desc,
+				 int *cold)
+{
+	info("%s\n", __func__);
+
+	*cold = 0;
+	return 0;
+}
 
 static int dw210x_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 {
@@ -772,6 +923,11 @@ static struct stv0900_config prof_7500_stv0900_config = {
 	.tun1_adc = 0,/* 2 Vpp */
 	.path1_mode = 3,
 	.tun1_type = 3,
+};
+
+static struct ds3000_config su3000_ds3000_config = {
+	.demod_address = 0x68,
+	.ci_mode = 1,
 };
 
 static int dw2104_frontend_attach(struct dvb_usb_adapter *d)
@@ -944,6 +1100,43 @@ static int prof_7500_frontend_attach(struct dvb_usb_adapter *d)
 	return 0;
 }
 
+static int su3000_frontend_attach(struct dvb_usb_adapter *d)
+{
+	u8 obuf[3] = { 0xe, 0x80, 0 };
+	u8 ibuf[] = { 0 };
+
+	if (dvb_usb_generic_rw(d->dev, obuf, 3, ibuf, 1, 0) < 0)
+		err("command 0x0e transfer failed.");
+
+	obuf[0] = 0xe;
+	obuf[1] = 0x83;
+	obuf[2] = 0;
+
+	if (dvb_usb_generic_rw(d->dev, obuf, 3, ibuf, 1, 0) < 0)
+		err("command 0x0e transfer failed.");
+
+	obuf[0] = 0xe;
+	obuf[1] = 0x83;
+	obuf[2] = 1;
+
+	if (dvb_usb_generic_rw(d->dev, obuf, 3, ibuf, 1, 0) < 0)
+		err("command 0x0e transfer failed.");
+
+	obuf[0] = 0x51;
+
+	if (dvb_usb_generic_rw(d->dev, obuf, 1, ibuf, 1, 0) < 0)
+		err("command 0x51 transfer failed.");
+
+	d->fe = dvb_attach(ds3000_attach, &su3000_ds3000_config,
+					&d->dev->i2c_adap);
+	if (d->fe == NULL)
+		return -EIO;
+
+	info("Attached DS3000!\n");
+
+	return 0;
+}
+
 static int dw2102_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	dvb_attach(dvb_pll_attach, adap->fe, 0x60,
@@ -1078,10 +1271,49 @@ static struct rc_map_table rc_map_tbs_table[] = {
 	{ 0xf89b, KEY_MODE }
 };
 
+static struct rc_map_table rc_map_su3000_table[] = {
+	{ 0x25, KEY_POWER },	/* right-bottom Red */
+	{ 0x0a, KEY_MUTE },	/* -/-- */
+	{ 0x01, KEY_1 },
+	{ 0x02, KEY_2 },
+	{ 0x03, KEY_3 },
+	{ 0x04, KEY_4 },
+	{ 0x05, KEY_5 },
+	{ 0x06, KEY_6 },
+	{ 0x07, KEY_7 },
+	{ 0x08, KEY_8 },
+	{ 0x09, KEY_9 },
+	{ 0x00, KEY_0 },
+	{ 0x20, KEY_UP },	/* CH+ */
+	{ 0x21, KEY_DOWN },	/* CH+ */
+	{ 0x12, KEY_VOLUMEUP },	/* Brightness Up */
+	{ 0x13, KEY_VOLUMEDOWN },/* Brightness Down */
+	{ 0x1f, KEY_RECORD },
+	{ 0x17, KEY_PLAY },
+	{ 0x16, KEY_PAUSE },
+	{ 0x0b, KEY_STOP },
+	{ 0x27, KEY_FASTFORWARD },/* >> */
+	{ 0x26, KEY_REWIND },	/* << */
+	{ 0x0d, KEY_OK },	/* Mute */
+	{ 0x11, KEY_LEFT },	/* VOL- */
+	{ 0x10, KEY_RIGHT },	/* VOL+ */
+	{ 0x29, KEY_BACK },	/* button under 9 */
+	{ 0x2c, KEY_MENU },	/* TTX */
+	{ 0x2b, KEY_EPG },	/* EPG */
+	{ 0x1e, KEY_RED },	/* OSD */
+	{ 0x0e, KEY_GREEN },	/* Window */
+	{ 0x2d, KEY_YELLOW },	/* button under << */
+	{ 0x0f, KEY_BLUE },	/* bottom yellow button */
+	{ 0x14, KEY_AUDIO },	/* Snapshot */
+	{ 0x38, KEY_TV },	/* TV/Radio */
+	{ 0x0c, KEY_ESC }	/* upper Red buttton */
+};
+
 static struct rc_map_dvb_usb_table_table keys_tables[] = {
 	{ rc_map_dw210x_table, ARRAY_SIZE(rc_map_dw210x_table) },
 	{ rc_map_tevii_table, ARRAY_SIZE(rc_map_tevii_table) },
 	{ rc_map_tbs_table, ARRAY_SIZE(rc_map_tbs_table) },
+	{ rc_map_su3000_table, ARRAY_SIZE(rc_map_su3000_table) },
 };
 
 static int dw2102_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
@@ -1137,6 +1369,7 @@ static struct usb_device_id dw2102_table[] = {
 	{USB_DEVICE(0x3011, USB_PID_PROF_1100)},
 	{USB_DEVICE(0x9022, USB_PID_TEVII_S660)},
 	{USB_DEVICE(0x3034, 0x7500)},
+	{USB_DEVICE(0x1f4d, 0x3000)},
 	{ }
 };
 
@@ -1473,6 +1706,51 @@ static struct dvb_usb_device_description d7500 = {
 	{NULL},
 };
 
+static struct dvb_usb_device_properties su3000_properties = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+	.usb_ctrl = DEVICE_SPECIFIC,
+	.size_of_priv = sizeof(struct su3000_state),
+	.power_ctrl = su3000_power_ctrl,
+	.num_adapters = 1,
+	.identify_state	= su3000_identify_state,
+	.i2c_algo = &su3000_i2c_algo,
+
+	.rc.legacy = {
+		.rc_map_table = rc_map_su3000_table,
+		.rc_map_size = ARRAY_SIZE(rc_map_su3000_table),
+		.rc_interval = 150,
+		.rc_query = dw2102_rc_query,
+	},
+
+	.read_mac_address = su3000_read_mac_address,
+
+	.generic_bulk_ctrl_endpoint = 0x01,
+
+	.adapter = {
+		{
+			.streaming_ctrl   = su3000_streaming_ctrl,
+			.frontend_attach  = su3000_frontend_attach,
+			.stream = {
+				.type = USB_BULK,
+				.count = 8,
+				.endpoint = 0x82,
+				.u = {
+					.bulk = {
+						.buffersize = 4096,
+					}
+				}
+			}
+		}
+	},
+	.num_device_descs = 1,
+	.devices = {
+		{ "SU3000HD DVB-S USB2.0",
+			{ &dw2102_table[10], NULL },
+			{ NULL },
+		},
+	}
+};
+
 static int dw2102_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
@@ -1527,7 +1805,9 @@ static int dw2102_probe(struct usb_interface *intf,
 	    0 == dvb_usb_device_init(intf, s660,
 			THIS_MODULE, NULL, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, p7500,
-			THIS_MODULE, NULL, adapter_nr))
+			THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf, &su3000_properties,
+				     THIS_MODULE, NULL, adapter_nr))
 		return 0;
 
 	return -ENODEV;
@@ -1561,6 +1841,7 @@ MODULE_AUTHOR("Igor M. Liplianin (c) liplianin@me.by");
 MODULE_DESCRIPTION("Driver for DVBWorld DVB-S 2101, 2102, DVB-S2 2104,"
 				" DVB-C 3101 USB2.0,"
 				" TeVii S600, S630, S650, S660 USB2.0,"
-				" Prof 1100, 7500 USB2.0 devices");
+				" Prof 1100, 7500 USB2.0,"
+				" Geniatech SU3000 devices");
 MODULE_VERSION("0.1");
 MODULE_LICENSE("GPL");

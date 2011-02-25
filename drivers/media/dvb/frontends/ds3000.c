@@ -509,6 +509,33 @@ static int ds3000_load_firmware(struct dvb_frontend *fe,
 	return 0;
 }
 
+static int ds3000_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+{
+	struct ds3000_state *state = fe->demodulator_priv;
+	u8 data;
+
+	dprintk("%s(%d)\n", __func__, voltage);
+
+	data = ds3000_readreg(state, 0xa2);
+	data |= 0x03; /* bit0 V/H, bit1 off/on */
+
+	switch (voltage) {
+	case SEC_VOLTAGE_18:
+		data &= ~0x03;
+		break;
+	case SEC_VOLTAGE_13:
+		data &= ~0x03;
+		data |= 0x01;
+		break;
+	case SEC_VOLTAGE_OFF:
+		break;
+	}
+
+	ds3000_writereg(state, 0xa2, data);
+
+	return 0;
+}
+
 static void ds3000_dump_registers(struct dvb_frontend *fe)
 {
 	struct ds3000_state *state = fe->demodulator_priv;
@@ -1255,6 +1282,18 @@ static int ds3000_tune(struct dvb_frontend *fe,
 		ds3000_writereg(state, 0xfd, 0x42);
 		ds3000_writereg(state, 0x08, 0x07);*/
 
+		if (state->config->ci_mode) {
+			switch (c->delivery_system) {
+			case SYS_DVBS:
+			default:
+				ds3000_writereg(state, 0xfd, 0x80);
+			break;
+			case SYS_DVBS2:
+				ds3000_writereg(state, 0xfd, 0x01);
+				break;
+			}
+		}
+
 		/* ds3000 out of software reset */
 		ds3000_writereg(state, 0x00, 0x00);
 		/* start ds3000 build-in uC */
@@ -1351,6 +1390,7 @@ static struct dvb_frontend_ops ds3000_ops = {
 	.read_signal_strength = ds3000_read_signal_strength,
 	.read_snr = ds3000_read_snr,
 	.read_ucblocks = ds3000_read_ucblocks,
+	.set_voltage = ds3000_set_voltage,
 	.set_tone = ds3000_set_tone,
 	.diseqc_send_master_cmd = ds3000_send_diseqc_msg,
 	.diseqc_send_burst = ds3000_diseqc_send_burst,

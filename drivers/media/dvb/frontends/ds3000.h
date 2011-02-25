@@ -27,6 +27,7 @@
 struct ds3000_config {
 	/* the demodulator's i2c address */
 	u8 demod_address;
+	u8 ci_mode;
 };
 
 #if defined(CONFIG_DVB_DS3000) || \
