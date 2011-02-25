@@ -212,9 +212,9 @@ typedef struct gpioh_item {
 
 /* misc si info needed by some of the routines */
 typedef struct si_info {
-	struct si_pub pub;	/* back plane public state (must be first field) */
+	struct si_pub pub;	/* back plane public state (must be first) */
 	struct osl_info *osh;		/* osl os handle */
-	void *sdh;		/* bcmsdh handle */
+	void *pbus;		/* handle to bus (pci/sdio/..) */
 	uint dev_coreid;	/* the core provides driver functions */
 	void *intr_arg;		/* interrupt callback function arg */
 	si_intrsoff_t intrsoff_fn;	/* turns chip interrupts off */

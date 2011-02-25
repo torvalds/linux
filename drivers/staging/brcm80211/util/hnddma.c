@@ -81,6 +81,7 @@ typedef struct dma_info {
 	char name[MAXNAMEL];	/* callers name for diag msgs */
 
 	struct osl_info *osh;	/* os handle */
+	void *pbus;		/* bus handle */
 	si_t *sih;		/* sb handle */
 
 	bool dma64;		/* this dma engine is operating in 64-bit mode */
@@ -201,7 +202,7 @@ static void _dma_counterreset(dma_info_t *di);
 static void _dma_fifoloopbackenable(dma_info_t *di);
 static uint _dma_ctrlflags(dma_info_t *di, uint mask, uint flags);
 static u8 dma_align_sizetobits(uint size);
-static void *dma_ringalloc(struct osl_info *osh, u32 boundary, uint size,
+static void *dma_ringalloc(dma_info_t *di, u32 boundary, uint size,
 			   u16 *alignbits, uint *alloced,
 			   dmaaddr_t *descpa, osldma_t **dmah);
 
@@ -338,6 +339,7 @@ struct hnddma_pub *dma_attach(struct osl_info *osh, char *name, si_t *sih,
 
 	di->osh = osh;
 	di->sih = sih;
+	di->pbus = osh->pdev;
 
 	/* save tunables */
 	di->ntxd = (u16) ntxd;
@@ -531,7 +533,7 @@ static bool _dma_alloc(dma_info_t *di, uint direction)
 	return dma64_alloc(di, direction);
 }
 
-void *dma_alloc_consistent(struct osl_info *osh, uint size, u16 align_bits,
+void *dma_alloc_consistent(struct pci_dev *pdev, uint size, u16 align_bits,
 			       uint *alloced, unsigned long *pap)
 {
 	if (align_bits) {
@@ -540,7 +542,7 @@ void *dma_alloc_consistent(struct osl_info *osh, uint size, u16 align_bits,
 			size += align;
 		*alloced = size;
 	}
-	return pci_alloc_consistent(osh->pdev, size, (dma_addr_t *) pap);
+	return pci_alloc_consistent(pdev, size, (dma_addr_t *) pap);
 }
 
 /* !! may be called with core in reset */
@@ -555,11 +557,11 @@ static void _dma_detach(dma_info_t *di)
 
 	/* free dma descriptor rings */
 	if (di->txd64)
-		pci_free_consistent(di->osh->pdev, di->txdalloc,
+		pci_free_consistent(di->pbus, di->txdalloc,
 				    ((s8 *)di->txd64 - di->txdalign),
 				    (di->txdpaorig));
 	if (di->rxd64)
-		pci_free_consistent(di->osh->pdev, di->rxdalloc,
+		pci_free_consistent(di->pbus, di->rxdalloc,
 				    ((s8 *)di->rxd64 - di->rxdalign),
 				    (di->rxdpaorig));
 
@@ -880,7 +882,7 @@ static bool BCMFASTPATH _dma_rxfill(dma_info_t *di)
 			memset(&di->rxp_dmah[rxout], 0,
 				sizeof(hnddma_seg_map_t));
 
-		pa = pci_map_single(di->osh->pdev, p->data,
+		pa = pci_map_single(di->pbus, p->data,
 			di->rxbufsize, PCI_DMA_FROMDEVICE);
 
 		ASSERT(IS_ALIGNED(PHYSADDRLO(pa), 4));
@@ -1086,7 +1088,7 @@ u8 dma_align_sizetobits(uint size)
  * descriptor ring size aligned location. This will ensure that the ring will
  * not cross page boundary
  */
-static void *dma_ringalloc(struct osl_info *osh, u32 boundary, uint size,
+static void *dma_ringalloc(dma_info_t *di, u32 boundary, uint size,
 			   u16 *alignbits, uint *alloced,
 			   dmaaddr_t *descpa, osldma_t **dmah)
 {
@@ -1094,7 +1096,7 @@ static void *dma_ringalloc(struct osl_info *osh, u32 boundary, uint size,
 	u32 desc_strtaddr;
 	u32 alignbytes = 1 << *alignbits;
 
-	va = dma_alloc_consistent(osh, size, *alignbits, alloced, descpa);
+	va = dma_alloc_consistent(di->pbus, size, *alignbits, alloced, descpa);
 
 	if (NULL == va)
 		return NULL;
@@ -1103,8 +1105,8 @@ static void *dma_ringalloc(struct osl_info *osh, u32 boundary, uint size,
 	if (((desc_strtaddr + size - 1) & boundary) != (desc_strtaddr
 							& boundary)) {
 		*alignbits = dma_align_sizetobits(size);
-		pci_free_consistent(osh->pdev, size, va, *descpa);
-		va = dma_alloc_consistent(osh, size, *alignbits,
+		pci_free_consistent(di->pbus, size, va, *descpa);
+		va = dma_alloc_consistent(di->pbus, size, *alignbits,
 			alloced, descpa);
 	}
 	return va;
@@ -1228,7 +1230,7 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 	align = (1 << align_bits);
 
 	if (direction == DMA_TX) {
-		va = dma_ringalloc(di->osh, D64RINGALIGN, size, &align_bits,
+		va = dma_ringalloc(di, D64RINGALIGN, size, &align_bits,
 			&alloced, &di->txdpaorig, &di->tx_dmah);
 		if (va == NULL) {
 			DMA_ERROR(("%s: dma64_alloc: DMA_ALLOC_CONSISTENT(ntxd) failed\n", di->name));
@@ -1246,7 +1248,7 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 		di->txdalloc = alloced;
 		ASSERT(IS_ALIGNED((unsigned long)di->txd64, align));
 	} else {
-		va = dma_ringalloc(di->osh, D64RINGALIGN, size, &align_bits,
+		va = dma_ringalloc(di, D64RINGALIGN, size, &align_bits,
 			&alloced, &di->rxdpaorig, &di->rx_dmah);
 		if (va == NULL) {
 			DMA_ERROR(("%s: dma64_alloc: DMA_ALLOC_CONSISTENT(nrxd) failed\n", di->name));
@@ -1397,7 +1399,7 @@ static int dma64_txunframed(dma_info_t *di, void *buf, uint len, bool commit)
 	if (len == 0)
 		return 0;
 
-	pa = pci_map_single(di->osh->pdev, buf, len, PCI_DMA_TODEVICE);
+	pa = pci_map_single(di->pbus, buf, len, PCI_DMA_TODEVICE);
 
 	flags = (D64_CTRL1_SOF | D64_CTRL1_IOC | D64_CTRL1_EOF);
 
@@ -1477,7 +1479,7 @@ static int BCMFASTPATH dma64_txfast(dma_info_t *di, struct sk_buff *p0,
 			memset(&di->txp_dmah[txout], 0,
 				sizeof(hnddma_seg_map_t));
 
-		pa = pci_map_single(di->osh->pdev, data, len, PCI_DMA_TODEVICE);
+		pa = pci_map_single(di->pbus, data, len, PCI_DMA_TODEVICE);
 
 		if (DMASGLIST_ENAB) {
 			map = &di->txp_dmah[txout];
@@ -1639,7 +1641,7 @@ static void *BCMFASTPATH dma64_getnexttxp(dma_info_t *di, txd_range_t range)
 				i = NEXTTXD(i);
 		}
 
-		pci_unmap_single(di->osh->pdev, pa, size, PCI_DMA_TODEVICE);
+		pci_unmap_single(di->pbus, pa, size, PCI_DMA_TODEVICE);
 	}
 
 	di->txin = i;
@@ -1690,7 +1692,7 @@ static void *BCMFASTPATH dma64_getnextrxp(dma_info_t *di, bool forceall)
 		       di->dataoffsethigh));
 
 	/* clear this packet from the descriptor ring */
-	pci_unmap_single(di->osh->pdev, pa, di->rxbufsize, PCI_DMA_FROMDEVICE);
+	pci_unmap_single(di->pbus, pa, di->rxbufsize, PCI_DMA_FROMDEVICE);
 
 	W_SM(&di->rxd64[i].addrlow, 0xdeadbeef);
 	W_SM(&di->rxd64[i].addrhigh, 0xdeadbeef);

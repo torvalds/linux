@@ -36,6 +36,7 @@ typedef struct {
 	} regs;			/* Memory mapped register to the core */
 
 	si_t *sih;		/* System interconnect handle */
+	struct pci_dev *dev;
 	struct osl_info *osh;		/* OSL handle */
 	u8 pciecap_lcreg_offset;	/* PCIE capability LCreg offset in the config space */
 	bool pcie_pr42767;
@@ -95,12 +96,13 @@ void *pcicore_init(si_t *sih, struct osl_info *osh, void *regs)
 
 	pi->sih = sih;
 	pi->osh = osh;
+	pi->dev = osh->pdev;
 
 	if (sih->buscoretype == PCIE_CORE_ID) {
 		u8 cap_ptr;
 		pi->regs.pcieregs = (sbpcieregs_t *) regs;
 		cap_ptr =
-		    pcicore_find_pci_capability(pi->osh, PCI_CAP_PCIECAP_ID,
+		    pcicore_find_pci_capability(pi->dev, PCI_CAP_PCIECAP_ID,
 						NULL, NULL);
 		ASSERT(cap_ptr);
 		pi->pciecap_lcreg_offset = cap_ptr + PCIE_CAP_LINKCTRL_OFFSET;
@@ -122,7 +124,7 @@ void pcicore_deinit(void *pch)
 /* return cap_offset if requested capability exists in the PCI config space */
 /* Note that it's caller's responsibility to make sure it's a pci bus */
 u8
-pcicore_find_pci_capability(struct osl_info *osh, u8 req_cap_id,
+pcicore_find_pci_capability(void *dev, u8 req_cap_id,
 			    unsigned char *buf, u32 *buflen)
 {
 	u8 cap_id;
@@ -131,29 +133,29 @@ pcicore_find_pci_capability(struct osl_info *osh, u8 req_cap_id,
 	u8 byte_val;
 
 	/* check for Header type 0 */
-	pci_read_config_byte(osh->pdev, PCI_CFG_HDR, &byte_val);
+	pci_read_config_byte(dev, PCI_CFG_HDR, &byte_val);
 	if ((byte_val & 0x7f) != PCI_HEADER_NORMAL)
 		goto end;
 
 	/* check if the capability pointer field exists */
-	pci_read_config_byte(osh->pdev, PCI_CFG_STAT, &byte_val);
+	pci_read_config_byte(dev, PCI_CFG_STAT, &byte_val);
 	if (!(byte_val & PCI_CAPPTR_PRESENT))
 		goto end;
 
-	pci_read_config_byte(osh->pdev, PCI_CFG_CAPPTR, &cap_ptr);
+	pci_read_config_byte(dev, PCI_CFG_CAPPTR, &cap_ptr);
 	/* check if the capability pointer is 0x00 */
 	if (cap_ptr == 0x00)
 		goto end;
 
 	/* loop thr'u the capability list and see if the pcie capabilty exists */
 
-	pci_read_config_byte(osh->pdev, cap_ptr, &cap_id);
+	pci_read_config_byte(dev, cap_ptr, &cap_id);
 
 	while (cap_id != req_cap_id) {
-		pci_read_config_byte(osh->pdev, cap_ptr + 1, &cap_ptr);
+		pci_read_config_byte(dev, cap_ptr + 1, &cap_ptr);
 		if (cap_ptr == 0x00)
 			break;
-		pci_read_config_byte(osh->pdev, cap_ptr, &cap_id);
+		pci_read_config_byte(dev, cap_ptr, &cap_id);
 	}
 	if (cap_id != req_cap_id) {
 		goto end;
@@ -172,7 +174,7 @@ pcicore_find_pci_capability(struct osl_info *osh, u8 req_cap_id,
 			bufsize = SZPCR - cap_data;
 		*buflen = bufsize;
 		while (bufsize--) {
-			pci_read_config_byte(osh->pdev, cap_data, buf);
+			pci_read_config_byte(dev, cap_data, buf);
 			cap_data++;
 			buf++;
 		}
@@ -347,15 +349,15 @@ u8 pcie_clkreq(void *pch, u32 mask, u32 val)
 	if (!offset)
 		return 0;
 
-	pci_read_config_dword(pi->osh->pdev, offset, &reg_val);
+	pci_read_config_dword(pi->dev, offset, &reg_val);
 	/* set operation */
 	if (mask) {
 		if (val)
 			reg_val |= PCIE_CLKREQ_ENAB;
 		else
 			reg_val &= ~PCIE_CLKREQ_ENAB;
-		pci_write_config_dword(pi->osh->pdev, offset, reg_val);
-		pci_read_config_dword(pi->osh->pdev, offset, &reg_val);
+		pci_write_config_dword(pi->dev, offset, reg_val);
+		pci_read_config_dword(pi->dev, offset, &reg_val);
 	}
 	if (reg_val & PCIE_CLKREQ_ENAB)
 		return 1;
@@ -476,11 +478,11 @@ static void pcie_war_aspm_clkreq(pcicore_info_t *pi)
 
 		W_REG(pi->osh, reg16, val16);
 
-		pci_read_config_dword(pi->osh->pdev, pi->pciecap_lcreg_offset,
+		pci_read_config_dword(pi->dev, pi->pciecap_lcreg_offset,
 					&w);
 		w &= ~PCIE_ASPM_ENAB;
 		w |= pi->pcie_war_aspm_ovr;
-		pci_write_config_dword(pi->osh->pdev,
+		pci_write_config_dword(pi->dev,
 					pi->pciecap_lcreg_offset, w);
 	}
 
@@ -668,9 +670,9 @@ void pcicore_sleep(void *pch)
 	if (!pi || !PCIE_ASPM(pi->sih))
 		return;
 
-	pci_read_config_dword(pi->osh->pdev, pi->pciecap_lcreg_offset, &w);
+	pci_read_config_dword(pi->dev, pi->pciecap_lcreg_offset, &w);
 	w &= ~PCIE_CAP_LCREG_ASPML1;
-	pci_write_config_dword(pi->osh->pdev, pi->pciecap_lcreg_offset, w);
+	pci_write_config_dword(pi->dev, pi->pciecap_lcreg_offset, w);
 
 	pi->pcie_pr42767 = false;
 }
@@ -690,19 +692,20 @@ void pcicore_down(void *pch, int state)
 
 /* ***** Wake-on-wireless-LAN (WOWL) support functions ***** */
 /* Just uses PCI config accesses to find out, when needed before sb_attach is done */
-bool pcicore_pmecap_fast(struct osl_info *osh)
+bool pcicore_pmecap_fast(void *pch)
 {
+	pcicore_info_t *pi = (pcicore_info_t *) pch;
 	u8 cap_ptr;
 	u32 pmecap;
 
 	cap_ptr =
-	    pcicore_find_pci_capability(osh, PCI_CAP_POWERMGMTCAP_ID, NULL,
+	    pcicore_find_pci_capability(pi->dev, PCI_CAP_POWERMGMTCAP_ID, NULL,
 					NULL);
 
 	if (!cap_ptr)
 		return false;
 
-	pci_read_config_dword(osh->pdev, cap_ptr, &pmecap);
+	pci_read_config_dword(pi->dev, cap_ptr, &pmecap);
 
 	return (pmecap & PME_CAP_PM_STATES) != 0;
 }
@@ -717,7 +720,7 @@ static bool pcicore_pmecap(pcicore_info_t *pi)
 
 	if (!pi->pmecap_offset) {
 		cap_ptr =
-		    pcicore_find_pci_capability(pi->osh,
+		    pcicore_find_pci_capability(pi->dev,
 						PCI_CAP_POWERMGMTCAP_ID, NULL,
 						NULL);
 		if (!cap_ptr)
@@ -725,7 +728,7 @@ static bool pcicore_pmecap(pcicore_info_t *pi)
 
 		pi->pmecap_offset = cap_ptr;
 
-		pci_read_config_dword(pi->osh->pdev, pi->pmecap_offset,
+		pci_read_config_dword(pi->dev, pi->pmecap_offset,
 					&pmecap);
 
 		/* At least one state can generate PME */
@@ -745,10 +748,10 @@ void pcicore_pmeen(void *pch)
 	if (!pcicore_pmecap(pi))
 		return;
 
-	pci_read_config_dword(pi->osh->pdev, pi->pmecap_offset + PME_CSR_OFFSET,
+	pci_read_config_dword(pi->dev, pi->pmecap_offset + PME_CSR_OFFSET,
 				&w);
 	w |= (PME_CSR_PME_EN);
-	pci_write_config_dword(pi->osh->pdev,
+	pci_write_config_dword(pi->dev,
 				pi->pmecap_offset + PME_CSR_OFFSET, w);
 }
 
@@ -763,7 +766,7 @@ bool pcicore_pmestat(void *pch)
 	if (!pcicore_pmecap(pi))
 		return false;
 
-	pci_read_config_dword(pi->osh->pdev, pi->pmecap_offset + PME_CSR_OFFSET,
+	pci_read_config_dword(pi->dev, pi->pmecap_offset + PME_CSR_OFFSET,
 				&w);
 
 	return (w & PME_CSR_PME_STAT) == PME_CSR_PME_STAT;
@@ -779,7 +782,7 @@ void pcicore_pmeclr(void *pch)
 	if (!pcicore_pmecap(pi))
 		return;
 
-	pci_read_config_dword(pi->osh->pdev, pi->pmecap_offset + PME_CSR_OFFSET,
+	pci_read_config_dword(pi->dev, pi->pmecap_offset + PME_CSR_OFFSET,
 				&w);
 
 	PCI_ERROR(("pcicore_pci_pmeclr PMECSR : 0x%x\n", w));
@@ -787,7 +790,7 @@ void pcicore_pmeclr(void *pch)
 	/* PMESTAT is cleared by writing 1 to it */
 	w &= ~(PME_CSR_PME_EN);
 
-	pci_write_config_dword(pi->osh->pdev,
+	pci_write_config_dword(pi->dev,
 				pi->pmecap_offset + PME_CSR_OFFSET, w);
 }
 
@@ -803,9 +806,9 @@ u32 pcie_lcreg(void *pch, u32 mask, u32 val)
 
 	/* set operation */
 	if (mask)
-		pci_write_config_dword(pi->osh->pdev, offset, val);
+		pci_write_config_dword(pi->dev, offset, val);
 
-	pci_read_config_dword(pi->osh->pdev, offset, &tmpval);
+	pci_read_config_dword(pi->dev, offset, &tmpval);
 	return tmpval;
 }
 

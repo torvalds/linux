@@ -442,7 +442,7 @@ void write_phy_reg(phy_info_t *pi, u16 addr, u16 val)
 	if (addr == 0x72)
 		(void)R_REG(osh, &regs->phyregdata);
 #else
-	W_REG(osh, (volatile u32 *)(&regs->phyregaddr),
+	W_REG(osh, (u32 *)(&regs->phyregaddr),
 	      addr | (val << 16));
 	if (pi->sh->bustype == PCI_BUS) {
 		if (++pi->phy_wreg >= pi->phy_wreg_limit) {

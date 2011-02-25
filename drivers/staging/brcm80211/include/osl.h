@@ -66,14 +66,11 @@ extern uint osl_pci_slot(struct osl_info *osh);
 #endif
 
 #if defined(BCMSDIO)
-#define SELECT_BUS_WRITE(osh, mmap_op, bus_op) \
-	if ((osh)->mmbus) \
-		mmap_op else bus_op
-#define SELECT_BUS_READ(osh, mmap_op, bus_op) \
-	((osh)->mmbus) ?  mmap_op : bus_op
+#define SELECT_BUS_WRITE(mmap_op, bus_op) bus_op
+#define SELECT_BUS_READ(mmap_op, bus_op) bus_op
 #else
-#define SELECT_BUS_WRITE(osh, mmap_op, bus_op) mmap_op
-#define SELECT_BUS_READ(osh, mmap_op, bus_op) mmap_op
+#define SELECT_BUS_WRITE(mmap_op, bus_op) mmap_op
+#define SELECT_BUS_READ(mmap_op, bus_op) mmap_op
 #endif
 
 /* the largest reasonable packet buffer driver uses for ethernet MTU in bytes */
@@ -89,14 +86,14 @@ extern uint osl_pci_slot(struct osl_info *osh);
 #ifndef IL_BIGENDIAN
 #ifndef __mips__
 #define R_REG(osh, r) (\
-	SELECT_BUS_READ(osh, sizeof(*(r)) == sizeof(u8) ? \
+	SELECT_BUS_READ(sizeof(*(r)) == sizeof(u8) ? \
 	readb((volatile u8*)(r)) : \
 	sizeof(*(r)) == sizeof(u16) ? readw((volatile u16*)(r)) : \
 	readl((volatile u32*)(r)), OSL_READ_REG(osh, r)) \
 )
 #else				/* __mips__ */
 #define R_REG(osh, r) (\
-	SELECT_BUS_READ(osh, \
+	SELECT_BUS_READ( \
 		({ \
 			__typeof(*(r)) __osl_v; \
 			__asm__ __volatile__("sync"); \
@@ -126,7 +123,7 @@ extern uint osl_pci_slot(struct osl_info *osh);
 #endif				/* __mips__ */
 
 #define W_REG(osh, r, v) do { \
-	SELECT_BUS_WRITE(osh,  \
+	SELECT_BUS_WRITE( \
 		switch (sizeof(*(r))) { \
 		case sizeof(u8): \
 			writeb((u8)(v), (volatile u8*)(r)); break; \
@@ -139,7 +136,7 @@ extern uint osl_pci_slot(struct osl_info *osh);
 	} while (0)
 #else				/* IL_BIGENDIAN */
 #define R_REG(osh, r) (\
-	SELECT_BUS_READ(osh, \
+	SELECT_BUS_READ( \
 		({ \
 			__typeof(*(r)) __osl_v; \
 			switch (sizeof(*(r))) { \
@@ -160,7 +157,7 @@ extern uint osl_pci_slot(struct osl_info *osh);
 		OSL_READ_REG(osh, r)) \
 )
 #define W_REG(osh, r, v) do { \
-	SELECT_BUS_WRITE(osh,  \
+	SELECT_BUS_WRITE( \
 		switch (sizeof(*(r))) { \
 		case sizeof(u8):	\
 			writeb((u8)(v), \

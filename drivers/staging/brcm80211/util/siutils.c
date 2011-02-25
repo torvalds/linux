@@ -313,7 +313,7 @@ static __used void si_nvram_process(si_info_t *sii, char *pvars)
 	switch (sii->pub.bustype) {
 	case PCI_BUS:
 		/* do a pci config read to get subsystem id and subvendor id */
-		pci_read_config_dword(sii->osh->pdev, PCI_CFG_SVID, &w);
+		pci_read_config_dword(sii->pbus, PCI_CFG_SVID, &w);
 		/* Let nvram variables override subsystem Vend/ID */
 		sii->pub.boardvendor = (u16)si_getdevpathintvar(&sii->pub,
 			"boardvendor");
@@ -367,7 +367,7 @@ static __used void si_nvram_process(si_info_t *sii, char *pvars)
 /* this has been customized for the bcm 4329 ONLY */
 #ifdef BCMSDIO
 static si_info_t *si_doattach(si_info_t *sii, uint devid, struct osl_info *osh,
-			      void *regs, uint bustype, void *sdh,
+			      void *regs, uint bustype, void *pbus,
 			      char **vars, uint *varsz)
 {
 	struct si_pub *sih = &sii->pub;
@@ -385,7 +385,7 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, struct osl_info *osh,
 	sih->buscoreidx = BADIDX;
 
 	sii->curmap = regs;
-	sii->sdh = sdh;
+	sii->pbus = pbus;
 	sii->osh = osh;
 
 	/* find Chipcommon address */
@@ -393,7 +393,7 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, struct osl_info *osh,
 	sih->bustype = bustype;
 
 	/* bus/core/clk setup for register access */
-	if (!si_buscore_prep(sii, bustype, devid, sdh)) {
+	if (!si_buscore_prep(sii, bustype, devid, pbus)) {
 		SI_ERROR(("si_doattach: si_core_clk_prep failed %d\n",
 			  bustype));
 		return NULL;
@@ -497,7 +497,7 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, struct osl_info *osh,
 
 #else				/* BCMSDIO */
 static si_info_t *si_doattach(si_info_t *sii, uint devid, struct osl_info *osh,
-			      void *regs, uint bustype, void *sdh,
+			      void *regs, uint bustype, void *pbus,
 			      char **vars, uint *varsz)
 {
 	struct si_pub *sih = &sii->pub;
@@ -515,12 +515,12 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, struct osl_info *osh,
 	sih->buscoreidx = BADIDX;
 
 	sii->curmap = regs;
-	sii->sdh = sdh;
+	sii->pbus = pbus;
 	sii->osh = osh;
 
 	/* check to see if we are a si core mimic'ing a pci core */
 	if (bustype == PCI_BUS) {
-		pci_read_config_dword(sii->osh->pdev, PCI_SPROM_CONTROL,  &w);
+		pci_read_config_dword(sii->pbus, PCI_SPROM_CONTROL,  &w);
 		if (w == 0xffffffff) {
 			SI_ERROR(("%s: incoming bus is PCI but it's a lie, "
 				" switching to SI devid:0x%x\n",
@@ -531,10 +531,10 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, struct osl_info *osh,
 
 	/* find Chipcommon address */
 	if (bustype == PCI_BUS) {
-		pci_read_config_dword(sii->osh->pdev, PCI_BAR0_WIN, &savewin);
+		pci_read_config_dword(sii->pbus, PCI_BAR0_WIN, &savewin);
 		if (!GOODCOREADDR(savewin, SI_ENUM_BASE))
 			savewin = SI_ENUM_BASE;
-		pci_write_config_dword(sii->osh->pdev, PCI_BAR0_WIN,
+		pci_write_config_dword(sii->pbus, PCI_BAR0_WIN,
 				       SI_ENUM_BASE);
 		cc = (chipcregs_t *) regs;
 	} else {
@@ -544,7 +544,7 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, struct osl_info *osh,
 	sih->bustype = bustype;
 
 	/* bus/core/clk setup for register access */
-	if (!si_buscore_prep(sii, bustype, devid, sdh)) {
+	if (!si_buscore_prep(sii, bustype, devid, pbus)) {
 		SI_ERROR(("si_doattach: si_core_clk_prep failed %d\n",
 			  bustype));
 		return NULL;
@@ -1087,7 +1087,7 @@ static uint si_slowclk_src(si_info_t *sii)
 
 	if (sii->pub.ccrev < 6) {
 		if (sii->pub.bustype == PCI_BUS) {
-			pci_read_config_dword(sii->osh->pdev, PCI_GPIO_OUT,
+			pci_read_config_dword(sii->pbus, PCI_GPIO_OUT,
 					      &val);
 			if (val & PCI_CFG_GPIO_SCS)
 				return SCC_SS_PCI;
@@ -1274,9 +1274,9 @@ int si_clkctl_xtal(si_t *sih, uint what, bool on)
 		if (PCIE(sii))
 			return -1;
 
-		pci_read_config_dword(sii->osh->pdev, PCI_GPIO_IN, &in);
-		pci_read_config_dword(sii->osh->pdev, PCI_GPIO_OUT, &out);
-		pci_read_config_dword(sii->osh->pdev, PCI_GPIO_OUTEN, &outen);
+		pci_read_config_dword(sii->pbus, PCI_GPIO_IN, &in);
+		pci_read_config_dword(sii->pbus, PCI_GPIO_OUT, &out);
+		pci_read_config_dword(sii->pbus, PCI_GPIO_OUTEN, &outen);
 
 		/*
 		 * Avoid glitching the clock if GPRS is already using it.
@@ -1297,9 +1297,9 @@ int si_clkctl_xtal(si_t *sih, uint what, bool on)
 				out |= PCI_CFG_GPIO_XTAL;
 				if (what & PLL)
 					out |= PCI_CFG_GPIO_PLL;
-				pci_write_config_dword(sii->osh->pdev,
+				pci_write_config_dword(sii->pbus,
 						       PCI_GPIO_OUT, out);
-				pci_write_config_dword(sii->osh->pdev,
+				pci_write_config_dword(sii->pbus,
 						       PCI_GPIO_OUTEN, outen);
 				udelay(XTAL_ON_DELAY);
 			}
@@ -1307,7 +1307,7 @@ int si_clkctl_xtal(si_t *sih, uint what, bool on)
 			/* turn pll on */
 			if (what & PLL) {
 				out &= ~PCI_CFG_GPIO_PLL;
-				pci_write_config_dword(sii->osh->pdev,
+				pci_write_config_dword(sii->pbus,
 						       PCI_GPIO_OUT, out);
 				mdelay(2);
 			}
@@ -1316,9 +1316,9 @@ int si_clkctl_xtal(si_t *sih, uint what, bool on)
 				out &= ~PCI_CFG_GPIO_XTAL;
 			if (what & PLL)
 				out |= PCI_CFG_GPIO_PLL;
-			pci_write_config_dword(sii->osh->pdev,
+			pci_write_config_dword(sii->pbus,
 					       PCI_GPIO_OUT, out);
-			pci_write_config_dword(sii->osh->pdev,
+			pci_write_config_dword(sii->pbus,
 					       PCI_GPIO_OUTEN, outen);
 		}
 
@@ -1463,8 +1463,9 @@ int si_devpath(si_t *sih, char *path, int size)
 	case PCI_BUS:
 		ASSERT((SI_INFO(sih))->osh != NULL);
 		slen = snprintf(path, (size_t) size, "pci/%u/%u/",
-				OSL_PCI_BUS((SI_INFO(sih))->osh),
-				OSL_PCI_SLOT((SI_INFO(sih))->osh));
+			((struct pci_dev *)((SI_INFO(sih))->pbus))->bus->number,
+			PCI_SLOT(
+			    ((struct pci_dev *)((SI_INFO(sih))->pbus))->devfn));
 		break;
 
 #ifdef BCMSDIO
@@ -1549,7 +1550,7 @@ static __used bool si_ispcie(si_info_t *sii)
 		return false;
 
 	cap_ptr =
-	    pcicore_find_pci_capability(sii->osh, PCI_CAP_PCIECAP_ID, NULL,
+	    pcicore_find_pci_capability(sii->pbus, PCI_CAP_PCIECAP_ID, NULL,
 					NULL);
 	if (!cap_ptr)
 		return false;
@@ -1591,7 +1592,7 @@ void si_sdio_init(si_t *sih)
 	}
 
 	/* enable interrupts */
-	bcmsdh_intr_enable(sii->sdh);
+	bcmsdh_intr_enable(sii->pbus);
 
 }
 #endif				/* BCMSDIO */
@@ -1687,9 +1688,9 @@ void si_pci_setup(si_t *sih, uint coremask)
 	 */
 	if (PCIE(sii) || (PCI(sii) && ((sii->pub.buscorerev) >= 6))) {
 		/* pci config write to set this core bit in PCIIntMask */
-		pci_read_config_dword(sii->osh->pdev, PCI_INT_MASK, &w);
+		pci_read_config_dword(sii->pbus, PCI_INT_MASK, &w);
 		w |= (coremask << PCI_SBIM_SHIFT);
-		pci_write_config_dword(sii->osh->pdev, PCI_INT_MASK, w);
+		pci_write_config_dword(sii->pbus, PCI_INT_MASK, w);
 	} else {
 		/* set sbintvec bit for our flag number */
 		si_setint(sih, siflag);
@@ -1927,7 +1928,7 @@ bool si_deviceremoved(si_t *sih)
 	switch (sih->bustype) {
 	case PCI_BUS:
 		ASSERT(sii->osh != NULL);
-		pci_read_config_dword(sii->osh->pdev, PCI_CFG_VID, &w);
+		pci_read_config_dword(sii->pbus, PCI_CFG_VID, &w);
 		if ((w & 0xFFFF) != VENDOR_BROADCOM)
 			return true;
 		break;

@@ -127,7 +127,7 @@ void ai_scan(si_t *sih, void *regs, uint devid)
 		sii->curwrap = (void *)((unsigned long)regs + SI_CORE_SIZE);
 
 		/* Now point the window at the erom */
-		pci_write_config_dword(sii->osh->pdev, PCI_BAR0_WIN, erombase);
+		pci_write_config_dword(sii->pbus, PCI_BAR0_WIN, erombase);
 		eromptr = regs;
 		break;
 
@@ -347,10 +347,10 @@ void *ai_setcoreidx(si_t *sih, uint coreidx)
 
 	case PCI_BUS:
 		/* point bar0 window */
-		pci_write_config_dword(sii->osh->pdev, PCI_BAR0_WIN, addr);
+		pci_write_config_dword(sii->pbus, PCI_BAR0_WIN, addr);
 		regs = sii->curmap;
 		/* point bar0 2nd 4KB window */
-		pci_write_config_dword(sii->osh->pdev, PCI_BAR0_WIN2, wrap);
+		pci_write_config_dword(sii->pbus, PCI_BAR0_WIN2, wrap);
 		break;
 
 	case SPI_BUS:

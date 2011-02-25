@@ -45,7 +45,7 @@
 #else
 struct sbpcieregs;
 
-extern u8 pcicore_find_pci_capability(struct osl_info *osh, u8 req_cap_id,
+extern u8 pcicore_find_pci_capability(void *dev, u8 req_cap_id,
 					 unsigned char *buf, u32 *buflen);
 extern uint pcie_readreg(struct osl_info *osh, struct sbpcieregs *pcieregs,
 			 uint addrtype, uint offset);
@@ -70,7 +70,7 @@ extern u32 pcicore_pcieserdesreg(void *pch, u32 mdioslave, u32 offset,
 extern u32 pcicore_pciereg(void *pch, u32 offset, u32 mask,
 			      u32 val, uint type);
 
-extern bool pcicore_pmecap_fast(struct osl_info *osh);
+extern bool pcicore_pmecap_fast(void *pch);
 extern void pcicore_pmeen(void *pch);
 extern void pcicore_pmeclr(void *pch);
 extern bool pcicore_pmestat(void *pch);
