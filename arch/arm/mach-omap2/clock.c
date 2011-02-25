@@ -264,7 +264,7 @@ void omap2_clk_disable(struct clk *clk)
 	clk->ops->disable(clk);
 
 	if (clk->clkdm)
-		omap2_clkdm_clk_disable(clk->clkdm, clk);
+		clkdm_clk_disable(clk->clkdm, clk);
 
 	if (clk->parent)
 		omap2_clk_disable(clk->parent);
@@ -304,7 +304,7 @@ int omap2_clk_enable(struct clk *clk)
 	}
 
 	if (clk->clkdm) {
-		ret = omap2_clkdm_clk_enable(clk->clkdm, clk);
+		ret = clkdm_clk_enable(clk->clkdm, clk);
 		if (ret) {
 			WARN(1, "clock: %s: could not enable clockdomain %s: "
 			     "%d\n", clk->name, clk->clkdm->name, ret);
@@ -322,7 +322,7 @@ int omap2_clk_enable(struct clk *clk)
 
 oce_err3:
 	if (clk->clkdm)
-		omap2_clkdm_clk_disable(clk->clkdm, clk);
+		clkdm_clk_disable(clk->clkdm, clk);
 oce_err2:
 	if (clk->parent)
 		omap2_clk_disable(clk->parent);

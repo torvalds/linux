@@ -26,17 +26,8 @@
 
 #include <linux/bitops.h>
 
-#include "prm2xxx_3xxx.h"
-#include "prm-regbits-24xx.h"
-#include "cm2xxx_3xxx.h"
-#include "cm-regbits-24xx.h"
-#include "cminst44xx.h"
-#include "prcm44xx.h"
-
 #include <plat/clock.h>
-#include "powerdomain.h"
 #include "clockdomain.h"
-#include <plat/prcm.h>
 
 /* clkdm_list contains all registered struct clockdomains */
 static LIST_HEAD(clkdm_list);
@@ -233,58 +224,6 @@ void _clkdm_del_autodeps(struct clockdomain *clkdm)
 		clkdm_del_sleepdep(clkdm, autodep->clkdm.ptr);
 		clkdm_del_wkdep(clkdm, autodep->clkdm.ptr);
 	}
-}
-
-/**
- * _enable_hwsup - place a clockdomain into hardware-supervised idle
- * @clkdm: struct clockdomain *
- *
- * Place the clockdomain into hardware-supervised idle mode.  No return
- * value.
- *
- * XXX Should this return an error if the clockdomain does not support
- * hardware-supervised idle mode?
- */
-static void _enable_hwsup(struct clockdomain *clkdm)
-{
-	if (cpu_is_omap24xx())
-		omap2xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-					       clkdm->clktrctrl_mask);
-	else if (cpu_is_omap34xx())
-		omap3xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-					       clkdm->clktrctrl_mask);
-	else if (cpu_is_omap44xx())
-		return omap4_cminst_clkdm_enable_hwsup(clkdm->prcm_partition,
-						       clkdm->cm_inst,
-						       clkdm->clkdm_offs);
-	else
-		BUG();
-}
-
-/**
- * _disable_hwsup - place a clockdomain into software-supervised idle
- * @clkdm: struct clockdomain *
- *
- * Place the clockdomain @clkdm into software-supervised idle mode.
- * No return value.
- *
- * XXX Should this return an error if the clockdomain does not support
- * software-supervised idle mode?
- */
-static void _disable_hwsup(struct clockdomain *clkdm)
-{
-	if (cpu_is_omap24xx())
-		omap2xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-						clkdm->clktrctrl_mask);
-	else if (cpu_is_omap34xx())
-		omap3xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-						clkdm->clktrctrl_mask);
-	else if (cpu_is_omap44xx())
-		return omap4_cminst_clkdm_disable_hwsup(clkdm->prcm_partition,
-							clkdm->cm_inst,
-							clkdm->clkdm_offs);
-	else
-		BUG();
 }
 
 /**
@@ -884,7 +823,7 @@ void clkdm_deny_idle(struct clockdomain *clkdm)
 /* Clockdomain-to-clock framework interface code */
 
 /**
- * omap2_clkdm_clk_enable - add an enabled downstream clock to this clkdm
+ * clkdm_clk_enable - add an enabled downstream clock to this clkdm
  * @clkdm: struct clockdomain *
  * @clk: struct clk * of the enabled downstream clock
  *
@@ -897,16 +836,17 @@ void clkdm_deny_idle(struct clockdomain *clkdm)
  * by on-chip processors.  Returns -EINVAL if passed null pointers;
  * returns 0 upon success or if the clockdomain is in hwsup idle mode.
  */
-int omap2_clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
+int clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
 {
-	bool hwsup = false;
-
 	/*
 	 * XXX Rewrite this code to maintain a list of enabled
 	 * downstream clocks for debugging purposes?
 	 */
 
 	if (!clkdm || !clk)
+		return -EINVAL;
+
+	if (!arch_clkdm || !arch_clkdm->clkdm_clk_enable)
 		return -EINVAL;
 
 	if (atomic_inc_return(&clkdm->usecount) > 1)
@@ -917,31 +857,7 @@ int omap2_clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
 	pr_debug("clockdomain: clkdm %s: clk %s now enabled\n", clkdm->name,
 		 clk->name);
 
-	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
-
-		if (!clkdm->clktrctrl_mask)
-			return 0;
-
-		hwsup = omap2_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-						   clkdm->clktrctrl_mask);
-
-	} else if (cpu_is_omap44xx()) {
-
-		hwsup = omap4_cminst_is_clkdm_in_hwsup(clkdm->prcm_partition,
-						       clkdm->cm_inst,
-						       clkdm->clkdm_offs);
-
-	}
-
-	if (hwsup) {
-		/* Disable HW transitions when we are changing deps */
-		_disable_hwsup(clkdm);
-		_clkdm_add_autodeps(clkdm);
-		_enable_hwsup(clkdm);
-	} else {
-		clkdm_wakeup(clkdm);
-	}
-
+	arch_clkdm->clkdm_clk_enable(clkdm);
 	pwrdm_wait_transition(clkdm->pwrdm.ptr);
 	pwrdm_clkdm_state_switch(clkdm);
 
@@ -949,7 +865,7 @@ int omap2_clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
 }
 
 /**
- * omap2_clkdm_clk_disable - remove an enabled downstream clock from this clkdm
+ * clkdm_clk_disable - remove an enabled downstream clock from this clkdm
  * @clkdm: struct clockdomain *
  * @clk: struct clk * of the disabled downstream clock
  *
@@ -962,16 +878,17 @@ int omap2_clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
  * is enabled; or returns 0 upon success or if the clockdomain is in
  * hwsup idle mode.
  */
-int omap2_clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk)
+int clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk)
 {
-	bool hwsup = false;
-
 	/*
 	 * XXX Rewrite this code to maintain a list of enabled
 	 * downstream clocks for debugging purposes?
 	 */
 
 	if (!clkdm || !clk)
+		return -EINVAL;
+
+	if (!arch_clkdm || !arch_clkdm->clkdm_clk_disable)
 		return -EINVAL;
 
 #ifdef DEBUG
@@ -989,31 +906,7 @@ int omap2_clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk)
 	pr_debug("clockdomain: clkdm %s: clk %s now disabled\n", clkdm->name,
 		 clk->name);
 
-	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
-
-		if (!clkdm->clktrctrl_mask)
-			return 0;
-
-		hwsup = omap2_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-						   clkdm->clktrctrl_mask);
-
-	} else if (cpu_is_omap44xx()) {
-
-		hwsup = omap4_cminst_is_clkdm_in_hwsup(clkdm->prcm_partition,
-						       clkdm->cm_inst,
-						       clkdm->clkdm_offs);
-
-	}
-
-	if (hwsup) {
-		/* Disable HW transitions when we are changing deps */
-		_disable_hwsup(clkdm);
-		_clkdm_del_autodeps(clkdm);
-		_enable_hwsup(clkdm);
-	} else {
-		clkdm_sleep(clkdm);
-	}
-
+	arch_clkdm->clkdm_clk_disable(clkdm);
 	pwrdm_clkdm_state_switch(clkdm);
 
 	return 0;

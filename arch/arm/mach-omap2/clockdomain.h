@@ -173,8 +173,8 @@ void clkdm_deny_idle(struct clockdomain *clkdm);
 int clkdm_wakeup(struct clockdomain *clkdm);
 int clkdm_sleep(struct clockdomain *clkdm);
 
-int omap2_clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk);
-int omap2_clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk);
+int clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk);
+int clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk);
 
 extern void __init omap2xxx_clockdomains_init(void);
 extern void __init omap3xxx_clockdomains_init(void);
