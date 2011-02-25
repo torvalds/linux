@@ -886,7 +886,7 @@ static int dw3101_frontend_attach(struct dvb_usb_adapter *d)
 	return -EIO;
 }
 
-static int s6x0_frontend_attach(struct dvb_usb_adapter *d)
+static int zl100313_frontend_attach(struct dvb_usb_adapter *d)
 {
 	d->fe = dvb_attach(mt312_attach, &zl313_config,
 			&d->dev->i2c_adap);
@@ -899,6 +899,11 @@ static int s6x0_frontend_attach(struct dvb_usb_adapter *d)
 		}
 	}
 
+	return -EIO;
+}
+
+static int stv0288_frontend_attach(struct dvb_usb_adapter *d)
+{
 	d->fe = dvb_attach(stv0288_attach, &earda_config,
 			&d->dev->i2c_adap);
 	if (d->fe != NULL) {
@@ -910,6 +915,11 @@ static int s6x0_frontend_attach(struct dvb_usb_adapter *d)
 		}
 	}
 
+	return -EIO;
+}
+
+static int ds3000_frontend_attach(struct dvb_usb_adapter *d)
+{
 	d->fe = dvb_attach(ds3000_attach, &dw2104_ds3000_config,
 			&d->dev->i2c_adap);
 	if (d->fe != NULL) {
@@ -1418,7 +1428,7 @@ static struct dvb_usb_device_properties s6x0_properties = {
 	.read_mac_address = s6x0_read_mac_address,
 	.adapter = {
 		{
-			.frontend_attach = s6x0_frontend_attach,
+			.frontend_attach = zl100313_frontend_attach,
 			.streaming_ctrl = NULL,
 			.tuner_attach = NULL,
 			.stream = {
@@ -1433,21 +1443,27 @@ static struct dvb_usb_device_properties s6x0_properties = {
 			},
 		}
 	},
-	.num_device_descs = 3,
+	.num_device_descs = 1,
 	.devices = {
 		{"TeVii S630 USB",
 			{&dw2102_table[6], NULL},
 			{NULL},
 		},
-		{"Prof 1100 USB ",
-			{&dw2102_table[7], NULL},
-			{NULL},
-		},
-		{"TeVii S660 USB",
-			{&dw2102_table[8], NULL},
-			{NULL},
-		},
 	}
+};
+
+struct dvb_usb_device_properties *p1100;
+static struct dvb_usb_device_description d1100 = {
+	"Prof 1100 USB ",
+	{&dw2102_table[7], NULL},
+	{NULL},
+};
+
+struct dvb_usb_device_properties *s660;
+static struct dvb_usb_device_description d660 = {
+	"TeVii S660 USB",
+	{&dw2102_table[8], NULL},
+	{NULL},
 };
 
 struct dvb_usb_device_properties *p7500;
@@ -1460,14 +1476,38 @@ static struct dvb_usb_device_description d7500 = {
 static int dw2102_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-
-	p7500 = kzalloc(sizeof(struct dvb_usb_device_properties), GFP_KERNEL);
-	if (!p7500)
+	p1100 = kzalloc(sizeof(struct dvb_usb_device_properties), GFP_KERNEL);
+	if (!p1100)
 		return -ENOMEM;
 	/* copy default structure */
-	memcpy(p7500, &s6x0_properties,
+	memcpy(p1100, &s6x0_properties,
 			sizeof(struct dvb_usb_device_properties));
 	/* fill only different fields */
+	p1100->firmware = "dvb-usb-p1100.fw";
+	p1100->devices[0] = d1100;
+	p1100->rc.legacy.rc_map_table = rc_map_tbs_table;
+	p1100->rc.legacy.rc_map_size = ARRAY_SIZE(rc_map_tbs_table);
+	p1100->adapter->frontend_attach = stv0288_frontend_attach;
+
+	s660 = kzalloc(sizeof(struct dvb_usb_device_properties), GFP_KERNEL);
+	if (!s660) {
+		kfree(p1100);
+		return -ENOMEM;
+	}
+	memcpy(s660, &s6x0_properties,
+			sizeof(struct dvb_usb_device_properties));
+	s660->firmware = "dvb-usb-s660.fw";
+	s660->devices[0] = d660;
+	s660->adapter->frontend_attach = ds3000_frontend_attach;
+
+	p7500 = kzalloc(sizeof(struct dvb_usb_device_properties), GFP_KERNEL);
+	if (!p7500) {
+		kfree(p1100);
+		kfree(s660);
+		return -ENOMEM;
+	}
+	memcpy(p7500, &s6x0_properties,
+			sizeof(struct dvb_usb_device_properties));
 	p7500->firmware = "dvb-usb-p7500.fw";
 	p7500->devices[0] = d7500;
 	p7500->rc.legacy.rc_map_table = rc_map_tbs_table;
@@ -1481,6 +1521,10 @@ static int dw2102_probe(struct usb_interface *intf,
 	    0 == dvb_usb_device_init(intf, &dw3101_properties,
 			THIS_MODULE, NULL, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &s6x0_properties,
+			THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf, p1100,
+			THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf, s660,
 			THIS_MODULE, NULL, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, p7500,
 			THIS_MODULE, NULL, adapter_nr))
