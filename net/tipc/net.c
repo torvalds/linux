@@ -108,26 +108,28 @@
 */
 
 DEFINE_RWLOCK(tipc_net_lock);
-struct network tipc_net;
+struct tipc_node **tipc_nodes;
+u32 tipc_highest_node;
+atomic_t tipc_num_links;
 
 static int net_start(void)
 {
-	tipc_net.nodes = kcalloc(tipc_max_nodes + 1,
-				 sizeof(*tipc_net.nodes), GFP_ATOMIC);
-	tipc_net.highest_node = 0;
-	atomic_set(&tipc_net.links, 0);
+	tipc_nodes = kcalloc(tipc_max_nodes + 1,
+				 sizeof(*tipc_nodes), GFP_ATOMIC);
+	tipc_highest_node = 0;
+	atomic_set(&tipc_num_links, 0);
 
-	return tipc_net.nodes ? 0 : -ENOMEM;
+	return tipc_nodes ? 0 : -ENOMEM;
 }
 
 static void net_stop(void)
 {
 	u32 n_num;
 
-	for (n_num = 1; n_num <= tipc_net.highest_node; n_num++)
-		tipc_node_delete(tipc_net.nodes[n_num]);
-	kfree(tipc_net.nodes);
-	tipc_net.nodes = NULL;
+	for (n_num = 1; n_num <= tipc_highest_node; n_num++)
+		tipc_node_delete(tipc_nodes[n_num]);
+	kfree(tipc_nodes);
+	tipc_nodes = NULL;
 }
 
 static void net_route_named_msg(struct sk_buff *buf)

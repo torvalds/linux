@@ -107,7 +107,7 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 static inline struct tipc_node *tipc_node_find(u32 addr)
 {
 	if (likely(in_own_cluster(addr)))
-		return tipc_net.nodes[tipc_node(addr)];
+		return tipc_nodes[tipc_node(addr)];
 	return NULL;
 }
 

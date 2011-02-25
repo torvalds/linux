@@ -111,8 +111,8 @@ static void named_cluster_distribute(struct sk_buff *buf)
 	struct tipc_node *n_ptr;
 	u32 n_num;
 
-	for (n_num = 1; n_num <= tipc_net.highest_node; n_num++) {
-		n_ptr = tipc_net.nodes[n_num];
+	for (n_num = 1; n_num <= tipc_highest_node; n_num++) {
+		n_ptr = tipc_nodes[n_num];
 		if (n_ptr && tipc_node_has_active_links(n_ptr)) {
 			buf_copy = skb_copy(buf, GFP_ATOMIC);
 			if (!buf_copy)

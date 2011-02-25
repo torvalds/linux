@@ -81,9 +81,9 @@ struct tipc_node *tipc_node_create(u32 addr)
 	INIT_LIST_HEAD(&n_ptr->nsub);
 
 	n_num = tipc_node(addr);
-	tipc_net.nodes[n_num] = n_ptr;
-	if (n_num > tipc_net.highest_node)
-		tipc_net.highest_node = n_num;
+	tipc_nodes[n_num] = n_ptr;
+	if (n_num > tipc_highest_node)
+		tipc_highest_node = n_num;
 
 	spin_unlock_bh(&node_create_lock);
 	return n_ptr;
@@ -97,11 +97,11 @@ void tipc_node_delete(struct tipc_node *n_ptr)
 		return;
 
 	n_num = tipc_node(n_ptr->addr);
-	tipc_net.nodes[n_num] = NULL;
+	tipc_nodes[n_num] = NULL;
 	kfree(n_ptr);
 
-	while (!tipc_net.nodes[tipc_net.highest_node])
-		if (--tipc_net.highest_node == 0)
+	while (!tipc_nodes[tipc_highest_node])
+		if (--tipc_highest_node == 0)
 			break;
 }
 
@@ -233,7 +233,7 @@ struct tipc_node *tipc_node_attach_link(struct link *l_ptr)
 
 		if (!n_ptr->links[bearer_id]) {
 			n_ptr->links[bearer_id] = l_ptr;
-			atomic_inc(&tipc_net.links);
+			atomic_inc(&tipc_num_links);
 			n_ptr->link_cnt++;
 			return n_ptr;
 		}
@@ -247,7 +247,7 @@ struct tipc_node *tipc_node_attach_link(struct link *l_ptr)
 void tipc_node_detach_link(struct tipc_node *n_ptr, struct link *l_ptr)
 {
 	n_ptr->links[l_ptr->b_ptr->identity] = NULL;
-	atomic_dec(&tipc_net.links);
+	atomic_dec(&tipc_num_links);
 	n_ptr->link_cnt--;
 }
 
@@ -390,7 +390,7 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 						   " (network address)");
 
 	read_lock_bh(&tipc_net_lock);
-	if (!tipc_net.nodes) {
+	if (!tipc_nodes) {
 		read_unlock_bh(&tipc_net_lock);
 		return tipc_cfg_reply_none();
 	}
@@ -398,7 +398,7 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 	/* For now, get space for all other nodes */
 
 	payload_size = TLV_SPACE(sizeof(node_info)) *
-		(tipc_net.highest_node - 1);
+		(tipc_highest_node - 1);
 	if (payload_size > 32768u) {
 		read_unlock_bh(&tipc_net_lock);
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
@@ -412,8 +412,8 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 
 	/* Add TLVs for all nodes in scope */
 
-	for (n_num = 1; n_num <= tipc_net.highest_node; n_num++) {
-		n_ptr = tipc_net.nodes[n_num];
+	for (n_num = 1; n_num <= tipc_highest_node; n_num++) {
+		n_ptr = tipc_nodes[n_num];
 		if (!n_ptr || !tipc_in_scope(domain, n_ptr->addr))
 			continue;
 		node_info.addr = htonl(n_ptr->addr);
@@ -451,7 +451,7 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 	/* Get space for all unicast links + multicast link */
 
 	payload_size = TLV_SPACE(sizeof(link_info)) *
-		(atomic_read(&tipc_net.links) + 1);
+		(atomic_read(&tipc_num_links) + 1);
 	if (payload_size > 32768u) {
 		read_unlock_bh(&tipc_net_lock);
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
@@ -472,10 +472,10 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 
 	/* Add TLVs for any other links in scope */
 
-	for (n_num = 1; n_num <= tipc_net.highest_node; n_num++) {
+	for (n_num = 1; n_num <= tipc_highest_node; n_num++) {
 		u32 i;
 
-		n_ptr = tipc_net.nodes[n_num];
+		n_ptr = tipc_nodes[n_num];
 		if (!n_ptr || !tipc_in_scope(domain, n_ptr->addr))
 			continue;
 		tipc_node_lock(n_ptr);

@@ -39,21 +39,10 @@
 
 struct tipc_node;
 
-/**
- * struct network - TIPC network structure
- * @nodes: array of pointers to all nodes within cluster
- * @highest_node: id of highest numbered node within cluster
- * @links: number of (unicast) links to cluster
- */
+extern struct tipc_node **tipc_nodes;
+extern u32 tipc_highest_node;
+extern atomic_t tipc_num_links;
 
-struct network {
-	struct tipc_node **nodes;
-	u32 highest_node;
-	atomic_t links;
-};
-
-
-extern struct network tipc_net;
 extern rwlock_t tipc_net_lock;
 
 void tipc_net_route_msg(struct sk_buff *buf);
