@@ -2630,7 +2630,7 @@ static int iwl3945_alloc_bcast_station(struct iwl_priv *priv)
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 	sta_id = iwl_legacy_prep_station(priv, ctx,
-					iwl_bcast_addr, false, NULL);
+					iwlegacy_bcast_addr, false, NULL);
 	if (sta_id == IWL_INVALID_STATION) {
 		IWL_ERR(priv, "Unable to prepare broadcast station\n");
 		spin_unlock_irqrestore(&priv->sta_lock, flags);
@@ -2929,7 +2929,7 @@ int iwl3945_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		scan->tx_cmd.len = cpu_to_le16(
 			iwl_legacy_fill_probe_req(priv,
 				(struct ieee80211_mgmt *)scan->data,
-				iwl_bcast_addr, NULL, 0,
+				iwlegacy_bcast_addr, NULL, 0,
 				IWL_MAX_SCAN_SIZE - sizeof(*scan)));
 	}
 	/* select Rx antennas */
@@ -4283,7 +4283,7 @@ module_param_named(disable_hw_scan, iwl3945_mod_params.disable_hw_scan,
 MODULE_PARM_DESC(disable_hw_scan,
 		"disable hardware scanning (default 0) (deprecated)");
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
-module_param_named(debug, iwl_debug_level, uint, S_IRUGO | S_IWUSR);
+module_param_named(debug, iwlegacy_debug_level, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "debug output mask");
 #endif
 module_param_named(fw_restart, iwl3945_mod_params.restart_fw, int, S_IRUGO);

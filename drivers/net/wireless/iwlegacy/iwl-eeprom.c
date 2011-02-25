@@ -77,7 +77,7 @@
 
 /************************** EEPROM BANDS ****************************
  *
- * The iwl_eeprom_band definitions below provide the mapping from the
+ * The iwlegacy_eeprom_band definitions below provide the mapping from the
  * EEPROM contents to the specific channel number supported for each
  * band.
  *
@@ -107,32 +107,32 @@
  *********************************************************************/
 
 /* 2.4 GHz */
-const u8 iwl_eeprom_band_1[14] = {
+const u8 iwlegacy_eeprom_band_1[14] = {
 	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
 };
 
 /* 5.2 GHz bands */
-static const u8 iwl_eeprom_band_2[] = {	/* 4915-5080MHz */
+static const u8 iwlegacy_eeprom_band_2[] = {	/* 4915-5080MHz */
 	183, 184, 185, 187, 188, 189, 192, 196, 7, 8, 11, 12, 16
 };
 
-static const u8 iwl_eeprom_band_3[] = {	/* 5170-5320MHz */
+static const u8 iwlegacy_eeprom_band_3[] = {	/* 5170-5320MHz */
 	34, 36, 38, 40, 42, 44, 46, 48, 52, 56, 60, 64
 };
 
-static const u8 iwl_eeprom_band_4[] = {	/* 5500-5700MHz */
+static const u8 iwlegacy_eeprom_band_4[] = {	/* 5500-5700MHz */
 	100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140
 };
 
-static const u8 iwl_eeprom_band_5[] = {	/* 5725-5825MHz */
+static const u8 iwlegacy_eeprom_band_5[] = {	/* 5725-5825MHz */
 	145, 149, 153, 157, 161, 165
 };
 
-static const u8 iwl_eeprom_band_6[] = {       /* 2.4 ht40 channel */
+static const u8 iwlegacy_eeprom_band_6[] = {       /* 2.4 ht40 channel */
 	1, 2, 3, 4, 5, 6, 7
 };
 
-static const u8 iwl_eeprom_band_7[] = {       /* 5.2 ht40 channel */
+static const u8 iwlegacy_eeprom_band_7[] = {       /* 5.2 ht40 channel */
 	36, 44, 52, 60, 100, 108, 116, 124, 132, 149, 157
 };
 
@@ -273,46 +273,46 @@ static void iwl_legacy_init_band_reference(const struct iwl_priv *priv,
 			eeprom_ops.regulatory_bands[eep_band - 1];
 	switch (eep_band) {
 	case 1:		/* 2.4GHz band */
-		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_1);
+		*eeprom_ch_count = ARRAY_SIZE(iwlegacy_eeprom_band_1);
 		*eeprom_ch_info = (struct iwl_eeprom_channel *)
 				iwl_legacy_eeprom_query_addr(priv, offset);
-		*eeprom_ch_index = iwl_eeprom_band_1;
+		*eeprom_ch_index = iwlegacy_eeprom_band_1;
 		break;
 	case 2:		/* 4.9GHz band */
-		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_2);
+		*eeprom_ch_count = ARRAY_SIZE(iwlegacy_eeprom_band_2);
 		*eeprom_ch_info = (struct iwl_eeprom_channel *)
 				iwl_legacy_eeprom_query_addr(priv, offset);
-		*eeprom_ch_index = iwl_eeprom_band_2;
+		*eeprom_ch_index = iwlegacy_eeprom_band_2;
 		break;
 	case 3:		/* 5.2GHz band */
-		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_3);
+		*eeprom_ch_count = ARRAY_SIZE(iwlegacy_eeprom_band_3);
 		*eeprom_ch_info = (struct iwl_eeprom_channel *)
 				iwl_legacy_eeprom_query_addr(priv, offset);
-		*eeprom_ch_index = iwl_eeprom_band_3;
+		*eeprom_ch_index = iwlegacy_eeprom_band_3;
 		break;
 	case 4:		/* 5.5GHz band */
-		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_4);
+		*eeprom_ch_count = ARRAY_SIZE(iwlegacy_eeprom_band_4);
 		*eeprom_ch_info = (struct iwl_eeprom_channel *)
 				iwl_legacy_eeprom_query_addr(priv, offset);
-		*eeprom_ch_index = iwl_eeprom_band_4;
+		*eeprom_ch_index = iwlegacy_eeprom_band_4;
 		break;
 	case 5:		/* 5.7GHz band */
-		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_5);
+		*eeprom_ch_count = ARRAY_SIZE(iwlegacy_eeprom_band_5);
 		*eeprom_ch_info = (struct iwl_eeprom_channel *)
 				iwl_legacy_eeprom_query_addr(priv, offset);
-		*eeprom_ch_index = iwl_eeprom_band_5;
+		*eeprom_ch_index = iwlegacy_eeprom_band_5;
 		break;
 	case 6:		/* 2.4GHz ht40 channels */
-		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_6);
+		*eeprom_ch_count = ARRAY_SIZE(iwlegacy_eeprom_band_6);
 		*eeprom_ch_info = (struct iwl_eeprom_channel *)
 				iwl_legacy_eeprom_query_addr(priv, offset);
-		*eeprom_ch_index = iwl_eeprom_band_6;
+		*eeprom_ch_index = iwlegacy_eeprom_band_6;
 		break;
 	case 7:		/* 5 GHz ht40 channels */
-		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_7);
+		*eeprom_ch_count = ARRAY_SIZE(iwlegacy_eeprom_band_7);
 		*eeprom_ch_info = (struct iwl_eeprom_channel *)
 				iwl_legacy_eeprom_query_addr(priv, offset);
-		*eeprom_ch_index = iwl_eeprom_band_7;
+		*eeprom_ch_index = iwlegacy_eeprom_band_7;
 		break;
 	default:
 		BUG();
@@ -388,11 +388,11 @@ int iwl_legacy_init_channel_map(struct iwl_priv *priv)
 	IWL_DEBUG_EEPROM(priv, "Initializing regulatory info from EEPROM\n");
 
 	priv->channel_count =
-	    ARRAY_SIZE(iwl_eeprom_band_1) +
-	    ARRAY_SIZE(iwl_eeprom_band_2) +
-	    ARRAY_SIZE(iwl_eeprom_band_3) +
-	    ARRAY_SIZE(iwl_eeprom_band_4) +
-	    ARRAY_SIZE(iwl_eeprom_band_5);
+	    ARRAY_SIZE(iwlegacy_eeprom_band_1) +
+	    ARRAY_SIZE(iwlegacy_eeprom_band_2) +
+	    ARRAY_SIZE(iwlegacy_eeprom_band_3) +
+	    ARRAY_SIZE(iwlegacy_eeprom_band_4) +
+	    ARRAY_SIZE(iwlegacy_eeprom_band_5);
 
 	IWL_DEBUG_EEPROM(priv, "Parsing data for %d channels.\n",
 			priv->channel_count);

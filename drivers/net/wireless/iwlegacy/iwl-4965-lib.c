@@ -424,7 +424,7 @@ int iwl4965_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band)
 		if (band == IEEE80211_BAND_5GHZ)
 			band_offset = IWL_FIRST_OFDM_RATE;
 		for (idx = band_offset; idx < IWL_RATE_COUNT_LEGACY; idx++)
-			if (iwl_rates[idx].plcp == (rate_n_flags & 0xFF))
+			if (iwlegacy_rates[idx].plcp == (rate_n_flags & 0xFF))
 				return idx - band_offset;
 	}
 
@@ -995,7 +995,7 @@ int iwl4965_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		/* use bcast addr, will not be transmitted but must be valid */
 		cmd_len = iwl_legacy_fill_probe_req(priv,
 					(struct ieee80211_mgmt *)scan->data,
-					iwl_bcast_addr, NULL, 0,
+					iwlegacy_bcast_addr, NULL, 0,
 					IWL_MAX_SCAN_SIZE - sizeof(*scan));
 
 	}

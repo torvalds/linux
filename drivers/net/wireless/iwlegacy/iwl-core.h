@@ -628,8 +628,6 @@ static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
 	return priv->hw->wiphy->bands[band];
 }
 
-extern bool bt_coex_active;
-
 /* mac80211 handlers */
 int iwl_legacy_mac_config(struct ieee80211_hw *hw, u32 changed);
 void iwl_legacy_mac_reset_tsf(struct ieee80211_hw *hw);

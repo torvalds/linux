@@ -56,7 +56,7 @@ struct iwl3945_rate_info {
 
 /*
  * These serve as indexes into
- * struct iwl_rate_info iwl_rates[IWL_RATE_COUNT];
+ * struct iwl_rate_info iwlegacy_rates[IWL_RATE_COUNT];
  */
 enum {
 	IWL_RATE_1M_INDEX = 0,
@@ -268,7 +268,7 @@ enum {
 #define TID_MAX_TIME_DIFF ((TID_QUEUE_MAX_SIZE - 1) * TID_QUEUE_CELL_SPACING)
 #define TIME_WRAP_AROUND(x, y) (((y) > (x)) ? (y) - (x) : (0-(x)) + (y))
 
-extern const struct iwl_rate_info iwl_rates[IWL_RATE_COUNT];
+extern const struct iwl_rate_info iwlegacy_rates[IWL_RATE_COUNT];
 
 enum iwl_table_type {
 	LQ_NONE,

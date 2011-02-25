@@ -64,16 +64,15 @@ MODULE_LICENSE("GPL");
  *
  * default: bt_coex_active = true (BT_COEX_ENABLE)
  */
-bool bt_coex_active = true;
-EXPORT_SYMBOL_GPL(bt_coex_active);
+static bool bt_coex_active = true;
 module_param(bt_coex_active, bool, S_IRUGO);
 MODULE_PARM_DESC(bt_coex_active, "enable wifi/bluetooth co-exist");
 
-u32 iwl_debug_level;
-EXPORT_SYMBOL(iwl_debug_level);
+u32 iwlegacy_debug_level;
+EXPORT_SYMBOL(iwlegacy_debug_level);
 
-const u8 iwl_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-EXPORT_SYMBOL(iwl_bcast_addr);
+const u8 iwlegacy_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+EXPORT_SYMBOL(iwlegacy_bcast_addr);
 
 
 /* This function both allocates and initializes hw and priv. */
@@ -183,7 +182,7 @@ int iwl_legacy_init_geos(struct iwl_priv *priv)
 
 	/* 5.2GHz channels start after the 2.4GHz channels */
 	sband = &priv->bands[IEEE80211_BAND_5GHZ];
-	sband->channels = &channels[ARRAY_SIZE(iwl_eeprom_band_1)];
+	sband->channels = &channels[ARRAY_SIZE(iwlegacy_eeprom_band_1)];
 	/* just OFDM */
 	sband->bitrates = &rates[IWL_FIRST_OFDM_RATE];
 	sband->n_bitrates = IWL_RATE_COUNT_LEGACY - IWL_FIRST_OFDM_RATE;
@@ -1489,7 +1488,7 @@ int iwl_legacy_alloc_traffic_mem(struct iwl_priv *priv)
 {
 	u32 traffic_size = IWL_TRAFFIC_DUMP_SIZE;
 
-	if (iwl_debug_level & IWL_DL_TX) {
+	if (iwlegacy_debug_level & IWL_DL_TX) {
 		if (!priv->tx_traffic) {
 			priv->tx_traffic =
 				kzalloc(traffic_size, GFP_KERNEL);
@@ -1497,7 +1496,7 @@ int iwl_legacy_alloc_traffic_mem(struct iwl_priv *priv)
 				return -ENOMEM;
 		}
 	}
-	if (iwl_debug_level & IWL_DL_RX) {
+	if (iwlegacy_debug_level & IWL_DL_RX) {
 		if (!priv->rx_traffic) {
 			priv->rx_traffic =
 				kzalloc(traffic_size, GFP_KERNEL);
@@ -1526,7 +1525,7 @@ void iwl_legacy_dbg_log_tx_data_frame(struct iwl_priv *priv,
 	__le16 fc;
 	u16 len;
 
-	if (likely(!(iwl_debug_level & IWL_DL_TX)))
+	if (likely(!(iwlegacy_debug_level & IWL_DL_TX)))
 		return;
 
 	if (!priv->tx_traffic)
@@ -1551,7 +1550,7 @@ void iwl_legacy_dbg_log_rx_data_frame(struct iwl_priv *priv,
 	__le16 fc;
 	u16 len;
 
-	if (likely(!(iwl_debug_level & IWL_DL_RX)))
+	if (likely(!(iwlegacy_debug_level & IWL_DL_RX)))
 		return;
 
 	if (!priv->rx_traffic)
