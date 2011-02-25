@@ -770,4 +770,11 @@
 #define E1000_PCIEMISC_LX_DECISION      0x00000080 /* Lx power decision based
                                                       on DMA coal */
 
+/* Tx Rate-Scheduler Config fields */
+#define E1000_RTTBCNRC_RS_ENA		0x80000000
+#define E1000_RTTBCNRC_RF_DEC_MASK	0x00003FFF
+#define E1000_RTTBCNRC_RF_INT_SHIFT	14
+#define E1000_RTTBCNRC_RF_INT_MASK	\
+	(E1000_RTTBCNRC_RF_DEC_MASK << E1000_RTTBCNRC_RF_INT_SHIFT)
+
 #endif

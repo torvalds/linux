@@ -50,12 +50,12 @@
 #endif
 #include "igb.h"
 
-#define DRV_VERSION "2.1.0-k2"
+#define DRV_VERSION "2.4.13-k2"
 char igb_driver_name[] = "igb";
 char igb_driver_version[] = DRV_VERSION;
 static const char igb_driver_string[] =
 				"Intel(R) Gigabit Ethernet Network Driver";
-static const char igb_copyright[] = "Copyright (c) 2007-2009 Intel Corporation.";
+static const char igb_copyright[] = "Copyright (c) 2007-2011 Intel Corporation.";
 
 static const struct e1000_info *igb_info_tbl[] = {
 	[board_82575] = &e1000_82575_info,
@@ -150,6 +150,7 @@ static int igb_ndo_set_vf_vlan(struct net_device *netdev,
 static int igb_ndo_set_vf_bw(struct net_device *netdev, int vf, int tx_rate);
 static int igb_ndo_get_vf_config(struct net_device *netdev, int vf,
 				 struct ifla_vf_info *ivi);
+static void igb_check_vf_rate_limit(struct igb_adapter *);
 
 #ifdef CONFIG_PM
 static int igb_suspend(struct pci_dev *, pm_message_t);
@@ -3511,6 +3512,7 @@ static void igb_watchdog_task(struct work_struct *work)
 			netif_carrier_on(netdev);
 
 			igb_ping_all_vfs(adapter);
+			igb_check_vf_rate_limit(adapter);
 
 			/* link state has changed, schedule phy info update */
 			if (!test_bit(__IGB_DOWN, &adapter->state))
@@ -6599,9 +6601,91 @@ static int igb_ndo_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 	return igb_set_vf_mac(adapter, vf, mac);
 }
 
+static int igb_link_mbps(int internal_link_speed)
+{
+	switch (internal_link_speed) {
+	case SPEED_100:
+		return 100;
+	case SPEED_1000:
+		return 1000;
+	default:
+		return 0;
+	}
+}
+
+static void igb_set_vf_rate_limit(struct e1000_hw *hw, int vf, int tx_rate,
+				  int link_speed)
+{
+	int rf_dec, rf_int;
+	u32 bcnrc_val;
+
+	if (tx_rate != 0) {
+		/* Calculate the rate factor values to set */
+		rf_int = link_speed / tx_rate;
+		rf_dec = (link_speed - (rf_int * tx_rate));
+		rf_dec = (rf_dec * (1<<E1000_RTTBCNRC_RF_INT_SHIFT)) / tx_rate;
+
+		bcnrc_val = E1000_RTTBCNRC_RS_ENA;
+		bcnrc_val |= ((rf_int<<E1000_RTTBCNRC_RF_INT_SHIFT) &
+		               E1000_RTTBCNRC_RF_INT_MASK);
+		bcnrc_val |= (rf_dec & E1000_RTTBCNRC_RF_DEC_MASK);
+	} else {
+		bcnrc_val = 0;
+	}
+
+	wr32(E1000_RTTDQSEL, vf); /* vf X uses queue X */
+	wr32(E1000_RTTBCNRC, bcnrc_val);
+}
+
+static void igb_check_vf_rate_limit(struct igb_adapter *adapter)
+{
+	int actual_link_speed, i;
+	bool reset_rate = false;
+
+	/* VF TX rate limit was not set or not supported */
+	if ((adapter->vf_rate_link_speed == 0) ||
+	    (adapter->hw.mac.type != e1000_82576))
+		return;
+
+	actual_link_speed = igb_link_mbps(adapter->link_speed);
+	if (actual_link_speed != adapter->vf_rate_link_speed) {
+		reset_rate = true;
+		adapter->vf_rate_link_speed = 0;
+		dev_info(&adapter->pdev->dev,
+		         "Link speed has been changed. VF Transmit "
+		         "rate is disabled\n");
+	}
+
+	for (i = 0; i < adapter->vfs_allocated_count; i++) {
+		if (reset_rate)
+			adapter->vf_data[i].tx_rate = 0;
+
+		igb_set_vf_rate_limit(&adapter->hw, i,
+		                      adapter->vf_data[i].tx_rate,
+		                      actual_link_speed);
+	}
+}
+
 static int igb_ndo_set_vf_bw(struct net_device *netdev, int vf, int tx_rate)
 {
-	return -EOPNOTSUPP;
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	int actual_link_speed;
+
+	if (hw->mac.type != e1000_82576)
+		return -EOPNOTSUPP;
+
+	actual_link_speed = igb_link_mbps(adapter->link_speed);
+	if ((vf >= adapter->vfs_allocated_count) ||
+	    (!(rd32(E1000_STATUS) & E1000_STATUS_LU)) ||
+	    (tx_rate < 0) || (tx_rate > actual_link_speed))
+		return -EINVAL;
+
+	adapter->vf_rate_link_speed = actual_link_speed;
+	adapter->vf_data[vf].tx_rate = (u16)tx_rate;
+	igb_set_vf_rate_limit(hw, vf, tx_rate, actual_link_speed);
+
+	return 0;
 }
 
 static int igb_ndo_get_vf_config(struct net_device *netdev,
@@ -6612,7 +6696,7 @@ static int igb_ndo_get_vf_config(struct net_device *netdev,
 		return -EINVAL;
 	ivi->vf = vf;
 	memcpy(&ivi->mac, adapter->vf_data[vf].vf_mac_addresses, ETH_ALEN);
-	ivi->tx_rate = 0;
+	ivi->tx_rate = adapter->vf_data[vf].tx_rate;
 	ivi->vlan = adapter->vf_data[vf].pf_vlan;
 	ivi->qos = adapter->vf_data[vf].pf_qos;
 	return 0;
