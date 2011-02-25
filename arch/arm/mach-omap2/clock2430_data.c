@@ -433,37 +433,23 @@ static struct clk dsp_fck = {
 	.recalc		= &omap2_clksel_recalc,
 };
 
-/* DSP interface clock */
-static const struct clksel_rate dsp_irate_ick_rates[] = {
-	{ .div = 1, .val = 1, .flags = RATE_IN_24XX },
-	{ .div = 2, .val = 2, .flags = RATE_IN_24XX },
-	{ .div = 3, .val = 3, .flags = RATE_IN_243X },
-	{ .div = 0 },
-};
-
-static const struct clksel dsp_irate_ick_clksel[] = {
-	{ .parent = &dsp_fck, .rates = dsp_irate_ick_rates },
+static const struct clksel dsp_ick_clksel[] = {
+	{ .parent = &dsp_fck, .rates = dsp_ick_rates },
 	{ .parent = NULL }
-};
-
-/* This clock does not exist as such in the TRM. */
-static struct clk dsp_irate_ick = {
-	.name		= "dsp_irate_ick",
-	.ops		= &clkops_null,
-	.parent		= &dsp_fck,
-	.clksel_reg	= OMAP_CM_REGADDR(OMAP24XX_DSP_MOD, CM_CLKSEL),
-	.clksel_mask	= OMAP24XX_CLKSEL_DSP_IF_MASK,
-	.clksel		= dsp_irate_ick_clksel,
-	.recalc		= &omap2_clksel_recalc,
 };
 
 /* 2430 only - EN_DSP controls both dsp fclk and iclk on 2430 */
 static struct clk iva2_1_ick = {
 	.name		= "iva2_1_ick",
 	.ops		= &clkops_omap2_dflt_wait,
-	.parent		= &dsp_irate_ick,
+	.parent		= &dsp_fck,
+	.clkdm_name	= "dsp_clkdm",
 	.enable_reg	= OMAP_CM_REGADDR(OMAP24XX_DSP_MOD, CM_FCLKEN),
 	.enable_bit	= OMAP24XX_CM_FCLKEN_DSP_EN_DSP_SHIFT,
+	.clksel_reg	= OMAP_CM_REGADDR(OMAP24XX_DSP_MOD, CM_CLKSEL),
+	.clksel_mask	= OMAP24XX_CLKSEL_DSP_IF_MASK,
+	.clksel		= dsp_ick_clksel,
+	.recalc		= &omap2_clksel_recalc,
 };
 
 /*
@@ -1900,7 +1886,6 @@ static struct omap_clk omap2430_clks[] = {
 	CLK(NULL,	"mpu_ck",	&mpu_ck,	CK_243X),
 	/* dsp domain clocks */
 	CLK(NULL,	"dsp_fck",	&dsp_fck,	CK_243X),
-	CLK(NULL,	"dsp_irate_ick", &dsp_irate_ick, CK_243X),
 	CLK(NULL,	"iva2_1_ick",	&iva2_1_ick,	CK_243X),
 	/* GFX domain clocks */
 	CLK(NULL,	"gfx_3d_fck",	&gfx_3d_fck,	CK_243X),
