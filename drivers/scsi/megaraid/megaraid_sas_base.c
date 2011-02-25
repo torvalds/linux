@@ -2503,7 +2503,9 @@ megasas_deplete_reply_queue(struct megasas_instance *instance,
 	if ((mfiStatus = instance->instancet->clear_intr(
 						instance->reg_set)
 						) == 0) {
-		return IRQ_NONE;
+		/* Hardware may not set outbound_intr_status in MSI-X mode */
+		if (!instance->msi_flag)
+			return IRQ_NONE;
 	}
 
 	instance->mfiStatus = mfiStatus;
