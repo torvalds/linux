@@ -1666,10 +1666,13 @@ static int e1000_link_test(struct e1000_adapter *adapter, u64 *data)
 	} else {
 		hw->mac.ops.check_for_link(hw);
 		if (hw->mac.autoneg)
-			msleep(4000);
+			/*
+			 * On some Phy/switch combinations, link establishment
+			 * can take a few seconds more than expected.
+			 */
+			msleep(5000);
 
-		if (!(er32(STATUS) &
-		      E1000_STATUS_LU))
+		if (!(er32(STATUS) & E1000_STATUS_LU))
 			*data = 1;
 	}
 	return *data;
