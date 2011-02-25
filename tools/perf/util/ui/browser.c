@@ -157,6 +157,20 @@ void ui_browser__add_exit_keys(struct ui_browser *self, int keys[])
 	}
 }
 
+void __ui_browser__show_title(struct ui_browser *browser, const char *title)
+{
+	SLsmg_gotorc(0, 0);
+	ui_browser__set_color(browser, NEWT_COLORSET_ROOT);
+	slsmg_write_nstring(title, browser->width);
+}
+
+void ui_browser__show_title(struct ui_browser *browser, const char *title)
+{
+	pthread_mutex_lock(&ui__lock);
+	__ui_browser__show_title(browser, title);
+	pthread_mutex_unlock(&ui__lock);
+}
+
 int ui_browser__show(struct ui_browser *self, const char *title,
 		     const char *helpline, ...)
 {
@@ -180,9 +194,7 @@ int ui_browser__show(struct ui_browser *self, const char *title,
 		return -1;
 
 	pthread_mutex_lock(&ui__lock);
-	SLsmg_gotorc(0, 0);
-	ui_browser__set_color(self, NEWT_COLORSET_ROOT);
-	slsmg_write_nstring(title, self->width);
+	__ui_browser__show_title(self, title);
 
 	ui_browser__add_exit_keys(self, keys);
 	newtFormAddComponent(self->form, self->sb);
