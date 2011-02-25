@@ -814,23 +814,6 @@ static void __init prcm_setup_regs(void)
 	omap_ctrl_writel(OMAP3430_AUTOIDLE_MASK, OMAP2_CONTROL_SYSCONFIG);
 
 	/*
-	 * Set all plls to autoidle. This is needed until autoidle is
-	 * enabled by clockfw
-	 */
-	omap2_cm_write_mod_reg(1 << OMAP3430_AUTO_IVA2_DPLL_SHIFT,
-			 OMAP3430_IVA2_MOD, CM_AUTOIDLE2);
-	omap2_cm_write_mod_reg(1 << OMAP3430_AUTO_MPU_DPLL_SHIFT,
-			 MPU_MOD,
-			 CM_AUTOIDLE2);
-	omap2_cm_write_mod_reg((1 << OMAP3430_AUTO_PERIPH_DPLL_SHIFT) |
-			 (1 << OMAP3430_AUTO_CORE_DPLL_SHIFT),
-			 PLL_MOD,
-			 CM_AUTOIDLE);
-	omap2_cm_write_mod_reg(1 << OMAP3430ES2_AUTO_PERIPH2_DPLL_SHIFT,
-			 PLL_MOD,
-			 CM_AUTOIDLE2);
-
-	/*
 	 * Enable control of expternal oscillator through
 	 * sys_clkreq. In the long run clock framework should
 	 * take care of this.

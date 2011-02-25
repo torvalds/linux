@@ -446,6 +446,7 @@ static int __init clk_disable_unused(void)
 	return 0;
 }
 late_initcall(clk_disable_unused);
+late_initcall(omap_clk_enable_autoidle_all);
 #endif
 
 int __init clk_init(struct clk_functions * custom_clocks)
