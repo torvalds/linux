@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -68,6 +68,7 @@ do { \
 #define FL_CACHEABLE		(1 << 3)
 #define FL_TEX0			(1 << 12)
 #define FL_OFFSET(va)		(((va) & 0xFFF00000) >> 20)
+#define FL_NG			(1 << 17)
 
 /* Second-level page table bits */
 #define SL_BASE_MASK_LARGE	0xFFFF0000
@@ -81,6 +82,7 @@ do { \
 #define SL_CACHEABLE		(1 << 3)
 #define SL_TEX0			(1 << 6)
 #define SL_OFFSET(va)		(((va) & 0xFF000) >> 12)
+#define SL_NG			(1 << 11)
 
 /* Memory type and cache policy attributes */
 #define MT_SO			0

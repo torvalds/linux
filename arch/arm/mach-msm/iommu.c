@@ -137,7 +137,6 @@ static void __reset_context(void __iomem *base, int ctx)
 	SET_TLBLKCR(base, ctx, 0);
 	SET_PRRR(base, ctx, 0);
 	SET_NMRR(base, ctx, 0);
-	SET_CONTEXTIDR(base, ctx, 0);
 }
 
 static void __program_context(void __iomem *base, int ctx, phys_addr_t pgtable)
@@ -418,11 +417,11 @@ static int msm_iommu_map(struct iommu_domain *domain, unsigned long va,
 		for (i = 0; i < 16; i++)
 			*(fl_pte+i) = (pa & 0xFF000000) | FL_SUPERSECTION |
 				  FL_AP_READ | FL_AP_WRITE | FL_TYPE_SECT |
-				  FL_SHARED | pgprot;
+				  FL_SHARED | FL_NG | pgprot;
 	}
 
 	if (len == SZ_1M)
-		*fl_pte = (pa & 0xFFF00000) | FL_AP_READ | FL_AP_WRITE |
+		*fl_pte = (pa & 0xFFF00000) | FL_AP_READ | FL_AP_WRITE | FL_NG |
 					    FL_TYPE_SECT | FL_SHARED | pgprot;
 
 	/* Need a 2nd level table */
@@ -447,7 +446,7 @@ static int msm_iommu_map(struct iommu_domain *domain, unsigned long va,
 
 
 	if (len == SZ_4K)
-		*sl_pte = (pa & SL_BASE_MASK_SMALL) | SL_AP0 | SL_AP1 |
+		*sl_pte = (pa & SL_BASE_MASK_SMALL) | SL_AP0 | SL_AP1 | SL_NG |
 					  SL_SHARED | SL_TYPE_SMALL | pgprot;
 
 	if (len == SZ_64K) {
@@ -455,7 +454,7 @@ static int msm_iommu_map(struct iommu_domain *domain, unsigned long va,
 
 		for (i = 0; i < 16; i++)
 			*(sl_pte+i) = (pa & SL_BASE_MASK_LARGE) | SL_AP0 |
-				SL_AP1 | SL_SHARED | SL_TYPE_LARGE | pgprot;
+			    SL_NG | SL_AP1 | SL_SHARED | SL_TYPE_LARGE | pgprot;
 	}
 
 	ret = __flush_iotlb(domain);

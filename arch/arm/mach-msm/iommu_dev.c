@@ -330,14 +330,17 @@ static int msm_iommu_ctx_probe(struct platform_device *pdev)
 		SET_M2VCBR_N(drvdata->base, mid, 0);
 		SET_CBACR_N(drvdata->base, c->num, 0);
 
-		/* Set VMID = MID */
-		SET_VMID(drvdata->base, mid, mid);
+		/* Set VMID = 0 */
+		SET_VMID(drvdata->base, mid, 0);
 
 		/* Set the context number for that MID to this context */
 		SET_CBNDX(drvdata->base, mid, c->num);
 
-		/* Set MID associated with this context bank */
-		SET_CBVMID(drvdata->base, c->num, mid);
+		/* Set MID associated with this context bank to 0*/
+		SET_CBVMID(drvdata->base, c->num, 0);
+
+		/* Set the ASID for TLB tagging for this context */
+		SET_CONTEXTIDR_ASID(drvdata->base, c->num, c->num);
 
 		/* Set security bit override to be Non-secure */
 		SET_NSCFG(drvdata->base, mid, 3);
