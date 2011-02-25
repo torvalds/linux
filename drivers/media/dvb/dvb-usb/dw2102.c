@@ -495,10 +495,10 @@ static int s6x0_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	for (j = 0; j < num; j++) {
 		switch (msg[j].addr) {
 		case (DW2102_RC_QUERY): {
-			u8 ibuf[4];
+			u8 ibuf[5];
 			ret  = dw210x_op_rw(d->udev, 0xb8, 0, 0,
-					ibuf, 4, DW210X_READ_MSG);
-			memcpy(msg[j].buf, ibuf + 1, 2);
+					ibuf, 5, DW210X_READ_MSG);
+			memcpy(msg[j].buf, ibuf + 3, 2);
 			break;
 		}
 		case (DW2102_VOLTAGE_CTRL): {
@@ -1123,6 +1123,7 @@ static int stv0288_frontend_attach(struct dvb_usb_adapter *d)
 static int ds3000_frontend_attach(struct dvb_usb_adapter *d)
 {
 	struct s6x0_state *st = (struct s6x0_state *)d->dev->priv;
+	u8 obuf[] = {7, 1};
 
 	d->fe = dvb_attach(ds3000_attach, &dw2104_ds3000_config,
 			&d->dev->i2c_adap);
@@ -1132,6 +1133,9 @@ static int ds3000_frontend_attach(struct dvb_usb_adapter *d)
 
 	st->old_set_voltage = d->fe->ops.set_voltage;
 	d->fe->ops.set_voltage = s660_set_voltage;
+
+	dw210x_op_rw(d->dev->udev, 0x8a, 0, 0, obuf, 2, DW210X_WRITE_MSG);
+
 	info("Attached ds3000+ds2020!\n");
 
 	return 0;
