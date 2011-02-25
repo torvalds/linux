@@ -928,8 +928,9 @@ static struct fc_lport *fcoe_if_create(struct fcoe_interface *fcoe,
 				       struct device *parent, int npiv)
 {
 	struct net_device *netdev = fcoe->netdev;
-	struct fc_lport *lport = NULL;
+	struct fc_lport *lport, *n_port;
 	struct fcoe_port *port;
+	struct Scsi_Host *shost;
 	int rc;
 	/*
 	 * parent is only a vport if npiv is 1,
@@ -939,13 +940,11 @@ static struct fc_lport *fcoe_if_create(struct fcoe_interface *fcoe,
 
 	FCOE_NETDEV_DBG(netdev, "Create Interface\n");
 
-	if (!npiv) {
-		lport = libfc_host_alloc(&fcoe_shost_template,
-					 sizeof(struct fcoe_port));
-	} else	{
-		lport = libfc_vport_create(vport,
-					   sizeof(struct fcoe_port));
-	}
+	if (!npiv)
+		lport = libfc_host_alloc(&fcoe_shost_template, sizeof(*port));
+	else
+		lport = libfc_vport_create(vport, sizeof(*port));
+
 	if (!lport) {
 		FCOE_NETDEV_DBG(netdev, "Could not allocate host structure\n");
 		rc = -ENOMEM;
@@ -998,24 +997,27 @@ static struct fc_lport *fcoe_if_create(struct fcoe_interface *fcoe,
 		goto out_lp_destroy;
 	}
 
-	if (!npiv) {
-		/*
-		 * fcoe_em_alloc() and fcoe_hostlist_add() both
-		 * need to be atomic with respect to other changes to the
-		 * hostlist since fcoe_em_alloc() looks for an existing EM
-		 * instance on host list updated by fcoe_hostlist_add().
-		 *
-		 * This is currently handled through the fcoe_config_mutex
-		 * begin held.
-		 */
-
+	/*
+	 * fcoe_em_alloc() and fcoe_hostlist_add() both
+	 * need to be atomic with respect to other changes to the
+	 * hostlist since fcoe_em_alloc() looks for an existing EM
+	 * instance on host list updated by fcoe_hostlist_add().
+	 *
+	 * This is currently handled through the fcoe_config_mutex
+	 * begin held.
+	 */
+	if (!npiv)
 		/* lport exch manager allocation */
 		rc = fcoe_em_config(lport);
-		if (rc) {
-			FCOE_NETDEV_DBG(netdev, "Could not configure the EM "
-					"for the interface\n");
-			goto out_lp_destroy;
-		}
+	else {
+		shost = vport_to_shost(vport);
+		n_port = shost_priv(shost);
+		rc = fc_exch_mgr_list_clone(n_port, lport);
+	}
+
+	if (rc) {
+		FCOE_NETDEV_DBG(netdev, "Could not configure the EM\n");
+		goto out_lp_destroy;
 	}
 
 	fcoe_interface_get(fcoe);

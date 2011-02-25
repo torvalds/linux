@@ -2175,6 +2175,7 @@ err:
 		fc_exch_mgr_del(ema);
 	return -ENOMEM;
 }
+EXPORT_SYMBOL(fc_exch_mgr_list_clone);
 
 /**
  * fc_exch_mgr_alloc() - Allocate an exchange manager
