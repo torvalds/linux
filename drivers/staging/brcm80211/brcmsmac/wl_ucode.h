@@ -17,27 +17,27 @@
 #define MIN_FW_SIZE 40000	/* minimum firmware file size in bytes */
 #define MAX_FW_SIZE 150000
 
-typedef struct d11init {
+#define UCODE_LOADER_API_VER 0
+
+struct d11init {
 	u16 addr;
 	u16 size;
 	u32 value;
-} d11init_t;
+};
 
-extern d11init_t *d11lcn0bsinitvals24;
-extern d11init_t *d11lcn0initvals24;
-extern d11init_t *d11lcn1bsinitvals24;
-extern d11init_t *d11lcn1initvals24;
-extern d11init_t *d11lcn2bsinitvals24;
-extern d11init_t *d11lcn2initvals24;
-extern d11init_t *d11n0absinitvals16;
-extern d11init_t *d11n0bsinitvals16;
-extern d11init_t *d11n0initvals16;
+extern struct d11init *d11lcn0bsinitvals24;
+extern struct d11init *d11lcn0initvals24;
+extern struct d11init *d11lcn1bsinitvals24;
+extern struct d11init *d11lcn1initvals24;
+extern struct d11init *d11lcn2bsinitvals24;
+extern struct d11init *d11lcn2initvals24;
+extern struct d11init *d11n0absinitvals16;
+extern struct d11init *d11n0bsinitvals16;
+extern struct d11init *d11n0initvals16;
 extern u32 *bcm43xx_16_mimo;
 extern u32 bcm43xx_16_mimosz;
 extern u32 *bcm43xx_24_lcn;
 extern u32 bcm43xx_24_lcnsz;
-extern u32 *bcm43xx_bommajor;
-extern u32 *bcm43xx_bomminor;
 
 extern int wl_ucode_data_init(struct wl_info *wl);
 extern void wl_ucode_data_free(void);

@@ -52,7 +52,6 @@
 #include "wlc_mac80211.h"
 #include "wl_export.h"
 #include "wl_ucode.h"
-#include "d11ucode_ext.h"
 #include "wlc_antsel.h"
 #include "pcie_core.h"
 #include "wlc_alloc.h"
@@ -103,7 +102,8 @@ static void wlc_clkctl_clk(struct wlc_hw_info *wlc, uint mode);
 static void wlc_coreinit(struct wlc_info *wlc);
 
 /* used by wlc_wakeucode_init() */
-static void wlc_write_inits(struct wlc_hw_info *wlc_hw, const d11init_t *inits);
+static void wlc_write_inits(struct wlc_hw_info *wlc_hw,
+			    const struct d11init *inits);
 static void wlc_ucode_write(struct wlc_hw_info *wlc_hw, const u32 ucode[],
 			    const uint nbytes);
 static void wlc_ucode_download(struct wlc_hw_info *wlc);
@@ -2672,7 +2672,8 @@ static void wlc_ucode_write(struct wlc_hw_info *wlc_hw, const u32 ucode[],
 		W_REG(osh, &regs->objdata, ucode[i]);
 }
 
-static void wlc_write_inits(struct wlc_hw_info *wlc_hw, const d11init_t *inits)
+static void wlc_write_inits(struct wlc_hw_info *wlc_hw,
+			    const struct d11init *inits)
 {
 	int i;
 	struct osl_info *osh;

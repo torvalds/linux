@@ -16,20 +16,36 @@
 
 #include <linux/types.h>
 #include <bcmdefs.h>
-#include <d11ucode_ext.h>
 #include <wl_ucode.h>
 
+enum {
+	D11UCODE_NAMETAG_START = 0,
+	D11LCN0BSINITVALS24,
+	D11LCN0INITVALS24,
+	D11LCN1BSINITVALS24,
+	D11LCN1INITVALS24,
+	D11LCN2BSINITVALS24,
+	D11LCN2INITVALS24,
+	D11N0ABSINITVALS16,
+	D11N0BSINITVALS16,
+	D11N0INITVALS16,
+	D11UCODE_OVERSIGHT16_MIMO,
+	D11UCODE_OVERSIGHT16_MIMOSZ,
+	D11UCODE_OVERSIGHT24_LCN,
+	D11UCODE_OVERSIGHT24_LCNSZ,
+	D11UCODE_OVERSIGHT_BOMMAJOR,
+	D11UCODE_OVERSIGHT_BOMMINOR
+};
 
-
-d11init_t *d11lcn0bsinitvals24;
-d11init_t *d11lcn0initvals24;
-d11init_t *d11lcn1bsinitvals24;
-d11init_t *d11lcn1initvals24;
-d11init_t *d11lcn2bsinitvals24;
-d11init_t *d11lcn2initvals24;
-d11init_t *d11n0absinitvals16;
-d11init_t *d11n0bsinitvals16;
-d11init_t *d11n0initvals16;
+struct d11init *d11lcn0bsinitvals24;
+struct d11init *d11lcn0initvals24;
+struct d11init *d11lcn1bsinitvals24;
+struct d11init *d11lcn1initvals24;
+struct d11init *d11lcn2bsinitvals24;
+struct d11init *d11lcn2initvals24;
+struct d11init *d11n0absinitvals16;
+struct d11init *d11n0bsinitvals16;
+struct d11init *d11n0initvals16;
 u32 *bcm43xx_16_mimo;
 u32 bcm43xx_16_mimosz;
 u32 *bcm43xx_24_lcn;

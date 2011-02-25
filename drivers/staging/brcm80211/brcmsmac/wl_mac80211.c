@@ -47,7 +47,6 @@
 #include "wl_dbg.h"
 #include "wl_export.h"
 #include "wl_ucode.h"
-#include "d11ucode_ext.h"
 #include "wl_mac80211.h"
 
 static void wl_timer(unsigned long data);

@@ -49,7 +49,6 @@
 #include "wlc_stf.h"
 #include "wlc_ampdu.h"
 #include "wl_export.h"
-#include "d11ucode_ext.h"
 #include "wlc_alloc.h"
 #include "wl_dbg.h"
 
