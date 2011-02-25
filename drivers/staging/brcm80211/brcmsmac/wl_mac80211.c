@@ -78,6 +78,12 @@ static int wl_start(struct sk_buff *skb, struct wl_info *wl);
 static int wl_start_int(struct wl_info *wl, struct ieee80211_hw *hw,
 			struct sk_buff *skb);
 static void wl_dpc(unsigned long data);
+static irqreturn_t wl_isr(int irq, void *dev_id);
+
+static int __devinit wl_pci_probe(struct pci_dev *pdev,
+				  const struct pci_device_id *ent);
+static void wl_remove(struct pci_dev *pdev);
+static void wl_free(struct wl_info *wl);
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN driver.");
@@ -93,8 +99,6 @@ static struct pci_device_id wl_id_table[] = {
 };
 
 MODULE_DEVICE_TABLE(pci, wl_id_table);
-static void wl_remove(struct pci_dev *pdev);
-
 
 #ifdef BCMDBG
 static int msglevel = 0xdeadbeef;
@@ -105,6 +109,8 @@ module_param(phymsglevel, int, 0);
 
 #define HW_TO_WL(hw)	 (hw->priv)
 #define WL_TO_HW(wl)	  (wl->pub->ieee_hw)
+
+/* MAC80211 callback functions */
 static int wl_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
 static int wl_ops_start(struct ieee80211_hw *hw);
 static void wl_ops_stop(struct ieee80211_hw *hw);
@@ -1096,7 +1102,7 @@ static int ieee_hw_init(struct ieee80211_hw *hw)
  *
  * Perimeter lock is initialized in the course of this function.
  */
-int __devinit
+static int __devinit
 wl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int rc;
@@ -1334,7 +1340,7 @@ module_exit(wl_module_exit);
  * precondition: can both be called locked and unlocked
  *
  */
-void wl_free(struct wl_info *wl)
+static void wl_free(struct wl_info *wl)
 {
 	wl_timer_t *t, *next;
 	struct osl_info *osh;
@@ -1525,7 +1531,7 @@ void wl_down(struct wl_info *wl)
 	WL_LOCK(wl);
 }
 
-irqreturn_t BCMFASTPATH wl_isr(int irq, void *dev_id)
+static irqreturn_t BCMFASTPATH wl_isr(int irq, void *dev_id)
 {
 	struct wl_info *wl;
 	bool ours, wantdpc;

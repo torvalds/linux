@@ -88,21 +88,4 @@ struct wl_info {
 #define INT_LOCK(wl, flags)	spin_lock_irqsave(&(wl)->isr_lock, flags)
 #define INT_UNLOCK(wl, flags)	spin_unlock_irqrestore(&(wl)->isr_lock, flags)
 
-#ifndef PCI_D0
-#define PCI_D0		0
-#endif
-
-#ifndef PCI_D3hot
-#define PCI_D3hot	3
-#endif
-
-/* exported functions */
-
-extern irqreturn_t wl_isr(int irq, void *dev_id);
-
-extern int __devinit wl_pci_probe(struct pci_dev *pdev,
-				  const struct pci_device_id *ent);
-extern void wl_free(struct wl_info *wl);
-extern int wl_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
-
 #endif				/* _wl_mac80211_h_ */

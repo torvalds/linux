@@ -13,6 +13,8 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#ifndef _wlc_bmac_h_
+#define _wlc_bmac_h_
 
 /* XXXXX this interface is under wlc.c by design
  * http://hwnbu-twiki.broadcom.com/bin/view/Mwgroup/WlBmacDesign
@@ -77,30 +79,13 @@ enum {
 	IOV_BMAC_LAST
 };
 
-typedef enum {
-	BMAC_DUMP_GPIO_ID,
-	BMAC_DUMP_SI_ID,
-	BMAC_DUMP_SIREG_ID,
-	BMAC_DUMP_SICLK_ID,
-	BMAC_DUMP_CCREG_ID,
-	BMAC_DUMP_PCIEREG_ID,
-	BMAC_DUMP_PHYREG_ID,
-	BMAC_DUMP_PHYTBL_ID,
-	BMAC_DUMP_PHYTBL2_ID,
-	BMAC_DUMP_PHY_RADIOREG_ID,
-	BMAC_DUMP_LAST
-} wlc_bmac_dump_id_t;
-
 extern int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device,
 			   uint unit, bool piomode, struct osl_info *osh,
 			   void *regsva, uint bustype, void *btparam);
 extern int wlc_bmac_detach(struct wlc_info *wlc);
 extern void wlc_bmac_watchdog(void *arg);
-extern void wlc_bmac_info_init(struct wlc_hw_info *wlc_hw);
 
 /* up/down, reset, clk */
-extern void wlc_bmac_xtal(struct wlc_hw_info *wlc_hw, bool want);
-
 extern void wlc_bmac_copyto_objmem(struct wlc_hw_info *wlc_hw,
 				   uint offset, const void *buf, int len,
 				   u32 sel);
@@ -111,7 +96,6 @@ extern void wlc_bmac_copyfrom_objmem(struct wlc_hw_info *wlc_hw, uint offset,
 #define wlc_bmac_copyto_shm(wlc_hw, offset, buf, len)                   \
 	wlc_bmac_copyto_objmem(wlc_hw, offset, buf, len, OBJADDR_SHM_SEL)
 
-extern void wlc_bmac_core_phy_clk(struct wlc_hw_info *wlc_hw, bool clk);
 extern void wlc_bmac_core_phypll_reset(struct wlc_hw_info *wlc_hw);
 extern void wlc_bmac_core_phypll_ctl(struct wlc_hw_info *wlc_hw, bool on);
 extern void wlc_bmac_phyclk_fgc(struct wlc_hw_info *wlc_hw, bool clk);
@@ -125,17 +109,13 @@ extern int wlc_bmac_up_prep(struct wlc_hw_info *wlc_hw);
 extern int wlc_bmac_up_finish(struct wlc_hw_info *wlc_hw);
 extern int wlc_bmac_down_prep(struct wlc_hw_info *wlc_hw);
 extern int wlc_bmac_down_finish(struct wlc_hw_info *wlc_hw);
-extern void wlc_bmac_corereset(struct wlc_hw_info *wlc_hw, u32 flags);
 extern void wlc_bmac_switch_macfreq(struct wlc_hw_info *wlc_hw, u8 spurmode);
 
 /* chanspec, ucode interface */
-extern int wlc_bmac_bandtype(struct wlc_hw_info *wlc_hw);
 extern void wlc_bmac_set_chanspec(struct wlc_hw_info *wlc_hw,
 				  chanspec_t chanspec,
 				  bool mute, struct txpwr_limits *txpwr);
 
-extern void wlc_bmac_txfifo(struct wlc_hw_info *wlc_hw, uint fifo, void *p,
-			    bool commit, u16 frameid, u8 txpktpend);
 extern int wlc_bmac_xmtfifo_sz_get(struct wlc_hw_info *wlc_hw, uint fifo,
 				   uint *blocks);
 extern void wlc_bmac_mhf(struct wlc_hw_info *wlc_hw, u8 idx, u16 mask,
@@ -157,22 +137,14 @@ extern void wlc_bmac_write_template_ram(struct wlc_hw_info *wlc_hw, int offset,
 extern void wlc_bmac_copyfrom_vars(struct wlc_hw_info *wlc_hw, char **buf,
 				   uint *len);
 
-extern void wlc_bmac_process_ps_switch(struct wlc_hw_info *wlc,
-				       struct ether_addr *ea, s8 ps_on);
 extern void wlc_bmac_hw_etheraddr(struct wlc_hw_info *wlc_hw,
 				  u8 *ea);
-extern bool wlc_bmac_validate_chip_access(struct wlc_hw_info *wlc_hw);
 
 extern bool wlc_bmac_radio_read_hwdisabled(struct wlc_hw_info *wlc_hw);
 extern void wlc_bmac_set_shortslot(struct wlc_hw_info *wlc_hw, bool shortslot);
-extern void wlc_bmac_mute(struct wlc_hw_info *wlc_hw, bool want, mbool flags);
 extern void wlc_bmac_band_stf_ss_set(struct wlc_hw_info *wlc_hw, u8 stf_mode);
 
 extern void wlc_bmac_wait_for_wake(struct wlc_hw_info *wlc_hw);
-extern bool wlc_bmac_tx_fifo_suspended(struct wlc_hw_info *wlc_hw,
-				       uint tx_fifo);
-extern void wlc_bmac_tx_fifo_suspend(struct wlc_hw_info *wlc_hw, uint tx_fifo);
-extern void wlc_bmac_tx_fifo_resume(struct wlc_hw_info *wlc_hw, uint tx_fifo);
 
 extern void wlc_ucode_wake_override_set(struct wlc_hw_info *wlc_hw,
 					u32 override_bit);
@@ -206,13 +178,7 @@ extern void wlc_bmac_pllreq(struct wlc_hw_info *wlc_hw, bool set,
 			    mbool req_bit);
 extern bool wlc_bmac_taclear(struct wlc_hw_info *wlc_hw, bool ta_ok);
 extern void wlc_bmac_hw_up(struct wlc_hw_info *wlc_hw);
-
-extern void wlc_bmac_dump(struct wlc_hw_info *wlc_hw, struct bcmstrbuf *b,
-			  wlc_bmac_dump_id_t dump_id);
-
 extern u16 wlc_bmac_rate_shm_offset(struct wlc_hw_info *wlc_hw, u8 rate);
-
-extern void wlc_bmac_assert_type_set(struct wlc_hw_info *wlc_hw, u32 type);
-extern void wlc_bmac_blink_sync(struct wlc_hw_info *wlc_hw, u32 led_pins);
-
 extern void wlc_bmac_antsel_set(struct wlc_hw_info *wlc_hw, u32 antsel_avail);
+
+#endif /* _wlc_bmac_h_ */

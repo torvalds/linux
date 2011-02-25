@@ -253,6 +253,7 @@ static ratespec_t mac80211_wlc_set_nrate(struct wlc_info *wlc,
 static void wlc_tx_prec_map_init(struct wlc_info *wlc);
 static void wlc_watchdog(void *arg);
 static void wlc_watchdog_by_timer(void *arg);
+static u16 wlc_rate_shm_offset(struct wlc_info *wlc, u8 rate);
 static int wlc_set_rateset(struct wlc_info *wlc, wlc_rateset_t *rs_arg);
 static int wlc_iovar_rangecheck(struct wlc_info *wlc, u32 val,
 				const bcm_iovar_t *vi);
@@ -5051,7 +5052,7 @@ int wlc_format_ssid(char *buf, const unsigned char ssid[], uint ssid_len)
 }
 #endif				/* defined(BCMDBG) */
 
-u16 wlc_rate_shm_offset(struct wlc_info *wlc, u8 rate)
+static u16 wlc_rate_shm_offset(struct wlc_info *wlc, u8 rate)
 {
 	return wlc_bmac_rate_shm_offset(wlc->hw, rate);
 }

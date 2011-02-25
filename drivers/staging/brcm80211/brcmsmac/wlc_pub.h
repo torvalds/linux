@@ -150,18 +150,6 @@ struct rsn_parms {
 	IEEE80211_HT_CAP_SUP_WIDTH_20_40 | IEEE80211_HT_CAP_GRN_FLD |\
 	HT_CAP_MAX_AMSDU | IEEE80211_HT_CAP_DSSSCCK40)
 
-/* Event data type */
-typedef struct wlc_event {
-	wl_event_msg_t event;	/* encapsulated event */
-	struct ether_addr *addr;	/* used to keep a trace of the potential present of
-					 * an address in wlc_event_msg_t
-					 */
-	int bsscfgidx;		/* BSS config when needed */
-	struct wl_if *wlif;	/* pointer to wlif */
-	void *data;		/* used to hang additional data on an event */
-	struct wlc_event *next;	/* enables ordered list of pending events */
-} wlc_event_t;
-
 /* wlc internal bss_info, wl external one is in wlioctl.h */
 typedef struct wlc_bss_info {
 	u8 BSSID[ETH_ALEN];	/* network BSSID */
@@ -570,13 +558,8 @@ extern int wlc_module_register(struct wlc_pub *pub, const bcm_iovar_t *iovars,
 			       watchdog_fn_t watchdog_fn, down_fn_t down_fn);
 extern int wlc_module_unregister(struct wlc_pub *pub, const char *name,
 				 void *hdl);
-extern void wlc_event_if(struct wlc_info *wlc, struct wlc_bsscfg *cfg,
-			 wlc_event_t *e, const struct ether_addr *addr);
 extern void wlc_suspend_mac_and_wait(struct wlc_info *wlc);
 extern void wlc_enable_mac(struct wlc_info *wlc);
-extern u16 wlc_rate_shm_offset(struct wlc_info *wlc, u8 rate);
-extern u32 wlc_get_rspec_history(struct wlc_bsscfg *cfg);
-extern u32 wlc_get_current_highest_rate(struct wlc_bsscfg *cfg);
 extern void wlc_associate_upd(struct wlc_info *wlc, bool state);
 extern void wlc_scan_start(struct wlc_info *wlc);
 extern void wlc_scan_stop(struct wlc_info *wlc);
@@ -607,20 +590,12 @@ extern int wlc_iocpichk(struct wlc_info *wlc, uint phytype);
 #endif
 
 /* helper functions */
-extern void wlc_getrand(struct wlc_info *wlc, u8 *buf, int len);
-
-struct scb;
-extern void wlc_ps_on(struct wlc_info *wlc, struct scb *scb);
-extern void wlc_ps_off(struct wlc_info *wlc, struct scb *scb, bool discard);
 extern bool wlc_check_radio_disabled(struct wlc_info *wlc);
 extern bool wlc_radio_monitor_stop(struct wlc_info *wlc);
 
 #if defined(BCMDBG)
 extern int wlc_format_ssid(char *buf, const unsigned char ssid[], uint ssid_len);
 #endif
-
-extern void wlc_pmkid_build_cand_list(struct wlc_bsscfg *cfg, bool check_SSID);
-extern void wlc_pmkid_event(struct wlc_bsscfg *cfg);
 
 #define	MAXBANDS		2	/* Maximum #of bands */
 /* bandstate array indices */

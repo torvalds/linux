@@ -107,27 +107,10 @@ typedef struct wlc_cm_info wlc_cm_info_t;
 extern wlc_cm_info_t *wlc_channel_mgr_attach(struct wlc_info *wlc);
 extern void wlc_channel_mgr_detach(wlc_cm_info_t *wlc_cm);
 
-extern int wlc_set_countrycode(wlc_cm_info_t *wlc_cm, const char *ccode);
-extern int wlc_set_countrycode_rev(wlc_cm_info_t *wlc_cm,
-				   const char *country_abbrev,
-				   const char *ccode, int regrev);
-
 extern u8 wlc_channel_locale_flags_in_band(wlc_cm_info_t *wlc_cm,
-					      uint bandunit);
-
-extern void wlc_quiet_channels_reset(wlc_cm_info_t *wlc_cm);
-extern bool wlc_quiet_chanspec(wlc_cm_info_t *wlc_cm, chanspec_t chspec);
-
-#define	VALID_CHANNEL20_DB(wlc, val) wlc_valid_channel20_db((wlc)->cmi, val)
-#define	VALID_CHANNEL20_IN_BAND(wlc, bandunit, val) \
-	wlc_valid_channel20_in_band((wlc)->cmi, bandunit, val)
-#define	VALID_CHANNEL20(wlc, val) wlc_valid_channel20((wlc)->cmi, val)
+					   uint bandunit);
 
 extern bool wlc_valid_chanspec_db(wlc_cm_info_t *wlc_cm, chanspec_t chspec);
-extern bool wlc_valid_channel20_db(wlc_cm_info_t *wlc_cm, uint val);
-extern bool wlc_valid_channel20_in_band(wlc_cm_info_t *wlc_cm, uint bandunit,
-					uint val);
-extern bool wlc_valid_channel20(wlc_cm_info_t *wlc_cm, uint val);
 
 extern void wlc_channel_reg_limits(wlc_cm_info_t *wlc_cm,
 				   chanspec_t chanspec,
@@ -135,15 +118,5 @@ extern void wlc_channel_reg_limits(wlc_cm_info_t *wlc_cm,
 extern void wlc_channel_set_chanspec(wlc_cm_info_t *wlc_cm,
 				     chanspec_t chanspec,
 				     u8 local_constraint_qdbm);
-
-extern const country_info_t *wlc_country_lookup(struct wlc_info *wlc,
-						const char *ccode);
-extern void wlc_locale_get_channels(const locale_info_t *locale,
-				    chanvec_t *valid_channels);
-extern const locale_info_t *wlc_get_locale_2g(u8 locale_idx);
-extern const locale_info_t *wlc_get_locale_5g(u8 locale_idx);
-extern bool wlc_japan(struct wlc_info *wlc);
-
-extern u8 wlc_get_regclass(wlc_cm_info_t *wlc_cm, chanspec_t chanspec);
 
 #endif				/* _WLC_CHANNEL_H */

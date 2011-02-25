@@ -130,20 +130,30 @@ static void wlc_flushqueues(struct wlc_info *wlc);
 static void wlc_write_mhf(struct wlc_hw_info *wlc_hw, u16 *mhfs);
 static void wlc_mctrl_reset(struct wlc_hw_info *wlc_hw);
 static void wlc_corerev_fifofixup(struct wlc_hw_info *wlc_hw);
+static bool wlc_bmac_tx_fifo_suspended(struct wlc_hw_info *wlc_hw,
+				       uint tx_fifo);
+static void wlc_bmac_tx_fifo_suspend(struct wlc_hw_info *wlc_hw, uint tx_fifo);
+static void wlc_bmac_tx_fifo_resume(struct wlc_hw_info *wlc_hw, uint tx_fifo);
 
 /* Low Level Prototypes */
+static int wlc_bmac_bandtype(struct wlc_hw_info *wlc_hw);
+static void wlc_bmac_info_init(struct wlc_hw_info *wlc_hw);
+static void wlc_bmac_xtal(struct wlc_hw_info *wlc_hw, bool want);
 static u16 wlc_bmac_read_objmem(struct wlc_hw_info *wlc_hw, uint offset,
 				   u32 sel);
 static void wlc_bmac_write_objmem(struct wlc_hw_info *wlc_hw, uint offset,
 				  u16 v, u32 sel);
+static void wlc_bmac_core_phy_clk(struct wlc_hw_info *wlc_hw, bool clk);
 static bool wlc_bmac_attach_dmapio(struct wlc_info *wlc, uint j, bool wme);
 static void wlc_bmac_detach_dmapio(struct wlc_hw_info *wlc_hw);
 static void wlc_ucode_bsinit(struct wlc_hw_info *wlc_hw);
 static bool wlc_validboardtype(struct wlc_hw_info *wlc);
 static bool wlc_isgoodchip(struct wlc_hw_info *wlc_hw);
+static bool wlc_bmac_validate_chip_access(struct wlc_hw_info *wlc_hw);
 static char *wlc_get_macaddr(struct wlc_hw_info *wlc_hw);
 static void wlc_mhfdef(struct wlc_info *wlc, u16 *mhfs, u16 mhf2_init);
 static void wlc_mctrl_write(struct wlc_hw_info *wlc_hw);
+static void wlc_bmac_mute(struct wlc_hw_info *wlc_hw, bool want, mbool flags);
 static void wlc_ucode_mute_override_set(struct wlc_hw_info *wlc_hw);
 static void wlc_ucode_mute_override_clear(struct wlc_hw_info *wlc_hw);
 static u32 wlc_wlintrsoff(struct wlc_info *wlc);
@@ -984,7 +994,7 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
  * may get overrides later in this function
  *  BMAC_NOTES, move low out and resolve the dangling ones
  */
-void wlc_bmac_info_init(struct wlc_hw_info *wlc_hw)
+static void wlc_bmac_info_init(struct wlc_hw_info *wlc_hw)
 {
 	struct wlc_info *wlc = wlc_hw->wlc;
 
@@ -1276,7 +1286,7 @@ void wlc_bmac_hw_etheraddr(struct wlc_hw_info *wlc_hw, u8 *ea)
 	memcpy(ea, wlc_hw->etheraddr, ETH_ALEN);
 }
 
-int wlc_bmac_bandtype(struct wlc_hw_info *wlc_hw)
+static int wlc_bmac_bandtype(struct wlc_hw_info *wlc_hw)
 {
 	return wlc_hw->band->bandtype;
 }
@@ -1864,7 +1874,7 @@ WLBANDINITFN(wlc_bmac_bsinit) (struct wlc_info *wlc, chanspec_t chanspec)
 	wlc_bmac_upd_synthpu(wlc_hw);
 }
 
-void wlc_bmac_core_phy_clk(struct wlc_hw_info *wlc_hw, bool clk)
+static void wlc_bmac_core_phy_clk(struct wlc_hw_info *wlc_hw, bool clk)
 {
 	WL_TRACE("wl%d: wlc_bmac_core_phy_clk: clk %d\n", wlc_hw->unit, clk);
 
@@ -2863,7 +2873,7 @@ void wlc_intrsrestore(struct wlc_info *wlc, u32 macintmask)
 	W_REG(wlc_hw->osh, &wlc_hw->regs->macintmask, wlc->macintmask);
 }
 
-void wlc_bmac_mute(struct wlc_hw_info *wlc_hw, bool on, mbool flags)
+static void wlc_bmac_mute(struct wlc_hw_info *wlc_hw, bool on, mbool flags)
 {
 	u8 null_ether_addr[ETH_ALEN] = {0, 0, 0, 0, 0, 0};
 
@@ -2918,7 +2928,7 @@ int wlc_bmac_xmtfifo_sz_get(struct wlc_hw_info *wlc_hw, uint fifo, uint *blocks)
  * be pulling data into a tx fifo, by the time the MAC acks the suspend
  * request.
  */
-bool wlc_bmac_tx_fifo_suspended(struct wlc_hw_info *wlc_hw, uint tx_fifo)
+static bool wlc_bmac_tx_fifo_suspended(struct wlc_hw_info *wlc_hw, uint tx_fifo)
 {
 	/* check that a suspend has been requested and is no longer pending */
 
@@ -2937,7 +2947,7 @@ bool wlc_bmac_tx_fifo_suspended(struct wlc_hw_info *wlc_hw, uint tx_fifo)
 	return false;
 }
 
-void wlc_bmac_tx_fifo_suspend(struct wlc_hw_info *wlc_hw, uint tx_fifo)
+static void wlc_bmac_tx_fifo_suspend(struct wlc_hw_info *wlc_hw, uint tx_fifo)
 {
 	u8 fifo = 1 << tx_fifo;
 
@@ -2968,7 +2978,7 @@ void wlc_bmac_tx_fifo_suspend(struct wlc_hw_info *wlc_hw, uint tx_fifo)
 	}
 }
 
-void wlc_bmac_tx_fifo_resume(struct wlc_hw_info *wlc_hw, uint tx_fifo)
+static void wlc_bmac_tx_fifo_resume(struct wlc_hw_info *wlc_hw, uint tx_fifo)
 {
 	/* BMAC_NOTE: WLC_TX_FIFO_ENAB is done in wlc_dpc() for DMA case but need to be done
 	 * here for PIO otherwise the watchdog will catch the inconsistency and fire
@@ -3380,7 +3390,7 @@ wlc_bmac_read_tsf(struct wlc_hw_info *wlc_hw, u32 *tsf_l_ptr,
 	return;
 }
 
-bool wlc_bmac_validate_chip_access(struct wlc_hw_info *wlc_hw)
+static bool wlc_bmac_validate_chip_access(struct wlc_hw_info *wlc_hw)
 {
 	d11regs_t *regs;
 	u32 w, val;
@@ -3542,7 +3552,7 @@ void wlc_coredisable(struct wlc_hw_info *wlc_hw)
 }
 
 /* power both the pll and external oscillator on/off */
-void wlc_bmac_xtal(struct wlc_hw_info *wlc_hw, bool want)
+static void wlc_bmac_xtal(struct wlc_hw_info *wlc_hw, bool want)
 {
 	WL_TRACE("wl%d: wlc_bmac_xtal: want %d\n", wlc_hw->unit, want);
 

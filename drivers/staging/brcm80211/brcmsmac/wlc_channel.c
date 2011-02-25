@@ -34,6 +34,11 @@
 #include <wlc_channel.h>
 #include <wl_dbg.h>
 
+#define	VALID_CHANNEL20_DB(wlc, val) wlc_valid_channel20_db((wlc)->cmi, val)
+#define	VALID_CHANNEL20_IN_BAND(wlc, bandunit, val) \
+	wlc_valid_channel20_in_band((wlc)->cmi, bandunit, val)
+#define	VALID_CHANNEL20(wlc, val) wlc_valid_channel20((wlc)->cmi, val)
+
 typedef struct wlc_cm_band {
 	u8 locale_flags;	/* locale_info_t flags */
 	chanvec_t valid_channels;	/* List of valid channels in the country */
@@ -62,6 +67,10 @@ static void wlc_set_country_common(wlc_cm_info_t *wlc_cm,
 				   const char *country_abbrev,
 				   const char *ccode, uint regrev,
 				   const country_info_t *country);
+static int wlc_set_countrycode(wlc_cm_info_t *wlc_cm, const char *ccode);
+static int wlc_set_countrycode_rev(wlc_cm_info_t *wlc_cm,
+				   const char *country_abbrev,
+				   const char *ccode, int regrev);
 static int wlc_country_aggregate_map(wlc_cm_info_t *wlc_cm, const char *ccode,
 				     char *mapped_ccode, uint *mapped_regrev);
 static const country_info_t *wlc_country_lookup_direct(const char *ccode,
@@ -71,6 +80,19 @@ static const country_info_t *wlc_countrycode_map(wlc_cm_info_t *wlc_cm,
 						 char *mapped_ccode,
 						 uint *mapped_regrev);
 static void wlc_channels_commit(wlc_cm_info_t *wlc_cm);
+static void wlc_quiet_channels_reset(wlc_cm_info_t *wlc_cm);
+static bool wlc_quiet_chanspec(wlc_cm_info_t *wlc_cm, chanspec_t chspec);
+static bool wlc_valid_channel20_db(wlc_cm_info_t *wlc_cm, uint val);
+static bool wlc_valid_channel20_in_band(wlc_cm_info_t *wlc_cm, uint bandunit,
+					uint val);
+static bool wlc_valid_channel20(wlc_cm_info_t *wlc_cm, uint val);
+static const country_info_t *wlc_country_lookup(struct wlc_info *wlc,
+						const char *ccode);
+static void wlc_locale_get_channels(const locale_info_t *locale,
+				    chanvec_t *valid_channels);
+static const locale_info_t *wlc_get_locale_2g(u8 locale_idx);
+static const locale_info_t *wlc_get_locale_5g(u8 locale_idx);
+static bool wlc_japan(struct wlc_info *wlc);
 static bool wlc_japan_ccode(const char *ccode);
 static void wlc_channel_min_txpower_limits_with_local_constraint(wlc_cm_info_t *
 								 wlc_cm,
@@ -377,7 +399,8 @@ void wlc_locale_add_channels(chanvec_t *target, const chanvec_t *channels)
 	}
 }
 
-void wlc_locale_get_channels(const locale_info_t *locale, chanvec_t *channels)
+static void wlc_locale_get_channels(const locale_info_t *locale,
+				    chanvec_t *channels)
 {
 	u8 i;
 
@@ -563,7 +586,7 @@ struct chan20_info chan20_info[] = {
 };
 #endif				/* SUPPORT_40MHZ */
 
-const locale_info_t *wlc_get_locale_2g(u8 locale_idx)
+static const locale_info_t *wlc_get_locale_2g(u8 locale_idx)
 {
 	if (locale_idx >= ARRAY_SIZE(g_locale_2g_table)) {
 		WL_ERROR("%s: locale 2g index size out of range %d\n",
@@ -574,7 +597,7 @@ const locale_info_t *wlc_get_locale_2g(u8 locale_idx)
 	return g_locale_2g_table[locale_idx];
 }
 
-const locale_info_t *wlc_get_locale_5g(u8 locale_idx)
+static const locale_info_t *wlc_get_locale_5g(u8 locale_idx)
 {
 	if (locale_idx >= ARRAY_SIZE(g_locale_5g_table)) {
 		WL_ERROR("%s: locale 5g index size out of range %d\n",
@@ -665,14 +688,14 @@ u8 wlc_channel_locale_flags_in_band(wlc_cm_info_t *wlc_cm, uint bandunit)
 /* set the driver's current country and regulatory information using a country code
  * as the source. Lookup built in country information found with the country code.
  */
-int wlc_set_countrycode(wlc_cm_info_t *wlc_cm, const char *ccode)
+static int wlc_set_countrycode(wlc_cm_info_t *wlc_cm, const char *ccode)
 {
 	char country_abbrev[WLC_CNTRY_BUF_SZ];
 	strncpy(country_abbrev, ccode, WLC_CNTRY_BUF_SZ);
 	return wlc_set_countrycode_rev(wlc_cm, country_abbrev, ccode, -1);
 }
 
-int
+static int
 wlc_set_countrycode_rev(wlc_cm_info_t *wlc_cm,
 			const char *country_abbrev,
 			const char *ccode, int regrev)
@@ -767,7 +790,7 @@ wlc_set_country_common(wlc_cm_info_t *wlc_cm,
 /* Lookup a country info structure from a null terminated country code
  * The lookup is case sensitive.
  */
-const country_info_t *wlc_country_lookup(struct wlc_info *wlc,
+static const country_info_t *wlc_country_lookup(struct wlc_info *wlc,
 					 const char *ccode)
 {
 	const country_info_t *country;
@@ -970,7 +993,7 @@ static void wlc_channels_commit(wlc_cm_info_t *wlc_cm)
 }
 
 /* reset the quiet channels vector to the union of the restricted and radar channel sets */
-void wlc_quiet_channels_reset(wlc_cm_info_t *wlc_cm)
+static void wlc_quiet_channels_reset(wlc_cm_info_t *wlc_cm)
 {
 	struct wlc_info *wlc = wlc_cm->wlc;
 	uint i, j;
@@ -991,7 +1014,7 @@ void wlc_quiet_channels_reset(wlc_cm_info_t *wlc_cm)
 	}
 }
 
-bool wlc_quiet_chanspec(wlc_cm_info_t *wlc_cm, chanspec_t chspec)
+static bool wlc_quiet_chanspec(wlc_cm_info_t *wlc_cm, chanspec_t chspec)
 {
 	return N_ENAB(wlc_cm->wlc->pub) && CHSPEC_IS40(chspec) ?
 		(isset
@@ -1008,7 +1031,7 @@ bool wlc_quiet_chanspec(wlc_cm_info_t *wlc_cm, chanspec_t chspec)
 /* Is the channel valid for the current locale? (but don't consider channels not
  *   available due to bandlocking)
  */
-bool wlc_valid_channel20_db(wlc_cm_info_t *wlc_cm, uint val)
+static bool wlc_valid_channel20_db(wlc_cm_info_t *wlc_cm, uint val)
 {
 	struct wlc_info *wlc = wlc_cm->wlc;
 
@@ -1018,7 +1041,7 @@ bool wlc_valid_channel20_db(wlc_cm_info_t *wlc_cm, uint val)
 }
 
 /* Is the channel valid for the current locale and specified band? */
-bool
+static bool
 wlc_valid_channel20_in_band(wlc_cm_info_t *wlc_cm, uint bandunit, uint val)
 {
 	return ((val < MAXCHANNEL)
@@ -1026,7 +1049,7 @@ wlc_valid_channel20_in_band(wlc_cm_info_t *wlc_cm, uint bandunit, uint val)
 }
 
 /* Is the channel valid for the current locale and current band? */
-bool wlc_valid_channel20(wlc_cm_info_t *wlc_cm, uint val)
+static bool wlc_valid_channel20(wlc_cm_info_t *wlc_cm, uint val)
 {
 	struct wlc_info *wlc = wlc_cm->wlc;
 
@@ -1470,7 +1493,7 @@ wlc_channel_reg_limits(wlc_cm_info_t *wlc_cm, chanspec_t chanspec,
 }
 
 /* Returns true if currently set country is Japan or variant */
-bool wlc_japan(struct wlc_info *wlc)
+static bool wlc_japan(struct wlc_info *wlc)
 {
 	return wlc_japan_ccode(wlc->cmi->country_abbrev);
 }

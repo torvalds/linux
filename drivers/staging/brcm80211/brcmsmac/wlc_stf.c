@@ -39,6 +39,9 @@
 #include <wlc_stf.h>
 #include <wl_dbg.h>
 
+#define MIN_SPATIAL_EXPANSION	0
+#define MAX_SPATIAL_EXPANSION	1
+
 #define WLC_STF_SS_STBC_RX(wlc) (WLCISNPHY(wlc->band) && \
 	NREV_GT(wlc->band->phyrev, 3) && NREV_LE(wlc->band->phyrev, 6))
 

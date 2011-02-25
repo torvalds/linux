@@ -17,9 +17,6 @@
 #ifndef _wlc_stf_h_
 #define _wlc_stf_h_
 
-#define MIN_SPATIAL_EXPANSION	0
-#define MAX_SPATIAL_EXPANSION	1
-
 extern int wlc_stf_attach(struct wlc_info *wlc);
 extern void wlc_stf_detach(struct wlc_info *wlc);
 
@@ -37,6 +34,5 @@ extern void wlc_stf_phy_txant_upd(struct wlc_info *wlc);
 extern void wlc_stf_phy_chain_calc(struct wlc_info *wlc);
 extern u16 wlc_stf_phytxchain_sel(struct wlc_info *wlc, ratespec_t rspec);
 extern u16 wlc_stf_d11hdrs_phyctl_txant(struct wlc_info *wlc, ratespec_t rspec);
-extern u16 wlc_stf_spatial_expansion_get(struct wlc_info *wlc,
-					 ratespec_t rspec);
+
 #endif				/* _wlc_stf_h_ */

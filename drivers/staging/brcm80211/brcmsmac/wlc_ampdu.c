@@ -154,6 +154,8 @@ static void wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu,
 					  struct scb *scb,
 					  struct sk_buff *p, tx_status_t *txs,
 					  u32 frmtxstatus, u32 frmtxstatus2);
+static bool wlc_ampdu_cap(struct ampdu_info *ampdu);
+static int wlc_ampdu_set(struct ampdu_info *ampdu, bool on);
 
 struct ampdu_info *wlc_ampdu_attach(struct wlc_info *wlc)
 {
@@ -1227,7 +1229,7 @@ static scb_ampdu_tid_ini_t *wlc_ampdu_init_tid_ini(struct ampdu_info *ampdu,
 	return ini;
 }
 
-int wlc_ampdu_set(struct ampdu_info *ampdu, bool on)
+static int wlc_ampdu_set(struct ampdu_info *ampdu, bool on)
 {
 	struct wlc_info *wlc = ampdu->wlc;
 
@@ -1250,7 +1252,7 @@ int wlc_ampdu_set(struct ampdu_info *ampdu, bool on)
 	return 0;
 }
 
-bool wlc_ampdu_cap(struct ampdu_info *ampdu)
+static bool wlc_ampdu_cap(struct ampdu_info *ampdu)
 {
 	if (WLC_PHY_11N_CAP(ampdu->wlc->band))
 		return true;

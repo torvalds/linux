@@ -26,9 +26,6 @@ extern uint wl_reset(struct wl_info *wl);
 extern void wl_intrson(struct wl_info *wl);
 extern u32 wl_intrsoff(struct wl_info *wl);
 extern void wl_intrsrestore(struct wl_info *wl, u32 macintmask);
-extern void wl_event(struct wl_info *wl, char *ifname, wlc_event_t *e);
-extern void wl_event_sendup(struct wl_info *wl, const wlc_event_t *e,
-			    u8 *data, u32 len);
 extern int wl_up(struct wl_info *wl);
 extern void wl_down(struct wl_info *wl);
 extern void wl_txflowcontrol(struct wl_info *wl, struct wl_if *wlif, bool state,

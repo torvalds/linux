@@ -31,6 +31,8 @@
 #include <wlc_alloc.h>
 #include <wl_dbg.h>
 
+static struct wlc_bsscfg *wlc_bsscfg_malloc(struct osl_info *osh, uint unit);
+static void wlc_bsscfg_mfree(struct osl_info *osh, struct wlc_bsscfg *cfg);
 static struct wlc_pub *wlc_pub_malloc(struct osl_info *osh, uint unit,
 				      uint *err, uint devid);
 static void wlc_pub_mfree(struct osl_info *osh, struct wlc_pub *pub);
@@ -114,7 +116,7 @@ static void wlc_pub_mfree(struct osl_info *osh, struct wlc_pub *pub)
 	kfree(pub);
 }
 
-wlc_bsscfg_t *wlc_bsscfg_malloc(struct osl_info *osh, uint unit)
+static wlc_bsscfg_t *wlc_bsscfg_malloc(struct osl_info *osh, uint unit)
 {
 	wlc_bsscfg_t *cfg;
 
@@ -134,7 +136,7 @@ wlc_bsscfg_t *wlc_bsscfg_malloc(struct osl_info *osh, uint unit)
 	return NULL;
 }
 
-void wlc_bsscfg_mfree(struct osl_info *osh, wlc_bsscfg_t *cfg)
+static void wlc_bsscfg_mfree(struct osl_info *osh, wlc_bsscfg_t *cfg)
 {
 	if (cfg == NULL)
 		return;
