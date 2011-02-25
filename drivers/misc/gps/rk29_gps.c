@@ -12,9 +12,6 @@
 #include <mach/iomux.h>
 #include <linux/platform_device.h>
 #include "rk29_gps.h"
-#ifdef CONFIG_HAS_EARLYSUSPEND
-#include <linux/earlysuspend.h>
-#endif
 #if 0
 #define DBG(x...)	printk(KERN_INFO x)
 #else
@@ -25,13 +22,13 @@
 #define DISABLE 0
 
 static struct rk29_gps_data *pgps;
-static struct early_suspend gps_early_suspend;
 
-static void rk29_gps_early_suspend(struct early_suspend *h)
+
+int rk29_gps_suspend(struct platform_device *pdev,  pm_message_t state)
 {
-	struct rk29_gps_data *pdata = pgps;
+	struct rk29_gps_data *pdata = pdev->dev.platform_data;
 	if(!pdata)
-	return;
+	return -1;
 		
 	if(pdata->uart_id == 3)
 	{
@@ -57,14 +54,14 @@ static void rk29_gps_early_suspend(struct early_suspend *h)
 	}
 	
 	printk("%s\n",__FUNCTION__);
-	
+	return 0;	
 }
 
-static void rk29_gps_early_resume(struct early_suspend *h)
+int rk29_gps_resume(struct platform_device *pdev)
 {
-	struct rk29_gps_data *pdata = pgps;
+	struct rk29_gps_data *pdata = pdev->dev.platform_data;
 	if(!pdata)
-	return;
+	return -1;
 	
 	if(pdata->uart_id == 3)
 	{
@@ -84,8 +81,9 @@ static void rk29_gps_early_resume(struct early_suspend *h)
 	}
 	
 	printk("%s\n",__FUNCTION__);
-	
+	return 0;
 }
+
 int rk29_gps_open(struct inode *inode, struct file *filp)
 {
     	DBG("rk29_gps_open\n");
@@ -158,12 +156,6 @@ static int rk29_gps_probe(struct platform_device *pdev)
 	pdata->power_up();
 	pgps = pdata;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	gps_early_suspend.suspend = rk29_gps_early_suspend;
-	gps_early_suspend.resume = rk29_gps_early_resume;
-	gps_early_suspend.level = ~0x0;
-	register_early_suspend(&gps_early_suspend);
-#endif
 
 	printk("%s:rk29 GPS initialized\n",__FUNCTION__);
 
@@ -172,6 +164,8 @@ static int rk29_gps_probe(struct platform_device *pdev)
 
 static struct platform_driver rk29_gps_driver = {
 	.probe	= rk29_gps_probe,
+	.suspend  	= rk29_gps_suspend,
+	.resume		= rk29_gps_resume,
 	.driver	= {
 		.name	= "rk29_gps",
 		.owner	= THIS_MODULE,
