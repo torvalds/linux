@@ -52,6 +52,7 @@
 
 #include "devices.h"
 #include "../../../drivers/input/touchscreen/xpt2046_cbn_ts.h"
+#include "../../../drivers/misc/gps/rk29_gps.h"
 
 
 /* Set memory size of pmem */
@@ -403,6 +404,55 @@ static struct mma8452_platform_data mma8452_info = {
 #endif
 
 
+#if defined(CONFIG_RK29_GPS)
+
+#define 	RK29_GPS_POWER_PIN 		RK29_PIN6_PB2
+#define 	RK29_GPS_RESET_PIN	  	RK29_PIN6_PC1
+
+static int gps_open =0;
+
+int rk29_gps_power_up(void)
+{	
+	gps_open = 1;	
+	printk("%s \n", __FUNCTION__);  
+       gpio_request(RK29_GPS_POWER_PIN, NULL);    
+	gpio_direction_output(RK29_GPS_POWER_PIN, GPIO_HIGH);	
+	gpio_request(RK29_GPS_RESET_PIN, NULL);        
+	gpio_direction_output(RK29_GPS_RESET_PIN, GPIO_LOW);	  
+	rk29_mux_api_set(GPIO2B3_UART3SOUT_NAME, GPIO2L_UART3_SOUT);
+	rk29_mux_api_set(GPIO2B2_UART3SIN_NAME, GPIO2L_UART3_SIN); 	
+	mdelay(100);	
+	gpio_direction_output(RK29_GPS_RESET_PIN, GPIO_HIGH);		
+	return 0;
+}
+
+int rk29_gps_power_down(void)
+{	
+	gps_open =0;	
+	printk("%s \n", __FUNCTION__);	
+	gpio_direction_output(RK29_GPS_POWER_PIN, GPIO_LOW);		
+	mdelay(100);	  
+	gpio_direction_output(RK29_GPS_RESET_PIN, GPIO_LOW);	//uart1	
+	return 0;
+}
+
+
+struct rk29_gps_data rk29_gps_info = {	
+	.power_up = rk29_gps_power_up,	
+	.power_down = rk29_gps_power_down,	
+	.uart_id = 3,
+	.powerpin = RK29_GPS_POWER_PIN,
+	.powerflag = 1,
+	};
+
+struct platform_device rk29_device_gps = {
+	.name = "rk29_gps",
+	.id = -1,		
+	.dev		= {
+	.platform_data = &rk29_gps_info,	
+		}    	    
+	};
+#endif
 
 /*****************************************************************************************
  * i2c devices

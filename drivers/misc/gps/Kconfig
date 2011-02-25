@@ -1,0 +1,19 @@
+#
+# gps device configuration
+#
+
+menuconfig RK29_GPS
+	bool "RK29 support GPS"
+	default n
+	---help---
+	 Say Y here if you have a support modem
+
+if RK29_GPS
+
+config GPS_GNS7560
+	bool "gns7560 support"
+	default n
+
+endif # RK29_GPS
+
+
