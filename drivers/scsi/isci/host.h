@@ -105,7 +105,6 @@ struct isci_host {
 	spinlock_t state_lock;
 
 	struct pci_dev *pdev;
-	u8 sas_addr[SAS_ADDR_SIZE];
 
 	enum isci_status status;
 	#define IHOST_START_PENDING 0

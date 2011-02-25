@@ -209,7 +209,7 @@ static int isci_register_sas_ha(struct isci_host *isci_host)
 
 	sas_ha->sas_ha_name = DRV_NAME;
 	sas_ha->lldd_module = THIS_MODULE;
-	sas_ha->sas_addr    = &(isci_host->sas_addr[0]);
+	sas_ha->sas_addr    = &isci_host->phys[0].sas_addr[0];
 
 	/* set the array of phy and port structs.  */
 	for (i = 0; i < SCI_MAX_PHYS; i++) {

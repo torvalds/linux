@@ -192,6 +192,7 @@ void isci_port_link_up(
 	scic_port_get_properties(port, &properties);
 
 	if (properties.remote.protocols.u.bits.stp_target) {
+		u64 attached_sas_address;
 
 		struct scic_sata_phy_properties sata_phy_properties;
 
@@ -220,17 +221,13 @@ void isci_port_link_up(
 		 * will not be the same as assigned to the PHY and needs
 		 * to be obtained from struct scic_port_properties properties.
 		 */
+		attached_sas_address = properties.remote.sas_address.high;
+		attached_sas_address <<= 32;
+		attached_sas_address |= properties.remote.sas_address.low;
+		swab64s(&attached_sas_address);
 
-		BUG_ON(((size_t)SAS_ADDR_SIZE / 2)
-		       != sizeof(properties.remote.sas_address.low));
-
-		memcpy(&isci_phy->sas_phy.attached_sas_addr[0],
-		       &properties.remote.sas_address.low,
-		       SAS_ADDR_SIZE / 2);
-
-		memcpy(&isci_phy->sas_phy.attached_sas_addr[4],
-		       &properties.remote.sas_address.high,
-		       SAS_ADDR_SIZE / 2);
+		memcpy(&isci_phy->sas_phy.attached_sas_addr,
+		       &attached_sas_address, sizeof(attached_sas_address));
 
 	} else if (properties.remote.protocols.u.bits.ssp_target ||
 		   properties.remote.protocols.u.bits.smp_target) {

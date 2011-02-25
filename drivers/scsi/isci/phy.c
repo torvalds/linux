@@ -75,14 +75,15 @@ void isci_phy_init(
 	struct isci_host *isci_host,
 	int index)
 {
-	struct scic_sds_controller *controller = isci_host->core_controller;
+	struct scic_sds_controller *scic = isci_host->core_controller;
 	struct scic_sds_phy *scic_phy;
-	union scic_oem_parameters oem_parameters;
+	union scic_oem_parameters oem;
 	enum sci_status status = SCI_SUCCESS;
+	u64 sas_addr;
 
 	/*--------------- SCU_Phy Initialization Stuff -----------------------*/
 
-	status = scic_controller_get_phy_handle(controller, index, &scic_phy);
+	status = scic_controller_get_phy_handle(scic, index, &scic_phy);
 	if (status == SCI_SUCCESS) {
 		sci_object_set_association(scic_phy, (void *)phy);
 		phy->sci_phy_handle = scic_phy;
@@ -90,24 +91,13 @@ void isci_phy_init(
 		dev_err(&isci_host->pdev->dev,
 			"failed scic_controller_get_phy_handle\n");
 
-	scic_oem_parameters_get(controller, &oem_parameters);
+	scic_oem_parameters_get(scic, &oem);
+	sas_addr = oem.sds1.phys[index].sas_address.high;
+	sas_addr <<= 32;
+	sas_addr |= oem.sds1.phys[index].sas_address.low;
+	swab64s(&sas_addr);
 
-	phy->sas_addr[0] =  oem_parameters.sds1.phys[index].sas_address.low
-			   & 0xFF;
-	phy->sas_addr[1] = (oem_parameters.sds1.phys[index].sas_address.low
-			    >> 8)   & 0xFF;
-	phy->sas_addr[2] = (oem_parameters.sds1.phys[index].sas_address.low
-			    >> 16)  & 0xFF;
-	phy->sas_addr[3] = (oem_parameters.sds1.phys[index].sas_address.low
-			    >> 24)  & 0xFF;
-	phy->sas_addr[4] =  oem_parameters.sds1.phys[index].sas_address.high
-			   & 0xFF;
-	phy->sas_addr[5] = (oem_parameters.sds1.phys[index].sas_address.high
-			    >> 8)  & 0xFF;
-	phy->sas_addr[6] = (oem_parameters.sds1.phys[index].sas_address.high
-			    >> 16) & 0xFF;
-	phy->sas_addr[7] = (oem_parameters.sds1.phys[index].sas_address.high
-			    >> 24) & 0xFF;
+	memcpy(phy->sas_addr, &sas_addr, sizeof(sas_addr));
 
 	phy->isci_port = NULL;
 	phy->sas_phy.enabled = 0;

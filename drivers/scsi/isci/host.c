@@ -517,11 +517,6 @@ int isci_host_init(struct isci_host *isci_host)
 	for (index = 0; index < SCI_MAX_PHYS; index++)
 		isci_phy_init(&isci_host->phys[index], isci_host, index);
 
-	/* Why are we doing this? Is this even necessary? */
-	memcpy(&isci_host->sas_addr[0],
-	       &isci_host->phys[0].sas_addr[0],
-	       SAS_ADDR_SIZE);
-
 	/* Start the ports */
 	for (index = 0; index < SCI_MAX_PORTS; index++) {
 		scic_controller_get_port_handle(controller, index, &scic_port);
