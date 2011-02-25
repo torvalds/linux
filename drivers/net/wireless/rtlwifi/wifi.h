@@ -34,6 +34,7 @@
 #include <linux/firmware.h>
 #include <linux/version.h>
 #include <linux/etherdevice.h>
+#include <linux/vmalloc.h>
 #include <linux/usb.h>
 #include <net/mac80211.h>
 #include "debug.h"
