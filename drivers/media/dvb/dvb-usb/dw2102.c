@@ -1464,11 +1464,6 @@ static int dw2102_load_firmware(struct usb_device *dev,
 		}
 		/* init registers */
 		switch (dev->descriptor.idProduct) {
-		case USB_PID_PROF_1100:
-			s6x0_properties.rc.legacy.rc_map_table = rc_map_tbs_table;
-			s6x0_properties.rc.legacy.rc_map_size =
-					ARRAY_SIZE(rc_map_tbs_table);
-			break;
 		case USB_PID_TEVII_S650:
 			dw2104_properties.rc.legacy.rc_map_table = rc_map_tevii_table;
 			dw2104_properties.rc.legacy.rc_map_size =
