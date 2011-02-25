@@ -613,7 +613,7 @@ failed:
 static int remove_uuid(struct sock *sk, unsigned char *data, u16 len)
 {
 	struct list_head *p, *n;
-	struct mgmt_cp_add_uuid *cp;
+	struct mgmt_cp_remove_uuid *cp;
 	struct hci_dev *hdev;
 	u8 bt_uuid_any[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 	u16 dev_id;
