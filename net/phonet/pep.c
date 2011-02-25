@@ -849,6 +849,7 @@ drop:
 	return err;
 }
 
+#ifndef CONFIG_PHONET_PIPECTRLR
 static int pipe_do_remove(struct sock *sk)
 {
 	struct pep_sock *pn = pep_sk(sk);
@@ -870,6 +871,7 @@ static int pipe_do_remove(struct sock *sk)
 
 	return pn_skb_send(sk, skb, NULL);
 }
+#endif
 
 /* associated socket ceases to exist */
 static void pep_sock_close(struct sock *sk, long timeout)
