@@ -311,7 +311,7 @@ static struct platform_device rk29_v4l2_output_devce = {
 /*HANNSTAR_P1003 touch*/
 #if defined (CONFIG_HANNSTAR_P1003)
 #define TOUCH_RESET_PIN RK29_PIN6_PC3
-#define TOUCH_INT_PIN   RK29_PIN0_PA2
+#define TOUCH_INT_PIN   RK29_PIN4_PD5
 
 int p1003_init_platform_hw(void)
 {
@@ -345,7 +345,7 @@ struct p1003_platform_data p1003_info = {
 #endif
 #if defined (CONFIG_EETI_EGALAX)
 #define TOUCH_RESET_PIN RK29_PIN6_PC3
-#define TOUCH_INT_PIN   RK29_PIN0_PA2
+#define TOUCH_INT_PIN   RK29_PIN4_PD5
 
 static int EETI_EGALAX_init_platform_hw(void)
 {
@@ -379,7 +379,7 @@ static struct eeti_egalax_platform_data eeti_egalax_info = {
 #endif
 /*MMA8452 gsensor*/
 #if defined (CONFIG_GS_MMA8452)
-#define MMA8452_INT_PIN   RK29_PIN0_PA3
+#define MMA8452_INT_PIN   RK29_PIN6_PC4
 
 static int mma8452_init_platform_hw(void)
 {
@@ -549,6 +549,14 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.irq            = RK29_PIN4_PD3,
 	},
 #endif
+#if defined (CONFIG_ANX7150)
+    {
+		.type           = "anx7150",
+        .addr           = 0x39,             //0x39, 0x3d
+        .flags          = 0,
+        .irq            = RK29_PIN2_PA3,
+    },
+#endif
 };
 #endif
 
@@ -560,14 +568,6 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 		.addr			= 0x40,
 		.flags			= 0,
 	},
-#endif
-#if defined (CONFIG_ANX7150)
-    {
-		.type           = "anx7150",
-        .addr           = 0x39,             //0x39, 0x3d
-        .flags          = 0,
-        .irq            = RK29_PIN1_PD7,
-    },
 #endif
 
 };
@@ -589,7 +589,7 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
       .type           = "egalax_i2c",
       .addr           = 0x04,
       .flags          = 0,
-      .irq            = RK29_PIN0_PA2,
+      .irq            = RK29_PIN4_PD5,
       .platform_data  = &eeti_egalax_info,
     },
 #endif
@@ -1184,7 +1184,7 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 #define RK29SDK_WIFI_BT_GPIO_POWER_N       RK29_PIN5_PD6
 #define RK29SDK_WIFI_GPIO_RESET_N          RK29_PIN6_PC0
-#define RK29SDK_BT_GPIO_RESET_N            RK29_PIN6_PC4
+#define RK29SDK_BT_GPIO_RESET_N            RK29_PIN6_PC7
 
 static int rk29sdk_wifi_cd = 0;   /* wifi virtual 'card detect' status */
 static void (*wifi_status_cb)(int card_present, void *dev_id);
@@ -1573,9 +1573,10 @@ static struct platform_device *devices[] __initdata = {
 #endif
 };
 
+#ifdef CONFIG_RK29_VMAC
 /*****************************************************************************************
- * spi devices
- * author: cmc@rock-chips.com
+ * vmac devices
+ * author: lyx@rock-chips.com
  *****************************************************************************************/
 static int rk29_vmac_register_set(void)
 {
@@ -1634,6 +1635,7 @@ struct rk29_vmac_platform_data rk29_vmac_pdata = {
 	.rmii_io_deinit = rk29_rmii_io_deinit,
 	.rmii_power_control = rk29_rmii_power_control,
 };
+#endif
 
 /*****************************************************************************************
  * spi devices
