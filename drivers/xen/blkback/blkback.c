@@ -84,31 +84,34 @@ typedef struct {
 	struct list_head free_list;
 } pending_req_t;
 
-static pending_req_t *pending_reqs;
-static struct list_head pending_free;
-static DEFINE_SPINLOCK(pending_free_lock);
-static DECLARE_WAIT_QUEUE_HEAD(pending_free_wq);
-
 #define BLKBACK_INVALID_HANDLE (~0)
 
-static struct page **pending_pages;
-static grant_handle_t *pending_grant_handles;
+struct xen_blkbk {
+	pending_req_t	*pending_reqs;
+	struct list_head	pending_free;
+	spinlock_t		pending_free_lock;
+	wait_queue_head_t	pending_free_wq;
+	struct page		**pending_pages;
+	grant_handle_t		*pending_grant_handles;
+};
+
+static struct xen_blkbk *blkbk;
 
 static inline int vaddr_pagenr(pending_req_t *req, int seg)
 {
-	return (req - pending_reqs) * BLKIF_MAX_SEGMENTS_PER_REQUEST + seg;
+	return (req - blkbk->pending_reqs) * BLKIF_MAX_SEGMENTS_PER_REQUEST + seg;
 }
 
 #define pending_page(req, seg) pending_pages[vaddr_pagenr(req, seg)]
 
 static inline unsigned long vaddr(pending_req_t *req, int seg)
 {
-	unsigned long pfn = page_to_pfn(pending_page(req, seg));
+	unsigned long pfn = page_to_pfn(blkbk->pending_page(req, seg));
 	return (unsigned long)pfn_to_kaddr(pfn);
 }
 
 #define pending_handle(_req, _seg) \
-	(pending_grant_handles[vaddr_pagenr(_req, _seg)])
+	(blkbk->pending_grant_handles[vaddr_pagenr(_req, _seg)])
 
 
 static int do_block_io_op(blkif_t *blkif);
@@ -126,12 +129,12 @@ static pending_req_t* alloc_req(void)
 	pending_req_t *req = NULL;
 	unsigned long flags;
 
-	spin_lock_irqsave(&pending_free_lock, flags);
-	if (!list_empty(&pending_free)) {
-		req = list_entry(pending_free.next, pending_req_t, free_list);
+	spin_lock_irqsave(&blkbk->pending_free_lock, flags);
+	if (!list_empty(&blkbk->pending_free)) {
+		req = list_entry(blkbk->pending_free.next, pending_req_t, free_list);
 		list_del(&req->free_list);
 	}
-	spin_unlock_irqrestore(&pending_free_lock, flags);
+	spin_unlock_irqrestore(&blkbk->pending_free_lock, flags);
 	return req;
 }
 
@@ -140,12 +143,12 @@ static void free_req(pending_req_t *req)
 	unsigned long flags;
 	int was_empty;
 
-	spin_lock_irqsave(&pending_free_lock, flags);
-	was_empty = list_empty(&pending_free);
-	list_add(&req->free_list, &pending_free);
-	spin_unlock_irqrestore(&pending_free_lock, flags);
+	spin_lock_irqsave(&blkbk->pending_free_lock, flags);
+	was_empty = list_empty(&blkbk->pending_free);
+	list_add(&req->free_list, &blkbk->pending_free);
+	spin_unlock_irqrestore(&blkbk->pending_free_lock, flags);
 	if (was_empty)
-		wake_up(&pending_free_wq);
+		wake_up(&blkbk->pending_free_wq);
 }
 
 static void unplug_queue(blkif_t *blkif)
@@ -226,8 +229,8 @@ int blkif_schedule(void *arg)
 			blkif->wq,
 			blkif->waiting_reqs || kthread_should_stop());
 		wait_event_interruptible(
-			pending_free_wq,
-			!list_empty(&pending_free) || kthread_should_stop());
+			blkbk->pending_free_wq,
+			!list_empty(&blkbk->pending_free) || kthread_should_stop());
 
 		blkif->waiting_reqs = 0;
 		smp_mb(); /* clear flag *before* checking for work */
@@ -466,7 +469,7 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 			continue;
 
 		set_phys_to_machine(
-			page_to_pfn(pending_page(pending_req, i)),
+			page_to_pfn(blkbk->pending_page(pending_req, i)),
 			FOREIGN_FRAME(map[i].dev_bus_addr >> PAGE_SHIFT));
 		seg[i].buf  = map[i].dev_bus_addr |
 			(req->seg[i].first_sect << 9);
@@ -497,7 +500,7 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 
 		while ((bio == NULL) ||
 		       (bio_add_page(bio,
-				     pending_page(pending_req, i),
+				     blkbk->pending_page(pending_req, i),
 				     seg[i].nsec << 9,
 				     seg[i].buf & ~PAGE_MASK) == 0)) {
 			if (bio) {
@@ -624,31 +627,40 @@ static int __init blkif_init(void)
 	if (!xen_pv_domain())
 		return -ENODEV;
 
+	blkbk = (struct xen_blkbk *)vmalloc(sizeof(struct xen_blkbk));
+	if (!blkbk) {
+		printk(KERN_ALERT "%s: out of memory!\n", __func__);
+		return -ENOMEM;
+	}
+
 	mmap_pages = blkif_reqs * BLKIF_MAX_SEGMENTS_PER_REQUEST;
 
-	pending_reqs          = kmalloc(sizeof(pending_reqs[0]) *
+	blkbk->pending_reqs          = kmalloc(sizeof(blkbk->pending_reqs[0]) *
 					blkif_reqs, GFP_KERNEL);
-	pending_grant_handles = kmalloc(sizeof(pending_grant_handles[0]) *
+	blkbk->pending_grant_handles = kmalloc(sizeof(blkbk->pending_grant_handles[0]) *
 					mmap_pages, GFP_KERNEL);
-	pending_pages         = alloc_empty_pages_and_pagevec(mmap_pages);
+	blkbk->pending_pages         = alloc_empty_pages_and_pagevec(mmap_pages);
 
-	if (!pending_reqs || !pending_grant_handles || !pending_pages) {
+	if (!blkbk->pending_reqs || !blkbk->pending_grant_handles || !blkbk->pending_pages) {
 		rc = -ENOMEM;
 		goto out_of_memory;
 	}
 
 	for (i = 0; i < mmap_pages; i++)
-		pending_grant_handles[i] = BLKBACK_INVALID_HANDLE;
+		blkbk->pending_grant_handles[i] = BLKBACK_INVALID_HANDLE;
 
 	rc = blkif_interface_init();
 	if (rc)
 		goto failed_init;
 
-	memset(pending_reqs, 0, sizeof(pending_reqs));
-	INIT_LIST_HEAD(&pending_free);
+	memset(blkbk->pending_reqs, 0, sizeof(blkbk->pending_reqs));
+
+	INIT_LIST_HEAD(&blkbk->pending_free);
+	spin_lock_init(&blkbk->pending_free_lock);
+	init_waitqueue_head(&blkbk->pending_free_wq);
 
 	for (i = 0; i < blkif_reqs; i++)
-		list_add_tail(&pending_reqs[i].free_list, &pending_free);
+		list_add_tail(&blkbk->pending_reqs[i].free_list, &blkbk->pending_free);
 
 	rc = blkif_xenbus_init();
 	if (rc)
@@ -659,9 +671,11 @@ static int __init blkif_init(void)
  out_of_memory:
 	printk(KERN_ERR "%s: out of memory\n", __func__);
  failed_init:
-	kfree(pending_reqs);
-	kfree(pending_grant_handles);
-	free_empty_pages_and_pagevec(pending_pages, mmap_pages);
+	kfree(blkbk->pending_reqs);
+	kfree(blkbk->pending_grant_handles);
+	free_empty_pages_and_pagevec(blkbk->pending_pages, mmap_pages);
+	vfree(blkbk);
+	blkbk = NULL;
 	return rc;
 }
 
