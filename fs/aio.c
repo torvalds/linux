@@ -1642,6 +1642,23 @@ static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 		goto out_put_req;
 
 	spin_lock_irq(&ctx->ctx_lock);
+	/*
+	 * We could have raced with io_destroy() and are currently holding a
+	 * reference to ctx which should be destroyed. We cannot submit IO
+	 * since ctx gets freed as soon as io_submit() puts its reference.  The
+	 * check here is reliable: io_destroy() sets ctx->dead before waiting
+	 * for outstanding IO and the barrier between these two is realized by
+	 * unlock of mm->ioctx_lock and lock of ctx->ctx_lock.  Analogously we
+	 * increment ctx->reqs_active before checking for ctx->dead and the
+	 * barrier is realized by unlock and lock of ctx->ctx_lock. Thus if we
+	 * don't see ctx->dead set here, io_destroy() waits for our IO to
+	 * finish.
+	 */
+	if (ctx->dead) {
+		spin_unlock_irq(&ctx->ctx_lock);
+		ret = -EINVAL;
+		goto out_put_req;
+	}
 	aio_run_iocb(req);
 	if (!list_empty(&ctx->run_list)) {
 		/* drain the run list */
