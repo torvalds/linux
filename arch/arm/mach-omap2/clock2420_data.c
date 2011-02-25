@@ -987,6 +987,7 @@ static struct clk gpt7_ick = {
 	.name		= "gpt7_ick",
 	.ops		= &clkops_omap2_iclk_dflt_wait,
 	.parent		= &l4_ck,
+	.clkdm_name	= "core_l4_clkdm",
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_ICLKEN1),
 	.enable_bit	= OMAP24XX_EN_GPT7_SHIFT,
 	.recalc		= &followparent_recalc,
