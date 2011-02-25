@@ -43,6 +43,17 @@
 #include <linux/slab.h>
 #include <acpi/video.h>
 
+static void i915_write_hws_pga(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	u32 addr;
+
+	addr = dev_priv->status_page_dmah->busaddr;
+	if (INTEL_INFO(dev)->gen >= 4)
+		addr |= (dev_priv->status_page_dmah->busaddr >> 28) & 0xf0;
+	I915_WRITE(HWS_PGA, addr);
+}
+
 /**
  * Sets up the hardware status page for devices that need a physical address
  * in the register.
@@ -62,15 +73,11 @@ static int i915_init_phys_hws(struct drm_device *dev)
 	}
 	ring->status_page.page_addr =
 		(void __force __iomem *)dev_priv->status_page_dmah->vaddr;
-	dev_priv->dma_status_page = dev_priv->status_page_dmah->busaddr;
 
 	memset_io(ring->status_page.page_addr, 0, PAGE_SIZE);
 
-	if (INTEL_INFO(dev)->gen >= 4)
-		dev_priv->dma_status_page |= (dev_priv->dma_status_page >> 28) &
-					     0xf0;
+	i915_write_hws_pga(dev);
 
-	I915_WRITE(HWS_PGA, dev_priv->dma_status_page);
 	DRM_DEBUG_DRIVER("Enabled hardware status page\n");
 	return 0;
 }
@@ -217,7 +224,7 @@ static int i915_dma_resume(struct drm_device * dev)
 	if (ring->status_page.gfx_addr != 0)
 		intel_ring_setup_status_page(ring);
 	else
-		I915_WRITE(HWS_PGA, dev_priv->dma_status_page);
+		i915_write_hws_pga(dev);
 
 	DRM_DEBUG_DRIVER("Enabled hardware status page\n");
 

@@ -274,7 +274,6 @@ typedef struct drm_i915_private {
 	uint32_t next_seqno;
 
 	drm_dma_handle_t *status_page_dmah;
-	dma_addr_t dma_status_page;
 	uint32_t counter;
 	drm_local_map_t hws_map;
 	struct drm_i915_gem_object *pwrctx;
