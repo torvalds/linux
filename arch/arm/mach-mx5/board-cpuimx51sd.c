@@ -242,7 +242,7 @@ static struct mcp251x_platform_data mcp251x_info = {
 static struct spi_board_info cpuimx51sd_spi_device[] = {
 	{
 		.modalias        = "mcp2515",
-		.max_speed_hz    = 6500000,
+		.max_speed_hz    = 10000000,
 		.bus_num         = 0,
 		.mode		= SPI_MODE_0,
 		.chip_select     = 0,
