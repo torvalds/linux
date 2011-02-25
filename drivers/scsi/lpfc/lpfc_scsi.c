@@ -3062,7 +3062,7 @@ lpfc_queuecommand_lck(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 		goto out_fail_command;
 	}
 	if (atomic_read(&ndlp->cmd_pending) >= ndlp->cmd_qdepth)
-		goto out_host_busy;
+		goto out_tgt_busy;
 
 	lpfc_cmd = lpfc_get_scsi_buf(phba, ndlp);
 	if (lpfc_cmd == NULL) {
@@ -3178,6 +3178,9 @@ lpfc_queuecommand_lck(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
  out_host_busy:
 	return SCSI_MLQUEUE_HOST_BUSY;
+
+ out_tgt_busy:
+	return SCSI_MLQUEUE_TARGET_BUSY;
 
  out_fail_command:
 	done(cmnd);
