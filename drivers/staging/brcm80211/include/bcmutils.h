@@ -94,6 +94,11 @@ extern struct sk_buff *pktq_penq_head(struct pktq *pq, int prec,
 extern struct sk_buff *pktq_pdeq(struct pktq *pq, int prec);
 extern struct sk_buff *pktq_pdeq_tail(struct pktq *pq, int prec);
 
+/* packet primitives */
+extern struct sk_buff *pkt_buf_get_skb(struct osl_info *osh, uint len);
+extern void pkt_buf_free_skb(struct osl_info *osh,
+	struct sk_buff *skb, bool send);
+
 /* Empty the queue at particular precedence level */
 #ifdef BRCM_FULLMAC
 	extern void pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec,

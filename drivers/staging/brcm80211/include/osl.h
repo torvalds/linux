@@ -176,8 +176,5 @@ extern uint osl_pci_slot(struct osl_info *osh);
 	} while (0)
 #endif				/* IL_BIGENDIAN */
 
-/* packet primitives */
-extern struct sk_buff *pkt_buf_get_skb(struct osl_info *osh, uint len);
-extern void pkt_buf_free_skb(struct osl_info *osh, struct sk_buff *skb, bool send);
 
 #endif /* _osl_h_ */

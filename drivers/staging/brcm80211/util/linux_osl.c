@@ -78,51 +78,6 @@ void osl_detach(struct osl_info *osh)
 	kfree(osh);
 }
 
-struct sk_buff *BCMFASTPATH pkt_buf_get_skb(struct osl_info *osh, uint len)
-{
-	struct sk_buff *skb;
-
-	skb = dev_alloc_skb(len);
-	if (skb) {
-		skb_put(skb, len);
-		skb->priority = 0;
-
-		osh->pktalloced++;
-	}
-
-	return skb;
-}
-
-/* Free the driver packet. Free the tag if present */
-void BCMFASTPATH pkt_buf_free_skb(struct osl_info *osh, struct sk_buff *skb, bool send)
-{
-	struct sk_buff *nskb;
-	int nest = 0;
-
-	ASSERT(skb);
-
-	/* perversion: we use skb->next to chain multi-skb packets */
-	while (skb) {
-		nskb = skb->next;
-		skb->next = NULL;
-
-		if (skb->destructor)
-			/* cannot kfree_skb() on hard IRQ (net/core/skbuff.c) if
-			 * destructor exists
-			 */
-			dev_kfree_skb_any(skb);
-		else
-			/* can free immediately (even in_irq()) if destructor
-			 * does not exist
-			 */
-			dev_kfree_skb(skb);
-
-		osh->pktalloced--;
-		nest++;
-		skb = nskb;
-	}
-}
-
 /* return bus # for the pci device pointed by osh->pdev */
 uint osl_pci_bus(struct osl_info *osh)
 {
