@@ -321,6 +321,9 @@ static ssize_t evdev_write(struct file *file, const char __user *buffer,
 	struct input_event event;
 	int retval;
 
+	if (count < input_event_size())
+		return -EINVAL;
+
 	retval = mutex_lock_interruptible(&evdev->mutex);
 	if (retval)
 		return retval;
@@ -330,17 +333,16 @@ static ssize_t evdev_write(struct file *file, const char __user *buffer,
 		goto out;
 	}
 
-	while (retval < count) {
-
+	do {
 		if (input_event_from_user(buffer + retval, &event)) {
 			retval = -EFAULT;
 			goto out;
 		}
+		retval += input_event_size();
 
 		input_inject_event(&evdev->handle,
 				   event.type, event.code, event.value);
-		retval += input_event_size();
-	}
+	} while (retval + input_event_size() <= count);
 
  out:
 	mutex_unlock(&evdev->mutex);
