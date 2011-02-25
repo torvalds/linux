@@ -283,10 +283,6 @@ struct lm85_zone {
 	u8 hyst;	/* Low limit hysteresis. (0-15) */
 	u8 range;	/* Temp range, encoded */
 	s8 critical;	/* "All fans ON" temp limit */
-	u8 off_desired; /* Actual "off" temperature specified.  Preserved
-			 * to prevent "drift" as other autofan control
-			 * values change.
-			 */
 	u8 max_desired; /* Actual "max" temperature specified.  Preserved
 			 * to prevent "drift" as other autofan control
 			 * values change.
@@ -892,7 +888,6 @@ static ssize_t set_temp_auto_temp_off(struct device *dev,
 
 	mutex_lock(&data->update_lock);
 	min = TEMP_FROM_REG(data->zone[nr].limit);
-	data->zone[nr].off_desired = TEMP_TO_REG(val);
 	data->zone[nr].hyst = HYST_TO_REG(min - val);
 	if (nr == 0 || nr == 1) {
 		lm85_write_value(client, LM85_REG_AFAN_HYST1,
@@ -935,18 +930,6 @@ static ssize_t set_temp_auto_temp_min(struct device *dev,
 		((data->zone[nr].range & 0x0f) << 4)
 		| (data->pwm_freq[nr] & 0x07));
 
-/* Update temp_auto_hyst and temp_auto_off */
-	data->zone[nr].hyst = HYST_TO_REG(TEMP_FROM_REG(
-		data->zone[nr].limit) - TEMP_FROM_REG(
-		data->zone[nr].off_desired));
-	if (nr == 0 || nr == 1) {
-		lm85_write_value(client, LM85_REG_AFAN_HYST1,
-			(data->zone[0].hyst << 4)
-			| data->zone[1].hyst);
-	} else {
-		lm85_write_value(client, LM85_REG_AFAN_HYST2,
-			(data->zone[2].hyst << 4));
-	}
 	mutex_unlock(&data->update_lock);
 	return count;
 }
