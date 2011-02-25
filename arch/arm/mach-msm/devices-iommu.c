@@ -280,50 +280,62 @@ static struct platform_device msm_root_iommu_dev = {
 
 static struct msm_iommu_dev jpegd_iommu = {
 	.name = "jpegd",
+	.ncb = 2,
 };
 
 static struct msm_iommu_dev vpe_iommu = {
-	.name = "vpe"
+	.name = "vpe",
+	.ncb = 2,
 };
 
 static struct msm_iommu_dev mdp0_iommu = {
-	.name = "mdp0"
+	.name = "mdp0",
+	.ncb = 2,
 };
 
 static struct msm_iommu_dev mdp1_iommu = {
-	.name = "mdp1"
+	.name = "mdp1",
+	.ncb = 2,
 };
 
 static struct msm_iommu_dev rot_iommu = {
-	.name = "rot"
+	.name = "rot",
+	.ncb = 2,
 };
 
 static struct msm_iommu_dev ijpeg_iommu = {
-	.name = "ijpeg"
+	.name = "ijpeg",
+	.ncb = 2,
 };
 
 static struct msm_iommu_dev vfe_iommu = {
 	.name = "vfe",
+	.ncb = 2,
 };
 
 static struct msm_iommu_dev vcodec_a_iommu = {
-	.name = "vcodec_a"
+	.name = "vcodec_a",
+	.ncb = 2,
 };
 
 static struct msm_iommu_dev vcodec_b_iommu = {
-	.name = "vcodec_b"
+	.name = "vcodec_b",
+	.ncb = 2,
 };
 
 static struct msm_iommu_dev gfx3d_iommu = {
 	.name = "gfx3d",
+	.ncb = 3,
 };
 
 static struct msm_iommu_dev gfx2d0_iommu = {
 	.name = "gfx2d0",
+	.ncb = 2,
 };
 
 static struct msm_iommu_dev gfx2d1_iommu = {
 	.name = "gfx2d1",
+	.ncb = 2,
 };
 
 static struct platform_device msm_device_iommu_jpegd = {

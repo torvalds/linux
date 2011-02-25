@@ -45,9 +45,11 @@
 /**
  * struct msm_iommu_dev - a single IOMMU hardware instance
  * name		Human-readable name given to this IOMMU HW instance
+ * ncb		Number of context banks present on this IOMMU HW instance
  */
 struct msm_iommu_dev {
 	const char *name;
+	int ncb;
 };
 
 /**
@@ -69,6 +71,7 @@ struct msm_iommu_ctx_dev {
 /**
  * struct msm_iommu_drvdata - A single IOMMU hardware instance
  * @base:	IOMMU config port base address (VA)
+ * @ncb		The number of contexts on this IOMMU
  * @irq:	Interrupt number
  * @clk:	The bus clock for this IOMMU hardware instance
  * @pclk:	The clock for the IOMMU bus interconnect
@@ -79,6 +82,7 @@ struct msm_iommu_ctx_dev {
 struct msm_iommu_drvdata {
 	void __iomem *base;
 	int irq;
+	int ncb;
 	struct clk *clk;
 	struct clk *pclk;
 };

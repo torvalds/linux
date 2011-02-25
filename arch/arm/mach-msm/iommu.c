@@ -636,7 +636,7 @@ irqreturn_t msm_iommu_fault_handler(int irq, void *dev_id)
 	struct msm_iommu_drvdata *drvdata = dev_id;
 	void __iomem *base;
 	unsigned int fsr;
-	int ncb, i, ret;
+	int i, ret;
 
 	spin_lock(&msm_iommu_lock);
 
@@ -654,8 +654,7 @@ irqreturn_t msm_iommu_fault_handler(int irq, void *dev_id)
 	if (ret)
 		goto fail;
 
-	ncb = GET_NCB(base)+1;
-	for (i = 0; i < ncb; i++) {
+	for (i = 0; i < drvdata->ncb; i++) {
 		fsr = GET_FSR(base, i);
 		if (fsr) {
 			pr_err("Fault occurred in context %d.\n", i);

@@ -85,9 +85,9 @@ fail:
 }
 EXPORT_SYMBOL(msm_iommu_get_ctx);
 
-static void msm_iommu_reset(void __iomem *base)
+static void msm_iommu_reset(void __iomem *base, int ncb)
 {
-	int ctx, ncb;
+	int ctx;
 
 	SET_RPUE(base, 0);
 	SET_RPUEIE(base, 0);
@@ -100,7 +100,6 @@ static void msm_iommu_reset(void __iomem *base)
 	SET_GLOBAL_TLBIALL(base, 0);
 	SET_RPU_ACR(base, 0);
 	SET_TLBLKCRWE(base, 1);
-	ncb = GET_NCB(base)+1;
 
 	for (ctx = 0; ctx < ncb; ctx++) {
 		SET_BPRCOSH(base, ctx, 0);
@@ -136,7 +135,7 @@ static int msm_iommu_probe(struct platform_device *pdev)
 	struct msm_iommu_dev *iommu_dev = pdev->dev.platform_data;
 	void __iomem *regs_base;
 	resource_size_t	len;
-	int ret, ncb, nm2v, irq;
+	int ret, irq, par;
 
 	if (pdev->id == -1) {
 		msm_iommu_root_dev = pdev;
@@ -211,10 +210,18 @@ static int msm_iommu_probe(struct platform_device *pdev)
 		goto fail_io;
 	}
 
-	mb();
+	msm_iommu_reset(regs_base, iommu_dev->ncb);
 
-	if (GET_IDR(regs_base) == 0) {
-		pr_err("Invalid IDR value detected\n");
+	SET_M(regs_base, 0, 1);
+	SET_PAR(regs_base, 0, 0);
+	SET_V2PCFG(regs_base, 0, 1);
+	SET_V2PPR(regs_base, 0, 0);
+	par = GET_PAR(regs_base, 0);
+	SET_V2PCFG(regs_base, 0, 0);
+	SET_M(regs_base, 0, 0);
+
+	if (!par) {
+		pr_err("%s: Invalid PAR value detected\n", iommu_dev->name);
 		ret = -ENODEV;
 		goto fail_io;
 	}
@@ -226,17 +233,15 @@ static int msm_iommu_probe(struct platform_device *pdev)
 		goto fail_io;
 	}
 
-	msm_iommu_reset(regs_base);
+
 	drvdata->pclk = iommu_pclk;
 	drvdata->clk = iommu_clk;
 	drvdata->base = regs_base;
 	drvdata->irq = irq;
-
-	nm2v = GET_NM2VCBMT((unsigned long) regs_base);
-	ncb = GET_NCB((unsigned long) regs_base);
+	drvdata->ncb = iommu_dev->ncb;
 
 	pr_info("device %s mapped at %p, irq %d with %d ctx banks\n",
-			iommu_dev->name, regs_base, irq, ncb+1);
+		iommu_dev->name, regs_base, irq, iommu_dev->ncb);
 
 	platform_set_drvdata(pdev, drvdata);
 
