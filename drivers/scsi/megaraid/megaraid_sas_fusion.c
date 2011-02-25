@@ -984,13 +984,15 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 
 	return 0;
 
-fail_alloc_cmds:
-fail_alloc_mfi_cmds:
 fail_map_info:
 	if (i == 1)
 		dma_free_coherent(&instance->pdev->dev, fusion->map_sz,
 				  fusion->ld_map[0], fusion->ld_map_phys[0]);
 fail_ioc_init:
+	megasas_free_cmds_fusion(instance);
+fail_alloc_cmds:
+	megasas_free_cmds(instance);
+fail_alloc_mfi_cmds:
 	return 1;
 }
 

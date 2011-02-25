@@ -3424,7 +3424,6 @@ fail_reply_queue:
 	megasas_free_cmds(instance);
 
 fail_alloc_cmds:
-	iounmap(instance->reg_set);
 	return 1;
 }
 
@@ -3494,7 +3493,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 	/* Get operational params, sge flags, send init cmd to controller */
 	if (instance->instancet->init_adapter(instance))
-		return -ENODEV;
+		goto fail_init_adapter;
 
 	printk(KERN_ERR "megasas: INIT adapter done\n");
 
@@ -3553,6 +3552,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 				MEGASAS_COMPLETION_TIMER_INTERVAL);
 	return 0;
 
+fail_init_adapter:
 fail_ready_state:
 	iounmap(instance->reg_set);
 
@@ -4105,10 +4105,13 @@ megasas_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	instance->instancet->disable_intr(instance->reg_set);
 	free_irq(instance->msi_flag ? instance->msixentry.vector :
 		 instance->pdev->irq, instance);
+fail_irq:
 	if (instance->msi_flag)
 		pci_disable_msix(instance->pdev);
-
-      fail_irq:
+	if (instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION)
+		megasas_release_fusion(instance);
+	else
+		megasas_release_mfi(instance);
       fail_init_mfi:
       fail_alloc_dma_buf:
 	if (instance->evt_detail)
@@ -4116,13 +4119,9 @@ megasas_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 				    instance->evt_detail,
 				    instance->evt_detail_h);
 
-	if (instance->producer) {
+	if (instance->producer)
 		pci_free_consistent(pdev, sizeof(u32), instance->producer,
 				    instance->producer_h);
-		megasas_release_mfi(instance);
-	} else {
-		megasas_release_fusion(instance);
-	}
 	if (instance->consumer)
 		pci_free_consistent(pdev, sizeof(u32), instance->consumer,
 				    instance->consumer_h);
