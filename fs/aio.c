@@ -239,15 +239,23 @@ static void __put_ioctx(struct kioctx *ctx)
 	call_rcu(&ctx->rcu_head, ctx_rcu_free);
 }
 
-#define get_ioctx(kioctx) do {						\
-	BUG_ON(atomic_read(&(kioctx)->users) <= 0);			\
-	atomic_inc(&(kioctx)->users);					\
-} while (0)
-#define put_ioctx(kioctx) do {						\
-	BUG_ON(atomic_read(&(kioctx)->users) <= 0);			\
-	if (unlikely(atomic_dec_and_test(&(kioctx)->users))) 		\
-		__put_ioctx(kioctx);					\
-} while (0)
+static inline void get_ioctx(struct kioctx *kioctx)
+{
+	BUG_ON(atomic_read(&kioctx->users) <= 0);
+	atomic_inc(&kioctx->users);
+}
+
+static inline int try_get_ioctx(struct kioctx *kioctx)
+{
+	return atomic_inc_not_zero(&kioctx->users);
+}
+
+static inline void put_ioctx(struct kioctx *kioctx)
+{
+	BUG_ON(atomic_read(&kioctx->users) <= 0);
+	if (unlikely(atomic_dec_and_test(&kioctx->users)))
+		__put_ioctx(kioctx);
+}
 
 /* ioctx_alloc
  *	Allocates and initializes an ioctx.  Returns an ERR_PTR if it failed.
@@ -601,8 +609,13 @@ static struct kioctx *lookup_ioctx(unsigned long ctx_id)
 	rcu_read_lock();
 
 	hlist_for_each_entry_rcu(ctx, n, &mm->ioctx_list, list) {
-		if (ctx->user_id == ctx_id && !ctx->dead) {
-			get_ioctx(ctx);
+		/*
+		 * RCU protects us against accessing freed memory but
+		 * we have to be careful not to get a reference when the
+		 * reference count already dropped to 0 (ctx->dead test
+		 * is unreliable because of races).
+		 */
+		if (ctx->user_id == ctx_id && !ctx->dead && try_get_ioctx(ctx)){
 			ret = ctx;
 			break;
 		}
