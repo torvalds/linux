@@ -155,6 +155,7 @@ extern void omap2_clk_exit_cpufreq_table(struct cpufreq_frequency_table **table)
 extern const struct clkops clkops_omap2_iclk_dflt_wait;
 extern const struct clkops clkops_omap2_iclk_dflt;
 extern const struct clkops clkops_omap2_iclk_idle_only;
+extern const struct clkops clkops_omap2_mdmclk_dflt_wait;
 extern const struct clkops clkops_omap2xxx_dpll_ops;
 extern const struct clkops clkops_omap3_noncore_dpll_ops;
 extern const struct clkops clkops_omap3_core_dpll_ops;
