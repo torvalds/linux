@@ -34,7 +34,6 @@
 #include <linux/ioport.h>
 #include <linux/spinlock.h>
 #include <plat/cpu.h>
-#include <plat/voltage.h>
 
 struct omap_device;
 
