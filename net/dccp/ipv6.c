@@ -484,7 +484,6 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 	struct inet6_request_sock *ireq6 = inet6_rsk(req);
 	struct ipv6_pinfo *newnp, *np = inet6_sk(sk);
 	struct inet_sock *newinet;
-	struct dccp_sock *newdp;
 	struct dccp6_sock *newdp6;
 	struct sock *newsk;
 	struct ipv6_txoptions *opt;
@@ -498,7 +497,6 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 			return NULL;
 
 		newdp6 = (struct dccp6_sock *)newsk;
-		newdp = dccp_sk(newsk);
 		newinet = inet_sk(newsk);
 		newinet->pinet6 = &newdp6->inet6;
 		newnp = inet6_sk(newsk);
@@ -578,7 +576,6 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 	newdp6 = (struct dccp6_sock *)newsk;
 	newinet = inet_sk(newsk);
 	newinet->pinet6 = &newdp6->inet6;
-	newdp = dccp_sk(newsk);
 	newnp = inet6_sk(newsk);
 
 	memcpy(newnp, np, sizeof(struct ipv6_pinfo));
