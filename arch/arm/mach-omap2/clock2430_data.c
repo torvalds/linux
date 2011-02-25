@@ -1,12 +1,12 @@
 /*
- *  linux/arch/arm/mach-omap2/clock2430_data.c
+ * OMAP2430 clock data
  *
- *  Copyright (C) 2005-2009 Texas Instruments, Inc.
- *  Copyright (C) 2004-2011 Nokia Corporation
+ * Copyright (C) 2005-2009 Texas Instruments, Inc.
+ * Copyright (C) 2004-2011 Nokia Corporation
  *
- *  Contacts:
- *  Richard Woodruff <r-woodruff2@ti.com>
- *  Paul Walmsley
+ * Contacts:
+ * Richard Woodruff <r-woodruff2@ti.com>
+ * Paul Walmsley
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -34,18 +34,15 @@
 /*
  * 2430 clock tree.
  *
- * NOTE:In many cases here we are assigning a 'default' parent.	In many
- *	cases the parent is selectable.	The get/set parent calls will also
- *	switch sources.
- *
- *	Many some clocks say always_enabled, but they can be auto idled for
- *	power savings. They will always be available upon clock request.
+ * NOTE:In many cases here we are assigning a 'default' parent. In
+ *	many cases the parent is selectable. The set parent calls will
+ *	also switch sources.
  *
  *	Several sources are given initial rates which may be wrong, this will
  *	be fixed up in the init func.
  *
  *	Things are broadly separated below by clock domains. It is
- *	noteworthy that most periferals have dependencies on multiple clock
+ *	noteworthy that most peripherals have dependencies on multiple clock
  *	domains. Many get their interface clocks from the L4 domain, but get
  *	functional clocks from fixed sources or other core domain derived
  *	clocks.
