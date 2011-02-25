@@ -87,7 +87,8 @@ MODULE_PARM_DESC(debug, "set debugging level (1=info 2=xfer 4=rc(or-able))."
 /* keymaps */
 static int ir_keymap;
 module_param_named(keymap, ir_keymap, int, 0644);
-MODULE_PARM_DESC(keymap, "set keymap 0=default 1=dvbworld 2=tevii 3=tbs  ...");
+MODULE_PARM_DESC(keymap, "set keymap 0=default 1=dvbworld 2=tevii 3=tbs  ..."
+			" 256=none");
 
 /* demod probe */
 static int demod_probe = 1;
@@ -1089,7 +1090,8 @@ static int dw2102_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	if ((ir_keymap > 0) && (ir_keymap <= ARRAY_SIZE(keys_tables))) {
 		keymap = keys_tables[ir_keymap - 1].rc_keys ;
 		keymap_size = keys_tables[ir_keymap - 1].rc_keys_size;
-	}
+	} else if (ir_keymap > ARRAY_SIZE(keys_tables))
+		return 0; /* none */
 
 	*state = REMOTE_NO_KEY_PRESSED;
 	if (d->props.i2c_algo->master_xfer(&d->i2c_adap, &msg, 1) == 1) {
