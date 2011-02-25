@@ -378,6 +378,7 @@ static void __init prcm_setup_regs(void)
 {
 	int i, num_mem_banks;
 	struct powerdomain *pwrdm;
+	u32 v;
 
 	/* Enable autoidle */
 	omap2_prm_write_mod_reg(OMAP24XX_AUTOIDLE_MASK, OCP_MOD,
@@ -468,11 +469,12 @@ static void __init prcm_setup_regs(void)
 	omap2_cm_write_mod_reg(OMAP2420_AUTO_DSP_IPI_MASK, OMAP24XX_DSP_MOD,
 			       CM_AUTOIDLE);
 
-	/* Put DPLL and both APLLs into autoidle mode */
-	omap2_cm_write_mod_reg((0x03 << OMAP24XX_AUTO_DPLL_SHIFT) |
-			       (0x03 << OMAP24XX_AUTO_96M_SHIFT) |
-			       (0x03 << OMAP24XX_AUTO_54M_SHIFT),
-			       PLL_MOD, CM_AUTOIDLE);
+	/* Put both APLLs into autoidle mode */
+	v = omap2_cm_read_mod_reg(PLL_MOD, CM_AUTOIDLE);
+	v &= ~(OMAP24XX_AUTO_96M_MASK | OMAP24XX_AUTO_54M_SHIFT);
+	v |= (0x03 << OMAP24XX_AUTO_96M_SHIFT) |
+		(0x03 << OMAP24XX_AUTO_54M_SHIFT);
+	omap2_cm_write_mod_reg(v, PLL_MOD, CM_AUTOIDLE);
 
 	omap2_cm_write_mod_reg(OMAP24XX_AUTO_OMAPCTRL_MASK |
 			       OMAP24XX_AUTO_WDT1_MASK |

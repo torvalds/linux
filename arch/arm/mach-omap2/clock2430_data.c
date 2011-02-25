@@ -125,7 +125,7 @@ static struct dpll_data dpll_dd = {
  */
 static struct clk dpll_ck = {
 	.name		= "dpll_ck",
-	.ops		= &clkops_null,
+	.ops		= &clkops_omap2xxx_dpll_ops,
 	.parent		= &sys_ck,		/* Can be func_32k also */
 	.dpll_data	= &dpll_dd,
 	.clkdm_name	= "wkup_clkdm",
