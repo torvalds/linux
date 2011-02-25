@@ -357,6 +357,7 @@ static void fc_rport_work(struct work_struct *work)
 			if (port_id == FC_FID_DIR_SERV) {
 				rdata->event = RPORT_EV_NONE;
 				mutex_unlock(&rdata->rp_mutex);
+				kref_put(&rdata->kref, lport->tt.rport_destroy);
 			} else if ((rdata->flags & FC_RP_STARTED) &&
 				   rdata->major_retries <
 				   lport->max_rport_retry_count) {
