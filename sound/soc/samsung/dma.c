@@ -310,7 +310,7 @@ dma_pointer(struct snd_pcm_substream *substream)
 	/* we seem to be getting the odd error from the pcm library due
 	 * to out-of-bounds pointers. this is maybe due to the dma engine
 	 * not having loaded the new values for the channel before being
-	 * callled... (todo - fix )
+	 * called... (todo - fix )
 	 */
 
 	if (res >= snd_pcm_lib_buffer_bytes(substream)) {
