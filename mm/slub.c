@@ -1494,6 +1494,77 @@ static void unfreeze_slab(struct kmem_cache *s, struct page *page, int tail)
 	}
 }
 
+#ifdef CONFIG_CMPXCHG_LOCAL
+#ifdef CONFIG_PREEMPT
+/*
+ * Calculate the next globally unique transaction for disambiguiation
+ * during cmpxchg. The transactions start with the cpu number and are then
+ * incremented by CONFIG_NR_CPUS.
+ */
+#define TID_STEP  roundup_pow_of_two(CONFIG_NR_CPUS)
+#else
+/*
+ * No preemption supported therefore also no need to check for
+ * different cpus.
+ */
+#define TID_STEP 1
+#endif
+
+static inline unsigned long next_tid(unsigned long tid)
+{
+	return tid + TID_STEP;
+}
+
+static inline unsigned int tid_to_cpu(unsigned long tid)
+{
+	return tid % TID_STEP;
+}
+
+static inline unsigned long tid_to_event(unsigned long tid)
+{
+	return tid / TID_STEP;
+}
+
+static inline unsigned int init_tid(int cpu)
+{
+	return cpu;
+}
+
+static inline void note_cmpxchg_failure(const char *n,
+		const struct kmem_cache *s, unsigned long tid)
+{
+#ifdef SLUB_DEBUG_CMPXCHG
+	unsigned long actual_tid = __this_cpu_read(s->cpu_slab->tid);
+
+	printk(KERN_INFO "%s %s: cmpxchg redo ", n, s->name);
+
+#ifdef CONFIG_PREEMPT
+	if (tid_to_cpu(tid) != tid_to_cpu(actual_tid))
+		printk("due to cpu change %d -> %d\n",
+			tid_to_cpu(tid), tid_to_cpu(actual_tid));
+	else
+#endif
+	if (tid_to_event(tid) != tid_to_event(actual_tid))
+		printk("due to cpu running other code. Event %ld->%ld\n",
+			tid_to_event(tid), tid_to_event(actual_tid));
+	else
+		printk("for unknown reason: actual=%lx was=%lx target=%lx\n",
+			actual_tid, tid, next_tid(tid));
+#endif
+}
+
+#endif
+
+void init_kmem_cache_cpus(struct kmem_cache *s)
+{
+#if defined(CONFIG_CMPXCHG_LOCAL) && defined(CONFIG_PREEMPT)
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		per_cpu_ptr(s->cpu_slab, cpu)->tid = init_tid(cpu);
+#endif
+
+}
 /*
  * Remove the cpu slab
  */
@@ -1525,6 +1596,9 @@ static void deactivate_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
 		page->inuse--;
 	}
 	c->page = NULL;
+#ifdef CONFIG_CMPXCHG_LOCAL
+	c->tid = next_tid(c->tid);
+#endif
 	unfreeze_slab(s, page, tail);
 }
 
@@ -1659,6 +1733,19 @@ static void *__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
 {
 	void **object;
 	struct page *new;
+#ifdef CONFIG_CMPXCHG_LOCAL
+	unsigned long flags;
+
+	local_irq_save(flags);
+#ifdef CONFIG_PREEMPT
+	/*
+	 * We may have been preempted and rescheduled on a different
+	 * cpu before disabling interrupts. Need to reload cpu area
+	 * pointer.
+	 */
+	c = this_cpu_ptr(s->cpu_slab);
+#endif
+#endif
 
 	/* We handle __GFP_ZERO in the caller */
 	gfpflags &= ~__GFP_ZERO;
@@ -1685,6 +1772,10 @@ load_freelist:
 	c->node = page_to_nid(c->page);
 unlock_out:
 	slab_unlock(c->page);
+#ifdef CONFIG_CMPXCHG_LOCAL
+	c->tid = next_tid(c->tid);
+	local_irq_restore(flags);
+#endif
 	stat(s, ALLOC_SLOWPATH);
 	return object;
 
@@ -1746,23 +1837,76 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
 {
 	void **object;
 	struct kmem_cache_cpu *c;
+#ifdef CONFIG_CMPXCHG_LOCAL
+	unsigned long tid;
+#else
 	unsigned long flags;
+#endif
 
 	if (slab_pre_alloc_hook(s, gfpflags))
 		return NULL;
 
+#ifndef CONFIG_CMPXCHG_LOCAL
 	local_irq_save(flags);
+#else
+redo:
+#endif
+
+	/*
+	 * Must read kmem_cache cpu data via this cpu ptr. Preemption is
+	 * enabled. We may switch back and forth between cpus while
+	 * reading from one cpu area. That does not matter as long
+	 * as we end up on the original cpu again when doing the cmpxchg.
+	 */
 	c = __this_cpu_ptr(s->cpu_slab);
+
+#ifdef CONFIG_CMPXCHG_LOCAL
+	/*
+	 * The transaction ids are globally unique per cpu and per operation on
+	 * a per cpu queue. Thus they can be guarantee that the cmpxchg_double
+	 * occurs on the right processor and that there was no operation on the
+	 * linked list in between.
+	 */
+	tid = c->tid;
+	barrier();
+#endif
+
 	object = c->freelist;
 	if (unlikely(!object || !node_match(c, node)))
 
 		object = __slab_alloc(s, gfpflags, node, addr, c);
 
 	else {
+#ifdef CONFIG_CMPXCHG_LOCAL
+		/*
+		 * The cmpxchg will only match if there was no additonal
+		 * operation and if we are on the right processor.
+		 *
+		 * The cmpxchg does the following atomically (without lock semantics!)
+		 * 1. Relocate first pointer to the current per cpu area.
+		 * 2. Verify that tid and freelist have not been changed
+		 * 3. If they were not changed replace tid and freelist
+		 *
+		 * Since this is without lock semantics the protection is only against
+		 * code executing on this cpu *not* from access by other cpus.
+		 */
+		if (unlikely(!this_cpu_cmpxchg_double(
+				s->cpu_slab->freelist, s->cpu_slab->tid,
+				object, tid,
+				get_freepointer(s, object), next_tid(tid)))) {
+
+			note_cmpxchg_failure("slab_alloc", s, tid);
+			goto redo;
+		}
+#else
 		c->freelist = get_freepointer(s, object);
+#endif
 		stat(s, ALLOC_FASTPATH);
 	}
+
+#ifndef CONFIG_CMPXCHG_LOCAL
 	local_irq_restore(flags);
+#endif
 
 	if (unlikely(gfpflags & __GFP_ZERO) && object)
 		memset(object, 0, s->objsize);
@@ -1840,9 +1984,13 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
 {
 	void *prior;
 	void **object = (void *)x;
+#ifdef CONFIG_CMPXCHG_LOCAL
+	unsigned long flags;
 
-	stat(s, FREE_SLOWPATH);
+	local_irq_save(flags);
+#endif
 	slab_lock(page);
+	stat(s, FREE_SLOWPATH);
 
 	if (kmem_cache_debug(s))
 		goto debug;
@@ -1872,6 +2020,9 @@ checks_ok:
 
 out_unlock:
 	slab_unlock(page);
+#ifdef CONFIG_CMPXCHG_LOCAL
+	local_irq_restore(flags);
+#endif
 	return;
 
 slab_empty:
@@ -1883,6 +2034,9 @@ slab_empty:
 		stat(s, FREE_REMOVE_PARTIAL);
 	}
 	slab_unlock(page);
+#ifdef CONFIG_CMPXCHG_LOCAL
+	local_irq_restore(flags);
+#endif
 	stat(s, FREE_SLAB);
 	discard_slab(s, page);
 	return;
@@ -1909,21 +2063,54 @@ static __always_inline void slab_free(struct kmem_cache *s,
 {
 	void **object = (void *)x;
 	struct kmem_cache_cpu *c;
+#ifdef CONFIG_CMPXCHG_LOCAL
+	unsigned long tid;
+#else
 	unsigned long flags;
+#endif
 
 	slab_free_hook(s, x);
 
+#ifndef CONFIG_CMPXCHG_LOCAL
 	local_irq_save(flags);
+#endif
+
+redo:
+	/*
+	 * Determine the currently cpus per cpu slab.
+	 * The cpu may change afterward. However that does not matter since
+	 * data is retrieved via this pointer. If we are on the same cpu
+	 * during the cmpxchg then the free will succedd.
+	 */
 	c = __this_cpu_ptr(s->cpu_slab);
+
+#ifdef CONFIG_CMPXCHG_LOCAL
+	tid = c->tid;
+	barrier();
+#endif
 
 	if (likely(page == c->page && c->node != NUMA_NO_NODE)) {
 		set_freepointer(s, object, c->freelist);
+
+#ifdef CONFIG_CMPXCHG_LOCAL
+		if (unlikely(!this_cpu_cmpxchg_double(
+				s->cpu_slab->freelist, s->cpu_slab->tid,
+				c->freelist, tid,
+				object, next_tid(tid)))) {
+
+			note_cmpxchg_failure("slab_free", s, tid);
+			goto redo;
+		}
+#else
 		c->freelist = object;
+#endif
 		stat(s, FREE_FASTPATH);
 	} else
 		__slab_free(s, page, x, addr);
 
+#ifndef CONFIG_CMPXCHG_LOCAL
 	local_irq_restore(flags);
+#endif
 }
 
 void kmem_cache_free(struct kmem_cache *s, void *x)
@@ -2115,9 +2302,23 @@ static inline int alloc_kmem_cache_cpus(struct kmem_cache *s)
 	BUILD_BUG_ON(PERCPU_DYNAMIC_EARLY_SIZE <
 			SLUB_PAGE_SHIFT * sizeof(struct kmem_cache_cpu));
 
+#ifdef CONFIG_CMPXCHG_LOCAL
+	/*
+	 * Must align to double word boundary for the double cmpxchg instructions
+	 * to work.
+	 */
+	s->cpu_slab = __alloc_percpu(sizeof(struct kmem_cache_cpu), 2 * sizeof(void *));
+#else
+	/* Regular alignment is sufficient */
 	s->cpu_slab = alloc_percpu(struct kmem_cache_cpu);
+#endif
 
-	return s->cpu_slab != NULL;
+	if (!s->cpu_slab)
+		return 0;
+
+	init_kmem_cache_cpus(s);
+
+	return 1;
 }
 
 static struct kmem_cache *kmem_cache_node;

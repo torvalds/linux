@@ -35,7 +35,10 @@ enum stat_item {
 	NR_SLUB_STAT_ITEMS };
 
 struct kmem_cache_cpu {
-	void **freelist;	/* Pointer to first free per cpu object */
+	void **freelist;	/* Pointer to next available object */
+#ifdef CONFIG_CMPXCHG_LOCAL
+	unsigned long tid;	/* Globally unique transaction id */
+#endif
 	struct page *page;	/* The slab from which we are allocating */
 	int node;		/* The node of the page (or -1 for debug) */
 #ifdef CONFIG_SLUB_STATS
