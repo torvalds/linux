@@ -161,26 +161,6 @@ void osl_dma_free_consistent(struct osl_info *osh, void *va, uint size,
 	pci_free_consistent(osh->pdev, size, va, (dma_addr_t) pa);
 }
 
-uint BCMFASTPATH osl_dma_map(struct osl_info *osh, void *va, uint size,
-			     int direction)
-{
-	int dir;
-
-	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
-	dir = (direction == DMA_TX) ? PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE;
-	return pci_map_single(osh->pdev, va, size, dir);
-}
-
-void BCMFASTPATH osl_dma_unmap(struct osl_info *osh, uint pa, uint size,
-			       int direction)
-{
-	int dir;
-
-	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
-	dir = (direction == DMA_TX) ? PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE;
-	pci_unmap_single(osh->pdev, (u32) pa, size, dir);
-}
-
 #if defined(BCMDBG_ASSERT)
 void osl_assert(char *exp, char *file, int line)
 {

@@ -70,16 +70,6 @@ extern void osl_dma_free_consistent(struct osl_info *osh, void *va,
 #define	DMA_TX	1		/* TX direction for DMA */
 #define	DMA_RX	2		/* RX direction for DMA */
 
-/* map/unmap shared (dma-able) memory */
-#define	DMA_MAP(osh, va, size, direction, p, dmah) \
-	osl_dma_map((osh), (va), (size), (direction))
-#define	DMA_UNMAP(osh, pa, size, direction, p, dmah) \
-	osl_dma_unmap((osh), (pa), (size), (direction))
-extern uint osl_dma_map(struct osl_info *osh, void *va, uint size,
-			int direction);
-extern void osl_dma_unmap(struct osl_info *osh, uint pa, uint size,
-			  int direction);
-
 /* register access macros */
 #if defined(BCMSDIO)
 #ifdef BRCM_FULLMAC

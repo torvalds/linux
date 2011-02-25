@@ -76,7 +76,7 @@ typedef struct dma_info {
 	uint *msg_level;	/* message level pointer */
 	char name[MAXNAMEL];	/* callers name for diag msgs */
 
-	void *osh;		/* os handle */
+	struct osl_info *osh;	/* os handle */
 	si_t *sih;		/* sb handle */
 
 	bool dma64;		/* this dma engine is operating in 64-bit mode */
@@ -866,8 +866,8 @@ static bool BCMFASTPATH _dma_rxfill(dma_info_t *di)
 			memset(&di->rxp_dmah[rxout], 0,
 				sizeof(hnddma_seg_map_t));
 
-		pa = DMA_MAP(di->osh, p->data,
-			     di->rxbufsize, DMA_RX, p, &di->rxp_dmah[rxout]);
+		pa = pci_map_single(di->osh->pdev, p->data,
+			di->rxbufsize, PCI_DMA_FROMDEVICE);
 
 		ASSERT(IS_ALIGNED(PHYSADDRLO(pa), 4));
 
@@ -1383,7 +1383,7 @@ static int dma64_txunframed(dma_info_t *di, void *buf, uint len, bool commit)
 	if (len == 0)
 		return 0;
 
-	pa = DMA_MAP(di->osh, buf, len, DMA_TX, NULL, &di->txp_dmah[txout]);
+	pa = pci_map_single(di->osh->pdev, buf, len, PCI_DMA_TODEVICE);
 
 	flags = (D64_CTRL1_SOF | D64_CTRL1_IOC | D64_CTRL1_EOF);
 
@@ -1463,8 +1463,7 @@ static int BCMFASTPATH dma64_txfast(dma_info_t *di, struct sk_buff *p0,
 			memset(&di->txp_dmah[txout], 0,
 				sizeof(hnddma_seg_map_t));
 
-		pa = DMA_MAP(di->osh, data, len, DMA_TX, p,
-			     &di->txp_dmah[txout]);
+		pa = pci_map_single(di->osh->pdev, data, len, PCI_DMA_TODEVICE);
 
 		if (DMASGLIST_ENAB) {
 			map = &di->txp_dmah[txout];
@@ -1626,7 +1625,7 @@ static void *BCMFASTPATH dma64_getnexttxp(dma_info_t *di, txd_range_t range)
 				i = NEXTTXD(i);
 		}
 
-		DMA_UNMAP(di->osh, pa, size, DMA_TX, txp, map);
+		pci_unmap_single(di->osh->pdev, pa, size, PCI_DMA_TODEVICE);
 	}
 
 	di->txin = i;
@@ -1677,7 +1676,7 @@ static void *BCMFASTPATH dma64_getnextrxp(dma_info_t *di, bool forceall)
 		       di->dataoffsethigh));
 
 	/* clear this packet from the descriptor ring */
-	DMA_UNMAP(di->osh, pa, di->rxbufsize, DMA_RX, rxp, &di->rxp_dmah[i]);
+	pci_unmap_single(di->osh->pdev, pa, di->rxbufsize, PCI_DMA_FROMDEVICE);
 
 	W_SM(&di->rxd64[i].addrlow, 0xdeadbeef);
 	W_SM(&di->rxd64[i].addrhigh, 0xdeadbeef);
