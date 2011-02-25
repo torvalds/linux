@@ -735,7 +735,7 @@ multi_t2_fnd:
 		sock_release(csocket);
 		server->ssocket = NULL;
 	}
-	/* buffer usuallly freed in free_mid - need to free it here on exit */
+	/* buffer usually freed in free_mid - need to free it here on exit */
 	cifs_buf_release(bigbuf);
 	if (smallbuf) /* no sense logging a debug message if NULL */
 		cifs_small_buf_release(smallbuf);
