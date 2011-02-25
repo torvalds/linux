@@ -94,6 +94,7 @@ struct drm_nouveau_setparam {
 #define NOUVEAU_GEM_DOMAIN_GART      (1 << 2)
 #define NOUVEAU_GEM_DOMAIN_MAPPABLE  (1 << 3)
 
+#define NOUVEAU_GEM_TILE_COMP        0x00030000 /* nv50-only */
 #define NOUVEAU_GEM_TILE_LAYOUT_MASK 0x0000ff00
 #define NOUVEAU_GEM_TILE_16BPP       0x00000001
 #define NOUVEAU_GEM_TILE_32BPP       0x00000002

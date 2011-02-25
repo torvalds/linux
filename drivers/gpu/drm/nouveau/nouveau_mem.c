@@ -152,7 +152,6 @@ nouveau_mem_vram_fini(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
-	nouveau_bo_unpin(dev_priv->vga_ram);
 	nouveau_bo_ref(NULL, &dev_priv->vga_ram);
 
 	ttm_bo_device_release(&dev_priv->ttm.bdev);
@@ -393,11 +392,17 @@ nouveau_mem_vram_init(struct drm_device *dev)
 	struct ttm_bo_device *bdev = &dev_priv->ttm.bdev;
 	int ret, dma_bits;
 
-	if (dev_priv->card_type >= NV_50 &&
-	    pci_dma_supported(dev->pdev, DMA_BIT_MASK(40)))
-		dma_bits = 40;
-	else
-		dma_bits = 32;
+	dma_bits = 32;
+	if (dev_priv->card_type >= NV_50) {
+		if (pci_dma_supported(dev->pdev, DMA_BIT_MASK(40)))
+			dma_bits = 40;
+	} else
+	if (drm_pci_device_is_pcie(dev) &&
+	    dev_priv->chipset != 0x40 &&
+	    dev_priv->chipset != 0x45) {
+		if (pci_dma_supported(dev->pdev, DMA_BIT_MASK(39)))
+			dma_bits = 39;
+	}
 
 	ret = pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(dma_bits));
 	if (ret)
@@ -455,13 +460,17 @@ nouveau_mem_vram_init(struct drm_device *dev)
 		return ret;
 	}
 
-	ret = nouveau_bo_new(dev, NULL, 256*1024, 0, TTM_PL_FLAG_VRAM,
-			     0, 0, true, true, &dev_priv->vga_ram);
-	if (ret == 0)
-		ret = nouveau_bo_pin(dev_priv->vga_ram, TTM_PL_FLAG_VRAM);
-	if (ret) {
-		NV_WARN(dev, "failed to reserve VGA memory\n");
-		nouveau_bo_ref(NULL, &dev_priv->vga_ram);
+	if (dev_priv->card_type < NV_50) {
+		ret = nouveau_bo_new(dev, NULL, 256*1024, 0, TTM_PL_FLAG_VRAM,
+				     0, 0, &dev_priv->vga_ram);
+		if (ret == 0)
+			ret = nouveau_bo_pin(dev_priv->vga_ram,
+					     TTM_PL_FLAG_VRAM);
+
+		if (ret) {
+			NV_WARN(dev, "failed to reserve VGA memory\n");
+			nouveau_bo_ref(NULL, &dev_priv->vga_ram);
+		}
 	}
 
 	dev_priv->fb_mtrr = drm_mtrr_add(pci_resource_start(dev->pdev, 1),
@@ -666,13 +675,14 @@ nouveau_vram_manager_init(struct ttm_mem_type_manager *man, unsigned long p_size
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(man->bdev);
 	struct nouveau_mm *mm;
-	u32 b_size;
+	u64 size, block, rsvd;
 	int ret;
 
-	p_size = (p_size << PAGE_SHIFT) >> 12;
-	b_size = dev_priv->vram_rblock_size >> 12;
+	rsvd  = (256 * 1024); /* vga memory */
+	size  = (p_size << PAGE_SHIFT) - rsvd;
+	block = dev_priv->vram_rblock_size;
 
-	ret = nouveau_mm_init(&mm, 0, p_size, b_size);
+	ret = nouveau_mm_init(&mm, rsvd >> 12, size >> 12, block >> 12);
 	if (ret)
 		return ret;
 
@@ -700,9 +710,15 @@ nouveau_vram_manager_del(struct ttm_mem_type_manager *man,
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(man->bdev);
 	struct nouveau_vram_engine *vram = &dev_priv->engine.vram;
+	struct nouveau_mem *node = mem->mm_node;
 	struct drm_device *dev = dev_priv->dev;
 
-	vram->put(dev, (struct nouveau_vram **)&mem->mm_node);
+	if (node->tmp_vma.node) {
+		nouveau_vm_unmap(&node->tmp_vma);
+		nouveau_vm_put(&node->tmp_vma);
+	}
+
+	vram->put(dev, (struct nouveau_mem **)&mem->mm_node);
 }
 
 static int
@@ -715,7 +731,7 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 	struct nouveau_vram_engine *vram = &dev_priv->engine.vram;
 	struct drm_device *dev = dev_priv->dev;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nouveau_vram *node;
+	struct nouveau_mem *node;
 	u32 size_nc = 0;
 	int ret;
 
@@ -724,7 +740,7 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 
 	ret = vram->get(dev, mem->num_pages << PAGE_SHIFT,
 			mem->page_alignment << PAGE_SHIFT, size_nc,
-			(nvbo->tile_flags >> 8) & 0xff, &node);
+			(nvbo->tile_flags >> 8) & 0x3ff, &node);
 	if (ret)
 		return ret;
 
@@ -768,4 +784,85 @@ const struct ttm_mem_type_manager_func nouveau_vram_manager = {
 	nouveau_vram_manager_new,
 	nouveau_vram_manager_del,
 	nouveau_vram_manager_debug
+};
+
+static int
+nouveau_gart_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
+{
+	return 0;
+}
+
+static int
+nouveau_gart_manager_fini(struct ttm_mem_type_manager *man)
+{
+	return 0;
+}
+
+static void
+nouveau_gart_manager_del(struct ttm_mem_type_manager *man,
+			 struct ttm_mem_reg *mem)
+{
+	struct nouveau_mem *node = mem->mm_node;
+
+	if (node->tmp_vma.node) {
+		nouveau_vm_unmap(&node->tmp_vma);
+		nouveau_vm_put(&node->tmp_vma);
+	}
+	mem->mm_node = NULL;
+}
+
+static int
+nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
+			 struct ttm_buffer_object *bo,
+			 struct ttm_placement *placement,
+			 struct ttm_mem_reg *mem)
+{
+	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
+	struct nouveau_vma *vma = &nvbo->vma;
+	struct nouveau_vm *vm = vma->vm;
+	struct nouveau_mem *node;
+	int ret;
+
+	if (unlikely((mem->num_pages << PAGE_SHIFT) >=
+		     dev_priv->gart_info.aper_size))
+		return -ENOMEM;
+
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	if (!node)
+		return -ENOMEM;
+
+	/* This node must be for evicting large-paged VRAM
+	 * to system memory.  Due to a nv50 limitation of
+	 * not being able to mix large/small pages within
+	 * the same PDE, we need to create a temporary
+	 * small-paged VMA for the eviction.
+	 */
+	if (vma->node->type != vm->spg_shift) {
+		ret = nouveau_vm_get(vm, (u64)vma->node->length << 12,
+				     vm->spg_shift, NV_MEM_ACCESS_RW,
+				     &node->tmp_vma);
+		if (ret) {
+			kfree(node);
+			return ret;
+		}
+	}
+
+	node->page_shift = nvbo->vma.node->type;
+	mem->mm_node = node;
+	mem->start   = 0;
+	return 0;
+}
+
+void
+nouveau_gart_manager_debug(struct ttm_mem_type_manager *man, const char *prefix)
+{
+}
+
+const struct ttm_mem_type_manager_func nouveau_gart_manager = {
+	nouveau_gart_manager_init,
+	nouveau_gart_manager_fini,
+	nouveau_gart_manager_new,
+	nouveau_gart_manager_del,
+	nouveau_gart_manager_debug
 };

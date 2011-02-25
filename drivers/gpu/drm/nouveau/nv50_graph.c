@@ -95,13 +95,41 @@ nv50_graph_init_regs__nv(struct drm_device *dev)
 }
 
 static void
-nv50_graph_init_regs(struct drm_device *dev)
+nv50_graph_init_zcull(struct drm_device *dev)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	int i;
+
 	NV_DEBUG(dev, "\n");
 
-	nv_wr32(dev, NV04_PGRAPH_DEBUG_3,
-				(1 << 2) /* HW_CONTEXT_SWITCH_ENABLED */);
-	nv_wr32(dev, 0x402ca8, 0x800);
+	switch (dev_priv->chipset & 0xf0) {
+	case 0x50:
+	case 0x80:
+	case 0x90:
+		nv_wr32(dev, 0x402ca8, 0x00000800);
+		break;
+	case 0xa0:
+	default:
+		nv_wr32(dev, 0x402cc0, 0x00000000);
+		if (dev_priv->chipset == 0xa0 ||
+		    dev_priv->chipset == 0xaa ||
+		    dev_priv->chipset == 0xac) {
+			nv_wr32(dev, 0x402ca8, 0x00000802);
+		} else {
+			nv_wr32(dev, 0x402cc0, 0x00000000);
+			nv_wr32(dev, 0x402ca8, 0x00000002);
+		}
+
+		break;
+	}
+
+	/* zero out zcull regions */
+	for (i = 0; i < 8; i++) {
+		nv_wr32(dev, 0x402c20 + (i * 8), 0x00000000);
+		nv_wr32(dev, 0x402c24 + (i * 8), 0x00000000);
+		nv_wr32(dev, 0x402c28 + (i * 8), 0x00000000);
+		nv_wr32(dev, 0x402c2c + (i * 8), 0x00000000);
+	}
 }
 
 static int
@@ -136,6 +164,7 @@ nv50_graph_init_ctxctl(struct drm_device *dev)
 	}
 	kfree(cp);
 
+	nv_wr32(dev, 0x40008c, 0x00000004); /* HW_CTX_SWITCH_ENABLED */
 	nv_wr32(dev, 0x400320, 4);
 	nv_wr32(dev, NV40_PGRAPH_CTXCTL_CUR, 0);
 	nv_wr32(dev, NV20_PGRAPH_CHANNEL_CTX_POINTER, 0);
@@ -151,7 +180,7 @@ nv50_graph_init(struct drm_device *dev)
 
 	nv50_graph_init_reset(dev);
 	nv50_graph_init_regs__nv(dev);
-	nv50_graph_init_regs(dev);
+	nv50_graph_init_zcull(dev);
 
 	ret = nv50_graph_init_ctxctl(dev);
 	if (ret)
@@ -409,12 +438,7 @@ static int
 nv50_graph_nvsw_mthd_page_flip(struct nouveau_channel *chan,
 			       u32 class, u32 mthd, u32 data)
 {
-	struct nouveau_page_flip_state s;
-
-	if (!nouveau_finish_page_flip(chan, &s)) {
-		/* XXX - Do something here */
-	}
-
+	nouveau_finish_page_flip(chan, NULL);
 	return 0;
 }
 
@@ -912,10 +936,10 @@ nv50_pgraph_trap_handler(struct drm_device *dev, u32 display, u64 inst, u32 chid
 			printk("\n");
 			NV_INFO(dev, "PGRAPH - TRAP_CCACHE %08x %08x %08x %08x"
 				     " %08x %08x %08x\n",
-				nv_rd32(dev, 0x405800), nv_rd32(dev, 0x405804),
-				nv_rd32(dev, 0x405808), nv_rd32(dev, 0x40580c),
-				nv_rd32(dev, 0x405810), nv_rd32(dev, 0x405814),
-				nv_rd32(dev, 0x40581c));
+				nv_rd32(dev, 0x405000), nv_rd32(dev, 0x405004),
+				nv_rd32(dev, 0x405008), nv_rd32(dev, 0x40500c),
+				nv_rd32(dev, 0x405010), nv_rd32(dev, 0x405014),
+				nv_rd32(dev, 0x40501c));
 
 		}
 

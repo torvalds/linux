@@ -300,7 +300,7 @@ nv50_instmem_resume(struct drm_device *dev)
 }
 
 struct nv50_gpuobj_node {
-	struct nouveau_vram *vram;
+	struct nouveau_mem *vram;
 	struct nouveau_vma chan_vma;
 	u32 align;
 };
