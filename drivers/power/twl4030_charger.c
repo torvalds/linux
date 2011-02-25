@@ -71,8 +71,11 @@ struct twl4030_bci {
 	struct power_supply	usb;
 	struct otg_transceiver	*transceiver;
 	struct notifier_block	otg_nb;
+	struct work_struct	work;
 	int			irq_chg;
 	int			irq_bci;
+
+	unsigned long		event;
 };
 
 /*
@@ -258,14 +261,11 @@ static irqreturn_t twl4030_bci_interrupt(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static int twl4030_bci_usb_ncb(struct notifier_block *nb, unsigned long val,
-			       void *priv)
+static void twl4030_bci_usb_work(struct work_struct *data)
 {
-	struct twl4030_bci *bci = container_of(nb, struct twl4030_bci, otg_nb);
+	struct twl4030_bci *bci = container_of(data, struct twl4030_bci, work);
 
-	dev_dbg(bci->dev, "OTG notify %lu\n", val);
-
-	switch (val) {
+	switch (bci->event) {
 	case USB_EVENT_VBUS:
 	case USB_EVENT_CHARGER:
 		twl4030_charger_enable_usb(bci, true);
@@ -274,6 +274,17 @@ static int twl4030_bci_usb_ncb(struct notifier_block *nb, unsigned long val,
 		twl4030_charger_enable_usb(bci, false);
 		break;
 	}
+}
+
+static int twl4030_bci_usb_ncb(struct notifier_block *nb, unsigned long val,
+			       void *priv)
+{
+	struct twl4030_bci *bci = container_of(nb, struct twl4030_bci, otg_nb);
+
+	dev_dbg(bci->dev, "OTG notify %lu\n", val);
+
+	bci->event = val;
+	schedule_work(&bci->work);
 
 	return NOTIFY_OK;
 }
@@ -465,6 +476,8 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 			bci->irq_bci, ret);
 		goto fail_bci_irq;
 	}
+
+	INIT_WORK(&bci->work, twl4030_bci_usb_work);
 
 	bci->transceiver = otg_get_transceiver();
 	if (bci->transceiver != NULL) {
