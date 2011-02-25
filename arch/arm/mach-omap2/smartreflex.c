@@ -26,9 +26,9 @@
 #include <linux/pm_runtime.h>
 
 #include <plat/common.h>
-#include <plat/smartreflex.h>
 
 #include "pm.h"
+#include "smartreflex.h"
 
 #define SMARTREFLEX_NAME_LEN	16
 #define NVALUE_NAME_LEN		40

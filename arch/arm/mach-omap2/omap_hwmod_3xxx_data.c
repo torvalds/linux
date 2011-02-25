@@ -22,7 +22,6 @@
 #include <plat/l4_3xxx.h>
 #include <plat/i2c.h>
 #include <plat/gpio.h>
-#include <plat/smartreflex.h>
 #include <plat/mcspi.h>
 
 #include "omap_hwmod_common_data.h"
