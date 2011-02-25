@@ -1370,6 +1370,7 @@ static struct usb_device_id dw2102_table[] = {
 	{USB_DEVICE(0x9022, USB_PID_TEVII_S660)},
 	{USB_DEVICE(0x3034, 0x7500)},
 	{USB_DEVICE(0x1f4d, 0x3000)},
+	{USB_DEVICE(USB_VID_TERRATEC, 0x00a8)},
 	{ }
 };
 
@@ -1742,10 +1743,14 @@ static struct dvb_usb_device_properties su3000_properties = {
 			}
 		}
 	},
-	.num_device_descs = 1,
+	.num_device_descs = 2,
 	.devices = {
 		{ "SU3000HD DVB-S USB2.0",
 			{ &dw2102_table[10], NULL },
+			{ NULL },
+		},
+		{ "Terratec Cinergy S2 USB HD",
+			{ &dw2102_table[11], NULL },
 			{ NULL },
 		},
 	}
