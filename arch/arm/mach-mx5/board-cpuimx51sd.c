@@ -110,7 +110,7 @@ static iomux_v3_cfg_t eukrea_cpuimx51sd_pads[] = {
 
 	/* Touchscreen */
 	/* IRQ */
-	_MX51_PAD_CSI1_D8__GPIO3_12 | MUX_PAD_CTRL(PAD_CTL_PUS_22K_UP |
+	_MX51_PAD_GPIO_NAND__GPIO_NAND | MUX_PAD_CTRL(PAD_CTL_PUS_22K_UP |
 			PAD_CTL_PKE | PAD_CTL_SRE_FAST |
 			PAD_CTL_DSE_HIGH | PAD_CTL_PUE | PAD_CTL_HYS),
 };
@@ -119,15 +119,9 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-static int ts_get_pendown_state(void)
-{
-	return gpio_get_value(TSC2007_IRQGPIO) ? 0 : 1;
-}
-
 static struct tsc2007_platform_data tsc2007_info = {
 	.model			= 2007,
 	.x_plate_ohms		= 180,
-	.get_pendown_state	= ts_get_pendown_state,
 };
 
 static struct i2c_board_info eukrea_cpuimx51sd_i2c_devices[] = {
