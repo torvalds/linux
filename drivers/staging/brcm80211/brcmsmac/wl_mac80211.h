@@ -21,7 +21,7 @@
  * sleep so perimeter lock has to be a semaphore instead of spinlock. This requires timers to be
  * submitted to workqueue instead of being on kernel timer
  */
-typedef struct wl_timer {
+struct wl_timer {
 	struct timer_list timer;
 	struct wl_info *wl;
 	void (*fn) (void *);
@@ -33,7 +33,7 @@ typedef struct wl_timer {
 #ifdef BCMDBG
 	char *name;		/* Description of the timer */
 #endif
-} wl_timer_t;
+};
 
 struct wl_if {
 	uint subunit;		/* WDS/BSS unit */

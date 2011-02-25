@@ -49,7 +49,7 @@
 #include "wl_mac80211.h"
 
 static void wl_timer(unsigned long data);
-static void _wl_timer(wl_timer_t *t);
+static void _wl_timer(struct wl_timer *t);
 
 
 static int ieee_hw_init(struct ieee80211_hw *hw);
@@ -1342,7 +1342,7 @@ module_exit(wl_module_exit);
  */
 static void wl_free(struct wl_info *wl)
 {
-	wl_timer_t *t, *next;
+	struct wl_timer *t, *next;
 	struct osl_info *osh;
 
 	ASSERT(wl);
@@ -1601,13 +1601,13 @@ static void BCMFASTPATH wl_dpc(unsigned long data)
  */
 static void wl_timer(unsigned long data)
 {
-	_wl_timer((wl_timer_t *) data);
+	_wl_timer((struct wl_timer *) data);
 }
 
 /*
 * precondition: perimeter lock is not acquired
  */
-static void _wl_timer(wl_timer_t *t)
+static void _wl_timer(struct wl_timer *t)
 {
 	WL_LOCK(t->wl);
 
@@ -1634,18 +1634,18 @@ static void _wl_timer(wl_timer_t *t)
  *
  * precondition: perimeter lock has been acquired
  */
-wl_timer_t *wl_init_timer(struct wl_info *wl, void (*fn) (void *arg), void *arg,
-			  const char *name)
+struct wl_timer *wl_init_timer(struct wl_info *wl, void (*fn) (void *arg),
+			       void *arg, const char *name)
 {
-	wl_timer_t *t;
+	struct wl_timer *t;
 
-	t = kmalloc(sizeof(wl_timer_t), GFP_ATOMIC);
+	t = kmalloc(sizeof(struct wl_timer), GFP_ATOMIC);
 	if (!t) {
 		WL_ERROR("wl%d: wl_init_timer: out of memory\n", wl->pub->unit);
 		return 0;
 	}
 
-	memset(t, 0, sizeof(wl_timer_t));
+	memset(t, 0, sizeof(struct wl_timer));
 
 	init_timer(&t->timer);
 	t->timer.data = (unsigned long) t;
@@ -1670,7 +1670,7 @@ wl_timer_t *wl_init_timer(struct wl_info *wl, void (*fn) (void *arg), void *arg,
  *
  * precondition: perimeter lock has been acquired
  */
-void wl_add_timer(struct wl_info *wl, wl_timer_t *t, uint ms, int periodic)
+void wl_add_timer(struct wl_info *wl, struct wl_timer *t, uint ms, int periodic)
 {
 #ifdef BCMDBG
 	if (t->set) {
@@ -1694,7 +1694,7 @@ void wl_add_timer(struct wl_info *wl, wl_timer_t *t, uint ms, int periodic)
  *
  * precondition: perimeter lock has been acquired
  */
-bool wl_del_timer(struct wl_info *wl, wl_timer_t *t)
+bool wl_del_timer(struct wl_info *wl, struct wl_timer *t)
 {
 	if (t->set) {
 		t->set = false;
@@ -1710,9 +1710,9 @@ bool wl_del_timer(struct wl_info *wl, wl_timer_t *t)
 /*
  * precondition: perimeter lock has been acquired
  */
-void wl_free_timer(struct wl_info *wl, wl_timer_t *t)
+void wl_free_timer(struct wl_info *wl, struct wl_timer *t)
 {
-	wl_timer_t *tmp;
+	struct wl_timer *tmp;
 
 	/* delete the timer in case it is active */
 	wl_del_timer(wl, t);
