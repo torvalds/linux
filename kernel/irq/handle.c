@@ -64,7 +64,8 @@ handle_irq_event_percpu(struct irq_desc *desc, struct irqaction *action)
 		res = action->handler(irq, action->dev_id);
 		trace_irq_handler_exit(irq, action, res);
 
-		if (WARN_ON_ONCE(!irqs_disabled()))
+		if (WARN_ONCE(!irqs_disabled(),"irq %u handler %pF enabled interrupts\n",
+			      irq, action->handler))
 			local_irq_disable();
 
 		switch (res) {
