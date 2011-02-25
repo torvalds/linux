@@ -910,6 +910,8 @@ void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
 	ath9k_hw_set_gpio(ah, ah->led_pin, 0);
 
 	ieee80211_wake_queues(hw);
+	ieee80211_queue_delayed_work(hw, &sc->hw_pll_work, HZ/2);
+
 out:
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
@@ -923,6 +925,8 @@ void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw)
 	int r;
 
 	ath9k_ps_wakeup(sc);
+	cancel_delayed_work_sync(&sc->hw_pll_work);
+
 	spin_lock_bh(&sc->sc_pcu_lock);
 
 	ieee80211_stop_queues(hw);
