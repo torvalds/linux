@@ -18,7 +18,6 @@
 #include <linux/etherdevice.h>
 #include <net/mac80211.h>
 
-#include <proto/802.1d.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>
 #include <osl.h>
@@ -70,6 +69,12 @@
 
 #define WPA_CAP_4_REPLAY_CNTRS		RSN_CAP_4_REPLAY_CNTRS
 #define WPA_CAP_16_REPLAY_CNTRS		RSN_CAP_16_REPLAY_CNTRS
+
+/*
+ * Indication for txflowcontrol that all priority bits in
+ * TXQ_STOP_FOR_PRIOFC_MASK are to be considered.
+ */
+#define ALLPRIO		-1
 
 /*
  * buffer length needed for wlc_format_ssid

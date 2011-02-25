@@ -16,7 +16,6 @@
 #include <linux/kernel.h>
 #include <net/mac80211.h>
 
-#include <proto/802.1d.h>
 #include <osl.h>
 #include <bcmdefs.h>
 #include <bcmutils.h>

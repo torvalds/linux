@@ -27,7 +27,6 @@
 #include <siutils.h>
 #include <bcmnvram.h>
 #include <bcmdevs.h>
-#include <proto/802.1d.h>
 #include <proto/802.11.h>
 
 struct sk_buff *BCMFASTPATH pkt_buf_get_skb(struct osl_info *osh, uint len)

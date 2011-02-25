@@ -43,7 +43,6 @@
 #include <sbsdpcmdev.h>
 #include <bcmsdpcm.h>
 
-#include <proto/802.1d.h>
 #include <proto/802.11.h>
 
 #include <dngl_stats.h>
@@ -143,6 +142,14 @@
  */
 #define PKTFREE2()		if ((bus->bus != SPI_BUS) || bus->usebufpool) \
 							pkt_buf_free_skb(bus->dhd->osh, pkt, false);
+
+/*
+ * Conversion of 802.1D priority to precedence level
+ */
+#define PRIO2PREC(prio) \
+	(((prio) == PRIO_8021D_NONE || (prio) == PRIO_8021D_BE) ? \
+	((prio^2)) : (prio))
+
 DHD_SPINWAIT_SLEEP_INIT(sdioh_spinwait_sleep);
 extern int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf,
 			    uint len);

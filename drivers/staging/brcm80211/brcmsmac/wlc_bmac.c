@@ -22,7 +22,6 @@
 #include <linux/etherdevice.h>
 
 #include <proto/802.11.h>
-#include <proto/802.1d.h>
 #include <osl.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>

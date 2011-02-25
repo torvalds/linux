@@ -18,7 +18,6 @@
 #include <linux/module.h>
 
 #include <proto/802.11.h>
-#include <proto/802.1d.h>
 
 #include <bcmdefs.h>
 #include <osl.h>
