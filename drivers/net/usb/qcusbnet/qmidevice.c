@@ -84,6 +84,7 @@ static int qmidms_getmeid(struct qcusbnet *dev);
 #define IOCTL_QMI_GET_SERVICE_FILE	(0x8BE0 + 1)
 #define IOCTL_QMI_GET_DEVICE_VIDPID	(0x8BE0 + 2)
 #define IOCTL_QMI_GET_DEVICE_MEID	(0x8BE0 + 3)
+#define CDC_GET_MASK			0xFFFFll
 #define CDC_GET_ENCAPSULATED_RESPONSE	0x01A1ll
 #define CDC_CONNECTION_SPEED_CHANGE	0x08000000002AA1ll
 
@@ -165,7 +166,8 @@ static void read_callback(struct urb *urb)
 	data = urb->transfer_buffer;
 	size = urb->actual_length;
 
-	print_hex_dump(KERN_INFO, "QCUSBNet2k: ", DUMP_PREFIX_OFFSET,
+	if (debug)
+		print_hex_dump(KERN_INFO, "QCUSBNet2k: ", DUMP_PREFIX_OFFSET,
 		       16, 1, data, size, true);
 
 	result = qmux_parse(&cid, data, size);
@@ -228,7 +230,8 @@ static void int_callback(struct urb *urb)
 			return;
 	} else {
 		if ((urb->actual_length == 8) &&
-		    (*(u64 *)urb->transfer_buffer == CDC_GET_ENCAPSULATED_RESPONSE)) {
+		    (*(u64 *)urb->transfer_buffer & CDC_GET_MASK) ==
+					CDC_GET_ENCAPSULATED_RESPONSE) {
 			usb_fill_control_urb(dev->qmi.readurb, dev->usbnet->udev,
 					     usb_rcvctrlpipe(dev->usbnet->udev, 0),
 					     (unsigned char *)dev->qmi.readsetup,
@@ -254,7 +257,8 @@ static void int_callback(struct urb *urb)
 			}
 		} else {
 			DBG("ignoring invalid interrupt in packet\n");
-			print_hex_dump(KERN_INFO, "QCUSBNet2k: ",
+			if (debug)
+				print_hex_dump(KERN_INFO, "QCUSBNet2k: ",
 				       DUMP_PREFIX_OFFSET, 16, 1,
 				       urb->transfer_buffer,
 				       urb->actual_length, true);
@@ -275,6 +279,9 @@ static void int_callback(struct urb *urb)
 int qc_startread(struct qcusbnet *dev)
 {
 	int interval;
+	int numends;
+	int i;
+	struct usb_host_endpoint *endpoint = NULL;
 
 	if (!device_valid(dev)) {
 		DBG("Invalid device!\n");
@@ -324,15 +331,31 @@ int qc_startread(struct qcusbnet *dev)
 	dev->qmi.readsetup->type = 0xA1;
 	dev->qmi.readsetup->code = 1;
 	dev->qmi.readsetup->value = 0;
-	dev->qmi.readsetup->index = 0;
+	dev->qmi.readsetup->index = dev->iface->cur_altsetting->desc.bInterfaceNumber;
 	dev->qmi.readsetup->len = DEFAULT_READ_URB_LENGTH;
 
 	interval = (dev->usbnet->udev->speed == USB_SPEED_HIGH) ? 7 : 3;
 
+	numends = dev->iface->cur_altsetting->desc.bNumEndpoints;
+	for (i = 0; i < numends; i++) {
+		endpoint = dev->iface->cur_altsetting->endpoint + i;
+		if (!endpoint) {
+			DBG("invalid endpoint %u\n", i);
+			return -EINVAL;
+		}
+
+		if (usb_endpoint_dir_in(&endpoint->desc)
+		  && usb_endpoint_xfer_int(&endpoint->desc)) {
+			DBG("Interrupt endpoint is %x\n", endpoint->desc.bEndpointAddress);
+			break;
+		}
+	}
+
 	usb_fill_int_urb(dev->qmi.inturb, dev->usbnet->udev,
-			 usb_rcvintpipe(dev->usbnet->udev, 0x81),
+			 usb_rcvintpipe(dev->usbnet->udev, endpoint->desc.bEndpointAddress),
 			 dev->qmi.intbuf, DEFAULT_READ_URB_LENGTH,
 			 int_callback, dev, interval);
+
 	return usb_submit_urb(dev->qmi.inturb, GFP_KERNEL);
 }
 
@@ -512,7 +535,7 @@ static int write_sync(struct qcusbnet *dev, char *buf, int size, u16 cid)
 	setup.type = 0x21;
 	setup.code = 0;
 	setup.value = 0;
-	setup.index = 0;
+	setup.index = dev->iface->cur_altsetting->desc.bInterfaceNumber;
 	setup.len = 0;
 	setup.len = size;
 
@@ -522,7 +545,8 @@ static int write_sync(struct qcusbnet *dev, char *buf, int size, u16 cid)
 			     NULL, dev);
 
 	DBG("Actual Write:\n");
-	print_hex_dump(KERN_INFO,  "QCUSBNet2k: ", DUMP_PREFIX_OFFSET,
+	if (debug)
+		print_hex_dump(KERN_INFO,  "QCUSBNet2k: ", DUMP_PREFIX_OFFSET,
 		       16, 1, buf, size, true);
 
 	sema_init(&sem, 0);
@@ -1252,12 +1276,12 @@ int qc_register(struct qcusbnet *dev)
 		return result;
 	}
 
-	name = strstr(dev->usbnet->net->name, "usb");
+	name = strstr(dev->usbnet->net->name, "qmi");
 	if (!name) {
 		DBG("Bad net name: %s\n", dev->usbnet->net->name);
 		return -ENXIO;
 	}
-	name += strlen("usb");
+	name += strlen("qmi");
 	qmiidx = simple_strtoul(name, NULL, 10);
 	if (qmiidx < 0) {
 		DBG("Bad minor number\n");
@@ -1526,6 +1550,7 @@ static int setup_wds_callback(struct qcusbnet *dev)
 		return result;
 	}
 
+/* TODO: Restore this once the ril supports it
 	result = usb_control_msg(dev->usbnet->udev,
 				 usb_sndctrlpipe(dev->usbnet->udev, 0),
 				 0x22, 0x21, 1, 0, NULL, 0, 100);
@@ -1533,6 +1558,7 @@ static int setup_wds_callback(struct qcusbnet *dev)
 		DBG("Bad SetControlLineState status %d\n", result);
 		return result;
 	}
+*/
 
 	return 0;
 }

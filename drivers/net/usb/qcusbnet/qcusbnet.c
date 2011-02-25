@@ -119,6 +119,11 @@ static int qc_resume(struct usb_interface *iface)
 	return ret;
 }
 
+static int qc_reset_resume(struct usb_interface *iface)
+{
+	return qc_resume(iface);
+}
+
 static int qcnet_bind(struct usbnet *usbnet, struct usb_interface *iface)
 {
 	int numends;
@@ -132,12 +137,6 @@ static int qcnet_bind(struct usbnet *usbnet, struct usb_interface *iface)
 		return -EINVAL;
 	}
 
-	if (iface->cur_altsetting->desc.bInterfaceNumber != 0) {
-		DBG("invalid interface %d\n",
-			  iface->cur_altsetting->desc.bInterfaceNumber);
-		return -EINVAL;
-	}
-
 	numends = iface->cur_altsetting->desc.bNumEndpoints;
 	for (i = 0; i < numends; i++) {
 		endpoint = iface->cur_altsetting->endpoint + i;
@@ -146,12 +145,10 @@ static int qcnet_bind(struct usbnet *usbnet, struct usb_interface *iface)
 			return -EINVAL;
 		}
 
-		if (usb_endpoint_dir_in(&endpoint->desc)
-		&&  !usb_endpoint_xfer_int(&endpoint->desc)) {
+		if (usb_endpoint_is_bulk_in(&endpoint->desc))
 			in = endpoint;
-		} else if (!usb_endpoint_dir_out(&endpoint->desc)) {
+		else if (usb_endpoint_is_bulk_out(&endpoint->desc))
 			out = endpoint;
-		}
 	}
 
 	if (!in || !out) {
@@ -171,6 +168,9 @@ static int qcnet_bind(struct usbnet *usbnet, struct usb_interface *iface)
 	DBG("in %x, out %x\n",
 	    in->desc.bEndpointAddress,
 	    out->desc.bEndpointAddress);
+
+	strcpy(usbnet->net->name, "qmi%d");
+	random_ether_addr(&usbnet->net->dev_addr[0]);
 
 	return 0;
 }
@@ -527,6 +527,10 @@ static const struct usb_device_id qc_vidpids[] = {
 	MKVIDPID(0x05c6, 0x9225),	/* Sony Gobi 2000 */
 	MKVIDPID(0x05c6, 0x9235),	/* Top Global Gobi 2000 */
 	MKVIDPID(0x05c6, 0x9275),	/* iRex Technologies Gobi 2000 */
+	{
+		USB_DEVICE_AND_INTERFACE_INFO(0x22B8, 0x2A70, 0xff, 0xfb, 0xff), /* Motorola Xoom */
+		.driver_info = (unsigned long)&qc_netinfo
+	},
 	{ }
 };
 
@@ -607,12 +611,13 @@ int qcnet_probe(struct usb_interface *iface, const struct usb_device_id *vidpids
 EXPORT_SYMBOL_GPL(qcnet_probe);
 
 static struct usb_driver qcusbnet = {
-	.name       = "QCUSBNet2k",
-	.id_table   = qc_vidpids,
-	.probe      = qcnet_probe,
-	.disconnect = usbnet_disconnect,
-	.suspend    = qc_suspend,
-	.resume     = qc_resume,
+	.name		= "QCUSBNet2k",
+	.id_table	= qc_vidpids,
+	.probe		= qcnet_probe,
+	.disconnect	= usbnet_disconnect,
+	.suspend	= qc_suspend,
+	.resume		= qc_resume,
+	.reset_resume	= qc_reset_resume,
 	.supports_autosuspend = true,
 };
 
