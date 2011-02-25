@@ -1,4 +1,3 @@
-#include <ctype.h>
 #include "util.h"
 #include "string.h"
 #include "strfilter.h"
