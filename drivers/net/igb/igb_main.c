@@ -4560,6 +4560,15 @@ void igb_update_stats(struct igb_adapter *adapter,
 	adapter->stats.mgptc += rd32(E1000_MGTPTC);
 	adapter->stats.mgprc += rd32(E1000_MGTPRC);
 	adapter->stats.mgpdc += rd32(E1000_MGTPDC);
+
+	/* OS2BMC Stats */
+	reg = rd32(E1000_MANC);
+	if (reg & E1000_MANC_EN_BMC2OS) {
+		adapter->stats.o2bgptc += rd32(E1000_O2BGPTC);
+		adapter->stats.o2bspc += rd32(E1000_O2BSPC);
+		adapter->stats.b2ospc += rd32(E1000_B2OSPC);
+		adapter->stats.b2ogprc += rd32(E1000_B2OGPRC);
+	}
 }
 
 static irqreturn_t igb_msix_other(int irq, void *data)
