@@ -15,9 +15,11 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/gpio.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/sdhci-pltfm.h>
 #include <mach/hardware.h>
+#include <mach/esdhc.h>
 #include "sdhci.h"
 #include "sdhci-pltfm.h"
 #include "sdhci-esdhc.h"
@@ -100,10 +102,31 @@ static unsigned int esdhc_pltfm_get_min_clock(struct sdhci_host *host)
 	return clk_get_rate(pltfm_host->clk) / 256 / 16;
 }
 
+static unsigned int esdhc_pltfm_get_ro(struct sdhci_host *host)
+{
+	struct esdhc_platform_data *boarddata = host->mmc->parent->platform_data;
+
+	if (boarddata && gpio_is_valid(boarddata->wp_gpio))
+		return gpio_get_value(boarddata->wp_gpio);
+	else
+		return -ENOSYS;
+}
+
+static struct sdhci_ops sdhci_esdhc_ops = {
+	.read_w = esdhc_readw_le,
+	.write_w = esdhc_writew_le,
+	.write_b = esdhc_writeb_le,
+	.set_clock = esdhc_set_clock,
+	.get_max_clock = esdhc_pltfm_get_max_clock,
+	.get_min_clock = esdhc_pltfm_get_min_clock,
+};
+
 static int esdhc_pltfm_init(struct sdhci_host *host, struct sdhci_pltfm_data *pdata)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct esdhc_platform_data *boarddata = host->mmc->parent->platform_data;
 	struct clk *clk;
+	int err;
 
 	clk = clk_get(mmc_dev(host->mmc), NULL);
 	if (IS_ERR(clk)) {
@@ -116,9 +139,21 @@ static int esdhc_pltfm_init(struct sdhci_host *host, struct sdhci_pltfm_data *pd
 	if (cpu_is_mx35() || cpu_is_mx51())
 		host->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
 
-	/* Fix errata ENGcm07207 which is present on i.MX25 and i.MX35 */
-	if (cpu_is_mx25() || cpu_is_mx35())
+	if (cpu_is_mx25() || cpu_is_mx35()) {
+		/* Fix errata ENGcm07207 present on i.MX25 and i.MX35 */
 		host->quirks |= SDHCI_QUIRK_NO_MULTIBLOCK;
+		/* write_protect can't be routed to controller, use gpio */
+		sdhci_esdhc_ops.get_ro = esdhc_pltfm_get_ro;
+	}
+
+	if (boarddata) {
+		err = gpio_request_one(boarddata->wp_gpio, GPIOF_IN, "ESDHC_WP");
+		if (err) {
+			dev_warn(mmc_dev(host->mmc),
+				"no write-protect pin available!\n");
+			boarddata->wp_gpio = err;
+		}
+	}
 
 	return 0;
 }
@@ -126,19 +161,14 @@ static int esdhc_pltfm_init(struct sdhci_host *host, struct sdhci_pltfm_data *pd
 static void esdhc_pltfm_exit(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct esdhc_platform_data *boarddata = host->mmc->parent->platform_data;
+
+	if (boarddata && gpio_is_valid(boarddata->wp_gpio))
+		gpio_free(boarddata->wp_gpio);
 
 	clk_disable(pltfm_host->clk);
 	clk_put(pltfm_host->clk);
 }
-
-static struct sdhci_ops sdhci_esdhc_ops = {
-	.read_w = esdhc_readw_le,
-	.write_w = esdhc_writew_le,
-	.write_b = esdhc_writeb_le,
-	.set_clock = esdhc_set_clock,
-	.get_max_clock = esdhc_pltfm_get_max_clock,
-	.get_min_clock = esdhc_pltfm_get_min_clock,
-};
 
 struct sdhci_pltfm_data sdhci_esdhc_imx_pdata = {
 	.quirks = ESDHC_DEFAULT_QUIRKS | SDHCI_QUIRK_BROKEN_ADMA,

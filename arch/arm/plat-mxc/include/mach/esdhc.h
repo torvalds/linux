@@ -10,7 +10,15 @@
 #ifndef __ASM_ARCH_IMX_ESDHC_H
 #define __ASM_ARCH_IMX_ESDHC_H
 
+/**
+ * struct esdhc_platform_data - optional platform data for esdhc on i.MX
+ *
+ * strongly recommended for i.MX25/35, not needed for other variants
+ *
+ * @wp_gpio:	gpio for write_protect (-EINVAL if unused)
+ */
+
 struct esdhc_platform_data {
-	unsigned int wp_gpio;	/* write protect pin */
+	unsigned int wp_gpio;
 };
 #endif /* __ASM_ARCH_IMX_ESDHC_H */
