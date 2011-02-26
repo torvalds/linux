@@ -37,8 +37,6 @@
 #ifndef _TIPC_NET_H
 #define _TIPC_NET_H
 
-extern atomic_t tipc_num_links;
-
 extern rwlock_t tipc_net_lock;
 
 void tipc_net_route_msg(struct sk_buff *buf);

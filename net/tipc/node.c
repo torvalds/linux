@@ -47,6 +47,8 @@ static DEFINE_SPINLOCK(node_create_lock);
 static struct hlist_head node_htable[NODE_HTABLE_SIZE];
 LIST_HEAD(tipc_node_list);
 static u32 tipc_num_nodes;
+
+static atomic_t tipc_num_links = ATOMIC_INIT(0);
 u32 tipc_own_tag;
 
 /**
