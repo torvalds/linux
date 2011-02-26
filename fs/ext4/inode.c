@@ -2761,6 +2761,16 @@ static int write_cache_pages_da(struct address_space *mapping,
 
 			*done_index = page->index + 1;
 
+			/*
+			 * If we can't merge this page, and we have
+			 * accumulated an contiguous region, write it
+			 */
+			if ((mpd->next_page != page->index) &&
+			    (mpd->next_page != mpd->first_page)) {
+				mpage_da_map_and_submit(mpd);
+				goto ret_extent_tail;
+			}
+
 			lock_page(page);
 
 			/*
@@ -2784,24 +2794,7 @@ static int write_cache_pages_da(struct address_space *mapping,
 
 			BUG_ON(PageWriteback(page));
 
-			/*
-			 * Can we merge this page to current extent?
-			 */
 			if (mpd->next_page != page->index) {
-				/*
-				 * Nope, we can't. So, we map
-				 * non-allocated blocks and start IO
-				 * on them
-				 */
-				if (mpd->next_page != mpd->first_page) {
-					mpage_da_map_and_submit(mpd);
-					/*
-					 * skip rest of the page in the page_vec
-					 */
-					unlock_page(page);
-					goto ret_extent_tail;
-				}
-
 				/*
 				 * Start next extent of pages and blocks
 				 */
