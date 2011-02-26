@@ -1594,9 +1594,11 @@ static int sony_nc_add(struct acpi_device *device)
 	if (ACPI_SUCCESS(acpi_get_handle(sony_nc_acpi_handle, "SN00",
 					 &handle))) {
 		dprintk("Doing SNC setup\n");
-		if (sony_nc_handles_setup(sony_pf_device))
+		result = sony_nc_handles_setup(sony_pf_device);
+		if (result)
 			goto outpresent;
-		if (sony_nc_kbd_backlight_setup(sony_pf_device))
+		result = sony_nc_kbd_backlight_setup(sony_pf_device);
+		if (result)
 			goto outsnc;
 		sony_nc_function_setup(device);
 		sony_nc_rfkill_setup(device);
