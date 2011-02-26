@@ -111,6 +111,8 @@ struct sabi_config {
 	const struct sabi_header_offsets header_offsets;
 	const struct sabi_commands commands;
 	const struct sabi_performance_level performance_levels[4];
+	u8 min_brightness;
+	u8 max_brightness;
 };
 
 static const struct sabi_config sabi_configs[] = {
@@ -158,6 +160,8 @@ static const struct sabi_config sabi_configs[] = {
 			},
 			{ },
 		},
+		.min_brightness = 1,
+		.max_brightness = 8,
 	},
 	{
 		.test_string = "SwSmi@",
@@ -207,6 +211,8 @@ static const struct sabi_config sabi_configs[] = {
 			},
 			{ },
 		},
+		.min_brightness = 0,
+		.max_brightness = 8,
 	},
 	{ },
 };
@@ -362,17 +368,19 @@ static u8 read_brightness(void)
 
 	retval = sabi_get_command(sabi_config->commands.get_brightness,
 				  &sretval);
-	if (!retval)
+	if (!retval) {
 		user_brightness = sretval.retval[0];
 		if (user_brightness != 0)
-			--user_brightness;
+			user_brightness -= sabi_config->min_brightness;
+	}
 	return user_brightness;
 }
 
 static void set_brightness(u8 user_brightness)
 {
-	sabi_set_command(sabi_config->commands.set_brightness,
-			 user_brightness + 1);
+	u8 user_level = user_brightness - sabi_config->min_brightness;
+
+	sabi_set_command(sabi_config->commands.set_brightness, user_level);
 }
 
 static int get_brightness(struct backlight_device *bd)
@@ -593,6 +601,16 @@ static struct dmi_system_id __initdata samsung_dmi_table[] = {
 		.callback = dmi_check_cb,
 	},
 	{
+		.ident = "N150P/N210P/N220P",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR,
+					"SAMSUNG ELECTRONICS CO., LTD."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "N150P/N210P/N220P"),
+			DMI_MATCH(DMI_BOARD_NAME, "N150P/N210P/N220P"),
+		},
+		.callback = dmi_check_cb,
+	},
+	{
 		.ident = "R530/R730",
 		.matches = {
 		      DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
@@ -675,7 +693,7 @@ static int __init samsung_init(void)
 	if (!force && !dmi_check_system(samsung_dmi_table))
 		return -ENODEV;
 
-	f0000_segment = ioremap(0xf0000, 0xffff);
+	f0000_segment = ioremap_nocache(0xf0000, 0xffff);
 	if (!f0000_segment) {
 		pr_err("Can't map the segment at 0xf0000\n");
 		return -EINVAL;
@@ -719,7 +737,7 @@ static int __init samsung_init(void)
 	/* Get a pointer to the SABI Interface */
 	ifaceP = (readw(sabi + sabi_config->header_offsets.data_segment) & 0x0ffff) << 4;
 	ifaceP += readw(sabi + sabi_config->header_offsets.data_offset) & 0x0ffff;
-	sabi_iface = ioremap(ifaceP, 16);
+	sabi_iface = ioremap_nocache(ifaceP, 16);
 	if (!sabi_iface) {
 		pr_err("Can't remap %x\n", ifaceP);
 		goto exit;
@@ -753,7 +771,7 @@ static int __init samsung_init(void)
 
 	/* create a backlight device to talk to this one */
 	memset(&props, 0, sizeof(struct backlight_properties));
-	props.max_brightness = MAX_BRIGHT;
+	props.max_brightness = sabi_config->max_brightness;
 	backlight_device = backlight_device_register("samsung", &sdev->dev,
 						     NULL, &backlight_ops,
 						     &props);
