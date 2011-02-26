@@ -772,6 +772,9 @@ static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
 
 	/* Check to see if speed passed in is supported. */
 	hw->mac.ops.get_link_capabilities(hw, &link_capabilities, &autoneg);
+	if (status != 0)
+		goto out;
+
 	speed &= link_capabilities;
 
 	if (speed == IXGBE_LINK_SPEED_UNKNOWN) {

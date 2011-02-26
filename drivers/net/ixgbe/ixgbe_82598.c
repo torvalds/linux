@@ -366,7 +366,7 @@ static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw, s32 packetbuf_num)
 
 	/* Negotiate the fc mode to use */
 	ret_val = ixgbe_fc_autoneg(hw);
-	if (ret_val)
+	if (ret_val == IXGBE_ERR_FLOW_CONTROL)
 		goto out;
 
 	/* Disable any previous flow control settings */
@@ -384,10 +384,10 @@ static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw, s32 packetbuf_num)
 	 * 2: Tx flow control is enabled (we can send pause frames but
 	 *     we do not support receiving pause frames).
 	 * 3: Both Rx and Tx flow control (symmetric) are enabled.
-	 * other: Invalid.
 #ifdef CONFIG_DCB
 	 * 4: Priority Flow Control is enabled.
 #endif
+	 * other: Invalid.
 	 */
 	switch (hw->fc.current_mode) {
 	case ixgbe_fc_none:
@@ -444,9 +444,10 @@ static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw, s32 packetbuf_num)
 		reg = (rx_pba_size - hw->fc.low_water) << 6;
 		if (hw->fc.send_xon)
 			reg |= IXGBE_FCRTL_XONE;
+
 		IXGBE_WRITE_REG(hw, IXGBE_FCRTL(packetbuf_num), reg);
 
-		reg = (rx_pba_size - hw->fc.high_water) << 10;
+		reg = (rx_pba_size - hw->fc.high_water) << 6;
 		reg |= IXGBE_FCRTH_FCEN;
 
 		IXGBE_WRITE_REG(hw, IXGBE_FCRTH(packetbuf_num), reg);
