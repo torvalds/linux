@@ -765,11 +765,29 @@ static int read_backlight_power(struct asus_wmi *asus)
 	return ret ? FB_BLANK_UNBLANK : FB_BLANK_POWERDOWN;
 }
 
+static int read_brightness_max(struct asus_wmi *asus)
+{
+	u32 retval;
+	int err;
+
+	err = asus_wmi_get_devstate(asus, ASUS_WMI_DEVID_BRIGHTNESS, &retval);
+
+	if (err < 0)
+		return err;
+
+	retval = retval & ASUS_WMI_DSTS_MAX_BRIGTH_MASK;
+	retval >>= 8;
+
+	if (!retval)
+		return -ENODEV;
+
+	return retval;
+}
+
 static int read_brightness(struct backlight_device *bd)
 {
 	struct asus_wmi *asus = bl_get_data(bd);
-	u32 retval;
-	int err;
+	u32 retval, err;
 
 	err = asus_wmi_get_devstate(asus, ASUS_WMI_DEVID_BRIGHTNESS, &retval);
 
@@ -799,7 +817,7 @@ static int update_bl_status(struct backlight_device *bd)
 		err = asus_wmi_set_devstate(ASUS_WMI_DEVID_BACKLIGHT,
 					    ctrl_param, NULL);
 	}
-	return 0;
+	return err;
 }
 
 static const struct backlight_ops asus_wmi_bl_ops = {
@@ -832,23 +850,19 @@ static int asus_wmi_backlight_init(struct asus_wmi *asus)
 	int max;
 	int power;
 
-	max = asus_wmi_get_devstate_bits(asus, ASUS_WMI_DEVID_BRIGHTNESS,
-					 ASUS_WMI_DSTS_MAX_BRIGTH_MASK);
-	power = read_backlight_power(asus);
+	max = read_brightness_max(asus);
 
-	if (max < 0 && power < 0) {
-		/* Try to keep the original error */
-		if (max == -ENODEV && power == -ENODEV)
-			return -ENODEV;
-		if (max != -ENODEV)
-			return max;
-		else
-			return power;
-	}
 	if (max == -ENODEV)
 		max = 0;
+	else if (max < 0)
+		return max;
+
+	power = read_backlight_power(asus);
+
 	if (power == -ENODEV)
 		power = FB_BLANK_UNBLANK;
+	else if (power < 0)
+		return power;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.max_brightness = max;
