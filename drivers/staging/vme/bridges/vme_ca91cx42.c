@@ -560,8 +560,6 @@ static int ca91cx42_alloc_resource(struct vme_master_resource *image,
 
 	return 0;
 
-	iounmap(image->kern_base);
-	image->kern_base = NULL;
 err_remap:
 	release_resource(&image->bus_resource);
 err_resource:
@@ -1782,7 +1780,6 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	return 0;
 
-	vme_unregister_bridge(ca91cx42_bridge);
 err_reg:
 	ca91cx42_crcsr_exit(ca91cx42_bridge, pdev);
 err_lm:

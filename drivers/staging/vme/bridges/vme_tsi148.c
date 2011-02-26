@@ -869,8 +869,6 @@ static int tsi148_alloc_resource(struct vme_master_resource *image,
 
 	return 0;
 
-	iounmap(image->kern_base);
-	image->kern_base = NULL;
 err_remap:
 	release_resource(&image->bus_resource);
 err_resource:
