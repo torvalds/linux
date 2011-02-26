@@ -991,6 +991,7 @@ static int __devinit acer_led_init(struct device *dev)
 
 static void acer_led_exit(void)
 {
+	set_u32(LED_OFF, ACER_CAP_MAILLED);
 	led_classdev_unregister(&mail_led);
 }
 
@@ -1553,6 +1554,7 @@ pm_message_t state)
 
 	if (has_cap(ACER_CAP_MAILLED)) {
 		get_u32(&value, ACER_CAP_MAILLED);
+		set_u32(LED_OFF, ACER_CAP_MAILLED);
 		data->mailled = value;
 	}
 
@@ -1580,6 +1582,17 @@ static int acer_platform_resume(struct platform_device *device)
 	return 0;
 }
 
+static void acer_platform_shutdown(struct platform_device *device)
+{
+	struct acer_data *data = &interface->data;
+
+	if (!data)
+		return;
+
+	if (has_cap(ACER_CAP_MAILLED))
+		set_u32(LED_OFF, ACER_CAP_MAILLED);
+}
+
 static struct platform_driver acer_platform_driver = {
 	.driver = {
 		.name = "acer-wmi",
@@ -1589,6 +1602,7 @@ static struct platform_driver acer_platform_driver = {
 	.remove = acer_platform_remove,
 	.suspend = acer_platform_suspend,
 	.resume = acer_platform_resume,
+	.shutdown = acer_platform_shutdown,
 };
 
 static struct platform_device *acer_platform_device;
