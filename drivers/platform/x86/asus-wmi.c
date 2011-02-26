@@ -112,11 +112,14 @@ struct bios_args {
  * <platform>/    - debugfs root directory
  *   dev_id      - current dev_id
  *   ctrl_param  - current ctrl_param
+ *   method_id   - current method_id
  *   devs        - call DEVS(dev_id, ctrl_param) and print result
  *   dsts        - call DSTS(dev_id)  and print result
+ *   call        - call method_id(dev_id, ctrl_param) and print result
  */
 struct asus_wmi_debug {
 	struct dentry *root;
+	u32 method_id;
 	u32 dev_id;
 	u32 ctrl_param;
 };
@@ -1138,7 +1141,7 @@ static int show_dsts(struct seq_file *m, void *data)
 	if (err < 0)
 		return err;
 
-	seq_printf(m, "DSTS(%x) = %x\n", asus->debug.dev_id, retval);
+	seq_printf(m, "DSTS(%#x) = %#x\n", asus->debug.dev_id, retval);
 
 	return 0;
 }
@@ -1155,8 +1158,42 @@ static int show_devs(struct seq_file *m, void *data)
 	if (err < 0)
 		return err;
 
-	seq_printf(m, "DEVS(%x, %x) = %x\n", asus->debug.dev_id,
+	seq_printf(m, "DEVS(%#x, %#x) = %#x\n", asus->debug.dev_id,
 		   asus->debug.ctrl_param, retval);
+
+	return 0;
+}
+
+static int show_call(struct seq_file *m, void *data)
+{
+	struct asus_wmi *asus = m->private;
+	struct bios_args args = {
+		.arg0 = asus->debug.dev_id,
+		.arg1 = asus->debug.ctrl_param,
+	};
+	struct acpi_buffer input = { (acpi_size) sizeof(args), &args };
+	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
+	acpi_status status;
+
+	status = wmi_evaluate_method(ASUS_WMI_MGMT_GUID,
+				     1, asus->debug.method_id,
+				     &input, &output);
+
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	obj = (union acpi_object *)output.pointer;
+	if (obj && obj->type == ACPI_TYPE_INTEGER)
+		seq_printf(m, "%#x(%#x, %#x) = %#x\n", asus->debug.method_id,
+			   asus->debug.dev_id, asus->debug.ctrl_param,
+			   (u32) obj->integer.value);
+	else
+		seq_printf(m, "%#x(%#x, %#x) = t:%d\n", asus->debug.method_id,
+			   asus->debug.dev_id, asus->debug.ctrl_param,
+			   obj->type);
+
+	kfree(obj);
 
 	return 0;
 }
@@ -1164,6 +1201,7 @@ static int show_devs(struct seq_file *m, void *data)
 static struct asus_wmi_debugfs_node asus_wmi_debug_files[] = {
 	{NULL, "devs", show_devs},
 	{NULL, "dsts", show_dsts},
+	{NULL, "call", show_call},
 };
 
 static int asus_wmi_debugfs_open(struct inode *inode, struct file *file)
@@ -1196,6 +1234,11 @@ static int asus_wmi_debugfs_init(struct asus_wmi *asus)
 		pr_err("failed to create debugfs directory");
 		goto error_debugfs;
 	}
+
+	dent = debugfs_create_x32("method_id", S_IRUGO | S_IWUSR,
+				  asus->debug.root, &asus->debug.method_id);
+	if (!dent)
+		goto error_debugfs;
 
 	dent = debugfs_create_x32("dev_id", S_IRUGO | S_IWUSR,
 				  asus->debug.root, &asus->debug.dev_id);
