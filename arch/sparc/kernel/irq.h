@@ -2,6 +2,27 @@
 
 #include <asm/btfixup.h>
 
+/* sun4m specific type definitions */
+
+/* This maps direct to CPU specific interrupt registers */
+struct sun4m_irq_percpu {
+	u32	pending;
+	u32	clear;
+	u32	set;
+};
+
+/* This maps direct to global interrupt registers */
+struct sun4m_irq_global {
+	u32	pending;
+	u32	mask;
+	u32	mask_clear;
+	u32	mask_set;
+	u32	interrupt_target;
+};
+
+extern struct sun4m_irq_percpu __iomem *sun4m_irq_percpu[SUN4M_NCPUS];
+extern struct sun4m_irq_global __iomem *sun4m_irq_global;
+
 /*
  * Platform specific irq configuration
  * The individual platforms assign their platform
