@@ -2101,14 +2101,14 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 	/* we start off in DISABLED state */
 	host->dpm_state = DISABLED;
 
-	if (mmc_host_enable(host->mmc) != 0) {
+	if (clk_enable(host->iclk) != 0) {
 		clk_put(host->iclk);
 		clk_put(host->fclk);
 		goto err1;
 	}
 
-	if (clk_enable(host->iclk) != 0) {
-		mmc_host_disable(host->mmc);
+	if (mmc_host_enable(host->mmc) != 0) {
+		clk_disable(host->iclk);
 		clk_put(host->iclk);
 		clk_put(host->fclk);
 		goto err1;
