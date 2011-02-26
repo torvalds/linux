@@ -460,7 +460,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	if (!fb) {
 		DRM_ERROR("failed to allocate fb.\n");
 		ret = -ENOMEM;
-		goto out_err0;
+		goto out_err1;
 	}
 	psbfb = to_psb_fb(fb);
 	psbfb->size = size;
@@ -468,7 +468,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	info = framebuffer_alloc(sizeof(struct psb_fbdev), device);
 	if (!info) {
 		ret = -ENOMEM;
-		goto out_err1;
+		goto out_err0;
 	}
 
 	info->par = fbdev;
