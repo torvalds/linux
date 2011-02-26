@@ -111,7 +111,6 @@ struct inter_packet_info {
 	u32 payload;
 #define PTD_FIRE_NEXT		(1 << 0)
 #define PTD_URB_FINISHED	(1 << 1)
-	struct urb *urb;
 	struct isp1760_qh *qh;
 	struct isp1760_qtd *qtd;
 };

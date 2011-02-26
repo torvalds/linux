@@ -81,7 +81,6 @@ static inline struct usb_hcd *priv_to_hcd(struct isp1760_hcd *priv)
 #define PORT_RWC_BITS   (PORT_CSC)
 
 struct isp1760_qtd {
-	struct isp1760_qtd *hw_next;
 	u8 packet_type;
 	u8 toggle;
 
@@ -93,10 +92,7 @@ struct isp1760_qtd {
 
 	/* isp special*/
 	u32 status;
-#define URB_COMPLETE_NOTIFY	(1 << 0)
 #define URB_ENQUEUED		(1 << 1)
-#define URB_TYPE_ATL		(1 << 2)
-#define URB_TYPE_INT		(1 << 3)
 };
 
 struct isp1760_qh {
@@ -839,12 +835,11 @@ static void enqueue_one_atl_qtd(u32 payload,
 	ptd_write(hcd->regs, ATL_PTD_OFFSET, slot, &ptd);
 	enqueue_one_qtd(qtd, priv, payload);
 
-	priv->atl_ints[slot].urb = urb;
 	priv->atl_ints[slot].qh = qh;
 	priv->atl_ints[slot].qtd = qtd;
 	priv->atl_ints[slot].data_buffer = qtd->data_buffer;
 	priv->atl_ints[slot].payload = payload;
-	qtd->status |= URB_ENQUEUED | URB_TYPE_ATL;
+	qtd->status |= URB_ENQUEUED;
 	qtd->status |= slot << 16;
 }
 
@@ -859,12 +854,11 @@ static void enqueue_one_int_qtd(u32 payload,
 	ptd_write(hcd->regs, INT_PTD_OFFSET, slot, &ptd);
 	enqueue_one_qtd(qtd, priv, payload);
 
-	priv->int_ints[slot].urb = urb;
 	priv->int_ints[slot].qh = qh;
 	priv->int_ints[slot].qtd = qtd;
 	priv->int_ints[slot].data_buffer = qtd->data_buffer;
 	priv->int_ints[slot].payload = payload;
-	qtd->status |= URB_ENQUEUED | URB_TYPE_INT;
+	qtd->status |= URB_ENQUEUED;
 	qtd->status |= slot << 16;
 }
 
@@ -983,11 +977,16 @@ static void isp1760_qtd_free(struct isp1760_qtd *qtd)
 	kmem_cache_free(qtd_cachep, qtd);
 }
 
-static struct isp1760_qtd *clean_this_qtd(struct isp1760_qtd *qtd)
+static struct isp1760_qtd *clean_this_qtd(struct isp1760_qtd *qtd,
+							struct isp1760_qh *qh)
 {
 	struct isp1760_qtd *tmp_qtd;
 
-	tmp_qtd = qtd->hw_next;
+	if (list_is_last(&qtd->qtd_list, &qh->qtd_list))
+		tmp_qtd = NULL;
+	else
+		tmp_qtd = list_entry(qtd->qtd_list.next, struct isp1760_qtd,
+								qtd_list);
 	list_del(&qtd->qtd_list);
 	isp1760_qtd_free(qtd);
 	return tmp_qtd;
@@ -998,20 +997,29 @@ static struct isp1760_qtd *clean_this_qtd(struct isp1760_qtd *qtd)
  * isn't the last one than remove also his successor(s).
  * Returns the QTD which is part of an new URB and should be enqueued.
  */
-static struct isp1760_qtd *clean_up_qtdlist(struct isp1760_qtd *qtd)
+static struct isp1760_qtd *clean_up_qtdlist(struct isp1760_qtd *qtd,
+							struct isp1760_qh *qh)
 {
-	struct isp1760_qtd *tmp_qtd;
-	int last_one;
+	struct urb *urb;
 
+	urb = qtd->urb;
 	do {
-		tmp_qtd = qtd->hw_next;
-		last_one = qtd->status & URB_COMPLETE_NOTIFY;
-		list_del(&qtd->qtd_list);
-		isp1760_qtd_free(qtd);
-		qtd = tmp_qtd;
-	} while (!last_one && qtd);
+		qtd = clean_this_qtd(qtd, qh);
+	} while (qtd && (qtd->urb == urb));
 
 	return qtd;
+}
+
+static int last_qtd_of_urb(struct isp1760_qtd *qtd, struct isp1760_qh *qh)
+{
+	struct urb *urb;
+
+	if (list_is_last(&qtd->qtd_list, &qh->qtd_list))
+		return 1;
+
+	urb = qtd->urb;
+	qtd = list_entry(qtd->qtd_list.next, typeof(*qtd), qtd_list);
+	return (qtd->urb != urb);
 }
 
 static void do_atl_int(struct usb_hcd *hcd)
@@ -1046,8 +1054,8 @@ static void do_atl_int(struct usb_hcd *hcd)
 		done_map &= ~(1 << queue_entry);
 		skip_map |= 1 << queue_entry;
 
-		urb = priv->atl_ints[queue_entry].urb;
 		qtd = priv->atl_ints[queue_entry].qtd;
+		urb = qtd->urb;
 		qh = priv->atl_ints[queue_entry].qh;
 		payload = priv->atl_ints[queue_entry].payload;
 
@@ -1160,7 +1168,6 @@ static void do_atl_int(struct usb_hcd *hcd)
 		}
 
 		priv->atl_ints[queue_entry].data_buffer = NULL;
-		priv->atl_ints[queue_entry].urb = NULL;
 		priv->atl_ints[queue_entry].qtd = NULL;
 		priv->atl_ints[queue_entry].qh = NULL;
 
@@ -1171,7 +1178,7 @@ static void do_atl_int(struct usb_hcd *hcd)
 		if (urb->status == -EPIPE) {
 			/* HALT was received */
 
-			qtd = clean_up_qtdlist(qtd);
+			qtd = clean_up_qtdlist(qtd, qh);
 			isp1760_urb_done(priv, urb, urb->status);
 
 		} else if (usb_pipebulk(urb->pipe) && (length < qtd->length)) {
@@ -1187,23 +1194,23 @@ static void do_atl_int(struct usb_hcd *hcd)
 			if (urb->status == -EINPROGRESS)
 				urb->status = 0;
 
-			qtd = clean_up_qtdlist(qtd);
+			qtd = clean_up_qtdlist(qtd, qh);
 
 			isp1760_urb_done(priv, urb, urb->status);
 
-		} else if (qtd->status & URB_COMPLETE_NOTIFY) {
+		} else if (last_qtd_of_urb(qtd, qh)) {
 			/* that was the last qtd of that URB */
 
 			if (urb->status == -EINPROGRESS)
 				urb->status = 0;
 
-			qtd = clean_this_qtd(qtd);
+			qtd = clean_this_qtd(qtd, qh);
 			isp1760_urb_done(priv, urb, urb->status);
 
 		} else {
 			/* next QTD of this URB */
 
-			qtd = clean_this_qtd(qtd);
+			qtd = clean_this_qtd(qtd, qh);
 			BUG_ON(!qtd);
 		}
 
@@ -1243,8 +1250,8 @@ static void do_intl_int(struct usb_hcd *hcd)
 		done_map &= ~(1 << queue_entry);
 		skip_map |= 1 << queue_entry;
 
-		urb = priv->int_ints[queue_entry].urb;
 		qtd = priv->int_ints[queue_entry].qtd;
+		urb = qtd->urb;
 		qh = priv->int_ints[queue_entry].qh;
 		payload = priv->int_ints[queue_entry].payload;
 
@@ -1298,7 +1305,6 @@ static void do_intl_int(struct usb_hcd *hcd)
 		}
 
 		priv->int_ints[queue_entry].data_buffer = NULL;
-		priv->int_ints[queue_entry].urb = NULL;
 		priv->int_ints[queue_entry].qtd = NULL;
 		priv->int_ints[queue_entry].qh = NULL;
 
@@ -1308,21 +1314,21 @@ static void do_intl_int(struct usb_hcd *hcd)
 		if (urb->status == -EPIPE) {
 			/* HALT received */
 
-			 qtd = clean_up_qtdlist(qtd);
+			 qtd = clean_up_qtdlist(qtd, qh);
 			 isp1760_urb_done(priv, urb, urb->status);
 
-		} else if (qtd->status & URB_COMPLETE_NOTIFY) {
+		} else if (last_qtd_of_urb(qtd, qh)) {
 
 			if (urb->status == -EINPROGRESS)
 				urb->status = 0;
 
-			qtd = clean_this_qtd(qtd);
+			qtd = clean_this_qtd(qtd, qh);
 			isp1760_urb_done(priv, urb, urb->status);
 
 		} else {
 			/* next QTD of this URB */
 
-			qtd = clean_this_qtd(qtd);
+			qtd = clean_this_qtd(qtd, qh);
 			BUG_ON(!qtd);
 		}
 
@@ -1390,8 +1396,6 @@ static struct isp1760_qh *qh_append_tds(struct isp1760_hcd *priv,
 		void **ptr)
 {
 	struct isp1760_qh *qh;
-	struct isp1760_qtd *qtd;
-	struct isp1760_qtd *prev_qtd;
 
 	qh = (struct isp1760_qh *)*ptr;
 	if (!qh) {
@@ -1402,21 +1406,8 @@ static struct isp1760_qh *qh_append_tds(struct isp1760_hcd *priv,
 		*ptr = qh;
 	}
 
-	qtd = list_entry(qtd_list->next, struct isp1760_qtd,
-			qtd_list);
-	if (!list_empty(&qh->qtd_list))
-		prev_qtd = list_entry(qh->qtd_list.prev,
-				struct isp1760_qtd, qtd_list);
-	else
-		prev_qtd = NULL;
-
 	list_splice(qtd_list, qh->qtd_list.prev);
-	if (prev_qtd) {
-		BUG_ON(prev_qtd->hw_next);
-		prev_qtd->hw_next = qtd;
-	}
 
-	urb->hcpriv = qh;
 	return qh;
 }
 
@@ -1497,7 +1488,7 @@ static struct isp1760_qtd *isp1760_qtd_alloc(struct isp1760_hcd *priv,
 static struct list_head *qh_urb_transaction(struct isp1760_hcd *priv,
 		struct urb *urb, struct list_head *head, gfp_t flags)
 {
-	struct isp1760_qtd *qtd, *qtd_prev;
+	struct isp1760_qtd *qtd;
 	void *buf;
 	int len, maxpacket;
 	int is_input;
@@ -1527,12 +1518,10 @@ static struct list_head *qh_urb_transaction(struct isp1760_hcd *priv,
 
 		/* ... and always at least one more pid */
 		token ^= DATA_TOGGLE;
-		qtd_prev = qtd;
 		qtd = isp1760_qtd_alloc(priv, flags);
 		if (!qtd)
 			goto cleanup;
 		qtd->urb = urb;
-		qtd_prev->hw_next = qtd;
 		list_add_tail(&qtd->qtd_list, head);
 
 		/* for zero length DATA stages, STATUS is always IN */
@@ -1578,12 +1567,10 @@ static struct list_head *qh_urb_transaction(struct isp1760_hcd *priv,
 		if (len <= 0)
 			break;
 
-		qtd_prev = qtd;
 		qtd = isp1760_qtd_alloc(priv, flags);
 		if (!qtd)
 			goto cleanup;
 		qtd->urb = urb;
-		qtd_prev->hw_next = qtd;
 		list_add_tail(&qtd->qtd_list, head);
 	}
 
@@ -1606,12 +1593,10 @@ static struct list_head *qh_urb_transaction(struct isp1760_hcd *priv,
 			one_more = 1;
 		}
 		if (one_more) {
-			qtd_prev = qtd;
 			qtd = isp1760_qtd_alloc(priv, flags);
 			if (!qtd)
 				goto cleanup;
 			qtd->urb = urb;
-			qtd_prev->hw_next = qtd;
 			list_add_tail(&qtd->qtd_list, head);
 
 			/* never any data in such packets */
@@ -1619,7 +1604,7 @@ static struct list_head *qh_urb_transaction(struct isp1760_hcd *priv,
 		}
 	}
 
-	qtd->status = URB_COMPLETE_NOTIFY;
+	qtd->status = 0;
 	return head;
 
 cleanup:
@@ -1697,11 +1682,15 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 	spin_lock_irqsave(&priv->lock, flags);
 
 	for (i = 0; i < 32; i++) {
-		if (ints->urb == urb) {
+		if (!ints[i].qh)
+			continue;
+		BUG_ON(!ints[i].qtd);
+
+		if (ints[i].qtd->urb == urb) {
 			u32 skip_map;
 			u32 or_map;
 			struct isp1760_qtd *qtd;
-			struct isp1760_qh *qh = ints->qh;
+			struct isp1760_qh *qh;
 
 			skip_map = reg_read32(hcd->regs, skip_reg);
 			skip_map |= 1 << i;
@@ -1714,11 +1703,11 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 			ptd_write(hcd->regs, reg_base, i, &ptd);
 
 			qtd = ints->qtd;
-			qtd = clean_up_qtdlist(qtd);
+			qh = ints[i].qh;
+			qtd = clean_up_qtdlist(qtd, qh);
 
 			free_mem(priv, ints->payload);
 
-			ints->urb = NULL;
 			ints->qh = NULL;
 			ints->qtd = NULL;
 			ints->data_buffer = NULL;
@@ -1729,20 +1718,21 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 				pe(hcd, qh, qtd);
 			break;
 
-		} else if (ints->qtd) {
-			struct isp1760_qtd *qtd, *prev_qtd = ints->qtd;
+		} else {
+			struct isp1760_qtd *qtd;
 
-			for (qtd = ints->qtd->hw_next; qtd; qtd = qtd->hw_next) {
+			list_for_each_entry(qtd, &ints[i].qtd->qtd_list,
+								qtd_list) {
 				if (qtd->urb == urb) {
-					prev_qtd->hw_next =
-							clean_up_qtdlist(qtd);
+					clean_up_qtdlist(qtd, ints[i].qh);
 					isp1760_urb_done(priv, urb, status);
+					qtd = NULL;
 					break;
 				}
-				prev_qtd = qtd;
 			}
-			/* we found the urb before the end of the list */
-			if (qtd)
+
+			/* We found the urb before the last slot */
+			if (!qtd)
 				break;
 		}
 		ints++;
@@ -2179,7 +2169,7 @@ static void isp1760_endpoint_disable(struct usb_hcd *usb_hcd,
 			struct urb *urb;
 
 			urb = qtd->urb;
-			clean_up_qtdlist(qtd);
+			clean_up_qtdlist(qtd, qh);
 			isp1760_urb_done(priv, urb, -ECONNRESET);
 		}
 	} while (1);
