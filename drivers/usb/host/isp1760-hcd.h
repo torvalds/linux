@@ -107,8 +107,6 @@ struct ptd {
 #define PAYLOAD_OFFSET		0x1000
 
 struct inter_packet_info {
-#define PTD_FIRE_NEXT		(1 << 0)
-#define PTD_URB_FINISHED	(1 << 1)
 	struct isp1760_qh *qh;
 	struct isp1760_qtd *qtd;
 };
@@ -116,15 +114,6 @@ struct inter_packet_info {
 
 typedef void (packet_enqueue)(struct usb_hcd *hcd, struct isp1760_qh *qh,
 		struct isp1760_qtd *qtd);
-
-#define isp1760_dbg(priv, fmt, args...) \
-	dev_dbg(priv_to_hcd(priv)->self.controller, fmt, ##args)
-
-#define isp1760_info(priv, fmt, args...) \
-	dev_info(priv_to_hcd(priv)->self.controller, fmt, ##args)
-
-#define isp1760_err(priv, fmt, args...) \
-	dev_err(priv_to_hcd(priv)->self.controller, fmt, ##args)
 
 /*
  * Device flags that can vary from board to board.  All of these
