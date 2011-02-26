@@ -114,6 +114,10 @@ CONFIG_INPUT_EVDEV=m
 #	Keyboards
 CONFIG_KEYBOARD_GPIO=m
 
+#	I2C support
+CONFIG_I2C=y
+CONFIG_I2C_PUV3=y
+
 #	Hardware Monitoring support
 #CONFIG_SENSORS_LM75=m
 #	Generic Thermal sysfs driver
