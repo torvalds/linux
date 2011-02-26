@@ -440,6 +440,56 @@ static void __init sun4d_load_profile_irqs(void)
 	}
 }
 
+unsigned int sun4d_build_device_irq(struct platform_device *op,
+                                    unsigned int real_irq)
+{
+	static int pil_to_sbus[] = {
+		0, 0, 1, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0, 0,
+	};
+	struct device_node *dp = op->dev.of_node;
+	struct device_node *io_unit, *sbi = dp->parent;
+	const struct linux_prom_registers *regs;
+	int board, slot;
+	int sbusl;
+
+	while (sbi) {
+		if (!strcmp(sbi->name, "sbi"))
+			break;
+
+		sbi = sbi->parent;
+	}
+	if (!sbi)
+		goto err_out;
+
+	regs = of_get_property(dp, "reg", NULL);
+	if (!regs)
+		goto err_out;
+
+	slot = regs->which_io;
+
+	/*
+	 *  If SBI's parent is not io-unit or the io-unit lacks
+	 * a "board#" property, something is very wrong.
+	 */
+	if (!sbi->parent || strcmp(sbi->parent->name, "io-unit")) {
+		printk("%s: Error, parent is not io-unit.\n", sbi->full_name);
+		goto err_out;
+	}
+	io_unit = sbi->parent;
+	board = of_getintprop_default(io_unit, "board#", -1);
+	if (board == -1) {
+		printk("%s: Error, lacks board# property.\n", io_unit->full_name);
+		goto err_out;
+	}
+
+	sbusl = pil_to_sbus[real_irq];
+	if (sbusl)
+		return (((board + 1) << 5) + (sbusl << 2) + slot);
+
+err_out:
+	return real_irq;
+}
+
 static void __init sun4d_fixup_trap_table(void)
 {
 #ifdef CONFIG_SMP
@@ -559,6 +609,7 @@ void __init sun4d_init_IRQ(void)
 	BTFIXUPSET_CALL(load_profile_irq, sun4d_load_profile_irq, BTFIXUPCALL_NORM);
 
 	sparc_irq_config.init_timers = sun4d_init_timers;
+	sparc_irq_config.build_device_irq = sun4d_build_device_irq;
 
 #ifdef CONFIG_SMP
 	BTFIXUPSET_CALL(set_cpu_int, sun4d_set_cpu_int, BTFIXUPCALL_NORM);

@@ -582,6 +582,12 @@ int probe_irq_off(unsigned long mask)
 }
 EXPORT_SYMBOL(probe_irq_off);
 
+static unsigned int build_device_irq(struct platform_device *op,
+                                     unsigned int real_irq)
+{
+	return real_irq;
+}
+
 /* djhr
  * This could probably be made indirect too and assigned in the CPU
  * bits of the code. That would be much nicer I think and would also
@@ -592,6 +598,8 @@ EXPORT_SYMBOL(probe_irq_off);
 
 void __init init_IRQ(void)
 {
+	sparc_irq_config.build_device_irq = build_device_irq;
+
 	switch (sparc_cpu_model) {
 	case sun4c:
 	case sun4:

@@ -1,3 +1,5 @@
+#include <linux/platform_device.h>
+
 #include <asm/btfixup.h>
 
 /*
@@ -7,6 +9,8 @@
  */
 struct sparc_irq_config {
 	void (*init_timers)(irq_handler_t);
+	unsigned int (*build_device_irq)(struct platform_device *op,
+	                                 unsigned int real_irq);
 };
 extern struct sparc_irq_config sparc_irq_config;
 
