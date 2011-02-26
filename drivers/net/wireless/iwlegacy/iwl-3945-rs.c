@@ -644,7 +644,7 @@ static void iwl3945_rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 	u32 fail_count;
 	s8 scale_action = 0;
 	unsigned long flags;
-	u16 rate_mask = sta ? sta->supp_rates[sband->band] : 0;
+	u16 rate_mask;
 	s8 max_rate_idx = -1;
 	struct iwl_priv *priv __maybe_unused = (struct iwl_priv *)priv_r;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
