@@ -39,6 +39,25 @@ struct wm831x_battery_pdata {
 	int eoc_iterm;      /** End of trickle charge current, in mA */
 	int fast_ilim;      /** Fast charge current limit, in mA */
 	int timeout;        /** Charge cycle timeout, in minutes */
+	int syslo;          /** syslo threshold, in mV**/
+	int sysok;          /** sysok threshold, in mV**/
+};
+
+/**
+ * Configuration for the WM831x DC-DC BuckWise convertors.  This
+ * should be passed as driver_data in the regulator_init_data.
+ *
+ * Currently all the configuration is for the fast DVS switching
+ * support of the devices.  This allows MFPs on the device to be
+ * configured as an input to switch between two output voltages,
+ * allowing voltage transitions without the expense of an access over
+ * I2C or SPI buses.
+ */
+struct wm831x_buckv_pdata {
+	int dvs_gpio;        /** CPU GPIO to use for DVS switching */
+	int dvs_control_src; /** Hardware DVS source to use (1 or 2) */
+	int dvs_init_state;  /** DVS state to expect on startup */
+	int dvs_state_gpio;  /** CPU GPIO to use for monitoring status */
 };
 
 /* Sources for status LED configuration.  Values are register values
@@ -78,6 +97,22 @@ struct wm831x_watchdog_pdata {
 	int update_gpio;
 	unsigned int software:1;
 };
+struct wm831x_gpio_keys_button {
+	/* Configuration parameters */
+	int code;		/* input event code (KEY_*, SW_*) */
+	int gpio;
+	int active_low;
+	char *desc;
+	int type;		/* input event type (EV_KEY, EV_SW) */
+	int wakeup;		/* configure the button as a wake-up source */
+	int debounce_interval;	/* debounce ticks interval in msecs */
+};
+
+struct wm831x_gpio_keys_pdata {
+	struct wm831x_gpio_keys_button *buttons;
+	int nbuttons;
+	unsigned int rep:1;		/* enable input subsystem auto repeat */
+};
 
 #define WM831X_MAX_STATUS 2
 #define WM831X_MAX_DCDC   4
@@ -90,13 +125,24 @@ struct wm831x_pdata {
 	int (*pre_init)(struct wm831x *wm831x);
 	/** Called after subdevices are set up */
 	int (*post_init)(struct wm831x *wm831x);
-
+	/** Called before subdevices are power down */
+	int (*last_deinit)(struct wm831x *wm831x);
+	//add by sxj	
+	unsigned int gpio_pin_num;	
+	struct rk2818_gpio_expander_info  *settinginfo;	
+	int  settinginfolen;	
+	int (*pin_type_init)(struct wm831x *wm831x);	
+	//above add by sxj
+	int irq_base;
 	int gpio_base;
 	struct wm831x_backlight_pdata *backlight;
 	struct wm831x_backup_pdata *backup;
 	struct wm831x_battery_pdata *battery;
 	struct wm831x_touch_pdata *touch;
 	struct wm831x_watchdog_pdata *watchdog;
+	//add by srt
+	struct wm831x_gpio_keys_pdata *gpio_keys;
+	//end by srt
 
 	/** LED1 = 0 and so on */
 	struct wm831x_status_pdata *status[WM831X_MAX_STATUS];

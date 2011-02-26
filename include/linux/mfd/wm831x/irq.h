@@ -412,17 +412,17 @@
 #define WM831X_GP1_EINT_SHIFT                        0  /* GP1_EINT */
 #define WM831X_GP1_EINT_WIDTH                        1  /* GP1_EINT */
 
+
 /*
- * R16407 (0x4017) - IRQ Config
+ * Reg (0x4017) - IRQ Config
  */
-#define WM831X_IRQ_OD                           0x0002  /* IRQ_OD */
-#define WM831X_IRQ_OD_MASK                      0x0002  /* IRQ_OD */
-#define WM831X_IRQ_OD_SHIFT                          1  /* IRQ_OD */
-#define WM831X_IRQ_OD_WIDTH                          1  /* IRQ_OD */
-#define WM831X_IM_IRQ                           0x0001  /* IM_IRQ */
-#define WM831X_IM_IRQ_MASK                      0x0001  /* IM_IRQ */
-#define WM831X_IM_IRQ_SHIFT                          0  /* IM_IRQ */
-#define WM831X_IM_IRQ_WIDTH                          1  /* IM_IRQ */
+ #define WM831X_IRQ_OD_ENABLE                         0x0002  /* CMOS/open drain */
+#define WM831X_IRQ_OD_MASK                     0x0002  /* CMOS/open drain */
+#define WM831X_IRQ_OD_SHIFT                        2 /* CMOS/open drain */
+#define WM831X_IRQ_IM_EANBLE                          0x0001  /* IM_IRQ */
+#define WM831X_IRQ_IM_MASK                     0x0001  /* IM_IRQ */
+#define WM831X_IRQ_IM_SHIFT                        0   /* IM_IRQ */
+
 
 /*
  * R16408 (0x4018) - System Interrupts Mask
