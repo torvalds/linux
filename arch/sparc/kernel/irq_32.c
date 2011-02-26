@@ -29,6 +29,9 @@
 #define SMP_NOP3
 #endif /* SMP */
 
+/* platform specific irq setup */
+struct sparc_irq_config sparc_irq_config;
+
 unsigned long arch_local_irq_save(void)
 {
 	unsigned long retval;
@@ -100,14 +103,7 @@ EXPORT_SYMBOL(arch_local_irq_restore);
  *
  */
 
-static void irq_panic(void)
-{
-	prom_printf("machine: %s doesn't have irq handlers defined!\n",
-		    &cputypval[0]);
-	prom_halt();
-}
 
-void (*sparc_init_timers)(irq_handler_t) = (void (*)(irq_handler_t))irq_panic;
 
 /*
  * Dave Redman (djhr@tadpole.co.uk)

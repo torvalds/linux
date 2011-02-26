@@ -1,5 +1,16 @@
 #include <asm/btfixup.h>
 
+/*
+ * Platform specific irq configuration
+ * The individual platforms assign their platform
+ * specifics in their init functions.
+ */
+struct sparc_irq_config {
+	void (*init_timers)(irq_handler_t);
+};
+extern struct sparc_irq_config sparc_irq_config;
+
+
 /* Dave Redman (djhr@tadpole.co.uk)
  * changed these to function pointers.. it saves cycles and will allow
  * the irq dependencies to be split into different files at a later date
@@ -44,12 +55,6 @@ static inline void load_profile_irq(int cpu, int limit)
 {
 	BTFIXUP_CALL(load_profile_irq)(cpu, limit);
 }
-
-extern void (*sparc_init_timers)(irq_handler_t lvl10_irq);
-
-extern void claim_ticker14(irq_handler_t irq_handler,
-			   int irq,
-			   unsigned int timeout);
 
 #ifdef CONFIG_SMP
 BTFIXUPDEF_CALL(void, set_cpu_int, int, int)
