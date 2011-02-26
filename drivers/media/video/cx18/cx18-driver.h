@@ -85,7 +85,8 @@
 #define CX18_CARD_LEADTEK_PVR2100     6 /* Leadtek WinFast PVR2100 */
 #define CX18_CARD_LEADTEK_DVR3100H    7 /* Leadtek WinFast DVR3100 H */
 #define CX18_CARD_GOTVIEW_PCI_DVD3    8 /* GoTView PCI DVD3 Hybrid */
-#define CX18_CARD_LAST		      8
+#define CX18_CARD_HVR_1600_S5H1411    9 /* Hauppauge HVR 1600 s5h1411/tda18271*/
+#define CX18_CARD_LAST		      9
 
 #define CX18_ENC_STREAM_TYPE_MPG  0
 #define CX18_ENC_STREAM_TYPE_TS   1

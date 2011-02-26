@@ -29,6 +29,8 @@
 #include "cx18-gpio.h"
 #include "s5h1409.h"
 #include "mxl5005s.h"
+#include "s5h1411.h"
+#include "tda18271.h"
 #include "zl10353.h"
 
 #include <linux/firmware.h>
@@ -74,6 +76,32 @@ static struct s5h1409_config hauppauge_hvr1600_config = {
 	.status_mode   = S5H1409_DEMODLOCKING,
 	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
 	.hvr1600_opt   = S5H1409_HVR1600_OPTIMIZE
+};
+
+/*
+ * CX18_CARD_HVR_1600_S5H1411
+ */
+static struct s5h1411_config hcw_s5h1411_config = {
+	.output_mode   = S5H1411_SERIAL_OUTPUT,
+	.gpio          = S5H1411_GPIO_OFF,
+	.vsb_if        = S5H1411_IF_44000,
+	.qam_if        = S5H1411_IF_4000,
+	.inversion     = S5H1411_INVERSION_ON,
+	.status_mode   = S5H1411_DEMODLOCKING,
+	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
+};
+
+static struct tda18271_std_map hauppauge_tda18271_std_map = {
+	.atsc_6   = { .if_freq = 5380, .agc_mode = 3, .std = 3,
+		      .if_lvl = 6, .rfagc_top = 0x37 },
+	.qam_6    = { .if_freq = 4000, .agc_mode = 3, .std = 0,
+		      .if_lvl = 6, .rfagc_top = 0x37 },
+};
+
+static struct tda18271_config hauppauge_tda18271_config = {
+	.std_map = &hauppauge_tda18271_std_map,
+	.gate    = TDA18271_GATE_DIGITAL,
+	.output_opt = TDA18271_OUTPUT_LT_OFF,
 };
 
 /*
@@ -244,6 +272,7 @@ static int cx18_dvb_start_feed(struct dvb_demux_feed *feed)
 	switch (cx->card->type) {
 	case CX18_CARD_HVR_1600_ESMT:
 	case CX18_CARD_HVR_1600_SAMSUNG:
+	case CX18_CARD_HVR_1600_S5H1411:
 		v = cx18_read_reg(cx, CX18_REG_DMUX_NUM_PORT_0_CONTROL);
 		v |= 0x00400000; /* Serial Mode */
 		v |= 0x00002000; /* Data Length - Byte */
@@ -454,6 +483,15 @@ static int dvb_register(struct cx18_stream *stream)
 				&hauppauge_hvr1600_tuner);
 			ret = 0;
 		}
+		break;
+	case CX18_CARD_HVR_1600_S5H1411:
+		dvb->fe = dvb_attach(s5h1411_attach,
+				     &hcw_s5h1411_config,
+				     &cx->i2c_adap[0]);
+		if (dvb->fe != NULL)
+			dvb_attach(tda18271_attach, dvb->fe,
+				   0x60, &cx->i2c_adap[0],
+				   &hauppauge_tda18271_config);
 		break;
 	case CX18_CARD_LEADTEK_DVR3100H:
 		dvb->fe = dvb_attach(zl10353_attach,

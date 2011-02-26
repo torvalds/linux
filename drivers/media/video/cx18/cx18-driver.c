@@ -157,6 +157,7 @@ MODULE_PARM_DESC(cardtype,
 		 "\t\t\t 7 = Leadtek WinFast PVR2100\n"
 		 "\t\t\t 8 = Leadtek WinFast DVR3100 H\n"
 		 "\t\t\t 9 = GoTView PCI DVD3 Hybrid\n"
+		 "\t\t\t 10 = Hauppauge HVR 1600 (S5H1411)\n"
 		 "\t\t\t 0 = Autodetect (default)\n"
 		 "\t\t\t-1 = Ignore this card\n\t\t");
 MODULE_PARM_DESC(pal, "Set PAL standard: B, G, H, D, K, I, M, N, Nc, 60");
@@ -337,6 +338,7 @@ void cx18_read_eeprom(struct cx18 *cx, struct tveeprom *tv)
 	switch (cx->card->type) {
 	case CX18_CARD_HVR_1600_ESMT:
 	case CX18_CARD_HVR_1600_SAMSUNG:
+	case CX18_CARD_HVR_1600_S5H1411:
 		tveeprom_hauppauge_analog(&c, tv, eedata);
 		break;
 	case CX18_CARD_YUAN_MPC718:
@@ -365,7 +367,25 @@ static void cx18_process_eeprom(struct cx18 *cx)
 	   from the model number. Use the cardtype module option if you
 	   have one of these preproduction models. */
 	switch (tv.model) {
-	case 74000 ... 74999:
+	case 74301: /* Retail models */
+	case 74321:
+	case 74351: /* OEM models */
+	case 74361:
+		/* Digital side is s5h1411/tda18271 */
+		cx->card = cx18_get_card(CX18_CARD_HVR_1600_S5H1411);
+		break;
+	case 74021: /* Retail models */
+	case 74031:
+	case 74041:
+	case 74141:
+	case 74541: /* OEM models */
+	case 74551:
+	case 74591:
+	case 74651:
+	case 74691:
+	case 74751:
+	case 74891:
+		/* Digital side is s5h1409/mxl5005s */
 		cx->card = cx18_get_card(CX18_CARD_HVR_1600_ESMT);
 		break;
 	case 0x718:
@@ -377,7 +397,8 @@ static void cx18_process_eeprom(struct cx18 *cx)
 		CX18_ERR("Invalid EEPROM\n");
 		return;
 	default:
-		CX18_ERR("Unknown model %d, defaulting to HVR-1600\n", tv.model);
+		CX18_ERR("Unknown model %d, defaulting to original HVR-1600 "
+			 "(cardtype=1)\n", tv.model);
 		cx->card = cx18_get_card(CX18_CARD_HVR_1600_ESMT);
 		break;
 	}
