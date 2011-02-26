@@ -66,10 +66,13 @@ MODULE_LICENSE("GPL");
 #define NOTIFY_BRNDOWN_MAX		0x2e
 
 /* WMI Methods */
+#define ASUS_WMI_METHODID_SPEC	        0x43455053
+#define ASUS_WMI_METHODID_SFUN		0x4E554653
 #define ASUS_WMI_METHODID_DSTS		0x53544344
 #define ASUS_WMI_METHODID_DSTS2		0x53545344
 #define ASUS_WMI_METHODID_DEVS		0x53564544
 #define ASUS_WMI_METHODID_CFVS		0x53564643
+#define ASUS_WMI_METHODID_INIT		0x54494E49
 
 #define ASUS_WMI_UNSUPPORTED_METHOD	0xFFFFFFFE
 
@@ -126,6 +129,8 @@ struct asus_rfkill {
 
 struct asus_wmi {
 	int dsts_id;
+	int spec;
+	int sfun;
 
 	struct input_dev *inputdev;
 	struct backlight_device *backlight_device;
@@ -1065,6 +1070,29 @@ static int asus_wmi_sysfs_init(struct platform_device *device)
  */
 static int __init asus_wmi_platform_init(struct asus_wmi *asus)
 {
+	int rv;
+
+	/* INIT enable hotkeys on some models */
+	if (!asus_wmi_evaluate_method(ASUS_WMI_METHODID_INIT, 0, 0, &rv))
+		pr_info("Initialization: %#x", rv);
+
+	/* We don't know yet what to do with this version... */
+	if (!asus_wmi_evaluate_method(ASUS_WMI_METHODID_SPEC, 0, 0x9, &rv)) {
+		pr_info("BIOS WMI version: %d.%d", rv >> 8, rv & 0xFF);
+		asus->spec = rv;
+	}
+
+	/*
+	 * The SFUN method probably allows the original driver to get the list
+	 * of features supported by a given model. For now, 0x0100 or 0x0800
+	 * bit signifies that the laptop is equipped with a Wi-Fi MiniPCI card.
+	 * The significance of others is yet to be found.
+	 */
+	if (!asus_wmi_evaluate_method(ASUS_WMI_METHODID_SFUN, 0, 0, &rv)) {
+		pr_info("SFUN value: %#x", rv);
+		asus->sfun = rv;
+	}
+
 	/*
 	 * Eee PC and Notebooks seems to have different method_id for DSTS,
 	 * but it may also be related to the BIOS's SPEC.
