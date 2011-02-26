@@ -16,9 +16,11 @@
  * strongly recommended for i.MX25/35, not needed for other variants
  *
  * @wp_gpio:	gpio for write_protect (-EINVAL if unused)
+ * @cd_gpio:	gpio for card_detect interrupt (-EINVAL if unused)
  */
 
 struct esdhc_platform_data {
 	unsigned int wp_gpio;
+	unsigned int cd_gpio;
 };
 #endif /* __ASM_ARCH_IMX_ESDHC_H */
