@@ -659,6 +659,8 @@
 #define IXGBE_QPTC(_i) (0x06030 + ((_i) * 0x40)) /* 16 of these */
 #define IXGBE_QBRC(_i) (0x01034 + ((_i) * 0x40)) /* 16 of these */
 #define IXGBE_QBTC(_i) (0x06034 + ((_i) * 0x40)) /* 16 of these */
+#define IXGBE_QBRC_L(_i) (0x01034 + ((_i) * 0x40)) /* 16 of these */
+#define IXGBE_QBRC_H(_i) (0x01038 + ((_i) * 0x40)) /* 16 of these */
 #define IXGBE_QPRDC(_i) (0x01430 + ((_i) * 0x40)) /* 16 of these */
 #define IXGBE_QBTC_L(_i) (0x08700 + ((_i) * 0x8)) /* 16 of these */
 #define IXGBE_QBTC_H(_i) (0x08704 + ((_i) * 0x8)) /* 16 of these */
