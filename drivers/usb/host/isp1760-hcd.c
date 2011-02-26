@@ -85,6 +85,8 @@ struct isp1760_qtd {
 	u8 toggle;
 
 	void *data_buffer;
+	u32 payload_addr;
+
 	/* the rest is HCD-private */
 	struct list_head qtd_list;
 	struct urb *urb;
@@ -256,54 +258,56 @@ static void ptd_write(void __iomem *base, u32 ptd_offset, u32 slot,
 /* memory management of the 60kb on the chip from 0x1000 to 0xffff */
 static void init_memory(struct isp1760_hcd *priv)
 {
-	int i;
-	u32 payload;
+	int i, curr;
+	u32 payload_addr;
 
-	payload = 0x1000;
+	payload_addr = PAYLOAD_OFFSET;
 	for (i = 0; i < BLOCK_1_NUM; i++) {
-		priv->memory_pool[i].start = payload;
+		priv->memory_pool[i].start = payload_addr;
 		priv->memory_pool[i].size = BLOCK_1_SIZE;
 		priv->memory_pool[i].free = 1;
-		payload += priv->memory_pool[i].size;
+		payload_addr += priv->memory_pool[i].size;
 	}
 
-
-	for (i = BLOCK_1_NUM; i < BLOCK_1_NUM + BLOCK_2_NUM; i++) {
-		priv->memory_pool[i].start = payload;
-		priv->memory_pool[i].size = BLOCK_2_SIZE;
-		priv->memory_pool[i].free = 1;
-		payload += priv->memory_pool[i].size;
+	curr = i;
+	for (i = 0; i < BLOCK_2_NUM; i++) {
+		priv->memory_pool[curr + i].start = payload_addr;
+		priv->memory_pool[curr + i].size = BLOCK_2_SIZE;
+		priv->memory_pool[curr + i].free = 1;
+		payload_addr += priv->memory_pool[curr + i].size;
 	}
 
-
-	for (i = BLOCK_1_NUM + BLOCK_2_NUM; i < BLOCKS; i++) {
-		priv->memory_pool[i].start = payload;
-		priv->memory_pool[i].size = BLOCK_3_SIZE;
-		priv->memory_pool[i].free = 1;
-		payload += priv->memory_pool[i].size;
+	curr = i;
+	for (i = 0; i < BLOCK_3_NUM; i++) {
+		priv->memory_pool[curr + i].start = payload_addr;
+		priv->memory_pool[curr + i].size = BLOCK_3_SIZE;
+		priv->memory_pool[curr + i].free = 1;
+		payload_addr += priv->memory_pool[curr + i].size;
 	}
 
-	BUG_ON(payload - priv->memory_pool[i - 1].size > PAYLOAD_SIZE);
+	BUG_ON(payload_addr - priv->memory_pool[0].start > PAYLOAD_AREA_SIZE);
 }
 
-static u32 alloc_mem(struct isp1760_hcd *priv, u32 size)
+static void alloc_mem(struct isp1760_hcd *priv, struct isp1760_qtd *qtd)
 {
 	int i;
 
-	if (!size)
-		return ISP1760_NULL_POINTER;
+	BUG_ON(qtd->payload_addr);
+
+	if (!qtd->length)
+		return;
 
 	for (i = 0; i < BLOCKS; i++) {
-		if (priv->memory_pool[i].size >= size &&
+		if (priv->memory_pool[i].size >= qtd->length &&
 				priv->memory_pool[i].free) {
-
 			priv->memory_pool[i].free = 0;
-			return priv->memory_pool[i].start;
+			qtd->payload_addr = priv->memory_pool[i].start;
+			return;
 		}
 	}
 
-	printk(KERN_ERR "ISP1760 MEM: can not allocate %d bytes of memory\n",
-			size);
+	printk(KERN_ERR "ISP1760 MEM: can not allocate %lu bytes of memory\n",
+			qtd->length);
 	printk(KERN_ERR "Current memory map:\n");
 	for (i = 0; i < BLOCKS; i++) {
 		printk(KERN_ERR "Pool %2d size %4d status: %d\n",
@@ -312,28 +316,27 @@ static u32 alloc_mem(struct isp1760_hcd *priv, u32 size)
 	}
 	/* XXX maybe -ENOMEM could be possible */
 	BUG();
-	return 0;
+	return;
 }
 
-static void free_mem(struct isp1760_hcd *priv, u32 mem)
+static void free_mem(struct isp1760_hcd *priv, struct isp1760_qtd *qtd)
 {
 	int i;
 
-	if (mem == ISP1760_NULL_POINTER)
+	if (!qtd->payload_addr)
 		return;
 
 	for (i = 0; i < BLOCKS; i++) {
-		if (priv->memory_pool[i].start == mem) {
-
+		if (priv->memory_pool[i].start == qtd->payload_addr) {
 			BUG_ON(priv->memory_pool[i].free);
-
 			priv->memory_pool[i].free = 1;
-			return ;
+			qtd->payload_addr = 0;
+			return;
 		}
 	}
 
-	printk(KERN_ERR "Trying to free not-here-allocated memory :%08x\n",
-			mem);
+	printk(KERN_ERR "%s: Invalid pointer: %08x\n", __func__,
+							qtd->payload_addr);
 	BUG();
 }
 
@@ -596,8 +599,7 @@ static u32 base_to_chip(u32 base)
 }
 
 static void transform_into_atl(struct isp1760_hcd *priv, struct isp1760_qh *qh,
-			struct isp1760_qtd *qtd, struct urb *urb,
-			u32 payload, struct ptd *ptd)
+			struct isp1760_qtd *qtd, struct ptd *ptd)
 {
 	u32 maxpacket;
 	u32 multi;
@@ -608,7 +610,8 @@ static void transform_into_atl(struct isp1760_hcd *priv, struct isp1760_qh *qh,
 	memset(ptd, 0, sizeof(*ptd));
 
 	/* according to 3.6.2, max packet len can not be > 0x400 */
-	maxpacket = usb_maxpacket(urb->dev, urb->pipe, usb_pipeout(urb->pipe));
+	maxpacket = usb_maxpacket(qtd->urb->dev, qtd->urb->pipe,
+						usb_pipeout(qtd->urb->pipe));
 	multi =  1 + ((maxpacket >> 11) & 0x3);
 	maxpacket &= 0x7ff;
 
@@ -616,33 +619,33 @@ static void transform_into_atl(struct isp1760_hcd *priv, struct isp1760_qh *qh,
 	ptd->dw0 = PTD_VALID;
 	ptd->dw0 |= PTD_LENGTH(qtd->length);
 	ptd->dw0 |= PTD_MAXPACKET(maxpacket);
-	ptd->dw0 |= PTD_ENDPOINT(usb_pipeendpoint(urb->pipe));
-	ptd->dw1 = usb_pipeendpoint(urb->pipe) >> 1;
+	ptd->dw0 |= PTD_ENDPOINT(usb_pipeendpoint(qtd->urb->pipe));
 
 	/* DW1 */
-	ptd->dw1 |= PTD_DEVICE_ADDR(usb_pipedevice(urb->pipe));
+	ptd->dw1 = usb_pipeendpoint(qtd->urb->pipe) >> 1;
+	ptd->dw1 |= PTD_DEVICE_ADDR(usb_pipedevice(qtd->urb->pipe));
 
 	pid_code = qtd->packet_type;
 	ptd->dw1 |= PTD_PID_TOKEN(pid_code);
 
-	if (usb_pipebulk(urb->pipe))
+	if (usb_pipebulk(qtd->urb->pipe))
 		ptd->dw1 |= PTD_TRANS_BULK;
-	else if  (usb_pipeint(urb->pipe))
+	else if  (usb_pipeint(qtd->urb->pipe))
 		ptd->dw1 |= PTD_TRANS_INT;
 
-	if (urb->dev->speed != USB_SPEED_HIGH) {
+	if (qtd->urb->dev->speed != USB_SPEED_HIGH) {
 		/* split transaction */
 
 		ptd->dw1 |= PTD_TRANS_SPLIT;
-		if (urb->dev->speed == USB_SPEED_LOW)
+		if (qtd->urb->dev->speed == USB_SPEED_LOW)
 			ptd->dw1 |= PTD_SE_USB_LOSPEED;
 
-		ptd->dw1 |= PTD_PORT_NUM(urb->dev->ttport);
-		ptd->dw1 |= PTD_HUB_NUM(urb->dev->tt->hub->devnum);
+		ptd->dw1 |= PTD_PORT_NUM(qtd->urb->dev->ttport);
+		ptd->dw1 |= PTD_HUB_NUM(qtd->urb->dev->tt->hub->devnum);
 
 		/* SE bit for Split INT transfers */
-		if (usb_pipeint(urb->pipe) &&
-				(urb->dev->speed == USB_SPEED_LOW))
+		if (usb_pipeint(qtd->urb->pipe) &&
+				(qtd->urb->dev->speed == USB_SPEED_LOW))
 			ptd->dw1 |= 2 << 16;
 
 		ptd->dw3 = 0;
@@ -650,19 +653,20 @@ static void transform_into_atl(struct isp1760_hcd *priv, struct isp1760_qh *qh,
 		nak = 0;
 	} else {
 		ptd->dw0 |= PTD_MULTI(multi);
-		if (usb_pipecontrol(urb->pipe) || usb_pipebulk(urb->pipe))
+		if (usb_pipecontrol(qtd->urb->pipe) ||
+						usb_pipebulk(qtd->urb->pipe))
 			ptd->dw3 = qh->ping;
 		else
 			ptd->dw3 = 0;
 	}
 	/* DW2 */
 	ptd->dw2 = 0;
-	ptd->dw2 |= PTD_DATA_START_ADDR(base_to_chip(payload));
+	ptd->dw2 |= PTD_DATA_START_ADDR(base_to_chip(qtd->payload_addr));
 	ptd->dw2 |= PTD_RL_CNT(rl);
 	ptd->dw3 |= PTD_NAC_CNT(nak);
 
 	/* DW3 */
-	if (usb_pipecontrol(urb->pipe))
+	if (usb_pipecontrol(qtd->urb->pipe))
 		ptd->dw3 |= PTD_DATA_TOGGLE(qtd->toggle);
 	else
 		ptd->dw3 |= qh->toggle;
@@ -674,8 +678,7 @@ static void transform_into_atl(struct isp1760_hcd *priv, struct isp1760_qh *qh,
 }
 
 static void transform_add_int(struct isp1760_hcd *priv, struct isp1760_qh *qh,
-			struct isp1760_qtd *qtd, struct urb *urb,
-			u32 payload, struct ptd *ptd)
+			struct isp1760_qtd *qtd, struct ptd *ptd)
 {
 	u32 maxpacket;
 	u32 multi;
@@ -684,14 +687,15 @@ static void transform_add_int(struct isp1760_hcd *priv, struct isp1760_qh *qh,
 	u32 usofmask, usof;
 	u32 period;
 
-	maxpacket = usb_maxpacket(urb->dev, urb->pipe, usb_pipeout(urb->pipe));
+	maxpacket = usb_maxpacket(qtd->urb->dev, qtd->urb->pipe,
+						usb_pipeout(qtd->urb->pipe));
 	multi =  1 + ((maxpacket >> 11) & 0x3);
 	maxpacket &= 0x7ff;
 	/* length of the data per uframe */
 	maxpacket = multi * maxpacket;
 
-	numberofusofs = urb->transfer_buffer_length / maxpacket;
-	if (urb->transfer_buffer_length % maxpacket)
+	numberofusofs = qtd->urb->transfer_buffer_length / maxpacket;
+	if (qtd->urb->transfer_buffer_length % maxpacket)
 		numberofusofs += 1;
 
 	usofmask = 1;
@@ -701,7 +705,7 @@ static void transform_add_int(struct isp1760_hcd *priv, struct isp1760_qh *qh,
 		usofmask <<= 1;
 	}
 
-	if (urb->dev->speed != USB_SPEED_HIGH) {
+	if (qtd->urb->dev->speed != USB_SPEED_HIGH) {
 		/* split */
 		ptd->dw5 = 0x1c;
 
@@ -735,11 +739,10 @@ static void transform_add_int(struct isp1760_hcd *priv, struct isp1760_qh *qh,
 }
 
 static void transform_into_int(struct isp1760_hcd *priv, struct isp1760_qh *qh,
-			struct isp1760_qtd *qtd, struct urb *urb,
-			u32 payload, struct ptd *ptd)
+			struct isp1760_qtd *qtd, struct ptd *ptd)
 {
-	transform_into_atl(priv, qh, qtd, urb, payload, ptd);
-	transform_add_int(priv, qh, qtd, urb,  payload, ptd);
+	transform_into_atl(priv, qh, qtd, ptd);
+	transform_add_int(priv, qh, qtd, ptd);
 }
 
 static int qtd_fill(struct isp1760_qtd *qtd, void *databuffer, size_t len,
@@ -751,8 +754,8 @@ static int qtd_fill(struct isp1760_qtd *qtd, void *databuffer, size_t len,
 	qtd->packet_type = GET_QTD_TOKEN_TYPE(token);
 	qtd->toggle = GET_DATA_TOGGLE(token);
 
-	if (len > HC_ATL_PL_SIZE)
-		count = HC_ATL_PL_SIZE;
+	if (len > MAX_PAYLOAD_SIZE)
+		count = MAX_PAYLOAD_SIZE;
 	else
 		count = len;
 
@@ -804,60 +807,56 @@ static void check_int_err_status(u32 dw4)
 	}
 }
 
-static void enqueue_one_qtd(struct isp1760_qtd *qtd, struct isp1760_hcd *priv,
-		u32 payload)
+static void enqueue_one_qtd(struct isp1760_qtd *qtd, struct isp1760_hcd *priv)
 {
-	u32 token;
 	struct usb_hcd *hcd = priv_to_hcd(priv);
 
-	token = qtd->packet_type;
-
-	if (qtd->length && (qtd->length <= HC_ATL_PL_SIZE)) {
-		switch (token) {
+	if (qtd->length && (qtd->length <= MAX_PAYLOAD_SIZE)) {
+		switch (qtd->packet_type) {
 		case IN_PID:
 			break;
 		case OUT_PID:
 		case SETUP_PID:
-			mem_writes8(hcd->regs, payload, qtd->data_buffer,
-								qtd->length);
+			mem_writes8(hcd->regs, qtd->payload_addr,
+						qtd->data_buffer, qtd->length);
 		}
 	}
 }
 
-static void enqueue_one_atl_qtd(u32 payload,
-		struct isp1760_hcd *priv, struct isp1760_qh *qh,
-		struct urb *urb, u32 slot, struct isp1760_qtd *qtd)
+static void enqueue_one_atl_qtd(struct isp1760_hcd *priv,
+					struct isp1760_qh *qh, u32 slot,
+					struct isp1760_qtd *qtd)
 {
 	struct ptd ptd;
 	struct usb_hcd *hcd = priv_to_hcd(priv);
 
-	transform_into_atl(priv, qh, qtd, urb, payload, &ptd);
+	alloc_mem(priv, qtd);
+	transform_into_atl(priv, qh, qtd, &ptd);
 	ptd_write(hcd->regs, ATL_PTD_OFFSET, slot, &ptd);
-	enqueue_one_qtd(qtd, priv, payload);
+	enqueue_one_qtd(qtd, priv);
 
 	priv->atl_ints[slot].qh = qh;
 	priv->atl_ints[slot].qtd = qtd;
 	priv->atl_ints[slot].data_buffer = qtd->data_buffer;
-	priv->atl_ints[slot].payload = payload;
 	qtd->status |= URB_ENQUEUED;
 	qtd->status |= slot << 16;
 }
 
-static void enqueue_one_int_qtd(u32 payload,
-		struct isp1760_hcd *priv, struct isp1760_qh *qh,
-		struct urb *urb, u32 slot,  struct isp1760_qtd *qtd)
+static void enqueue_one_int_qtd(struct isp1760_hcd *priv,
+					struct isp1760_qh *qh, u32 slot,
+					struct isp1760_qtd *qtd)
 {
 	struct ptd ptd;
 	struct usb_hcd *hcd = priv_to_hcd(priv);
 
-	transform_into_int(priv, qh, qtd, urb, payload, &ptd);
+	alloc_mem(priv, qtd);
+	transform_into_int(priv, qh, qtd, &ptd);
 	ptd_write(hcd->regs, INT_PTD_OFFSET, slot, &ptd);
-	enqueue_one_qtd(qtd, priv, payload);
+	enqueue_one_qtd(qtd, priv);
 
 	priv->int_ints[slot].qh = qh;
 	priv->int_ints[slot].qtd = qtd;
 	priv->int_ints[slot].data_buffer = qtd->data_buffer;
-	priv->int_ints[slot].payload = payload;
 	qtd->status |= URB_ENQUEUED;
 	qtd->status |= slot << 16;
 }
@@ -869,7 +868,6 @@ static void enqueue_an_ATL_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 	u32 skip_map, or_map;
 	u32 queue_entry;
 	u32 slot;
-	u32 payload;
 	u32 buffstatus;
 
 	/*
@@ -886,9 +884,7 @@ static void enqueue_an_ATL_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 	slot = __ffs(skip_map);
 	queue_entry = 1 << slot;
 
-	payload = alloc_mem(priv, qtd->length);
-
-	enqueue_one_atl_qtd(payload, priv, qh, qtd->urb, slot, qtd);
+	enqueue_one_atl_qtd(priv, qh, slot, qtd);
 
 	or_map = reg_read32(hcd->regs, HC_ATL_IRQ_MASK_OR_REG);
 	or_map |= queue_entry;
@@ -914,7 +910,6 @@ static void enqueue_an_INT_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 	u32 skip_map, or_map;
 	u32 queue_entry;
 	u32 slot;
-	u32 payload;
 	u32 buffstatus;
 
 	/*
@@ -931,9 +926,7 @@ static void enqueue_an_INT_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 	slot = __ffs(skip_map);
 	queue_entry = 1 << slot;
 
-	payload = alloc_mem(priv, qtd->length);
-
-	enqueue_one_int_qtd(payload, priv, qh, qtd->urb, slot, qtd);
+	enqueue_one_int_qtd(priv, qh, slot, qtd);
 
 	or_map = reg_read32(hcd->regs, HC_INT_IRQ_MASK_OR_REG);
 	or_map |= queue_entry;
@@ -974,6 +967,7 @@ __acquires(priv->lock)
 
 static void isp1760_qtd_free(struct isp1760_qtd *qtd)
 {
+	BUG_ON(qtd->payload_addr);
 	kmem_cache_free(qtd_cachep, qtd);
 }
 
@@ -1029,7 +1023,6 @@ static void do_atl_int(struct usb_hcd *hcd)
 	struct ptd ptd;
 	struct urb *urb = NULL;
 	u32 queue_entry;
-	u32 payload;
 	u32 length;
 	u32 or_map;
 	u32 status = -EINVAL;
@@ -1057,7 +1050,6 @@ static void do_atl_int(struct usb_hcd *hcd)
 		qtd = priv->atl_ints[queue_entry].qtd;
 		urb = qtd->urb;
 		qh = priv->atl_ints[queue_entry].qh;
-		payload = priv->atl_ints[queue_entry].payload;
 
 		if (!qh) {
 			printk(KERN_ERR "qh is 0\n");
@@ -1154,7 +1146,7 @@ static void do_atl_int(struct usb_hcd *hcd)
 		if (length) {
 			switch (DW1_GET_PID(ptd.dw1)) {
 			case IN_PID:
-				mem_reads8(hcd->regs, payload,
+				mem_reads8(hcd->regs, qtd->payload_addr,
 					priv->atl_ints[queue_entry].data_buffer,
 					length);
 
@@ -1171,7 +1163,7 @@ static void do_atl_int(struct usb_hcd *hcd)
 		priv->atl_ints[queue_entry].qtd = NULL;
 		priv->atl_ints[queue_entry].qh = NULL;
 
-		free_mem(priv, payload);
+		free_mem(priv, qtd);
 
 		reg_write32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG, skip_map);
 
@@ -1230,7 +1222,6 @@ static void do_intl_int(struct usb_hcd *hcd)
 	u32 done_map, skip_map;
 	struct ptd ptd;
 	struct urb *urb = NULL;
-	u32 payload;
 	u32 length;
 	u32 or_map;
 	int error;
@@ -1253,7 +1244,6 @@ static void do_intl_int(struct usb_hcd *hcd)
 		qtd = priv->int_ints[queue_entry].qtd;
 		urb = qtd->urb;
 		qh = priv->int_ints[queue_entry].qh;
-		payload = priv->int_ints[queue_entry].payload;
 
 		if (!qh) {
 			printk(KERN_ERR "(INT) qh is 0\n");
@@ -1292,7 +1282,7 @@ static void do_intl_int(struct usb_hcd *hcd)
 		if (length) {
 			switch (DW1_GET_PID(ptd.dw1)) {
 			case IN_PID:
-				mem_reads8(hcd->regs, payload,
+				mem_reads8(hcd->regs, qtd->payload_addr,
 					priv->int_ints[queue_entry].data_buffer,
 					length);
 			case OUT_PID:
@@ -1309,7 +1299,7 @@ static void do_intl_int(struct usb_hcd *hcd)
 		priv->int_ints[queue_entry].qh = NULL;
 
 		reg_write32(hcd->regs, HC_INT_PTD_SKIPMAP_REG, skip_map);
-		free_mem(priv, payload);
+		free_mem(priv, qtd);
 
 		if (urb->status == -EPIPE) {
 			/* HALT received */
@@ -1704,14 +1694,13 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 
 			qtd = ints->qtd;
 			qh = ints[i].qh;
-			qtd = clean_up_qtdlist(qtd, qh);
 
-			free_mem(priv, ints->payload);
+			free_mem(priv, qtd);
+			qtd = clean_up_qtdlist(qtd, qh);
 
 			ints->qh = NULL;
 			ints->qtd = NULL;
 			ints->data_buffer = NULL;
-			ints->payload = 0;
 
 			isp1760_urb_done(priv, urb, status);
 			if (qtd)

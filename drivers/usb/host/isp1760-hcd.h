@@ -108,7 +108,6 @@ struct ptd {
 
 struct inter_packet_info {
 	void *data_buffer;
-	u32 payload;
 #define PTD_FIRE_NEXT		(1 << 0)
 #define PTD_URB_FINISHED	(1 << 1)
 	struct isp1760_qh *qh;
@@ -164,10 +163,8 @@ struct memory_chunk {
 #define BLOCK_2_SIZE 1024
 #define BLOCK_3_SIZE 8192
 #define BLOCKS (BLOCK_1_NUM + BLOCK_2_NUM + BLOCK_3_NUM)
-#define PAYLOAD_SIZE 0xf000
-
-/* I saw if some reloads if the pointer was negative */
-#define ISP1760_NULL_POINTER	(0x400)
+#define MAX_PAYLOAD_SIZE BLOCK_3_SIZE
+#define PAYLOAD_AREA_SIZE 0xf000
 
 /* ATL */
 /* DW0 */
@@ -220,7 +217,5 @@ struct memory_chunk {
 #define RL_COUNTER	(0)
 #define NAK_COUNTER	(0)
 #define ERR_COUNTER	(2)
-
-#define HC_ATL_PL_SIZE	(8192)
 
 #endif
