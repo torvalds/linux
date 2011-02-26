@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/time.h>
 #include <linux/rtc.h>
+#include <linux/slab.h>
 #include <linux/bcd.h>
 #include <linux/interrupt.h>
 #include <linux/ioctl.h>
@@ -423,13 +424,45 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 	int per_irq = platform_get_irq_byname(pdev, "PER");
 	int alm_irq = platform_get_irq_byname(pdev, "ALM");
 	int ret = 0;
-
+	//printk("wm831x_rtc_probe\n");
 	wm831x_rtc = kzalloc(sizeof(*wm831x_rtc), GFP_KERNEL);
 	if (wm831x_rtc == NULL)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, wm831x_rtc);
 	wm831x_rtc->wm831x = wm831x;
+
+ #if 0	
+	/*set time when power on for debug*/
+	ret = wm831x_reg_write(wm831x, WM831X_RTC_TIME_1,
+			       (0x1000000 >> 16) & 0xffff);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to write TIME_1: %d\n", ret);
+		return ret;
+	}
+	
+	ret = wm831x_reg_write(wm831x, WM831X_RTC_TIME_2, 0x100000 & 0xffff);
+
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to write TIME_2: %d\n", ret);
+		return ret;
+	}
+
+	ret = wm831x_reg_read(wm831x, WM831X_RTC_TIME_1);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to read TIME_2: %d\n", ret);
+		goto err;
+	}
+	printk("%s:WM831X_RTC_TIME_1=0x%x\n",__FUNCTION__,ret);
+	ret = wm831x_reg_read(wm831x, WM831X_RTC_TIME_2);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to read TIME_2: %d\n", ret);
+		goto err;
+	}
+	printk("%s:WM831X_RTC_TIME_2=0x%x\n",__FUNCTION__,ret);
+	
+#endif
+
 
 	ret = wm831x_reg_read(wm831x, WM831X_RTC_CONTROL);
 	if (ret < 0) {
@@ -447,18 +480,18 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(wm831x_rtc->rtc);
 		goto err;
 	}
-
-	ret = wm831x_request_irq(wm831x, per_irq, wm831x_per_irq,
-				 IRQF_TRIGGER_RISING, "wm831x_rtc_per",
-				 wm831x_rtc);
+	//printk("1wm831x_rtc_probe=%d\n",per_irq);
+	ret = request_threaded_irq(per_irq, NULL, wm831x_per_irq,
+				   IRQF_TRIGGER_RISING, "RTC period",
+				   wm831x_rtc);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request periodic IRQ %d: %d\n",
 			per_irq, ret);
 	}
-
-	ret = wm831x_request_irq(wm831x, alm_irq, wm831x_alm_irq,
-				 IRQF_TRIGGER_RISING, "wm831x_rtc_alm",
-				 wm831x_rtc);
+	//printk("2wm831x_rtc_probe=%d\n",alm_irq);
+	ret = request_threaded_irq(alm_irq, NULL, wm831x_alm_irq, 
+				   IRQF_TRIGGER_RISING, "RTC alarm",
+				   wm831x_rtc);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request alarm IRQ %d: %d\n",
 			alm_irq, ret);
@@ -477,15 +510,15 @@ static int __devexit wm831x_rtc_remove(struct platform_device *pdev)
 	int per_irq = platform_get_irq_byname(pdev, "PER");
 	int alm_irq = platform_get_irq_byname(pdev, "ALM");
 
-	wm831x_free_irq(wm831x_rtc->wm831x, alm_irq, wm831x_rtc);
-	wm831x_free_irq(wm831x_rtc->wm831x, per_irq, wm831x_rtc);
+	free_irq(alm_irq, wm831x_rtc);
+	free_irq(per_irq, wm831x_rtc);
 	rtc_device_unregister(wm831x_rtc->rtc);
 	kfree(wm831x_rtc);
 
 	return 0;
 }
 
-static struct dev_pm_ops wm831x_rtc_pm_ops = {
+static const struct dev_pm_ops wm831x_rtc_pm_ops = {
 	.suspend = wm831x_rtc_suspend,
 	.resume = wm831x_rtc_resume,
 

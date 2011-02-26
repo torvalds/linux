@@ -12,19 +12,101 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
+#include <linux/slab.h>
 
 #include <linux/mfd/wm831x/core.h>
 #include <linux/mfd/wm831x/auxadc.h>
 #include <linux/mfd/wm831x/pmu.h>
 #include <linux/mfd/wm831x/pdata.h>
 
+#define WM831X_DEBUG
+#undef  WM831X_DEBUG
+
+#ifdef WM831X_DEBUG
+#define	WM_BATT_DBG(x...) printk(KERN_INFO x)
+#else
+#define	WM_BATT_DBG(x...)  do {} while (0)
+#endif
+
+#define WM831X_CHG_SYSLO_SHIFT   4
+#define WM831X_CHG_SYSOK_SHIFT   0
+#define WM831X_CHG_SYSLO_MASK  ~(0x7 << 4)
+#define WM831X_CHG_SYSOK_MASK  ~(0x7 << 0)
+#define batt_num   57
+static int batt_chg_step_table[batt_num]={
+    3650,3700,3710,3720,3730,3740,3745,3755,3760, //+200
+	3770,3790,3805,3820,3830,3840, //+190
+	3842,3850,3860,3870,3880,3885, //+180
+
+	3900,3910,3920,3930,3940,3950,3960,3970,3980,3990,   //+170                  
+	4000,4010,4020,4030,4040,4050,4070,4090,4095,4100,4105,4110,4115,4120,4125,4130,
+	4135,4140,4145,4150,4155,4160,4165,4170,4175,4180	
+};
+
+static int batt_step_table[batt_num]={
+    3450,3500,3510,3520,3530,3540,3545,3555,3560,
+	3580,3600,3615,3630,3640,3650,
+	3660,3670,3680,3690,3700,3710,
+	3720,3730,3740,3750,3760,3770,3780,3790,3800,3810,
+	3815,3830,3845,3860,3875,3890,3900,3910,3920,3930,3940,3950,3960,3970,3985,4000,
+	4005,4010,4015,4020,4030,4040,4050,4060,4070,4180	
+};
+
+static int batt_disp_table[batt_num]={
+    0,2,4,6,8,10,12,14,15,
+	18,20,23,26,28,30,
+	33,37,40,43,47,50,
+	52,54,57,60,62,64,66,68,69,70,
+	72,74,76,78,79,80,81,82,83,84,85,86,87,88,89,90,
+	91,92,93,94,95,96,97,98,99,100	
+};
+
+
+#define TIMER_MS_COUNTS 1000
+struct wm_batt_priv_data {
+	enum power_supply_property online;
+	enum power_supply_property status;
+	enum power_supply_property voltage;
+	enum power_supply_property health;
+	enum power_supply_property type;
+	enum power_supply_property temp;
+	int old_level;
+	int charging_level;  
+};
+
 struct wm831x_power {
 	struct wm831x *wm831x;
 	struct power_supply wall;
-	struct power_supply backup;
 	struct power_supply usb;
 	struct power_supply battery;
+	struct work_struct batt_work;
+	struct timer_list timer;
+	struct wm_batt_priv_data priv;
+	int interval;
 };
+
+struct wm831x_power *g_wm831x_power;
+
+extern void wm831x_batt_vol_level(struct wm831x_power *power, int batt_val, int *level);
+static DEFINE_MUTEX(charging_mutex);
+static int g_read_level_cnt = 0;
+
+int wm831x_read_on_pin_status(void)
+{
+	int ret;
+	
+	if(!g_wm831x_power)
+	{
+		printk("err:%s:g_wm831x_power address is 0\n",__FUNCTION__);
+		return -1;
+	}
+	
+	ret = wm831x_reg_read(g_wm831x_power->wm831x, WM831X_ON_PIN_CONTROL);
+	if (ret < 0)
+		return ret;
+
+	return !(ret & WM831X_ON_PIN_STS) ? 1 : 0;
+}
 
 static int wm831x_power_check_online(struct wm831x *wm831x, int supply,
 				     union power_supply_propval *val)
@@ -43,18 +125,68 @@ static int wm831x_power_check_online(struct wm831x *wm831x, int supply,
 	return 0;
 }
 
+int wm831x_read_chg_status(void)
+{
+	int ret, usb_chg = 0, wall_chg = 0;
+	
+	if(!g_wm831x_power)
+	{
+		printk("err:%s:g_wm831x_power address is 0\n",__FUNCTION__);
+		return -1;
+	}
+	
+	ret = wm831x_reg_read(g_wm831x_power->wm831x, WM831X_SYSTEM_STATUS);
+	if (ret < 0)
+		return ret;
+
+	if (ret & WM831X_PWR_USB)
+		usb_chg = 1;
+	if (ret & WM831X_PWR_WALL)
+		wall_chg = 1;
+
+	return ((usb_chg | wall_chg) ? 1 : 0);
+}
+
 static int wm831x_power_read_voltage(struct wm831x *wm831x,
 				     enum wm831x_auxadc src,
 				     union power_supply_propval *val)
 {
 	int ret;
+#if 0
+	int loop = 0, vol_sum = 0;
 
+	for (loop = 0; loop < 10; loop++) {
+		ret = wm831x_auxadc_read_uv(wm831x, src);
+		if (ret >= 0) {
+			vol_sum += ret / 1000;
+		}
+	}
+
+	val->intval = vol_sum / 10;
+
+	return val->intval;
+#else
 	ret = wm831x_auxadc_read_uv(wm831x, src);
 	if (ret >= 0)
-		val->intval = ret;
-
-	return ret;
+		val->intval = ret / 1000;
+	return ret ;
+#endif
 }
+
+int wm831x_read_batt_voltage(void)
+{
+	int ret = 0;
+	
+	if(!g_wm831x_power)
+	{
+		printk("err:%s:g_wm831x_power address is 0\n",__FUNCTION__);
+		return -1;
+	}
+	
+	ret = wm831x_auxadc_read_uv(g_wm831x_power->wm831x, WM831X_AUX_BATT);
+	return ret / 1000;
+}
+//EXPORT_SYMBOL_GPL(wm831x_get_batt_voltage);
 
 /*********************************************************************
  *		WALL Power
@@ -190,13 +322,34 @@ static struct chg_map chg_times[] = {
 	{ 510, 15 << WM831X_CHG_TIME_SHIFT },
 };
 
+static struct chg_map chg_syslos[] = {
+	{ 2800, 0 << WM831X_CHG_SYSLO_SHIFT},
+	{ 2900, 1 << WM831X_CHG_SYSLO_SHIFT},
+	{ 3000, 2 << WM831X_CHG_SYSLO_SHIFT},
+	{ 3100, 3 << WM831X_CHG_SYSLO_SHIFT},
+	{ 3200, 4 << WM831X_CHG_SYSLO_SHIFT},
+	{ 3300, 5 << WM831X_CHG_SYSLO_SHIFT},
+	{ 3400, 6 << WM831X_CHG_SYSLO_SHIFT},
+	{ 3500, 7 << WM831X_CHG_SYSLO_SHIFT},
+};
+
+static struct chg_map chg_sysoks[] = {
+	{ 2800, 0 << WM831X_CHG_SYSOK_SHIFT},
+	{ 2900, 1 << WM831X_CHG_SYSOK_SHIFT},
+	{ 3000, 2 << WM831X_CHG_SYSOK_SHIFT},
+	{ 3100, 3 << WM831X_CHG_SYSOK_SHIFT},
+	{ 3200, 4 << WM831X_CHG_SYSOK_SHIFT},
+	{ 3300, 5 << WM831X_CHG_SYSOK_SHIFT},
+	{ 3400, 6 << WM831X_CHG_SYSOK_SHIFT},
+	{ 3500, 7 << WM831X_CHG_SYSOK_SHIFT},
+};
+
 static void wm831x_battey_apply_config(struct wm831x *wm831x,
 				       struct chg_map *map, int count, int val,
 				       int *reg, const char *name,
 				       const char *units)
 {
 	int i;
-
 	for (i = 0; i < count; i++)
 		if (val == map[i].val)
 			break;
@@ -213,7 +366,7 @@ static void wm831x_config_battery(struct wm831x *wm831x)
 {
 	struct wm831x_pdata *wm831x_pdata = wm831x->dev->platform_data;
 	struct wm831x_battery_pdata *pdata;
-	int ret, reg1, reg2;
+	int ret, reg1, reg2, reg3;
 
 	if (!wm831x_pdata || !wm831x_pdata->battery) {
 		dev_warn(wm831x->dev,
@@ -225,6 +378,7 @@ static void wm831x_config_battery(struct wm831x *wm831x)
 
 	reg1 = 0;
 	reg2 = 0;
+	reg3 = 0;
 
 	if (!pdata->enable) {
 		dev_info(wm831x->dev, "Battery charger disabled\n");
@@ -258,6 +412,14 @@ static void wm831x_config_battery(struct wm831x *wm831x)
 				   pdata->timeout, &reg2,
 				   "charger timeout", "min");
 
+	wm831x_battey_apply_config(wm831x, chg_syslos, ARRAY_SIZE(chg_syslos),
+				   pdata->syslo, &reg3,
+				   "syslo voltage", "mV");
+
+	wm831x_battey_apply_config(wm831x, chg_sysoks, ARRAY_SIZE(chg_sysoks),
+				   pdata->sysok, &reg3,
+				   "sysok voltage", "mV");
+
 	ret = wm831x_reg_unlock(wm831x);
 	if (ret != 0) {
 		dev_err(wm831x->dev, "Failed to unlock registers: %d\n", ret);
@@ -267,13 +429,12 @@ static void wm831x_config_battery(struct wm831x *wm831x)
 	ret = wm831x_set_bits(wm831x, WM831X_CHARGER_CONTROL_1,
 			      WM831X_CHG_ENA_MASK |
 			      WM831X_CHG_FAST_MASK |
-			      WM831X_CHG_ITERM_MASK |
 			      WM831X_CHG_ITERM_MASK,
 			      reg1);
-	if (ret != 0)
+	if (ret != 0) {
 		dev_err(wm831x->dev, "Failed to set charger control 1: %d\n",
 			ret);
-
+	}
 	ret = wm831x_set_bits(wm831x, WM831X_CHARGER_CONTROL_2,
 			      WM831X_CHG_OFF_MSK |
 			      WM831X_CHG_TIME_MASK |
@@ -281,9 +442,18 @@ static void wm831x_config_battery(struct wm831x *wm831x)
 			      WM831X_CHG_TRKL_ILIM_MASK |
 			      WM831X_CHG_VSEL_MASK,
 			      reg2);
-	if (ret != 0)
+	if (ret != 0) {
 		dev_err(wm831x->dev, "Failed to set charger control 2: %d\n",
 			ret);
+	}
+
+	ret = wm831x_set_bits(wm831x, WM831X_SYSVDD_CONTROL,
+				          WM831X_CHG_SYSLO_MASK |
+						  WM831X_CHG_SYSOK_MASK,
+						  reg3);
+	if (ret < 0) {
+		dev_err(wm831x->dev, "Failed to set sysvdd control reg: %d\n",ret);
+	}
 
 	wm831x_reg_lock(wm831x);
 }
@@ -305,6 +475,7 @@ static int wm831x_bat_check_status(struct wm831x *wm831x, int *status)
 	if (ret < 0)
 		return ret;
 
+	
 	switch (ret & WM831X_CHG_STATE_MASK) {
 	case WM831X_CHG_STATE_OFF:
 		*status = POWER_SUPPLY_STATUS_NOT_CHARGING;
@@ -321,10 +492,53 @@ static int wm831x_bat_check_status(struct wm831x *wm831x, int *status)
 
 	return 0;
 }
+int wm831x_read_bat_charging_status(void)
+{
+	int ret, status;
+	
+	if(!g_wm831x_power)
+	{
+		printk("err:%s:g_wm831x_power address is 0\n",__FUNCTION__);
+		return -1;
+	}
+	
+	ret = wm831x_bat_check_status(g_wm831x_power->wm831x, &status);
+	if (ret < 0)
+		return ret;
+	if (status == POWER_SUPPLY_STATUS_CHARGING) 
+		return 1;
+	return 0;
+}
 
 static int wm831x_bat_check_type(struct wm831x *wm831x, int *type)
 {
 	int ret;
+#ifdef WM831X_DEBUG 
+	ret = wm831x_reg_read(wm831x, WM831X_POWER_STATE);
+	if (ret < 0)
+		return ret;
+	WM_BATT_DBG("%s: wm831x power status %#x\n", __FUNCTION__, ret);
+
+	ret = wm831x_reg_read(wm831x, WM831X_SYSTEM_STATUS);
+	if (ret < 0)
+		return ret;
+	WM_BATT_DBG("%s: wm831x system status %#x\n", __FUNCTION__, ret);
+
+	ret = wm831x_reg_read(wm831x, WM831X_CHARGER_CONTROL_1);
+	if (ret < 0)
+		return ret;
+	WM_BATT_DBG("%s: wm831x charger control1 %#x\n", __FUNCTION__, ret);
+
+	ret = wm831x_reg_read(wm831x, WM831X_CHARGER_CONTROL_2);
+	if (ret < 0)
+		return ret;
+	WM_BATT_DBG("%s: wm831x charger control2 %#x\n", __FUNCTION__, ret);
+
+	ret = wm831x_reg_read(wm831x, WM831X_CHARGER_STATUS);
+	if (ret < 0)
+		return ret;
+	WM_BATT_DBG("%s: wm831x charger status %#x\n\n", __FUNCTION__, ret);
+#endif
 
 	ret = wm831x_reg_read(wm831x, WM831X_CHARGER_STATUS);
 	if (ret < 0)
@@ -392,12 +606,13 @@ static int wm831x_bat_get_prop(struct power_supply *psy,
 {
 	struct wm831x_power *wm831x_power = dev_get_drvdata(psy->dev->parent);
 	struct wm831x *wm831x = wm831x_power->wm831x;
-	int ret = 0;
+	int level, ret = 0;
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		ret = wm831x_bat_check_status(wm831x, &val->intval);
 		break;
+	case POWER_SUPPLY_PROP_PRESENT:
 	case POWER_SUPPLY_PROP_ONLINE:
 		ret = wm831x_power_check_online(wm831x, WM831X_PWR_SRC_BATT,
 						val);
@@ -411,6 +626,17 @@ static int wm831x_bat_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
 		ret = wm831x_bat_check_type(wm831x, &val->intval);
 		break;
+	case POWER_SUPPLY_PROP_CAPACITY:
+		ret = wm831x_power_read_voltage(wm831x, WM831X_AUX_BATT, val);
+		wm831x_batt_vol_level(wm831x_power, val->intval, &level);
+		val->intval = level;
+		break;
+	case POWER_SUPPLY_PROP_TEMP:
+		val->intval = 0;
+		break;
+	case POWER_SUPPLY_PROP_TECHNOLOGY:
+		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -421,9 +647,12 @@ static int wm831x_bat_get_prop(struct power_supply *psy,
 
 static enum power_supply_property wm831x_bat_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
-	POWER_SUPPLY_PROP_ONLINE,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_HEALTH,
+	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_CAPACITY, /* in percents! */
+	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 };
 
@@ -444,7 +673,7 @@ static irqreturn_t wm831x_bat_irq(int irq, void *data)
 	struct wm831x *wm831x = wm831x_power->wm831x;
 
 	dev_dbg(wm831x->dev, "Battery status changed: %d\n", irq);
-
+	WM_BATT_DBG("%s:Battery status changed %d\n", __FUNCTION__, irq);
 	/* The battery charger is autonomous so we don't need to do
 	 * anything except kick user space */
 	power_supply_changed(&wm831x_power->battery);
@@ -452,125 +681,6 @@ static irqreturn_t wm831x_bat_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-
-/*********************************************************************
- *		Backup supply properties
- *********************************************************************/
-
-static void wm831x_config_backup(struct wm831x *wm831x)
-{
-	struct wm831x_pdata *wm831x_pdata = wm831x->dev->platform_data;
-	struct wm831x_backup_pdata *pdata;
-	int ret, reg;
-
-	if (!wm831x_pdata || !wm831x_pdata->backup) {
-		dev_warn(wm831x->dev,
-			 "No backup battery charger configuration\n");
-		return;
-	}
-
-	pdata = wm831x_pdata->backup;
-
-	reg = 0;
-
-	if (pdata->charger_enable)
-		reg |= WM831X_BKUP_CHG_ENA | WM831X_BKUP_BATT_DET_ENA;
-	if (pdata->no_constant_voltage)
-		reg |= WM831X_BKUP_CHG_MODE;
-
-	switch (pdata->vlim) {
-	case 2500:
-		break;
-	case 3100:
-		reg |= WM831X_BKUP_CHG_VLIM;
-		break;
-	default:
-		dev_err(wm831x->dev, "Invalid backup voltage limit %dmV\n",
-			pdata->vlim);
-	}
-
-	switch (pdata->ilim) {
-	case 100:
-		break;
-	case 200:
-		reg |= 1;
-		break;
-	case 300:
-		reg |= 2;
-		break;
-	case 400:
-		reg |= 3;
-		break;
-	default:
-		dev_err(wm831x->dev, "Invalid backup current limit %duA\n",
-			pdata->ilim);
-	}
-
-	ret = wm831x_reg_unlock(wm831x);
-	if (ret != 0) {
-		dev_err(wm831x->dev, "Failed to unlock registers: %d\n", ret);
-		return;
-	}
-
-	ret = wm831x_set_bits(wm831x, WM831X_BACKUP_CHARGER_CONTROL,
-			      WM831X_BKUP_CHG_ENA_MASK |
-			      WM831X_BKUP_CHG_MODE_MASK |
-			      WM831X_BKUP_BATT_DET_ENA_MASK |
-			      WM831X_BKUP_CHG_VLIM_MASK |
-			      WM831X_BKUP_CHG_ILIM_MASK,
-			      reg);
-	if (ret != 0)
-		dev_err(wm831x->dev,
-			"Failed to set backup charger config: %d\n", ret);
-
-	wm831x_reg_lock(wm831x);
-}
-
-static int wm831x_backup_get_prop(struct power_supply *psy,
-				  enum power_supply_property psp,
-				  union power_supply_propval *val)
-{
-	struct wm831x_power *wm831x_power = dev_get_drvdata(psy->dev->parent);
-	struct wm831x *wm831x = wm831x_power->wm831x;
-	int ret = 0;
-
-	ret = wm831x_reg_read(wm831x, WM831X_BACKUP_CHARGER_CONTROL);
-	if (ret < 0)
-		return ret;
-
-	switch (psp) {
-	case POWER_SUPPLY_PROP_STATUS:
-		if (ret & WM831X_BKUP_CHG_STS)
-			val->intval = POWER_SUPPLY_STATUS_CHARGING;
-		else
-			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
-		break;
-
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		ret = wm831x_power_read_voltage(wm831x, WM831X_AUX_BKUP_BATT,
-						val);
-		break;
-
-	case POWER_SUPPLY_PROP_PRESENT:
-		if (ret & WM831X_BKUP_CHG_STS)
-			val->intval = 1;
-		else
-			val->intval = 0;
-		break;
-
-	default:
-		ret = -EINVAL;
-		break;
-	}
-
-	return ret;
-}
-
-static enum power_supply_property wm831x_backup_props[] = {
-	POWER_SUPPLY_PROP_STATUS,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_PRESENT,
-};
 
 /*********************************************************************
  *		Initialisation
@@ -584,7 +694,6 @@ static irqreturn_t wm831x_syslo_irq(int irq, void *data)
 	/* Not much we can actually *do* but tell people for
 	 * posterity, we're probably about to run out of power. */
 	dev_crit(wm831x->dev, "SYSVDD under voltage\n");
-
 	return IRQ_HANDLED;
 }
 
@@ -594,16 +703,99 @@ static irqreturn_t wm831x_pwr_src_irq(int irq, void *data)
 	struct wm831x *wm831x = wm831x_power->wm831x;
 
 	dev_dbg(wm831x->dev, "Power source changed\n");
-
-	/* Just notify for everything - little harm in overnotifying.
-	 * The backup battery is not a power source while the system
-	 * is running so skip that.
-	 */
+	WM_BATT_DBG("%s:Power source changed\n", __FUNCTION__); 
+	/* Just notify for everything - little harm in overnotifying. */
 	power_supply_changed(&wm831x_power->battery);
 	power_supply_changed(&wm831x_power->usb);
 	power_supply_changed(&wm831x_power->wall);
 
+
 	return IRQ_HANDLED;
+}
+
+static void wm831x_batt_timer_handler(unsigned long data)
+{
+	struct wm831x_power *wm831x_power = (struct wm831x_power*)data;
+	schedule_work(&wm831x_power->batt_work);
+}
+
+void wm831x_batt_vol_level(struct wm831x_power *wm831x_power, int batt_val, int *level)
+{
+	int i, ret, status;
+	static int count = 0;
+    union power_supply_propval val;
+
+	ret = wm831x_bat_check_status(wm831x_power->wm831x, &status);
+	if (status == POWER_SUPPLY_STATUS_CHARGING) {
+		for(i = 0; i < batt_num; i++){        
+			if((batt_chg_step_table[i] <= batt_val) && 
+					 (batt_chg_step_table[i+1] > batt_val))
+				break;     
+		}
+		*level = batt_disp_table[i];
+		if (batt_val < 3650)
+			*level = 0;
+		count++;
+		if (*level < wm831x_power->priv.old_level && count > 20)
+			*level = wm831x_power->priv.old_level;
+
+		if (*level >= 100)
+			*level = 97;
+
+		if (*level < 0)
+			*level = 0;
+
+	}
+	else {
+		for(i = 0; i < batt_num; i++){        
+			if((batt_step_table[i] <= batt_val) && 
+					 (batt_step_table[i+1] > batt_val))
+				break;     
+		}
+		*level = batt_disp_table[i];
+		if (batt_val < 3450)
+			*level = 0;
+
+		if ((wm831x_power->priv.old_level - *level) > 5)
+			*level = wm831x_power->priv.old_level - 5;
+
+		//if (g_read_level_cnt >= 10 && *level > wm831x_power->priv.old_level)
+		if (*level > wm831x_power->priv.old_level)
+			*level = wm831x_power->priv.old_level;
+
+		if (*level > 100)
+			*level = 100;
+		if (*level < 0)
+			*level = 0;
+	}
+}
+
+static void wm831x_batt_work(struct work_struct *work)
+{
+	int ret, online, status,health,level;
+    union power_supply_propval val;
+	struct wm831x_power *power = container_of(work, struct wm831x_power, batt_work);
+
+	ret = wm831x_power_check_online(power->wm831x, WM831X_PWR_SRC_BATT, &val);
+	online = val.intval;
+
+	ret = wm831x_bat_check_status(power->wm831x, &status);
+	ret = wm831x_bat_check_health(power->wm831x, &health);
+
+	ret = wm831x_power_read_voltage(power->wm831x, WM831X_AUX_BATT, &val);
+	wm831x_batt_vol_level(power, val.intval, &level);
+	mod_timer(&power->timer, jiffies + msecs_to_jiffies(power->interval));
+
+	if (online != power->priv.online || status != power->priv.status
+			|| health != power->priv.health || level != power->priv.old_level)
+	{
+		power->priv.online    = online;
+		power->priv.status    = status;
+		power->priv.health    = health;
+		power->priv.old_level = level;
+
+		power_supply_changed(&power->battery);
+	}
 }
 
 static __devinit int wm831x_power_probe(struct platform_device *pdev)
@@ -613,7 +805,6 @@ static __devinit int wm831x_power_probe(struct platform_device *pdev)
 	struct power_supply *usb;
 	struct power_supply *battery;
 	struct power_supply *wall;
-	struct power_supply *backup;
 	int ret, irq, i;
 
 	power = kzalloc(sizeof(struct wm831x_power), GFP_KERNEL);
@@ -626,13 +817,11 @@ static __devinit int wm831x_power_probe(struct platform_device *pdev)
 	usb = &power->usb;
 	battery = &power->battery;
 	wall = &power->wall;
-	backup = &power->backup;
 
 	/* We ignore configuration failures since we can still read back
-	 * the status without enabling either of the chargers.
+	 * the status without enabling the charger.
 	 */
 	wm831x_config_battery(wm831x);
-	wm831x_config_backup(wm831x);
 
 	wall->name = "wm831x-wall";
 	wall->type = POWER_SUPPLY_TYPE_MAINS;
@@ -661,41 +850,33 @@ static __devinit int wm831x_power_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_battery;
 
-	backup->name = "wm831x-backup";
-	backup->type = POWER_SUPPLY_TYPE_BATTERY;
-	backup->properties = wm831x_backup_props;
-	backup->num_properties = ARRAY_SIZE(wm831x_backup_props);
-	backup->get_property = wm831x_backup_get_prop;
-	ret = power_supply_register(&pdev->dev, backup);
-	if (ret)
-		goto err_usb;
-
 	irq = platform_get_irq_byname(pdev, "SYSLO");
-	ret = wm831x_request_irq(wm831x, irq, wm831x_syslo_irq,
-				 IRQF_TRIGGER_RISING, "SYSLO",
-				 power);
+	ret = request_threaded_irq(irq, NULL, wm831x_syslo_irq, 
+				   IRQF_TRIGGER_RISING, "System power low",
+				   power);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request SYSLO IRQ %d: %d\n",
 			irq, ret);
-		goto err_backup;
+		goto err_usb;
 	}
 
 	irq = platform_get_irq_byname(pdev, "PWR SRC");
-	ret = wm831x_request_irq(wm831x, irq, wm831x_pwr_src_irq,
-				 IRQF_TRIGGER_RISING, "Power source",
-				 power);
+	ret = request_threaded_irq(irq, NULL, wm831x_pwr_src_irq,
+				   IRQF_TRIGGER_RISING, "Power source",
+				   power);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request PWR SRC IRQ %d: %d\n",
 			irq, ret);
 		goto err_syslo;
 	}
-
+#if 0       //使用查询的方式
 	for (i = 0; i < ARRAY_SIZE(wm831x_bat_irqs); i++) {
 		irq = platform_get_irq_byname(pdev, wm831x_bat_irqs[i]);
-		ret = wm831x_request_irq(wm831x, irq, wm831x_bat_irq,
-					 IRQF_TRIGGER_RISING,
-					 wm831x_bat_irqs[i],
-					 power);
+		ret = request_threaded_irq(irq, NULL, wm831x_bat_irq,
+					   IRQF_TRIGGER_RISING,
+					   wm831x_bat_irqs[i],
+					   power);
+		WM_BATT_DBG("%s: %s irq no %d\n", __FUNCTION__, wm831x_bat_irqs[i], irq);
 		if (ret != 0) {
 			dev_err(&pdev->dev,
 				"Failed to request %s IRQ %d: %d\n",
@@ -703,21 +884,28 @@ static __devinit int wm831x_power_probe(struct platform_device *pdev)
 			goto err_bat_irq;
 		}
 	}
+#endif
+	power->interval = TIMER_MS_COUNTS;
+	power->priv.old_level = 100;
+	INIT_WORK(&power->batt_work, wm831x_batt_work);
+	setup_timer(&power->timer, wm831x_batt_timer_handler, (unsigned long)power);
+	power->timer.expires = jiffies + msecs_to_jiffies(1000);
+	add_timer(&power->timer);
 
+	g_wm831x_power = power;
+	printk("%s:wm831x_power initialized\n",__FUNCTION__);
 	return ret;
 
 err_bat_irq:
 	for (; i >= 0; i--) {
 		irq = platform_get_irq_byname(pdev, wm831x_bat_irqs[i]);
-		wm831x_free_irq(wm831x, irq, power);
+		free_irq(irq, power);
 	}
 	irq = platform_get_irq_byname(pdev, "PWR SRC");
-	wm831x_free_irq(wm831x, irq, power);
+	free_irq(irq, power);
 err_syslo:
 	irq = platform_get_irq_byname(pdev, "SYSLO");
-	wm831x_free_irq(wm831x, irq, power);
-err_backup:
-	power_supply_unregister(backup);
+	free_irq(irq, power);
 err_usb:
 	power_supply_unregister(usb);
 err_battery:
@@ -732,30 +920,52 @@ err_kmalloc:
 static __devexit int wm831x_power_remove(struct platform_device *pdev)
 {
 	struct wm831x_power *wm831x_power = platform_get_drvdata(pdev);
-	struct wm831x *wm831x = wm831x_power->wm831x;
 	int irq, i;
 
 	for (i = 0; i < ARRAY_SIZE(wm831x_bat_irqs); i++) {
 		irq = platform_get_irq_byname(pdev, wm831x_bat_irqs[i]);
-		wm831x_free_irq(wm831x, irq, wm831x_power);
+		free_irq(irq, wm831x_power);
 	}
 
 	irq = platform_get_irq_byname(pdev, "PWR SRC");
-	wm831x_free_irq(wm831x, irq, wm831x_power);
+	free_irq(irq, wm831x_power);
 
 	irq = platform_get_irq_byname(pdev, "SYSLO");
-	wm831x_free_irq(wm831x, irq, wm831x_power);
+	free_irq(irq, wm831x_power);
 
-	power_supply_unregister(&wm831x_power->backup);
 	power_supply_unregister(&wm831x_power->battery);
 	power_supply_unregister(&wm831x_power->wall);
 	power_supply_unregister(&wm831x_power->usb);
+	kfree(wm831x_power);
 	return 0;
 }
+
+#ifdef CONFIG_PM
+static int wm831x_battery_suspend(struct platform_device *dev, pm_message_t state)
+{
+	//struct wm831x_power *power = (struct wm831x_power *)platform_get_drvdata(dev);
+	//flush_scheduled_work();
+	//del_timer(&power->timer);
+	return 0;
+}
+
+static int wm831x_battery_resume(struct platform_device *dev)
+{
+	//struct wm831x_power *power = (struct wm831x_power *)platform_get_drvdata(dev);
+	//power->timer.expires = jiffies + msecs_to_jiffies(power->interval);
+	//add_timer(&power->timer);
+	return 0;
+}
+#else
+#define wm831x_battery_suspend NULL
+#define wm831x_battery_resume  NULL
+#endif
 
 static struct platform_driver wm831x_power_driver = {
 	.probe = wm831x_power_probe,
 	.remove = __devexit_p(wm831x_power_remove),
+	.suspend = wm831x_battery_suspend,
+	.resume = wm831x_battery_resume,
 	.driver = {
 		.name = "wm831x-power",
 	},

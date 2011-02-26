@@ -15,15 +15,17 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
+#include <linux/irq.h>
 #include <linux/mfd/core.h>
 #include <linux/interrupt.h>
 
 #include <linux/mfd/wm831x/core.h>
 #include <linux/mfd/wm831x/pdata.h>
+#include <linux/mfd/wm831x/gpio.h>
 #include <linux/mfd/wm831x/irq.h>
 
 #include <linux/delay.h>
-
+#include <linux/wakelock.h>
 /*
  * Since generic IRQs don't currently support interrupt controllers on
  * interrupt driven buses we don't use genirq but instead provide an
@@ -32,13 +34,18 @@
  * the static irq_data table we use to look up the data for individual
  * interrupts, but hopefully won't last too long.
  */
+#define WM831X_IRQ_TYPE IRQF_TRIGGER_LOW
 
 struct wm831x_irq_data {
 	int primary;
 	int reg;
 	int mask;
-	irq_handler_t handler;
-	void *handler_data;
+};
+
+struct wm831x_handle_irq
+{	
+	int irq;
+	struct list_head	queue;
 };
 
 static struct wm831x_irq_data wm831x_irqs[] = {
@@ -339,101 +346,151 @@ static inline int irq_data_to_mask_reg(struct wm831x_irq_data *irq_data)
 	return WM831X_INTERRUPT_STATUS_1_MASK - 1 + irq_data->reg;
 }
 
-static void __wm831x_enable_irq(struct wm831x *wm831x, int irq)
+static inline struct wm831x_irq_data *irq_to_wm831x_irq(struct wm831x *wm831x,
+							int irq)
 {
-	struct wm831x_irq_data *irq_data = &wm831x_irqs[irq];
-
-	wm831x->irq_masks[irq_data->reg - 1] &= ~irq_data->mask;
-	wm831x_reg_write(wm831x, irq_data_to_mask_reg(irq_data),
-			 wm831x->irq_masks[irq_data->reg - 1]);
+	return &wm831x_irqs[irq - wm831x->irq_base];
 }
 
-void wm831x_enable_irq(struct wm831x *wm831x, int irq)
+static void wm831x_irq_lock(unsigned int irq)
 {
+	struct wm831x *wm831x = get_irq_chip_data(irq);
+
 	mutex_lock(&wm831x->irq_lock);
-	__wm831x_enable_irq(wm831x, irq);
+}
+
+static void wm831x_irq_sync_unlock(unsigned int irq)
+{
+	struct wm831x *wm831x = get_irq_chip_data(irq);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(wm831x->irq_masks_cur); i++) {
+		/* If there's been a change in the mask write it back
+		 * to the hardware. */
+		if (wm831x->irq_masks_cur[i] != wm831x->irq_masks_cache[i]) {
+			wm831x->irq_masks_cache[i] = wm831x->irq_masks_cur[i];
+			wm831x_reg_write(wm831x,
+					 WM831X_INTERRUPT_STATUS_1_MASK + i,
+					 wm831x->irq_masks_cur[i]);
+		}
+	}
+
 	mutex_unlock(&wm831x->irq_lock);
 }
-EXPORT_SYMBOL_GPL(wm831x_enable_irq);
 
-static void __wm831x_disable_irq(struct wm831x *wm831x, int irq)
+static void wm831x_irq_unmask(unsigned int irq)
 {
-	struct wm831x_irq_data *irq_data = &wm831x_irqs[irq];
+	struct wm831x *wm831x = get_irq_chip_data(irq);
+	struct wm831x_irq_data *irq_data = irq_to_wm831x_irq(wm831x, irq);
 
-	wm831x->irq_masks[irq_data->reg - 1] |= irq_data->mask;
-	wm831x_reg_write(wm831x, irq_data_to_mask_reg(irq_data),
-			 wm831x->irq_masks[irq_data->reg - 1]);
+	wm831x->irq_masks_cur[irq_data->reg - 1] &= ~irq_data->mask;
+	//printk("%s:irq=%d\n",__FUNCTION__,irq);
 }
 
-void wm831x_disable_irq(struct wm831x *wm831x, int irq)
+static void wm831x_irq_mask(unsigned int irq)
 {
-	mutex_lock(&wm831x->irq_lock);
-	__wm831x_disable_irq(wm831x, irq);
-	mutex_unlock(&wm831x->irq_lock);
+	struct wm831x *wm831x = get_irq_chip_data(irq);
+	struct wm831x_irq_data *irq_data = irq_to_wm831x_irq(wm831x, irq);
+
+	wm831x->irq_masks_cur[irq_data->reg - 1] |= irq_data->mask;
+	//printk("%s:irq=%d\n",__FUNCTION__,irq);
 }
-EXPORT_SYMBOL_GPL(wm831x_disable_irq);
 
-int wm831x_request_irq(struct wm831x *wm831x,
-		       unsigned int irq, irq_handler_t handler,
-		       unsigned long flags, const char *name,
-		       void *dev)
+static int wm831x_irq_set_type(unsigned int irq, unsigned int type)
 {
-	int ret = 0;
+	struct wm831x *wm831x = get_irq_chip_data(irq);
+	int val;
 
-	if (irq < 0 || irq >= WM831X_NUM_IRQS)
+	irq = irq - wm831x->irq_base;
+	if (irq < WM831X_IRQ_GPIO_1 || irq > WM831X_IRQ_GPIO_12) {
+		/* Ignore internal-only IRQs */
+		if (irq >= 0 && irq < WM831X_NUM_IRQS)
+			return 0;
+		else
+			return -EINVAL;
+	}
+	//printk("wm831x_irq_set_type:type=%x,irq=%d\n",type,irq);
+	switch (type) {
+	case IRQ_TYPE_EDGE_BOTH:
+		val = WM831X_GPN_INT_MODE;
+		break;
+	case IRQ_TYPE_EDGE_RISING:
+		val = WM831X_GPN_POL;
+		break;
+	case IRQ_TYPE_EDGE_FALLING:
+		val = 0;
+		break;
+	default:
 		return -EINVAL;
-
-	mutex_lock(&wm831x->irq_lock);
-
-	if (wm831x_irqs[irq].handler) {
-		dev_err(wm831x->dev, "Already have handler for IRQ %d\n", irq);
-		ret = -EINVAL;
-		goto out;
 	}
 
-	wm831x_irqs[irq].handler = handler;
-	wm831x_irqs[irq].handler_data = dev;
-
-	__wm831x_enable_irq(wm831x, irq);
-
-out:
-	mutex_unlock(&wm831x->irq_lock);
-
-	return ret;
+	return wm831x_set_bits(wm831x, WM831X_GPIO1_CONTROL + irq - 1,
+			       WM831X_GPN_INT_MODE | WM831X_GPN_POL, val);
 }
-EXPORT_SYMBOL_GPL(wm831x_request_irq);
 
-void wm831x_free_irq(struct wm831x *wm831x, unsigned int irq, void *data)
-{
-	if (irq < 0 || irq >= WM831X_NUM_IRQS)
-		return;
+static int wm831x_irq_set_wake(unsigned irq, unsigned state)
+{	
+	struct wm831x *wm831x = get_irq_chip_data(irq);	
 
-	mutex_lock(&wm831x->irq_lock);
+	//only wm831x irq
+	if ((irq > wm831x->irq_base + WM831X_IRQ_TEMP_THW) &&( irq < wm831x->irq_base + WM831X_NUM_IRQS)) 
+	{
+		if(state)
+		wm831x_irq_unmask(irq);	
+		else	
+		wm831x_irq_mask(irq);
+		return 0;
+	}
+	else
+	{
+		printk("%s:irq number err!irq=%d\n",__FUNCTION__,irq);
+		return -EINVAL;
+	}
 
-	wm831x_irqs[irq].handler = NULL;
-	wm831x_irqs[irq].handler_data = NULL;
 
-	__wm831x_disable_irq(wm831x, irq);
-
-	mutex_unlock(&wm831x->irq_lock);
 }
-EXPORT_SYMBOL_GPL(wm831x_free_irq);
 
+static struct irq_chip wm831x_irq_chip = {
+	.name = "wm831x",
+	.bus_lock = wm831x_irq_lock,
+	.bus_sync_unlock = wm831x_irq_sync_unlock,
+	.mask = wm831x_irq_mask,
+	.unmask = wm831x_irq_unmask,
+	.set_type = wm831x_irq_set_type,
+	.set_wake	= wm831x_irq_set_wake,
+};
 
-static void wm831x_handle_irq(struct wm831x *wm831x, int irq, int status)
+#if WM831X_IRQ_LIST
+static void wm831x_handle_worker(struct work_struct *work)
 {
-	struct wm831x_irq_data *irq_data = &wm831x_irqs[irq];
+	struct wm831x *wm831x = container_of(work, struct wm831x, handle_work);
+	int irq;
 
-	if (irq_data->handler) {
-		irq_data->handler(irq, irq_data->handler_data);
-		wm831x_reg_write(wm831x, irq_data_to_status_reg(irq_data),
-				 irq_data->mask);
-	} else {
-		dev_err(wm831x->dev, "Unhandled IRQ %d, masking\n", irq);
-		__wm831x_disable_irq(wm831x, irq);
+	while (1) {
+		unsigned long flags;
+		struct wm831x_handle_irq *hd = NULL;
+
+		spin_lock_irqsave(&wm831x->work_lock, flags);
+		if (!list_empty(&wm831x->handle_queue)) {
+			hd = list_first_entry(&wm831x->handle_queue, struct wm831x_handle_irq, queue);
+			list_del(&hd->queue);
+		}
+		spin_unlock_irqrestore(&wm831x->work_lock, flags);
+
+		if (!hd)	// trans_queue empty
+			break;
+
+		irq = hd->irq;	//get wm831x intterupt status
+		//printk("%s:irq=%d\n",__FUNCTION__,irq);
+		
+		/*start to handle wm831x intterupt*/
+		handle_nested_irq(wm831x->irq_base + irq);
+	
+		kfree(hd);
+
 	}
 }
-
+#endif
 /* Main interrupt handling occurs in a workqueue since we need
  * interrupts enabled to interact with the chip. */
 static void wm831x_irq_worker(struct work_struct *work)
@@ -441,25 +498,37 @@ static void wm831x_irq_worker(struct work_struct *work)
 	struct wm831x *wm831x = container_of(work, struct wm831x, irq_work);
 	unsigned int i;
 	int primary;
-	int status_regs[5];
-	int read[5] = { 0 };
+	int status_regs[WM831X_NUM_IRQ_REGS] = { 0 };
+	int read[WM831X_NUM_IRQ_REGS] = { 0 };
 	int *status;
-
+	unsigned long flags;
+	struct wm831x_handle_irq *hd;
+	int ret;
+	msleep(2);
+#if (WM831X_IRQ_TYPE != IRQF_TRIGGER_LOW)
+	/*mask wm831x irq at first*/
+	ret = wm831x_set_bits(wm831x, WM831X_IRQ_CONFIG,
+			      WM831X_IRQ_IM_MASK, WM831X_IRQ_IM_EANBLE);
+	if (ret < 0) {
+		dev_err(wm831x->dev, "Failed to mask irq: %d\n", ret);
+		goto out;
+	}
+#endif
 	primary = wm831x_reg_read(wm831x, WM831X_SYSTEM_INTERRUPTS);
 	if (primary < 0) {
 		dev_err(wm831x->dev, "Failed to read system interrupt: %d\n",
 			primary);
 		goto out;
 	}
-
+	
 	mutex_lock(&wm831x->irq_lock);
 
 	for (i = 0; i < ARRAY_SIZE(wm831x_irqs); i++) {
 		int offset = wm831x_irqs[i].reg - 1;
-
+		
 		if (!(primary & wm831x_irqs[i].primary))
 			continue;
-
+		
 		status = &status_regs[offset];
 
 		/* Hopefully there should only be one register to read
@@ -474,40 +543,96 @@ static void wm831x_irq_worker(struct work_struct *work)
 				goto out_lock;
 			}
 
-			/* Mask out the disabled IRQs */
-			*status &= ~wm831x->irq_masks[offset];
 			read[offset] = 1;
 		}
 
-		if (*status & wm831x_irqs[i].mask)
-			wm831x_handle_irq(wm831x, i, *status);
+		/* Report it if it isn't masked, or forget the status. */
+		if ((*status & ~wm831x->irq_masks_cur[offset])
+		    & wm831x_irqs[i].mask)
+		{
+			#if WM831X_IRQ_LIST
+			/*add intterupt handle on list*/
+			hd = kzalloc(sizeof(struct wm831x_handle_irq), GFP_KERNEL);
+			if (!hd)
+			{
+				printk("err:%s:ENOMEM\n",__FUNCTION__);
+				return ;
+			}
+			
+			if(i == WM831X_IRQ_ON)
+			wake_lock(&wm831x->handle_wake);		//keep wake while handle WM831X_IRQ_ON
+			hd->irq = i;
+			spin_lock_irqsave(&wm831x->work_lock, flags);
+			list_add_tail(&hd->queue, &wm831x->handle_queue);
+			spin_unlock_irqrestore(&wm831x->work_lock, flags);
+			queue_work(wm831x->handle_wq, &wm831x->handle_work);
+			
+			#else
+			if(i == WM831X_IRQ_ON)
+			wake_lock(&wm831x->handle_wake);		//keep wake while handle WM831X_IRQ_ON
+			handle_nested_irq(wm831x->irq_base + i);
+			
+			#endif
+		}
+			
+		else
+			*status &= ~wm831x_irqs[i].mask;
 	}
-
-out_lock:
+	
+out_lock:	
 	mutex_unlock(&wm831x->irq_lock);
+	
 out:
-	enable_irq(wm831x->irq);
+	for (i = 0; i < ARRAY_SIZE(status_regs); i++) {
+		if (status_regs[i])
+			wm831x_reg_write(wm831x, WM831X_INTERRUPT_STATUS_1 + i,
+					 status_regs[i]);
+	}
+	
+#if (WM831X_IRQ_TYPE != IRQF_TRIGGER_LOW)	
+	ret = wm831x_set_bits(wm831x, WM831X_IRQ_CONFIG,
+			      WM831X_IRQ_IM_MASK, 0);
+	if (ret < 0) {
+		dev_err(wm831x->dev, "Failed to open irq: %d\n", ret);
+	}
+#endif
+#if (WM831X_IRQ_TYPE == IRQF_TRIGGER_LOW)
+	enable_irq(wm831x->irq);	
+#endif
+	wake_unlock(&wm831x->irq_wake);
+
 }
-
-
-static irqreturn_t wm831x_cpu_irq(int irq, void *data)
+/* The processing of the primary interrupt occurs in a thread so that
+ * we can interact with the device over I2C or SPI. */
+static irqreturn_t wm831x_irq_thread(int irq, void *data)
 {
 	struct wm831x *wm831x = data;
 
 	/* Shut the interrupt to the CPU up and schedule the actual
 	 * handler; we can't check that the IRQ is asserted. */
+#if (WM831X_IRQ_TYPE == IRQF_TRIGGER_LOW)
 	disable_irq_nosync(irq);
-
+#endif
+	wake_lock(&wm831x->irq_wake);
 	queue_work(wm831x->irq_wq, &wm831x->irq_work);
-
+	//printk("%s\n",__FUNCTION__);
 	return IRQ_HANDLED;
 }
 
 int wm831x_irq_init(struct wm831x *wm831x, int irq)
 {
-	int i, ret;
-
+	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
+	int i, cur_irq, ret;
+	printk( "wm831x_irq_init:irq=%d,%d\n",irq,pdata->irq_base);
 	mutex_init(&wm831x->irq_lock);
+
+	/* Mask the individual interrupt sources */
+	for (i = 0; i < ARRAY_SIZE(wm831x->irq_masks_cur); i++) {
+		wm831x->irq_masks_cur[i] = 0xffff;
+		wm831x->irq_masks_cache[i] = 0xffff;
+		wm831x_reg_write(wm831x, WM831X_INTERRUPT_STATUS_1_MASK + i,
+				 0xffff);
+	}
 
 	if (!irq) {
 		dev_warn(wm831x->dev,
@@ -515,6 +640,11 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 		return 0;
 	}
 
+	if (!pdata || !pdata->irq_base) {
+		dev_err(wm831x->dev,
+			"No interrupt base specified, no interrupts\n");
+		return 0;
+	}
 
 	wm831x->irq_wq = create_singlethread_workqueue("wm831x-irq");
 	if (!wm831x->irq_wq) {
@@ -522,33 +652,58 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 		return -ESRCH;
 	}
 
+	
 	wm831x->irq = irq;
+	wm831x->irq_base = pdata->irq_base;
 	INIT_WORK(&wm831x->irq_work, wm831x_irq_worker);
-
-	/* Mask the individual interrupt sources */
-	for (i = 0; i < ARRAY_SIZE(wm831x->irq_masks); i++) {
-		wm831x->irq_masks[i] = 0xffff;
-		wm831x_reg_write(wm831x, WM831X_INTERRUPT_STATUS_1_MASK + i,
-				 0xffff);
+	wake_lock_init(&wm831x->irq_wake, WAKE_LOCK_SUSPEND, "wm831x_irq_wake");
+	wake_lock_init(&wm831x->handle_wake, WAKE_LOCK_SUSPEND, "wm831x_handle_wake");
+#if WM831X_IRQ_LIST
+	wm831x->handle_wq = create_rt_workqueue("wm831x_handle_wq");
+	if (!wm831x->handle_wq) {
+		printk("cannot create workqueue\n");
+		return -EBUSY;
 	}
+	INIT_WORK(&wm831x->handle_work, wm831x_handle_worker);
+	INIT_LIST_HEAD(&wm831x->handle_queue);
 
-	/* Enable top level interrupts, we mask at secondary level */
-	wm831x_reg_write(wm831x, WM831X_SYSTEM_INTERRUPTS_MASK, 0);
+#endif
+	
+	/* Register them with genirq */
+	for (cur_irq = wm831x->irq_base;
+	     cur_irq < ARRAY_SIZE(wm831x_irqs) + wm831x->irq_base;
+	     cur_irq++) {
+		set_irq_chip_data(cur_irq, wm831x);
+		set_irq_chip_and_handler(cur_irq, &wm831x_irq_chip,
+					 handle_edge_irq);
+		set_irq_nested_thread(cur_irq, 1);
 
-	/* We're good to go.  We set IRQF_SHARED since there's a
-	 * chance the driver will interoperate with another driver but
-	 * the need to disable the IRQ while handing via I2C/SPI means
-	 * that this may break and performance will be impacted.  If
-	 * this does happen it's a hardware design issue and the only
-	 * other alternative would be polling.
-	 */
-	ret = request_irq(irq, wm831x_cpu_irq, IRQF_TRIGGER_LOW | IRQF_SHARED,
-			  "wm831x", wm831x);
+		/* ARM needs us to explicitly flag the IRQ as valid
+		 * and will set them noprobe when we do so. */
+#ifdef CONFIG_ARM
+		set_irq_flags(cur_irq, IRQF_VALID);
+#else
+		set_irq_noprobe(cur_irq);
+#endif
+	}
+#if (WM831X_IRQ_TYPE == IRQF_TRIGGER_LOW)
+	ret = request_threaded_irq(wm831x->irq, wm831x_irq_thread, NULL, 
+				 IRQF_TRIGGER_LOW| IRQF_ONESHOT,//IRQF_TRIGGER_FALLING, // 
+				   "wm831x", wm831x);
+#else
+	ret = request_threaded_irq(wm831x->irq, wm831x_irq_thread, NULL, 
+				 IRQF_TRIGGER_FALLING, //IRQF_TRIGGER_LOW| IRQF_ONESHOT,// 
+				   "wm831x", wm831x);
+#endif
 	if (ret != 0) {
 		dev_err(wm831x->dev, "Failed to request IRQ %d: %d\n",
-			irq, ret);
+			wm831x->irq, ret);
 		return ret;
 	}
+
+	enable_irq_wake(wm831x->irq); // so wm831x irq can wake up system
+	/* Enable top level interrupts, we mask at secondary level */
+	wm831x_reg_write(wm831x, WM831X_SYSTEM_INTERRUPTS_MASK, 0);
 
 	return 0;
 }
