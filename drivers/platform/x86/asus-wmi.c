@@ -92,6 +92,7 @@ MODULE_LICENSE("GPL");
 
 /* DSTS masks */
 #define ASUS_WMI_DSTS_STATUS_BIT	0x00000001
+#define ASUS_WMI_DSTS_UNKNOWN_BIT	0x00000002
 #define ASUS_WMI_DSTS_PRESENCE_BIT	0x00010000
 #define ASUS_WMI_DSTS_BRIGHTNESS_MASK	0x000000FF
 #define ASUS_WMI_DSTS_MAX_BRIGTH_MASK	0x0000FF00
@@ -269,6 +270,11 @@ static int asus_wmi_get_devstate_bits(u32 dev_id, u32 mask)
 
 	if (!(retval & ASUS_WMI_DSTS_PRESENCE_BIT))
 		return -ENODEV;
+
+	if (mask == ASUS_WMI_DSTS_STATUS_BIT) {
+		if (retval & ASUS_WMI_DSTS_UNKNOWN_BIT)
+			return -ENODEV;
+	}
 
 	return retval & mask;
 }
