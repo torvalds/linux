@@ -2900,7 +2900,6 @@ static int ext4_da_writepages(struct address_space *mapping,
 	struct mpage_da_data mpd;
 	struct inode *inode = mapping->host;
 	int pages_written = 0;
-	long pages_skipped;
 	unsigned int max_pages;
 	int range_cyclic, cycled = 1, io_done = 0;
 	int needed_blocks, ret = 0;
@@ -2986,8 +2985,6 @@ static int ext4_da_writepages(struct address_space *mapping,
 	mpd.wbc = wbc;
 	mpd.inode = mapping->host;
 
-	pages_skipped = wbc->pages_skipped;
-
 retry:
 	if (wbc->sync_mode == WB_SYNC_ALL)
 		tag_pages_for_writeback(mapping, index, end);
@@ -3047,7 +3044,6 @@ retry:
 			 * and try again
 			 */
 			jbd2_journal_force_commit_nested(sbi->s_journal);
-			wbc->pages_skipped = pages_skipped;
 			ret = 0;
 		} else if (ret == MPAGE_DA_EXTENT_TAIL) {
 			/*
@@ -3055,7 +3051,6 @@ retry:
 			 * rest of the pages
 			 */
 			pages_written += mpd.pages_written;
-			wbc->pages_skipped = pages_skipped;
 			ret = 0;
 			io_done = 1;
 		} else if (wbc->nr_to_write)
@@ -3073,11 +3068,6 @@ retry:
 		wbc->range_end  = mapping->writeback_index - 1;
 		goto retry;
 	}
-	if (pages_skipped != wbc->pages_skipped)
-		ext4_msg(inode->i_sb, KERN_CRIT,
-			 "This should not happen leaving %s "
-			 "with nr_to_write = %ld ret = %d",
-			 __func__, wbc->nr_to_write, ret);
 
 	/* Update index */
 	wbc->range_cyclic = range_cyclic;
