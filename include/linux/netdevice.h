@@ -75,9 +75,6 @@ struct wireless_dev;
 #define NET_RX_SUCCESS		0	/* keep 'em coming, baby */
 #define NET_RX_DROP		1	/* packet dropped */
 
-/* Initial net device group. All devices belong to group 0 by default. */
-#define INIT_NETDEV_GROUP	0
-
 /*
  * Transmit return codes: transmit return codes originate from three different
  * namespaces:
@@ -140,6 +137,9 @@ static inline bool dev_xmit_complete(int rc)
 #endif
 
 #define MAX_ADDR_LEN	32		/* Largest hardware address length */
+
+/* Initial net device group. All devices belong to group 0 by default. */
+#define INIT_NETDEV_GROUP	0
 
 #ifdef  __KERNEL__
 /*
