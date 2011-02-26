@@ -114,74 +114,148 @@ struct isp1760_qh {
 
 #define ehci_port_speed(priv, portsc) USB_PORT_STAT_HIGH_SPEED
 
-static unsigned int isp1760_readl(__u32 __iomem *regs)
+/*
+ * Access functions for isp176x registers (addresses 0..0x03FF).
+ */
+static u32 reg_read32(void __iomem *base, u32 reg)
 {
-	return readl(regs);
+	return readl(base + reg);
 }
 
-static void isp1760_writel(const unsigned int val, __u32 __iomem *regs)
+static void reg_write32(void __iomem *base, u32 reg, u32 val)
 {
-	writel(val, regs);
+	writel(val, base + reg);
 }
 
 /*
- * The next two copy via MMIO data to/from the device. memcpy_{to|from}io()
+ * Access functions for isp176x memory (offset >= 0x0400).
+ *
+ * bank_reads8() reads memory locations prefetched by an earlier write to
+ * HC_MEMORY_REG (see isp176x datasheet). Unless you want to do fancy multi-
+ * bank optimizations, you should use the more generic mem_reads8() below.
+ *
+ * For access to ptd memory, use the specialized ptd_read() and ptd_write()
+ * below.
+ *
+ * These functions copy via MMIO data to/from the device. memcpy_{to|from}io()
  * doesn't quite work because some people have to enforce 32-bit access
  */
-static void priv_read_copy(struct isp1760_hcd *priv, u32 *src,
-		__u32 __iomem *dst, u32 len)
+static void bank_reads8(void __iomem *src_base, u32 src_offset, u32 bank_addr,
+							__u32 *dst, u32 bytes)
 {
+	__u32 __iomem *src;
 	u32 val;
-	u8 *buff8;
+	__u8 *src_byteptr;
+	__u8 *dst_byteptr;
 
-	if (!src) {
-		printk(KERN_ERR "ERROR: buffer: %p len: %d\n", src, len);
-		return;
+	src = src_base + (bank_addr | src_offset);
+
+	if (src_offset < PAYLOAD_OFFSET) {
+		while (bytes >= 4) {
+			*dst = le32_to_cpu(__raw_readl(src));
+			bytes -= 4;
+			src++;
+			dst++;
+		}
+	} else {
+		while (bytes >= 4) {
+			*dst = __raw_readl(src);
+			bytes -= 4;
+			src++;
+			dst++;
+		}
 	}
 
-	while (len >= 4) {
-		*src = __raw_readl(dst);
-		len -= 4;
-		src++;
-		dst++;
-	}
-
-	if (!len)
+	if (!bytes)
 		return;
 
 	/* in case we have 3, 2 or 1 by left. The dst buffer may not be fully
 	 * allocated.
 	 */
-	val = isp1760_readl(dst);
+	if (src_offset < PAYLOAD_OFFSET)
+		val = le32_to_cpu(__raw_readl(src));
+	else
+		val = __raw_readl(src);
 
-	buff8 = (u8 *)src;
-	while (len) {
-
-		*buff8 = val;
-		val >>= 8;
-		len--;
-		buff8++;
+	dst_byteptr = (void *) dst;
+	src_byteptr = (void *) &val;
+	while (bytes > 0) {
+		*dst_byteptr = *src_byteptr;
+		dst_byteptr++;
+		src_byteptr++;
+		bytes--;
 	}
 }
 
-static void priv_write_copy(const struct isp1760_hcd *priv, const u32 *src,
-		__u32 __iomem *dst, u32 len)
+static void mem_reads8(void __iomem *src_base, u32 src_offset, void *dst,
+								u32 bytes)
 {
-	while (len >= 4) {
-		__raw_writel(*src, dst);
-		len -= 4;
-		src++;
-		dst++;
+	reg_write32(src_base, HC_MEMORY_REG, src_offset + ISP_BANK(0));
+	ndelay(90);
+	bank_reads8(src_base, src_offset, ISP_BANK(0), dst, bytes);
+}
+
+static void mem_writes8(void __iomem *dst_base, u32 dst_offset,
+						__u32 const *src, u32 bytes)
+{
+	__u32 __iomem *dst;
+
+	dst = dst_base + dst_offset;
+
+	if (dst_offset < PAYLOAD_OFFSET) {
+		while (bytes >= 4) {
+			__raw_writel(cpu_to_le32(*src), dst);
+			bytes -= 4;
+			src++;
+			dst++;
+		}
+	} else {
+		while (bytes >= 4) {
+			__raw_writel(*src, dst);
+			bytes -= 4;
+			src++;
+			dst++;
+		}
 	}
 
-	if (!len)
+	if (!bytes)
 		return;
-	/* in case we have 3, 2 or 1 by left. The buffer is allocated and the
-	 * extra bytes should not be read by the HW
+	/* in case we have 3, 2 or 1 bytes left. The buffer is allocated and the
+	 * extra bytes should not be read by the HW.
 	 */
 
-	__raw_writel(*src, dst);
+	if (dst_offset < PAYLOAD_OFFSET)
+		__raw_writel(cpu_to_le32(*src), dst);
+	else
+		__raw_writel(*src, dst);
 }
+
+/*
+ * Read and write ptds. 'ptd_offset' should be one of ISO_PTD_OFFSET,
+ * INT_PTD_OFFSET, and ATL_PTD_OFFSET. 'slot' should be less than 32.
+ */
+static void ptd_read(void __iomem *base, u32 ptd_offset, u32 slot,
+								struct ptd *ptd)
+{
+	reg_write32(base, HC_MEMORY_REG,
+				ISP_BANK(0) + ptd_offset + slot*sizeof(*ptd));
+	ndelay(90);
+	bank_reads8(base, ptd_offset + slot*sizeof(*ptd), ISP_BANK(0),
+						(void *) ptd, sizeof(*ptd));
+}
+
+static void ptd_write(void __iomem *base, u32 ptd_offset, u32 slot,
+								struct ptd *ptd)
+{
+	mem_writes8(base, ptd_offset + slot*sizeof(*ptd) + sizeof(ptd->dw0),
+						&ptd->dw1, 7*sizeof(ptd->dw1));
+	/* Make sure dw0 gets written last (after other dw's and after payload)
+	   since it contains the enable bit */
+	wmb();
+	mem_writes8(base, ptd_offset + slot*sizeof(*ptd), &ptd->dw0,
+							sizeof(ptd->dw0));
+}
+
 
 /* memory management of the 60kb on the chip from 0x1000 to 0xffff */
 static void init_memory(struct isp1760_hcd *priv)
@@ -269,29 +343,23 @@ static void free_mem(struct isp1760_hcd *priv, u32 mem)
 
 static void isp1760_init_regs(struct usb_hcd *hcd)
 {
-	isp1760_writel(0, hcd->regs + HC_BUFFER_STATUS_REG);
-	isp1760_writel(NO_TRANSFER_ACTIVE, hcd->regs +
-			HC_ATL_PTD_SKIPMAP_REG);
-	isp1760_writel(NO_TRANSFER_ACTIVE, hcd->regs +
-			HC_INT_PTD_SKIPMAP_REG);
-	isp1760_writel(NO_TRANSFER_ACTIVE, hcd->regs +
-			HC_ISO_PTD_SKIPMAP_REG);
+	reg_write32(hcd->regs, HC_BUFFER_STATUS_REG, 0);
+	reg_write32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG, NO_TRANSFER_ACTIVE);
+	reg_write32(hcd->regs, HC_INT_PTD_SKIPMAP_REG, NO_TRANSFER_ACTIVE);
+	reg_write32(hcd->regs, HC_ISO_PTD_SKIPMAP_REG, NO_TRANSFER_ACTIVE);
 
-	isp1760_writel(~NO_TRANSFER_ACTIVE, hcd->regs +
-			HC_ATL_PTD_DONEMAP_REG);
-	isp1760_writel(~NO_TRANSFER_ACTIVE, hcd->regs +
-			HC_INT_PTD_DONEMAP_REG);
-	isp1760_writel(~NO_TRANSFER_ACTIVE, hcd->regs +
-			HC_ISO_PTD_DONEMAP_REG);
+	reg_write32(hcd->regs, HC_ATL_PTD_DONEMAP_REG, ~NO_TRANSFER_ACTIVE);
+	reg_write32(hcd->regs, HC_INT_PTD_DONEMAP_REG, ~NO_TRANSFER_ACTIVE);
+	reg_write32(hcd->regs, HC_ISO_PTD_DONEMAP_REG, ~NO_TRANSFER_ACTIVE);
 }
 
-static int handshake(struct isp1760_hcd *priv, void __iomem *ptr,
+static int handshake(struct usb_hcd *hcd, u32 reg,
 		      u32 mask, u32 done, int usec)
 {
 	u32 result;
 
 	do {
-		result = isp1760_readl(ptr);
+		result = reg_read32(hcd->regs, reg);
 		if (result == ~0)
 			return -ENODEV;
 		result &= mask;
@@ -308,13 +376,13 @@ static int ehci_reset(struct isp1760_hcd *priv)
 {
 	int retval;
 	struct usb_hcd *hcd = priv_to_hcd(priv);
-	u32 command = isp1760_readl(hcd->regs + HC_USBCMD);
+	u32 command = reg_read32(hcd->regs, HC_USBCMD);
 
 	command |= CMD_RESET;
-	isp1760_writel(command, hcd->regs + HC_USBCMD);
+	reg_write32(hcd->regs, HC_USBCMD, command);
 	hcd->state = HC_STATE_HALT;
 	priv->next_statechange = jiffies;
-	retval = handshake(priv, hcd->regs + HC_USBCMD,
+	retval = handshake(hcd, HC_USBCMD,
 			    CMD_RESET, 0, 250 * 1000);
 	return retval;
 }
@@ -362,7 +430,7 @@ static int priv_init(struct usb_hcd *hcd)
 	priv->periodic_size = DEFAULT_I_TDPS;
 
 	/* controllers may cache some of the periodic schedule ... */
-	hcc_params = isp1760_readl(hcd->regs + HC_HCCPARAMS);
+	hcc_params = reg_read32(hcd->regs, HC_HCCPARAMS);
 	/* full frame cache */
 	if (HCC_ISOC_CACHE(hcc_params))
 		priv->i_thresh = 8;
@@ -399,13 +467,13 @@ static int isp1760_hc_setup(struct usb_hcd *hcd)
 	 * Write it twice to ensure correct upper bits if switching
 	 * to 16-bit mode.
 	 */
-	isp1760_writel(hwmode, hcd->regs + HC_HW_MODE_CTRL);
-	isp1760_writel(hwmode, hcd->regs + HC_HW_MODE_CTRL);
+	reg_write32(hcd->regs, HC_HW_MODE_CTRL, hwmode);
+	reg_write32(hcd->regs, HC_HW_MODE_CTRL, hwmode);
 
-	isp1760_writel(0xdeadbabe, hcd->regs + HC_SCRATCH_REG);
+	reg_write32(hcd->regs, HC_SCRATCH_REG, 0xdeadbabe);
 	/* Change bus pattern */
-	scratch = isp1760_readl(hcd->regs + HC_CHIP_ID_REG);
-	scratch = isp1760_readl(hcd->regs + HC_SCRATCH_REG);
+	scratch = reg_read32(hcd->regs, HC_CHIP_ID_REG);
+	scratch = reg_read32(hcd->regs, HC_SCRATCH_REG);
 	if (scratch != 0xdeadbabe) {
 		printk(KERN_ERR "ISP1760: Scratch test failed.\n");
 		return -ENODEV;
@@ -415,10 +483,10 @@ static int isp1760_hc_setup(struct usb_hcd *hcd)
 	isp1760_init_regs(hcd);
 
 	/* reset */
-	isp1760_writel(SW_RESET_RESET_ALL, hcd->regs + HC_RESET_REG);
+	reg_write32(hcd->regs, HC_RESET_REG, SW_RESET_RESET_ALL);
 	mdelay(100);
 
-	isp1760_writel(SW_RESET_RESET_HC, hcd->regs + HC_RESET_REG);
+	reg_write32(hcd->regs, HC_RESET_REG, SW_RESET_RESET_HC);
 	mdelay(100);
 
 	result = ehci_reset(priv);
@@ -433,12 +501,12 @@ static int isp1760_hc_setup(struct usb_hcd *hcd)
 			   "analog" : "digital");
 
 	/* ATL reset */
-	isp1760_writel(hwmode | ALL_ATX_RESET, hcd->regs + HC_HW_MODE_CTRL);
+	reg_write32(hcd->regs, HC_HW_MODE_CTRL, hwmode | ALL_ATX_RESET);
 	mdelay(10);
-	isp1760_writel(hwmode, hcd->regs + HC_HW_MODE_CTRL);
+	reg_write32(hcd->regs, HC_HW_MODE_CTRL, hwmode);
 
-	isp1760_writel(INTERRUPT_ENABLE_MASK, hcd->regs + HC_INTERRUPT_REG);
-	isp1760_writel(INTERRUPT_ENABLE_MASK, hcd->regs + HC_INTERRUPT_ENABLE);
+	reg_write32(hcd->regs, HC_INTERRUPT_REG, INTERRUPT_ENABLE_MASK);
+	reg_write32(hcd->regs, HC_INTERRUPT_ENABLE, INTERRUPT_ENABLE_MASK);
 
 	/*
 	 * PORT 1 Control register of the ISP1760 is the OTG control
@@ -446,11 +514,10 @@ static int isp1760_hc_setup(struct usb_hcd *hcd)
 	 * support in this driver, we use port 1 as a "normal" USB host port on
 	 * both chips.
 	 */
-	isp1760_writel(PORT1_POWER | PORT1_INIT2,
-		       hcd->regs + HC_PORT1_CTRL);
+	reg_write32(hcd->regs, HC_PORT1_CTRL, PORT1_POWER | PORT1_INIT2);
 	mdelay(10);
 
-	priv->hcs_params = isp1760_readl(hcd->regs + HC_HCSPARAMS);
+	priv->hcs_params = reg_read32(hcd->regs, HC_HCSPARAMS);
 
 	return priv_init(hcd);
 }
@@ -458,19 +525,19 @@ static int isp1760_hc_setup(struct usb_hcd *hcd)
 static void isp1760_init_maps(struct usb_hcd *hcd)
 {
 	/*set last maps, for iso its only 1, else 32 tds bitmap*/
-	isp1760_writel(0x80000000, hcd->regs + HC_ATL_PTD_LASTPTD_REG);
-	isp1760_writel(0x80000000, hcd->regs + HC_INT_PTD_LASTPTD_REG);
-	isp1760_writel(0x00000001, hcd->regs + HC_ISO_PTD_LASTPTD_REG);
+	reg_write32(hcd->regs, HC_ATL_PTD_LASTPTD_REG, 0x80000000);
+	reg_write32(hcd->regs, HC_INT_PTD_LASTPTD_REG, 0x80000000);
+	reg_write32(hcd->regs, HC_ISO_PTD_LASTPTD_REG, 0x00000001);
 }
 
 static void isp1760_enable_interrupts(struct usb_hcd *hcd)
 {
-	isp1760_writel(0, hcd->regs + HC_ATL_IRQ_MASK_AND_REG);
-	isp1760_writel(0, hcd->regs + HC_ATL_IRQ_MASK_OR_REG);
-	isp1760_writel(0, hcd->regs + HC_INT_IRQ_MASK_AND_REG);
-	isp1760_writel(0, hcd->regs + HC_INT_IRQ_MASK_OR_REG);
-	isp1760_writel(0, hcd->regs + HC_ISO_IRQ_MASK_AND_REG);
-	isp1760_writel(0xffffffff, hcd->regs + HC_ISO_IRQ_MASK_OR_REG);
+	reg_write32(hcd->regs, HC_ATL_IRQ_MASK_AND_REG, 0);
+	reg_write32(hcd->regs, HC_ATL_IRQ_MASK_OR_REG, 0);
+	reg_write32(hcd->regs, HC_INT_IRQ_MASK_AND_REG, 0);
+	reg_write32(hcd->regs, HC_INT_IRQ_MASK_OR_REG, 0);
+	reg_write32(hcd->regs, HC_ISO_IRQ_MASK_AND_REG, 0);
+	reg_write32(hcd->regs, HC_ISO_IRQ_MASK_OR_REG, 0xffffffff);
 	/* step 23 passed */
 }
 
@@ -486,15 +553,15 @@ static int isp1760_run(struct usb_hcd *hcd)
 
 	hcd->state = HC_STATE_RUNNING;
 	isp1760_enable_interrupts(hcd);
-	temp = isp1760_readl(hcd->regs + HC_HW_MODE_CTRL);
-	isp1760_writel(temp | HW_GLOBAL_INTR_EN, hcd->regs + HC_HW_MODE_CTRL);
+	temp = reg_read32(hcd->regs, HC_HW_MODE_CTRL);
+	reg_write32(hcd->regs, HC_HW_MODE_CTRL, temp | HW_GLOBAL_INTR_EN);
 
-	command = isp1760_readl(hcd->regs + HC_USBCMD);
+	command = reg_read32(hcd->regs, HC_USBCMD);
 	command &= ~(CMD_LRESET|CMD_RESET);
 	command |= CMD_RUN;
-	isp1760_writel(command, hcd->regs + HC_USBCMD);
+	reg_write32(hcd->regs, HC_USBCMD, command);
 
-	retval = handshake(priv, hcd->regs + HC_USBCMD,	CMD_RUN, CMD_RUN,
+	retval = handshake(hcd, HC_USBCMD, CMD_RUN, CMD_RUN,
 			250 * 1000);
 	if (retval)
 		return retval;
@@ -505,15 +572,14 @@ static int isp1760_run(struct usb_hcd *hcd)
 	 * the semaphore while doing so.
 	 */
 	down_write(&ehci_cf_port_reset_rwsem);
-	isp1760_writel(FLAG_CF, hcd->regs + HC_CONFIGFLAG);
+	reg_write32(hcd->regs, HC_CONFIGFLAG, FLAG_CF);
 
-	retval = handshake(priv, hcd->regs + HC_CONFIGFLAG, FLAG_CF, FLAG_CF,
-			250 * 1000);
+	retval = handshake(hcd, HC_CONFIGFLAG, FLAG_CF, FLAG_CF, 250 * 1000);
 	up_write(&ehci_cf_port_reset_rwsem);
 	if (retval)
 		return retval;
 
-	chipid = isp1760_readl(hcd->regs + HC_CHIP_ID_REG);
+	chipid = reg_read32(hcd->regs, HC_CHIP_ID_REG);
 	isp1760_info(priv, "USB ISP %04x HW rev. %d started\n",	chipid & 0xffff,
 			chipid >> 16);
 
@@ -537,15 +603,13 @@ static void transform_into_atl(struct isp1760_hcd *priv, struct isp1760_qh *qh,
 			struct isp1760_qtd *qtd, struct urb *urb,
 			u32 payload, struct ptd *ptd)
 {
-	u32 dw0;
-	u32 dw1;
-	u32 dw2;
-	u32 dw3;
 	u32 maxpacket;
 	u32 multi;
 	u32 pid_code;
 	u32 rl = RL_COUNTER;
 	u32 nak = NAK_COUNTER;
+
+	memset(ptd, 0, sizeof(*ptd));
 
 	/* according to 3.6.2, max packet len can not be > 0x400 */
 	maxpacket = usb_maxpacket(urb->dev, urb->pipe, usb_pipeout(urb->pipe));
@@ -553,71 +617,64 @@ static void transform_into_atl(struct isp1760_hcd *priv, struct isp1760_qh *qh,
 	maxpacket &= 0x7ff;
 
 	/* DW0 */
-	dw0 = PTD_VALID;
-	dw0 |= PTD_LENGTH(qtd->length);
-	dw0 |= PTD_MAXPACKET(maxpacket);
-	dw0 |= PTD_ENDPOINT(usb_pipeendpoint(urb->pipe));
-	dw1 = usb_pipeendpoint(urb->pipe) >> 1;
+	ptd->dw0 = PTD_VALID;
+	ptd->dw0 |= PTD_LENGTH(qtd->length);
+	ptd->dw0 |= PTD_MAXPACKET(maxpacket);
+	ptd->dw0 |= PTD_ENDPOINT(usb_pipeendpoint(urb->pipe));
+	ptd->dw1 = usb_pipeendpoint(urb->pipe) >> 1;
 
 	/* DW1 */
-	dw1 |= PTD_DEVICE_ADDR(usb_pipedevice(urb->pipe));
+	ptd->dw1 |= PTD_DEVICE_ADDR(usb_pipedevice(urb->pipe));
 
 	pid_code = qtd->packet_type;
-	dw1 |= PTD_PID_TOKEN(pid_code);
+	ptd->dw1 |= PTD_PID_TOKEN(pid_code);
 
 	if (usb_pipebulk(urb->pipe))
-		dw1 |= PTD_TRANS_BULK;
+		ptd->dw1 |= PTD_TRANS_BULK;
 	else if  (usb_pipeint(urb->pipe))
-		dw1 |= PTD_TRANS_INT;
+		ptd->dw1 |= PTD_TRANS_INT;
 
 	if (urb->dev->speed != USB_SPEED_HIGH) {
 		/* split transaction */
 
-		dw1 |= PTD_TRANS_SPLIT;
+		ptd->dw1 |= PTD_TRANS_SPLIT;
 		if (urb->dev->speed == USB_SPEED_LOW)
-			dw1 |= PTD_SE_USB_LOSPEED;
+			ptd->dw1 |= PTD_SE_USB_LOSPEED;
 
-		dw1 |= PTD_PORT_NUM(urb->dev->ttport);
-		dw1 |= PTD_HUB_NUM(urb->dev->tt->hub->devnum);
+		ptd->dw1 |= PTD_PORT_NUM(urb->dev->ttport);
+		ptd->dw1 |= PTD_HUB_NUM(urb->dev->tt->hub->devnum);
 
 		/* SE bit for Split INT transfers */
 		if (usb_pipeint(urb->pipe) &&
 				(urb->dev->speed == USB_SPEED_LOW))
-			dw1 |= 2 << 16;
+			ptd->dw1 |= 2 << 16;
 
-		dw3 = 0;
+		ptd->dw3 = 0;
 		rl = 0;
 		nak = 0;
 	} else {
-		dw0 |= PTD_MULTI(multi);
+		ptd->dw0 |= PTD_MULTI(multi);
 		if (usb_pipecontrol(urb->pipe) || usb_pipebulk(urb->pipe))
-			dw3 = qh->ping;
+			ptd->dw3 = qh->ping;
 		else
-			dw3 = 0;
+			ptd->dw3 = 0;
 	}
 	/* DW2 */
-	dw2 = 0;
-	dw2 |= PTD_DATA_START_ADDR(base_to_chip(payload));
-	dw2 |= PTD_RL_CNT(rl);
-	dw3 |= PTD_NAC_CNT(nak);
+	ptd->dw2 = 0;
+	ptd->dw2 |= PTD_DATA_START_ADDR(base_to_chip(payload));
+	ptd->dw2 |= PTD_RL_CNT(rl);
+	ptd->dw3 |= PTD_NAC_CNT(nak);
 
 	/* DW3 */
 	if (usb_pipecontrol(urb->pipe))
-		dw3 |= PTD_DATA_TOGGLE(qtd->toggle);
+		ptd->dw3 |= PTD_DATA_TOGGLE(qtd->toggle);
 	else
-		dw3 |= qh->toggle;
+		ptd->dw3 |= qh->toggle;
 
 
-	dw3 |= PTD_ACTIVE;
+	ptd->dw3 |= PTD_ACTIVE;
 	/* Cerr */
-	dw3 |= PTD_CERR(ERR_COUNTER);
-
-	memset(ptd, 0, sizeof(*ptd));
-
-	ptd->dw0 = cpu_to_le32(dw0);
-	ptd->dw1 = cpu_to_le32(dw1);
-	ptd->dw2 = cpu_to_le32(dw2);
-	ptd->dw3 = cpu_to_le32(dw3);
+	ptd->dw3 |= PTD_CERR(ERR_COUNTER);
 }
 
 static void transform_add_int(struct isp1760_hcd *priv, struct isp1760_qh *qh,
@@ -650,7 +707,7 @@ static void transform_add_int(struct isp1760_hcd *priv, struct isp1760_qh *qh,
 
 	if (urb->dev->speed != USB_SPEED_HIGH) {
 		/* split */
-		ptd->dw5 = cpu_to_le32(0x1c);
+		ptd->dw5 = 0x1c;
 
 		if (qh->period >= 32)
 			period = qh->period / 2;
@@ -677,8 +734,8 @@ static void transform_add_int(struct isp1760_hcd *priv, struct isp1760_qh *qh,
 		}
 	}
 
-	ptd->dw2 |= cpu_to_le32(period);
-	ptd->dw4 = cpu_to_le32(usof);
+	ptd->dw2 |= period;
+	ptd->dw4 = usof;
 }
 
 static void transform_into_int(struct isp1760_hcd *priv, struct isp1760_qh *qh,
@@ -710,20 +767,18 @@ static int qtd_fill(struct isp1760_qtd *qtd, void *databuffer, size_t len,
 static int check_error(struct ptd *ptd)
 {
 	int error = 0;
-	u32 dw3;
 
-	dw3 = le32_to_cpu(ptd->dw3);
-	if (dw3 & DW3_HALT_BIT) {
+	if (ptd->dw3 & DW3_HALT_BIT) {
 		error = -EPIPE;
 
-		if (dw3 & DW3_ERROR_BIT)
+		if (ptd->dw3 & DW3_ERROR_BIT)
 			pr_err("error bit is set in DW3\n");
 	}
 
-	if (dw3 & DW3_QTD_ACTIVE) {
+	if (ptd->dw3 & DW3_QTD_ACTIVE) {
 		printk(KERN_ERR "transfer active bit is set DW3\n");
-		printk(KERN_ERR "nak counter: %d, rl: %d\n", (dw3 >> 19) & 0xf,
-				(le32_to_cpu(ptd->dw2) >> 25) & 0xf);
+		printk(KERN_ERR "nak counter: %d, rl: %d\n",
+				(ptd->dw3 >> 19) & 0xf, (ptd->dw2 >> 25) & 0xf);
 	}
 
 	return error;
@@ -767,14 +822,13 @@ static void enqueue_one_qtd(struct isp1760_qtd *qtd, struct isp1760_hcd *priv,
 			break;
 		case OUT_PID:
 		case SETUP_PID:
-			priv_write_copy(priv, qtd->data_buffer,
-					hcd->regs + payload,
-					qtd->length);
+			mem_writes8(hcd->regs, payload, qtd->data_buffer,
+								qtd->length);
 		}
 	}
 }
 
-static void enqueue_one_atl_qtd(u32 atl_regs, u32 payload,
+static void enqueue_one_atl_qtd(u32 payload,
 		struct isp1760_hcd *priv, struct isp1760_qh *qh,
 		struct urb *urb, u32 slot, struct isp1760_qtd *qtd)
 {
@@ -782,7 +836,7 @@ static void enqueue_one_atl_qtd(u32 atl_regs, u32 payload,
 	struct usb_hcd *hcd = priv_to_hcd(priv);
 
 	transform_into_atl(priv, qh, qtd, urb, payload, &ptd);
-	priv_write_copy(priv, (u32 *)&ptd, hcd->regs + atl_regs, sizeof(ptd));
+	ptd_write(hcd->regs, ATL_PTD_OFFSET, slot, &ptd);
 	enqueue_one_qtd(qtd, priv, payload);
 
 	priv->atl_ints[slot].urb = urb;
@@ -794,7 +848,7 @@ static void enqueue_one_atl_qtd(u32 atl_regs, u32 payload,
 	qtd->status |= slot << 16;
 }
 
-static void enqueue_one_int_qtd(u32 int_regs, u32 payload,
+static void enqueue_one_int_qtd(u32 payload,
 		struct isp1760_hcd *priv, struct isp1760_qh *qh,
 		struct urb *urb, u32 slot,  struct isp1760_qtd *qtd)
 {
@@ -802,7 +856,7 @@ static void enqueue_one_int_qtd(u32 int_regs, u32 payload,
 	struct usb_hcd *hcd = priv_to_hcd(priv);
 
 	transform_into_int(priv, qh, qtd, urb, payload, &ptd);
-	priv_write_copy(priv, (u32 *)&ptd, hcd->regs + int_regs, sizeof(ptd));
+	ptd_write(hcd->regs, INT_PTD_OFFSET, slot, &ptd);
 	enqueue_one_qtd(qtd, priv, payload);
 
 	priv->int_ints[slot].urb = urb;
@@ -821,7 +875,7 @@ static void enqueue_an_ATL_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 	u32 skip_map, or_map;
 	u32 queue_entry;
 	u32 slot;
-	u32 atl_regs, payload;
+	u32 payload;
 	u32 buffstatus;
 
 	/*
@@ -832,33 +886,31 @@ static void enqueue_an_ATL_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 	 */
 	mmiowb();
 	ndelay(195);
-	skip_map = isp1760_readl(hcd->regs + HC_ATL_PTD_SKIPMAP_REG);
+	skip_map = reg_read32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG);
 
 	BUG_ON(!skip_map);
 	slot = __ffs(skip_map);
 	queue_entry = 1 << slot;
 
-	atl_regs = ATL_REGS_OFFSET + slot * sizeof(struct ptd);
-
 	payload = alloc_mem(priv, qtd->length);
 
-	enqueue_one_atl_qtd(atl_regs, payload, priv, qh, qtd->urb, slot, qtd);
+	enqueue_one_atl_qtd(payload, priv, qh, qtd->urb, slot, qtd);
 
-	or_map = isp1760_readl(hcd->regs + HC_ATL_IRQ_MASK_OR_REG);
+	or_map = reg_read32(hcd->regs, HC_ATL_IRQ_MASK_OR_REG);
 	or_map |= queue_entry;
-	isp1760_writel(or_map, hcd->regs + HC_ATL_IRQ_MASK_OR_REG);
+	reg_write32(hcd->regs, HC_ATL_IRQ_MASK_OR_REG, or_map);
 
 	skip_map &= ~queue_entry;
-	isp1760_writel(skip_map, hcd->regs + HC_ATL_PTD_SKIPMAP_REG);
+	reg_write32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG, skip_map);
 
 	priv->atl_queued++;
 	if (priv->atl_queued == 2)
-		isp1760_writel(INTERRUPT_ENABLE_SOT_MASK,
-				hcd->regs + HC_INTERRUPT_ENABLE);
+		reg_write32(hcd->regs, HC_INTERRUPT_ENABLE,
+				INTERRUPT_ENABLE_SOT_MASK);
 
-	buffstatus = isp1760_readl(hcd->regs + HC_BUFFER_STATUS_REG);
+	buffstatus = reg_read32(hcd->regs, HC_BUFFER_STATUS_REG);
 	buffstatus |= ATL_BUFFER;
-	isp1760_writel(buffstatus, hcd->regs + HC_BUFFER_STATUS_REG);
+	reg_write32(hcd->regs, HC_BUFFER_STATUS_REG, buffstatus);
 }
 
 static void enqueue_an_INT_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
@@ -868,7 +920,7 @@ static void enqueue_an_INT_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 	u32 skip_map, or_map;
 	u32 queue_entry;
 	u32 slot;
-	u32 int_regs, payload;
+	u32 payload;
 	u32 buffstatus;
 
 	/*
@@ -879,31 +931,30 @@ static void enqueue_an_INT_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 	 */
 	mmiowb();
 	ndelay(195);
-	skip_map = isp1760_readl(hcd->regs + HC_INT_PTD_SKIPMAP_REG);
+	skip_map = reg_read32(hcd->regs, HC_INT_PTD_SKIPMAP_REG);
 
 	BUG_ON(!skip_map);
 	slot = __ffs(skip_map);
 	queue_entry = 1 << slot;
 
-	int_regs = INT_REGS_OFFSET + slot * sizeof(struct ptd);
-
 	payload = alloc_mem(priv, qtd->length);
 
-	enqueue_one_int_qtd(int_regs, payload, priv, qh, qtd->urb, slot, qtd);
+	enqueue_one_int_qtd(payload, priv, qh, qtd->urb, slot, qtd);
 
-	or_map = isp1760_readl(hcd->regs + HC_INT_IRQ_MASK_OR_REG);
+	or_map = reg_read32(hcd->regs, HC_INT_IRQ_MASK_OR_REG);
 	or_map |= queue_entry;
-	isp1760_writel(or_map, hcd->regs + HC_INT_IRQ_MASK_OR_REG);
+	reg_write32(hcd->regs, HC_INT_IRQ_MASK_OR_REG, or_map);
 
 	skip_map &= ~queue_entry;
-	isp1760_writel(skip_map, hcd->regs + HC_INT_PTD_SKIPMAP_REG);
+	reg_write32(hcd->regs, HC_INT_PTD_SKIPMAP_REG, skip_map);
 
-	buffstatus = isp1760_readl(hcd->regs + HC_BUFFER_STATUS_REG);
+	buffstatus = reg_read32(hcd->regs, HC_BUFFER_STATUS_REG);
 	buffstatus |= INT_BUFFER;
-	isp1760_writel(buffstatus, hcd->regs + HC_BUFFER_STATUS_REG);
+	reg_write32(hcd->regs, HC_BUFFER_STATUS_REG, buffstatus);
 }
 
-static void isp1760_urb_done(struct isp1760_hcd *priv, struct urb *urb, int status)
+static void isp1760_urb_done(struct isp1760_hcd *priv, struct urb *urb,
+								int status)
 __releases(priv->lock)
 __acquires(priv->lock)
 {
@@ -963,14 +1014,12 @@ static struct isp1760_qtd *clean_up_qtdlist(struct isp1760_qtd *qtd)
 	return qtd;
 }
 
-static void do_atl_int(struct usb_hcd *usb_hcd)
+static void do_atl_int(struct usb_hcd *hcd)
 {
-	struct isp1760_hcd *priv = hcd_to_priv(usb_hcd);
+	struct isp1760_hcd *priv = hcd_to_priv(hcd);
 	u32 done_map, skip_map;
 	struct ptd ptd;
 	struct urb *urb = NULL;
-	u32 atl_regs_base;
-	u32 atl_regs;
 	u32 queue_entry;
 	u32 payload;
 	u32 length;
@@ -982,29 +1031,20 @@ static void do_atl_int(struct usb_hcd *usb_hcd)
 	u32 rl;
 	u32 nakcount;
 
-	done_map = isp1760_readl(usb_hcd->regs +
-			HC_ATL_PTD_DONEMAP_REG);
-	skip_map = isp1760_readl(usb_hcd->regs +
-			HC_ATL_PTD_SKIPMAP_REG);
+	done_map = reg_read32(hcd->regs, HC_ATL_PTD_DONEMAP_REG);
+	skip_map = reg_read32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG);
 
-	or_map = isp1760_readl(usb_hcd->regs + HC_ATL_IRQ_MASK_OR_REG);
+	or_map = reg_read32(hcd->regs, HC_ATL_IRQ_MASK_OR_REG);
 	or_map &= ~done_map;
-	isp1760_writel(or_map, usb_hcd->regs + HC_ATL_IRQ_MASK_OR_REG);
+	reg_write32(hcd->regs, HC_ATL_IRQ_MASK_OR_REG, or_map);
 
-	atl_regs_base = ATL_REGS_OFFSET;
 	while (done_map) {
-		u32 dw1;
-		u32 dw2;
-		u32 dw3;
-
 		status = 0;
 		priv->atl_queued--;
 
 		queue_entry = __ffs(done_map);
 		done_map &= ~(1 << queue_entry);
 		skip_map |= 1 << queue_entry;
-
-		atl_regs = atl_regs_base + queue_entry * sizeof(struct ptd);
 
 		urb = priv->atl_ints[queue_entry].urb;
 		qtd = priv->atl_ints[queue_entry].qtd;
@@ -1015,30 +1055,14 @@ static void do_atl_int(struct usb_hcd *usb_hcd)
 			printk(KERN_ERR "qh is 0\n");
 			continue;
 		}
-		isp1760_writel(atl_regs + ISP_BANK(0), usb_hcd->regs +
-				HC_MEMORY_REG);
-		isp1760_writel(payload  + ISP_BANK(1), usb_hcd->regs +
-				HC_MEMORY_REG);
-		/*
-		 * write bank1 address twice to ensure the 90ns delay (time
-		 * between BANK0 write and the priv_read_copy() call is at
-		 * least 3*t_WHWL + 2*t_w11 = 3*25ns + 2*17ns = 109ns)
-		 */
-		isp1760_writel(payload  + ISP_BANK(1), usb_hcd->regs +
-				HC_MEMORY_REG);
+		ptd_read(hcd->regs, ATL_PTD_OFFSET, queue_entry, &ptd);
 
-		priv_read_copy(priv, (u32 *)&ptd, usb_hcd->regs + atl_regs +
-				ISP_BANK(0), sizeof(ptd));
-
-		dw1 = le32_to_cpu(ptd.dw1);
-		dw2 = le32_to_cpu(ptd.dw2);
-		dw3 = le32_to_cpu(ptd.dw3);
-		rl = (dw2 >> 25) & 0x0f;
-		nakcount = (dw3 >> 19) & 0xf;
+		rl = (ptd.dw2 >> 25) & 0x0f;
+		nakcount = (ptd.dw3 >> 19) & 0xf;
 
 		/* Transfer Error, *but* active and no HALT -> reload */
-		if ((dw3 & DW3_ERROR_BIT) && (dw3 & DW3_QTD_ACTIVE) &&
-				!(dw3 & DW3_HALT_BIT)) {
+		if ((ptd.dw3 & DW3_ERROR_BIT) && (ptd.dw3 & DW3_QTD_ACTIVE) &&
+				!(ptd.dw3 & DW3_HALT_BIT)) {
 
 			/* according to ppriv code, we have to
 			 * reload this one if trasfered bytes != requested bytes
@@ -1047,13 +1071,13 @@ static void do_atl_int(struct usb_hcd *usb_hcd)
 			 * triggered so far.
 			 */
 
-			length = PTD_XFERRED_LENGTH(dw3);
+			length = PTD_XFERRED_LENGTH(ptd.dw3);
 			printk(KERN_ERR "Should reload now.... transfered %d "
 					"of %zu\n", length, qtd->length);
 			BUG();
 		}
 
-		if (!nakcount && (dw3 & DW3_QTD_ACTIVE)) {
+		if (!nakcount && (ptd.dw3 & DW3_QTD_ACTIVE)) {
 			u32 buffstatus;
 
 			/*
@@ -1063,10 +1087,10 @@ static void do_atl_int(struct usb_hcd *usb_hcd)
 			 */
 
 			/* RL counter = ERR counter */
-			dw3 &= ~(0xf << 19);
-			dw3 |= rl << 19;
-			dw3 &= ~(3 << (55 - 32));
-			dw3 |= ERR_COUNTER << (55 - 32);
+			ptd.dw3 &= ~(0xf << 19);
+			ptd.dw3 |= rl << 19;
+			ptd.dw3 &= ~(3 << (55 - 32));
+			ptd.dw3 |= ERR_COUNTER << (55 - 32);
 
 			/*
 			 * It is not needed to write skip map back because it
@@ -1074,30 +1098,23 @@ static void do_atl_int(struct usb_hcd *usb_hcd)
 			 * unskipped once it gets written to the HW.
 			 */
 			skip_map &= ~(1 << queue_entry);
-			or_map = isp1760_readl(usb_hcd->regs +
-					HC_ATL_IRQ_MASK_OR_REG);
+			or_map = reg_read32(hcd->regs, HC_ATL_IRQ_MASK_OR_REG);
 			or_map |= 1 << queue_entry;
-			isp1760_writel(or_map, usb_hcd->regs +
-					HC_ATL_IRQ_MASK_OR_REG);
+			reg_write32(hcd->regs, HC_ATL_IRQ_MASK_OR_REG, or_map);
 
-			ptd.dw3 = cpu_to_le32(dw3);
-			priv_write_copy(priv, (u32 *)&ptd, usb_hcd->regs +
-					atl_regs, sizeof(ptd));
-
-			ptd.dw0 |= cpu_to_le32(PTD_VALID);
-			priv_write_copy(priv, (u32 *)&ptd, usb_hcd->regs +
-					atl_regs, sizeof(ptd));
+			ptd.dw0 |= PTD_VALID;
+			ptd_write(hcd->regs, ATL_PTD_OFFSET, queue_entry, &ptd);
 
 			priv->atl_queued++;
 			if (priv->atl_queued == 2)
-				isp1760_writel(INTERRUPT_ENABLE_SOT_MASK,
-				    usb_hcd->regs + HC_INTERRUPT_ENABLE);
+				reg_write32(hcd->regs, HC_INTERRUPT_ENABLE,
+						INTERRUPT_ENABLE_SOT_MASK);
 
-			buffstatus = isp1760_readl(usb_hcd->regs +
-					HC_BUFFER_STATUS_REG);
+			buffstatus = reg_read32(hcd->regs,
+							HC_BUFFER_STATUS_REG);
 			buffstatus |= ATL_BUFFER;
-			isp1760_writel(buffstatus, usb_hcd->regs +
-					HC_BUFFER_STATUS_REG);
+			reg_write32(hcd->regs, HC_BUFFER_STATUS_REG,
+								buffstatus);
 			continue;
 		}
 
@@ -1118,20 +1135,19 @@ static void do_atl_int(struct usb_hcd *usb_hcd)
 #endif
 		} else {
 			if (usb_pipetype(urb->pipe) == PIPE_BULK) {
-				priv->atl_ints[queue_entry].qh->toggle = dw3 &
-					(1 << 25);
-				priv->atl_ints[queue_entry].qh->ping = dw3 &
-					(1 << 26);
+				priv->atl_ints[queue_entry].qh->toggle =
+							ptd.dw3 & (1 << 25);
+				priv->atl_ints[queue_entry].qh->ping =
+							ptd.dw3 & (1 << 26);
 			}
 		}
 
-		length = PTD_XFERRED_LENGTH(dw3);
+		length = PTD_XFERRED_LENGTH(ptd.dw3);
 		if (length) {
-			switch (DW1_GET_PID(dw1)) {
+			switch (DW1_GET_PID(ptd.dw1)) {
 			case IN_PID:
-				priv_read_copy(priv,
+				mem_reads8(hcd->regs, payload,
 					priv->atl_ints[queue_entry].data_buffer,
-					usb_hcd->regs + payload + ISP_BANK(1),
 					length);
 
 			case OUT_PID:
@@ -1150,8 +1166,7 @@ static void do_atl_int(struct usb_hcd *usb_hcd)
 
 		free_mem(priv, payload);
 
-		isp1760_writel(skip_map, usb_hcd->regs +
-				HC_ATL_PTD_SKIPMAP_REG);
+		reg_write32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG, skip_map);
 
 		if (urb->status == -EPIPE) {
 			/* HALT was received */
@@ -1193,24 +1208,21 @@ static void do_atl_int(struct usb_hcd *usb_hcd)
 		}
 
 		if (qtd)
-			enqueue_an_ATL_packet(usb_hcd, qh, qtd);
+			enqueue_an_ATL_packet(hcd, qh, qtd);
 
-		skip_map = isp1760_readl(usb_hcd->regs +
-				HC_ATL_PTD_SKIPMAP_REG);
+		skip_map = reg_read32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG);
 	}
 	if (priv->atl_queued <= 1)
-		isp1760_writel(INTERRUPT_ENABLE_MASK,
-				usb_hcd->regs + HC_INTERRUPT_ENABLE);
+		reg_write32(hcd->regs, HC_INTERRUPT_ENABLE,
+							INTERRUPT_ENABLE_MASK);
 }
 
-static void do_intl_int(struct usb_hcd *usb_hcd)
+static void do_intl_int(struct usb_hcd *hcd)
 {
-	struct isp1760_hcd *priv = hcd_to_priv(usb_hcd);
+	struct isp1760_hcd *priv = hcd_to_priv(hcd);
 	u32 done_map, skip_map;
 	struct ptd ptd;
 	struct urb *urb = NULL;
-	u32 int_regs;
-	u32 int_regs_base;
 	u32 payload;
 	u32 length;
 	u32 or_map;
@@ -1219,26 +1231,18 @@ static void do_intl_int(struct usb_hcd *usb_hcd)
 	struct isp1760_qtd *qtd;
 	struct isp1760_qh *qh;
 
-	done_map = isp1760_readl(usb_hcd->regs +
-			HC_INT_PTD_DONEMAP_REG);
-	skip_map = isp1760_readl(usb_hcd->regs +
-			HC_INT_PTD_SKIPMAP_REG);
+	done_map = reg_read32(hcd->regs, HC_INT_PTD_DONEMAP_REG);
+	skip_map = reg_read32(hcd->regs, HC_INT_PTD_SKIPMAP_REG);
 
-	or_map = isp1760_readl(usb_hcd->regs + HC_INT_IRQ_MASK_OR_REG);
+	or_map = reg_read32(hcd->regs, HC_INT_IRQ_MASK_OR_REG);
 	or_map &= ~done_map;
-	isp1760_writel(or_map, usb_hcd->regs + HC_INT_IRQ_MASK_OR_REG);
-
-	int_regs_base = INT_REGS_OFFSET;
+	reg_write32(hcd->regs, HC_INT_IRQ_MASK_OR_REG, or_map);
 
 	while (done_map) {
-		u32 dw1;
-		u32 dw3;
-
 		queue_entry = __ffs(done_map);
 		done_map &= ~(1 << queue_entry);
 		skip_map |= 1 << queue_entry;
 
-		int_regs = int_regs_base + queue_entry * sizeof(struct ptd);
 		urb = priv->int_ints[queue_entry].urb;
 		qtd = priv->int_ints[queue_entry].qtd;
 		qh = priv->int_ints[queue_entry].qh;
@@ -1249,23 +1253,8 @@ static void do_intl_int(struct usb_hcd *usb_hcd)
 			continue;
 		}
 
-		isp1760_writel(int_regs + ISP_BANK(0), usb_hcd->regs +
-				HC_MEMORY_REG);
-		isp1760_writel(payload  + ISP_BANK(1), usb_hcd->regs +
-				HC_MEMORY_REG);
-		/*
-		 * write bank1 address twice to ensure the 90ns delay (time
-		 * between BANK0 write and the priv_read_copy() call is at
-		 * least 3*t_WHWL + 2*t_w11 = 3*25ns + 2*17ns = 92ns)
-		 */
-		isp1760_writel(payload  + ISP_BANK(1), usb_hcd->regs +
-				HC_MEMORY_REG);
-
-		priv_read_copy(priv, (u32 *)&ptd, usb_hcd->regs + int_regs +
-				ISP_BANK(0), sizeof(ptd));
-		dw1 = le32_to_cpu(ptd.dw1);
-		dw3 = le32_to_cpu(ptd.dw3);
-		check_int_err_status(le32_to_cpu(ptd.dw4));
+		ptd_read(hcd->regs, INT_PTD_OFFSET, queue_entry, &ptd);
+		check_int_err_status(ptd.dw4);
 
 		error = check_error(&ptd);
 		if (error) {
@@ -1283,21 +1272,21 @@ static void do_intl_int(struct usb_hcd *usb_hcd)
 
 		} else {
 			priv->int_ints[queue_entry].qh->toggle =
-				dw3 & (1 << 25);
-			priv->int_ints[queue_entry].qh->ping = dw3 & (1 << 26);
+							ptd.dw3 & (1 << 25);
+			priv->int_ints[queue_entry].qh->ping =
+							ptd.dw3 & (1 << 26);
 		}
 
 		if (urb->dev->speed != USB_SPEED_HIGH)
-			length = PTD_XFERRED_LENGTH_LO(dw3);
+			length = PTD_XFERRED_LENGTH_LO(ptd.dw3);
 		else
-			length = PTD_XFERRED_LENGTH(dw3);
+			length = PTD_XFERRED_LENGTH(ptd.dw3);
 
 		if (length) {
-			switch (DW1_GET_PID(dw1)) {
+			switch (DW1_GET_PID(ptd.dw1)) {
 			case IN_PID:
-				priv_read_copy(priv,
+				mem_reads8(hcd->regs, payload,
 					priv->int_ints[queue_entry].data_buffer,
-					usb_hcd->regs + payload + ISP_BANK(1),
 					length);
 			case OUT_PID:
 
@@ -1313,8 +1302,7 @@ static void do_intl_int(struct usb_hcd *usb_hcd)
 		priv->int_ints[queue_entry].qtd = NULL;
 		priv->int_ints[queue_entry].qh = NULL;
 
-		isp1760_writel(skip_map, usb_hcd->regs +
-				HC_INT_PTD_SKIPMAP_REG);
+		reg_write32(hcd->regs, HC_INT_PTD_SKIPMAP_REG, skip_map);
 		free_mem(priv, payload);
 
 		if (urb->status == -EPIPE) {
@@ -1339,10 +1327,9 @@ static void do_intl_int(struct usb_hcd *usb_hcd)
 		}
 
 		if (qtd)
-			enqueue_an_INT_packet(usb_hcd, qh, qtd);
+			enqueue_an_INT_packet(hcd, qh, qtd);
 
-		skip_map = isp1760_readl(usb_hcd->regs +
-				HC_INT_PTD_SKIPMAP_REG);
+		skip_map = reg_read32(hcd->regs, HC_INT_PTD_SKIPMAP_REG);
 	}
 }
 
@@ -1691,7 +1678,7 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 
 	case PIPE_INTERRUPT:
 		ints = priv->int_ints;
-		reg_base = INT_REGS_OFFSET;
+		reg_base = INT_PTD_OFFSET;
 		or_reg = HC_INT_IRQ_MASK_OR_REG;
 		skip_reg = HC_INT_PTD_SKIPMAP_REG;
 		pe = enqueue_an_INT_packet;
@@ -1699,7 +1686,7 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 
 	default:
 		ints = priv->atl_ints;
-		reg_base = ATL_REGS_OFFSET;
+		reg_base = ATL_PTD_OFFSET;
 		or_reg = HC_ATL_IRQ_MASK_OR_REG;
 		skip_reg = HC_ATL_PTD_SKIPMAP_REG;
 		pe =  enqueue_an_ATL_packet;
@@ -1716,16 +1703,16 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 			struct isp1760_qtd *qtd;
 			struct isp1760_qh *qh = ints->qh;
 
-			skip_map = isp1760_readl(hcd->regs + skip_reg);
+			skip_map = reg_read32(hcd->regs, skip_reg);
 			skip_map |= 1 << i;
-			isp1760_writel(skip_map, hcd->regs + skip_reg);
+			reg_write32(hcd->regs, skip_reg, skip_map);
 
-			or_map = isp1760_readl(hcd->regs + or_reg);
+			or_map = reg_read32(hcd->regs, or_reg);
 			or_map &= ~(1 << i);
-			isp1760_writel(or_map, hcd->regs + or_reg);
+			reg_write32(hcd->regs, or_reg, or_map);
 
-			priv_write_copy(priv, (u32 *)&ptd, hcd->regs + reg_base
-					+ i * sizeof(ptd), sizeof(ptd));
+			ptd_write(hcd->regs, reg_base, i, &ptd);
+
 			qtd = ints->qtd;
 			qtd = clean_up_qtdlist(qtd);
 
@@ -1747,7 +1734,8 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 
 			for (qtd = ints->qtd->hw_next; qtd; qtd = qtd->hw_next) {
 				if (qtd->urb == urb) {
-					prev_qtd->hw_next = clean_up_qtdlist(qtd);
+					prev_qtd->hw_next =
+							clean_up_qtdlist(qtd);
 					isp1760_urb_done(priv, urb, status);
 					break;
 				}
@@ -1775,11 +1763,11 @@ static irqreturn_t isp1760_irq(struct usb_hcd *usb_hcd)
 	if (!(usb_hcd->state & HC_STATE_RUNNING))
 		goto leave;
 
-	imask = isp1760_readl(usb_hcd->regs + HC_INTERRUPT_REG);
+	imask = reg_read32(usb_hcd->regs, HC_INTERRUPT_REG);
 	if (unlikely(!imask))
 		goto leave;
 
-	isp1760_writel(imask, usb_hcd->regs + HC_INTERRUPT_REG);
+	reg_write32(usb_hcd->regs, HC_INTERRUPT_REG, imask);
 	if (imask & (HC_ATL_INT | HC_SOT_INT))
 		do_atl_int(usb_hcd);
 
@@ -1809,12 +1797,12 @@ static int isp1760_hub_status_data(struct usb_hcd *hcd, char *buf)
 	mask = PORT_CSC;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	temp = isp1760_readl(hcd->regs + HC_PORTSC1);
+	temp = reg_read32(hcd->regs, HC_PORTSC1);
 
 	if (temp & PORT_OWNER) {
 		if (temp & PORT_CSC) {
 			temp &= ~PORT_CSC;
-			isp1760_writel(temp, hcd->regs + HC_PORTSC1);
+			reg_write32(hcd->regs, HC_PORTSC1, temp);
 			goto done;
 		}
 	}
@@ -1871,8 +1859,8 @@ static void isp1760_hub_descriptor(struct isp1760_hcd *priv,
 
 #define	PORT_WAKE_BITS	(PORT_WKOC_E|PORT_WKDISC_E|PORT_WKCONN_E)
 
-static int check_reset_complete(struct isp1760_hcd *priv, int index,
-		u32 __iomem *status_reg, int port_status)
+static int check_reset_complete(struct usb_hcd *hcd, int index,
+		int port_status)
 {
 	if (!(port_status & PORT_CONNECT))
 		return port_status;
@@ -1885,7 +1873,7 @@ static int check_reset_complete(struct isp1760_hcd *priv, int index,
 
 		port_status |= PORT_OWNER;
 		port_status &= ~PORT_RWC_BITS;
-		isp1760_writel(port_status, status_reg);
+		reg_write32(hcd->regs, HC_PORTSC1, port_status);
 
 	} else
 		printk(KERN_ERR "port %d high speed\n", index + 1);
@@ -1898,7 +1886,6 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
 	int ports = HCS_N_PORTS(priv->hcs_params);
-	u32 __iomem *status_reg = hcd->regs + HC_PORTSC1;
 	u32 temp, status;
 	unsigned long flags;
 	int retval = 0;
@@ -1927,7 +1914,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 		if (!wIndex || wIndex > ports)
 			goto error;
 		wIndex--;
-		temp = isp1760_readl(status_reg);
+		temp = reg_read32(hcd->regs, HC_PORTSC1);
 
 		/*
 		 * Even if OWNER is set, so the port is owned by the
@@ -1938,7 +1925,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 
 		switch (wValue) {
 		case USB_PORT_FEAT_ENABLE:
-			isp1760_writel(temp & ~PORT_PE, status_reg);
+			reg_write32(hcd->regs, HC_PORTSC1, temp & ~PORT_PE);
 			break;
 		case USB_PORT_FEAT_C_ENABLE:
 			/* XXX error? */
@@ -1952,8 +1939,8 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 					goto error;
 				/* resume signaling for 20 msec */
 				temp &= ~(PORT_RWC_BITS);
-				isp1760_writel(temp | PORT_RESUME,
-						status_reg);
+				reg_write32(hcd->regs, HC_PORTSC1,
+							temp | PORT_RESUME);
 				priv->reset_done = jiffies +
 					msecs_to_jiffies(20);
 			}
@@ -1963,11 +1950,11 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 			break;
 		case USB_PORT_FEAT_POWER:
 			if (HCS_PPC(priv->hcs_params))
-				isp1760_writel(temp & ~PORT_POWER, status_reg);
+				reg_write32(hcd->regs, HC_PORTSC1,
+							temp & ~PORT_POWER);
 			break;
 		case USB_PORT_FEAT_C_CONNECTION:
-			isp1760_writel(temp | PORT_CSC,
-					status_reg);
+			reg_write32(hcd->regs, HC_PORTSC1, temp | PORT_CSC);
 			break;
 		case USB_PORT_FEAT_C_OVER_CURRENT:
 			/* XXX error ?*/
@@ -1978,7 +1965,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 		default:
 			goto error;
 		}
-		isp1760_readl(hcd->regs + HC_USBCMD);
+		reg_read32(hcd->regs, HC_USBCMD);
 		break;
 	case GetHubDescriptor:
 		isp1760_hub_descriptor(priv, (struct usb_hub_descriptor *)
@@ -1993,7 +1980,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 			goto error;
 		wIndex--;
 		status = 0;
-		temp = isp1760_readl(status_reg);
+		temp = reg_read32(hcd->regs, HC_PORTSC1);
 
 		/* wPortChange bits */
 		if (temp & PORT_CSC)
@@ -2021,11 +2008,10 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 				priv->reset_done = 0;
 
 				/* stop resume signaling */
-				temp = isp1760_readl(status_reg);
-				isp1760_writel(
-					temp & ~(PORT_RWC_BITS | PORT_RESUME),
-					status_reg);
-				retval = handshake(priv, status_reg,
+				temp = reg_read32(hcd->regs, HC_PORTSC1);
+				reg_write32(hcd->regs, HC_PORTSC1,
+					temp & ~(PORT_RWC_BITS | PORT_RESUME));
+				retval = handshake(hcd, HC_PORTSC1,
 					   PORT_RESUME, 0, 2000 /* 2msec */);
 				if (retval != 0) {
 					isp1760_err(priv,
@@ -2045,12 +2031,11 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 			priv->reset_done = 0;
 
 			/* force reset to complete */
-			isp1760_writel(temp & ~PORT_RESET,
-					status_reg);
+			reg_write32(hcd->regs, HC_PORTSC1, temp & ~PORT_RESET);
 			/* REVISIT:  some hardware needs 550+ usec to clear
 			 * this bit; seems too long to spin routinely...
 			 */
-			retval = handshake(priv, status_reg,
+			retval = handshake(hcd, HC_PORTSC1,
 					PORT_RESET, 0, 750);
 			if (retval != 0) {
 				isp1760_err(priv, "port %d reset error %d\n",
@@ -2059,8 +2044,8 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 			}
 
 			/* see what we found out */
-			temp = check_reset_complete(priv, wIndex, status_reg,
-					isp1760_readl(status_reg));
+			temp = check_reset_complete(hcd, wIndex,
+					reg_read32(hcd->regs, HC_PORTSC1));
 		}
 		/*
 		 * Even if OWNER is set, there's no harm letting khubd
@@ -2103,14 +2088,14 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 		if (!wIndex || wIndex > ports)
 			goto error;
 		wIndex--;
-		temp = isp1760_readl(status_reg);
+		temp = reg_read32(hcd->regs, HC_PORTSC1);
 		if (temp & PORT_OWNER)
 			break;
 
 /*		temp &= ~PORT_RWC_BITS; */
 		switch (wValue) {
 		case USB_PORT_FEAT_ENABLE:
-			isp1760_writel(temp | PORT_PE, status_reg);
+			reg_write32(hcd->regs, HC_PORTSC1, temp | PORT_PE);
 			break;
 
 		case USB_PORT_FEAT_SUSPEND:
@@ -2118,12 +2103,12 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 					|| (temp & PORT_RESET) != 0)
 				goto error;
 
-			isp1760_writel(temp | PORT_SUSPEND, status_reg);
+			reg_write32(hcd->regs, HC_PORTSC1, temp | PORT_SUSPEND);
 			break;
 		case USB_PORT_FEAT_POWER:
 			if (HCS_PPC(priv->hcs_params))
-				isp1760_writel(temp | PORT_POWER,
-						status_reg);
+				reg_write32(hcd->regs, HC_PORTSC1,
+							temp | PORT_POWER);
 			break;
 		case USB_PORT_FEAT_RESET:
 			if (temp & PORT_RESUME)
@@ -2146,12 +2131,12 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 				priv->reset_done = jiffies +
 					msecs_to_jiffies(50);
 			}
-			isp1760_writel(temp, status_reg);
+			reg_write32(hcd->regs, HC_PORTSC1, temp);
 			break;
 		default:
 			goto error;
 		}
-		isp1760_readl(hcd->regs + HC_USBCMD);
+		reg_read32(hcd->regs, HC_USBCMD);
 		break;
 
 	default:
@@ -2213,7 +2198,7 @@ static int isp1760_get_frame(struct usb_hcd *hcd)
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
 	u32 fr;
 
-	fr = isp1760_readl(hcd->regs + HC_FRINDEX);
+	fr = reg_read32(hcd->regs, HC_FRINDEX);
 	return (fr >> 3) % priv->periodic_size;
 }
 
@@ -2229,11 +2214,11 @@ static void isp1760_stop(struct usb_hcd *hcd)
 	spin_lock_irq(&priv->lock);
 	ehci_reset(priv);
 	/* Disable IRQ */
-	temp = isp1760_readl(hcd->regs + HC_HW_MODE_CTRL);
-	isp1760_writel(temp &= ~HW_GLOBAL_INTR_EN, hcd->regs + HC_HW_MODE_CTRL);
+	temp = reg_read32(hcd->regs, HC_HW_MODE_CTRL);
+	reg_write32(hcd->regs, HC_HW_MODE_CTRL, temp &= ~HW_GLOBAL_INTR_EN);
 	spin_unlock_irq(&priv->lock);
 
-	isp1760_writel(0, hcd->regs + HC_CONFIGFLAG);
+	reg_write32(hcd->regs, HC_CONFIGFLAG, 0);
 }
 
 static void isp1760_shutdown(struct usb_hcd *hcd)
@@ -2241,12 +2226,12 @@ static void isp1760_shutdown(struct usb_hcd *hcd)
 	u32 command, temp;
 
 	isp1760_stop(hcd);
-	temp = isp1760_readl(hcd->regs + HC_HW_MODE_CTRL);
-	isp1760_writel(temp &= ~HW_GLOBAL_INTR_EN, hcd->regs + HC_HW_MODE_CTRL);
+	temp = reg_read32(hcd->regs, HC_HW_MODE_CTRL);
+	reg_write32(hcd->regs, HC_HW_MODE_CTRL, temp &= ~HW_GLOBAL_INTR_EN);
 
-	command = isp1760_readl(hcd->regs + HC_USBCMD);
+	command = reg_read32(hcd->regs, HC_USBCMD);
 	command &= ~CMD_RUN;
-	isp1760_writel(command, hcd->regs + HC_USBCMD);
+	reg_write32(hcd->regs, HC_USBCMD, command);
 }
 
 static const struct hc_driver isp1760_hc_driver = {

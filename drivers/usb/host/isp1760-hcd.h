@@ -84,30 +84,27 @@ void deinit_kmem_cache(void);
 #define HC_INT_IRQ_MASK_AND_REG	0x328
 #define HC_ATL_IRQ_MASK_AND_REG	0x32C
 
-/* Register sets */
-#define HC_BEGIN_OF_ATL		0x0c00
-#define HC_BEGIN_OF_INT		0x0800
-#define HC_BEGIN_OF_ISO		0x0400
-#define HC_BEGIN_OF_PAYLOAD	0x1000
-
 /* urb state*/
 #define DELETE_URB		(0x0008)
 #define NO_TRANSFER_ACTIVE	(0xffffffff)
 
-#define ATL_REGS_OFFSET		(0xc00)
-#define INT_REGS_OFFSET		(0x800)
-
-/* Philips Transfer Descriptor (PTD) */
+/* Philips Proprietary Transfer Descriptor (PTD) */
+typedef __u32 __bitwise __dw;
 struct ptd {
-	__le32 dw0;
-	__le32 dw1;
-	__le32 dw2;
-	__le32 dw3;
-	__le32 dw4;
-	__le32 dw5;
-	__le32 dw6;
-	__le32 dw7;
+	__dw dw0;
+	__dw dw1;
+	__dw dw2;
+	__dw dw3;
+	__dw dw4;
+	__dw dw5;
+	__dw dw6;
+	__dw dw7;
 };
+#define PTD_OFFSET		0x0400
+#define ISO_PTD_OFFSET		0x0400
+#define INT_PTD_OFFSET		0x0800
+#define ATL_PTD_OFFSET		0x0c00
+#define PAYLOAD_OFFSET		0x1000
 
 struct inter_packet_info {
 	void *data_buffer;
