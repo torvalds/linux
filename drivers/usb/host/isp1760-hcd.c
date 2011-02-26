@@ -97,9 +97,6 @@ struct isp1760_qh {
 	/* first part defined by EHCI spec */
 	struct list_head qtd_list;
 
-	/* periodic schedule info */
-	unsigned short period;		/* polling interval */
-
 	u32 toggle;
 	u32 ping;
 };
@@ -673,59 +670,50 @@ static void transform_into_atl(struct isp1760_qh *qh,
 static void transform_add_int(struct isp1760_qh *qh,
 			struct isp1760_qtd *qtd, struct ptd *ptd)
 {
-	u32 maxpacket;
-	u32 multi;
-	u32 numberofusofs;
-	u32 i;
-	u32 usofmask, usof;
+	u32 usof;
 	u32 period;
 
-	maxpacket = usb_maxpacket(qtd->urb->dev, qtd->urb->pipe,
-						usb_pipeout(qtd->urb->pipe));
-	multi =  1 + ((maxpacket >> 11) & 0x3);
-	maxpacket &= 0x7ff;
-	/* length of the data per uframe */
-	maxpacket = multi * maxpacket;
+	/*
+	 * Most of this is guessing. ISP1761 datasheet is quite unclear, and
+	 * the algorithm from the original Philips driver code, which was
+	 * pretty much used in this driver before as well, is quite horrendous
+	 * and, i believe, incorrect. The code below follows the datasheet and
+	 * USB2.0 spec as far as I can tell, and plug/unplug seems to be much
+	 * more reliable this way (fingers crossed...).
+	 */
 
-	numberofusofs = qtd->urb->transfer_buffer_length / maxpacket;
-	if (qtd->urb->transfer_buffer_length % maxpacket)
-		numberofusofs += 1;
+	if (qtd->urb->dev->speed == USB_SPEED_HIGH) {
+		/* urb->interval is in units of microframes (1/8 ms) */
+		period = qtd->urb->interval >> 3;
 
-	usofmask = 1;
-	usof = 0;
-	for (i = 0; i < numberofusofs; i++) {
-		usof |= usofmask;
-		usofmask <<= 1;
-	}
-
-	if (qtd->urb->dev->speed != USB_SPEED_HIGH) {
-		/* split */
-		ptd->dw5 = 0x1c;
-
-		if (qh->period >= 32)
-			period = qh->period / 2;
+		if (qtd->urb->interval > 4)
+			usof = 0x01; /* One bit set =>
+						interval 1 ms * uFrame-match */
+		else if (qtd->urb->interval > 2)
+			usof = 0x22; /* Two bits set => interval 1/2 ms */
+		else if (qtd->urb->interval > 1)
+			usof = 0x55; /* Four bits set => interval 1/4 ms */
 		else
-			period = qh->period;
-
+			usof = 0xff; /* All bits set => interval 1/8 ms */
 	} else {
+		/* urb->interval is in units of frames (1 ms) */
+		period = qtd->urb->interval;
+		usof = 0x0f;		/* Execute Start Split on any of the
+					   four first uFrames */
 
-		if (qh->period >= 8)
-			period = qh->period/8;
-		else
-			period = qh->period;
-
-		if (period >= 32)
-			period  = 16;
-
-		if (qh->period >= 8) {
-			/* millisecond period */
-			period = (period << 3);
-		} else {
-			/* usof based tranmsfers */
-			/* minimum 4 usofs */
-			usof = 0x11;
-		}
+		/*
+		 * First 8 bits in dw5 is uSCS and "specifies which uSOF the
+		 * complete split needs to be sent. Valid only for IN." Also,
+		 * "All bits can be set to one for every transfer." (p 82,
+		 * ISP1761 data sheet.) 0x1c is from Philips driver. Where did
+		 * that number come from? 0xff seems to work fine...
+		 */
+		/* ptd->dw5 = 0x1c; */
+		ptd->dw5 = 0xff; /* Execute Complete Split on any uFrame */
 	}
+
+	period = period >> 1;/* Ensure equal or shorter period than requested */
+	period &= 0xf8; /* Mask off too large values and lowest unused 3 bits */
 
 	ptd->dw2 |= period;
 	ptd->dw4 = usof;
@@ -1327,26 +1315,6 @@ static struct isp1760_qh *qh_make(struct usb_hcd *hcd, struct urb *urb,
 	 */
 	is_input = usb_pipein(urb->pipe);
 	type = usb_pipetype(urb->pipe);
-
-	if (type == PIPE_INTERRUPT) {
-
-		if (urb->dev->speed == USB_SPEED_HIGH) {
-
-			qh->period = urb->interval >> 3;
-			if (qh->period == 0 && urb->interval != 1) {
-				/* NOTE interval 2 or 4 uframes could work.
-				 * But interval 1 scheduling is simpler, and
-				 * includes high bandwidth.
-				 */
-				dev_err(hcd->self.controller, "intr period %d uframes, NYET!",
-						urb->interval);
-				qh_destroy(qh);
-				return NULL;
-			}
-		} else {
-			qh->period = urb->interval;
-		}
-	}
 
 	if (!usb_pipecontrol(urb->pipe))
 		usb_settoggle(urb->dev, usb_pipeendpoint(urb->pipe), !is_input,
