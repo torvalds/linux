@@ -227,6 +227,14 @@ config IMX_DMA
 	  Support the i.MX DMA engine. This engine is integrated into
 	  Freescale i.MX1/21/27 chips.
 
+config MXS_DMA
+	bool "MXS DMA support"
+	depends on SOC_IMX23 || SOC_IMX28
+	select DMA_ENGINE
+	help
+	  Support the MXS DMA engine. This engine including APBH-DMA
+	  and APBX-DMA is integrated into Freescale i.MX23/28 chips.
+
 config DMA_ENGINE
 	bool
 
