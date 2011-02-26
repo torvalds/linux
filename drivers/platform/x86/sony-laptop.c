@@ -745,7 +745,7 @@ struct sony_nc_handles {
 	struct device_attribute devattr;
 };
 
-struct sony_nc_handles *handles;
+static struct sony_nc_handles *handles;
 
 static ssize_t sony_nc_handles_show(struct device *dev,
 		struct device_attribute *attr, char *buffer)
@@ -1358,7 +1358,7 @@ struct kbd_backlight {
 	struct device_attribute timeout_attr;
 };
 
-struct kbd_backlight *kbdbl_handle;
+static struct kbd_backlight *kbdbl_handle;
 
 static ssize_t __sony_nc_kbd_backlight_mode_set(u8 value)
 {
