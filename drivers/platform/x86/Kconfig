@@ -451,10 +451,11 @@ config EEEPC_LAPTOP
 	  Bluetooth, backlight and allows powering on/off some other
 	  devices.
 
-	  If you have an Eee PC laptop, say Y or M here.
+	  If you have an Eee PC laptop, say Y or M here. If this driver
+	  doesn't work on your Eee PC, try eeepc-wmi instead.
 
-config EEEPC_WMI
-	tristate "Eee PC WMI Hotkey Driver (EXPERIMENTAL)"
+config ASUS_WMI
+	tristate "ASUS WMI Driver (EXPERIMENTAL)"
 	depends on ACPI_WMI
 	depends on INPUT
 	depends on EXPERIMENTAL
@@ -464,10 +465,23 @@ config EEEPC_WMI
 	select LEDS_CLASS
 	select NEW_LEDS
 	---help---
-	  Say Y here if you want to support WMI-based hotkeys on Eee PC laptops.
+	  Say Y here if you have a WMI aware Asus laptop (like Eee PCs).
 
 	  To compile this driver as a module, choose M here: the module will
-	  be called eeepc-wmi.
+	  be called asus-wmi.
+
+config EEEPC_WMI
+	tristate "Eee PC WMI Driver (EXPERIMENTAL)"
+	depends on ASUS_WMI
+	---help---
+	  This is a driver for newer Eee PC laptops. It adds extra features
+	  like wireless radio and bluetooth control, leds, hotkeys, backlight...
+
+	  For more informations, see
+	  <file:Documentation/ABI/testing/sysfs-platform-asus-wmi>
+
+	  If you have an ACPI-WMI compatible Eee PC laptop (>= 1000), say Y or M
+	  here.
 
 config ACPI_WMI
 	tristate "WMI"

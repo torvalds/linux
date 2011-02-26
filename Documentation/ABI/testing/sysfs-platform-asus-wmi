@@ -1,4 +1,4 @@
-What:		/sys/devices/platform/eeepc-wmi/cpufv
+What:		/sys/devices/platform/<platform>/cpufv
 Date:		Oct 2010
 KernelVersion:	2.6.37
 Contact:	"Corentin Chary" <corentincj@iksaif.net>
@@ -9,21 +9,21 @@ Description:
 		    * 1 -> High Performance Mode
 		    * 2 -> Power Saving Mode
 
-What:		/sys/devices/platform/eeepc-wmi/camera
+What:		/sys/devices/platform/<platform>/camera
 Date:		Jan 2010
 KernelVersion:	2.6.39
 Contact:	"Corentin Chary" <corentincj@iksaif.net>
 Description:
 		Control the camera. 1 means on, 0 means off.
 
-What:		/sys/devices/platform/eeepc-wmi/cardr
+What:		/sys/devices/platform/<platform>/cardr
 Date:		Jan 2010
 KernelVersion:	2.6.39
 Contact:	"Corentin Chary" <corentincj@iksaif.net>
 Description:
 		Control the card reader. 1 means on, 0 means off.
 
-What:		/sys/devices/platform/eeepc-wmi/touchpad
+What:		/sys/devices/platform/<platform>/touchpad
 Date:		Jan 2010
 KernelVersion:	2.6.39
 Contact:	"Corentin Chary" <corentincj@iksaif.net>
