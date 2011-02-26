@@ -29,11 +29,11 @@
 /*
  * Register numbers.
  */
-#define I8042_COMMAND_REG	((volatile void __iomem *)&PS2_COMMAND)
-#define I8042_STATUS_REG	((volatile void __iomem *)&PS2_STATUS)
-#define I8042_DATA_REG		((volatile void __iomem *)&PS2_DATA)
+#define I8042_COMMAND_REG	PS2_COMMAND
+#define I8042_STATUS_REG	PS2_STATUS
+#define I8042_DATA_REG		PS2_DATA
 
-#define I8042_REGION_START	(resource_size_t)(&PS2_DATA)
+#define I8042_REGION_START	(resource_size_t)(PS2_DATA)
 #define I8042_REGION_SIZE	(resource_size_t)(16)
 
 static inline int i8042_read_data(void)

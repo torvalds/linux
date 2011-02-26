@@ -20,6 +20,7 @@
 #include <linux/clk.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 
@@ -152,28 +153,29 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 		if (ret)
 			return ret;
 
-		if (PM_PLLVGACFG == pll_vgacfg)
+		if (readl(PM_PLLVGACFG) == pll_vgacfg)
 			return 0;
 
 		/* set pll vga cfg reg. */
-		PM_PLLVGACFG = pll_vgacfg;
+		writel(pll_vgacfg, PM_PLLVGACFG);
 
-		PM_PMCR = PM_PMCR_CFBVGA;
-		while ((PM_PLLDFCDONE & PM_PLLDFCDONE_VGADFC)
+		writel(PM_PMCR_CFBVGA, PM_PMCR);
+		while ((readl(PM_PLLDFCDONE) & PM_PLLDFCDONE_VGADFC)
 				!= PM_PLLDFCDONE_VGADFC)
 			udelay(100); /* about 1ms */
 
 		/* set div cfg reg. */
-		PM_PCGR |= PM_PCGR_VGACLK;
+		writel(readl(PM_PCGR) | PM_PCGR_VGACLK, PM_PCGR);
 
-		PM_DIVCFG = (PM_DIVCFG & ~PM_DIVCFG_VGACLK_MASK)
-				| PM_DIVCFG_VGACLK(pll_vgadiv);
+		writel((readl(PM_DIVCFG) & ~PM_DIVCFG_VGACLK_MASK)
+				| PM_DIVCFG_VGACLK(pll_vgadiv), PM_DIVCFG);
 
-		PM_SWRESET |= PM_SWRESET_VGADIV;
-		while ((PM_SWRESET & PM_SWRESET_VGADIV) == PM_SWRESET_VGADIV)
+		writel(readl(PM_SWRESET) | PM_SWRESET_VGADIV, PM_SWRESET);
+		while ((readl(PM_SWRESET) & PM_SWRESET_VGADIV)
+				== PM_SWRESET_VGADIV)
 			udelay(100); /* 65536 bclk32, about 320us */
 
-		PM_PCGR &= ~PM_PCGR_VGACLK;
+		writel(readl(PM_PCGR) & ~PM_PCGR_VGACLK, PM_PCGR);
 	}
 #ifdef CONFIG_CPU_FREQ
 	if (clk == &clk_mclk_clk) {
@@ -323,15 +325,15 @@ struct {
 static int __init clk_init(void)
 {
 #ifdef CONFIG_PUV3_PM
-	u32 pllrate, divstatus = PM_DIVSTATUS;
-	u32 pcgr_val = PM_PCGR;
+	u32 pllrate, divstatus = readl(PM_DIVSTATUS);
+	u32 pcgr_val = readl(PM_PCGR);
 	int i;
 
 	pcgr_val |= PM_PCGR_BCLKMME | PM_PCGR_BCLKH264E | PM_PCGR_BCLKH264D
 			| PM_PCGR_HECLK | PM_PCGR_HDCLK;
-	PM_PCGR = pcgr_val;
+	writel(pcgr_val, PM_PCGR);
 
-	pllrate = PM_PLLSYSSTATUS;
+	pllrate = readl(PM_PLLSYSSTATUS);
 
 	/* lookup pmclk_table */
 	clk_mclk_clk.rate = 0;
@@ -346,7 +348,7 @@ static int __init clk_init(void)
 		clk_bclk32_clk.rate = clk_mclk_clk.rate /
 			(((divstatus & 0x0000f000) >> 12) + 1);
 
-	pllrate = PM_PLLDDRSTATUS;
+	pllrate = readl(PM_PLLDDRSTATUS);
 
 	/* lookup pddr_table */
 	clk_ddr_clk.rate = 0;
@@ -357,7 +359,7 @@ static int __init clk_init(void)
 		}
 	}
 
-	pllrate = PM_PLLVGASTATUS;
+	pllrate = readl(PM_PLLVGASTATUS);
 
 	/* lookup pvga_table */
 	clk_vga_clk.rate = 0;

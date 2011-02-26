@@ -66,8 +66,8 @@ static int puv3_gpio_type(struct irq_data *d, unsigned int type)
 	else
 		GPIO_IRQ_falling_edge &= ~mask;
 
-	GPIO_GRER = GPIO_IRQ_rising_edge & GPIO_IRQ_mask;
-	GPIO_GFER = GPIO_IRQ_falling_edge & GPIO_IRQ_mask;
+	writel(GPIO_IRQ_rising_edge & GPIO_IRQ_mask, GPIO_GRER);
+	writel(GPIO_IRQ_falling_edge & GPIO_IRQ_mask, GPIO_GFER);
 
 	return 0;
 }
@@ -77,25 +77,25 @@ static int puv3_gpio_type(struct irq_data *d, unsigned int type)
  */
 static void puv3_low_gpio_ack(struct irq_data *d)
 {
-	GPIO_GEDR = (1 << d->irq);
+	writel((1 << d->irq), GPIO_GEDR);
 }
 
 static void puv3_low_gpio_mask(struct irq_data *d)
 {
-	INTC_ICMR &= ~(1 << d->irq);
+	writel(readl(INTC_ICMR) & ~(1 << d->irq), INTC_ICMR);
 }
 
 static void puv3_low_gpio_unmask(struct irq_data *d)
 {
-	INTC_ICMR |= 1 << d->irq;
+	writel(readl(INTC_ICMR) | (1 << d->irq), INTC_ICMR);
 }
 
 static int puv3_low_gpio_wake(struct irq_data *d, unsigned int on)
 {
 	if (on)
-		PM_PWER |= 1 << d->irq;
+		writel(readl(PM_PWER) | (1 << d->irq), PM_PWER);
 	else
-		PM_PWER &= ~(1 << d->irq);
+		writel(readl(PM_PWER) & ~(1 << d->irq), PM_PWER);
 	return 0;
 }
 
@@ -118,13 +118,13 @@ puv3_gpio_handler(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned int mask;
 
-	mask = GPIO_GEDR;
+	mask = readl(GPIO_GEDR);
 	do {
 		/*
 		 * clear down all currently active IRQ sources.
 		 * We will be processing them all.
 		 */
-		GPIO_GEDR = mask;
+		writel(mask, GPIO_GEDR);
 
 		irq = IRQ_GPIO0;
 		do {
@@ -133,7 +133,7 @@ puv3_gpio_handler(unsigned int irq, struct irq_desc *desc)
 			mask >>= 1;
 			irq++;
 		} while (mask);
-		mask = GPIO_GEDR;
+		mask = readl(GPIO_GEDR);
 	} while (mask);
 }
 
@@ -146,7 +146,7 @@ static void puv3_high_gpio_ack(struct irq_data *d)
 {
 	unsigned int mask = GPIO_MASK(d->irq);
 
-	GPIO_GEDR = mask;
+	writel(mask, GPIO_GEDR);
 }
 
 static void puv3_high_gpio_mask(struct irq_data *d)
@@ -155,8 +155,8 @@ static void puv3_high_gpio_mask(struct irq_data *d)
 
 	GPIO_IRQ_mask &= ~mask;
 
-	GPIO_GRER &= ~mask;
-	GPIO_GFER &= ~mask;
+	writel(readl(GPIO_GRER) & ~mask, GPIO_GRER);
+	writel(readl(GPIO_GFER) & ~mask, GPIO_GFER);
 }
 
 static void puv3_high_gpio_unmask(struct irq_data *d)
@@ -165,16 +165,16 @@ static void puv3_high_gpio_unmask(struct irq_data *d)
 
 	GPIO_IRQ_mask |= mask;
 
-	GPIO_GRER = GPIO_IRQ_rising_edge & GPIO_IRQ_mask;
-	GPIO_GFER = GPIO_IRQ_falling_edge & GPIO_IRQ_mask;
+	writel(GPIO_IRQ_rising_edge & GPIO_IRQ_mask, GPIO_GRER);
+	writel(GPIO_IRQ_falling_edge & GPIO_IRQ_mask, GPIO_GFER);
 }
 
 static int puv3_high_gpio_wake(struct irq_data *d, unsigned int on)
 {
 	if (on)
-		PM_PWER |= PM_PWER_GPIOHIGH;
+		writel(readl(PM_PWER) | PM_PWER_GPIOHIGH, PM_PWER);
 	else
-		PM_PWER &= ~PM_PWER_GPIOHIGH;
+		writel(readl(PM_PWER) & ~PM_PWER_GPIOHIGH, PM_PWER);
 	return 0;
 }
 
@@ -193,12 +193,12 @@ static struct irq_chip puv3_high_gpio_chip = {
  */
 static void puv3_mask_irq(struct irq_data *d)
 {
-	INTC_ICMR &= ~(1 << d->irq);
+	writel(readl(INTC_ICMR) & ~(1 << d->irq), INTC_ICMR);
 }
 
 static void puv3_unmask_irq(struct irq_data *d)
 {
-	INTC_ICMR |= (1 << d->irq);
+	writel(readl(INTC_ICMR) | (1 << d->irq), INTC_ICMR);
 }
 
 /*
@@ -208,9 +208,9 @@ static int puv3_set_wake(struct irq_data *d, unsigned int on)
 {
 	if (d->irq == IRQ_RTCAlarm) {
 		if (on)
-			PM_PWER |= PM_PWER_RTC;
+			writel(readl(PM_PWER) | PM_PWER_RTC, PM_PWER);
 		else
-			PM_PWER &= ~PM_PWER_RTC;
+			writel(readl(PM_PWER) & ~PM_PWER_RTC, PM_PWER);
 		return 0;
 	}
 	return -EINVAL;
@@ -242,25 +242,25 @@ static int puv3_irq_suspend(struct sys_device *dev, pm_message_t state)
 	struct puv3_irq_state *st = &puv3_irq_state;
 
 	st->saved = 1;
-	st->icmr = INTC_ICMR;
-	st->iclr = INTC_ICLR;
-	st->iccr = INTC_ICCR;
+	st->icmr = readl(INTC_ICMR);
+	st->iclr = readl(INTC_ICLR);
+	st->iccr = readl(INTC_ICCR);
 
 	/*
 	 * Disable all GPIO-based interrupts.
 	 */
-	INTC_ICMR &= ~(0x1ff);
+	writel(readl(INTC_ICMR) & ~(0x1ff), INTC_ICMR);
 
 	/*
 	 * Set the appropriate edges for wakeup.
 	 */
-	GPIO_GRER = PM_PWER & GPIO_IRQ_rising_edge;
-	GPIO_GFER = PM_PWER & GPIO_IRQ_falling_edge;
+	writel(readl(PM_PWER) & GPIO_IRQ_rising_edge, GPIO_GRER);
+	writel(readl(PM_PWER) & GPIO_IRQ_falling_edge, GPIO_GFER);
 
 	/*
 	 * Clear any pending GPIO interrupts.
 	 */
-	GPIO_GEDR = GPIO_GEDR;
+	writel(readl(GPIO_GEDR), GPIO_GEDR);
 
 	return 0;
 }
@@ -270,13 +270,13 @@ static int puv3_irq_resume(struct sys_device *dev)
 	struct puv3_irq_state *st = &puv3_irq_state;
 
 	if (st->saved) {
-		INTC_ICCR = st->iccr;
-		INTC_ICLR = st->iclr;
+		writel(st->iccr, INTC_ICCR);
+		writel(st->iclr, INTC_ICLR);
 
-		GPIO_GRER = GPIO_IRQ_rising_edge & GPIO_IRQ_mask;
-		GPIO_GFER = GPIO_IRQ_falling_edge & GPIO_IRQ_mask;
+		writel(GPIO_IRQ_rising_edge & GPIO_IRQ_mask, GPIO_GRER);
+		writel(GPIO_IRQ_falling_edge & GPIO_IRQ_mask, GPIO_GFER);
 
-		INTC_ICMR = st->icmr;
+		writel(st->icmr, INTC_ICMR);
 	}
 	return 0;
 }
@@ -307,18 +307,18 @@ void __init init_IRQ(void)
 	request_resource(&iomem_resource, &irq_resource);
 
 	/* disable all IRQs */
-	INTC_ICMR = 0;
+	writel(0, INTC_ICMR);
 
 	/* all IRQs are IRQ, not REAL */
-	INTC_ICLR = 0;
+	writel(0, INTC_ICLR);
 
 	/* clear all GPIO edge detects */
-	GPIO_GPIR = FMASK(8, 0) & ~FIELD(1, 1, GPI_SOFF_REQ);
-	GPIO_GFER = 0;
-	GPIO_GRER = 0;
-	GPIO_GEDR = 0x0FFFFFFF;
+	writel(FMASK(8, 0) & ~FIELD(1, 1, GPI_SOFF_REQ), GPIO_GPIR);
+	writel(0, GPIO_GFER);
+	writel(0, GPIO_GRER);
+	writel(0x0FFFFFFF, GPIO_GEDR);
 
-	INTC_ICCR = 1;
+	writel(1, INTC_ICCR);
 
 	for (irq = 0; irq < IRQ_GPIOHIGH; irq++) {
 		set_irq_chip(irq, &puv3_low_gpio_chip);

@@ -41,7 +41,7 @@ static irqreturn_t puv3_rtc_alarmirq(int irq, void *id)
 {
 	struct rtc_device *rdev = id;
 
-	RTC_RTSR |= RTC_RTSR_AL;
+	writel(readl(RTC_RTSR) | RTC_RTSR_AL, RTC_RTSR);
 	rtc_update_irq(rdev, 1, RTC_AF | RTC_IRQF);
 	return IRQ_HANDLED;
 }
@@ -50,7 +50,7 @@ static irqreturn_t puv3_rtc_tickirq(int irq, void *id)
 {
 	struct rtc_device *rdev = id;
 
-	RTC_RTSR |= RTC_RTSR_HZ;
+	writel(readl(RTC_RTSR) | RTC_RTSR_HZ, RTC_RTSR);
 	rtc_update_irq(rdev, 1, RTC_PF | RTC_IRQF);
 	return IRQ_HANDLED;
 }
@@ -62,12 +62,12 @@ static void puv3_rtc_setaie(int to)
 
 	pr_debug("%s: aie=%d\n", __func__, to);
 
-	tmp = RTC_RTSR & ~RTC_RTSR_ALE;
+	tmp = readl(RTC_RTSR) & ~RTC_RTSR_ALE;
 
 	if (to)
 		tmp |= RTC_RTSR_ALE;
 
-	RTC_RTSR = tmp;
+	writel(tmp, RTC_RTSR);
 }
 
 static int puv3_rtc_setpie(struct device *dev, int enabled)
@@ -77,12 +77,12 @@ static int puv3_rtc_setpie(struct device *dev, int enabled)
 	pr_debug("%s: pie=%d\n", __func__, enabled);
 
 	spin_lock_irq(&puv3_rtc_pie_lock);
-	tmp = RTC_RTSR & ~RTC_RTSR_HZE;
+	tmp = readl(RTC_RTSR) & ~RTC_RTSR_HZE;
 
 	if (enabled)
 		tmp |= RTC_RTSR_HZE;
 
-	RTC_RTSR = tmp;
+	writel(tmp, RTC_RTSR);
 	spin_unlock_irq(&puv3_rtc_pie_lock);
 
 	return 0;
@@ -97,7 +97,7 @@ static int puv3_rtc_setfreq(struct device *dev, int freq)
 
 static int puv3_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
 {
-	rtc_time_to_tm(RTC_RCNR, rtc_tm);
+	rtc_time_to_tm(readl(RTC_RCNR), rtc_tm);
 
 	pr_debug("read time %02x.%02x.%02x %02x/%02x/%02x\n",
 		 rtc_tm->tm_year, rtc_tm->tm_mon, rtc_tm->tm_mday,
@@ -115,7 +115,7 @@ static int puv3_rtc_settime(struct device *dev, struct rtc_time *tm)
 		 tm->tm_hour, tm->tm_min, tm->tm_sec);
 
 	rtc_tm_to_time(tm, &rtc_count);
-	RTC_RCNR = rtc_count;
+	writel(rtc_count, RTC_RCNR);
 
 	return 0;
 }
@@ -124,9 +124,9 @@ static int puv3_rtc_getalarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct rtc_time *alm_tm = &alrm->time;
 
-	rtc_time_to_tm(RTC_RTAR, alm_tm);
+	rtc_time_to_tm(readl(RTC_RTAR), alm_tm);
 
-	alrm->enabled = RTC_RTSR & RTC_RTSR_ALE;
+	alrm->enabled = readl(RTC_RTSR) & RTC_RTSR_ALE;
 
 	pr_debug("read alarm %02x %02x.%02x.%02x %02x/%02x/%02x\n",
 		 alrm->enabled,
@@ -147,7 +147,7 @@ static int puv3_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 		 tm->tm_hour & 0xff, tm->tm_min & 0xff, tm->tm_sec);
 
 	rtc_tm_to_time(tm, &rtcalarm_count);
-	RTC_RTAR = rtcalarm_count;
+	writel(rtcalarm_count, RTC_RTAR);
 
 	puv3_rtc_setaie(alrm->enabled);
 
@@ -162,7 +162,7 @@ static int puv3_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 static int puv3_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	seq_printf(seq, "periodic_IRQ\t: %s\n",
-		     (RTC_RTSR & RTC_RTSR_HZE) ? "yes" : "no");
+		     (readl(RTC_RTSR) & RTC_RTSR_HZE) ? "yes" : "no");
 	return 0;
 }
 
@@ -222,13 +222,13 @@ static const struct rtc_class_ops puv3_rtcops = {
 static void puv3_rtc_enable(struct platform_device *pdev, int en)
 {
 	if (!en) {
-		RTC_RTSR &= ~RTC_RTSR_HZE;
+		writel(readl(RTC_RTSR) & ~RTC_RTSR_HZE, RTC_RTSR);
 	} else {
 		/* re-enable the device, and check it is ok */
 
-		if ((RTC_RTSR & RTC_RTSR_HZE) == 0) {
+		if ((readl(RTC_RTSR) & RTC_RTSR_HZE) == 0) {
 			dev_info(&pdev->dev, "rtc disabled, re-enabling\n");
-			RTC_RTSR |= RTC_RTSR_HZE;
+			writel(readl(RTC_RTSR) | RTC_RTSR_HZE, RTC_RTSR);
 		}
 	}
 }
@@ -331,7 +331,7 @@ static int ticnt_save;
 static int puv3_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	/* save RTAR for anyone using periodic interrupts */
-	ticnt_save = RTC_RTAR;
+	ticnt_save = readl(RTC_RTAR);
 	puv3_rtc_enable(pdev, 0);
 	return 0;
 }
@@ -339,7 +339,7 @@ static int puv3_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 static int puv3_rtc_resume(struct platform_device *pdev)
 {
 	puv3_rtc_enable(pdev, 1);
-	RTC_RTAR = ticnt_save;
+	writel(ticnt_save, RTC_RTAR);
 	return 0;
 }
 #else

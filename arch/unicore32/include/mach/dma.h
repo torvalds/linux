@@ -35,7 +35,14 @@ extern int puv3_request_dma(char *name,
 
 extern void puv3_free_dma(int dma_ch);
 
-#define puv3_stop_dma(ch)		(DMAC_CONFIG(ch) &= ~DMAC_CONFIG_EN)
-#define puv3_resume_dma(ch)             (DMAC_CONFIG(ch) |= DMAC_CONFIG_EN)
+static inline void puv3_stop_dma(int ch)
+{
+	writel(readl(DMAC_CONFIG(ch)) & ~DMAC_CONFIG_EN, DMAC_CONFIG(ch));
+}
+
+static inline void puv3_resume_dma(int ch)
+{
+	writel(readl(DMAC_CONFIG(ch)) | DMAC_CONFIG_EN, DMAC_CONFIG(ch));
+}
 
 #endif /* __MACH_PUV3_DMA_H__ */

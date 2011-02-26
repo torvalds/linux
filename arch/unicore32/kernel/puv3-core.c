@@ -36,7 +36,7 @@
  */
 unsigned long long sched_clock(void)
 {
-	unsigned long long v = cnt32_to_63(OST_OSCR);
+	unsigned long long v = cnt32_to_63(readl(OST_OSCR));
 
 	/* original conservative method, but overflow frequently
 	 * v *= NSEC_PER_SEC >> 12;
@@ -187,15 +187,15 @@ static void puv3_cpu_pm_restore(unsigned long *sleep_save)
 static int puv3_cpu_pm_prepare(void)
 {
 	/* set resume return address */
-	PM_DIVCFG = virt_to_phys(puv3_cpu_resume);
+	writel(virt_to_phys(puv3_cpu_resume), PM_DIVCFG);
 	return 0;
 }
 
 static void puv3_cpu_pm_enter(suspend_state_t state)
 {
 	/* Clear reset status */
-	RESETC_RSSR = RESETC_RSSR_HWR | RESETC_RSSR_WDR
-			| RESETC_RSSR_SMR | RESETC_RSSR_SWR;
+	writel(RESETC_RSSR_HWR | RESETC_RSSR_WDR
+			| RESETC_RSSR_SMR | RESETC_RSSR_SWR, RESETC_RSSR);
 
 	switch (state) {
 /*	case PM_SUSPEND_ON:
@@ -242,7 +242,7 @@ void puv3_ps2_init(void)
 	struct clk *bclk32;
 
 	bclk32 = clk_get(NULL, "BUS32_CLK");
-	PS2_CNT = clk_get_rate(bclk32) / 200000; /* should > 5us */
+	writel(clk_get_rate(bclk32) / 200000, PS2_CNT); /* should > 5us */
 }
 
 void __init puv3_core_init(void)

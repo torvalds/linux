@@ -13,6 +13,7 @@
 #ifndef __UNICORE_GPIO_H__
 #define __UNICORE_GPIO_H__
 
+#include <linux/io.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
 #include <asm-generic/gpio.h>
@@ -66,7 +67,7 @@
 static inline int gpio_get_value(unsigned gpio)
 {
 	if (__builtin_constant_p(gpio) && (gpio <= GPIO_MAX))
-		return GPIO_GPLR & GPIO_GPIO(gpio);
+		return readl(GPIO_GPLR) & GPIO_GPIO(gpio);
 	else
 		return __gpio_get_value(gpio);
 }
@@ -75,9 +76,9 @@ static inline void gpio_set_value(unsigned gpio, int value)
 {
 	if (__builtin_constant_p(gpio) && (gpio <= GPIO_MAX))
 		if (value)
-			GPIO_GPSR = GPIO_GPIO(gpio);
+			writel(GPIO_GPIO(gpio), GPIO_GPSR);
 		else
-			GPIO_GPCR = GPIO_GPIO(gpio);
+			writel(GPIO_GPIO(gpio), GPIO_GPCR);
 	else
 		__gpio_set_value(gpio, value);
 }
@@ -86,7 +87,7 @@ static inline void gpio_set_value(unsigned gpio, int value)
 
 static inline unsigned gpio_to_irq(unsigned gpio)
 {
-	if ((gpio < IRQ_GPIOHIGH) && (FIELD(1, 1, gpio) & GPIO_GPIR))
+	if ((gpio < IRQ_GPIOHIGH) && (FIELD(1, 1, gpio) & readl(GPIO_GPIR)))
 		return IRQ_GPIOLOW0 + gpio;
 	else
 		return IRQ_GPIO0 + gpio;

@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/errno.h>
+#include <linux/io.h>
 
 #include <asm/system.h>
 #include <asm/irq.h>
@@ -94,15 +95,16 @@ EXPORT_SYMBOL(puv3_free_dma);
 
 static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 {
-	int i, dint = DMAC_ITCSR;
+	int i, dint;
 
+	dint = readl(DMAC_ITCSR);
 	for (i = 0; i < MAX_DMA_CHANNELS; i++) {
 		if (dint & DMAC_CHANNEL(i)) {
 			struct dma_channel *channel = &dma_channels[i];
 
 			/* Clear TC interrupt of channel i */
-			DMAC_ITCCR = DMAC_CHANNEL(i);
-			DMAC_ITCCR = 0;
+			writel(DMAC_CHANNEL(i), DMAC_ITCCR);
+			writel(0, DMAC_ITCCR);
 
 			if (channel->name && channel->irq_handler) {
 				channel->irq_handler(i, channel->data);
@@ -121,15 +123,16 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 
 static irqreturn_t dma_err_handler(int irq, void *dev_id)
 {
-	int i, dint = DMAC_IESR;
+	int i, dint;
 
+	dint = readl(DMAC_IESR);
 	for (i = 0; i < MAX_DMA_CHANNELS; i++) {
 		if (dint & DMAC_CHANNEL(i)) {
 			struct dma_channel *channel = &dma_channels[i];
 
 			/* Clear Err interrupt of channel i */
-			DMAC_IECR = DMAC_CHANNEL(i);
-			DMAC_IECR = 0;
+			writel(DMAC_CHANNEL(i), DMAC_IECR);
+			writel(0, DMAC_IECR);
 
 			if (channel->name && channel->err_handler) {
 				channel->err_handler(i, channel->data);

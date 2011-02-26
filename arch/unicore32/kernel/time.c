@@ -26,8 +26,8 @@ static irqreturn_t puv3_ost0_interrupt(int irq, void *dev_id)
 	struct clock_event_device *c = dev_id;
 
 	/* Disarm the compare/match, signal the event. */
-	OST_OIER &= ~OST_OIER_E0;
-	OST_OSSR &= ~OST_OSSR_M0;
+	writel(readl(OST_OIER) & ~OST_OIER_E0, OST_OIER);
+	writel(readl(OST_OSSR) & ~OST_OSSR_M0, OST_OSSR);
 	c->event_handler(c);
 
 	return IRQ_HANDLED;
@@ -38,10 +38,10 @@ puv3_osmr0_set_next_event(unsigned long delta, struct clock_event_device *c)
 {
 	unsigned long next, oscr;
 
-	OST_OIER |= OST_OIER_E0;
-	next = OST_OSCR + delta;
-	OST_OSMR0 = next;
-	oscr = OST_OSCR;
+	writel(readl(OST_OIER) | OST_OIER_E0, OST_OIER);
+	next = readl(OST_OSCR) + delta;
+	writel(next, OST_OSMR0);
+	oscr = readl(OST_OSCR);
 
 	return (signed)(next - oscr) <= MIN_OSCR_DELTA ? -ETIME : 0;
 }
@@ -53,8 +53,8 @@ puv3_osmr0_set_mode(enum clock_event_mode mode, struct clock_event_device *c)
 	case CLOCK_EVT_MODE_ONESHOT:
 	case CLOCK_EVT_MODE_UNUSED:
 	case CLOCK_EVT_MODE_SHUTDOWN:
-		OST_OIER &= ~OST_OIER_E0;
-		OST_OSSR &= ~OST_OSSR_M0;
+		writel(readl(OST_OIER) & ~OST_OIER_E0, OST_OIER);
+		writel(readl(OST_OSSR) & ~OST_OSSR_M0, OST_OSSR);
 		break;
 
 	case CLOCK_EVT_MODE_RESUME:
@@ -73,7 +73,7 @@ static struct clock_event_device ckevt_puv3_osmr0 = {
 
 static cycle_t puv3_read_oscr(struct clocksource *cs)
 {
-	return OST_OSCR;
+	return readl(OST_OSCR);
 }
 
 static struct clocksource cksrc_puv3_oscr = {
@@ -93,8 +93,8 @@ static struct irqaction puv3_timer_irq = {
 
 void __init time_init(void)
 {
-	OST_OIER = 0;		/* disable any timer interrupts */
-	OST_OSSR = 0;		/* clear status on all timers */
+	writel(0, OST_OIER);		/* disable any timer interrupts */
+	writel(0, OST_OSSR);		/* clear status on all timers */
 
 	clockevents_calc_mult_shift(&ckevt_puv3_osmr0, CLOCK_TICK_RATE, 5);
 
@@ -115,26 +115,26 @@ unsigned long osmr[4], oier;
 
 void puv3_timer_suspend(void)
 {
-	osmr[0] = OST_OSMR0;
-	osmr[1] = OST_OSMR1;
-	osmr[2] = OST_OSMR2;
-	osmr[3] = OST_OSMR3;
-	oier = OST_OIER;
+	osmr[0] = readl(OST_OSMR0);
+	osmr[1] = readl(OST_OSMR1);
+	osmr[2] = readl(OST_OSMR2);
+	osmr[3] = readl(OST_OSMR3);
+	oier = readl(OST_OIER);
 }
 
 void puv3_timer_resume(void)
 {
-	OST_OSSR = 0;
-	OST_OSMR0 = osmr[0];
-	OST_OSMR1 = osmr[1];
-	OST_OSMR2 = osmr[2];
-	OST_OSMR3 = osmr[3];
-	OST_OIER = oier;
+	writel(0, OST_OSSR);
+	writel(osmr[0], OST_OSMR0);
+	writel(osmr[1], OST_OSMR1);
+	writel(osmr[2], OST_OSMR2);
+	writel(osmr[3], OST_OSMR3);
+	writel(oier, OST_OIER);
 
 	/*
 	 * OSMR0 is the system timer: make sure OSCR is sufficiently behind
 	 */
-	OST_OSCR = OST_OSMR0 - LATCH;
+	writel(readl(OST_OSMR0) - LATCH, OST_OSCR);
 }
 #else
 void puv3_timer_suspend(void) { };

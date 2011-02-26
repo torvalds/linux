@@ -52,15 +52,15 @@ device_initcall(puv3_gpio_leds_init);
 
 static int puv3_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	return GPIO_GPLR & GPIO_GPIO(offset);
+	return readl(GPIO_GPLR) & GPIO_GPIO(offset);
 }
 
 static void puv3_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	if (value)
-		GPIO_GPSR = GPIO_GPIO(offset);
+		writel(GPIO_GPIO(offset), GPIO_GPSR);
 	else
-		GPIO_GPCR = GPIO_GPIO(offset);
+		writel(GPIO_GPIO(offset), GPIO_GPCR);
 }
 
 static int puv3_direction_input(struct gpio_chip *chip, unsigned offset)
@@ -68,7 +68,7 @@ static int puv3_direction_input(struct gpio_chip *chip, unsigned offset)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	GPIO_GPDR &= ~GPIO_GPIO(offset);
+	writel(readl(GPIO_GPDR) & ~GPIO_GPIO(offset), GPIO_GPDR);
 	local_irq_restore(flags);
 	return 0;
 }
@@ -80,7 +80,7 @@ static int puv3_direction_output(struct gpio_chip *chip, unsigned offset,
 
 	local_irq_save(flags);
 	puv3_gpio_set(chip, offset, value);
-	GPIO_GPDR |= GPIO_GPIO(offset);
+	writel(readl(GPIO_GPDR) | GPIO_GPIO(offset), GPIO_GPDR);
 	local_irq_restore(flags);
 	return 0;
 }
@@ -97,7 +97,7 @@ static struct gpio_chip puv3_gpio_chip = {
 
 void __init puv3_init_gpio(void)
 {
-	GPIO_GPDR = GPIO_DIR;
+	writel(GPIO_DIR, GPIO_GPDR);
 #if	defined(CONFIG_PUV3_NB0916) || defined(CONFIG_PUV3_SMW0919)	\
 	|| defined(CONFIG_PUV3_DB0913)
 	gpio_set_value(GPO_WIFI_EN, 1);

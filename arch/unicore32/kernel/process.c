@@ -125,9 +125,9 @@ void machine_restart(char *cmd)
 		/* Jump into ROM at address 0xffff0000 */
 		cpu_reset(VECTORS_BASE);
 	} else {
-		PM_PLLSYSCFG = 0x00002001; /* cpu clk = 250M */
-		PM_PLLDDRCFG = 0x00100800; /* ddr clk =  44M */
-		PM_PLLVGACFG = 0x00002001; /* vga clk = 250M */
+		writel(0x00002001, PM_PLLSYSCFG); /* cpu clk = 250M */
+		writel(0x00100800, PM_PLLDDRCFG); /* ddr clk =  44M */
+		writel(0x00002001, PM_PLLVGACFG); /* vga clk = 250M */
 
 		/* Use on-chip reset capability */
 		/* following instructions must be in one icache line */
@@ -141,10 +141,10 @@ void machine_restart(char *cmd)
 			"	nop; nop; nop\n\t"
 			/* prefetch 3 instructions at most */
 			:
-			: "r" ((unsigned long)&PM_PMCR),
+			: "r" (PM_PMCR),
 			  "r" (PM_PMCR_CFBSYS | PM_PMCR_CFBDDR
 				| PM_PMCR_CFBVGA),
-			  "r" ((unsigned long)&RESETC_SWRR),
+			  "r" (RESETC_SWRR),
 			  "r" (RESETC_SWRR_SRB)
 			: "r0", "memory");
 	}
