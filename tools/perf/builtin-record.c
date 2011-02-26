@@ -180,12 +180,10 @@ static struct perf_header_attr *get_header_attr(struct perf_event_attr *a, int n
 
 static void create_counter(struct perf_evsel *evsel, int cpu)
 {
-	char *filter = evsel->filter;
 	struct perf_event_attr *attr = &evsel->attr;
 	struct perf_header_attr *h_attr;
 	struct perf_sample_id *sid;
 	int thread_index;
-	int ret;
 
 	for (thread_index = 0; thread_index < evsel_list->threads->nr; thread_index++) {
 		h_attr = get_header_attr(attr, evsel->idx);
@@ -203,16 +201,6 @@ static void create_counter(struct perf_evsel *evsel, int cpu)
 		if (perf_header_attr__add_id(h_attr, sid->id) < 0) {
 			pr_warning("Not enough memory to add id\n");
 			exit(-1);
-		}
-
-		if (filter != NULL) {
-			ret = ioctl(FD(evsel, cpu, thread_index),
-				    PERF_EVENT_IOC_SET_FILTER, filter);
-			if (ret) {
-				error("failed to set filter with %d (%s)\n", errno,
-						strerror(errno));
-				exit(-1);
-			}
 		}
 	}
 
@@ -365,6 +353,12 @@ try_again:
 
 			die("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
 		}
+	}
+
+	if (perf_evlist__set_filters(evlist)) {
+		error("failed to set filter with %d (%s)\n", errno,
+			strerror(errno));
+		exit(-1);
 	}
 
 	if (perf_evlist__mmap(evlist, mmap_pages, false) < 0)
