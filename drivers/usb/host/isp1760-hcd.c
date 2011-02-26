@@ -78,8 +78,6 @@ static inline struct isp1760_hcd *hcd_to_priv(struct usb_hcd *hcd)
 
 struct isp1760_qtd {
 	u8 packet_type;
-	u8 toggle;
-
 	void *data_buffer;
 	u32 payload_addr;
 
@@ -588,6 +586,18 @@ static u32 base_to_chip(u32 base)
 	return ((base - 0x400) >> 3);
 }
 
+static int last_qtd_of_urb(struct isp1760_qtd *qtd, struct isp1760_qh *qh)
+{
+	struct urb *urb;
+
+	if (list_is_last(&qtd->qtd_list, &qh->qtd_list))
+		return 1;
+
+	urb = qtd->urb;
+	qtd = list_entry(qtd->qtd_list.next, typeof(*qtd), qtd_list);
+	return (qtd->urb != urb);
+}
+
 static void transform_into_atl(struct isp1760_qh *qh,
 			struct isp1760_qtd *qtd, struct ptd *ptd)
 {
@@ -656,11 +666,13 @@ static void transform_into_atl(struct isp1760_qh *qh,
 	ptd->dw3 |= PTD_NAC_CNT(nak);
 
 	/* DW3 */
-	if (usb_pipecontrol(qtd->urb->pipe))
-		ptd->dw3 |= PTD_DATA_TOGGLE(qtd->toggle);
-	else
-		ptd->dw3 |= qh->toggle;
-
+	ptd->dw3 |= qh->toggle;
+	if (usb_pipecontrol(qtd->urb->pipe)) {
+		if (qtd->data_buffer == qtd->urb->setup_packet)
+			ptd->dw3 &= ~PTD_DATA_TOGGLE(1);
+		else if (last_qtd_of_urb(qtd, qh))
+			ptd->dw3 |= PTD_DATA_TOGGLE(1);
+	}
 
 	ptd->dw3 |= PTD_ACTIVE;
 	/* Cerr */
@@ -733,7 +745,6 @@ static int qtd_fill(struct isp1760_qtd *qtd, void *databuffer, size_t len,
 
 	qtd->data_buffer = databuffer;
 	qtd->packet_type = GET_QTD_TOKEN_TYPE(token);
-	qtd->toggle = GET_DATA_TOGGLE(token);
 
 	if (len > MAX_PAYLOAD_SIZE)
 		count = MAX_PAYLOAD_SIZE;
@@ -976,18 +987,6 @@ static struct isp1760_qtd *clean_up_qtdlist(struct isp1760_qtd *qtd,
 	return qtd;
 }
 
-static int last_qtd_of_urb(struct isp1760_qtd *qtd, struct isp1760_qh *qh)
-{
-	struct urb *urb;
-
-	if (list_is_last(&qtd->qtd_list, &qh->qtd_list))
-		return 1;
-
-	urb = qtd->urb;
-	qtd = list_entry(qtd->qtd_list.next, typeof(*qtd), qtd_list);
-	return (qtd->urb != urb);
-}
-
 static void do_atl_int(struct usb_hcd *hcd)
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
@@ -1106,12 +1105,8 @@ static void do_atl_int(struct usb_hcd *hcd)
 					ptd.dw4, ptd.dw5, ptd.dw6, ptd.dw7);
 #endif
 		} else {
-			if (usb_pipetype(qtd->urb->pipe) == PIPE_BULK) {
-				priv->atl_ints[slot].qh->toggle =
-							ptd.dw3 & (1 << 25);
-				priv->atl_ints[slot].qh->ping =
-							ptd.dw3 & (1 << 26);
-			}
+			priv->atl_ints[slot].qh->toggle = ptd.dw3 & (1 << 25);
+			priv->atl_ints[slot].qh->ping = ptd.dw3 & (1 << 26);
 		}
 
 		length = PTD_XFERRED_LENGTH(ptd.dw3);
@@ -1454,7 +1449,6 @@ static struct list_head *qh_urb_transaction(struct usb_hcd *hcd,
 				token | SETUP_PID);
 
 		/* ... and always at least one more pid */
-		token ^= DATA_TOGGLE;
 		qtd = isp1760_qtd_alloc(flags);
 		if (!qtd)
 			goto cleanup;
@@ -1497,10 +1491,6 @@ static struct list_head *qh_urb_transaction(struct usb_hcd *hcd,
 		len -= this_qtd_len;
 		buf += this_qtd_len;
 
-		/* qh makes control packets use qtd toggle; maybe switch it */
-		if ((maxpacket & (this_qtd_len + (maxpacket - 1))) == 0)
-			token ^= DATA_TOGGLE;
-
 		if (len <= 0)
 			break;
 
@@ -1522,8 +1512,6 @@ static struct list_head *qh_urb_transaction(struct usb_hcd *hcd,
 			one_more = 1;
 			/* "in" <--> "out"  */
 			token ^= IN_PID;
-			/* force DATA1 */
-			token |= DATA_TOGGLE;
 		} else if (usb_pipebulk(urb->pipe)
 				&& (urb->transfer_flags & URB_ZERO_PACKET)
 				&& !(urb->transfer_buffer_length % maxpacket)) {
