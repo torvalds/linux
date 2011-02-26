@@ -2,7 +2,7 @@
  * Asus PC WMI hotkey driver
  *
  * Copyright(C) 2010 Intel Corporation.
- * Copyright(C) 2010 Corentin Chary <corentin.chary@gmail.com>
+ * Copyright(C) 2010-2011 Corentin Chary <corentin.chary@gmail.com>
  *
  * Portions based on wistron_btns.c:
  * Copyright (C) 2005 Miloslav Trmac <mitr@volny.cz>
@@ -87,7 +87,7 @@ MODULE_LICENSE("GPL");
 #define ASUS_WMI_DEVID_CARDREADER	0x00080013
 
 /* Input */
-#define ASUS_WMI_DEVID_TOUCHPAD	0x00100011
+#define ASUS_WMI_DEVID_TOUCHPAD		0x00100011
 #define ASUS_WMI_DEVID_TOUCHPAD_LED	0x00100012
 
 /* DSTS masks */
@@ -903,25 +903,25 @@ static void asus_wmi_notify(u32 value, void *context)
 
 	obj = (union acpi_object *)response.pointer;
 
-	if (obj && obj->type == ACPI_TYPE_INTEGER) {
-		code = obj->integer.value;
-		orig_code = code;
+	if (!obj || obj->type != ACPI_TYPE_INTEGER)
+		goto exit;
 
-		if (code >= NOTIFY_BRNUP_MIN && code <= NOTIFY_BRNUP_MAX)
-			code = NOTIFY_BRNUP_MIN;
-		else if (code >= NOTIFY_BRNDOWN_MIN &&
-			 code <= NOTIFY_BRNDOWN_MAX)
-			code = NOTIFY_BRNDOWN_MIN;
+	code = obj->integer.value;
+	orig_code = code;
 
-		if (code == NOTIFY_BRNUP_MIN || code == NOTIFY_BRNDOWN_MIN) {
-			if (!acpi_video_backlight_support())
-				asus_wmi_backlight_notify(asus, orig_code);
-		}
+	if (code >= NOTIFY_BRNUP_MIN && code <= NOTIFY_BRNUP_MAX)
+		code = NOTIFY_BRNUP_MIN;
+	else if (code >= NOTIFY_BRNDOWN_MIN &&
+		 code <= NOTIFY_BRNDOWN_MAX)
+		code = NOTIFY_BRNDOWN_MIN;
 
-		if (!sparse_keymap_report_event(asus->inputdev, code, 1, true))
-			pr_info("Unknown key %x pressed\n", code);
-	}
+	if (code == NOTIFY_BRNUP_MIN || code == NOTIFY_BRNDOWN_MIN) {
+		if (!acpi_video_backlight_support())
+			asus_wmi_backlight_notify(asus, orig_code);
+	} else if (!sparse_keymap_report_event(asus->inputdev, code, 1, true))
+		pr_info("Unknown key %x pressed\n", code);
 
+exit:
 	kfree(obj);
 }
 
