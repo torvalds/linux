@@ -14,6 +14,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/seq_file.h>
 
+#include <asm/cacheflush.h>
 #include <asm/pcic.h>
 #include <asm/leon.h>
 

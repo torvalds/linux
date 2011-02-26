@@ -3,6 +3,8 @@
 
 #include <linux/interrupt.h>
 
+#include <asm/traps.h>
+
 /* cpu.c */
 extern const char *sparc_cpu_type;
 extern const char *sparc_pmu_type;
@@ -54,9 +56,9 @@ extern unsigned int t_nmi[];
 extern unsigned int linux_trap_ipi15_sun4d[];
 extern unsigned int linux_trap_ipi15_sun4m[];
 
-extern unsigned long trapbase_cpu1[];
-extern unsigned long trapbase_cpu2[];
-extern unsigned long trapbase_cpu3[];
+extern struct tt_entry trapbase_cpu1;
+extern struct tt_entry trapbase_cpu2;
+extern struct tt_entry trapbase_cpu3;
 
 extern char cputypval[];
 
