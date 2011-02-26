@@ -768,6 +768,8 @@ static int sony_nc_handles_setup(struct platform_device *pd)
 	int result;
 
 	handles = kzalloc(sizeof(*handles), GFP_KERNEL);
+	if (!handles)
+		return -ENOMEM;
 
 	sysfs_attr_init(&handles->devattr.attr);
 	handles->devattr.attr.name = "handles";
@@ -1458,6 +1460,8 @@ static int sony_nc_kbd_backlight_setup(struct platform_device *pd)
 		return 0;
 
 	kbdbl_handle = kzalloc(sizeof(*kbdbl_handle), GFP_KERNEL);
+	if (!kbdbl_handle)
+		return -ENOMEM;
 
 	sysfs_attr_init(&kbdbl_handle->mode_attr.attr);
 	kbdbl_handle->mode_attr.attr.name = "kbd_backlight";
