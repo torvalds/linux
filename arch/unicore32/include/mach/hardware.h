@@ -17,8 +17,8 @@
 
 #include "PKUnity.h"
 
-#define io_p2v(x)	((x) - PKUNITY_IOSPACE_BASE)
-#define io_v2p(x)	((x) + PKUNITY_IOSPACE_BASE)
+#define io_p2v(x)	((x) - PKUNITY_MMIO_BASE)
+#define io_v2p(x)	((x) + PKUNITY_MMIO_BASE)
 
 #ifndef __ASSEMBLY__
 
