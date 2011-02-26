@@ -213,7 +213,7 @@ struct resource rk29_fb_resource[] = {
 	[2] = {
 	    .name   = "win1 buf",
         .start  = MEM_FB_BASE,
-        .end    = MEM_FB_BASE + MEM_FB_SIZE,
+        .end    = MEM_FB_BASE + MEM_FB_SIZE - 1,
         .flags  = IORESOURCE_MEM,
     },
 };

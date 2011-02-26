@@ -2163,7 +2163,7 @@ static int __init rk29fb_probe (struct platform_device *pdev)
         goto release_win1fb;
     }
     inf->fb0->fix.smem_start = res->start;
-    inf->fb0->fix.smem_len = res->end - res->start;
+    inf->fb0->fix.smem_len = res->end - res->start + 1;
     inf->fb0->screen_base = ioremap(res->start, inf->fb0->fix.smem_len);
     memset(inf->fb0->screen_base, 0, inf->fb0->fix.smem_len);
 

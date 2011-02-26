@@ -231,7 +231,7 @@ static struct resource rk29_fb_resource[] = {
 	[2] = {
 	    .name   = "win1 buf",
         .start  = MEM_FB_BASE,
-        .end    = MEM_FB_BASE + MEM_FB_SIZE,
+        .end    = MEM_FB_BASE + MEM_FB_SIZE - 1,
         .flags  = IORESOURCE_MEM,
     },
 };
@@ -617,7 +617,7 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
      .platform_data  = &sintek_touch_info,
   },
 
-#endif 
+#endif
 };
 #endif
 
@@ -633,7 +633,7 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
      .platform_data  = &synaptics_touchkey_info,
   },
 
-#endif 
+#endif
 };
 #endif
 
@@ -694,7 +694,7 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
 #define SENSOR_RESETACTIVE_LEVEL_1 RK29_CAM_RESETACTIVE_L
 #define SENSOR_POWERDNACTIVE_LEVEL_1 RK29_CAM_POWERDNACTIVE_H
 #define SENSOR_FLASHACTIVE_LEVEL_1 RK29_CAM_FLASHACTIVE_L
-#endif 
+#endif
 
 static int rk29_sensor_io_init(void);
 static int rk29_sensor_io_deinit(int sensor);
@@ -1094,7 +1094,7 @@ static void rk29_backlight_close(void){
    gpio_direction_output(FB_DISPLAY_ON_PIN, 0);
    gpio_set_value(FB_DISPLAY_ON_PIN, GPIO_LOW);
    gpio_free(FB_DISPLAY_ON_PIN);
-   
+
    rk29_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
    ret = gpio_request(PWM_GPIO_PIN, NULL);
    if(ret != 0)
