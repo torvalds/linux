@@ -465,10 +465,24 @@ config ASUS_WMI
 	select LEDS_CLASS
 	select NEW_LEDS
 	---help---
-	  Say Y here if you have a WMI aware Asus laptop (like Eee PCs).
+	  Say Y here if you have a WMI aware Asus laptop (like Eee PCs or new
+	  Asus Notebooks).
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called asus-wmi.
+
+config ASUS_NB_WMI
+	tristate "Asus Notebook WMI Driver (EXPERIMENTAL)"
+	depends on ASUS_WMI
+	---help---
+	  This is a driver for newer Asus notebooks. It adds extra features
+	  like wireless radio and bluetooth control, leds, hotkeys, backlight...
+
+	  For more informations, see
+	  <file:Documentation/ABI/testing/sysfs-platform-asus-wmi>
+
+	  If you have an ACPI-WMI compatible Asus Notebook, say Y or M
+	  here.
 
 config EEEPC_WMI
 	tristate "Eee PC WMI Driver (EXPERIMENTAL)"
