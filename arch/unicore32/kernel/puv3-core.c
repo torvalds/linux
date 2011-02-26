@@ -93,6 +93,19 @@ static struct resource puv3_mmc_resources[] = {
 	},
 };
 
+static struct resource puv3_unigfx_resources[] = {
+	[0] = {
+		.start	= PKUNITY_UNIGFX_BASE,
+		.end	= PKUNITY_UNIGFX_BASE + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= PKUNITY_UNIGFX_MMAP_BASE,
+		.end	= PKUNITY_UNIGFX_MMAP_BASE + PKUNITY_UNIGFX_MMAP_SIZE,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
 static struct resource puv3_rtc_resources[] = {
 	[0] = {
 		.start = PKUNITY_RTC_BASE,
@@ -256,6 +269,8 @@ void __init puv3_core_init(void)
 			puv3_umal_resources, ARRAY_SIZE(puv3_umal_resources));
 	platform_device_register_simple("PKUnity-v3-MMC", -1,
 			puv3_mmc_resources, ARRAY_SIZE(puv3_mmc_resources));
+	platform_device_register_simple("PKUnity-v3-UNIGFX", -1,
+			puv3_unigfx_resources, ARRAY_SIZE(puv3_unigfx_resources));
 	platform_device_register_simple("PKUnity-v3-PWM", -1,
 			puv3_pwm_resources, ARRAY_SIZE(puv3_pwm_resources));
 	platform_device_register_simple("PKUnity-v3-UART", 0,
