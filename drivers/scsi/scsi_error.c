@@ -321,6 +321,12 @@ static int scsi_check_sense(struct scsi_cmnd *scmd)
 				    "changed. The Linux SCSI layer does not "
 				    "automatically adjust these parameters.\n");
 
+		if (sshdr.asc == 0x38 && sshdr.ascq == 0x07)
+			scmd_printk(KERN_WARNING, scmd,
+				    "Warning! Received an indication that the "
+				    "LUN reached a thin provisioning soft "
+				    "threshold.\n");
+
 		/*
 		 * Pass the UA upwards for a determination in the completion
 		 * functions.
