@@ -687,7 +687,7 @@ RK29_CAMERA_ACTIVE_ERR:
 
 static void rk29_camera_deactivate(struct rk29_camera_dev *pcdev)
 {
-    pcdev->active = NULL;
+    //pcdev->active = NULL;
 
     write_vip_reg(RK29_VIP_CTRL, 0);
     read_vip_reg(RK29_VIP_INT_STS);             //clear vip interrupte single
@@ -766,10 +766,17 @@ static void rk29_camera_remove_device(struct soc_camera_device *icd)
     struct rk29_camera_dev *pcdev = ici->priv;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 
+	mutex_lock(&camera_lock);
     BUG_ON(icd != pcdev->icd);
 
     dev_info(&icd->dev, "RK29 Camera driver detached from camera%d(%s)\n",
              icd->devnum,dev_name(icd->pdev));
+
+	/* ddl@rock-chips.com: Application will call VIDIOC_STREAMOFF before close device, but
+	   stream may be turn on again before close device, if suspend and resume happened. */
+	if (read_vip_reg(RK29_VIP_CTRL) & ENABLE_CAPTURE) {
+		rk29_camera_s_stream(icd,0);
+	}
 
     v4l2_subdev_call(sd, core, ioctl, RK29_CAM_SUBDEV_DEACTIVATE,NULL);
 	rk29_camera_deactivate(pcdev);
@@ -797,6 +804,8 @@ static void rk29_camera_remove_device(struct soc_camera_device *icd)
      * if app havn't dequeue all videobuf before close camera device;
 	*/
     INIT_LIST_HEAD(&pcdev->capture);
+
+	mutex_unlock(&camera_lock);
 	RK29CAMERA_DG("%s exit\n",__FUNCTION__);
 
 	return;
@@ -1239,10 +1248,14 @@ static int rk29_camera_suspend(struct soc_camera_device *icd, pm_message_t state
     struct soc_camera_host *ici =
                     to_soc_camera_host(icd->dev.parent);
     struct rk29_camera_dev *pcdev = ici->priv;
+	struct v4l2_subdev *sd;
     int ret = 0,tmp;
 
+	mutex_lock(&camera_lock);
 	if ((pcdev->icd == icd) && (icd->ops->suspend)) {
 		rk29_camera_s_stream(icd, 0);
+		sd = soc_camera_to_subdev(icd);
+		v4l2_subdev_call(sd, video, s_stream, 0);
 		ret = icd->ops->suspend(icd, state);
 
 		pcdev->reginfo_suspend.VipCtrl = read_vip_reg(RK29_VIP_CTRL);
@@ -1262,7 +1275,7 @@ static int rk29_camera_suspend(struct soc_camera_device *icd, pm_message_t state
 	} else {
 		RK29CAMERA_DG("%s icd has been deattach, don't need enter suspend\n", __FUNCTION__);
 	}
-
+	mutex_unlock(&camera_lock);
     return ret;
 }
 
@@ -1271,8 +1284,10 @@ static int rk29_camera_resume(struct soc_camera_device *icd)
     struct soc_camera_host *ici =
                     to_soc_camera_host(icd->dev.parent);
     struct rk29_camera_dev *pcdev = ici->priv;
+	struct v4l2_subdev *sd;
     int ret = 0;
 
+	mutex_lock(&camera_lock);
 	if ((pcdev->icd == icd) && (icd->ops->resume)) {
 		if (pcdev->reginfo_suspend.Inval == Reg_Validate) {
 			rk29_camera_activate(pcdev, icd);
@@ -1284,14 +1299,23 @@ static int rk29_camera_resume(struct soc_camera_device *icd)
 
 			rk29_videobuf_capture(pcdev->active);
 			rk29_camera_s_stream(icd, 1);
+			pcdev->reginfo_suspend.Inval = Reg_Invalidate;
+		} else {
+			RK29CAMERA_TR("Resume fail, vip register recored is invalidate!!\n");
+			goto rk29_camera_resume_end;
 		}
+
 		ret = icd->ops->resume(icd);
+		sd = soc_camera_to_subdev(icd);
+		v4l2_subdev_call(sd, video, s_stream, 1);
 
 		RK29CAMERA_DG("%s Enter success\n",__FUNCTION__);
 	} else {
 		RK29CAMERA_DG("%s icd has been deattach, don't need enter resume\n", __FUNCTION__);
 	}
 
+rk29_camera_resume_end:
+	mutex_unlock(&camera_lock);
     return ret;
 }
 
@@ -1303,7 +1327,8 @@ static void rk29_camera_reinit_work(struct work_struct *work)
 	const struct soc_camera_format_xlate *xlate;
 	int ret;
 
-	rk29_camera_s_stream(rk29_camdev_info_ptr->icd, 0);
+	write_vip_reg(RK29_VIP_CTRL, (read_vip_reg(RK29_VIP_CTRL)&(~ENABLE_CAPTURE)));
+
 	control = to_soc_camera_control(rk29_camdev_info_ptr->icd);
 	sd = dev_get_drvdata(control);
 	ret = v4l2_subdev_call(sd,core, init, 1);
@@ -1313,7 +1338,8 @@ static void rk29_camera_reinit_work(struct work_struct *work)
 	xlate = soc_camera_xlate_by_fourcc(rk29_camdev_info_ptr->icd, rk29_camdev_info_ptr->icd->current_fmt->fourcc);
 	cam_f.fmt.pix.pixelformat = xlate->cam_fmt->fourcc;
 	ret |= v4l2_subdev_call(sd, video, s_fmt, &cam_f);
-	rk29_camera_s_stream(rk29_camdev_info_ptr->icd, 1);
+
+	write_vip_reg(RK29_VIP_CTRL, (read_vip_reg(RK29_VIP_CTRL)|ENABLE_CAPTURE));
 
 	RK29CAMERA_TR("Camera host haven't recevie data from sensor,Reinit sensor now! ret:0x%x\n",ret);
 }
@@ -1333,6 +1359,7 @@ static int rk29_camera_s_stream(struct soc_camera_device *icd, int enable)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
     struct rk29_camera_dev *pcdev = ici->priv;
     int vip_ctrl_val;
+	int ret;
 
 	WARN_ON(pcdev->icd != icd);
 
@@ -1340,12 +1367,13 @@ static int rk29_camera_s_stream(struct soc_camera_device *icd, int enable)
 	if (enable) {
 		pcdev->fps = 0;
 		hrtimer_cancel(&pcdev->fps_timer);
-		hrtimer_start(&pcdev->fps_timer,ktime_set(1, 0),HRTIMER_MODE_REL);
-
+		hrtimer_start(&pcdev->fps_timer,ktime_set(2, 0),HRTIMER_MODE_REL);
 		vip_ctrl_val |= ENABLE_CAPTURE;
-
 	} else {
         vip_ctrl_val &= ~ENABLE_CAPTURE;
+		ret = hrtimer_cancel(&pcdev->fps_timer);
+		ret |= flush_work(&rk29_camdev_info_ptr->camera_reinit_work);
+		RK29CAMERA_DG("STREAM_OFF cancel timer and flush work:0x%x \n", ret);
 	}
 	write_vip_reg(RK29_VIP_CTRL, vip_ctrl_val);
 
@@ -1478,6 +1506,7 @@ static int rk29_camera_probe(struct platform_device *pdev)
 	pcdev->camera_wq = create_workqueue("camera wq");
 	if (pcdev->camera_wq == NULL)
 		goto exit_free_irq;
+	INIT_WORK(&pcdev->camera_reinit_work, rk29_camera_reinit_work);
 
     pcdev->soc_host.drv_name	= RK29_CAM_DRV_NAME;
     pcdev->soc_host.ops		= &rk29_soc_camera_host_ops;
