@@ -2714,7 +2714,8 @@ static int ext4_da_writepages_trans_blocks(struct inode *inode)
 /*
  * write_cache_pages_da - walk the list of dirty pages of the given
  * address space and accumulate pages that need writing, and call
- * mpage_da_map_and_submit to map the pages and then write them.
+ * mpage_da_map_and_submit to map a single contiguous memory region
+ * and then write them.
  */
 static int write_cache_pages_da(struct address_space *mapping,
 				struct writeback_control *wbc,
@@ -2722,7 +2723,7 @@ static int write_cache_pages_da(struct address_space *mapping,
 				pgoff_t *done_index)
 {
 	struct buffer_head	*bh, *head;
-	struct inode		*inode = mpd->inode;
+	struct inode		*inode = mapping->host;
 	struct pagevec		pvec;
 	unsigned int		nr_pages;
 	sector_t		logical;
@@ -2730,6 +2731,9 @@ static int write_cache_pages_da(struct address_space *mapping,
 	long			nr_to_write = wbc->nr_to_write;
 	int			i, tag, ret = 0;
 
+	memset(mpd, 0, sizeof(struct mpage_da_data));
+	mpd->wbc = wbc;
+	mpd->inode = inode;
 	pagevec_init(&pvec, 0);
 	index = wbc->range_start >> PAGE_CACHE_SHIFT;
 	end = wbc->range_end >> PAGE_CACHE_SHIFT;
@@ -2794,16 +2798,8 @@ static int write_cache_pages_da(struct address_space *mapping,
 
 			BUG_ON(PageWriteback(page));
 
-			if (mpd->next_page != page->index) {
-				/*
-				 * Start next extent of pages and blocks
-				 */
+			if (mpd->next_page != page->index)
 				mpd->first_page = page->index;
-				mpd->b_size = 0;
-				mpd->b_state = 0;
-				mpd->b_blocknr = 0;
-			}
-
 			mpd->next_page = page->index + 1;
 			logical = (sector_t) page->index <<
 				(PAGE_CACHE_SHIFT - inode->i_blkbits);
@@ -2975,9 +2971,6 @@ static int ext4_da_writepages(struct address_space *mapping,
 		wbc->nr_to_write = desired_nr_to_write;
 	}
 
-	mpd.wbc = wbc;
-	mpd.inode = mapping->host;
-
 retry:
 	if (wbc->sync_mode == WB_SYNC_ALL)
 		tag_pages_for_writeback(mapping, index, end);
@@ -3008,14 +3001,6 @@ retry:
 		 * contiguous region of logical blocks that need
 		 * blocks to be allocated by ext4 and submit them.
 		 */
-		mpd.b_size = 0;
-		mpd.b_state = 0;
-		mpd.b_blocknr = 0;
-		mpd.first_page = 0;
-		mpd.next_page = 0;
-		mpd.io_done = 0;
-		mpd.pages_written = 0;
-		mpd.retval = 0;
 		ret = write_cache_pages_da(mapping, wbc, &mpd, &done_index);
 		/*
 		 * If we have a contiguous extent of pages and we
