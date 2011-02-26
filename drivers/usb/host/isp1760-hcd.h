@@ -107,7 +107,6 @@ struct ptd {
 #define PAYLOAD_OFFSET		0x1000
 
 struct inter_packet_info {
-	void *data_buffer;
 #define PTD_FIRE_NEXT		(1 << 0)
 #define PTD_URB_FINISHED	(1 << 1)
 	struct isp1760_qh *qh;

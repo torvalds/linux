@@ -837,7 +837,6 @@ static void enqueue_one_atl_qtd(struct isp1760_hcd *priv,
 
 	priv->atl_ints[slot].qh = qh;
 	priv->atl_ints[slot].qtd = qtd;
-	priv->atl_ints[slot].data_buffer = qtd->data_buffer;
 	qtd->status |= URB_ENQUEUED;
 	qtd->status |= slot << 16;
 }
@@ -856,7 +855,6 @@ static void enqueue_one_int_qtd(struct isp1760_hcd *priv,
 
 	priv->int_ints[slot].qh = qh;
 	priv->int_ints[slot].qtd = qtd;
-	priv->int_ints[slot].data_buffer = qtd->data_buffer;
 	qtd->status |= URB_ENQUEUED;
 	qtd->status |= slot << 16;
 }
@@ -1147,8 +1145,7 @@ static void do_atl_int(struct usb_hcd *hcd)
 			switch (DW1_GET_PID(ptd.dw1)) {
 			case IN_PID:
 				mem_reads8(hcd->regs, qtd->payload_addr,
-					priv->atl_ints[queue_entry].data_buffer,
-					length);
+						qtd->data_buffer, length);
 
 			case OUT_PID:
 
@@ -1159,7 +1156,6 @@ static void do_atl_int(struct usb_hcd *hcd)
 			}
 		}
 
-		priv->atl_ints[queue_entry].data_buffer = NULL;
 		priv->atl_ints[queue_entry].qtd = NULL;
 		priv->atl_ints[queue_entry].qh = NULL;
 
@@ -1283,8 +1279,7 @@ static void do_intl_int(struct usb_hcd *hcd)
 			switch (DW1_GET_PID(ptd.dw1)) {
 			case IN_PID:
 				mem_reads8(hcd->regs, qtd->payload_addr,
-					priv->int_ints[queue_entry].data_buffer,
-					length);
+						qtd->data_buffer, length);
 			case OUT_PID:
 
 				urb->actual_length += length;
@@ -1294,7 +1289,6 @@ static void do_intl_int(struct usb_hcd *hcd)
 			}
 		}
 
-		priv->int_ints[queue_entry].data_buffer = NULL;
 		priv->int_ints[queue_entry].qtd = NULL;
 		priv->int_ints[queue_entry].qh = NULL;
 
@@ -1700,7 +1694,6 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 
 			ints->qh = NULL;
 			ints->qtd = NULL;
-			ints->data_buffer = NULL;
 
 			isp1760_urb_done(priv, urb, status);
 			if (qtd)
