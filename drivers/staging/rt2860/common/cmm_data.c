@@ -1481,7 +1481,7 @@ u32 deaggregate_AMSDU_announce(struct rt_rtmp_adapter *pAd,
 	return nMSDU;
 }
 
-u32 BA_Reorder_AMSDU_Annnounce(struct rt_rtmp_adapter *pAd, void *pPacket)
+u32 BA_Reorder_AMSDU_Announce(struct rt_rtmp_adapter *pAd, void *pPacket)
 {
 	u8 *pData;
 	u16 DataSize;
