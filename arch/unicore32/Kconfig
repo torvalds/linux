@@ -30,6 +30,9 @@ config GENERIC_CLOCKEVENTS
 config GENERIC_CSUM
 	def_bool y
 
+config GENERIC_IOMAP
+	def_bool y
+
 config NO_IOPORT
 	bool
 

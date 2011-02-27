@@ -3,7 +3,7 @@
 #
 
 obj-y				:= extable.o fault.o init.o pgd.o mmu.o
-obj-y				+= iomap.o flush.o ioremap.o
+obj-y				+= flush.o ioremap.o
 
 obj-$(CONFIG_SWIOTLB)		+= dma-swiotlb.o
 

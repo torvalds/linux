@@ -18,6 +18,7 @@
 #include <asm/memory.h>
 #include <asm/system.h>
 
+#define PCI_IOBASE	io_p2v(PKUNITY_PCILIO_BASE)
 #include <asm-generic/io.h>
 
 /*
@@ -38,15 +39,17 @@ extern void __uc32_iounmap(volatile void __iomem *addr);
 #define ioremap_cached(cookie, size)	__uc32_ioremap_cached(cookie, size)
 #define iounmap(cookie)			__uc32_iounmap(cookie)
 
-extern void __iomem *ioport_map(unsigned long port, unsigned int nr);
-extern void ioport_unmap(void __iomem *addr);
-
 /*
  * Convert a physical pointer to a virtual kernel pointer for /dev/mem
  * access
  */
 #undef xlate_dev_mem_ptr
 #define xlate_dev_mem_ptr(p)	__va(p)
+
+#define HAVE_ARCH_PIO_SIZE
+#define PIO_OFFSET		(unsigned int)(PCI_IOBASE)
+#define PIO_MASK		(unsigned int)(IO_SPACE_LIMIT)
+#define PIO_RESERVED		(PIO_OFFSET + PIO_MASK + 1)
 
 #endif	/* __KERNEL__ */
 #endif	/* __UNICORE_IO_H__ */
