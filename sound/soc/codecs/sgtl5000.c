@@ -27,7 +27,6 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
-#include <mach/hardware.h>
 
 #include "sgtl5000.h"
 

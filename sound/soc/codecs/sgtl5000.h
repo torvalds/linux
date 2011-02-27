@@ -11,8 +11,6 @@
 #ifndef _SGTL5000_H
 #define _SGTL5000_H
 
-#include <linux/i2c.h>
-
 /*
  * Register values.
  */
