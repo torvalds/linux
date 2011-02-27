@@ -201,9 +201,9 @@ struct ampdu_info *wlc_ampdu_attach(struct wlc_info *wlc)
 	ampdu->ffpld_rsvd = AMPDU_DEF_FFPLD_RSVD;
 	/* bump max ampdu rcv size to 64k for all 11n devices except 4321A0 and 4321A1 */
 	if (WLCISNPHY(wlc->band) && NREV_LT(wlc->band->phyrev, 2))
-		ampdu->rx_factor = AMPDU_RX_FACTOR_32K;
+		ampdu->rx_factor = IEEE80211_HT_MAX_AMPDU_32K;
 	else
-		ampdu->rx_factor = AMPDU_RX_FACTOR_64K;
+		ampdu->rx_factor = IEEE80211_HT_MAX_AMPDU_64K;
 	ampdu->retry_limit = AMPDU_DEF_RETRY_LIMIT;
 	ampdu->rr_retry_limit = AMPDU_DEF_RR_RETRY_LIMIT;
 
@@ -1340,8 +1340,8 @@ void wlc_ampdu_shm_upd(struct ampdu_info *ampdu)
 	struct wlc_info *wlc = ampdu->wlc;
 
 	/* Extend ucode internal watchdog timer to match larger received frames */
-	if ((ampdu->rx_factor & HT_PARAMS_RX_FACTOR_MASK) ==
-	    AMPDU_RX_FACTOR_64K) {
+	if ((ampdu->rx_factor & IEEE80211_HT_AMPDU_PARM_FACTOR) ==
+	    IEEE80211_HT_MAX_AMPDU_64K) {
 		wlc_write_shm(wlc, M_MIMO_MAXSYM, MIMO_MAXSYM_MAX);
 		wlc_write_shm(wlc, M_WATCHDOG_8TU, WATCHDOG_8TU_MAX);
 	} else {

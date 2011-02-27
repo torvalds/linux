@@ -142,9 +142,9 @@ struct rsn_parms {
 #define AMPDU_DEF_MPDU_DENSITY	6	/* default mpdu density (110 ==> 4us) */
 
 /* defaults for the HT (MIMO) bss */
-#define HT_CAP	((HT_CAP_MIMO_PS_OFF << IEEE80211_HT_CAP_SM_PS_SHIFT) |\
+#define HT_CAP	(IEEE80211_HT_CAP_SM_PS |\
 	IEEE80211_HT_CAP_SUP_WIDTH_20_40 | IEEE80211_HT_CAP_GRN_FLD |\
-	HT_CAP_MAX_AMSDU | IEEE80211_HT_CAP_DSSSCCK40)
+	IEEE80211_HT_CAP_MAX_AMSDU | IEEE80211_HT_CAP_DSSSCCK40)
 
 /* wlc internal bss_info, wl external one is in wlioctl.h */
 typedef struct wlc_bss_info {

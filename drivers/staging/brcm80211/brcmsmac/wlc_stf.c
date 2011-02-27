@@ -80,8 +80,8 @@ static void wlc_stf_stbc_rx_ht_update(struct wlc_info *wlc, int val)
 			return;
 	}
 
-	wlc->ht_cap.cap_info &= ~HT_CAP_RX_STBC_MASK;
-	wlc->ht_cap.cap_info |= (val << HT_CAP_RX_STBC_SHIFT);
+	wlc->ht_cap.cap_info &= ~IEEE80211_HT_CAP_RX_STBC;
+	wlc->ht_cap.cap_info |= (val << IEEE80211_HT_CAP_RX_STBC_SHIFT);
 
 	if (wlc->pub->up) {
 		wlc_update_beacon(wlc);

@@ -98,7 +98,7 @@ typedef struct wsec_key {
 	s8 icv_len;		/* ICV length */
 	u32 len;		/* key length..don't move this var */
 	/* data is 4byte aligned */
-	u8 data[DOT11_MAX_KEY_SIZE];	/* key data */
+	u8 data[WLAN_MAX_KEY_LEN];	/* key data */
 	wsec_iv_t rxiv[WLC_NUMRXIVS];	/* Rx IV (one per TID) */
 	wsec_iv_t txiv;		/* Tx IV */
 

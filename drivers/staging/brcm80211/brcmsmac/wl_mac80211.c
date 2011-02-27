@@ -595,7 +595,7 @@ wl_ops_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		  AMPDU_MAX_SCB_TID * PKTQ_LEN_DEFAULT);
 
 	sta->ht_cap.ht_supported = true;
-	sta->ht_cap.ampdu_factor = AMPDU_RX_FACTOR_64K;
+	sta->ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
 	sta->ht_cap.ampdu_density = AMPDU_DEF_MPDU_DENSITY;
 	sta->ht_cap.cap = IEEE80211_HT_CAP_GRN_FLD |
 	    IEEE80211_HT_CAP_SGI_20 |
@@ -989,7 +989,7 @@ static struct ieee80211_supported_band wl_band_2GHz_nphy = {
 		   IEEE80211_HT_CAP_SGI_20 |
 		   IEEE80211_HT_CAP_SGI_40 | IEEE80211_HT_CAP_40MHZ_INTOLERANT,
 		   .ht_supported = true,
-		   .ampdu_factor = AMPDU_RX_FACTOR_64K,
+		   .ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K,
 		   .ampdu_density = AMPDU_DEF_MPDU_DENSITY,
 		   .mcs = {
 			   /* placeholders for now */
@@ -1009,7 +1009,7 @@ static struct ieee80211_supported_band wl_band_5GHz_nphy = {
 		   /* use IEEE80211_HT_CAP_* from include/linux/ieee80211.h */
 		   .cap = IEEE80211_HT_CAP_GRN_FLD | IEEE80211_HT_CAP_SGI_20 | IEEE80211_HT_CAP_SGI_40 | IEEE80211_HT_CAP_40MHZ_INTOLERANT,	/* No 40 mhz yet */
 		   .ht_supported = true,
-		   .ampdu_factor = AMPDU_RX_FACTOR_64K,
+		   .ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K,
 		   .ampdu_density = AMPDU_DEF_MPDU_DENSITY,
 		   .mcs = {
 			   /* placeholders for now */

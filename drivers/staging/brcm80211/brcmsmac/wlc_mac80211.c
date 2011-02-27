@@ -8304,7 +8304,7 @@ void wlc_reset_bmac_done(struct wlc_info *wlc)
 
 void wlc_ht_mimops_cap_update(struct wlc_info *wlc, u8 mimops_mode)
 {
-	wlc->ht_cap.cap_info &= ~HT_CAP_MIMO_PS_MASK;
+	wlc->ht_cap.cap_info &= ~IEEE80211_HT_CAP_SM_PS;
 	wlc->ht_cap.cap_info |= (mimops_mode << IEEE80211_HT_CAP_SM_PS_SHIFT);
 
 	if (AP_ENAB(wlc->pub) && wlc->clk) {

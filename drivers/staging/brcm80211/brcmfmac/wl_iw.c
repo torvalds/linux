@@ -2435,7 +2435,7 @@ wl_iw_get_encode(struct net_device *dev,
 
 	wsec = le32_to_cpu(wsec);
 	auth = le32_to_cpu(auth);
-	dwrq->length = min_t(u16, DOT11_MAX_KEY_SIZE, key.len);
+	dwrq->length = min_t(u16, WLAN_MAX_KEY_LEN, key.len);
 
 	dwrq->flags = key.index + 1;
 	if (!(wsec & (WEP_ENABLED | TKIP_ENABLED | AES_ENABLED)))

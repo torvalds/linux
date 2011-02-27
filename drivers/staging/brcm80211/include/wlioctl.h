@@ -474,7 +474,7 @@ typedef struct wl_rm_rep {
 typedef struct wl_wsec_key {
 	u32 index;		/* key index */
 	u32 len;		/* key length */
-	u8 data[DOT11_MAX_KEY_SIZE];	/* key data */
+	u8 data[WLAN_MAX_KEY_LEN];	/* key data */
 	u32 pad_1[18];
 	u32 algo;		/* CRYPTO_ALGO_AES_CCM, CRYPTO_ALGO_WEP128, etc */
 	u32 flags;		/* misc flags */
