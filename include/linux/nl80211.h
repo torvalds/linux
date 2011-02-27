@@ -1243,6 +1243,8 @@ enum nl80211_rate_info {
  * @NL80211_STA_INFO_LLID: the station's mesh LLID
  * @NL80211_STA_INFO_PLID: the station's mesh PLID
  * @NL80211_STA_INFO_PLINK_STATE: peer link state for the station
+ * @NL80211_STA_INFO_RX_BITRATE: last unicast data frame rx rate, nested
+ *	attribute, like NL80211_STA_INFO_TX_BITRATE.
  * @__NL80211_STA_INFO_AFTER_LAST: internal
  * @NL80211_STA_INFO_MAX: highest possible station info attribute
  */
@@ -1261,6 +1263,7 @@ enum nl80211_sta_info {
 	NL80211_STA_INFO_TX_RETRIES,
 	NL80211_STA_INFO_TX_FAILED,
 	NL80211_STA_INFO_SIGNAL_AVG,
+	NL80211_STA_INFO_RX_BITRATE,
 
 	/* keep last */
 	__NL80211_STA_INFO_AFTER_LAST,
