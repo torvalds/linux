@@ -24,6 +24,3 @@ Interrupt chips
   Required property:
 
      compatible = "intel,ce4100-lapic";
-
-  This node is currently unused by Linux as the address of the local APIC
-  read from a MSR.
