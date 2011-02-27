@@ -28,6 +28,7 @@
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/card.h>
+#include <linux/mmc/host.h>
 #include <linux/gpio.h>
 #include <linux/wl12xx.h>
 #include <linux/pm_runtime.h>
@@ -163,8 +164,13 @@ static int wl1271_sdio_power_on(struct wl1271 *wl)
 	struct sdio_func *func = wl_to_func(wl);
 	int ret;
 
-	/* Power up the card */
+	/* Make sure the card will not be powered off by runtime PM */
 	ret = pm_runtime_get_sync(&func->dev);
+	if (ret < 0)
+		goto out;
+
+	/* Runtime PM might be disabled, so power up the card manually */
+	ret = mmc_power_restore_host(func->card->host);
 	if (ret < 0)
 		goto out;
 
@@ -179,12 +185,18 @@ out:
 static int wl1271_sdio_power_off(struct wl1271 *wl)
 {
 	struct sdio_func *func = wl_to_func(wl);
+	int ret;
 
 	sdio_claim_host(func);
 	sdio_disable_func(func);
 	sdio_release_host(func);
 
-	/* Power down the card */
+	/* Runtime PM might be disabled, so power off the card manually */
+	ret = mmc_power_save_host(func->card->host);
+	if (ret < 0)
+		return ret;
+
+	/* Let runtime PM know the card is powered off */
 	return pm_runtime_put_sync(&func->dev);
 }
 
