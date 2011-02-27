@@ -616,7 +616,7 @@ static int hub_port_disable(struct usb_hub *hub, int port1, int set_state)
 }
 
 /*
- * Disable a port and mark a logical connnect-change event, so that some
+ * Disable a port and mark a logical connect-change event, so that some
  * time later khubd will disconnect() any existing usb_device on the port
  * and will re-enumerate if there actually is a device attached.
  */
