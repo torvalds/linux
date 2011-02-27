@@ -1601,30 +1601,44 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct ath_hw *ah = priv->ah;
 	struct ath_common *common = ath9k_hw_common(ah);
+	bool set_assoc;
 
 	mutex_lock(&priv->mutex);
 	ath9k_htc_ps_wakeup(priv);
 
-	if (changed & BSS_CHANGED_ASSOC) {
-		common->curaid = bss_conf->assoc ?
-				 bss_conf->aid : 0;
-		ath_dbg(common, ATH_DBG_CONFIG, "BSS Changed ASSOC %d\n",
-			bss_conf->assoc);
+	/*
+	 * Set the HW AID/BSSID only for the first station interface
+	 * or in IBSS mode.
+	 */
+	set_assoc = !!((priv->ah->opmode == NL80211_IFTYPE_ADHOC) ||
+		       ((priv->ah->opmode == NL80211_IFTYPE_STATION) &&
+			(priv->num_sta_vif == 1)));
 
-		if (bss_conf->assoc)
-			ath9k_htc_start_ani(priv);
-		else
-			ath9k_htc_stop_ani(priv);
+
+	if (changed & BSS_CHANGED_ASSOC) {
+		if (set_assoc) {
+			ath_dbg(common, ATH_DBG_CONFIG, "BSS Changed ASSOC %d\n",
+				bss_conf->assoc);
+
+			common->curaid = bss_conf->assoc ?
+				bss_conf->aid : 0;
+
+			if (bss_conf->assoc)
+				ath9k_htc_start_ani(priv);
+			else
+				ath9k_htc_stop_ani(priv);
+		}
 	}
 
 	if (changed & BSS_CHANGED_BSSID) {
-		/* Set BSSID */
-		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
-		ath9k_hw_write_associd(ah);
+		if (set_assoc) {
+			memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
+			ath9k_hw_write_associd(ah);
 
-		ath_dbg(common, ATH_DBG_CONFIG,
-			"BSSID: %pM aid: 0x%x\n",
-			common->curbssid, common->curaid);
+			ath_dbg(common, ATH_DBG_CONFIG,
+				"BSSID: %pM aid: 0x%x\n",
+				common->curbssid, common->curaid);
+		}
 	}
 
 	if ((changed & BSS_CHANGED_BEACON_ENABLED) && bss_conf->enable_beacon) {

@@ -243,6 +243,7 @@ struct ath9k_htc_target_stats {
 struct ath9k_htc_vif {
 	u8 index;
 	u16 seq_no;
+	bool beacon_configured;
 };
 
 struct ath9k_vif_iter_data {
