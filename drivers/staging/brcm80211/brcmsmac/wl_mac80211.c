@@ -149,7 +149,8 @@ static int wl_ops_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 static int wl_ops_ampdu_action(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       enum ieee80211_ampdu_mlme_action action,
-			       struct ieee80211_sta *sta, u16 tid, u16 *ssn);
+			       struct ieee80211_sta *sta, u16 tid, u16 *ssn,
+			       u8 buf_size);
 static void wl_ops_rfkill_poll(struct ieee80211_hw *hw);
 
 static int wl_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
@@ -617,7 +618,8 @@ static int
 wl_ops_ampdu_action(struct ieee80211_hw *hw,
 		    struct ieee80211_vif *vif,
 		    enum ieee80211_ampdu_mlme_action action,
-		    struct ieee80211_sta *sta, u16 tid, u16 *ssn)
+		    struct ieee80211_sta *sta, u16 tid, u16 *ssn,
+		    u8 buf_size)
 {
 #if defined(BCMDBG)
 	struct scb *scb = (struct scb *)sta->drv_priv;
