@@ -1220,9 +1220,20 @@ static int ds3000_set_frontend(struct dvb_frontend *fe,
 }
 
 static int ds3000_tune(struct dvb_frontend *fe,
-			struct dvb_frontend_parameters *p)
+			struct dvb_frontend_parameters *p,
+			unsigned int mode_flags,
+			unsigned int *delay,
+			fe_status_t *status)
 {
-	return ds3000_set_frontend(fe, p);
+	if (p) {
+		int ret = ds3000_set_frontend(fe, p);
+		if (ret)
+			return ret;
+	}
+
+	*delay = HZ / 5;
+
+	return ds3000_read_status(fe, status);
 }
 
 static enum dvbfe_algo ds3000_get_algo(struct dvb_frontend *fe)
