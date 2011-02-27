@@ -145,7 +145,6 @@ static DEFINE_SPINLOCK(file_lock_lock);
 
 /*
  * Protects the two list heads above, plus the inode->i_flock list
- * FIXME: should use a spinlock, once lockd and ceph are ready.
  */
 void lock_flocks(void)
 {
