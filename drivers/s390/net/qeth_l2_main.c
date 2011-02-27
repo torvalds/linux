@@ -202,17 +202,19 @@ static void qeth_l2_add_mc(struct qeth_card *card, __u8 *mac, int vmac)
 		kfree(mc);
 }
 
-static void qeth_l2_del_all_mc(struct qeth_card *card)
+static void qeth_l2_del_all_mc(struct qeth_card *card, int del)
 {
 	struct qeth_mc_mac *mc, *tmp;
 
 	spin_lock_bh(&card->mclock);
 	list_for_each_entry_safe(mc, tmp, &card->mc_list, list) {
-		if (mc->is_vmac)
-			qeth_l2_send_setdelmac(card, mc->mc_addr,
+		if (del) {
+			if (mc->is_vmac)
+				qeth_l2_send_setdelmac(card, mc->mc_addr,
 					IPA_CMD_DELVMAC, NULL);
-		else
-			qeth_l2_send_delgroupmac(card, mc->mc_addr);
+			else
+				qeth_l2_send_delgroupmac(card, mc->mc_addr);
+		}
 		list_del(&mc->list);
 		kfree(mc);
 	}
@@ -288,18 +290,13 @@ static int qeth_l2_send_setdelvlan(struct qeth_card *card, __u16 i,
 				 qeth_l2_send_setdelvlan_cb, NULL);
 }
 
-static void qeth_l2_process_vlans(struct qeth_card *card, int clear)
+static void qeth_l2_process_vlans(struct qeth_card *card)
 {
 	struct qeth_vlan_vid *id;
 	QETH_CARD_TEXT(card, 3, "L2prcvln");
 	spin_lock_bh(&card->vlanlock);
 	list_for_each_entry(id, &card->vid_list, list) {
-		if (clear)
-			qeth_l2_send_setdelvlan(card, id->vid,
-				IPA_CMD_DELVLAN);
-		else
-			qeth_l2_send_setdelvlan(card, id->vid,
-				IPA_CMD_SETVLAN);
+		qeth_l2_send_setdelvlan(card, id->vid, IPA_CMD_SETVLAN);
 	}
 	spin_unlock_bh(&card->vlanlock);
 }
@@ -379,19 +376,11 @@ static int qeth_l2_stop_card(struct qeth_card *card, int recovery_mode)
 			dev_close(card->dev);
 			rtnl_unlock();
 		}
-		if (!card->use_hard_stop ||
-			recovery_mode) {
-			__u8 *mac = &card->dev->dev_addr[0];
-			rc = qeth_l2_send_delmac(card, mac);
-			QETH_DBF_TEXT_(SETUP, 2, "Lerr%d", rc);
-		}
+		card->info.mac_bits &= ~QETH_LAYER2_MAC_REGISTERED;
 		card->state = CARD_STATE_SOFTSETUP;
 	}
 	if (card->state == CARD_STATE_SOFTSETUP) {
-		qeth_l2_process_vlans(card, 1);
-		if (!card->use_hard_stop ||
-			recovery_mode)
-			qeth_l2_del_all_mc(card);
+		qeth_l2_del_all_mc(card, 0);
 		qeth_clear_ipacmd_list(card);
 		card->state = CARD_STATE_HARDSETUP;
 	}
@@ -405,7 +394,6 @@ static int qeth_l2_stop_card(struct qeth_card *card, int recovery_mode)
 		qeth_clear_cmd_buffers(&card->read);
 		qeth_clear_cmd_buffers(&card->write);
 	}
-	card->use_hard_stop = 0;
 	return rc;
 }
 
@@ -705,7 +693,7 @@ static void qeth_l2_set_multicast_list(struct net_device *dev)
 	if (qeth_threads_running(card, QETH_RECOVER_THREAD) &&
 	    (card->state != CARD_STATE_UP))
 		return;
-	qeth_l2_del_all_mc(card);
+	qeth_l2_del_all_mc(card, 1);
 	spin_lock_bh(&card->mclock);
 	netdev_for_each_mc_addr(ha, dev)
 		qeth_l2_add_mc(card, ha->addr, 0);
@@ -907,10 +895,8 @@ static void qeth_l2_remove_device(struct ccwgroup_device *cgdev)
 	qeth_set_allowed_threads(card, 0, 1);
 	wait_event(card->wait_q, qeth_threads_running(card, 0xffffffff) == 0);
 
-	if (cgdev->state == CCWGROUP_ONLINE) {
-		card->use_hard_stop = 1;
+	if (cgdev->state == CCWGROUP_ONLINE)
 		qeth_l2_set_offline(cgdev);
-	}
 
 	if (card->dev) {
 		unregister_netdev(card->dev);
@@ -1040,7 +1026,7 @@ contin:
 
 	if (card->info.type != QETH_CARD_TYPE_OSN &&
 	    card->info.type != QETH_CARD_TYPE_OSM)
-		qeth_l2_process_vlans(card, 0);
+		qeth_l2_process_vlans(card);
 
 	netif_tx_disable(card->dev);
 
@@ -1076,7 +1062,6 @@ contin:
 	return 0;
 
 out_remove:
-	card->use_hard_stop = 1;
 	qeth_l2_stop_card(card, 0);
 	ccw_device_set_offline(CARD_DDEV(card));
 	ccw_device_set_offline(CARD_WDEV(card));
@@ -1144,7 +1129,6 @@ static int qeth_l2_recover(void *ptr)
 	QETH_CARD_TEXT(card, 2, "recover2");
 	dev_warn(&card->gdev->dev,
 		"A recovery process has been started for the device\n");
-	card->use_hard_stop = 1;
 	__qeth_l2_set_offline(card->gdev, 1);
 	rc = __qeth_l2_set_online(card->gdev, 1);
 	if (!rc)
@@ -1191,7 +1175,6 @@ static int qeth_l2_pm_suspend(struct ccwgroup_device *gdev)
 	if (gdev->state == CCWGROUP_OFFLINE)
 		return 0;
 	if (card->state == CARD_STATE_UP) {
-		card->use_hard_stop = 1;
 		__qeth_l2_set_offline(card->gdev, 1);
 	} else
 		__qeth_l2_set_offline(card->gdev, 0);
