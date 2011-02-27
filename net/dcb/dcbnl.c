@@ -1224,7 +1224,9 @@ err:
 	return err;
 }
 
-static int dcbnl_build_peer_app(struct net_device *netdev, struct sk_buff* skb)
+static int dcbnl_build_peer_app(struct net_device *netdev, struct sk_buff* skb,
+				int app_nested_type, int app_info_type,
+				int app_entry_type)
 {
 	struct dcb_peer_app_info info;
 	struct dcb_app *table = NULL;
@@ -1256,12 +1258,15 @@ static int dcbnl_build_peer_app(struct net_device *netdev, struct sk_buff* skb)
 		 */
 		err = -EMSGSIZE;
 
-		app = nla_nest_start(skb, DCB_ATTR_IEEE_PEER_APP);
+		app = nla_nest_start(skb, app_nested_type);
 		if (!app)
 			goto nla_put_failure;
 
+		if (app_info_type)
+			NLA_PUT(skb, app_info_type, sizeof(info), &info);
+
 		for (i = 0; i < app_count; i++)
-			NLA_PUT(skb, DCB_ATTR_IEEE_APP, sizeof(struct dcb_app),
+			NLA_PUT(skb, app_entry_type, sizeof(struct dcb_app),
 				&table[i]);
 
 		nla_nest_end(skb, app);
@@ -1352,7 +1357,10 @@ static int dcbnl_ieee_get(struct net_device *netdev, struct nlattr **tb,
 	}
 
 	if (ops->peer_getappinfo && ops->peer_getapptable) {
-		err = dcbnl_build_peer_app(netdev, skb);
+		err = dcbnl_build_peer_app(netdev, skb,
+					   DCB_ATTR_IEEE_PEER_APP,
+					   DCB_ATTR_IEEE_APP_UNSPEC,
+					   DCB_ATTR_IEEE_APP);
 		if (err)
 			goto nla_put_failure;
 	}
@@ -1510,6 +1518,71 @@ err:
 	return ret;
 }
 
+/* Handle CEE DCBX GET commands. */
+static int dcbnl_cee_get(struct net_device *netdev, struct nlattr **tb,
+			 u32 pid, u32 seq, u16 flags)
+{
+	struct sk_buff *skb;
+	struct nlmsghdr *nlh;
+	struct dcbmsg *dcb;
+	struct nlattr *cee;
+	const struct dcbnl_rtnl_ops *ops = netdev->dcbnl_ops;
+	int err;
+
+	if (!ops)
+		return -EOPNOTSUPP;
+
+	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	nlh = NLMSG_NEW(skb, pid, seq, RTM_GETDCB, sizeof(*dcb), flags);
+
+	dcb = NLMSG_DATA(nlh);
+	dcb->dcb_family = AF_UNSPEC;
+	dcb->cmd = DCB_CMD_CEE_GET;
+
+	NLA_PUT_STRING(skb, DCB_ATTR_IFNAME, netdev->name);
+
+	cee = nla_nest_start(skb, DCB_ATTR_CEE);
+	if (!cee)
+		goto nla_put_failure;
+
+	/* get peer info if available */
+	if (ops->cee_peer_getpg) {
+		struct cee_pg pg;
+		err = ops->cee_peer_getpg(netdev, &pg);
+		if (!err)
+			NLA_PUT(skb, DCB_ATTR_CEE_PEER_PG, sizeof(pg), &pg);
+	}
+
+	if (ops->cee_peer_getpfc) {
+		struct cee_pfc pfc;
+		err = ops->cee_peer_getpfc(netdev, &pfc);
+		if (!err)
+			NLA_PUT(skb, DCB_ATTR_CEE_PEER_PFC, sizeof(pfc), &pfc);
+	}
+
+	if (ops->peer_getappinfo && ops->peer_getapptable) {
+		err = dcbnl_build_peer_app(netdev, skb,
+					   DCB_ATTR_CEE_PEER_APP_TABLE,
+					   DCB_ATTR_CEE_PEER_APP_INFO,
+					   DCB_ATTR_CEE_PEER_APP);
+		if (err)
+			goto nla_put_failure;
+	}
+
+	nla_nest_end(skb, cee);
+	nlmsg_end(skb, nlh);
+
+	return rtnl_unicast(skb, &init_net, pid);
+nla_put_failure:
+	nlmsg_cancel(skb, nlh);
+nlmsg_failure:
+	kfree_skb(skb);
+	return -1;
+}
+
 static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct net *net = sock_net(skb->sk);
@@ -1638,6 +1711,10 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	case DCB_CMD_SFEATCFG:
 		ret = dcbnl_setfeatcfg(netdev, tb, pid, nlh->nlmsg_seq,
 				       nlh->nlmsg_flags);
+		goto out;
+	case DCB_CMD_CEE_GET:
+		ret = dcbnl_cee_get(netdev, tb, pid, nlh->nlmsg_seq,
+				    nlh->nlmsg_flags);
 		goto out;
 	default:
 		goto errout;

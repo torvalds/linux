@@ -84,6 +84,9 @@ struct dcbnl_rtnl_ops {
 			       u16 *);
 	int (*peer_getapptable)(struct net_device *, struct dcb_app *);
 
+	/* CEE peer */
+	int (*cee_peer_getpg) (struct net_device *, struct cee_pg *);
+	int (*cee_peer_getpfc) (struct net_device *, struct cee_pfc *);
 };
 
 #endif /* __NET_DCBNL_H__ */
