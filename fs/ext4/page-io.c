@@ -381,8 +381,6 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 
 	BUG_ON(!PageLocked(page));
 	BUG_ON(PageWriteback(page));
-	set_page_writeback(page);
-	ClearPageError(page);
 
 	io_page = kmem_cache_alloc(io_page_cachep, GFP_NOFS);
 	if (!io_page) {
@@ -393,6 +391,8 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 	io_page->p_page = page;
 	atomic_set(&io_page->p_count, 1);
 	get_page(page);
+	set_page_writeback(page);
+	ClearPageError(page);
 
 	for (bh = head = page_buffers(page), block_start = 0;
 	     bh != head || !block_start;
