@@ -687,16 +687,30 @@ void wl1271_tx_reset(struct wl1271 *wl)
 	 */
 	wl1271_handle_tx_low_watermark(wl);
 
-	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)
-		if (wl->tx_frames[i] != NULL) {
-			skb = wl->tx_frames[i];
-			wl1271_free_tx_id(wl, i);
-			wl1271_debug(DEBUG_TX, "freeing skb 0x%p", skb);
-			info = IEEE80211_SKB_CB(skb);
-			info->status.rates[0].idx = -1;
-			info->status.rates[0].count = 0;
-			ieee80211_tx_status(wl->hw, skb);
+	for (i = 0; i < ACX_TX_DESCRIPTORS; i++) {
+		if (wl->tx_frames[i] == NULL)
+			continue;
+
+		skb = wl->tx_frames[i];
+		wl1271_free_tx_id(wl, i);
+		wl1271_debug(DEBUG_TX, "freeing skb 0x%p", skb);
+
+		/* Remove private headers before passing the skb to mac80211 */
+		info = IEEE80211_SKB_CB(skb);
+		skb_pull(skb, sizeof(struct wl1271_tx_hw_descr));
+		if (info->control.hw_key &&
+		    info->control.hw_key->cipher == WLAN_CIPHER_SUITE_TKIP) {
+			int hdrlen = ieee80211_get_hdrlen_from_skb(skb);
+			memmove(skb->data + WL1271_TKIP_IV_SPACE, skb->data,
+				hdrlen);
+			skb_pull(skb, WL1271_TKIP_IV_SPACE);
 		}
+
+		info->status.rates[0].idx = -1;
+		info->status.rates[0].count = 0;
+
+		ieee80211_tx_status(wl->hw, skb);
+	}
 }
 
 #define WL1271_TX_FLUSH_TIMEOUT 500000
