@@ -632,9 +632,9 @@ static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 
 	case WLC_E_AUTH:
 	case WLC_E_AUTH_IND:
-		if (auth_type == DOT11_OPEN_SYSTEM)
+		if (auth_type == WLAN_AUTH_OPEN)
 			auth_str = "Open System";
-		else if (auth_type == DOT11_SHARED_KEY)
+		else if (auth_type == WLAN_AUTH_SHARED_KEY)
 			auth_str = "Shared Key";
 		else {
 			sprintf(err_msg, "AUTH unknown: %d", (int)auth_type);
@@ -1807,7 +1807,7 @@ dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t *ssids_local, int nssid, unsigned char sc
 	for (i = 0; i < nssid; i++) {
 
 		pfn_element.bss_type = DOT11_BSSTYPE_INFRASTRUCTURE;
-		pfn_element.auth = DOT11_OPEN_SYSTEM;
+		pfn_element.auth = WLAN_AUTH_OPEN;
 		pfn_element.wpa_auth = WPA_AUTH_PFN_ANY;
 		pfn_element.wsec = 0;
 		pfn_element.infra = 1;

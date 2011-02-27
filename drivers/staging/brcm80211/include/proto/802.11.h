@@ -48,8 +48,6 @@
 #define DOT11_BA_BITMAP_LEN		128
 #define DOT11_BA_LEN		4
 
-#define DOT11_MGMT_HDR_LEN      24
-
 #define WME_OUI			"\x00\x50\xf2"
 #define WME_VER			1
 #define WME_TYPE		2
@@ -113,9 +111,6 @@ typedef struct wme_param_ie wme_param_ie_t;
 #define EDCF_AC_VO_TXOP_STA          0x002f
 
 #define EDCF_AC_VO_TXOP_AP           0x002f
-
-#define DOT11_OPEN_SYSTEM	0
-#define DOT11_SHARED_KEY	1
 
 #define SEQNUM_SHIFT		4
 #define SEQNUM_MAX		0x1000
