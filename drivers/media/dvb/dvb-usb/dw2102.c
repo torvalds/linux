@@ -564,14 +564,15 @@ static int s6x0_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 					i += 16;
 					len -= 16;
 				} while (len > 0);
-			} else if ((udev->descriptor.idProduct == 0x7500)
-					&& (j < (num - 1))) {
+			} else if (j < (num - 1)) {
 				/* write register addr before read */
 				u8 obuf[msg[j].len + 2];
 				obuf[0] = msg[j + 1].len;
 				obuf[1] = (msg[j].addr << 1);
 				memcpy(obuf + 2, msg[j].buf, msg[j].len);
-				ret = dw210x_op_rw(d->udev, 0x92, 0, 0,
+				ret = dw210x_op_rw(d->udev,
+						udev->descriptor.idProduct ==
+						0x7500 ? 0x92 : 0x90, 0, 0,
 						obuf, msg[j].len + 2,
 						DW210X_WRITE_MSG);
 				break;
@@ -581,8 +582,7 @@ static int s6x0_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 				obuf[0] = msg[j].len + 1;
 				obuf[1] = (msg[j].addr << 1);
 				memcpy(obuf + 2, msg[j].buf, msg[j].len);
-				ret = dw210x_op_rw(d->udev,
-						(num > 1 ? 0x90 : 0x80), 0, 0,
+				ret = dw210x_op_rw(d->udev, 0x80, 0, 0,
 						obuf, msg[j].len + 2,
 						DW210X_WRITE_MSG);
 				break;
