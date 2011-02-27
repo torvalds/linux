@@ -412,7 +412,7 @@ int snd_seq_get_port_info(struct snd_seq_client_port * port,
  * initialization or termination of devices (see seq_midi.c).
  *
  * If callback_all option is set, the callback function is invoked
- * at each connnection/disconnection. 
+ * at each connection/disconnection. 
  */
 
 static int subscribe_port(struct snd_seq_client *client,
