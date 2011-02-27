@@ -438,16 +438,6 @@ static inline void msg_set_nametype(struct tipc_msg *m, u32 n)
 	msg_set_word(m, 8, n);
 }
 
-static inline void msg_set_timestamp(struct tipc_msg *m, u32 n)
-{
-	msg_set_word(m, 8, n);
-}
-
-static inline u32 msg_timestamp(struct tipc_msg *m)
-{
-	return msg_word(m, 8);
-}
-
 static inline u32 msg_nameinst(struct tipc_msg *m)
 {
 	return msg_word(m, 9);

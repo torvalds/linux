@@ -1977,7 +1977,6 @@ void tipc_link_send_proto_msg(struct link *l_ptr, u32 msg_typ, int probe_msg,
 		skb_copy_to_linear_data(buf, msg, sizeof(l_ptr->proto_msg));
 		return;
 	}
-	msg_set_timestamp(msg, jiffies_to_msecs(jiffies));
 
 	/* Message can be sent */
 
