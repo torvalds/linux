@@ -590,8 +590,6 @@ static int s6x0_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			break;
 		}
 		}
-
-		msleep(3);
 	}
 
 	mutex_unlock(&d->i2c_mutex);
