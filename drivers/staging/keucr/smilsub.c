@@ -79,7 +79,7 @@ int Check_D_FailBlock(BYTE *redundant)
 		return(SUCCESS);
 	if (!*redundant)
 		return(ERROR);
-	if (Bit_D_Count(*redundant)<7)
+	if (hweight8(*redundant)<7)
 		return(ERROR);
 
 	return(SUCCESS);
@@ -100,7 +100,7 @@ int Check_D_DataStatus(BYTE *redundant)
 	else
 		ErrXDCode = NO_ERROR;
 
-	if (Bit_D_Count(*redundant)<5)
+	if (hweight8(*redundant)<5)
 		return(ERROR);
 
 	return(SUCCESS);
@@ -120,14 +120,14 @@ int Load_D_LogBlockAddr(BYTE *redundant)
 		if ((addr1 &0xF000)==0x1000)
 		{ Media.LogBlock=(addr1 &0x0FFF)/2; return(SUCCESS); }
 
-	if (Bit_D_CountWord((WORD)(addr1^addr2))!=0x01) return(ERROR);
+	if (hweight16((WORD)(addr1^addr2))!=0x01) return(ERROR);
 
 	if ((addr1 &0xF000)==0x1000)
-		if (!(Bit_D_CountWord(addr1) &0x01))
+		if (!(hweight16(addr1) &0x01))
 		{ Media.LogBlock=(addr1 &0x0FFF)/2; return(SUCCESS); }
 
 	if ((addr2 &0xF000)==0x1000)
-		if (!(Bit_D_CountWord(addr2) &0x01))
+		if (!(hweight16(addr2) &0x01))
 		{ Media.LogBlock=(addr2 &0x0FFF)/2; return(SUCCESS); }
 
 	return(ERROR);
@@ -151,7 +151,7 @@ void Set_D_LogBlockAddr(BYTE *redundant)
 	*(redundant+REDT_DATA) =0xFF;
 	addr=Media.LogBlock*2+0x1000;
 
-	if ((Bit_D_CountWord(addr)%2))
+	if ((hweight16(addr)%2))
 		addr++;
 
 	*(redundant+REDT_ADDR1H)=*(redundant+REDT_ADDR2H)=(BYTE)(addr/0x0100);
@@ -1549,31 +1549,6 @@ void Set_D_RightECC(BYTE *redundant)
 //    StringCopy((char *)(redundant+0x08),(char *)(EccBuf+0x03),3);
 //}
 */
-//Common Subroutine
-char Bit_D_Count(BYTE cdata)
-{
-    WORD bitcount=0;
-
-    while(cdata) {
-        bitcount+=(WORD)(cdata &0x01);
-        cdata /=2;
-    }
-
-    return((char)bitcount);
-}
-
-//-----
-char Bit_D_CountWord(WORD cdata)
-{
-    WORD bitcount=0;
-
-    while(cdata) {
-        bitcount+=(cdata &0x01);
-        cdata /=2;
-    }
-
-    return((char)bitcount);
-}
 
 /*
 //----- SM_ReadBlock() ---------------------------------------------
