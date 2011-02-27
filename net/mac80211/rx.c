@@ -1156,14 +1156,23 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	if (rx->sdata->vif.type == NL80211_IFTYPE_ADHOC) {
 		u8 *bssid = ieee80211_get_bssid(hdr, rx->skb->len,
 						NL80211_IFTYPE_ADHOC);
-		if (compare_ether_addr(bssid, rx->sdata->u.ibss.bssid) == 0)
+		if (compare_ether_addr(bssid, rx->sdata->u.ibss.bssid) == 0) {
 			sta->last_rx = jiffies;
+			if (ieee80211_is_data(hdr->frame_control)) {
+				sta->last_rx_rate_idx = status->rate_idx;
+				sta->last_rx_rate_flag = status->flag;
+			}
+		}
 	} else if (!is_multicast_ether_addr(hdr->addr1)) {
 		/*
 		 * Mesh beacons will update last_rx when if they are found to
 		 * match the current local configuration when processed.
 		 */
 		sta->last_rx = jiffies;
+		if (ieee80211_is_data(hdr->frame_control)) {
+			sta->last_rx_rate_idx = status->rate_idx;
+			sta->last_rx_rate_flag = status->flag;
+		}
 	}
 
 	if (!(status->rx_flags & IEEE80211_RX_RA_MATCH))
