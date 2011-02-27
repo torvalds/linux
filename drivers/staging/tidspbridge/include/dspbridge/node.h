@@ -116,7 +116,7 @@ extern int node_change_priority(struct node_object *hnode, s32 prio);
  *  ======== node_connect ========
  *  Purpose:
  *      Connect two nodes on the DSP, or a node on the DSP to the GPP. In the
- *      case that the connnection is being made between a node on the DSP and
+ *      case that the connection is being made between a node on the DSP and
  *      the GPP, one of the node handles (either node1 or node2) must be
  *      the constant NODE_HGPPNODE.
  *  Parameters:
