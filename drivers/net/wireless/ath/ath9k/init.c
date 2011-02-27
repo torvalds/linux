@@ -140,6 +140,21 @@ static struct ieee80211_rate ath9k_legacy_rates[] = {
 	RATE(540, 0x0c, 0),
 };
 
+#ifdef CONFIG_MAC80211_LEDS
+static const struct ieee80211_tpt_blink ath9k_tpt_blink[] = {
+	{ .throughput = 0 * 1024, .blink_time = 334 },
+	{ .throughput = 1 * 1024, .blink_time = 260 },
+	{ .throughput = 5 * 1024, .blink_time = 220 },
+	{ .throughput = 10 * 1024, .blink_time = 190 },
+	{ .throughput = 20 * 1024, .blink_time = 170 },
+	{ .throughput = 50 * 1024, .blink_time = 150 },
+	{ .throughput = 70 * 1024, .blink_time = 130 },
+	{ .throughput = 100 * 1024, .blink_time = 110 },
+	{ .throughput = 200 * 1024, .blink_time = 80 },
+	{ .throughput = 300 * 1024, .blink_time = 50 },
+};
+#endif
+
 static void ath9k_deinit_softc(struct ath_softc *sc);
 
 /*
@@ -730,6 +745,13 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 		goto error_rx;
 
 	ath9k_init_txpower_limits(sc);
+
+#ifdef CONFIG_MAC80211_LEDS
+	/* must be initialized before ieee80211_register_hw */
+	sc->led_cdev.default_trigger = ieee80211_create_tpt_led_trigger(sc->hw,
+		IEEE80211_TPT_LEDTRIG_FL_RADIO, ath9k_tpt_blink,
+		ARRAY_SIZE(ath9k_tpt_blink));
+#endif
 
 	/* Register with mac80211 */
 	error = ieee80211_register_hw(hw);
