@@ -351,7 +351,7 @@ static inline void vb2_set_plane_payload(struct vb2_buffer *vb,
 }
 
 /**
- * vb2_get_plane_payload() - set bytesused for the plane plane_no
+ * vb2_get_plane_payload() - get bytesused for the plane plane_no
  * @vb:		buffer for which plane payload should be set
  * @plane_no:	plane number for which payload should be set
  * @size:	payload in bytes
