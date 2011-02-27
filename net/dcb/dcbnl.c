@@ -1224,6 +1224,54 @@ err:
 	return err;
 }
 
+static int dcbnl_build_peer_app(struct net_device *netdev, struct sk_buff* skb)
+{
+	struct dcb_peer_app_info info;
+	struct dcb_app *table = NULL;
+	const struct dcbnl_rtnl_ops *ops = netdev->dcbnl_ops;
+	u16 app_count;
+	int err;
+
+
+	/**
+	 * retrieve the peer app configuration form the driver. If the driver
+	 * handlers fail exit without doing anything
+	 */
+	err = ops->peer_getappinfo(netdev, &info, &app_count);
+	if (!err && app_count) {
+		table = kmalloc(sizeof(struct dcb_app) * app_count, GFP_KERNEL);
+		if (!table)
+			return -ENOMEM;
+
+		err = ops->peer_getapptable(netdev, table);
+	}
+
+	if (!err) {
+		u16 i;
+		struct nlattr *app;
+
+		/**
+		 * build the message, from here on the only possible failure
+		 * is due to the skb size
+		 */
+		err = -EMSGSIZE;
+
+		app = nla_nest_start(skb, DCB_ATTR_IEEE_PEER_APP);
+		if (!app)
+			goto nla_put_failure;
+
+		for (i = 0; i < app_count; i++)
+			NLA_PUT(skb, DCB_ATTR_IEEE_APP, sizeof(struct dcb_app),
+				&table[i]);
+
+		nla_nest_end(skb, app);
+	}
+	err = 0;
+
+nla_put_failure:
+	kfree(table);
+	return err;
+}
 
 /* Handle IEEE 802.1Qaz GET commands. */
 static int dcbnl_ieee_get(struct net_device *netdev, struct nlattr **tb,
@@ -1287,6 +1335,27 @@ static int dcbnl_ieee_get(struct net_device *netdev, struct nlattr **tb,
 	}
 	spin_unlock(&dcb_lock);
 	nla_nest_end(skb, app);
+
+	/* get peer info if available */
+	if (ops->ieee_peer_getets) {
+		struct ieee_ets ets;
+		err = ops->ieee_peer_getets(netdev, &ets);
+		if (!err)
+			NLA_PUT(skb, DCB_ATTR_IEEE_PEER_ETS, sizeof(ets), &ets);
+	}
+
+	if (ops->ieee_peer_getpfc) {
+		struct ieee_pfc pfc;
+		err = ops->ieee_peer_getpfc(netdev, &pfc);
+		if (!err)
+			NLA_PUT(skb, DCB_ATTR_IEEE_PEER_PFC, sizeof(pfc), &pfc);
+	}
+
+	if (ops->peer_getappinfo && ops->peer_getapptable) {
+		err = dcbnl_build_peer_app(netdev, skb);
+		if (err)
+			goto nla_put_failure;
+	}
 
 	nla_nest_end(skb, ieee);
 	nlmsg_end(skb, nlh);

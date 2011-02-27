@@ -110,6 +110,20 @@ struct dcb_app {
 	__u16	protocol;
 };
 
+/**
+ * struct dcb_peer_app_info - APP feature information sent by the peer
+ *
+ * @willing: willing bit in the peer APP tlv
+ * @error: error bit in the peer APP tlv
+ *
+ * In addition to this information the full peer APP tlv also contains
+ * a table of 'app_count' APP objects defined above.
+ */
+struct dcb_peer_app_info {
+	__u8	willing;
+	__u8	error;
+};
+
 struct dcbmsg {
 	__u8               dcb_family;
 	__u8               cmd;
@@ -235,11 +249,25 @@ enum dcbnl_attrs {
 	DCB_ATTR_MAX = __DCB_ATTR_ENUM_MAX - 1,
 };
 
+/**
+ * enum ieee_attrs - IEEE 802.1Qaz get/set attributes
+ *
+ * @DCB_ATTR_IEEE_UNSPEC: unspecified
+ * @DCB_ATTR_IEEE_ETS: negotiated ETS configuration
+ * @DCB_ATTR_IEEE_PFC: negotiated PFC configuration
+ * @DCB_ATTR_IEEE_APP_TABLE: negotiated APP configuration
+ * @DCB_ATTR_IEEE_PEER_ETS: peer ETS configuration - get only
+ * @DCB_ATTR_IEEE_PEER_PFC: peer PFC configuration - get only
+ * @DCB_ATTR_IEEE_PEER_APP: peer APP tlv - get only
+ */
 enum ieee_attrs {
 	DCB_ATTR_IEEE_UNSPEC,
 	DCB_ATTR_IEEE_ETS,
 	DCB_ATTR_IEEE_PFC,
 	DCB_ATTR_IEEE_APP_TABLE,
+	DCB_ATTR_IEEE_PEER_ETS,
+	DCB_ATTR_IEEE_PEER_PFC,
+	DCB_ATTR_IEEE_PEER_APP,
 	__DCB_ATTR_IEEE_MAX
 };
 #define DCB_ATTR_IEEE_MAX (__DCB_ATTR_IEEE_MAX - 1)
