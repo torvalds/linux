@@ -1058,8 +1058,8 @@ destroy:
 * This method asks the West Bridge device to connect the
 * internal USB D+ and D- signals to the USB pins, thus
 * starting the enumeration processes if the external pins
-* are connnected to a USB host. If the external pins are
-* not connect to a USB host, enumeration will begin as soon
+* are connected to a USB host. If the external pins are
+* not connected to a USB host, enumeration will begin as soon
 * as the USB pins are connected to a host.
 */
 cy_as_return_status_t
