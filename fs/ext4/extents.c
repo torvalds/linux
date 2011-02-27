@@ -3775,6 +3775,7 @@ int ext4_convert_unwritten_extents(struct inode *inode, loff_t offset,
 	}
 	return ret > 0 ? ret2 : ret;
 }
+
 /*
  * Callback function called for each extent to gather FIEMAP information.
  */
@@ -3782,38 +3783,162 @@ static int ext4_ext_fiemap_cb(struct inode *inode, struct ext4_ext_path *path,
 		       struct ext4_ext_cache *newex, struct ext4_extent *ex,
 		       void *data)
 {
-	struct fiemap_extent_info *fieinfo = data;
-	unsigned char blksize_bits = inode->i_sb->s_blocksize_bits;
 	__u64	logical;
 	__u64	physical;
 	__u64	length;
+	loff_t	size;
 	__u32	flags = 0;
-	int	error;
+	int		ret = 0;
+	struct fiemap_extent_info *fieinfo = data;
+	unsigned char blksize_bits;
 
-	logical =  (__u64)newex->ec_block << blksize_bits;
+	blksize_bits = inode->i_sb->s_blocksize_bits;
+	logical = (__u64)newex->ec_block << blksize_bits;
 
 	if (newex->ec_start == 0) {
-		pgoff_t offset;
-		struct page *page;
+		/*
+		 * No extent in extent-tree contains block @newex->ec_start,
+		 * then the block may stay in 1)a hole or 2)delayed-extent.
+		 *
+		 * Holes or delayed-extents are processed as follows.
+		 * 1. lookup dirty pages with specified range in pagecache.
+		 *    If no page is got, then there is no delayed-extent and
+		 *    return with EXT_CONTINUE.
+		 * 2. find the 1st mapped buffer,
+		 * 3. check if the mapped buffer is both in the request range
+		 *    and a delayed buffer. If not, there is no delayed-extent,
+		 *    then return.
+		 * 4. a delayed-extent is found, the extent will be collected.
+		 */
+		ext4_lblk_t	end = 0;
+		pgoff_t		last_offset;
+		pgoff_t		offset;
+		pgoff_t		index;
+		struct page	**pages = NULL;
 		struct buffer_head *bh = NULL;
+		struct buffer_head *head = NULL;
+		unsigned int nr_pages = PAGE_SIZE / sizeof(struct page *);
+
+		pages = kmalloc(PAGE_SIZE, GFP_KERNEL);
+		if (pages == NULL)
+			return -ENOMEM;
 
 		offset = logical >> PAGE_SHIFT;
-		page = find_get_page(inode->i_mapping, offset);
-		if (!page || !page_has_buffers(page))
-			return EXT_CONTINUE;
+repeat:
+		last_offset = offset;
+		head = NULL;
+		ret = find_get_pages_tag(inode->i_mapping, &offset,
+					PAGECACHE_TAG_DIRTY, nr_pages, pages);
 
-		bh = page_buffers(page);
+		if (!(flags & FIEMAP_EXTENT_DELALLOC)) {
+			/* First time, try to find a mapped buffer. */
+			if (ret == 0) {
+out:
+				for (index = 0; index < ret; index++)
+					page_cache_release(pages[index]);
+				/* just a hole. */
+				kfree(pages);
+				return EXT_CONTINUE;
+			}
 
-		if (!bh)
-			return EXT_CONTINUE;
+			/* Try to find the 1st mapped buffer. */
+			end = ((__u64)pages[0]->index << PAGE_SHIFT) >>
+				  blksize_bits;
+			if (!page_has_buffers(pages[0]))
+				goto out;
+			head = page_buffers(pages[0]);
+			if (!head)
+				goto out;
 
-		if (buffer_delay(bh)) {
-			flags |= FIEMAP_EXTENT_DELALLOC;
-			page_cache_release(page);
+			bh = head;
+			do {
+				if (buffer_mapped(bh)) {
+					/* get the 1st mapped buffer. */
+					if (end > newex->ec_block +
+						newex->ec_len)
+						/* The buffer is out of
+						 * the request range.
+						 */
+						goto out;
+					goto found_mapped_buffer;
+				}
+				bh = bh->b_this_page;
+				end++;
+			} while (bh != head);
+
+			/* No mapped buffer found. */
+			goto out;
 		} else {
-			page_cache_release(page);
-			return EXT_CONTINUE;
+			/*Find contiguous delayed buffers. */
+			if (ret > 0 && pages[0]->index == last_offset)
+				head = page_buffers(pages[0]);
+			bh = head;
 		}
+
+found_mapped_buffer:
+		if (bh != NULL && buffer_delay(bh)) {
+			/* 1st or contiguous delayed buffer found. */
+			if (!(flags & FIEMAP_EXTENT_DELALLOC)) {
+				/*
+				 * 1st delayed buffer found, record
+				 * the start of extent.
+				 */
+				flags |= FIEMAP_EXTENT_DELALLOC;
+				newex->ec_block = end;
+				logical = (__u64)end << blksize_bits;
+			}
+			/* Find contiguous delayed buffers. */
+			do {
+				if (!buffer_delay(bh))
+					goto found_delayed_extent;
+				bh = bh->b_this_page;
+				end++;
+			} while (bh != head);
+
+			for (index = 1; index < ret; index++) {
+				if (!page_has_buffers(pages[index])) {
+					bh = NULL;
+					break;
+				}
+				head = page_buffers(pages[index]);
+				if (!head) {
+					bh = NULL;
+					break;
+				}
+				if (pages[index]->index !=
+					pages[0]->index + index) {
+					/* Blocks are not contiguous. */
+					bh = NULL;
+					break;
+				}
+				bh = head;
+				do {
+					if (!buffer_delay(bh))
+						/* Delayed-extent ends. */
+						goto found_delayed_extent;
+					bh = bh->b_this_page;
+					end++;
+				} while (bh != head);
+			}
+		} else if (!(flags & FIEMAP_EXTENT_DELALLOC))
+			/* a hole found. */
+			goto out;
+
+found_delayed_extent:
+		newex->ec_len = min(end - newex->ec_block,
+						(ext4_lblk_t)EXT_INIT_MAX_LEN);
+		if (ret == nr_pages && bh != NULL &&
+			newex->ec_len < EXT_INIT_MAX_LEN &&
+			buffer_delay(bh)) {
+			/* Have not collected an extent and continue. */
+			for (index = 0; index < ret; index++)
+				page_cache_release(pages[index]);
+			goto repeat;
+		}
+
+		for (index = 0; index < ret; index++)
+			page_cache_release(pages[index]);
+		kfree(pages);
 	}
 
 	physical = (__u64)newex->ec_start << blksize_bits;
@@ -3822,32 +3947,16 @@ static int ext4_ext_fiemap_cb(struct inode *inode, struct ext4_ext_path *path,
 	if (ex && ext4_ext_is_uninitialized(ex))
 		flags |= FIEMAP_EXTENT_UNWRITTEN;
 
-	/*
-	 * If this extent reaches EXT_MAX_BLOCK, it must be last.
-	 *
-	 * Or if ext4_ext_next_allocated_block is EXT_MAX_BLOCK,
-	 * this also indicates no more allocated blocks.
-	 *
-	 * XXX this might miss a single-block extent at EXT_MAX_BLOCK
-	 */
-	if (ext4_ext_next_allocated_block(path) == EXT_MAX_BLOCK ||
-	    newex->ec_block + newex->ec_len - 1 == EXT_MAX_BLOCK) {
-		loff_t size = i_size_read(inode);
-		loff_t bs = EXT4_BLOCK_SIZE(inode->i_sb);
-
+	size = i_size_read(inode);
+	if (logical + length >= size)
 		flags |= FIEMAP_EXTENT_LAST;
-		if ((flags & FIEMAP_EXTENT_DELALLOC) &&
-		    logical+length > size)
-			length = (size - logical + bs - 1) & ~(bs-1);
-	}
 
-	error = fiemap_fill_next_extent(fieinfo, logical, physical,
+	ret = fiemap_fill_next_extent(fieinfo, logical, physical,
 					length, flags);
-	if (error < 0)
-		return error;
-	if (error == 1)
+	if (ret < 0)
+		return ret;
+	if (ret == 1)
 		return EXT_BREAK;
-
 	return EXT_CONTINUE;
 }
 
