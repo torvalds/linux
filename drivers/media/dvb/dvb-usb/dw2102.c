@@ -156,8 +156,7 @@ static int dw2102_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		/* read stv0299 register */
 		value = msg[0].buf[0];/* register */
 		for (i = 0; i < msg[1].len; i++) {
-			value = value + i;
-			ret = dw210x_op_rw(d->udev, 0xb5, value, 0,
+			ret = dw210x_op_rw(d->udev, 0xb5, value + i, 0,
 					buf6, 2, DW210X_READ_MSG);
 			msg[1].buf[i] = buf6[0];
 		}
