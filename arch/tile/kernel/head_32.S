@@ -133,7 +133,7 @@ ENTRY(_start)
 	}
 	ENDPROC(_start)
 
-.section ".bss.page_aligned","w"
+__PAGE_ALIGNED_BSS
 	.align PAGE_SIZE
 ENTRY(empty_zero_page)
 	.fill PAGE_SIZE,1,0
@@ -148,7 +148,7 @@ ENTRY(empty_zero_page)
 	.word (\bits1) | (HV_CPA_TO_PFN(\cpa) << HV_PTE_INDEX_PFN)
 	.endm
 
-.section ".data.page_aligned","wa"
+__PAGE_ALIGNED_DATA
 	.align PAGE_SIZE
 ENTRY(swapper_pg_dir)
 	/*

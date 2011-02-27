@@ -445,7 +445,7 @@ static pmd_t *__init get_pmd(pgd_t pgtables[], unsigned long va)
 
 /* Temporary page table we use for staging. */
 static pgd_t pgtables[PTRS_PER_PGD]
- __attribute__((section(".init.page")));
+ __attribute__((aligned(HV_PAGE_TABLE_ALIGN)));
 
 /*
  * This maps the physical memory to kernel virtual address space, a total

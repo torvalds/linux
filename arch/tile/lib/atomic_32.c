@@ -46,8 +46,7 @@ struct atomic_locks_on_cpu *atomic_lock_ptr[ATOMIC_HASH_L1_SIZE]
 #else /* ATOMIC_LOCKS_FOUND_VIA_TABLE() */
 
 /* This page is remapped on startup to be hash-for-home. */
-int atomic_locks[PAGE_SIZE / sizeof(int) /* Only ATOMIC_HASH_SIZE is used */]
-  __attribute__((aligned(PAGE_SIZE), section(".bss.page_aligned")));
+int atomic_locks[PAGE_SIZE / sizeof(int)] __page_aligned_bss;
 
 #endif /* ATOMIC_LOCKS_FOUND_VIA_TABLE() */
 
