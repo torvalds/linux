@@ -36,4 +36,11 @@ config HYPERV_UTILS
 	help
 	  Select this option to enable the Hyper-V Utilities.
 
+config HYPERV_MOUSE
+	tristate "Microsoft Hyper-V mouse driver"
+	depends on HID && BROKEN
+	default HYPERV
+	help
+	  Select this option to enable the Hyper-V mouse driver.
+
 endif
