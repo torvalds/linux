@@ -49,7 +49,7 @@ void tegra_fuse_writel(u32 value, unsigned long offset)
 
 static inline bool get_spare_fuse(int bit)
 {
-	return tegra_apb_readl(FUSE_SPARE_BIT + bit * 4);
+	return tegra_fuse_readl(FUSE_SPARE_BIT + bit * 4);
 }
 
 void tegra_init_fuse(void)
