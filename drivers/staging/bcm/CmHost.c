@@ -1,6 +1,6 @@
 /************************************************************
 *			CMHOST.C
-*	This file contains the routines for handling Connnection
+*	This file contains the routines for handling Connection
 *	Management.
 ************************************************************/
 
