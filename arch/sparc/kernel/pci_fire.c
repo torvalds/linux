@@ -214,11 +214,9 @@ static int pci_fire_msi_setup(struct pci_pbm_info *pbm, unsigned long msiqid,
 
 static int pci_fire_msi_teardown(struct pci_pbm_info *pbm, unsigned long msi)
 {
-	unsigned long msiqid;
 	u64 val;
 
 	val = upa_readq(pbm->pbm_regs + MSI_MAP(msi));
-	msiqid = (val & MSI_MAP_EQNUM);
 
 	val &= ~MSI_MAP_VALID;
 

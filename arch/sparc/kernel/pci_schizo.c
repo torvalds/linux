@@ -1313,7 +1313,7 @@ static int __devinit schizo_pbm_init(struct pci_pbm_info *pbm,
 	const struct linux_prom64_registers *regs;
 	struct device_node *dp = op->dev.of_node;
 	const char *chipset_name;
-	int is_pbm_a, err;
+	int err;
 
 	switch (chip_type) {
 	case PBM_CHIP_TYPE_TOMATILLO:
@@ -1342,8 +1342,6 @@ static int __devinit schizo_pbm_init(struct pci_pbm_info *pbm,
 	 * 4) Ichip regs
 	 */
 	regs = of_get_property(dp, "reg", NULL);
-
-	is_pbm_a = ((regs[0].phys_addr & 0x00700000) == 0x00600000);
 
 	pbm->next = pci_pbm_root;
 	pci_pbm_root = pbm;

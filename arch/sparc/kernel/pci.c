@@ -675,6 +675,7 @@ static void __devinit pci_bus_register_of_sysfs(struct pci_bus *bus)
 		 * humanoid.
 		 */
 		err = sysfs_create_file(&dev->dev.kobj, &dev_attr_obppath.attr);
+		(void) err;
 	}
 	list_for_each_entry(child_bus, &bus->children, node)
 		pci_bus_register_of_sysfs(child_bus);
