@@ -70,4 +70,14 @@ int v9fs_vfs_setattr_dotl(struct dentry *, struct iattr *);
 int v9fs_file_fsync_dotl(struct file *filp, int datasync);
 ssize_t v9fs_file_write_internal(struct inode *, struct p9_fid *,
 				 const char __user *, size_t, loff_t *, int);
+int v9fs_refresh_inode(struct p9_fid *fid, struct inode *inode);
+int v9fs_refresh_inode_dotl(struct p9_fid *fid, struct inode *inode);
+static inline void v9fs_invalidate_inode_attr(struct inode *inode)
+{
+	struct v9fs_inode *v9inode;
+	v9inode = V9FS_I(inode);
+	v9inode->cache_validity |= V9FS_INO_INVALID_ATTR;
+	return;
+}
+
 #define P9_LOCK_TIMEOUT (30*HZ)

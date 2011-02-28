@@ -484,6 +484,7 @@ int v9fs_vfs_setattr_dotl(struct dentry *dentry, struct iattr *iattr)
 void
 v9fs_stat2inode_dotl(struct p9_stat_dotl *stat, struct inode *inode)
 {
+	struct v9fs_inode *v9inode = V9FS_I(inode);
 
 	if ((stat->st_result_mask & P9_STATS_BASIC) == P9_STATS_BASIC) {
 		inode->i_atime.tv_sec = stat->st_atime_sec;
@@ -542,6 +543,7 @@ v9fs_stat2inode_dotl(struct p9_stat_dotl *stat, struct inode *inode)
 	/* Currently we don't support P9_STATS_BTIME and P9_STATS_DATA_VERSION
 	 * because the inode structure does not have fields for them.
 	 */
+	v9inode->cache_validity &= ~V9FS_INO_INVALID_ATTR;
 }
 
 static int
@@ -820,6 +822,31 @@ v9fs_vfs_follow_link_dotl(struct dentry *dentry, struct nameidata *nd)
 ndset:
 	nd_set_link(nd, link);
 	return NULL;
+}
+
+int v9fs_refresh_inode_dotl(struct p9_fid *fid, struct inode *inode)
+{
+	loff_t i_size;
+	struct p9_stat_dotl *st;
+	struct v9fs_session_info *v9ses;
+
+	v9ses = v9fs_inode2v9ses(inode);
+	st = p9_client_getattr_dotl(fid, P9_STATS_ALL);
+	if (IS_ERR(st))
+		return PTR_ERR(st);
+
+	spin_lock(&inode->i_lock);
+	/*
+	 * We don't want to refresh inode->i_size,
+	 * because we may have cached data
+	 */
+	i_size = inode->i_size;
+	v9fs_stat2inode_dotl(st, inode);
+	if (v9ses->cache)
+		inode->i_size = i_size;
+	spin_unlock(&inode->i_lock);
+	kfree(st);
+	return 0;
 }
 
 const struct inode_operations v9fs_dir_inode_operations_dotl = {

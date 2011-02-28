@@ -220,6 +220,7 @@ struct inode *v9fs_alloc_inode(struct super_block *sb)
 	spin_lock_init(&v9inode->fscache_lock);
 #endif
 	v9inode->writeback_fid = NULL;
+	v9inode->cache_validity = 0;
 	return &v9inode->vfs_inode;
 }
 
@@ -1010,6 +1011,7 @@ v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
 	char tag_name[14];
 	unsigned int i_nlink;
 	struct v9fs_session_info *v9ses = sb->s_fs_info;
+	struct v9fs_inode *v9inode = V9FS_I(inode);
 
 	inode->i_nlink = 1;
 
@@ -1069,6 +1071,7 @@ v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
 
 	/* not real number of blocks, but 512 byte ones ... */
 	inode->i_blocks = (i_size_read(inode) + 512 - 1) >> 9;
+	v9inode->cache_validity &= ~V9FS_INO_INVALID_ATTR;
 }
 
 /**
@@ -1321,6 +1324,32 @@ v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
 	__putname(name);
 
 	return retval;
+}
+
+int v9fs_refresh_inode(struct p9_fid *fid, struct inode *inode)
+{
+	loff_t i_size;
+	struct p9_wstat *st;
+	struct v9fs_session_info *v9ses;
+
+	v9ses = v9fs_inode2v9ses(inode);
+	st = p9_client_stat(fid);
+	if (IS_ERR(st))
+		return PTR_ERR(st);
+
+	spin_lock(&inode->i_lock);
+	/*
+	 * We don't want to refresh inode->i_size,
+	 * because we may have cached data
+	 */
+	i_size = inode->i_size;
+	v9fs_stat2inode(st, inode, inode->i_sb);
+	if (v9ses->cache)
+		inode->i_size = i_size;
+	spin_unlock(&inode->i_lock);
+	p9stat_free(st);
+	kfree(st);
+	return 0;
 }
 
 static const struct inode_operations v9fs_dir_inode_operations_dotu = {

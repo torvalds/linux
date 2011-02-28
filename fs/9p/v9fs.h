@@ -116,12 +116,16 @@ struct v9fs_session_info {
 	struct p9_fid *root_fid; /* Used for file system sync */
 };
 
+/* cache_validity flags */
+#define V9FS_INO_INVALID_ATTR 0x01
+
 struct v9fs_inode {
 #ifdef CONFIG_9P_FSCACHE
 	spinlock_t fscache_lock;
 	struct fscache_cookie *fscache;
 	struct p9_qid *fscache_key;
 #endif
+	unsigned int cache_validity;
 	struct p9_fid *writeback_fid;
 	struct inode vfs_inode;
 };
