@@ -793,8 +793,6 @@ static int      XGIfb_blank(int blank,
 /*static int 	XGIfb_mmap(struct fb_info *info, struct file *file,
 		           struct vm_area_struct *vma);
 */
-extern void     fbcon_XGI_fillrect(struct fb_info *info,
-                                   const struct fb_fillrect *rect);
 
 static int XGIfb_ioctl(struct fb_info *info, unsigned int cmd,
 			    unsigned long arg);

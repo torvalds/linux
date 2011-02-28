@@ -114,12 +114,3 @@ void XGIfb_syncaccel(void)
     XGI310Sync();
 
 }
-
-void fbcon_XGI_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
-{
-	if (!rect->width || !rect->height)
-		return;
-
-	cfb_fillrect(info, rect);
-	return;
-}

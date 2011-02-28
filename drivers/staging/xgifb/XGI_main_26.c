@@ -1738,7 +1738,7 @@ static struct fb_ops XGIfb_ops = {
 	.fb_pan_display = XGIfb_pan_display,
 #endif
 	.fb_blank = XGIfb_blank,
-	.fb_fillrect = fbcon_XGI_fillrect,
+	.fb_fillrect = cfb_fillrect,
 	.fb_copyarea = cfb_copyarea,
 	.fb_imageblit = cfb_imageblit,
 	.fb_ioctl = XGIfb_ioctl,
