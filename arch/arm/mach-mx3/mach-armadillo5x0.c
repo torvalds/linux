@@ -34,7 +34,6 @@
 #include <linux/mtd/physmap.h>
 #include <linux/io.h>
 #include <linux/input.h>
-#include <linux/gpio_keys.h>
 #include <linux/i2c.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
@@ -280,18 +279,10 @@ static struct gpio_keys_button armadillo5x0_buttons[] = {
 	}
 };
 
-static struct gpio_keys_platform_data armadillo5x0_button_data = {
+static const struct gpio_keys_platform_data
+		armadillo5x0_button_data __initconst = {
 	.buttons	= armadillo5x0_buttons,
 	.nbuttons	= ARRAY_SIZE(armadillo5x0_buttons),
-};
-
-static struct platform_device armadillo5x0_button_device = {
-	.name		= "gpio-keys",
-	.id		= -1,
-	.num_resources	= 0,
-	.dev		= {
-		.platform_data	= &armadillo5x0_button_data,
-	}
 };
 
 /*
@@ -496,7 +487,6 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 
 static struct platform_device *devices[] __initdata = {
 	&armadillo5x0_smc911x_device,
-	&armadillo5x0_button_device,
 };
 
 /*
@@ -508,6 +498,7 @@ static void __init armadillo5x0_init(void)
 			ARRAY_SIZE(armadillo5x0_pins), "armadillo5x0");
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+	imx_add_gpio_keys(&armadillo5x0_button_data);
 	imx31_add_imx_i2c1(NULL);
 
 	/* Register UART */

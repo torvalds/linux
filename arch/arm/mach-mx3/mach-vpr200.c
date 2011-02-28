@@ -141,16 +141,10 @@ static struct gpio_keys_button vpr200_gpio_keys_table[] = {
 	{KEY_F9, GPIO_BUTTON8, 1, "vpr-keys: F9", 1, VPR_KEY_DEBOUNCE},
 };
 
-static struct gpio_keys_platform_data vpr200_gpio_keys_data = {
+static const struct gpio_keys_platform_data
+		vpr200_gpio_keys_data __initconst = {
 	.buttons = vpr200_gpio_keys_table,
 	.nbuttons = ARRAY_SIZE(vpr200_gpio_keys_table),
-};
-
-static struct platform_device vpr200_device_gpiokeys = {
-	.name = "gpio-keys",
-	.dev = {
-		.platform_data = &vpr200_gpio_keys_data,
-	}
 };
 
 static struct mc13xxx_platform_data vpr200_pmic = {
@@ -271,7 +265,6 @@ static const struct mxc_usbh_platform_data usb_host_pdata __initconst = {
 
 static struct platform_device *devices[] __initdata = {
 	&vpr200_flash,
-	&vpr200_device_gpiokeys,
 };
 
 /*
@@ -283,6 +276,7 @@ static void __init vpr200_board_init(void)
 
 	imx35_add_fec(NULL);
 	imx35_add_imx2_wdt(NULL);
+	imx_add_gpio_keys(&vpr200_gpio_keys_data);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 

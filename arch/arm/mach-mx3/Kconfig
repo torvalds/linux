@@ -68,6 +68,7 @@ config MACH_PCM037
 config MACH_PCM037_EET
 	bool "Support pcm037 EET board extensions"
 	depends on MACH_PCM037
+	select IMX_HAVE_PLATFORM_GPIO_KEYS
 	select IMX_HAVE_PLATFORM_SPI_IMX
 	help
 	  Add support for PCM037 EET baseboard extensions. If you are using the
@@ -168,6 +169,7 @@ config MACH_PCM043
 config MACH_ARMADILLO5X0
 	bool "Support Atmark Armadillo-500 Development Base Board"
 	select SOC_IMX31
+	select IMX_HAVE_PLATFORM_GPIO_KEYS
 	select IMX_HAVE_PLATFORM_IMX_I2C
 	select IMX_HAVE_PLATFORM_IMX_UART
 	select IMX_HAVE_PLATFORM_MXC_EHCI
@@ -233,6 +235,7 @@ choice
 
 config MACH_EUKREA_MBIMXSD35_BASEBOARD
 	bool "Eukrea MBIMXSD development board"
+	select IMX_HAVE_PLATFORM_GPIO_KEYS
 	select IMX_HAVE_PLATFORM_IMX_SSI
 	help
 	  This adds board specific devices that can be found on Eukrea's
@@ -244,6 +247,7 @@ config MACH_VPR200
 	bool "Support VPR200 platform"
 	select SOC_IMX35
 	select IMX_HAVE_PLATFORM_FSL_USB2_UDC
+	select IMX_HAVE_PLATFORM_GPIO_KEYS
 	select IMX_HAVE_PLATFORM_IMX2_WDT
 	select IMX_HAVE_PLATFORM_IMX_UART
 	select IMX_HAVE_PLATFORM_IMX_I2C

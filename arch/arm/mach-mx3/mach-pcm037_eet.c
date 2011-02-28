@@ -7,7 +7,6 @@
  * published by the Free Software Foundation.
  */
 #include <linux/gpio.h>
-#include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
@@ -156,18 +155,11 @@ static struct gpio_keys_button pcm037_gpio_keys[] = {
 	},
 };
 
-static struct gpio_keys_platform_data pcm037_gpio_keys_platform_data = {
+static const struct gpio_keys_platform_data
+		pcm037_gpio_keys_platform_data __initconst = {
 	.buttons	= pcm037_gpio_keys,
 	.nbuttons	= ARRAY_SIZE(pcm037_gpio_keys),
 	.rep		= 0, /* No auto-repeat */
-};
-
-static struct platform_device pcm037_gpio_keys_device = {
-	.name	= "gpio-keys",
-	.id	= -1,
-	.dev	= {
-		.platform_data	= &pcm037_gpio_keys_platform_data,
-	},
 };
 
 static int __init eet_init_devices(void)
@@ -182,9 +174,8 @@ static int __init eet_init_devices(void)
 	spi_register_board_info(pcm037_spi_dev, ARRAY_SIZE(pcm037_spi_dev));
 	imx31_add_spi_imx0(&pcm037_spi1_pdata);
 
-	platform_device_register(&pcm037_gpio_keys_device);
+	imx_add_gpio_keys(&pcm037_gpio_keys_platform_data);
 
 	return 0;
 }
-
 late_initcall(eet_init_devices);
