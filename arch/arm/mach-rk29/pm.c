@@ -10,6 +10,7 @@
 #include <linux/regulator/rk29-pwm-regulator.h>
 #include <linux/io.h>
 #include <linux/wakelock.h>
+#include <asm/tlbflush.h>
 
 #include <mach/rk29_iomap.h>
 #include <mach/cru.h>
@@ -172,6 +173,7 @@ static int rk29_pm_enter(suspend_state_t state)
 
 #ifdef CONFIG_RK29_PWM_REGULATOR
 	/* touch TLB */
+	flush_tlb_all();
 	readl(RK29_PWM_BASE);
 	readl(RK29_GRF_BASE);
 #endif
