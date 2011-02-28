@@ -1279,7 +1279,7 @@ static inline int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 i
 {
 	struct r600_cs_track *track = p->track;
 	u32 nfaces, llevel, blevel, w0, h0, d0;
-	u32 word0, word1, l0_size, mipmap_size;
+	u32 word0, word1, l0_size, mipmap_size, word2, word3;
 	u32 height_align, pitch, pitch_align, depth_align;
 	u32 array, barray, larray;
 	u64 base_align;
@@ -1365,6 +1365,9 @@ static inline int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 i
 		return -EINVAL;
 	}
 
+	word2 = radeon_get_ib_value(p, idx + 2) << 8;
+	word3 = radeon_get_ib_value(p, idx + 3) << 8;
+
 	word0 = radeon_get_ib_value(p, idx + 4);
 	word1 = radeon_get_ib_value(p, idx + 5);
 	blevel = G_038010_BASE_LEVEL(word0);
@@ -1379,18 +1382,17 @@ static inline int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 i
 			  pitch_align, height_align, base_align,
 			  &l0_size, &mipmap_size);
 	/* using get ib will give us the offset into the texture bo */
-	word0 = radeon_get_ib_value(p, idx + 2) << 8;
-	if ((l0_size + word0) > radeon_bo_size(texture)) {
+	if ((l0_size + word2) > radeon_bo_size(texture)) {
 		dev_warn(p->dev, "texture bo too small (%d %d %d %d -> %d have %ld)\n",
-			w0, h0, format, word0, l0_size, radeon_bo_size(texture));
+			w0, h0, format, word2, l0_size, radeon_bo_size(texture));
 		dev_warn(p->dev, "alignments %d %d %d %lld\n", pitch, pitch_align, height_align, base_align);
 		return -EINVAL;
 	}
 	/* using get ib will give us the offset into the mipmap bo */
-	word0 = radeon_get_ib_value(p, idx + 3) << 8;
-	if ((mipmap_size + word0) > radeon_bo_size(mipmap)) {
+	word3 = radeon_get_ib_value(p, idx + 3) << 8;
+	if ((mipmap_size + word3) > radeon_bo_size(mipmap)) {
 		/*dev_warn(p->dev, "mipmap bo too small (%d %d %d %d %d %d -> %d have %ld)\n",
-		  w0, h0, format, blevel, nlevels, word0, mipmap_size, radeon_bo_size(texture));*/
+		  w0, h0, format, blevel, nlevels, word3, mipmap_size, radeon_bo_size(texture));*/
 	}
 	return 0;
 }
