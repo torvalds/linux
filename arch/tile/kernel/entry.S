@@ -38,12 +38,6 @@ STD_ENTRY(kernel_execve)
 	jrp lr
 	STD_ENDPROC(kernel_execve)
 
-/* Delay a fixed number of cycles. */
-STD_ENTRY(__delay)
-	{ addi r0, r0, -1; bnzt r0, . }
-	jrp lr
-	STD_ENDPROC(__delay)
-
 /*
  * We don't run this function directly, but instead copy it to a page
  * we map into every user process.  See vdso_setup().

@@ -964,6 +964,11 @@ HV_ASIDRange hv_inquire_asid(int idx);
 
 /** Waits for at least the specified number of nanoseconds then returns.
  *
+ * NOTE: this deprecated function currently assumes a 750 MHz clock,
+ * and is thus not generally suitable for use.  New code should call
+ * hv_sysconf(HV_SYSCONF_CPU_SPEED), compute a cycle count to wait for,
+ * and delay by looping while checking the cycle counter SPR.
+ *
  * @param nanosecs The number of nanoseconds to sleep.
  */
 void hv_nanosleep(int nanosecs);
