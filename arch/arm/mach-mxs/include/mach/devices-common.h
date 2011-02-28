@@ -64,6 +64,15 @@ struct platform_device *__init mxs_add_flexcan(
 		const struct mxs_flexcan_data *data,
 		const struct flexcan_platform_data *pdata);
 
+/* i2c */
+struct mxs_i2c_data {
+	int id;
+	resource_size_t iobase;
+	resource_size_t errirq;
+	resource_size_t dmairq;
+};
+struct platform_device * __init mxs_add_mxs_i2c(const struct mxs_i2c_data *data);
+
 /* pwm */
 struct platform_device *__init mxs_add_mxs_pwm(
 		resource_size_t iobase, int id);
