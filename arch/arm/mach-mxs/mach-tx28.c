@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_gpio.h>
+#include <linux/i2c.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
@@ -140,6 +141,12 @@ static struct spi_board_info tx28_spi_board_info[] = {
 	},
 };
 
+static struct i2c_board_info tx28_stk5v3_i2c_boardinfo[] __initdata = {
+	{
+		I2C_BOARD_INFO("ds1339", 0x68),
+	},
+};
+
 static void __init tx28_stk5v3_init(void)
 {
 	mxs_iomux_setup_multiple_pads(tx28_stk5v3_pads,
@@ -154,6 +161,9 @@ static void __init tx28_stk5v3_init(void)
 			ARRAY_SIZE(tx28_spi_board_info));
 	mxs_add_platform_device("leds-gpio", 0, NULL, 0,
 			&tx28_stk5v3_led_data, sizeof(tx28_stk5v3_led_data));
+	mx28_add_mxs_i2c(0);
+	i2c_register_board_info(0, tx28_stk5v3_i2c_boardinfo,
+			ARRAY_SIZE(tx28_stk5v3_i2c_boardinfo));
 }
 
 static void __init tx28_timer_init(void)
