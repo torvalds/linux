@@ -31,7 +31,7 @@
 #define BNX2X_NEW_NAPI
 
 #if defined(CONFIG_DCB)
-#define BCM_DCB
+#define BCM_DCBNL
 #endif
 #if defined(CONFIG_CNIC) || defined(CONFIG_CNIC_MODULE)
 #define BCM_CNIC 1

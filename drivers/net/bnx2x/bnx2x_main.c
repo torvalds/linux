@@ -9441,7 +9441,7 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 	dev->vlan_features |= (NETIF_F_TSO | NETIF_F_TSO_ECN);
 	dev->vlan_features |= NETIF_F_TSO6;
 
-#ifdef BCM_DCB
+#ifdef BCM_DCBNL
 	dev->dcbnl_ops = &bnx2x_dcbnl_ops;
 #endif
 
@@ -9846,6 +9846,11 @@ static void __devexit bnx2x_remove_one(struct pci_dev *pdev)
 		dev_addr_del(bp->dev, bp->fip_mac, NETDEV_HW_ADDR_T_SAN);
 		rtnl_unlock();
 	}
+#endif
+
+#ifdef BCM_DCBNL
+	/* Delete app tlvs from dcbnl */
+	bnx2x_dcbnl_update_applist(bp, true);
 #endif
 
 	unregister_netdev(dev);
