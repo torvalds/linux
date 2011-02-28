@@ -243,26 +243,10 @@ void v9fs_destroy_inode(struct inode *inode)
 }
 #endif
 
-/**
- * v9fs_get_inode - helper function to setup an inode
- * @sb: superblock
- * @mode: mode to setup inode with
- *
- */
-
-struct inode *v9fs_get_inode(struct super_block *sb, int mode)
+int v9fs_init_inode(struct v9fs_session_info *v9ses,
+		    struct inode *inode, int mode)
 {
-	int err;
-	struct inode *inode;
-	struct v9fs_session_info *v9ses = sb->s_fs_info;
-
-	P9_DPRINTK(P9_DEBUG_VFS, "super block: %p mode: %o\n", sb, mode);
-
-	inode = new_inode(sb);
-	if (!inode) {
-		P9_EPRINTK(KERN_WARNING, "Problem allocating inode\n");
-		return ERR_PTR(-ENOMEM);
-	}
+	int err = 0;
 
 	inode_init_owner(inode, NULL, mode);
 	inode->i_blocks = 0;
@@ -306,7 +290,6 @@ struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 		}
 
 		break;
-
 	case S_IFLNK:
 		if (!v9fs_proto_dotu(v9ses) && !v9fs_proto_dotl(v9ses)) {
 			P9_DPRINTK(P9_DEBUG_ERROR, "extended modes used with "
@@ -342,12 +325,37 @@ struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 		err = -EINVAL;
 		goto error;
 	}
-
-	return inode;
-
 error:
-	iput(inode);
-	return ERR_PTR(err);
+	return err;
+
+}
+
+/**
+ * v9fs_get_inode - helper function to setup an inode
+ * @sb: superblock
+ * @mode: mode to setup inode with
+ *
+ */
+
+struct inode *v9fs_get_inode(struct super_block *sb, int mode)
+{
+	int err;
+	struct inode *inode;
+	struct v9fs_session_info *v9ses = sb->s_fs_info;
+
+	P9_DPRINTK(P9_DEBUG_VFS, "super block: %p mode: %o\n", sb, mode);
+
+	inode = new_inode(sb);
+	if (!inode) {
+		P9_EPRINTK(KERN_WARNING, "Problem allocating inode\n");
+		return ERR_PTR(-ENOMEM);
+	}
+	err = v9fs_init_inode(v9ses, inode, mode);
+	if (err) {
+		iput(inode);
+		return ERR_PTR(err);
+	}
+	return inode;
 }
 
 /*
@@ -424,39 +432,60 @@ void v9fs_evict_inode(struct inode *inode)
 	}
 }
 
+static struct inode *v9fs_qid_iget(struct super_block *sb,
+				   struct p9_qid *qid,
+				   struct p9_wstat *st)
+{
+	int retval, umode;
+	unsigned long i_ino;
+	struct inode *inode;
+	struct v9fs_session_info *v9ses = sb->s_fs_info;
+
+	i_ino = v9fs_qid2ino(qid);
+	inode = iget_locked(sb, i_ino);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+	if (!(inode->i_state & I_NEW))
+		return inode;
+	/*
+	 * initialize the inode with the stat info
+	 * FIXME!! we may need support for stale inodes
+	 * later.
+	 */
+	umode = p9mode2unixmode(v9ses, st->mode);
+	retval = v9fs_init_inode(v9ses, inode, umode);
+	if (retval)
+		goto error;
+
+	v9fs_stat2inode(st, inode, sb);
+#ifdef CONFIG_9P_FSCACHE
+	v9fs_vcookie_set_qid(ret, &st->qid);
+	v9fs_cache_inode_get_cookie(inode);
+#endif
+	unlock_new_inode(inode);
+	return inode;
+error:
+	unlock_new_inode(inode);
+	iput(inode);
+	return ERR_PTR(retval);
+
+}
+
 struct inode *
 v9fs_inode(struct v9fs_session_info *v9ses, struct p9_fid *fid,
-	struct super_block *sb)
+	   struct super_block *sb)
 {
-	int err, umode;
-	struct inode *ret = NULL;
 	struct p9_wstat *st;
+	struct inode *inode = NULL;
 
 	st = p9_client_stat(fid);
 	if (IS_ERR(st))
 		return ERR_CAST(st);
 
-	umode = p9mode2unixmode(v9ses, st->mode);
-	ret = v9fs_get_inode(sb, umode);
-	if (IS_ERR(ret)) {
-		err = PTR_ERR(ret);
-		goto error;
-	}
-
-	v9fs_stat2inode(st, ret, sb);
-	ret->i_ino = v9fs_qid2ino(&st->qid);
-
-#ifdef CONFIG_9P_FSCACHE
-	v9fs_vcookie_set_qid(ret, &st->qid);
-	v9fs_cache_inode_get_cookie(ret);
-#endif
+	inode = v9fs_qid_iget(sb, &st->qid, st);
 	p9stat_free(st);
 	kfree(st);
-	return ret;
-error:
-	p9stat_free(st);
-	kfree(st);
-	return ERR_PTR(err);
+	return inode;
 }
 
 /**

@@ -54,6 +54,8 @@ void v9fs_destroy_inode(struct inode *inode);
 #endif
 
 struct inode *v9fs_get_inode(struct super_block *sb, int mode);
+int v9fs_init_inode(struct v9fs_session_info *v9ses,
+		    struct inode *inode, int mode);
 void v9fs_evict_inode(struct inode *inode);
 ino_t v9fs_qid2ino(struct p9_qid *qid);
 void v9fs_stat2inode(struct p9_wstat *, struct inode *, struct super_block *);

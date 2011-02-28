@@ -21,8 +21,8 @@
 #include <linux/posix_acl_xattr.h>
 #include "xattr.h"
 #include "acl.h"
-#include "v9fs_vfs.h"
 #include "v9fs.h"
+#include "v9fs_vfs.h"
 
 static struct posix_acl *__v9fs_get_acl(struct p9_fid *fid, char *name)
 {

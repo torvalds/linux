@@ -86,40 +86,63 @@ static struct dentry *v9fs_dentry_from_dir_inode(struct inode *inode)
 	return dentry;
 }
 
+static struct inode *v9fs_qid_iget_dotl(struct super_block *sb,
+					struct p9_qid *qid,
+					struct p9_fid *fid,
+					struct p9_stat_dotl *st)
+{
+	int retval;
+	unsigned long i_ino;
+	struct inode *inode;
+	struct v9fs_session_info *v9ses = sb->s_fs_info;
+
+	i_ino = v9fs_qid2ino(qid);
+	inode = iget_locked(sb, i_ino);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+	if (!(inode->i_state & I_NEW))
+		return inode;
+	/*
+	 * initialize the inode with the stat info
+	 * FIXME!! we may need support for stale inodes
+	 * later.
+	 */
+	retval = v9fs_init_inode(v9ses, inode, st->st_mode);
+	if (retval)
+		goto error;
+
+	v9fs_stat2inode_dotl(st, inode);
+#ifdef CONFIG_9P_FSCACHE
+	v9fs_vcookie_set_qid(inode, &st->qid);
+	v9fs_cache_inode_get_cookie(inode);
+#endif
+	retval = v9fs_get_acl(inode, fid);
+	if (retval)
+		goto error;
+
+	unlock_new_inode(inode);
+	return inode;
+error:
+	unlock_new_inode(inode);
+	iput(inode);
+	return ERR_PTR(retval);
+
+}
+
 struct inode *
 v9fs_inode_dotl(struct v9fs_session_info *v9ses, struct p9_fid *fid,
 	struct super_block *sb)
 {
-	struct inode *ret = NULL;
-	int err;
 	struct p9_stat_dotl *st;
+	struct inode *inode = NULL;
 
 	st = p9_client_getattr_dotl(fid, P9_STATS_BASIC);
 	if (IS_ERR(st))
 		return ERR_CAST(st);
 
-	ret = v9fs_get_inode(sb, st->st_mode);
-	if (IS_ERR(ret)) {
-		err = PTR_ERR(ret);
-		goto error;
-	}
-
-	v9fs_stat2inode_dotl(st, ret);
-	ret->i_ino = v9fs_qid2ino(&st->qid);
-#ifdef CONFIG_9P_FSCACHE
-	v9fs_vcookie_set_qid(ret, &st->qid);
-	v9fs_cache_inode_get_cookie(ret);
-#endif
-	err = v9fs_get_acl(ret, fid);
-	if (err) {
-		iput(ret);
-		goto error;
-	}
+	inode = v9fs_qid_iget_dotl(sb, &st->qid, fid, st);
 	kfree(st);
-	return ret;
-error:
-	kfree(st);
-	return ERR_PTR(err);
+	return inode;
 }
 
 /**
