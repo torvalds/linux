@@ -417,6 +417,11 @@ void v9fs_evict_inode(struct inode *inode)
 #ifdef CONFIG_9P_FSCACHE
 	v9fs_cache_inode_put_cookie(inode);
 #endif
+	/* clunk the fid stashed in inode->i_private */
+	if (inode->i_private) {
+		p9_client_clunk((struct p9_fid *)inode->i_private);
+		inode->i_private = NULL;
+	}
 }
 
 struct inode *
@@ -578,7 +583,7 @@ v9fs_vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	u32 perm;
 	int flags;
 	struct v9fs_session_info *v9ses;
-	struct p9_fid *fid;
+	struct p9_fid *fid, *inode_fid;
 	struct file *filp;
 
 	err = 0;
@@ -601,6 +606,21 @@ v9fs_vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 
 	/* if we are opening a file, assign the open fid to the file */
 	if (nd && nd->flags & LOOKUP_OPEN) {
+		if (v9ses->cache && !dentry->d_inode->i_private) {
+			/*
+			 * clone a fid and add it to inode->i_private
+			 * we do it during open time instead of
+			 * page dirty time via write_begin/page_mkwrite
+			 * because we want write after unlink usecase
+			 * to work.
+			 */
+			inode_fid = v9fs_writeback_fid(dentry);
+			if (IS_ERR(inode_fid)) {
+				err = PTR_ERR(inode_fid);
+				goto error;
+			}
+			dentry->d_inode->i_private = (void *) inode_fid;
+		}
 		filp = lookup_instantiate_filp(nd, dentry, generic_file_open);
 		if (IS_ERR(filp)) {
 			err = PTR_ERR(filp);

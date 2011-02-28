@@ -86,11 +86,30 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 	}
 
 	file->private_data = fid;
+	if (v9ses->cache && !inode->i_private) {
+		/*
+		 * clone a fid and add it to inode->i_private
+		 * we do it during open time instead of
+		 * page dirty time via write_begin/page_mkwrite
+		 * because we want write after unlink usecase
+		 * to work.
+		 */
+		fid = v9fs_writeback_fid(file->f_path.dentry);
+		if (IS_ERR(fid)) {
+			err = PTR_ERR(fid);
+			goto out_error;
+		}
+		inode->i_private = (void *) fid;
+	}
 #ifdef CONFIG_9P_FSCACHE
 	if (v9ses->cache)
 		v9fs_cache_inode_set_cookie(inode, file);
 #endif
 	return 0;
+out_error:
+	p9_client_clunk(file->private_data);
+	file->private_data = NULL;
+	return err;
 }
 
 /**

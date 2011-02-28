@@ -261,3 +261,29 @@ struct p9_fid *v9fs_fid_clone(struct dentry *dentry)
 	ret = p9_client_walk(fid, 0, NULL, 1);
 	return ret;
 }
+
+
+struct p9_fid *v9fs_writeback_fid(struct dentry *dentry)
+{
+	int err;
+	struct p9_fid *fid;
+
+	fid = v9fs_fid_clone(dentry);
+	if (IS_ERR(fid))
+		goto error_out;
+	/*
+	 * writeback fid will only be used to write back the
+	 * dirty pages. We always request for the open fid in read-write
+	 * mode so that a partial page write which result in page
+	 * read can work.
+	 * FIXME!!: we should make the fid owned by uid = 0
+	 */
+	err = p9_client_open(fid, O_RDWR);
+	if (err < 0) {
+		p9_client_clunk(fid);
+		fid = ERR_PTR(err);
+		goto error_out;
+	}
+error_out:
+	return fid;
+}
