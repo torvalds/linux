@@ -39,16 +39,16 @@
 #include "v9fs.h"
 #include "v9fs_vfs.h"
 #include "cache.h"
+#include "fid.h"
 
 /**
- * v9fs_vfs_readpage - read an entire page in from 9P
+ * v9fs_fid_readpage - read an entire page in from 9P
  *
- * @filp: file being read
+ * @fid: fid being read
  * @page: structure to page
  *
  */
-
-static int v9fs_vfs_readpage(struct file *filp, struct page *page)
+static int v9fs_fid_readpage(struct p9_fid *fid, struct page *page)
 {
 	int retval;
 	loff_t offset;
@@ -67,7 +67,7 @@ static int v9fs_vfs_readpage(struct file *filp, struct page *page)
 	buffer = kmap(page);
 	offset = page_offset(page);
 
-	retval = v9fs_file_readn(filp, buffer, NULL, PAGE_CACHE_SIZE, offset);
+	retval = v9fs_fid_readn(fid, buffer, NULL, PAGE_CACHE_SIZE, offset);
 	if (retval < 0) {
 		v9fs_uncache_page(inode, page);
 		goto done;
@@ -84,6 +84,19 @@ done:
 	kunmap(page);
 	unlock_page(page);
 	return retval;
+}
+
+/**
+ * v9fs_vfs_readpage - read an entire page in from 9P
+ *
+ * @filp: file being read
+ * @page: structure to page
+ *
+ */
+
+static int v9fs_vfs_readpage(struct file *filp, struct page *page)
+{
+	return v9fs_fid_readpage(filp->private_data, page);
 }
 
 /**
@@ -124,7 +137,6 @@ static int v9fs_release_page(struct page *page, gfp_t gfp)
 {
 	if (PagePrivate(page))
 		return 0;
-
 	return v9fs_fscache_release_page(page, gfp);
 }
 
@@ -137,22 +149,87 @@ static int v9fs_release_page(struct page *page, gfp_t gfp)
 
 static void v9fs_invalidate_page(struct page *page, unsigned long offset)
 {
+	/*
+	 * If called with zero offset, we should release
+	 * the private state assocated with the page
+	 */
 	if (offset == 0)
 		v9fs_fscache_invalidate_page(page);
 }
 
+static int v9fs_vfs_writepage_locked(struct page *page)
+{
+	char *buffer;
+	int retval, len;
+	loff_t offset, size;
+	mm_segment_t old_fs;
+	struct inode *inode = page->mapping->host;
+
+	size = i_size_read(inode);
+	if (page->index == size >> PAGE_CACHE_SHIFT)
+		len = size & ~PAGE_CACHE_MASK;
+	else
+		len = PAGE_CACHE_SIZE;
+
+	set_page_writeback(page);
+
+	buffer = kmap(page);
+	offset = page_offset(page);
+
+	old_fs = get_fs();
+	set_fs(get_ds());
+	/* We should have i_private always set */
+	BUG_ON(!inode->i_private);
+
+	retval = v9fs_file_write_internal(inode,
+					  (struct p9_fid *)inode->i_private,
+					  (__force const char __user *)buffer,
+					  len, &offset, 0);
+	if (retval > 0)
+		retval = 0;
+
+	set_fs(old_fs);
+	kunmap(page);
+	end_page_writeback(page);
+	return retval;
+}
+
+static int v9fs_vfs_writepage(struct page *page, struct writeback_control *wbc)
+{
+	int retval;
+
+	retval = v9fs_vfs_writepage_locked(page);
+	if (retval < 0) {
+		if (retval == -EAGAIN) {
+			redirty_page_for_writepage(wbc, page);
+			retval = 0;
+		} else {
+			SetPageError(page);
+			mapping_set_error(page->mapping, retval);
+		}
+	} else
+		retval = 0;
+
+	unlock_page(page);
+	return retval;
+}
+
 /**
  * v9fs_launder_page - Writeback a dirty page
- * Since the writes go directly to the server, we simply return a 0
- * here to indicate success.
- *
  * Returns 0 on success.
  */
 
 static int v9fs_launder_page(struct page *page)
 {
+	int retval;
 	struct inode *inode = page->mapping->host;
+
 	v9fs_fscache_wait_on_page_write(inode, page);
+	if (clear_page_dirty_for_io(page)) {
+		retval = v9fs_vfs_writepage_locked(page);
+		if (retval)
+			return retval;
+	}
 	return 0;
 }
 
@@ -178,6 +255,11 @@ static int v9fs_launder_page(struct page *page)
 ssize_t v9fs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 		loff_t pos, unsigned long nr_segs)
 {
+	/*
+	 * FIXME
+	 * Now that we do caching with cache mode enabled, We need
+	 * to support direct IO
+	 */
 	P9_DPRINTK(P9_DEBUG_VFS, "v9fs_direct_IO: v9fs_direct_IO (%s) "
 			"off/no(%lld/%lu) EINVAL\n",
 			iocb->ki_filp->f_path.dentry->d_name.name,
@@ -185,11 +267,82 @@ ssize_t v9fs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 
 	return -EINVAL;
 }
+
+static int v9fs_write_begin(struct file *filp, struct address_space *mapping,
+			    loff_t pos, unsigned len, unsigned flags,
+			    struct page **pagep, void **fsdata)
+{
+	int retval = 0;
+	struct page *page;
+	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
+	struct inode *inode = mapping->host;
+
+start:
+	page = grab_cache_page_write_begin(mapping, index, flags);
+	if (!page) {
+		retval = -ENOMEM;
+		goto out;
+	}
+	BUG_ON(!inode->i_private);
+	if (PageUptodate(page))
+		goto out;
+
+	if (len == PAGE_CACHE_SIZE)
+		goto out;
+
+	retval = v9fs_fid_readpage(inode->i_private, page);
+	page_cache_release(page);
+	if (!retval)
+		goto start;
+out:
+	*pagep = page;
+	return retval;
+}
+
+static int v9fs_write_end(struct file *filp, struct address_space *mapping,
+			  loff_t pos, unsigned len, unsigned copied,
+			  struct page *page, void *fsdata)
+{
+	loff_t last_pos = pos + copied;
+	struct inode *inode = page->mapping->host;
+
+	if (unlikely(copied < len)) {
+		/*
+		 * zero out the rest of the area
+		 */
+		unsigned from = pos & (PAGE_CACHE_SIZE - 1);
+
+		zero_user(page, from + copied, len - copied);
+		flush_dcache_page(page);
+	}
+
+	if (!PageUptodate(page))
+		SetPageUptodate(page);
+	/*
+	 * No need to use i_size_read() here, the i_size
+	 * cannot change under us because we hold the i_mutex.
+	 */
+	if (last_pos > inode->i_size) {
+		inode_add_bytes(inode, last_pos - inode->i_size);
+		i_size_write(inode, last_pos);
+	}
+	set_page_dirty(page);
+	unlock_page(page);
+	page_cache_release(page);
+
+	return copied;
+}
+
+
 const struct address_space_operations v9fs_addr_operations = {
-      .readpage = v9fs_vfs_readpage,
-      .readpages = v9fs_vfs_readpages,
-      .releasepage = v9fs_release_page,
-      .invalidatepage = v9fs_invalidate_page,
-      .launder_page = v9fs_launder_page,
-      .direct_IO = v9fs_direct_IO,
+	.readpage = v9fs_vfs_readpage,
+	.readpages = v9fs_vfs_readpages,
+	.set_page_dirty = __set_page_dirty_nobuffers,
+	.writepage = v9fs_vfs_writepage,
+	.write_begin = v9fs_write_begin,
+	.write_end = v9fs_write_end,
+	.releasepage = v9fs_release_page,
+	.invalidatepage = v9fs_invalidate_page,
+	.launder_page = v9fs_launder_page,
+	.direct_IO = v9fs_direct_IO,
 };

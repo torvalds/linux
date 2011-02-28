@@ -44,6 +44,8 @@
 #include "fid.h"
 #include "cache.h"
 
+static const struct vm_operations_struct v9fs_file_vm_ops;
+
 /**
  * v9fs_file_open - open a file (or directory)
  * @inode: inode to be opened
@@ -503,6 +505,7 @@ out:
 	return retval;
 }
 
+
 static int v9fs_file_fsync(struct file *filp, int datasync)
 {
 	struct p9_fid *fid;
@@ -532,28 +535,71 @@ int v9fs_file_fsync_dotl(struct file *filp, int datasync)
 	return retval;
 }
 
+static int
+v9fs_file_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	int retval;
+
+	retval = generic_file_mmap(file, vma);
+	if (!retval)
+		vma->vm_ops = &v9fs_file_vm_ops;
+
+	return retval;
+}
+
+static int
+v9fs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+{
+	struct page *page = vmf->page;
+	struct file *filp = vma->vm_file;
+	struct inode *inode = filp->f_path.dentry->d_inode;
+
+
+	P9_DPRINTK(P9_DEBUG_VFS, "page %p fid %lx\n",
+		   page, (unsigned long)filp->private_data);
+
+	/* make sure the cache has finished storing the page */
+	v9fs_fscache_wait_on_page_write(inode, page);
+	BUG_ON(!inode->i_private);
+	lock_page(page);
+	if (page->mapping != inode->i_mapping)
+		goto out_unlock;
+
+	return VM_FAULT_LOCKED;
+out_unlock:
+	unlock_page(page);
+	return VM_FAULT_NOPAGE;
+}
+
+static const struct vm_operations_struct v9fs_file_vm_ops = {
+	.fault = filemap_fault,
+	.page_mkwrite = v9fs_vm_page_mkwrite,
+};
+
 const struct file_operations v9fs_cached_file_operations = {
 	.llseek = generic_file_llseek,
 	.read = do_sync_read,
+	.write = do_sync_write,
 	.aio_read = generic_file_aio_read,
-	.write = v9fs_file_write,
+	.aio_write = generic_file_aio_write,
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
 	.lock = v9fs_file_lock,
-	.mmap = generic_file_readonly_mmap,
+	.mmap = v9fs_file_mmap,
 	.fsync = v9fs_file_fsync,
 };
 
 const struct file_operations v9fs_cached_file_operations_dotl = {
 	.llseek = generic_file_llseek,
 	.read = do_sync_read,
+	.write = do_sync_write,
 	.aio_read = generic_file_aio_read,
-	.write = v9fs_file_write,
+	.aio_write = generic_file_aio_write,
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
 	.lock = v9fs_file_lock_dotl,
 	.flock = v9fs_file_flock_dotl,
-	.mmap = generic_file_readonly_mmap,
+	.mmap = v9fs_file_mmap,
 	.fsync = v9fs_file_fsync_dotl,
 };
 
