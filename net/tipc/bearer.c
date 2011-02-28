@@ -158,7 +158,6 @@ int  tipc_register_media(u32 media_type,
 	m_ptr->disable_bearer = disable;
 	m_ptr->addr2str = addr2str;
 	memcpy(&m_ptr->bcast_addr, bcast_addr, sizeof(*bcast_addr));
-	m_ptr->bcast = 1;
 	strcpy(m_ptr->name, name);
 	m_ptr->priority = bearer_priority;
 	m_ptr->tolerance = link_tolerance;
@@ -563,10 +562,8 @@ restart:
 	b_ptr->priority = priority;
 	INIT_LIST_HEAD(&b_ptr->cong_links);
 	INIT_LIST_HEAD(&b_ptr->links);
-	if (m_ptr->bcast) {
-		b_ptr->link_req = tipc_disc_init_link_req(b_ptr, &m_ptr->bcast_addr,
-							  disc_domain);
-	}
+	b_ptr->link_req = tipc_disc_init_link_req(b_ptr, &m_ptr->bcast_addr,
+						  disc_domain);
 	spin_lock_init(&b_ptr->lock);
 	write_unlock_bh(&tipc_net_lock);
 	info("Enabled bearer <%s>, discovery domain %s, priority %u\n",

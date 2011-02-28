@@ -70,7 +70,6 @@ struct tipc_bearer;
  * @disable_bearer: routine which disables a bearer
  * @addr2str: routine which converts bearer's address to string form
  * @bcast_addr: media address used in broadcasting
- * @bcast: non-zero if media supports broadcasting [currently mandatory]
  * @priority: default link (and bearer) priority
  * @tolerance: default time (in ms) before declaring link failure
  * @window: default window (in packets) before declaring link congestion
@@ -87,7 +86,6 @@ struct media {
 	char *(*addr2str)(struct tipc_media_addr *a,
 			  char *str_buf, int str_size);
 	struct tipc_media_addr bcast_addr;
-	int bcast;
 	u32 priority;
 	u32 tolerance;
 	u32 window;
