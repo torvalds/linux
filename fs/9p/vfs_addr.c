@@ -254,8 +254,9 @@ static int v9fs_launder_page(struct page *page)
  * with an error.
  *
  */
-ssize_t v9fs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
-		loff_t pos, unsigned long nr_segs)
+static ssize_t
+v9fs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
+	       loff_t pos, unsigned long nr_segs)
 {
 	/*
 	 * FIXME
