@@ -283,13 +283,7 @@ int rtl_init_core(struct ieee80211_hw *hw)
 	rtlmac->hw = hw;
 
 	/* <2> rate control register */
-	if (rtl_rate_control_register()) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 ("rtl: Unable to register rtl_rc,"
-			  "use default RC !!\n"));
-	} else {
-		hw->rate_control_algorithm = "rtl_rc";
-	}
+	hw->rate_control_algorithm = "rtl_rc";
 
 	/*
 	 * <3> init CRDA must come after init
@@ -325,8 +319,6 @@ int rtl_init_core(struct ieee80211_hw *hw)
 
 void rtl_deinit_core(struct ieee80211_hw *hw)
 {
-	 /*RC*/
-	rtl_rate_control_unregister();
 }
 
 void rtl_init_rx_config(struct ieee80211_hw *hw)
@@ -945,11 +937,16 @@ MODULE_DESCRIPTION("Realtek 802.11n PCI wireless core");
 
 static int __init rtl_core_module_init(void)
 {
+	if (rtl_rate_control_register())
+		printk(KERN_ERR "rtlwifi: Unable to register rtl_rc,"
+		       "use default RC !!\n");
 	return 0;
 }
 
 static void __exit rtl_core_module_exit(void)
 {
+	 /*RC*/
+	rtl_rate_control_unregister();
 }
 
 module_init(rtl_core_module_init);
