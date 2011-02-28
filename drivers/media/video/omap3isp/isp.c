@@ -715,7 +715,7 @@ static int isp_pipeline_link_notify(struct media_pad *source,
  * Walk the entities chain starting at the pipeline output video node and start
  * all modules in the chain in the given mode.
  *
- * Return 0 if successfull, or the return value of the failed video::s_stream
+ * Return 0 if successful, or the return value of the failed video::s_stream
  * operation otherwise.
  */
 static int isp_pipeline_enable(struct isp_pipeline *pipe,
@@ -883,7 +883,7 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
  * Set the pipeline to the given stream state. Pipelines can be started in
  * single-shot or continuous mode.
  *
- * Return 0 if successfull, or the return value of the failed video::s_stream
+ * Return 0 if successful, or the return value of the failed video::s_stream
  * operation otherwise.
  */
 int omap3isp_pipeline_set_stream(struct isp_pipeline *pipe,

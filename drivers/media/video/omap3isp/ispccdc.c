@@ -1338,7 +1338,7 @@ static int ccdc_sbl_wait_idle(struct isp_ccdc_device *ccdc,
  * @ccdc: Pointer to ISP CCDC device.
  * @event: Pointing which event trigger handler
  *
- * Return 1 when the event and stopping request combination is satisfyied,
+ * Return 1 when the event and stopping request combination is satisfied,
  * zero otherwise.
  */
 static int __ccdc_handle_stopping(struct isp_ccdc_device *ccdc, u32 event)
@@ -1618,7 +1618,7 @@ static int ccdc_video_queue(struct isp_video *video, struct isp_buffer *buffer)
 
 	ccdc_set_outaddr(ccdc, buffer->isp_addr);
 
-	/* We now have a buffer queued on the output, restart the pipeline in
+	/* We now have a buffer queued on the output, restart the pipeline
 	 * on the next CCDC interrupt if running in continuous mode (or when
 	 * starting the stream).
 	 */
