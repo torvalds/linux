@@ -201,14 +201,16 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 
 	/* Accept discovery message & send response, if necessary */
 	link_fully_up = link_working_working(link);
-	tipc_node_unlock(n_ptr);
-	if ((type == DSC_RESP_MSG) || link_fully_up)
-		return;
-	rbuf = tipc_disc_init_msg(DSC_RESP_MSG, orig, b_ptr);
-	if (rbuf != NULL) {
-		b_ptr->media->send_msg(rbuf, b_ptr, &media_addr);
-		buf_discard(rbuf);
+
+	if ((type == DSC_REQ_MSG) && !link_fully_up) {
+		rbuf = tipc_disc_init_msg(DSC_RESP_MSG, orig, b_ptr);
+		if (rbuf) {
+			b_ptr->media->send_msg(rbuf, b_ptr, &media_addr);
+			buf_discard(rbuf);
+		}
 	}
+
+	tipc_node_unlock(n_ptr);
 }
 
 /**
