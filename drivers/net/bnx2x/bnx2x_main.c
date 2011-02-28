@@ -2015,7 +2015,8 @@ static void bnx2x_init_vn_minmax(struct bnx2x *bp, int vn)
 		m_fair_vn.vn_credit_delta =
 			max_t(u32, (vn_min_rate * (T_FAIR_COEF /
 						   (8 * bp->vn_weight_sum))),
-			      (bp->cmng.fair_vars.fair_threshold * 2));
+			      (bp->cmng.fair_vars.fair_threshold +
+							MIN_ABOVE_THRESH));
 		DP(NETIF_MSG_IFUP, "m_fair_vn.vn_credit_delta %d\n",
 		   m_fair_vn.vn_credit_delta);
 	}
