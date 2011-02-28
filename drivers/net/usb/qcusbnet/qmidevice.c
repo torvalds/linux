@@ -18,6 +18,7 @@
 
 #include "qmidevice.h"
 #include "qcusbnet.h"
+#include <linux/poll.h>
 
 struct readreq {
 	struct list_head node;
@@ -39,6 +40,7 @@ struct client {
 	struct list_head reads;
 	struct list_head notifies;
 	struct list_head urbs;
+	wait_queue_head_t read_wait;
 };
 
 struct urbsetup {
@@ -75,6 +77,7 @@ static ssize_t devqmi_read(struct file *file, char __user *buf, size_t size,
 			   loff_t *pos);
 static ssize_t devqmi_write(struct file *file, const char __user *buf,
 			    size_t size, loff_t *pos);
+static unsigned int devqmi_poll(struct file *file, poll_table *wait);
 
 static bool qmi_ready(struct qcusbnet *dev, u16 timeout);
 static void wds_callback(struct qcusbnet *dev, u16 cid, void *data);
@@ -95,6 +98,7 @@ static const struct file_operations devqmi_fops = {
 	.unlocked_ioctl = devqmi_ioctl,
 	.open  = devqmi_open,
 	.flush = devqmi_close,
+	.poll  = devqmi_poll,
 };
 
 #ifdef CONFIG_SMP
@@ -199,6 +203,8 @@ static void read_callback(struct urb *urb)
 				spin_unlock_irqrestore(&dev->qmi.clients_lock, flags);
 				return;
 			}
+
+			wake_up_interruptible(&client->read_wait);
 
 			DBG("Creating new readListEntry for client 0x%04X, TID %x\n",
 			    cid, tid);
@@ -683,6 +689,7 @@ static int client_alloc(struct qcusbnet *dev, u8 type)
 	INIT_LIST_HEAD(&client->reads);
 	INIT_LIST_HEAD(&client->notifies);
 	INIT_LIST_HEAD(&client->urbs);
+	init_waitqueue_head(&client->read_wait);
 	spin_unlock_irqrestore(&dev->qmi.clients_lock, flags);
 	return cid;
 }
@@ -1222,6 +1229,49 @@ static ssize_t devqmi_write(struct file *file, const char __user * buf,
 	if (status == size + qmux_size)
 		return size;
 	return status;
+}
+
+static unsigned int devqmi_poll(struct file *file, poll_table *wait)
+{
+	struct qmihandle *handle = (struct qmihandle *)file->private_data;
+	struct client *client;
+	unsigned int mask = 0;
+	unsigned int flags;
+
+	if (!handle) {
+		DBG("Bad file data\n");
+		return -EBADF;
+	}
+
+	if (!device_valid(handle->dev)) {
+		DBG("Invalid device! Updating f_ops\n");
+		file->f_op = file->f_dentry->d_inode->i_fop;
+		return -ENXIO;
+	}
+
+	if (handle->cid == (u16)-1) {
+		DBG("Client ID must be set before polling 0x%04X\n",
+			  handle->cid);
+		return -EBADR;
+	}
+
+	spin_lock_irqsave(&handle->dev->qmi.clients_lock, flags);
+
+	client = client_bycid(handle->dev, handle->cid);
+	if (!client) {
+		DBG("Could not find matching client ID 0x%04X\n", handle->cid);
+		spin_unlock_irqrestore(&handle->dev->qmi.clients_lock, flags);
+		return -ENXIO;
+	}
+
+	poll_wait(file, &client->read_wait, wait);
+
+	if (!list_empty(&client->reads))
+		mask |= POLLIN | POLLRDNORM;
+
+	spin_unlock_irqrestore(&handle->dev->qmi.clients_lock, flags);
+
+	return mask;
 }
 
 int qc_register(struct qcusbnet *dev)
