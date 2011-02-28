@@ -56,11 +56,13 @@ static const struct vm_operations_struct v9fs_file_vm_ops;
 int v9fs_file_open(struct inode *inode, struct file *file)
 {
 	int err;
+	struct v9fs_inode *v9inode;
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid;
 	int omode;
 
 	P9_DPRINTK(P9_DEBUG_VFS, "inode: %p file: %p\n", inode, file);
+	v9inode = V9FS_I(inode);
 	v9ses = v9fs_inode2v9ses(inode);
 	if (v9fs_proto_dotl(v9ses))
 		omode = file->f_flags;
@@ -88,9 +90,9 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 	}
 
 	file->private_data = fid;
-	if (v9ses->cache && !inode->i_private) {
+	if (v9ses->cache && !v9inode->writeback_fid) {
 		/*
-		 * clone a fid and add it to inode->i_private
+		 * clone a fid and add it to writeback_fid
 		 * we do it during open time instead of
 		 * page dirty time via write_begin/page_mkwrite
 		 * because we want write after unlink usecase
@@ -101,7 +103,7 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 			err = PTR_ERR(fid);
 			goto out_error;
 		}
-		inode->i_private = (void *) fid;
+		v9inode->writeback_fid = (void *) fid;
 	}
 #ifdef CONFIG_9P_FSCACHE
 	if (v9ses->cache)
@@ -550,6 +552,7 @@ v9fs_file_mmap(struct file *file, struct vm_area_struct *vma)
 static int
 v9fs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
+	struct v9fs_inode *v9inode;
 	struct page *page = vmf->page;
 	struct file *filp = vma->vm_file;
 	struct inode *inode = filp->f_path.dentry->d_inode;
@@ -558,9 +561,10 @@ v9fs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	P9_DPRINTK(P9_DEBUG_VFS, "page %p fid %lx\n",
 		   page, (unsigned long)filp->private_data);
 
+	v9inode = V9FS_I(inode);
 	/* make sure the cache has finished storing the page */
 	v9fs_fscache_wait_on_page_write(inode, page);
-	BUG_ON(!inode->i_private);
+	BUG_ON(!v9inode->writeback_fid);
 	lock_page(page);
 	if (page->mapping != inode->i_mapping)
 		goto out_unlock;

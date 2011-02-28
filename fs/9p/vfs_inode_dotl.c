@@ -159,16 +159,17 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 		struct nameidata *nd)
 {
 	int err = 0;
-	char *name = NULL;
 	gid_t gid;
 	int flags;
 	mode_t mode;
-	struct v9fs_session_info *v9ses;
-	struct p9_fid *fid = NULL;
-	struct p9_fid *dfid, *ofid, *inode_fid;
+	char *name = NULL;
 	struct file *filp;
 	struct p9_qid qid;
 	struct inode *inode;
+	struct p9_fid *fid = NULL;
+	struct v9fs_inode *v9inode;
+	struct p9_fid *dfid, *ofid, *inode_fid;
+	struct v9fs_session_info *v9ses;
 	struct posix_acl *pacl = NULL, *dacl = NULL;
 
 	v9ses = v9fs_inode2v9ses(dir);
@@ -241,9 +242,11 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 
 	/* Now set the ACL based on the default value */
 	v9fs_set_create_acl(dentry, dacl, pacl);
-	if (v9ses->cache && !inode->i_private) {
+
+	v9inode = V9FS_I(inode);
+	if (v9ses->cache && !v9inode->writeback_fid) {
 		/*
-		 * clone a fid and add it to inode->i_private
+		 * clone a fid and add it to writeback_fid
 		 * we do it during open time instead of
 		 * page dirty time via write_begin/page_mkwrite
 		 * because we want write after unlink usecase
@@ -254,7 +257,7 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 			err = PTR_ERR(inode_fid);
 			goto error;
 		}
-		inode->i_private = (void *) inode_fid;
+		v9inode->writeback_fid = (void *) inode_fid;
 	}
 	/* Since we are opening a file, assign the open fid to the file */
 	filp = lookup_instantiate_filp(nd, dentry, generic_file_open);

@@ -122,6 +122,7 @@ struct v9fs_inode {
 	struct fscache_cookie *fscache;
 	struct p9_qid *fscache_key;
 #endif
+	struct p9_fid *writeback_fid;
 	struct inode vfs_inode;
 };
 

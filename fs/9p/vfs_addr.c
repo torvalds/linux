@@ -163,8 +163,10 @@ static int v9fs_vfs_writepage_locked(struct page *page)
 	int retval, len;
 	loff_t offset, size;
 	mm_segment_t old_fs;
+	struct v9fs_inode *v9inode;
 	struct inode *inode = page->mapping->host;
 
+	v9inode = V9FS_I(inode);
 	size = i_size_read(inode);
 	if (page->index == size >> PAGE_CACHE_SHIFT)
 		len = size & ~PAGE_CACHE_MASK;
@@ -178,11 +180,11 @@ static int v9fs_vfs_writepage_locked(struct page *page)
 
 	old_fs = get_fs();
 	set_fs(get_ds());
-	/* We should have i_private always set */
-	BUG_ON(!inode->i_private);
+	/* We should have writeback_fid always set */
+	BUG_ON(!v9inode->writeback_fid);
 
 	retval = v9fs_file_write_internal(inode,
-					  (struct p9_fid *)inode->i_private,
+					  v9inode->writeback_fid,
 					  (__force const char __user *)buffer,
 					  len, &offset, 0);
 	if (retval > 0)
@@ -274,23 +276,25 @@ static int v9fs_write_begin(struct file *filp, struct address_space *mapping,
 {
 	int retval = 0;
 	struct page *page;
+	struct v9fs_inode *v9inode;
 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
 	struct inode *inode = mapping->host;
 
+	v9inode = V9FS_I(inode);
 start:
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page) {
 		retval = -ENOMEM;
 		goto out;
 	}
-	BUG_ON(!inode->i_private);
+	BUG_ON(!v9inode->writeback_fid);
 	if (PageUptodate(page))
 		goto out;
 
 	if (len == PAGE_CACHE_SIZE)
 		goto out;
 
-	retval = v9fs_fid_readpage(inode->i_private, page);
+	retval = v9fs_fid_readpage(v9inode->writeback_fid, page);
 	page_cache_release(page);
 	if (!retval)
 		goto start;

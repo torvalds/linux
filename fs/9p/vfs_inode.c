@@ -219,6 +219,7 @@ struct inode *v9fs_alloc_inode(struct super_block *sb)
 	v9inode->fscache_key = NULL;
 	spin_lock_init(&v9inode->fscache_lock);
 #endif
+	v9inode->writeback_fid = NULL;
 	return &v9inode->vfs_inode;
 }
 
@@ -414,6 +415,8 @@ error:
  */
 void v9fs_evict_inode(struct inode *inode)
 {
+	struct v9fs_inode *v9inode = V9FS_I(inode);
+
 	truncate_inode_pages(inode->i_mapping, 0);
 	end_writeback(inode);
 	filemap_fdatawrite(inode->i_mapping);
@@ -421,10 +424,10 @@ void v9fs_evict_inode(struct inode *inode)
 #ifdef CONFIG_9P_FSCACHE
 	v9fs_cache_inode_put_cookie(inode);
 #endif
-	/* clunk the fid stashed in inode->i_private */
-	if (inode->i_private) {
-		p9_client_clunk((struct p9_fid *)inode->i_private);
-		inode->i_private = NULL;
+	/* clunk the fid stashed in writeback_fid */
+	if (v9inode->writeback_fid) {
+		p9_client_clunk(v9inode->writeback_fid);
+		v9inode->writeback_fid = NULL;
 	}
 }
 
@@ -607,9 +610,10 @@ v9fs_vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	int err;
 	u32 perm;
 	int flags;
+	struct file *filp;
+	struct v9fs_inode *v9inode;
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid, *inode_fid;
-	struct file *filp;
 
 	err = 0;
 	fid = NULL;
@@ -631,9 +635,10 @@ v9fs_vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 
 	/* if we are opening a file, assign the open fid to the file */
 	if (nd && nd->flags & LOOKUP_OPEN) {
-		if (v9ses->cache && !dentry->d_inode->i_private) {
+		v9inode = V9FS_I(dentry->d_inode);
+		if (v9ses->cache && !v9inode->writeback_fid) {
 			/*
-			 * clone a fid and add it to inode->i_private
+			 * clone a fid and add it to writeback_fid
 			 * we do it during open time instead of
 			 * page dirty time via write_begin/page_mkwrite
 			 * because we want write after unlink usecase
@@ -644,7 +649,7 @@ v9fs_vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 				err = PTR_ERR(inode_fid);
 				goto error;
 			}
-			dentry->d_inode->i_private = (void *) inode_fid;
+			v9inode->writeback_fid = (void *) inode_fid;
 		}
 		filp = lookup_instantiate_filp(nd, dentry, generic_file_open);
 		if (IS_ERR(filp)) {
