@@ -124,7 +124,7 @@ static struct regulator_consumer_supply ldo_consumer[] = {
 	REGULATOR_SUPPLY(LDO_CONSUMER_NAME, NULL),
 };
 
-struct regulator_init_data ldo_init_data = {
+static struct regulator_init_data ldo_init_data = {
 	.constraints = {
 		.min_uV                 = 850000,
 		.max_uV                 = 1600000,
@@ -946,7 +946,7 @@ static int sgtl5000_set_bias_level(struct snd_soc_codec *codec,
 			SNDRV_PCM_FMTBIT_S24_LE |\
 			SNDRV_PCM_FMTBIT_S32_LE)
 
-struct snd_soc_dai_ops sgtl5000_ops = {
+static struct snd_soc_dai_ops sgtl5000_ops = {
 	.hw_params = sgtl5000_pcm_hw_params,
 	.digital_mute = sgtl5000_digital_mute,
 	.set_fmt = sgtl5000_set_dai_fmt,
@@ -1421,7 +1421,7 @@ static int sgtl5000_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-struct snd_soc_codec_driver sgtl5000_driver = {
+static struct snd_soc_codec_driver sgtl5000_driver = {
 	.probe = sgtl5000_probe,
 	.remove = sgtl5000_remove,
 	.suspend = sgtl5000_suspend,
