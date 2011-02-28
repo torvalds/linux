@@ -371,7 +371,7 @@ static int v9fs_vfs_mkdir_dotl(struct inode *dir,
 	}
 	/* Now set the ACL based on the default value */
 	v9fs_set_create_acl(dentry, dacl, pacl);
-
+	inc_nlink(dir);
 error:
 	if (fid)
 		p9_client_clunk(fid);

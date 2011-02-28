@@ -510,8 +510,17 @@ static int v9fs_remove(struct inode *dir, struct dentry *file, int rmdir)
 		return PTR_ERR(v9fid);
 
 	retval = p9_client_remove(v9fid);
-	if (!retval)
-		drop_nlink(file_inode);
+	if (!retval) {
+		/*
+		 * directories on unlink should have zero
+		 * link count
+		 */
+		if (rmdir) {
+			clear_nlink(file_inode);
+			drop_nlink(dir);
+		} else
+			drop_nlink(file_inode);
+	}
 	return retval;
 }
 
@@ -697,7 +706,8 @@ static int v9fs_vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	if (IS_ERR(fid)) {
 		err = PTR_ERR(fid);
 		fid = NULL;
-	}
+	} else
+		inc_nlink(dir);
 
 	if (fid)
 		p9_client_clunk(fid);
@@ -809,6 +819,7 @@ v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		struct inode *new_dir, struct dentry *new_dentry)
 {
 	struct inode *old_inode;
+	struct inode *new_inode;
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *oldfid;
 	struct p9_fid *olddirfid;
@@ -819,6 +830,7 @@ v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	P9_DPRINTK(P9_DEBUG_VFS, "\n");
 	retval = 0;
 	old_inode = old_dentry->d_inode;
+	new_inode = new_dentry->d_inode;
 	v9ses = v9fs_inode2v9ses(old_inode);
 	oldfid = v9fs_fid_lookup(old_dentry);
 	if (IS_ERR(oldfid))
@@ -859,9 +871,21 @@ v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	retval = p9_client_wstat(oldfid, &wstat);
 
 clunk_newdir:
-	if (!retval)
+	if (!retval) {
+		if (new_inode) {
+			if (S_ISDIR(new_inode->i_mode))
+				clear_nlink(new_inode);
+			else
+				drop_nlink(new_inode);
+		}
+		if (S_ISDIR(old_inode->i_mode)) {
+			if (!new_inode)
+				inc_nlink(new_dir);
+			drop_nlink(old_dir);
+		}
 		/* successful rename */
 		d_move(old_dentry, new_dentry);
+	}
 	up_write(&v9ses->rename_sem);
 	p9_client_clunk(newdirfid);
 
