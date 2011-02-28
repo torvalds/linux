@@ -4785,3 +4785,9 @@ MODULE_PARM_DESC(antenna_coupling,
 module_param_named(bt_ch_inhibition, iwlagn_bt_ch_announce, bool, S_IRUGO);
 MODULE_PARM_DESC(bt_ch_inhibition,
 		 "Disable BT channel inhibition (default: enable)");
+
+module_param_named(plcp_check, iwlagn_mod_params.plcp_check, bool, S_IRUGO);
+MODULE_PARM_DESC(plcp_check, "Check plcp health (default: 1 [enabled])");
+
+module_param_named(ack_check, iwlagn_mod_params.ack_check, bool, S_IRUGO);
+MODULE_PARM_DESC(ack_check, "Check ack health (default: 0 [disabled])");

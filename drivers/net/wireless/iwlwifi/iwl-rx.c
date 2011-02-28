@@ -230,18 +230,22 @@ void iwl_rx_spectrum_measure_notif(struct iwl_priv *priv,
 void iwl_recover_from_statistics(struct iwl_priv *priv,
 				struct iwl_rx_packet *pkt)
 {
+	const struct iwl_mod_params *mod_params = priv->cfg->mod_params;
+
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status) ||
 	    !iwl_is_any_associated(priv))
 		return;
 
-	if (priv->cfg->ops->lib->check_ack_health &&
+	if (mod_params->ack_check &&
+	    priv->cfg->ops->lib->check_ack_health &&
 	    !priv->cfg->ops->lib->check_ack_health(priv, pkt)) {
 		IWL_ERR(priv, "low ack count detected, restart firmware\n");
 		if (!iwl_force_reset(priv, IWL_FW_RESET, false))
 			return;
 	}
 
-	if (priv->cfg->ops->lib->check_plcp_health &&
+	if (mod_params->plcp_check &&
+	    priv->cfg->ops->lib->check_plcp_health &&
 	    !priv->cfg->ops->lib->check_plcp_health(priv, pkt))
 		iwl_force_reset(priv, IWL_RF_RESET, false);
 }

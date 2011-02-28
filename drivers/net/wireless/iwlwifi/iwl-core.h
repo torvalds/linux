@@ -261,6 +261,8 @@ struct iwl_mod_params {
 	int amsdu_size_8K;	/* def: 1 = enable 8K amsdu size */
 	int antenna;  		/* def: 0 = both antennas (use diversity) */
 	int restart_fw;		/* def: 1 = restart firmware */
+	bool plcp_check;	/* def: true = enable plcp health check */
+	bool ack_check;		/* def: false = disable ack health check */
 };
 
 /*
