@@ -121,6 +121,18 @@ config TWL4030_POWER
 	  and load scripts controling which resources are switched off/on
 	  or reset when a sleep, wakeup or warm reset event occurs.
 
+config TPS65910_CORE
+	bool "Texas Instruments TPS65910 Support"
+	depends on I2C=y && GENERIC_HARDIRQS
+	help
+	  Say yes here if you have TPS65910 family chip on your board.
+	  This core driver provides register access and registers devices
+          for the various functions so that function-specific drivers can
+          bind to them.
+
+	  These multi-function chips are found on many AM35xx boards,
+          providing power management, RTC, GPIO features.
+
 config MFD_TMIO
 	bool
 	default n

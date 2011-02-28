@@ -553,7 +553,7 @@ static int __devinit egalax_i2c_probe(struct i2c_client *client)
 	int ret;
 	int gpio = client->irq;
 	struct eeti_egalax_platform_data *pdata = pdata = client->dev.platform_data;
-	DBG();
+
 	printk(KERN_DEBUG "[egalax_i2c]: start probe\n");
 
 	p_egalax_i2c_dev = (struct _egalax_i2c *)kzalloc(sizeof(struct _egalax_i2c), GFP_KERNEL);
