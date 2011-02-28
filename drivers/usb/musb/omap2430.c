@@ -488,15 +488,6 @@ static int __exit omap2430_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static void omap2430_save_context(struct musb *musb)
-{
-	musb->context.otg_forcestandby = musb_readl(musb->mregs, OTG_FORCESTDBY);
-}
-
-static void omap2430_restore_context(struct musb *musb)
-{
-	musb_writel(musb->mregs, OTG_FORCESTDBY, musb->context.otg_forcestandby);
-}
 
 static int omap2430_suspend(struct device *dev)
 {
@@ -505,7 +496,6 @@ static int omap2430_suspend(struct device *dev)
 
 	omap2430_low_level_exit(musb);
 	otg_set_suspend(musb->xceiv, 1);
-	omap2430_save_context(musb);
 
 	if (!pm_runtime_suspended(dev) && dev->bus && dev->bus->pm &&
 			dev->bus->pm->runtime_suspend)
@@ -524,7 +514,6 @@ static int omap2430_resume(struct device *dev)
 		dev->bus->pm->runtime_resume(dev);
 
 	omap2430_low_level_init(musb);
-	omap2430_restore_context(musb);
 	otg_set_suspend(musb->xceiv, 0);
 
 	return 0;
