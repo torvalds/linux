@@ -123,6 +123,21 @@ config MACH_UNIVERSAL_C210
 	  Machine support for Samsung Mobile Universal S5PC210 Reference
 	  Board.
 
+config MACH_NURI
+	bool "Mobile NURI Board"
+	select CPU_EXYNOS4210
+	select S3C_DEV_WDT
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_HSMMC3
+	select S3C_DEV_I2C1
+	select S3C_DEV_I2C5
+	select EXYNOS4_SETUP_I2C1
+	select EXYNOS4_SETUP_I2C5
+	select EXYNOS4_SETUP_SDHCI
+	help
+	  Machine support for Samsung Mobile NURI Board.
+
 endmenu
 
 comment "Configuration for HSMMC bus width"
