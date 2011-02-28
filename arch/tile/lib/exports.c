@@ -29,6 +29,9 @@ EXPORT_SYMBOL(__put_user_8);
 EXPORT_SYMBOL(strnlen_user_asm);
 EXPORT_SYMBOL(strncpy_from_user_asm);
 EXPORT_SYMBOL(clear_user_asm);
+EXPORT_SYMBOL(flush_user_asm);
+EXPORT_SYMBOL(inv_user_asm);
+EXPORT_SYMBOL(finv_user_asm);
 
 /* arch/tile/kernel/entry.S */
 #include <linux/kernel.h>
@@ -82,4 +85,8 @@ int64_t __muldi3(int64_t, int64_t);
 EXPORT_SYMBOL(__muldi3);
 uint64_t __lshrdi3(uint64_t, unsigned int);
 EXPORT_SYMBOL(__lshrdi3);
+uint64_t __ashrdi3(uint64_t, unsigned int);
+EXPORT_SYMBOL(__ashrdi3);
+uint64_t __ashldi3(uint64_t, unsigned int);
+EXPORT_SYMBOL(__ashldi3);
 #endif

@@ -69,6 +69,7 @@
 
 #ifndef __tilegx__
 unsigned long VMALLOC_RESERVE = CONFIG_VMALLOC_RESERVE;
+EXPORT_SYMBOL(VMALLOC_RESERVE);
 #endif
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
