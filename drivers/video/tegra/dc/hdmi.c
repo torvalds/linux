@@ -844,7 +844,7 @@ static void tegra_dc_hdmi_setup_avi_infoframe(struct tegra_dc *dc, bool dvi)
 			avi.vic = 4; /* 60 Hz */
 		else
 			avi.vic = 19; /* 50 Hz */
-	} else if (dc->mode.v_active == 720) {
+	} else if (dc->mode.v_active == 1080) {
 		avi.m = HDMI_AVI_M_16_9;
 		if (dc->mode.h_front_porch == 88)
 			avi.vic = 16; /* 60 Hz */
