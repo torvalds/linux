@@ -318,12 +318,15 @@ static void  bq20z75_unit_adjustment(struct i2c_client *client,
 {
 #define BASE_UNIT_CONVERSION		1000
 #define BATTERY_MODE_CAP_MULT_WATT	(10 * BASE_UNIT_CONVERSION)
-#define TIME_UNIT_CONVERSION		600
-#define TEMP_KELVIN_TO_CELCIUS		2731
+#define TIME_UNIT_CONVERSION		60
+#define TEMP_KELVIN_TO_CELSIUS		2731
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ENERGY_NOW:
 	case POWER_SUPPLY_PROP_ENERGY_FULL:
 	case POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN:
+		/* bq20z75 provides energy in units of 10mWh.
+		 * Convert to µWh
+		 */
 		val->intval *= BATTERY_MODE_CAP_MULT_WATT;
 		break;
 
@@ -337,14 +340,17 @@ static void  bq20z75_unit_adjustment(struct i2c_client *client,
 		break;
 
 	case POWER_SUPPLY_PROP_TEMP:
-		/* bq20z75 provides battery tempreture in 0.1°K
-		 * so convert it to 0.1°C */
-		val->intval -= TEMP_KELVIN_TO_CELCIUS;
-		val->intval *= 10;
+		/* bq20z75 provides battery temperature in 0.1K
+		 * so convert it to 0.1°C
+		 */
+		val->intval -= TEMP_KELVIN_TO_CELSIUS;
 		break;
 
 	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG:
 	case POWER_SUPPLY_PROP_TIME_TO_FULL_AVG:
+		/* bq20z75 provides time to empty and time to full in minutes.
+		 * Convert to seconds
+		 */
 		val->intval *= TIME_UNIT_CONVERSION;
 		break;
 
