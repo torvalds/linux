@@ -506,6 +506,8 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 #define AIO_OUT_DS_CHANNELS        12
 #define AIO_OUT_QS_CHANNELS        10
 
+#define AES32_CHANNELS		16
+
 /* the size of a substream (1 mono data stream) */
 #define HDSPM_CHANNEL_BUFFER_SAMPLES  (16*1024)
 #define HDSPM_CHANNEL_BUFFER_BYTES    (4*HDSPM_CHANNEL_BUFFER_SAMPLES)
@@ -6449,9 +6451,9 @@ static int __devinit snd_hdspm_create(struct snd_card *card,
 
 	switch (hdspm->io_type) {
 	case AES32:
-		hdspm->ss_in_channels = hdspm->ss_out_channels = 16;
-		hdspm->ds_in_channels = hdspm->ds_out_channels = 16;
-		hdspm->qs_in_channels = hdspm->qs_out_channels = 16;
+		hdspm->ss_in_channels = hdspm->ss_out_channels = AES32_CHANNELS;
+		hdspm->ds_in_channels = hdspm->ds_out_channels = AES32_CHANNELS;
+		hdspm->qs_in_channels = hdspm->qs_out_channels = AES32_CHANNELS;
 
 		hdspm->channel_map_in_ss = hdspm->channel_map_out_ss =
 			channel_map_aes32;
@@ -6466,7 +6468,8 @@ static int __devinit snd_hdspm_create(struct snd_card *card,
 		hdspm->port_names_in_qs = hdspm->port_names_out_qs =
 			texts_ports_aes32;
 
-		hdspm->max_channels_out = hdspm->max_channels_in = 16;
+		hdspm->max_channels_out = hdspm->max_channels_in =
+			AES32_CHANNELS;
 		hdspm->port_names_in = hdspm->port_names_out =
 			texts_ports_aes32;
 		hdspm->channel_map_in = hdspm->channel_map_out =
