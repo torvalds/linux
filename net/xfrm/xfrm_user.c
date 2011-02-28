@@ -234,7 +234,7 @@ out:
 }
 
 static int attach_one_algo(struct xfrm_algo **algpp, u8 *props,
-			   struct xfrm_algo_desc *(*get_byname)(char *, int),
+			   struct xfrm_algo_desc *(*get_byname)(const char *, int),
 			   struct nlattr *rta)
 {
 	struct xfrm_algo *p, *ualg;
