@@ -113,7 +113,7 @@ static struct inode *v9fs_qid_iget_dotl(struct super_block *sb,
 
 	v9fs_stat2inode_dotl(st, inode);
 #ifdef CONFIG_9P_FSCACHE
-	v9fs_vcookie_set_qid(inode, &st->qid);
+	v9fs_fscache_set_key(inode, &st->qid);
 	v9fs_cache_inode_get_cookie(inode);
 #endif
 	retval = v9fs_get_acl(inode, fid);
@@ -130,8 +130,8 @@ error:
 }
 
 struct inode *
-v9fs_inode_dotl(struct v9fs_session_info *v9ses, struct p9_fid *fid,
-	struct super_block *sb)
+v9fs_inode_from_fid_dotl(struct v9fs_session_info *v9ses, struct p9_fid *fid,
+			 struct super_block *sb)
 {
 	struct p9_stat_dotl *st;
 	struct inode *inode = NULL;
@@ -228,7 +228,7 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 		fid = NULL;
 		goto error;
 	}
-	inode = v9fs_inode_from_fid(v9ses, fid, dir->i_sb);
+	inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		P9_DPRINTK(P9_DEBUG_VFS, "inode creation failed %d\n", err);
@@ -341,7 +341,7 @@ static int v9fs_vfs_mkdir_dotl(struct inode *dir,
 			goto error;
 		}
 
-		inode = v9fs_inode_from_fid(v9ses, fid, dir->i_sb);
+		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
 		if (IS_ERR(inode)) {
 			err = PTR_ERR(inode);
 			P9_DPRINTK(P9_DEBUG_VFS, "inode creation failed %d\n",
@@ -588,7 +588,7 @@ v9fs_vfs_symlink_dotl(struct inode *dir, struct dentry *dentry,
 		}
 
 		/* instantiate inode and assign the unopened fid to dentry */
-		inode = v9fs_inode_from_fid(v9ses, fid, dir->i_sb);
+		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
 		if (IS_ERR(inode)) {
 			err = PTR_ERR(inode);
 			P9_DPRINTK(P9_DEBUG_VFS, "inode creation failed %d\n",
@@ -747,7 +747,7 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, int omode,
 			goto error;
 		}
 
-		inode = v9fs_inode_from_fid(v9ses, fid, dir->i_sb);
+		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
 		if (IS_ERR(inode)) {
 			err = PTR_ERR(inode);
 			P9_DPRINTK(P9_DEBUG_VFS, "inode creation failed %d\n",

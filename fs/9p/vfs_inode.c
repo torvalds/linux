@@ -203,26 +203,23 @@ v9fs_blank_wstat(struct p9_wstat *wstat)
 	wstat->extension = NULL;
 }
 
-#ifdef CONFIG_9P_FSCACHE
 /**
  * v9fs_alloc_inode - helper function to allocate an inode
- * This callback is executed before setting up the inode so that we
- * can associate a vcookie with each inode.
  *
  */
-
 struct inode *v9fs_alloc_inode(struct super_block *sb)
 {
-	struct v9fs_cookie *vcookie;
-	vcookie = (struct v9fs_cookie *)kmem_cache_alloc(vcookie_cache,
-							 GFP_KERNEL);
-	if (!vcookie)
+	struct v9fs_inode *v9inode;
+	v9inode = (struct v9fs_inode *)kmem_cache_alloc(v9fs_inode_cache,
+							GFP_KERNEL);
+	if (!v9inode)
 		return NULL;
-
-	vcookie->fscache = NULL;
-	vcookie->qid = NULL;
-	spin_lock_init(&vcookie->lock);
-	return &vcookie->inode;
+#ifdef CONFIG_9P_FSCACHE
+	v9inode->fscache = NULL;
+	v9inode->fscache_key = NULL;
+	spin_lock_init(&v9inode->fscache_lock);
+#endif
+	return &v9inode->vfs_inode;
 }
 
 /**
@@ -234,14 +231,13 @@ static void v9fs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
 	INIT_LIST_HEAD(&inode->i_dentry);
-	kmem_cache_free(vcookie_cache, v9fs_inode2cookie(inode));
+	kmem_cache_free(v9fs_inode_cache, V9FS_I(inode));
 }
 
 void v9fs_destroy_inode(struct inode *inode)
 {
 	call_rcu(&inode->i_rcu, v9fs_i_callback);
 }
-#endif
 
 int v9fs_init_inode(struct v9fs_session_info *v9ses,
 		    struct inode *inode, int mode)
@@ -459,7 +455,7 @@ static struct inode *v9fs_qid_iget(struct super_block *sb,
 
 	v9fs_stat2inode(st, inode, sb);
 #ifdef CONFIG_9P_FSCACHE
-	v9fs_vcookie_set_qid(ret, &st->qid);
+	v9fs_fscache_set_key(inode, &st->qid);
 	v9fs_cache_inode_get_cookie(inode);
 #endif
 	unlock_new_inode(inode);
@@ -472,8 +468,8 @@ error:
 }
 
 struct inode *
-v9fs_inode(struct v9fs_session_info *v9ses, struct p9_fid *fid,
-	   struct super_block *sb)
+v9fs_inode_from_fid(struct v9fs_session_info *v9ses, struct p9_fid *fid,
+		    struct super_block *sb)
 {
 	struct p9_wstat *st;
 	struct inode *inode = NULL;
@@ -572,7 +568,7 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 	}
 
 	/* instantiate inode and assign the unopened fid to the dentry */
-	inode = v9fs_inode_from_fid(v9ses, fid, dir->i_sb);
+	inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		P9_DPRINTK(P9_DEBUG_VFS, "inode creation failed %d\n", err);
@@ -747,7 +743,7 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 		return ERR_PTR(result);
 	}
 
-	inode = v9fs_inode_from_fid(v9ses, fid, dir->i_sb);
+	inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
 	if (IS_ERR(inode)) {
 		result = PTR_ERR(inode);
 		inode = NULL;

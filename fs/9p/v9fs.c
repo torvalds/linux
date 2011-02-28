@@ -39,6 +39,7 @@
 
 static DEFINE_SPINLOCK(v9fs_sessionlist_lock);
 static LIST_HEAD(v9fs_sessionlist);
+struct kmem_cache *v9fs_inode_cache;
 
 /*
  * Option Parsing (code inspired by NFS code)
@@ -479,6 +480,63 @@ static void v9fs_sysfs_cleanup(void)
 {
 	sysfs_remove_group(v9fs_kobj, &v9fs_attr_group);
 	kobject_put(v9fs_kobj);
+}
+
+static void v9fs_inode_init_once(void *foo)
+{
+	struct v9fs_inode *v9inode = (struct v9fs_inode *)foo;
+#ifdef CONFIG_9P_FSCACHE
+	v9inode->fscache = NULL;
+	v9inode->fscache_key = NULL;
+#endif
+	inode_init_once(&v9inode->vfs_inode);
+}
+
+/**
+ * v9fs_init_inode_cache - initialize a cache for 9P
+ * Returns 0 on success.
+ */
+static int v9fs_init_inode_cache(void)
+{
+	v9fs_inode_cache = kmem_cache_create("v9fs_inode_cache",
+					  sizeof(struct v9fs_inode),
+					  0, (SLAB_RECLAIM_ACCOUNT|
+					      SLAB_MEM_SPREAD),
+					  v9fs_inode_init_once);
+	if (!v9fs_inode_cache)
+		return -ENOMEM;
+
+	return 0;
+}
+
+/**
+ * v9fs_destroy_inode_cache - destroy the cache of 9P inode
+ *
+ */
+static void v9fs_destroy_inode_cache(void)
+{
+	kmem_cache_destroy(v9fs_inode_cache);
+}
+
+static int v9fs_cache_register(void)
+{
+	int ret;
+	ret = v9fs_init_inode_cache();
+	if (ret < 0)
+		return ret;
+#ifdef CONFIG_9P_FSCACHE
+	return fscache_register_netfs(&v9fs_cache_netfs);
+#else
+	return ret;
+#endif
+}
+
+static void v9fs_cache_unregister(void)
+{
+	v9fs_destroy_inode_cache();
+#ifdef CONFIG_9P_FSCACHE
+	fscache_unregister_netfs(&v9fs_cache_netfs);
+#endif
 }
 
 /**

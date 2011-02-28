@@ -292,10 +292,8 @@ static int v9fs_sync_fs(struct super_block *sb, int wait)
 }
 
 static const struct super_operations v9fs_super_ops = {
-#ifdef CONFIG_9P_FSCACHE
 	.alloc_inode = v9fs_alloc_inode,
 	.destroy_inode = v9fs_destroy_inode,
-#endif
 	.statfs = simple_statfs,
 	.evict_inode = v9fs_evict_inode,
 	.show_options = generic_show_options,
@@ -303,10 +301,8 @@ static const struct super_operations v9fs_super_ops = {
 };
 
 static const struct super_operations v9fs_super_ops_dotl = {
-#ifdef CONFIG_9P_FSCACHE
 	.alloc_inode = v9fs_alloc_inode,
 	.destroy_inode = v9fs_destroy_inode,
-#endif
 	.sync_fs = v9fs_sync_fs,
 	.statfs = v9fs_statfs,
 	.evict_inode = v9fs_evict_inode,
