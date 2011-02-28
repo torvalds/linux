@@ -474,7 +474,7 @@ int tipc_bearer_congested(struct tipc_bearer *b_ptr, struct link *l_ptr)
  * tipc_enable_bearer - enable bearer with the given name
  */
 
-int tipc_enable_bearer(const char *name, u32 bcast_scope, u32 priority)
+int tipc_enable_bearer(const char *name, u32 disc_domain, u32 priority)
 {
 	struct tipc_bearer *b_ptr;
 	struct media *m_ptr;
@@ -494,9 +494,9 @@ int tipc_enable_bearer(const char *name, u32 bcast_scope, u32 priority)
 		warn("Bearer <%s> rejected, illegal name\n", name);
 		return -EINVAL;
 	}
-	if (!tipc_addr_domain_valid(bcast_scope) ||
-	    !tipc_in_scope(bcast_scope, tipc_own_addr)) {
-		warn("Bearer <%s> rejected, illegal broadcast scope\n", name);
+	if (!tipc_addr_domain_valid(disc_domain) ||
+	    !tipc_in_scope(disc_domain, tipc_own_addr)) {
+		warn("Bearer <%s> rejected, illegal discovery domain\n", name);
 		return -EINVAL;
 	}
 	if ((priority < TIPC_MIN_LINK_PRI ||
@@ -560,18 +560,18 @@ restart:
 	b_ptr->media = m_ptr;
 	b_ptr->net_plane = bearer_id + 'A';
 	b_ptr->active = 1;
-	b_ptr->detect_scope = bcast_scope;
+	b_ptr->detect_scope = disc_domain;
 	b_ptr->priority = priority;
 	INIT_LIST_HEAD(&b_ptr->cong_links);
 	INIT_LIST_HEAD(&b_ptr->links);
 	if (m_ptr->bcast) {
 		b_ptr->link_req = tipc_disc_init_link_req(b_ptr, &m_ptr->bcast_addr,
-							  bcast_scope);
+							  disc_domain);
 	}
 	spin_lock_init(&b_ptr->lock);
 	write_unlock_bh(&tipc_net_lock);
 	info("Enabled bearer <%s>, discovery domain %s, priority %u\n",
-	     name, tipc_addr_string_fill(addr_string, bcast_scope), priority);
+	     name, tipc_addr_string_fill(addr_string, disc_domain), priority);
 	return 0;
 failed:
 	write_unlock_bh(&tipc_net_lock);

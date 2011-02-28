@@ -167,7 +167,7 @@ void tipc_recv_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr);
 int  tipc_block_bearer(const char *name);
 void tipc_continue(struct tipc_bearer *tb_ptr);
 
-int tipc_enable_bearer(const char *bearer_name, u32 bcast_scope, u32 priority);
+int tipc_enable_bearer(const char *bearer_name, u32 disc_domain, u32 priority);
 int tipc_disable_bearer(const char *name);
 
 /*

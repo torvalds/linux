@@ -148,7 +148,7 @@ static struct sk_buff *cfg_enable_bearer(void)
 
 	args = (struct tipc_bearer_config *)TLV_DATA(req_tlv_area);
 	if (tipc_enable_bearer(args->name,
-			       ntohl(args->detect_scope),
+			       ntohl(args->disc_domain),
 			       ntohl(args->priority)))
 		return tipc_cfg_reply_error_string("unable to enable bearer");
 

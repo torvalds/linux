@@ -202,7 +202,7 @@ struct tipc_link_info {
 
 struct tipc_bearer_config {
 	__be32 priority;		/* Range [1,31]. Override per link  */
-	__be32 detect_scope;
+	__be32 disc_domain;		/* <Z.C.N> describing desired nodes */
 	char name[TIPC_MAX_BEARER_NAME];
 };
 
