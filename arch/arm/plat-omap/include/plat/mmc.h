@@ -24,22 +24,10 @@
 #define OMAP1_MMC2_BASE		0xfffb7c00	/* omap16xx only */
 
 #define OMAP24XX_NR_MMC		2
-#define OMAP34XX_NR_MMC		3
-#define OMAP44XX_NR_MMC		5
 #define OMAP2420_MMC_SIZE	OMAP1_MMC_SIZE
-#define OMAP3_HSMMC_SIZE	0x200
-#define OMAP4_HSMMC_SIZE	0x1000
 #define OMAP2_MMC1_BASE		0x4809c000
-#define OMAP2_MMC2_BASE		0x480b4000
-#define OMAP3_MMC3_BASE		0x480ad000
-#define OMAP4_MMC4_BASE		0x480d1000
-#define OMAP4_MMC5_BASE		0x480d5000
+
 #define OMAP4_MMC_REG_OFFSET	0x100
-#define HSMMC5			(1 << 4)
-#define HSMMC4			(1 << 3)
-#define HSMMC3			(1 << 2)
-#define HSMMC2			(1 << 1)
-#define HSMMC1			(1 << 0)
 
 #define OMAP_MMC_MAX_SLOTS	2
 
@@ -169,8 +157,6 @@ extern void omap_mmc_notify_cover_event(struct device *dev, int slot,
 void omap1_init_mmc(struct omap_mmc_platform_data **mmc_data,
 				int nr_controllers);
 void omap242x_init_mmc(struct omap_mmc_platform_data **mmc_data);
-void omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
-				int nr_controllers);
 int omap_mmc_add(const char *name, int id, unsigned long base,
 				unsigned long size, unsigned int irq,
 				struct omap_mmc_platform_data *data);
@@ -180,10 +166,6 @@ static inline void omap1_init_mmc(struct omap_mmc_platform_data **mmc_data,
 {
 }
 static inline void omap242x_init_mmc(struct omap_mmc_platform_data **mmc_data)
-{
-}
-static inline void omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
-				int nr_controllers)
 {
 }
 static inline int omap_mmc_add(const char *name, int id, unsigned long base,
