@@ -527,18 +527,30 @@ static void __devinit quirk_ich4_lpc_acpi(struct pci_dev *dev)
 	u32 region;
 	u8 enable;
 
+	/*
+	 * The check for PCIBIOS_MIN_IO is to ensure we won't create a conflict
+	 * with low legacy (and fixed) ports. We don't know the decoding
+	 * priority and can't tell whether the legacy device or the one created
+	 * here is really at that address.  This happens on boards with broken
+	 * BIOSes.
+	*/
+
 	pci_read_config_byte(dev, ICH_ACPI_CNTL, &enable);
 	if (enable & ICH4_ACPI_EN) {
 		pci_read_config_dword(dev, ICH_PMBASE, &region);
-		quirk_io_region(dev, region, 128, PCI_BRIDGE_RESOURCES,
-				"ICH4 ACPI/GPIO/TCO");
+		region &= PCI_BASE_ADDRESS_IO_MASK;
+		if (region >= PCIBIOS_MIN_IO)
+			quirk_io_region(dev, region, 128, PCI_BRIDGE_RESOURCES,
+					"ICH4 ACPI/GPIO/TCO");
 	}
 
 	pci_read_config_byte(dev, ICH4_GPIO_CNTL, &enable);
 	if (enable & ICH4_GPIO_EN) {
 		pci_read_config_dword(dev, ICH4_GPIOBASE, &region);
-		quirk_io_region(dev, region, 64, PCI_BRIDGE_RESOURCES + 1,
-				"ICH4 GPIO");
+		region &= PCI_BASE_ADDRESS_IO_MASK;
+		if (region >= PCIBIOS_MIN_IO)
+			quirk_io_region(dev, region, 64,
+					PCI_BRIDGE_RESOURCES + 1, "ICH4 GPIO");
 	}
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,    PCI_DEVICE_ID_INTEL_82801AA_0,		quirk_ich4_lpc_acpi);
@@ -560,15 +572,19 @@ static void __devinit ich6_lpc_acpi_gpio(struct pci_dev *dev)
 	pci_read_config_byte(dev, ICH_ACPI_CNTL, &enable);
 	if (enable & ICH6_ACPI_EN) {
 		pci_read_config_dword(dev, ICH_PMBASE, &region);
-		quirk_io_region(dev, region, 128, PCI_BRIDGE_RESOURCES,
-				"ICH6 ACPI/GPIO/TCO");
+		region &= PCI_BASE_ADDRESS_IO_MASK;
+		if (region >= PCIBIOS_MIN_IO)
+			quirk_io_region(dev, region, 128, PCI_BRIDGE_RESOURCES,
+					"ICH6 ACPI/GPIO/TCO");
 	}
 
 	pci_read_config_byte(dev, ICH6_GPIO_CNTL, &enable);
 	if (enable & ICH4_GPIO_EN) {
 		pci_read_config_dword(dev, ICH6_GPIOBASE, &region);
-		quirk_io_region(dev, region, 64, PCI_BRIDGE_RESOURCES + 1,
-				"ICH6 GPIO");
+		region &= PCI_BASE_ADDRESS_IO_MASK;
+		if (region >= PCIBIOS_MIN_IO)
+			quirk_io_region(dev, region, 64,
+					PCI_BRIDGE_RESOURCES + 1, "ICH6 GPIO");
 	}
 }
 
