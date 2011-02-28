@@ -605,6 +605,8 @@ static void __init gta02_machine_init(void)
 
 	platform_add_devices(gta02_devices, ARRAY_SIZE(gta02_devices));
 	pm_power_off = gta02_poweroff;
+
+	regulator_has_full_constraints();
 }
 
 
