@@ -234,8 +234,12 @@ choice
 		bool "3.5G/0.5G user/kernel split"
 	config VMSPLIT_3G
 		bool "3G/1G user/kernel split"
-	config VMSPLIT_3G_OPT
-		bool "3G/1G user/kernel split (for full 1G low memory)"
+	config VMSPLIT_2_75G
+		bool "2.75G/1.25G user/kernel split (for full 1G low memory)"
+	config VMSPLIT_2_5G
+		bool "2.5G/1.5G user/kernel split"
+	config VMSPLIT_2_25G
+		bool "2.25G/1.75G user/kernel split"
 	config VMSPLIT_2G
 		bool "2G/2G user/kernel split"
 	config VMSPLIT_1G
@@ -246,7 +250,9 @@ config PAGE_OFFSET
 	hex
 	default 0xF0000000 if VMSPLIT_3_75G
 	default 0xE0000000 if VMSPLIT_3_5G
-	default 0xB0000000 if VMSPLIT_3G_OPT
+	default 0xB0000000 if VMSPLIT_2_75G
+	default 0xA0000000 if VMSPLIT_2_5G
+	default 0x90000000 if VMSPLIT_2_25G
 	default 0x80000000 if VMSPLIT_2G
 	default 0x40000000 if VMSPLIT_1G
 	default 0xC0000000
