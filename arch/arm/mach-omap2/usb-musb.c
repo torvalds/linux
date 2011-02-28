@@ -214,6 +214,10 @@ void __init usb_musb_init(struct omap_musb_board_data *board_data)
 
 	if (platform_device_register(&musb_device) < 0)
 		printk(KERN_ERR "Unable to register HS-USB (MUSB) device\n");
+
+	if (cpu_is_omap44xx())
+		omap4430_phy_init(dev);
+
 }
 
 #else
