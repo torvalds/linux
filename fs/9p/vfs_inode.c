@@ -292,10 +292,17 @@ struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 	case S_IFREG:
 		if (v9fs_proto_dotl(v9ses)) {
 			inode->i_op = &v9fs_file_inode_operations_dotl;
-			inode->i_fop = &v9fs_file_operations_dotl;
+			if (v9ses->cache)
+				inode->i_fop =
+					&v9fs_cached_file_operations_dotl;
+			else
+				inode->i_fop = &v9fs_file_operations_dotl;
 		} else {
 			inode->i_op = &v9fs_file_inode_operations;
-			inode->i_fop = &v9fs_file_operations;
+			if (v9ses->cache)
+				inode->i_fop = &v9fs_cached_file_operations;
+			else
+				inode->i_fop = &v9fs_file_operations;
 		}
 
 		break;

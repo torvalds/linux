@@ -44,9 +44,6 @@
 #include "fid.h"
 #include "cache.h"
 
-static const struct file_operations v9fs_cached_file_operations;
-static const struct file_operations v9fs_cached_file_operations_dotl;
-
 /**
  * v9fs_file_open - open a file (or directory)
  * @inode: inode to be opened
@@ -89,19 +86,12 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 	}
 
 	file->private_data = fid;
+#ifdef CONFIG_9P_FSCACHE
 	if ((fid->qid.version) && (v9ses->cache)) {
 		P9_DPRINTK(P9_DEBUG_VFS, "cached");
-		/* enable cached file options */
-		if(file->f_op == &v9fs_file_operations)
-			file->f_op = &v9fs_cached_file_operations;
-		else if (file->f_op == &v9fs_file_operations_dotl)
-			file->f_op = &v9fs_cached_file_operations_dotl;
-
-#ifdef CONFIG_9P_FSCACHE
 		v9fs_cache_inode_set_cookie(inode, file);
-#endif
 	}
-
+#endif
 	return 0;
 }
 
@@ -505,7 +495,7 @@ int v9fs_file_fsync_dotl(struct file *filp, int datasync)
 	return retval;
 }
 
-static const struct file_operations v9fs_cached_file_operations = {
+const struct file_operations v9fs_cached_file_operations = {
 	.llseek = generic_file_llseek,
 	.read = do_sync_read,
 	.aio_read = generic_file_aio_read,
@@ -517,7 +507,7 @@ static const struct file_operations v9fs_cached_file_operations = {
 	.fsync = v9fs_file_fsync,
 };
 
-static const struct file_operations v9fs_cached_file_operations_dotl = {
+const struct file_operations v9fs_cached_file_operations_dotl = {
 	.llseek = generic_file_llseek,
 	.read = do_sync_read,
 	.aio_read = generic_file_aio_read,
