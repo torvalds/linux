@@ -495,7 +495,7 @@ static int __devinit sis900_probe(struct pci_dev *pci_dev,
 	sis_priv->mii_info.reg_num_mask = 0x1f;
 
 	/* Get Mac address according to the chip revision */
-	pci_read_config_byte(pci_dev, PCI_CLASS_REVISION, &(sis_priv->chipset_rev));
+	sis_priv->chipset_rev = pci_dev->revision;
 	if(netif_msg_probe(sis_priv))
 		printk(KERN_DEBUG "%s: detected revision %2.2x, "
 				"trying to get MAC address...\n",
@@ -532,7 +532,7 @@ static int __devinit sis900_probe(struct pci_dev *pci_dev,
 	/* save our host bridge revision */
 	dev = pci_get_device(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_630, NULL);
 	if (dev) {
-		pci_read_config_byte(dev, PCI_CLASS_REVISION, &sis_priv->host_bridge_rev);
+		sis_priv->host_bridge_rev = dev->revision;
 		pci_dev_put(dev);
 	}
 
