@@ -1415,6 +1415,38 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 	idx_value = radeon_get_ib_value(p, idx);
 
 	switch (pkt->opcode) {
+	case PACKET3_SET_PREDICATION:
+	{
+		int pred_op;
+		int tmp;
+		if (pkt->count != 1) {
+			DRM_ERROR("bad SET PREDICATION\n");
+			return -EINVAL;
+		}
+
+		tmp = radeon_get_ib_value(p, idx + 1);
+		pred_op = (tmp >> 16) & 0x7;
+
+		/* for the clear predicate operation */
+		if (pred_op == 0)
+			return 0;
+
+		if (pred_op > 2) {
+			DRM_ERROR("bad SET PREDICATION operation %d\n", pred_op);
+			return -EINVAL;
+		}
+
+		r = r600_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			DRM_ERROR("bad SET PREDICATION\n");
+			return -EINVAL;
+		}
+
+		ib[idx + 0] = idx_value + (u32)(reloc->lobj.gpu_offset & 0xffffffff);
+		ib[idx + 1] = tmp + (upper_32_bits(reloc->lobj.gpu_offset) & 0xff);
+	}
+	break;
+
 	case PACKET3_START_3D_CMDBUF:
 		if (p->family >= CHIP_RV770 || pkt->count) {
 			DRM_ERROR("bad START_3D\n");
