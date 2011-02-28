@@ -1954,10 +1954,7 @@ void tipc_link_send_proto_msg(struct link *l_ptr, u32 msg_typ, int probe_msg,
 		msg_set_max_pkt(msg, l_ptr->max_pkt_target);
 	}
 
-	if (tipc_node_redundant_links(l_ptr->owner))
-		msg_set_redundant_link(msg);
-	else
-		msg_clear_redundant_link(msg);
+	msg_set_redundant_link(msg, tipc_node_redundant_links(l_ptr->owner));
 	msg_set_linkprio(msg, l_ptr->priority);
 
 	/* Ensure sequence number will not fit : */

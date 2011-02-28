@@ -719,14 +719,9 @@ static inline u32 msg_redundant_link(struct tipc_msg *m)
 	return msg_bits(m, 5, 12, 0x1);
 }
 
-static inline void msg_set_redundant_link(struct tipc_msg *m)
+static inline void msg_set_redundant_link(struct tipc_msg *m, u32 r)
 {
-	msg_set_bits(m, 5, 12, 0x1, 1);
-}
-
-static inline void msg_clear_redundant_link(struct tipc_msg *m)
-{
-	msg_set_bits(m, 5, 12, 0x1, 0);
+	msg_set_bits(m, 5, 12, 0x1, r);
 }
 
 
