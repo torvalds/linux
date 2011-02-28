@@ -273,6 +273,19 @@ config SAMSUNG_DEV_KEYPAD
 	help
 	  Compile in platform device definitions for keypad
 
+config SAMSUNG_DEV_PWM
+	bool
+	default y if ARCH_S3C2410
+	help
+	  Compile in platform device definition for PWM Timer
+
+config S3C24XX_PWM
+	bool "PWM device support"
+	select HAVE_PWM
+	help
+	  Support for exporting the PWM timer blocks via the pwm device
+	  system
+
 # DMA
 
 config S3C_DMA
