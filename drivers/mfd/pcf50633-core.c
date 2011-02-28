@@ -360,6 +360,7 @@ static struct i2c_device_id pcf50633_id_table[] = {
 	{"pcf50633", 0x73},
 	{/* end of list */}
 };
+MODULE_DEVICE_TABLE(i2c, pcf50633_id_table);
 
 static struct i2c_driver pcf50633_driver = {
 	.driver = {
