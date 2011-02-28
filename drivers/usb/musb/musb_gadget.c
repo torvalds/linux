@@ -1821,6 +1821,8 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 		goto err0;
 	}
 
+	pm_runtime_get_sync(musb->controller);
+
 	DBG(3, "registering driver %s\n", driver->function);
 
 	if (musb->gadget_driver) {
@@ -1885,6 +1887,10 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 		}
 
 		hcd->self.uses_pio_for_control = 1;
+
+		if (musb->xceiv->last_event == USB_EVENT_NONE)
+			pm_runtime_put(musb->controller);
+
 	}
 
 	return 0;
@@ -1961,6 +1967,9 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	if (!musb->gadget_driver)
 		return -EINVAL;
 
+	if (musb->xceiv->last_event == USB_EVENT_NONE)
+		pm_runtime_get_sync(musb->controller);
+
 	/*
 	 * REVISIT always use otg_set_peripheral() here too;
 	 * this needs to shut down the OTG engine.
@@ -2001,6 +2010,8 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 
 	if (!is_otg_enabled(musb))
 		musb_stop(musb);
+
+	pm_runtime_put(musb->controller);
 
 	return 0;
 }

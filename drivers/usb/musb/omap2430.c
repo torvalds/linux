@@ -244,6 +244,7 @@ static int musb_otg_notifications(struct notifier_block *nb,
 		if (is_otg_enabled(musb)) {
 #ifdef CONFIG_USB_GADGET_MUSB_HDRC
 			if (musb->gadget_driver) {
+				pm_runtime_get_sync(musb->controller);
 				otg_init(musb->xceiv);
 
 				if (data->interface_type ==
@@ -253,6 +254,7 @@ static int musb_otg_notifications(struct notifier_block *nb,
 			}
 #endif
 		} else {
+			pm_runtime_get_sync(musb->controller);
 			otg_init(musb->xceiv);
 			if (data->interface_type ==
 					MUSB_INTERFACE_UTMI)
@@ -263,11 +265,23 @@ static int musb_otg_notifications(struct notifier_block *nb,
 	case USB_EVENT_VBUS:
 		DBG(4, "VBUS Connect\n");
 
+		if (musb->gadget_driver)
+			pm_runtime_get_sync(musb->controller);
+
 		otg_init(musb->xceiv);
 		break;
 
 	case USB_EVENT_NONE:
 		DBG(4, "VBUS Disconnect\n");
+
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
+		if (is_otg_enabled(musb))
+			if (musb->gadget_driver)
+#endif
+			{
+				pm_runtime_mark_last_busy(musb->controller);
+				pm_runtime_put_autosuspend(musb->controller);
+			}
 
 		if (data->interface_type == MUSB_INTERFACE_UTMI) {
 			if (musb->xceiv->set_vbus)
@@ -300,7 +314,11 @@ static int omap2430_musb_init(struct musb *musb)
 		return -ENODEV;
 	}
 
-	omap2430_low_level_init(musb);
+	status = pm_runtime_get_sync(dev);
+	if (status < 0) {
+		dev_err(dev, "pm_runtime_get_sync FAILED");
+		goto err1;
+	}
 
 	l = musb_readl(musb->mregs, OTG_INTERFSEL);
 
@@ -331,6 +349,10 @@ static int omap2430_musb_init(struct musb *musb)
 	setup_timer(&musb_idle_timer, musb_do_idle, (unsigned long) musb);
 
 	return 0;
+
+err1:
+	pm_runtime_disable(dev);
+	return status;
 }
 
 static void omap2430_musb_enable(struct musb *musb)
@@ -407,8 +429,6 @@ static int __init omap2430_probe(struct platform_device *pdev)
 	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
 	struct platform_device		*musb;
 	struct omap2430_glue		*glue;
-	int				status = 0;
-
 	int				ret = -ENOMEM;
 
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
@@ -454,16 +474,9 @@ static int __init omap2430_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(&pdev->dev);
-	status = pm_runtime_get_sync(&pdev->dev);
-	if (status < 0) {
-		dev_err(&pdev->dev, "pm_runtime_get_sync FAILED");
-		goto err3;
-	}
 
 	return 0;
 
-err3:
-	pm_runtime_disable(&pdev->dev);
 err2:
 	platform_device_put(musb);
 
@@ -489,7 +502,7 @@ static int __exit omap2430_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_PM
 
-static int omap2430_suspend(struct device *dev)
+static int omap2430_runtime_suspend(struct device *dev)
 {
 	struct omap2430_glue		*glue = dev_get_drvdata(dev);
 	struct musb			*musb = glue_to_musb(glue);
@@ -497,21 +510,13 @@ static int omap2430_suspend(struct device *dev)
 	omap2430_low_level_exit(musb);
 	otg_set_suspend(musb->xceiv, 1);
 
-	if (!pm_runtime_suspended(dev) && dev->bus && dev->bus->pm &&
-			dev->bus->pm->runtime_suspend)
-		dev->bus->pm->runtime_suspend(dev);
-
 	return 0;
 }
 
-static int omap2430_resume(struct device *dev)
+static int omap2430_runtime_resume(struct device *dev)
 {
 	struct omap2430_glue		*glue = dev_get_drvdata(dev);
 	struct musb			*musb = glue_to_musb(glue);
-
-	if (!pm_runtime_suspended(dev) && dev->bus && dev->bus->pm &&
-			dev->bus->pm->runtime_resume)
-		dev->bus->pm->runtime_resume(dev);
 
 	omap2430_low_level_init(musb);
 	otg_set_suspend(musb->xceiv, 0);
@@ -520,8 +525,8 @@ static int omap2430_resume(struct device *dev)
 }
 
 static struct dev_pm_ops omap2430_pm_ops = {
-	.suspend	= omap2430_suspend,
-	.resume		= omap2430_resume,
+	.runtime_suspend = omap2430_runtime_suspend,
+	.runtime_resume = omap2430_runtime_resume,
 };
 
 #define DEV_PM_OPS	(&omap2430_pm_ops)
