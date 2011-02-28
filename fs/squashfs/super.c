@@ -373,8 +373,8 @@ static void squashfs_put_super(struct super_block *sb)
 }
 
 
-static struct dentry *squashfs_mount(struct file_system_type *fs_type, int flags,
-				const char *dev_name, void *data)
+static struct dentry *squashfs_mount(struct file_system_type *fs_type,
+				int flags, const char *dev_name, void *data)
 {
 	return mount_bdev(fs_type, flags, dev_name, data, squashfs_fill_super);
 }
