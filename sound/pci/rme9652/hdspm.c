@@ -6291,8 +6291,10 @@ static int __devinit snd_hdspm_create_pcm(struct snd_card *card,
 
 static inline void snd_hdspm_initialize_midi_flush(struct hdspm * hdspm)
 {
-	snd_hdspm_flush_midi_input(hdspm, 0);
-	snd_hdspm_flush_midi_input(hdspm, 1);
+	int i;
+
+	for (i = 0; i < hdspm->midiPorts; i++)
+		snd_hdspm_flush_midi_input(hdspm, i);
 }
 
 static int __devinit snd_hdspm_create_alsa_devices(struct snd_card *card,
