@@ -1577,6 +1577,7 @@ static int fimc_probe(struct platform_device *pdev)
 	struct fimc_dev *fimc;
 	struct resource *res;
 	struct samsung_fimc_driverdata *drv_data;
+	struct s5p_platform_fimc *pdata;
 	int ret = 0;
 	int cap_input_index = -1;
 
@@ -1598,7 +1599,8 @@ static int fimc_probe(struct platform_device *pdev)
 	fimc->id = pdev->id;
 	fimc->variant = drv_data->variant[fimc->id];
 	fimc->pdev = pdev;
-	fimc->pdata = pdev->dev.platform_data;
+	pdata = pdev->dev.platform_data;
+	fimc->pdata = pdata;
 	fimc->state = ST_IDLE;
 
 	init_waitqueue_head(&fimc->irq_queue);
@@ -1629,19 +1631,11 @@ static int fimc_probe(struct platform_device *pdev)
 	}
 
 	fimc->num_clocks = MAX_FIMC_CLOCKS - 1;
-	/*
-	 * Check if vide capture node needs to be registered for this device
-	 * instance.
-	 */
-	if (fimc->pdata) {
-		int i;
-		for (i = 0; i < FIMC_MAX_CAMIF_CLIENTS; ++i)
-			if (fimc->pdata->isp_info[i])
-				break;
-		if (i < FIMC_MAX_CAMIF_CLIENTS) {
-			cap_input_index = i;
-			fimc->num_clocks++;
-		}
+
+	/* Check if a video capture node needs to be registered. */
+	if (pdata && pdata->num_clients > 0) {
+		cap_input_index = 0;
+		fimc->num_clocks++;
 	}
 
 	ret = fimc_clk_get(fimc);

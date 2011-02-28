@@ -91,10 +91,10 @@ static int fimc_subdev_attach(struct fimc_dev *fimc, int index)
 	struct v4l2_subdev *sd;
 	int i;
 
-	for (i = 0; i < FIMC_MAX_CAMIF_CLIENTS; ++i) {
-		isp_info = pdata->isp_info[i];
+	for (i = 0; i < pdata->num_clients; ++i) {
+		isp_info = &pdata->isp_info[i];
 
-		if (!isp_info || (index >= 0 && i != index))
+		if (index >= 0 && i != index)
 			continue;
 
 		sd = fimc_subdev_register(fimc, isp_info);
@@ -116,14 +116,13 @@ static int fimc_subdev_attach(struct fimc_dev *fimc, int index)
 static int fimc_isp_subdev_init(struct fimc_dev *fimc, unsigned int index)
 {
 	struct s5p_fimc_isp_info *isp_info;
+	struct s5p_platform_fimc *pdata = fimc->pdata;
 	int ret;
 
-	if (index >= FIMC_MAX_CAMIF_CLIENTS)
+	if (index >= pdata->num_clients)
 		return -EINVAL;
 
-	isp_info = fimc->pdata->isp_info[index];
-	if (!isp_info)
-		return -EINVAL;
+	isp_info = &pdata->isp_info[index];
 
 	if (isp_info->clk_frequency)
 		clk_set_rate(fimc->clock[CLK_CAM], isp_info->clk_frequency);
@@ -215,7 +214,7 @@ static int start_streaming(struct vb2_queue *q)
 	if (ret)
 		return ret;
 
-	isp_info = fimc->pdata->isp_info[fimc->vid_cap.input_index];
+	isp_info = &fimc->pdata->isp_info[fimc->vid_cap.input_index];
 	fimc_hw_set_camera_type(fimc, isp_info);
 	fimc_hw_set_camera_source(fimc, isp_info);
 	fimc_hw_set_camera_offset(fimc, &ctx->s_frame);
@@ -567,12 +566,10 @@ static int fimc_cap_enum_input(struct file *file, void *priv,
 	struct s5p_platform_fimc *pldata = ctx->fimc_dev->pdata;
 	struct s5p_fimc_isp_info *isp_info;
 
-	if (i->index >= FIMC_MAX_CAMIF_CLIENTS)
+	if (i->index >= pldata->num_clients)
 		return -EINVAL;
 
-	isp_info = pldata->isp_info[i->index];
-	if (isp_info == NULL)
-		return -EINVAL;
+	isp_info = &pldata->isp_info[i->index];
 
 	i->type = V4L2_INPUT_TYPE_CAMERA;
 	strncpy(i->name, isp_info->board_info->type, 32);
@@ -589,7 +586,7 @@ static int fimc_cap_s_input(struct file *file, void *priv,
 	if (fimc_capture_active(ctx->fimc_dev))
 		return -EBUSY;
 
-	if (i >= FIMC_MAX_CAMIF_CLIENTS || !pdata->isp_info[i])
+	if (i >= pdata->num_clients)
 		return -EINVAL;
 
 
