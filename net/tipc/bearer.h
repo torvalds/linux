@@ -105,7 +105,6 @@ struct media {
  * @name: bearer name (format = media:interface)
  * @media: ptr to media structure associated with bearer
  * @priority: default link priority for bearer
- * @detect_scope: network address mask used during automatic link creation
  * @identity: array index of this bearer within TIPC bearer array
  * @link_req: ptr to (optional) structure making periodic link setup requests
  * @links: list of non-congested links associated with bearer
@@ -128,7 +127,6 @@ struct tipc_bearer {
 	spinlock_t lock;
 	struct media *media;
 	u32 priority;
-	u32 detect_scope;
 	u32 identity;
 	struct link_req *link_req;
 	struct list_head links;
