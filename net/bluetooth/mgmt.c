@@ -49,7 +49,7 @@ static int cmd_status(struct sock *sk, u16 index, u16 cmd, u8 status)
 	struct mgmt_hdr *hdr;
 	struct mgmt_ev_cmd_status *ev;
 
-	BT_DBG("sock %p", sk);
+	BT_DBG("sock %p, index %u, cmd %u, status %u", sk, index, cmd, status);
 
 	skb = alloc_skb(sizeof(*hdr) + sizeof(*ev), GFP_ATOMIC);
 	if (!skb)
