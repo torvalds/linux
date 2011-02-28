@@ -730,7 +730,7 @@ void rtl92ce_tx_fill_desc(struct ieee80211_hw *hw,
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	bool defaultadapter = true;
-	struct ieee80211_sta *sta = ieee80211_find_sta(mac->vif, mac->bssid);
+	struct ieee80211_sta *sta;
 	u8 *pdesc = (u8 *) pdesc_tx;
 	struct rtl_tcb_desc tcb_desc;
 	u8 *qc = ieee80211_get_qos_ctl(hdr);
@@ -810,10 +810,13 @@ void rtl92ce_tx_fill_desc(struct ieee80211_hw *hw,
 		SET_TX_DESC_LINIP(pdesc, 0);
 		SET_TX_DESC_PKT_SIZE(pdesc, (u16) skb->len);
 
+		rcu_read_lock();
+		sta = ieee80211_find_sta(mac->vif, mac->bssid);
 		if (sta) {
 			u8 ampdu_density = sta->ht_cap.ampdu_density;
 			SET_TX_DESC_AMPDU_DENSITY(pdesc, ampdu_density);
 		}
+		rcu_read_unlock();
 
 		if (info->control.hw_key) {
 			struct ieee80211_key_conf *keyconf =
