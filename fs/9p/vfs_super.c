@@ -293,6 +293,20 @@ static int v9fs_sync_fs(struct super_block *sb, int wait)
 	return p9_client_sync_fs(v9ses->root_fid);
 }
 
+static int v9fs_drop_inode(struct inode *inode)
+{
+	struct v9fs_session_info *v9ses;
+	v9ses = v9fs_inode2v9ses(inode);
+	if (v9ses->cache)
+		return generic_drop_inode(inode);
+	/*
+	 * in case of non cached mode always drop the
+	 * the inode because we want the inode attribute
+	 * to always match that on the server.
+	 */
+	return 1;
+}
+
 static const struct super_operations v9fs_super_ops = {
 	.alloc_inode = v9fs_alloc_inode,
 	.destroy_inode = v9fs_destroy_inode,
@@ -307,6 +321,7 @@ static const struct super_operations v9fs_super_ops_dotl = {
 	.destroy_inode = v9fs_destroy_inode,
 	.sync_fs = v9fs_sync_fs,
 	.statfs = v9fs_statfs,
+	.drop_inode = v9fs_drop_inode,
 	.evict_inode = v9fs_evict_inode,
 	.show_options = generic_show_options,
 	.umount_begin = v9fs_umount_begin,
