@@ -671,19 +671,11 @@ v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
 	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE) {
 		/* Get the latest stat info from server. */
 		struct p9_fid *fid;
-		struct p9_stat_dotl *st;
-
 		fid = v9fs_fid_lookup(old_dentry);
 		if (IS_ERR(fid))
 			return PTR_ERR(fid);
 
-		st = p9_client_getattr_dotl(fid, P9_STATS_BASIC);
-		if (IS_ERR(st))
-			return PTR_ERR(st);
-
-		v9fs_stat2inode_dotl(st, old_dentry->d_inode);
-
-		kfree(st);
+		v9fs_refresh_inode_dotl(fid, old_dentry->d_inode);
 	}
 	ihold(old_dentry->d_inode);
 	d_instantiate(dentry, old_dentry->d_inode);

@@ -1292,8 +1292,10 @@ v9fs_vfs_link(struct dentry *old_dentry, struct inode *dir,
 	sprintf(name, "%d\n", oldfid->fid);
 	retval = v9fs_vfs_mkspecial(dir, dentry, P9_DMLINK, name);
 	__putname(name);
-	if (!retval)
+	if (!retval) {
+		v9fs_refresh_inode(oldfid, old_dentry->d_inode);
 		v9fs_invalidate_inode_attr(dir);
+	}
 clunk_fid:
 	p9_client_clunk(oldfid);
 	return retval;
