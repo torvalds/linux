@@ -14,7 +14,9 @@
 #include <linux/usb/isp1760.h>
 #include <linux/clkdev.h>
 
+#include <asm/mach-types.h>
 #include <asm/sizes.h>
+#include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
@@ -22,6 +24,7 @@
 #include <asm/hardware/timer-sp.h>
 #include <asm/hardware/sp810.h>
 
+#include <mach/ct-ca9x4.h>
 #include <mach/motherboard.h>
 
 #include <plat/sched_clock.h>
@@ -43,14 +46,9 @@ static struct map_desc v2m_io_desc[] __initdata = {
 	},
 };
 
-void __init v2m_map_io(struct map_desc *tile, size_t num)
+static void __init v2m_init_early(void)
 {
-	iotable_init(v2m_io_desc, ARRAY_SIZE(v2m_io_desc));
-	iotable_init(tile, num);
-}
-
-void __init v2m_init_early(void)
-{
+	ct_desc->init_early();
 	versatile_sched_clock_init(MMIO_P2V(V2M_SYS_24MHZ), 24000000);
 }
 
@@ -71,7 +69,7 @@ static void __init v2m_timer_init(void)
 	sp804_clockevents_init(MMIO_P2V(V2M_TIMER0), IRQ_V2M_TIMER0);
 }
 
-struct sys_timer v2m_timer = {
+static struct sys_timer v2m_timer = {
 	.init	= v2m_timer_init,
 };
 
@@ -380,7 +378,44 @@ static void v2m_restart(char str, const char *cmd)
 		printk(KERN_EMERG "Unable to reboot\n");
 }
 
-static int __init v2m_init(void)
+struct ct_desc *ct_desc;
+
+static struct ct_desc *ct_descs[] __initdata = {
+#ifdef CONFIG_ARCH_VEXPRESS_CA9X4
+	&ct_ca9x4_desc,
+#endif
+};
+
+static void __init v2m_populate_ct_desc(void)
+{
+	int i;
+	u32 current_tile_id;
+
+	ct_desc = NULL;
+	current_tile_id = readl(MMIO_P2V(V2M_SYS_PROCID0)) & V2M_CT_ID_MASK;
+
+	for (i = 0; i < ARRAY_SIZE(ct_descs) && !ct_desc; ++i)
+		if (ct_descs[i]->id == current_tile_id)
+			ct_desc = ct_descs[i];
+
+	if (!ct_desc)
+		panic("vexpress: failed to populate core tile description "
+		      "for tile ID 0x%8x\n", current_tile_id);
+}
+
+static void __init v2m_map_io(void)
+{
+	iotable_init(v2m_io_desc, ARRAY_SIZE(v2m_io_desc));
+	v2m_populate_ct_desc();
+	ct_desc->map_io();
+}
+
+static void __init v2m_init_irq(void)
+{
+	ct_desc->init_irq();
+}
+
+static void __init v2m_init(void)
 {
 	int i;
 
@@ -399,6 +434,14 @@ static int __init v2m_init(void)
 	pm_power_off = v2m_power_off;
 	arm_pm_restart = v2m_restart;
 
-	return 0;
+	ct_desc->init_tile();
 }
-arch_initcall(v2m_init);
+
+MACHINE_START(VEXPRESS, "ARM-Versatile Express")
+	.boot_params	= PLAT_PHYS_OFFSET + 0x00000100,
+	.map_io		= v2m_map_io,
+	.init_early	= v2m_init_early,
+	.init_irq	= v2m_init_irq,
+	.timer		= &v2m_timer,
+	.init_machine	= v2m_init,
+MACHINE_END
