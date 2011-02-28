@@ -440,6 +440,7 @@ v9fs_file_write_internal(struct inode *inode, struct p9_fid *fid,
 			 loff_t *offset, int invalidate)
 {
 	int n;
+	loff_t i_size;
 	size_t total = 0;
 	struct p9_client *clnt;
 	loff_t origin = *offset;
@@ -464,8 +465,11 @@ v9fs_file_write_internal(struct inode *inode, struct p9_fid *fid,
 			invalidate_inode_pages2_range(inode->i_mapping,
 						      pg_start, pg_end);
 		*offset += total;
-		i_size_write(inode, i_size_read(inode) + total);
-		inode->i_blocks = (i_size_read(inode) + 512 - 1) >> 9;
+		i_size = i_size_read(inode);
+		if (*offset > i_size) {
+			inode_add_bytes(inode, *offset - i_size);
+			i_size_write(inode, *offset);
+		}
 	}
 	if (n < 0)
 		return n;
