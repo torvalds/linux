@@ -199,19 +199,19 @@ enum {
 enum nvme_admin_opcode {
 	nvme_admin_delete_sq		= 0x00,
 	nvme_admin_create_sq		= 0x01,
-	nvme_admin_get_features		= 0x02,
+	nvme_admin_get_log_page		= 0x02,
 	nvme_admin_delete_cq		= 0x04,
 	nvme_admin_create_cq		= 0x05,
 	nvme_admin_identify		= 0x06,
 	nvme_admin_abort_cmd		= 0x08,
 	nvme_admin_set_features		= 0x09,
-	nvme_admin_get_log_page		= 0x0a,
+	nvme_admin_get_features		= 0x0a,
 	nvme_admin_async_event		= 0x0c,
-	nvme_admin_download_fw		= 0x0d,
-	nvme_admin_security_recv	= 0x0e,
-	nvme_admin_format_nvm		= 0x10,
-	nvme_admin_security_send	= 0x11,
-	nvme_admin_activate_fw		= 0x14,
+	nvme_admin_activate_fw		= 0x10,
+	nvme_admin_download_fw		= 0x11,
+	nvme_admin_format_nvm		= 0x80,
+	nvme_admin_security_send	= 0x81,
+	nvme_admin_security_recv	= 0x82,
 };
 
 enum {
