@@ -803,6 +803,7 @@ static const struct spi_device_id mc13xxx_device_id[] = {
 		/* sentinel */
 	}
 };
+MODULE_DEVICE_TABLE(spi, mc13xxx_device_id);
 
 static struct spi_driver mc13xxx_driver = {
 	.id_table = mc13xxx_device_id,
