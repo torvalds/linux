@@ -1,3 +1,5 @@
+#define DEBUG
+
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -5,7 +7,7 @@
 #include <linux/init.h>
 #include <linux/pm.h>
 #include <linux/suspend.h>
-#include <linux/regulator/consumer.h>
+#include <linux/regulator/rk29-pwm-regulator.h>
 #include <linux/io.h>
 #include <linux/wakelock.h>
 
@@ -22,71 +24,157 @@
 #define pmu_writel(v, offset)	do { writel(v, RK29_PMU_BASE + offset); readl(RK29_PMU_BASE + offset); } while (0)
 static unsigned long save_sp;
 
+#define LOOPS_PER_USEC	13
+#define LOOP(loops) do { int i = loops; barrier(); while (i--) barrier(); } while (0)
+
 static inline void delay_500ns(void)
 {
-	int delay = 12;
-	while (delay--)
-		barrier();
+	LOOP(LOOPS_PER_USEC);
 }
 
 static inline void delay_300us(void)
 {
-	int i;
-	for (i = 0; i < 600; i++)
-		delay_500ns();
+	LOOP(300 * LOOPS_PER_USEC);
 }
-
-static u32 apll;
-static u32 lpj;
-static struct regulator *vcore;
-static int vcore_uV;
 
 extern void ddr_suspend(void);
 extern void ddr_resume(void);
 
-static void __sramfunc rk29_pm_enter_ddr(void)
+#ifdef DEBUG
+static void inline printch(char byte)
 {
-	u32 clksel0, dpll, mode, clkgate0;
+	unsigned long flags;
+	unsigned int delay;
+	u32 gate1, gate2;
 
-	asm("dsb");
-	ddr_suspend();
-
-	/* suspend ddr pll */
-	mode = cru_readl(CRU_MODE_CON);
-	dpll = cru_readl(CRU_DPLL_CON);
-	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_DDR_MODE_MASK) | CRU_DDR_MODE_SLOW, CRU_MODE_CON);
-	cru_writel(dpll | PLL_BYPASS, CRU_DPLL_CON);
-	cru_writel(dpll | PLL_PD | PLL_BYPASS, CRU_DPLL_CON);
+	local_irq_save(flags);
+	gate1 = cru_readl(CRU_CLKGATE1_CON);
+	gate2 = cru_readl(CRU_CLKGATE2_CON);
+	cru_writel(gate1 & ~((1 << CLK_GATE_PCLK_PEIRPH % 32) | (1 << CLK_GATE_ACLK_PEIRPH % 32) | (1 << CLK_GATE_ACLK_CPU_PERI % 32)), CRU_CLKGATE1_CON);
+	cru_writel(gate2 & ~(1 << CLK_GATE_UART1 % 32), CRU_CLKGATE2_CON);
 	delay_500ns();
 
-	/* disable ddr clock */
-	clkgate0 = cru_readl(CRU_CLKGATE0_CON);
-	cru_writel(clkgate0 | (1 << CLK_GATE_DDR_PHY) | (1 << CLK_GATE_DDR_REG) | (1 << CLK_GATE_DDR_CPU), CRU_CLKGATE0_CON);
+	writel(byte, RK29_UART1_BASE);
 
-	/* set arm clk 24MHz/32 = 750KHz */
+	delay = (cru_readl(CRU_MODE_CON) & CRU_CPU_MODE_MASK) ? 10 : 1;
+	while (delay--)
+		delay_300us();
+
+	cru_writel(gate2, CRU_CLKGATE2_CON);
+	cru_writel(gate1, CRU_CLKGATE1_CON);
+	local_irq_restore(flags);
+	if (byte == '\n')
+		printch('\r');
+}
+
+static void inline printascii(const char *s)
+{
+	while (*s) {
+		printch(*s);
+		s++;
+	}
+}
+
+static void inline printhex(unsigned int hex)
+{
+	int i = 8;
+	printch('0');
+	printch('x');
+	while (i--) {
+		unsigned char c = (hex & 0xF0000000) >> 28;
+		printch(c < 0xa ? c + '0' : c - 0xa + 'a');
+		hex <<= 4;
+	}
+}
+#else
+static void inline printch(char byte) {}
+static void inline printascii(const char *s) {}
+static void inline printhex(unsigned int hex) {}
+#endif /* DEBUG */
+
+#ifdef CONFIG_RK29_PWM_REGULATOR
+#define pwm_write_reg(addr, val)	__raw_writel(val, addr + (RK29_PWM_BASE + 2*0x10))
+#define pwm_read_reg(addr)		__raw_readl(addr + (RK29_PWM_BASE + 2*0x10))
+
+static u32 __sramdata pwm_lrc, pwm_hrc;
+static void __sramfunc rk29_set_core_voltage(int uV)
+{
+	u32 gate1;
+
+	gate1 = cru_readl(CRU_CLKGATE1_CON);
+	cru_writel(gate1 & ~((1 << CLK_GATE_PCLK_PEIRPH % 32) | (1 << CLK_GATE_ACLK_PEIRPH % 32) | (1 << CLK_GATE_ACLK_CPU_PERI % 32)), CRU_CLKGATE1_CON);
+
+	/* iomux pwm2 */
+	writel((readl(RK29_GRF_BASE + 0x58) & ~(0x3<<6)) | (0x2<<6), RK29_GRF_BASE + 0x58);
+
+	if (uV) {
+		pwm_lrc = pwm_read_reg(PWM_REG_LRC);
+		pwm_hrc = pwm_read_reg(PWM_REG_HRC);
+	}
+
+	pwm_write_reg(PWM_REG_CTRL, PWM_DIV|PWM_RESET);
+	if (uV == 1000000) {
+		pwm_write_reg(PWM_REG_LRC, 12);
+		pwm_write_reg(PWM_REG_HRC, 10);
+	} else {
+		pwm_write_reg(PWM_REG_LRC, pwm_lrc);
+		pwm_write_reg(PWM_REG_HRC, pwm_hrc);
+	}
+	pwm_write_reg(PWM_REG_CNTR, 0);
+	pwm_write_reg(PWM_REG_CTRL, PWM_DIV|PWM_ENABLE|PWM_TimeEN);
+
+	LOOP(5 * 1000 * LOOPS_PER_USEC); /* delay 5ms */
+
+	cru_writel(gate1, CRU_CLKGATE1_CON);
+}
+#endif /* CONFIG_RK29_PWM_REGULATOR */
+
+static void __sramfunc rk29_sram_suspend(void)
+{
+	u32 clksel0;
+
+	printch('5');
+	ddr_suspend();
+
+	printch('6');
+	rk29_set_core_voltage(1000000);
+
+	printch('7');
 	clksel0 = cru_readl(CRU_CLKSEL0_CON);
+	/* set arm clk 24MHz/32 = 750KHz */
 	cru_writel(clksel0 | 0x1F, CRU_CLKSEL0_CON);
 
 	asm("wfi");
 
 	/* resume arm clk */
 	cru_writel(clksel0, CRU_CLKSEL0_CON);
+	printch('7');
 
-	/* enable ddr clock */
-	cru_writel(clkgate0, CRU_CLKGATE0_CON);
-
-	/* resume ddr pll */
-	cru_writel(dpll, CRU_DPLL_CON);
-	delay_300us();
-	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_DDR_MODE_MASK) | (mode & CRU_DDR_MODE_MASK), CRU_MODE_CON);
+	rk29_set_core_voltage(0);
+	printch('6');
 
 	ddr_resume();
+	printch('5');
+}
+
+static void noinline rk29_suspend(void)
+{
+	DDR_SAVE_SP(save_sp);
+	rk29_sram_suspend();
+	DDR_RESTORE_SP(save_sp);
 }
 
 static int rk29_pm_enter(suspend_state_t state)
 {
-	u32 cpll, gpll, mode;
+	u32 apll, cpll, gpll, mode, clksel0;
 	u32 clkgate[4];
+	printch('0');
+
+#ifdef CONFIG_RK29_PWM_REGULATOR
+	/* touch TLB */
+	readl(RK29_PWM_BASE);
+	readl(RK29_GRF_BASE);
+#endif
 
 	/* disable clock */
 	clkgate[0] = cru_readl(CRU_CLKGATE0_CON);
@@ -116,50 +204,10 @@ static int rk29_pm_enter(suspend_state_t state)
 		   | (1 << CLK_GATE_PWM % 32)
 		   ) | clkgate[2], CRU_CLKGATE2_CON);
 	cru_writel(~0, CRU_CLKGATE3_CON);
+	printch('1');
 
 	mode = cru_readl(CRU_MODE_CON);
-
-	/* suspend codec pll */
-	cpll = cru_readl(CRU_CPLL_CON);
-	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CODEC_MODE_MASK) | CRU_CODEC_MODE_SLOW, CRU_MODE_CON);
-	cru_writel(cpll | PLL_BYPASS, CRU_CPLL_CON);
-	cru_writel(cpll | PLL_PD | PLL_BYPASS, CRU_CPLL_CON);
-	delay_500ns();
-
-	/* suspend general pll */
-	gpll = cru_readl(CRU_GPLL_CON);
-	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_GENERAL_MODE_MASK) | CRU_GENERAL_MODE_SLOW, CRU_MODE_CON);
-	cru_writel(gpll | PLL_BYPASS, CRU_GPLL_CON);
-	cru_writel(gpll | PLL_PD | PLL_BYPASS, CRU_GPLL_CON);
-	delay_500ns();
-
-	DDR_SAVE_SP(save_sp);
-	rk29_pm_enter_ddr();
-	DDR_RESTORE_SP(save_sp);
-
-	/* resume general pll */
-	cru_writel(gpll, CRU_GPLL_CON);
-	delay_300us();
-	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_GENERAL_MODE_MASK) | (mode & CRU_GENERAL_MODE_MASK), CRU_MODE_CON);
-
-	/* resume codec pll */
-	cru_writel(cpll, CRU_CPLL_CON);
-	delay_300us();
-	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CODEC_MODE_MASK) | (mode & CRU_CODEC_MODE_MASK), CRU_MODE_CON);
-
-	/* enable clock */
-	cru_writel(clkgate[0], CRU_CLKGATE0_CON);
-	cru_writel(clkgate[1], CRU_CLKGATE1_CON);
-	cru_writel(clkgate[2], CRU_CLKGATE2_CON);
-	cru_writel(clkgate[3], CRU_CLKGATE3_CON);
-
-	return 0;
-}
-
-static int rk29_pm_prepare(void)
-{
-	printk("+%s\n", __func__);
-	disable_hlt(); // disable entering rk29_idle() by disable_hlt()
+	clksel0 = cru_readl(CRU_CLKSEL0_CON);
 
 	/* suspend arm pll */
 	apll = cru_readl(CRU_APLL_CON);
@@ -167,32 +215,73 @@ static int rk29_pm_prepare(void)
 	cru_writel(apll | PLL_BYPASS, CRU_APLL_CON);
 	cru_writel(apll | PLL_PD | PLL_BYPASS, CRU_APLL_CON);
 	delay_500ns();
-	lpj = loops_per_jiffy;
-	loops_per_jiffy = 120000; // make udelay/mdelay correct
+	/* set core = aclk_cpu = hclk_cpu = pclk_cpu = 24MHz */
+	cru_writel(clksel0 & 0xFFFFF000, CRU_CLKSEL0_CON);
+	printch('2');
 
-	if (vcore) {
-		vcore_uV = regulator_get_voltage(vcore);
-		regulator_set_voltage(vcore, 1000000, 1000000);
-	}
-	printk("-%s\n", __func__);
+	/* suspend codec pll */
+	cpll = cru_readl(CRU_CPLL_CON);
+	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CODEC_MODE_MASK) | CRU_CODEC_MODE_SLOW, CRU_MODE_CON);
+	cru_writel(cpll | PLL_BYPASS, CRU_CPLL_CON);
+	cru_writel(cpll | PLL_PD | PLL_BYPASS, CRU_CPLL_CON);
+	delay_500ns();
+	printch('3');
+
+	/* suspend general pll */
+	gpll = cru_readl(CRU_GPLL_CON);
+	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_GENERAL_MODE_MASK) | CRU_GENERAL_MODE_SLOW, CRU_MODE_CON);
+	cru_writel(gpll | PLL_BYPASS, CRU_GPLL_CON);
+	cru_writel(gpll | PLL_PD | PLL_BYPASS, CRU_GPLL_CON);
+	delay_500ns();
+	/* set aclk_periph = hclk_periph = pclk_periph = 24MHz */
+	cru_writel(clksel0 & ~0x7FC000, CRU_CLKSEL0_CON);
+
+	printch('4');
+	rk29_suspend();
+	printch('4');
+
+	/* resume general pll */
+	cru_writel(gpll, CRU_GPLL_CON);
+	delay_300us();
+	/* restore aclk_periph/hclk_periph/pclk_periph */
+	cru_writel(cru_readl(CRU_CLKSEL0_CON) | (clksel0 & 0x7FC000), CRU_CLKSEL0_CON);
+	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_GENERAL_MODE_MASK) | (mode & CRU_GENERAL_MODE_MASK), CRU_MODE_CON);
+	printch('3');
+
+	/* resume codec pll */
+	cru_writel(cpll, CRU_CPLL_CON);
+	delay_300us();
+	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CODEC_MODE_MASK) | (mode & CRU_CODEC_MODE_MASK), CRU_MODE_CON);
+	printch('2');
+
+	/* resume arm pll */
+	cru_writel(apll, CRU_APLL_CON);
+	delay_300us();
+	/* restore core/aclk_cpu/hclk_cpu/pclk_cpu */
+	cru_writel(cru_readl(CRU_CLKSEL0_CON) | (clksel0 & 0xFFF), CRU_CLKSEL0_CON);
+	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CPU_MODE_MASK) | (mode & CRU_CPU_MODE_MASK), CRU_MODE_CON);
+	printch('1');
+
+	/* enable clock */
+	cru_writel(clkgate[0], CRU_CLKGATE0_CON);
+	cru_writel(clkgate[1], CRU_CLKGATE1_CON);
+	cru_writel(clkgate[2], CRU_CLKGATE2_CON);
+	cru_writel(clkgate[3], CRU_CLKGATE3_CON);
+	printascii("0\n");
+
+	return 0;
+}
+
+static int rk29_pm_prepare(void)
+{
+	/* disable entering rk29_idle() by disable_hlt() */
+	disable_hlt();
 	return 0;
 }
 
 static void rk29_pm_finish(void)
 {
-	printk("+%s\n", __func__);
-	if (vcore) {
-		regulator_set_voltage(vcore, vcore_uV, vcore_uV);
-	}
-
-	/* resume arm pll */
-	loops_per_jiffy = lpj;
-	cru_writel(apll, CRU_APLL_CON);
-	delay_300us();
-	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CPU_MODE_MASK) | CRU_CPU_MODE_NORMAL, CRU_MODE_CON);
-
 	enable_hlt();
-	printk("-%s\n", __func__);
 }
 
 static struct platform_suspend_ops rk29_pm_ops = {
@@ -223,12 +312,6 @@ static void rk29_idle(void)
 
 static int __init rk29_pm_init(void)
 {
-	vcore = regulator_get(NULL, "vcore");
-	if (IS_ERR(vcore)) {
-		pr_err("pm: fail to get regulator vcore: %ld\n", PTR_ERR(vcore));
-		vcore = NULL;
-	}
-
 	suspend_set_ops(&rk29_pm_ops);
 
 	/* set idle function */

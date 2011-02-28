@@ -1031,7 +1031,7 @@ void __sramfunc DDR_EnterSelfRefresh(void)
 {
     EnterDDRSelfRefresh();
 #if 1
-    pSCU_Reg->CRU_CLKGATE_CON[0] |= (0x1<<18);  //close DDR PHY clock    
+    pSCU_Reg->CRU_CLKGATE_CON[0] |= (0x7<<18);  //close DDR PHY clock  / DDR CPU AXI clock / DDR REG AXI clock
     delayus(10);
     // ddr slow
     pSCU_Reg->CRU_MODE_CON &=~(0x3<<6);
@@ -1060,7 +1060,7 @@ void __sramfunc DDR_ExitSelfRefresh(void)
     pSCU_Reg->CRU_MODE_CON &=~(0x3<<6);
     pSCU_Reg->CRU_MODE_CON |= 0x1<<6; 
     delayus(10);	
-    pSCU_Reg->CRU_CLKGATE_CON[0] &= ~(0x1<<18);  //enable DDR PHY clock    
+    pSCU_Reg->CRU_CLKGATE_CON[0] &= ~(0x7<<18);  //enable DDR PHY clock / DDR CPU AXI clock / DDR REG AXI clock
     delayus(10);    
 #endif
     ExitDDRSelfRefresh();
