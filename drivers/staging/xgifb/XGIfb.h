@@ -193,7 +193,6 @@ struct video_info{
         unsigned int   pcislot;
         unsigned int   pcifunc;
 
-        int            accel;
         unsigned short subsysvendor;
         unsigned short subsysdevice;
 

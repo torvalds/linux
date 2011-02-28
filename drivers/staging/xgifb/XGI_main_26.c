@@ -1187,7 +1187,6 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 		xgi_video_info.org_x = xgi_video_info.org_y = 0;
 		xgi_video_info.video_linelength = info->var.xres_virtual
 				* (xgi_video_info.video_bpp >> 3);
-		xgi_video_info.accel = 0;
 		switch (xgi_video_info.video_bpp) {
 		case 8:
 			xgi_video_info.DstColor = 0x0000;
@@ -1219,7 +1218,6 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 		default:
 			xgi_video_info.video_cmap_len = 16;
 			printk(KERN_ERR "XGIfb: Unsupported depth %d", xgi_video_info.video_bpp);
-			xgi_video_info.accel = 0;
 			break;
 		}
 	}
@@ -1635,7 +1633,6 @@ static int XGIfb_ioctl(struct fb_info *info, unsigned int cmd,
 		default:
 			xgi_video_info.video_cmap_len = 16;
 			printk(KERN_ERR "XGIfb: Unsupported accel depth %d", xgi_video_info.video_bpp);
-			xgi_video_info.accel = 0;
 			break;
 		}
 
@@ -2617,10 +2614,6 @@ static void XGIfb_pre_setmode(void)
 	outXGIIDXREG(XGICR, IND_XGI_SCRATCH_REG_CR30, cr30);
 	outXGIIDXREG(XGICR, IND_XGI_SCRATCH_REG_CR31, cr31);
 	outXGIIDXREG(XGICR, IND_XGI_SCRATCH_REG_CR33, (XGIfb_rate_idx & 0x0F));
-
-	if (xgi_video_info.accel)
-		XGIfb_syncaccel();
-
 }
 
 static void XGIfb_post_setmode(void)
@@ -3340,8 +3333,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 			}
 
 		}
-
-		xgi_video_info.accel = 0;
 
 		fb_info->flags = FBINFO_FLAG_DEFAULT;
 		fb_info->var = default_var;
