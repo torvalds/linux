@@ -122,7 +122,7 @@ static inline int test_and_change_bit(unsigned nr,
 	return (_atomic_xor(addr, mask) & mask) != 0;
 }
 
-/* See discussion at smp_mb__before_atomic_dec() in <asm/atomic.h>. */
+/* See discussion at smp_mb__before_atomic_dec() in <asm/atomic_32.h>. */
 #define smp_mb__before_clear_bit()	smp_mb()
 #define smp_mb__after_clear_bit()	do {} while (0)
 

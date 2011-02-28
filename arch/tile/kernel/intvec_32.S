@@ -1584,7 +1584,7 @@ ENTRY(sys_cmpxchg)
 	 * about aliasing among multiple mappings of the same physical page,
 	 * and we ignore the low 3 bits so we have one lock that covers
 	 * both a cmpxchg64() and a cmpxchg() on either its low or high word.
-	 * NOTE: this code must match __atomic_hashed_lock() in lib/atomic.c.
+	 * NOTE: this must match __atomic_hashed_lock() in lib/atomic_32.c.
 	 */
 
 #if ATOMIC_LOCKS_FOUND_VIA_TABLE()
@@ -1718,7 +1718,7 @@ ENTRY(sys_cmpxchg)
 
 	/*
 	 * Perform the actual cmpxchg or atomic_update.
-	 * Note that __futex_mark_unlocked() in uClibc relies on
+	 * Note that the system <arch/atomic.h> header relies on
 	 * atomic_update() to always perform an "mf", so don't make
 	 * it optional or conditional without modifying that code.
 	 */

@@ -1,5 +1,5 @@
 # For a description of the syntax of this configuration file,
-# see Documentation/kbuild/config-language.txt.
+# see Documentation/kbuild/kconfig-language.txt.
 
 config TILE
 	def_bool y
@@ -15,14 +15,14 @@ config TILE
 
 # FIXME: investigate whether we need/want these options.
 #	select HAVE_IOREMAP_PROT
-#       select HAVE_OPTPROBES
-#       select HAVE_REGS_AND_STACK_ACCESS_API
-#       select HAVE_HW_BREAKPOINT
-#       select PERF_EVENTS
-#       select HAVE_USER_RETURN_NOTIFIER
-#       config NO_BOOTMEM
-#       config ARCH_SUPPORTS_DEBUG_PAGEALLOC
-#       config HUGETLB_PAGE_SIZE_VARIABLE
+#	select HAVE_OPTPROBES
+#	select HAVE_REGS_AND_STACK_ACCESS_API
+#	select HAVE_HW_BREAKPOINT
+#	select PERF_EVENTS
+#	select HAVE_USER_RETURN_NOTIFIER
+#	config NO_BOOTMEM
+#	config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+#	config HUGETLB_PAGE_SIZE_VARIABLE
 
 config MMU
 	def_bool y
@@ -40,7 +40,7 @@ config HAVE_SETUP_PER_CPU_AREA
 	def_bool y
 
 config NEED_PER_CPU_PAGE_FIRST_CHUNK
-        def_bool y
+	def_bool y
 
 config SYS_SUPPORTS_HUGETLBFS
 	def_bool y

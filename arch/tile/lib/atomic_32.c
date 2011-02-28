@@ -52,7 +52,7 @@ int atomic_locks[PAGE_SIZE / sizeof(int)] __page_aligned_bss;
 
 static inline int *__atomic_hashed_lock(volatile void *v)
 {
-	/* NOTE: this code must match "sys_cmpxchg" in kernel/intvec.S */
+	/* NOTE: this code must match "sys_cmpxchg" in kernel/intvec_32.S */
 #if ATOMIC_LOCKS_FOUND_VIA_TABLE()
 	unsigned long i =
 		(unsigned long) v & ((PAGE_SIZE-1) & -sizeof(long long));
