@@ -1898,6 +1898,7 @@ void tipc_link_send_proto_msg(struct link *l_ptr, u32 msg_typ, int probe_msg,
 	struct sk_buff *buf = NULL;
 	struct tipc_msg *msg = l_ptr->pmsg;
 	u32 msg_size = sizeof(l_ptr->proto_msg);
+	int r_flag;
 
 	if (link_blocked(l_ptr))
 		return;
@@ -1954,7 +1955,8 @@ void tipc_link_send_proto_msg(struct link *l_ptr, u32 msg_typ, int probe_msg,
 		msg_set_max_pkt(msg, l_ptr->max_pkt_target);
 	}
 
-	msg_set_redundant_link(msg, tipc_node_redundant_links(l_ptr->owner));
+	r_flag = (l_ptr->owner->working_links > tipc_link_is_up(l_ptr));
+	msg_set_redundant_link(msg, r_flag);
 	msg_set_linkprio(msg, l_ptr->priority);
 
 	/* Ensure sequence number will not fit : */
