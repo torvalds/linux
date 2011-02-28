@@ -410,15 +410,15 @@ static struct regulator_consumer_supply sdp3430_vpll2_supplies[] = {
 };
 
 static struct regulator_consumer_supply sdp3430_vmmc1_supplies[] = {
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.0"),
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
 
 static struct regulator_consumer_supply sdp3430_vsim_supplies[] = {
-	REGULATOR_SUPPLY("vmmc_aux", "mmci-omap-hs.0"),
+	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.0"),
 };
 
 static struct regulator_consumer_supply sdp3430_vmmc2_supplies[] = {
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.1"),
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1"),
 };
 
 /*

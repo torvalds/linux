@@ -118,7 +118,7 @@ static struct regulator_consumer_supply zoom_vmmc2_supply = {
 
 static struct regulator_consumer_supply zoom_vmmc3_supply = {
 	.supply		= "vmmc",
-	.dev_name	= "mmci-omap-hs.2",
+	.dev_name	= "omap_hsmmc.2",
 };
 
 /* VMMC1 for OMAP VDD_MMC1 (i/o) and MMC1 card */

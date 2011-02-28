@@ -180,13 +180,13 @@ static struct omap2_hsmmc_info mmc[] = {
 static struct regulator_consumer_supply omap4_panda_vmmc_supply[] = {
 	{
 		.supply = "vmmc",
-		.dev_name = "mmci-omap-hs.0",
+		.dev_name = "omap_hsmmc.0",
 	},
 };
 
 static struct regulator_consumer_supply omap4_panda_vmmc5_supply = {
 	.supply = "vmmc",
-	.dev_name = "mmci-omap-hs.4",
+	.dev_name = "omap_hsmmc.4",
 };
 
 static struct regulator_init_data panda_vmmc5 = {

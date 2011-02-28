@@ -118,7 +118,7 @@
 
 #define MMC_TIMEOUT_MS		20
 #define OMAP_MMC_MASTER_CLOCK	96000000
-#define DRIVER_NAME		"mmci-omap-hs"
+#define DRIVER_NAME		"omap_hsmmc"
 
 /* Timeouts for entering power saving states on inactivity, msec */
 #define OMAP_MMC_DISABLED_TIMEOUT	100

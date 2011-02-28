@@ -331,13 +331,13 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 };
 
 static struct regulator_consumer_supply rx51_vmmc1_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.0");
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0");
 
 static struct regulator_consumer_supply rx51_vaux3_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.1");
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1");
 
 static struct regulator_consumer_supply rx51_vsim_supply =
-	REGULATOR_SUPPLY("vmmc_aux", "mmci-omap-hs.1");
+	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.1");
 
 static struct regulator_consumer_supply rx51_vmmc2_supplies[] = {
 	/* tlv320aic3x analog supplies */
@@ -348,7 +348,7 @@ static struct regulator_consumer_supply rx51_vmmc2_supplies[] = {
 	/* tpa6130a2 */
 	REGULATOR_SUPPLY("Vdd", "2-0060"),
 	/* Keep vmmc as last item. It is not iterated for newer boards */
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.1"),
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1"),
 };
 
 static struct regulator_consumer_supply rx51_vio_supplies[] = {

@@ -442,7 +442,7 @@ void __init omap_init_hsmmc(struct omap2_hsmmc_info *hsmmcinfo, int ctrl_nr)
 	}
 	omap_hsmmc_mux(mmc_data, (ctrl_nr - 1));
 
-	name = "mmci-omap-hs";
+	name = "omap_hsmmc";
 	ohl = omap_hsmmc_latency;
 	ohl_cnt = ARRAY_SIZE(omap_hsmmc_latency);
 

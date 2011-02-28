@@ -140,7 +140,7 @@ static void devkit8000_panel_disable_dvi(struct omap_dss_device *dssdev)
 }
 
 static struct regulator_consumer_supply devkit8000_vmmc1_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.0");
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0");
 
 
 /* ads7846 on SPI */

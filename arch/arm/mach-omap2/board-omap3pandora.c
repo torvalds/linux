@@ -333,13 +333,13 @@ static struct twl4030_gpio_platform_data omap3pandora_gpio_data = {
 };
 
 static struct regulator_consumer_supply pandora_vmmc1_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.0");
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0");
 
 static struct regulator_consumer_supply pandora_vmmc2_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.1");
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1");
 
 static struct regulator_consumer_supply pandora_vmmc3_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.2");
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.2");
 
 static struct regulator_consumer_supply pandora_vdda_dac_supply =
 	REGULATOR_SUPPLY("vdda_dac", "omapdss");

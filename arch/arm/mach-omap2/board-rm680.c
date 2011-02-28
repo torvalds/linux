@@ -33,7 +33,7 @@
 #include "sdram-nokia.h"
 
 static struct regulator_consumer_supply rm680_vemmc_consumers[] = {
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.1"),
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1"),
 };
 
 /* Fixed regulator for internal eMMC */

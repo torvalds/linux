@@ -250,7 +250,7 @@ static inline void __init igep2_init_smsc911x(void) { }
 #endif
 
 static struct regulator_consumer_supply igep2_vmmc1_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.0");
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0");
 
 /* VMMC1 for OMAP VDD_MMC1 (i/o) and MMC1 card */
 static struct regulator_init_data igep2_vmmc1 = {
@@ -268,7 +268,7 @@ static struct regulator_init_data igep2_vmmc1 = {
 };
 
 static struct regulator_consumer_supply igep2_vio_supply =
-	REGULATOR_SUPPLY("vmmc_aux", "mmci-omap-hs.1");
+	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.1");
 
 static struct regulator_init_data igep2_vio = {
 	.constraints = {
@@ -286,7 +286,7 @@ static struct regulator_init_data igep2_vio = {
 };
 
 static struct regulator_consumer_supply igep2_vmmc2_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.1");
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1");
 
 static struct regulator_init_data igep2_vmmc2 = {
 	.constraints		= {

@@ -149,7 +149,7 @@ static void __init omap_2430sdp_init_early(void)
 }
 
 static struct regulator_consumer_supply sdp2430_vmmc1_supplies[] = {
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.0"),
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
 
 /* VMMC1 for OMAP VDD_MMC1 (i/o) and MMC1 card */
