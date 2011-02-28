@@ -479,7 +479,5 @@ int fbcon_XGI_sync(struct fb_info *info);
 extern struct video_info xgi_video_info;
 
 void fbcon_XGI_fillrect(struct fb_info *info, const struct fb_fillrect *rect);
-void fbcon_XGI_copyarea(struct fb_info *info, const struct fb_copyarea *area);
-
 
 #endif

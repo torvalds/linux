@@ -123,12 +123,3 @@ void fbcon_XGI_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 	cfb_fillrect(info, rect);
 	return;
 }
-
-void fbcon_XGI_copyarea(struct fb_info *info, const struct fb_copyarea *area)
-{
-   	cfb_copyarea(info, area);
-	return;
-}
-
-
-

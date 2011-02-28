@@ -795,8 +795,6 @@ static int      XGIfb_blank(int blank,
 */
 extern void     fbcon_XGI_fillrect(struct fb_info *info,
                                    const struct fb_fillrect *rect);
-extern void     fbcon_XGI_copyarea(struct fb_info *info,
-                                   const struct fb_copyarea *area);
 
 static int XGIfb_ioctl(struct fb_info *info, unsigned int cmd,
 			    unsigned long arg);

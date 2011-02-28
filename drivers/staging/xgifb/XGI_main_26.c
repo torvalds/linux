@@ -1739,7 +1739,7 @@ static struct fb_ops XGIfb_ops = {
 #endif
 	.fb_blank = XGIfb_blank,
 	.fb_fillrect = fbcon_XGI_fillrect,
-	.fb_copyarea = fbcon_XGI_copyarea,
+	.fb_copyarea = cfb_copyarea,
 	.fb_imageblit = cfb_imageblit,
 	.fb_ioctl = XGIfb_ioctl,
 	/* .fb_mmap = XGIfb_mmap, */
