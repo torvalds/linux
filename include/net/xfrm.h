@@ -1350,11 +1350,11 @@ extern void xfrm_state_insert(struct xfrm_state *x);
 extern int xfrm_state_add(struct xfrm_state *x);
 extern int xfrm_state_update(struct xfrm_state *x);
 extern struct xfrm_state *xfrm_state_lookup(struct net *net, u32 mark,
-					    xfrm_address_t *daddr, __be32 spi,
+					    const xfrm_address_t *daddr, __be32 spi,
 					    u8 proto, unsigned short family);
 extern struct xfrm_state *xfrm_state_lookup_byaddr(struct net *net, u32 mark,
-						   xfrm_address_t *daddr,
-						   xfrm_address_t *saddr,
+						   const xfrm_address_t *daddr,
+						   const xfrm_address_t *saddr,
 						   u8 proto,
 						   unsigned short family);
 #ifdef CONFIG_XFRM_SUB_POLICY
@@ -1481,8 +1481,8 @@ u32 xfrm_get_acqseq(void);
 extern int xfrm_alloc_spi(struct xfrm_state *x, u32 minspi, u32 maxspi);
 struct xfrm_state *xfrm_find_acq(struct net *net, struct xfrm_mark *mark,
 				 u8 mode, u32 reqid, u8 proto,
-				 xfrm_address_t *daddr,
-				 xfrm_address_t *saddr, int create,
+				 const xfrm_address_t *daddr,
+				 const xfrm_address_t *saddr, int create,
 				 unsigned short family);
 extern int xfrm_sk_policy_insert(struct sock *sk, int dir, struct xfrm_policy *pol);
 

@@ -997,7 +997,11 @@ void xfrm_state_insert(struct xfrm_state *x)
 EXPORT_SYMBOL(xfrm_state_insert);
 
 /* xfrm_state_lock is held */
-static struct xfrm_state *__find_acq_core(struct net *net, struct xfrm_mark *m, unsigned short family, u8 mode, u32 reqid, u8 proto, xfrm_address_t *daddr, xfrm_address_t *saddr, int create)
+static struct xfrm_state *__find_acq_core(struct net *net, struct xfrm_mark *m,
+					  unsigned short family, u8 mode,
+					  u32 reqid, u8 proto,
+					  const xfrm_address_t *daddr,
+					  const xfrm_address_t *saddr, int create)
 {
 	unsigned int h = xfrm_dst_hash(net, daddr, saddr, reqid, family);
 	struct hlist_node *entry;
@@ -1375,7 +1379,7 @@ int xfrm_state_check_expire(struct xfrm_state *x)
 EXPORT_SYMBOL(xfrm_state_check_expire);
 
 struct xfrm_state *
-xfrm_state_lookup(struct net *net, u32 mark, xfrm_address_t *daddr, __be32 spi,
+xfrm_state_lookup(struct net *net, u32 mark, const xfrm_address_t *daddr, __be32 spi,
 		  u8 proto, unsigned short family)
 {
 	struct xfrm_state *x;
@@ -1389,7 +1393,7 @@ EXPORT_SYMBOL(xfrm_state_lookup);
 
 struct xfrm_state *
 xfrm_state_lookup_byaddr(struct net *net, u32 mark,
-			 xfrm_address_t *daddr, xfrm_address_t *saddr,
+			 const xfrm_address_t *daddr, const xfrm_address_t *saddr,
 			 u8 proto, unsigned short family)
 {
 	struct xfrm_state *x;
@@ -1403,7 +1407,7 @@ EXPORT_SYMBOL(xfrm_state_lookup_byaddr);
 
 struct xfrm_state *
 xfrm_find_acq(struct net *net, struct xfrm_mark *mark, u8 mode, u32 reqid, u8 proto,
-	      xfrm_address_t *daddr, xfrm_address_t *saddr,
+	      const xfrm_address_t *daddr, const xfrm_address_t *saddr,
 	      int create, unsigned short family)
 {
 	struct xfrm_state *x;
