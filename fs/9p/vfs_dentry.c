@@ -63,20 +63,15 @@ static int v9fs_dentry_delete(const struct dentry *dentry)
  * v9fs_cached_dentry_delete - called when dentry refcount equals 0
  * @dentry:  dentry in question
  *
- * Only return 1 if our inode is invalid.  Only non-synthetic files
- * (ones without mtime == 0) should be calling this function.
- *
  */
-
 static int v9fs_cached_dentry_delete(const struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
-	P9_DPRINTK(P9_DEBUG_VFS, " dentry: %s (%p)\n", dentry->d_name.name,
-									dentry);
+	P9_DPRINTK(P9_DEBUG_VFS, " dentry: %s (%p)\n",
+		   dentry->d_name.name, dentry);
 
-	if(!inode)
+	/* Don't cache negative dentries */
+	if (!dentry->d_inode)
 		return 1;
-
 	return 0;
 }
 
