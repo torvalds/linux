@@ -82,6 +82,24 @@ iwl_legacy_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 EXPORT_SYMBOL(iwl_legacy_txq_update_write_ptr);
 
 /**
+ * iwl_legacy_tx_queue_unmap -  Unmap any remaining DMA mappings and free skb's
+ */
+void iwl_legacy_tx_queue_unmap(struct iwl_priv *priv, int txq_id)
+{
+	struct iwl_tx_queue *txq = &priv->txq[txq_id];
+	struct iwl_queue *q = &txq->q;
+
+	if (q->n_bd == 0)
+		return;
+
+	while (q->write_ptr != q->read_ptr) {
+		priv->cfg->ops->lib->txq_free_tfd(priv, txq);
+		q->read_ptr = iwl_legacy_queue_inc_wrap(q->read_ptr, q->n_bd);
+	}
+}
+EXPORT_SYMBOL(iwl_legacy_tx_queue_unmap);
+
+/**
  * iwl_legacy_tx_queue_free - Deallocate DMA queue.
  * @txq: Transmit queue to deallocate.
  *
@@ -92,17 +110,10 @@ EXPORT_SYMBOL(iwl_legacy_txq_update_write_ptr);
 void iwl_legacy_tx_queue_free(struct iwl_priv *priv, int txq_id)
 {
 	struct iwl_tx_queue *txq = &priv->txq[txq_id];
-	struct iwl_queue *q = &txq->q;
 	struct device *dev = &priv->pci_dev->dev;
 	int i;
 
-	if (q->n_bd == 0)
-		return;
-
-	/* first, empty all BD's */
-	for (; q->write_ptr != q->read_ptr;
-	     q->read_ptr = iwl_legacy_queue_inc_wrap(q->read_ptr, q->n_bd))
-		priv->cfg->ops->lib->txq_free_tfd(priv, txq);
+	iwl_legacy_tx_queue_unmap(priv, txq_id);
 
 	/* De-alloc array of command/tx buffers */
 	for (i = 0; i < TFD_TX_CMD_SLOTS; i++)
@@ -129,6 +140,44 @@ void iwl_legacy_tx_queue_free(struct iwl_priv *priv, int txq_id)
 EXPORT_SYMBOL(iwl_legacy_tx_queue_free);
 
 /**
+ * iwl_cmd_queue_unmap - Unmap any remaining DMA mappings from command queue
+ */
+void iwl_legacy_cmd_queue_unmap(struct iwl_priv *priv)
+{
+	struct iwl_tx_queue *txq = &priv->txq[priv->cmd_queue];
+	struct iwl_queue *q = &txq->q;
+	bool huge = false;
+	int i;
+
+	if (q->n_bd == 0)
+		return;
+
+	while (q->read_ptr != q->write_ptr) {
+		/* we have no way to tell if it is a huge cmd ATM */
+		i = iwl_legacy_get_cmd_index(q, q->read_ptr, 0);
+
+		if (txq->meta[i].flags & CMD_SIZE_HUGE)
+			huge = true;
+		else
+			pci_unmap_single(priv->pci_dev,
+					 dma_unmap_addr(&txq->meta[i], mapping),
+					 dma_unmap_len(&txq->meta[i], len),
+					 PCI_DMA_BIDIRECTIONAL);
+
+		q->read_ptr = iwl_legacy_queue_inc_wrap(q->read_ptr, q->n_bd);
+	}
+
+	if (huge) {
+		i = q->n_window;
+		pci_unmap_single(priv->pci_dev,
+				 dma_unmap_addr(&txq->meta[i], mapping),
+				 dma_unmap_len(&txq->meta[i], len),
+				 PCI_DMA_BIDIRECTIONAL);
+	}
+}
+EXPORT_SYMBOL(iwl_legacy_cmd_queue_unmap);
+
+/**
  * iwl_legacy_cmd_queue_free - Deallocate DMA queue.
  * @txq: Transmit queue to deallocate.
  *
@@ -139,36 +188,10 @@ EXPORT_SYMBOL(iwl_legacy_tx_queue_free);
 void iwl_legacy_cmd_queue_free(struct iwl_priv *priv)
 {
 	struct iwl_tx_queue *txq = &priv->txq[priv->cmd_queue];
-	struct iwl_queue *q = &txq->q;
 	struct device *dev = &priv->pci_dev->dev;
 	int i;
-	bool huge = false;
 
-	if (q->n_bd == 0)
-		return;
-
-	for (; q->read_ptr != q->write_ptr;
-	     q->read_ptr = iwl_legacy_queue_inc_wrap(q->read_ptr, q->n_bd)) {
-		/* we have no way to tell if it is a huge cmd ATM */
-		i = iwl_legacy_get_cmd_index(q, q->read_ptr, 0);
-
-		if (txq->meta[i].flags & CMD_SIZE_HUGE) {
-			huge = true;
-			continue;
-		}
-
-		pci_unmap_single(priv->pci_dev,
-				 dma_unmap_addr(&txq->meta[i], mapping),
-				 dma_unmap_len(&txq->meta[i], len),
-				 PCI_DMA_BIDIRECTIONAL);
-	}
-	if (huge) {
-		i = q->n_window;
-		pci_unmap_single(priv->pci_dev,
-				 dma_unmap_addr(&txq->meta[i], mapping),
-				 dma_unmap_len(&txq->meta[i], len),
-				 PCI_DMA_BIDIRECTIONAL);
-	}
+	iwl_legacy_cmd_queue_unmap(priv);
 
 	/* De-alloc array of command/tx buffers */
 	for (i = 0; i <= TFD_CMD_SLOTS; i++)

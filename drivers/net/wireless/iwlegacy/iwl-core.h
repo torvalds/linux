@@ -388,6 +388,7 @@ void iwl_legacy_rx_reply_error(struct iwl_priv *priv,
 /*****************************************************
 * RX
 ******************************************************/
+void iwl_legacy_cmd_queue_unmap(struct iwl_priv *priv);
 void iwl_legacy_cmd_queue_free(struct iwl_priv *priv);
 int iwl_legacy_rx_queue_alloc(struct iwl_priv *priv);
 void iwl_legacy_rx_queue_update_write_ptr(struct iwl_priv *priv,
@@ -415,6 +416,7 @@ int iwl_legacy_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 void iwl_legacy_tx_queue_reset(struct iwl_priv *priv,
 			struct iwl_tx_queue *txq,
 			int slots_num, u32 txq_id);
+void iwl_legacy_tx_queue_unmap(struct iwl_priv *priv, int txq_id);
 void iwl_legacy_tx_queue_free(struct iwl_priv *priv, int txq_id);
 void iwl_legacy_setup_watchdog(struct iwl_priv *priv);
 /*****************************************************
