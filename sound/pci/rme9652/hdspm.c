@@ -6399,6 +6399,10 @@ static int __devinit snd_hdspm_create(struct snd_card *card,
 		hdspm->card_name = "RME AES32";
 		hdspm->midiPorts = 2;
 		break;
+	default:
+		snd_printk(KERN_ERR "HDSPM: unknown firmware revision %x\n",
+				hdspm->firmware_rev);
+		return -ENODEV;
 	}
 
 	err = pci_enable_device(pci);
