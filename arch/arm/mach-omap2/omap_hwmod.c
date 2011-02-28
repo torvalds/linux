@@ -1,7 +1,7 @@
 /*
  * omap_hwmod implementation for OMAP2/3/4
  *
- * Copyright (C) 2009-2010 Nokia Corporation
+ * Copyright (C) 2009-2011 Nokia Corporation
  *
  * Paul Walmsley, Benoît Cousson, Kevin Hilman
  *
@@ -901,7 +901,7 @@ static struct omap_hwmod *_lookup(const char *name)
  * @oh: struct omap_hwmod *
  * @data: not used; pass NULL
  *
- * Called by omap_hwmod_late_init() (after omap2_clk_init()).
+ * Called by omap_hwmod_setup_all() (after omap2_clk_init()).
  * Resolves all clock names embedded in the hwmod.  Returns -EINVAL if
  * the omap_hwmod has not yet been registered or if the clocks have
  * already been initialized, 0 on success, or a non-zero error on
@@ -1580,17 +1580,15 @@ int omap_hwmod_for_each(int (*fn)(struct omap_hwmod *oh, void *data),
 	return ret;
 }
 
-
 /**
- * omap_hwmod_init - init omap_hwmod code and register hwmods
+ * omap_hwmod_register - register an array of hwmods
  * @ohs: pointer to an array of omap_hwmods to register
  *
  * Intended to be called early in boot before the clock framework is
  * initialized.  If @ohs is not null, will register all omap_hwmods
- * listed in @ohs that are valid for this chip.  Returns -EINVAL if
- * omap_hwmod_init() has already been called or 0 otherwise.
+ * listed in @ohs that are valid for this chip.  Returns 0.
  */
-int __init omap_hwmod_init(struct omap_hwmod **ohs)
+int __init omap_hwmod_register(struct omap_hwmod **ohs)
 {
 	int r, i;
 
@@ -1613,9 +1611,8 @@ int __init omap_hwmod_init(struct omap_hwmod **ohs)
 /*
  * _populate_mpu_rt_base - populate the virtual address for a hwmod
  *
- * Must be called only from omap_hwmod_late_init so ioremap works properly.
+ * Must be called only from omap_hwmod_setup_all() so ioremap works properly.
  * Assumes the caller takes care of locking if needed.
- *
  */
 static int __init _populate_mpu_rt_base(struct omap_hwmod *oh, void *data)
 {
@@ -1631,13 +1628,13 @@ static int __init _populate_mpu_rt_base(struct omap_hwmod *oh, void *data)
 }
 
 /**
- * omap_hwmod_late_init - do some post-clock framework initialization
+ * omap_hwmod_setup - do some post-clock framework initialization
  *
  * Must be called after omap2_clk_init().  Resolves the struct clk names
  * to struct clk pointers for each registered omap_hwmod.  Also calls
  * _setup() on each hwmod.  Returns 0.
  */
-static int __init omap_hwmod_late_init(void)
+static int __init omap_hwmod_setup_all(void)
 {
 	int r;
 
@@ -1645,7 +1642,7 @@ static int __init omap_hwmod_late_init(void)
 
 	/* XXX check return value */
 	r = omap_hwmod_for_each(_init_clocks, NULL);
-	WARN(r, "omap_hwmod: omap_hwmod_late_init(): _init_clocks failed\n");
+	WARN(r, "omap_hwmod: %s: _init_clocks failed\n", __func__);
 
 	mpu_oh = omap_hwmod_lookup(MPU_INITIATOR_NAME);
 	WARN(!mpu_oh, "omap_hwmod: could not find MPU initiator hwmod %s\n",
@@ -1655,7 +1652,7 @@ static int __init omap_hwmod_late_init(void)
 
 	return 0;
 }
-core_initcall(omap_hwmod_late_init);
+core_initcall(omap_hwmod_setup_all);
 
 /**
  * omap_hwmod_enable - enable an omap_hwmod
@@ -2174,11 +2171,11 @@ int omap_hwmod_for_each_by_class(const char *classname,
  * @oh: struct omap_hwmod *
  * @state: state that _setup() should leave the hwmod in
  *
- * Sets the hwmod state that @oh will enter at the end of _setup() (called by
- * omap_hwmod_late_init()).  Only valid to call between calls to
- * omap_hwmod_init() and omap_hwmod_late_init().  Returns 0 upon success or
- * -EINVAL if there is a problem with the arguments or if the hwmod is
- * in the wrong state.
+ * Sets the hwmod state that @oh will enter at the end of _setup()
+ * (called by omap_hwmod_setup_all()).  Only valid to call between
+ * calling omap_hwmod_register() and omap_hwmod_setup_all().  Returns
+ * 0 upon success or -EINVAL if there is a problem with the arguments
+ * or if the hwmod is in the wrong state.
  */
 int omap_hwmod_set_postsetup_state(struct omap_hwmod *oh, u8 state)
 {

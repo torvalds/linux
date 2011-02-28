@@ -680,7 +680,7 @@ static int __init omap_serial_early_init(void)
 		num_uarts++;
 
 		/*
-		 * NOTE: omap_hwmod_init() has not yet been called,
+		 * NOTE: omap_hwmod_setup*() has not yet been called,
 		 *       so no hwmod functions will work yet.
 		 */
 

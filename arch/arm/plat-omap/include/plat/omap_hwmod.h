@@ -1,7 +1,7 @@
 /*
  * omap_hwmod macros, structures
  *
- * Copyright (C) 2009-2010 Nokia Corporation
+ * Copyright (C) 2009-2011 Nokia Corporation
  * Paul Walmsley
  *
  * Created in collaboration with (alphabetical order): Benoît Cousson,
@@ -370,8 +370,10 @@ struct omap_hwmod_omap4_prcm {
  *     of standby, rather than relying on module smart-standby
  * HWMOD_INIT_NO_RESET: don't reset this module at boot - important for
  *     SDRAM controller, etc. XXX probably belongs outside the main hwmod file
+ *     XXX Should be HWMOD_SETUP_NO_RESET
  * HWMOD_INIT_NO_IDLE: don't idle this module at boot - important for SDRAM
  *     controller, etc. XXX probably belongs outside the main hwmod file
+ *     XXX Should be HWMOD_SETUP_NO_IDLE
  * HWMOD_NO_AUTOIDLE: disable module autoidle (OCP_SYSCONFIG.AUTOIDLE)
  *     when module is enabled, rather than the default, which is to
  *     enable autoidle
@@ -535,7 +537,7 @@ struct omap_hwmod {
 	const struct omap_chip_id	omap_chip;
 };
 
-int omap_hwmod_init(struct omap_hwmod **ohs);
+int omap_hwmod_register(struct omap_hwmod **ohs);
 struct omap_hwmod *omap_hwmod_lookup(const char *name);
 int omap_hwmod_for_each(int (*fn)(struct omap_hwmod *oh, void *data),
 			void *data);

@@ -1990,5 +1990,5 @@ static __initdata struct omap_hwmod *omap2420_hwmods[] = {
 
 int __init omap2420_hwmod_init(void)
 {
-	return omap_hwmod_init(omap2420_hwmods);
+	return omap_hwmod_register(omap2420_hwmods);
 }

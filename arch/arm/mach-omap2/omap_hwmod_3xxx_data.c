@@ -2919,5 +2919,5 @@ static __initdata struct omap_hwmod *omap3xxx_hwmods[] = {
 
 int __init omap3xxx_hwmod_init(void)
 {
-	return omap_hwmod_init(omap3xxx_hwmods);
+	return omap_hwmod_register(omap3xxx_hwmods);
 }
