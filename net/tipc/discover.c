@@ -169,7 +169,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 
 	/* Create a link endpoint for this bearer, if necessary */
 	if (!link) {
-		link = tipc_link_create(b_ptr, orig, &media_addr);
+		link = tipc_link_create(n_ptr, b_ptr, &media_addr);
 		if (!link) {
 			tipc_node_unlock(n_ptr);
 			return;

@@ -238,33 +238,11 @@ int tipc_node_is_up(struct tipc_node *n_ptr)
 	return tipc_node_active_links(n_ptr);
 }
 
-struct tipc_node *tipc_node_attach_link(struct link *l_ptr)
+void tipc_node_attach_link(struct tipc_node *n_ptr, struct link *l_ptr)
 {
-	struct tipc_node *n_ptr = tipc_node_find(l_ptr->addr);
-
-	if (!n_ptr)
-		n_ptr = tipc_node_create(l_ptr->addr);
-	if (n_ptr) {
-		u32 bearer_id = l_ptr->b_ptr->identity;
-		char addr_string[16];
-
-		if (n_ptr->link_cnt >= 2) {
-			err("Attempt to create third link to %s\n",
-			    tipc_addr_string_fill(addr_string, n_ptr->addr));
-			return NULL;
-		}
-
-		if (!n_ptr->links[bearer_id]) {
-			n_ptr->links[bearer_id] = l_ptr;
-			atomic_inc(&tipc_num_links);
-			n_ptr->link_cnt++;
-			return n_ptr;
-		}
-		err("Attempt to establish second link on <%s> to %s\n",
-		    l_ptr->b_ptr->name,
-		    tipc_addr_string_fill(addr_string, l_ptr->addr));
-	}
-	return NULL;
+	n_ptr->links[l_ptr->b_ptr->identity] = l_ptr;
+	atomic_inc(&tipc_num_links);
+	n_ptr->link_cnt++;
 }
 
 void tipc_node_detach_link(struct tipc_node *n_ptr, struct link *l_ptr)
