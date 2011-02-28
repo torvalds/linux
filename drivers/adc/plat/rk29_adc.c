@@ -19,7 +19,7 @@
 
 #include "rk29_adc.h"
 
-//#define ADC_TEST
+#define ADC_TEST
 
 struct rk29_adc_device {
 	int			 		irq;
@@ -32,15 +32,20 @@ static void rk29_adc_start(struct adc_host *adc)
 {
 	struct rk29_adc_device *dev  = adc_priv(adc);
 	int chn = adc->cur->chn;
-	
-	writel(ADC_CTRL_IRQ_ENABLE|ADC_CTRL_POWER_UP|ADC_CTRL_START|ADC_CTRL_CH(chn),
+
+	writel(0, dev->regs + ADC_CTRL);
+	writel(ADC_CTRL_POWER_UP|ADC_CTRL_CH(chn), dev->regs + ADC_CTRL);
+	udelay(SAMPLE_RATE);
+
+	writel(readl(dev->regs + ADC_CTRL)|ADC_CTRL_IRQ_ENABLE|ADC_CTRL_START, 
 		dev->regs + ADC_CTRL);
+	return;
 }
 static void rk29_adc_stop(struct adc_host *adc)
 {
 	struct rk29_adc_device *dev  = adc_priv(adc);
 	
-	writel(ADC_CTRL_IRQ_STATUS, dev->regs + ADC_CTRL);
+	writel(0, dev->regs + ADC_CTRL);
 }
 static int rk29_adc_read(struct adc_host *adc)
 {
@@ -68,16 +73,21 @@ static void callback(struct adc_client *client, void *param, int result)
 }
 static int rk29_adc_test(void)
 {
-	int sync_read = 0;
-	struct adc_client *client = adc_register(1, callback, NULL);
+	int sync_read = 0, i, j = 10;
+	struct adc_client *client =NULL;
 
-	while(1)
+	while(j--)
 	{
+		client = adc_register(i, callback, NULL);
 		adc_async_read(client);
-		udelay(20);
+		mdelay(1000);
 		sync_read = adc_sync_read(client);
 		dev_info(client->adc->dev, "[chn%d] sync_read = %d\n", client->chn, sync_read);
-		udelay(20);
+		adc_unregister(client);
+		mdelay(1000);
+		i++;
+		if(i >= 4)
+			i = 0;
 	}
 	adc_unregister(client);
 	return 0;

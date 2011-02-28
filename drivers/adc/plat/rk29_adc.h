@@ -16,17 +16,14 @@
 #define ADC_STAS_BUSY		(1<<0)
 
 #define ADC_CTRL			0x08
-#define ADC_CTRL_CH(ch)		((ch)<<0)
+#define ADC_CTRL_CH(ch)		(0x07 - ((ch)<<0))
 #define ADC_CTRL_POWER_UP	(1<<3)
 #define ADC_CTRL_START		(1<<4)
 #define ADC_CTRL_IRQ_ENABLE	(1<<5)
 #define ADC_CTRL_IRQ_STATUS	(1<<6)
 
 #define ADC_CLK_RATE		1  //1M
-/* maximum conversion rate of 100KSPS with 1MHZ ADC converter clock.
- * SET: real conversion rate is half of maximum conversion rate
- */
-#define SAMPLE_RATE			((1000/100) * 2 /(ADC_CLK_RATE))
+#define SAMPLE_RATE			(20/ADC_CLK_RATE)  //20 CLK
 
 
 #endif /* __ASM_RK29_ADC_H */
