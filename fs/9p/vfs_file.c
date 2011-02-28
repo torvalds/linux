@@ -323,25 +323,22 @@ out_err:
 }
 
 /**
- * v9fs_file_readn - read from a file
- * @filp: file pointer to read
+ * v9fs_fid_readn - read from a fid
+ * @fid: fid to read
  * @data: data buffer to read data into
  * @udata: user data buffer to read data into
  * @count: size of buffer
  * @offset: offset at which to read data
  *
  */
-
 ssize_t
-v9fs_file_readn(struct file *filp, char *data, char __user *udata, u32 count,
+v9fs_fid_readn(struct p9_fid *fid, char *data, char __user *udata, u32 count,
 	       u64 offset)
 {
 	int n, total, size;
-	struct p9_fid *fid = filp->private_data;
 
 	P9_DPRINTK(P9_DEBUG_VFS, "fid %d offset %llu count %d\n", fid->fid,
-					(long long unsigned) offset, count);
-
+		   (long long unsigned) offset, count);
 	n = 0;
 	total = 0;
 	size = fid->iounit ? fid->iounit : fid->clnt->msize - P9_IOHDRSZ;
@@ -364,6 +361,22 @@ v9fs_file_readn(struct file *filp, char *data, char __user *udata, u32 count,
 		total = n;
 
 	return total;
+}
+
+/**
+ * v9fs_file_readn - read from a file
+ * @filp: file pointer to read
+ * @data: data buffer to read data into
+ * @udata: user data buffer to read data into
+ * @count: size of buffer
+ * @offset: offset at which to read data
+ *
+ */
+ssize_t
+v9fs_file_readn(struct file *filp, char *data, char __user *udata, u32 count,
+	       u64 offset)
+{
+	return v9fs_fid_readn(filp->private_data, data, udata, count, offset);
 }
 
 /**
@@ -398,6 +411,45 @@ v9fs_file_read(struct file *filp, char __user *udata, size_t count,
 	return ret;
 }
 
+ssize_t
+v9fs_file_write_internal(struct inode *inode, struct p9_fid *fid,
+			 const char __user *data, size_t count,
+			 loff_t *offset, int invalidate)
+{
+	int n;
+	size_t total = 0;
+	struct p9_client *clnt;
+	loff_t origin = *offset;
+	unsigned long pg_start, pg_end;
+
+	P9_DPRINTK(P9_DEBUG_VFS, "data %p count %d offset %x\n", data,
+		(int)count, (int)*offset);
+
+	clnt = fid->clnt;
+	do {
+		n = p9_client_write(fid, NULL, data+total, origin+total, count);
+		if (n <= 0)
+			break;
+		count -= n;
+		total += n;
+	} while (count > 0);
+
+	if (invalidate && (total > 0)) {
+		pg_start = origin >> PAGE_CACHE_SHIFT;
+		pg_end = (origin + total - 1) >> PAGE_CACHE_SHIFT;
+		if (inode->i_mapping && inode->i_mapping->nrpages)
+			invalidate_inode_pages2_range(inode->i_mapping,
+						      pg_start, pg_end);
+		*offset += total;
+		i_size_write(inode, i_size_read(inode) + total);
+		inode->i_blocks = (i_size_read(inode) + 512 - 1) >> 9;
+	}
+	if (n < 0)
+		return n;
+
+	return total;
+}
+
 /**
  * v9fs_file_write - write to a file
  * @filp: file pointer to write
@@ -406,25 +458,13 @@ v9fs_file_read(struct file *filp, char __user *udata, size_t count,
  * @offset: offset at which to write data
  *
  */
-
 static ssize_t
 v9fs_file_write(struct file *filp, const char __user * data,
-		size_t count, loff_t * offset)
+		size_t count, loff_t *offset)
 {
-	ssize_t retval;
-	size_t total = 0;
-	int n;
-	struct p9_fid *fid;
-	struct p9_client *clnt;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	ssize_t retval = 0;
 	loff_t origin = *offset;
-	unsigned long pg_start, pg_end;
 
-	P9_DPRINTK(P9_DEBUG_VFS, "data %p count %d offset %x\n", data,
-		(int)count, (int)*offset);
-
-	fid = filp->private_data;
-	clnt = fid->clnt;
 
 	retval = generic_write_checks(filp, &origin, &count, 0);
 	if (retval)
@@ -437,29 +477,9 @@ v9fs_file_write(struct file *filp, const char __user * data,
 	if (!count)
 		goto out;
 
-	do {
-		n = p9_client_write(fid, NULL, data+total, origin+total, count);
-		if (n <= 0)
-			break;
-		count -= n;
-		total += n;
-	} while (count > 0);
-
-	if (total > 0) {
-		pg_start = origin >> PAGE_CACHE_SHIFT;
-		pg_end = (origin + total - 1) >> PAGE_CACHE_SHIFT;
-		if (inode->i_mapping && inode->i_mapping->nrpages)
-			invalidate_inode_pages2_range(inode->i_mapping,
-						      pg_start, pg_end);
-		*offset += total;
-		i_size_write(inode, i_size_read(inode) + total);
-		inode->i_blocks = (i_size_read(inode) + 512 - 1) >> 9;
-	}
-
-	if (n < 0)
-		retval = n;
-	else
-		retval = total;
+	return v9fs_file_write_internal(filp->f_path.dentry->d_inode,
+					filp->private_data,
+					data, count, offset, 1);
 out:
 	return retval;
 }
