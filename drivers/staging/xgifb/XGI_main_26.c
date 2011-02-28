@@ -3435,7 +3435,6 @@ static char *forcecrt2type = NULL;
 static int forcecrt1 = -1;
 static int pdc = -1;
 static int pdc1 = -1;
-static int noaccel = -1;
 static int noypan = -1;
 static int nomax = -1;
 static int userom = -1;
@@ -3456,7 +3455,6 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("XGITECH , Others");
 
 module_param(mem, int, 0);
-module_param(noaccel, int, 0);
 module_param(noypan, int, 0);
 module_param(nomax, int, 0);
 module_param(userom, int, 0);
@@ -3489,10 +3487,6 @@ MODULE_PARM_DESC(mem,
 		"otherwise at 12288KB. On 315 and Xabre series, the heap size is 32KB by default.\n"
 		"The value is to be specified without 'KB' and must match the MaxXFBMem setting\n"
 		"for XFree86 4.x/X.org 6.7 and later.\n");
-
-MODULE_PARM_DESC(noaccel,
-		"\nIf set to anything other than 0, 2D acceleration will be disabled.\n"
-		"(default: 0)\n");
 
 MODULE_PARM_DESC(noypan,
 		"\nIf set to anything other than 0, y-panning will be disabled and scrolling\n"
