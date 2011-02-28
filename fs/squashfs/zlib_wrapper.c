@@ -32,7 +32,7 @@
 #include "squashfs.h"
 #include "decompressor.h"
 
-static void *zlib_init(struct squashfs_sb_info *dummy)
+static void *zlib_init(struct squashfs_sb_info *dummy, void *buff, int len)
 {
 	z_stream *stream = kmalloc(sizeof(z_stream), GFP_KERNEL);
 	if (stream == NULL)
@@ -47,7 +47,7 @@ static void *zlib_init(struct squashfs_sb_info *dummy)
 failed:
 	ERROR("Failed to allocate zlib workspace\n");
 	kfree(stream);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 
 

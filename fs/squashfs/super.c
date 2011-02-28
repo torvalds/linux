@@ -199,10 +199,6 @@ static int squashfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	err = -ENOMEM;
 
-	msblk->stream = squashfs_decompressor_init(msblk);
-	if (msblk->stream == NULL)
-		goto failed_mount;
-
 	msblk->block_cache = squashfs_cache_init("metadata",
 			SQUASHFS_CACHED_BLKS, SQUASHFS_METADATA_SIZE);
 	if (msblk->block_cache == NULL)
@@ -212,6 +208,13 @@ static int squashfs_fill_super(struct super_block *sb, void *data, int silent)
 	msblk->read_page = squashfs_cache_init("data", 1, msblk->block_size);
 	if (msblk->read_page == NULL) {
 		ERROR("Failed to allocate read_page block\n");
+		goto failed_mount;
+	}
+
+	msblk->stream = squashfs_decompressor_init(sb, flags);
+	if (IS_ERR(msblk->stream)) {
+		err = PTR_ERR(msblk->stream);
+		msblk->stream = NULL;
 		goto failed_mount;
 	}
 
