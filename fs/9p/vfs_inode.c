@@ -521,6 +521,7 @@ static int v9fs_remove(struct inode *dir, struct dentry *file, int rmdir)
 			drop_nlink(dir);
 		} else
 			drop_nlink(file_inode);
+		v9fs_invalidate_inode_attr(file_inode);
 	}
 	return retval;
 }
@@ -884,6 +885,8 @@ clunk_newdir:
 				inc_nlink(new_dir);
 			drop_nlink(old_dir);
 		}
+		v9fs_invalidate_inode_attr(old_inode);
+
 		/* successful rename */
 		d_move(old_dentry, new_dentry);
 	}
@@ -983,6 +986,7 @@ static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (retval < 0)
 		return retval;
 
+	v9fs_invalidate_inode_attr(dentry->d_inode);
 	if ((iattr->ia_valid & ATTR_SIZE) &&
 	    iattr->ia_size != i_size_read(dentry->d_inode)) {
 		retval = vmtruncate(dentry->d_inode, iattr->ia_size);
