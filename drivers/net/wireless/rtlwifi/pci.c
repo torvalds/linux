@@ -1477,13 +1477,11 @@ static bool _rtl_pci_find_adapter(struct pci_dev *pdev,
 	struct pci_dev *bridge_pdev = pdev->bus->self;
 	u16 venderid;
 	u16 deviceid;
-	u8 revisionid;
 	u16 irqline;
 	u8 tmp;
 
 	venderid = pdev->vendor;
 	deviceid = pdev->device;
-	pci_read_config_byte(pdev, 0x8, &revisionid);
 	pci_read_config_word(pdev, 0x3C, &irqline);
 
 	if (deviceid == RTL_PCI_8192_DID ||
@@ -1494,7 +1492,7 @@ static bool _rtl_pci_find_adapter(struct pci_dev *pdev,
 	    deviceid == RTL_PCI_8173_DID ||
 	    deviceid == RTL_PCI_8172_DID ||
 	    deviceid == RTL_PCI_8171_DID) {
-		switch (revisionid) {
+		switch (pdev->revision) {
 		case RTL_PCI_REVISION_ID_8192PCIE:
 			RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
 				 ("8192 PCI-E is found - "

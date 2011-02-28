@@ -2025,7 +2025,6 @@ static void ipg_init_mii(struct net_device *dev)
 
 	if (phyaddr != 0x1f) {
 		u16 mii_phyctrl, mii_1000cr;
-		u8 revisionid = 0;
 
 		mii_1000cr  = mdio_read(dev, phyaddr, MII_CTRL1000);
 		mii_1000cr |= ADVERTISE_1000FULL | ADVERTISE_1000HALF |
@@ -2035,8 +2034,7 @@ static void ipg_init_mii(struct net_device *dev)
 		mii_phyctrl = mdio_read(dev, phyaddr, MII_BMCR);
 
 		/* Set default phyparam */
-		pci_read_config_byte(sp->pdev, PCI_REVISION_ID, &revisionid);
-		ipg_set_phy_default_param(revisionid, dev, phyaddr);
+		ipg_set_phy_default_param(sp->pdev->revision, dev, phyaddr);
 
 		/* Reset PHY */
 		mii_phyctrl |= BMCR_RESET | BMCR_ANRESTART;

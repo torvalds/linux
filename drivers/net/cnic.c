@@ -5158,15 +5158,11 @@ static struct cnic_dev *init_bnx2_cnic(struct net_device *dev)
 
 	dev_hold(dev);
 	pci_dev_get(pdev);
-	if (pdev->device == PCI_DEVICE_ID_NX2_5709 ||
-	    pdev->device == PCI_DEVICE_ID_NX2_5709S) {
-		u8 rev;
-
-		pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
-		if (rev < 0x10) {
-			pci_dev_put(pdev);
-			goto cnic_err;
-		}
+	if ((pdev->device == PCI_DEVICE_ID_NX2_5709 ||
+	     pdev->device == PCI_DEVICE_ID_NX2_5709S) &&
+	    (pdev->revision < 0x10)) {
+		pci_dev_put(pdev);
+		goto cnic_err;
 	}
 	pci_dev_put(pdev);
 

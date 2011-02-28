@@ -433,13 +433,11 @@ static void e1000_get_regs(struct net_device *netdev,
 	struct e1000_hw *hw = &adapter->hw;
 	u32 *regs_buff = p;
 	u16 phy_data;
-	u8 revision_id;
 
 	memset(p, 0, E1000_REGS_LEN * sizeof(u32));
 
-	pci_read_config_byte(adapter->pdev, PCI_REVISION_ID, &revision_id);
-
-	regs->version = (1 << 24) | (revision_id << 16) | adapter->pdev->device;
+	regs->version = (1 << 24) | (adapter->pdev->revision << 16) |
+			adapter->pdev->device;
 
 	regs_buff[0]  = er32(CTRL);
 	regs_buff[1]  = er32(STATUS);

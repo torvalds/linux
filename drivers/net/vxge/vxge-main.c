@@ -3387,19 +3387,6 @@ static const struct net_device_ops vxge_netdev_ops = {
 #endif
 };
 
-static int __devinit vxge_device_revision(struct vxgedev *vdev)
-{
-	int ret;
-	u8 revision;
-
-	ret = pci_read_config_byte(vdev->pdev, PCI_REVISION_ID, &revision);
-	if (ret)
-		return -EIO;
-
-	vdev->titan1 = (revision == VXGE_HW_TITAN1_PCI_REVISION);
-	return 0;
-}
-
 static int __devinit vxge_device_register(struct __vxge_hw_device *hldev,
 					  struct vxge_config *config,
 					  int high_dma, int no_of_vpath,
@@ -3439,10 +3426,7 @@ static int __devinit vxge_device_register(struct __vxge_hw_device *hldev,
 	memcpy(&vdev->config, config, sizeof(struct vxge_config));
 	vdev->rx_csum = 1;	/* Enable Rx CSUM by default. */
 	vdev->rx_hwts = 0;
-
-	ret = vxge_device_revision(vdev);
-	if (ret < 0)
-		goto _out1;
+	vdev->titan1 = (vdev->pdev->revision == VXGE_HW_TITAN1_PCI_REVISION);
 
 	SET_NETDEV_DEV(ndev, &vdev->pdev->dev);
 

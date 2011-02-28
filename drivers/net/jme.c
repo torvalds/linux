@@ -3095,7 +3095,7 @@ jme_init_one(struct pci_dev *pdev,
 
 	jme_clear_pm(jme);
 	jme_set_phyfifo_5level(jme);
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &jme->pcirev);
+	jme->pcirev = pdev->revision;
 	if (!jme->fpgaver)
 		jme_phy_init(jme);
 	jme_phy_off(jme);

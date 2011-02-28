@@ -2221,7 +2221,7 @@ static int __devinit ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 
 	hw->vendor_id = pdev->vendor;
 	hw->device_id = pdev->device;
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &hw->revision_id);
+	hw->revision_id = pdev->revision;
 	hw->subsystem_vendor_id = pdev->subsystem_vendor;
 	hw->subsystem_device_id = pdev->subsystem_device;
 

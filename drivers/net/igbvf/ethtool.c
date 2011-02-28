@@ -201,13 +201,11 @@ static void igbvf_get_regs(struct net_device *netdev,
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	u32 *regs_buff = p;
-	u8 revision_id;
 
 	memset(p, 0, IGBVF_REGS_LEN * sizeof(u32));
 
-	pci_read_config_byte(adapter->pdev, PCI_REVISION_ID, &revision_id);
-
-	regs->version = (1 << 24) | (revision_id << 16) | adapter->pdev->device;
+	regs->version = (1 << 24) | (adapter->pdev->revision << 16) |
+			adapter->pdev->device;
 
 	regs_buff[0] = er32(CTRL);
 	regs_buff[1] = er32(STATUS);
