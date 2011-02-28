@@ -92,7 +92,9 @@ static int cmd_complete(struct sock *sk, u16 index, u16 cmd, void *rp,
 
 	ev = (void *) skb_put(skb, sizeof(*ev) + rp_len);
 	put_unaligned_le16(cmd, &ev->opcode);
-	memcpy(ev->data, rp, rp_len);
+
+	if (rp)
+		memcpy(ev->data, rp, rp_len);
 
 	if (sock_queue_rcv_skb(sk, skb) < 0)
 		kfree_skb(skb);
