@@ -20,6 +20,9 @@
  *  Boston, MA  02111-1301  USA
  *
  */
+#ifndef FS_9P_V9FS_H
+#define FS_9P_V9FS_H
+
 #include <linux/backing-dev.h>
 
 /**
@@ -197,3 +200,4 @@ v9fs_get_inode_from_fid(struct v9fs_session_info *v9ses, struct p9_fid *fid,
 	else
 		return v9fs_inode_from_fid(v9ses, fid, sb);
 }
+#endif

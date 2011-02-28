@@ -20,6 +20,8 @@
  *  Boston, MA  02111-1301  USA
  *
  */
+#ifndef FS_9P_V9FS_VFS_H
+#define FS_9P_V9FS_VFS_H
 
 /* plan9 semantics are that created files are implicitly opened.
  * But linux semantics are that you call create, then open.
@@ -36,6 +38,7 @@
  * unlink calls remove, which is an implicit clunk. So we have to track
  * that kind of thing so that we don't try to clunk a dead fid.
  */
+#define P9_LOCK_TIMEOUT (30*HZ)
 
 extern struct file_system_type v9fs_fs_type;
 extern const struct address_space_operations v9fs_addr_operations;
@@ -79,5 +82,4 @@ static inline void v9fs_invalidate_inode_attr(struct inode *inode)
 	v9inode->cache_validity |= V9FS_INO_INVALID_ATTR;
 	return;
 }
-
-#define P9_LOCK_TIMEOUT (30*HZ)
+#endif
