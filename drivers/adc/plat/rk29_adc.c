@@ -19,7 +19,7 @@
 
 #include "rk29_adc.h"
 
-#define ADC_TEST
+//#define ADC_TEST
 
 struct rk29_adc_device {
 	int			 		irq;
