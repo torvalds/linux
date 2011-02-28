@@ -223,19 +223,19 @@ void tipc_node_link_down(struct tipc_node *n_ptr, struct link *l_ptr)
 		node_lost_contact(n_ptr);
 }
 
-int tipc_node_has_active_links(struct tipc_node *n_ptr)
+int tipc_node_active_links(struct tipc_node *n_ptr)
 {
 	return n_ptr->active_links[0] != NULL;
 }
 
-int tipc_node_has_redundant_links(struct tipc_node *n_ptr)
+int tipc_node_redundant_links(struct tipc_node *n_ptr)
 {
 	return n_ptr->working_links > 1;
 }
 
 int tipc_node_is_up(struct tipc_node *n_ptr)
 {
-	return tipc_node_has_active_links(n_ptr);
+	return tipc_node_active_links(n_ptr);
 }
 
 struct tipc_node *tipc_node_attach_link(struct link *l_ptr)

@@ -548,7 +548,7 @@ void tipc_link_reset(struct link *l_ptr)
 	tipc_node_link_down(l_ptr->owner, l_ptr);
 	tipc_bearer_remove_dest(l_ptr->b_ptr, l_ptr->addr);
 
-	if (was_active_link && tipc_node_has_active_links(l_ptr->owner) &&
+	if (was_active_link && tipc_node_active_links(l_ptr->owner) &&
 	    l_ptr->owner->permit_changeover) {
 		l_ptr->reset_checkpoint = checkpoint;
 		l_ptr->exp_msg_count = START_CHANGEOVER;
@@ -1954,7 +1954,7 @@ void tipc_link_send_proto_msg(struct link *l_ptr, u32 msg_typ, int probe_msg,
 		msg_set_max_pkt(msg, l_ptr->max_pkt_target);
 	}
 
-	if (tipc_node_has_redundant_links(l_ptr->owner))
+	if (tipc_node_redundant_links(l_ptr->owner))
 		msg_set_redundant_link(msg);
 	else
 		msg_clear_redundant_link(msg);
@@ -2064,7 +2064,7 @@ static void link_recv_proto_msg(struct link *l_ptr, struct sk_buff *buf)
 		l_ptr->peer_bearer_id = msg_bearer_id(msg);
 
 		/* Synchronize broadcast sequence numbers */
-		if (!tipc_node_has_redundant_links(l_ptr->owner))
+		if (!tipc_node_redundant_links(l_ptr->owner))
 			l_ptr->owner->bclink.last_in = mod(msg_last_bcast(msg));
 		break;
 	case STATE_MSG:
