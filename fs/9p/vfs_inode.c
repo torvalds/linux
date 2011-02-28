@@ -608,6 +608,10 @@ v9fs_vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 		}
 
 		filp->private_data = fid;
+#ifdef CONFIG_9P_FSCACHE
+		if (v9ses->cache)
+			v9fs_cache_inode_set_cookie(dentry->d_inode, filp);
+#endif
 	} else
 		p9_client_clunk(fid);
 

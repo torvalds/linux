@@ -226,6 +226,10 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 		return PTR_ERR(filp);
 	}
 	filp->private_data = ofid;
+#ifdef CONFIG_9P_FSCACHE
+	if (v9ses->cache)
+		v9fs_cache_inode_set_cookie(inode, filp);
+#endif
 	return 0;
 
 error:

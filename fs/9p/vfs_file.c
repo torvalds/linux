@@ -87,10 +87,8 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 
 	file->private_data = fid;
 #ifdef CONFIG_9P_FSCACHE
-	if ((fid->qid.version) && (v9ses->cache)) {
-		P9_DPRINTK(P9_DEBUG_VFS, "cached");
+	if (v9ses->cache)
 		v9fs_cache_inode_set_cookie(inode, file);
-	}
 #endif
 	return 0;
 }
