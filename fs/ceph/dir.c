@@ -1029,28 +1029,8 @@ out_touch:
 static void ceph_dentry_release(struct dentry *dentry)
 {
 	struct ceph_dentry_info *di = ceph_dentry(dentry);
-	struct inode *parent_inode = NULL;
-	u64 snapid = CEPH_NOSNAP;
 
-	if (!IS_ROOT(dentry)) {
-		parent_inode = dentry->d_parent->d_inode;
-		if (parent_inode)
-			snapid = ceph_snap(parent_inode);
-	}
-	dout("dentry_release %p parent %p\n", dentry, parent_inode);
-	if (parent_inode && snapid != CEPH_SNAPDIR) {
-		struct ceph_inode_info *ci = ceph_inode(parent_inode);
-
-		spin_lock(&parent_inode->i_lock);
-		if (ci->i_shared_gen == di->lease_shared_gen ||
-		    snapid <= CEPH_MAXSNAP) {
-			dout(" clearing %p complete (d_release)\n",
-			     parent_inode);
-			ci->i_ceph_flags &= ~CEPH_I_COMPLETE;
-			ci->i_release_count++;
-		}
-		spin_unlock(&parent_inode->i_lock);
-	}
+	dout("dentry_release %p\n", dentry);
 	if (di) {
 		ceph_dentry_lru_del(dentry);
 		if (di->lease_session)
