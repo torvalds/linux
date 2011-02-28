@@ -461,3 +461,14 @@ void __v9fs_readpage_to_fscache(struct inode *inode, struct page *page)
 	if (ret != 0)
 		v9fs_uncache_page(inode, page);
 }
+
+/*
+ * wait for a page to complete writing to the cache
+ */
+void __v9fs_fscache_wait_on_page_write(struct inode *inode, struct page *page)
+{
+	const struct v9fs_cookie *vcookie = v9fs_inode2cookie(inode);
+	P9_DPRINTK(P9_DEBUG_FSC, "inode %p page %p", inode, page);
+	if (PageFsCache(page))
+		fscache_wait_on_page_write(vcookie->fscache, page);
+}

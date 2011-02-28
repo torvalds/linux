@@ -151,6 +151,8 @@ static void v9fs_invalidate_page(struct page *page, unsigned long offset)
 
 static int v9fs_launder_page(struct page *page)
 {
+	struct inode *inode = page->mapping->host;
+	v9fs_fscache_wait_on_page_write(inode, page);
 	return 0;
 }
 

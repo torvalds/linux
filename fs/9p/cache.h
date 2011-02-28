@@ -64,8 +64,8 @@ extern int __v9fs_readpages_from_fscache(struct inode *inode,
 					 struct list_head *pages,
 					 unsigned *nr_pages);
 extern void __v9fs_readpage_to_fscache(struct inode *inode, struct page *page);
-
-
+extern void __v9fs_fscache_wait_on_page_write(struct inode *inode,
+					      struct page *page);
 /**
  * v9fs_cache_register - Register v9fs file system with the cache
  */
@@ -131,6 +131,12 @@ static inline void v9fs_vcookie_set_qid(struct inode *inode,
 	spin_unlock(&vcookie->lock);
 }
 
+static inline void v9fs_fscache_wait_on_page_write(struct inode *inode,
+						   struct page *page)
+{
+	return __v9fs_fscache_wait_on_page_write(inode, page);
+}
+
 #else /* CONFIG_9P_FSCACHE */
 
 static inline int v9fs_cache_register(void)
@@ -171,6 +177,12 @@ static inline void v9fs_uncache_page(struct inode *inode, struct page *page)
 static inline void v9fs_vcookie_set_qid(struct inode *inode,
 					struct p9_qid *qid)
 {}
+
+static inline void v9fs_fscache_wait_on_page_write(struct inode *inode,
+						   struct page *page)
+{
+	return;
+}
 
 #endif /* CONFIG_9P_FSCACHE */
 #endif /* _9P_CACHE_H */
