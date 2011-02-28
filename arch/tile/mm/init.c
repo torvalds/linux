@@ -53,18 +53,6 @@
 
 #include "migrate.h"
 
-/*
- * We could set FORCE_MAX_ZONEORDER to "(HPAGE_SHIFT - PAGE_SHIFT + 1)"
- * in the Tile Kconfig, but this generates configure warnings.
- * Do it here and force people to get it right to compile this file.
- * The problem is that with 4KB small pages and 16MB huge pages,
- * the default value doesn't allow us to group enough small pages
- * together to make up a huge page.
- */
-#if CONFIG_FORCE_MAX_ZONEORDER < HPAGE_SHIFT - PAGE_SHIFT + 1
-# error "Change FORCE_MAX_ZONEORDER in arch/tile/Kconfig to match page size"
-#endif
-
 #define clear_pgd(pmdptr) (*(pmdptr) = hv_pte(0))
 
 #ifndef __tilegx__
@@ -962,11 +950,7 @@ struct kmem_cache *pgd_cache;
 
 void __init pgtable_cache_init(void)
 {
-	pgd_cache = kmem_cache_create("pgd",
-				PTRS_PER_PGD*sizeof(pgd_t),
-				PTRS_PER_PGD*sizeof(pgd_t),
-				0,
-				NULL);
+	pgd_cache = kmem_cache_create("pgd", SIZEOF_PGD, SIZEOF_PGD, 0, NULL);
 	if (!pgd_cache)
 		panic("pgtable_cache_init(): Cannot create pgd cache");
 }

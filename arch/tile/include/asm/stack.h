@@ -18,13 +18,14 @@
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <asm/backtrace.h>
+#include <asm/page.h>
 #include <hv/hypervisor.h>
 
 /* Everything we need to keep track of a backtrace iteration */
 struct KBacktraceIterator {
 	BacktraceIterator it;
 	struct task_struct *task;     /* task we are backtracing */
-	HV_PTE *pgtable;	      /* page table for user space access */
+	pte_t *pgtable;		      /* page table for user space access */
 	int end;		      /* iteration complete. */
 	int new_context;              /* new context is starting */
 	int profile;                  /* profiling, so stop on async intrpt */

@@ -412,7 +412,7 @@ void homecache_change_page_home(struct page *page, int order, int home)
 		pte_t *ptep = virt_to_pte(NULL, kva);
 		pte_t pteval = *ptep;
 		BUG_ON(!pte_present(pteval) || pte_huge(pteval));
-		*ptep = pte_set_home(pteval, home);
+		__set_pte(ptep, pte_set_home(pteval, home));
 	}
 }
 

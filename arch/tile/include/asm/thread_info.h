@@ -68,6 +68,7 @@ struct thread_info {
 #else
 #define THREAD_SIZE_ORDER (0)
 #endif
+#define THREAD_SIZE_PAGES (1 << THREAD_SIZE_ORDER)
 
 #define THREAD_SIZE (PAGE_SIZE << THREAD_SIZE_ORDER)
 #define LOG2_THREAD_SIZE (PAGE_SHIFT + THREAD_SIZE_ORDER)

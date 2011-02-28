@@ -202,12 +202,6 @@ config NODES_SHIFT
 	  By default, 2, i.e. 2^2 == 4 DDR2 controllers.
 	  In a system with more controllers, this value should be raised.
 
-# Need 16MB areas to enable hugetlb
-# See build-time check in arch/tile/mm/init.c.
-config FORCE_MAX_ZONEORDER
-	int
-	default 9
-
 choice
 	depends on !TILEGX
 	prompt "Memory split" if EXPERT

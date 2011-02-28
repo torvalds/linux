@@ -1556,7 +1556,10 @@ STD_ENTRY(_sys_clone)
 	.align 64
 	/* Align much later jump on the start of a cache line. */
 #if !ATOMIC_LOCKS_FOUND_VIA_TABLE()
-	nop; nop
+	nop
+#if PAGE_SIZE >= 0x10000
+	nop
+#endif
 #endif
 ENTRY(sys_cmpxchg)
 
@@ -1586,6 +1589,10 @@ ENTRY(sys_cmpxchg)
 	 * both a cmpxchg64() and a cmpxchg() on either its low or high word.
 	 * NOTE: this must match __atomic_hashed_lock() in lib/atomic_32.c.
 	 */
+
+#if (PAGE_OFFSET & 0xffff) != 0
+# error Code here assumes PAGE_OFFSET can be loaded with just hi16()
+#endif
 
 #if ATOMIC_LOCKS_FOUND_VIA_TABLE()
 	{
@@ -1679,11 +1686,14 @@ ENTRY(sys_cmpxchg)
 	 lw	r26, r0
 	}
 	{
-	 /* atomic_locks is page aligned so this suffices to get its addr. */
-	 auli	r21, zero, hi16(atomic_locks)
+	 auli	r21, zero, ha16(atomic_locks)
 
 	 bbns   r23, .Lcmpxchg_badaddr
 	}
+#if PAGE_SIZE < 0x10000
+	/* atomic_locks is page-aligned so for big pages we don't need this. */
+	addli   r21, r21, lo16(atomic_locks)
+#endif
 	{
 	 /*
 	  * Insert the hash bits into the page-aligned pointer.
