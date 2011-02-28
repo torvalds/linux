@@ -8,7 +8,6 @@
 #include <scsi/scsi_cmnd.h>
 #include <net/sock.h>
 #include <net/tcp.h>
-#include "target_core_mib.h"
 
 #define TARGET_CORE_MOD_VERSION		"v4.0.0-rc6"
 #define SHUTDOWN_SIGS	(sigmask(SIGKILL)|sigmask(SIGINT)|sigmask(SIGABRT))
@@ -194,6 +193,21 @@ typedef enum {
 	SAM_TASK_ATTR_UNTAGGED,
 	SAM_TASK_ATTR_EMULATED
 } t10_task_attr_index_t;
+
+/*
+ * Used for target SCSI statistics
+ */
+typedef enum {
+	SCSI_INST_INDEX,
+	SCSI_DEVICE_INDEX,
+	SCSI_AUTH_INTR_INDEX,
+	SCSI_INDEX_TYPE_MAX
+} scsi_index_t;
+
+struct scsi_index_table {
+	spinlock_t	lock;
+	u32		scsi_mib_index[SCSI_INDEX_TYPE_MAX];
+} ____cacheline_aligned;
 
 struct se_cmd;
 
@@ -578,8 +592,6 @@ struct se_node_acl {
 	spinlock_t		stats_lock;
 	/* Used for PR SPEC_I_PT=1 and REGISTER_AND_MOVE */
 	atomic_t		acl_pr_ref_count;
-	/* Used for MIB access */
-	atomic_t		mib_ref_count;
 	struct se_dev_entry	*device_list;
 	struct se_session	*nacl_sess;
 	struct se_portal_group *se_tpg;
@@ -595,8 +607,6 @@ struct se_node_acl {
 } ____cacheline_aligned;
 
 struct se_session {
-	/* Used for MIB access */
-	atomic_t		mib_ref_count;
 	u64			sess_bin_isid;
 	struct se_node_acl	*se_node_acl;
 	struct se_portal_group *se_tpg;
@@ -806,7 +816,6 @@ struct se_hba {
 	/* Virtual iSCSI devices attached. */
 	u32			dev_count;
 	u32			hba_index;
-	atomic_t		dev_mib_access_count;
 	atomic_t		load_balance_queue;
 	atomic_t		left_queue_depth;
 	/* Maximum queue depth the HBA can handle. */
@@ -845,6 +854,12 @@ struct se_lun {
 
 #define SE_LUN(c)		((struct se_lun *)(c)->se_lun)
 
+struct scsi_port_stats {
+       u64     cmd_pdus;
+       u64     tx_data_octets;
+       u64     rx_data_octets;
+} ____cacheline_aligned;
+
 struct se_port {
 	/* RELATIVE TARGET PORT IDENTIFER */
 	u16		sep_rtpi;
@@ -867,6 +882,7 @@ struct se_port {
 } ____cacheline_aligned;
 
 struct se_tpg_np {
+	struct se_portal_group *tpg_np_parent;
 	struct config_group	tpg_np_group;
 } ____cacheline_aligned;
 

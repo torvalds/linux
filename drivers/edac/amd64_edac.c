@@ -826,8 +826,6 @@ static void amd64_dump_dramcfg_low(u32 dclr, int chan)
 /* Display and decode various NB registers for debug purposes. */
 static void amd64_dump_misc_regs(struct amd64_pvt *pvt)
 {
-	int ganged;
-
 	debugf1("F3xE8 (NB Cap): 0x%08x\n", pvt->nbcap);
 
 	debugf1("  NB two channel DRAM capable: %s\n",
@@ -851,28 +849,19 @@ static void amd64_dump_misc_regs(struct amd64_pvt *pvt)
 	debugf1("  DramHoleValid: %s\n",
 		(pvt->dhar & DHAR_VALID) ? "yes" : "no");
 
+	amd64_debug_display_dimm_sizes(0, pvt);
+
 	/* everything below this point is Fam10h and above */
-	if (boot_cpu_data.x86 == 0xf) {
-		amd64_debug_display_dimm_sizes(0, pvt);
+	if (boot_cpu_data.x86 == 0xf)
 		return;
-	}
+
+	amd64_debug_display_dimm_sizes(1, pvt);
 
 	amd64_info("using %s syndromes.\n", ((pvt->syn_type == 8) ? "x8" : "x4"));
 
 	/* Only if NOT ganged does dclr1 have valid info */
 	if (!dct_ganging_enabled(pvt))
 		amd64_dump_dramcfg_low(pvt->dclr1, 1);
-
-	/*
-	 * Determine if ganged and then dump memory sizes for first controller,
-	 * and if NOT ganged dump info for 2nd controller.
-	 */
-	ganged = dct_ganging_enabled(pvt);
-
-	amd64_debug_display_dimm_sizes(0, pvt);
-
-	if (!ganged)
-		amd64_debug_display_dimm_sizes(1, pvt);
 }
 
 /* Read in both of DBAM registers */
@@ -1644,11 +1633,10 @@ static void amd64_debug_display_dimm_sizes(int ctrl, struct amd64_pvt *pvt)
 		       WARN_ON(ctrl != 0);
 	}
 
-	debugf1("F2x%d80 (DRAM Bank Address Mapping): 0x%08x\n",
-		ctrl, ctrl ? pvt->dbam1 : pvt->dbam0);
+	dbam = (ctrl && !dct_ganging_enabled(pvt)) ? pvt->dbam1 : pvt->dbam0;
+	dcsb = (ctrl && !dct_ganging_enabled(pvt)) ? pvt->dcsb1 : pvt->dcsb0;
 
-	dbam = ctrl ? pvt->dbam1 : pvt->dbam0;
-	dcsb = ctrl ? pvt->dcsb1 : pvt->dcsb0;
+	debugf1("F2x%d80 (DRAM Bank Address Mapping): 0x%08x\n", ctrl, dbam);
 
 	edac_printk(KERN_DEBUG, EDAC_MC, "DCT%d chip selects:\n", ctrl);
 

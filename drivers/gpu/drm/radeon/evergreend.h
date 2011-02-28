@@ -98,6 +98,7 @@
 #define		BUF_SWAP_32BIT					(2 << 16)
 #define	CP_RB_RPTR					0x8700
 #define	CP_RB_RPTR_ADDR					0xC10C
+#define		RB_RPTR_SWAP(x)					((x) << 0)
 #define	CP_RB_RPTR_ADDR_HI				0xC110
 #define	CP_RB_RPTR_WR					0xC108
 #define	CP_RB_WPTR					0xC114
@@ -240,6 +241,7 @@
 #define		FORCE_EOV_MAX_CLK_CNT(x)			((x) << 0)
 #define		FORCE_EOV_MAX_REZ_CNT(x)			((x) << 16)
 #define PA_SC_LINE_STIPPLE				0x28A0C
+#define	PA_SU_LINE_STIPPLE_VALUE			0x8A60
 #define	PA_SC_LINE_STIPPLE_STATE			0x8B10
 
 #define	SCRATCH_REG0					0x8500
@@ -652,6 +654,7 @@
 #define	PACKET3_DISPATCH_DIRECT				0x15
 #define	PACKET3_DISPATCH_INDIRECT			0x16
 #define	PACKET3_INDIRECT_BUFFER_END			0x17
+#define	PACKET3_MODE_CONTROL				0x18
 #define	PACKET3_SET_PREDICATION				0x20
 #define	PACKET3_REG_RMW					0x21
 #define	PACKET3_COND_EXEC				0x22

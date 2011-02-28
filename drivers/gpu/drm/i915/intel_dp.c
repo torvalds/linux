@@ -1639,6 +1639,24 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 	return 0;
 }
 
+static bool
+intel_dp_detect_audio(struct drm_connector *connector)
+{
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	struct edid *edid;
+	bool has_audio = false;
+
+	edid = drm_get_edid(connector, &intel_dp->adapter);
+	if (edid) {
+		has_audio = drm_detect_monitor_audio(edid);
+
+		connector->display_info.raw_edid = NULL;
+		kfree(edid);
+	}
+
+	return has_audio;
+}
+
 static int
 intel_dp_set_property(struct drm_connector *connector,
 		      struct drm_property *property,
@@ -1652,17 +1670,23 @@ intel_dp_set_property(struct drm_connector *connector,
 		return ret;
 
 	if (property == intel_dp->force_audio_property) {
-		if (val == intel_dp->force_audio)
+		int i = val;
+		bool has_audio;
+
+		if (i == intel_dp->force_audio)
 			return 0;
 
-		intel_dp->force_audio = val;
+		intel_dp->force_audio = i;
 
-		if (val > 0 && intel_dp->has_audio)
-			return 0;
-		if (val < 0 && !intel_dp->has_audio)
+		if (i == 0)
+			has_audio = intel_dp_detect_audio(connector);
+		else
+			has_audio = i > 0;
+
+		if (has_audio == intel_dp->has_audio)
 			return 0;
 
-		intel_dp->has_audio = val > 0;
+		intel_dp->has_audio = has_audio;
 		goto done;
 	}
 

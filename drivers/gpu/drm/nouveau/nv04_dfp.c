@@ -342,8 +342,8 @@ static void nv04_dfp_mode_set(struct drm_encoder *encoder,
 	if (nv_encoder->dcb->type == OUTPUT_LVDS) {
 		bool duallink, dummy;
 
-		nouveau_bios_parse_lvds_table(dev, nv_connector->native_mode->
-					      clock, &duallink, &dummy);
+		nouveau_bios_parse_lvds_table(dev, output_mode->clock,
+					      &duallink, &dummy);
 		if (duallink)
 			regp->fp_control |= (8 << 28);
 	} else
@@ -518,8 +518,6 @@ static void nv04_lvds_dpms(struct drm_encoder *encoder, int mode)
 		return;
 
 	if (nv_encoder->dcb->lvdsconf.use_power_scripts) {
-		struct nouveau_connector *nv_connector = nouveau_encoder_connector_get(nv_encoder);
-
 		/* when removing an output, crtc may not be set, but PANEL_OFF
 		 * must still be run
 		 */
@@ -527,12 +525,8 @@ static void nv04_lvds_dpms(struct drm_encoder *encoder, int mode)
 			   nv04_dfp_get_bound_head(dev, nv_encoder->dcb);
 
 		if (mode == DRM_MODE_DPMS_ON) {
-			if (!nv_connector->native_mode) {
-				NV_ERROR(dev, "Not turning on LVDS without native mode\n");
-				return;
-			}
 			call_lvds_script(dev, nv_encoder->dcb, head,
-					 LVDS_PANEL_ON, nv_connector->native_mode->clock);
+					 LVDS_PANEL_ON, nv_encoder->mode.clock);
 		} else
 			/* pxclk of 0 is fine for PANEL_OFF, and for a
 			 * disconnected LVDS encoder there is no native_mode

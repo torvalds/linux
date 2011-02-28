@@ -7,10 +7,9 @@
 #include <linux/of_device.h>
 #include <linux/spi/pxa2xx_spi.h>
 
-struct awesome_struct {
+struct ce4100_info {
 	struct ssp_device ssp;
-	struct platform_device spi_pdev;
-	struct pxa2xx_spi_master spi_pdata;
+	struct platform_device *spi_pdev;
 };
 
 static DEFINE_MUTEX(ssp_lock);
@@ -51,23 +50,15 @@ void pxa_ssp_free(struct ssp_device *ssp)
 }
 EXPORT_SYMBOL_GPL(pxa_ssp_free);
 
-static void plat_dev_release(struct device *dev)
-{
-	struct awesome_struct *as = container_of(dev,
-			struct awesome_struct, spi_pdev.dev);
-
-	of_device_node_put(&as->spi_pdev.dev);
-}
-
 static int __devinit ce4100_spi_probe(struct pci_dev *dev,
 		const struct pci_device_id *ent)
 {
 	int ret;
 	resource_size_t phys_beg;
 	resource_size_t phys_len;
-	struct awesome_struct *spi_info;
+	struct ce4100_info *spi_info;
 	struct platform_device *pdev;
-	struct pxa2xx_spi_master *spi_pdata;
+	struct pxa2xx_spi_master spi_pdata;
 	struct ssp_device *ssp;
 
 	ret = pci_enable_device(dev);
@@ -84,31 +75,28 @@ static int __devinit ce4100_spi_probe(struct pci_dev *dev,
 		return ret;
 	}
 
+	pdev = platform_device_alloc("pxa2xx-spi", dev->devfn);
 	spi_info = kzalloc(sizeof(*spi_info), GFP_KERNEL);
-	if (!spi_info) {
+	if (!pdev || !spi_info ) {
 		ret = -ENOMEM;
-		goto err_kz;
+		goto err_nomem;
 	}
-	ssp = &spi_info->ssp;
-	pdev = &spi_info->spi_pdev;
-	spi_pdata =  &spi_info->spi_pdata;
+	memset(&spi_pdata, 0, sizeof(spi_pdata));
+	spi_pdata.num_chipselect = dev->devfn;
 
-	pdev->name = "pxa2xx-spi";
-	pdev->id = dev->devfn;
+	ret = platform_device_add_data(pdev, &spi_pdata, sizeof(spi_pdata));
+	if (ret)
+		goto err_nomem;
+
 	pdev->dev.parent = &dev->dev;
-	pdev->dev.platform_data = &spi_info->spi_pdata;
-
 	pdev->dev.of_node = dev->dev.of_node;
-	pdev->dev.release = plat_dev_release;
-
-	spi_pdata->num_chipselect = dev->devfn;
-
+	ssp = &spi_info->ssp;
 	ssp->phys_base = pci_resource_start(dev, 0);
 	ssp->mmio_base = ioremap(phys_beg, phys_len);
 	if (!ssp->mmio_base) {
 		dev_err(&pdev->dev, "failed to ioremap() registers\n");
 		ret = -EIO;
-		goto err_remap;
+		goto err_nomem;
 	}
 	ssp->irq = dev->irq;
 	ssp->port_id = pdev->id;
@@ -120,7 +108,7 @@ static int __devinit ce4100_spi_probe(struct pci_dev *dev,
 
 	pci_set_drvdata(dev, spi_info);
 
-	ret = platform_device_register(pdev);
+	ret = platform_device_add(pdev);
 	if (ret)
 		goto err_dev_add;
 
@@ -133,27 +121,21 @@ err_dev_add:
 	mutex_unlock(&ssp_lock);
 	iounmap(ssp->mmio_base);
 
-err_remap:
-	kfree(spi_info);
-
-err_kz:
+err_nomem:
 	release_mem_region(phys_beg, phys_len);
-
+	platform_device_put(pdev);
+	kfree(spi_info);
 	return ret;
 }
 
 static void __devexit ce4100_spi_remove(struct pci_dev *dev)
 {
-	struct awesome_struct *spi_info;
-	struct platform_device *pdev;
+	struct ce4100_info *spi_info;
 	struct ssp_device *ssp;
 
 	spi_info = pci_get_drvdata(dev);
-
 	ssp = &spi_info->ssp;
-	pdev = &spi_info->spi_pdev;
-
-	platform_device_unregister(pdev);
+	platform_device_unregister(spi_info->spi_pdev);
 
 	iounmap(ssp->mmio_base);
 	release_mem_region(pci_resource_start(dev, 0),
@@ -169,7 +151,6 @@ static void __devexit ce4100_spi_remove(struct pci_dev *dev)
 }
 
 static struct pci_device_id ce4100_spi_devices[] __devinitdata = {
-
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x2e6a) },
 	{ },
 };

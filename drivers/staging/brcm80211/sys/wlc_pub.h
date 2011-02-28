@@ -570,6 +570,8 @@ extern void wlc_enable_mac(struct wlc_info *wlc);
 extern u16 wlc_rate_shm_offset(struct wlc_info *wlc, u8 rate);
 extern u32 wlc_get_rspec_history(struct wlc_bsscfg *cfg);
 extern u32 wlc_get_current_highest_rate(struct wlc_bsscfg *cfg);
+extern void wlc_scan_start(struct wlc_info *wlc);
+extern void wlc_scan_stop(struct wlc_info *wlc);
 
 static inline int wlc_iovar_getuint(struct wlc_info *wlc, const char *name,
 				    uint *arg)

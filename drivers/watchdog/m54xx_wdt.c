@@ -1,7 +1,7 @@
 /*
- * drivers/watchdog/m548x_wdt.c
+ * drivers/watchdog/m54xx_wdt.c
  *
- * Watchdog driver for ColdFire MCF548x processors
+ * Watchdog driver for ColdFire MCF547x & MCF548x processors
  * Copyright 2010 (c) Philippe De Muyter <phdm@macqel.be>
  *
  * Adapted from the IXP4xx watchdog driver, which carries these notices:
@@ -29,8 +29,8 @@
 #include <linux/uaccess.h>
 
 #include <asm/coldfire.h>
-#include <asm/m548xsim.h>
-#include <asm/m548xgpt.h>
+#include <asm/m54xxsim.h>
+#include <asm/m54xxgpt.h>
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 static unsigned int heartbeat = 30;	/* (secs) Default is 0.5 minute */
@@ -76,7 +76,7 @@ static void wdt_keepalive(void)
 	__raw_writel(gms0, MCF_MBAR + MCF_GPT_GMS0);
 }
 
-static int m548x_wdt_open(struct inode *inode, struct file *file)
+static int m54xx_wdt_open(struct inode *inode, struct file *file)
 {
 	if (test_and_set_bit(WDT_IN_USE, &wdt_status))
 		return -EBUSY;
@@ -86,7 +86,7 @@ static int m548x_wdt_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
-static ssize_t m548x_wdt_write(struct file *file, const char *data,
+static ssize_t m54xx_wdt_write(struct file *file, const char *data,
 						size_t len, loff_t *ppos)
 {
 	if (len) {
@@ -112,10 +112,10 @@ static ssize_t m548x_wdt_write(struct file *file, const char *data,
 static const struct watchdog_info ident = {
 	.options	= WDIOF_MAGICCLOSE | WDIOF_SETTIMEOUT |
 				WDIOF_KEEPALIVEPING,
-	.identity	= "Coldfire M548x Watchdog",
+	.identity	= "Coldfire M54xx Watchdog",
 };
 
-static long m548x_wdt_ioctl(struct file *file, unsigned int cmd,
+static long m54xx_wdt_ioctl(struct file *file, unsigned int cmd,
 							 unsigned long arg)
 {
 	int ret = -ENOTTY;
@@ -161,7 +161,7 @@ static long m548x_wdt_ioctl(struct file *file, unsigned int cmd,
 	return ret;
 }
 
-static int m548x_wdt_release(struct inode *inode, struct file *file)
+static int m54xx_wdt_release(struct inode *inode, struct file *file)
 {
 	if (test_bit(WDT_OK_TO_CLOSE, &wdt_status))
 		wdt_disable();
@@ -177,45 +177,45 @@ static int m548x_wdt_release(struct inode *inode, struct file *file)
 }
 
 
-static const struct file_operations m548x_wdt_fops = {
+static const struct file_operations m54xx_wdt_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
-	.write		= m548x_wdt_write,
-	.unlocked_ioctl	= m548x_wdt_ioctl,
-	.open		= m548x_wdt_open,
-	.release	= m548x_wdt_release,
+	.write		= m54xx_wdt_write,
+	.unlocked_ioctl	= m54xx_wdt_ioctl,
+	.open		= m54xx_wdt_open,
+	.release	= m54xx_wdt_release,
 };
 
-static struct miscdevice m548x_wdt_miscdev = {
+static struct miscdevice m54xx_wdt_miscdev = {
 	.minor		= WATCHDOG_MINOR,
 	.name		= "watchdog",
-	.fops		= &m548x_wdt_fops,
+	.fops		= &m54xx_wdt_fops,
 };
 
-static int __init m548x_wdt_init(void)
+static int __init m54xx_wdt_init(void)
 {
 	if (!request_mem_region(MCF_MBAR + MCF_GPT_GCIR0, 4,
-						"Coldfire M548x Watchdog")) {
+						"Coldfire M54xx Watchdog")) {
 		printk(KERN_WARNING
-				"Coldfire M548x Watchdog : I/O region busy\n");
+				"Coldfire M54xx Watchdog : I/O region busy\n");
 		return -EBUSY;
 	}
 	printk(KERN_INFO "ColdFire watchdog driver is loaded.\n");
 
-	return misc_register(&m548x_wdt_miscdev);
+	return misc_register(&m54xx_wdt_miscdev);
 }
 
-static void __exit m548x_wdt_exit(void)
+static void __exit m54xx_wdt_exit(void)
 {
-	misc_deregister(&m548x_wdt_miscdev);
+	misc_deregister(&m54xx_wdt_miscdev);
 	release_mem_region(MCF_MBAR + MCF_GPT_GCIR0, 4);
 }
 
-module_init(m548x_wdt_init);
-module_exit(m548x_wdt_exit);
+module_init(m54xx_wdt_init);
+module_exit(m54xx_wdt_exit);
 
 MODULE_AUTHOR("Philippe De Muyter <phdm@macqel.be>");
-MODULE_DESCRIPTION("Coldfire M548x Watchdog");
+MODULE_DESCRIPTION("Coldfire M54xx Watchdog");
 
 module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds (default 30s)");

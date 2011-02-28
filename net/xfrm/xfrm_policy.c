@@ -1340,10 +1340,13 @@ static inline struct xfrm_dst *xfrm_alloc_dst(struct net *net, int family)
 	default:
 		BUG();
 	}
-	xdst = dst_alloc(dst_ops) ?: ERR_PTR(-ENOBUFS);
+	xdst = dst_alloc(dst_ops);
 	xfrm_policy_put_afinfo(afinfo);
 
-	xdst->flo.ops = &xfrm_bundle_fc_ops;
+	if (likely(xdst))
+		xdst->flo.ops = &xfrm_bundle_fc_ops;
+	else
+		xdst = ERR_PTR(-ENOBUFS);
 
 	return xdst;
 }

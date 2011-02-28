@@ -4002,6 +4002,9 @@ int mp_find_ioapic(u32 gsi)
 {
 	int i = 0;
 
+	if (nr_ioapics == 0)
+		return -1;
+
 	/* Find the IOAPIC that manages this GSI. */
 	for (i = 0; i < nr_ioapics; i++) {
 		if ((gsi >= mp_gsi_routing[i].gsi_base)

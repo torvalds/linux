@@ -1561,6 +1561,7 @@ qla2x00_dev_loss_tmo_callbk(struct fc_rport *rport)
 {
 	struct Scsi_Host *host = rport_to_shost(rport);
 	fc_port_t *fcport = *(fc_port_t **)rport->dd_data;
+	unsigned long flags;
 
 	if (!fcport)
 		return;
@@ -1573,10 +1574,10 @@ qla2x00_dev_loss_tmo_callbk(struct fc_rport *rport)
 	 * Transport has effectively 'deleted' the rport, clear
 	 * all local references.
 	 */
-	spin_lock_irq(host->host_lock);
+	spin_lock_irqsave(host->host_lock, flags);
 	fcport->rport = fcport->drport = NULL;
 	*((fc_port_t **)rport->dd_data) = NULL;
-	spin_unlock_irq(host->host_lock);
+	spin_unlock_irqrestore(host->host_lock, flags);
 
 	if (test_bit(ABORT_ISP_ACTIVE, &fcport->vha->dpc_flags))
 		return;

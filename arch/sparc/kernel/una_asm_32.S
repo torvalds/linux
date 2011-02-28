@@ -24,9 +24,9 @@ retl_efault:
 	.globl	__do_int_store
 __do_int_store:
 	ld	[%o2], %g1
-	cmp	%1, 2
+	cmp	%o1, 2
 	be	2f
-	 cmp	%1, 4
+	 cmp	%o1, 4
 	be	1f
 	 srl	%g1, 24, %g2
 	srl	%g1, 16, %g7

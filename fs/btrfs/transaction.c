@@ -1161,6 +1161,11 @@ int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
 	INIT_DELAYED_WORK(&ac->work, do_async_commit);
 	ac->root = root;
 	ac->newtrans = btrfs_join_transaction(root, 0);
+	if (IS_ERR(ac->newtrans)) {
+		int err = PTR_ERR(ac->newtrans);
+		kfree(ac);
+		return err;
+	}
 
 	/* take transaction reference */
 	mutex_lock(&root->fs_info->trans_mutex);

@@ -176,7 +176,7 @@ static int __devinit rotary_encoder_probe(struct platform_device *pdev)
 
 	/* request the IRQs */
 	err = request_irq(encoder->irq_a, &rotary_encoder_irq,
-			  IORESOURCE_IRQ_HIGHEDGE | IORESOURCE_IRQ_LOWEDGE,
+			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 			  DRV_NAME, encoder);
 	if (err) {
 		dev_err(&pdev->dev, "unable to request IRQ %d\n",
@@ -185,7 +185,7 @@ static int __devinit rotary_encoder_probe(struct platform_device *pdev)
 	}
 
 	err = request_irq(encoder->irq_b, &rotary_encoder_irq,
-			  IORESOURCE_IRQ_HIGHEDGE | IORESOURCE_IRQ_LOWEDGE,
+			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 			  DRV_NAME, encoder);
 	if (err) {
 		dev_err(&pdev->dev, "unable to request IRQ %d\n",

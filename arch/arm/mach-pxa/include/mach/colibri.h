@@ -60,7 +60,7 @@ static inline void colibri_pxa3xx_init_nand(void) {}
 #define GPIO113_COLIBRI_PXA270_TS_IRQ	113
 
 /* GPIO definitions for Colibri PXA300/310 */
-#define GPIO39_COLIBRI_PXA300_SD_DETECT	39
+#define GPIO13_COLIBRI_PXA300_SD_DETECT	13
 
 /* GPIO definitions for Colibri PXA320 */
 #define GPIO28_COLIBRI_PXA320_SD_DETECT	28
