@@ -1202,6 +1202,17 @@ config ARM_ERRATA_753970
 	  This has the same effect as the cache sync operation: store buffer
 	  drain and waiting for all buffers empty.
 
+config ARM_ERRATA_754322
+	bool "ARM errata: possible faulty MMU translations following an ASID switch"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 754322 Cortex-A9 (r2p*,
+	  r3p*) erratum. A speculative memory access may cause a page table walk
+	  which starts prior to an ASID switch but completes afterwards. This
+	  can populate the micro-TLB with a stale entry which may be hit with
+	  the new ASID. This workaround places two dsb instructions in the mm
+	  switching code so that no page table walks can cross the ASID switch.
+
 endmenu
 
 source "arch/arm/common/Kconfig"
