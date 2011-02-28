@@ -259,6 +259,11 @@ static void ext4_end_bio(struct bio *bio, int error)
 			     bi_sector >> (inode->i_blkbits - 9));
 	}
 
+	if (!(io_end->flag & EXT4_IO_END_UNWRITTEN)) {
+		ext4_free_io_end(io_end);
+		return;
+	}
+
 	/* Add the io_end to per-inode completed io list*/
 	spin_lock_irqsave(&EXT4_I(inode)->i_completed_io_lock, flags);
 	list_add_tail(&io_end->list, &EXT4_I(inode)->i_completed_io_list);
