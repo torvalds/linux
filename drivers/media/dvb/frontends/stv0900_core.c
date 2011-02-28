@@ -1604,6 +1604,9 @@ static enum dvbfe_search stv0900_search(struct dvb_frontend *fe,
 	p_search.standard = STV0900_AUTO_SEARCH;
 	p_search.iq_inversion = STV0900_IQ_AUTO;
 	p_search.search_algo = STV0900_BLIND_SEARCH;
+	/* Speeds up DVB-S searching */
+	if (c->delivery_system == SYS_DVBS)
+		p_search.standard = STV0900_SEARCH_DVBS1;
 
 	intp->srch_standard[demod] = p_search.standard;
 	intp->symbol_rate[demod] = p_search.symbol_rate;
