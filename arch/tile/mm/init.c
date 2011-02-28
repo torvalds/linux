@@ -1000,7 +1000,7 @@ static long __write_once initfree = 1;
 static int __init set_initfree(char *str)
 {
 	long val;
-	if (strict_strtol(str, 0, &val)) {
+	if (strict_strtol(str, 0, &val) == 0) {
 		initfree = val;
 		pr_info("initfree: %s free init pages\n",
 			initfree ? "will" : "won't");
