@@ -1031,13 +1031,10 @@ static void dw_mci_read_data_pio(struct dw_mci *host)
 	struct mmc_data	*data = host->data;
 	int shift = host->data_shift;
 	u32 status;
-	unsigned int nbytes = 0, len, old_len, count = 0;
+	unsigned int nbytes = 0, len;
 
 	do {
 		len = SDMMC_GET_FCNT(mci_readl(host, STATUS)) << shift;
-		if (count == 0)
-			old_len = len;
-
 		if (offset + len <= sg->length) {
 			host->pull_data(host, (void *)(buf + offset), len);
 
@@ -1082,7 +1079,6 @@ static void dw_mci_read_data_pio(struct dw_mci *host)
 			tasklet_schedule(&host->tasklet);
 			return;
 		}
-		count++;
 	} while (status & SDMMC_INT_RXDR); /*if the RXDR is ready read again*/
 	len = SDMMC_GET_FCNT(mci_readl(host, STATUS));
 	host->pio_offset = offset;
