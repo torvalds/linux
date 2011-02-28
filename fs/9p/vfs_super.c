@@ -168,7 +168,7 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 			retval = PTR_ERR(st);
 			goto release_sb;
 		}
-
+		root->d_inode->i_ino = v9fs_qid2ino(&st->qid);
 		v9fs_stat2inode_dotl(st, root->d_inode);
 		kfree(st);
 	} else {
