@@ -514,8 +514,8 @@ static void tegra_dc_hdmi_suspend(struct tegra_dc *dc)
 	struct tegra_dc_hdmi_data *hdmi = tegra_dc_get_outdata(dc);
 	unsigned long flags;
 
-	spin_lock_irqsave(&hdmi->suspend_lock, flags);
 	tegra_nvhdcp_suspend(hdmi->nvhdcp);
+	spin_lock_irqsave(&hdmi->suspend_lock, flags);
 	hdmi->suspended = true;
 	spin_unlock_irqrestore(&hdmi->suspend_lock, flags);
 }
@@ -603,6 +603,7 @@ static int tegra_dc_hdmi_init(struct tegra_dc *dc)
 		err = -EBUSY;
 		goto err_put_clock;
 	}
+	enable_irq_wake(gpio_to_irq(dc->out->hotplug_gpio));
 
 	hdmi->edid = tegra_edid_create(dc->out->dcc_bus);
 	if (IS_ERR_OR_NULL(hdmi->edid)) {
@@ -651,6 +652,7 @@ static int tegra_dc_hdmi_init(struct tegra_dc *dc)
 err_edid_destroy:
 	tegra_edid_destroy(hdmi->edid);
 err_free_irq:
+	disable_irq_wake(gpio_to_irq(dc->out->hotplug_gpio));
 	free_irq(gpio_to_irq(dc->out->hotplug_gpio), dc);
 err_put_clock:
 	if (!IS_ERR_OR_NULL(disp2_clk))
@@ -672,6 +674,7 @@ static void tegra_dc_hdmi_destroy(struct tegra_dc *dc)
 {
 	struct tegra_dc_hdmi_data *hdmi = tegra_dc_get_outdata(dc);
 
+	disable_irq_wake(gpio_to_irq(dc->out->hotplug_gpio));
 	free_irq(gpio_to_irq(dc->out->hotplug_gpio), dc);
 	cancel_delayed_work_sync(&hdmi->work);
 	switch_dev_unregister(&hdmi->hpd_switch);
@@ -853,7 +856,7 @@ static void tegra_dc_hdmi_setup_avi_infoframe(struct tegra_dc *dc, bool dvi)
 			avi.vic = 4; /* 60 Hz */
 		else
 			avi.vic = 19; /* 50 Hz */
-	} else if (dc->mode.v_active == 720) {
+	} else if (dc->mode.v_active == 1080) {
 		avi.m = HDMI_AVI_M_16_9;
 		if (dc->mode.h_front_porch == 88)
 			avi.vic = 16; /* 60 Hz */
