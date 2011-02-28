@@ -409,7 +409,7 @@ more:
 	spin_lock(&inode->i_lock);
 	if (ci->i_release_count == fi->dir_release_count) {
 		dout(" marking %p complete\n", inode);
-		ci->i_ceph_flags |= CEPH_I_COMPLETE;
+		/* ci->i_ceph_flags |= CEPH_I_COMPLETE; */
 		ci->i_max_offset = filp->f_pos;
 	}
 	spin_unlock(&inode->i_lock);
