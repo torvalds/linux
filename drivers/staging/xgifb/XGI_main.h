@@ -814,10 +814,6 @@ extern unsigned char XGI_SearchModeID(unsigned short ModeNo,
 static int      XGIfb_get_fix(struct fb_fix_screeninfo *fix, int con,
 			      struct fb_info *info);
 
-/* Internal 2D accelerator functions */
-extern int      XGIfb_initaccel(void);
-extern void     XGIfb_syncaccel(void);
-
 /* Internal general routines */
 static void     XGIfb_search_mode(const char *name);
 static int      XGIfb_validate_mode(int modeindex);
