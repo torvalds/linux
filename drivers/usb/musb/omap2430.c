@@ -246,19 +246,13 @@ static int musb_otg_notifications(struct notifier_block *nb,
 			if (musb->gadget_driver) {
 				pm_runtime_get_sync(musb->controller);
 				otg_init(musb->xceiv);
-
-				if (data->interface_type ==
-						MUSB_INTERFACE_UTMI)
-					omap2430_musb_set_vbus(musb, 1);
-
+				omap2430_musb_set_vbus(musb, 1);
 			}
 #endif
 		} else {
 			pm_runtime_get_sync(musb->controller);
 			otg_init(musb->xceiv);
-			if (data->interface_type ==
-					MUSB_INTERFACE_UTMI)
-				omap2430_musb_set_vbus(musb, 1);
+			omap2430_musb_set_vbus(musb, 1);
 		}
 		break;
 
