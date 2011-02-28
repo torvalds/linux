@@ -2008,6 +2008,15 @@ config BCM63XX_ENET
 	  This driver supports the ethernet MACs in the Broadcom 63xx
 	  MIPS chipset family (BCM63XX).
 
+config FTMAC100
+	tristate "Faraday FTMAC100 10/100 Ethernet support"
+	depends on ARM
+	select MII
+	help
+	  This driver supports the FTMAC100 10/100 Ethernet controller
+	  from Faraday. It is used on Faraday A320, Andes AG101 and some
+	  other ARM/NDS32 SoC's.
+
 source "drivers/net/fs_enet/Kconfig"
 
 source "drivers/net/octeon/Kconfig"
