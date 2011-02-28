@@ -1796,12 +1796,14 @@ int wm831x_device_shutdown(struct wm831x *wm831x)
 			//goto err_irq;
 		}
 	}
+#if 0
 	if(0 == reboot_cmd_get())
 	{
 		if(wm831x_set_bits(wm831x, WM831X_POWER_STATE, WM831X_CHIP_ON_MASK, 0) < 0)
 			printk("%s wm831x_set_bits err\n", __FUNCTION__);
 		printk("post WM831X_POWER_STATE = 0x%x\n", wm831x_reg_read(wm831x, WM831X_POWER_STATE));
 	}
+#endif
 	return 0;	
 }
 
