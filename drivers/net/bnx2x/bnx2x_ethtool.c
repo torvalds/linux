@@ -1782,9 +1782,7 @@ static int bnx2x_test_nvram(struct bnx2x *bp)
 		{ 0x100, 0x350 }, /* manuf_info */
 		{ 0x450,  0xf0 }, /* feature_info */
 		{ 0x640,  0x64 }, /* upgrade_key_info */
-		{ 0x6a4,  0x64 },
 		{ 0x708,  0x70 }, /* manuf_key_info */
-		{ 0x778,  0x70 },
 		{     0,     0 }
 	};
 	__be32 buf[0x350 / 4];
