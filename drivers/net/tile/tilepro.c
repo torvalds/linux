@@ -1620,7 +1620,7 @@ static unsigned int tile_net_tx_frags(lepp_frag_t *frags,
 	if (b_len != 0) {
 
 		if (!hash_default)
-			finv_buffer_remote(b_data, b_len);
+			finv_buffer_remote(b_data, b_len, 0);
 
 		cpa = __pa(b_data);
 		frags[n].cpa_lo = cpa;
@@ -1643,7 +1643,7 @@ static unsigned int tile_net_tx_frags(lepp_frag_t *frags,
 		if (!hash_default) {
 			void *va = pfn_to_kaddr(pfn) + f->page_offset;
 			BUG_ON(PageHighMem(f->page));
-			finv_buffer_remote(va, f->size);
+			finv_buffer_remote(va, f->size, 0);
 		}
 
 		cpa = ((phys_addr_t)pfn << PAGE_SHIFT) + f->page_offset;
