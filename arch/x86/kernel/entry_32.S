@@ -1409,8 +1409,7 @@ END(general_protection)
 #ifdef CONFIG_KVM_GUEST
 ENTRY(async_page_fault)
 	RING0_EC_FRAME
-	pushl $do_async_page_fault
-	CFI_ADJUST_CFA_OFFSET 4
+	pushl_cfi $do_async_page_fault
 	jmp error_code
 	CFI_ENDPROC
 END(apf_page_fault)
