@@ -499,8 +499,8 @@ v9fs_inode_from_fid(struct v9fs_session_info *v9ses, struct p9_fid *fid,
 static int v9fs_remove(struct inode *dir, struct dentry *file, int rmdir)
 {
 	int retval;
-	struct inode *file_inode;
 	struct p9_fid *v9fid;
+	struct inode *file_inode;
 
 	P9_DPRINTK(P9_DEBUG_VFS, "inode: %p dentry: %p rmdir: %d\n", dir, file,
 		rmdir);
@@ -521,7 +521,9 @@ static int v9fs_remove(struct inode *dir, struct dentry *file, int rmdir)
 			drop_nlink(dir);
 		} else
 			drop_nlink(file_inode);
+
 		v9fs_invalidate_inode_attr(file_inode);
+		v9fs_invalidate_inode_attr(dir);
 	}
 	return retval;
 }
@@ -644,6 +646,7 @@ v9fs_vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 		goto error;
 	}
 
+	v9fs_invalidate_inode_attr(dir);
 	/* if we are opening a file, assign the open fid to the file */
 	if (nd && nd->flags & LOOKUP_OPEN) {
 		v9inode = V9FS_I(dentry->d_inode);
@@ -697,8 +700,8 @@ static int v9fs_vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 {
 	int err;
 	u32 perm;
-	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid;
+	struct v9fs_session_info *v9ses;
 
 	P9_DPRINTK(P9_DEBUG_VFS, "name %s\n", dentry->d_name.name);
 	err = 0;
@@ -708,8 +711,10 @@ static int v9fs_vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	if (IS_ERR(fid)) {
 		err = PTR_ERR(fid);
 		fid = NULL;
-	} else
+	} else {
 		inc_nlink(dir);
+		v9fs_invalidate_inode_attr(dir);
+	}
 
 	if (fid)
 		p9_client_clunk(fid);
@@ -820,6 +825,7 @@ int
 v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		struct inode *new_dir, struct dentry *new_dentry)
 {
+	int retval;
 	struct inode *old_inode;
 	struct inode *new_inode;
 	struct v9fs_session_info *v9ses;
@@ -827,7 +833,6 @@ v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct p9_fid *olddirfid;
 	struct p9_fid *newdirfid;
 	struct p9_wstat wstat;
-	int retval;
 
 	P9_DPRINTK(P9_DEBUG_VFS, "\n");
 	retval = 0;
@@ -886,6 +891,8 @@ clunk_newdir:
 			drop_nlink(old_dir);
 		}
 		v9fs_invalidate_inode_attr(old_inode);
+		v9fs_invalidate_inode_attr(old_dir);
+		v9fs_invalidate_inode_attr(new_dir);
 
 		/* successful rename */
 		d_move(old_dentry, new_dentry);
@@ -1208,8 +1215,8 @@ static int v9fs_vfs_mkspecial(struct inode *dir, struct dentry *dentry,
 	int mode, const char *extension)
 {
 	u32 perm;
-	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid;
+	struct v9fs_session_info *v9ses;
 
 	v9ses = v9fs_inode2v9ses(dir);
 	if (!v9fs_proto_dotu(v9ses)) {
@@ -1223,6 +1230,7 @@ static int v9fs_vfs_mkspecial(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(fid))
 		return PTR_ERR(fid);
 
+	v9fs_invalidate_inode_attr(dir);
 	p9_client_clunk(fid);
 	return 0;
 }
@@ -1259,8 +1267,8 @@ v9fs_vfs_link(struct dentry *old_dentry, struct inode *dir,
 	      struct dentry *dentry)
 {
 	int retval;
-	struct p9_fid *oldfid;
 	char *name;
+	struct p9_fid *oldfid;
 
 	P9_DPRINTK(P9_DEBUG_VFS,
 		" %lu,%s,%s\n", dir->i_ino, dentry->d_name.name,
@@ -1279,7 +1287,8 @@ v9fs_vfs_link(struct dentry *old_dentry, struct inode *dir,
 	sprintf(name, "%d\n", oldfid->fid);
 	retval = v9fs_vfs_mkspecial(dir, dentry, P9_DMLINK, name);
 	__putname(name);
-
+	if (!retval)
+		v9fs_invalidate_inode_attr(dir);
 clunk_fid:
 	p9_client_clunk(oldfid);
 	return retval;

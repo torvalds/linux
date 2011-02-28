@@ -220,6 +220,7 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 				err);
 		goto error;
 	}
+	v9fs_invalidate_inode_attr(dir);
 
 	/* instantiate inode and assign the unopened fid to the dentry */
 	fid = p9_client_walk(dfid, 1, &name, 1);
@@ -372,6 +373,7 @@ static int v9fs_vfs_mkdir_dotl(struct inode *dir,
 	/* Now set the ACL based on the default value */
 	v9fs_set_create_acl(dentry, dacl, pacl);
 	inc_nlink(dir);
+	v9fs_invalidate_inode_attr(dir);
 error:
 	if (fid)
 		p9_client_clunk(fid);
@@ -551,14 +553,14 @@ static int
 v9fs_vfs_symlink_dotl(struct inode *dir, struct dentry *dentry,
 		const char *symname)
 {
-	struct v9fs_session_info *v9ses;
-	struct p9_fid *dfid;
-	struct p9_fid *fid = NULL;
-	struct inode *inode;
-	struct p9_qid qid;
-	char *name;
 	int err;
 	gid_t gid;
+	char *name;
+	struct p9_qid qid;
+	struct inode *inode;
+	struct p9_fid *dfid;
+	struct p9_fid *fid = NULL;
+	struct v9fs_session_info *v9ses;
 
 	name = (char *) dentry->d_name.name;
 	P9_DPRINTK(P9_DEBUG_VFS, "v9fs_vfs_symlink_dotl : %lu,%s,%s\n",
@@ -582,6 +584,7 @@ v9fs_vfs_symlink_dotl(struct inode *dir, struct dentry *dentry,
 		goto error;
 	}
 
+	v9fs_invalidate_inode_attr(dir);
 	if (v9ses->cache) {
 		/* Now walk from the parent so we can get an unopened fid. */
 		fid = p9_client_walk(dfid, 1, &name, 1);
@@ -636,10 +639,10 @@ v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
 		struct dentry *dentry)
 {
 	int err;
-	struct p9_fid *dfid, *oldfid;
 	char *name;
-	struct v9fs_session_info *v9ses;
 	struct dentry *dir_dentry;
+	struct p9_fid *dfid, *oldfid;
+	struct v9fs_session_info *v9ses;
 
 	P9_DPRINTK(P9_DEBUG_VFS, "dir ino: %lu, old_name: %s, new_name: %s\n",
 			dir->i_ino, old_dentry->d_name.name,
@@ -664,6 +667,7 @@ v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
 		return err;
 	}
 
+	v9fs_invalidate_inode_attr(dir);
 	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE) {
 		/* Get the latest stat info from server. */
 		struct p9_fid *fid;
@@ -700,12 +704,12 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, int omode,
 		dev_t rdev)
 {
 	int err;
+	gid_t gid;
 	char *name;
 	mode_t mode;
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid = NULL, *dfid = NULL;
 	struct inode *inode;
-	gid_t gid;
 	struct p9_qid qid;
 	struct dentry *dir_dentry;
 	struct posix_acl *dacl = NULL, *pacl = NULL;
@@ -742,6 +746,7 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, int omode,
 	if (err < 0)
 		goto error;
 
+	v9fs_invalidate_inode_attr(dir);
 	/* instantiate inode and assign the unopened fid to the dentry */
 	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE) {
 		fid = p9_client_walk(dfid, 1, &name, 1);
