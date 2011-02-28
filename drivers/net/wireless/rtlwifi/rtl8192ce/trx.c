@@ -252,9 +252,9 @@ static void _rtl92ce_query_rxphystatus(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct phy_sts_cck_8192s_t *cck_buf;
 	s8 rx_pwr_all, rx_pwr[4];
-	u8 rf_rx_num, evm, pwdb_all;
+	u8 evm, pwdb_all, rf_rx_num = 0;
 	u8 i, max_spatial_stream;
-	u32 rssi, total_rssi;
+	u32 rssi, total_rssi = 0;
 	bool is_cck_rate;
 
 	is_cck_rate = RX_HAL_IS_CCK_RATE(pdesc);
@@ -463,7 +463,7 @@ static void _rtl92ce_update_rxsignalstatistics(struct ieee80211_hw *hw,
 					       struct rtl_stats *pstats)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	int weighting;
+	int weighting = 0;
 
 	if (rtlpriv->stats.recv_signal_power == 0)
 		rtlpriv->stats.recv_signal_power = pstats->recvsignalpower;
