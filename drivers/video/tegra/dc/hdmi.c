@@ -509,8 +509,8 @@ static void tegra_dc_hdmi_suspend(struct tegra_dc *dc)
 	struct tegra_dc_hdmi_data *hdmi = tegra_dc_get_outdata(dc);
 	unsigned long flags;
 
-	spin_lock_irqsave(&hdmi->suspend_lock, flags);
 	tegra_nvhdcp_suspend(hdmi->nvhdcp);
+	spin_lock_irqsave(&hdmi->suspend_lock, flags);
 	hdmi->suspended = true;
 	spin_unlock_irqrestore(&hdmi->suspend_lock, flags);
 }
