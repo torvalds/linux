@@ -653,6 +653,17 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 	memcpy(pgd_base, pgtables, sizeof(pgtables));
 	__install_page_table(pgd_base, __get_cpu_var(current_asid),
 			     swapper_pgprot);
+
+	/*
+	 * We just read swapper_pgprot and thus brought it into the cache,
+	 * with its new home & caching mode.  When we start the other CPUs,
+	 * they're going to reference swapper_pgprot via their initial fake
+	 * VA-is-PA mappings, which cache everything locally.  At that
+	 * time, if it's in our cache with a conflicting home, the
+	 * simulator's coherence checker will complain.  So, flush it out
+	 * of our cache; we're not going to ever use it again anyway.
+	 */
+	__insn_finv(&swapper_pgprot);
 }
 
 /*
