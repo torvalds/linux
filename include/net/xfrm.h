@@ -1611,7 +1611,7 @@ static inline int xfrm_mark_get(struct nlattr **attrs, struct xfrm_mark *m)
 	return m->v & m->m;
 }
 
-static inline int xfrm_mark_put(struct sk_buff *skb, struct xfrm_mark *m)
+static inline int xfrm_mark_put(struct sk_buff *skb, const struct xfrm_mark *m)
 {
 	if (m->m | m->v)
 		NLA_PUT(skb, XFRMA_MARK, sizeof(struct xfrm_mark), m);
