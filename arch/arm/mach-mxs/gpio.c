@@ -182,6 +182,7 @@ static int mxs_gpio_set_wake_irq(u32 irq, u32 enable)
 }
 
 static struct irq_chip gpio_irq_chip = {
+	.name = "mxs gpio",
 	.ack = mxs_gpio_ack_irq,
 	.mask = mxs_gpio_mask_irq,
 	.unmask = mxs_gpio_unmask_irq,
