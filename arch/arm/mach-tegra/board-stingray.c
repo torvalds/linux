@@ -255,11 +255,11 @@ static char *usb_functions_rndis[] = { "rndis" };
 static char *usb_functions_rndis_adb[] = { "rndis", "adb" };
 #endif
 static char *usb_functions_all[] = {
-#ifdef CONFIG_USB_ANDROID_ACCESSORY
-	"accessory",
-#endif
 #ifdef CONFIG_USB_ANDROID_RNDIS
 	"rndis",
+#endif
+#ifdef CONFIG_USB_ANDROID_ACCESSORY
+	"accessory",
 #endif
 	"mtp",
 	"adb"
