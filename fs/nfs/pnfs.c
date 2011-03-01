@@ -245,7 +245,7 @@ put_lseg_common(struct pnfs_layout_segment *lseg)
 	rpc_wake_up(&NFS_SERVER(inode)->roc_rpcwaitq);
 }
 
-static void
+void
 put_lseg(struct pnfs_layout_segment *lseg)
 {
 	struct inode *inode;
@@ -784,7 +784,6 @@ pnfs_update_layout(struct inode *ino,
 out:
 	dprintk("%s end, state 0x%lx lseg %p\n", __func__,
 		nfsi->layout ? nfsi->layout->plh_flags : -1, lseg);
-	put_lseg(lseg); /* STUB - callers currently ignore return value */
 	return lseg;
 out_unlock:
 	spin_unlock(&ino->i_lock);
@@ -858,20 +857,26 @@ out_forget_reply:
 	goto out;
 }
 
-static void
-pnfs_set_pg_test(struct inode *inode, struct nfs_pageio_descriptor *pgio)
+static int pnfs_read_pg_test(struct nfs_pageio_descriptor *pgio,
+			     struct nfs_page *prev,
+			     struct nfs_page *req)
+{
+	if (pgio->pg_count == prev->wb_bytes) {
+		/* This is first coelesce call for a series of nfs_pages */
+		pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
+						   prev->wb_context,
+						   IOMODE_READ);
+	}
+	return NFS_SERVER(pgio->pg_inode)->pnfs_curr_ld->pg_test(pgio, prev, req);
+}
+
+void
+pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, struct inode *inode)
 {
 	struct pnfs_layoutdriver_type *ld;
 
 	ld = NFS_SERVER(inode)->pnfs_curr_ld;
-	pgio->pg_test = (ld ? ld->pg_test : NULL);
-}
-
-void
-pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
-		  struct inode *inode)
-{
-	pnfs_set_pg_test(inode, pgio);
+	pgio->pg_test = (ld && ld->pg_test) ? pnfs_read_pg_test : NULL;
 }
 
 /*

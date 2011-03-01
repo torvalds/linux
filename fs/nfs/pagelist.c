@@ -20,6 +20,7 @@
 #include <linux/nfs_mount.h>
 
 #include "internal.h"
+#include "pnfs.h"
 
 static struct kmem_cache *nfs_page_cachep;
 
@@ -213,7 +214,7 @@ nfs_wait_on_request(struct nfs_page *req)
  */
 void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 		     struct inode *inode,
-		     int (*doio)(struct inode *, struct list_head *, unsigned int, size_t, int),
+		     int (*doio)(struct inode *, struct list_head *, unsigned int, size_t, int, struct pnfs_layout_segment *),
 		     size_t bsize,
 		     int io_flags)
 {
@@ -315,7 +316,9 @@ static void nfs_pageio_doio(struct nfs_pageio_descriptor *desc)
 					  nfs_page_array_len(desc->pg_base,
 							     desc->pg_count),
 					  desc->pg_count,
-					  desc->pg_ioflags);
+					  desc->pg_ioflags,
+					  desc->pg_lseg);
+		desc->pg_lseg = NULL;
 		if (error < 0)
 			desc->pg_error = error;
 		else

@@ -1017,6 +1017,7 @@ struct nfs_read_data {
 	struct nfs_readargs args;
 	struct nfs_readres  res;
 	unsigned long		timestamp;	/* For lease renewal */
+	struct pnfs_layout_segment *lseg;
 	struct page		*page_array[NFS_PAGEVEC_SIZE];
 };
 

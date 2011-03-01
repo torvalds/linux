@@ -20,17 +20,17 @@
 #include <linux/nfs_page.h>
 
 #include <asm/system.h>
+#include "pnfs.h"
 
 #include "nfs4_fs.h"
 #include "internal.h"
 #include "iostat.h"
 #include "fscache.h"
-#include "pnfs.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
 
-static int nfs_pagein_multi(struct inode *, struct list_head *, unsigned int, size_t, int);
-static int nfs_pagein_one(struct inode *, struct list_head *, unsigned int, size_t, int);
+static int nfs_pagein_multi(struct inode *, struct list_head *, unsigned int, size_t, int, struct pnfs_layout_segment *);
+static int nfs_pagein_one(struct inode *, struct list_head *, unsigned int, size_t, int, struct pnfs_layout_segment *);
 static const struct rpc_call_ops nfs_read_partial_ops;
 static const struct rpc_call_ops nfs_read_full_ops;
 
@@ -69,6 +69,7 @@ void nfs_readdata_free(struct nfs_read_data *p)
 
 static void nfs_readdata_release(struct nfs_read_data *rdata)
 {
+	put_lseg(rdata->lseg);
 	put_nfs_open_context(rdata->args.context);
 	nfs_readdata_free(rdata);
 }
@@ -121,7 +122,6 @@ int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 	len = nfs_page_length(page);
 	if (len == 0)
 		return nfs_return_empty_page(page);
-	pnfs_update_layout(inode, ctx, IOMODE_READ);
 	new = nfs_create_request(ctx, inode, page, 0, len);
 	if (IS_ERR(new)) {
 		unlock_page(page);
@@ -132,9 +132,9 @@ int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 
 	nfs_list_add_request(new, &one_request);
 	if (NFS_SERVER(inode)->rsize < PAGE_CACHE_SIZE)
-		nfs_pagein_multi(inode, &one_request, 1, len, 0);
+		nfs_pagein_multi(inode, &one_request, 1, len, 0, NULL);
 	else
-		nfs_pagein_one(inode, &one_request, 1, len, 0);
+		nfs_pagein_one(inode, &one_request, 1, len, 0, NULL);
 	return 0;
 }
 
@@ -160,7 +160,8 @@ static void nfs_readpage_release(struct nfs_page *req)
  */
 static int nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 		const struct rpc_call_ops *call_ops,
-		unsigned int count, unsigned int offset)
+		unsigned int count, unsigned int offset,
+		struct pnfs_layout_segment *lseg)
 {
 	struct inode *inode = req->wb_context->path.dentry->d_inode;
 	int swap_flags = IS_SWAPFILE(inode) ? NFS_RPC_SWAPFLAGS : 0;
@@ -183,6 +184,7 @@ static int nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 	data->req	  = req;
 	data->inode	  = inode;
 	data->cred	  = msg.rpc_cred;
+	data->lseg	  = get_lseg(lseg);
 
 	data->args.fh     = NFS_FH(inode);
 	data->args.offset = req_offset(req) + offset;
@@ -240,7 +242,7 @@ nfs_async_read_error(struct list_head *head)
  * won't see the new data until our attribute cache is updated.  This is more
  * or less conventional NFS client behavior.
  */
-static int nfs_pagein_multi(struct inode *inode, struct list_head *head, unsigned int npages, size_t count, int flags)
+static int nfs_pagein_multi(struct inode *inode, struct list_head *head, unsigned int npages, size_t count, int flags, struct pnfs_layout_segment *lseg)
 {
 	struct nfs_page *req = nfs_list_entry(head->next);
 	struct page *page = req->wb_page;
@@ -266,6 +268,8 @@ static int nfs_pagein_multi(struct inode *inode, struct list_head *head, unsigne
 	} while(nbytes != 0);
 	atomic_set(&req->wb_complete, requests);
 
+	/* We know lseg==NULL */
+	lseg = pnfs_update_layout(inode, req->wb_context, IOMODE_READ);
 	ClearPageError(page);
 	offset = 0;
 	nbytes = count;
@@ -280,12 +284,13 @@ static int nfs_pagein_multi(struct inode *inode, struct list_head *head, unsigne
 		if (nbytes < rsize)
 			rsize = nbytes;
 		ret2 = nfs_read_rpcsetup(req, data, &nfs_read_partial_ops,
-				  rsize, offset);
+					 rsize, offset, lseg);
 		if (ret == 0)
 			ret = ret2;
 		offset += rsize;
 		nbytes -= rsize;
 	} while (nbytes != 0);
+	put_lseg(lseg);
 
 	return ret;
 
@@ -300,7 +305,7 @@ out_bad:
 	return -ENOMEM;
 }
 
-static int nfs_pagein_one(struct inode *inode, struct list_head *head, unsigned int npages, size_t count, int flags)
+static int nfs_pagein_one(struct inode *inode, struct list_head *head, unsigned int npages, size_t count, int flags, struct pnfs_layout_segment *lseg)
 {
 	struct nfs_page		*req;
 	struct page		**pages;
@@ -308,8 +313,10 @@ static int nfs_pagein_one(struct inode *inode, struct list_head *head, unsigned 
 	int ret = -ENOMEM;
 
 	data = nfs_readdata_alloc(npages);
-	if (!data)
-		goto out_bad;
+	if (!data) {
+		nfs_async_read_error(head);
+		goto out;
+	}
 
 	pages = data->pagevec;
 	while (!list_empty(head)) {
@@ -320,10 +327,12 @@ static int nfs_pagein_one(struct inode *inode, struct list_head *head, unsigned 
 		*pages++ = req->wb_page;
 	}
 	req = nfs_list_entry(data->pages.next);
+	if ((!lseg) && list_is_singular(&data->pages))
+		lseg = pnfs_update_layout(inode, req->wb_context, IOMODE_READ);
 
-	return nfs_read_rpcsetup(req, data, &nfs_read_full_ops, count, 0);
-out_bad:
-	nfs_async_read_error(head);
+	ret = nfs_read_rpcsetup(req, data, &nfs_read_full_ops, count, 0, lseg);
+out:
+	put_lseg(lseg);
 	return ret;
 }
 
@@ -625,7 +634,6 @@ int nfs_readpages(struct file *filp, struct address_space *mapping,
 	if (ret == 0)
 		goto read_complete; /* all pages were read */
 
-	pnfs_update_layout(inode, desc.ctx, IOMODE_READ);
 	pnfs_pageio_init_read(&pgio, inode);
 	if (rsize < PAGE_CACHE_SIZE)
 		nfs_pageio_init(&pgio, inode, nfs_pagein_multi, rsize, 0);
