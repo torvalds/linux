@@ -123,7 +123,7 @@ static void __init omap_zoom_init(void)
 	} else if (machine_is_omap_zoom3()) {
 		omap3_mux_init(board_mux, OMAP_PACKAGE_CBP);
 		omap_mux_init_gpio(ZOOM3_EHCI_RESET_GPIO, OMAP_PIN_OUTPUT);
-		usb_ehci_init(&usbhs_bdata);
+		usbhs_init(&usbhs_bdata);
 	}
 
 	board_nand_init(zoom_nand_partitions,

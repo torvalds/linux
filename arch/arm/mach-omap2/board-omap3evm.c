@@ -711,7 +711,7 @@ static void __init omap3_evm_init(void)
 		usbhs_bdata.reset_gpio_port[1] = 135;
 	}
 	usb_musb_init(&musb_board_data);
-	usb_ehci_init(&usbhs_bdata);
+	usbhs_init(&usbhs_bdata);
 	ads7846_dev_init();
 	omap3evm_init_smsc911x();
 	omap3_evm_display_init();

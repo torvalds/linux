@@ -103,7 +103,7 @@ static void __init am3517_crane_init(void)
 		return;
 	}
 
-	usb_ehci_init(&usbhs_bdata);
+	usbhs_init(&usbhs_bdata);
 }
 
 MACHINE_START(CRANEBOARD, "AM3517/05 CRANEBOARD")

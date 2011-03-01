@@ -584,7 +584,7 @@ static void __init omap_4430sdp_init(void)
 	else
 		gpio_direction_output(OMAP4SDP_MDM_PWR_EN_GPIO, 1);
 
-	usb_ehci_init(&usbhs_bdata);
+	usbhs_init(&usbhs_bdata);
 	usb_musb_init(&musb_board_data);
 
 	status = omap_ethernet_init();

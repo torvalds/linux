@@ -810,7 +810,7 @@ static void __init cm_t35_init(void)
 	cm_t35_init_display();
 
 	usb_musb_init(&musb_board_data);
-	usb_ehci_init(&usbhs_bdata);
+	usbhs_init(&usbhs_bdata);
 }
 
 MACHINE_START(CM_T35, "Compulab CM-T35")

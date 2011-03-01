@@ -211,7 +211,7 @@ static void __init omap_sdp_init(void)
 	board_smc91x_init();
 	board_flash_init(sdp_flash_partitions, chip_sel_sdp);
 	enable_board_wakeup_source();
-	usb_ehci_init(&usbhs_bdata);
+	usbhs_init(&usbhs_bdata);
 }
 
 MACHINE_START(OMAP_3630SDP, "OMAP 3630SDP board")

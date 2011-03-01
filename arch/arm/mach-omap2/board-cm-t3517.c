@@ -192,7 +192,7 @@ static int cm_t3517_init_usbh(void)
 		msleep(1);
 	}
 
-	usb_ehci_init(&cm_t3517_ehci_pdata);
+	usbhs_init(&cm_t3517_ehci_pdata);
 
 	return 0;
 }

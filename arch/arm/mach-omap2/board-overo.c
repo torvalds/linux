@@ -454,7 +454,7 @@ static void __init overo_init(void)
 	omap_serial_init();
 	overo_flash_init();
 	usb_musb_init(&musb_board_data);
-	usb_ehci_init(&usbhs_bdata);
+	usbhs_init(&usbhs_bdata);
 	overo_ads7846_init();
 	overo_init_smsc911x();
 

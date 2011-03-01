@@ -435,7 +435,7 @@ static void __init igep3_init(void)
 	platform_add_devices(igep3_devices, ARRAY_SIZE(igep3_devices));
 	omap_serial_init();
 	usb_musb_init(&musb_board_data);
-	usb_ehci_init(&usbhs_bdata);
+	usbhs_init(&usbhs_bdata);
 
 	igep3_flash_init();
 	igep3_leds_init();
