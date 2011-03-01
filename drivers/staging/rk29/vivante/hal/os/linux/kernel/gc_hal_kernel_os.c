@@ -37,6 +37,7 @@
 
 #include <linux/delay.h>
 #include <mach/pmu.h>
+#include <mach/cru.h>
 
 #if !USE_NEW_LINUX_SIGNAL
 #define USER_SIGNAL_TABLE_LEN_INIT  64
@@ -5960,10 +5961,18 @@ gckOS_SetGPUPower(
         mdelay(10);
         local_irq_restore(flags);
         printk("---------- end gpu power_domain on!\n");
+
+        /* disable gpu' reset bit */
+        cru_set_soft_reset(SOFT_RST_DDR_GPU_PORT, false);
+        cru_set_soft_reset(SOFT_RST_GPU, false);
     } else {
         //printk("---------- start gpu power_domain off...\n");
         //pmu_set_power_domain(PD_GPU, false);
         //printk("---------- end gpu power_domain off!\n");
+
+        /* enable gpu' reset bit */
+        cru_set_soft_reset(SOFT_RST_GPU, true);
+        cru_set_soft_reset(SOFT_RST_DDR_GPU_PORT, true);
     }
 
 #endif
