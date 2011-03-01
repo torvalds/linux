@@ -2720,7 +2720,7 @@ static int ipv4_dst_blackhole(struct net *net, struct rtable **rp, struct flowi 
 }
 
 int ip_route_output_flow(struct net *net, struct rtable **rp, struct flowi *flp,
-			 struct sock *sk, int flags)
+			 struct sock *sk, bool can_sleep)
 {
 	int err;
 
@@ -2733,7 +2733,7 @@ int ip_route_output_flow(struct net *net, struct rtable **rp, struct flowi *flp,
 		if (!flp->fl4_dst)
 			flp->fl4_dst = (*rp)->rt_dst;
 		err = __xfrm_lookup(net, (struct dst_entry **)rp, flp, sk,
-				    flags ? XFRM_LOOKUP_WAIT : 0);
+				    can_sleep ? XFRM_LOOKUP_WAIT : 0);
 		if (err == -EREMOTE)
 			err = ipv4_dst_blackhole(net, rp, flp);
 
@@ -2746,7 +2746,7 @@ EXPORT_SYMBOL_GPL(ip_route_output_flow);
 
 int ip_route_output_key(struct net *net, struct rtable **rp, struct flowi *flp)
 {
-	return ip_route_output_flow(net, rp, flp, NULL, 0);
+	return ip_route_output_flow(net, rp, flp, NULL, false);
 }
 EXPORT_SYMBOL(ip_route_output_key);
 

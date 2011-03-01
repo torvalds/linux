@@ -355,7 +355,7 @@ int ip_queue_xmit(struct sk_buff *skb)
 			 * itself out.
 			 */
 			security_sk_classify_flow(sk, &fl);
-			if (ip_route_output_flow(sock_net(sk), &rt, &fl, sk, 0))
+			if (ip_route_output_flow(sock_net(sk), &rt, &fl, sk, false))
 				goto no_route;
 		}
 		sk_setup_caps(sk, &rt->dst);

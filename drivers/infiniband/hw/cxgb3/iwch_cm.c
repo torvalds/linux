@@ -354,7 +354,7 @@ static struct rtable *find_route(struct t3cdev *dev, __be32 local_ip,
 			  }
 	};
 
-	if (ip_route_output_flow(&init_net, &rt, &fl, NULL, 0))
+	if (ip_route_output_flow(&init_net, &rt, &fl, NULL, false))
 		return NULL;
 	return rt;
 }

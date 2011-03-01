@@ -120,7 +120,7 @@ extern void		rt_cache_flush(struct net *net, int how);
 extern void		rt_cache_flush_batch(struct net *net);
 extern int		__ip_route_output_key(struct net *, struct rtable **, const struct flowi *flp);
 extern int		ip_route_output_key(struct net *, struct rtable **, struct flowi *flp);
-extern int		ip_route_output_flow(struct net *, struct rtable **rp, struct flowi *flp, struct sock *sk, int flags);
+extern int		ip_route_output_flow(struct net *, struct rtable **rp, struct flowi *flp, struct sock *sk, bool can_sleep);
 
 extern int ip_route_input_common(struct sk_buff *skb, __be32 dst, __be32 src,
 				 u8 tos, struct net_device *devin, bool noref);
@@ -196,7 +196,7 @@ static inline int ip_route_connect(struct rtable **rp, __be32 dst,
 		*rp = NULL;
 	}
 	security_sk_classify_flow(sk, &fl);
-	return ip_route_output_flow(net, rp, &fl, sk, can_sleep ? 1 : 0);
+	return ip_route_output_flow(net, rp, &fl, sk, can_sleep);
 }
 
 static inline int ip_route_newports(struct rtable **rp, u8 protocol,
@@ -220,7 +220,7 @@ static inline int ip_route_newports(struct rtable **rp, u8 protocol,
 		ip_rt_put(*rp);
 		*rp = NULL;
 		security_sk_classify_flow(sk, &fl);
-		return ip_route_output_flow(sock_net(sk), rp, &fl, sk, 0);
+		return ip_route_output_flow(sock_net(sk), rp, &fl, sk, false);
 	}
 	return 0;
 }
