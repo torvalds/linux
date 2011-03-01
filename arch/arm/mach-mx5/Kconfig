@@ -151,6 +151,7 @@ config MACH_MX53_SMD
 	bool "Support MX53 SMD platforms"
 	select SOC_IMX53
 	select IMX_HAVE_PLATFORM_IMX2_WDT
+	select IMX_HAVE_PLATFORM_IMX_I2C
 	select IMX_HAVE_PLATFORM_IMX_UART
 	help
 	  Include support for MX53 SMD platform. This includes specific

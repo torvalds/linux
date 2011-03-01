@@ -51,6 +51,9 @@ static iomux_v3_cfg_t mx53_smd_pads[] = {
 	MX53_PAD_PATA_CS_1__UART3_RXD_MUX,
 	MX53_PAD_PATA_DA_1__UART3_CTS,
 	MX53_PAD_PATA_DA_2__UART3_RTS,
+	/* I2C1 */
+	MX53_PAD_CSI0_DAT8__I2C1_SDA,
+	MX53_PAD_CSI0_DAT9__I2C1_SCL,
 };
 
 static const struct imxuart_platform_data mx53_smd_uart_data __initconst = {
@@ -83,6 +86,10 @@ static struct fec_platform_data mx53_smd_fec_data = {
 	.phy = PHY_INTERFACE_MODE_RMII,
 };
 
+static const struct imxi2c_platform_data mx53_smd_i2c_data __initconst = {
+	.bitrate = 100000,
+};
+
 static void __init mx53_smd_board_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(mx53_smd_pads,
@@ -91,6 +98,7 @@ static void __init mx53_smd_board_init(void)
 	mx53_smd_fec_reset();
 	imx53_add_fec(&mx53_smd_fec_data);
 	imx53_add_imx2_wdt(0, NULL);
+	imx53_add_imx_i2c(0, &mx53_smd_i2c_data);
 }
 
 static void __init mx53_smd_timer_init(void)
