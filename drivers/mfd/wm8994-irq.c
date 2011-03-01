@@ -182,7 +182,7 @@ static void wm8994_irq_sync_unlock(struct irq_data *data)
 	mutex_unlock(&wm8994->irq_lock);
 }
 
-static void wm8994_irq_unmask(struct irq_data *data)
+static void wm8994_irq_enable(struct irq_data *data)
 {
 	struct wm8994 *wm8994 = irq_data_get_irq_chip_data(data);
 	struct wm8994_irq_data *irq_data = irq_to_wm8994_irq(wm8994,
@@ -191,7 +191,7 @@ static void wm8994_irq_unmask(struct irq_data *data)
 	wm8994->irq_masks_cur[irq_data->reg - 1] &= ~irq_data->mask;
 }
 
-static void wm8994_irq_mask(struct irq_data *data)
+static void wm8994_irq_disable(struct irq_data *data)
 {
 	struct wm8994 *wm8994 = irq_data_get_irq_chip_data(data);
 	struct wm8994_irq_data *irq_data = irq_to_wm8994_irq(wm8994,
@@ -204,8 +204,8 @@ static struct irq_chip wm8994_irq_chip = {
 	.name			= "wm8994",
 	.irq_bus_lock		= wm8994_irq_lock,
 	.irq_bus_sync_unlock	= wm8994_irq_sync_unlock,
-	.irq_mask		= wm8994_irq_mask,
-	.irq_unmask		= wm8994_irq_unmask,
+	.irq_disable		= wm8994_irq_disable,
+	.irq_enable		= wm8994_irq_enable,
 };
 
 /* The processing of the primary interrupt occurs in a thread so that
