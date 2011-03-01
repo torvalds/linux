@@ -1053,6 +1053,14 @@ static int __devinit s3_pci_probe(struct pci_dev *dev, const struct pci_device_i
 		goto err_find_mode;
 	}
 
+	/* maximize virtual vertical size for fast scrolling */
+	info->var.yres_virtual = info->fix.smem_len * 8 /
+			(info->var.bits_per_pixel * info->var.xres_virtual);
+	if (info->var.yres_virtual < info->var.yres) {
+		dev_err(info->device, "virtual vertical size smaller than real\n");
+		goto err_find_mode;
+	}
+
 	rc = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (rc < 0) {
 		dev_err(info->device, "cannot allocate colormap\n");
