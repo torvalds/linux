@@ -900,10 +900,8 @@ failed:
 	return err;
 }
 
-static int get_connections(struct sock *sk, u16 index, unsigned char *data,
-									u16 len)
+static int get_connections(struct sock *sk, u16 index)
 {
-	struct mgmt_cp_get_connections *cp;
 	struct mgmt_rp_get_connections *rp;
 	struct hci_dev *hdev;
 	struct list_head *p;
@@ -912,8 +910,6 @@ static int get_connections(struct sock *sk, u16 index, unsigned char *data,
 	int i, err;
 
 	BT_DBG("");
-
-	cp = (void *) data;
 
 	hdev = hci_dev_get(index);
 	if (!hdev)
@@ -1333,7 +1329,7 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		err = disconnect(sk, index, buf + sizeof(*hdr), len);
 		break;
 	case MGMT_OP_GET_CONNECTIONS:
-		err = get_connections(sk, index, buf + sizeof(*hdr), len);
+		err = get_connections(sk, index);
 		break;
 	case MGMT_OP_PIN_CODE_REPLY:
 		err = pin_code_reply(sk, index, buf + sizeof(*hdr), len);
