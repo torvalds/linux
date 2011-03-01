@@ -15,6 +15,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <asm/unaligned.h>
 
 #include "ath9k.h"
@@ -27,6 +28,19 @@
 static int ath9k_debugfs_open(struct inode *inode, struct file *file)
 {
 	file->private_data = inode->i_private;
+	return 0;
+}
+
+static ssize_t ath9k_debugfs_read_buf(struct file *file, char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	u8 *buf = file->private_data;
+	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
+}
+
+static int ath9k_debugfs_release_buf(struct inode *inode, struct file *file)
+{
+	vfree(file->private_data);
 	return 0;
 }
 
@@ -1027,6 +1041,42 @@ static const struct file_operations fops_regval = {
 	.llseek = default_llseek,
 };
 
+#define REGDUMP_LINE_SIZE	20
+
+static int open_file_regdump(struct inode *inode, struct file *file)
+{
+	struct ath_softc *sc = inode->i_private;
+	unsigned int len = 0;
+	u8 *buf;
+	int i;
+	unsigned long num_regs, regdump_len, max_reg_offset;
+
+	max_reg_offset = AR_SREV_9300_20_OR_LATER(sc->sc_ah) ? 0x16bd4 : 0xb500;
+	num_regs = max_reg_offset / 4 + 1;
+	regdump_len = num_regs * REGDUMP_LINE_SIZE + 1;
+	buf = vmalloc(regdump_len);
+	if (!buf)
+		return -ENOMEM;
+
+	ath9k_ps_wakeup(sc);
+	for (i = 0; i < num_regs; i++)
+		len += scnprintf(buf + len, regdump_len - len,
+			"0x%06x 0x%08x\n", i << 2, REG_READ(sc->sc_ah, i << 2));
+	ath9k_ps_restore(sc);
+
+	file->private_data = buf;
+
+	return 0;
+}
+
+static const struct file_operations fops_regdump = {
+	.open = open_file_regdump,
+	.read = ath9k_debugfs_read_buf,
+	.release = ath9k_debugfs_release_buf,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,/* read accesses f_pos */
+};
+
 int ath9k_init_debug(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -1089,6 +1139,10 @@ int ath9k_init_debug(struct ath_hw *ah)
 
 	if (!debugfs_create_bool("ignore_extcca", S_IRUSR | S_IWUSR,
 			sc->debug.debugfs_phy, &ah->config.cwm_ignore_extcca))
+		goto err;
+
+	if (!debugfs_create_file("regdump", S_IRUSR, sc->debug.debugfs_phy,
+			sc, &fops_regdump))
 		goto err;
 
 	sc->debug.regidx = 0;
