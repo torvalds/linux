@@ -606,6 +606,21 @@ nfs4_fl_select_ds_fh(struct pnfs_layout_segment *lseg, u32 j)
 	return flseg->fh_array[i];
 }
 
+static void
+filelayout_mark_devid_negative(struct nfs4_file_layout_dsaddr *dsaddr,
+			       int err, u32 ds_addr)
+{
+	u32 *p = (u32 *)&dsaddr->deviceid;
+
+	printk(KERN_ERR "NFS: data server %x connection error %d."
+		" Deviceid [%x%x%x%x] marked out of use.\n",
+		ds_addr, err, p[0], p[1], p[2], p[3]);
+
+	spin_lock(&filelayout_deviceid_lock);
+	dsaddr->flags |= NFS4_DEVICE_ID_NEG_ENTRY;
+	spin_unlock(&filelayout_deviceid_lock);
+}
+
 struct nfs4_pnfs_ds *
 nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 {
@@ -619,13 +634,18 @@ nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 	}
 
 	if (!ds->ds_clp) {
+		struct nfs_server *s = NFS_SERVER(lseg->pls_layout->plh_inode);
 		int err;
 
-		err = nfs4_ds_connect(NFS_SERVER(lseg->pls_layout->plh_inode),
-					  dsaddr->ds_list[ds_idx]);
+		if (dsaddr->flags & NFS4_DEVICE_ID_NEG_ENTRY) {
+			/* Already tried to connect, don't try again */
+			dprintk("%s Deviceid marked out of use\n", __func__);
+			return NULL;
+		}
+		err = nfs4_ds_connect(s, ds);
 		if (err) {
-			printk(KERN_ERR "%s nfs4_ds_connect error %d\n",
-			       __func__, err);
+			filelayout_mark_devid_negative(dsaddr, err,
+						       ntohl(ds->ds_ip_addr));
 			return NULL;
 		}
 	}

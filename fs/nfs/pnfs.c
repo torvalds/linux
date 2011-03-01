@@ -739,13 +739,14 @@ pnfs_update_layout(struct inode *ino,
 		dprintk("%s matches recall, use MDS\n", __func__);
 		goto out_unlock;
 	}
-	/* Check to see if the layout for the given range already exists */
-	lseg = pnfs_find_lseg(lo, iomode);
-	if (lseg)
-		goto out_unlock;
 
 	/* if LAYOUTGET already failed once we don't try again */
 	if (test_bit(lo_fail_bit(iomode), &nfsi->layout->plh_flags))
+		goto out_unlock;
+
+	/* Check to see if the layout for the given range already exists */
+	lseg = pnfs_find_lseg(lo, iomode);
+	if (lseg)
 		goto out_unlock;
 
 	if (pnfs_layoutgets_blocked(lo, NULL, 0))
