@@ -2236,15 +2236,6 @@ config R8169
 	  To compile this driver as a module, choose M here: the module
 	  will be called r8169.  This is recommended.
 
-config R8169_VLAN
-	bool "VLAN support"
-	depends on R8169 && VLAN_8021Q
-	---help---
-	  Say Y here for the r8169 driver to support the functions required
-	  by the kernel 802.1Q code.
-
-	  If in doubt, say Y.
-
 config SB1250_MAC
 	tristate "SB1250 Gigabit Ethernet support"
 	depends on SIBYTE_SB1xxx_SOC
