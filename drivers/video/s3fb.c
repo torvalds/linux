@@ -675,6 +675,15 @@ static int s3fb_set_par(struct fb_info *info)
 				svga_wcrt_mask(par->state.vgabase, 0x67, 0x20, 0xF0);
 			else
 				svga_wcrt_mask(par->state.vgabase, 0x67, 0x30, 0xF0);
+		} else if (par->chip == CHIP_365_TRIO3D) {
+			svga_wcrt_mask(par->state.vgabase, 0x50, 0x10, 0x30);
+			if (info->var.pixclock > 8695) {
+				svga_wcrt_mask(par->state.vgabase, 0x67, 0x30, 0xF0);
+				hmul = 2;
+			} else {
+				svga_wcrt_mask(par->state.vgabase, 0x67, 0x20, 0xF0);
+				multiplex = 1;
+			}
 		} else {
 			svga_wcrt_mask(par->state.vgabase, 0x50, 0x10, 0x30);
 			svga_wcrt_mask(par->state.vgabase, 0x67, 0x30, 0xF0);
@@ -691,6 +700,15 @@ static int s3fb_set_par(struct fb_info *info)
 				svga_wcrt_mask(par->state.vgabase, 0x67, 0x40, 0xF0);
 			else
 				svga_wcrt_mask(par->state.vgabase, 0x67, 0x50, 0xF0);
+		} else if (par->chip == CHIP_365_TRIO3D) {
+			svga_wcrt_mask(par->state.vgabase, 0x50, 0x10, 0x30);
+			if (info->var.pixclock > 8695) {
+				svga_wcrt_mask(par->state.vgabase, 0x67, 0x50, 0xF0);
+				hmul = 2;
+			} else {
+				svga_wcrt_mask(par->state.vgabase, 0x67, 0x40, 0xF0);
+				multiplex = 1;
+			}
 		} else {
 			svga_wcrt_mask(par->state.vgabase, 0x50, 0x10, 0x30);
 			svga_wcrt_mask(par->state.vgabase, 0x67, 0x50, 0xF0);
