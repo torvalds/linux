@@ -3000,11 +3000,10 @@ static void wm8958_default_micdet(u16 status, void *data)
 		report |= SND_JACK_BTN_5;
 
 done:
-	snd_soc_jack_report(wm8994->micdet[0].jack,
+	snd_soc_jack_report(wm8994->micdet[0].jack, report,
 			    SND_JACK_BTN_0 | SND_JACK_BTN_1 | SND_JACK_BTN_2 |
 			    SND_JACK_BTN_3 | SND_JACK_BTN_4 | SND_JACK_BTN_5 |
-			    SND_JACK_MICROPHONE | SND_JACK_VIDEOOUT,
-			    report);
+			    SND_JACK_MICROPHONE | SND_JACK_VIDEOOUT);
 }
 
 /**
