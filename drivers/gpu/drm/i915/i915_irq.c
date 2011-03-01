@@ -1615,7 +1615,6 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 			   DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE;
 	u32 render_irqs;
 	u32 hotplug_mask;
-	int pipe;
 
 	dev_priv->irq_mask = ~display_mask;
 
