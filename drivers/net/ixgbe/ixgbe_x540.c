@@ -31,7 +31,6 @@
 
 #include "ixgbe.h"
 #include "ixgbe_phy.h"
-//#include "ixgbe_mbx.h"
 
 #define IXGBE_X540_MAX_TX_QUEUES 128
 #define IXGBE_X540_MAX_RX_QUEUES 128
@@ -201,7 +200,7 @@ mac_reset_top:
 	 * clear the multicast table.  Also reset num_rar_entries to 128,
 	 * since we modify this value when programming the SAN MAC address.
 	 */
-	hw->mac.num_rar_entries = 128;
+	hw->mac.num_rar_entries = IXGBE_X540_MAX_TX_QUEUES;
 	hw->mac.ops.init_rx_addrs(hw);
 
 	/* Store the permanent mac address */
