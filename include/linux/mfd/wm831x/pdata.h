@@ -104,6 +104,9 @@ struct wm831x_watchdog_pdata {
 #define WM831X_MAX_ISINK  2
 
 struct wm831x_pdata {
+	/** Used to distinguish multiple WM831x chips */
+	int wm831x_num;
+
 	/** Called before subdevices are set up */
 	int (*pre_init)(struct wm831x *wm831x);
 	/** Called after subdevices are set up */
