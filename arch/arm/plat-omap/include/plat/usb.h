@@ -102,6 +102,8 @@ extern void usb_ehci_init(const struct usbhs_omap_board_data *pdata);
 
 extern void usb_ohci_init(const struct usbhs_omap_board_data *pdata);
 
+extern void usbhs_init(const struct usbhs_omap_board_data *pdata);
+
 extern int omap_usbhs_enable(struct device *dev);
 extern void omap_usbhs_disable(struct device *dev);
 
