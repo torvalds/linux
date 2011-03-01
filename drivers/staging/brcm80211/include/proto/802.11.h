@@ -116,10 +116,6 @@ typedef struct wme_param_ie wme_param_ie_t;
 #define SEQNUM_MAX		0x1000
 #define FRAGNUM_MASK		0xF
 
-#define TLV_LEN_OFF		1
-#define TLV_HDR_LEN		2
-#define TLV_BODY_OFF		2
-
 #define DOT11_MNG_RSN_ID			48
 #define DOT11_MNG_WPA_ID			221
 #define DOT11_MNG_VS_ID				221
