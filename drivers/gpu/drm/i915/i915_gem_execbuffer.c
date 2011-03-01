@@ -350,16 +350,6 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		return ret;
 	}
 
-	/* and points to somewhere within the target object. */
-	if (unlikely(reloc->delta >= target_obj->size)) {
-		DRM_ERROR("Relocation beyond target object bounds: "
-			  "obj %p target %d delta %d size %d.\n",
-			  obj, reloc->target_handle,
-			  (int) reloc->delta,
-			  (int) target_obj->size);
-		return ret;
-	}
-
 	reloc->delta += target_offset;
 	if (obj->base.write_domain == I915_GEM_DOMAIN_CPU) {
 		uint32_t page_offset = reloc->offset & ~PAGE_MASK;

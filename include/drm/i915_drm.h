@@ -290,6 +290,7 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_RELAXED_FENCING	 12
 #define I915_PARAM_HAS_COHERENT_RINGS	 13
 #define I915_PARAM_HAS_EXEC_CONSTANTS	 14
+#define I915_PARAM_HAS_RELAXED_DELTA	 15
 
 typedef struct drm_i915_getparam {
 	int param;
