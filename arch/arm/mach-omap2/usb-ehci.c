@@ -350,6 +350,11 @@ void __init usb_ehci_init(const struct ehci_hcd_omap_platform_data *pdata)
 		setup_4430ehci_io_mux(pdata->port_mode);
 	}
 
+	ehci_resources[0].name	= "ehci";
+	ehci_resources[1].name	= "uhh";
+	ehci_resources[2].name	= "tll";
+	ehci_resources[3].name	= "irq";
+
 	if (platform_device_register(&ehci_device) < 0) {
 		printk(KERN_ERR "Unable to register HS-USB (EHCI) device\n");
 		return;
@@ -369,21 +374,25 @@ void __init usb_ehci_init(const struct ehci_hcd_omap_platform_data *pdata)
 
 static struct resource ohci_resources[] = {
 	{
+		.name	= "ohci",
 		.start	= OMAP34XX_OHCI_BASE,
 		.end	= OMAP34XX_OHCI_BASE + SZ_1K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
+		.name	= "uhh",
 		.start	= OMAP34XX_UHH_CONFIG_BASE,
 		.end	= OMAP34XX_UHH_CONFIG_BASE + SZ_1K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
+		.name	= "tll",
 		.start	= OMAP34XX_USBTLL_BASE,
 		.end	= OMAP34XX_USBTLL_BASE + SZ_4K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{	/* general IRQ */
+		.name	= "irq",
 		.start	= INT_34XX_OHCI_IRQ,
 		.flags	= IORESOURCE_IRQ,
 	}
