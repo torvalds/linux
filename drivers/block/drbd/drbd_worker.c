@@ -1081,25 +1081,27 @@ int w_e_end_ov_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	if (unlikely(cancel))
 		goto out;
 
-	if (unlikely((e->flags & EE_WAS_ERROR) != 0))
-		goto out;
-
 	digest_size = crypto_hash_digestsize(mdev->verify_tfm);
-	/* FIXME if this allocation fails, online verify will not terminate! */
 	digest = kmalloc(digest_size, GFP_NOIO);
-	if (digest) {
-		drbd_csum_ee(mdev, mdev->verify_tfm, e, digest);
-		inc_rs_pending(mdev);
-		ok = drbd_send_drequest_csum(mdev, e->sector, e->size,
-					     digest, digest_size, P_OV_REPLY);
-		if (!ok)
-			dec_rs_pending(mdev);
-		kfree(digest);
+	if (!digest) {
+		ok = 0;	/* terminate the connection in case the allocation failed */
+		goto out;
 	}
+
+	if (likely(!(e->flags & EE_WAS_ERROR)))
+		drbd_csum_ee(mdev, mdev->verify_tfm, e, digest);
+	else
+		memset(digest, 0, digest_size);
+
+	inc_rs_pending(mdev);
+	ok = drbd_send_drequest_csum(mdev, e->sector, e->size,
+				     digest, digest_size, P_OV_REPLY);
+	if (!ok)
+		dec_rs_pending(mdev);
+	kfree(digest);
 
 out:
 	drbd_free_ee(mdev, e);
-
 	dec_unacked(mdev);
 
 	return ok;
