@@ -17,7 +17,14 @@ config INPUT_PSENSOR_ISL29028
 
 config INPUT_LPSENSOR_CM3602
 	tristate "l/p sensor input support"
-	
+
+config INPUT_LSENSOR_CM3623
+	tristate "CM3623 light sensor input support"
+
+config INPUT_MPU3050
+	tristate "MPU3050 motion proccess unit support"
+
+
 config INPUT_PCSPKR
 	tristate "PC Speaker support"
 	depends on PCSPKR_PLATFORM
