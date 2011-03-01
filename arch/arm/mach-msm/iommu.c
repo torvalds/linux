@@ -579,7 +579,7 @@ static phys_addr_t msm_iommu_iova_to_phys(struct iommu_domain *domain,
 
 	/* Invalidate context TLB */
 	SET_CTX_TLBIALL(base, ctx, 0);
-	SET_V2PPR_VA(base, ctx, va >> V2Pxx_VA_SHIFT);
+	SET_V2PPR(base, ctx, va & V2Pxx_VA);
 
 	par = GET_PAR(base, ctx);
 
