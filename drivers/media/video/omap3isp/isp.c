@@ -872,6 +872,9 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
 		}
 	}
 
+	if (failure < 0)
+		isp->needs_reset = true;
+
 	return failure;
 }
 
@@ -884,7 +887,8 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
  * single-shot or continuous mode.
  *
  * Return 0 if successful, or the return value of the failed video::s_stream
- * operation otherwise.
+ * operation otherwise. The pipeline state is not updated when the operation
+ * fails, except when stopping the pipeline.
  */
 int omap3isp_pipeline_set_stream(struct isp_pipeline *pipe,
 				 enum isp_pipeline_stream_state state)
@@ -895,7 +899,9 @@ int omap3isp_pipeline_set_stream(struct isp_pipeline *pipe,
 		ret = isp_pipeline_disable(pipe);
 	else
 		ret = isp_pipeline_enable(pipe, state);
-	pipe->stream_state = state;
+
+	if (ret == 0 || state == ISP_PIPELINE_STREAM_STOPPED)
+		pipe->stream_state = state;
 
 	return ret;
 }
@@ -1481,6 +1487,10 @@ void omap3isp_put(struct isp_device *isp)
 	if (--isp->ref_count == 0) {
 		isp_disable_interrupts(isp);
 		isp_save_ctx(isp);
+		if (isp->needs_reset) {
+			isp_reset(isp);
+			isp->needs_reset = false;
+		}
 		isp_disable_clocks(isp);
 	}
 	mutex_unlock(&isp->isp_mutex);

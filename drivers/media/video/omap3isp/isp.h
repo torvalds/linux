@@ -262,6 +262,7 @@ struct isp_device {
 	/* ISP Obj */
 	spinlock_t stat_lock;	/* common lock for statistic drivers */
 	struct mutex isp_mutex;	/* For handling ref_count field */
+	bool needs_reset;
 	int has_context;
 	int ref_count;
 	unsigned int autoidle;
