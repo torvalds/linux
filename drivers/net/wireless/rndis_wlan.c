@@ -2597,6 +2597,9 @@ static int rndis_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	__le32 mode;
 	int ret;
 
+	if (priv->device_type != RNDIS_BCM4320B)
+		return -ENOTSUPP;
+
 	netdev_dbg(usbdev->net, "%s(): %s, %d\n", __func__,
 				enabled ? "enabled" : "disabled",
 				timeout);
