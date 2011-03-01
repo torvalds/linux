@@ -90,7 +90,7 @@ struct ds1wm_data {
 	void		__iomem *map;
 	int		bus_shift; /* # of shifts to calc register offsets */
 	struct platform_device *pdev;
-	struct mfd_cell	*cell;
+	const struct mfd_cell *cell;
 	int		irq;
 	int		active_high;
 	int		slave_present;
@@ -330,14 +330,9 @@ static int ds1wm_probe(struct platform_device *pdev)
 	struct ds1wm_data *ds1wm_data;
 	struct ds1wm_driver_data *plat;
 	struct resource *res;
-	struct mfd_cell *cell;
 	int ret;
 
 	if (!pdev)
-		return -ENODEV;
-
-	cell = mfd_get_cell(pdev);
-	if (!cell)
 		return -ENODEV;
 
 	ds1wm_data = kzalloc(sizeof(*ds1wm_data), GFP_KERNEL);
@@ -362,7 +357,7 @@ static int ds1wm_probe(struct platform_device *pdev)
 	ds1wm_data->bus_shift = resource_size(res) >> 3;
 
 	ds1wm_data->pdev = pdev;
-	ds1wm_data->cell = cell;
+	ds1wm_data->cell = mfd_get_cell(pdev);
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
