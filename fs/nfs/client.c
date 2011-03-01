@@ -1453,6 +1453,10 @@ static int nfs4_server_common_setup(struct nfs_server *server,
 	BUG_ON(!server->nfs_client->rpc_ops);
 	BUG_ON(!server->nfs_client->rpc_ops->file_inode_ops);
 
+	/* data servers support only a subset of NFSv4.1 */
+	if (is_ds_only_client(server->nfs_client))
+		return -EPROTONOSUPPORT;
+
 	fattr = nfs_alloc_fattr();
 	if (fattr == NULL)
 		return -ENOMEM;

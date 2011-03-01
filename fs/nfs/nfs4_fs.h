@@ -259,6 +259,13 @@ extern int nfs4_proc_destroy_session(struct nfs4_session *);
 extern int nfs4_init_session(struct nfs_server *server);
 extern int nfs4_proc_get_lease_time(struct nfs_client *clp,
 		struct nfs_fsinfo *fsinfo);
+
+static inline bool
+is_ds_only_client(struct nfs_client *clp)
+{
+	return (clp->cl_exchange_flags & EXCHGID4_FLAG_MASK_PNFS) ==
+		EXCHGID4_FLAG_USE_PNFS_DS;
+}
 #else /* CONFIG_NFS_v4_1 */
 static inline struct nfs4_session *nfs4_get_session(const struct nfs_server *server)
 {
@@ -275,6 +282,12 @@ static inline int nfs4_setup_sequence(const struct nfs_server *server,
 static inline int nfs4_init_session(struct nfs_server *server)
 {
 	return 0;
+}
+
+static inline bool
+is_ds_only_client(struct nfs_client *clp)
+{
+	return false;
 }
 #endif /* CONFIG_NFS_V4_1 */
 
