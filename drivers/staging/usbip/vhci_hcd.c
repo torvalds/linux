@@ -18,6 +18,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/kthread.h>
 
 #include "usbip_common.h"
 #include "vhci.h"
@@ -874,7 +875,10 @@ static void vhci_shutdown_connection(struct usbip_device *ud)
 		kernel_sock_shutdown(ud->tcp_socket, SHUT_RDWR);
 	}
 
-	usbip_stop_threads(&vdev->ud);
+	/* kill threads related to this sdev, if v.c. exists */
+	kthread_stop(vdev->ud.tcp_rx);
+	kthread_stop(vdev->ud.tcp_tx);
+
 	usbip_uinfo("stop threads\n");
 
 	/* active connection is closed */
@@ -945,8 +949,8 @@ static void vhci_device_init(struct vhci_device *vdev)
 {
 	memset(vdev, 0, sizeof(*vdev));
 
-	usbip_task_init(&vdev->ud.tcp_rx, "vhci_rx", vhci_rx_loop);
-	usbip_task_init(&vdev->ud.tcp_tx, "vhci_tx", vhci_tx_loop);
+	vdev->ud.tcp_rx = kthread_create(vhci_rx_loop, &vdev->ud, "vhci_rx");
+	vdev->ud.tcp_tx = kthread_create(vhci_tx_loop, &vdev->ud, "vhci_tx");
 
 	vdev->ud.side   = USBIP_VHCI;
 	vdev->ud.status = VDEV_ST_NULL;

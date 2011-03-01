@@ -18,6 +18,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/kthread.h>
 
 #include "usbip_common.h"
 #include "stub.h"
@@ -616,19 +617,15 @@ static void stub_rx_pdu(struct usbip_device *ud)
 
 }
 
-void stub_rx_loop(struct usbip_task *ut)
+int stub_rx_loop(void *data)
 {
-	struct usbip_device *ud = container_of(ut, struct usbip_device, tcp_rx);
+	struct usbip_device *ud = data;
 
-	while (1) {
-		if (signal_pending(current)) {
-			usbip_dbg_stub_rx("signal caught!\n");
-			break;
-		}
-
+	while (!kthread_should_stop()) {
 		if (usbip_event_happened(ud))
 			break;
 
 		stub_rx_pdu(ud);
 	}
+	return 0;
 }

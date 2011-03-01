@@ -95,13 +95,13 @@ extern struct kmem_cache *stub_priv_cache;
 
 /* stub_tx.c */
 void stub_complete(struct urb *);
-void stub_tx_loop(struct usbip_task *);
+int stub_tx_loop(void *data);
 
 /* stub_dev.c */
 extern struct usb_driver stub_driver;
 
 /* stub_rx.c */
-void stub_rx_loop(struct usbip_task *);
+int stub_rx_loop(void *data);
 void stub_enqueue_ret_unlink(struct stub_device *, __u32, __u32);
 
 /* stub_main.c */
