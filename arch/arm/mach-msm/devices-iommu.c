@@ -280,7 +280,6 @@ static struct platform_device msm_root_iommu_dev = {
 
 static struct msm_iommu_dev jpegd_iommu = {
 	.name = "jpegd",
-	.clk_rate = -1
 };
 
 static struct msm_iommu_dev vpe_iommu = {
@@ -305,7 +304,6 @@ static struct msm_iommu_dev ijpeg_iommu = {
 
 static struct msm_iommu_dev vfe_iommu = {
 	.name = "vfe",
-	.clk_rate = -1
 };
 
 static struct msm_iommu_dev vcodec_a_iommu = {
@@ -318,17 +316,14 @@ static struct msm_iommu_dev vcodec_b_iommu = {
 
 static struct msm_iommu_dev gfx3d_iommu = {
 	.name = "gfx3d",
-	.clk_rate = 27000000
 };
 
 static struct msm_iommu_dev gfx2d0_iommu = {
 	.name = "gfx2d0",
-	.clk_rate = 27000000
 };
 
 static struct msm_iommu_dev gfx2d1_iommu = {
 	.name = "gfx2d1",
-	.clk_rate = 27000000
 };
 
 static struct platform_device msm_device_iommu_jpegd = {

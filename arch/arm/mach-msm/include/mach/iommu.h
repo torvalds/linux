@@ -45,14 +45,9 @@
 /**
  * struct msm_iommu_dev - a single IOMMU hardware instance
  * name		Human-readable name given to this IOMMU HW instance
- * clk_rate	Rate to set for this IOMMU's clock, if applicable to this
- *		particular IOMMU. 0 means don't set a rate.
- *		-1 means it is an AXI clock with no valid rate
- *
  */
 struct msm_iommu_dev {
 	const char *name;
-	int clk_rate;
 };
 
 /**

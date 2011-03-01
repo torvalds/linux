@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -29,6 +29,7 @@
 
 #include <mach/iommu_hw-8xxx.h>
 #include <mach/iommu.h>
+#include <mach/clk.h>
 
 struct iommu_ctx_iter_data {
 	/* input */
@@ -130,117 +131,134 @@ static int msm_iommu_probe(struct platform_device *pdev)
 {
 	struct resource *r, *r2;
 	struct clk *iommu_clk;
+	struct clk *iommu_pclk;
 	struct msm_iommu_drvdata *drvdata;
 	struct msm_iommu_dev *iommu_dev = pdev->dev.platform_data;
 	void __iomem *regs_base;
 	resource_size_t	len;
-	int ret = 0, ncb, nm2v, irq;
+	int ret, ncb, nm2v, irq;
 
-	if (pdev->id != -1) {
-		drvdata = kzalloc(sizeof(*drvdata), GFP_KERNEL);
+	if (pdev->id == -1) {
+		msm_iommu_root_dev = pdev;
+		return 0;
+	}
 
-		if (!drvdata) {
-			ret = -ENOMEM;
-			goto fail;
-		}
+	drvdata = kzalloc(sizeof(*drvdata), GFP_KERNEL);
 
-		if (!iommu_dev) {
-			ret = -ENODEV;
-			goto fail;
-		}
+	if (!drvdata) {
+		ret = -ENOMEM;
+		goto fail;
+	}
 
-		if (iommu_dev->clk_rate != 0) {
-			iommu_clk = clk_get(&pdev->dev, "iommu_clk");
+	if (!iommu_dev) {
+		ret = -ENODEV;
+		goto fail;
+	}
 
-			if (IS_ERR(iommu_clk)) {
-				ret = -ENODEV;
-				goto fail;
-			}
+	iommu_pclk = clk_get(NULL, "smmu_pclk");
+	if (IS_ERR(iommu_pclk)) {
+		ret = -ENODEV;
+		goto fail;
+	}
 
-			if (iommu_dev->clk_rate > 0) {
-				ret = clk_set_rate(iommu_clk,
-							iommu_dev->clk_rate);
-				if (ret) {
-					clk_put(iommu_clk);
-					goto fail;
-				}
-			}
+	ret = clk_enable(iommu_pclk);
+	if (ret)
+		goto fail_enable;
 
-			ret = clk_enable(iommu_clk);
-			if (ret) {
-				clk_put(iommu_clk);
-				goto fail;
-			}
-			clk_put(iommu_clk);
-		}
+	iommu_clk = clk_get(&pdev->dev, "iommu_clk");
 
-		r = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						 "physbase");
-		if (!r) {
-			ret = -ENODEV;
-			goto fail;
-		}
+	if (!IS_ERR(iommu_clk))	{
+		if (clk_get_rate(iommu_clk) == 0)
+			clk_set_min_rate(iommu_clk, 1);
 
-		len = r->end - r->start + 1;
-
-		r2 = request_mem_region(r->start, len, r->name);
-		if (!r2) {
-			pr_err("Could not request memory region: "
-			"start=%p, len=%d\n", (void *) r->start, len);
-			ret = -EBUSY;
-			goto fail;
-		}
-
-		regs_base = ioremap(r2->start, len);
-
-		if (!regs_base) {
-			pr_err("Could not ioremap: start=%p, len=%d\n",
-				 (void *) r2->start, len);
-			ret = -EBUSY;
-			goto fail_mem;
-		}
-
-		irq = platform_get_irq_byname(pdev, "secure_irq");
-		if (irq < 0) {
-			ret = -ENODEV;
-			goto fail_io;
-		}
-
-		mb();
-
-		if (GET_IDR(regs_base) == 0) {
-			pr_err("Invalid IDR value detected\n");
-			ret = -ENODEV;
-			goto fail_io;
-		}
-
-		ret = request_irq(irq, msm_iommu_fault_handler, 0,
-				"msm_iommu_secure_irpt_handler", drvdata);
+		ret = clk_enable(iommu_clk);
 		if (ret) {
-			pr_err("Request IRQ %d failed with ret=%d\n", irq, ret);
-			goto fail_io;
+			clk_put(iommu_clk);
+			goto fail_pclk;
 		}
+	} else
+		iommu_clk = NULL;
 
-		msm_iommu_reset(regs_base);
-		drvdata->base = regs_base;
-		drvdata->irq = irq;
+	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "physbase");
 
-		nm2v = GET_NM2VCBMT((unsigned long) regs_base);
-		ncb = GET_NCB((unsigned long) regs_base);
+	if (!r) {
+		ret = -ENODEV;
+		goto fail_clk;
+	}
 
-		pr_info("device %s mapped at %p, irq %d with %d ctx banks\n",
+	len = resource_size(r);
+
+	r2 = request_mem_region(r->start, len, r->name);
+	if (!r2) {
+		pr_err("Could not request memory region: start=%p, len=%d\n",
+							(void *) r->start, len);
+		ret = -EBUSY;
+		goto fail_clk;
+	}
+
+	regs_base = ioremap(r2->start, len);
+
+	if (!regs_base) {
+		pr_err("Could not ioremap: start=%p, len=%d\n",
+			 (void *) r2->start, len);
+		ret = -EBUSY;
+		goto fail_mem;
+	}
+
+	irq = platform_get_irq_byname(pdev, "secure_irq");
+	if (irq < 0) {
+		ret = -ENODEV;
+		goto fail_io;
+	}
+
+	mb();
+
+	if (GET_IDR(regs_base) == 0) {
+		pr_err("Invalid IDR value detected\n");
+		ret = -ENODEV;
+		goto fail_io;
+	}
+
+	ret = request_irq(irq, msm_iommu_fault_handler, 0,
+			"msm_iommu_secure_irpt_handler", drvdata);
+	if (ret) {
+		pr_err("Request IRQ %d failed with ret=%d\n", irq, ret);
+		goto fail_io;
+	}
+
+	msm_iommu_reset(regs_base);
+	drvdata->pclk = iommu_pclk;
+	drvdata->clk = iommu_clk;
+	drvdata->base = regs_base;
+	drvdata->irq = irq;
+
+	nm2v = GET_NM2VCBMT((unsigned long) regs_base);
+	ncb = GET_NCB((unsigned long) regs_base);
+
+	pr_info("device %s mapped at %p, irq %d with %d ctx banks\n",
 			iommu_dev->name, regs_base, irq, ncb+1);
 
-		platform_set_drvdata(pdev, drvdata);
-	} else
-		msm_iommu_root_dev = pdev;
+	platform_set_drvdata(pdev, drvdata);
+
+	if (iommu_clk)
+		clk_disable(iommu_clk);
+
+	clk_disable(iommu_pclk);
 
 	return 0;
-
 fail_io:
 	iounmap(regs_base);
 fail_mem:
 	release_mem_region(r->start, len);
+fail_clk:
+	if (iommu_clk) {
+		clk_disable(iommu_clk);
+		clk_put(iommu_clk);
+	}
+fail_pclk:
+	clk_disable(iommu_pclk);
+fail_enable:
+	clk_put(iommu_pclk);
 fail:
 	kfree(drvdata);
 	return ret;
@@ -252,7 +270,10 @@ static int msm_iommu_remove(struct platform_device *pdev)
 
 	drv = platform_get_drvdata(pdev);
 	if (drv) {
-		memset(drv, 0, sizeof(struct msm_iommu_drvdata));
+		if (drv->clk)
+			clk_put(drv->clk);
+		clk_put(drv->pclk);
+		memset(drv, 0, sizeof(*drv));
 		kfree(drv);
 		platform_set_drvdata(pdev, NULL);
 	}
@@ -264,7 +285,7 @@ static int msm_iommu_ctx_probe(struct platform_device *pdev)
 	struct msm_iommu_ctx_dev *c = pdev->dev.platform_data;
 	struct msm_iommu_drvdata *drvdata;
 	struct msm_iommu_ctx_drvdata *ctx_drvdata = NULL;
-	int i, ret = 0;
+	int i, ret;
 	if (!c || !pdev->dev.parent) {
 		ret = -EINVAL;
 		goto fail;
@@ -288,6 +309,18 @@ static int msm_iommu_ctx_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&ctx_drvdata->attached_elm);
 	platform_set_drvdata(pdev, ctx_drvdata);
 
+	ret = clk_enable(drvdata->pclk);
+	if (ret)
+		goto fail;
+
+	if (drvdata->clk) {
+		ret = clk_enable(drvdata->clk);
+		if (ret) {
+			clk_disable(drvdata->pclk);
+			goto fail;
+		}
+	}
+
 	/* Program the M2V tables for this context */
 	for (i = 0; i < MAX_NUM_MIDS; i++) {
 		int mid = c->mids[i];
@@ -310,8 +343,11 @@ static int msm_iommu_ctx_probe(struct platform_device *pdev)
 		SET_NSCFG(drvdata->base, mid, 3);
 	}
 
-	pr_info("context device %s with bank index %d\n", c->name, c->num);
+	if (drvdata->clk)
+		clk_disable(drvdata->clk);
+	clk_disable(drvdata->pclk);
 
+	dev_info(&pdev->dev, "context %s using bank %d\n", c->name, c->num);
 	return 0;
 fail:
 	kfree(ctx_drvdata);
