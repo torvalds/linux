@@ -1426,10 +1426,11 @@ static void pmbus_find_attributes(struct i2c_client *client,
 static int pmbus_identify_common(struct i2c_client *client,
 				 struct pmbus_data *data)
 {
-	int vout_mode, exponent;
+	int vout_mode = -1, exponent;
 
-	vout_mode = pmbus_read_byte_data(client, 0, PMBUS_VOUT_MODE);
-	if (vout_mode >= 0) {
+	if (pmbus_check_byte_register(client, 0, PMBUS_VOUT_MODE))
+		vout_mode = pmbus_read_byte_data(client, 0, PMBUS_VOUT_MODE);
+	if (vout_mode >= 0 && vout_mode != 0xff) {
 		/*
 		 * Not all chips support the VOUT_MODE command,
 		 * so a failure to read it is not an error.
