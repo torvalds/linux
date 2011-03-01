@@ -6082,6 +6082,7 @@ S:	Supported
 F:	arch/tile/
 F:	drivers/char/hvc_tile.c
 F:	drivers/net/tile/
+F:	drivers/edac/tile_edac.c
 
 TLAN NETWORK DRIVER
 M:	Samuel Chessman <chessman@tux.org>

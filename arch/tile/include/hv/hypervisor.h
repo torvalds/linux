@@ -338,9 +338,10 @@ typedef int HV_Errno;
 #define HV_ENOTREADY   -812  /**< Device not ready */
 #define HV_EIO         -813  /**< I/O error */
 #define HV_ENOMEM      -814  /**< Out of memory */
+#define HV_EAGAIN      -815  /**< Try again */
 
 #define HV_ERR_MAX     -801  /**< Largest HV error code */
-#define HV_ERR_MIN     -814  /**< Smallest HV error code */
+#define HV_ERR_MIN     -815  /**< Smallest HV error code */
 
 #ifndef __ASSEMBLER__
 
@@ -867,6 +868,43 @@ typedef struct
  */
 HV_PhysAddrRange hv_inquire_physical(int idx);
 
+/** Possible DIMM types. */
+typedef enum
+{
+  NO_DIMM                    = 0,  /**< No DIMM */
+  DDR2                       = 1,  /**< DDR2 */
+  DDR3                       = 2   /**< DDR3 */
+} HV_DIMM_Type;
+
+#ifdef __tilegx__
+
+/** Log2 of minimum DIMM bytes supported by the memory controller. */
+#define HV_MSH_MIN_DIMM_SIZE_SHIFT 29
+
+/** Max number of DIMMs contained by one memory controller. */
+#define HV_MSH_MAX_DIMMS 8
+
+#else
+
+/** Log2 of minimum DIMM bytes supported by the memory controller. */
+#define HV_MSH_MIN_DIMM_SIZE_SHIFT 26
+
+/** Max number of DIMMs contained by one memory controller. */
+#define HV_MSH_MAX_DIMMS 2
+
+#endif
+
+/** Number of bits to right-shift to get the DIMM type. */
+#define HV_DIMM_TYPE_SHIFT 0
+
+/** Bits to mask to get the DIMM type. */
+#define HV_DIMM_TYPE_MASK 0xf
+
+/** Number of bits to right-shift to get the DIMM size. */
+#define HV_DIMM_SIZE_SHIFT 4
+
+/** Bits to mask to get the DIMM size. */
+#define HV_DIMM_SIZE_MASK 0xf
 
 /** Memory controller information. */
 typedef struct
@@ -1043,6 +1081,7 @@ int hv_console_write(HV_VirtAddr bytes, int len);
  *  downcall:
  *
  *  INT_MESSAGE_RCV_DWNCL   (hypervisor message available)
+ *  INT_DEV_INTR_DWNCL      (device interrupt)
  *  INT_DMATLB_MISS_DWNCL   (DMA TLB miss)
  *  INT_SNITLB_MISS_DWNCL   (SNI TLB miss)
  *  INT_DMATLB_ACCESS_DWNCL (DMA TLB access violation)
