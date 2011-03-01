@@ -706,6 +706,7 @@ static int dss_get_clock(struct clk **clock, const char *clk_name)
 static int dss_get_clocks(void)
 {
 	int r;
+	struct omap_display_platform_data *pdata = dss.pdev->dev.platform_data;
 
 	dss.dss_ick = NULL;
 	dss.dss_fck = NULL;
@@ -721,17 +722,28 @@ static int dss_get_clocks(void)
 	if (r)
 		goto err;
 
-	r = dss_get_clock(&dss.dss_sys_clk, "sys_clk");
-	if (r)
+	if (!pdata->opt_clock_available) {
+		r = -ENODEV;
 		goto err;
+	}
 
-	r = dss_get_clock(&dss.dss_tv_fck, "tv_clk");
-	if (r)
-		goto err;
+	if (pdata->opt_clock_available("sys_clk")) {
+		r = dss_get_clock(&dss.dss_sys_clk, "sys_clk");
+		if (r)
+			goto err;
+	}
 
-	r = dss_get_clock(&dss.dss_video_fck, "video_clk");
-	if (r)
-		goto err;
+	if (pdata->opt_clock_available("tv_clk")) {
+		r = dss_get_clock(&dss.dss_tv_fck, "tv_clk");
+		if (r)
+			goto err;
+	}
+
+	if (pdata->opt_clock_available("video_clk")) {
+		r = dss_get_clock(&dss.dss_video_fck, "video_clk");
+		if (r)
+			goto err;
+	}
 
 	return 0;
 
@@ -754,9 +766,11 @@ static void dss_put_clocks(void)
 {
 	if (dss.dss_video_fck)
 		clk_put(dss.dss_video_fck);
-	clk_put(dss.dss_tv_fck);
+	if (dss.dss_tv_fck)
+		clk_put(dss.dss_tv_fck);
+	if (dss.dss_sys_clk)
+		clk_put(dss.dss_sys_clk);
 	clk_put(dss.dss_fck);
-	clk_put(dss.dss_sys_clk);
 	clk_put(dss.dss_ick);
 }
 
@@ -805,11 +819,11 @@ static void dss_clk_enable_no_ctx(enum dss_clock clks)
 		clk_enable(dss.dss_ick);
 	if (clks & DSS_CLK_FCK)
 		clk_enable(dss.dss_fck);
-	if (clks & DSS_CLK_SYSCK)
+	if ((clks & DSS_CLK_SYSCK) && dss.dss_sys_clk)
 		clk_enable(dss.dss_sys_clk);
-	if (clks & DSS_CLK_TVFCK)
+	if ((clks & DSS_CLK_TVFCK) && dss.dss_tv_fck)
 		clk_enable(dss.dss_tv_fck);
-	if (clks & DSS_CLK_VIDFCK)
+	if ((clks & DSS_CLK_VIDFCK) && dss.dss_video_fck)
 		clk_enable(dss.dss_video_fck);
 
 	dss.num_clks_enabled += num_clks;
@@ -833,11 +847,11 @@ static void dss_clk_disable_no_ctx(enum dss_clock clks)
 		clk_disable(dss.dss_ick);
 	if (clks & DSS_CLK_FCK)
 		clk_disable(dss.dss_fck);
-	if (clks & DSS_CLK_SYSCK)
+	if ((clks & DSS_CLK_SYSCK) && dss.dss_sys_clk)
 		clk_disable(dss.dss_sys_clk);
-	if (clks & DSS_CLK_TVFCK)
+	if ((clks & DSS_CLK_TVFCK) && dss.dss_tv_fck)
 		clk_disable(dss.dss_tv_fck);
-	if (clks & DSS_CLK_VIDFCK)
+	if ((clks & DSS_CLK_VIDFCK) && dss.dss_video_fck)
 		clk_disable(dss.dss_video_fck);
 
 	dss.num_clks_enabled -= num_clks;
