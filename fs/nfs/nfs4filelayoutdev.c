@@ -104,6 +104,67 @@ _data_server_lookup_locked(u32 ip_addr, u32 port)
 	return NULL;
 }
 
+/*
+ * Create an rpc connection to the nfs4_pnfs_ds data server
+ * Currently only support IPv4
+ */
+static int
+nfs4_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds)
+{
+	struct nfs_client *clp;
+	struct sockaddr_in sin;
+	int status = 0;
+
+	dprintk("--> %s ip:port %x:%hu au_flavor %d\n", __func__,
+		ntohl(ds->ds_ip_addr), ntohs(ds->ds_port),
+		mds_srv->nfs_client->cl_rpcclient->cl_auth->au_flavor);
+
+	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = ds->ds_ip_addr;
+	sin.sin_port = ds->ds_port;
+
+	clp = nfs4_set_ds_client(mds_srv->nfs_client, (struct sockaddr *)&sin,
+				 sizeof(sin), IPPROTO_TCP);
+	if (IS_ERR(clp)) {
+		status = PTR_ERR(clp);
+		goto out;
+	}
+
+	if ((clp->cl_exchange_flags & EXCHGID4_FLAG_MASK_PNFS) != 0) {
+		if (!is_ds_client(clp)) {
+			status = -ENODEV;
+			goto out_put;
+		}
+		ds->ds_clp = clp;
+		dprintk("%s [existing] ip=%x, port=%hu\n", __func__,
+			ntohl(ds->ds_ip_addr), ntohs(ds->ds_port));
+		goto out;
+	}
+
+	/*
+	 * Do not set NFS_CS_CHECK_LEASE_TIME instead set the DS lease to
+	 * be equal to the MDS lease. Renewal is scheduled in create_session.
+	 */
+	spin_lock(&mds_srv->nfs_client->cl_lock);
+	clp->cl_lease_time = mds_srv->nfs_client->cl_lease_time;
+	spin_unlock(&mds_srv->nfs_client->cl_lock);
+	clp->cl_last_renewal = jiffies;
+
+	/* New nfs_client */
+	status = nfs4_init_ds_session(clp);
+	if (status)
+		goto out_put;
+
+	ds->ds_clp = clp;
+	dprintk("%s [new] ip=%x, port=%hu\n", __func__, ntohl(ds->ds_ip_addr),
+		ntohs(ds->ds_port));
+out:
+	return status;
+out_put:
+	nfs_put_client(clp);
+	goto out;
+}
+
 static void
 destroy_ds(struct nfs4_pnfs_ds *ds)
 {

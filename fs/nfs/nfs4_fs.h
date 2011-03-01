@@ -266,6 +266,12 @@ is_ds_only_client(struct nfs_client *clp)
 	return (clp->cl_exchange_flags & EXCHGID4_FLAG_MASK_PNFS) ==
 		EXCHGID4_FLAG_USE_PNFS_DS;
 }
+
+static inline bool
+is_ds_client(struct nfs_client *clp)
+{
+	return clp->cl_exchange_flags & EXCHGID4_FLAG_USE_PNFS_DS;
+}
 #else /* CONFIG_NFS_v4_1 */
 static inline struct nfs4_session *nfs4_get_session(const struct nfs_server *server)
 {
@@ -286,6 +292,12 @@ static inline int nfs4_init_session(struct nfs_server *server)
 
 static inline bool
 is_ds_only_client(struct nfs_client *clp)
+{
+	return false;
+}
+
+static inline bool
+is_ds_client(struct nfs_client *clp)
 {
 	return false;
 }

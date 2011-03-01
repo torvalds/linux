@@ -1573,9 +1573,8 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 	return 0;
 }
 
-static int nfs4_recover_expired_lease(struct nfs_server *server)
+static int nfs4_client_recover_expired_lease(struct nfs_client *clp)
 {
-	struct nfs_client *clp = server->nfs_client;
 	unsigned int loop;
 	int ret;
 
@@ -1590,6 +1589,11 @@ static int nfs4_recover_expired_lease(struct nfs_server *server)
 		ret = -EIO;
 	}
 	return ret;
+}
+
+static int nfs4_recover_expired_lease(struct nfs_server *server)
+{
+	return nfs4_client_recover_expired_lease(server->nfs_client);
 }
 
 /*
@@ -5117,6 +5121,27 @@ int nfs4_init_session(struct nfs_server *server)
 		ret = nfs4_check_client_ready(clp);
 	return ret;
 }
+
+int nfs4_init_ds_session(struct nfs_client *clp)
+{
+	struct nfs4_session *session = clp->cl_session;
+	int ret;
+
+	if (!test_and_clear_bit(NFS4_SESSION_INITING, &session->session_state))
+		return 0;
+
+	ret = nfs4_client_recover_expired_lease(clp);
+	if (!ret)
+		/* Test for the DS role */
+		if (!is_ds_client(clp))
+			ret = -ENODEV;
+	if (!ret)
+		ret = nfs4_check_client_ready(clp);
+	return ret;
+
+}
+EXPORT_SYMBOL_GPL(nfs4_init_ds_session);
+
 
 /*
  * Renew the cl_session lease.
