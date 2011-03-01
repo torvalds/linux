@@ -252,6 +252,31 @@ filelayout_free_lseg(struct pnfs_layout_segment *lseg)
 	_filelayout_free_lseg(fl);
 }
 
+/*
+ * filelayout_pg_test(). Called by nfs_can_coalesce_requests()
+ *
+ * return 1 :  coalesce page
+ * return 0 :  don't coalesce page
+ */
+int
+filelayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
+		   struct nfs_page *req)
+{
+	u64 p_stripe, r_stripe;
+	u32 stripe_unit;
+
+	if (!pgio->pg_lseg)
+		return 1;
+	p_stripe = (u64)prev->wb_index << PAGE_CACHE_SHIFT;
+	r_stripe = (u64)req->wb_index << PAGE_CACHE_SHIFT;
+	stripe_unit = FILELAYOUT_LSEG(pgio->pg_lseg)->stripe_unit;
+
+	do_div(p_stripe, stripe_unit);
+	do_div(r_stripe, stripe_unit);
+
+	return (p_stripe == r_stripe);
+}
+
 static struct pnfs_layoutdriver_type filelayout_type = {
 	.id = LAYOUT_NFSV4_1_FILES,
 	.name = "LAYOUT_NFSV4_1_FILES",
@@ -260,6 +285,7 @@ static struct pnfs_layoutdriver_type filelayout_type = {
 	.clear_layoutdriver = filelayout_clear_layoutdriver,
 	.alloc_lseg              = filelayout_alloc_lseg,
 	.free_lseg               = filelayout_free_lseg,
+	.pg_test		= filelayout_pg_test,
 };
 
 static int __init nfs4filelayout_init(void)

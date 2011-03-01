@@ -226,6 +226,7 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 	desc->pg_doio = doio;
 	desc->pg_ioflags = io_flags;
 	desc->pg_error = 0;
+	desc->pg_lseg = NULL;
 }
 
 /**
@@ -240,7 +241,8 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
  * Return 'true' if this is the case, else return 'false'.
  */
 static int nfs_can_coalesce_requests(struct nfs_page *prev,
-				     struct nfs_page *req)
+				     struct nfs_page *req,
+				     struct nfs_pageio_descriptor *pgio)
 {
 	if (req->wb_context->cred != prev->wb_context->cred)
 		return 0;
@@ -253,6 +255,12 @@ static int nfs_can_coalesce_requests(struct nfs_page *prev,
 	if (req->wb_pgbase != 0)
 		return 0;
 	if (prev->wb_pgbase + prev->wb_bytes != PAGE_CACHE_SIZE)
+		return 0;
+	/*
+	 * Non-whole file layouts need to check that req is inside of
+	 * pgio->pg_lseg.
+	 */
+	if (pgio->pg_test && !pgio->pg_test(pgio, prev, req))
 		return 0;
 	return 1;
 }
@@ -286,7 +294,7 @@ static int nfs_pageio_do_add_request(struct nfs_pageio_descriptor *desc,
 		if (newlen > desc->pg_bsize)
 			return 0;
 		prev = nfs_list_entry(desc->pg_list.prev);
-		if (!nfs_can_coalesce_requests(prev, req))
+		if (!nfs_can_coalesce_requests(prev, req, desc))
 			return 0;
 	} else
 		desc->pg_base = req->wb_pgbase;
