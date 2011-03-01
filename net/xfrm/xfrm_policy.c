@@ -1831,7 +1831,7 @@ restart:
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTNOSTATES);
 			return -EREMOTE;
 		}
-		if (flags & XFRM_LOOKUP_WAIT) {
+		if (fl->flags & FLOWI_FLAG_CAN_SLEEP) {
 			DECLARE_WAITQUEUE(wait, current);
 
 			add_wait_queue(&net->xfrm.km_waitq, &wait);
