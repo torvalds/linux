@@ -615,7 +615,7 @@ config MFD_VX855
 	  and/or vx855_gpio drivers for this to do anything useful.
 
 config MFD_WL1273_CORE
-	tristate
+	tristate "Support for TI WL1273 FM radio."
 	depends on I2C
 	select MFD_CORE
 	default n
