@@ -624,6 +624,15 @@ config MFD_WL1273_CORE
 	  driver connects the radio-wl1273 V4L2 module and the wl1273
 	  audio codec.
 
+config MFD_OMAP_USB_HOST
+	bool "Support OMAP USBHS core driver"
+	depends on USB_EHCI_HCD_OMAP || USB_OHCI_HCD_OMAP3
+	default y
+	help
+	  This is the core driver for the OAMP EHCI and OHCI drivers.
+	  This MFD driver does the required setup functionalities for
+	  OMAP USB Host drivers.
+
 endif # MFD_SUPPORT
 
 menu "Multimedia Capabilities Port drivers"
