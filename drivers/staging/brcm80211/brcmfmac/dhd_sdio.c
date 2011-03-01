@@ -391,7 +391,7 @@ static bool dhd_readahead;
 do { \
 	retryvar = 0; \
 	do { \
-		regvar = R_REG(bus->dhd->osh, regaddr); \
+		regvar = R_REG(regaddr); \
 	} while (bcmsdh_regfail(bus->sdh) && (++retryvar <= retry_limit)); \
 	if (retryvar) { \
 		bus->regfails += (retryvar-1); \
@@ -407,7 +407,7 @@ do { \
 do { \
 	retryvar = 0; \
 	do { \
-		W_REG(bus->dhd->osh, regaddr, regval); \
+		W_REG(regaddr, regval); \
 	} while (bcmsdh_regfail(bus->sdh) && (++retryvar <= retry_limit)); \
 	if (retryvar) { \
 		bus->regfails += (retryvar-1); \
@@ -5370,7 +5370,7 @@ dhdsdio_probe_attach(struct dhd_bus *bus, struct osl_info *osh, void *sdh,
 	bus->sdpcmrev = si_corerev(bus->sih);
 
 	/* Set core control so an SDIO reset does a backplane reset */
-	OR_REG(osh, &bus->regs->corecontrol, CC_BPRESEN);
+	OR_REG(&bus->regs->corecontrol, CC_BPRESEN);
 
 	pktq_init(&bus->txq, (PRIOMASK + 1), QLEN);
 

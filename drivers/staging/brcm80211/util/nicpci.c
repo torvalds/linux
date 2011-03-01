@@ -194,14 +194,14 @@ pcie_readreg(struct osl_info *osh, sbpcieregs_t *pcieregs, uint addrtype,
 
 	switch (addrtype) {
 	case PCIE_CONFIGREGS:
-		W_REG(osh, (&pcieregs->configaddr), offset);
-		(void)R_REG(osh, (&pcieregs->configaddr));
-		retval = R_REG(osh, &(pcieregs->configdata));
+		W_REG((&pcieregs->configaddr), offset);
+		(void)R_REG((&pcieregs->configaddr));
+		retval = R_REG(&(pcieregs->configdata));
 		break;
 	case PCIE_PCIEREGS:
-		W_REG(osh, &(pcieregs->pcieindaddr), offset);
-		(void)R_REG(osh, (&pcieregs->pcieindaddr));
-		retval = R_REG(osh, &(pcieregs->pcieinddata));
+		W_REG(&(pcieregs->pcieindaddr), offset);
+		(void)R_REG((&pcieregs->pcieindaddr));
+		retval = R_REG(&(pcieregs->pcieinddata));
 		break;
 	default:
 		ASSERT(0);
@@ -219,12 +219,12 @@ pcie_writereg(struct osl_info *osh, sbpcieregs_t *pcieregs, uint addrtype,
 
 	switch (addrtype) {
 	case PCIE_CONFIGREGS:
-		W_REG(osh, (&pcieregs->configaddr), offset);
-		W_REG(osh, (&pcieregs->configdata), val);
+		W_REG((&pcieregs->configaddr), offset);
+		W_REG((&pcieregs->configdata), val);
 		break;
 	case PCIE_PCIEREGS:
-		W_REG(osh, (&pcieregs->pcieindaddr), offset);
-		W_REG(osh, (&pcieregs->pcieinddata), val);
+		W_REG((&pcieregs->pcieindaddr), offset);
+		W_REG((&pcieregs->pcieinddata), val);
 		break;
 	default:
 		ASSERT(0);
@@ -244,12 +244,12 @@ static bool pcie_mdiosetblock(pcicore_info_t *pi, uint blk)
 					       MDIODATA_DEVADDR_SHF) |
 	    (MDIODATA_BLK_ADDR << MDIODATA_REGADDR_SHF) | MDIODATA_TA | (blk <<
 									 4);
-	W_REG(pi->osh, &pcieregs->mdiodata, mdiodata);
+	W_REG(&pcieregs->mdiodata, mdiodata);
 
 	PR28829_DELAY();
 	/* retry till the transaction is complete */
 	while (i < pcie_serdes_spinwait) {
-		if (R_REG(pi->osh, &(pcieregs->mdiocontrol)) &
+		if (R_REG(&(pcieregs->mdiocontrol)) &
 		    MDIOCTL_ACCESS_DONE) {
 			break;
 		}
@@ -275,7 +275,7 @@ pcie_mdioop(pcicore_info_t *pi, uint physmedia, uint regaddr, bool write,
 	uint pcie_serdes_spinwait = 10;
 
 	/* enable mdio access to SERDES */
-	W_REG(pi->osh, (&pcieregs->mdiocontrol),
+	W_REG((&pcieregs->mdiocontrol),
 	      MDIOCTL_PREAM_EN | MDIOCTL_DIVISOR_VAL);
 
 	if (pi->sih->buscorerev >= 10) {
@@ -296,22 +296,22 @@ pcie_mdioop(pcicore_info_t *pi, uint physmedia, uint regaddr, bool write,
 		mdiodata |=
 		    (MDIODATA_START | MDIODATA_WRITE | MDIODATA_TA | *val);
 
-	W_REG(pi->osh, &pcieregs->mdiodata, mdiodata);
+	W_REG(&pcieregs->mdiodata, mdiodata);
 
 	PR28829_DELAY();
 
 	/* retry till the transaction is complete */
 	while (i < pcie_serdes_spinwait) {
-		if (R_REG(pi->osh, &(pcieregs->mdiocontrol)) &
+		if (R_REG(&(pcieregs->mdiocontrol)) &
 		    MDIOCTL_ACCESS_DONE) {
 			if (!write) {
 				PR28829_DELAY();
 				*val =
-				    (R_REG(pi->osh, &(pcieregs->mdiodata)) &
+				    (R_REG(&(pcieregs->mdiodata)) &
 				     MDIODATA_MASK);
 			}
 			/* Disable mdio access to SERDES */
-			W_REG(pi->osh, (&pcieregs->mdiocontrol), 0);
+			W_REG((&pcieregs->mdiocontrol), 0);
 			return 0;
 		}
 		udelay(1000);
@@ -320,7 +320,7 @@ pcie_mdioop(pcicore_info_t *pi, uint physmedia, uint regaddr, bool write,
 
 	PCI_ERROR(("pcie_mdioop: timed out op: %d\n", write));
 	/* Disable mdio access to SERDES */
-	W_REG(pi->osh, (&pcieregs->mdiocontrol), 0);
+	W_REG((&pcieregs->mdiocontrol), 0);
 	return 1;
 }
 
@@ -466,7 +466,7 @@ static void pcie_war_aspm_clkreq(pcicore_info_t *pi)
 	if (!ISSIM_ENAB(sih)) {
 
 		reg16 = &pcieregs->sprom[SRSH_ASPM_OFFSET];
-		val16 = R_REG(pi->osh, reg16);
+		val16 = R_REG(reg16);
 
 		val16 &= ~SRSH_ASPM_ENB;
 		if (pi->pcie_war_aspm_ovr == PCIE_ASPM_ENAB)
@@ -476,7 +476,7 @@ static void pcie_war_aspm_clkreq(pcicore_info_t *pi)
 		else if (pi->pcie_war_aspm_ovr == PCIE_ASPM_L0s_ENAB)
 			val16 |= SRSH_ASPM_L0s_ENB;
 
-		W_REG(pi->osh, reg16, val16);
+		W_REG(reg16, val16);
 
 		pci_read_config_dword(pi->dev, pi->pciecap_lcreg_offset,
 					&w);
@@ -487,7 +487,7 @@ static void pcie_war_aspm_clkreq(pcicore_info_t *pi)
 	}
 
 	reg16 = &pcieregs->sprom[SRSH_CLKREQ_OFFSET_REV5];
-	val16 = R_REG(pi->osh, reg16);
+	val16 = R_REG(reg16);
 
 	if (pi->pcie_war_aspm_ovr != PCIE_ASPM_DISAB) {
 		val16 |= SRSH_CLKREQ_ENB;
@@ -495,7 +495,7 @@ static void pcie_war_aspm_clkreq(pcicore_info_t *pi)
 	} else
 		val16 &= ~SRSH_CLKREQ_ENB;
 
-	W_REG(pi->osh, reg16, val16);
+	W_REG(reg16, val16);
 }
 
 /* Apply the polarity determined at the start */
@@ -523,11 +523,11 @@ static void pcie_misc_config_fixup(pcicore_info_t *pi)
 	u16 val16, *reg16;
 
 	reg16 = &pcieregs->sprom[SRSH_PCIE_MISC_CONFIG];
-	val16 = R_REG(pi->osh, reg16);
+	val16 = R_REG(reg16);
 
 	if ((val16 & SRSH_L23READY_EXIT_NOPERST) == 0) {
 		val16 |= SRSH_L23READY_EXIT_NOPERST;
-		W_REG(pi->osh, reg16, val16);
+		W_REG(reg16, val16);
 	}
 }
 
@@ -546,7 +546,7 @@ static void pcie_war_noplldown(pcicore_info_t *pi)
 
 	/*  clear srom shadow backdoor */
 	reg16 = &pcieregs->sprom[SRSH_BD_OFFSET];
-	W_REG(pi->osh, reg16, 0);
+	W_REG(reg16, 0);
 }
 
 /* Needs to happen when coming out of 'standby'/'hibernate' */

@@ -333,16 +333,16 @@ void wlc_get_rcmta(struct wlc_info *wlc, int idx, u8 *addr)
 
 	osh = wlc->osh;
 
-	W_REG(osh, &regs->objaddr, (OBJADDR_RCMTA_SEL | (idx * 2)));
-	(void)R_REG(osh, &regs->objaddr);
-	v32 = R_REG(osh, &regs->objdata);
+	W_REG(&regs->objaddr, (OBJADDR_RCMTA_SEL | (idx * 2)));
+	(void)R_REG(&regs->objaddr);
+	v32 = R_REG(&regs->objdata);
 	addr[0] = (u8) v32;
 	addr[1] = (u8) (v32 >> 8);
 	addr[2] = (u8) (v32 >> 16);
 	addr[3] = (u8) (v32 >> 24);
-	W_REG(osh, &regs->objaddr, (OBJADDR_RCMTA_SEL | ((idx * 2) + 1)));
-	(void)R_REG(osh, &regs->objaddr);
-	v32 = R_REG(osh, (volatile u16 *)&regs->objdata);
+	W_REG(&regs->objaddr, (OBJADDR_RCMTA_SEL | ((idx * 2) + 1)));
+	(void)R_REG(&regs->objaddr);
+	v32 = R_REG(&regs->objdata);
 	addr[4] = (u8) v32;
 	addr[5] = (u8) (v32 >> 8);
 }
@@ -485,11 +485,13 @@ void wlc_init(struct wlc_info *wlc)
 			if (bsscfg->up) {
 				u32 bi;
 
-				/* get beacon period from bsscfg and convert to uS */
+				/* get beacon period and convert to uS */
 				bi = bsscfg->current_bss->beacon_period << 10;
-				/* update the tsf_cfprep register */
-				/* since init path would reset to default value */
-				W_REG(wlc->osh, &regs->tsf_cfprep,
+				/*
+				 * update since init path would reset
+				 * to default value
+				 */
+				W_REG(&regs->tsf_cfprep,
 				      (bi << CFPREP_CBI_SHIFT));
 
 				/* Update maccontrol PM related bits */
@@ -526,7 +528,7 @@ void wlc_init(struct wlc_info *wlc)
 
 	/* Enable EDCF mode (while the MAC is suspended) */
 	if (EDCF_ENAB(wlc->pub)) {
-		OR_REG(wlc->osh, &regs->ifs_ctl, IFS_USEEDCF);
+		OR_REG(&regs->ifs_ctl, IFS_USEEDCF);
 		wlc_edcf_setparams(wlc->cfg, false);
 	}
 
@@ -550,7 +552,7 @@ void wlc_init(struct wlc_info *wlc)
 	wlc->tx_suspended = false;
 
 	/* enable the RF Disable Delay timer */
-	W_REG(wlc->osh, &wlc->regs->rfdisabledly, RFDISABLE_DEFAULT);
+	W_REG(&wlc->regs->rfdisabledly, RFDISABLE_DEFAULT);
 
 	/* initialize mpc delay */
 	wlc->mpc_delay_off = wlc->mpc_dlycnt = WLC_MPC_MIN_DELAYCNT;
@@ -615,12 +617,13 @@ bool wlc_ps_check(struct wlc_info *wlc)
 	bool wake_ok;
 
 	if (!AP_ACTIVE(wlc)) {
-		volatile u32 tmp;
-		tmp = R_REG(wlc->osh, &wlc->regs->maccontrol);
+		u32 tmp;
+		tmp = R_REG(&wlc->regs->maccontrol);
 
-		/* If deviceremoved is detected, then don't take any action as this can be called
-		 * in any context. Assume that caller will take care of the condition. This is just
-		 * to avoid assert
+		/*
+		 * If deviceremoved is detected, then don't take any action as
+		 * this can be called in any context. Assume that caller will
+		 * take care of the condition. This is just to avoid assert
 		 */
 		if (tmp == 0xffffffff) {
 			WL_ERROR("wl%d: %s: dead chip\n",
@@ -670,7 +673,7 @@ void wlc_set_ps_ctrl(struct wlc_info *wlc)
 	WL_TRACE("wl%d: wlc_set_ps_ctrl: hps %d wake %d\n",
 		 wlc->pub->unit, hps, wake);
 
-	v1 = R_REG(wlc->osh, &wlc->regs->maccontrol);
+	v1 = R_REG(&wlc->regs->maccontrol);
 	v2 = 0;
 	if (hps)
 		v2 |= MCTL_HPS;
@@ -1414,7 +1417,7 @@ void wlc_wme_setparams(struct wlc_info *wlc, u16 aci, void *arg, bool suspend)
 		acp_shm.cwmax = params->cw_max;
 		acp_shm.cwcur = acp_shm.cwmin;
 		acp_shm.bslots =
-		    R_REG(wlc->osh, &wlc->regs->tsf_random) & acp_shm.cwcur;
+		    R_REG(&wlc->regs->tsf_random) & acp_shm.cwcur;
 		acp_shm.reggap = acp_shm.bslots + acp_shm.aifs;
 		/* Indicate the new params to the ucode */
 		acp_shm.status = wlc_read_shm(wlc, (M_EDCF_QINFO +
@@ -1501,7 +1504,7 @@ void wlc_edcf_setparams(wlc_bsscfg_t *cfg, bool suspend)
 					    >> EDCF_ECWMAX_SHIFT);
 		acp_shm.cwcur = acp_shm.cwmin;
 		acp_shm.bslots =
-		    R_REG(wlc->osh, &wlc->regs->tsf_random) & acp_shm.cwcur;
+		    R_REG(&wlc->regs->tsf_random) & acp_shm.cwcur;
 		acp_shm.reggap = acp_shm.bslots + acp_shm.aifs;
 		/* Indicate the new params to the ucode */
 		acp_shm.status = wlc_read_shm(wlc, (M_EDCF_QINFO +
@@ -3319,13 +3322,11 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 		}
 		if (r->size == sizeof(u32))
 			r->val =
-			    R_REG(osh,
-				  (u32 *)((unsigned char *)(unsigned long)regs +
+			    R_REG((u32 *)((unsigned char *)(unsigned long)regs +
 					      r->byteoff));
 		else if (r->size == sizeof(u16))
 			r->val =
-			    R_REG(osh,
-				  (u16 *)((unsigned char *)(unsigned long)regs +
+			    R_REG((u16 *)((unsigned char *)(unsigned long)regs +
 					      r->byteoff));
 		else
 			bcmerror = BCME_BADADDR;
@@ -3354,12 +3355,10 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 			break;
 		}
 		if (r->size == sizeof(u32))
-			W_REG(osh,
-			      (u32 *)((unsigned char *)(unsigned long) regs +
+			W_REG((u32 *)((unsigned char *)(unsigned long) regs +
 					  r->byteoff), r->val);
 		else if (r->size == sizeof(u16))
-			W_REG(osh,
-			      (u16 *)((unsigned char *)(unsigned long) regs +
+			W_REG((u16 *)((unsigned char *)(unsigned long) regs +
 					  r->byteoff), r->val);
 		else
 			bcmerror = BCME_BADADDR;
@@ -3429,7 +3428,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 				break;
 			}
 
-			rxstatus = R_REG(wlc->osh, &wlc->regs->phyrxstatus0);
+			rxstatus = R_REG(&wlc->regs->phyrxstatus0);
 			if (rxstatus == 0xdead || rxstatus == (u16) -1) {
 				bcmerror = BCME_ERROR;
 				break;
@@ -6433,12 +6432,12 @@ void wlc_tbtt(struct wlc_info *wlc, d11regs_t *regs)
 /* GP timer is a freerunning 32 bit counter, decrements at 1 us rate */
 void wlc_hwtimer_gptimer_set(struct wlc_info *wlc, uint us)
 {
-	W_REG(wlc->osh, &wlc->regs->gptimer, us);
+	W_REG(&wlc->regs->gptimer, us);
 }
 
 void wlc_hwtimer_gptimer_abort(struct wlc_info *wlc)
 {
-	W_REG(wlc->osh, &wlc->regs->gptimer, 0);
+	W_REG(&wlc->regs->gptimer, 0);
 }
 
 static void wlc_hwtimer_gptimer_cb(struct wlc_info *wlc)
@@ -6446,7 +6445,7 @@ static void wlc_hwtimer_gptimer_cb(struct wlc_info *wlc)
 	/* when interrupt is generated, the counter is loaded with last value
 	 * written and continue to decrement. So it has to be cleaned first
 	 */
-	W_REG(wlc->osh, &wlc->regs->gptimer, 0);
+	W_REG(&wlc->regs->gptimer, 0);
 }
 
 /*
@@ -6529,9 +6528,9 @@ void wlc_high_dpc(struct wlc_info *wlc, u32 macintstatus)
 	if (macintstatus & MI_RFDISABLE) {
 		WL_ERROR("wl%d: MAC Detected a change on the RF Disable Input 0x%x\n",
 			 wlc->pub->unit,
-			 R_REG(wlc->osh, &regs->phydebug) & PDBG_RFD);
+			 R_REG(&regs->phydebug) & PDBG_RFD);
 		/* delay the cleanup to wl_down in IBSS case */
-		if ((R_REG(wlc->osh, &regs->phydebug) & PDBG_RFD)) {
+		if ((R_REG(&regs->phydebug) & PDBG_RFD)) {
 			int idx;
 			wlc_bsscfg_t *bsscfg;
 			FOREACH_BSS(wlc, idx, bsscfg) {
@@ -7738,8 +7737,9 @@ void wlc_bss_update_beacon(struct wlc_info *wlc, wlc_bsscfg_t *cfg)
 		return;
 	}
 
-	if (MBSS_BCN_ENAB(cfg)) {	/* Optimize:  Some of if/else could be combined */
-	} else if (HWBCN_ENAB(cfg)) {	/* Hardware beaconing for this config */
+	/* Optimize:  Some of if/else could be combined */
+	if (!MBSS_BCN_ENAB(cfg) && HWBCN_ENAB(cfg)) {
+		/* Hardware beaconing for this config */
 		u16 bcn[BCN_TMPL_LEN / 2];
 		u32 both_valid = MCMD_BCN0VLD | MCMD_BCN1VLD;
 		d11regs_t *regs = wlc->regs;
@@ -7750,14 +7750,14 @@ void wlc_bss_update_beacon(struct wlc_info *wlc, wlc_bsscfg_t *cfg)
 		/* Check if both templates are in use, if so sched. an interrupt
 		 *      that will call back into this routine
 		 */
-		if ((R_REG(osh, &regs->maccommand) & both_valid) == both_valid) {
+		if ((R_REG(&regs->maccommand) & both_valid) == both_valid) {
 			/* clear any previous status */
-			W_REG(osh, &regs->macintstatus, MI_BCNTPL);
+			W_REG(&regs->macintstatus, MI_BCNTPL);
 		}
 		/* Check that after scheduling the interrupt both of the
 		 *      templates are still busy. if not clear the int. & remask
 		 */
-		if ((R_REG(osh, &regs->maccommand) & both_valid) == both_valid) {
+		if ((R_REG(&regs->maccommand) & both_valid) == both_valid) {
 			wlc->defmacintmask |= MI_BCNTPL;
 			return;
 		}

@@ -1415,15 +1415,15 @@ srom_cc_cmd(si_t *sih, struct osl_info *osh, void *ccregs, u32 cmd,
 	uint wait_cnt = 1000;
 
 	if ((cmd == SRC_OP_READ) || (cmd == SRC_OP_WRITE)) {
-		W_REG(osh, &cc->sromaddress, wordoff * 2);
+		W_REG(&cc->sromaddress, wordoff * 2);
 		if (cmd == SRC_OP_WRITE)
-			W_REG(osh, &cc->sromdata, data);
+			W_REG(&cc->sromdata, data);
 	}
 
-	W_REG(osh, &cc->sromcontrol, SRC_START | cmd);
+	W_REG(&cc->sromcontrol, SRC_START | cmd);
 
 	while (wait_cnt--) {
-		if ((R_REG(osh, &cc->sromcontrol) & SRC_BUSY) == 0)
+		if ((R_REG(&cc->sromcontrol) & SRC_BUSY) == 0)
 			break;
 	}
 
@@ -1432,7 +1432,7 @@ srom_cc_cmd(si_t *sih, struct osl_info *osh, void *ccregs, u32 cmd,
 		return 0xffff;
 	}
 	if (cmd == SRC_OP_READ)
-		return (u16) R_REG(osh, &cc->sromdata);
+		return (u16) R_REG(&cc->sromdata);
 	else
 		return 0xffff;
 }
@@ -1476,9 +1476,9 @@ sprom_read_pci(struct osl_info *osh, si_t *sih, u16 *sprom, uint wordoff,
 
 		} else {
 			if (ISSIM_ENAB(sih))
-				buf[i] = R_REG(osh, &sprom[wordoff + i]);
+				buf[i] = R_REG(&sprom[wordoff + i]);
 
-			buf[i] = R_REG(osh, &sprom[wordoff + i]);
+			buf[i] = R_REG(&sprom[wordoff + i]);
 		}
 
 	}

@@ -194,7 +194,7 @@ extern const u8 prio2fifo[];
  */
 #define DEVICEREMOVED(wlc)      \
 	((wlc->hw->clk) ?   \
-	((R_REG(wlc->hw->osh, &wlc->hw->regs->maccontrol) & \
+	((R_REG(&wlc->hw->regs->maccontrol) & \
 	(MCTL_PSM_JMP_0 | MCTL_IHR_EN)) != MCTL_IHR_EN) : \
 	(si_deviceremoved(wlc->hw->sih)))
 

@@ -1159,7 +1159,7 @@ extern void wlc_phy_table_write_nphy(phy_info_t *pi, u32, u32, u32,
 
 #define WLC_PHY_WAR_PR51571(pi) \
 	if (((pi)->sh->bustype == PCI_BUS) && NREV_LT((pi)->pubpi.phy_rev, 3)) \
-		(void)R_REG((pi)->sh->osh, &(pi)->regs->maccontrol)
+		(void)R_REG(&(pi)->regs->maccontrol)
 
 extern void wlc_phy_cal_perical_nphy_run(phy_info_t *pi, u8 caltype);
 extern void wlc_phy_aci_reset_nphy(phy_info_t *pi);

@@ -361,11 +361,11 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 #endif
 
 /* Register operations */
-#define AND_REG(osh, r, v)	W_REG(osh, (r), R_REG(osh, r) & (v))
-#define OR_REG(osh, r, v)	W_REG(osh, (r), R_REG(osh, r) | (v))
+#define AND_REG(r, v)	W_REG((r), R_REG(r) & (v))
+#define OR_REG(r, v)	W_REG((r), R_REG(r) | (v))
 
-#define SET_REG(osh, r, mask, val) \
-		W_REG((osh), (r), ((R_REG((osh), r) & ~(mask)) | (val)))
+#define SET_REG(r, mask, val) \
+		W_REG((r), ((R_REG(r) & ~(mask)) | (val)))
 
 #ifndef setbit
 #ifndef NBBY			/* the BSD family defines NBBY */

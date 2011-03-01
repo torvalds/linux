@@ -920,9 +920,7 @@ wlc_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 		u8 status_delay = 0;
 
 		/* wait till the next 8 bytes of txstatus is available */
-		while (((s1 =
-			 R_REG(wlc->osh,
-			       &wlc->regs->frmtxstatus)) & TXS_V) == 0) {
+		while (((s1 = R_REG(&wlc->regs->frmtxstatus)) & TXS_V) == 0) {
 			udelay(1);
 			status_delay++;
 			if (status_delay > 10) {
@@ -933,7 +931,7 @@ wlc_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 
 		ASSERT(!(s1 & TX_STATUS_INTERMEDIATE));
 		ASSERT(s1 & TX_STATUS_AMPDU);
-		s2 = R_REG(wlc->osh, &wlc->regs->frmtxstatus2);
+		s2 = R_REG(&wlc->regs->frmtxstatus2);
 	}
 
 	wlc_ampdu_dotxstatus_complete(ampdu, scb, p, txs, s1, s2);

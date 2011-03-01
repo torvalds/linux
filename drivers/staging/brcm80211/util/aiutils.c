@@ -41,7 +41,7 @@ get_erom_ent(si_t *sih, u32 **eromptr, u32 mask, u32 match)
 	uint inv = 0, nom = 0;
 
 	while (true) {
-		ent = R_REG(si_osh(sih), *eromptr);
+		ent = R_REG(*eromptr);
 		(*eromptr)++;
 
 		if (mask == 0)
@@ -115,7 +115,7 @@ void ai_scan(si_t *sih, void *regs, uint devid)
 	chipcregs_t *cc = (chipcregs_t *) regs;
 	u32 erombase, *eromptr, *eromlim;
 
-	erombase = R_REG(sii->osh, &cc->eromptr);
+	erombase = R_REG(&cc->eromptr);
 
 	switch (sih->bustype) {
 	case SI_BUS:
@@ -427,7 +427,7 @@ uint ai_flag(si_t *sih)
 	}
 	ai = sii->curwrap;
 
-	return R_REG(sii->osh, &ai->oobselouta30) & 0x1f;
+	return R_REG(&ai->oobselouta30) & 0x1f;
 }
 
 void ai_setint(si_t *sih, int siflag)
@@ -438,7 +438,7 @@ void ai_write_wrap_reg(si_t *sih, u32 offset, u32 val)
 {
 	si_info_t *sii = SI_INFO(sih);
 	u32 *w = (u32 *) sii->curwrap;
-	W_REG(sii->osh, w + (offset / 4), val);
+	W_REG(w + (offset / 4), val);
 	return;
 }
 
@@ -470,9 +470,9 @@ bool ai_iscoreup(si_t *sih)
 	sii = SI_INFO(sih);
 	ai = sii->curwrap;
 
-	return (((R_REG(sii->osh, &ai->ioctrl) & (SICF_FGC | SICF_CLOCK_EN)) ==
+	return (((R_REG(&ai->ioctrl) & (SICF_FGC | SICF_CLOCK_EN)) ==
 		 SICF_CLOCK_EN)
-		&& ((R_REG(sii->osh, &ai->resetctrl) & AIRC_RESET) == 0));
+		&& ((R_REG(&ai->resetctrl) & AIRC_RESET) == 0));
 }
 
 /*
@@ -553,12 +553,12 @@ uint ai_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 
 	/* mask and set */
 	if (mask || val) {
-		w = (R_REG(sii->osh, r) & ~mask) | val;
-		W_REG(sii->osh, r, w);
+		w = (R_REG(r) & ~mask) | val;
+		W_REG(r, w);
 	}
 
 	/* readback */
-	w = R_REG(sii->osh, r);
+	w = R_REG(r);
 
 	if (!fast) {
 		/* restore core index */
@@ -583,14 +583,14 @@ void ai_core_disable(si_t *sih, u32 bits)
 	ai = sii->curwrap;
 
 	/* if core is already in reset, just return */
-	if (R_REG(sii->osh, &ai->resetctrl) & AIRC_RESET)
+	if (R_REG(&ai->resetctrl) & AIRC_RESET)
 		return;
 
-	W_REG(sii->osh, &ai->ioctrl, bits);
-	dummy = R_REG(sii->osh, &ai->ioctrl);
+	W_REG(&ai->ioctrl, bits);
+	dummy = R_REG(&ai->ioctrl);
 	udelay(10);
 
-	W_REG(sii->osh, &ai->resetctrl, AIRC_RESET);
+	W_REG(&ai->resetctrl, AIRC_RESET);
 	udelay(1);
 }
 
@@ -617,13 +617,13 @@ void ai_core_reset(si_t *sih, u32 bits, u32 resetbits)
 	/*
 	 * Now do the initialization sequence.
 	 */
-	W_REG(sii->osh, &ai->ioctrl, (bits | SICF_FGC | SICF_CLOCK_EN));
-	dummy = R_REG(sii->osh, &ai->ioctrl);
-	W_REG(sii->osh, &ai->resetctrl, 0);
+	W_REG(&ai->ioctrl, (bits | SICF_FGC | SICF_CLOCK_EN));
+	dummy = R_REG(&ai->ioctrl);
+	W_REG(&ai->resetctrl, 0);
 	udelay(1);
 
-	W_REG(sii->osh, &ai->ioctrl, (bits | SICF_CLOCK_EN));
-	dummy = R_REG(sii->osh, &ai->ioctrl);
+	W_REG(&ai->ioctrl, (bits | SICF_CLOCK_EN));
+	dummy = R_REG(&ai->ioctrl);
 	udelay(1);
 }
 
@@ -647,8 +647,8 @@ void ai_core_cflags_wo(si_t *sih, u32 mask, u32 val)
 	ASSERT((val & ~mask) == 0);
 
 	if (mask || val) {
-		w = ((R_REG(sii->osh, &ai->ioctrl) & ~mask) | val);
-		W_REG(sii->osh, &ai->ioctrl, w);
+		w = ((R_REG(&ai->ioctrl) & ~mask) | val);
+		W_REG(&ai->ioctrl, w);
 	}
 }
 
@@ -671,11 +671,11 @@ u32 ai_core_cflags(si_t *sih, u32 mask, u32 val)
 	ASSERT((val & ~mask) == 0);
 
 	if (mask || val) {
-		w = ((R_REG(sii->osh, &ai->ioctrl) & ~mask) | val);
-		W_REG(sii->osh, &ai->ioctrl, w);
+		w = ((R_REG(&ai->ioctrl) & ~mask) | val);
+		W_REG(&ai->ioctrl, w);
 	}
 
-	return R_REG(sii->osh, &ai->ioctrl);
+	return R_REG(&ai->ioctrl);
 }
 
 u32 ai_core_sflags(si_t *sih, u32 mask, u32 val)
@@ -697,10 +697,10 @@ u32 ai_core_sflags(si_t *sih, u32 mask, u32 val)
 	ASSERT((mask & ~SISF_CORE_BITS) == 0);
 
 	if (mask || val) {
-		w = ((R_REG(sii->osh, &ai->iostatus) & ~mask) | val);
-		W_REG(sii->osh, &ai->iostatus, w);
+		w = ((R_REG(&ai->iostatus) & ~mask) | val);
+		W_REG(&ai->iostatus, w);
 	}
 
-	return R_REG(sii->osh, &ai->iostatus);
+	return R_REG(&ai->iostatus);
 }
 

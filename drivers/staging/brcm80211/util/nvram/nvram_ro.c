@@ -48,13 +48,10 @@ static char *findvar(char *vars, char *lim, const char *name);
 /* copy flash to ram */
 static void get_flash_nvram(si_t *sih, struct nvram_header *nvh)
 {
-	struct osl_info *osh;
 	uint nvs, bufsz;
 	vars_t *new;
 
-	osh = si_osh(sih);
-
-	nvs = R_REG(osh, &nvh->len) - sizeof(struct nvram_header);
+	nvs = R_REG(&nvh->len) - sizeof(struct nvram_header);
 	bufsz = nvs + VARS_T_OH;
 
 	new = kmalloc(bufsz, GFP_ATOMIC);

@@ -14569,11 +14569,11 @@ void WLBANDINITFN(wlc_phy_init_nphy) (phy_info_t *pi)
 						    &origidx, &intr_val);
 		ASSERT(regs != NULL);
 
-		d11_clk_ctl_st = R_REG(pi->sh->osh, &regs->clk_ctl_st);
-		AND_REG(pi->sh->osh, &regs->clk_ctl_st,
+		d11_clk_ctl_st = R_REG(&regs->clk_ctl_st);
+		AND_REG(&regs->clk_ctl_st,
 			~(CCS_FORCEHT | CCS_HTAREQ));
 
-		W_REG(pi->sh->osh, &regs->clk_ctl_st, d11_clk_ctl_st);
+		W_REG(&regs->clk_ctl_st, d11_clk_ctl_st);
 
 		si_restore_core(pi->sh->sih, origidx, intr_val);
 	}
@@ -14964,7 +14964,7 @@ static void wlc_phy_resetcca_nphy(phy_info_t *pi)
 {
 	u16 val;
 
-	ASSERT(0 == (R_REG(pi->sh->osh, &pi->regs->maccontrol) & MCTL_EN_MAC));
+	ASSERT(0 == (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC));
 
 	wlapi_bmac_phyclk_fgc(pi->sh->physhim, ON);
 
@@ -15057,7 +15057,7 @@ void wlc_phy_rxcore_setstate_nphy(wlc_phy_t *pih, u8 rxcore_bitmask)
 		return;
 
 	suspend =
-	    (0 == (R_REG(pi->sh->osh, &pi->regs->maccontrol) & MCTL_EN_MAC));
+	    (0 == (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC));
 	if (!suspend)
 		wlapi_suspend_mac_and_wait(pi->sh->physhim);
 
@@ -18983,28 +18983,28 @@ wlc_phy_chanspec_nphy_setup(phy_info_t *pi, chanspec_t chanspec,
 	val = read_phy_reg(pi, 0x09) & NPHY_BandControl_currentBand;
 	if (CHSPEC_IS5G(chanspec) && !val) {
 
-		val = R_REG(pi->sh->osh, &pi->regs->psm_phy_hdr_param);
-		W_REG(pi->sh->osh, &pi->regs->psm_phy_hdr_param,
+		val = R_REG(&pi->regs->psm_phy_hdr_param);
+		W_REG(&pi->regs->psm_phy_hdr_param,
 		      (val | MAC_PHY_FORCE_CLK));
 
 		or_phy_reg(pi, (NPHY_TO_BPHY_OFF + BPHY_BB_CONFIG),
 			   (BBCFG_RESETCCA | BBCFG_RESETRX));
 
-		W_REG(pi->sh->osh, &pi->regs->psm_phy_hdr_param, val);
+		W_REG(&pi->regs->psm_phy_hdr_param, val);
 
 		or_phy_reg(pi, 0x09, NPHY_BandControl_currentBand);
 	} else if (!CHSPEC_IS5G(chanspec) && val) {
 
 		and_phy_reg(pi, 0x09, ~NPHY_BandControl_currentBand);
 
-		val = R_REG(pi->sh->osh, &pi->regs->psm_phy_hdr_param);
-		W_REG(pi->sh->osh, &pi->regs->psm_phy_hdr_param,
+		val = R_REG(&pi->regs->psm_phy_hdr_param);
+		W_REG(&pi->regs->psm_phy_hdr_param,
 		      (val | MAC_PHY_FORCE_CLK));
 
 		and_phy_reg(pi, (NPHY_TO_BPHY_OFF + BPHY_BB_CONFIG),
 			    (u16) (~(BBCFG_RESETCCA | BBCFG_RESETRX)));
 
-		W_REG(pi->sh->osh, &pi->regs->psm_phy_hdr_param, val);
+		W_REG(&pi->regs->psm_phy_hdr_param, val);
 	}
 
 	write_phy_reg(pi, 0x1ce, ci->PHY_BW1a);
@@ -19095,15 +19095,15 @@ wlc_phy_chanspec_nphy_setup(phy_info_t *pi, chanspec_t chanspec,
 
 			if (spuravoid == 1) {
 
-				W_REG(pi->sh->osh, &pi->regs->tsf_clk_frac_l,
+				W_REG(&pi->regs->tsf_clk_frac_l,
 				      0x5341);
-				W_REG(pi->sh->osh, &pi->regs->tsf_clk_frac_h,
+				W_REG(&pi->regs->tsf_clk_frac_h,
 				      0x8);
 			} else {
 
-				W_REG(pi->sh->osh, &pi->regs->tsf_clk_frac_l,
+				W_REG(&pi->regs->tsf_clk_frac_l,
 				      0x8889);
-				W_REG(pi->sh->osh, &pi->regs->tsf_clk_frac_h,
+				W_REG(&pi->regs->tsf_clk_frac_h,
 				      0x8);
 			}
 		}
@@ -19609,13 +19609,13 @@ void wlc_phy_antsel_init(wlc_phy_t *ppi, bool lut_init)
 
 		si_gpiocontrol(pi->sh->sih, mask, mask, GPIO_DRV_PRIORITY);
 
-		mc = R_REG(pi->sh->osh, &pi->regs->maccontrol);
+		mc = R_REG(&pi->regs->maccontrol);
 		mc &= ~MCTL_GPOUT_SEL_MASK;
-		W_REG(pi->sh->osh, &pi->regs->maccontrol, mc);
+		W_REG(&pi->regs->maccontrol, mc);
 
-		OR_REG(pi->sh->osh, &pi->regs->psm_gpio_oe, mask);
+		OR_REG(&pi->regs->psm_gpio_oe, mask);
 
-		AND_REG(pi->sh->osh, &pi->regs->psm_gpio_out, ~mask);
+		AND_REG(&pi->regs->psm_gpio_out, ~mask);
 
 		if (lut_init) {
 			write_phy_reg(pi, 0xf8, 0x02d8);
@@ -19633,7 +19633,7 @@ u16 wlc_phy_classifier_nphy(phy_info_t *pi, u16 mask, u16 val)
 
 	if (D11REV_IS(pi->sh->corerev, 16)) {
 		suspended =
-		    (R_REG(pi->sh->osh, &pi->regs->maccontrol) & MCTL_EN_MAC) ?
+		    (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC) ?
 		    false : true;
 		if (!suspended)
 			wlapi_suspend_mac_and_wait(pi->sh->physhim);
@@ -27257,7 +27257,7 @@ static void wlc_phy_a4(phy_info_t *pi, bool full_cal)
 		return;
 
 	phy_b3 =
-	    (0 == (R_REG(pi->sh->osh, &pi->regs->maccontrol) & MCTL_EN_MAC));
+	    (0 == (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC));
 	if (!phy_b3) {
 		wlapi_suspend_mac_and_wait(pi->sh->physhim);
 	}
@@ -28221,7 +28221,7 @@ void wlc_phy_txpower_recalc_target_nphy(phy_info_t *pi)
 
 	if (D11REV_IS(pi->sh->corerev, 11) || D11REV_IS(pi->sh->corerev, 12)) {
 		wlapi_bmac_mctrl(pi->sh->physhim, MCTL_PHYLOCK, MCTL_PHYLOCK);
-		(void)R_REG(pi->sh->osh, &pi->regs->maccontrol);
+		(void)R_REG(&pi->regs->maccontrol);
 		udelay(1);
 	}
 
@@ -28492,7 +28492,7 @@ static void wlc_phy_txpwrctrl_pwr_setup_nphy(phy_info_t *pi)
 
 	if (D11REV_IS(pi->sh->corerev, 11) || D11REV_IS(pi->sh->corerev, 12)) {
 		wlapi_bmac_mctrl(pi->sh->physhim, MCTL_PHYLOCK, MCTL_PHYLOCK);
-		(void)R_REG(pi->sh->osh, &pi->regs->maccontrol);
+		(void)R_REG(&pi->regs->maccontrol);
 		udelay(1);
 	}
 
@@ -28649,7 +28649,7 @@ static void wlc_phy_txpwrctrl_pwr_setup_nphy(phy_info_t *pi)
 
 	if (D11REV_IS(pi->sh->corerev, 11) || D11REV_IS(pi->sh->corerev, 12)) {
 		wlapi_bmac_mctrl(pi->sh->physhim, MCTL_PHYLOCK, MCTL_PHYLOCK);
-		(void)R_REG(pi->sh->osh, &pi->regs->maccontrol);
+		(void)R_REG(&pi->regs->maccontrol);
 		udelay(1);
 	}
 
@@ -29194,7 +29194,7 @@ void wlc_phy_stay_in_carriersearch_nphy(phy_info_t *pi, bool enable)
 {
 	u16 clip_off[] = { 0xffff, 0xffff };
 
-	ASSERT(0 == (R_REG(pi->sh->osh, &pi->regs->maccontrol) & MCTL_EN_MAC));
+	ASSERT(0 == (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC));
 
 	if (enable) {
 		if (pi->nphy_deaf_count == 0) {

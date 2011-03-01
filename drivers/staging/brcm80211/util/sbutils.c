@@ -54,12 +54,12 @@ static void *_sb_setcoreidx(si_info_t *sii, uint coreidx);
 
 static u32 sb_read_sbreg(si_info_t *sii, volatile u32 *sbr)
 {
-	return R_REG(sii->osh, sbr);
+	return R_REG(sbr);
 }
 
 static void sb_write_sbreg(si_info_t *sii, volatile u32 *sbr, u32 v)
 {
-	W_REG(sii->osh, sbr, v);
+	W_REG(sbr, v);
 }
 
 uint sb_coreid(si_t *sih)
@@ -178,8 +178,8 @@ uint sb_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 			w = (R_SBREG(sii, r) & ~mask) | val;
 			W_SBREG(sii, r, w);
 		} else {
-			w = (R_REG(sii->osh, r) & ~mask) | val;
-			W_REG(sii->osh, r, w);
+			w = (R_REG(r) & ~mask) | val;
+			W_REG(r, w);
 		}
 	}
 
@@ -187,7 +187,7 @@ uint sb_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 	if (regoff >= SBCONFIGOFF)
 		w = R_SBREG(sii, r);
 	else
-		w = R_REG(sii->osh, r);
+		w = R_REG(r);
 
 	if (!fast) {
 		/* restore core index */
@@ -246,7 +246,7 @@ static uint _sb_scan(si_info_t *sii, u32 sba, void *regs, uint bus, u32 sbba,
 				 total # cores in the chip */
 			if (((ccrev == 4) || (ccrev >= 6)))
 				numcores =
-				    (R_REG(sii->osh, &cc->chipid) & CID_CC_MASK)
+				    (R_REG(&cc->chipid) & CID_CC_MASK)
 				    >> CID_CC_SHIFT;
 			else {
 				/* Older chips */

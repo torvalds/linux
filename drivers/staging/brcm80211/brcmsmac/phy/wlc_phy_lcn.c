@@ -2100,7 +2100,7 @@ static void wlc_lcnphy_idle_tssi_est(wlc_phy_t *ppi)
 	idleTssi = read_phy_reg(pi, 0x4ab);
 	suspend =
 	    (0 ==
-	     (R_REG(pi->sh->osh, &((phy_info_t *) pi)->regs->maccontrol) &
+	     (R_REG(&((phy_info_t *) pi)->regs->maccontrol) &
 	      MCTL_EN_MAC));
 	if (!suspend)
 		wlapi_suspend_mac_and_wait(pi->sh->physhim);
@@ -2176,7 +2176,7 @@ static void wlc_lcnphy_vbat_temp_sense_setup(phy_info_t *pi, u8 mode)
 	for (i = 0; i < 14; i++)
 		values_to_save[i] = read_phy_reg(pi, tempsense_phy_regs[i]);
 	suspend =
-	    (0 == (R_REG(pi->sh->osh, &pi->regs->maccontrol) & MCTL_EN_MAC));
+	    (0 == (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC));
 	if (!suspend)
 		wlapi_suspend_mac_and_wait(pi->sh->physhim);
 	save_txpwrCtrlEn = read_radio_reg(pi, 0x4a4);
@@ -2303,7 +2303,7 @@ void WLBANDINITFN(wlc_lcnphy_tx_pwr_ctrl_init) (wlc_phy_t *ppi)
 	phy_info_t *pi = (phy_info_t *) ppi;
 
 	suspend =
-	    (0 == (R_REG(pi->sh->osh, &pi->regs->maccontrol) & MCTL_EN_MAC));
+	    (0 == (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC));
 	if (!suspend)
 		wlapi_suspend_mac_and_wait(pi->sh->physhim);
 
@@ -2989,7 +2989,7 @@ s16 wlc_lcnphy_tempsense_new(phy_info_t *pi, bool mode)
 	if (mode == 1) {
 		suspend =
 		    (0 ==
-		     (R_REG(pi->sh->osh, &pi->regs->maccontrol) & MCTL_EN_MAC));
+		     (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC));
 		if (!suspend)
 			wlapi_suspend_mac_and_wait(pi->sh->physhim);
 		wlc_lcnphy_vbat_temp_sense_setup(pi, TEMPSENSE);
@@ -3036,7 +3036,7 @@ u16 wlc_lcnphy_tempsense(phy_info_t *pi, bool mode)
 	if (mode == 1) {
 		suspend =
 		    (0 ==
-		     (R_REG(pi->sh->osh, &pi->regs->maccontrol) & MCTL_EN_MAC));
+		     (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC));
 		if (!suspend)
 			wlapi_suspend_mac_and_wait(pi->sh->physhim);
 		wlc_lcnphy_vbat_temp_sense_setup(pi, TEMPSENSE);
@@ -3104,7 +3104,7 @@ s8 wlc_lcnphy_vbatsense(phy_info_t *pi, bool mode)
 	if (mode == 1) {
 		suspend =
 		    (0 ==
-		     (R_REG(pi->sh->osh, &pi->regs->maccontrol) & MCTL_EN_MAC));
+		     (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC));
 		if (!suspend)
 			wlapi_suspend_mac_and_wait(pi->sh->physhim);
 		wlc_lcnphy_vbat_temp_sense_setup(pi, VBATSENSE);
@@ -3459,7 +3459,7 @@ static void wlc_lcnphy_glacial_timer_based_cal(phy_info_t *pi)
 	u16 SAVE_pwrctrl = wlc_lcnphy_get_tx_pwr_ctrl(pi);
 	phy_info_lcnphy_t *pi_lcn = pi->u.pi_lcnphy;
 	suspend =
-	    (0 == (R_REG(pi->sh->osh, &pi->regs->maccontrol) & MCTL_EN_MAC));
+	    (0 == (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC));
 	if (!suspend)
 		wlapi_suspend_mac_and_wait(pi->sh->physhim);
 	wlc_lcnphy_deaf_mode(pi, true);
@@ -3501,7 +3501,7 @@ static void wlc_lcnphy_periodic_cal(phy_info_t *pi)
 	index = pi_lcn->lcnphy_current_index;
 
 	suspend =
-	    (0 == (R_REG(pi->sh->osh, &pi->regs->maccontrol) & MCTL_EN_MAC));
+	    (0 == (R_REG(&pi->regs->maccontrol) & MCTL_EN_MAC));
 	if (!suspend) {
 
 		wlapi_bmac_write_shm(pi->sh->physhim, M_CTS_DURATION, 10000);
@@ -3859,15 +3859,15 @@ wlc_lcnphy_samp_cap(phy_info_t *pi, int clip_detect_algo, u16 thresh,
 	timer = 0;
 	old_sslpnCalibClkEnCtrl = read_phy_reg(pi, 0x6da);
 
-	curval1 = R_REG(pi->sh->osh, &pi->regs->psm_corectlsts);
+	curval1 = R_REG(&pi->regs->psm_corectlsts);
 	ptr[130] = 0;
-	W_REG(pi->sh->osh, &pi->regs->psm_corectlsts, ((1 << 6) | curval1));
+	W_REG(&pi->regs->psm_corectlsts, ((1 << 6) | curval1));
 
-	W_REG(pi->sh->osh, &pi->regs->smpl_clct_strptr, 0x7E00);
-	W_REG(pi->sh->osh, &pi->regs->smpl_clct_stpptr, 0x8000);
+	W_REG(&pi->regs->smpl_clct_strptr, 0x7E00);
+	W_REG(&pi->regs->smpl_clct_stpptr, 0x8000);
 	udelay(20);
-	curval2 = R_REG(pi->sh->osh, &pi->regs->psm_phy_hdr_param);
-	W_REG(pi->sh->osh, &pi->regs->psm_phy_hdr_param, curval2 | 0x30);
+	curval2 = R_REG(&pi->regs->psm_phy_hdr_param);
+	W_REG(&pi->regs->psm_phy_hdr_param, curval2 | 0x30);
 
 	write_phy_reg(pi, 0x555, 0x0);
 	write_phy_reg(pi, 0x5a6, 0x5);
@@ -3884,19 +3884,19 @@ wlc_lcnphy_samp_cap(phy_info_t *pi, int clip_detect_algo, u16 thresh,
 
 	sslpnCalibClkEnCtrl = read_phy_reg(pi, 0x6da);
 	write_phy_reg(pi, 0x6da, (u32) (sslpnCalibClkEnCtrl | 0x2008));
-	stpptr = R_REG(pi->sh->osh, &pi->regs->smpl_clct_stpptr);
-	curptr = R_REG(pi->sh->osh, &pi->regs->smpl_clct_curptr);
+	stpptr = R_REG(&pi->regs->smpl_clct_stpptr);
+	curptr = R_REG(&pi->regs->smpl_clct_curptr);
 	do {
 		udelay(10);
-		curptr = R_REG(pi->sh->osh, &pi->regs->smpl_clct_curptr);
+		curptr = R_REG(&pi->regs->smpl_clct_curptr);
 		timer++;
 	} while ((curptr != stpptr) && (timer < 500));
 
-	W_REG(pi->sh->osh, &pi->regs->psm_phy_hdr_param, 0x2);
+	W_REG(&pi->regs->psm_phy_hdr_param, 0x2);
 	strptr = 0x7E00;
-	W_REG(pi->sh->osh, &pi->regs->tplatewrptr, strptr);
+	W_REG(&pi->regs->tplatewrptr, strptr);
 	while (strptr < 0x8000) {
-		val = R_REG(pi->sh->osh, &pi->regs->tplatewrdata);
+		val = R_REG(&pi->regs->tplatewrdata);
 		imag = ((val >> 16) & 0x3ff);
 		real = ((val) & 0x3ff);
 		if (imag > 511) {
@@ -3919,8 +3919,8 @@ wlc_lcnphy_samp_cap(phy_info_t *pi, int clip_detect_algo, u16 thresh,
 	}
 
 	write_phy_reg(pi, 0x6da, old_sslpnCalibClkEnCtrl);
-	W_REG(pi->sh->osh, &pi->regs->psm_phy_hdr_param, curval2);
-	W_REG(pi->sh->osh, &pi->regs->psm_corectlsts, curval1);
+	W_REG(&pi->regs->psm_phy_hdr_param, curval2);
+	W_REG(&pi->regs->psm_corectlsts, curval1);
 }
 
 static void wlc_lcnphy_tx_iqlo_soft_cal_full(phy_info_t *pi)

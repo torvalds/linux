@@ -59,9 +59,9 @@ extern uint osl_pci_slot(struct osl_info *osh);
 #ifdef BRCM_FULLMAC
 #include <bcmsdh.h>
 #endif
-#define OSL_WRITE_REG(osh, r, v) \
+#define OSL_WRITE_REG(r, v) \
 		(bcmsdh_reg_write(NULL, (unsigned long)(r), sizeof(*(r)), (v)))
-#define OSL_READ_REG(osh, r) \
+#define OSL_READ_REG(r) \
 		(bcmsdh_reg_read(NULL, (unsigned long)(r), sizeof(*(r))))
 #endif
 
@@ -85,14 +85,14 @@ extern uint osl_pci_slot(struct osl_info *osh);
 /* register access macros */
 #ifndef IL_BIGENDIAN
 #ifndef __mips__
-#define R_REG(osh, r) (\
+#define R_REG(r) (\
 	SELECT_BUS_READ(sizeof(*(r)) == sizeof(u8) ? \
 	readb((volatile u8*)(r)) : \
 	sizeof(*(r)) == sizeof(u16) ? readw((volatile u16*)(r)) : \
-	readl((volatile u32*)(r)), OSL_READ_REG(osh, r)) \
+	readl((volatile u32*)(r)), OSL_READ_REG(r)) \
 )
 #else				/* __mips__ */
-#define R_REG(osh, r) (\
+#define R_REG(r) (\
 	SELECT_BUS_READ( \
 		({ \
 			__typeof(*(r)) __osl_v; \
@@ -115,14 +115,14 @@ extern uint osl_pci_slot(struct osl_info *osh);
 		({ \
 			__typeof(*(r)) __osl_v; \
 			__asm__ __volatile__("sync"); \
-			__osl_v = OSL_READ_REG(osh, r); \
+			__osl_v = OSL_READ_REG(r); \
 			__asm__ __volatile__("sync"); \
 			__osl_v; \
 		})) \
 )
 #endif				/* __mips__ */
 
-#define W_REG(osh, r, v) do { \
+#define W_REG(r, v) do { \
 	SELECT_BUS_WRITE( \
 		switch (sizeof(*(r))) { \
 		case sizeof(u8): \
@@ -132,10 +132,10 @@ extern uint osl_pci_slot(struct osl_info *osh);
 		case sizeof(u32): \
 			writel((u32)(v), (volatile u32*)(r)); break; \
 		}, \
-		(OSL_WRITE_REG(osh, r, v))); \
+		(OSL_WRITE_REG(r, v))); \
 	} while (0)
 #else				/* IL_BIGENDIAN */
-#define R_REG(osh, r) (\
+#define R_REG(r) (\
 	SELECT_BUS_READ( \
 		({ \
 			__typeof(*(r)) __osl_v; \
@@ -154,9 +154,9 @@ extern uint osl_pci_slot(struct osl_info *osh);
 			} \
 			__osl_v; \
 		}), \
-		OSL_READ_REG(osh, r)) \
+		OSL_READ_REG(r)) \
 )
-#define W_REG(osh, r, v) do { \
+#define W_REG(r, v) do { \
 	SELECT_BUS_WRITE( \
 		switch (sizeof(*(r))) { \
 		case sizeof(u8):	\
@@ -169,7 +169,7 @@ extern uint osl_pci_slot(struct osl_info *osh);
 			writel((u32)(v), \
 			(volatile u32*)(r)); break; \
 		}, \
-		(OSL_WRITE_REG(osh, r, v))); \
+		(OSL_WRITE_REG(r, v))); \
 	} while (0)
 #endif				/* IL_BIGENDIAN */
 
