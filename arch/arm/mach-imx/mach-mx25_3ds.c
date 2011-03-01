@@ -103,6 +103,10 @@ static iomux_v3_cfg_t mx25pdk_pads[] = {
 	MX25_PAD_SD1_DATA1__SD1_DATA1,
 	MX25_PAD_SD1_DATA2__SD1_DATA2,
 	MX25_PAD_SD1_DATA3__SD1_DATA3,
+
+	/* I2C1 */
+	MX25_PAD_I2C1_CLK__I2C1_CLK,
+	MX25_PAD_I2C1_DAT__I2C1_DAT,
 };
 
 static const struct fec_platform_data mx25_fec_pdata __initconst = {
@@ -200,6 +204,10 @@ static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.phy_mode       = FSL_USB2_PHY_UTMI,
 };
 
+static const struct imxi2c_platform_data mx25_3ds_i2c0_data __initconst = {
+	.bitrate = 100000,
+};
+
 static void __init mx25pdk_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(mx25pdk_pads,
@@ -218,6 +226,7 @@ static void __init mx25pdk_init(void)
 	imx25_add_imx_keypad(&mx25pdk_keymap_data);
 
 	imx25_add_sdhci_esdhc_imx(0, NULL);
+	imx25_add_imx_i2c0(&mx25_3ds_i2c0_data);
 }
 
 static void __init mx25pdk_timer_init(void)
