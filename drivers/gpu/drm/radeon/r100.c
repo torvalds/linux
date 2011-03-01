@@ -3490,7 +3490,7 @@ void r100_cs_track_clear(struct radeon_device *rdev, struct r100_cs_track *track
 		track->num_texture = 16;
 		track->maxy = 4096;
 		track->separate_cube = 0;
-		track->aaresolve = true;
+		track->aaresolve = false;
 		track->aa.robj = NULL;
 	}
 
@@ -3801,8 +3801,6 @@ static int r100_startup(struct radeon_device *rdev)
 	r100_mc_program(rdev);
 	/* Resume clock */
 	r100_clock_startup(rdev);
-	/* Initialize GPU configuration (# pipes, ...) */
-//	r100_gpu_init(rdev);
 	/* Initialize GART (initialize after TTM so we can allocate
 	 * memory through TTM but finalize after TTM) */
 	r100_enable_bm(rdev);

@@ -323,6 +323,7 @@ static int snd_usb_audio_create(struct usb_device *dev, int idx,
 		return -ENOMEM;
 	}
 
+	mutex_init(&chip->shutdown_mutex);
 	chip->index = idx;
 	chip->dev = dev;
 	chip->card = card;
@@ -531,6 +532,7 @@ static void snd_usb_audio_disconnect(struct usb_device *dev, void *ptr)
 	chip = ptr;
 	card = chip->card;
 	mutex_lock(&register_mutex);
+	mutex_lock(&chip->shutdown_mutex);
 	chip->shutdown = 1;
 	chip->num_interfaces--;
 	if (chip->num_interfaces <= 0) {
@@ -548,9 +550,11 @@ static void snd_usb_audio_disconnect(struct usb_device *dev, void *ptr)
 			snd_usb_mixer_disconnect(p);
 		}
 		usb_chip[chip->index] = NULL;
+		mutex_unlock(&chip->shutdown_mutex);
 		mutex_unlock(&register_mutex);
 		snd_card_free_when_closed(card);
 	} else {
+		mutex_unlock(&chip->shutdown_mutex);
 		mutex_unlock(&register_mutex);
 	}
 }

@@ -60,7 +60,7 @@ enum pn544_irq {
 struct pn544_info {
 	struct miscdevice miscdev;
 	struct i2c_client *i2c_dev;
-	struct regulator_bulk_data regs[2];
+	struct regulator_bulk_data regs[3];
 
 	enum pn544_state state;
 	wait_queue_head_t read_wait;
@@ -74,6 +74,7 @@ struct pn544_info {
 
 static const char reg_vdd_io[]	= "Vdd_IO";
 static const char reg_vbat[]	= "VBat";
+static const char reg_vsim[]	= "VSim";
 
 /* sysfs interface */
 static ssize_t pn544_test(struct device *dev,
@@ -740,6 +741,7 @@ static int __devinit pn544_probe(struct i2c_client *client,
 
 	info->regs[0].supply = reg_vdd_io;
 	info->regs[1].supply = reg_vbat;
+	info->regs[2].supply = reg_vsim;
 	r = regulator_bulk_get(&client->dev, ARRAY_SIZE(info->regs),
 				 info->regs);
 	if (r < 0)

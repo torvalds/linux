@@ -57,5 +57,6 @@ struct tegra_kbc_platform_data {
 	const struct matrix_keymap_data *keymap_data;
 
 	bool wakeup;
+	bool use_fn_map;
 };
 #endif
