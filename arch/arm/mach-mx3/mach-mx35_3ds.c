@@ -118,6 +118,9 @@ static iomux_v3_cfg_t mx35pdk_pads[] = {
 	MX35_PAD_SD1_DATA1__ESDHC1_DAT1,
 	MX35_PAD_SD1_DATA2__ESDHC1_DAT2,
 	MX35_PAD_SD1_DATA3__ESDHC1_DAT3,
+	/* I2C1 */
+	MX35_PAD_I2C1_CLK__I2C1_SCL,
+	MX35_PAD_I2C1_DAT__I2C1_SDA,
 };
 
 static int mx35_3ds_otg_init(struct platform_device *pdev)
@@ -163,6 +166,10 @@ static int __init mx35_3ds_otg_mode(char *options)
 }
 __setup("otg_mode=", mx35_3ds_otg_mode);
 
+static const struct imxi2c_platform_data mx35_3ds_i2c0_data __initconst = {
+	.bitrate = 100000,
+};
+
 /*
  * Board specific initialization.
  */
@@ -190,6 +197,7 @@ static void __init mx35_3ds_init(void)
 	if (mxc_expio_init(MX35_CS5_BASE_ADDR, EXPIO_PARENT_INT))
 		pr_warn("Init of the debugboard failed, all "
 				"devices on the debugboard are unusable.\n");
+	imx35_add_imx_i2c0(&mx35_3ds_i2c0_data);
 }
 
 static void __init mx35pdk_timer_init(void)
