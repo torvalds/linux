@@ -1102,6 +1102,13 @@ static int adc_mux_ev(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int micbias_ev(struct snd_soc_dapm_widget *w,
+		      struct snd_kcontrol *kcontrol, int event)
+{
+	late_enable_ev(w, kcontrol, event);
+	return 0;
+}
+
 static int dac_ev(struct snd_soc_dapm_widget *w,
 		  struct snd_kcontrol *kcontrol, int event)
 {
@@ -1439,6 +1446,10 @@ SND_SOC_DAPM_INPUT("DMIC1DAT"),
 SND_SOC_DAPM_INPUT("DMIC2DAT"),
 SND_SOC_DAPM_INPUT("Clock"),
 
+SND_SOC_DAPM_MICBIAS("MICBIAS", WM8994_MICBIAS, 2, 0),
+SND_SOC_DAPM_SUPPLY_S("MICBIAS Supply", 1, SND_SOC_NOPM, 0, 0, micbias_ev,
+		      SND_SOC_DAPM_PRE_PMU),
+
 SND_SOC_DAPM_SUPPLY("CLK_SYS", SND_SOC_NOPM, 0, 0, clk_sys_event,
 		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
@@ -1754,6 +1765,8 @@ static const struct snd_soc_dapm_route wm8994_revd_intercon[] = {
 	{ "AIF2DACDAT", NULL, "AIF1DACDAT" },
 	{ "AIF1ADCDAT", NULL, "AIF2ADCDAT" },
 	{ "AIF2ADCDAT", NULL, "AIF1ADCDAT" },
+	{ "MICBIAS", NULL, "CLK_SYS" },
+	{ "MICBIAS", NULL, "MICBIAS Supply" },
 };
 
 static const struct snd_soc_dapm_route wm8994_intercon[] = {
