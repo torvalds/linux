@@ -66,6 +66,40 @@ filelayout_clear_layoutdriver(struct nfs_server *nfss)
 	return 0;
 }
 
+static loff_t
+filelayout_get_dense_offset(struct nfs4_filelayout_segment *flseg,
+			    loff_t offset)
+{
+	u32 stripe_width = flseg->stripe_unit * flseg->dsaddr->stripe_count;
+	u64 tmp;
+
+	offset -= flseg->pattern_offset;
+	tmp = offset;
+	do_div(tmp, stripe_width);
+
+	return tmp * flseg->stripe_unit + do_div(offset, flseg->stripe_unit);
+}
+
+/* This function is used by the layout driver to calculate the
+ * offset of the file on the dserver based on whether the
+ * layout type is STRIPE_DENSE or STRIPE_SPARSE
+ */
+static loff_t
+filelayout_get_dserver_offset(struct pnfs_layout_segment *lseg, loff_t offset)
+{
+	struct nfs4_filelayout_segment *flseg = FILELAYOUT_LSEG(lseg);
+
+	switch (flseg->stripe_type) {
+	case STRIPE_SPARSE:
+		return offset;
+
+	case STRIPE_DENSE:
+		return filelayout_get_dense_offset(flseg, offset);
+	}
+
+	BUG();
+}
+
 /*
  * filelayout_check_layout()
  *
