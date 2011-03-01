@@ -1453,6 +1453,7 @@ void nfs4_schedule_session_recovery(struct nfs4_session *session)
 {
 	nfs4_schedule_lease_recovery(session->clp);
 }
+EXPORT_SYMBOL_GPL(nfs4_schedule_session_recovery);
 
 void nfs41_handle_recall_slot(struct nfs_client *clp)
 {

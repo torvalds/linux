@@ -40,6 +40,8 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Dean Hildebrand <dhildebz@umich.edu>");
 MODULE_DESCRIPTION("The NFSv4 file layout driver");
 
+#define FILELAYOUT_POLL_RETRY_MAX     (15*HZ)
+
 static int
 filelayout_set_layoutdriver(struct nfs_server *nfss)
 {
@@ -100,6 +102,83 @@ filelayout_get_dserver_offset(struct pnfs_layout_segment *lseg, loff_t offset)
 	BUG();
 }
 
+/* For data server errors we don't recover from */
+static void
+filelayout_set_lo_fail(struct pnfs_layout_segment *lseg)
+{
+	if (lseg->pls_range.iomode == IOMODE_RW) {
+		dprintk("%s Setting layout IOMODE_RW fail bit\n", __func__);
+		set_bit(lo_fail_bit(IOMODE_RW), &lseg->pls_layout->plh_flags);
+	} else {
+		dprintk("%s Setting layout IOMODE_READ fail bit\n", __func__);
+		set_bit(lo_fail_bit(IOMODE_READ), &lseg->pls_layout->plh_flags);
+	}
+}
+
+static int filelayout_async_handle_error(struct rpc_task *task,
+					 struct nfs4_state *state,
+					 struct nfs_client *clp,
+					 int *reset)
+{
+	if (task->tk_status >= 0)
+		return 0;
+
+	*reset = 0;
+
+	switch (task->tk_status) {
+	case -NFS4ERR_BADSESSION:
+	case -NFS4ERR_BADSLOT:
+	case -NFS4ERR_BAD_HIGH_SLOT:
+	case -NFS4ERR_DEADSESSION:
+	case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
+	case -NFS4ERR_SEQ_FALSE_RETRY:
+	case -NFS4ERR_SEQ_MISORDERED:
+		dprintk("%s ERROR %d, Reset session. Exchangeid "
+			"flags 0x%x\n", __func__, task->tk_status,
+			clp->cl_exchange_flags);
+		nfs4_schedule_session_recovery(clp->cl_session);
+		break;
+	case -NFS4ERR_DELAY:
+	case -NFS4ERR_GRACE:
+	case -EKEYEXPIRED:
+		rpc_delay(task, FILELAYOUT_POLL_RETRY_MAX);
+		break;
+	default:
+		dprintk("%s DS error. Retry through MDS %d\n", __func__,
+			task->tk_status);
+		*reset = 1;
+		break;
+	}
+	task->tk_status = 0;
+	return -EAGAIN;
+}
+
+/* NFS_PROTO call done callback routines */
+
+static int filelayout_read_done_cb(struct rpc_task *task,
+				struct nfs_read_data *data)
+{
+	struct nfs_client *clp = data->ds_clp;
+	int reset = 0;
+
+	dprintk("%s DS read\n", __func__);
+
+	if (filelayout_async_handle_error(task, data->args.context->state,
+					  data->ds_clp, &reset) == -EAGAIN) {
+		dprintk("%s calling restart ds_clp %p ds_clp->cl_session %p\n",
+			__func__, data->ds_clp, data->ds_clp->cl_session);
+		if (reset) {
+			filelayout_set_lo_fail(data->lseg);
+			nfs4_reset_read(task, data);
+			clp = NFS_SERVER(data->inode)->nfs_client;
+		}
+		nfs_restart_rpc(task, clp);
+		return -EAGAIN;
+	}
+
+	return 0;
+}
+
 /*
  * Call ops for the async read/write cases
  * In the case of dense layouts, the offset needs to be reset to its
@@ -108,6 +187,8 @@ filelayout_get_dserver_offset(struct pnfs_layout_segment *lseg, loff_t offset)
 static void filelayout_read_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs_read_data *rdata = (struct nfs_read_data *)data;
+
+	rdata->read_done_cb = filelayout_read_done_cb;
 
 	if (nfs41_setup_sequence(rdata->ds_clp->cl_session,
 				&rdata->args.seq_args, &rdata->res.seq_res,

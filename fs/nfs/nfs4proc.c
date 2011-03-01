@@ -3074,14 +3074,9 @@ static int nfs4_proc_pathconf(struct nfs_server *server, struct nfs_fh *fhandle,
 	return err;
 }
 
-static int nfs4_read_done(struct rpc_task *task, struct nfs_read_data *data)
+static int nfs4_read_done_cb(struct rpc_task *task, struct nfs_read_data *data)
 {
 	struct nfs_server *server = NFS_SERVER(data->inode);
-
-	dprintk("--> %s\n", __func__);
-
-	if (!nfs4_sequence_done(task, &data->res.seq_res))
-		return -EAGAIN;
 
 	if (nfs4_async_handle_error(task, server, data->args.context->state) == -EAGAIN) {
 		nfs_restart_rpc(task, server->nfs_client);
@@ -3094,11 +3089,39 @@ static int nfs4_read_done(struct rpc_task *task, struct nfs_read_data *data)
 	return 0;
 }
 
+static int nfs4_read_done(struct rpc_task *task, struct nfs_read_data *data)
+{
+
+	dprintk("--> %s\n", __func__);
+
+	if (!nfs4_sequence_done(task, &data->res.seq_res))
+		return -EAGAIN;
+
+	return data->read_done_cb(task, data);
+}
+
 static void nfs4_proc_read_setup(struct nfs_read_data *data, struct rpc_message *msg)
 {
 	data->timestamp   = jiffies;
+	data->read_done_cb = nfs4_read_done_cb;
 	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_READ];
 }
+
+/* Reset the the nfs_read_data to send the read to the MDS. */
+void nfs4_reset_read(struct rpc_task *task, struct nfs_read_data *data)
+{
+	dprintk("%s Reset task for i/o through\n", __func__);
+	put_lseg(data->lseg);
+	data->lseg = NULL;
+	/* offsets will differ in the dense stripe case */
+	data->args.offset = data->mds_offset;
+	data->ds_clp = NULL;
+	data->args.fh     = NFS_FH(data->inode);
+	data->read_done_cb = nfs4_read_done_cb;
+	task->tk_ops = data->mds_ops;
+	rpc_task_reset_client(task, NFS_CLIENT(data->inode));
+}
+EXPORT_SYMBOL_GPL(nfs4_reset_read);
 
 static int nfs4_write_done(struct rpc_task *task, struct nfs_write_data *data)
 {
