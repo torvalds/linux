@@ -293,5 +293,5 @@ source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
 source "drivers/misc/rk29_modem/Kconfig"
 source "drivers/misc/gps/Kconfig"
-
+source "drivers/misc/mpu3050/Kconfig"
 endif # MISC_DEVICES

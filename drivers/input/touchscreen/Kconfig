@@ -602,6 +602,25 @@ config HANNSTAR_P1003
 		default n
 		help
         	  RK29 hannstar touch debug
+config ATMEL_MXT224
+        tristate "Atmel mXT224 touchscreen"
+        depends on I2C2_RK29
+        help
+          RK29 Atmel_mXT224 touch
+
+        config MXT224_MAX_X
+                int "atmel_mxt224 touch X max"
+                depends on ATMEL_MXT224
+                default 4095
+                help
+                  RK29 atmel_mxt224 touch max X size
+
+        config MXT224_MAX_Y
+                int "atmel_mxt224 touch Y max"
+                depends on ATMEL_MXT224
+                default 4095
+                help
+                  RK29 atmel_mxt224 touch max Y size
 
 config SINTEK_3FA16
  	 tristate "Sintek 3FA16  touchscreen"

@@ -25,6 +25,7 @@
 #include <linux/android_pmem.h>
 #include <linux/usb/android_composite.h>
 #include <linux/i2c/tps65910.h>
+#include <linux/mpu.h>
 
 #include <mach/hardware.h>
 #include <asm/setup.h>
@@ -402,7 +403,33 @@ static struct mma8452_platform_data mma8452_info = {
 
 };
 #endif
-
+#if 1
+/*mpu3050*/
+static struct mpu3050_platform_data mpu3050_data = {
+		.int_config = 0x10,
+		.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
+		.level_shifter = 0,
+#if 0
+		.accel = {
+				.get_slave_descr = bma150_get_slave_descr,
+				.adapt_num = 0, // The i2c bus to which the mpu device is
+				// connected
+				.bus = EXT_SLAVE_BUS_SECONDARY,  //The secondary I2C of MPU
+				.address = 0x38,
+				.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
+		},
+#endif
+		.compass = {
+				.get_slave_descr = ak8975_get_slave_descr,/*ak5883_get_slave_descr,*/
+				.adapt_num = 0, // The i2c bus to which the compass device is. 
+				// It can be difference with mpu
+				// connected
+				.bus = EXT_SLAVE_BUS_PRIMARY,
+				.address = 0x1E,
+				.orientation = { 0, 1, 0,-1, 0, 0,0, 0, 1 },
+		},
+};
+#endif
 
 /*****************************************************************************************
 * TI TPS65910 voltage regulator devices 
@@ -892,6 +919,16 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.irq			= RK29_PIN0_PA4,
 	},
 #endif
+#if 1
+/*mpu3050*/
+	{
+		.type 			= "mpu3050",
+		.addr			= 0x68,
+		.flags			= 0,
+		.irq			= RK29_PIN5_PA3,
+		.platform_data  = &mpu3050_data,
+	},
+#endif
 };
 #endif
 
@@ -912,7 +949,15 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
         .irq            = RK29_PIN1_PD7,
     },
 #endif
-
+#if defined (CONFIG_ATMEL_MXT224)
+    {
+      .type           = "mXT224_touch",
+      .addr           = 0x4B,
+      .flags          = 0,
+      .irq            = RK29_PIN0_PA2,
+      //.platform_data  = &p1003_info,
+    },
+#endif
 };
 #endif
 

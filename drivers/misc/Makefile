@@ -31,3 +31,4 @@ obj-$(CONFIG_APANIC)		+= apanic.o
 obj-$(CONFIG_STE)		+= ste.o
 obj-$(CONFIG_RK29_SUPPORT_MODEM)        += rk29_modem/
 obj-$(CONFIG_GPS_GNS7560)			+=	gps/
+obj-y += mpu3050/

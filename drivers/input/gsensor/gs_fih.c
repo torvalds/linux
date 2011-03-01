@@ -546,13 +546,13 @@ static int mma8452_resume(struct i2c_client *client)
 #endif
 
 static const struct i2c_device_id mma8452_id[] = {
-		{"gs_mma8452", 0},
+		{"gs_fih", 0},
 		{ }
 };
 
 static struct i2c_driver mma8452_driver = {
 	.driver = {
-		.name = "gs_mma8452",
+		.name = "gs_fih",
 	    },
 	.id_table 	= mma8452_id,
 	.probe		= mma8452_probe,

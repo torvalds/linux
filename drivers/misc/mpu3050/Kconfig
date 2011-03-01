@@ -1,0 +1,188 @@
+
+menu "Motion Sensors Support"
+
+choice
+    tristate "Motion Processing Unit"
+    depends on I2C
+    default MPU_NONE
+
+config MPU_NONE
+    bool "None"
+    help
+      This disables support for motion processing using the MPU family of 
+      motion processing units.
+
+config SENSORS_MPU3050
+    tristate "MPU3050"
+    depends on I2C
+    help
+      If you say yes here you get support for the MPU3050 Gyroscope driver
+      This driver can also be built as a module.  If so, the module
+      will be called mpu3050.
+
+config SENSORS_MPU6000
+    tristate "MPU6000"
+    depends on I2C
+    help
+      If you say yes here you get support for the MPU6000 Gyroscope driver
+      This driver can also be built as a module.  If so, the module
+      will be called mpu6000.
+
+endchoice
+
+choice
+    prompt "Accelerometer Type"
+    depends on SENSORS_MPU3050
+    default SENSORS_BMA150
+
+config SENSORS_ACCELEROMETER_NONE
+    bool "NONE"
+    depends on SENSORS_MPU3050 || SENSORS_MPU6000
+    help
+      This disables accelerometer support for the MPU3050
+
+config SENSORS_ADXL346
+    bool "ADI adxl346"
+    depends on SENSORS_MPU3050
+    help
+      This enables support for the ADI adxl346 accelerometer
+
+config SENSORS_BMA150
+    bool "Bosch BMA150"
+    depends on SENSORS_MPU3050
+    help
+      This enables support for the Bosch BMA150 accelerometer
+ 
+config SENSORS_BMA222
+    bool "Bosch BMA222"
+    depends on SENSORS_MPU3050
+    help
+      This enables support for the Bosch BMA222 accelerometer
+      
+config SENSORS_KXSD9
+    bool "Kionix KXSD9"
+    depends on SENSORS_MPU3050
+    help
+      This enables support for the Kionix KXSD9 accelerometer
+
+config SENSORS_KXTF9
+    bool "Kionix KXTF9"
+    depends on SENSORS_MPU3050
+    help
+      This enables support for the Kionix KXFT9 accelerometer
+
+config SENSORS_LIS331DLH
+    bool "ST lis331dlh"
+    depends on SENSORS_MPU3050
+    help
+      This enables support for the ST lis331dlh accelerometer
+
+config SENSORS_LSM303DLHA
+    bool "ST lsm303dlh"
+    depends on SENSORS_MPU3050
+    help
+      This enables support for the ST lsm303dlh accelerometer
+
+config SENSORS_MMA8450
+    bool "Freescale mma8450"
+    depends on SENSORS_MPU3050
+    help
+      This enables support for the Freescale mma8450 accelerometer
+
+config SENSORS_MMA8451
+    bool "Freescale mma8451"
+    depends on SENSORS_MPU3050
+    help
+      This enables support for the Freescale mma8451 accelerometer
+
+endchoice
+
+choice
+    prompt "Compass Type"
+    depends on SENSORS_MPU6000 || SENSORS_MPU3050
+    default SENSORS_AK8975
+
+config SENSORS_COMPASS_NONE
+    bool "NONE"
+    depends on SENSORS_MPU6000 || SENSORS_MPU3050
+    help
+      This disables compass support for the MPU6000
+
+config SENSORS_AK8975
+    bool "AKM ak8975"
+    depends on SENSORS_MPU6000 || SENSORS_MPU3050
+    help
+      This enables support for the AKM ak8975 compass
+
+config SENSORS_MMC314X
+    bool "MEMSIC mmc314x"
+    depends on SENSORS_MPU3050
+    help
+      This enables support for the MEMSIC mmc314x compass
+
+config SENSORS_AMI30X
+    bool "Aichi Steel ami30X"
+    depends on SENSORS_MPU3050
+    help
+      This enables support for the Aichi Steel ami304/ami305 compass
+
+config SENSORS_HMC5883
+    bool "Honeywell hmc5883"
+    depends on SENSORS_MPU3050
+    help
+      This enables support for the Honeywell hmc5883 compass
+
+config SENSORS_LSM303DLHM
+    bool "ST lsm303dlh"
+    depends on SENSORS_MPU3050
+    help
+      This enables support for the ST lsm303dlh compass
+
+config SENSORS_MMC314X
+    bool "MEMSIC mmc314xMS"
+    depends on SENSORS_MPU3050
+    help
+      This enables support for the MEMSIC mmc314xMS compass
+
+config SENSORS_YAS529
+    bool "Yamaha yas529"
+    depends on SENSORS_MPU3050
+    help
+      This enables support for the Yamaha yas529 compass
+
+config SENSORS_HSCDTD00XX
+    bool "Alps hscdtd00XX"
+    depends on SENSORS_MPU3050
+    help
+      This enables support for the Alps hscdtd002b/hscdtd004a compass
+
+endchoice
+
+choice
+    prompt "Pressure Type"
+    depends on SENSORS_MPU6000 || SENSORS_MPU3050
+    default SENSORS_BMA085
+
+config SENSORS_PRESSURE_NONE
+    bool "NONE"
+    depends on SENSORS_MPU6000 || SENSORS_MPU3050
+    help
+      This disables pressure sensor support for the MPU6000
+
+config SENSORS_BMA085
+    bool "Bosch BMA085"
+    depends on SENSORS_MPU6000 || SENSORS_MPU3050
+    help
+      This enables support for the Bosch bma085 pressure sensor
+
+endchoice
+
+config SENSORS_MPU_DEBUG
+    bool "MPU debug"
+    depends on SENSORS_MPU3050 || SENSORS_MPU6000
+    help
+      If you say yes here you get extra debug messages from the MPU3050
+      and other slave sensors.
+
+endmenu
+
