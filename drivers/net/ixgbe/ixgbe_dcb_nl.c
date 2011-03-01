@@ -346,7 +346,8 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	int ret;
 
-	if (!adapter->dcb_set_bitmap)
+	if (!adapter->dcb_set_bitmap ||
+	    !(adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
 		return DCB_NO_HW_CHG;
 
 	ret = ixgbe_copy_dcb_cfg(&adapter->temp_dcb_cfg, &adapter->dcb_cfg,
@@ -448,40 +449,38 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 static u8 ixgbe_dcbnl_getcap(struct net_device *netdev, int capid, u8 *cap)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	u8 rval = 0;
 
-	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
-		switch (capid) {
-		case DCB_CAP_ATTR_PG:
-			*cap = true;
-			break;
-		case DCB_CAP_ATTR_PFC:
-			*cap = true;
-			break;
-		case DCB_CAP_ATTR_UP2TC:
-			*cap = false;
-			break;
-		case DCB_CAP_ATTR_PG_TCS:
-			*cap = 0x80;
-			break;
-		case DCB_CAP_ATTR_PFC_TCS:
-			*cap = 0x80;
-			break;
-		case DCB_CAP_ATTR_GSP:
-			*cap = true;
-			break;
-		case DCB_CAP_ATTR_BCN:
-			*cap = false;
-			break;
-		default:
-			rval = -EINVAL;
-			break;
-		}
-	} else {
-		rval = -EINVAL;
+	switch (capid) {
+	case DCB_CAP_ATTR_PG:
+		*cap = true;
+		break;
+	case DCB_CAP_ATTR_PFC:
+		*cap = true;
+		break;
+	case DCB_CAP_ATTR_UP2TC:
+		*cap = false;
+		break;
+	case DCB_CAP_ATTR_PG_TCS:
+		*cap = 0x80;
+		break;
+	case DCB_CAP_ATTR_PFC_TCS:
+		*cap = 0x80;
+		break;
+	case DCB_CAP_ATTR_GSP:
+		*cap = true;
+		break;
+	case DCB_CAP_ATTR_BCN:
+		*cap = false;
+		break;
+	case DCB_CAP_ATTR_DCBX:
+		*cap = adapter->dcbx_cap;
+		break;
+	default:
+		*cap = false;
+		break;
 	}
 
-	return rval;
+	return 0;
 }
 
 static u8 ixgbe_dcbnl_getnumtcs(struct net_device *netdev, int tcid, u8 *num)
@@ -542,13 +541,17 @@ static void ixgbe_dcbnl_setpfcstate(struct net_device *netdev, u8 state)
  */
 static u8 ixgbe_dcbnl_getapp(struct net_device *netdev, u8 idtype, u16 id)
 {
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	u8 rval = 0;
+
+	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
+		return rval;
 
 	switch (idtype) {
 	case DCB_APP_IDTYPE_ETHTYPE:
 #ifdef IXGBE_FCOE
 		if (id == ETH_P_FCOE)
-			rval = ixgbe_fcoe_getapp(netdev_priv(netdev));
+			rval = ixgbe_fcoe_getapp(adapter);
 #endif
 		break;
 	case DCB_APP_IDTYPE_PORTNUM:
@@ -571,14 +574,17 @@ static u8 ixgbe_dcbnl_getapp(struct net_device *netdev, u8 idtype, u16 id)
 static u8 ixgbe_dcbnl_setapp(struct net_device *netdev,
                              u8 idtype, u16 id, u8 up)
 {
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	u8 rval = 1;
+
+	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
+		return rval;
 
 	switch (idtype) {
 	case DCB_APP_IDTYPE_ETHTYPE:
 #ifdef IXGBE_FCOE
 		if (id == ETH_P_FCOE) {
 			u8 old_tc;
-			struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
 			/* Get current programmed tc */
 			old_tc = adapter->fcoe.tc;
@@ -640,13 +646,15 @@ static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 	/* naively give each TC a bwg to map onto CEE hardware */
 	__u8 bwg_id[IEEE_8021QAZ_MAX_TCS] = {0, 1, 2, 3, 4, 5, 6, 7};
 
+	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_IEEE))
+		return -EINVAL;
+
 	if (!adapter->ixgbe_ieee_ets) {
 		adapter->ixgbe_ieee_ets = kmalloc(sizeof(struct ieee_ets),
 						  GFP_KERNEL);
 		if (!adapter->ixgbe_ieee_ets)
 			return -ENOMEM;
 	}
-
 
 	memcpy(adapter->ixgbe_ieee_ets, ets, sizeof(*adapter->ixgbe_ieee_ets));
 
@@ -686,6 +694,9 @@ static int ixgbe_dcbnl_ieee_setpfc(struct net_device *dev,
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	int err;
 
+	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_IEEE))
+		return -EINVAL;
+
 	if (!adapter->ixgbe_ieee_pfc) {
 		adapter->ixgbe_ieee_pfc = kmalloc(sizeof(struct ieee_pfc),
 						  GFP_KERNEL);
@@ -696,6 +707,51 @@ static int ixgbe_dcbnl_ieee_setpfc(struct net_device *dev,
 	memcpy(adapter->ixgbe_ieee_pfc, pfc, sizeof(*adapter->ixgbe_ieee_pfc));
 	err = ixgbe_dcb_hw_pfc_config(&adapter->hw, pfc->pfc_en);
 	return err;
+}
+
+static u8 ixgbe_dcbnl_getdcbx(struct net_device *dev)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	return adapter->dcbx_cap;
+}
+
+static u8 ixgbe_dcbnl_setdcbx(struct net_device *dev, u8 mode)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ieee_ets ets = {0};
+	struct ieee_pfc pfc = {0};
+
+	/* no support for LLD_MANAGED modes or CEE+IEEE */
+	if ((mode & DCB_CAP_DCBX_LLD_MANAGED) ||
+	    ((mode & DCB_CAP_DCBX_VER_IEEE) && (mode & DCB_CAP_DCBX_VER_CEE)) ||
+	    !(mode & DCB_CAP_DCBX_HOST))
+		return 1;
+
+	if (mode == adapter->dcbx_cap)
+		return 0;
+
+	adapter->dcbx_cap = mode;
+
+	/* ETS and PFC defaults */
+	ets.ets_cap = 8;
+	pfc.pfc_cap = 8;
+
+	if (mode & DCB_CAP_DCBX_VER_IEEE) {
+		ixgbe_dcbnl_ieee_setets(dev, &ets);
+		ixgbe_dcbnl_ieee_setpfc(dev, &pfc);
+	} else if (mode & DCB_CAP_DCBX_VER_CEE) {
+		adapter->dcb_set_bitmap |= (BIT_PFC & BIT_PG_TX & BIT_PG_RX);
+		ixgbe_dcbnl_set_all(dev);
+	} else {
+		/* Drop into single TC mode strict priority as this
+		 * indicates CEE and IEEE versions are disabled
+		 */
+		ixgbe_dcbnl_ieee_setets(dev, &ets);
+		ixgbe_dcbnl_ieee_setpfc(dev, &pfc);
+		ixgbe_dcbnl_set_state(dev, 0);
+	}
+
+	return 0;
 }
 
 const struct dcbnl_rtnl_ops dcbnl_ops = {
@@ -724,5 +780,6 @@ const struct dcbnl_rtnl_ops dcbnl_ops = {
 	.setpfcstate	= ixgbe_dcbnl_setpfcstate,
 	.getapp		= ixgbe_dcbnl_getapp,
 	.setapp		= ixgbe_dcbnl_setapp,
+	.getdcbx	= ixgbe_dcbnl_getdcbx,
+	.setdcbx	= ixgbe_dcbnl_setdcbx,
 };
-
