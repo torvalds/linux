@@ -680,7 +680,7 @@ dma_controller_create(struct musb *musb, void __iomem *base)
 
 	tusb_dma = kzalloc(sizeof(struct tusb_omap_dma), GFP_KERNEL);
 	if (!tusb_dma)
-		goto cleanup;
+		goto out;
 
 	tusb_dma->musb = musb;
 	tusb_dma->tbase = musb->ctrl_base;
@@ -721,6 +721,6 @@ dma_controller_create(struct musb *musb, void __iomem *base)
 
 cleanup:
 	dma_controller_destroy(&tusb_dma->controller);
-
+out:
 	return NULL;
 }
