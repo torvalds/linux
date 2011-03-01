@@ -1115,7 +1115,7 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 			       RT_CONN_FLAGS(sk),
 			       sk->sk_bound_dev_if,
 			       sk->sk_protocol,
-			       inet->inet_sport, inet->inet_dport, sk, 0);
+			       inet->inet_sport, inet->inet_dport, sk, false);
 	if (err)
 		return err;
 

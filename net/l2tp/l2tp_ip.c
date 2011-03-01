@@ -323,7 +323,7 @@ static int l2tp_ip_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len
 	rc = ip_route_connect(&rt, lsa->l2tp_addr.s_addr, saddr,
 			      RT_CONN_FLAGS(sk), oif,
 			      IPPROTO_L2TP,
-			      0, 0, sk, 1);
+			      0, 0, sk, true);
 	if (rc) {
 		if (rc == -ENETUNREACH)
 			IP_INC_STATS_BH(&init_net, IPSTATS_MIB_OUTNOROUTES);

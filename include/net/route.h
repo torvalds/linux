@@ -168,7 +168,7 @@ static inline char rt_tos2priority(u8 tos)
 static inline int ip_route_connect(struct rtable **rp, __be32 dst,
 				   __be32 src, u32 tos, int oif, u8 protocol,
 				   __be16 sport, __be16 dport, struct sock *sk,
-				   int flags)
+				   bool can_sleep)
 {
 	struct flowi fl = { .oif = oif,
 			    .mark = sk->sk_mark,
@@ -196,7 +196,7 @@ static inline int ip_route_connect(struct rtable **rp, __be32 dst,
 		*rp = NULL;
 	}
 	security_sk_classify_flow(sk, &fl);
-	return ip_route_output_flow(net, rp, &fl, sk, flags);
+	return ip_route_output_flow(net, rp, &fl, sk, can_sleep ? 1 : 0);
 }
 
 static inline int ip_route_newports(struct rtable **rp, u8 protocol,

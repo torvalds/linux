@@ -69,7 +69,7 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	tmp = ip_route_connect(&rt, nexthop, inet->inet_saddr,
 			       RT_CONN_FLAGS(sk), sk->sk_bound_dev_if,
 			       IPPROTO_DCCP,
-			       orig_sport, orig_dport, sk, 1);
+			       orig_sport, orig_dport, sk, true);
 	if (tmp < 0)
 		return tmp;
 
