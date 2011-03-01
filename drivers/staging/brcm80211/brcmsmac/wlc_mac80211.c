@@ -1692,7 +1692,7 @@ static uint wlc_attach_module(struct wlc_info *wlc)
 	uint unit;
 	unit = wlc->pub->unit;
 
-	wlc->asi = wlc_antsel_attach(wlc, wlc->osh, wlc->pub, wlc->hw);
+	wlc->asi = wlc_antsel_attach(wlc);
 	if (wlc->asi == NULL) {
 		WL_ERROR("wl%d: wlc_attach: wlc_antsel_attach failed\n", unit);
 		err = 44;

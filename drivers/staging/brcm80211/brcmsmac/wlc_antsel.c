@@ -94,20 +94,19 @@ const u8 mimo_2x3_div_antselid_tbl[16] = {
 	0, 0, 0, 0, 0, 0, 0, 0	/* pat to antselid */
 };
 
-struct antsel_info *wlc_antsel_attach(struct wlc_info *wlc,
-				      struct osl_info *osh,
-				      struct wlc_pub *pub,
-				      struct wlc_hw_info *wlc_hw) {
+struct antsel_info *wlc_antsel_attach(struct wlc_info *wlc)
+{
 	struct antsel_info *asi;
 
 	asi = kzalloc(sizeof(struct antsel_info), GFP_ATOMIC);
 	if (!asi) {
-		WL_ERROR("wl%d: wlc_antsel_attach: out of mem\n", pub->unit);
+		WL_ERROR("wl%d: wlc_antsel_attach: out of mem\n",
+			 wlc->pub->unit);
 		return NULL;
 	}
 
 	asi->wlc = wlc;
-	asi->pub = pub;
+	asi->pub = wlc->pub;
 	asi->antsel_type = ANTSEL_NA;
 	asi->antsel_avail = false;
 	asi->antsel_antswitch = (u8) getintvar(asi->pub->vars, "antswitch");
@@ -150,7 +149,7 @@ struct antsel_info *wlc_antsel_attach(struct wlc_info *wlc,
 	}
 
 	/* Set the antenna selection type for the low driver */
-	wlc_bmac_antsel_type_set(wlc_hw, asi->antsel_type);
+	wlc_bmac_antsel_type_set(wlc->hw, asi->antsel_type);
 
 	/* Init (auto/manual) antenna selection */
 	wlc_antsel_init_cfg(asi, &asi->antcfg_11n, true);
