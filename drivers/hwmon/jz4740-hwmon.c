@@ -32,7 +32,7 @@ struct jz4740_hwmon {
 
 	int irq;
 
-	struct mfd_cell *cell;
+	const struct mfd_cell *cell;
 	struct device *hwmon;
 
 	struct completion read_completion;
