@@ -1,14 +1,14 @@
 /*
- * linux/arch/arm/mach-omap2/usb-ehci.c
+ * usb-host.c - OMAP USB Host
  *
  * This file will contain the board specific details for the
- * Synopsys EHCI host controller on OMAP3430
+ * Synopsys EHCI/OHCI host controller on OMAP3430 and onwards
  *
- * Copyright (C) 2007 Texas Instruments
+ * Copyright (C) 2007-2011 Texas Instruments
  * Author: Vikram Pandita <vikram.pandita@ti.com>
  *
  * Generalization by:
- * Felipe Balbi <felipe.balbi@nokia.com>
+ * Felipe Balbi <balbi@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
