@@ -37,6 +37,7 @@
 #include <asm/thread_info.h>
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
+#include <asm/ptrace.h>
 #include <asm/synch.h>
 #include "head_booke.h"
 

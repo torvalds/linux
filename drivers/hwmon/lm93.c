@@ -135,6 +135,11 @@
 #define LM93_MFR_ID		0x73
 #define LM93_MFR_ID_PROTOTYPE	0x72
 
+/* LM94 REGISTER VALUES */
+#define LM94_MFR_ID_2		0x7a
+#define LM94_MFR_ID		0x79
+#define LM94_MFR_ID_PROTOTYPE	0x78
+
 /* SMBus capabilities */
 #define LM93_SMBUS_FUNC_FULL (I2C_FUNC_SMBUS_BYTE_DATA | \
 		I2C_FUNC_SMBUS_WORD_DATA | I2C_FUNC_SMBUS_BLOCK_DATA)
@@ -2504,6 +2509,7 @@ static int lm93_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	int mfr, ver;
+	const char *name;
 
 	if (!i2c_check_functionality(adapter, LM93_SMBUS_FUNC_MIN))
 		return -ENODEV;
@@ -2517,13 +2523,23 @@ static int lm93_detect(struct i2c_client *client, struct i2c_board_info *info)
 	}
 
 	ver = lm93_read_byte(client, LM93_REG_VER);
-	if (ver != LM93_MFR_ID && ver != LM93_MFR_ID_PROTOTYPE) {
+	switch (ver) {
+	case LM93_MFR_ID:
+	case LM93_MFR_ID_PROTOTYPE:
+		name = "lm93";
+		break;
+	case LM94_MFR_ID_2:
+	case LM94_MFR_ID:
+	case LM94_MFR_ID_PROTOTYPE:
+		name = "lm94";
+		break;
+	default:
 		dev_dbg(&adapter->dev,
 			"detect failed, bad version id 0x%02x!\n", ver);
 		return -ENODEV;
 	}
 
-	strlcpy(info->type, "lm93", I2C_NAME_SIZE);
+	strlcpy(info->type, name, I2C_NAME_SIZE);
 	dev_dbg(&adapter->dev,"loading %s at %d,0x%02x\n",
 		client->name, i2c_adapter_id(client->adapter),
 		client->addr);
@@ -2602,6 +2618,7 @@ static int lm93_remove(struct i2c_client *client)
 
 static const struct i2c_device_id lm93_id[] = {
 	{ "lm93", 0 },
+	{ "lm94", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm93_id);

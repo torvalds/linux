@@ -1340,10 +1340,13 @@ static inline struct xfrm_dst *xfrm_alloc_dst(struct net *net, int family)
 	default:
 		BUG();
 	}
-	xdst = dst_alloc(dst_ops) ?: ERR_PTR(-ENOBUFS);
+	xdst = dst_alloc(dst_ops);
 	xfrm_policy_put_afinfo(afinfo);
 
-	xdst->flo.ops = &xfrm_bundle_fc_ops;
+	if (likely(xdst))
+		xdst->flo.ops = &xfrm_bundle_fc_ops;
+	else
+		xdst = ERR_PTR(-ENOBUFS);
 
 	return xdst;
 }
@@ -1433,7 +1436,7 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 		}
 
 		xdst->route = dst;
-		memcpy(&dst1->metrics, &dst->metrics, sizeof(dst->metrics));
+		dst_copy_metrics(dst1, dst);
 
 		if (xfrm[i]->props.mode != XFRM_MODE_TRANSPORT) {
 			family = xfrm[i]->props.family;
@@ -2271,7 +2274,7 @@ static void xfrm_init_pmtu(struct dst_entry *dst)
 		if (pmtu > route_mtu_cached)
 			pmtu = route_mtu_cached;
 
-		dst->metrics[RTAX_MTU-1] = pmtu;
+		dst_metric_set(dst, RTAX_MTU, pmtu);
 	} while ((dst = dst->next));
 }
 
@@ -2349,7 +2352,7 @@ static int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
 		mtu = xfrm_state_mtu(dst->xfrm, mtu);
 		if (mtu > last->route_mtu_cached)
 			mtu = last->route_mtu_cached;
-		dst->metrics[RTAX_MTU-1] = mtu;
+		dst_metric_set(dst, RTAX_MTU, mtu);
 
 		if (last == first)
 			break;
@@ -2359,6 +2362,16 @@ static int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
 	}
 
 	return 1;
+}
+
+static unsigned int xfrm_default_advmss(const struct dst_entry *dst)
+{
+	return dst_metric_advmss(dst->path);
+}
+
+static unsigned int xfrm_default_mtu(const struct dst_entry *dst)
+{
+	return dst_mtu(dst->path);
 }
 
 int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
@@ -2378,6 +2391,10 @@ int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 			dst_ops->kmem_cachep = xfrm_dst_cache;
 		if (likely(dst_ops->check == NULL))
 			dst_ops->check = xfrm_dst_check;
+		if (likely(dst_ops->default_advmss == NULL))
+			dst_ops->default_advmss = xfrm_default_advmss;
+		if (likely(dst_ops->default_mtu == NULL))
+			dst_ops->default_mtu = xfrm_default_mtu;
 		if (likely(dst_ops->negative_advice == NULL))
 			dst_ops->negative_advice = xfrm_negative_advice;
 		if (likely(dst_ops->link_failure == NULL))

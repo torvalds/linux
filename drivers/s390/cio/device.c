@@ -1835,6 +1835,7 @@ static void __ccw_device_pm_restore(struct ccw_device *cdev)
 	 * available again. Kick re-detection.
 	 */
 	cdev->private->flags.resuming = 1;
+	cdev->private->path_new_mask = LPM_ANYPATH;
 	css_schedule_eval(sch->schid);
 	spin_unlock_irq(sch->lock);
 	css_complete_work();

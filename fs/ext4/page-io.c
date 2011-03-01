@@ -32,25 +32,16 @@
 
 static struct kmem_cache *io_page_cachep, *io_end_cachep;
 
-#define WQ_HASH_SZ		37
-#define to_ioend_wq(v)	(&ioend_wq[((unsigned long)v) % WQ_HASH_SZ])
-static wait_queue_head_t ioend_wq[WQ_HASH_SZ];
-
 int __init ext4_init_pageio(void)
 {
-	int i;
-
 	io_page_cachep = KMEM_CACHE(ext4_io_page, SLAB_RECLAIM_ACCOUNT);
 	if (io_page_cachep == NULL)
 		return -ENOMEM;
 	io_end_cachep = KMEM_CACHE(ext4_io_end, SLAB_RECLAIM_ACCOUNT);
-	if (io_page_cachep == NULL) {
+	if (io_end_cachep == NULL) {
 		kmem_cache_destroy(io_page_cachep);
 		return -ENOMEM;
 	}
-	for (i = 0; i < WQ_HASH_SZ; i++)
-		init_waitqueue_head(&ioend_wq[i]);
-
 	return 0;
 }
 
@@ -62,7 +53,7 @@ void ext4_exit_pageio(void)
 
 void ext4_ioend_wait(struct inode *inode)
 {
-	wait_queue_head_t *wq = to_ioend_wq(inode);
+	wait_queue_head_t *wq = ext4_ioend_wq(inode);
 
 	wait_event(*wq, (atomic_read(&EXT4_I(inode)->i_ioend_count) == 0));
 }
@@ -87,7 +78,7 @@ void ext4_free_io_end(ext4_io_end_t *io)
 	for (i = 0; i < io->num_io_pages; i++)
 		put_io_page(io->pages[i]);
 	io->num_io_pages = 0;
-	wq = to_ioend_wq(io->inode);
+	wq = ext4_ioend_wq(io->inode);
 	if (atomic_dec_and_test(&EXT4_I(io->inode)->i_ioend_count) &&
 	    waitqueue_active(wq))
 		wake_up_all(wq);
@@ -102,6 +93,7 @@ int ext4_end_io_nolock(ext4_io_end_t *io)
 	struct inode *inode = io->inode;
 	loff_t offset = io->offset;
 	ssize_t size = io->size;
+	wait_queue_head_t *wq;
 	int ret = 0;
 
 	ext4_debug("ext4_end_io_nolock: io 0x%p from inode %lu,list->next 0x%p,"
@@ -126,7 +118,16 @@ int ext4_end_io_nolock(ext4_io_end_t *io)
 	if (io->iocb)
 		aio_complete(io->iocb, io->result, 0);
 	/* clear the DIO AIO unwritten flag */
-	io->flag &= ~EXT4_IO_END_UNWRITTEN;
+	if (io->flag & EXT4_IO_END_UNWRITTEN) {
+		io->flag &= ~EXT4_IO_END_UNWRITTEN;
+		/* Wake up anyone waiting on unwritten extent conversion */
+		wq = ext4_ioend_wq(io->inode);
+		if (atomic_dec_and_test(&EXT4_I(inode)->i_aiodio_unwritten) &&
+		    waitqueue_active(wq)) {
+			wake_up_all(wq);
+		}
+	}
+
 	return ret;
 }
 
@@ -158,11 +159,8 @@ static void ext4_end_io_work(struct work_struct *work)
 
 ext4_io_end_t *ext4_init_io_end(struct inode *inode, gfp_t flags)
 {
-	ext4_io_end_t *io = NULL;
-
-	io = kmem_cache_alloc(io_end_cachep, flags);
+	ext4_io_end_t *io = kmem_cache_zalloc(io_end_cachep, flags);
 	if (io) {
-		memset(io, 0, sizeof(*io));
 		atomic_inc(&EXT4_I(inode)->i_ioend_count);
 		io->inode = inode;
 		INIT_WORK(&io->work, ext4_end_io_work);
@@ -193,6 +191,7 @@ static void ext4_end_bio(struct bio *bio, int error)
 	struct inode *inode;
 	unsigned long flags;
 	int i;
+	sector_t bi_sector = bio->bi_sector;
 
 	BUG_ON(!io_end);
 	bio->bi_private = NULL;
@@ -210,9 +209,7 @@ static void ext4_end_bio(struct bio *bio, int error)
 		if (error)
 			SetPageError(page);
 		BUG_ON(!head);
-		if (head->b_size == PAGE_CACHE_SIZE)
-			clear_buffer_dirty(head);
-		else {
+		if (head->b_size != PAGE_CACHE_SIZE) {
 			loff_t offset;
 			loff_t io_end_offset = io_end->offset + io_end->size;
 
@@ -224,7 +221,6 @@ static void ext4_end_bio(struct bio *bio, int error)
 					if (error)
 						buffer_io_error(bh);
 
-					clear_buffer_dirty(bh);
 				}
 				if (buffer_delay(bh))
 					partial_write = 1;
@@ -260,7 +256,7 @@ static void ext4_end_bio(struct bio *bio, int error)
 			     (unsigned long long) io_end->offset,
 			     (long) io_end->size,
 			     (unsigned long long)
-			     bio->bi_sector >> (inode->i_blkbits - 9));
+			     bi_sector >> (inode->i_blkbits - 9));
 	}
 
 	/* Add the io_end to per-inode completed io list*/
@@ -383,6 +379,7 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 
 	blocksize = 1 << inode->i_blkbits;
 
+	BUG_ON(!PageLocked(page));
 	BUG_ON(PageWriteback(page));
 	set_page_writeback(page);
 	ClearPageError(page);
@@ -400,12 +397,14 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 	for (bh = head = page_buffers(page), block_start = 0;
 	     bh != head || !block_start;
 	     block_start = block_end, bh = bh->b_this_page) {
+
 		block_end = block_start + blocksize;
 		if (block_start >= len) {
 			clear_buffer_dirty(bh);
 			set_buffer_uptodate(bh);
 			continue;
 		}
+		clear_buffer_dirty(bh);
 		ret = io_submit_add_bh(io, io_page, inode, wbc, bh);
 		if (ret) {
 			/*

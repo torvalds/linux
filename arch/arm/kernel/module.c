@@ -22,6 +22,7 @@
 
 #include <asm/pgtable.h>
 #include <asm/sections.h>
+#include <asm/smp_plat.h>
 #include <asm/unwind.h>
 
 #ifdef CONFIG_XIP_KERNEL
@@ -38,17 +39,9 @@
 #ifdef CONFIG_MMU
 void *module_alloc(unsigned long size)
 {
-	struct vm_struct *area;
-
-	size = PAGE_ALIGN(size);
-	if (!size)
-		return NULL;
-
-	area = __get_vm_area(size, VM_ALLOC, MODULES_VADDR, MODULES_END);
-	if (!area)
-		return NULL;
-
-	return __vmalloc_area(area, GFP_KERNEL, PAGE_KERNEL_EXEC);
+	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
+				GFP_KERNEL, PAGE_KERNEL_EXEC, -1,
+				__builtin_return_address(0));
 }
 #else /* CONFIG_MMU */
 void *module_alloc(unsigned long size)
@@ -67,35 +60,6 @@ int module_frob_arch_sections(Elf_Ehdr *hdr,
 			      char *secstrings,
 			      struct module *mod)
 {
-#ifdef CONFIG_ARM_UNWIND
-	Elf_Shdr *s, *sechdrs_end = sechdrs + hdr->e_shnum;
-	struct arm_unwind_mapping *maps = mod->arch.map;
-
-	for (s = sechdrs; s < sechdrs_end; s++) {
-		char const *secname = secstrings + s->sh_name;
-
-		if (strcmp(".ARM.exidx.init.text", secname) == 0)
-			maps[ARM_SEC_INIT].unw_sec = s;
-		else if (strcmp(".ARM.exidx.devinit.text", secname) == 0)
-			maps[ARM_SEC_DEVINIT].unw_sec = s;
-		else if (strcmp(".ARM.exidx", secname) == 0)
-			maps[ARM_SEC_CORE].unw_sec = s;
-		else if (strcmp(".ARM.exidx.exit.text", secname) == 0)
-			maps[ARM_SEC_EXIT].unw_sec = s;
-		else if (strcmp(".ARM.exidx.devexit.text", secname) == 0)
-			maps[ARM_SEC_DEVEXIT].unw_sec = s;
-		else if (strcmp(".init.text", secname) == 0)
-			maps[ARM_SEC_INIT].sec_text = s;
-		else if (strcmp(".devinit.text", secname) == 0)
-			maps[ARM_SEC_DEVINIT].sec_text = s;
-		else if (strcmp(".text", secname) == 0)
-			maps[ARM_SEC_CORE].sec_text = s;
-		else if (strcmp(".exit.text", secname) == 0)
-			maps[ARM_SEC_EXIT].sec_text = s;
-		else if (strcmp(".devexit.text", secname) == 0)
-			maps[ARM_SEC_DEVEXIT].sec_text = s;
-	}
-#endif
 	return 0;
 }
 
@@ -300,41 +264,88 @@ apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 	return -ENOEXEC;
 }
 
+struct mod_unwind_map {
+	const Elf_Shdr *unw_sec;
+	const Elf_Shdr *txt_sec;
+};
+
+static const Elf_Shdr *find_mod_section(const Elf32_Ehdr *hdr,
+	const Elf_Shdr *sechdrs, const char *name)
+{
+	const Elf_Shdr *s, *se;
+	const char *secstrs = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
+
+	for (s = sechdrs, se = sechdrs + hdr->e_shnum; s < se; s++)
+		if (strcmp(name, secstrs + s->sh_name) == 0)
+			return s;
+
+	return NULL;
+}
+
+extern void fixup_smp(const void *, unsigned long);
+
+int module_finalize(const Elf32_Ehdr *hdr, const Elf_Shdr *sechdrs,
+		    struct module *mod)
+{
+	const Elf_Shdr * __maybe_unused s = NULL;
 #ifdef CONFIG_ARM_UNWIND
-static void register_unwind_tables(struct module *mod)
-{
+	const char *secstrs = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
+	const Elf_Shdr *sechdrs_end = sechdrs + hdr->e_shnum;
+	struct mod_unwind_map maps[ARM_SEC_MAX];
 	int i;
-	for (i = 0; i < ARM_SEC_MAX; ++i) {
-		struct arm_unwind_mapping *map = &mod->arch.map[i];
-		if (map->unw_sec && map->sec_text)
-			map->unwind = unwind_table_add(map->unw_sec->sh_addr,
-						       map->unw_sec->sh_size,
-						       map->sec_text->sh_addr,
-						       map->sec_text->sh_size);
+
+	memset(maps, 0, sizeof(maps));
+
+	for (s = sechdrs; s < sechdrs_end; s++) {
+		const char *secname = secstrs + s->sh_name;
+
+		if (!(s->sh_flags & SHF_ALLOC))
+			continue;
+
+		if (strcmp(".ARM.exidx.init.text", secname) == 0)
+			maps[ARM_SEC_INIT].unw_sec = s;
+		else if (strcmp(".ARM.exidx.devinit.text", secname) == 0)
+			maps[ARM_SEC_DEVINIT].unw_sec = s;
+		else if (strcmp(".ARM.exidx", secname) == 0)
+			maps[ARM_SEC_CORE].unw_sec = s;
+		else if (strcmp(".ARM.exidx.exit.text", secname) == 0)
+			maps[ARM_SEC_EXIT].unw_sec = s;
+		else if (strcmp(".ARM.exidx.devexit.text", secname) == 0)
+			maps[ARM_SEC_DEVEXIT].unw_sec = s;
+		else if (strcmp(".init.text", secname) == 0)
+			maps[ARM_SEC_INIT].txt_sec = s;
+		else if (strcmp(".devinit.text", secname) == 0)
+			maps[ARM_SEC_DEVINIT].txt_sec = s;
+		else if (strcmp(".text", secname) == 0)
+			maps[ARM_SEC_CORE].txt_sec = s;
+		else if (strcmp(".exit.text", secname) == 0)
+			maps[ARM_SEC_EXIT].txt_sec = s;
+		else if (strcmp(".devexit.text", secname) == 0)
+			maps[ARM_SEC_DEVEXIT].txt_sec = s;
 	}
-}
 
-static void unregister_unwind_tables(struct module *mod)
-{
-	int i = ARM_SEC_MAX;
-	while (--i >= 0)
-		unwind_table_del(mod->arch.map[i].unwind);
-}
-#else
-static inline void register_unwind_tables(struct module *mod) { }
-static inline void unregister_unwind_tables(struct module *mod) { }
+	for (i = 0; i < ARM_SEC_MAX; i++)
+		if (maps[i].unw_sec && maps[i].txt_sec)
+			mod->arch.unwind[i] =
+				unwind_table_add(maps[i].unw_sec->sh_addr,
+					         maps[i].unw_sec->sh_size,
+					         maps[i].txt_sec->sh_addr,
+					         maps[i].txt_sec->sh_size);
 #endif
-
-int
-module_finalize(const Elf32_Ehdr *hdr, const Elf_Shdr *sechdrs,
-		struct module *module)
-{
-	register_unwind_tables(module);
+	s = find_mod_section(hdr, sechdrs, ".alt.smp.init");
+	if (s && !is_smp())
+		fixup_smp((void *)s->sh_addr, s->sh_size);
 	return 0;
 }
 
 void
 module_arch_cleanup(struct module *mod)
 {
-	unregister_unwind_tables(mod);
+#ifdef CONFIG_ARM_UNWIND
+	int i;
+
+	for (i = 0; i < ARM_SEC_MAX; i++)
+		if (mod->arch.unwind[i])
+			unwind_table_del(mod->arch.unwind[i]);
+#endif
 }

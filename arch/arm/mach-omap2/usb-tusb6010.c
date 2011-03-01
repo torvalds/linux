@@ -120,8 +120,8 @@ static int tusb_set_sync_mode(unsigned sysclk_ps, unsigned fclk_ps)
 	t.adv_on = next_clk(t.cs_on, t_scsnh_advnh - 7000, fclk_ps);
 
 	/* GPMC_CLK rate = fclk rate / div */
-	t.sync_clk = 12 /* 11.1 nsec */;
-	tmp = (t.sync_clk * 1000 + fclk_ps - 1) / fclk_ps;
+	t.sync_clk = 11100 /* 11.1 nsec */;
+	tmp = (t.sync_clk + fclk_ps - 1) / fclk_ps;
 	if (tmp > 4)
 		return -ERANGE;
 	if (tmp <= 0)
@@ -216,6 +216,7 @@ static struct resource tusb_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{ /* IRQ */
+		.name	= "mc",
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -223,7 +224,7 @@ static struct resource tusb_resources[] = {
 static u64 tusb_dmamask = ~(u32)0;
 
 static struct platform_device tusb_device = {
-	.name		= "musb_hdrc",
+	.name		= "musb-tusb",
 	.id		= -1,
 	.dev = {
 		.dma_mask		= &tusb_dmamask,

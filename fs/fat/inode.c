@@ -514,9 +514,16 @@ static struct inode *fat_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
+static void fat_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(fat_inode_cachep, MSDOS_I(inode));
+}
+
 static void fat_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(fat_inode_cachep, MSDOS_I(inode));
+	call_rcu(&inode->i_rcu, fat_i_callback);
 }
 
 static void init_once(void *foo)
@@ -696,7 +703,6 @@ static struct dentry *fat_fh_to_dentry(struct super_block *sb,
 		struct fid *fid, int fh_len, int fh_type)
 {
 	struct inode *inode = NULL;
-	struct dentry *result;
 	u32 *fh = fid->raw;
 
 	if (fh_len < 5 || fh_type != 3)
@@ -741,10 +747,7 @@ static struct dentry *fat_fh_to_dentry(struct super_block *sb,
 	 * the fat_iget lookup again.  If that fails, then we are totally out
 	 * of luck.  But all that is for another day
 	 */
-	result = d_obtain_alias(inode);
-	if (!IS_ERR(result))
-		result->d_op = sb->s_root->d_op;
-	return result;
+	return d_obtain_alias(inode);
 }
 
 static int
@@ -792,8 +795,6 @@ static struct dentry *fat_get_parent(struct dentry *child)
 	brelse(bh);
 
 	parent = d_obtain_alias(inode);
-	if (!IS_ERR(parent))
-		parent->d_op = sb->s_root->d_op;
 out:
 	unlock_super(sb);
 
@@ -1237,7 +1238,8 @@ static int fat_read_root(struct inode *inode)
  * Read the super block of an MS-DOS FS.
  */
 int fat_fill_super(struct super_block *sb, void *data, int silent,
-		   const struct inode_operations *fs_dir_inode_ops, int isvfat)
+		   const struct inode_operations *fs_dir_inode_ops, int isvfat,
+		   void (*setup)(struct super_block *))
 {
 	struct inode *root_inode = NULL, *fat_inode = NULL;
 	struct buffer_head *bh;
@@ -1272,6 +1274,8 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	error = parse_options(data, isvfat, silent, &debug, &sbi->options);
 	if (error)
 		goto out_fail;
+
+	setup(sb); /* flavour-specific stuff that needs options */
 
 	error = -EIO;
 	sb_min_blocksize(sb, 512);

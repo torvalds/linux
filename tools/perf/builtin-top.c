@@ -21,6 +21,7 @@
 #include "perf.h"
 
 #include "util/color.h"
+#include "util/evsel.h"
 #include "util/session.h"
 #include "util/symbol.h"
 #include "util/thread.h"
@@ -29,6 +30,7 @@
 #include "util/parse-options.h"
 #include "util/parse-events.h"
 #include "util/cpumap.h"
+#include "util/xyarray.h"
 
 #include "util/debug.h"
 
@@ -38,6 +40,7 @@
 #include <stdio.h>
 #include <termios.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include <errno.h>
 #include <time.h>
@@ -55,7 +58,7 @@
 #include <linux/unistd.h>
 #include <linux/types.h>
 
-static int			*fd[MAX_NR_CPUS][MAX_COUNTERS];
+#define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 
 static bool			system_wide			=  false;
 
@@ -66,10 +69,9 @@ static int			print_entries;
 
 static int			target_pid			=     -1;
 static int			target_tid			=     -1;
-static pid_t			*all_tids			=      NULL;
-static int			thread_num			=      0;
+static struct thread_map	*threads;
 static bool			inherit				=  false;
-static int			nr_cpus				=      0;
+static struct cpu_map		*cpus;
 static int			realtime_prio			=      0;
 static bool			group				=  false;
 static unsigned int		page_size;
@@ -100,6 +102,7 @@ struct sym_entry		*sym_filter_entry		=   NULL;
 struct sym_entry		*sym_filter_entry_sched		=   NULL;
 static int			sym_pcnt_filter			=      5;
 static int			sym_counter			=      0;
+static struct perf_evsel	*sym_evsel			=   NULL;
 static int			display_weighted		=     -1;
 static const char		*cpu_list;
 
@@ -212,7 +215,7 @@ static int parse_source(struct sym_entry *syme)
 	len = sym->end - sym->start;
 
 	sprintf(command,
-		"objdump --start-address=%#0*Lx --stop-address=%#0*Lx -dS %s",
+		"objdump --start-address=%#0*" PRIx64 " --stop-address=%#0*" PRIx64 " -dS %s",
 		BITS_PER_LONG / 4, map__rip_2objdump(map, sym->start),
 		BITS_PER_LONG / 4, map__rip_2objdump(map, sym->end), path);
 
@@ -306,7 +309,7 @@ static void lookup_sym_source(struct sym_entry *syme)
 	struct source_line *line;
 	char pattern[PATTERN_LEN + 1];
 
-	sprintf(pattern, "%0*Lx <", BITS_PER_LONG / 4,
+	sprintf(pattern, "%0*" PRIx64 " <", BITS_PER_LONG / 4,
 		map__rip_2objdump(syme->map, symbol->start));
 
 	pthread_mutex_lock(&syme->src->lock);
@@ -353,7 +356,7 @@ static void show_details(struct sym_entry *syme)
 		return;
 
 	symbol = sym_entry__symbol(syme);
-	printf("Showing %s for %s\n", event_name(sym_counter), symbol->name);
+	printf("Showing %s for %s\n", event_name(sym_evsel), symbol->name);
 	printf("  Events  Pcnt (>=%d%%)\n", sym_pcnt_filter);
 
 	pthread_mutex_lock(&syme->src->lock);
@@ -460,7 +463,8 @@ static void rb_insert_active_sym(struct rb_root *tree, struct sym_entry *se)
 static void print_sym_table(void)
 {
 	int printed = 0, j;
-	int counter, snap = !display_weighted ? sym_counter : 0;
+	struct perf_evsel *counter;
+	int snap = !display_weighted ? sym_counter : 0;
 	float samples_per_sec = samples/delay_secs;
 	float ksamples_per_sec = kernel_samples/delay_secs;
 	float us_samples_per_sec = (us_samples)/delay_secs;
@@ -532,7 +536,9 @@ static void print_sym_table(void)
 	}
 
 	if (nr_counters == 1 || !display_weighted) {
-		printf("%Ld", (u64)attrs[0].sample_period);
+		struct perf_evsel *first;
+		first = list_entry(evsel_list.next, struct perf_evsel, node);
+		printf("%" PRIu64, (uint64_t)first->attr.sample_period);
 		if (freq)
 			printf("Hz ");
 		else
@@ -540,9 +546,9 @@ static void print_sym_table(void)
 	}
 
 	if (!display_weighted)
-		printf("%s", event_name(sym_counter));
-	else for (counter = 0; counter < nr_counters; counter++) {
-		if (counter)
+		printf("%s", event_name(sym_evsel));
+	else list_for_each_entry(counter, &evsel_list, node) {
+		if (counter->idx)
 			printf("/");
 
 		printf("%s", event_name(counter));
@@ -558,12 +564,12 @@ static void print_sym_table(void)
 		printf(" (all");
 
 	if (cpu_list)
-		printf(", CPU%s: %s)\n", nr_cpus > 1 ? "s" : "", cpu_list);
+		printf(", CPU%s: %s)\n", cpus->nr > 1 ? "s" : "", cpu_list);
 	else {
 		if (target_tid != -1)
 			printf(")\n");
 		else
-			printf(", %d CPU%s)\n", nr_cpus, nr_cpus > 1 ? "s" : "");
+			printf(", %d CPU%s)\n", cpus->nr, cpus->nr > 1 ? "s" : "");
 	}
 
 	printf("%-*.*s\n", win_width, win_width, graph_dotted_line);
@@ -635,7 +641,7 @@ static void print_sym_table(void)
 
 		percent_color_fprintf(stdout, "%4.1f%%", pcnt);
 		if (verbose)
-			printf(" %016llx", sym->start);
+			printf(" %016" PRIx64, sym->start);
 		printf(" %-*.*s", sym_width, sym_width, sym->name);
 		printf(" %-*.*s\n", dso_width, dso_width,
 		       dso_width >= syme->map->dso->long_name_len ?
@@ -739,7 +745,7 @@ static void print_mapped_keys(void)
 	fprintf(stdout, "\t[e]     display entries (lines).           \t(%d)\n", print_entries);
 
 	if (nr_counters > 1)
-		fprintf(stdout, "\t[E]     active event counter.              \t(%s)\n", event_name(sym_counter));
+		fprintf(stdout, "\t[E]     active event counter.              \t(%s)\n", event_name(sym_evsel));
 
 	fprintf(stdout, "\t[f]     profile display filter (count).    \t(%d)\n", count_filter);
 
@@ -826,19 +832,23 @@ static void handle_keypress(struct perf_session *session, int c)
 			break;
 		case 'E':
 			if (nr_counters > 1) {
-				int i;
-
 				fprintf(stderr, "\nAvailable events:");
-				for (i = 0; i < nr_counters; i++)
-					fprintf(stderr, "\n\t%d %s", i, event_name(i));
+
+				list_for_each_entry(sym_evsel, &evsel_list, node)
+					fprintf(stderr, "\n\t%d %s", sym_evsel->idx, event_name(sym_evsel));
 
 				prompt_integer(&sym_counter, "Enter details event counter");
 
 				if (sym_counter >= nr_counters) {
-					fprintf(stderr, "Sorry, no such event, using %s.\n", event_name(0));
+					sym_evsel = list_entry(evsel_list.next, struct perf_evsel, node);
 					sym_counter = 0;
+					fprintf(stderr, "Sorry, no such event, using %s.\n", event_name(sym_evsel));
 					sleep(1);
+					break;
 				}
+				list_for_each_entry(sym_evsel, &evsel_list, node)
+					if (sym_evsel->idx == sym_counter)
+						break;
 			} else sym_counter = 0;
 			break;
 		case 'f':
@@ -977,12 +987,13 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 }
 
 static void event__process_sample(const event_t *self,
-				 struct perf_session *session, int counter)
+				  struct sample_data *sample,
+				  struct perf_session *session,
+				  struct perf_evsel *evsel)
 {
 	u64 ip = self->ip.ip;
 	struct sym_entry *syme;
 	struct addr_location al;
-	struct sample_data data;
 	struct machine *machine;
 	u8 origin = self->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
@@ -1025,7 +1036,7 @@ static void event__process_sample(const event_t *self,
 	if (self->header.misc & PERF_RECORD_MISC_EXACT_IP)
 		exact_samples++;
 
-	if (event__preprocess_sample(self, session, &al, &data,
+	if (event__preprocess_sample(self, session, &al, sample,
 				     symbol_filter) < 0 ||
 	    al.filtered)
 		return;
@@ -1071,9 +1082,9 @@ static void event__process_sample(const event_t *self,
 
 	syme = symbol__priv(al.sym);
 	if (!syme->skip) {
-		syme->count[counter]++;
+		syme->count[evsel->idx]++;
 		syme->origin = origin;
-		record_precise_ip(syme, counter, ip);
+		record_precise_ip(syme, evsel->idx, ip);
 		pthread_mutex_lock(&active_symbols_lock);
 		if (list_empty(&syme->node) || !syme->node.next)
 			__list_insert_active_sym(syme);
@@ -1082,11 +1093,23 @@ static void event__process_sample(const event_t *self,
 }
 
 struct mmap_data {
-	int			counter;
 	void			*base;
 	int			mask;
 	unsigned int		prev;
 };
+
+static int perf_evsel__alloc_mmap_per_thread(struct perf_evsel *evsel,
+					     int ncpus, int nthreads)
+{
+	evsel->priv = xyarray__new(ncpus, nthreads, sizeof(struct mmap_data));
+	return evsel->priv != NULL ? 0 : -ENOMEM;
+}
+
+static void perf_evsel__free_mmap(struct perf_evsel *evsel)
+{
+	xyarray__delete(evsel->priv);
+	evsel->priv = NULL;
+}
 
 static unsigned int mmap_read_head(struct mmap_data *md)
 {
@@ -1100,11 +1123,15 @@ static unsigned int mmap_read_head(struct mmap_data *md)
 }
 
 static void perf_session__mmap_read_counter(struct perf_session *self,
-					    struct mmap_data *md)
+					    struct perf_evsel *evsel,
+					    int cpu, int thread_idx)
 {
+	struct xyarray *mmap_array = evsel->priv;
+	struct mmap_data *md = xyarray__entry(mmap_array, cpu, thread_idx);
 	unsigned int head = mmap_read_head(md);
 	unsigned int old = md->prev;
 	unsigned char *data = md->base + page_size;
+	struct sample_data sample;
 	int diff;
 
 	/*
@@ -1152,10 +1179,11 @@ static void perf_session__mmap_read_counter(struct perf_session *self,
 			event = &event_copy;
 		}
 
+		event__parse_sample(event, self, &sample);
 		if (event->header.type == PERF_RECORD_SAMPLE)
-			event__process_sample(event, self, md->counter);
+			event__process_sample(event, &sample, self, evsel);
 		else
-			event__process(event, self);
+			event__process(event, &sample, self);
 		old += size;
 	}
 
@@ -1163,36 +1191,39 @@ static void perf_session__mmap_read_counter(struct perf_session *self,
 }
 
 static struct pollfd *event_array;
-static struct mmap_data *mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
 
 static void perf_session__mmap_read(struct perf_session *self)
 {
-	int i, counter, thread_index;
+	struct perf_evsel *counter;
+	int i, thread_index;
 
-	for (i = 0; i < nr_cpus; i++) {
-		for (counter = 0; counter < nr_counters; counter++)
+	for (i = 0; i < cpus->nr; i++) {
+		list_for_each_entry(counter, &evsel_list, node) {
 			for (thread_index = 0;
-				thread_index < thread_num;
+				thread_index < threads->nr;
 				thread_index++) {
 				perf_session__mmap_read_counter(self,
-					&mmap_array[i][counter][thread_index]);
+					counter, i, thread_index);
 			}
+		}
 	}
 }
 
 int nr_poll;
 int group_fd;
 
-static void start_counter(int i, int counter)
+static void start_counter(int i, struct perf_evsel *evsel)
 {
+	struct xyarray *mmap_array = evsel->priv;
+	struct mmap_data *mm;
 	struct perf_event_attr *attr;
 	int cpu = -1;
 	int thread_index;
 
 	if (target_tid == -1)
-		cpu = cpumap[i];
+		cpu = cpus->map[i];
 
-	attr = attrs + counter;
+	attr = &evsel->attr;
 
 	attr->sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
 
@@ -1205,16 +1236,18 @@ static void start_counter(int i, int counter)
 	attr->inherit		= (cpu < 0) && inherit;
 	attr->mmap		= 1;
 
-	for (thread_index = 0; thread_index < thread_num; thread_index++) {
+	for (thread_index = 0; thread_index < threads->nr; thread_index++) {
 try_again:
-		fd[i][counter][thread_index] = sys_perf_event_open(attr,
-				all_tids[thread_index], cpu, group_fd, 0);
+		FD(evsel, i, thread_index) = sys_perf_event_open(attr,
+				threads->map[thread_index], cpu, group_fd, 0);
 
-		if (fd[i][counter][thread_index] < 0) {
+		if (FD(evsel, i, thread_index) < 0) {
 			int err = errno;
 
 			if (err == EPERM || err == EACCES)
-				die("No permission - are you root?\n");
+				die("Permission error - are you root?\n"
+					"\t Consider tweaking"
+					" /proc/sys/kernel/perf_event_paranoid.\n");
 			/*
 			 * If it's cycles then fall back to hrtimer
 			 * based cpu-clock-tick sw counter, which
@@ -1231,30 +1264,30 @@ try_again:
 				goto try_again;
 			}
 			printf("\n");
-			error("perfcounter syscall returned with %d (%s)\n",
-					fd[i][counter][thread_index], strerror(err));
+			error("sys_perf_event_open() syscall returned with %d (%s).  /bin/dmesg may provide additional information.\n",
+					FD(evsel, i, thread_index), strerror(err));
 			die("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
 			exit(-1);
 		}
-		assert(fd[i][counter][thread_index] >= 0);
-		fcntl(fd[i][counter][thread_index], F_SETFL, O_NONBLOCK);
+		assert(FD(evsel, i, thread_index) >= 0);
+		fcntl(FD(evsel, i, thread_index), F_SETFL, O_NONBLOCK);
 
 		/*
 		 * First counter acts as the group leader:
 		 */
 		if (group && group_fd == -1)
-			group_fd = fd[i][counter][thread_index];
+			group_fd = FD(evsel, i, thread_index);
 
-		event_array[nr_poll].fd = fd[i][counter][thread_index];
+		event_array[nr_poll].fd = FD(evsel, i, thread_index);
 		event_array[nr_poll].events = POLLIN;
 		nr_poll++;
 
-		mmap_array[i][counter][thread_index].counter = counter;
-		mmap_array[i][counter][thread_index].prev = 0;
-		mmap_array[i][counter][thread_index].mask = mmap_pages*page_size - 1;
-		mmap_array[i][counter][thread_index].base = mmap(NULL, (mmap_pages+1)*page_size,
-				PROT_READ, MAP_SHARED, fd[i][counter][thread_index], 0);
-		if (mmap_array[i][counter][thread_index].base == MAP_FAILED)
+		mm = xyarray__entry(mmap_array, i, thread_index);
+		mm->prev = 0;
+		mm->mask = mmap_pages*page_size - 1;
+		mm->base = mmap(NULL, (mmap_pages+1)*page_size,
+				PROT_READ, MAP_SHARED, FD(evsel, i, thread_index), 0);
+		if (mm->base == MAP_FAILED)
 			die("failed to mmap with %d (%s)\n", errno, strerror(errno));
 	}
 }
@@ -1262,24 +1295,24 @@ try_again:
 static int __cmd_top(void)
 {
 	pthread_t thread;
-	int i, counter;
-	int ret;
+	struct perf_evsel *counter;
+	int i, ret;
 	/*
 	 * FIXME: perf_session__new should allow passing a O_MMAP, so that all this
 	 * mmap reading, etc is encapsulated in it. Use O_WRONLY for now.
 	 */
-	struct perf_session *session = perf_session__new(NULL, O_WRONLY, false, false);
+	struct perf_session *session = perf_session__new(NULL, O_WRONLY, false, false, NULL);
 	if (session == NULL)
 		return -ENOMEM;
 
 	if (target_tid != -1)
-		event__synthesize_thread(target_tid, event__process, session);
+		event__synthesize_thread_map(threads, event__process, session);
 	else
 		event__synthesize_threads(event__process, session);
 
-	for (i = 0; i < nr_cpus; i++) {
+	for (i = 0; i < cpus->nr; i++) {
 		group_fd = -1;
-		for (counter = 0; counter < nr_counters; counter++)
+		list_for_each_entry(counter, &evsel_list, node)
 			start_counter(i, counter);
 	}
 
@@ -1368,8 +1401,8 @@ static const struct option options[] = {
 
 int cmd_top(int argc, const char **argv, const char *prefix __used)
 {
-	int counter;
-	int i,j;
+	struct perf_evsel *pos;
+	int status = -ENOMEM;
 
 	page_size = sysconf(_SC_PAGE_SIZE);
 
@@ -1377,34 +1410,17 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	if (argc)
 		usage_with_options(top_usage, options);
 
-	if (target_pid != -1) {
+	if (target_pid != -1)
 		target_tid = target_pid;
-		thread_num = find_all_tid(target_pid, &all_tids);
-		if (thread_num <= 0) {
-			fprintf(stderr, "Can't find all threads of pid %d\n",
-				target_pid);
-			usage_with_options(top_usage, options);
-		}
-	} else {
-		all_tids=malloc(sizeof(pid_t));
-		if (!all_tids)
-			return -ENOMEM;
 
-		all_tids[0] = target_tid;
-		thread_num = 1;
+	threads = thread_map__new(target_pid, target_tid);
+	if (threads == NULL) {
+		pr_err("Problems finding threads of monitor\n");
+		usage_with_options(top_usage, options);
 	}
 
-	for (i = 0; i < MAX_NR_CPUS; i++) {
-		for (j = 0; j < MAX_COUNTERS; j++) {
-			fd[i][j] = malloc(sizeof(int)*thread_num);
-			mmap_array[i][j] = zalloc(
-				sizeof(struct mmap_data)*thread_num);
-			if (!fd[i][j] || !mmap_array[i][j])
-				return -ENOMEM;
-		}
-	}
-	event_array = malloc(
-		sizeof(struct pollfd)*MAX_NR_CPUS*MAX_COUNTERS*thread_num);
+	event_array = malloc((sizeof(struct pollfd) *
+			      MAX_NR_CPUS * MAX_COUNTERS * threads->nr));
 	if (!event_array)
 		return -ENOMEM;
 
@@ -1415,15 +1431,10 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		cpu_list = NULL;
 	}
 
-	if (!nr_counters)
-		nr_counters = 1;
-
-	symbol_conf.priv_size = (sizeof(struct sym_entry) +
-				 (nr_counters + 1) * sizeof(unsigned long));
-
-	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);
-	if (symbol__init() < 0)
-		return -1;
+	if (!nr_counters && perf_evsel_list__create_default() < 0) {
+		pr_err("Not enough memory for event selector list\n");
+		return -ENOMEM;
+	}
 
 	if (delay_secs < 1)
 		delay_secs = 1;
@@ -1440,23 +1451,35 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		exit(EXIT_FAILURE);
 	}
 
-	/*
-	 * Fill in the ones not specifically initialized via -c:
-	 */
-	for (counter = 0; counter < nr_counters; counter++) {
-		if (attrs[counter].sample_period)
+	if (target_tid != -1)
+		cpus = cpu_map__dummy_new();
+	else
+		cpus = cpu_map__new(cpu_list);
+
+	if (cpus == NULL)
+		usage_with_options(top_usage, options);
+
+	list_for_each_entry(pos, &evsel_list, node) {
+		if (perf_evsel__alloc_mmap_per_thread(pos, cpus->nr, threads->nr) < 0 ||
+		    perf_evsel__alloc_fd(pos, cpus->nr, threads->nr) < 0)
+			goto out_free_fd;
+		/*
+		 * Fill in the ones not specifically initialized via -c:
+		 */
+		if (pos->attr.sample_period)
 			continue;
 
-		attrs[counter].sample_period = default_interval;
+		pos->attr.sample_period = default_interval;
 	}
 
-	if (target_tid != -1)
-		nr_cpus = 1;
-	else
-		nr_cpus = read_cpu_map(cpu_list);
+	sym_evsel = list_entry(evsel_list.next, struct perf_evsel, node);
 
-	if (nr_cpus < 1)
-		usage_with_options(top_usage, options);
+	symbol_conf.priv_size = (sizeof(struct sym_entry) +
+				 (nr_counters + 1) * sizeof(unsigned long));
+
+	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);
+	if (symbol__init() < 0)
+		return -1;
 
 	get_term_dimensions(&winsize);
 	if (print_entries == 0) {
@@ -1464,5 +1487,11 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		signal(SIGWINCH, sig_winch_handler);
 	}
 
-	return __cmd_top();
+	status = __cmd_top();
+out_free_fd:
+	list_for_each_entry(pos, &evsel_list, node)
+		perf_evsel__free_mmap(pos);
+	perf_evsel_list__delete();
+
+	return status;
 }

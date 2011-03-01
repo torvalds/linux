@@ -482,11 +482,9 @@ struct adapter {
 	void __iomem *regs;
 	struct pci_dev *pdev;
 	struct device *pdev_dev;
-	unsigned long registered_device_map;
 	unsigned int fn;
 	unsigned int flags;
 
-	const char *name;
 	int msg_enable;
 
 	struct adapter_params params;
@@ -497,7 +495,7 @@ struct adapter {
 
 	struct {
 		unsigned short vec;
-		char desc[14];
+		char desc[IFNAMSIZ + 10];
 	} msix_info[MAX_INGQ + 1];
 
 	struct sge sge;

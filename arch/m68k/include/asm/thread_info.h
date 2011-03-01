@@ -104,5 +104,6 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_SYSCALL_TRACE	15	/* syscall trace active */
 #define TIF_MEMDIE		16	/* is terminating due to OOM killer */
 #define TIF_FREEZE		17	/* thread is freezing for suspend */
+#define TIF_RESTORE_SIGMASK	18	/* restore signal mask in do_signal */
 
 #endif	/* _ASM_M68K_THREAD_INFO_H */

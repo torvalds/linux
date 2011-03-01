@@ -68,9 +68,10 @@
 #define EDAC_PCI "PCI"
 #define EDAC_DEBUG "DEBUG"
 
+extern const char *edac_mem_types[];
+
 #ifdef CONFIG_EDAC_DEBUG
 extern int edac_debug_level;
-extern const char *edac_mem_types[];
 
 #define edac_debug_printk(level, fmt, arg...)                           \
 	do {                                                            \
@@ -258,7 +259,7 @@ enum scrub_type {
  *			for single channel are 64 bits, for dual channel 128
  *			bits.
  *
- * Single-Ranked stick:	A Single-ranked stick has 1 chip-select row of memmory.
+ * Single-Ranked stick:	A Single-ranked stick has 1 chip-select row of memory.
  *			Motherboards commonly drive two chip-select pins to
  *			a memory stick. A single-ranked stick, will occupy
  *			only one of those rows. The other will be unused.
@@ -386,7 +387,7 @@ struct mem_ctl_info {
 	   representation and converts it to the closest matching
 	   bandwith in bytes/sec.
 	 */
-	int (*get_sdram_scrub_rate) (struct mem_ctl_info * mci, u32 * bw);
+	int (*get_sdram_scrub_rate) (struct mem_ctl_info * mci);
 
 
 	/* pointer to edac checking routine */

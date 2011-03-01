@@ -1837,7 +1837,7 @@ static void PeerChSwAnnAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_
 			}
 
 			if (index >= pAd->ChannelListNum) {
-				DBGPRINT_ERR(("&&&&&&&&&&&&&&&&&&&&&&&&&&PeerChSwAnnAction(can not find New Channel=%d in ChannelList[%d]\n", pAd->CommonCfg.Channel, pAd->ChannelListNum));
+				DBGPRINT_ERR("&&&&&&&&&&&&&&&&&&&&&&&&&&PeerChSwAnnAction(can not find New Channel=%d in ChannelList[%d]\n", pAd->CommonCfg.Channel, pAd->ChannelListNum);
 			}
 		}
 	}

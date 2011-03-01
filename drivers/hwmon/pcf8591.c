@@ -18,6 +18,8 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -290,8 +292,7 @@ static struct i2c_driver pcf8591_driver = {
 static int __init pcf8591_init(void)
 {
 	if (input_mode < 0 || input_mode > 3) {
-		printk(KERN_WARNING "pcf8591: invalid input_mode (%d)\n",
-		       input_mode);
+		pr_warn("invalid input_mode (%d)\n", input_mode);
 		input_mode = 0;
 	}
 	return i2c_add_driver(&pcf8591_driver);

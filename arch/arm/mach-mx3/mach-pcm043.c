@@ -27,7 +27,6 @@
 #include <linux/i2c/at24.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
-#include <linux/fsl_devices.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -39,7 +38,6 @@
 #include <mach/iomux-mx35.h>
 #include <mach/ipu.h>
 #include <mach/mx3fb.h>
-#include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 #include <mach/audmux.h>
 
@@ -140,10 +138,9 @@ static struct i2c_board_info pcm043_i2c_devices[] = {
 
 static struct platform_device *devices[] __initdata = {
 	&pcm043_flash,
-	&imx_wdt_device0,
 };
 
-static struct pad_desc pcm043_pads[] = {
+static iomux_v3_cfg_t pcm043_pads[] = {
 	/* UART1 */
 	MX35_PAD_CTS1__UART1_CTS,
 	MX35_PAD_RTS1__UART1_RTS,
@@ -230,8 +227,8 @@ static struct pad_desc pcm043_pads[] = {
 
 static void pcm043_ac97_warm_reset(struct snd_ac97 *ac97)
 {
-	struct pad_desc txfs_gpio = MX35_PAD_STXFS4__GPIO2_31;
-	struct pad_desc txfs = MX35_PAD_STXFS4__AUDMUX_AUD4_TXFS;
+	iomux_v3_cfg_t txfs_gpio = MX35_PAD_STXFS4__GPIO2_31;
+	iomux_v3_cfg_t txfs = MX35_PAD_STXFS4__AUDMUX_AUD4_TXFS;
 	int ret;
 
 	ret = gpio_request(AC97_GPIO_TXFS, "SSI");
@@ -240,7 +237,7 @@ static void pcm043_ac97_warm_reset(struct snd_ac97 *ac97)
 		return;
 	}
 
-	mxc_iomux_v3_setup_pad(&txfs_gpio);
+	mxc_iomux_v3_setup_pad(txfs_gpio);
 
 	/* warm reset */
 	gpio_direction_output(AC97_GPIO_TXFS, 1);
@@ -248,16 +245,16 @@ static void pcm043_ac97_warm_reset(struct snd_ac97 *ac97)
 	gpio_set_value(AC97_GPIO_TXFS, 0);
 
 	gpio_free(AC97_GPIO_TXFS);
-	mxc_iomux_v3_setup_pad(&txfs);
+	mxc_iomux_v3_setup_pad(txfs);
 }
 
 static void pcm043_ac97_cold_reset(struct snd_ac97 *ac97)
 {
-	struct pad_desc txfs_gpio = MX35_PAD_STXFS4__GPIO2_31;
-	struct pad_desc txfs = MX35_PAD_STXFS4__AUDMUX_AUD4_TXFS;
-	struct pad_desc txd_gpio = MX35_PAD_STXD4__GPIO2_28;
-	struct pad_desc txd = MX35_PAD_STXD4__AUDMUX_AUD4_TXD;
-	struct pad_desc reset_gpio = MX35_PAD_SD2_CMD__GPIO2_0;
+	iomux_v3_cfg_t txfs_gpio = MX35_PAD_STXFS4__GPIO2_31;
+	iomux_v3_cfg_t txfs = MX35_PAD_STXFS4__AUDMUX_AUD4_TXFS;
+	iomux_v3_cfg_t txd_gpio = MX35_PAD_STXD4__GPIO2_28;
+	iomux_v3_cfg_t txd = MX35_PAD_STXD4__AUDMUX_AUD4_TXD;
+	iomux_v3_cfg_t reset_gpio = MX35_PAD_SD2_CMD__GPIO2_0;
 	int ret;
 
 	ret = gpio_request(AC97_GPIO_TXFS, "SSI");
@@ -272,9 +269,9 @@ static void pcm043_ac97_cold_reset(struct snd_ac97 *ac97)
 	if (ret)
 		goto err3;
 
-	mxc_iomux_v3_setup_pad(&txfs_gpio);
-	mxc_iomux_v3_setup_pad(&txd_gpio);
-	mxc_iomux_v3_setup_pad(&reset_gpio);
+	mxc_iomux_v3_setup_pad(txfs_gpio);
+	mxc_iomux_v3_setup_pad(txd_gpio);
+	mxc_iomux_v3_setup_pad(reset_gpio);
 
 	gpio_direction_output(AC97_GPIO_TXFS, 0);
 	gpio_direction_output(AC97_GPIO_TXD, 0);
@@ -284,8 +281,8 @@ static void pcm043_ac97_cold_reset(struct snd_ac97 *ac97)
 	udelay(10);
 	gpio_direction_output(AC97_GPIO_RESET, 1);
 
-	mxc_iomux_v3_setup_pad(&txd);
-	mxc_iomux_v3_setup_pad(&txfs);
+	mxc_iomux_v3_setup_pad(txd);
+	mxc_iomux_v3_setup_pad(txfs);
 
 	gpio_free(AC97_GPIO_RESET);
 err3:
@@ -311,19 +308,19 @@ pcm037_nand_board_info __initconst = {
 };
 
 #if defined(CONFIG_USB_ULPI)
-static struct mxc_usbh_platform_data otg_pdata = {
+static struct mxc_usbh_platform_data otg_pdata __initdata = {
 	.portsc	= MXC_EHCI_MODE_UTMI,
 	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 
-static struct mxc_usbh_platform_data usbh1_pdata = {
+static const struct mxc_usbh_platform_data usbh1_pdata __initconst = {
 	.portsc	= MXC_EHCI_MODE_SERIAL,
 	.flags	= MXC_EHCI_INTERFACE_SINGLE_UNI | MXC_EHCI_INTERNAL_PHY |
 		  MXC_EHCI_IPPUE_DOWN,
 };
 #endif
 
-static struct fsl_usb2_platform_data otg_device_pdata = {
+static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.operating_mode = FSL_USB2_DR_DEVICE,
 	.phy_mode       = FSL_USB2_PHY_UTMI,
 };
@@ -364,6 +361,7 @@ static void __init mxc_board_init(void)
 
 	imx35_add_fec(NULL);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+	imx35_add_imx2_wdt(NULL);
 
 	imx35_add_imx_uart0(&uart_pdata);
 	imx35_add_mxc_nand(&pcm037_nand_board_info);
@@ -386,16 +384,16 @@ static void __init mxc_board_init(void)
 		otg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
 				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
-		mxc_register_device(&mxc_otg_host, &otg_pdata);
+		imx35_add_mxc_ehci_otg(&otg_pdata);
 	}
 
-	mxc_register_device(&mxc_usbh1, &usbh1_pdata);
+	imx35_add_mxc_ehci_hs(&usbh1_pdata);
 #endif
 	if (!otg_mode_host)
-		mxc_register_device(&mxc_otg_udc_device, &otg_device_pdata);
+		imx35_add_fsl_usb2_udc(&otg_device_pdata);
 
 	imx35_add_flexcan1(NULL);
-	imx35_add_esdhc(0, NULL);
+	imx35_add_sdhci_esdhc_imx(0, NULL);
 }
 
 static void __init pcm043_timer_init(void)

@@ -1389,15 +1389,9 @@ static struct snd_kcontrol_new snd_ymfpci_spdif_stream __devinitdata =
 
 static int snd_ymfpci_drec_source_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *info)
 {
-	static char *texts[3] = {"AC'97", "IEC958", "ZV Port"};
+	static const char *const texts[3] = {"AC'97", "IEC958", "ZV Port"};
 
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = 3;
-	if (info->value.enumerated.item > 2)
-		info->value.enumerated.item = 2;
-	strcpy(info->value.enumerated.name, texts[info->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(info, 1, 3, texts);
 }
 
 static int snd_ymfpci_drec_source_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *value)

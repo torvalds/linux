@@ -65,7 +65,7 @@ hisax_findcard(int driverid)
 	return (struct IsdnCardState *) 0;
 }
 
-static void
+static __attribute__((format(printf, 3, 4))) void
 link_debug(struct Channel *chanp, int direction, char *fmt, ...)
 {
 	va_list args;
@@ -1068,7 +1068,7 @@ init_d_st(struct Channel *chanp)
 	return 0;
 }
 
-static void
+static __attribute__((format(printf, 2, 3))) void
 callc_debug(struct FsmInst *fi, char *fmt, ...)
 {
 	va_list args;

@@ -22,6 +22,7 @@
 
 #include <linux/errno.h>
 
+EXPORT_SYMBOL(posix_acl_init);
 EXPORT_SYMBOL(posix_acl_alloc);
 EXPORT_SYMBOL(posix_acl_clone);
 EXPORT_SYMBOL(posix_acl_valid);
@@ -32,6 +33,16 @@ EXPORT_SYMBOL(posix_acl_chmod_masq);
 EXPORT_SYMBOL(posix_acl_permission);
 
 /*
+ * Init a fresh posix_acl
+ */
+void
+posix_acl_init(struct posix_acl *acl, int count)
+{
+	atomic_set(&acl->a_refcount, 1);
+	acl->a_count = count;
+}
+
+/*
  * Allocate a new ACL with the specified number of entries.
  */
 struct posix_acl *
@@ -40,10 +51,8 @@ posix_acl_alloc(int count, gfp_t flags)
 	const size_t size = sizeof(struct posix_acl) +
 	                    count * sizeof(struct posix_acl_entry);
 	struct posix_acl *acl = kmalloc(size, flags);
-	if (acl) {
-		atomic_set(&acl->a_refcount, 1);
-		acl->a_count = count;
-	}
+	if (acl)
+		posix_acl_init(acl, count);
 	return acl;
 }
 

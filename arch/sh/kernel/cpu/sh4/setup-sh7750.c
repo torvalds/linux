@@ -14,6 +14,7 @@
 #include <linux/io.h>
 #include <linux/sh_timer.h>
 #include <linux/serial_sci.h>
+#include <asm/machtypes.h>
 
 static struct resource rtc_resources[] = {
 	[0] = {
@@ -35,33 +36,37 @@ static struct platform_device rtc_device = {
 	.resource	= rtc_resources,
 };
 
-static struct plat_sci_port scif0_platform_data = {
+static struct plat_sci_port sci_platform_data = {
 	.mapbase	= 0xffe00000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_TE | SCSCR_RE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCI,
 	.irqs		= { 23, 23, 23, 0 },
 };
 
-static struct platform_device scif0_device = {
+static struct platform_device sci_device = {
 	.name		= "sh-sci",
 	.id		= 0,
 	.dev		= {
-		.platform_data	= &scif0_platform_data,
+		.platform_data	= &sci_platform_data,
 	},
 };
 
-static struct plat_sci_port scif1_platform_data = {
+static struct plat_sci_port scif_platform_data = {
 	.mapbase	= 0xffe80000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_TE | SCSCR_RE | SCSCR_REIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 40, 40, 40, 40 },
 };
 
-static struct platform_device scif1_device = {
+static struct platform_device scif_device = {
 	.name		= "sh-sci",
 	.id		= 1,
 	.dev		= {
-		.platform_data	= &scif1_platform_data,
+		.platform_data	= &scif_platform_data,
 	},
 };
 
@@ -210,8 +215,6 @@ static struct platform_device tmu4_device = {
 #endif
 
 static struct platform_device *sh7750_devices[] __initdata = {
-	&scif0_device,
-	&scif1_device,
 	&rtc_device,
 	&tmu0_device,
 	&tmu1_device,
@@ -226,14 +229,19 @@ static struct platform_device *sh7750_devices[] __initdata = {
 
 static int __init sh7750_devices_setup(void)
 {
+	if (mach_is_rts7751r2d()) {
+		platform_device_register(&scif_device);
+	} else {
+		platform_device_register(&sci_device);
+		platform_device_register(&scif_device);
+	}
+
 	return platform_add_devices(sh7750_devices,
 				    ARRAY_SIZE(sh7750_devices));
 }
 arch_initcall(sh7750_devices_setup);
 
 static struct platform_device *sh7750_early_devices[] __initdata = {
-	&scif0_device,
-	&scif1_device,
 	&tmu0_device,
 	&tmu1_device,
 	&tmu2_device,
@@ -247,6 +255,14 @@ static struct platform_device *sh7750_early_devices[] __initdata = {
 
 void __init plat_early_device_setup(void)
 {
+	if (mach_is_rts7751r2d()) {
+		scif_platform_data.scscr |= SCSCR_CKE1;
+		early_platform_add_devices(&scif_device, 1);
+	} else {
+		early_platform_add_devices(&sci_device, 1);
+		early_platform_add_devices(&scif_device, 1);
+	}
+
 	early_platform_add_devices(sh7750_early_devices,
 				   ARRAY_SIZE(sh7750_early_devices));
 }

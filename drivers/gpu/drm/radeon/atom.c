@@ -734,16 +734,16 @@ static void atom_op_jump(atom_exec_context *ctx, int *ptr, int arg)
 static void atom_op_mask(atom_exec_context *ctx, int *ptr, int arg)
 {
 	uint8_t attr = U8((*ptr)++);
-	uint32_t dst, src1, src2, saved;
+	uint32_t dst, mask, src, saved;
 	int dptr = *ptr;
 	SDEBUG("   dst: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
-	SDEBUG("   src1: ");
-	src1 = atom_get_src_direct(ctx, ((attr >> 3) & 7), ptr);
-	SDEBUG("   src2: ");
-	src2 = atom_get_src(ctx, attr, ptr);
-	dst &= src1;
-	dst |= src2;
+	mask = atom_get_src_direct(ctx, ((attr >> 3) & 7), ptr);
+	SDEBUG("   mask: 0x%08x", mask);
+	SDEBUG("   src: ");
+	src = atom_get_src(ctx, attr, ptr);
+	dst &= mask;
+	dst |= src;
 	SDEBUG("   dst: ");
 	atom_put_dst(ctx, arg, attr, &dptr, dst, saved);
 }

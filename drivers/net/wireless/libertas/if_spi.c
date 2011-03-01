@@ -784,7 +784,7 @@ static int lbs_spi_thread(void *data)
 				up(&card->spi_thread_terminated);
 				do_exit(0);
 			}
-		} while (err == EINTR);
+		} while (err == -EINTR);
 
 		/* Read the host interrupt status register to see what we
 		 * can do. */

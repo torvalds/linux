@@ -2266,7 +2266,7 @@ static netdev_tx_t happy_meal_start_xmit(struct sk_buff *skb,
 
 	tx_flags = TXFLAG_OWN;
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		const u32 csum_start_off = skb_transport_offset(skb);
+		const u32 csum_start_off = skb_checksum_start_offset(skb);
 		const u32 csum_stuff_off = csum_start_off + skb->csum_offset;
 
 		tx_flags = (TXFLAG_OWN | TXFLAG_CSENABLE |

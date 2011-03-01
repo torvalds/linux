@@ -247,8 +247,6 @@ calls.  The relevant helper functions are:
 		       int nonblocking);
     int videobuf_streamon(struct videobuf_queue *q);
     int videobuf_streamoff(struct videobuf_queue *q);
-    int videobuf_cgmbuf(struct videobuf_queue *q, struct video_mbuf *mbuf,
-			int count);
 
 So, for example, a VIDIOC_REQBUFS call turns into a call to the driver's
 vidioc_reqbufs() callback which, in turn, usually only needs to locate the
@@ -258,10 +256,7 @@ boilerplate in a lot of V4L2 drivers.
 
 The vidioc_streamon() and vidioc_streamoff() functions will be a bit more
 complex, of course, since they will also need to deal with starting and
-stopping the capture engine.  videobuf_cgmbuf(), called from the driver's
-vidiocgmbuf() function, only exists if the V4L1 compatibility module has
-been selected with CONFIG_VIDEO_V4L1_COMPAT, so its use must be surrounded
-with #ifdef directives.
+stopping the capture engine.
 
 Buffer allocation
 

@@ -14,6 +14,8 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/sh_mobile_sdhi.h>
+#include <linux/mmc/host.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/sh_flctl.h>
 #include <linux/delay.h>
@@ -430,11 +432,18 @@ static struct resource sdhi0_cn3_resources[] = {
 	},
 };
 
+static struct sh_mobile_sdhi_info sdhi0_cn3_data = {
+	.tmio_caps      = MMC_CAP_SDIO_IRQ,
+};
+
 static struct platform_device sdhi0_cn3_device = {
 	.name		= "sh_mobile_sdhi",
 	.id             = 0, /* "sdhi0" clock */
 	.num_resources	= ARRAY_SIZE(sdhi0_cn3_resources),
 	.resource	= sdhi0_cn3_resources,
+	.dev = {
+		.platform_data = &sdhi0_cn3_data,
+	},
 	.archdata = {
 		.hwblk_id = HWBLK_SDHI0,
 	},
@@ -453,11 +462,18 @@ static struct resource sdhi1_cn7_resources[] = {
 	},
 };
 
+static struct sh_mobile_sdhi_info sdhi1_cn7_data = {
+	.tmio_caps      = MMC_CAP_SDIO_IRQ,
+};
+
 static struct platform_device sdhi1_cn7_device = {
 	.name		= "sh_mobile_sdhi",
 	.id             = 1, /* "sdhi1" clock */
 	.num_resources	= ARRAY_SIZE(sdhi1_cn7_resources),
 	.resource	= sdhi1_cn7_resources,
+	.dev = {
+		.platform_data = &sdhi1_cn7_data,
+	},
 	.archdata = {
 		.hwblk_id = HWBLK_SDHI1,
 	},

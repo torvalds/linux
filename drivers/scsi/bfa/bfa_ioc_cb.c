@@ -15,6 +15,7 @@
  * General Public License for more details.
  */
 
+#include "bfad_drv.h"
 #include "bfa_ioc.h"
 #include "bfi_cbreg.h"
 #include "bfa_defs.h"
@@ -29,10 +30,14 @@ static void bfa_ioc_cb_firmware_unlock(struct bfa_ioc_s *ioc);
 static void bfa_ioc_cb_reg_init(struct bfa_ioc_s *ioc);
 static void bfa_ioc_cb_map_port(struct bfa_ioc_s *ioc);
 static void bfa_ioc_cb_isr_mode_set(struct bfa_ioc_s *ioc, bfa_boolean_t msix);
-static void bfa_ioc_cb_notify_hbfail(struct bfa_ioc_s *ioc);
+static void bfa_ioc_cb_notify_fail(struct bfa_ioc_s *ioc);
 static void bfa_ioc_cb_ownership_reset(struct bfa_ioc_s *ioc);
+static void bfa_ioc_cb_sync_join(struct bfa_ioc_s *ioc);
+static void bfa_ioc_cb_sync_leave(struct bfa_ioc_s *ioc);
+static void bfa_ioc_cb_sync_ack(struct bfa_ioc_s *ioc);
+static bfa_boolean_t bfa_ioc_cb_sync_complete(struct bfa_ioc_s *ioc);
 
-struct bfa_ioc_hwif_s hwif_cb;
+static struct bfa_ioc_hwif_s hwif_cb;
 
 /*
  * Called from bfa_ioc_attach() to map asic specific calls.
@@ -46,8 +51,12 @@ bfa_ioc_set_cb_hwif(struct bfa_ioc_s *ioc)
 	hwif_cb.ioc_reg_init = bfa_ioc_cb_reg_init;
 	hwif_cb.ioc_map_port = bfa_ioc_cb_map_port;
 	hwif_cb.ioc_isr_mode_set = bfa_ioc_cb_isr_mode_set;
-	hwif_cb.ioc_notify_hbfail = bfa_ioc_cb_notify_hbfail;
+	hwif_cb.ioc_notify_fail = bfa_ioc_cb_notify_fail;
 	hwif_cb.ioc_ownership_reset = bfa_ioc_cb_ownership_reset;
+	hwif_cb.ioc_sync_join = bfa_ioc_cb_sync_join;
+	hwif_cb.ioc_sync_leave = bfa_ioc_cb_sync_leave;
+	hwif_cb.ioc_sync_ack = bfa_ioc_cb_sync_ack;
+	hwif_cb.ioc_sync_complete = bfa_ioc_cb_sync_complete;
 
 	ioc->ioc_hwif = &hwif_cb;
 }
@@ -58,6 +67,21 @@ bfa_ioc_set_cb_hwif(struct bfa_ioc_s *ioc)
 static bfa_boolean_t
 bfa_ioc_cb_firmware_lock(struct bfa_ioc_s *ioc)
 {
+	struct bfi_ioc_image_hdr_s fwhdr;
+	uint32_t fwstate = readl(ioc->ioc_regs.ioc_fwstate);
+
+	if (fwstate == BFI_IOC_UNINIT)
+		return BFA_TRUE;
+
+	bfa_ioc_fwver_get(ioc, &fwhdr);
+
+	if (swab32(fwhdr.exec) == BFI_BOOT_TYPE_NORMAL)
+		return BFA_TRUE;
+
+	bfa_trc(ioc, fwstate);
+	bfa_trc(ioc, fwhdr.exec);
+	writel(BFI_IOC_UNINIT, ioc->ioc_regs.ioc_fwstate);
+
 	return BFA_TRUE;
 }
 
@@ -70,7 +94,7 @@ bfa_ioc_cb_firmware_unlock(struct bfa_ioc_s *ioc)
  * Notify other functions on HB failure.
  */
 static void
-bfa_ioc_cb_notify_hbfail(struct bfa_ioc_s *ioc)
+bfa_ioc_cb_notify_fail(struct bfa_ioc_s *ioc)
 {
 	writel(__PSS_ERR_STATUS_SET, ioc->ioc_regs.err_set);
 	readl(ioc->ioc_regs.err_set);
@@ -108,9 +132,11 @@ bfa_ioc_cb_reg_init(struct bfa_ioc_s *ioc)
 	if (ioc->port_id == 0) {
 		ioc->ioc_regs.heartbeat = rb + BFA_IOC0_HBEAT_REG;
 		ioc->ioc_regs.ioc_fwstate = rb + BFA_IOC0_STATE_REG;
+		ioc->ioc_regs.alt_ioc_fwstate = rb + BFA_IOC1_STATE_REG;
 	} else {
 		ioc->ioc_regs.heartbeat = (rb + BFA_IOC1_HBEAT_REG);
 		ioc->ioc_regs.ioc_fwstate = (rb + BFA_IOC1_STATE_REG);
+		ioc->ioc_regs.alt_ioc_fwstate = (rb + BFA_IOC0_STATE_REG);
 	}
 
 	/*
@@ -181,10 +207,71 @@ bfa_ioc_cb_ownership_reset(struct bfa_ioc_s *ioc)
 	 * will lock it instead of clearing it.
 	 */
 	readl(ioc->ioc_regs.ioc_sem_reg);
-	bfa_ioc_hw_sem_release(ioc);
+	writel(1, ioc->ioc_regs.ioc_sem_reg);
 }
 
+/*
+ * Synchronized IOC failure processing routines
+ */
+static void
+bfa_ioc_cb_sync_join(struct bfa_ioc_s *ioc)
+{
+}
 
+static void
+bfa_ioc_cb_sync_leave(struct bfa_ioc_s *ioc)
+{
+}
+
+static void
+bfa_ioc_cb_sync_ack(struct bfa_ioc_s *ioc)
+{
+	writel(BFI_IOC_FAIL, ioc->ioc_regs.ioc_fwstate);
+}
+
+static bfa_boolean_t
+bfa_ioc_cb_sync_complete(struct bfa_ioc_s *ioc)
+{
+	uint32_t fwstate, alt_fwstate;
+	fwstate = readl(ioc->ioc_regs.ioc_fwstate);
+
+	/*
+	 * At this point, this IOC is hoding the hw sem in the
+	 * start path (fwcheck) OR in the disable/enable path
+	 * OR to check if the other IOC has acknowledged failure.
+	 *
+	 * So, this IOC can be in UNINIT, INITING, DISABLED, FAIL
+	 * or in MEMTEST states. In a normal scenario, this IOC
+	 * can not be in OP state when this function is called.
+	 *
+	 * However, this IOC could still be in OP state when
+	 * the OS driver is starting up, if the OptROM code has
+	 * left it in that state.
+	 *
+	 * If we had marked this IOC's fwstate as BFI_IOC_FAIL
+	 * in the failure case and now, if the fwstate is not
+	 * BFI_IOC_FAIL it implies that the other PCI fn have
+	 * reinitialized the ASIC or this IOC got disabled, so
+	 * return TRUE.
+	 */
+	if (fwstate == BFI_IOC_UNINIT ||
+		fwstate == BFI_IOC_INITING ||
+		fwstate == BFI_IOC_DISABLED ||
+		fwstate == BFI_IOC_MEMTEST ||
+		fwstate == BFI_IOC_OP)
+		return BFA_TRUE;
+	else {
+		alt_fwstate = readl(ioc->ioc_regs.alt_ioc_fwstate);
+		if (alt_fwstate == BFI_IOC_FAIL ||
+			alt_fwstate == BFI_IOC_DISABLED ||
+			alt_fwstate == BFI_IOC_UNINIT ||
+			alt_fwstate == BFI_IOC_INITING ||
+			alt_fwstate == BFI_IOC_MEMTEST)
+			return BFA_TRUE;
+		else
+			return BFA_FALSE;
+	}
+}
 
 bfa_status_t
 bfa_ioc_cb_pll_init(void __iomem *rb, bfa_boolean_t fcmode)

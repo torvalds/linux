@@ -40,9 +40,8 @@ int saa7164_api_get_load_info(struct saa7164_dev *dev, struct tmFwInfoStruct *i)
 
 	ret = saa7164_cmd_send(dev, 0, GET_CUR,
 		GET_FW_STATUS_CONTROL, sizeof(struct tmFwInfoStruct), i);
-	if (ret != SAA_OK) {
+	if (ret != SAA_OK)
 		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
-	}
 
 	printk(KERN_INFO "saa7164[%d]-CPU: %d percent", dev->nr, i->CPULoad);
 
@@ -63,14 +62,15 @@ int saa7164_api_collect_debug(struct saa7164_dev *dev)
 
 		ret = saa7164_cmd_send(dev, 0, GET_CUR,
 			GET_DEBUG_DATA_CONTROL, sizeof(d), &d);
-		if (ret != SAA_OK) {
-			printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
-		}
+		if (ret != SAA_OK)
+			printk(KERN_ERR "%s() error, ret = 0x%x\n",
+				__func__, ret);
 
 		if (d.dwResult != SAA_OK)
 			break;
 
-		printk(KERN_INFO "saa7164[%d]-FWMSG: %s", dev->nr, d.ucDebugData);
+		printk(KERN_INFO "saa7164[%d]-FWMSG: %s", dev->nr,
+			d.ucDebugData);
 	}
 
 	return 0;
@@ -86,9 +86,9 @@ int saa7164_api_set_debug(struct saa7164_dev *dev, u8 level)
 	/* Retrieve current state */
 	ret = saa7164_cmd_send(dev, 0, GET_CUR,
 		SET_DEBUG_LEVEL_CONTROL, sizeof(lvl), &lvl);
-	if (ret != SAA_OK) {
+	if (ret != SAA_OK)
 		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
-	}
+
 	dprintk(DBGLVL_API, "%s() Was %d\n", __func__, lvl.dwDebugLevel);
 
 	lvl.dwDebugLevel = level;
@@ -96,9 +96,8 @@ int saa7164_api_set_debug(struct saa7164_dev *dev, u8 level)
 	/* set new state */
 	ret = saa7164_cmd_send(dev, 0, SET_CUR,
 		SET_DEBUG_LEVEL_CONTROL, sizeof(lvl), &lvl);
-	if (ret != SAA_OK) {
+	if (ret != SAA_OK)
 		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
-	}
 
 	return ret;
 }
@@ -152,8 +151,10 @@ int saa7164_api_set_vbi_format(struct saa7164_port *port)
 				dprintk(DBGLVL_API, "SET/COMMIT Verified\n");
 
 			dprintk(DBGLVL_API, "rsp.bmHint = 0x%x\n", rsp.bmHint);
-			dprintk(DBGLVL_API, "rsp.bFormatIndex = 0x%x\n", rsp.bFormatIndex);
-			dprintk(DBGLVL_API, "rsp.bFrameIndex = 0x%x\n", rsp.bFrameIndex);
+			dprintk(DBGLVL_API, "rsp.bFormatIndex = 0x%x\n",
+				rsp.bFormatIndex);
+			dprintk(DBGLVL_API, "rsp.bFrameIndex = 0x%x\n",
+				rsp.bFrameIndex);
 		} else
 			printk(KERN_ERR "%s() compare failed\n", __func__);
 	}
@@ -210,14 +211,17 @@ int saa7164_api_set_encoder(struct saa7164_port *port)
 		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
 
 	/* Establish video bitrates */
-	if (port->encoder_params.bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_CBR)
+	if (port->encoder_params.bitrate_mode ==
+		V4L2_MPEG_VIDEO_BITRATE_MODE_CBR)
 		vb.ucVideoBitRateMode = EU_VIDEO_BIT_RATE_MODE_CONSTANT;
 	else
 		vb.ucVideoBitRateMode = EU_VIDEO_BIT_RATE_MODE_VARIABLE_PEAK;
 	vb.dwVideoBitRate = port->encoder_params.bitrate;
 	vb.dwVideoBitRatePeak = port->encoder_params.bitrate_peak;
 	ret = saa7164_cmd_send(port->dev, port->hwcfg.sourceid, SET_CUR,
-		EU_VIDEO_BIT_RATE_CONTROL, sizeof(struct tmComResEncVideoBitRate), &vb);
+		EU_VIDEO_BIT_RATE_CONTROL,
+		sizeof(struct tmComResEncVideoBitRate),
+		&vb);
 	if (ret != SAA_OK)
 		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
 
@@ -226,9 +230,12 @@ int saa7164_api_set_encoder(struct saa7164_port *port)
 	ab.dwAudioBitRate = 384000;
 	ab.dwAudioBitRatePeak = ab.dwAudioBitRate;
 	ret = saa7164_cmd_send(port->dev, port->hwcfg.sourceid, SET_CUR,
-		EU_AUDIO_BIT_RATE_CONTROL, sizeof(struct tmComResEncAudioBitRate), &ab);
+		EU_AUDIO_BIT_RATE_CONTROL,
+		sizeof(struct tmComResEncAudioBitRate),
+		&ab);
 	if (ret != SAA_OK)
-		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
+		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__,
+			ret);
 
 	saa7164_api_set_aspect_ratio(port);
 	saa7164_api_set_gop_size(port);
@@ -244,7 +251,8 @@ int saa7164_api_get_encoder(struct saa7164_port *port)
 	struct tmComResEncVideoInputAspectRatio ar;
 	int ret;
 
-	dprintk(DBGLVL_ENC, "%s() unitid=0x%x\n", __func__, port->hwcfg.sourceid);
+	dprintk(DBGLVL_ENC, "%s() unitid=0x%x\n", __func__,
+		port->hwcfg.sourceid);
 
 	port->encoder_profile = 0;
 	port->video_format = 0;
@@ -257,7 +265,8 @@ int saa7164_api_get_encoder(struct saa7164_port *port)
 		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
 
 	ret = saa7164_cmd_send(port->dev, port->hwcfg.sourceid, GET_CUR,
-		EU_VIDEO_RESOLUTION_CONTROL, sizeof(u8), &port->video_resolution);
+		EU_VIDEO_RESOLUTION_CONTROL, sizeof(u8),
+		&port->video_resolution);
 	if (ret != SAA_OK)
 		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
 
@@ -294,13 +303,20 @@ int saa7164_api_get_encoder(struct saa7164_port *port)
 	dprintk(DBGLVL_ENC, "video_format    = %d\n", port->video_format);
 	dprintk(DBGLVL_ENC, "audio_format    = %d\n", port->audio_format);
 	dprintk(DBGLVL_ENC, "video_resolution= %d\n", port->video_resolution);
-	dprintk(DBGLVL_ENC, "v.ucVideoBitRateMode = %d\n", v.ucVideoBitRateMode);
-	dprintk(DBGLVL_ENC, "v.dwVideoBitRate     = %d\n", v.dwVideoBitRate);
-	dprintk(DBGLVL_ENC, "v.dwVideoBitRatePeak = %d\n", v.dwVideoBitRatePeak);
-	dprintk(DBGLVL_ENC, "a.ucVideoBitRateMode = %d\n", a.ucAudioBitRateMode);
-	dprintk(DBGLVL_ENC, "a.dwVideoBitRate     = %d\n", a.dwAudioBitRate);
-	dprintk(DBGLVL_ENC, "a.dwVideoBitRatePeak = %d\n", a.dwAudioBitRatePeak);
-	dprintk(DBGLVL_ENC, "aspect.width / height = %d:%d\n", ar.width, ar.height);
+	dprintk(DBGLVL_ENC, "v.ucVideoBitRateMode = %d\n",
+		v.ucVideoBitRateMode);
+	dprintk(DBGLVL_ENC, "v.dwVideoBitRate     = %d\n",
+		v.dwVideoBitRate);
+	dprintk(DBGLVL_ENC, "v.dwVideoBitRatePeak = %d\n",
+		v.dwVideoBitRatePeak);
+	dprintk(DBGLVL_ENC, "a.ucVideoBitRateMode = %d\n",
+		a.ucAudioBitRateMode);
+	dprintk(DBGLVL_ENC, "a.dwVideoBitRate     = %d\n",
+		a.dwAudioBitRate);
+	dprintk(DBGLVL_ENC, "a.dwVideoBitRatePeak = %d\n",
+		a.dwAudioBitRatePeak);
+	dprintk(DBGLVL_ENC, "aspect.width / height = %d:%d\n",
+		ar.width, ar.height);
 
 	return ret;
 }
@@ -439,7 +455,8 @@ int saa7164_api_set_videomux(struct saa7164_port *port)
 
 	/* Audio Mux */
 	ret = saa7164_cmd_send(port->dev, port->audfeat.sourceid, SET_CUR,
-		SU_INPUT_SELECT_CONTROL, sizeof(u8), &inputs[port->mux_input - 1]);
+		SU_INPUT_SELECT_CONTROL, sizeof(u8),
+		&inputs[port->mux_input - 1]);
 	if (ret != SAA_OK)
 		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
 
@@ -492,7 +509,8 @@ int saa7164_api_set_audio_volume(struct saa7164_port *port, s8 level)
 	if (ret != SAA_OK)
 		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
 
-	dprintk(DBGLVL_API, "%s(%d) min=%d max=%d cur=%d\n", __func__, level, min, max, v);
+	dprintk(DBGLVL_API, "%s(%d) min=%d max=%d cur=%d\n", __func__,
+		level, min, max, v);
 
 	v = level;
 	if (v < min)
@@ -517,7 +535,8 @@ int saa7164_api_set_audio_volume(struct saa7164_port *port, s8 level)
 	if (ret != SAA_OK)
 		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
 
-	dprintk(DBGLVL_API, "%s(%d) min=%d max=%d cur=%d\n", __func__, level, min, max, v);
+	dprintk(DBGLVL_API, "%s(%d) min=%d max=%d cur=%d\n", __func__,
+		level, min, max, v);
 
 	return ret;
 }
@@ -539,7 +558,8 @@ int saa7164_api_set_audio_std(struct saa7164_port *port)
 	lvl.ucSAP_Level = TMHW_LEV_ADJ_SAPLEV_DEFAULT;
 	lvl.ucADC_Level = TMHW_LEV_ADJ_ADCLEV_DEFAULT;
 	ret = saa7164_cmd_send(port->dev, port->audfeat.unitid, SET_CUR,
-		AUDIO_DEFAULT_CONTROL, sizeof(struct tmComResAudioDefaults), &lvl);
+		AUDIO_DEFAULT_CONTROL, sizeof(struct tmComResAudioDefaults),
+		&lvl);
 	if (ret != SAA_OK)
 		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
 
@@ -555,7 +575,8 @@ int saa7164_api_set_audio_std(struct saa7164_port *port)
 	ret = saa7164_cmd_send(port->dev, port->tunerunit.unitid, SET_CUR,
 		TU_STANDARD_CONTROL, sizeof(tvaudio), &tvaudio);
 	if (ret != SAA_OK)
-		printk(KERN_ERR "%s() TU_STANDARD_CONTROL error, ret = 0x%x\n", __func__, ret);
+		printk(KERN_ERR "%s() TU_STANDARD_CONTROL error, ret = 0x%x\n",
+			__func__, ret);
 	return ret;
 }
 
@@ -575,7 +596,9 @@ int saa7164_api_set_audio_detection(struct saa7164_port *port, int autodetect)
 	ret = saa7164_cmd_send(port->dev, port->tunerunit.unitid, SET_CUR,
 		TU_STANDARD_AUTO_CONTROL, sizeof(p), &p);
 	if (ret != SAA_OK)
-		printk(KERN_ERR "%s() TU_STANDARD_AUTO_CONTROL error, ret = 0x%x\n", __func__, ret);
+		printk(KERN_ERR
+			"%s() TU_STANDARD_AUTO_CONTROL error, ret = 0x%x\n",
+			__func__, ret);
 
 	return ret;
 }
@@ -646,9 +669,9 @@ int saa7164_api_set_dif(struct saa7164_port *port, u8 reg, u8 val)
 		EXU_REGISTER_ACCESS_CONTROL, len, &buf);
 	if (ret != SAA_OK)
 		printk(KERN_ERR "%s() error, ret(2) = 0x%x\n", __func__, ret);
-
-	//saa7164_dumphex16(dev, buf, 16);
-
+#if 0
+	saa7164_dumphex16(dev, buf, 16);
+#endif
 	return ret == SAA_OK ? 0 : -EIO;
 }
 
@@ -696,7 +719,8 @@ int saa7164_api_configure_dif(struct saa7164_port *port, u32 std)
 	} else {
 		/* Unknown standard, assume DTV */
 		dprintk(DBGLVL_API, " Unknown (assuming DTV)\n");
-		saa7164_api_set_dif(port, 0x00, 0x80); /* Undefined Video Standard */
+		/* Undefinded Video Standard */
+		saa7164_api_set_dif(port, 0x00, 0x80);
 		agc_disable = 1;
 	}
 
@@ -933,7 +957,7 @@ int saa7164_api_dump_subdevs(struct saa7164_dev *dev, u8 *buf, int len)
 		if (hdr->type != CS_INTERFACE)
 			return SAA_ERR_NOT_SUPPORTED;
 
-		dprintk(DBGLVL_API, "@ 0x%x = \n", idx);
+		dprintk(DBGLVL_API, "@ 0x%x =\n", idx);
 		switch (hdr->subtype) {
 		case GENERAL_REQUEST:
 			dprintk(DBGLVL_API, " GENERAL_REQUEST\n");
@@ -1085,7 +1109,8 @@ int saa7164_api_dump_subdevs(struct saa7164_dev *dev, u8 *buf, int len)
 						vbiport = &dev->ports[SAA7164_PORT_VBI2];
 					memcpy(&vbiport->hwcfg, vcoutputtermhdr,
 						sizeof(*vcoutputtermhdr));
-					memcpy(&vbiport->vbi_fmt_ntsc, vbifmt, sizeof(*vbifmt));
+					memcpy(&vbiport->vbi_fmt_ntsc, vbifmt,
+						sizeof(*vbifmt));
 					saa7164_api_configure_port_vbi(dev,
 						vbiport);
 					break;
@@ -1134,7 +1159,9 @@ int saa7164_api_dump_subdevs(struct saa7164_dev *dev, u8 *buf, int len)
 					encport = &dev->ports[SAA7164_PORT_ENC2];
 				memcpy(&encport->tunerunit, tunerunithdr,
 					sizeof(struct tmComResTunerDescrHeader));
-				dprintk(DBGLVL_API, "  (becomes dev->enc[%d] tuner)\n", encport->nr);
+				dprintk(DBGLVL_API,
+					"  (becomes dev->enc[%d] tuner)\n",
+					encport->nr);
 			}
 			break;
 		case VC_SELECTOR_UNIT:
@@ -1163,7 +1190,8 @@ int saa7164_api_dump_subdevs(struct saa7164_dev *dev, u8 *buf, int len)
 					encport = &dev->ports[SAA7164_PORT_ENC2];
 				memcpy(&encport->vidproc, pdh,
 					sizeof(struct tmComResProcDescrHeader));
-				dprintk(DBGLVL_API, "  (becomes dev->enc[%d])\n", encport->nr);
+				dprintk(DBGLVL_API, "  (becomes dev->enc[%d])\n",
+					encport->nr);
 			}
 			break;
 		case FEATURE_UNIT:
@@ -1181,15 +1209,18 @@ int saa7164_api_dump_subdevs(struct saa7164_dev *dev, u8 *buf, int len)
 				encport = &dev->ports[SAA7164_PORT_ENC2];
 			memcpy(&encport->audfeat, afd,
 				sizeof(struct tmComResAFeatureDescrHeader));
-			dprintk(DBGLVL_API, "  (becomes dev->enc[%d])\n", encport->nr);
+			dprintk(DBGLVL_API, "  (becomes dev->enc[%d])\n",
+				encport->nr);
 			break;
 		case ENCODER_UNIT:
 			edh = (struct tmComResEncoderDescrHeader *)(buf + idx);
 			dprintk(DBGLVL_API, " ENCODER_UNIT\n");
 			dprintk(DBGLVL_API, "  subtype = 0x%x\n", edh->subtype);
 			dprintk(DBGLVL_API, "  unitid = 0x%x\n", edh->unitid);
-			dprintk(DBGLVL_API, "  vsourceid = 0x%x\n", edh->vsourceid);
-			dprintk(DBGLVL_API, "  asourceid = 0x%x\n", edh->asourceid);
+			dprintk(DBGLVL_API, "  vsourceid = 0x%x\n",
+			edh->vsourceid);
+			dprintk(DBGLVL_API, "  asourceid = 0x%x\n",
+				edh->asourceid);
 			dprintk(DBGLVL_API, "  iunit = 0x%x\n", edh->iunit);
 			if (edh->iunit == edh->unitid) {
 				if (currpath == 1)
@@ -1198,7 +1229,9 @@ int saa7164_api_dump_subdevs(struct saa7164_dev *dev, u8 *buf, int len)
 					encport = &dev->ports[SAA7164_PORT_ENC2];
 				memcpy(&encport->encunit, edh,
 					sizeof(struct tmComResEncoderDescrHeader));
-				dprintk(DBGLVL_API, "  (becomes dev->enc[%d])\n", encport->nr);
+				dprintk(DBGLVL_API,
+					"  (becomes dev->enc[%d])\n",
+					encport->nr);
 			}
 			break;
 		case EXTENSION_UNIT:
@@ -1262,7 +1295,9 @@ int saa7164_api_dump_subdevs(struct saa7164_dev *dev, u8 *buf, int len)
 					encport = &dev->ports[SAA7164_PORT_ENC2];
 				memcpy(&encport->ifunit, exthdr,
 					sizeof(struct tmComResExtDevDescrHeader));
-				dprintk(DBGLVL_API, "  (becomes dev->enc[%d])\n", encport->nr);
+				dprintk(DBGLVL_API,
+					"  (becomes dev->enc[%d])\n",
+					encport->nr);
 			}
 			break;
 		case PVC_INFRARED_UNIT:

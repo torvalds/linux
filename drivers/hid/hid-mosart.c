@@ -90,6 +90,10 @@ static int mosart_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	case 0xff000000:
 		/* ignore HID features */
 		return -1;
+
+	case HID_UP_BUTTON:
+		/* ignore buttons */
+		return -1;
 	}
 
 	return 0;
@@ -199,7 +203,7 @@ static int mosart_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	td = kmalloc(sizeof(struct mosart_data), GFP_KERNEL);
 	if (!td) {
-		dev_err(&hdev->dev, "cannot allocate MosArt data\n");
+		hid_err(hdev, "cannot allocate MosArt data\n");
 		return -ENOMEM;
 	}
 	td->valid = false;
@@ -230,6 +234,19 @@ static int mosart_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	return ret;
 }
 
+#ifdef CONFIG_PM
+static int mosart_reset_resume(struct hid_device *hdev)
+{
+	struct hid_report_enum *re = hdev->report_enum
+						+ HID_FEATURE_REPORT;
+	struct hid_report *r = re->report_id_hash[7];
+
+	r->field[0]->value[0] = 0x02;
+	usbhid_submit_report(hdev, r, USB_DIR_OUT);
+	return 0;
+}
+#endif
+
 static void mosart_remove(struct hid_device *hdev)
 {
 	hid_hw_stop(hdev);
@@ -240,6 +257,7 @@ static void mosart_remove(struct hid_device *hdev)
 static const struct hid_device_id mosart_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUS, USB_DEVICE_ID_ASUS_T91MT) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUS, USB_DEVICE_ID_ASUSTEK_MULTITOUCH_YFO) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_TURBOX, USB_DEVICE_ID_TURBOX_TOUCHSCREEN_MOSART) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, mosart_devices);
@@ -258,6 +276,9 @@ static struct hid_driver mosart_driver = {
 	.input_mapped = mosart_input_mapped,
 	.usage_table = mosart_grabbed_usages,
 	.event = mosart_event,
+#ifdef CONFIG_PM
+	.reset_resume = mosart_reset_resume,
+#endif
 };
 
 static int __init mosart_init(void)

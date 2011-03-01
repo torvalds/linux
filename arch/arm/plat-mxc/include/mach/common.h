@@ -20,7 +20,9 @@ extern void mx25_map_io(void);
 extern void mx27_map_io(void);
 extern void mx31_map_io(void);
 extern void mx35_map_io(void);
+extern void mx50_map_io(void);
 extern void mx51_map_io(void);
+extern void mx53_map_io(void);
 extern void mxc91231_map_io(void);
 extern void mxc_init_irq(void __iomem *);
 extern void tzic_init_irq(void __iomem *);
@@ -30,7 +32,9 @@ extern void mx25_init_irq(void);
 extern void mx27_init_irq(void);
 extern void mx31_init_irq(void);
 extern void mx35_init_irq(void);
+extern void mx50_init_irq(void);
 extern void mx51_init_irq(void);
+extern void mx53_init_irq(void);
 extern void mxc91231_init_irq(void);
 extern void epit_timer_init(struct clk *timer_clk, void __iomem *base, int irq);
 extern void mxc_timer_init(struct clk *timer_clk, void __iomem *, int);
@@ -42,6 +46,8 @@ extern int mx31_clocks_init(unsigned long fref);
 extern int mx35_clocks_init(void);
 extern int mx51_clocks_init(unsigned long ckil, unsigned long osc,
 			unsigned long ckih1, unsigned long ckih2);
+extern int mx53_clocks_init(unsigned long ckil, unsigned long osc,
+			unsigned long ckih1, unsigned long ckih2);
 extern int mxc91231_clocks_init(unsigned long fref);
 extern int mxc_register_gpios(void);
 extern int mxc_register_device(struct platform_device *pdev, void *data);
@@ -50,5 +56,6 @@ extern void mxc_arch_reset_init(void __iomem *);
 extern void mxc91231_power_off(void);
 extern void mxc91231_arch_reset(int, const char *);
 extern void mxc91231_prepare_idle(void);
-
+extern void mx51_efikamx_reset(void);
+extern int mx53_revision(void);
 #endif

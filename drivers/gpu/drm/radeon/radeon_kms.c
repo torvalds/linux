@@ -96,9 +96,27 @@ out:
 	return r;
 }
 
+static void radeon_set_filp_rights(struct drm_device *dev,
+				   struct drm_file **owner,
+				   struct drm_file *applier,
+				   uint32_t *value)
+{
+	mutex_lock(&dev->struct_mutex);
+	if (*value == 1) {
+		/* wants rights */
+		if (!*owner)
+			*owner = applier;
+	} else if (*value == 0) {
+		/* revokes rights */
+		if (*owner == applier)
+			*owner = NULL;
+	}
+	*value = *owner == applier ? 1 : 0;
+	mutex_unlock(&dev->struct_mutex);
+}
 
 /*
- * Userspace get informations ioctl
+ * Userspace get information ioctl
  */
 int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
@@ -173,18 +191,19 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			DRM_DEBUG_KMS("WANT_HYPERZ: invalid value %d\n", value);
 			return -EINVAL;
 		}
-		mutex_lock(&dev->struct_mutex);
-		if (value == 1) {
-			/* wants hyper-z */
-			if (!rdev->hyperz_filp)
-				rdev->hyperz_filp = filp;
-		} else if (value == 0) {
-			/* revokes hyper-z */
-			if (rdev->hyperz_filp == filp)
-				rdev->hyperz_filp = NULL;
+		radeon_set_filp_rights(dev, &rdev->hyperz_filp, filp, &value);
+		break;
+	case RADEON_INFO_WANT_CMASK:
+		/* The same logic as Hyper-Z. */
+		if (value >= 2) {
+			DRM_DEBUG_KMS("WANT_CMASK: invalid value %d\n", value);
+			return -EINVAL;
 		}
-		value = rdev->hyperz_filp == filp ?  1 : 0;
-		mutex_unlock(&dev->struct_mutex);
+		radeon_set_filp_rights(dev, &rdev->cmask_filp, filp, &value);
+		break;
+	case RADEON_INFO_CLOCK_CRYSTAL_FREQ:
+		/* return clock value in KHz */
+		value = rdev->clock.spll.reference_freq * 10;
 		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
@@ -203,10 +222,6 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
  */
 int radeon_driver_firstopen_kms(struct drm_device *dev)
 {
-	struct radeon_device *rdev = dev->dev_private;
-
-	if (rdev->powered_down)
-		return -EINVAL;
 	return 0;
 }
 
@@ -232,6 +247,8 @@ void radeon_driver_preclose_kms(struct drm_device *dev,
 	struct radeon_device *rdev = dev->dev_private;
 	if (rdev->hyperz_filp == file_priv)
 		rdev->hyperz_filp = NULL;
+	if (rdev->cmask_filp == file_priv)
+		rdev->cmask_filp = NULL;
 }
 
 /*
@@ -277,6 +294,27 @@ void radeon_disable_vblank_kms(struct drm_device *dev, int crtc)
 	radeon_irq_set(rdev);
 }
 
+int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
+				    int *max_error,
+				    struct timeval *vblank_time,
+				    unsigned flags)
+{
+	struct drm_crtc *drmcrtc;
+	struct radeon_device *rdev = dev->dev_private;
+
+	if (crtc < 0 || crtc >= dev->num_crtcs) {
+		DRM_ERROR("Invalid crtc %d\n", crtc);
+		return -EINVAL;
+	}
+
+	/* Get associated drm_crtc: */
+	drmcrtc = &rdev->mode_info.crtcs[crtc]->base;
+
+	/* Helper routine in DRM core does all the work: */
+	return drm_calc_vbltimestamp_from_scanoutpos(dev, crtc, max_error,
+						     vblank_time, flags,
+						     drmcrtc);
+}
 
 /*
  * IOCTL.

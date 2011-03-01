@@ -640,7 +640,7 @@ static int update_bl_status(struct backlight_device *bd)
 	return asus_lcd_set(asus, value);
 }
 
-static struct backlight_ops asusbl_ops = {
+static const struct backlight_ops asusbl_ops = {
 	.get_brightness = asus_read_brightness,
 	.update_status = update_bl_status,
 };

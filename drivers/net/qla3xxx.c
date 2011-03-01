@@ -2467,7 +2467,7 @@ map_error:
 static netdev_tx_t ql3xxx_send(struct sk_buff *skb,
 			       struct net_device *ndev)
 {
-	struct ql3_adapter *qdev = (struct ql3_adapter *)netdev_priv(ndev);
+	struct ql3_adapter *qdev = netdev_priv(ndev);
 	struct ql3xxx_port_registers __iomem *port_regs =
 			qdev->mem_map_registers;
 	struct ql_tx_buf_cb *tx_cb;
@@ -3390,7 +3390,7 @@ static void ql_set_mac_info(struct ql3_adapter *qdev)
 
 static void ql_display_dev_info(struct net_device *ndev)
 {
-	struct ql3_adapter *qdev = (struct ql3_adapter *)netdev_priv(ndev);
+	struct ql3_adapter *qdev = netdev_priv(ndev);
 	struct pci_dev *pdev = qdev->pdev;
 
 	netdev_info(ndev,
@@ -3573,7 +3573,7 @@ static int ql3xxx_open(struct net_device *ndev)
 
 static int ql3xxx_set_mac_address(struct net_device *ndev, void *p)
 {
-	struct ql3_adapter *qdev = (struct ql3_adapter *)netdev_priv(ndev);
+	struct ql3_adapter *qdev = netdev_priv(ndev);
 	struct ql3xxx_port_registers __iomem *port_regs =
 			qdev->mem_map_registers;
 	struct sockaddr *addr = p;
@@ -3608,7 +3608,7 @@ static int ql3xxx_set_mac_address(struct net_device *ndev, void *p)
 
 static void ql3xxx_tx_timeout(struct net_device *ndev)
 {
-	struct ql3_adapter *qdev = (struct ql3_adapter *)netdev_priv(ndev);
+	struct ql3_adapter *qdev = netdev_priv(ndev);
 
 	netdev_err(ndev, "Resetting...\n");
 	/*

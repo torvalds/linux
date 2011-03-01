@@ -98,6 +98,7 @@ xfs-y				+= $(addprefix $(XFS_LINUX)/, \
 				   kmem.o \
 				   xfs_aops.o \
 				   xfs_buf.o \
+				   xfs_discard.o \
 				   xfs_export.o \
 				   xfs_file.o \
 				   xfs_fs_subr.o \

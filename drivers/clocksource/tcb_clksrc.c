@@ -196,9 +196,9 @@ static void __init setup_clkevents(struct atmel_tc *tc, int clk32k_divisor_idx)
 	clkevt.clkevt.min_delta_ns = clockevent_delta2ns(1, &clkevt.clkevt) + 1;
 	clkevt.clkevt.cpumask = cpumask_of(0);
 
-	setup_irq(irq, &tc_irqaction);
-
 	clockevents_register_device(&clkevt.clkevt);
+
+	setup_irq(irq, &tc_irqaction);
 }
 
 #else /* !CONFIG_GENERIC_CLOCKEVENTS */

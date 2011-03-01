@@ -228,10 +228,6 @@ struct ocfs2_truncate_context {
 
 int ocfs2_zero_range_for_truncate(struct inode *inode, handle_t *handle,
 				  u64 range_start, u64 range_end);
-int ocfs2_prepare_truncate(struct ocfs2_super *osb,
-			   struct inode *inode,
-			   struct buffer_head *fe_bh,
-			   struct ocfs2_truncate_context **tc);
 int ocfs2_commit_truncate(struct ocfs2_super *osb,
 			  struct inode *inode,
 			  struct buffer_head *di_bh);

@@ -23,7 +23,6 @@
 #include <linux/gfp.h>
 #include "net_driver.h"
 #include "efx.h"
-#include "mdio_10g.h"
 #include "nic.h"
 
 #include "mcdi.h"
@@ -461,9 +460,6 @@ efx_alloc_channel(struct efx_nic *efx, int i, struct efx_channel *old_channel)
 			tx_queue->channel = channel;
 		}
 	}
-
-	spin_lock_init(&channel->tx_stop_lock);
-	atomic_set(&channel->tx_stop_count, 1);
 
 	rx_queue = &channel->rx_queue;
 	rx_queue->efx = efx;
@@ -921,6 +917,7 @@ static void efx_mac_work(struct work_struct *data)
 
 static int efx_probe_port(struct efx_nic *efx)
 {
+	unsigned char *perm_addr;
 	int rc;
 
 	netif_dbg(efx, probe, efx->net_dev, "create port\n");
@@ -934,11 +931,12 @@ static int efx_probe_port(struct efx_nic *efx)
 		return rc;
 
 	/* Sanity check MAC address */
-	if (is_valid_ether_addr(efx->mac_address)) {
-		memcpy(efx->net_dev->dev_addr, efx->mac_address, ETH_ALEN);
+	perm_addr = efx->net_dev->perm_addr;
+	if (is_valid_ether_addr(perm_addr)) {
+		memcpy(efx->net_dev->dev_addr, perm_addr, ETH_ALEN);
 	} else {
 		netif_err(efx, probe, efx->net_dev, "invalid MAC address %pM\n",
-			  efx->mac_address);
+			  perm_addr);
 		if (!allow_bad_hwaddr) {
 			rc = -EINVAL;
 			goto err;
@@ -1155,6 +1153,9 @@ static int efx_wanted_channels(void)
 	int count;
 	int cpu;
 
+	if (rss_cpus)
+		return rss_cpus;
+
 	if (unlikely(!zalloc_cpumask_var(&core_mask, GFP_KERNEL))) {
 		printk(KERN_WARNING
 		       "sfc: RSS disabled due to allocation failure\n");
@@ -1268,27 +1269,18 @@ static void efx_remove_interrupts(struct efx_nic *efx)
 	efx->legacy_irq = 0;
 }
 
-struct efx_tx_queue *
-efx_get_tx_queue(struct efx_nic *efx, unsigned index, unsigned type)
-{
-	unsigned tx_channel_offset =
-		separate_tx_channels ? efx->n_channels - efx->n_tx_channels : 0;
-	EFX_BUG_ON_PARANOID(index >= efx->n_tx_channels ||
-			    type >= EFX_TXQ_TYPES);
-	return &efx->channel[tx_channel_offset + index]->tx_queue[type];
-}
-
 static void efx_set_channels(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
-	unsigned tx_channel_offset =
+
+	efx->tx_channel_offset =
 		separate_tx_channels ? efx->n_channels - efx->n_tx_channels : 0;
 
 	/* Channel pointers were set in efx_init_struct() but we now
 	 * need to clear them for TX queues in any RX-only channels. */
 	efx_for_each_channel(channel, efx) {
-		if (channel->channel - tx_channel_offset >=
+		if (channel->channel - efx->tx_channel_offset >=
 		    efx->n_tx_channels) {
 			efx_for_each_channel_tx_queue(tx_queue, channel)
 				tx_queue->channel = NULL;
@@ -1405,11 +1397,11 @@ static void efx_start_all(struct efx_nic *efx)
 	 * restart the transmit interface early so the watchdog timer stops */
 	efx_start_port(efx);
 
-	efx_for_each_channel(channel, efx) {
-		if (efx_dev_registered(efx))
-			efx_wake_queue(channel);
+	if (efx_dev_registered(efx))
+		netif_tx_wake_all_queues(efx->net_dev);
+
+	efx_for_each_channel(channel, efx)
 		efx_start_channel(channel);
-	}
 
 	if (efx->legacy_irq)
 		efx->legacy_irq_enabled = true;
@@ -1497,9 +1489,7 @@ static void efx_stop_all(struct efx_nic *efx)
 	/* Stop the kernel transmit interface late, so the watchdog
 	 * timer isn't ticking over the flush */
 	if (efx_dev_registered(efx)) {
-		struct efx_channel *channel;
-		efx_for_each_channel(channel, efx)
-			efx_stop_queue(channel);
+		netif_tx_stop_all_queues(efx->net_dev);
 		netif_tx_lock_bh(efx->net_dev);
 		netif_tx_unlock_bh(efx->net_dev);
 	}
@@ -1895,6 +1885,7 @@ static DEVICE_ATTR(phy_type, 0644, show_phy_type, NULL);
 static int efx_register_netdev(struct efx_nic *efx)
 {
 	struct net_device *net_dev = efx->net_dev;
+	struct efx_channel *channel;
 	int rc;
 
 	net_dev->watchdog_timeo = 5 * HZ;
@@ -1916,6 +1907,14 @@ static int efx_register_netdev(struct efx_nic *efx)
 	rc = register_netdevice(net_dev);
 	if (rc)
 		goto fail_locked;
+
+	efx_for_each_channel(channel, efx) {
+		struct efx_tx_queue *tx_queue;
+		efx_for_each_channel_tx_queue(tx_queue, channel) {
+			tx_queue->core_txq = netdev_get_tx_queue(
+				efx->net_dev, tx_queue->queue / EFX_TXQ_TYPES);
+		}
+	}
 
 	/* Always start with carrier off; PHY events will detect the link */
 	netif_carrier_off(efx->net_dev);
@@ -1980,7 +1979,6 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method)
 
 	efx_stop_all(efx);
 	mutex_lock(&efx->mac_lock);
-	mutex_lock(&efx->spi_lock);
 
 	efx_fini_channels(efx);
 	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE)
@@ -2022,7 +2020,6 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 	efx_init_channels(efx);
 	efx_restore_filters(efx);
 
-	mutex_unlock(&efx->spi_lock);
 	mutex_unlock(&efx->mac_lock);
 
 	efx_start_all(efx);
@@ -2032,7 +2029,6 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 fail:
 	efx->port_initialized = false;
 
-	mutex_unlock(&efx->spi_lock);
 	mutex_unlock(&efx->mac_lock);
 
 	return rc;
@@ -2220,8 +2216,6 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 	/* Initialise common structures */
 	memset(efx, 0, sizeof(*efx));
 	spin_lock_init(&efx->biu_lock);
-	mutex_init(&efx->mdio_lock);
-	mutex_init(&efx->spi_lock);
 #ifdef CONFIG_SFC_MTD
 	INIT_LIST_HEAD(&efx->mtd_list);
 #endif

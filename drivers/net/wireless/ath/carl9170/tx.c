@@ -242,9 +242,11 @@ static void carl9170_tx_release(struct kref *ref)
 			ar->tx_ampdu_schedule = true;
 
 		if (txinfo->flags & IEEE80211_TX_STAT_AMPDU) {
-			txinfo->status.ampdu_len = txinfo->pad[0];
-			txinfo->status.ampdu_ack_len = txinfo->pad[1];
-			txinfo->pad[0] = txinfo->pad[1] = 0;
+			struct _carl9170_tx_superframe *super;
+
+			super = (void *)skb->data;
+			txinfo->status.ampdu_len = super->s.rix;
+			txinfo->status.ampdu_ack_len = super->s.cnt;
 		} else if (txinfo->flags & IEEE80211_TX_STAT_ACK) {
 			/*
 			 * drop redundant tx_status reports:
@@ -337,7 +339,8 @@ static void carl9170_tx_status_process_ampdu(struct ar9170 *ar,
 	u8 tid;
 
 	if (!(txinfo->flags & IEEE80211_TX_CTL_AMPDU) ||
-	    txinfo->flags & IEEE80211_TX_CTL_INJECTED)
+	    txinfo->flags & IEEE80211_TX_CTL_INJECTED ||
+	   (!(super->f.mac_control & cpu_to_le16(AR9170_TX_MAC_AGGR))))
 		return;
 
 	tx_info = IEEE80211_SKB_CB(skb);
@@ -389,8 +392,8 @@ static void carl9170_tx_status_process_ampdu(struct ar9170 *ar,
 		sta_info->stats[tid].ampdu_ack_len++;
 
 	if (super->f.mac_control & cpu_to_le16(AR9170_TX_MAC_IMM_BA)) {
-		txinfo->pad[0] = sta_info->stats[tid].ampdu_len;
-		txinfo->pad[1] = sta_info->stats[tid].ampdu_ack_len;
+		super->s.rix = sta_info->stats[tid].ampdu_len;
+		super->s.cnt = sta_info->stats[tid].ampdu_ack_len;
 		txinfo->flags |= IEEE80211_TX_STAT_AMPDU;
 		sta_info->stats[tid].clear = true;
 	}
@@ -524,6 +527,59 @@ next:
 	}
 }
 
+static void carl9170_tx_ampdu_timeout(struct ar9170 *ar)
+{
+	struct carl9170_sta_tid *iter;
+	struct sk_buff *skb;
+	struct ieee80211_tx_info *txinfo;
+	struct carl9170_tx_info *arinfo;
+	struct _carl9170_tx_superframe *super;
+	struct ieee80211_sta *sta;
+	struct ieee80211_vif *vif;
+	struct ieee80211_hdr *hdr;
+	unsigned int vif_id;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(iter, &ar->tx_ampdu_list, list) {
+		if (iter->state < CARL9170_TID_STATE_IDLE)
+			continue;
+
+		spin_lock_bh(&iter->lock);
+		skb = skb_peek(&iter->queue);
+		if (!skb)
+			goto unlock;
+
+		txinfo = IEEE80211_SKB_CB(skb);
+		arinfo = (void *)txinfo->rate_driver_data;
+		if (time_is_after_jiffies(arinfo->timeout +
+		    msecs_to_jiffies(CARL9170_QUEUE_TIMEOUT)))
+			goto unlock;
+
+		super = (void *) skb->data;
+		hdr = (void *) super->frame_data;
+
+		vif_id = (super->s.misc & CARL9170_TX_SUPER_MISC_VIF_ID) >>
+			 CARL9170_TX_SUPER_MISC_VIF_ID_S;
+
+		if (WARN_ON(vif_id >= AR9170_MAX_VIRTUAL_MAC))
+			goto unlock;
+
+		vif = rcu_dereference(ar->vif_priv[vif_id].vif);
+		if (WARN_ON(!vif))
+			goto unlock;
+
+		sta = ieee80211_find_sta(vif, hdr->addr1);
+		if (WARN_ON(!sta))
+			goto unlock;
+
+		ieee80211_stop_tx_ba_session(sta, iter->tid);
+unlock:
+		spin_unlock_bh(&iter->lock);
+
+	}
+	rcu_read_unlock();
+}
+
 void carl9170_tx_janitor(struct work_struct *work)
 {
 	struct ar9170 *ar = container_of(work, struct ar9170,
@@ -534,6 +590,7 @@ void carl9170_tx_janitor(struct work_struct *work)
 	ar->tx_janitor_last_run = jiffies;
 
 	carl9170_check_queue_stop_timeout(ar);
+	carl9170_tx_ampdu_timeout(ar);
 
 	if (!atomic_read(&ar->tx_total_queued))
 		return;
@@ -842,10 +899,8 @@ static int carl9170_tx_prepare(struct ar9170 *ar, struct sk_buff *skb)
 		if (unlikely(!sta || !cvif))
 			goto err_out;
 
-		factor = min_t(unsigned int, 1u,
-			 info->control.sta->ht_cap.ampdu_factor);
-
-		density = info->control.sta->ht_cap.ampdu_density;
+		factor = min_t(unsigned int, 1u, sta->ht_cap.ampdu_factor);
+		density = sta->ht_cap.ampdu_density;
 
 		if (density) {
 			/*
@@ -1206,6 +1261,7 @@ static void carl9170_tx(struct ar9170 *ar)
 static bool carl9170_tx_ampdu_queue(struct ar9170 *ar,
 	struct ieee80211_sta *sta, struct sk_buff *skb)
 {
+	struct _carl9170_tx_superframe *super = (void *) skb->data;
 	struct carl9170_sta_info *sta_info;
 	struct carl9170_sta_tid *agg;
 	struct sk_buff *iter;
@@ -1274,6 +1330,7 @@ err_unlock:
 
 err_unlock_rcu:
 	rcu_read_unlock();
+	super->f.mac_control &= ~cpu_to_le16(AR9170_TX_MAC_AGGR);
 	carl9170_tx_status(ar, skb, false);
 	ar->tx_dropped++;
 	return false;
@@ -1302,9 +1359,6 @@ int carl9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 */
 
 	if (info->flags & IEEE80211_TX_CTL_AMPDU) {
-		if (WARN_ON_ONCE(!sta))
-			goto err_free;
-
 		run = carl9170_tx_ampdu_queue(ar, sta, skb);
 		if (run)
 			carl9170_tx_ampdu(ar);

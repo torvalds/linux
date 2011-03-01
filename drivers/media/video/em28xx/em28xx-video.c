@@ -1434,7 +1434,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 
 	/* It isn't an AC97 control. Sends it to the v4l2 dev interface */
 	if (rc == 1) {
-		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_ctrl, ctrl);
+		rc = v4l2_device_call_until_err(&dev->v4l2_dev, 0, core, s_ctrl, ctrl);
 
 		/*
 		 * In the case of non-AC97 volume controls, we still need
@@ -1708,11 +1708,15 @@ static int vidioc_streamoff(struct file *file, void *priv,
 			fh, type, fh->resources, dev->resources);
 
 	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		videobuf_streamoff(&fh->vb_vidq);
-		res_free(fh, EM28XX_RESOURCE_VIDEO);
+		if (res_check(fh, EM28XX_RESOURCE_VIDEO)) {
+			videobuf_streamoff(&fh->vb_vidq);
+			res_free(fh, EM28XX_RESOURCE_VIDEO);
+		}
 	} else if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
-		videobuf_streamoff(&fh->vb_vbiq);
-		res_free(fh, EM28XX_RESOURCE_VBI);
+		if (res_check(fh, EM28XX_RESOURCE_VBI)) {
+			videobuf_streamoff(&fh->vb_vbiq);
+			res_free(fh, EM28XX_RESOURCE_VBI);
+		}
 	}
 
 	return 0;
@@ -1933,19 +1937,6 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 		return videobuf_dqbuf(&fh->vb_vbiq, b, file->f_flags &
 				      O_NONBLOCK);
 }
-
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-static int vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
-{
-	struct em28xx_fh  *fh = priv;
-
-	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return videobuf_cgmbuf(&fh->vb_vidq, mbuf, 8);
-	else
-		return videobuf_cgmbuf(&fh->vb_vbiq, mbuf, 8);
-}
-#endif
-
 
 /* ----------------------------------------------------------- */
 /* RADIO ESPECIFIC IOCTLS                                      */
@@ -2358,9 +2349,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_g_register          = vidioc_g_register,
 	.vidioc_s_register          = vidioc_s_register,
 	.vidioc_g_chip_ident        = vidioc_g_chip_ident,
-#endif
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf                = vidiocgmbuf,
 #endif
 };
 

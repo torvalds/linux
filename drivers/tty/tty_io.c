@@ -2627,6 +2627,11 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return put_user(tty->ldisc->ops->num, (int __user *)p);
 	case TIOCSETD:
 		return tiocsetd(tty, p);
+	case TIOCGDEV:
+	{
+		unsigned int ret = new_encode_dev(tty_devnum(real_tty));
+		return put_user(ret, (unsigned int __user *)p);
+	}
 	/*
 	 * Break handling
 	 */
@@ -3241,8 +3246,44 @@ static int __init tty_class_init(void)
 postcore_initcall(tty_class_init);
 
 /* 3/2004 jmc: why do these devices exist? */
-
 static struct cdev tty_cdev, console_cdev;
+
+static ssize_t show_cons_active(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct console *cs[16];
+	int i = 0;
+	struct console *c;
+	ssize_t count = 0;
+
+	console_lock();
+	for_each_console(c) {
+		if (!c->device)
+			continue;
+		if (!c->write)
+			continue;
+		if ((c->flags & CON_ENABLED) == 0)
+			continue;
+		cs[i++] = c;
+		if (i >= ARRAY_SIZE(cs))
+			break;
+	}
+	while (i--)
+		count += sprintf(buf + count, "%s%d%c",
+				 cs[i]->name, cs[i]->index, i ? ' ':'\n');
+	console_unlock();
+
+	return count;
+}
+static DEVICE_ATTR(active, S_IRUGO, show_cons_active, NULL);
+
+static struct device *consdev;
+
+void console_sysfs_notify(void)
+{
+	if (consdev)
+		sysfs_notify(&consdev->kobj, NULL, "active");
+}
 
 /*
  * Ok, now we can initialize the rest of the tty devices and can count
@@ -3254,15 +3295,18 @@ int __init tty_init(void)
 	if (cdev_add(&tty_cdev, MKDEV(TTYAUX_MAJOR, 0), 1) ||
 	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 0), 1, "/dev/tty") < 0)
 		panic("Couldn't register /dev/tty driver\n");
-	device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 0), NULL,
-			      "tty");
+	device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 0), NULL, "tty");
 
 	cdev_init(&console_cdev, &console_fops);
 	if (cdev_add(&console_cdev, MKDEV(TTYAUX_MAJOR, 1), 1) ||
 	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 1), 1, "/dev/console") < 0)
 		panic("Couldn't register /dev/console driver\n");
-	device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 1), NULL,
+	consdev = device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 1), NULL,
 			      "console");
+	if (IS_ERR(consdev))
+		consdev = NULL;
+	else
+		WARN_ON(device_create_file(consdev, &dev_attr_active) < 0);
 
 #ifdef CONFIG_VT
 	vty_init(&console_fops);

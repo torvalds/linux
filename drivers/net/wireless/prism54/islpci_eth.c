@@ -450,7 +450,7 @@ islpci_eth_receive(islpci_private *priv)
 				   MAX_FRAGMENT_SIZE_RX + 2,
 				   PCI_DMA_FROMDEVICE);
 		if (unlikely(!priv->pci_map_rx_address[index])) {
-			/* error mapping the buffer to device accessable memory address */
+			/* error mapping the buffer to device accessible memory address */
 			DEBUG(SHOW_ERROR_MESSAGES,
 			      "Error mapping DMA address\n");
 

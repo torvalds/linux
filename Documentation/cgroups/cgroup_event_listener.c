@@ -91,7 +91,7 @@ int main(int argc, char **argv)
 
 		if (ret == -1) {
 			perror("cgroup.event_control "
-					"is not accessable any more");
+					"is not accessible any more");
 			break;
 		}
 

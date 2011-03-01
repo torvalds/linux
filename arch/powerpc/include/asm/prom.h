@@ -42,7 +42,7 @@ extern void pci_create_OF_bus_map(void);
 
 /* Translate a DMA address from device space to CPU space */
 extern u64 of_translate_dma_address(struct device_node *dev,
-				    const u32 *in_addr);
+				    const __be32 *in_addr);
 
 #ifdef CONFIG_PCI
 extern unsigned long pci_address_to_pio(phys_addr_t address);
@@ -62,9 +62,6 @@ struct device_node *of_get_cpu_node(int cpu, unsigned int *thread);
 
 /* cache lookup */
 struct device_node *of_find_next_cache_node(struct device_node *np);
-
-/* Get the MAC address */
-extern const void *of_get_mac_address(struct device_node *np);
 
 #ifdef CONFIG_NUMA
 extern int of_node_to_nid(struct device_node *device);

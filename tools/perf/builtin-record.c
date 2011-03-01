@@ -18,6 +18,7 @@
 
 #include "util/header.h"
 #include "util/event.h"
+#include "util/evsel.h"
 #include "util/debug.h"
 #include "util/session.h"
 #include "util/symbol.h"
@@ -27,17 +28,18 @@
 #include <sched.h>
 #include <sys/mman.h>
 
+#define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
+
 enum write_mode_t {
 	WRITE_FORCE,
 	WRITE_APPEND
 };
 
-static int			*fd[MAX_NR_CPUS][MAX_COUNTERS];
-
 static u64			user_interval			= ULLONG_MAX;
 static u64			default_interval		=      0;
+static u64			sample_type;
 
-static int			nr_cpus				=      0;
+static struct cpu_map		*cpus;
 static unsigned int		page_size;
 static unsigned int		mmap_pages			=    128;
 static unsigned int		user_freq 			= UINT_MAX;
@@ -47,12 +49,13 @@ static int			pipe_output			=      0;
 static const char		*output_name			= "perf.data";
 static int			group				=      0;
 static int			realtime_prio			=      0;
+static bool			nodelay				=  false;
 static bool			raw_samples			=  false;
+static bool			sample_id_all_avail		=   true;
 static bool			system_wide			=  false;
 static pid_t			target_pid			=     -1;
 static pid_t			target_tid			=     -1;
-static pid_t			*all_tids			=      NULL;
-static int			thread_num			=      0;
+static struct thread_map	*threads;
 static pid_t			child_pid			=     -1;
 static bool			no_inherit			=  false;
 static enum write_mode_t	write_mode			= WRITE_FORCE;
@@ -60,7 +63,9 @@ static bool			call_graph			=  false;
 static bool			inherit_stat			=  false;
 static bool			no_samples			=  false;
 static bool			sample_address			=  false;
+static bool			sample_time			=  false;
 static bool			no_buildid			=  false;
+static bool			no_buildid_cache		=  false;
 
 static long			samples				=      0;
 static u64			bytes_written			=      0;
@@ -77,7 +82,6 @@ static struct perf_session	*session;
 static const char		*cpu_list;
 
 struct mmap_data {
-	int			counter;
 	void			*base;
 	unsigned int		mask;
 	unsigned int		prev;
@@ -128,6 +132,7 @@ static void write_output(void *buf, size_t size)
 }
 
 static int process_synthesized_event(event_t *event,
+				     struct sample_data *sample __used,
 				     struct perf_session *self __used)
 {
 	write_output(event, event->header.size);
@@ -224,12 +229,12 @@ static struct perf_header_attr *get_header_attr(struct perf_event_attr *a, int n
 	return h_attr;
 }
 
-static void create_counter(int counter, int cpu)
+static void create_counter(struct perf_evsel *evsel, int cpu)
 {
-	char *filter = filters[counter];
-	struct perf_event_attr *attr = attrs + counter;
+	char *filter = evsel->filter;
+	struct perf_event_attr *attr = &evsel->attr;
 	struct perf_header_attr *h_attr;
-	int track = !counter; /* only the first counter needs these */
+	int track = !evsel->idx; /* only the first counter needs these */
 	int thread_index;
 	int ret;
 	struct {
@@ -238,6 +243,19 @@ static void create_counter(int counter, int cpu)
 		u64 time_running;
 		u64 id;
 	} read_data;
+	/*
+ 	 * Check if parse_single_tracepoint_event has already asked for
+ 	 * PERF_SAMPLE_TIME.
+ 	 *
+	 * XXX this is kludgy but short term fix for problems introduced by
+	 * eac23d1c that broke 'perf script' by having different sample_types
+	 * when using multiple tracepoint events when we use a perf binary
+	 * that tries to use sample_id_all on an older kernel.
+ 	 *
+ 	 * We need to move counter creation to perf_session, support
+ 	 * different sample_types, etc.
+ 	 */
+	bool time_needed = attr->sample_type & PERF_SAMPLE_TIME;
 
 	attr->read_format	= PERF_FORMAT_TOTAL_TIME_ENABLED |
 				  PERF_FORMAT_TOTAL_TIME_RUNNING |
@@ -280,10 +298,19 @@ static void create_counter(int counter, int cpu)
 	if (system_wide)
 		attr->sample_type	|= PERF_SAMPLE_CPU;
 
+	if (sample_id_all_avail &&
+	    (sample_time || system_wide || !no_inherit || cpu_list))
+		attr->sample_type	|= PERF_SAMPLE_TIME;
+
 	if (raw_samples) {
 		attr->sample_type	|= PERF_SAMPLE_TIME;
 		attr->sample_type	|= PERF_SAMPLE_RAW;
 		attr->sample_type	|= PERF_SAMPLE_CPU;
+	}
+
+	if (nodelay) {
+		attr->watermark = 0;
+		attr->wakeup_events = 1;
 	}
 
 	attr->mmap		= track;
@@ -293,13 +320,14 @@ static void create_counter(int counter, int cpu)
 		attr->disabled = 1;
 		attr->enable_on_exec = 1;
 	}
+retry_sample_id:
+	attr->sample_id_all = sample_id_all_avail ? 1 : 0;
 
-	for (thread_index = 0; thread_index < thread_num; thread_index++) {
+	for (thread_index = 0; thread_index < threads->nr; thread_index++) {
 try_again:
-		fd[nr_cpu][counter][thread_index] = sys_perf_event_open(attr,
-				all_tids[thread_index], cpu, group_fd, 0);
+		FD(evsel, nr_cpu, thread_index) = sys_perf_event_open(attr, threads->map[thread_index], cpu, group_fd, 0);
 
-		if (fd[nr_cpu][counter][thread_index] < 0) {
+		if (FD(evsel, nr_cpu, thread_index) < 0) {
 			int err = errno;
 
 			if (err == EPERM || err == EACCES)
@@ -309,6 +337,15 @@ try_again:
 			else if (err ==  ENODEV && cpu_list) {
 				die("No such device - did you specify"
 					" an out-of-range profile CPU?\n");
+			} else if (err == EINVAL && sample_id_all_avail) {
+				/*
+				 * Old kernel, no attr->sample_id_type_all field
+				 */
+				sample_id_all_avail = false;
+				if (!sample_time && !raw_samples && !time_needed)
+					attr->sample_type &= ~PERF_SAMPLE_TIME;
+
+				goto retry_sample_id;
 			}
 
 			/*
@@ -326,8 +363,8 @@ try_again:
 				goto try_again;
 			}
 			printf("\n");
-			error("perfcounter syscall returned with %d (%s)\n",
-					fd[nr_cpu][counter][thread_index], strerror(err));
+			error("sys_perf_event_open() syscall returned with %d (%s).  /bin/dmesg may provide additional information.\n",
+			      FD(evsel, nr_cpu, thread_index), strerror(err));
 
 #if defined(__i386__) || defined(__x86_64__)
 			if (attr->type == PERF_TYPE_HARDWARE && err == EOPNOTSUPP)
@@ -341,7 +378,7 @@ try_again:
 			exit(-1);
 		}
 
-		h_attr = get_header_attr(attr, counter);
+		h_attr = get_header_attr(attr, evsel->idx);
 		if (h_attr == NULL)
 			die("nomem\n");
 
@@ -352,7 +389,7 @@ try_again:
 			}
 		}
 
-		if (read(fd[nr_cpu][counter][thread_index], &read_data, sizeof(read_data)) == -1) {
+		if (read(FD(evsel, nr_cpu, thread_index), &read_data, sizeof(read_data)) == -1) {
 			perror("Unable to read perf file descriptor");
 			exit(-1);
 		}
@@ -362,43 +399,44 @@ try_again:
 			exit(-1);
 		}
 
-		assert(fd[nr_cpu][counter][thread_index] >= 0);
-		fcntl(fd[nr_cpu][counter][thread_index], F_SETFL, O_NONBLOCK);
+		assert(FD(evsel, nr_cpu, thread_index) >= 0);
+		fcntl(FD(evsel, nr_cpu, thread_index), F_SETFL, O_NONBLOCK);
 
 		/*
 		 * First counter acts as the group leader:
 		 */
 		if (group && group_fd == -1)
-			group_fd = fd[nr_cpu][counter][thread_index];
+			group_fd = FD(evsel, nr_cpu, thread_index);
 
-		if (counter || thread_index) {
-			ret = ioctl(fd[nr_cpu][counter][thread_index],
-					PERF_EVENT_IOC_SET_OUTPUT,
-					fd[nr_cpu][0][0]);
+		if (evsel->idx || thread_index) {
+			struct perf_evsel *first;
+			first = list_entry(evsel_list.next, struct perf_evsel, node);
+			ret = ioctl(FD(evsel, nr_cpu, thread_index),
+				    PERF_EVENT_IOC_SET_OUTPUT,
+				    FD(first, nr_cpu, 0));
 			if (ret) {
 				error("failed to set output: %d (%s)\n", errno,
 						strerror(errno));
 				exit(-1);
 			}
 		} else {
-			mmap_array[nr_cpu].counter = counter;
 			mmap_array[nr_cpu].prev = 0;
 			mmap_array[nr_cpu].mask = mmap_pages*page_size - 1;
 			mmap_array[nr_cpu].base = mmap(NULL, (mmap_pages+1)*page_size,
-				PROT_READ|PROT_WRITE, MAP_SHARED, fd[nr_cpu][counter][thread_index], 0);
+				PROT_READ | PROT_WRITE, MAP_SHARED, FD(evsel, nr_cpu, thread_index), 0);
 			if (mmap_array[nr_cpu].base == MAP_FAILED) {
 				error("failed to mmap with %d (%s)\n", errno, strerror(errno));
 				exit(-1);
 			}
 
-			event_array[nr_poll].fd = fd[nr_cpu][counter][thread_index];
+			event_array[nr_poll].fd = FD(evsel, nr_cpu, thread_index);
 			event_array[nr_poll].events = POLLIN;
 			nr_poll++;
 		}
 
 		if (filter != NULL) {
-			ret = ioctl(fd[nr_cpu][counter][thread_index],
-					PERF_EVENT_IOC_SET_FILTER, filter);
+			ret = ioctl(FD(evsel, nr_cpu, thread_index),
+				    PERF_EVENT_IOC_SET_FILTER, filter);
 			if (ret) {
 				error("failed to set filter with %d (%s)\n", errno,
 						strerror(errno));
@@ -406,15 +444,19 @@ try_again:
 			}
 		}
 	}
+
+	if (!sample_type)
+		sample_type = attr->sample_type;
 }
 
 static void open_counters(int cpu)
 {
-	int counter;
+	struct perf_evsel *pos;
 
 	group_fd = -1;
-	for (counter = 0; counter < nr_counters; counter++)
-		create_counter(counter, cpu);
+
+	list_for_each_entry(pos, &evsel_list, node)
+		create_counter(pos, cpu);
 
 	nr_cpu++;
 }
@@ -437,9 +479,11 @@ static void atexit_header(void)
 	if (!pipe_output) {
 		session->header.data_size += bytes_written;
 
-		process_buildids();
+		if (!no_buildid)
+			process_buildids();
 		perf_header__write(&session->header, output, true);
 		perf_session__delete(session);
+		perf_evsel_list__delete();
 		symbol__exit();
 	}
 }
@@ -500,7 +544,7 @@ static void mmap_read_all(void)
 
 static int __cmd_record(int argc, const char **argv)
 {
-	int i, counter;
+	int i;
 	struct stat st;
 	int flags;
 	int err;
@@ -552,11 +596,14 @@ static int __cmd_record(int argc, const char **argv)
 	}
 
 	session = perf_session__new(output_name, O_WRONLY,
-				    write_mode == WRITE_FORCE, false);
+				    write_mode == WRITE_FORCE, false, NULL);
 	if (session == NULL) {
 		pr_err("Not enough memory for reading perf file header\n");
 		return -1;
 	}
+
+	if (!no_buildid)
+		perf_header__set_feat(&session->header, HEADER_BUILD_ID);
 
 	if (!file_new) {
 		err = perf_header__read(session, output);
@@ -564,7 +611,7 @@ static int __cmd_record(int argc, const char **argv)
 			goto out_delete_session;
 	}
 
-	if (have_tracepoints(attrs, nr_counters))
+	if (have_tracepoints(&evsel_list))
 		perf_header__set_feat(&session->header, HEADER_TRACE_INFO);
 
 	/*
@@ -612,7 +659,7 @@ static int __cmd_record(int argc, const char **argv)
 		}
 
 		if (!system_wide && target_tid == -1 && target_pid == -1)
-			all_tids[0] = child_pid;
+			threads->map[0] = child_pid;
 
 		close(child_ready_pipe[1]);
 		close(go_pipe[0]);
@@ -626,18 +673,14 @@ static int __cmd_record(int argc, const char **argv)
 		close(child_ready_pipe[0]);
 	}
 
-	nr_cpus = read_cpu_map(cpu_list);
-	if (nr_cpus < 1) {
-		perror("failed to collect number of CPUs");
-		return -1;
-	}
-
 	if (!system_wide && no_inherit && !cpu_list) {
 		open_counters(-1);
 	} else {
-		for (i = 0; i < nr_cpus; i++)
-			open_counters(cpumap[i]);
+		for (i = 0; i < cpus->nr; i++)
+			open_counters(cpus->map[i]);
 	}
+
+	perf_session__set_sample_type(session, sample_type);
 
 	if (pipe_output) {
 		err = perf_header__write_pipe(output);
@@ -650,6 +693,8 @@ static int __cmd_record(int argc, const char **argv)
 	}
 
 	post_processing_offset = lseek(output, 0, SEEK_CUR);
+
+	perf_session__set_sample_id_all(session, sample_id_all_avail);
 
 	if (pipe_output) {
 		err = event__synthesize_attrs(&session->header,
@@ -667,7 +712,7 @@ static int __cmd_record(int argc, const char **argv)
 			return err;
 		}
 
-		if (have_tracepoints(attrs, nr_counters)) {
+		if (have_tracepoints(&evsel_list)) {
 			/*
 			 * FIXME err <= 0 here actually means that
 			 * there were no tracepoints so its not really
@@ -676,8 +721,7 @@ static int __cmd_record(int argc, const char **argv)
 			 * return this more properly and also
 			 * propagate errors that now are calling die()
 			 */
-			err = event__synthesize_tracing_data(output, attrs,
-							     nr_counters,
+			err = event__synthesize_tracing_data(output, &evsel_list,
 							     process_synthesized_event,
 							     session);
 			if (err <= 0) {
@@ -715,8 +759,8 @@ static int __cmd_record(int argc, const char **argv)
 		perf_session__process_machines(session, event__synthesize_guest_os);
 
 	if (!system_wide)
-		event__synthesize_thread(target_tid, process_synthesized_event,
-					 session);
+		event__synthesize_thread_map(threads, process_synthesized_event,
+					     session);
 	else
 		event__synthesize_threads(process_synthesized_event, session);
 
@@ -751,13 +795,13 @@ static int __cmd_record(int argc, const char **argv)
 
 		if (done) {
 			for (i = 0; i < nr_cpu; i++) {
-				for (counter = 0;
-					counter < nr_counters;
-					counter++) {
+				struct perf_evsel *pos;
+
+				list_for_each_entry(pos, &evsel_list, node) {
 					for (thread = 0;
-						thread < thread_num;
+						thread < threads->nr;
 						thread++)
-						ioctl(fd[i][counter][thread],
+						ioctl(FD(pos, i, thread),
 							PERF_EVENT_IOC_DISABLE);
 				}
 			}
@@ -773,7 +817,7 @@ static int __cmd_record(int argc, const char **argv)
 	 * Approximate RIP event size: 24 bytes.
 	 */
 	fprintf(stderr,
-		"[ perf record: Captured and wrote %.3f MB %s (~%lld samples) ]\n",
+		"[ perf record: Captured and wrote %.3f MB %s (~%" PRIu64 " samples) ]\n",
 		(double)bytes_written / 1024.0 / 1024.0,
 		output_name,
 		bytes_written / 24);
@@ -805,6 +849,8 @@ const struct option record_options[] = {
 		    "record events on existing thread id"),
 	OPT_INTEGER('r', "realtime", &realtime_prio,
 		    "collect data with this RT SCHED_FIFO priority"),
+	OPT_BOOLEAN('D', "no-delay", &nodelay,
+		    "collect data without buffering"),
 	OPT_BOOLEAN('R', "raw-samples", &raw_samples,
 		    "collect raw sample records from all opened counters"),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
@@ -831,16 +877,20 @@ const struct option record_options[] = {
 		    "per thread counts"),
 	OPT_BOOLEAN('d', "data", &sample_address,
 		    "Sample addresses"),
+	OPT_BOOLEAN('T', "timestamp", &sample_time, "Sample timestamps"),
 	OPT_BOOLEAN('n', "no-samples", &no_samples,
 		    "don't sample"),
-	OPT_BOOLEAN('N', "no-buildid-cache", &no_buildid,
+	OPT_BOOLEAN('N', "no-buildid-cache", &no_buildid_cache,
 		    "do not update the buildid cache"),
+	OPT_BOOLEAN('B', "no-buildid", &no_buildid,
+		    "do not collect buildids in perf.data"),
 	OPT_END()
 };
 
 int cmd_record(int argc, const char **argv, const char *prefix __used)
 {
-	int i, j, err = -ENOMEM;
+	int err = -ENOMEM;
+	struct perf_evsel *pos;
 
 	argc = parse_options(argc, argv, record_options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
@@ -859,41 +909,38 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	}
 
 	symbol__init();
-	if (no_buildid)
+
+	if (no_buildid_cache || no_buildid)
 		disable_buildid_cache();
 
-	if (!nr_counters) {
-		nr_counters	= 1;
-		attrs[0].type	= PERF_TYPE_HARDWARE;
-		attrs[0].config = PERF_COUNT_HW_CPU_CYCLES;
+	if (list_empty(&evsel_list) && perf_evsel_list__create_default() < 0) {
+		pr_err("Not enough memory for event selector list\n");
+		goto out_symbol_exit;
 	}
 
-	if (target_pid != -1) {
+	if (target_pid != -1)
 		target_tid = target_pid;
-		thread_num = find_all_tid(target_pid, &all_tids);
-		if (thread_num <= 0) {
-			fprintf(stderr, "Can't find all threads of pid %d\n",
-					target_pid);
-			usage_with_options(record_usage, record_options);
-		}
-	} else {
-		all_tids=malloc(sizeof(pid_t));
-		if (!all_tids)
-			goto out_symbol_exit;
 
-		all_tids[0] = target_tid;
-		thread_num = 1;
+	threads = thread_map__new(target_pid, target_tid);
+	if (threads == NULL) {
+		pr_err("Problems finding threads of monitor\n");
+		usage_with_options(record_usage, record_options);
 	}
 
-	for (i = 0; i < MAX_NR_CPUS; i++) {
-		for (j = 0; j < MAX_COUNTERS; j++) {
-			fd[i][j] = malloc(sizeof(int)*thread_num);
-			if (!fd[i][j])
-				goto out_free_fd;
-		}
+	cpus = cpu_map__new(cpu_list);
+	if (cpus == NULL) {
+		perror("failed to parse CPUs map");
+		return -1;
 	}
-	event_array = malloc(
-		sizeof(struct pollfd)*MAX_NR_CPUS*MAX_COUNTERS*thread_num);
+
+	list_for_each_entry(pos, &evsel_list, node) {
+		if (perf_evsel__alloc_fd(pos, cpus->nr, threads->nr) < 0)
+			goto out_free_fd;
+		if (perf_header__push_event(pos->attr.config, event_name(pos)))
+			goto out_free_fd;
+	}
+	event_array = malloc((sizeof(struct pollfd) * MAX_NR_CPUS *
+			      MAX_COUNTERS * threads->nr));
 	if (!event_array)
 		goto out_free_fd;
 
@@ -920,12 +967,8 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 out_free_event_array:
 	free(event_array);
 out_free_fd:
-	for (i = 0; i < MAX_NR_CPUS; i++) {
-		for (j = 0; j < MAX_COUNTERS; j++)
-			free(fd[i][j]);
-	}
-	free(all_tids);
-	all_tids = NULL;
+	thread_map__delete(threads);
+	threads = NULL;
 out_symbol_exit:
 	symbol__exit();
 	return err;

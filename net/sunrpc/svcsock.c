@@ -66,6 +66,13 @@ static void		svc_sock_free(struct svc_xprt *);
 static struct svc_xprt *svc_create_socket(struct svc_serv *, int,
 					  struct net *, struct sockaddr *,
 					  int, int);
+#if defined(CONFIG_NFS_V4_1)
+static struct svc_xprt *svc_bc_create_socket(struct svc_serv *, int,
+					     struct net *, struct sockaddr *,
+					     int, int);
+static void svc_bc_sock_free(struct svc_xprt *xprt);
+#endif /* CONFIG_NFS_V4_1 */
+
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 static struct lock_class_key svc_key[2];
 static struct lock_class_key svc_slock_key[2];
@@ -324,19 +331,21 @@ int svc_sock_names(struct svc_serv *serv, char *buf, const size_t buflen,
 			len = onelen;
 			break;
 		}
-		if (toclose && strcmp(toclose, buf + len) == 0)
+		if (toclose && strcmp(toclose, buf + len) == 0) {
 			closesk = svsk;
-		else
+			svc_xprt_get(&closesk->sk_xprt);
+		} else
 			len += onelen;
 	}
 	spin_unlock_bh(&serv->sv_lock);
 
-	if (closesk)
+	if (closesk) {
 		/* Should unregister with portmap, but you cannot
 		 * unregister just one protocol...
 		 */
 		svc_close_xprt(&closesk->sk_xprt);
-	else if (toclose)
+		svc_xprt_put(&closesk->sk_xprt);
+	} else if (toclose)
 		return -ENOENT;
 	return len;
 }
@@ -985,15 +994,17 @@ static int svc_process_calldir(struct svc_sock *svsk, struct svc_rqst *rqstp,
 		vec[0] = rqstp->rq_arg.head[0];
 	} else {
 		/* REPLY */
-		if (svsk->sk_bc_xprt)
-			req = xprt_lookup_rqst(svsk->sk_bc_xprt, xid);
+		struct rpc_xprt *bc_xprt = svsk->sk_xprt.xpt_bc_xprt;
+
+		if (bc_xprt)
+			req = xprt_lookup_rqst(bc_xprt, xid);
 
 		if (!req) {
 			printk(KERN_NOTICE
 				"%s: Got unrecognized reply: "
-				"calldir 0x%x sk_bc_xprt %p xid %08x\n",
+				"calldir 0x%x xpt_bc_xprt %p xid %08x\n",
 				__func__, ntohl(calldir),
-				svsk->sk_bc_xprt, xid);
+				bc_xprt, xid);
 			vec[0] = rqstp->rq_arg.head[0];
 			goto out;
 		}
@@ -1184,6 +1195,57 @@ static struct svc_xprt *svc_tcp_create(struct svc_serv *serv,
 	return svc_create_socket(serv, IPPROTO_TCP, net, sa, salen, flags);
 }
 
+#if defined(CONFIG_NFS_V4_1)
+static struct svc_xprt *svc_bc_create_socket(struct svc_serv *, int,
+					     struct net *, struct sockaddr *,
+					     int, int);
+static void svc_bc_sock_free(struct svc_xprt *xprt);
+
+static struct svc_xprt *svc_bc_tcp_create(struct svc_serv *serv,
+				       struct net *net,
+				       struct sockaddr *sa, int salen,
+				       int flags)
+{
+	return svc_bc_create_socket(serv, IPPROTO_TCP, net, sa, salen, flags);
+}
+
+static void svc_bc_tcp_sock_detach(struct svc_xprt *xprt)
+{
+}
+
+static struct svc_xprt_ops svc_tcp_bc_ops = {
+	.xpo_create = svc_bc_tcp_create,
+	.xpo_detach = svc_bc_tcp_sock_detach,
+	.xpo_free = svc_bc_sock_free,
+	.xpo_prep_reply_hdr = svc_tcp_prep_reply_hdr,
+};
+
+static struct svc_xprt_class svc_tcp_bc_class = {
+	.xcl_name = "tcp-bc",
+	.xcl_owner = THIS_MODULE,
+	.xcl_ops = &svc_tcp_bc_ops,
+	.xcl_max_payload = RPCSVC_MAXPAYLOAD_TCP,
+};
+
+static void svc_init_bc_xprt_sock(void)
+{
+	svc_reg_xprt_class(&svc_tcp_bc_class);
+}
+
+static void svc_cleanup_bc_xprt_sock(void)
+{
+	svc_unreg_xprt_class(&svc_tcp_bc_class);
+}
+#else /* CONFIG_NFS_V4_1 */
+static void svc_init_bc_xprt_sock(void)
+{
+}
+
+static void svc_cleanup_bc_xprt_sock(void)
+{
+}
+#endif /* CONFIG_NFS_V4_1 */
+
 static struct svc_xprt_ops svc_tcp_ops = {
 	.xpo_create = svc_tcp_create,
 	.xpo_recvfrom = svc_tcp_recvfrom,
@@ -1207,12 +1269,14 @@ void svc_init_xprt_sock(void)
 {
 	svc_reg_xprt_class(&svc_tcp_class);
 	svc_reg_xprt_class(&svc_udp_class);
+	svc_init_bc_xprt_sock();
 }
 
 void svc_cleanup_xprt_sock(void)
 {
 	svc_unreg_xprt_class(&svc_tcp_class);
 	svc_unreg_xprt_class(&svc_udp_class);
+	svc_cleanup_bc_xprt_sock();
 }
 
 static void svc_tcp_init(struct svc_sock *svsk, struct svc_serv *serv)
@@ -1509,41 +1573,43 @@ static void svc_sock_free(struct svc_xprt *xprt)
 	kfree(svsk);
 }
 
+#if defined(CONFIG_NFS_V4_1)
 /*
- * Create a svc_xprt.
- *
- * For internal use only (e.g. nfsv4.1 backchannel).
- * Callers should typically use the xpo_create() method.
+ * Create a back channel svc_xprt which shares the fore channel socket.
  */
-struct svc_xprt *svc_sock_create(struct svc_serv *serv, int prot)
+static struct svc_xprt *svc_bc_create_socket(struct svc_serv *serv,
+					     int protocol,
+					     struct net *net,
+					     struct sockaddr *sin, int len,
+					     int flags)
 {
 	struct svc_sock *svsk;
-	struct svc_xprt *xprt = NULL;
+	struct svc_xprt *xprt;
 
-	dprintk("svc: %s\n", __func__);
+	if (protocol != IPPROTO_TCP) {
+		printk(KERN_WARNING "svc: only TCP sockets"
+			" supported on shared back channel\n");
+		return ERR_PTR(-EINVAL);
+	}
+
 	svsk = kzalloc(sizeof(*svsk), GFP_KERNEL);
 	if (!svsk)
-		goto out;
+		return ERR_PTR(-ENOMEM);
 
 	xprt = &svsk->sk_xprt;
-	if (prot == IPPROTO_TCP)
-		svc_xprt_init(&svc_tcp_class, xprt, serv);
-	else if (prot == IPPROTO_UDP)
-		svc_xprt_init(&svc_udp_class, xprt, serv);
-	else
-		BUG();
-out:
-	dprintk("svc: %s return %p\n", __func__, xprt);
+	svc_xprt_init(&svc_tcp_bc_class, xprt, serv);
+
+	serv->sv_bc_xprt = xprt;
+
 	return xprt;
 }
-EXPORT_SYMBOL_GPL(svc_sock_create);
 
 /*
- * Destroy a svc_sock.
+ * Free a back channel svc_sock.
  */
-void svc_sock_destroy(struct svc_xprt *xprt)
+static void svc_bc_sock_free(struct svc_xprt *xprt)
 {
 	if (xprt)
 		kfree(container_of(xprt, struct svc_sock, sk_xprt));
 }
-EXPORT_SYMBOL_GPL(svc_sock_destroy);
+#endif /* CONFIG_NFS_V4_1 */

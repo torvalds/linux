@@ -18,10 +18,15 @@
 #ifndef __BFA_IOC_H__
 #define __BFA_IOC_H__
 
-#include "bfa_os_inc.h"
+#include "bfad_drv.h"
 #include "bfa_cs.h"
 #include "bfi.h"
 
+#define BFA_DBG_FWTRC_ENTS	(BFI_IOC_TRC_ENTS)
+#define BFA_DBG_FWTRC_LEN					\
+	(BFA_DBG_FWTRC_ENTS * sizeof(struct bfa_trc_s) +	\
+	(sizeof(struct bfa_trc_mod_s) -				\
+	BFA_TRC_MAX * sizeof(struct bfa_trc_s)))
 /*
  * BFA timer declarations
  */
@@ -47,7 +52,6 @@ struct bfa_timer_mod_s {
 #define BFA_TIMER_FREQ 200 /* specified in millisecs */
 
 void bfa_timer_beat(struct bfa_timer_mod_s *mod);
-void bfa_timer_init(struct bfa_timer_mod_s *mod);
 void bfa_timer_begin(struct bfa_timer_mod_s *mod, struct bfa_timer_s *timer,
 			bfa_timer_cbfn_t timercb, void *arg,
 			unsigned int timeout);
@@ -70,7 +74,7 @@ struct bfa_sge_s {
 #define bfa_swap_words(_x)  (	\
 	((_x) << 32) | ((_x) >> 32))
 
-#ifdef __BIGENDIAN
+#ifdef __BIG_ENDIAN
 #define bfa_sge_to_be(_x)
 #define bfa_sge_to_le(_x)	bfa_sge_word_swap(_x)
 #define bfa_sgaddr_le(_x)	bfa_swap_words(_x)
@@ -115,8 +119,8 @@ struct bfa_dma_s {
 static inline void
 __bfa_dma_addr_set(union bfi_addr_u *dma_addr, u64 pa)
 {
-	dma_addr->a32.addr_lo = (u32) pa;
-	dma_addr->a32.addr_hi = (u32) (bfa_os_u32(pa));
+	dma_addr->a32.addr_lo = (__be32) pa;
+	dma_addr->a32.addr_hi = (__be32) (pa >> 32);
 }
 
 
@@ -125,8 +129,8 @@ __bfa_dma_addr_set(union bfi_addr_u *dma_addr, u64 pa)
 static inline void
 __bfa_dma_be_addr_set(union bfi_addr_u *dma_addr, u64 pa)
 {
-	dma_addr->a32.addr_lo = (u32) cpu_to_be32(pa);
-	dma_addr->a32.addr_hi = (u32) cpu_to_be32(bfa_os_u32(pa));
+	dma_addr->a32.addr_lo = cpu_to_be32(pa);
+	dma_addr->a32.addr_hi = cpu_to_be32(pa >> 32);
 }
 
 struct bfa_ioc_regs_s {
@@ -145,8 +149,11 @@ struct bfa_ioc_regs_s {
 	void __iomem *host_page_num_fn;
 	void __iomem *heartbeat;
 	void __iomem *ioc_fwstate;
+	void __iomem *alt_ioc_fwstate;
 	void __iomem *ll_halt;
+	void __iomem *alt_ll_halt;
 	void __iomem *err_set;
+	void __iomem *ioc_fail_sync;
 	void __iomem *shirq_isr_next;
 	void __iomem *shirq_msk_next;
 	void __iomem *smem_page_start;
@@ -254,8 +261,12 @@ struct bfa_ioc_hwif_s {
 	void		(*ioc_map_port)	(struct bfa_ioc_s *ioc);
 	void		(*ioc_isr_mode_set)	(struct bfa_ioc_s *ioc,
 					bfa_boolean_t msix);
-	void		(*ioc_notify_hbfail)	(struct bfa_ioc_s *ioc);
+	void		(*ioc_notify_fail)	(struct bfa_ioc_s *ioc);
 	void		(*ioc_ownership_reset)	(struct bfa_ioc_s *ioc);
+	void		(*ioc_sync_join)	(struct bfa_ioc_s *ioc);
+	void		(*ioc_sync_leave)	(struct bfa_ioc_s *ioc);
+	void		(*ioc_sync_ack)		(struct bfa_ioc_s *ioc);
+	bfa_boolean_t	(*ioc_sync_complete)	(struct bfa_ioc_s *ioc);
 };
 
 #define bfa_ioc_pcifn(__ioc)		((__ioc)->pcidev.pci_func)
@@ -325,7 +336,6 @@ void bfa_ioc_auto_recover(bfa_boolean_t auto_recover);
 void bfa_ioc_detach(struct bfa_ioc_s *ioc);
 void bfa_ioc_pci_init(struct bfa_ioc_s *ioc, struct bfa_pcidev_s *pcidev,
 		enum bfi_mclass mc);
-u32 bfa_ioc_meminfo(void);
 void bfa_ioc_mem_claim(struct bfa_ioc_s *ioc,  u8 *dm_kva, u64 dm_pa);
 void bfa_ioc_enable(struct bfa_ioc_s *ioc);
 void bfa_ioc_disable(struct bfa_ioc_s *ioc);
@@ -340,6 +350,7 @@ bfa_boolean_t bfa_ioc_is_initialized(struct bfa_ioc_s *ioc);
 bfa_boolean_t bfa_ioc_is_disabled(struct bfa_ioc_s *ioc);
 bfa_boolean_t bfa_ioc_fw_mismatch(struct bfa_ioc_s *ioc);
 bfa_boolean_t bfa_ioc_adapter_is_disabled(struct bfa_ioc_s *ioc);
+void bfa_ioc_reset_fwstate(struct bfa_ioc_s *ioc);
 enum bfa_ioc_type_e bfa_ioc_get_type(struct bfa_ioc_s *ioc);
 void bfa_ioc_get_adapter_serial_num(struct bfa_ioc_s *ioc, char *serial_num);
 void bfa_ioc_get_adapter_fw_ver(struct bfa_ioc_s *ioc, char *fw_ver);
@@ -353,24 +364,16 @@ enum bfa_ioc_state bfa_ioc_get_state(struct bfa_ioc_s *ioc);
 void bfa_ioc_get_attr(struct bfa_ioc_s *ioc, struct bfa_ioc_attr_s *ioc_attr);
 void bfa_ioc_get_adapter_attr(struct bfa_ioc_s *ioc,
 		struct bfa_adapter_attr_s *ad_attr);
-int bfa_ioc_debug_trcsz(bfa_boolean_t auto_recover);
 void bfa_ioc_debug_memclaim(struct bfa_ioc_s *ioc, void *dbg_fwsave);
 bfa_status_t bfa_ioc_debug_fwsave(struct bfa_ioc_s *ioc, void *trcdata,
 		int *trclen);
-void bfa_ioc_debug_fwsave_clear(struct bfa_ioc_s *ioc);
 bfa_status_t bfa_ioc_debug_fwtrc(struct bfa_ioc_s *ioc, void *trcdata,
 				 int *trclen);
 bfa_status_t bfa_ioc_debug_fwcore(struct bfa_ioc_s *ioc, void *buf,
 	u32 *offset, int *buflen);
-u32 bfa_ioc_smem_pgnum(struct bfa_ioc_s *ioc, u32 fmaddr);
-u32 bfa_ioc_smem_pgoff(struct bfa_ioc_s *ioc, u32 fmaddr);
 void bfa_ioc_set_fcmode(struct bfa_ioc_s *ioc);
 bfa_boolean_t bfa_ioc_get_fcmode(struct bfa_ioc_s *ioc);
-void bfa_ioc_hbfail_register(struct bfa_ioc_s *ioc,
-	struct bfa_ioc_hbfail_notify_s *notify);
 bfa_boolean_t bfa_ioc_sem_get(void __iomem *sem_reg);
-void bfa_ioc_sem_release(void __iomem *sem_reg);
-void bfa_ioc_hw_sem_release(struct bfa_ioc_s *ioc);
 void bfa_ioc_fwver_get(struct bfa_ioc_s *ioc,
 			struct bfi_ioc_image_hdr_s *fwhdr);
 bfa_boolean_t bfa_ioc_fwver_cmp(struct bfa_ioc_s *ioc,
@@ -381,13 +384,8 @@ bfa_status_t bfa_ioc_fw_stats_clear(struct bfa_ioc_s *ioc);
 /*
  * bfa mfg wwn API functions
  */
-wwn_t bfa_ioc_get_pwwn(struct bfa_ioc_s *ioc);
-wwn_t bfa_ioc_get_nwwn(struct bfa_ioc_s *ioc);
 mac_t bfa_ioc_get_mac(struct bfa_ioc_s *ioc);
-wwn_t bfa_ioc_get_mfg_pwwn(struct bfa_ioc_s *ioc);
-wwn_t bfa_ioc_get_mfg_nwwn(struct bfa_ioc_s *ioc);
 mac_t bfa_ioc_get_mfg_mac(struct bfa_ioc_s *ioc);
-u64 bfa_ioc_get_adid(struct bfa_ioc_s *ioc);
 
 /*
  * F/W Image Size & Chunk
@@ -421,7 +419,7 @@ bfa_cb_image_get_chunk(int type, u32 off)
 		return bfi_image_ct_cna_get_chunk(off);	break;
 	case BFI_IMAGE_CB_FC:
 		return bfi_image_cb_fc_get_chunk(off);	break;
-	default: return 0;
+	default: return NULL;
 	}
 }
 

@@ -35,7 +35,6 @@ static struct clocksource clocksource_tcc = {
 	.rating		= 200,
 	.read		= tcc_get_cycles,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.shift		= 28,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -103,9 +102,7 @@ static int __init tcc_clockevent_init(struct clk *clock)
 {
 	unsigned int c = clk_get_rate(clock);
 
-	clocksource_tcc.mult = clocksource_hz2mult(c,
-					clocksource_tcc.shift);
-	clocksource_register(&clocksource_tcc);
+	clocksource_register_hz(&clocksource_tcc, c);
 
 	clockevent_tcc.mult = div_sc(c, NSEC_PER_SEC,
 					clockevent_tcc.shift);

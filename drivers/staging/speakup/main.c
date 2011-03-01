@@ -2253,17 +2253,17 @@ static int __init speakup_init(void)
 
 	err = speakup_add_virtual_keyboard();
 	if (err)
-		return err;
+		goto out;
 
 	initialize_msgs();	/* Initialize arrays for i18n. */
 	first_console = kzalloc(sizeof(*first_console), GFP_KERNEL);
-	if (!first_console)
-		return -ENOMEM;
-	err = speakup_kobj_init();
-	if (err) {
-		kfree(first_console);
-		return err;
+	if (!first_console) {
+		err = -ENOMEM;
+		goto err_cons;
 	}
+	err = speakup_kobj_init();
+	if (err)
+		goto err_kobject;
 
 	reset_default_chars();
 	reset_default_chartab();
@@ -2299,11 +2299,20 @@ static int __init speakup_init(void)
 
 	speakup_task = kthread_create(speakup_thread, NULL, "speakup");
 	set_user_nice(speakup_task, 10);
-	if (!IS_ERR(speakup_task))
-		wake_up_process(speakup_task);
-	else
-		return -ENOMEM;
-	return 0;
+	if (IS_ERR(speakup_task)) {
+		err = -ENOMEM;
+		goto err_kobject;
+	}
+	wake_up_process(speakup_task);
+	goto out;
+
+err_kobject:
+speakup_kobj_exit();
+	kfree(first_console);
+err_cons:
+	speakup_remove_virtual_keyboard();
+out:
+	return err;
 }
 
 module_init(speakup_init);

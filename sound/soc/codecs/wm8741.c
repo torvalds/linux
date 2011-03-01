@@ -24,7 +24,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
@@ -94,10 +93,11 @@ static const struct snd_soc_dapm_route intercon[] = {
 
 static int wm8741_add_widgets(struct snd_soc_codec *codec)
 {
-	snd_soc_dapm_new_controls(codec, wm8741_dapm_widgets,
-				  ARRAY_SIZE(wm8741_dapm_widgets));
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_add_routes(codec, intercon, ARRAY_SIZE(intercon));
+	snd_soc_dapm_new_controls(dapm, wm8741_dapm_widgets,
+				  ARRAY_SIZE(wm8741_dapm_widgets));
+	snd_soc_dapm_add_routes(dapm, intercon, ARRAY_SIZE(intercon));
 
 	return 0;
 }
@@ -455,7 +455,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8741 = {
 	.resume =	wm8741_resume,
 	.reg_cache_size = ARRAY_SIZE(wm8741_reg_defaults),
 	.reg_word_size = sizeof(u16),
-	.reg_cache_default = &wm8741_reg_defaults,
+	.reg_cache_default = wm8741_reg_defaults,
 };
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)

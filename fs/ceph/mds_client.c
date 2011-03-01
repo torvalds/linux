@@ -60,7 +60,8 @@ static const struct ceph_connection_operations mds_con_ops;
  * parse individual inode info
  */
 static int parse_reply_info_in(void **p, void *end,
-			       struct ceph_mds_reply_info_in *info)
+			       struct ceph_mds_reply_info_in *info,
+			       int features)
 {
 	int err = -EIO;
 
@@ -73,6 +74,12 @@ static int parse_reply_info_in(void **p, void *end,
 	ceph_decode_need(p, end, info->symlink_len, bad);
 	info->symlink = *p;
 	*p += info->symlink_len;
+
+	if (features & CEPH_FEATURE_DIRLAYOUTHASH)
+		ceph_decode_copy_safe(p, end, &info->dir_layout,
+				      sizeof(info->dir_layout), bad);
+	else
+		memset(&info->dir_layout, 0, sizeof(info->dir_layout));
 
 	ceph_decode_32_safe(p, end, info->xattr_len, bad);
 	ceph_decode_need(p, end, info->xattr_len, bad);
@@ -88,12 +95,13 @@ bad:
  * target inode.
  */
 static int parse_reply_info_trace(void **p, void *end,
-				  struct ceph_mds_reply_info_parsed *info)
+				  struct ceph_mds_reply_info_parsed *info,
+				  int features)
 {
 	int err;
 
 	if (info->head->is_dentry) {
-		err = parse_reply_info_in(p, end, &info->diri);
+		err = parse_reply_info_in(p, end, &info->diri, features);
 		if (err < 0)
 			goto out_bad;
 
@@ -114,7 +122,7 @@ static int parse_reply_info_trace(void **p, void *end,
 	}
 
 	if (info->head->is_target) {
-		err = parse_reply_info_in(p, end, &info->targeti);
+		err = parse_reply_info_in(p, end, &info->targeti, features);
 		if (err < 0)
 			goto out_bad;
 	}
@@ -134,7 +142,8 @@ out_bad:
  * parse readdir results
  */
 static int parse_reply_info_dir(void **p, void *end,
-				struct ceph_mds_reply_info_parsed *info)
+				struct ceph_mds_reply_info_parsed *info,
+				int features)
 {
 	u32 num, i = 0;
 	int err;
@@ -182,7 +191,7 @@ static int parse_reply_info_dir(void **p, void *end,
 		*p += sizeof(struct ceph_mds_reply_lease);
 
 		/* inode */
-		err = parse_reply_info_in(p, end, &info->dir_in[i]);
+		err = parse_reply_info_in(p, end, &info->dir_in[i], features);
 		if (err < 0)
 			goto out_bad;
 		i++;
@@ -205,7 +214,8 @@ out_bad:
  * parse fcntl F_GETLK results
  */
 static int parse_reply_info_filelock(void **p, void *end,
-                struct ceph_mds_reply_info_parsed *info)
+				     struct ceph_mds_reply_info_parsed *info,
+				     int features)
 {
 	if (*p + sizeof(*info->filelock_reply) > end)
 		goto bad;
@@ -225,19 +235,21 @@ bad:
  * parse extra results
  */
 static int parse_reply_info_extra(void **p, void *end,
-                struct ceph_mds_reply_info_parsed *info)
+				  struct ceph_mds_reply_info_parsed *info,
+				  int features)
 {
 	if (info->head->op == CEPH_MDS_OP_GETFILELOCK)
-		return parse_reply_info_filelock(p, end, info);
+		return parse_reply_info_filelock(p, end, info, features);
 	else
-		return parse_reply_info_dir(p, end, info);
+		return parse_reply_info_dir(p, end, info, features);
 }
 
 /*
  * parse entire mds reply
  */
 static int parse_reply_info(struct ceph_msg *msg,
-			    struct ceph_mds_reply_info_parsed *info)
+			    struct ceph_mds_reply_info_parsed *info,
+			    int features)
 {
 	void *p, *end;
 	u32 len;
@@ -250,7 +262,7 @@ static int parse_reply_info(struct ceph_msg *msg,
 	/* trace */
 	ceph_decode_32_safe(&p, end, len, bad);
 	if (len > 0) {
-		err = parse_reply_info_trace(&p, p+len, info);
+		err = parse_reply_info_trace(&p, p+len, info, features);
 		if (err < 0)
 			goto out_bad;
 	}
@@ -258,7 +270,7 @@ static int parse_reply_info(struct ceph_msg *msg,
 	/* extra */
 	ceph_decode_32_safe(&p, end, len, bad);
 	if (len > 0) {
-		err = parse_reply_info_extra(&p, p+len, info);
+		err = parse_reply_info_extra(&p, p+len, info, features);
 		if (err < 0)
 			goto out_bad;
 	}
@@ -654,7 +666,7 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 		} else {
 			/* dir + name */
 			inode = dir;
-			hash = req->r_dentry->d_name.hash;
+			hash = ceph_dentry_hash(req->r_dentry);
 			is_hash = true;
 		}
 	}
@@ -681,9 +693,11 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 				dout("choose_mds %p %llx.%llx "
 				     "frag %u mds%d (%d/%d)\n",
 				     inode, ceph_vinop(inode),
-				     frag.frag, frag.mds,
+				     frag.frag, mds,
 				     (int)r, frag.ndist);
-				return mds;
+				if (ceph_mdsmap_get_state(mdsc->mdsmap, mds) >=
+				    CEPH_MDS_STATE_ACTIVE)
+					return mds;
 			}
 
 			/* since this file/dir wasn't known to be
@@ -696,7 +710,9 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 				dout("choose_mds %p %llx.%llx "
 				     "frag %u mds%d (auth)\n",
 				     inode, ceph_vinop(inode), frag.frag, mds);
-				return mds;
+				if (ceph_mdsmap_get_state(mdsc->mdsmap, mds) >=
+				    CEPH_MDS_STATE_ACTIVE)
+					return mds;
 			}
 		}
 	}
@@ -1486,7 +1502,7 @@ retry:
 	*base = ceph_ino(temp->d_inode);
 	*plen = len;
 	dout("build_path on %p %d built %llx '%.*s'\n",
-	     dentry, atomic_read(&dentry->d_count), *base, len, path);
+	     dentry, dentry->d_count, *base, len, path);
 	return path;
 }
 
@@ -1693,7 +1709,6 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 	struct ceph_msg *msg;
 	int flags = 0;
 
-	req->r_mds = mds;
 	req->r_attempts++;
 	if (req->r_inode) {
 		struct ceph_cap *cap =
@@ -1780,6 +1795,8 @@ static int __do_request(struct ceph_mds_client *mdsc,
 		goto finish;
 	}
 
+	put_request_session(req);
+
 	mds = __choose_mds(mdsc, req);
 	if (mds < 0 ||
 	    ceph_mdsmap_get_state(mdsc->mdsmap, mds) < CEPH_MDS_STATE_ACTIVE) {
@@ -1797,6 +1814,8 @@ static int __do_request(struct ceph_mds_client *mdsc,
 			goto finish;
 		}
 	}
+	req->r_session = get_session(session);
+
 	dout("do_request mds%d session %p state %s\n", mds, session,
 	     session_state_name(session->s_state));
 	if (session->s_state != CEPH_MDS_SESSION_OPEN &&
@@ -1809,7 +1828,6 @@ static int __do_request(struct ceph_mds_client *mdsc,
 	}
 
 	/* send request */
-	req->r_session = get_session(session);
 	req->r_resend_mds = -1;   /* forget any previous mds hint */
 
 	if (req->r_request_started == 0)   /* note request start time */
@@ -1863,7 +1881,6 @@ static void kick_requests(struct ceph_mds_client *mdsc, int mds)
 		if (req->r_session &&
 		    req->r_session->s_mds == mds) {
 			dout(" kicking tid %llu\n", req->r_tid);
-			put_request_session(req);
 			__do_request(mdsc, req);
 		}
 	}
@@ -2056,8 +2073,11 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 			goto out;
 		} else  {
 			struct ceph_inode_info *ci = ceph_inode(req->r_inode);
-			struct ceph_cap *cap =
-				ceph_get_cap_for_mds(ci, req->r_mds);;
+			struct ceph_cap *cap = NULL;
+
+			if (req->r_session)
+				cap = ceph_get_cap_for_mds(ci,
+						   req->r_session->s_mds);
 
 			dout("already using auth");
 			if ((!cap || cap != ci->i_auth_cap) ||
@@ -2101,7 +2121,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 
 	dout("handle_reply tid %lld result %d\n", tid, result);
 	rinfo = &req->r_reply_info;
-	err = parse_reply_info(msg, rinfo);
+	err = parse_reply_info(msg, rinfo, session->s_con.peer_features);
 	mutex_unlock(&mdsc->mutex);
 
 	mutex_lock(&session->s_mutex);

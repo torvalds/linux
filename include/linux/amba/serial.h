@@ -113,6 +113,21 @@
 #define UART01x_LCRH_PEN	0x02
 #define UART01x_LCRH_BRK	0x01
 
+#define ST_UART011_DMAWM_RX_1	(0 << 3)
+#define ST_UART011_DMAWM_RX_2	(1 << 3)
+#define ST_UART011_DMAWM_RX_4	(2 << 3)
+#define ST_UART011_DMAWM_RX_8	(3 << 3)
+#define ST_UART011_DMAWM_RX_16	(4 << 3)
+#define ST_UART011_DMAWM_RX_32	(5 << 3)
+#define ST_UART011_DMAWM_RX_48	(6 << 3)
+#define ST_UART011_DMAWM_TX_1	0
+#define ST_UART011_DMAWM_TX_2	1
+#define ST_UART011_DMAWM_TX_4	2
+#define ST_UART011_DMAWM_TX_8	3
+#define ST_UART011_DMAWM_TX_16	4
+#define ST_UART011_DMAWM_TX_32	5
+#define ST_UART011_DMAWM_TX_48	6
+
 #define UART010_IIR_RTIS	0x08
 #define UART010_IIR_TIS		0x04
 #define UART010_IIR_RIS		0x02
@@ -179,6 +194,13 @@
 struct amba_device; /* in uncompress this is included but amba/bus.h is not */
 struct amba_pl010_data {
 	void (*set_mctrl)(struct amba_device *dev, void __iomem *base, unsigned int mctrl);
+};
+
+struct dma_chan;
+struct amba_pl011_data {
+	bool (*dma_filter)(struct dma_chan *chan, void *filter_param);
+	void *dma_rx_param;
+	void *dma_tx_param;
 };
 #endif
 

@@ -830,6 +830,28 @@ static int device_match_by_alias(struct device *dev, void *data)
 }
 
 /**
+ * iommu_set_da_range - Set a valid device address range
+ * @obj:		target iommu
+ * @start		Start of valid range
+ * @end			End of valid range
+ **/
+int iommu_set_da_range(struct iommu *obj, u32 start, u32 end)
+{
+
+	if (!obj)
+		return -EFAULT;
+
+	if (end < start || !PAGE_ALIGN(start | end))
+		return -EINVAL;
+
+	obj->da_start = start;
+	obj->da_end = end;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iommu_set_da_range);
+
+/**
  * iommu_get - Get iommu handler
  * @name:	target iommu name
  **/
@@ -922,6 +944,8 @@ static int __devinit omap_iommu_probe(struct platform_device *pdev)
 	obj->name = pdata->name;
 	obj->dev = &pdev->dev;
 	obj->ctx = (void *)obj + sizeof(*obj);
+	obj->da_start = pdata->da_start;
+	obj->da_end = pdata->da_end;
 
 	mutex_init(&obj->iommu_lock);
 	mutex_init(&obj->mmap_lock);

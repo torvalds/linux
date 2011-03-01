@@ -94,6 +94,7 @@
 #define IVTV_HAUP_INT_IR_RX_I2C_ADDR 	0x18
 #define IVTV_Z8F0811_IR_TX_I2C_ADDR	0x70
 #define IVTV_Z8F0811_IR_RX_I2C_ADDR	0x71
+#define IVTV_ADAPTEC_IR_ADDR		0x6b
 
 /* This array should match the IVTV_HW_ defines */
 static const u8 hw_addrs[] = {
@@ -118,6 +119,7 @@ static const u8 hw_addrs[] = {
 	IVTV_HAUP_INT_IR_RX_I2C_ADDR,	/* IVTV_HW_I2C_IR_RX_HAUP_INT */
 	IVTV_Z8F0811_IR_TX_I2C_ADDR,	/* IVTV_HW_Z8F0811_IR_TX_HAUP */
 	IVTV_Z8F0811_IR_RX_I2C_ADDR,	/* IVTV_HW_Z8F0811_IR_RX_HAUP */
+	IVTV_ADAPTEC_IR_ADDR,		/* IVTV_HW_I2C_IR_RX_ADAPTEC */
 };
 
 /* This array should match the IVTV_HW_ defines */
@@ -143,7 +145,33 @@ static const char * const hw_devicenames[] = {
 	"ir_video",		/* IVTV_HW_I2C_IR_RX_HAUP_INT */
 	"ir_tx_z8f0811_haup",	/* IVTV_HW_Z8F0811_IR_TX_HAUP */
 	"ir_rx_z8f0811_haup",	/* IVTV_HW_Z8F0811_IR_RX_HAUP */
+	"ir_video",		/* IVTV_HW_I2C_IR_RX_ADAPTEC */
 };
+
+static int get_key_adaptec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+{
+	unsigned char keybuf[4];
+
+	keybuf[0] = 0x00;
+	i2c_master_send(ir->c, keybuf, 1);
+	/* poll IR chip */
+	if (i2c_master_recv(ir->c, keybuf, sizeof(keybuf)) != sizeof(keybuf)) {
+		return 0;
+	}
+
+	/* key pressed ? */
+	if (keybuf[2] == 0xff)
+		return 0;
+
+	/* remove repeat bit */
+	keybuf[2] &= 0x7f;
+	keybuf[3] |= 0x80;
+
+	*ir_key = keybuf[3] | keybuf[2] << 8 | keybuf[1] << 16 |keybuf[0] << 24;
+	*ir_raw = *ir_key;
+
+	return 1;
+}
 
 static int ivtv_i2c_new_ir(struct ivtv *itv, u32 hw, const char *type, u8 addr)
 {
@@ -172,7 +200,7 @@ static int ivtv_i2c_new_ir(struct ivtv *itv, u32 hw, const char *type, u8 addr)
 		init_data->ir_codes = RC_MAP_AVERMEDIA_CARDBUS;
 		init_data->internal_get_key_func =
 					IR_KBD_GET_KEY_AVERMEDIA_CARDBUS;
-		init_data->type = IR_TYPE_OTHER;
+		init_data->type = RC_TYPE_OTHER;
 		init_data->name = "AVerMedia AVerTV card";
 		break;
 	case IVTV_HW_I2C_IR_RX_HAUP_EXT:
@@ -180,15 +208,22 @@ static int ivtv_i2c_new_ir(struct ivtv *itv, u32 hw, const char *type, u8 addr)
 		/* Default to old black remote */
 		init_data->ir_codes = RC_MAP_RC5_TV;
 		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP;
-		init_data->type = IR_TYPE_RC5;
+		init_data->type = RC_TYPE_RC5;
 		init_data->name = itv->card_name;
 		break;
 	case IVTV_HW_Z8F0811_IR_RX_HAUP:
 		/* Default to grey remote */
 		init_data->ir_codes = RC_MAP_HAUPPAUGE_NEW;
 		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
-		init_data->type = IR_TYPE_RC5;
+		init_data->type = RC_TYPE_RC5;
 		init_data->name = itv->card_name;
+		break;
+	case IVTV_HW_I2C_IR_RX_ADAPTEC:
+		init_data->get_key = get_key_adaptec;
+		init_data->name = itv->card_name;
+		/* FIXME: The protocol and RC_MAP needs to be corrected */
+		init_data->ir_codes = RC_MAP_EMPTY;
+		init_data->type = RC_TYPE_UNKNOWN;
 		break;
 	}
 
@@ -218,8 +253,6 @@ struct i2c_client *ivtv_i2c_new_ir_legacy(struct ivtv *itv)
 	const unsigned short addr_list[] = {
 		0x1a,	/* Hauppauge IR external - collides with WM8739 */
 		0x18,	/* Hauppauge IR internal */
-		0x71,	/* Hauppauge IR (PVR150) */
-		0x6b,	/* Adaptec IR */
 		I2C_CLIENT_END
 	};
 
@@ -267,10 +300,15 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 				adap, type, 0, I2C_ADDRS(hw_addrs[idx]));
 	} else if (hw == IVTV_HW_CX25840) {
 		struct cx25840_platform_data pdata;
+		struct i2c_board_info cx25840_info = {
+			.type = "cx25840",
+			.addr = hw_addrs[idx],
+			.platform_data = &pdata,
+		};
 
 		pdata.pvr150_workaround = itv->pvr150_workaround;
-		sd = v4l2_i2c_new_subdev_cfg(&itv->v4l2_dev,
-				adap, type, 0, &pdata, hw_addrs[idx], NULL);
+		sd = v4l2_i2c_new_subdev_board(&itv->v4l2_dev, adap,
+				&cx25840_info, NULL);
 	} else {
 		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
 				adap, type, hw_addrs[idx], NULL);

@@ -1,5 +1,5 @@
 /*
- * mrst_spi_pci.c - PCI interface driver for DW SPI Core
+ * dw_spi_pci.c - PCI interface driver for DW SPI Core
  *
  * Copyright (c) 2009, Intel Corporation.
  *
@@ -26,8 +26,8 @@
 #define DRIVER_NAME "dw_spi_pci"
 
 struct dw_spi_pci {
-	struct pci_dev		*pdev;
-	struct dw_spi		dws;
+	struct pci_dev	*pdev;
+	struct dw_spi	dws;
 };
 
 static int __devinit spi_pci_probe(struct pci_dev *pdev,
@@ -72,9 +72,17 @@ static int __devinit spi_pci_probe(struct pci_dev *pdev,
 	dws->parent_dev = &pdev->dev;
 	dws->bus_num = 0;
 	dws->num_cs = 4;
-	dws->max_freq = 25000000;	/* for Moorestwon */
 	dws->irq = pdev->irq;
-	dws->fifo_len = 40;		/* FIFO has 40 words buffer */
+
+	/*
+	 * Specific handling for Intel MID paltforms, like dma setup,
+	 * clock rate, FIFO depth.
+	 */
+	if (pdev->device == 0x0800) {
+		ret = dw_spi_mid_init(dws);
+		if (ret)
+			goto err_unmap;
+	}
 
 	ret = dw_spi_add_host(dws);
 	if (ret)
@@ -140,7 +148,7 @@ static int spi_resume(struct pci_dev *pdev)
 #endif
 
 static const struct pci_device_id pci_ids[] __devinitdata = {
-	/* Intel Moorestown platform SPI controller 0 */
+	/* Intel MID platform SPI controller 0 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0800) },
 	{},
 };

@@ -76,7 +76,7 @@ struct pt_dspregs {
 #ifdef __KERNEL__
 
 #define MAX_REG_OFFSET		offsetof(struct pt_regs, tra)
-#define regs_return_value(regs)	((regs)->regs[0])
+#define regs_return_value(_regs)	((_regs)->regs[0])
 
 #endif /* __KERNEL__ */
 

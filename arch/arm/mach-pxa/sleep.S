@@ -14,7 +14,7 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <mach/hardware.h>
-
+#include <mach/smemc.h>
 #include <mach/pxa2xx-regs.h>
 
 #define MDREFR_KDIV	0x200a4000	// all banks

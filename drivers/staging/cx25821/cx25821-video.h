@@ -40,19 +40,15 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-/* Include V4L1 specific functions. Should be removed soon */
-#include <linux/videodev.h>
-#endif
-
 #define TUNER_FLAG
 
 #define VIDEO_DEBUG 0
 
-#define dprintk(level, fmt, arg...)\
-    do { if (VIDEO_DEBUG >= level)\
-	printk(KERN_DEBUG "%s/0: " fmt, dev->name, ## arg);\
-    } while (0)
+#define dprintk(level, fmt, arg...)					\
+do {									\
+	if (VIDEO_DEBUG >= level)					\
+		printk(KERN_DEBUG "%s/0: " fmt, dev->name, ##arg);	\
+} while (0)
 
 /* For IOCTL to identify running upstream */
 #define UPSTREAM_START_VIDEO        700
@@ -133,7 +129,6 @@ extern int cx25821_vidioc_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap);
 extern int cx25821_vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 				   struct v4l2_fmtdesc *f);
-extern int cx25821_vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf);
 extern int cx25821_vidioc_reqbufs(struct file *file, void *priv,
 			  struct v4l2_requestbuffers *p);
 extern int cx25821_vidioc_querybuf(struct file *file, void *priv,

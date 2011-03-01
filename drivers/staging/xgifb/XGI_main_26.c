@@ -472,9 +472,11 @@ unsigned char XGIfb_query_north_bridge_space(struct xgi_hw_device_info *pXGIhw_e
 			break;
 		}
 
-		pdev = pci_find_device(PCI_VENDOR_ID_SI, nbridge_id, pdev);
-		if (pdev)
+		pdev = pci_get_device(PCI_VENDOR_ID_SI, nbridge_id, pdev);
+		if (pdev) {
 			valid_pdev = 1;
+			pci_dev_put(pdev);
+		}
 	}
 
 	if (!valid_pdev) {
@@ -2178,8 +2180,7 @@ static int XGIfb_heap_init(void)
 
 #ifndef AGPOFF
 	if (XGIfb_queuemode == AGP_CMD_QUEUE) {
-		agp_info = vmalloc(sizeof(*agp_info));
-		memset((void *)agp_info, 0x00, sizeof(*agp_info));
+		agp_info = vzalloc(sizeof(*agp_info));
 		agp_copy_info(agp_info);
 
 		agp_backend_acquire();

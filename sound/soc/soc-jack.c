@@ -13,11 +13,11 @@
 
 #include <sound/jack.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
+#include <trace/events/asoc.h>
 
 /**
  * snd_soc_jack_new - Create a new jack
@@ -60,14 +60,18 @@ EXPORT_SYMBOL_GPL(snd_soc_jack_new);
 void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 {
 	struct snd_soc_codec *codec;
+	struct snd_soc_dapm_context *dapm;
 	struct snd_soc_jack_pin *pin;
 	int enable;
 	int oldstatus;
+
+	trace_snd_soc_jack_report(jack, mask, status);
 
 	if (!jack)
 		return;
 
 	codec = jack->codec;
+	dapm =  &codec->dapm;
 
 	mutex_lock(&codec->mutex);
 
@@ -81,6 +85,8 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 	if (mask && (jack->status == oldstatus))
 		goto out;
 
+	trace_snd_soc_jack_notify(jack, status);
+
 	list_for_each_entry(pin, &jack->pins, list) {
 		enable = pin->mask & jack->status;
 
@@ -88,15 +94,15 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 			enable = !enable;
 
 		if (enable)
-			snd_soc_dapm_enable_pin(codec, pin->pin);
+			snd_soc_dapm_enable_pin(dapm, pin->pin);
 		else
-			snd_soc_dapm_disable_pin(codec, pin->pin);
+			snd_soc_dapm_disable_pin(dapm, pin->pin);
 	}
 
 	/* Report before the DAPM sync to help users updating micbias status */
 	blocking_notifier_call_chain(&jack->notifier, status, NULL);
 
-	snd_soc_dapm_sync(codec);
+	snd_soc_dapm_sync(dapm);
 
 	snd_jack_report(jack->jack, status);
 
@@ -207,6 +213,12 @@ static void snd_soc_jack_gpio_detect(struct snd_soc_jack_gpio *gpio)
 static irqreturn_t gpio_handler(int irq, void *data)
 {
 	struct snd_soc_jack_gpio *gpio = data;
+	struct device *dev = gpio->jack->codec->card->dev;
+
+	trace_snd_soc_jack_irq(gpio->name);
+
+	if (device_may_wakeup(dev))
+		pm_wakeup_event(dev, gpio->debounce_time + 50);
 
 	schedule_delayed_work(&gpio->work,
 			      msecs_to_jiffies(gpio->debounce_time));
@@ -263,11 +275,12 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 		INIT_DELAYED_WORK(&gpios[i].work, gpio_work);
 		gpios[i].jack = jack;
 
-		ret = request_irq(gpio_to_irq(gpios[i].gpio),
-				gpio_handler,
-				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-				jack->codec->dev->driver->name,
-				&gpios[i]);
+		ret = request_any_context_irq(gpio_to_irq(gpios[i].gpio),
+					      gpio_handler,
+					      IRQF_TRIGGER_RISING |
+					      IRQF_TRIGGER_FALLING,
+					      jack->codec->dev->driver->name,
+					      &gpios[i]);
 		if (ret)
 			goto err;
 

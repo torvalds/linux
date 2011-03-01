@@ -96,7 +96,7 @@ struct workqueue_struct *ceph_msgr_wq;
 
 int ceph_msgr_init(void)
 {
-	ceph_msgr_wq = create_workqueue("ceph-msgr");
+	ceph_msgr_wq = alloc_workqueue("ceph-msgr", WQ_NON_REENTRANT, 0);
 	if (!ceph_msgr_wq) {
 		pr_err("msgr_init failed to create workqueue\n");
 		return -ENOMEM;
@@ -252,8 +252,12 @@ static int ceph_tcp_recvmsg(struct socket *sock, void *buf, size_t len)
 {
 	struct kvec iov = {buf, len};
 	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL };
+	int r;
 
-	return kernel_recvmsg(sock, &msg, &iov, 1, len, msg.msg_flags);
+	r = kernel_recvmsg(sock, &msg, &iov, 1, len, msg.msg_flags);
+	if (r == -EAGAIN)
+		r = 0;
+	return r;
 }
 
 /*
@@ -264,13 +268,17 @@ static int ceph_tcp_sendmsg(struct socket *sock, struct kvec *iov,
 		     size_t kvlen, size_t len, int more)
 {
 	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL };
+	int r;
 
 	if (more)
 		msg.msg_flags |= MSG_MORE;
 	else
 		msg.msg_flags |= MSG_EOR;  /* superfluous, but what the hell */
 
-	return kernel_sendmsg(sock, &msg, iov, kvlen, len);
+	r = kernel_sendmsg(sock, &msg, iov, kvlen, len);
+	if (r == -EAGAIN)
+		r = 0;
+	return r;
 }
 
 
@@ -847,6 +855,8 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 		    (msg->pages || msg->pagelist || msg->bio || in_trail))
 			kunmap(page);
 
+		if (ret == -EAGAIN)
+			ret = 0;
 		if (ret <= 0)
 			goto out;
 
@@ -1737,16 +1747,12 @@ more_kvec:
 	if (con->out_skip) {
 		ret = write_partial_skip(con);
 		if (ret <= 0)
-			goto done;
-		if (ret < 0) {
-			dout("try_write write_partial_skip err %d\n", ret);
-			goto done;
-		}
+			goto out;
 	}
 	if (con->out_kvec_left) {
 		ret = write_partial_kvec(con);
 		if (ret <= 0)
-			goto done;
+			goto out;
 	}
 
 	/* msg pages? */
@@ -1761,11 +1767,11 @@ more_kvec:
 		if (ret == 1)
 			goto more_kvec;  /* we need to send the footer, too! */
 		if (ret == 0)
-			goto done;
+			goto out;
 		if (ret < 0) {
 			dout("try_write write_partial_msg_pages err %d\n",
 			     ret);
-			goto done;
+			goto out;
 		}
 	}
 
@@ -1789,10 +1795,9 @@ do_next:
 	/* Nothing to do! */
 	clear_bit(WRITE_PENDING, &con->state);
 	dout("try_write nothing else to write.\n");
-done:
 	ret = 0;
 out:
-	dout("try_write done on %p\n", con);
+	dout("try_write done on %p ret %d\n", con, ret);
 	return ret;
 }
 
@@ -1821,19 +1826,17 @@ more:
 			dout("try_read connecting\n");
 			ret = read_partial_banner(con);
 			if (ret <= 0)
-				goto done;
-			if (process_banner(con) < 0) {
-				ret = -1;
 				goto out;
-			}
+			ret = process_banner(con);
+			if (ret < 0)
+				goto out;
 		}
 		ret = read_partial_connect(con);
 		if (ret <= 0)
-			goto done;
-		if (process_connect(con) < 0) {
-			ret = -1;
 			goto out;
-		}
+		ret = process_connect(con);
+		if (ret < 0)
+			goto out;
 		goto more;
 	}
 
@@ -1848,7 +1851,7 @@ more:
 		dout("skipping %d / %d bytes\n", skip, -con->in_base_pos);
 		ret = ceph_tcp_recvmsg(con->sock, buf, skip);
 		if (ret <= 0)
-			goto done;
+			goto out;
 		con->in_base_pos += ret;
 		if (con->in_base_pos)
 			goto more;
@@ -1859,7 +1862,7 @@ more:
 		 */
 		ret = ceph_tcp_recvmsg(con->sock, &con->in_tag, 1);
 		if (ret <= 0)
-			goto done;
+			goto out;
 		dout("try_read got tag %d\n", (int)con->in_tag);
 		switch (con->in_tag) {
 		case CEPH_MSGR_TAG_MSG:
@@ -1870,7 +1873,7 @@ more:
 			break;
 		case CEPH_MSGR_TAG_CLOSE:
 			set_bit(CLOSED, &con->state);   /* fixme */
-			goto done;
+			goto out;
 		default:
 			goto bad_tag;
 		}
@@ -1882,13 +1885,12 @@ more:
 			case -EBADMSG:
 				con->error_msg = "bad crc";
 				ret = -EIO;
-				goto out;
+				break;
 			case -EIO:
 				con->error_msg = "io error";
-				goto out;
-			default:
-				goto done;
+				break;
 			}
+			goto out;
 		}
 		if (con->in_tag == CEPH_MSGR_TAG_READY)
 			goto more;
@@ -1898,15 +1900,13 @@ more:
 	if (con->in_tag == CEPH_MSGR_TAG_ACK) {
 		ret = read_partial_ack(con);
 		if (ret <= 0)
-			goto done;
+			goto out;
 		process_ack(con);
 		goto more;
 	}
 
-done:
-	ret = 0;
 out:
-	dout("try_read done on %p\n", con);
+	dout("try_read done on %p ret %d\n", con, ret);
 	return ret;
 
 bad_tag:
@@ -1920,20 +1920,6 @@ bad_tag:
 /*
  * Atomically queue work on a connection.  Bump @con reference to
  * avoid races with connection teardown.
- *
- * There is some trickery going on with QUEUED and BUSY because we
- * only want a _single_ thread operating on each connection at any
- * point in time, but we want to use all available CPUs.
- *
- * The worker thread only proceeds if it can atomically set BUSY.  It
- * clears QUEUED and does it's thing.  When it thinks it's done, it
- * clears BUSY, then rechecks QUEUED.. if it's set again, it loops
- * (tries again to set BUSY).
- *
- * To queue work, we first set QUEUED, _then_ if BUSY isn't set, we
- * try to queue work.  If that fails (work is already queued, or BUSY)
- * we give up (work also already being done or is queued) but leave QUEUED
- * set so that the worker thread will loop if necessary.
  */
 static void queue_con(struct ceph_connection *con)
 {
@@ -1948,11 +1934,7 @@ static void queue_con(struct ceph_connection *con)
 		return;
 	}
 
-	set_bit(QUEUED, &con->state);
-	if (test_bit(BUSY, &con->state)) {
-		dout("queue_con %p - already BUSY\n", con);
-		con->ops->put(con);
-	} else if (!queue_work(ceph_msgr_wq, &con->work.work)) {
+	if (!queue_delayed_work(ceph_msgr_wq, &con->work, 0)) {
 		dout("queue_con %p - already queued\n", con);
 		con->ops->put(con);
 	} else {
@@ -1967,15 +1949,6 @@ static void con_work(struct work_struct *work)
 {
 	struct ceph_connection *con = container_of(work, struct ceph_connection,
 						   work.work);
-	int backoff = 0;
-
-more:
-	if (test_and_set_bit(BUSY, &con->state) != 0) {
-		dout("con_work %p BUSY already set\n", con);
-		goto out;
-	}
-	dout("con_work %p start, clearing QUEUED\n", con);
-	clear_bit(QUEUED, &con->state);
 
 	mutex_lock(&con->mutex);
 
@@ -1994,28 +1967,13 @@ more:
 	    try_read(con) < 0 ||
 	    try_write(con) < 0) {
 		mutex_unlock(&con->mutex);
-		backoff = 1;
 		ceph_fault(con);     /* error/fault path */
 		goto done_unlocked;
 	}
 
 done:
 	mutex_unlock(&con->mutex);
-
 done_unlocked:
-	clear_bit(BUSY, &con->state);
-	dout("con->state=%lu\n", con->state);
-	if (test_bit(QUEUED, &con->state)) {
-		if (!backoff || test_bit(OPENING, &con->state)) {
-			dout("con_work %p QUEUED reset, looping\n", con);
-			goto more;
-		}
-		dout("con_work %p QUEUED reset, but just faulted\n", con);
-		clear_bit(QUEUED, &con->state);
-	}
-	dout("con_work %p done\n", con);
-
-out:
 	con->ops->put(con);
 }
 

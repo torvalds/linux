@@ -17,11 +17,11 @@
 #ifndef EEPROM_H
 #define EEPROM_H
 
+#define AR_EEPROM_MODAL_SPURS   5
+
 #include "../ath.h"
 #include <net/cfg80211.h>
 #include "ar9003_eeprom.h"
-
-#define AH_USE_EEPROM   0x1
 
 #ifdef __BIG_ENDIAN
 #define AR5416_EEPROM_MAGIC 0x5aa5
@@ -149,8 +149,6 @@
 #define AR5416_NUM_PD_GAINS             4
 #define AR5416_PD_GAINS_IN_MASK         4
 #define AR5416_PD_GAIN_ICEPTS           5
-#define AR5416_EEPROM_MODAL_SPURS       5
-#define AR5416_MAX_RATE_POWER           63
 #define AR5416_NUM_PDADC_VALUES         128
 #define AR5416_BCHAN_UNUSED             0xFF
 #define AR5416_MAX_PWR_RANGE_IN_HALF_DB 64
@@ -175,8 +173,6 @@
 #define AR5416_EEP4K_NUM_CTLS                 12
 #define AR5416_EEP4K_NUM_BAND_EDGES           4
 #define AR5416_EEP4K_NUM_PD_GAINS             2
-#define AR5416_EEP4K_PD_GAINS_IN_MASK         4
-#define AR5416_EEP4K_PD_GAIN_ICEPTS           5
 #define AR5416_EEP4K_MAX_CHAINS               1
 
 #define AR9280_TX_GAIN_TABLE_SIZE 22
@@ -198,35 +194,12 @@
 #define AR9287_NUM_2G_40_TARGET_POWERS  3
 #define AR9287_NUM_CTLS              	12
 #define AR9287_NUM_BAND_EDGES        	4
-#define AR9287_NUM_PD_GAINS             4
-#define AR9287_PD_GAINS_IN_MASK         4
 #define AR9287_PD_GAIN_ICEPTS           1
-#define AR9287_EEPROM_MODAL_SPURS       5
-#define AR9287_MAX_RATE_POWER           63
-#define AR9287_NUM_PDADC_VALUES         128
-#define AR9287_NUM_RATES                16
-#define AR9287_BCHAN_UNUSED             0xFF
-#define AR9287_MAX_PWR_RANGE_IN_HALF_DB 64
-#define AR9287_OPFLAGS_11A              0x01
-#define AR9287_OPFLAGS_11G              0x02
-#define AR9287_OPFLAGS_2G_HT40          0x08
-#define AR9287_OPFLAGS_2G_HT20          0x20
-#define AR9287_OPFLAGS_5G_HT40          0x04
-#define AR9287_OPFLAGS_5G_HT20          0x10
 #define AR9287_EEPMISC_BIG_ENDIAN       0x01
 #define AR9287_EEPMISC_WOW              0x02
 #define AR9287_MAX_CHAINS               2
 #define AR9287_ANT_16S                  32
-#define AR9287_custdatasize             20
 
-#define AR9287_NUM_ANT_CHAIN_FIELDS     6
-#define AR9287_NUM_ANT_COMMON_FIELDS    4
-#define AR9287_SIZE_ANT_CHAIN_FIELD     2
-#define AR9287_SIZE_ANT_COMMON_FIELD    4
-#define AR9287_ANT_CHAIN_MASK           0x3
-#define AR9287_ANT_COMMON_MASK          0xf
-#define AR9287_CHAIN_0_IDX              0
-#define AR9287_CHAIN_1_IDX              1
 #define AR9287_DATA_SZ                  32
 
 #define AR9287_PWR_TABLE_OFFSET_DB  -5
@@ -280,6 +253,7 @@ enum eeprom_param {
 	EEP_PAPRD,
 	EEP_MODAL_VER,
 	EEP_ANT_DIV_CTL1,
+	EEP_CHAIN_MASK_REDUCE
 };
 
 enum ar5416_rates {
@@ -395,7 +369,7 @@ struct modal_eep_header {
 	u16 xpaBiasLvlFreq[3];
 	u8 futureModal[6];
 
-	struct spur_chan spurChans[AR5416_EEPROM_MODAL_SPURS];
+	struct spur_chan spurChans[AR_EEPROM_MODAL_SPURS];
 } __packed;
 
 struct calDataPerFreqOpLoop {
@@ -463,7 +437,7 @@ struct modal_eep_4k_header {
 	u8 db2_4:4, reserved:4;
 #endif
 	u8 futureModal[4];
-	struct spur_chan spurChans[AR5416_EEPROM_MODAL_SPURS];
+	struct spur_chan spurChans[AR_EEPROM_MODAL_SPURS];
 } __packed;
 
 struct base_eep_ar9287_header {
@@ -521,7 +495,7 @@ struct modal_eep_ar9287_header {
 	u8 ob_qam;
 	u8 ob_pal_off;
 	u8 futureModal[30];
-	struct spur_chan spurChans[AR9287_EEPROM_MODAL_SPURS];
+	struct spur_chan spurChans[AR_EEPROM_MODAL_SPURS];
 } __packed;
 
 struct cal_data_per_freq {
@@ -530,8 +504,8 @@ struct cal_data_per_freq {
 } __packed;
 
 struct cal_data_per_freq_4k {
-	u8 pwrPdg[AR5416_EEP4K_NUM_PD_GAINS][AR5416_EEP4K_PD_GAIN_ICEPTS];
-	u8 vpdPdg[AR5416_EEP4K_NUM_PD_GAINS][AR5416_EEP4K_PD_GAIN_ICEPTS];
+	u8 pwrPdg[AR5416_EEP4K_NUM_PD_GAINS][AR5416_PD_GAIN_ICEPTS];
+	u8 vpdPdg[AR5416_EEP4K_NUM_PD_GAINS][AR5416_PD_GAIN_ICEPTS];
 } __packed;
 
 struct cal_target_power_leg {
@@ -557,8 +531,8 @@ struct cal_data_op_loop_ar9287 {
 } __packed;
 
 struct cal_data_per_freq_ar9287 {
-	u8 pwrPdg[AR9287_NUM_PD_GAINS][AR9287_PD_GAIN_ICEPTS];
-	u8 vpdPdg[AR9287_NUM_PD_GAINS][AR9287_PD_GAIN_ICEPTS];
+	u8 pwrPdg[AR5416_NUM_PD_GAINS][AR9287_PD_GAIN_ICEPTS];
+	u8 vpdPdg[AR5416_NUM_PD_GAINS][AR9287_PD_GAIN_ICEPTS];
 } __packed;
 
 union cal_data_per_freq_ar9287_u {
@@ -673,15 +647,12 @@ struct eeprom_ops {
 	bool (*fill_eeprom)(struct ath_hw *hw);
 	int (*get_eeprom_ver)(struct ath_hw *hw);
 	int (*get_eeprom_rev)(struct ath_hw *hw);
-	u8 (*get_num_ant_config)(struct ath_hw *hw,
-				 enum ath9k_hal_freq_band band);
-	u32 (*get_eeprom_antenna_cfg)(struct ath_hw *hw,
-				      struct ath9k_channel *chan);
 	void (*set_board_values)(struct ath_hw *hw, struct ath9k_channel *chan);
 	void (*set_addac)(struct ath_hw *hw, struct ath9k_channel *chan);
 	void (*set_txpower)(struct ath_hw *hw, struct ath9k_channel *chan,
 			   u16 cfgCtl, u8 twiceAntennaReduction,
-			   u8 twiceMaxRegulatoryPower, u8 powerLimit);
+			   u8 twiceMaxRegulatoryPower, u8 powerLimit,
+			   bool test);
 	u16 (*get_spur_channel)(struct ath_hw *ah, u16 i, bool is2GHz);
 };
 
@@ -713,6 +684,14 @@ u16 ath9k_hw_get_max_edge_power(u16 freq, struct cal_ctl_edges *pRdEdgesPower,
 				bool is2GHz, int num_band_edges);
 void ath9k_hw_update_regulatory_maxpower(struct ath_hw *ah);
 int ath9k_hw_eeprom_init(struct ath_hw *ah);
+
+void ath9k_hw_get_gain_boundaries_pdadcs(struct ath_hw *ah,
+				struct ath9k_channel *chan,
+				void *pRawDataSet,
+				u8 *bChans, u16 availPiers,
+				u16 tPdGainOverlap,
+				u16 *pPdGainBoundaries, u8 *pPDADCValues,
+				u16 numXpdGains);
 
 #define ar5416_get_ntxchains(_txchainmask)			\
 	(((_txchainmask >> 2) & 1) +                            \

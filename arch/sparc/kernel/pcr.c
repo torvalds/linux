@@ -167,5 +167,3 @@ out_unregister:
 	unregister_perf_hsvc();
 	return err;
 }
-
-arch_initcall(pcr_arch_init);

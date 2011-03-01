@@ -687,6 +687,46 @@ int ccw_device_tm_start_timeout(struct ccw_device *cdev, struct tcw *tcw,
 EXPORT_SYMBOL(ccw_device_tm_start_timeout);
 
 /**
+ * ccw_device_get_mdc - accumulate max data count
+ * @cdev: ccw device for which the max data count is accumulated
+ * @mask: mask of paths to use
+ *
+ * Return the number of 64K-bytes blocks all paths at least support
+ * for a transport command. Return values <= 0 indicate failures.
+ */
+int ccw_device_get_mdc(struct ccw_device *cdev, u8 mask)
+{
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+	struct channel_path_desc_fmt1 desc;
+	struct chp_id chpid;
+	int mdc = 0, ret, i;
+
+	/* Adjust requested path mask to excluded varied off paths. */
+	if (mask)
+		mask &= sch->lpm;
+	else
+		mask = sch->lpm;
+
+	chp_id_init(&chpid);
+	for (i = 0; i < 8; i++) {
+		if (!(mask & (0x80 >> i)))
+			continue;
+		chpid.id = sch->schib.pmcw.chpid[i];
+		ret = chsc_determine_fmt1_channel_path_desc(chpid, &desc);
+		if (ret)
+			return ret;
+		if (!desc.f)
+			return 0;
+		if (!desc.r)
+			mdc = 1;
+		mdc = mdc ? min(mdc, (int)desc.mdc) : desc.mdc;
+	}
+
+	return mdc;
+}
+EXPORT_SYMBOL(ccw_device_get_mdc);
+
+/**
  * ccw_device_tm_intrg - perform interrogate function
  * @cdev: ccw device on which to perform the interrogate function
  *

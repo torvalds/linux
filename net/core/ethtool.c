@@ -817,7 +817,7 @@ static int ethtool_get_regs(struct net_device *dev, char __user *useraddr)
 	if (regs.len > reglen)
 		regs.len = reglen;
 
-	regbuf = vmalloc(reglen);
+	regbuf = vzalloc(reglen);
 	if (!regbuf)
 		return -ENOMEM;
 
@@ -889,6 +889,20 @@ static int ethtool_nway_reset(struct net_device *dev)
 		return -EOPNOTSUPP;
 
 	return dev->ethtool_ops->nway_reset(dev);
+}
+
+static int ethtool_get_link(struct net_device *dev, char __user *useraddr)
+{
+	struct ethtool_value edata = { .cmd = ETHTOOL_GLINK };
+
+	if (!dev->ethtool_ops->get_link)
+		return -EOPNOTSUPP;
+
+	edata.data = netif_running(dev) && dev->ethtool_ops->get_link(dev);
+
+	if (copy_to_user(useraddr, &edata, sizeof(edata)))
+		return -EFAULT;
+	return 0;
 }
 
 static int ethtool_get_eeprom(struct net_device *dev, void __user *useraddr)
@@ -1171,7 +1185,9 @@ static int ethtool_set_ufo(struct net_device *dev, char __user *useraddr)
 		return -EFAULT;
 	if (edata.data && !(dev->features & NETIF_F_SG))
 		return -EINVAL;
-	if (edata.data && !(dev->features & NETIF_F_HW_CSUM))
+	if (edata.data && !((dev->features & NETIF_F_GEN_CSUM) ||
+		(dev->features & (NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))
+			== (NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM)))
 		return -EINVAL;
 	return dev->ethtool_ops->set_ufo(dev, edata.data);
 }
@@ -1528,8 +1544,7 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		rc = ethtool_nway_reset(dev);
 		break;
 	case ETHTOOL_GLINK:
-		rc = ethtool_get_value(dev, useraddr, ethcmd,
-				       dev->ethtool_ops->get_link);
+		rc = ethtool_get_link(dev, useraddr);
 		break;
 	case ETHTOOL_GEEPROM:
 		rc = ethtool_get_eeprom(dev, useraddr);

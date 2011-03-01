@@ -251,7 +251,7 @@ typedef int (*iovar_fn_t) (void *handle, const bcm_iovar_t *vi,
  * Public portion of "common" os-independent state structure.
  * The wlc handle points at this.
  */
-typedef struct wlc_pub {
+struct wlc_pub {
 	void *wlc;
 
 	struct ieee80211_hw *ieee_hw;
@@ -260,7 +260,7 @@ typedef struct wlc_pub {
 	uint mac80211_state;
 	uint unit;		/* device instance number */
 	uint corerev;		/* core revision */
-	osl_t *osh;		/* pointer to os handle */
+	struct osl_info *osh;		/* pointer to os handle */
 	si_t *sih;		/* SB handle (cookie for siutils calls) */
 	char *vars;		/* "environment" name=value */
 	bool up;		/* interface up and running */
@@ -318,9 +318,6 @@ typedef struct wlc_pub {
 				 * is implemented properly in osl of that port
 				 * when it enables this Power Save feature.
 				 */
-#ifdef BCMSDIO
-	uint sdiod_drive_strength;	/* SDIO drive strength */
-#endif				/* BCMSDIO */
 
 	u16 boardrev;	/* version # of particular board */
 	u8 sromrev;		/* version # of the srom */
@@ -333,7 +330,7 @@ typedef struct wlc_pub {
 	bool _lmacproto;	/* lmac protocol module included and enabled */
 	bool phy_11ncapable;	/* the PHY/HW is capable of 802.11N */
 	bool _ampdumac;		/* mac assist ampdu enabled or not */
-} wlc_pub_t;
+};
 
 /* wl_monitor rx status per packet */
 typedef struct wl_rxsts {
@@ -437,17 +434,13 @@ struct wlc_if;
 #define EDCF_ENAB(pub) (WME_ENAB(pub))
 #define QOS_ENAB(pub) (WME_ENAB(pub) || N_ENAB(pub))
 
-#define MONITOR_ENAB(wlc)	(bcmspace && (wlc)->monitor)
+#define MONITOR_ENAB(wlc)	((wlc)->monitor)
 
-#define PROMISC_ENAB(wlc)	(bcmspace && (wlc)->promisc)
-
-extern void wlc_pkttag_info_move(wlc_pub_t *pub, void *pkt_from, void *pkt_to);
-
-#define WLPKTTAGSCB(p) (WLPKTTAG(p)->_scb)
+#define PROMISC_ENAB(wlc)	((wlc)->promisc)
 
 #define	WLC_PREC_COUNT		16	/* Max precedence level implemented */
 
-/* pri is PKTPRIO encoded in the packet. This maps the Packet priority to
+/* pri is priority encoded in the packet. This maps the Packet priority to
  * enqueue precedence as defined in wlc_prec_map
  */
 extern const u8 wlc_prio2prec_map[];
@@ -497,8 +490,8 @@ extern const u8 wme_fifo2ac[];
 
 /* common functions for every port */
 extern void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit,
-			bool piomode, osl_t *osh, void *regsva, uint bustype,
-			void *btparam, uint *perr);
+			bool piomode, struct osl_info *osh, void *regsva,
+			uint bustype, void *btparam, uint *perr);
 extern uint wlc_detach(struct wlc_info *wlc);
 extern int wlc_up(struct wlc_info *wlc);
 extern uint wlc_down(struct wlc_info *wlc);
@@ -517,8 +510,10 @@ extern void wlc_intrsrestore(struct wlc_info *wlc, u32 macintmask);
 extern bool wlc_intrsupd(struct wlc_info *wlc);
 extern bool wlc_isr(struct wlc_info *wlc, bool *wantdpc);
 extern bool wlc_dpc(struct wlc_info *wlc, bool bounded);
-extern bool wlc_send80211_raw(struct wlc_info *wlc, wlc_if_t *wlcif, void *p,
-			      uint ac);
+extern bool wlc_send80211_raw(struct wlc_info *wlc, struct wlc_if *wlcif,
+			      void *p, uint ac);
+extern bool wlc_sendpkt_mac80211(struct wlc_info *wlc, struct sk_buff *sdu,
+				 struct ieee80211_hw *hw);
 extern int wlc_iovar_op(struct wlc_info *wlc, const char *name, void *params,
 			int p_len, void *arg, int len, bool set,
 			struct wlc_if *wlcif);
@@ -527,8 +522,13 @@ extern int wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 /* helper functions */
 extern void wlc_statsupd(struct wlc_info *wlc);
 extern int wlc_get_header_len(void);
+extern void wlc_mac_bcn_promisc_change(struct wlc_info *wlc, bool promisc);
+extern void wlc_set_addrmatch(struct wlc_info *wlc, int match_reg_offset,
+			      const struct ether_addr *addr);
+extern void wlc_wme_setparams(struct wlc_info *wlc, u16 aci, void *arg,
+			      bool suspend);
 
-extern wlc_pub_t *wlc_pub(void *wlc);
+extern struct wlc_pub *wlc_pub(void *wlc);
 
 /* common functions for every port */
 extern int wlc_bmac_up_prep(struct wlc_hw_info *wlc_hw);
@@ -554,13 +554,15 @@ extern void wlc_scb_ratesel_init_all(struct wlc_info *wlc);
 /* ioctl */
 extern int wlc_iovar_gets8(struct wlc_info *wlc, const char *name,
 			     s8 *arg);
-extern int wlc_iovar_check(wlc_pub_t *pub, const bcm_iovar_t *vi, void *arg,
+extern int wlc_iovar_check(struct wlc_pub *pub, const bcm_iovar_t *vi,
+			   void *arg,
 			   int len, bool set);
 
-extern int wlc_module_register(wlc_pub_t *pub, const bcm_iovar_t *iovars,
+extern int wlc_module_register(struct wlc_pub *pub, const bcm_iovar_t *iovars,
 			       const char *name, void *hdl, iovar_fn_t iovar_fn,
 			       watchdog_fn_t watchdog_fn, down_fn_t down_fn);
-extern int wlc_module_unregister(wlc_pub_t *pub, const char *name, void *hdl);
+extern int wlc_module_unregister(struct wlc_pub *pub, const char *name,
+				 void *hdl);
 extern void wlc_event_if(struct wlc_info *wlc, struct wlc_bsscfg *cfg,
 			 wlc_event_t *e, const struct ether_addr *addr);
 extern void wlc_suspend_mac_and_wait(struct wlc_info *wlc);
@@ -568,6 +570,8 @@ extern void wlc_enable_mac(struct wlc_info *wlc);
 extern u16 wlc_rate_shm_offset(struct wlc_info *wlc, u8 rate);
 extern u32 wlc_get_rspec_history(struct wlc_bsscfg *cfg);
 extern u32 wlc_get_current_highest_rate(struct wlc_bsscfg *cfg);
+extern void wlc_scan_start(struct wlc_info *wlc);
+extern void wlc_scan_stop(struct wlc_info *wlc);
 
 static inline int wlc_iovar_getuint(struct wlc_info *wlc, const char *name,
 				    uint *arg)
@@ -616,10 +620,6 @@ extern void wlc_pmkid_event(struct wlc_bsscfg *cfg);
 
 #define BAND_2G_NAME		"2.4G"
 #define BAND_5G_NAME		"5G"
-
-#if defined(BCMSDIO) || defined(WLC_HIGH_ONLY)
-void wlc_device_removed(void *arg);
-#endif
 
 /* BMAC RPC: 7 u32 params: pkttotlen, fifo, commit, fid, txpktpend, pktflag, rpc_id */
 #define WLC_RPCTX_PARAMS		32

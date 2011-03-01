@@ -19,7 +19,7 @@ Linux system over a sample period:
 
 - the pid of the task(process) which initialized the timer
 - the name of the process which initialized the timer
-- the function where the timer was intialized
+- the function where the timer was initialized
 - the callback function which is associated to the timer
 - the number of events (callbacks)
 

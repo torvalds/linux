@@ -417,16 +417,16 @@ static irqreturn_t wm8350_irq(int irq, void *irq_data)
 	return IRQ_HANDLED;
 }
 
-static void wm8350_irq_lock(unsigned int irq)
+static void wm8350_irq_lock(struct irq_data *data)
 {
-	struct wm8350 *wm8350 = get_irq_chip_data(irq);
+	struct wm8350 *wm8350 = irq_data_get_irq_chip_data(data);
 
 	mutex_lock(&wm8350->irq_lock);
 }
 
-static void wm8350_irq_sync_unlock(unsigned int irq)
+static void wm8350_irq_sync_unlock(struct irq_data *data)
 {
-	struct wm8350 *wm8350 = get_irq_chip_data(irq);
+	struct wm8350 *wm8350 = irq_data_get_irq_chip_data(data);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(wm8350->irq_masks); i++) {
@@ -442,28 +442,30 @@ static void wm8350_irq_sync_unlock(unsigned int irq)
 	mutex_unlock(&wm8350->irq_lock);
 }
 
-static void wm8350_irq_enable(unsigned int irq)
+static void wm8350_irq_enable(struct irq_data *data)
 {
-	struct wm8350 *wm8350 = get_irq_chip_data(irq);
-	struct wm8350_irq_data *irq_data = irq_to_wm8350_irq(wm8350, irq);
+	struct wm8350 *wm8350 = irq_data_get_irq_chip_data(data);
+	struct wm8350_irq_data *irq_data = irq_to_wm8350_irq(wm8350,
+							     data->irq);
 
 	wm8350->irq_masks[irq_data->reg] &= ~irq_data->mask;
 }
 
-static void wm8350_irq_disable(unsigned int irq)
+static void wm8350_irq_disable(struct irq_data *data)
 {
-	struct wm8350 *wm8350 = get_irq_chip_data(irq);
-	struct wm8350_irq_data *irq_data = irq_to_wm8350_irq(wm8350, irq);
+	struct wm8350 *wm8350 = irq_data_get_irq_chip_data(data);
+	struct wm8350_irq_data *irq_data = irq_to_wm8350_irq(wm8350,
+							     data->irq);
 
 	wm8350->irq_masks[irq_data->reg] |= irq_data->mask;
 }
 
 static struct irq_chip wm8350_irq_chip = {
-	.name = "wm8350",
-	.bus_lock = wm8350_irq_lock,
-	.bus_sync_unlock = wm8350_irq_sync_unlock,
-	.disable = wm8350_irq_disable,
-	.enable = wm8350_irq_enable,
+	.name			= "wm8350",
+	.irq_bus_lock		= wm8350_irq_lock,
+	.irq_bus_sync_unlock	= wm8350_irq_sync_unlock,
+	.irq_disable		= wm8350_irq_disable,
+	.irq_enable		= wm8350_irq_enable,
 };
 
 int wm8350_irq_init(struct wm8350 *wm8350, int irq,

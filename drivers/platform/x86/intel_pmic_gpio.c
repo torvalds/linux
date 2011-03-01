@@ -60,68 +60,19 @@ enum pmic_gpio_register {
 #define GPOSW_DOU 0x08
 #define GPOSW_RDRV 0x30
 
+#define GPIO_UPDATE_TYPE	0x80000000
 
 #define NUM_GPIO 24
 
-struct pmic_gpio_irq {
-	spinlock_t lock;
-	u32 trigger[NUM_GPIO];
-	u32 dirty;
-	struct work_struct work;
-};
-
-
 struct pmic_gpio {
+	struct mutex		buslock;
 	struct gpio_chip	chip;
-	struct pmic_gpio_irq	irqtypes;
 	void			*gpiointr;
 	int			irq;
 	unsigned		irq_base;
+	unsigned int		update_type;
+	u32			trigger_type;
 };
-
-static void pmic_program_irqtype(int gpio, int type)
-{
-	if (type & IRQ_TYPE_EDGE_RISING)
-		intel_scu_ipc_update_register(GPIO0 + gpio, 0x20, 0x20);
-	else
-		intel_scu_ipc_update_register(GPIO0 + gpio, 0x00, 0x20);
-
-	if (type & IRQ_TYPE_EDGE_FALLING)
-		intel_scu_ipc_update_register(GPIO0 + gpio, 0x10, 0x10);
-	else
-		intel_scu_ipc_update_register(GPIO0 + gpio, 0x00, 0x10);
-};
-
-static void pmic_irqtype_work(struct work_struct *work)
-{
-	struct pmic_gpio_irq *t =
-		container_of(work, struct pmic_gpio_irq, work);
-	unsigned long flags;
-	int i;
-	u16 type;
-
-	spin_lock_irqsave(&t->lock, flags);
-	/* As we drop the lock, we may need multiple scans if we race the
-	   pmic_irq_type function */
-	while (t->dirty) {
-		/*
-		 *	For each pin that has the dirty bit set send an IPC
-		 *	message to configure the hardware via the PMIC
-		 */
-		for (i = 0; i < NUM_GPIO; i++) {
-			if (!(t->dirty & (1 << i)))
-				continue;
-			t->dirty &= ~(1 << i);
-			/* We can't trust the array entry or dirty
-			   once the lock is dropped */
-			type = t->trigger[i];
-			spin_unlock_irqrestore(&t->lock, flags);
-			pmic_program_irqtype(i, type);
-			spin_lock_irqsave(&t->lock, flags);
-		}
-	}
-	spin_unlock_irqrestore(&t->lock, flags);
-}
 
 static int pmic_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
@@ -190,24 +141,23 @@ static void pmic_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 			1 << (offset - 16));
 }
 
-static int pmic_irq_type(unsigned irq, unsigned type)
+/*
+ * This is called from genirq with pg->buslock locked and
+ * irq_desc->lock held. We can not access the scu bus here, so we
+ * store the change and update in the bus_sync_unlock() function below
+ */
+static int pmic_irq_type(struct irq_data *data, unsigned type)
 {
-	struct pmic_gpio *pg = get_irq_chip_data(irq);
-	u32 gpio = irq - pg->irq_base;
-	unsigned long flags;
+	struct pmic_gpio *pg = irq_data_get_irq_chip_data(data);
+	u32 gpio = data->irq - pg->irq_base;
 
 	if (gpio >= pg->chip.ngpio)
 		return -EINVAL;
 
-	spin_lock_irqsave(&pg->irqtypes.lock, flags);
-	pg->irqtypes.trigger[gpio] = type;
-	pg->irqtypes.dirty |=  (1 << gpio);
-	spin_unlock_irqrestore(&pg->irqtypes.lock, flags);
-	schedule_work(&pg->irqtypes.work);
+	pg->trigger_type = type;
+	pg->update_type = gpio | GPIO_UPDATE_TYPE;
 	return 0;
 }
-
-
 
 static int pmic_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
@@ -217,34 +167,32 @@ static int pmic_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 }
 
 /* the gpiointr register is read-clear, so just do nothing. */
-static void pmic_irq_unmask(unsigned irq)
-{
-};
+static void pmic_irq_unmask(struct irq_data *data) { }
 
-static void pmic_irq_mask(unsigned irq)
-{
-};
+static void pmic_irq_mask(struct irq_data *data) { }
 
 static struct irq_chip pmic_irqchip = {
 	.name		= "PMIC-GPIO",
-	.mask		= pmic_irq_mask,
-	.unmask		= pmic_irq_unmask,
-	.set_type	= pmic_irq_type,
+	.irq_mask	= pmic_irq_mask,
+	.irq_unmask	= pmic_irq_unmask,
+	.irq_set_type	= pmic_irq_type,
 };
 
-static void pmic_irq_handler(unsigned irq, struct irq_desc *desc)
+static irqreturn_t pmic_irq_handler(int irq, void *data)
 {
-	struct pmic_gpio *pg = (struct pmic_gpio *)get_irq_data(irq);
+	struct pmic_gpio *pg = data;
 	u8 intsts = *((u8 *)pg->gpiointr + 4);
 	int gpio;
+	irqreturn_t ret = IRQ_NONE;
 
 	for (gpio = 0; gpio < 8; gpio++) {
 		if (intsts & (1 << gpio)) {
 			pr_debug("pmic pin %d triggered\n", gpio);
 			generic_handle_irq(pg->irq_base + gpio);
+			ret = IRQ_HANDLED;
 		}
 	}
-	desc->chip->eoi(irq);
+	return ret;
 }
 
 static int __devinit platform_pmic_gpio_probe(struct platform_device *pdev)
@@ -293,8 +241,7 @@ static int __devinit platform_pmic_gpio_probe(struct platform_device *pdev)
 	pg->chip.can_sleep = 1;
 	pg->chip.dev = dev;
 
-	INIT_WORK(&pg->irqtypes.work, pmic_irqtype_work);
-	spin_lock_init(&pg->irqtypes.lock);
+	mutex_init(&pg->buslock);
 
 	pg->chip.dev = dev;
 	retval = gpiochip_add(&pg->chip);
@@ -302,8 +249,13 @@ static int __devinit platform_pmic_gpio_probe(struct platform_device *pdev)
 		printk(KERN_ERR "%s: Can not add pmic gpio chip.\n", __func__);
 		goto err;
 	}
-	set_irq_data(pg->irq, pg);
-	set_irq_chained_handler(pg->irq, pmic_irq_handler);
+
+	retval = request_irq(pg->irq, pmic_irq_handler, 0, "pmic", pg);
+	if (retval) {
+		printk(KERN_WARNING "pmic: Interrupt request failed\n");
+		goto err;
+	}
+
 	for (i = 0; i < 8; i++) {
 		set_irq_chip_and_handler_name(i + pg->irq_base, &pmic_irqchip,
 					handle_simple_irq, "demux");

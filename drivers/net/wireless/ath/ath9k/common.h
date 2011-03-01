@@ -17,7 +17,6 @@
 #include <net/mac80211.h>
 
 #include "../ath.h"
-#include "../debug.h"
 
 #include "hw.h"
 #include "hw-ops.h"
@@ -31,10 +30,11 @@
 #define WME_MAX_BA              WME_BA_BMP_SIZE
 #define ATH_TID_MAX_BUFS        (2 * WME_MAX_BA)
 
-#define WME_AC_BE   0
-#define WME_AC_BK   1
-#define WME_AC_VI   2
-#define WME_AC_VO   3
+/* These must match mac80211 skb queue mapping numbers */
+#define WME_AC_VO   0
+#define WME_AC_VI   1
+#define WME_AC_BE   2
+#define WME_AC_BK   3
 #define WME_NUM_AC  4
 
 #define ATH_RSSI_DUMMY_MARKER   0x127
@@ -62,8 +62,9 @@ enum ath_stomp_type {
 
 int ath9k_cmn_padpos(__le16 frame_control);
 int ath9k_cmn_get_hw_crypto_keytype(struct sk_buff *skb);
-void ath9k_cmn_update_ichannel(struct ieee80211_hw *hw,
-			       struct ath9k_channel *ichan);
+void ath9k_cmn_update_ichannel(struct ath9k_channel *ichan,
+			       struct ieee80211_channel *chan,
+			       enum nl80211_channel_type channel_type);
 struct ath9k_channel *ath9k_cmn_get_curchannel(struct ieee80211_hw *hw,
 					       struct ath_hw *ah);
 int ath9k_cmn_count_streams(unsigned int chainmask, int max);

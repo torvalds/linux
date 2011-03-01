@@ -65,15 +65,12 @@ static int raw_open(struct inode *inode, struct file *filp)
 	if (!bdev)
 		goto out;
 	igrab(bdev->bd_inode);
-	err = blkdev_get(bdev, filp->f_mode);
+	err = blkdev_get(bdev, filp->f_mode | FMODE_EXCL, raw_open);
 	if (err)
 		goto out;
-	err = bd_claim(bdev, raw_open);
-	if (err)
-		goto out1;
 	err = set_blocksize(bdev, bdev_logical_block_size(bdev));
 	if (err)
-		goto out2;
+		goto out1;
 	filp->f_flags |= O_DIRECT;
 	filp->f_mapping = bdev->bd_inode->i_mapping;
 	if (++raw_devices[minor].inuse == 1)
@@ -83,10 +80,8 @@ static int raw_open(struct inode *inode, struct file *filp)
 	mutex_unlock(&raw_mutex);
 	return 0;
 
-out2:
-	bd_release(bdev);
 out1:
-	blkdev_put(bdev, filp->f_mode);
+	blkdev_put(bdev, filp->f_mode | FMODE_EXCL);
 out:
 	mutex_unlock(&raw_mutex);
 	return err;
@@ -110,8 +105,7 @@ static int raw_release(struct inode *inode, struct file *filp)
 	}
 	mutex_unlock(&raw_mutex);
 
-	bd_release(bdev);
-	blkdev_put(bdev, filp->f_mode);
+	blkdev_put(bdev, filp->f_mode | FMODE_EXCL);
 	return 0;
 }
 

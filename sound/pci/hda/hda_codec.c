@@ -2134,10 +2134,10 @@ int snd_hda_codec_reset(struct hda_codec *codec)
  * This function returns zero if successful or a negative error code.
  */
 int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
-			unsigned int *tlv, const char **slaves)
+			unsigned int *tlv, const char * const *slaves)
 {
 	struct snd_kcontrol *kctl;
-	const char **s;
+	const char * const *s;
 	int err;
 
 	for (s = slaves; *s && !snd_hda_find_mixer_ctl(codec, *s); s++)
@@ -3689,7 +3689,7 @@ EXPORT_SYMBOL_HDA(snd_hda_build_pcms);
  * If no entries are matching, the function returns a negative value.
  */
 int snd_hda_check_board_config(struct hda_codec *codec,
-			       int num_configs, const char **models,
+			       int num_configs, const char * const *models,
 			       const struct snd_pci_quirk *tbl)
 {
 	if (codec->modelname && models) {
@@ -3753,7 +3753,7 @@ EXPORT_SYMBOL_HDA(snd_hda_check_board_config);
  * If no entries are matching, the function returns a negative value.
  */
 int snd_hda_check_board_codec_sid_config(struct hda_codec *codec,
-			       int num_configs, const char **models,
+			       int num_configs, const char * const *models,
 			       const struct snd_pci_quirk *tbl)
 {
 	const struct snd_pci_quirk *q;
@@ -4571,6 +4571,9 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 		}
 		memset(cfg->hp_pins + cfg->hp_outs, 0,
 		       sizeof(hda_nid_t) * (AUTO_CFG_MAX_OUTS - cfg->hp_outs));
+		if (!cfg->hp_outs)
+			cfg->line_out_type = AUTO_PIN_HP_OUT;
+
 	}
 
 	/* sort by sequence */
@@ -4687,7 +4690,7 @@ const char *hda_get_input_pin_label(struct hda_codec *codec, hda_nid_t pin,
 					int check_location)
 {
 	unsigned int def_conf;
-	static const char *mic_names[] = {
+	static const char * const mic_names[] = {
 		"Internal Mic", "Dock Mic", "Mic", "Front Mic", "Rear Mic",
 	};
 	int attr;

@@ -30,7 +30,8 @@
     Abstract:
 
     Revision History:
-    Who          When          What
+    Who          	When            What
+    Justin P. Mattock	11/07/2010	Fix a typo
     ---------    ----------    ----------------------------------------------
  */
 
@@ -93,7 +94,7 @@ struct rt_txinfo {
 	/* Word 0 */
 	u32 USBDMATxPktLen:16;	/*used ONLY in USB bulk Aggregation,  Total byte counts of all sub-frame. */
 	u32 rsv:8;
-	u32 WIV:1;		/* Wireless Info Valid. 1 if Driver already fill WI,  o if DMA needs to copy WI to correctposition */
+	u32 WIV:1;		/* Wireless Info Valid. 1 if Driver already fill WI,  o if DMA needs to copy WI to correct position */
 	u32 QSEL:2;		/* select on-chip FIFO ID for 2nd-stage output scheduler.0:MGMT, 1:HCCA 2:EDCA */
 	u32 SwUseLastRound:1;	/* Software use. */
 	u32 rsv2:2;		/* Software use. */

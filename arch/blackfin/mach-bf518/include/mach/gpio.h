@@ -55,4 +55,8 @@
 #define PORT_G GPIO_PG0
 #define PORT_H GPIO_PH0
 
+#include <mach-common/ports-f.h>
+#include <mach-common/ports-g.h>
+#include <mach-common/ports-h.h>
+
 #endif /* _MACH_GPIO_H_ */

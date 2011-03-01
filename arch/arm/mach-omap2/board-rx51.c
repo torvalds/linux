@@ -32,10 +32,10 @@
 
 #include "mux.h"
 #include "pm.h"
+#include "sdram-nokia.h"
 
 #define RX51_GPIO_SLEEP_IND 162
 
-struct omap_sdrc_params *rx51_get_sdram_timings(void);
 extern void rx51_video_mem_init(void);
 
 static struct gpio_led gpio_leds[] = {
@@ -105,10 +105,10 @@ static void __init rx51_init_irq(void)
 	omap_board_config = rx51_config;
 	omap_board_config_size = ARRAY_SIZE(rx51_config);
 	omap3_pm_init_cpuidle(rx51_cpuidle_params);
-	sdrc_params = rx51_get_sdram_timings();
-	omap2_init_common_hw(sdrc_params, sdrc_params);
+	omap2_init_common_infrastructure();
+	sdrc_params = nokia_get_sdram_timings();
+	omap2_init_common_devices(sdrc_params, sdrc_params);
 	omap_init_irq();
-	omap_gpio_init();
 }
 
 extern void __init rx51_peripherals_init(void);
@@ -117,8 +117,6 @@ extern void __init rx51_peripherals_init(void);
 static struct omap_board_mux board_mux[] __initdata = {
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
-#else
-#define board_mux	NULL
 #endif
 
 static struct omap_musb_board_data musb_board_data = {

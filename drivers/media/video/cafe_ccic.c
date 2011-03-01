@@ -859,8 +859,6 @@ static int cafe_cam_configure(struct cafe_camera *cam)
 	struct v4l2_mbus_framefmt mbus_fmt;
 	int ret;
 
-	if (cam->state != S_IDLE)
-		return -EINVAL;
 	v4l2_fill_mbus_format(&mbus_fmt, &cam->pix_format, cam->mbus_code);
 	ret = sensor_call(cam, core, init, 0);
 	if (ret == 0)
@@ -2003,6 +2001,11 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 		.min_width = 320,
 		.min_height = 240,
 	};
+	struct i2c_board_info ov7670_info = {
+		.type = "ov7670",
+		.addr = 0x42,
+		.platform_data = &sensor_cfg,
+	};
 
 	/*
 	 * Start putting together one of our big camera structures.
@@ -2064,9 +2067,9 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	if (dmi_check_system(olpc_xo1_dmi))
 		sensor_cfg.clock_speed = 45;
 
-	cam->sensor_addr = 0x42;
-	cam->sensor = v4l2_i2c_new_subdev_cfg(&cam->v4l2_dev, &cam->i2c_adapter,
-			"ov7670", 0, &sensor_cfg, cam->sensor_addr, NULL);
+	cam->sensor_addr = ov7670_info.addr;
+	cam->sensor = v4l2_i2c_new_subdev_board(&cam->v4l2_dev, &cam->i2c_adapter,
+			&ov7670_info, NULL);
 	if (cam->sensor == NULL) {
 		ret = -ENODEV;
 		goto out_smbus;
@@ -2186,9 +2189,7 @@ static int cafe_pci_resume(struct pci_dev *pdev)
 	struct cafe_camera *cam = to_cam(v4l2_dev);
 	int ret = 0;
 
-	ret = pci_restore_state(pdev);
-	if (ret)
-		return ret;
+	pci_restore_state(pdev);
 	ret = pci_enable_device(pdev);
 
 	if (ret) {
@@ -2196,12 +2197,13 @@ static int cafe_pci_resume(struct pci_dev *pdev)
 		return ret;
 	}
 	cafe_ctlr_init(cam);
-	cafe_ctlr_power_down(cam);
 
 	mutex_lock(&cam->s_mutex);
 	if (cam->users > 0) {
 		cafe_ctlr_power_up(cam);
 		__cafe_cam_reset(cam);
+	} else {
+		cafe_ctlr_power_down(cam);
 	}
 	mutex_unlock(&cam->s_mutex);
 

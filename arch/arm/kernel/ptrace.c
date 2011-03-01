@@ -1060,8 +1060,8 @@ static int ptrace_sethbpregs(struct task_struct *tsk, long num,
 			goto out;
 
 		if ((gen_type & implied_type) != gen_type) {
-				ret = -EINVAL;
-				goto out;
+			ret = -EINVAL;
+			goto out;
 		}
 
 		attr.bp_len	= gen_len;

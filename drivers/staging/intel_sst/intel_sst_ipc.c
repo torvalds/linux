@@ -26,6 +26,8 @@
  *  This file defines all ipc functions
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/pci.h>
 #include <linux/firmware.h>
 #include <linux/sched.h>
@@ -75,16 +77,16 @@ void sst_post_message(struct work_struct *work)
 	/*To check if LPE is in stalled state.*/
 	retval = sst_stalled();
 	if (retval < 0) {
-		pr_err("sst: in stalled state\n");
+		pr_err("in stalled state\n");
 		return;
 	}
-	pr_debug("sst: post message called\n");
+	pr_debug("post message called\n");
 	spin_lock(&sst_drv_ctx->list_spin_lock);
 
 	/* check list */
 	if (list_empty(&sst_drv_ctx->ipc_dispatch_list)) {
 		/* list is empty, mask imr */
-		pr_debug("sst: Empty msg queue... masking\n");
+		pr_debug("Empty msg queue... masking\n");
 		imr.full = readl(sst_drv_ctx->shim + SST_IMRX);
 		imr.part.done_interrupt = 1;
 		/* dummy register for shim workaround */
@@ -97,7 +99,7 @@ void sst_post_message(struct work_struct *work)
 	header.full = sst_shim_read(sst_drv_ctx->shim, SST_IPCX);
 	if (header.part.busy) {
 		/* busy, unmask */
-		pr_debug("sst: Busy not free... unmasking\n");
+		pr_debug("Busy not free... unmasking\n");
 		imr.full = readl(sst_drv_ctx->shim + SST_IMRX);
 		imr.part.done_interrupt = 0;
 		/* dummy register for shim workaround */
@@ -109,8 +111,8 @@ void sst_post_message(struct work_struct *work)
 	msg = list_entry(sst_drv_ctx->ipc_dispatch_list.next,
 			struct ipc_post, node);
 	list_del(&msg->node);
-	pr_debug("sst: Post message: header = %x\n", msg->header.full);
-	pr_debug("sst: size: = %x\n", msg->header.part.data);
+	pr_debug("Post message: header = %x\n", msg->header.full);
+	pr_debug("size: = %x\n", msg->header.part.data);
 	if (msg->header.part.large)
 		memcpy_toio(sst_drv_ctx->mailbox + SST_MAILBOX_SEND,
 			msg->mailbox_data, msg->header.part.data);
@@ -166,13 +168,13 @@ int process_fw_init(struct sst_ipc_msg_wq *msg)
 		(struct ipc_header_fw_init *)msg->mailbox;
 	int retval = 0;
 
-	pr_debug("sst: *** FW Init msg came***\n");
+	pr_debug("*** FW Init msg came***\n");
 	if (init->result) {
 		mutex_lock(&sst_drv_ctx->sst_lock);
 		sst_drv_ctx->sst_state = SST_ERROR;
 		mutex_unlock(&sst_drv_ctx->sst_lock);
-		pr_debug("sst: FW Init failed, Error %x\n", init->result);
-		pr_err("sst: FW Init failed, Error %x\n", init->result);
+		pr_debug("FW Init failed, Error %x\n", init->result);
+		pr_err("FW Init failed, Error %x\n", init->result);
 		retval = -init->result;
 		return retval;
 	}
@@ -180,12 +182,13 @@ int process_fw_init(struct sst_ipc_msg_wq *msg)
 		sst_send_sound_card_type();
 	mutex_lock(&sst_drv_ctx->sst_lock);
 	sst_drv_ctx->sst_state = SST_FW_RUNNING;
+	sst_drv_ctx->lpe_stalled = 0;
 	mutex_unlock(&sst_drv_ctx->sst_lock);
-	pr_debug("sst: FW Version %x.%x\n",
+	pr_debug("FW Version %x.%x\n",
 			init->fw_version.major, init->fw_version.minor);
-	pr_debug("sst: Build No %x Type %x\n",
+	pr_debug("Build No %x Type %x\n",
 			init->fw_version.build, init->fw_version.type);
-	pr_debug("sst:  Build date %s Time %s\n",
+	pr_debug(" Build date %s Time %s\n",
 			init->build_info.date, init->build_info.time);
 	sst_wake_up_alloc_block(sst_drv_ctx, FW_DWNL_ID, retval, NULL);
 	return retval;
@@ -204,19 +207,19 @@ void sst_process_message(struct work_struct *work)
 			container_of(work, struct sst_ipc_msg_wq, wq);
 	int str_id = msg->header.part.str_id;
 
-	pr_debug("sst: IPC process for %x\n", msg->header.full);
+	pr_debug("IPC process for %x\n", msg->header.full);
 
 	/* based on msg in list call respective handler */
 	switch (msg->header.part.msg_id) {
 	case IPC_SST_BUF_UNDER_RUN:
 	case IPC_SST_BUF_OVER_RUN:
 		if (sst_validate_strid(str_id)) {
-			pr_err("sst:  stream id %d invalid\n", str_id);
+			pr_err("stream id %d invalid\n", str_id);
 			break;
 		}
-		pr_err("sst: Buffer under/overrun for%d\n",
+		pr_err("Buffer under/overrun for %d\n",
 				msg->header.part.str_id);
-		pr_err("sst: Got Underrun & not to send data...ignore\n");
+		pr_err("Got Underrun & not to send data...ignore\n");
 		break;
 
 	case IPC_SST_GET_PLAY_FRAMES:
@@ -224,35 +227,35 @@ void sst_process_message(struct work_struct *work)
 			struct stream_info *stream ;
 
 			if (sst_validate_strid(str_id)) {
-				pr_err("sst: strid %d invalid\n", str_id);
+				pr_err("strid %d invalid\n", str_id);
 				break;
 			}
 			/* call sst_play_frame */
 			stream = &sst_drv_ctx->streams[str_id];
-			pr_debug("sst: sst_play_frames for %d\n",
+			pr_debug("sst_play_frames for %d\n",
 					msg->header.part.str_id);
 			mutex_lock(&sst_drv_ctx->streams[str_id].lock);
 			sst_play_frame(msg->header.part.str_id);
 			mutex_unlock(&sst_drv_ctx->streams[str_id].lock);
 			break;
 		} else
-			pr_err("sst: sst_play_frames for Penwell!!\n");
+			pr_err("sst_play_frames for Penwell!!\n");
 
 	case IPC_SST_GET_CAPT_FRAMES:
 		if (sst_drv_ctx->pci_id == SST_MRST_PCI_ID) {
 			struct stream_info *stream;
 			/* call sst_capture_frame */
 			if (sst_validate_strid(str_id)) {
-				pr_err("sst: str id %d invalid\n", str_id);
+				pr_err("str id %d invalid\n", str_id);
 				break;
 			}
 			stream = &sst_drv_ctx->streams[str_id];
-			pr_debug("sst: sst_capture_frames for %d\n",
+			pr_debug("sst_capture_frames for %d\n",
 					msg->header.part.str_id);
 			mutex_lock(&stream->lock);
 			if (stream->mmapped == false &&
 					stream->src == SST_DRV) {
-				pr_debug("sst: waking up block for copy.\n");
+				pr_debug("waking up block for copy.\n");
 				stream->data_blk.ret_code = 0;
 				stream->data_blk.condition = true;
 				stream->data_blk.on = false;
@@ -261,11 +264,11 @@ void sst_process_message(struct work_struct *work)
 				sst_capture_frame(msg->header.part.str_id);
 			mutex_unlock(&stream->lock);
 		} else
-			pr_err("sst: sst_play_frames for Penwell!!\n");
+			pr_err("sst_play_frames for Penwell!!\n");
 		break;
 
 	case IPC_IA_PRINT_STRING:
-		pr_debug("sst: been asked to print something by fw\n");
+		pr_debug("been asked to print something by fw\n");
 		/* TBD */
 		break;
 
@@ -277,12 +280,12 @@ void sst_process_message(struct work_struct *work)
 
 	case IPC_SST_STREAM_PROCESS_FATAL_ERR:
 		if (sst_validate_strid(str_id)) {
-			pr_err("sst: stream id %d invalid\n", str_id);
+			pr_err("stream id %d invalid\n", str_id);
 			break;
 		}
-		pr_err("sst: codec fatal error %x stream %d...\n",
+		pr_err("codec fatal error %x stream %d...\n",
 				msg->header.full, msg->header.part.str_id);
-		pr_err("sst: Dropping the stream\n");
+		pr_err("Dropping the stream\n");
 		sst_drop_stream(msg->header.part.str_id);
 		break;
 	case IPC_IA_LPE_GETTING_STALLED:
@@ -293,7 +296,7 @@ void sst_process_message(struct work_struct *work)
 		break;
 	default:
 		/* Illegal case */
-		pr_err("sst: Unhandled msg %x header %x\n",
+		pr_err("Unhandled msg %x header %x\n",
 		msg->header.part.msg_id, msg->header.full);
 	}
 	sst_clear_interrupt();
@@ -322,7 +325,7 @@ void sst_process_reply(struct work_struct *work)
 		if (!msg->header.part.data) {
 			sst_drv_ctx->tgt_dev_blk.ret_code = 0;
 		} else {
-			pr_err("sst:  Msg %x reply error %x\n",
+			pr_err(" Msg %x reply error %x\n",
 			msg->header.part.msg_id, msg->header.part.data);
 			sst_drv_ctx->tgt_dev_blk.ret_code =
 					-msg->header.part.data;
@@ -333,6 +336,55 @@ void sst_process_reply(struct work_struct *work)
 				wake_up(&sst_drv_ctx->wait_queue);
 		}
 		break;
+	case IPC_IA_ALG_PARAMS: {
+		pr_debug("sst:IPC_ALG_PARAMS response %x\n", msg->header.full);
+		pr_debug("sst: data value %x\n", msg->header.part.data);
+		pr_debug("sst: large value %x\n", msg->header.part.large);
+
+		if (!msg->header.part.large) {
+			if (!msg->header.part.data) {
+				pr_debug("sst: alg set success\n");
+				sst_drv_ctx->ppp_params_blk.ret_code = 0;
+			} else {
+				pr_debug("sst: alg set failed\n");
+				sst_drv_ctx->ppp_params_blk.ret_code =
+							-msg->header.part.data;
+			}
+
+		} else if (msg->header.part.data) {
+			struct snd_ppp_params *mailbox_params, *get_params;
+			char *params;
+
+			pr_debug("sst: alg get success\n");
+			mailbox_params = (struct snd_ppp_params *)msg->mailbox;
+			get_params = kzalloc(sizeof(*get_params), GFP_KERNEL);
+			if (get_params == NULL) {
+				pr_err("sst: out of memory for ALG PARAMS");
+				break;
+			}
+			memcpy_fromio(get_params, mailbox_params,
+							sizeof(*get_params));
+			get_params->params = kzalloc(mailbox_params->size,
+							GFP_KERNEL);
+			if (get_params->params == NULL) {
+				kfree(get_params);
+				pr_err("sst: out of memory for ALG PARAMS block");
+				break;
+			}
+			params = msg->mailbox;
+			params = params + sizeof(*mailbox_params) - sizeof(u32);
+			memcpy_fromio(get_params->params, params,
+							get_params->size);
+			sst_drv_ctx->ppp_params_blk.ret_code = 0;
+			sst_drv_ctx->ppp_params_blk.data = get_params;
+		}
+
+		if (sst_drv_ctx->ppp_params_blk.on == true) {
+			sst_drv_ctx->ppp_params_blk.condition = true;
+			wake_up(&sst_drv_ctx->wait_queue);
+		}
+		break;
+	}
 	case IPC_IA_GET_FW_INFO: {
 		struct snd_sst_fw_info *fw_info =
 			(struct snd_sst_fw_info *)msg->mailbox;
@@ -340,7 +392,7 @@ void sst_process_reply(struct work_struct *work)
 			int major = fw_info->fw_version.major;
 			int minor = fw_info->fw_version.minor;
 			int build = fw_info->fw_version.build;
-			pr_debug("sst: Msg succedded %x\n",
+			pr_debug("Msg succeeded %x\n",
 				       msg->header.part.msg_id);
 			pr_debug("INFO: ***FW*** = %02d.%02d.%02d\n",
 					major, minor, build);
@@ -349,13 +401,13 @@ void sst_process_reply(struct work_struct *work)
 				sizeof(struct snd_sst_fw_info));
 			sst_drv_ctx->fw_info_blk.ret_code = 0;
 		} else {
-			pr_err("sst:  Msg %x reply error %x\n",
+			pr_err(" Msg %x reply error %x\n",
 			msg->header.part.msg_id, msg->header.part.data);
 			sst_drv_ctx->fw_info_blk.ret_code =
 					-msg->header.part.data;
 		}
 		if (sst_drv_ctx->fw_info_blk.on == true) {
-			pr_debug("sst: Memcopy succedded\n");
+			pr_debug("Memcopy succeeded\n");
 			sst_drv_ctx->fw_info_blk.on = false;
 			sst_drv_ctx->fw_info_blk.condition = true;
 			wake_up(&sst_drv_ctx->wait_queue);
@@ -364,11 +416,11 @@ void sst_process_reply(struct work_struct *work)
 	}
 	case IPC_IA_SET_STREAM_MUTE:
 		if (!msg->header.part.data) {
-			pr_debug("sst: Msg succedded %x\n",
+			pr_debug("Msg succeeded %x\n",
 				       msg->header.part.msg_id);
 			sst_drv_ctx->mute_info_blk.ret_code = 0;
 		} else {
-			pr_err("sst:  Msg %x reply error %x\n",
+			pr_err(" Msg %x reply error %x\n",
 			msg->header.part.msg_id, msg->header.part.data);
 			sst_drv_ctx->mute_info_blk.ret_code =
 					-msg->header.part.data;
@@ -382,11 +434,11 @@ void sst_process_reply(struct work_struct *work)
 		break;
 	case IPC_IA_SET_STREAM_VOL:
 		if (!msg->header.part.data) {
-			pr_debug("sst: Msg succedded %x\n",
+			pr_debug("Msg succeeded %x\n",
 				       msg->header.part.msg_id);
 			sst_drv_ctx->vol_info_blk.ret_code = 0;
 		} else {
-			pr_err("sst:  Msg %x reply error %x\n",
+			pr_err(" Msg %x reply error %x\n",
 					msg->header.part.msg_id,
 			msg->header.part.data);
 			sst_drv_ctx->vol_info_blk.ret_code =
@@ -402,15 +454,15 @@ void sst_process_reply(struct work_struct *work)
 		break;
 	case IPC_IA_GET_STREAM_VOL:
 		if (msg->header.part.large) {
-			pr_debug("sst: Large Msg Received Successfully\n");
-			pr_debug("sst: Msg succedded %x\n",
+			pr_debug("Large Msg Received Successfully\n");
+			pr_debug("Msg succeeded %x\n",
 				       msg->header.part.msg_id);
 			memcpy_fromio(sst_drv_ctx->vol_info_blk.data,
 				(void *) msg->mailbox,
 				sizeof(struct snd_sst_vol));
 			sst_drv_ctx->vol_info_blk.ret_code = 0;
 		} else {
-			pr_err("sst: Msg %x reply error %x\n",
+			pr_err("Msg %x reply error %x\n",
 			msg->header.part.msg_id, msg->header.part.data);
 			sst_drv_ctx->vol_info_blk.ret_code =
 					-msg->header.part.data;
@@ -424,18 +476,18 @@ void sst_process_reply(struct work_struct *work)
 
 	case IPC_IA_GET_STREAM_PARAMS:
 		if (sst_validate_strid(str_id)) {
-			pr_err("sst: stream id %d invalid\n", str_id);
+			pr_err("stream id %d invalid\n", str_id);
 			break;
 		}
 		str_info = &sst_drv_ctx->streams[str_id];
 		if (msg->header.part.large) {
-			pr_debug("sst: Get stream large success\n");
+			pr_debug("Get stream large success\n");
 			memcpy_fromio(str_info->ctrl_blk.data,
 				((void *)(msg->mailbox)),
 				sizeof(struct snd_sst_fw_get_stream_params));
 			str_info->ctrl_blk.ret_code = 0;
 		} else {
-			pr_err("sst: Msg %x reply error %x\n",
+			pr_err("Msg %x reply error %x\n",
 				msg->header.part.msg_id, msg->header.part.data);
 			str_info->ctrl_blk.ret_code = -msg->header.part.data;
 		}
@@ -447,19 +499,19 @@ void sst_process_reply(struct work_struct *work)
 		break;
 	case IPC_IA_DECODE_FRAMES:
 		if (sst_validate_strid(str_id)) {
-			pr_err("sst: stream id %d invalid\n", str_id);
+			pr_err("stream id %d invalid\n", str_id);
 			break;
 		}
 		str_info = &sst_drv_ctx->streams[str_id];
 		if (msg->header.part.large) {
-			pr_debug("sst: Msg succedded %x\n",
+			pr_debug("Msg succeeded %x\n",
 				       msg->header.part.msg_id);
 			memcpy_fromio(str_info->data_blk.data,
 					((void *)(msg->mailbox)),
 					sizeof(struct snd_sst_decode_info));
 			str_info->data_blk.ret_code = 0;
 		} else {
-			pr_err("sst: Msg %x reply error %x\n",
+			pr_err("Msg %x reply error %x\n",
 				msg->header.part.msg_id, msg->header.part.data);
 			str_info->data_blk.ret_code = -msg->header.part.data;
 		}
@@ -471,17 +523,17 @@ void sst_process_reply(struct work_struct *work)
 		break;
 	case IPC_IA_DRAIN_STREAM:
 		if (sst_validate_strid(str_id)) {
-			pr_err("sst: stream id %d invalid\n", str_id);
+			pr_err("stream id %d invalid\n", str_id);
 			break;
 		}
 		str_info = &sst_drv_ctx->streams[str_id];
 		if (!msg->header.part.data) {
-			pr_debug("sst: Msg succedded %x\n",
+			pr_debug("Msg succeeded %x\n",
 					msg->header.part.msg_id);
 			str_info->ctrl_blk.ret_code = 0;
 
 		} else {
-			pr_err("sst:  Msg %x reply error %x\n",
+			pr_err(" Msg %x reply error %x\n",
 				msg->header.part.msg_id, msg->header.part.data);
 			str_info->ctrl_blk.ret_code = -msg->header.part.data;
 
@@ -496,7 +548,7 @@ void sst_process_reply(struct work_struct *work)
 
 	case IPC_IA_DROP_STREAM:
 		if (sst_validate_strid(str_id)) {
-			pr_err("sst: str id %d invalid\n", str_id);
+			pr_err("str id %d invalid\n", str_id);
 			break;
 		}
 		str_info = &sst_drv_ctx->streams[str_id];
@@ -504,12 +556,12 @@ void sst_process_reply(struct work_struct *work)
 			struct snd_sst_drop_response *drop_resp =
 				(struct snd_sst_drop_response *)msg->mailbox;
 
-			pr_debug("sst: Drop ret bytes %x\n", drop_resp->bytes);
+			pr_debug("Drop ret bytes %x\n", drop_resp->bytes);
 
 			str_info->curr_bytes = drop_resp->bytes;
 			str_info->ctrl_blk.ret_code =  0;
 		} else {
-			pr_err("sst:  Msg %x reply error %x\n",
+			pr_err(" Msg %x reply error %x\n",
 				msg->header.part.msg_id, msg->header.part.data);
 			str_info->ctrl_blk.ret_code = -msg->header.part.data;
 		}
@@ -521,10 +573,10 @@ void sst_process_reply(struct work_struct *work)
 		break;
 	case IPC_IA_ENABLE_RX_TIME_SLOT:
 		if (!msg->header.part.data) {
-			pr_debug("sst: RX_TIME_SLOT success\n");
+			pr_debug("RX_TIME_SLOT success\n");
 			sst_drv_ctx->hs_info_blk.ret_code = 0;
 		} else {
-			pr_err("sst:  Msg %x reply error %x\n",
+			pr_err(" Msg %x reply error %x\n",
 				msg->header.part.msg_id,
 				msg->header.part.data);
 			sst_drv_ctx->hs_info_blk.ret_code =
@@ -541,17 +593,17 @@ void sst_process_reply(struct work_struct *work)
 	case IPC_IA_SET_STREAM_PARAMS:
 		str_info = &sst_drv_ctx->streams[str_id];
 		if (!msg->header.part.data) {
-			pr_debug("sst: Msg succedded %x\n",
+			pr_debug("Msg succeeded %x\n",
 					msg->header.part.msg_id);
 			str_info->ctrl_blk.ret_code = 0;
 		} else {
-			pr_err("sst:  Msg %x reply error %x\n",
+			pr_err(" Msg %x reply error %x\n",
 					msg->header.part.msg_id,
 					msg->header.part.data);
 			str_info->ctrl_blk.ret_code = -msg->header.part.data;
 		}
 		if (sst_validate_strid(str_id)) {
-			pr_err("sst:  stream id %d invalid\n", str_id);
+			pr_err(" stream id %d invalid\n", str_id);
 			break;
 		}
 
@@ -564,9 +616,9 @@ void sst_process_reply(struct work_struct *work)
 
 	case IPC_IA_FREE_STREAM:
 		if (!msg->header.part.data) {
-			pr_debug("sst: Stream %d freed\n", str_id);
+			pr_debug("Stream %d freed\n", str_id);
 		} else {
-			pr_err("sst: Free for %d ret error %x\n",
+			pr_err("Free for %d ret error %x\n",
 				       str_id, msg->header.part.data);
 		}
 		break;
@@ -575,7 +627,7 @@ void sst_process_reply(struct work_struct *work)
 		struct snd_sst_alloc_response *resp =
 				(struct snd_sst_alloc_response *)msg->mailbox;
 		if (resp->str_type.result)
-			pr_err("sst: error alloc stream = %x\n",
+			pr_err("error alloc stream = %x\n",
 				       resp->str_type.result);
 		sst_alloc_stream_response(str_id, resp);
 		break;
@@ -584,21 +636,21 @@ void sst_process_reply(struct work_struct *work)
 	case IPC_IA_PLAY_FRAMES:
 	case IPC_IA_CAPT_FRAMES:
 		if (sst_validate_strid(str_id)) {
-			pr_err("sst: stream id %d invalid\n" , str_id);
+			pr_err("stream id %d invalid\n", str_id);
 			break;
 		}
-		pr_debug("sst: Ack for play/capt frames recived\n");
+		pr_debug("Ack for play/capt frames received\n");
 		break;
 
 	case IPC_IA_PREP_LIB_DNLD: {
 		struct snd_sst_str_type *str_type =
 			(struct snd_sst_str_type *)msg->mailbox;
-		pr_debug("sst: Prep Lib download %x\n",
+		pr_debug("Prep Lib download %x\n",
 				msg->header.part.msg_id);
 		if (str_type->result)
-			pr_err("sst: Prep lib download %x\n", str_type->result);
+			pr_err("Prep lib download %x\n", str_type->result);
 		else
-			pr_debug("sst: Can download codec now...\n");
+			pr_debug("Can download codec now...\n");
 		sst_wake_up_alloc_block(sst_drv_ctx, str_id,
 				str_type->result, NULL);
 		break;
@@ -609,12 +661,12 @@ void sst_process_reply(struct work_struct *work)
 			(struct snd_sst_lib_download_info *)msg->mailbox;
 		int retval = resp->result;
 
-		pr_debug("sst: Lib downloaded %x\n", msg->header.part.msg_id);
+		pr_debug("Lib downloaded %x\n", msg->header.part.msg_id);
 		if (resp->result) {
-			pr_err("sst: err in lib dload %x\n", resp->result);
+			pr_err("err in lib dload %x\n", resp->result);
 		} else {
-			pr_debug("sst: Codec download complete...\n");
-			pr_debug("sst: codec Type %d Ver %d Built %s: %s\n",
+			pr_debug("Codec download complete...\n");
+			pr_debug("codec Type %d Ver %d Built %s: %s\n",
 				resp->dload_lib.lib_info.lib_type,
 				resp->dload_lib.lib_info.lib_version,
 				resp->dload_lib.lib_info.b_date,
@@ -639,17 +691,17 @@ void sst_process_reply(struct work_struct *work)
 	case IPC_IA_GET_FW_BUILD_INF: {
 		struct sst_fw_build_info *build =
 			(struct sst_fw_build_info *)msg->mailbox;
-		pr_debug("sst: Build date:%sTime:%s", build->date, build->time);
+		pr_debug("Build date:%sTime:%s", build->date, build->time);
 		break;
 	}
 	case IPC_IA_SET_PMIC_TYPE:
 		break;
 	case IPC_IA_START_STREAM:
-		pr_debug("sst: reply for START STREAM %x\n", msg->header.full);
+		pr_debug("reply for START STREAM %x\n", msg->header.full);
 		break;
 	default:
 		/* Illegal case */
-		pr_err("sst: process reply:default = %x\n", msg->header.full);
+		pr_err("process reply:default = %x\n", msg->header.full);
 	}
 	sst_clear_interrupt();
 	return;

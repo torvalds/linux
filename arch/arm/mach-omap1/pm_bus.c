@@ -48,7 +48,6 @@ static int omap1_pm_runtime_suspend(struct device *dev)
 
 static int omap1_pm_runtime_resume(struct device *dev)
 {
-	int ret = 0;
 	struct clk *iclk, *fclk;
 
 	dev_dbg(dev, "%s\n", __func__);
@@ -72,6 +71,9 @@ static int __init omap1_pm_runtime_init(void)
 {
 	const struct dev_pm_ops *pm;
 	struct dev_pm_ops *omap_pm;
+
+	if (!cpu_class_is_omap1())
+		return -ENODEV;
 
 	pm = platform_bus_get_pm_ops();
 	if (!pm) {

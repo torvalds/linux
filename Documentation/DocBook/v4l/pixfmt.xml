@@ -142,8 +142,8 @@ leftmost pixel of the second row from the top, and so on. The last row
 has just as many pad bytes after it as the other rows.</para>
 
     <para>In V4L2 each format has an identifier which looks like
-<constant>PIX_FMT_XXX</constant>, defined in the <link
-linkend="videodev">videodev.h</link> header file. These identifiers
+<constant>PIX_FMT_XXX</constant>, defined in the <filename>videodev2.h</filename>
+header file. These identifiers
 represent <link linkend="v4l2-fourcc">four character codes</link>
 which are also listed below, however they are not the same as those
 used in the Windows world.</para>

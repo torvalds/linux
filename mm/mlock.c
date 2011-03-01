@@ -155,13 +155,12 @@ static inline int stack_guard_page(struct vm_area_struct *vma, unsigned long add
  * vma->vm_mm->mmap_sem must be held for at least read.
  */
 static long __mlock_vma_pages_range(struct vm_area_struct *vma,
-				    unsigned long start, unsigned long end)
+				    unsigned long start, unsigned long end,
+				    int *nonblocking)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long addr = start;
-	struct page *pages[16]; /* 16 gives a reasonable batch */
 	int nr_pages = (end - start) / PAGE_SIZE;
-	int ret = 0;
 	int gup_flags;
 
 	VM_BUG_ON(start & ~PAGE_MASK);
@@ -170,9 +169,24 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
 	VM_BUG_ON(end   > vma->vm_end);
 	VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
 
-	gup_flags = FOLL_TOUCH | FOLL_GET;
-	if (vma->vm_flags & VM_WRITE)
+	gup_flags = FOLL_TOUCH;
+	/*
+	 * We want to touch writable mappings with a write fault in order
+	 * to break COW, except for shared mappings because these don't COW
+	 * and we would not want to dirty them for nothing.
+	 */
+	if ((vma->vm_flags & (VM_WRITE | VM_SHARED)) == VM_WRITE)
 		gup_flags |= FOLL_WRITE;
+
+	/*
+	 * We want mlock to succeed for regions that have any permissions
+	 * other than PROT_NONE.
+	 */
+	if (vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC))
+		gup_flags |= FOLL_FORCE;
+
+	if (vma->vm_flags & VM_LOCKED)
+		gup_flags |= FOLL_MLOCK;
 
 	/* We don't try to access the guard page of a stack vma */
 	if (stack_guard_page(vma, start)) {
@@ -180,63 +194,8 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
 		nr_pages--;
 	}
 
-	while (nr_pages > 0) {
-		int i;
-
-		cond_resched();
-
-		/*
-		 * get_user_pages makes pages present if we are
-		 * setting mlock. and this extra reference count will
-		 * disable migration of this page.  However, page may
-		 * still be truncated out from under us.
-		 */
-		ret = __get_user_pages(current, mm, addr,
-				min_t(int, nr_pages, ARRAY_SIZE(pages)),
-				gup_flags, pages, NULL);
-		/*
-		 * This can happen for, e.g., VM_NONLINEAR regions before
-		 * a page has been allocated and mapped at a given offset,
-		 * or for addresses that map beyond end of a file.
-		 * We'll mlock the pages if/when they get faulted in.
-		 */
-		if (ret < 0)
-			break;
-
-		lru_add_drain();	/* push cached pages to LRU */
-
-		for (i = 0; i < ret; i++) {
-			struct page *page = pages[i];
-
-			if (page->mapping) {
-				/*
-				 * That preliminary check is mainly to avoid
-				 * the pointless overhead of lock_page on the
-				 * ZERO_PAGE: which might bounce very badly if
-				 * there is contention.  However, we're still
-				 * dirtying its cacheline with get/put_page:
-				 * we'll add another __get_user_pages flag to
-				 * avoid it if that case turns out to matter.
-				 */
-				lock_page(page);
-				/*
-				 * Because we lock page here and migration is
-				 * blocked by the elevated reference, we need
-				 * only check for file-cache page truncation.
-				 */
-				if (page->mapping)
-					mlock_vma_page(page);
-				unlock_page(page);
-			}
-			put_page(page);	/* ref from get_user_pages() */
-		}
-
-		addr += ret * PAGE_SIZE;
-		nr_pages -= ret;
-		ret = 0;
-	}
-
-	return ret;	/* 0 or negative error code */
+	return __get_user_pages(current, mm, addr, nr_pages, gup_flags,
+				NULL, NULL, nonblocking);
 }
 
 /*
@@ -280,7 +239,7 @@ long mlock_vma_pages_range(struct vm_area_struct *vma,
 			is_vm_hugetlb_page(vma) ||
 			vma == get_gate_vma(current))) {
 
-		__mlock_vma_pages_range(vma, start, end);
+		__mlock_vma_pages_range(vma, start, end, NULL);
 
 		/* Hide errors from mmap() and other callers */
 		return 0;
@@ -372,17 +331,9 @@ static int mlock_fixup(struct vm_area_struct *vma, struct vm_area_struct **prev,
 	int ret = 0;
 	int lock = newflags & VM_LOCKED;
 
-	if (newflags == vma->vm_flags ||
-			(vma->vm_flags & (VM_IO | VM_PFNMAP)))
+	if (newflags == vma->vm_flags || (vma->vm_flags & VM_SPECIAL) ||
+	    is_vm_hugetlb_page(vma) || vma == get_gate_vma(current))
 		goto out;	/* don't set VM_LOCKED,  don't count */
-
-	if ((vma->vm_flags & (VM_DONTEXPAND | VM_RESERVED)) ||
-			is_vm_hugetlb_page(vma) ||
-			vma == get_gate_vma(current)) {
-		if (lock)
-			make_pages_present(start, end);
-		goto out;	/* don't set VM_LOCKED,  don't count */
-	}
 
 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
 	*prev = vma_merge(mm, *prev, start, end, newflags, vma->anon_vma,
@@ -419,14 +370,10 @@ success:
 	 * set VM_LOCKED, __mlock_vma_pages_range will bring it back.
 	 */
 
-	if (lock) {
+	if (lock)
 		vma->vm_flags = newflags;
-		ret = __mlock_vma_pages_range(vma, start, end);
-		if (ret < 0)
-			ret = __mlock_posix_error_return(ret);
-	} else {
+	else
 		munlock_vma_pages_range(vma, start, end);
-	}
 
 out:
 	*prev = vma;
@@ -439,7 +386,8 @@ static int do_mlock(unsigned long start, size_t len, int on)
 	struct vm_area_struct * vma, * prev;
 	int error;
 
-	len = PAGE_ALIGN(len);
+	VM_BUG_ON(start & ~PAGE_MASK);
+	VM_BUG_ON(len != PAGE_ALIGN(len));
 	end = start + len;
 	if (end < start)
 		return -EINVAL;
@@ -482,6 +430,62 @@ static int do_mlock(unsigned long start, size_t len, int on)
 	return error;
 }
 
+static int do_mlock_pages(unsigned long start, size_t len, int ignore_errors)
+{
+	struct mm_struct *mm = current->mm;
+	unsigned long end, nstart, nend;
+	struct vm_area_struct *vma = NULL;
+	int locked = 0;
+	int ret = 0;
+
+	VM_BUG_ON(start & ~PAGE_MASK);
+	VM_BUG_ON(len != PAGE_ALIGN(len));
+	end = start + len;
+
+	for (nstart = start; nstart < end; nstart = nend) {
+		/*
+		 * We want to fault in pages for [nstart; end) address range.
+		 * Find first corresponding VMA.
+		 */
+		if (!locked) {
+			locked = 1;
+			down_read(&mm->mmap_sem);
+			vma = find_vma(mm, nstart);
+		} else if (nstart >= vma->vm_end)
+			vma = vma->vm_next;
+		if (!vma || vma->vm_start >= end)
+			break;
+		/*
+		 * Set [nstart; nend) to intersection of desired address
+		 * range with the first VMA. Also, skip undesirable VMA types.
+		 */
+		nend = min(end, vma->vm_end);
+		if (vma->vm_flags & (VM_IO | VM_PFNMAP))
+			continue;
+		if (nstart < vma->vm_start)
+			nstart = vma->vm_start;
+		/*
+		 * Now fault in a range of pages. __mlock_vma_pages_range()
+		 * double checks the vma flags, so that it won't mlock pages
+		 * if the vma was already munlocked.
+		 */
+		ret = __mlock_vma_pages_range(vma, nstart, nend, &locked);
+		if (ret < 0) {
+			if (ignore_errors) {
+				ret = 0;
+				continue;	/* continue at next VMA */
+			}
+			ret = __mlock_posix_error_return(ret);
+			break;
+		}
+		nend = nstart + ret * PAGE_SIZE;
+		ret = 0;
+	}
+	if (locked)
+		up_read(&mm->mmap_sem);
+	return ret;	/* 0 or negative error code */
+}
+
 SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
 {
 	unsigned long locked;
@@ -507,6 +511,8 @@ SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
 	if ((locked <= lock_limit) || capable(CAP_IPC_LOCK))
 		error = do_mlock(start, len, 1);
 	up_write(&current->mm->mmap_sem);
+	if (!error)
+		error = do_mlock_pages(start, len, 0);
 	return error;
 }
 
@@ -571,6 +577,10 @@ SYSCALL_DEFINE1(mlockall, int, flags)
 	    capable(CAP_IPC_LOCK))
 		ret = do_mlockall(flags);
 	up_write(&current->mm->mmap_sem);
+	if (!ret && (flags & MCL_CURRENT)) {
+		/* Ignore errors */
+		do_mlock_pages(0, TASK_SIZE, 1);
+	}
 out:
 	return ret;
 }

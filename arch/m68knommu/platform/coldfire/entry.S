@@ -36,13 +36,16 @@
 #include <asm/asm-offsets.h>
 #include <asm/entry.h>
 
+#ifdef CONFIG_COLDFIRE_SW_A7
+/*
+ *	Define software copies of the supervisor and user stack pointers.
+ */
 .bss
-
 sw_ksp:
 .long	0
-
 sw_usp:
 .long	0
+#endif /* CONFIG_COLDFIRE_SW_A7 */
 
 .text
 
@@ -51,7 +54,6 @@ sw_usp:
 .globl ret_from_exception
 .globl ret_from_signal
 .globl sys_call_table
-.globl ret_from_interrupt
 .globl inthandler
 .globl fasthandler
 
@@ -136,24 +138,10 @@ Luser_return:
 	andl	#-THREAD_SIZE,%d1	/* at base of kernel stack */
 	movel	%d1,%a0
 	movel	%a0@(TI_FLAGS),%d1	/* get thread_info->flags */
-	andl	#0xefff,%d1
 	jne	Lwork_to_do		/* still work to do */
 
 Lreturn:
-	move	#0x2700,%sr		/* disable intrs */
-	movel	sw_usp,%a0		/* get usp */
-	movel	%sp@(PT_OFF_PC),%a0@-	/* copy exception program counter */
-	movel	%sp@(PT_OFF_FORMATVEC),%a0@- /* copy exception format/vector/sr */
-	moveml	%sp@,%d1-%d5/%a0-%a2
-	lea	%sp@(32),%sp		/* space for 8 regs */
-	movel	%sp@+,%d0
-	addql	#4,%sp			/* orig d0 */
-	addl	%sp@+,%sp		/* stk adj */
-	addql	#8,%sp			/* remove exception */
-	movel	%sp,sw_ksp		/* save ksp */
-	subql	#8,sw_usp		/* set exception */
-	movel	sw_usp,%sp		/* restore usp */
-	rte
+	RESTORE_USER
 
 Lwork_to_do:
 	movel	%a0@(TI_FLAGS),%d1	/* get thread_info->flags */
@@ -167,12 +155,11 @@ Lsignal_return:
 	subql	#4,%sp			/* dummy return address */
 	SAVE_SWITCH_STACK
 	pea	%sp@(SWITCH_STACK_SIZE)
-	clrl	%sp@-
 	jsr	do_signal
-	addql	#8,%sp
+	addql	#4,%sp
 	RESTORE_SWITCH_STACK
 	addql	#4,%sp
-	jmp	Lreturn
+	jmp	Luser_return
 
 /*
  * This is the generic interrupt handler (for all hardware interrupt
@@ -192,31 +179,7 @@ ENTRY(inthandler)
 	jbsr	do_IRQ			/* call high level irq handler */
 	lea	%sp@(8),%sp		/* pop args off stack */
 
-	bra	ret_from_interrupt	/* this was fallthrough */
-
-/*
- * This is the fast interrupt handler (for certain hardware interrupt
- * sources). Unlike the normal interrupt handler it just uses the
- * current stack (doesn't care if it is user or kernel). It also
- * doesn't bother doing the bottom half handlers.
- */
-ENTRY(fasthandler)
-	SAVE_LOCAL
-
-	movew	%sp@(PT_OFF_FORMATVEC),%d0
-	andl	#0x03fc,%d0		/* mask out vector only */
-
-	movel	%sp,%sp@-		/* push regs arg */
-	lsrl	#2,%d0			/* calculate real vector # */
-	movel	%d0,%sp@-		/* push vector number */
-	jbsr	do_IRQ			/* call high level irq handler */
-	lea	%sp@(8),%sp		/* pop args off stack */
-
-	RESTORE_LOCAL
-
-ENTRY(ret_from_interrupt)
-	/* the fasthandler is confusing me, haven't seen any user */
-	jmp	ret_from_exception
+	bra	ret_from_exception
 
 /*
  * Beware - when entering resume, prev (the current task) is
@@ -227,9 +190,8 @@ ENTRY(ret_from_interrupt)
  */
 ENTRY(resume)
 	movel	%a0, %d1			/* get prev thread in d1 */
-
-	movel	sw_usp,%d0			/* save usp */
-	movel	%d0,%a0@(TASK_THREAD+THREAD_USP)
+	RDUSP
+	movel	%a2,%a0@(TASK_THREAD+THREAD_USP)
 
 	SAVE_SWITCH_STACK
 	movel	%sp,%a0@(TASK_THREAD+THREAD_KSP) /* save kernel stack pointer */
@@ -237,5 +199,5 @@ ENTRY(resume)
 	RESTORE_SWITCH_STACK
 
 	movel	%a1@(TASK_THREAD+THREAD_USP),%a0 /* restore thread user stack */
-	movel	%a0, sw_usp
+	WRUSP
 	rts

@@ -39,13 +39,11 @@
 #include "io.h"
 
 #include <plat/omap-pm.h>
-#include <plat/powerdomain.h>
-#include "powerdomains.h"
+#include "powerdomain.h"
 
-#include <plat/clockdomain.h>
-#include "clockdomains.h"
-
+#include "clockdomain.h"
 #include <plat/omap_hwmod.h>
+#include <plat/multi.h>
 
 /*
  * The machine specific code may provide the extra mapping besides the
@@ -311,24 +309,79 @@ static int __init _omap2_init_reprogram_sdrc(void)
 	return v;
 }
 
-void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
-				 struct omap_sdrc_params *sdrc_cs1)
+static int _set_hwmod_postsetup_state(struct omap_hwmod *oh, void *data)
 {
-	u8 skip_setup_idle = 0;
+	return omap_hwmod_set_postsetup_state(oh, *(u8 *)data);
+}
 
-	pwrdm_init(powerdomains_omap);
-	clkdm_init(clockdomains_omap, clkdm_autodeps);
-	if (cpu_is_omap242x())
-		omap2420_hwmod_init();
-	else if (cpu_is_omap243x())
-		omap2430_hwmod_init();
+void __iomem *omap_irq_base;
+
+/*
+ * Initialize asm_irq_base for entry-macro.S
+ */
+static inline void omap_irq_base_init(void)
+{
+	if (cpu_is_omap24xx())
+		omap_irq_base = OMAP2_L4_IO_ADDRESS(OMAP24XX_IC_BASE);
 	else if (cpu_is_omap34xx())
-		omap3xxx_hwmod_init();
+		omap_irq_base = OMAP2_L4_IO_ADDRESS(OMAP34XX_IC_BASE);
 	else if (cpu_is_omap44xx())
-		omap44xx_hwmod_init();
+		omap_irq_base = OMAP2_L4_IO_ADDRESS(OMAP44XX_GIC_CPU_BASE);
+	else
+		pr_err("Could not initialize omap_irq_base\n");
+}
 
-	/* The OPP tables have to be registered before a clk init */
-	omap_pm_if_early_init(mpu_opps, dsp_opps, l3_opps);
+void __init omap2_init_common_infrastructure(void)
+{
+	u8 postsetup_state;
+
+	if (cpu_is_omap242x()) {
+		omap2xxx_powerdomains_init();
+		omap2_clockdomains_init();
+		omap2420_hwmod_init();
+	} else if (cpu_is_omap243x()) {
+		omap2xxx_powerdomains_init();
+		omap2_clockdomains_init();
+		omap2430_hwmod_init();
+	} else if (cpu_is_omap34xx()) {
+		omap3xxx_powerdomains_init();
+		omap2_clockdomains_init();
+		omap3xxx_hwmod_init();
+	} else if (cpu_is_omap44xx()) {
+		omap44xx_powerdomains_init();
+		omap44xx_clockdomains_init();
+		omap44xx_hwmod_init();
+	} else {
+		pr_err("Could not init hwmod data - unknown SoC\n");
+        }
+
+	/* Set the default postsetup state for all hwmods */
+#ifdef CONFIG_PM_RUNTIME
+	postsetup_state = _HWMOD_STATE_IDLE;
+#else
+	postsetup_state = _HWMOD_STATE_ENABLED;
+#endif
+	omap_hwmod_for_each(_set_hwmod_postsetup_state, &postsetup_state);
+
+	/*
+	 * Set the default postsetup state for unusual modules (like
+	 * MPU WDT).
+	 *
+	 * The postsetup_state is not actually used until
+	 * omap_hwmod_late_init(), so boards that desire full watchdog
+	 * coverage of kernel initialization can reprogram the
+	 * postsetup_state between the calls to
+	 * omap2_init_common_infra() and omap2_init_common_devices().
+	 *
+	 * XXX ideally we could detect whether the MPU WDT was currently
+	 * enabled here and make this conditional
+	 */
+	postsetup_state = _HWMOD_STATE_DISABLED;
+	omap_hwmod_for_each_by_class("wd_timer",
+				     _set_hwmod_postsetup_state,
+				     &postsetup_state);
+
+	omap_pm_if_early_init();
 
 	if (cpu_is_omap2420())
 		omap2420_clk_init();
@@ -339,17 +392,61 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 	else if (cpu_is_omap44xx())
 		omap4xxx_clk_init();
 	else
-		pr_err("Could not init clock framework - unknown CPU\n");
+		pr_err("Could not init clock framework - unknown SoC\n");
+}
 
+void __init omap2_init_common_devices(struct omap_sdrc_params *sdrc_cs0,
+				      struct omap_sdrc_params *sdrc_cs1)
+{
 	omap_serial_early_init();
 
-#ifndef CONFIG_PM_RUNTIME
-	skip_setup_idle = 1;
-#endif
-	omap_hwmod_late_init(skip_setup_idle);
+	omap_hwmod_late_init();
+
 	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
 		omap2_sdrc_init(sdrc_cs0, sdrc_cs1);
 		_omap2_init_reprogram_sdrc();
 	}
 	gpmc_init();
+
+	omap_irq_base_init();
 }
+
+/*
+ * NOTE: Please use ioremap + __raw_read/write where possible instead of these
+ */
+
+u8 omap_readb(u32 pa)
+{
+	return __raw_readb(OMAP2_L4_IO_ADDRESS(pa));
+}
+EXPORT_SYMBOL(omap_readb);
+
+u16 omap_readw(u32 pa)
+{
+	return __raw_readw(OMAP2_L4_IO_ADDRESS(pa));
+}
+EXPORT_SYMBOL(omap_readw);
+
+u32 omap_readl(u32 pa)
+{
+	return __raw_readl(OMAP2_L4_IO_ADDRESS(pa));
+}
+EXPORT_SYMBOL(omap_readl);
+
+void omap_writeb(u8 v, u32 pa)
+{
+	__raw_writeb(v, OMAP2_L4_IO_ADDRESS(pa));
+}
+EXPORT_SYMBOL(omap_writeb);
+
+void omap_writew(u16 v, u32 pa)
+{
+	__raw_writew(v, OMAP2_L4_IO_ADDRESS(pa));
+}
+EXPORT_SYMBOL(omap_writew);
+
+void omap_writel(u32 v, u32 pa)
+{
+	__raw_writel(v, OMAP2_L4_IO_ADDRESS(pa));
+}
+EXPORT_SYMBOL(omap_writel);

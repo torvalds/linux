@@ -316,7 +316,6 @@ static int llc_ui_bind(struct socket *sock, struct sockaddr *uaddr, int addrlen)
 	if (unlikely(addr->sllc_family != AF_LLC))
 		goto out;
 	rc = -ENODEV;
-	rtnl_lock();
 	rcu_read_lock();
 	if (sk->sk_bound_dev_if) {
 		llc->dev = dev_get_by_index_rcu(&init_net, sk->sk_bound_dev_if);
@@ -334,10 +333,11 @@ static int llc_ui_bind(struct socket *sock, struct sockaddr *uaddr, int addrlen)
 			}
 		}
 	} else
-		llc->dev = dev_getbyhwaddr(&init_net, addr->sllc_arphrd,
+		llc->dev = dev_getbyhwaddr_rcu(&init_net, addr->sllc_arphrd,
 					   addr->sllc_mac);
+	if (llc->dev)
+		dev_hold(llc->dev);
 	rcu_read_unlock();
-	rtnl_unlock();
 	if (!llc->dev)
 		goto out;
 	if (!addr->sllc_sap) {

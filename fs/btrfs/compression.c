@@ -62,6 +62,9 @@ struct compressed_bio {
 	/* number of bytes on disk */
 	unsigned long compressed_len;
 
+	/* the compression algorithm for this bio */
+	int compress_type;
+
 	/* number of compressed pages in the array */
 	unsigned long nr_pages;
 
@@ -173,11 +176,12 @@ static void end_compressed_bio_read(struct bio *bio, int err)
 	/* ok, we're the last bio for this extent, lets start
 	 * the decompression.
 	 */
-	ret = btrfs_zlib_decompress_biovec(cb->compressed_pages,
-					cb->start,
-					cb->orig_bio->bi_io_vec,
-					cb->orig_bio->bi_vcnt,
-					cb->compressed_len);
+	ret = btrfs_decompress_biovec(cb->compress_type,
+				      cb->compressed_pages,
+				      cb->start,
+				      cb->orig_bio->bi_io_vec,
+				      cb->orig_bio->bi_vcnt,
+				      cb->compressed_len);
 csum_failed:
 	if (ret)
 		cb->errors = 1;
@@ -558,7 +562,7 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	u64 em_len;
 	u64 em_start;
 	struct extent_map *em;
-	int ret;
+	int ret = -ENOMEM;
 	u32 *sums;
 
 	tree = &BTRFS_I(inode)->io_tree;
@@ -573,6 +577,9 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 
 	compressed_len = em->block_len;
 	cb = kmalloc(compressed_bio_size(root, compressed_len), GFP_NOFS);
+	if (!cb)
+		goto out;
+
 	atomic_set(&cb->pending_bios, 0);
 	cb->errors = 0;
 	cb->inode = inode;
@@ -588,17 +595,23 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 
 	cb->len = uncompressed_len;
 	cb->compressed_len = compressed_len;
+	cb->compress_type = extent_compress_type(bio_flags);
 	cb->orig_bio = bio;
 
 	nr_pages = (compressed_len + PAGE_CACHE_SIZE - 1) /
 				 PAGE_CACHE_SIZE;
-	cb->compressed_pages = kmalloc(sizeof(struct page *) * nr_pages,
+	cb->compressed_pages = kzalloc(sizeof(struct page *) * nr_pages,
 				       GFP_NOFS);
+	if (!cb->compressed_pages)
+		goto fail1;
+
 	bdev = BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev;
 
 	for (page_index = 0; page_index < nr_pages; page_index++) {
 		cb->compressed_pages[page_index] = alloc_page(GFP_NOFS |
 							      __GFP_HIGHMEM);
+		if (!cb->compressed_pages[page_index])
+			goto fail2;
 	}
 	cb->nr_pages = nr_pages;
 
@@ -609,6 +622,8 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	cb->len = uncompressed_len;
 
 	comp_bio = compressed_bio_alloc(bdev, cur_disk_byte, GFP_NOFS);
+	if (!comp_bio)
+		goto fail2;
 	comp_bio->bi_private = cb;
 	comp_bio->bi_end_io = end_compressed_bio_read;
 	atomic_inc(&cb->pending_bios);
@@ -676,4 +691,329 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 
 	bio_put(comp_bio);
 	return 0;
+
+fail2:
+	for (page_index = 0; page_index < nr_pages; page_index++)
+		free_page((unsigned long)cb->compressed_pages[page_index]);
+
+	kfree(cb->compressed_pages);
+fail1:
+	kfree(cb);
+out:
+	free_extent_map(em);
+	return ret;
+}
+
+static struct list_head comp_idle_workspace[BTRFS_COMPRESS_TYPES];
+static spinlock_t comp_workspace_lock[BTRFS_COMPRESS_TYPES];
+static int comp_num_workspace[BTRFS_COMPRESS_TYPES];
+static atomic_t comp_alloc_workspace[BTRFS_COMPRESS_TYPES];
+static wait_queue_head_t comp_workspace_wait[BTRFS_COMPRESS_TYPES];
+
+struct btrfs_compress_op *btrfs_compress_op[] = {
+	&btrfs_zlib_compress,
+	&btrfs_lzo_compress,
+};
+
+int __init btrfs_init_compress(void)
+{
+	int i;
+
+	for (i = 0; i < BTRFS_COMPRESS_TYPES; i++) {
+		INIT_LIST_HEAD(&comp_idle_workspace[i]);
+		spin_lock_init(&comp_workspace_lock[i]);
+		atomic_set(&comp_alloc_workspace[i], 0);
+		init_waitqueue_head(&comp_workspace_wait[i]);
+	}
+	return 0;
+}
+
+/*
+ * this finds an available workspace or allocates a new one
+ * ERR_PTR is returned if things go bad.
+ */
+static struct list_head *find_workspace(int type)
+{
+	struct list_head *workspace;
+	int cpus = num_online_cpus();
+	int idx = type - 1;
+
+	struct list_head *idle_workspace	= &comp_idle_workspace[idx];
+	spinlock_t *workspace_lock		= &comp_workspace_lock[idx];
+	atomic_t *alloc_workspace		= &comp_alloc_workspace[idx];
+	wait_queue_head_t *workspace_wait	= &comp_workspace_wait[idx];
+	int *num_workspace			= &comp_num_workspace[idx];
+again:
+	spin_lock(workspace_lock);
+	if (!list_empty(idle_workspace)) {
+		workspace = idle_workspace->next;
+		list_del(workspace);
+		(*num_workspace)--;
+		spin_unlock(workspace_lock);
+		return workspace;
+
+	}
+	if (atomic_read(alloc_workspace) > cpus) {
+		DEFINE_WAIT(wait);
+
+		spin_unlock(workspace_lock);
+		prepare_to_wait(workspace_wait, &wait, TASK_UNINTERRUPTIBLE);
+		if (atomic_read(alloc_workspace) > cpus && !*num_workspace)
+			schedule();
+		finish_wait(workspace_wait, &wait);
+		goto again;
+	}
+	atomic_inc(alloc_workspace);
+	spin_unlock(workspace_lock);
+
+	workspace = btrfs_compress_op[idx]->alloc_workspace();
+	if (IS_ERR(workspace)) {
+		atomic_dec(alloc_workspace);
+		wake_up(workspace_wait);
+	}
+	return workspace;
+}
+
+/*
+ * put a workspace struct back on the list or free it if we have enough
+ * idle ones sitting around
+ */
+static void free_workspace(int type, struct list_head *workspace)
+{
+	int idx = type - 1;
+	struct list_head *idle_workspace	= &comp_idle_workspace[idx];
+	spinlock_t *workspace_lock		= &comp_workspace_lock[idx];
+	atomic_t *alloc_workspace		= &comp_alloc_workspace[idx];
+	wait_queue_head_t *workspace_wait	= &comp_workspace_wait[idx];
+	int *num_workspace			= &comp_num_workspace[idx];
+
+	spin_lock(workspace_lock);
+	if (*num_workspace < num_online_cpus()) {
+		list_add_tail(workspace, idle_workspace);
+		(*num_workspace)++;
+		spin_unlock(workspace_lock);
+		goto wake;
+	}
+	spin_unlock(workspace_lock);
+
+	btrfs_compress_op[idx]->free_workspace(workspace);
+	atomic_dec(alloc_workspace);
+wake:
+	if (waitqueue_active(workspace_wait))
+		wake_up(workspace_wait);
+}
+
+/*
+ * cleanup function for module exit
+ */
+static void free_workspaces(void)
+{
+	struct list_head *workspace;
+	int i;
+
+	for (i = 0; i < BTRFS_COMPRESS_TYPES; i++) {
+		while (!list_empty(&comp_idle_workspace[i])) {
+			workspace = comp_idle_workspace[i].next;
+			list_del(workspace);
+			btrfs_compress_op[i]->free_workspace(workspace);
+			atomic_dec(&comp_alloc_workspace[i]);
+		}
+	}
+}
+
+/*
+ * given an address space and start/len, compress the bytes.
+ *
+ * pages are allocated to hold the compressed result and stored
+ * in 'pages'
+ *
+ * out_pages is used to return the number of pages allocated.  There
+ * may be pages allocated even if we return an error
+ *
+ * total_in is used to return the number of bytes actually read.  It
+ * may be smaller then len if we had to exit early because we
+ * ran out of room in the pages array or because we cross the
+ * max_out threshold.
+ *
+ * total_out is used to return the total number of compressed bytes
+ *
+ * max_out tells us the max number of bytes that we're allowed to
+ * stuff into pages
+ */
+int btrfs_compress_pages(int type, struct address_space *mapping,
+			 u64 start, unsigned long len,
+			 struct page **pages,
+			 unsigned long nr_dest_pages,
+			 unsigned long *out_pages,
+			 unsigned long *total_in,
+			 unsigned long *total_out,
+			 unsigned long max_out)
+{
+	struct list_head *workspace;
+	int ret;
+
+	workspace = find_workspace(type);
+	if (IS_ERR(workspace))
+		return -1;
+
+	ret = btrfs_compress_op[type-1]->compress_pages(workspace, mapping,
+						      start, len, pages,
+						      nr_dest_pages, out_pages,
+						      total_in, total_out,
+						      max_out);
+	free_workspace(type, workspace);
+	return ret;
+}
+
+/*
+ * pages_in is an array of pages with compressed data.
+ *
+ * disk_start is the starting logical offset of this array in the file
+ *
+ * bvec is a bio_vec of pages from the file that we want to decompress into
+ *
+ * vcnt is the count of pages in the biovec
+ *
+ * srclen is the number of bytes in pages_in
+ *
+ * The basic idea is that we have a bio that was created by readpages.
+ * The pages in the bio are for the uncompressed data, and they may not
+ * be contiguous.  They all correspond to the range of bytes covered by
+ * the compressed extent.
+ */
+int btrfs_decompress_biovec(int type, struct page **pages_in, u64 disk_start,
+			    struct bio_vec *bvec, int vcnt, size_t srclen)
+{
+	struct list_head *workspace;
+	int ret;
+
+	workspace = find_workspace(type);
+	if (IS_ERR(workspace))
+		return -ENOMEM;
+
+	ret = btrfs_compress_op[type-1]->decompress_biovec(workspace, pages_in,
+							 disk_start,
+							 bvec, vcnt, srclen);
+	free_workspace(type, workspace);
+	return ret;
+}
+
+/*
+ * a less complex decompression routine.  Our compressed data fits in a
+ * single page, and we want to read a single page out of it.
+ * start_byte tells us the offset into the compressed data we're interested in
+ */
+int btrfs_decompress(int type, unsigned char *data_in, struct page *dest_page,
+		     unsigned long start_byte, size_t srclen, size_t destlen)
+{
+	struct list_head *workspace;
+	int ret;
+
+	workspace = find_workspace(type);
+	if (IS_ERR(workspace))
+		return -ENOMEM;
+
+	ret = btrfs_compress_op[type-1]->decompress(workspace, data_in,
+						  dest_page, start_byte,
+						  srclen, destlen);
+
+	free_workspace(type, workspace);
+	return ret;
+}
+
+void btrfs_exit_compress(void)
+{
+	free_workspaces();
+}
+
+/*
+ * Copy uncompressed data from working buffer to pages.
+ *
+ * buf_start is the byte offset we're of the start of our workspace buffer.
+ *
+ * total_out is the last byte of the buffer
+ */
+int btrfs_decompress_buf2page(char *buf, unsigned long buf_start,
+			      unsigned long total_out, u64 disk_start,
+			      struct bio_vec *bvec, int vcnt,
+			      unsigned long *page_index,
+			      unsigned long *pg_offset)
+{
+	unsigned long buf_offset;
+	unsigned long current_buf_start;
+	unsigned long start_byte;
+	unsigned long working_bytes = total_out - buf_start;
+	unsigned long bytes;
+	char *kaddr;
+	struct page *page_out = bvec[*page_index].bv_page;
+
+	/*
+	 * start byte is the first byte of the page we're currently
+	 * copying into relative to the start of the compressed data.
+	 */
+	start_byte = page_offset(page_out) - disk_start;
+
+	/* we haven't yet hit data corresponding to this page */
+	if (total_out <= start_byte)
+		return 1;
+
+	/*
+	 * the start of the data we care about is offset into
+	 * the middle of our working buffer
+	 */
+	if (total_out > start_byte && buf_start < start_byte) {
+		buf_offset = start_byte - buf_start;
+		working_bytes -= buf_offset;
+	} else {
+		buf_offset = 0;
+	}
+	current_buf_start = buf_start;
+
+	/* copy bytes from the working buffer into the pages */
+	while (working_bytes > 0) {
+		bytes = min(PAGE_CACHE_SIZE - *pg_offset,
+			    PAGE_CACHE_SIZE - buf_offset);
+		bytes = min(bytes, working_bytes);
+		kaddr = kmap_atomic(page_out, KM_USER0);
+		memcpy(kaddr + *pg_offset, buf + buf_offset, bytes);
+		kunmap_atomic(kaddr, KM_USER0);
+		flush_dcache_page(page_out);
+
+		*pg_offset += bytes;
+		buf_offset += bytes;
+		working_bytes -= bytes;
+		current_buf_start += bytes;
+
+		/* check if we need to pick another page */
+		if (*pg_offset == PAGE_CACHE_SIZE) {
+			(*page_index)++;
+			if (*page_index >= vcnt)
+				return 0;
+
+			page_out = bvec[*page_index].bv_page;
+			*pg_offset = 0;
+			start_byte = page_offset(page_out) - disk_start;
+
+			/*
+			 * make sure our new page is covered by this
+			 * working buffer
+			 */
+			if (total_out <= start_byte)
+				return 1;
+
+			/*
+			 * the next page in the biovec might not be adjacent
+			 * to the last page, but it might still be found
+			 * inside this working buffer. bump our offset pointer
+			 */
+			if (total_out > start_byte &&
+			    current_buf_start < start_byte) {
+				buf_offset = start_byte - buf_start;
+				working_bytes = total_out - start_byte;
+				current_buf_start = buf_start + buf_offset;
+			}
+		}
+	}
+
+	return 1;
 }

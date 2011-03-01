@@ -70,7 +70,7 @@ module_param(start_off, uint, 0644);
 MODULE_PARM_DESC(start_off,
 		 "Set to 1 to switch off OLED display after it is attached");
 
-enum oled_pack_mode{
+enum oled_pack_mode {
 	PACK_MODE_G1,
 	PACK_MODE_G50,
 	PACK_MODE_LAST

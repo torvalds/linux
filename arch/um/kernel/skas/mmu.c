@@ -31,7 +31,7 @@ static int init_stub_pte(struct mm_struct *mm, unsigned long proc,
 	if (!pmd)
 		goto out_pmd;
 
-	pte = pte_alloc_map(mm, pmd, proc);
+	pte = pte_alloc_map(mm, NULL, pmd, proc);
 	if (!pte)
 		goto out_pte;
 

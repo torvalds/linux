@@ -12,8 +12,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
-
-#include <asm/clkdev.h>
+#include <linux/clkdev.h>
 
 #include <mach/clock.h>
 #include <mach/irqs.h>

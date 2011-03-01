@@ -78,7 +78,7 @@ struct tx_frame_hdr {
 	u8 node_idx;
 	u8 vif_idx;
 	u8 tidno;
-	u32 flags; /* ATH9K_HTC_TX_* */
+	__be32 flags; /* ATH9K_HTC_TX_* */
 	u8 key_type;
 	u8 keyix;
 	u8 reserved[26];
@@ -331,17 +331,15 @@ void ath_htc_cancel_btcoex_work(struct ath9k_htc_priv *priv);
 
 #define OP_INVALID		   BIT(0)
 #define OP_SCANNING		   BIT(1)
-#define OP_FULL_RESET		   BIT(2)
-#define OP_LED_ASSOCIATED	   BIT(3)
-#define OP_LED_ON		   BIT(4)
-#define OP_PREAMBLE_SHORT	   BIT(5)
-#define OP_PROTECT_ENABLE	   BIT(6)
-#define OP_ASSOCIATED		   BIT(7)
-#define OP_ENABLE_BEACON	   BIT(8)
-#define OP_LED_DEINIT		   BIT(9)
-#define OP_UNPLUGGED		   BIT(10)
-#define OP_BT_PRIORITY_DETECTED	   BIT(11)
-#define OP_BT_SCAN		   BIT(12)
+#define OP_LED_ASSOCIATED	   BIT(2)
+#define OP_LED_ON		   BIT(3)
+#define OP_PREAMBLE_SHORT	   BIT(4)
+#define OP_PROTECT_ENABLE	   BIT(5)
+#define OP_ASSOCIATED		   BIT(6)
+#define OP_ENABLE_BEACON	   BIT(7)
+#define OP_LED_DEINIT		   BIT(8)
+#define OP_BT_PRIORITY_DETECTED    BIT(9)
+#define OP_BT_SCAN                 BIT(10)
 
 struct ath9k_htc_priv {
 	struct device *dev;
@@ -368,7 +366,7 @@ struct ath9k_htc_priv {
 	u16 seq_no;
 	u32 bmiss_cnt;
 
-	struct ath9k_hw_cal_data caldata[38];
+	struct ath9k_hw_cal_data caldata[ATH9K_NUM_CHANNELS];
 
 	spinlock_t beacon_lock;
 
@@ -378,7 +376,7 @@ struct ath9k_htc_priv {
 	struct ieee80211_vif *vif;
 	struct htc_beacon_config cur_beacon_conf;
 	unsigned int rxfilter;
-	struct tasklet_struct wmi_tasklet;
+	struct tasklet_struct swba_tasklet;
 	struct tasklet_struct rx_tasklet;
 	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
 	struct ath9k_htc_rx rx;
@@ -386,6 +384,7 @@ struct ath9k_htc_priv {
 	struct sk_buff_head tx_queue;
 	struct delayed_work ath9k_ani_work;
 	struct work_struct ps_work;
+	struct work_struct fatal_work;
 
 	struct mutex htc_pm_lock;
 	unsigned long ps_usecount;
@@ -420,6 +419,8 @@ static inline void ath_read_cachesize(struct ath_common *common, int *csz)
 	common->bus_ops->read_cachesize(common, csz);
 }
 
+void ath9k_htc_reset(struct ath9k_htc_priv *priv);
+
 void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv);
 void ath9k_htc_beacon_config(struct ath9k_htc_priv *priv,
 			     struct ieee80211_vif *vif);
@@ -432,9 +433,11 @@ void ath9k_htc_txep(void *priv, struct sk_buff *skb, enum htc_endpoint_id ep_id,
 void ath9k_htc_beaconep(void *drv_priv, struct sk_buff *skb,
 			enum htc_endpoint_id ep_id, bool txok);
 
+int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv);
 void ath9k_htc_station_work(struct work_struct *work);
 void ath9k_htc_aggr_work(struct work_struct *work);
 void ath9k_ani_work(struct work_struct *work);;
+void ath_start_ani(struct ath9k_htc_priv *priv);
 
 int ath9k_tx_init(struct ath9k_htc_priv *priv);
 void ath9k_tx_tasklet(unsigned long data);
@@ -457,13 +460,18 @@ void ath9k_htc_ps_restore(struct ath9k_htc_priv *priv);
 void ath9k_ps_work(struct work_struct *work);
 bool ath9k_htc_setpower(struct ath9k_htc_priv *priv,
 			enum ath9k_power_mode mode);
+void ath_update_txpow(struct ath9k_htc_priv *priv);
 
 void ath9k_start_rfkill_poll(struct ath9k_htc_priv *priv);
+void ath9k_htc_rfkill_poll_state(struct ieee80211_hw *hw);
+void ath9k_htc_radio_enable(struct ieee80211_hw *hw);
+void ath9k_htc_radio_disable(struct ieee80211_hw *hw);
+void ath9k_led_stop_brightness(struct ath9k_htc_priv *priv);
 void ath9k_init_leds(struct ath9k_htc_priv *priv);
 void ath9k_deinit_leds(struct ath9k_htc_priv *priv);
 
 int ath9k_htc_probe_device(struct htc_target *htc_handle, struct device *dev,
-			   u16 devid, char *product);
+			   u16 devid, char *product, u32 drv_info);
 void ath9k_htc_disconnect_device(struct htc_target *htc_handle, bool hotunplug);
 #ifdef CONFIG_PM
 void ath9k_htc_suspend(struct htc_target *htc_handle);

@@ -386,7 +386,7 @@ static int az6027_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 }
 
 /* keys for the enclosed remote control */
-static struct ir_scancode ir_codes_az6027_table[] = {
+static struct rc_map_table rc_map_az6027_table[] = {
 	{ 0x01, KEY_1 },
 	{ 0x02, KEY_2 },
 };
@@ -1089,6 +1089,7 @@ static struct usb_device_id az6027_usb_table[] = {
 	{ USB_DEVICE(USB_VID_TERRATEC,  USB_PID_TERRATEC_DVBS2CI_V2) },
 	{ USB_DEVICE(USB_VID_TECHNISAT, USB_PID_TECHNISAT_USB2_HDCI_V1) },
 	{ USB_DEVICE(USB_VID_TECHNISAT, USB_PID_TECHNISAT_USB2_HDCI_V2) },
+	{ USB_DEVICE(USB_VID_ELGATO, USB_PID_ELGATO_EYETV_SAT) },
 	{ },
 };
 
@@ -1126,15 +1127,15 @@ static struct dvb_usb_device_properties az6027_properties = {
 	.read_mac_address = az6027_read_mac_addr,
  */
 	.rc.legacy = {
-		.rc_key_map       = ir_codes_az6027_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_az6027_table),
+		.rc_map_table     = rc_map_az6027_table,
+		.rc_map_size      = ARRAY_SIZE(rc_map_az6027_table),
 		.rc_interval      = 400,
 		.rc_query         = az6027_rc_query,
 	},
 
 	.i2c_algo         = &az6027_i2c_algo,
 
-	.num_device_descs = 5,
+	.num_device_descs = 6,
 	.devices = {
 		{
 			.name = "AZUREWAVE DVB-S/S2 USB2.0 (AZ6027)",
@@ -1155,6 +1156,10 @@ static struct dvb_usb_device_properties az6027_properties = {
 		}, {
 			.name = "Technisat SkyStar USB 2 HD CI",
 			.cold_ids = { &az6027_usb_table[4], NULL },
+			.warm_ids = { NULL },
+		}, {
+			.name = "Elgato EyeTV Sat",
+			.cold_ids = { &az6027_usb_table[5], NULL },
 			.warm_ids = { NULL },
 		},
 		{ NULL },

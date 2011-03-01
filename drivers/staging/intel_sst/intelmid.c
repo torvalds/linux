@@ -24,6 +24,9 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  * ALSA driver for Intel MID sound card chipset
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
@@ -101,12 +104,10 @@ static struct snd_pcm_hardware snd_intelmad_stream = {
 static int snd_intelmad_pcm_trigger(struct snd_pcm_substream *substream,
 					int cmd)
 {
-	int ret_val = 0;
+	int ret_val = 0, str_id;
 	struct snd_intelmad *intelmaddata;
 	struct mad_stream_pvt *stream;
-	/*struct stream_buffer buffer_to_sst;*/
-
-
+	struct intel_sst_pcm_control *sst_ops;
 
 	WARN_ON(!substream);
 
@@ -115,38 +116,35 @@ static int snd_intelmad_pcm_trigger(struct snd_pcm_substream *substream,
 
 	WARN_ON(!intelmaddata->sstdrv_ops);
 	WARN_ON(!intelmaddata->sstdrv_ops->scard_ops);
+	sst_ops  = intelmaddata->sstdrv_ops->pcm_control;
+	str_id = stream->stream_info.str_id;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		pr_debug("sst: Trigger Start\n");
-		ret_val = intelmaddata->sstdrv_ops->control_set(SST_SND_START,
-				&stream->stream_info.str_id);
+		pr_debug("Trigger Start\n");
+		ret_val = sst_ops->device_control(SST_SND_START, &str_id);
 		if (ret_val)
 			return ret_val;
 		stream->stream_status = RUNNING;
 		stream->substream = substream;
-		stream->stream_status = RUNNING;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		pr_debug("sst: in stop\n");
-		ret_val = intelmaddata->sstdrv_ops->control_set(SST_SND_DROP,
-				&stream->stream_info.str_id);
+		pr_debug("in stop\n");
+		ret_val = sst_ops->device_control(SST_SND_DROP, &str_id);
 		if (ret_val)
 			return ret_val;
 		stream->stream_status = DROPPED;
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		pr_debug("sst: in pause\n");
-		ret_val = intelmaddata->sstdrv_ops->control_set(SST_SND_PAUSE,
-				&stream->stream_info.str_id);
+		pr_debug("in pause\n");
+		ret_val = sst_ops->device_control(SST_SND_PAUSE, &str_id);
 		if (ret_val)
 			return ret_val;
 		stream->stream_status = PAUSED;
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		pr_debug("sst: in pause release\n");
-		ret_val = intelmaddata->sstdrv_ops->control_set(SST_SND_RESUME,
-						&stream->stream_info.str_id);
+		pr_debug("in pause release\n");
+		ret_val = sst_ops->device_control(SST_SND_RESUME, &str_id);
 		if (ret_val)
 			return ret_val;
 		stream->stream_status = RUNNING;
@@ -170,19 +168,19 @@ static int snd_intelmad_pcm_prepare(struct snd_pcm_substream *substream)
 	int ret_val = 0;
 	struct snd_intelmad *intelmaddata;
 
-	pr_debug("sst: pcm_prepare called\n");
+	pr_debug("pcm_prepare called\n");
 
 	WARN_ON(!substream);
 	stream = substream->runtime->private_data;
 	intelmaddata = snd_pcm_substream_chip(substream);
-	pr_debug("sst: pb cnt = %d cap cnt = %d\n",\
+	pr_debug("pb cnt = %d cap cnt = %d\n",\
 		intelmaddata->playback_cnt,
 		intelmaddata->capture_cnt);
 
 	if (stream->stream_info.str_id) {
-		pr_debug("sst: Prepare called for already set stream\n");
-		ret_val = intelmaddata->sstdrv_ops->control_set(SST_SND_DROP,
-					&stream->stream_info.str_id);
+		pr_debug("Prepare called for already set stream\n");
+		ret_val = intelmaddata->sstdrv_ops->pcm_control->device_control(
+				SST_SND_DROP, &stream->stream_info.str_id);
 		return ret_val;
 	}
 
@@ -197,7 +195,7 @@ static int snd_intelmad_pcm_prepare(struct snd_pcm_substream *substream)
 	/* return back the stream id */
 	snprintf(substream->pcm->id, sizeof(substream->pcm->id),
 			"%d", stream->stream_info.str_id);
-	pr_debug("sst: stream id to user = %s\n",
+	pr_debug("stream id to user = %s\n",
 			substream->pcm->id);
 
 	ret_val = snd_intelmad_init_stream(substream);
@@ -212,7 +210,7 @@ static int snd_intelmad_hw_params(struct snd_pcm_substream *substream,
 {
 	int ret_val;
 
-	pr_debug("sst: snd_intelmad_hw_params called\n");
+	pr_debug("snd_intelmad_hw_params called\n");
 	ret_val = snd_pcm_lib_malloc_pages(substream,
 			params_buffer_bytes(hw_params));
 	memset(substream->runtime->dma_area, 0,
@@ -223,7 +221,7 @@ static int snd_intelmad_hw_params(struct snd_pcm_substream *substream,
 
 static int snd_intelmad_hw_free(struct snd_pcm_substream *substream)
 {
-	pr_debug("sst: snd_intelmad_hw_free called\n");
+	pr_debug("snd_intelmad_hw_free called\n");
 	return snd_pcm_lib_free_pages(substream);
 }
 
@@ -250,15 +248,15 @@ static snd_pcm_uframes_t snd_intelmad_pcm_pointer
 	if (stream->stream_status == INIT)
 		return 0;
 
-	ret_val = intelmaddata->sstdrv_ops->control_set(SST_SND_BUFFER_POINTER,
-				&stream->stream_info);
+	ret_val = intelmaddata->sstdrv_ops->pcm_control->device_control(
+			SST_SND_BUFFER_POINTER, &stream->stream_info);
 	if (ret_val) {
-		pr_err("sst: error code = 0x%x\n", ret_val);
+		pr_err("error code = 0x%x\n", ret_val);
 		return ret_val;
 	}
-	pr_debug("sst: samples reported out 0x%llx\n",
+	pr_debug("samples reported out 0x%llx\n",
 			stream->stream_info.buffer_ptr);
-	pr_debug("sst: Frame bits:: %d period_count :: %d\n",
+	pr_debug("Frame bits:: %d period_count :: %d\n",
 			(int)substream->runtime->frame_bits,
 			(int)substream->runtime->period_size);
 
@@ -277,26 +275,26 @@ static int snd_intelmad_close(struct snd_pcm_substream *substream)
 {
 	struct snd_intelmad *intelmaddata;
 	struct mad_stream_pvt *stream;
-	int ret_val = 0;
+	int ret_val = 0, str_id;
 
 	WARN_ON(!substream);
 
 	stream = substream->runtime->private_data;
+	str_id = stream->stream_info.str_id;
 
-	pr_debug("sst: snd_intelmad_close called\n");
+	pr_debug("sst: snd_intelmad_close called for %d\n", str_id);
 	intelmaddata = snd_pcm_substream_chip(substream);
 
-	pr_debug("sst: str id = %d\n", stream->stream_info.str_id);
+	pr_debug("str id = %d\n", stream->stream_info.str_id);
 	if (stream->stream_info.str_id) {
 		/* SST API to actually stop/free the stream */
-		ret_val = intelmaddata->sstdrv_ops->control_set(SST_SND_FREE,
-				&stream->stream_info.str_id);
+		ret_val = intelmaddata->sstdrv_ops->pcm_control->close(str_id);
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 			intelmaddata->playback_cnt--;
 		else
 			intelmaddata->capture_cnt--;
 	}
-	pr_debug("sst: snd_intelmad_close : pb cnt = %d cap cnt = %d\n",
+	pr_debug("snd_intelmad_close : pb cnt = %d cap cnt = %d\n",
 		intelmaddata->playback_cnt, intelmaddata->capture_cnt);
 	kfree(substream->runtime->private_data);
 	return ret_val;
@@ -319,7 +317,7 @@ static int snd_intelmad_open(struct snd_pcm_substream *substream,
 
 	WARN_ON(!substream);
 
-	pr_debug("sst: snd_intelmad_open called\n");
+	pr_debug("snd_intelmad_open called\n");
 
 	intelmaddata = snd_pcm_substream_chip(substream);
 	runtime = substream->runtime;
@@ -456,17 +454,17 @@ void sst_mad_send_jack_report(struct snd_jack *jack,
 {
 
 	if (!jack) {
-		pr_debug("sst: MAD error jack empty\n");
+		pr_debug("MAD error jack empty\n");
 
 	} else {
-		pr_debug("sst: MAD send jack report for = %d!!!\n", status);
-		pr_debug("sst: MAD send jack report %d\n", jack->type);
+		pr_debug("MAD send jack report for = %d!!!\n", status);
+		pr_debug("MAD send jack report %d\n", jack->type);
 		snd_jack_report(jack, status);
 
 		/*button pressed and released */
 		if (buttonpressevent)
 			snd_jack_report(jack, 0);
-		pr_debug("sst: MAD sending jack report Done !!!\n");
+		pr_debug("MAD sending jack report Done !!!\n");
 	}
 
 
@@ -490,7 +488,7 @@ void sst_mad_jackdetection_fs(u8 intsts , struct snd_intelmad *intelmaddata)
 	if (intsts & 0x4) {
 
 		if (!(intelmid_audio_interrupt_enable)) {
-			pr_debug("sst: Audio interrupt enable\n");
+			pr_debug("Audio interrupt enable\n");
 			sst_sc_reg_access(sc_access, PMIC_READ_MODIFY, 3);
 
 			sst_sc_reg_access(sc_access_write, PMIC_WRITE, 1);
@@ -500,7 +498,7 @@ void sst_mad_jackdetection_fs(u8 intsts , struct snd_intelmad *intelmaddata)
 
 		}
 		/* send headphone detect */
-		pr_debug("sst: MAD headphone %d\n", intsts & 0x4);
+		pr_debug("MAD headphone %d\n", intsts & 0x4);
 		jack = &intelmaddata->jack[0].jack;
 		present = !(intelmaddata->jack[0].jack_status);
 		intelmaddata->jack[0].jack_status = present;
@@ -510,7 +508,7 @@ void sst_mad_jackdetection_fs(u8 intsts , struct snd_intelmad *intelmaddata)
 
 	if (intsts & 0x2) {
 		/* send short push */
-		pr_debug("sst: MAD short push %d\n", intsts & 0x2);
+		pr_debug("MAD short push %d\n", intsts & 0x2);
 		jack = &intelmaddata->jack[2].jack;
 		present = 1;
 		jack_event_flag = 1;
@@ -518,7 +516,7 @@ void sst_mad_jackdetection_fs(u8 intsts , struct snd_intelmad *intelmaddata)
 	}
 	if (intsts & 0x1) {
 		/* send long push */
-		pr_debug("sst: MAD long push %d\n", intsts & 0x1);
+		pr_debug("MAD long push %d\n", intsts & 0x1);
 		jack = &intelmaddata->jack[3].jack;
 		present = 1;
 		jack_event_flag = 1;
@@ -526,7 +524,7 @@ void sst_mad_jackdetection_fs(u8 intsts , struct snd_intelmad *intelmaddata)
 	}
 	if (intsts & 0x8) {
 		if (!(intelmid_audio_interrupt_enable)) {
-			pr_debug("sst: Audio interrupt enable\n");
+			pr_debug("Audio interrupt enable\n");
 			sst_sc_reg_access(sc_access, PMIC_READ_MODIFY, 3);
 
 			sst_sc_reg_access(sc_access_write, PMIC_WRITE, 1);
@@ -535,7 +533,7 @@ void sst_mad_jackdetection_fs(u8 intsts , struct snd_intelmad *intelmaddata)
 			intelmaddata->jack[1].jack_status = 0;
 		}
 		/* send headset detect */
-		pr_debug("sst: MAD headset = %d\n", intsts & 0x8);
+		pr_debug("MAD headset = %d\n", intsts & 0x8);
 		jack = &intelmaddata->jack[1].jack;
 		present = !(intelmaddata->jack[1].jack_status);
 		intelmaddata->jack[1].jack_status = present;
@@ -558,10 +556,10 @@ void sst_mad_jackdetection_mx(u8 intsts, struct snd_intelmad *intelmaddata)
 
 	scard_ops = intelmaddata->sstdrv_ops->scard_ops;
 
-	pr_debug("sst: previous value: %x\n", intelmaddata->jack_prev_state);
+	pr_debug("previous value: %x\n", intelmaddata->jack_prev_state);
 
 	if (!(intelmid_audio_interrupt_enable)) {
-		pr_debug("sst: Audio interrupt enable\n");
+		pr_debug("Audio interrupt enable\n");
 		intelmaddata->jack_prev_state = 0xC0;
 		intelmid_audio_interrupt_enable = 1;
 	}
@@ -572,12 +570,12 @@ void sst_mad_jackdetection_mx(u8 intsts, struct snd_intelmad *intelmaddata)
 			sc_access_read.reg_addr = 0x201;
 			sst_sc_reg_access(&sc_access_read, PMIC_READ, 1);
 			value = (sc_access_read.value);
-			pr_debug("sst: value returned = 0x%x\n", value);
+			pr_debug("value returned = 0x%x\n", value);
 		}
 
 		if (jack_prev_state == 0xc0 && value == 0x40) {
 			/*headset detected. */
-			pr_debug("sst: MAD headset inserted\n");
+			pr_debug("MAD headset inserted\n");
 			jack = &intelmaddata->jack[1].jack;
 			present = 1;
 			jack_event_flag = 1;
@@ -587,7 +585,7 @@ void sst_mad_jackdetection_mx(u8 intsts, struct snd_intelmad *intelmaddata)
 
 		if (jack_prev_state == 0xc0 && value == 0x00) {
 			/* headphone  detected. */
-			pr_debug("sst: MAD headphone inserted\n");
+			pr_debug("MAD headphone inserted\n");
 			jack = &intelmaddata->jack[0].jack;
 			present = 1;
 			jack_event_flag = 1;
@@ -596,9 +594,9 @@ void sst_mad_jackdetection_mx(u8 intsts, struct snd_intelmad *intelmaddata)
 
 		if (jack_prev_state == 0x40 && value == 0xc0) {
 			/*headset  removed*/
-			pr_debug("sst: Jack headset status %d\n",
+			pr_debug("Jack headset status %d\n",
 				intelmaddata->jack[1].jack_status);
-			pr_debug("sst: MAD headset removed\n");
+			pr_debug("MAD headset removed\n");
 			jack = &intelmaddata->jack[1].jack;
 			present = 0;
 			jack_event_flag = 1;
@@ -607,9 +605,9 @@ void sst_mad_jackdetection_mx(u8 intsts, struct snd_intelmad *intelmaddata)
 
 		if (jack_prev_state == 0x00 && value == 0xc0) {
 			/* headphone  detected. */
-			pr_debug("sst: Jack headphone status %d\n",
+			pr_debug("Jack headphone status %d\n",
 					intelmaddata->jack[0].jack_status);
-			pr_debug("sst: headphone removed\n");
+			pr_debug("headphone removed\n");
 			jack = &intelmaddata->jack[0].jack;
 			present = 0;
 			jack_event_flag = 1;
@@ -618,7 +616,7 @@ void sst_mad_jackdetection_mx(u8 intsts, struct snd_intelmad *intelmaddata)
 		if (jack_prev_state == 0x40 && value == 0x00) {
 			/*button pressed*/
 			do_gettimeofday(&intelmaddata->jack[1].buttonpressed);
-			pr_debug("sst: MAD button press detected n");
+			pr_debug("MAD button press detected\n");
 		}
 
 
@@ -628,19 +626,19 @@ void sst_mad_jackdetection_mx(u8 intsts, struct snd_intelmad *intelmaddata)
 				do_gettimeofday(
 					&intelmaddata->jack[1].buttonreleased);
 				/*button pressed */
-				pr_debug("sst: Button Released detected\n");
+				pr_debug("Button Released detected\n");
 				timediff = intelmaddata->jack[1].
 					buttonreleased.tv_sec - intelmaddata->
 					jack[1].buttonpressed.tv_sec;
 				buttonpressflag = 1;
 				if (timediff > 1) {
-					pr_debug("sst: long press detected\n");
+					pr_debug("long press detected\n");
 					/* send headphone detect/undetect */
 					jack = &intelmaddata->jack[3].jack;
 					present = 1;
 					jack_event_flag = 1;
 				} else {
-					pr_debug("sst: short press detected\n");
+					pr_debug("short press detected\n");
 					/* send headphone detect/undetect */
 					jack = &intelmaddata->jack[2].jack;
 					present = 1;
@@ -667,24 +665,24 @@ void sst_mad_jackdetection_nec(u8 intsts, struct snd_intelmad *intelmaddata)
 		sc_access_read.reg_addr = 0x132;
 		sst_sc_reg_access(&sc_access_read, PMIC_READ, 1);
 		value = (sc_access_read.value);
-		pr_debug("sst: value returned = 0x%x\n", value);
+		pr_debug("value returned = 0x%x\n", value);
 	}
 	if (intsts & 0x1) {
-		pr_debug("sst: headset detected\n");
+		pr_debug("headset detected\n");
 		/* send headset detect/undetect */
 		jack = &intelmaddata->jack[1].jack;
 		present = (value == 0x1) ? 1 : 0;
 		jack_event_flag = 1;
 	}
 	if (intsts & 0x2) {
-		pr_debug("sst: headphone detected\n");
+		pr_debug("headphone detected\n");
 		/* send headphone detect/undetect */
 		jack = &intelmaddata->jack[0].jack;
 		present = (value == 0x2) ? 1 : 0;
 		jack_event_flag = 1;
 	}
 	if (intsts & 0x4) {
-		pr_debug("sst: short push detected\n");
+		pr_debug("short push detected\n");
 		/* send short push */
 		jack = &intelmaddata->jack[2].jack;
 		present = 1;
@@ -692,7 +690,7 @@ void sst_mad_jackdetection_nec(u8 intsts, struct snd_intelmad *intelmaddata)
 		buttonpressflag = 1;
 	}
 	if (intsts & 0x8) {
-		pr_debug("sst: long push detected\n");
+		pr_debug("long push detected\n");
 		/* send long push */
 		jack = &intelmaddata->jack[3].jack;
 		present = 1;
@@ -738,12 +736,12 @@ static int __devinit snd_intelmad_register_irq(
 	u32 regbase = AUDINT_BASE, regsize = 8;
 	char *drv_name;
 
-	pr_debug("sst: irq reg done, regbase 0x%x, regsize 0x%x\n",
+	pr_debug("irq reg done, regbase 0x%x, regsize 0x%x\n",
 					regbase, regsize);
 	intelmaddata->int_base = ioremap_nocache(regbase, regsize);
 	if (!intelmaddata->int_base)
-		pr_err("sst: Mapping of cache failed\n");
-	pr_debug("sst: irq = 0x%x\n", intelmaddata->irq);
+		pr_err("Mapping of cache failed\n");
+	pr_debug("irq = 0x%x\n", intelmaddata->irq);
 	if (intelmaddata->cpu_id == CPU_CHIP_PENWELL)
 		drv_name = DRIVER_NAME_MFLD;
 	else
@@ -753,7 +751,7 @@ static int __devinit snd_intelmad_register_irq(
 				IRQF_SHARED, drv_name,
 				intelmaddata);
 	if (ret_val)
-		pr_err("sst: cannot register IRQ\n");
+		pr_err("cannot register IRQ\n");
 	return ret_val;
 }
 
@@ -775,10 +773,10 @@ static int __devinit snd_intelmad_sst_register(
 		if (ret_val)
 			return ret_val;
 		sst_card_vendor_id = (vendor_addr.value & (MASK2|MASK1|MASK0));
-		pr_debug("sst: orginal n extrated vendor id = 0x%x %d\n",
+		pr_debug("orginal n extrated vendor id = 0x%x %d\n",
 				vendor_addr.value, sst_card_vendor_id);
 		if (sst_card_vendor_id < 0 || sst_card_vendor_id > 2) {
-			pr_err("sst: vendor card not supported!!\n");
+			pr_err("vendor card not supported!!\n");
 			return -EIO;
 		}
 	} else
@@ -801,7 +799,7 @@ static int __devinit snd_intelmad_sst_register(
 	/* registering with SST driver to get access to SST APIs to use */
 	ret_val = register_sst_card(intelmaddata->sstdrv_ops);
 	if (ret_val) {
-		pr_err("sst: sst card registration failed\n");
+		pr_err("sst card registration failed\n");
 		return ret_val;
 	}
 
@@ -832,7 +830,7 @@ static int __devinit snd_intelmad_pcm_new(struct snd_card *card,
 	char name[32] = INTEL_MAD;
 	struct snd_pcm_ops *pb_ops = NULL, *cap_ops = NULL;
 
-	pr_debug("sst: called for pb %d, cp %d, idx %d\n", pb, cap, index);
+	pr_debug("called for pb %d, cp %d, idx %d\n", pb, cap, index);
 	ret_val = snd_pcm_new(card, name, index, pb, cap, &pcm);
 	if (ret_val)
 		return ret_val;
@@ -878,7 +876,7 @@ static int __devinit snd_intelmad_pcm(struct snd_card *card,
 
 	WARN_ON(!card);
 	WARN_ON(!intelmaddata);
-	pr_debug("sst: snd_intelmad_pcm called\n");
+	pr_debug("snd_intelmad_pcm called\n");
 	ret_val = snd_intelmad_pcm_new(card, intelmaddata, 1, 1, 0);
 	if (intelmaddata->cpu_id == CPU_CHIP_LINCROFT)
 		return ret_val;
@@ -903,7 +901,7 @@ static int snd_intelmad_jack(struct snd_intelmad *intelmaddata)
 	struct snd_jack *jack;
 	int retval;
 
-	pr_debug("sst: snd_intelmad_jack called\n");
+	pr_debug("snd_intelmad_jack called\n");
 	jack = &intelmaddata->jack[0].jack;
 	retval = snd_jack_new(intelmaddata->card, "Headphone",
 				SND_JACK_HEADPHONE, &jack);
@@ -982,9 +980,9 @@ static int __devinit snd_intelmad_mixer(struct snd_intelmad *intelmaddata)
 		ret_val = snd_ctl_add(card,
 				snd_ctl_new1(&controls[idx],
 				intelmaddata));
-		pr_debug("sst: mixer[idx]=%d added\n", idx);
+		pr_debug("mixer[idx]=%d added\n", idx);
 		if (ret_val) {
-			pr_err("sst: in adding of control index = %d\n", idx);
+			pr_err("in adding of control index = %d\n", idx);
 			break;
 		}
 	}
@@ -999,7 +997,7 @@ static int snd_intelmad_dev_free(struct snd_device *device)
 
 	intelmaddata = device->device_data;
 
-	pr_debug("sst: snd_intelmad_dev_free called\n");
+	pr_debug("snd_intelmad_dev_free called\n");
 	snd_card_free(intelmaddata->card);
 	/*genl_unregister_family(&audio_event_genl_family);*/
 	unregister_sst_card(intelmaddata->sstdrv_ops);
@@ -1040,23 +1038,23 @@ int __devinit snd_intelmad_probe(struct platform_device *pdev)
 	const struct platform_device_id *id = platform_get_device_id(pdev);
 	unsigned int cpu_id = (unsigned int)id->driver_data;
 
-	pr_debug("sst: probe for %s cpu_id %d\n", pdev->name, cpu_id);
+	pr_debug("probe for %s cpu_id %d\n", pdev->name, cpu_id);
 	if (!strcmp(pdev->name, DRIVER_NAME_MRST))
-		pr_debug("sst: detected MRST\n");
+		pr_debug("detected MRST\n");
 	else if (!strcmp(pdev->name, DRIVER_NAME_MFLD))
-		pr_debug("sst: detected MFLD\n");
+		pr_debug("detected MFLD\n");
 	else {
-		pr_err("sst: detected unknown device abort!!\n");
+		pr_err("detected unknown device abort!!\n");
 		return -EIO;
 	}
 	if ((cpu_id < CPU_CHIP_LINCROFT) || (cpu_id > CPU_CHIP_PENWELL)) {
-		pr_err("sst: detected unknown cpu_id abort!!\n");
+		pr_err("detected unknown cpu_id abort!!\n");
 		return -EIO;
 	}
 	/* allocate memory for saving internal context and working */
 	intelmaddata = kzalloc(sizeof(*intelmaddata), GFP_KERNEL);
 	if (!intelmaddata) {
-		pr_debug("sst: mem alloctn fail\n");
+		pr_debug("mem alloctn fail\n");
 		return -ENOMEM;
 	}
 
@@ -1064,7 +1062,7 @@ int __devinit snd_intelmad_probe(struct platform_device *pdev)
 	intelmaddata->sstdrv_ops = kzalloc(sizeof(struct intel_sst_card_ops),
 					GFP_KERNEL);
 	if (!intelmaddata->sstdrv_ops) {
-		pr_err("sst: mem allocation for ops fail\n");
+		pr_err("mem allocation for ops fail\n");
 		kfree(intelmaddata);
 		return -ENOMEM;
 	}
@@ -1073,7 +1071,7 @@ int __devinit snd_intelmad_probe(struct platform_device *pdev)
 	/* create a card instance with ALSA framework */
 	ret_val = snd_card_create(card_index, card_id, THIS_MODULE, 0, &card);
 	if (ret_val) {
-		pr_err("sst: snd_card_create fail\n");
+		pr_err("snd_card_create fail\n");
 		goto free_allocs;
 	}
 
@@ -1092,7 +1090,7 @@ int __devinit snd_intelmad_probe(struct platform_device *pdev)
 	/* registering with LPE driver to get access to SST APIs to use */
 	ret_val = snd_intelmad_sst_register(intelmaddata);
 	if (ret_val) {
-		pr_err("sst: snd_intelmad_sst_register failed\n");
+		pr_err("snd_intelmad_sst_register failed\n");
 		goto free_allocs;
 	}
 
@@ -1100,19 +1098,19 @@ int __devinit snd_intelmad_probe(struct platform_device *pdev)
 
 	ret_val = snd_intelmad_pcm(card, intelmaddata);
 	if (ret_val) {
-		pr_err("sst: snd_intelmad_pcm failed\n");
+		pr_err("snd_intelmad_pcm failed\n");
 		goto free_allocs;
 	}
 
 	ret_val = snd_intelmad_mixer(intelmaddata);
 	if (ret_val) {
-		pr_err("sst: snd_intelmad_mixer failed\n");
+		pr_err("snd_intelmad_mixer failed\n");
 		goto free_allocs;
 	}
 
 	ret_val = snd_intelmad_jack(intelmaddata);
 	if (ret_val) {
-		pr_err("sst: snd_intelmad_jack failed\n");
+		pr_err("snd_intelmad_jack failed\n");
 		goto free_allocs;
 	}
 
@@ -1126,31 +1124,31 @@ int __devinit snd_intelmad_probe(struct platform_device *pdev)
 
 	ret_val = snd_intelmad_register_irq(intelmaddata);
 	if (ret_val) {
-		pr_err("sst: snd_intelmad_register_irq fail\n");
+		pr_err("snd_intelmad_register_irq fail\n");
 		goto free_allocs;
 	}
 
 	/* internal function call to register device with ALSA */
 	ret_val = snd_intelmad_create(intelmaddata, card);
 	if (ret_val) {
-		pr_err("sst: snd_intelmad_create failed\n");
+		pr_err("snd_intelmad_create failed\n");
 		goto free_allocs;
 	}
 	card->private_data = &intelmaddata;
 	snd_card_set_dev(card, &pdev->dev);
 	ret_val = snd_card_register(card);
 	if (ret_val) {
-		pr_err("sst: snd_card_register failed\n");
+		pr_err("snd_card_register failed\n");
 		goto free_allocs;
 	}
 
-	pr_debug("sst:snd_intelmad_probe complete\n");
+	pr_debug("snd_intelmad_probe complete\n");
 	return ret_val;
 
 free_mad_jack_wq:
 	destroy_workqueue(intelmaddata->mad_jack_wq);
 free_allocs:
-	pr_err("sst: probe failed\n");
+	pr_err("probe failed\n");
 	snd_card_free(card);
 	kfree(intelmaddata->sstdrv_ops);
 	kfree(intelmaddata);
@@ -1200,7 +1198,7 @@ static struct platform_driver snd_intelmad_driver = {
  */
 static int __init alsa_card_intelmad_init(void)
 {
-	pr_debug("sst: mad_init called\n");
+	pr_debug("mad_init called\n");
 	return platform_driver_register(&snd_intelmad_driver);
 }
 
@@ -1211,7 +1209,7 @@ static int __init alsa_card_intelmad_init(void)
  */
 static void __exit alsa_card_intelmad_exit(void)
 {
-	pr_debug("sst:mad_exit called\n");
+	pr_debug("mad_exit called\n");
 	return platform_driver_unregister(&snd_intelmad_driver);
 }
 

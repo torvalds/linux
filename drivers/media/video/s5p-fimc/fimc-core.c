@@ -543,7 +543,7 @@ static void fimc_dma_run(void *priv)
 	unsigned long flags;
 	u32 ret;
 
-	if (WARN(!ctx, "null hardware context"))
+	if (WARN(!ctx, "null hardware context\n"))
 		return;
 
 	fimc = ctx->fimc_dev;

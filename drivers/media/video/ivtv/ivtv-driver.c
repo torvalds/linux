@@ -1029,8 +1029,13 @@ static int __devinit ivtv_probe(struct pci_dev *pdev,
 	itv->enc_mem = ioremap_nocache(itv->base_addr + IVTV_ENCODER_OFFSET,
 				       IVTV_ENCODER_SIZE);
 	if (!itv->enc_mem) {
-		IVTV_ERR("ioremap failed, perhaps increasing __VMALLOC_RESERVE in page.h\n");
-		IVTV_ERR("or disabling CONFIG_HIGHMEM4G into the kernel would help\n");
+		IVTV_ERR("ioremap failed. Can't get a window into CX23415/6 "
+			 "encoder memory\n");
+		IVTV_ERR("Each capture card with a CX23415/6 needs 8 MB of "
+			 "vmalloc address space for this window\n");
+		IVTV_ERR("Check the output of 'grep Vmalloc /proc/meminfo'\n");
+		IVTV_ERR("Use the vmalloc= kernel command line option to set "
+			 "VmallocTotal to a larger value\n");
 		retval = -ENOMEM;
 		goto free_mem;
 	}
@@ -1041,8 +1046,14 @@ static int __devinit ivtv_probe(struct pci_dev *pdev,
 		itv->dec_mem = ioremap_nocache(itv->base_addr + IVTV_DECODER_OFFSET,
 				IVTV_DECODER_SIZE);
 		if (!itv->dec_mem) {
-			IVTV_ERR("ioremap failed, perhaps increasing __VMALLOC_RESERVE in page.h\n");
-			IVTV_ERR("or disabling CONFIG_HIGHMEM4G into the kernel would help\n");
+			IVTV_ERR("ioremap failed. Can't get a window into "
+				 "CX23415 decoder memory\n");
+			IVTV_ERR("Each capture card with a CX23415 needs 8 MB "
+				 "of vmalloc address space for this window\n");
+			IVTV_ERR("Check the output of 'grep Vmalloc "
+				 "/proc/meminfo'\n");
+			IVTV_ERR("Use the vmalloc= kernel command line option "
+				 "to set VmallocTotal to a larger value\n");
 			retval = -ENOMEM;
 			goto free_mem;
 		}
@@ -1057,8 +1068,13 @@ static int __devinit ivtv_probe(struct pci_dev *pdev,
 	itv->reg_mem =
 	    ioremap_nocache(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
 	if (!itv->reg_mem) {
-		IVTV_ERR("ioremap failed, perhaps increasing __VMALLOC_RESERVE in page.h\n");
-		IVTV_ERR("or disabling CONFIG_HIGHMEM4G into the kernel would help\n");
+		IVTV_ERR("ioremap failed. Can't get a window into CX23415/6 "
+			 "register space\n");
+		IVTV_ERR("Each capture card with a CX23415/6 needs 64 kB of "
+			 "vmalloc address space for this window\n");
+		IVTV_ERR("Check the output of 'grep Vmalloc /proc/meminfo'\n");
+		IVTV_ERR("Use the vmalloc= kernel command line option to set "
+			 "VmallocTotal to a larger value\n");
 		retval = -ENOMEM;
 		goto free_io;
 	}

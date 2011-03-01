@@ -397,7 +397,7 @@ omap2_mcspi_txrx_dma(struct spi_device *spi, struct spi_transfer *xfer)
 
 	if (tx != NULL) {
 		wait_for_completion(&mcspi_dma->dma_tx_completion);
-		dma_unmap_single(NULL, xfer->tx_dma, count, DMA_TO_DEVICE);
+		dma_unmap_single(&spi->dev, xfer->tx_dma, count, DMA_TO_DEVICE);
 
 		/* for TX_ONLY mode, be sure all words have shifted out */
 		if (rx == NULL) {
@@ -412,7 +412,7 @@ omap2_mcspi_txrx_dma(struct spi_device *spi, struct spi_transfer *xfer)
 
 	if (rx != NULL) {
 		wait_for_completion(&mcspi_dma->dma_rx_completion);
-		dma_unmap_single(NULL, xfer->rx_dma, count, DMA_FROM_DEVICE);
+		dma_unmap_single(&spi->dev, xfer->rx_dma, count, DMA_FROM_DEVICE);
 		omap2_mcspi_set_enable(spi, 0);
 
 		if (l & OMAP2_MCSPI_CHCONF_TURBO) {
@@ -1025,11 +1025,6 @@ static int omap2_mcspi_transfer(struct spi_device *spi, struct spi_message *m)
 		if (m->is_dma_mapped || len < DMA_MIN_BYTES)
 			continue;
 
-		/* Do DMA mapping "early" for better error reporting and
-		 * dcache use.  Note that if dma_unmap_single() ever starts
-		 * to do real work on ARM, we'd need to clean up mappings
-		 * for previous transfers on *ALL* exits of this loop...
-		 */
 		if (tx_buf != NULL) {
 			t->tx_dma = dma_map_single(&spi->dev, (void *) tx_buf,
 					len, DMA_TO_DEVICE);
@@ -1046,7 +1041,7 @@ static int omap2_mcspi_transfer(struct spi_device *spi, struct spi_message *m)
 				dev_dbg(&spi->dev, "dma %cX %d bytes error\n",
 						'R', len);
 				if (tx_buf != NULL)
-					dma_unmap_single(NULL, t->tx_dma,
+					dma_unmap_single(&spi->dev, t->tx_dma,
 							len, DMA_TO_DEVICE);
 				return -EINVAL;
 			}

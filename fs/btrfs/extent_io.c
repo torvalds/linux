@@ -1865,7 +1865,7 @@ static int submit_one_bio(int rw, struct bio *bio, int mirror_num,
 	bio_get(bio);
 
 	if (tree->ops && tree->ops->submit_bio_hook)
-		tree->ops->submit_bio_hook(page->mapping->host, rw, bio,
+		ret = tree->ops->submit_bio_hook(page->mapping->host, rw, bio,
 					   mirror_num, bio_flags, start);
 	else
 		submit_bio(rw, bio);
@@ -1920,6 +1920,8 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 		nr = bio_get_nr_vecs(bdev);
 
 	bio = btrfs_bio_alloc(bdev, sector, nr, GFP_NOFS | __GFP_HIGH);
+	if (!bio)
+		return -ENOMEM;
 
 	bio_add_page(bio, page, page_size, offset);
 	bio->bi_end_io = end_io_func;
@@ -1944,6 +1946,7 @@ void set_page_extent_mapped(struct page *page)
 
 static void set_page_extent_head(struct page *page, unsigned long len)
 {
+	WARN_ON(!PagePrivate(page));
 	set_page_private(page, EXTENT_PAGE_PRIVATE_FIRST_PAGE | len << 2);
 }
 
@@ -2028,8 +2031,11 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 		BUG_ON(extent_map_end(em) <= cur);
 		BUG_ON(end < cur);
 
-		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
+		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
 			this_bio_flag = EXTENT_BIO_COMPRESSED;
+			extent_set_compress_type(&this_bio_flag,
+						 em->compress_type);
+		}
 
 		iosize = min(extent_map_end(em) - cur, end - cur + 1);
 		cur_end = min(extent_map_end(em) - 1, end);
@@ -2123,7 +2129,7 @@ int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
 	ret = __extent_read_full_page(tree, page, get_extent, &bio, 0,
 				      &bio_flags);
 	if (bio)
-		submit_one_bio(READ, bio, 0, bio_flags);
+		ret = submit_one_bio(READ, bio, 0, bio_flags);
 	return ret;
 }
 
@@ -2816,9 +2822,17 @@ int try_release_extent_state(struct extent_map_tree *map,
 		 * at this point we can safely clear everything except the
 		 * locked bit and the nodatasum bit
 		 */
-		clear_extent_bit(tree, start, end,
+		ret = clear_extent_bit(tree, start, end,
 				 ~(EXTENT_LOCKED | EXTENT_NODATASUM),
 				 0, 0, NULL, mask);
+
+		/* if clear_extent_bit failed for enomem reasons,
+		 * we can't allow the release to continue.
+		 */
+		if (ret < 0)
+			ret = 0;
+		else
+			ret = 1;
 	}
 	return ret;
 }
@@ -3072,6 +3086,8 @@ static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
 #endif
 
 	eb = kmem_cache_zalloc(extent_buffer_cache, mask);
+	if (eb == NULL)
+		return NULL;
 	eb->start = start;
 	eb->len = len;
 	spin_lock_init(&eb->lock);
@@ -3187,7 +3203,13 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 		}
 		if (!PageUptodate(p))
 			uptodate = 0;
-		unlock_page(p);
+
+		/*
+		 * see below about how we avoid a nasty race with release page
+		 * and why we unlock later
+		 */
+		if (i != 0)
+			unlock_page(p);
 	}
 	if (uptodate)
 		set_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
@@ -3211,9 +3233,26 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 	atomic_inc(&eb->refs);
 	spin_unlock(&tree->buffer_lock);
 	radix_tree_preload_end();
+
+	/*
+	 * there is a race where release page may have
+	 * tried to find this extent buffer in the radix
+	 * but failed.  It will tell the VM it is safe to
+	 * reclaim the, and it will clear the page private bit.
+	 * We must make sure to set the page private bit properly
+	 * after the extent buffer is in the radix tree so
+	 * it doesn't get lost
+	 */
+	set_page_extent_mapped(eb->first_page);
+	set_page_extent_head(eb->first_page, eb->len);
+	if (!page0)
+		unlock_page(eb->first_page);
 	return eb;
 
 free_eb:
+	if (eb->first_page && !page0)
+		unlock_page(eb->first_page);
+
 	if (!atomic_dec_and_test(&eb->refs))
 		return exists;
 	btrfs_release_extent_buffer(eb);
@@ -3264,10 +3303,11 @@ int clear_extent_buffer_dirty(struct extent_io_tree *tree,
 			continue;
 
 		lock_page(page);
+		WARN_ON(!PagePrivate(page));
+
+		set_page_extent_mapped(page);
 		if (i == 0)
 			set_page_extent_head(page, eb->len);
-		else
-			set_page_private(page, EXTENT_PAGE_PRIVATE);
 
 		clear_page_dirty_for_io(page);
 		spin_lock_irq(&page->mapping->tree_lock);
@@ -3457,6 +3497,13 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 
 	for (i = start_i; i < num_pages; i++) {
 		page = extent_buffer_page(eb, i);
+
+		WARN_ON(!PagePrivate(page));
+
+		set_page_extent_mapped(page);
+		if (i == 0)
+			set_page_extent_head(page, eb->len);
+
 		if (inc_all_pages)
 			page_cache_get(page);
 		if (!PageUptodate(page)) {

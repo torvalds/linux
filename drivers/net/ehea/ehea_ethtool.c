@@ -26,6 +26,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "ehea.h"
 #include "ehea_phyp.h"
 
@@ -118,10 +120,10 @@ doit:
 	ret = ehea_set_portspeed(port, sp);
 
 	if (!ret)
-		ehea_info("%s: Port speed successfully set: %dMbps "
-			  "%s Duplex",
-			  port->netdev->name, port->port_speed,
-			  port->full_duplex == 1 ? "Full" : "Half");
+		netdev_info(dev,
+			    "Port speed successfully set: %dMbps %s Duplex\n",
+			    port->port_speed,
+			    port->full_duplex == 1 ? "Full" : "Half");
 out:
 	return ret;
 }
@@ -134,10 +136,10 @@ static int ehea_nway_reset(struct net_device *dev)
 	ret = ehea_set_portspeed(port, EHEA_SPEED_AUTONEG);
 
 	if (!ret)
-		ehea_info("%s: Port speed successfully set: %dMbps "
-			  "%s Duplex",
-			  port->netdev->name, port->port_speed,
-			  port->full_duplex == 1 ? "Full" : "Half");
+		netdev_info(port->netdev,
+			    "Port speed successfully set: %dMbps %s Duplex\n",
+			    port->port_speed,
+			    port->full_duplex == 1 ? "Full" : "Half");
 	return ret;
 }
 

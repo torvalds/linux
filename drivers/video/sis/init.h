@@ -1516,19 +1516,6 @@ unsigned short	SiS_GetModeID_TV(int VGAEngine, unsigned int VBFlags, int HDispla
 unsigned short	SiS_GetModeID_VGA2(int VGAEngine, unsigned int VBFlags, int HDisplay,
 				int VDisplay, int Depth, unsigned int VBFlags2);
 
-void		SiS_SetReg(SISIOADDRESS port, unsigned short index, unsigned short data);
-void		SiS_SetRegByte(SISIOADDRESS port, unsigned short data);
-void		SiS_SetRegShort(SISIOADDRESS port, unsigned short data);
-void		SiS_SetRegLong(SISIOADDRESS port, unsigned int data);
-unsigned char	SiS_GetReg(SISIOADDRESS port, unsigned short index);
-unsigned char	SiS_GetRegByte(SISIOADDRESS port);
-unsigned short	SiS_GetRegShort(SISIOADDRESS port);
-unsigned int	SiS_GetRegLong(SISIOADDRESS port);
-void		SiS_SetRegANDOR(SISIOADDRESS Port, unsigned short Index, unsigned short DataAND,
-				unsigned short DataOR);
-void		SiS_SetRegAND(SISIOADDRESS Port,unsigned short Index, unsigned short DataAND);
-void		SiS_SetRegOR(SISIOADDRESS Port,unsigned short Index, unsigned short DataOR);
-
 void		SiS_DisplayOn(struct SiS_Private *SiS_Pr);
 void		SiS_DisplayOff(struct SiS_Private *SiS_Pr);
 void		SiSRegInit(struct SiS_Private *SiS_Pr, SISIOADDRESS BaseAddr);

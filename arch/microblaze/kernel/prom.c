@@ -47,9 +47,9 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 	memblock_add(base, size);
 }
 
-u64 __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
+void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 {
-	return memblock_alloc(size, align);
+	return __va(memblock_alloc(size, align));
 }
 
 #ifdef CONFIG_EARLY_PRINTK
@@ -61,13 +61,11 @@ static int __init early_init_dt_scan_serial(unsigned long node,
 	char *p;
 	int *addr;
 
-	pr_debug("search \"chosen\", depth: %d, uname: %s\n", depth, uname);
+	pr_debug("search \"serial\", depth: %d, uname: %s\n", depth, uname);
 
 /* find all serial nodes */
 	if (strncmp(uname, "serial", 6) != 0)
 		return 0;
-
-	early_init_dt_check_for_initrd(node);
 
 /* find compatible node with uartlite */
 	p = of_get_flat_dt_prop(node, "compatible", &l);

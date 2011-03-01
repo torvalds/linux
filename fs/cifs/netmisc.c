@@ -170,7 +170,7 @@ cifs_convert_address(struct sockaddr *dst, const char *src, int len)
 {
 	int rc, alen, slen;
 	const char *pct;
-	char *endp, scope_id[13];
+	char scope_id[13];
 	struct sockaddr_in *s4 = (struct sockaddr_in *) dst;
 	struct sockaddr_in6 *s6 = (struct sockaddr_in6 *) dst;
 
@@ -197,9 +197,9 @@ cifs_convert_address(struct sockaddr *dst, const char *src, int len)
 		memcpy(scope_id, pct + 1, slen);
 		scope_id[slen] = '\0';
 
-		s6->sin6_scope_id = (u32) simple_strtoul(pct, &endp, 0);
-		if (endp != scope_id + slen)
-			return 0;
+		rc = strict_strtoul(scope_id, 0,
+					(unsigned long *)&s6->sin6_scope_id);
+		rc = (rc == 0) ? 1 : 0;
 	}
 
 	return rc;
@@ -899,8 +899,8 @@ map_smb_to_linux_error(struct smb_hdr *smb, int logErr)
 	}
 	/* else ERRHRD class errors or junk  - return EIO */
 
-	cFYI(1, "Mapping smb error code %d to POSIX err %d",
-		 smberrcode, rc);
+	cFYI(1, "Mapping smb error code 0x%x to POSIX err %d",
+		 le32_to_cpu(smb->Status.CifsError), rc);
 
 	/* generic corrective action e.g. reconnect SMB session on
 	 * ERRbaduid could be added */
@@ -916,14 +916,14 @@ unsigned int
 smbCalcSize(struct smb_hdr *ptr)
 {
 	return (sizeof(struct smb_hdr) + (2 * ptr->WordCount) +
-		2 /* size of the bcc field */ + BCC(ptr));
+		2 /* size of the bcc field */ + get_bcc(ptr));
 }
 
 unsigned int
 smbCalcSize_LE(struct smb_hdr *ptr)
 {
 	return (sizeof(struct smb_hdr) + (2 * ptr->WordCount) +
-		2 /* size of the bcc field */ + le16_to_cpu(BCC_LE(ptr)));
+		2 /* size of the bcc field */ + get_bcc_le(ptr));
 }
 
 /* The following are taken from fs/ntfs/util.c */

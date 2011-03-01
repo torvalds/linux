@@ -766,7 +766,7 @@ struct qib_devdata {
 	void (*f_sdma_hw_start_up)(struct qib_pportdata *);
 	void (*f_sdma_init_early)(struct qib_pportdata *);
 	void (*f_set_cntr_sample)(struct qib_pportdata *, u32, u32);
-	void (*f_update_usrhead)(struct qib_ctxtdata *, u64, u32, u32);
+	void (*f_update_usrhead)(struct qib_ctxtdata *, u64, u32, u32, u32);
 	u32 (*f_hdrqempty)(struct qib_ctxtdata *);
 	u64 (*f_portcntr)(struct qib_pportdata *, u32);
 	u32 (*f_read_cntrs)(struct qib_devdata *, loff_t, char **,

@@ -28,20 +28,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define __SMS_IR_H__
 
 #include <linux/input.h>
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 
 #define IR_DEFAULT_TIMEOUT		100
 
 struct smscore_device_t;
 
 struct ir_t {
-	struct input_dev *input_dev;
+	struct rc_dev *dev;
 	char name[40];
 	char phys[32];
 
 	char *rc_codes;
 	u64 protocol;
-	struct ir_dev_props props;
 
 	u32 timeout;
 	u32 controller;

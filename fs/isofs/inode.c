@@ -26,16 +26,32 @@
 
 #define BEQUIET
 
-static int isofs_hashi(struct dentry *parent, struct qstr *qstr);
-static int isofs_hash(struct dentry *parent, struct qstr *qstr);
-static int isofs_dentry_cmpi(struct dentry *dentry, struct qstr *a, struct qstr *b);
-static int isofs_dentry_cmp(struct dentry *dentry, struct qstr *a, struct qstr *b);
+static int isofs_hashi(const struct dentry *parent, const struct inode *inode,
+		struct qstr *qstr);
+static int isofs_hash(const struct dentry *parent, const struct inode *inode,
+		struct qstr *qstr);
+static int isofs_dentry_cmpi(const struct dentry *parent,
+		const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name);
+static int isofs_dentry_cmp(const struct dentry *parent,
+		const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name);
 
 #ifdef CONFIG_JOLIET
-static int isofs_hashi_ms(struct dentry *parent, struct qstr *qstr);
-static int isofs_hash_ms(struct dentry *parent, struct qstr *qstr);
-static int isofs_dentry_cmpi_ms(struct dentry *dentry, struct qstr *a, struct qstr *b);
-static int isofs_dentry_cmp_ms(struct dentry *dentry, struct qstr *a, struct qstr *b);
+static int isofs_hashi_ms(const struct dentry *parent, const struct inode *inode,
+		struct qstr *qstr);
+static int isofs_hash_ms(const struct dentry *parent, const struct inode *inode,
+		struct qstr *qstr);
+static int isofs_dentry_cmpi_ms(const struct dentry *parent,
+		const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name);
+static int isofs_dentry_cmp_ms(const struct dentry *parent,
+		const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name);
 #endif
 
 static void isofs_put_super(struct super_block *sb)
@@ -65,9 +81,16 @@ static struct inode *isofs_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
+static void isofs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(isofs_inode_cachep, ISOFS_I(inode));
+}
+
 static void isofs_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(isofs_inode_cachep, ISOFS_I(inode));
+	call_rcu(&inode->i_rcu, isofs_i_callback);
 }
 
 static void init_once(void *foo)
@@ -160,7 +183,7 @@ struct iso9660_options{
  * Compute the hash for the isofs name corresponding to the dentry.
  */
 static int
-isofs_hash_common(struct dentry *dentry, struct qstr *qstr, int ms)
+isofs_hash_common(const struct dentry *dentry, struct qstr *qstr, int ms)
 {
 	const char *name;
 	int len;
@@ -181,7 +204,7 @@ isofs_hash_common(struct dentry *dentry, struct qstr *qstr, int ms)
  * Compute the hash for the isofs name corresponding to the dentry.
  */
 static int
-isofs_hashi_common(struct dentry *dentry, struct qstr *qstr, int ms)
+isofs_hashi_common(const struct dentry *dentry, struct qstr *qstr, int ms)
 {
 	const char *name;
 	int len;
@@ -206,100 +229,94 @@ isofs_hashi_common(struct dentry *dentry, struct qstr *qstr, int ms)
 }
 
 /*
- * Case insensitive compare of two isofs names.
+ * Compare of two isofs names.
  */
-static int isofs_dentry_cmpi_common(struct dentry *dentry, struct qstr *a,
-				struct qstr *b, int ms)
+static int isofs_dentry_cmp_common(
+		unsigned int len, const char *str,
+		const struct qstr *name, int ms, int ci)
 {
 	int alen, blen;
 
 	/* A filename cannot end in '.' or we treat it like it has none */
-	alen = a->len;
-	blen = b->len;
+	alen = name->len;
+	blen = len;
 	if (ms) {
-		while (alen && a->name[alen-1] == '.')
+		while (alen && name->name[alen-1] == '.')
 			alen--;
-		while (blen && b->name[blen-1] == '.')
+		while (blen && str[blen-1] == '.')
 			blen--;
 	}
 	if (alen == blen) {
-		if (strnicmp(a->name, b->name, alen) == 0)
-			return 0;
-	}
-	return 1;
-}
-
-/*
- * Case sensitive compare of two isofs names.
- */
-static int isofs_dentry_cmp_common(struct dentry *dentry, struct qstr *a,
-					struct qstr *b, int ms)
-{
-	int alen, blen;
-
-	/* A filename cannot end in '.' or we treat it like it has none */
-	alen = a->len;
-	blen = b->len;
-	if (ms) {
-		while (alen && a->name[alen-1] == '.')
-			alen--;
-		while (blen && b->name[blen-1] == '.')
-			blen--;
-	}
-	if (alen == blen) {
-		if (strncmp(a->name, b->name, alen) == 0)
-			return 0;
+		if (ci) {
+			if (strnicmp(name->name, str, alen) == 0)
+				return 0;
+		} else {
+			if (strncmp(name->name, str, alen) == 0)
+				return 0;
+		}
 	}
 	return 1;
 }
 
 static int
-isofs_hash(struct dentry *dentry, struct qstr *qstr)
+isofs_hash(const struct dentry *dentry, const struct inode *inode,
+		struct qstr *qstr)
 {
 	return isofs_hash_common(dentry, qstr, 0);
 }
 
 static int
-isofs_hashi(struct dentry *dentry, struct qstr *qstr)
+isofs_hashi(const struct dentry *dentry, const struct inode *inode,
+		struct qstr *qstr)
 {
 	return isofs_hashi_common(dentry, qstr, 0);
 }
 
 static int
-isofs_dentry_cmp(struct dentry *dentry,struct qstr *a,struct qstr *b)
+isofs_dentry_cmp(const struct dentry *parent, const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name)
 {
-	return isofs_dentry_cmp_common(dentry, a, b, 0);
+	return isofs_dentry_cmp_common(len, str, name, 0, 0);
 }
 
 static int
-isofs_dentry_cmpi(struct dentry *dentry,struct qstr *a,struct qstr *b)
+isofs_dentry_cmpi(const struct dentry *parent, const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name)
 {
-	return isofs_dentry_cmpi_common(dentry, a, b, 0);
+	return isofs_dentry_cmp_common(len, str, name, 0, 1);
 }
 
 #ifdef CONFIG_JOLIET
 static int
-isofs_hash_ms(struct dentry *dentry, struct qstr *qstr)
+isofs_hash_ms(const struct dentry *dentry, const struct inode *inode,
+		struct qstr *qstr)
 {
 	return isofs_hash_common(dentry, qstr, 1);
 }
 
 static int
-isofs_hashi_ms(struct dentry *dentry, struct qstr *qstr)
+isofs_hashi_ms(const struct dentry *dentry, const struct inode *inode,
+		struct qstr *qstr)
 {
 	return isofs_hashi_common(dentry, qstr, 1);
 }
 
 static int
-isofs_dentry_cmp_ms(struct dentry *dentry,struct qstr *a,struct qstr *b)
+isofs_dentry_cmp_ms(const struct dentry *parent, const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name)
 {
-	return isofs_dentry_cmp_common(dentry, a, b, 1);
+	return isofs_dentry_cmp_common(len, str, name, 1, 0);
 }
 
 static int
-isofs_dentry_cmpi_ms(struct dentry *dentry,struct qstr *a,struct qstr *b)
+isofs_dentry_cmpi_ms(const struct dentry *parent, const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name)
 {
-	return isofs_dentry_cmpi_common(dentry, a, b, 1);
+	return isofs_dentry_cmp_common(len, str, name, 1, 1);
 }
 #endif
 
@@ -922,17 +939,18 @@ root_found:
 		goto out_iput;
 	}
 
-	/* get the root dentry */
-	s->s_root = d_alloc_root(inode);
-	if (!(s->s_root))
-		goto out_no_root;
-
 	table = 0;
 	if (joliet_level)
 		table += 2;
 	if (opt.check == 'r')
 		table++;
-	s->s_root->d_op = &isofs_dentry_ops[table];
+
+	s->s_d_op = &isofs_dentry_ops[table];
+
+	/* get the root dentry */
+	s->s_root = d_alloc_root(inode);
+	if (!(s->s_root))
+		goto out_no_root;
 
 	kfree(opt.iocharset);
 

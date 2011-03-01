@@ -11,6 +11,7 @@ enum ehci_hcd_omap_mode {
 	EHCI_HCD_OMAP_MODE_UNKNOWN,
 	EHCI_HCD_OMAP_MODE_PHY,
 	EHCI_HCD_OMAP_MODE_TLL,
+	EHCI_HCD_OMAP_MODE_HSIC,
 };
 
 enum ohci_omap3_port_mode {
@@ -69,6 +70,10 @@ struct omap_musb_board_data {
 	u8	mode;
 	u16	power;
 	unsigned extvbus:1;
+	void	(*set_phy_power)(u8 on);
+	void	(*clear_irq)(void);
+	void	(*set_mode)(u8 mode);
+	void	(*reset)(void);
 };
 
 enum musb_interface    {MUSB_INTERFACE_ULPI, MUSB_INTERFACE_UTMI};
@@ -78,6 +83,11 @@ extern void usb_musb_init(struct omap_musb_board_data *board_data);
 extern void usb_ehci_init(const struct ehci_hcd_omap_platform_data *pdata);
 
 extern void usb_ohci_init(const struct ohci_hcd_omap_platform_data *pdata);
+
+extern int omap4430_phy_power(struct device *dev, int ID, int on);
+extern int omap4430_phy_set_clk(struct device *dev, int on);
+extern int omap4430_phy_init(struct device *dev);
+extern int omap4430_phy_exit(struct device *dev);
 
 #endif
 

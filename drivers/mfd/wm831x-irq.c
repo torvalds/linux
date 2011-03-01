@@ -345,16 +345,16 @@ static inline struct wm831x_irq_data *irq_to_wm831x_irq(struct wm831x *wm831x,
 	return &wm831x_irqs[irq - wm831x->irq_base];
 }
 
-static void wm831x_irq_lock(unsigned int irq)
+static void wm831x_irq_lock(struct irq_data *data)
 {
-	struct wm831x *wm831x = get_irq_chip_data(irq);
+	struct wm831x *wm831x = irq_data_get_irq_chip_data(data);
 
 	mutex_lock(&wm831x->irq_lock);
 }
 
-static void wm831x_irq_sync_unlock(unsigned int irq)
+static void wm831x_irq_sync_unlock(struct irq_data *data)
 {
-	struct wm831x *wm831x = get_irq_chip_data(irq);
+	struct wm831x *wm831x = irq_data_get_irq_chip_data(data);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(wm831x->irq_masks_cur); i++) {
@@ -371,28 +371,30 @@ static void wm831x_irq_sync_unlock(unsigned int irq)
 	mutex_unlock(&wm831x->irq_lock);
 }
 
-static void wm831x_irq_unmask(unsigned int irq)
+static void wm831x_irq_unmask(struct irq_data *data)
 {
-	struct wm831x *wm831x = get_irq_chip_data(irq);
-	struct wm831x_irq_data *irq_data = irq_to_wm831x_irq(wm831x, irq);
+	struct wm831x *wm831x = irq_data_get_irq_chip_data(data);
+	struct wm831x_irq_data *irq_data = irq_to_wm831x_irq(wm831x,
+							     data->irq);
 
 	wm831x->irq_masks_cur[irq_data->reg - 1] &= ~irq_data->mask;
 }
 
-static void wm831x_irq_mask(unsigned int irq)
+static void wm831x_irq_mask(struct irq_data *data)
 {
-	struct wm831x *wm831x = get_irq_chip_data(irq);
-	struct wm831x_irq_data *irq_data = irq_to_wm831x_irq(wm831x, irq);
+	struct wm831x *wm831x = irq_data_get_irq_chip_data(data);
+	struct wm831x_irq_data *irq_data = irq_to_wm831x_irq(wm831x,
+							     data->irq);
 
 	wm831x->irq_masks_cur[irq_data->reg - 1] |= irq_data->mask;
 }
 
-static int wm831x_irq_set_type(unsigned int irq, unsigned int type)
+static int wm831x_irq_set_type(struct irq_data *data, unsigned int type)
 {
-	struct wm831x *wm831x = get_irq_chip_data(irq);
-	int val;
+	struct wm831x *wm831x = irq_data_get_irq_chip_data(data);
+	int val, irq;
 
-	irq = irq - wm831x->irq_base;
+	irq = data->irq - wm831x->irq_base;
 
 	if (irq < WM831X_IRQ_GPIO_1 || irq > WM831X_IRQ_GPIO_11) {
 		/* Ignore internal-only IRQs */
@@ -421,12 +423,12 @@ static int wm831x_irq_set_type(unsigned int irq, unsigned int type)
 }
 
 static struct irq_chip wm831x_irq_chip = {
-	.name = "wm831x",
-	.bus_lock = wm831x_irq_lock,
-	.bus_sync_unlock = wm831x_irq_sync_unlock,
-	.mask = wm831x_irq_mask,
-	.unmask = wm831x_irq_unmask,
-	.set_type = wm831x_irq_set_type,
+	.name			= "wm831x",
+	.irq_bus_lock		= wm831x_irq_lock,
+	.irq_bus_sync_unlock	= wm831x_irq_sync_unlock,
+	.irq_mask		= wm831x_irq_mask,
+	.irq_unmask		= wm831x_irq_unmask,
+	.irq_set_type		= wm831x_irq_set_type,
 };
 
 /* The processing of the primary interrupt occurs in a thread so that
@@ -513,6 +515,17 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 		dev_err(wm831x->dev,
 			"No interrupt base specified, no interrupts\n");
 		return 0;
+	}
+
+	/* Try to flag /IRQ as a wake source; there are a number of
+	 * unconditional wake sources in the PMIC so this isn't
+	 * conditional but we don't actually care *too* much if it
+	 * fails.
+	 */
+	ret = enable_irq_wake(irq);
+	if (ret != 0) {
+		dev_warn(wm831x->dev, "Can't enable IRQ as wake source: %d\n",
+			 ret);
 	}
 
 	wm831x->irq = irq;

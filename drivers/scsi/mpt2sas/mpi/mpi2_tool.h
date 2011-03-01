@@ -6,7 +6,7 @@
  *          Title:  MPI diagnostic tool structures and definitions
  *  Creation Date:  March 26, 2007
  *
- *    mpi2_tool.h Version:  02.00.04
+ *    mpi2_tool.h Version:  02.00.05
  *
  *  Version History
  *  ---------------
@@ -22,6 +22,7 @@
  *                      and reply messages.
  *                      Added MPI2_DIAG_BUF_TYPE_EXTENDED.
  *                      Incremented MPI2_DIAG_BUF_TYPE_COUNT.
+ *  05-12-10  02.00.05  Added Diagnostic Data Upload tool.
  *  --------------------------------------------------------------------------
  */
 
@@ -37,6 +38,7 @@
 /* defines for the Tools */
 #define MPI2_TOOLBOX_CLEAN_TOOL                     (0x00)
 #define MPI2_TOOLBOX_MEMORY_MOVE_TOOL               (0x01)
+#define MPI2_TOOLBOX_DIAG_DATA_UPLOAD_TOOL          (0x02)
 #define MPI2_TOOLBOX_ISTWI_READ_WRITE_TOOL          (0x03)
 #define MPI2_TOOLBOX_BEACON_TOOL                    (0x05)
 #define MPI2_TOOLBOX_DIAGNOSTIC_CLI_TOOL            (0x06)
@@ -102,8 +104,7 @@ typedef struct _MPI2_TOOLBOX_CLEAN_REQUEST
 *  Toolbox Memory Move request
 ****************************************************************************/
 
-typedef struct _MPI2_TOOLBOX_MEM_MOVE_REQUEST
-{
+typedef struct _MPI2_TOOLBOX_MEM_MOVE_REQUEST {
     U8                      Tool;                       /* 0x00 */
     U8                      Reserved1;                  /* 0x01 */
     U8                      ChainOffset;                /* 0x02 */
@@ -117,6 +118,44 @@ typedef struct _MPI2_TOOLBOX_MEM_MOVE_REQUEST
     MPI2_SGE_SIMPLE_UNION   SGL;                        /* 0x0C */
 } MPI2_TOOLBOX_MEM_MOVE_REQUEST, MPI2_POINTER PTR_MPI2_TOOLBOX_MEM_MOVE_REQUEST,
   Mpi2ToolboxMemMoveRequest_t, MPI2_POINTER pMpi2ToolboxMemMoveRequest_t;
+
+
+/****************************************************************************
+*  Toolbox Diagnostic Data Upload request
+****************************************************************************/
+
+typedef struct _MPI2_TOOLBOX_DIAG_DATA_UPLOAD_REQUEST {
+	U8                      Tool;                       /* 0x00 */
+	U8                      Reserved1;                  /* 0x01 */
+	U8                      ChainOffset;                /* 0x02 */
+	U8                      Function;                   /* 0x03 */
+	U16                     Reserved2;                  /* 0x04 */
+	U8                      Reserved3;                  /* 0x06 */
+	U8                      MsgFlags;                   /* 0x07 */
+	U8                      VP_ID;                      /* 0x08 */
+	U8                      VF_ID;                      /* 0x09 */
+	U16                     Reserved4;                  /* 0x0A */
+	U8                      SGLFlags;                   /* 0x0C */
+	U8                      Reserved5;                  /* 0x0D */
+	U16                     Reserved6;                  /* 0x0E */
+	U32                     Flags;                      /* 0x10 */
+	U32                     DataLength;                 /* 0x14 */
+	MPI2_SGE_SIMPLE_UNION   SGL;                        /* 0x18 */
+} MPI2_TOOLBOX_DIAG_DATA_UPLOAD_REQUEST,
+MPI2_POINTER PTR_MPI2_TOOLBOX_DIAG_DATA_UPLOAD_REQUEST,
+Mpi2ToolboxDiagDataUploadRequest_t,
+MPI2_POINTER pMpi2ToolboxDiagDataUploadRequest_t;
+
+/* use MPI2_SGLFLAGS_ defines from mpi2.h for the SGLFlags field */
+
+
+typedef struct _MPI2_DIAG_DATA_UPLOAD_HEADER {
+	U32                     DiagDataLength;             /* 00h */
+	U8                      FormatCode;                 /* 04h */
+	U8                      Reserved1;                  /* 05h */
+	U16                     Reserved2;                  /* 06h */
+} MPI2_DIAG_DATA_UPLOAD_HEADER, MPI2_POINTER PTR_MPI2_DIAG_DATA_UPLOAD_HEADER,
+Mpi2DiagDataUploadHeader_t, MPI2_POINTER pMpi2DiagDataUploadHeader_t;
 
 
 /****************************************************************************
@@ -162,7 +201,7 @@ typedef struct _MPI2_TOOLBOX_ISTWI_READ_WRITE_REQUEST {
 #define MPI2_TOOL_ISTWI_ACTION_RELEASE_BUS          (0x11)
 #define MPI2_TOOL_ISTWI_ACTION_RESET                (0x12)
 
-/* values for SGLFlags field are in the SGL section of mpi2.h */
+/* use MPI2_SGLFLAGS_ defines from mpi2.h for the SGLFlags field */
 
 
 /* Toolbox ISTWI Read Write Tool reply message */
@@ -248,7 +287,7 @@ typedef struct _MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST {
   Mpi2ToolboxDiagnosticCliRequest_t,
   MPI2_POINTER pMpi2ToolboxDiagnosticCliRequest_t;
 
-/* values for SGLFlags field are in the SGL section of mpi2.h */
+/* use MPI2_SGLFLAGS_ defines from mpi2.h for the SGLFlags field */
 
 
 /* Toolbox Diagnostic CLI Tool reply message */

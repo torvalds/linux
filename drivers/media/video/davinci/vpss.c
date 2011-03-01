@@ -85,7 +85,7 @@ enum vpss_platform_type {
 /*
  * vpss operations. Depends on platform. Not all functions are available
  * on all platforms. The api, first check if a functio is available before
- * invoking it. In the probe, the function ptrs are intialized based on
+ * invoking it. In the probe, the function ptrs are initialized based on
  * vpss name. vpss name can be "dm355_vpss", "dm644x_vpss" etc.
  */
 struct vpss_hw_ops {

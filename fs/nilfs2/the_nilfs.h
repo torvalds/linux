@@ -36,8 +36,6 @@
 /* the_nilfs struct */
 enum {
 	THE_NILFS_INIT = 0,     /* Information from super_block is set */
-	THE_NILFS_LOADED,       /* Roll-back/roll-forward has done and
-				   the latest checkpoint was loaded */
 	THE_NILFS_DISCONTINUED,	/* 'next' pointer chain has broken */
 	THE_NILFS_GC_RUNNING,	/* gc process is running */
 	THE_NILFS_SB_DIRTY,	/* super block is dirty */
@@ -178,7 +176,6 @@ static inline int nilfs_##name(struct the_nilfs *nilfs)			\
 }
 
 THE_NILFS_FNS(INIT, init)
-THE_NILFS_FNS(LOADED, loaded)
 THE_NILFS_FNS(DISCONTINUED, discontinued)
 THE_NILFS_FNS(GC_RUNNING, gc_running)
 THE_NILFS_FNS(SB_DIRTY, sb_dirty)

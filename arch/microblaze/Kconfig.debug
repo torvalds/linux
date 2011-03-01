@@ -23,8 +23,4 @@ config HEART_BEAT
 	  This option turns on/off heart beat kernel functionality.
 	  First GPIO node is taken.
 
-config DEBUG_BOOTMEM
-	depends on DEBUG_KERNEL
-	bool "Debug BOOTMEM initialization"
-
 endmenu

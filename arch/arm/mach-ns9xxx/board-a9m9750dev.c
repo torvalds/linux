@@ -37,44 +37,44 @@ void __init board_a9m9750dev_map_io(void)
 		     ARRAY_SIZE(board_a9m9750dev_io_desc));
 }
 
-static void a9m9750dev_fpga_ack_irq(unsigned int irq)
+static void a9m9750dev_fpga_ack_irq(struct irq_data *d)
 {
 	/* nothing */
 }
 
-static void a9m9750dev_fpga_mask_irq(unsigned int irq)
+static void a9m9750dev_fpga_mask_irq(struct irq_data *d)
 {
 	u8 ier;
 
 	ier = __raw_readb(FPGA_IER);
 
-	ier &= ~(1 << (irq - FPGA_IRQ(0)));
+	ier &= ~(1 << (d->irq - FPGA_IRQ(0)));
 
 	__raw_writeb(ier, FPGA_IER);
 }
 
-static void a9m9750dev_fpga_maskack_irq(unsigned int irq)
+static void a9m9750dev_fpga_maskack_irq(struct irq_data *d)
 {
-	a9m9750dev_fpga_mask_irq(irq);
-	a9m9750dev_fpga_ack_irq(irq);
+	a9m9750dev_fpga_mask_irq(d);
+	a9m9750dev_fpga_ack_irq(d);
 }
 
-static void a9m9750dev_fpga_unmask_irq(unsigned int irq)
+static void a9m9750dev_fpga_unmask_irq(struct irq_data *d)
 {
 	u8 ier;
 
 	ier = __raw_readb(FPGA_IER);
 
-	ier |= 1 << (irq - FPGA_IRQ(0));
+	ier |= 1 << (d->irq - FPGA_IRQ(0));
 
 	__raw_writeb(ier, FPGA_IER);
 }
 
 static struct irq_chip a9m9750dev_fpga_chip = {
-	.ack		= a9m9750dev_fpga_ack_irq,
-	.mask		= a9m9750dev_fpga_mask_irq,
-	.mask_ack	= a9m9750dev_fpga_maskack_irq,
-	.unmask		= a9m9750dev_fpga_unmask_irq,
+	.irq_ack	= a9m9750dev_fpga_ack_irq,
+	.irq_mask	= a9m9750dev_fpga_mask_irq,
+	.irq_mask_ack	= a9m9750dev_fpga_maskack_irq,
+	.irq_unmask	= a9m9750dev_fpga_unmask_irq,
 };
 
 static void a9m9750dev_fpga_demux_handler(unsigned int irq,
@@ -82,7 +82,7 @@ static void a9m9750dev_fpga_demux_handler(unsigned int irq,
 {
 	u8 stat = __raw_readb(FPGA_ISR);
 
-	desc->chip->mask_ack(irq);
+	desc->irq_data.chip->irq_mask_ack(&desc->irq_data);
 
 	while (stat != 0) {
 		int irqno = fls(stat) - 1;
@@ -92,7 +92,7 @@ static void a9m9750dev_fpga_demux_handler(unsigned int irq,
 		generic_handle_irq(FPGA_IRQ(irqno));
 	}
 
-	desc->chip->unmask(irq);
+	desc->irq_data.chip->irq_unmask(&desc->irq_data);
 }
 
 void __init board_a9m9750dev_init_irq(void)

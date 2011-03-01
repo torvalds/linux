@@ -513,7 +513,7 @@ gigaset_tty_open(struct tty_struct *tty)
 		return -ENODEV;
 	}
 
-	/* allocate memory for our device state and intialize it */
+	/* allocate memory for our device state and initialize it */
 	cs = gigaset_initcs(driver, 1, 1, 0, cidmode, GIGASET_MODULENAME);
 	if (!cs)
 		goto error;
@@ -771,7 +771,7 @@ static int __init ser_gigaset_init(void)
 		return rc;
 	}
 
-	/* allocate memory for our driver state and intialize it */
+	/* allocate memory for our driver state and initialize it */
 	driver = gigaset_initdriver(GIGASET_MINOR, GIGASET_MINORS,
 					  GIGASET_MODULENAME, GIGASET_DEVNAME,
 					  &ops, THIS_MODULE);

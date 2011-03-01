@@ -117,10 +117,10 @@ static inline void update_t_max_wait(transaction_t *transaction)
 static int start_this_handle(journal_t *journal, handle_t *handle,
 			     int gfp_mask)
 {
-	transaction_t *transaction;
-	int needed;
-	int nblocks = handle->h_buffer_credits;
-	transaction_t *new_transaction = NULL;
+	transaction_t	*transaction, *new_transaction = NULL;
+	tid_t		tid;
+	int		needed, need_to_start;
+	int		nblocks = handle->h_buffer_credits;
 
 	if (nblocks > journal->j_max_transaction_buffers) {
 		printk(KERN_ERR "JBD: %s wants too many credits (%d > %d)\n",
@@ -222,8 +222,11 @@ repeat:
 		atomic_sub(nblocks, &transaction->t_outstanding_credits);
 		prepare_to_wait(&journal->j_wait_transaction_locked, &wait,
 				TASK_UNINTERRUPTIBLE);
-		__jbd2_log_start_commit(journal, transaction->t_tid);
+		tid = transaction->t_tid;
+		need_to_start = !tid_geq(journal->j_commit_request, tid);
 		read_unlock(&journal->j_state_lock);
+		if (need_to_start)
+			jbd2_log_start_commit(journal, tid);
 		schedule();
 		finish_wait(&journal->j_wait_transaction_locked, &wait);
 		goto repeat;
@@ -251,7 +254,7 @@ repeat:
 	 * the committing transaction.  Really, we only need to give it
 	 * committing_transaction->t_outstanding_credits plus "enough" for
 	 * the log control blocks.
-	 * Also, this test is inconsitent with the matching one in
+	 * Also, this test is inconsistent with the matching one in
 	 * jbd2_journal_extend().
 	 */
 	if (__jbd2_log_space_left(journal) < jbd_space_needed(journal)) {
@@ -340,9 +343,7 @@ handle_t *jbd2__journal_start(journal_t *journal, int nblocks, int gfp_mask)
 		jbd2_free_handle(handle);
 		current->journal_info = NULL;
 		handle = ERR_PTR(err);
-		goto out;
 	}
-out:
 	return handle;
 }
 EXPORT_SYMBOL(jbd2__journal_start);
@@ -444,7 +445,8 @@ int jbd2__journal_restart(handle_t *handle, int nblocks, int gfp_mask)
 {
 	transaction_t *transaction = handle->h_transaction;
 	journal_t *journal = transaction->t_journal;
-	int ret;
+	tid_t		tid;
+	int		need_to_start, ret;
 
 	/* If we've had an abort of any type, don't even think about
 	 * actually doing the restart! */
@@ -467,8 +469,11 @@ int jbd2__journal_restart(handle_t *handle, int nblocks, int gfp_mask)
 	spin_unlock(&transaction->t_handle_lock);
 
 	jbd_debug(2, "restarting handle %p\n", handle);
-	__jbd2_log_start_commit(journal, transaction->t_tid);
+	tid = transaction->t_tid;
+	need_to_start = !tid_geq(journal->j_commit_request, tid);
 	read_unlock(&journal->j_state_lock);
+	if (need_to_start)
+		jbd2_log_start_commit(journal, tid);
 
 	lock_map_release(&handle->h_lockdep_map);
 	handle->h_buffer_credits = nblocks;
@@ -589,7 +594,7 @@ do_get_write_access(handle_t *handle, struct journal_head *jh,
 	transaction = handle->h_transaction;
 	journal = transaction->t_journal;
 
-	jbd_debug(5, "buffer_head %p, force_copy %d\n", jh, force_copy);
+	jbd_debug(5, "journal_head %p, force_copy %d\n", jh, force_copy);
 
 	JBUFFER_TRACE(jh, "entry");
 repeat:
@@ -774,7 +779,7 @@ done:
 		J_EXPECT_JH(jh, buffer_uptodate(jh2bh(jh)),
 			    "Possible IO failure.\n");
 		page = jh2bh(jh)->b_page;
-		offset = ((unsigned long) jh2bh(jh)->b_data) & ~PAGE_MASK;
+		offset = offset_in_page(jh2bh(jh)->b_data);
 		source = kmap_atomic(page, KM_USER0);
 		/* Fire data frozen trigger just before we copy the data */
 		jbd2_buffer_frozen_trigger(jh, source + offset,

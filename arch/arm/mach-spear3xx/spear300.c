@@ -371,7 +371,7 @@ struct pmx_driver pmx_driver = {
 };
 
 /* Add spear300 specific devices here */
-/* arm gpio1 device registeration */
+/* arm gpio1 device registration */
 static struct pl061_platform_data gpio1_plat_data = {
 	.gpio_base	= 8,
 	.irq_base	= SPEAR_GPIO1_INT_BASE,
@@ -451,7 +451,7 @@ void __init spear300_init(void)
 	/* call spear3xx family common init function */
 	spear3xx_init();
 
-	/* shared irq registeration */
+	/* shared irq registration */
 	shirq_ras1.regs.base =
 		ioremap(SPEAR300_TELECOM_BASE, SPEAR300_TELECOM_REG_SIZE);
 	if (shirq_ras1.regs.base) {

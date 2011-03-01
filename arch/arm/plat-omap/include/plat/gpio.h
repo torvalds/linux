@@ -27,26 +27,15 @@
 #define __ASM_ARCH_OMAP_GPIO_H
 
 #include <linux/io.h>
+#include <linux/platform_device.h>
 #include <mach/irqs.h>
 
 #define OMAP1_MPUIO_BASE			0xfffb5000
 
-#if (defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850))
-
-#define OMAP_MPUIO_INPUT_LATCH		0x00
-#define OMAP_MPUIO_OUTPUT		0x02
-#define OMAP_MPUIO_IO_CNTL		0x04
-#define OMAP_MPUIO_KBR_LATCH		0x08
-#define OMAP_MPUIO_KBC			0x0a
-#define OMAP_MPUIO_GPIO_EVENT_MODE	0x0c
-#define OMAP_MPUIO_GPIO_INT_EDGE	0x0e
-#define OMAP_MPUIO_KBD_INT		0x10
-#define OMAP_MPUIO_GPIO_INT		0x12
-#define OMAP_MPUIO_KBD_MASKIT		0x14
-#define OMAP_MPUIO_GPIO_MASKIT		0x16
-#define OMAP_MPUIO_GPIO_DEBOUNCING	0x18
-#define OMAP_MPUIO_LATCH		0x1a
-#else
+/*
+ * These are the omap15xx/16xx offsets. The omap7xx offset are
+ * OMAP_MPUIO_ / 2 offsets below.
+ */
 #define OMAP_MPUIO_INPUT_LATCH		0x00
 #define OMAP_MPUIO_OUTPUT		0x04
 #define OMAP_MPUIO_IO_CNTL		0x08
@@ -60,7 +49,6 @@
 #define OMAP_MPUIO_GPIO_MASKIT		0x2c
 #define OMAP_MPUIO_GPIO_DEBOUNCING	0x30
 #define OMAP_MPUIO_LATCH		0x34
-#endif
 
 #define OMAP34XX_NR_GPIOS		6
 
@@ -71,8 +59,30 @@
 				 IH_MPUIO_BASE + ((nr) & 0x0f) : \
 				 IH_GPIO_BASE + (nr))
 
-extern int omap_gpio_init(void);	/* Call from board init only */
-extern void omap2_gpio_prepare_for_idle(int power_state);
+#define METHOD_MPUIO		0
+#define METHOD_GPIO_1510	1
+#define METHOD_GPIO_1610	2
+#define METHOD_GPIO_7XX		3
+#define METHOD_GPIO_24XX	5
+#define METHOD_GPIO_44XX	6
+
+struct omap_gpio_dev_attr {
+	int bank_width;		/* GPIO bank width */
+	bool dbck_flag;		/* dbck required or not - True for OMAP3&4 */
+};
+
+struct omap_gpio_platform_data {
+	u16 virtual_irq_start;
+	int bank_type;
+	int bank_width;		/* GPIO bank width */
+	int bank_stride;	/* Only needed for omap1 MPUIO */
+	bool dbck_flag;		/* dbck required or not - True for OMAP3&4 */
+};
+
+/* TODO: Analyze removing gpio_bank_count usage from driver code */
+extern int gpio_bank_count;
+
+extern void omap2_gpio_prepare_for_idle(int off_mode);
 extern void omap2_gpio_resume_after_idle(void);
 extern void omap_set_gpio_debounce(int gpio, int enable);
 extern void omap_set_gpio_debounce_time(int gpio, int enable);

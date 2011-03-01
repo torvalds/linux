@@ -241,7 +241,7 @@ enum ath5k_eeprom_freq_bands{
 #define	AR5K_SPUR_SYMBOL_WIDTH_TURBO_100Hz	6250
 
 #define AR5K_EEPROM_READ(_o, _v) do {			\
-	ret = ath5k_hw_eeprom_read(ah, (_o), &(_v));	\
+	ret = ath5k_hw_nvram_read(ah, (_o), &(_v));	\
 	if (ret)					\
 		return ret;				\
 } while (0)
@@ -517,3 +517,5 @@ struct ath5k_eeprom_info {
 	u32	ee_antenna[AR5K_EEPROM_N_MODES][AR5K_ANT_MAX];
 };
 
+int
+ath5k_eeprom_mode_from_channel(struct ieee80211_channel *channel);

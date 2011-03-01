@@ -79,11 +79,11 @@ void cifs_dump_mids(struct TCP_Server_Info *server)
 	spin_lock(&GlobalMid_Lock);
 	list_for_each(tmp, &server->pending_mid_q) {
 		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
-		cERROR(1, "State: %d Cmd: %d Pid: %d Tsk: %p Mid %d",
+		cERROR(1, "State: %d Cmd: %d Pid: %d Cbdata: %p Mid %d",
 			mid_entry->midState,
 			(int)mid_entry->command,
 			mid_entry->pid,
-			mid_entry->tsk,
+			mid_entry->callback_data,
 			mid_entry->mid);
 #ifdef CONFIG_CIFS_STATS2
 		cERROR(1, "IsLarge: %d buf: %p time rcv: %ld now: %ld",
@@ -119,29 +119,27 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 		    "Display Internal CIFS Data Structures for Debugging\n"
 		    "---------------------------------------------------\n");
 	seq_printf(m, "CIFS Version %s\n", CIFS_VERSION);
-	seq_printf(m, "Features: ");
+	seq_printf(m, "Features:");
 #ifdef CONFIG_CIFS_DFS_UPCALL
-	seq_printf(m, "dfs");
-	seq_putc(m, ' ');
+	seq_printf(m, " dfs");
 #endif
 #ifdef CONFIG_CIFS_FSCACHE
-	seq_printf(m, "fscache");
-	seq_putc(m, ' ');
+	seq_printf(m, " fscache");
 #endif
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
-	seq_printf(m, "lanman");
-	seq_putc(m, ' ');
+	seq_printf(m, " lanman");
 #endif
 #ifdef CONFIG_CIFS_POSIX
-	seq_printf(m, "posix");
-	seq_putc(m, ' ');
+	seq_printf(m, " posix");
 #endif
 #ifdef CONFIG_CIFS_UPCALL
-	seq_printf(m, "spnego");
-	seq_putc(m, ' ');
+	seq_printf(m, " spnego");
 #endif
 #ifdef CONFIG_CIFS_XATTR
-	seq_printf(m, "xattr");
+	seq_printf(m, " xattr");
+#endif
+#ifdef CONFIG_CIFS_ACL
+	seq_printf(m, " acl");
 #endif
 	seq_putc(m, '\n');
 	seq_printf(m, "Active VFS Requests: %d\n", GlobalTotalActiveXid);
@@ -220,11 +218,11 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 				mid_entry = list_entry(tmp3, struct mid_q_entry,
 					qhead);
 				seq_printf(m, "\tState: %d com: %d pid:"
-						" %d tsk: %p mid %d\n",
+						" %d cbdata: %p mid %d\n",
 						mid_entry->midState,
 						(int)mid_entry->command,
 						mid_entry->pid,
-						mid_entry->tsk,
+						mid_entry->callback_data,
 						mid_entry->mid);
 			}
 			spin_unlock(&GlobalMid_Lock);
@@ -333,7 +331,7 @@ static int cifs_stats_proc_show(struct seq_file *m, void *v)
 				atomic_read(&totSmBufAllocCount));
 #endif /* CONFIG_CIFS_STATS2 */
 
-	seq_printf(m, "Operations (MIDs): %d\n", midCount.counter);
+	seq_printf(m, "Operations (MIDs): %d\n", atomic_read(&midCount));
 	seq_printf(m,
 		"\n%d session %d share reconnects\n",
 		tcpSesReconnectCount.counter, tconInfoReconnectCount.counter);

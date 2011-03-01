@@ -19,6 +19,12 @@
 extern int hest_disable;
 extern int erst_disable;
 
+#ifdef CONFIG_ACPI_APEI
+void __init acpi_hest_init(void);
+#else
+static inline void acpi_hest_init(void) { return; }
+#endif
+
 typedef int (*apei_hest_func_t)(struct acpi_hest_header *hest_hdr, void *data);
 int apei_hest_parse(apei_hest_func_t func, void *data);
 

@@ -1,7 +1,7 @@
 /*
  * Renesas Technology Europe RSK+ 7203 Support.
  *
- * Copyright (C) 2008 Paul Mundt
+ * Copyright (C) 2008 - 2010  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -12,7 +12,9 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/smsc911x.h>
+#include <linux/input.h>
 #include <linux/gpio.h>
+#include <linux/gpio_keys.h>
 #include <linux/leds.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
@@ -84,9 +86,42 @@ static struct platform_device led_device = {
 	},
 };
 
+static struct gpio_keys_button rsk7203_gpio_keys_table[] = {
+	{
+		.code		= BTN_0,
+		.gpio		= GPIO_PB0,
+		.active_low	= 1,
+		.desc		= "SW1",
+	}, {
+		.code		= BTN_1,
+		.gpio		= GPIO_PB1,
+		.active_low	= 1,
+		.desc		= "SW2",
+	}, {
+		.code		= BTN_2,
+		.gpio		= GPIO_PB2,
+		.active_low	= 1,
+		.desc		= "SW3",
+	},
+};
+
+static struct gpio_keys_platform_data rsk7203_gpio_keys_info = {
+	.buttons	= rsk7203_gpio_keys_table,
+	.nbuttons	= ARRAY_SIZE(rsk7203_gpio_keys_table),
+	.poll_interval	= 50, /* default to 50ms */
+};
+
+static struct platform_device keys_device = {
+	.name		= "gpio-keys-polled",
+	.dev		= {
+		.platform_data	= &rsk7203_gpio_keys_info,
+	},
+};
+
 static struct platform_device *rsk7203_devices[] __initdata = {
 	&smsc911x_device,
 	&led_device,
+	&keys_device,
 };
 
 static int __init rsk7203_devices_setup(void)

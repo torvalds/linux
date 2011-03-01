@@ -61,17 +61,17 @@
 #define lbus_to_virt(x)		((x) - OMAP1510_LB_OFFSET + PAGE_OFFSET)
 #define is_lbus_device(dev)	(cpu_is_omap15xx() && dev && (strncmp(dev_name(dev), "ohci", 4) == 0))
 
-#define __arch_page_to_dma(dev, page)	\
-	({ dma_addr_t __dma = page_to_phys(page); \
+#define __arch_pfn_to_dma(dev, pfn)	\
+	({ dma_addr_t __dma = __pfn_to_phys(pfn); \
 	   if (is_lbus_device(dev)) \
 		__dma = __dma - PHYS_OFFSET + OMAP1510_LB_OFFSET; \
 	   __dma; })
 
-#define __arch_dma_to_page(dev, addr)	\
+#define __arch_dma_to_pfn(dev, addr)	\
 	({ dma_addr_t __dma = addr;				\
 	   if (is_lbus_device(dev))				\
 		__dma += PHYS_OFFSET - OMAP1510_LB_OFFSET;	\
-	   phys_to_page(__dma);					\
+	   __phys_to_pfn(__dma);				\
 	})
 
 #define __arch_dma_to_virt(dev, addr)	({ (void *) (is_lbus_device(dev) ? \

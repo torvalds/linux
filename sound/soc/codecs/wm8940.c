@@ -35,7 +35,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
@@ -43,7 +42,6 @@
 
 struct wm8940_priv {
 	unsigned int sysclk;
-	u16 reg_cache[WM8940_CACHEREGNUM];
 	enum snd_soc_control_type control_type;
 	void *control_data;
 };
@@ -291,13 +289,14 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static int wm8940_add_widgets(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
-	ret = snd_soc_dapm_new_controls(codec, wm8940_dapm_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, wm8940_dapm_widgets,
 					ARRAY_SIZE(wm8940_dapm_widgets));
 	if (ret)
 		goto error_ret;
-	ret = snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	ret = snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 	if (ret)
 		goto error_ret;
 
@@ -735,7 +734,6 @@ static int wm8940_probe(struct snd_soc_codec *codec)
 		return ret;
 
 	return ret;
-;
 }
 
 static int wm8940_remove(struct snd_soc_codec *codec)

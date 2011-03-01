@@ -281,6 +281,8 @@ static struct pci_device_id mantis_pci_table[] = {
 	{ }
 };
 
+MODULE_DEVICE_TABLE(pci, mantis_pci_table);
+
 static struct pci_driver mantis_pci_driver = {
 	.name		= DRIVER_NAME,
 	.id_table	= mantis_pci_table,

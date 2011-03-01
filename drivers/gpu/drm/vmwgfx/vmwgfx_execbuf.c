@@ -653,8 +653,7 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 	ret = vmw_cmd_check_all(dev_priv, sw_context, cmd, arg->command_size);
 	if (unlikely(ret != 0))
 		goto out_err;
-	ret = ttm_eu_reserve_buffers(&sw_context->validate_nodes,
-				     dev_priv->val_seq++);
+	ret = ttm_eu_reserve_buffers(&sw_context->validate_nodes);
 	if (unlikely(ret != 0))
 		goto out_err;
 

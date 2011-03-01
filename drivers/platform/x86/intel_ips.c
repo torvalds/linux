@@ -1474,7 +1474,7 @@ ips_gpu_turbo_enabled(struct ips_driver *ips)
 }
 
 void
-ips_link_to_i915_driver()
+ips_link_to_i915_driver(void)
 {
 	/* We can't cleanly get at the various ips_driver structs from
 	 * this caller (the i915 driver), so just set a flag saying

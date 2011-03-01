@@ -48,6 +48,7 @@ static DEFINE_PCI_DEVICE_TABLE(atl1c_pci_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATHEROS_L2C_B)},
 	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATHEROS_L2C_B2)},
 	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATHEROS_L1D)},
+	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATHEROS_L1D_2_0)},
 	/* required last entry */
 	{ 0 }
 };
@@ -2079,7 +2080,7 @@ static int atl1c_tso_csum(struct atl1c_adapter *adapter,
 check_sum:
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		u8 css, cso;
-		cso = skb_transport_offset(skb);
+		cso = skb_checksum_start_offset(skb);
 
 		if (unlikely(cso & 0x1)) {
 			if (netif_msg_tx_err(adapter))

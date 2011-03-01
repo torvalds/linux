@@ -797,7 +797,7 @@ static void asd_init_lseq_mdp(struct asd_ha_struct *asd_ha,  int lseq)
 		int j;
 		/* Start from Page 1 of Mode 0 and 1. */
 		moffs = LSEQ_PAGE_SIZE + i*LSEQ_MODE_SCRATCH_SIZE;
-		/* All the fields of page 1 can be intialized to 0. */
+		/* All the fields of page 1 can be initialized to 0. */
 		for (j = 0; j < LSEQ_PAGE_SIZE; j += 4)
 			asd_write_reg_dword(asd_ha, LmSCRATCH(lseq)+moffs+j,0);
 	}
@@ -938,7 +938,7 @@ static void asd_init_cseq_cio(struct asd_ha_struct *asd_ha)
 	asd_write_reg_dword(asd_ha, SCBPRO, 0);
 	asd_write_reg_dword(asd_ha, CSEQCON, 0);
 
-	/* Intialize CSEQ Mode 11 Interrupt Vectors.
+	/* Initialize CSEQ Mode 11 Interrupt Vectors.
 	 * The addresses are 16 bit wide and in dword units.
 	 * The values of their macros are in byte units.
 	 * Thus we have to divide by 4. */
@@ -961,7 +961,7 @@ static void asd_init_cseq_cio(struct asd_ha_struct *asd_ha)
 	asd_write_reg_word(asd_ha, CPRGMCNT, cseq_idle_loop);
 
 	for (i = 0; i < 8; i++) {
-		/* Intialize Mode n Link m Interrupt Enable. */
+		/* Initialize Mode n Link m Interrupt Enable. */
 		asd_write_reg_dword(asd_ha, CMnINTEN(i), EN_CMnRSPMBXF);
 		/* Initialize Mode n Request Mailbox. */
 		asd_write_reg_dword(asd_ha, CMnREQMBX(i), 0);

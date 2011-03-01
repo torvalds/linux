@@ -81,7 +81,7 @@ Field  9 -- # of I/Os currently in progress
     The only field that should go to zero. Incremented as requests are
     given to appropriate struct request_queue and decremented as they finish.
 Field 10 -- # of milliseconds spent doing I/Os
-    This field is increases so long as field 9 is nonzero.
+    This field increases so long as field 9 is nonzero.
 Field 11 -- weighted # of milliseconds spent doing I/Os
     This field is incremented at each I/O start, I/O completion, I/O
     merge, or read of these stats by the number of I/Os in progress

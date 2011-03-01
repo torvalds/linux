@@ -58,13 +58,13 @@ static inline unsigned long __lbus_to_virt(dma_addr_t x)
 		__dma;							\
 	})
 
-#define __arch_page_to_dma(dev, page)					\
+#define __arch_pfn_to_dma(dev, pfn)					\
 	({								\
 		/* __is_lbus_virt() can never be true for RAM pages */	\
-		(dma_addr_t)page_to_phys(page);				\
+		(dma_addr_t)__pfn_to_phys(pfn);				\
 	})
 
-#define __arch_dma_to_page(dev, addr)	phys_to_page(addr)
+#define __arch_dma_to_pfn(dev, addr)	__phys_to_pfn(addr)
 
 #endif /* CONFIG_ARCH_IOP13XX */
 #endif /* !ASSEMBLY */

@@ -342,10 +342,11 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 	/* send AddBA request */
 	ieee80211_send_addba_request(sdata, sta->sta.addr, tid,
 				     tid_tx->dialog_token, start_seq_num,
-				     0x40, 5000);
+				     0x40, tid_tx->timeout);
 }
 
-int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
+int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
+				  u16 timeout)
 {
 	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
@@ -419,6 +420,8 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
 
 	skb_queue_head_init(&tid_tx->pending);
 	__set_bit(HT_AGG_STATE_WANT_START, &tid_tx->state);
+
+	tid_tx->timeout = timeout;
 
 	/* Tx timer */
 	tid_tx->addba_resp_timer.function = sta_addba_resp_timer_expired;

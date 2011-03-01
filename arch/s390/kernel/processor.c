@@ -13,7 +13,7 @@
 #include <linux/smp.h>
 #include <linux/seq_file.h>
 #include <linux/delay.h>
-
+#include <linux/cpu.h>
 #include <asm/elf.h>
 #include <asm/lowcore.h>
 #include <asm/param.h>
@@ -35,17 +35,6 @@ void __cpuinit cpu_init(void)
 }
 
 /*
- * print_cpu_info - print basic information about a cpu
- */
-void __cpuinit print_cpu_info(void)
-{
-	struct cpuid *id = &per_cpu(cpu_id, smp_processor_id());
-
-	pr_info("Processor %d started, address %d, identification %06X\n",
-		S390_lowcore.cpu_nr, stap(), id->ident);
-}
-
-/*
  * show_cpuinfo - Get information on one CPU for use by procfs.
  */
 static int show_cpuinfo(struct seq_file *m, void *v)
@@ -57,9 +46,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	unsigned long n = (unsigned long) v - 1;
 	int i;
 
-	s390_adjust_jiffies();
-	preempt_disable();
 	if (!n) {
+		s390_adjust_jiffies();
 		seq_printf(m, "vendor_id       : IBM/S390\n"
 			   "# processors    : %i\n"
 			   "bogomips per cpu: %lu.%02lu\n",
@@ -71,7 +59,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 				seq_printf(m, "%s ", hwcap_str[i]);
 		seq_puts(m, "\n");
 	}
-
+	get_online_cpus();
 	if (cpu_online(n)) {
 		struct cpuid *id = &per_cpu(cpu_id, n);
 		seq_printf(m, "processor %li: "
@@ -80,7 +68,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			   "machine = %04X\n",
 			   n, id->version, id->ident, id->machine);
 	}
-	preempt_enable();
+	put_online_cpus();
 	return 0;
 }
 

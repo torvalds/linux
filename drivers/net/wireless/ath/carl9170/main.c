@@ -428,6 +428,7 @@ static void carl9170_cancel_worker(struct ar9170 *ar)
 	cancel_delayed_work_sync(&ar->led_work);
 #endif /* CONFIG_CARL9170_LEDS */
 	cancel_work_sync(&ar->ps_work);
+	cancel_work_sync(&ar->ping_work);
 	cancel_work_sync(&ar->ampdu_work);
 }
 
@@ -531,6 +532,21 @@ void carl9170_restart(struct ar9170 *ar, const enum carl9170_restart_reasons r)
 	 * So, don't put any code which access the ar9170 struct
 	 * without proper protection.
 	 */
+}
+
+static void carl9170_ping_work(struct work_struct *work)
+{
+	struct ar9170 *ar = container_of(work, struct ar9170, ping_work);
+	int err;
+
+	if (!IS_STARTED(ar))
+		return;
+
+	mutex_lock(&ar->mutex);
+	err = carl9170_echo_test(ar, 0xdeadbeef);
+	if (err)
+		carl9170_restart(ar, CARL9170_RR_UNRESPONSIVE_DEVICE);
+	mutex_unlock(&ar->mutex);
 }
 
 static int carl9170_init_interface(struct ar9170 *ar,
@@ -1614,6 +1630,7 @@ void *carl9170_alloc(size_t priv_size)
 		skb_queue_head_init(&ar->tx_pending[i]);
 	}
 	INIT_WORK(&ar->ps_work, carl9170_ps_work);
+	INIT_WORK(&ar->ping_work, carl9170_ping_work);
 	INIT_WORK(&ar->restart_work, carl9170_restart_work);
 	INIT_WORK(&ar->ampdu_work, carl9170_ampdu_work);
 	INIT_DELAYED_WORK(&ar->tx_janitor, carl9170_tx_janitor);
@@ -1829,7 +1846,7 @@ int carl9170_register(struct ar9170 *ar)
 	err = carl9170_led_register(ar);
 	if (err)
 		goto err_unreg;
-#endif /* CONFIG_CAR9L170_LEDS */
+#endif /* CONFIG_CARL9170_LEDS */
 
 #ifdef CONFIG_CARL9170_WPC
 	err = carl9170_register_wps_button(ar);

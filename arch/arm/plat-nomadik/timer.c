@@ -17,9 +17,9 @@
 #include <linux/clk.h>
 #include <linux/jiffies.h>
 #include <linux/err.h>
-#include <linux/cnt32_to_63.h>
-#include <linux/timer.h>
+#include <linux/sched.h>
 #include <asm/mach/time.h>
+#include <asm/sched_clock.h>
 
 #include <plat/mtu.h>
 
@@ -52,81 +52,24 @@ static struct clocksource nmdk_clksrc = {
  * Override the global weak sched_clock symbol with this
  * local implementation which uses the clocksource to get some
  * better resolution when scheduling the kernel.
- *
- * Because the hardware timer period may be quite short
- * (32.3 secs on the 133 MHz MTU timer selection on ux500)
- * and because cnt32_to_63() needs to be called at least once per
- * half period to work properly, a kernel keepwarm() timer is set up
- * to ensure this requirement is always met.
- *
- * Also the sched_clock timer will wrap around at some point,
- * here we set it to run continously for a year.
  */
-#define SCHED_CLOCK_MIN_WRAP 3600*24*365
-static struct timer_list cnt32_to_63_keepwarm_timer;
-static u32 sched_mult;
-static u32 sched_shift;
+static DEFINE_CLOCK_DATA(cd);
 
 unsigned long long notrace sched_clock(void)
 {
-	u64 cycles;
+	u32 cyc;
 
 	if (unlikely(!mtu_base))
 		return 0;
 
-	cycles = cnt32_to_63(-readl(mtu_base + MTU_VAL(0)));
-	/*
-	 * sched_mult is guaranteed to be even so will
-	 * shift out bit 63
-	 */
-	return (cycles * sched_mult) >> sched_shift;
+	cyc = -readl(mtu_base + MTU_VAL(0));
+	return cyc_to_sched_clock(&cd, cyc, (u32)~0);
 }
 
-/* Just kick sched_clock every so often */
-static void cnt32_to_63_keepwarm(unsigned long data)
+static void notrace nomadik_update_sched_clock(void)
 {
-	mod_timer(&cnt32_to_63_keepwarm_timer, round_jiffies(jiffies + data));
-	(void) sched_clock();
-}
-
-/*
- * Set up a timer to keep sched_clock():s 32_to_63 algorithm warm
- * once in half a 32bit timer wrap interval.
- */
-static void __init nmdk_sched_clock_init(unsigned long rate)
-{
-	u32 v;
-	unsigned long delta;
-	u64 days;
-
-	/* Find the apropriate mult and shift factors */
-	clocks_calc_mult_shift(&sched_mult, &sched_shift,
-			       rate, NSEC_PER_SEC, SCHED_CLOCK_MIN_WRAP);
-	/* We need to multiply by an even number to get rid of bit 63 */
-	if (sched_mult & 1)
-		sched_mult++;
-
-	/* Let's see what we get, take max counter and scale it */
-	days = (0xFFFFFFFFFFFFFFFFLLU * sched_mult) >> sched_shift;
-	do_div(days, NSEC_PER_SEC);
-	do_div(days, (3600*24));
-
-	pr_info("sched_clock: using %d bits @ %lu Hz wrap in %lu days\n",
-		(64 - sched_shift), rate, (unsigned long) days);
-
-	/*
-	 * Program a timer to kick us at half 32bit wraparound
-	 * Formula: seconds per wrap = (2^32) / f
-	 */
-	v = 0xFFFFFFFFUL / rate;
-	/* We want half of the wrap time to keep cnt32_to_63 warm */
-	v /= 2;
-	pr_debug("sched_clock: prescaled timer rate: %lu Hz, "
-		 "initialize keepwarm timer every %d seconds\n", rate, v);
-	/* Convert seconds to jiffies */
-	delta = msecs_to_jiffies(v*1000);
-	setup_timer(&cnt32_to_63_keepwarm_timer, cnt32_to_63_keepwarm, delta);
-	mod_timer(&cnt32_to_63_keepwarm_timer, round_jiffies(jiffies + delta));
+	u32 cyc = -readl(mtu_base + MTU_VAL(0));
+	update_sched_clock(&cd, cyc, (u32)~0);
 }
 
 /* Clockevent device: use one-shot mode */
@@ -222,7 +165,6 @@ void __init nmdk_timer_init(void)
 	} else {
 		cr |= MTU_CRn_PRESCALE_1;
 	}
-	clocksource_calc_mult_shift(&nmdk_clksrc, rate, MTU_MIN_RANGE);
 
 	/* Timer 0 is the free running clocksource */
 	writel(cr, mtu_base + MTU_CR(0));
@@ -233,11 +175,11 @@ void __init nmdk_timer_init(void)
 	/* Now the clock source is ready */
 	nmdk_clksrc.read = nmdk_read_timer;
 
-	if (clocksource_register(&nmdk_clksrc))
+	if (clocksource_register_hz(&nmdk_clksrc, rate))
 		pr_err("timer: failed to initialize clock source %s\n",
 		       nmdk_clksrc.name);
 
-	nmdk_sched_clock_init(rate);
+	init_sched_clock(&cd, nomadik_update_sched_clock, 32, rate);
 
 	/* Timer 1 is used for events */
 

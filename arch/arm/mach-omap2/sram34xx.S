@@ -32,7 +32,7 @@
 #include <mach/io.h>
 
 #include "sdrc.h"
-#include "cm.h"
+#include "cm2xxx_3xxx.h"
 
 	.text
 
@@ -104,6 +104,12 @@
  * touching the SDRAM.  Until that time, users who know that their use case
  * can satisfy the above requirement can enable the CONFIG_OMAP3_SDRC_AC_TIMING
  * option.
+ *
+ * Richard Woodruff notes that any changes to this code must be carefully
+ * audited and tested to ensure that they don't cause a TLB miss while
+ * the SDRAM is inaccessible.  Such a situation will crash the system
+ * since it will cause the ARM MMU to attempt to walk the page tables.
+ * These crashes may be intermittent.
  */
 ENTRY(omap3_sram_configure_core_dpll)
 	stmfd	sp!, {r1-r12, lr}	@ store regs to stack

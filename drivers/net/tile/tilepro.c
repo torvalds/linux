@@ -142,14 +142,6 @@
 MODULE_AUTHOR("Tilera");
 MODULE_LICENSE("GPL");
 
-
-#define IS_MULTICAST(mac_addr) \
-	(((u8 *)(mac_addr))[0] & 0x01)
-
-#define IS_BROADCAST(mac_addr) \
-	(((u16 *)(mac_addr))[0] == 0xffff)
-
-
 /*
  * Queue of incoming packets for a specific cpu and device.
  *
@@ -795,7 +787,7 @@ static bool tile_net_poll_aux(struct tile_net_cpu *info, int index)
 		/*
 		 * FIXME: Implement HW multicast filter.
 		 */
-		if (!IS_MULTICAST(buf) && !IS_BROADCAST(buf)) {
+		if (is_unicast_ether_addr(buf)) {
 			/* Filter packets not for our address. */
 			const u8 *mine = dev->dev_addr;
 			filter = compare_ether_addr(mine, buf);

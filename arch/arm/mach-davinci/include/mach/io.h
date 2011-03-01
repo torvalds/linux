@@ -22,8 +22,8 @@
 #define __mem_isa(a)		(a)
 
 #ifndef __ASSEMBLER__
-#define __arch_ioremap(p, s, t)	davinci_ioremap(p, s, t)
-#define __arch_iounmap(v)	davinci_iounmap(v)
+#define __arch_ioremap		davinci_ioremap
+#define __arch_iounmap		davinci_iounmap
 
 void __iomem *davinci_ioremap(unsigned long phys, size_t size,
 			      unsigned int type);

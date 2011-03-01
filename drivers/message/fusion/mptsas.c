@@ -1146,7 +1146,7 @@ mptsas_target_reset_queue(MPT_ADAPTER *ioc,
  *
  * This function will delete scheduled target reset from the list and
  * try to send next target reset. This will be called from completion
- * context of any Task managment command.
+ * context of any Task management command.
  */
 
 void

@@ -54,6 +54,7 @@ do { \
 
 #define NUM_FL_PTE	4096
 #define NUM_SL_PTE	256
+#define NUM_TEX_CLASS	8
 
 /* First-level page table bits */
 #define FL_BASE_MASK		0xFFFFFC00
@@ -63,6 +64,9 @@ do { \
 #define FL_AP_WRITE		(1 << 10)
 #define FL_AP_READ		(1 << 11)
 #define FL_SHARED		(1 << 16)
+#define FL_BUFFERABLE		(1 << 2)
+#define FL_CACHEABLE		(1 << 3)
+#define FL_TEX0			(1 << 12)
 #define FL_OFFSET(va)		(((va) & 0xFFF00000) >> 20)
 
 /* Second-level page table bits */
@@ -73,7 +77,19 @@ do { \
 #define SL_AP0			(1 << 4)
 #define SL_AP1			(2 << 4)
 #define SL_SHARED		(1 << 10)
+#define SL_BUFFERABLE		(1 << 2)
+#define SL_CACHEABLE		(1 << 3)
+#define SL_TEX0			(1 << 6)
 #define SL_OFFSET(va)		(((va) & 0xFF000) >> 12)
+
+/* Memory type and cache policy attributes */
+#define MT_SO			0
+#define MT_DEV			1
+#define MT_NORMAL		2
+#define CP_NONCACHED		0
+#define CP_WB_WA		1
+#define CP_WT			2
+#define CP_WB_NWA		3
 
 /* Global register setters / getters */
 #define SET_M2VCBR_N(b, N, v)	 SET_GLOBAL_REG_N(M2VCBR_N, N, (b), (v))
@@ -706,7 +722,9 @@ do { \
 #define GET_OCPC5(b, c)		GET_CONTEXT_FIELD(b, c, NMRR, OCPC5)
 #define GET_OCPC6(b, c)		GET_CONTEXT_FIELD(b, c, NMRR, OCPC6)
 #define GET_OCPC7(b, c)		GET_CONTEXT_FIELD(b, c, NMRR, OCPC7)
-
+#define NMRR_ICP(nmrr, n)	(((nmrr) & (3 << ((n) * 2))) >> ((n) * 2))
+#define NMRR_OCP(nmrr, n)	(((nmrr) & (3 << ((n) * 2 + 16))) >> \
+								((n) * 2 + 16))
 
 /* PAR */
 #define GET_FAULT(b, c)		GET_CONTEXT_FIELD(b, c, PAR, FAULT)
@@ -750,6 +768,8 @@ do { \
 #define GET_NOS5(b, c)		GET_CONTEXT_FIELD(b, c, PRRR, NOS5)
 #define GET_NOS6(b, c)		GET_CONTEXT_FIELD(b, c, PRRR, NOS6)
 #define GET_NOS7(b, c)		GET_CONTEXT_FIELD(b, c, PRRR, NOS7)
+#define PRRR_NOS(prrr, n)	 ((prrr) & (1 << ((n) + 24)) ? 1 : 0)
+#define PRRR_MT(prrr, n)	 ((((prrr) & (3 << ((n) * 2))) >> ((n) * 2)))
 
 
 /* RESUME */

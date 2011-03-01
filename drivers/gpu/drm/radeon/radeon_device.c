@@ -81,6 +81,10 @@ static const char radeon_family_name[][16] = {
 	"JUNIPER",
 	"CYPRESS",
 	"HEMLOCK",
+	"PALM",
+	"BARTS",
+	"TURKS",
+	"CAICOS",
 	"LAST",
 };
 
@@ -224,6 +228,11 @@ int radeon_wb_init(struct radeon_device *rdev)
 				rdev->wb.use_event = true;
 		}
 	}
+	/* always use writeback/events on NI */
+	if (ASIC_IS_DCE5(rdev)) {
+		rdev->wb.enabled = true;
+		rdev->wb.use_event = true;
+	}
 
 	dev_info(rdev->dev, "WB %sabled\n", rdev->wb.enabled ? "en" : "dis");
 
@@ -335,7 +344,12 @@ bool radeon_card_posted(struct radeon_device *rdev)
 	uint32_t reg;
 
 	/* first check CRTCs */
-	if (ASIC_IS_DCE4(rdev)) {
+	if (ASIC_IS_DCE41(rdev)) {
+		reg = RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC0_REGISTER_OFFSET) |
+			RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC1_REGISTER_OFFSET);
+		if (reg & EVERGREEN_CRTC_MASTER_EN)
+			return true;
+	} else if (ASIC_IS_DCE4(rdev)) {
 		reg = RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC0_REGISTER_OFFSET) |
 			RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC1_REGISTER_OFFSET) |
 			RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC2_REGISTER_OFFSET) |
@@ -636,20 +650,20 @@ void radeon_check_arguments(struct radeon_device *rdev)
 static void radeon_switcheroo_set_state(struct pci_dev *pdev, enum vga_switcheroo_state state)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct radeon_device *rdev = dev->dev_private;
 	pm_message_t pmm = { .event = PM_EVENT_SUSPEND };
 	if (state == VGA_SWITCHEROO_ON) {
 		printk(KERN_INFO "radeon: switched on\n");
 		/* don't suspend or resume card normally */
-		rdev->powered_down = false;
+		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		radeon_resume_kms(dev);
+		dev->switch_power_state = DRM_SWITCH_POWER_ON;
 		drm_kms_helper_poll_enable(dev);
 	} else {
 		printk(KERN_INFO "radeon: switched off\n");
 		drm_kms_helper_poll_disable(dev);
+		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		radeon_suspend_kms(dev, pmm);
-		/* don't suspend or resume card normally */
-		rdev->powered_down = true;
+		dev->switch_power_state = DRM_SWITCH_POWER_OFF;
 	}
 }
 
@@ -703,11 +717,6 @@ int radeon_device_init(struct radeon_device *rdev,
 	INIT_LIST_HEAD(&rdev->gem.objects);
 	init_waitqueue_head(&rdev->irq.vblank_queue);
 	init_waitqueue_head(&rdev->irq.idle_queue);
-
-	/* setup workqueue */
-	rdev->wq = create_workqueue("radeon");
-	if (rdev->wq == NULL)
-		return -ENOMEM;
 
 	/* Set asic functions */
 	r = radeon_asic_init(rdev);
@@ -773,6 +782,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	vga_client_register(rdev->pdev, rdev, NULL, radeon_vga_set_decode);
 	vga_switcheroo_register_client(rdev->pdev,
 				       radeon_switcheroo_set_state,
+				       NULL,
 				       radeon_switcheroo_can_switch);
 
 	r = radeon_init(rdev);
@@ -806,7 +816,6 @@ void radeon_device_fini(struct radeon_device *rdev)
 	/* evict vram memory */
 	radeon_bo_evict_vram(rdev);
 	radeon_fini(rdev);
-	destroy_workqueue(rdev->wq);
 	vga_switcheroo_unregister_client(rdev->pdev);
 	vga_client_register(rdev->pdev, NULL, NULL, NULL);
 	if (rdev->rio_mem)
@@ -835,7 +844,7 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 	}
 	rdev = dev->dev_private;
 
-	if (rdev->powered_down)
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
 	/* turn off display hw */
@@ -882,9 +891,9 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 		pci_disable_device(dev->pdev);
 		pci_set_power_state(dev->pdev, PCI_D3hot);
 	}
-	acquire_console_sem();
+	console_lock();
 	radeon_fbdev_set_suspend(rdev, 1);
-	release_console_sem();
+	console_unlock();
 	return 0;
 }
 
@@ -893,14 +902,14 @@ int radeon_resume_kms(struct drm_device *dev)
 	struct drm_connector *connector;
 	struct radeon_device *rdev = dev->dev_private;
 
-	if (rdev->powered_down)
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	acquire_console_sem();
+	console_lock();
 	pci_set_power_state(dev->pdev, PCI_D0);
 	pci_restore_state(dev->pdev);
 	if (pci_enable_device(dev->pdev)) {
-		release_console_sem();
+		console_unlock();
 		return -1;
 	}
 	pci_set_master(dev->pdev);
@@ -911,7 +920,7 @@ int radeon_resume_kms(struct drm_device *dev)
 	radeon_restore_bios_scratch_regs(rdev);
 
 	radeon_fbdev_set_suspend(rdev, 0);
-	release_console_sem();
+	console_unlock();
 
 	/* reset hpd state */
 	radeon_hpd_init(rdev);
@@ -927,8 +936,11 @@ int radeon_resume_kms(struct drm_device *dev)
 int radeon_gpu_reset(struct radeon_device *rdev)
 {
 	int r;
+	int resched;
 
 	radeon_save_bios_scratch_regs(rdev);
+	/* block TTM */
+	resched = ttm_bo_lock_delayed_workqueue(&rdev->mman.bdev);
 	radeon_suspend(rdev);
 
 	r = radeon_asic_reset(rdev);
@@ -937,6 +949,7 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 		radeon_resume(rdev);
 		radeon_restore_bios_scratch_regs(rdev);
 		drm_helper_resume_force_mode(rdev->ddev);
+		ttm_bo_unlock_delayed_workqueue(&rdev->mman.bdev, resched);
 		return 0;
 	}
 	/* bad news, how to tell it to userspace ? */

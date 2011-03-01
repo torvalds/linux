@@ -1,5 +1,6 @@
 #include "../libslang.h"
 #include <elf.h>
+#include <inttypes.h>
 #include <sys/ttydefaults.h>
 #include <ctype.h>
 #include <string.h>
@@ -57,7 +58,7 @@ static void map_browser__write(struct ui_browser *self, void *nd, int row)
 	int width;
 
 	ui_browser__set_percent_color(self, 0, current_entry);
-	slsmg_printf("%*llx %*llx %c ",
+	slsmg_printf("%*" PRIx64 " %*" PRIx64 " %c ",
 		     mb->addrlen, sym->start, mb->addrlen, sym->end,
 		     sym->binding == STB_GLOBAL ? 'g' :
 		     sym->binding == STB_LOCAL  ? 'l' : 'w');
@@ -150,6 +151,6 @@ int map__browse(struct map *self)
 		++mb.b.nr_entries;
 	}
 
-	mb.addrlen = snprintf(tmp, sizeof(tmp), "%llx", maxaddr);
+	mb.addrlen = snprintf(tmp, sizeof(tmp), "%" PRIx64, maxaddr);
 	return map_browser__run(&mb);
 }

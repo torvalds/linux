@@ -1307,9 +1307,12 @@ bail:
 	return err;
 }
 
-int ocfs2_permission(struct inode *inode, int mask)
+int ocfs2_permission(struct inode *inode, int mask, unsigned int flags)
 {
 	int ret;
+
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
 
 	mlog_entry_void();
 
@@ -1320,7 +1323,7 @@ int ocfs2_permission(struct inode *inode, int mask)
 		goto out;
 	}
 
-	ret = generic_permission(inode, mask, ocfs2_check_acl);
+	ret = generic_permission(inode, mask, flags, ocfs2_check_acl);
 
 	ocfs2_inode_unlock(inode, 0);
 out:
@@ -1986,28 +1989,32 @@ int ocfs2_change_file_space(struct file *file, unsigned int cmd,
 	return __ocfs2_change_file_space(file, inode, file->f_pos, cmd, sr, 0);
 }
 
-static long ocfs2_fallocate(struct inode *inode, int mode, loff_t offset,
+static long ocfs2_fallocate(struct file *file, int mode, loff_t offset,
 			    loff_t len)
 {
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct ocfs2_space_resv sr;
 	int change_size = 1;
+	int cmd = OCFS2_IOC_RESVSP64;
 
+	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
+		return -EOPNOTSUPP;
 	if (!ocfs2_writes_unwritten_extents(osb))
 		return -EOPNOTSUPP;
 
-	if (S_ISDIR(inode->i_mode))
-		return -ENODEV;
-
 	if (mode & FALLOC_FL_KEEP_SIZE)
 		change_size = 0;
+
+	if (mode & FALLOC_FL_PUNCH_HOLE)
+		cmd = OCFS2_IOC_UNRESVSP64;
 
 	sr.l_whence = 0;
 	sr.l_start = (s64)offset;
 	sr.l_len = (s64)len;
 
-	return __ocfs2_change_file_space(NULL, inode, offset,
-					 OCFS2_IOC_RESVSP64, &sr, change_size);
+	return __ocfs2_change_file_space(NULL, inode, offset, cmd, &sr,
+					 change_size);
 }
 
 int ocfs2_check_range_for_refcount(struct inode *inode, loff_t pos,
@@ -2603,7 +2610,6 @@ const struct inode_operations ocfs2_file_iops = {
 	.getxattr	= generic_getxattr,
 	.listxattr	= ocfs2_listxattr,
 	.removexattr	= generic_removexattr,
-	.fallocate	= ocfs2_fallocate,
 	.fiemap		= ocfs2_fiemap,
 };
 
@@ -2635,6 +2641,7 @@ const struct file_operations ocfs2_fops = {
 	.flock		= ocfs2_flock,
 	.splice_read	= ocfs2_file_splice_read,
 	.splice_write	= ocfs2_file_splice_write,
+	.fallocate	= ocfs2_fallocate,
 };
 
 const struct file_operations ocfs2_dops = {

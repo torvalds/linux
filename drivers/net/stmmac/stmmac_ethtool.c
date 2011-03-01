@@ -94,7 +94,7 @@ static void stmmac_ethtool_getdrvinfo(struct net_device *dev,
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
-	if (!priv->is_gmac)
+	if (!priv->plat->has_gmac)
 		strcpy(info->driver, MAC100_ETHTOOL_NAME);
 	else
 		strcpy(info->driver, GMAC_ETHTOOL_NAME);
@@ -176,7 +176,7 @@ static void stmmac_ethtool_gregs(struct net_device *dev,
 
 	memset(reg_space, 0x0, REG_SPACE_SIZE);
 
-	if (!priv->is_gmac) {
+	if (!priv->plat->has_gmac) {
 		/* MAC registers */
 		for (i = 0; i < 12; i++)
 			reg_space[i] = readl(priv->ioaddr + (i * 4));
@@ -195,16 +195,6 @@ static void stmmac_ethtool_gregs(struct net_device *dev,
 			reg_space[i + 55] =
 			    readl(priv->ioaddr + (DMA_BUS_MODE + (i * 4)));
 	}
-}
-
-static int stmmac_ethtool_set_tx_csum(struct net_device *netdev, u32 data)
-{
-	if (data)
-		netdev->features |= NETIF_F_HW_CSUM;
-	else
-		netdev->features &= ~NETIF_F_HW_CSUM;
-
-	return 0;
 }
 
 static u32 stmmac_ethtool_get_rx_csum(struct net_device *dev)
@@ -370,7 +360,7 @@ static struct ethtool_ops stmmac_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_rx_csum = stmmac_ethtool_get_rx_csum,
 	.get_tx_csum = ethtool_op_get_tx_csum,
-	.set_tx_csum = stmmac_ethtool_set_tx_csum,
+	.set_tx_csum = ethtool_op_set_tx_ipv6_csum,
 	.get_sg = ethtool_op_get_sg,
 	.set_sg = ethtool_op_set_sg,
 	.get_pauseparam = stmmac_get_pauseparam,

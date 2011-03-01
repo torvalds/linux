@@ -798,7 +798,6 @@ static int mt9m001_remove(struct i2c_client *client)
 
 	icd->ops = NULL;
 	mt9m001_video_remove(icd);
-	client->driver = NULL;
 	kfree(mt9m001);
 
 	return 0;

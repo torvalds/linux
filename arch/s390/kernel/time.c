@@ -15,6 +15,7 @@
 #define KMSG_COMPONENT "time"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/kernel_stat.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -37,6 +38,7 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/gfp.h>
+#include <linux/kprobes.h>
 #include <asm/uaccess.h>
 #include <asm/delay.h>
 #include <asm/s390_ext.h>
@@ -60,7 +62,7 @@ static DEFINE_PER_CPU(struct clock_event_device, comparators);
 /*
  * Scheduler clock - returns current time in nanosec units.
  */
-unsigned long long notrace sched_clock(void)
+unsigned long long notrace __kprobes sched_clock(void)
 {
 	return (get_clock_monotonic() * 125) >> 9;
 }
@@ -159,6 +161,7 @@ static void clock_comparator_interrupt(unsigned int ext_int_code,
 				       unsigned int param32,
 				       unsigned long param64)
 {
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_CLK]++;
 	if (S390_lowcore.clock_comparator == -1ULL)
 		set_clock_comparator(S390_lowcore.clock_comparator);
 }
@@ -169,6 +172,7 @@ static void stp_timing_alert(struct stp_irq_parm *);
 static void timing_alert_interrupt(unsigned int ext_int_code,
 				   unsigned int param32, unsigned long param64)
 {
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_TLA]++;
 	if (param32 & 0x00c40000)
 		etr_timing_alert((struct etr_irq_parm *) &param32);
 	if (param32 & 0x00038000)

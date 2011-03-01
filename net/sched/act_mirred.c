@@ -165,8 +165,7 @@ static int tcf_mirred(struct sk_buff *skb, struct tc_action *a,
 
 	spin_lock(&m->tcf_lock);
 	m->tcf_tm.lastuse = jiffies;
-	m->tcf_bstats.bytes += qdisc_pkt_len(skb);
-	m->tcf_bstats.packets++;
+	bstats_update(&m->tcf_bstats, skb);
 
 	dev = m->tcfm_dev;
 	if (!dev) {

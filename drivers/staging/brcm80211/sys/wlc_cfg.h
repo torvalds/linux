@@ -23,14 +23,6 @@
 
 #define IS_SINGLEBAND_5G(device)	0
 
-/* Keep WLC_HIGH_ONLY, WLC_SPLIT for USB extension later on */
-#if !defined(WLC_LOW)
-#define WLC_HIGH_ONLY
-#endif
-#if !defined(WLC_LOW)
-#define WLC_SPLIT
-#endif
-
 /* **** Core type/rev defaults **** */
 #define D11_DEFAULT	0x0fffffb0	/* Supported  D11 revs: 4, 5, 7-27
 					 * also need to update wlc.h MAXCOREREV
@@ -61,22 +53,6 @@
 					 *      3       5356a0
 					 */
 
-#ifdef BCMSDIO
-#define D11CONF 0x100000
-#define SSLPNCONF 2
-#define GCCONF	0
-#define ACCONF	0
-#define NCONF	0
-#define LPCONF	0
-#define LCNCONF	0
-#define NTXD 32
-#define NRXD 16
-#define NRXBUFPOST 8
-#define WLC_DATAHIWAT 32
-#define RXBND 8
-#define MAXPKTCB 64
-#define AMPDU_NUM_MPDU 8
-#endif
 
 /* For undefined values, use defaults */
 #ifndef D11CONF

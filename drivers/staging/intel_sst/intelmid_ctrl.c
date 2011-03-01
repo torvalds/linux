@@ -24,6 +24,9 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *  ALSA driver handling mixer controls for Intel MAD chipset
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <sound/core.h>
 #include <sound/control.h>
 #include "jack.h"
@@ -216,7 +219,7 @@ static int snd_intelmad_volume_get(struct snd_kcontrol *kcontrol,
 	struct snd_intelmad *intelmaddata;
 	struct snd_pmic_ops *scard_ops;
 
-	pr_debug("sst: snd_intelmad_volume_get called\n");
+	pr_debug("snd_intelmad_volume_get called\n");
 
 	WARN_ON(!uval);
 	WARN_ON(!kcontrol);
@@ -273,7 +276,7 @@ static int snd_intelmad_mute_get(struct snd_kcontrol *kcontrol,
 	struct snd_intelmad *intelmaddata;
 	struct snd_pmic_ops *scard_ops;
 
-	pr_debug("sst: Mute_get called\n");
+	pr_debug("Mute_get called\n");
 
 	WARN_ON(!uval);
 	WARN_ON(!kcontrol);
@@ -332,7 +335,7 @@ static int snd_intelmad_volume_set(struct snd_kcontrol *kcontrol,
 	struct snd_intelmad *intelmaddata;
 	struct snd_pmic_ops *scard_ops;
 
-	pr_debug("sst: volume set called:%ld %ld\n",
+	pr_debug("volume set called:%ld %ld\n",
 			uval->value.integer.value[0],
 			uval->value.integer.value[1]);
 
@@ -387,7 +390,7 @@ static int snd_intelmad_mute_set(struct snd_kcontrol *kcontrol,
 	struct snd_intelmad *intelmaddata;
 	struct snd_pmic_ops *scard_ops;
 
-	pr_debug("sst: snd_intelmad_mute_set called\n");
+	pr_debug("snd_intelmad_mute_set called\n");
 
 	WARN_ON(!uval);
 	WARN_ON(!kcontrol);
@@ -455,7 +458,7 @@ static int snd_intelmad_device_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_intelmad *intelmaddata;
 	struct snd_pmic_ops *scard_ops;
-	pr_debug("sst: device_get called\n");
+	pr_debug("device_get called\n");
 
 	WARN_ON(!uval);
 	WARN_ON(!kcontrol);
@@ -491,8 +494,9 @@ static int snd_intelmad_device_set(struct snd_kcontrol *kcontrol,
 	struct snd_intelmad *intelmaddata;
 	struct snd_pmic_ops *scard_ops;
 	int ret_val = 0, vendor, status;
+	struct intel_sst_pcm_control *pcm_control;
 
-	pr_debug("sst: snd_intelmad_device_set called\n");
+	pr_debug("snd_intelmad_device_set called\n");
 
 	WARN_ON(!uval);
 	WARN_ON(!kcontrol);
@@ -518,15 +522,13 @@ static int snd_intelmad_device_set(struct snd_kcontrol *kcontrol,
 	case INPUT_SEL:
 		vendor = intelmaddata->sstdrv_ops->vendor_id;
 		if ((vendor == SND_MX) || (vendor == SND_FS)) {
-			if (uval->value.enumerated.item[0] == HS_MIC) {
+			pcm_control = intelmaddata->sstdrv_ops->pcm_control;
+			if (uval->value.enumerated.item[0] == HS_MIC)
 				status = 1;
-				intelmaddata->sstdrv_ops->
-				control_set(SST_ENABLE_RX_TIME_SLOT, &status);
-			} else {
+			else
 				status = 0;
-				intelmaddata->sstdrv_ops->
-				control_set(SST_ENABLE_RX_TIME_SLOT, &status);
-			}
+			pcm_control->device_control(
+					SST_ENABLE_RX_TIME_SLOT, &status);
 		}
 		ret_val = scard_ops->set_input_dev(
 				uval->value.enumerated.item[0]);

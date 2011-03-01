@@ -109,6 +109,7 @@ struct zcrypt_device {
 	int request_count;		/* # current requests. */
 
 	struct ap_message reply;	/* Per-device reply structure. */
+	int max_exp_bit_length;
 };
 
 struct zcrypt_device *zcrypt_device_alloc(size_t);

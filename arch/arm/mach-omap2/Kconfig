@@ -15,7 +15,7 @@ config ARCH_OMAP2PLUS_TYPICAL
 	select SERIAL_OMAP_CONSOLE
 	select I2C
 	select I2C_OMAP
-	select MFD
+	select MFD_SUPPORT
 	select MENELAUS if ARCH_OMAP2
 	select TWL4030_CORE if ARCH_OMAP3 || ARCH_OMAP4
 	select TWL4030_POWER if ARCH_OMAP3 || ARCH_OMAP4
@@ -35,6 +35,8 @@ config ARCH_OMAP3
 	select CPU_V7
 	select USB_ARCH_HAS_EHCI
 	select ARM_L1_CACHE_SHIFT_6 if !ARCH_OMAP4
+	select ARCH_HAS_OPP
+	select PM_OPP if PM
 
 config ARCH_OMAP4
 	bool "TI OMAP4"
@@ -44,6 +46,9 @@ config ARCH_OMAP4
 	select ARM_GIC
 	select PL310_ERRATA_588369
 	select ARM_ERRATA_720789
+	select ARCH_HAS_OPP
+	select PM_OPP if PM
+	select USB_ARCH_HAS_EHCI
 
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2
@@ -83,6 +88,12 @@ config OMAP_PACKAGE_CUS
        bool
 
 config OMAP_PACKAGE_CBP
+       bool
+
+config OMAP_PACKAGE_CBL
+       bool
+
+config OMAP_PACKAGE_CBS
        bool
 
 comment "OMAP Board Type"
@@ -128,7 +139,6 @@ config MACH_DEVKIT8000
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CUS
-	select OMAP_MUX
 
 config MACH_OMAP_LDP
 	bool "OMAP3 LDP board"
@@ -174,11 +184,17 @@ config MACH_OMAP3517EVM
 	default y
 	select OMAP_PACKAGE_CBB
 
+config MACH_CRANEBOARD
+	bool "AM3517/05 CRANE board"
+	depends on ARCH_OMAP3
+	select OMAP_PACKAGE_CBB
+
 config MACH_OMAP3_PANDORA
 	bool "OMAP3 Pandora"
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBB
+	select REGULATOR_FIXED_VOLTAGE
 
 config MACH_OMAP3_TOUCHBOOK
 	bool "OMAP3 Touch Book"
@@ -210,6 +226,12 @@ config MACH_NOKIA_N8X0
 	select MACH_NOKIA_N810
 	select MACH_NOKIA_N810_WIMAX
 
+config MACH_NOKIA_RM680
+	bool "Nokia RM-680 board"
+	depends on ARCH_OMAP3
+	default y
+	select OMAP_PACKAGE_CBB
+
 config MACH_NOKIA_RX51
 	bool "Nokia RX-51 board"
 	depends on ARCH_OMAP3
@@ -224,6 +246,7 @@ config MACH_OMAP_ZOOM2
 	select SERIAL_8250
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_8250_CONSOLE
+	select REGULATOR_FIXED_VOLTAGE
 
 config MACH_OMAP_ZOOM3
 	bool "OMAP3630 Zoom3 board"
@@ -233,20 +256,19 @@ config MACH_OMAP_ZOOM3
 	select SERIAL_8250
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_8250_CONSOLE
+	select REGULATOR_FIXED_VOLTAGE
 
 config MACH_CM_T35
 	bool "CompuLab CM-T35 module"
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CUS
-	select OMAP_MUX
 
 config MACH_CM_T3517
 	bool "CompuLab CM-T3517 module"
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBB
-	select OMAP_MUX
 
 config MACH_IGEP0020
 	bool "IGEP v2 board"
@@ -265,7 +287,6 @@ config MACH_SBC3530
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CUS
-	select OMAP_MUX
 
 config MACH_OMAP_3630SDP
 	bool "OMAP3630 SDP board"
@@ -277,11 +298,15 @@ config MACH_OMAP_4430SDP
 	bool "OMAP 4430 SDP board"
 	default y
 	depends on ARCH_OMAP4
+	select OMAP_PACKAGE_CBL
+	select OMAP_PACKAGE_CBS
 
 config MACH_OMAP4_PANDA
 	bool "OMAP4 Panda Board"
 	default y
 	depends on ARCH_OMAP4
+	select OMAP_PACKAGE_CBL
+	select OMAP_PACKAGE_CBS
 
 config OMAP3_EMU
 	bool "OMAP3 debugging peripherals"

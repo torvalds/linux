@@ -250,7 +250,7 @@ static void board_hwcontrol(struct mtd_info *mtd, int cmd)
 		<title>Device ready function</title>
 		<para>
 			If the hardware interface has the ready busy pin of the NAND chip connected to a
-			GPIO or other accesible I/O pin, this function is used to read back the state of the
+			GPIO or other accessible I/O pin, this function is used to read back the state of the
 			pin. The function has no arguments and should return 0, if the device is busy (R/B pin 
 			is low) and 1, if the device is ready (R/B pin is high).
 			If the hardware interface does not give access to the ready busy pin, then

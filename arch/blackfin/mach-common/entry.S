@@ -615,7 +615,7 @@ ENTRY(_system_call)
 #ifdef CONFIG_IPIPE
 	r0 = sp;
 	SP += -12;
-	call ___ipipe_syscall_root;
+	pseudo_long_call ___ipipe_syscall_root, p0;
 	SP += 12;
 	cc = r0 == 1;
 	if cc jump .Lsyscall_really_exit;
@@ -692,7 +692,7 @@ ENTRY(_system_call)
 	[--sp] = reti;
 	SP += 4; /* don't merge with next insn to keep the pattern obvious */
 	SP += -12;
-	call ___ipipe_sync_root;
+	pseudo_long_call ___ipipe_sync_root, p4;
 	SP += 12;
 	jump .Lresume_userspace_1;
 .Lsyscall_no_irqsync:

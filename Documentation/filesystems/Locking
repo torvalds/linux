@@ -9,23 +9,30 @@ be able to use diff(1).
 
 --------------------------- dentry_operations --------------------------
 prototypes:
-	int (*d_revalidate)(struct dentry *, int);
-	int (*d_hash) (struct dentry *, struct qstr *);
-	int (*d_compare) (struct dentry *, struct qstr *, struct qstr *);
+	int (*d_revalidate)(struct dentry *, struct nameidata *);
+	int (*d_hash)(const struct dentry *, const struct inode *,
+			struct qstr *);
+	int (*d_compare)(const struct dentry *, const struct inode *,
+			const struct dentry *, const struct inode *,
+			unsigned int, const char *, const struct qstr *);
 	int (*d_delete)(struct dentry *);
 	void (*d_release)(struct dentry *);
 	void (*d_iput)(struct dentry *, struct inode *);
 	char *(*d_dname)((struct dentry *dentry, char *buffer, int buflen);
+	struct vfsmount *(*d_automount)(struct path *path);
+	int (*d_manage)(struct dentry *, bool);
 
 locking rules:
-		dcache_lock	rename_lock	->d_lock	may block
-d_revalidate:	no		no		no		yes
-d_hash		no		no		no		yes
-d_compare:	no		yes		no		no 
-d_delete:	yes		no		yes		no
-d_release:	no		no		no		yes
-d_iput:		no		no		no		yes
+		rename_lock	->d_lock	may block	rcu-walk
+d_revalidate:	no		no		yes (ref-walk)	maybe
+d_hash		no		no		no		maybe
+d_compare:	yes		no		no		maybe
+d_delete:	no		yes		no		no
+d_release:	no		no		yes		no
+d_iput:		no		no		yes		no
 d_dname:	no		no		no		no
+d_automount:	no		no		yes		no
+d_manage:	no		no		yes (ref-walk)	maybe
 
 --------------------------- inode_operations --------------------------- 
 prototypes:
@@ -44,8 +51,8 @@ ata *);
 	void * (*follow_link) (struct dentry *, struct nameidata *);
 	void (*put_link) (struct dentry *, struct nameidata *, void *);
 	void (*truncate) (struct inode *);
-	int (*permission) (struct inode *, int, struct nameidata *);
-	int (*check_acl)(struct inode *, int);
+	int (*permission) (struct inode *, int, unsigned int);
+	int (*check_acl)(struct inode *, int, unsigned int);
 	int (*setattr) (struct dentry *, struct iattr *);
 	int (*getattr) (struct vfsmount *, struct dentry *, struct kstat *);
 	int (*setxattr) (struct dentry *, const char *,const void *,size_t,int);
@@ -53,7 +60,6 @@ ata *);
 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
 	int (*removexattr) (struct dentry *, const char *);
 	void (*truncate_range)(struct inode *, loff_t, loff_t);
-	long (*fallocate)(struct inode *inode, int mode, loff_t offset, loff_t len);
 	int (*fiemap)(struct inode *, struct fiemap_extent_info *, u64 start, u64 len);
 
 locking rules:
@@ -73,7 +79,7 @@ follow_link:	no
 put_link:	no
 truncate:	yes		(see below)
 setattr:	yes
-permission:	no
+permission:	no (may not block if called in rcu-walk mode)
 check_acl:	no
 getattr:	no
 setxattr:	yes
@@ -81,7 +87,6 @@ getxattr:	no
 listxattr:	no
 removexattr:	yes
 truncate_range:	yes
-fallocate:	no
 fiemap:		no
 	Additionally, ->rmdir(), ->unlink() and ->rename() have ->i_mutex on
 victim.
@@ -340,7 +345,6 @@ prototypes:
 	int (*fl_grant)(struct file_lock *, struct file_lock *, int);
 	void (*fl_release_private)(struct file_lock *);
 	void (*fl_break)(struct file_lock *); /* break_lease callback */
-	int (*fl_mylease)(struct file_lock *, struct file_lock *);
 	int (*fl_change)(struct file_lock **, int);
 
 locking rules:
@@ -350,7 +354,6 @@ fl_notify:		yes		no
 fl_grant:		no		no
 fl_release_private:	maybe		no
 fl_break:		yes		no
-fl_mylease:		yes		no
 fl_change		yes		no
 
 --------------------------- buffer_head -----------------------------------
@@ -432,6 +435,7 @@ prototypes:
 	ssize_t (*splice_read)(struct file *, loff_t *, struct pipe_inode_info *,
 			size_t, unsigned int);
 	int (*setlease)(struct file *, long, struct file_lock **);
+	long (*fallocate)(struct file *, int, loff_t, loff_t);
 };
 
 locking rules:

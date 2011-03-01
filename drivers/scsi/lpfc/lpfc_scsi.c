@@ -621,10 +621,13 @@ lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *phba,
 			  struct sli4_wcqe_xri_aborted *axri)
 {
 	uint16_t xri = bf_get(lpfc_wcqe_xa_xri, axri);
+	uint16_t rxid = bf_get(lpfc_wcqe_xa_remote_xid, axri);
 	struct lpfc_scsi_buf *psb, *next_psb;
 	unsigned long iflag = 0;
 	struct lpfc_iocbq *iocbq;
 	int i;
+	struct lpfc_nodelist *ndlp;
+	int rrq_empty = 0;
 	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
 
 	spin_lock_irqsave(&phba->hbalock, iflag);
@@ -637,8 +640,14 @@ lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *phba,
 			psb->status = IOSTAT_SUCCESS;
 			spin_unlock(
 				&phba->sli4_hba.abts_scsi_buf_list_lock);
+			ndlp = psb->rdata->pnode;
+			rrq_empty = list_empty(&phba->active_rrq_list);
 			spin_unlock_irqrestore(&phba->hbalock, iflag);
+			if (ndlp)
+				lpfc_set_rrq_active(phba, ndlp, xri, rxid, 1);
 			lpfc_release_scsi_buf_s4(phba, psb);
+			if (rrq_empty)
+				lpfc_worker_wake_up(phba);
 			return;
 		}
 	}
@@ -914,7 +923,7 @@ lpfc_new_scsi_buf(struct lpfc_vport *vport, int num_to_alloc)
 }
 
 /**
- * lpfc_get_scsi_buf - Get a scsi buffer from lpfc_scsi_buf_list of the HBA
+ * lpfc_get_scsi_buf_s3 - Get a scsi buffer from lpfc_scsi_buf_list of the HBA
  * @phba: The HBA for which this call is being executed.
  *
  * This routine removes a scsi buffer from head of @phba lpfc_scsi_buf_list list
@@ -925,7 +934,7 @@ lpfc_new_scsi_buf(struct lpfc_vport *vport, int num_to_alloc)
  *   Pointer to lpfc_scsi_buf - Success
  **/
 static struct lpfc_scsi_buf*
-lpfc_get_scsi_buf(struct lpfc_hba * phba)
+lpfc_get_scsi_buf_s3(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 {
 	struct  lpfc_scsi_buf * lpfc_cmd = NULL;
 	struct list_head *scsi_buf_list = &phba->lpfc_scsi_buf_list;
@@ -940,6 +949,67 @@ lpfc_get_scsi_buf(struct lpfc_hba * phba)
 	}
 	spin_unlock_irqrestore(&phba->scsi_buf_list_lock, iflag);
 	return  lpfc_cmd;
+}
+/**
+ * lpfc_get_scsi_buf_s4 - Get a scsi buffer from lpfc_scsi_buf_list of the HBA
+ * @phba: The HBA for which this call is being executed.
+ *
+ * This routine removes a scsi buffer from head of @phba lpfc_scsi_buf_list list
+ * and returns to caller.
+ *
+ * Return codes:
+ *   NULL - Error
+ *   Pointer to lpfc_scsi_buf - Success
+ **/
+static struct lpfc_scsi_buf*
+lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
+{
+	struct  lpfc_scsi_buf *lpfc_cmd = NULL;
+	struct  lpfc_scsi_buf *start_lpfc_cmd = NULL;
+	struct list_head *scsi_buf_list = &phba->lpfc_scsi_buf_list;
+	unsigned long iflag = 0;
+	int found = 0;
+
+	spin_lock_irqsave(&phba->scsi_buf_list_lock, iflag);
+	list_remove_head(scsi_buf_list, lpfc_cmd, struct lpfc_scsi_buf, list);
+	spin_unlock_irqrestore(&phba->scsi_buf_list_lock, iflag);
+	while (!found && lpfc_cmd) {
+		if (lpfc_test_rrq_active(phba, ndlp,
+					 lpfc_cmd->cur_iocbq.sli4_xritag)) {
+			lpfc_release_scsi_buf_s4(phba, lpfc_cmd);
+			spin_lock_irqsave(&phba->scsi_buf_list_lock, iflag);
+			list_remove_head(scsi_buf_list, lpfc_cmd,
+					 struct lpfc_scsi_buf, list);
+			spin_unlock_irqrestore(&phba->scsi_buf_list_lock,
+						 iflag);
+			if (lpfc_cmd == start_lpfc_cmd) {
+				lpfc_cmd = NULL;
+				break;
+			} else
+				continue;
+		}
+		found = 1;
+		lpfc_cmd->seg_cnt = 0;
+		lpfc_cmd->nonsg_phys = 0;
+		lpfc_cmd->prot_seg_cnt = 0;
+	}
+	return  lpfc_cmd;
+}
+/**
+ * lpfc_get_scsi_buf - Get a scsi buffer from lpfc_scsi_buf_list of the HBA
+ * @phba: The HBA for which this call is being executed.
+ *
+ * This routine removes a scsi buffer from head of @phba lpfc_scsi_buf_list list
+ * and returns to caller.
+ *
+ * Return codes:
+ *   NULL - Error
+ *   Pointer to lpfc_scsi_buf - Success
+ **/
+static struct lpfc_scsi_buf*
+lpfc_get_scsi_buf(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
+{
+	return  phba->lpfc_get_scsi_buf(phba, ndlp);
 }
 
 /**
@@ -2744,18 +2814,19 @@ lpfc_scsi_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 
 	phba->lpfc_scsi_unprep_dma_buf = lpfc_scsi_unprep_dma_buf;
 	phba->lpfc_scsi_prep_cmnd = lpfc_scsi_prep_cmnd;
-	phba->lpfc_get_scsi_buf = lpfc_get_scsi_buf;
 
 	switch (dev_grp) {
 	case LPFC_PCI_DEV_LP:
 		phba->lpfc_new_scsi_buf = lpfc_new_scsi_buf_s3;
 		phba->lpfc_scsi_prep_dma_buf = lpfc_scsi_prep_dma_buf_s3;
 		phba->lpfc_release_scsi_buf = lpfc_release_scsi_buf_s3;
+		phba->lpfc_get_scsi_buf = lpfc_get_scsi_buf_s3;
 		break;
 	case LPFC_PCI_DEV_OC:
 		phba->lpfc_new_scsi_buf = lpfc_new_scsi_buf_s4;
 		phba->lpfc_scsi_prep_dma_buf = lpfc_scsi_prep_dma_buf_s4;
 		phba->lpfc_release_scsi_buf = lpfc_release_scsi_buf_s4;
+		phba->lpfc_get_scsi_buf = lpfc_get_scsi_buf_s4;
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -2764,7 +2835,6 @@ lpfc_scsi_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 		return -ENODEV;
 		break;
 	}
-	phba->lpfc_get_scsi_buf = lpfc_get_scsi_buf;
 	phba->lpfc_rampdown_queue_depth = lpfc_rampdown_queue_depth;
 	phba->lpfc_scsi_cmd_iocb_cmpl = lpfc_scsi_cmd_iocb_cmpl;
 	return 0;
@@ -2940,7 +3010,7 @@ lpfc_queuecommand_lck(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 	if (atomic_read(&ndlp->cmd_pending) >= ndlp->cmd_qdepth)
 		goto out_host_busy;
 
-	lpfc_cmd = lpfc_get_scsi_buf(phba);
+	lpfc_cmd = lpfc_get_scsi_buf(phba, ndlp);
 	if (lpfc_cmd == NULL) {
 		lpfc_rampdown_queue_depth(phba);
 
@@ -3239,7 +3309,7 @@ lpfc_send_taskmgmt(struct lpfc_vport *vport, struct lpfc_rport_data *rdata,
 	if (!pnode || !NLP_CHK_NODE_ACT(pnode))
 		return FAILED;
 
-	lpfc_cmd = lpfc_get_scsi_buf(phba);
+	lpfc_cmd = lpfc_get_scsi_buf(phba, rdata->pnode);
 	if (lpfc_cmd == NULL)
 		return FAILED;
 	lpfc_cmd->timeout = 60;

@@ -565,7 +565,6 @@ static inline int ocfs2_et_sanity_check(struct ocfs2_extent_tree *et)
 	return ret;
 }
 
-static void ocfs2_free_truncate_context(struct ocfs2_truncate_context *tc);
 static int ocfs2_cache_extent_block_free(struct ocfs2_cached_dealloc_ctxt *ctxt,
 					 struct ocfs2_extent_block *eb);
 static void ocfs2_adjust_rightmost_records(handle_t *handle,
@@ -5858,6 +5857,7 @@ int ocfs2_truncate_log_append(struct ocfs2_super *osb,
 
 	ocfs2_journal_dirty(handle, tl_bh);
 
+	osb->truncated_clusters += num_clusters;
 bail:
 	mlog_exit(status);
 	return status;
@@ -5928,6 +5928,8 @@ static int ocfs2_replay_truncate_records(struct ocfs2_super *osb,
 		}
 		i--;
 	}
+
+	osb->truncated_clusters = 0;
 
 bail:
 	mlog_exit(status);
@@ -7139,64 +7141,6 @@ bail:
 }
 
 /*
- * Expects the inode to already be locked.
- */
-int ocfs2_prepare_truncate(struct ocfs2_super *osb,
-			   struct inode *inode,
-			   struct buffer_head *fe_bh,
-			   struct ocfs2_truncate_context **tc)
-{
-	int status;
-	unsigned int new_i_clusters;
-	struct ocfs2_dinode *fe;
-	struct ocfs2_extent_block *eb;
-	struct buffer_head *last_eb_bh = NULL;
-
-	mlog_entry_void();
-
-	*tc = NULL;
-
-	new_i_clusters = ocfs2_clusters_for_bytes(osb->sb,
-						  i_size_read(inode));
-	fe = (struct ocfs2_dinode *) fe_bh->b_data;
-
-	mlog(0, "fe->i_clusters = %u, new_i_clusters = %u, fe->i_size ="
-	     "%llu\n", le32_to_cpu(fe->i_clusters), new_i_clusters,
-	     (unsigned long long)le64_to_cpu(fe->i_size));
-
-	*tc = kzalloc(sizeof(struct ocfs2_truncate_context), GFP_KERNEL);
-	if (!(*tc)) {
-		status = -ENOMEM;
-		mlog_errno(status);
-		goto bail;
-	}
-	ocfs2_init_dealloc_ctxt(&(*tc)->tc_dealloc);
-
-	if (fe->id2.i_list.l_tree_depth) {
-		status = ocfs2_read_extent_block(INODE_CACHE(inode),
-						 le64_to_cpu(fe->i_last_eb_blk),
-						 &last_eb_bh);
-		if (status < 0) {
-			mlog_errno(status);
-			goto bail;
-		}
-		eb = (struct ocfs2_extent_block *) last_eb_bh->b_data;
-	}
-
-	(*tc)->tc_last_eb_bh = last_eb_bh;
-
-	status = 0;
-bail:
-	if (status < 0) {
-		if (*tc)
-			ocfs2_free_truncate_context(*tc);
-		*tc = NULL;
-	}
-	mlog_exit_void();
-	return status;
-}
-
-/*
  * 'start' is inclusive, 'end' is not.
  */
 int ocfs2_truncate_inline(struct inode *inode, struct buffer_head *di_bh,
@@ -7269,19 +7213,4 @@ out_commit:
 
 out:
 	return ret;
-}
-
-static void ocfs2_free_truncate_context(struct ocfs2_truncate_context *tc)
-{
-	/*
-	 * The caller is responsible for completing deallocation
-	 * before freeing the context.
-	 */
-	if (tc->tc_dealloc.c_first_suballocator != NULL)
-		mlog(ML_NOTICE,
-		     "Truncate completion has non-empty dealloc context\n");
-
-	brelse(tc->tc_last_eb_bh);
-
-	kfree(tc);
 }

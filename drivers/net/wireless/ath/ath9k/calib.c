@@ -97,12 +97,12 @@ static void ath9k_hw_update_nfcal_hist_buffer(struct ath_hw *ah,
 		if (h[i].privNF > limit->max) {
 			high_nf_mid = true;
 
-			ath_print(common, ATH_DBG_CALIBRATE,
-				  "NFmid[%d] (%d) > MAX (%d), %s\n",
-				  i, h[i].privNF, limit->max,
-				  (cal->nfcal_interference ?
-				   "not corrected (due to interference)" :
-				   "correcting to MAX"));
+			ath_dbg(common, ATH_DBG_CALIBRATE,
+				"NFmid[%d] (%d) > MAX (%d), %s\n",
+				i, h[i].privNF, limit->max,
+				(cal->nfcal_interference ?
+				 "not corrected (due to interference)" :
+				 "correcting to MAX"));
 
 			/*
 			 * Normally we limit the average noise floor by the
@@ -180,18 +180,18 @@ bool ath9k_hw_reset_calvalid(struct ath_hw *ah)
 		return true;
 
 	if (currCal->calState != CAL_DONE) {
-		ath_print(common, ATH_DBG_CALIBRATE,
-			  "Calibration state incorrect, %d\n",
-			  currCal->calState);
+		ath_dbg(common, ATH_DBG_CALIBRATE,
+			"Calibration state incorrect, %d\n",
+			currCal->calState);
 		return true;
 	}
 
 	if (!(ah->supp_cals & currCal->calData->calType))
 		return true;
 
-	ath_print(common, ATH_DBG_CALIBRATE,
-		  "Resetting Cal %d state for channel %u\n",
-		  currCal->calData->calType, conf->channel->center_freq);
+	ath_dbg(common, ATH_DBG_CALIBRATE,
+		"Resetting Cal %d state for channel %u\n",
+		currCal->calData->calType, conf->channel->center_freq);
 
 	ah->caldata->CalValid &= ~currCal->calData->calType;
 	currCal->calState = CAL_WAITING;
@@ -279,9 +279,9 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	 * noisefloor until the next calibration timer.
 	 */
 	if (j == 1000) {
-		ath_print(common, ATH_DBG_ANY, "Timeout while waiting for nf "
-			  "to load: AR_PHY_AGC_CONTROL=0x%x\n",
-			  REG_READ(ah, AR_PHY_AGC_CONTROL));
+		ath_dbg(common, ATH_DBG_ANY,
+			"Timeout while waiting for nf to load: AR_PHY_AGC_CONTROL=0x%x\n",
+			REG_READ(ah, AR_PHY_AGC_CONTROL));
 		return;
 	}
 
@@ -318,19 +318,19 @@ static void ath9k_hw_nf_sanitize(struct ath_hw *ah, s16 *nf)
 		if (!nf[i])
 			continue;
 
-		ath_print(common, ATH_DBG_CALIBRATE,
-			  "NF calibrated [%s] [chain %d] is %d\n",
-			  (i >= 3 ? "ext" : "ctl"), i % 3, nf[i]);
+		ath_dbg(common, ATH_DBG_CALIBRATE,
+			"NF calibrated [%s] [chain %d] is %d\n",
+			(i >= 3 ? "ext" : "ctl"), i % 3, nf[i]);
 
 		if (nf[i] > ATH9K_NF_TOO_HIGH) {
-			ath_print(common, ATH_DBG_CALIBRATE,
-				  "NF[%d] (%d) > MAX (%d), correcting to MAX",
-				  i, nf[i], ATH9K_NF_TOO_HIGH);
+			ath_dbg(common, ATH_DBG_CALIBRATE,
+				"NF[%d] (%d) > MAX (%d), correcting to MAX\n",
+				i, nf[i], ATH9K_NF_TOO_HIGH);
 			nf[i] = limit->max;
 		} else if (nf[i] < limit->min) {
-			ath_print(common, ATH_DBG_CALIBRATE,
-				  "NF[%d] (%d) < MIN (%d), correcting to NOM",
-				  i, nf[i], limit->min);
+			ath_dbg(common, ATH_DBG_CALIBRATE,
+				"NF[%d] (%d) < MIN (%d), correcting to NOM\n",
+				i, nf[i], limit->min);
 			nf[i] = limit->nominal;
 		}
 	}
@@ -347,8 +347,8 @@ bool ath9k_hw_getnf(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	chan->channelFlags &= (~CHANNEL_CW_INT);
 	if (REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF) {
-		ath_print(common, ATH_DBG_CALIBRATE,
-			  "NF did not complete in calibration window\n");
+		ath_dbg(common, ATH_DBG_CALIBRATE,
+			"NF did not complete in calibration window\n");
 		return false;
 	}
 
@@ -357,10 +357,9 @@ bool ath9k_hw_getnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	nf = nfarray[0];
 	if (ath9k_hw_get_nf_thresh(ah, c->band, &nfThresh)
 	    && nf > nfThresh) {
-		ath_print(common, ATH_DBG_CALIBRATE,
-			  "noise floor failed detected; "
-			  "detected %d, threshold %d\n",
-			  nf, nfThresh);
+		ath_dbg(common, ATH_DBG_CALIBRATE,
+			"noise floor failed detected; detected %d, threshold %d\n",
+			nf, nfThresh);
 		chan->channelFlags |= CHANNEL_CW_INT;
 	}
 

@@ -25,6 +25,8 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
+#include <linux/interrupt.h>
+#include <linux/pm_runtime.h>
 #include <linux/mutex.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/max8998.h>
@@ -37,6 +39,14 @@ static struct mfd_cell max8998_devs[] = {
 		.name = "max8998-pmic",
 	}, {
 		.name = "max8998-rtc",
+	},
+};
+
+static struct mfd_cell lp3974_devs[] = {
+	{
+		.name = "lp3974-pmic",
+	}, {
+		.name = "lp3974-rtc",
 	},
 };
 
@@ -135,6 +145,7 @@ static int max8998_i2c_probe(struct i2c_client *i2c,
 	if (pdata) {
 		max8998->ono = pdata->ono;
 		max8998->irq_base = pdata->irq_base;
+		max8998->wakeup = pdata->wakeup;
 	}
 	mutex_init(&max8998->iolock);
 
@@ -143,9 +154,23 @@ static int max8998_i2c_probe(struct i2c_client *i2c,
 
 	max8998_irq_init(max8998);
 
-	ret = mfd_add_devices(max8998->dev, -1,
-			      max8998_devs, ARRAY_SIZE(max8998_devs),
-			      NULL, 0);
+	pm_runtime_set_active(max8998->dev);
+
+	switch (id->driver_data) {
+	case TYPE_LP3974:
+		ret = mfd_add_devices(max8998->dev, -1,
+				lp3974_devs, ARRAY_SIZE(lp3974_devs),
+				NULL, 0);
+		break;
+	case TYPE_MAX8998:
+		ret = mfd_add_devices(max8998->dev, -1,
+				max8998_devs, ARRAY_SIZE(max8998_devs),
+				NULL, 0);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
 	if (ret < 0)
 		goto err;
 
@@ -178,10 +203,113 @@ static const struct i2c_device_id max8998_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, max8998_i2c_id);
 
+static int max8998_suspend(struct device *dev)
+{
+	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
+
+	if (max8998->wakeup)
+		set_irq_wake(max8998->irq, 1);
+	return 0;
+}
+
+static int max8998_resume(struct device *dev)
+{
+	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
+
+	if (max8998->wakeup)
+		set_irq_wake(max8998->irq, 0);
+	/*
+	 * In LP3974, if IRQ registers are not "read & clear"
+	 * when it's set during sleep, the interrupt becomes
+	 * disabled.
+	 */
+	return max8998_irq_resume(i2c_get_clientdata(i2c));
+}
+
+struct max8998_reg_dump {
+	u8	addr;
+	u8	val;
+};
+#define SAVE_ITEM(x)	{ .addr = (x), .val = 0x0, }
+struct max8998_reg_dump max8998_dump[] = {
+	SAVE_ITEM(MAX8998_REG_IRQM1),
+	SAVE_ITEM(MAX8998_REG_IRQM2),
+	SAVE_ITEM(MAX8998_REG_IRQM3),
+	SAVE_ITEM(MAX8998_REG_IRQM4),
+	SAVE_ITEM(MAX8998_REG_STATUSM1),
+	SAVE_ITEM(MAX8998_REG_STATUSM2),
+	SAVE_ITEM(MAX8998_REG_CHGR1),
+	SAVE_ITEM(MAX8998_REG_CHGR2),
+	SAVE_ITEM(MAX8998_REG_LDO_ACTIVE_DISCHARGE1),
+	SAVE_ITEM(MAX8998_REG_LDO_ACTIVE_DISCHARGE1),
+	SAVE_ITEM(MAX8998_REG_BUCK_ACTIVE_DISCHARGE3),
+	SAVE_ITEM(MAX8998_REG_ONOFF1),
+	SAVE_ITEM(MAX8998_REG_ONOFF2),
+	SAVE_ITEM(MAX8998_REG_ONOFF3),
+	SAVE_ITEM(MAX8998_REG_ONOFF4),
+	SAVE_ITEM(MAX8998_REG_BUCK1_VOLTAGE1),
+	SAVE_ITEM(MAX8998_REG_BUCK1_VOLTAGE2),
+	SAVE_ITEM(MAX8998_REG_BUCK1_VOLTAGE3),
+	SAVE_ITEM(MAX8998_REG_BUCK1_VOLTAGE4),
+	SAVE_ITEM(MAX8998_REG_BUCK2_VOLTAGE1),
+	SAVE_ITEM(MAX8998_REG_BUCK2_VOLTAGE2),
+	SAVE_ITEM(MAX8998_REG_LDO2_LDO3),
+	SAVE_ITEM(MAX8998_REG_LDO4),
+	SAVE_ITEM(MAX8998_REG_LDO5),
+	SAVE_ITEM(MAX8998_REG_LDO6),
+	SAVE_ITEM(MAX8998_REG_LDO7),
+	SAVE_ITEM(MAX8998_REG_LDO8_LDO9),
+	SAVE_ITEM(MAX8998_REG_LDO10_LDO11),
+	SAVE_ITEM(MAX8998_REG_LDO12),
+	SAVE_ITEM(MAX8998_REG_LDO13),
+	SAVE_ITEM(MAX8998_REG_LDO14),
+	SAVE_ITEM(MAX8998_REG_LDO15),
+	SAVE_ITEM(MAX8998_REG_LDO16),
+	SAVE_ITEM(MAX8998_REG_LDO17),
+	SAVE_ITEM(MAX8998_REG_BKCHR),
+	SAVE_ITEM(MAX8998_REG_LBCNFG1),
+	SAVE_ITEM(MAX8998_REG_LBCNFG2),
+};
+/* Save registers before hibernation */
+static int max8998_freeze(struct device *dev)
+{
+	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(max8998_dump); i++)
+		max8998_read_reg(i2c, max8998_dump[i].addr,
+				&max8998_dump[i].val);
+
+	return 0;
+}
+
+/* Restore registers after hibernation */
+static int max8998_restore(struct device *dev)
+{
+	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(max8998_dump); i++)
+		max8998_write_reg(i2c, max8998_dump[i].addr,
+				max8998_dump[i].val);
+
+	return 0;
+}
+
+const struct dev_pm_ops max8998_pm = {
+	.suspend = max8998_suspend,
+	.resume = max8998_resume,
+	.freeze = max8998_freeze,
+	.restore = max8998_restore,
+};
+
 static struct i2c_driver max8998_i2c_driver = {
 	.driver = {
 		   .name = "max8998",
 		   .owner = THIS_MODULE,
+		   .pm = &max8998_pm,
 	},
 	.probe = max8998_i2c_probe,
 	.remove = max8998_i2c_remove,

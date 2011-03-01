@@ -19,6 +19,7 @@
 #include <asm/prom.h>
 #include <asm/firmware.h>
 #include <asm/uaccess.h>
+#include <asm/rtas.h>
 
 #ifdef DEBUG
 #include <asm/udbg.h>
@@ -141,3 +142,35 @@ ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
 
 	return csize;
 }
+
+#ifdef CONFIG_PPC_RTAS
+/*
+ * The crashkernel region will almost always overlap the RTAS region, so
+ * we have to be careful when shrinking the crashkernel region.
+ */
+void crash_free_reserved_phys_range(unsigned long begin, unsigned long end)
+{
+	unsigned long addr;
+	const u32 *basep, *sizep;
+	unsigned int rtas_start = 0, rtas_end = 0;
+
+	basep = of_get_property(rtas.dev, "linux,rtas-base", NULL);
+	sizep = of_get_property(rtas.dev, "rtas-size", NULL);
+
+	if (basep && sizep) {
+		rtas_start = *basep;
+		rtas_end = *basep + *sizep;
+	}
+
+	for (addr = begin; addr < end; addr += PAGE_SIZE) {
+		/* Does this page overlap with the RTAS region? */
+		if (addr <= rtas_end && ((addr + PAGE_SIZE) > rtas_start))
+			continue;
+
+		ClearPageReserved(pfn_to_page(addr >> PAGE_SHIFT));
+		init_page_count(pfn_to_page(addr >> PAGE_SHIFT));
+		free_page((unsigned long)__va(addr));
+		totalram_pages++;
+	}
+}
+#endif

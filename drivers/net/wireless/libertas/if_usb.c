@@ -345,6 +345,13 @@ static int if_usb_probe(struct usb_interface *intf,
 	if (device_create_file(&priv->dev->dev, &dev_attr_lbs_flash_boot2))
 		lbs_pr_err("cannot register lbs_flash_boot2 attribute\n");
 
+	/*
+	 * EHS_REMOVE_WAKEUP is not supported on all versions of the firmware.
+	 */
+	priv->wol_criteria = EHS_REMOVE_WAKEUP;
+	if (lbs_host_sleep_cfg(priv, priv->wol_criteria, NULL))
+		priv->ehs_remove_supported = false;
+
 	return 0;
 
 err_start_card:
@@ -1089,12 +1096,6 @@ static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 
 	if (priv->psstate != PS_STATE_FULL_POWER)
 		return -1;
-
-	if (priv->wol_criteria == EHS_REMOVE_WAKEUP) {
-		lbs_pr_info("Suspend attempt without "
-						"configuring wake params!\n");
-		return -ENOSYS;
-	}
 
 	ret = lbs_suspend(priv);
 	if (ret)

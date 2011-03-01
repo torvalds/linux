@@ -498,6 +498,7 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 	vha->flags.reset_active = 0;
 	ha->flags.pci_channel_io_perm_failure = 0;
 	ha->flags.eeh_busy = 0;
+	ha->flags.thermal_supported = 1;
 	atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
 	atomic_set(&vha->loop_state, LOOP_DOWN);
 	vha->device_flags = DFLG_NO_CABLE;
@@ -2023,6 +2024,7 @@ qla2x00_configure_hba(scsi_qla_host_t *vha)
 	    &loop_id, &al_pa, &area, &domain, &topo, &sw_cap);
 	if (rval != QLA_SUCCESS) {
 		if (LOOP_TRANSITION(vha) || atomic_read(&ha->loop_down_timer) ||
+		    IS_QLA8XXX_TYPE(ha) ||
 		    (rval == QLA_COMMAND_ERROR && loop_id == 0x7)) {
 			DEBUG2(printk("%s(%ld) Loop is in a transition state\n",
 			    __func__, vha->host_no));
@@ -2503,11 +2505,12 @@ qla2x00_rport_del(void *data)
 {
 	fc_port_t *fcport = data;
 	struct fc_rport *rport;
+	unsigned long flags;
 
-	spin_lock_irq(fcport->vha->host->host_lock);
+	spin_lock_irqsave(fcport->vha->host->host_lock, flags);
 	rport = fcport->drport ? fcport->drport: fcport->rport;
 	fcport->drport = NULL;
-	spin_unlock_irq(fcport->vha->host->host_lock);
+	spin_unlock_irqrestore(fcport->vha->host->host_lock, flags);
 	if (rport)
 		fc_remote_port_delete(rport);
 }
@@ -2877,6 +2880,7 @@ qla2x00_reg_remote_port(scsi_qla_host_t *vha, fc_port_t *fcport)
 	struct fc_rport_identifiers rport_ids;
 	struct fc_rport *rport;
 	struct qla_hw_data *ha = vha->hw;
+	unsigned long flags;
 
 	qla2x00_rport_del(fcport);
 
@@ -2891,9 +2895,9 @@ qla2x00_reg_remote_port(scsi_qla_host_t *vha, fc_port_t *fcport)
 		    "Unable to allocate fc remote port!\n");
 		return;
 	}
-	spin_lock_irq(fcport->vha->host->host_lock);
+	spin_lock_irqsave(fcport->vha->host->host_lock, flags);
 	*((fc_port_t **)rport->dd_data) = fcport;
-	spin_unlock_irq(fcport->vha->host->host_lock);
+	spin_unlock_irqrestore(fcport->vha->host->host_lock, flags);
 
 	rport->supported_classes = fcport->supported_classes;
 
@@ -2928,6 +2932,7 @@ qla2x00_update_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 	fcport->flags &= ~(FCF_LOGIN_NEEDED | FCF_ASYNC_SENT);
 
 	qla2x00_iidma_fcport(vha, fcport);
+	qla24xx_update_fcport_fcp_prio(vha, fcport);
 	qla2x00_reg_remote_port(vha, fcport);
 	atomic_set(&fcport->state, FCS_ONLINE);
 }
@@ -3844,6 +3849,37 @@ qla2x00_loop_resync(scsi_qla_host_t *vha)
 	return (rval);
 }
 
+/*
+* qla2x00_perform_loop_resync
+* Description: This function will set the appropriate flags and call
+*              qla2x00_loop_resync. If successful loop will be resynced
+* Arguments : scsi_qla_host_t pointer
+* returm    : Success or Failure
+*/
+
+int qla2x00_perform_loop_resync(scsi_qla_host_t *ha)
+{
+	int32_t rval = 0;
+
+	if (!test_and_set_bit(LOOP_RESYNC_ACTIVE, &ha->dpc_flags)) {
+		/*Configure the flags so that resync happens properly*/
+		atomic_set(&ha->loop_down_timer, 0);
+		if (!(ha->device_flags & DFLG_NO_CABLE)) {
+			atomic_set(&ha->loop_state, LOOP_UP);
+			set_bit(LOCAL_LOOP_UPDATE, &ha->dpc_flags);
+			set_bit(REGISTER_FC4_NEEDED, &ha->dpc_flags);
+			set_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags);
+
+			rval = qla2x00_loop_resync(ha);
+		} else
+			atomic_set(&ha->loop_state, LOOP_DEAD);
+
+		clear_bit(LOOP_RESYNC_ACTIVE, &ha->dpc_flags);
+	}
+
+	return rval;
+}
+
 void
 qla2x00_update_fcports(scsi_qla_host_t *base_vha)
 {
@@ -3857,7 +3893,7 @@ qla2x00_update_fcports(scsi_qla_host_t *base_vha)
 	list_for_each_entry(vha, &base_vha->hw->vp_list, list) {
 		atomic_inc(&vha->vref_count);
 		list_for_each_entry(fcport, &vha->vp_fcports, list) {
-			if (fcport && fcport->drport &&
+			if (fcport->drport &&
 			    atomic_read(&fcport->state) != FCS_UNCONFIGURED) {
 				spin_unlock_irqrestore(&ha->vport_slock, flags);
 
@@ -3871,11 +3907,43 @@ qla2x00_update_fcports(scsi_qla_host_t *base_vha)
 	spin_unlock_irqrestore(&ha->vport_slock, flags);
 }
 
+/*
+* qla82xx_quiescent_state_cleanup
+* Description: This function will block the new I/Os
+*              Its not aborting any I/Os as context
+*              is not destroyed during quiescence
+* Arguments: scsi_qla_host_t
+* return   : void
+*/
+void
+qla82xx_quiescent_state_cleanup(scsi_qla_host_t *vha)
+{
+	struct qla_hw_data *ha = vha->hw;
+	struct scsi_qla_host *vp;
+
+	qla_printk(KERN_INFO, ha,
+			"Performing ISP error recovery - ha= %p.\n", ha);
+
+	atomic_set(&ha->loop_down_timer, LOOP_DOWN_TIME);
+	if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
+		atomic_set(&vha->loop_state, LOOP_DOWN);
+		qla2x00_mark_all_devices_lost(vha, 0);
+		list_for_each_entry(vp, &ha->vp_list, list)
+			qla2x00_mark_all_devices_lost(vha, 0);
+	} else {
+		if (!atomic_read(&vha->loop_down_timer))
+			atomic_set(&vha->loop_down_timer,
+					LOOP_DOWN_TIME);
+	}
+	/* Wait for pending cmds to complete */
+	qla2x00_eh_wait_for_pending_commands(vha, 0, 0, WAIT_HOST);
+}
+
 void
 qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
-	struct scsi_qla_host *vp, *base_vha = pci_get_drvdata(ha->pdev);
+	struct scsi_qla_host *vp;
 	unsigned long flags;
 
 	vha->flags.online = 0;
@@ -3896,7 +3964,7 @@ qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 		qla2x00_mark_all_devices_lost(vha, 0);
 
 		spin_lock_irqsave(&ha->vport_slock, flags);
-		list_for_each_entry(vp, &base_vha->hw->vp_list, list) {
+		list_for_each_entry(vp, &ha->vp_list, list) {
 			atomic_inc(&vp->vref_count);
 			spin_unlock_irqrestore(&ha->vport_slock, flags);
 
@@ -5410,7 +5478,7 @@ qla81xx_update_fw_options(scsi_qla_host_t *vha)
  *	the tag (priority) value is returned.
  *
  * Input:
- *	ha = adapter block po
+ *	vha = scsi host structure pointer.
  *	fcport = port structure pointer.
  *
  * Return:
@@ -5504,7 +5572,7 @@ qla24xx_get_fcp_prio(scsi_qla_host_t *vha, fc_port_t *fcport)
  *	Activates fcp priority for the logged in fc port
  *
  * Input:
- *	ha = adapter block pointer.
+ *	vha = scsi host structure pointer.
  *	fcp = port structure pointer.
  *
  * Return:
@@ -5514,25 +5582,24 @@ qla24xx_get_fcp_prio(scsi_qla_host_t *vha, fc_port_t *fcport)
  *	Kernel context.
  */
 int
-qla24xx_update_fcport_fcp_prio(scsi_qla_host_t *ha, fc_port_t *fcport)
+qla24xx_update_fcport_fcp_prio(scsi_qla_host_t *vha, fc_port_t *fcport)
 {
 	int ret;
 	uint8_t priority;
 	uint16_t mb[5];
 
-	if (atomic_read(&fcport->state) == FCS_UNCONFIGURED ||
-		fcport->port_type != FCT_TARGET ||
-		fcport->loop_id == FC_NO_LOOP_ID)
+	if (fcport->port_type != FCT_TARGET ||
+	    fcport->loop_id == FC_NO_LOOP_ID)
 		return QLA_FUNCTION_FAILED;
 
-	priority = qla24xx_get_fcp_prio(ha, fcport);
-	ret = qla24xx_set_fcp_prio(ha, fcport->loop_id, priority, mb);
+	priority = qla24xx_get_fcp_prio(vha, fcport);
+	ret = qla24xx_set_fcp_prio(vha, fcport->loop_id, priority, mb);
 	if (ret == QLA_SUCCESS)
 		fcport->fcp_prio = priority;
 	else
 		DEBUG2(printk(KERN_WARNING
 			"scsi(%ld): Unable to activate fcp priority, "
-			" ret=0x%x\n", ha->host_no, ret));
+			" ret=0x%x\n", vha->host_no, ret));
 
 	return  ret;
 }

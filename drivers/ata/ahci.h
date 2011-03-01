@@ -311,6 +311,8 @@ extern struct device_attribute *ahci_sdev_attrs[];
 
 extern struct ata_port_operations ahci_ops;
 
+void ahci_fill_cmd_slot(struct ahci_port_priv *pp, unsigned int tag,
+			u32 opts);
 void ahci_save_initial_config(struct device *dev,
 			      struct ahci_host_priv *hpriv,
 			      unsigned int force_port_map,
@@ -326,6 +328,7 @@ int ahci_stop_engine(struct ata_port *ap);
 void ahci_start_engine(struct ata_port *ap);
 int ahci_check_ready(struct ata_link *link);
 int ahci_kick_engine(struct ata_port *ap);
+int ahci_port_resume(struct ata_port *ap);
 void ahci_set_em_messages(struct ahci_host_priv *hpriv,
 			  struct ata_port_info *pi);
 int ahci_reset_em(struct ata_host *host);

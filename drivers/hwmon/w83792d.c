@@ -691,11 +691,21 @@ store_pwm_mode(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
-show_regs_chassis(struct device *dev, struct device_attribute *attr,
+show_chassis(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
 	struct w83792d_data *data = w83792d_update_device(dev);
 	return sprintf(buf, "%d\n", data->chassis);
+}
+
+static ssize_t
+show_regs_chassis(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	dev_warn(dev,
+		 "Attribute %s is deprecated, use intrusion0_alarm instead\n",
+		 "chassis");
+	return show_chassis(dev, attr, buf);
 }
 
 static ssize_t
@@ -706,13 +716,17 @@ show_chassis_clear(struct device *dev, struct device_attribute *attr, char *buf)
 }
 
 static ssize_t
-store_chassis_clear(struct device *dev, struct device_attribute *attr,
+store_chassis_clear_legacy(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct w83792d_data *data = i2c_get_clientdata(client);
 	u32 val;
 	u8 temp1 = 0, temp2 = 0;
+
+	dev_warn(dev,
+		 "Attribute %s is deprecated, use intrusion0_alarm instead\n",
+		 "chassis_clear");
 
 	val = simple_strtoul(buf, NULL, 10);
 	mutex_lock(&data->update_lock);
@@ -721,6 +735,27 @@ store_chassis_clear(struct device *dev, struct device_attribute *attr,
 	temp2 = w83792d_read_value(client,
 		W83792D_REG_CHASSIS_CLR) & 0x7f;
 	w83792d_write_value(client, W83792D_REG_CHASSIS_CLR, temp1 | temp2);
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+static ssize_t
+store_chassis_clear(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct w83792d_data *data = i2c_get_clientdata(client);
+	unsigned long val;
+	u8 reg;
+
+	if (strict_strtoul(buf, 10, &val) || val != 0)
+		return -EINVAL;
+
+	mutex_lock(&data->update_lock);
+	reg = w83792d_read_value(client, W83792D_REG_CHASSIS_CLR);
+	w83792d_write_value(client, W83792D_REG_CHASSIS_CLR, reg | 0x80);
+	data->valid = 0;		/* Force cache refresh */
 	mutex_unlock(&data->update_lock);
 
 	return count;
@@ -1012,7 +1047,9 @@ static SENSOR_DEVICE_ATTR(fan5_alarm, S_IRUGO, show_alarm, NULL, 22);
 static SENSOR_DEVICE_ATTR(fan6_alarm, S_IRUGO, show_alarm, NULL, 23);
 static DEVICE_ATTR(chassis, S_IRUGO, show_regs_chassis, NULL);
 static DEVICE_ATTR(chassis_clear, S_IRUGO | S_IWUSR,
-			show_chassis_clear, store_chassis_clear);
+			show_chassis_clear, store_chassis_clear_legacy);
+static DEVICE_ATTR(intrusion0_alarm, S_IRUGO | S_IWUSR,
+			show_chassis, store_chassis_clear);
 static SENSOR_DEVICE_ATTR(pwm1, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 0);
 static SENSOR_DEVICE_ATTR(pwm2, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 1);
 static SENSOR_DEVICE_ATTR(pwm3, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 2);
@@ -1214,6 +1251,7 @@ static struct attribute *w83792d_attributes[] = {
 	&dev_attr_alarms.attr,
 	&dev_attr_chassis.attr,
 	&dev_attr_chassis_clear.attr,
+	&dev_attr_intrusion0_alarm.attr,
 	&sensor_dev_attr_tolerance1.dev_attr.attr,
 	&sensor_dev_attr_thermal_cruise1.dev_attr.attr,
 	&sensor_dev_attr_tolerance2.dev_attr.attr,

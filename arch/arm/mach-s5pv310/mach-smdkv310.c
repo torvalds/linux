@@ -14,18 +14,21 @@
 #include <linux/platform_device.h>
 #include <linux/smsc911x.h>
 #include <linux/io.h>
+#include <linux/i2c.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
 #include <plat/regs-serial.h>
+#include <plat/regs-srom.h>
 #include <plat/s5pv310.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/sdhci.h>
+#include <plat/iic.h>
+#include <plat/pd.h>
 
 #include <mach/map.h>
-#include <mach/regs-srom.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define SMDKV310_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -139,13 +142,29 @@ static struct platform_device smdkv310_smsc911x = {
 	},
 };
 
+static struct i2c_board_info i2c_devs1[] __initdata = {
+	{I2C_BOARD_INFO("wm8994", 0x1a),},
+};
+
 static struct platform_device *smdkv310_devices[] __initdata = {
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc1,
 	&s3c_device_hsmmc2,
 	&s3c_device_hsmmc3,
+	&s3c_device_i2c1,
 	&s3c_device_rtc,
 	&s3c_device_wdt,
+	&s5pv310_device_ac97,
+	&s5pv310_device_i2s0,
+	&s5pv310_device_pd[PD_MFC],
+	&s5pv310_device_pd[PD_G3D],
+	&s5pv310_device_pd[PD_LCD0],
+	&s5pv310_device_pd[PD_LCD1],
+	&s5pv310_device_pd[PD_CAM],
+	&s5pv310_device_pd[PD_TV],
+	&s5pv310_device_pd[PD_GPS],
+	&s5pv310_device_sysmmu,
+	&samsung_asoc_dma,
 	&smdkv310_smsc911x,
 };
 
@@ -154,23 +173,22 @@ static void __init smdkv310_smsc911x_init(void)
 	u32 cs1;
 
 	/* configure nCS1 width to 16 bits */
-	cs1 = __raw_readl(S5PV310_SROM_BW) &
-		    ~(S5PV310_SROM_BW__CS_MASK <<
-				    S5PV310_SROM_BW__NCS1__SHIFT);
-	cs1 |= ((1 << S5PV310_SROM_BW__DATAWIDTH__SHIFT) |
-		(1 << S5PV310_SROM_BW__WAITENABLE__SHIFT) |
-		(1 << S5PV310_SROM_BW__BYTEENABLE__SHIFT)) <<
-		S5PV310_SROM_BW__NCS1__SHIFT;
-	__raw_writel(cs1, S5PV310_SROM_BW);
+	cs1 = __raw_readl(S5P_SROM_BW) &
+		~(S5P_SROM_BW__CS_MASK << S5P_SROM_BW__NCS1__SHIFT);
+	cs1 |= ((1 << S5P_SROM_BW__DATAWIDTH__SHIFT) |
+		(1 << S5P_SROM_BW__WAITENABLE__SHIFT) |
+		(1 << S5P_SROM_BW__BYTEENABLE__SHIFT)) <<
+		S5P_SROM_BW__NCS1__SHIFT;
+	__raw_writel(cs1, S5P_SROM_BW);
 
 	/* set timing for nCS1 suitable for ethernet chip */
-	__raw_writel((0x1 << S5PV310_SROM_BCX__PMC__SHIFT) |
-		     (0x9 << S5PV310_SROM_BCX__TACP__SHIFT) |
-		     (0xc << S5PV310_SROM_BCX__TCAH__SHIFT) |
-		     (0x1 << S5PV310_SROM_BCX__TCOH__SHIFT) |
-		     (0x6 << S5PV310_SROM_BCX__TACC__SHIFT) |
-		     (0x1 << S5PV310_SROM_BCX__TCOS__SHIFT) |
-		     (0x1 << S5PV310_SROM_BCX__TACS__SHIFT), S5PV310_SROM_BC1);
+	__raw_writel((0x1 << S5P_SROM_BCX__PMC__SHIFT) |
+		     (0x9 << S5P_SROM_BCX__TACP__SHIFT) |
+		     (0xc << S5P_SROM_BCX__TCAH__SHIFT) |
+		     (0x1 << S5P_SROM_BCX__TCOH__SHIFT) |
+		     (0x6 << S5P_SROM_BCX__TACC__SHIFT) |
+		     (0x1 << S5P_SROM_BCX__TCOS__SHIFT) |
+		     (0x1 << S5P_SROM_BCX__TACS__SHIFT), S5P_SROM_BC1);
 }
 
 static void __init smdkv310_map_io(void)
@@ -182,6 +200,9 @@ static void __init smdkv310_map_io(void)
 
 static void __init smdkv310_machine_init(void)
 {
+	s3c_i2c1_set_platdata(NULL);
+	i2c_register_board_info(1, i2c_devs1, ARRAY_SIZE(i2c_devs1));
+
 	smdkv310_smsc911x_init();
 
 	s3c_sdhci0_set_platdata(&smdkv310_hsmmc0_pdata);

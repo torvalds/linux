@@ -88,10 +88,11 @@ static ssize_t edac_inject_bank_store(struct kobject *kobj,
 		return -EINVAL;
 	}
 
-	if (value > 5) {
-		printk(KERN_ERR "Non-existant MCE bank: %lu\n", value);
-		return -EINVAL;
-	}
+	if (value > 5)
+		if (boot_cpu_data.x86 != 0x15 || value > 6) {
+			printk(KERN_ERR "Non-existant MCE bank: %lu\n", value);
+			return -EINVAL;
+		}
 
 	i_mce.bank = value;
 

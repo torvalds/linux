@@ -127,11 +127,19 @@ struct execute_work {
 	.timer = TIMER_INITIALIZER(NULL, 0, 0),			\
 	}
 
+#define __DEFERRED_WORK_INITIALIZER(n, f) {			\
+	.work = __WORK_INITIALIZER((n).work, (f)),		\
+	.timer = TIMER_DEFERRED_INITIALIZER(NULL, 0, 0),	\
+	}
+
 #define DECLARE_WORK(n, f)					\
 	struct work_struct n = __WORK_INITIALIZER(n, f)
 
 #define DECLARE_DELAYED_WORK(n, f)				\
 	struct delayed_work n = __DELAYED_WORK_INITIALIZER(n, f)
+
+#define DECLARE_DEFERRED_WORK(n, f)				\
+	struct delayed_work n = __DEFERRED_WORK_INITIALIZER(n, f)
 
 /*
  * initialize a work item's function pointer
@@ -242,7 +250,7 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 enum {
 	WQ_NON_REENTRANT	= 1 << 0, /* guarantee non-reentrance */
 	WQ_UNBOUND		= 1 << 1, /* not bound to any cpu */
-	WQ_FREEZEABLE		= 1 << 2, /* freeze during suspend */
+	WQ_FREEZABLE		= 1 << 2, /* freeze during suspend */
 	WQ_MEM_RECLAIM		= 1 << 3, /* may be used for memory reclaim */
 	WQ_HIGHPRI		= 1 << 4, /* high priority */
 	WQ_CPU_INTENSIVE	= 1 << 5, /* cpu instensive workqueue */
@@ -310,7 +318,7 @@ __alloc_workqueue_key(const char *name, unsigned int flags, int max_active,
 /**
  * alloc_ordered_workqueue - allocate an ordered workqueue
  * @name: name of the workqueue
- * @flags: WQ_* flags (only WQ_FREEZEABLE and WQ_MEM_RECLAIM are meaningful)
+ * @flags: WQ_* flags (only WQ_FREEZABLE and WQ_MEM_RECLAIM are meaningful)
  *
  * Allocate an ordered workqueue.  An ordered workqueue executes at
  * most one work item at any given time in the queued order.  They are
@@ -327,8 +335,8 @@ alloc_ordered_workqueue(const char *name, unsigned int flags)
 
 #define create_workqueue(name)					\
 	alloc_workqueue((name), WQ_MEM_RECLAIM, 1)
-#define create_freezeable_workqueue(name)			\
-	alloc_workqueue((name), WQ_FREEZEABLE | WQ_UNBOUND | WQ_MEM_RECLAIM, 1)
+#define create_freezable_workqueue(name)			\
+	alloc_workqueue((name), WQ_FREEZABLE | WQ_UNBOUND | WQ_MEM_RECLAIM, 1)
 #define create_singlethread_workqueue(name)			\
 	alloc_workqueue((name), WQ_UNBOUND | WQ_MEM_RECLAIM, 1)
 
@@ -401,7 +409,7 @@ static inline bool __cancel_delayed_work(struct delayed_work *work)
 }
 
 /* Obsolete. use cancel_delayed_work_sync() */
-static inline
+static inline __deprecated
 void cancel_rearming_delayed_workqueue(struct workqueue_struct *wq,
 					struct delayed_work *work)
 {
@@ -409,7 +417,7 @@ void cancel_rearming_delayed_workqueue(struct workqueue_struct *wq,
 }
 
 /* Obsolete. use cancel_delayed_work_sync() */
-static inline
+static inline __deprecated
 void cancel_rearming_delayed_work(struct delayed_work *work)
 {
 	cancel_delayed_work_sync(work);

@@ -636,13 +636,13 @@ int hist_entry__snprintf(struct hist_entry *self, char *s, size_t size,
 			}
 		}
 	} else
-		ret = snprintf(s, size, sep ? "%lld" : "%12lld ", period);
+		ret = snprintf(s, size, sep ? "%" PRIu64 : "%12" PRIu64 " ", period);
 
 	if (symbol_conf.show_nr_samples) {
 		if (sep)
-			ret += snprintf(s + ret, size - ret, "%c%lld", *sep, period);
+			ret += snprintf(s + ret, size - ret, "%c%" PRIu64, *sep, period);
 		else
-			ret += snprintf(s + ret, size - ret, "%11lld", period);
+			ret += snprintf(s + ret, size - ret, "%11" PRIu64, period);
 	}
 
 	if (pair_hists) {
@@ -971,7 +971,7 @@ int hist_entry__inc_addr_samples(struct hist_entry *self, u64 ip)
 	sym_size = sym->end - sym->start;
 	offset = ip - sym->start;
 
-	pr_debug3("%s: ip=%#Lx\n", __func__, self->ms.map->unmap_ip(self->ms.map, ip));
+	pr_debug3("%s: ip=%#" PRIx64 "\n", __func__, self->ms.map->unmap_ip(self->ms.map, ip));
 
 	if (offset >= sym_size)
 		return 0;
@@ -980,8 +980,9 @@ int hist_entry__inc_addr_samples(struct hist_entry *self, u64 ip)
 	h->sum++;
 	h->ip[offset]++;
 
-	pr_debug3("%#Lx %s: period++ [ip: %#Lx, %#Lx] => %Ld\n", self->ms.sym->start,
-		  self->ms.sym->name, ip, ip - self->ms.sym->start, h->ip[offset]);
+	pr_debug3("%#" PRIx64 " %s: period++ [ip: %#" PRIx64 ", %#" PRIx64
+		  "] => %" PRIu64 "\n", self->ms.sym->start, self->ms.sym->name,
+		  ip, ip - self->ms.sym->start, h->ip[offset]);
 	return 0;
 }
 
@@ -1092,6 +1093,12 @@ int hist_entry__annotate(struct hist_entry *self, struct list_head *head,
 	FILE *file;
 	int err = 0;
 	u64 len;
+	char symfs_filename[PATH_MAX];
+
+	if (filename) {
+		snprintf(symfs_filename, sizeof(symfs_filename), "%s%s",
+			 symbol_conf.symfs, filename);
+	}
 
 	if (filename == NULL) {
 		if (dso->has_build_id) {
@@ -1100,9 +1107,9 @@ int hist_entry__annotate(struct hist_entry *self, struct list_head *head,
 			return -ENOMEM;
 		}
 		goto fallback;
-	} else if (readlink(filename, command, sizeof(command)) < 0 ||
+	} else if (readlink(symfs_filename, command, sizeof(command)) < 0 ||
 		   strstr(command, "[kernel.kallsyms]") ||
-		   access(filename, R_OK)) {
+		   access(symfs_filename, R_OK)) {
 		free(filename);
 fallback:
 		/*
@@ -1111,6 +1118,8 @@ fallback:
 		 * DSO is the same as when 'perf record' ran.
 		 */
 		filename = dso->long_name;
+		snprintf(symfs_filename, sizeof(symfs_filename), "%s%s",
+			 symbol_conf.symfs, filename);
 		free_filename = false;
 	}
 
@@ -1124,7 +1133,7 @@ fallback:
 		goto out_free_filename;
 	}
 
-	pr_debug("%s: filename=%s, sym=%s, start=%#Lx, end=%#Lx\n", __func__,
+	pr_debug("%s: filename=%s, sym=%s, start=%#" PRIx64 ", end=%#" PRIx64 "\n", __func__,
 		 filename, sym->name, map->unmap_ip(map, sym->start),
 		 map->unmap_ip(map, sym->end));
 
@@ -1134,10 +1143,10 @@ fallback:
 		 dso, dso->long_name, sym, sym->name);
 
 	snprintf(command, sizeof(command),
-		 "objdump --start-address=0x%016Lx --stop-address=0x%016Lx -dS -C %s|grep -v %s|expand",
+		 "objdump --start-address=0x%016" PRIx64 " --stop-address=0x%016" PRIx64 " -dS -C %s|grep -v %s|expand",
 		 map__rip_2objdump(map, sym->start),
 		 map__rip_2objdump(map, sym->end),
-		 filename, filename);
+		 symfs_filename, filename);
 
 	pr_debug("Executing: %s\n", command);
 
@@ -1168,10 +1177,13 @@ size_t hists__fprintf_nr_events(struct hists *self, FILE *fp)
 	size_t ret = 0;
 
 	for (i = 0; i < PERF_RECORD_HEADER_MAX; ++i) {
-		if (!event__name[i])
+		const char *name = event__get_event_name(i);
+
+		if (!strcmp(name, "UNKNOWN"))
 			continue;
-		ret += fprintf(fp, "%10s events: %10d\n",
-			       event__name[i], self->stats.nr_events[i]);
+
+		ret += fprintf(fp, "%16s events: %10d\n", name,
+			       self->stats.nr_events[i]);
 	}
 
 	return ret;

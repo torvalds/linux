@@ -194,15 +194,17 @@ extern unsigned long get_wchan(struct task_struct *p);
 #define KSTK_ESP(tsk)  (task_pt_regs(tsk)->regs[15])
 
 #if defined(CONFIG_CPU_SH2A) || defined(CONFIG_CPU_SH4)
+
 #define PREFETCH_STRIDE		L1_CACHE_BYTES
 #define ARCH_HAS_PREFETCH
 #define ARCH_HAS_PREFETCHW
-static inline void prefetch(void *x)
+
+static inline void prefetch(const void *x)
 {
 	__builtin_prefetch(x, 0, 3);
 }
 
-static inline void prefetchw(void *x)
+static inline void prefetchw(const void *x)
 {
 	__builtin_prefetch(x, 1, 3);
 }

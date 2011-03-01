@@ -1,6 +1,3 @@
-#ifndef __ARCH_ARM_MACH_OMAP2_PRM_REGBITS_34XX_H
-#define __ARCH_ARM_MACH_OMAP2_PRM_REGBITS_34XX_H
-
 /*
  * OMAP3430 Power/Reset Management register bits
  *
@@ -13,8 +10,11 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#ifndef __ARCH_ARM_MACH_OMAP2_PRM_REGBITS_34XX_H
+#define __ARCH_ARM_MACH_OMAP2_PRM_REGBITS_34XX_H
 
-#include "prm.h"
+
+#include "prm2xxx_3xxx.h"
 
 /* Shared register bits */
 
@@ -101,8 +101,11 @@
 #define OMAP3430_GRPSEL_MCSPI3_MASK			(1 << 20)
 #define OMAP3430_GRPSEL_MCSPI2_MASK			(1 << 19)
 #define OMAP3430_GRPSEL_MCSPI1_MASK			(1 << 18)
+#define OMAP3430_GRPSEL_I2C3_SHIFT			17
 #define OMAP3430_GRPSEL_I2C3_MASK			(1 << 17)
+#define OMAP3430_GRPSEL_I2C2_SHIFT			16
 #define OMAP3430_GRPSEL_I2C2_MASK			(1 << 16)
+#define OMAP3430_GRPSEL_I2C1_SHIFT			15
 #define OMAP3430_GRPSEL_I2C1_MASK			(1 << 15)
 #define OMAP3430_GRPSEL_UART2_MASK			(1 << 14)
 #define OMAP3430_GRPSEL_UART1_MASK			(1 << 13)

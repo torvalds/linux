@@ -1630,6 +1630,43 @@ static int ocfs2_zero_tail(struct inode *inode, struct buffer_head *di_bh,
 	return ret;
 }
 
+/*
+ * Try to flush truncate logs if we can free enough clusters from it.
+ * As for return value, "< 0" means error, "0" no space and "1" means
+ * we have freed enough spaces and let the caller try to allocate again.
+ */
+static int ocfs2_try_to_free_truncate_log(struct ocfs2_super *osb,
+					  unsigned int needed)
+{
+	tid_t target;
+	int ret = 0;
+	unsigned int truncated_clusters;
+
+	mutex_lock(&osb->osb_tl_inode->i_mutex);
+	truncated_clusters = osb->truncated_clusters;
+	mutex_unlock(&osb->osb_tl_inode->i_mutex);
+
+	/*
+	 * Check whether we can succeed in allocating if we free
+	 * the truncate log.
+	 */
+	if (truncated_clusters < needed)
+		goto out;
+
+	ret = ocfs2_flush_truncate_log(osb);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	if (jbd2_journal_start_commit(osb->journal->j_journal, &target)) {
+		jbd2_log_wait_commit(osb->journal->j_journal, target);
+		ret = 1;
+	}
+out:
+	return ret;
+}
+
 int ocfs2_write_begin_nolock(struct file *filp,
 			     struct address_space *mapping,
 			     loff_t pos, unsigned len, unsigned flags,
@@ -1637,7 +1674,7 @@ int ocfs2_write_begin_nolock(struct file *filp,
 			     struct buffer_head *di_bh, struct page *mmap_page)
 {
 	int ret, cluster_of_pages, credits = OCFS2_INODE_UPDATE_CREDITS;
-	unsigned int clusters_to_alloc, extents_to_split;
+	unsigned int clusters_to_alloc, extents_to_split, clusters_need = 0;
 	struct ocfs2_write_ctxt *wc;
 	struct inode *inode = mapping->host;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
@@ -1646,7 +1683,9 @@ int ocfs2_write_begin_nolock(struct file *filp,
 	struct ocfs2_alloc_context *meta_ac = NULL;
 	handle_t *handle;
 	struct ocfs2_extent_tree et;
+	int try_free = 1, ret1;
 
+try_again:
 	ret = ocfs2_alloc_write_ctxt(&wc, osb, pos, len, di_bh);
 	if (ret) {
 		mlog_errno(ret);
@@ -1681,6 +1720,7 @@ int ocfs2_write_begin_nolock(struct file *filp,
 		mlog_errno(ret);
 		goto out;
 	} else if (ret == 1) {
+		clusters_need = wc->w_clen;
 		ret = ocfs2_refcount_cow(inode, filp, di_bh,
 					 wc->w_cpos, wc->w_clen, UINT_MAX);
 		if (ret) {
@@ -1695,6 +1735,7 @@ int ocfs2_write_begin_nolock(struct file *filp,
 		mlog_errno(ret);
 		goto out;
 	}
+	clusters_need += clusters_to_alloc;
 
 	di = (struct ocfs2_dinode *)wc->w_di_bh->b_data;
 
@@ -1817,6 +1858,22 @@ out:
 		ocfs2_free_alloc_context(data_ac);
 	if (meta_ac)
 		ocfs2_free_alloc_context(meta_ac);
+
+	if (ret == -ENOSPC && try_free) {
+		/*
+		 * Try to free some truncate log so that we can have enough
+		 * clusters to allocate.
+		 */
+		try_free = 0;
+
+		ret1 = ocfs2_try_to_free_truncate_log(osb, clusters_need);
+		if (ret1 == 1)
+			goto try_again;
+
+		if (ret1 < 0)
+			mlog_errno(ret1);
+	}
+
 	return ret;
 }
 

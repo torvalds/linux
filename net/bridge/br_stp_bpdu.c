@@ -143,16 +143,16 @@ void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
 	struct net_bridge *br;
 	const unsigned char *buf;
 
-	if (!br_port_exists(dev))
-		goto err;
-	p = br_port_get_rcu(dev);
-
 	if (!pskb_may_pull(skb, 4))
 		goto err;
 
 	/* compare of protocol id and version */
 	buf = skb->data;
 	if (buf[0] != 0 || buf[1] != 0 || buf[2] != 0)
+		goto err;
+
+	p = br_port_get_rcu(dev);
+	if (!p)
 		goto err;
 
 	br = p->br;

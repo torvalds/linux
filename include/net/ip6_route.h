@@ -3,7 +3,6 @@
 
 #define IP6_RT_PRIO_USER	1024
 #define IP6_RT_PRIO_ADDRCONF	256
-#define IP6_RT_PRIO_KERN	512
 
 struct route_info {
 	__u8			type;
@@ -54,6 +53,18 @@ static inline int rt6_srcprefs2flags(unsigned int srcprefs)
 static inline unsigned int rt6_flags2srcprefs(int flags)
 {
 	return (flags >> 3) & 7;
+}
+
+extern void			rt6_bind_peer(struct rt6_info *rt,
+					      int create);
+
+static inline struct inet_peer *rt6_get_peer(struct rt6_info *rt)
+{
+	if (rt->rt6i_peer)
+		return rt->rt6i_peer;
+
+	rt6_bind_peer(rt, 0);
+	return rt->rt6i_peer;
 }
 
 extern void			ip6_route_input(struct sk_buff *skb);

@@ -3796,7 +3796,7 @@ static struct DeviceCtlBlk *device_alloc(struct AdapterCtlBlk *acb,
  * adapter_add_device - Adds the device instance to the adaptor instance.
  *
  * @acb: The adapter device to be updated
- * @dcb: A newly created and intialised device instance to add.
+ * @dcb: A newly created and initialised device instance to add.
  **/
 static void adapter_add_device(struct AdapterCtlBlk *acb,
 		struct DeviceCtlBlk *dcb)
@@ -4498,7 +4498,7 @@ static void __devinit adapter_init_chip(struct AdapterCtlBlk *acb)
  * init_adapter - Grab the resource for the card, setup the adapter
  * information, set the card into a known state, create the various
  * tables etc etc. This basically gets all adapter information all up
- * to date, intialised and gets the chip in sync with it.
+ * to date, initialised and gets the chip in sync with it.
  *
  * @host:	This hosts adapter structure
  * @io_port:	The base I/O port
@@ -4789,7 +4789,7 @@ static void banner_display(void)
  * that it finds in the system. The pci_dev strcuture indicates which
  * instance we are being called from.
  * 
- * @dev: The PCI device to intialize.
+ * @dev: The PCI device to initialize.
  * @id: Looks like a pointer to the entry in our pci device table
  * that was actually matched by the PCI subsystem.
  *
@@ -4860,7 +4860,7 @@ fail:
  * dc395x_remove_one - Called to remove a single instance of the
  * adapter.
  *
- * @dev: The PCI device to intialize.
+ * @dev: The PCI device to initialize.
  **/
 static void __devexit dc395x_remove_one(struct pci_dev *dev)
 {

@@ -95,7 +95,7 @@ enum {
 };
 
 
-/*E-mu 0202(0404) eXtension Unit(XU) control*/
+/*E-mu 0202/0404/0204 eXtension Unit(XU) control*/
 enum {
 	USB_XU_CLOCK_RATE 		= 0xe301,
 	USB_XU_CLOCK_SOURCE		= 0xe302,
@@ -1566,7 +1566,7 @@ static int build_audio_procunit(struct mixer_build *state, int unitid, void *raw
 			cval->initialized = 1;
 		} else {
 			if (type == USB_XU_CLOCK_RATE) {
-				/* E-Mu USB 0404/0202/TrackerPre
+				/* E-Mu USB 0404/0202/TrackerPre/0204
 				 * samplerate control quirk
 				 */
 				cval->min = 0;
@@ -1633,18 +1633,11 @@ static int parse_audio_extension_unit(struct mixer_build *state, int unitid, voi
 static int mixer_ctl_selector_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	struct usb_mixer_elem_info *cval = kcontrol->private_data;
-	char **itemlist = (char **)kcontrol->private_value;
+	const char **itemlist = (const char **)kcontrol->private_value;
 
 	if (snd_BUG_ON(!itemlist))
 		return -EINVAL;
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = cval->max;
-	if (uinfo->value.enumerated.item >= cval->max)
-		uinfo->value.enumerated.item = cval->max - 1;
-	strlcpy(uinfo->value.enumerated.name, itemlist[uinfo->value.enumerated.item],
-		sizeof(uinfo->value.enumerated.name));
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, cval->max, itemlist);
 }
 
 /* get callback for selector unit */

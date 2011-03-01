@@ -53,9 +53,10 @@ config MTD_PARTITIONS
 	  devices. Partitioning on NFTL 'devices' is a different - that's the
 	  'normal' form of partitioning used on a block device.
 
+if MTD_PARTITIONS
+
 config MTD_REDBOOT_PARTS
 	tristate "RedBoot partition table parsing"
-	depends on MTD_PARTITIONS
 	---help---
 	  RedBoot is a ROM monitor and bootloader which deals with multiple
 	  'images' in flash devices by putting a table one of the erase
@@ -72,9 +73,10 @@ config MTD_REDBOOT_PARTS
 	  SA1100 map driver (CONFIG_MTD_SA1100) has an option for this, for
 	  example.
 
+if MTD_REDBOOT_PARTS
+
 config MTD_REDBOOT_DIRECTORY_BLOCK
 	int "Location of RedBoot partition table"
-	depends on MTD_REDBOOT_PARTS
 	default "-1"
 	---help---
 	  This option is the Linux counterpart to the
@@ -91,17 +93,17 @@ config MTD_REDBOOT_DIRECTORY_BLOCK
 
 config MTD_REDBOOT_PARTS_UNALLOCATED
 	bool "Include unallocated flash regions"
-	depends on MTD_REDBOOT_PARTS
 	help
 	  If you need to register each unallocated flash region as a MTD
 	  'partition', enable this option.
 
 config MTD_REDBOOT_PARTS_READONLY
 	bool "Force read-only for RedBoot system images"
-	depends on MTD_REDBOOT_PARTS
 	help
 	  If you need to force read-only for 'RedBoot', 'RedBoot Config' and
 	  'FIS directory' images, enable this option.
+
+endif # MTD_REDBOOT_PARTS
 
 config MTD_CMDLINE_PARTS
 	bool "Command line partition table parsing"
@@ -142,7 +144,7 @@ config MTD_CMDLINE_PARTS
 
 config MTD_AFS_PARTS
 	tristate "ARM Firmware Suite partition parsing"
-	depends on ARM && MTD_PARTITIONS
+	depends on ARM
 	---help---
 	  The ARM Firmware Suite allows the user to divide flash devices into
 	  multiple 'images'. Each such image has a header containing its name
@@ -158,8 +160,8 @@ config MTD_AFS_PARTS
 	  example.
 
 config MTD_OF_PARTS
-	tristate "Flash partition map based on OF description"
-	depends on (MICROBLAZE || PPC_OF) && MTD_PARTITIONS
+	def_bool y
+	depends on OF
 	help
 	  This provides a partition parsing function which derives
 	  the partition map from the children of the flash node,
@@ -167,9 +169,10 @@ config MTD_OF_PARTS
 
 config MTD_AR7_PARTS
 	tristate "TI AR7 partitioning support"
-	depends on MTD_PARTITIONS
 	---help---
 	  TI AR7 partitioning support
+
+endif # MTD_PARTITIONS
 
 comment "User Modules And Translation Layers"
 

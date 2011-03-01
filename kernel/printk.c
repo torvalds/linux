@@ -39,14 +39,9 @@
 #include <linux/syslog.h>
 #include <linux/cpu.h>
 #include <linux/notifier.h>
+#include <linux/rculist.h>
 
 #include <asm/uaccess.h>
-
-/*
- * for_each_console() allows you to iterate on each console
- */
-#define for_each_console(con) \
-	for (con = console_drivers; con != NULL; con = con->next)
 
 /*
  * Architectures can override it:
@@ -102,7 +97,7 @@ static int console_locked, console_suspended;
 /*
  * logbuf_lock protects log_buf, log_start, log_end, con_start and logged_chars
  * It is also used in interesting ways to provide interlocking in
- * release_console_sem().
+ * console_unlock();.
  */
 static DEFINE_SPINLOCK(logbuf_lock);
 
@@ -267,25 +262,47 @@ int dmesg_restrict = 1;
 int dmesg_restrict;
 #endif
 
+static int syslog_action_restricted(int type)
+{
+	if (dmesg_restrict)
+		return 1;
+	/* Unless restricted, we allow "read all" and "get buffer size" for everybody */
+	return type != SYSLOG_ACTION_READ_ALL && type != SYSLOG_ACTION_SIZE_BUFFER;
+}
+
+static int check_syslog_permissions(int type, bool from_file)
+{
+	/*
+	 * If this is from /proc/kmsg and we've already opened it, then we've
+	 * already done the capabilities checks at open time.
+	 */
+	if (from_file && type != SYSLOG_ACTION_OPEN)
+		return 0;
+
+	if (syslog_action_restricted(type)) {
+		if (capable(CAP_SYSLOG))
+			return 0;
+		/* For historical reasons, accept CAP_SYS_ADMIN too, with a warning */
+		if (capable(CAP_SYS_ADMIN)) {
+			WARN_ONCE(1, "Attempt to access syslog with CAP_SYS_ADMIN "
+				 "but no CAP_SYSLOG (deprecated).\n");
+			return 0;
+		}
+		return -EPERM;
+	}
+	return 0;
+}
+
 int do_syslog(int type, char __user *buf, int len, bool from_file)
 {
 	unsigned i, j, limit, count;
 	int do_clear = 0;
 	char c;
-	int error = 0;
+	int error;
 
-	/*
-	 * If this is from /proc/kmsg we only do the capabilities checks
-	 * at open time.
-	 */
-	if (type == SYSLOG_ACTION_OPEN || !from_file) {
-		if (dmesg_restrict && !capable(CAP_SYS_ADMIN))
-			return -EPERM;
-		if ((type != SYSLOG_ACTION_READ_ALL &&
-		     type != SYSLOG_ACTION_SIZE_BUFFER) &&
-		    !capable(CAP_SYS_ADMIN))
-			return -EPERM;
-	}
+	error = check_syslog_permissions(type, from_file);
+	if (error)
+		goto out;
 
 	error = security_syslog(type);
 	if (error)
@@ -500,7 +517,7 @@ static void _call_console_drivers(unsigned start,
 /*
  * Call the console drivers, asking them to write out
  * log_buf[start] to log_buf[end - 1].
- * The console_sem must be held.
+ * The console_lock must be held.
  */
 static void call_console_drivers(unsigned start, unsigned end)
 {
@@ -603,11 +620,11 @@ static int have_callable_console(void)
  *
  * This is printk().  It can be called from any context.  We want it to work.
  *
- * We try to grab the console_sem.  If we succeed, it's easy - we log the output and
+ * We try to grab the console_lock.  If we succeed, it's easy - we log the output and
  * call the console drivers.  If we fail to get the semaphore we place the output
  * into the log buffer and return.  The current holder of the console_sem will
- * notice the new output in release_console_sem() and will send it to the
- * consoles before releasing the semaphore.
+ * notice the new output in console_unlock(); and will send it to the
+ * consoles before releasing the lock.
  *
  * One effect of this deferred printing is that code which calls printk() and
  * then changes console_loglevel may break. This is because console_loglevel
@@ -658,19 +675,19 @@ static inline int can_use_console(unsigned int cpu)
 /*
  * Try to get console ownership to actually show the kernel
  * messages from a 'printk'. Return true (and with the
- * console_semaphore held, and 'console_locked' set) if it
+ * console_lock held, and 'console_locked' set) if it
  * is successful, false otherwise.
  *
  * This gets called with the 'logbuf_lock' spinlock held and
  * interrupts disabled. It should return with 'lockbuf_lock'
  * released but interrupts still disabled.
  */
-static int acquire_console_semaphore_for_printk(unsigned int cpu)
+static int console_trylock_for_printk(unsigned int cpu)
 	__releases(&logbuf_lock)
 {
 	int retval = 0;
 
-	if (!try_acquire_console_sem()) {
+	if (console_trylock()) {
 		retval = 1;
 
 		/*
@@ -826,12 +843,12 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 	 * actual magic (print out buffers, wake up klogd,
 	 * etc). 
 	 *
-	 * The acquire_console_semaphore_for_printk() function
+	 * The console_trylock_for_printk() function
 	 * will release 'logbuf_lock' regardless of whether it
 	 * actually gets the semaphore or not.
 	 */
-	if (acquire_console_semaphore_for_printk(this_cpu))
-		release_console_sem();
+	if (console_trylock_for_printk(this_cpu))
+		console_unlock();
 
 	lockdep_on();
 out_restore_irqs:
@@ -992,7 +1009,7 @@ void suspend_console(void)
 	if (!console_suspend_enabled)
 		return;
 	printk("Suspending console(s) (use no_console_suspend to debug)\n");
-	acquire_console_sem();
+	console_lock();
 	console_suspended = 1;
 	up(&console_sem);
 }
@@ -1003,7 +1020,7 @@ void resume_console(void)
 		return;
 	down(&console_sem);
 	console_suspended = 0;
-	release_console_sem();
+	console_unlock();
 }
 
 /**
@@ -1026,21 +1043,21 @@ static int __cpuinit console_cpu_notify(struct notifier_block *self,
 	case CPU_DYING:
 	case CPU_DOWN_FAILED:
 	case CPU_UP_CANCELED:
-		acquire_console_sem();
-		release_console_sem();
+		console_lock();
+		console_unlock();
 	}
 	return NOTIFY_OK;
 }
 
 /**
- * acquire_console_sem - lock the console system for exclusive use.
+ * console_lock - lock the console system for exclusive use.
  *
- * Acquires a semaphore which guarantees that the caller has
+ * Acquires a lock which guarantees that the caller has
  * exclusive access to the console system and the console_drivers list.
  *
  * Can sleep, returns nothing.
  */
-void acquire_console_sem(void)
+void console_lock(void)
 {
 	BUG_ON(in_interrupt());
 	down(&console_sem);
@@ -1049,21 +1066,29 @@ void acquire_console_sem(void)
 	console_locked = 1;
 	console_may_schedule = 1;
 }
-EXPORT_SYMBOL(acquire_console_sem);
+EXPORT_SYMBOL(console_lock);
 
-int try_acquire_console_sem(void)
+/**
+ * console_trylock - try to lock the console system for exclusive use.
+ *
+ * Tried to acquire a lock which guarantees that the caller has
+ * exclusive access to the console system and the console_drivers list.
+ *
+ * returns 1 on success, and 0 on failure to acquire the lock.
+ */
+int console_trylock(void)
 {
 	if (down_trylock(&console_sem))
-		return -1;
+		return 0;
 	if (console_suspended) {
 		up(&console_sem);
-		return -1;
+		return 0;
 	}
 	console_locked = 1;
 	console_may_schedule = 0;
-	return 0;
+	return 1;
 }
-EXPORT_SYMBOL(try_acquire_console_sem);
+EXPORT_SYMBOL(console_trylock);
 
 int is_console_locked(void)
 {
@@ -1074,17 +1099,17 @@ static DEFINE_PER_CPU(int, printk_pending);
 
 void printk_tick(void)
 {
-	if (__get_cpu_var(printk_pending)) {
-		__get_cpu_var(printk_pending) = 0;
+	if (__this_cpu_read(printk_pending)) {
+		__this_cpu_write(printk_pending, 0);
 		wake_up_interruptible(&log_wait);
 	}
 }
 
 int printk_needs_cpu(int cpu)
 {
-	if (unlikely(cpu_is_offline(cpu)))
+	if (cpu_is_offline(cpu))
 		printk_tick();
-	return per_cpu(printk_pending, cpu);
+	return __this_cpu_read(printk_pending);
 }
 
 void wake_up_klogd(void)
@@ -1094,20 +1119,20 @@ void wake_up_klogd(void)
 }
 
 /**
- * release_console_sem - unlock the console system
+ * console_unlock - unlock the console system
  *
- * Releases the semaphore which the caller holds on the console system
+ * Releases the console_lock which the caller holds on the console system
  * and the console driver list.
  *
- * While the semaphore was held, console output may have been buffered
- * by printk().  If this is the case, release_console_sem() emits
- * the output prior to releasing the semaphore.
+ * While the console_lock was held, console output may have been buffered
+ * by printk().  If this is the case, console_unlock(); emits
+ * the output prior to releasing the lock.
  *
  * If there is output waiting for klogd, we wake it up.
  *
- * release_console_sem() may be called from any context.
+ * console_unlock(); may be called from any context.
  */
-void release_console_sem(void)
+void console_unlock(void)
 {
 	unsigned long flags;
 	unsigned _con_start, _log_end;
@@ -1140,7 +1165,7 @@ void release_console_sem(void)
 	if (wake_klogd)
 		wake_up_klogd();
 }
-EXPORT_SYMBOL(release_console_sem);
+EXPORT_SYMBOL(console_unlock);
 
 /**
  * console_conditional_schedule - yield the CPU if required
@@ -1149,7 +1174,7 @@ EXPORT_SYMBOL(release_console_sem);
  * if this CPU should yield the CPU to another task, do
  * so here.
  *
- * Must be called within acquire_console_sem().
+ * Must be called within console_lock();.
  */
 void __sched console_conditional_schedule(void)
 {
@@ -1170,14 +1195,14 @@ void console_unblank(void)
 		if (down_trylock(&console_sem) != 0)
 			return;
 	} else
-		acquire_console_sem();
+		console_lock();
 
 	console_locked = 1;
 	console_may_schedule = 0;
 	for_each_console(c)
 		if ((c->flags & CON_ENABLED) && c->unblank)
 			c->unblank();
-	release_console_sem();
+	console_unlock();
 }
 
 /*
@@ -1188,7 +1213,7 @@ struct tty_driver *console_device(int *index)
 	struct console *c;
 	struct tty_driver *driver = NULL;
 
-	acquire_console_sem();
+	console_lock();
 	for_each_console(c) {
 		if (!c->device)
 			continue;
@@ -1196,7 +1221,7 @@ struct tty_driver *console_device(int *index)
 		if (driver)
 			break;
 	}
-	release_console_sem();
+	console_unlock();
 	return driver;
 }
 
@@ -1207,17 +1232,17 @@ struct tty_driver *console_device(int *index)
  */
 void console_stop(struct console *console)
 {
-	acquire_console_sem();
+	console_lock();
 	console->flags &= ~CON_ENABLED;
-	release_console_sem();
+	console_unlock();
 }
 EXPORT_SYMBOL(console_stop);
 
 void console_start(struct console *console)
 {
-	acquire_console_sem();
+	console_lock();
 	console->flags |= CON_ENABLED;
-	release_console_sem();
+	console_unlock();
 }
 EXPORT_SYMBOL(console_start);
 
@@ -1339,7 +1364,7 @@ void register_console(struct console *newcon)
 	 *	Put this console in the list - keep the
 	 *	preferred driver at the head of the list.
 	 */
-	acquire_console_sem();
+	console_lock();
 	if ((newcon->flags & CON_CONSDEV) || console_drivers == NULL) {
 		newcon->next = console_drivers;
 		console_drivers = newcon;
@@ -1351,14 +1376,15 @@ void register_console(struct console *newcon)
 	}
 	if (newcon->flags & CON_PRINTBUFFER) {
 		/*
-		 * release_console_sem() will print out the buffered messages
+		 * console_unlock(); will print out the buffered messages
 		 * for us.
 		 */
 		spin_lock_irqsave(&logbuf_lock, flags);
 		con_start = log_start;
 		spin_unlock_irqrestore(&logbuf_lock, flags);
 	}
-	release_console_sem();
+	console_unlock();
+	console_sysfs_notify();
 
 	/*
 	 * By unregistering the bootconsoles after we enable the real console
@@ -1394,7 +1420,7 @@ int unregister_console(struct console *console)
 		return braille_unregister_console(console);
 #endif
 
-	acquire_console_sem();
+	console_lock();
 	if (console_drivers == console) {
 		console_drivers=console->next;
 		res = 0;
@@ -1416,7 +1442,8 @@ int unregister_console(struct console *console)
 	if (console_drivers != NULL && console->flags & CON_CONSDEV)
 		console_drivers->flags |= CON_CONSDEV;
 
-	release_console_sem();
+	console_unlock();
+	console_sysfs_notify();
 	return res;
 }
 EXPORT_SYMBOL(unregister_console);
@@ -1500,7 +1527,7 @@ int kmsg_dump_register(struct kmsg_dumper *dumper)
 	/* Don't allow registering multiple times */
 	if (!dumper->registered) {
 		dumper->registered = 1;
-		list_add_tail(&dumper->list, &dump_list);
+		list_add_tail_rcu(&dumper->list, &dump_list);
 		err = 0;
 	}
 	spin_unlock_irqrestore(&dump_list_lock, flags);
@@ -1524,28 +1551,15 @@ int kmsg_dump_unregister(struct kmsg_dumper *dumper)
 	spin_lock_irqsave(&dump_list_lock, flags);
 	if (dumper->registered) {
 		dumper->registered = 0;
-		list_del(&dumper->list);
+		list_del_rcu(&dumper->list);
 		err = 0;
 	}
 	spin_unlock_irqrestore(&dump_list_lock, flags);
+	synchronize_rcu();
 
 	return err;
 }
 EXPORT_SYMBOL_GPL(kmsg_dump_unregister);
-
-static const char * const kmsg_reasons[] = {
-	[KMSG_DUMP_OOPS]	= "oops",
-	[KMSG_DUMP_PANIC]	= "panic",
-	[KMSG_DUMP_KEXEC]	= "kexec",
-};
-
-static const char *kmsg_to_str(enum kmsg_dump_reason reason)
-{
-	if (reason >= ARRAY_SIZE(kmsg_reasons) || reason < 0)
-		return "unknown";
-
-	return kmsg_reasons[reason];
-}
 
 /**
  * kmsg_dump - dump kernel log to kernel message dumpers.
@@ -1585,13 +1599,9 @@ void kmsg_dump(enum kmsg_dump_reason reason)
 		l2 = chars;
 	}
 
-	if (!spin_trylock_irqsave(&dump_list_lock, flags)) {
-		printk(KERN_ERR "dump_kmsg: dump list lock is held during %s, skipping dump\n",
-				kmsg_to_str(reason));
-		return;
-	}
-	list_for_each_entry(dumper, &dump_list, list)
+	rcu_read_lock();
+	list_for_each_entry_rcu(dumper, &dump_list, list)
 		dumper->dump(dumper, reason, s1, l1, s2, l2);
-	spin_unlock_irqrestore(&dump_list_lock, flags);
+	rcu_read_unlock();
 }
 #endif

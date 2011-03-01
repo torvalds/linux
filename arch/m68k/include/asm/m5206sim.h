@@ -12,6 +12,10 @@
 #define	m5206sim_h
 /****************************************************************************/
 
+#define	CPU_NAME		"COLDFIRE(m5206)"
+#define	CPU_INSTR_PER_JIFFY	3
+
+#include <asm/m52xxacr.h>
 
 /*
  *	Define the 5206 SIM register set addresses.
@@ -88,6 +92,14 @@
 #define	MCFSIM_PADDR		(MCF_MBAR + 0x1c5)	/* Parallel Direction (r/w) */
 #define	MCFSIM_PADAT		(MCF_MBAR + 0x1c9)	/* Parallel Port Value (r/w) */
 
+#if defined(CONFIG_NETtel)
+#define	MCFUART_BASE1		0x180		/* Base address of UART1 */
+#define	MCFUART_BASE2		0x140		/* Base address of UART2 */
+#else
+#define	MCFUART_BASE1		0x140		/* Base address of UART1 */
+#define	MCFUART_BASE2		0x180		/* Base address of UART2 */
+#endif
+
 /*
  *	Define system peripheral IRQ usage.
  */
@@ -95,7 +107,7 @@
 #define	MCF_IRQ_PROFILER	31		/* Timer1, Level 7 */
 
 /*
- * Generic GPIO
+ *	Generic GPIO
  */
 #define MCFGPIO_PIN_MAX		8
 #define MCFGPIO_IRQ_VECBASE	-1

@@ -23,27 +23,6 @@ struct sh_machine_vector {
 	void (*mv_init_irq)(void);
 
 #ifdef CONFIG_HAS_IOPORT
-	u8 (*mv_inb)(unsigned long);
-	u16 (*mv_inw)(unsigned long);
-	u32 (*mv_inl)(unsigned long);
-	void (*mv_outb)(u8, unsigned long);
-	void (*mv_outw)(u16, unsigned long);
-	void (*mv_outl)(u32, unsigned long);
-
-	u8 (*mv_inb_p)(unsigned long);
-	u16 (*mv_inw_p)(unsigned long);
-	u32 (*mv_inl_p)(unsigned long);
-	void (*mv_outb_p)(u8, unsigned long);
-	void (*mv_outw_p)(u16, unsigned long);
-	void (*mv_outl_p)(u32, unsigned long);
-
-	void (*mv_insb)(unsigned long, void *dst, unsigned long count);
-	void (*mv_insw)(unsigned long, void *dst, unsigned long count);
-	void (*mv_insl)(unsigned long, void *dst, unsigned long count);
-	void (*mv_outsb)(unsigned long, const void *src, unsigned long count);
-	void (*mv_outsw)(unsigned long, const void *src, unsigned long count);
-	void (*mv_outsl)(unsigned long, const void *src, unsigned long count);
-
 	void __iomem *(*mv_ioport_map)(unsigned long port, unsigned int size);
 	void (*mv_ioport_unmap)(void __iomem *);
 #endif
@@ -52,6 +31,7 @@ struct sh_machine_vector {
 	int (*mv_mode_pins)(void);
 
 	void (*mv_mem_init)(void);
+	void (*mv_mem_reserve)(void);
 };
 
 extern struct sh_machine_vector sh_mv;

@@ -405,7 +405,8 @@ static const struct ivtv_card ivtv_card_avc2410 = {
 	.hw_audio_ctrl = IVTV_HW_MSP34XX,
 	.hw_muxer = IVTV_HW_CS53L32A,
 	.hw_all = IVTV_HW_MSP34XX | IVTV_HW_CS53L32A |
-		  IVTV_HW_SAA7115 | IVTV_HW_TUNER,
+		  IVTV_HW_SAA7115 | IVTV_HW_TUNER |
+		  IVTV_HW_I2C_IR_RX_ADAPTEC,
 	.video_inputs = {
 		{ IVTV_CARD_INPUT_VID_TUNER,  0, IVTV_SAA71XX_COMPOSITE4 },
 		{ IVTV_CARD_INPUT_SVIDEO1,    1, IVTV_SAA71XX_SVIDEO0    },
@@ -1313,7 +1314,6 @@ int ivtv_get_input(struct ivtv *itv, u16 index, struct v4l2_input *input)
 		"Composite 3"
 	};
 
-	memset(input, 0, sizeof(*input));
 	if (index >= itv->nof_inputs)
 		return -EINVAL;
 	input->index = index;
@@ -1331,7 +1331,6 @@ int ivtv_get_output(struct ivtv *itv, u16 index, struct v4l2_output *output)
 {
 	const struct ivtv_card_output *card_output = itv->card->video_outputs + index;
 
-	memset(output, 0, sizeof(*output));
 	if (index >= itv->card->nof_outputs)
 		return -EINVAL;
 	output->index = index;

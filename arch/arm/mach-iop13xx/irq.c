@@ -123,79 +123,79 @@ static void write_intsize(u32 val)
 
 /* 0 = Interrupt Masked and 1 = Interrupt not masked */
 static void
-iop13xx_irq_mask0 (unsigned int irq)
+iop13xx_irq_mask0 (struct irq_data *d)
 {
-	write_intctl_0(read_intctl_0() & ~(1 << (irq - 0)));
+	write_intctl_0(read_intctl_0() & ~(1 << (d->irq - 0)));
 }
 
 static void
-iop13xx_irq_mask1 (unsigned int irq)
+iop13xx_irq_mask1 (struct irq_data *d)
 {
-	write_intctl_1(read_intctl_1() & ~(1 << (irq - 32)));
+	write_intctl_1(read_intctl_1() & ~(1 << (d->irq - 32)));
 }
 
 static void
-iop13xx_irq_mask2 (unsigned int irq)
+iop13xx_irq_mask2 (struct irq_data *d)
 {
-	write_intctl_2(read_intctl_2() & ~(1 << (irq - 64)));
+	write_intctl_2(read_intctl_2() & ~(1 << (d->irq - 64)));
 }
 
 static void
-iop13xx_irq_mask3 (unsigned int irq)
+iop13xx_irq_mask3 (struct irq_data *d)
 {
-	write_intctl_3(read_intctl_3() & ~(1 << (irq - 96)));
+	write_intctl_3(read_intctl_3() & ~(1 << (d->irq - 96)));
 }
 
 static void
-iop13xx_irq_unmask0(unsigned int irq)
+iop13xx_irq_unmask0(struct irq_data *d)
 {
-	write_intctl_0(read_intctl_0() | (1 << (irq - 0)));
+	write_intctl_0(read_intctl_0() | (1 << (d->irq - 0)));
 }
 
 static void
-iop13xx_irq_unmask1(unsigned int irq)
+iop13xx_irq_unmask1(struct irq_data *d)
 {
-	write_intctl_1(read_intctl_1() | (1 << (irq - 32)));
+	write_intctl_1(read_intctl_1() | (1 << (d->irq - 32)));
 }
 
 static void
-iop13xx_irq_unmask2(unsigned int irq)
+iop13xx_irq_unmask2(struct irq_data *d)
 {
-	write_intctl_2(read_intctl_2() | (1 << (irq - 64)));
+	write_intctl_2(read_intctl_2() | (1 << (d->irq - 64)));
 }
 
 static void
-iop13xx_irq_unmask3(unsigned int irq)
+iop13xx_irq_unmask3(struct irq_data *d)
 {
-	write_intctl_3(read_intctl_3() | (1 << (irq - 96)));
+	write_intctl_3(read_intctl_3() | (1 << (d->irq - 96)));
 }
 
 static struct irq_chip iop13xx_irqchip1 = {
-	.name	= "IOP13xx-1",
-	.ack    = iop13xx_irq_mask0,
-	.mask   = iop13xx_irq_mask0,
-	.unmask = iop13xx_irq_unmask0,
+	.name       = "IOP13xx-1",
+	.irq_ack    = iop13xx_irq_mask0,
+	.irq_mask   = iop13xx_irq_mask0,
+	.irq_unmask = iop13xx_irq_unmask0,
 };
 
 static struct irq_chip iop13xx_irqchip2 = {
-	.name	= "IOP13xx-2",
-	.ack    = iop13xx_irq_mask1,
-	.mask   = iop13xx_irq_mask1,
-	.unmask = iop13xx_irq_unmask1,
+	.name       = "IOP13xx-2",
+	.irq_ack    = iop13xx_irq_mask1,
+	.irq_mask   = iop13xx_irq_mask1,
+	.irq_unmask = iop13xx_irq_unmask1,
 };
 
 static struct irq_chip iop13xx_irqchip3 = {
-	.name	= "IOP13xx-3",
-	.ack    = iop13xx_irq_mask2,
-	.mask   = iop13xx_irq_mask2,
-	.unmask = iop13xx_irq_unmask2,
+	.name       = "IOP13xx-3",
+	.irq_ack    = iop13xx_irq_mask2,
+	.irq_mask   = iop13xx_irq_mask2,
+	.irq_unmask = iop13xx_irq_unmask2,
 };
 
 static struct irq_chip iop13xx_irqchip4 = {
-	.name	= "IOP13xx-4",
-	.ack    = iop13xx_irq_mask3,
-	.mask   = iop13xx_irq_mask3,
-	.unmask = iop13xx_irq_unmask3,
+	.name       = "IOP13xx-4",
+	.irq_ack    = iop13xx_irq_mask3,
+	.irq_mask   = iop13xx_irq_mask3,
+	.irq_unmask = iop13xx_irq_unmask3,
 };
 
 extern void iop_init_cp6_handler(void);

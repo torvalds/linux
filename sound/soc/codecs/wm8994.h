@@ -28,7 +28,21 @@
 #define WM8994_FLL_SRC_LRCLK  3
 #define WM8994_FLL_SRC_BCLK   4
 
+typedef void (*wm8958_micdet_cb)(u16 status, void *data);
+
 int wm8994_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 		      int micbias, int det, int shrt);
+int wm8958_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
+		      wm8958_micdet_cb cb, void *cb_data);
+
+#define WM8994_CACHE_SIZE 1570
+
+struct wm8994_access_mask {
+	unsigned short readable;   /* Mask of readable bits */
+	unsigned short writable;   /* Mask of writable bits */
+};
+
+extern const struct wm8994_access_mask wm8994_access_masks[WM8994_CACHE_SIZE];
+extern const __devinitdata  u16 wm8994_reg_defaults[WM8994_CACHE_SIZE];
 
 #endif

@@ -476,15 +476,13 @@ static int l2tp_ip_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *m
 
 		{
 			struct flowi fl = { .oif = sk->sk_bound_dev_if,
-					    .nl_u = { .ip4_u = {
-							.daddr = daddr,
-							.saddr = inet->inet_saddr,
-							.tos = RT_CONN_FLAGS(sk) } },
+					    .fl4_dst = daddr,
+					    .fl4_src = inet->inet_saddr,
+					    .fl4_tos = RT_CONN_FLAGS(sk),
 					    .proto = sk->sk_protocol,
 					    .flags = inet_sk_flowi_flags(sk),
-					    .uli_u = { .ports = {
-							 .sport = inet->inet_sport,
-							 .dport = inet->inet_dport } } };
+					    .fl_ip_sport = inet->inet_sport,
+					    .fl_ip_dport = inet->inet_dport };
 
 			/* If this fails, retransmit mechanism of transport layer will
 			 * keep trying until route appears or the connection times

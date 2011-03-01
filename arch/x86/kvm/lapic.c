@@ -277,7 +277,8 @@ static void apic_update_ppr(struct kvm_lapic *apic)
 
 	if (old_ppr != ppr) {
 		apic_set_reg(apic, APIC_PROCPRI, ppr);
-		kvm_make_request(KVM_REQ_EVENT, apic->vcpu);
+		if (ppr < old_ppr)
+			kvm_make_request(KVM_REQ_EVENT, apic->vcpu);
 	}
 }
 

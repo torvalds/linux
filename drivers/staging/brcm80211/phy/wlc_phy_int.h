@@ -527,7 +527,7 @@ typedef struct {
 struct shared_phy {
 	struct phy_info *phy_head;
 	uint unit;
-	osl_t *osh;
+	struct osl_info *osh;
 	si_t *sih;
 	void *physhim;
 	uint corerev;
@@ -1158,7 +1158,7 @@ extern void wlc_phy_table_write_nphy(phy_info_t *pi, u32, u32, u32,
 	 (pi->ipa5g_on && CHSPEC_IS5G(pi->radio_chanspec)))
 
 #define WLC_PHY_WAR_PR51571(pi) \
-	if ((BUSTYPE((pi)->sh->bustype) == PCI_BUS) && NREV_LT((pi)->pubpi.phy_rev, 3)) \
+	if (((pi)->sh->bustype == PCI_BUS) && NREV_LT((pi)->pubpi.phy_rev, 3)) \
 		(void)R_REG((pi)->sh->osh, &(pi)->regs->maccontrol)
 
 extern void wlc_phy_cal_perical_nphy_run(phy_info_t *pi, u8 caltype);

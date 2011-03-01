@@ -1291,7 +1291,7 @@ updateCRC
 
 static void updateCRC(int *CRC, int bit)
 {
-  int poly[]={
+  static const int poly[]={
     1,1,1,0, 1,1,0,1,
     1,0,1,1, 1,0,0,0,
     1,0,0,0, 0,0,1,1,

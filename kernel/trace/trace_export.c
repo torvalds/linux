@@ -83,13 +83,19 @@ static void __always_unused ____ftrace_check_##name(void)	\
 
 #undef __array
 #define __array(type, item, len)					\
-	BUILD_BUG_ON(len > MAX_FILTER_STR_VAL);				\
-	ret = trace_define_field(event_call, #type "[" #len "]", #item,	\
+	do {								\
+		BUILD_BUG_ON(len > MAX_FILTER_STR_VAL);			\
+		mutex_lock(&event_storage_mutex);			\
+		snprintf(event_storage, sizeof(event_storage),		\
+			 "%s[%d]", #type, len);				\
+		ret = trace_define_field(event_call, event_storage, #item, \
 				 offsetof(typeof(field), item),		\
 				 sizeof(field.item),			\
 				 is_signed_type(type), FILTER_OTHER);	\
-	if (ret)							\
-		return ret;
+		mutex_unlock(&event_storage_mutex);			\
+		if (ret)						\
+			return ret;					\
+	} while (0);
 
 #undef __array_desc
 #define __array_desc(type, container, item, len)			\
@@ -155,13 +161,13 @@ struct ftrace_event_class event_class_ftrace_##call = {			\
 	.fields			= LIST_HEAD_INIT(event_class_ftrace_##call.fields),\
 };									\
 									\
-struct ftrace_event_call __used						\
-__attribute__((__aligned__(4)))						\
-__attribute__((section("_ftrace_events"))) event_##call = {		\
+struct ftrace_event_call __used event_##call = {			\
 	.name			= #call,				\
 	.event.type		= etype,				\
 	.class			= &event_class_ftrace_##call,		\
 	.print_fmt		= print,				\
 };									\
+struct ftrace_event_call __used						\
+__attribute__((section("_ftrace_events"))) *__event_##call = &event_##call;
 
 #include "trace_entries.h"

@@ -32,7 +32,6 @@
 #define DM_COOKIE_ENV_VAR_NAME "DM_COOKIE"
 #define DM_COOKIE_LENGTH 24
 
-static DEFINE_MUTEX(dm_mutex);
 static const char *_name = DM_NAME;
 
 static unsigned int major = 0;
@@ -328,7 +327,6 @@ static int dm_blk_open(struct block_device *bdev, fmode_t mode)
 {
 	struct mapped_device *md;
 
-	mutex_lock(&dm_mutex);
 	spin_lock(&_minor_lock);
 
 	md = bdev->bd_disk->private_data;
@@ -346,7 +344,6 @@ static int dm_blk_open(struct block_device *bdev, fmode_t mode)
 
 out:
 	spin_unlock(&_minor_lock);
-	mutex_unlock(&dm_mutex);
 
 	return md ? 0 : -ENXIO;
 }
@@ -355,10 +352,12 @@ static int dm_blk_close(struct gendisk *disk, fmode_t mode)
 {
 	struct mapped_device *md = disk->private_data;
 
-	mutex_lock(&dm_mutex);
+	spin_lock(&_minor_lock);
+
 	atomic_dec(&md->open_count);
 	dm_put(md);
-	mutex_unlock(&dm_mutex);
+
+	spin_unlock(&_minor_lock);
 
 	return 0;
 }
@@ -630,7 +629,7 @@ static void dec_pending(struct dm_io *io, int error)
 			queue_io(md, bio);
 		} else {
 			/* done with normal IO or empty flush */
-			trace_block_bio_complete(md->queue, bio);
+			trace_block_bio_complete(md->queue, bio, io_error);
 			bio_endio(bio, io_error);
 		}
 	}
@@ -990,8 +989,8 @@ static void __map_bio(struct dm_target *ti, struct bio *clone,
 	if (r == DM_MAPIO_REMAPPED) {
 		/* the bio has been remapped so dispatch it */
 
-		trace_block_remap(bdev_get_queue(clone->bi_bdev), clone,
-				    tio->io->bio->bi_bdev->bd_dev, sector);
+		trace_block_bio_remap(bdev_get_queue(clone->bi_bdev), clone,
+				      tio->io->bio->bi_bdev->bd_dev, sector);
 
 		generic_make_request(clone);
 	} else if (r < 0 || r == DM_MAPIO_REQUEUE) {
@@ -1638,13 +1637,15 @@ static void dm_request_fn(struct request_queue *q)
 		if (map_request(ti, clone, md))
 			goto requeued;
 
-		spin_lock_irq(q->queue_lock);
+		BUG_ON(!irqs_disabled());
+		spin_lock(q->queue_lock);
 	}
 
 	goto out;
 
 requeued:
-	spin_lock_irq(q->queue_lock);
+	BUG_ON(!irqs_disabled());
+	spin_lock(q->queue_lock);
 
 plug_and_out:
 	if (!elv_queue_empty(q))
@@ -1884,7 +1885,8 @@ static struct mapped_device *alloc_dev(int minor)
 	add_disk(md->disk);
 	format_dev_t(md->name, MKDEV(_major, minor));
 
-	md->wq = create_singlethread_workqueue("kdmflush");
+	md->wq = alloc_workqueue("kdmflush",
+				 WQ_NON_REENTRANT | WQ_MEM_RECLAIM, 0);
 	if (!md->wq)
 		goto bad_thread;
 
@@ -1992,13 +1994,14 @@ static void event_callback(void *context)
 	wake_up(&md->eventq);
 }
 
+/*
+ * Protected by md->suspend_lock obtained by dm_swap_table().
+ */
 static void __set_size(struct mapped_device *md, sector_t size)
 {
 	set_capacity(md->disk, size);
 
-	mutex_lock(&md->bdev->bd_inode->i_mutex);
 	i_size_write(md->bdev->bd_inode, (loff_t)size << SECTOR_SHIFT);
-	mutex_unlock(&md->bdev->bd_inode->i_mutex);
 }
 
 /*

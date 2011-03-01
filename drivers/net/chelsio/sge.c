@@ -273,6 +273,10 @@ struct sge {
 	struct cmdQ cmdQ[SGE_CMDQ_N] ____cacheline_aligned_in_smp;
 };
 
+static const u8 ch_mac_addr[ETH_ALEN] = {
+	0x0, 0x7, 0x43, 0x0, 0x0, 0x0
+};
+
 /*
  * stop tasklet and free all pending skb's
  */
@@ -2012,10 +2016,6 @@ static void espibug_workaround_t204(unsigned long data)
 				continue;
 
 			if (!skb->cb[0]) {
-				u8 ch_mac_addr[ETH_ALEN] = {
-					0x0, 0x7, 0x43, 0x0, 0x0, 0x0
-				};
-
 				skb_copy_to_linear_data_offset(skb,
 						    sizeof(struct cpl_tx_pkt),
 							       ch_mac_addr,
@@ -2048,8 +2048,6 @@ static void espibug_workaround(unsigned long data)
 
 	        if ((seop & 0xfff0fff) == 0xfff && skb) {
 	                if (!skb->cb[0]) {
-	                        u8 ch_mac_addr[ETH_ALEN] =
-	                            {0x0, 0x7, 0x43, 0x0, 0x0, 0x0};
 	                        skb_copy_to_linear_data_offset(skb,
 						     sizeof(struct cpl_tx_pkt),
 							       ch_mac_addr,

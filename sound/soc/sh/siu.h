@@ -75,7 +75,7 @@ struct siu_firmware {
 
 #include <sound/core.h>
 #include <sound/pcm.h>
-#include <sound/soc-dai.h>
+#include <sound/soc.h>
 
 #define SIU_PERIOD_BYTES_MAX	8192		/* DMA transfer/period size */
 #define SIU_PERIOD_BYTES_MIN	256		/* DMA transfer/period size */

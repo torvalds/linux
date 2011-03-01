@@ -309,7 +309,7 @@ static struct clk_ops clk_fout_apll_ops = {
 	.get_rate	= s5pv210_clk_fout_apll_get_rate,
 };
 
-static struct clk init_clocks_disable[] = {
+static struct clk init_clocks_off[] = {
 	{
 		.name		= "pdma",
 		.id		= 0,
@@ -467,20 +467,20 @@ static struct clk init_clocks_disable[] = {
 		.enable		= s5pv210_clk_ip3_ctrl,
 		.ctrlbit	= (1<<21),
 	}, {
-		.name		= "i2s_v50",
+		.name		= "iis",
 		.id		= 0,
 		.parent		= &clk_p,
 		.enable		= s5pv210_clk_ip3_ctrl,
 		.ctrlbit	= (1<<4),
 	}, {
-		.name		= "i2s_v32",
-		.id		= 0,
+		.name		= "iis",
+		.id		= 1,
 		.parent		= &clk_p,
 		.enable		= s5pv210_clk_ip3_ctrl,
 		.ctrlbit	= (1 << 5),
 	}, {
-		.name		= "i2s_v32",
-		.id		= 1,
+		.name		= "iis",
+		.id		= 2,
 		.parent		= &clk_p,
 		.enable		= s5pv210_clk_ip3_ctrl,
 		.ctrlbit	= (1 << 6),
@@ -525,6 +525,12 @@ static struct clk init_clocks[] = {
 		.parent		= &clk_pclk_psys.clk,
 		.enable		= s5pv210_clk_ip3_ctrl,
 		.ctrlbit	= (1 << 20),
+	}, {
+		.name		= "sromc",
+		.id		= -1,
+		.parent		= &clk_hclk_psys.clk,
+		.enable		= s5pv210_clk_ip1_ctrl,
+		.ctrlbit	= (1 << 26),
 	},
 };
 
@@ -1220,13 +1226,9 @@ static struct clk *clks[] __initdata = {
 
 void __init s5pv210_register_clocks(void)
 {
-	struct clk *clkp;
-	int ret;
 	int ptr;
 
-	ret = s3c24xx_register_clocks(clks, ARRAY_SIZE(clks));
-	if (ret > 0)
-		printk(KERN_ERR "Failed to register %u clocks\n", ret);
+	s3c24xx_register_clocks(clks, ARRAY_SIZE(clks));
 
 	for (ptr = 0; ptr < ARRAY_SIZE(sysclks); ptr++)
 		s3c_register_clksrc(sysclks[ptr], 1);
@@ -1234,15 +1236,8 @@ void __init s5pv210_register_clocks(void)
 	s3c_register_clksrc(clksrcs, ARRAY_SIZE(clksrcs));
 	s3c_register_clocks(init_clocks, ARRAY_SIZE(init_clocks));
 
-	clkp = init_clocks_disable;
-	for (ptr = 0; ptr < ARRAY_SIZE(init_clocks_disable); ptr++, clkp++) {
-		ret = s3c24xx_register_clock(clkp);
-		if (ret < 0) {
-			printk(KERN_ERR "Failed to register clock %s (%d)\n",
-			       clkp->name, ret);
-		}
-		(clkp->enable)(clkp, 0);
-	}
+	s3c_register_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
+	s3c_disable_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
 
 	s3c_pwmclk_init();
 }

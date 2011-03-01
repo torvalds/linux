@@ -1,5 +1,5 @@
 /*
- * The following devices are accessable using this driver using
+ * The following devices are accessible using this driver using
  * GPIO_MAJOR (120) and a couple of minor numbers.
  *
  * For ETRAX 100LX (CONFIG_ETRAX_ARCH_V10):

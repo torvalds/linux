@@ -298,8 +298,7 @@ static int tcf_act_police(struct sk_buff *skb, struct tc_action *a,
 
 	spin_lock(&police->tcf_lock);
 
-	police->tcf_bstats.bytes += qdisc_pkt_len(skb);
-	police->tcf_bstats.packets++;
+	bstats_update(&police->tcf_bstats, skb);
 
 	if (police->tcfp_ewma_rate &&
 	    police->tcf_rate_est.bps >= police->tcfp_ewma_rate) {

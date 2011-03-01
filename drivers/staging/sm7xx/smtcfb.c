@@ -996,7 +996,7 @@ failed_free:
 
 
 /* Jason (08/11/2009) PCI_DRV wrapper essential structs */
-static const struct pci_device_id smtcfb_pci_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(smtcfb_pci_table) = {
 	{0x126f, 0x710, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0x126f, 0x712, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0x126f, 0x720, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -1044,9 +1044,9 @@ static int __maybe_unused smtcfb_suspend(struct pci_dev *pdev, pm_message_t msg)
 
 	/* when doing suspend, call fb apis and pci apis */
 	if (msg.event == PM_EVENT_SUSPEND) {
-		acquire_console_sem();
+		console_lock();
 		fb_set_suspend(&sfb->fb, 1);
-		release_console_sem();
+		console_unlock();
 		retv = pci_save_state(pdev);
 		pci_disable_device(pdev);
 		retv = pci_choose_state(pdev, msg);
@@ -1071,7 +1071,7 @@ static int __maybe_unused smtcfb_resume(struct pci_dev *pdev)
 	/* when resuming, restore pci data and fb cursor */
 	if (pdev->dev.power.power_state.event != PM_EVENT_FREEZE) {
 		retv = pci_set_power_state(pdev, PCI_D0);
-		retv = pci_restore_state(pdev);
+		pci_restore_state(pdev);
 		if (pci_enable_device(pdev))
 			return -1;
 		pci_set_master(pdev);
@@ -1105,9 +1105,9 @@ static int __maybe_unused smtcfb_resume(struct pci_dev *pdev)
 
 	smtcfb_setmode(sfb);
 
-	acquire_console_sem();
+	console_lock();
 	fb_set_suspend(&sfb->fb, 0);
-	release_console_sem();
+	console_unlock();
 
 	return 0;
 }

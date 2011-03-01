@@ -133,7 +133,7 @@ static int max8952_get_voltage(struct regulator_dev *rdev)
 }
 
 static int max8952_set_voltage(struct regulator_dev *rdev,
-				int min_uV, int max_uV)
+			       int min_uV, int max_uV, unsigned *selector)
 {
 	struct max8952_data *max8952 = rdev_get_drvdata(rdev);
 	s8 vid = -1, i;
@@ -156,6 +156,7 @@ static int max8952_set_voltage(struct regulator_dev *rdev,
 	if (vid >= 0 && vid < MAX8952_NUM_DVS_MODE) {
 		max8952->vid0 = (vid % 2 == 1);
 		max8952->vid1 = (((vid >> 1) % 2) == 1);
+		*selector = vid;
 		gpio_set_value(max8952->pdata->gpio_vid0, max8952->vid0);
 		gpio_set_value(max8952->pdata->gpio_vid1, max8952->vid1);
 	} else

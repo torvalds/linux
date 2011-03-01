@@ -66,19 +66,15 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	set_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags);
 
 	/*
-	 * Enable RX.
+	 * Enable queues.
 	 */
-	rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON);
+	rt2x00queue_start_queues(rt2x00dev);
+	rt2x00link_start_tuner(rt2x00dev);
 
 	/*
 	 * Start watchdog monitoring.
 	 */
 	rt2x00link_start_watchdog(rt2x00dev);
-
-	/*
-	 * Start the TX queues.
-	 */
-	ieee80211_wake_queues(rt2x00dev->hw);
 
 	return 0;
 }
@@ -89,20 +85,16 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 		return;
 
 	/*
-	 * Stop the TX queues in mac80211.
-	 */
-	ieee80211_stop_queues(rt2x00dev->hw);
-	rt2x00queue_stop_queues(rt2x00dev);
-
-	/*
 	 * Stop watchdog monitoring.
 	 */
 	rt2x00link_stop_watchdog(rt2x00dev);
 
 	/*
-	 * Disable RX.
+	 * Stop all queues
 	 */
-	rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF);
+	rt2x00link_stop_tuner(rt2x00dev);
+	rt2x00queue_stop_queues(rt2x00dev);
+	rt2x00queue_flush_queues(rt2x00dev, true);
 
 	/*
 	 * Disable radio.
@@ -113,41 +105,11 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 	rt2x00leds_led_radio(rt2x00dev, false);
 }
 
-void rt2x00lib_toggle_rx(struct rt2x00_dev *rt2x00dev, enum dev_state state)
-{
-	/*
-	 * When we are disabling the RX, we should also stop the link tuner.
-	 */
-	if (state == STATE_RADIO_RX_OFF)
-		rt2x00link_stop_tuner(rt2x00dev);
-
-	rt2x00dev->ops->lib->set_device_state(rt2x00dev, state);
-
-	/*
-	 * When we are enabling the RX, we should also start the link tuner.
-	 */
-	if (state == STATE_RADIO_RX_ON)
-		rt2x00link_start_tuner(rt2x00dev);
-}
-
 static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 					  struct ieee80211_vif *vif)
 {
 	struct rt2x00_dev *rt2x00dev = data;
 	struct rt2x00_intf *intf = vif_to_intf(vif);
-	int delayed_flags;
-
-	/*
-	 * Copy all data we need during this action under the protection
-	 * of a spinlock. Otherwise race conditions might occur which results
-	 * into an invalid configuration.
-	 */
-	spin_lock(&intf->lock);
-
-	delayed_flags = intf->delayed_flags;
-	intf->delayed_flags = 0;
-
-	spin_unlock(&intf->lock);
 
 	/*
 	 * It is possible the radio was disabled while the work had been
@@ -158,7 +120,7 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return;
 
-	if (delayed_flags & DELAYED_UPDATE_BEACON)
+	if (test_and_clear_bit(DELAYED_UPDATE_BEACON, &intf->delayed_flags))
 		rt2x00queue_update_beacon(rt2x00dev, vif, true);
 }
 
@@ -251,8 +213,16 @@ void rt2x00lib_pretbtt(struct rt2x00_dev *rt2x00dev)
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_pretbtt);
 
+void rt2x00lib_dmastart(struct queue_entry *entry)
+{
+	set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
+	rt2x00queue_index_inc(entry->queue, Q_INDEX);
+}
+EXPORT_SYMBOL_GPL(rt2x00lib_dmastart);
+
 void rt2x00lib_dmadone(struct queue_entry *entry)
 {
+	set_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags);
 	clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
 	rt2x00queue_index_inc(entry->queue, Q_INDEX_DMA_DONE);
 }
@@ -264,11 +234,9 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
-	enum data_queue_qid qid = skb_get_queue_mapping(entry->skb);
-	unsigned int header_length = ieee80211_get_hdrlen_from_skb(entry->skb);
+	unsigned int header_length, i;
 	u8 rate_idx, rate_flags, retry_rates;
 	u8 skbdesc_flags = skbdesc->flags;
-	unsigned int i;
 	bool success;
 
 	/*
@@ -285,6 +253,11 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	 * Signal that the TX descriptor is no longer in the skb.
 	 */
 	skbdesc->flags &= ~SKBDESC_DESC_IN_SKB;
+
+	/*
+	 * Determine the length of 802.11 header.
+	 */
+	header_length = ieee80211_get_hdrlen_from_skb(entry->skb);
 
 	/*
 	 * Remove L2 padding which was added during
@@ -414,7 +387,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	 * is reenabled when the txdone handler has finished.
 	 */
 	if (!rt2x00queue_threshold(entry->queue))
-		ieee80211_wake_queue(rt2x00dev->hw, qid);
+		rt2x00queue_unpause_queue(entry->queue);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_txdone);
 
@@ -485,6 +458,10 @@ void rt2x00lib_rxdone(struct queue_entry *entry)
 	struct ieee80211_rx_status *rx_status;
 	unsigned int header_length;
 	int rate_idx;
+
+	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) ||
+	    !test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
+		goto submit_entry;
 
 	if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags))
 		goto submit_entry;
@@ -570,9 +547,11 @@ void rt2x00lib_rxdone(struct queue_entry *entry)
 	entry->skb = skb;
 
 submit_entry:
-	rt2x00dev->ops->lib->clear_entry(entry);
-	rt2x00queue_index_inc(entry->queue, Q_INDEX);
+	entry->flags = 0;
 	rt2x00queue_index_inc(entry->queue, Q_INDEX_DONE);
+	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) &&
+	    test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
+		rt2x00dev->ops->lib->clear_entry(entry);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_rxdone);
 
@@ -681,7 +660,7 @@ static void rt2x00lib_rate(struct ieee80211_rate *entry,
 {
 	entry->flags = 0;
 	entry->bitrate = rate->bitrate;
-	entry->hw_value =index;
+	entry->hw_value = index;
 	entry->hw_value_short = index;
 
 	if (rate->flags & DEV_RATE_SHORT_PREAMBLE)
@@ -821,8 +800,7 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Allocate tx status FIFO for driver use.
 	 */
-	if (test_bit(DRIVER_REQUIRE_TXSTATUS_FIFO, &rt2x00dev->flags) &&
-	    rt2x00dev->ops->lib->txstatus_tasklet) {
+	if (test_bit(DRIVER_REQUIRE_TXSTATUS_FIFO, &rt2x00dev->flags)) {
 		/*
 		 * Allocate txstatus fifo and tasklet, we use a size of 512
 		 * for the kfifo which is big enough to store 512/4=128 tx
@@ -836,9 +814,10 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 			return status;
 
 		/* tasklet for processing the tx status reports. */
-		tasklet_init(&rt2x00dev->txstatus_tasklet,
-			     rt2x00dev->ops->lib->txstatus_tasklet,
-			     (unsigned long)rt2x00dev);
+		if (rt2x00dev->ops->lib->txstatus_tasklet)
+			tasklet_init(&rt2x00dev->txstatus_tasklet,
+				     rt2x00dev->ops->lib->txstatus_tasklet,
+				     (unsigned long)rt2x00dev);
 
 	}
 

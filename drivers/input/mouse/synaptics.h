@@ -54,6 +54,7 @@
 #define SYN_CAP_CLICKPAD(ex0c)		((ex0c) & 0x100000) /* 1-button ClickPad */
 #define SYN_CAP_CLICKPAD2BTN(ex0c)	((ex0c) & 0x000100) /* 2-button ClickPad */
 #define SYN_CAP_MAX_DIMENSIONS(ex0c)	((ex0c) & 0x020000)
+#define SYN_CAP_ADV_GESTURE(ex0c)	((ex0c) & 0x080000)
 
 /* synaptics modes query bits */
 #define SYN_MODE_ABSOLUTE(m)		((m) & (1 << 7))
@@ -113,6 +114,8 @@ struct synaptics_data {
 	int scroll;
 
 	struct serio *pt_port;			/* Pass-through serio port */
+
+	struct synaptics_hw_state mt;		/* current gesture packet */
 };
 
 void synaptics_module_init(void);

@@ -47,7 +47,7 @@ MODULE_PARM_DESC(latency,"pci latency timer");
 
 static int disable_ir;
 module_param(disable_ir, int, 0444);
-MODULE_PARM_DESC(latency, "Disable IR support");
+MODULE_PARM_DESC(disable_ir, "Disable IR support");
 
 #define info_printk(core, fmt, arg...) \
 	printk(KERN_INFO "%s: " fmt, core->name , ## arg)

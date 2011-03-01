@@ -46,28 +46,28 @@ void __init kev7a400_map_io(void)
 
 static u16 CPLD_IRQ_mask;	/* Mask for CPLD IRQs, 1 == unmasked */
 
-static void kev7a400_ack_cpld_irq (u32 irq)
+static void kev7a400_ack_cpld_irq(struct irq_data *d)
 {
-	CPLD_CL_INT = 1 << (irq - IRQ_KEV7A400_CPLD);
+	CPLD_CL_INT = 1 << (d->irq - IRQ_KEV7A400_CPLD);
 }
 
-static void kev7a400_mask_cpld_irq (u32 irq)
+static void kev7a400_mask_cpld_irq(struct irq_data *d)
 {
-	CPLD_IRQ_mask &= ~(1 << (irq - IRQ_KEV7A400_CPLD));
+	CPLD_IRQ_mask &= ~(1 << (d->irq - IRQ_KEV7A400_CPLD));
 	CPLD_WR_PB_INT_MASK = CPLD_IRQ_mask;
 }
 
-static void kev7a400_unmask_cpld_irq (u32 irq)
+static void kev7a400_unmask_cpld_irq(struct irq_data *d)
 {
-	CPLD_IRQ_mask |= 1 << (irq - IRQ_KEV7A400_CPLD);
+	CPLD_IRQ_mask |= 1 << (d->irq - IRQ_KEV7A400_CPLD);
 	CPLD_WR_PB_INT_MASK = CPLD_IRQ_mask;
 }
 
 static struct irq_chip kev7a400_cpld_chip = {
-	.name	= "CPLD",
-	.ack	= kev7a400_ack_cpld_irq,
-	.mask	= kev7a400_mask_cpld_irq,
-	.unmask	= kev7a400_unmask_cpld_irq,
+	.name		= "CPLD",
+	.irq_ack	= kev7a400_ack_cpld_irq,
+	.irq_mask	= kev7a400_mask_cpld_irq,
+	.irq_unmask	= kev7a400_unmask_cpld_irq,
 };
 
 

@@ -56,6 +56,7 @@ void move_masked_irq(int irq)
 void move_native_irq(int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
+	bool masked;
 
 	if (likely(!(desc->status & IRQ_MOVE_PENDING)))
 		return;
@@ -63,8 +64,15 @@ void move_native_irq(int irq)
 	if (unlikely(desc->status & IRQ_DISABLED))
 		return;
 
-	desc->irq_data.chip->irq_mask(&desc->irq_data);
+	/*
+	 * Be careful vs. already masked interrupts. If this is a
+	 * threaded interrupt with ONESHOT set, we can end up with an
+	 * interrupt storm.
+	 */
+	masked = desc->status & IRQ_MASKED;
+	if (!masked)
+		desc->irq_data.chip->irq_mask(&desc->irq_data);
 	move_masked_irq(irq);
-	desc->irq_data.chip->irq_unmask(&desc->irq_data);
+	if (!masked)
+		desc->irq_data.chip->irq_unmask(&desc->irq_data);
 }
-

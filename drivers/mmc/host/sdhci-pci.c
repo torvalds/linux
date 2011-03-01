@@ -176,6 +176,74 @@ static const struct sdhci_pci_fixes sdhci_intel_mfd_emmc_sdio = {
 	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
 };
 
+/* O2Micro extra registers */
+#define O2_SD_LOCK_WP		0xD3
+#define O2_SD_MULTI_VCC3V	0xEE
+#define O2_SD_CLKREQ		0xEC
+#define O2_SD_CAPS		0xE0
+#define O2_SD_ADMA1		0xE2
+#define O2_SD_ADMA2		0xE7
+#define O2_SD_INF_MOD		0xF1
+
+static int o2_probe(struct sdhci_pci_chip *chip)
+{
+	int ret;
+	u8 scratch;
+
+	switch (chip->pdev->device) {
+	case PCI_DEVICE_ID_O2_8220:
+	case PCI_DEVICE_ID_O2_8221:
+	case PCI_DEVICE_ID_O2_8320:
+	case PCI_DEVICE_ID_O2_8321:
+		/* This extra setup is required due to broken ADMA. */
+		ret = pci_read_config_byte(chip->pdev, O2_SD_LOCK_WP, &scratch);
+		if (ret)
+			return ret;
+		scratch &= 0x7f;
+		pci_write_config_byte(chip->pdev, O2_SD_LOCK_WP, scratch);
+
+		/* Set Multi 3 to VCC3V# */
+		pci_write_config_byte(chip->pdev, O2_SD_MULTI_VCC3V, 0x08);
+
+		/* Disable CLK_REQ# support after media DET */
+		ret = pci_read_config_byte(chip->pdev, O2_SD_CLKREQ, &scratch);
+		if (ret)
+			return ret;
+		scratch |= 0x20;
+		pci_write_config_byte(chip->pdev, O2_SD_CLKREQ, scratch);
+
+		/* Choose capabilities, enable SDMA.  We have to write 0x01
+		 * to the capabilities register first to unlock it.
+		 */
+		ret = pci_read_config_byte(chip->pdev, O2_SD_CAPS, &scratch);
+		if (ret)
+			return ret;
+		scratch |= 0x01;
+		pci_write_config_byte(chip->pdev, O2_SD_CAPS, scratch);
+		pci_write_config_byte(chip->pdev, O2_SD_CAPS, 0x73);
+
+		/* Disable ADMA1/2 */
+		pci_write_config_byte(chip->pdev, O2_SD_ADMA1, 0x39);
+		pci_write_config_byte(chip->pdev, O2_SD_ADMA2, 0x08);
+
+		/* Disable the infinite transfer mode */
+		ret = pci_read_config_byte(chip->pdev, O2_SD_INF_MOD, &scratch);
+		if (ret)
+			return ret;
+		scratch |= 0x08;
+		pci_write_config_byte(chip->pdev, O2_SD_INF_MOD, scratch);
+
+		/* Lock WP */
+		ret = pci_read_config_byte(chip->pdev, O2_SD_LOCK_WP, &scratch);
+		if (ret)
+			return ret;
+		scratch |= 0x80;
+		pci_write_config_byte(chip->pdev, O2_SD_LOCK_WP, scratch);
+	}
+
+	return 0;
+}
+
 static int jmicron_pmos(struct sdhci_pci_chip *chip, int on)
 {
 	u8 scratch;
@@ -204,6 +272,7 @@ static int jmicron_pmos(struct sdhci_pci_chip *chip, int on)
 static int jmicron_probe(struct sdhci_pci_chip *chip)
 {
 	int ret;
+	u16 mmcdev = 0;
 
 	if (chip->pdev->revision == 0) {
 		chip->quirks |= SDHCI_QUIRK_32BIT_DMA_ADDR |
@@ -225,12 +294,17 @@ static int jmicron_probe(struct sdhci_pci_chip *chip)
 	 * 2. The MMC interface has a lower subfunction number
 	 *    than the SD interface.
 	 */
-	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_SD) {
+	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_SD)
+		mmcdev = PCI_DEVICE_ID_JMICRON_JMB38X_MMC;
+	else if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_SD)
+		mmcdev = PCI_DEVICE_ID_JMICRON_JMB388_ESD;
+
+	if (mmcdev) {
 		struct pci_dev *sd_dev;
 
 		sd_dev = NULL;
 		while ((sd_dev = pci_get_device(PCI_VENDOR_ID_JMICRON,
-			PCI_DEVICE_ID_JMICRON_JMB38X_MMC, sd_dev)) != NULL) {
+						mmcdev, sd_dev)) != NULL) {
 			if ((PCI_SLOT(chip->pdev->devfn) ==
 				PCI_SLOT(sd_dev->devfn)) &&
 				(chip->pdev->bus == sd_dev->bus))
@@ -290,12 +364,24 @@ static int jmicron_probe_slot(struct sdhci_pci_slot *slot)
 			slot->host->quirks |= SDHCI_QUIRK_BROKEN_ADMA;
 	}
 
+	/* JM388 MMC doesn't support 1.8V while SD supports it */
+	if (slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_ESD) {
+		slot->host->ocr_avail_sd = MMC_VDD_32_33 | MMC_VDD_33_34 |
+			MMC_VDD_29_30 | MMC_VDD_30_31 |
+			MMC_VDD_165_195; /* allow 1.8V */
+		slot->host->ocr_avail_mmc = MMC_VDD_32_33 | MMC_VDD_33_34 |
+			MMC_VDD_29_30 | MMC_VDD_30_31; /* no 1.8V for MMC */
+	}
+
 	/*
 	 * The secondary interface requires a bit set to get the
 	 * interrupts.
 	 */
-	if (slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC)
+	if (slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC ||
+	    slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_ESD)
 		jmicron_enable_mmc(slot->host, 1);
+
+	slot->host->mmc->caps |= MMC_CAP_BUS_WIDTH_TEST;
 
 	return 0;
 }
@@ -305,7 +391,8 @@ static void jmicron_remove_slot(struct sdhci_pci_slot *slot, int dead)
 	if (dead)
 		return;
 
-	if (slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC)
+	if (slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC ||
+	    slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_ESD)
 		jmicron_enable_mmc(slot->host, 0);
 }
 
@@ -313,7 +400,8 @@ static int jmicron_suspend(struct sdhci_pci_chip *chip, pm_message_t state)
 {
 	int i;
 
-	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC) {
+	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC ||
+	    chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_ESD) {
 		for (i = 0;i < chip->num_slots;i++)
 			jmicron_enable_mmc(chip->slots[i]->host, 0);
 	}
@@ -325,7 +413,8 @@ static int jmicron_resume(struct sdhci_pci_chip *chip)
 {
 	int ret, i;
 
-	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC) {
+	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC ||
+	    chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_ESD) {
 		for (i = 0;i < chip->num_slots;i++)
 			jmicron_enable_mmc(chip->slots[i]->host, 1);
 	}
@@ -338,6 +427,10 @@ static int jmicron_resume(struct sdhci_pci_chip *chip)
 
 	return 0;
 }
+
+static const struct sdhci_pci_fixes sdhci_o2 = {
+	.probe		= o2_probe,
+};
 
 static const struct sdhci_pci_fixes sdhci_jmicron = {
 	.probe		= jmicron_probe,
@@ -510,6 +603,22 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 	},
 
 	{
+		.vendor		= PCI_VENDOR_ID_JMICRON,
+		.device		= PCI_DEVICE_ID_JMICRON_JMB388_SD,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_jmicron,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_JMICRON,
+		.device		= PCI_DEVICE_ID_JMICRON_JMB388_ESD,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_jmicron,
+	},
+
+	{
 		.vendor		= PCI_VENDOR_ID_SYSKONNECT,
 		.device		= 0x8000,
 		.subvendor	= PCI_ANY_ID,
@@ -587,6 +696,46 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.driver_data	= (kernel_ulong_t)&sdhci_intel_mfd_emmc_sdio,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_O2,
+		.device		= PCI_DEVICE_ID_O2_8120,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_o2,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_O2,
+		.device		= PCI_DEVICE_ID_O2_8220,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_o2,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_O2,
+		.device		= PCI_DEVICE_ID_O2_8221,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_o2,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_O2,
+		.device		= PCI_DEVICE_ID_O2_8320,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_o2,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_O2,
+		.device		= PCI_DEVICE_ID_O2_8321,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_o2,
 	},
 
 	{	/* Generic SD host controller */

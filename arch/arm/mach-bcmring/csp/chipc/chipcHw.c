@@ -757,7 +757,7 @@ static int chipcHw_divide(int num, int denom)
 		t = t << 1;
 	}
 
-	/* Intialize the result */
+	/* Initialize the result */
 	r = 0;
 
 	do {

@@ -1136,6 +1136,21 @@ When kbuild executes, the following steps are followed (roughly):
 	      resulting in the target file being recompiled for no
 	      obvious reason.
 
+    dtc
+	Create flattend device tree blob object suitable for linking
+	into vmlinux. Device tree blobs linked into vmlinux are placed
+	in an init section in the image. Platform code *must* copy the
+	blob to non-init memory prior to calling unflatten_device_tree().
+
+	Example:
+		#arch/x86/platform/ce4100/Makefile
+		clean-files := *dtb.S
+
+		DTC_FLAGS := -p 1024
+		obj-y += foo.dtb.o
+
+		$(obj)/%.dtb: $(src)/%.dts
+			$(call cmd,dtc)
 
 --- 6.7 Custom kbuild commands
 

@@ -11,6 +11,10 @@
 #define	m528xsim_h
 /****************************************************************************/
 
+#define	CPU_NAME		"COLDFIRE(m528x)"
+#define	CPU_INSTR_PER_JIFFY	3
+
+#include <asm/m52xxacr.h>
 
 /*
  *	Define the 5280/5282 SIM register set addresses.
@@ -40,6 +44,13 @@
 #define	MCFSIM_DMR0		0x4c		/* SDRAM address mask 0 */
 #define	MCFSIM_DACR1		0x50		/* SDRAM base address 1 */
 #define	MCFSIM_DMR1		0x54		/* SDRAM address mask 1 */
+
+/*
+ *	UART module.
+ */
+#define MCFUART_BASE1		0x200           /* Base address of UART1 */
+#define MCFUART_BASE2		0x240           /* Base address of UART2 */
+#define MCFUART_BASE3		0x280           /* Base address of UART3 */
 
 /*
  * 	GPIO registers

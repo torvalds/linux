@@ -65,7 +65,7 @@ EXPORT_SYMBOL_GPL(nf_conntrack_max);
 DEFINE_PER_CPU(struct nf_conn, nf_conntrack_untracked);
 EXPORT_PER_CPU_SYMBOL(nf_conntrack_untracked);
 
-static unsigned int nf_conntrack_hash_rnd __read_mostly;
+unsigned int nf_conntrack_hash_rnd __read_mostly;
 
 static u32 hash_conntrack_raw(const struct nf_conntrack_tuple *tuple, u16 zone)
 {
@@ -596,6 +596,21 @@ static noinline int early_drop(struct net *net, unsigned int hash)
 	return dropped;
 }
 
+void init_nf_conntrack_hash_rnd(void)
+{
+	unsigned int rand;
+
+	/*
+	 * Why not initialize nf_conntrack_rnd in a "init()" function ?
+	 * Because there isn't enough entropy when system initializing,
+	 * and we initialize it as late as possible.
+	 */
+	do {
+		get_random_bytes(&rand, sizeof(rand));
+	} while (!rand);
+	cmpxchg(&nf_conntrack_hash_rnd, 0, rand);
+}
+
 static struct nf_conn *
 __nf_conntrack_alloc(struct net *net, u16 zone,
 		     const struct nf_conntrack_tuple *orig,
@@ -605,18 +620,7 @@ __nf_conntrack_alloc(struct net *net, u16 zone,
 	struct nf_conn *ct;
 
 	if (unlikely(!nf_conntrack_hash_rnd)) {
-		unsigned int rand;
-
-		/*
-		 * Why not initialize nf_conntrack_rnd in a "init()" function ?
-		 * Because there isn't enough entropy when system initializing,
-		 * and we initialize it as late as possible.
-		 */
-		do {
-			get_random_bytes(&rand, sizeof(rand));
-		} while (!rand);
-		cmpxchg(&nf_conntrack_hash_rnd, 0, rand);
-
+		init_nf_conntrack_hash_rnd();
 		/* recompute the hash as nf_conntrack_hash_rnd is initialized */
 		hash = hash_conntrack_raw(orig, zone);
 	}
@@ -938,8 +942,15 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	if (set_reply && !test_and_set_bit(IPS_SEEN_REPLY_BIT, &ct->status))
 		nf_conntrack_event_cache(IPCT_REPLY, ct);
 out:
-	if (tmpl)
-		nf_ct_put(tmpl);
+	if (tmpl) {
+		/* Special case: we have to repeat this hook, assign the
+		 * template again to this packet. We assume that this packet
+		 * has no conntrack assigned. This is used by nf_ct_tcp. */
+		if (ret == NF_REPEAT)
+			skb->nfct = (struct nf_conntrack *)tmpl;
+		else
+			nf_ct_put(tmpl);
+	}
 
 	return ret;
 }

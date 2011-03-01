@@ -15,6 +15,7 @@
  * General Public License for more details.
  */
 
+#include "bfad_drv.h"
 #include "bfa_defs_svc.h"
 #include "bfa_port.h"
 #include "bfi.h"
@@ -29,14 +30,14 @@ static void
 bfa_port_stats_swap(struct bfa_port_s *port, union bfa_port_stats_u *stats)
 {
 	u32    *dip = (u32 *) stats;
-	u32    t0, t1;
+	__be32    t0, t1;
 	int	    i;
 
 	for (i = 0; i < sizeof(union bfa_port_stats_u)/sizeof(u32);
 		i += 2) {
 		t0 = dip[i];
 		t1 = dip[i + 1];
-#ifdef __BIGENDIAN
+#ifdef __BIG_ENDIAN
 		dip[i] = be32_to_cpu(t0);
 		dip[i + 1] = be32_to_cpu(t1);
 #else
@@ -96,13 +97,13 @@ bfa_port_get_stats_isr(struct bfa_port_s *port, bfa_status_t status)
 	port->stats_busy = BFA_FALSE;
 
 	if (status == BFA_STATUS_OK) {
-		struct bfa_timeval_s tv;
+		struct timeval tv;
 
 		memcpy(port->stats, port->stats_dma.kva,
 		       sizeof(union bfa_port_stats_u));
 		bfa_port_stats_swap(port, port->stats);
 
-		bfa_os_gettimeofday(&tv);
+		do_gettimeofday(&tv);
 		port->stats->fc.secs_reset = tv.tv_sec - port->stats_reset_time;
 	}
 
@@ -124,7 +125,7 @@ bfa_port_get_stats_isr(struct bfa_port_s *port, bfa_status_t status)
 static void
 bfa_port_clear_stats_isr(struct bfa_port_s *port, bfa_status_t status)
 {
-	struct bfa_timeval_s tv;
+	struct timeval tv;
 
 	port->stats_status = status;
 	port->stats_busy   = BFA_FALSE;
@@ -132,7 +133,7 @@ bfa_port_clear_stats_isr(struct bfa_port_s *port, bfa_status_t status)
 	/*
 	* re-initialize time stamp for stats reset
 	*/
-	bfa_os_gettimeofday(&tv);
+	do_gettimeofday(&tv);
 	port->stats_reset_time = tv.tv_sec;
 
 	if (port->stats_cbfn) {
@@ -185,7 +186,7 @@ bfa_port_isr(void *cbarg, struct bfi_mbmsg_s *m)
 		break;
 
 	default:
-		bfa_assert(0);
+		WARN_ON(1);
 	}
 }
 
@@ -432,9 +433,9 @@ void
 bfa_port_attach(struct bfa_port_s *port, struct bfa_ioc_s *ioc,
 		 void *dev, struct bfa_trc_mod_s *trcmod)
 {
-	struct bfa_timeval_s tv;
+	struct timeval tv;
 
-	bfa_assert(port);
+	WARN_ON(!port);
 
 	port->dev    = dev;
 	port->ioc    = ioc;
@@ -447,27 +448,13 @@ bfa_port_attach(struct bfa_port_s *port, struct bfa_ioc_s *ioc,
 
 	bfa_ioc_mbox_regisr(port->ioc, BFI_MC_PORT, bfa_port_isr, port);
 	bfa_ioc_hbfail_init(&port->hbfail, bfa_port_hbfail, port);
-	bfa_ioc_hbfail_register(port->ioc, &port->hbfail);
+	list_add_tail(&port->hbfail.qe, &port->ioc->hb_notify_q);
 
 	/*
 	 * initialize time stamp for stats reset
 	 */
-	bfa_os_gettimeofday(&tv);
+	do_gettimeofday(&tv);
 	port->stats_reset_time = tv.tv_sec;
 
-	bfa_trc(port, 0);
-}
-
-/*
- * bfa_port_detach()
- *
- *
- * @param[in] port - Pointer to the Port module data structure
- *
- * @return void
- */
-void
-bfa_port_detach(struct bfa_port_s *port)
-{
 	bfa_trc(port, 0);
 }

@@ -150,16 +150,8 @@ static inline int rio_local_write_config_8(struct rio_mport *port, u32 offset,
 static inline int rio_read_config_32(struct rio_dev *rdev, u32 offset,
 				     u32 * data)
 {
-	u8 hopcount = 0xff;
-	u16 destid = rdev->destid;
-
-	if (rdev->rswitch) {
-		destid = rdev->rswitch->destid;
-		hopcount = rdev->rswitch->hopcount;
-	}
-
-	return rio_mport_read_config_32(rdev->net->hport, destid, hopcount,
-					offset, data);
+	return rio_mport_read_config_32(rdev->net->hport, rdev->destid,
+					rdev->hopcount, offset, data);
 };
 
 /**
@@ -174,16 +166,8 @@ static inline int rio_read_config_32(struct rio_dev *rdev, u32 offset,
 static inline int rio_write_config_32(struct rio_dev *rdev, u32 offset,
 				      u32 data)
 {
-	u8 hopcount = 0xff;
-	u16 destid = rdev->destid;
-
-	if (rdev->rswitch) {
-		destid = rdev->rswitch->destid;
-		hopcount = rdev->rswitch->hopcount;
-	}
-
-	return rio_mport_write_config_32(rdev->net->hport, destid, hopcount,
-					 offset, data);
+	return rio_mport_write_config_32(rdev->net->hport, rdev->destid,
+					 rdev->hopcount, offset, data);
 };
 
 /**
@@ -198,16 +182,8 @@ static inline int rio_write_config_32(struct rio_dev *rdev, u32 offset,
 static inline int rio_read_config_16(struct rio_dev *rdev, u32 offset,
 				     u16 * data)
 {
-	u8 hopcount = 0xff;
-	u16 destid = rdev->destid;
-
-	if (rdev->rswitch) {
-		destid = rdev->rswitch->destid;
-		hopcount = rdev->rswitch->hopcount;
-	}
-
-	return rio_mport_read_config_16(rdev->net->hport, destid, hopcount,
-					offset, data);
+	return rio_mport_read_config_16(rdev->net->hport, rdev->destid,
+					rdev->hopcount, offset, data);
 };
 
 /**
@@ -222,16 +198,8 @@ static inline int rio_read_config_16(struct rio_dev *rdev, u32 offset,
 static inline int rio_write_config_16(struct rio_dev *rdev, u32 offset,
 				      u16 data)
 {
-	u8 hopcount = 0xff;
-	u16 destid = rdev->destid;
-
-	if (rdev->rswitch) {
-		destid = rdev->rswitch->destid;
-		hopcount = rdev->rswitch->hopcount;
-	}
-
-	return rio_mport_write_config_16(rdev->net->hport, destid, hopcount,
-					 offset, data);
+	return rio_mport_write_config_16(rdev->net->hport, rdev->destid,
+					 rdev->hopcount, offset, data);
 };
 
 /**
@@ -245,16 +213,8 @@ static inline int rio_write_config_16(struct rio_dev *rdev, u32 offset,
  */
 static inline int rio_read_config_8(struct rio_dev *rdev, u32 offset, u8 * data)
 {
-	u8 hopcount = 0xff;
-	u16 destid = rdev->destid;
-
-	if (rdev->rswitch) {
-		destid = rdev->rswitch->destid;
-		hopcount = rdev->rswitch->hopcount;
-	}
-
-	return rio_mport_read_config_8(rdev->net->hport, destid, hopcount,
-				       offset, data);
+	return rio_mport_read_config_8(rdev->net->hport, rdev->destid,
+				       rdev->hopcount, offset, data);
 };
 
 /**
@@ -268,16 +228,8 @@ static inline int rio_read_config_8(struct rio_dev *rdev, u32 offset, u8 * data)
  */
 static inline int rio_write_config_8(struct rio_dev *rdev, u32 offset, u8 data)
 {
-	u8 hopcount = 0xff;
-	u16 destid = rdev->destid;
-
-	if (rdev->rswitch) {
-		destid = rdev->rswitch->destid;
-		hopcount = rdev->rswitch->hopcount;
-	}
-
-	return rio_mport_write_config_8(rdev->net->hport, destid, hopcount,
-					offset, data);
+	return rio_mport_write_config_8(rdev->net->hport, rdev->destid,
+					rdev->hopcount, offset, data);
 };
 
 extern int rio_mport_send_doorbell(struct rio_mport *mport, u16 destid,

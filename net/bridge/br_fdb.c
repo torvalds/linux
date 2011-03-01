@@ -238,15 +238,18 @@ struct net_bridge_fdb_entry *__br_fdb_get(struct net_bridge *br,
 int br_fdb_test_addr(struct net_device *dev, unsigned char *addr)
 {
 	struct net_bridge_fdb_entry *fdb;
+	struct net_bridge_port *port;
 	int ret;
 
-	if (!br_port_exists(dev))
-		return 0;
-
 	rcu_read_lock();
-	fdb = __br_fdb_get(br_port_get_rcu(dev)->br, addr);
-	ret = fdb && fdb->dst->dev != dev &&
-		fdb->dst->state == BR_STATE_FORWARDING;
+	port = br_port_get_rcu(dev);
+	if (!port)
+		ret = 0;
+	else {
+		fdb = __br_fdb_get(port->br, addr);
+		ret = fdb && fdb->dst->dev != dev &&
+			fdb->dst->state == BR_STATE_FORWARDING;
+	}
 	rcu_read_unlock();
 
 	return ret;
@@ -325,12 +328,12 @@ static struct net_bridge_fdb_entry *fdb_create(struct hlist_head *head,
 	fdb = kmem_cache_alloc(br_fdb_cache, GFP_ATOMIC);
 	if (fdb) {
 		memcpy(fdb->addr.addr, addr, ETH_ALEN);
-		hlist_add_head_rcu(&fdb->hlist, head);
-
 		fdb->dst = source;
 		fdb->is_local = is_local;
 		fdb->is_static = is_local;
 		fdb->ageing_timer = jiffies;
+
+		hlist_add_head_rcu(&fdb->hlist, head);
 	}
 	return fdb;
 }

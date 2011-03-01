@@ -41,7 +41,7 @@ static void print_name_offset(struct seq_file *m, void *sym)
 	char symname[KSYM_NAME_LEN];
 
 	if (lookup_symbol_name((unsigned long)sym, symname) < 0)
-		SEQ_printf(m, "<%p>", sym);
+		SEQ_printf(m, "<%pK>", sym);
 	else
 		SEQ_printf(m, "%s", symname);
 }
@@ -79,26 +79,26 @@ print_active_timers(struct seq_file *m, struct hrtimer_clock_base *base,
 {
 	struct hrtimer *timer, tmp;
 	unsigned long next = 0, i;
-	struct rb_node *curr;
+	struct timerqueue_node *curr;
 	unsigned long flags;
 
 next_one:
 	i = 0;
 	raw_spin_lock_irqsave(&base->cpu_base->lock, flags);
 
-	curr = base->first;
+	curr = timerqueue_getnext(&base->active);
 	/*
 	 * Crude but we have to do this O(N*N) thing, because
 	 * we have to unlock the base when printing:
 	 */
 	while (curr && i < next) {
-		curr = rb_next(curr);
+		curr = timerqueue_iterate_next(curr);
 		i++;
 	}
 
 	if (curr) {
 
-		timer = rb_entry(curr, struct hrtimer, node);
+		timer = container_of(curr, struct hrtimer, node);
 		tmp = *timer;
 		raw_spin_unlock_irqrestore(&base->cpu_base->lock, flags);
 
@@ -112,7 +112,7 @@ next_one:
 static void
 print_base(struct seq_file *m, struct hrtimer_clock_base *base, u64 now)
 {
-	SEQ_printf(m, "  .base:       %p\n", base);
+	SEQ_printf(m, "  .base:       %pK\n", base);
 	SEQ_printf(m, "  .index:      %d\n",
 			base->index);
 	SEQ_printf(m, "  .resolution: %Lu nsecs\n",

@@ -337,7 +337,7 @@ void __init mxm_8x10_mmc_init(void)
 }
 #endif
 
-/* USB Open Host Controler Interface */
+/* USB Open Host Controller Interface */
 static struct pxaohci_platform_data mxm_8x10_ohci_platform_data = {
 	.port_mode = PMM_NPS_MODE,
 	.flags = ENABLE_PORT_ALL

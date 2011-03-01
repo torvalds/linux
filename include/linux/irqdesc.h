@@ -57,7 +57,7 @@ struct irq_desc {
 #endif
 
 	struct timer_rand_state *timer_rand_state;
-	unsigned int		*kstat_irqs;
+	unsigned int __percpu	*kstat_irqs;
 	irq_flow_handler_t	handle_irq;
 	struct irqaction	*action;	/* IRQ action list */
 	unsigned int		status;		/* IRQ status */
@@ -101,13 +101,6 @@ static inline struct irq_desc *move_irq_desc(struct irq_desc *desc, int node)
 #define get_irq_desc_msi(desc)		((desc)->irq_data.msi_desc)
 
 /*
- * Monolithic do_IRQ implementation.
- */
-#ifndef CONFIG_GENERIC_HARDIRQS_NO__DO_IRQ
-extern unsigned int __do_IRQ(unsigned int irq);
-#endif
-
-/*
  * Architectures call this to let the generic IRQ layer
  * handle an interrupt. If the descriptor is attached to an
  * irqchip-style controller then we call the ->handle_irq() handler,
@@ -115,14 +108,7 @@ extern unsigned int __do_IRQ(unsigned int irq);
  */
 static inline void generic_handle_irq_desc(unsigned int irq, struct irq_desc *desc)
 {
-#ifdef CONFIG_GENERIC_HARDIRQS_NO__DO_IRQ
 	desc->handle_irq(irq, desc);
-#else
-	if (likely(desc->handle_irq))
-		desc->handle_irq(irq, desc);
-	else
-		__do_IRQ(irq);
-#endif
 }
 
 static inline void generic_handle_irq(unsigned int irq)

@@ -168,7 +168,7 @@ timer_interrupt (int irq, void *dev_id)
 {
 	unsigned long new_itm;
 
-	if (unlikely(cpu_is_offline(smp_processor_id()))) {
+	if (cpu_is_offline(smp_processor_id())) {
 		return IRQ_HANDLED;
 	}
 

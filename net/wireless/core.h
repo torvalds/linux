@@ -285,6 +285,20 @@ void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid);
 int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 			    struct wireless_dev *wdev);
 
+/* mesh */
+extern const struct mesh_config default_mesh_config;
+extern const struct mesh_setup default_mesh_setup;
+int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
+			 struct net_device *dev,
+			 const struct mesh_setup *setup,
+			 const struct mesh_config *conf);
+int cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
+		       struct net_device *dev,
+		       const struct mesh_setup *setup,
+		       const struct mesh_config *conf);
+int cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
+			struct net_device *dev);
+
 /* MLME */
 int __cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 			 struct net_device *dev,
@@ -341,9 +355,9 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlpid);
 void cfg80211_mlme_purge_registrations(struct wireless_dev *wdev);
 int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			  struct net_device *dev,
-			  struct ieee80211_channel *chan,
+			  struct ieee80211_channel *chan, bool offchan,
 			  enum nl80211_channel_type channel_type,
-			  bool channel_type_valid,
+			  bool channel_type_valid, unsigned int wait,
 			  const u8 *buf, size_t len, u64 *cookie);
 
 /* SME */

@@ -55,7 +55,7 @@
 #include <asm/io.h>
 #include <asm/byteorder.h>
 
-#include <media/rds.h>
+#include <media/saa6588.h>
 
 
 unsigned int bttv_num;			/* number of Bt848s in use */
@@ -189,8 +189,14 @@ static void request_modules(struct bttv *dev)
 	INIT_WORK(&dev->request_module_wk, request_module_async);
 	schedule_work(&dev->request_module_wk);
 }
+
+static void flush_request_modules(struct bttv *dev)
+{
+	flush_work_sync(&dev->request_module_wk);
+}
 #else
 #define request_modules(dev)
+#define flush_request_modules(dev)
 #endif /* CONFIG_MODULES */
 
 
@@ -2597,31 +2603,6 @@ static int bttv_s_fmt_vid_overlay(struct file *file, void *priv,
 	return setup_window_lock(fh, btv, &f->fmt.win, 1);
 }
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-static int vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
-{
-	int retval;
-	unsigned int i;
-	struct bttv_fh *fh = priv;
-
-	retval = __videobuf_mmap_setup(&fh->cap, gbuffers, gbufsize,
-				     V4L2_MEMORY_MMAP);
-	if (retval < 0) {
-		return retval;
-	}
-
-	gbuffers = retval;
-	memset(mbuf, 0, sizeof(*mbuf));
-	mbuf->frames = gbuffers;
-	mbuf->size   = gbuffers * gbufsize;
-
-	for (i = 0; i < gbuffers; i++)
-		mbuf->offsets[i] = i * gbufsize;
-
-	return 0;
-}
-#endif
-
 static int bttv_querycap(struct file *file, void  *priv,
 				struct v4l2_capability *cap)
 {
@@ -3354,9 +3335,6 @@ static const struct v4l2_ioctl_ops bttv_ioctl_ops = {
 	.vidioc_streamoff               = bttv_streamoff,
 	.vidioc_g_tuner                 = bttv_g_tuner,
 	.vidioc_s_tuner                 = bttv_s_tuner,
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf                    = vidiocgmbuf,
-#endif
 	.vidioc_g_crop                  = bttv_g_crop,
 	.vidioc_s_crop                  = bttv_s_crop,
 	.vidioc_g_fbuf                  = bttv_g_fbuf,
@@ -3416,7 +3394,7 @@ static int radio_release(struct file *file)
 {
 	struct bttv_fh *fh = file->private_data;
 	struct bttv *btv = fh->btv;
-	struct rds_command cmd;
+	struct saa6588_command cmd;
 
 	v4l2_prio_close(&btv->prio, fh->prio);
 	file->private_data = NULL;
@@ -3424,7 +3402,7 @@ static int radio_release(struct file *file)
 
 	btv->radio_user--;
 
-	bttv_call_all(btv, core, ioctl, RDS_CMD_CLOSE, &cmd);
+	bttv_call_all(btv, core, ioctl, SAA6588_CMD_CLOSE, &cmd);
 
 	return 0;
 }
@@ -3551,13 +3529,13 @@ static ssize_t radio_read(struct file *file, char __user *data,
 {
 	struct bttv_fh *fh = file->private_data;
 	struct bttv *btv = fh->btv;
-	struct rds_command cmd;
+	struct saa6588_command cmd;
 	cmd.block_count = count/3;
 	cmd.buffer = data;
 	cmd.instance = file;
 	cmd.result = -ENODEV;
 
-	bttv_call_all(btv, core, ioctl, RDS_CMD_READ, &cmd);
+	bttv_call_all(btv, core, ioctl, SAA6588_CMD_READ, &cmd);
 
 	return cmd.result;
 }
@@ -3566,11 +3544,11 @@ static unsigned int radio_poll(struct file *file, poll_table *wait)
 {
 	struct bttv_fh *fh = file->private_data;
 	struct bttv *btv = fh->btv;
-	struct rds_command cmd;
+	struct saa6588_command cmd;
 	cmd.instance = file;
 	cmd.event_list = wait;
 	cmd.result = -ENODEV;
-	bttv_call_all(btv, core, ioctl, RDS_CMD_POLL, &cmd);
+	bttv_call_all(btv, core, ioctl, SAA6588_CMD_POLL, &cmd);
 
 	return cmd.result;
 }
@@ -4041,9 +4019,6 @@ static irqreturn_t bttv_irq(int irq, void *dev_id)
 
 	btv=(struct bttv *)dev_id;
 
-	if (btv->custom_irq)
-		handled = btv->custom_irq(btv);
-
 	count=0;
 	while (1) {
 		/* get/clear interrupt status bits */
@@ -4079,7 +4054,6 @@ static irqreturn_t bttv_irq(int irq, void *dev_id)
 			btv->field_count++;
 
 		if ((astat & BT848_INT_GPINT) && btv->remote) {
-			wake_up(&btv->gpioq);
 			bttv_input_irq(btv);
 		}
 
@@ -4284,7 +4258,6 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 	mutex_init(&btv->lock);
 	spin_lock_init(&btv->s_lock);
 	spin_lock_init(&btv->gpio_lock);
-	init_waitqueue_head(&btv->gpioq);
 	init_waitqueue_head(&btv->i2c_queue);
 	INIT_LIST_HEAD(&btv->c.subs);
 	INIT_LIST_HEAD(&btv->capture);
@@ -4462,6 +4435,9 @@ static void __devexit bttv_remove(struct pci_dev *pci_dev)
 	if (bttv_verbose)
 		printk("bttv%d: unloading\n",btv->c.nr);
 
+	if (bttv_tvcards[btv->c.type].has_dvb)
+		flush_request_modules(btv);
+
 	/* shutdown everything (DMA+IRQs) */
 	btand(~15, BT848_GPIO_DMA_CTL);
 	btwrite(0, BT848_INT_MASK);
@@ -4472,7 +4448,6 @@ static void __devexit bttv_remove(struct pci_dev *pci_dev)
 
 	/* tell gpio modules we are leaving ... */
 	btv->shutdown=1;
-	wake_up(&btv->gpioq);
 	bttv_input_fini(btv);
 	bttv_sub_del_devices(&btv->c);
 

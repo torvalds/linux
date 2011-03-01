@@ -26,7 +26,8 @@ struct extent_map {
 	unsigned long flags;
 	struct block_device *bdev;
 	atomic_t refs;
-	int in_tree;
+	unsigned int in_tree:1;
+	unsigned int compress_type:4;
 };
 
 struct extent_map_tree {

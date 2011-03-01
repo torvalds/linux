@@ -24,7 +24,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 
 #include "ak4535.h"
@@ -290,10 +289,11 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static int ak4535_add_widgets(struct snd_soc_codec *codec)
 {
-	snd_soc_dapm_new_controls(codec, ak4535_dapm_widgets,
-				  ARRAY_SIZE(ak4535_dapm_widgets));
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_new_controls(dapm, ak4535_dapm_widgets,
+				  ARRAY_SIZE(ak4535_dapm_widgets));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	return 0;
 }
@@ -366,9 +366,9 @@ static int ak4535_set_dai_fmt(struct snd_soc_dai *codec_dai,
 static int ak4535_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	u16 mute_reg = ak4535_read_reg_cache(codec, AK4535_DAC) & 0xffdf;
+	u16 mute_reg = ak4535_read_reg_cache(codec, AK4535_DAC);
 	if (!mute)
-		ak4535_write(codec, AK4535_DAC, mute_reg);
+		ak4535_write(codec, AK4535_DAC, mute_reg & ~0x20);
 	else
 		ak4535_write(codec, AK4535_DAC, mute_reg | 0x20);
 	return 0;
@@ -381,11 +381,11 @@ static int ak4535_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		mute_reg = ak4535_read_reg_cache(codec, AK4535_DAC) & 0xffdf;
-		ak4535_write(codec, AK4535_DAC, mute_reg);
+		mute_reg = ak4535_read_reg_cache(codec, AK4535_DAC);
+		ak4535_write(codec, AK4535_DAC, mute_reg & ~0x20);
 		break;
 	case SND_SOC_BIAS_PREPARE:
-		mute_reg = ak4535_read_reg_cache(codec, AK4535_DAC) & 0xffdf;
+		mute_reg = ak4535_read_reg_cache(codec, AK4535_DAC);
 		ak4535_write(codec, AK4535_DAC, mute_reg | 0x20);
 		break;
 	case SND_SOC_BIAS_STANDBY:
@@ -399,7 +399,7 @@ static int ak4535_set_bias_level(struct snd_soc_codec *codec,
 		ak4535_write(codec, AK4535_PM1, i & (~0x80));
 		break;
 	}
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 	return 0;
 }
 

@@ -364,21 +364,19 @@ static void __init gic_init_irq(void)
 		writel(0x00000000, __io_address(REALVIEW_SYS_LOCK));
 
 		/* core tile GIC, primary */
-		gic_cpu_base_addr = __io_address(REALVIEW_EB11MP_GIC_CPU_BASE);
-		gic_dist_init(0, __io_address(REALVIEW_EB11MP_GIC_DIST_BASE), 29);
-		gic_cpu_init(0, gic_cpu_base_addr);
+		gic_init(0, 29, __io_address(REALVIEW_EB11MP_GIC_DIST_BASE),
+			 __io_address(REALVIEW_EB11MP_GIC_CPU_BASE));
 
 #ifndef CONFIG_REALVIEW_EB_ARM11MP_REVB
 		/* board GIC, secondary */
-		gic_dist_init(1, __io_address(REALVIEW_EB_GIC_DIST_BASE), 64);
-		gic_cpu_init(1, __io_address(REALVIEW_EB_GIC_CPU_BASE));
+		gic_init(1, 64, __io_address(REALVIEW_EB_GIC_DIST_BASE),
+			 __io_address(REALVIEW_EB_GIC_CPU_BASE));
 		gic_cascade_irq(1, IRQ_EB11MP_EB_IRQ1);
 #endif
 	} else {
 		/* board GIC, primary */
-		gic_cpu_base_addr = __io_address(REALVIEW_EB_GIC_CPU_BASE);
-		gic_dist_init(0, __io_address(REALVIEW_EB_GIC_DIST_BASE), 29);
-		gic_cpu_init(0, gic_cpu_base_addr);
+		gic_init(0, 29, __io_address(REALVIEW_EB_GIC_DIST_BASE),
+			 __io_address(REALVIEW_EB_GIC_CPU_BASE));
 	}
 }
 

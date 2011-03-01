@@ -290,6 +290,14 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		goto ignore;
 	}
 
+	if (field->report_type == HID_FEATURE_REPORT) {
+		if (device->driver->feature_mapping) {
+			device->driver->feature_mapping(device, hidinput, field,
+				usage);
+		}
+		goto ignore;
+	}
+
 	if (device->driver->input_mapping) {
 		int ret = device->driver->input_mapping(device, hidinput, field,
 				usage, &bit, &max);
@@ -319,21 +327,21 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 		switch (field->application) {
 		case HID_GD_MOUSE:
-		case HID_GD_POINTER:  code += 0x110; break;
+		case HID_GD_POINTER:  code += BTN_MOUSE; break;
 		case HID_GD_JOYSTICK:
 				if (code <= 0xf)
 					code += BTN_JOYSTICK;
 				else
 					code += BTN_TRIGGER_HAPPY;
 				break;
-		case HID_GD_GAMEPAD:  code += 0x130; break;
+		case HID_GD_GAMEPAD:  code += BTN_GAMEPAD; break;
 		default:
 			switch (field->physical) {
 			case HID_GD_MOUSE:
-			case HID_GD_POINTER:  code += 0x110; break;
-			case HID_GD_JOYSTICK: code += 0x120; break;
-			case HID_GD_GAMEPAD:  code += 0x130; break;
-			default:              code += 0x100;
+			case HID_GD_POINTER:  code += BTN_MOUSE; break;
+			case HID_GD_JOYSTICK: code += BTN_JOYSTICK; break;
+			case HID_GD_GAMEPAD:  code += BTN_GAMEPAD; break;
+			default:              code += BTN_MISC;
 			}
 		}
 
@@ -817,14 +825,14 @@ static int hidinput_open(struct input_dev *dev)
 {
 	struct hid_device *hid = input_get_drvdata(dev);
 
-	return hid->ll_driver->open(hid);
+	return hid_hw_open(hid);
 }
 
 static void hidinput_close(struct input_dev *dev)
 {
 	struct hid_device *hid = input_get_drvdata(dev);
 
-	hid->ll_driver->close(hid);
+	hid_hw_close(hid);
 }
 
 /*
@@ -839,7 +847,6 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 	struct hid_input *hidinput = NULL;
 	struct input_dev *input_dev;
 	int i, j, k;
-	int max_report_type = HID_OUTPUT_REPORT;
 
 	INIT_LIST_HEAD(&hid->inputs);
 
@@ -856,10 +863,11 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 			return -1;
 	}
 
-	if (hid->quirks & HID_QUIRK_SKIP_OUTPUT_REPORTS)
-		max_report_type = HID_INPUT_REPORT;
+	for (k = HID_INPUT_REPORT; k <= HID_FEATURE_REPORT; k++) {
+		if (k == HID_OUTPUT_REPORT &&
+			hid->quirks & HID_QUIRK_SKIP_OUTPUT_REPORTS)
+			continue;
 
-	for (k = HID_INPUT_REPORT; k <= max_report_type; k++)
 		list_for_each_entry(report, &hid->report_enum[k].report_list, list) {
 
 			if (!report->maxfield)
@@ -871,7 +879,7 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 				if (!hidinput || !input_dev) {
 					kfree(hidinput);
 					input_free_device(input_dev);
-					err_hid("Out of memory during hid input probe");
+					hid_err(hid, "Out of memory during hid input probe\n");
 					goto out_unwind;
 				}
 
@@ -912,6 +920,7 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 				hidinput = NULL;
 			}
 		}
+	}
 
 	if (hidinput && input_register_device(hidinput->input))
 		goto out_cleanup;

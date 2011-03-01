@@ -30,7 +30,7 @@
 
 #define RAMOOPS_KERNMSG_HDR "===="
 
-#define RECORD_SIZE 4096
+#define RECORD_SIZE 4096UL
 
 static ulong mem_address;
 module_param(mem_address, ulong, 0400);
@@ -68,11 +68,16 @@ static void ramoops_do_dump(struct kmsg_dumper *dumper,
 	char *buf, *buf_orig;
 	struct timeval timestamp;
 
+	if (reason != KMSG_DUMP_OOPS &&
+	    reason != KMSG_DUMP_PANIC &&
+	    reason != KMSG_DUMP_KEXEC)
+		return;
+
 	/* Only dump oopses if dump_oops is set */
 	if (reason == KMSG_DUMP_OOPS && !dump_oops)
 		return;
 
-	buf = (char *)(cxt->virt_addr + (cxt->count * RECORD_SIZE));
+	buf = cxt->virt_addr + (cxt->count * RECORD_SIZE);
 	buf_orig = buf;
 
 	memset(buf, '\0', RECORD_SIZE);
@@ -83,8 +88,8 @@ static void ramoops_do_dump(struct kmsg_dumper *dumper,
 	buf += res;
 
 	hdr_size = buf - buf_orig;
-	l2_cpy = min(l2, (unsigned long)(RECORD_SIZE - hdr_size));
-	l1_cpy = min(l1, (unsigned long)(RECORD_SIZE - hdr_size) - l2_cpy);
+	l2_cpy = min(l2, RECORD_SIZE - hdr_size);
+	l1_cpy = min(l1, RECORD_SIZE - hdr_size - l2_cpy);
 
 	s2_start = l2 - l2_cpy;
 	s1_start = l1 - l1_cpy;

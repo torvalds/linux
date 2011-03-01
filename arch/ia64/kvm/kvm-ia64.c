@@ -749,7 +749,7 @@ out:
 	return r;
 }
 
-static struct kvm *kvm_alloc_kvm(void)
+struct kvm *kvm_arch_alloc_vm(void)
 {
 
 	struct kvm *kvm;
@@ -760,7 +760,7 @@ static struct kvm *kvm_alloc_kvm(void)
 	vm_base = __get_free_pages(GFP_KERNEL, get_order(KVM_VM_DATA_SIZE));
 
 	if (!vm_base)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	memset((void *)vm_base, 0, KVM_VM_DATA_SIZE);
 	kvm = (struct kvm *)(vm_base +
@@ -806,9 +806,11 @@ static void kvm_build_io_pmt(struct kvm *kvm)
 #define GUEST_PHYSICAL_RR4	0x2739
 #define VMM_INIT_RR		0x1660
 
-static void kvm_init_vm(struct kvm *kvm)
+int kvm_arch_init_vm(struct kvm *kvm)
 {
 	BUG_ON(!kvm);
+
+	kvm->arch.is_sn2 = ia64_platform_is("sn2");
 
 	kvm->arch.metaphysical_rr0 = GUEST_PHYSICAL_RR0;
 	kvm->arch.metaphysical_rr4 = GUEST_PHYSICAL_RR4;
@@ -823,21 +825,8 @@ static void kvm_init_vm(struct kvm *kvm)
 
 	/* Reserve bit 0 of irq_sources_bitmap for userspace irq source */
 	set_bit(KVM_USERSPACE_IRQ_SOURCE_ID, &kvm->arch.irq_sources_bitmap);
-}
 
-struct  kvm *kvm_arch_create_vm(void)
-{
-	struct kvm *kvm = kvm_alloc_kvm();
-
-	if (IS_ERR(kvm))
-		return ERR_PTR(-ENOMEM);
-
-	kvm->arch.is_sn2 = ia64_platform_is("sn2");
-
-	kvm_init_vm(kvm);
-
-	return kvm;
-
+	return 0;
 }
 
 static int kvm_vm_ioctl_get_irqchip(struct kvm *kvm,
@@ -962,7 +951,9 @@ long kvm_arch_vm_ioctl(struct file *filp,
 			goto out;
 		r = kvm_setup_default_irq_routing(kvm);
 		if (r) {
+			mutex_lock(&kvm->slots_lock);
 			kvm_ioapic_destroy(kvm);
+			mutex_unlock(&kvm->slots_lock);
 			goto out;
 		}
 		break;
@@ -1357,7 +1348,7 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 	return -EINVAL;
 }
 
-static void free_kvm(struct kvm *kvm)
+void kvm_arch_free_vm(struct kvm *kvm)
 {
 	unsigned long vm_base = kvm->arch.vm_base;
 
@@ -1399,9 +1390,6 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 #endif
 	kfree(kvm->arch.vioapic);
 	kvm_release_vm_pages(kvm);
-	kvm_free_physmem(kvm);
-	cleanup_srcu_struct(&kvm->srcu);
-	free_kvm(kvm);
 }
 
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)

@@ -26,7 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/memory.h>
 #include <linux/gpio.h>
-#include <linux/fsl_devices.h>
+#include <linux/usb/otg.h>
 
 #include <linux/mtd/physmap.h>
 
@@ -40,7 +40,6 @@
 #include <mach/iomux-mx35.h>
 #include <mach/irqs.h>
 #include <mach/3ds_debugboard.h>
-#include <mach/mxc_ehci.h>
 
 #include "devices-imx35.h"
 #include "devices.h"
@@ -81,7 +80,7 @@ static struct platform_device *devices[] __initdata = {
 	&mx35pdk_flash,
 };
 
-static struct pad_desc mx35pdk_pads[] = {
+static iomux_v3_cfg_t mx35pdk_pads[] = {
 	/* UART1 */
 	MX35_PAD_CTS1__UART1_CTS,
 	MX35_PAD_RTS1__UART1_RTS,
@@ -122,17 +121,37 @@ static struct pad_desc mx35pdk_pads[] = {
 };
 
 /* OTG config */
-static struct fsl_usb2_platform_data usb_otg_pdata = {
+static const struct fsl_usb2_platform_data usb_otg_pdata __initconst = {
 	.operating_mode	= FSL_USB2_DR_DEVICE,
 	.phy_mode	= FSL_USB2_PHY_UTMI_WIDE,
 };
 
+static struct mxc_usbh_platform_data otg_pdata __initdata = {
+	.portsc	= MXC_EHCI_MODE_UTMI,
+	.flags	= MXC_EHCI_INTERNAL_PHY,
+};
+
 /* USB HOST config */
-static struct mxc_usbh_platform_data usb_host_pdata = {
+static const struct mxc_usbh_platform_data usb_host_pdata __initconst = {
 	.portsc		= MXC_EHCI_MODE_SERIAL,
 	.flags		= MXC_EHCI_INTERFACE_SINGLE_UNI |
 			  MXC_EHCI_INTERNAL_PHY,
 };
+
+static int otg_mode_host;
+
+static int __init mx35_3ds_otg_mode(char *options)
+{
+	if (!strcmp(options, "host"))
+		otg_mode_host = 1;
+	else if (!strcmp(options, "device"))
+		otg_mode_host = 0;
+	else
+		pr_info("otg_mode neither \"host\" nor \"device\". "
+			"Defaulting to device\n");
+	return 0;
+}
+__setup("otg_mode=", mx35_3ds_otg_mode);
 
 /*
  * Board specific initialization.
@@ -142,16 +161,21 @@ static void __init mxc_board_init(void)
 	mxc_iomux_v3_setup_multiple_pads(mx35pdk_pads, ARRAY_SIZE(mx35pdk_pads));
 
 	imx35_add_fec(NULL);
+	imx35_add_imx2_wdt(NULL);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	imx35_add_imx_uart0(&uart_pdata);
 
-	mxc_register_device(&mxc_otg_udc_device, &usb_otg_pdata);
+	if (otg_mode_host)
+		imx35_add_mxc_ehci_otg(&otg_pdata);
 
-	mxc_register_device(&mxc_usbh1, &usb_host_pdata);
+	imx35_add_mxc_ehci_hs(&usb_host_pdata);
+
+	if (!otg_mode_host)
+		imx35_add_fsl_usb2_udc(&usb_otg_pdata);
 
 	imx35_add_mxc_nand(&mx35pdk_nand_board_info);
-	imx35_add_esdhc(0, NULL);
+	imx35_add_sdhci_esdhc_imx(0, NULL);
 
 	if (mxc_expio_init(MX35_CS5_BASE_ADDR, EXPIO_PARENT_INT))
 		pr_warn("Init of the debugboard failed, all "

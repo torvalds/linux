@@ -63,7 +63,7 @@ static struct slowport_cfg slowport_cpld_cfg = {
 };
 #endif
 
-static void ixdp2x00_irq_mask(unsigned int irq)
+static void ixdp2x00_irq_mask(struct irq_data *d)
 {
 	unsigned long dummy;
 	static struct slowport_cfg old_cfg;
@@ -78,7 +78,7 @@ static void ixdp2x00_irq_mask(unsigned int irq)
 #endif
 
 	dummy = *board_irq_mask;
-	dummy |=  IXP2000_BOARD_IRQ_MASK(irq);
+	dummy |=  IXP2000_BOARD_IRQ_MASK(d->irq);
 	ixp2000_reg_wrb(board_irq_mask, dummy);
 
 #ifdef CONFIG_ARCH_IXDP2400
@@ -87,7 +87,7 @@ static void ixdp2x00_irq_mask(unsigned int irq)
 #endif
 }
 
-static void ixdp2x00_irq_unmask(unsigned int irq)
+static void ixdp2x00_irq_unmask(struct irq_data *d)
 {
 	unsigned long dummy;
 	static struct slowport_cfg old_cfg;
@@ -98,7 +98,7 @@ static void ixdp2x00_irq_unmask(unsigned int irq)
 #endif
 
 	dummy = *board_irq_mask;
-	dummy &=  ~IXP2000_BOARD_IRQ_MASK(irq);
+	dummy &=  ~IXP2000_BOARD_IRQ_MASK(d->irq);
 	ixp2000_reg_wrb(board_irq_mask, dummy);
 
 	if (machine_is_ixdp2400()) 
@@ -111,7 +111,7 @@ static void ixdp2x00_irq_handler(unsigned int irq, struct irq_desc *desc)
 	static struct slowport_cfg old_cfg;
 	int i;
 
-	desc->chip->mask(irq);
+	desc->irq_data.chip->irq_mask(&desc->irq_data);
 
 #ifdef CONFIG_ARCH_IXDP2400
 	if (machine_is_ixdp2400())
@@ -133,13 +133,13 @@ static void ixdp2x00_irq_handler(unsigned int irq, struct irq_desc *desc)
 		}
 	}
 
-	desc->chip->unmask(irq);
+	desc->irq_data.chip->irq_unmask(&desc->irq_data);
 }
 
 static struct irq_chip ixdp2x00_cpld_irq_chip = {
-	.ack	= ixdp2x00_irq_mask,
-	.mask	= ixdp2x00_irq_mask,
-	.unmask	= ixdp2x00_irq_unmask
+	.irq_ack	= ixdp2x00_irq_mask,
+	.irq_mask	= ixdp2x00_irq_mask,
+	.irq_unmask	= ixdp2x00_irq_unmask
 };
 
 void __init ixdp2x00_init_irq(volatile unsigned long *stat_reg, volatile unsigned long *mask_reg, unsigned long nr_of_irqs)

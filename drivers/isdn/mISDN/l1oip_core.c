@@ -1269,6 +1269,8 @@ release_card(struct l1oip *hc)
 	if (timer_pending(&hc->timeout_tl))
 		del_timer(&hc->timeout_tl);
 
+	cancel_work_sync(&hc->workq);
+
 	if (hc->socket_thread)
 		l1oip_socket_close(hc);
 

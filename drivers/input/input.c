@@ -10,9 +10,11 @@
  * the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_BASENAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/input.h>
+#include <linux/input/mt.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/random.h>
@@ -73,7 +75,6 @@ static int input_defuzz_abs_event(int value, int old_val, int fuzz)
  * dev->event_lock held and interrupts disabled.
  */
 static void input_pass_event(struct input_dev *dev,
-			     struct input_handler *src_handler,
 			     unsigned int type, unsigned int code, int value)
 {
 	struct input_handler *handler;
@@ -92,15 +93,6 @@ static void input_pass_event(struct input_dev *dev,
 				continue;
 
 			handler = handle->handler;
-
-			/*
-			 * If this is the handler that injected this
-			 * particular event we want to skip it to avoid
-			 * filters firing again and again.
-			 */
-			if (handler == src_handler)
-				continue;
-
 			if (!handler->filter) {
 				if (filtered)
 					break;
@@ -130,7 +122,7 @@ static void input_repeat_key(unsigned long data)
 	if (test_bit(dev->repeat_key, dev->key) &&
 	    is_event_supported(dev->repeat_key, dev->keybit, KEY_MAX)) {
 
-		input_pass_event(dev, NULL, EV_KEY, dev->repeat_key, 2);
+		input_pass_event(dev, EV_KEY, dev->repeat_key, 2);
 
 		if (dev->sync) {
 			/*
@@ -139,7 +131,7 @@ static void input_repeat_key(unsigned long data)
 			 * Otherwise assume that the driver will send
 			 * SYN_REPORT once it's done.
 			 */
-			input_pass_event(dev, NULL, EV_SYN, SYN_REPORT, 1);
+			input_pass_event(dev, EV_SYN, SYN_REPORT, 1);
 		}
 
 		if (dev->rep[REP_PERIOD])
@@ -172,7 +164,6 @@ static void input_stop_autorepeat(struct input_dev *dev)
 #define INPUT_PASS_TO_ALL	(INPUT_PASS_TO_HANDLERS | INPUT_PASS_TO_DEVICE)
 
 static int input_handle_abs_event(struct input_dev *dev,
-				  struct input_handler *src_handler,
 				  unsigned int code, int *pval)
 {
 	bool is_mt_event;
@@ -216,15 +207,13 @@ static int input_handle_abs_event(struct input_dev *dev,
 	/* Flush pending "slot" event */
 	if (is_mt_event && dev->slot != input_abs_get_val(dev, ABS_MT_SLOT)) {
 		input_abs_set_val(dev, ABS_MT_SLOT, dev->slot);
-		input_pass_event(dev, src_handler,
-				 EV_ABS, ABS_MT_SLOT, dev->slot);
+		input_pass_event(dev, EV_ABS, ABS_MT_SLOT, dev->slot);
 	}
 
 	return INPUT_PASS_TO_HANDLERS;
 }
 
 static void input_handle_event(struct input_dev *dev,
-			       struct input_handler *src_handler,
 			       unsigned int type, unsigned int code, int value)
 {
 	int disposition = INPUT_IGNORE_EVENT;
@@ -277,8 +266,7 @@ static void input_handle_event(struct input_dev *dev,
 
 	case EV_ABS:
 		if (is_event_supported(code, dev->absbit, ABS_MAX))
-			disposition = input_handle_abs_event(dev, src_handler,
-							     code, &value);
+			disposition = input_handle_abs_event(dev, code, &value);
 
 		break;
 
@@ -336,7 +324,7 @@ static void input_handle_event(struct input_dev *dev,
 		dev->event(dev, type, code, value);
 
 	if (disposition & INPUT_PASS_TO_HANDLERS)
-		input_pass_event(dev, src_handler, type, code, value);
+		input_pass_event(dev, type, code, value);
 }
 
 /**
@@ -365,7 +353,7 @@ void input_event(struct input_dev *dev,
 
 		spin_lock_irqsave(&dev->event_lock, flags);
 		add_input_randomness(type, code, value);
-		input_handle_event(dev, NULL, type, code, value);
+		input_handle_event(dev, type, code, value);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 }
@@ -395,8 +383,7 @@ void input_inject_event(struct input_handle *handle,
 		rcu_read_lock();
 		grab = rcu_dereference(dev->grab);
 		if (!grab || grab == handle)
-			input_handle_event(dev, handle->handler,
-					   type, code, value);
+			input_handle_event(dev, type, code, value);
 		rcu_read_unlock();
 
 		spin_unlock_irqrestore(&dev->event_lock, flags);
@@ -609,10 +596,10 @@ static void input_dev_release_keys(struct input_dev *dev)
 		for (code = 0; code <= KEY_MAX; code++) {
 			if (is_event_supported(code, dev->keybit, KEY_MAX) &&
 			    __test_and_clear_bit(code, dev->key)) {
-				input_pass_event(dev, NULL, EV_KEY, code, 0);
+				input_pass_event(dev, EV_KEY, code, 0);
 			}
 		}
-		input_pass_event(dev, NULL, EV_SYN, SYN_REPORT, 1);
+		input_pass_event(dev, EV_SYN, SYN_REPORT, 1);
 	}
 }
 
@@ -887,9 +874,9 @@ int input_set_keycode(struct input_dev *dev,
 	    !is_event_supported(old_keycode, dev->keybit, KEY_MAX) &&
 	    __test_and_clear_bit(old_keycode, dev->key)) {
 
-		input_pass_event(dev, NULL, EV_KEY, old_keycode, 0);
+		input_pass_event(dev, EV_KEY, old_keycode, 0);
 		if (dev->sync)
-			input_pass_event(dev, NULL, EV_SYN, SYN_REPORT, 1);
+			input_pass_event(dev, EV_SYN, SYN_REPORT, 1);
 	}
 
  out:
@@ -958,10 +945,8 @@ static int input_attach_handler(struct input_dev *dev, struct input_handler *han
 
 	error = handler->connect(handler, dev, id);
 	if (error && error != -ENODEV)
-		printk(KERN_ERR
-			"input: failed to attach handler %s to device %s, "
-			"error: %d\n",
-			handler->name, kobject_name(&dev->dev.kobj), error);
+		pr_err("failed to attach handler %s to device %s, error: %d\n",
+		       handler->name, kobject_name(&dev->dev.kobj), error);
 
 	return error;
 }
@@ -1108,6 +1093,8 @@ static int input_devices_seq_show(struct seq_file *seq, void *v)
 	list_for_each_entry(handle, &dev->h_list, d_node)
 		seq_printf(seq, "%s ", handle->name);
 	seq_putc(seq, '\n');
+
+	input_seq_print_bitmap(seq, "PROP", dev->propbit, INPUT_PROP_MAX);
 
 	input_seq_print_bitmap(seq, "EV", dev->evbit, EV_MAX);
 	if (test_bit(EV_KEY, dev->evbit))
@@ -1332,11 +1319,26 @@ static ssize_t input_dev_show_modalias(struct device *dev,
 }
 static DEVICE_ATTR(modalias, S_IRUGO, input_dev_show_modalias, NULL);
 
+static int input_print_bitmap(char *buf, int buf_size, unsigned long *bitmap,
+			      int max, int add_cr);
+
+static ssize_t input_dev_show_properties(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct input_dev *input_dev = to_input_dev(dev);
+	int len = input_print_bitmap(buf, PAGE_SIZE, input_dev->propbit,
+				     INPUT_PROP_MAX, true);
+	return min_t(int, len, PAGE_SIZE);
+}
+static DEVICE_ATTR(properties, S_IRUGO, input_dev_show_properties, NULL);
+
 static struct attribute *input_dev_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_phys.attr,
 	&dev_attr_uniq.attr,
 	&dev_attr_modalias.attr,
+	&dev_attr_properties.attr,
 	NULL
 };
 
@@ -1470,7 +1472,7 @@ static int input_add_uevent_bm_var(struct kobj_uevent_env *env,
 {
 	int len;
 
-	if (add_uevent_var(env, "%s=", name))
+	if (add_uevent_var(env, "%s", name))
 		return -ENOMEM;
 
 	len = input_print_bitmap(&env->buf[env->buflen - 1],
@@ -1535,6 +1537,8 @@ static int input_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 		INPUT_ADD_HOTPLUG_VAR("PHYS=\"%s\"", dev->phys);
 	if (dev->uniq)
 		INPUT_ADD_HOTPLUG_VAR("UNIQ=\"%s\"", dev->uniq);
+
+	INPUT_ADD_HOTPLUG_BM_VAR("PROP=", dev->propbit, INPUT_PROP_MAX);
 
 	INPUT_ADD_HOTPLUG_BM_VAR("EV=", dev->evbit, EV_MAX);
 	if (test_bit(EV_KEY, dev->evbit))
@@ -1725,52 +1729,6 @@ void input_free_device(struct input_dev *dev)
 EXPORT_SYMBOL(input_free_device);
 
 /**
- * input_mt_create_slots() - create MT input slots
- * @dev: input device supporting MT events and finger tracking
- * @num_slots: number of slots used by the device
- *
- * This function allocates all necessary memory for MT slot handling in the
- * input device, and adds ABS_MT_SLOT to the device capabilities. All slots
- * are initially marked as unused by setting ABS_MT_TRACKING_ID to -1.
- */
-int input_mt_create_slots(struct input_dev *dev, unsigned int num_slots)
-{
-	int i;
-
-	if (!num_slots)
-		return 0;
-
-	dev->mt = kcalloc(num_slots, sizeof(struct input_mt_slot), GFP_KERNEL);
-	if (!dev->mt)
-		return -ENOMEM;
-
-	dev->mtsize = num_slots;
-	input_set_abs_params(dev, ABS_MT_SLOT, 0, num_slots - 1, 0, 0);
-
-	/* Mark slots as 'unused' */
-	for (i = 0; i < num_slots; i++)
-		dev->mt[i].abs[ABS_MT_TRACKING_ID - ABS_MT_FIRST] = -1;
-
-	return 0;
-}
-EXPORT_SYMBOL(input_mt_create_slots);
-
-/**
- * input_mt_destroy_slots() - frees the MT slots of the input device
- * @dev: input device with allocated MT slots
- *
- * This function is only needed in error path as the input core will
- * automatically free the MT slots when the device is destroyed.
- */
-void input_mt_destroy_slots(struct input_dev *dev)
-{
-	kfree(dev->mt);
-	dev->mt = NULL;
-	dev->mtsize = 0;
-}
-EXPORT_SYMBOL(input_mt_destroy_slots);
-
-/**
  * input_set_capability - mark device as capable of a certain event
  * @dev: device that is capable of emitting or accepting event
  * @type: type of the event (EV_KEY, EV_REL, etc...)
@@ -1819,9 +1777,8 @@ void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int
 		break;
 
 	default:
-		printk(KERN_ERR
-			"input_set_capability: unknown type %u (code %u)\n",
-			type, code);
+		pr_err("input_set_capability: unknown type %u (code %u)\n",
+		       type, code);
 		dump_stack();
 		return;
 	}
@@ -1903,8 +1860,9 @@ int input_register_device(struct input_dev *dev)
 		return error;
 
 	path = kobject_get_path(&dev->dev.kobj, GFP_KERNEL);
-	printk(KERN_INFO "input: %s as %s\n",
-		dev->name ? dev->name : "Unspecified device", path ? path : "N/A");
+	pr_info("%s as %s\n",
+		dev->name ? dev->name : "Unspecified device",
+		path ? path : "N/A");
 	kfree(path);
 
 	error = mutex_lock_interruptible(&input_mutex);
@@ -2186,7 +2144,7 @@ static int __init input_init(void)
 
 	err = class_register(&input_class);
 	if (err) {
-		printk(KERN_ERR "input: unable to register input_dev class\n");
+		pr_err("unable to register input_dev class\n");
 		return err;
 	}
 
@@ -2196,7 +2154,7 @@ static int __init input_init(void)
 
 	err = register_chrdev(INPUT_MAJOR, "input", &input_fops);
 	if (err) {
-		printk(KERN_ERR "input: unable to register char major %d", INPUT_MAJOR);
+		pr_err("unable to register char major %d", INPUT_MAJOR);
 		goto fail2;
 	}
 

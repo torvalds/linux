@@ -964,6 +964,8 @@ static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
 	pmd = pmd_offset(pud, addr);
 	do {
 		next = pmd_addr_end(addr, end);
+		if (unlikely(pmd_trans_huge(*pmd)))
+			continue;
 		if (pmd_none_or_clear_bad(pmd))
 			continue;
 		ret = unuse_pte_range(vma, pmd, addr, next, entry, page);
@@ -1677,7 +1679,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	if (S_ISBLK(inode->i_mode)) {
 		struct block_device *bdev = I_BDEV(inode);
 		set_blocksize(bdev, p->old_block_size);
-		bd_release(bdev);
+		blkdev_put(bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
 	} else {
 		mutex_lock(&inode->i_mutex);
 		inode->i_flags &= ~S_SWAPFILE;
@@ -1939,7 +1941,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 	error = -EINVAL;
 	if (S_ISBLK(inode->i_mode)) {
 		bdev = I_BDEV(inode);
-		error = bd_claim(bdev, sys_swapon);
+		error = blkdev_get(bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL,
+				   sys_swapon);
 		if (error < 0) {
 			bdev = NULL;
 			error = -EINVAL;
@@ -2136,7 +2139,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 bad_swap:
 	if (bdev) {
 		set_blocksize(bdev, p->old_block_size);
-		bd_release(bdev);
+		blkdev_put(bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
 	}
 	destroy_swap_extents(p);
 	swap_cgroup_swapoff(type);

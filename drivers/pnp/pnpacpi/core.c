@@ -81,12 +81,19 @@ static int pnpacpi_get_resources(struct pnp_dev *dev)
 
 static int pnpacpi_set_resources(struct pnp_dev *dev)
 {
-	struct acpi_device *acpi_dev = dev->data;
-	acpi_handle handle = acpi_dev->handle;
+	struct acpi_device *acpi_dev;
+	acpi_handle handle;
 	struct acpi_buffer buffer;
 	int ret;
 
 	pnp_dbg(&dev->dev, "set resources\n");
+
+	handle = DEVICE_ACPI_HANDLE(&dev->dev);
+	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &acpi_dev))) {
+		dev_dbg(&dev->dev, "ACPI device not found in %s!\n", __func__);
+		return -ENODEV;
+	}
+
 	ret = pnpacpi_build_resource_template(dev, &buffer);
 	if (ret)
 		return ret;
@@ -105,11 +112,17 @@ static int pnpacpi_set_resources(struct pnp_dev *dev)
 
 static int pnpacpi_disable_resources(struct pnp_dev *dev)
 {
-	struct acpi_device *acpi_dev = dev->data;
-	acpi_handle handle = acpi_dev->handle;
+	struct acpi_device *acpi_dev;
+	acpi_handle handle;
 	int ret;
 
 	dev_dbg(&dev->dev, "disable resources\n");
+
+	handle = DEVICE_ACPI_HANDLE(&dev->dev);
+	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &acpi_dev))) {
+		dev_dbg(&dev->dev, "ACPI device not found in %s!\n", __func__);
+		return 0;
+	}
 
 	/* acpi_unregister_gsi(pnp_irq(dev, 0)); */
 	ret = 0;
@@ -124,46 +137,74 @@ static int pnpacpi_disable_resources(struct pnp_dev *dev)
 #ifdef CONFIG_ACPI_SLEEP
 static bool pnpacpi_can_wakeup(struct pnp_dev *dev)
 {
-	struct acpi_device *acpi_dev = dev->data;
-	acpi_handle handle = acpi_dev->handle;
+	struct acpi_device *acpi_dev;
+	acpi_handle handle;
+
+	handle = DEVICE_ACPI_HANDLE(&dev->dev);
+	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &acpi_dev))) {
+		dev_dbg(&dev->dev, "ACPI device not found in %s!\n", __func__);
+		return false;
+	}
 
 	return acpi_bus_can_wakeup(handle);
 }
 
 static int pnpacpi_suspend(struct pnp_dev *dev, pm_message_t state)
 {
-	struct acpi_device *acpi_dev = dev->data;
-	acpi_handle handle = acpi_dev->handle;
-	int power_state;
+	struct acpi_device *acpi_dev;
+	acpi_handle handle;
+	int error = 0;
+
+	handle = DEVICE_ACPI_HANDLE(&dev->dev);
+	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &acpi_dev))) {
+		dev_dbg(&dev->dev, "ACPI device not found in %s!\n", __func__);
+		return 0;
+	}
 
 	if (device_can_wakeup(&dev->dev)) {
-		int rc = acpi_pm_device_sleep_wake(&dev->dev,
+		error = acpi_pm_device_sleep_wake(&dev->dev,
 				device_may_wakeup(&dev->dev));
-
-		if (rc)
-			return rc;
+		if (error)
+			return error;
 	}
-	power_state = acpi_pm_device_sleep_state(&dev->dev, NULL);
-	if (power_state < 0)
-		power_state = (state.event == PM_EVENT_ON) ?
-				ACPI_STATE_D0 : ACPI_STATE_D3;
 
-	/* acpi_bus_set_power() often fails (keyboard port can't be
-	 * powered-down?), and in any case, our return value is ignored
-	 * by pnp_bus_suspend().  Hence we don't revert the wakeup
-	 * setting if the set_power fails.
-	 */
-	return acpi_bus_set_power(handle, power_state);
+	if (acpi_bus_power_manageable(handle)) {
+		int power_state = acpi_pm_device_sleep_state(&dev->dev, NULL);
+
+		if (power_state < 0)
+			power_state = (state.event == PM_EVENT_ON) ?
+					ACPI_STATE_D0 : ACPI_STATE_D3;
+
+		/*
+		 * acpi_bus_set_power() often fails (keyboard port can't be
+		 * powered-down?), and in any case, our return value is ignored
+		 * by pnp_bus_suspend().  Hence we don't revert the wakeup
+		 * setting if the set_power fails.
+		 */
+		error = acpi_bus_set_power(handle, power_state);
+	}
+
+	return error;
 }
 
 static int pnpacpi_resume(struct pnp_dev *dev)
 {
-	struct acpi_device *acpi_dev = dev->data;
-	acpi_handle handle = acpi_dev->handle;
+	struct acpi_device *acpi_dev;
+	acpi_handle handle = DEVICE_ACPI_HANDLE(&dev->dev);
+	int error = 0;
+
+	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &acpi_dev))) {
+		dev_dbg(&dev->dev, "ACPI device not found in %s!\n", __func__);
+		return -ENODEV;
+	}
 
 	if (device_may_wakeup(&dev->dev))
 		acpi_pm_device_sleep_wake(&dev->dev, false);
-	return acpi_bus_set_power(handle, ACPI_STATE_D0);
+
+	if (acpi_bus_power_manageable(handle))
+		error = acpi_bus_set_power(handle, ACPI_STATE_D0);
+
+	return error;
 }
 #endif
 

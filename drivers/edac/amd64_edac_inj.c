@@ -23,9 +23,7 @@ static ssize_t amd64_inject_section_store(struct mem_ctl_info *mci,
 	if (ret != -EINVAL) {
 
 		if (value > 3) {
-			amd64_printk(KERN_WARNING,
-				     "%s: invalid section 0x%lx\n",
-				     __func__, value);
+			amd64_warn("%s: invalid section 0x%lx\n", __func__, value);
 			return -EINVAL;
 		}
 
@@ -58,9 +56,7 @@ static ssize_t amd64_inject_word_store(struct mem_ctl_info *mci,
 	if (ret != -EINVAL) {
 
 		if (value > 8) {
-			amd64_printk(KERN_WARNING,
-				     "%s: invalid word 0x%lx\n",
-				     __func__, value);
+			amd64_warn("%s: invalid word 0x%lx\n", __func__, value);
 			return -EINVAL;
 		}
 
@@ -92,9 +88,8 @@ static ssize_t amd64_inject_ecc_vector_store(struct mem_ctl_info *mci,
 	if (ret != -EINVAL) {
 
 		if (value & 0xFFFF0000) {
-			amd64_printk(KERN_WARNING,
-				     "%s: invalid EccVector: 0x%lx\n",
-				     __func__, value);
+			amd64_warn("%s: invalid EccVector: 0x%lx\n",
+				   __func__, value);
 			return -EINVAL;
 		}
 
@@ -122,15 +117,13 @@ static ssize_t amd64_inject_read_store(struct mem_ctl_info *mci,
 		/* Form value to choose 16-byte section of cacheline */
 		section = F10_NB_ARRAY_DRAM_ECC |
 				SET_NB_ARRAY_ADDRESS(pvt->injection.section);
-		pci_write_config_dword(pvt->misc_f3_ctl,
-					F10_NB_ARRAY_ADDR, section);
+		pci_write_config_dword(pvt->F3, F10_NB_ARRAY_ADDR, section);
 
 		word_bits = SET_NB_DRAM_INJECTION_READ(pvt->injection.word,
 						pvt->injection.bit_map);
 
 		/* Issue 'word' and 'bit' along with the READ request */
-		pci_write_config_dword(pvt->misc_f3_ctl,
-					F10_NB_ARRAY_DATA, word_bits);
+		pci_write_config_dword(pvt->F3, F10_NB_ARRAY_DATA, word_bits);
 
 		debugf0("section=0x%x word_bits=0x%x\n", section, word_bits);
 
@@ -157,15 +150,13 @@ static ssize_t amd64_inject_write_store(struct mem_ctl_info *mci,
 		/* Form value to choose 16-byte section of cacheline */
 		section = F10_NB_ARRAY_DRAM_ECC |
 				SET_NB_ARRAY_ADDRESS(pvt->injection.section);
-		pci_write_config_dword(pvt->misc_f3_ctl,
-					F10_NB_ARRAY_ADDR, section);
+		pci_write_config_dword(pvt->F3, F10_NB_ARRAY_ADDR, section);
 
 		word_bits = SET_NB_DRAM_INJECTION_WRITE(pvt->injection.word,
 						pvt->injection.bit_map);
 
 		/* Issue 'word' and 'bit' along with the READ request */
-		pci_write_config_dword(pvt->misc_f3_ctl,
-					F10_NB_ARRAY_DATA, word_bits);
+		pci_write_config_dword(pvt->F3, F10_NB_ARRAY_DATA, word_bits);
 
 		debugf0("section=0x%x word_bits=0x%x\n", section, word_bits);
 

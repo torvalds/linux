@@ -669,6 +669,13 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 		def = 1;
 	else if (IS_QLA81XX(ha))
 		def = 2;
+
+	/* Assign FCP prio region since older adapters may not have FLT, or
+	   FCP prio region in it's FLT.
+	 */
+	ha->flt_region_fcp_prio = ha->flags.port0 ?
+	    fcp_prio_cfg0[def] : fcp_prio_cfg1[def];
+
 	ha->flt_region_flt = flt_addr;
 	wptr = (uint16_t *)req->ring;
 	flt = (struct qla_flt_header *)req->ring;
@@ -695,10 +702,6 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 		    chksum));
 		goto no_flash_data;
 	}
-
-	/* Assign FCP prio region since older FLT's may not have it */
-	ha->flt_region_fcp_prio = ha->flags.port0 ?
-	    fcp_prio_cfg0[def] : fcp_prio_cfg1[def];
 
 	loc = locations[1];
 	cnt = le16_to_cpu(flt->length) / sizeof(struct qla_flt_region);

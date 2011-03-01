@@ -220,7 +220,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 		V_FW_RI_RES_WR_DCAEN(0) |
 		V_FW_RI_RES_WR_DCACPU(0) |
 		V_FW_RI_RES_WR_FBMIN(2) |
-		V_FW_RI_RES_WR_FBMAX(3) |
+		V_FW_RI_RES_WR_FBMAX(2) |
 		V_FW_RI_RES_WR_CIDXFTHRESHO(0) |
 		V_FW_RI_RES_WR_CIDXFTHRESH(0) |
 		V_FW_RI_RES_WR_EQSIZE(eqsize));
@@ -243,7 +243,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 		V_FW_RI_RES_WR_DCAEN(0) |
 		V_FW_RI_RES_WR_DCACPU(0) |
 		V_FW_RI_RES_WR_FBMIN(2) |
-		V_FW_RI_RES_WR_FBMAX(3) |
+		V_FW_RI_RES_WR_FBMAX(2) |
 		V_FW_RI_RES_WR_CIDXFTHRESHO(0) |
 		V_FW_RI_RES_WR_CIDXFTHRESH(0) |
 		V_FW_RI_RES_WR_EQSIZE(eqsize));
@@ -892,36 +892,6 @@ static inline void build_term_codes(struct t4_cqe *err_cqe, u8 *layer_type,
 	}
 }
 
-int c4iw_post_zb_read(struct c4iw_qp *qhp)
-{
-	union t4_wr *wqe;
-	struct sk_buff *skb;
-	u8 len16;
-
-	PDBG("%s enter\n", __func__);
-	skb = alloc_skb(40, GFP_KERNEL);
-	if (!skb) {
-		printk(KERN_ERR "%s cannot send zb_read!!\n", __func__);
-		return -ENOMEM;
-	}
-	set_wr_txq(skb, CPL_PRIORITY_DATA, qhp->ep->txq_idx);
-
-	wqe = (union t4_wr *)skb_put(skb, sizeof wqe->read);
-	memset(wqe, 0, sizeof wqe->read);
-	wqe->read.r2 = cpu_to_be64(0);
-	wqe->read.stag_sink = cpu_to_be32(1);
-	wqe->read.to_sink_hi = cpu_to_be32(0);
-	wqe->read.to_sink_lo = cpu_to_be32(1);
-	wqe->read.stag_src = cpu_to_be32(1);
-	wqe->read.plen = cpu_to_be32(0);
-	wqe->read.to_src_hi = cpu_to_be32(0);
-	wqe->read.to_src_lo = cpu_to_be32(1);
-	len16 = DIV_ROUND_UP(sizeof wqe->read, 16);
-	init_wr_hdr(wqe, 0, FW_RI_RDMA_READ_WR, FW_RI_COMPLETION_FLAG, len16);
-
-	return c4iw_ofld_send(&qhp->rhp->rdev, skb);
-}
-
 static void post_terminate(struct c4iw_qp *qhp, struct t4_cqe *err_cqe,
 			   gfp_t gfp)
 {
@@ -1029,7 +999,6 @@ static int rdma_fini(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 	wqe->cookie = (unsigned long) &ep->com.wr_wait;
 
 	wqe->u.fini.type = FW_RI_TYPE_FINI;
-	c4iw_init_wr_wait(&ep->com.wr_wait);
 	ret = c4iw_ofld_send(&rhp->rdev, skb);
 	if (ret)
 		goto out;
@@ -1125,7 +1094,6 @@ static int rdma_init(struct c4iw_dev *rhp, struct c4iw_qp *qhp)
 	if (qhp->attr.mpa_attr.initiator)
 		build_rtr_msg(qhp->attr.mpa_attr.p2p_type, &wqe->u.init);
 
-	c4iw_init_wr_wait(&qhp->ep->com.wr_wait);
 	ret = c4iw_ofld_send(&rhp->rdev, skb);
 	if (ret)
 		goto out;

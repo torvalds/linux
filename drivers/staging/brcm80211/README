@@ -43,14 +43,8 @@ Firmware is available from the Linux firmware repository at:
 	http://git.kernel.org/?p=linux/kernel/git/dwmw2/linux-firmware.git
 	https://git.kernel.org/?p=linux/kernel/git/dwmw2/linux-firmware.git
 
-For all chips, copy brcm/bcm43xx-0-610-809-0.fw and
-brcm/bcm43xx_hdr-0-610-809-0.fw to /lib/firmware/brcm (or wherever firmware is
-normally installed on the system).  In the /lib/firmware/brcm directory, then
-create the following symlinks:
-
-	ln -s bcm43xx-0-610-809-0.fw bcm43xx-0.fw
-	ln -s bcm43xx_hdr-0-610-809-0.fw bcm43xx_hdr-0.fw
-
+For all chips, copy brcm/bcm43xx-0.fw and brcm/bcm43xx_hdr-0.fw to
+/lib/firmware/brcm (or wherever firmware is normally installed on your system).
 
 Currently supported chips
 ==============

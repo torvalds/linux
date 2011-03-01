@@ -808,7 +808,7 @@ static int __init af_rxrpc_init(void)
 		goto error_call_jar;
 	}
 
-	rxrpc_workqueue = create_workqueue("krxrpcd");
+	rxrpc_workqueue = alloc_workqueue("krxrpcd", 0, 1);
 	if (!rxrpc_workqueue) {
 		printk(KERN_NOTICE "RxRPC: Failed to allocate work queue\n");
 		goto error_work_queue;

@@ -1450,16 +1450,11 @@ static void pxa168_get_drvinfo(struct net_device *dev,
 	strncpy(info->bus_info, "N/A", 32);
 }
 
-static u32 pxa168_get_link(struct net_device *dev)
-{
-	return !!netif_carrier_ok(dev);
-}
-
 static const struct ethtool_ops pxa168_ethtool_ops = {
 	.get_settings = pxa168_get_settings,
 	.set_settings = pxa168_set_settings,
 	.get_drvinfo = pxa168_get_drvinfo,
-	.get_link = pxa168_get_link,
+	.get_link = ethtool_op_get_link,
 };
 
 static const struct net_device_ops pxa168_eth_netdev_ops = {
@@ -1607,7 +1602,7 @@ static int pxa168_eth_remove(struct platform_device *pdev)
 	mdiobus_unregister(pep->smi_bus);
 	mdiobus_free(pep->smi_bus);
 	unregister_netdev(dev);
-	flush_scheduled_work();
+	cancel_work_sync(&pep->tx_timeout_task);
 	free_netdev(dev);
 	platform_set_drvdata(pdev, NULL);
 	return 0;

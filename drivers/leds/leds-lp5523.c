@@ -105,7 +105,6 @@
 #define SHIFT_MASK(id)			(((id) - 1) * 2)
 
 struct lp5523_engine {
-	const struct attribute_group *attributes;
 	int		id;
 	u8		mode;
 	u8		prog_page;
@@ -403,14 +402,23 @@ static ssize_t store_engine_leds(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lp5523_chip *chip = i2c_get_clientdata(client);
 	u16 mux = 0;
+	ssize_t ret;
 
 	if (lp5523_mux_parse(buf, &mux, len))
 		return -EINVAL;
 
-	if (lp5523_load_mux(&chip->engines[nr - 1], mux))
-		return -EINVAL;
+	mutex_lock(&chip->lock);
+	ret = -EINVAL;
+	if (chip->engines[nr - 1].mode != LP5523_CMD_LOAD)
+		goto leave;
 
-	return len;
+	if (lp5523_load_mux(&chip->engines[nr - 1], mux))
+		goto leave;
+
+	ret = len;
+leave:
+	mutex_unlock(&chip->lock);
+	return ret;
 }
 
 #define store_leds(nr)						\
@@ -556,7 +564,11 @@ static int lp5523_do_store_load(struct lp5523_engine *engine,
 
 	mutex_lock(&chip->lock);
 
-	ret = lp5523_load_program(engine, pattern);
+	if (engine->mode == LP5523_CMD_LOAD)
+		ret = lp5523_load_program(engine, pattern);
+	else
+		ret = -EINVAL;
+
 	mutex_unlock(&chip->lock);
 
 	if (ret) {
@@ -737,35 +749,16 @@ static struct attribute *lp5523_attributes[] = {
 	&dev_attr_engine2_mode.attr,
 	&dev_attr_engine3_mode.attr,
 	&dev_attr_selftest.attr,
-	NULL
-};
-
-static struct attribute *lp5523_engine1_attributes[] = {
 	&dev_attr_engine1_load.attr,
 	&dev_attr_engine1_leds.attr,
-	NULL
-};
-
-static struct attribute *lp5523_engine2_attributes[] = {
 	&dev_attr_engine2_load.attr,
 	&dev_attr_engine2_leds.attr,
-	NULL
-};
-
-static struct attribute *lp5523_engine3_attributes[] = {
 	&dev_attr_engine3_load.attr,
 	&dev_attr_engine3_leds.attr,
-	NULL
 };
 
 static const struct attribute_group lp5523_group = {
 	.attrs = lp5523_attributes,
-};
-
-static const struct attribute_group lp5523_engine_group[] = {
-	{.attrs = lp5523_engine1_attributes },
-	{.attrs = lp5523_engine2_attributes },
-	{.attrs = lp5523_engine3_attributes },
 };
 
 static int lp5523_register_sysfs(struct i2c_client *client)
@@ -788,10 +781,6 @@ static void lp5523_unregister_sysfs(struct i2c_client *client)
 
 	sysfs_remove_group(&dev->kobj, &lp5523_group);
 
-	for (i = 0; i < ARRAY_SIZE(chip->engines); i++)
-		if (chip->engines[i].mode == LP5523_CMD_LOAD)
-			sysfs_remove_group(&dev->kobj, &lp5523_engine_group[i]);
-
 	for (i = 0; i < chip->num_leds; i++)
 		sysfs_remove_group(&chip->leds[i].cdev.dev->kobj,
 				&lp5523_led_attribute_group);
@@ -802,10 +791,6 @@ static void lp5523_unregister_sysfs(struct i2c_client *client)
 /*--------------------------------------------------------------*/
 static int lp5523_set_mode(struct lp5523_engine *engine, u8 mode)
 {
-	/*  engine to chip */
-	struct lp5523_chip *chip = engine_to_lp5523(engine);
-	struct i2c_client *client = chip->client;
-	struct device *dev = &client->dev;
 	int ret = 0;
 
 	/* if in that mode already do nothing, except for run */
@@ -817,17 +802,9 @@ static int lp5523_set_mode(struct lp5523_engine *engine, u8 mode)
 	} else if (mode == LP5523_CMD_LOAD) {
 		lp5523_set_engine_mode(engine, LP5523_CMD_DISABLED);
 		lp5523_set_engine_mode(engine, LP5523_CMD_LOAD);
-
-		ret = sysfs_create_group(&dev->kobj, engine->attributes);
-		if (ret)
-			return ret;
 	} else if (mode == LP5523_CMD_DISABLED) {
 		lp5523_set_engine_mode(engine, LP5523_CMD_DISABLED);
 	}
-
-	/* remove load attribute from sysfs if not in load mode */
-	if (engine->mode == LP5523_CMD_LOAD && mode != LP5523_CMD_LOAD)
-		sysfs_remove_group(&dev->kobj, engine->attributes);
 
 	engine->mode = mode;
 
@@ -845,7 +822,6 @@ static int __init lp5523_init_engine(struct lp5523_engine *engine, int id)
 	engine->engine_mask = LP5523_ENG_MASK_BASE >> SHIFT_MASK(id);
 	engine->prog_page = id - 1;
 	engine->mux_page = id + 2;
-	engine->attributes = &lp5523_engine_group[id - 1];
 
 	return 0;
 }
@@ -870,7 +846,8 @@ static int __init lp5523_init_led(struct lp5523_led *led, struct device *dev,
 			return -EINVAL;
 		}
 
-		snprintf(name, 32, "lp5523:channel%d", chan);
+		snprintf(name, sizeof(name), "%s:channel%d",
+			pdata->label ?: "lp5523", chan);
 
 		led->cdev.name = name;
 		led->cdev.brightness_set = lp5523_set_brightness;

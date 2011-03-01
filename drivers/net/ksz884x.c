@@ -3570,7 +3570,7 @@ static void hw_cfg_wol(struct ksz_hw *hw, u16 frame, int set)
  * This routine is used to program Wake-on-LAN pattern.
  */
 static void hw_set_wol_frame(struct ksz_hw *hw, int i, uint mask_size,
-	u8 *mask, uint frame_size, u8 *pattern)
+	const u8 *mask, uint frame_size, const u8 *pattern)
 {
 	int bits;
 	int from;
@@ -3626,9 +3626,9 @@ static void hw_set_wol_frame(struct ksz_hw *hw, int i, uint mask_size,
  *
  * This routine is used to add ARP pattern for waking up the host.
  */
-static void hw_add_wol_arp(struct ksz_hw *hw, u8 *ip_addr)
+static void hw_add_wol_arp(struct ksz_hw *hw, const u8 *ip_addr)
 {
-	u8 mask[6] = { 0x3F, 0xF0, 0x3F, 0x00, 0xC0, 0x03 };
+	static const u8 mask[6] = { 0x3F, 0xF0, 0x3F, 0x00, 0xC0, 0x03 };
 	u8 pattern[42] = {
 		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -3651,8 +3651,8 @@ static void hw_add_wol_arp(struct ksz_hw *hw, u8 *ip_addr)
  */
 static void hw_add_wol_bcast(struct ksz_hw *hw)
 {
-	u8 mask[] = { 0x3F };
-	u8 pattern[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+	static const u8 mask[] = { 0x3F };
+	static const u8 pattern[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 	hw_set_wol_frame(hw, 2, 1, mask, MAC_ADDR_LEN, pattern);
 }
@@ -3669,7 +3669,7 @@ static void hw_add_wol_bcast(struct ksz_hw *hw)
  */
 static void hw_add_wol_mcast(struct ksz_hw *hw)
 {
-	u8 mask[] = { 0x3F };
+	static const u8 mask[] = { 0x3F };
 	u8 pattern[] = { 0x33, 0x33, 0xFF, 0x00, 0x00, 0x00 };
 
 	memcpy(&pattern[3], &hw->override_addr[3], 3);
@@ -3687,7 +3687,7 @@ static void hw_add_wol_mcast(struct ksz_hw *hw)
  */
 static void hw_add_wol_ucast(struct ksz_hw *hw)
 {
-	u8 mask[] = { 0x3F };
+	static const u8 mask[] = { 0x3F };
 
 	hw_set_wol_frame(hw, 0, 1, mask, MAC_ADDR_LEN, hw->override_addr);
 }
@@ -3700,7 +3700,7 @@ static void hw_add_wol_ucast(struct ksz_hw *hw)
  *
  * This routine is used to enable Wake-on-LAN depending on driver settings.
  */
-static void hw_enable_wol(struct ksz_hw *hw, u32 wol_enable, u8 *net_addr)
+static void hw_enable_wol(struct ksz_hw *hw, u32 wol_enable, const u8 *net_addr)
 {
 	hw_cfg_wol(hw, KS8841_WOL_MAGIC_ENABLE, (wol_enable & WAKE_MAGIC));
 	hw_cfg_wol(hw, KS8841_WOL_FRAME0_ENABLE, (wol_enable & WAKE_UCAST));
@@ -6208,7 +6208,7 @@ static int netdev_set_wol(struct net_device *dev,
 	struct dev_info *hw_priv = priv->adapter;
 
 	/* Need to find a way to retrieve the device IP address. */
-	u8 net_addr[] = { 192, 168, 1, 1 };
+	static const u8 net_addr[] = { 192, 168, 1, 1 };
 
 	if (wol->wolopts & ~hw_priv->wol_support)
 		return -EINVAL;
@@ -6953,7 +6953,7 @@ static void read_other_addr(struct ksz_hw *hw)
 #define PCI_VENDOR_ID_MICREL_KS		0x16c6
 #endif
 
-static int __init pcidev_init(struct pci_dev *pdev,
+static int __devinit pcidev_init(struct pci_dev *pdev,
 	const struct pci_device_id *id)
 {
 	struct net_device *dev;
@@ -7241,7 +7241,7 @@ static int pcidev_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct ksz_hw *hw = &hw_priv->hw;
 
 	/* Need to find a way to retrieve the device IP address. */
-	u8 net_addr[] = { 192, 168, 1, 1 };
+	static const u8 net_addr[] = { 192, 168, 1, 1 };
 
 	for (i = 0; i < hw->dev_count; i++) {
 		if (info->netdev[i]) {

@@ -174,7 +174,7 @@ static void _zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req, u32 range,
 		if (!port->d_id)
 			zfcp_erp_port_reopen(port,
 					     ZFCP_STATUS_COMMON_ERP_FAILED,
-					     "fcrscn1", NULL);
+					     "fcrscn1");
 	}
 	read_unlock_irqrestore(&adapter->port_list_lock, flags);
 }
@@ -215,7 +215,7 @@ static void zfcp_fc_incoming_wwpn(struct zfcp_fsf_req *req, u64 wwpn)
 	read_lock_irqsave(&adapter->port_list_lock, flags);
 	list_for_each_entry(port, &adapter->port_list, list)
 		if (port->wwpn == wwpn) {
-			zfcp_erp_port_forced_reopen(port, 0, "fciwwp1", req);
+			zfcp_erp_port_forced_reopen(port, 0, "fciwwp1");
 			break;
 		}
 	read_unlock_irqrestore(&adapter->port_list_lock, flags);
@@ -251,7 +251,7 @@ void zfcp_fc_incoming_els(struct zfcp_fsf_req *fsf_req)
 		(struct fsf_status_read_buffer *) fsf_req->data;
 	unsigned int els_type = status_buffer->payload.data[0];
 
-	zfcp_dbf_san_incoming_els(fsf_req);
+	zfcp_dbf_san_in_els("fciels1", fsf_req);
 	if (els_type == ELS_PLOGI)
 		zfcp_fc_incoming_plogi(fsf_req);
 	else if (els_type == ELS_LOGO)
@@ -360,7 +360,7 @@ void zfcp_fc_port_did_lookup(struct work_struct *work)
 	ret = zfcp_fc_ns_gid_pn(port);
 	if (ret) {
 		/* could not issue gid_pn for some reason */
-		zfcp_erp_adapter_reopen(port->adapter, 0, "fcgpn_1", NULL);
+		zfcp_erp_adapter_reopen(port->adapter, 0, "fcgpn_1");
 		goto out;
 	}
 
@@ -369,7 +369,7 @@ void zfcp_fc_port_did_lookup(struct work_struct *work)
 		goto out;
 	}
 
-	zfcp_erp_port_reopen(port, 0, "fcgpn_3", NULL);
+	zfcp_erp_port_reopen(port, 0, "fcgpn_3");
 out:
 	put_device(&port->dev);
 }
@@ -426,7 +426,7 @@ static void zfcp_fc_adisc_handler(void *data)
 	if (adisc->els.status) {
 		/* request rejected or timed out */
 		zfcp_erp_port_forced_reopen(port, ZFCP_STATUS_COMMON_ERP_FAILED,
-					    "fcadh_1", NULL);
+					    "fcadh_1");
 		goto out;
 	}
 
@@ -436,7 +436,7 @@ static void zfcp_fc_adisc_handler(void *data)
 	if ((port->wwpn != adisc_resp->adisc_wwpn) ||
 	    !(atomic_read(&port->status) & ZFCP_STATUS_COMMON_OPEN)) {
 		zfcp_erp_port_reopen(port, ZFCP_STATUS_COMMON_ERP_FAILED,
-				     "fcadh_2", NULL);
+				     "fcadh_2");
 		goto out;
 	}
 
@@ -507,7 +507,7 @@ void zfcp_fc_link_test_work(struct work_struct *work)
 
 	/* send of ADISC was not possible */
 	atomic_clear_mask(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
-	zfcp_erp_port_forced_reopen(port, 0, "fcltwk1", NULL);
+	zfcp_erp_port_forced_reopen(port, 0, "fcltwk1");
 
 out:
 	put_device(&port->dev);
@@ -659,7 +659,7 @@ static int zfcp_fc_eval_gpn_ft(struct zfcp_fc_gpn_ft *gpn_ft,
 		port = zfcp_port_enqueue(adapter, acc->fp_wwpn,
 					 ZFCP_STATUS_COMMON_NOESC, d_id);
 		if (!IS_ERR(port))
-			zfcp_erp_port_reopen(port, 0, "fcegpf1", NULL);
+			zfcp_erp_port_reopen(port, 0, "fcegpf1");
 		else if (PTR_ERR(port) != -EEXIST)
 			ret = PTR_ERR(port);
 	}
@@ -671,7 +671,7 @@ static int zfcp_fc_eval_gpn_ft(struct zfcp_fc_gpn_ft *gpn_ft,
 	write_unlock_irqrestore(&adapter->port_list_lock, flags);
 
 	list_for_each_entry_safe(port, tmp, &remove_lh, list) {
-		zfcp_erp_port_shutdown(port, 0, "fcegpf2", NULL);
+		zfcp_erp_port_shutdown(port, 0, "fcegpf2");
 		zfcp_device_unregister(&port->dev, &zfcp_sysfs_port_attrs);
 	}
 

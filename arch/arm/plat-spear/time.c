@@ -81,8 +81,6 @@ static struct clocksource clksrc = {
 	.rating = 200,		/* its a pretty decent clock */
 	.read = clocksource_read_cycles,
 	.mask = 0xFFFF,		/* 16 bits */
-	.mult = 0,		/* to be computed */
-	.shift = 0,		/* to be computed */
 	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -105,10 +103,8 @@ static void spear_clocksource_init(void)
 	val |= CTRL_ENABLE ;
 	writew(val, gpt_base + CR(CLKSRC));
 
-	clocksource_calc_mult_shift(&clksrc, tick_rate, SPEAR_MIN_RANGE);
-
 	/* register the clocksource */
-	clocksource_register(&clksrc);
+	clocksource_register_hz(&clksrc, tick_rate);
 }
 
 static struct clock_event_device clkevt = {

@@ -192,7 +192,7 @@ static inline void SEND_STOP(struct au1xmmc_host *host)
 	au_writel(config2 | SD_CONFIG2_DF, HOST_CONFIG2(host));
 	au_sync();
 
-	/* Send the stop commmand */
+	/* Send the stop command */
 	au_writel(STOP_CMD, HOST_CMD(host));
 }
 

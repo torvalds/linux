@@ -848,17 +848,11 @@ static void bond_mc_del(struct bonding *bond, void *addr)
 static void __bond_resend_igmp_join_requests(struct net_device *dev)
 {
 	struct in_device *in_dev;
-	struct ip_mc_list *im;
 
 	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(dev);
-	if (in_dev) {
-		read_lock(&in_dev->mc_list_lock);
-		for (im = in_dev->mc_list; im; im = im->next)
-			ip_mc_rejoin_group(im);
-		read_unlock(&in_dev->mc_list_lock);
-	}
-
+	if (in_dev)
+		ip_mc_rejoin_groups(in_dev);
 	rcu_read_unlock();
 }
 
@@ -2739,6 +2733,10 @@ static int bond_arp_rcv(struct sk_buff *skb, struct net_device *dev, struct pack
 	if (!slave || !slave_do_arp_validate(bond, slave))
 		goto out_unlock;
 
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!skb)
+		goto out_unlock;
+
 	if (!pskb_may_pull(skb, arp_hdr_len(dev)))
 		goto out_unlock;
 
@@ -3189,7 +3187,7 @@ out:
 #ifdef CONFIG_PROC_FS
 
 static void *bond_info_seq_start(struct seq_file *seq, loff_t *pos)
-	__acquires(&dev_base_lock)
+	__acquires(RCU)
 	__acquires(&bond->lock)
 {
 	struct bonding *bond = seq->private;
@@ -3198,7 +3196,7 @@ static void *bond_info_seq_start(struct seq_file *seq, loff_t *pos)
 	int i;
 
 	/* make sure the bond won't be taken away */
-	read_lock(&dev_base_lock);
+	rcu_read_lock();
 	read_lock(&bond->lock);
 
 	if (*pos == 0)
@@ -3228,12 +3226,12 @@ static void *bond_info_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 static void bond_info_seq_stop(struct seq_file *seq, void *v)
 	__releases(&bond->lock)
-	__releases(&dev_base_lock)
+	__releases(RCU)
 {
 	struct bonding *bond = seq->private;
 
 	read_unlock(&bond->lock);
-	read_unlock(&dev_base_lock);
+	rcu_read_unlock();
 }
 
 static void bond_info_show_master(struct seq_file *seq)
@@ -3486,6 +3484,8 @@ static int bond_event_changename(struct bonding *bond)
 {
 	bond_remove_proc_entry(bond);
 	bond_create_proc_entry(bond);
+
+	bond_debug_reregister(bond);
 
 	return NOTIFY_DONE;
 }
@@ -4769,6 +4769,8 @@ static void bond_uninit(struct net_device *bond_dev)
 
 	bond_remove_proc_entry(bond);
 
+	bond_debug_unregister(bond);
+
 	__hw_addr_flush(&bond->mc_list);
 
 	list_for_each_entry_safe(vlan, tmp, &bond->vlan_list, vlan_list) {
@@ -5171,6 +5173,8 @@ static int bond_init(struct net_device *bond_dev)
 
 	bond_prepare_sysfs_group(bond);
 
+	bond_debug_register(bond);
+
 	__hw_addr_init(&bond->mc_list);
 	return 0;
 }
@@ -5285,6 +5289,8 @@ static int __init bonding_init(void)
 	if (res)
 		goto err_link;
 
+	bond_create_debugfs();
+
 	for (i = 0; i < max_bonds; i++) {
 		res = bond_create(&init_net, NULL);
 		if (res)
@@ -5294,7 +5300,6 @@ static int __init bonding_init(void)
 	res = bond_create_sysfs();
 	if (res)
 		goto err;
-
 
 	register_netdevice_notifier(&bond_netdev_notifier);
 	register_inetaddr_notifier(&bond_inetaddr_notifier);
@@ -5316,6 +5321,7 @@ static void __exit bonding_exit(void)
 	bond_unregister_ipv6_notifier();
 
 	bond_destroy_sysfs();
+	bond_destroy_debugfs();
 
 	rtnl_link_unregister(&bond_link_ops);
 	unregister_pernet_subsys(&bond_net_ops);

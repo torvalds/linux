@@ -251,6 +251,7 @@ IEEE80211_IF_FILE(dot11MeshConfirmTimeout,
 IEEE80211_IF_FILE(dot11MeshHoldingTimeout,
 		u.mesh.mshcfg.dot11MeshHoldingTimeout, DEC);
 IEEE80211_IF_FILE(dot11MeshTTL, u.mesh.mshcfg.dot11MeshTTL, DEC);
+IEEE80211_IF_FILE(element_ttl, u.mesh.mshcfg.element_ttl, DEC);
 IEEE80211_IF_FILE(auto_open_plinks, u.mesh.mshcfg.auto_open_plinks, DEC);
 IEEE80211_IF_FILE(dot11MeshMaxPeerLinks,
 		u.mesh.mshcfg.dot11MeshMaxPeerLinks, DEC);
@@ -355,6 +356,7 @@ static void add_mesh_config(struct ieee80211_sub_if_data *sdata)
 	MESHPARAMS_ADD(dot11MeshConfirmTimeout);
 	MESHPARAMS_ADD(dot11MeshHoldingTimeout);
 	MESHPARAMS_ADD(dot11MeshTTL);
+	MESHPARAMS_ADD(element_ttl);
 	MESHPARAMS_ADD(auto_open_plinks);
 	MESHPARAMS_ADD(dot11MeshMaxPeerLinks);
 	MESHPARAMS_ADD(dot11MeshHWMPactivePathTimeout);

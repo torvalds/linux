@@ -19,7 +19,6 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
-#include <linux/kobject.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/semaphore.h>

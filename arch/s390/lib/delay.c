@@ -47,7 +47,6 @@ static void __udelay_disabled(unsigned long long usecs)
 	lockdep_on();
 	__ctl_load(cr0_saved, 0, 0);
 	local_tick_enable(clock_saved);
-	set_clock_comparator(S390_lowcore.clock_comparator);
 }
 
 static void __udelay_enabled(unsigned long long usecs)
@@ -70,7 +69,6 @@ static void __udelay_enabled(unsigned long long usecs)
 		if (clock_saved)
 			local_tick_enable(clock_saved);
 	} while (get_clock() < end);
-	set_clock_comparator(S390_lowcore.clock_comparator);
 }
 
 /*

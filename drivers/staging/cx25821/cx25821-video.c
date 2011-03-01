@@ -24,7 +24,10 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "cx25821-video.h"
+#include <linux/smp_lock.h>
 
 MODULE_DESCRIPTION("v4l2 driver module for cx25821 based TV cards");
 MODULE_AUTHOR("Hiep Huynh <hiep.huynh@conexant.com>");
@@ -104,7 +107,7 @@ struct cx25821_fmt *cx25821_format_by_fourcc(unsigned int fourcc)
 		if (formats[i].fourcc == fourcc)
 			return formats + i;
 
-	printk(KERN_ERR "%s(0x%08x) NOT FOUND\n", __func__, fourcc);
+	pr_err("%s(0x%08x) NOT FOUND\n", __func__, fourcc);
 	return NULL;
 }
 
@@ -159,15 +162,15 @@ void cx25821_video_wakeup(struct cx25821_dev *dev, struct cx25821_dmaqueue *q,
 	else
 		mod_timer(&q->timeout, jiffies + BUFFER_TIMEOUT);
 	if (bc != 1)
-		printk(KERN_ERR "%s: %d buffers handled (should be 1)\n",
+		pr_err("%s: %d buffers handled (should be 1)\n",
 		       __func__, bc);
 }
 
 #ifdef TUNER_FLAG
 int cx25821_set_tvnorm(struct cx25821_dev *dev, v4l2_std_id norm)
 {
-	dprintk(1, "%s(norm = 0x%08x) name: [%s]\n", __func__,
-		(unsigned int)norm, v4l2_norm_to_name(norm));
+	dprintk(1, "%s(norm = 0x%08x) name: [%s]\n",
+		__func__, (unsigned int)norm, v4l2_norm_to_name(norm));
 
 	dev->tvnorm = norm;
 
@@ -267,7 +270,7 @@ int cx25821_video_mux(struct cx25821_dev *dev, unsigned int input)
 	struct v4l2_routing route;
 	memset(&route, 0, sizeof(route));
 
-	dprintk(1, "%s() video_mux: %d [vmux=%d, gpio=0x%x,0x%x,0x%x,0x%x]\n",
+	dprintk(1, "%s(): video_mux: %d [vmux=%d, gpio=0x%x,0x%x,0x%x,0x%x]\n",
 		__func__, input, INPUT(input)->vmux, INPUT(input)->gpio0,
 		INPUT(input)->gpio1, INPUT(input)->gpio2, INPUT(input)->gpio3);
 	dev->input = input;
@@ -400,8 +403,8 @@ int cx25821_video_irq(struct cx25821_dev *dev, int chan_num, u32 status)
 
 	/* risc op code error */
 	if (status & (1 << 16)) {
-		printk(KERN_WARNING "%s, %s: video risc op code error\n",
-		       dev->name, channel->name);
+		pr_warn("%s, %s: video risc op code error\n",
+			dev->name, channel->name);
 		cx_clear(channel->dma_ctl, 0x11);
 		cx25821_sram_channel_dump(dev, channel);
 	}
@@ -458,7 +461,7 @@ void cx25821_video_unregister(struct cx25821_dev *dev, int chan_num)
 	       btcx_riscmem_free(dev->pci,
 		       &dev->channels[chan_num].vidq.stopper);
 
-		printk(KERN_WARNING "device %d released!\n", chan_num);
+		pr_warn("device %d released!\n", chan_num);
 	}
 
 }
@@ -590,7 +593,7 @@ int cx25821_buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		init_buffer = 1;
 		rc = videobuf_iolock(q, &buf->vb, NULL);
 		if (0 != rc) {
-			printk(KERN_DEBUG "videobuf_iolock failed!\n");
+			printk(KERN_DEBUG pr_fmt("videobuf_iolock failed!\n"));
 			goto fail;
 		}
 	}
@@ -1038,8 +1041,8 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
        dev->channels[fh->channel_id].cif_width = fh->width;
        medusa_set_resolution(dev, fh->width, SRAM_CH00);
 
-       dprintk(2, "%s() width=%d height=%d field=%d\n", __func__, fh->width,
-	       fh->height, fh->vidq.field);
+	dprintk(2, "%s(): width=%d height=%d field=%d\n", __func__, fh->width,
+		fh->height, fh->vidq.field);
 	v4l2_fill_mbus_format(&mbus_fmt, &f->fmt.pix, V4L2_MBUS_FMT_FIXED);
 	cx25821_call_all(dev, video, s_mbus_fmt, &mbus_fmt);
 
@@ -1070,14 +1073,14 @@ static int vidioc_log_status(struct file *file, void *priv)
        u32 tmp = 0;
 
        snprintf(name, sizeof(name), "%s/2", dev->name);
-       printk(KERN_INFO "%s/2: ============  START LOG STATUS  ============\n",
-	      dev->name);
+	pr_info("%s/2: ============  START LOG STATUS  ============\n",
+		dev->name);
        cx25821_call_all(dev, core, log_status);
        tmp = cx_read(sram_ch->dma_ctl);
-       printk(KERN_INFO "Video input 0 is %s\n",
-	      (tmp & 0x11) ? "streaming" : "stopped");
-       printk(KERN_INFO "%s/2: =============  END LOG STATUS  =============\n",
-	      dev->name);
+	pr_info("Video input 0 is %s\n",
+		(tmp & 0x11) ? "streaming" : "stopped");
+	pr_info("%s/2: =============  END LOG STATUS  =============\n",
+		dev->name);
        return 0;
 }
 
@@ -1186,34 +1189,6 @@ int cx25821_vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-int cx25821_vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
-{
-	struct cx25821_fh *fh = priv;
-	struct videobuf_queue *q;
-	struct v4l2_requestbuffers req;
-	unsigned int i;
-	int err;
-
-	q = get_queue(fh);
-	memset(&req, 0, sizeof(req));
-	req.type = q->type;
-	req.count = 8;
-	req.memory = V4L2_MEMORY_MMAP;
-	err = videobuf_reqbufs(q, &req);
-	if (err < 0)
-		return err;
-
-	mbuf->frames = req.count;
-	mbuf->size = 0;
-	for (i = 0; i < mbuf->frames; i++) {
-		mbuf->offsets[i] = q->bufs[i]->boff;
-		mbuf->size += q->bufs[i]->bsize;
-	}
-	return 0;
-}
-#endif
-
 int cx25821_vidioc_reqbufs(struct file *file, void *priv, struct v4l2_requestbuffers *p)
 {
 	struct cx25821_fh *fh = priv;
@@ -1298,8 +1273,6 @@ int cx25821_enum_input(struct cx25821_dev *dev, struct v4l2_input *i)
 	if (0 == INPUT(n)->type)
 		return -EINVAL;
 
-	memset(i, 0, sizeof(*i));
-	i->index = n;
 	i->type = V4L2_INPUT_TYPE_CAMERA;
 	strcpy(i->name, iname[INPUT(n)->type]);
 
@@ -1319,7 +1292,7 @@ int cx25821_vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
 
 	*i = dev->input;
-	dprintk(1, "%s() returns %d\n", __func__, *i);
+	dprintk(1, "%s(): returns %d\n", __func__, *i);
 	return 0;
 }
 
@@ -1339,7 +1312,7 @@ int cx25821_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	}
 
 	if (i > 2) {
-		dprintk(1, "%s() -EINVAL\n", __func__);
+		dprintk(1, "%s(): -EINVAL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1390,7 +1363,7 @@ int cx25821_vidioc_s_frequency(struct file *file, void *priv, struct v4l2_freque
 		if (0 != err)
 			return err;
        } else {
-	       printk(KERN_ERR "Invalid fh pointer!\n");
+	       pr_err("Invalid fh pointer!\n");
 	       return -EINVAL;
 	}
 
@@ -1733,12 +1706,10 @@ static long video_ioctl_upstream9(struct file *file, unsigned int cmd,
 
        data_from_user = (struct upstream_user_struct *)arg;
 
-       if (!data_from_user) {
-	       printk
-		   ("cx25821 in %s(): Upstream data is INVALID. Returning.\n",
-		    __func__);
-	       return 0;
-       }
+	if (!data_from_user) {
+		pr_err("%s(): Upstream data is INVALID. Returning\n", __func__);
+		return 0;
+	}
 
        command = data_from_user->command;
 
@@ -1776,12 +1747,10 @@ static long video_ioctl_upstream10(struct file *file, unsigned int cmd,
 
        data_from_user = (struct upstream_user_struct *)arg;
 
-       if (!data_from_user) {
-	       printk
-		   ("cx25821 in %s(): Upstream data is INVALID. Returning.\n",
-		    __func__);
-	       return 0;
-       }
+	if (!data_from_user) {
+		pr_err("%s(): Upstream data is INVALID. Returning\n", __func__);
+		return 0;
+	}
 
        command = data_from_user->command;
 
@@ -1819,12 +1788,10 @@ static long video_ioctl_upstream11(struct file *file, unsigned int cmd,
 
        data_from_user = (struct upstream_user_struct *)arg;
 
-       if (!data_from_user) {
-	       printk
-		   ("cx25821 in %s(): Upstream data is INVALID. Returning.\n",
-		    __func__);
-	       return 0;
-       }
+	if (!data_from_user) {
+		pr_err("%s(): Upstream data is INVALID. Returning\n", __func__);
+		return 0;
+	}
 
        command = data_from_user->command;
 
@@ -1866,12 +1833,10 @@ static long video_ioctl_set(struct file *file, unsigned int cmd,
 
        data_from_user = (struct downstream_user_struct *)arg;
 
-       if (!data_from_user) {
-	       printk(
-	       "cx25821 in %s(): User data is INVALID. Returning.\n",
-	       __func__);
-	       return 0;
-       }
+	if (!data_from_user) {
+		pr_err("%s(): User data is INVALID. Returning\n", __func__);
+		return 0;
+	}
 
        command = data_from_user->command;
 
@@ -2022,9 +1987,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
        .vidioc_log_status = vidioc_log_status,
        .vidioc_g_priority = cx25821_vidioc_g_priority,
        .vidioc_s_priority = cx25821_vidioc_s_priority,
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-       .vidiocgmbuf = cx25821_vidiocgmbuf,
-#endif
 #ifdef TUNER_FLAG
        .vidioc_g_tuner = cx25821_vidioc_g_tuner,
        .vidioc_s_tuner = cx25821_vidioc_s_tuner,

@@ -1064,7 +1064,7 @@ static int mpeg_open(struct file *file)
 		err = drv->request_acquire(drv);
 		if(err != 0) {
 			dprintk(1,"%s: Unable to acquire hardware, %d\n", __func__, err);
-			mutex_unlock(&dev->core->lock);;
+			mutex_unlock(&dev->core->lock);
 			return err;
 		}
 	}

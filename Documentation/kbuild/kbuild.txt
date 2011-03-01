@@ -73,6 +73,14 @@ Specify the output directory when building the kernel.
 The output directory can also be specified using "O=...".
 Setting "O=..." takes precedence over KBUILD_OUTPUT.
 
+KBUILD_DEBARCH
+--------------------------------------------------
+For the deb-pkg target, allows overriding the normal heuristics deployed by
+deb-pkg. Normally deb-pkg attempts to guess the right architecture based on
+the UTS_MACHINE variable, and on some architectures also the kernel config.
+The value of KBUILD_DEBARCH is assumed (not checked) to be a valid Debian
+architecture.
+
 ARCH
 --------------------------------------------------
 Set ARCH to the architecture to be built.

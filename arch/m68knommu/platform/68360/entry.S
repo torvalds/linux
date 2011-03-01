@@ -102,8 +102,8 @@ Luser_return:
 	movel	%sp,%d1			/* get thread_info pointer */
 	andl	#-THREAD_SIZE,%d1
 	movel	%d1,%a2
+1:
 	move	%a2@(TI_FLAGS),%d1	/* thread_info->flags */
-	andl	#_TIF_WORK_MASK,%d1
 	jne	Lwork_to_do
 	RESTORE_ALL
 
@@ -116,13 +116,11 @@ Lsignal_return:
 	subql	#4,%sp			/* dummy return address*/
 	SAVE_SWITCH_STACK
 	pea	%sp@(SWITCH_STACK_SIZE)
-	clrl	%sp@-
 	bsrw	do_signal
-	addql	#8,%sp
+	addql	#4,%sp
 	RESTORE_SWITCH_STACK
 	addql	#4,%sp
-Lreturn:
-	RESTORE_ALL
+	jra	1b
 
 /*
  * This is the main interrupt handler, responsible for calling do_IRQ()

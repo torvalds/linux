@@ -297,6 +297,8 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	ci->i_release_count = 0;
 	ci->i_symlink = NULL;
 
+	memset(&ci->i_dir_layout, 0, sizeof(ci->i_dir_layout));
+
 	ci->i_fragtree = RB_ROOT;
 	mutex_init(&ci->i_fragtree_mutex);
 
@@ -368,6 +370,15 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	return &ci->vfs_inode;
 }
 
+static void ceph_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	struct ceph_inode_info *ci = ceph_inode(inode);
+
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(ceph_inode_cachep, ci);
+}
+
 void ceph_destroy_inode(struct inode *inode)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
@@ -407,7 +418,7 @@ void ceph_destroy_inode(struct inode *inode)
 	if (ci->i_xattrs.prealloc_blob)
 		ceph_buffer_put(ci->i_xattrs.prealloc_blob);
 
-	kmem_cache_free(ceph_inode_cachep, ci);
+	call_rcu(&inode->i_rcu, ceph_i_callback);
 }
 
 
@@ -680,6 +691,8 @@ static int fill_inode(struct inode *inode,
 		inode->i_op = &ceph_dir_iops;
 		inode->i_fop = &ceph_dir_fops;
 
+		ci->i_dir_layout = iinfo->dir_layout;
+
 		ci->i_files = le64_to_cpu(info->files);
 		ci->i_subdirs = le64_to_cpu(info->subdirs);
 		ci->i_rbytes = le64_to_cpu(info->rbytes);
@@ -697,10 +710,6 @@ static int fill_inode(struct inode *inode,
 			ci->i_ceph_flags |= CEPH_I_COMPLETE;
 			ci->i_max_offset = 2;
 		}
-
-		/* it may be better to set st_size in getattr instead? */
-		if (ceph_test_mount_opt(ceph_sb_to_client(inode->i_sb), RBYTES))
-			inode->i_size = ci->i_rbytes;
 		break;
 	default:
 		pr_err("fill_inode %llx.%llx BAD mode 0%o\n",
@@ -841,13 +850,13 @@ static void ceph_set_dentry_offset(struct dentry *dn)
 	di->offset = ceph_inode(inode)->i_max_offset++;
 	spin_unlock(&inode->i_lock);
 
-	spin_lock(&dcache_lock);
-	spin_lock(&dn->d_lock);
+	spin_lock(&dir->d_lock);
+	spin_lock_nested(&dn->d_lock, DENTRY_D_LOCK_NESTED);
 	list_move(&dn->d_u.d_child, &dir->d_subdirs);
 	dout("set_dentry_offset %p %lld (%p %p)\n", dn, di->offset,
 	     dn->d_u.d_child.prev, dn->d_u.d_child.next);
 	spin_unlock(&dn->d_lock);
-	spin_unlock(&dcache_lock);
+	spin_unlock(&dir->d_lock);
 }
 
 /*
@@ -879,8 +888,8 @@ static struct dentry *splice_dentry(struct dentry *dn, struct inode *in,
 	} else if (realdn) {
 		dout("dn %p (%d) spliced with %p (%d) "
 		     "inode %p ino %llx.%llx\n",
-		     dn, atomic_read(&dn->d_count),
-		     realdn, atomic_read(&realdn->d_count),
+		     dn, dn->d_count,
+		     realdn, realdn->d_count,
 		     realdn->d_inode, ceph_vinop(realdn->d_inode));
 		dput(dn);
 		dn = realdn;
@@ -1231,11 +1240,11 @@ retry_lookup:
 			goto retry_lookup;
 		} else {
 			/* reorder parent's d_subdirs */
-			spin_lock(&dcache_lock);
-			spin_lock(&dn->d_lock);
+			spin_lock(&parent->d_lock);
+			spin_lock_nested(&dn->d_lock, DENTRY_D_LOCK_NESTED);
 			list_move(&dn->d_u.d_child, &parent->d_subdirs);
 			spin_unlock(&dn->d_lock);
-			spin_unlock(&dcache_lock);
+			spin_unlock(&parent->d_lock);
 		}
 
 		di = dn->d_fsdata;
@@ -1772,12 +1781,17 @@ int ceph_do_getattr(struct inode *inode, int mask)
  * Check inode permissions.  We verify we have a valid value for
  * the AUTH cap, then call the generic handler.
  */
-int ceph_permission(struct inode *inode, int mask)
+int ceph_permission(struct inode *inode, int mask, unsigned int flags)
 {
-	int err = ceph_do_getattr(inode, CEPH_CAP_AUTH_SHARED);
+	int err;
+
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
+
+	err = ceph_do_getattr(inode, CEPH_CAP_AUTH_SHARED);
 
 	if (!err)
-		err = generic_permission(inode, mask, NULL);
+		err = generic_permission(inode, mask, flags, NULL);
 	return err;
 }
 
@@ -1801,7 +1815,11 @@ int ceph_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		else
 			stat->dev = 0;
 		if (S_ISDIR(inode->i_mode)) {
-			stat->size = ci->i_rbytes;
+			if (ceph_test_mount_opt(ceph_sb_to_client(inode->i_sb),
+						RBYTES))
+				stat->size = ci->i_rbytes;
+			else
+				stat->size = ci->i_files + ci->i_subdirs;
 			stat->blocks = 0;
 			stat->blksize = 65536;
 		}

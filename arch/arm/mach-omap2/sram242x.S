@@ -21,14 +21,20 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
+ *
+ * Richard Woodruff notes that any changes to this code must be carefully
+ * audited and tested to ensure that they don't cause a TLB miss while
+ * the SDRAM is inaccessible.  Such a situation will crash the system
+ * since it will cause the ARM MMU to attempt to walk the page tables.
+ * These crashes may be intermittent.
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <mach/io.h>
 #include <mach/hardware.h>
 
-#include "prm.h"
-#include "cm.h"
+#include "prm2xxx_3xxx.h"
+#include "cm2xxx_3xxx.h"
 #include "sdrc.h"
 
 	.text

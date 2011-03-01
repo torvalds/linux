@@ -317,13 +317,13 @@ static int __init mc32_probe1(struct net_device *dev, int slot)
 	u8 POS;
 	u32 base;
 	struct mc32_local *lp = netdev_priv(dev);
-	static u16 mca_io_bases[]={
+	static const u16 mca_io_bases[] = {
 		0x7280,0x7290,
 		0x7680,0x7690,
 		0x7A80,0x7A90,
 		0x7E80,0x7E90
 	};
-	static u32 mca_mem_bases[]={
+	static const u32 mca_mem_bases[] = {
 		0x00C0000,
 		0x00C4000,
 		0x00C8000,
@@ -333,7 +333,7 @@ static int __init mc32_probe1(struct net_device *dev, int slot)
 		0x00D8000,
 		0x00DC000
 	};
-	static char *failures[]={
+	static const char * const failures[] = {
 		"Processor instruction",
 		"Processor data bus",
 		"Processor data bus",

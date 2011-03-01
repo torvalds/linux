@@ -191,7 +191,7 @@ void	  xfs_log_ticket_put(struct xlog_ticket *ticket);
 
 xlog_tid_t xfs_log_get_trans_ident(struct xfs_trans *tp);
 
-int	xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
+void	xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
 				struct xfs_log_vec *log_vector,
 				xfs_lsn_t *commit_lsn, int flags);
 bool	xfs_log_item_in_current_chkpt(struct xfs_log_item *lip);

@@ -49,7 +49,6 @@
 #include <linux/kref.h>
 
 /* Addresses to scan */
-static DEFINE_MUTEX(watchdog_mutex);
 static const unsigned short normal_i2c[] = { 0x73, I2C_CLIENT_END };
 
 /* Insmod parameters */
@@ -850,7 +849,7 @@ static ssize_t watchdog_write(struct file *filp, const char __user *buf,
 
 static long watchdog_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	static struct watchdog_info ident = {
+	struct watchdog_info ident = {
 		.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT |
 				WDIOF_CARDRESET,
 		.identity = "FSC watchdog"
@@ -858,7 +857,6 @@ static long watchdog_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 	int i, ret = 0;
 	struct fschmd_data *data = filp->private_data;
 
-	mutex_lock(&watchdog_mutex);
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
 		ident.firmware_version = data->revision;
@@ -915,7 +913,6 @@ static long watchdog_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 	default:
 		ret = -ENOTTY;
 	}
-	mutex_unlock(&watchdog_mutex);
 	return ret;
 }
 

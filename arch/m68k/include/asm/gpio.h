@@ -37,7 +37,7 @@
 #if defined(CONFIG_M5206) || defined(CONFIG_M5206e) || \
     defined(CONFIG_M520x) || defined(CONFIG_M523x) || \
     defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
-    defined(CONFIG_M532x) || defined(CONFIG_M548x)
+    defined(CONFIG_M532x) || defined(CONFIG_M54xx)
 
 /* These parts have GPIO organized by 8 bit ports */
 

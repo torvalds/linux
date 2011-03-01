@@ -555,9 +555,11 @@ static int logfs_symlink(struct inode *dir, struct dentry *dentry,
 	return __logfs_create(dir, dentry, inode, target, destlen);
 }
 
-static int logfs_permission(struct inode *inode, int mask)
+static int logfs_permission(struct inode *inode, int mask, unsigned int flags)
 {
-	return generic_permission(inode, mask, NULL);
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
+	return generic_permission(inode, mask, flags, NULL);
 }
 
 static int logfs_link(struct dentry *old_dentry, struct inode *dir,

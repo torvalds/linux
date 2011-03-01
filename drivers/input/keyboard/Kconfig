@@ -2,7 +2,7 @@
 # Input core configuration
 #
 menuconfig INPUT_KEYBOARD
-	bool "Keyboards" if EMBEDDED || !X86
+	bool "Keyboards" if EXPERT || !X86
 	default y
 	help
 	  Say Y here, and a list of supported keyboards will be displayed.
@@ -11,18 +11,6 @@ menuconfig INPUT_KEYBOARD
 	  If unsure, say Y.
 
 if INPUT_KEYBOARD
-
-config KEYBOARD_AAED2000
-	tristate "AAED-2000 keyboard"
-	depends on MACH_AAED2000
-	select INPUT_POLLDEV
-	default y
-	help
-	  Say Y here to enable the keyboard on the Agilent AAED-2000
-	  development board.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called aaed2000_kbd.
 
 config KEYBOARD_ADP5520
 	tristate "Keypad Support for ADP5520 PMIC"
@@ -69,7 +57,7 @@ config KEYBOARD_ATARI
 	  module will be called atakbd.
 
 config KEYBOARD_ATKBD
-	tristate "AT keyboard" if EMBEDDED || !X86
+	tristate "AT keyboard" if EXPERT || !X86
 	default y
 	select SERIO
 	select SERIO_LIBPS2
@@ -196,20 +184,22 @@ config KEYBOARD_GPIO_POLLED
 	  module will be called gpio_keys_polled.
 
 config KEYBOARD_TCA6416
-	tristate "TCA6416 Keypad Support"
+	tristate "TCA6416/TCA6408A Keypad Support"
 	depends on I2C
 	help
 	  This driver implements basic keypad functionality
-	  for keys connected through TCA6416 IO expander
+	  for keys connected through TCA6416/TCA6408A IO expanders.
 
 	  Say Y here if your device has keys connected to
-	  TCA6416 IO expander. Your board-specific setup logic
+	  TCA6416/TCA6408A IO expander. Your board-specific setup logic
 	  must also provide pin-mask details(of which TCA6416 pins
 	  are used for keypad).
 
-	  If enabled the complete TCA6416 device will be managed through
+	  If enabled the entire TCA6416 device will be managed through
 	  this driver.
 
+	  To compile this driver as a module, choose M here: the
+	  module will be called tca6416_keypad.
 
 config KEYBOARD_MATRIX
 	tristate "GPIO driven matrix keypad support"
@@ -353,6 +343,16 @@ config KEYBOARD_NOMADIK
 	  To compile this driver as a module, choose M here: the
 	  module will be called nmk-ske-keypad.
 
+config KEYBOARD_TEGRA
+	tristate "NVIDIA Tegra internal matrix keyboard controller support"
+	depends on ARCH_TEGRA
+	help
+	  Say Y here if you want to use a matrix keyboard connected directly
+	  to the internal keyboard controller on Tegra SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tegra-kbc.
+
 config KEYBOARD_OPENCORES
 	tristate "OpenCores Keyboard Controller"
 	help
@@ -458,6 +458,25 @@ config KEYBOARD_OMAP4
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called omap4-keypad.
+
+config KEYBOARD_SPEAR
+	tristate "ST SPEAR keyboard support"
+	depends on PLAT_SPEAR
+	help
+	  Say Y here if you want to use the SPEAR keyboard.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called spear-keboard.
+
+config KEYBOARD_TC3589X
+	tristate "TC3589X Keypad support"
+	depends on MFD_TC3589X
+	help
+	  Say Y here if you want to use the keypad controller on
+	  TC35892/3 I/O expander.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tc3589x-keypad.
 
 config KEYBOARD_TNETV107X
 	tristate "TI TNETV107X keypad support"

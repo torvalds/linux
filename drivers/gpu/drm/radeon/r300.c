@@ -69,6 +69,9 @@ void rv370_pcie_gart_tlb_flush(struct radeon_device *rdev)
 	mb();
 }
 
+#define R300_PTE_WRITEABLE (1 << 2)
+#define R300_PTE_READABLE  (1 << 3)
+
 int rv370_pcie_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
 {
 	void __iomem *ptr = (void *)rdev->gart.table.vram.ptr;
@@ -78,7 +81,7 @@ int rv370_pcie_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
 	}
 	addr = (lower_32_bits(addr) >> 8) |
 	       ((upper_32_bits(addr) & 0xff) << 24) |
-	       0xc;
+	       R300_PTE_WRITEABLE | R300_PTE_READABLE;
 	/* on x86 we want this to be CPU endian, on powerpc
 	 * on powerpc without HW swappers, it'll get swapped on way
 	 * into VRAM - so no need for cpu_to_le32 on VRAM tables */
@@ -135,7 +138,7 @@ int rv370_pcie_gart_enable(struct radeon_device *rdev)
 	WREG32_PCIE(RADEON_PCIE_TX_DISCARD_RD_ADDR_LO, rdev->mc.vram_start);
 	WREG32_PCIE(RADEON_PCIE_TX_DISCARD_RD_ADDR_HI, 0);
 	/* Clear error */
-	WREG32_PCIE(0x18, 0);
+	WREG32_PCIE(RADEON_PCIE_TX_GART_ERROR, 0);
 	tmp = RREG32_PCIE(RADEON_PCIE_TX_GART_CNTL);
 	tmp |= RADEON_PCIE_TX_GART_EN;
 	tmp |= RADEON_PCIE_TX_GART_UNMAPPED_ACCESS_DISCARD;
@@ -405,12 +408,13 @@ int r300_asic_reset(struct radeon_device *rdev)
 {
 	struct r100_mc_save save;
 	u32 status, tmp;
+	int ret = 0;
 
-	r100_mc_stop(rdev, &save);
 	status = RREG32(R_000E40_RBBM_STATUS);
 	if (!G_000E40_GUI_ACTIVE(status)) {
 		return 0;
 	}
+	r100_mc_stop(rdev, &save);
 	status = RREG32(R_000E40_RBBM_STATUS);
 	dev_info(rdev->dev, "(%s:%d) RBBM_STATUS=0x%08X\n", __func__, __LINE__, status);
 	/* stop CP */
@@ -451,11 +455,11 @@ int r300_asic_reset(struct radeon_device *rdev)
 	if (G_000E40_GA_BUSY(status) || G_000E40_VAP_BUSY(status)) {
 		dev_err(rdev->dev, "failed to reset GPU\n");
 		rdev->gpu_lockup = true;
-		return -1;
-	}
+		ret = -1;
+	} else
+		dev_info(rdev->dev, "GPU reset succeed\n");
 	r100_mc_resume(rdev, &save);
-	dev_info(rdev->dev, "GPU reset succeed\n");
-	return 0;
+	return ret;
 }
 
 /*
@@ -558,10 +562,7 @@ int rv370_get_pcie_lanes(struct radeon_device *rdev)
 
 	/* FIXME wait for idle */
 
-	if (rdev->family < CHIP_R600)
-		link_width_cntl = RREG32_PCIE(RADEON_PCIE_LC_LINK_WIDTH_CNTL);
-	else
-		link_width_cntl = RREG32_PCIE_P(RADEON_PCIE_LC_LINK_WIDTH_CNTL);
+	link_width_cntl = RREG32_PCIE(RADEON_PCIE_LC_LINK_WIDTH_CNTL);
 
 	switch ((link_width_cntl & RADEON_PCIE_LC_LINK_WIDTH_RD_MASK) >> RADEON_PCIE_LC_LINK_WIDTH_RD_SHIFT) {
 	case RADEON_PCIE_LC_LINK_WIDTH_X0:
@@ -666,6 +667,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		}
 		track->cb[i].robj = reloc->robj;
 		track->cb[i].offset = idx_value;
+		track->cb_dirty = true;
 		ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
 		break;
 	case R300_ZB_DEPTHOFFSET:
@@ -678,6 +680,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		}
 		track->zb.robj = reloc->robj;
 		track->zb.offset = idx_value;
+		track->zb_dirty = true;
 		ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
 		break;
 	case R300_TX_OFFSET_0:
@@ -716,6 +719,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		tmp |= tile_flags;
 		ib[idx] = tmp;
 		track->textures[i].robj = reloc->robj;
+		track->tex_dirty = true;
 		break;
 	/* Tracked registers */
 	case 0x2084:
@@ -742,10 +746,18 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		if (p->rdev->family < CHIP_RV515) {
 			track->maxy -= 1440;
 		}
+		track->cb_dirty = true;
+		track->zb_dirty = true;
 		break;
 	case 0x4E00:
 		/* RB3D_CCTL */
+		if ((idx_value & (1 << 10)) && /* CMASK_ENABLE */
+		    p->rdev->cmask_filp != p->filp) {
+			DRM_ERROR("Invalid RB3D_CCTL: Cannot enable CMASK.\n");
+			return -EINVAL;
+		}
 		track->num_cb = ((idx_value >> 5) & 0x3) + 1;
+		track->cb_dirty = true;
 		break;
 	case 0x4E38:
 	case 0x4E3C:
@@ -787,6 +799,13 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		case 15:
 			track->cb[i].cpp = 2;
 			break;
+		case 5:
+			if (p->rdev->family < CHIP_RV515) {
+				DRM_ERROR("Invalid color buffer format (%d)!\n",
+					  ((idx_value >> 21) & 0xF));
+				return -EINVAL;
+			}
+			/* Pass through. */
 		case 6:
 			track->cb[i].cpp = 4;
 			break;
@@ -801,6 +820,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 				  ((idx_value >> 21) & 0xF));
 			return -EINVAL;
 		}
+		track->cb_dirty = true;
 		break;
 	case 0x4F00:
 		/* ZB_CNTL */
@@ -809,6 +829,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		} else {
 			track->z_enabled = false;
 		}
+		track->zb_dirty = true;
 		break;
 	case 0x4F10:
 		/* ZB_FORMAT */
@@ -825,6 +846,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 				  (idx_value & 0xF));
 			return -EINVAL;
 		}
+		track->zb_dirty = true;
 		break;
 	case 0x4F24:
 		/* ZB_DEPTHPITCH */
@@ -848,14 +870,17 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		ib[idx] = tmp;
 
 		track->zb.pitch = idx_value & 0x3FFC;
+		track->zb_dirty = true;
 		break;
 	case 0x4104:
+		/* TX_ENABLE */
 		for (i = 0; i < 16; i++) {
 			bool enabled;
 
 			enabled = !!(idx_value & (1 << i));
 			track->textures[i].enabled = enabled;
 		}
+		track->tex_dirty = true;
 		break;
 	case 0x44C0:
 	case 0x44C4:
@@ -885,6 +910,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
 			break;
 		case R300_TX_FORMAT_X16:
+		case R300_TX_FORMAT_FL_I16:
 		case R300_TX_FORMAT_Y8X8:
 		case R300_TX_FORMAT_Z5Y6X5:
 		case R300_TX_FORMAT_Z6Y5X5:
@@ -897,6 +923,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
 			break;
 		case R300_TX_FORMAT_Y16X16:
+		case R300_TX_FORMAT_FL_I16A16:
 		case R300_TX_FORMAT_Z11Y11X10:
 		case R300_TX_FORMAT_Z10Y11X11:
 		case R300_TX_FORMAT_W8Z8Y8X8:
@@ -938,8 +965,8 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			DRM_ERROR("Invalid texture format %u\n",
 				  (idx_value & 0x1F));
 			return -EINVAL;
-			break;
 		}
+		track->tex_dirty = true;
 		break;
 	case 0x4400:
 	case 0x4404:
@@ -967,6 +994,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		if (tmp == 2 || tmp == 4 || tmp == 6) {
 			track->textures[i].roundup_h = false;
 		}
+		track->tex_dirty = true;
 		break;
 	case 0x4500:
 	case 0x4504:
@@ -1004,6 +1032,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			DRM_ERROR("Forbidden bit TXFORMAT_MSB\n");
 			return -EINVAL;
 		}
+		track->tex_dirty = true;
 		break;
 	case 0x4480:
 	case 0x4484:
@@ -1033,6 +1062,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		track->textures[i].use_pitch = !!tmp;
 		tmp = (idx_value >> 22) & 0xF;
 		track->textures[i].txdepth = tmp;
+		track->tex_dirty = true;
 		break;
 	case R300_ZB_ZPASS_ADDR:
 		r = r100_cs_packet_next_reloc(p, &reloc);
@@ -1047,6 +1077,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	case 0x4e0c:
 		/* RB3D_COLOR_CHANNEL_MASK */
 		track->color_channel_mask = idx_value;
+		track->cb_dirty = true;
 		break;
 	case 0x43a4:
 		/* SC_HYPERZ_EN */
@@ -1060,6 +1091,8 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	case 0x4f1c:
 		/* ZB_BW_CNTL */
 		track->zb_cb_clear = !!(idx_value & (1 << 5));
+		track->cb_dirty = true;
+		track->zb_dirty = true;
 		if (p->rdev->hyperz_filp != p->filp) {
 			if (idx_value & (R300_HIZ_ENABLE |
 					 R300_RD_COMP_ENABLE |
@@ -1071,8 +1104,28 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	case 0x4e04:
 		/* RB3D_BLENDCNTL */
 		track->blend_read_enable = !!(idx_value & (1 << 2));
+		track->cb_dirty = true;
 		break;
-	case 0x4f28: /* ZB_DEPTHCLEARVALUE */
+	case R300_RB3D_AARESOLVE_OFFSET:
+		r = r100_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+				  idx, reg);
+			r100_cs_dump_packet(p, pkt);
+			return r;
+		}
+		track->aa.robj = reloc->robj;
+		track->aa.offset = idx_value;
+		track->aa_dirty = true;
+		ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
+		break;
+	case R300_RB3D_AARESOLVE_PITCH:
+		track->aa.pitch = idx_value & 0x3FFE;
+		track->aa_dirty = true;
+		break;
+	case R300_RB3D_AARESOLVE_CTL:
+		track->aaresolve = idx_value & 0x1;
+		track->aa_dirty = true;
 		break;
 	case 0x4f30: /* ZB_MASK_OFFSET */
 	case 0x4f34: /* ZB_ZMASK_PITCH */
@@ -1197,6 +1250,10 @@ static int r300_packet3_check(struct radeon_cs_parser *p,
 	case PACKET3_3D_CLEAR_HIZ:
 	case PACKET3_3D_CLEAR_ZMASK:
 		if (p->rdev->hyperz_filp != p->filp)
+			return -EINVAL;
+		break;
+	case PACKET3_3D_CLEAR_CMASK:
+		if (p->rdev->cmask_filp != p->filp)
 			return -EINVAL;
 		break;
 	case PACKET3_NOP:

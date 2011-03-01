@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/max8998.h>
 #include <linux/mfd/max8998-private.h>
+#include <linux/delay.h>
 
 #define MAX8998_RTC_SEC			0x00
 #define MAX8998_RTC_MIN			0x01
@@ -73,6 +74,7 @@ struct max8998_rtc_info {
 	struct i2c_client	*rtc;
 	struct rtc_device	*rtc_dev;
 	int irq;
+	bool lp3974_bug_workaround;
 };
 
 static void max8998_data_to_tm(u8 *data, struct rtc_time *tm)
@@ -124,10 +126,16 @@ static int max8998_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct max8998_rtc_info *info = dev_get_drvdata(dev);
 	u8 data[8];
+	int ret;
 
 	max8998_tm_to_data(tm, data);
 
-	return max8998_bulk_write(info->rtc, MAX8998_RTC_SEC, 8, data);
+	ret = max8998_bulk_write(info->rtc, MAX8998_RTC_SEC, 8, data);
+
+	if (info->lp3974_bug_workaround)
+		msleep(2000);
+
+	return ret;
 }
 
 static int max8998_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
@@ -163,12 +171,29 @@ static int max8998_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 static int max8998_rtc_stop_alarm(struct max8998_rtc_info *info)
 {
-	return max8998_write_reg(info->rtc, MAX8998_ALARM0_CONF, 0);
+	int ret = max8998_write_reg(info->rtc, MAX8998_ALARM0_CONF, 0);
+
+	if (info->lp3974_bug_workaround)
+		msleep(2000);
+
+	return ret;
 }
 
 static int max8998_rtc_start_alarm(struct max8998_rtc_info *info)
 {
-	return max8998_write_reg(info->rtc, MAX8998_ALARM0_CONF, 0x77);
+	int ret;
+	u8 alarm0_conf = 0x77;
+
+	/* LP3974 with delay bug chips has rtc alarm bugs with "MONTH" field */
+	if (info->lp3974_bug_workaround)
+		alarm0_conf = 0x57;
+
+	ret = max8998_write_reg(info->rtc, MAX8998_ALARM0_CONF, alarm0_conf);
+
+	if (info->lp3974_bug_workaround)
+		msleep(2000);
+
+	return ret;
 }
 
 static int max8998_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
@@ -187,10 +212,13 @@ static int max8998_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	if (ret < 0)
 		return ret;
 
-	if (alrm->enabled)
-		return max8998_rtc_start_alarm(info);
+	if (info->lp3974_bug_workaround)
+		msleep(2000);
 
-	return 0;
+	if (alrm->enabled)
+		ret = max8998_rtc_start_alarm(info);
+
+	return ret;
 }
 
 static int max8998_rtc_alarm_irq_enable(struct device *dev,
@@ -224,6 +252,7 @@ static const struct rtc_class_ops max8998_rtc_ops = {
 static int __devinit max8998_rtc_probe(struct platform_device *pdev)
 {
 	struct max8998_dev *max8998 = dev_get_drvdata(pdev->dev.parent);
+	struct max8998_platform_data *pdata = dev_get_platdata(max8998->dev);
 	struct max8998_rtc_info *info;
 	int ret;
 
@@ -249,9 +278,17 @@ static int __devinit max8998_rtc_probe(struct platform_device *pdev)
 
 	ret = request_threaded_irq(info->irq, NULL, max8998_rtc_alarm_irq, 0,
 			"rtc-alarm0", info);
+
 	if (ret < 0)
 		dev_err(&pdev->dev, "Failed to request alarm IRQ: %d: %d\n",
 			info->irq, ret);
+
+	dev_info(&pdev->dev, "RTC CHIP NAME: %s\n", pdev->id_entry->name);
+	if (pdata->rtc_delay) {
+		info->lp3974_bug_workaround = true;
+		dev_warn(&pdev->dev, "LP3974 with RTC REGERR option."
+				" RTC updates will be extremely slow.\n");
+	}
 
 	return 0;
 
@@ -273,6 +310,12 @@ static int __devexit max8998_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id max8998_rtc_id[] = {
+	{ "max8998-rtc", TYPE_MAX8998 },
+	{ "lp3974-rtc", TYPE_LP3974 },
+	{ }
+};
+
 static struct platform_driver max8998_rtc_driver = {
 	.driver		= {
 		.name	= "max8998-rtc",
@@ -280,6 +323,7 @@ static struct platform_driver max8998_rtc_driver = {
 	},
 	.probe		= max8998_rtc_probe,
 	.remove		= __devexit_p(max8998_rtc_remove),
+	.id_table	= max8998_rtc_id,
 };
 
 static int __init max8998_rtc_init(void)

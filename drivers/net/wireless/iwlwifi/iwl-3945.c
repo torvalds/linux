@@ -51,6 +51,7 @@
 #include "iwl-led.h"
 #include "iwl-3945-led.h"
 #include "iwl-3945-debugfs.h"
+#include "iwl-legacy.h"
 
 #define IWL_DECLARE_RATE_INFO(r, ip, in, rp, rn, pp, np)    \
 	[IWL_RATE_##r##M_INDEX] = { IWL_RATE_##r##M_PLCP,   \
@@ -115,7 +116,7 @@ void iwl3945_disable_events(struct iwl_priv *priv)
 	u32 base;		/* SRAM address of event log header */
 	u32 disable_ptr;	/* SRAM address of event-disable bitmap array */
 	u32 array_size;		/* # of u32 entries in array */
-	u32 evt_disable[IWL_EVT_DISABLE_SIZE] = {
+	static const u32 evt_disable[IWL_EVT_DISABLE_SIZE] = {
 		0x00000000,	/*   31 -    0  Event id numbers */
 		0x00000000,	/*   63 -   32 */
 		0x00000000,	/*   95 -   64 */
@@ -296,7 +297,7 @@ static void iwl3945_tx_queue_reclaim(struct iwl_priv *priv,
 	if (iwl_queue_space(q) > q->low_mark && (txq_id >= 0) &&
 			(txq_id != IWL39_CMD_QUEUE_NUM) &&
 			priv->mac80211_registered)
-		iwl_wake_queue(priv, txq_id);
+		iwl_wake_queue(priv, txq);
 }
 
 /**
@@ -324,6 +325,7 @@ static void iwl3945_rx_reply_tx(struct iwl_priv *priv,
 		return;
 	}
 
+	txq->time_stamp = jiffies;
 	info = IEEE80211_SKB_CB(txq->txb[txq->q.read_ptr].skb);
 	ieee80211_tx_info_clear_status(info);
 
@@ -399,72 +401,6 @@ static void iwl3945_accumulative_statistics(struct iwl_priv *priv,
 		priv->_3945.statistics.general.ttl_timestamp;
 }
 #endif
-
-/**
- * iwl3945_good_plcp_health - checks for plcp error.
- *
- * When the plcp error is exceeding the thresholds, reset the radio
- * to improve the throughput.
- */
-static bool iwl3945_good_plcp_health(struct iwl_priv *priv,
-				struct iwl_rx_packet *pkt)
-{
-	bool rc = true;
-	struct iwl3945_notif_statistics current_stat;
-	int combined_plcp_delta;
-	unsigned int plcp_msec;
-	unsigned long plcp_received_jiffies;
-
-	if (priv->cfg->base_params->plcp_delta_threshold ==
-	    IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE) {
-		IWL_DEBUG_RADIO(priv, "plcp_err check disabled\n");
-		return rc;
-	}
-	memcpy(&current_stat, pkt->u.raw, sizeof(struct
-			iwl3945_notif_statistics));
-	/*
-	 * check for plcp_err and trigger radio reset if it exceeds
-	 * the plcp error threshold plcp_delta.
-	 */
-	plcp_received_jiffies = jiffies;
-	plcp_msec = jiffies_to_msecs((long) plcp_received_jiffies -
-					(long) priv->plcp_jiffies);
-	priv->plcp_jiffies = plcp_received_jiffies;
-	/*
-	 * check to make sure plcp_msec is not 0 to prevent division
-	 * by zero.
-	 */
-	if (plcp_msec) {
-		combined_plcp_delta =
-			(le32_to_cpu(current_stat.rx.ofdm.plcp_err) -
-			le32_to_cpu(priv->_3945.statistics.rx.ofdm.plcp_err));
-
-		if ((combined_plcp_delta > 0) &&
-			((combined_plcp_delta * 100) / plcp_msec) >
-			priv->cfg->base_params->plcp_delta_threshold) {
-			/*
-			 * if plcp_err exceed the threshold, the following
-			 * data is printed in csv format:
-			 *    Text: plcp_err exceeded %d,
-			 *    Received ofdm.plcp_err,
-			 *    Current ofdm.plcp_err,
-			 *    combined_plcp_delta,
-			 *    plcp_msec
-			 */
-			IWL_DEBUG_RADIO(priv, "plcp_err exceeded %u, "
-				"%u, %d, %u mSecs\n",
-				priv->cfg->base_params->plcp_delta_threshold,
-				le32_to_cpu(current_stat.rx.ofdm.plcp_err),
-				combined_plcp_delta, plcp_msec);
-			/*
-			 * Reset the RF radio due to the high plcp
-			 * error rate
-			 */
-			rc = false;
-		}
-	}
-	return rc;
-}
 
 void iwl3945_hw_rx_statistics(struct iwl_priv *priv,
 		struct iwl_rx_mem_buffer *rxb)
@@ -1451,6 +1387,10 @@ static int iwl3945_send_tx_power(struct iwl_priv *priv)
 	};
 	u16 chan;
 
+	if (WARN_ONCE(test_bit(STATUS_SCAN_HW, &priv->status),
+		      "TX Power requested while scanning!\n"))
+		return -EAGAIN;
+
 	chan = le16_to_cpu(priv->contexts[IWL_RXON_CTX_BSS].active.channel);
 
 	txpower.band = (priv->band == IEEE80211_BAND_5GHZ) ? 0 : 1;
@@ -1778,6 +1718,9 @@ int iwl3945_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	struct iwl3945_rxon_cmd *staging_rxon = (void *)&ctx->staging;
 	int rc = 0;
 	bool new_assoc = !!(staging_rxon->filter_flags & RXON_FILTER_ASSOC_MSK);
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return -EINVAL;
 
 	if (!iwl_is_alive(priv))
 		return -1;
@@ -2722,12 +2665,9 @@ static struct iwl_lib_ops iwl3945_lib = {
 	},
 	.send_tx_power	= iwl3945_send_tx_power,
 	.is_valid_rtc_data_addr = iwl3945_hw_valid_rtc_data_addr,
-	.post_associate = iwl3945_post_associate,
-	.isr = iwl_isr_legacy,
-	.config_ap = iwl3945_config_ap,
-	.manage_ibss_station = iwl3945_manage_ibss_station,
-	.recover_from_tx_stall = iwl_bg_monitor_recover,
-	.check_plcp_health = iwl3945_good_plcp_health,
+	.isr_ops = {
+		.isr = iwl_isr_legacy,
+	},
 
 	.debugfs_ops = {
 		.rx_stats_read = iwl3945_ucode_rx_stats_read,
@@ -2736,10 +2676,16 @@ static struct iwl_lib_ops iwl3945_lib = {
 	},
 };
 
+static const struct iwl_legacy_ops iwl3945_legacy_ops = {
+	.post_associate = iwl3945_post_associate,
+	.config_ap = iwl3945_config_ap,
+	.manage_ibss_station = iwl3945_manage_ibss_station,
+};
+
 static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {
 	.get_hcmd_size = iwl3945_get_hcmd_size,
 	.build_addsta_hcmd = iwl3945_build_addsta_hcmd,
-	.tx_cmd_protection = iwlcore_tx_cmd_protection,
+	.tx_cmd_protection = iwl_legacy_tx_cmd_protection,
 	.request_scan = iwl3945_request_scan,
 	.post_scan = iwl3945_post_scan,
 };
@@ -2749,6 +2695,8 @@ static const struct iwl_ops iwl3945_ops = {
 	.hcmd = &iwl3945_hcmd,
 	.utils = &iwl3945_hcmd_utils,
 	.led = &iwl3945_led_ops,
+	.legacy = &iwl3945_legacy_ops,
+	.ieee80211_ops = &iwl3945_hw_ops,
 };
 
 static struct iwl_base_params iwl3945_base_params = {
@@ -2761,7 +2709,7 @@ static struct iwl_base_params iwl3945_base_params = {
 	.led_compensation = 64,
 	.broken_powersave = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
-	.monitor_recover_period = IWL_DEF_MONITORING_PERIOD,
+	.wd_timeout = IWL_DEF_WD_TIMEOUT,
 	.max_event_log_size = 512,
 	.tx_power_by_driver = true,
 };
@@ -2776,6 +2724,7 @@ static struct iwl_cfg iwl3945_bg_cfg = {
 	.ops = &iwl3945_ops,
 	.mod_params = &iwl3945_mod_params,
 	.base_params = &iwl3945_base_params,
+	.led_mode = IWL_LED_BLINK,
 };
 
 static struct iwl_cfg iwl3945_abg_cfg = {
@@ -2788,6 +2737,7 @@ static struct iwl_cfg iwl3945_abg_cfg = {
 	.ops = &iwl3945_ops,
 	.mod_params = &iwl3945_mod_params,
 	.base_params = &iwl3945_base_params,
+	.led_mode = IWL_LED_BLINK,
 };
 
 DEFINE_PCI_DEVICE_TABLE(iwl3945_hw_card_ids) = {

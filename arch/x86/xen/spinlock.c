@@ -159,8 +159,8 @@ static inline struct xen_spinlock *spinning_lock(struct xen_spinlock *xl)
 {
 	struct xen_spinlock *prev;
 
-	prev = __get_cpu_var(lock_spinners);
-	__get_cpu_var(lock_spinners) = xl;
+	prev = __this_cpu_read(lock_spinners);
+	__this_cpu_write(lock_spinners, xl);
 
 	wmb();			/* set lock of interest before count */
 
@@ -179,14 +179,14 @@ static inline void unspinning_lock(struct xen_spinlock *xl, struct xen_spinlock 
 	asm(LOCK_PREFIX " decw %0"
 	    : "+m" (xl->spinners) : : "memory");
 	wmb();			/* decrement count before restoring lock */
-	__get_cpu_var(lock_spinners) = prev;
+	__this_cpu_write(lock_spinners, prev);
 }
 
 static noinline int xen_spin_lock_slow(struct arch_spinlock *lock, bool irq_enable)
 {
 	struct xen_spinlock *xl = (struct xen_spinlock *)lock;
 	struct xen_spinlock *prev;
-	int irq = __get_cpu_var(lock_kicker_irq);
+	int irq = __this_cpu_read(lock_kicker_irq);
 	int ret;
 	u64 start;
 

@@ -68,10 +68,12 @@ typedef struct {
 struct nfsd4_callback {
 	void *cb_op;
 	struct nfs4_client *cb_clp;
+	struct list_head cb_per_client;
 	u32 cb_minorversion;
 	struct rpc_message cb_msg;
 	const struct rpc_call_ops *cb_ops;
 	struct work_struct cb_work;
+	bool cb_done;
 };
 
 struct nfs4_delegation {
@@ -81,7 +83,6 @@ struct nfs4_delegation {
 	atomic_t		dl_count;       /* ref count */
 	struct nfs4_client	*dl_client;
 	struct nfs4_file	*dl_file;
-	struct file_lock	*dl_flock;
 	u32			dl_type;
 	time_t			dl_time;
 /* For recall: */
@@ -95,6 +96,7 @@ struct nfs4_delegation {
 struct nfs4_cb_conn {
 	/* SETCLIENTID info */
 	struct sockaddr_storage	cb_addr;
+	struct sockaddr_storage	cb_saddr;
 	size_t			cb_addrlen;
 	u32                     cb_prog; /* used only in 4.0 case;
 					    per-session otherwise */
@@ -144,6 +146,11 @@ struct nfsd4_create_session {
 	u32				callback_prog;
 	u32				uid;
 	u32				gid;
+};
+
+struct nfsd4_bind_conn_to_session {
+	struct nfs4_sessionid		sessionid;
+	u32				dir;
 };
 
 /* The single slot clientid cache structure */
@@ -235,9 +242,13 @@ struct nfs4_client {
 	unsigned long		cl_cb_flags;
 	struct rpc_clnt		*cl_cb_client;
 	u32			cl_cb_ident;
-	atomic_t		cl_cb_set;
+#define NFSD4_CB_UP		0
+#define NFSD4_CB_UNKNOWN	1
+#define NFSD4_CB_DOWN		2
+	int			cl_cb_state;
 	struct nfsd4_callback	cl_cb_null;
 	struct nfsd4_session	*cl_cb_session;
+	struct list_head	cl_callbacks; /* list of in-progress callbacks */
 
 	/* for all client information that callback code might need: */
 	spinlock_t		cl_lock;
@@ -366,6 +377,9 @@ struct nfs4_file {
 	 */
 	atomic_t		fi_readers;
 	atomic_t		fi_writers;
+	struct file		*fi_deleg_file;
+	struct file_lock	*fi_lease;
+	atomic_t		fi_delegees;
 	struct inode		*fi_inode;
 	u32                     fi_id;      /* used with stateowner->so_id 
 					     * for stateid_hashtbl hash */
@@ -454,6 +468,7 @@ extern __be32 nfs4_check_open_reclaim(clientid_t *clid);
 extern void nfs4_free_stateowner(struct kref *kref);
 extern int set_callback_cred(void);
 extern void nfsd4_probe_callback(struct nfs4_client *clp);
+extern void nfsd4_probe_callback_sync(struct nfs4_client *clp);
 extern void nfsd4_change_callback(struct nfs4_client *clp, struct nfs4_cb_conn *);
 extern void nfsd4_do_callback_rpc(struct work_struct *);
 extern void nfsd4_cb_recall(struct nfs4_delegation *dp);

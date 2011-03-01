@@ -75,109 +75,6 @@
 #include "iwl-agn.h"
 #include "iwl-io.h"
 
-/************************** EEPROM BANDS ****************************
- *
- * The iwl_eeprom_band definitions below provide the mapping from the
- * EEPROM contents to the specific channel number supported for each
- * band.
- *
- * For example, iwl_priv->eeprom.band_3_channels[4] from the band_3
- * definition below maps to physical channel 42 in the 5.2GHz spectrum.
- * The specific geography and calibration information for that channel
- * is contained in the eeprom map itself.
- *
- * During init, we copy the eeprom information and channel map
- * information into priv->channel_info_24/52 and priv->channel_map_24/52
- *
- * channel_map_24/52 provides the index in the channel_info array for a
- * given channel.  We have to have two separate maps as there is channel
- * overlap with the 2.4GHz and 5.2GHz spectrum as seen in band_1 and
- * band_2
- *
- * A value of 0xff stored in the channel_map indicates that the channel
- * is not supported by the hardware at all.
- *
- * A value of 0xfe in the channel_map indicates that the channel is not
- * valid for Tx with the current hardware.  This means that
- * while the system can tune and receive on a given channel, it may not
- * be able to associate or transmit any frames on that
- * channel.  There is no corresponding channel information for that
- * entry.
- *
- *********************************************************************/
-
-/**
- * struct iwl_txpwr_section: eeprom section information
- * @offset: indirect address into eeprom image
- * @count: number of "struct iwl_eeprom_enhanced_txpwr" in this section
- * @band: band type for the section
- * @is_common - true: common section, false: channel section
- * @is_cck - true: cck section, false: not cck section
- * @is_ht_40 - true: all channel in the section are HT40 channel,
- *	       false: legacy or HT 20 MHz
- *	       ignore if it is common section
- * @iwl_eeprom_section_channel: channel array in the section,
- *	       ignore if common section
- */
-struct iwl_txpwr_section {
-	u32 offset;
-	u8 count;
-	enum ieee80211_band band;
-	bool is_common;
-	bool is_cck;
-	bool is_ht40;
-	u8 iwl_eeprom_section_channel[EEPROM_MAX_TXPOWER_SECTION_ELEMENTS];
-};
-
-/**
- * section 1 - 3 are regulatory tx power apply to all channels based on
- *    modulation: CCK, OFDM
- *    Band: 2.4GHz, 5.2GHz
- * section 4 - 10 are regulatory tx power apply to specified channels
- *    For example:
- *	1L - Channel 1 Legacy
- *	1HT - Channel 1 HT
- *	(1,+1) - Channel 1 HT40 "_above_"
- *
- * Section 1: all CCK channels
- * Section 2: all 2.4 GHz OFDM (Legacy, HT and HT40) channels
- * Section 3: all 5.2 GHz OFDM (Legacy, HT and HT40) channels
- * Section 4: 2.4 GHz 20MHz channels: 1L, 1HT, 2L, 2HT, 10L, 10HT, 11L, 11HT
- * Section 5: 2.4 GHz 40MHz channels: (1,+1) (2,+1) (6,+1) (7,+1) (9,+1)
- * Section 6: 5.2 GHz 20MHz channels: 36L, 64L, 100L, 36HT, 64HT, 100HT
- * Section 7: 5.2 GHz 40MHz channels: (36,+1) (60,+1) (100,+1)
- * Section 8: 2.4 GHz channel: 13L, 13HT
- * Section 9: 2.4 GHz channel: 140L, 140HT
- * Section 10: 2.4 GHz 40MHz channels: (132,+1)  (44,+1)
- *
- */
-static const struct iwl_txpwr_section enhinfo[] = {
-	{ EEPROM_LB_CCK_20_COMMON, 1, IEEE80211_BAND_2GHZ, true, true, false },
-	{ EEPROM_LB_OFDM_COMMON, 3, IEEE80211_BAND_2GHZ, true, false, false },
-	{ EEPROM_HB_OFDM_COMMON, 3, IEEE80211_BAND_5GHZ, true, false, false },
-	{ EEPROM_LB_OFDM_20_BAND, 8, IEEE80211_BAND_2GHZ,
-		false, false, false,
-		{1, 1, 2, 2, 10, 10, 11, 11 } },
-	{ EEPROM_LB_OFDM_HT40_BAND, 5, IEEE80211_BAND_2GHZ,
-		false, false, true,
-		{ 1, 2, 6, 7, 9 } },
-	{ EEPROM_HB_OFDM_20_BAND, 6, IEEE80211_BAND_5GHZ,
-		false, false, false,
-		{ 36, 64, 100, 36, 64, 100 } },
-	{ EEPROM_HB_OFDM_HT40_BAND, 3, IEEE80211_BAND_5GHZ,
-		false, false, true,
-		{ 36, 60, 100 } },
-	{ EEPROM_LB_OFDM_20_CHANNEL_13, 2, IEEE80211_BAND_2GHZ,
-		false, false, false,
-		{ 13, 13 } },
-	{ EEPROM_HB_OFDM_20_CHANNEL_140, 2, IEEE80211_BAND_5GHZ,
-		false, false, false,
-		{ 140, 140 } },
-	{ EEPROM_HB_OFDM_HT40_BAND_1, 2, IEEE80211_BAND_5GHZ,
-		false, false, true,
-		{ 132, 44 } },
-};
-
 /******************************************************************************
  *
  * EEPROM related functions
@@ -248,6 +145,50 @@ err:
 
 }
 
+int iwl_eeprom_check_sku(struct iwl_priv *priv)
+{
+	u16 eeprom_sku;
+	u16 radio_cfg;
+
+	eeprom_sku = iwl_eeprom_query16(priv, EEPROM_SKU_CAP);
+
+	if (!priv->cfg->sku) {
+		/* not using sku overwrite */
+		priv->cfg->sku =
+			((eeprom_sku & EEPROM_SKU_CAP_BAND_SELECTION) >>
+			EEPROM_SKU_CAP_BAND_POS);
+		if (eeprom_sku & EEPROM_SKU_CAP_11N_ENABLE)
+			priv->cfg->sku |= IWL_SKU_N;
+	}
+	if (!priv->cfg->sku) {
+		IWL_ERR(priv, "Invalid device sku\n");
+		return -EINVAL;
+	}
+
+	IWL_INFO(priv, "Device SKU: 0X%x\n", priv->cfg->sku);
+
+	if (!priv->cfg->valid_tx_ant && !priv->cfg->valid_rx_ant) {
+		/* not using .cfg overwrite */
+		radio_cfg = iwl_eeprom_query16(priv, EEPROM_RADIO_CONFIG);
+		priv->cfg->valid_tx_ant = EEPROM_RF_CFG_TX_ANT_MSK(radio_cfg);
+		priv->cfg->valid_rx_ant = EEPROM_RF_CFG_RX_ANT_MSK(radio_cfg);
+		if (!priv->cfg->valid_tx_ant || !priv->cfg->valid_rx_ant) {
+			IWL_ERR(priv, "Invalid chain (0X%x, 0X%x)\n",
+				priv->cfg->valid_tx_ant,
+				priv->cfg->valid_rx_ant);
+			return -EINVAL;
+		}
+		IWL_INFO(priv, "Valid Tx ant: 0X%x, Valid Rx ant: 0X%x\n",
+			 priv->cfg->valid_tx_ant, priv->cfg->valid_rx_ant);
+	}
+	/*
+	 * for some special cases,
+	 * EEPROM did not reflect the correct antenna setting
+	 * so overwrite the valid tx/rx antenna from .cfg
+	 */
+	return 0;
+}
+
 void iwl_eeprom_get_mac(const struct iwl_priv *priv, u8 *mac)
 {
 	const u8 *addr = priv->cfg->ops->lib->eeprom_ops.query_addr(priv,
@@ -265,15 +206,6 @@ static s8 iwl_get_max_txpower_avg(struct iwl_priv *priv,
 {
 	s8 max_txpower_avg = 0; /* (dBm) */
 
-	IWL_DEBUG_INFO(priv, "%d - "
-			"chain_a: %d dB chain_b: %d dB "
-			"chain_c: %d dB mimo2: %d dB mimo3: %d dB\n",
-			element,
-			enhanced_txpower[element].chain_a_max >> 1,
-			enhanced_txpower[element].chain_b_max >> 1,
-			enhanced_txpower[element].chain_c_max >> 1,
-			enhanced_txpower[element].mimo2_max >> 1,
-			enhanced_txpower[element].mimo3_max >> 1);
 	/* Take the highest tx power from any valid chains */
 	if ((priv->cfg->valid_tx_ant & ANT_A) &&
 	    (enhanced_txpower[element].chain_a_max > max_txpower_avg))
@@ -301,157 +233,6 @@ static s8 iwl_get_max_txpower_avg(struct iwl_priv *priv,
 	 */
 	*max_txpower_in_half_dbm = max_txpower_avg;
 	return (max_txpower_avg & 0x01) + (max_txpower_avg >> 1);
-}
-
-/**
- * iwl_update_common_txpower: update channel tx power
- *     update tx power per band based on EEPROM enhanced tx power info.
- */
-static s8 iwl_update_common_txpower(struct iwl_priv *priv,
-		struct iwl_eeprom_enhanced_txpwr *enhanced_txpower,
-		int section, int element, s8 *max_txpower_in_half_dbm)
-{
-	struct iwl_channel_info *ch_info;
-	int ch;
-	bool is_ht40 = false;
-	s8 max_txpower_avg; /* (dBm) */
-
-	/* it is common section, contain all type (Legacy, HT and HT40)
-	 * based on the element in the section to determine
-	 * is it HT 40 or not
-	 */
-	if (element == EEPROM_TXPOWER_COMMON_HT40_INDEX)
-		is_ht40 = true;
-	max_txpower_avg =
-		iwl_get_max_txpower_avg(priv, enhanced_txpower,
-					element, max_txpower_in_half_dbm);
-
-	ch_info = priv->channel_info;
-
-	for (ch = 0; ch < priv->channel_count; ch++) {
-		/* find matching band and update tx power if needed */
-		if ((ch_info->band == enhinfo[section].band) &&
-		    (ch_info->max_power_avg < max_txpower_avg) &&
-		    (!is_ht40)) {
-			/* Update regulatory-based run-time data */
-			ch_info->max_power_avg = ch_info->curr_txpow =
-				max_txpower_avg;
-			ch_info->scan_power = max_txpower_avg;
-		}
-		if ((ch_info->band == enhinfo[section].band) && is_ht40 &&
-		    (ch_info->ht40_max_power_avg < max_txpower_avg)) {
-			/* Update regulatory-based run-time data */
-			ch_info->ht40_max_power_avg = max_txpower_avg;
-		}
-		ch_info++;
-	}
-	return max_txpower_avg;
-}
-
-/**
- * iwl_update_channel_txpower: update channel tx power
- *      update channel tx power based on EEPROM enhanced tx power info.
- */
-static s8 iwl_update_channel_txpower(struct iwl_priv *priv,
-		struct iwl_eeprom_enhanced_txpwr *enhanced_txpower,
-		int section, int element, s8 *max_txpower_in_half_dbm)
-{
-	struct iwl_channel_info *ch_info;
-	int ch;
-	u8 channel;
-	s8 max_txpower_avg; /* (dBm) */
-
-	channel = enhinfo[section].iwl_eeprom_section_channel[element];
-	max_txpower_avg =
-		iwl_get_max_txpower_avg(priv, enhanced_txpower,
-					element, max_txpower_in_half_dbm);
-
-	ch_info = priv->channel_info;
-	for (ch = 0; ch < priv->channel_count; ch++) {
-		/* find matching channel and update tx power if needed */
-		if (ch_info->channel == channel) {
-			if ((ch_info->max_power_avg < max_txpower_avg) &&
-			    (!enhinfo[section].is_ht40)) {
-				/* Update regulatory-based run-time data */
-				ch_info->max_power_avg = max_txpower_avg;
-				ch_info->curr_txpow = max_txpower_avg;
-				ch_info->scan_power = max_txpower_avg;
-			}
-			if ((enhinfo[section].is_ht40) &&
-			    (ch_info->ht40_max_power_avg < max_txpower_avg)) {
-				/* Update regulatory-based run-time data */
-				ch_info->ht40_max_power_avg = max_txpower_avg;
-			}
-			break;
-		}
-		ch_info++;
-	}
-	return max_txpower_avg;
-}
-
-/**
- * iwlcore_eeprom_enhanced_txpower: process enhanced tx power info
- */
-static void iwlcore_eeprom_enhanced_txpower_old(struct iwl_priv *priv)
-{
-	int eeprom_section_count = 0;
-	int section, element;
-	struct iwl_eeprom_enhanced_txpwr *enhanced_txpower;
-	u32 offset;
-	s8 max_txpower_avg; /* (dBm) */
-	s8 max_txpower_in_half_dbm; /* (half-dBm) */
-
-	/* Loop through all the sections
-	 * adjust bands and channel's max tx power
-	 * Set the tx_power_user_lmt to the highest power
-	 * supported by any channels and chains
-	 */
-	for (section = 0; section < ARRAY_SIZE(enhinfo); section++) {
-		eeprom_section_count = enhinfo[section].count;
-		offset = enhinfo[section].offset;
-		enhanced_txpower = (struct iwl_eeprom_enhanced_txpwr *)
-				iwl_eeprom_query_addr(priv, offset);
-
-		/*
-		 * check for valid entry -
-		 * different version of EEPROM might contain different set
-		 * of enhanced tx power table
-		 * always check for valid entry before process
-		 * the information
-		 */
-		if (!(enhanced_txpower->flags || enhanced_txpower->channel) ||
-		    enhanced_txpower->delta_20_in_40)
-			continue;
-
-		for (element = 0; element < eeprom_section_count; element++) {
-			if (enhinfo[section].is_common)
-				max_txpower_avg =
-					iwl_update_common_txpower(priv,
-						enhanced_txpower, section,
-						element,
-						&max_txpower_in_half_dbm);
-			else
-				max_txpower_avg =
-					iwl_update_channel_txpower(priv,
-						enhanced_txpower, section,
-						element,
-						&max_txpower_in_half_dbm);
-
-			/* Update the tx_power_user_lmt to the highest power
-			 * supported by any channel */
-			if (max_txpower_avg > priv->tx_power_user_lmt)
-				priv->tx_power_user_lmt = max_txpower_avg;
-
-			/*
-			 * Update the tx_power_lmt_in_half_dbm to
-			 * the highest power supported by any channel
-			 */
-			if (max_txpower_in_half_dbm >
-			    priv->tx_power_lmt_in_half_dbm)
-				priv->tx_power_lmt_in_half_dbm =
-					max_txpower_in_half_dbm;
-		}
-	}
 }
 
 static void
@@ -492,7 +273,10 @@ iwlcore_eeprom_enh_txp_read_element(struct iwl_priv *priv,
 #define EEPROM_TXP_ENTRY_LEN sizeof(struct iwl_eeprom_enhanced_txpwr)
 #define EEPROM_TXP_SZ_OFFS (0x00 | INDIRECT_ADDRESS | INDIRECT_TXP_LIMIT_SIZE)
 
-static void iwlcore_eeprom_enhanced_txpower_new(struct iwl_priv *priv)
+#define TXP_CHECK_AND_PRINT(x) ((txp->flags & IWL_EEPROM_ENH_TXP_FL_##x) \
+			    ? # x " " : "")
+
+void iwlcore_eeprom_enhanced_txpower(struct iwl_priv *priv)
 {
 	struct iwl_eeprom_enhanced_txpwr *txp_array, *txp;
 	int idx, entries;
@@ -506,12 +290,38 @@ static void iwlcore_eeprom_enhanced_txpower_new(struct iwl_priv *priv)
 	entries = le16_to_cpup(txp_len) * 2 / EEPROM_TXP_ENTRY_LEN;
 
 	txp_array = (void *) iwlagn_eeprom_query_addr(priv, EEPROM_TXP_OFFS);
+
 	for (idx = 0; idx < entries; idx++) {
 		txp = &txp_array[idx];
-
 		/* skip invalid entries */
 		if (!(txp->flags & IWL_EEPROM_ENH_TXP_FL_VALID))
 			continue;
+
+		IWL_DEBUG_EEPROM(priv, "%s %d:\t %s%s%s%s%s%s%s%s (0x%02x)\n",
+				 (txp->channel && (txp->flags &
+					IWL_EEPROM_ENH_TXP_FL_COMMON_TYPE)) ?
+					"Common " : (txp->channel) ?
+					"Channel" : "Common",
+				 (txp->channel),
+				 TXP_CHECK_AND_PRINT(VALID),
+				 TXP_CHECK_AND_PRINT(BAND_52G),
+				 TXP_CHECK_AND_PRINT(OFDM),
+				 TXP_CHECK_AND_PRINT(40MHZ),
+				 TXP_CHECK_AND_PRINT(HT_AP),
+				 TXP_CHECK_AND_PRINT(RES1),
+				 TXP_CHECK_AND_PRINT(RES2),
+				 TXP_CHECK_AND_PRINT(COMMON_TYPE),
+				 txp->flags);
+		IWL_DEBUG_EEPROM(priv, "\t\t chain_A: 0x%02x "
+				 "chain_B: 0X%02x chain_C: 0X%02x\n",
+				 txp->chain_a_max, txp->chain_b_max,
+				 txp->chain_c_max);
+		IWL_DEBUG_EEPROM(priv, "\t\t MIMO2: 0x%02x "
+				 "MIMO3: 0x%02x High 20_on_40: 0x%02x "
+				 "Low 20_on_40: 0x%02x\n",
+				 txp->mimo2_max, txp->mimo3_max,
+				 ((txp->delta_20_in_40 & 0xf0) >> 4),
+				 (txp->delta_20_in_40 & 0x0f));
 
 		max_txp_avg = iwl_get_max_txpower_avg(priv, txp_array, idx,
 						      &max_txp_avg_halfdbm);
@@ -527,12 +337,4 @@ static void iwlcore_eeprom_enhanced_txpower_new(struct iwl_priv *priv)
 
 		iwlcore_eeprom_enh_txp_read_element(priv, txp, max_txp_avg);
 	}
-}
-
-void iwlcore_eeprom_enhanced_txpower(struct iwl_priv *priv)
-{
-	if (priv->cfg->use_new_eeprom_reading)
-		iwlcore_eeprom_enhanced_txpower_new(priv);
-	else
-		iwlcore_eeprom_enhanced_txpower_old(priv);
 }

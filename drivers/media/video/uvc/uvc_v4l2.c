@@ -1035,11 +1035,8 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		return uvc_xu_ctrl_query(chain, arg, 1);
 
 	default:
-		if ((ret = v4l_compat_translate_ioctl(file, cmd, arg,
-			uvc_v4l2_do_ioctl)) == -ENOIOCTLCMD)
-			uvc_trace(UVC_TRACE_IOCTL, "Unknown ioctl 0x%08x\n",
-				  cmd);
-		return ret;
+		uvc_trace(UVC_TRACE_IOCTL, "Unknown ioctl 0x%08x\n", cmd);
+		return -EINVAL;
 	}
 
 	return ret;

@@ -600,6 +600,7 @@ Protocol:	2.07+
   0x00000001	lguest
   0x00000002	Xen
   0x00000003	Moorestown MID
+  0x00000004	CE4100 TV Platform
 
 Field name:	hardware_subarch_data
 Type:		write (subarch-dependent)
@@ -621,9 +622,9 @@ Protocol:	2.08+
   The payload may be compressed. The format of both the compressed and
   uncompressed data should be determined using the standard magic
   numbers.  The currently supported compression formats are gzip
-  (magic numbers 1F 8B or 1F 9E), bzip2 (magic number 42 5A) and LZMA
-  (magic number 5D 00).  The uncompressed payload is currently always ELF
-  (magic number 7F 45 4C 46).
+  (magic numbers 1F 8B or 1F 9E), bzip2 (magic number 42 5A), LZMA
+  (magic number 5D 00), and XZ (magic number FD 37).  The uncompressed
+  payload is currently always ELF (magic number 7F 45 4C 46).
   
 Field name:	payload_length
 Type:		read

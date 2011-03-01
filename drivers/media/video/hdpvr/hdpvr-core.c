@@ -283,6 +283,7 @@ static int hdpvr_probe(struct usb_interface *interface,
 	struct hdpvr_device *dev;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
+	struct i2c_client *client;
 	size_t buffer_size;
 	int i;
 	int retval = -ENOMEM;
@@ -378,20 +379,35 @@ static int hdpvr_probe(struct usb_interface *interface,
 		goto error;
 	}
 
-#ifdef CONFIG_I2C
-	/* until i2c is working properly */
-	retval = 0; /* hdpvr_register_i2c_adapter(dev); */
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+	retval = hdpvr_register_i2c_adapter(dev);
 	if (retval < 0) {
-		v4l2_err(&dev->v4l2_dev, "registering i2c adapter failed\n");
+		v4l2_err(&dev->v4l2_dev, "i2c adapter register failed\n");
 		goto error;
 	}
-#endif /* CONFIG_I2C */
+
+	client = hdpvr_register_ir_rx_i2c(dev);
+	if (!client) {
+		v4l2_err(&dev->v4l2_dev, "i2c IR RX device register failed\n");
+		goto reg_fail;
+	}
+
+	client = hdpvr_register_ir_tx_i2c(dev);
+	if (!client) {
+		v4l2_err(&dev->v4l2_dev, "i2c IR TX device register failed\n");
+		goto reg_fail;
+	}
+#endif
 
 	/* let the user know what node this device is now attached to */
 	v4l2_info(&dev->v4l2_dev, "device now attached to %s\n",
 		  video_device_node_name(dev->video_dev));
 	return 0;
 
+reg_fail:
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+	i2c_del_adapter(&dev->i2c_adapter);
+#endif
 error:
 	if (dev) {
 		/* Destroy single thread */
@@ -421,6 +437,9 @@ static void hdpvr_disconnect(struct usb_interface *interface)
 	mutex_lock(&dev->io_mutex);
 	hdpvr_cancel_queue(dev);
 	mutex_unlock(&dev->io_mutex);
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+	i2c_del_adapter(&dev->i2c_adapter);
+#endif
 	video_unregister_device(dev->video_dev);
 	atomic_dec(&dev_nr);
 }

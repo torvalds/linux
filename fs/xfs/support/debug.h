@@ -20,15 +20,22 @@
 
 #include <stdarg.h>
 
-#define CE_DEBUG        7               /* debug        */
-#define CE_CONT         6               /* continuation */
-#define CE_NOTE         5               /* notice       */
-#define CE_WARN         4               /* warning      */
-#define CE_ALERT        1               /* alert        */
-#define CE_PANIC        0               /* panic        */
+struct xfs_mount;
 
-extern void cmn_err(int, char *, ...)
-	__attribute__ ((format (printf, 2, 3)));
+#define CE_DEBUG        KERN_DEBUG
+#define CE_CONT         KERN_INFO
+#define CE_NOTE         KERN_NOTICE
+#define CE_WARN         KERN_WARNING
+#define CE_ALERT        KERN_ALERT
+#define CE_PANIC        KERN_EMERG
+
+void cmn_err(const char *lvl, const char *fmt, ...)
+		__attribute__ ((format (printf, 2, 3)));
+void xfs_fs_cmn_err( const char *lvl, struct xfs_mount *mp,
+		const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+void xfs_cmn_err( int panic_tag, const char *lvl, struct xfs_mount *mp,
+		const char *fmt, ...) __attribute__ ((format (printf, 4, 5)));
+
 extern void assfail(char *expr, char *f, int l);
 
 #define ASSERT_ALWAYS(expr)	\

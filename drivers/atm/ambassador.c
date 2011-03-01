@@ -1926,8 +1926,9 @@ static int __devinit ucode_init (loader_block * lb, amb_dev * dev) {
   const struct firmware *fw;
   unsigned long start_address;
   const struct ihex_binrec *rec;
+  const char *errmsg = 0;
   int res;
-  
+
   res = request_ihex_firmware(&fw, "atmsar11.fw", &dev->pci_dev->dev);
   if (res) {
     PRINTK (KERN_ERR, "Cannot load microcode data");
@@ -1937,8 +1938,8 @@ static int __devinit ucode_init (loader_block * lb, amb_dev * dev) {
   /* First record contains just the start address */
   rec = (const struct ihex_binrec *)fw->data;
   if (be16_to_cpu(rec->len) != sizeof(__be32) || be32_to_cpu(rec->addr)) {
-    PRINTK (KERN_ERR, "Bad microcode data (no start record)");
-    return -EINVAL;
+    errmsg = "no start record";
+    goto fail;
   }
   start_address = be32_to_cpup((__be32 *)rec->data);
 
@@ -1950,12 +1951,12 @@ static int __devinit ucode_init (loader_block * lb, amb_dev * dev) {
     PRINTD (DBG_LOAD, "starting region (%x, %u)", be32_to_cpu(rec->addr),
 	    be16_to_cpu(rec->len));
     if (be16_to_cpu(rec->len) > 4 * MAX_TRANSFER_DATA) {
-	    PRINTK (KERN_ERR, "Bad microcode data (record too long)");
-	    return -EINVAL;
+	    errmsg = "record too long";
+	    goto fail;
     }
     if (be16_to_cpu(rec->len) & 3) {
-	    PRINTK (KERN_ERR, "Bad microcode data (odd number of bytes)");
-	    return -EINVAL;
+	    errmsg = "odd number of bytes";
+	    goto fail;
     }
     res = loader_write(lb, dev, rec);
     if (res)
@@ -1970,6 +1971,10 @@ static int __devinit ucode_init (loader_block * lb, amb_dev * dev) {
     res = loader_start(lb, dev, start_address);
 
   return res;
+fail:
+  release_firmware(fw);
+  PRINTK(KERN_ERR, "Bad microcode data (%s)", errmsg);
+  return -EINVAL;
 }
 
 /********** give adapter parameters **********/

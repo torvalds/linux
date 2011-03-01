@@ -26,9 +26,10 @@
 #include "debug.h"
 #include "base.h"
 
-/*
- * TX Descriptors
- */
+
+/************************\
+* TX Control descriptors *
+\************************/
 
 /*
  * Initialize the 2-word tx control descriptor on 5210/5211
@@ -335,6 +336,11 @@ ath5k_hw_setup_mrr_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 	return 0;
 }
 
+
+/***********************\
+* TX Status descriptors *
+\***********************/
+
 /*
  * Proccess the tx status descriptor on 5210/5211
  */
@@ -476,9 +482,10 @@ static int ath5k_hw_proc_4word_tx_status(struct ath5k_hw *ah,
 	return 0;
 }
 
-/*
- * RX Descriptors
- */
+
+/****************\
+* RX Descriptors *
+\****************/
 
 /*
  * Initialize an rx control descriptor
@@ -665,6 +672,11 @@ static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
 	}
 	return 0;
 }
+
+
+/********\
+* Attach *
+\********/
 
 /*
  * Init function pointers inside ath5k_hw struct

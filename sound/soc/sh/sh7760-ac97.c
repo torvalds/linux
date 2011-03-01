@@ -12,7 +12,6 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <asm/io.h>
 
 #define IPSEL 0xFE400034
@@ -23,7 +22,7 @@ extern struct snd_soc_platform_driver sh7760_soc_platform;
 
 static int machine_init(struct snd_soc_pcm_runtime *rtd)
 {
-	snd_soc_dapm_sync(rtd->codec);
+	snd_soc_dapm_sync(&rtd->codec->dapm);
 	return 0;
 }
 

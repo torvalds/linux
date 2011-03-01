@@ -290,9 +290,12 @@ static int dell_rfkill_set(void *data, bool blocked)
 	dell_send_request(buffer, 17, 11);
 
 	/* If the hardware switch controls this radio, and the hardware
-	   switch is disabled, don't allow changing the software state */
+	   switch is disabled, don't allow changing the software state.
+	   If the hardware switch is reported as not supported, always
+	   fire the SMI to toggle the killswitch. */
 	if ((hwswitch_state & BIT(hwswitch_bit)) &&
-	    !(buffer->output[1] & BIT(16))) {
+	    !(buffer->output[1] & BIT(16)) &&
+	    (buffer->output[1] & BIT(0))) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -398,6 +401,23 @@ static const struct file_operations dell_debugfs_fops = {
 
 static void dell_update_rfkill(struct work_struct *ignored)
 {
+	int status;
+
+	get_buffer();
+	dell_send_request(buffer, 17, 11);
+	status = buffer->output[1];
+	release_buffer();
+
+	/* if hardware rfkill is not supported, set it explicitly */
+	if (!(status & BIT(0))) {
+		if (wifi_rfkill)
+			dell_rfkill_set((void *)1, !((status & BIT(17)) >> 17));
+		if (bluetooth_rfkill)
+			dell_rfkill_set((void *)2, !((status & BIT(18)) >> 18));
+		if (wwan_rfkill)
+			dell_rfkill_set((void *)3, !((status & BIT(19)) >> 19));
+	}
+
 	if (wifi_rfkill)
 		dell_rfkill_query(wifi_rfkill, (void *)1);
 	if (bluetooth_rfkill)
@@ -546,7 +566,7 @@ out:
 	return buffer->output[1];
 }
 
-static struct backlight_ops dell_ops = {
+static const struct backlight_ops dell_ops = {
 	.get_brightness = dell_get_intensity,
 	.update_status  = dell_send_intensity,
 };

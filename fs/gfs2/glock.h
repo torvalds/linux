@@ -87,11 +87,10 @@ enum {
 #define GL_ASYNC		0x00000040
 #define GL_EXACT		0x00000080
 #define GL_SKIP			0x00000100
-#define GL_ATIME		0x00000200
 #define GL_NOCACHE		0x00000400
   
 /*
- * lm_lock() and lm_async_cb return flags
+ * lm_async_cb return flags
  *
  * LM_OUT_ST_MASK
  * Masks the lower two bits of lock state in the returned value.
@@ -99,15 +98,11 @@ enum {
  * LM_OUT_CANCELED
  * The lock request was canceled.
  *
- * LM_OUT_ASYNC
- * The result of the request will be returned in an LM_CB_ASYNC callback.
- *
  */
 
 #define LM_OUT_ST_MASK		0x00000003
 #define LM_OUT_CANCELED		0x00000008
-#define LM_OUT_ASYNC		0x00000080
-#define LM_OUT_ERROR		0x00000100
+#define LM_OUT_ERROR		0x00000004
 
 /*
  * lm_recovery_done() messages
@@ -124,24 +119,11 @@ struct lm_lockops {
  	void (*lm_unmount) (struct gfs2_sbd *sdp);
 	void (*lm_withdraw) (struct gfs2_sbd *sdp);
 	void (*lm_put_lock) (struct kmem_cache *cachep, struct gfs2_glock *gl);
-	unsigned int (*lm_lock) (struct gfs2_glock *gl,
-				 unsigned int req_state, unsigned int flags);
+	int (*lm_lock) (struct gfs2_glock *gl, unsigned int req_state,
+			unsigned int flags);
 	void (*lm_cancel) (struct gfs2_glock *gl);
 	const match_table_t *lm_tokens;
 };
-
-#define LM_FLAG_TRY		0x00000001
-#define LM_FLAG_TRY_1CB		0x00000002
-#define LM_FLAG_NOEXP		0x00000004
-#define LM_FLAG_ANY		0x00000008
-#define LM_FLAG_PRIORITY	0x00000010
-
-#define GL_ASYNC		0x00000040
-#define GL_EXACT		0x00000080
-#define GL_SKIP			0x00000100
-#define GL_NOCACHE		0x00000400
-
-#define GLR_TRYFAILED		13
 
 extern struct workqueue_struct *gfs2_delete_workqueue;
 static inline struct gfs2_holder *gfs2_glock_is_locked_by_me(struct gfs2_glock *gl)
@@ -212,6 +194,8 @@ int gfs2_glock_nq_num(struct gfs2_sbd *sdp,
 int gfs2_glock_nq_m(unsigned int num_gh, struct gfs2_holder *ghs);
 void gfs2_glock_dq_m(unsigned int num_gh, struct gfs2_holder *ghs);
 void gfs2_glock_dq_uninit_m(unsigned int num_gh, struct gfs2_holder *ghs);
+
+__attribute__ ((format(printf, 2, 3)))
 void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...);
 
 /**

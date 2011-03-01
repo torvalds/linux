@@ -14,7 +14,9 @@
 #include <linux/kernel.h>
 #include "debug.h"
 
-static int build_id__mark_dso_hit(event_t *event, struct perf_session *session)
+static int build_id__mark_dso_hit(event_t *event,
+				  struct sample_data *sample __used,
+				  struct perf_session *session)
 {
 	struct addr_location al;
 	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
@@ -35,7 +37,8 @@ static int build_id__mark_dso_hit(event_t *event, struct perf_session *session)
 	return 0;
 }
 
-static int event__exit_del_thread(event_t *self, struct perf_session *session)
+static int event__exit_del_thread(event_t *self, struct sample_data *sample __used,
+				  struct perf_session *session)
 {
 	struct thread *thread = perf_session__findnew(session, self->fork.tid);
 

@@ -375,7 +375,8 @@ lpfc_issue_fabric_reglogin(struct lpfc_vport *vport)
 		err = 4;
 		goto fail;
 	}
-	rc = lpfc_reg_rpi(phba, vport->vpi, Fabric_DID, (uint8_t *)sp, mbox, 0);
+	rc = lpfc_reg_rpi(phba, vport->vpi, Fabric_DID, (uint8_t *)sp, mbox,
+			  ndlp->nlp_rpi);
 	if (rc) {
 		err = 5;
 		goto fail_free_mbox;
@@ -523,7 +524,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	phba->fc_edtovResol = sp->cmn.edtovResolution;
 	phba->fc_ratov = (be32_to_cpu(sp->cmn.w2.r_a_tov) + 999) / 1000;
 
-	if (phba->fc_topology == TOPOLOGY_LOOP) {
+	if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 		spin_lock_irq(shost->host_lock);
 		vport->fc_flag |= FC_PUBLIC_LOOP;
 		spin_unlock_irq(shost->host_lock);
@@ -832,6 +833,12 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		if (lpfc_els_retry(phba, cmdiocb, rspiocb))
 			goto out;
 
+		/* FLOGI failure */
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "0100 FLOGI failure Status:x%x/x%x TMO:x%x\n",
+				 irsp->ulpStatus, irsp->un.ulpWord[4],
+				 irsp->ulpTimeout);
+
 		/* FLOGI failed, so there is no fabric */
 		spin_lock_irq(shost->host_lock);
 		vport->fc_flag &= ~(FC_FABRIC | FC_PUBLIC_LOOP);
@@ -843,13 +850,16 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 */
 		if (phba->alpa_map[0] == 0) {
 			vport->cfg_discovery_threads = LPFC_MAX_DISC_THREADS;
+			if ((phba->sli_rev == LPFC_SLI_REV4) &&
+			    (!(vport->fc_flag & FC_VFI_REGISTERED) ||
+			     (vport->fc_prevDID != vport->fc_myDID))) {
+				if (vport->fc_flag & FC_VFI_REGISTERED)
+					lpfc_sli4_unreg_all_rpis(vport);
+				lpfc_issue_reg_vfi(vport);
+				lpfc_nlp_put(ndlp);
+				goto out;
+			}
 		}
-
-		/* FLOGI failure */
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
-				 "0100 FLOGI failure Status:x%x/x%x TMO:x%x\n",
-				 irsp->ulpStatus, irsp->un.ulpWord[4],
-				 irsp->ulpTimeout);
 		goto flogifail;
 	}
 	spin_lock_irq(shost->host_lock);
@@ -879,7 +889,7 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 */
 		if (sp->cmn.fPort)
 			rc = lpfc_cmpl_els_flogi_fabric(vport, ndlp, sp, irsp);
-		else if (!(phba->hba_flag & HBA_FCOE_SUPPORT))
+		else if (!(phba->hba_flag & HBA_FCOE_MODE))
 			rc = lpfc_cmpl_els_flogi_nport(vport, ndlp, sp);
 		else {
 			lpfc_printf_vlog(vport, KERN_ERR,
@@ -1014,7 +1024,9 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (sp->cmn.fcphHigh < FC_PH3)
 		sp->cmn.fcphHigh = FC_PH3;
 
-	if  (phba->sli_rev == LPFC_SLI_REV4) {
+	if  ((phba->sli_rev == LPFC_SLI_REV4) &&
+	     (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
+	      LPFC_SLI_INTF_IF_TYPE_0)) {
 		elsiocb->iocb.ulpCt_h = ((SLI4_CT_FCFI >> 1) & 1);
 		elsiocb->iocb.ulpCt_l = (SLI4_CT_FCFI & 1);
 		/* FLOGI needs to be 3 for WQE FCFI */
@@ -1027,7 +1039,7 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		icmd->ulpCt_l = 0;
 	}
 
-	if (phba->fc_topology != TOPOLOGY_LOOP) {
+	if (phba->fc_topology != LPFC_TOPOLOGY_LOOP) {
 		icmd->un.elsreq64.myID = 0;
 		icmd->un.elsreq64.fl = 1;
 	}
@@ -1281,6 +1293,7 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 	uint32_t rc, keepDID = 0;
 	int  put_node;
 	int  put_rport;
+	struct lpfc_node_rrqs rrq;
 
 	/* Fabric nodes can have the same WWPN so we don't bother searching
 	 * by WWPN.  Just return the ndlp that was given to us.
@@ -1298,6 +1311,7 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 
 	if (new_ndlp == ndlp && NLP_CHK_NODE_ACT(new_ndlp))
 		return ndlp;
+	memset(&rrq.xri_bitmap, 0, sizeof(new_ndlp->active_rrqs.xri_bitmap));
 
 	if (!new_ndlp) {
 		rc = memcmp(&ndlp->nlp_portname, name,
@@ -1318,12 +1332,25 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 		if (!new_ndlp)
 			return ndlp;
 		keepDID = new_ndlp->nlp_DID;
-	} else
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			memcpy(&rrq.xri_bitmap,
+				&new_ndlp->active_rrqs.xri_bitmap,
+				sizeof(new_ndlp->active_rrqs.xri_bitmap));
+	} else {
 		keepDID = new_ndlp->nlp_DID;
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			memcpy(&rrq.xri_bitmap,
+				&new_ndlp->active_rrqs.xri_bitmap,
+				sizeof(new_ndlp->active_rrqs.xri_bitmap));
+	}
 
 	lpfc_unreg_rpi(vport, new_ndlp);
 	new_ndlp->nlp_DID = ndlp->nlp_DID;
 	new_ndlp->nlp_prev_state = ndlp->nlp_prev_state;
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		memcpy(new_ndlp->active_rrqs.xri_bitmap,
+			&ndlp->active_rrqs.xri_bitmap,
+			sizeof(ndlp->active_rrqs.xri_bitmap));
 
 	if (ndlp->nlp_flag & NLP_NPR_2B_DISC)
 		new_ndlp->nlp_flag |= NLP_NPR_2B_DISC;
@@ -1362,12 +1389,20 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 
 		/* Two ndlps cannot have the same did on the nodelist */
 		ndlp->nlp_DID = keepDID;
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			memcpy(&ndlp->active_rrqs.xri_bitmap,
+				&rrq.xri_bitmap,
+				sizeof(ndlp->active_rrqs.xri_bitmap));
 		lpfc_drop_node(vport, ndlp);
 	}
 	else {
 		lpfc_unreg_rpi(vport, ndlp);
 		/* Two ndlps cannot have the same did */
 		ndlp->nlp_DID = keepDID;
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			memcpy(&ndlp->active_rrqs.xri_bitmap,
+				&rrq.xri_bitmap,
+				sizeof(ndlp->active_rrqs.xri_bitmap));
 		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 		/* Since we are swapping the ndlp passed in with the new one
 		 * and the did has already been swapped, copy over the
@@ -1427,6 +1462,73 @@ lpfc_end_rscn(struct lpfc_vport *vport)
 	}
 }
 
+/**
+ * lpfc_cmpl_els_rrq - Completion handled for els RRQs.
+ * @phba: pointer to lpfc hba data structure.
+ * @cmdiocb: pointer to lpfc command iocb data structure.
+ * @rspiocb: pointer to lpfc response iocb data structure.
+ *
+ * This routine will call the clear rrq function to free the rrq and
+ * clear the xri's bit in the ndlp's xri_bitmap. If the ndlp does not
+ * exist then the clear_rrq is still called because the rrq needs to
+ * be freed.
+ **/
+
+static void
+lpfc_cmpl_els_rrq(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
+		    struct lpfc_iocbq *rspiocb)
+{
+	struct lpfc_vport *vport = cmdiocb->vport;
+	IOCB_t *irsp;
+	struct lpfc_nodelist *ndlp;
+	struct lpfc_node_rrq *rrq;
+
+	/* we pass cmdiocb to state machine which needs rspiocb as well */
+	rrq = cmdiocb->context_un.rrq;
+	cmdiocb->context_un.rsp_iocb = rspiocb;
+
+	irsp = &rspiocb->iocb;
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+		"RRQ cmpl:      status:x%x/x%x did:x%x",
+		irsp->ulpStatus, irsp->un.ulpWord[4],
+		irsp->un.elsreq64.remoteID);
+
+	ndlp = lpfc_findnode_did(vport, irsp->un.elsreq64.remoteID);
+	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp) || ndlp != rrq->ndlp) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "2882 RRQ completes to NPort x%x "
+				 "with no ndlp. Data: x%x x%x x%x\n",
+				 irsp->un.elsreq64.remoteID,
+				 irsp->ulpStatus, irsp->un.ulpWord[4],
+				 irsp->ulpIoTag);
+		goto out;
+	}
+
+	/* rrq completes to NPort <nlp_DID> */
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+			 "2880 RRQ completes to NPort x%x "
+			 "Data: x%x x%x x%x x%x x%x\n",
+			 ndlp->nlp_DID, irsp->ulpStatus, irsp->un.ulpWord[4],
+			 irsp->ulpTimeout, rrq->xritag, rrq->rxid);
+
+	if (irsp->ulpStatus) {
+		/* Check for retry */
+		/* RRQ failed Don't print the vport to vport rjts */
+		if (irsp->ulpStatus != IOSTAT_LS_RJT ||
+			(((irsp->un.ulpWord[4]) >> 16 != LSRJT_INVALID_CMD) &&
+			((irsp->un.ulpWord[4]) >> 16 != LSRJT_UNABLE_TPC)) ||
+			(phba)->pport->cfg_log_verbose & LOG_ELS)
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "2881 RRQ failure DID:%06X Status:x%x/x%x\n",
+				 ndlp->nlp_DID, irsp->ulpStatus,
+				 irsp->un.ulpWord[4]);
+	}
+out:
+	if (rrq)
+		lpfc_clr_rrq_active(phba, rrq->xritag, rrq);
+	lpfc_els_free_iocb(phba, cmdiocb);
+	return;
+}
 /**
  * lpfc_cmpl_els_plogi - Completion callback function for plogi
  * @phba: pointer to lpfc hba data structure.
@@ -2722,7 +2824,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			if (cmd == ELS_CMD_FLOGI) {
 				if (PCI_DEVICE_ID_HORNET ==
 					phba->pcidev->device) {
-					phba->fc_topology = TOPOLOGY_LOOP;
+					phba->fc_topology = LPFC_TOPOLOGY_LOOP;
 					phba->pport->fc_myDID = 0;
 					phba->alpa_map[0] = 0;
 					phba->alpa_map[1] = 0;
@@ -2877,7 +2979,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		retry = 1;
 
 	if (((cmd == ELS_CMD_FLOGI) || (cmd == ELS_CMD_FDISC)) &&
-	    (phba->fc_topology != TOPOLOGY_LOOP) &&
+	    (phba->fc_topology != LPFC_TOPOLOGY_LOOP) &&
 	    !lpfc_error_lost_link(irsp)) {
 		/* FLOGI retry policy */
 		retry = 1;
@@ -3218,14 +3320,6 @@ lpfc_mbx_cmpl_dflt_rpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) (pmb->context1);
 	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) pmb->context2;
-
-	/*
-	 * This routine is used to register and unregister in previous SLI
-	 * modes.
-	 */
-	if ((pmb->u.mb.mbxCommand == MBX_UNREG_LOGIN) &&
-	    (phba->sli_rev == LPFC_SLI_REV4))
-		lpfc_sli4_free_rpi(phba, pmb->u.mb.un.varUnregLogin.rpi);
 
 	pmb->context1 = NULL;
 	pmb->context2 = NULL;
@@ -3901,6 +3995,47 @@ lpfc_els_rsp_rnid_acc(struct lpfc_vport *vport, uint8_t format,
 		return 1;
 	}
 	return 0;
+}
+
+/**
+ * lpfc_els_clear_rrq - Clear the rq that this rrq describes.
+ * @vport: pointer to a virtual N_Port data structure.
+ * @iocb: pointer to the lpfc command iocb data structure.
+ * @ndlp: pointer to a node-list data structure.
+ *
+ * Return
+ **/
+static void
+lpfc_els_clear_rrq(struct lpfc_vport *vport,
+      struct lpfc_iocbq *iocb, struct lpfc_nodelist *ndlp)
+{
+	struct lpfc_hba  *phba = vport->phba;
+	uint8_t *pcmd;
+	struct RRQ *rrq;
+	uint16_t rxid;
+	struct lpfc_node_rrq *prrq;
+
+
+	pcmd = (uint8_t *) (((struct lpfc_dmabuf *) iocb->context2)->virt);
+	pcmd += sizeof(uint32_t);
+	rrq = (struct RRQ *)pcmd;
+	rxid = bf_get(rrq_oxid, rrq);
+
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+			"2883 Clear RRQ for SID:x%x OXID:x%x RXID:x%x"
+			" x%x x%x\n",
+			bf_get(rrq_did, rrq),
+			bf_get(rrq_oxid, rrq),
+			rxid,
+			iocb->iotag, iocb->iocb.ulpContext);
+
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
+		"Clear RRQ:  did:x%x flg:x%x exchg:x%.08x",
+		ndlp->nlp_DID, ndlp->nlp_flag, rrq->rrq_exchg);
+	prrq = lpfc_get_active_rrq(vport, rxid, ndlp->nlp_DID);
+	if (prrq)
+		lpfc_clr_rrq_active(phba, rxid, prrq);
+	return;
 }
 
 /**
@@ -4597,7 +4732,7 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 
 	lpfc_set_disctmo(vport);
 
-	if (phba->fc_topology == TOPOLOGY_LOOP) {
+	if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 		/* We should never receive a FLOGI in loop mode, ignore it */
 		did = icmd->un.elsreq64.remoteID;
 
@@ -4792,6 +4927,8 @@ lpfc_els_rcv_rrq(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		 struct lpfc_nodelist *ndlp)
 {
 	lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
+	if (vport->phba->sli_rev == LPFC_SLI_REV4)
+		lpfc_els_clear_rrq(vport, cmdiocb, ndlp);
 }
 
 /**
@@ -4940,7 +5077,7 @@ lpfc_els_rsp_rps_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	pcmd += sizeof(uint32_t); /* Skip past command */
 	rps_rsp = (RPS_RSP *)pcmd;
 
-	if (phba->fc_topology != TOPOLOGY_LOOP)
+	if (phba->fc_topology != LPFC_TOPOLOGY_LOOP)
 		status = 0x10;
 	else
 		status = 0x8;
@@ -5192,6 +5329,97 @@ reject_out:
 	stat.un.b.vendorUnique = 0;
 	lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp, NULL);
 	return 0;
+}
+
+/* lpfc_issue_els_rrq - Process an unsolicited rps iocb
+ * @vport: pointer to a host virtual N_Port data structure.
+ * @ndlp: pointer to a node-list data structure.
+ * @did: DID of the target.
+ * @rrq: Pointer to the rrq struct.
+ *
+ * Build a ELS RRQ command and send it to the target. If the issue_iocb is
+ * Successful the the completion handler will clear the RRQ.
+ *
+ * Return codes
+ *   0 - Successfully sent rrq els iocb.
+ *   1 - Failed to send rrq els iocb.
+ **/
+static int
+lpfc_issue_els_rrq(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+			uint32_t did, struct lpfc_node_rrq *rrq)
+{
+	struct lpfc_hba  *phba = vport->phba;
+	struct RRQ *els_rrq;
+	IOCB_t *icmd;
+	struct lpfc_iocbq *elsiocb;
+	uint8_t *pcmd;
+	uint16_t cmdsize;
+	int ret;
+
+
+	if (ndlp != rrq->ndlp)
+		ndlp = rrq->ndlp;
+	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp))
+		return 1;
+
+	/* If ndlp is not NULL, we will bump the reference count on it */
+	cmdsize = (sizeof(uint32_t) + sizeof(struct RRQ));
+	elsiocb = lpfc_prep_els_iocb(vport, 1, cmdsize, 0, ndlp, did,
+				     ELS_CMD_RRQ);
+	if (!elsiocb)
+		return 1;
+
+	icmd = &elsiocb->iocb;
+	pcmd = (uint8_t *) (((struct lpfc_dmabuf *) elsiocb->context2)->virt);
+
+	/* For RRQ request, remainder of payload is Exchange IDs */
+	*((uint32_t *) (pcmd)) = ELS_CMD_RRQ;
+	pcmd += sizeof(uint32_t);
+	els_rrq = (struct RRQ *) pcmd;
+
+	bf_set(rrq_oxid, els_rrq, rrq->xritag);
+	bf_set(rrq_rxid, els_rrq, rrq->rxid);
+	bf_set(rrq_did, els_rrq, vport->fc_myDID);
+	els_rrq->rrq = cpu_to_be32(els_rrq->rrq);
+	els_rrq->rrq_exchg = cpu_to_be32(els_rrq->rrq_exchg);
+
+
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+		"Issue RRQ:     did:x%x",
+		did, rrq->xritag, rrq->rxid);
+	elsiocb->context_un.rrq = rrq;
+	elsiocb->iocb_cmpl = lpfc_cmpl_els_rrq;
+	ret = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
+
+	if (ret == IOCB_ERROR) {
+		lpfc_els_free_iocb(phba, elsiocb);
+		return 1;
+	}
+	return 0;
+}
+
+/**
+ * lpfc_send_rrq - Sends ELS RRQ if needed.
+ * @phba: pointer to lpfc hba data structure.
+ * @rrq: pointer to the active rrq.
+ *
+ * This routine will call the lpfc_issue_els_rrq if the rrq is
+ * still active for the xri. If this function returns a failure then
+ * the caller needs to clean up the RRQ by calling lpfc_clr_active_rrq.
+ *
+ * Returns 0 Success.
+ *         1 Failure.
+ **/
+int
+lpfc_send_rrq(struct lpfc_hba *phba, struct lpfc_node_rrq *rrq)
+{
+	struct lpfc_nodelist *ndlp = lpfc_findnode_did(rrq->vport,
+							rrq->nlp_DID);
+	if (lpfc_test_rrq_active(phba, ndlp, rrq->xritag))
+		return lpfc_issue_els_rrq(rrq->vport, ndlp,
+					 rrq->nlp_DID, rrq);
+	else
+		return 1;
 }
 
 /**
@@ -5482,7 +5710,7 @@ lpfc_els_rcv_fan(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		    (memcmp(&phba->fc_fabparam.portName, &fp->FportName,
 			    sizeof(struct lpfc_name)))) {
 			/* This port has switched fabrics. FLOGI is required */
-			lpfc_initial_flogi(vport);
+			lpfc_issue_init_vfi(vport);
 		} else {
 			/* FAN verified - skip FLOGI */
 			vport->fc_myDID = vport->fc_prevDID;
@@ -6201,7 +6429,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			cmd, did, vport->port_state);
 
 		/* Unsupported ELS command, reject */
-		rjt_err = LSRJT_INVALID_CMD;
+		rjt_err = LSRJT_CMD_UNSUPPORTED;
 
 		/* Unknown ELS command <elsCmd> received from NPORT <did> */
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
@@ -6373,7 +6601,7 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	if (!ndlp) {
 		ndlp = mempool_alloc(phba->nlp_mem_pool, GFP_KERNEL);
 		if (!ndlp) {
-			if (phba->fc_topology == TOPOLOGY_LOOP) {
+			if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 				lpfc_disc_start(vport);
 				return;
 			}
@@ -6386,7 +6614,7 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	} else if (!NLP_CHK_NODE_ACT(ndlp)) {
 		ndlp = lpfc_enable_node(vport, ndlp, NLP_STE_UNUSED_NODE);
 		if (!ndlp) {
-			if (phba->fc_topology == TOPOLOGY_LOOP) {
+			if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 				lpfc_disc_start(vport);
 				return;
 			}
@@ -6408,18 +6636,31 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	}
 
 	if (vport->cfg_fdmi_on) {
-		ndlp_fdmi = mempool_alloc(phba->nlp_mem_pool,
-					  GFP_KERNEL);
+		/* If this is the first time, allocate an ndlp and initialize
+		 * it. Otherwise, make sure the node is enabled and then do the
+		 * login.
+		 */
+		ndlp_fdmi = lpfc_findnode_did(vport, FDMI_DID);
+		if (!ndlp_fdmi) {
+			ndlp_fdmi = mempool_alloc(phba->nlp_mem_pool,
+						  GFP_KERNEL);
+			if (ndlp_fdmi) {
+				lpfc_nlp_init(vport, ndlp_fdmi, FDMI_DID);
+				ndlp_fdmi->nlp_type |= NLP_FABRIC;
+			} else
+				return;
+		}
+		if (!NLP_CHK_NODE_ACT(ndlp_fdmi))
+			ndlp_fdmi = lpfc_enable_node(vport,
+						     ndlp_fdmi,
+						     NLP_STE_NPR_NODE);
+
 		if (ndlp_fdmi) {
-			lpfc_nlp_init(vport, ndlp_fdmi, FDMI_DID);
-			ndlp_fdmi->nlp_type |= NLP_FABRIC;
 			lpfc_nlp_set_state(vport, ndlp_fdmi,
-				NLP_STE_PLOGI_ISSUE);
-			lpfc_issue_els_plogi(vport, ndlp_fdmi->nlp_DID,
-					     0);
+					   NLP_STE_PLOGI_ISSUE);
+			lpfc_issue_els_plogi(vport, ndlp_fdmi->nlp_DID, 0);
 		}
 	}
-	return;
 }
 
 /**
@@ -6497,7 +6738,7 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 			spin_unlock_irq(shost->host_lock);
 			if (vport->port_type == LPFC_PHYSICAL_PORT
 				&& !(vport->fc_flag & FC_LOGO_RCVD_DID_CHNG))
-				lpfc_initial_flogi(vport);
+				lpfc_issue_init_vfi(vport);
 			else
 				lpfc_initial_fdisc(vport);
 			break;
@@ -6734,7 +6975,7 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	vport->fc_flag &= ~FC_VPORT_CVL_RCVD;
 	vport->fc_flag &= ~FC_VPORT_LOGO_RCVD;
 	vport->fc_flag |= FC_FABRIC;
-	if (vport->phba->fc_topology == TOPOLOGY_LOOP)
+	if (vport->phba->fc_topology == LPFC_TOPOLOGY_LOOP)
 		vport->fc_flag |=  FC_PUBLIC_LOOP;
 	spin_unlock_irq(shost->host_lock);
 
@@ -6844,7 +7085,9 @@ lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	icmd->un.elsreq64.myID = 0;
 	icmd->un.elsreq64.fl = 1;
 
-	if  (phba->sli_rev == LPFC_SLI_REV4) {
+	if  ((phba->sli_rev == LPFC_SLI_REV4) &&
+	     (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
+	      LPFC_SLI_INTF_IF_TYPE_0)) {
 		/* FDISC needs to be 1 for WQE VPI */
 		elsiocb->iocb.ulpCt_h = (SLI4_CT_VPI >> 1) & 1;
 		elsiocb->iocb.ulpCt_l = SLI4_CT_VPI & 1 ;
@@ -7351,8 +7594,11 @@ lpfc_sli4_els_xri_aborted(struct lpfc_hba *phba,
 			  struct sli4_wcqe_xri_aborted *axri)
 {
 	uint16_t xri = bf_get(lpfc_wcqe_xa_xri, axri);
+	uint16_t rxid = bf_get(lpfc_wcqe_xa_remote_xid, axri);
+
 	struct lpfc_sglq *sglq_entry = NULL, *sglq_next = NULL;
 	unsigned long iflag = 0;
+	struct lpfc_nodelist *ndlp;
 	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
 
 	spin_lock_irqsave(&phba->hbalock, iflag);
@@ -7361,11 +7607,14 @@ lpfc_sli4_els_xri_aborted(struct lpfc_hba *phba,
 			&phba->sli4_hba.lpfc_abts_els_sgl_list, list) {
 		if (sglq_entry->sli4_xritag == xri) {
 			list_del(&sglq_entry->list);
+			ndlp = sglq_entry->ndlp;
+			sglq_entry->ndlp = NULL;
 			list_add_tail(&sglq_entry->list,
 				&phba->sli4_hba.lpfc_sgl_list);
 			sglq_entry->state = SGL_FREED;
 			spin_unlock(&phba->sli4_hba.abts_sgl_list_lock);
 			spin_unlock_irqrestore(&phba->hbalock, iflag);
+			lpfc_set_rrq_active(phba, ndlp, xri, rxid, 1);
 
 			/* Check if TXQ queue needs to be serviced */
 			if (pring->txq_cnt)

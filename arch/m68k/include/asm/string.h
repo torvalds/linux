@@ -81,18 +81,6 @@ static inline char *strncpy(char *dest, const char *src, size_t n)
 	strcpy(__d + strlen(__d), (s));		\
 })
 
-#define __HAVE_ARCH_STRCHR
-static inline char *strchr(const char *s, int c)
-{
-	char sc, ch = c;
-
-	for (; (sc = *s++) != ch; ) {
-		if (!sc)
-			return NULL;
-	}
-	return (char *)s - 1;
-}
-
 #ifndef CONFIG_COLDFIRE
 #define __HAVE_ARCH_STRCMP
 static inline int strcmp(const char *cs, const char *ct)
@@ -111,14 +99,12 @@ static inline int strcmp(const char *cs, const char *ct)
 		: "+a" (cs), "+a" (ct), "=d" (res));
 	return res;
 }
+#endif /* CONFIG_COLDFIRE */
 
 #define __HAVE_ARCH_MEMMOVE
 extern void *memmove(void *, const void *, __kernel_size_t);
 
-#define __HAVE_ARCH_MEMCMP
-extern int memcmp(const void *, const void *, __kernel_size_t);
 #define memcmp(d, s, n) __builtin_memcmp(d, s, n)
-#endif /* CONFIG_COLDFIRE */
 
 #define __HAVE_ARCH_MEMSET
 extern void *memset(void *, int, __kernel_size_t);

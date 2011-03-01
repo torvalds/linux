@@ -5,7 +5,7 @@
 menu "Character devices"
 
 config VT
-	bool "Virtual terminal" if EMBEDDED
+	bool "Virtual terminal" if EXPERT
 	depends on !S390
 	select INPUT
 	default y
@@ -39,13 +39,13 @@ config VT
 config CONSOLE_TRANSLATIONS
 	depends on VT
 	default y
-	bool "Enable character translations in console" if EMBEDDED
+	bool "Enable character translations in console" if EXPERT
 	---help---
 	  This enables support for font mapping and Unicode translation
 	  on virtual consoles.
 
 config VT_CONSOLE
-	bool "Support for console on virtual terminal" if EMBEDDED
+	bool "Support for console on virtual terminal" if EXPERT
 	depends on VT
 	default y
 	---help---
@@ -426,10 +426,10 @@ config SGI_MBCS
          If you have an SGI Altix with an attached SABrick
          say Y or M here, otherwise say N.
 
-source "drivers/serial/Kconfig"
+source "drivers/tty/serial/Kconfig"
 
 config UNIX98_PTYS
-	bool "Unix98 PTY support" if EMBEDDED
+	bool "Unix98 PTY support" if EXPERT
 	default y
 	---help---
 	  A pseudo terminal (PTY) is a software device consisting of two
@@ -495,7 +495,7 @@ config LEGACY_PTY_COUNT
 
 config TTY_PRINTK
 	bool "TTY driver to output user messages via printk"
-	depends on EMBEDDED
+	depends on EXPERT
 	default n
 	---help---
 	  If you say Y here, the support for writing user messages (i.e.
@@ -681,6 +681,15 @@ config HVC_UDBG
        depends on PPC && EXPERIMENTAL
        select HVC_DRIVER
        default n
+
+config HVC_DCC
+       bool "ARM JTAG DCC console"
+       depends on ARM
+       select HVC_DRIVER
+       help
+         This console uses the JTAG DCC on ARM to create a console under the HVC
+	 driver. This console is used through a JTAG only on ARM. If you don't have
+	 a JTAG then you probably don't want this option.
 
 config VIRTIO_CONSOLE
 	tristate "Virtio console"
@@ -1037,15 +1046,6 @@ config NSC_GPIO
 	  Common support used (and needed) by scx200_gpio and
 	  pc8736x_gpio drivers.  If those drivers are built as
 	  modules, this one will be too, named nsc_gpio
-
-config CS5535_GPIO
-	tristate "AMD CS5535/CS5536 GPIO (Geode Companion Device)"
-	depends on X86_32
-	help
-	  Give userspace access to the GPIO pins on the AMD CS5535 and
-	  CS5536 Geode companion devices.
-
-	  If compiled as a module, it will be called cs5535_gpio.
 
 config RAW_DRIVER
 	tristate "RAW driver (/dev/raw/rawN)"

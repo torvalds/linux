@@ -2425,6 +2425,9 @@ struct qla_hw_data {
 		uint32_t	disable_msix_handshake	:1;
 		uint32_t	fcp_prio_enabled	:1;
 		uint32_t	fw_hung	:1;
+		uint32_t        quiesce_owner:1;
+		uint32_t	thermal_supported:1;
+		/* 26 bits */
 	} flags;
 
 	/* This spinlock is used to protect "io transactions", you must
@@ -2863,6 +2866,7 @@ typedef struct scsi_qla_host {
 #define ISP_UNRECOVERABLE	17
 #define FCOE_CTX_RESET_NEEDED	18	/* Initiate FCoE context reset */
 #define MPI_RESET_NEEDED	19	/* Initiate MPI FW reset */
+#define ISP_QUIESCE_NEEDED	20	/* Driver need some quiescence */
 
 	uint32_t	device_flags;
 #define SWITCH_FOUND		BIT_0

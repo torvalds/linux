@@ -202,7 +202,8 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	if (mlx4_uar_alloc(dev, &mdev->priv_uar))
 		goto err_pd;
 
-	mdev->uar_map = ioremap(mdev->priv_uar.pfn << PAGE_SHIFT, PAGE_SIZE);
+	mdev->uar_map = ioremap((phys_addr_t) mdev->priv_uar.pfn << PAGE_SHIFT,
+				PAGE_SIZE);
 	if (!mdev->uar_map)
 		goto err_uar;
 	spin_lock_init(&mdev->uar_lock);

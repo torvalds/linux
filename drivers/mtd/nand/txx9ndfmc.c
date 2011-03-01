@@ -277,8 +277,9 @@ static int txx9ndfmc_nand_scan(struct mtd_info *mtd)
 	ret = nand_scan_ident(mtd, 1, NULL);
 	if (!ret) {
 		if (mtd->writesize >= 512) {
-			chip->ecc.size = mtd->writesize;
-			chip->ecc.bytes = 3 * (mtd->writesize / 256);
+			/* Hardware ECC 6 byte ECC per 512 Byte data */
+			chip->ecc.size = 512;
+			chip->ecc.bytes = 6;
 		}
 		ret = nand_scan_tail(mtd);
 	}

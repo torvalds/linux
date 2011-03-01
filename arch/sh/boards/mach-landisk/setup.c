@@ -21,8 +21,6 @@
 #include <mach-landisk/mach/iodata_landisk.h>
 #include <asm/io.h>
 
-void init_landisk_IRQ(void);
-
 static void landisk_power_off(void)
 {
         __raw_writeb(0x01, PA_SHUTDOWN);
@@ -83,7 +81,7 @@ static int __init landisk_devices_setup(void)
 				    ARRAY_SIZE(landisk_devices));
 }
 
-__initcall(landisk_devices_setup);
+device_initcall(landisk_devices_setup);
 
 static void __init landisk_setup(char **cmdline_p)
 {

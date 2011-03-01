@@ -9,6 +9,7 @@ config ARCH_OMAP730
 	depends on ARCH_OMAP1
 	bool "OMAP730 Based System"
 	select CPU_ARM926T
+	select OMAP_MPU_TIMER
 	select ARCH_OMAP_OTG
 
 config ARCH_OMAP850
@@ -22,6 +23,7 @@ config ARCH_OMAP15XX
 	default y
 	bool "OMAP15xx Based System"
 	select CPU_ARM925T
+	select OMAP_MPU_TIMER
 
 config ARCH_OMAP16XX
 	depends on ARCH_OMAP1
@@ -152,19 +154,10 @@ config MACH_NOKIA770
 config MACH_AMS_DELTA
 	bool "Amstrad E3 (Delta)"
 	depends on ARCH_OMAP1 && ARCH_OMAP15XX
+	select FIQ
 	help
 	  Support for the Amstrad E3 (codename Delta) videophone. Say Y here
 	  if you have such a device.
-
-config AMS_DELTA_FIQ
-	bool "Fast Interrupt Request (FIQ) support for the E3"
-	depends on MACH_AMS_DELTA
-	select FIQ
-	help
-	  Provide a FIQ handler for the E3.
-	  This allows for fast handling of interrupts generated
-	  by the clock line of the E3 mailboard (or a PS/2 keyboard)
-	  connected to the GPIO based external keyboard port.
 
 config MACH_OMAP_GENERIC
 	bool "Generic OMAP board"

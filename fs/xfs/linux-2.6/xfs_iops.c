@@ -46,7 +46,6 @@
 #include <linux/namei.h>
 #include <linux/posix_acl.h>
 #include <linux/security.h>
-#include <linux/falloc.h>
 #include <linux/fiemap.h>
 #include <linux/slab.h>
 
@@ -505,58 +504,6 @@ xfs_vn_setattr(
 	return -xfs_setattr(XFS_I(dentry->d_inode), iattr, 0);
 }
 
-STATIC long
-xfs_vn_fallocate(
-	struct inode	*inode,
-	int		mode,
-	loff_t		offset,
-	loff_t		len)
-{
-	long		error;
-	loff_t		new_size = 0;
-	xfs_flock64_t	bf;
-	xfs_inode_t	*ip = XFS_I(inode);
-
-	/* preallocation on directories not yet supported */
-	error = -ENODEV;
-	if (S_ISDIR(inode->i_mode))
-		goto out_error;
-
-	bf.l_whence = 0;
-	bf.l_start = offset;
-	bf.l_len = len;
-
-	xfs_ilock(ip, XFS_IOLOCK_EXCL);
-
-	/* check the new inode size is valid before allocating */
-	if (!(mode & FALLOC_FL_KEEP_SIZE) &&
-	    offset + len > i_size_read(inode)) {
-		new_size = offset + len;
-		error = inode_newsize_ok(inode, new_size);
-		if (error)
-			goto out_unlock;
-	}
-
-	error = -xfs_change_file_space(ip, XFS_IOC_RESVSP, &bf,
-				       0, XFS_ATTR_NOLOCK);
-	if (error)
-		goto out_unlock;
-
-	/* Change file size if needed */
-	if (new_size) {
-		struct iattr iattr;
-
-		iattr.ia_valid = ATTR_SIZE;
-		iattr.ia_size = new_size;
-		error = -xfs_setattr(ip, &iattr, XFS_ATTR_NOLOCK);
-	}
-
-out_unlock:
-	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-out_error:
-	return error;
-}
-
 #define XFS_FIEMAP_FLAGS	(FIEMAP_FLAG_SYNC|FIEMAP_FLAG_XATTR)
 
 /*
@@ -650,7 +597,6 @@ static const struct inode_operations xfs_inode_operations = {
 	.getxattr		= generic_getxattr,
 	.removexattr		= generic_removexattr,
 	.listxattr		= xfs_vn_listxattr,
-	.fallocate		= xfs_vn_fallocate,
 	.fiemap			= xfs_vn_fiemap,
 };
 

@@ -9,6 +9,8 @@
 #ifndef _BLACKFIN_DPMC_H_
 #define _BLACKFIN_DPMC_H_
 
+#include <mach/pll.h>
+
 /* PLL_CTL Masks */
 #define DF			0x0001	/* 0: PLL = CLKIN, 1: PLL = CLKIN/2 */
 #define PLL_OFF			0x0002	/* PLL Not Powered */

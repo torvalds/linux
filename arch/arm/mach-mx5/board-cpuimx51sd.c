@@ -43,19 +43,19 @@
 #include "devices-imx51.h"
 #include "devices.h"
 
-#define USBH1_RST		(1*32 + 28)
-#define ETH_RST			(1*32 + 31)
-#define TSC2007_IRQGPIO		(2*32 + 12)
-#define CAN_IRQGPIO		(0*32 + 1)
-#define CAN_RST			(3*32 + 15)
-#define CAN_NCS			(3*32 + 24)
-#define CAN_RXOBF		(0*32 + 4)
-#define CAN_RX1BF		(0*32 + 6)
-#define CAN_TXORTS		(0*32 + 7)
-#define CAN_TX1RTS		(0*32 + 8)
-#define CAN_TX2RTS		(0*32 + 9)
-#define I2C_SCL			(3*32 + 16)
-#define I2C_SDA			(3*32 + 17)
+#define USBH1_RST		IMX_GPIO_NR(2, 28)
+#define ETH_RST			IMX_GPIO_NR(2, 31)
+#define TSC2007_IRQGPIO		IMX_GPIO_NR(3, 12)
+#define CAN_IRQGPIO		IMX_GPIO_NR(1, 1)
+#define CAN_RST			IMX_GPIO_NR(4, 15)
+#define CAN_NCS			IMX_GPIO_NR(4, 24)
+#define CAN_RXOBF		IMX_GPIO_NR(1, 4)
+#define CAN_RX1BF		IMX_GPIO_NR(1, 6)
+#define CAN_TXORTS		IMX_GPIO_NR(1, 7)
+#define CAN_TX1RTS		IMX_GPIO_NR(1, 8)
+#define CAN_TX2RTS		IMX_GPIO_NR(1, 9)
+#define I2C_SCL			IMX_GPIO_NR(4, 16)
+#define I2C_SDA			IMX_GPIO_NR(4, 17)
 
 /* USB_CTRL_1 */
 #define MX51_USB_CTRL_1_OFFSET		0x10
@@ -65,10 +65,7 @@
 #define	MX51_USB_PLL_DIV_19_2_MHZ	0x01
 #define	MX51_USB_PLL_DIV_24_MHZ		0x02
 
-#define CPUIMX51SD_GPIO_3_12 IOMUX_PAD(0x57C, 0x194, 3, 0x0, 0, \
-				MX51_PAD_CTRL_1 | PAD_CTL_PUS_22K_UP)
-
-static struct pad_desc eukrea_cpuimx51sd_pads[] = {
+static iomux_v3_cfg_t eukrea_cpuimx51sd_pads[] = {
 	/* UART1 */
 	MX51_PAD_UART1_RXD__UART1_RXD,
 	MX51_PAD_UART1_TXD__UART1_TXD,
@@ -88,30 +85,33 @@ static struct pad_desc eukrea_cpuimx51sd_pads[] = {
 	MX51_PAD_USBH1_DATA6__USBH1_DATA6,
 	MX51_PAD_USBH1_DATA7__USBH1_DATA7,
 	MX51_PAD_USBH1_STP__USBH1_STP,
-	MX51_PAD_EIM_CS3__GPIO_2_28,		/* PHY nRESET */
+	MX51_PAD_EIM_CS3__GPIO2_28,		/* PHY nRESET */
 
 	/* FEC */
-	MX51_PAD_EIM_DTACK__GPIO_2_31,		/* PHY nRESET */
+	MX51_PAD_EIM_DTACK__GPIO2_31,		/* PHY nRESET */
 
 	/* HSI2C */
-	MX51_PAD_I2C1_CLK__GPIO_4_16,
-	MX51_PAD_I2C1_DAT__GPIO_4_17,
+	MX51_PAD_I2C1_CLK__GPIO4_16,
+	MX51_PAD_I2C1_DAT__GPIO4_17,
 
 	/* CAN */
 	MX51_PAD_CSPI1_MOSI__ECSPI1_MOSI,
 	MX51_PAD_CSPI1_MISO__ECSPI1_MISO,
 	MX51_PAD_CSPI1_SCLK__ECSPI1_SCLK,
-	MX51_PAD_CSPI1_SS0__GPIO_4_24,		/* nCS */
-	MX51_PAD_CSI2_PIXCLK__GPIO_4_15,	/* nReset */
-	MX51_PAD_GPIO_1_1__GPIO_1_1,		/* IRQ */
-	MX51_PAD_GPIO_1_4__GPIO_1_4,		/* Control signals */
-	MX51_PAD_GPIO_1_6__GPIO_1_6,
-	MX51_PAD_GPIO_1_7__GPIO_1_7,
-	MX51_PAD_GPIO_1_8__GPIO_1_8,
-	MX51_PAD_GPIO_1_9__GPIO_1_9,
+	MX51_PAD_CSPI1_SS0__GPIO4_24,		/* nCS */
+	MX51_PAD_CSI2_PIXCLK__GPIO4_15,		/* nReset */
+	MX51_PAD_GPIO1_1__GPIO1_1,		/* IRQ */
+	MX51_PAD_GPIO1_4__GPIO1_4,		/* Control signals */
+	MX51_PAD_GPIO1_6__GPIO1_6,
+	MX51_PAD_GPIO1_7__GPIO1_7,
+	MX51_PAD_GPIO1_8__GPIO1_8,
+	MX51_PAD_GPIO1_9__GPIO1_9,
 
 	/* Touchscreen */
-	CPUIMX51SD_GPIO_3_12,			/* IRQ */
+	/* IRQ */
+	_MX51_PAD_CSI1_D8__GPIO3_12 | MUX_PAD_CTRL(PAD_CTL_PUS_22K_UP |
+			PAD_CTL_PKE | PAD_CTL_SRE_FAST |
+			PAD_CTL_DSE_HIGH | PAD_CTL_PUE | PAD_CTL_HYS),
 };
 
 static const struct imxuart_platform_data uart_pdata __initconst = {
@@ -157,6 +157,8 @@ static int initialize_otg_port(struct platform_device *pdev)
 	void __iomem *usbother_base;
 
 	usb_base = ioremap(MX51_OTG_BASE_ADDR, SZ_4K);
+	if (!usb_base)
+		return -ENOMEM;
 	usbother_base = usb_base + MX5_USBOTHER_REGS_OFFSET;
 
 	/* Set the PHY clock to 19.2MHz */
@@ -175,6 +177,8 @@ static int initialize_usbh1_port(struct platform_device *pdev)
 	void __iomem *usbother_base;
 
 	usb_base = ioremap(MX51_OTG_BASE_ADDR, SZ_4K);
+	if (!usb_base)
+		return -ENOMEM;
 	usbother_base = usb_base + MX5_USBOTHER_REGS_OFFSET;
 
 	/* The clock for the USBH1 ULPI port will come from the PHY. */
@@ -243,7 +247,7 @@ static struct spi_board_info cpuimx51sd_spi_device[] = {
 		.mode		= SPI_MODE_0,
 		.chip_select     = 0,
 		.platform_data   = &mcp251x_info,
-		.irq             = gpio_to_irq(0 * 32 + 1)
+		.irq             = gpio_to_irq(CAN_IRQGPIO)
 	},
 };
 
@@ -323,7 +327,7 @@ static struct sys_timer mxc_timer = {
 
 MACHINE_START(EUKREA_CPUIMX51SD, "Eukrea CPUIMX51SD")
 	/* Maintainer: Eric Bénard <eric@eukrea.com> */
-	.boot_params = PHYS_OFFSET + 0x100,
+	.boot_params = MX51_PHYS_OFFSET + 0x100,
 	.map_io = mx51_map_io,
 	.init_irq = mx51_init_irq,
 	.init_machine = eukrea_cpuimx51sd_init,

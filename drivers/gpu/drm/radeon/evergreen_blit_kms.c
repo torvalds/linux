@@ -55,7 +55,7 @@ set_render_target(struct radeon_device *rdev, int format,
 	if (h < 8)
 		h = 8;
 
-	cb_color_info = ((format << 2) | (1 << 24));
+	cb_color_info = ((format << 2) | (1 << 24) | (1 << 8));
 	pitch = (w / 8) - 1;
 	slice = ((w * h) / 64) - 1;
 
@@ -133,6 +133,9 @@ set_vtx_resource(struct radeon_device *rdev, u64 gpu_addr)
 
 	/* high addr, stride */
 	sq_vtx_constant_word2 = ((upper_32_bits(gpu_addr) & 0xff) | (16 << 8));
+#ifdef __BIG_ENDIAN
+	sq_vtx_constant_word2 |= (2 << 30);
+#endif
 	/* xyzw swizzles */
 	sq_vtx_constant_word3 = (0 << 3) | (1 << 6) | (2 << 9) | (3 << 12);
 
@@ -147,7 +150,9 @@ set_vtx_resource(struct radeon_device *rdev, u64 gpu_addr)
 	radeon_ring_write(rdev, 0);
 	radeon_ring_write(rdev, SQ_TEX_VTX_VALID_BUFFER << 30);
 
-	if (rdev->family == CHIP_CEDAR)
+	if ((rdev->family == CHIP_CEDAR) ||
+	    (rdev->family == CHIP_PALM) ||
+	    (rdev->family == CHIP_CAICOS))
 		cp_set_surface_sync(rdev,
 				    PACKET3_TC_ACTION_ENA, 48, gpu_addr);
 	else
@@ -171,7 +176,7 @@ set_tex_resource(struct radeon_device *rdev,
 	sq_tex_resource_word0 = (1 << 0); /* 2D */
 	sq_tex_resource_word0 |= ((((pitch >> 3) - 1) << 6) |
 				  ((w - 1) << 18));
-	sq_tex_resource_word1 = ((h - 1) << 0);
+	sq_tex_resource_word1 = ((h - 1) << 0) | (1 << 28);
 	/* xyzw swizzles */
 	sq_tex_resource_word4 = (0 << 16) | (1 << 19) | (2 << 22) | (3 << 25);
 
@@ -219,7 +224,11 @@ draw_auto(struct radeon_device *rdev)
 	radeon_ring_write(rdev, DI_PT_RECTLIST);
 
 	radeon_ring_write(rdev, PACKET3(PACKET3_INDEX_TYPE, 0));
-	radeon_ring_write(rdev, DI_INDEX_SIZE_16_BIT);
+	radeon_ring_write(rdev,
+#ifdef __BIG_ENDIAN
+			  (2 << 2) |
+#endif
+			  DI_INDEX_SIZE_16_BIT);
 
 	radeon_ring_write(rdev, PACKET3(PACKET3_NUM_INSTANCES, 0));
 	radeon_ring_write(rdev, 1);
@@ -230,7 +239,7 @@ draw_auto(struct radeon_device *rdev)
 
 }
 
-/* emits 30 */
+/* emits 36 */
 static void
 set_default_state(struct radeon_device *rdev)
 {
@@ -243,6 +252,8 @@ set_default_state(struct radeon_device *rdev)
 	int num_hs_threads, num_ls_threads;
 	int num_ps_stack_entries, num_vs_stack_entries, num_gs_stack_entries, num_es_stack_entries;
 	int num_hs_stack_entries, num_ls_stack_entries;
+	u64 gpu_addr;
+	int dwords;
 
 	switch (rdev->family) {
 	case CHIP_CEDAR:
@@ -331,9 +342,95 @@ set_default_state(struct radeon_device *rdev)
 		num_hs_stack_entries = 85;
 		num_ls_stack_entries = 85;
 		break;
+	case CHIP_PALM:
+		num_ps_gprs = 93;
+		num_vs_gprs = 46;
+		num_temp_gprs = 4;
+		num_gs_gprs = 31;
+		num_es_gprs = 31;
+		num_hs_gprs = 23;
+		num_ls_gprs = 23;
+		num_ps_threads = 96;
+		num_vs_threads = 16;
+		num_gs_threads = 16;
+		num_es_threads = 16;
+		num_hs_threads = 16;
+		num_ls_threads = 16;
+		num_ps_stack_entries = 42;
+		num_vs_stack_entries = 42;
+		num_gs_stack_entries = 42;
+		num_es_stack_entries = 42;
+		num_hs_stack_entries = 42;
+		num_ls_stack_entries = 42;
+		break;
+	case CHIP_BARTS:
+		num_ps_gprs = 93;
+		num_vs_gprs = 46;
+		num_temp_gprs = 4;
+		num_gs_gprs = 31;
+		num_es_gprs = 31;
+		num_hs_gprs = 23;
+		num_ls_gprs = 23;
+		num_ps_threads = 128;
+		num_vs_threads = 20;
+		num_gs_threads = 20;
+		num_es_threads = 20;
+		num_hs_threads = 20;
+		num_ls_threads = 20;
+		num_ps_stack_entries = 85;
+		num_vs_stack_entries = 85;
+		num_gs_stack_entries = 85;
+		num_es_stack_entries = 85;
+		num_hs_stack_entries = 85;
+		num_ls_stack_entries = 85;
+		break;
+	case CHIP_TURKS:
+		num_ps_gprs = 93;
+		num_vs_gprs = 46;
+		num_temp_gprs = 4;
+		num_gs_gprs = 31;
+		num_es_gprs = 31;
+		num_hs_gprs = 23;
+		num_ls_gprs = 23;
+		num_ps_threads = 128;
+		num_vs_threads = 20;
+		num_gs_threads = 20;
+		num_es_threads = 20;
+		num_hs_threads = 20;
+		num_ls_threads = 20;
+		num_ps_stack_entries = 42;
+		num_vs_stack_entries = 42;
+		num_gs_stack_entries = 42;
+		num_es_stack_entries = 42;
+		num_hs_stack_entries = 42;
+		num_ls_stack_entries = 42;
+		break;
+	case CHIP_CAICOS:
+		num_ps_gprs = 93;
+		num_vs_gprs = 46;
+		num_temp_gprs = 4;
+		num_gs_gprs = 31;
+		num_es_gprs = 31;
+		num_hs_gprs = 23;
+		num_ls_gprs = 23;
+		num_ps_threads = 128;
+		num_vs_threads = 10;
+		num_gs_threads = 10;
+		num_es_threads = 10;
+		num_hs_threads = 10;
+		num_ls_threads = 10;
+		num_ps_stack_entries = 42;
+		num_vs_stack_entries = 42;
+		num_gs_stack_entries = 42;
+		num_es_stack_entries = 42;
+		num_hs_stack_entries = 42;
+		num_ls_stack_entries = 42;
+		break;
 	}
 
-	if (rdev->family == CHIP_CEDAR)
+	if ((rdev->family == CHIP_CEDAR) ||
+	    (rdev->family == CHIP_PALM) ||
+	    (rdev->family == CHIP_CAICOS))
 		sq_config = 0;
 	else
 		sq_config = VC_ENABLE;
@@ -409,6 +506,18 @@ set_default_state(struct radeon_device *rdev)
 	radeon_ring_write(rdev, 0x00000000);
 	radeon_ring_write(rdev, 0x00000000);
 
+	/* set to DX10/11 mode */
+	radeon_ring_write(rdev, PACKET3(PACKET3_MODE_CONTROL, 0));
+	radeon_ring_write(rdev, 1);
+
+	/* emit an IB pointing at default state */
+	dwords = ALIGN(rdev->r600_blit.state_len, 0x10);
+	gpu_addr = rdev->r600_blit.shader_gpu_addr + rdev->r600_blit.state_offset;
+	radeon_ring_write(rdev, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
+	radeon_ring_write(rdev, gpu_addr & 0xFFFFFFFC);
+	radeon_ring_write(rdev, upper_32_bits(gpu_addr) & 0xFF);
+	radeon_ring_write(rdev, dwords);
+
 }
 
 static inline uint32_t i2f(uint32_t input)
@@ -439,8 +548,10 @@ static inline uint32_t i2f(uint32_t input)
 int evergreen_blit_init(struct radeon_device *rdev)
 {
 	u32 obj_size;
-	int r;
+	int i, r, dwords;
 	void *ptr;
+	u32 packet2s[16];
+	int num_packet2s = 0;
 
 	/* pin copy shader into vram if already initialized */
 	if (rdev->r600_blit.shader_obj)
@@ -448,8 +559,17 @@ int evergreen_blit_init(struct radeon_device *rdev)
 
 	mutex_init(&rdev->r600_blit.mutex);
 	rdev->r600_blit.state_offset = 0;
-	rdev->r600_blit.state_len = 0;
-	obj_size = 0;
+
+	rdev->r600_blit.state_len = evergreen_default_size;
+
+	dwords = rdev->r600_blit.state_len;
+	while (dwords & 0xf) {
+		packet2s[num_packet2s++] = cpu_to_le32(PACKET2(0));
+		dwords++;
+	}
+
+	obj_size = dwords * 4;
+	obj_size = ALIGN(obj_size, 256);
 
 	rdev->r600_blit.vs_offset = obj_size;
 	obj_size += evergreen_vs_size * 4;
@@ -479,8 +599,16 @@ int evergreen_blit_init(struct radeon_device *rdev)
 		return r;
 	}
 
-	memcpy(ptr + rdev->r600_blit.vs_offset, evergreen_vs, evergreen_vs_size * 4);
-	memcpy(ptr + rdev->r600_blit.ps_offset, evergreen_ps, evergreen_ps_size * 4);
+	memcpy_toio(ptr + rdev->r600_blit.state_offset,
+		    evergreen_default_state, rdev->r600_blit.state_len * 4);
+
+	if (num_packet2s)
+		memcpy_toio(ptr + rdev->r600_blit.state_offset + (rdev->r600_blit.state_len * 4),
+			    packet2s, num_packet2s * 4);
+	for (i = 0; i < evergreen_vs_size; i++)
+		*(u32 *)((unsigned long)ptr + rdev->r600_blit.vs_offset + i * 4) = cpu_to_le32(evergreen_vs[i]);
+	for (i = 0; i < evergreen_ps_size; i++)
+		*(u32 *)((unsigned long)ptr + rdev->r600_blit.ps_offset + i * 4) = cpu_to_le32(evergreen_ps[i]);
 	radeon_bo_kunmap(rdev->r600_blit.shader_obj);
 	radeon_bo_unreserve(rdev->r600_blit.shader_obj);
 
@@ -564,7 +692,7 @@ int evergreen_blit_prepare_copy(struct radeon_device *rdev, int size_bytes)
 	/* calculate number of loops correctly */
 	ring_size = num_loops * dwords_per_loop;
 	/* set default  + shaders */
-	ring_size += 46; /* shaders + def state */
+	ring_size += 52; /* shaders + def state */
 	ring_size += 10; /* fence emit for VB IB */
 	ring_size += 5; /* done copy */
 	ring_size += 10; /* fence emit for done copy */
@@ -572,7 +700,7 @@ int evergreen_blit_prepare_copy(struct radeon_device *rdev, int size_bytes)
 	if (r)
 		return r;
 
-	set_default_state(rdev); /* 30 */
+	set_default_state(rdev); /* 36 */
 	set_shaders(rdev); /* 16 */
 	return 0;
 }

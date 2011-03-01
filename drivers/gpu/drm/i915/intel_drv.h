@@ -127,7 +127,7 @@ intel_mode_get_pixel_multiplier(const struct drm_display_mode *mode)
 
 struct intel_framebuffer {
 	struct drm_framebuffer base;
-	struct drm_gem_object *obj;
+	struct drm_i915_gem_object *obj;
 };
 
 struct intel_fbdev {
@@ -166,7 +166,7 @@ struct intel_crtc {
 	struct intel_unpin_work *unpin_work;
 	int fdi_lanes;
 
-	struct drm_gem_object *cursor_bo;
+	struct drm_i915_gem_object *cursor_bo;
 	uint32_t cursor_addr;
 	int16_t cursor_x, cursor_y;
 	int16_t cursor_width, cursor_height;
@@ -220,8 +220,8 @@ intel_get_crtc_for_pipe(struct drm_device *dev, int pipe)
 struct intel_unpin_work {
 	struct work_struct work;
 	struct drm_device *dev;
-	struct drm_gem_object *old_fb_obj;
-	struct drm_gem_object *pending_flip_obj;
+	struct drm_i915_gem_object *old_fb_obj;
+	struct drm_i915_gem_object *pending_flip_obj;
 	struct drm_pending_vblank_event *event;
 	int pending;
 	bool enable_stall_check;
@@ -236,7 +236,8 @@ void intel_dip_infoframe_csum(struct dip_infoframe *avi_if);
 extern bool intel_sdvo_init(struct drm_device *dev, int output_device);
 extern void intel_dvo_init(struct drm_device *dev);
 extern void intel_tv_init(struct drm_device *dev);
-extern void intel_mark_busy(struct drm_device *dev, struct drm_gem_object *obj);
+extern void intel_mark_busy(struct drm_device *dev,
+			    struct drm_i915_gem_object *obj);
 extern bool intel_lvds_init(struct drm_device *dev);
 extern void intel_dp_init(struct drm_device *dev, int dp_reg);
 void
@@ -256,6 +257,9 @@ extern void intel_pch_panel_fitting(struct drm_device *dev,
 extern u32 intel_panel_get_max_backlight(struct drm_device *dev);
 extern u32 intel_panel_get_backlight(struct drm_device *dev);
 extern void intel_panel_set_backlight(struct drm_device *dev, u32 level);
+extern void intel_panel_setup_backlight(struct drm_device *dev);
+extern void intel_panel_enable_backlight(struct drm_device *dev);
+extern void intel_panel_disable_backlight(struct drm_device *dev);
 
 extern void intel_crtc_load_lut(struct drm_crtc *crtc);
 extern void intel_encoder_prepare (struct drm_encoder *encoder);
@@ -293,19 +297,21 @@ extern void intel_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 				    u16 blue, int regno);
 extern void intel_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 				    u16 *blue, int regno);
-extern void intel_init_clock_gating(struct drm_device *dev);
+extern void intel_enable_clock_gating(struct drm_device *dev);
 extern void ironlake_enable_drps(struct drm_device *dev);
 extern void ironlake_disable_drps(struct drm_device *dev);
+extern void gen6_enable_rps(struct drm_i915_private *dev_priv);
+extern void gen6_disable_rps(struct drm_device *dev);
 extern void intel_init_emon(struct drm_device *dev);
 
 extern int intel_pin_and_fence_fb_obj(struct drm_device *dev,
-				      struct drm_gem_object *obj,
-				      bool pipelined);
+				      struct drm_i915_gem_object *obj,
+				      struct intel_ring_buffer *pipelined);
 
 extern int intel_framebuffer_init(struct drm_device *dev,
 				  struct intel_framebuffer *ifb,
 				  struct drm_mode_fb_cmd *mode_cmd,
-				  struct drm_gem_object *obj);
+				  struct drm_i915_gem_object *obj);
 extern int intel_fbdev_init(struct drm_device *dev);
 extern void intel_fbdev_fini(struct drm_device *dev);
 

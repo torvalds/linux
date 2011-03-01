@@ -189,7 +189,7 @@ static void p54u_rx_cb(struct urb *urb)
 static void p54u_tx_cb(struct urb *urb)
 {
 	struct sk_buff *skb = urb->context;
-	struct ieee80211_hw *dev = (struct ieee80211_hw *)
+	struct ieee80211_hw *dev =
 		usb_get_intfdata(usb_ifnum_to_if(urb->dev, 0));
 
 	p54_free_skb(dev, skb);

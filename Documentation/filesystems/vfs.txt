@@ -325,7 +325,8 @@ struct inode_operations {
         void * (*follow_link) (struct dentry *, struct nameidata *);
         void (*put_link) (struct dentry *, struct nameidata *, void *);
 	void (*truncate) (struct inode *);
-	int (*permission) (struct inode *, int, struct nameidata *);
+	int (*permission) (struct inode *, int, unsigned int);
+	int (*check_acl)(struct inode *, int, unsigned int);
 	int (*setattr) (struct dentry *, struct iattr *);
 	int (*getattr) (struct vfsmount *mnt, struct dentry *, struct kstat *);
 	int (*setxattr) (struct dentry *, const char *,const void *,size_t,int);
@@ -413,6 +414,13 @@ otherwise noted.
 
   permission: called by the VFS to check for access rights on a POSIX-like
   	filesystem.
+
+	May be called in rcu-walk mode (flags & IPERM_FLAG_RCU). If in rcu-walk
+        mode, the filesystem must check the permission without blocking or
+	storing to the inode.
+
+	If a situation is encountered that rcu-walk cannot handle, return
+	-ECHILD and it will be called again in ref-walk mode.
 
   setattr: called by the VFS to set attributes for a file. This method
   	is called by chmod(2) and related system calls.
@@ -847,12 +855,17 @@ defined:
 
 struct dentry_operations {
 	int (*d_revalidate)(struct dentry *, struct nameidata *);
-	int (*d_hash) (struct dentry *, struct qstr *);
-	int (*d_compare) (struct dentry *, struct qstr *, struct qstr *);
-	int (*d_delete)(struct dentry *);
+	int (*d_hash)(const struct dentry *, const struct inode *,
+			struct qstr *);
+	int (*d_compare)(const struct dentry *, const struct inode *,
+			const struct dentry *, const struct inode *,
+			unsigned int, const char *, const struct qstr *);
+	int (*d_delete)(const struct dentry *);
 	void (*d_release)(struct dentry *);
 	void (*d_iput)(struct dentry *, struct inode *);
 	char *(*d_dname)(struct dentry *, char *, int);
+	struct vfsmount *(*d_automount)(struct path *);
+	int (*d_manage)(struct dentry *, bool, bool);
 };
 
   d_revalidate: called when the VFS needs to revalidate a dentry. This
@@ -860,13 +873,45 @@ struct dentry_operations {
 	dcache. Most filesystems leave this as NULL, because all their
 	dentries in the dcache are valid
 
-  d_hash: called when the VFS adds a dentry to the hash table
+	d_revalidate may be called in rcu-walk mode (nd->flags & LOOKUP_RCU).
+	If in rcu-walk mode, the filesystem must revalidate the dentry without
+	blocking or storing to the dentry, d_parent and d_inode should not be
+	used without care (because they can go NULL), instead nd->inode should
+	be used.
 
-  d_compare: called when a dentry should be compared with another
+	If a situation is encountered that rcu-walk cannot handle, return
+	-ECHILD and it will be called again in ref-walk mode.
 
-  d_delete: called when the last reference to a dentry is
-	deleted. This means no-one is using the dentry, however it is
-	still valid and in the dcache
+  d_hash: called when the VFS adds a dentry to the hash table. The first
+	dentry passed to d_hash is the parent directory that the name is
+	to be hashed into. The inode is the dentry's inode.
+
+	Same locking and synchronisation rules as d_compare regarding
+	what is safe to dereference etc.
+
+  d_compare: called to compare a dentry name with a given name. The first
+	dentry is the parent of the dentry to be compared, the second is
+	the parent's inode, then the dentry and inode (may be NULL) of the
+	child dentry. len and name string are properties of the dentry to be
+	compared. qstr is the name to compare it with.
+
+	Must be constant and idempotent, and should not take locks if
+	possible, and should not or store into the dentry or inodes.
+	Should not dereference pointers outside the dentry or inodes without
+	lots of care (eg.  d_parent, d_inode, d_name should not be used).
+
+	However, our vfsmount is pinned, and RCU held, so the dentries and
+	inodes won't disappear, neither will our sb or filesystem module.
+	->i_sb and ->d_sb may be used.
+
+	It is a tricky calling convention because it needs to be called under
+	"rcu-walk", ie. without any locks or references on things.
+
+  d_delete: called when the last reference to a dentry is dropped and the
+	dcache is deciding whether or not to cache it. Return 1 to delete
+	immediately, or 0 to cache the dentry. Default is NULL which means to
+	always cache a reachable dentry. d_delete must be constant and
+	idempotent.
 
   d_release: called when a dentry is really deallocated
 
@@ -886,6 +931,47 @@ struct dentry_operations {
 	tricky. The correct way to return for example "Hello" is to put it
 	at the end of the buffer, and returns a pointer to the first char.
 	dynamic_dname() helper function is provided to take care of this.
+
+  d_automount: called when an automount dentry is to be traversed (optional).
+	This should create a new VFS mount record and return the record to the
+	caller.  The caller is supplied with a path parameter giving the
+	automount directory to describe the automount target and the parent
+	VFS mount record to provide inheritable mount parameters.  NULL should
+	be returned if someone else managed to make the automount first.  If
+	the vfsmount creation failed, then an error code should be returned.
+	If -EISDIR is returned, then the directory will be treated as an
+	ordinary directory and returned to pathwalk to continue walking.
+
+	If a vfsmount is returned, the caller will attempt to mount it on the
+	mountpoint and will remove the vfsmount from its expiration list in
+	the case of failure.  The vfsmount should be returned with 2 refs on
+	it to prevent automatic expiration - the caller will clean up the
+	additional ref.
+
+	This function is only used if DCACHE_NEED_AUTOMOUNT is set on the
+	dentry.  This is set by __d_instantiate() if S_AUTOMOUNT is set on the
+	inode being added.
+
+  d_manage: called to allow the filesystem to manage the transition from a
+	dentry (optional).  This allows autofs, for example, to hold up clients
+	waiting to explore behind a 'mountpoint' whilst letting the daemon go
+	past and construct the subtree there.  0 should be returned to let the
+	calling process continue.  -EISDIR can be returned to tell pathwalk to
+	use this directory as an ordinary directory and to ignore anything
+	mounted on it and not to check the automount flag.  Any other error
+	code will abort pathwalk completely.
+
+	If the 'mounting_here' parameter is true, then namespace_sem is being
+	held by the caller and the function should not initiate any mounts or
+	unmounts that it will then wait for.
+
+	If the 'rcu_walk' parameter is true, then the caller is doing a
+	pathwalk in RCU-walk mode.  Sleeping is not permitted in this mode,
+	and the caller can be asked to leave it and call again by returing
+	-ECHILD.
+
+	This function is only used if DCACHE_MANAGE_TRANSIT is set on the
+	dentry being transited from.
 
 Example :
 
@@ -910,14 +996,11 @@ manipulate dentries:
 	the usage count)
 
   dput: close a handle for a dentry (decrements the usage count). If
-	the usage count drops to 0, the "d_delete" method is called
-	and the dentry is placed on the unused list if the dentry is
-	still in its parents hash list. Putting the dentry on the
-	unused list just means that if the system needs some RAM, it
-	goes through the unused list of dentries and deallocates them.
-	If the dentry has already been unhashed and the usage count
-	drops to 0, in this case the dentry is deallocated after the
-	"d_delete" method is called
+	the usage count drops to 0, and the dentry is still in its
+	parent's hash, the "d_delete" method is called to check whether
+	it should be cached. If it should not be cached, or if the dentry
+	is not hashed, it is deleted. Otherwise cached dentries are put
+	into an LRU list to be reclaimed on memory shortage.
 
   d_drop: this unhashes a dentry from its parents hash list. A
 	subsequent call to dput() will deallocate the dentry if its

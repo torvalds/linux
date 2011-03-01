@@ -190,10 +190,10 @@ int power_supply_register(struct device *parent, struct power_supply *psy)
 	goto success;
 
 create_triggers_failed:
-	device_unregister(psy->dev);
+	device_del(dev);
 kobject_set_name_failed:
 device_add_failed:
-	kfree(dev);
+	put_device(dev);
 success:
 	return rc;
 }
@@ -201,7 +201,7 @@ EXPORT_SYMBOL_GPL(power_supply_register);
 
 void power_supply_unregister(struct power_supply *psy)
 {
-	flush_scheduled_work();
+	cancel_work_sync(&psy->changed_work);
 	power_supply_remove_triggers(psy);
 	device_unregister(psy->dev);
 }

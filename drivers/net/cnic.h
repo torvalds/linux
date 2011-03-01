@@ -82,7 +82,7 @@ struct cnic_redirect_entry {
 #define MAX_ISCSI_TBL_SZ	256
 
 #define CNIC_LOCAL_PORT_MIN	60000
-#define CNIC_LOCAL_PORT_MAX	61000
+#define CNIC_LOCAL_PORT_MAX	61024
 #define CNIC_LOCAL_PORT_RANGE	(CNIC_LOCAL_PORT_MAX - CNIC_LOCAL_PORT_MIN)
 
 #define KWQE_CNT (BCM_PAGE_SIZE / sizeof(struct kwqe))
@@ -258,6 +258,7 @@ struct cnic_local {
 	u16		kwq_con_idx;
 
 	struct kcq_info	kcq1;
+	struct kcq_info	kcq2;
 
 	union {
 		void				*gen;
@@ -289,6 +290,10 @@ struct cnic_local {
 	struct cnic_id_tbl	cid_tbl;
 	atomic_t		iscsi_conn;
 	u32			iscsi_start_cid;
+
+	u32			fcoe_init_cid;
+	u32			fcoe_start_cid;
+	struct cnic_id_tbl	fcoe_cid_tbl;
 
 	u32			max_cid_space;
 
@@ -356,11 +361,6 @@ struct bnx2x_bd_chain_next {
 #define BNX2X_CONTEXT_MEM_SIZE		1024
 #define BNX2X_FCOE_CID			16
 
-/* iSCSI client IDs are 17, 19, 21, 23 */
-#define BNX2X_ISCSI_BASE_CL_ID		17
-#define BNX2X_ISCSI_CL_ID(vn)		(BNX2X_ISCSI_BASE_CL_ID + ((vn) << 1))
-
-#define BNX2X_ISCSI_L2_CID		17
 #define BNX2X_ISCSI_START_CID		18
 #define BNX2X_ISCSI_NUM_CONNECTIONS	128
 #define BNX2X_ISCSI_TASK_CONTEXT_SIZE	128
@@ -371,6 +371,10 @@ struct bnx2x_bd_chain_next {
 #define BNX2X_ISCSI_GLB_BUF_SIZE	64
 #define BNX2X_ISCSI_PBL_NOT_CACHED	0xff
 #define BNX2X_ISCSI_PDU_HEADER_NOT_CACHED	0xff
+
+#define BNX2X_FCOE_NUM_CONNECTIONS	128
+
+#define BNX2X_FCOE_L5_CID_BASE		MAX_ISCSI_TBL_SZ
 
 #define BNX2X_CHIP_NUM_57710		0x164e
 #define BNX2X_CHIP_NUM_57711		0x164f
@@ -427,6 +431,13 @@ struct bnx2x_bd_chain_next {
 		 (CNIC_RD(dev, BNX2X_SHMEM2_ADDR(base, size)) >	\
 		  offsetof(struct shmem2_region, field)))
 
+#define BNX2X_MF_CFG_ADDR(base, field)				\
+			((base) + offsetof(struct mf_cfg, field))
+
+#ifndef ETH_MAX_RX_CLIENTS_E2
+#define ETH_MAX_RX_CLIENTS_E2 		ETH_MAX_RX_CLIENTS_E1H
+#endif
+
 #define CNIC_PORT(cp)			((cp)->pfid & 1)
 #define CNIC_FUNC(cp)			((cp)->func)
 #define CNIC_PATH(cp)			(!BNX2X_CHIP_IS_E2(cp->chip_id) ? 0 :\
@@ -439,7 +450,9 @@ struct bnx2x_bd_chain_next {
 #define BNX2X_SW_CID(x)			(x & 0x1ffff)
 
 #define BNX2X_CL_QZONE_ID(cp, cli)					\
-		(cli + (CNIC_PORT(cp) * ETH_MAX_RX_CLIENTS_E1H))
+		(cli + (CNIC_PORT(cp) * (BNX2X_CHIP_IS_E2(cp->chip_id) ?\
+					ETH_MAX_RX_CLIENTS_E2 :		\
+					ETH_MAX_RX_CLIENTS_E1H)))
 
 #define TCP_TSTORM_OOO_DROP_AND_PROC_ACK	(0<<4)
 #endif

@@ -739,6 +739,8 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 	    && cpu_has_tlb)
 		c->tlbsize += (config4 & MIPS_CONF4_MMUSIZEEXT) * 0x40;
 
+	c->kscratch_mask = (config4 >> 16) & 0xff;
+
 	return config4 & MIPS_CONF_M;
 }
 

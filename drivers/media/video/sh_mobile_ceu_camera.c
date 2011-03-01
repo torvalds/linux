@@ -1786,7 +1786,7 @@ static void sh_mobile_ceu_init_videobuf(struct videobuf_queue *q,
 				       V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				       pcdev->field,
 				       sizeof(struct sh_mobile_ceu_buffer),
-				       icd, NULL);
+				       icd, &icd->video_lock);
 }
 
 static int sh_mobile_ceu_get_ctrl(struct soc_camera_device *icd,

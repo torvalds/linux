@@ -458,8 +458,9 @@ ieee80211_direct_probe(struct ieee80211_work *wk)
 		return WORK_ACT_TIMEOUT;
 	}
 
-	printk(KERN_DEBUG "%s: direct probe to %pM (try %d)\n",
-			sdata->name, wk->filter_ta, wk->probe_auth.tries);
+	printk(KERN_DEBUG "%s: direct probe to %pM (try %d/%i)\n",
+	       sdata->name, wk->filter_ta, wk->probe_auth.tries,
+	       IEEE80211_AUTH_MAX_TRIES);
 
 	/*
 	 * Direct probe is sent to broadcast address as some APs
@@ -553,6 +554,25 @@ ieee80211_remain_on_channel_timeout(struct ieee80211_work *wk)
 		cfg80211_ready_on_channel(wk->sdata->dev, (unsigned long) wk,
 					  wk->chan, wk->chan_type,
 					  wk->remain.duration, GFP_KERNEL);
+
+		return WORK_ACT_NONE;
+	}
+
+	return WORK_ACT_TIMEOUT;
+}
+
+static enum work_action __must_check
+ieee80211_offchannel_tx(struct ieee80211_work *wk)
+{
+	if (!wk->started) {
+		wk->timeout = jiffies + msecs_to_jiffies(wk->offchan_tx.wait);
+
+		/*
+		 * After this, offchan_tx.frame remains but now is no
+		 * longer a valid pointer -- we still need it as the
+		 * cookie for canceling this work.
+		 */
+		ieee80211_tx_skb(wk->sdata, wk->offchan_tx.frame);
 
 		return WORK_ACT_NONE;
 	}
@@ -954,6 +974,9 @@ static void ieee80211_work_work(struct work_struct *work)
 			break;
 		case IEEE80211_WORK_REMAIN_ON_CHANNEL:
 			rma = ieee80211_remain_on_channel_timeout(wk);
+			break;
+		case IEEE80211_WORK_OFFCHANNEL_TX:
+			rma = ieee80211_offchannel_tx(wk);
 			break;
 		case IEEE80211_WORK_ASSOC_BEACON_WAIT:
 			rma = ieee80211_assoc_beacon_wait(wk);

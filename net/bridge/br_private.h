@@ -72,7 +72,7 @@ struct net_bridge_fdb_entry
 
 struct net_bridge_port_group {
 	struct net_bridge_port		*port;
-	struct net_bridge_port_group	*next;
+	struct net_bridge_port_group __rcu *next;
 	struct hlist_node		mglist;
 	struct rcu_head			rcu;
 	struct timer_list		timer;
@@ -84,13 +84,13 @@ struct net_bridge_port_group {
 struct net_bridge_mdb_entry
 {
 	struct hlist_node		hlist[2];
-	struct hlist_node		mglist;
 	struct net_bridge		*br;
-	struct net_bridge_port_group	*ports;
+	struct net_bridge_port_group __rcu *ports;
 	struct rcu_head			rcu;
 	struct timer_list		timer;
 	struct timer_list		query_timer;
 	struct br_ip			addr;
+	bool				mglist;
 	u32				queries_sent;
 };
 
@@ -151,10 +151,19 @@ struct net_bridge_port
 #endif
 };
 
-#define br_port_get_rcu(dev) \
-	((struct net_bridge_port *) rcu_dereference(dev->rx_handler_data))
-#define br_port_get(dev) ((struct net_bridge_port *) dev->rx_handler_data)
 #define br_port_exists(dev) (dev->priv_flags & IFF_BRIDGE_PORT)
+
+static inline struct net_bridge_port *br_port_get_rcu(const struct net_device *dev)
+{
+	struct net_bridge_port *port = rcu_dereference(dev->rx_handler_data);
+	return br_port_exists(dev) ? port : NULL;
+}
+
+static inline struct net_bridge_port *br_port_get_rtnl(struct net_device *dev)
+{
+	return br_port_exists(dev) ?
+		rtnl_dereference(dev->rx_handler_data) : NULL;
+}
 
 struct br_cpu_netstats {
 	u64			rx_packets;
@@ -227,9 +236,8 @@ struct net_bridge
 	unsigned long			multicast_startup_query_interval;
 
 	spinlock_t			multicast_lock;
-	struct net_bridge_mdb_htable	*mdb;
+	struct net_bridge_mdb_htable __rcu *mdb;
 	struct hlist_head		router_list;
-	struct hlist_head		mglist;
 
 	struct timer_list		multicast_router_timer;
 	struct timer_list		multicast_querier_timer;

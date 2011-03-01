@@ -91,7 +91,7 @@ MODULE_LICENSE("GPL");
  *
  * [so we are loaded when this kind device is connected]
  */
-static struct usb_device_id i1480_est_id_table[] = {
+static struct usb_device_id __used i1480_est_id_table[] = {
 	{ USB_DEVICE(0x8086, 0xdf3b), },
 	{ USB_DEVICE(0x8086, 0x0c3b), },
 	{ },

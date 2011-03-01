@@ -22,7 +22,7 @@
 #include "solo6010.h"
 #include "solo6010-osd-font.h"
 
-#define CAPTURE_MAX_BANDWIDTH		32	// D1 4channel (D1 == 4)
+#define CAPTURE_MAX_BANDWIDTH		32	/* D1 4channel (D1 == 4) */
 #define OSG_BUFFER_SIZE			1024
 
 #define VI_PROG_HSIZE			(1280 - 16)
@@ -145,8 +145,8 @@ int solo_osd_print(struct solo_enc_dev *solo_enc)
 
 	solo_p2m_dma(solo_dev, 0, 1, buf, SOLO_EOSD_EXT_ADDR(solo_dev) +
 		     (solo_enc->ch * SOLO_EOSD_EXT_SIZE), SOLO_EOSD_EXT_SIZE);
-        reg |= (1 << solo_enc->ch);
-        solo_reg_write(solo_dev, SOLO_VE_OSD_CH, reg);
+	reg |= (1 << solo_enc->ch);
+	solo_reg_write(solo_dev, SOLO_VE_OSD_CH, reg);
 
 	kfree(buf);
 

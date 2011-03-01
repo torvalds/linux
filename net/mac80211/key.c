@@ -30,19 +30,20 @@
  * keys and per-station keys. Since each station belongs to an interface,
  * each station key also belongs to that interface.
  *
- * Hardware acceleration is done on a best-effort basis, for each key
- * that is eligible the hardware is asked to enable that key but if
- * it cannot do that they key is simply kept for software encryption.
- * There is currently no way of knowing this except by looking into
- * debugfs.
+ * Hardware acceleration is done on a best-effort basis for algorithms
+ * that are implemented in software,  for each key the hardware is asked
+ * to enable that key for offloading but if it cannot do that the key is
+ * simply kept for software encryption (unless it is for an algorithm
+ * that isn't implemented in software).
+ * There is currently no way of knowing whether a key is handled in SW
+ * or HW except by looking into debugfs.
  *
- * All key operations are protected internally.
- *
- * Within mac80211, key references are, just as STA structure references,
- * protected by RCU. Note, however, that some things are unprotected,
- * namely the key->sta dereferences within the hardware acceleration
- * functions. This means that sta_info_destroy() must remove the key
- * which waits for an RCU grace period.
+ * All key management is internally protected by a mutex. Within all
+ * other parts of mac80211, key references are, just as STA structure
+ * references, protected by RCU. Note, however, that some things are
+ * unprotected, namely the key->sta dereferences within the hardware
+ * acceleration functions. This means that sta_info_destroy() must
+ * remove the key which waits for an RCU grace period.
  */
 
 static const u8 bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
@@ -84,10 +85,17 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 		goto out_unsupported;
 
 	sdata = key->sdata;
-	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN) {
+		/*
+		 * The driver doesn't know anything about VLAN interfaces.
+		 * Hence, don't send GTKs for VLAN interfaces to the driver.
+		 */
+		if (!(key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE))
+			goto out_unsupported;
 		sdata = container_of(sdata->bss,
 				     struct ieee80211_sub_if_data,
 				     u.ap);
+	}
 
 	ret = drv_set_key(key->local, SET_KEY, sdata, sta, &key->conf);
 
@@ -171,7 +179,7 @@ void ieee80211_key_removed(struct ieee80211_key_conf *key_conf)
 EXPORT_SYMBOL_GPL(ieee80211_key_removed);
 
 static void __ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata,
-					int idx)
+					int idx, bool uni, bool multi)
 {
 	struct ieee80211_key *key = NULL;
 
@@ -180,18 +188,19 @@ static void __ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata,
 	if (idx >= 0 && idx < NUM_DEFAULT_KEYS)
 		key = sdata->keys[idx];
 
-	rcu_assign_pointer(sdata->default_key, key);
+	if (uni)
+		rcu_assign_pointer(sdata->default_unicast_key, key);
+	if (multi)
+		rcu_assign_pointer(sdata->default_multicast_key, key);
 
-	if (key) {
-		ieee80211_debugfs_key_remove_default(key->sdata);
-		ieee80211_debugfs_key_add_default(key->sdata);
-	}
+	ieee80211_debugfs_key_update_default(sdata);
 }
 
-void ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata, int idx)
+void ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata, int idx,
+			       bool uni, bool multi)
 {
 	mutex_lock(&sdata->local->key_mtx);
-	__ieee80211_set_default_key(sdata, idx);
+	__ieee80211_set_default_key(sdata, idx, uni, multi);
 	mutex_unlock(&sdata->local->key_mtx);
 }
 
@@ -208,10 +217,7 @@ __ieee80211_set_default_mgmt_key(struct ieee80211_sub_if_data *sdata, int idx)
 
 	rcu_assign_pointer(sdata->default_mgmt_key, key);
 
-	if (key) {
-		ieee80211_debugfs_key_remove_mgmt_default(key->sdata);
-		ieee80211_debugfs_key_add_mgmt_default(key->sdata);
-	}
+	ieee80211_debugfs_key_update_default(sdata);
 }
 
 void ieee80211_set_default_mgmt_key(struct ieee80211_sub_if_data *sdata,
@@ -229,7 +235,8 @@ static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_key *old,
 				    struct ieee80211_key *new)
 {
-	int idx, defkey, defmgmtkey;
+	int idx;
+	bool defunikey, defmultikey, defmgmtkey;
 
 	if (new)
 		list_add(&new->list, &sdata->key_list);
@@ -250,29 +257,31 @@ static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 		else
 			idx = new->conf.keyidx;
 
-		defkey = old && sdata->default_key == old;
+		defunikey = old && sdata->default_unicast_key == old;
+		defmultikey = old && sdata->default_multicast_key == old;
 		defmgmtkey = old && sdata->default_mgmt_key == old;
 
-		if (defkey && !new)
-			__ieee80211_set_default_key(sdata, -1);
+		if (defunikey && !new)
+			__ieee80211_set_default_key(sdata, -1, true, false);
+		if (defmultikey && !new)
+			__ieee80211_set_default_key(sdata, -1, false, true);
 		if (defmgmtkey && !new)
 			__ieee80211_set_default_mgmt_key(sdata, -1);
 
 		rcu_assign_pointer(sdata->keys[idx], new);
-		if (defkey && new)
-			__ieee80211_set_default_key(sdata, new->conf.keyidx);
+		if (defunikey && new)
+			__ieee80211_set_default_key(sdata, new->conf.keyidx,
+						    true, false);
+		if (defmultikey && new)
+			__ieee80211_set_default_key(sdata, new->conf.keyidx,
+						    false, true);
 		if (defmgmtkey && new)
 			__ieee80211_set_default_mgmt_key(sdata,
 							 new->conf.keyidx);
 	}
 
-	if (old) {
-		/*
-		 * We'll use an empty list to indicate that the key
-		 * has already been removed.
-		 */
-		list_del_init(&old->list);
-	}
+	if (old)
+		list_del(&old->list);
 }
 
 struct ieee80211_key *ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
@@ -366,6 +375,12 @@ static void __ieee80211_key_destroy(struct ieee80211_key *key)
 	if (!key)
 		return;
 
+	/*
+	 * Synchronize so the TX path can no longer be using
+	 * this key before we free/remove it.
+	 */
+	synchronize_rcu();
+
 	if (key->local)
 		ieee80211_key_disable_hw_accel(key);
 
@@ -407,8 +422,8 @@ int ieee80211_key_link(struct ieee80211_key *key,
 			struct sta_info *ap;
 
 			/*
-			 * We're getting a sta pointer in,
-			 * so must be under RCU read lock.
+			 * We're getting a sta pointer in, so must be under
+			 * appropriate locking for sta_info_get().
 			 */
 
 			/* same here, the AP could be using QoS */
@@ -502,11 +517,12 @@ void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata)
 
 	mutex_lock(&sdata->local->key_mtx);
 
-	ieee80211_debugfs_key_remove_default(sdata);
 	ieee80211_debugfs_key_remove_mgmt_default(sdata);
 
 	list_for_each_entry_safe(key, tmp, &sdata->key_list, list)
 		__ieee80211_key_free(key);
+
+	ieee80211_debugfs_key_update_default(sdata);
 
 	mutex_unlock(&sdata->local->key_mtx);
 }

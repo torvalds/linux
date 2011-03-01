@@ -291,13 +291,17 @@ static int ocfs2_set_acl(handle_t *handle,
 	return ret;
 }
 
-int ocfs2_check_acl(struct inode *inode, int mask)
+int ocfs2_check_acl(struct inode *inode, int mask, unsigned int flags)
 {
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_super *osb;
 	struct buffer_head *di_bh = NULL;
 	struct posix_acl *acl;
 	int ret = -EAGAIN;
 
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
+
+	osb = OCFS2_SB(inode->i_sb);
 	if (!(osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL))
 		return ret;
 

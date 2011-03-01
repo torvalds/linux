@@ -790,6 +790,7 @@ static const char *section_white_list[] =
 {
 	".comment*",
 	".debug*",
+	".zdebug*",		/* Compressed debug sections. */
 	".GCC-command-line",	/* mn10300 */
 	".mdebug*",        /* alpha, score, mips etc. */
 	".pdr",            /* alpha, score, mips etc. */
@@ -1441,7 +1442,7 @@ static unsigned int *reloc_location(struct elf_info *elf,
 	int section = shndx2secindex(sechdr->sh_info);
 
 	return (void *)elf->hdr + sechdrs[section].sh_offset +
-		r->r_offset - sechdrs[section].sh_addr;
+		r->r_offset;
 }
 
 static int addend_386_rel(struct elf_info *elf, Elf_Shdr *sechdr, Elf_Rela *r)
@@ -1614,7 +1615,7 @@ static void section_rel(const char *modname, struct elf_info *elf,
  * A module includes a number of sections that are discarded
  * either when loaded or when used as built-in.
  * For loaded modules all functions marked __init and all data
- * marked __initdata will be discarded when the module has been intialized.
+ * marked __initdata will be discarded when the module has been initialized.
  * Likewise for modules used built-in the sections marked __exit
  * are discarded because __exit marked function are supposed to be called
  * only when a module is unloaded which never happens for built-in modules.

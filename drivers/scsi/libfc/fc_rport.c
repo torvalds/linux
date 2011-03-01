@@ -652,7 +652,7 @@ void fc_rport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 	FC_RPORT_DBG(rdata, "Received a FLOGI %s\n", fc_els_resp_type(fp));
 
 	if (fp == ERR_PTR(-FC_EX_CLOSED))
-		return;
+		goto put;
 
 	mutex_lock(&rdata->rp_mutex);
 
@@ -689,6 +689,7 @@ out:
 	fc_frame_free(fp);
 err:
 	mutex_unlock(&rdata->rp_mutex);
+put:
 	kref_put(&rdata->kref, rdata->local_port->tt.rport_destroy);
 	return;
 bad:

@@ -713,7 +713,7 @@ int mthca_RUN_FW(struct mthca_dev *dev, u8 *status)
 
 static void mthca_setup_cmd_doorbells(struct mthca_dev *dev, u64 base)
 {
-	unsigned long addr;
+	phys_addr_t addr;
 	u16 max_off = 0;
 	int i;
 

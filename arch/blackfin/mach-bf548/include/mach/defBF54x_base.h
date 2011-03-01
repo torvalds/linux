@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2008 Analog Devices Inc.
+ * Copyright 2007-2010 Analog Devices Inc.
  *
  * Licensed under the ADI BSD license or the GPL-2 (or later)
  */
@@ -1615,14 +1615,14 @@
 #define                     CTYPE  0x40       /* DMA Channel Type */
 #define                      PMAP  0xf000     /* Peripheral Mapped To This Channel */
 
-/* Bit masks for DMACx_TCPER */
+/* Bit masks for DMACx_TC_PER */
 
 #define        DCB_TRAFFIC_PERIOD  0xf        /* DCB Traffic Control Period */
 #define        DEB_TRAFFIC_PERIOD  0xf0       /* DEB Traffic Control Period */
 #define        DAB_TRAFFIC_PERIOD  0x700      /* DAB Traffic Control Period */
 #define   MDMA_ROUND_ROBIN_PERIOD  0xf800     /* MDMA Round Robin Period */
 
-/* Bit masks for DMACx_TCCNT */
+/* Bit masks for DMACx_TC_CNT */
 
 #define         DCB_TRAFFIC_COUNT  0xf        /* DCB Traffic Control Count */
 #define         DEB_TRAFFIC_COUNT  0xf0       /* DEB Traffic Control Count */
@@ -2172,68 +2172,6 @@
 
 #define                 RCVDATA16  0xffff     /* Receive FIFO 16-Bit Data */
 
-/* Bit masks for UARTx_LCR */
-
-#if 0
-/* conflicts with legacy one in last section */
-#define                       WLS  0x3        /* Word Length Select */
-#endif
-#define                       STB  0x4        /* Stop Bits */
-#define                       PEN  0x8        /* Parity Enable */
-#define                       EPS  0x10       /* Even Parity Select */
-#define                       STP  0x20       /* Sticky Parity */
-#define                        SB  0x40       /* Set Break */
-
-/* Bit masks for UARTx_MCR */
-
-#define                      XOFF  0x1        /* Transmitter Off */
-#define                      MRTS  0x2        /* Manual Request To Send */
-#define                      RFIT  0x4        /* Receive FIFO IRQ Threshold */
-#define                      RFRT  0x8        /* Receive FIFO RTS Threshold */
-#define                  LOOP_ENA  0x10       /* Loopback Mode Enable */
-#define                     FCPOL  0x20       /* Flow Control Pin Polarity */
-#define                      ARTS  0x40       /* Automatic Request To Send */
-#define                      ACTS  0x80       /* Automatic Clear To Send */
-
-/* Bit masks for UARTx_LSR */
-
-#define                        DR  0x1        /* Data Ready */
-#define                        OE  0x2        /* Overrun Error */
-#define                        PE  0x4        /* Parity Error */
-#define                        FE  0x8        /* Framing Error */
-#define                        BI  0x10       /* Break Interrupt */
-#define                      THRE  0x20       /* THR Empty */
-#define                      TEMT  0x40       /* Transmitter Empty */
-#define                       TFI  0x80       /* Transmission Finished Indicator */
-
-/* Bit masks for UARTx_MSR */
-
-#define                      SCTS  0x1        /* Sticky CTS */
-#define                       CTS  0x10       /* Clear To Send */
-#define                      RFCS  0x20       /* Receive FIFO Count Status */
-
-/* Bit masks for UARTx_IER_SET & UARTx_IER_CLEAR */
-
-#define                   ERBFI  0x1        /* Enable Receive Buffer Full Interrupt */
-#define                   ETBEI  0x2        /* Enable Transmit Buffer Empty Interrupt */
-#define                    ELSI  0x4        /* Enable Receive Status Interrupt */
-#define                   EDSSI  0x8        /* Enable Modem Status Interrupt */
-#define                  EDTPTI  0x10       /* Enable DMA Transmit PIRQ Interrupt */
-#define                    ETFI  0x20       /* Enable Transmission Finished Interrupt */
-#define                   ERFCI  0x40       /* Enable Receive FIFO Count Interrupt */
-
-/* Bit masks for UARTx_GCTL */
-
-#define                      UCEN  0x1        /* UART Enable */
-#define                      IREN  0x2        /* IrDA Mode Enable */
-#define                     TPOLC  0x4        /* IrDA TX Polarity Change */
-#define                     RPOLC  0x8        /* IrDA RX Polarity Change */
-#define                       FPE  0x10       /* Force Parity Error */
-#define                       FFE  0x20       /* Force Framing Error */
-#define                      EDBO  0x40       /* Enable Divide-by-One */
-#define                     EGLSI  0x80       /* Enable Global LS Interrupt */
-
-
 /* ******************************************* */
 /*     MULTI BIT MACRO ENUMERATIONS            */
 /* ******************************************* */
@@ -2250,13 +2188,6 @@
 #define PWM_OUT  0x0001
 #define WDTH_CAP 0x0002
 #define EXT_CLK  0x0003
-
-/* UARTx_LCR bit field options */
-
-#define WLS_5   0x0000    /* 5 data bits */
-#define WLS_6   0x0001    /* 6 data bits */
-#define WLS_7   0x0002    /* 7 data bits */
-#define WLS_8   0x0003    /* 8 data bits */
 
 /* PINTx Register Bit Definitions */
 
@@ -2299,240 +2230,6 @@
 #define PIQ29 0x20000000
 #define PIQ30 0x40000000
 #define PIQ31 0x80000000
-
-/* PORT A Bit Definitions for the registers
-PORTA, PORTA_SET, PORTA_CLEAR,
-PORTA_DIR_SET, PORTA_DIR_CLEAR, PORTA_INEN,
-PORTA_FER registers
-*/
-
-#define PA0 0x0001
-#define PA1 0x0002
-#define PA2 0x0004
-#define PA3 0x0008
-#define PA4 0x0010
-#define PA5 0x0020
-#define PA6 0x0040
-#define PA7 0x0080
-#define PA8 0x0100
-#define PA9 0x0200
-#define PA10 0x0400
-#define PA11 0x0800
-#define PA12 0x1000
-#define PA13 0x2000
-#define PA14 0x4000
-#define PA15 0x8000
-
-/* PORT B Bit Definitions for the registers
-PORTB, PORTB_SET, PORTB_CLEAR,
-PORTB_DIR_SET, PORTB_DIR_CLEAR, PORTB_INEN,
-PORTB_FER registers
-*/
-
-#define PB0 0x0001
-#define PB1 0x0002
-#define PB2 0x0004
-#define PB3 0x0008
-#define PB4 0x0010
-#define PB5 0x0020
-#define PB6 0x0040
-#define PB7 0x0080
-#define PB8 0x0100
-#define PB9 0x0200
-#define PB10 0x0400
-#define PB11 0x0800
-#define PB12 0x1000
-#define PB13 0x2000
-#define PB14 0x4000
-
-
-/* PORT C Bit Definitions for the registers
-PORTC, PORTC_SET, PORTC_CLEAR,
-PORTC_DIR_SET, PORTC_DIR_CLEAR, PORTC_INEN,
-PORTC_FER registers
-*/
-
-
-#define PC0 0x0001
-#define PC1 0x0002
-#define PC2 0x0004
-#define PC3 0x0008
-#define PC4 0x0010
-#define PC5 0x0020
-#define PC6 0x0040
-#define PC7 0x0080
-#define PC8 0x0100
-#define PC9 0x0200
-#define PC10 0x0400
-#define PC11 0x0800
-#define PC12 0x1000
-#define PC13 0x2000
-
-
-/* PORT D Bit Definitions for the registers
-PORTD, PORTD_SET, PORTD_CLEAR,
-PORTD_DIR_SET, PORTD_DIR_CLEAR, PORTD_INEN,
-PORTD_FER registers
-*/
-
-#define PD0 0x0001
-#define PD1 0x0002
-#define PD2 0x0004
-#define PD3 0x0008
-#define PD4 0x0010
-#define PD5 0x0020
-#define PD6 0x0040
-#define PD7 0x0080
-#define PD8 0x0100
-#define PD9 0x0200
-#define PD10 0x0400
-#define PD11 0x0800
-#define PD12 0x1000
-#define PD13 0x2000
-#define PD14 0x4000
-#define PD15 0x8000
-
-/* PORT E Bit Definitions for the registers
-PORTE, PORTE_SET, PORTE_CLEAR,
-PORTE_DIR_SET, PORTE_DIR_CLEAR, PORTE_INEN,
-PORTE_FER registers
-*/
-
-
-#define PE0 0x0001
-#define PE1 0x0002
-#define PE2 0x0004
-#define PE3 0x0008
-#define PE4 0x0010
-#define PE5 0x0020
-#define PE6 0x0040
-#define PE7 0x0080
-#define PE8 0x0100
-#define PE9 0x0200
-#define PE10 0x0400
-#define PE11 0x0800
-#define PE12 0x1000
-#define PE13 0x2000
-#define PE14 0x4000
-#define PE15 0x8000
-
-/* PORT F Bit Definitions for the registers
-PORTF, PORTF_SET, PORTF_CLEAR,
-PORTF_DIR_SET, PORTF_DIR_CLEAR, PORTF_INEN,
-PORTF_FER registers
-*/
-
-
-#define PF0 0x0001
-#define PF1 0x0002
-#define PF2 0x0004
-#define PF3 0x0008
-#define PF4 0x0010
-#define PF5 0x0020
-#define PF6 0x0040
-#define PF7 0x0080
-#define PF8 0x0100
-#define PF9 0x0200
-#define PF10 0x0400
-#define PF11 0x0800
-#define PF12 0x1000
-#define PF13 0x2000
-#define PF14 0x4000
-#define PF15 0x8000
-
-/* PORT G Bit Definitions for the registers
-PORTG, PORTG_SET, PORTG_CLEAR,
-PORTG_DIR_SET, PORTG_DIR_CLEAR, PORTG_INEN,
-PORTG_FER registers
-*/
-
-
-#define PG0 0x0001
-#define PG1 0x0002
-#define PG2 0x0004
-#define PG3 0x0008
-#define PG4 0x0010
-#define PG5 0x0020
-#define PG6 0x0040
-#define PG7 0x0080
-#define PG8 0x0100
-#define PG9 0x0200
-#define PG10 0x0400
-#define PG11 0x0800
-#define PG12 0x1000
-#define PG13 0x2000
-#define PG14 0x4000
-#define PG15 0x8000
-
-/* PORT H Bit Definitions for the registers
-PORTH, PORTH_SET, PORTH_CLEAR,
-PORTH_DIR_SET, PORTH_DIR_CLEAR, PORTH_INEN,
-PORTH_FER registers
-*/
-
-
-#define PH0 0x0001
-#define PH1 0x0002
-#define PH2 0x0004
-#define PH3 0x0008
-#define PH4 0x0010
-#define PH5 0x0020
-#define PH6 0x0040
-#define PH7 0x0080
-#define PH8 0x0100
-#define PH9 0x0200
-#define PH10 0x0400
-#define PH11 0x0800
-#define PH12 0x1000
-#define PH13 0x2000
-
-
-/* PORT I Bit Definitions for the registers
-PORTI, PORTI_SET, PORTI_CLEAR,
-PORTI_DIR_SET, PORTI_DIR_CLEAR, PORTI_INEN,
-PORTI_FER registers
-*/
-
-
-#define PI0 0x0001
-#define PI1 0x0002
-#define PI2 0x0004
-#define PI3 0x0008
-#define PI4 0x0010
-#define PI5 0x0020
-#define PI6 0x0040
-#define PI7 0x0080
-#define PI8 0x0100
-#define PI9 0x0200
-#define PI10 0x0400
-#define PI11 0x0800
-#define PI12 0x1000
-#define PI13 0x2000
-#define PI14 0x4000
-#define PI15 0x8000
-
-/* PORT J Bit Definitions for the registers
-PORTJ, PORTJ_SET, PORTJ_CLEAR,
-PORTJ_DIR_SET, PORTJ_DIR_CLEAR, PORTJ_INEN,
-PORTJ_FER registers
-*/
-
-
-#define PJ0 0x0001
-#define PJ1 0x0002
-#define PJ2 0x0004
-#define PJ3 0x0008
-#define PJ4 0x0010
-#define PJ5 0x0020
-#define PJ6 0x0040
-#define PJ7 0x0080
-#define PJ8 0x0100
-#define PJ9 0x0200
-#define PJ10 0x0400
-#define PJ11 0x0800
-#define PJ12 0x1000
-#define PJ13 0x2000
-
 
 /* Port Muxing Bit Fields for PORTx_MUX Registers */
 
@@ -2702,17 +2399,5 @@ PORTJ_FER registers
 #define B3MAP_PHH 0x05000000 /* Map Port H High to Byte 3 */
 #define B3MAP_PIH 0x06000000 /* Map Port I High to Byte 3 */
 #define B3MAP_PJH 0x07000000 /* Map Port J High to Byte 3 */
-
-
-/* for legacy compatibility */
-
-#define WLS(x)  (((x)-5) & 0x03) /* Word Length Select */
-#define W1LMAX_MAX W1LMAX_MIN
-#define EBIU_AMCBCTL0 EBIU_AMBCTL0
-#define EBIU_AMCBCTL1 EBIU_AMBCTL1
-#define PINT0_IRQ PINT0_REQUEST
-#define PINT1_IRQ PINT1_REQUEST
-#define PINT2_IRQ PINT2_REQUEST
-#define PINT3_IRQ PINT3_REQUEST
 
 #endif /* _DEF_BF54X_H */

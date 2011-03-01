@@ -36,24 +36,13 @@
  */
 
 #include "core.h"
-#include "msg.h"
-#include "dbg.h"
 #include "link.h"
-#include "net.h"
-#include "node.h"
 #include "port.h"
-#include "addr.h"
-#include "node_subscr.h"
-#include "name_distr.h"
-#include "bearer.h"
-#include "name_table.h"
 #include "bcast.h"
 
 #define MAX_PKT_DEFAULT_MCAST 1500	/* bcast link max packet size (fixed) */
 
 #define BCLINK_WIN_DEFAULT 20		/* bcast link window size (default) */
-
-#define BCLINK_LOG_BUF_SIZE 0
 
 /*
  * Loss rate for incoming broadcast frames; used to test retransmission code.
@@ -114,10 +103,13 @@ struct bclink {
 };
 
 
-static struct bcbearer *bcbearer = NULL;
-static struct bclink *bclink = NULL;
-static struct link *bcl = NULL;
+static struct bcbearer *bcbearer;
+static struct bclink *bclink;
+static struct link *bcl;
 static DEFINE_SPINLOCK(bc_lock);
+
+/* broadcast-capable node map */
+struct tipc_node_map tipc_bcast_nmap;
 
 const char tipc_bclink_name[] = "broadcast-link";
 
@@ -204,9 +196,8 @@ static void bclink_retransmit_pkt(u32 after, u32 to)
 	struct sk_buff *buf;
 
 	buf = bcl->first_out;
-	while (buf && less_eq(buf_seqno(buf), after)) {
+	while (buf && less_eq(buf_seqno(buf), after))
 		buf = buf->next;
-	}
 	tipc_link_retransmit(bcl, buf, mod(to - after));
 }
 
@@ -232,9 +223,8 @@ void tipc_bclink_acknowledge(struct tipc_node *n_ptr, u32 acked)
 	/* Skip over packets that node has previously acknowledged */
 
 	crs = bcl->first_out;
-	while (crs && less_eq(buf_seqno(crs), n_ptr->bclink.acked)) {
+	while (crs && less_eq(buf_seqno(crs), n_ptr->bclink.acked))
 		crs = crs->next;
-	}
 
 	/* Update packets that node is now acknowledging */
 
@@ -433,15 +423,13 @@ int tipc_bclink_send_msg(struct sk_buff *buf)
 void tipc_bclink_recv_pkt(struct sk_buff *buf)
 {
 #if (TIPC_BCAST_LOSS_RATE)
-	static int rx_count = 0;
+	static int rx_count;
 #endif
 	struct tipc_msg *msg = buf_msg(buf);
-	struct tipc_node* node = tipc_node_find(msg_prevnode(msg));
+	struct tipc_node *node = tipc_node_find(msg_prevnode(msg));
 	u32 next_in;
 	u32 seqno;
 	struct sk_buff *deferred;
-
-	msg_dbg(msg, "<BC<<<");
 
 	if (unlikely(!node || !tipc_node_is_up(node) || !node->bclink.supported ||
 		     (msg_mc_netid(msg) != tipc_net_id))) {
@@ -450,7 +438,6 @@ void tipc_bclink_recv_pkt(struct sk_buff *buf)
 	}
 
 	if (unlikely(msg_user(msg) == BCAST_PROTOCOL)) {
-		msg_dbg(msg, "<BCNACK<<<");
 		if (msg_destnode(msg) == tipc_own_addr) {
 			tipc_node_lock(node);
 			tipc_bclink_acknowledge(node, msg_bcast_ack(msg));
@@ -574,8 +561,8 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 	if (likely(!msg_non_seq(buf_msg(buf)))) {
 		struct tipc_msg *msg;
 
-		assert(tipc_cltr_bcast_nodes.count != 0);
-		bcbuf_set_acks(buf, tipc_cltr_bcast_nodes.count);
+		assert(tipc_bcast_nmap.count != 0);
+		bcbuf_set_acks(buf, tipc_bcast_nmap.count);
 		msg = buf_msg(buf);
 		msg_set_non_seq(msg, 1);
 		msg_set_mc_netid(msg, tipc_net_id);
@@ -584,7 +571,7 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 
 	/* Send buffer over bearers until all targets reached */
 
-	bcbearer->remains = tipc_cltr_bcast_nodes;
+	bcbearer->remains = tipc_bcast_nmap;
 
 	for (bp_index = 0; bp_index < MAX_BEARERS; bp_index++) {
 		struct bearer *p = bcbearer->bpairs[bp_index].primary;
@@ -782,7 +769,6 @@ int tipc_bclink_init(void)
 	bcbearer = kzalloc(sizeof(*bcbearer), GFP_ATOMIC);
 	bclink = kzalloc(sizeof(*bclink), GFP_ATOMIC);
 	if (!bcbearer || !bclink) {
- nomem:
 		warn("Multicast link creation failed, no memory\n");
 		kfree(bcbearer);
 		bcbearer = NULL;
@@ -807,14 +793,6 @@ int tipc_bclink_init(void)
 	bcl->state = WORKING_WORKING;
 	strlcpy(bcl->name, tipc_bclink_name, TIPC_MAX_LINK_NAME);
 
-	if (BCLINK_LOG_BUF_SIZE) {
-		char *pb = kmalloc(BCLINK_LOG_BUF_SIZE, GFP_ATOMIC);
-
-		if (!pb)
-			goto nomem;
-		tipc_printbuf_init(&bcl->print_buf, pb, BCLINK_LOG_BUF_SIZE);
-	}
-
 	return 0;
 }
 
@@ -823,8 +801,6 @@ void tipc_bclink_stop(void)
 	spin_lock_bh(&bc_lock);
 	if (bcbearer) {
 		tipc_link_stop(bcl);
-		if (BCLINK_LOG_BUF_SIZE)
-			kfree(bcl->print_buf.buf);
 		bcl = NULL;
 		kfree(bclink);
 		bclink = NULL;

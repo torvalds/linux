@@ -553,8 +553,6 @@ static int vidioc_s_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *f
 		}
 	}
 
-	mutex_lock(&dev->lock);
-
 	/* ok, accept it */
 	vv->ov_fb = *fb;
 	vv->ov_fmt = fmt;
@@ -563,8 +561,6 @@ static int vidioc_s_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *f
 		vv->ov_fb.fmt.bytesperline = vv->ov_fb.fmt.width * fmt->depth / 8;
 		DEB_D(("setting bytesperline to %d\n", vv->ov_fb.fmt.bytesperline));
 	}
-
-	mutex_unlock(&dev->lock);
 	return 0;
 }
 
@@ -649,8 +645,6 @@ static int vidioc_s_ctrl(struct file *file, void *fh, struct v4l2_control *c)
 		return -EINVAL;
 	}
 
-	mutex_lock(&dev->lock);
-
 	switch (ctrl->type) {
 	case V4L2_CTRL_TYPE_BOOLEAN:
 	case V4L2_CTRL_TYPE_MENU:
@@ -693,7 +687,6 @@ static int vidioc_s_ctrl(struct file *file, void *fh, struct v4l2_control *c)
 		/* fixme: we can support changing VFLIP and HFLIP here... */
 		if (IS_CAPTURE_ACTIVE(fh) != 0) {
 			DEB_D(("V4L2_CID_HFLIP while active capture.\n"));
-			mutex_unlock(&dev->lock);
 			return -EBUSY;
 		}
 		vv->hflip = c->value;
@@ -701,16 +694,13 @@ static int vidioc_s_ctrl(struct file *file, void *fh, struct v4l2_control *c)
 	case V4L2_CID_VFLIP:
 		if (IS_CAPTURE_ACTIVE(fh) != 0) {
 			DEB_D(("V4L2_CID_VFLIP while active capture.\n"));
-			mutex_unlock(&dev->lock);
 			return -EBUSY;
 		}
 		vv->vflip = c->value;
 		break;
 	default:
-		mutex_unlock(&dev->lock);
 		return -EINVAL;
 	}
-	mutex_unlock(&dev->lock);
 
 	if (IS_OVERLAY_ACTIVE(fh) != 0) {
 		saa7146_stop_preview(fh);
@@ -902,21 +892,17 @@ static int vidioc_s_fmt_vid_overlay(struct file *file, void *__fh, struct v4l2_f
 	err = vidioc_try_fmt_vid_overlay(file, fh, f);
 	if (0 != err)
 		return err;
-	mutex_lock(&dev->lock);
 	fh->ov.win    = f->fmt.win;
 	fh->ov.nclips = f->fmt.win.clipcount;
 	if (fh->ov.nclips > 16)
 		fh->ov.nclips = 16;
 	if (copy_from_user(fh->ov.clips, f->fmt.win.clips,
 				sizeof(struct v4l2_clip) * fh->ov.nclips)) {
-		mutex_unlock(&dev->lock);
 		return -EFAULT;
 	}
 
 	/* fh->ov.fh is used to indicate that we have valid overlay informations, too */
 	fh->ov.fh = fh;
-
-	mutex_unlock(&dev->lock);
 
 	/* check if our current overlay is active */
 	if (IS_OVERLAY_ACTIVE(fh) != 0) {
@@ -976,8 +962,6 @@ static int vidioc_s_std(struct file *file, void *fh, v4l2_std_id *id)
 		}
 	}
 
-	mutex_lock(&dev->lock);
-
 	for (i = 0; i < dev->ext_vv_data->num_stds; i++)
 		if (*id & dev->ext_vv_data->stds[i].id)
 			break;
@@ -987,8 +971,6 @@ static int vidioc_s_std(struct file *file, void *fh, v4l2_std_id *id)
 			dev->ext_vv_data->std_callback(dev, vv->standard);
 		found = 1;
 	}
-
-	mutex_unlock(&dev->lock);
 
 	if (vv->ov_suspend != NULL) {
 		saa7146_start_preview(vv->ov_suspend);
@@ -1129,35 +1111,6 @@ static int vidioc_g_chip_ident(struct file *file, void *__fh,
 			core, g_chip_ident, chip);
 }
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-static int vidiocgmbuf(struct file *file, void *__fh, struct video_mbuf *mbuf)
-{
-	struct saa7146_fh *fh = __fh;
-	struct videobuf_queue *q = &fh->video_q;
-	int err, i;
-
-	/* fixme: number of capture buffers and sizes for v4l apps */
-	int gbuffers = 2;
-	int gbufsize = 768 * 576 * 4;
-
-	DEB_D(("VIDIOCGMBUF \n"));
-
-	q = &fh->video_q;
-	err = videobuf_mmap_setup(q, gbuffers, gbufsize,
-			V4L2_MEMORY_MMAP);
-	if (err < 0)
-		return err;
-
-	gbuffers = err;
-	memset(mbuf, 0, sizeof(*mbuf));
-	mbuf->frames = gbuffers;
-	mbuf->size   = gbuffers * gbufsize;
-	for (i = 0; i < gbuffers; i++)
-		mbuf->offsets[i] = i * gbufsize;
-	return 0;
-}
-#endif
-
 const struct v4l2_ioctl_ops saa7146_video_ioctl_ops = {
 	.vidioc_querycap             = vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap     = vidioc_enum_fmt_vid_cap,
@@ -1186,9 +1139,6 @@ const struct v4l2_ioctl_ops saa7146_video_ioctl_ops = {
 	.vidioc_streamon             = vidioc_streamon,
 	.vidioc_streamoff            = vidioc_streamoff,
 	.vidioc_g_parm 		     = vidioc_g_parm,
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf                 = vidiocgmbuf,
-#endif
 };
 
 /*********************************************************************************/
@@ -1386,7 +1336,7 @@ static int video_open(struct saa7146_dev *dev, struct file *file)
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct saa7146_buf),
-			    file, NULL);
+			    file, &dev->v4l2_lock);
 
 	return 0;
 }

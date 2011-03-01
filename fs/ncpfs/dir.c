@@ -17,12 +17,11 @@
 #include <linux/kernel.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
+#include <linux/namei.h>
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
 
-#include <linux/ncp_fs.h>
-
-#include "ncplib_kernel.h"
+#include "ncp_fs.h"
 
 static void ncp_read_volume_list(struct file *, void *, filldir_t,
 				struct ncp_cache_control *);
@@ -74,25 +73,20 @@ const struct inode_operations ncp_dir_inode_operations =
  * Dentry operations routines
  */
 static int ncp_lookup_validate(struct dentry *, struct nameidata *);
-static int ncp_hash_dentry(struct dentry *, struct qstr *);
-static int ncp_compare_dentry (struct dentry *, struct qstr *, struct qstr *);
-static int ncp_delete_dentry(struct dentry *);
+static int ncp_hash_dentry(const struct dentry *, const struct inode *,
+		struct qstr *);
+static int ncp_compare_dentry(const struct dentry *, const struct inode *,
+		const struct dentry *, const struct inode *,
+		unsigned int, const char *, const struct qstr *);
+static int ncp_delete_dentry(const struct dentry *);
 
-static const struct dentry_operations ncp_dentry_operations =
+const struct dentry_operations ncp_dentry_operations =
 {
 	.d_revalidate	= ncp_lookup_validate,
 	.d_hash		= ncp_hash_dentry,
 	.d_compare	= ncp_compare_dentry,
 	.d_delete	= ncp_delete_dentry,
 };
-
-const struct dentry_operations ncp_root_dentry_operations =
-{
-	.d_hash		= ncp_hash_dentry,
-	.d_compare	= ncp_compare_dentry,
-	.d_delete	= ncp_delete_dentry,
-};
-
 
 #define ncp_namespace(i)	(NCP_SERVER(i)->name_space[NCP_FINFO(i)->volNumber])
 
@@ -113,10 +107,10 @@ static inline int ncp_preserve_entry_case(struct inode *i, __u32 nscreator)
 
 #define ncp_preserve_case(i)	(ncp_namespace(i) != NW_NS_DOS)
 
-static inline int ncp_case_sensitive(struct dentry *dentry)
+static inline int ncp_case_sensitive(const struct inode *i)
 {
 #ifdef CONFIG_NCPFS_NFS_NS
-	return ncp_namespace(dentry->d_inode) == NW_NS_NFS;
+	return ncp_namespace(i) == NW_NS_NFS;
 #else
 	return 0;
 #endif /* CONFIG_NCPFS_NFS_NS */
@@ -127,14 +121,16 @@ static inline int ncp_case_sensitive(struct dentry *dentry)
  * is case-sensitive.
  */
 static int 
-ncp_hash_dentry(struct dentry *dentry, struct qstr *this)
+ncp_hash_dentry(const struct dentry *dentry, const struct inode *inode,
+		struct qstr *this)
 {
-	if (!ncp_case_sensitive(dentry)) {
+	if (!ncp_case_sensitive(inode)) {
+		struct super_block *sb = dentry->d_sb;
 		struct nls_table *t;
 		unsigned long hash;
 		int i;
 
-		t = NCP_IO_TABLE(dentry);
+		t = NCP_IO_TABLE(sb);
 		hash = init_name_hash();
 		for (i=0; i<this->len ; i++)
 			hash = partial_name_hash(ncp_tolower(t, this->name[i]),
@@ -145,15 +141,17 @@ ncp_hash_dentry(struct dentry *dentry, struct qstr *this)
 }
 
 static int
-ncp_compare_dentry(struct dentry *dentry, struct qstr *a, struct qstr *b)
+ncp_compare_dentry(const struct dentry *parent, const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name)
 {
-	if (a->len != b->len)
+	if (len != name->len)
 		return 1;
 
-	if (ncp_case_sensitive(dentry))
-		return strncmp(a->name, b->name, a->len);
+	if (ncp_case_sensitive(pinode))
+		return strncmp(str, name->name, len);
 
-	return ncp_strnicmp(NCP_IO_TABLE(dentry), a->name, b->name, a->len);
+	return ncp_strnicmp(NCP_IO_TABLE(pinode->i_sb), str, name->name, len);
 }
 
 /*
@@ -162,7 +160,7 @@ ncp_compare_dentry(struct dentry *dentry, struct qstr *a, struct qstr *b)
  * Closing files can be safely postponed until iput() - it's done there anyway.
  */
 static int
-ncp_delete_dentry(struct dentry * dentry)
+ncp_delete_dentry(const struct dentry * dentry)
 {
 	struct inode *inode = dentry->d_inode;
 
@@ -301,6 +299,12 @@ ncp_lookup_validate(struct dentry *dentry, struct nameidata *nd)
 	int res, val = 0, len;
 	__u8 __name[NCP_MAXPATHLEN + 1];
 
+	if (dentry == dentry->d_sb->s_root)
+		return 1;
+
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
 	parent = dget_parent(dentry);
 	dir = parent->d_inode;
 
@@ -384,21 +388,21 @@ ncp_dget_fpos(struct dentry *dentry, struct dentry *parent, unsigned long fpos)
 	}
 
 	/* If a pointer is invalid, we search the dentry. */
-	spin_lock(&dcache_lock);
+	spin_lock(&parent->d_lock);
 	next = parent->d_subdirs.next;
 	while (next != &parent->d_subdirs) {
 		dent = list_entry(next, struct dentry, d_u.d_child);
 		if ((unsigned long)dent->d_fsdata == fpos) {
 			if (dent->d_inode)
-				dget_locked(dent);
+				dget(dent);
 			else
 				dent = NULL;
-			spin_unlock(&dcache_lock);
+			spin_unlock(&parent->d_lock);
 			goto out;
 		}
 		next = next->next;
 	}
-	spin_unlock(&dcache_lock);
+	spin_unlock(&parent->d_lock);
 	return NULL;
 
 out:
@@ -592,7 +596,7 @@ ncp_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 	qname.hash = full_name_hash(qname.name, qname.len);
 
 	if (dentry->d_op && dentry->d_op->d_hash)
-		if (dentry->d_op->d_hash(dentry, &qname) != 0)
+		if (dentry->d_op->d_hash(dentry, dentry->d_inode, &qname) != 0)
 			goto end_advance;
 
 	newdent = d_lookup(dentry, &qname);
@@ -611,35 +615,12 @@ ncp_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 			shrink_dcache_parent(newdent);
 
 		/*
-		 * It is not as dangerous as it looks.  NetWare's OS2 namespace is
-		 * case preserving yet case insensitive.  So we update dentry's name
-		 * as received from server.  We found dentry via d_lookup with our
-		 * hash, so we know that hash does not change, and so replacing name
-		 * should be reasonably safe.
+		 * NetWare's OS2 namespace is case preserving yet case
+		 * insensitive.  So we update dentry's name as received from
+		 * server. Parent dir's i_mutex is locked because we're in
+		 * readdir.
 		 */
-		if (qname.len == newdent->d_name.len &&
-		    memcmp(newdent->d_name.name, qname.name, newdent->d_name.len)) {
-			struct inode *inode = newdent->d_inode;
-
-			/*
-			 * Inside ncpfs all uses of d_name are either for debugging,
-			 * or on functions which acquire inode mutex (mknod, creat,
-			 * lookup).  So grab i_mutex here, to be sure.  d_path
-			 * uses dcache_lock when generating path, so we should too.
-			 * And finally d_compare is protected by dentry's d_lock, so
-			 * here we go.
-			 */
-			if (inode)
-				mutex_lock(&inode->i_mutex);
-			spin_lock(&dcache_lock);
-			spin_lock(&newdent->d_lock);
-			memcpy((char *) newdent->d_name.name, qname.name,
-								newdent->d_name.len);
-			spin_unlock(&newdent->d_lock);
-			spin_unlock(&dcache_lock);
-			if (inode)
-				mutex_unlock(&inode->i_mutex);
-		}
+		dentry_update_name_case(newdent, &qname);
 	}
 
 	if (!newdent->d_inode) {
@@ -649,7 +630,6 @@ ncp_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 		entry->ino = iunique(dir->i_sb, 2);
 		inode = ncp_iget(dir->i_sb, entry);
 		if (inode) {
-			newdent->d_op = &ncp_dentry_operations;
 			d_instantiate(newdent, inode);
 			if (!hashed)
 				d_rehash(newdent);
@@ -657,7 +637,7 @@ ncp_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 	} else {
 		struct inode *inode = newdent->d_inode;
 
-		mutex_lock(&inode->i_mutex);
+		mutex_lock_nested(&inode->i_mutex, I_MUTEX_CHILD);
 		ncp_update_inode2(inode, entry);
 		mutex_unlock(&inode->i_mutex);
 	}
@@ -905,7 +885,6 @@ static struct dentry *ncp_lookup(struct inode *dir, struct dentry *dentry, struc
 	if (inode) {
 		ncp_new_dentry(dentry);
 add_entry:
-		dentry->d_op = &ncp_dentry_operations;
 		d_add(dentry, inode);
 		error = 0;
 	}

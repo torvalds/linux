@@ -323,7 +323,12 @@ static int be_mbox_notify_wait(struct be_adapter *adapter)
 
 static int be_POST_stage_get(struct be_adapter *adapter, u16 *stage)
 {
-	u32 sem = ioread32(adapter->csr + MPU_EP_SEMAPHORE_OFFSET);
+	u32 sem;
+
+	if (lancer_chip(adapter))
+		sem  = ioread32(adapter->db + MPU_EP_SEMAPHORE_IF_TYPE2_OFFSET);
+	else
+		sem  = ioread32(adapter->csr + MPU_EP_SEMAPHORE_OFFSET);
 
 	*stage = sem & EP_SEMAPHORE_POST_STAGE_MASK;
 	if ((sem >> EP_SEMAPHORE_POST_ERR_SHIFT) & EP_SEMAPHORE_POST_ERR_MASK)
@@ -685,16 +690,36 @@ int be_cmd_cq_create(struct be_adapter *adapter,
 		OPCODE_COMMON_CQ_CREATE, sizeof(*req));
 
 	req->num_pages =  cpu_to_le16(PAGES_4K_SPANNED(q_mem->va, q_mem->size));
+	if (lancer_chip(adapter)) {
+		req->hdr.version = 1;
+		req->page_size = 1; /* 1 for 4K */
+		AMAP_SET_BITS(struct amap_cq_context_lancer, coalescwm, ctxt,
+								coalesce_wm);
+		AMAP_SET_BITS(struct amap_cq_context_lancer, nodelay, ctxt,
+								no_delay);
+		AMAP_SET_BITS(struct amap_cq_context_lancer, count, ctxt,
+						__ilog2_u32(cq->len/256));
+		AMAP_SET_BITS(struct amap_cq_context_lancer, valid, ctxt, 1);
+		AMAP_SET_BITS(struct amap_cq_context_lancer, eventable,
+								ctxt, 1);
+		AMAP_SET_BITS(struct amap_cq_context_lancer, eqid,
+								ctxt, eq->id);
+		AMAP_SET_BITS(struct amap_cq_context_lancer, armed, ctxt, 1);
+	} else {
+		AMAP_SET_BITS(struct amap_cq_context_be, coalescwm, ctxt,
+								coalesce_wm);
+		AMAP_SET_BITS(struct amap_cq_context_be, nodelay,
+								ctxt, no_delay);
+		AMAP_SET_BITS(struct amap_cq_context_be, count, ctxt,
+						__ilog2_u32(cq->len/256));
+		AMAP_SET_BITS(struct amap_cq_context_be, valid, ctxt, 1);
+		AMAP_SET_BITS(struct amap_cq_context_be, solevent,
+								ctxt, sol_evts);
+		AMAP_SET_BITS(struct amap_cq_context_be, eventable, ctxt, 1);
+		AMAP_SET_BITS(struct amap_cq_context_be, eqid, ctxt, eq->id);
+		AMAP_SET_BITS(struct amap_cq_context_be, armed, ctxt, 1);
+	}
 
-	AMAP_SET_BITS(struct amap_cq_context, coalescwm, ctxt, coalesce_wm);
-	AMAP_SET_BITS(struct amap_cq_context, nodelay, ctxt, no_delay);
-	AMAP_SET_BITS(struct amap_cq_context, count, ctxt,
-			__ilog2_u32(cq->len/256));
-	AMAP_SET_BITS(struct amap_cq_context, valid, ctxt, 1);
-	AMAP_SET_BITS(struct amap_cq_context, solevent, ctxt, sol_evts);
-	AMAP_SET_BITS(struct amap_cq_context, eventable, ctxt, 1);
-	AMAP_SET_BITS(struct amap_cq_context, eqid, ctxt, eq->id);
-	AMAP_SET_BITS(struct amap_cq_context, armed, ctxt, 1);
 	be_dws_cpu_to_le(ctxt, sizeof(req->context));
 
 	be_cmd_page_addrs_prepare(req->pages, ARRAY_SIZE(req->pages), q_mem);
@@ -743,13 +768,27 @@ int be_cmd_mccq_create(struct be_adapter *adapter,
 			OPCODE_COMMON_MCC_CREATE_EXT, sizeof(*req));
 
 	req->num_pages = cpu_to_le16(PAGES_4K_SPANNED(q_mem->va, q_mem->size));
+	if (lancer_chip(adapter)) {
+		req->hdr.version = 1;
+		req->cq_id = cpu_to_le16(cq->id);
 
-	AMAP_SET_BITS(struct amap_mcc_context, valid, ctxt, 1);
-	AMAP_SET_BITS(struct amap_mcc_context, ring_size, ctxt,
-		be_encoded_q_len(mccq->len));
-	AMAP_SET_BITS(struct amap_mcc_context, cq_id, ctxt, cq->id);
+		AMAP_SET_BITS(struct amap_mcc_context_lancer, ring_size, ctxt,
+						be_encoded_q_len(mccq->len));
+		AMAP_SET_BITS(struct amap_mcc_context_lancer, valid, ctxt, 1);
+		AMAP_SET_BITS(struct amap_mcc_context_lancer, async_cq_id,
+								ctxt, cq->id);
+		AMAP_SET_BITS(struct amap_mcc_context_lancer, async_cq_valid,
+								 ctxt, 1);
+
+	} else {
+		AMAP_SET_BITS(struct amap_mcc_context_be, valid, ctxt, 1);
+		AMAP_SET_BITS(struct amap_mcc_context_be, ring_size, ctxt,
+						be_encoded_q_len(mccq->len));
+		AMAP_SET_BITS(struct amap_mcc_context_be, cq_id, ctxt, cq->id);
+	}
+
 	/* Subscribe to Link State and Group 5 Events(bits 1 and 5 set) */
-	req->async_event_bitmap[0] |= 0x00000022;
+	req->async_event_bitmap[0] = cpu_to_le32(0x00000022);
 	be_dws_cpu_to_le(ctxt, sizeof(req->context));
 
 	be_cmd_page_addrs_prepare(req->pages, ARRAY_SIZE(req->pages), q_mem);
@@ -1747,6 +1786,10 @@ int be_cmd_get_seeprom_data(struct be_adapter *adapter,
 	spin_lock_bh(&adapter->mcc_lock);
 
 	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
 	req = nonemb_cmd->va;
 	sge = nonembedded_sgl(wrb);
 
@@ -1762,6 +1805,7 @@ int be_cmd_get_seeprom_data(struct be_adapter *adapter,
 
 	status = be_mcc_notify_wait(adapter);
 
+err:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }

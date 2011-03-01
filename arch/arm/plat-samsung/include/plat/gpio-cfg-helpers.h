@@ -244,7 +244,7 @@ extern int s3c_gpio_setpull_s3c2443(struct s3c_gpio_chip *chip,
  * This helper function reads the state of the pull-{up,down} resistor for the
  * given GPIO in the same case as s3c_gpio_setpull_upown.
 */
-extern s3c_gpio_pull_t s3c_gpio_getpull_s3c24xx(struct s3c_gpio_chip *chip,
+extern s3c_gpio_pull_t s3c_gpio_getpull_s3c2443(struct s3c_gpio_chip *chip,
 						unsigned int off);
 
 #endif /* __PLAT_GPIO_CFG_HELPERS_H */

@@ -92,52 +92,95 @@ static int odd_parity(u8 c)
 	return c & 1;
 }
 
-void ivtv_write_vbi(struct ivtv *itv, const struct v4l2_sliced_vbi_data *sliced, size_t cnt)
+static void ivtv_write_vbi_line(struct ivtv *itv,
+				const struct v4l2_sliced_vbi_data *d,
+				struct vbi_cc *cc, int *found_cc)
 {
 	struct vbi_info *vi = &itv->vbi;
+
+	if (d->id == V4L2_SLICED_CAPTION_525 && d->line == 21) {
+		if (d->field) {
+			cc->even[0] = d->data[0];
+			cc->even[1] = d->data[1];
+		} else {
+			cc->odd[0] = d->data[0];
+			cc->odd[1] = d->data[1];
+		}
+		*found_cc = 1;
+	} else if (d->id == V4L2_SLICED_VPS && d->line == 16 && d->field == 0) {
+		struct vbi_vps vps;
+
+		vps.data[0] = d->data[2];
+		vps.data[1] = d->data[8];
+		vps.data[2] = d->data[9];
+		vps.data[3] = d->data[10];
+		vps.data[4] = d->data[11];
+		if (memcmp(&vps, &vi->vps_payload, sizeof(vps))) {
+			vi->vps_payload = vps;
+			set_bit(IVTV_F_I_UPDATE_VPS, &itv->i_flags);
+		}
+	} else if (d->id == V4L2_SLICED_WSS_625 &&
+		   d->line == 23 && d->field == 0) {
+		int wss = d->data[0] | d->data[1] << 8;
+
+		if (vi->wss_payload != wss) {
+			vi->wss_payload = wss;
+			set_bit(IVTV_F_I_UPDATE_WSS, &itv->i_flags);
+		}
+	}
+}
+
+static void ivtv_write_vbi_cc_lines(struct ivtv *itv, const struct vbi_cc *cc)
+{
+	struct vbi_info *vi = &itv->vbi;
+
+	if (vi->cc_payload_idx < ARRAY_SIZE(vi->cc_payload)) {
+		memcpy(&vi->cc_payload[vi->cc_payload_idx], cc,
+		       sizeof(struct vbi_cc));
+		vi->cc_payload_idx++;
+		set_bit(IVTV_F_I_UPDATE_CC, &itv->i_flags);
+	}
+}
+
+static void ivtv_write_vbi(struct ivtv *itv,
+			   const struct v4l2_sliced_vbi_data *sliced,
+			   size_t cnt)
+{
 	struct vbi_cc cc = { .odd = { 0x80, 0x80 }, .even = { 0x80, 0x80 } };
 	int found_cc = 0;
 	size_t i;
 
+	for (i = 0; i < cnt; i++)
+		ivtv_write_vbi_line(itv, sliced + i, &cc, &found_cc);
+
+	if (found_cc)
+		ivtv_write_vbi_cc_lines(itv, &cc);
+}
+
+ssize_t
+ivtv_write_vbi_from_user(struct ivtv *itv,
+			 const struct v4l2_sliced_vbi_data __user *sliced,
+			 size_t cnt)
+{
+	struct vbi_cc cc = { .odd = { 0x80, 0x80 }, .even = { 0x80, 0x80 } };
+	int found_cc = 0;
+	size_t i;
+	struct v4l2_sliced_vbi_data d;
+	ssize_t ret = cnt * sizeof(struct v4l2_sliced_vbi_data);
+
 	for (i = 0; i < cnt; i++) {
-		const struct v4l2_sliced_vbi_data *d = sliced + i;
-
-		if (d->id == V4L2_SLICED_CAPTION_525 && d->line == 21) {
-			if (d->field) {
-				cc.even[0] = d->data[0];
-				cc.even[1] = d->data[1];
-			} else {
-				cc.odd[0] = d->data[0];
-				cc.odd[1] = d->data[1];
-			}
-			found_cc = 1;
+		if (copy_from_user(&d, sliced + i,
+				   sizeof(struct v4l2_sliced_vbi_data))) {
+			ret = -EFAULT;
+			break;
 		}
-		else if (d->id == V4L2_SLICED_VPS && d->line == 16 && d->field == 0) {
-			struct vbi_vps vps;
-
-			vps.data[0] = d->data[2];
-			vps.data[1] = d->data[8];
-			vps.data[2] = d->data[9];
-			vps.data[3] = d->data[10];
-			vps.data[4] = d->data[11];
-			if (memcmp(&vps, &vi->vps_payload, sizeof(vps))) {
-				vi->vps_payload = vps;
-				set_bit(IVTV_F_I_UPDATE_VPS, &itv->i_flags);
-			}
-		}
-		else if (d->id == V4L2_SLICED_WSS_625 && d->line == 23 && d->field == 0) {
-			int wss = d->data[0] | d->data[1] << 8;
-
-			if (vi->wss_payload != wss) {
-				vi->wss_payload = wss;
-				set_bit(IVTV_F_I_UPDATE_WSS, &itv->i_flags);
-			}
-		}
+		ivtv_write_vbi_line(itv, sliced + i, &cc, &found_cc);
 	}
-	if (found_cc && vi->cc_payload_idx < ARRAY_SIZE(vi->cc_payload)) {
-		vi->cc_payload[vi->cc_payload_idx++] = cc;
-		set_bit(IVTV_F_I_UPDATE_CC, &itv->i_flags);
-	}
+
+	if (found_cc)
+		ivtv_write_vbi_cc_lines(itv, &cc);
+
+	return ret;
 }
 
 static void copy_vbi_data(struct ivtv *itv, int lines, u32 pts_stamp)

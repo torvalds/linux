@@ -16,20 +16,31 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/sysdev.h>
+#include <linux/io.h>
+#include <linux/irq.h>
 
 #include <mach/hardware.h>
-#include <asm/irq.h>
-#include <asm/mach/irq.h>
+#include <mach/irqs.h>
 #include <mach/gpio.h>
-#include <mach/regs-intc.h>
 
 #include "generic.h"
 
-#define MAX_INTERNAL_IRQS	128
+#define IRQ_BASE		(void __iomem *)io_p2v(0x40d00000)
 
-#define IRQ_BIT(n)	(((n) - PXA_IRQ(0)) & 0x1f)
-#define _ICMR(n)	(*((((n) - PXA_IRQ(0)) & ~0x1f) ? &ICMR2 : &ICMR))
-#define _ICLR(n)	(*((((n) - PXA_IRQ(0)) & ~0x1f) ? &ICLR2 : &ICLR))
+#define ICIP			(0x000)
+#define ICMR			(0x004)
+#define ICLR			(0x008)
+#define ICFR			(0x00c)
+#define ICPR			(0x010)
+#define ICCR			(0x014)
+#define ICHP			(0x018)
+#define IPR(i)			(((i) < 32) ? (0x01c + ((i) << 2)) :		\
+				((i) < 64) ? (0x0b0 + (((i) - 32) << 2)) :	\
+				      (0x144 + (((i) - 64) << 2)))
+#define IPR_VALID		(1 << 31)
+#define IRQ_BIT(n)		(((n) - PXA_IRQ(0)) & 0x1f)
+
+#define MAX_INTERNAL_IRQS	128
 
 /*
  * This is for peripheral IRQs internal to the PXA chip.
@@ -37,29 +48,53 @@
 
 static int pxa_internal_irq_nr;
 
-static void pxa_mask_irq(unsigned int irq)
+static inline int cpu_has_ipr(void)
 {
-	_ICMR(irq) &= ~(1 << IRQ_BIT(irq));
+	return !cpu_is_pxa25x();
 }
 
-static void pxa_unmask_irq(unsigned int irq)
+static inline void __iomem *irq_base(int i)
 {
-	_ICMR(irq) |= 1 << IRQ_BIT(irq);
+	static unsigned long phys_base[] = {
+		0x40d00000,
+		0x40d0009c,
+		0x40d00130,
+	};
+
+	return (void __iomem *)io_p2v(phys_base[i]);
+}
+
+static void pxa_mask_irq(struct irq_data *d)
+{
+	void __iomem *base = irq_data_get_irq_chip_data(d);
+	uint32_t icmr = __raw_readl(base + ICMR);
+
+	icmr &= ~(1 << IRQ_BIT(d->irq));
+	__raw_writel(icmr, base + ICMR);
+}
+
+static void pxa_unmask_irq(struct irq_data *d)
+{
+	void __iomem *base = irq_data_get_irq_chip_data(d);
+	uint32_t icmr = __raw_readl(base + ICMR);
+
+	icmr |= 1 << IRQ_BIT(d->irq);
+	__raw_writel(icmr, base + ICMR);
 }
 
 static struct irq_chip pxa_internal_irq_chip = {
 	.name		= "SC",
-	.ack		= pxa_mask_irq,
-	.mask		= pxa_mask_irq,
-	.unmask		= pxa_unmask_irq,
+	.irq_ack	= pxa_mask_irq,
+	.irq_mask	= pxa_mask_irq,
+	.irq_unmask	= pxa_unmask_irq,
 };
 
 /*
  * GPIO IRQs for GPIO 0 and 1
  */
-static int pxa_set_low_gpio_type(unsigned int irq, unsigned int type)
+static int pxa_set_low_gpio_type(struct irq_data *d, unsigned int type)
 {
-	int gpio = irq - IRQ_GPIO0;
+	int gpio = d->irq - IRQ_GPIO0;
 
 	if (__gpio_is_occupied(gpio)) {
 		pr_err("%s failed: GPIO is configured\n", __func__);
@@ -79,27 +114,17 @@ static int pxa_set_low_gpio_type(unsigned int irq, unsigned int type)
 	return 0;
 }
 
-static void pxa_ack_low_gpio(unsigned int irq)
+static void pxa_ack_low_gpio(struct irq_data *d)
 {
-	GEDR0 = (1 << (irq - IRQ_GPIO0));
-}
-
-static void pxa_mask_low_gpio(unsigned int irq)
-{
-	ICMR &= ~(1 << (irq - PXA_IRQ(0)));
-}
-
-static void pxa_unmask_low_gpio(unsigned int irq)
-{
-	ICMR |= 1 << (irq - PXA_IRQ(0));
+	GEDR0 = (1 << (d->irq - IRQ_GPIO0));
 }
 
 static struct irq_chip pxa_low_gpio_chip = {
 	.name		= "GPIO-l",
-	.ack		= pxa_ack_low_gpio,
-	.mask		= pxa_mask_low_gpio,
-	.unmask		= pxa_unmask_low_gpio,
-	.set_type	= pxa_set_low_gpio_type,
+	.irq_ack	= pxa_ack_low_gpio,
+	.irq_mask	= pxa_mask_irq,
+	.irq_unmask	= pxa_unmask_irq,
+	.irq_set_type	= pxa_set_low_gpio_type,
 };
 
 static void __init pxa_init_low_gpio_irq(set_wake_t fn)
@@ -113,42 +138,44 @@ static void __init pxa_init_low_gpio_irq(set_wake_t fn)
 
 	for (irq = IRQ_GPIO0; irq <= IRQ_GPIO1; irq++) {
 		set_irq_chip(irq, &pxa_low_gpio_chip);
+		set_irq_chip_data(irq, irq_base(0));
 		set_irq_handler(irq, handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 
-	pxa_low_gpio_chip.set_wake = fn;
+	pxa_low_gpio_chip.irq_set_wake = fn;
 }
 
 void __init pxa_init_irq(int irq_nr, set_wake_t fn)
 {
-	int irq, i;
+	int irq, i, n;
 
 	BUG_ON(irq_nr > MAX_INTERNAL_IRQS);
 
 	pxa_internal_irq_nr = irq_nr;
 
-	for (irq = PXA_IRQ(0); irq < PXA_IRQ(irq_nr); irq += 32) {
-		_ICMR(irq) = 0;	/* disable all IRQs */
-		_ICLR(irq) = 0;	/* all IRQs are IRQ, not FIQ */
-	}
+	for (n = 0; n < irq_nr; n += 32) {
+		void __iomem *base = irq_base(n >> 5);
 
-	/* initialize interrupt priority */
-	if (cpu_is_pxa27x() || cpu_is_pxa3xx()) {
-		for (i = 0; i < irq_nr; i++)
-			IPR(i) = i | (1 << 31);
+		__raw_writel(0, base + ICMR);	/* disable all IRQs */
+		__raw_writel(0, base + ICLR);	/* all IRQs are IRQ, not FIQ */
+		for (i = n; (i < (n + 32)) && (i < irq_nr); i++) {
+			/* initialize interrupt priority */
+			if (cpu_has_ipr())
+				__raw_writel(i | IPR_VALID, IRQ_BASE + IPR(i));
+
+			irq = PXA_IRQ(i);
+			set_irq_chip(irq, &pxa_internal_irq_chip);
+			set_irq_chip_data(irq, base);
+			set_irq_handler(irq, handle_level_irq);
+			set_irq_flags(irq, IRQF_VALID);
+		}
 	}
 
 	/* only unmasked interrupts kick us out of idle */
-	ICCR = 1;
+	__raw_writel(1, irq_base(0) + ICCR);
 
-	for (irq = PXA_IRQ(0); irq < PXA_IRQ(irq_nr); irq++) {
-		set_irq_chip(irq, &pxa_internal_irq_chip);
-		set_irq_handler(irq, handle_level_irq);
-		set_irq_flags(irq, IRQF_VALID);
-	}
-
-	pxa_internal_irq_chip.set_wake = fn;
+	pxa_internal_irq_chip.irq_set_wake = fn;
 	pxa_init_low_gpio_irq(fn);
 }
 
@@ -158,16 +185,18 @@ static unsigned long saved_ipr[MAX_INTERNAL_IRQS];
 
 static int pxa_irq_suspend(struct sys_device *dev, pm_message_t state)
 {
-	int i, irq = PXA_IRQ(0);
+	int i;
 
-	for (i = 0; irq < PXA_IRQ(pxa_internal_irq_nr); i++, irq += 32) {
-		saved_icmr[i] = _ICMR(irq);
-		_ICMR(irq) = 0;
+	for (i = 0; i < pxa_internal_irq_nr / 32; i++) {
+		void __iomem *base = irq_base(i);
+
+		saved_icmr[i] = __raw_readl(base + ICMR);
+		__raw_writel(0, base + ICMR);
 	}
 
-	if (cpu_is_pxa27x() || cpu_is_pxa3xx()) {
+	if (cpu_has_ipr()) {
 		for (i = 0; i < pxa_internal_irq_nr; i++)
-			saved_ipr[i] = IPR(i);
+			saved_ipr[i] = __raw_readl(IRQ_BASE + IPR(i));
 	}
 
 	return 0;
@@ -175,19 +204,20 @@ static int pxa_irq_suspend(struct sys_device *dev, pm_message_t state)
 
 static int pxa_irq_resume(struct sys_device *dev)
 {
-	int i, irq = PXA_IRQ(0);
+	int i;
 
-	if (cpu_is_pxa27x() || cpu_is_pxa3xx()) {
+	for (i = 0; i < pxa_internal_irq_nr / 32; i++) {
+		void __iomem *base = irq_base(i);
+
+		__raw_writel(saved_icmr[i], base + ICMR);
+		__raw_writel(0, base + ICLR);
+	}
+
+	if (cpu_has_ipr())
 		for (i = 0; i < pxa_internal_irq_nr; i++)
-			IPR(i) = saved_ipr[i];
-	}
+			__raw_writel(saved_ipr[i], IRQ_BASE + IPR(i));
 
-	for (i = 0; irq < PXA_IRQ(pxa_internal_irq_nr); i++, irq += 32) {
-		_ICMR(irq) = saved_icmr[i];
-		_ICLR(irq) = 0;
-	}
-
-	ICCR = 1;
+	__raw_writel(1, IRQ_BASE + ICCR);
 	return 0;
 }
 #else
