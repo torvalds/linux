@@ -3230,9 +3230,6 @@ int dsi_init_display(struct omap_dss_device *dssdev)
 	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE |
 		OMAP_DSS_DISPLAY_CAP_TEAR_ELIM;
 
-	dsi.vc[0].dssdev = dssdev;
-	dsi.vc[1].dssdev = dssdev;
-
 	if (dsi.vdds_dsi_reg == NULL) {
 		struct regulator *vdds_dsi;
 
