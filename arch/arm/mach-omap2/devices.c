@@ -650,8 +650,63 @@ err1:
 static inline void omap_hsmmc_reset(void) {}
 #endif
 
-#if defined(CONFIG_MMC_OMAP) || defined(CONFIG_MMC_OMAP_MODULE) || \
-	defined(CONFIG_MMC_OMAP_HS) || defined(CONFIG_MMC_OMAP_HS_MODULE)
+#if defined(CONFIG_MMC_OMAP) || defined(CONFIG_MMC_OMAP_MODULE)
+
+static inline void omap242x_mmc_mux(struct omap_mmc_platform_data
+							*mmc_controller)
+{
+	if ((mmc_controller->slots[0].switch_pin > 0) && \
+		(mmc_controller->slots[0].switch_pin < OMAP_MAX_GPIO_LINES))
+		omap_mux_init_gpio(mmc_controller->slots[0].switch_pin,
+					OMAP_PIN_INPUT_PULLUP);
+	if ((mmc_controller->slots[0].gpio_wp > 0) && \
+		(mmc_controller->slots[0].gpio_wp < OMAP_MAX_GPIO_LINES))
+		omap_mux_init_gpio(mmc_controller->slots[0].gpio_wp,
+					OMAP_PIN_INPUT_PULLUP);
+
+	omap_mux_init_signal("sdmmc_cmd", 0);
+	omap_mux_init_signal("sdmmc_clki", 0);
+	omap_mux_init_signal("sdmmc_clko", 0);
+	omap_mux_init_signal("sdmmc_dat0", 0);
+	omap_mux_init_signal("sdmmc_dat_dir0", 0);
+	omap_mux_init_signal("sdmmc_cmd_dir", 0);
+	if (mmc_controller->slots[0].caps & MMC_CAP_4_BIT_DATA) {
+		omap_mux_init_signal("sdmmc_dat1", 0);
+		omap_mux_init_signal("sdmmc_dat2", 0);
+		omap_mux_init_signal("sdmmc_dat3", 0);
+		omap_mux_init_signal("sdmmc_dat_dir1", 0);
+		omap_mux_init_signal("sdmmc_dat_dir2", 0);
+		omap_mux_init_signal("sdmmc_dat_dir3", 0);
+	}
+
+	/*
+	 * Use internal loop-back in MMC/SDIO Module Input Clock
+	 * selection
+	 */
+	if (mmc_controller->slots[0].internal_clock) {
+		u32 v = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
+		v |= (1 << 24);
+		omap_ctrl_writel(v, OMAP2_CONTROL_DEVCONF0);
+	}
+}
+
+void __init omap242x_init_mmc(struct omap_mmc_platform_data **mmc_data)
+{
+	char *name = "mmci-omap";
+
+	if (!mmc_data[0]) {
+		pr_err("%s fails: Incomplete platform data\n", __func__);
+		return;
+	}
+
+	omap242x_mmc_mux(mmc_data[0]);
+	omap_mmc_add(name, 0, OMAP2_MMC1_BASE, OMAP2420_MMC_SIZE,
+					INT_24XX_MMC_IRQ, mmc_data[0]);
+}
+
+#endif
+
+#if defined(CONFIG_MMC_OMAP_HS) || defined(CONFIG_MMC_OMAP_HS_MODULE)
 
 static inline void omap2_mmc_mux(struct omap_mmc_platform_data *mmc_controller,
 			int controller_nr)
@@ -664,34 +719,6 @@ static inline void omap2_mmc_mux(struct omap_mmc_platform_data *mmc_controller,
 		(mmc_controller->slots[0].gpio_wp < OMAP_MAX_GPIO_LINES))
 		omap_mux_init_gpio(mmc_controller->slots[0].gpio_wp,
 					OMAP_PIN_INPUT_PULLUP);
-
-	if (cpu_is_omap2420() && controller_nr == 0) {
-		omap_mux_init_signal("sdmmc_cmd", 0);
-		omap_mux_init_signal("sdmmc_clki", 0);
-		omap_mux_init_signal("sdmmc_clko", 0);
-		omap_mux_init_signal("sdmmc_dat0", 0);
-		omap_mux_init_signal("sdmmc_dat_dir0", 0);
-		omap_mux_init_signal("sdmmc_cmd_dir", 0);
-		if (mmc_controller->slots[0].caps & MMC_CAP_4_BIT_DATA) {
-			omap_mux_init_signal("sdmmc_dat1", 0);
-			omap_mux_init_signal("sdmmc_dat2", 0);
-			omap_mux_init_signal("sdmmc_dat3", 0);
-			omap_mux_init_signal("sdmmc_dat_dir1", 0);
-			omap_mux_init_signal("sdmmc_dat_dir2", 0);
-			omap_mux_init_signal("sdmmc_dat_dir3", 0);
-		}
-
-		/*
-		 * Use internal loop-back in MMC/SDIO Module Input Clock
-		 * selection
-		 */
-		if (mmc_controller->slots[0].internal_clock) {
-			u32 v = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
-			v |= (1 << 24);
-			omap_ctrl_writel(v, OMAP2_CONTROL_DEVCONF0);
-		}
-	}
-
 	if (cpu_is_omap34xx()) {
 		if (controller_nr == 0) {
 			omap_mux_init_signal("sdmmc1_clk",
@@ -808,10 +835,7 @@ void __init omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
 			continue;
 		}
 
-		if (cpu_is_omap2420()) {
-			size = OMAP2420_MMC_SIZE;
-			name = "mmci-omap";
-		} else if (cpu_is_omap44xx()) {
+		if (cpu_is_omap44xx()) {
 			if (i < 3)
 				irq += OMAP44XX_IRQ_GIC_START;
 			size = OMAP4_HSMMC_SIZE;
