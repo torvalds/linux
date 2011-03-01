@@ -5648,6 +5648,7 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.clear_acl_cache = nfs4_zap_acl_attr,
 	.close_context  = nfs4_close_context,
 	.open_context	= nfs4_atomic_open,
+	.init_client	= nfs4_init_client,
 };
 
 static const struct xattr_handler nfs4_xattr_nfs4_acl_handler = {

@@ -1040,6 +1040,7 @@ struct nfs_write_data {
 };
 
 struct nfs_access_entry;
+struct nfs_client;
 
 /*
  * RPC procedure vector for NFSv2/NFSv3 demuxing
@@ -1104,6 +1105,8 @@ struct nfs_rpc_ops {
 				struct nfs_open_context *ctx,
 				int open_flags,
 				struct iattr *iattr);
+	int	(*init_client) (struct nfs_client *, const struct rpc_timeout *,
+				const char *, rpc_authflavor_t, int);
 };
 
 /*

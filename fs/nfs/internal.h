@@ -215,6 +215,10 @@ extern struct rpc_procinfo nfs4_procedures[];
 
 /* proc.c */
 void nfs_close_context(struct nfs_open_context *ctx, int is_sync);
+extern int nfs_init_client(struct nfs_client *clp,
+			   const struct rpc_timeout *timeparms,
+			   const char *ip_addr, rpc_authflavor_t authflavour,
+			   int noresvport);
 
 /* dir.c */
 extern int nfs_access_cache_shrinker(struct shrinker *shrink,
@@ -274,6 +278,11 @@ extern int nfs_migrate_page(struct address_space *,
 #endif
 
 /* nfs4proc.c */
+extern int nfs4_init_client(struct nfs_client *clp,
+			    const struct rpc_timeout *timeparms,
+			    const char *ip_addr,
+			    rpc_authflavor_t authflavour,
+			    int noresvport);
 extern int _nfs4_call_sync(struct nfs_server *server,
 			   struct rpc_message *msg,
 			   struct nfs4_sequence_args *args,
