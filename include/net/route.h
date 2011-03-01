@@ -185,6 +185,8 @@ static inline int ip_route_connect(struct rtable **rp, __be32 dst,
 		fl.flags |= FLOWI_FLAG_ANYSRC;
 	if (protocol == IPPROTO_TCP)
 		fl.flags |= FLOWI_FLAG_PRECOW_METRICS;
+	if (can_sleep)
+		fl.flags |= FLOWI_FLAG_CAN_SLEEP;
 
 	if (!dst || !src) {
 		err = __ip_route_output_key(net, rp, &fl);

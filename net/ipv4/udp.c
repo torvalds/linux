@@ -914,9 +914,11 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 				    .fl4_src = saddr,
 				    .fl4_tos = tos,
 				    .proto = sk->sk_protocol,
-				    .flags = inet_sk_flowi_flags(sk),
+				    .flags = (inet_sk_flowi_flags(sk) |
+					      FLOWI_FLAG_CAN_SLEEP),
 				    .fl_ip_sport = inet->inet_sport,
-				    .fl_ip_dport = dport };
+				    .fl_ip_dport = dport
+		};
 		struct net *net = sock_net(sk);
 
 		security_sk_classify_flow(sk, &fl);
