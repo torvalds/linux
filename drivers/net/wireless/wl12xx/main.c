@@ -668,6 +668,11 @@ irqreturn_t wl1271_irq(int irq, void *cookie)
 	struct wl1271 *wl = (struct wl1271 *)cookie;
 	bool done = false;
 	unsigned int defer_count;
+	unsigned long flags;
+
+	/* TX might be handled here, avoid redundant work */
+	set_bit(WL1271_FLAG_TX_PENDING, &wl->flags);
+	cancel_work_sync(&wl->tx_work);
 
 	mutex_lock(&wl->mutex);
 
@@ -712,13 +717,17 @@ irqreturn_t wl1271_irq(int irq, void *cookie)
 			wl1271_rx(wl, &wl->fw_status->common);
 
 			/* Check if any tx blocks were freed */
+			spin_lock_irqsave(&wl->wl_lock, flags);
 			if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags) &&
 			    wl->tx_queue_count) {
+				spin_unlock_irqrestore(&wl->wl_lock, flags);
 				/*
 				 * In order to avoid starvation of the TX path,
 				 * call the work function directly.
 				 */
 				wl1271_tx_work_locked(wl);
+			} else {
+				spin_unlock_irqrestore(&wl->wl_lock, flags);
 			}
 
 			/* check for tx results */
@@ -754,6 +763,14 @@ irqreturn_t wl1271_irq(int irq, void *cookie)
 	wl1271_ps_elp_sleep(wl);
 
 out:
+	spin_lock_irqsave(&wl->wl_lock, flags);
+	/* In case TX was not handled here, queue TX work */
+	clear_bit(WL1271_FLAG_TX_PENDING, &wl->flags);
+	if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags) &&
+	    wl->tx_queue_count)
+		ieee80211_queue_work(wl->hw, &wl->tx_work);
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
+
 	mutex_unlock(&wl->mutex);
 
 	return IRQ_HANDLED;
@@ -1068,7 +1085,13 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	int q;
 	u8 hlid = 0;
 
+	q = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
+
+	if (wl->bss_type == BSS_TYPE_AP_BSS)
+		hlid = wl1271_tx_get_hlid(skb);
+
 	spin_lock_irqsave(&wl->wl_lock, flags);
+
 	wl->tx_queue_count++;
 
 	/*
@@ -1081,12 +1104,8 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		set_bit(WL1271_FLAG_TX_QUEUE_STOPPED, &wl->flags);
 	}
 
-	spin_unlock_irqrestore(&wl->wl_lock, flags);
-
 	/* queue the packet */
-	q = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
 	if (wl->bss_type == BSS_TYPE_AP_BSS) {
-		hlid = wl1271_tx_get_hlid(skb);
 		wl1271_debug(DEBUG_TX, "queue skb hlid %d q %d", hlid, q);
 		skb_queue_tail(&wl->links[hlid].tx_queue[q], skb);
 	} else {
@@ -1098,8 +1117,11 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * before that, the tx_work will not be initialized!
 	 */
 
-	if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags))
+	if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags) &&
+	    !test_bit(WL1271_FLAG_TX_PENDING, &wl->flags))
 		ieee80211_queue_work(wl->hw, &wl->tx_work);
+
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
 }
 
 static struct notifier_block wl1271_dev_notifier = {
