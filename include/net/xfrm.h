@@ -280,6 +280,7 @@ struct xfrm_policy_afinfo {
 	int			(*fill_dst)(struct xfrm_dst *xdst,
 					    struct net_device *dev,
 					    const struct flowi *fl);
+	struct dst_entry	*(*blackhole_route)(struct net *net, struct dst_entry *orig);
 };
 
 extern int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo);

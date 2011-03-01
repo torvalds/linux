@@ -1025,18 +1025,12 @@ struct dst_entry *ip6_dst_lookup_flow(struct sock *sk, struct flowi *fl,
 		return ERR_PTR(err);
 	if (final_dst)
 		ipv6_addr_copy(&fl->fl6_dst, final_dst);
-	if (can_sleep) {
+	if (can_sleep)
 		fl->flags |= FLOWI_FLAG_CAN_SLEEP;
-		err = __xfrm_lookup(sock_net(sk), &dst, fl, sk, 0);
-		if (err == -EREMOTE)
-			return ip6_dst_blackhole(sock_net(sk), dst);
-		if (err)
-			return ERR_PTR(err);
-	} else {
-		err = xfrm_lookup(sock_net(sk), &dst, fl, sk, 0);
-		if (err)
-			return ERR_PTR(err);
-	}
+
+	err = xfrm_lookup(sock_net(sk), &dst, fl, sk, 0);
+	if (err)
+		return ERR_PTR(err);
 	return dst;
 }
 EXPORT_SYMBOL_GPL(ip6_dst_lookup_flow);
@@ -1070,18 +1064,12 @@ struct dst_entry *ip6_sk_dst_lookup_flow(struct sock *sk, struct flowi *fl,
 		return ERR_PTR(err);
 	if (final_dst)
 		ipv6_addr_copy(&fl->fl6_dst, final_dst);
-	if (can_sleep) {
+	if (can_sleep)
 		fl->flags |= FLOWI_FLAG_CAN_SLEEP;
-		err = __xfrm_lookup(sock_net(sk), &dst, fl, sk, 0);
-		if (err == -EREMOTE)
-			return ip6_dst_blackhole(sock_net(sk), dst);
-		if (err)
-			return ERR_PTR(err);
-	} else {
-		err = xfrm_lookup(sock_net(sk), &dst, fl, sk, 0);
-		if (err)
-			return ERR_PTR(err);
-	}
+
+	err = xfrm_lookup(sock_net(sk), &dst, fl, sk, 0);
+	if (err)
+		return ERR_PTR(err);
 	return dst;
 }
 EXPORT_SYMBOL_GPL(ip6_sk_dst_lookup_flow);

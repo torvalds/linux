@@ -1735,14 +1735,31 @@ error:
 	return ERR_PTR(err);
 }
 
+static struct dst_entry *make_blackhole(struct net *net, u16 family,
+					struct dst_entry *dst_orig)
+{
+	struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
+	struct dst_entry *ret;
+
+	if (!afinfo) {
+		dst_release(dst_orig);
+		ret = ERR_PTR(-EINVAL);
+	} else {
+		ret = afinfo->blackhole_route(net, dst_orig);
+	}
+	xfrm_policy_put_afinfo(afinfo);
+
+	return ret;
+}
+
 /* Main function: finds/creates a bundle for given flow.
  *
  * At the moment we eat a raw IP route. Mostly to speed up lookups
  * on interfaces with disabled IPsec.
  */
-int __xfrm_lookup(struct net *net, struct dst_entry **dst_p,
-		  const struct flowi *fl,
-		  struct sock *sk, int flags)
+int xfrm_lookup(struct net *net, struct dst_entry **dst_p,
+		const struct flowi *fl,
+		struct sock *sk, int flags)
 {
 	struct xfrm_policy *pols[XFRM_POLICY_TYPE_MAX];
 	struct flow_cache_object *flo;
@@ -1829,7 +1846,12 @@ restart:
 			dst_release(dst);
 			xfrm_pols_put(pols, drop_pols);
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTNOSTATES);
-			return -EREMOTE;
+
+			dst = make_blackhole(net, family, dst_orig);
+			if (IS_ERR(dst))
+				return PTR_ERR(dst);
+			*dst_p = dst;
+			return 0;
 		}
 		if (fl->flags & FLOWI_FLAG_CAN_SLEEP) {
 			DECLARE_WAITQUEUE(wait, current);
@@ -1893,22 +1915,6 @@ dropdst:
 	dst_release(dst_orig);
 	*dst_p = NULL;
 	xfrm_pols_put(pols, drop_pols);
-	return err;
-}
-EXPORT_SYMBOL(__xfrm_lookup);
-
-int xfrm_lookup(struct net *net, struct dst_entry **dst_p,
-		const struct flowi *fl,
-		struct sock *sk, int flags)
-{
-	int err = __xfrm_lookup(net, dst_p, fl, sk, flags);
-
-	if (err == -EREMOTE) {
-		dst_release(*dst_p);
-		*dst_p = NULL;
-		err = -EAGAIN;
-	}
-
 	return err;
 }
 EXPORT_SYMBOL(xfrm_lookup);

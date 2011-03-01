@@ -870,7 +870,7 @@ struct dst_entry * ip6_route_output(struct net *net, struct sock *sk,
 
 EXPORT_SYMBOL(ip6_route_output);
 
-struct dst_entry *ip6_dst_blackhole(struct net *net, struct dst_entry *dst_orig)
+struct dst_entry *ip6_blackhole_route(struct net *net, struct dst_entry *dst_orig)
 {
 	struct rt6_info *rt = dst_alloc(&ip6_dst_blackhole_ops, 1);
 	struct rt6_info *ort = (struct rt6_info *) dst_orig;
@@ -907,7 +907,6 @@ struct dst_entry *ip6_dst_blackhole(struct net *net, struct dst_entry *dst_orig)
 	dst_release(dst_orig);
 	return new ? new : ERR_PTR(-ENOMEM);
 }
-EXPORT_SYMBOL_GPL(ip6_dst_blackhole);
 
 /*
  *	Destination cache support functions

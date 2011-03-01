@@ -520,8 +520,8 @@ extern struct dst_entry *	ip6_sk_dst_lookup_flow(struct sock *sk,
 						       struct flowi *fl,
 						       const struct in6_addr *final_dst,
 						       bool can_sleep);
-extern struct dst_entry *	ip6_dst_blackhole(struct net *net,
-						  struct dst_entry *orig_dst);
+extern struct dst_entry *	ip6_blackhole_route(struct net *net,
+						    struct dst_entry *orig_dst);
 
 /*
  *	skb processing functions

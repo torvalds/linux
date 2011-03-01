@@ -234,6 +234,7 @@ static struct xfrm_policy_afinfo xfrm4_policy_afinfo = {
 	.get_tos =		xfrm4_get_tos,
 	.init_path =		xfrm4_init_path,
 	.fill_dst =		xfrm4_fill_dst,
+	.blackhole_route =	ipv4_blackhole_route,
 };
 
 #ifdef CONFIG_SYSCTL

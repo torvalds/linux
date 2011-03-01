@@ -274,6 +274,7 @@ static struct xfrm_policy_afinfo xfrm6_policy_afinfo = {
 	.get_tos =		xfrm6_get_tos,
 	.init_path =		xfrm6_init_path,
 	.fill_dst =		xfrm6_fill_dst,
+	.blackhole_route =	ip6_blackhole_route,
 };
 
 static int __init xfrm6_policy_init(void)

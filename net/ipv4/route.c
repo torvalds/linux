@@ -2675,12 +2675,10 @@ static struct dst_ops ipv4_dst_blackhole_ops = {
 	.update_pmtu		=	ipv4_rt_blackhole_update_pmtu,
 };
 
-
-static int ipv4_dst_blackhole(struct net *net, struct rtable **rp, struct flowi *flp)
+struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_orig)
 {
-	struct rtable *ort = *rp;
-	struct rtable *rt = (struct rtable *)
-		dst_alloc(&ipv4_dst_blackhole_ops, 1);
+	struct rtable *rt = dst_alloc(&ipv4_dst_blackhole_ops, 1);
+	struct rtable *ort = (struct rtable *) dst_orig;
 
 	if (rt) {
 		struct dst_entry *new = &rt->dst;
@@ -2714,9 +2712,9 @@ static int ipv4_dst_blackhole(struct net *net, struct rtable **rp, struct flowi 
 		dst_free(new);
 	}
 
-	dst_release(&(*rp)->dst);
-	*rp = rt;
-	return rt ? 0 : -ENOMEM;
+	dst_release(dst_orig);
+
+	return rt ? &rt->dst : ERR_PTR(-ENOMEM);
 }
 
 int ip_route_output_flow(struct net *net, struct rtable **rp, struct flowi *flp,
@@ -2732,11 +2730,7 @@ int ip_route_output_flow(struct net *net, struct rtable **rp, struct flowi *flp,
 			flp->fl4_src = (*rp)->rt_src;
 		if (!flp->fl4_dst)
 			flp->fl4_dst = (*rp)->rt_dst;
-		err = __xfrm_lookup(net, (struct dst_entry **)rp, flp, sk, 0);
-		if (err == -EREMOTE)
-			err = ipv4_dst_blackhole(net, rp, flp);
-
-		return err;
+		return xfrm_lookup(net, (struct dst_entry **)rp, flp, sk, 0);
 	}
 
 	return 0;
