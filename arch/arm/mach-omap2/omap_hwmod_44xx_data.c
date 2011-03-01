@@ -5077,11 +5077,11 @@ static __initdata struct omap_hwmod *omap44xx_hwmods[] = {
 	&omap44xx_mcspi4_hwmod,
 
 	/* mmc class */
-/*	&omap44xx_mmc1_hwmod, */
-/*	&omap44xx_mmc2_hwmod, */
-/*	&omap44xx_mmc3_hwmod, */
-/*	&omap44xx_mmc4_hwmod, */
-/*	&omap44xx_mmc5_hwmod, */
+	&omap44xx_mmc1_hwmod,
+	&omap44xx_mmc2_hwmod,
+	&omap44xx_mmc3_hwmod,
+	&omap44xx_mmc4_hwmod,
+	&omap44xx_mmc5_hwmod,
 
 	/* mpu class */
 	&omap44xx_mpu_hwmod,
