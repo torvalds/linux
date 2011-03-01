@@ -740,8 +740,9 @@ static void perf_event__process_sample(const union perf_event *event,
 		 */
 		if (al.map == machine->vmlinux_maps[MAP__FUNCTION] &&
 		    RB_EMPTY_ROOT(&al.map->dso->symbols[MAP__FUNCTION])) {
-			pr_err("The %s file can't be used\n",
-			       symbol_conf.vmlinux_name);
+			ui__warning("The %s file can't be used\n",
+				    symbol_conf.vmlinux_name);
+			exit_browser(0);
 			exit(1);
 		}
 
