@@ -278,7 +278,7 @@ void radeon_bo_force_delete(struct radeon_device *rdev)
 		mutex_lock(&bo->rdev->gem.mutex);
 		list_del_init(&bo->list);
 		mutex_unlock(&bo->rdev->gem.mutex);
-		radeon_bo_unref(&bo);
+		/* this should unref the ttm bo */
 		drm_gem_object_unreference(&bo->gem_base);
 		mutex_unlock(&rdev->ddev->struct_mutex);
 	}
