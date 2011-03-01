@@ -61,7 +61,7 @@ static struct device *wl1271_sdio_wl_to_dev(struct wl1271 *wl)
 	return &(wl_to_func(wl)->dev);
 }
 
-static irqreturn_t wl1271_irq(int irq, void *cookie)
+static irqreturn_t wl1271_hardirq(int irq, void *cookie)
 {
 	struct wl1271 *wl = cookie;
 	unsigned long flags;
@@ -70,17 +70,14 @@ static irqreturn_t wl1271_irq(int irq, void *cookie)
 
 	/* complete the ELP completion */
 	spin_lock_irqsave(&wl->wl_lock, flags);
+	set_bit(WL1271_FLAG_IRQ_RUNNING, &wl->flags);
 	if (wl->elp_compl) {
 		complete(wl->elp_compl);
 		wl->elp_compl = NULL;
 	}
-
-	if (!test_and_set_bit(WL1271_FLAG_IRQ_RUNNING, &wl->flags))
-		ieee80211_queue_work(wl->hw, &wl->irq_work);
-	set_bit(WL1271_FLAG_IRQ_PENDING, &wl->flags);
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
-	return IRQ_HANDLED;
+	return IRQ_WAKE_THREAD;
 }
 
 static void wl1271_sdio_disable_interrupts(struct wl1271 *wl)
@@ -243,13 +240,13 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	wl->irq = wlan_data->irq;
 	wl->ref_clock = wlan_data->board_ref_clock;
 
-	ret = request_irq(wl->irq, wl1271_irq, 0, DRIVER_NAME, wl);
+	ret = request_threaded_irq(wl->irq, wl1271_hardirq, wl1271_irq,
+				   IRQF_TRIGGER_RISING,
+				   DRIVER_NAME, wl);
 	if (ret < 0) {
 		wl1271_error("request_irq() failed: %d", ret);
 		goto out_free;
 	}
-
-	set_irq_type(wl->irq, IRQ_TYPE_EDGE_RISING);
 
 	disable_irq(wl->irq);
 
@@ -272,7 +269,6 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 
  out_irq:
 	free_irq(wl->irq, wl);
-
 
  out_free:
 	wl1271_free_hw(wl);

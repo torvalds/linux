@@ -464,7 +464,7 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 
 	while ((skb = wl1271_skb_dequeue(wl))) {
 		if (!woken_up) {
-			ret = wl1271_ps_elp_wakeup(wl, false);
+			ret = wl1271_ps_elp_wakeup(wl);
 			if (ret < 0)
 				goto out_ack;
 			woken_up = true;
@@ -589,7 +589,8 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 		     result->rate_class_index, result->status);
 
 	/* return the packet to the stack */
-	ieee80211_tx_status(wl->hw, skb);
+	skb_queue_tail(&wl->deferred_tx_queue, skb);
+	ieee80211_queue_work(wl->hw, &wl->netstack_work);
 	wl1271_free_tx_id(wl, result->id);
 }
 
