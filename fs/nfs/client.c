@@ -1019,14 +1019,19 @@ static void nfs_server_insert_lists(struct nfs_server *server)
 	spin_lock(&nfs_client_lock);
 	list_add_tail_rcu(&server->client_link, &clp->cl_superblocks);
 	list_add_tail(&server->master_link, &nfs_volume_list);
+	clear_bit(NFS_CS_STOP_RENEW, &clp->cl_res_state);
 	spin_unlock(&nfs_client_lock);
 
 }
 
 static void nfs_server_remove_lists(struct nfs_server *server)
 {
+	struct nfs_client *clp = server->nfs_client;
+
 	spin_lock(&nfs_client_lock);
 	list_del_rcu(&server->client_link);
+	if (clp && list_empty(&clp->cl_superblocks))
+		set_bit(NFS_CS_STOP_RENEW, &clp->cl_res_state);
 	list_del(&server->master_link);
 	spin_unlock(&nfs_client_lock);
 
