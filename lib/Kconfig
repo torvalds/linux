@@ -217,6 +217,13 @@ config LRU_CACHE
 	tristate
 
 config AVERAGE
-	bool
+	bool "Averaging functions"
+	help
+	  This option is provided for the case where no in-kernel-tree
+	  modules require averaging functions, but a module built outside
+	  the kernel tree does. Such modules that use library averaging
+	  functions require Y here.
+
+	  If unsure, say N.
 
 endmenu
