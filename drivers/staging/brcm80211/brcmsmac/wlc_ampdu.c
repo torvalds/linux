@@ -632,17 +632,16 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 		 * test whether need to break or change the epoch
 		 */
 		if (count == 0) {
-			u16 fc;
 			mcl |= (TXC_AMPDU_FIRST << TXC_AMPDU_SHIFT);
 			/* refill the bits since might be a retx mpdu */
 			mcl |= TXC_STARTMSDU;
 			rts = (struct ieee80211_rts *)&txh->rts_frame;
-			fc = le16_to_cpu(rts->frame_control);
-			if ((fc & FC_KIND_MASK) == FC_RTS) {
+
+			if (ieee80211_is_rts(rts->frame_control)) {
 				mcl |= TXC_SENDRTS;
 				use_rts = true;
 			}
-			if ((fc & FC_KIND_MASK) == FC_CTS) {
+			if (ieee80211_is_cts(rts->frame_control)) {
 				mcl |= TXC_SENDCTS;
 				use_cts = true;
 			}

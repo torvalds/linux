@@ -5189,15 +5189,12 @@ wlc_sendpkt_mac80211(struct wlc_info *wlc, struct sk_buff *sdu,
 	void *pkt;
 	struct scb *scb = &global_scb;
 	struct ieee80211_hdr *d11_header = (struct ieee80211_hdr *)(sdu->data);
-	u16 type, fc;
 
 	ASSERT(sdu);
 
-	fc = le16_to_cpu(d11_header->frame_control);
-	type = (fc & IEEE80211_FCTL_FTYPE);
-
 	/* 802.11 standard requires management traffic to go at highest priority */
-	prio = (type == IEEE80211_FTYPE_DATA ? sdu->priority : MAXPRIO);
+	prio = ieee80211_is_data(d11_header->frame_control) ? sdu->priority :
+		MAXPRIO;
 	fifo = prio2fifo[prio];
 
 	ASSERT((uint) skb_headroom(sdu) >= TXOFF);
@@ -5731,7 +5728,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	u8 *plcp, plcp_fallback[D11_PHY_HDR_LEN];
 	struct osl_info *osh;
 	int len, phylen, rts_phylen;
-	u16 fc, type, frameid, mch, phyctl, xfts, mainrates;
+	u16 frameid, mch, phyctl, xfts, mainrates;
 	u16 seq = 0, mcl = 0, status = 0;
 	ratespec_t rspec[2] = { WLC_RATE_1M, WLC_RATE_1M }, rts_rspec[2] = {
 	WLC_RATE_1M, WLC_RATE_1M};
@@ -5768,11 +5765,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 
 	/* locate 802.11 MAC header */
 	h = (struct ieee80211_hdr *)(p->data);
-	fc = le16_to_cpu(h->frame_control);
-	type = (fc & IEEE80211_FCTL_FTYPE);
-
-	qos = (type == IEEE80211_FTYPE_DATA &&
-	       FC_SUBTYPE_ANY_QOS(fc));
+	qos = ieee80211_is_data_qos(h->frame_control);
 
 	/* compute length of frame in bytes for use in PLCP computations */
 	len = pkttotlen(p);
@@ -5824,7 +5817,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	frameid |= queue & TXFID_QUEUE_MASK;
 
 	/* set the ignpmq bit for all pkts tx'd in PS mode and for beacons */
-	if (SCB_PS(scb) || ((fc & FC_KIND_MASK) == FC_BEACON))
+	if (SCB_PS(scb) || ieee80211_is_beacon(h->frame_control))
 		mcl |= TXC_IGNOREPMQ;
 
 	ASSERT(hw->max_rates <= IEEE80211_TX_MAX_RATES);
@@ -6029,7 +6022,8 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	txrate[1]->count = 0;
 
 	/* (2) PROTECTION, may change rspec */
-	if ((ieee80211_is_data(fc) || ieee80211_is_mgmt(fc)) &&
+	if ((ieee80211_is_data(h->frame_control) ||
+	    ieee80211_is_mgmt(h->frame_control)) &&
 	    (phylen > wlc->RTSThresh) && !is_multicast_ether_addr(h->addr1))
 		use_rts = true;
 
@@ -6051,7 +6045,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	    plcp[0];
 
 	/* DUR field for main rate */
-	if ((fc != FC_PS_POLL) &&
+	if (!ieee80211_is_pspoll(h->frame_control) &&
 	    !is_multicast_ether_addr(h->addr1) && !use_rifs) {
 		durid =
 		    wlc_compute_frame_dur(wlc, rspec[0], preamble_type[0],
@@ -6068,7 +6062,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	}
 
 	/* DUR field for fallback rate */
-	if (fc == FC_PS_POLL)
+	if (ieee80211_is_pspoll(h->frame_control))
 		txh->FragDurFallback = h->duration_id;
 	else if (is_multicast_ether_addr(h->addr1) || use_rifs)
 		txh->FragDurFallback = 0;
@@ -6199,10 +6193,14 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 		txh->RTSDurFallback = cpu_to_le16(durid);
 
 		if (use_cts) {
-			rts->frame_control = cpu_to_le16(FC_CTS);
+			rts->frame_control = cpu_to_le16(IEEE80211_FTYPE_CTL |
+							 IEEE80211_STYPE_CTS);
+
 			memcpy(&rts->ra, &h->addr2, ETH_ALEN);
 		} else {
-			rts->frame_control = cpu_to_le16((u16) FC_RTS);
+			rts->frame_control = cpu_to_le16(IEEE80211_FTYPE_CTL |
+							 IEEE80211_STYPE_RTS);
+
 			memcpy(&rts->ra, &h->addr1, 2 * ETH_ALEN);
 		}
 
@@ -6578,7 +6576,6 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 	uint totlen, supr_status;
 	bool lastframe;
 	struct ieee80211_hdr *h;
-	u16 fc;
 	u16 mcl;
 	struct ieee80211_tx_info *tx_info;
 	struct ieee80211_tx_rate *txrate;
@@ -6633,7 +6630,6 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 
 	tx_info = IEEE80211_SKB_CB(p);
 	h = (struct ieee80211_hdr *)((u8 *) (txh + 1) + D11_PHY_HDR_LEN);
-	fc = le16_to_cpu(h->frame_control);
 
 	scb = (struct scb *)tx_info->control.sta->drv_priv;
 
@@ -6662,7 +6658,7 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 	tx_rts_count =
 	    (txs->status & TX_STATUS_RTS_RTX_MASK) >> TX_STATUS_RTS_RTX_SHIFT;
 
-	lastframe = (fc & IEEE80211_FCTL_MOREFRAGS) == 0;
+	lastframe = !ieee80211_has_morefrags(h->frame_control);
 
 	if (!lastframe) {
 		WL_ERROR("Not last frame!\n");
@@ -7024,7 +7020,6 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	d11rxhdr_t *rxh;
 	struct ieee80211_hdr *h;
 	struct osl_info *osh;
-	u16 fc;
 	uint len;
 	bool is_amsdu;
 
@@ -7076,9 +7071,7 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	}
 
 	/* check received pkt has at least frame control field */
-	if (len >= D11_PHY_HDR_LEN + sizeof(h->frame_control)) {
-		fc = le16_to_cpu(h->frame_control);
-	} else {
+	if (len < D11_PHY_HDR_LEN + sizeof(h->frame_control)) {
 		wlc->pub->_cnt->rxrunt++;
 		goto toss;
 	}
@@ -7088,8 +7081,9 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	/* explicitly test bad src address to avoid sending bad deauth */
 	if (!is_amsdu) {
 		/* CTS and ACK CTL frames are w/o a2 */
-		if ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA ||
-		    (fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT) {
+
+		if (ieee80211_is_data(h->frame_control) ||
+		    ieee80211_is_mgmt(h->frame_control)) {
 			if ((is_zero_ether_addr(h->addr2) ||
 			     is_multicast_ether_addr(h->addr2))) {
 				WL_ERROR("wl%d: %s: dropping a frame with "
@@ -7103,10 +7097,8 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	}
 
 	/* due to sheer numbers, toss out probe reqs for now */
-	if ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT) {
-		if ((fc & FC_KIND_MASK) == FC_PROBE_REQ)
-			goto toss;
-	}
+	if (ieee80211_is_probe_req(h->frame_control))
+		goto toss;
 
 	if (is_amsdu) {
 		WL_ERROR("%s: is_amsdu causing toss\n", __func__);
@@ -7659,7 +7651,7 @@ wlc_compute_bcntsfoff(struct wlc_info *wlc, ratespec_t rspec,
  *	and included up to, but not including, the 4 byte FCS.
  */
 static void
-wlc_bcn_prb_template(struct wlc_info *wlc, uint type, ratespec_t bcn_rspec,
+wlc_bcn_prb_template(struct wlc_info *wlc, u16 type, ratespec_t bcn_rspec,
 		     wlc_bsscfg_t *cfg, u16 *buf, int *len)
 {
 	static const u8 ether_bcast[ETH_ALEN] = {255, 255, 255, 255, 255, 255};
@@ -7668,9 +7660,10 @@ wlc_bcn_prb_template(struct wlc_info *wlc, uint type, ratespec_t bcn_rspec,
 	int hdr_len, body_len;
 
 	ASSERT(*len >= 142);
-	ASSERT(type == FC_BEACON || type == FC_PROBE_RESP);
+	ASSERT(type == IEEE80211_STYPE_BEACON ||
+	       type == IEEE80211_STYPE_PROBE_RESP);
 
-	if (MBSS_BCN_ENAB(cfg) && type == FC_BEACON)
+	if (MBSS_BCN_ENAB(cfg) && type == IEEE80211_STYPE_BEACON)
 		hdr_len = DOT11_MAC_HDR_LEN;
 	else
 		hdr_len = D11_PHY_HDR_LEN + DOT11_MAC_HDR_LEN;
@@ -7684,7 +7677,7 @@ wlc_bcn_prb_template(struct wlc_info *wlc, uint type, ratespec_t bcn_rspec,
 	plcp = (cck_phy_hdr_t *) buf;
 
 	/* PLCP for Probe Response frames are filled in from core's rate table */
-	if (type == FC_BEACON && !MBSS_BCN_ENAB(cfg)) {
+	if (type == IEEE80211_STYPE_BEACON && !MBSS_BCN_ENAB(cfg)) {
 		/* fill in PLCP */
 		wlc_compute_plcp(wlc, bcn_rspec,
 				 (DOT11_MAC_HDR_LEN + body_len + FCS_LEN),
@@ -7696,17 +7689,17 @@ wlc_bcn_prb_template(struct wlc_info *wlc, uint type, ratespec_t bcn_rspec,
 	if (!SOFTBCN_ENAB(cfg))
 		wlc_beacon_phytxctl_txant_upd(wlc, bcn_rspec);
 
-	if (MBSS_BCN_ENAB(cfg) && type == FC_BEACON)
+	if (MBSS_BCN_ENAB(cfg) && type == IEEE80211_STYPE_BEACON)
 		h = (struct ieee80211_mgmt *)&plcp[0];
 	else
 		h = (struct ieee80211_mgmt *)&plcp[1];
 
 	/* fill in 802.11 header */
-	h->frame_control = cpu_to_le16((u16) type);
+	h->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT | type);
 
 	/* DUR is 0 for multicast bcn, or filled in by MAC for prb resp */
 	/* A1 filled in by MAC for prb resp, broadcast for bcn */
-	if (type == FC_BEACON)
+	if (type == IEEE80211_STYPE_BEACON)
 		memcpy(&h->da, &ether_bcast, ETH_ALEN);
 	memcpy(&h->sa, &cfg->cur_etheraddr, ETH_ALEN);
 	memcpy(&h->bssid, &cfg->BSSID, ETH_ALEN);
@@ -7771,8 +7764,8 @@ void wlc_bss_update_beacon(struct wlc_info *wlc, wlc_bsscfg_t *cfg)
 			true));
 
 		/* update the template and ucode shm */
-		wlc_bcn_prb_template(wlc, FC_BEACON, wlc->bcn_rspec, cfg, bcn,
-				     &len);
+		wlc_bcn_prb_template(wlc, IEEE80211_STYPE_BEACON,
+				     wlc->bcn_rspec, cfg, bcn, &len);
 		wlc_write_hw_bcntemplates(wlc, bcn, len, false);
 	}
 }
@@ -7831,8 +7824,8 @@ wlc_bss_update_probe_resp(struct wlc_info *wlc, wlc_bsscfg_t *cfg, bool suspend)
 	if (!MBSS_PRB_ENAB(cfg)) {
 
 		/* create the probe response template */
-		wlc_bcn_prb_template(wlc, FC_PROBE_RESP, 0, cfg, prb_resp,
-				     &len);
+		wlc_bcn_prb_template(wlc, IEEE80211_STYPE_PROBE_RESP, 0, cfg,
+				     prb_resp, &len);
 
 		if (suspend)
 			wlc_suspend_mac_and_wait(wlc);
@@ -7870,7 +7863,6 @@ int wlc_prep_pdu(struct wlc_info *wlc, struct sk_buff *pdu, uint *fifop)
 	d11txh_t *txh;
 	struct ieee80211_hdr *h;
 	struct scb *scb;
-	u16 fc;
 
 	osh = wlc->osh;
 
@@ -7879,7 +7871,6 @@ int wlc_prep_pdu(struct wlc_info *wlc, struct sk_buff *pdu, uint *fifop)
 	ASSERT(txh);
 	h = (struct ieee80211_hdr *)((u8 *) (txh + 1) + D11_PHY_HDR_LEN);
 	ASSERT(h);
-	fc = le16_to_cpu(h->frame_control);
 
 	/* get the pkt queue info. This was put at wlc_sendctl or wlc_send for PDU */
 	fifo = le16_to_cpu(txh->TxFrameID) & TXFID_QUEUE_MASK;
