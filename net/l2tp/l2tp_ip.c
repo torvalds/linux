@@ -489,7 +489,7 @@ static int l2tp_ip_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *m
 			 * itself out.
 			 */
 			security_sk_classify_flow(sk, &fl);
-			if (ip_route_output_flow(sock_net(sk), &rt, &fl, sk, false))
+			if (ip_route_output_flow(sock_net(sk), &rt, &fl, sk))
 				goto no_route;
 		}
 		sk_setup_caps(sk, &rt->dst);
