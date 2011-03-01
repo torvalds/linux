@@ -76,6 +76,12 @@ static void perf_top_browser__update_rb_tree(struct perf_top_browser *browser)
 	browser->root = RB_ROOT;
 	browser->b.top = NULL;
 	browser->sum_ksamples = perf_top__decay_samples(top, &browser->root);
+	/*
+ 	 * No active symbols
+ 	 */
+	if (top->rb_entries == 0)
+		return;
+
 	perf_top__find_widths(top, &browser->root, &browser->dso_width,
 			      &browser->dso_short_width,
                               &browser->sym_width);
