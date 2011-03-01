@@ -108,7 +108,7 @@ static int imx_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 		break;
 	case SND_SOC_DAIFMT_DSP_B:
 		/* data on rising edge of bclk, frame high with data */
-		strcr |= SSI_STCR_TFSL;
+		strcr |= SSI_STCR_TFSL | SSI_STCR_TXBIT0;
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
 		/* data on rising edge of bclk, frame high 1clk before data */
@@ -655,6 +655,9 @@ static int imx_ssi_probe(struct platform_device *pdev)
 
 	ssi->dma_params_rx.dma_addr = res->start + SSI_SRX0;
 	ssi->dma_params_tx.dma_addr = res->start + SSI_STX0;
+
+	ssi->dma_params_tx.burstsize = 4;
+	ssi->dma_params_rx.burstsize = 4;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "tx0");
 	if (res)
