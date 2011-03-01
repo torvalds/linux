@@ -506,8 +506,14 @@ out_ack:
 		sent_packets = true;
 	}
 	if (sent_packets) {
-		/* interrupt the firmware with the new packets */
-		wl1271_write32(wl, WL1271_HOST_WR_ACCESS, wl->tx_packets_count);
+		/*
+		 * Interrupt the firmware with the new packets. This is only
+		 * required for older hardware revisions
+		 */
+		if (wl->quirks & WL12XX_QUIRK_END_OF_TRANSACTION)
+			wl1271_write32(wl, WL1271_HOST_WR_ACCESS,
+				       wl->tx_packets_count);
+
 		wl1271_handle_tx_low_watermark(wl);
 	}
 

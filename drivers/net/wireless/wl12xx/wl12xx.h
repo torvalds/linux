@@ -535,6 +535,9 @@ struct wl1271 {
 
 	/* AP-mode - a bitmap of links currently in PS mode in mac80211 */
 	unsigned long ap_ps_map;
+
+	/* Quirks of specific hardware revisions */
+	unsigned int quirks;
 };
 
 struct wl1271_station {
@@ -561,5 +564,10 @@ int wl1271_plt_stop(struct wl1271 *wl);
 /* Macros to handle wl1271.sta_rate_set */
 #define HW_BG_RATES_MASK	0xffff
 #define HW_HT_RATES_OFFSET	16
+
+/* Quirks */
+
+/* Each RX/TX transaction requires an end-of-transaction transfer */
+#define WL12XX_QUIRK_END_OF_TRANSACTION	BIT(0)
 
 #endif
