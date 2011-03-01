@@ -25,7 +25,10 @@ _GLOBAL(__setup_cpu_power7)
 	bl	__init_hvmode_206
 	mtlr	r11
 	beqlr
+	li	r0,0
+	mtspr	SPRN_LPID,r0
 	bl	__init_LPCR
+	bl	__init_TLB
 	mtlr	r11
 	blr
 
@@ -34,7 +37,10 @@ _GLOBAL(__restore_cpu_power7)
 	mfmsr	r3
 	rldicl.	r0,r3,4,63
 	beqlr
+	li	r0,0
+	mtspr	SPRN_LPID,r0
 	bl	__init_LPCR
+	bl	__init_TLB
 	mtlr	r11
 	blr
 
@@ -71,3 +77,15 @@ __init_LPCR:
 	mtspr	SPRN_LPCR,r3
 	isync
 	blr
+
+__init_TLB:
+	/* Clear the TLB */
+	li	r6,128
+	mtctr	r6
+	li	r7,0xc00	/* IS field = 0b11 */
+	ptesync
+2:	tlbiel	r7
+	addi	r7,r7,0x1000
+	bdnz	2b
+	ptesync
+1:	blr
