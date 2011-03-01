@@ -49,7 +49,7 @@
  * - 2.6.0 - add tiling config query (r6xx+), add initial HiZ support (r300->r500)
  *   2.7.0 - fixups for r600 2D tiling support. (no external ABI change), add eg dyn gpr regs
  *   2.8.0 - pageflip support, r500 US_FORMAT regs. r500 ARGB2101010 colorbuf, r300->r500 CMASK, clock crystal query
- *   2.9.0 - r600 tiling (s3tc,rgtc) working, SET_PREDICATION packet 3 on r600 + eg
+ *   2.9.0 - r600 tiling (s3tc,rgtc) working, SET_PREDICATION packet 3 on r600 + eg, backend query
  */
 #define KMS_DRIVER_MAJOR	2
 #define KMS_DRIVER_MINOR	9
