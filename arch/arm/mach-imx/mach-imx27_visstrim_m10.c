@@ -67,6 +67,11 @@ static const int visstrim_m10_pins[] __initconst = {
 	PD15_AOUT_FEC_COL,
 	PD16_AIN_FEC_TX_ER,
 	PF23_AIN_FEC_TX_EN,
+	/* SSI1 */
+	PC20_PF_SSI1_FS,
+	PC21_PF_SSI1_RXD,
+	PC22_PF_SSI1_TXD,
+	PC23_PF_SSI1_CLK,
 	/* SDHC1 */
 	PE18_PF_SD1_D0,
 	PE19_PF_SD1_D1,
@@ -205,6 +210,9 @@ static struct i2c_board_info visstrim_m10_i2c_devices[] = {
 		I2C_BOARD_INFO("pca9555", 0x20),
 		.platform_data = &visstrim_m10_pca9555_pdata,
 	},
+	{
+		I2C_BOARD_INFO("tlv320aic32x4", 0x18),
+	}
 };
 
 /* USB OTG */
@@ -223,6 +231,11 @@ visstrim_m10_usbotg_pdata __initconst = {
 	.portsc	= MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
 };
 
+/* SSI */
+static const struct imx_ssi_platform_data visstrim_m10_ssi_pdata __initconst = {
+	.flags			= IMX_SSI_DMA | IMX_SSI_SYN,
+};
+
 static void __init visstrim_m10_board_init(void)
 {
 	int ret;
@@ -232,6 +245,7 @@ static void __init visstrim_m10_board_init(void)
 	if (ret)
 		pr_err("Failed to setup pins (%d)\n", ret);
 
+	imx27_add_imx_ssi(0, &visstrim_m10_ssi_pdata);
 	imx27_add_imx_uart0(&uart_pdata);
 
 	i2c_register_board_info(0, visstrim_m10_i2c_devices,
