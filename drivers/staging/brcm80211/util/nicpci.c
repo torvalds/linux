@@ -37,7 +37,6 @@ typedef struct {
 
 	si_t *sih;		/* System interconnect handle */
 	struct pci_dev *dev;
-	struct osl_info *osh;		/* OSL handle */
 	u8 pciecap_lcreg_offset;	/* PCIE capability LCreg offset in the config space */
 	bool pcie_pr42767;
 	u8 pcie_polarity;
@@ -81,7 +80,7 @@ static bool pcicore_pmecap(pcicore_info_t *pi);
 /* Initialize the PCI core. It's caller's responsibility to make sure that this is done
  * only once
  */
-void *pcicore_init(si_t *sih, struct osl_info *osh, void *regs)
+void *pcicore_init(si_t *sih, void *pdev, void *regs)
 {
 	pcicore_info_t *pi;
 
@@ -95,8 +94,7 @@ void *pcicore_init(si_t *sih, struct osl_info *osh, void *regs)
 	}
 
 	pi->sih = sih;
-	pi->osh = osh;
-	pi->dev = osh->pdev;
+	pi->dev = pdev;
 
 	if (sih->buscoretype == PCIE_CORE_ID) {
 		u8 cap_ptr;
@@ -185,7 +183,7 @@ pcicore_find_pci_capability(void *dev, u8 req_cap_id,
 
 /* ***** Register Access API */
 uint
-pcie_readreg(struct osl_info *osh, sbpcieregs_t *pcieregs, uint addrtype,
+pcie_readreg(sbpcieregs_t *pcieregs, uint addrtype,
 	     uint offset)
 {
 	uint retval = 0xFFFFFFFF;
@@ -212,7 +210,7 @@ pcie_readreg(struct osl_info *osh, sbpcieregs_t *pcieregs, uint addrtype,
 }
 
 uint
-pcie_writereg(struct osl_info *osh, sbpcieregs_t *pcieregs, uint addrtype,
+pcie_writereg(sbpcieregs_t *pcieregs, uint addrtype,
 	      uint offset, uint val)
 {
 	ASSERT(pcieregs != NULL);
@@ -369,19 +367,18 @@ static void pcie_extendL1timer(pcicore_info_t *pi, bool extend)
 {
 	u32 w;
 	si_t *sih = pi->sih;
-	struct osl_info *osh = pi->osh;
 	sbpcieregs_t *pcieregs = pi->regs.pcieregs;
 
 	if (!PCIE_PUB(sih) || sih->buscorerev < 7)
 		return;
 
-	w = pcie_readreg(osh, pcieregs, PCIE_PCIEREGS, PCIE_DLLP_PMTHRESHREG);
+	w = pcie_readreg(pcieregs, PCIE_PCIEREGS, PCIE_DLLP_PMTHRESHREG);
 	if (extend)
 		w |= PCIE_ASPMTIMER_EXTEND;
 	else
 		w &= ~PCIE_ASPMTIMER_EXTEND;
-	pcie_writereg(osh, pcieregs, PCIE_PCIEREGS, PCIE_DLLP_PMTHRESHREG, w);
-	w = pcie_readreg(osh, pcieregs, PCIE_PCIEREGS, PCIE_DLLP_PMTHRESHREG);
+	pcie_writereg(pcieregs, PCIE_PCIEREGS, PCIE_DLLP_PMTHRESHREG, w);
+	w = pcie_readreg(pcieregs, PCIE_PCIEREGS, PCIE_DLLP_PMTHRESHREG);
 }
 
 /* centralized clkreq control policy */
@@ -434,7 +431,7 @@ static void pcie_war_polarity(pcicore_info_t *pi)
 	if (pi->pcie_polarity != 0)
 		return;
 
-	w = pcie_readreg(pi->osh, pi->regs.pcieregs, PCIE_PCIEREGS,
+	w = pcie_readreg(pi->regs.pcieregs, PCIE_PCIEREGS,
 			 PCIE_PLP_STATUSREG);
 
 	/* Detect the current polarity at attach and force that polarity and
@@ -553,22 +550,21 @@ static void pcie_war_noplldown(pcicore_info_t *pi)
 static void pcie_war_pci_setup(pcicore_info_t *pi)
 {
 	si_t *sih = pi->sih;
-	struct osl_info *osh = pi->osh;
 	sbpcieregs_t *pcieregs = pi->regs.pcieregs;
 	u32 w;
 
 	if ((sih->buscorerev == 0) || (sih->buscorerev == 1)) {
-		w = pcie_readreg(osh, pcieregs, PCIE_PCIEREGS,
+		w = pcie_readreg(pcieregs, PCIE_PCIEREGS,
 				 PCIE_TLP_WORKAROUNDSREG);
 		w |= 0x8;
-		pcie_writereg(osh, pcieregs, PCIE_PCIEREGS,
+		pcie_writereg(pcieregs, PCIE_PCIEREGS,
 			      PCIE_TLP_WORKAROUNDSREG, w);
 	}
 
 	if (sih->buscorerev == 1) {
-		w = pcie_readreg(osh, pcieregs, PCIE_PCIEREGS, PCIE_DLLP_LCREG);
+		w = pcie_readreg(pcieregs, PCIE_PCIEREGS, PCIE_DLLP_LCREG);
 		w |= (0x40);
-		pcie_writereg(osh, pcieregs, PCIE_PCIEREGS, PCIE_DLLP_LCREG, w);
+		pcie_writereg(pcieregs, PCIE_PCIEREGS, PCIE_DLLP_LCREG, w);
 	}
 
 	if (sih->buscorerev == 0) {
@@ -577,11 +573,11 @@ static void pcie_war_pci_setup(pcicore_info_t *pi)
 		pcie_mdiowrite(pi, MDIODATA_DEV_RX, SERDES_RX_CDRBW, 0x1466);
 	} else if (PCIE_ASPM(sih)) {
 		/* Change the L1 threshold for better performance */
-		w = pcie_readreg(osh, pcieregs, PCIE_PCIEREGS,
+		w = pcie_readreg(pcieregs, PCIE_PCIEREGS,
 				 PCIE_DLLP_PMTHRESHREG);
 		w &= ~(PCIE_L1THRESHOLDTIME_MASK);
 		w |= (PCIE_L1THRESHOLD_WARVAL << PCIE_L1THRESHOLDTIME_SHIFT);
-		pcie_writereg(osh, pcieregs, PCIE_PCIEREGS,
+		pcie_writereg(pcieregs, PCIE_PCIEREGS,
 			      PCIE_DLLP_PMTHRESHREG, w);
 
 		pcie_war_serdes(pi);
@@ -818,11 +814,10 @@ pcicore_pciereg(void *pch, u32 offset, u32 mask, u32 val, uint type)
 	u32 reg_val = 0;
 	pcicore_info_t *pi = (pcicore_info_t *) pch;
 	sbpcieregs_t *pcieregs = pi->regs.pcieregs;
-	struct osl_info *osh = pi->osh;
 
 	if (mask) {
 		PCI_ERROR(("PCIEREG: 0x%x writeval  0x%x\n", offset, val));
-		pcie_writereg(osh, pcieregs, type, offset, val);
+		pcie_writereg(pcieregs, type, offset, val);
 	}
 
 	/* Should not read register 0x154 */
@@ -830,7 +825,7 @@ pcicore_pciereg(void *pch, u32 offset, u32 mask, u32 val, uint type)
 	    && type == PCIE_PCIEREGS)
 		return reg_val;
 
-	reg_val = pcie_readreg(osh, pcieregs, type, offset);
+	reg_val = pcie_readreg(pcieregs, type, offset);
 	PCI_ERROR(("PCIEREG: 0x%x readval is 0x%x\n", offset, reg_val));
 
 	return reg_val;

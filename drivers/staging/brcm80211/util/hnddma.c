@@ -228,7 +228,7 @@ static void dma64_txreclaim(dma_info_t *di, txd_range_t range);
 static bool dma64_txstopped(dma_info_t *di);
 static bool dma64_rxstopped(dma_info_t *di);
 static bool dma64_rxenabled(dma_info_t *di);
-static bool _dma64_addrext(struct osl_info *osh, dma64regs_t *dma64regs);
+static bool _dma64_addrext(dma64regs_t *dma64regs);
 
 static inline u32 parity32(u32 data);
 
@@ -610,14 +610,14 @@ static bool _dma_isaddrext(dma_info_t *di)
 
 	/* not all tx or rx channel are available */
 	if (di->d64txregs != NULL) {
-		if (!_dma64_addrext(di->osh, di->d64txregs)) {
+		if (!_dma64_addrext(di->d64txregs)) {
 			DMA_ERROR(("%s: _dma_isaddrext: DMA64 tx doesn't have "
 				   "AE set\n", di->name));
 			ASSERT(0);
 		}
 		return true;
 	} else if (di->d64rxregs != NULL) {
-		if (!_dma64_addrext(di->osh, di->d64rxregs)) {
+		if (!_dma64_addrext(di->d64rxregs)) {
 			DMA_ERROR(("%s: _dma_isaddrext: DMA64 rx doesn't have "
 				   "AE set\n", di->name));
 			ASSERT(0);
@@ -1702,7 +1702,7 @@ static void *BCMFASTPATH dma64_getnextrxp(dma_info_t *di, bool forceall)
 	return rxp;
 }
 
-static bool _dma64_addrext(struct osl_info *osh, dma64regs_t * dma64regs)
+static bool _dma64_addrext(dma64regs_t *dma64regs)
 {
 	u32 w;
 	OR_REG(&dma64regs->control, D64_XC_AE);
@@ -1792,10 +1792,6 @@ static void dma64_txrotate(dma_info_t *di)
 
 uint dma_addrwidth(si_t *sih, void *dmaregs)
 {
-	struct osl_info *osh;
-
-	osh = si_osh(sih);
-
 	/* Perform 64-bit checks only if we want to advertise 64-bit (> 32bit) capability) */
 	/* DMA engine is 64-bit capable */
 	if ((si_core_sflags(sih, 0, 0) & SISF_DMA64) == SISF_DMA64) {

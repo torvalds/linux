@@ -78,7 +78,6 @@ typedef struct {
 	uint ccrev;		/* chipc revision */
 	otp_fn_t *fn;		/* OTP functions */
 	si_t *sih;		/* Saved sb handle */
-	struct osl_info *osh;
 
 #ifdef BCMIPXOTP
 	/* IPX OTP section */
@@ -569,14 +568,13 @@ static int hndotp_size(void *oh)
 
 static u16 hndotp_otpr(void *oh, chipcregs_t *cc, uint wn)
 {
+#ifdef BCMDBG
 	otpinfo_t *oi = (otpinfo_t *) oh;
-	struct osl_info *osh;
+#endif
 	volatile u16 *ptr;
 
 	ASSERT(wn < ((oi->size / 2) + OTP_RC_LIM_OFF));
 	ASSERT(cc != NULL);
-
-	osh = si_osh(oi->sih);
 
 	ptr = (volatile u16 *)((volatile char *)cc + CC_SROM_OTP);
 	return R_REG(&ptr[wn]);
@@ -585,14 +583,11 @@ static u16 hndotp_otpr(void *oh, chipcregs_t *cc, uint wn)
 static u16 hndotp_otproff(void *oh, chipcregs_t *cc, int woff)
 {
 	otpinfo_t *oi = (otpinfo_t *) oh;
-	struct osl_info *osh;
 	volatile u16 *ptr;
 
 	ASSERT(woff >= (-((int)oi->size / 2)));
 	ASSERT(woff < OTP_LIM_OFF);
 	ASSERT(cc != NULL);
-
-	osh = si_osh(oi->sih);
 
 	ptr = (volatile u16 *)((volatile char *)cc + CC_SROM_OTP);
 
@@ -601,12 +596,9 @@ static u16 hndotp_otproff(void *oh, chipcregs_t *cc, int woff)
 
 static u16 hndotp_read_bit(void *oh, chipcregs_t *cc, uint idx)
 {
-	otpinfo_t *oi = (otpinfo_t *) oh;
 	uint k, row, col;
 	u32 otpp, st;
-	struct osl_info *osh;
 
-	osh = si_osh(oi->sih);
 	row = idx / 65;
 	col = idx % 65;
 
@@ -637,12 +629,10 @@ static void *hndotp_init(si_t *sih)
 	otpinfo_t *oi;
 	u32 cap = 0, clkdiv, otpdiv = 0;
 	void *ret = NULL;
-	struct osl_info *osh;
 
 	oi = &otpinfo;
 
 	idx = si_coreidx(sih);
-	osh = si_osh(oi->sih);
 
 	/* Check for otp */
 	cc = si_setcoreidx(sih, SI_CC_IDX);
@@ -920,7 +910,6 @@ void *otp_init(si_t *sih)
 	}
 
 	oi->sih = sih;
-	oi->osh = si_osh(oi->sih);
 
 	ret = (oi->fn->init) (sih);
 

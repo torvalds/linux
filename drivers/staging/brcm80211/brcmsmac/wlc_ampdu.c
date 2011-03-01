@@ -494,7 +494,6 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 	      struct sk_buff **pdu, int prec)
 {
 	struct wlc_info *wlc;
-	struct osl_info *osh;
 	struct sk_buff *p, *pkt[AMPDU_MAX_MPDU];
 	u8 tid, ndelim;
 	int err = 0;
@@ -526,7 +525,6 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 	u16 qlen;
 
 	wlc = ampdu->wlc;
-	osh = wlc->osh;
 	p = *pdu;
 
 	ASSERT(p);
@@ -1070,7 +1068,7 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 				 wlc->pub->unit, txs->phyerr);
 
 			if (WL_ERROR_ON()) {
-				prpkt("txpkt (AMPDU)", wlc->osh, p);
+				prpkt("txpkt (AMPDU)", p);
 				wlc_print_txdesc((d11txh_t *) p->data);
 			}
 			wlc_print_txstatus(txs);

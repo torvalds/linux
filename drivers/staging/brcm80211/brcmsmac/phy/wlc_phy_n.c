@@ -19082,10 +19082,10 @@ wlc_phy_chanspec_nphy_setup(phy_info_t *pi, chanspec_t chanspec,
 
 		if ((pi->sh->chip == BCM4716_CHIP_ID) ||
 		    (pi->sh->chip == BCM47162_CHIP_ID)) {
-			si_pmu_spuravoid(pi->sh->sih, pi->sh->osh, spuravoid);
+			si_pmu_spuravoid(pi->sh->sih, spuravoid);
 		} else {
 			wlapi_bmac_core_phypll_ctl(pi->sh->physhim, false);
-			si_pmu_spuravoid(pi->sh->sih, pi->sh->osh, spuravoid);
+			si_pmu_spuravoid(pi->sh->sih, spuravoid);
 			wlapi_bmac_core_phypll_ctl(pi->sh->physhim, true);
 		}
 

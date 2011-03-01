@@ -46,23 +46,20 @@
 #define	PMU_NONE(args)
 
 /* PLL controls/clocks */
-static void si_pmu1_pllinit0(si_t *sih, struct osl_info *osh, chipcregs_t *cc,
-			     u32 xtal);
-static u32 si_pmu1_cpuclk0(si_t *sih, struct osl_info *osh, chipcregs_t *cc);
-static u32 si_pmu1_alpclk0(si_t *sih, struct osl_info *osh, chipcregs_t *cc);
+static void si_pmu1_pllinit0(si_t *sih, chipcregs_t *cc, u32 xtal);
+static u32 si_pmu1_cpuclk0(si_t *sih, chipcregs_t *cc);
+static u32 si_pmu1_alpclk0(si_t *sih, chipcregs_t *cc);
 
 /* PMU resources */
 static bool si_pmu_res_depfltr_bb(si_t *sih);
 static bool si_pmu_res_depfltr_ncb(si_t *sih);
 static bool si_pmu_res_depfltr_paldo(si_t *sih);
 static bool si_pmu_res_depfltr_npaldo(si_t *sih);
-static u32 si_pmu_res_deps(si_t *sih, struct osl_info *osh, chipcregs_t *cc,
-			      u32 rsrcs, bool all);
-static uint si_pmu_res_uptime(si_t *sih, struct osl_info *osh, chipcregs_t *cc,
-			      u8 rsrc);
+static u32 si_pmu_res_deps(si_t *sih, chipcregs_t *cc, u32 rsrcs, bool all);
+static uint si_pmu_res_uptime(si_t *sih, chipcregs_t *cc, u8 rsrc);
 static void si_pmu_res_masks(si_t *sih, u32 * pmin, u32 * pmax);
 static void si_pmu_spuravoid_pllupdate(si_t *sih, chipcregs_t *cc,
-				       struct osl_info *osh, u8 spuravoid);
+				       u8 spuravoid);
 
 static void si_pmu_set_4330_plldivs(si_t *sih);
 
@@ -107,8 +104,7 @@ void si_pmu_pllupd(si_t *sih)
 }
 
 /* Setup switcher voltage */
-void si_pmu_set_switcher_voltage(si_t *sih, struct osl_info *osh, u8 bb_voltage,
-				 u8 rf_voltage)
+void si_pmu_set_switcher_voltage(si_t *sih, u8 bb_voltage, u8 rf_voltage)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -130,7 +126,7 @@ void si_pmu_set_switcher_voltage(si_t *sih, struct osl_info *osh, u8 bb_voltage,
 	si_setcoreidx(sih, origidx);
 }
 
-void si_pmu_set_ldo_voltage(si_t *sih, struct osl_info *osh, u8 ldo, u8 voltage)
+void si_pmu_set_ldo_voltage(si_t *sih, u8 ldo, u8 voltage)
 {
 	u8 sr_cntl_shift = 0, rc_shift = 0, shift = 0, mask = 0;
 	u8 addr = 0;
@@ -188,7 +184,7 @@ void si_pmu_set_ldo_voltage(si_t *sih, struct osl_info *osh, u8 ldo, u8 voltage)
 /* d11 slow to fast clock transition time in slow clock cycles */
 #define D11SCC_SLOW2FAST_TRANSITION	2
 
-u16 si_pmu_fast_pwrup_delay(si_t *sih, struct osl_info *osh)
+u16 si_pmu_fast_pwrup_delay(si_t *sih)
 {
 	uint delay = PMU_MAX_TRANSITION_DLY;
 	chipcregs_t *cc;
@@ -223,7 +219,7 @@ u16 si_pmu_fast_pwrup_delay(si_t *sih, struct osl_info *osh)
 		else {
 			u32 ilp = si_ilp_clock(sih);
 			delay =
-			    (si_pmu_res_uptime(sih, osh, cc, RES4329_HT_AVAIL) +
+			    (si_pmu_res_uptime(sih, cc, RES4329_HT_AVAIL) +
 			     D11SCC_SLOW2FAST_TRANSITION) * ((1000000 + ilp -
 							      1) / ilp);
 			delay = (11 * delay) / 10;
@@ -238,7 +234,7 @@ u16 si_pmu_fast_pwrup_delay(si_t *sih, struct osl_info *osh)
 		else {
 			u32 ilp = si_ilp_clock(sih);
 			delay =
-			    (si_pmu_res_uptime(sih, osh, cc, RES4336_HT_AVAIL) +
+			    (si_pmu_res_uptime(sih, cc, RES4336_HT_AVAIL) +
 			     D11SCC_SLOW2FAST_TRANSITION) * ((1000000 + ilp -
 							      1) / ilp);
 			delay = (11 * delay) / 10;
@@ -250,7 +246,7 @@ u16 si_pmu_fast_pwrup_delay(si_t *sih, struct osl_info *osh)
 		else {
 			u32 ilp = si_ilp_clock(sih);
 			delay =
-			    (si_pmu_res_uptime(sih, osh, cc, RES4330_HT_AVAIL) +
+			    (si_pmu_res_uptime(sih, cc, RES4330_HT_AVAIL) +
 			     D11SCC_SLOW2FAST_TRANSITION) * ((1000000 + ilp -
 							      1) / ilp);
 			delay = (11 * delay) / 10;
@@ -265,7 +261,7 @@ u16 si_pmu_fast_pwrup_delay(si_t *sih, struct osl_info *osh)
 	return (u16) delay;
 }
 
-u32 si_pmu_force_ilp(si_t *sih, struct osl_info *osh, bool force)
+u32 si_pmu_force_ilp(si_t *sih, bool force)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -683,7 +679,7 @@ static void si_pmu_res_masks(si_t *sih, u32 * pmin, u32 * pmax)
 }
 
 /* initialize PMU resources */
-void si_pmu_res_init(si_t *sih, struct osl_info *osh)
+void si_pmu_res_init(si_t *sih)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -1184,7 +1180,7 @@ static u32 si_pmu1_pllfvco0(si_t *sih)
 
 /* query alp/xtal clock frequency */
 static u32
-si_pmu1_alpclk0(si_t *sih, struct osl_info *osh, chipcregs_t *cc)
+si_pmu1_alpclk0(si_t *sih, chipcregs_t *cc)
 {
 	const pmu1_xtaltab0_t *xt;
 	u32 xf;
@@ -1209,8 +1205,7 @@ si_pmu1_alpclk0(si_t *sih, struct osl_info *osh, chipcregs_t *cc)
  * case the xtal frequency is unknown to the s/w so we need to call
  * si_pmu1_xtaldef0() wherever it is needed to return a default value.
  */
-static void si_pmu1_pllinit0(si_t *sih, struct osl_info *osh, chipcregs_t *cc,
-			     u32 xtal)
+static void si_pmu1_pllinit0(si_t *sih, chipcregs_t *cc, u32 xtal)
 {
 	const pmu1_xtaltab0_t *xt;
 	u32 tmp;
@@ -1452,7 +1447,7 @@ static void si_pmu1_pllinit0(si_t *sih, struct osl_info *osh, chipcregs_t *cc,
 
 /* query the CPU clock frequency */
 static u32
-si_pmu1_cpuclk0(si_t *sih, struct osl_info *osh, chipcregs_t *cc)
+si_pmu1_cpuclk0(si_t *sih, chipcregs_t *cc)
 {
 	u32 tmp, m1div;
 #ifdef BCMDBG
@@ -1485,7 +1480,7 @@ si_pmu1_cpuclk0(si_t *sih, struct osl_info *osh, chipcregs_t *cc)
 	    (tmp & PMU1_PLL0_PC3_NDIV_FRAC_MASK) >>
 	    PMU1_PLL0_PC3_NDIV_FRAC_SHIFT;
 
-	fref = si_pmu1_alpclk0(sih, osh, cc) / 1000;
+	fref = si_pmu1_alpclk0(sih, cc) / 1000;
 
 	fvco = (fref * ndiv_int) << 8;
 	fvco += (fref * (ndiv_frac >> 12)) >> 4;
@@ -1506,7 +1501,7 @@ si_pmu1_cpuclk0(si_t *sih, struct osl_info *osh, chipcregs_t *cc)
 }
 
 /* initialize PLL */
-void si_pmu_pll_init(si_t *sih, struct osl_info *osh, uint xtalfreq)
+void si_pmu_pll_init(si_t *sih, uint xtalfreq)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -1525,7 +1520,7 @@ void si_pmu_pll_init(si_t *sih, struct osl_info *osh, uint xtalfreq)
 	case BCM4329_CHIP_ID:
 		if (xtalfreq == 0)
 			xtalfreq = 38400;
-		si_pmu1_pllinit0(sih, osh, cc, xtalfreq);
+		si_pmu1_pllinit0(sih, cc, xtalfreq);
 		break;
 	case BCM4313_CHIP_ID:
 	case BCM43224_CHIP_ID:
@@ -1541,7 +1536,7 @@ void si_pmu_pll_init(si_t *sih, struct osl_info *osh, uint xtalfreq)
 	case BCM4319_CHIP_ID:
 	case BCM4336_CHIP_ID:
 	case BCM4330_CHIP_ID:
-		si_pmu1_pllinit0(sih, osh, cc, xtalfreq);
+		si_pmu1_pllinit0(sih, cc, xtalfreq);
 		break;
 	default:
 		PMU_MSG(("No PLL init done for chip %s rev %d pmurev %d\n",
@@ -1559,7 +1554,7 @@ void si_pmu_pll_init(si_t *sih, struct osl_info *osh, uint xtalfreq)
 }
 
 /* query alp/xtal clock frequency */
-u32 si_pmu_alp_clock(si_t *sih, struct osl_info *osh)
+u32 si_pmu_alp_clock(si_t *sih)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -1597,7 +1592,7 @@ u32 si_pmu_alp_clock(si_t *sih, struct osl_info *osh)
 	case BCM4336_CHIP_ID:
 	case BCM4330_CHIP_ID:
 
-		clock = si_pmu1_alpclk0(sih, osh, cc);
+		clock = si_pmu1_alpclk0(sih, cc);
 		break;
 	case BCM5356_CHIP_ID:
 		/* always 25Mhz */
@@ -1620,8 +1615,7 @@ u32 si_pmu_alp_clock(si_t *sih, struct osl_info *osh)
  * pllreg "pll0" i.e. 12 for main 6 for phy, 0 for misc.
  */
 static u32
-si_pmu5_clock(si_t *sih, struct osl_info *osh, chipcregs_t *cc, uint pll0,
-			  uint m) {
+si_pmu5_clock(si_t *sih, chipcregs_t *cc, uint pll0, uint m) {
 	u32 tmp, div, ndiv, p1, p2, fc;
 
 	if ((pll0 & 3) || (pll0 > PMU4716_MAINPLL_PLL0)) {
@@ -1658,7 +1652,7 @@ si_pmu5_clock(si_t *sih, struct osl_info *osh, chipcregs_t *cc, uint pll0,
 	ndiv = (tmp & PMU5_PLL_NDIV_MASK) >> PMU5_PLL_NDIV_SHIFT;
 
 	/* Do calculation in Mhz */
-	fc = si_pmu_alp_clock(sih, osh) / 1000000;
+	fc = si_pmu_alp_clock(sih) / 1000000;
 	fc = (p1 * ndiv * fc) / p2;
 
 	PMU_NONE(("%s: p1=%d, p2=%d, ndiv=%d(0x%x), m%d=%d; fc=%d, clock=%d\n",
@@ -1672,7 +1666,7 @@ si_pmu5_clock(si_t *sih, struct osl_info *osh, chipcregs_t *cc, uint pll0,
 /* For designs that feed the same clock to both backplane
  * and CPU just return the CPU clock speed.
  */
-u32 si_pmu_si_clock(si_t *sih, struct osl_info *osh)
+u32 si_pmu_si_clock(si_t *sih)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -1701,19 +1695,19 @@ u32 si_pmu_si_clock(si_t *sih, struct osl_info *osh)
 	case BCM4748_CHIP_ID:
 	case BCM47162_CHIP_ID:
 		clock =
-		    si_pmu5_clock(sih, osh, cc, PMU4716_MAINPLL_PLL0,
+		    si_pmu5_clock(sih, cc, PMU4716_MAINPLL_PLL0,
 				  PMU5_MAINPLL_SI);
 		break;
 	case BCM4329_CHIP_ID:
 		if (sih->chiprev == 0)
 			clock = 38400 * 1000;
 		else
-			clock = si_pmu1_cpuclk0(sih, osh, cc);
+			clock = si_pmu1_cpuclk0(sih, cc);
 		break;
 	case BCM4319_CHIP_ID:
 	case BCM4336_CHIP_ID:
 	case BCM4330_CHIP_ID:
-		clock = si_pmu1_cpuclk0(sih, osh, cc);
+		clock = si_pmu1_cpuclk0(sih, cc);
 		break;
 	case BCM4313_CHIP_ID:
 		/* 80MHz backplane clock */
@@ -1729,12 +1723,12 @@ u32 si_pmu_si_clock(si_t *sih, struct osl_info *osh)
 		break;
 	case BCM5356_CHIP_ID:
 		clock =
-		    si_pmu5_clock(sih, osh, cc, PMU5356_MAINPLL_PLL0,
+		    si_pmu5_clock(sih, cc, PMU5356_MAINPLL_PLL0,
 				  PMU5_MAINPLL_SI);
 		break;
 	case BCM5357_CHIP_ID:
 		clock =
-		    si_pmu5_clock(sih, osh, cc, PMU5357_MAINPLL_PLL0,
+		    si_pmu5_clock(sih, cc, PMU5357_MAINPLL_PLL0,
 				  PMU5_MAINPLL_SI);
 		break;
 	default:
@@ -1751,7 +1745,7 @@ u32 si_pmu_si_clock(si_t *sih, struct osl_info *osh)
 }
 
 /* query CPU clock frequency */
-u32 si_pmu_cpu_clock(si_t *sih, struct osl_info *osh)
+u32 si_pmu_cpu_clock(si_t *sih)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -1784,18 +1778,18 @@ u32 si_pmu_cpu_clock(si_t *sih, struct osl_info *osh)
 		cc = si_setcoreidx(sih, SI_CC_IDX);
 		ASSERT(cc != NULL);
 
-		clock = si_pmu5_clock(sih, osh, cc, pll, PMU5_MAINPLL_CPU);
+		clock = si_pmu5_clock(sih, cc, pll, PMU5_MAINPLL_CPU);
 
 		/* Return to original core */
 		si_setcoreidx(sih, origidx);
 	} else
-		clock = si_pmu_si_clock(sih, osh);
+		clock = si_pmu_si_clock(sih);
 
 	return clock;
 }
 
 /* query memory clock frequency */
-u32 si_pmu_mem_clock(si_t *sih, struct osl_info *osh)
+u32 si_pmu_mem_clock(si_t *sih)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -1828,12 +1822,12 @@ u32 si_pmu_mem_clock(si_t *sih, struct osl_info *osh)
 		cc = si_setcoreidx(sih, SI_CC_IDX);
 		ASSERT(cc != NULL);
 
-		clock = si_pmu5_clock(sih, osh, cc, pll, PMU5_MAINPLL_MEM);
+		clock = si_pmu5_clock(sih, cc, pll, PMU5_MAINPLL_MEM);
 
 		/* Return to original core */
 		si_setcoreidx(sih, origidx);
 	} else {
-		clock = si_pmu_si_clock(sih, osh);
+		clock = si_pmu_si_clock(sih);
 	}
 
 	return clock;
@@ -1844,7 +1838,7 @@ u32 si_pmu_mem_clock(si_t *sih, struct osl_info *osh)
 
 static u32 ilpcycles_per_sec;
 
-u32 si_pmu_ilp_clock(si_t *sih, struct osl_info *osh)
+u32 si_pmu_ilp_clock(si_t *sih)
 {
 	if (ISSIM_ENAB(sih))
 		return ILP_CLOCK;
@@ -1908,8 +1902,7 @@ static const sdiod_drive_str_t sdiod_drive_strength_tab3[] = {
 #define SDIOD_DRVSTR_KEY(chip, pmu)	(((chip) << 16) | (pmu))
 
 void
-si_sdiod_drive_strength_init(si_t *sih, struct osl_info *osh,
-					 u32 drivestrength) {
+si_sdiod_drive_strength_init(si_t *sih, u32 drivestrength) {
 	chipcregs_t *cc;
 	uint origidx, intr_val = 0;
 	sdiod_drive_str_t *str_tab = NULL;
@@ -1979,7 +1972,7 @@ si_sdiod_drive_strength_init(si_t *sih, struct osl_info *osh,
 }
 
 /* initialize PMU */
-void si_pmu_init(si_t *sih, struct osl_info *osh)
+void si_pmu_init(si_t *sih)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -2011,8 +2004,7 @@ void si_pmu_init(si_t *sih, struct osl_info *osh)
 
 /* Return up time in ILP cycles for the given resource. */
 static uint
-si_pmu_res_uptime(si_t *sih, struct osl_info *osh, chipcregs_t *cc,
-			      u8 rsrc) {
+si_pmu_res_uptime(si_t *sih, chipcregs_t *cc, u8 rsrc) {
 	u32 deps;
 	uint up, i, dup, dmax;
 	u32 min_mask = 0, max_mask = 0;
@@ -2022,11 +2014,11 @@ si_pmu_res_uptime(si_t *sih, struct osl_info *osh, chipcregs_t *cc,
 	up = (R_REG(&cc->res_updn_timer) >> 8) & 0xff;
 
 	/* direct dependancies of resource 'rsrc' */
-	deps = si_pmu_res_deps(sih, osh, cc, PMURES_BIT(rsrc), false);
+	deps = si_pmu_res_deps(sih, cc, PMURES_BIT(rsrc), false);
 	for (i = 0; i <= PMURES_MAX_RESNUM; i++) {
 		if (!(deps & PMURES_BIT(i)))
 			continue;
-		deps &= ~si_pmu_res_deps(sih, osh, cc, PMURES_BIT(i), true);
+		deps &= ~si_pmu_res_deps(sih, cc, PMURES_BIT(i), true);
 	}
 	si_pmu_res_masks(sih, &min_mask, &max_mask);
 	deps &= ~min_mask;
@@ -2036,7 +2028,7 @@ si_pmu_res_uptime(si_t *sih, struct osl_info *osh, chipcregs_t *cc,
 	for (i = 0; i <= PMURES_MAX_RESNUM; i++) {
 		if (!(deps & PMURES_BIT(i)))
 			continue;
-		dup = si_pmu_res_uptime(sih, osh, cc, (u8) i);
+		dup = si_pmu_res_uptime(sih, cc, (u8) i);
 		if (dmax < dup)
 			dmax = dup;
 	}
@@ -2048,7 +2040,7 @@ si_pmu_res_uptime(si_t *sih, struct osl_info *osh, chipcregs_t *cc,
 
 /* Return dependancies (direct or all/indirect) for the given resources */
 static u32
-si_pmu_res_deps(si_t *sih, struct osl_info *osh, chipcregs_t *cc, u32 rsrcs,
+si_pmu_res_deps(si_t *sih, chipcregs_t *cc, u32 rsrcs,
 		bool all)
 {
 	u32 deps = 0;
@@ -2063,12 +2055,12 @@ si_pmu_res_deps(si_t *sih, struct osl_info *osh, chipcregs_t *cc, u32 rsrcs,
 
 	return !all ? deps : (deps
 			      ? (deps |
-				 si_pmu_res_deps(sih, osh, cc, deps,
+				 si_pmu_res_deps(sih, cc, deps,
 						 true)) : 0);
 }
 
 /* power up/down OTP through PMU resources */
-void si_pmu_otp_power(si_t *sih, struct osl_info *osh, bool on)
+void si_pmu_otp_power(si_t *sih, bool on)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -2108,7 +2100,7 @@ void si_pmu_otp_power(si_t *sih, struct osl_info *osh, bool on)
 		u32 otps;
 
 		/* Figure out the dependancies (exclude min_res_mask) */
-		u32 deps = si_pmu_res_deps(sih, osh, cc, rsrcs, true);
+		u32 deps = si_pmu_res_deps(sih, cc, rsrcs, true);
 		u32 min_mask = 0, max_mask = 0;
 		si_pmu_res_masks(sih, &min_mask, &max_mask);
 		deps &= ~min_mask;
@@ -2138,7 +2130,7 @@ void si_pmu_otp_power(si_t *sih, struct osl_info *osh, bool on)
 	si_setcoreidx(sih, origidx);
 }
 
-void si_pmu_rcal(si_t *sih, struct osl_info *osh)
+void si_pmu_rcal(si_t *sih)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -2217,7 +2209,7 @@ void si_pmu_rcal(si_t *sih, struct osl_info *osh)
 	si_setcoreidx(sih, origidx);
 }
 
-void si_pmu_spuravoid(si_t *sih, struct osl_info *osh, u8 spuravoid)
+void si_pmu_spuravoid(si_t *sih, u8 spuravoid)
 {
 	chipcregs_t *cc;
 	uint origidx, intr_val;
@@ -2240,7 +2232,7 @@ void si_pmu_spuravoid(si_t *sih, struct osl_info *osh, u8 spuravoid)
 	}
 
 	/* update the pll changes */
-	si_pmu_spuravoid_pllupdate(sih, cc, osh, spuravoid);
+	si_pmu_spuravoid_pllupdate(sih, cc, spuravoid);
 
 	/* enable HT back on  */
 	if (sih->chip == BCM4336_CHIP_ID) {
@@ -2254,8 +2246,7 @@ void si_pmu_spuravoid(si_t *sih, struct osl_info *osh, u8 spuravoid)
 }
 
 static void
-si_pmu_spuravoid_pllupdate(si_t *sih, chipcregs_t *cc, struct osl_info *osh,
-			   u8 spuravoid)
+si_pmu_spuravoid_pllupdate(si_t *sih, chipcregs_t *cc, u8 spuravoid)
 {
 	u32 tmp = 0;
 	u8 phypll_offset = 0;
@@ -2450,7 +2441,7 @@ si_pmu_spuravoid_pllupdate(si_t *sih, chipcregs_t *cc, struct osl_info *osh,
 	W_REG(&cc->pmucontrol, tmp);
 }
 
-bool si_pmu_is_otp_powered(si_t *sih, struct osl_info *osh)
+bool si_pmu_is_otp_powered(si_t *sih)
 {
 	uint idx;
 	chipcregs_t *cc;
@@ -2500,7 +2491,7 @@ bool si_pmu_is_otp_powered(si_t *sih, struct osl_info *osh)
 	return st;
 }
 
-void si_pmu_sprom_enable(si_t *sih, struct osl_info *osh, bool enable)
+void si_pmu_sprom_enable(si_t *sih, bool enable)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -2515,7 +2506,7 @@ void si_pmu_sprom_enable(si_t *sih, struct osl_info *osh, bool enable)
 }
 
 /* initialize PMU chip controls and other chip level stuff */
-void si_pmu_chip_init(si_t *sih, struct osl_info *osh)
+void si_pmu_chip_init(si_t *sih)
 {
 	uint origidx;
 
@@ -2527,7 +2518,7 @@ void si_pmu_chip_init(si_t *sih, struct osl_info *osh)
 #endif				/* CHIPC_UART_ALWAYS_ON */
 
 	/* Gate off SPROM clock and chip select signals */
-	si_pmu_sprom_enable(sih, osh, false);
+	si_pmu_sprom_enable(sih, false);
 
 	/* Remember original core */
 	origidx = si_coreidx(sih);
@@ -2537,26 +2528,26 @@ void si_pmu_chip_init(si_t *sih, struct osl_info *osh)
 }
 
 /* initialize PMU switch/regulators */
-void si_pmu_swreg_init(si_t *sih, struct osl_info *osh)
+void si_pmu_swreg_init(si_t *sih)
 {
 	ASSERT(sih->cccaps & CC_CAP_PMU);
 
 	switch (sih->chip) {
 	case BCM4336_CHIP_ID:
 		/* Reduce CLDO PWM output voltage to 1.2V */
-		si_pmu_set_ldo_voltage(sih, osh, SET_LDO_VOLTAGE_CLDO_PWM, 0xe);
+		si_pmu_set_ldo_voltage(sih, SET_LDO_VOLTAGE_CLDO_PWM, 0xe);
 		/* Reduce CLDO BURST output voltage to 1.2V */
-		si_pmu_set_ldo_voltage(sih, osh, SET_LDO_VOLTAGE_CLDO_BURST,
+		si_pmu_set_ldo_voltage(sih, SET_LDO_VOLTAGE_CLDO_BURST,
 				       0xe);
 		/* Reduce LNLDO1 output voltage to 1.2V */
-		si_pmu_set_ldo_voltage(sih, osh, SET_LDO_VOLTAGE_LNLDO1, 0xe);
+		si_pmu_set_ldo_voltage(sih, SET_LDO_VOLTAGE_LNLDO1, 0xe);
 		if (sih->chiprev == 0)
 			si_pmu_regcontrol(sih, 2, 0x400000, 0x400000);
 		break;
 
 	case BCM4330_CHIP_ID:
 		/* CBUCK Voltage is 1.8 by default and set that to 1.5 */
-		si_pmu_set_ldo_voltage(sih, osh, SET_LDO_VOLTAGE_CBUCK_PWM, 0);
+		si_pmu_set_ldo_voltage(sih, SET_LDO_VOLTAGE_CBUCK_PWM, 0);
 		break;
 	default:
 		break;
@@ -2581,8 +2572,7 @@ void si_pmu_radio_enable(si_t *sih, bool enable)
 
 /* Wait for a particular clock level to be on the backplane */
 u32
-si_pmu_waitforclk_on_backplane(si_t *sih, struct osl_info *osh, u32 clk,
-			       u32 delay)
+si_pmu_waitforclk_on_backplane(si_t *sih, u32 clk, u32 delay)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -2610,7 +2600,7 @@ si_pmu_waitforclk_on_backplane(si_t *sih, struct osl_info *osh, u32 clk,
 
 #define EXT_ILP_HZ 32768
 
-u32 si_pmu_measure_alpclk(si_t *sih, struct osl_info *osh)
+u32 si_pmu_measure_alpclk(si_t *sih)
 {
 	chipcregs_t *cc;
 	uint origidx;

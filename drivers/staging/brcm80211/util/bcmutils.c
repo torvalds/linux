@@ -76,7 +76,7 @@ void BCMFASTPATH pkt_buf_free_skb(struct osl_info *osh,
 }
 
 /* copy a buffer into a pkt buffer chain */
-uint pktfrombuf(struct osl_info *osh, struct sk_buff *p, uint offset, int len,
+uint pktfrombuf(struct sk_buff *p, uint offset, int len,
 		unsigned char *buf)
 {
 	uint n, ret = 0;
@@ -453,7 +453,7 @@ int getintvar(char *vars, const char *name)
 
 #if defined(BCMDBG)
 /* pretty hex print a pkt buffer chain */
-void prpkt(const char *msg, struct osl_info *osh, struct sk_buff *p0)
+void prpkt(const char *msg, struct sk_buff *p0)
 {
 	struct sk_buff *p;
 

@@ -2283,7 +2283,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 
 	case IOV_SVAL(IOV_SDIOD_DRIVE):
 		dhd_sdiod_drive_strength = int_val;
-		si_sdiod_drive_strength_init(bus->sih, bus->dhd->osh,
+		si_sdiod_drive_strength_init(bus->sih,
 					     dhd_sdiod_drive_strength);
 		break;
 
@@ -3329,7 +3329,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 						      F2SYNC, bus->dataptr,
 						      dlen, NULL, NULL, NULL);
 			sublen =
-			    (u16) pktfrombuf(osh, pfirst, 0, dlen,
+			    (u16) pktfrombuf(pfirst, 0, dlen,
 						bus->dataptr);
 			if (sublen != dlen) {
 				DHD_ERROR(("%s: FAILED TO COPY, dlen %d sublen %d\n",
@@ -5317,7 +5317,7 @@ dhdsdio_probe_attach(struct dhd_bus *bus, struct osl_info *osh, void *sdh,
 #endif				/* DHD_DEBUG */
 
 	/* si_attach() will provide an SI handle and scan the backplane */
-	bus->sih = si_attach((uint) devid, osh, regsva, DHD_BUS, sdh,
+	bus->sih = si_attach((uint) devid, regsva, DHD_BUS, sdh,
 				   &bus->vars, &bus->varsz);
 	if (!(bus->sih)) {
 		DHD_ERROR(("%s: si_attach failed!\n", __func__));
@@ -5332,7 +5332,7 @@ dhdsdio_probe_attach(struct dhd_bus *bus, struct osl_info *osh, void *sdh,
 		goto fail;
 	}
 
-	si_sdiod_drive_strength_init(bus->sih, osh, dhd_sdiod_drive_strength);
+	si_sdiod_drive_strength_init(bus->sih, dhd_sdiod_drive_strength);
 
 	/* Get info on the ARM and SOCRAM cores... */
 	if (!DHD_NOPMU(bus)) {

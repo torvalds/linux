@@ -140,7 +140,7 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 
 /* externs */
 /* packet */
-	extern uint pktfrombuf(struct osl_info *osh, struct sk_buff *p,
+	extern uint pktfrombuf(struct sk_buff *p,
 			       uint offset, int len, unsigned char *buf);
 	extern uint pkttotlen(struct sk_buff *p);
 
@@ -155,10 +155,9 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 	extern char *getvar(char *vars, const char *name);
 	extern int getintvar(char *vars, const char *name);
 #ifdef BCMDBG
-	extern void prpkt(const char *msg, struct osl_info *osh,
-			  struct sk_buff *p0);
+	extern void prpkt(const char *msg, struct sk_buff *p0);
 #else
-#define prpkt(a, b, c)
+#define prpkt(a, b)
 #endif				/* BCMDBG */
 
 #define bcm_perf_enable()

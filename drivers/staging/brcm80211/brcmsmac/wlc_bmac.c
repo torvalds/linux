@@ -674,7 +674,7 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 	 * Also initialize software state that depends on the particular hardware
 	 * we are running.
 	 */
-	wlc_hw->sih = si_attach((uint) device, osh, regsva, bustype, btparam,
+	wlc_hw->sih = si_attach((uint) device, regsva, bustype, btparam,
 				&wlc_hw->vars, &wlc_hw->vars_size);
 	if (wlc_hw->sih == NULL) {
 		WL_ERROR("wl%d: wlc_bmac_attach: si_attach failed\n", unit);
