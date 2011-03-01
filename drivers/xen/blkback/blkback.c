@@ -426,7 +426,7 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 	}
 
 	preq.dev           = req->handle;
-	preq.sector_number = req->sector_number;
+	preq.sector_number = req->u.rw.sector_number;
 	preq.nr_sects      = 0;
 
 	pending_req->blkif     = blkif;
@@ -438,11 +438,11 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 	for (i = 0; i < nseg; i++) {
 		uint32_t flags;
 
-		seg[i].nsec = req->seg[i].last_sect -
-			req->seg[i].first_sect + 1;
+		seg[i].nsec = req->u.rw.seg[i].last_sect -
+			req->u.rw.seg[i].first_sect + 1;
 
-		if ((req->seg[i].last_sect >= (PAGE_SIZE >> 9)) ||
-		    (req->seg[i].last_sect < req->seg[i].first_sect))
+		if ((req->u.rw.seg[i].last_sect >= (PAGE_SIZE >> 9)) ||
+		    (req->u.rw.seg[i].last_sect < req->u.rw.seg[i].first_sect))
 			goto fail_response;
 		preq.nr_sects += seg[i].nsec;
 
@@ -450,7 +450,7 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 		if (operation != READ)
 			flags |= GNTMAP_readonly;
 		gnttab_set_map_op(&map[i], vaddr(pending_req, i), flags,
-				  req->seg[i].gref, blkif->domid);
+				  req->u.rw.seg[i].gref, blkif->domid);
 	}
 
 	ret = HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, map, nseg);
@@ -472,7 +472,7 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 			page_to_pfn(blkbk->pending_page(pending_req, i)),
 			FOREIGN_FRAME(map[i].dev_bus_addr >> PAGE_SHIFT));
 		seg[i].buf  = map[i].dev_bus_addr |
-			(req->seg[i].first_sect << 9);
+			(req->u.rw.seg[i].first_sect << 9);
 	}
 
 	if (ret)
