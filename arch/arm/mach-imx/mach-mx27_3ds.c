@@ -98,6 +98,9 @@ static const int mx27pdk_pins[] __initconst = {
 	PD22_PF_CSPI2_SCLK,
 	PD23_PF_CSPI2_MISO,
 	PD24_PF_CSPI2_MOSI,
+	/* I2C1 */
+	PD17_PF_I2C_DATA,
+	PD18_PF_I2C_CLK,
 };
 
 static const struct imxuart_platform_data uart_pdata __initconst = {
@@ -257,6 +260,9 @@ static struct spi_board_info mx27_3ds_spi_devs[] __initdata = {
 	},
 };
 
+static const struct imxi2c_platform_data mx27_3ds_i2c0_data __initconst = {
+	.bitrate = 100000,
+};
 
 static void __init mx27pdk_init(void)
 {
@@ -286,6 +292,7 @@ static void __init mx27pdk_init(void)
 
 	if (mxc_expio_init(MX27_CS5_BASE_ADDR, EXPIO_PARENT_INT))
 		pr_warn("Init of the debugboard failed, all devices on the debugboard are unusable.\n");
+	imx27_add_imx_i2c(0, &mx27_3ds_i2c0_data);
 }
 
 static void __init mx27pdk_timer_init(void)
