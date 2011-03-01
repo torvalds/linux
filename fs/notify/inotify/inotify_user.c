@@ -841,7 +841,7 @@ out:
 }
 
 /*
- * inotify_user_setup - Our initialization function.  Note that we cannnot return
+ * inotify_user_setup - Our initialization function.  Note that we cannot return
  * error because we have compiled-in VFS hooks.  So an (unlikely) failure here
  * must result in panic().
  */

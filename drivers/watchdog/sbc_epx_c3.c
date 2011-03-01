@@ -220,7 +220,7 @@ module_exit(watchdog_exit);
 MODULE_AUTHOR("Calin A. Culianu <calin@ajvar.org>");
 MODULE_DESCRIPTION("Hardware Watchdog Device for Winsystems EPX-C3 SBC.  "
 	"Note that there is no way to probe for this device -- "
-	"so only use it if you are *sure* you are runnning on this specific "
+	"so only use it if you are *sure* you are running on this specific "
 	"SBC system from Winsystems!  It writes to IO ports 0x1ee and 0x1ef!");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

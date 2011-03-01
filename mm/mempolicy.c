@@ -993,7 +993,7 @@ int do_migrate_pages(struct mm_struct *mm,
 	 * most recent <s, d> pair that moved (s != d).  If we find a pair
 	 * that not only moved, but what's better, moved to an empty slot
 	 * (d is not set in tmp), then we break out then, with that pair.
-	 * Otherwise when we finish scannng from_tmp, we at least have the
+	 * Otherwise when we finish scanning from_tmp, we at least have the
 	 * most recent <s, d> pair that moved.  If we get all the way through
 	 * the scan of tmp without finding any node that moved, much less
 	 * moved to an empty node, then there is nothing left worth migrating.

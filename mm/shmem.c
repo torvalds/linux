@@ -779,7 +779,7 @@ static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
 			 * If truncating down to a partial page, then
 			 * if that page is already allocated, hold it
 			 * in memory until the truncation is over, so
-			 * truncate_partial_page cannnot miss it were
+			 * truncate_partial_page cannot miss it were
 			 * it assigned to swap.
 			 */
 			if (newsize & (PAGE_CACHE_SIZE-1)) {
