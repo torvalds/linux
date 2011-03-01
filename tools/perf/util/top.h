@@ -35,6 +35,7 @@ struct perf_top {
 	 */
 	struct list_head   active_symbols;
 	pthread_mutex_t	   active_symbols_lock;
+	pthread_cond_t	   active_symbols_cond;
 	u64		   samples;
 	u64		   kernel_samples, us_samples;
 	u64		   exact_samples;

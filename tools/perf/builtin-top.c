@@ -72,6 +72,7 @@ static struct perf_top top = {
 	.target_tid		= -1,
 	.active_symbols		= LIST_HEAD_INIT(top.active_symbols),
 	.active_symbols_lock	= PTHREAD_MUTEX_INITIALIZER,
+	.active_symbols_cond	= PTHREAD_COND_INITIALIZER,
 	.freq			= 1000, /* 1 KHz */
 };
 
@@ -577,7 +578,17 @@ static void handle_keypress(struct perf_session *session, int c)
 
 static void *display_thread_tui(void *arg __used)
 {
-	perf_top__tui_browser(&top);
+	int err = 0;
+	pthread_mutex_lock(&top.active_symbols_lock);
+	while (list_empty(&top.active_symbols)) {
+		err = pthread_cond_wait(&top.active_symbols_cond,
+					&top.active_symbols_lock);
+		if (err)
+			break;
+	}
+	pthread_mutex_unlock(&top.active_symbols_lock);
+	if (!err)
+		perf_top__tui_browser(&top);
 	exit_browser(0);
 	exit(0);
 	return NULL;
@@ -776,8 +787,14 @@ static void perf_event__process_sample(const union perf_event *event,
 		syme->count[evsel->idx]++;
 		record_precise_ip(syme, evsel->idx, ip);
 		pthread_mutex_lock(&top.active_symbols_lock);
-		if (list_empty(&syme->node) || !syme->node.next)
+		if (list_empty(&syme->node) || !syme->node.next) {
+			static bool first = true;
 			__list_insert_active_sym(syme);
+			if (first) {
+				pthread_cond_broadcast(&top.active_symbols_cond);
+				first = false;
+			}
+		}
 		pthread_mutex_unlock(&top.active_symbols_lock);
 	}
 }
