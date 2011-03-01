@@ -60,6 +60,7 @@ static int move_iovec_hdr(struct iovec *from, struct iovec *to,
 {
 	int seg = 0;
 	size_t size;
+
 	while (len && seg < iov_count) {
 		size = min(from->iov_len, len);
 		to->iov_base = from->iov_base;
@@ -79,6 +80,7 @@ static void copy_iovec_hdr(const struct iovec *from, struct iovec *to,
 {
 	int seg = 0;
 	size_t size;
+
 	while (len && seg < iovcount) {
 		size = min(from->iov_len, len);
 		to->iov_base = from->iov_base;
@@ -296,17 +298,16 @@ static void handle_rx_big(struct vhost_net *net)
 		.msg_iov = vq->iov,
 		.msg_flags = MSG_DONTWAIT,
 	};
-
 	struct virtio_net_hdr hdr = {
 		.flags = 0,
 		.gso_type = VIRTIO_NET_HDR_GSO_NONE
 	};
-
 	size_t len, total_len = 0;
 	int err;
 	size_t hdr_size;
 	/* TODO: check that we are running from vhost_worker? */
 	struct socket *sock = rcu_dereference_check(vq->private_data, 1);
+
 	if (!sock || skb_queue_empty(&sock->sk->sk_receive_queue))
 		return;
 
@@ -405,18 +406,17 @@ static void handle_rx_mergeable(struct vhost_net *net)
 		.msg_iov = vq->iov,
 		.msg_flags = MSG_DONTWAIT,
 	};
-
 	struct virtio_net_hdr_mrg_rxbuf hdr = {
 		.hdr.flags = 0,
 		.hdr.gso_type = VIRTIO_NET_HDR_GSO_NONE
 	};
-
 	size_t total_len = 0;
 	int err, headcount;
 	size_t vhost_hlen, sock_hlen;
 	size_t vhost_len, sock_len;
 	/* TODO: check that we are running from vhost_worker? */
 	struct socket *sock = rcu_dereference_check(vq->private_data, 1);
+
 	if (!sock || skb_queue_empty(&sock->sk->sk_receive_queue))
 		return;
 
@@ -654,6 +654,7 @@ static struct socket *get_raw_socket(int fd)
 	} uaddr;
 	int uaddr_len = sizeof uaddr, r;
 	struct socket *sock = sockfd_lookup(fd, &r);
+
 	if (!sock)
 		return ERR_PTR(-ENOTSOCK);
 
@@ -682,6 +683,7 @@ static struct socket *get_tap_socket(int fd)
 {
 	struct file *file = fget(fd);
 	struct socket *sock;
+
 	if (!file)
 		return ERR_PTR(-EBADF);
 	sock = tun_get_socket(file);
@@ -696,6 +698,7 @@ static struct socket *get_tap_socket(int fd)
 static struct socket *get_socket(int fd)
 {
 	struct socket *sock;
+
 	/* special case to disable backend */
 	if (fd == -1)
 		return NULL;
@@ -741,9 +744,9 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 	oldsock = rcu_dereference_protected(vq->private_data,
 					    lockdep_is_held(&vq->mutex));
 	if (sock != oldsock) {
-                vhost_net_disable_vq(n, vq);
-                rcu_assign_pointer(vq->private_data, sock);
-                vhost_net_enable_vq(n, vq);
+		vhost_net_disable_vq(n, vq);
+		rcu_assign_pointer(vq->private_data, sock);
+		vhost_net_enable_vq(n, vq);
 	}
 
 	mutex_unlock(&vq->mutex);
@@ -768,6 +771,7 @@ static long vhost_net_reset_owner(struct vhost_net *n)
 	struct socket *tx_sock = NULL;
 	struct socket *rx_sock = NULL;
 	long err;
+
 	mutex_lock(&n->dev.mutex);
 	err = vhost_dev_check_owner(&n->dev);
 	if (err)
@@ -829,6 +833,7 @@ static long vhost_net_ioctl(struct file *f, unsigned int ioctl,
 	struct vhost_vring_file backend;
 	u64 features;
 	int r;
+
 	switch (ioctl) {
 	case VHOST_NET_SET_BACKEND:
 		if (copy_from_user(&backend, argp, sizeof backend))
