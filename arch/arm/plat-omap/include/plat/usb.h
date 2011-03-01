@@ -98,10 +98,6 @@ enum musb_interface    {MUSB_INTERFACE_ULPI, MUSB_INTERFACE_UTMI};
 
 extern void usb_musb_init(struct omap_musb_board_data *board_data);
 
-extern void usb_ehci_init(const struct usbhs_omap_board_data *pdata);
-
-extern void usb_ohci_init(const struct usbhs_omap_board_data *pdata);
-
 extern void usbhs_init(const struct usbhs_omap_board_data *pdata);
 
 extern int omap_usbhs_enable(struct device *dev);
