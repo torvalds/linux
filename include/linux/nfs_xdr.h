@@ -1020,6 +1020,7 @@ struct nfs_read_data {
 	struct pnfs_layout_segment *lseg;
 	struct nfs_client	*ds_clp;	/* pNFS data server */
 	const struct rpc_call_ops *mds_ops;
+	__u64			mds_offset;
 	struct page		*page_array[NFS_PAGEVEC_SIZE];
 };
 

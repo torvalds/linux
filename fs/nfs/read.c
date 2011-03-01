@@ -157,7 +157,7 @@ static void nfs_readpage_release(struct nfs_page *req)
 	nfs_release_request(req);
 }
 
-static int nfs_initiate_read(struct nfs_read_data *data, struct rpc_clnt *clnt,
+int nfs_initiate_read(struct nfs_read_data *data, struct rpc_clnt *clnt,
 		      const struct rpc_call_ops *call_ops)
 {
 	struct inode *inode = data->inode;
@@ -195,6 +195,7 @@ static int nfs_initiate_read(struct nfs_read_data *data, struct rpc_clnt *clnt,
 	rpc_put_task(task);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nfs_initiate_read);
 
 /*
  * Set up the NFS read request struct

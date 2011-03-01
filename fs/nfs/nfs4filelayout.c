@@ -101,6 +101,87 @@ filelayout_get_dserver_offset(struct pnfs_layout_segment *lseg, loff_t offset)
 }
 
 /*
+ * Call ops for the async read/write cases
+ * In the case of dense layouts, the offset needs to be reset to its
+ * original value.
+ */
+static void filelayout_read_prepare(struct rpc_task *task, void *data)
+{
+	struct nfs_read_data *rdata = (struct nfs_read_data *)data;
+
+	if (nfs41_setup_sequence(rdata->ds_clp->cl_session,
+				&rdata->args.seq_args, &rdata->res.seq_res,
+				0, task))
+		return;
+
+	rpc_call_start(task);
+}
+
+static void filelayout_read_call_done(struct rpc_task *task, void *data)
+{
+	struct nfs_read_data *rdata = (struct nfs_read_data *)data;
+
+	dprintk("--> %s task->tk_status %d\n", __func__, task->tk_status);
+
+	/* Note this may cause RPC to be resent */
+	rdata->mds_ops->rpc_call_done(task, data);
+}
+
+static void filelayout_read_release(void *data)
+{
+	struct nfs_read_data *rdata = (struct nfs_read_data *)data;
+
+	rdata->mds_ops->rpc_release(data);
+}
+
+struct rpc_call_ops filelayout_read_call_ops = {
+	.rpc_call_prepare = filelayout_read_prepare,
+	.rpc_call_done = filelayout_read_call_done,
+	.rpc_release = filelayout_read_release,
+};
+
+static enum pnfs_try_status
+filelayout_read_pagelist(struct nfs_read_data *data)
+{
+	struct pnfs_layout_segment *lseg = data->lseg;
+	struct nfs4_pnfs_ds *ds;
+	loff_t offset = data->args.offset;
+	u32 j, idx;
+	struct nfs_fh *fh;
+	int status;
+
+	dprintk("--> %s ino %lu pgbase %u req %Zu@%llu\n",
+		__func__, data->inode->i_ino,
+		data->args.pgbase, (size_t)data->args.count, offset);
+
+	/* Retrieve the correct rpc_client for the byte range */
+	j = nfs4_fl_calc_j_index(lseg, offset);
+	idx = nfs4_fl_calc_ds_index(lseg, j);
+	ds = nfs4_fl_prepare_ds(lseg, idx);
+	if (!ds) {
+		printk(KERN_ERR "%s: prepare_ds failed, use MDS\n", __func__);
+		return PNFS_NOT_ATTEMPTED;
+	}
+	dprintk("%s USE DS:ip %x %hu\n", __func__,
+		ntohl(ds->ds_ip_addr), ntohs(ds->ds_port));
+
+	/* No multipath support. Use first DS */
+	data->ds_clp = ds->ds_clp;
+	fh = nfs4_fl_select_ds_fh(lseg, j);
+	if (fh)
+		data->args.fh = fh;
+
+	data->args.offset = filelayout_get_dserver_offset(lseg, offset);
+	data->mds_offset = offset;
+
+	/* Perform an asynchronous read to ds */
+	status = nfs_initiate_read(data, ds->ds_clp->cl_rpcclient,
+				   &filelayout_read_call_ops);
+	BUG_ON(status != 0);
+	return PNFS_ATTEMPTED;
+}
+
+/*
  * filelayout_check_layout()
  *
  * Make sure layout segment parameters are sane WRT the device.
@@ -320,6 +401,7 @@ static struct pnfs_layoutdriver_type filelayout_type = {
 	.alloc_lseg              = filelayout_alloc_lseg,
 	.free_lseg               = filelayout_free_lseg,
 	.pg_test		= filelayout_pg_test,
+	.read_pagelist		= filelayout_read_pagelist,
 };
 
 static int __init nfs4filelayout_init(void)
