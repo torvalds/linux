@@ -401,6 +401,9 @@ enum sci_status scic_sds_phy_stop(
 enum sci_status scic_sds_phy_reset(
 	struct scic_sds_phy *this_phy);
 
+void scic_sds_phy_sata_timeout(
+	void *cookie);
+
 /* --------------------------------------------------------------------------- */
 
 void scic_sds_phy_suspend(

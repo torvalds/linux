@@ -252,7 +252,7 @@ static void scic_sds_controller_phy_startup_timeout_handler(
  *
  * This method initializes the phy startup operations for controller start.
  */
-void scic_sds_controller_initialize_phy_startup(
+enum sci_status scic_sds_controller_initialize_phy_startup(
 	struct scic_sds_controller *this_controller)
 {
 	this_controller->phy_startup_timer = isci_event_timer_create(
@@ -261,8 +261,14 @@ void scic_sds_controller_initialize_phy_startup(
 		this_controller
 		);
 
-	this_controller->next_phy_to_start = 0;
-	this_controller->phy_startup_timer_pending = false;
+	if (this_controller->phy_startup_timer == NULL) {
+		return SCI_FAILURE_INSUFFICIENT_RESOURCES;
+	} else {
+		this_controller->next_phy_to_start = 0;
+		this_controller->phy_startup_timer_pending = false;
+	}
+
+	return SCI_SUCCESS;
 }
 
 /**
@@ -305,7 +311,7 @@ void scic_sds_controller_initialize_power_control(
  *    to build the memory table.
  *
  */
-static void scic_sds_controller_build_memory_descriptor_table(
+void scic_sds_controller_build_memory_descriptor_table(
 	struct scic_sds_controller *this_controller)
 {
 	sci_base_mde_construct(
@@ -1697,6 +1703,91 @@ void scic_sds_controller_link_down(
 				scic_sds_controller_get_base_state_machine(
 					scic)));
 }
+
+/**
+ * This method is called by the remote device to inform the controller
+ * that this remote device has started.
+ *
+ */
+
+void scic_sds_controller_remote_device_started(
+	struct scic_sds_controller *this_controller,
+	struct scic_sds_remote_device  *the_device)
+{
+	u32 state;
+	scic_sds_controller_device_handler_t remote_device_started_handler;
+
+	state = this_controller->parent.state_machine.current_state_id;
+	remote_device_started_handler = scic_sds_controller_state_handler_table[state].remote_device_started_handler;
+
+	if (remote_device_started_handler != NULL)
+		remote_device_started_handler(this_controller, the_device);
+	else {
+		dev_warn(scic_to_dev(this_controller),
+		"%s: SCIC Controller 0x%p remote device started event "
+		"from device 0x%p in unexpected state  %d\n",
+		__func__,
+		this_controller,
+		the_device,
+		sci_base_state_machine_get_state(
+			scic_sds_controller_get_base_state_machine(
+				this_controller)));
+	}
+}
+
+/**
+ * This is a helper method to determine if any remote devices on this
+ * controller are still in the stopping state.
+ *
+ */
+bool scic_sds_controller_has_remote_devices_stopping(
+	struct scic_sds_controller *this_controller)
+{
+	u32 index;
+
+	for (index = 0; index < this_controller->remote_node_entries; index++) {
+		if ((this_controller->device_table[index] != NULL) &&
+		   (this_controller->device_table[index]->parent.state_machine.current_state_id
+		    == SCI_BASE_REMOTE_DEVICE_STATE_STOPPING))
+			return true;
+	}
+
+	return false;
+}
+
+/**
+ * This method is called by the remote device to inform the controller
+ * object that the remote device has stopped.
+ *
+ */
+
+void scic_sds_controller_remote_device_stopped(
+	struct scic_sds_controller  *this_controller,
+	struct scic_sds_remote_device *the_device)
+{
+
+	u32 state;
+	scic_sds_controller_device_handler_t remote_device_stopped_handler;
+
+	state = this_controller->parent.state_machine.current_state_id;
+	remote_device_stopped_handler = scic_sds_controller_state_handler_table[state].remote_device_stopped_handler;
+
+	if (remote_device_stopped_handler != NULL)
+		remote_device_stopped_handler(this_controller, the_device);
+	else {
+		dev_warn(scic_to_dev(this_controller),
+		"%s: SCIC Controller 0x%p remote device stopped event "
+		"from device 0x%p in unexpected state  %d\n",
+		__func__,
+		this_controller,
+		the_device,
+		sci_base_state_machine_get_state(
+			scic_sds_controller_get_base_state_machine(
+				this_controller)));
+	}
+}
+
+
 
 /**
  * This method will write to the SCU PCP register the request value. The method
@@ -3461,23 +3552,22 @@ static enum sci_status scic_sds_controller_stopping_state_complete_io_handler(
  *    struct scic_sds_controller object.
  * @remote_device: This is struct sci_base_remote_device which is cast to a
  *    struct scic_sds_remote_device object.
- * @io_request: This is the struct sci_base_request which is cast to a
- *    SCIC_SDS_IO_REQUEST object.
  *
  * This method is called when the struct scic_sds_controller is in a stopping state
- * and the complete task handler is called. - This function is not yet
- * implemented enum sci_status SCI_FAILURE
- */
-
-/*
- * *****************************************************************************
- * * STOPPED STATE HANDLERS
- * ***************************************************************************** */
-
-/*
- * *****************************************************************************
- * * FAILED STATE HANDLERS
- * ***************************************************************************** */
+ * and the remote device has stopped.
+ **/
+void scic_sds_controller_stopping_state_device_stopped_handler(
+	struct scic_sds_controller *controller,
+	struct scic_sds_remote_device *remote_device
+)
+{
+	if (!scic_sds_controller_has_remote_devices_stopping(controller)) {
+		sci_base_state_machine_change_state(
+			&controller->parent.state_machine,
+			SCI_BASE_CONTROLLER_STATE_STOPPED
+		);
+	}
+}
 
 const struct scic_sds_controller_state_handler scic_sds_controller_state_handler_table[] = {
 	[SCI_BASE_CONTROLLER_STATE_INITIAL] = {
@@ -3537,6 +3627,7 @@ const struct scic_sds_controller_state_handler scic_sds_controller_state_handler
 		.base.complete_io  = scic_sds_controller_stopping_state_complete_io_handler,
 		.base.continue_io  = scic_sds_controller_default_request_handler,
 		.terminate_request = scic_sds_controller_default_request_handler,
+		.remote_device_stopped_handler = scic_sds_controller_stopping_state_device_stopped_handler,
 	},
 	[SCI_BASE_CONTROLLER_STATE_STOPPED] = {
 		.base.reset        = scic_sds_controller_general_reset_handler,

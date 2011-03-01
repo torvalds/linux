@@ -120,6 +120,7 @@ enum SCIC_SDS_CONTROLLER_MEMORY_DESCRIPTORS {
 	SCU_MAX_MDES
 };
 
+
 /**
  *
  *
@@ -390,6 +391,11 @@ struct scic_sds_controller {
 typedef void (*scic_sds_controller_phy_handler_t)(struct scic_sds_controller *,
 						  struct scic_sds_port *,
 						  struct scic_sds_phy *);
+
+typedef void (*scic_sds_controller_device_handler_t)(struct scic_sds_controller *,
+						  struct scic_sds_remote_device *);
+
+
 /**
  * struct scic_sds_controller_state_handler -
  *
@@ -402,6 +408,8 @@ struct scic_sds_controller_state_handler {
 	sci_base_controller_request_handler_t terminate_request;
 	scic_sds_controller_phy_handler_t link_up;
 	scic_sds_controller_phy_handler_t link_down;
+	scic_sds_controller_device_handler_t remote_device_started_handler;
+	scic_sds_controller_device_handler_t remote_device_stopped_handler;
 };
 
 extern const struct scic_sds_controller_state_handler
@@ -633,6 +641,23 @@ void scic_sds_controller_link_down(
 
 /*
  * *****************************************************************************
+ * * CORE CONTROLLER REMOTE DEVICE MESSAGE PROCESSING
+ * ***************************************************************************** */
+
+bool scic_sds_controller_has_remote_devices_stopping(
+	struct scic_sds_controller *this_controller);
+
+void scic_sds_controller_remote_device_started(
+	struct scic_sds_controller *this_controller,
+	struct scic_sds_remote_device *the_device);
+
+void scic_sds_controller_remote_device_stopped(
+	struct scic_sds_controller *this_controller,
+	struct scic_sds_remote_device *the_device);
+
+
+/*
+ * *****************************************************************************
  * * CORE CONTROLLER PRIVATE METHODS
  * ***************************************************************************** */
 
@@ -688,8 +713,10 @@ void scic_sds_controller_register_setup(
 void scic_sds_controller_reset_hardware(
 	struct scic_sds_controller *this_controller);
 
+enum sci_status scic_sds_controller_initialize_phy_startup(
+	struct scic_sds_controller *this_controller);
 
-void scic_sds_controller_initialize_phy_startup(
+void scic_sds_controller_build_memory_descriptor_table(
 	struct scic_sds_controller *this_controller);
 
 #endif /* _SCIC_SDS_CONTROLLER_H_ */

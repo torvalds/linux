@@ -625,27 +625,6 @@ enum sci_status scic_sds_port_initialize(
 	this_port->port_pe_configuration_register = port_configuration_regsiter;
 	this_port->viit_registers                 = viit_registers;
 
-	/*
-	 * If this is not the dummy port make the assignment of
-	 * the timer and start the state machine */
-	if (this_port->physical_port_index != SCI_MAX_PORTS) {
-		/* / @todo should we create the timer at create time? */
-		this_port->timer_handle = isci_event_timer_create(
-			scic_sds_port_get_controller(this_port),
-			scic_sds_port_timeout_handler,
-			this_port
-			);
-
-	} else {
-		/*
-		 * Force the dummy port into a condition where it rejects all requests
-		 * as its in an invalid state for any operation.
-		 * / @todo should we set a set of specical handlers for the dummy port? */
-		scic_sds_port_set_base_state_handlers(
-			this_port, SCI_BASE_PORT_STATE_STOPPED
-			);
-	}
-
 	return SCI_SUCCESS;
 }
 

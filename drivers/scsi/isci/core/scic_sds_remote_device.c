@@ -1822,6 +1822,11 @@ static void scic_sds_remote_device_stopped_state_enter(
 			SCI_SUCCESS
 			);
 	}
+
+	scic_sds_controller_remote_device_stopped(
+		scic_sds_remote_device_get_controller(this_device),
+		this_device
+	);
 }
 
 /**
@@ -1875,6 +1880,11 @@ static void scic_sds_remote_device_starting_state_exit(
 		this_device,
 		SCI_SUCCESS
 		);
+
+	scic_sds_controller_remote_device_started(
+		scic_sds_remote_device_get_controller(this_device),
+		this_device
+	);
 }
 
 /**
