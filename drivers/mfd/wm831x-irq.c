@@ -352,6 +352,10 @@ static void wm831x_irq_sync_unlock(struct irq_data *data)
 		/* If there's been a change in the mask write it back
 		 * to the hardware. */
 		if (wm831x->irq_masks_cur[i] != wm831x->irq_masks_cache[i]) {
+			dev_dbg(wm831x->dev, "IRQ mask sync: %x = %x\n",
+				WM831X_INTERRUPT_STATUS_1_MASK + i,
+				wm831x->irq_masks_cur[i]);
+
 			wm831x->irq_masks_cache[i] = wm831x->irq_masks_cur[i];
 			wm831x_reg_write(wm831x,
 					 WM831X_INTERRUPT_STATUS_1_MASK + i,
@@ -362,7 +366,7 @@ static void wm831x_irq_sync_unlock(struct irq_data *data)
 	mutex_unlock(&wm831x->irq_lock);
 }
 
-static void wm831x_irq_unmask(struct irq_data *data)
+static void wm831x_irq_enable(struct irq_data *data)
 {
 	struct wm831x *wm831x = irq_data_get_irq_chip_data(data);
 	struct wm831x_irq_data *irq_data = irq_to_wm831x_irq(wm831x,
@@ -371,7 +375,7 @@ static void wm831x_irq_unmask(struct irq_data *data)
 	wm831x->irq_masks_cur[irq_data->reg - 1] &= ~irq_data->mask;
 }
 
-static void wm831x_irq_mask(struct irq_data *data)
+static void wm831x_irq_disable(struct irq_data *data)
 {
 	struct wm831x *wm831x = irq_data_get_irq_chip_data(data);
 	struct wm831x_irq_data *irq_data = irq_to_wm831x_irq(wm831x,
@@ -417,8 +421,8 @@ static struct irq_chip wm831x_irq_chip = {
 	.name			= "wm831x",
 	.irq_bus_lock		= wm831x_irq_lock,
 	.irq_bus_sync_unlock	= wm831x_irq_sync_unlock,
-	.irq_mask		= wm831x_irq_mask,
-	.irq_unmask		= wm831x_irq_unmask,
+	.irq_disable		= wm831x_irq_disable,
+	.irq_enable		= wm831x_irq_enable,
 	.irq_set_type		= wm831x_irq_set_type,
 };
 
