@@ -1002,29 +1002,87 @@ int ip6_dst_lookup(struct sock *sk, struct dst_entry **dst, struct flowi *fl)
 EXPORT_SYMBOL_GPL(ip6_dst_lookup);
 
 /**
- *	ip6_sk_dst_lookup - perform socket cached route lookup on flow
- *	@sk: socket which provides the dst cache and route info
- *	@dst: pointer to dst_entry * for result
+ *	ip6_dst_lookup_flow - perform route lookup on flow with ipsec
+ *	@sk: socket which provides route info
  *	@fl: flow to lookup
+ *	@final_dst: final destination address for ipsec lookup
+ *	@want_blackhole: IPSEC blackhole handling desired
+ *
+ *	This function performs a route lookup on the given flow.
+ *
+ *	It returns a valid dst pointer on success, or a pointer encoded
+ *	error code.
+ */
+struct dst_entry *ip6_dst_lookup_flow(struct sock *sk, struct flowi *fl,
+				      const struct in6_addr *final_dst,
+				      bool want_blackhole)
+{
+	struct dst_entry *dst = NULL;
+	int err;
+
+	err = ip6_dst_lookup_tail(sk, &dst, fl);
+	if (err)
+		return ERR_PTR(err);
+	if (final_dst)
+		ipv6_addr_copy(&fl->fl6_dst, final_dst);
+	if (want_blackhole) {
+		err = __xfrm_lookup(sock_net(sk), &dst, fl, sk, XFRM_LOOKUP_WAIT);
+		if (err == -EREMOTE)
+			err = ip6_dst_blackhole(sk, &dst, fl);
+		if (err)
+			return ERR_PTR(err);
+	} else {
+		err = xfrm_lookup(sock_net(sk), &dst, fl, sk, 0);
+		if (err)
+			return ERR_PTR(err);
+	}
+	return dst;
+}
+EXPORT_SYMBOL_GPL(ip6_dst_lookup_flow);
+
+/**
+ *	ip6_sk_dst_lookup_flow - perform socket cached route lookup on flow
+ *	@sk: socket which provides the dst cache and route info
+ *	@fl: flow to lookup
+ *	@final_dst: final destination address for ipsec lookup
+ *	@want_blackhole: IPSEC blackhole handling desired
  *
  *	This function performs a route lookup on the given flow with the
  *	possibility of using the cached route in the socket if it is valid.
  *	It will take the socket dst lock when operating on the dst cache.
  *	As a result, this function can only be used in process context.
  *
- *	It returns zero on success, or a standard errno code on error.
+ *	It returns a valid dst pointer on success, or a pointer encoded
+ *	error code.
  */
-int ip6_sk_dst_lookup(struct sock *sk, struct dst_entry **dst, struct flowi *fl)
+struct dst_entry *ip6_sk_dst_lookup_flow(struct sock *sk, struct flowi *fl,
+					 const struct in6_addr *final_dst,
+					 bool want_blackhole)
 {
-	*dst = NULL;
-	if (sk) {
-		*dst = sk_dst_check(sk, inet6_sk(sk)->dst_cookie);
-		*dst = ip6_sk_dst_check(sk, *dst, fl);
-	}
+	struct dst_entry *dst = sk_dst_check(sk, inet6_sk(sk)->dst_cookie);
+	int err;
 
-	return ip6_dst_lookup_tail(sk, dst, fl);
+	dst = ip6_sk_dst_check(sk, dst, fl);
+
+	err = ip6_dst_lookup_tail(sk, &dst, fl);
+	if (err)
+		return ERR_PTR(err);
+	if (final_dst)
+		ipv6_addr_copy(&fl->fl6_dst, final_dst);
+	if (want_blackhole) {
+		err = __xfrm_lookup(sock_net(sk), &dst, fl, sk, XFRM_LOOKUP_WAIT);
+		if (err == -EREMOTE)
+			err = ip6_dst_blackhole(sk, &dst, fl);
+		if (err)
+			return ERR_PTR(err);
+	} else {
+		err = xfrm_lookup(sock_net(sk), &dst, fl, sk, 0);
+		if (err)
+			return ERR_PTR(err);
+	}
+	return dst;
 }
-EXPORT_SYMBOL_GPL(ip6_sk_dst_lookup);
+EXPORT_SYMBOL_GPL(ip6_sk_dst_lookup_flow);
 
 static inline int ip6_ufo_append_data(struct sock *sk,
 			int getfrag(void *from, char *to, int offset, int len,

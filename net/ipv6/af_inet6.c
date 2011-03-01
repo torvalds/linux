@@ -644,9 +644,8 @@ EXPORT_SYMBOL(inet6_unregister_protosw);
 
 int inet6_sk_rebuild_header(struct sock *sk)
 {
-	int err;
-	struct dst_entry *dst;
 	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct dst_entry *dst;
 
 	dst = __sk_dst_check(sk, np->dst_cookie);
 
@@ -668,17 +667,11 @@ int inet6_sk_rebuild_header(struct sock *sk)
 
 		final_p = fl6_update_dst(&fl, np->opt, &final);
 
-		err = ip6_dst_lookup(sk, &dst, &fl);
-		if (err) {
+		dst = ip6_dst_lookup_flow(sk, &fl, final_p, false);
+		if (IS_ERR(dst)) {
 			sk->sk_route_caps = 0;
-			return err;
-		}
-		if (final_p)
-			ipv6_addr_copy(&fl.fl6_dst, final_p);
-
-		if ((err = xfrm_lookup(sock_net(sk), &dst, &fl, sk, 0)) < 0) {
-			sk->sk_err_soft = -err;
-			return err;
+			sk->sk_err_soft = -PTR_ERR(dst);
+			return PTR_ERR(dst);
 		}
 
 		__ip6_dst_store(sk, dst, NULL, NULL);

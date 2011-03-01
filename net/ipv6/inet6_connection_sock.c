@@ -74,13 +74,8 @@ struct dst_entry *inet6_csk_route_req(struct sock *sk,
 	fl.fl_ip_sport = inet_rsk(req)->loc_port;
 	security_req_classify_flow(req, &fl);
 
-	if (ip6_dst_lookup(sk, &dst, &fl))
-		return NULL;
-
-	if (final_p)
-		ipv6_addr_copy(&fl.fl6_dst, final_p);
-
-	if ((xfrm_lookup(sock_net(sk), &dst, &fl, sk, 0)) < 0)
+	dst = ip6_dst_lookup_flow(sk, &fl, final_p, false);
+	if (IS_ERR(dst))
 		return NULL;
 
 	return dst;
@@ -234,21 +229,13 @@ int inet6_csk_xmit(struct sk_buff *skb)
 	dst = __inet6_csk_dst_check(sk, np->dst_cookie);
 
 	if (dst == NULL) {
-		int err = ip6_dst_lookup(sk, &dst, &fl);
+		dst = ip6_dst_lookup_flow(sk, &fl, final_p, false);
 
-		if (err) {
-			sk->sk_err_soft = -err;
-			kfree_skb(skb);
-			return err;
-		}
-
-		if (final_p)
-			ipv6_addr_copy(&fl.fl6_dst, final_p);
-
-		if ((err = xfrm_lookup(sock_net(sk), &dst, &fl, sk, 0)) < 0) {
+		if (IS_ERR(dst)) {
+			sk->sk_err_soft = -PTR_ERR(dst);
 			sk->sk_route_caps = 0;
 			kfree_skb(skb);
-			return err;
+			return PTR_ERR(dst);
 		}
 
 		__inet6_csk_dst_store(sk, dst, NULL, NULL);

@@ -243,12 +243,9 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 		fl.fl_ip_dport = inet_rsk(req)->rmt_port;
 		fl.fl_ip_sport = inet_sk(sk)->inet_sport;
 		security_req_classify_flow(req, &fl);
-		if (ip6_dst_lookup(sk, &dst, &fl))
-			goto out_free;
 
-		if (final_p)
-			ipv6_addr_copy(&fl.fl6_dst, final_p);
-		if ((xfrm_lookup(sock_net(sk), &dst, &fl, sk, 0)) < 0)
+		dst = ip6_dst_lookup_flow(sk, &fl, final_p, false);
+		if (IS_ERR(dst))
 			goto out_free;
 	}
 

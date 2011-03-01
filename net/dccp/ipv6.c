@@ -162,15 +162,9 @@ static void dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			fl.fl_ip_sport = inet->inet_sport;
 			security_sk_classify_flow(sk, &fl);
 
-			err = ip6_dst_lookup(sk, &dst, &fl);
-			if (err) {
-				sk->sk_err_soft = -err;
-				goto out;
-			}
-
-			err = xfrm_lookup(net, &dst, &fl, sk, 0);
-			if (err < 0) {
-				sk->sk_err_soft = -err;
+			dst = ip6_dst_lookup_flow(sk, &fl, NULL, false);
+			if (IS_ERR(dst)) {
+				sk->sk_err_soft = -PTR_ERR(dst);
 				goto out;
 			}
 		} else
@@ -267,16 +261,12 @@ static int dccp_v6_send_response(struct sock *sk, struct request_sock *req,
 
 	final_p = fl6_update_dst(&fl, opt, &final);
 
-	err = ip6_dst_lookup(sk, &dst, &fl);
-	if (err)
+	dst = ip6_dst_lookup_flow(sk, &fl, final_p, false);
+	if (IS_ERR(dst)) {
+		err = PTR_ERR(dst);
+		dst = NULL;
 		goto done;
-
-	if (final_p)
-		ipv6_addr_copy(&fl.fl6_dst, final_p);
-
-	err = xfrm_lookup(sock_net(sk), &dst, &fl, sk, 0);
-	if (err < 0)
-		goto done;
+	}
 
 	skb = dccp_make_response(sk, dst, req);
 	if (skb != NULL) {
@@ -338,14 +328,13 @@ static void dccp_v6_ctl_send_reset(struct sock *sk, struct sk_buff *rxskb)
 	security_skb_classify_flow(rxskb, &fl);
 
 	/* sk = NULL, but it is safe for now. RST socket required. */
-	if (!ip6_dst_lookup(ctl_sk, &dst, &fl)) {
-		if (xfrm_lookup(net, &dst, &fl, NULL, 0) >= 0) {
-			skb_dst_set(skb, dst);
-			ip6_xmit(ctl_sk, skb, &fl, NULL);
-			DCCP_INC_STATS_BH(DCCP_MIB_OUTSEGS);
-			DCCP_INC_STATS_BH(DCCP_MIB_OUTRSTS);
-			return;
-		}
+	dst = ip6_dst_lookup_flow(ctl_sk, &fl, NULL, false);
+	if (!IS_ERR(dst)) {
+		skb_dst_set(skb, dst);
+		ip6_xmit(ctl_sk, skb, &fl, NULL);
+		DCCP_INC_STATS_BH(DCCP_MIB_OUTSEGS);
+		DCCP_INC_STATS_BH(DCCP_MIB_OUTRSTS);
+		return;
 	}
 
 	kfree_skb(skb);
@@ -550,13 +539,8 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 		fl.fl_ip_sport = inet_rsk(req)->loc_port;
 		security_sk_classify_flow(sk, &fl);
 
-		if (ip6_dst_lookup(sk, &dst, &fl))
-			goto out;
-
-		if (final_p)
-			ipv6_addr_copy(&fl.fl6_dst, final_p);
-
-		if ((xfrm_lookup(sock_net(sk), &dst, &fl, sk, 0)) < 0)
+		dst = ip6_dst_lookup_flow(sk, &fl, final_p, false);
+		if (IS_ERR(dst))
 			goto out;
 	}
 
@@ -979,19 +963,10 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 
 	final_p = fl6_update_dst(&fl, np->opt, &final);
 
-	err = ip6_dst_lookup(sk, &dst, &fl);
-	if (err)
+	dst = ip6_dst_lookup_flow(sk, &fl, final_p, true);
+	if (IS_ERR(dst)) {
+		err = PTR_ERR(dst);
 		goto failure;
-
-	if (final_p)
-		ipv6_addr_copy(&fl.fl6_dst, final_p);
-
-	err = __xfrm_lookup(sock_net(sk), &dst, &fl, sk, XFRM_LOOKUP_WAIT);
-	if (err < 0) {
-		if (err == -EREMOTE)
-			err = ip6_dst_blackhole(sk, &dst, &fl);
-		if (err < 0)
-			goto failure;
 	}
 
 	if (saddr == NULL) {
