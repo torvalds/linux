@@ -3878,10 +3878,14 @@ static void b43_nphy_op_software_rfkill(struct b43_wldev *dev,
 	}
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/Anacore */
 static void b43_nphy_op_switch_analog(struct b43_wldev *dev, bool on)
 {
-	b43_phy_write(dev, B43_NPHY_AFECTL_OVER,
-		      on ? 0 : 0x7FFF);
+	u16 val = on ? 0 : 0x7FFF;
+
+	if (dev->phy.rev >= 3)
+		b43_phy_write(dev, B43_NPHY_AFECTL_OVER1, val);
+	b43_phy_write(dev, B43_NPHY_AFECTL_OVER, val);
 }
 
 static int b43_nphy_op_switch_channel(struct b43_wldev *dev,
