@@ -96,6 +96,9 @@ static int mx31_3ds_pins[] = {
 	IOMUX_MODE(MX31_PIN_PC_RW_B, IOMUX_CONFIG_ALT1),
 	/* USB Host2 reset */
 	IOMUX_MODE(MX31_PIN_USB_BYP, IOMUX_CONFIG_GPIO),
+	/* I2C1 */
+	MX31_PIN_I2C_CLK__I2C1_SCL,
+	MX31_PIN_I2C_DAT__I2C1_SDA,
 };
 
 /*
@@ -323,6 +326,10 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
+static const struct imxi2c_platform_data mx31_3ds_i2c0_data __initconst = {
+	.bitrate = 100000,
+};
+
 static void __init mx31_3ds_init(void)
 {
 	mxc_iomux_setup_multiple_pins(mx31_3ds_pins, ARRAY_SIZE(mx31_3ds_pins),
@@ -356,6 +363,7 @@ static void __init mx31_3ds_init(void)
 		printk(KERN_WARNING "Init of the debug board failed, all "
 				    "devices on the debug board are unusable.\n");
 	imx31_add_imx2_wdt(NULL);
+	imx31_add_imx_i2c0(&mx31_3ds_i2c0_data);
 }
 
 static void __init mx31_3ds_timer_init(void)
