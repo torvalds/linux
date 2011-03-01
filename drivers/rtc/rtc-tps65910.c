@@ -556,8 +556,10 @@ static int __devinit tps65910_rtc_probe(struct platform_device *pdev)
 	if (rd_reg & BIT_RTC_STATUS_REG_POWER_UP_M) {
 		dev_warn(&pdev->dev, "Power up reset detected.\n");
 		//	cwz:if rtc power up reset, set default time.
+#if 1
 		printk(KERN_INFO "TPS65910 RTC set to default time\n");
 		tps65910_rtc_set_time(rtc, &tm_def);
+#endif
 	}
 	
 	if (rd_reg & BIT_RTC_STATUS_REG_ALARM_M)
@@ -592,8 +594,10 @@ static int __devinit tps65910_rtc_probe(struct platform_device *pdev)
 	if (!(rd_reg & BIT_RTC_CTRL_REG_STOP_RTC_M)) {		
 		dev_info(&pdev->dev, "Enabling TPS65910-RTC.\n");
 		//	cwz:if rtc stop, set default time, then enable rtc
+#if 1
 		printk(KERN_INFO "TPS65910 RTC set to default time\n");
 		tps65910_rtc_set_time(rtc, &tm_def);
+#endif
 		rd_reg |= BIT_RTC_CTRL_REG_STOP_RTC_M;
 		ret = tps65910_rtc_write_u8(rd_reg, TPS65910_REG_RTC_CTRL);
 		if (ret < 0)

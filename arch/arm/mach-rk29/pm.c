@@ -7,7 +7,9 @@
 #include <linux/init.h>
 #include <linux/pm.h>
 #include <linux/suspend.h>
+#ifdef CONFIG_RK29_PWM_REGULATOR
 #include <linux/regulator/rk29-pwm-regulator.h>
+#endif
 #include <linux/io.h>
 #include <linux/wakelock.h>
 #include <asm/tlbflush.h>
@@ -138,8 +140,9 @@ static void __sramfunc rk29_sram_suspend(void)
 	ddr_suspend();
 
 	printch('6');
+#ifdef CONFIG_RK29_PWM_REGULATOR
 	rk29_set_core_voltage(1000000);
-
+#endif
 	printch('7');
 	clksel0 = cru_readl(CRU_CLKSEL0_CON);
 	/* set arm clk 24MHz/32 = 750KHz */
@@ -151,7 +154,9 @@ static void __sramfunc rk29_sram_suspend(void)
 	cru_writel(clksel0, CRU_CLKSEL0_CON);
 	printch('7');
 
+#ifdef CONFIG_RK29_PWM_REGULATOR
 	rk29_set_core_voltage(0);
+#endif
 	printch('6');
 
 	ddr_resume();

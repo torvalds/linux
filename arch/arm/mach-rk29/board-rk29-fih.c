@@ -647,9 +647,9 @@ static int rk29_tps65910_config(struct tps65910_platform_data *pdata)
 	if (err) {
 		printk(KERN_ERR "Unable to read TPS65910_REG_DEVCTRL2 reg\n");
 		return -EIO;
-	}
-	/* Set sleep state active high */
-	val |= (TPS65910_DEV2_SLEEPSIG_POL);
+	}	
+	/* Set sleep state active high and allow device turn-off after PWRON long press */
+	val |= (TPS65910_DEV2_SLEEPSIG_POL | TPS65910_DEV2_PWON_LP_OFF);
 
 	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val,
 			TPS65910_REG_DEVCTRL2);
@@ -718,11 +718,10 @@ static int rk29_tps65910_config(struct tps65910_platform_data *pdata)
 	/* Set RTC Power, disable Smart Reflex in DEVCTRL_REG */
 	val = 0;
 	val |= (TPS65910_SR_CTL_I2C_SEL);
-
 	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val,
 			TPS65910_REG_DEVCTRL);
 	if (err) {
-		printk(KERN_ERR "Unabale to write TPS65910_REG_DEVCTRL reg\n");
+		printk(KERN_ERR "Unable to write TPS65910_REG_DEVCTRL reg\n");
 		return -EIO;
 	}
 
@@ -921,20 +920,20 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 static struct i2c_board_info __initdata board_i2c2_devices[] = {
 #if defined (CONFIG_HANNSTAR_P1003)
     {
-      .type           = "p1003_touch",
-      .addr           = 0x04,
-      .flags          = 0,
-      .irq            = RK29_PIN0_PA2,
-      .platform_data  = &p1003_info,
+        .type           = "p1003_touch",
+        .addr           = 0x04,
+        .flags          = 0,
+        .irq            = RK29_PIN0_PA2,
+        .platform_data  = &p1003_info,
     },
 #endif
 #if defined (CONFIG_EETI_EGALAX)
     {
-      .type           = "egalax_i2c",
-      .addr           = 0x04,
-      .flags          = 0,
-      .irq            = RK29_PIN0_PA2,
-      .platform_data  = &eeti_egalax_info,
+        .type           = "egalax_i2c",
+        .addr           = 0x04,
+        .flags          = 0,
+        .irq            = RK29_PIN0_PA2,
+        .platform_data  = &eeti_egalax_info,
     },
 #endif
 #if defined (CONFIG_TPS65910_CORE)
@@ -1453,6 +1452,7 @@ static struct platform_device rk29_device_pwm_regulator = {
 };
 
 #endif
+
 
 /*****************************************************************************************
  * SDMMC devices
