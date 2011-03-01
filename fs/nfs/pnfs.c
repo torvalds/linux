@@ -230,32 +230,41 @@ static void free_lseg(struct pnfs_layout_segment *lseg)
 	put_layout_hdr(NFS_I(ino)->layout);
 }
 
-/* The use of tmp_list is necessary because pnfs_curr_ld->free_lseg
- * could sleep, so must be called outside of the lock.
- * Returns 1 if object was removed, otherwise return 0.
- */
-static int
-put_lseg_locked(struct pnfs_layout_segment *lseg,
-		struct list_head *tmp_list)
+static void
+put_lseg_common(struct pnfs_layout_segment *lseg)
 {
+	struct inode *inode = lseg->pls_layout->plh_inode;
+
+	BUG_ON(test_bit(NFS_LSEG_VALID, &lseg->pls_flags));
+	list_del_init(&lseg->pls_list);
+	if (list_empty(&lseg->pls_layout->plh_segs)) {
+		set_bit(NFS_LAYOUT_DESTROYED, &lseg->pls_layout->plh_flags);
+		/* Matched by initial refcount set in alloc_init_layout_hdr */
+		put_layout_hdr_locked(lseg->pls_layout);
+	}
+	rpc_wake_up(&NFS_SERVER(inode)->roc_rpcwaitq);
+}
+
+static void
+put_lseg(struct pnfs_layout_segment *lseg)
+{
+	struct inode *inode;
+
+	if (!lseg)
+		return;
+
 	dprintk("%s: lseg %p ref %d valid %d\n", __func__, lseg,
 		atomic_read(&lseg->pls_refcount),
 		test_bit(NFS_LSEG_VALID, &lseg->pls_flags));
-	if (atomic_dec_and_test(&lseg->pls_refcount)) {
-		struct inode *ino = lseg->pls_layout->plh_inode;
+	inode = lseg->pls_layout->plh_inode;
+	if (atomic_dec_and_lock(&lseg->pls_refcount, &inode->i_lock)) {
+		LIST_HEAD(free_me);
 
-		BUG_ON(test_bit(NFS_LSEG_VALID, &lseg->pls_flags));
-		list_del(&lseg->pls_list);
-		if (list_empty(&lseg->pls_layout->plh_segs)) {
-			set_bit(NFS_LAYOUT_DESTROYED, &lseg->pls_layout->plh_flags);
-			/* Matched by initial refcount set in alloc_init_layout_hdr */
-			put_layout_hdr_locked(lseg->pls_layout);
-		}
-		rpc_wake_up(&NFS_SERVER(ino)->roc_rpcwaitq);
-		list_add(&lseg->pls_list, tmp_list);
-		return 1;
+		put_lseg_common(lseg);
+		list_add(&lseg->pls_list, &free_me);
+		spin_unlock(&inode->i_lock);
+		pnfs_free_lseg_list(&free_me);
 	}
-	return 0;
 }
 
 static bool
@@ -276,7 +285,13 @@ static int mark_lseg_invalid(struct pnfs_layout_segment *lseg,
 		 * list.  It will now be removed when all
 		 * outstanding io is finished.
 		 */
-		rv = put_lseg_locked(lseg, tmp_list);
+		dprintk("%s: lseg %p ref %d\n", __func__, lseg,
+			atomic_read(&lseg->pls_refcount));
+		if (atomic_dec_and_test(&lseg->pls_refcount)) {
+			put_lseg_common(lseg);
+			list_add(&lseg->pls_list, tmp_list);
+			rv = 1;
+		}
 	}
 	return rv;
 }
@@ -689,7 +704,7 @@ pnfs_find_lseg(struct pnfs_layout_hdr *lo, u32 iomode)
 	list_for_each_entry(lseg, &lo->plh_segs, pls_list) {
 		if (test_bit(NFS_LSEG_VALID, &lseg->pls_flags) &&
 		    is_matching_lseg(lseg, iomode)) {
-			ret = lseg;
+			ret = get_lseg(lseg);
 			break;
 		}
 		if (cmp_layout(iomode, lseg->pls_range.iomode) > 0)
@@ -769,6 +784,7 @@ pnfs_update_layout(struct inode *ino,
 out:
 	dprintk("%s end, state 0x%lx lseg %p\n", __func__,
 		nfsi->layout ? nfsi->layout->plh_flags : -1, lseg);
+	put_lseg(lseg); /* STUB - callers currently ignore return value */
 	return lseg;
 out_unlock:
 	spin_unlock(&ino->i_lock);
@@ -821,7 +837,7 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 	}
 	init_lseg(lo, lseg);
 	lseg->pls_range = res->range;
-	*lgp->lsegpp = lseg;
+	*lgp->lsegpp = get_lseg(lseg);
 	pnfs_insert_layout(lo, lseg);
 
 	if (res->return_on_close) {

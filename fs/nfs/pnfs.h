@@ -177,6 +177,16 @@ static inline int lo_fail_bit(u32 iomode)
 			 NFS_LAYOUT_RW_FAILED : NFS_LAYOUT_RO_FAILED;
 }
 
+static inline struct pnfs_layout_segment *
+get_lseg(struct pnfs_layout_segment *lseg)
+{
+	if (lseg) {
+		atomic_inc(&lseg->pls_refcount);
+		smp_mb__after_atomic_inc();
+	}
+	return lseg;
+}
+
 /* Return true if a layout driver is being used for this mountpoint */
 static inline int pnfs_enabled_sb(struct nfs_server *nfss)
 {
@@ -190,6 +200,16 @@ static inline void pnfs_destroy_all_layouts(struct nfs_client *clp)
 }
 
 static inline void pnfs_destroy_layout(struct nfs_inode *nfsi)
+{
+}
+
+static inline struct pnfs_layout_segment *
+get_lseg(struct pnfs_layout_segment *lseg)
+{
+	return NULL;
+}
+
+static inline void put_lseg(struct pnfs_layout_segment *lseg)
 {
 }
 
