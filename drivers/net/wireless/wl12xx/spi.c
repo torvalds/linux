@@ -409,7 +409,7 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	}
 
 	ret = request_threaded_irq(wl->irq, wl1271_hardirq, wl1271_irq,
-				   IRQF_TRIGGER_RISING,
+				   IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
 				   DRIVER_NAME, wl);
 	if (ret < 0) {
 		wl1271_error("request_irq() failed: %d", ret);
