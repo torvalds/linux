@@ -1710,11 +1710,12 @@ static int drbd_wait_peer_seq(struct drbd_conf *mdev, const u32 packet_seq)
 		}
 		p_seq = mdev->peer_seq;
 		spin_unlock(&mdev->peer_seq_lock);
-		timeout = schedule_timeout(30*HZ);
+		timeout = mdev->tconn->net_conf->ping_timeo*HZ/10;
+		timeout = schedule_timeout(timeout);
 		spin_lock(&mdev->peer_seq_lock);
 		if (timeout == 0 && p_seq == mdev->peer_seq) {
 			ret = -ETIMEDOUT;
-			dev_err(DEV, "ASSERT FAILED waited 30 seconds for sequence update, forcing reconnect\n");
+			dev_err(DEV, "Timed out waiting for missing ack packets; disconnecting\n");
 			break;
 		}
 	}
