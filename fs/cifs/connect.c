@@ -3258,7 +3258,9 @@ cifs_construct_tcon(struct cifs_sb_info *cifs_sb, uid_t fsuid)
 	struct cifsSesInfo *ses;
 	struct cifsTconInfo *tcon = NULL;
 	struct smb_vol *vol_info;
-	char username[MAX_USERNAME_SIZE + 1];
+	char username[28]; /* big enough for "krb50x" + hex of ULONG_MAX 6+16 */
+			   /* We used to have this as MAX_USERNAME which is   */
+			   /* way too big now (256 instead of 32) */
 
 	vol_info = kzalloc(sizeof(*vol_info), GFP_KERNEL);
 	if (vol_info == NULL) {
