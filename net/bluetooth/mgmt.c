@@ -1035,7 +1035,7 @@ static int pin_code_neg_reply(struct sock *sk, u16 index, unsigned char *data,
 		goto failed;
 	}
 
-	err = hci_send_cmd(hdev, HCI_OP_PIN_CODE_NEG_REPLY, sizeof(bdaddr_t),
+	err = hci_send_cmd(hdev, HCI_OP_PIN_CODE_NEG_REPLY, sizeof(cp->bdaddr),
 								&cp->bdaddr);
 	if (err < 0)
 		mgmt_pending_remove(cmd);
