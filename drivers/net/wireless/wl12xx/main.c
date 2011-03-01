@@ -685,10 +685,7 @@ static void wl1271_irq_work(struct work_struct *work)
 		if (intr & WL1271_ACX_INTR_DATA) {
 			wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_DATA");
 
-			/* check for tx results */
-			if (wl->fw_status->common.tx_results_counter !=
-			    (wl->tx_results_count & 0xff))
-				wl1271_tx_complete(wl);
+			wl1271_rx(wl, &wl->fw_status->common);
 
 			/* Check if any tx blocks were freed */
 			if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags) &&
@@ -700,7 +697,10 @@ static void wl1271_irq_work(struct work_struct *work)
 				wl1271_tx_work_locked(wl);
 			}
 
-			wl1271_rx(wl, &wl->fw_status->common);
+			/* check for tx results */
+			if (wl->fw_status->common.tx_results_counter !=
+			    (wl->tx_results_count & 0xff))
+				wl1271_tx_complete(wl);
 		}
 
 		if (intr & WL1271_ACX_INTR_EVENT_A) {
