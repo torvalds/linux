@@ -151,7 +151,7 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 		ret = PTR_ERR(dir_item);
 		if (ret == -EEXIST)
 			goto second_insert;
-		goto out;
+		goto out_free;
 	}
 
 	leaf = path->nodes[0];
@@ -170,7 +170,7 @@ second_insert:
 	/* FIXME, use some real flag for selecting the extra index */
 	if (root == root->fs_info->tree_root) {
 		ret = 0;
-		goto out;
+		goto out_free;
 	}
 	btrfs_release_path(root, path);
 
@@ -180,7 +180,7 @@ second_insert:
 					name, name_len);
 	if (IS_ERR(dir_item)) {
 		ret2 = PTR_ERR(dir_item);
-		goto out;
+		goto out_free;
 	}
 	leaf = path->nodes[0];
 	btrfs_cpu_key_to_disk(&disk_key, location);
@@ -192,7 +192,9 @@ second_insert:
 	name_ptr = (unsigned long)(dir_item + 1);
 	write_extent_buffer(leaf, name, name_ptr, name_len);
 	btrfs_mark_buffer_dirty(leaf);
-out:
+
+out_free:
+
 	btrfs_free_path(path);
 	if (ret)
 		return ret;

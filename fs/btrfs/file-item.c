@@ -170,6 +170,8 @@ static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 
 	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
 	if (bio->bi_size > PAGE_CACHE_SIZE * 8)
 		path->reada = 2;
 

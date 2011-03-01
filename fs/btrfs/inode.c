@@ -1467,8 +1467,11 @@ static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 		if (bio_flags & EXTENT_BIO_COMPRESSED) {
 			return btrfs_submit_compressed_read(inode, bio,
 						    mirror_num, bio_flags);
-		} else if (!skip_sum)
-			btrfs_lookup_bio_sums(root, inode, bio, NULL);
+		} else if (!skip_sum) {
+			ret = btrfs_lookup_bio_sums(root, inode, bio, NULL);
+			if (ret)
+				return ret;
+		}
 		goto mapit;
 	} else if (!skip_sum) {
 		/* csum items have already been cloned */
@@ -1903,10 +1906,10 @@ static int btrfs_io_failed_hook(struct bio *failed_bio,
 	else
 		rw = READ;
 
-	BTRFS_I(inode)->io_tree.ops->submit_bio_hook(inode, rw, bio,
+	ret = BTRFS_I(inode)->io_tree.ops->submit_bio_hook(inode, rw, bio,
 						      failrec->last_mirror,
 						      failrec->bio_flags, 0);
-	return 0;
+	return ret;
 }
 
 /*
@@ -5943,9 +5946,12 @@ static inline int __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
 				   __btrfs_submit_bio_start_direct_io,
 				   __btrfs_submit_bio_done);
 		goto err;
-	} else if (!skip_sum)
-		btrfs_lookup_bio_sums_dio(root, inode, bio,
+	} else if (!skip_sum) {
+		ret = btrfs_lookup_bio_sums_dio(root, inode, bio,
 					  file_offset, csums);
+		if (ret)
+			goto err;
+	}
 
 	ret = btrfs_map_bio(root, rw, bio, 0, 1);
 err:
