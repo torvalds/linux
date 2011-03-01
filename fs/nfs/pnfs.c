@@ -75,10 +75,8 @@ find_pnfs_driver(u32 id)
 void
 unset_pnfs_layoutdriver(struct nfs_server *nfss)
 {
-	if (nfss->pnfs_curr_ld) {
-		nfss->pnfs_curr_ld->clear_layoutdriver(nfss);
+	if (nfss->pnfs_curr_ld)
 		module_put(nfss->pnfs_curr_ld->owner);
-	}
 	nfss->pnfs_curr_ld = NULL;
 }
 
@@ -116,13 +114,7 @@ set_pnfs_layoutdriver(struct nfs_server *server, u32 id)
 		goto out_no_driver;
 	}
 	server->pnfs_curr_ld = ld_type;
-	if (ld_type->set_layoutdriver(server)) {
-		printk(KERN_ERR
-		       "%s: Error initializing mount point for layout driver %u.\n",
-		       __func__, id);
-		module_put(ld_type->owner);
-		goto out_no_driver;
-	}
+
 	dprintk("%s: pNFS module for %u set\n", __func__, id);
 	return;
 
@@ -906,138 +898,3 @@ pnfs_try_to_read_data(struct nfs_read_data *rdata,
 	dprintk("%s End (trypnfs:%d)\n", __func__, trypnfs);
 	return trypnfs;
 }
-
-/*
- * Device ID cache. Currently supports one layout type per struct nfs_client.
- * Add layout type to the lookup key to expand to support multiple types.
- */
-int
-pnfs_alloc_init_deviceid_cache(struct nfs_client *clp,
-			 void (*free_callback)(struct pnfs_deviceid_node *))
-{
-	struct pnfs_deviceid_cache *c;
-
-	c = kzalloc(sizeof(struct pnfs_deviceid_cache), GFP_KERNEL);
-	if (!c)
-		return -ENOMEM;
-	spin_lock(&clp->cl_lock);
-	if (clp->cl_devid_cache != NULL) {
-		atomic_inc(&clp->cl_devid_cache->dc_ref);
-		dprintk("%s [kref [%d]]\n", __func__,
-			atomic_read(&clp->cl_devid_cache->dc_ref));
-		kfree(c);
-	} else {
-		/* kzalloc initializes hlists */
-		spin_lock_init(&c->dc_lock);
-		atomic_set(&c->dc_ref, 1);
-		c->dc_free_callback = free_callback;
-		clp->cl_devid_cache = c;
-		dprintk("%s [new]\n", __func__);
-	}
-	spin_unlock(&clp->cl_lock);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(pnfs_alloc_init_deviceid_cache);
-
-/*
- * Called from pnfs_layoutdriver_type->free_lseg
- * last layout segment reference frees deviceid
- */
-void
-pnfs_put_deviceid(struct pnfs_deviceid_cache *c,
-		  struct pnfs_deviceid_node *devid)
-{
-	struct nfs4_deviceid *id = &devid->de_id;
-	struct pnfs_deviceid_node *d;
-	struct hlist_node *n;
-	long h = nfs4_deviceid_hash(id);
-
-	dprintk("%s [%d]\n", __func__, atomic_read(&devid->de_ref));
-	if (!atomic_dec_and_lock(&devid->de_ref, &c->dc_lock))
-		return;
-
-	hlist_for_each_entry_rcu(d, n, &c->dc_deviceids[h], de_node)
-		if (!memcmp(&d->de_id, id, sizeof(*id))) {
-			hlist_del_rcu(&d->de_node);
-			spin_unlock(&c->dc_lock);
-			synchronize_rcu();
-			c->dc_free_callback(devid);
-			return;
-		}
-	spin_unlock(&c->dc_lock);
-	/* Why wasn't it found in  the list? */
-	BUG();
-}
-EXPORT_SYMBOL_GPL(pnfs_put_deviceid);
-
-/* Find and reference a deviceid */
-struct pnfs_deviceid_node *
-pnfs_find_get_deviceid(struct pnfs_deviceid_cache *c, struct nfs4_deviceid *id)
-{
-	struct pnfs_deviceid_node *d;
-	struct hlist_node *n;
-	long hash = nfs4_deviceid_hash(id);
-
-	dprintk("--> %s hash %ld\n", __func__, hash);
-	rcu_read_lock();
-	hlist_for_each_entry_rcu(d, n, &c->dc_deviceids[hash], de_node) {
-		if (!memcmp(&d->de_id, id, sizeof(*id))) {
-			if (!atomic_inc_not_zero(&d->de_ref)) {
-				goto fail;
-			} else {
-				rcu_read_unlock();
-				return d;
-			}
-		}
-	}
-fail:
-	rcu_read_unlock();
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(pnfs_find_get_deviceid);
-
-/*
- * Add a deviceid to the cache.
- * GETDEVICEINFOs for same deviceid can race. If deviceid is found, discard new
- */
-struct pnfs_deviceid_node *
-pnfs_add_deviceid(struct pnfs_deviceid_cache *c, struct pnfs_deviceid_node *new)
-{
-	struct pnfs_deviceid_node *d;
-	long hash = nfs4_deviceid_hash(&new->de_id);
-
-	dprintk("--> %s hash %ld\n", __func__, hash);
-	spin_lock(&c->dc_lock);
-	d = pnfs_find_get_deviceid(c, &new->de_id);
-	if (d) {
-		spin_unlock(&c->dc_lock);
-		dprintk("%s [discard]\n", __func__);
-		c->dc_free_callback(new);
-		return d;
-	}
-	INIT_HLIST_NODE(&new->de_node);
-	atomic_set(&new->de_ref, 1);
-	hlist_add_head_rcu(&new->de_node, &c->dc_deviceids[hash]);
-	spin_unlock(&c->dc_lock);
-	dprintk("%s [new]\n", __func__);
-	return new;
-}
-EXPORT_SYMBOL_GPL(pnfs_add_deviceid);
-
-void
-pnfs_put_deviceid_cache(struct nfs_client *clp)
-{
-	struct pnfs_deviceid_cache *local = clp->cl_devid_cache;
-
-	dprintk("--> %s ({%d})\n", __func__, atomic_read(&local->dc_ref));
-	if (atomic_dec_and_lock(&local->dc_ref, &clp->cl_lock)) {
-		int i;
-		/* Verify cache is empty */
-		for (i = 0; i < NFS4_DEVICE_ID_HASH_SIZE; i++)
-			BUG_ON(!hlist_empty(&local->dc_deviceids[i]));
-		clp->cl_devid_cache = NULL;
-		spin_unlock(&clp->cl_lock);
-		kfree(local);
-	}
-}
-EXPORT_SYMBOL_GPL(pnfs_put_deviceid_cache);

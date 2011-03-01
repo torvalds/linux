@@ -68,8 +68,6 @@ struct pnfs_layoutdriver_type {
 	const u32 id;
 	const char *name;
 	struct module *owner;
-	int (*set_layoutdriver) (struct nfs_server *);
-	int (*clear_layoutdriver) (struct nfs_server *);
 	struct pnfs_layout_segment * (*alloc_lseg) (struct pnfs_layout_hdr *layoutid, struct nfs4_layoutget_res *lgr);
 	void (*free_lseg) (struct pnfs_layout_segment *lseg);
 
@@ -105,52 +103,6 @@ struct pnfs_device {
 	unsigned int  pgbase;
 	unsigned int  pglen;
 };
-
-/*
- * Device ID RCU cache. A device ID is unique per client ID and layout type.
- */
-#define NFS4_DEVICE_ID_HASH_BITS	5
-#define NFS4_DEVICE_ID_HASH_SIZE	(1 << NFS4_DEVICE_ID_HASH_BITS)
-#define NFS4_DEVICE_ID_HASH_MASK	(NFS4_DEVICE_ID_HASH_SIZE - 1)
-
-static inline u32
-nfs4_deviceid_hash(struct nfs4_deviceid *id)
-{
-	unsigned char *cptr = (unsigned char *)id->data;
-	unsigned int nbytes = NFS4_DEVICEID4_SIZE;
-	u32 x = 0;
-
-	while (nbytes--) {
-		x *= 37;
-		x += *cptr++;
-	}
-	return x & NFS4_DEVICE_ID_HASH_MASK;
-}
-
-struct pnfs_deviceid_node {
-	struct hlist_node	de_node;
-	struct nfs4_deviceid	de_id;
-	atomic_t		de_ref;
-};
-
-struct pnfs_deviceid_cache {
-	spinlock_t		dc_lock;
-	atomic_t		dc_ref;
-	void			(*dc_free_callback)(struct pnfs_deviceid_node *);
-	struct hlist_head	dc_deviceids[NFS4_DEVICE_ID_HASH_SIZE];
-};
-
-extern int pnfs_alloc_init_deviceid_cache(struct nfs_client *,
-			void (*free_callback)(struct pnfs_deviceid_node *));
-extern void pnfs_put_deviceid_cache(struct nfs_client *);
-extern struct pnfs_deviceid_node *pnfs_find_get_deviceid(
-				struct pnfs_deviceid_cache *,
-				struct nfs4_deviceid *);
-extern struct pnfs_deviceid_node *pnfs_add_deviceid(
-				struct pnfs_deviceid_cache *,
-				struct pnfs_deviceid_node *);
-extern void pnfs_put_deviceid(struct pnfs_deviceid_cache *c,
-			      struct pnfs_deviceid_node *devid);
 
 extern int pnfs_register_layoutdriver(struct pnfs_layoutdriver_type *);
 extern void pnfs_unregister_layoutdriver(struct pnfs_layoutdriver_type *);

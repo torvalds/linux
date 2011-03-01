@@ -37,6 +37,30 @@
 #define NFSDBG_FACILITY		NFSDBG_PNFS_LD
 
 /*
+ * Device ID RCU cache. A device ID is unique per client ID and layout type.
+ */
+#define NFS4_FL_DEVICE_ID_HASH_BITS	5
+#define NFS4_FL_DEVICE_ID_HASH_SIZE	(1 << NFS4_FL_DEVICE_ID_HASH_BITS)
+#define NFS4_FL_DEVICE_ID_HASH_MASK	(NFS4_FL_DEVICE_ID_HASH_SIZE - 1)
+
+static inline u32
+nfs4_fl_deviceid_hash(struct nfs4_deviceid *id)
+{
+	unsigned char *cptr = (unsigned char *)id->data;
+	unsigned int nbytes = NFS4_DEVICEID4_SIZE;
+	u32 x = 0;
+
+	while (nbytes--) {
+		x *= 37;
+		x += *cptr++;
+	}
+	return x & NFS4_FL_DEVICE_ID_HASH_MASK;
+}
+
+static struct hlist_head filelayout_deviceid_cache[NFS4_FL_DEVICE_ID_HASH_SIZE];
+static DEFINE_SPINLOCK(filelayout_deviceid_lock);
+
+/*
  * Data server cache
  *
  * Data servers can be mapped to different device ids.
@@ -183,7 +207,7 @@ nfs4_fl_free_deviceid(struct nfs4_file_layout_dsaddr *dsaddr)
 	struct nfs4_pnfs_ds *ds;
 	int i;
 
-	print_deviceid(&dsaddr->deviceid.de_id);
+	print_deviceid(&dsaddr->deviceid);
 
 	for (i = 0; i < dsaddr->ds_num; i++) {
 		ds = dsaddr->ds_list[i];
@@ -198,15 +222,6 @@ nfs4_fl_free_deviceid(struct nfs4_file_layout_dsaddr *dsaddr)
 	}
 	kfree(dsaddr->stripe_indices);
 	kfree(dsaddr);
-}
-
-void
-nfs4_fl_free_deviceid_callback(struct pnfs_deviceid_node *device)
-{
-	struct nfs4_file_layout_dsaddr *dsaddr =
-		container_of(device, struct nfs4_file_layout_dsaddr, deviceid);
-
-	nfs4_fl_free_deviceid(dsaddr);
 }
 
 static struct nfs4_pnfs_ds *
@@ -361,7 +376,7 @@ decode_device(struct inode *ino, struct pnfs_device *pdev)
 	dsaddr->stripe_count = cnt;
 	dsaddr->ds_num = num;
 
-	memcpy(&dsaddr->deviceid.de_id, &pdev->dev_id, sizeof(pdev->dev_id));
+	memcpy(&dsaddr->deviceid, &pdev->dev_id, sizeof(pdev->dev_id));
 
 	/* Go back an read stripe indices */
 	p = indicesp;
@@ -411,28 +426,37 @@ out_err:
 }
 
 /*
- * Decode the opaque device specified in 'dev'
- * and add it to the list of available devices.
- * If the deviceid is already cached, nfs4_add_deviceid will return
- * a pointer to the cached struct and throw away the new.
+ * Decode the opaque device specified in 'dev' and add it to the cache of
+ * available devices.
  */
-static struct nfs4_file_layout_dsaddr*
+static struct nfs4_file_layout_dsaddr *
 decode_and_add_device(struct inode *inode, struct pnfs_device *dev)
 {
-	struct nfs4_file_layout_dsaddr *dsaddr;
-	struct pnfs_deviceid_node *d;
+	struct nfs4_file_layout_dsaddr *d, *new;
+	long hash;
 
-	dsaddr = decode_device(inode, dev);
-	if (!dsaddr) {
+	new = decode_device(inode, dev);
+	if (!new) {
 		printk(KERN_WARNING "%s: Could not decode or add device\n",
 			__func__);
 		return NULL;
 	}
 
-	d = pnfs_add_deviceid(NFS_SERVER(inode)->nfs_client->cl_devid_cache,
-			      &dsaddr->deviceid);
+	spin_lock(&filelayout_deviceid_lock);
+	d = nfs4_fl_find_get_deviceid(&new->deviceid);
+	if (d) {
+		spin_unlock(&filelayout_deviceid_lock);
+		nfs4_fl_free_deviceid(new);
+		return d;
+	}
 
-	return container_of(d, struct nfs4_file_layout_dsaddr, deviceid);
+	INIT_HLIST_NODE(&new->node);
+	atomic_set(&new->ref, 1);
+	hash = nfs4_fl_deviceid_hash(&new->deviceid);
+	hlist_add_head_rcu(&new->node, &filelayout_deviceid_cache[hash]);
+	spin_unlock(&filelayout_deviceid_lock);
+
+	return new;
 }
 
 /*
@@ -507,14 +531,38 @@ out_free:
 	return dsaddr;
 }
 
-struct nfs4_file_layout_dsaddr *
-nfs4_fl_find_get_deviceid(struct nfs_client *clp, struct nfs4_deviceid *id)
+void
+nfs4_fl_put_deviceid(struct nfs4_file_layout_dsaddr *dsaddr)
 {
-	struct pnfs_deviceid_node *d;
+	if (atomic_dec_and_lock(&dsaddr->ref, &filelayout_deviceid_lock)) {
+		hlist_del_rcu(&dsaddr->node);
+		spin_unlock(&filelayout_deviceid_lock);
 
-	d = pnfs_find_get_deviceid(clp->cl_devid_cache, id);
-	return (d == NULL) ? NULL :
-		container_of(d, struct nfs4_file_layout_dsaddr, deviceid);
+		synchronize_rcu();
+		nfs4_fl_free_deviceid(dsaddr);
+	}
+}
+
+struct nfs4_file_layout_dsaddr *
+nfs4_fl_find_get_deviceid(struct nfs4_deviceid *id)
+{
+	struct nfs4_file_layout_dsaddr *d;
+	struct hlist_node *n;
+	long hash = nfs4_fl_deviceid_hash(id);
+
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(d, n, &filelayout_deviceid_cache[hash], node) {
+		if (!memcmp(&d->deviceid, id, sizeof(*id))) {
+			if (!atomic_inc_not_zero(&d->ref))
+				goto fail;
+			rcu_read_unlock();
+			return d;
+		}
+	}
+fail:
+	rcu_read_unlock();
+	return NULL;
 }
 
 /*

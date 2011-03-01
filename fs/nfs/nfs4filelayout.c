@@ -42,32 +42,6 @@ MODULE_DESCRIPTION("The NFSv4 file layout driver");
 
 #define FILELAYOUT_POLL_RETRY_MAX     (15*HZ)
 
-static int
-filelayout_set_layoutdriver(struct nfs_server *nfss)
-{
-	int status = pnfs_alloc_init_deviceid_cache(nfss->nfs_client,
-						nfs4_fl_free_deviceid_callback);
-	if (status) {
-		printk(KERN_WARNING "%s: deviceid cache could not be "
-			"initialized\n", __func__);
-		return status;
-	}
-	dprintk("%s: deviceid cache has been initialized successfully\n",
-		__func__);
-	return 0;
-}
-
-/* Clear out the layout by destroying its device list */
-static int
-filelayout_clear_layoutdriver(struct nfs_server *nfss)
-{
-	dprintk("--> %s\n", __func__);
-
-	if (nfss->nfs_client->cl_devid_cache)
-		pnfs_put_deviceid_cache(nfss->nfs_client);
-	return 0;
-}
-
 static loff_t
 filelayout_get_dense_offset(struct nfs4_filelayout_segment *flseg,
 			    loff_t offset)
@@ -295,7 +269,7 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 	}
 
 	/* find and reference the deviceid */
-	dsaddr = nfs4_fl_find_get_deviceid(nfss->nfs_client, id);
+	dsaddr = nfs4_fl_find_get_deviceid(id);
 	if (dsaddr == NULL) {
 		dsaddr = get_device_info(lo->plh_inode, id);
 		if (dsaddr == NULL)
@@ -330,7 +304,7 @@ out:
 	dprintk("--> %s returns %d\n", __func__, status);
 	return status;
 out_put:
-	pnfs_put_deviceid(nfss->nfs_client->cl_devid_cache, &dsaddr->deviceid);
+	nfs4_fl_put_deviceid(dsaddr);
 	goto out;
 }
 
@@ -439,12 +413,10 @@ filelayout_alloc_lseg(struct pnfs_layout_hdr *layoutid,
 static void
 filelayout_free_lseg(struct pnfs_layout_segment *lseg)
 {
-	struct nfs_server *nfss = NFS_SERVER(lseg->pls_layout->plh_inode);
 	struct nfs4_filelayout_segment *fl = FILELAYOUT_LSEG(lseg);
 
 	dprintk("--> %s\n", __func__);
-	pnfs_put_deviceid(nfss->nfs_client->cl_devid_cache,
-			  &fl->dsaddr->deviceid);
+	nfs4_fl_put_deviceid(fl->dsaddr);
 	_filelayout_free_lseg(fl);
 }
 
@@ -474,13 +446,11 @@ filelayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 }
 
 static struct pnfs_layoutdriver_type filelayout_type = {
-	.id = LAYOUT_NFSV4_1_FILES,
-	.name = "LAYOUT_NFSV4_1_FILES",
-	.owner = THIS_MODULE,
-	.set_layoutdriver = filelayout_set_layoutdriver,
-	.clear_layoutdriver = filelayout_clear_layoutdriver,
-	.alloc_lseg              = filelayout_alloc_lseg,
-	.free_lseg               = filelayout_free_lseg,
+	.id			= LAYOUT_NFSV4_1_FILES,
+	.name			= "LAYOUT_NFSV4_1_FILES",
+	.owner			= THIS_MODULE,
+	.alloc_lseg		= filelayout_alloc_lseg,
+	.free_lseg		= filelayout_free_lseg,
 	.pg_test		= filelayout_pg_test,
 	.read_pagelist		= filelayout_read_pagelist,
 };
