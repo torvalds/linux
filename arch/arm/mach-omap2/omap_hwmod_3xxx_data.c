@@ -22,6 +22,7 @@
 #include <plat/l4_3xxx.h>
 #include <plat/i2c.h>
 #include <plat/gpio.h>
+#include <plat/mmc.h>
 #include <plat/smartreflex.h>
 #include <plat/mcspi.h>
 #include <plat/dmtimer.h>
@@ -2944,6 +2945,10 @@ static struct omap_hwmod_ocp_if *omap3xxx_mmc1_slaves[] = {
 	&omap3xxx_l4_core__mmc1,
 };
 
+static struct omap_mmc_dev_attr mmc1_dev_attr = {
+	.flags = OMAP_HSMMC_SUPPORTS_DUAL_VOLT,
+};
+
 static struct omap_hwmod omap3xxx_mmc1_hwmod = {
 	.name		= "mmc1",
 	.mpu_irqs	= omap34xx_mmc1_mpu_irqs,
@@ -2962,6 +2967,7 @@ static struct omap_hwmod omap3xxx_mmc1_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_MMC1_SHIFT,
 		},
 	},
+	.dev_attr	= &mmc1_dev_attr,
 	.slaves		= omap3xxx_mmc1_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap3xxx_mmc1_slaves),
 	.class		= &omap34xx_mmc_class,

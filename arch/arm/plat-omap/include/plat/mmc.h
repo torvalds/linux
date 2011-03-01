@@ -43,6 +43,12 @@
 
 #define OMAP_MMC_MAX_SLOTS	2
 
+#define OMAP_HSMMC_SUPPORTS_DUAL_VOLT	BIT(1)
+
+struct omap_mmc_dev_attr {
+	u8 flags;
+};
+
 struct omap_mmc_platform_data {
 	/* back-link to device */
 	struct device *dev;
@@ -70,6 +76,9 @@ struct omap_mmc_platform_data {
 	int (*get_context_loss_count)(struct device *dev);
 
 	u64 dma_mask;
+
+	/* Integrating attributes from the omap_hwmod layer */
+	u8 controller_flags;
 
 	/* Register offset deviation */
 	u16 reg_offset;

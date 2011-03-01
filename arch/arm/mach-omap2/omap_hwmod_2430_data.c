@@ -20,6 +20,7 @@
 #include <plat/gpio.h>
 #include <plat/mcspi.h>
 #include <plat/dmtimer.h>
+#include <plat/mmc.h>
 #include <plat/l3_2xxx.h>
 
 #include "omap_hwmod_common_data.h"
@@ -2204,6 +2205,10 @@ static struct omap_hwmod_ocp_if *omap2430_mmc1_slaves[] = {
 	&omap2430_l4_core__mmc1,
 };
 
+static struct omap_mmc_dev_attr mmc1_dev_attr = {
+	.flags = OMAP_HSMMC_SUPPORTS_DUAL_VOLT,
+};
+
 static struct omap_hwmod omap2430_mmc1_hwmod = {
 	.name		= "mmc1",
 	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
@@ -2223,6 +2228,7 @@ static struct omap_hwmod omap2430_mmc1_hwmod = {
 			.idlest_idle_bit = OMAP2430_ST_MMCHS1_SHIFT,
 		},
 	},
+	.dev_attr	= &mmc1_dev_attr,
 	.slaves		= omap2430_mmc1_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap2430_mmc1_slaves),
 	.class		= &omap2430_mmc_class,
