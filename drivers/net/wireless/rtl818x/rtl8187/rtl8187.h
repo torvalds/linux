@@ -35,6 +35,8 @@
 #define RFKILL_MASK_8187_89_97	0x2
 #define RFKILL_MASK_8198	0x4
 
+#define RETRY_COUNT		7
+
 struct rtl8187_rx_info {
 	struct urb *urb;
 	struct ieee80211_hw *dev;
