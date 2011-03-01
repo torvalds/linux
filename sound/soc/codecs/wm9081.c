@@ -167,7 +167,7 @@ struct wm9081_priv {
 	int fll_fref;
 	int fll_fout;
 	int tdm_width;
-	struct wm9081_retune_mobile_config *retune;
+	struct wm9081_pdata pdata;
 };
 
 static int wm9081_volatile_register(struct snd_soc_codec *codec, unsigned int reg)
@@ -1082,21 +1082,22 @@ static int wm9081_hw_params(struct snd_pcm_substream *substream,
 	aif4 |= wm9081->bclk / wm9081->fs;
 
 	/* Apply a ReTune Mobile configuration if it's in use */
-	if (wm9081->retune) {
-		struct wm9081_retune_mobile_config *retune = wm9081->retune;
+	if (wm9081->pdata.num_retune_configs) {
+		struct wm9081_pdata *pdata = &wm9081->pdata;
 		struct wm9081_retune_mobile_setting *s;
 		int eq1;
 
 		best = 0;
-		best_val = abs(retune->configs[0].rate - wm9081->fs);
-		for (i = 0; i < retune->num_configs; i++) {
-			cur_val = abs(retune->configs[i].rate - wm9081->fs);
+		best_val = abs(pdata->retune_configs[0].rate - wm9081->fs);
+		for (i = 0; i < pdata->num_retune_configs; i++) {
+			cur_val = abs(pdata->retune_configs[i].rate -
+				      wm9081->fs);
 			if (cur_val < best_val) {
 				best_val = cur_val;
 				best = i;
 			}
 		}
-		s = &retune->configs[best];
+		s = &pdata->retune_configs[best];
 
 		dev_dbg(codec->dev, "ReTune Mobile %s tuned for %dHz\n",
 			s->name, s->rate);
@@ -1255,6 +1256,14 @@ static int wm9081_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
+	reg = 0;
+	if (wm9081->pdata.irq_high)
+		reg |= WM9081_IRQ_POL;
+	if (!wm9081->pdata.irq_cmos)
+		reg |= WM9081_IRQ_OP_CTRL;
+	snd_soc_update_bits(codec, WM9081_INTERRUPT_CONTROL,
+			    WM9081_IRQ_POL | WM9081_IRQ_OP_CTRL, reg);
+
 	wm9081_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* Enable zero cross by default */
@@ -1266,7 +1275,7 @@ static int wm9081_probe(struct snd_soc_codec *codec)
 
 	snd_soc_add_controls(codec, wm9081_snd_controls,
 			     ARRAY_SIZE(wm9081_snd_controls));
-	if (!wm9081->retune) {
+	if (!wm9081->pdata.num_retune_configs) {
 		dev_dbg(codec->dev,
 			"No ReTune Mobile data, using normal EQ\n");
 		snd_soc_add_controls(codec, wm9081_eq_controls,
@@ -1343,8 +1352,8 @@ static __devinit int wm9081_i2c_probe(struct i2c_client *i2c,
 	wm9081->control_data = i2c;
 
 	if (dev_get_platdata(&i2c->dev))
-		memcpy(&wm9081->retune, dev_get_platdata(&i2c->dev),
-		       sizeof(wm9081->retune));
+		memcpy(&wm9081->pdata, dev_get_platdata(&i2c->dev),
+		       sizeof(wm9081->pdata));
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm9081, &wm9081_dai, 1);
