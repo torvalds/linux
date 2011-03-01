@@ -681,11 +681,11 @@ static struct platform_device *omap3pandora_devices[] __initdata = {
 	&pandora_vwlan_device,
 };
 
-static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
+static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
 
-	.port_mode[0] = EHCI_HCD_OMAP_MODE_PHY,
-	.port_mode[1] = EHCI_HCD_OMAP_MODE_UNKNOWN,
-	.port_mode[2] = EHCI_HCD_OMAP_MODE_UNKNOWN,
+	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
+	.port_mode[1] = OMAP_USBHS_PORT_MODE_UNUSED,
+	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
 
 	.phy_reset  = true,
 	.reset_gpio_port[0]  = 16,
@@ -716,7 +716,7 @@ static void __init omap3pandora_init(void)
 	spi_register_board_info(omap3pandora_spi_board_info,
 			ARRAY_SIZE(omap3pandora_spi_board_info));
 	omap3pandora_ads7846_init();
-	usb_ehci_init(&ehci_pdata);
+	usb_ehci_init(&usbhs_bdata);
 	usb_musb_init(&musb_board_data);
 	gpmc_nand_init(&pandora_nand_data);
 

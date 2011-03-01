@@ -155,9 +155,9 @@
 #define is_omap_ehci_rev1(x)	(x->omap_ehci_rev == OMAP_EHCI_REV1)
 #define is_omap_ehci_rev2(x)	(x->omap_ehci_rev == OMAP_EHCI_REV2)
 
-#define is_ehci_phy_mode(x)	(x == EHCI_HCD_OMAP_MODE_PHY)
-#define is_ehci_tll_mode(x)	(x == EHCI_HCD_OMAP_MODE_TLL)
-#define is_ehci_hsic_mode(x)	(x == EHCI_HCD_OMAP_MODE_HSIC)
+#define is_ehci_phy_mode(x)	(x == OMAP_EHCI_PORT_MODE_PHY)
+#define is_ehci_tll_mode(x)	(x == OMAP_EHCI_PORT_MODE_TLL)
+#define is_ehci_hsic_mode(x)	(x == OMAP_EHCI_PORT_MODE_HSIC)
 
 /*-------------------------------------------------------------------------*/
 
@@ -220,7 +220,7 @@ struct ehci_hcd_omap {
 	u32			omap_ehci_rev;
 
 	/* desired phy_mode: TLL, PHY */
-	enum ehci_hcd_omap_mode	port_mode[OMAP3_HS_USB_PORTS];
+	enum usbhs_omap_port_mode	port_mode[OMAP3_HS_USB_PORTS];
 
 	void __iomem		*uhh_base;
 	void __iomem		*tll_base;
@@ -389,7 +389,7 @@ static int omap_start_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 	 */
 	if (is_omap_ehci_rev2(omap)) {
 		switch (omap->port_mode[0]) {
-		case EHCI_HCD_OMAP_MODE_PHY:
+		case OMAP_EHCI_PORT_MODE_PHY:
 			omap->xclk60mhsp1_ck = clk_get(omap->dev,
 							"xclk60mhsp1_ck");
 			if (IS_ERR(omap->xclk60mhsp1_ck)) {
@@ -413,7 +413,7 @@ static int omap_start_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 					"Unable to set P1 f-clock\n");
 			}
 			break;
-		case EHCI_HCD_OMAP_MODE_TLL:
+		case OMAP_EHCI_PORT_MODE_TLL:
 			omap->xclk60mhsp1_ck = clk_get(omap->dev,
 							"init_60m_fclk");
 			if (IS_ERR(omap->xclk60mhsp1_ck)) {
@@ -463,7 +463,7 @@ static int omap_start_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 			break;
 		}
 		switch (omap->port_mode[1]) {
-		case EHCI_HCD_OMAP_MODE_PHY:
+		case OMAP_EHCI_PORT_MODE_PHY:
 			omap->xclk60mhsp2_ck = clk_get(omap->dev,
 							"xclk60mhsp2_ck");
 			if (IS_ERR(omap->xclk60mhsp2_ck)) {
@@ -487,7 +487,7 @@ static int omap_start_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 					"Unable to set P2 f-clock\n");
 			}
 			break;
-		case EHCI_HCD_OMAP_MODE_TLL:
+		case OMAP_EHCI_PORT_MODE_TLL:
 			omap->xclk60mhsp2_ck = clk_get(omap->dev,
 							"init_60m_fclk");
 			if (IS_ERR(omap->xclk60mhsp2_ck)) {
@@ -591,11 +591,11 @@ static int omap_start_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 	reg &= ~OMAP_UHH_HOSTCONFIG_INCRX_ALIGN_EN;
 
 	if (is_omap_ehci_rev1(omap)) {
-		if (omap->port_mode[0] == EHCI_HCD_OMAP_MODE_UNKNOWN)
+		if (omap->port_mode[0] == OMAP_USBHS_PORT_MODE_UNUSED)
 			reg &= ~OMAP_UHH_HOSTCONFIG_P1_CONNECT_STATUS;
-		if (omap->port_mode[1] == EHCI_HCD_OMAP_MODE_UNKNOWN)
+		if (omap->port_mode[1] == OMAP_USBHS_PORT_MODE_UNUSED)
 			reg &= ~OMAP_UHH_HOSTCONFIG_P2_CONNECT_STATUS;
-		if (omap->port_mode[2] == EHCI_HCD_OMAP_MODE_UNKNOWN)
+		if (omap->port_mode[2] == OMAP_USBHS_PORT_MODE_UNUSED)
 			reg &= ~OMAP_UHH_HOSTCONFIG_P3_CONNECT_STATUS;
 
 		/* Bypass the TLL module for PHY mode operation */
@@ -656,15 +656,15 @@ static int omap_start_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 	ehci_omap_writel(omap->ehci_base, EHCI_INSNREG04,
 				EHCI_INSNREG04_DISABLE_UNSUSPEND);
 
-	if ((omap->port_mode[0] == EHCI_HCD_OMAP_MODE_TLL) ||
-		(omap->port_mode[1] == EHCI_HCD_OMAP_MODE_TLL) ||
-			(omap->port_mode[2] == EHCI_HCD_OMAP_MODE_TLL)) {
+	if ((omap->port_mode[0] == OMAP_EHCI_PORT_MODE_TLL) ||
+		(omap->port_mode[1] == OMAP_EHCI_PORT_MODE_TLL) ||
+			(omap->port_mode[2] == OMAP_EHCI_PORT_MODE_TLL)) {
 
-		if (omap->port_mode[0] == EHCI_HCD_OMAP_MODE_TLL)
+		if (omap->port_mode[0] == OMAP_EHCI_PORT_MODE_TLL)
 			tll_ch_mask |= OMAP_TLL_CHANNEL_1_EN_MASK;
-		if (omap->port_mode[1] == EHCI_HCD_OMAP_MODE_TLL)
+		if (omap->port_mode[1] == OMAP_EHCI_PORT_MODE_TLL)
 			tll_ch_mask |= OMAP_TLL_CHANNEL_2_EN_MASK;
-		if (omap->port_mode[2] == EHCI_HCD_OMAP_MODE_TLL)
+		if (omap->port_mode[2] == OMAP_EHCI_PORT_MODE_TLL)
 			tll_ch_mask |= OMAP_TLL_CHANNEL_3_EN_MASK;
 
 		/* Enable UTMI mode for required TLL channels */
@@ -686,9 +686,9 @@ static int omap_start_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 	}
 
 	/* Soft reset the PHY using PHY reset command over ULPI */
-	if (omap->port_mode[0] == EHCI_HCD_OMAP_MODE_PHY)
+	if (omap->port_mode[0] == OMAP_EHCI_PORT_MODE_PHY)
 		omap_ehci_soft_phy_reset(omap, 0);
-	if (omap->port_mode[1] == EHCI_HCD_OMAP_MODE_PHY)
+	if (omap->port_mode[1] == OMAP_EHCI_PORT_MODE_PHY)
 		omap_ehci_soft_phy_reset(omap, 1);
 
 	return 0;
@@ -903,7 +903,7 @@ static const struct hc_driver ehci_omap_hc_driver;
  */
 static int ehci_hcd_omap_probe(struct platform_device *pdev)
 {
-	struct ehci_hcd_omap_platform_data *pdata = pdev->dev.platform_data;
+	struct usbhs_omap_board_data *pdata = pdev->dev.platform_data;
 	struct ehci_hcd_omap *omap;
 	struct resource *res;
 	struct usb_hcd *hcd;
@@ -981,7 +981,7 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 
 	/* get ehci regulator and enable */
 	for (i = 0 ; i < OMAP3_HS_USB_PORTS ; i++) {
-		if (omap->port_mode[i] != EHCI_HCD_OMAP_MODE_PHY) {
+		if (omap->port_mode[i] != OMAP_EHCI_PORT_MODE_PHY) {
 			omap->regulator[i] = NULL;
 			continue;
 		}

@@ -141,7 +141,7 @@ struct ohci_hcd_omap3 {
 	struct clk		*usbtll_ick;
 
 	/* port_mode: TLL/PHY, 2/3/4/6-PIN, DP-DM/DAT-SE0 */
-	enum ohci_omap3_port_mode	port_mode[OMAP3_HS_USB_PORTS];
+	enum usbhs_omap_port_mode	port_mode[OMAP3_HS_USB_PORTS];
 	void __iomem		*uhh_base;
 	void __iomem		*tll_base;
 	void __iomem		*ohci_base;
@@ -206,10 +206,10 @@ static int ohci_omap3_start(struct usb_hcd *hcd)
  * convert the port-mode enum to a value we can use in the FSLSMODE
  * field of USBTLL_CHANNEL_CONF
  */
-static unsigned ohci_omap3_fslsmode(enum ohci_omap3_port_mode mode)
+static unsigned ohci_omap3_fslsmode(enum usbhs_omap_port_mode mode)
 {
 	switch (mode) {
-	case OMAP_OHCI_PORT_MODE_UNUSED:
+	case OMAP_USBHS_PORT_MODE_UNUSED:
 	case OMAP_OHCI_PORT_MODE_PHY_6PIN_DATSE0:
 		return 0x0;
 
@@ -266,7 +266,7 @@ static void ohci_omap3_tll_config(struct ohci_hcd_omap3 *omap)
 	for (i = 0; i < OMAP_TLL_CHANNEL_COUNT; i++) {
 
 		/* Enable only those channels that are actually used */
-		if (omap->port_mode[i] == OMAP_OHCI_PORT_MODE_UNUSED)
+		if (omap->port_mode[i] == OMAP_USBHS_PORT_MODE_UNUSED)
 			continue;
 
 		reg = ohci_omap_readl(omap->tll_base, OMAP_TLL_CHANNEL_CONF(i));
@@ -382,11 +382,11 @@ static int omap3_start_ohci(struct ohci_hcd_omap3 *omap, struct usb_hcd *hcd)
 	 *
 	 * For now, turn off all the Pi_CONNECT_STATUS bits
 	 *
-	if (omap->port_mode[0] == OMAP_OHCI_PORT_MODE_UNUSED)
+	if (omap->port_mode[0] == OMAP_USBHS_PORT_MODE_UNUSED)
 		reg &= ~OMAP_UHH_HOSTCONFIG_P1_CONNECT_STATUS;
-	if (omap->port_mode[1] == OMAP_OHCI_PORT_MODE_UNUSED)
+	if (omap->port_mode[1] == OMAP_USBHS_PORT_MODE_UNUSED)
 		reg &= ~OMAP_UHH_HOSTCONFIG_P2_CONNECT_STATUS;
-	if (omap->port_mode[2] == OMAP_OHCI_PORT_MODE_UNUSED)
+	if (omap->port_mode[2] == OMAP_USBHS_PORT_MODE_UNUSED)
 		reg &= ~OMAP_UHH_HOSTCONFIG_P3_CONNECT_STATUS;
 	 */
 	reg &= ~OMAP_UHH_HOSTCONFIG_P1_CONNECT_STATUS;
@@ -403,17 +403,17 @@ static int omap3_start_ohci(struct ohci_hcd_omap3 *omap, struct usb_hcd *hcd)
 		reg |= OMAP_UHH_HOSTCONFIG_ULPI_BYPASS;
 	} else {
 		dev_dbg(omap->dev, "OMAP3 ES version > ES2.1\n");
-		if (omap->port_mode[0] == OMAP_OHCI_PORT_MODE_UNUSED)
+		if (omap->port_mode[0] == OMAP_USBHS_PORT_MODE_UNUSED)
 			reg &= ~OMAP_UHH_HOSTCONFIG_ULPI_P1_BYPASS;
 		else
 			reg |= OMAP_UHH_HOSTCONFIG_ULPI_P1_BYPASS;
 
-		if (omap->port_mode[1] == OMAP_OHCI_PORT_MODE_UNUSED)
+		if (omap->port_mode[1] == OMAP_USBHS_PORT_MODE_UNUSED)
 			reg &= ~OMAP_UHH_HOSTCONFIG_ULPI_P2_BYPASS;
 		else
 			reg |= OMAP_UHH_HOSTCONFIG_ULPI_P2_BYPASS;
 
-		if (omap->port_mode[2] == OMAP_OHCI_PORT_MODE_UNUSED)
+		if (omap->port_mode[2] == OMAP_USBHS_PORT_MODE_UNUSED)
 			reg &= ~OMAP_UHH_HOSTCONFIG_ULPI_P3_BYPASS;
 		else
 			reg |= OMAP_UHH_HOSTCONFIG_ULPI_P3_BYPASS;
@@ -580,7 +580,7 @@ static const struct hc_driver ohci_omap3_hc_driver = {
  */
 static int __devinit ohci_hcd_omap3_probe(struct platform_device *pdev)
 {
-	struct ohci_hcd_omap_platform_data *pdata = pdev->dev.platform_data;
+	struct usbhs_omap_board_data *pdata = pdev->dev.platform_data;
 	struct ohci_hcd_omap3 *omap;
 	struct resource *res;
 	struct usb_hcd *hcd;

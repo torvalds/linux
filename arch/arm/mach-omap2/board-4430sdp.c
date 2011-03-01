@@ -251,10 +251,10 @@ static void __init omap_4430sdp_init_irq(void)
 	gic_init_irq();
 }
 
-static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
-	.port_mode[0]	= EHCI_HCD_OMAP_MODE_PHY,
-	.port_mode[1]	= EHCI_HCD_OMAP_MODE_UNKNOWN,
-	.port_mode[2]	= EHCI_HCD_OMAP_MODE_UNKNOWN,
+static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
+	.port_mode[0]	= OMAP_EHCI_PORT_MODE_PHY,
+	.port_mode[1]	= OMAP_USBHS_PORT_MODE_UNUSED,
+	.port_mode[2]	= OMAP_USBHS_PORT_MODE_UNUSED,
 	.phy_reset	= false,
 	.reset_gpio_port[0]  = -EINVAL,
 	.reset_gpio_port[1]  = -EINVAL,
@@ -584,7 +584,7 @@ static void __init omap_4430sdp_init(void)
 	else
 		gpio_direction_output(OMAP4SDP_MDM_PWR_EN_GPIO, 1);
 
-	usb_ehci_init(&ehci_pdata);
+	usb_ehci_init(&usbhs_bdata);
 	usb_musb_init(&musb_board_data);
 
 	status = omap_ethernet_init();

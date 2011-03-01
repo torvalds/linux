@@ -408,10 +408,10 @@ static void __init igep3_wifi_bt_init(void)
 void __init igep3_wifi_bt_init(void) {}
 #endif
 
-static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
-	.port_mode[0] = EHCI_HCD_OMAP_MODE_UNKNOWN,
-	.port_mode[1] = EHCI_HCD_OMAP_MODE_PHY,
-	.port_mode[2] = EHCI_HCD_OMAP_MODE_UNKNOWN,
+static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
+	.port_mode[0] = OMAP_USBHS_PORT_MODE_UNUSED,
+	.port_mode[1] = OMAP_EHCI_PORT_MODE_PHY,
+	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
 
 	.phy_reset = true,
 	.reset_gpio_port[0] = -EINVAL,
@@ -435,7 +435,7 @@ static void __init igep3_init(void)
 	platform_add_devices(igep3_devices, ARRAY_SIZE(igep3_devices));
 	omap_serial_init();
 	usb_musb_init(&musb_board_data);
-	usb_ehci_init(&ehci_pdata);
+	usb_ehci_init(&usbhs_bdata);
 
 	igep3_flash_init();
 	igep3_leds_init();
