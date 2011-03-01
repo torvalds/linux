@@ -15,6 +15,7 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
@@ -1340,6 +1341,10 @@ static __devinit int wm9081_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(i2c, wm9081);
 	wm9081->control_type = SND_SOC_I2C;
 	wm9081->control_data = i2c;
+
+	if (dev_get_platdata(&i2c->dev))
+		memcpy(&wm9081->retune, dev_get_platdata(&i2c->dev),
+		       sizeof(wm9081->retune));
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm9081, &wm9081_dai, 1);
