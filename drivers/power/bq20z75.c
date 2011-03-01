@@ -664,6 +664,7 @@ static const struct i2c_device_id bq20z75_id[] = {
 	{ "bq20z75", 0 },
 	{}
 };
+MODULE_DEVICE_TABLE(i2c, bq20z75_id);
 
 static struct i2c_driver bq20z75_battery_driver = {
 	.probe		= bq20z75_probe,
