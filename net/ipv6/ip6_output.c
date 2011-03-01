@@ -1029,7 +1029,7 @@ struct dst_entry *ip6_dst_lookup_flow(struct sock *sk, struct flowi *fl,
 		fl->flags |= FLOWI_FLAG_CAN_SLEEP;
 		err = __xfrm_lookup(sock_net(sk), &dst, fl, sk, 0);
 		if (err == -EREMOTE)
-			err = ip6_dst_blackhole(sk, &dst, fl);
+			return ip6_dst_blackhole(sock_net(sk), dst);
 		if (err)
 			return ERR_PTR(err);
 	} else {
@@ -1074,7 +1074,7 @@ struct dst_entry *ip6_sk_dst_lookup_flow(struct sock *sk, struct flowi *fl,
 		fl->flags |= FLOWI_FLAG_CAN_SLEEP;
 		err = __xfrm_lookup(sock_net(sk), &dst, fl, sk, 0);
 		if (err == -EREMOTE)
-			err = ip6_dst_blackhole(sk, &dst, fl);
+			return ip6_dst_blackhole(sock_net(sk), dst);
 		if (err)
 			return ERR_PTR(err);
 	} else {

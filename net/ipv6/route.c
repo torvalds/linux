@@ -870,11 +870,10 @@ struct dst_entry * ip6_route_output(struct net *net, struct sock *sk,
 
 EXPORT_SYMBOL(ip6_route_output);
 
-int ip6_dst_blackhole(struct sock *sk, struct dst_entry **dstp, struct flowi *fl)
+struct dst_entry *ip6_dst_blackhole(struct net *net, struct dst_entry *dst_orig)
 {
-	struct rt6_info *ort = (struct rt6_info *) *dstp;
-	struct rt6_info *rt = (struct rt6_info *)
-		dst_alloc(&ip6_dst_blackhole_ops, 1);
+	struct rt6_info *rt = dst_alloc(&ip6_dst_blackhole_ops, 1);
+	struct rt6_info *ort = (struct rt6_info *) dst_orig;
 	struct dst_entry *new = NULL;
 
 	if (rt) {
@@ -905,9 +904,8 @@ int ip6_dst_blackhole(struct sock *sk, struct dst_entry **dstp, struct flowi *fl
 		dst_free(new);
 	}
 
-	dst_release(*dstp);
-	*dstp = new;
-	return new ? 0 : -ENOMEM;
+	dst_release(dst_orig);
+	return new ? new : ERR_PTR(-ENOMEM);
 }
 EXPORT_SYMBOL_GPL(ip6_dst_blackhole);
 
