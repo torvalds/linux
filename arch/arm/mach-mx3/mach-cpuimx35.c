@@ -196,7 +196,7 @@ MACHINE_START(EUKREA_CPUIMX35, "Eukrea CPUIMX35")
 	/* Maintainer: Eukrea Electromatique */
 	.boot_params = MX3x_PHYS_OFFSET + 0x100,
 	.map_io = mx35_map_io,
-	.init_ext3_fs = imx35_init_early,
+	.init_early = imx35_init_early,
 	.init_irq = mx35_init_irq,
 	.timer = &eukrea_cpuimx35_timer,
 	.init_machine = eukrea_cpuimx35_init,
