@@ -1,7 +1,7 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2005-2009 Solarflare Communications Inc.
+ * Copyright 2005-2011 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -41,7 +41,7 @@
  *
  **************************************************************************/
 
-#define EFX_DRIVER_VERSION	"3.0"
+#define EFX_DRIVER_VERSION	"3.1"
 
 #ifdef EFX_ENABLE_DEBUG
 #define EFX_BUG_ON_PARANOID(x) BUG_ON(x)
@@ -214,15 +214,17 @@ struct efx_tx_queue {
  *	If both this and page are %NULL, the buffer slot is currently free.
  * @page: The associated page buffer, if any.
  *	If both this and skb are %NULL, the buffer slot is currently free.
- * @data: Pointer to ethernet header
  * @len: Buffer length, in bytes.
+ * @is_page: Indicates if @page is valid. If false, @skb is valid.
  */
 struct efx_rx_buffer {
 	dma_addr_t dma_addr;
-	struct sk_buff *skb;
-	struct page *page;
-	char *data;
+	union {
+		struct sk_buff *skb;
+		struct page *page;
+	} u;
 	unsigned int len;
+	bool is_page;
 };
 
 /**

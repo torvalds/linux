@@ -1,6 +1,6 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
- * Copyright 2006-2009 Solarflare Communications Inc.
+ * Copyright 2006-2011 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -51,12 +51,9 @@ int efx_mdio_reset_mmd(struct efx_nic *port, int mmd,
 	return spins ? spins : -ETIMEDOUT;
 }
 
-static int efx_mdio_check_mmd(struct efx_nic *efx, int mmd, int fault_fatal)
+static int efx_mdio_check_mmd(struct efx_nic *efx, int mmd)
 {
 	int status;
-
-	if (LOOPBACK_INTERNAL(efx))
-		return 0;
 
 	if (mmd != MDIO_MMD_AN) {
 		/* Read MMD STATUS2 to check it is responding. */
@@ -68,20 +65,6 @@ static int efx_mdio_check_mmd(struct efx_nic *efx, int mmd, int fault_fatal)
 		}
 	}
 
-	/* Read MMD STATUS 1 to check for fault. */
-	status = efx_mdio_read(efx, mmd, MDIO_STAT1);
-	if (status & MDIO_STAT1_FAULT) {
-		if (fault_fatal) {
-			netif_err(efx, hw, efx->net_dev,
-				  "PHY MMD %d reporting fatal"
-				  " fault: status %x\n", mmd, status);
-			return -EIO;
-		} else {
-			netif_dbg(efx, hw, efx->net_dev,
-				  "PHY MMD %d reporting status"
-				  " %x (expected)\n", mmd, status);
-		}
-	}
 	return 0;
 }
 
@@ -130,8 +113,7 @@ int efx_mdio_wait_reset_mmds(struct efx_nic *efx, unsigned int mmd_mask)
 	return rc;
 }
 
-int efx_mdio_check_mmds(struct efx_nic *efx,
-			unsigned int mmd_mask, unsigned int fatal_mask)
+int efx_mdio_check_mmds(struct efx_nic *efx, unsigned int mmd_mask)
 {
 	int mmd = 0, probe_mmd, devs1, devs2;
 	u32 devices;
@@ -161,13 +143,9 @@ int efx_mdio_check_mmds(struct efx_nic *efx,
 
 	/* Check all required MMDs are responding and happy. */
 	while (mmd_mask) {
-		if (mmd_mask & 1) {
-			int fault_fatal = fatal_mask & 1;
-			if (efx_mdio_check_mmd(efx, mmd, fault_fatal))
-				return -EIO;
-		}
+		if ((mmd_mask & 1) && efx_mdio_check_mmd(efx, mmd))
+			return -EIO;
 		mmd_mask = mmd_mask >> 1;
-		fatal_mask = fatal_mask >> 1;
 		mmd++;
 	}
 
@@ -337,7 +315,7 @@ int efx_mdio_test_alive(struct efx_nic *efx)
 			  "no MDIO PHY present with ID %d\n", efx->mdio.prtad);
 		rc = -EINVAL;
 	} else {
-		rc = efx_mdio_check_mmds(efx, efx->mdio.mmds, 0);
+		rc = efx_mdio_check_mmds(efx, efx->mdio.mmds);
 	}
 
 	mutex_unlock(&efx->mac_lock);
