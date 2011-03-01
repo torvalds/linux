@@ -639,12 +639,15 @@ config I2C_XILINX
 	  will be called xilinx_i2c.
 
 config I2C_EG20T
-        tristate "PCH I2C of Intel EG20T"
-        depends on PCI
-        help
-          This driver is for PCH(Platform controller Hub) I2C of EG20T which
-          is an IOH(Input/Output Hub) for x86 embedded processor.
-          This driver can access PCH I2C bus device.
+	tristate "Intel EG20T PCH/OKI SEMICONDUCTOR ML7213 IOH"
+	depends on PCI
+	help
+	  This driver is for PCH(Platform controller Hub) I2C of EG20T which
+	  is an IOH(Input/Output Hub) for x86 embedded processor.
+	  This driver can access PCH I2C bus device.
+
+	  This driver also supports the ML7213, a companion chip for the
+	  Atom E6xx series and compatible with the Intel EG20T PCH.
 
 comment "External I2C/SMBus adapter drivers"
 
