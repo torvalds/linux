@@ -173,6 +173,13 @@ config USB_EHCI_HCD_PPC_OF
 	  Enables support for the USB controller present on the PowerPC
 	  OpenFirmware platform bus.
 
+config USB_EHCI_SH
+	bool "EHCI support for SuperH USB controller"
+	depends on USB_EHCI_HCD && SUPERH
+	---help---
+	  Enables support for the on-chip EHCI controller on the SuperH.
+	  If you use the PCI EHCI controller, this option is not necessary.
+
 config USB_W90X900_EHCI
 	bool "W90X900(W90P910) EHCI support"
 	depends on USB_EHCI_HCD && ARCH_W90X900
@@ -325,6 +332,13 @@ config USB_OHCI_HCD_SSB
 	  Broadcom based SSB bus.
 
 	  If unsure, say N.
+
+config USB_OHCI_SH
+	bool "OHCI support for SuperH USB controller"
+	depends on USB_OHCI_HCD && SUPERH
+	---help---
+	  Enables support for the on-chip OHCI controller on the SuperH.
+	  If you use the PCI OHCI controller, this option is not necessary.
 
 config USB_CNS3XXX_OHCI
 	bool "Cavium CNS3XXX OHCI Module"
