@@ -1194,3 +1194,42 @@ int drbd_merge_bvec(struct request_queue *q, struct bvec_merge_data *bvm, struct
 	}
 	return limit;
 }
+
+void request_timer_fn(unsigned long data)
+{
+	struct drbd_conf *mdev = (struct drbd_conf *) data;
+	struct drbd_request *req; /* oldest request */
+	struct list_head *le;
+	unsigned long et = 0; /* effective timeout = ko_count * timeout */
+
+	if (get_net_conf(mdev)) {
+		et = mdev->net_conf->timeout*HZ/10 * mdev->net_conf->ko_count;
+		put_net_conf(mdev);
+	}
+	if (!et || mdev->state.conn < C_WF_REPORT_PARAMS)
+		return; /* Recurring timer stopped */
+
+	spin_lock_irq(&mdev->req_lock);
+	le = &mdev->oldest_tle->requests;
+	if (list_empty(le)) {
+		spin_unlock_irq(&mdev->req_lock);
+		mod_timer(&mdev->request_timer, jiffies + et);
+		return;
+	}
+
+	le = le->prev;
+	req = list_entry(le, struct drbd_request, tl_requests);
+	if (time_is_before_eq_jiffies(req->start_time + et)) {
+		if (req->rq_state & RQ_NET_PENDING) {
+			dev_warn(DEV, "Remote failed to finish a request within ko-count * timeout\n");
+			_drbd_set_state(_NS(mdev, conn, C_TIMEOUT), CS_VERBOSE, NULL);
+		} else {
+			dev_warn(DEV, "Local backing block device frozen?\n");
+			mod_timer(&mdev->request_timer, jiffies + et);
+		}
+	} else {
+		mod_timer(&mdev->request_timer, req->start_time + et);
+	}
+
+	spin_unlock_irq(&mdev->req_lock);
+}

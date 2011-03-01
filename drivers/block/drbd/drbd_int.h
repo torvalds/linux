@@ -990,6 +990,7 @@ struct drbd_conf {
 	struct timer_list resync_timer;
 	struct timer_list md_sync_timer;
 	struct timer_list start_resync_timer;
+	struct timer_list request_timer;
 #ifdef DRBD_DEBUG_MD_SYNC
 	struct {
 		unsigned int line;

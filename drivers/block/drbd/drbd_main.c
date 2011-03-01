@@ -3017,12 +3017,15 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	init_timer(&mdev->resync_timer);
 	init_timer(&mdev->md_sync_timer);
 	init_timer(&mdev->start_resync_timer);
+	init_timer(&mdev->request_timer);
 	mdev->resync_timer.function = resync_timer_fn;
 	mdev->resync_timer.data = (unsigned long) mdev;
 	mdev->md_sync_timer.function = md_sync_timer_fn;
 	mdev->md_sync_timer.data = (unsigned long) mdev;
 	mdev->start_resync_timer.function = start_resync_timer_fn;
 	mdev->start_resync_timer.data = (unsigned long) mdev;
+	mdev->request_timer.function = request_timer_fn;
+	mdev->request_timer.data = (unsigned long) mdev;
 
 	init_waitqueue_head(&mdev->misc_wait);
 	init_waitqueue_head(&mdev->state_wait);
