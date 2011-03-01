@@ -156,30 +156,55 @@ struct bq20z75_info {
 
 static int bq20z75_read_word_data(struct i2c_client *client, u8 address)
 {
-	s32 ret;
+	struct bq20z75_info *bq20z75_device = i2c_get_clientdata(client);
+	s32 ret = 0;
+	int retries = 1;
 
-	ret = i2c_smbus_read_word_data(client, address);
+	if (bq20z75_device->pdata)
+		retries = max(bq20z75_device->pdata->i2c_retry_count + 1, 1);
+
+	while (retries > 0) {
+		ret = i2c_smbus_read_word_data(client, address);
+		if (ret >= 0)
+			break;
+		retries--;
+	}
+
 	if (ret < 0) {
-		dev_err(&client->dev,
+		dev_warn(&client->dev,
 			"%s: i2c read at address 0x%x failed\n",
 			__func__, address);
 		return ret;
 	}
+
 	return le16_to_cpu(ret);
 }
 
 static int bq20z75_write_word_data(struct i2c_client *client, u8 address,
 	u16 value)
 {
-	s32 ret;
+	struct bq20z75_info *bq20z75_device = i2c_get_clientdata(client);
+	s32 ret = 0;
+	int retries = 1;
 
-	ret = i2c_smbus_write_word_data(client, address, le16_to_cpu(value));
+	if (bq20z75_device->pdata)
+		retries = max(bq20z75_device->pdata->i2c_retry_count + 1, 1);
+
+	while (retries > 0) {
+		ret = i2c_smbus_write_word_data(client, address,
+			le16_to_cpu(value));
+		if (ret >= 0)
+			break;
+		retries--;
+	}
+
 	if (ret < 0) {
-		dev_err(&client->dev,
+		dev_warn(&client->dev,
 			"%s: i2c write to address 0x%x failed\n",
 			__func__, address);
 		return ret;
 	}
+
 	return 0;
 }
 
