@@ -1006,7 +1006,7 @@ EXPORT_SYMBOL_GPL(ip6_dst_lookup);
  *	@sk: socket which provides route info
  *	@fl: flow to lookup
  *	@final_dst: final destination address for ipsec lookup
- *	@want_blackhole: IPSEC blackhole handling desired
+ *	@can_sleep: we are in a sleepable context
  *
  *	This function performs a route lookup on the given flow.
  *
@@ -1015,7 +1015,7 @@ EXPORT_SYMBOL_GPL(ip6_dst_lookup);
  */
 struct dst_entry *ip6_dst_lookup_flow(struct sock *sk, struct flowi *fl,
 				      const struct in6_addr *final_dst,
-				      bool want_blackhole)
+				      bool can_sleep)
 {
 	struct dst_entry *dst = NULL;
 	int err;
@@ -1025,7 +1025,7 @@ struct dst_entry *ip6_dst_lookup_flow(struct sock *sk, struct flowi *fl,
 		return ERR_PTR(err);
 	if (final_dst)
 		ipv6_addr_copy(&fl->fl6_dst, final_dst);
-	if (want_blackhole) {
+	if (can_sleep) {
 		fl->flags |= FLOWI_FLAG_CAN_SLEEP;
 		err = __xfrm_lookup(sock_net(sk), &dst, fl, sk, XFRM_LOOKUP_WAIT);
 		if (err == -EREMOTE)
@@ -1046,7 +1046,7 @@ EXPORT_SYMBOL_GPL(ip6_dst_lookup_flow);
  *	@sk: socket which provides the dst cache and route info
  *	@fl: flow to lookup
  *	@final_dst: final destination address for ipsec lookup
- *	@want_blackhole: IPSEC blackhole handling desired
+ *	@can_sleep: we are in a sleepable context
  *
  *	This function performs a route lookup on the given flow with the
  *	possibility of using the cached route in the socket if it is valid.
@@ -1058,7 +1058,7 @@ EXPORT_SYMBOL_GPL(ip6_dst_lookup_flow);
  */
 struct dst_entry *ip6_sk_dst_lookup_flow(struct sock *sk, struct flowi *fl,
 					 const struct in6_addr *final_dst,
-					 bool want_blackhole)
+					 bool can_sleep)
 {
 	struct dst_entry *dst = sk_dst_check(sk, inet6_sk(sk)->dst_cookie);
 	int err;
@@ -1070,7 +1070,7 @@ struct dst_entry *ip6_sk_dst_lookup_flow(struct sock *sk, struct flowi *fl,
 		return ERR_PTR(err);
 	if (final_dst)
 		ipv6_addr_copy(&fl->fl6_dst, final_dst);
-	if (want_blackhole) {
+	if (can_sleep) {
 		fl->flags |= FLOWI_FLAG_CAN_SLEEP;
 		err = __xfrm_lookup(sock_net(sk), &dst, fl, sk, XFRM_LOOKUP_WAIT);
 		if (err == -EREMOTE)
