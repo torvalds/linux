@@ -41,7 +41,6 @@
 #include <linux/delay.h>
 #include <linux/freezer.h>
 
-#include <xen/balloon.h>
 #include <xen/events.h>
 #include <xen/page.h>
 #include <asm/xen/hypervisor.h>
@@ -192,6 +191,17 @@ static void fast_flush_area(pending_req_t *req)
 	ret = HYPERVISOR_grant_table_op(
 		GNTTABOP_unmap_grant_ref, unmap, invcount);
 	BUG_ON(ret);
+	/* Note, we use invcount, so nr->pages, so we can't index
+	 * using vaddr(req, i). */
+	for (i = 0; i < invcount; i++) {
+		ret = m2p_remove_override(
+			virt_to_page(unmap[i].host_addr), false);
+		if (ret) {
+			printk(KERN_ALERT "Failed to remove M2P override for " \
+				"%lx\n", (unsigned long)unmap[i].host_addr);
+			continue;
+		}
+	}
 }
 
 /******************************************************************
@@ -467,10 +477,15 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 
 		if (ret)
 			continue;
+		
+		ret = m2p_add_override(PFN_DOWN(map[i].dev_bus_addr),
+			blkbk->pending_page(pending_req, i), false);
+		if (ret) {
+			printk(KERN_ALERT "Failed to install M2P override for"\
+				" %lx (ret: %d)\n", (unsigned long)map[i].dev_bus_addr, ret);
+			continue;
+		}
 
-		set_phys_to_machine(
-			page_to_pfn(blkbk->pending_page(pending_req, i)),
-			FOREIGN_FRAME(map[i].dev_bus_addr >> PAGE_SHIFT));
 		seg[i].buf  = map[i].dev_bus_addr |
 			(req->u.rw.seg[i].first_sect << 9);
 	}
