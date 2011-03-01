@@ -19,6 +19,9 @@ config X86_32
 	def_bool !64BIT
 	select HAVE_AOUT
 
+config X86_64
+	def_bool 64BIT
+
 config RWSEM_XCHGADD_ALGORITHM
 	def_bool X86_XADD
 
