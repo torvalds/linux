@@ -18,6 +18,8 @@
 #include <linux/sunrpc/clnt.h>
 #include <linux/nfs_fs.h>
 #include <linux/nfs_page.h>
+#include <linux/smp_lock.h>
+#include <linux/module.h>
 
 #include <asm/system.h>
 #include "pnfs.h"
@@ -155,6 +157,45 @@ static void nfs_readpage_release(struct nfs_page *req)
 	nfs_release_request(req);
 }
 
+static int nfs_initiate_read(struct nfs_read_data *data, struct rpc_clnt *clnt,
+		      const struct rpc_call_ops *call_ops)
+{
+	struct inode *inode = data->inode;
+	int swap_flags = IS_SWAPFILE(inode) ? NFS_RPC_SWAPFLAGS : 0;
+	struct rpc_task *task;
+	struct rpc_message msg = {
+		.rpc_argp = &data->args,
+		.rpc_resp = &data->res,
+		.rpc_cred = data->cred,
+	};
+	struct rpc_task_setup task_setup_data = {
+		.task = &data->task,
+		.rpc_client = clnt,
+		.rpc_message = &msg,
+		.callback_ops = call_ops,
+		.callback_data = data,
+		.workqueue = nfsiod_workqueue,
+		.flags = RPC_TASK_ASYNC | swap_flags,
+	};
+
+	/* Set up the initial task struct. */
+	NFS_PROTO(inode)->read_setup(data, &msg);
+
+	dprintk("NFS: %5u initiated read call (req %s/%lld, %u bytes @ "
+			"offset %llu)\n",
+			data->task.tk_pid,
+			inode->i_sb->s_id,
+			(long long)NFS_FILEID(inode),
+			data->args.count,
+			(unsigned long long)data->args.offset);
+
+	task = rpc_run_task(&task_setup_data);
+	if (IS_ERR(task))
+		return PTR_ERR(task);
+	rpc_put_task(task);
+	return 0;
+}
+
 /*
  * Set up the NFS read request struct
  */
@@ -164,26 +205,10 @@ static int nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 		struct pnfs_layout_segment *lseg)
 {
 	struct inode *inode = req->wb_context->path.dentry->d_inode;
-	int swap_flags = IS_SWAPFILE(inode) ? NFS_RPC_SWAPFLAGS : 0;
-	struct rpc_task *task;
-	struct rpc_message msg = {
-		.rpc_argp = &data->args,
-		.rpc_resp = &data->res,
-		.rpc_cred = req->wb_context->cred,
-	};
-	struct rpc_task_setup task_setup_data = {
-		.task = &data->task,
-		.rpc_client = NFS_CLIENT(inode),
-		.rpc_message = &msg,
-		.callback_ops = call_ops,
-		.callback_data = data,
-		.workqueue = nfsiod_workqueue,
-		.flags = RPC_TASK_ASYNC | swap_flags,
-	};
 
 	data->req	  = req;
 	data->inode	  = inode;
-	data->cred	  = msg.rpc_cred;
+	data->cred	  = req->wb_context->cred;
 	data->lseg	  = get_lseg(lseg);
 
 	data->args.fh     = NFS_FH(inode);
@@ -199,21 +224,11 @@ static int nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 	data->res.eof     = 0;
 	nfs_fattr_init(&data->fattr);
 
-	/* Set up the initial task struct. */
-	NFS_PROTO(inode)->read_setup(data, &msg);
+	if (data->lseg &&
+	    (pnfs_try_to_read_data(data, call_ops) == PNFS_ATTEMPTED))
+		return 0;
 
-	dprintk("NFS: %5u initiated read call (req %s/%Ld, %u bytes @ offset %Lu)\n",
-			data->task.tk_pid,
-			inode->i_sb->s_id,
-			(long long)NFS_FILEID(inode),
-			count,
-			(unsigned long long)data->args.offset);
-
-	task = rpc_run_task(&task_setup_data);
-	if (IS_ERR(task))
-		return PTR_ERR(task);
-	rpc_put_task(task);
-	return 0;
+	return nfs_initiate_read(data, NFS_CLIENT(inode), call_ops);
 }
 
 static void

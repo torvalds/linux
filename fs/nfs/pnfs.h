@@ -45,6 +45,11 @@ struct pnfs_layout_segment {
 	struct pnfs_layout_hdr *pls_layout;
 };
 
+enum pnfs_try_status {
+	PNFS_ATTEMPTED     = 0,
+	PNFS_NOT_ATTEMPTED = 1,
+};
+
 #ifdef CONFIG_NFS_V4_1
 
 #define LAYOUT_NFSV4_1_MODULE_PREFIX "nfs-layouttype4"
@@ -70,6 +75,12 @@ struct pnfs_layoutdriver_type {
 
 	/* test for nfs page cache coalescing */
 	int (*pg_test)(struct nfs_pageio_descriptor *, struct nfs_page *, struct nfs_page *);
+
+	/*
+	 * Return PNFS_ATTEMPTED to indicate the layout code has attempted
+	 * I/O, else return PNFS_NOT_ATTEMPTED to fall back to normal NFS
+	 */
+	enum pnfs_try_status (*read_pagelist) (struct nfs_read_data *nfs_data);
 };
 
 struct pnfs_layout_hdr {
@@ -157,6 +168,8 @@ pnfs_update_layout(struct inode *ino, struct nfs_open_context *ctx,
 		   enum pnfs_iomode access_type);
 void set_pnfs_layoutdriver(struct nfs_server *, u32 id);
 void unset_pnfs_layoutdriver(struct nfs_server *);
+enum pnfs_try_status pnfs_try_to_read_data(struct nfs_read_data *,
+					    const struct rpc_call_ops *);
 void pnfs_pageio_init_read(struct nfs_pageio_descriptor *, struct inode *);
 int pnfs_layout_process(struct nfs4_layoutget *lgp);
 void pnfs_free_lseg_list(struct list_head *tmp_list);
@@ -225,6 +238,13 @@ pnfs_update_layout(struct inode *ino, struct nfs_open_context *ctx,
 		   enum pnfs_iomode access_type)
 {
 	return NULL;
+}
+
+static inline enum pnfs_try_status
+pnfs_try_to_read_data(struct nfs_read_data *data,
+		      const struct rpc_call_ops *call_ops)
+{
+	return PNFS_NOT_ATTEMPTED;
 }
 
 static inline bool

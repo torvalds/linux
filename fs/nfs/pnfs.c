@@ -30,6 +30,7 @@
 #include <linux/nfs_fs.h>
 #include "internal.h"
 #include "pnfs.h"
+#include "iostat.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PNFS
 
@@ -877,6 +878,33 @@ pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, struct inode *inode)
 
 	ld = NFS_SERVER(inode)->pnfs_curr_ld;
 	pgio->pg_test = (ld && ld->pg_test) ? pnfs_read_pg_test : NULL;
+}
+
+/*
+ * Call the appropriate parallel I/O subsystem read function.
+ */
+enum pnfs_try_status
+pnfs_try_to_read_data(struct nfs_read_data *rdata,
+		       const struct rpc_call_ops *call_ops)
+{
+	struct inode *inode = rdata->inode;
+	struct nfs_server *nfss = NFS_SERVER(inode);
+	enum pnfs_try_status trypnfs;
+
+	rdata->mds_ops = call_ops;
+
+	dprintk("%s: Reading ino:%lu %u@%llu\n",
+		__func__, inode->i_ino, rdata->args.count, rdata->args.offset);
+
+	trypnfs = nfss->pnfs_curr_ld->read_pagelist(rdata);
+	if (trypnfs == PNFS_NOT_ATTEMPTED) {
+		put_lseg(rdata->lseg);
+		rdata->lseg = NULL;
+	} else {
+		nfs_inc_stats(inode, NFSIOS_PNFS_READ);
+	}
+	dprintk("%s End (trypnfs:%d)\n", __func__, trypnfs);
+	return trypnfs;
 }
 
 /*
