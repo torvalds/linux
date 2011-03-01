@@ -126,6 +126,8 @@ static const struct vga_regset s3_line_compare_regs[]   = {{0x18, 0, 7}, {0x07, 
 static const struct vga_regset s3_start_address_regs[]  = {{0x0d, 0, 7}, {0x0c, 0, 7}, {0x31, 4, 5}, {0x51, 0, 1}, VGA_REGSET_END};
 static const struct vga_regset s3_offset_regs[]         = {{0x13, 0, 7}, {0x51, 4, 5}, VGA_REGSET_END}; /* set 0x43 bit 2 to 0 */
 
+static const struct vga_regset s3_dtpc_regs[]		= {{0x3B, 0, 7}, {0x5D, 6, 6}, VGA_REGSET_END};
+
 static const struct svga_timing_regs s3_timing_regs     = {
 	s3_h_total_regs, s3_h_display_regs, s3_h_blank_start_regs,
 	s3_h_blank_end_regs, s3_h_sync_start_regs, s3_h_sync_end_regs,
@@ -485,6 +487,7 @@ static int s3fb_set_par(struct fb_info *info)
 	struct s3fb_info *par = info->par;
 	u32 value, mode, hmul, offset_value, screen_size, multiplex, dbytes;
 	u32 bpp = info->var.bits_per_pixel;
+	u32 htotal, hsstart;
 
 	if (bpp != 0) {
 		info->fix.ypanstep = 1;
@@ -604,13 +607,25 @@ static int s3fb_set_par(struct fb_info *info)
 	if (par->chip == CHIP_360_TRIO3D_1X ||
 	    par->chip == CHIP_362_TRIO3D_2X ||
 	    par->chip == CHIP_368_TRIO3D_2X ||
-	    par->chip == CHIP_365_TRIO3D) {
+	    par->chip == CHIP_365_TRIO3D    ||
+	    par->chip == CHIP_375_VIRGE_DX  ||
+	    par->chip == CHIP_385_VIRGE_GX) {
 		dbytes = info->var.xres * ((bpp+7)/8);
 		vga_wcrt(par->state.vgabase, 0x91, (dbytes + 7) / 8);
 		vga_wcrt(par->state.vgabase, 0x90, (((dbytes + 7) / 8) >> 8) | 0x80);
 
 		vga_wcrt(par->state.vgabase, 0x66, 0x81);
 	}
+
+	if (par->chip == CHIP_356_VIRGE_GX2  ||
+	    par->chip == CHIP_357_VIRGE_GX2P ||
+	    par->chip == CHIP_359_VIRGE_GX2P ||
+	    par->chip == CHIP_360_TRIO3D_1X ||
+	    par->chip == CHIP_362_TRIO3D_2X ||
+	    par->chip == CHIP_368_TRIO3D_2X)
+		vga_wcrt(par->state.vgabase, 0x34, 0x00);
+	else	/* enable Data Transfer Position Control (DTPC) */
+		vga_wcrt(par->state.vgabase, 0x34, 0x10);
 
 	svga_wcrt_mask(par->state.vgabase, 0x31, 0x00, 0x40);
 	multiplex = 0;
@@ -745,9 +760,14 @@ static int s3fb_set_par(struct fb_info *info)
 			 hmul, info->node);
 
 	/* Set interlaced mode start/end register */
-	value = info->var.xres + info->var.left_margin + info->var.right_margin + info->var.hsync_len;
-	value = ((value * hmul) / 8) - 5;
-	vga_wcrt(par->state.vgabase, 0x3C, (value + 1) / 2);
+	htotal = info->var.xres + info->var.left_margin + info->var.right_margin + info->var.hsync_len;
+	htotal = ((htotal * hmul) / 8) - 5;
+	vga_wcrt(par->state.vgabase, 0x3C, (htotal + 1) / 2);
+
+	/* Set Data Transfer Position */
+	hsstart = ((info->var.xres + info->var.right_margin) * hmul) / 8;
+	value = clamp((htotal + hsstart + 1) / 2, hsstart + 4, htotal + 1);
+	svga_wcrt_multi(par->state.vgabase, s3_dtpc_regs, value);
 
 	memset_io(info->screen_base, 0x00, screen_size);
 	/* Device and screen back on */
