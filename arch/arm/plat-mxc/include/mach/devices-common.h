@@ -237,6 +237,15 @@ struct imx_mxc_pwm_data {
 struct platform_device *__init imx_add_mxc_pwm(
 		const struct imx_mxc_pwm_data *data);
 
+/* mxc_rtc */
+struct imx_mxc_rtc_data {
+	resource_size_t iobase;
+	resource_size_t irq;
+};
+struct platform_device *__init imx_add_mxc_rtc(
+		const struct imx_mxc_rtc_data *data);
+
+/* mxc_w1 */
 struct imx_mxc_w1_data {
 	resource_size_t iobase;
 };

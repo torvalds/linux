@@ -63,6 +63,9 @@ config IMX_HAVE_PLATFORM_MXC_RNGA
 	bool
 	select ARCH_HAS_RNGA
 
+config IMX_HAVE_PLATFORM_MXC_RTC
+	bool
+
 config IMX_HAVE_PLATFORM_MXC_W1
 	bool
 

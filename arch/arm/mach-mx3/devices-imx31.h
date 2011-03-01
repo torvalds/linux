@@ -56,6 +56,10 @@ extern const struct imx_mxc_nand_data imx31_mxc_nand_data;
 #define imx31_add_mxc_nand(pdata)	\
 	imx_add_mxc_nand(&imx31_mxc_nand_data, pdata)
 
+extern const struct imx_mxc_rtc_data imx31_mxc_rtc_data;
+#define imx31_add_mxc_rtc(pdata)	\
+	imx_add_mxc_rtc(&imx31_mxc_rtc_data)
+
 extern const struct imx_mxc_w1_data imx31_mxc_w1_data;
 #define imx31_add_mxc_w1(pdata)	\
 	imx_add_mxc_w1(&imx31_mxc_w1_data)

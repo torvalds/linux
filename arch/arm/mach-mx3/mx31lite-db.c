@@ -200,5 +200,5 @@ void __init mx31lite_db_init(void)
 	imx31_add_spi_imx0(&spi0_pdata);
 	platform_device_register(&litekit_led_device);
 	imx31_add_imx2_wdt(NULL);
-	mxc_register_device(&imx_rtc_device0, NULL);
+	imx31_add_mxc_rtc(NULL);
 }
