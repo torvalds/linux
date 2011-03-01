@@ -75,6 +75,7 @@ static const char	hcd_name [] = "ohci_hcd";
 #define	STATECHANGE_DELAY	msecs_to_jiffies(300)
 
 #include "ohci.h"
+#include "pci-quirks.h"
 
 static void ohci_dump (struct ohci_hcd *ohci, int verbose);
 static int ohci_init (struct ohci_hcd *ohci);
@@ -85,18 +86,8 @@ static int ohci_restart (struct ohci_hcd *ohci);
 #endif
 
 #ifdef CONFIG_PCI
-static void quirk_amd_pll(int state);
-static void amd_iso_dev_put(void);
 static void sb800_prefetch(struct ohci_hcd *ohci, int on);
 #else
-static inline void quirk_amd_pll(int state)
-{
-	return;
-}
-static inline void amd_iso_dev_put(void)
-{
-	return;
-}
 static inline void sb800_prefetch(struct ohci_hcd *ohci, int on)
 {
 	return;
@@ -912,7 +903,7 @@ static void ohci_stop (struct usb_hcd *hcd)
 	if (quirk_zfmicro(ohci))
 		del_timer(&ohci->unlink_watchdog);
 	if (quirk_amdiso(ohci))
-		amd_iso_dev_put();
+		usb_amd_dev_put();
 
 	remove_debug_files (ohci);
 	ohci_mem_cleanup (ohci);
