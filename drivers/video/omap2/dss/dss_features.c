@@ -41,6 +41,7 @@ struct omap_dss_features {
 
 	const int num_mgrs;
 	const int num_ovls;
+	const unsigned long max_dss_fck;
 	const enum omap_display_type *supported_displays;
 	const enum omap_color_mode *supported_color_modes;
 };
@@ -168,6 +169,7 @@ static struct omap_dss_features omap2_dss_features = {
 
 	.num_mgrs = 2,
 	.num_ovls = 3,
+	.max_dss_fck = 173000000,
 	.supported_displays = omap2_dss_supported_displays,
 	.supported_color_modes = omap2_dss_supported_color_modes,
 };
@@ -185,6 +187,7 @@ static struct omap_dss_features omap3430_dss_features = {
 
 	.num_mgrs = 2,
 	.num_ovls = 3,
+	.max_dss_fck = 173000000,
 	.supported_displays = omap3430_dss_supported_displays,
 	.supported_color_modes = omap3_dss_supported_color_modes,
 };
@@ -202,6 +205,7 @@ static struct omap_dss_features omap3630_dss_features = {
 
 	.num_mgrs = 2,
 	.num_ovls = 3,
+	.max_dss_fck = 173000000,
 	.supported_displays = omap3630_dss_supported_displays,
 	.supported_color_modes = omap3_dss_supported_color_modes,
 };
@@ -217,6 +221,7 @@ static struct omap_dss_features omap4_dss_features = {
 
 	.num_mgrs = 3,
 	.num_ovls = 3,
+	.max_dss_fck = 186000000,
 	.supported_displays = omap4_dss_supported_displays,
 	.supported_color_modes = omap3_dss_supported_color_modes,
 };
@@ -230,6 +235,12 @@ int dss_feat_get_num_mgrs(void)
 int dss_feat_get_num_ovls(void)
 {
 	return omap_current_dss_features->num_ovls;
+}
+
+/* Max supported DSS FCK in Hz */
+unsigned long dss_feat_get_max_dss_fck(void)
+{
+	return omap_current_dss_features->max_dss_fck;
 }
 
 enum omap_display_type dss_feat_get_supported_displays(enum omap_channel channel)

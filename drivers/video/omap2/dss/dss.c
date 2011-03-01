@@ -387,7 +387,7 @@ int dss_calc_clock_div(bool is_tft, unsigned long req_pck,
 	struct dss_clock_info best_dss;
 	struct dispc_clock_info best_dispc;
 
-	unsigned long fck;
+	unsigned long fck, max_dss_fck;
 
 	u16 fck_div;
 
@@ -395,6 +395,8 @@ int dss_calc_clock_div(bool is_tft, unsigned long req_pck,
 	int min_fck_per_pck;
 
 	prate = dss_get_dpll4_rate();
+
+	max_dss_fck = dss_feat_get_max_dss_fck();
 
 	fck = dss_clk_get_rate(DSS_CLK_FCK);
 	if (req_pck == dss.cache_req_pck &&
@@ -409,7 +411,7 @@ int dss_calc_clock_div(bool is_tft, unsigned long req_pck,
 	min_fck_per_pck = CONFIG_OMAP2_DSS_MIN_FCK_PER_PCK;
 
 	if (min_fck_per_pck &&
-		req_pck * min_fck_per_pck > DISPC_MAX_FCK) {
+		req_pck * min_fck_per_pck > max_dss_fck) {
 		DSSERR("Requested pixel clock not possible with the current "
 				"OMAP2_DSS_MIN_FCK_PER_PCK setting. Turning "
 				"the constraint off.\n");
@@ -445,7 +447,7 @@ retry:
 			else
 				fck = prate / fck_div * 2;
 
-			if (fck > DISPC_MAX_FCK)
+			if (fck > max_dss_fck)
 				continue;
 
 			if (min_fck_per_pck &&

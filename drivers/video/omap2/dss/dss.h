@@ -97,8 +97,6 @@ extern unsigned int dss_debug;
 #define FLD_MOD(orig, val, start, end) \
 	(((orig) & ~FLD_MASK(start, end)) | FLD_VAL(val, start, end))
 
-#define DISPC_MAX_FCK 173000000
-
 enum omap_burst_size {
 	OMAP_DSS_BURST_4x32 = 0,
 	OMAP_DSS_BURST_8x32 = 1,

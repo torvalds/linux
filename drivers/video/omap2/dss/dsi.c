@@ -38,6 +38,7 @@
 #include <plat/clock.h>
 
 #include "dss.h"
+#include "dss_features.h"
 
 /*#define VERBOSE_IRQ*/
 #define DSI_CATCH_MISSING_TE
@@ -856,9 +857,11 @@ int dsi_pll_calc_clock_div_pck(bool is_tft, unsigned long req_pck,
 	struct dispc_clock_info best_dispc;
 	int min_fck_per_pck;
 	int match = 0;
-	unsigned long dss_clk_fck2;
+	unsigned long dss_clk_fck2, max_dss_fck;
 
 	dss_clk_fck2 = dss_clk_get_rate(DSS_CLK_SYSCK);
+
+	max_dss_fck = dss_feat_get_max_dss_fck();
 
 	if (req_pck == dsi.cache_req_pck &&
 			dsi.cache_cinfo.clkin == dss_clk_fck2) {
@@ -872,7 +875,7 @@ int dsi_pll_calc_clock_div_pck(bool is_tft, unsigned long req_pck,
 	min_fck_per_pck = CONFIG_OMAP2_DSS_MIN_FCK_PER_PCK;
 
 	if (min_fck_per_pck &&
-		req_pck * min_fck_per_pck > DISPC_MAX_FCK) {
+		req_pck * min_fck_per_pck > max_dss_fck) {
 		DSSERR("Requested pixel clock not possible with the current "
 				"OMAP2_DSS_MIN_FCK_PER_PCK setting. Turning "
 				"the constraint off.\n");
@@ -925,7 +928,7 @@ retry:
 				if (cur.dsi1_pll_fclk  < req_pck)
 					break;
 
-				if (cur.dsi1_pll_fclk > DISPC_MAX_FCK)
+				if (cur.dsi1_pll_fclk > max_dss_fck)
 					continue;
 
 				if (min_fck_per_pck &&
