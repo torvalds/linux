@@ -86,6 +86,19 @@ static inline struct inet_request_sock *inet_rsk(const struct request_sock *sk)
 	return (struct inet_request_sock *)sk;
 }
 
+struct inet_cork {
+	unsigned int		flags;
+	unsigned int		fragsize;
+	struct ip_options	*opt;
+	struct dst_entry	*dst;
+	int			length; /* Total length of all frames */
+	__be32			addr;
+	struct flowi		fl;
+	struct page		*page;
+	u32			off;
+	u8			tx_flags;
+};
+
 struct ip_mc_socklist;
 struct ipv6_pinfo;
 struct rtable;
@@ -143,15 +156,7 @@ struct inet_sock {
 	int			mc_index;
 	__be32			mc_addr;
 	struct ip_mc_socklist __rcu	*mc_list;
-	struct {
-		unsigned int		flags;
-		unsigned int		fragsize;
-		struct ip_options	*opt;
-		struct dst_entry	*dst;
-		int			length; /* Total length of all frames */
-		__be32			addr;
-		struct flowi		fl;
-	} cork;
+	struct inet_cork	cork;
 };
 
 #define IPCORK_OPT	1	/* ip-options has been held in ipcork.opt */
