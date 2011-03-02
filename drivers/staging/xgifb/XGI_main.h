@@ -794,9 +794,6 @@ static int      XGIfb_blank(int blank,
 		           struct vm_area_struct *vma);
 */
 
-static int XGIfb_ioctl(struct fb_info *info, unsigned int cmd,
-			    unsigned long arg);
-
 /*
 extern int	XGIfb_mode_rate_to_dclock(VB_DEVICE_INFO *XGI_Pr,
 			      struct xgi_hw_device_info *HwDeviceExtension,
@@ -826,18 +823,12 @@ static int      XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 static void     XGIfb_pre_setmode(void);
 static void     XGIfb_post_setmode(void);
 
-static unsigned char  XGIfb_CheckVBRetrace(void);
-static unsigned char  XGIfbcheckvretracecrt2(void);
-static unsigned char  XGIfbcheckvretracecrt1(void);
-static unsigned char  XGIfb_bridgeisslave(void);
-
 struct XGI_memreq {
 	unsigned long offset;
 	unsigned long size;
 };
 
 /* XGI-specific Export functions */
-void            XGI_dispinfo(struct ap_data *rec);
 void            XGI_malloc(struct XGI_memreq *req);
 void            XGI_free(unsigned long base);
 

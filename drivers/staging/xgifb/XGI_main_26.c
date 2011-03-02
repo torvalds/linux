@@ -982,61 +982,6 @@ static void XGIfb_search_tvstd(const char *name)
 	}
 }
 
-static unsigned char XGIfb_bridgeisslave(void)
-{
-	unsigned char usScratchP1_00;
-
-	if (xgi_video_info.hasVB == HASVB_NONE)
-		return 0;
-
-	inXGIIDXREG(XGIPART1, 0x00, usScratchP1_00);
-	if ((usScratchP1_00 & 0x50) == 0x10)
-		return 1;
-	else
-		return 0;
-}
-
-static unsigned char XGIfbcheckvretracecrt1(void)
-{
-	unsigned char temp;
-
-	inXGIIDXREG(XGICR, 0x17, temp);
-	if (!(temp & 0x80))
-		return 0;
-
-	inXGIIDXREG(XGISR, 0x1f, temp);
-	if (temp & 0xc0)
-		return 0;
-
-	if (inXGIREG(XGIINPSTAT) & 0x08)
-		return 1;
-	else
-		return 0;
-}
-
-static unsigned char XGIfbcheckvretracecrt2(void)
-{
-	unsigned char temp;
-	if (xgi_video_info.hasVB == HASVB_NONE)
-		return 0;
-	inXGIIDXREG(XGIPART1, 0x30, temp);
-	if (temp & 0x02)
-		return 0;
-	else
-		return 1;
-}
-
-static unsigned char XGIfb_CheckVBRetrace(void)
-{
-	if (xgi_video_info.disp_state & DISPTYPE_DISP2) {
-		if (XGIfb_bridgeisslave())
-			return XGIfbcheckvretracecrt1();
-		else
-			return XGIfbcheckvretracecrt2();
-	}
-	return XGIfbcheckvretracecrt1();
-}
-
 /* ----------- FBDev related routines for all series ----------- */
 
 static void XGIfb_bpp_to_var(struct fb_var_screeninfo *var)
@@ -1279,26 +1224,6 @@ static int XGIfb_pan_var(struct fb_var_screeninfo *var)
 	return 0;
 }
 #endif
-
-void XGI_dispinfo(struct ap_data *rec)
-{
-	rec->minfo.bpp = xgi_video_info.video_bpp;
-	rec->minfo.xres = xgi_video_info.video_width;
-	rec->minfo.yres = xgi_video_info.video_height;
-	rec->minfo.v_xres = xgi_video_info.video_vwidth;
-	rec->minfo.v_yres = xgi_video_info.video_vheight;
-	rec->minfo.org_x = xgi_video_info.org_x;
-	rec->minfo.org_y = xgi_video_info.org_y;
-	rec->minfo.vrate = xgi_video_info.refresh_rate;
-	rec->iobase = xgi_video_info.vga_base - 0x30;
-	rec->mem_size = xgi_video_info.video_size;
-	rec->disp_state = xgi_video_info.disp_state;
-	rec->version = (VER_MAJOR << 24) | (VER_MINOR << 16) | VER_LEVEL;
-	rec->hasVB = xgi_video_info.hasVB;
-	rec->TV_type = xgi_video_info.TV_type;
-	rec->TV_plug = xgi_video_info.TV_plug;
-	rec->chip = xgi_video_info.chip;
-}
 
 static int XGIfb_open(struct fb_info *info, int user)
 {
@@ -1574,108 +1499,6 @@ static int XGIfb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static int XGIfb_ioctl(struct fb_info *info, unsigned int cmd,
-		unsigned long arg)
-{
-	DEBUGPRN("inside ioctl");
-	switch (cmd) {
-	case FBIO_ALLOC:
-		if (!capable(CAP_SYS_RAWIO))
-			return -EPERM;
-		XGI_malloc((struct XGI_memreq *) arg);
-		break;
-	case FBIO_FREE:
-		if (!capable(CAP_SYS_RAWIO))
-			return -EPERM;
-		XGI_free(*(unsigned long *) arg);
-		break;
-	case FBIOGET_HWCINFO: {
-		unsigned long *hwc_offset = (unsigned long *) arg;
-
-		if (XGIfb_caps & HW_CURSOR_CAP)
-			*hwc_offset
-					= XGIfb_hwcursor_vbase
-							- (unsigned long) xgi_video_info.video_vbase;
-		else
-			*hwc_offset = 0;
-
-		break;
-	}
-	case FBIOPUT_MODEINFO: {
-		struct mode_info *x = (struct mode_info *) arg;
-
-		xgi_video_info.video_bpp = x->bpp;
-		xgi_video_info.video_width = x->xres;
-		xgi_video_info.video_height = x->yres;
-		xgi_video_info.video_vwidth = x->v_xres;
-		xgi_video_info.video_vheight = x->v_yres;
-		xgi_video_info.org_x = x->org_x;
-		xgi_video_info.org_y = x->org_y;
-		xgi_video_info.refresh_rate = x->vrate;
-		xgi_video_info.video_linelength = xgi_video_info.video_vwidth
-				* (xgi_video_info.video_bpp >> 3);
-		switch (xgi_video_info.video_bpp) {
-		case 8:
-			xgi_video_info.DstColor = 0x0000;
-			xgi_video_info.XGI310_AccelDepth = 0x00000000;
-			xgi_video_info.video_cmap_len = 256;
-			break;
-		case 16:
-			xgi_video_info.DstColor = 0x8000;
-			xgi_video_info.XGI310_AccelDepth = 0x00010000;
-			xgi_video_info.video_cmap_len = 16;
-			break;
-		case 32:
-			xgi_video_info.DstColor = 0xC000;
-			xgi_video_info.XGI310_AccelDepth = 0x00020000;
-			xgi_video_info.video_cmap_len = 16;
-			break;
-		default:
-			xgi_video_info.video_cmap_len = 16;
-			printk(KERN_ERR "XGIfb: Unsupported accel depth %d", xgi_video_info.video_bpp);
-			break;
-		}
-
-		break;
-	}
-	case FBIOGET_DISPINFO:
-		XGI_dispinfo((struct ap_data *) arg);
-		break;
-	case XGIFB_GET_INFO: /* TW: New for communication with X driver */
-	{
-		struct XGIfb_info *x = (struct XGIfb_info *) arg;
-
-		/* x->XGIfb_id = XGIFB_ID; */
-		x->XGIfb_version = VER_MAJOR;
-		x->XGIfb_revision = VER_MINOR;
-		x->XGIfb_patchlevel = VER_LEVEL;
-		x->chip_id = xgi_video_info.chip_id;
-		x->memory = xgi_video_info.video_size / 1024;
-		x->heapstart = xgi_video_info.heapstart / 1024;
-		x->fbvidmode = XGIfb_mode_no;
-		x->XGIfb_caps = XGIfb_caps;
-		x->XGIfb_tqlen = 512; /* yet unused */
-		x->XGIfb_pcibus = xgi_video_info.pcibus;
-		x->XGIfb_pcislot = xgi_video_info.pcislot;
-		x->XGIfb_pcifunc = xgi_video_info.pcifunc;
-		x->XGIfb_lcdpdc = XGIfb_detectedpdc;
-		x->XGIfb_lcda = XGIfb_detectedlcda;
-		break;
-	}
-	case XGIFB_GET_VBRSTATUS: {
-		unsigned long *vbrstatus = (unsigned long *) arg;
-		if (XGIfb_CheckVBRetrace())
-			*vbrstatus = 1;
-		else
-			*vbrstatus = 0;
-	}
-	default:
-		return -EINVAL;
-	} DEBUGPRN("end of ioctl");
-	return 0;
-
-}
-
 /* ----------- FBDev related routines for all series ---------- */
 
 static int XGIfb_get_fix(struct fb_fix_screeninfo *fix, int con,
@@ -1738,7 +1561,6 @@ static struct fb_ops XGIfb_ops = {
 	.fb_fillrect = cfb_fillrect,
 	.fb_copyarea = cfb_copyarea,
 	.fb_imageblit = cfb_imageblit,
-	.fb_ioctl = XGIfb_ioctl,
 	/* .fb_mmap = XGIfb_mmap, */
 };
 

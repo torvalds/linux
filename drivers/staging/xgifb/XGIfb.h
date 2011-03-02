@@ -64,36 +64,6 @@ enum xgi_tvtype {
 	TVMODE_TOTAL
 };
 
-
-struct XGIfb_info {
-	unsigned long XGIfb_id;
- 	int    chip_id;			/* PCI ID of detected chip */
-	int    memory;			/* video memory in KB which XGIfb manages */
-	int    heapstart;               /* heap start (= XGIfb "mem" argument) in KB */
-	unsigned char fbvidmode;	/* current XGIfb mode */
-
-	unsigned char XGIfb_version;
-	unsigned char XGIfb_revision;
-	unsigned char XGIfb_patchlevel;
-
-	unsigned char XGIfb_caps;	/* XGIfb capabilities */
-
-	int    XGIfb_tqlen;		/* turbo queue length (in KB) */
-
-	unsigned int XGIfb_pcibus;      /* The card's PCI ID */
-	unsigned int XGIfb_pcislot;
-	unsigned int XGIfb_pcifunc;
-
-	unsigned char XGIfb_lcdpdc;	/* PanelDelayCompensation */
-
-	unsigned char XGIfb_lcda;	/* Detected status of LCDA for low res/text modes */
-
-	char reserved[235]; 		/* for future use */
-};
-
-
-
-
 enum xgi_tv_plug {	/* vicki@030226 */
 //	TVPLUG_Legacy = 0,
 //	TVPLUG_COMPOSITE,
@@ -111,48 +81,6 @@ enum xgi_tv_plug {	/* vicki@030226 */
     	TVPLUG_YPBPR_1080i = 8,
 	TVPLUG_TOTAL
 };
-
-
-struct mode_info {
-	int    bpp;
-	int    xres;
-	int    yres;
-	int    v_xres;
-	int    v_yres;
-	int    org_x;
-	int    org_y;
-	unsigned int  vrate;
-};
-
-struct ap_data {
-	struct mode_info minfo;
-	unsigned long iobase;
-	unsigned int  mem_size;
-	unsigned long disp_state;
-	enum XGI_CHIP_TYPE chip;
-	unsigned char hasVB;
-	enum xgi_tvtype TV_type;
-	enum xgi_tv_plug TV_plug;
-	unsigned long version;
-	char reserved[256];
-};
-
-
-
-/*     If changing this, vgatypes.h must also be changed (for X driver)    */
-
-
-/*
- * NOTE! The ioctl types used to be "size_t" by mistake, but were
- * really meant to be __u32. Changed to "__u32" even though that
- * changes the value on 64-bit architectures, because the value
- * (with a 4-byte size) is also hardwired in vgatypes.h for user
- * space exports. So "__u32" is actually more compatible, duh!
- */
-#define XGIFB_GET_INFO	  	_IOR('n',0xF8,__u32)
-#define XGIFB_GET_VBRSTATUS  	_IOR('n',0xF9,__u32)
-
-
 
 struct video_info{
         int           chip_id;
