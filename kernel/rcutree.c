@@ -290,8 +290,8 @@ static int rcu_implicit_offline_qs(struct rcu_data *rdp)
 		return 1;
 	}
 
-	/* If preemptable RCU, no point in sending reschedule IPI. */
-	if (rdp->preemptable)
+	/* If preemptible RCU, no point in sending reschedule IPI. */
+	if (rdp->preemptible)
 		return 0;
 
 	/* The CPU is online, so send it a reschedule IPI. */
@@ -1982,7 +1982,7 @@ static int __rcu_pending(struct rcu_state *rsp, struct rcu_data *rdp)
 		 * or RCU-bh, force a local reschedule.
 		 */
 		rdp->n_rp_qs_pending++;
-		if (!rdp->preemptable &&
+		if (!rdp->preemptible &&
 		    ULONG_CMP_LT(ACCESS_ONCE(rsp->jiffies_force_qs) - 1,
 				 jiffies))
 			set_need_resched();
@@ -2159,7 +2159,7 @@ rcu_boot_init_percpu_data(int cpu, struct rcu_state *rsp)
  * that this CPU cannot possibly have any RCU callbacks in flight yet.
  */
 static void __cpuinit
-rcu_init_percpu_data(int cpu, struct rcu_state *rsp, int preemptable)
+rcu_init_percpu_data(int cpu, struct rcu_state *rsp, int preemptible)
 {
 	unsigned long flags;
 	unsigned long mask;
@@ -2171,7 +2171,7 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp, int preemptable)
 	rdp->passed_quiesc = 0;  /* We could be racing with new GP, */
 	rdp->qs_pending = 1;	 /*  so set up to respond to current GP. */
 	rdp->beenonline = 1;	 /* We have now been online. */
-	rdp->preemptable = preemptable;
+	rdp->preemptible = preemptible;
 	rdp->qlen_last_fqs_check = 0;
 	rdp->n_force_qs_snap = rsp->n_force_qs;
 	rdp->blimit = blimit;
