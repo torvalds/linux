@@ -808,9 +808,9 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 	dest->u_threshold = udest->u_threshold;
 	dest->l_threshold = udest->l_threshold;
 
-	spin_lock(&dest->dst_lock);
+	spin_lock_bh(&dest->dst_lock);
 	ip_vs_dst_reset(dest);
-	spin_unlock(&dest->dst_lock);
+	spin_unlock_bh(&dest->dst_lock);
 
 	if (add)
 		ip_vs_new_estimator(&dest->stats);
