@@ -26,18 +26,16 @@ static struct dst_entry *xfrm4_dst_lookup(struct net *net, int tos,
 		.fl4_dst = daddr->a4,
 		.fl4_tos = tos,
 	};
-	struct dst_entry *dst;
 	struct rtable *rt;
-	int err;
 
 	if (saddr)
 		fl.fl4_src = saddr->a4;
 
-	err = __ip_route_output_key(net, &rt, &fl);
-	dst = &rt->dst;
-	if (err)
-		dst = ERR_PTR(err);
-	return dst;
+	rt = __ip_route_output_key(net, &fl);
+	if (!IS_ERR(rt))
+		return &rt->dst;
+
+	return ERR_CAST(rt);
 }
 
 static int xfrm4_get_saddr(struct net *net,

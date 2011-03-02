@@ -738,7 +738,8 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 				    .fl4_tos = RT_TOS(tos),
 				    .oif = tunnel->parms.link,
 				    .proto = IPPROTO_IPV6 };
-		if (ip_route_output_key(dev_net(dev), &rt, &fl)) {
+		rt = ip_route_output_key(dev_net(dev), &fl);
+		if (IS_ERR(rt)) {
 			dev->stats.tx_carrier_errors++;
 			goto tx_error_icmp;
 		}
@@ -862,8 +863,9 @@ static void ipip6_tunnel_bind_dev(struct net_device *dev)
 				    .fl4_tos = RT_TOS(iph->tos),
 				    .oif = tunnel->parms.link,
 				    .proto = IPPROTO_IPV6 };
-		struct rtable *rt;
-		if (!ip_route_output_key(dev_net(dev), &rt, &fl)) {
+		struct rtable *rt = ip_route_output_key(dev_net(dev), &fl);
+
+		if (!IS_ERR(rt)) {
 			tdev = rt->dst.dev;
 			ip_rt_put(rt);
 		}

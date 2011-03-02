@@ -46,7 +46,6 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	__be16 orig_sport, orig_dport;
 	struct rtable *rt;
 	__be32 daddr, nexthop;
-	int tmp;
 	int err;
 
 	dp->dccps_role = DCCP_ROLE_CLIENT;
@@ -66,12 +65,12 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 	orig_sport = inet->inet_sport;
 	orig_dport = usin->sin_port;
-	tmp = ip_route_connect(&rt, nexthop, inet->inet_saddr,
-			       RT_CONN_FLAGS(sk), sk->sk_bound_dev_if,
-			       IPPROTO_DCCP,
-			       orig_sport, orig_dport, sk, true);
-	if (tmp < 0)
-		return tmp;
+	rt = ip_route_connect(nexthop, inet->inet_saddr,
+			      RT_CONN_FLAGS(sk), sk->sk_bound_dev_if,
+			      IPPROTO_DCCP,
+			      orig_sport, orig_dport, sk, true);
+	if (IS_ERR(rt))
+		return PTR_ERR(rt);
 
 	if (rt->rt_flags & (RTCF_MULTICAST | RTCF_BROADCAST)) {
 		ip_rt_put(rt);
@@ -102,12 +101,13 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (err != 0)
 		goto failure;
 
-	err = ip_route_newports(&rt, IPPROTO_DCCP,
-				orig_sport, orig_dport,
-				inet->inet_sport, inet->inet_dport, sk);
-	if (err != 0)
+	rt = ip_route_newports(rt, IPPROTO_DCCP,
+			       orig_sport, orig_dport,
+			       inet->inet_sport, inet->inet_dport, sk);
+	if (IS_ERR(rt)) {
+		rt = NULL;
 		goto failure;
-
+	}
 	/* OK, now commit destination to socket.  */
 	sk_setup_caps(sk, &rt->dst);
 
@@ -475,7 +475,8 @@ static struct dst_entry* dccp_v4_route_skb(struct net *net, struct sock *sk,
 			  };
 
 	security_skb_classify_flow(skb, &fl);
-	if (ip_route_output_flow(net, &rt, &fl, sk)) {
+	rt = ip_route_output_flow(net, &fl, sk);
+	if (IS_ERR(rt)) {
 		IP_INC_STATS_BH(net, IPSTATS_MIB_OUTNOROUTES);
 		return NULL;
 	}

@@ -320,11 +320,12 @@ static int l2tp_ip_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len
 	if (ipv4_is_multicast(lsa->l2tp_addr.s_addr))
 		goto out;
 
-	rc = ip_route_connect(&rt, lsa->l2tp_addr.s_addr, saddr,
+	rt = ip_route_connect(lsa->l2tp_addr.s_addr, saddr,
 			      RT_CONN_FLAGS(sk), oif,
 			      IPPROTO_L2TP,
 			      0, 0, sk, true);
-	if (rc) {
+	if (IS_ERR(rt)) {
+		rc = PTR_ERR(rt);
 		if (rc == -ENETUNREACH)
 			IP_INC_STATS_BH(&init_net, IPSTATS_MIB_OUTNOROUTES);
 		goto out;
@@ -489,7 +490,8 @@ static int l2tp_ip_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *m
 			 * itself out.
 			 */
 			security_sk_classify_flow(sk, &fl);
-			if (ip_route_output_flow(sock_net(sk), &rt, &fl, sk))
+			rt = ip_route_output_flow(sock_net(sk), &fl, sk);
+			if (IS_ERR(rt))
 				goto no_route;
 		}
 		sk_setup_caps(sk, &rt->dst);

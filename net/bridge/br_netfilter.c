@@ -428,14 +428,15 @@ static int br_nf_pre_routing_finish(struct sk_buff *skb)
 			if (err != -EHOSTUNREACH || !in_dev || IN_DEV_FORWARD(in_dev))
 				goto free_skb;
 
-			if (!ip_route_output_key(dev_net(dev), &rt, &fl)) {
+			rt = ip_route_output_key(dev_net(dev), &fl);
+			if (!IS_ERR(rt)) {
 				/* - Bridged-and-DNAT'ed traffic doesn't
 				 *   require ip_forwarding. */
-				if (((struct dst_entry *)rt)->dev == dev) {
-					skb_dst_set(skb, (struct dst_entry *)rt);
+				if (rt->dst.dev == dev) {
+					skb_dst_set(skb, &rt->dst);
 					goto bridged_dnat;
 				}
-				dst_release((struct dst_entry *)rt);
+				ip_rt_put(rt);
 			}
 free_skb:
 			kfree_skb(skb);

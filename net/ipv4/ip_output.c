@@ -355,7 +355,8 @@ int ip_queue_xmit(struct sk_buff *skb)
 			 * itself out.
 			 */
 			security_sk_classify_flow(sk, &fl);
-			if (ip_route_output_flow(sock_net(sk), &rt, &fl, sk))
+			rt = ip_route_output_flow(sock_net(sk), &fl, sk);
+			if (IS_ERR(rt))
 				goto no_route;
 		}
 		sk_setup_caps(sk, &rt->dst);
@@ -1489,7 +1490,8 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 				    .proto = sk->sk_protocol,
 				    .flags = ip_reply_arg_flowi_flags(arg) };
 		security_skb_classify_flow(skb, &fl);
-		if (ip_route_output_key(sock_net(sk), &rt, &fl))
+		rt = ip_route_output_key(sock_net(sk), &fl);
+		if (IS_ERR(rt))
 			return;
 	}
 

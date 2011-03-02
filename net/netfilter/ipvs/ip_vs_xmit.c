@@ -103,7 +103,8 @@ __ip_vs_get_out_rt(struct sk_buff *skb, struct ip_vs_dest *dest,
 				.fl4_tos = rtos,
 			};
 
-			if (ip_route_output_key(net, &rt, &fl)) {
+			rt = ip_route_output_key(net, &fl);
+			if (IS_ERR(rt)) {
 				spin_unlock(&dest->dst_lock);
 				IP_VS_DBG_RL("ip_route_output error, dest: %pI4\n",
 					     &dest->addr.ip);
@@ -121,7 +122,8 @@ __ip_vs_get_out_rt(struct sk_buff *skb, struct ip_vs_dest *dest,
 			.fl4_tos = rtos,
 		};
 
-		if (ip_route_output_key(net, &rt, &fl)) {
+		rt = ip_route_output_key(net, &fl);
+		if (IS_ERR(rt)) {
 			IP_VS_DBG_RL("ip_route_output error, dest: %pI4\n",
 				     &daddr);
 			return NULL;
@@ -180,7 +182,8 @@ __ip_vs_reroute_locally(struct sk_buff *skb)
 			.mark = skb->mark,
 		};
 
-		if (ip_route_output_key(net, &rt, &fl))
+		rt = ip_route_output_key(net, &fl);
+		if (IS_ERR(rt))
 			return 0;
 		if (!(rt->rt_flags & RTCF_LOCAL)) {
 			ip_rt_put(rt);

@@ -1014,8 +1014,8 @@ static int slow_chain_length(const struct rtable *head)
 	return length >> FRACT_BITS;
 }
 
-static int rt_intern_hash(unsigned hash, struct rtable *rt,
-			  struct rtable **rp, struct sk_buff *skb, int ifindex)
+static struct rtable *rt_intern_hash(unsigned hash, struct rtable *rt,
+				     struct sk_buff *skb, int ifindex)
 {
 	struct rtable	*rth, *cand;
 	struct rtable __rcu **rthp, **candp;
@@ -1056,7 +1056,7 @@ restart:
 					printk(KERN_WARNING
 					    "Neighbour table failure & not caching routes.\n");
 				ip_rt_put(rt);
-				return err;
+				return ERR_PTR(err);
 			}
 		}
 
@@ -1093,11 +1093,9 @@ restart:
 			spin_unlock_bh(rt_hash_lock_addr(hash));
 
 			rt_drop(rt);
-			if (rp)
-				*rp = rth;
-			else
+			if (skb)
 				skb_dst_set(skb, &rth->dst);
-			return 0;
+			return rth;
 		}
 
 		if (!atomic_read(&rth->dst.__refcnt)) {
@@ -1154,7 +1152,7 @@ restart:
 
 			if (err != -ENOBUFS) {
 				rt_drop(rt);
-				return err;
+				return ERR_PTR(err);
 			}
 
 			/* Neighbour tables are full and nothing
@@ -1175,7 +1173,7 @@ restart:
 			if (net_ratelimit())
 				printk(KERN_WARNING "ipv4: Neighbour table overflow.\n");
 			rt_drop(rt);
-			return -ENOBUFS;
+			return ERR_PTR(-ENOBUFS);
 		}
 	}
 
@@ -1201,11 +1199,9 @@ restart:
 	spin_unlock_bh(rt_hash_lock_addr(hash));
 
 skip_hashing:
-	if (rp)
-		*rp = rt;
-	else
+	if (skb)
 		skb_dst_set(skb, &rt->dst);
-	return 0;
+	return rt;
 }
 
 static atomic_t __rt_peer_genid = ATOMIC_INIT(0);
@@ -1896,7 +1892,10 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	RT_CACHE_STAT_INC(in_slow_mc);
 
 	hash = rt_hash(daddr, saddr, dev->ifindex, rt_genid(dev_net(dev)));
-	return rt_intern_hash(hash, rth, NULL, skb, dev->ifindex);
+	rth = rt_intern_hash(hash, rth, skb, dev->ifindex);
+	err = 0;
+	if (IS_ERR(rth))
+		err = PTR_ERR(rth);
 
 e_nobufs:
 	return -ENOBUFS;
@@ -2051,7 +2050,10 @@ static int ip_mkroute_input(struct sk_buff *skb,
 	/* put it into the cache */
 	hash = rt_hash(daddr, saddr, fl->iif,
 		       rt_genid(dev_net(rth->dst.dev)));
-	return rt_intern_hash(hash, rth, NULL, skb, fl->iif);
+	rth = rt_intern_hash(hash, rth, skb, fl->iif);
+	if (IS_ERR(rth))
+		return PTR_ERR(rth);
+	return 0;
 }
 
 /*
@@ -2194,7 +2196,10 @@ local_input:
 	}
 	rth->rt_type	= res.type;
 	hash = rt_hash(daddr, saddr, fl.iif, rt_genid(net));
-	err = rt_intern_hash(hash, rth, NULL, skb, fl.iif);
+	rth = rt_intern_hash(hash, rth, skb, fl.iif);
+	err = 0;
+	if (IS_ERR(rth))
+		err = PTR_ERR(rth);
 	goto out;
 
 no_route:
@@ -2422,8 +2427,8 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
  * called with rcu_read_lock();
  */
 
-static int ip_route_output_slow(struct net *net, struct rtable **rp,
-				const struct flowi *oldflp)
+static struct rtable *ip_route_output_slow(struct net *net,
+					   const struct flowi *oldflp)
 {
 	u32 tos	= RT_FL_TOS(oldflp);
 	struct flowi fl = { .fl4_dst = oldflp->fl4_dst,
@@ -2438,8 +2443,6 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 	unsigned int flags = 0;
 	struct net_device *dev_out = NULL;
 	struct rtable *rth;
-	int err;
-
 
 	res.fi		= NULL;
 #ifdef CONFIG_IP_MULTIPLE_TABLES
@@ -2448,7 +2451,7 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 
 	rcu_read_lock();
 	if (oldflp->fl4_src) {
-		err = -EINVAL;
+		rth = ERR_PTR(-EINVAL);
 		if (ipv4_is_multicast(oldflp->fl4_src) ||
 		    ipv4_is_lbcast(oldflp->fl4_src) ||
 		    ipv4_is_zeronet(oldflp->fl4_src))
@@ -2499,13 +2502,13 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 
 	if (oldflp->oif) {
 		dev_out = dev_get_by_index_rcu(net, oldflp->oif);
-		err = -ENODEV;
+		rth = ERR_PTR(-ENODEV);
 		if (dev_out == NULL)
 			goto out;
 
 		/* RACE: Check return value of inet_select_addr instead. */
 		if (!(dev_out->flags & IFF_UP) || !__in_dev_get_rcu(dev_out)) {
-			err = -ENETUNREACH;
+			rth = ERR_PTR(-ENETUNREACH);
 			goto out;
 		}
 		if (ipv4_is_local_multicast(oldflp->fl4_dst) ||
@@ -2563,7 +2566,7 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 			res.type = RTN_UNICAST;
 			goto make_route;
 		}
-		err = -ENETUNREACH;
+		rth = ERR_PTR(-ENETUNREACH);
 		goto out;
 	}
 
@@ -2598,23 +2601,20 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 
 make_route:
 	rth = __mkroute_output(&res, &fl, oldflp, dev_out, flags);
-	if (IS_ERR(rth))
-		err = PTR_ERR(rth);
-	else {
+	if (!IS_ERR(rth)) {
 		unsigned int hash;
 
 		hash = rt_hash(oldflp->fl4_dst, oldflp->fl4_src, oldflp->oif,
 			       rt_genid(dev_net(dev_out)));
-		err = rt_intern_hash(hash, rth, rp, NULL, oldflp->oif);
+		rth = rt_intern_hash(hash, rth, NULL, oldflp->oif);
 	}
 
 out:
 	rcu_read_unlock();
-	return err;
+	return rth;
 }
 
-int __ip_route_output_key(struct net *net, struct rtable **rp,
-			  const struct flowi *flp)
+struct rtable *__ip_route_output_key(struct net *net, const struct flowi *flp)
 {
 	struct rtable *rth;
 	unsigned int hash;
@@ -2639,15 +2639,14 @@ int __ip_route_output_key(struct net *net, struct rtable **rp,
 			dst_use(&rth->dst, jiffies);
 			RT_CACHE_STAT_INC(out_hit);
 			rcu_read_unlock_bh();
-			*rp = rth;
-			return 0;
+			return rth;
 		}
 		RT_CACHE_STAT_INC(out_hlist_search);
 	}
 	rcu_read_unlock_bh();
 
 slow_output:
-	return ip_route_output_slow(net, rp, flp);
+	return ip_route_output_slow(net, flp);
 }
 EXPORT_SYMBOL_GPL(__ip_route_output_key);
 
@@ -2717,34 +2716,29 @@ struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_or
 	return rt ? &rt->dst : ERR_PTR(-ENOMEM);
 }
 
-int ip_route_output_flow(struct net *net, struct rtable **rp, struct flowi *flp,
-			 struct sock *sk)
+struct rtable *ip_route_output_flow(struct net *net, struct flowi *flp,
+				    struct sock *sk)
 {
-	int err;
+	struct rtable *rt = __ip_route_output_key(net, flp);
 
-	if ((err = __ip_route_output_key(net, rp, flp)) != 0)
-		return err;
+	if (IS_ERR(rt))
+		return rt;
 
 	if (flp->proto) {
 		if (!flp->fl4_src)
-			flp->fl4_src = (*rp)->rt_src;
+			flp->fl4_src = rt->rt_src;
 		if (!flp->fl4_dst)
-			flp->fl4_dst = (*rp)->rt_dst;
-		*rp = (struct rtable *) xfrm_lookup(net, &(*rp)->dst, flp, sk, 0);
-		if (IS_ERR(*rp)) {
-			err = PTR_ERR(*rp);
-			*rp = NULL;
-			return err;
-		}
+			flp->fl4_dst = rt->rt_dst;
+		rt = (struct rtable *) xfrm_lookup(net, &rt->dst, flp, sk, 0);
 	}
 
-	return 0;
+	return rt;
 }
 EXPORT_SYMBOL_GPL(ip_route_output_flow);
 
-int ip_route_output_key(struct net *net, struct rtable **rp, struct flowi *flp)
+struct rtable *ip_route_output_key(struct net *net, struct flowi *flp)
 {
-	return ip_route_output_flow(net, rp, flp, NULL);
+	return ip_route_output_flow(net, flp, NULL);
 }
 EXPORT_SYMBOL(ip_route_output_key);
 
@@ -2915,7 +2909,11 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void 
 			.oif = tb[RTA_OIF] ? nla_get_u32(tb[RTA_OIF]) : 0,
 			.mark = mark,
 		};
-		err = ip_route_output_key(net, &rt, &fl);
+		rt = ip_route_output_key(net, &fl);
+
+		err = 0;
+		if (IS_ERR(rt))
+			err = PTR_ERR(rt);
 	}
 
 	if (err)

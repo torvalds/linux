@@ -491,9 +491,9 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 	SCTP_DEBUG_PRINTK("%s: DST:%pI4, SRC:%pI4 - ",
 			  __func__, &fl.fl4_dst, &fl.fl4_src);
 
-	if (!ip_route_output_key(&init_net, &rt, &fl)) {
+	rt = ip_route_output_key(&init_net, &fl);
+	if (!IS_ERR(rt))
 		dst = &rt->dst;
-	}
 
 	/* If there is no association or if a source address is passed, no
 	 * more validation is required.
@@ -535,7 +535,8 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 		    (AF_INET == laddr->a.sa.sa_family)) {
 			fl.fl4_src = laddr->a.v4.sin_addr.s_addr;
 			fl.fl_ip_sport = laddr->a.v4.sin_port;
-			if (!ip_route_output_key(&init_net, &rt, &fl)) {
+			rt = ip_route_output_key(&init_net, &fl);
+			if (!IS_ERR(rt)) {
 				dst = &rt->dst;
 				goto out_unlock;
 			}

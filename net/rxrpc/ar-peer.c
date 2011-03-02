@@ -37,7 +37,6 @@ static void rxrpc_assess_MTU_size(struct rxrpc_peer *peer)
 {
 	struct rtable *rt;
 	struct flowi fl;
-	int ret;
 
 	peer->if_mtu = 1500;
 
@@ -58,9 +57,9 @@ static void rxrpc_assess_MTU_size(struct rxrpc_peer *peer)
 		BUG();
 	}
 
-	ret = ip_route_output_key(&init_net, &rt, &fl);
-	if (ret < 0) {
-		_leave(" [route err %d]", ret);
+	rt = ip_route_output_key(&init_net, &fl);
+	if (IS_ERR(rt)) {
+		_leave(" [route err %ld]", PTR_ERR(rt));
 		return;
 	}
 

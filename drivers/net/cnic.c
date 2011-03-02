@@ -3397,9 +3397,12 @@ static int cnic_get_v4_route(struct sockaddr_in *dst_addr,
 	memset(&fl, 0, sizeof(fl));
 	fl.nl_u.ip4_u.daddr = dst_addr->sin_addr.s_addr;
 
-	err = ip_route_output_key(&init_net, &rt, &fl);
-	if (!err)
+	rt = ip_route_output_key(&init_net, &fl);
+	err = 0;
+	if (!IS_ERR(rt))
 		*dst = &rt->dst;
+	else
+		err = PTR_ERR(rt);
 	return err;
 #else
 	return -ENETUNREACH;

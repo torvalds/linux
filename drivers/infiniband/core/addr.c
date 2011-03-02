@@ -193,10 +193,11 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 	fl.nl_u.ip4_u.saddr = src_ip;
 	fl.oif = addr->bound_dev_if;
 
-	ret = ip_route_output_key(&init_net, &rt, &fl);
-	if (ret)
+	rt = ip_route_output_key(&init_net, &fl);
+	if (IS_ERR(rt)) {
+		ret = PTR_ERR(rt);
 		goto out;
-
+	}
 	src_in->sin_family = AF_INET;
 	src_in->sin_addr.s_addr = rt->rt_src;
 

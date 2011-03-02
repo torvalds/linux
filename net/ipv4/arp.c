@@ -440,7 +440,8 @@ static int arp_filter(__be32 sip, __be32 tip, struct net_device *dev)
 	/*unsigned long now; */
 	struct net *net = dev_net(dev);
 
-	if (ip_route_output_key(net, &rt, &fl) < 0)
+	rt = ip_route_output_key(net, &fl);
+	if (IS_ERR(rt))
 		return 1;
 	if (rt->dst.dev != dev) {
 		NET_INC_STATS_BH(net, LINUX_MIB_ARPFILTER);
@@ -1063,10 +1064,10 @@ static int arp_req_set(struct net *net, struct arpreq *r,
 	if (dev == NULL) {
 		struct flowi fl = { .fl4_dst = ip,
 				    .fl4_tos = RTO_ONLINK };
-		struct rtable *rt;
-		err = ip_route_output_key(net, &rt, &fl);
-		if (err != 0)
-			return err;
+		struct rtable *rt = ip_route_output_key(net, &fl);
+
+		if (IS_ERR(rt))
+			return PTR_ERR(rt);
 		dev = rt->dst.dev;
 		ip_rt_put(rt);
 		if (!dev)
@@ -1177,7 +1178,6 @@ static int arp_req_delete_public(struct net *net, struct arpreq *r,
 static int arp_req_delete(struct net *net, struct arpreq *r,
 			  struct net_device *dev)
 {
-	int err;
 	__be32 ip;
 
 	if (r->arp_flags & ATF_PUBL)
@@ -1187,10 +1187,9 @@ static int arp_req_delete(struct net *net, struct arpreq *r,
 	if (dev == NULL) {
 		struct flowi fl = { .fl4_dst = ip,
 				    .fl4_tos = RTO_ONLINK };
-		struct rtable *rt;
-		err = ip_route_output_key(net, &rt, &fl);
-		if (err != 0)
-			return err;
+		struct rtable *rt = ip_route_output_key(net, &fl);
+		if (IS_ERR(rt))
+			return PTR_ERR(rt);
 		dev = rt->dst.dev;
 		ip_rt_put(rt);
 		if (!dev)

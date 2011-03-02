@@ -325,7 +325,8 @@ static struct sk_buff *igmpv3_newpack(struct net_device *dev, int size)
 		struct flowi fl = { .oif = dev->ifindex,
 				    .fl4_dst = IGMPV3_ALL_MCR,
 				    .proto = IPPROTO_IGMP };
-		if (ip_route_output_key(net, &rt, &fl)) {
+		rt = ip_route_output_key(net, &fl);
+		if (IS_ERR(rt)) {
 			kfree_skb(skb);
 			return NULL;
 		}
@@ -670,7 +671,8 @@ static int igmp_send_report(struct in_device *in_dev, struct ip_mc_list *pmc,
 		struct flowi fl = { .oif = dev->ifindex,
 				    .fl4_dst = dst,
 				    .proto = IPPROTO_IGMP };
-		if (ip_route_output_key(net, &rt, &fl))
+		rt = ip_route_output_key(net, &fl);
+		if (IS_ERR(rt))
 			return -1;
 	}
 	if (rt->rt_src == 0) {
@@ -1440,7 +1442,6 @@ void ip_mc_destroy_dev(struct in_device *in_dev)
 static struct in_device *ip_mc_find_dev(struct net *net, struct ip_mreqn *imr)
 {
 	struct flowi fl = { .fl4_dst = imr->imr_multiaddr.s_addr };
-	struct rtable *rt;
 	struct net_device *dev = NULL;
 	struct in_device *idev = NULL;
 
@@ -1454,9 +1455,12 @@ static struct in_device *ip_mc_find_dev(struct net *net, struct ip_mreqn *imr)
 			return NULL;
 	}
 
-	if (!dev && !ip_route_output_key(net, &rt, &fl)) {
-		dev = rt->dst.dev;
-		ip_rt_put(rt);
+	if (!dev) {
+		struct rtable *rt = ip_route_output_key(net, &fl);
+		if (!IS_ERR(rt)) {
+			dev = rt->dst.dev;
+			ip_rt_put(rt);
+		}
 	}
 	if (dev) {
 		imr->imr_ifindex = dev->ifindex;

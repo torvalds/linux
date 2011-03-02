@@ -581,7 +581,8 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	fl.fl4_dst = eiph->saddr;
 	fl.fl4_tos = RT_TOS(eiph->tos);
 	fl.proto = IPPROTO_IPIP;
-	if (ip_route_output_key(dev_net(skb->dev), &rt, &fl))
+	rt = ip_route_output_key(dev_net(skb->dev), &fl);
+	if (IS_ERR(rt))
 		goto out;
 
 	skb2->dev = rt->dst.dev;
@@ -593,12 +594,14 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		fl.fl4_dst = eiph->daddr;
 		fl.fl4_src = eiph->saddr;
 		fl.fl4_tos = eiph->tos;
-		if (ip_route_output_key(dev_net(skb->dev), &rt, &fl) ||
+		rt = ip_route_output_key(dev_net(skb->dev), &fl);
+		if (IS_ERR(rt) ||
 		    rt->dst.dev->type != ARPHRD_TUNNEL) {
-			ip_rt_put(rt);
+			if (!IS_ERR(rt))
+				ip_rt_put(rt);
 			goto out;
 		}
-		skb_dst_set(skb2, (struct dst_entry *)rt);
+		skb_dst_set(skb2, &rt->dst);
 	} else {
 		ip_rt_put(rt);
 		if (ip_route_input(skb2, eiph->daddr, eiph->saddr, eiph->tos,

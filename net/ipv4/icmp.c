@@ -358,7 +358,8 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 				    .fl4_tos = RT_TOS(ip_hdr(skb)->tos),
 				    .proto = IPPROTO_ICMP };
 		security_skb_classify_flow(skb, &fl);
-		if (ip_route_output_key(net, &rt, &fl))
+		rt = ip_route_output_key(net, &fl);
+		if (IS_ERR(rt))
 			goto out_unlock;
 	}
 	if (icmpv4_xrlim_allow(net, rt, icmp_param->data.icmph.type,
@@ -388,9 +389,9 @@ static struct rtable *icmp_route_lookup(struct net *net, struct sk_buff *skb_in,
 	int err;
 
 	security_skb_classify_flow(skb_in, &fl);
-	err = __ip_route_output_key(net, &rt, &fl);
-	if (err)
-		return ERR_PTR(err);
+	rt = __ip_route_output_key(net, &fl);
+	if (IS_ERR(rt))
+		return rt;
 
 	/* No need to clone since we're just using its address. */
 	rt2 = rt;
@@ -412,15 +413,19 @@ static struct rtable *icmp_route_lookup(struct net *net, struct sk_buff *skb_in,
 		goto relookup_failed;
 
 	if (inet_addr_type(net, fl.fl4_src) == RTN_LOCAL) {
-		err = __ip_route_output_key(net, &rt2, &fl);
+		rt2 = __ip_route_output_key(net, &fl);
+		if (IS_ERR(rt2))
+			err = PTR_ERR(rt2);
 	} else {
 		struct flowi fl2 = {};
 		unsigned long orefdst;
 
 		fl2.fl4_dst = fl.fl4_src;
-		err = ip_route_output_key(net, &rt2, &fl2);
-		if (err)
+		rt2 = ip_route_output_key(net, &fl2);
+		if (IS_ERR(rt2)) {
+			err = PTR_ERR(rt2);
 			goto relookup_failed;
+		}
 		/* Ugh! */
 		orefdst = skb_in->_skb_refdst; /* save old refdst */
 		err = ip_route_input(skb_in, fl.fl4_dst, fl.fl4_src,

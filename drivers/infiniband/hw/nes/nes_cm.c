@@ -1112,7 +1112,8 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 
 	memset(&fl, 0, sizeof fl);
 	fl.nl_u.ip4_u.daddr = htonl(dst_ip);
-	if (ip_route_output_key(&init_net, &rt, &fl)) {
+	rt = ip_route_output_key(&init_net, &fl);
+	if (IS_ERR(rt)) {
 		printk(KERN_ERR "%s: ip_route_output_key failed for 0x%08X\n",
 				__func__, dst_ip);
 		return rc;

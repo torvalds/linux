@@ -355,7 +355,8 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 				    .fl_ip_sport = th->dest,
 				    .fl_ip_dport = th->source };
 		security_req_classify_flow(req, &fl);
-		if (ip_route_output_key(sock_net(sk), &rt, &fl)) {
+		rt = ip_route_output_key(sock_net(sk), &fl);
+		if (IS_ERR(rt)) {
 			reqsk_free(req);
 			goto out;
 		}

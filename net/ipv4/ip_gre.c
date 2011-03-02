@@ -778,7 +778,8 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 			.proto = IPPROTO_GRE,
 			.fl_gre_key = tunnel->parms.o_key
 		};
-		if (ip_route_output_key(dev_net(dev), &rt, &fl)) {
+		rt = ip_route_output_key(dev_net(dev), &fl);
+		if (IS_ERR(rt)) {
 			dev->stats.tx_carrier_errors++;
 			goto tx_error;
 		}
@@ -953,9 +954,9 @@ static int ipgre_tunnel_bind_dev(struct net_device *dev)
 			.proto = IPPROTO_GRE,
 			.fl_gre_key = tunnel->parms.o_key
 		};
-		struct rtable *rt;
+		struct rtable *rt = ip_route_output_key(dev_net(dev), &fl);
 
-		if (!ip_route_output_key(dev_net(dev), &rt, &fl)) {
+		if (!IS_ERR(rt)) {
 			tdev = rt->dst.dev;
 			ip_rt_put(rt);
 		}
@@ -1215,9 +1216,9 @@ static int ipgre_open(struct net_device *dev)
 			.proto = IPPROTO_GRE,
 			.fl_gre_key = t->parms.o_key
 		};
-		struct rtable *rt;
+		struct rtable *rt = ip_route_output_key(dev_net(dev), &fl);
 
-		if (ip_route_output_key(dev_net(dev), &rt, &fl))
+		if (IS_ERR(rt))
 			return -EADDRNOTAVAIL;
 		dev = rt->dst.dev;
 		ip_rt_put(rt);

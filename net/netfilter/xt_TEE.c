@@ -73,7 +73,8 @@ tee_tg_route4(struct sk_buff *skb, const struct xt_tee_tginfo *info)
 	fl.fl4_dst = info->gw.ip;
 	fl.fl4_tos = RT_TOS(iph->tos);
 	fl.fl4_scope = RT_SCOPE_UNIVERSE;
-	if (ip_route_output_key(net, &rt, &fl) != 0)
+	rt = ip_route_output_key(net, &fl);
+	if (IS_ERR(rt))
 		return false;
 
 	skb_dst_drop(skb);

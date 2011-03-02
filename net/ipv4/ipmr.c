@@ -1618,8 +1618,8 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 			.fl4_tos = RT_TOS(iph->tos),
 			.proto = IPPROTO_IPIP
 		};
-
-		if (ip_route_output_key(net, &rt, &fl))
+		rt = ip_route_output_key(net, &fl);
+		if (IS_ERR(rt))
 			goto out_free;
 		encap = sizeof(struct iphdr);
 	} else {
@@ -1629,8 +1629,8 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 			.fl4_tos = RT_TOS(iph->tos),
 			.proto = IPPROTO_IPIP
 		};
-
-		if (ip_route_output_key(net, &rt, &fl))
+		rt = ip_route_output_key(net, &fl);
+		if (IS_ERR(rt))
 			goto out_free;
 	}
 

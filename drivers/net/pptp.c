@@ -175,7 +175,6 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	struct pptp_opt *opt = &po->proto.pptp;
 	struct pptp_gre_header *hdr;
 	unsigned int header_len = sizeof(*hdr);
-	int err = 0;
 	int islcp;
 	int len;
 	unsigned char *data;
@@ -198,8 +197,8 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 					.saddr = opt->src_addr.sin_addr.s_addr,
 					.tos = RT_TOS(0) } },
 			.proto = IPPROTO_GRE };
-		err = ip_route_output_key(&init_net, &rt, &fl);
-		if (err)
+		rt = ip_route_output_key(&init_net, &fl);
+		if (IS_ERR(rt))
 			goto tx_error;
 	}
 	tdev = rt->dst.dev;
@@ -477,7 +476,8 @@ static int pptp_connect(struct socket *sock, struct sockaddr *uservaddr,
 					.tos = RT_CONN_FLAGS(sk) } },
 			.proto = IPPROTO_GRE };
 		security_sk_classify_flow(sk, &fl);
-		if (ip_route_output_key(&init_net, &rt, &fl)) {
+		rt = ip_route_output_key(&init_net, &fl);
+		if (IS_ERR(rt)) {
 			error = -EHOSTUNREACH;
 			goto end;
 		}

@@ -2681,7 +2681,7 @@ static void bond_arp_send(struct net_device *slave_dev, int arp_op, __be32 dest_
 
 static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 {
-	int i, vlan_id, rv;
+	int i, vlan_id;
 	__be32 *targets = bond->params.arp_targets;
 	struct vlan_entry *vlan;
 	struct net_device *vlan_dev;
@@ -2708,8 +2708,8 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		fl.fl4_dst = targets[i];
 		fl.fl4_tos = RTO_ONLINK;
 
-		rv = ip_route_output_key(dev_net(bond->dev), &rt, &fl);
-		if (rv) {
+		rt = ip_route_output_key(dev_net(bond->dev), &fl);
+		if (IS_ERR(rt)) {
 			if (net_ratelimit()) {
 				pr_warning("%s: no route to arp_ip_target %pI4\n",
 					   bond->dev->name, &fl.fl4_dst);

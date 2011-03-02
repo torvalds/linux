@@ -470,7 +470,8 @@ static struct rtable *find_route_ipv4(__be32 saddr, __be32 daddr,
 			}
 	};
 
-	if (ip_route_output_flow(&init_net, &rt, &fl, NULL))
+	rt = ip_route_output_flow(&init_net, &fl, NULL);
+	if (IS_ERR(rt))
 		return NULL;
 
 	return rt;
