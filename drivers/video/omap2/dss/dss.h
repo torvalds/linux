@@ -123,6 +123,12 @@ enum dss_clk_source {
 	DSS_CLK_SRC_FCK,			/* DSS1_ALWON_FCLK */
 };
 
+/* Correlates clock source name and dss_clk_source member */
+struct dss_clk_source_name {
+	enum dss_clk_source clksrc;
+	const char *clksrc_name;
+};
+
 struct dss_clock_info {
 	/* rates that we get with dividers below */
 	unsigned long fck;
@@ -215,6 +221,7 @@ void dss_clk_enable(enum dss_clock clks);
 void dss_clk_disable(enum dss_clock clks);
 unsigned long dss_clk_get_rate(enum dss_clock clk);
 int dss_need_ctx_restore(void);
+const char *dss_get_generic_clk_source_name(enum dss_clk_source clk_src);
 void dss_dump_clocks(struct seq_file *s);
 
 void dss_dump_regs(struct seq_file *s);

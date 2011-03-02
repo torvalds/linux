@@ -1022,10 +1022,14 @@ int dsi_pll_set_clock_div(struct dsi_clock_info *cinfo)
 
 	DSSDBG("Clock lane freq %ld Hz\n", cinfo->clkin4ddr / 4);
 
-	DSSDBG("regm3 = %d, dsi1_pll_fclk = %lu\n",
-			cinfo->regm3, cinfo->dsi1_pll_fclk);
-	DSSDBG("regm4 = %d, dsi2_pll_fclk = %lu\n",
-			cinfo->regm4, cinfo->dsi2_pll_fclk);
+	DSSDBG("regm3 = %d, %s (%s) = %lu\n", cinfo->regm3,
+		dss_get_generic_clk_source_name(DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC),
+		dss_feat_get_clk_source_name(DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC),
+		cinfo->dsi1_pll_fclk);
+	DSSDBG("regm4 = %d, %s (%s) = %lu\n", cinfo->regm4,
+		dss_get_generic_clk_source_name(DSS_CLK_SRC_DSI_PLL_HSDIV_DSI),
+		dss_feat_get_clk_source_name(DSS_CLK_SRC_DSI_PLL_HSDIV_DSI),
+		cinfo->dsi2_pll_fclk);
 
 	REG_FLD_MOD(DSI_PLL_CONTROL, 0, 0, 0); /* DSI_PLL_AUTOMODE = manual */
 
@@ -1169,6 +1173,10 @@ void dsi_dump_clocks(struct seq_file *s)
 {
 	int clksel;
 	struct dsi_clock_info *cinfo = &dsi.current_cinfo;
+	enum dss_clk_source dispc_clk_src, dsi_clk_src;
+
+	dispc_clk_src = dss_get_dispc_clk_source();
+	dsi_clk_src = dss_get_dsi_clk_source();
 
 	enable_clocks(1);
 
@@ -1185,23 +1193,27 @@ void dsi_dump_clocks(struct seq_file *s)
 	seq_printf(s,	"CLKIN4DDR\t%-16luregm %u\n",
 			cinfo->clkin4ddr, cinfo->regm);
 
-	seq_printf(s,	"dsi1_pll_fck\t%-16luregm3 %u\t(%s)\n",
+	seq_printf(s,	"%s (%s)\t%-16luregm3 %u\t(%s)\n",
+			dss_get_generic_clk_source_name(dispc_clk_src),
+			dss_feat_get_clk_source_name(dispc_clk_src),
 			cinfo->dsi1_pll_fclk,
 			cinfo->regm3,
-			dss_get_dispc_clk_source() == DSS_CLK_SRC_FCK ?
+			dispc_clk_src == DSS_CLK_SRC_FCK ?
 			"off" : "on");
 
-	seq_printf(s,	"dsi2_pll_fck\t%-16luregm4 %u\t(%s)\n",
+	seq_printf(s,	"%s (%s)\t%-16luregm4 %u\t(%s)\n",
+			dss_get_generic_clk_source_name(dsi_clk_src),
+			dss_feat_get_clk_source_name(dsi_clk_src),
 			cinfo->dsi2_pll_fclk,
 			cinfo->regm4,
-			dss_get_dsi_clk_source() == DSS_CLK_SRC_FCK ?
+			dsi_clk_src == DSS_CLK_SRC_FCK ?
 			"off" : "on");
 
 	seq_printf(s,	"- DSI -\n");
 
-	seq_printf(s,	"dsi fclk source = %s\n",
-			dss_get_dsi_clk_source() == DSS_CLK_SRC_FCK ?
-			"dss1_alwon_fclk" : "dsi2_pll_fclk");
+	seq_printf(s,	"dsi fclk source = %s (%s)\n",
+			dss_get_generic_clk_source_name(dsi_clk_src),
+			dss_feat_get_clk_source_name(dsi_clk_src));
 
 	seq_printf(s,	"DSI_FCLK\t%lu\n", dsi_fclk_rate());
 
@@ -3235,13 +3247,17 @@ int dsi_init_display(struct omap_dss_device *dssdev)
 void dsi_wait_dsi1_pll_active(void)
 {
 	if (wait_for_bit_change(DSI_PLL_STATUS, 7, 1) != 1)
-		DSSERR("DSI1 PLL clock not active\n");
+		DSSERR("%s (%s) not active\n",
+			dss_get_generic_clk_source_name(DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC),
+			dss_feat_get_clk_source_name(DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC));
 }
 
 void dsi_wait_dsi2_pll_active(void)
 {
 	if (wait_for_bit_change(DSI_PLL_STATUS, 8, 1) != 1)
-		DSSERR("DSI2 PLL clock not active\n");
+		DSSERR("%s (%s) not active\n",
+			dss_get_generic_clk_source_name(DSS_CLK_SRC_DSI_PLL_HSDIV_DSI),
+			dss_feat_get_clk_source_name(DSS_CLK_SRC_DSI_PLL_HSDIV_DSI));
 }
 
 static int dsi_init(struct platform_device *pdev)

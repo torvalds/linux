@@ -2379,14 +2379,15 @@ unsigned long dispc_pclk_rate(enum omap_channel channel)
 void dispc_dump_clocks(struct seq_file *s)
 {
 	int lcd, pcd;
+	enum dss_clk_source dispc_clk_src = dss_get_dispc_clk_source();
 
 	enable_clocks(1);
 
 	seq_printf(s, "- DISPC -\n");
 
-	seq_printf(s, "dispc fclk source = %s\n",
-			dss_get_dispc_clk_source() == DSS_CLK_SRC_FCK ?
-			"dss1_alwon_fclk" : "dsi1_pll_fclk");
+	seq_printf(s, "dispc fclk source = %s (%s)\n",
+			dss_get_generic_clk_source_name(dispc_clk_src),
+			dss_feat_get_clk_source_name(dispc_clk_src));
 
 	seq_printf(s, "fck\t\t%-16lu\n", dispc_fclk_rate());
 

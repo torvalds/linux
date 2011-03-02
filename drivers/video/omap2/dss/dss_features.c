@@ -25,6 +25,7 @@
 #include <plat/display.h>
 #include <plat/cpu.h>
 
+#include "dss.h"
 #include "dss_features.h"
 
 /* Defines a generic omap register field */
@@ -44,6 +45,7 @@ struct omap_dss_features {
 	const unsigned long max_dss_fck;
 	const enum omap_display_type *supported_displays;
 	const enum omap_color_mode *supported_color_modes;
+	const struct dss_clk_source_name *clksrc_names;
 };
 
 /* This struct is assigned to one of the below during initialization */
@@ -157,6 +159,18 @@ static const enum omap_color_mode omap3_dss_supported_color_modes[] = {
 	OMAP_DSS_COLOR_RGBA32 | OMAP_DSS_COLOR_RGBX32,
 };
 
+static const struct dss_clk_source_name omap2_dss_clk_source_names[] = {
+	{ DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC, "N/A" },
+	{ DSS_CLK_SRC_DSI_PLL_HSDIV_DSI, "N/A" },
+	{ DSS_CLK_SRC_FCK, "DSS_FCLK1" },
+};
+
+static const struct dss_clk_source_name omap3_dss_clk_source_names[] = {
+	{ DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC, "DSI1_PLL_FCLK" },
+	{ DSS_CLK_SRC_DSI_PLL_HSDIV_DSI, "DSI2_PLL_FCLK" },
+	{ DSS_CLK_SRC_FCK, "DSS1_ALWON_FCLK" },
+};
+
 /* OMAP2 DSS Features */
 static struct omap_dss_features omap2_dss_features = {
 	.reg_fields = omap2_dss_reg_fields,
@@ -172,6 +186,7 @@ static struct omap_dss_features omap2_dss_features = {
 	.max_dss_fck = 173000000,
 	.supported_displays = omap2_dss_supported_displays,
 	.supported_color_modes = omap2_dss_supported_color_modes,
+	.clksrc_names = omap2_dss_clk_source_names,
 };
 
 /* OMAP3 DSS Features */
@@ -190,6 +205,7 @@ static struct omap_dss_features omap3430_dss_features = {
 	.max_dss_fck = 173000000,
 	.supported_displays = omap3430_dss_supported_displays,
 	.supported_color_modes = omap3_dss_supported_color_modes,
+	.clksrc_names = omap3_dss_clk_source_names,
 };
 
 static struct omap_dss_features omap3630_dss_features = {
@@ -208,6 +224,7 @@ static struct omap_dss_features omap3630_dss_features = {
 	.max_dss_fck = 173000000,
 	.supported_displays = omap3630_dss_supported_displays,
 	.supported_color_modes = omap3_dss_supported_color_modes,
+	.clksrc_names = omap3_dss_clk_source_names,
 };
 
 /* OMAP4 DSS Features */
@@ -224,6 +241,7 @@ static struct omap_dss_features omap4_dss_features = {
 	.max_dss_fck = 186000000,
 	.supported_displays = omap4_dss_supported_displays,
 	.supported_color_modes = omap3_dss_supported_color_modes,
+	.clksrc_names = omap3_dss_clk_source_names,
 };
 
 /* Functions returning values related to a DSS feature */
@@ -258,6 +276,11 @@ bool dss_feat_color_mode_supported(enum omap_plane plane,
 {
 	return omap_current_dss_features->supported_color_modes[plane] &
 			color_mode;
+}
+
+const char *dss_feat_get_clk_source_name(enum dss_clk_source id)
+{
+	return omap_current_dss_features->clksrc_names[id].clksrc_name;
 }
 
 /* DSS has_feature check */

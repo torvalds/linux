@@ -81,6 +81,12 @@ static struct {
 	u32		ctx[DSS_SZ_REGS / sizeof(u32)];
 } dss;
 
+static const struct dss_clk_source_name dss_generic_clk_source_names[] = {
+	{ DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC, "DSI_PLL_HSDIV_DISPC" },
+	{ DSS_CLK_SRC_DSI_PLL_HSDIV_DSI, "DSI_PLL_HSDIV_DSI" },
+	{ DSS_CLK_SRC_FCK, "DSS_FCK" },
+};
+
 static void dss_clk_enable_all_no_ctx(void);
 static void dss_clk_disable_all_no_ctx(void);
 static void dss_clk_enable_no_ctx(enum dss_clock clks);
@@ -223,6 +229,11 @@ void dss_sdi_disable(void)
 	REG_FLD_MOD(DSS_PLL_CONTROL, 0, 18, 18); /* SDI_PLL_SYSRESET */
 }
 
+const char *dss_get_generic_clk_source_name(enum dss_clk_source clk_src)
+{
+	return dss_generic_clk_source_names[clk_src].clksrc_name;
+}
+
 void dss_dump_clocks(struct seq_file *s)
 {
 	unsigned long dpll4_ck_rate;
@@ -238,12 +249,16 @@ void dss_dump_clocks(struct seq_file *s)
 	seq_printf(s, "dpll4_ck %lu\n", dpll4_ck_rate);
 
 	if (cpu_is_omap3630())
-		seq_printf(s, "dss1_alwon_fclk = %lu / %lu  = %lu\n",
+		seq_printf(s, "%s (%s) = %lu / %lu  = %lu\n",
+			dss_get_generic_clk_source_name(DSS_CLK_SRC_FCK),
+			dss_feat_get_clk_source_name(DSS_CLK_SRC_FCK),
 			dpll4_ck_rate,
 			dpll4_ck_rate / dpll4_m4_ck_rate,
 			dss_clk_get_rate(DSS_CLK_FCK));
 	else
-		seq_printf(s, "dss1_alwon_fclk = %lu / %lu * 2 = %lu\n",
+		seq_printf(s, "%s (%s) = %lu / %lu * 2 = %lu\n",
+			dss_get_generic_clk_source_name(DSS_CLK_SRC_FCK),
+			dss_feat_get_clk_source_name(DSS_CLK_SRC_FCK),
 			dpll4_ck_rate,
 			dpll4_ck_rate / dpll4_m4_ck_rate,
 			dss_clk_get_rate(DSS_CLK_FCK));
