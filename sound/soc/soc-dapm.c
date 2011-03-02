@@ -368,7 +368,7 @@ static int dapm_new_mixer(struct snd_soc_dapm_context *dapm,
 	int i, ret = 0;
 	size_t name_len;
 	struct snd_soc_dapm_path *path;
-	struct snd_card *card = dapm->codec->card->snd_card;
+	struct snd_card *card = dapm->card->snd_card;
 
 	/* add kcontrol */
 	for (i = 0; i < w->num_kcontrols; i++) {
@@ -430,7 +430,7 @@ static int dapm_new_mux(struct snd_soc_dapm_context *dapm,
 {
 	struct snd_soc_dapm_path *path = NULL;
 	struct snd_kcontrol *kcontrol;
-	struct snd_card *card = dapm->codec->card->snd_card;
+	struct snd_card *card = dapm->card->snd_card;
 	int ret = 0;
 
 	if (!w->num_kcontrols) {
@@ -480,7 +480,7 @@ static inline void dapm_clear_walk(struct snd_soc_dapm_context *dapm)
  */
 static int snd_soc_dapm_suspend_check(struct snd_soc_dapm_widget *widget)
 {
-	int level = snd_power_get_state(widget->dapm->codec->card->snd_card);
+	int level = snd_power_get_state(widget->dapm->card->snd_card);
 
 	switch (level) {
 	case SNDRV_CTL_POWER_D3hot:
@@ -1083,7 +1083,7 @@ static void dapm_post_sequence_async(void *data, async_cookie_t cookie)
  */
 static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 {
-	struct snd_soc_card *card = dapm->codec->card;
+	struct snd_soc_card *card = dapm->card;
 	struct snd_soc_dapm_widget *w;
 	struct snd_soc_dapm_context *d;
 	LIST_HEAD(up_list);
