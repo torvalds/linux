@@ -249,8 +249,6 @@ static struct
 
 	unsigned pll_locked;
 
-	void (*bta_callback)(void);
-
 	spinlock_t irq_lock;
 	struct dsi_isr_tables isr_tables;
 	/* space for a copy used by the interrupt handler */
@@ -640,16 +638,6 @@ static irqreturn_t omap_dsi_irq_handler(int irq, void *arg)
 		del_timer(&dsi.te_timer);
 #endif
 
-	for (i = 0; i < 4; ++i) {
-		if (vcstatus[i] == 0)
-			continue;
-
-		if (vcstatus[i] & DSI_VC_IRQ_BTA) {
-			if (dsi.bta_callback)
-				dsi.bta_callback();
-		}
-	}
-
 	/* make a copy and unlock, so that isrs can unregister
 	 * themselves */
 	memcpy(&dsi.isr_tables_copy, &dsi.isr_tables, sizeof(dsi.isr_tables));
@@ -921,26 +909,6 @@ static u32 dsi_get_errors(void)
 	dsi.errors = 0;
 	spin_unlock_irqrestore(&dsi.errors_lock, flags);
 	return e;
-}
-
-static void dsi_vc_enable_bta_irq(int channel)
-{
-	u32 l;
-
-	dsi_write_reg(DSI_VC_IRQSTATUS(channel), DSI_VC_IRQ_BTA);
-
-	l = dsi_read_reg(DSI_VC_IRQENABLE(channel));
-	l |= DSI_VC_IRQ_BTA;
-	dsi_write_reg(DSI_VC_IRQENABLE(channel), l);
-}
-
-static void dsi_vc_disable_bta_irq(int channel)
-{
-	u32 l;
-
-	l = dsi_read_reg(DSI_VC_IRQENABLE(channel));
-	l &= ~DSI_VC_IRQ_BTA;
-	dsi_write_reg(DSI_VC_IRQENABLE(channel), l);
 }
 
 /* DSI func clock. this could also be dsi_pll_hsdiv_dsi_clk */
@@ -3109,18 +3077,19 @@ static void dsi_te_timeout(unsigned long arg)
 }
 #endif
 
+static void dsi_framedone_bta_callback(void *data, u32 mask);
+
 static void dsi_handle_framedone(int error)
 {
 	const int channel = dsi.update_channel;
 
-	cancel_delayed_work(&dsi.framedone_timeout_work);
+	dsi_unregister_isr_vc(channel, dsi_framedone_bta_callback,
+			NULL, DSI_VC_IRQ_BTA);
 
-	dsi_vc_disable_bta_irq(channel);
+	cancel_delayed_work(&dsi.framedone_timeout_work);
 
 	/* SIDLEMODE back to smart-idle */
 	dispc_enable_sidle();
-
-	dsi.bta_callback = NULL;
 
 	if (dsi.te_enabled) {
 		/* enable LP_RX_TO again after the TE */
@@ -3155,7 +3124,7 @@ static void dsi_framedone_timeout_work_callback(struct work_struct *work)
 	dsi_handle_framedone(-ETIMEDOUT);
 }
 
-static void dsi_framedone_bta_callback(void)
+static void dsi_framedone_bta_callback(void *data, u32 mask)
 {
 	dsi_handle_framedone(0);
 
@@ -3195,15 +3164,19 @@ static void dsi_framedone_irq_callback(void *data, u32 mask)
 	 * asynchronously.
 	 * */
 
-	dsi.bta_callback = dsi_framedone_bta_callback;
-
-	barrier();
-
-	dsi_vc_enable_bta_irq(channel);
+	r = dsi_register_isr_vc(channel, dsi_framedone_bta_callback,
+			NULL, DSI_VC_IRQ_BTA);
+	if (r) {
+		DSSERR("Failed to register BTA ISR\n");
+		dsi_handle_framedone(-EIO);
+		return;
+	}
 
 	r = dsi_vc_send_bta(channel);
 	if (r) {
 		DSSERR("BTA after framedone failed\n");
+		dsi_unregister_isr_vc(channel, dsi_framedone_bta_callback,
+				NULL, DSI_VC_IRQ_BTA);
 		dsi_handle_framedone(-EIO);
 	}
 }
