@@ -409,6 +409,9 @@ static void dsi_perf_show(const char *name)
 
 static void print_irq_status(u32 status)
 {
+	if (status == 0)
+		return;
+
 #ifndef VERBOSE_IRQ
 	if ((status & ~DSI_IRQ_CHANNEL_MASK) == 0)
 		return;
@@ -444,6 +447,9 @@ static void print_irq_status(u32 status)
 
 static void print_irq_status_vc(int channel, u32 status)
 {
+	if (status == 0)
+		return;
+
 #ifndef VERBOSE_IRQ
 	if ((status & ~DSI_VC_IRQ_PACKET_SENT) == 0)
 		return;
@@ -470,6 +476,9 @@ static void print_irq_status_vc(int channel, u32 status)
 
 static void print_irq_status_cio(u32 status)
 {
+	if (status == 0)
+		return;
+
 	printk(KERN_DEBUG "DSI CIO IRQ 0x%x: ", status);
 
 #define PIS(x) \
