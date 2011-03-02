@@ -53,8 +53,9 @@ obj-$(CONFIG_TILE) += setup-bus.o setup-irq.o
 
 #
 # ACPI Related PCI FW Functions
+# ACPI _DSM provided firmware instance and string name
 #
-obj-$(CONFIG_ACPI)    += pci-acpi.o
+obj-$(CONFIG_ACPI)    += pci-acpi.o pci-label.o
 
 # SMBIOS provided firmware instance and labels
 obj-$(CONFIG_DMI)    += pci-label.o
