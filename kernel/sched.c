@@ -5522,8 +5522,15 @@ again:
 		goto out;
 
 	yielded = curr->sched_class->yield_to_task(rq, p, preempt);
-	if (yielded)
+	if (yielded) {
 		schedstat_inc(rq, yld_count);
+		/*
+		 * Make p's CPU reschedule; pick_next_entity takes care of
+		 * fairness.
+		 */
+		if (preempt && rq != p_rq)
+			resched_task(p_rq->curr);
+	}
 
 out:
 	double_rq_unlock(rq, p_rq);

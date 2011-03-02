@@ -1987,10 +1987,6 @@ static bool yield_to_task_fair(struct rq *rq, struct task_struct *p, bool preemp
 	/* Tell the scheduler that we'd really like pse to run next. */
 	set_next_buddy(se);
 
-	/* Make p's CPU reschedule; pick_next_entity takes care of fairness. */
-	if (preempt)
-		resched_task(rq->curr);
-
 	yield_task_fair(rq);
 
 	return true;
