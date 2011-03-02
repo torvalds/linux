@@ -702,6 +702,8 @@ void prepare_to_copy(struct task_struct *tsk)
 /*
  * Copy a thread..
  */
+extern unsigned long dscr_default; /* defined in arch/powerpc/kernel/sysfs.c */
+
 int copy_thread(unsigned long clone_flags, unsigned long usp,
 		unsigned long unused, struct task_struct *p,
 		struct pt_regs *regs)
@@ -769,6 +771,20 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		p->thread.ksp_vsid = sp_vsid;
 	}
 #endif /* CONFIG_PPC_STD_MMU_64 */
+#ifdef CONFIG_PPC64 
+	if (cpu_has_feature(CPU_FTR_DSCR)) {
+		if (current->thread.dscr_inherit) {
+			p->thread.dscr_inherit = 1;
+			p->thread.dscr = current->thread.dscr;
+		} else if (0 != dscr_default) {
+			p->thread.dscr_inherit = 1;
+			p->thread.dscr = dscr_default;
+		} else {
+			p->thread.dscr_inherit = 0;
+			p->thread.dscr = 0;
+		}
+	}
+#endif
 
 	/*
 	 * The PPC64 ABI makes use of a TOC to contain function 
