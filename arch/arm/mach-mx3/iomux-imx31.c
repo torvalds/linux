@@ -97,7 +97,7 @@ EXPORT_SYMBOL(mxc_iomux_set_pad);
  * 	- reserves the pin so that it is not claimed by another driver
  * 	- setups the iomux according to the configuration
  */
-int mxc_iomux_alloc_pin(const unsigned int pin, const char *label)
+int mxc_iomux_alloc_pin(unsigned int pin, const char *label)
 {
 	unsigned pad = pin & IOMUX_PADNUM_MASK;
 
@@ -118,10 +118,10 @@ int mxc_iomux_alloc_pin(const unsigned int pin, const char *label)
 }
 EXPORT_SYMBOL(mxc_iomux_alloc_pin);
 
-int mxc_iomux_setup_multiple_pins(unsigned int *pin_list, unsigned count,
+int mxc_iomux_setup_multiple_pins(const unsigned int *pin_list, unsigned count,
 		const char *label)
 {
-	unsigned int *p = pin_list;
+	const unsigned int *p = pin_list;
 	int i;
 	int ret = -EINVAL;
 
@@ -139,7 +139,7 @@ setup_error:
 }
 EXPORT_SYMBOL(mxc_iomux_setup_multiple_pins);
 
-void mxc_iomux_release_pin(const unsigned int pin)
+void mxc_iomux_release_pin(unsigned int pin)
 {
 	unsigned pad = pin & IOMUX_PADNUM_MASK;
 
@@ -148,9 +148,9 @@ void mxc_iomux_release_pin(const unsigned int pin)
 }
 EXPORT_SYMBOL(mxc_iomux_release_pin);
 
-void mxc_iomux_release_multiple_pins(unsigned int *pin_list, int count)
+void mxc_iomux_release_multiple_pins(const unsigned int *pin_list, int count)
 {
-	unsigned int *p = pin_list;
+	const unsigned int *p = pin_list;
 	int i;
 
 	for (i = 0; i < count; i++) {
