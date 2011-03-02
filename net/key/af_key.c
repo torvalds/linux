@@ -2560,7 +2560,7 @@ static int pfkey_migrate(struct sock *sk, struct sk_buff *skb,
 }
 #else
 static int pfkey_migrate(struct sock *sk, struct sk_buff *skb,
-			 struct sadb_msg *hdr, void **ext_hdrs)
+			 const struct sadb_msg *hdr, void * const *ext_hdrs)
 {
 	return -ENOPROTOOPT;
 }
