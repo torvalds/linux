@@ -1147,20 +1147,17 @@ int easycap_dqbuf(struct easycap *peasycap, int mode)
 		if (mode)
 			return -EAGAIN;
 
-		JOM(8, "first wait  on wq_video, "
-					"%i=field_read  %i=field_fill\n",
-					peasycap->field_read, peasycap->field_fill);
+		JOM(8, "first wait  on wq_video, %i=field_read %i=field_fill\n",
+				peasycap->field_read, peasycap->field_fill);
 
 		if (0 != (wait_event_interruptible(peasycap->wq_video,
 				(peasycap->video_idle || peasycap->video_eof  ||
 				((peasycap->field_read != peasycap->field_fill) &&
-					(0 == (0xFF00 & peasycap->field_buffer
-						[peasycap->field_read][0].kount)) &&
-					(ifield == (0x00FF & peasycap->field_buffer
-						[peasycap->field_read][0].kount))))))) {
+				(0 == (0xFF00 & peasycap->field_buffer[peasycap->field_read][0].kount)) &&
+				(ifield == (0x00FF & peasycap->field_buffer[peasycap->field_read][0].kount))))))) {
 			SAM("aborted by signal\n");
 			return -EIO;
-			}
+		}
 		if (peasycap->video_idle) {
 			JOM(8, "%i=peasycap->video_idle returning -EAGAIN\n",
 							peasycap->video_idle);
@@ -1191,7 +1188,7 @@ int easycap_dqbuf(struct easycap *peasycap, int mode)
 			JOM(8, "returning -EIO\n");
 			return -EIO;
 		}
-	miss++;
+		miss++;
 	}
 	JOM(8, "first awakening on wq_video after %i waits\n", miss);
 
@@ -1209,10 +1206,8 @@ int easycap_dqbuf(struct easycap *peasycap, int mode)
 		ifield = 1;
 	miss = 0;
 	while ((peasycap->field_read == peasycap->field_fill) ||
-		(0 != (0xFF00 & peasycap->field_buffer
-					[peasycap->field_read][0].kount)) ||
-		(ifield != (0x00FF & peasycap->field_buffer
-					[peasycap->field_read][0].kount))) {
+	       (0 != (0xFF00 & peasycap->field_buffer[peasycap->field_read][0].kount)) ||
+	       (ifield != (0x00FF & peasycap->field_buffer[peasycap->field_read][0].kount))) {
 		if (mode)
 			return -EAGAIN;
 
@@ -1221,11 +1216,8 @@ int easycap_dqbuf(struct easycap *peasycap, int mode)
 		if (0 != (wait_event_interruptible(peasycap->wq_video,
 			(peasycap->video_idle || peasycap->video_eof  ||
 			((peasycap->field_read != peasycap->field_fill) &&
-			 (0 == (0xFF00 & peasycap->field_buffer
-					[peasycap->field_read][0].kount)) &&
-			 (ifield == (0x00FF & peasycap->field_buffer
-						[peasycap->field_read][0].
-								kount))))))) {
+			 (0 == (0xFF00 & peasycap->field_buffer[peasycap->field_read][0].kount)) &&
+			 (ifield == (0x00FF & peasycap->field_buffer[peasycap->field_read][0].kount))))))) {
 			SAM("aborted by signal\n");
 			return -EIO;
 		}
@@ -1236,7 +1228,7 @@ int easycap_dqbuf(struct easycap *peasycap, int mode)
 		}
 		if (peasycap->video_eof) {
 			JOM(8, "%i=peasycap->video_eof\n", peasycap->video_eof);
-			#if defined(PERSEVERE)
+#if defined(PERSEVERE)
 			if (1 == peasycap->status) {
 				JOM(8, "persevering ...\n");
 				peasycap->video_eof = 0;
@@ -1252,14 +1244,14 @@ int easycap_dqbuf(struct easycap *peasycap, int mode)
 				JOM(8, " ... OK ... returning -EAGAIN\n");
 				return -EAGAIN;
 			}
-			#endif /*PERSEVERE*/
+#endif /*PERSEVERE*/
 			peasycap->video_eof = 1;
 			peasycap->audio_eof = 1;
 			kill_video_urbs(peasycap);
 			JOM(8, "returning -EIO\n");
 			return -EIO;
 		}
-	miss++;
+		miss++;
 	}
 	JOM(8, "second awakening on wq_video after %i waits\n", miss);
 
@@ -1271,11 +1263,12 @@ int easycap_dqbuf(struct easycap *peasycap, int mode)
  *  WASTE THIS FRAME
 */
 /*---------------------------------------------------------------------------*/
-	if (0 != peasycap->skip) {
+	if (peasycap->skip) {
 		peasycap->skipped++;
 		if (peasycap->skip != peasycap->skipped)
 			return peasycap->skip - peasycap->skipped;
-		peasycap->skipped = 0;
+		else
+			peasycap->skipped = 0;
 	}
 /*---------------------------------------------------------------------------*/
 	peasycap->frame_read = peasycap->frame_fill;
@@ -1432,22 +1425,17 @@ field2frame(struct easycap *peasycap)
 						 * CAUSE BREAKAGE.  BEWARE.
 						 */
 						rad2 = rad + bytesperpixel - 1;
-						much = ((((2 *
-							rad2)/bytesperpixel)/2) * 2);
-						rump = ((bytesperpixel *
-								much) / 2) - rad;
+						much = ((((2 * rad2)/bytesperpixel)/2) * 2);
+						rump = ((bytesperpixel * much) / 2) - rad;
 						more = rad;
-						}
+					}
 					mask = (u8)rump;
 					margin = 0;
 					if (much == rex) {
 						mask |= 0x04;
-						if ((mex + 1) < FIELD_BUFFER_SIZE/
-									PAGE_SIZE) {
-							margin = *((u8 *)(peasycap->
-								field_buffer
-								[kex][mex + 1].pgo));
-						} else
+						if ((mex + 1) < FIELD_BUFFER_SIZE / PAGE_SIZE)
+							margin = *((u8 *)(peasycap->field_buffer[kex][mex + 1].pgo));
+						else
 							mask |= 0x08;
 					}
 				} else {
@@ -1471,20 +1459,16 @@ field2frame(struct easycap *peasycap)
 					SAM("ERROR: redaub() failed\n");
 					return -EFAULT;
 				}
-				if (much % 4) {
-					if (isuy)
-						isuy = false;
-					else
-						isuy = true;
-				}
+				if (much % 4)
+					isuy = !isuy;
+
 				over -= much;   cz += much;
 				pex  += much;  rex -= much;
 				if (!rex) {
 					mex++;
 					pex = peasycap->field_buffer[kex][mex].pgo;
 					rex = PAGE_SIZE;
-					if (peasycap->field_buffer[kex][mex].input !=
-							(0x08|peasycap->input))
+					if (peasycap->field_buffer[kex][mex].input != (0x08|peasycap->input))
 						badinput = true;
 				}
 				pad  += more;
@@ -1554,22 +1538,17 @@ field2frame(struct easycap *peasycap)
 						 * BEWARE.
 						 */
 						rad2 = rad + bytesperpixel - 1;
-						much = ((((2 * rad2)/bytesperpixel)/2)
-										* 4);
-						rump = ((bytesperpixel *
-								much) / 4) - rad;
+						much = ((((2 * rad2) / bytesperpixel) / 2) * 4);
+						rump = ((bytesperpixel * much) / 4) - rad;
 						more = rad;
 					}
 					mask = (u8)rump;
 					margin = 0;
 					if (much == rex) {
 						mask |= 0x04;
-						if ((mex + 1) < FIELD_BUFFER_SIZE/
-									PAGE_SIZE) {
-							margin = *((u8 *)(peasycap->
-								field_buffer
-								[kex][mex + 1].pgo));
-						} else
+						if ((mex + 1) < FIELD_BUFFER_SIZE / PAGE_SIZE)
+							margin = *((u8 *)(peasycap->field_buffer[kex][mex + 1].pgo));
+						else
 							mask |= 0x08;
 					}
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -3815,18 +3794,19 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 		JOM(4, ".... each occupying contiguous memory pages\n");
 
 		for (k = 0;  k < VIDEO_ISOC_BUFFER_MANY; k++) {
-			pbuf = (void *)__get_free_pages(GFP_KERNEL, VIDEO_ISOC_ORDER);
+			pbuf = (void *)__get_free_pages(GFP_KERNEL,
+							VIDEO_ISOC_ORDER);
 			if (NULL == pbuf) {
 				SAM("ERROR: Could not allocate isoc video buffer "
 									"%i\n", k);
 				return -ENOMEM;
 			} else
 				peasycap->allocation_video_page +=
-					((unsigned int)(0x01 << VIDEO_ISOC_ORDER));
+					BIT(VIDEO_ISOC_ORDER);
 
 			peasycap->video_isoc_buffer[k].pgo = pbuf;
-			peasycap->video_isoc_buffer[k].pto = pbuf +
-						peasycap->video_isoc_buffer_size;
+			peasycap->video_isoc_buffer[k].pto =
+				pbuf + peasycap->video_isoc_buffer_size;
 			peasycap->video_isoc_buffer[k].kount = k;
 		}
 		JOM(4, "allocation of isoc video buffers done: %i pages\n",
@@ -4052,24 +4032,25 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 			peasycap->ilk |= 0x02;
 			SAM("audio hardware is microphone\n");
 			peasycap->microphone = true;
-			peasycap->audio_pages_per_fragment = PAGES_PER_AUDIO_FRAGMENT;
+			peasycap->audio_pages_per_fragment =
+					PAGES_PER_AUDIO_FRAGMENT;
 		} else if (256 == peasycap->audio_isoc_maxframesize) {
 			peasycap->ilk &= ~0x02;
 			SAM("audio hardware is AC'97\n");
 			peasycap->microphone = false;
-			peasycap->audio_pages_per_fragment = PAGES_PER_AUDIO_FRAGMENT;
+			peasycap->audio_pages_per_fragment =
+					PAGES_PER_AUDIO_FRAGMENT;
 		} else {
 			SAM("hardware is unidentified:\n");
 			SAM("%i=audio_isoc_maxframesize\n",
-						peasycap->audio_isoc_maxframesize);
+				peasycap->audio_isoc_maxframesize);
 			return -ENOENT;
 		}
 
 		peasycap->audio_bytes_per_fragment =
-						peasycap->audio_pages_per_fragment *
-									PAGE_SIZE ;
+				peasycap->audio_pages_per_fragment * PAGE_SIZE;
 		peasycap->audio_buffer_page_many = (AUDIO_FRAGMENT_MANY *
-						peasycap->audio_pages_per_fragment);
+				peasycap->audio_pages_per_fragment);
 
 		JOM(4, "%6i=AUDIO_FRAGMENT_MANY\n", AUDIO_FRAGMENT_MANY);
 		JOM(4, "%6i=audio_pages_per_fragment\n",
@@ -4159,18 +4140,20 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 #endif /* CONFIG_EASYCAP_OSS */
 /*---------------------------------------------------------------------------*/
 		JOM(4, "allocating %i isoc audio buffers of size %i\n",
-			AUDIO_ISOC_BUFFER_MANY, peasycap->audio_isoc_buffer_size);
+			AUDIO_ISOC_BUFFER_MANY,
+			peasycap->audio_isoc_buffer_size);
 		JOM(4, ".... each occupying contiguous memory pages\n");
 
 		for (k = 0;  k < AUDIO_ISOC_BUFFER_MANY;  k++) {
-			pbuf = (void *)__get_free_pages(GFP_KERNEL, AUDIO_ISOC_ORDER);
+			pbuf = (void *)__get_free_pages(GFP_KERNEL,
+							AUDIO_ISOC_ORDER);
 			if (NULL == pbuf) {
 				SAM("ERROR: Could not allocate isoc audio buffer "
 								"%i\n", k);
 				return -ENOMEM;
 			} else
 				peasycap->allocation_audio_page +=
-					((unsigned int)(0x01 << AUDIO_ISOC_ORDER));
+						BIT(AUDIO_ISOC_ORDER);
 
 			peasycap->audio_isoc_buffer[k].pgo = pbuf;
 			peasycap->audio_isoc_buffer[k].pto = pbuf +
@@ -4185,15 +4168,15 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 /*---------------------------------------------------------------------------*/
 		JOM(4, "allocating %i struct urb.\n", AUDIO_ISOC_BUFFER_MANY);
 		JOM(4, "using %i=peasycap->audio_isoc_framesperdesc\n",
-						peasycap->audio_isoc_framesperdesc);
+					peasycap->audio_isoc_framesperdesc);
 		JOM(4, "using %i=peasycap->audio_isoc_maxframesize\n",
-						peasycap->audio_isoc_maxframesize);
+					peasycap->audio_isoc_maxframesize);
 		JOM(4, "using %i=peasycap->audio_isoc_buffer_size\n",
-						peasycap->audio_isoc_buffer_size);
+					peasycap->audio_isoc_buffer_size);
 
 		for (k = 0;  k < AUDIO_ISOC_BUFFER_MANY; k++) {
 			purb = usb_alloc_urb(peasycap->audio_isoc_framesperdesc,
-									GFP_KERNEL);
+								GFP_KERNEL);
 			if (NULL == purb) {
 				SAM("ERROR: usb_alloc_urb returned NULL for buffer "
 								"%i\n", k);
@@ -4230,7 +4213,7 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 				JOM(4, "  purb->transfer_buffer = "
 					"peasycap->audio_isoc_buffer[.].pgo;\n");
 				JOM(4, "  purb->transfer_buffer_length = %i;\n",
-						peasycap->audio_isoc_buffer_size);
+					peasycap->audio_isoc_buffer_size);
 #ifdef CONFIG_EASYCAP_OSS
 				JOM(4, "  purb->complete = easyoss_complete;\n");
 #else /* CONFIG_EASYCAP_OSS */
@@ -4244,9 +4227,9 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 						peasycap->audio_isoc_framesperdesc);
 				JOM(4, "    {\n");
 				JOM(4, "    purb->iso_frame_desc[j].offset = j*%i;\n",
-						peasycap->audio_isoc_maxframesize);
+					peasycap->audio_isoc_maxframesize);
 				JOM(4, "    purb->iso_frame_desc[j].length = %i;\n",
-						peasycap->audio_isoc_maxframesize);
+					peasycap->audio_isoc_maxframesize);
 				JOM(4, "    }\n");
 			}
 
@@ -4418,8 +4401,7 @@ static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
 		if (NULL != peasycap->purb_video_head) {
 			JOM(4, "killing video urbs\n");
 			m = 0;
-			list_for_each(plist_head, (peasycap->purb_video_head))
-				{
+			list_for_each(plist_head, peasycap->purb_video_head) {
 				pdata_urb = list_entry(plist_head,
 						struct data_urb, list_head);
 				if (NULL != pdata_urb) {
@@ -4438,8 +4420,7 @@ static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
 		if (NULL != peasycap->purb_audio_head) {
 			JOM(4, "killing audio urbs\n");
 			m = 0;
-			list_for_each(plist_head,
-						(peasycap->purb_audio_head)) {
+			list_for_each(plist_head, peasycap->purb_audio_head) {
 				pdata_urb = list_entry(plist_head,
 						struct data_urb, list_head);
 				if (NULL != pdata_urb) {
