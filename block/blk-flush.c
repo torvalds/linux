@@ -69,7 +69,7 @@ static void blk_flush_complete_seq_end_io(struct request_queue *q,
 	 * queue.  Kick the queue in those cases.
 	 */
 	if (was_empty && next_rq)
-		__blk_run_queue(q);
+		__blk_run_queue(q, false);
 }
 
 static void pre_flush_end_io(struct request *rq, int error)
