@@ -132,6 +132,11 @@ static int mx35_3ds_otg_init(struct platform_device *pdev)
 static const struct fsl_usb2_platform_data usb_otg_pdata __initconst = {
 	.operating_mode	= FSL_USB2_DR_DEVICE,
 	.phy_mode	= FSL_USB2_PHY_UTMI_WIDE,
+	.workaround	= FLS_USB2_WORKAROUND_ENGCM09152,
+/*
+ * ENGCM09152 also requires a hardware change.
+ * Please check the MX35 Chip Errata document for details.
+ */
 };
 
 static struct mxc_usbh_platform_data otg_pdata __initdata = {
