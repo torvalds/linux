@@ -44,8 +44,6 @@ static iomux_v3_cfg_t mx53_smd_pads[] = {
 
 	MX53_PAD_PATA_BUFFER_EN__UART2_RXD_MUX,
 	MX53_PAD_PATA_DMARQ__UART2_TXD_MUX,
-	MX53_PAD_PATA_DIOR__UART2_RTS,
-	MX53_PAD_PATA_INTRQ__UART2_CTS,
 
 	MX53_PAD_PATA_CS_0__UART3_TXD_MUX,
 	MX53_PAD_PATA_CS_1__UART3_RXD_MUX,
@@ -63,7 +61,7 @@ static const struct imxuart_platform_data mx53_smd_uart_data __initconst = {
 static inline void mx53_smd_init_uart(void)
 {
 	imx53_add_imx_uart(0, NULL);
-	imx53_add_imx_uart(1, &mx53_smd_uart_data);
+	imx53_add_imx_uart(1, NULL);
 	imx53_add_imx_uart(2, &mx53_smd_uart_data);
 }
 
