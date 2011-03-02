@@ -93,6 +93,7 @@ static const DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
 static const DECLARE_TLV_DB_SCALE(inpga_tlv, -1200, 75, 0);
 static const DECLARE_TLV_DB_SCALE(spk_tlv, -5700, 100, 0);
 static const DECLARE_TLV_DB_SCALE(boost_tlv, -1500, 300, 1);
+static const DECLARE_TLV_DB_SCALE(limiter_tlv, 0, 100, 0);
 
 static const struct snd_kcontrol_new wm8978_snd_controls[] = {
 
@@ -144,8 +145,8 @@ static const struct snd_kcontrol_new wm8978_snd_controls[] = {
 
 	SOC_SINGLE("DAC Playback Limiter Threshold",
 		WM8978_DAC_LIMITER_2, 4, 7, 0),
-	SOC_SINGLE("DAC Playback Limiter Boost",
-		WM8978_DAC_LIMITER_2, 0, 12, 0),
+	SOC_SINGLE_TLV("DAC Playback Limiter Volume",
+		WM8978_DAC_LIMITER_2, 0, 12, 0, limiter_tlv),
 
 	SOC_ENUM("ALC Enable Switch", alc1),
 	SOC_SINGLE("ALC Capture Min Gain", WM8978_ALC_CONTROL_1, 0, 7, 0),
