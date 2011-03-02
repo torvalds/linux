@@ -1137,6 +1137,7 @@ static __init int intel_pmu_init(void)
 		intel_pmu_lbr_init_core();
 
 		x86_pmu.event_constraints = intel_core2_event_constraints;
+		x86_pmu.pebs_constraints = intel_core2_pebs_event_constraints;
 		pr_cont("Core2 events, ");
 		break;
 
@@ -1149,6 +1150,7 @@ static __init int intel_pmu_init(void)
 		intel_pmu_lbr_init_nhm();
 
 		x86_pmu.event_constraints = intel_nehalem_event_constraints;
+		x86_pmu.pebs_constraints = intel_nehalem_pebs_event_constraints;
 		x86_pmu.enable_all = intel_pmu_nhm_enable_all;
 		pr_cont("Nehalem events, ");
 		break;
@@ -1160,6 +1162,7 @@ static __init int intel_pmu_init(void)
 		intel_pmu_lbr_init_atom();
 
 		x86_pmu.event_constraints = intel_gen_event_constraints;
+		x86_pmu.pebs_constraints = intel_atom_pebs_event_constraints;
 		pr_cont("Atom events, ");
 		break;
 
@@ -1172,6 +1175,7 @@ static __init int intel_pmu_init(void)
 
 		x86_pmu.event_constraints = intel_westmere_event_constraints;
 		x86_pmu.enable_all = intel_pmu_nhm_enable_all;
+		x86_pmu.pebs_constraints = intel_westmere_pebs_event_constraints;
 		pr_cont("Westmere events, ");
 		break;
 
