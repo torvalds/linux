@@ -35,7 +35,7 @@
 #include "wlc_bsscfg.h"
 #include "phy/wlc_phy_hal.h"
 #include "wlc_channel.h"
-#include "wlc_mac80211.h"
+#include "wlc_main.h"
 
 static struct wlc_bsscfg *wlc_bsscfg_malloc(uint unit);
 static void wlc_bsscfg_mfree(struct wlc_bsscfg *cfg);

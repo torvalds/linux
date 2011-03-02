@@ -38,7 +38,7 @@
 #include "phy/wlc_phy_hal.h"
 #include "wlc_channel.h"
 #include "wlc_bsscfg.h"
-#include "wlc_mac80211.h"
+#include "wlc_main.h"
 #include "wl_export.h"
 #include "wlc_bmac.h"
 #include "wlc_stf.h"

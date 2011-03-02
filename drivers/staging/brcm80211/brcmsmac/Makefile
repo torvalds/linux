@@ -36,7 +36,7 @@ BRCMSMAC_OFILES := \
 	wlc_antsel.o \
 	wlc_bmac.o \
 	wlc_channel.o \
-	wlc_mac80211.o \
+	wlc_main.o \
 	wlc_phy_shim.o \
 	wlc_rate.o \
 	wlc_stf.o \
