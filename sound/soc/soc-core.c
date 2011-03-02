@@ -1892,6 +1892,15 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 	snprintf(card->snd_card->longname, sizeof(card->snd_card->longname),
 		 "%s", card->name);
 
+	if (card->late_probe) {
+		ret = card->late_probe(card);
+		if (ret < 0) {
+			dev_err(card->dev, "%s late_probe() failed: %d\n",
+				card->name, ret);
+			goto probe_aux_dev_err;
+		}
+	}
+
 	ret = snd_card_register(card->snd_card);
 	if (ret < 0) {
 		printk(KERN_ERR "asoc: failed to register soundcard for %s\n", card->name);

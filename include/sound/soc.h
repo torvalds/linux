@@ -682,6 +682,7 @@ struct snd_soc_card {
 	bool instantiated;
 
 	int (*probe)(struct snd_soc_card *card);
+	int (*late_probe)(struct snd_soc_card *card);
 	int (*remove)(struct snd_soc_card *card);
 
 	/* the pre and post PM functions are used to do any PM work before and
