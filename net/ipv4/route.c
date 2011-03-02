@@ -2736,12 +2736,6 @@ struct rtable *ip_route_output_flow(struct net *net, struct flowi *flp,
 }
 EXPORT_SYMBOL_GPL(ip_route_output_flow);
 
-struct rtable *ip_route_output_key(struct net *net, struct flowi *flp)
-{
-	return ip_route_output_flow(net, flp, NULL);
-}
-EXPORT_SYMBOL(ip_route_output_key);
-
 static int rt_fill_info(struct net *net,
 			struct sk_buff *skb, u32 pid, u32 seq, int event,
 			int nowait, unsigned int flags)

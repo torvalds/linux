@@ -119,10 +119,14 @@ extern void		ip_rt_redirect(__be32 old_gw, __be32 dst, __be32 new_gw,
 extern void		rt_cache_flush(struct net *net, int how);
 extern void		rt_cache_flush_batch(struct net *net);
 extern struct rtable *__ip_route_output_key(struct net *, const struct flowi *flp);
-extern struct rtable *ip_route_output_key(struct net *, struct flowi *flp);
 extern struct rtable *ip_route_output_flow(struct net *, struct flowi *flp,
 					   struct sock *sk);
 extern struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_orig);
+
+static inline struct rtable *ip_route_output_key(struct net *net, struct flowi *flp)
+{
+	return ip_route_output_flow(net, flp, NULL);
+}
 
 extern int ip_route_input_common(struct sk_buff *skb, __be32 dst, __be32 src,
 				 u8 tos, struct net_device *devin, bool noref);
