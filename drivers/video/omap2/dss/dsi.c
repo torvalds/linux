@@ -477,25 +477,32 @@ static void print_irq_status_cio(u32 status)
 	printk("\n");
 }
 
-static int debug_irq;
-
-/* called from dss */
-static irqreturn_t omap_dsi_irq_handler(int irq, void *arg)
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+static void dsi_collect_irq_stats(u32 irqstatus, u32 *vcstatus, u32 ciostatus)
 {
-	u32 irqstatus, vcstatus, ciostatus;
 	int i;
 
-	irqstatus = dsi_read_reg(DSI_IRQSTATUS);
-
-	/* IRQ is not for us */
-	if (!irqstatus)
-		return IRQ_NONE;
-
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
 	spin_lock(&dsi.irq_stats_lock);
+
 	dsi.irq_stats.irq_count++;
 	dss_collect_irq_stats(irqstatus, dsi.irq_stats.dsi_irqs);
+
+	for (i = 0; i < 4; ++i)
+		dss_collect_irq_stats(vcstatus[i], dsi.irq_stats.vc_irqs[i]);
+
+	dss_collect_irq_stats(ciostatus, dsi.irq_stats.cio_irqs);
+
+	spin_unlock(&dsi.irq_stats_lock);
+}
+#else
+#define dsi_collect_irq_stats(irqstatus, vcstatus, ciostatus)
 #endif
+
+static int debug_irq;
+
+static void dsi_handle_irq_errors(u32 irqstatus, u32 *vcstatus, u32 ciostatus)
+{
+	int i;
 
 	if (irqstatus & DSI_IRQ_ERROR_MASK) {
 		DSSERR("DSI error, irqstatus %x\n", irqstatus);
@@ -507,37 +514,48 @@ static irqreturn_t omap_dsi_irq_handler(int irq, void *arg)
 		print_irq_status(irqstatus);
 	}
 
-#ifdef DSI_CATCH_MISSING_TE
-	if (irqstatus & DSI_IRQ_TE_TRIGGER)
-		del_timer(&dsi.te_timer);
-#endif
+	for (i = 0; i < 4; ++i) {
+		if (vcstatus[i] & DSI_VC_IRQ_ERROR_MASK) {
+			DSSERR("DSI VC(%d) error, vc irqstatus %x\n",
+				       i, vcstatus[i]);
+			print_irq_status_vc(i, vcstatus[i]);
+		} else if (debug_irq) {
+			print_irq_status_vc(i, vcstatus[i]);
+		}
+	}
+
+	if (ciostatus & DSI_CIO_IRQ_ERROR_MASK) {
+		DSSERR("DSI CIO error, cio irqstatus %x\n", ciostatus);
+		print_irq_status_cio(ciostatus);
+	} else if (debug_irq) {
+		print_irq_status_cio(ciostatus);
+	}
+}
+
+static irqreturn_t omap_dsi_irq_handler(int irq, void *arg)
+{
+	u32 irqstatus, vcstatus[4], ciostatus;
+	int i;
+
+	irqstatus = dsi_read_reg(DSI_IRQSTATUS);
+
+	/* IRQ is not for us */
+	if (!irqstatus)
+		return IRQ_NONE;
+
+	dsi_write_reg(DSI_IRQSTATUS, irqstatus & ~DSI_IRQ_CHANNEL_MASK);
+	/* flush posted write */
+	dsi_read_reg(DSI_IRQSTATUS);
 
 	for (i = 0; i < 4; ++i) {
-		if ((irqstatus & (1<<i)) == 0)
+		if ((irqstatus & (1 << i)) == 0) {
+			vcstatus[i] = 0;
 			continue;
-
-		vcstatus = dsi_read_reg(DSI_VC_IRQSTATUS(i));
-
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
-		dss_collect_irq_stats(vcstatus, dsi.irq_stats.vc_irqs[i]);
-#endif
-
-		if (vcstatus & DSI_VC_IRQ_BTA) {
-			complete(&dsi.bta_completion);
-
-			if (dsi.bta_callback)
-				dsi.bta_callback();
 		}
 
-		if (vcstatus & DSI_VC_IRQ_ERROR_MASK) {
-			DSSERR("DSI VC(%d) error, vc irqstatus %x\n",
-				       i, vcstatus);
-			print_irq_status_vc(i, vcstatus);
-		} else if (debug_irq) {
-			print_irq_status_vc(i, vcstatus);
-		}
+		vcstatus[i] = dsi_read_reg(DSI_VC_IRQSTATUS(i));
 
-		dsi_write_reg(DSI_VC_IRQSTATUS(i), vcstatus);
+		dsi_write_reg(DSI_VC_IRQSTATUS(i), vcstatus[i]);
 		/* flush posted write */
 		dsi_read_reg(DSI_VC_IRQSTATUS(i));
 	}
@@ -545,29 +563,34 @@ static irqreturn_t omap_dsi_irq_handler(int irq, void *arg)
 	if (irqstatus & DSI_IRQ_COMPLEXIO_ERR) {
 		ciostatus = dsi_read_reg(DSI_COMPLEXIO_IRQ_STATUS);
 
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
-		dss_collect_irq_stats(ciostatus, dsi.irq_stats.cio_irqs);
-#endif
-
 		dsi_write_reg(DSI_COMPLEXIO_IRQ_STATUS, ciostatus);
 		/* flush posted write */
 		dsi_read_reg(DSI_COMPLEXIO_IRQ_STATUS);
+	} else {
+		ciostatus = 0;
+	}
 
-		if (ciostatus & DSI_CIO_IRQ_ERROR_MASK) {
-			DSSERR("DSI CIO error, cio irqstatus %x\n", ciostatus);
-			print_irq_status_cio(ciostatus);
-		} else if (debug_irq) {
-			print_irq_status_cio(ciostatus);
+#ifdef DSI_CATCH_MISSING_TE
+	if (irqstatus & DSI_IRQ_TE_TRIGGER)
+		del_timer(&dsi.te_timer);
+#endif
+
+	for (i = 0; i < 4; ++i) {
+		if (vcstatus[i] == 0)
+			continue;
+
+		if (vcstatus[i] & DSI_VC_IRQ_BTA) {
+			complete(&dsi.bta_completion);
+
+			if (dsi.bta_callback)
+				dsi.bta_callback();
 		}
 	}
 
-	dsi_write_reg(DSI_IRQSTATUS, irqstatus & ~DSI_IRQ_CHANNEL_MASK);
-	/* flush posted write */
-	dsi_read_reg(DSI_IRQSTATUS);
+	dsi_handle_irq_errors(irqstatus, vcstatus, ciostatus);
 
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
-	spin_unlock(&dsi.irq_stats_lock);
-#endif
+	dsi_collect_irq_stats(irqstatus, vcstatus, ciostatus);
+
 	return IRQ_HANDLED;
 }
 
