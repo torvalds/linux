@@ -21,9 +21,6 @@
 #include "board-stingray.h"
 #include "tegra2_emc.h"
 
-static long stingray_mem_vid;
-static long stingray_mem_pid;
-
 static const struct tegra_emc_table stingray_emc_tables_samsung[] = {
 	{
 		.rate = 60000,   /* SDRAM frquency */
@@ -438,30 +435,28 @@ static const struct tegra_emc_table stingray_emc_tables_elpida[] = {
 	}
 };
 
-static int __init stingray_param_mem_vid(char *options)
-{
-	return strict_strtol(options, 0, &stingray_mem_vid);
-}
-__setup("mem_vid=", stingray_param_mem_vid);
-
-static int __init stingray_param_mem_pid(char *options)
-{
-	return strict_strtol(options, 0, &stingray_mem_pid);
-}
-__setup("mem_pid=", stingray_param_mem_pid);
+struct tegra_emc_chip stingray_emc_chips[] = {
+	{
+		.description = "Samsung",
+		.mem_manufacturer_id = 0x0101,
+		.mem_revision_id1 = -1,
+		.mem_revision_id2 = -1,
+		.mem_pid = 0x5454,
+		.table = stingray_emc_tables_samsung,
+		.table_size = ARRAY_SIZE(stingray_emc_tables_samsung)
+	},
+	{
+		.description = "Elpida 50nm",
+		.mem_manufacturer_id = 0x0303,
+		.mem_revision_id1 = -1,
+		.mem_revision_id2 = -1,
+		.mem_pid = 0x5454,
+		.table = stingray_emc_tables_elpida,
+		.table_size = ARRAY_SIZE(stingray_emc_tables_elpida)
+	}
+};
 
 void stingray_init_emc(void)
 {
-	if (stingray_mem_vid == 0x101 && stingray_mem_pid == 0x5454) {
-		pr_info("%s: Samsung memory found\n", __func__);
-		tegra_init_emc(stingray_emc_tables_samsung,
-			ARRAY_SIZE(stingray_emc_tables_samsung));
-	} else if (stingray_mem_vid == 0x303 && stingray_mem_pid == 0x5454) {
-		pr_info("%s: Elpida memory found\n", __func__);
-		tegra_init_emc(stingray_emc_tables_elpida,
-			ARRAY_SIZE(stingray_emc_tables_elpida));
-	} else {
-		pr_info("%s: Memory not recognized, memory scaling disabled\n",
-			__func__);
-	}
+	tegra_init_emc(stingray_emc_chips, ARRAY_SIZE(stingray_emc_chips));
 }
