@@ -1293,18 +1293,22 @@ static int __init wl_module_init(void)
 		wl_msg_level = msglevel;
 	else {
 		char *var = getvar(NULL, "wl_msglevel");
-		if (var)
-			wl_msg_level = simple_strtoul(var, NULL, 0);
-	}
-	{
-		extern u32 phyhal_msg_level;
+		if (var) {
+			unsigned long value;
 
-		if (phymsglevel != 0xdeadbeef)
-			phyhal_msg_level = phymsglevel;
-		else {
-			char *var = getvar(NULL, "phy_msglevel");
-			if (var)
-				phyhal_msg_level = simple_strtoul(var, NULL, 0);
+			(void)strict_strtoul(var, 0, &value);
+			wl_msg_level = value;
+		}
+	}
+	if (phymsglevel != 0xdeadbeef)
+		phyhal_msg_level = phymsglevel;
+	else {
+		char *var = getvar(NULL, "phy_msglevel");
+		if (var) {
+			unsigned long value;
+
+			(void)strict_strtoul(var, 0, &value);
+			phyhal_msg_level = value;
 		}
 	}
 #endif				/* BCMDBG */
