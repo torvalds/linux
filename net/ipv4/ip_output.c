@@ -789,7 +789,7 @@ static int __ip_append_data(struct sock *sk, struct sk_buff_head *queue,
 	struct inet_sock *inet = inet_sk(sk);
 	struct sk_buff *skb;
 
-	struct ip_options *opt = inet->cork.opt;
+	struct ip_options *opt = cork->opt;
 	int hh_len;
 	int exthdrlen;
 	int mtu;
@@ -803,7 +803,7 @@ static int __ip_append_data(struct sock *sk, struct sk_buff_head *queue,
 	exthdrlen = transhdrlen ? rt->dst.header_len : 0;
 	length += exthdrlen;
 	transhdrlen += exthdrlen;
-	mtu = inet->cork.fragsize;
+	mtu = cork->fragsize;
 
 	hh_len = LL_RESERVED_SPACE(rt->dst.dev);
 
