@@ -51,7 +51,6 @@ struct wl_firmware {
 struct wl_info {
 	struct wlc_pub *pub;		/* pointer to public wlc state */
 	void *wlc;		/* pointer to private common os-independent data */
-	struct osl_info *osh;		/* pointer to os handler */
 	u32 magic;
 
 	int irq;

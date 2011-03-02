@@ -18,7 +18,6 @@
 #include <linux/semaphore.h>
 #include <bcmdefs.h>
 #include <linux/netdevice.h>
-#include <osl.h>
 #include <wlioctl.h>
 
 #include <bcmutils.h>

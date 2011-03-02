@@ -17,7 +17,6 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <bcmdefs.h>
-#include <osl.h>
 #include <bcmutils.h>
 #include <siutils.h>
 #include <bcmnvram.h>

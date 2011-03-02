@@ -20,7 +20,6 @@
 #include <wlc_cfg.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
-#include <osl.h>
 #include <siutils.h>
 #include <sbchipc.h>
 #include <hndpmu.h>

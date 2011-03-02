@@ -17,7 +17,6 @@
 #include <linux/string.h>
 #include <linux/etherdevice.h>
 #include <bcmdefs.h>
-#include <osl.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <stdarg.h>

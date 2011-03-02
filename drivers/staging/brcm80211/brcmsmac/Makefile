@@ -45,7 +45,6 @@ BRCMSMAC_OFILES := \
 	phy/wlc_phy_n.o \
 	phy/wlc_phytbl_lcn.o \
 	phy/wlc_phytbl_n.o \
-	../util/linux_osl.o \
 	../util/aiutils.o \
 	../util/siutils.o \
 	../util/bcmutils.o \

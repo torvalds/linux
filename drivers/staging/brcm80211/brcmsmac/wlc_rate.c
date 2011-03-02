@@ -18,7 +18,6 @@
 
 #include <proto/802.11.h>
 #include <bcmdefs.h>
-#include <osl.h>
 #include <bcmutils.h>
 #include <siutils.h>
 #include <wlioctl.h>

@@ -17,7 +17,6 @@
 #include <linux/netdevice.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>
-#include <osl.h>
 #include <bcmutils.h>
 #include <sdio.h>		/* SDIO Device and Protocol Specs */
 #include <sdioh.h>		/* SDIO Host Controller Specification */

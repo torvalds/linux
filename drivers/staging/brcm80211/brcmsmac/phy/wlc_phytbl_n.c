@@ -17,7 +17,6 @@
 #include <linux/kernel.h>
 
 #include <sbhnddma.h>
-#include <osl.h>
 #include <wlc_phy_int.h>
 #include <wlc_phytbl_n.h>
 

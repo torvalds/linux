@@ -17,7 +17,6 @@
 #include <linux/types.h>
 #include <bcmdefs.h>
 #include <linux/netdevice.h>
-#include <osl.h>
 #include <bcmsdh.h>
 
 #ifdef BCMEMBEDIMAGE

@@ -22,7 +22,6 @@
 #include <linux/etherdevice.h>
 
 #include <proto/802.11.h>
-#include <osl.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>
 #include <bcmwifi.h>

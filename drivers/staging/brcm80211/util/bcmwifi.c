@@ -15,7 +15,6 @@
  */
 #include <linux/ctype.h>
 #include <linux/kernel.h>
-#include <osl.h>
 #include <bcmdefs.h>
 #include <bcmutils.h>
 #include <bcmwifi.h>

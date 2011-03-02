@@ -19,7 +19,6 @@
 #include <linux/netdevice.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>
-#include <osl.h>
 #include <bcmutils.h>
 #include <hndsoc.h>
 #include <siutils.h>

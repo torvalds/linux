@@ -17,7 +17,6 @@
 #include <linux/types.h>
 #include <linux/netdevice.h>
 #include <bcmdefs.h>
-#include <osl.h>
 
 #include <bcmutils.h>
 #include <bcmcdc.h>

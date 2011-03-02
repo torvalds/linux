@@ -27,7 +27,6 @@
 #include <net/mac80211.h>
 
 #include <proto/802.11.h>
-#include <osl.h>
 #include <bcmdefs.h>
 #include <bcmwifi.h>
 #include <bcmutils.h>
@@ -729,7 +728,6 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 			    uint bustype, void *btparam, uint irq)
 {
 	struct wl_info *wl;
-	struct osl_info *osh;
 	int unit, err;
 
 	unsigned long base_addr;
@@ -744,15 +742,11 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 		return NULL;
 	}
 
-	osh = osl_attach(btparam, bustype);
-	ASSERT(osh);
-
 	/* allocate private info */
 	hw = pci_get_drvdata(btparam);	/* btparam == pdev */
 	wl = hw->priv;
 	ASSERT(wl);
 
-	wl->osh = osh;
 	atomic_set(&wl->callbacks, 0);
 
 	/* setup the bottom half handler */
@@ -1397,9 +1391,6 @@ static void wl_free(struct wl_info *wl)
 		iounmap((void *)wl->regsva);
 	}
 	wl->regsva = NULL;
-
-
-	osl_detach(wl->osh);
 }
 
 /*

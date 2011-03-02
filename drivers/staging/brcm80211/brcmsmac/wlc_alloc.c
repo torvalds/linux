@@ -16,7 +16,6 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 
-#include <osl.h>
 #include <bcmdefs.h>
 #include <bcmutils.h>
 #include <siutils.h>

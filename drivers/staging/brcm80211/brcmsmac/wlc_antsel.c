@@ -20,7 +20,6 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
-#include <osl.h>
 #include <bcmdefs.h>
 #include <bcmutils.h>
 #include <siutils.h>

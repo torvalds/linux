@@ -52,7 +52,6 @@ DHDOFILES = \
 	bcmsdh_linux.o	\
 	bcmsdh_sdmmc.o \
 	bcmsdh_sdmmc_linux.o \
-	linux_osl.o \
 	aiutils.o \
 	siutils.o \
 	sbutils.o \

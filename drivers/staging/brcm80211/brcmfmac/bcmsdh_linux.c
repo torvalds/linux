@@ -24,7 +24,6 @@
 #include <linux/pci.h>
 #include <linux/completion.h>
 
-#include <osl.h>
 #include <pcicfg.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>

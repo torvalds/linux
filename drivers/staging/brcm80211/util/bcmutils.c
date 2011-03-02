@@ -23,7 +23,6 @@
 #include <linux/sched.h>
 #include <bcmdefs.h>
 #include <stdarg.h>
-#include <osl.h>
 #include <bcmutils.h>
 #include <siutils.h>
 #include <bcmnvram.h>

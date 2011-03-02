@@ -17,7 +17,6 @@
 #include <linux/string.h>
 #include <bcmdefs.h>
 #include <linux/netdevice.h>
-#include <osl.h>
 #include <bcmutils.h>
 #include <dngl_stats.h>
 #include <dhd.h>
