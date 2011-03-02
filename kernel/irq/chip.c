@@ -513,6 +513,10 @@ handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc)
 		mask_irq(desc);
 		goto out;
 	}
+
+	if (desc->istate & IRQS_ONESHOT)
+		mask_irq(desc);
+
 	preflow_handler(desc);
 	handle_irq_event(desc);
 
