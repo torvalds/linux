@@ -162,40 +162,6 @@ static void ixgbevf_unmap_and_free_tx_resource(struct ixgbevf_adapter *adapter,
 	/* tx_buffer_info must be completely set up in the transmit path */
 }
 
-static inline bool ixgbevf_check_tx_hang(struct ixgbevf_adapter *adapter,
-					 struct ixgbevf_ring *tx_ring,
-					 unsigned int eop)
-{
-	struct ixgbe_hw *hw = &adapter->hw;
-	u32 head, tail;
-
-	/* Detect a transmit hang in hardware, this serializes the
-	 * check with the clearing of time_stamp and movement of eop */
-	head = readl(hw->hw_addr + tx_ring->head);
-	tail = readl(hw->hw_addr + tx_ring->tail);
-	adapter->detect_tx_hung = false;
-	if ((head != tail) &&
-	    tx_ring->tx_buffer_info[eop].time_stamp &&
-	    time_after(jiffies, tx_ring->tx_buffer_info[eop].time_stamp + HZ)) {
-		/* detected Tx unit hang */
-		printk(KERN_ERR "Detected Tx Unit Hang\n"
-		       "  Tx Queue             <%d>\n"
-		       "  TDH, TDT             <%x>, <%x>\n"
-		       "  next_to_use          <%x>\n"
-		       "  next_to_clean        <%x>\n"
-		       "tx_buffer_info[next_to_clean]\n"
-		       "  time_stamp           <%lx>\n"
-		       "  jiffies              <%lx>\n",
-		       tx_ring->queue_index,
-		       head, tail,
-		       tx_ring->next_to_use, eop,
-		       tx_ring->tx_buffer_info[eop].time_stamp, jiffies);
-		return true;
-	}
-
-	return false;
-}
-
 #define IXGBE_MAX_TXD_PWR	14
 #define IXGBE_MAX_DATA_PER_TXD	(1 << IXGBE_MAX_TXD_PWR)
 
@@ -289,16 +255,6 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_adapter *adapter,
 			++adapter->restart_queue;
 		}
 #endif
-	}
-
-	if (adapter->detect_tx_hung) {
-		if (ixgbevf_check_tx_hang(adapter, tx_ring, i)) {
-			/* schedule immediate reset if we believe we hung */
-			printk(KERN_INFO
-			       "tx hang %d detected, resetting adapter\n",
-			       adapter->tx_timeout_count + 1);
-			ixgbevf_tx_timeout(adapter->netdev);
-		}
 	}
 
 	/* re-arm the interrupt */
@@ -2412,9 +2368,6 @@ static void ixgbevf_watchdog_task(struct work_struct *work)
 			       10 : 1);
 			netif_carrier_on(netdev);
 			netif_tx_wake_all_queues(netdev);
-		} else {
-			/* Force detection of hung controller */
-			adapter->detect_tx_hung = true;
 		}
 	} else {
 		adapter->link_up = false;
@@ -2429,9 +2382,6 @@ static void ixgbevf_watchdog_task(struct work_struct *work)
 	ixgbevf_update_stats(adapter);
 
 pf_has_reset:
-	/* Force detection of hung controller every watchdog period */
-	adapter->detect_tx_hung = true;
-
 	/* Reset the timer */
 	if (!test_bit(__IXGBEVF_DOWN, &adapter->state))
 		mod_timer(&adapter->watchdog_timer,
