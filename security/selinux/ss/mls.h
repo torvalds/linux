@@ -49,7 +49,8 @@ int mls_compute_sid(struct context *scontext,
 		    struct context *tcontext,
 		    u16 tclass,
 		    u32 specified,
-		    struct context *newcontext);
+		    struct context *newcontext,
+		    bool sock);
 
 int mls_setup_user_range(struct context *fromcon, struct user_datum *user,
 			 struct context *usercon);

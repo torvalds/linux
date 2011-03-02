@@ -201,6 +201,21 @@ static u16 unmap_class(u16 tclass)
 	return tclass;
 }
 
+/*
+ * Get kernel value for class from its policy value
+ */
+static u16 map_class(u16 pol_value)
+{
+	u16 i;
+
+	for (i = 1; i < current_mapping_size; i++) {
+		if (current_mapping[i].value == pol_value)
+			return i;
+	}
+
+	return pol_value;
+}
+
 static void map_decision(u16 tclass, struct av_decision *avd,
 			 int allow_unknown)
 {
@@ -1374,6 +1389,7 @@ static int security_compute_sid(u32 ssid,
 	struct avtab_node *node;
 	u16 tclass;
 	int rc = 0;
+	bool sock;
 
 	if (!ss_initialized) {
 		switch (orig_tclass) {
@@ -1391,10 +1407,13 @@ static int security_compute_sid(u32 ssid,
 
 	read_lock(&policy_rwlock);
 
-	if (kern)
+	if (kern) {
 		tclass = unmap_class(orig_tclass);
-	else
+		sock = security_is_socket_class(orig_tclass);
+	} else {
 		tclass = orig_tclass;
+		sock = security_is_socket_class(map_class(tclass));
+	}
 
 	scontext = sidtab_search(&sidtab, ssid);
 	if (!scontext) {
@@ -1425,7 +1444,7 @@ static int security_compute_sid(u32 ssid,
 	}
 
 	/* Set the role and type to default values. */
-	if (tclass == policydb.process_class) {
+	if ((tclass == policydb.process_class) || (sock == true)) {
 		/* Use the current role and type of process. */
 		newcontext.role = scontext->role;
 		newcontext.type = scontext->type;
@@ -1482,7 +1501,8 @@ static int security_compute_sid(u32 ssid,
 
 	/* Set the MLS attributes.
 	   This is done last because it may allocate memory. */
-	rc = mls_compute_sid(scontext, tcontext, tclass, specified, &newcontext);
+	rc = mls_compute_sid(scontext, tcontext, tclass, specified,
+			     &newcontext, sock);
 	if (rc)
 		goto out_unlock;
 
