@@ -9,6 +9,10 @@
 #include <mach/mx1.h>
 #include <mach/devices-common.h>
 
+extern const struct imx_imx_fb_data imx1_imx_fb_data __initconst;
+#define imx1_add_imx_fb(pdata) \
+    imx_add_imx_fb(&imx1_imx_fb_data, pdata)
+
 extern const struct imx_imx_i2c_data imx1_imx_i2c_data __initconst;
 #define imx1_add_imx_i2c(pdata)		\
 	imx_add_imx_i2c(&imx1_imx_i2c_data, pdata)

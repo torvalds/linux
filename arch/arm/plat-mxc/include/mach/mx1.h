@@ -89,7 +89,7 @@
 #define MX1_GPIO_INT_PORTA	11
 #define MX1_GPIO_INT_PORTB	12
 #define MX1_GPIO_INT_PORTC	13
-#define MX1_LCDC_INT		14
+#define MX1_INT_LCDC		14
 #define MX1_SIM_INT		15
 #define MX1_SIM_DATA_INT	16
 #define MX1_RTC_INT		17
