@@ -397,6 +397,9 @@ static void unhash_generic_stateid(struct nfs4_stateid *stp)
 
 static void free_generic_stateid(struct nfs4_stateid *stp)
 {
+	int oflag = nfs4_access_bmap_to_omode(stp);
+
+	nfs4_file_put_access(stp->st_file, oflag);
 	put_nfs4_file(stp->st_file);
 	kmem_cache_free(stateid_slab, stp);
 }
@@ -448,11 +451,8 @@ release_stateid_lockowners(struct nfs4_stateid *open_stp)
 
 static void release_open_stateid(struct nfs4_stateid *stp)
 {
-	int oflag = nfs4_access_bmap_to_omode(stp);
-
 	unhash_generic_stateid(stp);
 	release_stateid_lockowners(stp);
-	nfs4_file_put_access(stp->st_file, oflag);
 	free_generic_stateid(stp);
 }
 
@@ -3734,6 +3734,7 @@ alloc_init_lock_stateid(struct nfs4_stateowner *sop, struct nfs4_file *fp, struc
 	stp->st_stateid.si_stateownerid = sop->so_id;
 	stp->st_stateid.si_fileid = fp->fi_id;
 	stp->st_stateid.si_generation = 0;
+	stp->st_access_bmap = 0;
 	stp->st_deny_bmap = open_stp->st_deny_bmap;
 	stp->st_openstp = open_stp;
 
@@ -3746,6 +3747,17 @@ check_lock_length(u64 offset, u64 length)
 {
 	return ((length == 0)  || ((length != NFS4_MAX_UINT64) &&
 	     LOFF_OVERFLOW(offset, length)));
+}
+
+static void get_lock_access(struct nfs4_stateid *lock_stp, u32 access)
+{
+	struct nfs4_file *fp = lock_stp->st_file;
+	int oflag = nfs4_access_to_omode(access);
+
+	if (test_bit(access, &lock_stp->st_access_bmap))
+		return;
+	nfs4_file_get_access(fp, oflag);
+	__set_bit(access, &lock_stp->st_access_bmap);
 }
 
 /*
@@ -3845,18 +3857,16 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	switch (lock->lk_type) {
 		case NFS4_READ_LT:
 		case NFS4_READW_LT:
-			if (find_readable_file(lock_stp->st_file)) {
-				nfs4_get_vfs_file(rqstp, fp, &cstate->current_fh, NFS4_SHARE_ACCESS_READ);
-				filp = find_readable_file(lock_stp->st_file);
-			}
+			filp = find_readable_file(lock_stp->st_file);
+			if (filp)
+				get_lock_access(lock_stp, NFS4_SHARE_ACCESS_READ);
 			file_lock.fl_type = F_RDLCK;
 			break;
 		case NFS4_WRITE_LT:
 		case NFS4_WRITEW_LT:
-			if (find_writeable_file(lock_stp->st_file)) {
-				nfs4_get_vfs_file(rqstp, fp, &cstate->current_fh, NFS4_SHARE_ACCESS_WRITE);
-				filp = find_writeable_file(lock_stp->st_file);
-			}
+			filp = find_writeable_file(lock_stp->st_file);
+			if (filp)
+				get_lock_access(lock_stp, NFS4_SHARE_ACCESS_WRITE);
 			file_lock.fl_type = F_WRLCK;
 			break;
 		default:
