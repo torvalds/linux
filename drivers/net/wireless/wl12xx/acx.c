@@ -1361,7 +1361,8 @@ int wl1271_acx_set_ht_information(struct wl1271 *wl,
 	acx->ht_protection =
 		(u8)(ht_operation_mode & IEEE80211_HT_OP_MODE_PROTECTION);
 	acx->rifs_mode = 0;
-	acx->gf_protection = 0;
+	acx->gf_protection =
+		!!(ht_operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
 	acx->ht_tx_burst_limit = 0;
 	acx->dual_cts_protection = 0;
 
