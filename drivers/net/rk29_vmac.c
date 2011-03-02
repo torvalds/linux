@@ -44,12 +44,16 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/wakelock.h>
 
 #include <mach/iomux.h>
 #include <mach/gpio.h>
 #include <mach/cru.h>
 #include <mach/board.h>
+
 #include "rk29_vmac.h"
+
+static struct wake_lock idlelock; /* add by lyx @ 20110302 */
 
 /* Register access macros */
 #define vmac_writel(port, value, reg)	\
@@ -1020,6 +1024,9 @@ int vmac_open(struct net_device *dev)
 	struct phy_device *phydev;
 	unsigned int temp;
 	int err = 0;
+	struct clk *mac_clk = NULL;
+	struct clk *mac_parent = NULL;
+	struct clk *arm_clk = NULL;
 	struct rk29_vmac_platform_data *pdata = ap->pdev->dev.platform_data;
 
 	if (ap == NULL)
@@ -1028,7 +1035,13 @@ int vmac_open(struct net_device *dev)
 	ap->shutdown = 0;
 		
 	//set rmii ref clock 50MHz
-	clk_set_rate(clk_get(NULL, "mac_ref_div"), 50000000);
+	mac_clk = clk_get(NULL, "mac_ref_div");
+	arm_clk = clk_get(NULL, "arm_pll");
+	mac_parent = clk_get_parent(mac_clk);
+	if (arm_clk && mac_parent && (arm_clk == mac_parent))
+		wake_lock(&idlelock);
+	
+	clk_set_rate(mac_clk, 50000000);
 	clk_enable(clk_get(NULL,"mii_rx"));
 	clk_enable(clk_get(NULL,"mii_tx"));
 	clk_enable(clk_get(NULL,"hclk_mac"));
@@ -1102,7 +1115,10 @@ err_free_irq:
 	free_irq(dev->irq, dev);
 err_free_buffers:
 	free_buffers(dev);
-err_out:
+err_out:	
+	if (arm_clk && mac_parent && (arm_clk == mac_parent))
+		wake_unlock(&idlelock);
+
 	return err;
 }
 
@@ -1110,6 +1126,9 @@ int vmac_close(struct net_device *dev)
 {
 	struct vmac_priv *ap = netdev_priv(dev);
 	unsigned int temp;
+	struct clk *mac_clk = NULL;
+	struct clk *arm_clk = NULL;
+	struct clk *mac_parent = NULL;
 	struct rk29_vmac_platform_data *pdata = ap->pdev->dev.platform_data;
 
 	netif_stop_queue(dev);
@@ -1140,16 +1159,23 @@ int vmac_close(struct net_device *dev)
 
 	free_buffers(dev);
 
-	//set rmii ref clock 50MHz
+	//phy power off
+	if (pdata && pdata->rmii_power_control)
+		pdata->rmii_power_control(0);
+
+	//clock close
+	mac_clk = clk_get(NULL, "mac_ref_div");
+	mac_parent = clk_get_parent(mac_clk);	
+	arm_clk = clk_get(NULL, "arm_pll");
+
+	if (arm_clk && mac_parent && (arm_clk == mac_parent))
+		wake_unlock(&idlelock);
+	
 	clk_disable(clk_get(NULL,"mii_rx"));
 	clk_disable(clk_get(NULL,"mii_tx"));
 	clk_disable(clk_get(NULL,"hclk_mac"));
 	clk_disable(clk_get(NULL,"mac_ref"));
 
-	//phy power off
-	if (pdata && pdata->rmii_power_control)
-		pdata->rmii_power_control(0);
-	
 	return 0;
 }
 
@@ -1255,7 +1281,7 @@ static void create_multicast_filter(struct net_device *dev,
 	char *addrs;
 	struct netdev_hw_addr_list *list = &dev->dev_addrs;
 	
-	printk("-----------------func %s-------------------\n", __func__);
+	//printk("-----------------func %s-------------------\n", __func__);
 
 	WARN_ON(dev->mc_count == 0);
 	WARN_ON(dev->flags & IFF_ALLMULTI);
@@ -1302,7 +1328,7 @@ static void vmac_set_multicast_list(struct net_device *dev)
 	unsigned long flags, bitmask[2];
 	int promisc, reg;
 
-	printk("-----------------func %s-------------------\n", __func__);
+	//printk("-----------------func %s-------------------\n", __func__);
 
 	spin_lock_irqsave(&ap->lock, flags);
 
@@ -1458,6 +1484,8 @@ static int __devinit vmac_probe(struct platform_device *pdev)
 	    dev->irq, dev->dev_addr);
 	platform_set_drvdata(pdev, dev);
 
+	wake_lock_init(&idlelock, WAKE_LOCK_IDLE, "vmac");
+
 	//config rk29 vmac as rmii, 100MHz 
 	if (pdata && pdata->vmac_register_set)
 		pdata->vmac_register_set();
@@ -1483,6 +1511,8 @@ static int __devexit vmac_remove(struct platform_device *pdev)
 	struct vmac_priv *ap;
 	struct resource *res;
 	struct rk29_vmac_platform_data *pdata = pdev->dev.platform_data;
+
+	wake_lock_destroy(&idlelock);
 
 	//power gpio deinit, phy power off
 	if (pdata && pdata->rmii_io_deinit)
