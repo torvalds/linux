@@ -267,9 +267,8 @@ static int wlc_iovar_rangecheck(struct wlc_info *wlc, u32 val,
 static u8 wlc_local_constraint_qdbm(struct wlc_info *wlc);
 
 /* send and receive */
-static struct wlc_txq_info *wlc_txq_alloc(struct wlc_info *wlc,
-					  struct osl_info *osh);
-static void wlc_txq_free(struct wlc_info *wlc, struct osl_info *osh,
+static struct wlc_txq_info *wlc_txq_alloc(struct wlc_info *wlc);
+static void wlc_txq_free(struct wlc_info *wlc,
 			 struct wlc_txq_info *qi);
 static void wlc_txflowcontrol_signal(struct wlc_info *wlc,
 				     struct wlc_txq_info *qi,
@@ -282,7 +281,7 @@ static void wlc_compute_ofdm_plcp(ratespec_t rate, uint length, u8 *plcp);
 static void wlc_compute_mimo_plcp(ratespec_t rate, uint length, u8 *plcp);
 static u16 wlc_compute_frame_dur(struct wlc_info *wlc, ratespec_t rate,
 				    u8 preamble_type, uint next_frag_len);
-static void wlc_recvctl(struct wlc_info *wlc, struct osl_info *osh,
+static void wlc_recvctl(struct wlc_info *wlc,
 			d11rxhdr_t *rxh, struct sk_buff *p);
 static uint wlc_calc_frame_len(struct wlc_info *wlc, ratespec_t rate,
 			       u8 preamble_type, uint dur);
@@ -327,11 +326,8 @@ void wlc_get_rcmta(struct wlc_info *wlc, int idx, u8 *addr)
 {
 	d11regs_t *regs = wlc->regs;
 	u32 v32;
-	struct osl_info *osh;
 
 	WL_TRACE("wl%d: %s\n", WLCWLUNIT(wlc), __func__);
-
-	osh = wlc->osh;
 
 	W_REG(&regs->objaddr, (OBJADDR_RCMTA_SEL | (idx * 2)));
 	(void)R_REG(&regs->objaddr);
@@ -1935,7 +1931,7 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	 */
 
 	/* allocate our initial queue */
-	qi = wlc_txq_alloc(wlc, osh);
+	qi = wlc_txq_alloc(wlc);
 	if (qi == NULL) {
 		WL_ERROR("wl%d: %s: failed to malloc tx queue\n",
 			 unit, __func__);
@@ -2189,9 +2185,8 @@ uint wlc_detach(struct wlc_info *wlc)
 	/* Detach from iovar manager */
 	wlc_module_unregister(wlc->pub, "wlc_iovars", wlc);
 
-	while (wlc->tx_queues != NULL) {
-		wlc_txq_free(wlc, wlc->osh, wlc->tx_queues);
-	}
+	while (wlc->tx_queues != NULL)
+		wlc_txq_free(wlc, wlc->tx_queues);
 
 	/*
 	 * consistency check: wlc_module_register/wlc_module_unregister calls
@@ -3081,7 +3076,6 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 	uint band;
 	rw_reg_t *r;
 	wlc_bsscfg_t *bsscfg;
-	struct osl_info *osh;
 	wlc_bss_info_t *current_bss;
 
 	/* update bsscfg pointer */
@@ -3121,7 +3115,6 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 
 	bcmerror = 0;
 	regs = wlc->regs;
-	osh = wlc->osh;
 
 	/* A few commands don't need any arguments; all the others do. */
 	switch (cmd) {
@@ -5729,7 +5722,6 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	struct ieee80211_hdr *h;
 	d11txh_t *txh;
 	u8 *plcp, plcp_fallback[D11_PHY_HDR_LEN];
-	struct osl_info *osh;
 	int len, phylen, rts_phylen;
 	u16 frameid, mch, phyctl, xfts, mainrates;
 	u16 seq = 0, mcl = 0, status = 0;
@@ -5763,8 +5755,6 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	frameid = 0;
 
 	ASSERT(queue < NFIFO);
-
-	osh = wlc->osh;
 
 	/* locate 802.11 MAC header */
 	h = (struct ieee80211_hdr *)(p->data);
@@ -6574,7 +6564,6 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 	d11txh_t *txh;
 	struct scb *scb = NULL;
 	bool free_pdu;
-	struct osl_info *osh;
 	int tx_rts, tx_frame_count, tx_rts_count;
 	uint totlen, supr_status;
 	bool lastframe;
@@ -6601,7 +6590,6 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 		return false;
 	}
 
-	osh = wlc->osh;
 	queue = txs->frameid & TXFID_QUEUE_MASK;
 	ASSERT(queue < NFIFO);
 	if (queue >= NFIFO) {
@@ -6724,7 +6712,7 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
  fatal:
 	ASSERT(0);
 	if (p)
-		pkt_buf_free_skb(osh, p, true);
+		pkt_buf_free_skb(wlc->osh, p, true);
 
 	return true;
 
@@ -6961,8 +6949,7 @@ prep_mac80211_status(struct wlc_info *wlc, d11rxhdr_t *rxh, struct sk_buff *p,
 }
 
 static void
-wlc_recvctl(struct wlc_info *wlc, struct osl_info *osh, d11rxhdr_t *rxh,
-	    struct sk_buff *p)
+wlc_recvctl(struct wlc_info *wlc, d11rxhdr_t *rxh, struct sk_buff *p)
 {
 	int len_mpdu;
 	struct ieee80211_rx_status rx_status;
@@ -6992,7 +6979,7 @@ wlc_recvctl(struct wlc_info *wlc, struct osl_info *osh, d11rxhdr_t *rxh,
 	ieee80211_rx_irqsafe(wlc->pub->ieee_hw, p);
 
 	wlc->pub->_cnt->ieee_rx++;
-	osh->pktalloced--;
+	wlc->osh->pktalloced--;
 	return;
 }
 
@@ -7022,13 +7009,10 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 {
 	d11rxhdr_t *rxh;
 	struct ieee80211_hdr *h;
-	struct osl_info *osh;
 	uint len;
 	bool is_amsdu;
 
 	WL_TRACE("wl%d: wlc_recv\n", wlc->pub->unit);
-
-	osh = wlc->osh;
 
 	/* frame starts with rxhdr */
 	rxh = (d11rxhdr_t *) (p->data);
@@ -7108,11 +7092,11 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 		goto toss;
 	}
 
-	wlc_recvctl(wlc, osh, rxh, p);
+	wlc_recvctl(wlc, rxh, p);
 	return;
 
  toss:
-	pkt_buf_free_skb(osh, p, false);
+	pkt_buf_free_skb(wlc->osh, p, false);
 }
 
 /* calculate frame duration for Mixed-mode L-SIG spoofing, return
@@ -7739,9 +7723,6 @@ void wlc_bss_update_beacon(struct wlc_info *wlc, wlc_bsscfg_t *cfg)
 		u16 bcn[BCN_TMPL_LEN / 2];
 		u32 both_valid = MCMD_BCN0VLD | MCMD_BCN1VLD;
 		d11regs_t *regs = wlc->regs;
-		struct osl_info *osh = NULL;
-
-		osh = wlc->osh;
 
 		/* Check if both templates are in use, if so sched. an interrupt
 		 *      that will call back into this routine
@@ -7861,13 +7842,10 @@ wlc_bss_update_probe_resp(struct wlc_info *wlc, wlc_bsscfg_t *cfg, bool suspend)
 /* prepares pdu for transmission. returns BCM error codes */
 int wlc_prep_pdu(struct wlc_info *wlc, struct sk_buff *pdu, uint *fifop)
 {
-	struct osl_info *osh;
 	uint fifo;
 	d11txh_t *txh;
 	struct ieee80211_hdr *h;
 	struct scb *scb;
-
-	osh = wlc->osh;
 
 	ASSERT(pdu);
 	txh = (d11txh_t *) (pdu->data);
@@ -8439,8 +8417,7 @@ wlc_txflowcontrol_signal(struct wlc_info *wlc, struct wlc_txq_info *qi, bool on,
 	}
 }
 
-static struct wlc_txq_info *wlc_txq_alloc(struct wlc_info *wlc,
-					  struct osl_info *osh)
+static struct wlc_txq_info *wlc_txq_alloc(struct wlc_info *wlc)
 {
 	struct wlc_txq_info *qi, *p;
 
@@ -8469,8 +8446,7 @@ static struct wlc_txq_info *wlc_txq_alloc(struct wlc_info *wlc,
 	return qi;
 }
 
-static void wlc_txq_free(struct wlc_info *wlc, struct osl_info *osh,
-			 struct wlc_txq_info *qi)
+static void wlc_txq_free(struct wlc_info *wlc, struct wlc_txq_info *qi)
 {
 	struct wlc_txq_info *p;
 

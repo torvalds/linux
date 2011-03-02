@@ -1350,7 +1350,6 @@ module_exit(wl_module_exit);
 static void wl_free(struct wl_info *wl)
 {
 	struct wl_timer *t, *next;
-	struct osl_info *osh;
 
 	ASSERT(wl);
 	/* free ucode data */
@@ -1389,8 +1388,6 @@ static void wl_free(struct wl_info *wl)
 		kfree(t);
 	}
 
-	osh = wl->osh;
-
 	/*
 	 * unregister_netdev() calls get_stats() which may read chip registers
 	 * so we cannot unmap the chip registers until after calling unregister_netdev() .
@@ -1402,7 +1399,7 @@ static void wl_free(struct wl_info *wl)
 	wl->regsva = NULL;
 
 
-	osl_detach(osh);
+	osl_detach(wl->osh);
 }
 
 /*
