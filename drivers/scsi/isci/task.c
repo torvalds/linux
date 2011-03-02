@@ -475,14 +475,8 @@ int isci_task_execute_tmf(
 	}
 
 	/* Allocate the TMF timeout timer. */
-	tmf->timeout_timer = isci_timer_create(
-		&isci_host->timer_list_struct,
-		isci_host,
-		request,
-		isci_tmf_timeout_cb
-		);
-
 	spin_lock_irqsave(&isci_host->scic_lock, flags);
+	tmf->timeout_timer = isci_timer_create(isci_host, request, isci_tmf_timeout_cb);
 
 	/* Start the timer. */
 	if (tmf->timeout_timer)
@@ -557,9 +551,7 @@ int isci_task_execute_tmf(
 
 	/* Clean up the timer if needed. */
 	if (tmf->timeout_timer) {
-		isci_timer_stop(tmf->timeout_timer);
-		isci_timer_free(&isci_host->timer_list_struct,
-				tmf->timeout_timer);
+		isci_del_timer(isci_host, tmf->timeout_timer);
 		tmf->timeout_timer = NULL;
 	}
 
@@ -1468,10 +1460,7 @@ void isci_task_request_complete(
 
 	/* Manage the timer if it is still running. */
 	if (tmf->timeout_timer) {
-
-		isci_timer_stop(tmf->timeout_timer);
-		isci_timer_free(&isci_host->timer_list_struct,
-				tmf->timeout_timer);
+		isci_del_timer(isci_host, tmf->timeout_timer);
 		tmf->timeout_timer = NULL;
 	}
 

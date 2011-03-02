@@ -75,35 +75,23 @@
  *    whenever the timer expires.
  * @controller: This parameter specifies the controller with which this timer
  *    is to be associated.
- * @cookie: This parameter specifies a piece of information that the user must
- *    retain.  This cookie is to be supplied by the user anytime a timeout
- *    occurs for the created timer.
+ * @cb_param: opaque callback parameter
  *
  * This method returns a handle to a timer object created by the user.  The
  * handle will be utilized for all further interactions relating to this timer.
  */
-void *isci_event_timer_create(
-	struct scic_sds_controller *controller,
-	void (*timer_callback)(void *),
-	void *cookie)
+void *isci_event_timer_create(struct scic_sds_controller *scic,
+			      void (*timer_callback)(void *),
+			      void *cb_param)
 {
-	struct isci_host *isci_host;
-	struct isci_timer *timer = NULL;
+	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_timer *itimer;
 
-	isci_host = (struct isci_host *)sci_object_get_association(controller);
+	itimer = isci_timer_create(ihost, cb_param, timer_callback);
 
-	dev_dbg(&isci_host->pdev->dev,
-		"%s: isci_host = %p",
-		__func__, isci_host);
+	dev_dbg(&ihost->pdev->dev, "%s: timer = %p\n", __func__, itimer);
 
-	timer = isci_timer_create(&isci_host->timer_list_struct,
-				  isci_host,
-				  cookie,
-				  timer_callback);
-
-	dev_dbg(&isci_host->pdev->dev, "%s: timer = %p\n", __func__, timer);
-
-	return (void *)timer;
+	return itimer;
 }
 
 
@@ -146,20 +134,25 @@ void isci_event_timer_start(
  * @timer: This parameter specifies the timer to be stopped.
  *
  */
-void isci_event_timer_stop(
-	struct scic_sds_controller *controller,
-	void *timer)
+void isci_event_timer_stop(struct scic_sds_controller *controller, void *timer)
 {
-	struct isci_host *isci_host;
-
-	isci_host =
-		(struct isci_host *)sci_object_get_association(controller);
+	struct isci_host *isci_host = sci_object_get_association(controller);
 
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: isci_host = %p, timer = %p\n",
 		__func__, isci_host, timer);
 
 	isci_timer_stop((struct isci_timer *)timer);
+}
+
+void isci_event_timer_destroy(struct scic_sds_controller *scic, void *timer)
+{
+        struct isci_host *ihost = sci_object_get_association(scic);
+
+	dev_dbg(&ihost->pdev->dev, "%s: ihost = %p, timer = %p\n",
+			__func__, ihost, timer);
+
+	isci_del_timer(ihost, timer);
 }
 
 /**

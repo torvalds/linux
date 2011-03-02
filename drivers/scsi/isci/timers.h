@@ -59,68 +59,30 @@
 #include <linux/timer.h>
 #include <linux/types.h>
 
-/***************************************************
- * isci_timer
- ***************************************************
- */
-/**
- * struct isci_timer_list - This class is the container for all isci_timer
- *    objects
- *
- *
- */
-struct isci_timer_list {
-
-	struct list_head timers;
-};
+#define SCI_MAX_TIMER_COUNT 25
 
 /**
  * struct isci_timer - This class represents the timer object used by SCIC. It
- *    wraps the Linux timer_list object.
- *
+ *    wraps the Linux timer_list object, and (TODO) should be removed in favor
+ *    of a delayed-workqueue style interface with simpler locking
  *
  */
 struct isci_timer {
 	int used;
 	int stopped;
-	int restart;
-	int timeout_value;
-	void *cookie;
+	void *cb_param;
 	void (*timer_callback)(void *);
 	struct list_head node;
 	struct timer_list timer;
-	struct isci_timer_list *parent;
 	struct isci_host *isci_host;
 };
 
-#define to_isci_timer(t)	\
-	container_of(t, struct isci_timer, timer);
-
-int isci_timer_list_construct(
-	struct isci_timer_list *isci_timer_list,
-	int timer_list_size);
-
-
-int isci_timer_list_destroy(
-	struct isci_timer_list *isci_timer_list);
-
-struct isci_timer *isci_timer_create(
-	struct isci_timer_list *isci_timer_list,
-	struct isci_host *isci_host,
-	void *cookie,
-	void (*timer_callback)(void *));
-
-void isci_timer_free(
-	struct isci_timer_list *isci_timer_list,
-	struct isci_timer *isci_timer);
-
-void isci_timer_start(
-	struct isci_timer *isci_timer,
-	unsigned long timeout);
-
-void isci_timer_stop(
-	struct isci_timer *isci_timer);
-
+int isci_timer_list_construct(struct isci_host *ihost);
+void isci_timer_list_destroy(struct isci_host *ihost);
+struct isci_timer *isci_timer_create(struct isci_host *ihost, void *cb_param,
+				     void (*timer_callback)(void *));
+void isci_del_timer(struct isci_host *ihost, struct isci_timer *itimer);
+void isci_timer_start(struct isci_timer *isci_timer, unsigned long timeout);
+void isci_timer_stop(struct isci_timer *isci_timer);
 
 #endif /* !defined (_SCI_TIMER_H_) */
-

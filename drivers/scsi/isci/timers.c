@@ -56,52 +56,39 @@
 #include "isci.h"
 #include "timers.h"
 
-
 /**
  * isci_timer_list_construct() - This method contrucst the SCI Timer List
  *    object used by the SCI Module class. The construction process involves
  *    creating isci_timer objects and adding them to the SCI Timer List
  *    object's list member. The number of isci_timer objects is determined by
  *    the timer_list_size parameter.
- * @isci_timer_list: This parameter points to the SCI Timer List object being
- *    constructed. The calling routine is responsible for allocating the memory
- *    for isci_timer_list and initializing the timer list_head member of
- *    isci_timer_list.
- * @timer_list_size: This parameter specifies the number of isci_timer objects
- *    contained by the SCI Timer List. which this timer is to be associated.
+ * @ihost: container of the timer list
  *
  * This method returns an error code indicating sucess or failure. The user
  * should check for possible memory allocation error return otherwise, a zero
  * indicates success.
  */
-int isci_timer_list_construct(
-	struct isci_timer_list *isci_timer_list,
-	int timer_list_size)
+int isci_timer_list_construct(struct isci_host *ihost)
 {
-	struct isci_timer *isci_timer;
-	int i;
-	int err = 0;
+	struct isci_timer *itimer;
+	int i, err = 0;
 
+	INIT_LIST_HEAD(&ihost->timers);
+	for (i = 0; i < SCI_MAX_TIMER_COUNT; i++) {
+		itimer = devm_kzalloc(&ihost->pdev->dev, sizeof(*itimer), GFP_KERNEL);
 
-	for (i = 0; i < timer_list_size; i++) {
-
-		isci_timer = kzalloc(sizeof(*isci_timer), GFP_KERNEL);
-
-		if (!isci_timer) {
-
+		if (!itimer) {
 			err = -ENOMEM;
 			break;
 		}
-		isci_timer->used = 0;
-		isci_timer->stopped = 1;
-		isci_timer->parent = isci_timer_list;
-		list_add(&isci_timer->node, &isci_timer_list->timers);
+		init_timer(&itimer->timer);
+		itimer->used = 0;
+		itimer->stopped = 1;
+		list_add(&itimer->node, &ihost->timers);
 	}
 
-	return 0;
-
+	return err;
 }
-
 
 /**
  * isci_timer_list_destroy() - This method destroys the SCI Timer List object
@@ -109,43 +96,19 @@ int isci_timer_list_construct(
  *    memory allocated for isci_timer objects on the SCI Timer List object's
  *    timers list_head member. If any isci_timer objects are mark as "in use",
  *    they are not freed and the function returns an error code of -EBUSY.
- * @isci_timer_list: This parameter points to the SCI Timer List object being
- *    destroyed.
- *
- * This method returns an error code indicating sucess or failure. The user
- * should check for possible -EBUSY error return, in the event of one or more
- * isci_timers still "in use", otherwise, a zero indicates success.
+ * @ihost: container of the list to be destroyed
  */
-int isci_timer_list_destroy(
-	struct isci_timer_list *isci_timer_list)
+void isci_timer_list_destroy(struct isci_host *ihost)
 {
-	struct isci_timer *timer, *tmp;
+	struct isci_timer *timer;
+	LIST_HEAD(list);
 
-	list_for_each_entry_safe(timer, tmp, &isci_timer_list->timers, node) {
-		isci_timer_free(isci_timer_list, timer);
-		list_del(&timer->node);
-		kfree(timer);
-	}
-	return 0;
-}
+	spin_lock_irq(&ihost->scic_lock);
+	list_splice_init(&ihost->timers, &list);
+	spin_unlock_irq(&ihost->scic_lock);
 
-
-
-static void isci_timer_restart(struct isci_timer *isci_timer)
-{
-	struct timer_list *timer =
-		&isci_timer->timer;
-	unsigned long timeout;
-
-	dev_dbg(&isci_timer->isci_host->pdev->dev,
-		"%s: isci_timer = %p\n", __func__, isci_timer);
-
-	isci_timer->restart = 0;
-	isci_timer->stopped = 0;
-	timeout = isci_timer->timeout_value;
-	timeout = (timeout * HZ) / 1000;
-	timeout = timeout ? timeout : 1;
-	mod_timer(timer, jiffies + timeout);
+	list_for_each_entry(timer, &list, node)
+		del_timer_sync(&timer->timer);
 }
 
 /**
@@ -169,7 +132,7 @@ static void isci_timer_restart(struct isci_timer *isci_timer)
 static void timer_function(unsigned long data)
 {
 
-	struct isci_timer *timer     = (struct isci_timer *)data;
+	struct isci_timer *timer = (struct isci_timer *)data;
 	struct isci_host *isci_host = timer->isci_host;
 	unsigned long flags;
 
@@ -185,89 +148,66 @@ static void timer_function(unsigned long data)
 
 	if (!timer->stopped) {
 		timer->stopped = 1;
-		timer->timer_callback(timer->cookie);
-
-		if (timer->restart)
-			isci_timer_restart(timer);
+		timer->timer_callback(timer->cb_param);
 	}
 
 	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
 }
 
 
-struct isci_timer *isci_timer_create(
-	struct isci_timer_list *isci_timer_list,
-	struct isci_host *isci_host,
-	void *cookie,
-	void (*timer_callback)(void *))
+struct isci_timer *isci_timer_create(struct isci_host *ihost, void *cb_param,
+				     void (*timer_callback)(void *))
 {
-
 	struct timer_list *timer;
 	struct isci_timer *isci_timer;
-	struct list_head *timer_list =
-		&isci_timer_list->timers;
-	unsigned long flags;
+	struct list_head *list = &ihost->timers;
 
-	spin_lock_irqsave(&isci_host->scic_lock, flags);
+	WARN_ONCE(!spin_is_locked(&ihost->scic_lock),
+		  "%s: unlocked!\n", __func__);
 
-	if (list_empty(timer_list)) {
-		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+	if (WARN_ONCE(list_empty(list), "%s: timer pool empty\n", __func__))
 		return NULL;
-	}
 
-	isci_timer = list_entry(timer_list->next, struct isci_timer, node);
+	isci_timer = list_entry(list->next, struct isci_timer, node);
 
-	if (isci_timer->used) {
-		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
-		return NULL;
-	}
 	isci_timer->used = 1;
 	isci_timer->stopped = 1;
-	list_move_tail(&isci_timer->node, timer_list);
-
-	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+	/* FIXME: what!? we recycle the timer, rather than take it off
+	 * the free list?
+	 */
+	list_move_tail(&isci_timer->node, list);
 
 	timer = &isci_timer->timer;
 	timer->data = (unsigned long)isci_timer;
 	timer->function = timer_function;
-	isci_timer->cookie = cookie;
+	isci_timer->cb_param = cb_param;
 	isci_timer->timer_callback = timer_callback;
-	isci_timer->isci_host = isci_host;
+	isci_timer->isci_host = ihost;
 
-	dev_dbg(&isci_host->pdev->dev,
+	dev_dbg(&ihost->pdev->dev,
 		"%s: isci_timer = %p\n", __func__, isci_timer);
 
 	return isci_timer;
 }
 
-/**
- * isci_timer_free() - This method frees the isci_timer, marking it "free to
+/* isci_del_timer() - This method frees the isci_timer, marking it "free to
  *    use", then places its back at the head of the timers list for the SCI
  *    Timer List object specified.
- * @isci_timer_list: This parameter points to the SCI Timer List from which the
- *    timer is reserved.
- * @isci_timer: This parameter specifies the timer to be freed.
- *
  */
-void isci_timer_free(
-	struct isci_timer_list *isci_timer_list,
-	struct isci_timer *isci_timer)
+void isci_del_timer(struct isci_host *ihost, struct isci_timer *isci_timer)
 {
-	struct list_head *timer_list = &isci_timer_list->timers;
+	struct list_head *list = &ihost->timers;
+
+	WARN_ONCE(!spin_is_locked(&ihost->scic_lock),
+		  "%s unlocked!\n", __func__);
 
 	dev_dbg(&isci_timer->isci_host->pdev->dev,
 		"%s: isci_timer = %p\n", __func__, isci_timer);
 
-	if (list_empty(timer_list))
-		return;
-
 	isci_timer->used = 0;
-	list_move(&isci_timer->node, timer_list);
-
-	if (!isci_timer->stopped) {
-		del_timer(&isci_timer->timer);
-		isci_timer->stopped = 1;
-	}
+	list_move(&isci_timer->node, list);
+	del_timer(&isci_timer->timer);
+	isci_timer->stopped = 1;
 }
 
 /**
@@ -278,26 +218,15 @@ void isci_timer_free(
  *    the associated callback function will be called.
  *
  */
-void isci_timer_start(
-	struct isci_timer *isci_timer,
-	unsigned long timeout)
+void isci_timer_start(struct isci_timer *isci_timer, unsigned long tmo)
 {
 	struct timer_list *timer = &isci_timer->timer;
 
 	dev_dbg(&isci_timer->isci_host->pdev->dev,
 		"%s: isci_timer = %p\n", __func__, isci_timer);
 
-	isci_timer->timeout_value = timeout;
-	init_timer(timer);
-	timeout = (timeout * HZ) / 1000;
-	timeout = timeout ? timeout : 1;
-
-	timer->expires = jiffies + timeout;
-	timer->data = (unsigned long)isci_timer;
-	timer->function = timer_function;
 	isci_timer->stopped = 0;
-	isci_timer->restart = 0;
-	add_timer(timer);
+	mod_timer(timer, jiffies + msecs_to_jiffies(tmo));
 }
 
 /**
@@ -310,10 +239,6 @@ void isci_timer_stop(struct isci_timer *isci_timer)
 	dev_dbg(&isci_timer->isci_host->pdev->dev,
 		"%s: isci_timer = %p\n", __func__, isci_timer);
 
-	if (isci_timer->stopped)
-		return;
-
 	isci_timer->stopped = 1;
-
 	del_timer(&isci_timer->timer);
 }

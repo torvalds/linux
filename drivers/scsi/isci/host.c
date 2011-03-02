@@ -349,9 +349,14 @@ void isci_host_deinit(struct isci_host *ihost)
 	}
 
 	set_bit(IHOST_STOP_PENDING, &ihost->flags);
+
+	spin_lock_irq(&ihost->scic_lock);
 	scic_controller_stop(scic, SCIC_CONTROLLER_STOP_TIMEOUT);
+	spin_unlock_irq(&ihost->scic_lock);
+
 	wait_for_stop(ihost);
 	scic_controller_reset(scic);
+	isci_timer_list_destroy(ihost);
 }
 
 static void __iomem *scu_base(struct isci_host *isci_host)
@@ -370,8 +375,6 @@ static void __iomem *smu_base(struct isci_host *isci_host)
 	return pcim_iomap_table(pdev)[SCI_SMU_BAR * 2] + SCI_SMU_BAR_SIZE * id;
 }
 
-#define SCI_MAX_TIMER_COUNT 25
-
 int isci_host_init(struct isci_host *isci_host)
 {
 	int err = 0;
@@ -382,11 +385,7 @@ int isci_host_init(struct isci_host *isci_host)
 	union scic_oem_parameters scic_oem_params;
 	union scic_user_parameters scic_user_params;
 
-	INIT_LIST_HEAD(&isci_host->timer_list_struct.timers);
-	isci_timer_list_construct(
-		&isci_host->timer_list_struct,
-		SCI_MAX_TIMER_COUNT
-		);
+	isci_timer_list_construct(isci_host);
 
 	controller = scic_controller_alloc(&isci_host->pdev->dev);
 
@@ -473,15 +472,6 @@ int isci_host_init(struct isci_host *isci_host)
 		}
 	}
 
-	status = scic_controller_initialize(isci_host->core_controller);
-	if (status != SCI_SUCCESS) {
-		dev_warn(&isci_host->pdev->dev,
-			 "%s: scic_controller_initialize failed -"
-			 " status = 0x%x\n",
-			 __func__, status);
-		return -ENODEV;
-	}
-
 	tasklet_init(&isci_host->completion_tasklet,
 		     isci_host_completion_routine, (unsigned long)isci_host);
 
@@ -490,9 +480,19 @@ int isci_host_init(struct isci_host *isci_host)
 	INIT_LIST_HEAD(&isci_host->requests_to_complete);
 	INIT_LIST_HEAD(&isci_host->requests_to_abort);
 
+	spin_lock_irq(&isci_host->scic_lock);
+	status = scic_controller_initialize(isci_host->core_controller);
+	spin_unlock_irq(&isci_host->scic_lock);
+	if (status != SCI_SUCCESS) {
+		dev_warn(&isci_host->pdev->dev,
+			 "%s: scic_controller_initialize failed -"
+			 " status = 0x%x\n",
+			 __func__, status);
+		return -ENODEV;
+	}
+
 	/* populate mdl with dma memory. scu_mdl_allocate_coherent() */
 	err = isci_host_mdl_allocate_coherent(isci_host);
-
 	if (err)
 		return err;
 

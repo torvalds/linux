@@ -87,7 +87,7 @@ struct isci_host {
 	union scic_oem_parameters oem_parameters;
 
 	int id; /* unique within a given pci device */
-	struct isci_timer_list timer_list_struct;
+	struct list_head timers;
 	void *core_ctrl_memory;
 	struct dma_pool *dma_pool;
 	unsigned int dma_pool_alloc_size;

@@ -111,6 +111,9 @@ void isci_event_timer_stop(
 	struct scic_sds_controller *controller,
 	void *timer);
 
+
+void isci_event_timer_destroy(struct scic_sds_controller *scic, void *timer);
+
 /**
  * isci_event_controller_start_complete() - This user callback will inform the
  *    user that the controller has finished the start process.
