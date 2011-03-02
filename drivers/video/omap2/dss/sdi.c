@@ -30,7 +30,6 @@
 #include "dss.h"
 
 static struct {
-	bool skip_init;
 	bool update_enabled;
 	struct regulator *vdds_sdi_reg;
 } sdi;
@@ -68,9 +67,7 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err1;
 
-	/* In case of skip_init sdi_init has already enabled the clocks */
-	if (!sdi.skip_init)
-		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
+	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 
 	sdi_basic_init(dssdev);
 
@@ -80,14 +77,8 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	dispc_set_pol_freq(dssdev->manager->id, dssdev->panel.config,
 			dssdev->panel.acbi, dssdev->panel.acb);
 
-	if (!sdi.skip_init) {
-		r = dss_calc_clock_div(1, t->pixel_clock * 1000,
-				&dss_cinfo, &dispc_cinfo);
-	} else {
-		r = dss_get_clock_div(&dss_cinfo);
-		r = dispc_get_clock_div(dssdev->manager->id, &dispc_cinfo);
-	}
-
+	r = dss_calc_clock_div(1, t->pixel_clock * 1000,
+			&dss_cinfo, &dispc_cinfo);
 	if (r)
 		goto err2;
 
@@ -116,17 +107,13 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err2;
 
-	if (!sdi.skip_init) {
-		dss_sdi_init(dssdev->phy.sdi.datapairs);
-		r = dss_sdi_enable();
-		if (r)
-			goto err1;
-		mdelay(2);
-	}
+	dss_sdi_init(dssdev->phy.sdi.datapairs);
+	r = dss_sdi_enable();
+	if (r)
+		goto err1;
+	mdelay(2);
 
 	dssdev->manager->enable(dssdev->manager);
-
-	sdi.skip_init = 0;
 
 	return 0;
 err2:
@@ -173,17 +160,8 @@ int sdi_init_display(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-int sdi_init(bool skip_init)
+int sdi_init(void)
 {
-	/* we store this for first display enable, then clear it */
-	sdi.skip_init = skip_init;
-
-	/*
-	 * Enable clocks already here, otherwise there would be a toggle
-	 * of them until sdi_display_enable is called.
-	 */
-	if (skip_init)
-		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 	return 0;
 }
 

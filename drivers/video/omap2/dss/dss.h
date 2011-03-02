@@ -251,11 +251,11 @@ int dss_calc_clock_div(bool is_tft, unsigned long req_pck,
 
 /* SDI */
 #ifdef CONFIG_OMAP2_DSS_SDI
-int sdi_init(bool skip_init);
+int sdi_init(void);
 void sdi_exit(void);
 int sdi_init_display(struct omap_dss_device *display);
 #else
-static inline int sdi_init(bool skip_init)
+static inline int sdi_init(void)
 {
 	return 0;
 }

@@ -559,7 +559,7 @@ void dss_set_dac_pwrdn_bgz(bool enable)
 	REG_FLD_MOD(DSS_CONTROL, enable, 5, 5);	/* DAC Power-Down Control */
 }
 
-static int dss_init(bool skip_init)
+static int dss_init(void)
 {
 	int r;
 	u32 rev;
@@ -578,22 +578,20 @@ static int dss_init(bool skip_init)
 		goto fail0;
 	}
 
-	if (!skip_init) {
-		/* disable LCD and DIGIT output. This seems to fix the synclost
-		 * problem that we get, if the bootloader starts the DSS and
-		 * the kernel resets it */
-		omap_writel(omap_readl(0x48050440) & ~0x3, 0x48050440);
+	/* disable LCD and DIGIT output. This seems to fix the synclost
+	 * problem that we get, if the bootloader starts the DSS and
+	 * the kernel resets it */
+	omap_writel(omap_readl(0x48050440) & ~0x3, 0x48050440);
 
-		/* We need to wait here a bit, otherwise we sometimes start to
-		 * get synclost errors, and after that only power cycle will
-		 * restore DSS functionality. I have no idea why this happens.
-		 * And we have to wait _before_ resetting the DSS, but after
-		 * enabling clocks.
-		 */
-		msleep(50);
+	/* We need to wait here a bit, otherwise we sometimes start to
+	 * get synclost errors, and after that only power cycle will
+	 * restore DSS functionality. I have no idea why this happens.
+	 * And we have to wait _before_ resetting the DSS, but after
+	 * enabling clocks.
+	 */
+	msleep(50);
 
-		_omap_dss_reset();
-	}
+	_omap_dss_reset();
 
 	/* autoidle */
 	REG_FLD_MOD(DSS_SYSCONFIG, 1, 0, 0);
@@ -954,7 +952,6 @@ void dss_debug_dump_clocks(struct seq_file *s)
 static int omap_dsshw_probe(struct platform_device *pdev)
 {
 	int r;
-	int skip_init = 0;
 
 	dss.pdev = pdev;
 
@@ -967,13 +964,7 @@ static int omap_dsshw_probe(struct platform_device *pdev)
 	dss.ctx_id = dss_get_ctx_id();
 	DSSDBG("initial ctx id %u\n", dss.ctx_id);
 
-#ifdef CONFIG_FB_OMAP_BOOTLOADER_INIT
-	/* DISPC_CONTROL */
-	if (omap_readl(0x48050440) & 1)	/* LCD enabled? */
-		skip_init = 1;
-#endif
-
-	r = dss_init(skip_init);
+	r = dss_init();
 	if (r) {
 		DSSERR("Failed to initialize DSS\n");
 		goto err_dss;

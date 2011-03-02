@@ -166,7 +166,6 @@ static inline void dss_uninitialize_debugfs(void)
 static int omap_dss_probe(struct platform_device *pdev)
 {
 	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
-	int skip_init = 0;
 	int r;
 	int i;
 
@@ -210,13 +209,8 @@ static int omap_dss_probe(struct platform_device *pdev)
 		goto err_venc;
 	}
 
-#ifdef CONFIG_FB_OMAP_BOOTLOADER_INIT
-	/* DISPC_CONTROL */
-	if (omap_readl(0x48050440) & 1)	/* LCD enabled? */
-		skip_init = 1;
-#endif
 	if (cpu_is_omap34xx()) {
-		r = sdi_init(skip_init);
+		r = sdi_init();
 		if (r) {
 			DSSERR("Failed to initialize SDI\n");
 			goto err_sdi;
