@@ -198,7 +198,9 @@ acpi_setup_gpe_for_wake(acpi_handle wake_device,
 	acpi_status status = AE_BAD_PARAMETER;
 	struct acpi_gpe_event_info *gpe_event_info;
 	struct acpi_namespace_node *device_node;
+	struct acpi_gpe_notify_object *notify_object;
 	acpi_cpu_flags flags;
+	u8 gpe_dispatch_mask;
 
 	ACPI_FUNCTION_TRACE(acpi_setup_gpe_for_wake);
 
@@ -221,27 +223,49 @@ acpi_setup_gpe_for_wake(acpi_handle wake_device,
 		goto unlock_and_exit;
 	}
 
+	if (wake_device == ACPI_ROOT_OBJECT) {
+		goto out;
+	}
+
 	/*
 	 * If there is no method or handler for this GPE, then the
 	 * wake_device will be notified whenever this GPE fires (aka
 	 * "implicit notify") Note: The GPE is assumed to be
 	 * level-triggered (for windows compatibility).
 	 */
-	if (((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
-	      ACPI_GPE_DISPATCH_NONE) && (wake_device != ACPI_ROOT_OBJECT)) {
-
-		/* Validate wake_device is of type Device */
-
-		device_node = ACPI_CAST_PTR(struct acpi_namespace_node,
-					    wake_device);
-		if (device_node->type != ACPI_TYPE_DEVICE) {
-			goto unlock_and_exit;
-		}
-		gpe_event_info->flags = (ACPI_GPE_DISPATCH_NOTIFY |
-					 ACPI_GPE_LEVEL_TRIGGERED);
-		gpe_event_info->dispatch.device_node = device_node;
+	gpe_dispatch_mask = gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK;
+	if (gpe_dispatch_mask != ACPI_GPE_DISPATCH_NONE
+	    && gpe_dispatch_mask != ACPI_GPE_DISPATCH_NOTIFY) {
+		goto out;
 	}
 
+	/* Validate wake_device is of type Device */
+
+	device_node = ACPI_CAST_PTR(struct acpi_namespace_node, wake_device);
+	if (device_node->type != ACPI_TYPE_DEVICE) {
+		goto unlock_and_exit;
+	}
+
+	if (gpe_dispatch_mask == ACPI_GPE_DISPATCH_NONE) {
+		gpe_event_info->flags = (ACPI_GPE_DISPATCH_NOTIFY |
+					 ACPI_GPE_LEVEL_TRIGGERED);
+		gpe_event_info->dispatch.device.node = device_node;
+		gpe_event_info->dispatch.device.next = NULL;
+	} else {
+		/* There are multiple devices to notify implicitly. */
+
+		notify_object = ACPI_ALLOCATE_ZEROED(sizeof(*notify_object));
+		if (!notify_object) {
+			status = AE_NO_MEMORY;
+			goto unlock_and_exit;
+		}
+
+		notify_object->node = device_node;
+		notify_object->next = gpe_event_info->dispatch.device.next;
+		gpe_event_info->dispatch.device.next = notify_object;
+	}
+
+ out:
 	gpe_event_info->flags |= ACPI_GPE_CAN_WAKE;
 	status = AE_OK;
 
