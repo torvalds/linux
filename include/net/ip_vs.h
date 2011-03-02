@@ -494,7 +494,7 @@ struct ip_vs_conn_param {
  *	IP_VS structure allocated for each dynamically scheduled connection
  */
 struct ip_vs_conn {
-	struct list_head        c_list;         /* hashed list heads */
+	struct hlist_node	c_list;         /* hashed list heads */
 #ifdef CONFIG_NET_NS
 	struct net              *net;           /* Name space */
 #endif
@@ -1019,6 +1019,8 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 extern int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 			struct ip_vs_proto_data *pd);
 
+extern void ip_vs_scheduler_err(struct ip_vs_service *svc, const char *msg);
+
 
 /*
  *      IPVS control data and functions (from ip_vs_ctl.c)
@@ -1240,6 +1242,20 @@ static inline void ip_vs_conn_drop_conntrack(struct ip_vs_conn *cp)
 }
 /* CONFIG_IP_VS_NFCT */
 #endif
+
+static inline unsigned int
+ip_vs_dest_conn_overhead(struct ip_vs_dest *dest)
+{
+	/*
+	 * We think the overhead of processing active connections is 256
+	 * times higher than that of inactive connections in average. (This
+	 * 256 times might not be accurate, we will change it later) We
+	 * use the following formula to estimate the overhead now:
+	 *		  dest->activeconns*256 + dest->inactconns
+	 */
+	return (atomic_read(&dest->activeconns) << 8) +
+		atomic_read(&dest->inactconns);
+}
 
 #endif /* __KERNEL__ */
 

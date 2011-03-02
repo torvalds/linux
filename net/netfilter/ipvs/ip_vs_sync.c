@@ -374,8 +374,8 @@ get_curr_sync_buff(struct netns_ipvs *ipvs, unsigned long time)
 	struct ip_vs_sync_buff *sb;
 
 	spin_lock_bh(&ipvs->sync_buff_lock);
-	if (ipvs->sync_buff && (time == 0 ||
-	    time_before(jiffies - ipvs->sync_buff->firstuse, time))) {
+	if (ipvs->sync_buff &&
+	    time_after_eq(jiffies - ipvs->sync_buff->firstuse, time)) {
 		sb = ipvs->sync_buff;
 		ipvs->sync_buff = NULL;
 	} else

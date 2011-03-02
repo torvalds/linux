@@ -178,8 +178,7 @@ static inline struct ip_vs_dest *ip_vs_dest_set_min(struct ip_vs_dest_set *set)
 
 		if ((atomic_read(&least->weight) > 0)
 		    && (least->flags & IP_VS_DEST_F_AVAILABLE)) {
-			loh = atomic_read(&least->activeconns) * 50
-				+ atomic_read(&least->inactconns);
+			loh = ip_vs_dest_conn_overhead(least);
 			goto nextstage;
 		}
 	}
@@ -192,8 +191,7 @@ static inline struct ip_vs_dest *ip_vs_dest_set_min(struct ip_vs_dest_set *set)
 		if (dest->flags & IP_VS_DEST_F_OVERLOAD)
 			continue;
 
-		doh = atomic_read(&dest->activeconns) * 50
-			+ atomic_read(&dest->inactconns);
+		doh = ip_vs_dest_conn_overhead(dest);
 		if ((loh * atomic_read(&dest->weight) >
 		     doh * atomic_read(&least->weight))
 		    && (dest->flags & IP_VS_DEST_F_AVAILABLE)) {
@@ -228,8 +226,7 @@ static inline struct ip_vs_dest *ip_vs_dest_set_max(struct ip_vs_dest_set *set)
 	list_for_each_entry(e, &set->list, list) {
 		most = e->dest;
 		if (atomic_read(&most->weight) > 0) {
-			moh = atomic_read(&most->activeconns) * 50
-				+ atomic_read(&most->inactconns);
+			moh = ip_vs_dest_conn_overhead(most);
 			goto nextstage;
 		}
 	}
@@ -239,8 +236,7 @@ static inline struct ip_vs_dest *ip_vs_dest_set_max(struct ip_vs_dest_set *set)
   nextstage:
 	list_for_each_entry(e, &set->list, list) {
 		dest = e->dest;
-		doh = atomic_read(&dest->activeconns) * 50
-			+ atomic_read(&dest->inactconns);
+		doh = ip_vs_dest_conn_overhead(dest);
 		/* moh/mw < doh/dw ==> moh*dw < doh*mw, where mw,dw>0 */
 		if ((moh * atomic_read(&dest->weight) <
 		     doh * atomic_read(&most->weight))
@@ -563,12 +559,7 @@ __ip_vs_lblcr_schedule(struct ip_vs_service *svc)
 	int loh, doh;
 
 	/*
-	 * We think the overhead of processing active connections is fifty
-	 * times higher than that of inactive connections in average. (This
-	 * fifty times might not be accurate, we will change it later.) We
-	 * use the following formula to estimate the overhead:
-	 *                dest->activeconns*50 + dest->inactconns
-	 * and the load:
+	 * We use the following formula to estimate the load:
 	 *                (dest overhead) / dest->weight
 	 *
 	 * Remember -- no floats in kernel mode!!!
@@ -585,8 +576,7 @@ __ip_vs_lblcr_schedule(struct ip_vs_service *svc)
 
 		if (atomic_read(&dest->weight) > 0) {
 			least = dest;
-			loh = atomic_read(&least->activeconns) * 50
-				+ atomic_read(&least->inactconns);
+			loh = ip_vs_dest_conn_overhead(least);
 			goto nextstage;
 		}
 	}
@@ -600,8 +590,7 @@ __ip_vs_lblcr_schedule(struct ip_vs_service *svc)
 		if (dest->flags & IP_VS_DEST_F_OVERLOAD)
 			continue;
 
-		doh = atomic_read(&dest->activeconns) * 50
-			+ atomic_read(&dest->inactconns);
+		doh = ip_vs_dest_conn_overhead(dest);
 		if (loh * atomic_read(&dest->weight) >
 		    doh * atomic_read(&least->weight)) {
 			least = dest;
@@ -692,7 +681,7 @@ ip_vs_lblcr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 		/* The cache entry is invalid, time to schedule */
 		dest = __ip_vs_lblcr_schedule(svc);
 		if (!dest) {
-			IP_VS_ERR_RL("LBLCR: no destination available\n");
+			ip_vs_scheduler_err(svc, "no destination available");
 			read_unlock(&svc->sched_lock);
 			return NULL;
 		}
