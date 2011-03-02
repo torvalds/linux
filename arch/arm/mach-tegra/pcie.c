@@ -682,6 +682,15 @@ static void tegra_pcie_xclk_clamp(bool clamp)
 	pmc_writel(reg, PMC_SCRATCH42);
 }
 
+static void tegra_pcie_power_off(void)
+{
+	tegra_periph_reset_assert(tegra_pcie.pcie_xclk);
+	tegra_periph_reset_assert(tegra_pcie.afi_clk);
+	tegra_periph_reset_assert(tegra_pcie.pex_clk);
+
+	tegra_pcie_xclk_clamp(true);
+}
+
 static int tegra_pcie_power_on(void)
 {
 	tegra_pcie_xclk_clamp(true);
@@ -691,15 +700,6 @@ static int tegra_pcie_power_on(void)
 	clk_enable(tegra_pcie.afi_clk);
 	clk_enable(tegra_pcie.pex_clk);
 	return clk_enable(tegra_pcie.pll_e);
-}
-
-static void tegra_pcie_power_off(void)
-{
-	tegra_periph_reset_assert(tegra_pcie.pcie_xclk);
-	tegra_periph_reset_assert(tegra_pcie.afi_clk);
-	tegra_periph_reset_assert(tegra_pcie.pex_clk);
-
-	tegra_pcie_xclk_clamp(true);
 }
 
 static int tegra_pcie_clocks_get(void)
