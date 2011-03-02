@@ -328,9 +328,9 @@ extern void si_epa_4313war(si_t *sih);
 char *si_getnvramflvar(si_t *sih, const char *name);
 
 /* AMBA Interconnect exported externs */
-extern si_t *ai_attach(uint pcidev, struct osl_info *osh, void *regs,
-		       uint bustype, void *sdh, char **vars, uint *varsz);
-extern si_t *ai_kattach(struct osl_info *osh);
+extern si_t *ai_attach(uint pcidev, void *regs, uint bustype,
+		       void *sdh, char **vars, uint *varsz);
+extern si_t *ai_kattach(void);
 extern void ai_scan(si_t *sih, void *regs, uint devid);
 
 extern uint ai_flag(si_t *sih);

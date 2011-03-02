@@ -241,7 +241,6 @@ struct wlc_pub {
 	uint mac80211_state;
 	uint unit;		/* device instance number */
 	uint corerev;		/* core revision */
-	struct osl_info *osh;		/* pointer to os handle */
 	si_t *sih;		/* SB handle (cookie for siutils calls) */
 	char *vars;		/* "environment" name=value */
 	bool up;		/* interface up and running */
@@ -480,8 +479,8 @@ extern const u8 wme_fifo2ac[];
 
 /* common functions for every port */
 extern void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit,
-			bool piomode, struct osl_info *osh, void *regsva,
-			uint bustype, void *btparam, uint *perr);
+			bool piomode, void *regsva, uint bustype, void *btparam,
+			uint *perr);
 extern uint wlc_detach(struct wlc_info *wlc);
 extern int wlc_up(struct wlc_info *wlc);
 extern uint wlc_down(struct wlc_info *wlc);

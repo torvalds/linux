@@ -531,8 +531,6 @@ static bool wlc_bmac_attach_dmapio(struct wlc_info *wlc, uint j, bool wme)
 	if (wlc_hw->di[0] == 0) {	/* Init FIFOs */
 		uint addrwidth;
 		int dma_attach_err = 0;
-		struct osl_info *osh = wlc->osh;
-
 		/* Find out the DMA addressing capability and let OS know
 		 * All the channels within one DMA core have 'common-minimum' same
 		 * capability
@@ -553,7 +551,7 @@ static bool wlc_bmac_attach_dmapio(struct wlc_info *wlc, uint j, bool wme)
 		 */
 		ASSERT(TX_AC_BK_FIFO == 0);
 		ASSERT(RX_FIFO == 0);
-		wlc_hw->di[0] = dma_attach(osh, name, wlc_hw->sih,
+		wlc_hw->di[0] = dma_attach(name, wlc_hw->sih,
 					   (wme ? DMAREG(wlc_hw, DMA_TX, 0) :
 					    NULL), DMAREG(wlc_hw, DMA_RX, 0),
 					   (wme ? tune->ntxd : 0), tune->nrxd,
@@ -569,7 +567,7 @@ static bool wlc_bmac_attach_dmapio(struct wlc_info *wlc, uint j, bool wme)
 		 */
 		ASSERT(TX_AC_BE_FIFO == 1);
 		ASSERT(TX_DATA_FIFO == 1);
-		wlc_hw->di[1] = dma_attach(osh, name, wlc_hw->sih,
+		wlc_hw->di[1] = dma_attach(name, wlc_hw->sih,
 					   DMAREG(wlc_hw, DMA_TX, 1), NULL,
 					   tune->ntxd, 0, 0, -1, 0, 0,
 					   &wl_msg_level);
@@ -581,7 +579,7 @@ static bool wlc_bmac_attach_dmapio(struct wlc_info *wlc, uint j, bool wme)
 		 * RX: UNUSED
 		 */
 		ASSERT(TX_AC_VI_FIFO == 2);
-		wlc_hw->di[2] = dma_attach(osh, name, wlc_hw->sih,
+		wlc_hw->di[2] = dma_attach(name, wlc_hw->sih,
 					   DMAREG(wlc_hw, DMA_TX, 2), NULL,
 					   tune->ntxd, 0, 0, -1, 0, 0,
 					   &wl_msg_level);
@@ -593,7 +591,7 @@ static bool wlc_bmac_attach_dmapio(struct wlc_info *wlc, uint j, bool wme)
 		 */
 		ASSERT(TX_AC_VO_FIFO == 3);
 		ASSERT(TX_CTL_FIFO == 3);
-		wlc_hw->di[3] = dma_attach(osh, name, wlc_hw->sih,
+		wlc_hw->di[3] = dma_attach(name, wlc_hw->sih,
 					   DMAREG(wlc_hw, DMA_TX, 3),
 					   NULL, tune->ntxd, 0, 0, -1,
 					   0, 0, &wl_msg_level);

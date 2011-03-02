@@ -56,7 +56,6 @@ struct bcmsdh_hc {
 #else
 	struct pci_dev *dev;	/* pci device handle */
 #endif				/* BCMPLATFORM_BUS */
-	struct osl_info *osh;
 	void *regs;		/* SDIO Host Controller address */
 	bcmsdh_info_t *sdh;	/* SDIO Host Controller handle */
 	void *ch;
@@ -142,7 +141,6 @@ static
 #endif				/* BCMLXSDMMC */
 int bcmsdh_probe(struct device *dev)
 {
-	struct osl_info *osh = NULL;
 	bcmsdh_hc_t *sdhc = NULL;
 	unsigned long regs = 0;
 	bcmsdh_info_t *sdh = NULL;
@@ -177,28 +175,21 @@ int bcmsdh_probe(struct device *dev)
 	}
 #endif				/* defined(OOB_INTR_ONLY) */
 	/* allocate SDIO Host Controller state info */
-	osh = osl_attach(dev, PCI_BUS);
-	if (!osh) {
-		SDLX_MSG(("%s: osl_attach failed\n", __func__));
-		goto err;
-	}
 	sdhc = kzalloc(sizeof(bcmsdh_hc_t), GFP_ATOMIC);
 	if (!sdhc) {
 		SDLX_MSG(("%s: out of memory\n", __func__));
 		goto err;
 	}
-	sdhc->osh = osh;
-
 	sdhc->dev = (void *)dev;
 
 #ifdef BCMLXSDMMC
-	sdh = bcmsdh_attach(osh, (void *)0, (void **)&regs, irq);
+	sdh = bcmsdh_attach((void *)0, (void **)&regs, irq);
 	if (!sdh) {
 		SDLX_MSG(("%s: bcmsdh_attach failed\n", __func__));
 		goto err;
 	}
 #else
-	sdh = bcmsdh_attach(osh, (void *)r->start, (void **)&regs, irq);
+	sdh = bcmsdh_attach((void *)r->start, (void **)&regs, irq);
 	if (!sdh) {
 		SDLX_MSG(("%s: bcmsdh_attach failed\n", __func__));
 		goto err;
@@ -220,7 +211,7 @@ int bcmsdh_probe(struct device *dev)
 
 	/* try to attach to the target device */
 	sdhc->ch = drvinfo.attach((vendevid >> 16), (vendevid & 0xFFFF),
-				0, 0, 0, 0, (void *)regs, NULL, sdh);
+				  0, 0, 0, 0, (void *)regs, sdh);
 	if (!sdhc->ch) {
 		SDLX_MSG(("%s: device attach failed\n", __func__));
 		goto err;
@@ -235,8 +226,7 @@ err:
 			bcmsdh_detach(sdhc->sdh);
 		kfree(sdhc);
 	}
-	if (osh)
-		osl_detach(osh);
+
 	return -ENODEV;
 }
 
@@ -246,7 +236,6 @@ static
 int bcmsdh_remove(struct device *dev)
 {
 	bcmsdh_hc_t *sdhc, *prev;
-	struct osl_info *osh;
 
 	sdhc = sdhcinfo;
 	drvinfo.detach(sdhc->ch);
@@ -269,9 +258,7 @@ int bcmsdh_remove(struct device *dev)
 	}
 
 	/* release SDIO Host Controller info */
-	osh = sdhc->osh;
 	kfree(sdhc);
-	osl_detach(osh);
 
 #if !defined(BCMLXSDMMC)
 	dev_set_drvdata(dev, NULL);

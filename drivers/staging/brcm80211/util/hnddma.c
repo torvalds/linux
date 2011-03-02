@@ -80,7 +80,6 @@ typedef struct dma_info {
 	uint *msg_level;	/* message level pointer */
 	char name[MAXNAMEL];	/* callers name for diag msgs */
 
-	struct osl_info *osh;	/* os handle */
 	void *pbus;		/* bus handle */
 
 	bool dma64;		/* this dma engine is operating in 64-bit mode */
@@ -276,7 +275,7 @@ const di_fcn_t dma64proc = {
 	39
 };
 
-struct hnddma_pub *dma_attach(struct osl_info *osh, char *name, si_t *sih,
+struct hnddma_pub *dma_attach(char *name, si_t *sih,
 		     void *dmaregstx, void *dmaregsrx, uint ntxd,
 		     uint nrxd, uint rxbufsize, int rxextheadroom,
 		     uint nrxpost, uint rxoffset, uint *msg_level)
@@ -324,9 +323,9 @@ struct hnddma_pub *dma_attach(struct osl_info *osh, char *name, si_t *sih,
 	di->hnddma.di_fn->ctrlflags(&di->hnddma, DMA_CTRL_ROC | DMA_CTRL_PEN,
 				    0);
 
-	DMA_TRACE(("%s: dma_attach: %s osh %p flags 0x%x ntxd %d nrxd %d "
+	DMA_TRACE(("%s: dma_attach: %s flags 0x%x ntxd %d nrxd %d "
 		   "rxbufsize %d rxextheadroom %d nrxpost %d rxoffset %d "
-		   "dmaregstx %p dmaregsrx %p\n", name, "DMA64", osh,
+		   "dmaregstx %p dmaregsrx %p\n", name, "DMA64",
 		   di->hnddma.dmactrlflags, ntxd, nrxd, rxbufsize,
 		   rxextheadroom, nrxpost, rxoffset, dmaregstx, dmaregsrx));
 
@@ -334,7 +333,6 @@ struct hnddma_pub *dma_attach(struct osl_info *osh, char *name, si_t *sih,
 	strncpy(di->name, name, MAXNAMEL);
 	di->name[MAXNAMEL - 1] = '\0';
 
-	di->osh = osh;
 	di->pbus = ((struct si_info *)sih)->pbus;
 
 	/* save tunables */

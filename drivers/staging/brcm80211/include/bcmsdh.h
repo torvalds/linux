@@ -49,8 +49,7 @@ typedef void (*bcmsdh_cb_fn_t) (void *);
  *    implementation may maintain a single "default" handle (e.g. the first or
  *    most recent one) to enable single-instance implementations to pass NULL.
  */
-extern bcmsdh_info_t *bcmsdh_attach(struct osl_info *osh, void *cfghdl,
-				    void **regsva, uint irq);
+extern bcmsdh_info_t *bcmsdh_attach(void *cfghdl, void **regsva, uint irq);
 
 /* Detach - freeup resources allocated in attach */
 extern int bcmsdh_detach(void *sdh);
@@ -183,8 +182,7 @@ extern void *bcmsdh_get_sdioh(bcmsdh_info_t *sdh);
 typedef struct {
 	/* attach to device */
 	void *(*attach) (u16 vend_id, u16 dev_id, u16 bus, u16 slot,
-			 u16 func, uint bustype, void *regsva,
-			 struct osl_info *osh, void *param);
+			 u16 func, uint bustype, void *regsva, void *param);
 	/* detach from device */
 	void (*detach) (void *ch);
 } bcmsdh_driver_t;

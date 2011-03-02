@@ -790,7 +790,7 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 	}
 
 	/* common load-time initialization */
-	wl->wlc = wlc_attach((void *)wl, vendor, device, unit, wl->piomode, osh,
+	wl->wlc = wlc_attach((void *)wl, vendor, device, unit, wl->piomode,
 			     wl->regsva, wl->bcm_bustype, btparam, &err);
 	wl_release_fw(wl);
 	if (!wl->wlc) {

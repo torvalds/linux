@@ -1858,16 +1858,6 @@ static int dhd_open(struct net_device *net)
 	return ret;
 }
 
-struct osl_info *dhd_osl_attach(void *pdev, uint bustype)
-{
-	return osl_attach(pdev, bustype);
-}
-
-void dhd_osl_detach(struct osl_info *osh)
-{
-	osl_detach(osh);
-}
-
 int
 dhd_add_if(dhd_info_t *dhd, int ifidx, void *handle, char *name,
 	   u8 *mac_addr, u32 flags, u8 bssidx)
@@ -1921,8 +1911,7 @@ void dhd_del_if(dhd_info_t *dhd, int ifidx)
 	up(&dhd->sysioc_sem);
 }
 
-dhd_pub_t *dhd_attach(struct osl_info *osh, struct dhd_bus *bus,
-			uint bus_hdrlen)
+dhd_pub_t *dhd_attach(struct dhd_bus *bus, uint bus_hdrlen)
 {
 	dhd_info_t *dhd = NULL;
 	struct net_device *net;
@@ -1955,7 +1944,6 @@ dhd_pub_t *dhd_attach(struct osl_info *osh, struct dhd_bus *bus,
 	 * Save the dhd_info into the priv
 	 */
 	memcpy(netdev_priv(net), &dhd, sizeof(dhd));
-	dhd->pub.osh = osh;
 
 	/* Set network interface name if it was provided as module parameter */
 	if (iface_name[0]) {

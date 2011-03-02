@@ -118,8 +118,8 @@ extern void sdioh_sdmmc_devintr_off(sdioh_info_t *sd);
  */
 
 /* Register mapping routines */
-extern u32 *sdioh_sdmmc_reg_map(struct osl_info *osh, s32 addr, int size);
-extern void sdioh_sdmmc_reg_unmap(struct osl_info *osh, s32 addr, int size);
+extern u32 *sdioh_sdmmc_reg_map(s32 addr, int size);
+extern void sdioh_sdmmc_reg_unmap(s32 addr, int size);
 
 /* Interrupt (de)registration routines */
 extern int sdioh_sdmmc_register_irq(sdioh_info_t *sd, uint irq);

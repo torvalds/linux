@@ -52,7 +52,6 @@ enum dhd_bus_state {
 /* Common structure for module and instance linkage */
 typedef struct dhd_pub {
 	/* Linkage ponters */
-	struct osl_info *osh;		/* OSL handle */
 	struct dhd_bus *bus;	/* Bus module handle */
 	struct dhd_prot *prot;	/* Protocol module handle */
 	struct dhd_info *info;	/* Info module handle */
@@ -213,16 +212,12 @@ typedef struct dhd_if_event {
  * Exported from dhd OS modules (dhd_linux/dhd_ndis)
  */
 
-/* To allow osl_attach/detach calls from os-independent modules */
-struct osl_info *dhd_osl_attach(void *pdev, uint bustype);
-void dhd_osl_detach(struct osl_info *osh);
-
 /* Indication from bus module regarding presence/insertion of dongle.
  * Return dhd_pub_t pointer, used as handle to OS module in later calls.
  * Returned structure should have bus and prot pointers filled in.
  * bus_hdrlen specifies required headroom for bus module header.
  */
-extern dhd_pub_t *dhd_attach(struct osl_info *osh, struct dhd_bus *bus,
+extern dhd_pub_t *dhd_attach(struct dhd_bus *bus,
 				uint bus_hdrlen);
 extern int dhd_net_attach(dhd_pub_t *dhdp, int idx);
 

@@ -111,7 +111,7 @@ static int sdioh_sdmmc_card_enablefuncs(sdioh_info_t *sd)
 /*
  *	Public entry points & extern's
  */
-extern sdioh_info_t *sdioh_attach(struct osl_info *osh, void *bar0, uint irq)
+sdioh_info_t *sdioh_attach(void *bar0, uint irq)
 {
 	sdioh_info_t *sd;
 	int err_ret;
@@ -128,7 +128,6 @@ extern sdioh_info_t *sdioh_attach(struct osl_info *osh, void *bar0, uint irq)
 		sd_err(("sdioh_attach: out of memory\n"));
 		return NULL;
 	}
-	sd->osh = osh;
 	if (sdioh_sdmmc_osinit(sd) != 0) {
 		sd_err(("%s:sdioh_sdmmc_osinit() failed\n", __func__));
 		kfree(sd);

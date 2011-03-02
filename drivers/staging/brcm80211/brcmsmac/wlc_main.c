@@ -1722,8 +1722,7 @@ struct wlc_pub *wlc_pub(void *wlc)
  * The common driver entry routine. Error codes should be unique
  */
 void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
-		 struct osl_info *osh, void *regsva, uint bustype,
-		 void *btparam, uint *perr)
+		 void *regsva, uint bustype, void *btparam, uint *perr)
 {
 	struct wlc_info *wlc;
 	uint err = 0;
@@ -1772,7 +1771,6 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	wlc = (struct wlc_info *) wlc_attach_malloc(unit, &err, device);
 	if (wlc == NULL)
 		goto fail;
-	wlc->osh = osh;
 	pub = wlc->pub;
 
 #if defined(BCMDBG)
@@ -1783,7 +1781,6 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	wlc->core = wlc->corestate;
 	wlc->wl = wl;
 	pub->unit = unit;
-	pub->osh = osh;
 	wlc->btparam = btparam;
 	pub->_piomode = piomode;
 	wlc->bandinit_pending = false;

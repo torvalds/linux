@@ -46,7 +46,7 @@ typedef void (*sdioh_cb_fn_t) (void *);
  *  The handler shall be provided by all subsequent calls. No local cache
  *  cfghdl points to the starting address of pci device mapped memory
  */
-extern sdioh_info_t *sdioh_attach(struct osl_info *osh, void *cfghdl, uint irq);
+extern sdioh_info_t *sdioh_attach(void *cfghdl, uint irq);
 extern SDIOH_API_RC sdioh_detach(sdioh_info_t *si);
 extern SDIOH_API_RC sdioh_interrupt_register(sdioh_info_t *si,
 					     sdioh_cb_fn_t fn, void *argh);

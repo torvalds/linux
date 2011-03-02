@@ -488,7 +488,6 @@ struct wlc_txq_info {
  */
 struct wlc_info {
 	struct wlc_pub *pub;		/* pointer to wlc public state */
-	struct osl_info *osh;		/* pointer to os handle */
 	struct wl_info *wl;	/* pointer to os-specific private state */
 	d11regs_t *regs;	/* pointer to device registers */
 

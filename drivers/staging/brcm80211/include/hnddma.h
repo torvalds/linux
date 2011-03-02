@@ -148,8 +148,7 @@ struct hnddma_pub {
 	uint txnobuf;		/* tx out of dma descriptors */
 };
 
-extern struct hnddma_pub *dma_attach(struct osl_info *osh, char *name,
-			    si_t *sih,
+extern struct hnddma_pub *dma_attach(char *name, si_t *sih,
 			    void *dmaregstx, void *dmaregsrx, uint ntxd,
 			    uint nrxd, uint rxbufsize, int rxextheadroom,
 			    uint nrxpost, uint rxoffset, uint *msg_level);
