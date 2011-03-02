@@ -546,15 +546,18 @@ config I2C_PUV3
 
 config I2C_PXA
 	tristate "Intel PXA2XX I2C adapter"
-	depends on ARCH_PXA || ARCH_MMP
+	depends on ARCH_PXA || ARCH_MMP || (X86_32 && PCI && OF)
 	help
 	  If you have devices in the PXA I2C bus, say yes to this option.
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-pxa.
 
+config I2C_PXA_PCI
+	def_bool I2C_PXA && X86_32 && PCI && OF
+
 config I2C_PXA_SLAVE
 	bool "Intel PXA2XX I2C Slave comms support"
-	depends on I2C_PXA
+	depends on I2C_PXA && !X86_32
 	help
 	  Support I2C slave mode communications on the PXA I2C bus.  This
 	  is necessary for systems where the PXA may be a target on the

@@ -38,6 +38,13 @@
 
 #include <asm/irq.h>
 
+#ifndef CONFIG_HAVE_CLK
+#define clk_get(dev, id)	NULL
+#define clk_put(clk)		do { } while (0)
+#define clk_disable(clk)	do { } while (0)
+#define clk_enable(clk)		do { } while (0)
+#endif
+
 struct pxa_reg_layout {
 	u32 ibmr;
 	u32 idbr;
@@ -49,6 +56,7 @@ struct pxa_reg_layout {
 enum pxa_i2c_types {
 	REGS_PXA2XX,
 	REGS_PXA3XX,
+	REGS_CE4100,
 };
 
 /*
@@ -69,11 +77,19 @@ static struct pxa_reg_layout pxa_reg_layout[] = {
 		.isr =	0x18,
 		.isar =	0x20,
 	},
+	[REGS_CE4100] = {
+		.ibmr =	0x14,
+		.idbr =	0x0c,
+		.icr =	0x00,
+		.isr =	0x04,
+		/* no isar register */
+	},
 };
 
 static const struct platform_device_id i2c_pxa_id_table[] = {
 	{ "pxa2xx-i2c",		REGS_PXA2XX },
 	{ "pxa3xx-pwri2c",	REGS_PXA3XX },
+	{ "ce4100-i2c",		REGS_CE4100 },
 	{ },
 };
 MODULE_DEVICE_TABLE(platform, i2c_pxa_id_table);
@@ -442,7 +458,8 @@ static void i2c_pxa_reset(struct pxa_i2c *i2c)
 	writel(I2C_ISR_INIT, _ISR(i2c));
 	writel(readl(_ICR(i2c)) & ~ICR_UR, _ICR(i2c));
 
-	writel(i2c->slave_addr, _ISAR(i2c));
+	if (i2c->reg_isar)
+		writel(i2c->slave_addr, _ISAR(i2c));
 
 	/* set control register values */
 	writel(I2C_ICR_INIT | (i2c->fast_mode ? ICR_FM : 0), _ICR(i2c));
@@ -1074,7 +1091,8 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	i2c->reg_idbr = i2c->reg_base + pxa_reg_layout[i2c_type].idbr;
 	i2c->reg_icr = i2c->reg_base + pxa_reg_layout[i2c_type].icr;
 	i2c->reg_isr = i2c->reg_base + pxa_reg_layout[i2c_type].isr;
-	i2c->reg_isar = i2c->reg_base + pxa_reg_layout[i2c_type].isar;
+	if (i2c_type != REGS_CE4100)
+		i2c->reg_isar = i2c->reg_base + pxa_reg_layout[i2c_type].isar;
 
 	i2c->iobase = res->start;
 	i2c->iosize = resource_size(res);
@@ -1113,7 +1131,10 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	i2c->adap.algo_data = i2c;
 	i2c->adap.dev.parent = &dev->dev;
 
-	ret = i2c_add_numbered_adapter(&i2c->adap);
+	if (i2c_type == REGS_CE4100)
+		ret = i2c_add_adapter(&i2c->adap);
+	else
+		ret = i2c_add_numbered_adapter(&i2c->adap);
 	if (ret < 0) {
 		printk(KERN_INFO "I2C: Failed to add bus\n");
 		goto eadapt;
