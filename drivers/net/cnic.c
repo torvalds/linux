@@ -2914,26 +2914,35 @@ static void cnic_service_bnx2x_bh(unsigned long data)
 {
 	struct cnic_dev *dev = (struct cnic_dev *) data;
 	struct cnic_local *cp = dev->cnic_priv;
-	u32 status_idx;
+	u32 status_idx, new_status_idx;
 
 	if (unlikely(!test_bit(CNIC_F_CNIC_UP, &dev->flags)))
 		return;
 
-	status_idx = cnic_service_bnx2x_kcq(dev, &cp->kcq1);
+	while (1) {
+		status_idx = cnic_service_bnx2x_kcq(dev, &cp->kcq1);
 
-	CNIC_WR16(dev, cp->kcq1.io_addr, cp->kcq1.sw_prod_idx + MAX_KCQ_IDX);
+		CNIC_WR16(dev, cp->kcq1.io_addr,
+			  cp->kcq1.sw_prod_idx + MAX_KCQ_IDX);
 
-	if (BNX2X_CHIP_IS_E2(cp->chip_id)) {
-		status_idx = cnic_service_bnx2x_kcq(dev, &cp->kcq2);
+		if (!BNX2X_CHIP_IS_E2(cp->chip_id)) {
+			cnic_ack_bnx2x_int(dev, cp->bnx2x_igu_sb_id, USTORM_ID,
+					   status_idx, IGU_INT_ENABLE, 1);
+			break;
+		}
+
+		new_status_idx = cnic_service_bnx2x_kcq(dev, &cp->kcq2);
+
+		if (new_status_idx != status_idx)
+			continue;
 
 		CNIC_WR16(dev, cp->kcq2.io_addr, cp->kcq2.sw_prod_idx +
 			  MAX_KCQ_IDX);
 
 		cnic_ack_igu_sb(dev, cp->bnx2x_igu_sb_id, IGU_SEG_ACCESS_DEF,
 				status_idx, IGU_INT_ENABLE, 1);
-	} else {
-		cnic_ack_bnx2x_int(dev, cp->bnx2x_igu_sb_id, USTORM_ID,
-				   status_idx, IGU_INT_ENABLE, 1);
+
+		break;
 	}
 }
 
