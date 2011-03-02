@@ -130,7 +130,6 @@ void PSvEnablePowerSaving(void *hDeviceContext,
 
 	pDevice->bPWBitOn = TRUE;
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS:Power Saving Mode Enable... \n");
-	return;
 }
 
 /*
@@ -163,7 +162,6 @@ void PSvDisablePowerSaving(void *hDeviceContext)
 		PSbSendNullPacket(pDevice);
 
 	pDevice->bPWBitOn = FALSE;
-	return;
 }
 
 /*
@@ -255,13 +253,10 @@ void PSvSendPSPOLL(void *hDeviceContext)
 	pTxPacket->cbMPDULen = WLAN_HDR_ADDR2_LEN;
 	pTxPacket->cbPayloadLen = 0;
 
-	/* send the frame */
+	/* log failure if sending failed */
 	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet failed..\n");
-	} else {
-		/* DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet success..\n"); */
-	};
-	return;
+	}
 }
 
 /*
@@ -316,15 +311,12 @@ BOOL PSbSendNullPacket(void *hDeviceContext)
 	memcpy(pTxPacket->p80211Header->sA3.abyAddr3, pMgmt->abyCurrBSSID, WLAN_BSSID_LEN);
 	pTxPacket->cbMPDULen = WLAN_HDR_ADDR3_LEN;
 	pTxPacket->cbPayloadLen = 0;
-	/* send the frame */
+	/* log error if sending failed */
 	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet failed !\n");
 		return FALSE;
-	} else {
-		/* DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet success....\n"); */
 	}
-
-	return TRUE ;
+	return TRUE;
 }
 
 /*
