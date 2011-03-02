@@ -177,7 +177,7 @@ easycap_alsa_complete(struct urb *purb)
 						peasycap->dma_next = fragment_bytes;
 						JOM(8, "wrapped dma buffer\n");
 					}
-					if (false == peasycap->microphone) {
+					if (!peasycap->microphone) {
 						if (much > more)
 							much = more;
 						memcpy(prt->dma_area +

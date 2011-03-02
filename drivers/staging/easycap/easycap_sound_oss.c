@@ -178,7 +178,7 @@ easyoss_complete(struct urb *purb)
 
 					much = PAGE_SIZE - (int)(paudio_buffer->pto - paudio_buffer->pgo);
 
-					if (false == peasycap->microphone) {
+					if (!peasycap->microphone) {
 						if (much > more)
 							much = more;
 

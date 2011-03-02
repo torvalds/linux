@@ -1385,7 +1385,7 @@ field2frame(struct easycap *peasycap)
 	pad = peasycap->frame_buffer[kad][0].pgo;  rad = PAGE_SIZE;
 	odd = !!(peasycap->field_buffer[kex][0].kount);
 
-	if (odd && (false == decimatepixel)) {
+	if (odd && (!decimatepixel)) {
 		JOM(8, "initial skipping %4i bytes p.%4i\n",
 					w3/multiplier, mad);
 		pad += (w3 / multiplier); rad -= (w3 / multiplier);
@@ -1400,7 +1400,7 @@ field2frame(struct easycap *peasycap)
 		 *  READ   w2   BYTES FROM FIELD BUFFER,
 		 *  WRITE  w3   BYTES TO FRAME BUFFER
 		 */
-		if (false == decimatepixel) {
+		if (!decimatepixel) {
 			over = w2;
 			do {
 				much = over;  more = 0;
@@ -1489,7 +1489,7 @@ field2frame(struct easycap *peasycap)
  *  UNLESS IT IS THE LAST LINE OF AN ODD FRAME
  */
 /*---------------------------------------------------------------------------*/
-			if ((false == odd) || (cz != wz)) {
+			if (!odd || (cz != wz)) {
 				over = w3;
 				do {
 					if (!rad) {
@@ -1514,7 +1514,7 @@ field2frame(struct easycap *peasycap)
  *  WRITE  w3 / 2  BYTES TO FRAME BUFFER
  */
 /*---------------------------------------------------------------------------*/
-		} else if (false == odd) {
+		} else if (!odd) {
 			over = w2;
 			do {
 				much = over;  more = 0;  margin = 0;  mask = 0x00;
@@ -1641,12 +1641,12 @@ field2frame(struct easycap *peasycap)
 		SAM("ERROR: discrepancy %i in bytes read\n", c2 - cz);
 	c3 = (mad + 1)*PAGE_SIZE - rad;
 
-	if (false == decimatepixel) {
+	if (!decimatepixel) {
 		if (bytesperpixel * cz != c3)
 			SAM("ERROR: discrepancy %i in bytes written\n",
 					c3 - (bytesperpixel * cz));
 	} else {
-		if (false == odd) {
+		if (!odd) {
 			if (bytesperpixel *
 				cz != (4 * c3))
 				SAM("ERROR: discrepancy %i in bytes written\n",
@@ -1830,9 +1830,9 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 /*---------------------------------------------------------------------------*/
 	switch (bytesperpixel) {
 	case 2: {
-		if (false == decimatepixel) {
+		if (!decimatepixel) {
 			memcpy(pad, pex, (size_t)much);
-			if (false == byteswaporder) {
+			if (!byteswaporder) {
 				/* UYVY */
 				return 0;
 			} else {
@@ -1847,7 +1847,7 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 				return 0;
 			}
 		} else {
-			if (false == byteswaporder) {
+			if (!byteswaporder) {
 				/*  UYVY DECIMATED */
 				p2 = (u8 *)pex;  p3 = (u8 *)pad;  pz = p2 + much;
 				while (pz > p2) {
@@ -1875,8 +1875,8 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 		}
 	case 3:
 		{
-		if (false == decimatepixel) {
-			if (false == byteswaporder) {
+		if (!decimatepixel) {
+			if (!byteswaporder) {
 				/* RGB */
 				while (pz > p2) {
 					if (pr <= (p3 + bytesperpixel))
@@ -2015,7 +2015,7 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 				}
 			return 0;
 		} else {
-			if (false == byteswaporder) {
+			if (!byteswaporder) {
 				/*  RGB DECIMATED */
 				while (pz > p2) {
 					if (pr <= (p3 + bytesperpixel))
@@ -2164,8 +2164,8 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 		}
 	case 4:
 		{
-		if (false == decimatepixel) {
-			if (false == byteswaporder) {
+		if (!decimatepixel) {
+			if (!byteswaporder) {
 				/* RGBA */
 				while (pz > p2) {
 					if (pr <= (p3 + bytesperpixel))
@@ -2324,7 +2324,7 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 			}
 			return 0;
 		} else {
-			if (false == byteswaporder) {
+			if (!byteswaporder) {
 				/*
 				 *  RGBA DECIMATED
 				 */
