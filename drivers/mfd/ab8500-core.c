@@ -4,7 +4,7 @@
  * License Terms: GNU General Public License v2
  * Author: Srinidhi Kasagar <srinidhi.kasagar@stericsson.com>
  * Author: Rabin Vincent <rabin.vincent@stericsson.com>
- * Changes: Mattias Wallin <mattias.wallin@stericsson.com>
+ * Author: Mattias Wallin <mattias.wallin@stericsson.com>
  */
 
 #include <linux/kernel.h>
@@ -686,9 +686,10 @@ int __devinit ab8500_init(struct ab8500 *ab8500)
 	 * 0x10 - Cut 1.0
 	 * 0x11 - Cut 1.1
 	 * 0x20 - Cut 2.0
+	 * 0x30 - Cut 3.0
 	 */
-	if (value == 0x0 || value == 0x10 || value == 0x11 || value == 0x20) {
-		ab8500->revision = value;
+	if (value == 0x0 || value == 0x10 || value == 0x11 || value == 0x20 ||
+		value == 0x30) {
 		dev_info(ab8500->dev, "detected chip, revision: %#x\n", value);
 	} else {
 		dev_err(ab8500->dev, "unknown chip, revision: %#x\n", value);
@@ -764,6 +765,6 @@ int __devexit ab8500_exit(struct ab8500 *ab8500)
 	return 0;
 }
 
-MODULE_AUTHOR("Srinidhi Kasagar, Rabin Vincent");
+MODULE_AUTHOR("Mattias Wallin, Srinidhi Kasagar, Rabin Vincent");
 MODULE_DESCRIPTION("AB8500 MFD core");
 MODULE_LICENSE("GPL v2");
