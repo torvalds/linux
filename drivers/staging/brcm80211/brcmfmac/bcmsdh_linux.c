@@ -28,11 +28,11 @@
 #include <pcicfg.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>
+#include <bcmutils.h>
 
 #if defined(OOB_INTR_ONLY)
 #include <linux/irq.h>
 extern void dhdsdio_isr(void *args);
-#include <bcmutils.h>
 #include <dngl_stats.h>
 #include <dhd.h>
 #endif				/* defined(OOB_INTR_ONLY) */

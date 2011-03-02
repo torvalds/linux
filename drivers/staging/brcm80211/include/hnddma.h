@@ -22,6 +22,11 @@
 struct hnddma_pub;
 #endif				/* _hnddma_pub_ */
 
+/* map/unmap direction */
+#define	DMA_TX	1		/* TX direction for DMA */
+#define	DMA_RX	2		/* RX direction for DMA */
+#define BUS_SWAP32(v)		(v)
+
 /* range param for dma_getnexttxp() and dma_txreclaim */
 typedef enum txd_range {
 	HNDDMA_RANGE_ALL = 1,
