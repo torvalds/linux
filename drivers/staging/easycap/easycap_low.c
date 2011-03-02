@@ -388,7 +388,7 @@ int setup_stk(struct usb_device *p, bool ntsc)
 	if (NULL == p)
 		return -ENODEV;
 	i0 = 0;
-	if (true == ntsc) {
+	if (ntsc) {
 		while (0xFFF != stk1160configNTSC[i0].reg) {
 			SET(p, stk1160configNTSC[i0].reg,
 				stk1160configNTSC[i0].set);
@@ -414,7 +414,7 @@ int setup_saa(struct usb_device *p, bool ntsc)
 	if (NULL == p)
 		return -ENODEV;
 	i0 = 0;
-	if (true == ntsc) {
+	if (ntsc) {
 		while (0xFF != saa7113configNTSC[i0].reg) {
 			ir = write_saa(p, saa7113configNTSC[i0].reg,
 						saa7113configNTSC[i0].set);
@@ -552,7 +552,7 @@ int check_saa(struct usb_device *p, bool ntsc)
 		return -ENODEV;
 	i0 = 0;
 	rc = 0;
-	if (true == ntsc) {
+	if (ntsc) {
 		while (0xFF != saa7113configNTSC[i0].reg) {
 			if (0x0F == saa7113configNTSC[i0].reg) {
 				i0++;
@@ -663,7 +663,7 @@ int check_stk(struct usb_device *p, bool ntsc)
 	if (NULL == p)
 		return -ENODEV;
 	i0 = 0;
-	if (true == ntsc) {
+	if (ntsc) {
 		while (0xFFF != stk1160configNTSC[i0].reg) {
 			if (0x000 == stk1160configNTSC[i0].reg) {
 				i0++; continue;

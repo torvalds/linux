@@ -734,12 +734,12 @@ static long easyoss_unlocked_ioctl(struct file *file,
 		JOM(8, "SNDCTL_DSP_GETCAPS\n");
 
 #ifdef UPSAMPLE
-		if (true == peasycap->microphone)
+		if (peasycap->microphone)
 			caps = 0x04400000;
 		else
 			caps = 0x04400000;
 #else
-		if (true == peasycap->microphone)
+		if (peasycap->microphone)
 			caps = 0x02400000;
 		else
 			caps = 0x04400000;
@@ -783,12 +783,12 @@ static long easyoss_unlocked_ioctl(struct file *file,
 		JOM(8, "........... %i=incoming\n", incoming);
 
 #ifdef UPSAMPLE
-		if (true == peasycap->microphone)
+		if (peasycap->microphone)
 			outgoing = AFMT_S16_LE;
 		else
 			outgoing = AFMT_S16_LE;
 #else
-		if (true == peasycap->microphone)
+		if (peasycap->microphone)
 			outgoing = AFMT_S16_LE;
 		else
 			outgoing = AFMT_S16_LE;
@@ -817,12 +817,12 @@ static long easyoss_unlocked_ioctl(struct file *file,
 		JOM(8, "........... %i=incoming\n", incoming);
 
 #ifdef UPSAMPLE
-		if (true == peasycap->microphone)
+		if (peasycap->microphone)
 			incoming = 1;
 		else
 			incoming = 1;
 #else
-		if (true == peasycap->microphone)
+		if (peasycap->microphone)
 			incoming = 0;
 		else
 			incoming = 1;
@@ -844,12 +844,12 @@ static long easyoss_unlocked_ioctl(struct file *file,
 		JOM(8, "........... %i=incoming\n", incoming);
 
 #ifdef UPSAMPLE
-		if (true == peasycap->microphone)
+		if (peasycap->microphone)
 			incoming = 32000;
 		else
 			incoming = 48000;
 #else
-		if (true == peasycap->microphone)
+		if (peasycap->microphone)
 			incoming = 8000;
 		else
 			incoming = 48000;

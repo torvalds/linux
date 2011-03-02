@@ -598,7 +598,7 @@ int easycap_alsa_probe(struct easycap *peasycap)
 	}
 
 	peasycap->alsa_hardware = alsa_hardware;
-	if (true == peasycap->microphone) {
+	if (peasycap->microphone) {
 		peasycap->alsa_hardware.rates = SNDRV_PCM_RATE_32000;
 		peasycap->alsa_hardware.rate_min = 32000;
 		peasycap->alsa_hardware.rate_max = 32000;

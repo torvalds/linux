@@ -247,7 +247,7 @@ static int reset(struct easycap *peasycap)
 	rate = ready_saa(peasycap->pusb_device);
 	if (0 > rate) {
 		JOM(8, "not ready to capture after %i ms ...\n", PATIENCE);
-		if (true == peasycap->ntsc) {
+		if (peasycap->ntsc) {
 			JOM(8, "... trying PAL ...\n");  ntsc = false;
 		} else {
 			JOM(8, "... trying NTSC ...\n"); ntsc = true;
@@ -566,7 +566,7 @@ newinput(struct easycap *peasycap, int input)
 		SAM("ERROR: start_100() rc = %i\n", rc);
 		return -EFAULT;
 	}
-	if (true == resubmit)
+	if (resubmit)
 		submit_video_urbs(peasycap);
 
 	peasycap->video_isoc_sequence = VIDEO_ISOC_BUFFER_MANY - 1;
@@ -1335,7 +1335,7 @@ field2frame(struct easycap *peasycap)
 			peasycap->field_buffer[peasycap->field_read][0].input,
 			peasycap->field_read, peasycap->frame_fill);
 	JOM(8, "=====  %i=bytesperpixel\n", peasycap->bytesperpixel);
-	if (true == peasycap->offerfields)
+	if (peasycap->offerfields)
 		JOM(8, "===== offerfields\n");
 
 /*---------------------------------------------------------------------------*/
@@ -1368,7 +1368,7 @@ field2frame(struct easycap *peasycap)
 		SAM("MISTAKE: %i=bytesperpixel\n", bytesperpixel);
 		return -EFAULT;
 	}
-	if (true == decimatepixel)
+	if (decimatepixel)
 		multiplier = 2;
 	else
 		multiplier = 1;
@@ -1385,7 +1385,7 @@ field2frame(struct easycap *peasycap)
 	pad = peasycap->frame_buffer[kad][0].pgo;  rad = PAGE_SIZE;
 	odd = !!(peasycap->field_buffer[kex][0].kount);
 
-	if ((true == odd) && (false == decimatepixel)) {
+	if (odd && (false == decimatepixel)) {
 		JOM(8, "initial skipping %4i bytes p.%4i\n",
 					w3/multiplier, mad);
 		pad += (w3 / multiplier); rad -= (w3 / multiplier);
@@ -1445,7 +1445,7 @@ field2frame(struct easycap *peasycap)
 				}
 				if (rump)
 					caches++;
-					if (true == badinput) {
+					if (badinput) {
 						JOM(8, "ERROR: 0x%02X=->field_buffer"
 							"[%i][%i].input, "
 							"0x%02X=(0x08|->input)\n",
@@ -1561,7 +1561,7 @@ field2frame(struct easycap *peasycap)
 				if (rump)
 					caches++;
 
-					if (true == badinput) {
+					if (badinput) {
 						JOM(8, "ERROR: 0x%02X=->field_buffer"
 							"[%i][%i].input, "
 							"0x%02X=(0x08|->input)\n",
@@ -1663,7 +1663,7 @@ field2frame(struct easycap *peasycap)
 	JOM(8, "===== field2frame(): %i bytes --> %i bytes (incl skip)\n", c2, c3);
 	JOM(8, "===== field2frame(): %i=mad  %i=rad\n", mad, rad);
 
-	if (true == odd)
+	if (odd)
 		JOM(8, "+++++ field2frame():  frame buffer %i is full\n", kad);
 
 	if (peasycap->field_read == peasycap->field_fill)
@@ -1819,7 +1819,7 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 	p2 = (u8 *)pex;  pz = p2 + much;  pr = p3 + more;  last = false;
 	p2++;
 
-	if (true == isuy)
+	if (isuy)
 		u = *(p2 - 1);
 	else
 		v = *(p2 - 1);
@@ -1884,9 +1884,9 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 					else
 						last = false;
 					y = *p2;
-					if ((true == last) && (0x0C & mask)) {
+					if (last && (0x0C & mask)) {
 						if (0x04 & mask) {
-							if (true == isuy)
+							if (isuy)
 								v = margin;
 							else
 								u = margin;
@@ -1894,7 +1894,7 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 							if (0x08 & mask)
 								;
 					} else {
-						if (true == isuy)
+						if (isuy)
 							v = *(p2 + 1);
 						else
 							u = *(p2 + 1);
@@ -1910,7 +1910,7 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 					b = (255 < tmp) ? 255 : ((0 > tmp) ?
 								0 : (u8)tmp);
 
-					if ((true == last) && rump) {
+					if (last && rump) {
 						pcache = &peasycap->cache[0];
 						switch (bytesperpixel - rump) {
 						case 1: {
@@ -1937,7 +1937,7 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 						*(p3 + 2) = b;
 					}
 					p2 += 2;
-					if (true == isuy)
+					if (isuy)
 						isuy = false;
 					else
 						isuy = true;
@@ -1952,9 +1952,9 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 					else
 						last = false;
 					y = *p2;
-					if ((true == last) && (0x0C & mask)) {
+					if (last && (0x0C & mask)) {
 						if (0x04 & mask) {
-							if (true == isuy)
+							if (isuy)
 								v = margin;
 							else
 								u = margin;
@@ -1963,7 +1963,7 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 						if (0x08 & mask)
 							;
 					} else {
-						if (true == isuy)
+						if (isuy)
 							v = *(p2 + 1);
 						else
 							u = *(p2 + 1);
@@ -1979,7 +1979,7 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 					b = (255 < tmp) ? 255 : ((0 > tmp) ?
 									0 : (u8)tmp);
 
-					if ((true == last) && rump) {
+					if (last && rump) {
 						pcache = &peasycap->cache[0];
 						switch (bytesperpixel - rump) {
 						case 1: {
@@ -2006,7 +2006,7 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 						*(p3 + 2) = r;
 						}
 					p2 += 2;
-					if (true == isuy)
+					if (isuy)
 						isuy = false;
 					else
 						isuy = true;
@@ -2023,9 +2023,9 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 					else
 						last = false;
 					y = *p2;
-					if ((true == last) && (0x0C & mask)) {
+					if (last && (0x0C & mask)) {
 						if (0x04 & mask) {
-							if (true == isuy)
+							if (isuy)
 								v = margin;
 							else
 								u = margin;
@@ -2033,13 +2033,13 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 							if (0x08 & mask)
 								;
 					} else {
-						if (true == isuy)
+						if (isuy)
 							v = *(p2 + 1);
 						else
 							u = *(p2 + 1);
 					}
 
-					if (true == isuy) {
+					if (isuy) {
 						tmp = ay[(int)y] + rv[(int)v];
 						r = (255 < tmp) ? 255 : ((0 > tmp) ?
 									0 : (u8)tmp);
@@ -2051,7 +2051,7 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 						b = (255 < tmp) ? 255 : ((0 > tmp) ?
 									0 : (u8)tmp);
 
-						if ((true == last) && rump) {
+						if (last && rump) {
 							pcache = &peasycap->cache[0];
 							switch (bytesperpixel - rump) {
 							case 1: {
@@ -2094,9 +2094,9 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 					else
 						last = false;
 					y = *p2;
-					if ((true == last) && (0x0C & mask)) {
+					if (last && (0x0C & mask)) {
 						if (0x04 & mask) {
-							if (true == isuy)
+							if (isuy)
 								v = margin;
 							else
 								u = margin;
@@ -2104,13 +2104,13 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 							if (0x08 & mask)
 								;
 					} else {
-						if (true == isuy)
+						if (isuy)
 							v = *(p2 + 1);
 						else
 							u = *(p2 + 1);
 					}
 
-					if (true == isuy) {
+					if (isuy) {
 
 						tmp = ay[(int)y] + rv[(int)v];
 						r = (255 < tmp) ? 255 : ((0 > tmp) ?
@@ -2123,7 +2123,7 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 						b = (255 < tmp) ? 255 : ((0 > tmp) ?
 									0 : (u8)tmp);
 
-						if ((true == last) && rump) {
+						if (last && rump) {
 							pcache = &peasycap->cache[0];
 							switch (bytesperpixel - rump) {
 							case 1: {
@@ -2173,9 +2173,9 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 					else
 						last = false;
 					y = *p2;
-					if ((true == last) && (0x0C & mask)) {
+					if (last && (0x0C & mask)) {
 						if (0x04 & mask) {
-							if (true == isuy)
+							if (isuy)
 								v = margin;
 							else
 								u = margin;
@@ -2183,7 +2183,7 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 							 if (0x08 & mask)
 								;
 					} else {
-						if (true == isuy)
+						if (isuy)
 							v = *(p2 + 1);
 						else
 							u = *(p2 + 1);
@@ -2199,7 +2199,7 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 					b = (255 < tmp) ? 255 : ((0 > tmp) ?
 									0 : (u8)tmp);
 
-					if ((true == last) && rump) {
+					if (last && rump) {
 						pcache = &peasycap->cache[0];
 						switch (bytesperpixel - rump) {
 						case 1: {
@@ -2236,7 +2236,7 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 						*(p3 + 3) = 0;
 					}
 					p2 += 2;
-					if (true == isuy)
+					if (isuy)
 						isuy = false;
 					else
 						isuy = true;
@@ -2253,9 +2253,9 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 					else
 						last = false;
 					y = *p2;
-					if ((true == last) && (0x0C & mask)) {
+					if (last && (0x0C & mask)) {
 						if (0x04 & mask) {
-							if (true == isuy)
+							if (isuy)
 								v = margin;
 							else
 								u = margin;
@@ -2263,7 +2263,7 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 							 if (0x08 & mask)
 								;
 					} else {
-						if (true == isuy)
+						if (isuy)
 							v = *(p2 + 1);
 						else
 							u = *(p2 + 1);
@@ -2279,7 +2279,7 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 					b = (255 < tmp) ? 255 : ((0 > tmp) ?
 									0 : (u8)tmp);
 
-					if ((true == last) && rump) {
+					if (last && rump) {
 						pcache = &peasycap->cache[0];
 						switch (bytesperpixel - rump) {
 						case 1: {
@@ -2315,7 +2315,7 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 						*(p3 + 3) = 0;
 					}
 					p2 += 2;
-					if (true == isuy)
+					if (isuy)
 						isuy = false;
 					else
 						isuy = true;
@@ -2334,9 +2334,9 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 					else
 						last = false;
 					y = *p2;
-					if ((true == last) && (0x0C & mask)) {
+					if (last && (0x0C & mask)) {
 						if (0x04 & mask) {
-							if (true == isuy)
+							if (isuy)
 								v = margin;
 							else
 								u = margin;
@@ -2344,13 +2344,13 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 							if (0x08 & mask)
 								;
 					} else {
-						if (true == isuy)
+						if (isuy)
 							v = *(p2 + 1);
 						else
 							u = *(p2 + 1);
 					}
 
-					if (true == isuy) {
+					if (isuy) {
 
 						tmp = ay[(int)y] + rv[(int)v];
 						r = (255 < tmp) ? 255 : ((0 > tmp) ?
@@ -2363,7 +2363,7 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 						b = (255 < tmp) ? 255 : ((0 > tmp) ?
 									0 : (u8)tmp);
 
-						if ((true == last) && rump) {
+						if (last && rump) {
 							pcache = &peasycap->cache[0];
 							switch (bytesperpixel - rump) {
 							case 1: {
@@ -2418,9 +2418,9 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 					else
 						last = false;
 					y = *p2;
-					if ((true == last) && (0x0C & mask)) {
+					if (last && (0x0C & mask)) {
 						if (0x04 & mask) {
-							if (true == isuy)
+							if (isuy)
 								v = margin;
 							else
 								u = margin;
@@ -2428,13 +2428,13 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 							if (0x08 & mask)
 								;
 					} else {
-						if (true == isuy)
+						if (isuy)
 							v = *(p2 + 1);
 						else
 							u = *(p2 + 1);
 					}
 
-					if (true == isuy) {
+					if (isuy) {
 						tmp = ay[(int)y] + rv[(int)v];
 						r = (255 < tmp) ? 255 : ((0 > tmp) ?
 									0 : (u8)tmp);
@@ -2446,7 +2446,7 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 						b = (255 < tmp) ? 255 : ((0 > tmp) ?
 									0 : (u8)tmp);
 
-						if ((true == last) && rump) {
+						if (last && rump) {
 							pcache = &peasycap->cache[0];
 							switch (bytesperpixel - rump) {
 							case 1: {

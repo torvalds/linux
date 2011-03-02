@@ -330,7 +330,7 @@ int adjust_standard(struct easycap *peasycap, v4l2_std_id std_id)
 			JOM(8, "SAA register 0x%02X changed "
 			    "from 0x%02X to 0x%02X\n", reg, itwas, isnow);
 	}
-	if (true == resubmit)
+	if (resubmit)
 		submit_video_urbs(peasycap);
 	return 0;
 }
@@ -548,7 +548,7 @@ int adjust_format(struct easycap *peasycap,
 		peasycap->offerfields = true;
 	else
 		peasycap->offerfields = false;
-	if (true == peasycap->decimatepixel)
+	if (peasycap->decimatepixel)
 		multiplier = 2;
 	else
 		multiplier = 1;
@@ -1439,7 +1439,7 @@ long easycap_unlocked_ioctl(struct file *file,
 			int mute;
 
 			JOM(8, "user requests mute %i\n", v4l2_control.value);
-			if (true == v4l2_control.value)
+			if (v4l2_control.value)
 				mute = 1;
 			else
 				mute = 0;
@@ -1560,7 +1560,7 @@ long easycap_unlocked_ioctl(struct file *file,
 
 		v4l2_frmsizeenum.type = (u32) V4L2_FRMSIZE_TYPE_DISCRETE;
 
-		if (true == peasycap->ntsc) {
+		if (peasycap->ntsc) {
 			switch (index) {
 			case 0: {
 				v4l2_frmsizeenum.discrete.width = 640;
@@ -1690,7 +1690,7 @@ long easycap_unlocked_ioctl(struct file *file,
 		if (peasycap->fps)
 			denominator = peasycap->fps;
 		else {
-			if (true == peasycap->ntsc)
+			if (peasycap->ntsc)
 				denominator = 30;
 			else
 				denominator = 25;
@@ -2265,7 +2265,7 @@ long easycap_unlocked_ioctl(struct file *file,
 		v4l2_buffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		v4l2_buffer.bytesused = peasycap->frame_buffer_used;
 		v4l2_buffer.flags = V4L2_BUF_FLAG_MAPPED | V4L2_BUF_FLAG_DONE;
-		if (true == peasycap->offerfields)
+		if (peasycap->offerfields)
 			v4l2_buffer.field = V4L2_FIELD_BOTTOM;
 		else
 			v4l2_buffer.field = V4L2_FIELD_NONE;
@@ -2399,7 +2399,7 @@ long easycap_unlocked_ioctl(struct file *file,
 			pv4l2_streamparm->parm.capture.timeperframe.
 			denominator = peasycap->fps;
 		} else {
-			if (true == peasycap->ntsc) {
+			if (peasycap->ntsc) {
 				pv4l2_streamparm->parm.capture.timeperframe.
 				denominator = 30;
 			} else {
