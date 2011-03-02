@@ -2760,6 +2760,8 @@ static u32 cnic_service_bnx2_queues(struct cnic_dev *dev)
 	u32 status_idx = (u16) *cp->kcq1.status_idx_ptr;
 	int kcqe_cnt;
 
+	/* status block index must be read before reading other fields */
+	rmb();
 	cp->kwq_con_idx = *cp->kwq_con_idx_ptr;
 
 	while ((kcqe_cnt = cnic_get_kcqes(dev, &cp->kcq1))) {
@@ -2770,6 +2772,8 @@ static u32 cnic_service_bnx2_queues(struct cnic_dev *dev)
 		barrier();
 		if (status_idx != *cp->kcq1.status_idx_ptr) {
 			status_idx = (u16) *cp->kcq1.status_idx_ptr;
+			/* status block index must be read first */
+			rmb();
 			cp->kwq_con_idx = *cp->kwq_con_idx_ptr;
 		} else
 			break;
@@ -2888,6 +2892,8 @@ static u32 cnic_service_bnx2x_kcq(struct cnic_dev *dev, struct kcq_info *info)
 	u32 last_status = *info->status_idx_ptr;
 	int kcqe_cnt;
 
+	/* status block index must be read before reading the KCQ */
+	rmb();
 	while ((kcqe_cnt = cnic_get_kcqes(dev, info))) {
 
 		service_kcqes(dev, kcqe_cnt);
@@ -2898,6 +2904,8 @@ static u32 cnic_service_bnx2x_kcq(struct cnic_dev *dev, struct kcq_info *info)
 			break;
 
 		last_status = *info->status_idx_ptr;
+		/* status block index must be read before reading the KCQ */
+		rmb();
 	}
 	return last_status;
 }
