@@ -26,7 +26,7 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/hcd.h>
 #include <linux/platform_device.h>
-#include <linux/tegra_usb.h>
+#include <linux/platform_data/tegra_usb.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/delay.h>
