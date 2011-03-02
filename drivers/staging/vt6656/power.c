@@ -60,7 +60,7 @@ static int msglevel = MSG_LEVEL_INFO;
 
 /*---------------------  Export Functions  --------------------------*/
 
-/*+
+/*
  *
  * Routine Description:
  * Enable hw power saving functions
@@ -68,7 +68,7 @@ static int msglevel = MSG_LEVEL_INFO;
  * Return Value:
  *    None.
  *
--*/
+ */
 
 void PSvEnablePowerSaving(void *hDeviceContext,
 			  WORD wListenInterval)
@@ -84,33 +84,33 @@ void PSvEnablePowerSaving(void *hDeviceContext,
 		/* set AID */
 		MACvWriteWord(pDevice, MAC_REG_AIDATIM, wAID);
 	} else {
-		// set ATIM Window
-		//MACvWriteATIMW(pDevice->PortOffset, pMgmt->wCurrATIMWindow);
+		/* set ATIM Window */
+		/* MACvWriteATIMW(pDevice->PortOffset, pMgmt->wCurrATIMWindow); */
 	}
 
-	//Warren:06-18-2004,the sequence must follow PSEN->AUTOSLEEP->GO2DOZE
-	// enable power saving hw function
+	/* Warren:06-18-2004,the sequence must follow PSEN->AUTOSLEEP->GO2DOZE */
+	/* enable power saving hw function */
 	MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_PSEN);
 
-	// Set AutoSleep
+	/* Set AutoSleep */
 	MACvRegBitsOn(pDevice, MAC_REG_PSCFG, PSCFG_AUTOSLEEP);
 
-	//Warren:MUST turn on this once before turn on AUTOSLEEP ,or the AUTOSLEEP doesn't work
+	/* Warren:MUST turn on this once before turn on AUTOSLEEP ,or the AUTOSLEEP doesn't work */
 	MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_GO2DOZE);
 
 	if (wListenInterval >= 2) {
 
-		// clear always listen beacon
+		/* clear always listen beacon */
 		MACvRegBitsOff(pDevice, MAC_REG_PSCTL, PSCTL_ALBCN);
 
-		// first time set listen next beacon
+		/* first time set listen next beacon */
 		MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);
 
 		pMgmt->wCountToWakeUp = wListenInterval;
 
 	} else {
 
-		// always listen beacon
+		/* always listen beacon */
 		MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_ALBCN);
 
 		pMgmt->wCountToWakeUp = 0;
@@ -123,7 +123,7 @@ void PSvEnablePowerSaving(void *hDeviceContext,
 	/* bMgrPrepareBeaconToSend((void *) pDevice, pMgmt); */
 
 	}
-	// We don't send null pkt in ad hoc mode since beacon will handle this.
+	/* We don't send null pkt in ad hoc mode since beacon will handle this. */
 	else if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE) {
 		PSbSendNullPacket(pDevice);
 	}
@@ -133,7 +133,7 @@ void PSvEnablePowerSaving(void *hDeviceContext,
 	return;
 }
 
-/*+
+/*
  *
  * Routine Description:
  * Disable hw power saving functions
@@ -141,21 +141,21 @@ void PSvEnablePowerSaving(void *hDeviceContext,
  * Return Value:
  *    None.
  *
--*/
+ */
 
 void PSvDisablePowerSaving(void *hDeviceContext)
 {
 	PSDevice pDevice = (PSDevice)hDeviceContext;
-	//PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
+	/* PSMgmtObject pMgmt = &(pDevice->sMgmtObj); */
 
-	// disable power saving hw function
+	/* disable power saving hw function */
 	CONTROLnsRequestOut(pDevice, MESSAGE_TYPE_DISABLE_PS, 0,
 						0, 0, NULL);
 
-	//clear AutoSleep
+	/* clear AutoSleep */
 	MACvRegBitsOff(pDevice, MAC_REG_PSCFG, PSCFG_AUTOSLEEP);
 
-	// set always listen beacon
+	/* set always listen beacon */
 	MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_ALBCN);
 	pDevice->bEnablePSMode = FALSE;
 
@@ -167,7 +167,7 @@ void PSvDisablePowerSaving(void *hDeviceContext)
 	return;
 }
 
-/*+
+/*
  *
  * Routine Description:
  * Consider to power down when no more packets to tx or rx.
@@ -175,7 +175,7 @@ void PSvDisablePowerSaving(void *hDeviceContext)
  * Return Value:
  *    TRUE, if power down success
  *    FALSE, if fail
--*/
+ */
 
 BOOL PSbConsiderPowerDown(void *hDeviceContext,
 			  BOOL bCheckRxDMA,
@@ -185,7 +185,7 @@ BOOL PSbConsiderPowerDown(void *hDeviceContext,
 	PSMgmtObject pMgmt = &(pDevice->sMgmtObj);
 	BYTE byData;
 
-	// check if already in Doze mode
+	/* check if already in Doze mode */
 	ControlvReadByte(pDevice, MESSAGE_REQUEST_MACREG,
 					MAC_REG_PSCTL, &byData);
 
@@ -193,20 +193,20 @@ BOOL PSbConsiderPowerDown(void *hDeviceContext,
 		return TRUE;
 
 	if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA) {
-		// check if in TIM wake period
+		/* check if in TIM wake period */
 		if (pMgmt->bInTIMWake)
 			return FALSE;
 	}
 
-	// check scan state
+	/* check scan state */
 	if (pDevice->bCmdRunning)
 		return FALSE;
 
-	//Tx Burst
+	/* Tx Burst */
 	if ( pDevice->bPSModeTxBurst )
 		return FALSE;
 
-	// Froce PSEN on
+	/* Froce PSEN on */
 	MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_PSEN);
 
 	if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA) {
@@ -218,13 +218,13 @@ BOOL PSbConsiderPowerDown(void *hDeviceContext,
 
 	pDevice->bPSRxBeacon = TRUE;
 
-	// no Tx, no Rx isr, now go to Doze
+	/* no Tx, no Rx isr, now go to Doze */
 	MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_GO2DOZE);
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Go to Doze ZZZZZZZZZZZZZZZ\n");
 	return TRUE;
 }
 
-/*+
+/*
  *
  * Routine Description:
  * Send PS-POLL packet
@@ -232,7 +232,7 @@ BOOL PSbConsiderPowerDown(void *hDeviceContext,
  * Return Value:
  *    None.
  *
--*/
+ */
 
 void PSvSendPSPOLL(void *hDeviceContext)
 {
@@ -256,16 +256,16 @@ void PSvSendPSPOLL(void *hDeviceContext)
 	pTxPacket->cbMPDULen = WLAN_HDR_ADDR2_LEN;
 	pTxPacket->cbPayloadLen = 0;
 
-	// send the frame
+	/* send the frame */
 	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet failed..\n");
 	} else {
-		// DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet success..\n");
+		/* DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet success..\n"); */
 	};
 	return;
 }
 
-/*+
+/*
  *
  * Routine Description:
  * Send NULL packet to AP for notification power state of STA
@@ -273,7 +273,7 @@ void PSvSendPSPOLL(void *hDeviceContext)
  * Return Value:
  *    None.
  *
--*/
+ */
 
 BOOL PSbSendNullPacket(void *hDeviceContext)
 {
@@ -319,18 +319,18 @@ BOOL PSbSendNullPacket(void *hDeviceContext)
 	memcpy(pTxPacket->p80211Header->sA3.abyAddr3, pMgmt->abyCurrBSSID, WLAN_BSSID_LEN);
 	pTxPacket->cbMPDULen = WLAN_HDR_ADDR3_LEN;
 	pTxPacket->cbPayloadLen = 0;
-	// send the frame
+	/* send the frame */
 	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet failed !\n");
 		return FALSE;
 	} else {
-		// DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet success....\n");
+		/* DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet success....\n"); */
 	}
 
 	return TRUE ;
 }
 
-/*+
+/*
  *
  * Routine Description:
  * Check if Next TBTT must wake up
@@ -338,7 +338,7 @@ BOOL PSbSendNullPacket(void *hDeviceContext)
  * Return Value:
  *    None.
  *
--*/
+ */
 
 BOOL PSbIsNextTBTTWakeUp(void *hDeviceContext)
 {
@@ -354,12 +354,12 @@ BOOL PSbIsNextTBTTWakeUp(void *hDeviceContext)
 		pMgmt->wCountToWakeUp --;
 
 		if (pMgmt->wCountToWakeUp == 1) {
-			// Turn on wake up to listen next beacon
+			/* Turn on wake up to listen next beacon */
 			MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);
 			pDevice->bPSRxBeacon = FALSE;
 			bWakeUp = TRUE;
 		} else if ( !pDevice->bPSRxBeacon ) {
-			//Listen until RxBeacon
+			/* Listen until RxBeacon */
 			MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);
 		}
 	}
