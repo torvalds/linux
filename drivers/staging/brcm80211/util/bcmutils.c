@@ -231,7 +231,7 @@ struct sk_buff *BCMFASTPATH pktq_pdeq_tail(struct pktq *pq, int prec)
 }
 
 #ifdef BRCM_FULLMAC
-void pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec, bool dir)
+void pktq_pflush(struct pktq *pq, int prec, bool dir)
 {
 	struct pktq_prec *q;
 	struct sk_buff *p;
@@ -250,16 +250,16 @@ void pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec, bool dir)
 	q->tail = NULL;
 }
 
-void pktq_flush(struct osl_info *osh, struct pktq *pq, bool dir)
+void pktq_flush(struct pktq *pq, bool dir)
 {
 	int prec;
 	for (prec = 0; prec < pq->num_prec; prec++)
-		pktq_pflush(osh, pq, prec, dir);
+		pktq_pflush(pq, prec, dir);
 	ASSERT(pq->len == 0);
 }
 #else /* !BRCM_FULLMAC */
 void
-pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec, bool dir,
+pktq_pflush(struct pktq *pq, int prec, bool dir,
 	    ifpkt_cb_t fn, int arg)
 {
 	struct pktq_prec *q;
@@ -291,12 +291,12 @@ pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec, bool dir,
 	}
 }
 
-void pktq_flush(struct osl_info *osh, struct pktq *pq, bool dir,
+void pktq_flush(struct pktq *pq, bool dir,
 		ifpkt_cb_t fn, int arg)
 {
 	int prec;
 	for (prec = 0; prec < pq->num_prec; prec++)
-		pktq_pflush(osh, pq, prec, dir, fn, arg);
+		pktq_pflush(pq, prec, dir, fn, arg);
 	if (fn == NULL)
 		ASSERT(pq->len == 0);
 }

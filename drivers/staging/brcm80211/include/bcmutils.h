@@ -100,10 +100,10 @@ extern void pkt_buf_free_skb(struct sk_buff *skb);
 
 /* Empty the queue at particular precedence level */
 #ifdef BRCM_FULLMAC
-	extern void pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec,
+	extern void pktq_pflush(struct pktq *pq, int prec,
 		bool dir);
 #else
-	extern void pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec,
+	extern void pktq_pflush(struct pktq *pq, int prec,
 		bool dir, ifpkt_cb_t fn, int arg);
 #endif /* BRCM_FULLMAC */
 
@@ -131,9 +131,9 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 /* prec_out may be NULL if caller is not interested in return value */
 	extern struct sk_buff *pktq_peek_tail(struct pktq *pq, int *prec_out);
 #ifdef BRCM_FULLMAC
-	extern void pktq_flush(struct osl_info *osh, struct pktq *pq, bool dir);
+	extern void pktq_flush(struct pktq *pq, bool dir);
 #else
-	extern void pktq_flush(struct osl_info *osh, struct pktq *pq, bool dir,
+	extern void pktq_flush(struct pktq *pq, bool dir,
 		ifpkt_cb_t fn, int arg);
 #endif
 

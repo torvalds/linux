@@ -2725,7 +2725,7 @@ uint wlc_down(struct wlc_info *wlc)
 
 	/* flush tx queues */
 	for (qi = wlc->tx_queues; qi != NULL; qi = qi->next) {
-		pktq_flush(wlc->osh, &qi->q, true, NULL, 0);
+		pktq_flush(&qi->q, true, NULL, 0);
 		ASSERT(pktq_empty(&qi->q));
 	}
 

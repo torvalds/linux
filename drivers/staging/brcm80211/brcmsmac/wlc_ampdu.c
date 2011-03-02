@@ -1195,7 +1195,7 @@ ampdu_cleanup_tid_ini(struct ampdu_info *ampdu, scb_ampdu_t *scb_ampdu, u8 tid,
 	ASSERT(ini == &scb_ampdu->ini[ini->tid]);
 
 	/* free all buffered tx packets */
-	pktq_pflush(ampdu->wlc->osh, &scb_ampdu->txq, ini->tid, true, NULL, 0);
+	pktq_pflush(&scb_ampdu->txq, ini->tid, true, NULL, 0);
 }
 
 /* initialize the initiator code for tid */

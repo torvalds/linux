@@ -2832,7 +2832,6 @@ exit:
 
 void dhd_bus_stop(struct dhd_bus *bus, bool enforce_mutex)
 {
-	struct osl_info *osh = bus->dhd->osh;
 	u32 local_hostintmask;
 	u8 saveclk;
 	uint retries;
@@ -2882,7 +2881,7 @@ void dhd_bus_stop(struct dhd_bus *bus, bool enforce_mutex)
 	dhdsdio_clkctl(bus, CLK_SDONLY, false);
 
 	/* Clear the data packet queues */
-	pktq_flush(osh, &bus->txq, true);
+	pktq_flush(&bus->txq, true);
 
 	/* Clear any held glomming stuff */
 	if (bus->glomd)
