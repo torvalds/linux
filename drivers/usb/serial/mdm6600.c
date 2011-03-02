@@ -59,7 +59,7 @@ static bool debug_data = false;
 #define MODEM_AUTOSUSPEND_DELAY	msecs_to_jiffies(1000)
 
 static const struct usb_device_id mdm6600_id_table[] = {
-	{ USB_DEVICE(0x22b8, 0x2a70) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x22b8, 0x2a70, 0xff, 0xff, 0xff) },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, mdm6600_id_table);
