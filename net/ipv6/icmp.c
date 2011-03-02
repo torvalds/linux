@@ -324,17 +324,15 @@ static struct dst_entry *icmpv6_route_lookup(struct net *net, struct sk_buff *sk
 	/* No need to clone since we're just using its address. */
 	dst2 = dst;
 
-	err = xfrm_lookup(net, &dst, fl, sk, 0);
-	switch (err) {
-	case 0:
+	dst = xfrm_lookup(net, dst, fl, sk, 0);
+	if (!IS_ERR(dst)) {
 		if (dst != dst2)
 			return dst;
-		break;
-	case -EPERM:
-		dst = NULL;
-		break;
-	default:
-		return ERR_PTR(err);
+	} else {
+		if (PTR_ERR(dst) == -EPERM)
+			dst = NULL;
+		else
+			return dst;
 	}
 
 	err = xfrm_decode_session_reverse(skb, &fl2, AF_INET6);
@@ -345,17 +343,17 @@ static struct dst_entry *icmpv6_route_lookup(struct net *net, struct sk_buff *sk
 	if (err)
 		goto relookup_failed;
 
-	err = xfrm_lookup(net, &dst2, &fl2, sk, XFRM_LOOKUP_ICMP);
-	switch (err) {
-	case 0:
+	dst2 = xfrm_lookup(net, dst2, &fl2, sk, XFRM_LOOKUP_ICMP);
+	if (!IS_ERR(dst2)) {
 		dst_release(dst);
 		dst = dst2;
-		break;
-	case -EPERM:
-		dst_release(dst);
-		return ERR_PTR(err);
-	default:
-		goto relookup_failed;
+	} else {
+		err = PTR_ERR(dst2);
+		if (err == -EPERM) {
+			dst_release(dst);
+			return dst2;
+		} else
+			goto relookup_failed;
 	}
 
 relookup_failed:
@@ -560,7 +558,8 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	err = ip6_dst_lookup(sk, &dst, &fl);
 	if (err)
 		goto out;
-	if ((err = xfrm_lookup(net, &dst, &fl, sk, 0)) < 0)
+	dst = xfrm_lookup(net, dst, &fl, sk, 0);
+	if (IS_ERR(dst))
 		goto out;
 
 	if (ipv6_addr_is_multicast(&fl.fl6_dst))

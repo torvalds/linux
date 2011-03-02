@@ -2730,7 +2730,12 @@ int ip_route_output_flow(struct net *net, struct rtable **rp, struct flowi *flp,
 			flp->fl4_src = (*rp)->rt_src;
 		if (!flp->fl4_dst)
 			flp->fl4_dst = (*rp)->rt_dst;
-		return xfrm_lookup(net, (struct dst_entry **)rp, flp, sk, 0);
+		*rp = (struct rtable *) xfrm_lookup(net, &(*rp)->dst, flp, sk, 0);
+		if (IS_ERR(*rp)) {
+			err = PTR_ERR(*rp);
+			*rp = NULL;
+			return err;
+		}
 	}
 
 	return 0;

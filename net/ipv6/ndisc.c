@@ -529,8 +529,8 @@ void ndisc_send_skb(struct sk_buff *skb,
 		return;
 	}
 
-	err = xfrm_lookup(net, &dst, &fl, NULL, 0);
-	if (err < 0) {
+	dst = xfrm_lookup(net, dst, &fl, NULL, 0);
+	if (IS_ERR(dst)) {
 		kfree_skb(skb);
 		return;
 	}
@@ -1542,8 +1542,8 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 	if (dst == NULL)
 		return;
 
-	err = xfrm_lookup(net, &dst, &fl, NULL, 0);
-	if (err)
+	dst = xfrm_lookup(net, dst, &fl, NULL, 0);
+	if (IS_ERR(dst))
 		return;
 
 	rt = (struct rt6_info *) dst;

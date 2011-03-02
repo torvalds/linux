@@ -1028,10 +1028,7 @@ struct dst_entry *ip6_dst_lookup_flow(struct sock *sk, struct flowi *fl,
 	if (can_sleep)
 		fl->flags |= FLOWI_FLAG_CAN_SLEEP;
 
-	err = xfrm_lookup(sock_net(sk), &dst, fl, sk, 0);
-	if (err)
-		return ERR_PTR(err);
-	return dst;
+	return xfrm_lookup(sock_net(sk), dst, fl, sk, 0);
 }
 EXPORT_SYMBOL_GPL(ip6_dst_lookup_flow);
 
@@ -1067,10 +1064,7 @@ struct dst_entry *ip6_sk_dst_lookup_flow(struct sock *sk, struct flowi *fl,
 	if (can_sleep)
 		fl->flags |= FLOWI_FLAG_CAN_SLEEP;
 
-	err = xfrm_lookup(sock_net(sk), &dst, fl, sk, 0);
-	if (err)
-		return ERR_PTR(err);
-	return dst;
+	return xfrm_lookup(sock_net(sk), dst, fl, sk, 0);
 }
 EXPORT_SYMBOL_GPL(ip6_sk_dst_lookup_flow);
 

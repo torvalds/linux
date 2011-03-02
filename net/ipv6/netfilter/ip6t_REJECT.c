@@ -101,7 +101,8 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 		dst_release(dst);
 		return;
 	}
-	if (xfrm_lookup(net, &dst, &fl, NULL, 0))
+	dst = xfrm_lookup(net, dst, &fl, NULL, 0);
+	if (IS_ERR(dst))
 		return;
 
 	hh_len = (dst->dev->hard_header_len + 15)&~15;

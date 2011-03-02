@@ -1757,14 +1757,14 @@ static struct dst_entry *make_blackhole(struct net *net, u16 family,
  * At the moment we eat a raw IP route. Mostly to speed up lookups
  * on interfaces with disabled IPsec.
  */
-int xfrm_lookup(struct net *net, struct dst_entry **dst_p,
-		const struct flowi *fl,
-		struct sock *sk, int flags)
+struct dst_entry *xfrm_lookup(struct net *net, struct dst_entry *dst_orig,
+			      const struct flowi *fl,
+			      struct sock *sk, int flags)
 {
 	struct xfrm_policy *pols[XFRM_POLICY_TYPE_MAX];
 	struct flow_cache_object *flo;
 	struct xfrm_dst *xdst;
-	struct dst_entry *dst, *dst_orig = *dst_p, *route;
+	struct dst_entry *dst, *route;
 	u16 family = dst_orig->ops->family;
 	u8 dir = policy_to_flow_dir(XFRM_POLICY_OUT);
 	int i, err, num_pols, num_xfrms = 0, drop_pols = 0;
@@ -1847,11 +1847,7 @@ restart:
 			xfrm_pols_put(pols, drop_pols);
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTNOSTATES);
 
-			dst = make_blackhole(net, family, dst_orig);
-			if (IS_ERR(dst))
-				return PTR_ERR(dst);
-			*dst_p = dst;
-			return 0;
+			return make_blackhole(net, family, dst_orig);
 		}
 		if (fl->flags & FLOWI_FLAG_CAN_SLEEP) {
 			DECLARE_WAITQUEUE(wait, current);
@@ -1895,27 +1891,28 @@ no_transform:
 		goto error;
 	} else if (num_xfrms > 0) {
 		/* Flow transformed */
-		*dst_p = dst;
 		dst_release(dst_orig);
 	} else {
 		/* Flow passes untransformed */
 		dst_release(dst);
+		dst = dst_orig;
 	}
 ok:
 	xfrm_pols_put(pols, drop_pols);
-	return 0;
+	return dst;
 
 nopol:
-	if (!(flags & XFRM_LOOKUP_ICMP))
+	if (!(flags & XFRM_LOOKUP_ICMP)) {
+		dst = dst_orig;
 		goto ok;
+	}
 	err = -ENOENT;
 error:
 	dst_release(dst);
 dropdst:
 	dst_release(dst_orig);
-	*dst_p = NULL;
 	xfrm_pols_put(pols, drop_pols);
-	return err;
+	return ERR_PTR(err);
 }
 EXPORT_SYMBOL(xfrm_lookup);
 
@@ -2175,7 +2172,7 @@ int __xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 	struct net *net = dev_net(skb->dev);
 	struct flowi fl;
 	struct dst_entry *dst;
-	int res;
+	int res = 0;
 
 	if (xfrm_decode_session(skb, &fl, family) < 0) {
 		XFRM_INC_STATS(net, LINUX_MIB_XFRMFWDHDRERROR);
@@ -2183,9 +2180,12 @@ int __xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 	}
 
 	skb_dst_force(skb);
-	dst = skb_dst(skb);
 
-	res = xfrm_lookup(net, &dst, &fl, NULL, 0) == 0;
+	dst = xfrm_lookup(net, skb_dst(skb), &fl, NULL, 0);
+	if (IS_ERR(dst)) {
+		res = 1;
+		dst = NULL;
+	}
 	skb_dst_set(skb, dst);
 	return res;
 }

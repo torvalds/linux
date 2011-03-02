@@ -69,7 +69,8 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 	    xfrm_decode_session(skb, &fl, AF_INET) == 0) {
 		struct dst_entry *dst = skb_dst(skb);
 		skb_dst_set(skb, NULL);
-		if (xfrm_lookup(net, &dst, &fl, skb->sk, 0))
+		dst = xfrm_lookup(net, dst, &fl, skb->sk, 0);
+		if (IS_ERR(dst))
 			return -1;
 		skb_dst_set(skb, dst);
 	}
@@ -102,7 +103,8 @@ int ip_xfrm_me_harder(struct sk_buff *skb)
 		dst = ((struct xfrm_dst *)dst)->route;
 	dst_hold(dst);
 
-	if (xfrm_lookup(dev_net(dst->dev), &dst, &fl, skb->sk, 0) < 0)
+	dst = xfrm_lookup(dev_net(dst->dev), dst, &fl, skb->sk, 0);
+	if (IS_ERR(dst))
 		return -1;
 
 	skb_dst_drop(skb);

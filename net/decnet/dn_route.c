@@ -1222,7 +1222,11 @@ static int dn_route_output_key(struct dst_entry **pprt, struct flowi *flp, int f
 
 	err = __dn_route_output_key(pprt, flp, flags);
 	if (err == 0 && flp->proto) {
-		err = xfrm_lookup(&init_net, pprt, flp, NULL, 0);
+		*pprt = xfrm_lookup(&init_net, *pprt, flp, NULL, 0);
+		if (IS_ERR(*pprt)) {
+			err = PTR_ERR(*pprt);
+			*pprt = NULL;
+		}
 	}
 	return err;
 }
@@ -1235,7 +1239,11 @@ int dn_route_output_sock(struct dst_entry **pprt, struct flowi *fl, struct sock 
 	if (err == 0 && fl->proto) {
 		if (!(flags & MSG_DONTWAIT))
 			fl->flags |= FLOWI_FLAG_CAN_SLEEP;
-		err = xfrm_lookup(&init_net, pprt, fl, sk, 0);
+		*pprt = xfrm_lookup(&init_net, *pprt, fl, sk, 0);
+		if (IS_ERR(*pprt)) {
+			err = PTR_ERR(*pprt);
+			*pprt = NULL;
+		}
 	}
 	return err;
 }

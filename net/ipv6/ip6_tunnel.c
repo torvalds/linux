@@ -903,8 +903,14 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	else {
 		dst = ip6_route_output(net, NULL, fl);
 
-		if (dst->error || xfrm_lookup(net, &dst, fl, NULL, 0) < 0)
+		if (dst->error)
 			goto tx_err_link_failure;
+		dst = xfrm_lookup(net, dst, fl, NULL, 0);
+		if (IS_ERR(dst)) {
+			err = PTR_ERR(dst);
+			dst = NULL;
+			goto tx_err_link_failure;
+		}
 	}
 
 	tdev = dst->dev;

@@ -426,15 +426,17 @@ enum {
 
 struct flowi;
 #ifndef CONFIG_XFRM
-static inline int xfrm_lookup(struct net *net, struct dst_entry **dst_p,
-			      const struct flowi *fl, struct sock *sk,
-			      int flags)
+static inline struct dst_entry *xfrm_lookup(struct net *net,
+					    struct dst_entry *dst_orig,
+					    const struct flowi *fl, struct sock *sk,
+					    int flags)
 {
-	return 0;
+	return dst_orig;
 } 
 #else
-extern int xfrm_lookup(struct net *net, struct dst_entry **dst_p,
-		       const struct flowi *fl, struct sock *sk, int flags);
+extern struct dst_entry *xfrm_lookup(struct net *net, struct dst_entry *dst_orig,
+				     const struct flowi *fl, struct sock *sk,
+				     int flags);
 #endif
 #endif
 

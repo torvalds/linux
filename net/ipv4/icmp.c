@@ -398,18 +398,14 @@ static struct rtable *icmp_route_lookup(struct net *net, struct sk_buff *skb_in,
 	if (!fl.fl4_src)
 		fl.fl4_src = rt->rt_src;
 
-	err = xfrm_lookup(net, (struct dst_entry **)&rt, &fl, NULL, 0);
-	switch (err) {
-	case 0:
+	rt = (struct rtable *) xfrm_lookup(net, &rt->dst, &fl, NULL, 0);
+	if (!IS_ERR(rt)) {
 		if (rt != rt2)
 			return rt;
-		break;
-	case -EPERM:
+	} else if (PTR_ERR(rt) == -EPERM) {
 		rt = NULL;
-		break;
-	default:
-		return ERR_PTR(err);
-	}
+	} else
+		return rt;
 
 	err = xfrm_decode_session_reverse(skb_in, &fl, AF_INET);
 	if (err)
@@ -438,22 +434,18 @@ static struct rtable *icmp_route_lookup(struct net *net, struct sk_buff *skb_in,
 	if (err)
 		goto relookup_failed;
 
-	err = xfrm_lookup(net, (struct dst_entry **)&rt2, &fl, NULL,
-			  XFRM_LOOKUP_ICMP);
-	switch (err) {
-	case 0:
+	rt2 = (struct rtable *) xfrm_lookup(net, &rt2->dst, &fl, NULL, XFRM_LOOKUP_ICMP);
+	if (!IS_ERR(rt2)) {
 		dst_release(&rt->dst);
 		rt = rt2;
-		break;
-	case -EPERM:
-		return ERR_PTR(err);
-	default:
-		if (!rt)
-			return ERR_PTR(err);
-		break;
+	} else if (PTR_ERR(rt2) == -EPERM) {
+		if (rt)
+			dst_release(&rt->dst);
+		return rt2;
+	} else {
+		err = PTR_ERR(rt2);
+		goto relookup_failed;
 	}
-
-
 	return rt;
 
 relookup_failed:
