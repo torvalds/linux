@@ -875,6 +875,8 @@ static void bdi_update_dirty_ratelimit(struct backing_dev_info *bdi,
 
 	bdi->dirty_ratelimit = max(dirty_ratelimit, 1UL);
 	bdi->balanced_dirty_ratelimit = balanced_dirty_ratelimit;
+
+	trace_bdi_dirty_ratelimit(bdi, dirty_rate, task_ratelimit);
 }
 
 void __bdi_update_bandwidth(struct backing_dev_info *bdi,
