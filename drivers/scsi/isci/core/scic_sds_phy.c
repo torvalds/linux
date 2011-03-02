@@ -808,11 +808,11 @@ static enum sci_status scic_sds_phy_starting_substate_await_ossp_event_handler(
 		break;
 
 	default:
-		dev_warn(sciphy_to_dev(this_phy),
-			 "%s: PHY starting substate machine received "
-			 "unexpected event_code %x\n",
-			 __func__,
-			 event_code);
+		dev_dbg(sciphy_to_dev(this_phy),
+			"%s: PHY starting substate machine received "
+			"unexpected event_code %x\n",
+			__func__,
+			event_code);
 
 		result = SCI_FAILURE;
 		break;
@@ -2000,26 +2000,24 @@ enum sci_status scic_sds_phy_default_start_handler(
 
 /**
  *
- * @phy: This is the struct sci_base_phy object which is cast into a struct scic_sds_phy
- *    object.
+ * @phy: This is the struct sci_base_phy object which is cast into a
+ * struct scic_sds_phy object.
  *
  * This is the default method for phy a stop request.  It will report a warning
  * and exit. enum sci_status SCI_FAILURE_INVALID_STATE
  */
-enum sci_status scic_sds_phy_default_stop_handler(
-	struct sci_base_phy *phy)
+enum sci_status scic_sds_phy_default_stop_handler(struct sci_base_phy *base_phy)
 {
-	struct scic_sds_phy *this_phy;
+	struct scic_sds_phy *sci_phy;
 
-	this_phy = (struct scic_sds_phy *)phy;
+	sci_phy = (struct scic_sds_phy *)base_phy;
 
-	dev_warn(sciphy_to_dev(this_phy),
-		 "%s: SCIC Phy 0x%p requested to stop from invalid "
-		 "state %d\n",
-		 __func__,
-		 this_phy,
-		 sci_base_state_machine_get_state(
-			 &this_phy->parent.state_machine));
+	dev_dbg(sciphy_to_dev(sci_phy),
+		"%s: SCIC Phy 0x%p requested to stop from invalid state %d\n",
+		__func__,
+		sci_phy,
+		sci_base_state_machine_get_state(
+			&sci_phy->parent.state_machine));
 
 	return SCI_FAILURE_INVALID_STATE;
 }
@@ -2119,7 +2117,7 @@ enum sci_status scic_sds_phy_default_event_handler(
 	struct scic_sds_phy *this_phy,
 	u32 event_code)
 {
-	dev_warn(sciphy_to_dev(this_phy),
+	dev_dbg(sciphy_to_dev(this_phy),
 		"%s: SCIC Phy 0x%p received unexpected event status %x "
 		"while in state %d\n",
 		__func__,

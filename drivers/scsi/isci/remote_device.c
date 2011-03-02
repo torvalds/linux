@@ -472,7 +472,7 @@ void isci_remote_device_gone(
 	struct isci_remote_device *isci_device = isci_dev_from_domain_dev(
 		domain_dev);
 
-	dev_err(&isci_device->isci_port->isci_host->pdev->dev,
+	dev_dbg(&isci_device->isci_port->isci_host->pdev->dev,
 		"%s: domain_device = %p, isci_device = %p, isci_port = %p\n",
 		__func__, domain_dev, isci_device, isci_device->isci_port);
 

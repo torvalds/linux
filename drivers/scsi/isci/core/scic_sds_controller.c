@@ -1669,7 +1669,7 @@ void scic_sds_controller_link_up(
 	if (link_up)
 		link_up(scic, sci_port, sci_phy);
 	else
-		dev_warn(scic_to_dev(scic),
+		dev_dbg(scic_to_dev(scic),
 			"%s: SCIC Controller linkup event from phy %d in "
 			"unexpected state %d\n",
 			__func__,
@@ -1694,14 +1694,11 @@ void scic_sds_controller_link_down(
 	if (link_down)
 		link_down(scic, sci_port, sci_phy);
 	else
-		dev_warn(scic_to_dev(scic),
+		dev_dbg(scic_to_dev(scic),
 			"%s: SCIC Controller linkdown event from phy %d in "
 			"unexpected state %d\n",
 			__func__,
-			sci_phy->phy_index,
-			sci_base_state_machine_get_state(
-				scic_sds_controller_get_base_state_machine(
-					scic)));
+			sci_phy->phy_index, state);
 }
 
 /**
@@ -1710,28 +1707,22 @@ void scic_sds_controller_link_down(
  *
  */
 
-void scic_sds_controller_remote_device_started(
-	struct scic_sds_controller *this_controller,
-	struct scic_sds_remote_device  *the_device)
+void scic_sds_controller_remote_device_started(struct scic_sds_controller *scic,
+					       struct scic_sds_remote_device *sci_dev)
 {
 	u32 state;
-	scic_sds_controller_device_handler_t remote_device_started_handler;
+	scic_sds_controller_device_handler_t started;
 
-	state = this_controller->parent.state_machine.current_state_id;
-	remote_device_started_handler = scic_sds_controller_state_handler_table[state].remote_device_started_handler;
+	state = scic->parent.state_machine.current_state_id;
+	started = scic_sds_controller_state_handler_table[state].remote_device_started_handler;
 
-	if (remote_device_started_handler != NULL)
-		remote_device_started_handler(this_controller, the_device);
+	if (started)
+		started(scic, sci_dev);
 	else {
-		dev_warn(scic_to_dev(this_controller),
-		"%s: SCIC Controller 0x%p remote device started event "
-		"from device 0x%p in unexpected state  %d\n",
-		__func__,
-		this_controller,
-		the_device,
-		sci_base_state_machine_get_state(
-			scic_sds_controller_get_base_state_machine(
-				this_controller)));
+		dev_dbg(scic_to_dev(scic),
+			 "%s: SCIC Controller 0x%p remote device started event "
+			 "from device 0x%p in unexpected state  %d\n",
+			 __func__, scic, sci_dev, state);
 	}
 }
 
@@ -1761,29 +1752,23 @@ bool scic_sds_controller_has_remote_devices_stopping(
  *
  */
 
-void scic_sds_controller_remote_device_stopped(
-	struct scic_sds_controller  *this_controller,
-	struct scic_sds_remote_device *the_device)
+void scic_sds_controller_remote_device_stopped(struct scic_sds_controller *scic,
+					       struct scic_sds_remote_device *sci_dev)
 {
 
 	u32 state;
-	scic_sds_controller_device_handler_t remote_device_stopped_handler;
+	scic_sds_controller_device_handler_t stopped;
 
-	state = this_controller->parent.state_machine.current_state_id;
-	remote_device_stopped_handler = scic_sds_controller_state_handler_table[state].remote_device_stopped_handler;
+	state = scic->parent.state_machine.current_state_id;
+	stopped = scic_sds_controller_state_handler_table[state].remote_device_stopped_handler;
 
-	if (remote_device_stopped_handler != NULL)
-		remote_device_stopped_handler(this_controller, the_device);
+	if (stopped)
+		stopped(scic, sci_dev);
 	else {
-		dev_warn(scic_to_dev(this_controller),
-		"%s: SCIC Controller 0x%p remote device stopped event "
-		"from device 0x%p in unexpected state  %d\n",
-		__func__,
-		this_controller,
-		the_device,
-		sci_base_state_machine_get_state(
-			scic_sds_controller_get_base_state_machine(
-				this_controller)));
+		dev_dbg(scic_to_dev(scic),
+			"%s: SCIC Controller 0x%p remote device stopped event "
+			"from device 0x%p in unexpected state  %d\n",
+			__func__, scic, sci_dev, state);
 	}
 }
 
