@@ -1178,6 +1178,11 @@ static int smsc911x_open(struct net_device *dev)
 	smsc911x_reg_write(pdata, HW_CFG, 0x00050000);
 	smsc911x_reg_write(pdata, AFC_CFG, 0x006E3740);
 
+	/* Increase the legal frame size of VLAN tagged frames to 1522 bytes */
+	spin_lock_irq(&pdata->mac_lock);
+	smsc911x_mac_write(pdata, VLAN1, ETH_P_8021Q);
+	spin_unlock_irq(&pdata->mac_lock);
+
 	/* Make sure EEPROM has finished loading before setting GPIO_CFG */
 	timeout = 50;
 	while ((smsc911x_reg_read(pdata, E2P_CMD) & E2P_CMD_EPC_BUSY_) &&
