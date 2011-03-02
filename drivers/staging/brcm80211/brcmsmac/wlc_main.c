@@ -1807,8 +1807,11 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	wlc_module_register(wlc->pub, wlc_iovars, "wlc_iovars", wlc,
 			    wlc_doiovar, NULL, NULL);
 
-	/* low level attach steps(all hw accesses go inside, no more in rest of the attach) */
-	err = wlc_bmac_attach(wlc, vendor, device, unit, piomode, osh, regsva,
+	/*
+	 * low level attach steps(all hw accesses go
+	 * inside, no more in rest of the attach)
+	 */
+	err = wlc_bmac_attach(wlc, vendor, device, unit, piomode, regsva,
 			      bustype, btparam);
 	if (err)
 		goto fail;

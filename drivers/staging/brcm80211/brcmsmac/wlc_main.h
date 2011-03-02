@@ -397,7 +397,6 @@ struct wlc_hwband {
 };
 
 struct wlc_hw_info {
-	struct osl_info *osh;		/* pointer to os handle */
 	bool _piomode;		/* true if pio mode */
 	struct wlc_info *wlc;
 

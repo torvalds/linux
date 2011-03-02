@@ -80,8 +80,8 @@ enum {
 };
 
 extern int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device,
-			   uint unit, bool piomode, struct osl_info *osh,
-			   void *regsva, uint bustype, void *btparam);
+			   uint unit, bool piomode, void *regsva, uint bustype,
+			   void *btparam);
 extern int wlc_bmac_detach(struct wlc_info *wlc);
 extern void wlc_bmac_watchdog(void *arg);
 

@@ -185,10 +185,8 @@ void wlc_bmac_set_shortslot(struct wlc_hw_info *wlc_hw, bool shortslot)
 static void wlc_bmac_update_slot_timing(struct wlc_hw_info *wlc_hw,
 					bool shortslot)
 {
-	struct osl_info *osh;
 	d11regs_t *regs;
 
-	osh = wlc_hw->osh;
 	regs = wlc_hw->regs;
 
 	if (shortslot) {
@@ -533,7 +531,7 @@ static bool wlc_bmac_attach_dmapio(struct wlc_info *wlc, uint j, bool wme)
 	if (wlc_hw->di[0] == 0) {	/* Init FIFOs */
 		uint addrwidth;
 		int dma_attach_err = 0;
-		struct osl_info *osh = wlc_hw->osh;
+		struct osl_info *osh = wlc->osh;
 
 		/* Find out the DMA addressing capability and let OS know
 		 * All the channels within one DMA core have 'common-minimum' same
@@ -640,8 +638,7 @@ static void wlc_bmac_detach_dmapio(struct wlc_hw_info *wlc_hw)
  *    put the whole chip in reset(driver down state), no clock
  */
 int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
-		    bool piomode, struct osl_info *osh, void *regsva,
-		    uint bustype, void *btparam)
+		    bool piomode, void *regsva, uint bustype, void *btparam)
 {
 	struct wlc_hw_info *wlc_hw;
 	d11regs_t *regs;
@@ -662,7 +659,6 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 	wlc_hw = wlc->hw;
 	wlc_hw->wlc = wlc;
 	wlc_hw->unit = unit;
-	wlc_hw->osh = osh;
 	wlc_hw->band = wlc_hw->bandstate[0];
 	wlc_hw->_piomode = piomode;
 
@@ -809,7 +805,7 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 	}
 
 	/* pass all the parameters to wlc_phy_shared_attach in one struct */
-	sha_params.osh = osh;
+	sha_params.osh = wlc->osh;
 	sha_params.sih = wlc_hw->sih;
 	sha_params.physhim = wlc_hw->physhim;
 	sha_params.unit = unit;
@@ -1610,7 +1606,6 @@ wlc_bmac_set_rcmta(struct wlc_hw_info *wlc_hw, int idx,
 	volatile u16 *objdata16 = (volatile u16 *)&regs->objdata;
 	u32 mac_hm;
 	u16 mac_l;
-	struct osl_info *osh;
 
 	WL_TRACE("wl%d: %s\n", wlc_hw->unit, __func__);
 
@@ -1618,8 +1613,6 @@ wlc_bmac_set_rcmta(struct wlc_hw_info *wlc_hw, int idx,
 	    (addr[3] << 24) | (addr[2] << 16) |
 	    (addr[1] << 8) | addr[0];
 	mac_l = (addr[5] << 8) | addr[4];
-
-	osh = wlc_hw->osh;
 
 	W_REG(&regs->objaddr, (OBJADDR_RCMTA_SEL | (idx * 2)));
 	(void)R_REG(&regs->objaddr);
@@ -1640,7 +1633,6 @@ wlc_bmac_set_addrmatch(struct wlc_hw_info *wlc_hw, int match_reg_offset,
 	u16 mac_l;
 	u16 mac_m;
 	u16 mac_h;
-	struct osl_info *osh;
 
 	WL_TRACE("wl%d: wlc_bmac_set_addrmatch\n", wlc_hw->unit);
 
@@ -1650,8 +1642,6 @@ wlc_bmac_set_addrmatch(struct wlc_hw_info *wlc_hw, int match_reg_offset,
 	mac_l = addr[0] | (addr[1] << 8);
 	mac_m = addr[2] | (addr[3] << 8);
 	mac_h = addr[4] | (addr[5] << 8);
-
-	osh = wlc_hw->osh;
 
 	/* enter the MAC addr into the RXE match registers */
 	W_REG(&regs->rcm_ctl, RCM_INC_DATA | match_reg_offset);
@@ -1671,12 +1661,9 @@ wlc_bmac_write_template_ram(struct wlc_hw_info *wlc_hw, int offset, int len,
 #ifdef IL_BIGENDIAN
 	volatile u16 *dptr = NULL;
 #endif				/* IL_BIGENDIAN */
-	struct osl_info *osh;
-
 	WL_TRACE("wl%d: wlc_bmac_write_template_ram\n", wlc_hw->unit);
 
 	regs = wlc_hw->regs;
-	osh = wlc_hw->osh;
 
 	ASSERT(IS_ALIGNED(offset, sizeof(u32)));
 	ASSERT(IS_ALIGNED(len, sizeof(u32)));
@@ -1707,9 +1694,6 @@ wlc_bmac_write_template_ram(struct wlc_hw_info *wlc_hw, int offset, int len,
 
 void wlc_bmac_set_cwmin(struct wlc_hw_info *wlc_hw, u16 newmin)
 {
-	struct osl_info *osh;
-
-	osh = wlc_hw->osh;
 	wlc_hw->band->CWmin = newmin;
 
 	W_REG(&wlc_hw->regs->objaddr, OBJADDR_SCR_SEL | S_DOT11_CWMIN);
@@ -1719,9 +1703,6 @@ void wlc_bmac_set_cwmin(struct wlc_hw_info *wlc_hw, u16 newmin)
 
 void wlc_bmac_set_cwmax(struct wlc_hw_info *wlc_hw, u16 newmax)
 {
-	struct osl_info *osh;
-
-	osh = wlc_hw->osh;
 	wlc_hw->band->CWmax = newmax;
 
 	W_REG(&wlc_hw->regs->objaddr, OBJADDR_SCR_SEL | S_DOT11_CWMAX);
@@ -2281,12 +2262,9 @@ static void wlc_corerev_fifofixup(struct wlc_hw_info *wlc_hw)
 	u16 txfifo_startblk = TXFIFO_START_BLK, txfifo_endblk;
 	u16 txfifo_def, txfifo_def1;
 	u16 txfifo_cmd;
-	struct osl_info *osh;
 
 	/* tx fifos start at TXFIFO_START_BLK from the Base address */
 	txfifo_startblk = TXFIFO_START_BLK;
-
-	osh = wlc_hw->osh;
 
 	/* sequence of operations:  reset fifo, set fifo size, reset fifo */
 	for (fifo_nu = 0; fifo_nu < NFIFO; fifo_nu++) {
@@ -2340,12 +2318,10 @@ static void wlc_coreinit(struct wlc_info *wlc)
 	uint bcnint_us;
 	uint i = 0;
 	bool fifosz_fixup = false;
-	struct osl_info *osh;
 	int err = 0;
 	u16 buf[NFIFO];
 
 	regs = wlc_hw->regs;
-	osh = wlc_hw->osh;
 
 	WL_TRACE("wl%d: wlc_coreinit\n", wlc_hw->unit);
 
@@ -2524,9 +2500,7 @@ static void wlc_coreinit(struct wlc_info *wlc)
 void wlc_bmac_switch_macfreq(struct wlc_hw_info *wlc_hw, u8 spurmode)
 {
 	d11regs_t *regs;
-	struct osl_info *osh;
 	regs = wlc_hw->regs;
-	osh = wlc_hw->osh;
 
 	if ((wlc_hw->sih->chip == BCM43224_CHIP_ID) ||
 	    (wlc_hw->sih->chip == BCM43225_CHIP_ID)) {
@@ -2557,10 +2531,8 @@ static void wlc_gpio_init(struct wlc_info *wlc)
 	struct wlc_hw_info *wlc_hw = wlc->hw;
 	d11regs_t *regs;
 	u32 gc, gm;
-	struct osl_info *osh;
 
 	regs = wlc_hw->regs;
-	osh = wlc_hw->osh;
 
 	/* use GPIO select 0 to get all gpio signals from the gpio out reg */
 	wlc_bmac_mctrl(wlc_hw, MCTL_GPOUT_SEL_MASK, 0);
@@ -2647,12 +2619,9 @@ static void wlc_ucode_download(struct wlc_hw_info *wlc_hw)
 
 static void wlc_ucode_write(struct wlc_hw_info *wlc_hw, const u32 ucode[],
 			      const uint nbytes) {
-	struct osl_info *osh;
 	d11regs_t *regs = wlc_hw->regs;
 	uint i;
 	uint count;
-
-	osh = wlc_hw->osh;
 
 	WL_TRACE("wl%d: wlc_ucode_write\n", wlc_hw->unit);
 
@@ -2670,12 +2639,10 @@ static void wlc_write_inits(struct wlc_hw_info *wlc_hw,
 			    const struct d11init *inits)
 {
 	int i;
-	struct osl_info *osh;
 	volatile u8 *base;
 
 	WL_TRACE("wl%d: wlc_write_inits\n", wlc_hw->unit);
 
-	osh = wlc_hw->osh;
 	base = (volatile u8 *)wlc_hw->regs;
 
 	for (i = 0; inits[i].addr != 0xffff; i++) {
@@ -2996,9 +2963,6 @@ static inline u32 wlc_intstatus(struct wlc_info *wlc, bool in_isr)
 	struct wlc_hw_info *wlc_hw = wlc->hw;
 	d11regs_t *regs = wlc_hw->regs;
 	u32 macintstatus;
-	struct osl_info *osh;
-
-	osh = wlc_hw->osh;
 
 	/* macintstatus includes a DMA interrupt summary bit */
 	macintstatus = R_REG(&regs->macintstatus);
@@ -3130,7 +3094,6 @@ wlc_bmac_txstatus(struct wlc_hw_info *wlc_hw, bool bound, bool *fatal)
 	bool morepending = false;
 	struct wlc_info *wlc = wlc_hw->wlc;
 	d11regs_t *regs;
-	struct osl_info *osh;
 	tx_status_t txstatus, *txs;
 	u32 s1, s2;
 	uint n = 0;
@@ -3144,7 +3107,6 @@ wlc_bmac_txstatus(struct wlc_hw_info *wlc_hw, bool bound, bool *fatal)
 
 	txs = &txstatus;
 	regs = wlc_hw->regs;
-	osh = wlc_hw->osh;
 	while (!(*fatal)
 	       && (s1 = R_REG(&regs->frmtxstatus)) & TXS_V) {
 
@@ -3187,7 +3149,6 @@ void wlc_suspend_mac_and_wait(struct wlc_info *wlc)
 	struct wlc_hw_info *wlc_hw = wlc->hw;
 	d11regs_t *regs = wlc_hw->regs;
 	u32 mc, mi;
-	struct osl_info *osh;
 
 	WL_TRACE("wl%d: wlc_suspend_mac_and_wait: bandunit %d\n",
 		 wlc_hw->unit, wlc_hw->band->bandunit);
@@ -3198,8 +3159,6 @@ void wlc_suspend_mac_and_wait(struct wlc_info *wlc)
 	wlc_hw->mac_suspend_depth++;
 	if (wlc_hw->mac_suspend_depth > 1)
 		return;
-
-	osh = wlc_hw->osh;
 
 	/* force the core awake */
 	wlc_ucode_wake_override_set(wlc_hw, WLC_WAKE_OVERRIDE_MACSUSPEND);
@@ -3254,7 +3213,6 @@ void wlc_enable_mac(struct wlc_info *wlc)
 	struct wlc_hw_info *wlc_hw = wlc->hw;
 	d11regs_t *regs = wlc_hw->regs;
 	u32 mc, mi;
-	struct osl_info *osh;
 
 	WL_TRACE("wl%d: wlc_enable_mac: bandunit %d\n",
 		 wlc_hw->unit, wlc->band->bandunit);
@@ -3266,8 +3224,6 @@ void wlc_enable_mac(struct wlc_info *wlc)
 	wlc_hw->mac_suspend_depth--;
 	if (wlc_hw->mac_suspend_depth > 0)
 		return;
-
-	osh = wlc_hw->osh;
 
 	mc = R_REG(&regs->maccontrol);
 	ASSERT(!(mc & MCTL_PSM_JMP_0));
@@ -3380,12 +3336,10 @@ static bool wlc_bmac_validate_chip_access(struct wlc_hw_info *wlc_hw)
 {
 	d11regs_t *regs;
 	u32 w, val;
-	struct osl_info *osh;
 
 	WL_TRACE("wl%d: validate_chip_access\n", wlc_hw->unit);
 
 	regs = wlc_hw->regs;
-	osh = wlc_hw->osh;
 
 	/* Validate dchip register access */
 
@@ -3445,14 +3399,12 @@ static bool wlc_bmac_validate_chip_access(struct wlc_hw_info *wlc_hw)
 void wlc_bmac_core_phypll_ctl(struct wlc_hw_info *wlc_hw, bool on)
 {
 	d11regs_t *regs;
-	struct osl_info *osh;
 	u32 tmp;
 
 	WL_TRACE("wl%d: wlc_bmac_core_phypll_ctl\n", wlc_hw->unit);
 
 	tmp = 0;
 	regs = wlc_hw->regs;
-	osh = wlc_hw->osh;
 
 	if (on) {
 		if ((wlc_hw->sih->chip == BCM4313_CHIP_ID)) {
