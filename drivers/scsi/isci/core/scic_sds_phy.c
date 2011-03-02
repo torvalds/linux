@@ -537,27 +537,25 @@ void scic_sds_phy_get_attached_phy_protocols(
 /**
  * This method will attempt to start the phy object. This request is only valid
  *    when the phy is in the stopped state
- * @this_phy:
+ * @sci_phy:
  *
  * enum sci_status
  */
-enum sci_status scic_sds_phy_start(
-	struct scic_sds_phy *this_phy)
+enum sci_status scic_sds_phy_start(struct scic_sds_phy *sci_phy)
 {
-	return this_phy->state_handlers->parent.start_handler(&this_phy->parent);
+	return sci_phy->state_handlers->parent.start_handler(&sci_phy->parent);
 }
 
 /**
  * This method will attempt to stop the phy object.
- * @this_phy:
+ * @sci_phy:
  *
- * enum sci_status SCI_SUCCESS if the phy is going to stop SCI_INVALID_STATE if the
- * phy is not in a valid state to stop
+ * enum sci_status SCI_SUCCESS if the phy is going to stop SCI_INVALID_STATE
+ * if the phy is not in a valid state to stop
  */
-enum sci_status scic_sds_phy_stop(
-	struct scic_sds_phy *this_phy)
+enum sci_status scic_sds_phy_stop(struct scic_sds_phy *sci_phy)
 {
-	return this_phy->state_handlers->parent.stop_handler(&this_phy->parent);
+	return sci_phy->state_handlers->parent.stop_handler(&sci_phy->parent);
 }
 
 /**
@@ -2526,7 +2524,8 @@ static void scic_sds_phy_initial_state_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
+ * @object: This is the struct sci_base_object which is cast to a
+ * struct scic_sds_phy object.
  *
  * This method will perform the actions required by the struct scic_sds_phy on
  * entering the SCI_BASE_PHY_STATE_INITIAL. - This function sets the state
@@ -2539,7 +2538,10 @@ static void scic_sds_phy_stopped_state_enter(struct sci_base_object *object)
 
 	sci_phy = (struct scic_sds_phy *)object;
 
-	/* / @todo We need to get to the controller to place this PE in a reset state */
+	/*
+	 * @todo We need to get to the controller to place this PE in a
+	 * reset state
+	 */
 
 	scic_sds_phy_set_base_state_handlers(sci_phy, SCI_BASE_PHY_STATE_STOPPED);
 
@@ -2551,6 +2553,12 @@ static void scic_sds_phy_stopped_state_enter(struct sci_base_object *object)
 	}
 
 	scu_link_layer_stop_protocol_engine(sci_phy);
+
+	if (sci_phy->parent.state_machine.previous_state_id !=
+			SCI_BASE_PHY_STATE_INITIAL)
+		scic_sds_controller_link_down(scic_sds_phy_get_controller(sci_phy),
+					      scic_sds_phy_get_port(sci_phy),
+					      sci_phy);
 }
 
 /**

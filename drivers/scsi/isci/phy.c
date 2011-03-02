@@ -58,6 +58,9 @@
 #include "scic_port.h"
 #include "scic_config_parameters.h"
 
+struct scic_sds_phy;
+extern enum sci_status scic_sds_phy_start(struct scic_sds_phy *sci_phy);
+extern enum sci_status scic_sds_phy_stop(struct scic_sds_phy *sci_phy);
 
 /**
  * isci_phy_init() - This function is called by the probe function to
@@ -127,42 +130,48 @@ void isci_phy_init(
  *
  * status, zero indicates success.
  */
-int isci_phy_control(
-	struct asd_sas_phy *phy,
-	enum phy_func func,
-	void *buf)
+int isci_phy_control(struct asd_sas_phy *sas_phy,
+		     enum phy_func func,
+		     void *buf)
 {
-	int ret            = TMF_RESP_FUNC_COMPLETE;
-	struct isci_phy *isci_phy_ptr  = (struct isci_phy *)phy->lldd_phy;
-	struct isci_port *isci_port_ptr = NULL;
+	int ret = 0;
+	struct isci_phy *iphy = sas_phy->lldd_phy;
+	struct isci_port *iport = iphy->isci_port;
+	struct isci_host *ihost = sas_phy->ha->lldd_ha;
+	unsigned long flags;
 
-	if (isci_phy_ptr != NULL)
-		isci_port_ptr = isci_phy_ptr->isci_port;
-
-	if ((isci_phy_ptr == NULL) || (isci_port_ptr == NULL)) {
-		pr_err("%s: asd_sas_phy %p: lldd_phy %p or "
-		       "isci_port %p == NULL!\n",
-		       __func__, phy, isci_phy_ptr, isci_port_ptr);
-		return TMF_RESP_FUNC_FAILED;
-	}
-
-	pr_debug("%s: phy %p; func %d; buf %p; isci phy %p, port %p\n",
-		 __func__, phy, func, buf, isci_phy_ptr, isci_port_ptr);
+	dev_dbg(&ihost->pdev->dev,
+		"%s: phy %p; func %d; buf %p; isci phy %p, port %p\n",
+		__func__, sas_phy, func, buf, iphy, iport);
 
 	switch (func) {
-	case PHY_FUNC_HARD_RESET:
+	case PHY_FUNC_DISABLE:
+		spin_lock_irqsave(&ihost->scic_lock, flags);
+		scic_sds_phy_stop(iphy->sci_phy_handle);
+		spin_unlock_irqrestore(&ihost->scic_lock, flags);
+		break;
+
 	case PHY_FUNC_LINK_RESET:
+		spin_lock_irqsave(&ihost->scic_lock, flags);
+		scic_sds_phy_stop(iphy->sci_phy_handle);
+		scic_sds_phy_start(iphy->sci_phy_handle);
+		spin_unlock_irqrestore(&ihost->scic_lock, flags);
+		break;
+
+	case PHY_FUNC_HARD_RESET:
+		if (!iport)
+			return -ENODEV;
 
 		/* Perform the port reset. */
-		ret = isci_port_perform_hard_reset(isci_port_ptr, isci_phy_ptr);
+		ret = isci_port_perform_hard_reset(iport, iphy);
 
 		break;
 
-	case PHY_FUNC_DISABLE:
 	default:
-		pr_debug("%s: phy %p; func %d NOT IMPLEMENTED!\n",
-			 __func__, phy, func);
-		ret = TMF_RESP_FUNC_FAILED;
+		dev_dbg(&ihost->pdev->dev,
+			   "%s: phy %p; func %d NOT IMPLEMENTED!\n",
+			   __func__, sas_phy, func);
+		ret = -ENOSYS;
 		break;
 	}
 	return ret;
