@@ -379,7 +379,11 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 		if (emu_nid_to_phys[i] == NUMA_NO_NODE)
 			emu_nid_to_phys[i] = 0;
 
-	/* transform distance table */
+	/*
+	 * Transform distance table.  numa_set_distance() ignores all
+	 * out-of-bound distances.  Just call it for every possible node
+	 * combination.
+	 */
 	numa_reset_distance();
 	for (i = 0; i < MAX_NUMNODES; i++) {
 		for (j = 0; j < MAX_NUMNODES; j++) {

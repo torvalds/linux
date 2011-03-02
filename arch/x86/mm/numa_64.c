@@ -392,11 +392,12 @@ void __init numa_reset_distance(void)
 {
 	size_t size = numa_distance_cnt * numa_distance_cnt * sizeof(numa_distance[0]);
 
+	/* numa_distance could be 1LU marking allocation failure, test cnt */
 	if (numa_distance_cnt)
 		memblock_x86_free_range(__pa(numa_distance),
 					__pa(numa_distance) + size);
 	numa_distance_cnt = 0;
-	numa_distance = NULL;
+	numa_distance = NULL;	/* enable table creation */
 }
 
 static int __init numa_alloc_distance(void)
@@ -447,6 +448,14 @@ static int __init numa_alloc_distance(void)
  * Set the distance from node @from to @to to @distance.  If distance table
  * doesn't exist, one which is large enough to accomodate all the currently
  * known nodes will be created.
+ *
+ * If such table cannot be allocated, a warning is printed and further
+ * calls are ignored until the distance table is reset with
+ * numa_reset_distance().
+ *
+ * If @from or @to is higher than the highest known node at the time of
+ * table creation or @distance doesn't make sense, the call is ignored.
+ * This is to allow simplification of specific NUMA config implementations.
  */
 void __init numa_set_distance(int from, int to, int distance)
 {
