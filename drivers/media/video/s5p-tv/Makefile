@@ -1,0 +1,13 @@
+# drivers/media/video/samsung/tvout/Makefile
+#
+# Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
+#	http://www.samsung.com/
+# Tomasz Stanislawski <t.stanislaws@samsung.com>
+#
+# Licensed under GPL
+
+obj-$(CONFIG_VIDEO_SAMSUNG_S5P_HDMIPHY) += s5p-hdmiphy.o
+s5p-hdmiphy-y += hdmiphy_drv.o
+obj-$(CONFIG_VIDEO_SAMSUNG_S5P_HDMI) += s5p-hdmi.o
+s5p-hdmi-y += hdmi_drv.o
+

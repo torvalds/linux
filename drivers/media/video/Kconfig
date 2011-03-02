@@ -971,6 +971,8 @@ config VIDEO_S5P_MIPI_CSIS
 	  To compile this driver as a module, choose M here: the
 	  module will be called s5p-csis.
 
+source "drivers/media/video/s5p-tv/Kconfig"
+
 #
 # USB Multimedia device configuration
 #
