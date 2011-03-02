@@ -130,7 +130,6 @@ static struct spi_board_info mc13783_spi_dev __initdata = {
  * USB
  */
 
-#if defined(CONFIG_USB_ULPI)
 #define USB_PAD_CFG (PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST | PAD_CTL_HYS_CMOS | \
 			PAD_CTL_ODE_CMOS | PAD_CTL_100K_PU)
 
@@ -177,7 +176,6 @@ static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
 	.init   = usbh2_init,
 	.portsc = MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
 };
-#endif
 
 /*
  * NOR flash
@@ -254,13 +252,11 @@ static void __init mx31lite_init(void)
 	imx31_add_spi_imx1(&spi1_pdata);
 	spi_register_board_info(&mc13783_spi_dev, 1);
 
-#if defined(CONFIG_USB_ULPI)
 	/* USB */
-	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
-
-	imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
-#endif
+	usbh2_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+			ULPI_OTG_DRVVBUS_EXT);
+	if (usbh2_pdata.otg)
+		imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
 
 	/* SMSC9117 IRQ pin */
 	ret = gpio_request(IOMUX_TO_GPIO(MX31_PIN_SFS6), "sms9117-irq");

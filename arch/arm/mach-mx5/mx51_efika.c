@@ -218,12 +218,12 @@ static void __init mx51_efika_usb(void)
 	msleep(1);
 	gpio_set_value(EFIKA_USB_PHY_RESET, 1);
 
-	usbh1_config.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT |
-				ULPI_OTG_EXTVBUSIND);
+	usbh1_config.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+			ULPI_OTG_DRVVBUS_EXT | ULPI_OTG_EXTVBUSIND);
 
 	mxc_register_device(&mxc_usbdr_host_device, &dr_utmi_config);
-	mxc_register_device(&mxc_usbh1_device, &usbh1_config);
+	if (usbh1_config.otg)
+		mxc_register_device(&mxc_usbh1_device, &usbh1_config);
 }
 
 static struct mtd_partition mx51_efika_spi_nor_partitions[] = {

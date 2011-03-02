@@ -305,7 +305,6 @@ pcm037_nand_board_info __initconst = {
 	.hw_ecc = 1,
 };
 
-#if defined(CONFIG_USB_ULPI)
 static int pcm043_otg_init(struct platform_device *pdev)
 {
 	return mx35_initialize_usb_hw(pdev->id, MXC_EHCI_INTERFACE_DIFF_UNI);
@@ -315,7 +314,6 @@ static struct mxc_usbh_platform_data otg_pdata __initdata = {
 	.init	= pcm043_otg_init,
 	.portsc	= MXC_EHCI_MODE_UTMI,
 };
-#endif
 
 static int pcm043_usbh1_init(struct platform_device *pdev)
 {
@@ -385,14 +383,12 @@ static void __init pcm043_init(void)
 	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
 	mxc_register_device(&mx3_fb, &mx3fb_pdata);
 
-#if defined(CONFIG_USB_ULPI)
 	if (otg_mode_host) {
-		otg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
-
-		imx35_add_mxc_ehci_otg(&otg_pdata);
+		otg_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+				ULPI_OTG_DRVVBUS_EXT);
+		if (otg_pdata.otg)
+			imx35_add_mxc_ehci_otg(&otg_pdata);
 	}
-#endif
 	imx35_add_mxc_ehci_hs(&usbh1_pdata);
 
 	if (!otg_mode_host)

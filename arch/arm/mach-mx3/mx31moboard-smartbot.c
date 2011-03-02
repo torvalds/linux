@@ -137,8 +137,10 @@ static int __init smartbot_otg_host_init(void)
 {
 	struct platform_device *pdev;
 
-	otg_host_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-			ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
+	otg_host_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+		ULPI_OTG_DRVVBUS_EXT);
+	if (!otg_host_pdata.otg)
+		return -ENODEV;
 
 	pdev = imx31_add_mxc_ehci_otg(&otg_host_pdata);
 	if (IS_ERR(pdev))

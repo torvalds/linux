@@ -162,7 +162,6 @@ static int otg_phy_init(void)
 	return 0;
 }
 
-#if defined(CONFIG_USB_ULPI)
 static int mx27_3ds_otg_init(struct platform_device *pdev)
 {
 	return mx27_initialize_usb_hw(pdev->id, MXC_EHCI_INTERFACE_DIFF_UNI);
@@ -172,7 +171,6 @@ static struct mxc_usbh_platform_data otg_pdata __initdata = {
 	.init	= mx27_3ds_otg_init,
 	.portsc	= MXC_EHCI_MODE_ULPI,
 };
-#endif
 
 static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.operating_mode = FSL_USB2_DR_DEVICE,
@@ -275,14 +273,15 @@ static void __init mx27pdk_init(void)
 	imx27_add_mxc_mmc(0, &sdhc1_pdata);
 	imx27_add_imx2_wdt(NULL);
 	otg_phy_init();
-#if defined(CONFIG_USB_ULPI)
-	if (otg_mode_host) {
-		otg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
-		imx27_add_mxc_ehci_otg(&otg_pdata);
+	if (otg_mode_host) {
+		otg_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+				ULPI_OTG_DRVVBUS_EXT);
+
+		if (otg_pdata.otg)
+			imx27_add_mxc_ehci_otg(&otg_pdata);
 	}
-#endif
+
 	if (!otg_mode_host)
 		imx27_add_fsl_usb2_udc(&otg_device_pdata);
 

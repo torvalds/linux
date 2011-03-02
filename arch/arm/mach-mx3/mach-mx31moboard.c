@@ -400,7 +400,6 @@ static void usb_xcvr_reset(void)
 	mdelay(1);
 }
 
-#if defined(CONFIG_USB_ULPI)
 static int moboard_usbh2_init_hw(struct platform_device *pdev)
 {
 	return mx31_initialize_usb_hw(pdev->id, MXC_EHCI_POWER_PINS_ENABLED);
@@ -415,8 +414,10 @@ static int __init moboard_usbh2_init(void)
 {
 	struct platform_device *pdev;
 
-	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-			ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
+	usbh2_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+			ULPI_OTG_DRVVBUS_EXT);
+	if (!usbh2_pdata.otg)
+		return -ENODEV;
 
 	pdev = imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
 	if (IS_ERR(pdev))
@@ -424,10 +425,6 @@ static int __init moboard_usbh2_init(void)
 
 	return 0;
 }
-#else
-static inline int moboard_usbh2_init(void) { return 0; }
-#endif
-
 
 static struct gpio_led mx31moboard_leds[] = {
 	{

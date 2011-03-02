@@ -129,10 +129,10 @@ static struct mxc_usbh_platform_data usbh2_config = {
 
 static void __init mx51_efikasb_usb(void)
 {
-	usbh2_config.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT |
-				ULPI_OTG_EXTVBUSIND);
-	mxc_register_device(&mxc_usbh2_device, &usbh2_config);
+	usbh2_config.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+			ULPI_OTG_DRVVBUS_EXT | ULPI_OTG_EXTVBUSIND);
+	if (usbh2_config.otg)
+		mxc_register_device(&mxc_usbh2_device, &usbh2_config);
 }
 
 static struct gpio_led mx51_efikasb_leds[] = {

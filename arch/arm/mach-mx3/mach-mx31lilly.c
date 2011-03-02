@@ -111,8 +111,6 @@ static struct platform_device physmap_flash_device = {
 
 /* USB */
 
-#if defined(CONFIG_USB_ULPI)
-
 #define USB_PAD_CFG (PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST | PAD_CTL_HYS_CMOS | \
 			PAD_CTL_ODE_CMOS | PAD_CTL_100K_PU)
 
@@ -197,16 +195,13 @@ static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
 
 static void lilly1131_usb_init(void)
 {
-	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
-
 	imx31_add_mxc_ehci_hs(1, &usbh1_pdata);
-	imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
-}
 
-#else
-static inline void lilly1131_usb_init(void) {}
-#endif /* CONFIG_USB_ULPI */
+	usbh2_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+			ULPI_OTG_DRVVBUS_EXT);
+	if (usbh2_pdata.otg)
+		imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
+}
 
 /* SPI */
 

@@ -209,7 +209,6 @@ static struct platform_device serial_device = {
 };
 #endif
 
-#if defined(CONFIG_USB_ULPI)
 static int eukrea_cpuimx27_otg_init(struct platform_device *pdev)
 {
 	return mx27_initialize_usb_hw(pdev->id, MXC_EHCI_INTERFACE_DIFF_UNI);
@@ -229,7 +228,6 @@ static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
 	.init	= eukrea_cpuimx27_usbh2_init,
 	.portsc	= MXC_EHCI_MODE_ULPI,
 };
-#endif
 
 static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.operating_mode = FSL_USB2_DR_DEVICE,
@@ -283,21 +281,19 @@ static void __init eukrea_cpuimx27_init(void)
 	platform_device_register(&serial_device);
 #endif
 
-#if defined(CONFIG_USB_ULPI)
 	if (otg_mode_host) {
-		otg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
-
-		imx27_add_mxc_ehci_otg(&otg_pdata);
+		otg_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+				ULPI_OTG_DRVVBUS_EXT);
+		if (otg_pdata.otg)
+			imx27_add_mxc_ehci_otg(&otg_pdata);
+	} else {
+		imx27_add_fsl_usb2_udc(&otg_device_pdata);
 	}
 
-	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
-
-	imx27_add_mxc_ehci_hs(2, &usbh2_pdata);
-#endif
-	if (!otg_mode_host)
-		imx27_add_fsl_usb2_udc(&otg_device_pdata);
+	usbh2_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+			ULPI_OTG_DRVVBUS_EXT);
+	if (usbh2_pdata.otg)
+		imx27_add_mxc_ehci_hs(2, &usbh2_pdata);
 
 #ifdef CONFIG_MACH_EUKREA_MBIMX27_BASEBOARD
 	eukrea_mbimx27_baseboard_init();

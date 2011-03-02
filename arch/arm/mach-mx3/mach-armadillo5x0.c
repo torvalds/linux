@@ -133,7 +133,6 @@ static int armadillo5x0_pins[] = {
 };
 
 /* USB */
-#if defined(CONFIG_USB_ULPI)
 
 #define OTG_RESET IOMUX_TO_GPIO(MX31_PIN_STXD4)
 #define USBH2_RESET IOMUX_TO_GPIO(MX31_PIN_SCK6)
@@ -256,7 +255,6 @@ static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
 	.init	= usbh2_init,
 	.portsc	= MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
 };
-#endif /* CONFIG_USB_ULPI */
 
 /* RTC over I2C*/
 #define ARMADILLO5X0_RTC_GPIO	IOMUX_TO_GPIO(MX31_PIN_SRXD4)
@@ -549,15 +547,15 @@ static void __init armadillo5x0_init(void)
 	i2c_register_board_info(1, &armadillo5x0_i2c_rtc, 1);
 
 	/* USB */
-#if defined(CONFIG_USB_ULPI)
-	usbotg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-			ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
-	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-			ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
-	imx31_add_mxc_ehci_otg(&usbotg_pdata);
-	imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
-#endif
+	usbotg_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+			ULPI_OTG_DRVVBUS_EXT);
+	if (usbotg_pdata.otg)
+		imx31_add_mxc_ehci_otg(&usbotg_pdata);
+	usbh2_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+			ULPI_OTG_DRVVBUS_EXT);
+	if (usbh2_pdata.otg)
+		imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
 }
 
 static void __init armadillo5x0_timer_init(void)

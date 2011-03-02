@@ -244,7 +244,6 @@ usbotg_free_reset:
 	return err;
 }
 
-#if defined(CONFIG_USB_ULPI)
 static int mx31_3ds_otg_init(struct platform_device *pdev)
 {
 	return mx31_initialize_usb_hw(pdev->id, MXC_EHCI_POWER_PINS_ENABLED);
@@ -300,7 +299,6 @@ static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
 	.init = mx31_3ds_host2_init,
 	.portsc	= MXC_EHCI_MODE_ULPI,
 };
-#endif
 
 static const struct fsl_usb2_platform_data usbotg_pdata __initconst = {
 	.operating_mode = FSL_USB2_DR_DEVICE,
@@ -345,17 +343,17 @@ static void __init mx31_3ds_init(void)
 	imx31_add_imx_keypad(&mx31_3ds_keymap_data);
 
 	mx31_3ds_usbotg_init();
-#if defined(CONFIG_USB_ULPI)
 	if (otg_mode_host) {
-		otg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
-
-		imx31_add_mxc_ehci_otg(&otg_pdata);
+		otg_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+				ULPI_OTG_DRVVBUS_EXT);
+		if (otg_pdata.otg)
+			imx31_add_mxc_ehci_otg(&otg_pdata);
 	}
-	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
-	imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
-#endif
+	usbh2_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+			ULPI_OTG_DRVVBUS_EXT);
+	if (usbh2_pdata.otg)
+		imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
+
 	if (!otg_mode_host)
 		imx31_add_fsl_usb2_udc(&usbotg_pdata);
 
