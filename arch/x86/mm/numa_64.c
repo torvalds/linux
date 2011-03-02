@@ -390,14 +390,12 @@ static void __init numa_nodemask_from_meminfo(nodemask_t *nodemask,
  */
 void __init numa_reset_distance(void)
 {
-	size_t size;
+	size_t size = numa_distance_cnt * numa_distance_cnt * sizeof(numa_distance[0]);
 
-	if (numa_distance_cnt) {
-		size = numa_distance_cnt * sizeof(numa_distance[0]);
+	if (numa_distance_cnt)
 		memblock_x86_free_range(__pa(numa_distance),
 					__pa(numa_distance) + size);
-		numa_distance_cnt = 0;
-	}
+	numa_distance_cnt = 0;
 	numa_distance = NULL;
 }
 
