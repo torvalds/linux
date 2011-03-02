@@ -2734,12 +2734,6 @@ uint wlc_down(struct wlc_info *wlc)
 	/* wlc_bmac_down_finish has done wlc_coredisable(). so clk is off */
 	wlc->clk = false;
 
-
-	/* Verify all packets are flushed from the driver */
-	if (wlc->osh->pktalloced != 0) {
-		WL_ERROR("%d packets not freed at wlc_down!!!!!!\n",
-			 wlc->osh->pktalloced);
-	}
 #ifdef BCMDBG
 	/* Since all the packets should have been freed,
 	 * all callbacks should have been called
@@ -5122,7 +5116,7 @@ wlc_prec_enq_head(struct wlc_info *wlc, struct pktq *q, struct sk_buff *pkt,
 				 tx_failed[WME_PRIO2AC(p->priority)].bytes,
 				 pkttotlen(p));
 		}
-		pkt_buf_free_skb(wlc->osh, p, true);
+		pkt_buf_free_skb(p);
 		wlc->pub->_cnt->txnobuf++;
 	}
 
@@ -5154,8 +5148,11 @@ void BCMFASTPATH wlc_txq_enq(void *ctx, struct scb *scb, struct sk_buff *sdu,
 			WL_ERROR("wl%d: wlc_txq_enq: txq overflow\n",
 				 wlc->pub->unit);
 
-		/* ASSERT(9 == 8); *//* XXX we might hit this condtion in case packet flooding from mac80211 stack */
-		pkt_buf_free_skb(wlc->osh, sdu, true);
+		/*
+		 * XXX we might hit this condtion in case
+		 * packet flooding from mac80211 stack
+		 */
+		pkt_buf_free_skb(sdu);
 		wlc->pub->_cnt->txnobuf++;
 	}
 
@@ -6710,7 +6707,7 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
  fatal:
 	ASSERT(0);
 	if (p)
-		pkt_buf_free_skb(wlc->osh, p, true);
+		pkt_buf_free_skb(p);
 
 	return true;
 
@@ -6977,7 +6974,6 @@ wlc_recvctl(struct wlc_info *wlc, d11rxhdr_t *rxh, struct sk_buff *p)
 	ieee80211_rx_irqsafe(wlc->pub->ieee_hw, p);
 
 	wlc->pub->_cnt->ieee_rx++;
-	wlc->osh->pktalloced--;
 	return;
 }
 
@@ -7094,7 +7090,7 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	return;
 
  toss:
-	pkt_buf_free_skb(wlc->osh, p, false);
+	pkt_buf_free_skb(p);
 }
 
 /* calculate frame duration for Mixed-mode L-SIG spoofing, return

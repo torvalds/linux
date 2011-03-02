@@ -141,7 +141,7 @@
  * bufpool was present for gspi bus.
  */
 #define PKTFREE2()		if ((bus->bus != SPI_BUS) || bus->usebufpool) \
-							pkt_buf_free_skb(bus->dhd->osh, pkt, false);
+							pkt_buf_free_skb(pkt);
 
 /*
  * Conversion of 802.1D priority to precedence level
@@ -939,7 +939,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 			DHD_INFO(("%s: insufficient headroom %d for %d pad\n",
 				  __func__, skb_headroom(pkt), pad));
 			bus->dhd->tx_realloc++;
-			new = pkt_buf_get_skb(osh, (pkt->len + DHD_SDALIGN));
+			new = pkt_buf_get_skb(pkt->len + DHD_SDALIGN);
 			if (!new) {
 				DHD_ERROR(("%s: couldn't allocate new %d-byte "
 					"packet\n",
@@ -951,7 +951,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 			PKTALIGN(osh, new, pkt->len, DHD_SDALIGN);
 			memcpy(new->data, pkt->data, pkt->len);
 			if (free_pkt)
-				pkt_buf_free_skb(osh, pkt, true);
+				pkt_buf_free_skb(pkt);
 			/* free the pkt if canned one is not used */
 			free_pkt = true;
 			pkt = new;
@@ -1065,7 +1065,7 @@ done:
 	dhd_os_sdlock(bus->dhd);
 
 	if (free_pkt)
-		pkt_buf_free_skb(osh, pkt, true);
+		pkt_buf_free_skb(pkt);
 
 	return ret;
 }
@@ -1116,7 +1116,7 @@ int dhd_bus_txdata(struct dhd_bus *bus, struct sk_buff *pkt)
 		if (dhd_prec_enq(bus->dhd, &bus->txq, pkt, prec) == false) {
 			skb_pull(pkt, SDPCM_HDRLEN);
 			dhd_txcomplete(bus->dhd, pkt, false);
-			pkt_buf_free_skb(osh, pkt, true);
+			pkt_buf_free_skb(pkt);
 			DHD_ERROR(("%s: out of bus->txq !!!\n", __func__));
 			ret = BCME_NORESOURCE;
 		} else {
@@ -2886,10 +2886,10 @@ void dhd_bus_stop(struct dhd_bus *bus, bool enforce_mutex)
 
 	/* Clear any held glomming stuff */
 	if (bus->glomd)
-		pkt_buf_free_skb(osh, bus->glomd, false);
+		pkt_buf_free_skb(bus->glomd);
 
 	if (bus->glom)
-		pkt_buf_free_skb(osh, bus->glom, false);
+		pkt_buf_free_skb(bus->glom);
 
 	bus->glom = bus->glomd = NULL;
 
@@ -3188,7 +3188,6 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 
 	u16 sublen, check;
 	struct sk_buff *pfirst, *plast, *pnext, *save_pfirst;
-	struct osl_info *osh = bus->dhd->osh;
 
 	int errcode;
 	u8 chan, seq, doff, sfdoff;
@@ -3244,7 +3243,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 			}
 
 			/* Allocate/chain packet for next subframe */
-			pnext = pkt_buf_get_skb(osh, sublen + DHD_SDALIGN);
+			pnext = pkt_buf_get_skb(sublen + DHD_SDALIGN);
 			if (pnext == NULL) {
 				DHD_ERROR(("%s: pkt_buf_get_skb failed, num %d len %d\n",
 					   __func__, num, sublen));
@@ -3280,13 +3279,13 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 			pfirst = pnext = NULL;
 		} else {
 			if (pfirst)
-				pkt_buf_free_skb(osh, pfirst, false);
+				pkt_buf_free_skb(pfirst);
 			bus->glom = NULL;
 			num = 0;
 		}
 
 		/* Done with descriptor packet */
-		pkt_buf_free_skb(osh, bus->glomd, false);
+		pkt_buf_free_skb(bus->glomd);
 		bus->glomd = NULL;
 		bus->nextlen = 0;
 
@@ -3355,7 +3354,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 				bus->glomerr = 0;
 				dhdsdio_rxfail(bus, true, false);
 				dhd_os_sdlock_rxq(bus->dhd);
-				pkt_buf_free_skb(osh, bus->glom, false);
+				pkt_buf_free_skb(bus->glom);
 				dhd_os_sdunlock_rxq(bus->dhd);
 				bus->rxglomfail++;
 				bus->glom = NULL;
@@ -3484,7 +3483,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 				bus->glomerr = 0;
 				dhdsdio_rxfail(bus, true, false);
 				dhd_os_sdlock_rxq(bus->dhd);
-				pkt_buf_free_skb(osh, bus->glom, false);
+				pkt_buf_free_skb(bus->glom);
 				dhd_os_sdunlock_rxq(bus->dhd);
 				bus->rxglomfail++;
 				bus->glom = NULL;
@@ -3532,7 +3531,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 			skb_pull(pfirst, doff);
 
 			if (pfirst->len == 0) {
-				pkt_buf_free_skb(bus->dhd->osh, pfirst, false);
+				pkt_buf_free_skb(pfirst);
 				if (plast) {
 					plast->next = pnext;
 				} else {
@@ -3545,7 +3544,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 				DHD_ERROR(("%s: rx protocol error\n",
 					   __func__));
 				bus->dhd->rx_errors++;
-				pkt_buf_free_skb(osh, pfirst, false);
+				pkt_buf_free_skb(pfirst);
 				if (plast) {
 					plast->next = pnext;
 				} else {
@@ -3589,7 +3588,6 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 /* Return true if there may be more frames to read */
 static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 {
-	struct osl_info *osh = bus->dhd->osh;
 	bcmsdh_info_t *sdh = bus->sdh;
 
 	u16 len, check;	/* Extracted hardware header fields */
@@ -3684,7 +3682,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 			 */
 			/* Allocate a packet buffer */
 			dhd_os_sdlock_rxq(bus->dhd);
-			pkt = pkt_buf_get_skb(osh, rdlen + DHD_SDALIGN);
+			pkt = pkt_buf_get_skb(rdlen + DHD_SDALIGN);
 			if (!pkt) {
 				if (bus->bus == SPI_BUS) {
 					bus->usebufpool = false;
@@ -3757,7 +3755,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 				if (sdret < 0) {
 					DHD_ERROR(("%s (nextlen): read %d bytes failed: %d\n",
 						__func__, rdlen, sdret));
-					pkt_buf_free_skb(bus->dhd->osh, pkt, false);
+					pkt_buf_free_skb(pkt);
 					bus->dhd->rx_errors++;
 					dhd_os_sdunlock_rxq(bus->dhd);
 					/* Force retry w/normal header read.
@@ -3905,8 +3903,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 							     doff);
 					if (bus->usebufpool) {
 						dhd_os_sdlock_rxq(bus->dhd);
-						pkt_buf_free_skb(bus->dhd->osh, pkt,
-							false);
+						pkt_buf_free_skb(pkt);
 						dhd_os_sdunlock_rxq(bus->dhd);
 					}
 					continue;
@@ -4095,7 +4092,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 		}
 
 		dhd_os_sdlock_rxq(bus->dhd);
-		pkt = pkt_buf_get_skb(osh, (rdlen + firstread + DHD_SDALIGN));
+		pkt = pkt_buf_get_skb(rdlen + firstread + DHD_SDALIGN);
 		if (!pkt) {
 			/* Give up on data, request rtx of events */
 			DHD_ERROR(("%s: pkt_buf_get_skb failed: rdlen %d chan %d\n",
@@ -4131,7 +4128,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 				       ? "data" : "test")),
 				   sdret));
 			dhd_os_sdlock_rxq(bus->dhd);
-			pkt_buf_free_skb(bus->dhd->osh, pkt, false);
+			pkt_buf_free_skb(pkt);
 			dhd_os_sdunlock_rxq(bus->dhd);
 			bus->dhd->rx_errors++;
 			dhdsdio_rxfail(bus, true, RETRYCHAN(chan));
@@ -4184,13 +4181,13 @@ deliver:
 
 		if (pkt->len == 0) {
 			dhd_os_sdlock_rxq(bus->dhd);
-			pkt_buf_free_skb(bus->dhd->osh, pkt, false);
+			pkt_buf_free_skb(pkt);
 			dhd_os_sdunlock_rxq(bus->dhd);
 			continue;
 		} else if (dhd_prot_hdrpull(bus->dhd, &ifidx, pkt) != 0) {
 			DHD_ERROR(("%s: rx protocol error\n", __func__));
 			dhd_os_sdlock_rxq(bus->dhd);
-			pkt_buf_free_skb(bus->dhd->osh, pkt, false);
+			pkt_buf_free_skb(pkt);
 			dhd_os_sdunlock_rxq(bus->dhd);
 			bus->dhd->rx_errors++;
 			continue;
@@ -5012,7 +5009,7 @@ extern int dhd_bus_console_in(dhd_pub_t *dhdp, unsigned char *msg, uint msglen)
 	/* Bump dongle by sending an empty event pkt.
 	 * sdpcm_sendup (RX) checks for virtual console input.
 	 */
-	pkt = pkt_buf_get_skb(bus->dhd->osh, 4 + SDPCM_RESERVE);
+	pkt = pkt_buf_get_skb(4 + SDPCM_RESERVE);
 	if ((pkt != NULL) && bus->clkstate == CLK_AVAIL)
 		dhdsdio_txpkt(bus, pkt, SDPCM_EVENT_CHANNEL, true);
 

@@ -33,7 +33,7 @@
 /* Global ASSERT type flag */
 u32 g_assert_type;
 
-struct sk_buff *BCMFASTPATH pkt_buf_get_skb(struct osl_info *osh, uint len)
+struct sk_buff *BCMFASTPATH pkt_buf_get_skb(uint len)
 {
 	struct sk_buff *skb;
 
@@ -41,16 +41,13 @@ struct sk_buff *BCMFASTPATH pkt_buf_get_skb(struct osl_info *osh, uint len)
 	if (skb) {
 		skb_put(skb, len);
 		skb->priority = 0;
-
-		osh->pktalloced++;
 	}
 
 	return skb;
 }
 
 /* Free the driver packet. Free the tag if present */
-void BCMFASTPATH pkt_buf_free_skb(struct osl_info *osh,
-	struct sk_buff *skb, bool send)
+void BCMFASTPATH pkt_buf_free_skb(struct sk_buff *skb)
 {
 	struct sk_buff *nskb;
 	int nest = 0;
@@ -73,7 +70,6 @@ void BCMFASTPATH pkt_buf_free_skb(struct osl_info *osh,
 			 */
 			dev_kfree_skb(skb);
 
-		osh->pktalloced--;
 		nest++;
 		skb = nskb;
 	}
@@ -245,7 +241,7 @@ void pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec, bool dir)
 	while (p) {
 		q->head = p->prev;
 		p->prev = NULL;
-		pkt_buf_free_skb(osh, p, dir);
+		pkt_buf_free_skb(p);
 		q->len--;
 		pq->len--;
 		p = q->head;
@@ -279,7 +275,7 @@ pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec, bool dir,
 			else
 				prev->prev = p->prev;
 			p->prev = NULL;
-			pkt_buf_free_skb(osh, p, dir);
+			pkt_buf_free_skb(p);
 			q->len--;
 			pq->len--;
 			p = (head ? q->head : prev->prev);

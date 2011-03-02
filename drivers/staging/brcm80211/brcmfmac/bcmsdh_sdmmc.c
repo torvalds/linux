@@ -1038,7 +1038,7 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 	if (pkt == NULL) {
 		sd_data(("%s: Creating new %s Packet, len=%d\n",
 			 __func__, write ? "TX" : "RX", buflen_u));
-		mypkt = pkt_buf_get_skb(sd->osh, buflen_u);
+		mypkt = pkt_buf_get_skb(buflen_u);
 		if (!mypkt) {
 			sd_err(("%s: pkt_buf_get_skb failed: len %d\n",
 				__func__, buflen_u));
@@ -1056,7 +1056,7 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 		if (!write)
 			memcpy(buffer, mypkt->data, buflen_u);
 
-		pkt_buf_free_skb(sd->osh, mypkt, write ? true : false);
+		pkt_buf_free_skb(mypkt);
 	} else if (((u32) (pkt->data) & DMA_ALIGN_MASK) != 0) {
 		/* Case 2: We have a packet, but it is unaligned. */
 
@@ -1065,7 +1065,7 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 
 		sd_data(("%s: Creating aligned %s Packet, len=%d\n",
 			 __func__, write ? "TX" : "RX", pkt->len));
-		mypkt = pkt_buf_get_skb(sd->osh, pkt->len);
+		mypkt = pkt_buf_get_skb(pkt->len);
 		if (!mypkt) {
 			sd_err(("%s: pkt_buf_get_skb failed: len %d\n",
 				__func__, pkt->len));
@@ -1083,7 +1083,7 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 		if (!write)
 			memcpy(pkt->data, mypkt->data, mypkt->len);
 
-		pkt_buf_free_skb(sd->osh, mypkt, write ? true : false);
+		pkt_buf_free_skb(mypkt);
 	} else {		/* case 3: We have a packet and
 				 it is aligned. */
 		sd_data(("%s: Aligned %s Packet, direct DMA\n",

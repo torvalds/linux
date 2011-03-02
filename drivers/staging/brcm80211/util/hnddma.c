@@ -804,7 +804,7 @@ static void *BCMFASTPATH _dma_rx(dma_info_t *di)
 		if ((di->hnddma.dmactrlflags & DMA_CTRL_RXMULTI) == 0) {
 			DMA_ERROR(("%s: dma_rx: bad frame length (%d)\n",
 				   di->name, len));
-			pkt_buf_free_skb(di->osh, head, false);
+			pkt_buf_free_skb(head);
 			di->hnddma.rxgiants++;
 			goto next_frame;
 		}
@@ -852,7 +852,7 @@ static bool BCMFASTPATH _dma_rxfill(dma_info_t *di)
 		   size to be allocated
 		 */
 
-		p = pkt_buf_get_skb(di->osh, di->rxbufsize + extra_offset);
+		p = pkt_buf_get_skb(di->rxbufsize + extra_offset);
 
 		if (p == NULL) {
 			DMA_ERROR(("%s: dma_rxfill: out of rxbufs\n",
@@ -953,7 +953,7 @@ static void _dma_rxreclaim(dma_info_t *di)
 	DMA_TRACE(("%s: dma_rxreclaim\n", di->name));
 
 	while ((p = _dma_getnextrxp(di, true)))
-		pkt_buf_free_skb(di->osh, p, false);
+		pkt_buf_free_skb(p);
 }
 
 static void *BCMFASTPATH _dma_getnextrxp(dma_info_t *di, bool forceall)
@@ -1194,7 +1194,7 @@ static void BCMFASTPATH dma64_txreclaim(dma_info_t *di, txd_range_t range)
 	while ((p = dma64_getnexttxp(di, range))) {
 		/* For unframed data, we don't have any packets to free */
 		if (!(di->hnddma.dmactrlflags & DMA_CTRL_UNFRAMED))
-			pkt_buf_free_skb(di->osh, p, true);
+			pkt_buf_free_skb(p);
 	}
 }
 
@@ -1544,7 +1544,7 @@ static int BCMFASTPATH dma64_txfast(dma_info_t *di, struct sk_buff *p0,
 
  outoftxd:
 	DMA_ERROR(("%s: dma_txfast: out of txds !!!\n", di->name));
-	pkt_buf_free_skb(di->osh, p0, true);
+	pkt_buf_free_skb(p0);
 	di->hnddma.txavail = 0;
 	di->hnddma.txnobuf++;
 	return -1;
