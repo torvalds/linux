@@ -116,6 +116,7 @@ EXPORT_SYMBOL(laptop_mode);
 
 /* End of sysctl-exported parameters */
 
+unsigned long global_dirty_limit;
 
 /*
  * Scale the writeback cache size proportional to the relative writeout speeds.
@@ -516,7 +517,67 @@ out:
 	bdi->avg_write_bandwidth = avg;
 }
 
+/*
+ * The global dirtyable memory and dirty threshold could be suddenly knocked
+ * down by a large amount (eg. on the startup of KVM in a swapless system).
+ * This may throw the system into deep dirty exceeded state and throttle
+ * heavy/light dirtiers alike. To retain good responsiveness, maintain
+ * global_dirty_limit for tracking slowly down to the knocked down dirty
+ * threshold.
+ */
+static void update_dirty_limit(unsigned long thresh, unsigned long dirty)
+{
+	unsigned long limit = global_dirty_limit;
+
+	/*
+	 * Follow up in one step.
+	 */
+	if (limit < thresh) {
+		limit = thresh;
+		goto update;
+	}
+
+	/*
+	 * Follow down slowly. Use the higher one as the target, because thresh
+	 * may drop below dirty. This is exactly the reason to introduce
+	 * global_dirty_limit which is guaranteed to lie above the dirty pages.
+	 */
+	thresh = max(thresh, dirty);
+	if (limit > thresh) {
+		limit -= (limit - thresh) >> 5;
+		goto update;
+	}
+	return;
+update:
+	global_dirty_limit = limit;
+}
+
+static void global_update_bandwidth(unsigned long thresh,
+				    unsigned long dirty,
+				    unsigned long now)
+{
+	static DEFINE_SPINLOCK(dirty_lock);
+	static unsigned long update_time;
+
+	/*
+	 * check locklessly first to optimize away locking for the most time
+	 */
+	if (time_before(now, update_time + BANDWIDTH_INTERVAL))
+		return;
+
+	spin_lock(&dirty_lock);
+	if (time_after_eq(now, update_time + BANDWIDTH_INTERVAL)) {
+		update_dirty_limit(thresh, dirty);
+		update_time = now;
+	}
+	spin_unlock(&dirty_lock);
+}
+
 void __bdi_update_bandwidth(struct backing_dev_info *bdi,
+			    unsigned long thresh,
+			    unsigned long dirty,
+			    unsigned long bdi_thresh,
+			    unsigned long bdi_dirty,
 			    unsigned long start_time)
 {
 	unsigned long now = jiffies;
@@ -538,6 +599,9 @@ void __bdi_update_bandwidth(struct backing_dev_info *bdi,
 	if (elapsed > HZ && time_before(bdi->bw_time_stamp, start_time))
 		goto snapshot;
 
+	if (thresh)
+		global_update_bandwidth(thresh, dirty, now);
+
 	bdi_update_write_bandwidth(bdi, elapsed, written);
 
 snapshot:
@@ -546,12 +610,17 @@ snapshot:
 }
 
 static void bdi_update_bandwidth(struct backing_dev_info *bdi,
+				 unsigned long thresh,
+				 unsigned long dirty,
+				 unsigned long bdi_thresh,
+				 unsigned long bdi_dirty,
 				 unsigned long start_time)
 {
 	if (time_is_after_eq_jiffies(bdi->bw_time_stamp + BANDWIDTH_INTERVAL))
 		return;
 	spin_lock(&bdi->wb.list_lock);
-	__bdi_update_bandwidth(bdi, start_time);
+	__bdi_update_bandwidth(bdi, thresh, dirty, bdi_thresh, bdi_dirty,
+			       start_time);
 	spin_unlock(&bdi->wb.list_lock);
 }
 
@@ -630,7 +699,8 @@ static void balance_dirty_pages(struct address_space *mapping,
 		if (!bdi->dirty_exceeded)
 			bdi->dirty_exceeded = 1;
 
-		bdi_update_bandwidth(bdi, start_time);
+		bdi_update_bandwidth(bdi, dirty_thresh, nr_dirty,
+				     bdi_thresh, bdi_dirty, start_time);
 
 		/* Note: nr_reclaimable denotes nr_dirty + nr_unstable.
 		 * Unstable writes are a feature of certain networked
