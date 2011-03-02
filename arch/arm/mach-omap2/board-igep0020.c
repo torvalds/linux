@@ -521,9 +521,7 @@ static void __init igep2_init_early(void)
 				  m65kxxxxam_sdrc_params);
 }
 
-static struct twl4030_codec_audio_data igep2_audio_data = {
-	.audio_mclk = 26000000,
-};
+static struct twl4030_codec_audio_data igep2_audio_data;
 
 static struct twl4030_codec_data igep2_codec_data = {
 	.audio_mclk = 26000000,

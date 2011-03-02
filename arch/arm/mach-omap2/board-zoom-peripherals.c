@@ -322,9 +322,7 @@ static struct twl4030_madc_platform_data zoom_madc_data = {
 	.irq_line	= 1,
 };
 
-static struct twl4030_codec_audio_data zoom_audio_data = {
-	.audio_mclk = 26000000,
-};
+static struct twl4030_codec_audio_data zoom_audio_data;
 
 static struct twl4030_codec_data zoom_codec_data = {
 	.audio_mclk = 26000000,

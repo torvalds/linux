@@ -552,9 +552,7 @@ static struct regulator_init_data sdp3430_vpll2 = {
 	.consumer_supplies	= sdp3430_vpll2_supplies,
 };
 
-static struct twl4030_codec_audio_data sdp3430_audio = {
-	.audio_mclk = 26000000,
-};
+static struct twl4030_codec_audio_data sdp3430_audio;
 
 static struct twl4030_codec_data sdp3430_codec = {
 	.audio_mclk = 26000000,

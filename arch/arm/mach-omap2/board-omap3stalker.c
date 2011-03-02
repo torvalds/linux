@@ -431,9 +431,7 @@ static struct twl4030_madc_platform_data omap3stalker_madc_data = {
 	.irq_line	= 1,
 };
 
-static struct twl4030_codec_audio_data omap3stalker_audio_data = {
-	.audio_mclk	= 26000000,
-};
+static struct twl4030_codec_audio_data omap3stalker_audio_data;
 
 static struct twl4030_codec_data omap3stalker_codec_data = {
 	.audio_mclk	= 26000000,

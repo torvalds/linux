@@ -342,9 +342,7 @@ static struct twl4030_usb_data devkit8000_usb_data = {
 	.usb_mode	= T2_USB_MODE_ULPI,
 };
 
-static struct twl4030_codec_audio_data devkit8000_audio_data = {
-	.audio_mclk = 26000000,
-};
+static struct twl4030_codec_audio_data devkit8000_audio_data;
 
 static struct twl4030_codec_data devkit8000_codec_data = {
 	.audio_mclk = 26000000,

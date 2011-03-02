@@ -358,9 +358,7 @@ static struct regulator_init_data overo_vmmc1 = {
 	.consumer_supplies	= &overo_vmmc1_supply,
 };
 
-static struct twl4030_codec_audio_data overo_audio_data = {
-	.audio_mclk = 26000000,
-};
+static struct twl4030_codec_audio_data overo_audio_data;
 
 static struct twl4030_codec_data overo_codec_data = {
 	.audio_mclk = 26000000,
