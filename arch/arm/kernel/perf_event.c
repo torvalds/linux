@@ -380,6 +380,8 @@ armpmu_release_hardware(struct arm_pmu *armpmu)
 {
 	int i, irq, irqs;
 	struct platform_device *pmu_device = armpmu->plat_device;
+	struct arm_pmu_platdata *plat =
+		dev_get_platdata(&pmu_device->dev);
 
 	irqs = min(pmu_device->num_resources, num_possible_cpus());
 
@@ -387,8 +389,11 @@ armpmu_release_hardware(struct arm_pmu *armpmu)
 		if (!cpumask_test_and_clear_cpu(i, &armpmu->active_irqs))
 			continue;
 		irq = platform_get_irq(pmu_device, i);
-		if (irq >= 0)
+		if (irq >= 0) {
+			if (plat && plat->disable_irq)
+				plat->disable_irq(irq);
 			free_irq(irq, armpmu);
+		}
 	}
 
 	release_pmu(armpmu->type);
@@ -448,7 +453,8 @@ armpmu_reserve_hardware(struct arm_pmu *armpmu)
 				irq);
 			armpmu_release_hardware(armpmu);
 			return err;
-		}
+		} else if (plat && plat->enable_irq)
+			plat->enable_irq(irq);
 
 		cpumask_set_cpu(i, &armpmu->active_irqs);
 	}
