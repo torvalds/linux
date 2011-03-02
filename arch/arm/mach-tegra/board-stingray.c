@@ -24,7 +24,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/dma-mapping.h>
 #include <linux/fsl_devices.h>
-#include <linux/tegra_usb.h>
+#include <linux/platform_data/tegra_usb.h>
 #include <linux/pda_power.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
