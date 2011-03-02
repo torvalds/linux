@@ -635,6 +635,8 @@ static void retrigger_next_event(void *arg)
 	raw_spin_lock(&base->lock);
 	base->clock_base[HRTIMER_BASE_REALTIME].offset =
 		timespec_to_ktime(realtime_offset);
+	base->clock_base[HRTIMER_BASE_BOOTTIME].offset =
+		timespec_to_ktime(sleep);
 
 	hrtimer_force_reprogram(base, 0);
 	raw_spin_unlock(&base->lock);
