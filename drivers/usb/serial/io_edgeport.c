@@ -2343,7 +2343,6 @@ static int write_cmd_usb(struct edgeport_port *edge_port,
 				usb_get_serial_data(edge_port->port->serial);
 	int status = 0;
 	struct urb *urb;
-	int timeout;
 
 	usb_serial_debug_data(debug, &edge_port->port->dev,
 						__func__, length, buffer);
@@ -2376,8 +2375,6 @@ static int write_cmd_usb(struct edgeport_port *edge_port,
 		return status;
 	}
 
-	/* wait for command to finish */
-	timeout = COMMAND_TIMEOUT;
 #if 0
 	wait_event(&edge_port->wait_command, !edge_port->commandPending);
 
