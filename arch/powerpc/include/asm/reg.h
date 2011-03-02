@@ -170,6 +170,16 @@
 #define SPEFSCR_FRMC 	0x00000003	/* Embedded FP rounding mode control */
 
 /* Special Purpose Registers (SPRNs)*/
+
+#ifdef CONFIG_40x
+#define SPRN_PID	0x3B1	/* Process ID */
+#else
+#define SPRN_PID	0x030	/* Process ID */
+#ifdef CONFIG_BOOKE
+#define SPRN_PID0	SPRN_PID/* Process ID Register 0 */
+#endif
+#endif
+
 #define SPRN_CTR	0x009	/* Count Register */
 #define SPRN_DSCR	0x11
 #define SPRN_CTRLF	0x088
