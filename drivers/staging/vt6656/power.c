@@ -274,6 +274,7 @@ BOOL PSbSendNullPacket(void *hDeviceContext)
 	PSDevice pDevice = (PSDevice)hDeviceContext;
 	PSTxMgmtPacket pTxPacket = NULL;
 	PSMgmtObject pMgmt = &(pDevice->sMgmtObj);
+	u16 flags = 0;
 
 	if (pDevice->bLinkPass == FALSE)
 		return FALSE;
@@ -287,21 +288,15 @@ BOOL PSbSendNullPacket(void *hDeviceContext)
 	pTxPacket = (PSTxMgmtPacket)pMgmt->pbyPSPacketPool;
 	pTxPacket->p80211Header = (PUWLAN_80211HDR)((PBYTE)pTxPacket + sizeof(STxMgmtPacket));
 
-	if (pDevice->bEnablePSMode) {
-		pTxPacket->p80211Header->sA3.wFrameCtl = cpu_to_le16(
-			(
-				WLAN_SET_FC_FTYPE(WLAN_TYPE_DATA) |
-				WLAN_SET_FC_FSTYPE(WLAN_FSTYPE_NULL) |
-				WLAN_SET_FC_PWRMGT(1)
-			));
-	} else {
-		pTxPacket->p80211Header->sA3.wFrameCtl = cpu_to_le16(
-			(
-				WLAN_SET_FC_FTYPE(WLAN_TYPE_DATA) |
-				WLAN_SET_FC_FSTYPE(WLAN_FSTYPE_NULL) |
-				WLAN_SET_FC_PWRMGT(0)
-			));
-	}
+	flags = WLAN_SET_FC_FTYPE(WLAN_TYPE_DATA) |
+                        WLAN_SET_FC_FSTYPE(WLAN_FSTYPE_NULL);
+
+	if (pDevice->bEnablePSMode)
+		flags |= WLAN_SET_FC_PWRMGT(1);
+	else
+		flags |= WLAN_SET_FC_PWRMGT(0);
+
+	pTxPacket->p80211Header->sA3.wFrameCtl = cpu_to_le16(flags);
 
 	if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA)
 		pTxPacket->p80211Header->sA3.wFrameCtl |= cpu_to_le16((WORD)WLAN_SET_FC_TODS(1));
