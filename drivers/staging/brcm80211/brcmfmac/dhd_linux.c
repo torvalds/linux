@@ -2125,7 +2125,7 @@ int dhd_bus_start(dhd_pub_t *dhdp)
 
 	/* try to download image and nvram to the dongle */
 	if (dhd->pub.busstate == DHD_BUS_DOWN) {
-		if (!(dhd_bus_download_firmware(dhd->pub.bus, dhd->pub.osh,
+		if (!(dhd_bus_download_firmware(dhd->pub.bus,
 						fw_path, nv_path))) {
 			DHD_ERROR(("%s: dhdsdio_probe_download failed. "
 				"firmware = %s nvram = %s\n",

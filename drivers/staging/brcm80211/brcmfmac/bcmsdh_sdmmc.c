@@ -174,7 +174,7 @@ extern sdioh_info_t *sdioh_attach(struct osl_info *osh, void *bar0, uint irq)
 	return sd;
 }
 
-extern SDIOH_API_RC sdioh_detach(struct osl_info *osh, sdioh_info_t *sd)
+extern SDIOH_API_RC sdioh_detach(sdioh_info_t *sd)
 {
 	sd_trace(("%s\n", __func__));
 

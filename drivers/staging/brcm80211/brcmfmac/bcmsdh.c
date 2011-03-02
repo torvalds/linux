@@ -71,7 +71,7 @@ bcmsdh_info_t *bcmsdh_attach(struct osl_info *osh, void *cfghdl,
 
 	bcmsdh->sdioh = sdioh_attach(osh, cfghdl, irq);
 	if (!bcmsdh->sdioh) {
-		bcmsdh_detach(osh, bcmsdh);
+		bcmsdh_detach(bcmsdh);
 		return NULL;
 	}
 
@@ -85,13 +85,13 @@ bcmsdh_info_t *bcmsdh_attach(struct osl_info *osh, void *cfghdl,
 	return bcmsdh;
 }
 
-int bcmsdh_detach(struct osl_info *osh, void *sdh)
+int bcmsdh_detach(void *sdh)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 
 	if (bcmsdh != NULL) {
 		if (bcmsdh->sdioh) {
-			sdioh_detach(osh, bcmsdh->sdioh);
+			sdioh_detach(bcmsdh->sdioh);
 			bcmsdh->sdioh = NULL;
 		}
 		kfree(bcmsdh);

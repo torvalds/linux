@@ -53,7 +53,7 @@ extern bcmsdh_info_t *bcmsdh_attach(struct osl_info *osh, void *cfghdl,
 				    void **regsva, uint irq);
 
 /* Detach - freeup resources allocated in attach */
-extern int bcmsdh_detach(struct osl_info *osh, void *sdh);
+extern int bcmsdh_detach(void *sdh);
 
 /* Query if SD device interrupts are enabled */
 extern bool bcmsdh_intr_query(void *sdh);

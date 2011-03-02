@@ -232,7 +232,7 @@ int bcmsdh_probe(struct device *dev)
 err:
 	if (sdhc) {
 		if (sdhc->sdh)
-			bcmsdh_detach(sdhc->osh, sdhc->sdh);
+			bcmsdh_detach(sdhc->sdh);
 		kfree(sdhc);
 	}
 	if (osh)
@@ -250,7 +250,7 @@ int bcmsdh_remove(struct device *dev)
 
 	sdhc = sdhcinfo;
 	drvinfo.detach(sdhc->ch);
-	bcmsdh_detach(sdhc->osh, sdhc->sdh);
+	bcmsdh_detach(sdhc->sdh);
 	/* find the SDIO Host Controller state for this pdev
 		 and take it out from the list */
 	for (sdhc = sdhcinfo, prev = NULL; sdhc; sdhc = sdhc->next) {

@@ -437,15 +437,14 @@ static int dhdsdio_mem_dump(dhd_bus_t *bus);
 static int dhdsdio_download_state(dhd_bus_t *bus, bool enter);
 
 static void dhdsdio_release(dhd_bus_t *bus, struct osl_info *osh);
-static void dhdsdio_release_malloc(dhd_bus_t *bus, struct osl_info *osh);
+static void dhdsdio_release_malloc(dhd_bus_t *bus);
 static void dhdsdio_disconnect(void *ptr);
 static bool dhdsdio_chipmatch(u16 chipid);
-static bool dhdsdio_probe_attach(dhd_bus_t *bus, struct osl_info *osh,
-				 void *sdh, void *regsva, u16 devid);
-static bool dhdsdio_probe_malloc(dhd_bus_t *bus, struct osl_info *osh,
-				 void *sdh);
-static bool dhdsdio_probe_init(dhd_bus_t *bus, struct osl_info *osh, void *sdh);
-static void dhdsdio_release_dongle(dhd_bus_t *bus, struct osl_info * osh);
+static bool dhdsdio_probe_attach(dhd_bus_t *bus, void *sdh,
+				 void *regsva, u16 devid);
+static bool dhdsdio_probe_malloc(dhd_bus_t *bus, void *sdh);
+static bool dhdsdio_probe_init(dhd_bus_t *bus, void *sdh);
+static void dhdsdio_release_dongle(dhd_bus_t *bus);
 
 static uint process_nvram_vars(char *varbuf, uint len);
 
@@ -459,8 +458,7 @@ static int dhd_bcmsdh_send_buf(dhd_bus_t *bus, u32 addr, uint fn,
 			       struct sk_buff *pkt, bcmsdh_cmplt_fn_t complete,
 			       void *handle);
 
-static bool dhdsdio_download_firmware(struct dhd_bus *bus, struct osl_info *osh,
-				      void *sdh);
+static bool dhdsdio_download_firmware(struct dhd_bus *bus, void *sdh);
 static int _dhdsdio_download_firmware(struct dhd_bus *bus);
 
 static int dhdsdio_download_code_file(struct dhd_bus *bus, char *image_path);
@@ -5172,7 +5170,7 @@ static void *dhdsdio_probe(u16 venid, u16 devid, u16 bus_no,
 					 else use locally malloced rxbuf */
 
 	/* attempt to attach to the dongle */
-	if (!(dhdsdio_probe_attach(bus, osh, sdh, regsva, devid))) {
+	if (!(dhdsdio_probe_attach(bus, sdh, regsva, devid))) {
 		DHD_ERROR(("%s: dhdsdio_probe_attach failed\n", __func__));
 		goto fail;
 	}
@@ -5185,12 +5183,12 @@ static void *dhdsdio_probe(u16 venid, u16 devid, u16 bus_no,
 	}
 
 	/* Allocate buffers */
-	if (!(dhdsdio_probe_malloc(bus, osh, sdh))) {
+	if (!(dhdsdio_probe_malloc(bus, sdh))) {
 		DHD_ERROR(("%s: dhdsdio_probe_malloc failed\n", __func__));
 		goto fail;
 	}
 
-	if (!(dhdsdio_probe_init(bus, osh, sdh))) {
+	if (!(dhdsdio_probe_init(bus, sdh))) {
 		DHD_ERROR(("%s: dhdsdio_probe_init failed\n", __func__));
 		goto fail;
 	}
@@ -5231,8 +5229,7 @@ fail:
 }
 
 static bool
-dhdsdio_probe_attach(struct dhd_bus *bus, struct osl_info *osh, void *sdh,
-			void *regsva, u16 devid)
+dhdsdio_probe_attach(struct dhd_bus *bus, void *sdh, void *regsva, u16 devid)
 {
 	u8 clkctl = 0;
 	int err = 0;
@@ -5389,8 +5386,7 @@ fail:
 	return false;
 }
 
-static bool dhdsdio_probe_malloc(dhd_bus_t *bus, struct osl_info *osh,
-				 void *sdh)
+static bool dhdsdio_probe_malloc(dhd_bus_t *bus, void *sdh)
 {
 	DHD_TRACE(("%s: Enter\n", __func__));
 
@@ -5431,7 +5427,7 @@ fail:
 	return false;
 }
 
-static bool dhdsdio_probe_init(dhd_bus_t *bus, struct osl_info *osh, void *sdh)
+static bool dhdsdio_probe_init(dhd_bus_t *bus, void *sdh)
 {
 	s32 fnum;
 
@@ -5508,20 +5504,19 @@ static bool dhdsdio_probe_init(dhd_bus_t *bus, struct osl_info *osh, void *sdh)
 }
 
 bool
-dhd_bus_download_firmware(struct dhd_bus *bus, struct osl_info *osh,
-			  char *fw_path, char *nv_path)
+dhd_bus_download_firmware(struct dhd_bus *bus, char *fw_path, char *nv_path)
 {
 	bool ret;
 	bus->fw_path = fw_path;
 	bus->nv_path = nv_path;
 
-	ret = dhdsdio_download_firmware(bus, osh, bus->sdh);
+	ret = dhdsdio_download_firmware(bus, bus->sdh);
 
 	return ret;
 }
 
 static bool
-dhdsdio_download_firmware(struct dhd_bus *bus, struct osl_info *osh, void *sdh)
+dhdsdio_download_firmware(struct dhd_bus *bus, void *sdh)
 {
 	bool ret;
 
@@ -5541,21 +5536,19 @@ static void dhdsdio_release(dhd_bus_t *bus, struct osl_info *osh)
 	DHD_TRACE(("%s: Enter\n", __func__));
 
 	if (bus) {
-		ASSERT(osh);
-
 		/* De-register interrupt handler */
 		bcmsdh_intr_disable(bus->sdh);
 		bcmsdh_intr_dereg(bus->sdh);
 
 		if (bus->dhd) {
 
-			dhdsdio_release_dongle(bus, osh);
+			dhdsdio_release_dongle(bus);
 
 			dhd_detach(bus->dhd);
 			bus->dhd = NULL;
 		}
 
-		dhdsdio_release_malloc(bus, osh);
+		dhdsdio_release_malloc(bus);
 
 		kfree(bus);
 	}
@@ -5566,7 +5559,7 @@ static void dhdsdio_release(dhd_bus_t *bus, struct osl_info *osh)
 	DHD_TRACE(("%s: Disconnected\n", __func__));
 }
 
-static void dhdsdio_release_malloc(dhd_bus_t *bus, struct osl_info *osh)
+static void dhdsdio_release_malloc(dhd_bus_t *bus)
 {
 	DHD_TRACE(("%s: Enter\n", __func__));
 
@@ -5585,7 +5578,7 @@ static void dhdsdio_release_malloc(dhd_bus_t *bus, struct osl_info *osh)
 	}
 }
 
-static void dhdsdio_release_dongle(dhd_bus_t *bus, struct osl_info *osh)
+static void dhdsdio_release_dongle(dhd_bus_t *bus)
 {
 	DHD_TRACE(("%s: Enter\n", __func__));
 
@@ -6057,7 +6050,7 @@ int dhd_bus_devreset(dhd_pub_t *dhdp, u8 flag)
 
 			/* Clean tx/rx buffer pointers,
 			 detach from the dongle */
-			dhdsdio_release_dongle(bus, bus->dhd->osh);
+			dhdsdio_release_dongle(bus);
 
 			bus->dhd->dongle_reset = true;
 			bus->dhd->up = false;
@@ -6077,14 +6070,13 @@ int dhd_bus_devreset(dhd_pub_t *dhdp, u8 flag)
 			bcmsdh_reset(bus->sdh);
 
 			/* Attempt to re-attach & download */
-			if (dhdsdio_probe_attach(bus, bus->dhd->osh, bus->sdh,
+			if (dhdsdio_probe_attach(bus, bus->sdh,
 						 (u32 *) SI_ENUM_BASE,
 						 bus->cl_devid)) {
 				/* Attempt to download binary to the dongle */
 				if (dhdsdio_probe_init
-				    (bus, bus->dhd->osh, bus->sdh)
+				    (bus, bus->sdh)
 				    && dhdsdio_download_firmware(bus,
-								 bus->dhd->osh,
 								 bus->sdh)) {
 
 					/* Re-init bus, enable F2 transfer */
