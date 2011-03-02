@@ -475,9 +475,9 @@ void kim_st_list_protocols(struct st_data_s *st_gdata, void *buf)
 {
 	seq_printf(buf, "[%d]\nBT=%c\nFM=%c\nGPS=%c\n",
 			st_gdata->protos_registered,
-			st_gdata->list[ST_BT] != NULL ? 'R' : 'U',
-			st_gdata->list[ST_FM] != NULL ? 'R' : 'U',
-			st_gdata->list[ST_GPS] != NULL ? 'R' : 'U');
+			st_gdata->list[0x04] != NULL ? 'R' : 'U',
+			st_gdata->list[0x08] != NULL ? 'R' : 'U',
+			st_gdata->list[0x09] != NULL ? 'R' : 'U');
 }
 
 /********************************************************************/
@@ -644,9 +644,6 @@ long st_unregister(struct st_proto_s *proto)
 long st_write(struct sk_buff *skb)
 {
 	struct st_data_s *st_gdata;
-#ifdef DEBUG
-	unsigned char chnl_id = ST_MAX_CHANNELS;
-#endif
 	long len;
 
 	st_kim_ref(&st_gdata, 0);
@@ -655,14 +652,7 @@ long st_write(struct sk_buff *skb)
 		pr_err("data/tty unavailable to perform write");
 		return -EINVAL;
 	}
-#ifdef DEBUG			/* open-up skb to read the 1st byte */
-	chnl_id = skb->data[0];
-	if (unlikely(st_gdata->list[chnl_id] == NULL)) {
-		pr_err(" chnl_id %d not registered, and writing? ",
-			   chnl_id);
-		return -EINVAL;
-	}
-#endif
+
 	pr_debug("%d to be written", skb->len);
 	len = skb->len;
 
