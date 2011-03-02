@@ -42,7 +42,8 @@
 #define GBE_CONFIG_RAM_BASE \
 	((unsigned int)(CONFIG_RAM_BASE + GBE_CONFIG_OFFSET))
 
-#define GBE_CONFIG_BASE_VIRT    phys_to_virt(GBE_CONFIG_RAM_BASE)
+#define GBE_CONFIG_BASE_VIRT \
+	((void __iomem *)phys_to_virt(GBE_CONFIG_RAM_BASE))
 
 #define GBE_CONFIG_FLASH_WRITE(base, offset, count, data) \
 	(iowrite16_rep(base + offset, data, count))
