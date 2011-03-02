@@ -970,9 +970,24 @@ static int omap_dsshw_probe(struct platform_device *pdev)
 		goto err_dss;
 	}
 
+	r = dpi_init();
+	if (r) {
+		DSSERR("Failed to initialize DPI\n");
+		goto err_dpi;
+	}
+
+	r = sdi_init();
+	if (r) {
+		DSSERR("Failed to initialize SDI\n");
+		goto err_sdi;
+	}
+
 	dss_clk_disable_all_no_ctx();
 	return 0;
-
+err_sdi:
+	dpi_exit();
+err_dpi:
+	dss_exit();
 err_dss:
 	dss_clk_disable_all_no_ctx();
 	dss_put_clocks();

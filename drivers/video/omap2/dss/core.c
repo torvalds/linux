@@ -191,12 +191,6 @@ static int omap_dss_probe(struct platform_device *pdev)
 		goto err_rfbi;
 	}
 
-	r = dpi_init();
-	if (r) {
-		DSSERR("Failed to initialize dpi\n");
-		goto err_dpi;
-	}
-
 	r = dispc_init_platform_driver();
 	if (r) {
 		DSSERR("Failed to initialize dispc platform driver\n");
@@ -210,12 +204,6 @@ static int omap_dss_probe(struct platform_device *pdev)
 	}
 
 	if (cpu_is_omap34xx()) {
-		r = sdi_init();
-		if (r) {
-			DSSERR("Failed to initialize SDI\n");
-			goto err_sdi;
-		}
-
 		r = dsi_init_platform_driver();
 		if (r) {
 			DSSERR("Failed to initialize DSI platform driver\n");
@@ -255,15 +243,10 @@ err_debugfs:
 	if (cpu_is_omap34xx())
 		dsi_uninit_platform_driver();
 err_dsi:
-	if (cpu_is_omap34xx())
-		sdi_exit();
-err_sdi:
 	venc_uninit_platform_driver();
 err_venc:
 	dispc_uninit_platform_driver();
 err_dispc:
-	dpi_exit();
-err_dpi:
 	rfbi_uninit_platform_driver();
 err_rfbi:
 	dss_uninit_platform_driver();
@@ -281,11 +264,9 @@ static int omap_dss_remove(struct platform_device *pdev)
 
 	venc_uninit_platform_driver();
 	dispc_uninit_platform_driver();
-	dpi_exit();
 	rfbi_uninit_platform_driver();
 	if (cpu_is_omap34xx()) {
 		dsi_uninit_platform_driver();
-		sdi_exit();
 	}
 
 	dss_uninit_platform_driver();
