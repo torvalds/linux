@@ -309,11 +309,11 @@ static inline void dsi_wait_pll_hsdiv_dsi_active(void)
 
 /* DPI */
 #ifdef CONFIG_OMAP2_DSS_DPI
-int dpi_init(struct platform_device *pdev);
+int dpi_init(void);
 void dpi_exit(void);
 int dpi_init_display(struct omap_dss_device *dssdev);
 #else
-static inline int dpi_init(struct platform_device *pdev)
+static inline int dpi_init(void)
 {
 	return 0;
 }
