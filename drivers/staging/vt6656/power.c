@@ -129,7 +129,7 @@ void PSvEnablePowerSaving(void *hDeviceContext,
 	}
 
 	pDevice->bPWBitOn = TRUE;
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS:Power Saving Mode Enable... \n");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS:Power Saving Mode Enable...\n");
 }
 
 /*
@@ -186,7 +186,7 @@ BOOL PSbConsiderPowerDown(void *hDeviceContext,
 	ControlvReadByte(pDevice, MESSAGE_REQUEST_MACREG,
 					MAC_REG_PSCTL, &byData);
 
-	if ( (byData & PSCTL_PS) != 0 )
+	if ((byData & PSCTL_PS) != 0)
 		return TRUE;
 
 	if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA) {
@@ -200,7 +200,7 @@ BOOL PSbConsiderPowerDown(void *hDeviceContext,
 		return FALSE;
 
 	/* Tx Burst */
-	if ( pDevice->bPSModeTxBurst )
+	if (pDevice->bPSModeTxBurst)
 		return FALSE;
 
 	/* Froce PSEN on */
@@ -303,7 +303,7 @@ BOOL PSbSendNullPacket(void *hDeviceContext)
 			));
 	}
 
-	if(pMgmt->eCurrMode != WMAC_MODE_IBSS_STA)
+	if (pMgmt->eCurrMode != WMAC_MODE_IBSS_STA)
 		pTxPacket->p80211Header->sA3.wFrameCtl |= cpu_to_le16((WORD)WLAN_SET_FC_TODS(1));
 
 	memcpy(pTxPacket->p80211Header->sA3.abyAddr1, pMgmt->abyCurrBSSID, WLAN_ADDR_LEN);
@@ -339,14 +339,14 @@ BOOL PSbIsNextTBTTWakeUp(void *hDeviceContext)
 		if (pMgmt->wCountToWakeUp == 0)
 			pMgmt->wCountToWakeUp = pMgmt->wListenInterval;
 
-		pMgmt->wCountToWakeUp --;
+		pMgmt->wCountToWakeUp--;
 
 		if (pMgmt->wCountToWakeUp == 1) {
 			/* Turn on wake up to listen next beacon */
 			MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);
 			pDevice->bPSRxBeacon = FALSE;
 			bWakeUp = TRUE;
-		} else if ( !pDevice->bPSRxBeacon ) {
+		} else if (!pDevice->bPSRxBeacon) {
 			/* Listen until RxBeacon */
 			MACvRegBitsOn(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);
 		}
