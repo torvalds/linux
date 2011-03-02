@@ -527,7 +527,6 @@ typedef struct {
 struct shared_phy {
 	struct phy_info *phy_head;
 	uint unit;
-	struct osl_info *osh;
 	si_t *sih;
 	void *physhim;
 	uint corerev;

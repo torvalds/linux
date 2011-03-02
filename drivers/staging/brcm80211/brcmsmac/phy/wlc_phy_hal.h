@@ -125,7 +125,6 @@ struct phy_pub;
 typedef struct phy_pub wlc_phy_t;
 
 typedef struct shared_phy_params {
-	void *osh;
 	si_t *sih;
 	void *physhim;
 	uint unit;

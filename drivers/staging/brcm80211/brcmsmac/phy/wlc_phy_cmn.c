@@ -275,12 +275,8 @@ u16 read_radio_reg(phy_info_t *pi, u16 addr)
 
 void write_radio_reg(phy_info_t *pi, u16 addr, u16 val)
 {
-	struct osl_info *osh;
-
 	if (NORADIO_ENAB(pi->pubpi))
 		return;
-
-	osh = pi->sh->osh;
 
 	if ((D11REV_GE(pi->sh->corerev, 24)) ||
 	    (D11REV_IS(pi->sh->corerev, 22)
@@ -408,10 +404,8 @@ static bool wlc_phy_war41476(phy_info_t *pi)
 
 u16 read_phy_reg(phy_info_t *pi, u16 addr)
 {
-	struct osl_info *osh;
 	d11regs_t *regs;
 
-	osh = pi->sh->osh;
 	regs = pi->regs;
 
 	W_REG(&regs->phyregaddr, addr);
@@ -429,10 +423,8 @@ u16 read_phy_reg(phy_info_t *pi, u16 addr)
 
 void write_phy_reg(phy_info_t *pi, u16 addr, u16 val)
 {
-	struct osl_info *osh;
 	d11regs_t *regs;
 
-	osh = pi->sh->osh;
 	regs = pi->regs;
 
 #ifdef __mips__
@@ -455,10 +447,8 @@ void write_phy_reg(phy_info_t *pi, u16 addr, u16 val)
 
 void and_phy_reg(phy_info_t *pi, u16 addr, u16 val)
 {
-	struct osl_info *osh;
 	d11regs_t *regs;
 
-	osh = pi->sh->osh;
 	regs = pi->regs;
 
 	W_REG(&regs->phyregaddr, addr);
@@ -476,10 +466,8 @@ void and_phy_reg(phy_info_t *pi, u16 addr, u16 val)
 
 void or_phy_reg(phy_info_t *pi, u16 addr, u16 val)
 {
-	struct osl_info *osh;
 	d11regs_t *regs;
 
-	osh = pi->sh->osh;
 	regs = pi->regs;
 
 	W_REG(&regs->phyregaddr, addr);
@@ -497,10 +485,8 @@ void or_phy_reg(phy_info_t *pi, u16 addr, u16 val)
 
 void mod_phy_reg(phy_info_t *pi, u16 addr, u16 mask, u16 val)
 {
-	struct osl_info *osh;
 	d11regs_t *regs;
 
-	osh = pi->sh->osh;
 	regs = pi->regs;
 
 	W_REG(&regs->phyregaddr, addr);
@@ -563,7 +549,6 @@ shared_phy_t *wlc_phy_shared_attach(shared_phy_params_t *shp)
 		return NULL;
 	}
 
-	sh->osh = shp->osh;
 	sh->sih = shp->sih;
 	sh->physhim = shp->physhim;
 	sh->unit = shp->unit;
@@ -594,11 +579,7 @@ shared_phy_t *wlc_phy_shared_attach(shared_phy_params_t *shp)
 
 void wlc_phy_shared_detach(shared_phy_t *phy_sh)
 {
-	struct osl_info *osh;
-
 	if (phy_sh) {
-		osh = phy_sh->osh;
-
 		if (phy_sh->phy_head) {
 			ASSERT(!phy_sh->phy_head);
 		}
@@ -612,9 +593,6 @@ wlc_phy_t *wlc_phy_attach(shared_phy_t *sh, void *regs, int bandtype, char *vars
 	u32 sflags = 0;
 	uint phyversion;
 	int i;
-	struct osl_info *osh;
-
-	osh = sh->osh;
 
 	if (D11REV_IS(sh->corerev, 4))
 		sflags = SISF_2G_PHY | SISF_5G_PHY;

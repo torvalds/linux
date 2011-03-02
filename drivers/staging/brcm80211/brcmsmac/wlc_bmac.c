@@ -805,7 +805,6 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 	}
 
 	/* pass all the parameters to wlc_phy_shared_attach in one struct */
-	sha_params.osh = wlc->osh;
 	sha_params.sih = wlc_hw->sih;
 	sha_params.physhim = wlc_hw->physhim;
 	sha_params.unit = unit;
