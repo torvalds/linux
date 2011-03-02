@@ -128,7 +128,7 @@ const char *strerror(int err)
 int isdongle(struct easycap *peasycap)
 {
 	int k;
-	if (NULL == peasycap)
+	if (!peasycap)
 		return -2;
 	for (k = 0; k < DONGLE_MANY; k++) {
 		if (easycapdc60_dongle[k].peasycap == peasycap) {
@@ -154,7 +154,7 @@ static int easycap_open(struct inode *inode, struct file *file)
 
 /*---------------------------------------------------------------------------*/
 #ifndef EASYCAP_IS_VIDEODEV_CLIENT
-	if (NULL == inode) {
+	if (!inode) {
 		SAY("ERROR: inode is NULL.\n");
 		return -EFAULT;
 	}
@@ -167,13 +167,13 @@ static int easycap_open(struct inode *inode, struct file *file)
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #else
 	pvideo_device = video_devdata(file);
-	if (NULL == pvideo_device) {
+	if (!pvideo_device) {
 		SAY("ERROR: pvideo_device is NULL.\n");
 		return -EFAULT;
 	}
 	peasycap = (struct easycap *)video_get_drvdata(pvideo_device);
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return -EFAULT;
 	}
@@ -181,7 +181,7 @@ static int easycap_open(struct inode *inode, struct file *file)
 		SAY("ERROR: bad peasycap: %p\n", peasycap);
 		return -EFAULT;
 	}
-	if (NULL == peasycap->pusb_device) {
+	if (!peasycap->pusb_device) {
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
 		return -EFAULT;
 	} else {
@@ -224,7 +224,7 @@ static int reset(struct easycap *peasycap)
 	bool ntsc, other;
 	int fmtidx;
 
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return -EFAULT;
 	}
@@ -406,7 +406,7 @@ newinput(struct easycap *peasycap, int input)
 	int inputnow, video_idlenow, audio_idlenow;
 	bool resubmit;
 
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return -EFAULT;
 	}
@@ -437,7 +437,7 @@ newinput(struct easycap *peasycap, int input)
 		resubmit = false;
 	}
 /*---------------------------------------------------------------------------*/
-	if (NULL == peasycap->pusb_device) {
+	if (!peasycap->pusb_device) {
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
 		return -ENODEV;
 	}
@@ -550,7 +550,7 @@ newinput(struct easycap *peasycap, int input)
 		return -ENOENT;
 	}
 /*---------------------------------------------------------------------------*/
-	if (NULL == peasycap->pusb_device) {
+	if (!peasycap->pusb_device) {
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
 		return -ENODEV;
 	}
@@ -585,16 +585,16 @@ int submit_video_urbs(struct easycap *peasycap)
 	int j, isbad, nospc, m, rc;
 	int isbuf;
 
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return -EFAULT;
 	}
 
-	if (NULL == peasycap->purb_video_head) {
+	if (!peasycap->purb_video_head) {
 		SAY("ERROR: peasycap->urb_video_head uninitialized\n");
 		return -EFAULT;
 	}
-	if (NULL == peasycap->pusb_device) {
+	if (!peasycap->pusb_device) {
 		SAY("ERROR: peasycap->pusb_device is NULL\n");
 		return -ENODEV;
 	}
@@ -656,9 +656,9 @@ int submit_video_urbs(struct easycap *peasycap)
 			list_for_each(plist_head, (peasycap->purb_video_head)) {
 				pdata_urb = list_entry(plist_head,
 						struct data_urb, list_head);
-				if (NULL != pdata_urb) {
+				if (pdata_urb) {
 					purb = pdata_urb->purb;
-					if (NULL != purb)
+					if (purb)
 						usb_kill_urb(purb);
 				}
 			}
@@ -679,7 +679,7 @@ int kill_video_urbs(struct easycap *peasycap)
 	struct list_head *plist_head;
 	struct data_urb *pdata_urb;
 
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return -EFAULT;
 	}
@@ -717,7 +717,7 @@ static int easycap_release(struct inode *inode, struct file *file)
 
 
 	peasycap = file->private_data;
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR:  peasycap is NULL.\n");
 		SAY("ending unsuccessfully\n");
 		return -EFAULT;
@@ -750,7 +750,7 @@ static int videodev_release(struct video_device *pvideo_device)
 	struct easycap *peasycap;
 
 	peasycap = video_get_drvdata(pvideo_device);
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR:  peasycap is NULL\n");
 		SAY("ending unsuccessfully\n");
 		return -EFAULT;
@@ -793,7 +793,7 @@ static void easycap_delete(struct kref *pkref)
 	int registered_video, registered_audio;
 
 	peasycap = container_of(pkref, struct easycap, kref);
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAM("ERROR: peasycap is NULL: cannot perform deletions\n");
 		return;
 	}
@@ -807,16 +807,16 @@ static void easycap_delete(struct kref *pkref)
  *  FREE VIDEO.
  */
 /*---------------------------------------------------------------------------*/
-	if (NULL != peasycap->purb_video_head) {
+	if (peasycap->purb_video_head) {
 		JOM(4, "freeing video urbs\n");
 		m = 0;
 		list_for_each(plist_head, (peasycap->purb_video_head)) {
 			pdata_urb = list_entry(plist_head,
 						struct data_urb, list_head);
-			if (NULL == pdata_urb) {
+			if (!pdata_urb) {
 				JOM(4, "ERROR: pdata_urb is NULL\n");
 			} else {
-				if (NULL != pdata_urb->purb) {
+				if (pdata_urb->purb) {
 					usb_free_urb(pdata_urb->purb);
 					pdata_urb->purb = NULL;
 					peasycap->allocation_video_urb -= 1;
@@ -866,7 +866,7 @@ static void easycap_delete(struct kref *pkref)
 	gone = 0;
 	for (k = 0;  k < FIELD_BUFFER_MANY;  k++) {
 		for (m = 0;  m < FIELD_BUFFER_SIZE/PAGE_SIZE;  m++) {
-			if (NULL != peasycap->field_buffer[k][m].pgo) {
+			if (peasycap->field_buffer[k][m].pgo) {
 				free_page((unsigned long)
 					  peasycap->field_buffer[k][m].pgo);
 				peasycap->field_buffer[k][m].pgo = NULL;
@@ -881,7 +881,7 @@ static void easycap_delete(struct kref *pkref)
 	gone = 0;
 	for (k = 0;  k < FRAME_BUFFER_MANY;  k++) {
 		for (m = 0;  m < FRAME_BUFFER_SIZE/PAGE_SIZE;  m++) {
-			if (NULL != peasycap->frame_buffer[k][m].pgo) {
+			if (peasycap->frame_buffer[k][m].pgo) {
 				free_page((unsigned long)
 					  peasycap->frame_buffer[k][m].pgo);
 				peasycap->frame_buffer[k][m].pgo = NULL;
@@ -896,16 +896,16 @@ static void easycap_delete(struct kref *pkref)
  *  FREE AUDIO.
  */
 /*---------------------------------------------------------------------------*/
-	if (NULL != peasycap->purb_audio_head) {
+	if (peasycap->purb_audio_head) {
 		JOM(4, "freeing audio urbs\n");
 		m = 0;
 		list_for_each(plist_head, (peasycap->purb_audio_head)) {
 			pdata_urb = list_entry(plist_head,
 					struct data_urb, list_head);
-			if (NULL == pdata_urb)
+			if (!pdata_urb)
 				JOM(4, "ERROR: pdata_urb is NULL\n");
 			else {
-				if (NULL != pdata_urb->purb) {
+				if (pdata_urb->purb) {
 					usb_free_urb(pdata_urb->purb);
 					pdata_urb->purb = NULL;
 					peasycap->allocation_audio_urb -= 1;
@@ -937,7 +937,7 @@ static void easycap_delete(struct kref *pkref)
 	JOM(4, "freeing audio isoc buffers.\n");
 	m = 0;
 	for (k = 0;  k < AUDIO_ISOC_BUFFER_MANY;  k++) {
-		if (NULL != peasycap->audio_isoc_buffer[k].pgo) {
+		if (peasycap->audio_isoc_buffer[k].pgo) {
 			free_pages((unsigned long)
 					(peasycap->audio_isoc_buffer[k].pgo),
 					AUDIO_ISOC_ORDER);
@@ -954,7 +954,7 @@ static void easycap_delete(struct kref *pkref)
 	JOM(4, "freeing audio buffers.\n");
 	gone = 0;
 	for (k = 0;  k < peasycap->audio_buffer_page_many;  k++) {
-		if (NULL != peasycap->audio_buffer[k].pgo) {
+		if (peasycap->audio_buffer[k].pgo) {
 			free_page((unsigned long)peasycap->audio_buffer[k].pgo);
 			peasycap->audio_buffer[k].pgo = NULL;
 			peasycap->allocation_audio_page -= 1;
@@ -1013,12 +1013,12 @@ static unsigned int easycap_poll(struct file *file, poll_table *wait)
 
 	if (NULL == ((poll_table *)wait))
 		JOT(8, "WARNING:  poll table pointer is NULL ... continuing\n");
-	if (NULL == file) {
+	if (!file) {
 		SAY("ERROR:  file pointer is NULL\n");
 		return -ERESTARTSYS;
 	}
 	peasycap = file->private_data;
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR:  peasycap is NULL\n");
 		return -EFAULT;
 	}
@@ -1026,7 +1026,7 @@ static unsigned int easycap_poll(struct file *file, poll_table *wait)
 		SAY("ERROR: bad peasycap: %p\n", peasycap);
 		return -EFAULT;
 	}
-	if (NULL == peasycap->pusb_device) {
+	if (!peasycap->pusb_device) {
 		SAY("ERROR:  peasycap->pusb_device is NULL\n");
 		return -EFAULT;
 	}
@@ -1045,13 +1045,13 @@ static unsigned int easycap_poll(struct file *file, poll_table *wait)
 	 */
 		if (kd != isdongle(peasycap))
 			return -ERESTARTSYS;
-		if (NULL == file) {
+		if (!file) {
 			SAY("ERROR:  file is NULL\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 			return -ERESTARTSYS;
 		}
 		peasycap = file->private_data;
-		if (NULL == peasycap) {
+		if (!peasycap) {
 			SAY("ERROR:  peasycap is NULL\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 			return -ERESTARTSYS;
@@ -1061,7 +1061,7 @@ static unsigned int easycap_poll(struct file *file, poll_table *wait)
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 			return -ERESTARTSYS;
 		}
-		if (NULL == peasycap->pusb_device) {
+		if (!peasycap->pusb_device) {
 			SAM("ERROR: peasycap->pusb_device is NULL\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 			return -ERESTARTSYS;
@@ -1093,11 +1093,11 @@ int easycap_dqbuf(struct easycap *peasycap, int mode)
 	int input, ifield, miss, rc;
 
 
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR:  peasycap is NULL\n");
 		return -EFAULT;
 	}
-	if (NULL == peasycap->pusb_device) {
+	if (!peasycap->pusb_device) {
 		SAY("ERROR:  peasycap->pusb_device is NULL\n");
 		return -EFAULT;
 	}
@@ -1321,7 +1321,7 @@ field2frame(struct easycap *peasycap)
 	u8 mask, margin;
 	bool odd, isuy, decimatepixel, offerfields, badinput;
 
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return -EFAULT;
 	}
@@ -1789,7 +1789,7 @@ redaub(struct easycap *peasycap, void *pad, void *pex, int much, int more,
 		JOM(8, "lookup tables are prepared\n");
 	}
 	pcache = peasycap->pcache;
-	if (NULL == pcache)
+	if (!pcache)
 		pcache = &peasycap->cache[0];
 /*---------------------------------------------------------------------------*/
 /*
@@ -2511,7 +2511,7 @@ static void easycap_vma_open(struct vm_area_struct *pvma)
 	struct easycap *peasycap;
 
 	peasycap = pvma->vm_private_data;
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return;
 	}
@@ -2529,7 +2529,7 @@ static void easycap_vma_close(struct vm_area_struct *pvma)
 	struct easycap *peasycap;
 
 	peasycap = pvma->vm_private_data;
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return;
 	}
@@ -2551,11 +2551,11 @@ static int easycap_vma_fault(struct vm_area_struct *pvma, struct vm_fault *pvmf)
 
 	retcode = VM_FAULT_NOPAGE;
 
-	if (NULL == pvma) {
+	if (!pvma) {
 		SAY("pvma is NULL\n");
 		return retcode;
 	}
-	if (NULL == pvmf) {
+	if (!pvmf) {
 		SAY("pvmf is NULL\n");
 		return retcode;
 	}
@@ -2577,24 +2577,24 @@ static int easycap_vma_fault(struct vm_area_struct *pvma, struct vm_fault *pvmf)
 		return retcode;
 	}
 	peasycap = pvma->vm_private_data;
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return retcode;
 	}
 /*---------------------------------------------------------------------------*/
 	pbuf = peasycap->frame_buffer[k][m].pgo;
-	if (NULL == pbuf) {
+	if (!pbuf) {
 		SAM("ERROR:  pbuf is NULL\n");
 		return retcode;
 	}
 	page = virt_to_page(pbuf);
-	if (NULL == page) {
+	if (!page) {
 		SAM("ERROR:  page is NULL\n");
 		return retcode;
 	}
 	get_page(page);
 /*---------------------------------------------------------------------------*/
-	if (NULL == page) {
+	if (!page) {
 		SAM("ERROR:  page is NULL after get_page(page)\n");
 	} else {
 		pvmf->page = page;
@@ -2615,7 +2615,7 @@ static int easycap_mmap(struct file *file, struct vm_area_struct *pvma)
 
 	pvma->vm_ops = &easycap_vm_ops;
 	pvma->vm_flags |= VM_RESERVED;
-	if (NULL != file)
+	if (file)
 		pvma->vm_private_data = file->private_data;
 	easycap_vma_open(pvma);
 	return 0;
@@ -2658,12 +2658,12 @@ static void easycap_complete(struct urb *purb)
 	int framestatus, framelength, frameactual, frameoffset;
 	u8 *pu;
 
-	if (NULL == purb) {
+	if (!purb) {
 		SAY("ERROR: easycap_complete(): purb is NULL\n");
 		return;
 	}
 	peasycap = purb->context;
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: easycap_complete(): peasycap is NULL\n");
 		return;
 	}
@@ -3089,12 +3089,12 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 	JOT(4, "bNumConfigurations=%i\n", pusb_device->descriptor.bNumConfigurations);
 /*---------------------------------------------------------------------------*/
 	pusb_host_interface = pusb_interface->cur_altsetting;
-	if (NULL == pusb_host_interface) {
+	if (!pusb_host_interface) {
 		SAY("ERROR: pusb_host_interface is NULL\n");
 		return -EFAULT;
 	}
 	pusb_interface_descriptor = &(pusb_host_interface->desc);
-	if (NULL == pusb_interface_descriptor) {
+	if (!pusb_interface_descriptor) {
 		SAY("ERROR: pusb_interface_descriptor is NULL\n");
 		return -EFAULT;
 	}
@@ -3128,7 +3128,7 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 /*---------------------------------------------------------------------------*/
 	if (0 == bInterfaceNumber) {
 		peasycap = kzalloc(sizeof(struct easycap), GFP_KERNEL);
-		if (NULL == peasycap) {
+		if (!peasycap) {
 			SAY("ERROR: Could not allocate peasycap\n");
 			return -ENOMEM;
 		}
@@ -3166,7 +3166,7 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 		*/
 /*---------------------------------------------------------------------------*/
 			for (ndong = 0; ndong < DONGLE_MANY; ndong++) {
-				if ((NULL == easycapdc60_dongle[ndong].peasycap) &&
+				if ((!easycapdc60_dongle[ndong].peasycap) &&
 						(!mutex_is_locked(&easycapdc60_dongle
 							[ndong].mutex_video)) &&
 						(!mutex_is_locked(&easycapdc60_dongle
@@ -3346,7 +3346,7 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 								bInterfaceNumber);
 			return -ENODEV;
 		}
-		if (NULL == peasycap) {
+		if (!peasycap) {
 			SAY("ERROR: peasycap is NULL when probing interface %i\n",
 								bInterfaceNumber);
 			return -ENODEV;
@@ -3362,7 +3362,7 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 /*---------------------------------------------------------------------------*/
 		if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
 			pv4l2_device = usb_get_intfdata(pusb_interface);
-			if (NULL == pv4l2_device) {
+			if (!pv4l2_device) {
 				SAY("ERROR: pv4l2_device is NULL\n");
 				return -ENODEV;
 			}
@@ -3413,12 +3413,12 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 
 	for (i = 0; i < pusb_interface->num_altsetting; i++) {
 		pusb_host_interface = &(pusb_interface->altsetting[i]);
-		if (NULL == pusb_host_interface) {
+		if (!pusb_host_interface) {
 			SAM("ERROR: pusb_host_interface is NULL\n");
 			return -EFAULT;
 		}
 		pusb_interface_descriptor = &(pusb_host_interface->desc);
-		if (NULL == pusb_interface_descriptor) {
+		if (!pusb_interface_descriptor) {
 			SAM("ERROR: pusb_interface_descriptor is NULL\n");
 			return -EFAULT;
 		}
@@ -3453,7 +3453,7 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 /*---------------------------------------------------------------------------*/
 		for (j = 0; j < pusb_interface_descriptor->bNumEndpoints; j++) {
 			pepd = &(pusb_host_interface->endpoint[j].desc);
-			if (NULL == pepd) {
+			if (!pepd) {
 				SAM("ERROR:  pepd is NULL.\n");
 				SAM("...... skipping\n");
 				continue;
@@ -3733,12 +3733,12 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 
 		for (k = 0;  k < FRAME_BUFFER_MANY;  k++) {
 			for (m = 0;  m < FRAME_BUFFER_SIZE/PAGE_SIZE;  m++) {
-				if (NULL != peasycap->frame_buffer[k][m].pgo)
+				if (peasycap->frame_buffer[k][m].pgo)
 					SAM("attempting to reallocate frame "
 									" buffers\n");
 				else {
 					pbuf = (void *)__get_free_page(GFP_KERNEL);
-					if (NULL == pbuf) {
+					if (!pbuf) {
 						SAM("ERROR: Could not allocate frame "
 							"buffer %i page %i\n", k, m);
 						return -ENOMEM;
@@ -3763,12 +3763,12 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 
 		for (k = 0;  k < FIELD_BUFFER_MANY;  k++) {
 			for (m = 0;  m < FIELD_BUFFER_SIZE/PAGE_SIZE;  m++) {
-				if (NULL != peasycap->field_buffer[k][m].pgo) {
+				if (peasycap->field_buffer[k][m].pgo) {
 					SAM("ERROR: attempting to reallocate "
 								"field buffers\n");
 				} else {
 					pbuf = (void *) __get_free_page(GFP_KERNEL);
-					if (NULL == pbuf) {
+					if (!pbuf) {
 						SAM("ERROR: Could not allocate field"
 							" buffer %i page %i\n", k, m);
 						return -ENOMEM;
@@ -3796,7 +3796,7 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 		for (k = 0;  k < VIDEO_ISOC_BUFFER_MANY; k++) {
 			pbuf = (void *)__get_free_pages(GFP_KERNEL,
 							VIDEO_ISOC_ORDER);
-			if (NULL == pbuf) {
+			if (!pbuf) {
 				SAM("ERROR: Could not allocate isoc video buffer "
 									"%i\n", k);
 				return -ENOMEM;
@@ -3827,7 +3827,7 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 		for (k = 0;  k < VIDEO_ISOC_BUFFER_MANY; k++) {
 			purb = usb_alloc_urb(peasycap->video_isoc_framesperdesc,
 									GFP_KERNEL);
-			if (NULL == purb) {
+			if (!purb) {
 				SAM("ERROR: usb_alloc_urb returned NULL for buffer "
 									"%i\n", k);
 				return -ENOMEM;
@@ -3835,7 +3835,7 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 				peasycap->allocation_video_urb += 1;
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 			pdata_urb = kzalloc(sizeof(struct data_urb), GFP_KERNEL);
-			if (NULL == pdata_urb) {
+			if (!pdata_urb) {
 				SAM("ERROR: Could not allocate struct data_urb.\n");
 				return -ENOMEM;
 			} else
@@ -4118,11 +4118,11 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 						peasycap->audio_buffer_page_many);
 
 		for (k = 0;  k < peasycap->audio_buffer_page_many;  k++) {
-			if (NULL != peasycap->audio_buffer[k].pgo) {
+			if (peasycap->audio_buffer[k].pgo) {
 				SAM("ERROR: attempting to reallocate audio buffers\n");
 			} else {
 				pbuf = (void *) __get_free_page(GFP_KERNEL);
-				if (NULL == pbuf) {
+				if (!pbuf) {
 					SAM("ERROR: Could not allocate audio "
 								"buffer page %i\n", k);
 					return -ENOMEM;
@@ -4147,7 +4147,7 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 		for (k = 0;  k < AUDIO_ISOC_BUFFER_MANY;  k++) {
 			pbuf = (void *)__get_free_pages(GFP_KERNEL,
 							AUDIO_ISOC_ORDER);
-			if (NULL == pbuf) {
+			if (!pbuf) {
 				SAM("ERROR: Could not allocate isoc audio buffer "
 								"%i\n", k);
 				return -ENOMEM;
@@ -4177,7 +4177,7 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 		for (k = 0;  k < AUDIO_ISOC_BUFFER_MANY; k++) {
 			purb = usb_alloc_urb(peasycap->audio_isoc_framesperdesc,
 								GFP_KERNEL);
-			if (NULL == purb) {
+			if (!purb) {
 				SAM("ERROR: usb_alloc_urb returned NULL for buffer "
 								"%i\n", k);
 				return -ENOMEM;
@@ -4185,7 +4185,7 @@ static int easycap_usb_probe(struct usb_interface *pusb_interface,
 			peasycap->allocation_audio_urb += 1 ;
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 			pdata_urb = kzalloc(sizeof(struct data_urb), GFP_KERNEL);
-			if (NULL == pdata_urb) {
+			if (!pdata_urb) {
 				SAM("ERROR: Could not allocate struct data_urb.\n");
 				return -ENOMEM;
 			}
@@ -4339,12 +4339,12 @@ static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
 	JOT(4, "\n");
 
 	pusb_host_interface = pusb_interface->cur_altsetting;
-	if (NULL == pusb_host_interface) {
+	if (!pusb_host_interface) {
 		JOT(4, "ERROR: pusb_host_interface is NULL\n");
 		return;
 	}
 	pusb_interface_descriptor = &(pusb_host_interface->desc);
-	if (NULL == pusb_interface_descriptor) {
+	if (!pusb_interface_descriptor) {
 		JOT(4, "ERROR: pusb_interface_descriptor is NULL\n");
 		return;
 	}
@@ -4356,7 +4356,7 @@ static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
 		return;
 
 	peasycap = usb_get_intfdata(pusb_interface);
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return;
 	}
@@ -4372,7 +4372,7 @@ static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
 /*---------------------------------------------------------------------------*/
 	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
 		pv4l2_device = usb_get_intfdata(pusb_interface);
-		if (NULL == pv4l2_device) {
+		if (!pv4l2_device) {
 			SAY("ERROR: pv4l2_device is NULL\n");
 			return;
 		}
@@ -4398,14 +4398,14 @@ static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
 /*---------------------------------------------------------------------------*/
 	switch (bInterfaceNumber) {
 	case 0: {
-		if (NULL != peasycap->purb_video_head) {
+		if (peasycap->purb_video_head) {
 			JOM(4, "killing video urbs\n");
 			m = 0;
 			list_for_each(plist_head, peasycap->purb_video_head) {
 				pdata_urb = list_entry(plist_head,
 						struct data_urb, list_head);
-				if (NULL != pdata_urb) {
-					if (NULL != pdata_urb->purb) {
+				if (pdata_urb) {
+					if (pdata_urb->purb) {
 						usb_kill_urb(pdata_urb->purb);
 						m++;
 					}
@@ -4417,14 +4417,14 @@ static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
 	}
 /*---------------------------------------------------------------------------*/
 	case 2: {
-		if (NULL != peasycap->purb_audio_head) {
+		if (peasycap->purb_audio_head) {
 			JOM(4, "killing audio urbs\n");
 			m = 0;
 			list_for_each(plist_head, peasycap->purb_audio_head) {
 				pdata_urb = list_entry(plist_head,
 						struct data_urb, list_head);
-				if (NULL != pdata_urb) {
-					if (NULL != pdata_urb->purb) {
+				if (pdata_urb) {
+					if (pdata_urb->purb) {
 						usb_kill_urb(pdata_urb->purb);
 						m++;
 					}
@@ -4464,7 +4464,7 @@ static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
 		}
 /*---------------------------------------------------------------------------*/
 #ifndef EASYCAP_IS_VIDEODEV_CLIENT
-		if (NULL == peasycap) {
+		if (!peasycap) {
 			SAM("ERROR: peasycap has become NULL\n");
 		} else {
 			usb_deregister_dev(pusb_interface, &easycap_class);

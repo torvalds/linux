@@ -83,12 +83,12 @@ easycap_alsa_complete(struct urb *purb)
 
 	JOT(16, "\n");
 
-	if (NULL == purb) {
+	if (!purb) {
 		SAY("ERROR: purb is NULL\n");
 		return;
 	}
 	peasycap = purb->context;
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return;
 	}
@@ -105,10 +105,10 @@ easycap_alsa_complete(struct urb *purb)
 	}
 /*---------------------------------------------------------------------------*/
 	pss = peasycap->psubstream;
-	if (NULL == pss)
+	if (!pss)
 		goto resubmit;
 	prt = pss->runtime;
-	if (NULL == prt)
+	if (!prt)
 		goto resubmit;
 	dma_bytes = (int)prt->dma_bytes;
 	if (0 == dma_bytes)
@@ -294,23 +294,23 @@ static int easycap_alsa_open(struct snd_pcm_substream *pss)
 	struct easycap *peasycap;
 
 	JOT(4, "\n");
-	if (NULL == pss) {
+	if (!pss) {
 		SAY("ERROR:  pss is NULL\n");
 		return -EFAULT;
 	}
 	psnd_pcm = pss->pcm;
-	if (NULL == psnd_pcm) {
+	if (!psnd_pcm) {
 		SAY("ERROR:  psnd_pcm is NULL\n");
 		return -EFAULT;
 	}
 	psnd_card = psnd_pcm->card;
-	if (NULL == psnd_card) {
+	if (!psnd_card) {
 		SAY("ERROR:  psnd_card is NULL\n");
 		return -EFAULT;
 	}
 
 	peasycap = psnd_card->private_data;
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR:  peasycap is NULL\n");
 		return -EFAULT;
 	}
@@ -322,7 +322,7 @@ static int easycap_alsa_open(struct snd_pcm_substream *pss)
 		SAM("ERROR: bad peasycap->psnd_card\n");
 		return -EFAULT;
 	}
-	if (NULL != peasycap->psubstream) {
+	if (peasycap->psubstream) {
 		SAM("ERROR: bad peasycap->psubstream\n");
 		return -EFAULT;
 	}
@@ -345,12 +345,12 @@ static int easycap_alsa_close(struct snd_pcm_substream *pss)
 	struct easycap *peasycap;
 
 	JOT(4, "\n");
-	if (NULL == pss) {
+	if (!pss) {
 		SAY("ERROR:  pss is NULL\n");
 		return -EFAULT;
 	}
 	peasycap = snd_pcm_substream_chip(pss);
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR:  peasycap is NULL\n");
 		return -EFAULT;
 	}
@@ -369,12 +369,12 @@ static int easycap_alsa_vmalloc(struct snd_pcm_substream *pss, size_t sz)
 	struct snd_pcm_runtime *prt;
 	JOT(4, "\n");
 
-	if (NULL == pss) {
+	if (!pss) {
 		SAY("ERROR:  pss is NULL\n");
 		return -EFAULT;
 	}
 	prt = pss->runtime;
-	if (NULL == prt) {
+	if (!prt) {
 		SAY("ERROR: substream.runtime is NULL\n");
 		return -EFAULT;
 	}
@@ -384,7 +384,7 @@ static int easycap_alsa_vmalloc(struct snd_pcm_substream *pss, size_t sz)
 		vfree(prt->dma_area);
 	}
 	prt->dma_area = vmalloc(sz);
-	if (NULL == prt->dma_area)
+	if (!prt->dma_area)
 		return -ENOMEM;
 	prt->dma_bytes = sz;
 	return 0;
@@ -396,7 +396,7 @@ static int easycap_alsa_hw_params(struct snd_pcm_substream *pss,
 	int rc;
 
 	JOT(4, "%i\n", (params_buffer_bytes(phw)));
-	if (NULL == pss) {
+	if (!pss) {
 		SAY("ERROR:  pss is NULL\n");
 		return -EFAULT;
 	}
@@ -411,16 +411,16 @@ static int easycap_alsa_hw_free(struct snd_pcm_substream *pss)
 	struct snd_pcm_runtime *prt;
 	JOT(4, "\n");
 
-	if (NULL == pss) {
+	if (!pss) {
 		SAY("ERROR:  pss is NULL\n");
 		return -EFAULT;
 	}
 	prt = pss->runtime;
-	if (NULL == prt) {
+	if (!prt) {
 		SAY("ERROR: substream.runtime is NULL\n");
 		return -EFAULT;
 	}
-	if (NULL != prt->dma_area) {
+	if (prt->dma_area) {
 		JOT(8, "prt->dma_area = %p\n", prt->dma_area);
 		vfree(prt->dma_area);
 		prt->dma_area = NULL;
@@ -435,13 +435,13 @@ static int easycap_alsa_prepare(struct snd_pcm_substream *pss)
 	struct snd_pcm_runtime *prt;
 
 	JOT(4, "\n");
-	if (NULL == pss) {
+	if (!pss) {
 		SAY("ERROR:  pss is NULL\n");
 		return -EFAULT;
 	}
 	prt = pss->runtime;
 	peasycap = snd_pcm_substream_chip(pss);
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR:  peasycap is NULL\n");
 		return -EFAULT;
 	}
@@ -483,12 +483,12 @@ static int easycap_alsa_trigger(struct snd_pcm_substream *pss, int cmd)
 
 	JOT(4, "%i=cmd cf %i=START %i=STOP\n", cmd, SNDRV_PCM_TRIGGER_START,
 	    SNDRV_PCM_TRIGGER_STOP);
-	if (NULL == pss) {
+	if (!pss) {
 		SAY("ERROR:  pss is NULL\n");
 		return -EFAULT;
 	}
 	peasycap = snd_pcm_substream_chip(pss);
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR:  peasycap is NULL\n");
 		return -EFAULT;
 	}
@@ -518,12 +518,12 @@ static snd_pcm_uframes_t easycap_alsa_pointer(struct snd_pcm_substream *pss)
 	snd_pcm_uframes_t offset;
 
 	JOT(16, "\n");
-	if (NULL == pss) {
+	if (!pss) {
 		SAY("ERROR:  pss is NULL\n");
 		return -EFAULT;
 	}
 	peasycap = snd_pcm_substream_chip(pss);
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR:  peasycap is NULL\n");
 		return -EFAULT;
 	}
@@ -584,7 +584,7 @@ int easycap_alsa_probe(struct easycap *peasycap)
 	struct snd_card *psnd_card;
 	struct snd_pcm *psnd_pcm;
 
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return -ENODEV;
 	}
@@ -669,11 +669,11 @@ easycap_sound_setup(struct easycap *peasycap)
 
 	JOM(4, "starting initialization\n");
 
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR:  peasycap is NULL.\n");
 		return -EFAULT;
 	}
-	if (NULL == peasycap->pusb_device) {
+	if (!peasycap->pusb_device) {
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
 		return -ENODEV;
 	}
@@ -682,12 +682,12 @@ easycap_sound_setup(struct easycap *peasycap)
 	rc = audio_setup(peasycap);
 	JOM(8, "audio_setup() returned %i\n", rc);
 
-	if (NULL == peasycap->pusb_device) {
+	if (!peasycap->pusb_device) {
 		SAM("ERROR: peasycap->pusb_device has become NULL\n");
 		return -ENODEV;
 	}
 /*---------------------------------------------------------------------------*/
-	if (NULL == peasycap->pusb_device) {
+	if (!peasycap->pusb_device) {
 		SAM("ERROR: peasycap->pusb_device has become NULL\n");
 		return -ENODEV;
 	}
@@ -725,15 +725,15 @@ submit_audio_urbs(struct easycap *peasycap)
 	int j, isbad, nospc, m, rc;
 	int isbuf;
 
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return -EFAULT;
 	}
-	if (NULL == peasycap->purb_audio_head) {
+	if (!peasycap->purb_audio_head) {
 		SAM("ERROR: peasycap->urb_audio_head uninitialized\n");
 		return -EFAULT;
 	}
-	if (NULL == peasycap->pusb_device) {
+	if (!peasycap->pusb_device) {
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
 		return -EFAULT;
 	}
@@ -751,9 +751,9 @@ submit_audio_urbs(struct easycap *peasycap)
 		m = 0;
 		list_for_each(plist_head, (peasycap->purb_audio_head)) {
 			pdata_urb = list_entry(plist_head, struct data_urb, list_head);
-			if (NULL != pdata_urb) {
+			if (pdata_urb) {
 				purb = pdata_urb->purb;
-				if (NULL != purb) {
+				if (purb) {
 					isbuf = pdata_urb->isbuf;
 
 					purb->interval = 1;
@@ -801,9 +801,9 @@ submit_audio_urbs(struct easycap *peasycap)
 			JOM(4, "attempting cleanup instead of submitting\n");
 			list_for_each(plist_head, (peasycap->purb_audio_head)) {
 				pdata_urb = list_entry(plist_head, struct data_urb, list_head);
-				if (NULL != pdata_urb) {
+				if (pdata_urb) {
 					purb = pdata_urb->purb;
-					if (NULL != purb)
+					if (purb)
 						usb_kill_urb(purb);
 				}
 			}
@@ -830,19 +830,19 @@ kill_audio_urbs(struct easycap *peasycap)
 	struct list_head *plist_head;
 	struct data_urb *pdata_urb;
 
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return -EFAULT;
 	}
 	if (peasycap->audio_isoc_streaming) {
-		if (NULL != peasycap->purb_audio_head) {
+		if (peasycap->purb_audio_head) {
 			peasycap->audio_isoc_streaming = 0;
 			JOM(4, "killing audio urbs\n");
 			m = 0;
 			list_for_each(plist_head, (peasycap->purb_audio_head)) {
 				pdata_urb = list_entry(plist_head, struct data_urb, list_head);
-				if (NULL != pdata_urb) {
-					if (NULL != pdata_urb->purb) {
+				if (pdata_urb) {
+					if (pdata_urb->purb) {
 						usb_kill_urb(pdata_urb->purb);
 						m++;
 					}

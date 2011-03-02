@@ -330,7 +330,7 @@ int confirm_resolution(struct usb_device *p)
 {
 	u8 get0, get1, get2, get3, get4, get5, get6, get7;
 
-	if (NULL == p)
+	if (!p)
 		return -ENODEV;
 	GET(p, 0x0110, &get0);
 	GET(p, 0x0111, &get1);
@@ -371,7 +371,7 @@ int confirm_stream(struct usb_device *p)
 	u16 get2;
 	u8 igot;
 
-	if (NULL == p)
+	if (!p)
 		return -ENODEV;
 	GET(p, 0x0100, &igot);  get2 = 0x80 & igot;
 	if (0x80 == get2)
@@ -385,7 +385,7 @@ int setup_stk(struct usb_device *p, bool ntsc)
 {
 	int i0;
 
-	if (NULL == p)
+	if (!p)
 		return -ENODEV;
 	i0 = 0;
 	if (ntsc) {
@@ -411,7 +411,7 @@ int setup_saa(struct usb_device *p, bool ntsc)
 {
 	int i0, ir;
 
-	if (NULL == p)
+	if (!p)
 		return -ENODEV;
 	i0 = 0;
 	if (ntsc) {
@@ -434,7 +434,7 @@ int write_000(struct usb_device *p, u16 set2, u16 set0)
 {
 	u8 igot0, igot2;
 
-	if (NULL == p)
+	if (!p)
 		return -ENODEV;
 	GET(p, 0x0002, &igot2);
 	GET(p, 0x0000, &igot0);
@@ -445,7 +445,7 @@ int write_000(struct usb_device *p, u16 set2, u16 set0)
 /****************************************************************************/
 int write_saa(struct usb_device *p, u16 reg0, u16 set0)
 {
-	if (NULL == p)
+	if (!p)
 		return -ENODEV;
 	SET(p, 0x200, 0x00);
 	SET(p, 0x204, reg0);
@@ -470,7 +470,7 @@ write_vt(struct usb_device *p, u16 reg0, u16 set0)
 	u16 got502, got503;
 	u16 set502, set503;
 
-	if (NULL == p)
+	if (!p)
 		return -ENODEV;
 	SET(p, 0x0504, reg0);
 	SET(p, 0x0500, 0x008B);
@@ -506,7 +506,7 @@ int read_vt(struct usb_device *p, u16 reg0)
 	u8 igot;
 	u16 got502, got503;
 
-	if (NULL == p)
+	if (!p)
 		return -ENODEV;
 	SET(p, 0x0504, reg0);
 	SET(p, 0x0500, 0x008B);
@@ -527,7 +527,7 @@ int read_vt(struct usb_device *p, u16 reg0)
 /*--------------------------------------------------------------------------*/
 int write_300(struct usb_device *p)
 {
-	if (NULL == p)
+	if (!p)
 		return -ENODEV;
 	SET(p, 0x300, 0x0012);
 	SET(p, 0x350, 0x002D);
@@ -548,7 +548,7 @@ int check_saa(struct usb_device *p, bool ntsc)
 {
 	int i0, ir, rc;
 
-	if (NULL == p)
+	if (!p)
 		return -ENODEV;
 	i0 = 0;
 	rc = 0;
@@ -597,7 +597,7 @@ int merit_saa(struct usb_device *p)
 {
 	int rc;
 
-	if (NULL == p)
+	if (!p)
 		return -ENODEV;
 	rc = read_saa(p, 0x1F);
 	return ((0 > rc) || (0x02 & rc)) ? 1 : 0;
@@ -615,7 +615,7 @@ int ready_saa(struct usb_device *p)
  *              3     FOR NON-INTERLACED   60 Hz
 */
 /*--------------------------------------------------------------------------*/
-	if (NULL == p)
+	if (!p)
 		return -ENODEV;
 	j = 0;
 	while (max > j) {
@@ -660,7 +660,7 @@ int check_stk(struct usb_device *p, bool ntsc)
 {
 	int i0, ir;
 
-	if (NULL == p)
+	if (!p)
 		return -ENODEV;
 	i0 = 0;
 	if (ntsc) {
@@ -731,7 +731,7 @@ int read_saa(struct usb_device *p, u16 reg0)
 {
 	u8 igot;
 
-	if (NULL == p)
+	if (!p)
 		return -ENODEV;
 	SET(p, 0x208, reg0);
 	SET(p, 0x200, 0x20);
@@ -746,7 +746,7 @@ int read_stk(struct usb_device *p, u32 reg0)
 {
 	u8 igot;
 
-	if (NULL == p)
+	if (!p)
 		return -ENODEV;
 	igot = 0;
 	GET(p, reg0, &igot);
@@ -776,7 +776,7 @@ select_input(struct usb_device *p, int input, int mode)
 {
 	int ir;
 
-	if (NULL == p)
+	if (!p)
 		return -ENODEV;
 	stop_100(p);
 	switch (input) {
@@ -879,7 +879,7 @@ int set_resolution(struct usb_device *p,
 {
 	u16 u0x0111, u0x0113, u0x0115, u0x0117;
 
-	if (NULL == p)
+	if (!p)
 		return -ENODEV;
 	u0x0111 = ((0xFF00 & set0) >> 8);
 	u0x0113 = ((0xFF00 & set1) >> 8);
@@ -903,7 +903,7 @@ int start_100(struct usb_device *p)
 	u16 get116, get117, get0;
 	u8 igot116, igot117, igot;
 
-	if (NULL == p)
+	if (!p)
 		return -ENODEV;
 	GET(p, 0x0116, &igot116);
 	get116 = igot116;
@@ -927,7 +927,7 @@ int stop_100(struct usb_device *p)
 	u16 get0;
 	u8 igot;
 
-	if (NULL == p)
+	if (!p)
 		return -ENODEV;
 	GET(p, 0x0100, &igot);
 	get0 = igot;
@@ -947,7 +947,7 @@ int wait_i2c(struct usb_device *p)
 	const int max = 2;
 	int k;
 
-	if (NULL == p)
+	if (!p)
 		return -ENODEV;
 
 	for (k = 0;  k < max;  k++) {
@@ -1000,11 +1000,11 @@ audio_setup(struct easycap *peasycap)
 	const u16 index = 0x0301;
 	const u16 length = 1;
 
-	if (NULL == peasycap)
+	if (!peasycap)
 		return -EFAULT;
 
 	pusb_device = peasycap->pusb_device;
-	if (NULL == pusb_device)
+	if (!pusb_device)
 		return -ENODEV;
 
 	JOM(8, "%02X %02X %02X %02X %02X %02X %02X %02X\n",
@@ -1143,7 +1143,7 @@ int audio_gainset(struct usb_device *pusb_device, s8 loud)
 	u8 tmp;
 	u16 mute;
 
-	if (NULL == pusb_device)
+	if (!pusb_device)
 		return -ENODEV;
 	if (0 > loud)
 		loud = 0;
@@ -1209,7 +1209,7 @@ int audio_gainget(struct usb_device *pusb_device)
 {
 	int igot;
 
-	if (NULL == pusb_device)
+	if (!pusb_device)
 		return -ENODEV;
 	igot = read_vt(pusb_device, 0x001C);
 	if (0 > igot)

@@ -48,11 +48,11 @@ int adjust_standard(struct easycap *peasycap, v4l2_std_id std_id)
 	unsigned int itwas, isnow;
 	bool resubmit;
 
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return -EFAULT;
 	}
-	if (NULL == peasycap->pusb_device) {
+	if (!peasycap->pusb_device) {
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
 		return -EFAULT;
 	}
@@ -370,7 +370,7 @@ int adjust_format(struct easycap *peasycap,
 	u32 uc;
 	bool resubmit;
 
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return -EFAULT;
 	}
@@ -379,7 +379,7 @@ int adjust_format(struct easycap *peasycap,
 		return -EBUSY;
 	}
 	p = peasycap->pusb_device;
-	if (NULL == p) {
+	if (!p) {
 		SAM("ERROR: peaycap->pusb_device is NULL\n");
 		return -EFAULT;
 	}
@@ -491,7 +491,7 @@ int adjust_format(struct easycap *peasycap,
 			return peasycap->format_offset;
 		}
 	}
-	if (NULL == peasycap_best_format) {
+	if (!peasycap_best_format) {
 		SAM("MISTAKE: peasycap_best_format is NULL");
 		return -EINVAL;
 	}
@@ -632,11 +632,11 @@ int adjust_brightness(struct easycap *peasycap, int value)
 	unsigned int mood;
 	int i1, k;
 
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return -EFAULT;
 	}
-	if (NULL == peasycap->pusb_device) {
+	if (!peasycap->pusb_device) {
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
 		return -EFAULT;
 	}
@@ -689,11 +689,11 @@ int adjust_contrast(struct easycap *peasycap, int value)
 	unsigned int mood;
 	int i1, k;
 
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return -EFAULT;
 	}
-	if (NULL == peasycap->pusb_device) {
+	if (!peasycap->pusb_device) {
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
 		return -EFAULT;
 	}
@@ -747,11 +747,11 @@ int adjust_saturation(struct easycap *peasycap, int value)
 	unsigned int mood;
 	int i1, k;
 
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return -EFAULT;
 	}
-	if (NULL == peasycap->pusb_device) {
+	if (!peasycap->pusb_device) {
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
 		return -EFAULT;
 	}
@@ -805,11 +805,11 @@ int adjust_hue(struct easycap *peasycap, int value)
 	unsigned int mood;
 	int i1, i2, k;
 
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return -EFAULT;
 	}
-	if (NULL == peasycap->pusb_device) {
+	if (!peasycap->pusb_device) {
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
 		return -EFAULT;
 	}
@@ -859,11 +859,11 @@ int adjust_volume(struct easycap *peasycap, int value)
 	s8 mood;
 	int i1;
 
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return -EFAULT;
 	}
-	if (NULL == peasycap->pusb_device) {
+	if (!peasycap->pusb_device) {
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
 		return -EFAULT;
 	}
@@ -916,11 +916,11 @@ static int adjust_mute(struct easycap *peasycap, int value)
 {
 	int i1;
 
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return -EFAULT;
 	}
-	if (NULL == peasycap->pusb_device) {
+	if (!peasycap->pusb_device) {
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
 		return -EFAULT;
 	}
@@ -958,12 +958,12 @@ long easycap_unlocked_ioctl(struct file *file,
 	struct usb_device *p;
 	int kd;
 
-	if (NULL == file) {
+	if (!file) {
 		SAY("ERROR:  file is NULL\n");
 		return -ERESTARTSYS;
 	}
 	peasycap = file->private_data;
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR:  peasycap is NULL\n");
 		return -1;
 	}
@@ -972,7 +972,7 @@ long easycap_unlocked_ioctl(struct file *file,
 		return -EFAULT;
 	}
 	p = peasycap->pusb_device;
-	if (NULL == p) {
+	if (!p) {
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
 		return -EFAULT;
 	}
@@ -993,13 +993,13 @@ long easycap_unlocked_ioctl(struct file *file,
 /*---------------------------------------------------------------------------*/
 		if (kd != isdongle(peasycap))
 			return -ERESTARTSYS;
-		if (NULL == file) {
+		if (!file) {
 			SAY("ERROR:  file is NULL\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 			return -ERESTARTSYS;
 		}
 		peasycap = file->private_data;
-		if (NULL == peasycap) {
+		if (!peasycap) {
 			SAY("ERROR:  peasycap is NULL\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 			return -ERESTARTSYS;
@@ -1010,7 +1010,7 @@ long easycap_unlocked_ioctl(struct file *file,
 			return -EFAULT;
 		}
 		p = peasycap->pusb_device;
-		if (NULL == peasycap->pusb_device) {
+		if (!peasycap->pusb_device) {
 			SAM("ERROR: peasycap->pusb_device is NULL\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 			return -ERESTARTSYS;
@@ -2325,7 +2325,7 @@ long easycap_unlocked_ioctl(struct file *file,
 		peasycap->isequence = 0;
 		for (i = 0; i < 180; i++)
 			peasycap->merit[i] = 0;
-		if (NULL == peasycap->pusb_device) {
+		if (!peasycap->pusb_device) {
 			SAM("ERROR: peasycap->pusb_device is NULL\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 			return -EFAULT;
@@ -2341,7 +2341,7 @@ long easycap_unlocked_ioctl(struct file *file,
 	case VIDIOC_STREAMOFF: {
 		JOM(8, "VIDIOC_STREAMOFF\n");
 
-		if (NULL == peasycap->pusb_device) {
+		if (!peasycap->pusb_device) {
 			SAM("ERROR: peasycap->pusb_device is NULL\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 			return -EFAULT;
@@ -2362,7 +2362,7 @@ long easycap_unlocked_ioctl(struct file *file,
 		wake_up_interruptible(&(peasycap->wq_audio));
 
 #else
-		if (NULL != peasycap->psubstream)
+		if (peasycap->psubstream)
 			snd_pcm_period_elapsed(peasycap->psubstream);
 #endif /* CONFIG_EASYCAP_OSS */
 /*---------------------------------------------------------------------------*/

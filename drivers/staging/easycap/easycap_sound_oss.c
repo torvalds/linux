@@ -63,12 +63,12 @@ easyoss_complete(struct urb *purb)
 
 	JOT(16, "\n");
 
-	if (NULL == purb) {
+	if (!purb) {
 		SAY("ERROR: purb is NULL\n");
 		return;
 	}
 	peasycap = purb->context;
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return;
 	}
@@ -288,13 +288,13 @@ static int easyoss_open(struct inode *inode, struct file *file)
 	subminor = iminor(inode);
 
 	pusb_interface = usb_find_interface(&easycap_usb_driver, subminor);
-	if (NULL == pusb_interface) {
+	if (!pusb_interface) {
 		SAY("ERROR: pusb_interface is NULL\n");
 		SAY("ending unsuccessfully\n");
 		return -1;
 	}
 	peasycap = usb_get_intfdata(pusb_interface);
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		SAY("ending unsuccessfully\n");
 		return -1;
@@ -311,7 +311,7 @@ static int easyoss_open(struct inode *inode, struct file *file)
 /*---------------------------------------------------------------------------*/
 	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
 		pv4l2_device = usb_get_intfdata(pusb_interface);
-		if (NULL == pv4l2_device) {
+		if (!pv4l2_device) {
 			SAY("ERROR: pv4l2_device is NULL\n");
 			return -EFAULT;
 		}
@@ -343,7 +343,7 @@ static int easyoss_release(struct inode *inode, struct file *file)
 	JOT(4, "begins\n");
 
 	peasycap = file->private_data;
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR:  peasycap is NULL.\n");
 		return -EFAULT;
 	}
@@ -385,12 +385,12 @@ static ssize_t easyoss_read(struct file *file, char __user *puserspacebuffer,
 
 	JOT(8, "%5zd=kount  %5lld=*poff\n", kount, *poff);
 
-	if (NULL == file) {
+	if (!file) {
 		SAY("ERROR:  file is NULL\n");
 		return -ERESTARTSYS;
 	}
 	peasycap = file->private_data;
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR in easyoss_read(): peasycap is NULL\n");
 		return -EFAULT;
 	}
@@ -398,7 +398,7 @@ static ssize_t easyoss_read(struct file *file, char __user *puserspacebuffer,
 		SAY("ERROR: bad peasycap: %p\n", peasycap);
 		return -EFAULT;
 	}
-	if (NULL == peasycap->pusb_device) {
+	if (!peasycap->pusb_device) {
 		SAY("ERROR: peasycap->pusb_device is NULL\n");
 		return -EFAULT;
 	}
@@ -418,13 +418,13 @@ static ssize_t easyoss_read(struct file *file, char __user *puserspacebuffer,
 		 */
 		if (kd != isdongle(peasycap))
 			return -ERESTARTSYS;
-		if (NULL == file) {
+		if (!file) {
 			SAY("ERROR:  file is NULL\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 			return -ERESTARTSYS;
 		}
 		peasycap = file->private_data;
-		if (NULL == peasycap) {
+		if (!peasycap) {
 			SAY("ERROR:  peasycap is NULL\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 			return -ERESTARTSYS;
@@ -434,7 +434,7 @@ static ssize_t easyoss_read(struct file *file, char __user *puserspacebuffer,
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 			return -ERESTARTSYS;
 		}
-		if (NULL == peasycap->pusb_device) {
+		if (!peasycap->pusb_device) {
 			SAM("ERROR: peasycap->pusb_device is NULL\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 			return -ERESTARTSYS;
@@ -459,7 +459,7 @@ static ssize_t easyoss_read(struct file *file, char __user *puserspacebuffer,
 		return -EFAULT;
 	}
 	pdata_buffer = &peasycap->audio_buffer[peasycap->audio_read];
-	if (NULL == pdata_buffer) {
+	if (!pdata_buffer) {
 		SAM("ERROR: pdata_buffer is NULL\n");
 		mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 		return -EFAULT;
@@ -510,12 +510,12 @@ static ssize_t easyoss_read(struct file *file, char __user *puserspacebuffer,
 	szret = (size_t)0;
 	fragment = (peasycap->audio_read / peasycap->audio_pages_per_fragment);
 	while (fragment == (peasycap->audio_read / peasycap->audio_pages_per_fragment)) {
-		if (NULL == pdata_buffer->pgo) {
+		if (!pdata_buffer->pgo) {
 			SAM("ERROR: pdata_buffer->pgo is NULL\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 			return -EFAULT;
 		}
-		if (NULL == pdata_buffer->pto) {
+		if (!pdata_buffer->pto) {
 			SAM("ERROR: pdata_buffer->pto is NULL\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 			return -EFAULT;
@@ -543,17 +543,17 @@ static ssize_t easyoss_read(struct file *file, char __user *puserspacebuffer,
 				return -EFAULT;
 			}
 			pdata_buffer = &peasycap->audio_buffer[peasycap->audio_read];
-			if (NULL == pdata_buffer) {
+			if (!pdata_buffer) {
 				SAM("ERROR: pdata_buffer is NULL\n");
 				mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 				return -EFAULT;
 			}
-			if (NULL == pdata_buffer->pgo) {
+			if (!pdata_buffer->pgo) {
 				SAM("ERROR: pdata_buffer->pgo is NULL\n");
 				mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 				return -EFAULT;
 			}
-			if (NULL == pdata_buffer->pto) {
+			if (!pdata_buffer->pto) {
 				SAM("ERROR: pdata_buffer->pto is NULL\n");
 				mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 				return -EFAULT;
@@ -662,12 +662,12 @@ static long easyoss_unlocked_ioctl(struct file *file,
 	struct usb_device *p;
 	int kd;
 
-	if (NULL == file) {
+	if (!file) {
 		SAY("ERROR:  file is NULL\n");
 		return -ERESTARTSYS;
 	}
 	peasycap = file->private_data;
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR:  peasycap is NULL.\n");
 		return -EFAULT;
 	}
@@ -676,7 +676,7 @@ static long easyoss_unlocked_ioctl(struct file *file,
 		return -EFAULT;
 	}
 	p = peasycap->pusb_device;
-	if (NULL == p) {
+	if (!p) {
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
 		return -EFAULT;
 	}
@@ -696,13 +696,13 @@ static long easyoss_unlocked_ioctl(struct file *file,
 		*/
 		if (kd != isdongle(peasycap))
 			return -ERESTARTSYS;
-		if (NULL == file) {
+		if (!file) {
 			SAY("ERROR:  file is NULL\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 			return -ERESTARTSYS;
 		}
 		peasycap = file->private_data;
-		if (NULL == peasycap) {
+		if (!peasycap) {
 			SAY("ERROR:  peasycap is NULL\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 			return -ERESTARTSYS;
@@ -713,7 +713,7 @@ static long easyoss_unlocked_ioctl(struct file *file,
 			return -EFAULT;
 		}
 		p = peasycap->pusb_device;
-		if (NULL == peasycap->pusb_device) {
+		if (!peasycap->pusb_device) {
 			SAM("ERROR: peasycap->pusb_device is NULL\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_audio);
 			return -ERESTARTSYS;

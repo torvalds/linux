@@ -39,7 +39,7 @@ easycap_testcard(struct easycap *peasycap, int field)
 	unsigned char bfbar[TESTCARD_BYTESPERLINE / 8], *p1, *p2;
 	struct data_buffer *pfield_buffer;
 
-	if (NULL == peasycap) {
+	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return;
 	}
