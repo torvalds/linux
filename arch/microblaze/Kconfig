@@ -248,7 +248,7 @@ endmenu
 
 source "mm/Kconfig"
 
-menu "Exectuable file formats"
+menu "Executable file formats"
 
 source "fs/Kconfig.binfmt"
 
