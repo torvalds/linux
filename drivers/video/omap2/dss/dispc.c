@@ -1130,10 +1130,16 @@ static void _dispc_set_vid_accu0(enum omap_plane plane, int haccu, int vaccu)
 	u32 val;
 	const struct dispc_reg ac0_reg[] = { DISPC_VID_ACCU0(0),
 				      DISPC_VID_ACCU0(1) };
+	u8 hor_start, hor_end, vert_start, vert_end;
 
 	BUG_ON(plane == OMAP_DSS_GFX);
 
-	val = FLD_VAL(vaccu, 25, 16) | FLD_VAL(haccu, 9, 0);
+	dss_feat_get_reg_field(FEAT_REG_HORIZONTALACCU, &hor_start, &hor_end);
+	dss_feat_get_reg_field(FEAT_REG_VERTICALACCU, &vert_start, &vert_end);
+
+	val = FLD_VAL(vaccu, vert_start, vert_end) |
+			FLD_VAL(haccu, hor_start, hor_end);
+
 	dispc_write_reg(ac0_reg[plane-1], val);
 }
 
@@ -1142,10 +1148,16 @@ static void _dispc_set_vid_accu1(enum omap_plane plane, int haccu, int vaccu)
 	u32 val;
 	const struct dispc_reg ac1_reg[] = { DISPC_VID_ACCU1(0),
 				      DISPC_VID_ACCU1(1) };
+	u8 hor_start, hor_end, vert_start, vert_end;
 
 	BUG_ON(plane == OMAP_DSS_GFX);
 
-	val = FLD_VAL(vaccu, 25, 16) | FLD_VAL(haccu, 9, 0);
+	dss_feat_get_reg_field(FEAT_REG_HORIZONTALACCU, &hor_start, &hor_end);
+	dss_feat_get_reg_field(FEAT_REG_VERTICALACCU, &vert_start, &vert_end);
+
+	val = FLD_VAL(vaccu, vert_start, vert_end) |
+			FLD_VAL(haccu, hor_start, hor_end);
+
 	dispc_write_reg(ac1_reg[plane-1], val);
 }
 
@@ -1183,16 +1195,25 @@ static void _dispc_set_scaling(enum omap_plane plane,
 	_dispc_set_fir(plane, fir_hinc, fir_vinc);
 
 	l = dispc_read_reg(dispc_reg_att[plane]);
-	l &= ~((0x0f << 5) | (0x3 << 21));
 
+	/* RESIZEENABLE and VERTICALTAPS */
+	l &= ~((0x3 << 5) | (0x1 << 21));
 	l |= fir_hinc ? (1 << 5) : 0;
 	l |= fir_vinc ? (1 << 6) : 0;
-
-	l |= hscaleup ? 0 : (1 << 7);
-	l |= vscaleup ? 0 : (1 << 8);
-
 	l |= five_taps ? (1 << 21) : 0;
-	l |= five_taps ? (1 << 22) : 0;
+
+	/* VRESIZECONF and HRESIZECONF */
+	if (dss_has_feature(FEAT_RESIZECONF)) {
+		l &= ~(0x3 << 7);
+		l |= hscaleup ? 0 : (1 << 7);
+		l |= vscaleup ? 0 : (1 << 8);
+	}
+
+	/* LINEBUFFERSPLIT */
+	if (dss_has_feature(FEAT_LINEBUFFERSPLIT)) {
+		l &= ~(0x1 << 22);
+		l |= five_taps ? (1 << 22) : 0;
+	}
 
 	dispc_write_reg(dispc_reg_att[plane], l);
 
@@ -1216,9 +1237,11 @@ static void _dispc_set_scaling(enum omap_plane plane,
 static void _dispc_set_rotation_attrs(enum omap_plane plane, u8 rotation,
 		bool mirroring, enum omap_color_mode color_mode)
 {
+	bool row_repeat = false;
+	int vidrot = 0;
+
 	if (color_mode == OMAP_DSS_COLOR_YUV2 ||
 			color_mode == OMAP_DSS_COLOR_UYVY) {
-		int vidrot = 0;
 
 		if (mirroring) {
 			switch (rotation) {
@@ -1252,16 +1275,15 @@ static void _dispc_set_rotation_attrs(enum omap_plane plane, u8 rotation,
 			}
 		}
 
-		REG_FLD_MOD(dispc_reg_att[plane], vidrot, 13, 12);
-
 		if (rotation == OMAP_DSS_ROT_90 || rotation == OMAP_DSS_ROT_270)
-			REG_FLD_MOD(dispc_reg_att[plane], 0x1, 18, 18);
+			row_repeat = true;
 		else
-			REG_FLD_MOD(dispc_reg_att[plane], 0x0, 18, 18);
-	} else {
-		REG_FLD_MOD(dispc_reg_att[plane], 0, 13, 12);
-		REG_FLD_MOD(dispc_reg_att[plane], 0, 18, 18);
+			row_repeat = false;
 	}
+
+	REG_FLD_MOD(dispc_reg_att[plane], vidrot, 13, 12);
+	if (dss_has_feature(FEAT_ROWREPEATENABLE))
+		REG_FLD_MOD(dispc_reg_att[plane], row_repeat ? 1 : 0, 18, 18);
 }
 
 static int color_mode_to_bpp(enum omap_color_mode color_mode)

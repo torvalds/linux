@@ -33,6 +33,9 @@ enum dss_feat_id {
 	FEAT_PCKFREEENABLE	= 1 << 5,
 	FEAT_FUNCGATED		= 1 << 6,
 	FEAT_MGR_LCD2		= 1 << 7,
+	FEAT_LINEBUFFERSPLIT	= 1 << 8,
+	FEAT_ROWREPEATENABLE	= 1 << 9,
+	FEAT_RESIZECONF		= 1 << 10,
 };
 
 /* DSS register field id */
@@ -42,6 +45,8 @@ enum dss_feat_reg_field {
 	FEAT_REG_FIFOHIGHTHRESHOLD,
 	FEAT_REG_FIFOLOWTHRESHOLD,
 	FEAT_REG_FIFOSIZE,
+	FEAT_REG_HORIZONTALACCU,
+	FEAT_REG_VERTICALACCU,
 };
 
 /* DSS Feature Functions */

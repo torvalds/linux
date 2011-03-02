@@ -54,6 +54,8 @@ static const struct dss_reg_field omap2_dss_reg_fields[] = {
 	{ FEAT_REG_FIFOLOWTHRESHOLD, 8, 0 },
 	{ FEAT_REG_FIFOHIGHTHRESHOLD, 24, 16 },
 	{ FEAT_REG_FIFOSIZE, 8, 0 },
+	{ FEAT_REG_HORIZONTALACCU, 9, 0 },
+	{ FEAT_REG_VERTICALACCU, 25, 16 },
 };
 
 static const struct dss_reg_field omap3_dss_reg_fields[] = {
@@ -62,6 +64,18 @@ static const struct dss_reg_field omap3_dss_reg_fields[] = {
 	{ FEAT_REG_FIFOLOWTHRESHOLD, 11, 0 },
 	{ FEAT_REG_FIFOHIGHTHRESHOLD, 27, 16 },
 	{ FEAT_REG_FIFOSIZE, 10, 0 },
+	{ FEAT_REG_HORIZONTALACCU, 9, 0 },
+	{ FEAT_REG_VERTICALACCU, 25, 16 },
+};
+
+static const struct dss_reg_field omap4_dss_reg_fields[] = {
+	{ FEAT_REG_FIRHINC, 12, 0 },
+	{ FEAT_REG_FIRVINC, 28, 16 },
+	{ FEAT_REG_FIFOLOWTHRESHOLD, 15, 0 },
+	{ FEAT_REG_FIFOHIGHTHRESHOLD, 31, 16 },
+	{ FEAT_REG_FIFOSIZE, 15, 0 },
+	{ FEAT_REG_HORIZONTALACCU, 10, 0 },
+	{ FEAT_REG_VERTICALACCU, 26, 16 },
 };
 
 static const enum omap_display_type omap2_dss_supported_displays[] = {
@@ -149,7 +163,8 @@ static struct omap_dss_features omap2_dss_features = {
 
 	.has_feature	=
 		FEAT_LCDENABLEPOL | FEAT_LCDENABLESIGNAL |
-		FEAT_PCKFREEENABLE | FEAT_FUNCGATED,
+		FEAT_PCKFREEENABLE | FEAT_FUNCGATED |
+		FEAT_ROWREPEATENABLE | FEAT_RESIZECONF,
 
 	.num_mgrs = 2,
 	.num_ovls = 3,
@@ -165,7 +180,8 @@ static struct omap_dss_features omap3430_dss_features = {
 	.has_feature	=
 		FEAT_GLOBAL_ALPHA | FEAT_LCDENABLEPOL |
 		FEAT_LCDENABLESIGNAL | FEAT_PCKFREEENABLE |
-		FEAT_FUNCGATED,
+		FEAT_FUNCGATED | FEAT_ROWREPEATENABLE |
+		FEAT_LINEBUFFERSPLIT | FEAT_RESIZECONF,
 
 	.num_mgrs = 2,
 	.num_ovls = 3,
@@ -180,7 +196,9 @@ static struct omap_dss_features omap3630_dss_features = {
 	.has_feature    =
 		FEAT_GLOBAL_ALPHA | FEAT_LCDENABLEPOL |
 		FEAT_LCDENABLESIGNAL | FEAT_PCKFREEENABLE |
-		FEAT_PRE_MULT_ALPHA | FEAT_FUNCGATED,
+		FEAT_PRE_MULT_ALPHA | FEAT_FUNCGATED |
+		FEAT_ROWREPEATENABLE | FEAT_LINEBUFFERSPLIT |
+		FEAT_RESIZECONF,
 
 	.num_mgrs = 2,
 	.num_ovls = 3,
@@ -190,12 +208,12 @@ static struct omap_dss_features omap3630_dss_features = {
 
 /* OMAP4 DSS Features */
 static struct omap_dss_features omap4_dss_features = {
-	.reg_fields = omap3_dss_reg_fields,
-	.num_reg_fields = ARRAY_SIZE(omap3_dss_reg_fields),
+	.reg_fields = omap4_dss_reg_fields,
+	.num_reg_fields = ARRAY_SIZE(omap4_dss_reg_fields),
 
 	.has_feature	=
 		FEAT_GLOBAL_ALPHA | FEAT_PRE_MULT_ALPHA |
-		FEAT_MGR_LCD2,
+		FEAT_MGR_LCD2 | FEAT_GLOBAL_ALPHA_VID1,
 
 	.num_mgrs = 3,
 	.num_ovls = 3,
