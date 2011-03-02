@@ -90,6 +90,7 @@
 #define AB8500_IT_MASK24_REG		0x57
 
 #define AB8500_REV_REG			0x80
+#define AB8500_SWITCH_OFF_STATUS	0x00
 
 /*
  * Map interrupt numbers to the LATCH and MASK register offsets, Interrupt
@@ -652,10 +653,38 @@ static ssize_t show_chip_id(struct device *dev,
 	return sprintf(buf, "%#x\n", ab8500 ? ab8500->chip_id : -EINVAL);
 }
 
+/*
+ * ab8500 has switched off due to (SWITCH_OFF_STATUS):
+ * 0x01 Swoff bit programming
+ * 0x02 Thermal protection activation
+ * 0x04 Vbat lower then BattOk falling threshold
+ * 0x08 Watchdog expired
+ * 0x10 Non presence of 32kHz clock
+ * 0x20 Battery level lower than power on reset threshold
+ * 0x40 Power on key 1 pressed longer than 10 seconds
+ * 0x80 DB8500 thermal shutdown
+ */
+static ssize_t show_switch_off_status(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	int ret;
+	u8 value;
+	struct ab8500 *ab8500;
+
+	ab8500 = dev_get_drvdata(dev);
+	ret = get_register_interruptible(ab8500, AB8500_RTC,
+		AB8500_SWITCH_OFF_STATUS, &value);
+	if (ret < 0)
+		return ret;
+	return sprintf(buf, "%#x\n", value);
+}
+
 static DEVICE_ATTR(chip_id, S_IRUGO, show_chip_id, NULL);
+static DEVICE_ATTR(switch_off_status, S_IRUGO, show_switch_off_status, NULL);
 
 static struct attribute *ab8500_sysfs_entries[] = {
 	&dev_attr_chip_id.attr,
+	&dev_attr_switch_off_status.attr,
 	NULL,
 };
 
@@ -696,6 +725,24 @@ int __devinit ab8500_init(struct ab8500 *ab8500)
 		return -EINVAL;
 	}
 	ab8500->chip_id = value;
+
+	/*
+	 * ab8500 has switched off due to (SWITCH_OFF_STATUS):
+	 * 0x01 Swoff bit programming
+	 * 0x02 Thermal protection activation
+	 * 0x04 Vbat lower then BattOk falling threshold
+	 * 0x08 Watchdog expired
+	 * 0x10 Non presence of 32kHz clock
+	 * 0x20 Battery level lower than power on reset threshold
+	 * 0x40 Power on key 1 pressed longer than 10 seconds
+	 * 0x80 DB8500 thermal shutdown
+	 */
+
+	ret = get_register_interruptible(ab8500, AB8500_RTC,
+		AB8500_SWITCH_OFF_STATUS, &value);
+	if (ret < 0)
+		return ret;
+	dev_info(ab8500->dev, "switch off status: %#x", value);
 
 	if (plat && plat->init)
 		plat->init(ab8500);
