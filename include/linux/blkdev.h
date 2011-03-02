@@ -300,6 +300,11 @@ struct request_queue
 	unsigned long		unplug_delay;	/* After this many jiffies */
 	struct work_struct	unplug_work;
 
+	/*
+	 * Delayed queue handling
+	 */
+	struct delayed_work	delay_work;
+
 	struct backing_dev_info	backing_dev_info;
 
 	/*
@@ -677,6 +682,7 @@ extern int blk_insert_cloned_request(struct request_queue *q,
 extern void blk_plug_device(struct request_queue *);
 extern void blk_plug_device_unlocked(struct request_queue *);
 extern int blk_remove_plug(struct request_queue *);
+extern void blk_delay_queue(struct request_queue *, unsigned long);
 extern void blk_recount_segments(struct request_queue *, struct bio *);
 extern int scsi_cmd_ioctl(struct request_queue *, struct gendisk *, fmode_t,
 			  unsigned int, void __user *);
