@@ -166,8 +166,10 @@ struct cpu_hw_events {
 /*
  * Constraint on the Event code + UMask
  */
-#define PEBS_EVENT_CONSTRAINT(c, n)	\
+#define INTEL_UEVENT_CONSTRAINT(c, n)	\
 	EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVENT_MASK)
+#define PEBS_EVENT_CONSTRAINT(c, n)	\
+	INTEL_UEVENT_CONSTRAINT(c, n)
 
 #define EVENT_CONSTRAINT_END		\
 	EVENT_CONSTRAINT(0, 0, 0)
