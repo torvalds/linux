@@ -26,6 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kdev_t.h>
+#include <linux/kthread.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -50,10 +51,15 @@ module_param(nvme_major, int, 0);
 static int use_threaded_interrupts;
 module_param(use_threaded_interrupts, int, 0);
 
+static DEFINE_SPINLOCK(dev_list_lock);
+static LIST_HEAD(dev_list);
+static struct task_struct *nvme_thread;
+
 /*
  * Represents an NVM Express device.  Each nvme_dev is a PCI function.
  */
 struct nvme_dev {
+	struct list_head node;
 	struct nvme_queue **queues;
 	u32 __iomem *dbs;
 	struct pci_dev *pci_dev;
@@ -97,6 +103,7 @@ struct nvme_queue {
 	dma_addr_t sq_dma_addr;
 	dma_addr_t cq_dma_addr;
 	wait_queue_head_t sq_full;
+	wait_queue_t sq_cong_wait;
 	struct bio_list sq_cong;
 	u32 __iomem *q_db;
 	u16 q_depth;
@@ -107,8 +114,6 @@ struct nvme_queue {
 	u16 cq_phase;
 	unsigned long cmdid_data[];
 };
-
-static void nvme_resubmit_bio(struct nvme_queue *nvmeq, struct bio *bio);
 
 /*
  * Check we didin't inadvertently grow the command struct
@@ -309,9 +314,6 @@ static void bio_completion(struct nvme_queue *nvmeq, void *ctx,
 			bio_data_dir(bio) ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 	free_nbio(nvmeq, nbio);
 	bio_endio(bio, status ? -EIO : 0);
-	bio = bio_list_pop(&nvmeq->sq_cong);
-	if (bio)
-		nvme_resubmit_bio(nvmeq, bio);
 }
 
 /* length is in bytes */
@@ -480,16 +482,6 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	free_nbio(nvmeq, nbio);
  nomem:
 	return result;
-}
-
-static void nvme_resubmit_bio(struct nvme_queue *nvmeq, struct bio *bio)
-{
-	struct nvme_ns *ns = bio->bi_bdev->bd_disk->private_data;
-	if (nvme_submit_bio_queue(nvmeq, ns, bio))
-		bio_list_add_head(&nvmeq->sq_cong, bio);
-	else if (bio_list_empty(&nvmeq->sq_cong))
-		blk_clear_queue_congested(ns->queue, rw_is_sync(bio->bi_rw));
-	/* XXX: Need to duplicate the logic from __freed_request here */
 }
 
 /*
@@ -774,6 +766,7 @@ static struct nvme_queue *nvme_alloc_queue(struct nvme_dev *dev, int qid,
 	nvmeq->cq_head = 0;
 	nvmeq->cq_phase = 1;
 	init_waitqueue_head(&nvmeq->sq_full);
+	init_waitqueue_entry(&nvmeq->sq_cong_wait, nvme_thread);
 	bio_list_init(&nvmeq->sq_cong);
 	nvmeq->q_db = &dev->dbs[qid * 2];
 	nvmeq->q_depth = depth;
@@ -1097,6 +1090,43 @@ static const struct block_device_operations nvme_fops = {
 	.ioctl		= nvme_ioctl,
 };
 
+static void nvme_resubmit_bios(struct nvme_queue *nvmeq)
+{
+	while (bio_list_peek(&nvmeq->sq_cong)) {
+		struct bio *bio = bio_list_pop(&nvmeq->sq_cong);
+		struct nvme_ns *ns = bio->bi_bdev->bd_disk->private_data;
+		if (nvme_submit_bio_queue(nvmeq, ns, bio)) {
+			bio_list_add_head(&nvmeq->sq_cong, bio);
+			break;
+		}
+	}
+}
+
+static int nvme_kthread(void *data)
+{
+	struct nvme_dev *dev;
+
+	while (!kthread_should_stop()) {
+		__set_current_state(TASK_RUNNING);
+		spin_lock(&dev_list_lock);
+		list_for_each_entry(dev, &dev_list, node) {
+			int i;
+			for (i = 0; i < dev->queue_count; i++) {
+				struct nvme_queue *nvmeq = dev->queues[i];
+				spin_lock_irq(&nvmeq->q_lock);
+				if (nvme_process_cq(nvmeq))
+					printk("process_cq did something\n");
+				nvme_resubmit_bios(nvmeq);
+				spin_unlock_irq(&nvmeq->q_lock);
+			}
+		}
+		spin_unlock(&dev_list_lock);
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(HZ);
+	}
+	return 0;
+}
+
 static struct nvme_ns *nvme_alloc_ns(struct nvme_dev *dev, int index,
 			struct nvme_id_ns *id, struct nvme_lba_range_type *rt)
 {
@@ -1307,6 +1337,10 @@ static int nvme_dev_remove(struct nvme_dev *dev)
 {
 	struct nvme_ns *ns, *next;
 
+	spin_lock(&dev_list_lock);
+	list_del(&dev->node);
+	spin_unlock(&dev_list_lock);
+
 	/* TODO: wait all I/O finished or cancel them */
 
 	list_for_each_entry_safe(ns, next, &dev->namespaces, list) {
@@ -1406,6 +1440,11 @@ static int __devinit nvme_probe(struct pci_dev *pdev,
 	result = nvme_dev_add(dev);
 	if (result)
 		goto delete;
+
+	spin_lock(&dev_list_lock);
+	list_add(&dev->node, &dev_list);
+	spin_unlock(&dev_list_lock);
+
 	return 0;
 
  delete:
@@ -1479,17 +1518,25 @@ static struct pci_driver nvme_driver = {
 
 static int __init nvme_init(void)
 {
-	int result;
+	int result = -EBUSY;
+
+	nvme_thread = kthread_run(nvme_kthread, NULL, "nvme");
+	if (IS_ERR(nvme_thread))
+		return PTR_ERR(nvme_thread);
 
 	nvme_major = register_blkdev(nvme_major, "nvme");
 	if (nvme_major <= 0)
-		return -EBUSY;
+		goto kill_kthread;
 
 	result = pci_register_driver(&nvme_driver);
-	if (!result)
-		return 0;
+	if (result)
+		goto unregister_blkdev;
+	return 0;
 
+ unregister_blkdev:
 	unregister_blkdev(nvme_major, "nvme");
+ kill_kthread:
+	kthread_stop(nvme_thread);
 	return result;
 }
 
@@ -1497,6 +1544,7 @@ static void __exit nvme_exit(void)
 {
 	pci_unregister_driver(&nvme_driver);
 	unregister_blkdev(nvme_major, "nvme");
+	kthread_stop(nvme_thread);
 }
 
 MODULE_AUTHOR("Matthew Wilcox <willy@linux.intel.com>");
