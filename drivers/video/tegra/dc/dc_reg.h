@@ -332,9 +332,9 @@
 #define DC_WIN_V_FILTER_P(x)			(0x619 + (x))
 #define DC_WIN_WIN_OPTIONS			0x700
 #define  H_DIRECTION_INCREMENT		(0 << 0)
-#define  H_DIRECTION_DECREMENTT		(1 << 0)
+#define  H_DIRECTION_DECREMENT		(1 << 0)
 #define  V_DIRECTION_INCREMENT		(0 << 2)
-#define  V_DIRECTION_DECREMENTT		(1 << 2)
+#define  V_DIRECTION_DECREMENT		(1 << 2)
 #define  COLOR_EXPAND			(1 << 6)
 #define  H_FILTER_ENABLE		(1 << 8)
 #define  V_FILTER_ENABLE		(1 << 10)
