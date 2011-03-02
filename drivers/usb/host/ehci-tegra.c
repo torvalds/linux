@@ -21,7 +21,7 @@
 
 #include <linux/clk.h>
 #include <linux/platform_device.h>
-#include <linux/tegra_usb.h>
+#include <linux/platform_data/tegra_usb.h>
 #include <linux/irq.h>
 #include <linux/usb/otg.h>
 #include <mach/usb_phy.h>
