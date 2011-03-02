@@ -1511,9 +1511,13 @@ static struct sk_buff *bond_handle_frame(struct sk_buff *skb)
 	if (bond_dev->priv_flags & IFF_MASTER_ALB &&
 	    bond_dev->priv_flags & IFF_BRIDGE_PORT &&
 	    skb->pkt_type == PACKET_HOST) {
-		u16 *dest = (u16 *) eth_hdr(skb)->h_dest;
 
-		memcpy(dest, bond_dev->dev_addr, ETH_ALEN);
+		if (unlikely(skb_cow_head(skb,
+					  skb->data - skb_mac_header(skb)))) {
+			kfree_skb(skb);
+			return NULL;
+		}
+		memcpy(eth_hdr(skb)->h_dest, bond_dev->dev_addr, ETH_ALEN);
 	}
 
 	return skb;
