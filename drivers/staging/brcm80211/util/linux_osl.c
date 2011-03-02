@@ -43,29 +43,7 @@ struct osl_info *osl_attach(void *pdev, uint bustype)
 	ASSERT(osh);
 
 	memset(osh, 0, sizeof(struct osl_info));
-
 	osh->magic = OS_HANDLE_MAGIC;
-	osh->pdev = pdev;
-	osh->bustype = bustype;
-
-	switch (bustype) {
-	case PCI_BUS:
-	case SI_BUS:
-	case PCMCIA_BUS:
-		osh->mmbus = true;
-		break;
-	case JTAG_BUS:
-	case SDIO_BUS:
-	case USB_BUS:
-	case SPI_BUS:
-	case RPC_BUS:
-		osh->mmbus = false;
-		break;
-	default:
-		ASSERT(false);
-		break;
-	}
-
 	return osh;
 }
 
@@ -76,22 +54,6 @@ void osl_detach(struct osl_info *osh)
 
 	ASSERT(osh->magic == OS_HANDLE_MAGIC);
 	kfree(osh);
-}
-
-/* return bus # for the pci device pointed by osh->pdev */
-uint osl_pci_bus(struct osl_info *osh)
-{
-	ASSERT(osh && (osh->magic == OS_HANDLE_MAGIC) && osh->pdev);
-
-	return ((struct pci_dev *)osh->pdev)->bus->number;
-}
-
-/* return slot # for the pci device pointed by osh->pdev */
-uint osl_pci_slot(struct osl_info *osh)
-{
-	ASSERT(osh && (osh->magic == OS_HANDLE_MAGIC) && osh->pdev);
-
-	return PCI_SLOT(((struct pci_dev *)osh->pdev)->devfn);
 }
 
 #if defined(BCMDBG_ASSERT)

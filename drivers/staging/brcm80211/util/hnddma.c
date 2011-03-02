@@ -82,7 +82,6 @@ typedef struct dma_info {
 
 	struct osl_info *osh;	/* os handle */
 	void *pbus;		/* bus handle */
-	si_t *sih;		/* sb handle */
 
 	bool dma64;		/* this dma engine is operating in 64-bit mode */
 	bool addrext;		/* this dma engine supports DmaExtendedAddrChanges */
@@ -338,8 +337,7 @@ struct hnddma_pub *dma_attach(struct osl_info *osh, char *name, si_t *sih,
 	di->name[MAXNAMEL - 1] = '\0';
 
 	di->osh = osh;
-	di->sih = sih;
-	di->pbus = osh->pdev;
+	di->pbus = ((struct si_info *)sih)->pbus;
 
 	/* save tunables */
 	di->ntxd = (u16) ntxd;

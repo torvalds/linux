@@ -20,10 +20,7 @@
 /* osl handle type forward declaration */
 struct osl_info {
 	uint pktalloced;	/* Number of allocated packet buffers */
-	bool mmbus;		/* Bus supports memory-mapped registers */
 	uint magic;
-	void *pdev;
-	uint bustype;
 };
 
 typedef struct osl_dmainfo osldma_t;
