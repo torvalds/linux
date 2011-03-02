@@ -641,9 +641,9 @@ static void mxc_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 
 	n = min(n, len);
 
-	memcpy(buf, host->data_buf + col, len);
+	memcpy(buf, host->data_buf + col, n);
 
-	host->buf_start += len;
+	host->buf_start += n;
 }
 
 /* Used by the upper layer to verify the data in NAND Flash
