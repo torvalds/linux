@@ -31,7 +31,9 @@ static int mXT224_remove(struct i2c_client *client);
 static int total_size = 0;
 static u8 *cfg_dmup;
 #endif
-#define local_debug 
+
+#define local_debug //printk
+
 #define ID_INFORMATION_SIZE        0x7
 #define OBJECT_TABLE_ELEMENT_SIZE  0x6
 #define CRC_SIZE                   0x3
@@ -129,7 +131,7 @@ struct report_id_table{
 };
 
 static struct report_id_table* id_table = NULL;
-
+static u8 T9_cfg[31] = {0};
 struct mxt224_cfg{
     u8 type;
     const u8* data;
@@ -689,7 +691,8 @@ static int mXT224_probe(struct i2c_client *client, const struct i2c_device_id *i
     int     index;
     int     info_size;
     u32     crc;
-
+    u16     object_addr;
+	
 	struct message_t5 msg_t5;
 
 	 if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
@@ -837,7 +840,38 @@ static int mXT224_probe(struct i2c_client *client, const struct i2c_device_id *i
     
     mxt224_mem_dbg((u8*)&msg_t5, sizeof(struct message_t5));
     mXT224_process_msg(mXT224_get_obj_type(msg_t5.report_id, id_table, ts_data.obj.table_size), (u8*)&msg_t5.body);
+
+    object_addr = mXT224_get_obj_addr(0x9, ts_data.obj.table_info, ts_data.obj.table_size);
     
+    rc = mxt224_i2c_read(client, object_addr, (u8*)&T9_cfg[0], 31);
+    
+    if(rc <= 0)
+    {
+        local_debug(KERN_INFO "%s:Can't get message T9!\n", __func__);
+        goto failed;
+    }
+    
+    mxt224_mem_dbg((u8*)&T9_cfg[0], 31);
+
+    local_debug(KERN_INFO "%s:Change T9 orient to [0]!\n", __func__);
+	
+	T9_cfg[9] = 0;
+	rc = mxt224_i2c_write(client, object_addr, (u8*)&T9_cfg[0], 31);
+    if(rc <= 0)
+    {
+        local_debug(KERN_INFO "%s:Can't write message T9!\n", __func__);
+        goto failed;
+    }
+
+    rc = mxt224_i2c_read(client, object_addr, (u8*)&T9_cfg[0], 31);
+    
+    if(rc <= 0)
+    {
+        local_debug(KERN_INFO "%s:Can't get message T9!\n", __func__);
+        goto failed;
+    }
+	mxt224_mem_dbg((u8*)&T9_cfg[0], 31);
+	
     //local_debug(KERN_INFO "%s:Find obj report: 0x%x\n", __func__, 
     //            mXT224_get_obj_type(msg_t5.report_id, id_table, obj_table_size));
     msleep(15);
