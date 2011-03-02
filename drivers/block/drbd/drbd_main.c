@@ -1565,6 +1565,10 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		put_ldev(mdev);
 	}
 
+	/* Notify peer that I had a local IO error, and did not detached.. */
+	if (os.disk == D_UP_TO_DATE && ns.disk == D_INCONSISTENT)
+		drbd_send_state(mdev);
+
 	/* Disks got bigger while they were detached */
 	if (ns.disk > D_NEGOTIATING && ns.pdsk > D_NEGOTIATING &&
 	    test_and_clear_bit(RESYNC_AFTER_NEG, &mdev->flags)) {
