@@ -23,9 +23,6 @@ struct osl_info {
 	uint magic;
 };
 
-typedef struct osl_dmainfo osldma_t;
-
-
 extern struct osl_info *osl_attach(void *pdev, uint bustype);
 extern void osl_detach(struct osl_info *osh);
 

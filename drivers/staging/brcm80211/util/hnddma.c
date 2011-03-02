@@ -101,7 +101,6 @@ typedef struct dma_info {
 	u16 txin;		/* index of next descriptor to reclaim */
 	u16 txout;		/* index of next descriptor to post */
 	void **txp;		/* pointer to parallel array of pointers to packets */
-	osldma_t *tx_dmah;	/* DMA TX descriptor ring handle */
 	hnddma_seg_map_t *txp_dmah;	/* DMA MAP meta-data handle */
 	dmaaddr_t txdpa;	/* Aligned physical address of descriptor ring */
 	dmaaddr_t txdpaorig;	/* Original physical address of descriptor ring */
@@ -116,7 +115,6 @@ typedef struct dma_info {
 	u16 rxin;		/* index of next descriptor to reclaim */
 	u16 rxout;		/* index of next descriptor to post */
 	void **rxp;		/* pointer to parallel array of pointers to packets */
-	osldma_t *rx_dmah;	/* DMA RX descriptor ring handle */
 	hnddma_seg_map_t *rxp_dmah;	/* DMA MAP meta-data handle */
 	dmaaddr_t rxdpa;	/* Aligned physical address of descriptor ring */
 	dmaaddr_t rxdpaorig;	/* Original physical address of descriptor ring */
@@ -203,7 +201,7 @@ static uint _dma_ctrlflags(dma_info_t *di, uint mask, uint flags);
 static u8 dma_align_sizetobits(uint size);
 static void *dma_ringalloc(dma_info_t *di, u32 boundary, uint size,
 			   u16 *alignbits, uint *alloced,
-			   dmaaddr_t *descpa, osldma_t **dmah);
+			   dmaaddr_t *descpa);
 
 /* Prototypes for 64-bit routines */
 static bool dma64_alloc(dma_info_t *di, uint direction);
@@ -1088,7 +1086,7 @@ u8 dma_align_sizetobits(uint size)
  */
 static void *dma_ringalloc(dma_info_t *di, u32 boundary, uint size,
 			   u16 *alignbits, uint *alloced,
-			   dmaaddr_t *descpa, osldma_t **dmah)
+			   dmaaddr_t *descpa)
 {
 	void *va;
 	u32 desc_strtaddr;
@@ -1229,7 +1227,7 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 
 	if (direction == DMA_TX) {
 		va = dma_ringalloc(di, D64RINGALIGN, size, &align_bits,
-			&alloced, &di->txdpaorig, &di->tx_dmah);
+			&alloced, &di->txdpaorig);
 		if (va == NULL) {
 			DMA_ERROR(("%s: dma64_alloc: DMA_ALLOC_CONSISTENT(ntxd) failed\n", di->name));
 			return false;
@@ -1247,7 +1245,7 @@ static bool dma64_alloc(dma_info_t *di, uint direction)
 		ASSERT(IS_ALIGNED((unsigned long)di->txd64, align));
 	} else {
 		va = dma_ringalloc(di, D64RINGALIGN, size, &align_bits,
-			&alloced, &di->rxdpaorig, &di->rx_dmah);
+			&alloced, &di->rxdpaorig);
 		if (va == NULL) {
 			DMA_ERROR(("%s: dma64_alloc: DMA_ALLOC_CONSISTENT(nrxd) failed\n", di->name));
 			return false;
