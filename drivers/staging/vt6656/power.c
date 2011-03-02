@@ -118,15 +118,9 @@ void PSvEnablePowerSaving(void *hDeviceContext,
 
 	pDevice->bEnablePSMode = TRUE;
 
-	if (pDevice->eOPMode == OP_MODE_ADHOC) {
-
-	/* bMgrPrepareBeaconToSend((void *) pDevice, pMgmt); */
-
-	}
 	/* We don't send null pkt in ad hoc mode since beacon will handle this. */
-	else if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE) {
+	if (pDevice->eOPMode == OP_MODE_INFRASTRUCTURE)
 		PSbSendNullPacket(pDevice);
-	}
 
 	pDevice->bPWBitOn = TRUE;
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS:Power Saving Mode Enable...\n");
