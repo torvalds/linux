@@ -86,6 +86,7 @@
 #include <xfs_aops.h>
 #include <xfs_super.h>
 #include <xfs_buf.h>
+#include <xfs_message.h>
 
 /*
  * Feature macros (disable/enable)
