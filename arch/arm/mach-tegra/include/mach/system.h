@@ -35,9 +35,9 @@ static inline void tegra_assert_system_reset(void)
 	void __iomem *reset = IO_ADDRESS(TEGRA_CLK_RESET_BASE + 0x04);
 	u32 reg;
 
-	reg = readl(reset);
+	reg = readl_relaxed(reset);
 	reg |= 0x04;
-	writel(reg, reset);
+	writel_relaxed(reg, reset);
 }
 
 static inline void arch_reset(char mode, const char *cmd)
