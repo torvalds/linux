@@ -1380,14 +1380,6 @@ static inline void slave_disable_netpoll(struct slave *slave)
 static void bond_netpoll_cleanup(struct net_device *bond_dev)
 {
 }
-static int bond_netpoll_setup(struct net_device *dev, struct netpoll_info *ni)
-{
-	return 0;
-}
-static struct netpoll_info *bond_netpoll_info(struct bonding *bond)
-{
-	return NULL;
-}
 #endif
 
 /*---------------------------------- IOCTL ----------------------------------*/
