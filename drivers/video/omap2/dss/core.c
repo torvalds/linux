@@ -203,12 +203,10 @@ static int omap_dss_probe(struct platform_device *pdev)
 		goto err_venc;
 	}
 
-	if (cpu_is_omap34xx()) {
-		r = dsi_init_platform_driver();
-		if (r) {
-			DSSERR("Failed to initialize DSI platform driver\n");
-			goto err_dsi;
-		}
+	r = dsi_init_platform_driver();
+	if (r) {
+		DSSERR("Failed to initialize DSI platform driver\n");
+		goto err_dsi;
 	}
 
 	r = dss_initialize_debugfs();
@@ -240,8 +238,7 @@ static int omap_dss_probe(struct platform_device *pdev)
 err_register:
 	dss_uninitialize_debugfs();
 err_debugfs:
-	if (cpu_is_omap34xx())
-		dsi_uninit_platform_driver();
+	dsi_uninit_platform_driver();
 err_dsi:
 	venc_uninit_platform_driver();
 err_venc:
@@ -265,10 +262,7 @@ static int omap_dss_remove(struct platform_device *pdev)
 	venc_uninit_platform_driver();
 	dispc_uninit_platform_driver();
 	rfbi_uninit_platform_driver();
-	if (cpu_is_omap34xx()) {
-		dsi_uninit_platform_driver();
-	}
-
+	dsi_uninit_platform_driver();
 	dss_uninit_platform_driver();
 
 	dss_uninit_overlays(pdev);
