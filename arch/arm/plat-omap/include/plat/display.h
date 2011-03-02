@@ -562,6 +562,9 @@ int omap_dsi_update(struct omap_dss_device *dssdev,
 		int channel,
 		u16 x, u16 y, u16 w, u16 h,
 		void (*callback)(int, void *), void *data);
+int omap_dsi_request_vc(struct omap_dss_device *dssdev, int *channel);
+int omap_dsi_set_vc_id(struct omap_dss_device *dssdev, int channel, int vc_id);
+void omap_dsi_release_vc(struct omap_dss_device *dssdev, int channel);
 
 int omapdss_dsi_display_enable(struct omap_dss_device *dssdev);
 void omapdss_dsi_display_disable(struct omap_dss_device *dssdev);

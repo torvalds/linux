@@ -233,6 +233,7 @@ static struct
 		enum dsi_vc_mode mode;
 		struct omap_dss_device *dssdev;
 		enum fifo_size fifo_size;
+		int vc_id;
 	} vc[4];
 
 	struct mutex lock;
@@ -1764,8 +1765,6 @@ static void dsi_vc_initial_config(int channel)
 	r = FLD_MOD(r, 4, 23, 21); /* DMA_TX_REQ_NB = no dma */
 
 	dsi_write_reg(DSI_VC_CTRL(channel), r);
-
-	dsi.vc[channel].mode = DSI_VC_MODE_L4;
 }
 
 static int dsi_vc_config_l4(int channel)
@@ -1972,7 +1971,7 @@ static inline void dsi_vc_write_long_header(int channel, u8 data_type,
 
 	WARN_ON(!dsi_bus_is_locked());
 
-	data_id = data_type | channel << 6;
+	data_id = data_type | dsi.vc[channel].vc_id << 6;
 
 	val = FLD_VAL(data_id, 7, 0) | FLD_VAL(len, 23, 8) |
 		FLD_VAL(ecc, 31, 24);
@@ -2075,7 +2074,7 @@ static int dsi_vc_send_short(int channel, u8 data_type, u16 data, u8 ecc)
 		return -EINVAL;
 	}
 
-	data_id = data_type | channel << 6;
+	data_id = data_type | dsi.vc[channel].vc_id << 6;
 
 	r = (data_id << 0) | (data << 8) | (ecc << 24);
 
@@ -3250,6 +3249,57 @@ int dsi_init_display(struct omap_dss_device *dssdev)
 	return 0;
 }
 
+int omap_dsi_request_vc(struct omap_dss_device *dssdev, int *channel)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(dsi.vc); i++) {
+		if (!dsi.vc[i].dssdev) {
+			dsi.vc[i].dssdev = dssdev;
+			*channel = i;
+			return 0;
+		}
+	}
+
+	DSSERR("cannot get VC for display %s", dssdev->name);
+	return -ENOSPC;
+}
+EXPORT_SYMBOL(omap_dsi_request_vc);
+
+int omap_dsi_set_vc_id(struct omap_dss_device *dssdev, int channel, int vc_id)
+{
+	if (vc_id < 0 || vc_id > 3) {
+		DSSERR("VC ID out of range\n");
+		return -EINVAL;
+	}
+
+	if (channel < 0 || channel > 3) {
+		DSSERR("Virtual Channel out of range\n");
+		return -EINVAL;
+	}
+
+	if (dsi.vc[channel].dssdev != dssdev) {
+		DSSERR("Virtual Channel not allocated to display %s\n",
+			dssdev->name);
+		return -EINVAL;
+	}
+
+	dsi.vc[channel].vc_id = vc_id;
+
+	return 0;
+}
+EXPORT_SYMBOL(omap_dsi_set_vc_id);
+
+void omap_dsi_release_vc(struct omap_dss_device *dssdev, int channel)
+{
+	if ((channel >= 0 && channel <= 3) &&
+		dsi.vc[channel].dssdev == dssdev) {
+		dsi.vc[channel].dssdev = NULL;
+		dsi.vc[channel].vc_id = 0;
+	}
+}
+EXPORT_SYMBOL(omap_dsi_release_vc);
+
 void dsi_wait_pll_hsdiv_dispc_active(void)
 {
 	if (wait_for_bit_change(DSI_PLL_STATUS, 7, 1) != 1)
@@ -3269,7 +3319,7 @@ void dsi_wait_pll_hsdiv_dsi_active(void)
 static int dsi_init(struct platform_device *pdev)
 {
 	u32 rev;
-	int r;
+	int r, i;
 	struct resource *dsi_mem;
 
 	spin_lock_init(&dsi.errors_lock);
@@ -3321,6 +3371,13 @@ static int dsi_init(struct platform_device *pdev)
 	if (r < 0) {
 		DSSERR("request_irq failed\n");
 		goto err2;
+	}
+
+	/* DSI VCs initialization */
+	for (i = 0; i < ARRAY_SIZE(dsi.vc); i++) {
+		dsi.vc[i].mode = DSI_VC_MODE_L4;
+		dsi.vc[i].dssdev = NULL;
+		dsi.vc[i].vc_id = 0;
 	}
 
 	enable_clocks(1);
