@@ -661,8 +661,10 @@ struct ftrace_event_field {
 };
 
 struct event_filter {
-	int			n_preds;
-	struct filter_pred	**preds;
+	int			n_preds;	/* Number assigned */
+	int			a_preds;	/* allocated */
+	struct filter_pred	*preds;
+	struct filter_pred	*root;
 	char			*filter_string;
 };
 
@@ -674,11 +676,23 @@ struct event_subsystem {
 	int			nr_events;
 };
 
+#define FILTER_PRED_INVALID	((unsigned short)-1)
+#define FILTER_PRED_IS_RIGHT	(1 << 15)
+#define FILTER_PRED_FOLD	(1 << 15)
+
+/*
+ * The max preds is the size of unsigned short with
+ * two flags at the MSBs. One bit is used for both the IS_RIGHT
+ * and FOLD flags. The other is reserved.
+ *
+ * 2^14 preds is way more than enough.
+ */
+#define MAX_FILTER_PRED		16384
+
 struct filter_pred;
 struct regex;
 
-typedef int (*filter_pred_fn_t) (struct filter_pred *pred, void *event,
-				 int val1, int val2);
+typedef int (*filter_pred_fn_t) (struct filter_pred *pred, void *event);
 
 typedef int (*regex_match_func)(char *str, struct regex *r, int len);
 
@@ -700,11 +714,23 @@ struct filter_pred {
 	filter_pred_fn_t 	fn;
 	u64 			val;
 	struct regex		regex;
-	char 			*field_name;
+	/*
+	 * Leaf nodes use field_name, ops is used by AND and OR
+	 * nodes. The field_name is always freed when freeing a pred.
+	 * We can overload field_name for ops and have it freed
+	 * as well.
+	 */
+	union {
+		char		*field_name;
+		unsigned short	*ops;
+	};
 	int 			offset;
 	int 			not;
 	int 			op;
-	int 			pop_n;
+	unsigned short		index;
+	unsigned short		parent;
+	unsigned short		left;
+	unsigned short		right;
 };
 
 extern struct list_head ftrace_common_fields;
