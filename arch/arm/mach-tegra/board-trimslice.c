@@ -79,6 +79,9 @@ static __initdata struct tegra_clk_init_table trimslice_clk_init_table[] = {
 
 static int __init tegra_trimslice_pci_init(void)
 {
+	if (!machine_is_trimslice())
+		return 0;
+
 	return tegra_pcie_init(true, true);
 }
 subsys_initcall(tegra_trimslice_pci_init);
