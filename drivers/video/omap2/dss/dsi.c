@@ -185,6 +185,16 @@ struct dsi_reg { u16 idx; };
 #define DSI_DT_RX_SHORT_READ_1		0x21
 #define DSI_DT_RX_SHORT_READ_2		0x22
 
+typedef void (*omap_dsi_isr_t) (void *arg, u32 mask);
+
+#define DSI_MAX_NR_ISRS                2
+
+struct dsi_isr_data {
+	omap_dsi_isr_t	isr;
+	void		*arg;
+	u32		mask;
+};
+
 enum fifo_size {
 	DSI_FIFO_SIZE_0		= 0,
 	DSI_FIFO_SIZE_32	= 1,
@@ -211,6 +221,12 @@ struct dsi_irq_stats {
 	unsigned cio_irqs[32];
 };
 
+struct dsi_isr_tables {
+	struct dsi_isr_data isr_table[DSI_MAX_NR_ISRS];
+	struct dsi_isr_data isr_table_vc[4][DSI_MAX_NR_ISRS];
+	struct dsi_isr_data isr_table_cio[DSI_MAX_NR_ISRS];
+};
+
 static struct
 {
 	struct platform_device *pdev;
@@ -235,6 +251,11 @@ static struct
 
 	struct completion bta_completion;
 	void (*bta_callback)(void);
+
+	spinlock_t irq_lock;
+	struct dsi_isr_tables isr_tables;
+	/* space for a copy used by the interrupt handler */
+	struct dsi_isr_tables isr_tables_copy;
 
 	int update_channel;
 	struct dsi_update_region update_region;
@@ -532,16 +553,56 @@ static void dsi_handle_irq_errors(u32 irqstatus, u32 *vcstatus, u32 ciostatus)
 	}
 }
 
+static void dsi_call_isrs(struct dsi_isr_data *isr_array,
+		unsigned isr_array_size, u32 irqstatus)
+{
+	struct dsi_isr_data *isr_data;
+	int i;
+
+	for (i = 0; i < isr_array_size; i++) {
+		isr_data = &isr_array[i];
+		if (isr_data->isr && isr_data->mask & irqstatus)
+			isr_data->isr(isr_data->arg, irqstatus);
+	}
+}
+
+static void dsi_handle_isrs(struct dsi_isr_tables *isr_tables,
+		u32 irqstatus, u32 *vcstatus, u32 ciostatus)
+{
+	int i;
+
+	dsi_call_isrs(isr_tables->isr_table,
+			ARRAY_SIZE(isr_tables->isr_table),
+			irqstatus);
+
+	for (i = 0; i < 4; ++i) {
+		if (vcstatus[i] == 0)
+			continue;
+		dsi_call_isrs(isr_tables->isr_table_vc[i],
+				ARRAY_SIZE(isr_tables->isr_table_vc[i]),
+				vcstatus[i]);
+	}
+
+	if (ciostatus != 0)
+		dsi_call_isrs(isr_tables->isr_table_cio,
+				ARRAY_SIZE(isr_tables->isr_table_cio),
+				ciostatus);
+}
+
 static irqreturn_t omap_dsi_irq_handler(int irq, void *arg)
 {
 	u32 irqstatus, vcstatus[4], ciostatus;
 	int i;
 
+	spin_lock(&dsi.irq_lock);
+
 	irqstatus = dsi_read_reg(DSI_IRQSTATUS);
 
 	/* IRQ is not for us */
-	if (!irqstatus)
+	if (!irqstatus) {
+		spin_unlock(&dsi.irq_lock);
 		return IRQ_NONE;
+	}
 
 	dsi_write_reg(DSI_IRQSTATUS, irqstatus & ~DSI_IRQ_CHANNEL_MASK);
 	/* flush posted write */
@@ -587,6 +648,14 @@ static irqreturn_t omap_dsi_irq_handler(int irq, void *arg)
 		}
 	}
 
+	/* make a copy and unlock, so that isrs can unregister
+	 * themselves */
+	memcpy(&dsi.isr_tables_copy, &dsi.isr_tables, sizeof(dsi.isr_tables));
+
+	spin_unlock(&dsi.irq_lock);
+
+	dsi_handle_isrs(&dsi.isr_tables_copy, irqstatus, vcstatus, ciostatus);
+
 	dsi_handle_irq_errors(irqstatus, vcstatus, ciostatus);
 
 	dsi_collect_irq_stats(irqstatus, vcstatus, ciostatus);
@@ -594,42 +663,251 @@ static irqreturn_t omap_dsi_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static void _dsi_initialize_irq(void)
+/* dsi.irq_lock has to be locked by the caller */
+static void _omap_dsi_configure_irqs(struct dsi_isr_data *isr_array,
+		unsigned isr_array_size, u32 default_mask,
+		const struct dsi_reg enable_reg,
+		const struct dsi_reg status_reg)
 {
-	u32 l;
+	struct dsi_isr_data *isr_data;
+	u32 mask;
+	u32 old_mask;
 	int i;
 
-	/* disable all interrupts */
-	dsi_write_reg(DSI_IRQENABLE, 0);
-	for (i = 0; i < 4; ++i)
-		dsi_write_reg(DSI_VC_IRQENABLE(i), 0);
-	dsi_write_reg(DSI_COMPLEXIO_IRQ_ENABLE, 0);
+	mask = default_mask;
 
-	/* clear interrupt status */
-	l = dsi_read_reg(DSI_IRQSTATUS);
-	dsi_write_reg(DSI_IRQSTATUS, l & ~DSI_IRQ_CHANNEL_MASK);
+	for (i = 0; i < isr_array_size; i++) {
+		isr_data = &isr_array[i];
 
-	for (i = 0; i < 4; ++i) {
-		l = dsi_read_reg(DSI_VC_IRQSTATUS(i));
-		dsi_write_reg(DSI_VC_IRQSTATUS(i), l);
+		if (isr_data->isr == NULL)
+			continue;
+
+		mask |= isr_data->mask;
 	}
 
-	l = dsi_read_reg(DSI_COMPLEXIO_IRQ_STATUS);
-	dsi_write_reg(DSI_COMPLEXIO_IRQ_STATUS, l);
+	old_mask = dsi_read_reg(enable_reg);
+	/* clear the irqstatus for newly enabled irqs */
+	dsi_write_reg(status_reg, (mask ^ old_mask) & mask);
+	dsi_write_reg(enable_reg, mask);
 
-	/* enable error irqs */
-	l = DSI_IRQ_ERROR_MASK;
+	/* flush posted writes */
+	dsi_read_reg(enable_reg);
+	dsi_read_reg(status_reg);
+}
+
+/* dsi.irq_lock has to be locked by the caller */
+static void _omap_dsi_set_irqs(void)
+{
+	u32 mask = DSI_IRQ_ERROR_MASK;
 #ifdef DSI_CATCH_MISSING_TE
-	l |= DSI_IRQ_TE_TRIGGER;
+	mask |= DSI_IRQ_TE_TRIGGER;
 #endif
-	dsi_write_reg(DSI_IRQENABLE, l);
+	_omap_dsi_configure_irqs(dsi.isr_tables.isr_table,
+			ARRAY_SIZE(dsi.isr_tables.isr_table), mask,
+			DSI_IRQENABLE, DSI_IRQSTATUS);
+}
 
-	l = DSI_VC_IRQ_ERROR_MASK;
-	for (i = 0; i < 4; ++i)
-		dsi_write_reg(DSI_VC_IRQENABLE(i), l);
+/* dsi.irq_lock has to be locked by the caller */
+static void _omap_dsi_set_irqs_vc(int vc)
+{
+	_omap_dsi_configure_irqs(dsi.isr_tables.isr_table_vc[vc],
+			ARRAY_SIZE(dsi.isr_tables.isr_table_vc[vc]),
+			DSI_VC_IRQ_ERROR_MASK,
+			DSI_VC_IRQENABLE(vc), DSI_VC_IRQSTATUS(vc));
+}
 
-	l = DSI_CIO_IRQ_ERROR_MASK;
-	dsi_write_reg(DSI_COMPLEXIO_IRQ_ENABLE, l);
+/* dsi.irq_lock has to be locked by the caller */
+static void _omap_dsi_set_irqs_cio(void)
+{
+	_omap_dsi_configure_irqs(dsi.isr_tables.isr_table_cio,
+			ARRAY_SIZE(dsi.isr_tables.isr_table_cio),
+			DSI_CIO_IRQ_ERROR_MASK,
+			DSI_COMPLEXIO_IRQ_ENABLE, DSI_COMPLEXIO_IRQ_STATUS);
+}
+
+static void _dsi_initialize_irq(void)
+{
+	unsigned long flags;
+	int vc;
+
+	spin_lock_irqsave(&dsi.irq_lock, flags);
+
+	memset(&dsi.isr_tables, 0, sizeof(dsi.isr_tables));
+
+	_omap_dsi_set_irqs();
+	for (vc = 0; vc < 4; ++vc)
+		_omap_dsi_set_irqs_vc(vc);
+	_omap_dsi_set_irqs_cio();
+
+	spin_unlock_irqrestore(&dsi.irq_lock, flags);
+}
+
+static int _dsi_register_isr(omap_dsi_isr_t isr, void *arg, u32 mask,
+		struct dsi_isr_data *isr_array, unsigned isr_array_size)
+{
+	struct dsi_isr_data *isr_data;
+	int free_idx;
+	int i;
+
+	BUG_ON(isr == NULL);
+
+	/* check for duplicate entry and find a free slot */
+	free_idx = -1;
+	for (i = 0; i < isr_array_size; i++) {
+		isr_data = &isr_array[i];
+
+		if (isr_data->isr == isr && isr_data->arg == arg &&
+				isr_data->mask == mask) {
+			return -EINVAL;
+		}
+
+		if (isr_data->isr == NULL && free_idx == -1)
+			free_idx = i;
+	}
+
+	if (free_idx == -1)
+		return -EBUSY;
+
+	isr_data = &isr_array[free_idx];
+	isr_data->isr = isr;
+	isr_data->arg = arg;
+	isr_data->mask = mask;
+
+	return 0;
+}
+
+static int _dsi_unregister_isr(omap_dsi_isr_t isr, void *arg, u32 mask,
+		struct dsi_isr_data *isr_array, unsigned isr_array_size)
+{
+	struct dsi_isr_data *isr_data;
+	int i;
+
+	for (i = 0; i < isr_array_size; i++) {
+		isr_data = &isr_array[i];
+		if (isr_data->isr != isr || isr_data->arg != arg ||
+				isr_data->mask != mask)
+			continue;
+
+		isr_data->isr = NULL;
+		isr_data->arg = NULL;
+		isr_data->mask = 0;
+
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static int dsi_register_isr(omap_dsi_isr_t isr, void *arg, u32 mask)
+{
+	unsigned long flags;
+	int r;
+
+	spin_lock_irqsave(&dsi.irq_lock, flags);
+
+	r = _dsi_register_isr(isr, arg, mask, dsi.isr_tables.isr_table,
+			ARRAY_SIZE(dsi.isr_tables.isr_table));
+
+	if (r == 0)
+		_omap_dsi_set_irqs();
+
+	spin_unlock_irqrestore(&dsi.irq_lock, flags);
+
+	return r;
+}
+
+static int dsi_unregister_isr(omap_dsi_isr_t isr, void *arg, u32 mask)
+{
+	unsigned long flags;
+	int r;
+
+	spin_lock_irqsave(&dsi.irq_lock, flags);
+
+	r = _dsi_unregister_isr(isr, arg, mask, dsi.isr_tables.isr_table,
+			ARRAY_SIZE(dsi.isr_tables.isr_table));
+
+	if (r == 0)
+		_omap_dsi_set_irqs();
+
+	spin_unlock_irqrestore(&dsi.irq_lock, flags);
+
+	return r;
+}
+
+static int dsi_register_isr_vc(int channel, omap_dsi_isr_t isr, void *arg,
+		u32 mask)
+{
+	unsigned long flags;
+	int r;
+
+	spin_lock_irqsave(&dsi.irq_lock, flags);
+
+	r = _dsi_register_isr(isr, arg, mask,
+			dsi.isr_tables.isr_table_vc[channel],
+			ARRAY_SIZE(dsi.isr_tables.isr_table_vc[channel]));
+
+	if (r == 0)
+		_omap_dsi_set_irqs_vc(channel);
+
+	spin_unlock_irqrestore(&dsi.irq_lock, flags);
+
+	return r;
+}
+
+static int dsi_unregister_isr_vc(int channel, omap_dsi_isr_t isr, void *arg,
+		u32 mask)
+{
+	unsigned long flags;
+	int r;
+
+	spin_lock_irqsave(&dsi.irq_lock, flags);
+
+	r = _dsi_unregister_isr(isr, arg, mask,
+			dsi.isr_tables.isr_table_vc[channel],
+			ARRAY_SIZE(dsi.isr_tables.isr_table_vc[channel]));
+
+	if (r == 0)
+		_omap_dsi_set_irqs_vc(channel);
+
+	spin_unlock_irqrestore(&dsi.irq_lock, flags);
+
+	return r;
+}
+
+static int dsi_register_isr_cio(omap_dsi_isr_t isr, void *arg, u32 mask)
+{
+	unsigned long flags;
+	int r;
+
+	spin_lock_irqsave(&dsi.irq_lock, flags);
+
+	r = _dsi_register_isr(isr, arg, mask, dsi.isr_tables.isr_table_cio,
+			ARRAY_SIZE(dsi.isr_tables.isr_table_cio));
+
+	if (r == 0)
+		_omap_dsi_set_irqs_cio();
+
+	spin_unlock_irqrestore(&dsi.irq_lock, flags);
+
+	return r;
+}
+
+static int dsi_unregister_isr_cio(omap_dsi_isr_t isr, void *arg, u32 mask)
+{
+	unsigned long flags;
+	int r;
+
+	spin_lock_irqsave(&dsi.irq_lock, flags);
+
+	r = _dsi_unregister_isr(isr, arg, mask, dsi.isr_tables.isr_table_cio,
+			ARRAY_SIZE(dsi.isr_tables.isr_table_cio));
+
+	if (r == 0)
+		_omap_dsi_set_irqs_cio();
+
+	spin_unlock_irqrestore(&dsi.irq_lock, flags);
+
+	return r;
 }
 
 static u32 dsi_get_errors(void)
@@ -3383,6 +3661,7 @@ static int dsi_init(struct platform_device *pdev)
 	int r, i;
 	struct resource *dsi_mem;
 
+	spin_lock_init(&dsi.irq_lock);
 	spin_lock_init(&dsi.errors_lock);
 	dsi.errors = 0;
 
