@@ -12,6 +12,10 @@
 #define COMMON_IPC_PERMS "create", "destroy", "getattr", "setattr", "read", \
 	    "write", "associate", "unix_read", "unix_write"
 
+/*
+ * Note: The name for any socket class should be suffixed by "socket",
+ *	 and doesn't contain more than one substr of "socket".
+ */
 struct security_class_mapping secclass_map[] = {
 	{ "security",
 	  { "compute_av", "compute_create", "compute_member",

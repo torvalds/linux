@@ -43,6 +43,8 @@ int main(int argc, char *argv[])
 	int i, j, k;
 	int isids_len;
 	FILE *fout;
+	const char *needle = "SOCKET";
+	char *substr;
 
 	progname = argv[0];
 
@@ -88,6 +90,24 @@ int main(int argc, char *argv[])
 		fprintf(fout, "%2d\n", i);
 	}
 	fprintf(fout, "\n#define SECINITSID_NUM %d\n", i-1);
+	fprintf(fout, "\nstatic inline bool security_is_socket_class(u16 kern_tclass)\n");
+	fprintf(fout, "{\n");
+	fprintf(fout, "\tbool sock = false;\n\n");
+	fprintf(fout, "\tswitch (kern_tclass) {\n");
+	for (i = 0; secclass_map[i].name; i++) {
+		struct security_class_mapping *map = &secclass_map[i];
+		substr = strstr(map->name, needle);
+		if (substr && strcmp(substr, needle) == 0)
+			fprintf(fout, "\tcase SECCLASS_%s:\n", map->name);
+	}
+	fprintf(fout, "\t\tsock = true;\n");
+	fprintf(fout, "\t\tbreak;\n");
+	fprintf(fout, "\tdefault:\n");
+	fprintf(fout, "\t\tbreak;\n");
+	fprintf(fout, "\t}\n\n");
+	fprintf(fout, "\treturn sock;\n");
+	fprintf(fout, "}\n");
+
 	fprintf(fout, "\n#endif\n");
 	fclose(fout);
 
