@@ -729,6 +729,9 @@ struct snd_soc_card {
 	struct list_head paths;
 	struct list_head dapm_list;
 
+	/* Generic DAPM context for the card */
+	struct snd_soc_dapm_context dapm;
+
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_card_root;
 	struct dentry *debugfs_pop_time;

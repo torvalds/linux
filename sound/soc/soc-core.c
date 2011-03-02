@@ -1837,6 +1837,11 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 	}
 	card->snd_card->dev = card->dev;
 
+	card->dapm.bias_level = SND_SOC_BIAS_OFF;
+	card->dapm.dev = card->dev;
+	card->dapm.card = card;
+	list_add(&card->dapm.list, &card->dapm_list);
+
 #ifdef CONFIG_PM_SLEEP
 	/* deferred resume work */
 	INIT_WORK(&card->deferred_resume_work, soc_resume_deferred);
@@ -1866,6 +1871,14 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 			goto probe_aux_dev_err;
 		}
 	}
+
+	card->dapm.debugfs_dapm = debugfs_create_dir("dapm",
+						     card->debugfs_card_root);
+	if (!card->dapm.debugfs_dapm)
+		printk(KERN_WARNING
+		       "Failed to create card DAPM debugfs directory\n");
+
+	snd_soc_dapm_debugfs_init(&card->dapm);
 
 	snprintf(card->snd_card->shortname, sizeof(card->snd_card->shortname),
 		 "%s",  card->name);
