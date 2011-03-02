@@ -5723,8 +5723,8 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	d11txh_t *txh;
 	u8 *plcp, plcp_fallback[D11_PHY_HDR_LEN];
 	int len, phylen, rts_phylen;
-	u16 frameid, mch, phyctl, xfts, mainrates;
-	u16 seq = 0, mcl = 0, status = 0;
+	u16 mch, phyctl, xfts, mainrates;
+	u16 seq = 0, mcl = 0, status = 0, frameid = 0;
 	ratespec_t rspec[2] = { WLC_RATE_1M, WLC_RATE_1M }, rts_rspec[2] = {
 	WLC_RATE_1M, WLC_RATE_1M};
 	bool use_rts = false;
@@ -5751,8 +5751,6 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	bool is_mcs[2];
 	u16 mimo_txbw;
 	u8 mimo_preamble_type;
-
-	frameid = 0;
 
 	ASSERT(queue < NFIFO);
 
