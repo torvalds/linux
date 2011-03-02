@@ -23,6 +23,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
+#include <sound/alc5623.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/kirkwood.h>
@@ -134,11 +135,24 @@ static unsigned int hp_t5325_mpp_config[] __initdata = {
 	MPP33_GE1_TXCTL,
 	MPP39_AU_I2SBCLK,
 	MPP40_AU_I2SDO,
+	MPP43_AU_I2SDI,
 	MPP41_AU_I2SLRCLK,
 	MPP42_AU_I2SMCLK,
 	MPP45_GPIO,		/* Power button */
 	MPP48_GPIO,		/* Board power off */
 	0
+};
+
+static struct alc5623_platform_data alc5621_data = {
+	.add_ctrl = 0x3700,
+	.jack_det_ctrl = 0x4810,
+};
+
+static struct i2c_board_info i2c_board_info[] __initdata = {
+	{
+		I2C_BOARD_INFO("alc5621", 0x1a),
+		.platform_data = &alc5621_data,
+	},
 };
 
 #define HP_T5325_GPIO_POWER_OFF		48
@@ -165,6 +179,9 @@ static void __init hp_t5325_init(void)
 	kirkwood_sata_init(&hp_t5325_sata_data);
 	kirkwood_ehci_init();
 	platform_device_register(&hp_t5325_button_device);
+
+	i2c_register_board_info(0, i2c_board_info, ARRAY_SIZE(i2c_board_info));
+	kirkwood_audio_init();
 
 	if (gpio_request(HP_T5325_GPIO_POWER_OFF, "power-off") == 0 &&
 	    gpio_direction_output(HP_T5325_GPIO_POWER_OFF, 0) == 0)
