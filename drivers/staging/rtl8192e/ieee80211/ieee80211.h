@@ -1738,90 +1738,10 @@ typedef	enum _RT_PS_MODE
 	eFastPs		// Fast power save mode.
 }RT_PS_MODE;
 
-typedef enum _IPS_CALLBACK_FUNCION
-{
-	IPS_CALLBACK_NONE = 0,
-	IPS_CALLBACK_MGNT_LINK_REQUEST = 1,
-	IPS_CALLBACK_JOIN_REQUEST = 2,
-}IPS_CALLBACK_FUNCION;
-
-typedef enum _RT_JOIN_ACTION{
-	RT_JOIN_INFRA   = 1,
-	RT_JOIN_IBSS  = 2,
-	RT_START_IBSS = 3,
-	RT_NO_ACTION  = 4,
-}RT_JOIN_ACTION;
-
 typedef struct _IbssParms{
 	u16   atimWin;
 }IbssParms, *PIbssParms;
 #define MAX_NUM_RATES	264 // Max num of support rates element: 8,  Max num of ext. support rate: 255. 061122, by rcnjko.
-
-// RF state.
-typedef	enum _RT_RF_POWER_STATE
-{
-	eRfOn,
-	eRfSleep,
-	eRfOff
-}RT_RF_POWER_STATE;
-
-typedef struct _RT_POWER_SAVE_CONTROL
-{
-
-	//
-	// Inactive Power Save(IPS) : Disable RF when disconnected
-	//
-	bool				bInactivePs;
-	bool				bIPSModeBackup;
-	bool				bSwRfProcessing;
-	RT_RF_POWER_STATE	eInactivePowerState;
-	struct work_struct 	InactivePsWorkItem;
-	struct timer_list	InactivePsTimer;
-
-	// Return point for join action
-	IPS_CALLBACK_FUNCION	ReturnPoint;
-
-	// Recored Parameters for rescheduled JoinRequest
-	bool				bTmpBssDesc;
-	RT_JOIN_ACTION		tmpJoinAction;
-	struct ieee80211_network tmpBssDesc;
-
-	// Recored Parameters for rescheduled MgntLinkRequest
-	bool				bTmpScanOnly;
-	bool				bTmpActiveScan;
-	bool				bTmpFilterHiddenAP;
-	bool				bTmpUpdateParms;
-	u8					tmpSsidBuf[33];
-	OCTET_STRING			tmpSsid2Scan;
-	bool				bTmpSsid2Scan;
-	u8					tmpNetworkType;
-	u8					tmpChannelNumber;
-	u16					tmpBcnPeriod;
-	u8					tmpDtimPeriod;
-	u16					tmpmCap;
-	OCTET_STRING			tmpSuppRateSet;
-	u8					tmpSuppRateBuf[MAX_NUM_RATES];
-	bool				bTmpSuppRate;
-	IbssParms				tmpIbpm;
-	bool				bTmpIbpm;
-
-	//
-	// Leisre Poswer Save : Disable RF if connected but traffic is not busy
-	//
-	bool				bLeisurePs;
-	u32				PowerProfile;
-	u8				LpsIdleCount;
-
-	u32				CurPsLevel;
-	u32				RegRfPsLevel;
-
-	bool				bFwCtrlLPS;
-	u8				FWCtrlPSMode;
-
-	bool				LinkReqInIPSRFOffPgs;
-	bool				BufConnectinfoBefore;
-
-}RT_POWER_SAVE_CONTROL,*PRT_POWER_SAVE_CONTROL;
 
 #ifdef ENABLE_DOT11D
 typedef enum

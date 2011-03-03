@@ -199,6 +199,80 @@ typedef u32 RT_RF_CHANGE_SOURCE;
 #define RF_CHANGE_BY_IPS BIT28
 #define RF_CHANGE_BY_INIT	0	// Do not change the RFOff reason. Defined by Bruce, 2008-01-17.
 
+// RF state.
+typedef	enum _RT_RF_POWER_STATE {
+	eRfOn,
+	eRfSleep,
+	eRfOff
+} RT_RF_POWER_STATE;
+
+typedef enum _RT_JOIN_ACTION {
+	RT_JOIN_INFRA = 1,
+	RT_JOIN_IBSS  = 2,
+	RT_START_IBSS = 3,
+	RT_NO_ACTION  = 4,
+} RT_JOIN_ACTION;
+
+typedef enum _IPS_CALLBACK_FUNCION {
+	IPS_CALLBACK_NONE = 0,
+	IPS_CALLBACK_MGNT_LINK_REQUEST = 1,
+	IPS_CALLBACK_JOIN_REQUEST = 2,
+} IPS_CALLBACK_FUNCION;
+
+typedef struct _RT_POWER_SAVE_CONTROL {
+	/* Inactive Power Save(IPS) : Disable RF when disconnected */
+	bool			bInactivePs;
+	bool			bIPSModeBackup;
+	bool			bSwRfProcessing;
+	RT_RF_POWER_STATE	eInactivePowerState;
+	struct work_struct 	InactivePsWorkItem;
+	struct timer_list	InactivePsTimer;
+
+	/* Return point for join action */
+	IPS_CALLBACK_FUNCION	ReturnPoint;
+
+	/* Recored Parameters for rescheduled JoinRequest */
+	bool			bTmpBssDesc;
+	RT_JOIN_ACTION		tmpJoinAction;
+	struct ieee80211_network tmpBssDesc;
+
+	/* Recored Parameters for rescheduled MgntLinkRequest */
+	bool			bTmpScanOnly;
+	bool			bTmpActiveScan;
+	bool			bTmpFilterHiddenAP;
+	bool			bTmpUpdateParms;
+	u8			tmpSsidBuf[33];
+	OCTET_STRING		tmpSsid2Scan;
+	bool			bTmpSsid2Scan;
+	u8			tmpNetworkType;
+	u8			tmpChannelNumber;
+	u16			tmpBcnPeriod;
+	u8			tmpDtimPeriod;
+	u16			tmpmCap;
+	OCTET_STRING		tmpSuppRateSet;
+	u8			tmpSuppRateBuf[MAX_NUM_RATES];
+	bool			bTmpSuppRate;
+	IbssParms		tmpIbpm;
+	bool			bTmpIbpm;
+
+	/*
+	 * Leisure Power Save:
+	 * Disable RF if connected but traffic is not busy
+	 */
+	bool			bLeisurePs;
+	u32			PowerProfile;
+	u8			LpsIdleCount;
+
+	u32			CurPsLevel;
+	u32			RegRfPsLevel;
+
+	bool			bFwCtrlLPS;
+	u8			FWCtrlPSMode;
+
+	bool			LinkReqInIPSRFOffPgs;
+	bool			BufConnectinfoBefore;
+} RT_POWER_SAVE_CONTROL, *PRT_POWER_SAVE_CONTROL;
+
 /* For rtl819x */
 typedef struct _tx_desc_819x_pci {
         //DWORD 0
