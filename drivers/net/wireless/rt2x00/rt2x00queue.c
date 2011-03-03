@@ -221,8 +221,7 @@ static void rt2x00queue_create_tx_descriptor_seq(struct queue_entry *entry,
 	struct rt2x00_intf *intf = vif_to_intf(tx_info->control.vif);
 	unsigned long irqflags;
 
-	if (!(tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) ||
-	    unlikely(!tx_info->control.vif))
+	if (!(tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ))
 		return;
 
 	/*
