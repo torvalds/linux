@@ -496,6 +496,7 @@ struct dentry *ceph_finish_lookup(struct ceph_mds_request *req,
 
 	/* .snap dir? */
 	if (err == -ENOENT &&
+	    ceph_snap(parent) == CEPH_NOSNAP &&
 	    strcmp(dentry->d_name.name,
 		   fsc->mount_options->snapdir_name) == 0) {
 		struct inode *inode = ceph_get_snapdir(parent);
