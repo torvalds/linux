@@ -965,7 +965,7 @@ static void throtl_update_blkio_group_write_iops(void *key,
 	throtl_schedule_delayed_work(td->queue, 0);
 }
 
-void throtl_shutdown_timer_wq(struct request_queue *q)
+static void throtl_shutdown_wq(struct request_queue *q)
 {
 	struct throtl_data *td = q->td;
 
@@ -1099,7 +1099,7 @@ void blk_throtl_exit(struct request_queue *q)
 
 	BUG_ON(!td);
 
-	throtl_shutdown_timer_wq(q);
+	throtl_shutdown_wq(q);
 
 	spin_lock_irq(q->queue_lock);
 	throtl_release_tgs(td);
@@ -1129,7 +1129,7 @@ void blk_throtl_exit(struct request_queue *q)
 	 * update limits through cgroup and another work got queued, cancel
 	 * it.
 	 */
-	throtl_shutdown_timer_wq(q);
+	throtl_shutdown_wq(q);
 	throtl_td_free(td);
 }
 

@@ -380,13 +380,16 @@ EXPORT_SYMBOL(blk_stop_queue);
  *     that its ->make_request_fn will not re-add plugging prior to calling
  *     this function.
  *
+ *     This function does not cancel any asynchronous activity arising
+ *     out of elevator or throttling code. That would require elevaotor_exit()
+ *     and blk_throtl_exit() to be called with queue lock initialized.
+ *
  */
 void blk_sync_queue(struct request_queue *q)
 {
 	del_timer_sync(&q->unplug_timer);
 	del_timer_sync(&q->timeout);
 	cancel_work_sync(&q->unplug_work);
-	throtl_shutdown_timer_wq(q);
 }
 EXPORT_SYMBOL(blk_sync_queue);
 
@@ -468,6 +471,8 @@ void blk_cleanup_queue(struct request_queue *q)
 
 	if (q->elevator)
 		elevator_exit(q->elevator);
+
+	blk_throtl_exit(q);
 
 	blk_put_queue(q);
 }

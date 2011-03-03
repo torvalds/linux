@@ -1144,7 +1144,6 @@ extern int blk_throtl_init(struct request_queue *q);
 extern void blk_throtl_exit(struct request_queue *q);
 extern int blk_throtl_bio(struct request_queue *q, struct bio **bio);
 extern void throtl_schedule_delayed_work(struct request_queue *q, unsigned long delay);
-extern void throtl_shutdown_timer_wq(struct request_queue *q);
 #else /* CONFIG_BLK_DEV_THROTTLING */
 static inline int blk_throtl_bio(struct request_queue *q, struct bio **bio)
 {
@@ -1154,7 +1153,6 @@ static inline int blk_throtl_bio(struct request_queue *q, struct bio **bio)
 static inline int blk_throtl_init(struct request_queue *q) { return 0; }
 static inline int blk_throtl_exit(struct request_queue *q) { return 0; }
 static inline void throtl_schedule_delayed_work(struct request_queue *q, unsigned long delay) {}
-static inline void throtl_shutdown_timer_wq(struct request_queue *q) {}
 #endif /* CONFIG_BLK_DEV_THROTTLING */
 
 #define MODULE_ALIAS_BLOCKDEV(major,minor) \
