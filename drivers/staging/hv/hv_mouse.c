@@ -36,11 +36,11 @@
 /*
  * Data types
  */
-struct input_dev_info {
-	unsigned short VendorID;
-	unsigned short ProductID;
-	unsigned short VersionNumber;
-	char	       Name[128];
+struct hv_input_dev_info {
+	unsigned short vendor;
+	unsigned short product;
+	unsigned short version;
+	char name[128];
 };
 
 /* Represents the input vsc driver */
@@ -119,7 +119,7 @@ struct synthhid_protocol_response {
 
 struct synthhid_device_info {
 	struct synthhid_msg_hdr     Header;
-	struct input_dev_info       HidDeviceAttributes;
+	struct hv_input_dev_info    HidDeviceAttributes;
 	unsigned char               HidDescriptorInformation[1];
 };
 
@@ -187,7 +187,7 @@ struct mousevsc_dev {
 	struct hid_descriptor	*HidDesc;
 	unsigned char		*ReportDesc;
 	u32			ReportDescSize;
-	struct input_dev_info	DeviceAttr;
+	struct hv_input_dev_info DeviceAttr;
 };
 
 
@@ -205,7 +205,7 @@ static const struct hv_guid gMousevscDeviceType = {
 static void MousevscOnReceive(struct hv_device *Device,
 			      struct vmpacket_descriptor *Packet);
 
-static void deviceinfo_callback(struct hv_device *dev, struct input_dev_info *info);
+static void deviceinfo_callback(struct hv_device *dev, struct hv_input_dev_info *info);
 static void inputreport_callback(struct hv_device *dev, void *packet, u32 len);
 static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len);
 
@@ -352,7 +352,7 @@ static void MousevscOnReceiveDeviceInfo(struct mousevsc_dev *InputDevice, struct
 	InputDevice->DeviceInfoStatus = 0;
 
 	/* Save the device attr */
-	memcpy(&InputDevice->DeviceAttr, &DeviceInfo->HidDeviceAttributes, sizeof(struct input_dev_info));
+	memcpy(&InputDevice->DeviceAttr, &DeviceInfo->HidDeviceAttributes, sizeof(struct hv_input_dev_info));
 
 	/* Save the hid desc */
 	desc = (struct hid_descriptor *)DeviceInfo->HidDescriptorInformation;
@@ -473,7 +473,7 @@ static void MousevscOnReceive(struct hv_device *Device, struct vmpacket_descript
 		break;
 
 	case SynthHidInitialDeviceInfo:
-		WARN_ON(pipeMsg->DataSize >= sizeof(struct input_dev_info));
+		WARN_ON(pipeMsg->DataSize >= sizeof(struct hv_input_dev_info));
 
 		/*
 		 * Parse out the device info into device attr,
@@ -673,7 +673,7 @@ static int MousevscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 	int ret = 0;
 	struct mousevsc_dev *inputDevice;
 	struct mousevsc_drv_obj *inputDriver;
-	struct input_dev_info deviceInfo;
+	struct hv_input_dev_info deviceInfo;
 
 	inputDevice = AllocInputDevice(Device);
 
@@ -712,10 +712,10 @@ static int MousevscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 
 	inputDriver = (struct mousevsc_drv_obj *)inputDevice->Device->drv;
 
-	deviceInfo.VendorID = inputDevice->DeviceAttr.VendorID;
-	deviceInfo.ProductID = inputDevice->DeviceAttr.ProductID;
-	deviceInfo.VersionNumber = inputDevice->DeviceAttr.VersionNumber;
-	strcpy(deviceInfo.Name, "Microsoft Vmbus HID-compliant Mouse");
+	deviceInfo.vendor = inputDevice->DeviceAttr.vendor;
+	deviceInfo.product = inputDevice->DeviceAttr.product;
+	deviceInfo.version = inputDevice->DeviceAttr.version;
+	strcpy(deviceInfo.name, "Microsoft Vmbus HID-compliant Mouse");
 
 	/* Send the device info back up */
 	deviceinfo_callback(Device, &deviceInfo);
@@ -781,7 +781,7 @@ static void MousevscOnCleanup(struct hv_driver *drv)
 struct input_device_context {
 	struct vm_device	*device_ctx;
 	struct hid_device	*hid_device;
-	struct input_dev_info	device_info;
+	struct hv_input_dev_info device_info;
 	int			connected;
 };
 
@@ -792,15 +792,14 @@ struct mousevsc_driver_context {
 
 static struct mousevsc_driver_context g_mousevsc_drv;
 
-static void deviceinfo_callback(struct hv_device *dev,
-					 struct input_dev_info *info)
+static void deviceinfo_callback(struct hv_device *dev, struct hv_input_dev_info *info)
 {
 	struct vm_device *device_ctx = to_vm_device(dev);
 	struct input_device_context *input_device_ctx =
 		dev_get_drvdata(&device_ctx->device);
 
 	memcpy(&input_device_ctx->device_info, info,
-	       sizeof(struct input_dev_info));
+	       sizeof(struct hv_input_dev_info));
 
 	DPRINT_INFO(INPUTVSC_DRV, "%s", __func__);
 }
@@ -924,13 +923,13 @@ static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len)
 		hid_dev->ll_driver->close = mousevsc_hid_close;
 
 		hid_dev->bus =  0x06;  /* BUS_VIRTUAL */
-		hid_dev->vendor = input_device_ctx->device_info.VendorID;
-		hid_dev->product = input_device_ctx->device_info.ProductID;
-		hid_dev->version = input_device_ctx->device_info.VersionNumber;
+		hid_dev->vendor = input_device_ctx->device_info.vendor;
+		hid_dev->product = input_device_ctx->device_info.product;
+		hid_dev->version = input_device_ctx->device_info.version;
 		hid_dev->dev = device_ctx->device;
 
 		sprintf(hid_dev->name, "%s",
-			input_device_ctx->device_info.Name);
+			input_device_ctx->device_info.name);
 
 		/*
 		 * HJ Do we want to call it with a 0
