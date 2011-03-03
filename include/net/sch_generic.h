@@ -83,6 +83,7 @@ struct Qdisc {
 	struct gnet_stats_queue	qstats;
 	struct rcu_head		rcu_head;
 	spinlock_t		busylock;
+	u32			limit;
 };
 
 static inline bool qdisc_is_running(const struct Qdisc *qdisc)

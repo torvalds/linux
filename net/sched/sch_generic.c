@@ -550,12 +550,8 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 {
 	void *p;
 	struct Qdisc *sch;
-	unsigned int size;
+	unsigned int size = QDISC_ALIGN(sizeof(*sch)) + ops->priv_size;
 	int err = -ENOBUFS;
-
-	/* ensure that the Qdisc and the private data are 64-byte aligned */
-	size = QDISC_ALIGN(sizeof(*sch));
-	size += ops->priv_size + (QDISC_ALIGNTO - 1);
 
 	p = kzalloc_node(size, GFP_KERNEL,
 			 netdev_queue_numa_node_read(dev_queue));
@@ -563,8 +559,16 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 	if (!p)
 		goto errout;
 	sch = (struct Qdisc *) QDISC_ALIGN((unsigned long) p);
-	sch->padded = (char *) sch - (char *) p;
-
+	/* if we got non aligned memory, ask more and do alignment ourself */
+	if (sch != p) {
+		kfree(p);
+		p = kzalloc_node(size + QDISC_ALIGNTO - 1, GFP_KERNEL,
+				 netdev_queue_numa_node_read(dev_queue));
+		if (!p)
+			goto errout;
+		sch = (struct Qdisc *) QDISC_ALIGN((unsigned long) p);
+		sch->padded = (char *) sch - (char *) p;
+	}
 	INIT_LIST_HEAD(&sch->list);
 	skb_queue_head_init(&sch->q);
 	spin_lock_init(&sch->busylock);
