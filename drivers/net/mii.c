@@ -354,7 +354,7 @@ unsigned int mii_check_media (struct mii_if_info *mii,
 	if (!new_carrier) {
 		netif_carrier_off(mii->dev);
 		if (ok_to_print)
-			printk(KERN_INFO "%s: link down\n", mii->dev->name);
+			netdev_info(mii->dev, "link down\n");
 		return 0; /* duplex did not change */
 	}
 
@@ -381,12 +381,12 @@ unsigned int mii_check_media (struct mii_if_info *mii,
 		duplex = 1;
 
 	if (ok_to_print)
-		printk(KERN_INFO "%s: link up, %sMbps, %s-duplex, lpa 0x%04X\n",
-		       mii->dev->name,
-		       lpa2 & (LPA_1000FULL | LPA_1000HALF) ? "1000" :
-		       media & (ADVERTISE_100FULL | ADVERTISE_100HALF) ? "100" : "10",
-		       duplex ? "full" : "half",
-		       lpa);
+		netdev_info(mii->dev, "link up, %uMbps, %s-duplex, lpa 0x%04X\n",
+			    lpa2 & (LPA_1000FULL | LPA_1000HALF) ? 1000 :
+			    media & (ADVERTISE_100FULL | ADVERTISE_100HALF) ?
+			    100 : 10,
+			    duplex ? "full" : "half",
+			    lpa);
 
 	if ((init_media) || (mii->full_duplex != duplex)) {
 		mii->full_duplex = duplex;
