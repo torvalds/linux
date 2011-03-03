@@ -147,7 +147,7 @@ enum pipe_prot_msg_type {
 struct pipe_prt_msg {
 	enum pipe_prot_msg_type type;
 	u32 size;
-	char               Data[1];
+	char data[1];
 };
 
 /*
@@ -460,7 +460,7 @@ static void MousevscOnReceive(struct hv_device *Device, struct vmpacket_descript
 		return ;
 	}
 
-	hidMsg = (struct synthhid_msg *)&pipeMsg->Data[0];
+	hidMsg = (struct synthhid_msg *)&pipeMsg->data[0];
 
 	switch (hidMsg->header.type) {
 	case SynthHidProtocolResponse:
@@ -479,11 +479,11 @@ static void MousevscOnReceive(struct hv_device *Device, struct vmpacket_descript
 		 * hid desc and report desc
 		 */
 		MousevscOnReceiveDeviceInfo(inputDevice,
-					    (struct synthhid_device_info *)&pipeMsg->Data[0]);
+					    (struct synthhid_device_info *)&pipeMsg->data[0]);
 		break;
 	case SynthHidInputReport:
 		MousevscOnReceiveInputReport(inputDevice,
-					     (struct synthhid_input_report *)&pipeMsg->Data[0]);
+					     (struct synthhid_input_report *)&pipeMsg->data[0]);
 
 		break;
 	default:
