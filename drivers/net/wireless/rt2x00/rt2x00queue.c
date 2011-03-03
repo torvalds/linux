@@ -705,25 +705,6 @@ void rt2x00queue_for_each_entry(struct data_queue *queue,
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_for_each_entry);
 
-struct data_queue *rt2x00queue_get_queue(struct rt2x00_dev *rt2x00dev,
-					 const enum data_queue_qid queue)
-{
-	if (queue == QID_RX)
-		return rt2x00dev->rx;
-
-	if (queue < rt2x00dev->ops->tx_queues && rt2x00dev->tx)
-		return &rt2x00dev->tx[queue];
-
-	if (queue == QID_BEACON)
-		return rt2x00dev->bcn;
-
-	if (queue == QID_ATIM)
-		return rt2x00dev->atim;
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(rt2x00queue_get_queue);
-
 struct queue_entry *rt2x00queue_get_entry(struct data_queue *queue,
 					  enum queue_index index)
 {

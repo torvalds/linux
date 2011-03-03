@@ -1083,14 +1083,6 @@ rt2x00queue_get_tx_queue(struct rt2x00_dev *rt2x00dev,
 }
 
 /**
- * rt2x00queue_get_queue - Convert queue index to queue pointer
- * @rt2x00dev: Pointer to &struct rt2x00_dev.
- * @queue: rt2x00 queue index (see &enum data_queue_qid).
- */
-struct data_queue *rt2x00queue_get_queue(struct rt2x00_dev *rt2x00dev,
-					 const enum data_queue_qid queue);
-
-/**
  * rt2x00queue_get_entry - Get queue entry where the given index points to.
  * @queue: Pointer to &struct data_queue from where we obtain the entry.
  * @index: Index identifier for obtaining the correct index.
