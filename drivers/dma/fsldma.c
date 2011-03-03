@@ -39,33 +39,9 @@
 
 static const char msg_ld_oom[] = "No free memory for link descriptor\n";
 
-static void dma_init(struct fsldma_chan *chan)
-{
-	/* Reset the channel */
-	DMA_OUT(chan, &chan->regs->mr, 0, 32);
-
-	switch (chan->feature & FSL_DMA_IP_MASK) {
-	case FSL_DMA_IP_85XX:
-		/* Set the channel to below modes:
-		 * EIE - Error interrupt enable
-		 * EOSIE - End of segments interrupt enable (basic mode)
-		 * EOLNIE - End of links interrupt enable
-		 * BWC - Bandwidth sharing among channels
-		 */
-		DMA_OUT(chan, &chan->regs->mr, FSL_DMA_MR_BWC
-				| FSL_DMA_MR_EIE | FSL_DMA_MR_EOLNIE
-				| FSL_DMA_MR_EOSIE, 32);
-		break;
-	case FSL_DMA_IP_83XX:
-		/* Set the channel to below modes:
-		 * EOTIE - End-of-transfer interrupt enable
-		 * PRC_RM - PCI read multiple
-		 */
-		DMA_OUT(chan, &chan->regs->mr, FSL_DMA_MR_EOTIE
-				| FSL_DMA_MR_PRC_RM, 32);
-		break;
-	}
-}
+/*
+ * Register Helpers
+ */
 
 static void set_sr(struct fsldma_chan *chan, u32 val)
 {
@@ -76,6 +52,30 @@ static u32 get_sr(struct fsldma_chan *chan)
 {
 	return DMA_IN(chan, &chan->regs->sr, 32);
 }
+
+static void set_cdar(struct fsldma_chan *chan, dma_addr_t addr)
+{
+	DMA_OUT(chan, &chan->regs->cdar, addr | FSL_DMA_SNEN, 64);
+}
+
+static dma_addr_t get_cdar(struct fsldma_chan *chan)
+{
+	return DMA_IN(chan, &chan->regs->cdar, 64) & ~FSL_DMA_SNEN;
+}
+
+static dma_addr_t get_ndar(struct fsldma_chan *chan)
+{
+	return DMA_IN(chan, &chan->regs->ndar, 64);
+}
+
+static u32 get_bcr(struct fsldma_chan *chan)
+{
+	return DMA_IN(chan, &chan->regs->bcr, 32);
+}
+
+/*
+ * Descriptor Helpers
+ */
 
 static void set_desc_cnt(struct fsldma_chan *chan,
 				struct fsl_dma_ld_hw *hw, u32 count)
@@ -113,24 +113,49 @@ static void set_desc_next(struct fsldma_chan *chan,
 	hw->next_ln_addr = CPU_TO_DMA(chan, snoop_bits | next, 64);
 }
 
-static void set_cdar(struct fsldma_chan *chan, dma_addr_t addr)
+static void set_ld_eol(struct fsldma_chan *chan,
+			struct fsl_desc_sw *desc)
 {
-	DMA_OUT(chan, &chan->regs->cdar, addr | FSL_DMA_SNEN, 64);
+	u64 snoop_bits;
+
+	snoop_bits = ((chan->feature & FSL_DMA_IP_MASK) == FSL_DMA_IP_83XX)
+		? FSL_DMA_SNEN : 0;
+
+	desc->hw.next_ln_addr = CPU_TO_DMA(chan,
+		DMA_TO_CPU(chan, desc->hw.next_ln_addr, 64) | FSL_DMA_EOL
+			| snoop_bits, 64);
 }
 
-static dma_addr_t get_cdar(struct fsldma_chan *chan)
-{
-	return DMA_IN(chan, &chan->regs->cdar, 64) & ~FSL_DMA_SNEN;
-}
+/*
+ * DMA Engine Hardware Control Helpers
+ */
 
-static dma_addr_t get_ndar(struct fsldma_chan *chan)
+static void dma_init(struct fsldma_chan *chan)
 {
-	return DMA_IN(chan, &chan->regs->ndar, 64);
-}
+	/* Reset the channel */
+	DMA_OUT(chan, &chan->regs->mr, 0, 32);
 
-static u32 get_bcr(struct fsldma_chan *chan)
-{
-	return DMA_IN(chan, &chan->regs->bcr, 32);
+	switch (chan->feature & FSL_DMA_IP_MASK) {
+	case FSL_DMA_IP_85XX:
+		/* Set the channel to below modes:
+		 * EIE - Error interrupt enable
+		 * EOSIE - End of segments interrupt enable (basic mode)
+		 * EOLNIE - End of links interrupt enable
+		 * BWC - Bandwidth sharing among channels
+		 */
+		DMA_OUT(chan, &chan->regs->mr, FSL_DMA_MR_BWC
+				| FSL_DMA_MR_EIE | FSL_DMA_MR_EOLNIE
+				| FSL_DMA_MR_EOSIE, 32);
+		break;
+	case FSL_DMA_IP_83XX:
+		/* Set the channel to below modes:
+		 * EOTIE - End-of-transfer interrupt enable
+		 * PRC_RM - PCI read multiple
+		 */
+		DMA_OUT(chan, &chan->regs->mr, FSL_DMA_MR_EOTIE
+				| FSL_DMA_MR_PRC_RM, 32);
+		break;
+	}
 }
 
 static int dma_is_idle(struct fsldma_chan *chan)
@@ -183,19 +208,6 @@ static void dma_halt(struct fsldma_chan *chan)
 
 	if (!dma_is_idle(chan))
 		dev_err(chan->dev, "DMA halt timeout!\n");
-}
-
-static void set_ld_eol(struct fsldma_chan *chan,
-			struct fsl_desc_sw *desc)
-{
-	u64 snoop_bits;
-
-	snoop_bits = ((chan->feature & FSL_DMA_IP_MASK) == FSL_DMA_IP_83XX)
-		? FSL_DMA_SNEN : 0;
-
-	desc->hw.next_ln_addr = CPU_TO_DMA(chan,
-		DMA_TO_CPU(chan, desc->hw.next_ln_addr, 64) | FSL_DMA_EOL
-			| snoop_bits, 64);
 }
 
 /**
