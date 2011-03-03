@@ -2162,7 +2162,7 @@ out:
  *  @hw: pointer to hardware structure
  *  @mask: Mask to specify which semaphore to acquire
  *
- *  Acquires the SWFW semaphore thought the GSSR register for the specified
+ *  Acquires the SWFW semaphore through the GSSR register for the specified
  *  function (CSR, PHY0, PHY1, EEPROM, Flash)
  **/
 s32 ixgbe_acquire_swfw_sync(struct ixgbe_hw *hw, u16 mask)
@@ -2210,7 +2210,7 @@ s32 ixgbe_acquire_swfw_sync(struct ixgbe_hw *hw, u16 mask)
  *  @hw: pointer to hardware structure
  *  @mask: Mask to specify which semaphore to release
  *
- *  Releases the SWFW semaphore thought the GSSR register for the specified
+ *  Releases the SWFW semaphore through the GSSR register for the specified
  *  function (CSR, PHY0, PHY1, EEPROM, Flash)
  **/
 void ixgbe_release_swfw_sync(struct ixgbe_hw *hw, u16 mask)
