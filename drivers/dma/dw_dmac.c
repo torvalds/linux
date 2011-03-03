@@ -1319,7 +1319,11 @@ static int __init dw_probe(struct platform_device *pdev)
 		dwc->chan.device = &dw->dma;
 		dwc->chan.cookie = dwc->completed = 1;
 		dwc->chan.chan_id = i;
-		list_add_tail(&dwc->chan.device_node, &dw->dma.channels);
+		if (pdata->chan_allocation_order == CHAN_ALLOCATION_ASCENDING)
+			list_add_tail(&dwc->chan.device_node,
+					&dw->dma.channels);
+		else
+			list_add(&dwc->chan.device_node, &dw->dma.channels);
 
 		dwc->ch_regs = &__dw_regs(dw)->CHAN[i];
 		spin_lock_init(&dwc->lock);

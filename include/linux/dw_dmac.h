@@ -22,6 +22,9 @@
 struct dw_dma_platform_data {
 	unsigned int	nr_channels;
 	bool		is_private;
+#define CHAN_ALLOCATION_ASCENDING	0	/* zero to seven */
+#define CHAN_ALLOCATION_DESCENDING	1	/* seven to zero */
+	unsigned char	chan_allocation_order;
 };
 
 /**
