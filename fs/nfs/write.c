@@ -783,7 +783,7 @@ static int flush_task_priority(int how)
 	return RPC_PRIORITY_NORMAL;
 }
 
-static int nfs_initiate_write(struct nfs_write_data *data,
+int nfs_initiate_write(struct nfs_write_data *data,
 		       struct rpc_clnt *clnt,
 		       const struct rpc_call_ops *call_ops,
 		       int how)
@@ -833,6 +833,7 @@ static int nfs_initiate_write(struct nfs_write_data *data,
 out:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(nfs_initiate_write);
 
 /*
  * Set up the argument/result storage required for the RPC call.
@@ -1194,6 +1195,7 @@ void nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 		 */
 		static unsigned long    complain;
 
+		/* Note this will print the MDS for a DS write */
 		if (time_before(complain, jiffies)) {
 			dprintk("NFS:       faulty NFS server %s:"
 				" (committed = %d) != (stable = %d)\n",
@@ -1214,6 +1216,7 @@ void nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 			/* Was this an NFSv2 write or an NFSv3 stable write? */
 			if (resp->verf->committed != NFS_UNSTABLE) {
 				/* Resend from where the server left off */
+				data->mds_offset += resp->count;
 				argp->offset += resp->count;
 				argp->pgbase += resp->count;
 				argp->count -= resp->count;

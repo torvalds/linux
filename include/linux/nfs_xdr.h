@@ -1039,11 +1039,13 @@ struct nfs_write_data {
 	struct nfs_writeargs	args;		/* argument struct */
 	struct nfs_writeres	res;		/* result struct */
 	struct pnfs_layout_segment *lseg;
+	struct nfs_client	*ds_clp;	/* pNFS data server */
 	const struct rpc_call_ops *mds_ops;
 	int (*write_done_cb) (struct rpc_task *task, struct nfs_write_data *data);
 #ifdef CONFIG_NFS_V4
 	unsigned long		timestamp;	/* For lease renewal */
 #endif
+	__u64			mds_offset;	/* Filelayout dense stripe */
 	struct page		*page_array[NFS_PAGEVEC_SIZE];
 };
 

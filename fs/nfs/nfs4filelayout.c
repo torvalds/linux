@@ -189,10 +189,67 @@ static void filelayout_read_release(void *data)
 	rdata->mds_ops->rpc_release(data);
 }
 
+static int filelayout_write_done_cb(struct rpc_task *task,
+				struct nfs_write_data *data)
+{
+	int reset = 0;
+
+	if (filelayout_async_handle_error(task, data->args.context->state,
+					  data->ds_clp, &reset) == -EAGAIN) {
+		struct nfs_client *clp;
+
+		dprintk("%s calling restart ds_clp %p ds_clp->cl_session %p\n",
+			__func__, data->ds_clp, data->ds_clp->cl_session);
+		if (reset) {
+			filelayout_set_lo_fail(data->lseg);
+			nfs4_reset_write(task, data);
+			clp = NFS_SERVER(data->inode)->nfs_client;
+		} else
+			clp = data->ds_clp;
+		nfs_restart_rpc(task, clp);
+		return -EAGAIN;
+	}
+
+	return 0;
+}
+
+static void filelayout_write_prepare(struct rpc_task *task, void *data)
+{
+	struct nfs_write_data *wdata = (struct nfs_write_data *)data;
+
+	if (nfs41_setup_sequence(wdata->ds_clp->cl_session,
+				&wdata->args.seq_args, &wdata->res.seq_res,
+				0, task))
+		return;
+
+	rpc_call_start(task);
+}
+
+static void filelayout_write_call_done(struct rpc_task *task, void *data)
+{
+	struct nfs_write_data *wdata = (struct nfs_write_data *)data;
+
+	/* Note this may cause RPC to be resent */
+	wdata->mds_ops->rpc_call_done(task, data);
+}
+
+static void filelayout_write_release(void *data)
+{
+	struct nfs_write_data *wdata = (struct nfs_write_data *)data;
+
+	wdata->mds_ops->rpc_release(data);
+}
+
 struct rpc_call_ops filelayout_read_call_ops = {
 	.rpc_call_prepare = filelayout_read_prepare,
 	.rpc_call_done = filelayout_read_call_done,
 	.rpc_release = filelayout_read_release,
+};
+
+struct rpc_call_ops filelayout_write_call_ops = {
+	.rpc_call_prepare = filelayout_write_prepare,
+	.rpc_call_done = filelayout_write_call_done,
+	.rpc_release = filelayout_write_release,
 };
 
 static enum pnfs_try_status
@@ -238,10 +295,52 @@ filelayout_read_pagelist(struct nfs_read_data *data)
 	return PNFS_ATTEMPTED;
 }
 
+/* Perform async writes. */
 static enum pnfs_try_status
 filelayout_write_pagelist(struct nfs_write_data *data, int sync)
 {
-	return PNFS_NOT_ATTEMPTED;
+	struct pnfs_layout_segment *lseg = data->lseg;
+	struct nfs4_pnfs_ds *ds;
+	loff_t offset = data->args.offset;
+	u32 j, idx;
+	struct nfs_fh *fh;
+	int status;
+
+	/* Retrieve the correct rpc_client for the byte range */
+	j = nfs4_fl_calc_j_index(lseg, offset);
+	idx = nfs4_fl_calc_ds_index(lseg, j);
+	ds = nfs4_fl_prepare_ds(lseg, idx);
+	if (!ds) {
+		printk(KERN_ERR "%s: prepare_ds failed, use MDS\n", __func__);
+		set_bit(lo_fail_bit(IOMODE_RW), &lseg->pls_layout->plh_flags);
+		set_bit(lo_fail_bit(IOMODE_READ), &lseg->pls_layout->plh_flags);
+		return PNFS_NOT_ATTEMPTED;
+	}
+	dprintk("%s ino %lu sync %d req %Zu@%llu DS:%x:%hu\n", __func__,
+		data->inode->i_ino, sync, (size_t) data->args.count, offset,
+		ntohl(ds->ds_ip_addr), ntohs(ds->ds_port));
+
+	/* We can't handle commit to ds yet */
+	if (!FILELAYOUT_LSEG(lseg)->commit_through_mds)
+		data->args.stable = NFS_FILE_SYNC;
+
+	data->write_done_cb = filelayout_write_done_cb;
+	data->ds_clp = ds->ds_clp;
+	fh = nfs4_fl_select_ds_fh(lseg, j);
+	if (fh)
+		data->args.fh = fh;
+	/*
+	 * Get the file offset on the dserver. Set the write offset to
+	 * this offset and save the original offset.
+	 */
+	data->args.offset = filelayout_get_dserver_offset(lseg, offset);
+	data->mds_offset = offset;
+
+	/* Perform an asynchronous write */
+	status = nfs_initiate_write(data, ds->ds_clp->cl_rpcclient,
+				    &filelayout_write_call_ops, sync);
+	BUG_ON(status != 0);
+	return PNFS_ATTEMPTED;
 }
 
 /*
