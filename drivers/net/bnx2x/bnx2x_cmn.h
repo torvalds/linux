@@ -1044,4 +1044,24 @@ static inline void storm_memset_cmng(struct bnx2x *bp,
 void bnx2x_acquire_phy_lock(struct bnx2x *bp);
 void bnx2x_release_phy_lock(struct bnx2x *bp);
 
+/**
+ * Extracts MAX BW part from MF configuration.
+ *
+ * @param bp
+ * @param mf_cfg
+ *
+ * @return u16
+ */
+static inline u16 bnx2x_extract_max_cfg(struct bnx2x *bp, u32 mf_cfg)
+{
+	u16 max_cfg = (mf_cfg & FUNC_MF_CFG_MAX_BW_MASK) >>
+			      FUNC_MF_CFG_MAX_BW_SHIFT;
+	if (!max_cfg) {
+		BNX2X_ERR("Illegal configuration detected for Max BW - "
+			  "using 100 instead\n");
+		max_cfg = 100;
+	}
+	return max_cfg;
+}
+
 #endif /* BNX2X_CMN_H */
