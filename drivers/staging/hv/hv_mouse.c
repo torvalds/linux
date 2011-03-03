@@ -122,7 +122,7 @@ struct synthhid_device_info {
 
 struct synthhid_device_info_ack {
 	struct synthhid_msg_hdr header;
-	unsigned char           Reserved;
+	unsigned char reserved;
 };
 
 struct synthhid_input_report {
@@ -387,7 +387,7 @@ static void MousevscOnReceiveDeviceInfo(struct mousevsc_dev *InputDevice, struct
 
 	ack.u.Ack.header.type = SynthHidInitialDeviceInfoAck;
 	ack.u.Ack.header.size = 1;
-	ack.u.Ack.Reserved = 0;
+	ack.u.Ack.reserved = 0;
 
 	ret = vmbus_sendpacket(InputDevice->Device->channel,
 			&ack,
