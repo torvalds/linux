@@ -31,6 +31,7 @@
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
 #include <linux/gfp.h>
+#include <linux/memblock.h>
 
 #include <media/soc_camera.h>
 
@@ -410,25 +411,16 @@ struct mx3_camera_pdata camera_pdata = {
 	.mclk_10khz	= 2000,
 };
 
-static int __init pcm037_camera_alloc_dma(const size_t buf_size)
+static phys_addr_t mx3_camera_base __initdata;
+#define MX3_CAMERA_BUF_SIZE SZ_4M
+
+static int __init pcm037_camera_alloc_dma(void)
 {
-	dma_addr_t dma_handle;
-	void *buf;
 	int dma;
 
-	if (buf_size < 2 * 1024 * 1024)
-		return -EINVAL;
-
-	buf = dma_alloc_coherent(NULL, buf_size, &dma_handle, GFP_KERNEL);
-	if (!buf) {
-		pr_err("%s: cannot allocate camera buffer-memory\n", __func__);
-		return -ENOMEM;
-	}
-
-	memset(buf, 0, buf_size);
-
 	dma = dma_declare_coherent_memory(&mx3_camera.dev,
-					dma_handle, dma_handle, buf_size,
+					mx3_camera_base, mx3_camera_base,
+					MX3_CAMERA_BUF_SIZE,
 					DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE);
 
 	/* The way we call dma_declare_coherent_memory only a malloc can fail */
@@ -649,7 +641,7 @@ static void __init pcm037_init(void)
 	else
 		iclink_mt9t031.power = NULL;
 
-	if (!pcm037_camera_alloc_dma(4 * 1024 * 1024))
+	if (!pcm037_camera_alloc_dma())
 		mxc_register_device(&mx3_camera, &camera_pdata);
 
 	platform_device_register(&pcm970_sja1000);
@@ -680,9 +672,19 @@ struct sys_timer pcm037_timer = {
 	.init	= pcm037_timer_init,
 };
 
+static void __init pcm037_reserve(void)
+{
+	/* reserve 4 MiB for mx3-camera */
+	mx3_camera_base = memblock_alloc(MX3_CAMERA_BUF_SIZE,
+			MX3_CAMERA_BUF_SIZE);
+	memblock_free(mx3_camera_base, MX3_CAMERA_BUF_SIZE);
+	memblock_remove(mx3_camera_base, MX3_CAMERA_BUF_SIZE);
+}
+
 MACHINE_START(PCM037, "Phytec Phycore pcm037")
 	/* Maintainer: Pengutronix */
 	.boot_params = MX3x_PHYS_OFFSET + 0x100,
+	.reserve = pcm037_reserve,
 	.map_io = mx31_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
