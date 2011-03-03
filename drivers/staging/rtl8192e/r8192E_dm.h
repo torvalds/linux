@@ -221,8 +221,6 @@ void init_rate_adaptive(struct net_device *dev);
 void dm_txpower_trackingcallback(struct work_struct *work);
 void dm_restore_dynamic_mechanism_state(struct net_device *dev);
 void dm_backup_dynamic_mechanism_state(struct net_device *dev);
-void dm_change_dynamic_initgain_thresh(struct net_device *dev, u32 dm_type,
-                                       u32 dm_value);
 void DM_ChangeFsyncSetting(struct net_device *dev, s32 DM_Type, s32 DM_Value);
 void dm_force_tx_fw_info(struct net_device *dev, u32 force_type,
 			 u32 force_value);
