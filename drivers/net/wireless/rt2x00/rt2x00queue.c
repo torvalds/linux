@@ -224,10 +224,14 @@ static void rt2x00queue_create_tx_descriptor_seq(struct queue_entry *entry,
 	if (!(tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ))
 		return;
 
+	__set_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags);
+
+	if (!test_bit(DRIVER_REQUIRE_SW_SEQNO, &entry->queue->rt2x00dev->flags))
+		return;
+
 	/*
-	 * Hardware should insert sequence counter.
-	 * FIXME: We insert a software sequence counter first for
-	 * hardware that doesn't support hardware sequence counting.
+	 * The hardware is not able to insert a sequence number. Assign a
+	 * software generated one here.
 	 *
 	 * This is wrong because beacons are not getting sequence
 	 * numbers assigned properly.
@@ -245,7 +249,6 @@ static void rt2x00queue_create_tx_descriptor_seq(struct queue_entry *entry,
 
 	spin_unlock_irqrestore(&intf->seqlock, irqflags);
 
-	__set_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags);
 }
 
 static void rt2x00queue_create_tx_descriptor_plcp(struct queue_entry *entry,

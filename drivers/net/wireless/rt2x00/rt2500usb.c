@@ -1795,6 +1795,7 @@ static int rt2500usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 		__set_bit(DRIVER_REQUIRE_COPY_IV, &rt2x00dev->flags);
 	}
 	__set_bit(DRIVER_SUPPORT_WATCHDOG, &rt2x00dev->flags);
+	__set_bit(DRIVER_REQUIRE_SW_SEQNO, &rt2x00dev->flags);
 
 	/*
 	 * Set the rssi offset.
