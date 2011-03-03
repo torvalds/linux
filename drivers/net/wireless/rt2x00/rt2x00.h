@@ -1076,6 +1076,9 @@ rt2x00queue_get_tx_queue(struct rt2x00_dev *rt2x00dev,
 	if (queue < rt2x00dev->ops->tx_queues && rt2x00dev->tx)
 		return &rt2x00dev->tx[queue];
 
+	if (queue == QID_ATIM)
+		return rt2x00dev->atim;
+
 	return NULL;
 }
 
