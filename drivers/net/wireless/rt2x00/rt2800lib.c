@@ -681,7 +681,7 @@ void rt2800_txdone_entry(struct queue_entry *entry, u32 status)
 	 * confuse the rate control algortihm by providing clearly wrong
 	 * data.
 	 */
-	if (aggr == 1 && ampdu == 0 && real_mcs != mcs) {
+	if (unlikely(aggr == 1 && ampdu == 0 && real_mcs != mcs)) {
 		skbdesc->tx_rate_idx = real_mcs;
 		mcs = real_mcs;
 	}
