@@ -690,12 +690,12 @@ static int s3c64xx_dma_init1(int chno, enum dma_ch chbase,
 
 	regptr = regs + PL080_Cx_BASE(0);
 
-	for (ch = 0; ch < 8; ch++, chno++, chptr++) {
-		printk(KERN_INFO "%s: registering DMA %d (%p)\n",
-		       __func__, chno, regptr);
+	for (ch = 0; ch < 8; ch++, chptr++) {
+		pr_debug("%s: registering DMA %d (%p)\n",
+			 __func__, chno + ch, regptr);
 
 		chptr->bit = 1 << ch;
-		chptr->number = chno;
+		chptr->number = chno + ch;
 		chptr->dmac = dmac;
 		chptr->regs = regptr;
 		regptr += PL080_Cx_STRIDE;
@@ -704,7 +704,8 @@ static int s3c64xx_dma_init1(int chno, enum dma_ch chbase,
 	/* for the moment, permanently enable the controller */
 	writel(PL080_CONFIG_ENABLE, regs + PL080_CONFIG);
 
-	printk(KERN_INFO "PL080: IRQ %d, at %p\n", irq, regs);
+	printk(KERN_INFO "PL080: IRQ %d, at %p, channels %d..%d\n",
+	       irq, regs, chno, chno+8);
 
 	return 0;
 
