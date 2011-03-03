@@ -49,7 +49,10 @@ nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 		DRM_ERROR("bo %p still attached to GEM object\n", bo);
 
 	nv10_mem_put_tile_region(dev, nvbo->tile, NULL);
-	nouveau_vm_put(&nvbo->vma);
+	if (nvbo->vma.node) {
+		nouveau_vm_unmap(&nvbo->vma);
+		nouveau_vm_put(&nvbo->vma);
+	}
 	kfree(nvbo);
 }
 
@@ -128,6 +131,7 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 		}
 	}
 
+	nvbo->bo.mem.num_pages = size >> PAGE_SHIFT;
 	nouveau_bo_placement_set(nvbo, flags, 0);
 
 	nvbo->channel = chan;
@@ -166,17 +170,17 @@ static void
 set_placement_range(struct nouveau_bo *nvbo, uint32_t type)
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(nvbo->bo.bdev);
+	int vram_pages = dev_priv->vram_size >> PAGE_SHIFT;
 
 	if (dev_priv->card_type == NV_10 &&
-	    nvbo->tile_mode && (type & TTM_PL_FLAG_VRAM)) {
+	    nvbo->tile_mode && (type & TTM_PL_FLAG_VRAM) &&
+	    nvbo->bo.mem.num_pages < vram_pages / 2) {
 		/*
 		 * Make sure that the color and depth buffers are handled
 		 * by independent memory controller units. Up to a 9x
 		 * speed up when alpha-blending and depth-test are enabled
 		 * at the same time.
 		 */
-		int vram_pages = dev_priv->vram_size >> PAGE_SHIFT;
-
 		if (nvbo->tile_flags & NOUVEAU_GEM_TILE_ZETA) {
 			nvbo->placement.fpfn = vram_pages / 2;
 			nvbo->placement.lpfn = ~0;
@@ -785,7 +789,7 @@ nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
 	if (ret)
 		goto out;
 
-	ret = ttm_bo_move_ttm(bo, evict, no_wait_reserve, no_wait_gpu, new_mem);
+	ret = ttm_bo_move_ttm(bo, true, no_wait_reserve, no_wait_gpu, new_mem);
 out:
 	ttm_bo_mem_put(bo, &tmp_mem);
 	return ret;
@@ -811,11 +815,11 @@ nouveau_bo_move_flips(struct ttm_buffer_object *bo, bool evict, bool intr,
 	if (ret)
 		return ret;
 
-	ret = ttm_bo_move_ttm(bo, evict, no_wait_reserve, no_wait_gpu, &tmp_mem);
+	ret = ttm_bo_move_ttm(bo, true, no_wait_reserve, no_wait_gpu, &tmp_mem);
 	if (ret)
 		goto out;
 
-	ret = nouveau_bo_move_m2mf(bo, evict, intr, no_wait_reserve, no_wait_gpu, new_mem);
+	ret = nouveau_bo_move_m2mf(bo, true, intr, no_wait_reserve, no_wait_gpu, new_mem);
 	if (ret)
 		goto out;
 

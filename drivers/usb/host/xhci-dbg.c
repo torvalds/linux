@@ -169,9 +169,10 @@ static void xhci_print_ports(struct xhci_hcd *xhci)
 	}
 }
 
-void xhci_print_ir_set(struct xhci_hcd *xhci, struct xhci_intr_reg *ir_set, int set_num)
+void xhci_print_ir_set(struct xhci_hcd *xhci, int set_num)
 {
-	void *addr;
+	struct xhci_intr_reg __iomem *ir_set = &xhci->run_regs->ir_set[set_num];
+	void __iomem *addr;
 	u32 temp;
 	u64 temp_64;
 
@@ -449,7 +450,7 @@ char *xhci_get_slot_state(struct xhci_hcd *xhci,
 	}
 }
 
-void xhci_dbg_slot_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx)
+static void xhci_dbg_slot_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx)
 {
 	/* Fields are 32 bits wide, DMA addresses are in bytes */
 	int field_size = 32 / 8;
@@ -488,7 +489,7 @@ void xhci_dbg_slot_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx)
 		dbg_rsvd64(xhci, (u64 *)slot_ctx, dma);
 }
 
-void xhci_dbg_ep_ctx(struct xhci_hcd *xhci,
+static void xhci_dbg_ep_ctx(struct xhci_hcd *xhci,
 		     struct xhci_container_ctx *ctx,
 		     unsigned int last_ep)
 {

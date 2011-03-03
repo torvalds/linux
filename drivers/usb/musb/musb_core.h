@@ -488,6 +488,15 @@ struct musb {
 	unsigned		set_address:1;
 	unsigned		test_mode:1;
 	unsigned		softconnect:1;
+
+	u8			address;
+	u8			test_mode_nr;
+	u16			ackpend;		/* ep0 */
+	enum musb_g_ep0_state	ep0_state;
+	struct usb_gadget	g;			/* the gadget */
+	struct usb_gadget_driver *gadget_driver;	/* its driver */
+#endif
+
 	/*
 	 * FIXME: Remove this flag.
 	 *
@@ -500,14 +509,6 @@ struct musb {
 	 * buffering until we get it working.
 	 */
 	unsigned                double_buffer_not_ok:1 __deprecated;
-
-	u8			address;
-	u8			test_mode_nr;
-	u16			ackpend;		/* ep0 */
-	enum musb_g_ep0_state	ep0_state;
-	struct usb_gadget	g;			/* the gadget */
-	struct usb_gadget_driver *gadget_driver;	/* its driver */
-#endif
 
 	struct musb_hdrc_config	*config;
 

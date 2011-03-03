@@ -3728,7 +3728,8 @@ static void ixgbe_sfp_link_config(struct ixgbe_adapter *adapter)
 			 * We need to try and force an autonegotiation
 			 * session, then bring up link.
 			 */
-			hw->mac.ops.setup_sfp(hw);
+			if (hw->mac.ops.setup_sfp)
+				hw->mac.ops.setup_sfp(hw);
 			if (!(adapter->flags & IXGBE_FLAG_IN_SFP_LINK_TASK))
 				schedule_work(&adapter->multispeed_fiber_task);
 		} else {
@@ -5968,7 +5969,8 @@ static void ixgbe_sfp_config_module_task(struct work_struct *work)
 		unregister_netdev(adapter->netdev);
 		return;
 	}
-	hw->mac.ops.setup_sfp(hw);
+	if (hw->mac.ops.setup_sfp)
+		hw->mac.ops.setup_sfp(hw);
 
 	if (!(adapter->flags & IXGBE_FLAG_IN_SFP_LINK_TASK))
 		/* This will also work for DA Twinax connections */

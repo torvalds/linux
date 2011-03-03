@@ -569,9 +569,14 @@ static void efx_ethtool_self_test(struct net_device *net_dev,
 				  struct ethtool_test *test, u64 *data)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	struct efx_self_tests efx_tests;
+	struct efx_self_tests *efx_tests;
 	int already_up;
-	int rc;
+	int rc = -ENOMEM;
+
+	efx_tests = kzalloc(sizeof(*efx_tests), GFP_KERNEL);
+	if (!efx_tests)
+		goto fail;
+
 
 	ASSERT_RTNL();
 	if (efx->state != STATE_RUNNING) {
@@ -589,13 +594,11 @@ static void efx_ethtool_self_test(struct net_device *net_dev,
 		if (rc) {
 			netif_err(efx, drv, efx->net_dev,
 				  "failed opening device.\n");
-			goto fail2;
+			goto fail1;
 		}
 	}
 
-	memset(&efx_tests, 0, sizeof(efx_tests));
-
-	rc = efx_selftest(efx, &efx_tests, test->flags);
+	rc = efx_selftest(efx, efx_tests, test->flags);
 
 	if (!already_up)
 		dev_close(efx->net_dev);
@@ -604,10 +607,11 @@ static void efx_ethtool_self_test(struct net_device *net_dev,
 		   rc == 0 ? "passed" : "failed",
 		   (test->flags & ETH_TEST_FL_OFFLINE) ? "off" : "on");
 
- fail2:
- fail1:
+fail1:
 	/* Fill ethtool results structures */
-	efx_ethtool_fill_self_tests(efx, &efx_tests, NULL, data);
+	efx_ethtool_fill_self_tests(efx, efx_tests, NULL, data);
+	kfree(efx_tests);
+fail:
 	if (rc)
 		test->flags |= ETH_TEST_FL_FAILED;
 }
