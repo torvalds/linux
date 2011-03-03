@@ -34,6 +34,7 @@ config MACH_MX28EVK
 	select MXS_HAVE_AMBA_DUART
 	select MXS_HAVE_PLATFORM_AUART
 	select MXS_HAVE_PLATFORM_FEC
+	select MXS_HAVE_PLATFORM_FLEXCAN
 	select MXS_OCOTP
 	default y
 	help

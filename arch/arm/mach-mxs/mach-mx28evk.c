@@ -28,6 +28,7 @@
 #include "devices-mx28.h"
 #include "gpio.h"
 
+#define MX28EVK_FLEXCAN_SWITCH	MXS_GPIO_NR(2, 13)
 #define MX28EVK_FEC_PHY_POWER	MXS_GPIO_NR(2, 15)
 #define MX28EVK_FEC_PHY_RESET	MXS_GPIO_NR(4, 13)
 
@@ -69,6 +70,15 @@ static const iomux_cfg_t mx28evk_pads[] __initconst = {
 	MX28_PAD_SSP1_DATA3__GPIO_2_15 | MXS_PAD_CTRL,
 	/* phy reset line */
 	MX28_PAD_ENET0_RX_CLK__GPIO_4_13 | MXS_PAD_CTRL,
+
+	/* flexcan0 */
+	MX28_PAD_GPMI_RDY2__CAN0_TX,
+	MX28_PAD_GPMI_RDY3__CAN0_RX,
+	/* flexcan1 */
+	MX28_PAD_GPMI_CE2N__CAN1_TX,
+	MX28_PAD_GPMI_CE3N__CAN1_RX,
+	/* transceiver power control */
+	MX28_PAD_SSP1_CMD__GPIO_2_13,
 };
 
 /* fec */
@@ -152,8 +162,44 @@ error:
 	return -ETIMEDOUT;
 }
 
+/*
+ * MX28EVK_FLEXCAN_SWITCH is shared between both flexcan controllers
+ */
+static int flexcan0_en, flexcan1_en;
+
+static void mx28evk_flexcan_switch(void)
+{
+	if (flexcan0_en || flexcan1_en)
+		gpio_set_value(MX28EVK_FLEXCAN_SWITCH, 1);
+	else
+		gpio_set_value(MX28EVK_FLEXCAN_SWITCH, 0);
+}
+
+static void mx28evk_flexcan0_switch(int enable)
+{
+	flexcan0_en = enable;
+	mx28evk_flexcan_switch();
+}
+
+static void mx28evk_flexcan1_switch(int enable)
+{
+	flexcan1_en = enable;
+	mx28evk_flexcan_switch();
+}
+
+static const struct flexcan_platform_data
+		mx28evk_flexcan_pdata[] __initconst = {
+	{
+		.transceiver_switch = mx28evk_flexcan0_switch,
+	}, {
+		.transceiver_switch = mx28evk_flexcan1_switch,
+	}
+};
+
 static void __init mx28evk_init(void)
 {
+	int ret;
+
 	mxs_iomux_setup_multiple_pads(mx28evk_pads, ARRAY_SIZE(mx28evk_pads));
 
 	mx28_add_duart();
@@ -166,6 +212,15 @@ static void __init mx28evk_init(void)
 	mx28evk_fec_reset();
 	mx28_add_fec(0, &mx28_fec_pdata[0]);
 	mx28_add_fec(1, &mx28_fec_pdata[1]);
+
+	ret = gpio_request_one(MX28EVK_FLEXCAN_SWITCH, GPIOF_DIR_OUT,
+				"flexcan-switch");
+	if (ret) {
+		pr_err("failed to request gpio flexcan-switch: %d\n", ret);
+	} else {
+		mx28_add_flexcan(0, &mx28evk_flexcan_pdata[0]);
+		mx28_add_flexcan(1, &mx28evk_flexcan_pdata[1]);
+	}
 }
 
 static void __init mx28evk_timer_init(void)
