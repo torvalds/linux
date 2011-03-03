@@ -168,7 +168,16 @@ void omap3_intc_handle_irq(struct pt_regs *regs);
 #endif
 
 #ifdef CONFIG_CACHE_L2X0
-extern void __iomem *l2cache_base;
+extern void __iomem *omap4_get_l2cache_base(void);
+#endif
+
+#ifdef CONFIG_SMP
+extern void __iomem *omap4_get_scu_base(void);
+#else
+static inline void __iomem *omap4_get_scu_base(void)
+{
+	return NULL;
+}
 #endif
 
 extern void __init gic_init_irq(void);
