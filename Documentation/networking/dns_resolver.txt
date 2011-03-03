@@ -61,7 +61,6 @@ before the more general line given above as the first match is the one taken.
 	create	dns_resolver  	foo:*	*	/usr/sbin/dns.foo %k
 
 
-
 =====
 USAGE
 =====
@@ -102,6 +101,14 @@ implemented in the module can be called after doing:
 
      If _expiry is non-NULL, the expiry time (TTL) of the result will be
      returned also.
+
+
+===============================
+READING DNS KEYS FROM USERSPACE
+===============================
+
+Keys of dns_resolver type can be read from userspace using keyctl_read() or
+"keyctl read/print/pipe".
 
 
 =========
