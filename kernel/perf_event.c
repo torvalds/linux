@@ -412,6 +412,9 @@ static inline int perf_cgroup_connect(int fd, struct perf_event *event,
 	cgrp = container_of(css, struct perf_cgroup, css);
 	event->cgrp = cgrp;
 
+	/* must be done before we fput() the file */
+	perf_get_cgroup(event);
+
 	/*
 	 * all events in a group must monitor
 	 * the same cgroup because a task belongs
@@ -420,9 +423,6 @@ static inline int perf_cgroup_connect(int fd, struct perf_event *event,
 	if (group_leader && group_leader->cgrp != cgrp) {
 		perf_detach_cgroup(event);
 		ret = -EINVAL;
-	} else {
-		/* must be done before we fput() the file */
-		perf_get_cgroup(event);
 	}
 out:
 	fput_light(file, fput_needed);
