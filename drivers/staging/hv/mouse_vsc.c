@@ -157,8 +157,14 @@ static inline struct mousevsc_dev *GetInputDevice(struct hv_device *Device)
 
 	inputDevice = (struct mousevsc_dev *)Device->ext;
 
-//	printk(KERN_ERR "-------------------------> REFCOUNT = %d",
-//	       inputDevice->RefCount);
+/*
+ *	FIXME
+ *	This sure isn't a valid thing to print for debugging, no matter
+ *	what the intention is...
+ *
+ *	printk(KERN_ERR "-------------------------> REFCOUNT = %d",
+ *	       inputDevice->RefCount);
+ */
 
 	if (inputDevice && atomic_read(&inputDevice->RefCount) > 1)
 		atomic_inc(&inputDevice->RefCount);
