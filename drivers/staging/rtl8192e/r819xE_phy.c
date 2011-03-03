@@ -1907,8 +1907,6 @@ u8 rtl8192_phy_SwChnl(struct net_device* dev, u8 channel)
 
 static void CCK_Tx_Power_Track_BW_Switch_TSSI(struct r8192_priv *priv)
 {
-	struct net_device *dev = priv->ieee80211->dev;
-
 	switch(priv->CurrentChannelBW)
 	{
 		/* 20 MHz channel*/
@@ -1927,15 +1925,15 @@ static void CCK_Tx_Power_Track_BW_Switch_TSSI(struct r8192_priv *priv)
 			if(priv->ieee80211->current_network.channel== 14 && !priv->bcck_in_ch14)
 			{
 				priv->bcck_in_ch14 = TRUE;
-				dm_cck_txpower_adjust(dev,priv->bcck_in_ch14);
+				dm_cck_txpower_adjust(priv, priv->bcck_in_ch14);
 			}
 			else if(priv->ieee80211->current_network.channel != 14 && priv->bcck_in_ch14)
 			{
 				priv->bcck_in_ch14 = FALSE;
-				dm_cck_txpower_adjust(dev,priv->bcck_in_ch14);
+				dm_cck_txpower_adjust(priv, priv->bcck_in_ch14);
 			}
 			else
-				dm_cck_txpower_adjust(dev,priv->bcck_in_ch14);
+				dm_cck_txpower_adjust(priv, priv->bcck_in_ch14);
 		break;
 
 		/* 40 MHz channel*/
@@ -1953,23 +1951,21 @@ static void CCK_Tx_Power_Track_BW_Switch_TSSI(struct r8192_priv *priv)
 			if(priv->ieee80211->current_network.channel == 14 && !priv->bcck_in_ch14)
 			{
 				priv->bcck_in_ch14 = TRUE;
-				dm_cck_txpower_adjust(dev,priv->bcck_in_ch14);
+				dm_cck_txpower_adjust(priv, priv->bcck_in_ch14);
 			}
 			else if(priv->ieee80211->current_network.channel != 14 && priv->bcck_in_ch14)
 			{
 				priv->bcck_in_ch14 = FALSE;
-				dm_cck_txpower_adjust(dev,priv->bcck_in_ch14);
+				dm_cck_txpower_adjust(priv, priv->bcck_in_ch14);
 			}
 			else
-				dm_cck_txpower_adjust(dev,priv->bcck_in_ch14);
+				dm_cck_txpower_adjust(priv, priv->bcck_in_ch14);
 		break;
 	}
 }
 
 static void CCK_Tx_Power_Track_BW_Switch_ThermalMeter(struct r8192_priv *priv)
 {
-	struct net_device *dev = priv->ieee80211->dev;
-
 	if(priv->ieee80211->current_network.channel == 14 && !priv->bcck_in_ch14)
 		priv->bcck_in_ch14 = TRUE;
 	else if(priv->ieee80211->current_network.channel != 14 && priv->bcck_in_ch14)
@@ -1992,7 +1988,7 @@ static void CCK_Tx_Power_Track_BW_Switch_ThermalMeter(struct r8192_priv *priv)
 			RT_TRACE(COMP_POWER_TRACKING, "40MHz, CCK_Tx_Power_Track_BW_Switch_ThermalMeter(), CCK_index = %d\n", priv->CCK_index);
 		break;
 	}
-	dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
+	dm_cck_txpower_adjust(priv, priv->bcck_in_ch14);
 }
 
 static void CCK_Tx_Power_Track_BW_Switch(struct r8192_priv *priv)

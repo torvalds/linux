@@ -2832,7 +2832,7 @@ static RT_STATUS rtl8192_adapter_start(struct r8192_priv *priv)
 
 	if(priv->ResetProgress == RESET_TYPE_NORESET)
 	{
-		dm_initialize_txpower_tracking(dev);
+		dm_initialize_txpower_tracking(priv);
 
 		if(priv->IC_Cut >= IC_VersionCut_D)
 		{
