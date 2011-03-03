@@ -77,7 +77,7 @@ struct mousevsc_dev {
 	/* 0 indicates the device is being destroyed */
 	atomic_t		RefCount;
 	int			NumOutstandingRequests;
-	unsigned char   	bInitializeComplete;
+	unsigned char		bInitializeComplete;
 	struct mousevsc_prt_msg	ProtocolReq;
 	struct mousevsc_prt_msg	ProtocolResp;
 	/* Synchronize the request/response if needed */
@@ -97,7 +97,7 @@ struct mousevsc_dev {
 /*
  * Globals
  */
-static const char* gDriverName = "mousevsc";
+static const char *gDriverName = "mousevsc";
 
 /* {CFA8B69E-5B4A-4cc0-B98B-8BA1A1F3F95A} */
 static const struct hv_guid gMousevscDeviceType = {
@@ -151,11 +151,11 @@ static inline void FreeInputDevice(struct mousevsc_dev *Device)
 /*
  * Get the inputdevice object if exists and its refcount > 1
  */
-static inline struct mousevsc_dev* GetInputDevice(struct hv_device *Device)
+static inline struct mousevsc_dev *GetInputDevice(struct hv_device *Device)
 {
 	struct mousevsc_dev *inputDevice;
 
-	inputDevice = (struct mousevsc_dev*)Device->ext;
+	inputDevice = (struct mousevsc_dev *)Device->ext;
 
 //	printk(KERN_ERR "-------------------------> REFCOUNT = %d",
 //	       inputDevice->RefCount);
@@ -171,11 +171,11 @@ static inline struct mousevsc_dev* GetInputDevice(struct hv_device *Device)
 /*
  * Get the inputdevice object iff exists and its refcount > 0
  */
-static inline struct mousevsc_dev* MustGetInputDevice(struct hv_device *Device)
+static inline struct mousevsc_dev *MustGetInputDevice(struct hv_device *Device)
 {
 	struct mousevsc_dev *inputDevice;
 
-	inputDevice = (struct mousevsc_dev*)Device->ext;
+	inputDevice = (struct mousevsc_dev *)Device->ext;
 
 	if (inputDevice && atomic_read(&inputDevice->RefCount))
 		atomic_inc(&inputDevice->RefCount);
@@ -189,7 +189,7 @@ static inline void PutInputDevice(struct hv_device *Device)
 {
 	struct mousevsc_dev *inputDevice;
 
-	inputDevice = (struct mousevsc_dev*)Device->ext;
+	inputDevice = (struct mousevsc_dev *)Device->ext;
 
 	atomic_dec(&inputDevice->RefCount);
 }
@@ -197,11 +197,11 @@ static inline void PutInputDevice(struct hv_device *Device)
 /*
  * Drop ref count to 1 to effectively disable GetInputDevice()
  */
-static inline struct mousevsc_dev* ReleaseInputDevice(struct hv_device *Device)
+static inline struct mousevsc_dev *ReleaseInputDevice(struct hv_device *Device)
 {
 	struct mousevsc_dev *inputDevice;
 
-	inputDevice = (struct mousevsc_dev*)Device->ext;
+	inputDevice = (struct mousevsc_dev *)Device->ext;
 
 	/* Busy wait until the ref drop to 2, then set it to 1  */
 	while (atomic_cmpxchg(&inputDevice->RefCount, 2, 1) != 2)
@@ -213,11 +213,11 @@ static inline struct mousevsc_dev* ReleaseInputDevice(struct hv_device *Device)
 /*
  * Drop ref count to 0. No one can use InputDevice object.
  */
-static inline struct mousevsc_dev* FinalReleaseInputDevice(struct hv_device *Device)
+static inline struct mousevsc_dev *FinalReleaseInputDevice(struct hv_device *Device)
 {
 	struct mousevsc_dev *inputDevice;
 
-	inputDevice = (struct mousevsc_dev*)Device->ext;
+	inputDevice = (struct mousevsc_dev *)Device->ext;
 
 	/* Busy wait until the ref drop to 1, then set it to 0  */
 	while (atomic_cmpxchg(&inputDevice->RefCount, 1, 0) != 1)
@@ -335,7 +335,7 @@ Cleanup:
 int
 MousevscConnectToVsp(struct hv_device *Device)
 {
-	int ret=0;
+	int ret = 0;
 	struct mousevsc_dev *inputDevice;
 	struct mousevsc_prt_msg *request;
 	struct mousevsc_prt_msg *response;
@@ -374,7 +374,7 @@ MousevscConnectToVsp(struct hv_device *Device)
 					(unsigned long)request,
 					VM_PKT_DATA_INBAND,
 					VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
-	if ( ret != 0) {
+	if (ret != 0) {
 		pr_err("unable to send SYNTHHID_PROTOCOL_REQUEST");
 		goto Cleanup;
 	}
@@ -431,7 +431,7 @@ int
 MousevscOnDeviceRemove(struct hv_device *Device)
 {
 	struct mousevsc_dev *inputDevice;
-	int ret=0;
+	int ret = 0;
 
 	pr_info("disabling input device (%p)...",
 		    Device->ext);
@@ -492,7 +492,7 @@ MousevscOnSendCompletion(struct hv_device *Device,
 		return;
 	}
 
-	request = (void*)(unsigned long *) Packet->trans_id;
+	request = (void *)(unsigned long *)Packet->trans_id;
 
 	if (request == &inputDevice->ProtocolReq) {
 		/* FIXME */
@@ -504,9 +504,8 @@ MousevscOnSendCompletion(struct hv_device *Device,
 
 void
 MousevscOnReceiveDeviceInfo(
-	struct mousevsc_dev* InputDevice,
-	SYNTHHID_DEVICE_INFO* DeviceInfo
-	)
+	struct mousevsc_dev *InputDevice,
+	SYNTHHID_DEVICE_INFO *DeviceInfo)
 {
 	int ret = 0;
 	struct hid_descriptor *desc;
@@ -592,9 +591,8 @@ Cleanup:
 
 void
 MousevscOnReceiveInputReport(
-	struct mousevsc_dev* InputDevice,
-	SYNTHHID_INPUT_REPORT *InputReport
-	)
+	struct mousevsc_dev *InputDevice,
+	SYNTHHID_INPUT_REPORT *InputReport)
 {
 	struct mousevsc_drv_obj *inputDriver;
 
@@ -632,7 +630,7 @@ MousevscOnReceive(struct hv_device *Device, struct vmpacket_descriptor *Packet)
 		return ;
 	}
 
-	hidMsg = (SYNTHHID_MESSAGE*)&pipeMsg->Data[0];
+	hidMsg = (SYNTHHID_MESSAGE *)&pipeMsg->Data[0];
 
 	switch (hidMsg->Header.Type) {
 	case SynthHidProtocolResponse:
@@ -649,11 +647,11 @@ MousevscOnReceive(struct hv_device *Device, struct vmpacket_descriptor *Packet)
 		 * hid desc and report desc
 		 */
 		MousevscOnReceiveDeviceInfo(inputDevice,
-					    (SYNTHHID_DEVICE_INFO*)&pipeMsg->Data[0]);
+					    (SYNTHHID_DEVICE_INFO *)&pipeMsg->Data[0]);
 		break;
 	case SynthHidInputReport:
 		MousevscOnReceiveInputReport(inputDevice,
-					     (SYNTHHID_INPUT_REPORT*)&pipeMsg->Data[0]);
+					     (SYNTHHID_INPUT_REPORT *)&pipeMsg->Data[0]);
 
 		break;
 	default:
