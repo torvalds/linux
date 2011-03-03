@@ -323,7 +323,7 @@ struct txentry_desc {
 		} ht;
 	} u;
 
-	u16 rate_mode;
+	enum rate_modulation rate_mode;
 
 	short retry_limit;
 
