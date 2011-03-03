@@ -148,6 +148,7 @@ struct fsldma_chan {
 	int id;				/* Raw id of this channel */
 	struct tasklet_struct tasklet;
 	u32 feature;
+	bool idle;			/* DMA controller is idle */
 
 	void (*toggle_ext_pause)(struct fsldma_chan *fsl_chan, int enable);
 	void (*toggle_ext_start)(struct fsldma_chan *fsl_chan, int enable);
