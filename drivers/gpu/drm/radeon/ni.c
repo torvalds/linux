@@ -381,3 +381,553 @@ out:
 	return err;
 }
 
+/*
+ * Core functions
+ */
+static u32 cayman_get_tile_pipe_to_backend_map(struct radeon_device *rdev,
+					       u32 num_tile_pipes,
+					       u32 num_backends_per_asic,
+					       u32 *backend_disable_mask_per_asic,
+					       u32 num_shader_engines)
+{
+	u32 backend_map = 0;
+	u32 enabled_backends_mask = 0;
+	u32 enabled_backends_count = 0;
+	u32 num_backends_per_se;
+	u32 cur_pipe;
+	u32 swizzle_pipe[CAYMAN_MAX_PIPES];
+	u32 cur_backend = 0;
+	u32 i;
+	bool force_no_swizzle;
+
+	/* force legal values */
+	if (num_tile_pipes < 1)
+		num_tile_pipes = 1;
+	if (num_tile_pipes > rdev->config.cayman.max_tile_pipes)
+		num_tile_pipes = rdev->config.cayman.max_tile_pipes;
+	if (num_shader_engines < 1)
+		num_shader_engines = 1;
+	if (num_shader_engines > rdev->config.cayman.max_shader_engines)
+		num_shader_engines = rdev->config.cayman.max_shader_engines;
+	if (num_backends_per_asic > num_shader_engines)
+		num_backends_per_asic = num_shader_engines;
+	if (num_backends_per_asic > (rdev->config.cayman.max_backends_per_se * num_shader_engines))
+		num_backends_per_asic = rdev->config.cayman.max_backends_per_se * num_shader_engines;
+
+	/* make sure we have the same number of backends per se */
+	num_backends_per_asic = ALIGN(num_backends_per_asic, num_shader_engines);
+	/* set up the number of backends per se */
+	num_backends_per_se = num_backends_per_asic / num_shader_engines;
+	if (num_backends_per_se > rdev->config.cayman.max_backends_per_se) {
+		num_backends_per_se = rdev->config.cayman.max_backends_per_se;
+		num_backends_per_asic = num_backends_per_se * num_shader_engines;
+	}
+
+	/* create enable mask and count for enabled backends */
+	for (i = 0; i < CAYMAN_MAX_BACKENDS; ++i) {
+		if (((*backend_disable_mask_per_asic >> i) & 1) == 0) {
+			enabled_backends_mask |= (1 << i);
+			++enabled_backends_count;
+		}
+		if (enabled_backends_count == num_backends_per_asic)
+			break;
+	}
+
+	/* force the backends mask to match the current number of backends */
+	if (enabled_backends_count != num_backends_per_asic) {
+		u32 this_backend_enabled;
+		u32 shader_engine;
+		u32 backend_per_se;
+
+		enabled_backends_mask = 0;
+		enabled_backends_count = 0;
+		*backend_disable_mask_per_asic = CAYMAN_MAX_BACKENDS_MASK;
+		for (i = 0; i < CAYMAN_MAX_BACKENDS; ++i) {
+			/* calc the current se */
+			shader_engine = i / rdev->config.cayman.max_backends_per_se;
+			/* calc the backend per se */
+			backend_per_se = i % rdev->config.cayman.max_backends_per_se;
+			/* default to not enabled */
+			this_backend_enabled = 0;
+			if ((shader_engine < num_shader_engines) &&
+			    (backend_per_se < num_backends_per_se))
+				this_backend_enabled = 1;
+			if (this_backend_enabled) {
+				enabled_backends_mask |= (1 << i);
+				*backend_disable_mask_per_asic &= ~(1 << i);
+				++enabled_backends_count;
+			}
+		}
+	}
+
+
+	memset((uint8_t *)&swizzle_pipe[0], 0, sizeof(u32) * CAYMAN_MAX_PIPES);
+	switch (rdev->family) {
+	case CHIP_CAYMAN:
+		force_no_swizzle = true;
+		break;
+	default:
+		force_no_swizzle = false;
+		break;
+	}
+	if (force_no_swizzle) {
+		bool last_backend_enabled = false;
+
+		force_no_swizzle = false;
+		for (i = 0; i < CAYMAN_MAX_BACKENDS; ++i) {
+			if (((enabled_backends_mask >> i) & 1) == 1) {
+				if (last_backend_enabled)
+					force_no_swizzle = true;
+				last_backend_enabled = true;
+			} else
+				last_backend_enabled = false;
+		}
+	}
+
+	switch (num_tile_pipes) {
+	case 1:
+	case 3:
+	case 5:
+	case 7:
+		DRM_ERROR("odd number of pipes!\n");
+		break;
+	case 2:
+		swizzle_pipe[0] = 0;
+		swizzle_pipe[1] = 1;
+		break;
+	case 4:
+		if (force_no_swizzle) {
+			swizzle_pipe[0] = 0;
+			swizzle_pipe[1] = 1;
+			swizzle_pipe[2] = 2;
+			swizzle_pipe[3] = 3;
+		} else {
+			swizzle_pipe[0] = 0;
+			swizzle_pipe[1] = 2;
+			swizzle_pipe[2] = 1;
+			swizzle_pipe[3] = 3;
+		}
+		break;
+	case 6:
+		if (force_no_swizzle) {
+			swizzle_pipe[0] = 0;
+			swizzle_pipe[1] = 1;
+			swizzle_pipe[2] = 2;
+			swizzle_pipe[3] = 3;
+			swizzle_pipe[4] = 4;
+			swizzle_pipe[5] = 5;
+		} else {
+			swizzle_pipe[0] = 0;
+			swizzle_pipe[1] = 2;
+			swizzle_pipe[2] = 4;
+			swizzle_pipe[3] = 1;
+			swizzle_pipe[4] = 3;
+			swizzle_pipe[5] = 5;
+		}
+		break;
+	case 8:
+		if (force_no_swizzle) {
+			swizzle_pipe[0] = 0;
+			swizzle_pipe[1] = 1;
+			swizzle_pipe[2] = 2;
+			swizzle_pipe[3] = 3;
+			swizzle_pipe[4] = 4;
+			swizzle_pipe[5] = 5;
+			swizzle_pipe[6] = 6;
+			swizzle_pipe[7] = 7;
+		} else {
+			swizzle_pipe[0] = 0;
+			swizzle_pipe[1] = 2;
+			swizzle_pipe[2] = 4;
+			swizzle_pipe[3] = 6;
+			swizzle_pipe[4] = 1;
+			swizzle_pipe[5] = 3;
+			swizzle_pipe[6] = 5;
+			swizzle_pipe[7] = 7;
+		}
+		break;
+	}
+
+	for (cur_pipe = 0; cur_pipe < num_tile_pipes; ++cur_pipe) {
+		while (((1 << cur_backend) & enabled_backends_mask) == 0)
+			cur_backend = (cur_backend + 1) % CAYMAN_MAX_BACKENDS;
+
+		backend_map |= (((cur_backend & 0xf) << (swizzle_pipe[cur_pipe] * 4)));
+
+		cur_backend = (cur_backend + 1) % CAYMAN_MAX_BACKENDS;
+	}
+
+	return backend_map;
+}
+
+static void cayman_program_channel_remap(struct radeon_device *rdev)
+{
+	u32 tcp_chan_steer_lo, tcp_chan_steer_hi, mc_shared_chremap, tmp;
+
+	tmp = RREG32(MC_SHARED_CHMAP);
+	switch ((tmp & NOOFCHAN_MASK) >> NOOFCHAN_SHIFT) {
+	case 0:
+	case 1:
+	case 2:
+	case 3:
+	default:
+		/* default mapping */
+		mc_shared_chremap = 0x00fac688;
+		break;
+	}
+
+	switch (rdev->family) {
+	case CHIP_CAYMAN:
+	default:
+		//tcp_chan_steer_lo = 0x54763210
+		tcp_chan_steer_lo = 0x76543210;
+		tcp_chan_steer_hi = 0x0000ba98;
+		break;
+	}
+
+	WREG32(TCP_CHAN_STEER_LO, tcp_chan_steer_lo);
+	WREG32(TCP_CHAN_STEER_HI, tcp_chan_steer_hi);
+	WREG32(MC_SHARED_CHREMAP, mc_shared_chremap);
+}
+
+static u32 cayman_get_disable_mask_per_asic(struct radeon_device *rdev,
+					    u32 disable_mask_per_se,
+					    u32 max_disable_mask_per_se,
+					    u32 num_shader_engines)
+{
+	u32 disable_field_width_per_se = r600_count_pipe_bits(disable_mask_per_se);
+	u32 disable_mask_per_asic = disable_mask_per_se & max_disable_mask_per_se;
+
+	if (num_shader_engines == 1)
+		return disable_mask_per_asic;
+	else if (num_shader_engines == 2)
+		return disable_mask_per_asic | (disable_mask_per_asic << disable_field_width_per_se);
+	else
+		return 0xffffffff;
+}
+
+static void cayman_gpu_init(struct radeon_device *rdev)
+{
+	u32 cc_rb_backend_disable = 0;
+	u32 cc_gc_shader_pipe_config;
+	u32 gb_addr_config = 0;
+	u32 mc_shared_chmap, mc_arb_ramcfg;
+	u32 gb_backend_map;
+	u32 cgts_tcc_disable;
+	u32 sx_debug_1;
+	u32 smx_dc_ctl0;
+	u32 gc_user_shader_pipe_config;
+	u32 gc_user_rb_backend_disable;
+	u32 cgts_user_tcc_disable;
+	u32 cgts_sm_ctrl_reg;
+	u32 hdp_host_path_cntl;
+	u32 tmp;
+	int i, j;
+
+	switch (rdev->family) {
+	case CHIP_CAYMAN:
+	default:
+		rdev->config.cayman.max_shader_engines = 2;
+		rdev->config.cayman.max_pipes_per_simd = 4;
+		rdev->config.cayman.max_tile_pipes = 8;
+		rdev->config.cayman.max_simds_per_se = 12;
+		rdev->config.cayman.max_backends_per_se = 4;
+		rdev->config.cayman.max_texture_channel_caches = 8;
+		rdev->config.cayman.max_gprs = 256;
+		rdev->config.cayman.max_threads = 256;
+		rdev->config.cayman.max_gs_threads = 32;
+		rdev->config.cayman.max_stack_entries = 512;
+		rdev->config.cayman.sx_num_of_sets = 8;
+		rdev->config.cayman.sx_max_export_size = 256;
+		rdev->config.cayman.sx_max_export_pos_size = 64;
+		rdev->config.cayman.sx_max_export_smx_size = 192;
+		rdev->config.cayman.max_hw_contexts = 8;
+		rdev->config.cayman.sq_num_cf_insts = 2;
+
+		rdev->config.cayman.sc_prim_fifo_size = 0x100;
+		rdev->config.cayman.sc_hiz_tile_fifo_size = 0x30;
+		rdev->config.cayman.sc_earlyz_tile_fifo_size = 0x130;
+		break;
+	}
+
+	/* Initialize HDP */
+	for (i = 0, j = 0; i < 32; i++, j += 0x18) {
+		WREG32((0x2c14 + j), 0x00000000);
+		WREG32((0x2c18 + j), 0x00000000);
+		WREG32((0x2c1c + j), 0x00000000);
+		WREG32((0x2c20 + j), 0x00000000);
+		WREG32((0x2c24 + j), 0x00000000);
+	}
+
+	WREG32(GRBM_CNTL, GRBM_READ_TIMEOUT(0xff));
+
+	mc_shared_chmap = RREG32(MC_SHARED_CHMAP);
+	mc_arb_ramcfg = RREG32(MC_ARB_RAMCFG);
+
+	cc_rb_backend_disable = RREG32(CC_RB_BACKEND_DISABLE);
+	cc_gc_shader_pipe_config = RREG32(CC_GC_SHADER_PIPE_CONFIG);
+	cgts_tcc_disable = RREG32(CGTS_TCC_DISABLE);
+	gc_user_rb_backend_disable = RREG32(GC_USER_RB_BACKEND_DISABLE);
+	gc_user_shader_pipe_config = RREG32(GC_USER_SHADER_PIPE_CONFIG);
+	cgts_user_tcc_disable = RREG32(CGTS_USER_TCC_DISABLE);
+
+	rdev->config.cayman.num_shader_engines = rdev->config.cayman.max_shader_engines;
+	tmp = ((~gc_user_shader_pipe_config) & INACTIVE_QD_PIPES_MASK) >> INACTIVE_QD_PIPES_SHIFT;
+	rdev->config.cayman.num_shader_pipes_per_simd = r600_count_pipe_bits(tmp);
+	rdev->config.cayman.num_tile_pipes = rdev->config.cayman.max_tile_pipes;
+	tmp = ((~gc_user_shader_pipe_config) & INACTIVE_SIMDS_MASK) >> INACTIVE_SIMDS_SHIFT;
+	rdev->config.cayman.num_simds_per_se = r600_count_pipe_bits(tmp);
+	tmp = ((~gc_user_rb_backend_disable) & BACKEND_DISABLE_MASK) >> BACKEND_DISABLE_SHIFT;
+	rdev->config.cayman.num_backends_per_se = r600_count_pipe_bits(tmp);
+	tmp = (gc_user_rb_backend_disable & BACKEND_DISABLE_MASK) >> BACKEND_DISABLE_SHIFT;
+	rdev->config.cayman.backend_disable_mask_per_asic =
+		cayman_get_disable_mask_per_asic(rdev, tmp, CAYMAN_MAX_BACKENDS_PER_SE_MASK,
+						 rdev->config.cayman.num_shader_engines);
+	rdev->config.cayman.backend_map =
+		cayman_get_tile_pipe_to_backend_map(rdev, rdev->config.cayman.num_tile_pipes,
+						    rdev->config.cayman.num_backends_per_se *
+						    rdev->config.cayman.num_shader_engines,
+						    &rdev->config.cayman.backend_disable_mask_per_asic,
+						    rdev->config.cayman.num_shader_engines);
+	tmp = ((~cgts_user_tcc_disable) & TCC_DISABLE_MASK) >> TCC_DISABLE_SHIFT;
+	rdev->config.cayman.num_texture_channel_caches = r600_count_pipe_bits(tmp);
+	tmp = (mc_arb_ramcfg & BURSTLENGTH_MASK) >> BURSTLENGTH_SHIFT;
+	rdev->config.cayman.mem_max_burst_length_bytes = (tmp + 1) * 256;
+	if (rdev->config.cayman.mem_max_burst_length_bytes > 512)
+		rdev->config.cayman.mem_max_burst_length_bytes = 512;
+	tmp = (mc_arb_ramcfg & NOOFCOLS_MASK) >> NOOFCOLS_SHIFT;
+	rdev->config.cayman.mem_row_size_in_kb = (4 * (1 << (8 + tmp))) / 1024;
+	if (rdev->config.cayman.mem_row_size_in_kb > 4)
+		rdev->config.cayman.mem_row_size_in_kb = 4;
+	/* XXX use MC settings? */
+	rdev->config.cayman.shader_engine_tile_size = 32;
+	rdev->config.cayman.num_gpus = 1;
+	rdev->config.cayman.multi_gpu_tile_size = 64;
+
+	//gb_addr_config = 0x02011003
+#if 0
+	gb_addr_config = RREG32(GB_ADDR_CONFIG);
+#else
+	gb_addr_config = 0;
+	switch (rdev->config.cayman.num_tile_pipes) {
+	case 1:
+	default:
+		gb_addr_config |= NUM_PIPES(0);
+		break;
+	case 2:
+		gb_addr_config |= NUM_PIPES(1);
+		break;
+	case 4:
+		gb_addr_config |= NUM_PIPES(2);
+		break;
+	case 8:
+		gb_addr_config |= NUM_PIPES(3);
+		break;
+	}
+
+	tmp = (rdev->config.cayman.mem_max_burst_length_bytes / 256) - 1;
+	gb_addr_config |= PIPE_INTERLEAVE_SIZE(tmp);
+	gb_addr_config |= NUM_SHADER_ENGINES(rdev->config.cayman.num_shader_engines - 1);
+	tmp = (rdev->config.cayman.shader_engine_tile_size / 16) - 1;
+	gb_addr_config |= SHADER_ENGINE_TILE_SIZE(tmp);
+	switch (rdev->config.cayman.num_gpus) {
+	case 1:
+	default:
+		gb_addr_config |= NUM_GPUS(0);
+		break;
+	case 2:
+		gb_addr_config |= NUM_GPUS(1);
+		break;
+	case 4:
+		gb_addr_config |= NUM_GPUS(2);
+		break;
+	}
+	switch (rdev->config.cayman.multi_gpu_tile_size) {
+	case 16:
+		gb_addr_config |= MULTI_GPU_TILE_SIZE(0);
+		break;
+	case 32:
+	default:
+		gb_addr_config |= MULTI_GPU_TILE_SIZE(1);
+		break;
+	case 64:
+		gb_addr_config |= MULTI_GPU_TILE_SIZE(2);
+		break;
+	case 128:
+		gb_addr_config |= MULTI_GPU_TILE_SIZE(3);
+		break;
+	}
+	switch (rdev->config.cayman.mem_row_size_in_kb) {
+	case 1:
+	default:
+		gb_addr_config |= ROW_SIZE(0);
+		break;
+	case 2:
+		gb_addr_config |= ROW_SIZE(1);
+		break;
+	case 4:
+		gb_addr_config |= ROW_SIZE(2);
+		break;
+	}
+#endif
+
+	tmp = (gb_addr_config & NUM_PIPES_MASK) >> NUM_PIPES_SHIFT;
+	rdev->config.cayman.num_tile_pipes = (1 << tmp);
+	tmp = (gb_addr_config & PIPE_INTERLEAVE_SIZE_MASK) >> PIPE_INTERLEAVE_SIZE_SHIFT;
+	rdev->config.cayman.mem_max_burst_length_bytes = (tmp + 1) * 256;
+	tmp = (gb_addr_config & NUM_SHADER_ENGINES_MASK) >> NUM_SHADER_ENGINES_SHIFT;
+	rdev->config.cayman.num_shader_engines = tmp + 1;
+	tmp = (gb_addr_config & NUM_GPUS_MASK) >> NUM_GPUS_SHIFT;
+	rdev->config.cayman.num_gpus = tmp + 1;
+	tmp = (gb_addr_config & MULTI_GPU_TILE_SIZE_MASK) >> MULTI_GPU_TILE_SIZE_SHIFT;
+	rdev->config.cayman.multi_gpu_tile_size = 1 << tmp;
+	tmp = (gb_addr_config & ROW_SIZE_MASK) >> ROW_SIZE_SHIFT;
+	rdev->config.cayman.mem_row_size_in_kb = 1 << tmp;
+
+	//gb_backend_map = 0x76541032;
+#if 0
+	gb_backend_map = RREG32(GB_BACKEND_MAP);
+#else
+	gb_backend_map =
+		cayman_get_tile_pipe_to_backend_map(rdev, rdev->config.cayman.num_tile_pipes,
+						    rdev->config.cayman.num_backends_per_se *
+						    rdev->config.cayman.num_shader_engines,
+						    &rdev->config.cayman.backend_disable_mask_per_asic,
+						    rdev->config.cayman.num_shader_engines);
+#endif
+	/* setup tiling info dword.  gb_addr_config is not adequate since it does
+	 * not have bank info, so create a custom tiling dword.
+	 * bits 3:0   num_pipes
+	 * bits 7:4   num_banks
+	 * bits 11:8  group_size
+	 * bits 15:12 row_size
+	 */
+	rdev->config.cayman.tile_config = 0;
+	switch (rdev->config.cayman.num_tile_pipes) {
+	case 1:
+	default:
+		rdev->config.cayman.tile_config |= (0 << 0);
+		break;
+	case 2:
+		rdev->config.cayman.tile_config |= (1 << 0);
+		break;
+	case 4:
+		rdev->config.cayman.tile_config |= (2 << 0);
+		break;
+	case 8:
+		rdev->config.cayman.tile_config |= (3 << 0);
+		break;
+	}
+	rdev->config.cayman.tile_config |=
+		((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT) << 4;
+	rdev->config.cayman.tile_config |=
+		(gb_addr_config & PIPE_INTERLEAVE_SIZE_MASK) >> PIPE_INTERLEAVE_SIZE_SHIFT;
+	rdev->config.cayman.tile_config |=
+		((gb_addr_config & ROW_SIZE_MASK) >> ROW_SIZE_SHIFT) << 12;
+
+	WREG32(GB_BACKEND_MAP, gb_backend_map);
+	WREG32(GB_ADDR_CONFIG, gb_addr_config);
+	WREG32(DMIF_ADDR_CONFIG, gb_addr_config);
+	WREG32(HDP_ADDR_CONFIG, gb_addr_config);
+
+	cayman_program_channel_remap(rdev);
+
+	/* primary versions */
+	WREG32(CC_RB_BACKEND_DISABLE, cc_rb_backend_disable);
+	WREG32(CC_SYS_RB_BACKEND_DISABLE, cc_rb_backend_disable);
+	WREG32(CC_GC_SHADER_PIPE_CONFIG, cc_gc_shader_pipe_config);
+
+	WREG32(CGTS_TCC_DISABLE, cgts_tcc_disable);
+	WREG32(CGTS_SYS_TCC_DISABLE, cgts_tcc_disable);
+
+	/* user versions */
+	WREG32(GC_USER_RB_BACKEND_DISABLE, cc_rb_backend_disable);
+	WREG32(GC_USER_SYS_RB_BACKEND_DISABLE, cc_rb_backend_disable);
+	WREG32(GC_USER_SHADER_PIPE_CONFIG, cc_gc_shader_pipe_config);
+
+	WREG32(CGTS_USER_SYS_TCC_DISABLE, cgts_tcc_disable);
+	WREG32(CGTS_USER_TCC_DISABLE, cgts_tcc_disable);
+
+	/* reprogram the shader complex */
+	cgts_sm_ctrl_reg = RREG32(CGTS_SM_CTRL_REG);
+	for (i = 0; i < 16; i++)
+		WREG32(CGTS_SM_CTRL_REG, OVERRIDE);
+	WREG32(CGTS_SM_CTRL_REG, cgts_sm_ctrl_reg);
+
+	/* set HW defaults for 3D engine */
+	WREG32(CP_MEQ_THRESHOLDS, MEQ1_START(0x30) | MEQ2_START(0x60));
+
+	sx_debug_1 = RREG32(SX_DEBUG_1);
+	sx_debug_1 |= ENABLE_NEW_SMX_ADDRESS;
+	WREG32(SX_DEBUG_1, sx_debug_1);
+
+	smx_dc_ctl0 = RREG32(SMX_DC_CTL0);
+	smx_dc_ctl0 &= ~NUMBER_OF_SETS(0x1ff);
+	smx_dc_ctl0 |= NUMBER_OF_SETS(rdev->config.evergreen.sx_num_of_sets);
+	WREG32(SMX_DC_CTL0, smx_dc_ctl0);
+
+	WREG32(SPI_CONFIG_CNTL_1, VTX_DONE_DELAY(4) | CRC_SIMD_ID_WADDR_DISABLE);
+
+	/* need to be explicitly zero-ed */
+	WREG32(VGT_OFFCHIP_LDS_BASE, 0);
+	WREG32(SQ_LSTMP_RING_BASE, 0);
+	WREG32(SQ_HSTMP_RING_BASE, 0);
+	WREG32(SQ_ESTMP_RING_BASE, 0);
+	WREG32(SQ_GSTMP_RING_BASE, 0);
+	WREG32(SQ_VSTMP_RING_BASE, 0);
+	WREG32(SQ_PSTMP_RING_BASE, 0);
+
+	WREG32(TA_CNTL_AUX, DISABLE_CUBE_ANISO);
+
+	WREG32(SX_EXPORT_BUFFER_SIZES, (COLOR_BUFFER_SIZE((rdev->config.evergreen.sx_max_export_size / 4) - 1) |
+					POSITION_BUFFER_SIZE((rdev->config.evergreen.sx_max_export_pos_size / 4) - 1) |
+					SMX_BUFFER_SIZE((rdev->config.evergreen.sx_max_export_smx_size / 4) - 1)));
+
+	WREG32(PA_SC_FIFO_SIZE, (SC_PRIM_FIFO_SIZE(rdev->config.evergreen.sc_prim_fifo_size) |
+				 SC_HIZ_TILE_FIFO_SIZE(rdev->config.evergreen.sc_hiz_tile_fifo_size) |
+				 SC_EARLYZ_TILE_FIFO_SIZE(rdev->config.evergreen.sc_earlyz_tile_fifo_size)));
+
+
+	WREG32(VGT_NUM_INSTANCES, 1);
+
+	WREG32(CP_PERFMON_CNTL, 0);
+
+	WREG32(SQ_MS_FIFO_SIZES, (CACHE_FIFO_SIZE(16 * rdev->config.evergreen.sq_num_cf_insts) |
+				  FETCH_FIFO_HIWATER(0x4) |
+				  DONE_FIFO_HIWATER(0xe0) |
+				  ALU_UPDATE_FIFO_HIWATER(0x8)));
+
+	WREG32(SQ_GPR_RESOURCE_MGMT_1, NUM_CLAUSE_TEMP_GPRS(4));
+	WREG32(SQ_CONFIG, (VC_ENABLE |
+			   EXPORT_SRC_C |
+			   GFX_PRIO(0) |
+			   CS1_PRIO(0) |
+			   CS2_PRIO(1)));
+	WREG32(SQ_DYN_GPR_CNTL_PS_FLUSH_REQ, DYN_GPR_ENABLE);
+
+	WREG32(PA_SC_FORCE_EOV_MAX_CNTS, (FORCE_EOV_MAX_CLK_CNT(4095) |
+					  FORCE_EOV_MAX_REZ_CNT(255)));
+
+	WREG32(VGT_CACHE_INVALIDATION, CACHE_INVALIDATION(VC_AND_TC) |
+	       AUTO_INVLD_EN(ES_AND_GS_AUTO));
+
+	WREG32(VGT_GS_VERTEX_REUSE, 16);
+	WREG32(PA_SC_LINE_STIPPLE_STATE, 0);
+
+	WREG32(CB_PERF_CTR0_SEL_0, 0);
+	WREG32(CB_PERF_CTR0_SEL_1, 0);
+	WREG32(CB_PERF_CTR1_SEL_0, 0);
+	WREG32(CB_PERF_CTR1_SEL_1, 0);
+	WREG32(CB_PERF_CTR2_SEL_0, 0);
+	WREG32(CB_PERF_CTR2_SEL_1, 0);
+	WREG32(CB_PERF_CTR3_SEL_0, 0);
+	WREG32(CB_PERF_CTR3_SEL_1, 0);
+
+	hdp_host_path_cntl = RREG32(HDP_HOST_PATH_CNTL);
+	WREG32(HDP_HOST_PATH_CNTL, hdp_host_path_cntl);
+
+	WREG32(PA_CL_ENHANCE, CLIP_VTX_REORDER_ENA | NUM_CLIP_SEQ(3));
+
+	udelay(50);
+}
+

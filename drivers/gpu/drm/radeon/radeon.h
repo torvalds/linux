@@ -1050,12 +1050,52 @@ struct evergreen_asic {
 	struct r100_gpu_lockup	lockup;
 };
 
+struct cayman_asic {
+	unsigned max_shader_engines;
+	unsigned max_pipes_per_simd;
+	unsigned max_tile_pipes;
+	unsigned max_simds_per_se;
+	unsigned max_backends_per_se;
+	unsigned max_texture_channel_caches;
+	unsigned max_gprs;
+	unsigned max_threads;
+	unsigned max_gs_threads;
+	unsigned max_stack_entries;
+	unsigned sx_num_of_sets;
+	unsigned sx_max_export_size;
+	unsigned sx_max_export_pos_size;
+	unsigned sx_max_export_smx_size;
+	unsigned max_hw_contexts;
+	unsigned sq_num_cf_insts;
+	unsigned sc_prim_fifo_size;
+	unsigned sc_hiz_tile_fifo_size;
+	unsigned sc_earlyz_tile_fifo_size;
+
+	unsigned num_shader_engines;
+	unsigned num_shader_pipes_per_simd;
+	unsigned num_tile_pipes;
+	unsigned num_simds_per_se;
+	unsigned num_backends_per_se;
+	unsigned backend_disable_mask_per_asic;
+	unsigned backend_map;
+	unsigned num_texture_channel_caches;
+	unsigned mem_max_burst_length_bytes;
+	unsigned mem_row_size_in_kb;
+	unsigned shader_engine_tile_size;
+	unsigned num_gpus;
+	unsigned multi_gpu_tile_size;
+
+	unsigned tile_config;
+	struct r100_gpu_lockup	lockup;
+};
+
 union radeon_asic_config {
 	struct r300_asic	r300;
 	struct r100_asic	r100;
 	struct r600_asic	r600;
 	struct rv770_asic	rv770;
 	struct evergreen_asic	evergreen;
+	struct cayman_asic	cayman;
 };
 
 /*
