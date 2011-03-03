@@ -7346,14 +7346,10 @@ static struct cgroup_subsys_state *perf_cgroup_create(
 	struct cgroup_subsys *ss, struct cgroup *cont)
 {
 	struct perf_cgroup *jc;
-	struct perf_cgroup_info *t;
-	int c;
 
-	jc = kmalloc(sizeof(*jc), GFP_KERNEL);
+	jc = kzalloc(sizeof(*jc), GFP_KERNEL);
 	if (!jc)
 		return ERR_PTR(-ENOMEM);
-
-	memset(jc, 0, sizeof(*jc));
 
 	jc->info = alloc_percpu(struct perf_cgroup_info);
 	if (!jc->info) {
@@ -7361,11 +7357,6 @@ static struct cgroup_subsys_state *perf_cgroup_create(
 		return ERR_PTR(-ENOMEM);
 	}
 
-	for_each_possible_cpu(c) {
-		t = per_cpu_ptr(jc->info, c);
-		t->time = 0;
-		t->timestamp = 0;
-	}
 	return &jc->css;
 }
 
