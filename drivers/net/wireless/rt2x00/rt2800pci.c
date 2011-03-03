@@ -726,7 +726,7 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 
 	while (kfifo_get(&rt2x00dev->txstatus_fifo, &status)) {
 		qid = rt2x00_get_field32(status, TX_STA_FIFO_PID_QUEUE);
-		if (qid >= QID_RX) {
+		if (unlikely(qid >= QID_RX)) {
 			/*
 			 * Unknown queue, this shouldn't happen. Just drop
 			 * this tx status.
@@ -747,7 +747,7 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 			break;
 		}
 
-		if (rt2x00queue_empty(queue)) {
+		if (unlikely(rt2x00queue_empty(queue))) {
 			/*
 			 * The queue is empty. Stop processing here
 			 * and drop the tx status.
