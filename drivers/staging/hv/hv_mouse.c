@@ -88,7 +88,7 @@ struct synthhid_msg_hdr {
 };
 
 struct synthhid_msg {
-	struct synthhid_msg_hdr Header;
+	struct synthhid_msg_hdr header;
 	char                    Data[1]; /* Enclosed message */
 };
 
@@ -105,29 +105,29 @@ union synthhid_version {
  * Protocol messages
  */
 struct synthhid_protocol_request {
-	struct synthhid_msg_hdr Header;
+	struct synthhid_msg_hdr header;
 	union synthhid_version VersionRequested;
 };
 
 struct synthhid_protocol_response {
-	struct synthhid_msg_hdr Header;
+	struct synthhid_msg_hdr header;
 	union synthhid_version VersionRequested;
 	unsigned char Approved;
 };
 
 struct synthhid_device_info {
-	struct synthhid_msg_hdr     Header;
+	struct synthhid_msg_hdr header;
 	struct hv_input_dev_info    HidDeviceAttributes;
 	unsigned char               HidDescriptorInformation[1];
 };
 
 struct synthhid_device_info_ack {
-	struct synthhid_msg_hdr Header;
+	struct synthhid_msg_hdr header;
 	unsigned char           Reserved;
 };
 
 struct synthhid_input_report {
-	struct synthhid_msg_hdr Header;
+	struct synthhid_msg_hdr header;
 	char                    ReportBuffer[1];
 };
 
@@ -386,8 +386,8 @@ static void MousevscOnReceiveDeviceInfo(struct mousevsc_dev *InputDevice, struct
 	ack.PacketType = PipeMessageData;
 	ack.DataSize = sizeof(struct synthhid_device_info_ack);
 
-	ack.u.Ack.Header.type = SynthHidInitialDeviceInfoAck;
-	ack.u.Ack.Header.size = 1;
+	ack.u.Ack.header.type = SynthHidInitialDeviceInfoAck;
+	ack.u.Ack.header.size = 1;
 	ack.u.Ack.Reserved = 0;
 
 	ret = vmbus_sendpacket(InputDevice->Device->channel,
@@ -437,7 +437,7 @@ static void MousevscOnReceiveInputReport(struct mousevsc_dev *InputDevice, struc
 
 	inputreport_callback(InputDevice->Device,
 			     InputReport->ReportBuffer,
-			     InputReport->Header.size);
+			     InputReport->header.size);
 }
 
 static void MousevscOnReceive(struct hv_device *Device, struct vmpacket_descriptor *Packet)
@@ -463,7 +463,7 @@ static void MousevscOnReceive(struct hv_device *Device, struct vmpacket_descript
 
 	hidMsg = (struct synthhid_msg *)&pipeMsg->Data[0];
 
-	switch (hidMsg->Header.type) {
+	switch (hidMsg->header.type) {
 	case SynthHidProtocolResponse:
 		memcpy(&inputDevice->ProtocolResp, pipeMsg, pipeMsg->DataSize+sizeof(struct pipe_prt_msg) - sizeof(unsigned char));
 		inputDevice->protocol_wait_condition = 1;
@@ -487,7 +487,7 @@ static void MousevscOnReceive(struct hv_device *Device, struct vmpacket_descript
 		break;
 	default:
 		pr_err("unsupported hid msg type - type %d len %d",
-		       hidMsg->Header.type, hidMsg->Header.size);
+		       hidMsg->header.type, hidMsg->header.size);
 		break;
 	}
 
@@ -609,8 +609,8 @@ static int MousevscConnectToVsp(struct hv_device *Device)
 	request->PacketType = PipeMessageData;
 	request->DataSize = sizeof(struct synthhid_protocol_request);
 
-	request->u.Request.Header.type = SynthHidProtocolRequest;
-	request->u.Request.Header.size = sizeof(unsigned long);
+	request->u.Request.header.type = SynthHidProtocolRequest;
+	request->u.Request.header.size = sizeof(unsigned long);
 	request->u.Request.VersionRequested.AsDWord =
 		SYNTHHID_INPUT_VERSION_DWORD;
 
