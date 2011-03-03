@@ -752,18 +752,18 @@ void PHY_SetRtl8192eRfOff(struct net_device* dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	//disable RF-Chip A/B
-	rtl8192_setBBreg(dev, rFPGA0_XA_RFInterfaceOE, BIT4, 0x0);
+	rtl8192_setBBreg(priv, rFPGA0_XA_RFInterfaceOE, BIT4, 0x0);
 	//analog to digital off, for power save
-	rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0x300, 0x0);
+	rtl8192_setBBreg(priv, rFPGA0_AnalogParameter4, 0x300, 0x0);
 	//digital to analog off, for power save
-	rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x18, 0x0);
+	rtl8192_setBBreg(priv, rFPGA0_AnalogParameter1, 0x18, 0x0);
 	//rx antenna off
-	rtl8192_setBBreg(dev, rOFDM0_TRxPathEnable, 0xf, 0x0);
+	rtl8192_setBBreg(priv, rOFDM0_TRxPathEnable, 0xf, 0x0);
 	//rx antenna off
-	rtl8192_setBBreg(dev, rOFDM1_TRxPathEnable, 0xf, 0x0);
+	rtl8192_setBBreg(priv, rOFDM1_TRxPathEnable, 0xf, 0x0);
 	//analog to digital part2 off, for power save
-	rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x60, 0x0);
-	rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x4, 0x0);
+	rtl8192_setBBreg(priv, rFPGA0_AnalogParameter1, 0x60, 0x0);
+	rtl8192_setBBreg(priv, rFPGA0_AnalogParameter1, 0x4, 0x0);
 	// Analog parameter!!Change bias and Lbus control.
 	write_nic_byte(priv, ANAPAR_FOR_8192PciE, 0x07);
 
@@ -2659,7 +2659,7 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	//3// Initialize BB before MAC
 	//3//
 	RT_TRACE(COMP_INIT, "BB Config Start!\n");
-	rtStatus = rtl8192_BBConfig(dev);
+	rtStatus = rtl8192_BBConfig(priv);
 	if(rtStatus != RT_STATUS_SUCCESS)
 	{
 		RT_TRACE(COMP_ERR, "BB Config failed\n");
@@ -2768,11 +2768,11 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	//2=======================================================
 	// Set PHY related configuration defined in MAC register bank
 	//2=======================================================
-	rtl8192_phy_configmac(dev);
+	rtl8192_phy_configmac(priv);
 
 	if (priv->card_8192_version > (u8) VERSION_8190_BD) {
-		rtl8192_phy_getTxPower(dev);
-		rtl8192_phy_setTxPower(dev, priv->chan);
+		rtl8192_phy_getTxPower(priv);
+		rtl8192_phy_setTxPower(priv, priv->chan);
 	}
 
 	//if D or C cut
@@ -2811,7 +2811,7 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	if(priv->ResetProgress == RESET_TYPE_NORESET)
 	{
 	RT_TRACE(COMP_INIT, "RF Config Started!\n");
-	rtStatus = rtl8192_phy_RFConfig(dev);
+	rtStatus = rtl8192_phy_RFConfig(priv);
 	if(rtStatus != RT_STATUS_SUCCESS)
 	{
 		RT_TRACE(COMP_ERR, "RF Config failed\n");
@@ -2819,11 +2819,11 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	}
 	RT_TRACE(COMP_INIT, "RF Config Finished!\n");
 	}
-	rtl8192_phy_updateInitGain(dev);
+	rtl8192_phy_updateInitGain(priv);
 
 	/*---- Set CCK and OFDM Block "ON"----*/
-	rtl8192_setBBreg(dev, rFPGA0_RFMOD, bCCKEn, 0x1);
-	rtl8192_setBBreg(dev, rFPGA0_RFMOD, bOFDMEn, 0x1);
+	rtl8192_setBBreg(priv, rFPGA0_RFMOD, bCCKEn, 0x1);
+	rtl8192_setBBreg(priv, rFPGA0_RFMOD, bOFDMEn, 0x1);
 
 	//Enable Led
 	write_nic_byte(priv, 0x87, 0x0);
@@ -2864,8 +2864,8 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 
 		if(priv->IC_Cut >= IC_VersionCut_D)
 		{
-			tmpRegA= rtl8192_QueryBBReg(dev,rOFDM0_XATxIQImbalance,bMaskDWord);
-			tmpRegC= rtl8192_QueryBBReg(dev,rOFDM0_XCTxIQImbalance,bMaskDWord);
+			tmpRegA = rtl8192_QueryBBReg(priv, rOFDM0_XATxIQImbalance, bMaskDWord);
+			tmpRegC = rtl8192_QueryBBReg(priv, rOFDM0_XCTxIQImbalance, bMaskDWord);
 			for(i = 0; i<TxBBGainTableLength; i++)
 			{
 				if(tmpRegA == priv->txbbgain_table[i].txbbgain_value)
@@ -2877,7 +2877,7 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 				}
 			}
 
-		TempCCk = rtl8192_QueryBBReg(dev, rCCK0_TxFilter1, bMaskByte2);
+		TempCCk = rtl8192_QueryBBReg(priv, rCCK0_TxFilter1, bMaskByte2);
 
 		for(i=0 ; i<CCKTxBBGainTableLength ; i++)
 		{
@@ -3873,7 +3873,7 @@ static void rtl8192_process_phyinfo(struct r8192_priv * priv, u8* buffer,struct 
 	{
 		for (rfpath = RF90_PATH_A; rfpath < RF90_PATH_C; rfpath++)
 		{
-			if (!rtl8192_phy_CheckIsLegalRFPath(priv->ieee80211->dev, rfpath))
+			if (!rtl8192_phy_CheckIsLegalRFPath(priv, rfpath))
 				continue;
 			RT_TRACE(COMP_DBG, "pPreviousstats->RxMIMOSignalStrength[rfpath] = %d\n", pprevious_stats->RxMIMOSignalStrength[rfpath]);
 			//Fixed by Jacken 2008-03-20
@@ -4125,7 +4125,7 @@ static void rtl8192_query_rxphystatus(
 	/*2007.08.30 requested by SD3 Jerry */
 	if (priv->phy_check_reg824 == 0)
 	{
-		priv->phy_reg824_bit9 = rtl8192_QueryBBReg(priv->ieee80211->dev, rFPGA0_XA_HSSIParameter2, 0x200);
+		priv->phy_reg824_bit9 = rtl8192_QueryBBReg(priv, rFPGA0_XA_HSSIParameter2, 0x200);
 		priv->phy_check_reg824 = 1;
 	}
 

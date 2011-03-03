@@ -586,20 +586,20 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device * dev)
 					if(priv->rfa_txpowertrackingindex_real > 4)
 					{
 						priv->rfa_txpowertrackingindex_real--;
-						rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance, bMaskDWord, priv->txbbgain_table[priv->rfa_txpowertrackingindex_real].txbbgain_value);
+						rtl8192_setBBreg(priv, rOFDM0_XATxIQImbalance, bMaskDWord, priv->txbbgain_table[priv->rfa_txpowertrackingindex_real].txbbgain_value);
 					}
 
 					priv->rfc_txpowertrackingindex--;
 					if(priv->rfc_txpowertrackingindex_real > 4)
 					{
 						priv->rfc_txpowertrackingindex_real--;
-						rtl8192_setBBreg(dev, rOFDM0_XCTxIQImbalance, bMaskDWord, priv->txbbgain_table[priv->rfc_txpowertrackingindex_real].txbbgain_value);
+						rtl8192_setBBreg(priv, rOFDM0_XCTxIQImbalance, bMaskDWord, priv->txbbgain_table[priv->rfc_txpowertrackingindex_real].txbbgain_value);
 					}
 						}
 						else
 						{
-								rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance, bMaskDWord, priv->txbbgain_table[4].txbbgain_value);
-								rtl8192_setBBreg(dev, rOFDM0_XCTxIQImbalance, bMaskDWord, priv->txbbgain_table[4].txbbgain_value);
+								rtl8192_setBBreg(priv, rOFDM0_XATxIQImbalance, bMaskDWord, priv->txbbgain_table[4].txbbgain_value);
+								rtl8192_setBBreg(priv, rOFDM0_XCTxIQImbalance, bMaskDWord, priv->txbbgain_table[4].txbbgain_value);
 				}
 			}
 			else
@@ -610,11 +610,11 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device * dev)
 							if(priv->rfc_txpowertrackingindex_real > 4)
 							{
 								priv->rfc_txpowertrackingindex_real--;
-								rtl8192_setBBreg(dev, rOFDM0_XCTxIQImbalance, bMaskDWord, priv->txbbgain_table[priv->rfc_txpowertrackingindex_real].txbbgain_value);
+								rtl8192_setBBreg(priv, rOFDM0_XCTxIQImbalance, bMaskDWord, priv->txbbgain_table[priv->rfc_txpowertrackingindex_real].txbbgain_value);
 							}
 						}
 						else
-							rtl8192_setBBreg(dev, rOFDM0_XCTxIQImbalance, bMaskDWord, priv->txbbgain_table[4].txbbgain_value);
+							rtl8192_setBBreg(priv, rOFDM0_XCTxIQImbalance, bMaskDWord, priv->txbbgain_table[4].txbbgain_value);
 				}
 			}
 			else
@@ -625,15 +625,15 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device * dev)
 				{
 					priv->rfa_txpowertrackingindex++;
 					priv->rfa_txpowertrackingindex_real++;
-					rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance, bMaskDWord, priv->txbbgain_table[priv->rfa_txpowertrackingindex_real].txbbgain_value);
+					rtl8192_setBBreg(priv, rOFDM0_XATxIQImbalance, bMaskDWord, priv->txbbgain_table[priv->rfa_txpowertrackingindex_real].txbbgain_value);
 					priv->rfc_txpowertrackingindex++;
 					priv->rfc_txpowertrackingindex_real++;
-					rtl8192_setBBreg(dev, rOFDM0_XCTxIQImbalance, bMaskDWord, priv->txbbgain_table[priv->rfc_txpowertrackingindex_real].txbbgain_value);
+					rtl8192_setBBreg(priv, rOFDM0_XCTxIQImbalance, bMaskDWord, priv->txbbgain_table[priv->rfc_txpowertrackingindex_real].txbbgain_value);
 				}
 					else
 					{
-						rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance, bMaskDWord, priv->txbbgain_table[TxBBGainTableLength - 1].txbbgain_value);
-						rtl8192_setBBreg(dev, rOFDM0_XCTxIQImbalance, bMaskDWord, priv->txbbgain_table[TxBBGainTableLength - 1].txbbgain_value);
+						rtl8192_setBBreg(priv, rOFDM0_XATxIQImbalance, bMaskDWord, priv->txbbgain_table[TxBBGainTableLength - 1].txbbgain_value);
+						rtl8192_setBBreg(priv, rOFDM0_XCTxIQImbalance, bMaskDWord, priv->txbbgain_table[TxBBGainTableLength - 1].txbbgain_value);
 			}
 				}
 				else
@@ -642,10 +642,10 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device * dev)
 					{
 							priv->rfc_txpowertrackingindex++;
 							priv->rfc_txpowertrackingindex_real++;
-							rtl8192_setBBreg(dev, rOFDM0_XCTxIQImbalance, bMaskDWord, priv->txbbgain_table[priv->rfc_txpowertrackingindex_real].txbbgain_value);
+							rtl8192_setBBreg(priv, rOFDM0_XCTxIQImbalance, bMaskDWord, priv->txbbgain_table[priv->rfc_txpowertrackingindex_real].txbbgain_value);
 					}
 					else
-							rtl8192_setBBreg(dev, rOFDM0_XCTxIQImbalance, bMaskDWord, priv->txbbgain_table[TxBBGainTableLength - 1].txbbgain_value);
+							rtl8192_setBBreg(priv, rOFDM0_XCTxIQImbalance, bMaskDWord, priv->txbbgain_table[TxBBGainTableLength - 1].txbbgain_value);
 				}
 			}
 			if (RF_Type == RF_2T4R)
@@ -721,7 +721,7 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 	if(!priv->btxpower_trackingInit)
 	{
 		//Query OFDM default setting
-		tmpRegA= rtl8192_QueryBBReg(dev, rOFDM0_XATxIQImbalance, bMaskDWord);
+		tmpRegA = rtl8192_QueryBBReg(priv, rOFDM0_XATxIQImbalance, bMaskDWord);
 		for(i=0; i<OFDM_Table_Length; i++)	//find the index
 		{
 			if(tmpRegA == OFDMSwingTable[i])
@@ -733,7 +733,7 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 		}
 
 		//Query CCK default setting From 0xa22
-		TempCCk = rtl8192_QueryBBReg(dev, rCCK0_TxFilter1, bMaskByte2);
+		TempCCk = rtl8192_QueryBBReg(priv, rCCK0_TxFilter1, bMaskByte2);
 		for(i=0 ; i<CCK_Table_length ; i++)
 		{
 			if(TempCCk == (u32)CCKSwingTable_Ch1_Ch13[i][0])
@@ -750,7 +750,7 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 	}
 
 	// read and filter out unreasonable value
-	tmpRegA = rtl8192_phy_QueryRFReg(dev, RF90_PATH_A, 0x12, 0x078);	// 0x12: RF Reg[10:7]
+	tmpRegA = rtl8192_phy_QueryRFReg(priv, RF90_PATH_A, 0x12, 0x078);	// 0x12: RF Reg[10:7]
 	RT_TRACE(COMP_POWER_TRACKING, "Readback ThermalMeterA = %d\n", tmpRegA);
 	if(tmpRegA < 3 || tmpRegA > 13)
 		return;
@@ -817,7 +817,7 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 	if(priv->OFDM_index != tmpOFDMindex)
 	{
 		priv->OFDM_index = tmpOFDMindex;
-		rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance, bMaskDWord, OFDMSwingTable[priv->OFDM_index]);
+		rtl8192_setBBreg(priv, rOFDM0_XATxIQImbalance, bMaskDWord, OFDMSwingTable[priv->OFDM_index]);
 		RT_TRACE(COMP_POWER_TRACKING, "Update OFDMSwing[%d] = 0x%x\n",
 			priv->OFDM_index, OFDMSwingTable[priv->OFDM_index]);
 	}
@@ -1014,10 +1014,10 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 	{
 		//Attention!! You have to wirte all 12bits data to RF, or it may cause RF to crash
 		//actually write reg0x02 bit1=0, then bit1=1.
-		rtl8192_phy_SetRFReg(dev, RF90_PATH_A, 0x02, bMask12Bits, 0x4d);
-		rtl8192_phy_SetRFReg(dev, RF90_PATH_A, 0x02, bMask12Bits, 0x4f);
-		rtl8192_phy_SetRFReg(dev, RF90_PATH_A, 0x02, bMask12Bits, 0x4d);
-		rtl8192_phy_SetRFReg(dev, RF90_PATH_A, 0x02, bMask12Bits, 0x4f);
+		rtl8192_phy_SetRFReg(priv, RF90_PATH_A, 0x02, bMask12Bits, 0x4d);
+		rtl8192_phy_SetRFReg(priv, RF90_PATH_A, 0x02, bMask12Bits, 0x4f);
+		rtl8192_phy_SetRFReg(priv, RF90_PATH_A, 0x02, bMask12Bits, 0x4d);
+		rtl8192_phy_SetRFReg(priv, RF90_PATH_A, 0x02, bMask12Bits, 0x4f);
 		TM_Trigger = 1;
 		return;
 	}
@@ -1049,40 +1049,40 @@ static void dm_CCKTxPowerAdjust_TSSI(struct net_device *dev, bool  bInCH14)
 		TempVal = 	(u32)(priv->cck_txbbgain_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[0] +
 					(priv->cck_txbbgain_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[1]<<8)) ;
 
-		rtl8192_setBBreg(dev, rCCK0_TxFilter1,bMaskHWord, TempVal);
+		rtl8192_setBBreg(priv, rCCK0_TxFilter1, bMaskHWord, TempVal);
 		//Write 0xa24 ~ 0xa27
 		TempVal = 0;
 		TempVal = 	(u32)(priv->cck_txbbgain_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[2] +
 					(priv->cck_txbbgain_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[3]<<8) +
 					(priv->cck_txbbgain_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[4]<<16 )+
 					(priv->cck_txbbgain_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[5]<<24));
-		rtl8192_setBBreg(dev, rCCK0_TxFilter2,bMaskDWord, TempVal);
+		rtl8192_setBBreg(priv, rCCK0_TxFilter2, bMaskDWord, TempVal);
 		//Write 0xa28  0xa29
 		TempVal = 0;
 		TempVal = 	(u32)(priv->cck_txbbgain_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[6] +
 					(priv->cck_txbbgain_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[7]<<8)) ;
 
-		rtl8192_setBBreg(dev, rCCK0_DebugPort,bMaskLWord, TempVal);
+		rtl8192_setBBreg(priv, rCCK0_DebugPort, bMaskLWord, TempVal);
 	}
 	else
 	{
 		TempVal = 	(u32)(priv->cck_txbbgain_ch14_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[0] +
 					(priv->cck_txbbgain_ch14_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[1]<<8)) ;
 
-		rtl8192_setBBreg(dev, rCCK0_TxFilter1,bMaskHWord, TempVal);
+		rtl8192_setBBreg(priv, rCCK0_TxFilter1, bMaskHWord, TempVal);
 		//Write 0xa24 ~ 0xa27
 		TempVal = 0;
 		TempVal = 	(u32)(priv->cck_txbbgain_ch14_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[2] +
 					(priv->cck_txbbgain_ch14_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[3]<<8) +
 					(priv->cck_txbbgain_ch14_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[4]<<16 )+
 					(priv->cck_txbbgain_ch14_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[5]<<24));
-		rtl8192_setBBreg(dev, rCCK0_TxFilter2,bMaskDWord, TempVal);
+		rtl8192_setBBreg(priv, rCCK0_TxFilter2, bMaskDWord, TempVal);
 		//Write 0xa28  0xa29
 		TempVal = 0;
 		TempVal = 	(u32)(priv->cck_txbbgain_ch14_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[6] +
 					(priv->cck_txbbgain_ch14_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[7]<<8)) ;
 
-		rtl8192_setBBreg(dev, rCCK0_DebugPort,bMaskLWord, TempVal);
+		rtl8192_setBBreg(priv, rCCK0_DebugPort, bMaskLWord, TempVal);
 	}
 
 
@@ -1099,7 +1099,7 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 		//Write 0xa22 0xa23
 		TempVal = 	CCKSwingTable_Ch1_Ch13[priv->CCK_index][0] +
 					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][1]<<8) ;
-		rtl8192_setBBreg(dev, rCCK0_TxFilter1, bMaskHWord, TempVal);
+		rtl8192_setBBreg(priv, rCCK0_TxFilter1, bMaskHWord, TempVal);
 		RT_TRACE(COMP_POWER_TRACKING, "CCK not chnl 14, reg 0x%x = 0x%x\n",
 			rCCK0_TxFilter1, TempVal);
 		//Write 0xa24 ~ 0xa27
@@ -1108,7 +1108,7 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][3]<<8) +
 					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][4]<<16 )+
 					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][5]<<24);
-		rtl8192_setBBreg(dev, rCCK0_TxFilter2, bMaskDWord, TempVal);
+		rtl8192_setBBreg(priv, rCCK0_TxFilter2, bMaskDWord, TempVal);
 		RT_TRACE(COMP_POWER_TRACKING, "CCK not chnl 14, reg 0x%x = 0x%x\n",
 			rCCK0_TxFilter2, TempVal);
 		//Write 0xa28  0xa29
@@ -1116,7 +1116,7 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 		TempVal = 	CCKSwingTable_Ch1_Ch13[priv->CCK_index][6] +
 					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][7]<<8) ;
 
-		rtl8192_setBBreg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
+		rtl8192_setBBreg(priv, rCCK0_DebugPort, bMaskLWord, TempVal);
 		RT_TRACE(COMP_POWER_TRACKING, "CCK not chnl 14, reg 0x%x = 0x%x\n",
 			rCCK0_DebugPort, TempVal);
 	}
@@ -1127,7 +1127,7 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 		TempVal = 	CCKSwingTable_Ch14[priv->CCK_index][0] +
 					(CCKSwingTable_Ch14[priv->CCK_index][1]<<8) ;
 
-		rtl8192_setBBreg(dev, rCCK0_TxFilter1, bMaskHWord, TempVal);
+		rtl8192_setBBreg(priv, rCCK0_TxFilter1, bMaskHWord, TempVal);
 		RT_TRACE(COMP_POWER_TRACKING, "CCK chnl 14, reg 0x%x = 0x%x\n",
 			rCCK0_TxFilter1, TempVal);
 		//Write 0xa24 ~ 0xa27
@@ -1136,7 +1136,7 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 					(CCKSwingTable_Ch14[priv->CCK_index][3]<<8) +
 					(CCKSwingTable_Ch14[priv->CCK_index][4]<<16 )+
 					(CCKSwingTable_Ch14[priv->CCK_index][5]<<24);
-		rtl8192_setBBreg(dev, rCCK0_TxFilter2, bMaskDWord, TempVal);
+		rtl8192_setBBreg(priv, rCCK0_TxFilter2, bMaskDWord, TempVal);
 		RT_TRACE(COMP_POWER_TRACKING, "CCK chnl 14, reg 0x%x = 0x%x\n",
 			rCCK0_TxFilter2, TempVal);
 		//Write 0xa28  0xa29
@@ -1144,7 +1144,7 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 		TempVal = 	CCKSwingTable_Ch14[priv->CCK_index][6] +
 					(CCKSwingTable_Ch14[priv->CCK_index][7]<<8) ;
 
-		rtl8192_setBBreg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
+		rtl8192_setBBreg(priv, rCCK0_DebugPort, bMaskLWord, TempVal);
 		RT_TRACE(COMP_POWER_TRACKING,"CCK chnl 14, reg 0x%x = 0x%x\n",
 			rCCK0_DebugPort, TempVal);
 	}
@@ -1295,7 +1295,7 @@ static void dm_ctrl_initgain_byrssi_by_driverrssi(
 	if(fw_dig <= 3)	// execute several times to make sure the FW Dig is disabled
 	{// FW DIG Off
 		for(i=0; i<3; i++)
-			rtl8192_setBBreg(dev, UFWP, bMaskByte1, 0x8);	// Only clear byte 1 and rewrite.
+			rtl8192_setBBreg(priv, UFWP, bMaskByte1, 0x8);	// Only clear byte 1 and rewrite.
 		fw_dig++;
 		dm_digtable.dig_state = DM_STA_DIG_OFF;	//fw dig off.
 	}
@@ -1332,7 +1332,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 		dm_digtable.dig_state = DM_STA_DIG_MAX;
 		// Fw DIG On.
 		for(i=0; i<3; i++)
-			rtl8192_setBBreg(dev, UFWP, bMaskByte1, 0x1);	// Only clear byte 1 and rewrite.
+			rtl8192_setBBreg(priv, UFWP, bMaskByte1, 0x1);	// Only clear byte 1 and rewrite.
 		dm_digtable.dig_algorithm_switch = 0;
 	}
 
@@ -1367,7 +1367,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 		dm_digtable.dig_state = DM_STA_DIG_OFF;
 
 		// 1.1 DIG Off.
-		rtl8192_setBBreg(dev, UFWP, bMaskByte1, 0x8);	// Only clear byte 1 and rewrite.
+		rtl8192_setBBreg(priv, UFWP, bMaskByte1, 0x8);	// Only clear byte 1 and rewrite.
 
 		// 1.2 Set initial gain.
 		write_nic_byte(priv, rOFDM0_XAAGCCore1, 0x17);
@@ -1451,7 +1451,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 		//PlatformEFIOWrite4Byte(pAdapter, rOFDM0_ECCAThreshold, 0x346);
 
 		// 2.5 DIG On.
-		rtl8192_setBBreg(dev, UFWP, bMaskByte1, 0x1);	// Only clear byte 1 and rewrite.
+		rtl8192_setBBreg(priv, UFWP, bMaskByte1, 0x1);	// Only clear byte 1 and rewrite.
 
 	}
 
@@ -2227,8 +2227,8 @@ static void dm_rxpath_sel_byrssi(struct net_device * dev)
 			//record the enabled rssi threshold
 			DM_RxPathSelTable.rf_enable_rssi_th[min_rssi_index] = tmp_max_rssi+5;
 			//disable the BB Rx path, OFDM
-			rtl8192_setBBreg(dev, rOFDM0_TRxPathEnable, 0x1<<min_rssi_index, 0x0);	// 0xc04[3:0]
-			rtl8192_setBBreg(dev, rOFDM1_TRxPathEnable, 0x1<<min_rssi_index, 0x0);	// 0xd04[3:0]
+			rtl8192_setBBreg(priv, rOFDM0_TRxPathEnable, 0x1<<min_rssi_index, 0x0);	// 0xc04[3:0]
+			rtl8192_setBBreg(priv, rOFDM1_TRxPathEnable, 0x1<<min_rssi_index, 0x0);	// 0xd04[3:0]
 			disabled_rf_cnt++;
 		}
 		if(DM_RxPathSelTable.cck_method == CCK_Rx_Version_1)
@@ -2243,7 +2243,7 @@ static void dm_rxpath_sel_byrssi(struct net_device * dev)
 	if(update_cck_rx_path)
 	{
 		DM_RxPathSelTable.cck_Rx_path = (cck_default_Rx<<2)|(cck_optional_Rx);
-		rtl8192_setBBreg(dev, rCCK0_AFESetting, 0x0f000000, DM_RxPathSelTable.cck_Rx_path);
+		rtl8192_setBBreg(priv, rCCK0_AFESetting, 0x0f000000, DM_RxPathSelTable.cck_Rx_path);
 	}
 
 	if(DM_RxPathSelTable.disabledRF)
@@ -2255,8 +2255,8 @@ static void dm_rxpath_sel_byrssi(struct net_device * dev)
 				if(tmp_max_rssi >= DM_RxPathSelTable.rf_enable_rssi_th[i])
 				{
 					//enable the BB Rx path
-					rtl8192_setBBreg(dev, rOFDM0_TRxPathEnable, 0x1<<i, 0x1);	// 0xc04[3:0]
-					rtl8192_setBBreg(dev, rOFDM1_TRxPathEnable, 0x1<<i, 0x1);	// 0xd04[3:0]
+					rtl8192_setBBreg(priv, rOFDM0_TRxPathEnable, 0x1<<i, 0x1);	// 0xc04[3:0]
+					rtl8192_setBBreg(priv, rOFDM1_TRxPathEnable, 0x1<<i, 0x1);	// 0xd04[3:0]
 					DM_RxPathSelTable.rf_enable_rssi_th[i] = 100;
 					disabled_rf_cnt--;
 				}
@@ -2696,7 +2696,7 @@ static void dm_dynamic_txpower(struct net_device *dev)
 		RT_TRACE(COMP_TXAGC, "SetTxPowerLevel8190() channel = %d\n", priv->ieee80211->current_network.channel);
 
 
-		rtl8192_phy_setTxPower(dev,priv->ieee80211->current_network.channel);
+		rtl8192_phy_setTxPower(priv, priv->ieee80211->current_network.channel);
 
 	}
 	priv->bLastDTPFlag_High = priv->bDynamicTxHighPower;
