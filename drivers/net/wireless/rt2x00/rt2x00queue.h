@@ -311,6 +311,7 @@ struct txentry_desc {
 			u16 length_low;
 			u16 signal;
 			u16 service;
+			enum ifs ifs;
 		} plcp;
 
 		struct {
@@ -325,7 +326,6 @@ struct txentry_desc {
 	u16 rate_mode;
 
 	short retry_limit;
-	enum ifs ifs;
 
 	enum cipher cipher;
 	u16 key_idx;

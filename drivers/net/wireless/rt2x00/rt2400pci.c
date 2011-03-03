@@ -1166,7 +1166,7 @@ static void rt2400pci_write_tx_desc(struct queue_entry *entry,
 			   test_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_RTS,
 			   test_bit(ENTRY_TXD_RTS_FRAME, &txdesc->flags));
-	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->ifs);
+	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->u.plcp.ifs);
 	rt2x00_set_field32(&word, TXD_W0_RETRY_MODE,
 			   test_bit(ENTRY_TXD_RETRY_MODE, &txdesc->flags));
 	rt2x00_desc_write(txd, 0, word);

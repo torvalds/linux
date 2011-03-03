@@ -262,6 +262,16 @@ static void rt2x00queue_create_tx_descriptor_plcp(struct queue_entry *entry,
 	unsigned int duration;
 	unsigned int residual;
 
+	/*
+	 * Determine with what IFS priority this frame should be send.
+	 * Set ifs to IFS_SIFS when the this is not the first fragment,
+	 * or this fragment came after RTS/CTS.
+	 */
+	if (test_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags))
+		txdesc->u.plcp.ifs = IFS_BACKOFF;
+	else
+		txdesc->u.plcp.ifs = IFS_SIFS;
+
 	/* Data length + CRC + Crypto overhead (IV/EIV/ICV/MIC) */
 	data_length = entry->skb->len + 4;
 	data_length += rt2x00crypto_tx_overhead(rt2x00dev, entry->skb);
@@ -373,17 +383,9 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	    ieee80211_is_probe_resp(hdr->frame_control))
 		__set_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags);
 
-	/*
-	 * Determine with what IFS priority this frame should be send.
-	 * Set ifs to IFS_SIFS when the this is not the first fragment,
-	 * or this fragment came after RTS/CTS.
-	 */
 	if ((tx_info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT) &&
-	    !test_bit(ENTRY_TXD_RTS_FRAME, &txdesc->flags)) {
+	    !test_bit(ENTRY_TXD_RTS_FRAME, &txdesc->flags))
 		__set_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags);
-		txdesc->ifs = IFS_BACKOFF;
-	} else
-		txdesc->ifs = IFS_SIFS;
 
 	/*
 	 * Determine rate modulation.

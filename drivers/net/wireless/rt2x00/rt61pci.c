@@ -1948,7 +1948,7 @@ static void rt61pci_write_tx_desc(struct queue_entry *entry,
 			   test_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_OFDM,
 			   (txdesc->rate_mode == RATE_MODE_OFDM));
-	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->ifs);
+	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->u.plcp.ifs);
 	rt2x00_set_field32(&word, TXD_W0_RETRY_MODE,
 			   test_bit(ENTRY_TXD_RETRY_MODE, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_TKIP_MIC,
