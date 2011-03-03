@@ -222,7 +222,7 @@ static void deviceinfo_callback(struct hv_device *dev, struct input_dev_info *in
 static void inputreport_callback(struct hv_device *dev, void *packet, u32 len);
 static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len);
 
-static inline struct mousevsc_dev *AllocInputDevice(struct hv_device *Device)
+static struct mousevsc_dev *AllocInputDevice(struct hv_device *Device)
 {
 	struct mousevsc_dev *inputDevice;
 
@@ -243,7 +243,7 @@ static inline struct mousevsc_dev *AllocInputDevice(struct hv_device *Device)
 	return inputDevice;
 }
 
-static inline void FreeInputDevice(struct mousevsc_dev *Device)
+static void FreeInputDevice(struct mousevsc_dev *Device)
 {
 	WARN_ON(atomic_read(&Device->RefCount) == 0);
 	kfree(Device);
@@ -252,7 +252,7 @@ static inline void FreeInputDevice(struct mousevsc_dev *Device)
 /*
  * Get the inputdevice object if exists and its refcount > 1
  */
-static inline struct mousevsc_dev *GetInputDevice(struct hv_device *Device)
+static struct mousevsc_dev *GetInputDevice(struct hv_device *Device)
 {
 	struct mousevsc_dev *inputDevice;
 
@@ -278,7 +278,7 @@ static inline struct mousevsc_dev *GetInputDevice(struct hv_device *Device)
 /*
  * Get the inputdevice object iff exists and its refcount > 0
  */
-static inline struct mousevsc_dev *MustGetInputDevice(struct hv_device *Device)
+static struct mousevsc_dev *MustGetInputDevice(struct hv_device *Device)
 {
 	struct mousevsc_dev *inputDevice;
 
@@ -292,7 +292,7 @@ static inline struct mousevsc_dev *MustGetInputDevice(struct hv_device *Device)
 	return inputDevice;
 }
 
-static inline void PutInputDevice(struct hv_device *Device)
+static void PutInputDevice(struct hv_device *Device)
 {
 	struct mousevsc_dev *inputDevice;
 
@@ -304,7 +304,7 @@ static inline void PutInputDevice(struct hv_device *Device)
 /*
  * Drop ref count to 1 to effectively disable GetInputDevice()
  */
-static inline struct mousevsc_dev *ReleaseInputDevice(struct hv_device *Device)
+static struct mousevsc_dev *ReleaseInputDevice(struct hv_device *Device)
 {
 	struct mousevsc_dev *inputDevice;
 
@@ -320,7 +320,7 @@ static inline struct mousevsc_dev *ReleaseInputDevice(struct hv_device *Device)
 /*
  * Drop ref count to 0. No one can use InputDevice object.
  */
-static inline struct mousevsc_dev *FinalReleaseInputDevice(struct hv_device *Device)
+static struct mousevsc_dev *FinalReleaseInputDevice(struct hv_device *Device)
 {
 	struct mousevsc_dev *inputDevice;
 
