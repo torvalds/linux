@@ -1045,7 +1045,9 @@ static DEFINE_PER_CPU(unsigned int, current_bit_idx);
  */
 static void __xen_evtchn_do_upcall(void)
 {
+	int start_word_idx, start_bit_idx;
 	int word_idx, bit_idx;
+	int i;
 	int cpu = get_cpu();
 	struct shared_info *s = HYPERVISOR_shared_info;
 	struct vcpu_info *vcpu_info = __this_cpu_read(xen_vcpu);
@@ -1065,10 +1067,12 @@ static void __xen_evtchn_do_upcall(void)
 #endif
 		pending_words = xchg(&vcpu_info->evtchn_pending_sel, 0);
 
-		word_idx = __this_cpu_read(current_word_idx);
-		bit_idx = __this_cpu_read(current_bit_idx);
+		start_word_idx = __this_cpu_read(current_word_idx);
+		start_bit_idx = __this_cpu_read(current_bit_idx);
 
-		while (pending_words != 0) {
+		word_idx = start_word_idx;
+
+		for (i = 0; pending_words != 0; i++) {
 			unsigned long pending_bits;
 			unsigned long words;
 
@@ -1084,12 +1088,22 @@ static void __xen_evtchn_do_upcall(void)
 			}
 			word_idx = __ffs(words);
 
+			pending_bits = active_evtchns(cpu, s, word_idx);
+			bit_idx = 0; /* usually scan entire word from start */
+			if (word_idx == start_word_idx) {
+				/* We scan the starting word in two parts */
+				if (i == 0)
+					/* 1st time: start in the middle */
+					bit_idx = start_bit_idx;
+				else
+					/* 2nd time: mask bits done already */
+					bit_idx &= (1UL << start_bit_idx) - 1;
+			}
+
 			do {
 				unsigned long bits;
 				int port, irq;
 				struct irq_desc *desc;
-
-				pending_bits = active_evtchns(cpu, s, word_idx);
 
 				bits = MASK_LSBS(pending_bits, bit_idx);
 
@@ -1121,10 +1135,8 @@ static void __xen_evtchn_do_upcall(void)
 				__this_cpu_write(current_bit_idx, bit_idx);
 			} while (bit_idx != 0);
 
-			pending_bits = active_evtchns(cpu, s, word_idx);
-
-			/* If we handled all ports, clear the selector bit. */
-			if (pending_bits == 0)
+			/* Scan start_l1i twice; all others once. */
+			if ((word_idx != start_word_idx) || (i != 0))
 				pending_words &= ~(1UL << word_idx);
 
 			word_idx = (word_idx + 1) % BITS_PER_LONG;
