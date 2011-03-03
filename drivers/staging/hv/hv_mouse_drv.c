@@ -33,7 +33,6 @@
 #include <linux/pci.h>
 #include <linux/dmi.h>
 
-//#include "osd.h"
 #include "hv_api.h"
 #include "logging.h"
 #include "version_info.h"
@@ -152,9 +151,8 @@ int mousevsc_remove(struct device *device)
 		input_dev_ctx->connected = 0;
 	}
 
-	if (!mousevsc_drv_obj->Base.dev_rm) {
+	if (!mousevsc_drv_obj->Base.dev_rm)
 		return -1;
-	}
 
 	/*
 	 * Call to the vsc driver to let it know that the device
@@ -238,8 +236,6 @@ int mousevsc_drv_init(int (*pfn_drv_init)(struct hv_driver *pfn_drv_init))
 	struct mousevsc_drv_obj *input_drv_obj = &g_mousevsc_drv.drv_obj;
 	struct driver_context *drv_ctx = &g_mousevsc_drv.drv_ctx;
 
-//	vmbus_get_interface(&input_drv_obj->Base.VmbusChannelInterface);
-
 	input_drv_obj->OnDeviceInfo = mousevsc_deviceinfo_callback;
 	input_drv_obj->OnInputReport = mousevsc_inputreport_callback;
 	input_drv_obj->OnReportDescriptor = mousevsc_reportdesc_callback;
@@ -281,7 +277,9 @@ void mousevsc_drv_exit(void)
 		current_dev = NULL;
 
 		/* Get the device */
-		ret = driver_for_each_device(&drv_ctx->driver, NULL, (void *)&current_dev, mousevsc_drv_exit_cb);
+		ret = driver_for_each_device(&drv_ctx->driver, NULL,
+					     (void *)&current_dev,
+					     mousevsc_drv_exit_cb);
 		if (ret)
 			printk(KERN_ERR "Can't find mouse device!\n");
 
