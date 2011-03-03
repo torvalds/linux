@@ -420,6 +420,10 @@ static struct fsl_desc_sw *fsl_dma_alloc_descriptor(
 	desc->async_tx.tx_submit = fsl_dma_tx_submit;
 	desc->async_tx.phys = pdesc;
 
+#ifdef FSL_DMA_LD_DEBUG
+	chan_dbg(chan, "LD %p allocated\n", desc);
+#endif
+
 	return desc;
 }
 
@@ -470,6 +474,9 @@ static void fsldma_free_desc_list(struct fsldma_chan *chan,
 
 	list_for_each_entry_safe(desc, _desc, list, node) {
 		list_del(&desc->node);
+#ifdef FSL_DMA_LD_DEBUG
+		chan_dbg(chan, "LD %p free\n", desc);
+#endif
 		dma_pool_free(chan->desc_pool, desc, desc->async_tx.phys);
 	}
 }
@@ -481,6 +488,9 @@ static void fsldma_free_desc_list_reverse(struct fsldma_chan *chan,
 
 	list_for_each_entry_safe_reverse(desc, _desc, list, node) {
 		list_del(&desc->node);
+#ifdef FSL_DMA_LD_DEBUG
+		chan_dbg(chan, "LD %p free\n", desc);
+#endif
 		dma_pool_free(chan->desc_pool, desc, desc->async_tx.phys);
 	}
 }
@@ -557,9 +567,6 @@ static struct dma_async_tx_descriptor *fsl_dma_prep_memcpy(
 			chan_err(chan, "%s\n", msg_ld_oom);
 			goto fail;
 		}
-#ifdef FSL_DMA_LD_DEBUG
-		chan_dbg(chan, "new link desc alloc %p\n", new);
-#endif
 
 		copy = min(len, (size_t)FSL_DMA_BCR_MAX_CNT);
 
@@ -645,9 +652,6 @@ static struct dma_async_tx_descriptor *fsl_dma_prep_sg(struct dma_chan *dchan,
 			chan_err(chan, "%s\n", msg_ld_oom);
 			goto fail;
 		}
-#ifdef FSL_DMA_LD_DEBUG
-		chan_dbg(chan, "new link desc alloc %p\n", new);
-#endif
 
 		set_desc_cnt(chan, &new->hw, len);
 		set_desc_src(chan, &new->hw, src);
@@ -882,13 +886,18 @@ static void fsl_chan_ld_cleanup(struct fsldma_chan *chan)
 		callback_param = desc->async_tx.callback_param;
 		if (callback) {
 			spin_unlock_irqrestore(&chan->desc_lock, flags);
+#ifdef FSL_DMA_LD_DEBUG
 			chan_dbg(chan, "LD %p callback\n", desc);
+#endif
 			callback(callback_param);
 			spin_lock_irqsave(&chan->desc_lock, flags);
 		}
 
 		/* Run any dependencies, then free the descriptor */
 		dma_run_dependencies(&desc->async_tx);
+#ifdef FSL_DMA_LD_DEBUG
+		chan_dbg(chan, "LD %p free\n", desc);
+#endif
 		dma_pool_free(chan->desc_pool, desc, desc->async_tx.phys);
 	}
 
