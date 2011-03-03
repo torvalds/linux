@@ -949,6 +949,7 @@ static int nfs_flush_multi(struct nfs_pageio_descriptor *desc)
 	} while (nbytes != 0);
 
 	put_lseg(lseg);
+	desc->pg_lseg = NULL;
 	return ret;
 
 out_bad:
@@ -1005,6 +1006,7 @@ static int nfs_flush_one(struct nfs_pageio_descriptor *desc)
 	ret = nfs_write_rpcsetup(req, data, &nfs_write_full_ops, desc->pg_count, 0, lseg, desc->pg_ioflags);
 out:
 	put_lseg(lseg); /* Cleans any gotten in ->pg_test */
+	desc->pg_lseg = NULL;
 	return ret;
 }
 

@@ -311,6 +311,7 @@ static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc)
 		nbytes -= rsize;
 	} while (nbytes != 0);
 	put_lseg(lseg);
+	desc->pg_lseg = NULL;
 
 	return ret;
 
@@ -357,6 +358,7 @@ static int nfs_pagein_one(struct nfs_pageio_descriptor *desc)
 				0, lseg);
 out:
 	put_lseg(lseg);
+	desc->pg_lseg = NULL;
 	return ret;
 }
 

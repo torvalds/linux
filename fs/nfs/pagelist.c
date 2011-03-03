@@ -312,7 +312,6 @@ static void nfs_pageio_doio(struct nfs_pageio_descriptor *desc)
 {
 	if (!list_empty(&desc->pg_list)) {
 		int error = desc->pg_doio(desc);
-		desc->pg_lseg = NULL;
 		if (error < 0)
 			desc->pg_error = error;
 		else
