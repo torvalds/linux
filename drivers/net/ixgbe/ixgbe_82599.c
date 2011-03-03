@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -112,7 +112,8 @@ static s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 			goto setup_sfp_out;
 
 		/* PHY config will finish before releasing the semaphore */
-		ret_val = ixgbe_acquire_swfw_sync(hw, IXGBE_GSSR_MAC_CSR_SM);
+		ret_val = hw->mac.ops.acquire_swfw_sync(hw,
+		                                        IXGBE_GSSR_MAC_CSR_SM);
 		if (ret_val != 0) {
 			ret_val = IXGBE_ERR_SWFW_SYNC;
 			goto setup_sfp_out;
@@ -329,11 +330,14 @@ static enum ixgbe_media_type ixgbe_get_media_type_82599(struct ixgbe_hw *hw)
 	enum ixgbe_media_type media_type;
 
 	/* Detect if there is a copper PHY attached. */
-	if (hw->phy.type == ixgbe_phy_cu_unknown ||
-	    hw->phy.type == ixgbe_phy_tn ||
-	    hw->phy.type == ixgbe_phy_aq) {
+	switch (hw->phy.type) {
+	case ixgbe_phy_cu_unknown:
+	case ixgbe_phy_tn:
+	case ixgbe_phy_aq:
 		media_type = ixgbe_media_type_copper;
 		goto out;
+	default:
+		break;
 	}
 
 	switch (hw->device_id) {
@@ -353,6 +357,9 @@ static enum ixgbe_media_type ixgbe_get_media_type_82599(struct ixgbe_hw *hw)
 		break;
 	case IXGBE_DEV_ID_82599_CX4:
 		media_type = ixgbe_media_type_cx4;
+		break;
+	case IXGBE_DEV_ID_82599_T3_LOM:
+		media_type = ixgbe_media_type_copper;
 		break;
 	default:
 		media_type = ixgbe_media_type_unknown;
@@ -411,14 +418,14 @@ static s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
 	return status;
 }
 
- /**
-  *  ixgbe_disable_tx_laser_multispeed_fiber - Disable Tx laser
-  *  @hw: pointer to hardware structure
-  *
-  *  The base drivers may require better control over SFP+ module
-  *  PHY states.  This includes selectively shutting down the Tx
-  *  laser on the PHY, effectively halting physical link.
-  **/
+/**
+ *  ixgbe_disable_tx_laser_multispeed_fiber - Disable Tx laser
+ *  @hw: pointer to hardware structure
+ *
+ *  The base drivers may require better control over SFP+ module
+ *  PHY states.  This includes selectively shutting down the Tx
+ *  laser on the PHY, effectively halting physical link.
+ **/
 static void ixgbe_disable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
 {
 	u32 esdp_reg = IXGBE_READ_REG(hw, IXGBE_ESDP);
@@ -536,7 +543,6 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 		 * Section 73.10.2, we may have to wait up to 500ms if KR is
 		 * attempted.  82599 uses the same timing for 10g SFI.
 		 */
-
 		for (i = 0; i < 5; i++) {
 			/* Wait for the link partner to also set speed */
 			msleep(100);
@@ -761,7 +767,6 @@ static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
 	else
 		orig_autoc = autoc;
 
-
 	if (link_mode == IXGBE_AUTOC_LMS_KX4_KX_KR ||
 	    link_mode == IXGBE_AUTOC_LMS_KX4_KX_KR_1G_AN ||
 	    link_mode == IXGBE_AUTOC_LMS_KX4_KX_KR_SGMII) {
@@ -898,12 +903,9 @@ static s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 	 * Prevent the PCI-E bus from from hanging by disabling PCI-E master
 	 * access and verify no pending requests before reset
 	 */
-	status = ixgbe_disable_pcie_master(hw);
-	if (status != 0) {
-		status = IXGBE_ERR_MASTER_REQUESTS_PENDING;
-		hw_dbg(hw, "PCI-E Master disable polling has failed.\n");
-	}
+	ixgbe_disable_pcie_master(hw);
 
+mac_reset_top:
 	/*
 	 * Issue global reset to the MAC.  This needs to be a SW reset.
 	 * If link reset is used, it might reset the MAC when mng is using it
@@ -922,6 +924,19 @@ static s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 	if (ctrl & IXGBE_CTRL_RST) {
 		status = IXGBE_ERR_RESET_FAILED;
 		hw_dbg(hw, "Reset polling failed to complete.\n");
+	}
+
+	/*
+	 * Double resets are required for recovery from certain error
+	 * conditions.  Between resets, it is necessary to stall to allow time
+	 * for any pending HW events to complete.  We use 1usec since that is
+	 * what is needed for ixgbe_disable_pcie_master().  The second reset
+	 * then clears out any effects of those events.
+	 */
+	if (hw->mac.flags & IXGBE_FLAGS_DOUBLE_RESET_REQUIRED) {
+		hw->mac.flags &= ~IXGBE_FLAGS_DOUBLE_RESET_REQUIRED;
+		udelay(1);
+		goto mac_reset_top;
 	}
 
 	msleep(50);
@@ -951,6 +966,9 @@ static s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 		}
 	}
 
+	/* Store the permanent mac address */
+	hw->mac.ops.get_mac_addr(hw, hw->mac.perm_addr);
+
 	/*
 	 * Store MAC address from RAR0, clear receive address registers, and
 	 * clear the multicast table.  Also reset num_rar_entries to 128,
@@ -958,9 +976,6 @@ static s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 	 */
 	hw->mac.num_rar_entries = 128;
 	hw->mac.ops.init_rx_addrs(hw);
-
-	/* Store the permanent mac address */
-	hw->mac.ops.get_mac_addr(hw, hw->mac.perm_addr);
 
 	/* Store the permanent SAN mac address */
 	hw->mac.ops.get_san_mac_addr(hw, hw->mac.san_addr);
@@ -1733,13 +1748,34 @@ static s32 ixgbe_start_hw_82599(struct ixgbe_hw *hw)
  *  @hw: pointer to hardware structure
  *
  *  Determines the physical layer module found on the current adapter.
+ *  If PHY already detected, maintains current PHY type in hw struct,
+ *  otherwise executes the PHY detection routine.
  **/
-static s32 ixgbe_identify_phy_82599(struct ixgbe_hw *hw)
+s32 ixgbe_identify_phy_82599(struct ixgbe_hw *hw)
 {
 	s32 status = IXGBE_ERR_PHY_ADDR_INVALID;
+
+	/* Detect PHY if not unknown - returns success if already detected. */
 	status = ixgbe_identify_phy_generic(hw);
-	if (status != 0)
-		status = ixgbe_identify_sfp_module_generic(hw);
+	if (status != 0) {
+		/* 82599 10GBASE-T requires an external PHY */
+		if (hw->mac.ops.get_media_type(hw) == ixgbe_media_type_copper)
+			goto out;
+		else
+			status = ixgbe_identify_sfp_module_generic(hw);
+	}
+
+	/* Set PHY type none if no PHY detected */
+	if (hw->phy.type == ixgbe_phy_unknown) {
+		hw->phy.type = ixgbe_phy_none;
+		status = 0;
+	}
+
+	/* Return error if SFP module has been detected but is not supported */
+	if (hw->phy.type == ixgbe_phy_sfp_unsupported)
+		status = IXGBE_ERR_SFP_NOT_SUPPORTED;
+
+out:
 	return status;
 }
 
@@ -1763,11 +1799,12 @@ static u32 ixgbe_get_supported_physical_layer_82599(struct ixgbe_hw *hw)
 
 	hw->phy.ops.identify(hw);
 
-	if (hw->phy.type == ixgbe_phy_tn ||
-	    hw->phy.type == ixgbe_phy_aq ||
-	    hw->phy.type == ixgbe_phy_cu_unknown) {
+	switch (hw->phy.type) {
+	case ixgbe_phy_tn:
+	case ixgbe_phy_aq:
+	case ixgbe_phy_cu_unknown:
 		hw->phy.ops.read_reg(hw, MDIO_PMA_EXTABLE, MDIO_MMD_PMAPMD,
-				     &ext_ability);
+							 &ext_ability);
 		if (ext_ability & MDIO_PMA_EXTABLE_10GBT)
 			physical_layer |= IXGBE_PHYSICAL_LAYER_10GBASE_T;
 		if (ext_ability & MDIO_PMA_EXTABLE_1000BT)
@@ -1775,6 +1812,8 @@ static u32 ixgbe_get_supported_physical_layer_82599(struct ixgbe_hw *hw)
 		if (ext_ability & MDIO_PMA_EXTABLE_100BTX)
 			physical_layer |= IXGBE_PHYSICAL_LAYER_100BASE_TX;
 		goto out;
+	default:
+		break;
 	}
 
 	switch (autoc & IXGBE_AUTOC_LMS_MASK) {
@@ -1886,6 +1925,7 @@ static s32 ixgbe_enable_rx_dma_82599(struct ixgbe_hw *hw, u32 regval)
 		if (secrxreg & IXGBE_SECRXSTAT_SECRX_RDY)
 			break;
 		else
+			/* Use interrupt-safe sleep just in case */
 			udelay(10);
 	}
 
@@ -1995,7 +2035,6 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.set_vmdq               = &ixgbe_set_vmdq_generic,
 	.clear_vmdq             = &ixgbe_clear_vmdq_generic,
 	.init_rx_addrs          = &ixgbe_init_rx_addrs_generic,
-	.update_uc_addr_list    = &ixgbe_update_uc_addr_list_generic,
 	.update_mc_addr_list    = &ixgbe_update_mc_addr_list_generic,
 	.enable_mc              = &ixgbe_enable_mc_generic,
 	.disable_mc             = &ixgbe_disable_mc_generic,
@@ -2006,6 +2045,9 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.setup_sfp              = &ixgbe_setup_sfp_modules_82599,
 	.set_mac_anti_spoofing  = &ixgbe_set_mac_anti_spoofing,
 	.set_vlan_anti_spoofing = &ixgbe_set_vlan_anti_spoofing,
+	.acquire_swfw_sync      = &ixgbe_acquire_swfw_sync,
+	.release_swfw_sync      = &ixgbe_release_swfw_sync,
+
 };
 
 static struct ixgbe_eeprom_operations eeprom_ops_82599 = {

@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -54,7 +54,8 @@ static const char ixgbe_driver_string[] =
 
 #define DRV_VERSION "3.2.9-k2"
 const char ixgbe_driver_version[] = DRV_VERSION;
-static char ixgbe_copyright[] = "Copyright (c) 1999-2010 Intel Corporation.";
+static const char ixgbe_copyright[] =
+				"Copyright (c) 1999-2011 Intel Corporation.";
 
 static const struct ixgbe_info *ixgbe_info_tbl[] = {
 	[board_82598] = &ixgbe_82598_info,
@@ -2597,6 +2598,11 @@ static void ixgbe_free_irq(struct ixgbe_adapter *adapter)
 
 		i--;
 		for (; i >= 0; i--) {
+			/* free only the irqs that were actually requested */
+			if (!adapter->q_vector[i]->rxr_count &&
+			    !adapter->q_vector[i]->txr_count)
+				continue;
+
 			free_irq(adapter->msix_entries[i].vector,
 				 adapter->q_vector[i]);
 		}
@@ -3884,7 +3890,7 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 	 * If we're not hot-pluggable SFP+, we just need to configure link
 	 * and bring it up.
 	 */
-	if (hw->phy.type == ixgbe_phy_unknown)
+	if (hw->phy.type == ixgbe_phy_none)
 		schedule_work(&adapter->sfp_config_module_task);
 
 	/* enable transmits */

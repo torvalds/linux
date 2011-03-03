@@ -727,8 +727,9 @@ static void igb_get_drvinfo(struct net_device *netdev,
 	char firmware_version[32];
 	u16 eeprom_data;
 
-	strncpy(drvinfo->driver,  igb_driver_name, 32);
-	strncpy(drvinfo->version, igb_driver_version, 32);
+	strncpy(drvinfo->driver,  igb_driver_name, sizeof(drvinfo->driver) - 1);
+	strncpy(drvinfo->version, igb_driver_version,
+		sizeof(drvinfo->version) - 1);
 
 	/* EEPROM image version # is reported as firmware version # for
 	 * 82575 controllers */
@@ -738,8 +739,10 @@ static void igb_get_drvinfo(struct net_device *netdev,
 		(eeprom_data & 0x0FF0) >> 4,
 		eeprom_data & 0x000F);
 
-	strncpy(drvinfo->fw_version, firmware_version, 32);
-	strncpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
+	strncpy(drvinfo->fw_version, firmware_version,
+		sizeof(drvinfo->fw_version) - 1);
+	strncpy(drvinfo->bus_info, pci_name(adapter->pdev),
+		sizeof(drvinfo->bus_info) - 1);
 	drvinfo->n_stats = IGB_STATS_LEN;
 	drvinfo->testinfo_len = IGB_TEST_LEN;
 	drvinfo->regdump_len = igb_get_regs_len(netdev);
@@ -1070,7 +1073,7 @@ static bool reg_pattern_test(struct igb_adapter *adapter, u64 *data,
 		{0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF};
 	for (pat = 0; pat < ARRAY_SIZE(_test); pat++) {
 		wr32(reg, (_test[pat] & write));
-		val = rd32(reg);
+		val = rd32(reg) & mask;
 		if (val != (_test[pat] & write & mask)) {
 			dev_err(&adapter->pdev->dev, "pattern test reg %04X "
 				"failed: got 0x%08X expected 0x%08X\n",

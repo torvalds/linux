@@ -2291,7 +2291,12 @@ static int __devinit igb_sw_init(struct igb_adapter *adapter)
 	switch (hw->mac.type) {
 	case e1000_82576:
 	case e1000_i350:
-		adapter->vfs_allocated_count = (max_vfs > 7) ? 7 : max_vfs;
+		if (max_vfs > 7) {
+			dev_warn(&pdev->dev,
+				 "Maximum of 7 VFs per PF, using max\n");
+			adapter->vfs_allocated_count = 7;
+		} else
+			adapter->vfs_allocated_count = max_vfs;
 		break;
 	default:
 		break;
