@@ -135,6 +135,7 @@ struct fsldma_device {
 #define FSL_DMA_CHAN_START_EXT	0x00002000
 
 struct fsldma_chan {
+	char name[8];			/* Channel name */
 	struct fsldma_chan_regs __iomem *regs;
 	dma_cookie_t completed_cookie;	/* The maximum cookie completed */
 	spinlock_t desc_lock;		/* Descriptor operation lock */
