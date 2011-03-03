@@ -375,6 +375,9 @@ void dispc_save_context(void)
 	SR(VID_FIR_COEF_V(1, 7));
 
 	SR(VID_PRELOAD(1));
+
+	if (dss_has_feature(FEAT_CORE_CLK_DIV))
+		SR(DIVISOR);
 }
 
 void dispc_restore_context(void)
@@ -533,6 +536,9 @@ void dispc_restore_context(void)
 	RR(VID_FIR_COEF_V(1, 7));
 
 	RR(VID_PRELOAD(1));
+
+	if (dss_has_feature(FEAT_CORE_CLK_DIV))
+		RR(DIVISOR);
 
 	/* enable last, because LCD & DIGIT enable are here */
 	RR(CONTROL);
@@ -2380,6 +2386,7 @@ unsigned long dispc_pclk_rate(enum omap_channel channel)
 void dispc_dump_clocks(struct seq_file *s)
 {
 	int lcd, pcd;
+	u32 l;
 	enum dss_clk_source dispc_clk_src = dss_get_dispc_clk_source();
 
 	enable_clocks(1);
@@ -2392,6 +2399,14 @@ void dispc_dump_clocks(struct seq_file *s)
 
 	seq_printf(s, "fck\t\t%-16lu\n", dispc_fclk_rate());
 
+	if (dss_has_feature(FEAT_CORE_CLK_DIV)) {
+		seq_printf(s, "- DISPC-CORE-CLK -\n");
+		l = dispc_read_reg(DISPC_DIVISOR);
+		lcd = FLD_GET(l, 23, 16);
+
+		seq_printf(s, "lck\t\t%-16lulck div\t%u\n",
+				(dispc_fclk_rate()/lcd), lcd);
+	}
 	seq_printf(s, "- LCD1 -\n");
 
 	dispc_get_lcd_divisor(OMAP_DSS_CHANNEL_LCD, &lcd, &pcd);
@@ -3286,6 +3301,15 @@ static void _omap_dispc_initial_config(void)
 	l = FLD_MOD(l, 1, 2, 2);	/* ENWAKEUP */
 	l = FLD_MOD(l, 1, 0, 0);	/* AUTOIDLE */
 	dispc_write_reg(DISPC_SYSCONFIG, l);
+
+	/* Exclusively enable DISPC_CORE_CLK and set divider to 1 */
+	if (dss_has_feature(FEAT_CORE_CLK_DIV)) {
+		l = dispc_read_reg(DISPC_DIVISOR);
+		/* Use DISPC_DIVISOR.LCD, instead of DISPC_DIVISOR1.LCD */
+		l = FLD_MOD(l, 1, 0, 0);
+		l = FLD_MOD(l, 1, 23, 16);
+		dispc_write_reg(DISPC_DIVISOR, l);
+	}
 
 	/* FUNCGATED */
 	if (dss_has_feature(FEAT_FUNCGATED))
