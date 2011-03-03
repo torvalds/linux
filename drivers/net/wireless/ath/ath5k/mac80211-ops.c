@@ -158,8 +158,7 @@ ath5k_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	memcpy(&avf->lladdr, vif->addr, ETH_ALEN);
 
-	ath5k_mode_setup(sc, vif);
-
+	ath5k_update_bssid_mask_and_opmode(sc, vif);
 	ret = 0;
 end:
 	mutex_unlock(&sc->lock);
@@ -381,6 +380,7 @@ ath5k_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	struct ath5k_softc *sc = hw->priv;
 	struct ath5k_hw *ah = sc->ah;
 	u32 mfilt[2], rfilt;
+	struct ath5k_vif_iter_data iter_data; /* to count STA interfaces */
 
 	mutex_lock(&sc->lock);
 
@@ -452,6 +452,21 @@ ath5k_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 			rfilt |= AR5K_RX_FILTER_BEACON;
 	default:
 		break;
+	}
+
+	iter_data.hw_macaddr = NULL;
+	iter_data.n_stas = 0;
+	iter_data.need_set_hw_addr = false;
+	ieee80211_iterate_active_interfaces_atomic(sc->hw, ath5k_vif_iter,
+						   &iter_data);
+
+	/* Set up RX Filter */
+	if (iter_data.n_stas > 1) {
+		/* If you have multiple STA interfaces connected to
+		 * different APs, ARPs are not received (most of the time?)
+		 * Enabling PROMISC appears to fix that probem.
+		 */
+		rfilt |= AR5K_RX_FILTER_PROM;
 	}
 
 	/* Set filters */

@@ -442,19 +442,9 @@ ath5k_chan_set(struct ath5k_softc *sc, struct ieee80211_channel *chan)
 	return ath5k_reset(sc, chan, true);
 }
 
-struct ath_vif_iter_data {
-	const u8	*hw_macaddr;
-	u8		mask[ETH_ALEN];
-	u8		active_mac[ETH_ALEN]; /* first active MAC */
-	bool		need_set_hw_addr;
-	bool		found_active;
-	bool		any_assoc;
-	enum nl80211_iftype opmode;
-};
-
-static void ath_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
+void ath5k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 {
-	struct ath_vif_iter_data *iter_data = data;
+	struct ath5k_vif_iter_data *iter_data = data;
 	int i;
 	struct ath5k_vif *avf = (void *)vif->drv_priv;
 
@@ -484,9 +474,12 @@ static void ath_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 	 */
 	if (avf->opmode == NL80211_IFTYPE_AP)
 		iter_data->opmode = NL80211_IFTYPE_AP;
-	else
+	else {
+		if (avf->opmode == NL80211_IFTYPE_STATION)
+			iter_data->n_stas++;
 		if (iter_data->opmode == NL80211_IFTYPE_UNSPECIFIED)
 			iter_data->opmode = avf->opmode;
+	}
 }
 
 void
@@ -494,7 +487,8 @@ ath5k_update_bssid_mask_and_opmode(struct ath5k_softc *sc,
 				   struct ieee80211_vif *vif)
 {
 	struct ath_common *common = ath5k_hw_common(sc->ah);
-	struct ath_vif_iter_data iter_data;
+	struct ath5k_vif_iter_data iter_data;
+	u32 rfilt;
 
 	/*
 	 * Use the hardware MAC address as reference, the hardware uses it
@@ -505,12 +499,13 @@ ath5k_update_bssid_mask_and_opmode(struct ath5k_softc *sc,
 	iter_data.found_active = false;
 	iter_data.need_set_hw_addr = true;
 	iter_data.opmode = NL80211_IFTYPE_UNSPECIFIED;
+	iter_data.n_stas = 0;
 
 	if (vif)
-		ath_vif_iter(&iter_data, vif->addr, vif);
+		ath5k_vif_iter(&iter_data, vif->addr, vif);
 
 	/* Get list of all active MAC addresses */
-	ieee80211_iterate_active_interfaces_atomic(sc->hw, ath_vif_iter,
+	ieee80211_iterate_active_interfaces_atomic(sc->hw, ath5k_vif_iter,
 						   &iter_data);
 	memcpy(sc->bssidmask, iter_data.mask, ETH_ALEN);
 
@@ -528,20 +523,19 @@ ath5k_update_bssid_mask_and_opmode(struct ath5k_softc *sc,
 
 	if (ath5k_hw_hasbssidmask(sc->ah))
 		ath5k_hw_set_bssid_mask(sc->ah, sc->bssidmask);
-}
 
-void
-ath5k_mode_setup(struct ath5k_softc *sc, struct ieee80211_vif *vif)
-{
-	struct ath5k_hw *ah = sc->ah;
-	u32 rfilt;
+	/* Set up RX Filter */
+	if (iter_data.n_stas > 1) {
+		/* If you have multiple STA interfaces connected to
+		 * different APs, ARPs are not received (most of the time?)
+		 * Enabling PROMISC appears to fix that probem.
+		 */
+		sc->filter_flags |= AR5K_RX_FILTER_PROM;
+	}
 
-	/* configure rx filter */
 	rfilt = sc->filter_flags;
-	ath5k_hw_set_rx_filter(ah, rfilt);
+	ath5k_hw_set_rx_filter(sc->ah, rfilt);
 	ATH5K_DBG(sc, ATH5K_DEBUG_MODE, "RX filter 0x%x\n", rfilt);
-
-	ath5k_update_bssid_mask_and_opmode(sc, vif);
 }
 
 static inline int
@@ -1117,7 +1111,7 @@ ath5k_rx_start(struct ath5k_softc *sc)
 	spin_unlock_bh(&sc->rxbuflock);
 
 	ath5k_hw_start_rx_dma(ah);	/* enable recv descriptors */
-	ath5k_mode_setup(sc, NULL);		/* set filters, etc. */
+	ath5k_update_bssid_mask_and_opmode(sc, NULL); /* set filters, etc. */
 	ath5k_hw_start_rx_pcu(ah);	/* re-enable PCU/DMA engine */
 
 	return 0;
@@ -2923,13 +2917,13 @@ ath5k_deinit_softc(struct ath5k_softc *sc)
 bool
 ath_any_vif_assoc(struct ath5k_softc *sc)
 {
-	struct ath_vif_iter_data iter_data;
+	struct ath5k_vif_iter_data iter_data;
 	iter_data.hw_macaddr = NULL;
 	iter_data.any_assoc = false;
 	iter_data.need_set_hw_addr = false;
 	iter_data.found_active = true;
 
-	ieee80211_iterate_active_interfaces_atomic(sc->hw, ath_vif_iter,
+	ieee80211_iterate_active_interfaces_atomic(sc->hw, ath5k_vif_iter,
 						   &iter_data);
 	return iter_data.any_assoc;
 }
