@@ -44,21 +44,9 @@ struct input_dev_info {
 };
 
 /* Represents the input vsc driver */
+/* FIXME - can be removed entirely */
 struct mousevsc_drv_obj {
-	struct hv_driver Base; // Must be the first field
-	/*
-	 * This is set by the caller to allow us to callback when
-	 * we receive a packet from the "wire"
-	 */
-	void (*OnDeviceInfo)(struct hv_device *dev,
-			     struct input_dev_info* info);
-	void (*OnInputReport)(struct hv_device *dev, void* packet, u32 len);
-	void (*OnReportDescriptor)(struct hv_device *dev,
-				   void* packet, u32 len);
-	/* Specific to this driver */
-	int (*OnOpen)(struct hv_device *Device);
-	int (*OnClose)(struct hv_device *Device);
-	void *Context;
+	struct hv_driver Base;
 };
 
 
@@ -230,6 +218,10 @@ static int MousevscConnectToVsp(struct hv_device *Device);
 static void MousevscOnReceive(struct hv_device *Device,
 			      struct vmpacket_descriptor *Packet);
 
+static void deviceinfo_callback(struct hv_device *dev, struct input_dev_info *info);
+static void inputreport_callback(struct hv_device *dev, void *packet, u32 len);
+static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len);
+
 static inline struct mousevsc_dev *AllocInputDevice(struct hv_device *Device)
 {
 	struct mousevsc_dev *inputDevice;
@@ -357,9 +349,6 @@ static int mouse_vsc_initialize(struct hv_driver *Driver)
 	inputDriver->Base.dev_rm = MousevscOnDeviceRemove;
 	inputDriver->Base.cleanup		= MousevscOnCleanup;
 
-	inputDriver->OnOpen			= NULL;
-	inputDriver->OnClose			= NULL;
-
 	return ret;
 }
 
@@ -423,14 +412,15 @@ MousevscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 	strcpy(deviceInfo.Name, "Microsoft Vmbus HID-compliant Mouse");
 
 	/* Send the device info back up */
-	inputDriver->OnDeviceInfo(Device, &deviceInfo);
+	deviceinfo_callback(Device, &deviceInfo);
 
 	/* Send the report desc back up */
 	/* workaround SA-167 */
 	if (inputDevice->ReportDesc[14] == 0x25)
 		inputDevice->ReportDesc[14] = 0x29;
 
-	inputDriver->OnReportDescriptor(Device, inputDevice->ReportDesc, inputDevice->ReportDescSize);
+	reportdesc_callback(Device, inputDevice->ReportDesc,
+			    inputDevice->ReportDescSize);
 
 	inputDevice->bInitializeComplete = true;
 
@@ -710,9 +700,9 @@ MousevscOnReceiveInputReport(
 
 	inputDriver = (struct mousevsc_drv_obj *)InputDevice->Device->drv;
 
-	inputDriver->OnInputReport(InputDevice->Device,
-				   InputReport->ReportBuffer,
-				   InputReport->Header.Size);
+	inputreport_callback(InputDevice->Device,
+			     InputReport->ReportBuffer,
+			     InputReport->Header.Size);
 }
 
 void
@@ -875,8 +865,8 @@ struct mousevsc_driver_context {
 
 static struct mousevsc_driver_context g_mousevsc_drv;
 
-void mousevsc_deviceinfo_callback(struct hv_device *dev,
-				  struct input_dev_info *info)
+static void deviceinfo_callback(struct hv_device *dev,
+					 struct input_dev_info *info)
 {
 	struct vm_device *device_ctx = to_vm_device(dev);
 	struct input_device_context *input_device_ctx =
@@ -885,10 +875,10 @@ void mousevsc_deviceinfo_callback(struct hv_device *dev,
 	memcpy(&input_device_ctx->device_info, info,
 	       sizeof(struct input_dev_info));
 
-	DPRINT_INFO(INPUTVSC_DRV, "mousevsc_deviceinfo_callback()");
+	DPRINT_INFO(INPUTVSC_DRV, "%s", __func__);
 }
 
-void mousevsc_inputreport_callback(struct hv_device *dev, void *packet, u32 len)
+static void inputreport_callback(struct hv_device *dev, void *packet, u32 len)
 {
 	int ret = 0;
 
@@ -986,7 +976,7 @@ int mousevsc_remove(struct device *device)
 	return ret;
 }
 
-void mousevsc_reportdesc_callback(struct hv_device *dev, void *packet, u32 len)
+static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len)
 {
 	struct vm_device *device_ctx = to_vm_device(dev);
 	struct input_device_context *input_device_ctx =
@@ -1087,10 +1077,6 @@ static int __init mousevsc_init(void)
 	struct driver_context *drv_ctx = &g_mousevsc_drv.drv_ctx;
 
 	DPRINT_INFO(INPUTVSC_DRV, "Hyper-V Mouse driver initializing.");
-
-	input_drv_obj->OnDeviceInfo = mousevsc_deviceinfo_callback;
-	input_drv_obj->OnInputReport = mousevsc_inputreport_callback;
-	input_drv_obj->OnReportDescriptor = mousevsc_reportdesc_callback;
 
 	/* Callback to client driver to complete the initialization */
 	mouse_vsc_initialize(&input_drv_obj->Base);
