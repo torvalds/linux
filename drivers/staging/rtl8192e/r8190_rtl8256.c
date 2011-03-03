@@ -329,6 +329,12 @@ SetRFPowerState8190(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 
 	spin_lock(&priv->ps_lock);
 
+	if (eRFPowerState == priv->ieee80211->eRFPowerState &&
+	    priv->bHwRfOffAction == 0) {
+		bResult = false;
+		goto out;
+	}
+
 	switch( eRFPowerState )
 	{
 	case eRfOn:
@@ -429,39 +435,7 @@ out:
 
 
 
-//
-//	Description:
-//		Change RF power state.
-//
-//	Assumption:
-//		This function must be executed in re-schdulable context,
-//		ie. PASSIVE_LEVEL.
-//
-//	050823, by rcnjko.
-//
-static bool
-SetRFPowerState(
-	struct net_device* dev,
-	RT_RF_POWER_STATE	eRFPowerState
-	)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	bool bResult = false;
-
-	RT_TRACE(COMP_RF,"---------> SetRFPowerState(): eRFPowerState(%d)\n", eRFPowerState);
-	if(eRFPowerState == priv->ieee80211->eRFPowerState && priv->bHwRfOffAction == 0)
-	{
-		RT_TRACE(COMP_POWER, "<--------- SetRFPowerState(): discard the request for eRFPowerState(%d) is the same.\n", eRFPowerState);
-		return bResult;
-	}
-
-	bResult = SetRFPowerState8190(dev, eRFPowerState);
-
-	RT_TRACE(COMP_POWER, "<--------- SetRFPowerState(): bResult(%d)\n", bResult);
-
-	return bResult;
-}
 
 static void
 MgntDisconnectIBSS(
@@ -749,7 +723,7 @@ MgntActSet_RF_State(
 	{
 		RT_TRACE(COMP_POWER, "MgntActSet_RF_State(): Action is allowed.... StateToSet(%d), RfOffReason(%#X)\n", StateToSet, priv->ieee80211->RfOffReason);
 		// Config HW to the specified mode.
-		SetRFPowerState(dev, StateToSet);
+		SetRFPowerState8190(dev, StateToSet);
 	}
 	else
 	{
