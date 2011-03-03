@@ -1827,12 +1827,14 @@ static short rtl8192_is_tx_queue_empty(struct net_device *dev)
 
 static void rtl8192_hw_sleep_down(struct net_device *dev)
 {
-	MgntActSet_RF_State(dev, eRfSleep, RF_CHANGE_BY_PS);
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	MgntActSet_RF_State(priv, eRfSleep, RF_CHANGE_BY_PS);
 }
 
 static void rtl8192_hw_wakeup(struct net_device* dev)
 {
-	MgntActSet_RF_State(dev, eRfOn, RF_CHANGE_BY_PS);
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	MgntActSet_RF_State(priv, eRfOn, RF_CHANGE_BY_PS);
 }
 
 static void rtl8192_hw_wakeup_wq (struct work_struct *work)
@@ -2809,12 +2811,12 @@ static RT_STATUS rtl8192_adapter_start(struct r8192_priv *priv)
 	if(priv->RfOffReason > RF_CHANGE_BY_PS)
 	{ // H/W or S/W RF OFF before sleep.
 		RT_TRACE((COMP_INIT|COMP_RF|COMP_POWER), "%s(): Turn off RF for RfOffReason(%d)\n", __FUNCTION__,priv->RfOffReason);
-		MgntActSet_RF_State(dev, eRfOff, priv->RfOffReason);
+		MgntActSet_RF_State(priv, eRfOff, priv->RfOffReason);
 	}
 	else if(priv->RfOffReason >= RF_CHANGE_BY_IPS)
 	{ // H/W or S/W RF OFF before sleep.
 		RT_TRACE((COMP_INIT|COMP_RF|COMP_POWER), "%s(): Turn off RF for RfOffReason(%d)\n",  __FUNCTION__, priv->RfOffReason);
-		MgntActSet_RF_State(dev, eRfOff, priv->RfOffReason);
+		MgntActSet_RF_State(priv, eRfOff, priv->RfOffReason);
 	}
 	else
 	{
@@ -3059,8 +3061,6 @@ rtl819x_ifcheck_resetornot(struct r8192_priv *priv)
 #ifdef ENABLE_IPS
 static void InactivePsWorkItemCallback(struct r8192_priv *priv)
 {
-	struct net_device *dev = priv->ieee80211->dev;
-
 	PRT_POWER_SAVE_CONTROL pPSC = &priv->PowerSaveControl;
 
 	RT_TRACE(COMP_POWER, "InactivePsWorkItemCallback() --------->\n");
@@ -3078,7 +3078,7 @@ static void InactivePsWorkItemCallback(struct r8192_priv *priv)
 			pPSC->eInactivePowerState == eRfOff?"OFF":"ON");
 
 
-	MgntActSet_RF_State(dev, pPSC->eInactivePowerState, RF_CHANGE_BY_IPS);
+	MgntActSet_RF_State(priv, pPSC->eInactivePowerState, RF_CHANGE_BY_IPS);
 
 	//
 	// To solve CAM values miss in RF OFF, rewrite CAM values after RF ON. By Bruce, 2007-09-20.
@@ -3451,7 +3451,7 @@ static int _rtl8192_up(struct r8192_priv *priv)
 	RT_TRACE(COMP_INIT, "start adapter finished\n");
 
 	if (priv->eRFPowerState != eRfOn)
-		MgntActSet_RF_State(dev, eRfOn, priv->RfOffReason);
+		MgntActSet_RF_State(priv, eRfOn, priv->RfOffReason);
 
 	if(priv->ieee80211->state != IEEE80211_LINKED)
 	ieee80211_softmac_start_protocol(priv->ieee80211);

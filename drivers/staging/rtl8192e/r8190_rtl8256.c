@@ -604,14 +604,9 @@ static bool MgntDisconnect(struct r8192_priv *priv, u8 asRsn)
 //	Assumption:
 //		PASSIVE LEVEL.
 //
-bool
-MgntActSet_RF_State(
-	struct net_device* dev,
-	RT_RF_POWER_STATE	StateToSet,
-	RT_RF_CHANGE_SOURCE ChangeSource
-	)
+bool MgntActSet_RF_State(struct r8192_priv *priv, RT_RF_POWER_STATE StateToSet,
+			 RT_RF_CHANGE_SOURCE ChangeSource)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	bool 			bActionAllowed = false;
 	bool 			bConnectBySSID = false;
 	RT_RF_POWER_STATE	rtState;

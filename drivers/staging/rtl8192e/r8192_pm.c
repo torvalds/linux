@@ -36,7 +36,7 @@ int rtl8192E_suspend (struct pci_dev *pdev, pm_message_t state)
 
 	// Call MgntActSet_RF_State instead to prevent RF config race condition.
 	if(!priv->ieee80211->bSupportRemoteWakeUp) {
-		MgntActSet_RF_State(dev, eRfOff, RF_CHANGE_BY_INIT);
+		MgntActSet_RF_State(priv, eRfOff, RF_CHANGE_BY_INIT);
 		// 2006.11.30. System reset bit
 		ulRegRead = read_nic_dword(priv, CPU_GEN);
 		ulRegRead|=CPU_GEN_SYSTEM_RESET;

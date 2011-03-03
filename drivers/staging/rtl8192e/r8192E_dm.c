@@ -1846,7 +1846,6 @@ void dm_gpio_change_rf_callback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
 	struct r8192_priv *priv = container_of(dwork,struct r8192_priv,gpio_change_rf_wq);
-	struct net_device *dev = priv->ieee80211->dev;
 	u8 tmp1byte;
 	RT_RF_POWER_STATE	eRfPowerStateToSet;
 	bool bActuallySet = false;
@@ -1873,7 +1872,7 @@ void dm_gpio_change_rf_callback(struct work_struct *work)
 
 		if (bActuallySet) {
 			priv->bHwRfOffAction = 1;
-			MgntActSet_RF_State(dev, eRfPowerStateToSet, RF_CHANGE_BY_HW);
+			MgntActSet_RF_State(priv, eRfPowerStateToSet, RF_CHANGE_BY_HW);
 			//DrvIFIndicateCurrentPhyStatus(pAdapter);
 		} else {
 			msleep(2000);
