@@ -145,7 +145,7 @@ enum pipe_prot_msg_type {
 
 
 struct pipe_prt_msg {
-	enum pipe_prot_msg_type PacketType;
+	enum pipe_prot_msg_type type;
 	u32                DataSize;
 	char               Data[1];
 };
@@ -154,7 +154,7 @@ struct pipe_prt_msg {
  * Data types
  */
 struct  mousevsc_prt_msg {
-	enum pipe_prot_msg_type   PacketType;
+	enum pipe_prot_msg_type type;
 	u32                  DataSize;
 	union {
 		struct synthhid_protocol_request Request;
@@ -382,7 +382,7 @@ static void MousevscOnReceiveDeviceInfo(struct mousevsc_dev *InputDevice, struct
 	/* Send the ack */
 	memset(&ack, sizeof(struct mousevsc_prt_msg), 0);
 
-	ack.PacketType = PipeMessageData;
+	ack.type = PipeMessageData;
 	ack.DataSize = sizeof(struct synthhid_device_info_ack);
 
 	ack.Ack.header.type = SynthHidInitialDeviceInfoAck;
@@ -453,9 +453,9 @@ static void MousevscOnReceive(struct hv_device *Device, struct vmpacket_descript
 
 	pipeMsg = (struct pipe_prt_msg *)((unsigned long)Packet + (Packet->offset8 << 3));
 
-	if (pipeMsg->PacketType != PipeMessageData) {
+	if (pipeMsg->type != PipeMessageData) {
 		pr_err("unknown pipe msg type - type %d len %d",
-			   pipeMsg->PacketType, pipeMsg->DataSize);
+			   pipeMsg->type, pipeMsg->DataSize);
 		PutInputDevice(Device);
 		return ;
 	}
@@ -605,7 +605,7 @@ static int MousevscConnectToVsp(struct hv_device *Device)
 	 */
 	memset(request, sizeof(struct mousevsc_prt_msg), 0);
 
-	request->PacketType = PipeMessageData;
+	request->type = PipeMessageData;
 	request->DataSize = sizeof(struct synthhid_protocol_request);
 
 	request->Request.header.type = SynthHidProtocolRequest;
