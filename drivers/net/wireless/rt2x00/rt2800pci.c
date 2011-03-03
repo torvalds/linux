@@ -835,7 +835,7 @@ static void rt2800pci_txstatus_interrupt(struct rt2x00_dev *rt2x00dev)
 	 *
 	 * Furthermore we don't disable the TX_FIFO_STATUS
 	 * interrupt here but leave it enabled so that the TX_STA_FIFO
-	 * can also be read while the interrupt thread gets executed.
+	 * can also be read while the tx status tasklet gets executed.
 	 *
 	 * Since we have only one producer and one consumer we don't
 	 * need to lock the kfifo.
