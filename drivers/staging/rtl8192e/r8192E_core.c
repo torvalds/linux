@@ -1953,7 +1953,6 @@ static void rtl8192_init_priv_variable(struct r8192_priv *priv)
 	priv->ieee80211->check_nic_enough_desc = check_nic_enough_desc;
 	priv->ieee80211->tx_headroom = sizeof(TX_FWINFO_8190PCI);
 	priv->ieee80211->qos_support = 1;
-	priv->ieee80211->dot11PowerSaveMode = 0;
 	priv->ieee80211->SetBWModeHandler = rtl8192_SetBWMode;
 	priv->ieee80211->handle_assoc_response = rtl8192_handle_assoc_response;
 	priv->ieee80211->handle_beacon = rtl8192_handle_beacon;

@@ -1730,14 +1730,6 @@ typedef enum _Fsync_State{
 	SW_Fsync
 }Fsync_State;
 
-// Power save mode configured.
-typedef	enum _RT_PS_MODE
-{
-	eActive,	// Active/Continuous access.
-	eMaxPs,		// Max power save mode.
-	eFastPs		// Fast power save mode.
-}RT_PS_MODE;
-
 typedef struct _IbssParms{
 	u16   atimWin;
 }IbssParms, *PIbssParms;
@@ -1896,7 +1888,6 @@ struct ieee80211_device {
 	bool ieee_up;
 	//added by amy
 	bool bSupportRemoteWakeUp;
-	RT_PS_MODE	dot11PowerSaveMode; // Power save mode configured.
 	bool actscanning;
 	bool beinretry;
 	bool is_set_key;
