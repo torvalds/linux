@@ -36,6 +36,8 @@ enum dss_feat_id {
 	FEAT_LINEBUFFERSPLIT	= 1 << 8,
 	FEAT_ROWREPEATENABLE	= 1 << 9,
 	FEAT_RESIZECONF		= 1 << 10,
+	/* Independent core clk divider */
+	FEAT_CORE_CLK_DIV	= 1 << 11,
 };
 
 /* DSS register field id */
