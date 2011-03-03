@@ -190,7 +190,7 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct rt2x00_intf *intf = vif_to_intf(vif);
-	struct data_queue *queue = rt2x00queue_get_queue(rt2x00dev, QID_BEACON);
+	struct data_queue *queue = rt2x00dev->bcn;
 	struct queue_entry *entry = NULL;
 	unsigned int i;
 

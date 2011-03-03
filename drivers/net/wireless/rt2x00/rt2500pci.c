@@ -293,7 +293,7 @@ static void rt2500pci_config_intf(struct rt2x00_dev *rt2x00dev,
 				  struct rt2x00intf_conf *conf,
 				  const unsigned int flags)
 {
-	struct data_queue *queue = rt2x00queue_get_queue(rt2x00dev, QID_BEACON);
+	struct data_queue *queue = rt2x00dev->bcn;
 	unsigned int bcn_preload;
 	u32 reg;
 
