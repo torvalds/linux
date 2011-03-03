@@ -36,8 +36,8 @@
 		struct dw_dma_slave *__slave = (private);	\
 		int dms = __slave ? __slave->dst_master : 0;	\
 		int sms = __slave ? __slave->src_master : 1;	\
-		u8 smsize = __slave ? __slave->src_msize : 0;	\
-		u8 dmsize = __slave ? __slave->dst_msize : 0;	\
+		u8 smsize = __slave ? __slave->src_msize : DW_DMA_MSIZE_16; \
+		u8 dmsize = __slave ? __slave->dst_msize : DW_DMA_MSIZE_16; \
 								\
 		(DWC_CTLL_DST_MSIZE(dmsize)			\
 		 | DWC_CTLL_SRC_MSIZE(smsize)			\
