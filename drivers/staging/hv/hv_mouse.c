@@ -188,10 +188,7 @@ struct mousevsc_dev {
 };
 
 
-/*
- * Globals
- */
-static const char *gDriverName = "mousevsc";
+static const char *driver_name = "mousevsc";
 
 /* {CFA8B69E-5B4A-4cc0-B98B-8BA1A1F3F95A} */
 static const struct hv_guid gMousevscDeviceType = {
@@ -1000,7 +997,7 @@ static int mouse_vsc_initialize(struct hv_driver *Driver)
 		(struct mousevsc_drv_obj *)Driver;
 	int ret = 0;
 
-	Driver->name = gDriverName;
+	Driver->name = driver_name;
 	memcpy(&Driver->dev_type, &gMousevscDeviceType,
 	       sizeof(struct hv_guid));
 
