@@ -2022,12 +2022,7 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 	if (IS_ERR(neigh)) {
 		dst_free(&rt->dst);
 
-		/* We are casting this because that is the return
-		 * value type.  But an errno encoded pointer is the
-		 * same regardless of the underlying pointer type,
-		 * and that's what we are returning.  So this is OK.
-		 */
-		return (struct rt6_info *) neigh;
+		return ERR_CAST(neigh);
 	}
 	rt->rt6i_nexthop = neigh;
 
