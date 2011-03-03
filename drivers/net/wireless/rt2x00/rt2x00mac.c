@@ -518,11 +518,9 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	crypto.cmd = cmd;
 
-	if (sta) {
-		/* some drivers need the AID */
-		crypto.aid = sta->aid;
+	if (sta)
 		crypto.address = sta->addr;
-	} else
+	else
 		crypto.address = bcast_addr;
 
 	if (crypto.cipher == CIPHER_TKIP)
