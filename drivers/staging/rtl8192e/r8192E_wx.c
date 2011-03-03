@@ -220,7 +220,7 @@ static int r8192_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 #ifdef ENABLE_IPS
 	if(wrqu->mode == IW_MODE_ADHOC){
 
-		if(priv->ieee80211->PowerSaveControl.bInactivePs){
+		if (priv->PowerSaveControl.bInactivePs) {
 			if(rtState == eRfOff){
 				if(priv->RfOffReason > RF_CHANGE_BY_IPS)
 				{
@@ -406,7 +406,7 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 #ifdef ENABLE_IPS
 	priv->ieee80211->actscanning = true;
 	if(priv->ieee80211->state != IEEE80211_LINKED){
-		if(priv->ieee80211->PowerSaveControl.bInactivePs){
+		if (priv->PowerSaveControl.bInactivePs) {
 			if(rtState == eRfOff){
 				if(priv->RfOffReason > RF_CHANGE_BY_IPS)
 				{
@@ -1017,7 +1017,7 @@ static int r8192_wx_adapter_power_status(struct net_device *dev,
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 #ifdef ENABLE_LPS
-	PRT_POWER_SAVE_CONTROL pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->ieee80211->PowerSaveControl));
+	PRT_POWER_SAVE_CONTROL pPSC = &priv->PowerSaveControl;
 	struct ieee80211_device* ieee = priv->ieee80211;
 #endif
 	down(&priv->wx_sem);

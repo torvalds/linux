@@ -2243,7 +2243,7 @@ struct ieee80211_device {
 	//added by amy for AP roaming
 	RT_LINK_DETECT_T	LinkDetectInfo;
         //added by amy for ps
-	RT_POWER_SAVE_CONTROL	PowerSaveControl;
+	//RT_POWER_SAVE_CONTROL	PowerSaveControl;
 //}
 	/* used if IEEE_SOFTMAC_TX_QUEUE is set */
 	struct  tx_pending_t tx_pending;

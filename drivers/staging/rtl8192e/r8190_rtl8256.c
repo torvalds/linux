@@ -324,7 +324,7 @@ static bool
 SetRFPowerState8190(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->ieee80211->PowerSaveControl));
+	PRT_POWER_SAVE_CONTROL pPSC = &priv->PowerSaveControl;
 	bool bResult = true;
 
 	if (eRFPowerState == priv->eRFPowerState &&

@@ -1907,7 +1907,7 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8 i;
-	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->ieee80211->PowerSaveControl));
+	PRT_POWER_SAVE_CONTROL pPSC = &priv->PowerSaveControl;
 
 	// Default Halt the NIC if RF is OFF.
 	pPSC->RegRfPsLevel |= RT_RF_OFF_LEVL_HALT_NIC;
@@ -1948,8 +1948,8 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 	//added by amy for power save
 	priv->RfOffReason = 0;
 	priv->bHwRfOffAction = 0;
-	priv->ieee80211->PowerSaveControl.bInactivePs = true;
-	priv->ieee80211->PowerSaveControl.bIPSModeBackup = false;
+	priv->PowerSaveControl.bInactivePs = true;
+	priv->PowerSaveControl.bIPSModeBackup = false;
 
 	priv->ieee80211->current_network.beacon_interval = DEFAULT_BEACONINTERVAL;
 	priv->ieee80211->iw_mode = IW_MODE_INFRA;
@@ -3090,7 +3090,7 @@ rtl819x_ifcheck_resetornot(struct net_device *dev)
 void InactivePsWorkItemCallback(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->ieee80211->PowerSaveControl));
+	PRT_POWER_SAVE_CONTROL pPSC = &priv->PowerSaveControl;
 
 	RT_TRACE(COMP_POWER, "InactivePsWorkItemCallback() --------->\n");
 	//
@@ -3163,7 +3163,7 @@ bool MgntActSet_802_11_PowerSaveMode(struct net_device *dev,	u8 rtPsMode)
 void LeisurePSEnter(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	PRT_POWER_SAVE_CONTROL pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->ieee80211->PowerSaveControl));
+	PRT_POWER_SAVE_CONTROL pPSC = &priv->PowerSaveControl;
 
 	if(!((priv->ieee80211->iw_mode == IW_MODE_INFRA) &&
 		(priv->ieee80211->state == IEEE80211_LINKED)) ||
@@ -3193,7 +3193,7 @@ void LeisurePSEnter(struct net_device *dev)
 void LeisurePSLeave(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	PRT_POWER_SAVE_CONTROL pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->ieee80211->PowerSaveControl));
+	PRT_POWER_SAVE_CONTROL pPSC = &priv->PowerSaveControl;
 
 	if (pPSC->bLeisurePs)
 	{
@@ -3213,7 +3213,7 @@ void
 IPSEnter(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	PRT_POWER_SAVE_CONTROL		pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->ieee80211->PowerSaveControl));
+	PRT_POWER_SAVE_CONTROL pPSC = &priv->PowerSaveControl;
 	RT_RF_POWER_STATE 			rtState;
 
 	if (pPSC->bInactivePs)
@@ -3248,7 +3248,7 @@ void
 IPSLeave(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->ieee80211->PowerSaveControl));
+	PRT_POWER_SAVE_CONTROL pPSC = &priv->PowerSaveControl;
 	RT_RF_POWER_STATE 	rtState;
 
 	if (pPSC->bInactivePs)
@@ -3280,7 +3280,7 @@ void ieee80211_ips_leave_wq(struct net_device *dev)
 	RT_RF_POWER_STATE	rtState;
 	rtState = priv->eRFPowerState;
 
-	if(priv->ieee80211->PowerSaveControl.bInactivePs){
+	if (priv->PowerSaveControl.bInactivePs){
 		if(rtState == eRfOff){
 			if(priv->RfOffReason > RF_CHANGE_BY_IPS)
 			{
@@ -3347,7 +3347,7 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 		if((ieee->iw_mode == IW_MODE_INFRA) && (ieee->state == IEEE80211_NOLINK) &&
 		    (priv->eRFPowerState == eRfOn) && !ieee->is_set_key &&
 		    (!ieee->proto_stoppping) && !ieee->wx_set_enc){
-			if(ieee->PowerSaveControl.ReturnPoint == IPS_CALLBACK_NONE){
+			if (priv->PowerSaveControl.ReturnPoint == IPS_CALLBACK_NONE){
 				IPSEnter(dev);
 			}
 		}
@@ -5046,7 +5046,7 @@ void setKey(	struct net_device *dev,
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	RT_RF_POWER_STATE	rtState;
 	rtState = priv->eRFPowerState;
-	if(priv->ieee80211->PowerSaveControl.bInactivePs){
+	if (priv->PowerSaveControl.bInactivePs){
 		if(rtState == eRfOff){
 			if(priv->RfOffReason > RF_CHANGE_BY_IPS)
 			{
@@ -5110,7 +5110,7 @@ bool NicIFEnableNIC(struct net_device* dev)
 {
 	RT_STATUS init_status = RT_STATUS_SUCCESS;
 	struct r8192_priv* priv = ieee80211_priv(dev);
-	PRT_POWER_SAVE_CONTROL pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->ieee80211->PowerSaveControl));
+	PRT_POWER_SAVE_CONTROL pPSC = &priv->PowerSaveControl;
 
 	//YJ,add,091109
 	if (priv->up == 0){

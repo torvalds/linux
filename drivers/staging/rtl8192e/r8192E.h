@@ -939,6 +939,7 @@ typedef struct r8192_priv
 	// Use to calculate PWBD.
 	RT_RF_POWER_STATE		eRFPowerState;
 	RT_RF_CHANGE_SOURCE	RfOffReason;
+	RT_POWER_SAVE_CONTROL	PowerSaveControl;
 	u8	bCckHighPower;
 	long	undecorated_smoothed_pwdb;
 	long	undecorated_smoothed_cck_adc_pwdb[4];
