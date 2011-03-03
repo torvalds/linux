@@ -1026,8 +1026,8 @@ irqreturn_t xen_debug_interrupt(int irq, void *dev_id)
 }
 
 static DEFINE_PER_CPU(unsigned, xed_nesting_count);
-static DEFINE_PER_CPU(unsigned int, last_word_idx) = { BITS_PER_LONG - 1 };
-static DEFINE_PER_CPU(unsigned int, last_bit_idx) = { BITS_PER_LONG - 1 };
+static DEFINE_PER_CPU(unsigned int, current_word_idx);
+static DEFINE_PER_CPU(unsigned int, current_bit_idx);
 
 /*
  * Mask out the i least significant bits of w
@@ -1065,23 +1065,21 @@ static void __xen_evtchn_do_upcall(void)
 #endif
 		pending_words = xchg(&vcpu_info->evtchn_pending_sel, 0);
 
-		word_idx = __this_cpu_read(last_word_idx);
-		bit_idx = __this_cpu_read(last_bit_idx);
+		word_idx = __this_cpu_read(current_word_idx);
+		bit_idx = __this_cpu_read(current_bit_idx);
 
 		while (pending_words != 0) {
 			unsigned long pending_bits;
 			unsigned long words;
 
-			word_idx = (word_idx + 1) % BITS_PER_LONG;
 			words = MASK_LSBS(pending_words, word_idx);
 
 			/*
-			 * If we masked out all events, wrap around to the
-			 * beginning.
+			 * If we masked out all events, wrap to beginning.
 			 */
 			if (words == 0) {
-				word_idx = BITS_PER_LONG - 1;
-				bit_idx = BITS_PER_LONG - 1;
+				word_idx = 0;
+				bit_idx = 0;
 				continue;
 			}
 			word_idx = __ffs(words);
@@ -1093,14 +1091,11 @@ static void __xen_evtchn_do_upcall(void)
 
 				pending_bits = active_evtchns(cpu, s, word_idx);
 
-				bit_idx = (bit_idx + 1) % BITS_PER_LONG;
 				bits = MASK_LSBS(pending_bits, bit_idx);
 
 				/* If we masked out all events, move on. */
-				if (bits == 0) {
-					bit_idx = BITS_PER_LONG - 1;
+				if (bits == 0)
 					break;
-				}
 
 				bit_idx = __ffs(bits);
 
@@ -1117,22 +1112,23 @@ static void __xen_evtchn_do_upcall(void)
 						generic_handle_irq_desc(irq, desc);
 				}
 
-				/*
-				 * If this is the final port processed, we'll
-				 * pick up here+1 next time.
-				 */
-				__this_cpu_write(last_word_idx, word_idx);
-				__this_cpu_write(last_bit_idx, bit_idx);
-			} while (bit_idx != BITS_PER_LONG - 1);
+				bit_idx = (bit_idx + 1) % BITS_PER_LONG;
+
+				/* Next caller starts at last processed + 1 */
+				__this_cpu_write(current_word_idx,
+						 bit_idx ? word_idx :
+						 (word_idx+1) % BITS_PER_LONG);
+				__this_cpu_write(current_bit_idx, bit_idx);
+			} while (bit_idx != 0);
 
 			pending_bits = active_evtchns(cpu, s, word_idx);
 
-			/*
-			 * We handled all ports, so we can clear the
-			 * selector bit.
-			 */
+			/* If we handled all ports, clear the selector bit. */
 			if (pending_bits == 0)
 				pending_words &= ~(1UL << word_idx);
+
+			word_idx = (word_idx + 1) % BITS_PER_LONG;
+			bit_idx = 0;
 		}
 
 		BUG_ON(!irqs_disabled());
