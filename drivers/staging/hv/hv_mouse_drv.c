@@ -317,6 +317,13 @@ static void __exit mousevsc_exit(void)
 }
 
 /*
+ * We don't want to automatically load this driver just yet, it's quite
+ * broken.  It's safe if you want to load it yourself manually, but
+ * don't inflict it on unsuspecting users, that's just mean.
+ */
+#if 0
+
+/*
  * We use a PCI table to determine if we should autoload this driver  This is
  * needed by distro tools to determine if the hyperv drivers should be
  * installed and/or configured.  We don't do anything else with the table, but
@@ -327,6 +334,7 @@ const static struct pci_device_id microsoft_hv_pci_table[] = {
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, microsoft_hv_pci_table);
+#endif
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION(HV_DRV_VERSION);
