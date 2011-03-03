@@ -736,7 +736,7 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 			break;
 		}
 
-		queue = rt2x00queue_get_queue(rt2x00dev, qid);
+		queue = rt2x00queue_get_tx_queue(rt2x00dev, qid);
 		if (unlikely(queue == NULL)) {
 			/*
 			 * The queue is NULL, this shouldn't happen. Stop

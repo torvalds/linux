@@ -2247,7 +2247,7 @@ static int rt73usb_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
 	if (queue_idx >= 4)
 		return 0;
 
-	queue = rt2x00queue_get_queue(rt2x00dev, queue_idx);
+	queue = rt2x00queue_get_tx_queue(rt2x00dev, queue_idx);
 
 	/* Update WMM TXOP register */
 	offset = AC_TXOP_CSR0 + (sizeof(u32) * (!!(queue_idx & 2)));

@@ -122,7 +122,7 @@ void rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	    test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags))
 		queue = rt2x00queue_get_queue(rt2x00dev, QID_ATIM);
 	else
-		queue = rt2x00queue_get_queue(rt2x00dev, qid);
+		queue = rt2x00queue_get_tx_queue(rt2x00dev, qid);
 	if (unlikely(!queue)) {
 		ERROR(rt2x00dev,
 		      "Attempt to send packet over invalid queue %d.\n"
@@ -692,7 +692,7 @@ int rt2x00mac_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct data_queue *queue;
 
-	queue = rt2x00queue_get_queue(rt2x00dev, queue_idx);
+	queue = rt2x00queue_get_tx_queue(rt2x00dev, queue_idx);
 	if (unlikely(!queue))
 		return -EINVAL;
 
