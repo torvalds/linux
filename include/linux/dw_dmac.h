@@ -25,6 +25,9 @@ struct dw_dma_platform_data {
 #define CHAN_ALLOCATION_ASCENDING	0	/* zero to seven */
 #define CHAN_ALLOCATION_DESCENDING	1	/* seven to zero */
 	unsigned char	chan_allocation_order;
+#define CHAN_PRIORITY_ASCENDING		0	/* chan0 highest */
+#define CHAN_PRIORITY_DESCENDING	1	/* chan7 highest */
+	unsigned char	chan_priority;
 };
 
 /**
@@ -70,7 +73,6 @@ struct dw_dma_slave {
 #define DWC_CFGH_DST_PER(x)	((x) << 11)
 
 /* Platform-configurable bits in CFG_LO */
-#define DWC_CFGL_PRIO(x)	((x) << 5)	/* priority */
 #define DWC_CFGL_LOCK_CH_XFER	(0 << 12)	/* scope of LOCK_CH */
 #define DWC_CFGL_LOCK_CH_BLOCK	(1 << 12)
 #define DWC_CFGL_LOCK_CH_XACT	(2 << 12)

@@ -101,6 +101,8 @@ struct dw_dma_regs {
 #define DWC_CTLH_BLOCK_TS_MASK	0x00000fff
 
 /* Bitfields in CFG_LO. Platform-configurable bits are in <linux/dw_dmac.h> */
+#define DWC_CFGL_CH_PRIOR_MASK	(0x7 << 5)	/* priority mask */
+#define DWC_CFGL_CH_PRIOR(x)	((x) << 5)	/* priority */
 #define DWC_CFGL_CH_SUSP	(1 << 8)	/* pause xfer */
 #define DWC_CFGL_FIFO_EMPTY	(1 << 9)	/* pause xfer */
 #define DWC_CFGL_HS_DST		(1 << 10)	/* handshake w/dst */
@@ -134,6 +136,7 @@ struct dw_dma_chan {
 	struct dma_chan		chan;
 	void __iomem		*ch_regs;
 	u8			mask;
+	u8			priority;
 
 	spinlock_t		lock;
 

@@ -901,8 +901,11 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 		BUG_ON(!dws->dma_dev || dws->dma_dev != dw->dma.dev);
 
 		cfghi = dws->cfg_hi;
-		cfglo = dws->cfg_lo;
+		cfglo = dws->cfg_lo & ~DWC_CFGL_CH_PRIOR_MASK;
 	}
+
+	cfglo |= DWC_CFGL_CH_PRIOR(dwc->priority);
+
 	channel_writel(dwc, CFG_LO, cfglo);
 	channel_writel(dwc, CFG_HI, cfghi);
 
@@ -1324,6 +1327,12 @@ static int __init dw_probe(struct platform_device *pdev)
 					&dw->dma.channels);
 		else
 			list_add(&dwc->chan.device_node, &dw->dma.channels);
+
+		/* 7 is highest priority & 0 is lowest. */
+		if (pdata->chan_priority == CHAN_PRIORITY_ASCENDING)
+			dwc->priority = 7 - i;
+		else
+			dwc->priority = i;
 
 		dwc->ch_regs = &__dw_regs(dw)->CHAN[i];
 		spin_lock_init(&dwc->lock);
