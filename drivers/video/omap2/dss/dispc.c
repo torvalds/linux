@@ -73,7 +73,7 @@ struct dispc_reg { u16 idx; };
 #define DISPC_TIMING_H(ch)		DISPC_REG(ch != 2 ? 0x0064 : 0x0400)
 #define DISPC_TIMING_V(ch)		DISPC_REG(ch != 2 ? 0x0068 : 0x0404)
 #define DISPC_POL_FREQ(ch)		DISPC_REG(ch != 2 ? 0x006C : 0x0408)
-#define DISPC_DIVISOR(ch)		DISPC_REG(ch != 2 ? 0x0070 : 0x040C)
+#define DISPC_DIVISORo(ch)		DISPC_REG(ch != 2 ? 0x0070 : 0x040C)
 #define DISPC_GLOBAL_ALPHA		DISPC_REG(0x0074)
 #define DISPC_SIZE_DIG			DISPC_REG(0x0078)
 #define DISPC_SIZE_LCD(ch)		DISPC_REG(ch != 2 ? 0x007C : 0x03CC)
@@ -128,6 +128,7 @@ struct dispc_reg { u16 idx; };
 
 #define DISPC_VID_PRELOAD(n)		DISPC_REG(0x230 + (n)*0x04)
 
+#define DISPC_DIVISOR			DISPC_REG(0x0804)
 
 #define DISPC_IRQ_MASK_ERROR            (DISPC_IRQ_GFX_FIFO_UNDERFLOW | \
 					 DISPC_IRQ_OCP_ERR | \
@@ -231,7 +232,7 @@ void dispc_save_context(void)
 	SR(TIMING_H(0));
 	SR(TIMING_V(0));
 	SR(POL_FREQ(0));
-	SR(DIVISOR(0));
+	SR(DIVISORo(0));
 	SR(GLOBAL_ALPHA);
 	SR(SIZE_DIG);
 	SR(SIZE_LCD(0));
@@ -243,7 +244,7 @@ void dispc_save_context(void)
 		SR(TIMING_H(2));
 		SR(TIMING_V(2));
 		SR(POL_FREQ(2));
-		SR(DIVISOR(2));
+		SR(DIVISORo(2));
 		SR(CONFIG2);
 	}
 
@@ -390,7 +391,7 @@ void dispc_restore_context(void)
 	RR(TIMING_H(0));
 	RR(TIMING_V(0));
 	RR(POL_FREQ(0));
-	RR(DIVISOR(0));
+	RR(DIVISORo(0));
 	RR(GLOBAL_ALPHA);
 	RR(SIZE_DIG);
 	RR(SIZE_LCD(0));
@@ -401,7 +402,7 @@ void dispc_restore_context(void)
 		RR(TIMING_H(2));
 		RR(TIMING_V(2));
 		RR(POL_FREQ(2));
-		RR(DIVISOR(2));
+		RR(DIVISORo(2));
 		RR(CONFIG2);
 	}
 
@@ -2316,7 +2317,7 @@ static void dispc_set_lcd_divisor(enum omap_channel channel, u16 lck_div,
 	BUG_ON(pck_div < 2);
 
 	enable_clocks(1);
-	dispc_write_reg(DISPC_DIVISOR(channel),
+	dispc_write_reg(DISPC_DIVISORo(channel),
 			FLD_VAL(lck_div, 23, 16) | FLD_VAL(pck_div, 7, 0));
 	enable_clocks(0);
 }
@@ -2325,7 +2326,7 @@ static void dispc_get_lcd_divisor(enum omap_channel channel, int *lck_div,
 		int *pck_div)
 {
 	u32 l;
-	l = dispc_read_reg(DISPC_DIVISOR(channel));
+	l = dispc_read_reg(DISPC_DIVISORo(channel));
 	*lck_div = FLD_GET(l, 23, 16);
 	*pck_div = FLD_GET(l, 7, 0);
 }
@@ -2351,7 +2352,7 @@ unsigned long dispc_lclk_rate(enum omap_channel channel)
 	unsigned long r;
 	u32 l;
 
-	l = dispc_read_reg(DISPC_DIVISOR(channel));
+	l = dispc_read_reg(DISPC_DIVISORo(channel));
 
 	lcd = FLD_GET(l, 23, 16);
 
@@ -2366,7 +2367,7 @@ unsigned long dispc_pclk_rate(enum omap_channel channel)
 	unsigned long r;
 	u32 l;
 
-	l = dispc_read_reg(DISPC_DIVISOR(channel));
+	l = dispc_read_reg(DISPC_DIVISORo(channel));
 
 	lcd = FLD_GET(l, 23, 16);
 	pcd = FLD_GET(l, 7, 0);
@@ -2483,7 +2484,7 @@ void dispc_dump_regs(struct seq_file *s)
 	DUMPREG(DISPC_TIMING_H(0));
 	DUMPREG(DISPC_TIMING_V(0));
 	DUMPREG(DISPC_POL_FREQ(0));
-	DUMPREG(DISPC_DIVISOR(0));
+	DUMPREG(DISPC_DIVISORo(0));
 	DUMPREG(DISPC_GLOBAL_ALPHA);
 	DUMPREG(DISPC_SIZE_DIG);
 	DUMPREG(DISPC_SIZE_LCD(0));
@@ -2495,7 +2496,7 @@ void dispc_dump_regs(struct seq_file *s)
 		DUMPREG(DISPC_TIMING_H(2));
 		DUMPREG(DISPC_TIMING_V(2));
 		DUMPREG(DISPC_POL_FREQ(2));
-		DUMPREG(DISPC_DIVISOR(2));
+		DUMPREG(DISPC_DIVISORo(2));
 		DUMPREG(DISPC_SIZE_LCD(2));
 	}
 
@@ -2737,8 +2738,8 @@ int dispc_get_clock_div(enum omap_channel channel,
 
 	fck = dispc_fclk_rate();
 
-	cinfo->lck_div = REG_GET(DISPC_DIVISOR(channel), 23, 16);
-	cinfo->pck_div = REG_GET(DISPC_DIVISOR(channel), 7, 0);
+	cinfo->lck_div = REG_GET(DISPC_DIVISORo(channel), 23, 16);
+	cinfo->pck_div = REG_GET(DISPC_DIVISORo(channel), 7, 0);
 
 	cinfo->lck = fck / cinfo->lck_div;
 	cinfo->pck = cinfo->lck / cinfo->pck_div;
