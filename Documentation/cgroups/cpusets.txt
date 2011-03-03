@@ -693,7 +693,7 @@ There are ways to query or modify cpusets:
  - via the C library libcgroup.
    (http://sourceforge.net/projects/libcg/)
  - via the python application cset.
-   (http://developer.novell.com/wiki/index.php/Cpuset)
+   (http://code.google.com/p/cpuset/)
 
 The sched_setaffinity calls can also be done at the shell prompt using
 SGI's runon or Robert Love's taskset.  The mbind and set_mempolicy
@@ -725,13 +725,14 @@ Now you want to do something with this cpuset.
 
 In this directory you can find several files:
 # ls
-cpuset.cpu_exclusive       cpuset.memory_spread_slab
-cpuset.cpus                cpuset.mems
-cpuset.mem_exclusive       cpuset.sched_load_balance
-cpuset.mem_hardwall        cpuset.sched_relax_domain_level
-cpuset.memory_migrate      notify_on_release
-cpuset.memory_pressure     tasks
-cpuset.memory_spread_page
+cgroup.clone_children  cpuset.memory_pressure
+cgroup.event_control   cpuset.memory_spread_page
+cgroup.procs           cpuset.memory_spread_slab
+cpuset.cpu_exclusive   cpuset.mems
+cpuset.cpus            cpuset.sched_load_balance
+cpuset.mem_exclusive   cpuset.sched_relax_domain_level
+cpuset.mem_hardwall    notify_on_release
+cpuset.memory_migrate  tasks
 
 Reading them will give you information about the state of this cpuset:
 the CPUs and Memory Nodes it can use, the processes that are using
