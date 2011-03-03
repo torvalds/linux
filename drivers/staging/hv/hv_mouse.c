@@ -29,10 +29,43 @@
 #include "version_info.h"
 #include "vmbus.h"
 #include "vmbus_api.h"
-#include "mousevsc_api.h"
 #include "channel.h"
 #include "vmbus_packet_format.h"
 
+
+/*
+ * Data types
+ */
+struct input_dev_info {
+	unsigned short VendorID;
+	unsigned short ProductID;
+	unsigned short VersionNumber;
+	char	       Name[128];
+};
+
+/* Represents the input vsc driver */
+struct mousevsc_drv_obj {
+	struct hv_driver Base; // Must be the first field
+	/*
+	 * This is set by the caller to allow us to callback when
+	 * we receive a packet from the "wire"
+	 */
+	void (*OnDeviceInfo)(struct hv_device *dev,
+			     struct input_dev_info* info);
+	void (*OnInputReport)(struct hv_device *dev, void* packet, u32 len);
+	void (*OnReportDescriptor)(struct hv_device *dev,
+				   void* packet, u32 len);
+	/* Specific to this driver */
+	int (*OnOpen)(struct hv_device *Device);
+	int (*OnClose)(struct hv_device *Device);
+	void *Context;
+};
+
+
+/*
+ * Interface
+ */
+int mouse_vsc_initialize(struct hv_driver *drv);
 
 /* The maximum size of a synthetic input message. */
 #define SYNTHHID_MAX_INPUT_REPORT_SIZE 16
@@ -119,6 +152,8 @@ typedef struct {
 
 #pragma pack(pop)
 
+#define INPUTVSC_SEND_RING_BUFFER_SIZE		10*PAGE_SIZE
+#define INPUTVSC_RECV_RING_BUFFER_SIZE		10*PAGE_SIZE
 
 #define NBITS(x) (((x)/BITS_PER_LONG)+1)
 
