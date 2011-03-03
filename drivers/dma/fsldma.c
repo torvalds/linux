@@ -89,7 +89,7 @@ static void set_desc_cnt(struct fsldma_chan *chan,
 }
 
 static void set_desc_src(struct fsldma_chan *chan,
-				struct fsl_dma_ld_hw *hw, dma_addr_t src)
+			 struct fsl_dma_ld_hw *hw, dma_addr_t src)
 {
 	u64 snoop_bits;
 
@@ -99,7 +99,7 @@ static void set_desc_src(struct fsldma_chan *chan,
 }
 
 static void set_desc_dst(struct fsldma_chan *chan,
-				struct fsl_dma_ld_hw *hw, dma_addr_t dst)
+			 struct fsl_dma_ld_hw *hw, dma_addr_t dst)
 {
 	u64 snoop_bits;
 
@@ -109,7 +109,7 @@ static void set_desc_dst(struct fsldma_chan *chan,
 }
 
 static void set_desc_next(struct fsldma_chan *chan,
-				struct fsl_dma_ld_hw *hw, dma_addr_t next)
+			  struct fsl_dma_ld_hw *hw, dma_addr_t next)
 {
 	u64 snoop_bits;
 
@@ -118,8 +118,7 @@ static void set_desc_next(struct fsldma_chan *chan,
 	hw->next_ln_addr = CPU_TO_DMA(chan, snoop_bits | next, 64);
 }
 
-static void set_ld_eol(struct fsldma_chan *chan,
-			struct fsl_desc_sw *desc)
+static void set_ld_eol(struct fsldma_chan *chan, struct fsl_desc_sw *desc)
 {
 	u64 snoop_bits;
 
@@ -338,8 +337,7 @@ static void fsl_chan_toggle_ext_start(struct fsldma_chan *chan, int enable)
 		chan->feature &= ~FSL_DMA_CHAN_START_EXT;
 }
 
-static void append_ld_queue(struct fsldma_chan *chan,
-			    struct fsl_desc_sw *desc)
+static void append_ld_queue(struct fsldma_chan *chan, struct fsl_desc_sw *desc)
 {
 	struct fsl_desc_sw *tail = to_fsl_desc(chan->ld_pending.prev);
 
@@ -380,8 +378,8 @@ static dma_cookie_t fsl_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 	cookie = chan->common.cookie;
 	list_for_each_entry(child, &desc->tx_list, node) {
 		cookie++;
-		if (cookie < 0)
-			cookie = 1;
+		if (cookie < DMA_MIN_COOKIE)
+			cookie = DMA_MIN_COOKIE;
 
 		child->async_tx.cookie = cookie;
 	}
@@ -402,8 +400,7 @@ static dma_cookie_t fsl_dma_tx_submit(struct dma_async_tx_descriptor *tx)
  *
  * Return - The descriptor allocated. NULL for failed.
  */
-static struct fsl_desc_sw *fsl_dma_alloc_descriptor(
-					struct fsldma_chan *chan)
+static struct fsl_desc_sw *fsl_dma_alloc_descriptor(struct fsldma_chan *chan)
 {
 	struct fsl_desc_sw *desc;
 	dma_addr_t pdesc;
@@ -426,7 +423,6 @@ static struct fsl_desc_sw *fsl_dma_alloc_descriptor(
 
 	return desc;
 }
-
 
 /**
  * fsl_dma_alloc_chan_resources - Allocate resources for DMA channel.
@@ -537,14 +533,15 @@ fsl_dma_prep_interrupt(struct dma_chan *dchan, unsigned long flags)
 	/* Insert the link descriptor to the LD ring */
 	list_add_tail(&new->node, &new->tx_list);
 
-	/* Set End-of-link to the last link descriptor of new list*/
+	/* Set End-of-link to the last link descriptor of new list */
 	set_ld_eol(chan, new);
 
 	return &new->async_tx;
 }
 
-static struct dma_async_tx_descriptor *fsl_dma_prep_memcpy(
-	struct dma_chan *dchan, dma_addr_t dma_dst, dma_addr_t dma_src,
+static struct dma_async_tx_descriptor *
+fsl_dma_prep_memcpy(struct dma_chan *dchan,
+	dma_addr_t dma_dst, dma_addr_t dma_src,
 	size_t len, unsigned long flags)
 {
 	struct fsldma_chan *chan;
@@ -594,7 +591,7 @@ static struct dma_async_tx_descriptor *fsl_dma_prep_memcpy(
 	new->async_tx.flags = flags; /* client is in control of this ack */
 	new->async_tx.cookie = -EBUSY;
 
-	/* Set End-of-link to the last link descriptor of new list*/
+	/* Set End-of-link to the last link descriptor of new list */
 	set_ld_eol(chan, new);
 
 	return &first->async_tx;
