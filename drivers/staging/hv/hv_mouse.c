@@ -160,7 +160,7 @@ struct  mousevsc_prt_msg {
 		struct synthhid_protocol_request Request;
 		struct synthhid_protocol_response Response;
 		struct synthhid_device_info_ack Ack;
-	} u;
+	};
 };
 
 /*
@@ -385,9 +385,9 @@ static void MousevscOnReceiveDeviceInfo(struct mousevsc_dev *InputDevice, struct
 	ack.PacketType = PipeMessageData;
 	ack.DataSize = sizeof(struct synthhid_device_info_ack);
 
-	ack.u.Ack.header.type = SynthHidInitialDeviceInfoAck;
-	ack.u.Ack.header.size = 1;
-	ack.u.Ack.reserved = 0;
+	ack.Ack.header.type = SynthHidInitialDeviceInfoAck;
+	ack.Ack.header.size = 1;
+	ack.Ack.reserved = 0;
 
 	ret = vmbus_sendpacket(InputDevice->Device->channel,
 			&ack,
@@ -608,9 +608,9 @@ static int MousevscConnectToVsp(struct hv_device *Device)
 	request->PacketType = PipeMessageData;
 	request->DataSize = sizeof(struct synthhid_protocol_request);
 
-	request->u.Request.header.type = SynthHidProtocolRequest;
-	request->u.Request.header.size = sizeof(unsigned long);
-	request->u.Request.version_requested.version = SYNTHHID_INPUT_VERSION;
+	request->Request.header.type = SynthHidProtocolRequest;
+	request->Request.header.size = sizeof(unsigned long);
+	request->Request.version_requested.version = SYNTHHID_INPUT_VERSION;
 
 	pr_info("synthhid protocol request...");
 
@@ -635,7 +635,7 @@ static int MousevscConnectToVsp(struct hv_device *Device)
 
 	response = &inputDevice->ProtocolResp;
 
-	if (!response->u.Response.approved) {
+	if (!response->Response.approved) {
 		pr_err("synthhid protocol request failed (version %d)",
 		       SYNTHHID_INPUT_VERSION);
 		ret = -1;
