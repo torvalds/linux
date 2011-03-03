@@ -83,10 +83,8 @@ enum synthhid_msg_type {
  * Basic message structures.
  */
 struct synthhid_msg_hdr {
-	enum synthhid_msg_type  Type;    /* Type of the enclosed message */
-	u32                     Size;    /* Size of the enclosed message
-					  *  (size of the data payload)
-					  */
+	enum synthhid_msg_type type;
+	u32 size;
 };
 
 struct synthhid_msg {
@@ -388,8 +386,8 @@ static void MousevscOnReceiveDeviceInfo(struct mousevsc_dev *InputDevice, struct
 	ack.PacketType = PipeMessageData;
 	ack.DataSize = sizeof(struct synthhid_device_info_ack);
 
-	ack.u.Ack.Header.Type = SynthHidInitialDeviceInfoAck;
-	ack.u.Ack.Header.Size = 1;
+	ack.u.Ack.Header.type = SynthHidInitialDeviceInfoAck;
+	ack.u.Ack.Header.size = 1;
 	ack.u.Ack.Reserved = 0;
 
 	ret = vmbus_sendpacket(InputDevice->Device->channel,
@@ -439,7 +437,7 @@ static void MousevscOnReceiveInputReport(struct mousevsc_dev *InputDevice, struc
 
 	inputreport_callback(InputDevice->Device,
 			     InputReport->ReportBuffer,
-			     InputReport->Header.Size);
+			     InputReport->Header.size);
 }
 
 static void MousevscOnReceive(struct hv_device *Device, struct vmpacket_descriptor *Packet)
@@ -465,7 +463,7 @@ static void MousevscOnReceive(struct hv_device *Device, struct vmpacket_descript
 
 	hidMsg = (struct synthhid_msg *)&pipeMsg->Data[0];
 
-	switch (hidMsg->Header.Type) {
+	switch (hidMsg->Header.type) {
 	case SynthHidProtocolResponse:
 		memcpy(&inputDevice->ProtocolResp, pipeMsg, pipeMsg->DataSize+sizeof(struct pipe_prt_msg) - sizeof(unsigned char));
 		inputDevice->protocol_wait_condition = 1;
@@ -489,7 +487,7 @@ static void MousevscOnReceive(struct hv_device *Device, struct vmpacket_descript
 		break;
 	default:
 		pr_err("unsupported hid msg type - type %d len %d",
-		       hidMsg->Header.Type, hidMsg->Header.Size);
+		       hidMsg->Header.type, hidMsg->Header.size);
 		break;
 	}
 
@@ -611,8 +609,8 @@ static int MousevscConnectToVsp(struct hv_device *Device)
 	request->PacketType = PipeMessageData;
 	request->DataSize = sizeof(struct synthhid_protocol_request);
 
-	request->u.Request.Header.Type = SynthHidProtocolRequest;
-	request->u.Request.Header.Size = sizeof(unsigned long);
+	request->u.Request.Header.type = SynthHidProtocolRequest;
+	request->u.Request.Header.size = sizeof(unsigned long);
 	request->u.Request.VersionRequested.AsDWord =
 		SYNTHHID_INPUT_VERSION_DWORD;
 
