@@ -43,10 +43,66 @@
 
 #define DMIF_ADDR_CONFIG  				0xBD4
 
+#define VM_CONTEXT0_REQUEST_RESPONSE			0x1470
+#define		REQUEST_TYPE(x)					(((x) & 0xf) << 0)
+#define		RESPONSE_TYPE_MASK				0x000000F0
+#define		RESPONSE_TYPE_SHIFT				4
+#define VM_L2_CNTL					0x1400
+#define		ENABLE_L2_CACHE					(1 << 0)
+#define		ENABLE_L2_FRAGMENT_PROCESSING			(1 << 1)
+#define		ENABLE_L2_PTE_CACHE_LRU_UPDATE_BY_WRITE		(1 << 9)
+#define		ENABLE_L2_PDE0_CACHE_LRU_UPDATE_BY_WRITE	(1 << 10)
+#define		EFFECTIVE_L2_QUEUE_SIZE(x)			(((x) & 7) << 14)
+#define		CONTEXT1_IDENTITY_ACCESS_MODE(x)		(((x) & 3) << 18)
+/* CONTEXT1_IDENTITY_ACCESS_MODE
+ * 0 physical = logical
+ * 1 logical via context1 page table
+ * 2 inside identity aperture use translation, outside physical = logical
+ * 3 inside identity aperture physical = logical, outside use translation
+ */
+#define VM_L2_CNTL2					0x1404
+#define		INVALIDATE_ALL_L1_TLBS				(1 << 0)
+#define		INVALIDATE_L2_CACHE				(1 << 1)
+#define VM_L2_CNTL3					0x1408
+#define		BANK_SELECT(x)					((x) << 0)
+#define		CACHE_UPDATE_MODE(x)				((x) << 6)
+#define		L2_CACHE_BIGK_ASSOCIATIVITY			(1 << 20)
+#define		L2_CACHE_BIGK_FRAGMENT_SIZE(x)			((x) << 15)
+#define	VM_L2_STATUS					0x140C
+#define		L2_BUSY						(1 << 0)
+#define VM_CONTEXT0_CNTL				0x1410
+#define		ENABLE_CONTEXT					(1 << 0)
+#define		PAGE_TABLE_DEPTH(x)				(((x) & 3) << 1)
+#define		RANGE_PROTECTION_FAULT_ENABLE_DEFAULT		(1 << 4)
+#define VM_CONTEXT1_CNTL				0x1414
+#define VM_CONTEXT0_CNTL2				0x1430
+#define VM_CONTEXT1_CNTL2				0x1434
+#define VM_INVALIDATE_REQUEST				0x1478
+#define VM_INVALIDATE_RESPONSE				0x147c
+#define VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR	0x1518
+#define VM_CONTEXT1_PROTECTION_FAULT_DEFAULT_ADDR	0x151c
+#define	VM_CONTEXT0_PAGE_TABLE_BASE_ADDR		0x153C
+#define	VM_CONTEXT0_PAGE_TABLE_START_ADDR		0x155C
+#define	VM_CONTEXT0_PAGE_TABLE_END_ADDR			0x157C
+
 #define MC_SHARED_CHMAP						0x2004
 #define		NOOFCHAN_SHIFT					12
 #define		NOOFCHAN_MASK					0x00003000
 #define MC_SHARED_CHREMAP					0x2008
+
+#define	MC_VM_SYSTEM_APERTURE_LOW_ADDR			0x2034
+#define	MC_VM_SYSTEM_APERTURE_HIGH_ADDR			0x2038
+#define	MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR		0x203C
+#define	MC_VM_MX_L1_TLB_CNTL				0x2064
+#define		ENABLE_L1_TLB					(1 << 0)
+#define		ENABLE_L1_FRAGMENT_PROCESSING			(1 << 1)
+#define		SYSTEM_ACCESS_MODE_PA_ONLY			(0 << 3)
+#define		SYSTEM_ACCESS_MODE_USE_SYS_MAP			(1 << 3)
+#define		SYSTEM_ACCESS_MODE_IN_SYS			(2 << 3)
+#define		SYSTEM_ACCESS_MODE_NOT_IN_SYS			(3 << 3)
+#define		SYSTEM_APERTURE_UNMAPPED_ACCESS_PASS_THRU	(0 << 5)
+#define		ENABLE_ADVANCED_DRIVER_MODEL			(1 << 6)
+
 #define MC_SHARED_BLACKOUT_CNTL           		0x20ac
 #define	MC_ARB_RAMCFG					0x2760
 #define		NOOFBANK_SHIFT					0
@@ -87,6 +143,7 @@
 
 #define	CONFIG_MEMSIZE					0x5428
 
+#define HDP_MEM_COHERENCY_FLUSH_CNTL			0x5480
 #define HDP_REG_COHERENCY_FLUSH_CNTL			0x54A0
 
 #define	GRBM_CNTL					0x8000
