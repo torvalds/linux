@@ -1811,8 +1811,6 @@ typedef struct _RT_POWER_SAVE_CONTROL
 	bool				bLeisurePs;
 	u32				PowerProfile;
 	u8				LpsIdleCount;
-	u8				RegMaxLPSAwakeIntvl;
-	u8				LPSAwakeIntvl;
 
 	u32				CurPsLevel;
 	u32				RegRfPsLevel;
@@ -2200,6 +2198,8 @@ struct ieee80211_device {
 
 	/* for PS mode */
 	unsigned long last_rx_ps_time;
+	u8 LPSAwakeIntvl;
+	u8 RegMaxLPSAwakeIntvl;
 
 	/* used if IEEE_SOFTMAC_SINGLE_QUEUE is set */
 	struct sk_buff *mgmt_queue_ring[MGMT_QUEUE_NUM];

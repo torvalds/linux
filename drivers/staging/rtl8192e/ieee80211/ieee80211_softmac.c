@@ -1738,7 +1738,6 @@ short ieee80211_sta_ps_sleep(struct ieee80211_device *ieee, u32 *time_h, u32 *ti
 {
 	int timeout = ieee->ps_timeout;
 	u8 dtim;
-	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(ieee->PowerSaveControl));
 
 	if(ieee->LPSDelayCnt)
 	{
@@ -1767,35 +1766,35 @@ short ieee80211_sta_ps_sleep(struct ieee80211_device *ieee, u32 *time_h, u32 *ti
 
 	if(time_l){
 		if(ieee->bAwakePktSent == true) {
-			pPSC->LPSAwakeIntvl = 1;//tx wake one beacon
+			ieee->LPSAwakeIntvl = 1;//tx wake one beacon
 		} else {
 			u8		MaxPeriod = 1;
 
-			if(pPSC->LPSAwakeIntvl == 0)
-				pPSC->LPSAwakeIntvl = 1;
-			if(pPSC->RegMaxLPSAwakeIntvl == 0) // Default (0x0 - eFastPs, 0xFF -DTIM, 0xNN - 0xNN * BeaconIntvl)
+			if(ieee->LPSAwakeIntvl == 0)
+				ieee->LPSAwakeIntvl = 1;
+			if(ieee->RegMaxLPSAwakeIntvl == 0) // Default (0x0 - eFastPs, 0xFF -DTIM, 0xNN - 0xNN * BeaconIntvl)
 				MaxPeriod = 1; // 1 Beacon interval
-			else if(pPSC->RegMaxLPSAwakeIntvl == 0xFF) // DTIM
+			else if(ieee->RegMaxLPSAwakeIntvl == 0xFF) // DTIM
 				MaxPeriod = ieee->current_network.dtim_period;
 			else
-				MaxPeriod = pPSC->RegMaxLPSAwakeIntvl;
-			pPSC->LPSAwakeIntvl = (pPSC->LPSAwakeIntvl >= MaxPeriod) ? MaxPeriod : (pPSC->LPSAwakeIntvl + 1);
+				MaxPeriod = ieee->RegMaxLPSAwakeIntvl;
+			ieee->LPSAwakeIntvl = (ieee->LPSAwakeIntvl >= MaxPeriod) ? MaxPeriod : (ieee->LPSAwakeIntvl + 1);
 		}
 		{
 			u8 LPSAwakeIntvl_tmp = 0;
 			u8 period = ieee->current_network.dtim_period;
 			u8 count = ieee->current_network.tim.tim_count;
 			if(count == 0 ) {
-				if(pPSC->LPSAwakeIntvl > period)
-					LPSAwakeIntvl_tmp = period + (pPSC->LPSAwakeIntvl - period) -((pPSC->LPSAwakeIntvl-period)%period);
+				if(ieee->LPSAwakeIntvl > period)
+					LPSAwakeIntvl_tmp = period + (ieee->LPSAwakeIntvl - period) -((ieee->LPSAwakeIntvl-period)%period);
 				else
-					LPSAwakeIntvl_tmp = pPSC->LPSAwakeIntvl;
+					LPSAwakeIntvl_tmp = ieee->LPSAwakeIntvl;
 
 			} else {
-				if(pPSC->LPSAwakeIntvl > ieee->current_network.tim.tim_count)
-					LPSAwakeIntvl_tmp = count + (pPSC->LPSAwakeIntvl - count) -((pPSC->LPSAwakeIntvl-count)%period);
+				if(ieee->LPSAwakeIntvl > ieee->current_network.tim.tim_count)
+					LPSAwakeIntvl_tmp = count + (ieee->LPSAwakeIntvl - count) -((ieee->LPSAwakeIntvl-count)%period);
 				else
-					LPSAwakeIntvl_tmp = pPSC->LPSAwakeIntvl;
+					LPSAwakeIntvl_tmp = ieee->LPSAwakeIntvl;
 			}
 
 		*time_l = ieee->current_network.last_dtim_sta_time[0]

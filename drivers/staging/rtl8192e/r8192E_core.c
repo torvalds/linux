@@ -1915,7 +1915,7 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 	pPSC->RegRfPsLevel |= RT_RF_OFF_LEVL_ASPM;
 	pPSC->RegRfPsLevel |= RT_RF_LPS_LEVEL_ASPM;
 	pPSC->bLeisurePs = true;
-	pPSC->RegMaxLPSAwakeIntvl = 5;
+	priv->ieee80211->RegMaxLPSAwakeIntvl = 5;
 	priv->bHwRadioOff = false;
 
 	priv->being_init_adapter = false;
