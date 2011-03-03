@@ -48,7 +48,7 @@
 int  virtual_battery_enable = 0;
 extern int dwc_vbus_status(void);
 
-#if 1
+#if 0
 #define DBG(x...) printk(KERN_INFO x)
 #else
 #define DBG(x...) do { } while (0)
