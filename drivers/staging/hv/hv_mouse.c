@@ -146,7 +146,7 @@ enum pipe_prot_msg_type {
 
 struct pipe_prt_msg {
 	enum pipe_prot_msg_type type;
-	u32                DataSize;
+	u32 size;
 	char               Data[1];
 };
 
@@ -155,7 +155,7 @@ struct pipe_prt_msg {
  */
 struct  mousevsc_prt_msg {
 	enum pipe_prot_msg_type type;
-	u32                  DataSize;
+	u32 size;
 	union {
 		struct synthhid_protocol_request Request;
 		struct synthhid_protocol_response Response;
@@ -383,7 +383,7 @@ static void MousevscOnReceiveDeviceInfo(struct mousevsc_dev *InputDevice, struct
 	memset(&ack, sizeof(struct mousevsc_prt_msg), 0);
 
 	ack.type = PipeMessageData;
-	ack.DataSize = sizeof(struct synthhid_device_info_ack);
+	ack.size = sizeof(struct synthhid_device_info_ack);
 
 	ack.Ack.header.type = SynthHidInitialDeviceInfoAck;
 	ack.Ack.header.size = 1;
@@ -455,7 +455,7 @@ static void MousevscOnReceive(struct hv_device *Device, struct vmpacket_descript
 
 	if (pipeMsg->type != PipeMessageData) {
 		pr_err("unknown pipe msg type - type %d len %d",
-			   pipeMsg->type, pipeMsg->DataSize);
+			   pipeMsg->type, pipeMsg->size);
 		PutInputDevice(Device);
 		return ;
 	}
@@ -464,13 +464,15 @@ static void MousevscOnReceive(struct hv_device *Device, struct vmpacket_descript
 
 	switch (hidMsg->header.type) {
 	case SynthHidProtocolResponse:
-		memcpy(&inputDevice->ProtocolResp, pipeMsg, pipeMsg->DataSize+sizeof(struct pipe_prt_msg) - sizeof(unsigned char));
+		memcpy(&inputDevice->ProtocolResp, pipeMsg,
+		       pipeMsg->size + sizeof(struct pipe_prt_msg) -
+		       sizeof(unsigned char));
 		inputDevice->protocol_wait_condition = 1;
 		wake_up(&inputDevice->ProtocolWaitEvent);
 		break;
 
 	case SynthHidInitialDeviceInfo:
-		WARN_ON(pipeMsg->DataSize >= sizeof(struct hv_input_dev_info));
+		WARN_ON(pipeMsg->size >= sizeof(struct hv_input_dev_info));
 
 		/*
 		 * Parse out the device info into device attr,
@@ -606,7 +608,7 @@ static int MousevscConnectToVsp(struct hv_device *Device)
 	memset(request, sizeof(struct mousevsc_prt_msg), 0);
 
 	request->type = PipeMessageData;
-	request->DataSize = sizeof(struct synthhid_protocol_request);
+	request->size = sizeof(struct synthhid_protocol_request);
 
 	request->Request.header.type = SynthHidProtocolRequest;
 	request->Request.header.size = sizeof(unsigned long);
