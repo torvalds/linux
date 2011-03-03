@@ -89,7 +89,7 @@ struct synthhid_msg_hdr {
 
 struct synthhid_msg {
 	struct synthhid_msg_hdr header;
-	char                    Data[1]; /* Enclosed message */
+	char data[1]; /* Enclosed message */
 };
 
 union synthhid_version {
