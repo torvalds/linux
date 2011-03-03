@@ -327,8 +327,11 @@ SetRFPowerState8190(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->ieee80211->PowerSaveControl));
 	bool bResult = true;
 
-	if(priv->SetRFPowerStateInProgress == true)
-		return false;
+	spin_lock(&priv->ps_lock);
+	if (priv->SetRFPowerStateInProgress) {
+		bResult = false;
+		goto out;
+	}
 	priv->SetRFPowerStateInProgress = true;
 
 	switch( eRFPowerState )
@@ -345,8 +348,8 @@ SetRFPowerState8190(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 			 */
 			if (!NicIFEnableNIC(dev)) {
 				RT_TRACE(COMP_ERR, "%s(): NicIFEnableNIC failed\n",__FUNCTION__);
-				priv->SetRFPowerStateInProgress = false;
-				return false;
+				bResult = false;
+				goto out;
 			}
 
 			RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
@@ -424,7 +427,9 @@ SetRFPowerState8190(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 		priv->ieee80211->eRFPowerState = eRFPowerState;
 	}
 
+out:
 	priv->SetRFPowerStateInProgress = false;
+	spin_unlock(&priv->ps_lock);
 	return bResult;
 }
 
