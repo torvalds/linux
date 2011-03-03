@@ -849,7 +849,7 @@ static void __init kirkwood_wdt_init(void)
  ****************************************************************************/
 int kirkwood_tclk;
 
-int __init kirkwood_find_tclk(void)
+static int __init kirkwood_find_tclk(void)
 {
 	u32 dev, rev;
 
