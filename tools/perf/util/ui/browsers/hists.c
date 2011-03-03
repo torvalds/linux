@@ -292,7 +292,8 @@ static int hist_browser__run(struct hist_browser *self, const char *title)
 {
 	int key;
 	int exit_keys[] = { 'a', '?', 'h', 'C', 'd', 'D', 'E', 't',
-			    NEWT_KEY_ENTER, NEWT_KEY_RIGHT, NEWT_KEY_LEFT, 0, };
+			    NEWT_KEY_ENTER, NEWT_KEY_RIGHT, NEWT_KEY_LEFT,
+			    NEWT_KEY_TAB, NEWT_KEY_UNTAB, 0, };
 
 	self->b.entries = &self->hists->entries;
 	self->b.nr_entries = self->hists->nr_entries;
@@ -859,6 +860,7 @@ int hists__browse(struct hists *self, const char *helpline,
 					"E         Expand all callchains\n"
 					"d         Zoom into current DSO\n"
 					"t         Zoom into current Thread\n"
+					"TAB/UNTAB Switch events\n"
 					"q/CTRL+C  Exit browser");
 			continue;
 		case NEWT_KEY_ENTER:
@@ -997,6 +999,7 @@ int hists__tui_browse_tree(struct rb_root *self, const char *help, int evidx)
 			if (nd == first)
 				continue;
 			nd = rb_prev(nd);
+			break;
 		default:
 			return key;
 		}
