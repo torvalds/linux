@@ -111,7 +111,7 @@ struct synthhid_protocol_request {
 struct synthhid_protocol_response {
 	struct synthhid_msg_hdr header;
 	union synthhid_version version_requested;
-	unsigned char Approved;
+	unsigned char approved;
 };
 
 struct synthhid_device_info {
@@ -635,7 +635,7 @@ static int MousevscConnectToVsp(struct hv_device *Device)
 
 	response = &inputDevice->ProtocolResp;
 
-	if (!response->u.Response.Approved) {
+	if (!response->u.Response.approved) {
 		pr_err("synthhid protocol request failed (version %d)",
 		       SYNTHHID_INPUT_VERSION);
 		ret = -1;
