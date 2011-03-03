@@ -820,16 +820,8 @@ list_add_event(struct perf_event *event, struct perf_event_context *ctx)
 		list_add_tail(&event->group_entry, list);
 	}
 
-	if (is_cgroup_event(event)) {
+	if (is_cgroup_event(event))
 		ctx->nr_cgroups++;
-		/*
-		 * one more event:
-		 * - that has cgroup constraint on event->cpu
-		 * - that may need work on context switch
-		 */
-		atomic_inc(&per_cpu(perf_cgroup_events, event->cpu));
-		jump_label_inc(&perf_sched_events);
-	}
 
 	list_add_rcu(&event->event_entry, &ctx->event_list);
 	if (!ctx->nr_events)
@@ -957,11 +949,8 @@ list_del_event(struct perf_event *event, struct perf_event_context *ctx)
 
 	event->attach_state &= ~PERF_ATTACH_CONTEXT;
 
-	if (is_cgroup_event(event)) {
+	if (is_cgroup_event(event))
 		ctx->nr_cgroups--;
-		atomic_dec(&per_cpu(perf_cgroup_events, event->cpu));
-		jump_label_dec(&perf_sched_events);
-	}
 
 	ctx->nr_events--;
 	if (event->attr.inherit_stat)
@@ -2903,6 +2892,10 @@ static void free_event(struct perf_event *event)
 			atomic_dec(&nr_task_events);
 		if (event->attr.sample_type & PERF_SAMPLE_CALLCHAIN)
 			put_callchain_buffers();
+		if (is_cgroup_event(event)) {
+			atomic_dec(&per_cpu(perf_cgroup_events, event->cpu));
+			jump_label_dec(&perf_sched_events);
+		}
 	}
 
 	if (event->buffer) {
@@ -6478,6 +6471,13 @@ SYSCALL_DEFINE5(perf_event_open,
 		err = perf_cgroup_connect(pid, event, &attr, group_leader);
 		if (err)
 			goto err_alloc;
+		/*
+		 * one more event:
+		 * - that has cgroup constraint on event->cpu
+		 * - that may need work on context switch
+		 */
+		atomic_inc(&per_cpu(perf_cgroup_events, event->cpu));
+		jump_label_inc(&perf_sched_events);
 	}
 
 	/*
