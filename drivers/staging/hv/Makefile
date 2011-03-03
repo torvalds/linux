@@ -12,4 +12,4 @@ hv_storvsc-y := storvsc_drv.o storvsc.o
 hv_blkvsc-y := blkvsc_drv.o blkvsc.o
 hv_netvsc-y := netvsc_drv.o netvsc.o rndis_filter.o
 hv_utils-y := hv_util.o hv_kvp.o
-hv_mouse-objs  := hv_mouse_drv.o mouse_vsc.o
+hv_mouse-objs  := hv_mouse_drv.o
