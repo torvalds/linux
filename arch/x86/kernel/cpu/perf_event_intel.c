@@ -1,5 +1,27 @@
 #ifdef CONFIG_CPU_SUP_INTEL
 
+#define MAX_EXTRA_REGS 2
+
+/*
+ * Per register state.
+ */
+struct er_account {
+	int			ref;		/* reference count */
+	unsigned int		extra_reg;	/* extra MSR number */
+	u64			extra_config;	/* extra MSR config */
+};
+
+/*
+ * Per core state
+ * This used to coordinate shared registers for HT threads.
+ */
+struct intel_percore {
+	raw_spinlock_t		lock;		/* protect structure */
+	struct er_account	regs[MAX_EXTRA_REGS];
+	int			refcnt;		/* number of threads */
+	unsigned		core_id;
+};
+
 /*
  * Intel PerfMon, used on Core and later.
  */
@@ -64,6 +86,18 @@ static struct event_constraint intel_nehalem_event_constraints[] =
 	EVENT_CONSTRAINT_END
 };
 
+static struct extra_reg intel_nehalem_extra_regs[] =
+{
+	INTEL_EVENT_EXTRA_REG(0xb7, MSR_OFFCORE_RSP_0, 0xffff),
+	EVENT_EXTRA_END
+};
+
+static struct event_constraint intel_nehalem_percore_constraints[] =
+{
+	INTEL_EVENT_CONSTRAINT(0xb7, 0),
+	EVENT_CONSTRAINT_END
+};
+
 static struct event_constraint intel_westmere_event_constraints[] =
 {
 	FIXED_EVENT_CONSTRAINT(0x00c0, 0), /* INST_RETIRED.ANY */
@@ -86,6 +120,20 @@ static struct event_constraint intel_snb_event_constraints[] =
 	INTEL_EVENT_CONSTRAINT(0xbb, 0x8), /* OFF_CORE_RESPONSE_1 */
 	INTEL_UEVENT_CONSTRAINT(0x01c0, 0x2), /* INST_RETIRED.PREC_DIST */
 	INTEL_EVENT_CONSTRAINT(0xcd, 0x8), /* MEM_TRANS_RETIRED.LOAD_LATENCY */
+	EVENT_CONSTRAINT_END
+};
+
+static struct extra_reg intel_westmere_extra_regs[] =
+{
+	INTEL_EVENT_EXTRA_REG(0xb7, MSR_OFFCORE_RSP_0, 0xffff),
+	INTEL_EVENT_EXTRA_REG(0xbb, MSR_OFFCORE_RSP_1, 0xffff),
+	EVENT_EXTRA_END
+};
+
+static struct event_constraint intel_westmere_percore_constraints[] =
+{
+	INTEL_EVENT_CONSTRAINT(0xb7, 0),
+	INTEL_EVENT_CONSTRAINT(0xbb, 0),
 	EVENT_CONSTRAINT_END
 };
 
@@ -907,6 +955,67 @@ intel_bts_constraints(struct perf_event *event)
 }
 
 static struct event_constraint *
+intel_percore_constraints(struct cpu_hw_events *cpuc, struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+	unsigned int e = hwc->config & ARCH_PERFMON_EVENTSEL_EVENT;
+	struct event_constraint *c;
+	struct intel_percore *pc;
+	struct er_account *era;
+	int i;
+	int free_slot;
+	int found;
+
+	if (!x86_pmu.percore_constraints || hwc->extra_alloc)
+		return NULL;
+
+	for (c = x86_pmu.percore_constraints; c->cmask; c++) {
+		if (e != c->code)
+			continue;
+
+		/*
+		 * Allocate resource per core.
+		 */
+		pc = cpuc->per_core;
+		if (!pc)
+			break;
+		c = &emptyconstraint;
+		raw_spin_lock(&pc->lock);
+		free_slot = -1;
+		found = 0;
+		for (i = 0; i < MAX_EXTRA_REGS; i++) {
+			era = &pc->regs[i];
+			if (era->ref > 0 && hwc->extra_reg == era->extra_reg) {
+				/* Allow sharing same config */
+				if (hwc->extra_config == era->extra_config) {
+					era->ref++;
+					cpuc->percore_used = 1;
+					hwc->extra_alloc = 1;
+					c = NULL;
+				}
+				/* else conflict */
+				found = 1;
+				break;
+			} else if (era->ref == 0 && free_slot == -1)
+				free_slot = i;
+		}
+		if (!found && free_slot != -1) {
+			era = &pc->regs[free_slot];
+			era->ref = 1;
+			era->extra_reg = hwc->extra_reg;
+			era->extra_config = hwc->extra_config;
+			cpuc->percore_used = 1;
+			hwc->extra_alloc = 1;
+			c = NULL;
+		}
+		raw_spin_unlock(&pc->lock);
+		return c;
+	}
+
+	return NULL;
+}
+
+static struct event_constraint *
 intel_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event)
 {
 	struct event_constraint *c;
@@ -919,7 +1028,49 @@ intel_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event
 	if (c)
 		return c;
 
+	c = intel_percore_constraints(cpuc, event);
+	if (c)
+		return c;
+
 	return x86_get_event_constraints(cpuc, event);
+}
+
+static void intel_put_event_constraints(struct cpu_hw_events *cpuc,
+					struct perf_event *event)
+{
+	struct extra_reg *er;
+	struct intel_percore *pc;
+	struct er_account *era;
+	struct hw_perf_event *hwc = &event->hw;
+	int i, allref;
+
+	if (!cpuc->percore_used)
+		return;
+
+	for (er = x86_pmu.extra_regs; er->msr; er++) {
+		if (er->event != (hwc->config & er->config_mask))
+			continue;
+
+		pc = cpuc->per_core;
+		raw_spin_lock(&pc->lock);
+		for (i = 0; i < MAX_EXTRA_REGS; i++) {
+			era = &pc->regs[i];
+			if (era->ref > 0 &&
+			    era->extra_config == hwc->extra_config &&
+			    era->extra_reg == er->msr) {
+				era->ref--;
+				hwc->extra_alloc = 0;
+				break;
+			}
+		}
+		allref = 0;
+		for (i = 0; i < MAX_EXTRA_REGS; i++)
+			allref += pc->regs[i].ref;
+		if (allref == 0)
+			cpuc->percore_used = 0;
+		raw_spin_unlock(&pc->lock);
+		break;
+	}
 }
 
 static int intel_pmu_hw_config(struct perf_event *event)
@@ -993,11 +1144,43 @@ static __initconst const struct x86_pmu core_pmu = {
 	 */
 	.max_period		= (1ULL << 31) - 1,
 	.get_event_constraints	= intel_get_event_constraints,
+	.put_event_constraints	= intel_put_event_constraints,
 	.event_constraints	= intel_core_event_constraints,
 };
 
+static int intel_pmu_cpu_prepare(int cpu)
+{
+	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
+
+	cpuc->per_core = kzalloc_node(sizeof(struct intel_percore),
+				      GFP_KERNEL, cpu_to_node(cpu));
+	if (!cpuc->per_core)
+		return NOTIFY_BAD;
+
+	raw_spin_lock_init(&cpuc->per_core->lock);
+	cpuc->per_core->core_id = -1;
+	return NOTIFY_OK;
+}
+
 static void intel_pmu_cpu_starting(int cpu)
 {
+	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
+	int core_id = topology_core_id(cpu);
+	int i;
+
+	for_each_cpu(i, topology_thread_cpumask(cpu)) {
+		struct intel_percore *pc = per_cpu(cpu_hw_events, i).per_core;
+
+		if (pc && pc->core_id == core_id) {
+			kfree(cpuc->per_core);
+			cpuc->per_core = pc;
+			break;
+		}
+	}
+
+	cpuc->per_core->core_id = core_id;
+	cpuc->per_core->refcnt++;
+
 	init_debug_store_on_cpu(cpu);
 	/*
 	 * Deal with CPUs that don't clear their LBRs on power-up.
@@ -1007,6 +1190,15 @@ static void intel_pmu_cpu_starting(int cpu)
 
 static void intel_pmu_cpu_dying(int cpu)
 {
+	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
+	struct intel_percore *pc = cpuc->per_core;
+
+	if (pc) {
+		if (pc->core_id == -1 || --pc->refcnt == 0)
+			kfree(pc);
+		cpuc->per_core = NULL;
+	}
+
 	fini_debug_store_on_cpu(cpu);
 }
 
@@ -1031,7 +1223,9 @@ static __initconst const struct x86_pmu intel_pmu = {
 	 */
 	.max_period		= (1ULL << 31) - 1,
 	.get_event_constraints	= intel_get_event_constraints,
+	.put_event_constraints	= intel_put_event_constraints,
 
+	.cpu_prepare		= intel_pmu_cpu_prepare,
 	.cpu_starting		= intel_pmu_cpu_starting,
 	.cpu_dying		= intel_pmu_cpu_dying,
 };
@@ -1151,7 +1345,9 @@ static __init int intel_pmu_init(void)
 
 		x86_pmu.event_constraints = intel_nehalem_event_constraints;
 		x86_pmu.pebs_constraints = intel_nehalem_pebs_event_constraints;
+		x86_pmu.percore_constraints = intel_nehalem_percore_constraints;
 		x86_pmu.enable_all = intel_pmu_nhm_enable_all;
+		x86_pmu.extra_regs = intel_nehalem_extra_regs;
 		pr_cont("Nehalem events, ");
 		break;
 
@@ -1174,8 +1370,10 @@ static __init int intel_pmu_init(void)
 		intel_pmu_lbr_init_nhm();
 
 		x86_pmu.event_constraints = intel_westmere_event_constraints;
+		x86_pmu.percore_constraints = intel_westmere_percore_constraints;
 		x86_pmu.enable_all = intel_pmu_nhm_enable_all;
 		x86_pmu.pebs_constraints = intel_westmere_pebs_event_constraints;
+		x86_pmu.extra_regs = intel_westmere_extra_regs;
 		pr_cont("Westmere events, ");
 		break;
 

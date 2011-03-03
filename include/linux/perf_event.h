@@ -225,8 +225,14 @@ struct perf_event_attr {
 	};
 
 	__u32			bp_type;
-	__u64			bp_addr;
-	__u64			bp_len;
+	union {
+		__u64		bp_addr;
+		__u64		config1; /* extension of config */
+	};
+	union {
+		__u64		bp_len;
+		__u64		config2; /* extension of config1 */
+	};
 };
 
 /*
@@ -541,6 +547,9 @@ struct hw_perf_event {
 			unsigned long	event_base;
 			int		idx;
 			int		last_cpu;
+			unsigned int	extra_reg;
+			u64		extra_config;
+			int		extra_alloc;
 		};
 		struct { /* software */
 			struct hrtimer	hrtimer;
