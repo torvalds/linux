@@ -201,6 +201,7 @@ static void rk29_bl_suspend(struct early_suspend *h)
 		clk_disable(pwm_clk);
 
     suspend_flag = 1;
+    del_timer_sync(&rk29_bl_info->timer);
 }
 
 
