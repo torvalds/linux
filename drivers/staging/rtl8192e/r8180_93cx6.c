@@ -82,9 +82,8 @@ static void eprom_send_bits_string(struct r8192_priv *priv, short b[], int len)
 }
 
 
-u32 eprom_read(struct net_device *dev, u32 addr)
+u32 eprom_read(struct r8192_priv *priv, u32 addr)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	short read_cmd[] = {1, 1, 0};
 	short addr_str[8];
 	int i;

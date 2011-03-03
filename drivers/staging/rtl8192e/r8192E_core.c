@@ -2092,7 +2092,7 @@ static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 	// TODO: I don't know if we need to apply EF function to EEPROM read function
 
 	//2 Read EEPROM ID to make sure autoload is success
-	EEPROMId = eprom_read(dev, 0);
+	EEPROMId = eprom_read(priv, 0);
 	if( EEPROMId != RTL8190_EEPROM_ID )
 	{
 		RT_TRACE(COMP_ERR, "EEPROM ID is invalid:%x, %x\n", EEPROMId, RTL8190_EEPROM_ID);
@@ -2110,12 +2110,12 @@ static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 	if(!priv->AutoloadFailFlag)
 	{
 		// VID, PID
-		priv->eeprom_vid = eprom_read(dev, (EEPROM_VID >> 1));
-		priv->eeprom_did = eprom_read(dev, (EEPROM_DID >> 1));
+		priv->eeprom_vid = eprom_read(priv, (EEPROM_VID >> 1));
+		priv->eeprom_did = eprom_read(priv, (EEPROM_DID >> 1));
 
-		usValue = eprom_read(dev, (u16)(EEPROM_Customer_ID>>1)) >> 8 ;
+		usValue = eprom_read(priv, (u16)(EEPROM_Customer_ID>>1)) >> 8 ;
 		priv->eeprom_CustomerID = (u8)( usValue & 0xff);
-		usValue = eprom_read(dev, (EEPROM_ICVersion_ChannelPlan>>1));
+		usValue = eprom_read(priv, (EEPROM_ICVersion_ChannelPlan>>1));
 		priv->eeprom_ChannelPlan = usValue&0xff;
 		IC_Version = ((usValue&0xff00)>>8);
 
@@ -2159,7 +2159,7 @@ static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 	{
 		for(i = 0; i < 6; i += 2)
 		{
-			usValue = eprom_read(dev, (u16) ((EEPROM_NODE_ADDRESS_BYTE_0+i)>>1));
+			usValue = eprom_read(priv, (u16) ((EEPROM_NODE_ADDRESS_BYTE_0+i)>>1));
 			*(u16*)(&dev->dev_addr[i]) = usValue;
 		}
 	} else {
@@ -2185,7 +2185,7 @@ static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 		// Read RF-indication and Tx Power gain index diff of legacy to HT OFDM rate.
 		if(!priv->AutoloadFailFlag)
 		{
-			tempval = (eprom_read(dev, (EEPROM_RFInd_PowerDiff>>1))) & 0xff;
+			tempval = (eprom_read(priv, (EEPROM_RFInd_PowerDiff>>1))) & 0xff;
 			priv->EEPROMLegacyHTTxPowerDiff = tempval & 0xf;	// bit[3:0]
 
 			if (tempval&0x80)	//RF-indication, bit[7]
@@ -2203,7 +2203,7 @@ static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 		// Read ThermalMeter from EEPROM
 		if(!priv->AutoloadFailFlag)
 		{
-			priv->EEPROMThermalMeter = (u8)(((eprom_read(dev, (EEPROM_ThermalMeter>>1))) & 0xff00)>>8);
+			priv->EEPROMThermalMeter = (u8)(((eprom_read(priv, (EEPROM_ThermalMeter>>1))) & 0xff00)>>8);
 		}
 		else
 		{
@@ -2218,7 +2218,7 @@ static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 		// Read antenna tx power offset of B/C/D to A and CrystalCap from EEPROM
 		if(!priv->AutoloadFailFlag)
 		{
-				usValue = eprom_read(dev, (EEPROM_TxPwDiff_CrystalCap>>1));
+				usValue = eprom_read(priv, (EEPROM_TxPwDiff_CrystalCap>>1));
 				priv->EEPROMAntPwDiff = (usValue&0x0fff);
 				priv->EEPROMCrystalCap = (u8)((usValue&0xf000)>>12);
 		}
@@ -2237,7 +2237,7 @@ static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 		{
 			if(!priv->AutoloadFailFlag)
 			{
-				usValue = eprom_read(dev, (u16) ((EEPROM_TxPwIndex_CCK+i)>>1) );
+				usValue = eprom_read(priv, (u16) ((EEPROM_TxPwIndex_CCK+i)>>1) );
 			}
 			else
 			{
@@ -2251,7 +2251,7 @@ static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 		{
 			if(!priv->AutoloadFailFlag)
 			{
-				usValue = eprom_read(dev, (u16) ((EEPROM_TxPwIndex_OFDM_24G+i)>>1) );
+				usValue = eprom_read(priv, (u16) ((EEPROM_TxPwIndex_OFDM_24G+i)>>1) );
 			}
 			else
 			{
