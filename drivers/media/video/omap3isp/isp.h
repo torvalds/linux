@@ -199,6 +199,7 @@ struct isp_v4l2_subdevs_group {
 
 struct isp_platform_data {
 	struct isp_v4l2_subdevs_group *subdevs;
+	void (*set_constraints)(struct isp_device *isp, bool enable);
 };
 
 struct isp_platform_callback {

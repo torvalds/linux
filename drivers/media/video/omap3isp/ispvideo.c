@@ -921,18 +921,8 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 		pipe->output = far_end;
 	}
 
-	/* Make sure the interconnect clock runs fast enough.
-	 *
-	 * Formula from: resource34xx.c set_opp()
-	 * If MPU freq is above 500MHz, make sure the interconnect
-	 * is at 100Mhz or above.
-	 * throughput in KiB/s for 100 Mhz = 100 * 1000 * 4.
-	 *
-	 * We want to be fast enough then set OCP clock to be max as
-	 * possible, in that case 185Mhz then:
-	 * throughput in KiB/s for 185Mhz = 185 * 1000 * 4 = 740000 KiB/s
-	 */
-	omap_pm_set_min_bus_tput(video->isp->dev, OCP_INITIATOR_AGENT, 740000);
+	if (video->isp->pdata->set_constraints)
+		video->isp->pdata->set_constraints(video->isp, true);
 	pipe->l3_ick = clk_get_rate(video->isp->clock[ISP_CLK_L3_ICK]);
 
 	/* Validate the pipeline and update its state. */
@@ -978,8 +968,8 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 error:
 	if (ret < 0) {
 		omap3isp_video_queue_streamoff(&vfh->queue);
-		omap_pm_set_min_bus_tput(video->isp->dev,
-					 OCP_INITIATOR_AGENT, 0);
+		if (video->isp->pdata->set_constraints)
+			video->isp->pdata->set_constraints(video->isp, false);
 		media_entity_pipeline_stop(&video->video.entity);
 		video->queue = NULL;
 	}
@@ -1032,7 +1022,8 @@ isp_video_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	video->queue = NULL;
 	video->streaming = 0;
 
-	omap_pm_set_min_bus_tput(video->isp->dev, OCP_INITIATOR_AGENT, 0);
+	if (video->isp->pdata->set_constraints)
+		video->isp->pdata->set_constraints(video->isp, false);
 	media_entity_pipeline_stop(&video->video.entity);
 
 done:
