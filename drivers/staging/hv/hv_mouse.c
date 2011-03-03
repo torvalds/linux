@@ -196,9 +196,6 @@ static const struct hv_guid mouse_guid = {
 		 0xB9, 0x8B, 0x8B, 0xA1, 0xA1, 0xF3, 0xF9, 0x5A}
 };
 
-static void MousevscOnReceive(struct hv_device *Device,
-			      struct vmpacket_descriptor *Packet);
-
 static void deviceinfo_callback(struct hv_device *dev, struct hv_input_dev_info *info);
 static void inputreport_callback(struct hv_device *dev, void *packet, u32 len);
 static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len);
