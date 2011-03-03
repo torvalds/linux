@@ -42,6 +42,7 @@
 #define CAYMAN_MAX_TCC_MASK          0xFF
 
 #define DMIF_ADDR_CONFIG  				0xBD4
+#define	SRBM_STATUS				        0x0E50
 
 #define VM_CONTEXT0_REQUEST_RESPONSE			0x1470
 #define		REQUEST_TYPE(x)					(((x) & 0xf) << 0)

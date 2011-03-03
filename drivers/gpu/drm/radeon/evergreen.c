@@ -804,7 +804,7 @@ void evergreen_bandwidth_update(struct radeon_device *rdev)
 	}
 }
 
-static int evergreen_mc_wait_for_idle(struct radeon_device *rdev)
+int evergreen_mc_wait_for_idle(struct radeon_device *rdev)
 {
 	unsigned i;
 	u32 tmp;
@@ -957,7 +957,7 @@ void evergreen_agp_enable(struct radeon_device *rdev)
 	WREG32(VM_CONTEXT1_CNTL, 0);
 }
 
-static void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *save)
+void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *save)
 {
 	save->vga_control[0] = RREG32(D1VGA_CONTROL);
 	save->vga_control[1] = RREG32(D2VGA_CONTROL);
@@ -1011,7 +1011,7 @@ static void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_sa
 	WREG32(EVERGREEN_D6VGA_CONTROL, 0);
 }
 
-static void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *save)
+void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *save)
 {
 	WREG32(EVERGREEN_GRPH_PRIMARY_SURFACE_ADDRESS_HIGH + EVERGREEN_CRTC0_REGISTER_OFFSET,
 	       upper_32_bits(rdev->mc.vram_start));
