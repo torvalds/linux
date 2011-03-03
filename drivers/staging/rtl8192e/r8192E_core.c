@@ -1852,15 +1852,6 @@ static void rtl8192_hw_sleep_down(struct net_device *dev)
 	MgntActSet_RF_State(dev, eRfSleep, RF_CHANGE_BY_PS);
 }
 
-static void rtl8192_hw_sleep_wq (struct work_struct *work)
-{
-        struct delayed_work *dwork = container_of(work,struct delayed_work,work);
-        struct ieee80211_device *ieee = container_of(dwork,struct ieee80211_device,hw_sleep_wq);
-        struct net_device *dev = ieee->dev;
-
-        rtl8192_hw_sleep_down(dev);
-}
-
 static void rtl8192_hw_wakeup(struct net_device* dev)
 {
 	MgntActSet_RF_State(dev, eRfOn, RF_CHANGE_BY_PS);
@@ -1909,8 +1900,7 @@ static void rtl8192_hw_to_sleep(struct net_device *dev, u32 th, u32 tl)
 	queue_delayed_work(priv->ieee80211->wq,
 			   &priv->ieee80211->hw_wakeup_wq,tmp);
 
-	queue_delayed_work(priv->ieee80211->wq,
-			(void *)&priv->ieee80211->hw_sleep_wq,0);
+        rtl8192_hw_sleep_down(dev);
 }
 
 static void rtl8192_init_priv_variable(struct net_device* dev)
@@ -2063,7 +2053,6 @@ static void rtl8192_init_priv_task(struct net_device* dev)
 	INIT_DELAYED_WORK(&priv->update_beacon_wq, rtl8192_update_beacon);
 	INIT_WORK(&priv->qos_activate, rtl8192_qos_activate);
 	INIT_DELAYED_WORK(&priv->ieee80211->hw_wakeup_wq, rtl8192_hw_wakeup_wq);
-	INIT_DELAYED_WORK(&priv->ieee80211->hw_sleep_wq, rtl8192_hw_sleep_wq);
 
 	tasklet_init(&priv->irq_rx_tasklet, rtl8192_irq_rx_tasklet,
 		     (unsigned long) priv);
@@ -4802,7 +4791,6 @@ static void rtl8192_cancel_deferred_work(struct r8192_priv* priv)
 	cancel_delayed_work(&priv->watch_dog_wq);
 	cancel_delayed_work(&priv->update_beacon_wq);
 	cancel_delayed_work(&priv->ieee80211->hw_wakeup_wq);
-	cancel_delayed_work(&priv->ieee80211->hw_sleep_wq);
 	cancel_delayed_work(&priv->gpio_change_rf_wq);
 	cancel_work_sync(&priv->reset_wq);
 	cancel_work_sync(&priv->qos_activate);

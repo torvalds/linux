@@ -2268,7 +2268,6 @@ struct ieee80211_device {
         struct delayed_work associate_retry_wq;
 	 struct delayed_work start_ibss_wq;
 	 struct delayed_work hw_wakeup_wq;
-	struct delayed_work hw_sleep_wq;
 
         struct work_struct wx_sync_scan_wq;
         struct workqueue_struct *wq;
