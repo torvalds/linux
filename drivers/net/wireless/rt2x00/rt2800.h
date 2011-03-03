@@ -66,7 +66,7 @@
 #define RF3320				0x000b
 #define RF3322				0x000c
 #define RF3853				0x000d
-#define RF5390                         0x5390
+#define RF5390				0x5390
 
 /*
  * Chipset revisions.
@@ -79,7 +79,7 @@
 #define REV_RT3071E			0x0211
 #define REV_RT3090E			0x0211
 #define REV_RT3390E			0x0211
-#define REV_RT5390F                    0x0502
+#define REV_RT5390F			0x0502
 
 /*
  * Signal information.
@@ -126,9 +126,9 @@
 /*
  * AUX_CTRL: Aux/PCI-E related configuration
  */
-#define AUX_CTRL               0x10c
-#define AUX_CTRL_WAKE_PCIE_EN          FIELD32(0x00000002)
-#define AUX_CTRL_FORCE_PCIE_CLK        FIELD32(0x00000400)
+#define AUX_CTRL			0x10c
+#define AUX_CTRL_WAKE_PCIE_EN		FIELD32(0x00000002)
+#define AUX_CTRL_FORCE_PCIE_CLK		FIELD32(0x00000400)
 
 /*
  * OPT_14: Unknown register used by rt3xxx devices.
@@ -464,7 +464,7 @@
  */
 #define	RF_CSR_CFG			0x0500
 #define RF_CSR_CFG_DATA			FIELD32(0x000000ff)
-#define RF_CSR_CFG_REGNUM              FIELD32(0x00003f00)
+#define RF_CSR_CFG_REGNUM		FIELD32(0x00003f00)
 #define RF_CSR_CFG_WRITE		FIELD32(0x00010000)
 #define RF_CSR_CFG_BUSY			FIELD32(0x00020000)
 
@@ -1746,13 +1746,13 @@ struct mac_iveiv_entry {
  */
 #define BBP4_TX_BF			FIELD8(0x01)
 #define BBP4_BANDWIDTH			FIELD8(0x18)
-#define BBP4_MAC_IF_CTRL               FIELD8(0x40)
+#define BBP4_MAC_IF_CTRL		FIELD8(0x40)
 
 /*
  * BBP 109
  */
-#define BBP109_TX0_POWER       FIELD8(0x0f)
-#define BBP109_TX1_POWER       FIELD8(0xf0)
+#define BBP109_TX0_POWER		FIELD8(0x0f)
+#define BBP109_TX1_POWER		FIELD8(0xf0)
 
 /*
  * BBP 138: Unknown
@@ -1765,7 +1765,7 @@ struct mac_iveiv_entry {
 /*
  * BBP 152: Rx Ant
  */
-#define BBP152_RX_DEFAULT_ANT  FIELD8(0x80)
+#define BBP152_RX_DEFAULT_ANT		FIELD8(0x80)
 
 /*
  * RFCSR registers
@@ -1776,7 +1776,7 @@ struct mac_iveiv_entry {
  * RFCSR 1:
  */
 #define RFCSR1_RF_BLOCK_EN		FIELD8(0x01)
-#define RFCSR1_PLL_PD                  FIELD8(0x02)
+#define RFCSR1_PLL_PD			FIELD8(0x02)
 #define RFCSR1_RX0_PD			FIELD8(0x04)
 #define RFCSR1_TX0_PD			FIELD8(0x08)
 #define RFCSR1_RX1_PD			FIELD8(0x10)
@@ -1785,7 +1785,7 @@ struct mac_iveiv_entry {
 /*
  * RFCSR 2:
  */
-#define RFCSR2_RESCAL_EN               FIELD8(0x80)
+#define RFCSR2_RESCAL_EN		FIELD8(0x80)
 
 /*
  * RFCSR 6:
@@ -1801,7 +1801,7 @@ struct mac_iveiv_entry {
 /*
  * RFCSR 11:
  */
-#define RFCSR11_R                      FIELD8(0x03)
+#define RFCSR11_R			FIELD8(0x03)
 
 /*
  * RFCSR 12:
@@ -1857,9 +1857,9 @@ struct mac_iveiv_entry {
 /*
  * RFCSR 30:
  */
-#define RFCSR30_TX_H20M                FIELD8(0x02)
-#define RFCSR30_RX_H20M                FIELD8(0x04)
-#define RFCSR30_RX_VCM         FIELD8(0x18)
+#define RFCSR30_TX_H20M			FIELD8(0x02)
+#define RFCSR30_RX_H20M			FIELD8(0x04)
+#define RFCSR30_RX_VCM			FIELD8(0x18)
 #define RFCSR30_RF_CALIBRATION		FIELD8(0x80)
 
 /*
@@ -1871,17 +1871,17 @@ struct mac_iveiv_entry {
 /*
  * RFCSR 38:
  */
-#define RFCSR38_RX_LO1_EN      FIELD8(0x20)
+#define RFCSR38_RX_LO1_EN		FIELD8(0x20)
 
 /*
  * RFCSR 39:
  */
-#define RFCSR39_RX_LO2_EN      FIELD8(0x80)
+#define RFCSR39_RX_LO2_EN		FIELD8(0x80)
 
 /*
  * RFCSR 49:
  */
-#define RFCSR49_TX                     FIELD8(0x3f)
+#define RFCSR49_TX			FIELD8(0x3f)
 
 /*
  * RF registers
@@ -1918,7 +1918,7 @@ struct mac_iveiv_entry {
 /*
  * Chip ID
  */
-#define EEPROM_CHIP_ID         0x0000
+#define EEPROM_CHIP_ID			0x0000
 
 /*
  * EEPROM Version
