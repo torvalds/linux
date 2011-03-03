@@ -103,7 +103,7 @@ extern unsigned int __mxc_cpu_type;
 # define cpu_is_mx27()		(0)
 #endif
 
-#ifdef CONFIG_ARCH_MX31
+#ifdef CONFIG_SOC_IMX31
 # ifdef mxc_cpu_type
 #  undef mxc_cpu_type
 #  define mxc_cpu_type __mxc_cpu_type
@@ -115,7 +115,7 @@ extern unsigned int __mxc_cpu_type;
 # define cpu_is_mx31()		(0)
 #endif
 
-#ifdef CONFIG_ARCH_MX35
+#ifdef CONFIG_SOC_IMX35
 # ifdef mxc_cpu_type
 #  undef mxc_cpu_type
 #  define mxc_cpu_type __mxc_cpu_type

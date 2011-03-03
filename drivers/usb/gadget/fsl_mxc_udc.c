@@ -88,7 +88,7 @@ eenahb:
 void fsl_udc_clk_finalize(struct platform_device *pdev)
 {
 	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
-#if defined(CONFIG_ARCH_MX35)
+#if defined(CONFIG_SOC_IMX35)
 	unsigned int v;
 
 	/* workaround ENGcm09152 for i.MX35 */
