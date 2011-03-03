@@ -479,8 +479,24 @@ static inline int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u3
 	case SQ_VSTMP_RING_ITEMSIZE:
 	case VGT_TF_RING_SIZE:
 		/* get value to populate the IB don't remove */
-		tmp =radeon_get_ib_value(p, idx);
-		ib[idx] = 0;
+		/*tmp =radeon_get_ib_value(p, idx);
+		  ib[idx] = 0;*/
+		break;
+	case SQ_ESGS_RING_BASE:
+	case SQ_GSVS_RING_BASE:
+	case SQ_ESTMP_RING_BASE:
+	case SQ_GSTMP_RING_BASE:
+	case SQ_HSTMP_RING_BASE:
+	case SQ_LSTMP_RING_BASE:
+	case SQ_PSTMP_RING_BASE:
+	case SQ_VSTMP_RING_BASE:
+		r = evergreen_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			dev_warn(p->dev, "bad SET_CONTEXT_REG "
+					"0x%04X\n", reg);
+			return -EINVAL;
+		}
+		ib[idx] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
 		break;
 	case DB_DEPTH_CONTROL:
 		track->db_depth_control = radeon_get_ib_value(p, idx);
