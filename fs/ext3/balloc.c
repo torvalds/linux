@@ -2127,10 +2127,15 @@ int ext3_trim_fs(struct super_block *sb, struct fstrim_range *range)
 		if (free_blocks < minlen)
 			continue;
 
-		if (len >= EXT3_BLOCKS_PER_GROUP(sb))
-			len -= (EXT3_BLOCKS_PER_GROUP(sb) - first_block);
-		else
+		/*
+		 * For all the groups except the last one, last block will
+		 * always be EXT3_BLOCKS_PER_GROUP(sb), so we only need to
+		 * change it for the last group in which case first_block +
+		 * len < EXT3_BLOCKS_PER_GROUP(sb).
+		 */
+		if (first_block + len < EXT3_BLOCKS_PER_GROUP(sb))
 			last_block = first_block + len;
+		len -= last_block - first_block;
 
 		ret = ext3_trim_all_free(sb, group, first_block,
 					last_block, minlen);
