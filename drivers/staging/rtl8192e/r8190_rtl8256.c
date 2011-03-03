@@ -638,45 +638,10 @@ MgntActSet_RF_State(
 	bool 			bActionAllowed = false;
 	bool 			bConnectBySSID = false;
 	RT_RF_POWER_STATE	rtState;
-	u16					RFWaitCounter = 0;
+
 	RT_TRACE(COMP_POWER, "===>MgntActSet_RF_State(): StateToSet(%d)\n",StateToSet);
 
-	//1//
-	//1//<1>Prevent the race condition of RF state change.
-	//1//
-	// Only one thread can change the RF state at one time, and others should wait to be executed. By Bruce, 2007-11-28.
-
-	while(true)
-	{
-		spin_lock(&priv->rf_ps_lock);
-		if(priv->RFChangeInProgress)
-		{
-			spin_unlock(&priv->rf_ps_lock);
-			RT_TRACE(COMP_POWER, "MgntActSet_RF_State(): RF Change in progress! Wait to set..StateToSet(%d).\n", StateToSet);
-
-			// Set RF after the previous action is done.
-			while(priv->RFChangeInProgress)
-			{
-				RFWaitCounter ++;
-				RT_TRACE(COMP_POWER, "MgntActSet_RF_State(): Wait 1 ms (%d times)...\n", RFWaitCounter);
-				udelay(1000); // 1 ms
-
-				// Wait too long, return FALSE to avoid to be stuck here.
-				if(RFWaitCounter > 100)
-				{
-					RT_TRACE(COMP_ERR, "MgntActSet_RF_State(): Wait too logn to set RF\n");
-					// TODO: Reset RF state?
-					return false;
-				}
-			}
-		}
-		else
-		{
-			priv->RFChangeInProgress = true;
-			spin_unlock(&priv->rf_ps_lock);
-			break;
-		}
-	}
+	spin_lock(&priv->rf_ps_lock);
 
 	rtState = priv->ieee80211->eRFPowerState;
 
@@ -731,8 +696,6 @@ MgntActSet_RF_State(
 	}
 
 	// Release RF spinlock
-	spin_lock(&priv->rf_ps_lock);
-	priv->RFChangeInProgress = false;
 	spin_unlock(&priv->rf_ps_lock);
 
 	RT_TRACE(COMP_POWER, "<===MgntActSet_RF_State()\n");

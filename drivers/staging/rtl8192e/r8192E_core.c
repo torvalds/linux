@@ -1849,17 +1849,6 @@ static short rtl8192_is_tx_queue_empty(struct net_device *dev)
 
 static void rtl8192_hw_sleep_down(struct net_device *dev)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
-
-	spin_lock(&priv->rf_ps_lock);
-	if (priv->RFChangeInProgress) {
-		spin_unlock(&priv->rf_ps_lock);
-		RT_TRACE(COMP_RF, "rtl8192_hw_sleep_down(): RF Change in progress!\n");
-		printk("rtl8192_hw_sleep_down(): RF Change in progress!\n");
-		return;
-	}
-	spin_unlock(&priv->rf_ps_lock);
-
 	MgntActSet_RF_State(dev, eRfSleep, RF_CHANGE_BY_PS);
 }
 
@@ -1874,18 +1863,6 @@ static void rtl8192_hw_sleep_wq (struct work_struct *work)
 
 static void rtl8192_hw_wakeup(struct net_device* dev)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
-
-	spin_lock(&priv->rf_ps_lock);
-	if (priv->RFChangeInProgress) {
-		spin_unlock(&priv->rf_ps_lock);
-		RT_TRACE(COMP_RF, "rtl8192_hw_wakeup(): RF Change in progress!\n");
-		printk("rtl8192_hw_wakeup(): RF Change in progress! schedule wake up task again\n");
-		queue_delayed_work(priv->ieee80211->wq,&priv->ieee80211->hw_wakeup_wq,MSECS(10));//PowerSave is not supported if kernel version is below 2.6.20
-		return;
-	}
-	spin_unlock(&priv->rf_ps_lock);
-
 	MgntActSet_RF_State(dev, eRfOn, RF_CHANGE_BY_PS);
 }
 
@@ -1984,7 +1961,6 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 	priv->force_reset = false;
 	//added by amy for power save
 	priv->ieee80211->RfOffReason = 0;
-	priv->RFChangeInProgress = false;
 	priv->bHwRfOffAction = 0;
 	priv->ieee80211->PowerSaveControl.bInactivePs = true;
 	priv->ieee80211->PowerSaveControl.bIPSModeBackup = false;
