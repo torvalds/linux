@@ -62,11 +62,6 @@ struct mousevsc_drv_obj {
 };
 
 
-/*
- * Interface
- */
-int mouse_vsc_initialize(struct hv_driver *drv);
-
 /* The maximum size of a synthetic input message. */
 #define SYNTHHID_MAX_INPUT_REPORT_SIZE 16
 
@@ -347,16 +342,7 @@ static inline struct mousevsc_dev *FinalReleaseInputDevice(struct hv_device *Dev
 	return inputDevice;
 }
 
-/*
- *
- * Name:
- *	MousevscInitialize()
- *
- * Description:
- *	Main entry point
- *
- */
-int mouse_vsc_initialize(struct hv_driver *Driver)
+static int mouse_vsc_initialize(struct hv_driver *Driver)
 {
 	struct mousevsc_drv_obj *inputDriver =
 		(struct mousevsc_drv_obj *)Driver;
@@ -1054,39 +1040,6 @@ void mousevsc_reportdesc_callback(struct hv_device *dev, void *packet, u32 len)
 	kfree(hid_dev);
 }
 
-/*
- *
- * Name:	mousevsc_drv_init()
- *
- * Desc:	Driver initialization.
- */
-int mousevsc_drv_init(int (*pfn_drv_init)(struct hv_driver *pfn_drv_init))
-{
-	int ret = 0;
-	struct mousevsc_drv_obj *input_drv_obj = &g_mousevsc_drv.drv_obj;
-	struct driver_context *drv_ctx = &g_mousevsc_drv.drv_ctx;
-
-	input_drv_obj->OnDeviceInfo = mousevsc_deviceinfo_callback;
-	input_drv_obj->OnInputReport = mousevsc_inputreport_callback;
-	input_drv_obj->OnReportDescriptor = mousevsc_reportdesc_callback;
-
-	/* Callback to client driver to complete the initialization */
-	pfn_drv_init(&input_drv_obj->Base);
-
-	drv_ctx->driver.name = input_drv_obj->Base.name;
-	memcpy(&drv_ctx->class_id, &input_drv_obj->Base.dev_type,
-	       sizeof(struct hv_guid));
-
-	drv_ctx->probe = mousevsc_probe;
-	drv_ctx->remove = mousevsc_remove;
-
-	/* The driver belongs to vmbus */
-	vmbus_child_driver_register(drv_ctx);
-
-	return ret;
-}
-
-
 int mousevsc_drv_exit_cb(struct device *dev, void *data)
 {
 	struct device **curr = (struct device **)data;
@@ -1130,13 +1083,29 @@ void mousevsc_drv_exit(void)
 
 static int __init mousevsc_init(void)
 {
-	int ret;
+	struct mousevsc_drv_obj *input_drv_obj = &g_mousevsc_drv.drv_obj;
+	struct driver_context *drv_ctx = &g_mousevsc_drv.drv_ctx;
 
 	DPRINT_INFO(INPUTVSC_DRV, "Hyper-V Mouse driver initializing.");
 
-	ret = mousevsc_drv_init(mouse_vsc_initialize);
+	input_drv_obj->OnDeviceInfo = mousevsc_deviceinfo_callback;
+	input_drv_obj->OnInputReport = mousevsc_inputreport_callback;
+	input_drv_obj->OnReportDescriptor = mousevsc_reportdesc_callback;
 
-	return ret;
+	/* Callback to client driver to complete the initialization */
+	mouse_vsc_initialize(&input_drv_obj->Base);
+
+	drv_ctx->driver.name = input_drv_obj->Base.name;
+	memcpy(&drv_ctx->class_id, &input_drv_obj->Base.dev_type,
+	       sizeof(struct hv_guid));
+
+	drv_ctx->probe = mousevsc_probe;
+	drv_ctx->remove = mousevsc_remove;
+
+	/* The driver belongs to vmbus */
+	vmbus_child_driver_register(drv_ctx);
+
+	return 0;
 }
 
 static void __exit mousevsc_exit(void)
