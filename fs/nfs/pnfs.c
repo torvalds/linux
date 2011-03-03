@@ -873,6 +873,28 @@ pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, struct inode *inode)
 	pgio->pg_test = (ld && ld->pg_test) ? pnfs_read_pg_test : NULL;
 }
 
+static int pnfs_write_pg_test(struct nfs_pageio_descriptor *pgio,
+			      struct nfs_page *prev,
+			      struct nfs_page *req)
+{
+	if (pgio->pg_count == prev->wb_bytes) {
+		/* This is first coelesce call for a series of nfs_pages */
+		pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
+						   prev->wb_context,
+						   IOMODE_RW);
+	}
+	return NFS_SERVER(pgio->pg_inode)->pnfs_curr_ld->pg_test(pgio, prev, req);
+}
+
+void
+pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *inode)
+{
+	struct pnfs_layoutdriver_type *ld;
+
+	ld = NFS_SERVER(inode)->pnfs_curr_ld;
+	pgio->pg_test = (ld && ld->pg_test) ? pnfs_write_pg_test : NULL;
+}
+
 /*
  * Call the appropriate parallel I/O subsystem read function.
  */

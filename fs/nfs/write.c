@@ -919,6 +919,8 @@ static int nfs_flush_multi(struct inode *inode, struct list_head *head, unsigned
 	} while (nbytes != 0);
 	atomic_set(&req->wb_complete, requests);
 
+	BUG_ON(lseg);
+	lseg = pnfs_update_layout(inode, req->wb_context, IOMODE_RW);
 	ClearPageError(page);
 	offset = 0;
 	nbytes = count;
@@ -940,6 +942,7 @@ static int nfs_flush_multi(struct inode *inode, struct list_head *head, unsigned
 		nbytes -= wsize;
 	} while (nbytes != 0);
 
+	put_lseg(lseg);
 	return ret;
 
 out_bad:
@@ -965,11 +968,18 @@ static int nfs_flush_one(struct inode *inode, struct list_head *head, unsigned i
 	struct nfs_page		*req;
 	struct page		**pages;
 	struct nfs_write_data	*data;
+	int ret;
 
 	data = nfs_writedata_alloc(npages);
-	if (!data)
-		goto out_bad;
-
+	if (!data) {
+		while (!list_empty(head)) {
+			req = nfs_list_entry(head->next);
+			nfs_list_remove_request(req);
+			nfs_redirty_request(req);
+		}
+		ret = -ENOMEM;
+		goto out;
+	}
 	pages = data->pagevec;
 	while (!list_empty(head)) {
 		req = nfs_list_entry(head->next);
@@ -979,16 +989,14 @@ static int nfs_flush_one(struct inode *inode, struct list_head *head, unsigned i
 		*pages++ = req->wb_page;
 	}
 	req = nfs_list_entry(data->pages.next);
+	if ((!lseg) && list_is_singular(&data->pages))
+		lseg = pnfs_update_layout(inode, req->wb_context, IOMODE_RW);
 
 	/* Set up the argument struct */
-	return nfs_write_rpcsetup(req, data, &nfs_write_full_ops, count, 0, lseg, how);
- out_bad:
-	while (!list_empty(head)) {
-		req = nfs_list_entry(head->next);
-		nfs_list_remove_request(req);
-		nfs_redirty_request(req);
-	}
-	return -ENOMEM;
+	ret = nfs_write_rpcsetup(req, data, &nfs_write_full_ops, count, 0, lseg, how);
+out:
+	put_lseg(lseg); /* Cleans any gotten in ->pg_test */
+	return ret;
 }
 
 static void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,
@@ -996,7 +1004,7 @@ static void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,
 {
 	size_t wsize = NFS_SERVER(inode)->wsize;
 
-	pgio->pg_test = NULL;
+	pnfs_pageio_init_write(pgio, inode);
 
 	if (wsize < PAGE_CACHE_SIZE)
 		nfs_pageio_init(pgio, inode, nfs_flush_multi, wsize, ioflags);
