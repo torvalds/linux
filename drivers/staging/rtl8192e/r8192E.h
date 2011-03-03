@@ -1057,7 +1057,7 @@ void write_nic_dword(struct r8192_priv *priv, int x,u32 y);
 
 int rtl8192_down(struct net_device *dev);
 int rtl8192_up(struct net_device *dev);
-void rtl8192_commit(struct net_device *dev);
+void rtl8192_commit(struct r8192_priv *priv);
 void write_phy(struct net_device *dev, u8 adr, u8 data);
 void CamResetAllEntry(struct r8192_priv *priv);
 void EnableHWSecurityConfig8192(struct net_device *dev);
@@ -1069,7 +1069,6 @@ RT_STATUS cmpk_message_handle_tx(struct net_device *dev, u8* codevirtualaddress,
 #ifdef ENABLE_IPS
 void IPSEnter(struct net_device *dev);
 void IPSLeave(struct net_device *dev);
-void InactivePsWorkItemCallback(struct net_device *dev);
 void IPSLeave_wq(struct work_struct *work);
 void ieee80211_ips_leave_wq(struct net_device *dev);
 void ieee80211_ips_leave(struct net_device *dev);

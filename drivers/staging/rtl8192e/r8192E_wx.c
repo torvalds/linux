@@ -770,7 +770,7 @@ static int r8192_wx_set_retry(struct net_device *dev,
 	 * I'm unsure if whole reset is really needed
 	 */
 
- 	rtl8192_commit(dev);
+	rtl8192_commit(priv);
 	/*
 	if(priv->up){
 		rtl8180_rtx_disable(dev);
