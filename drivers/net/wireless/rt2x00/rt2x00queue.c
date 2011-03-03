@@ -708,21 +708,17 @@ EXPORT_SYMBOL_GPL(rt2x00queue_for_each_entry);
 struct data_queue *rt2x00queue_get_queue(struct rt2x00_dev *rt2x00dev,
 					 const enum data_queue_qid queue)
 {
-	int atim = test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags);
-
 	if (queue == QID_RX)
 		return rt2x00dev->rx;
 
 	if (queue < rt2x00dev->ops->tx_queues && rt2x00dev->tx)
 		return &rt2x00dev->tx[queue];
 
-	if (!rt2x00dev->bcn)
-		return NULL;
-
 	if (queue == QID_BEACON)
-		return &rt2x00dev->bcn[0];
-	else if (queue == QID_ATIM && atim)
-		return &rt2x00dev->bcn[1];
+		return rt2x00dev->bcn;
+
+	if (queue == QID_ATIM)
+		return rt2x00dev->atim;
 
 	return NULL;
 }
@@ -1103,7 +1099,7 @@ int rt2x00queue_initialize(struct rt2x00_dev *rt2x00dev)
 		goto exit;
 
 	if (test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags)) {
-		status = rt2x00queue_alloc_entries(&rt2x00dev->bcn[1],
+		status = rt2x00queue_alloc_entries(rt2x00dev->atim,
 						   rt2x00dev->ops->atim);
 		if (status)
 			goto exit;
@@ -1177,6 +1173,7 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->rx = queue;
 	rt2x00dev->tx = &queue[1];
 	rt2x00dev->bcn = &queue[1 + rt2x00dev->ops->tx_queues];
+	rt2x00dev->atim = req_atim ? &queue[2 + rt2x00dev->ops->tx_queues] : NULL;
 
 	/*
 	 * Initialize queue parameters.
@@ -1193,9 +1190,9 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 	tx_queue_for_each(rt2x00dev, queue)
 		rt2x00queue_init(rt2x00dev, queue, qid++);
 
-	rt2x00queue_init(rt2x00dev, &rt2x00dev->bcn[0], QID_BEACON);
+	rt2x00queue_init(rt2x00dev, rt2x00dev->bcn, QID_BEACON);
 	if (req_atim)
-		rt2x00queue_init(rt2x00dev, &rt2x00dev->bcn[1], QID_ATIM);
+		rt2x00queue_init(rt2x00dev, rt2x00dev->atim, QID_ATIM);
 
 	return 0;
 }
