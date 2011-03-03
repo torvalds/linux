@@ -99,56 +99,56 @@ enum synthhid_msg_type {
 /*
  * Basic message structures.
  */
-typedef struct {
+struct synthhid_msg_hdr {
 	enum synthhid_msg_type  Type;    /* Type of the enclosed message */
 	u32                     Size;    /* Size of the enclosed message
 					  *  (size of the data payload)
 					  */
-} SYNTHHID_MESSAGE_HEADER, *PSYNTHHID_MESSAGE_HEADER;
+};
 
-typedef struct {
-	SYNTHHID_MESSAGE_HEADER Header;
+struct synthhid_msg {
+	struct synthhid_msg_hdr Header;
 	char                    Data[1]; /* Enclosed message */
-} SYNTHHID_MESSAGE, *PSYNTHHID_MESSAGE;
+};
 
-typedef union {
+union synthhid_version {
 	struct {
 		u16  Minor;
 		u16  Major;
 	};
 
 	u32 AsDWord;
-} SYNTHHID_VERSION, *PSYNTHHID_VERSION;
+};
 
 /*
  * Protocol messages
  */
-typedef struct {
-	SYNTHHID_MESSAGE_HEADER Header;
-	SYNTHHID_VERSION        VersionRequested;
-} SYNTHHID_PROTOCOL_REQUEST, *PSYNTHHID_PROTOCOL_REQUEST;
+struct synthhid_protocol_request {
+	struct synthhid_msg_hdr Header;
+	union synthhid_version VersionRequested;
+};
 
-typedef struct {
-	SYNTHHID_MESSAGE_HEADER Header;
-	SYNTHHID_VERSION        VersionRequested;
-	unsigned char           Approved;
-} SYNTHHID_PROTOCOL_RESPONSE, *PSYNTHHID_PROTOCOL_RESPONSE;
+struct synthhid_protocol_response {
+	struct synthhid_msg_hdr Header;
+	union synthhid_version VersionRequested;
+	unsigned char Approved;
+};
 
-typedef struct {
-	SYNTHHID_MESSAGE_HEADER     Header;
+struct synthhid_device_info {
+	struct synthhid_msg_hdr     Header;
 	struct input_dev_info       HidDeviceAttributes;
 	unsigned char               HidDescriptorInformation[1];
-} SYNTHHID_DEVICE_INFO, *PSYNTHHID_DEVICE_INFO;
+};
 
-typedef struct {
-	SYNTHHID_MESSAGE_HEADER Header;
+struct synthhid_device_info_ack {
+	struct synthhid_msg_hdr Header;
 	unsigned char           Reserved;
-} SYNTHHID_DEVICE_INFO_ACK, *PSYNTHHID_DEVICE_INFO_ACK;
+};
 
-typedef struct {
-	SYNTHHID_MESSAGE_HEADER Header;
+struct synthhid_input_report {
+	struct synthhid_msg_hdr Header;
 	char                    ReportBuffer[1];
-} SYNTHHID_INPUT_REPORT, *PSYNTHHID_INPUT_REPORT;
+};
 
 #pragma pack(pop)
 
@@ -177,9 +177,9 @@ struct  mousevsc_prt_msg {
 	enum pipe_prot_msg_type   PacketType;
 	u32                  DataSize;
 	union {
-		SYNTHHID_PROTOCOL_REQUEST	Request;
-		SYNTHHID_PROTOCOL_RESPONSE	Response;
-		SYNTHHID_DEVICE_INFO_ACK	Ack;
+		struct synthhid_protocol_request Request;
+		struct synthhid_protocol_response Response;
+		struct synthhid_device_info_ack Ack;
 	} u;
 };
 
@@ -478,24 +478,24 @@ MousevscConnectToVsp(struct hv_device *Device)
 	memset(request, sizeof(struct mousevsc_prt_msg), 0);
 
 	request->PacketType = PipeMessageData;
-	request->DataSize = sizeof(SYNTHHID_PROTOCOL_REQUEST);
+	request->DataSize = sizeof(struct synthhid_protocol_request);
 
 	request->u.Request.Header.Type = SynthHidProtocolRequest;
 	request->u.Request.Header.Size = sizeof(unsigned long);
 	request->u.Request.VersionRequested.AsDWord =
 		SYNTHHID_INPUT_VERSION_DWORD;
 
-	pr_info("SYNTHHID_PROTOCOL_REQUEST...");
+	pr_info("synthhid protocol request...");
 
 	ret = vmbus_sendpacket(Device->channel, request,
 					sizeof(struct pipe_prt_msg) -
 					sizeof(unsigned char) +
-					sizeof(SYNTHHID_PROTOCOL_REQUEST),
+					sizeof(struct synthhid_protocol_request),
 					(unsigned long)request,
 					VM_PKT_DATA_INBAND,
 					VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0) {
-		pr_err("unable to send SYNTHHID_PROTOCOL_REQUEST");
+		pr_err("unable to send synthhid protocol request.");
 		goto Cleanup;
 	}
 
@@ -509,7 +509,7 @@ MousevscConnectToVsp(struct hv_device *Device)
 	response = &inputDevice->ProtocolResp;
 
 	if (!response->u.Response.Approved) {
-		pr_err("SYNTHHID_PROTOCOL_REQUEST failed (version %d)",
+		pr_err("synthhid protocol request failed (version %d)",
 		       SYNTHHID_INPUT_VERSION_DWORD);
 		ret = -1;
 		goto Cleanup;
@@ -625,7 +625,7 @@ MousevscOnSendCompletion(struct hv_device *Device,
 void
 MousevscOnReceiveDeviceInfo(
 	struct mousevsc_dev *InputDevice,
-	SYNTHHID_DEVICE_INFO *DeviceInfo)
+	struct synthhid_device_info *DeviceInfo)
 {
 	int ret = 0;
 	struct hid_descriptor *desc;
@@ -669,7 +669,7 @@ MousevscOnReceiveDeviceInfo(
 	memset(&ack, sizeof(struct mousevsc_prt_msg), 0);
 
 	ack.PacketType = PipeMessageData;
-	ack.DataSize = sizeof(SYNTHHID_DEVICE_INFO_ACK);
+	ack.DataSize = sizeof(struct synthhid_device_info_ack);
 
 	ack.u.Ack.Header.Type = SynthHidInitialDeviceInfoAck;
 	ack.u.Ack.Header.Size = 1;
@@ -677,12 +677,13 @@ MousevscOnReceiveDeviceInfo(
 
 	ret = vmbus_sendpacket(InputDevice->Device->channel,
 			&ack,
-			sizeof(struct pipe_prt_msg) - sizeof(unsigned char) + sizeof(SYNTHHID_DEVICE_INFO_ACK),
+			sizeof(struct pipe_prt_msg) - sizeof(unsigned char) +
+			sizeof(struct synthhid_device_info_ack),
 			(unsigned long)&ack,
 			VM_PKT_DATA_INBAND,
 			VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0) {
-		pr_err("unable to send SYNTHHID_DEVICE_INFO_ACK - ret %d",
+		pr_err("unable to send synthhid device info ack - ret %d",
 			   ret);
 		goto Cleanup;
 	}
@@ -712,7 +713,7 @@ Cleanup:
 void
 MousevscOnReceiveInputReport(
 	struct mousevsc_dev *InputDevice,
-	SYNTHHID_INPUT_REPORT *InputReport)
+	struct synthhid_input_report *InputReport)
 {
 	struct mousevsc_drv_obj *inputDriver;
 
@@ -732,7 +733,7 @@ void
 MousevscOnReceive(struct hv_device *Device, struct vmpacket_descriptor *Packet)
 {
 	struct pipe_prt_msg *pipeMsg;
-	SYNTHHID_MESSAGE *hidMsg;
+	struct synthhid_msg *hidMsg;
 	struct mousevsc_dev *inputDevice;
 
 	inputDevice = MustGetInputDevice(Device);
@@ -750,7 +751,7 @@ MousevscOnReceive(struct hv_device *Device, struct vmpacket_descriptor *Packet)
 		return ;
 	}
 
-	hidMsg = (SYNTHHID_MESSAGE *)&pipeMsg->Data[0];
+	hidMsg = (struct synthhid_msg *)&pipeMsg->Data[0];
 
 	switch (hidMsg->Header.Type) {
 	case SynthHidProtocolResponse:
@@ -767,11 +768,11 @@ MousevscOnReceive(struct hv_device *Device, struct vmpacket_descriptor *Packet)
 		 * hid desc and report desc
 		 */
 		MousevscOnReceiveDeviceInfo(inputDevice,
-					    (SYNTHHID_DEVICE_INFO *)&pipeMsg->Data[0]);
+					    (struct synthhid_device_info *)&pipeMsg->Data[0]);
 		break;
 	case SynthHidInputReport:
 		MousevscOnReceiveInputReport(inputDevice,
-					     (SYNTHHID_INPUT_REPORT *)&pipeMsg->Data[0]);
+					     (struct synthhid_input_report *)&pipeMsg->Data[0]);
 
 		break;
 	default:
