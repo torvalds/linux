@@ -19,18 +19,23 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/string.h>
+#include <trace/events/power.h>
+
 #include "cm2xxx_3xxx.h"
 #include "prcm44xx.h"
 #include "cm44xx.h"
 #include "prm2xxx_3xxx.h"
 #include "prm44xx.h"
 
+#include <asm/cpu.h>
 #include <plat/cpu.h>
 #include "powerdomain.h"
 #include "clockdomain.h"
 #include <plat/prcm.h>
 
 #include "pm.h"
+
+#define PWRDM_TRACE_STATES_FLAG	(1<<31)
 
 enum {
 	PWRDM_STATE_NOW = 0,
@@ -130,8 +135,7 @@ static void _update_logic_membank_counters(struct powerdomain *pwrdm)
 static int _pwrdm_state_switch(struct powerdomain *pwrdm, int flag)
 {
 
-	int prev;
-	int state;
+	int prev, state, trace_state = 0;
 
 	if (pwrdm == NULL)
 		return -EINVAL;
@@ -148,6 +152,17 @@ static int _pwrdm_state_switch(struct powerdomain *pwrdm, int flag)
 			pwrdm->state_counter[prev]++;
 		if (prev == PWRDM_POWER_RET)
 			_update_logic_membank_counters(pwrdm);
+		/*
+		 * If the power domain did not hit the desired state,
+		 * generate a trace event with both the desired and hit states
+		 */
+		if (state != prev) {
+			trace_state = (PWRDM_TRACE_STATES_FLAG |
+				       ((state & OMAP_POWERSTATE_MASK) << 8) |
+				       ((prev & OMAP_POWERSTATE_MASK) << 0));
+			trace_power_domain_target(pwrdm->name, trace_state,
+						  smp_processor_id());
+		}
 		break;
 	default:
 		return -EINVAL;
@@ -406,8 +421,13 @@ int pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)
 	pr_debug("powerdomain: setting next powerstate for %s to %0x\n",
 		 pwrdm->name, pwrst);
 
-	if (arch_pwrdm && arch_pwrdm->pwrdm_set_next_pwrst)
+	if (arch_pwrdm && arch_pwrdm->pwrdm_set_next_pwrst) {
+		/* Trace the pwrdm desired target state */
+		trace_power_domain_target(pwrdm->name, pwrst,
+					  smp_processor_id());
+		/* Program the pwrdm desired target state */
 		ret = arch_pwrdm->pwrdm_set_next_pwrst(pwrdm, pwrst);
+	}
 
 	return ret;
 }
