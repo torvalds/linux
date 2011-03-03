@@ -32,7 +32,93 @@
 #include "mousevsc_api.h"
 #include "channel.h"
 #include "vmbus_packet_format.h"
-#include "vmbus_hid_protocol.h"
+
+
+/* The maximum size of a synthetic input message. */
+#define SYNTHHID_MAX_INPUT_REPORT_SIZE 16
+
+/*
+ * Current version
+ *
+ * History:
+ * Beta, RC < 2008/1/22        1,0
+ * RC > 2008/1/22              2,0
+ */
+#define SYNTHHID_INPUT_VERSION_MAJOR 2
+#define SYNTHHID_INPUT_VERSION_MINOR 0
+#define SYNTHHID_INPUT_VERSION_DWORD (SYNTHHID_INPUT_VERSION_MINOR | \
+    (SYNTHHID_INPUT_VERSION_MAJOR << 16))
+
+
+#pragma pack(push,1)
+/*
+ * Message types in the synthetic input protocol
+ */
+enum synthhid_msg_type {
+	SynthHidProtocolRequest,
+	SynthHidProtocolResponse,
+	SynthHidInitialDeviceInfo,
+	SynthHidInitialDeviceInfoAck,
+	SynthHidInputReport,
+	SynthHidMax
+};
+
+/*
+ * Basic message structures.
+ */
+typedef struct {
+	enum synthhid_msg_type  Type;    /* Type of the enclosed message */
+	u32                     Size;    /* Size of the enclosed message
+					  *  (size of the data payload)
+					  */
+} SYNTHHID_MESSAGE_HEADER, *PSYNTHHID_MESSAGE_HEADER;
+
+typedef struct {
+	SYNTHHID_MESSAGE_HEADER Header;
+	char                    Data[1]; /* Enclosed message */
+} SYNTHHID_MESSAGE, *PSYNTHHID_MESSAGE;
+
+typedef union {
+	struct {
+		u16  Minor;
+		u16  Major;
+	};
+
+	u32 AsDWord;
+} SYNTHHID_VERSION, *PSYNTHHID_VERSION;
+
+/*
+ * Protocol messages
+ */
+typedef struct {
+	SYNTHHID_MESSAGE_HEADER Header;
+	SYNTHHID_VERSION        VersionRequested;
+} SYNTHHID_PROTOCOL_REQUEST, *PSYNTHHID_PROTOCOL_REQUEST;
+
+typedef struct {
+	SYNTHHID_MESSAGE_HEADER Header;
+	SYNTHHID_VERSION        VersionRequested;
+	unsigned char           Approved;
+} SYNTHHID_PROTOCOL_RESPONSE, *PSYNTHHID_PROTOCOL_RESPONSE;
+
+typedef struct {
+	SYNTHHID_MESSAGE_HEADER     Header;
+	struct input_dev_info       HidDeviceAttributes;
+	unsigned char               HidDescriptorInformation[1];
+} SYNTHHID_DEVICE_INFO, *PSYNTHHID_DEVICE_INFO;
+
+typedef struct {
+	SYNTHHID_MESSAGE_HEADER Header;
+	unsigned char           Reserved;
+} SYNTHHID_DEVICE_INFO_ACK, *PSYNTHHID_DEVICE_INFO_ACK;
+
+typedef struct {
+	SYNTHHID_MESSAGE_HEADER Header;
+	char                    ReportBuffer[1];
+} SYNTHHID_INPUT_REPORT, *PSYNTHHID_INPUT_REPORT;
+
+#pragma pack(pop)
+
 
 #define NBITS(x) (((x)/BITS_PER_LONG)+1)
 
