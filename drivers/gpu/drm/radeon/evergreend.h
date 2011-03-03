@@ -98,6 +98,7 @@
 #define		BUF_SWAP_32BIT					(2 << 16)
 #define	CP_RB_RPTR					0x8700
 #define	CP_RB_RPTR_ADDR					0xC10C
+#define		RB_RPTR_SWAP(x)					((x) << 0)
 #define	CP_RB_RPTR_ADDR_HI				0xC110
 #define	CP_RB_RPTR_WR					0xC108
 #define	CP_RB_WPTR					0xC114

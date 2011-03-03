@@ -186,6 +186,7 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 			split = alloc_extent_map(GFP_NOFS);
 		if (!split2)
 			split2 = alloc_extent_map(GFP_NOFS);
+		BUG_ON(!split || !split2);
 
 		write_lock(&em_tree->lock);
 		em = lookup_extent_mapping(em_tree, start, len);

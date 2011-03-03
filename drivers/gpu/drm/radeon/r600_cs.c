@@ -295,17 +295,18 @@ static inline int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 	}
 
 	if (!IS_ALIGNED(pitch, pitch_align)) {
-		dev_warn(p->dev, "%s:%d cb pitch (%d) invalid\n",
-			 __func__, __LINE__, pitch);
+		dev_warn(p->dev, "%s:%d cb pitch (%d, 0x%x, %d) invalid\n",
+			 __func__, __LINE__, pitch, pitch_align, array_mode);
 		return -EINVAL;
 	}
 	if (!IS_ALIGNED(height, height_align)) {
-		dev_warn(p->dev, "%s:%d cb height (%d) invalid\n",
-			 __func__, __LINE__, height);
+		dev_warn(p->dev, "%s:%d cb height (%d, 0x%x, %d) invalid\n",
+			 __func__, __LINE__, height, height_align, array_mode);
 		return -EINVAL;
 	}
 	if (!IS_ALIGNED(base_offset, base_align)) {
-		dev_warn(p->dev, "%s offset[%d] 0x%llx not aligned\n", __func__, i, base_offset);
+		dev_warn(p->dev, "%s offset[%d] 0x%llx 0x%llx, %d not aligned\n", __func__, i,
+			 base_offset, base_align, array_mode);
 		return -EINVAL;
 	}
 
@@ -320,7 +321,10 @@ static inline int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 			 * broken userspace.
 			 */
 		} else {
-			dev_warn(p->dev, "%s offset[%d] %d %d %lu too big\n", __func__, i, track->cb_color_bo_offset[i], tmp, radeon_bo_size(track->cb_color_bo[i]));
+			dev_warn(p->dev, "%s offset[%d] %d %d %d %lu too big\n", __func__, i,
+				 array_mode,
+				 track->cb_color_bo_offset[i], tmp,
+				 radeon_bo_size(track->cb_color_bo[i]));
 			return -EINVAL;
 		}
 	}
@@ -455,17 +459,18 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 			}
 
 			if (!IS_ALIGNED(pitch, pitch_align)) {
-				dev_warn(p->dev, "%s:%d db pitch (%d) invalid\n",
-					 __func__, __LINE__, pitch);
+				dev_warn(p->dev, "%s:%d db pitch (%d, 0x%x, %d) invalid\n",
+					 __func__, __LINE__, pitch, pitch_align, array_mode);
 				return -EINVAL;
 			}
 			if (!IS_ALIGNED(height, height_align)) {
-				dev_warn(p->dev, "%s:%d db height (%d) invalid\n",
-					 __func__, __LINE__, height);
+				dev_warn(p->dev, "%s:%d db height (%d, 0x%x, %d) invalid\n",
+					 __func__, __LINE__, height, height_align, array_mode);
 				return -EINVAL;
 			}
 			if (!IS_ALIGNED(base_offset, base_align)) {
-				dev_warn(p->dev, "%s offset[%d] 0x%llx not aligned\n", __func__, i, base_offset);
+				dev_warn(p->dev, "%s offset[%d] 0x%llx, 0x%llx, %d not aligned\n", __func__, i,
+					 base_offset, base_align, array_mode);
 				return -EINVAL;
 			}
 
@@ -473,9 +478,10 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 			nviews = G_028004_SLICE_MAX(track->db_depth_view) + 1;
 			tmp = ntiles * bpe * 64 * nviews;
 			if ((tmp + track->db_offset) > radeon_bo_size(track->db_bo)) {
-				dev_warn(p->dev, "z/stencil buffer too small (0x%08X %d %d %d -> %u have %lu)\n",
-						track->db_depth_size, ntiles, nviews, bpe, tmp + track->db_offset,
-						radeon_bo_size(track->db_bo));
+				dev_warn(p->dev, "z/stencil buffer (%d) too small (0x%08X %d %d %d -> %u have %lu)\n",
+					 array_mode,
+					 track->db_depth_size, ntiles, nviews, bpe, tmp + track->db_offset,
+					 radeon_bo_size(track->db_bo));
 				return -EINVAL;
 			}
 		}
@@ -1227,18 +1233,18 @@ static inline int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 i
 	/* XXX check height as well... */
 
 	if (!IS_ALIGNED(pitch, pitch_align)) {
-		dev_warn(p->dev, "%s:%d tex pitch (%d) invalid\n",
-			 __func__, __LINE__, pitch);
+		dev_warn(p->dev, "%s:%d tex pitch (%d, 0x%x, %d) invalid\n",
+			 __func__, __LINE__, pitch, pitch_align, G_038000_TILE_MODE(word0));
 		return -EINVAL;
 	}
 	if (!IS_ALIGNED(base_offset, base_align)) {
-		dev_warn(p->dev, "%s:%d tex base offset (0x%llx) invalid\n",
-			 __func__, __LINE__, base_offset);
+		dev_warn(p->dev, "%s:%d tex base offset (0x%llx, 0x%llx, %d) invalid\n",
+			 __func__, __LINE__, base_offset, base_align, G_038000_TILE_MODE(word0));
 		return -EINVAL;
 	}
 	if (!IS_ALIGNED(mip_offset, base_align)) {
-		dev_warn(p->dev, "%s:%d tex mip offset (0x%llx) invalid\n",
-			 __func__, __LINE__, mip_offset);
+		dev_warn(p->dev, "%s:%d tex mip offset (0x%llx, 0x%llx, %d) invalid\n",
+			 __func__, __LINE__, mip_offset, base_align, G_038000_TILE_MODE(word0));
 		return -EINVAL;
 	}
 

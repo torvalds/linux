@@ -861,6 +861,7 @@ static int sl811h_urb_enqueue(
 			DBG("dev %d ep%d maxpacket %d\n",
 				udev->devnum, epnum, ep->maxpacket);
 			retval = -EINVAL;
+			kfree(ep);
 			goto fail;
 		}
 

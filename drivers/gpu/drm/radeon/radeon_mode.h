@@ -209,6 +209,7 @@ enum radeon_connector_table {
 	CT_EMAC,
 	CT_RN50_POWER,
 	CT_MAC_X800,
+	CT_MAC_G5_9600,
 };
 
 enum radeon_dvo_chip {

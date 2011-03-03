@@ -1786,6 +1786,10 @@ int be_cmd_get_seeprom_data(struct be_adapter *adapter,
 	spin_lock_bh(&adapter->mcc_lock);
 
 	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
 	req = nonemb_cmd->va;
 	sge = nonembedded_sgl(wrb);
 
@@ -1801,6 +1805,7 @@ int be_cmd_get_seeprom_data(struct be_adapter *adapter,
 
 	status = be_mcc_notify_wait(adapter);
 
+err:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }

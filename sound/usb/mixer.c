@@ -95,7 +95,7 @@ enum {
 };
 
 
-/*E-mu 0202(0404) eXtension Unit(XU) control*/
+/*E-mu 0202/0404/0204 eXtension Unit(XU) control*/
 enum {
 	USB_XU_CLOCK_RATE 		= 0xe301,
 	USB_XU_CLOCK_SOURCE		= 0xe302,
@@ -1566,7 +1566,7 @@ static int build_audio_procunit(struct mixer_build *state, int unitid, void *raw
 			cval->initialized = 1;
 		} else {
 			if (type == USB_XU_CLOCK_RATE) {
-				/* E-Mu USB 0404/0202/TrackerPre
+				/* E-Mu USB 0404/0202/TrackerPre/0204
 				 * samplerate control quirk
 				 */
 				cval->min = 0;

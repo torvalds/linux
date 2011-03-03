@@ -1560,8 +1560,10 @@ static int stmmac_mac_device_setup(struct net_device *dev)
 
 	priv->hw = device;
 
-	if (device_can_wakeup(priv->device))
+	if (device_can_wakeup(priv->device)) {
 		priv->wolopts = WAKE_MAGIC; /* Magic Frame as default */
+		enable_irq_wake(dev->irq);
+	}
 
 	return 0;
 }

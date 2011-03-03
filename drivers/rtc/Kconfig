@@ -97,6 +97,18 @@ config RTC_INTF_DEV
 
 	  If unsure, say Y.
 
+config RTC_INTF_DEV_UIE_EMUL
+	bool "RTC UIE emulation on dev interface"
+	depends on RTC_INTF_DEV
+	help
+	  Provides an emulation for RTC_UIE if the underlying rtc chip
+	  driver does not expose RTC_UIE ioctls. Those requests generate
+	  once-per-second update interrupts, used for synchronization.
+
+	  The emulation code will read the time from the hardware
+	  clock several times per second, please enable this option
+	  only if you know that you really need it.
+
 config RTC_DRV_TEST
 	tristate "Test driver/device"
 	help

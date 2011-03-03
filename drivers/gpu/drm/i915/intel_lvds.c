@@ -261,12 +261,6 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 		return true;
 	}
 
-	/* Make sure pre-965s set dither correctly */
-	if (INTEL_INFO(dev)->gen < 4) {
-		if (dev_priv->lvds_dither)
-			pfit_control |= PANEL_8TO6_DITHER_ENABLE;
-	}
-
 	/* Native modes don't need fitting */
 	if (adjusted_mode->hdisplay == mode->hdisplay &&
 	    adjusted_mode->vdisplay == mode->vdisplay)
@@ -374,10 +368,16 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	}
 
 out:
+	/* If not enabling scaling, be consistent and always use 0. */
 	if ((pfit_control & PFIT_ENABLE) == 0) {
 		pfit_control = 0;
 		pfit_pgm_ratios = 0;
 	}
+
+	/* Make sure pre-965 set dither correctly */
+	if (INTEL_INFO(dev)->gen < 4 && dev_priv->lvds_dither)
+		pfit_control |= PANEL_8TO6_DITHER_ENABLE;
+
 	if (pfit_control != intel_lvds->pfit_control ||
 	    pfit_pgm_ratios != intel_lvds->pfit_pgm_ratios) {
 		intel_lvds->pfit_control = pfit_control;

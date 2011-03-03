@@ -263,11 +263,12 @@ static int __event__synthesize_thread(event_t *comm_event, event_t *mmap_event,
 					     process, session);
 }
 
-int event__synthesize_thread(pid_t pid, event__handler_t process,
-			     struct perf_session *session)
+int event__synthesize_thread_map(struct thread_map *threads,
+				 event__handler_t process,
+				 struct perf_session *session)
 {
 	event_t *comm_event, *mmap_event;
-	int err = -1;
+	int err = -1, thread;
 
 	comm_event = malloc(sizeof(comm_event->comm) + session->id_hdr_size);
 	if (comm_event == NULL)
@@ -277,8 +278,15 @@ int event__synthesize_thread(pid_t pid, event__handler_t process,
 	if (mmap_event == NULL)
 		goto out_free_comm;
 
-	err = __event__synthesize_thread(comm_event, mmap_event, pid,
-					 process, session);
+	err = 0;
+	for (thread = 0; thread < threads->nr; ++thread) {
+		if (__event__synthesize_thread(comm_event, mmap_event,
+					       threads->map[thread],
+					       process, session)) {
+			err = -1;
+			break;
+		}
+	}
 	free(mmap_event);
 out_free_comm:
 	free(comm_event);

@@ -2463,11 +2463,13 @@ static void *raid10_takeover_raid0(mddev_t *mddev)
 	mddev->recovery_cp = MaxSector;
 
 	conf = setup_conf(mddev);
-	if (!IS_ERR(conf))
+	if (!IS_ERR(conf)) {
 		list_for_each_entry(rdev, &mddev->disks, same_set)
 			if (rdev->raid_disk >= 0)
 				rdev->new_raid_disk = rdev->raid_disk * 2;
-		
+		conf->barrier = 1;
+	}
+
 	return conf;
 }
 

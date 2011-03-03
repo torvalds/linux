@@ -10,4 +10,3 @@ obj-$(CONFIG_HVC_XEN)		+= hvc_xen.o
 obj-$(CONFIG_HVC_IUCV)		+= hvc_iucv.o
 obj-$(CONFIG_HVC_UDBG)		+= hvc_udbg.o
 obj-$(CONFIG_HVCS)		+= hvcs.o
-obj-$(CONFIG_VIRTIO_CONSOLE)	+= virtio_console.o
