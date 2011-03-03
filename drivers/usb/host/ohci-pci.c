@@ -151,7 +151,7 @@ static int ohci_quirk_amd700(struct usb_hcd *hcd)
 {
 	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
 	struct pci_dev *amd_smbus_dev;
-	u8 rev = 0;
+	u8 rev;
 
 	if (usb_amd_find_chipset_info())
 		ohci->flags |= OHCI_QUIRK_AMD_PLL;
@@ -161,7 +161,7 @@ static int ohci_quirk_amd700(struct usb_hcd *hcd)
 	if (!amd_smbus_dev)
 		return 0;
 
-	pci_read_config_byte(amd_smbus_dev, PCI_REVISION_ID, &rev);
+	rev = amd_smbus_dev->revision;
 
 	/* SB800 needs pre-fetch fix */
 	if ((rev >= 0x40) && (rev <= 0x4f)) {
