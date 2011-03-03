@@ -31,7 +31,7 @@ DECLARE_EVENT_CLASS(block_rq_with_error,
 					0 : blk_rq_sectors(rq);
 		__entry->errors    = rq->errors;
 
-		blk_fill_rwbs_rq(__entry->rwbs, rq);
+		blk_fill_rwbs(__entry->rwbs, rq->cmd_flags, blk_rq_bytes(rq));
 		blk_dump_cmd(__get_str(cmd), rq);
 	),
 
@@ -118,7 +118,7 @@ DECLARE_EVENT_CLASS(block_rq,
 		__entry->bytes     = (rq->cmd_type == REQ_TYPE_BLOCK_PC) ?
 					blk_rq_bytes(rq) : 0;
 
-		blk_fill_rwbs_rq(__entry->rwbs, rq);
+		blk_fill_rwbs(__entry->rwbs, rq->cmd_flags, blk_rq_bytes(rq));
 		blk_dump_cmd(__get_str(cmd), rq);
 		memcpy(__entry->comm, current->comm, TASK_COMM_LEN);
 	),
@@ -563,7 +563,7 @@ TRACE_EVENT(block_rq_remap,
 		__entry->nr_sector	= blk_rq_sectors(rq);
 		__entry->old_dev	= dev;
 		__entry->old_sector	= from;
-		blk_fill_rwbs_rq(__entry->rwbs, rq);
+		blk_fill_rwbs(__entry->rwbs, rq->cmd_flags, blk_rq_bytes(rq));
 	),
 
 	TP_printk("%d,%d %s %llu + %u <- (%d,%d) %llu",
