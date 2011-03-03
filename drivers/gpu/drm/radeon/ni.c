@@ -1092,7 +1092,7 @@ static int cayman_cp_start(struct radeon_device *rdev)
 
 	cayman_cp_enable(rdev, true);
 
-	r = radeon_ring_lock(rdev, cayman_default_size + 15);
+	r = radeon_ring_lock(rdev, cayman_default_size + 19);
 	if (r) {
 		DRM_ERROR("radeon: cp failed to lock ring (%d).\n", r);
 		return r;
@@ -1124,6 +1124,11 @@ static int cayman_cp_start(struct radeon_device *rdev)
 	radeon_ring_write(rdev, 0xffffffff);
 	radeon_ring_write(rdev, 0xffffffff);
 	radeon_ring_write(rdev, 0xffffffff);
+
+	radeon_ring_write(rdev, 0xc0026900);
+	radeon_ring_write(rdev, 0x00000316);
+	radeon_ring_write(rdev, 0x0000000e); /* VGT_VERTEX_REUSE_BLOCK_CNTL */
+	radeon_ring_write(rdev, 0x00000010); /*  */
 
 	radeon_ring_unlock_commit(rdev);
 
