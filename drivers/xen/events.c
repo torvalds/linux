@@ -376,72 +376,49 @@ static void unmask_evtchn(int port)
 	put_cpu();
 }
 
-static int get_nr_hw_irqs(void)
-{
-	int ret = 1;
-
-#ifdef CONFIG_X86_IO_APIC
-	ret = get_nr_irqs_gsi();
-#endif
-
-	return ret;
-}
-
 static int xen_allocate_irq_dynamic(void)
 {
-	struct irq_data *data;
-	int irq, res;
-	int bottom = get_nr_hw_irqs();
-	int top = nr_irqs-1;
+	int first = 0;
+	int irq;
 
-	if (bottom == nr_irqs)
-		goto no_irqs;
-
-	/* This loop starts from the top of IRQ space and goes down.
-	 * We need this b/c if we have a PCI device in a Xen PV guest
-	 * we do not have an IO-APIC (though the backend might have them)
-	 * mapped in. To not have a collision of physical IRQs with the Xen
-	 * event channels start at the top of the IRQ space for virtual IRQs.
+#ifdef CONFIG_X86_IO_APIC
+	/*
+	 * For an HVM guest or domain 0 which see "real" (emulated or
+	 * actual repectively) GSIs we allocate dynamic IRQs
+	 * e.g. those corresponding to event channels or MSIs
+	 * etc. from the range above those "real" GSIs to avoid
+	 * collisions.
 	 */
-	for (irq = top; irq > bottom; irq--) {
-		data = irq_get_irq_data(irq);
-		/* only 15->0 have init'd desc; handle irq > 16 */
-		if (!data)
-			break;
-		if (data->chip == &no_irq_chip)
-			break;
-		if (data->chip != &xen_dynamic_chip)
-			continue;
-		if (irq_info[irq].type == IRQT_UNBOUND)
-			return irq;
+	if (xen_initial_domain() || xen_hvm_domain())
+		first = get_nr_irqs_gsi();
+#endif
+
+retry:
+	irq = irq_alloc_desc_from(first, -1);
+
+	if (irq == -ENOMEM && first > NR_IRQS_LEGACY) {
+		printk(KERN_ERR "Out of dynamic IRQ space and eating into GSI space. You should increase nr_irqs\n");
+		first = max(NR_IRQS_LEGACY, first - NR_IRQS_LEGACY);
+		goto retry;
 	}
 
-	if (irq == bottom)
-		goto no_irqs;
-
-	res = irq_alloc_desc_at(irq, -1);
-
-	if (WARN_ON(res != irq))
-		return -1;
+	if (irq < 0)
+		panic("No available IRQ to bind to: increase nr_irqs!\n");
 
 	return irq;
-
-no_irqs:
-	panic("No available IRQ to bind to: increase nr_irqs!\n");
-}
-
-static bool identity_mapped_irq(unsigned irq)
-{
-	/* identity map all the hardware irqs */
-	return irq < get_nr_hw_irqs();
 }
 
 static int xen_allocate_irq_gsi(unsigned gsi)
 {
 	int irq;
 
-	if (!identity_mapped_irq(gsi) &&
-	    (xen_initial_domain() || !xen_pv_domain()))
+	/*
+	 * A PV guest has no concept of a GSI (since it has no ACPI
+	 * nor access to/knowledge of the physical APICs). Therefore
+	 * all IRQs are dynamically allocated from the entire IRQ
+	 * space.
+	 */
+	if (xen_pv_domain() && !xen_initial_domain())
 		return xen_allocate_irq_dynamic();
 
 	/* Legacy IRQ descriptors are already allocated by the arch. */
