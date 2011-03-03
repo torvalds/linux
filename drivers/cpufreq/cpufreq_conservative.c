@@ -184,31 +184,6 @@ show_one(down_threshold, down_threshold);
 show_one(ignore_nice_load, ignore_nice);
 show_one(freq_step, freq_step);
 
-/*** delete after deprecation time ***/
-#define DEPRECATION_MSG(file_name)					\
-	printk_once(KERN_INFO "CPUFREQ: Per core conservative sysfs "	\
-		"interface is deprecated - " #file_name "\n");
-
-#define show_one_old(file_name)						\
-static ssize_t show_##file_name##_old					\
-(struct cpufreq_policy *unused, char *buf)				\
-{									\
-	printk_once(KERN_INFO "CPUFREQ: Per core conservative sysfs "	\
-		"interface is deprecated - " #file_name "\n");		\
-	return show_##file_name(NULL, NULL, buf);			\
-}
-show_one_old(sampling_rate);
-show_one_old(sampling_down_factor);
-show_one_old(up_threshold);
-show_one_old(down_threshold);
-show_one_old(ignore_nice_load);
-show_one_old(freq_step);
-show_one_old(sampling_rate_min);
-
-cpufreq_freq_attr_ro_old(sampling_rate_min);
-
-/*** delete after deprecation time ***/
-
 static ssize_t store_sampling_down_factor(struct kobject *a,
 					  struct attribute *b,
 					  const char *buf, size_t count)
@@ -365,48 +340,6 @@ static struct attribute_group dbs_attr_group = {
 	.attrs = dbs_attributes,
 	.name = "conservative",
 };
-
-/*** delete after deprecation time ***/
-
-#define write_one_old(file_name)					\
-static ssize_t store_##file_name##_old					\
-(struct cpufreq_policy *unused, const char *buf, size_t count)		\
-{									\
-	printk_once(KERN_INFO "CPUFREQ: Per core conservative sysfs "	\
-		"interface is deprecated - " #file_name "\n");	\
-	return store_##file_name(NULL, NULL, buf, count);		\
-}
-write_one_old(sampling_rate);
-write_one_old(sampling_down_factor);
-write_one_old(up_threshold);
-write_one_old(down_threshold);
-write_one_old(ignore_nice_load);
-write_one_old(freq_step);
-
-cpufreq_freq_attr_rw_old(sampling_rate);
-cpufreq_freq_attr_rw_old(sampling_down_factor);
-cpufreq_freq_attr_rw_old(up_threshold);
-cpufreq_freq_attr_rw_old(down_threshold);
-cpufreq_freq_attr_rw_old(ignore_nice_load);
-cpufreq_freq_attr_rw_old(freq_step);
-
-static struct attribute *dbs_attributes_old[] = {
-	&sampling_rate_min_old.attr,
-	&sampling_rate_old.attr,
-	&sampling_down_factor_old.attr,
-	&up_threshold_old.attr,
-	&down_threshold_old.attr,
-	&ignore_nice_load_old.attr,
-	&freq_step_old.attr,
-	NULL
-};
-
-static struct attribute_group dbs_attr_group_old = {
-	.attrs = dbs_attributes_old,
-	.name = "conservative",
-};
-
-/*** delete after deprecation time ***/
 
 /************************** sysfs end ************************/
 
@@ -583,12 +516,6 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 
 		mutex_lock(&dbs_mutex);
 
-		rc = sysfs_create_group(&policy->kobj, &dbs_attr_group_old);
-		if (rc) {
-			mutex_unlock(&dbs_mutex);
-			return rc;
-		}
-
 		for_each_cpu(j, policy->cpus) {
 			struct cpu_dbs_info_s *j_dbs_info;
 			j_dbs_info = &per_cpu(cs_cpu_dbs_info, j);
@@ -651,7 +578,6 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		dbs_timer_exit(this_dbs_info);
 
 		mutex_lock(&dbs_mutex);
-		sysfs_remove_group(&policy->kobj, &dbs_attr_group_old);
 		dbs_enable--;
 		mutex_destroy(&this_dbs_info->timer_mutex);
 

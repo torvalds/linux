@@ -281,18 +281,9 @@ __ATTR(_name, 0444, show_##_name, NULL)
 static struct freq_attr _name =			\
 __ATTR(_name, _perm, show_##_name, NULL)
 
-#define cpufreq_freq_attr_ro_old(_name)		\
-static struct freq_attr _name##_old =		\
-__ATTR(_name, 0444, show_##_name##_old, NULL)
-
 #define cpufreq_freq_attr_rw(_name)		\
 static struct freq_attr _name =			\
 __ATTR(_name, 0644, show_##_name, store_##_name)
-
-#define cpufreq_freq_attr_rw_old(_name)		\
-static struct freq_attr _name##_old =		\
-__ATTR(_name, 0644, show_##_name##_old, store_##_name##_old)
-
 
 struct global_attr {
 	struct attribute attr;
