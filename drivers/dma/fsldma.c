@@ -221,13 +221,26 @@ static void dma_halt(struct fsldma_chan *chan)
 	u32 mode;
 	int i;
 
+	/* read the mode register */
 	mode = DMA_IN(chan, &chan->regs->mr, 32);
-	mode |= FSL_DMA_MR_CA;
+
+	/*
+	 * The 85xx controller supports channel abort, which will stop
+	 * the current transfer. On 83xx, this bit is the transfer error
+	 * mask bit, which should not be changed.
+	 */
+	if ((chan->feature & FSL_DMA_IP_MASK) == FSL_DMA_IP_85XX) {
+		mode |= FSL_DMA_MR_CA;
+		DMA_OUT(chan, &chan->regs->mr, mode, 32);
+
+		mode &= ~FSL_DMA_MR_CA;
+	}
+
+	/* stop the DMA controller */
+	mode &= ~(FSL_DMA_MR_CS | FSL_DMA_MR_EMS_EN);
 	DMA_OUT(chan, &chan->regs->mr, mode, 32);
 
-	mode &= ~(FSL_DMA_MR_CS | FSL_DMA_MR_EMS_EN | FSL_DMA_MR_CA);
-	DMA_OUT(chan, &chan->regs->mr, mode, 32);
-
+	/* wait for the DMA controller to become idle */
 	for (i = 0; i < 100; i++) {
 		if (dma_is_idle(chan))
 			return;
