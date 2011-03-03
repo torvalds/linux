@@ -751,7 +751,7 @@ void viafb_unlock_crt(void)
 	viafb_write_reg_mask(CR47, VIACR, 0, BIT0);
 }
 
-void write_dac_reg(u8 index, u8 r, u8 g, u8 b)
+static void write_dac_reg(u8 index, u8 r, u8 g, u8 b)
 {
 	outb(index, LUT_INDEX_WRITE);
 	outb(r, LUT_DATA);

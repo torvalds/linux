@@ -32,7 +32,7 @@
  */
 #define VIAFB_NUM_I2C		5
 static struct via_i2c_stuff via_i2c_par[VIAFB_NUM_I2C];
-struct viafb_dev *i2c_vdev;  /* Passed in from core */
+static struct viafb_dev *i2c_vdev;  /* Passed in from core */
 
 static void via_i2c_setscl(void *data, int state)
 {
