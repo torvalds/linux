@@ -60,10 +60,10 @@ struct mousevsc_drv_obj {
  * Beta, RC < 2008/1/22        1,0
  * RC > 2008/1/22              2,0
  */
-#define SYNTHHID_INPUT_VERSION_MAJOR 2
-#define SYNTHHID_INPUT_VERSION_MINOR 0
-#define SYNTHHID_INPUT_VERSION_DWORD (SYNTHHID_INPUT_VERSION_MINOR | \
-    (SYNTHHID_INPUT_VERSION_MAJOR << 16))
+#define SYNTHHID_INPUT_VERSION_MAJOR	2
+#define SYNTHHID_INPUT_VERSION_MINOR	0
+#define SYNTHHID_INPUT_VERSION		(SYNTHHID_INPUT_VERSION_MINOR | \
+					 (SYNTHHID_INPUT_VERSION_MAJOR << 16))
 
 
 #pragma pack(push,1)
@@ -94,11 +94,10 @@ struct synthhid_msg {
 
 union synthhid_version {
 	struct {
-		u16  Minor;
-		u16  Major;
+		u16 minor_version;
+		u16 major_version;
 	};
-
-	u32 AsDWord;
+	u32 version;
 };
 
 /*
@@ -106,12 +105,12 @@ union synthhid_version {
  */
 struct synthhid_protocol_request {
 	struct synthhid_msg_hdr header;
-	union synthhid_version VersionRequested;
+	union synthhid_version version_requested;
 };
 
 struct synthhid_protocol_response {
 	struct synthhid_msg_hdr header;
-	union synthhid_version VersionRequested;
+	union synthhid_version version_requested;
 	unsigned char Approved;
 };
 
@@ -611,8 +610,7 @@ static int MousevscConnectToVsp(struct hv_device *Device)
 
 	request->u.Request.header.type = SynthHidProtocolRequest;
 	request->u.Request.header.size = sizeof(unsigned long);
-	request->u.Request.VersionRequested.AsDWord =
-		SYNTHHID_INPUT_VERSION_DWORD;
+	request->u.Request.version_requested.version = SYNTHHID_INPUT_VERSION;
 
 	pr_info("synthhid protocol request...");
 
@@ -639,7 +637,7 @@ static int MousevscConnectToVsp(struct hv_device *Device)
 
 	if (!response->u.Response.Approved) {
 		pr_err("synthhid protocol request failed (version %d)",
-		       SYNTHHID_INPUT_VERSION_DWORD);
+		       SYNTHHID_INPUT_VERSION);
 		ret = -1;
 		goto Cleanup;
 	}
