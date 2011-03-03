@@ -1601,23 +1601,24 @@ static struct drm_driver driver = {
 		 .fasync = drm_fasync,
 		 .read = drm_read,
 		 },
-	.pci_driver = {
-		       .name = DRIVER_NAME,
-		       .id_table = pciidlist,
-		       .resume = ospm_power_resume,
-		       .suspend = ospm_power_suspend,
-		       .probe = psb_probe,
-		       .remove = psb_remove,
-#ifdef CONFIG_PM
-			.driver.pm = &psb_pm_ops,
-#endif
-		       },
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 	.date = PSB_DRM_DRIVER_DATE,
 	.major = PSB_DRM_DRIVER_MAJOR,
 	.minor = PSB_DRM_DRIVER_MINOR,
 	.patchlevel = PSB_DRM_DRIVER_PATCHLEVEL
+};
+
+static struct pci_driver psb_pci_driver = {
+	.name = DRIVER_NAME,
+	.id_table = pciidlist,
+	.resume = ospm_power_resume,
+	.suspend = ospm_power_suspend,
+	.probe = psb_probe,
+	.remove = psb_remove,
+#ifdef CONFIG_PM
+	.driver.pm = &psb_pm_ops,
+#endif
 };
 
 static int psb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -1630,12 +1631,12 @@ static int psb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 static int __init psb_init(void)
 {
-	return drm_init(&driver);
+	return drm_pci_init(&driver, &psb_pci_driver);
 }
 
 static void __exit psb_exit(void)
 {
-	drm_exit(&driver);
+	drm_pci_exit(&driver, &psb_pci_driver);
 }
 
 late_initcall(psb_init);
