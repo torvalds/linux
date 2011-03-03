@@ -688,7 +688,7 @@ config CGROUP_PERF
 	depends on PERF_EVENTS && CGROUPS
 	help
 	  This option extends the per-cpu mode to restrict monitoring to
-	  threads which belong to the cgroup specificied and run on the
+	  threads which belong to the cgroup specified and run on the
 	  designated cpu.
 
 	  Say N if unsure.
