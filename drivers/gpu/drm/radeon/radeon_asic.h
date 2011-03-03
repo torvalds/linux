@@ -429,5 +429,15 @@ void evergreen_kms_blit_copy(struct radeon_device *rdev,
 			     u64 src_gpu_addr, u64 dst_gpu_addr,
 			     int size_bytes);
 
+/*
+ * cayman
+ */
+void cayman_pcie_gart_tlb_flush(struct radeon_device *rdev);
+int cayman_init(struct radeon_device *rdev);
+void cayman_fini(struct radeon_device *rdev);
+int cayman_suspend(struct radeon_device *rdev);
+int cayman_resume(struct radeon_device *rdev);
+bool cayman_gpu_is_lockup(struct radeon_device *rdev);
+int cayman_asic_reset(struct radeon_device *rdev);
 
 #endif

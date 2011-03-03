@@ -664,6 +664,8 @@ struct radeon_wb {
 
 #define RADEON_WB_SCRATCH_OFFSET 0
 #define RADEON_WB_CP_RPTR_OFFSET 1024
+#define RADEON_WB_CP1_RPTR_OFFSET 1280
+#define RADEON_WB_CP2_RPTR_OFFSET 1536
 #define R600_WB_IH_WPTR_OFFSET   2048
 #define R600_WB_EVENT_OFFSET     3072
 
@@ -1050,12 +1052,52 @@ struct evergreen_asic {
 	struct r100_gpu_lockup	lockup;
 };
 
+struct cayman_asic {
+	unsigned max_shader_engines;
+	unsigned max_pipes_per_simd;
+	unsigned max_tile_pipes;
+	unsigned max_simds_per_se;
+	unsigned max_backends_per_se;
+	unsigned max_texture_channel_caches;
+	unsigned max_gprs;
+	unsigned max_threads;
+	unsigned max_gs_threads;
+	unsigned max_stack_entries;
+	unsigned sx_num_of_sets;
+	unsigned sx_max_export_size;
+	unsigned sx_max_export_pos_size;
+	unsigned sx_max_export_smx_size;
+	unsigned max_hw_contexts;
+	unsigned sq_num_cf_insts;
+	unsigned sc_prim_fifo_size;
+	unsigned sc_hiz_tile_fifo_size;
+	unsigned sc_earlyz_tile_fifo_size;
+
+	unsigned num_shader_engines;
+	unsigned num_shader_pipes_per_simd;
+	unsigned num_tile_pipes;
+	unsigned num_simds_per_se;
+	unsigned num_backends_per_se;
+	unsigned backend_disable_mask_per_asic;
+	unsigned backend_map;
+	unsigned num_texture_channel_caches;
+	unsigned mem_max_burst_length_bytes;
+	unsigned mem_row_size_in_kb;
+	unsigned shader_engine_tile_size;
+	unsigned num_gpus;
+	unsigned multi_gpu_tile_size;
+
+	unsigned tile_config;
+	struct r100_gpu_lockup	lockup;
+};
+
 union radeon_asic_config {
 	struct r300_asic	r300;
 	struct r100_asic	r100;
 	struct r600_asic	r600;
 	struct rv770_asic	rv770;
 	struct evergreen_asic	evergreen;
+	struct cayman_asic	cayman;
 };
 
 /*
@@ -1146,6 +1188,9 @@ struct radeon_device {
 	struct radeon_mman		mman;
 	struct radeon_fence_driver	fence_drv;
 	struct radeon_cp		cp;
+	/* cayman compute rings */
+	struct radeon_cp		cp1;
+	struct radeon_cp		cp2;
 	struct radeon_ib_pool		ib_pool;
 	struct radeon_irq		irq;
 	struct radeon_asic		*asic;
@@ -1456,7 +1501,7 @@ extern void r600_hdmi_disable(struct drm_encoder *encoder);
 extern void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode);
 
 extern int ni_init_microcode(struct radeon_device *rdev);
-extern int btc_mc_load_microcode(struct radeon_device *rdev);
+extern int ni_mc_load_microcode(struct radeon_device *rdev);
 
 /* radeon_acpi.c */ 
 #if defined(CONFIG_ACPI) 
