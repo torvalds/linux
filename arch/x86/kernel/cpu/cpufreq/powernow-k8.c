@@ -630,8 +630,7 @@ static void print_basics(struct powernow_k8_data *data)
 					data->powernow_table[j].frequency/1000);
 			} else {
 				printk(KERN_INFO PFX
-					"   %d : fid 0x%x (%d MHz), vid 0x%x\n",
-					j,
+					"fid 0x%x (%d MHz), vid 0x%x\n",
 					data->powernow_table[j].index & 0xff,
 					data->powernow_table[j].frequency/1000,
 					data->powernow_table[j].index >> 8);
