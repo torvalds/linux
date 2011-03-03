@@ -1108,7 +1108,7 @@ void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *s
 	WREG32(VGA_RENDER_CONTROL, save->vga_render_control);
 }
 
-static void evergreen_mc_program(struct radeon_device *rdev)
+void evergreen_mc_program(struct radeon_device *rdev)
 {
 	struct evergreen_mc_save save;
 	u32 tmp;
@@ -2565,7 +2565,7 @@ void evergreen_irq_disable(struct radeon_device *rdev)
 	evergreen_disable_interrupt_state(rdev);
 }
 
-static void evergreen_irq_suspend(struct radeon_device *rdev)
+void evergreen_irq_suspend(struct radeon_device *rdev)
 {
 	evergreen_irq_disable(rdev);
 	r600_rlc_stop(rdev);
@@ -2888,7 +2888,7 @@ static int evergreen_startup(struct radeon_device *rdev)
 				return r;
 			}
 		}
-		r = btc_mc_load_microcode(rdev);
+		r = ni_mc_load_microcode(rdev);
 		if (r) {
 			DRM_ERROR("Failed to load MC firmware!\n");
 			return r;
@@ -2970,7 +2970,7 @@ int evergreen_resume(struct radeon_device *rdev)
 
 	r = evergreen_startup(rdev);
 	if (r) {
-		DRM_ERROR("r600 startup failed on resume\n");
+		DRM_ERROR("evergreen startup failed on resume\n");
 		return r;
 	}
 
@@ -3050,7 +3050,7 @@ int evergreen_init(struct radeon_device *rdev)
 	}
 	/* Must be an ATOMBIOS */
 	if (!rdev->is_atom_bios) {
-		dev_err(rdev->dev, "Expecting atombios for R600 GPU\n");
+		dev_err(rdev->dev, "Expecting atombios for evergreen GPU\n");
 		return -EINVAL;
 	}
 	r = radeon_atombios_init(rdev);

@@ -1501,7 +1501,7 @@ extern void r600_hdmi_disable(struct drm_encoder *encoder);
 extern void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode);
 
 extern int ni_init_microcode(struct radeon_device *rdev);
-extern int btc_mc_load_microcode(struct radeon_device *rdev);
+extern int ni_mc_load_microcode(struct radeon_device *rdev);
 
 /* radeon_acpi.c */ 
 #if defined(CONFIG_ACPI) 
