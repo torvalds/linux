@@ -43,19 +43,51 @@
 #include <mach/cru.h>
 
 
-#define DEC_INTERRUPT_REGISTER     1
-#define PP_INTERRUPT_REGISTER      60
-#define ENC_INTERRUPT_REGISTER     1
+#define DEC_INTERRUPT_REGISTER	   1
+#define PP_INTERRUPT_REGISTER	   60
+#define ENC_INTERRUPT_REGISTER	   1
 
-#define DEC_INTERRUPT_BIT            0x100
-#define PP_INTERRUPT_BIT             0x100
-#define ENC_INTERRUPT_BIT            0x1
+#define DEC_INTERRUPT_BIT			 0x100
+#define PP_INTERRUPT_BIT			 0x100
+#define ENC_INTERRUPT_BIT			 0x1
 
-#define DEC_IO_SIZE                 ((100 + 1) * 4)	/* bytes */
-#define ENC_IO_SIZE                 (96 * 4)	/* bytes */
+#define DEC_IO_SIZE 				((100 + 1) * 4) /* bytes */
+#define ENC_IO_SIZE 				(96 * 4)	/* bytes */
+
+typedef enum
+{
+	VPU_ENC 				= 0x0,
+	VPU_DEC 				= 0x1,
+	VPU_PP					= 0x2,
+	VPU_DEC_PP				= 0x3,
+	VPU_TYPE_BUTT			,
+} VPU_CLIENT_TYPE;
+
+#define REG_NUM_DEC 				(60)
+#define REG_NUM_PP					(41)
+#define REG_NUM_ENC 				(96)
+#define REG_NUM_DEC_PP				(REG_NUM_DEC+REG_NUM_PP)
+#define SIZE_REG(reg)				((reg)*4)
 
 static const u16 dec_hw_ids[] = { 0x8190, 0x8170, 0x9170, 0x9190, 0x6731 };
 static const u16 enc_hw_ids[] = { 0x6280, 0x7280, 0x8270 };
+static u32	regs_enc[REG_NUM_ENC];
+static u32	regs_dec[REG_NUM_DEC_PP];
+static u32 *regs_pp = &regs_dec[REG_NUM_DEC];
+
+#define VPU_REG_EN_ENC				14
+#define VPU_REG_ENC_GATE			2
+#define VPU_REG_ENC_GATE_BIT		(1<<4)
+
+#define VPU_REG_EN_DEC				1
+#define VPU_REG_DEC_GATE			2
+#define VPU_REG_DEC_GATE_BIT		(1<<10)
+#define VPU_REG_EN_PP				0
+#define VPU_REG_PP_GATE 			1
+#define VPU_REG_PP_GATE_BIT 		(1<<8)
+#define VPU_REG_EN_DEC_PP			1
+#define VPU_REG_DEC_PP_GATE 		61
+#define VPU_REG_DEC_PP_GATE_BIT 	(1<<8)
 
 struct vpu_device {
 	unsigned long	iobaseaddr;
@@ -73,7 +105,7 @@ struct vpu_client {
 	atomic_t		enc_event;
 	struct fasync_struct	*async_queue;
 	wait_queue_head_t	wait;
-	struct file		*filp;	/* for /proc/vpu */
+	struct file 	*filp;	/* for /proc/vpu */
 	bool			enabled;
 };
 static struct vpu_client client;
@@ -146,19 +178,343 @@ static void vpu_power_off(void)
 	client.enabled = false;
 }
 
+static void vpu_clock_on(unsigned long id)
+{
+	switch (id) {
+	case VPU_aclk_vepu :
+		printk("vpu_clock_on: aclk_vepu in\n");
+		clk_enable(aclk_vepu);
+		printk("vpu_clock_on: aclk_vepu out\n");
+		break;
+	case VPU_hclk_vepu :
+		printk("vpu_clock_on: hclk_vepu in\n");
+		clk_enable(hclk_vepu);
+		printk("vpu_clock_on: hclk_vepu out\n");
+		break;
+	case VPU_aclk_ddr_vepu :
+		printk("vpu_clock_on: aclk_ddr_vepu in\n");
+		clk_enable(aclk_ddr_vepu);
+		printk("vpu_clock_on: aclk_ddr_vepu out\n");
+		break;
+	case VPU_hclk_cpu_vcodec :
+		printk("vpu_clock_on: hclk_cpu_vcodec in\n");
+		clk_enable(hclk_cpu_vcodec);
+		printk("vpu_clock_on: hclk_cpu_vcodec out\n");
+		break;
+	default :
+		printk("vpu_clock_on: invalid id %lu\n", id);
+		break;
+	}
+
+	return ;
+}
+
+static void vpu_clock_off(unsigned long id)
+{
+	switch (id) {
+	case VPU_aclk_vepu :
+		printk("vpu_clock_off: aclk_vepu in\n");
+		clk_disable(aclk_vepu);
+		printk("vpu_clock_off: aclk_vepu out\n");
+		break;
+	case VPU_hclk_vepu :
+		printk("vpu_clock_off: hclk_vepu in\n");
+		clk_disable(hclk_vepu);
+		printk("vpu_clock_off: hclk_vepu out\n");
+		break;
+	case VPU_aclk_ddr_vepu :
+		printk("vpu_clock_off: aclk_ddr_vepu in\n");
+		clk_disable(aclk_ddr_vepu);
+		printk("vpu_clock_off: aclk_ddr_vepu out\n");
+		break;
+	case VPU_hclk_cpu_vcodec :
+		printk("vpu_clock_off: hclk_cpu_vcodec in\n");
+		clk_disable(hclk_cpu_vcodec);
+		printk("vpu_clock_off: hclk_cpu_vcodec out\n");
+		break;
+	default :
+		printk("vpu_clock_off: invalid id %lu\n", id);
+		break;
+	}
+
+	return ;
+}
+
+static void vpu_clock_reset(unsigned long id)
+{
+	if (id == SOFT_RST_CPU_VODEC_A2A_AHB ||
+		id == SOFT_RST_VCODEC_AHB_BUS ||
+		id == SOFT_RST_VCODEC_AXI_BUS ||
+		id == SOFT_RST_DDR_VCODEC_PORT) {
+		printk("vpu_clock_reset: id %lu in\n", id);
+		cru_set_soft_reset(id, true);
+		printk("vpu_clock_reset: id %lu out\n", id);
+	} else {
+		printk("vpu_clock_reset: invalid id %lu\n", id);
+	}
+
+	return ;
+}
+
+static void vpu_clock_unreset(unsigned long id)
+{
+	if (id == SOFT_RST_CPU_VODEC_A2A_AHB ||
+		id == SOFT_RST_VCODEC_AHB_BUS ||
+		id == SOFT_RST_VCODEC_AXI_BUS ||
+		id == SOFT_RST_DDR_VCODEC_PORT) {
+		printk("vpu_clock_unreset: id %lu in\n", id);
+		cru_set_soft_reset(id, true);
+		printk("vpu_clock_unreset: id %lu out\n", id);
+	} else {
+		printk("vpu_clock_unreset: invalid id %lu\n", id);
+	}
+
+	return ;
+}
+
+static void vpu_domain_on(void)
+{
+	printk("vpu_domain_on in\n");
+	pmu_set_power_domain(PD_VCODEC, true);
+	printk("vpu_domain_on out\n");
+}
+
+static void vpu_domain_off(void)
+{
+	printk("vpu_domain_off in\n");
+	pmu_set_power_domain(PD_VCODEC, false);
+	printk("vpu_domain_off out\n");
+}
+
+static long vpu_write_dec(u32 *src)
+{
+	int i;
+	u32 *dst = (u32 *)dec_dev.hwregs;
+
+	dst[VPU_REG_DEC_GATE] = src[VPU_REG_DEC_GATE] | VPU_REG_DEC_GATE_BIT;
+
+	for (i = VPU_REG_DEC_GATE + 1; i < REG_NUM_DEC; i++)
+		dst[i] = src[i];
+
+	dst[VPU_REG_EN_DEC]   = src[VPU_REG_EN_DEC];
+
+	return 0;
+}
+
+static long vpu_write_dec_pp(u32 *src)
+{
+	int i;
+	u32 *dst = (u32 *)dec_dev.hwregs;
+
+	for (i = VPU_REG_EN_DEC_PP + 1; i < REG_NUM_DEC_PP; i++)
+		dst[i] = src[i];
+
+	dst[VPU_REG_DEC_PP_GATE] = src[VPU_REG_DEC_PP_GATE] | VPU_REG_PP_GATE_BIT;
+	dst[VPU_REG_DEC_GATE]	 = src[VPU_REG_DEC_GATE]	| VPU_REG_DEC_GATE_BIT;
+	dst[VPU_REG_EN_DEC] 	 = src[VPU_REG_EN_DEC];
+
+	return 0;
+}
+
+static long vpu_write_enc(u32 *src)
+{
+	int i;
+	u32 *dst = (u32 *)enc_dev.hwregs;
+
+	dst[VPU_REG_EN_ENC] = src[VPU_REG_EN_ENC] & 0x6;
+
+	for (i = 0; i < VPU_REG_EN_ENC; i++)
+		dst[i] = src[i];
+
+	for (i = VPU_REG_EN_ENC + 1; i < REG_NUM_ENC; i++)
+		dst[i] = src[i];
+
+	dst[VPU_REG_ENC_GATE] = src[VPU_REG_ENC_GATE] | VPU_REG_ENC_GATE_BIT;
+	dst[VPU_REG_EN_ENC]   = src[VPU_REG_EN_ENC];
+
+	return 0;
+}
+
+static long vpu_write_pp(u32 *src)
+{
+	int i;
+	u32 *dst = (u32 *)dec_dev.hwregs + PP_INTERRUPT_REGISTER;
+
+	dst[VPU_REG_PP_GATE] = src[VPU_REG_PP_GATE] | VPU_REG_PP_GATE_BIT;
+
+	for (i = VPU_REG_PP_GATE + 1; i < REG_NUM_PP; i++)
+		dst[i] = src[i];
+
+	dst[VPU_REG_EN_PP] = src[VPU_REG_EN_PP];
+
+	return 0;
+}
+
+static long vpu_read_dec(u32 *dst)
+{
+	int i;
+	volatile u32 *src = dec_dev.hwregs;
+
+	for (i = 0; i < REG_NUM_DEC; i++)
+		*dst++ = *src++;
+
+	return 0;
+}
+
+static long vpu_read_dec_pp(u32 *dst)
+{
+	int i;
+	volatile u32 *src = dec_dev.hwregs;
+
+	for (i = 0; i < REG_NUM_DEC_PP; i++)
+		*dst++ = *src++;
+
+	return 0;
+}
+
+static long vpu_read_enc(u32 *dst)
+{
+	int i;
+	volatile u32 *src = enc_dev.hwregs;
+
+	for (i = 0; i < REG_NUM_ENC; i++)
+		*dst++ = *src++;
+
+	return 0;
+}
+
+static long vpu_read_pp(u32 *dst)
+{
+	int i;
+	volatile u32 *src = dec_dev.hwregs + PP_INTERRUPT_REGISTER;
+
+	for (i = 0; i < REG_NUM_PP; i++)
+		*dst++ = *src++;
+
+	return 0;
+}
+
+static long vpu_clear_irqs(VPU_CLIENT_TYPE type)
+{
+	long ret = 0;
+	switch (type) {
+	case VPU_ENC : {
+		writel(0, &enc_dev.hwregs[ENC_INTERRUPT_REGISTER]);
+		break;
+	}
+	case VPU_DEC :
+	case VPU_DEC_PP : {
+		writel(0, &dec_dev.hwregs[DEC_INTERRUPT_REGISTER]);
+		break;
+	}
+	case VPU_PP : {
+		writel(0, &pp_dev.hwregs[PP_INTERRUPT_REGISTER]);
+		break;
+	}
+	default : {
+		ret = -1;
+	}
+	}
+
+	return ret;
+}
+
 static long vpu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	pr_debug("ioctl cmd 0x%08x\n", cmd);
 
 	switch (cmd) {
-	case VPU_IOC_POWER_ON: {
+	case VPU_IOC_CLOCK_ON: {
+		//vpu_clock_on(arg);
 		vpu_power_on();
 		break;
 	}
-	case VPU_IOC_POWER_OFF: {
+	case VPU_IOC_CLOCK_OFF: {
+		//vpu_clock_off(arg);
 		vpu_power_off();
 		break;
 	}
+	case VPU_IOC_CLOCK_RESET: {
+		vpu_clock_reset(arg);
+		break;
+	}
+	case VPU_IOC_CLOCK_UNRESET: {
+		vpu_clock_unreset(arg);
+		break;
+	}
+	case VPU_IOC_DOMAIN_ON: {
+		vpu_domain_on();
+		break;
+	}
+	case VPU_IOC_DOMAIN_OFF: {
+		vpu_domain_off();
+		break;
+	}
+
+
+	case VPU_IOC_WR_DEC: {
+		if (copy_from_user(regs_dec, (void __user *)arg, SIZE_REG(REG_NUM_DEC)))
+			return -EFAULT;
+		vpu_write_dec(regs_dec);
+		break;
+	}
+
+	case VPU_IOC_WR_DEC_PP: {
+		if (copy_from_user(regs_dec, (void __user *)arg, SIZE_REG(REG_NUM_DEC_PP)))
+			return -EFAULT;
+		vpu_write_dec_pp(regs_dec);
+		break;
+	}
+
+	case VPU_IOC_WR_ENC: {
+		if (copy_from_user(regs_enc, (void __user *)arg, SIZE_REG(REG_NUM_ENC)))
+			return -EFAULT;
+		vpu_write_enc(regs_enc);
+		break;
+	}
+
+	case VPU_IOC_WR_PP: {
+		if (copy_from_user(regs_pp, (void __user *)arg, SIZE_REG(REG_NUM_PP)))
+			return -EFAULT;
+		vpu_write_pp(regs_pp);
+		break;
+	}
+
+
+	case VPU_IOC_RD_DEC: {
+		vpu_read_dec(regs_dec);
+		if (copy_to_user((void __user *)arg, regs_dec, SIZE_REG(REG_NUM_DEC)))
+			return -EFAULT;
+		break;
+	}
+
+	case VPU_IOC_RD_DEC_PP: {
+		vpu_read_dec_pp(regs_dec);
+		if (copy_to_user((void __user *)arg, regs_dec, SIZE_REG(REG_NUM_DEC_PP)))
+			return -EFAULT;
+		break;
+	}
+
+	case VPU_IOC_RD_ENC: {
+		vpu_read_enc(regs_enc);
+		if (copy_to_user((void __user *)arg, regs_enc, SIZE_REG(REG_NUM_ENC)))
+			return -EFAULT;
+		break;
+	}
+
+	case VPU_IOC_RD_PP: {
+		vpu_read_pp(regs_pp);
+		if (copy_to_user((void __user *)arg, regs_pp, SIZE_REG(REG_NUM_PP)))
+			return -EFAULT;
+		break;
+	}
+
+
+	case VPU_IOC_CLS_IRQ: {
+		return vpu_clear_irqs(arg);
+		break;
+	}
+
 	default:
 		return -ENOTTY;
 	}
@@ -185,6 +541,7 @@ static int vpu_fasync(int fd, struct file *filp, int mode)
 
 static int vpu_release(struct inode *inode, struct file *filp)
 {
+	msleep(50);
 	/* remove this filp from the asynchronusly notified filp's */
 	vpu_fasync(-1, filp, 0);
 
@@ -223,7 +580,7 @@ static int vpu_reserve_io(void)
 	}
 
 	dec_dev.hwregs =
-	    (volatile u32 *)ioremap_nocache(dec_dev.iobaseaddr, dec_dev.iosize);
+		(volatile u32 *)ioremap_nocache(dec_dev.iobaseaddr, dec_dev.iosize);
 
 	if (dec_dev.hwregs == NULL) {
 		pr_info("failed to ioremap dec HW regs\n");
@@ -241,7 +598,7 @@ static int vpu_reserve_io(void)
 	}
 
 	enc_dev.hwregs =
-	    (volatile u32 *)ioremap_nocache(enc_dev.iobaseaddr, enc_dev.iosize);
+		(volatile u32 *)ioremap_nocache(enc_dev.iobaseaddr, enc_dev.iosize);
 
 	if (enc_dev.hwregs == NULL) {
 		pr_info("failed to ioremap enc HW regs\n");
@@ -286,7 +643,7 @@ static irqreturn_t hx170dec_isr(int irq, void *dev_id)
 
 	/* interrupt status register read */
 	irq_status_dec = readl(dev->hwregs + DEC_INTERRUPT_REGISTER);
-	irq_status_pp = readl(dev->hwregs + PP_INTERRUPT_REGISTER);
+	irq_status_pp  = readl(dev->hwregs + PP_INTERRUPT_REGISTER);
 
 	if (irq_status_dec & DEC_INTERRUPT_BIT) {
 		/* clear dec IRQ */
@@ -410,11 +767,11 @@ static ssize_t vpu_read(struct file *filep, char __user *buf,
 static const struct file_operations vpu_fops = {
 	.read		= vpu_read,
 	.poll		= vpu_poll,
-	.unlocked_ioctl	= vpu_ioctl,
+	.unlocked_ioctl = vpu_ioctl,
 	.mmap		= vpu_mmap,
 	.open		= vpu_open,
 	.release	= vpu_release,
-	.fasync		= vpu_fasync,
+	.fasync 	= vpu_fasync,
 };
 
 static struct miscdevice vpu_misc_device = {
@@ -433,6 +790,7 @@ static void vpu_shutdown(struct platform_device *pdev)
 static int vpu_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	bool enabled = client.enabled;
+	mdelay(50);
 	vpu_power_off();
 	client.enabled = enabled;
 	return 0;
@@ -448,8 +806,8 @@ static int vpu_resume(struct platform_device *pdev)
 }
 
 static struct platform_device vpu_pm_device = {
-	.name          = "vpu",
-	.id            = -1,
+	.name		   = "vpu",
+	.id 		   = -1,
 };
 
 static struct platform_driver vpu_pm_driver = {
@@ -513,6 +871,9 @@ static int __init vpu_init(void)
 	platform_device_register(&vpu_pm_device);
 	platform_driver_probe(&vpu_pm_driver, NULL);
 	pr_info("init success\n");
+
+	memset(regs_enc, 0, sizeof(regs_enc));
+	memset(regs_dec, 0, sizeof(regs_dec));
 
 	return 0;
 
@@ -589,7 +950,7 @@ static int proc_vpu_open(struct inode *inode, struct file *file)
 static const struct file_operations proc_vpu_fops = {
 	.open		= proc_vpu_open,
 	.read		= seq_read,
-	.llseek		= seq_lseek,
+	.llseek 	= seq_lseek,
 	.release	= single_release,
 };
 

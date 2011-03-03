@@ -28,10 +28,33 @@
  * Ioctl definitions
  */
 
+#define VPU_aclk_vepu           0
+#define VPU_hclk_vepu           1
+#define VPU_aclk_ddr_vepu       2
+#define VPU_hclk_cpu_vcodec     3
+
 /* Use 'k' as magic number */
 #define VPU_IOC_MAGIC  'k'
 
-#define VPU_IOC_POWER_ON	_IO(VPU_IOC_MAGIC, 1)
-#define VPU_IOC_POWER_OFF	_IO(VPU_IOC_MAGIC, 2)
+#define VPU_IOC_CLOCK_ON        _IOW(VPU_IOC_MAGIC, 1, unsigned long)
+#define VPU_IOC_CLOCK_OFF       _IOW(VPU_IOC_MAGIC, 2, unsigned long)
+
+#define VPU_IOC_CLOCK_RESET     _IOW(VPU_IOC_MAGIC, 3, unsigned long)
+#define VPU_IOC_CLOCK_UNRESET   _IOW(VPU_IOC_MAGIC, 4, unsigned long)
+
+#define VPU_IOC_DOMAIN_ON       _IO(VPU_IOC_MAGIC, 5)
+#define VPU_IOC_DOMAIN_OFF      _IO(VPU_IOC_MAGIC, 6)
+
+#define VPU_IOC_WR_DEC          _IOW(VPU_IOC_MAGIC, 8,  unsigned long)
+#define VPU_IOC_WR_DEC_PP       _IOW(VPU_IOC_MAGIC, 9,  unsigned long)
+#define VPU_IOC_WR_ENC          _IOW(VPU_IOC_MAGIC, 10, unsigned long)
+#define VPU_IOC_WR_PP           _IOW(VPU_IOC_MAGIC, 11, unsigned long)
+
+#define VPU_IOC_RD_DEC          _IOW(VPU_IOC_MAGIC, 12, unsigned long)
+#define VPU_IOC_RD_DEC_PP       _IOW(VPU_IOC_MAGIC, 13, unsigned long)
+#define VPU_IOC_RD_ENC          _IOW(VPU_IOC_MAGIC, 14, unsigned long)
+#define VPU_IOC_RD_PP           _IOW(VPU_IOC_MAGIC, 15, unsigned long)
+
+#define VPU_IOC_CLS_IRQ         _IOW(VPU_IOC_MAGIC, 16, unsigned long)
 
 #endif
