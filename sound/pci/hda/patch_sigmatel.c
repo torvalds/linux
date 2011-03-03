@@ -180,12 +180,6 @@ struct sigmatel_event {
 	int data;
 };
 
-struct sigmatel_jack {
-	hda_nid_t nid;
-	int type;
-	struct snd_jack *jack;
-};
-
 struct sigmatel_mic_route {
 	hda_nid_t pin;
 	signed char mux_idx;
@@ -228,9 +222,6 @@ struct sigmatel_spec {
 	unsigned int *pwr_mapping;
 	hda_nid_t *pwr_nids;
 	hda_nid_t *dac_list;
-
-	/* jack detection */
-	struct snd_array jacks;
 
 	/* events */
 	struct snd_array events;
@@ -4054,21 +4045,10 @@ static void stac_gpio_set(struct hda_codec *codec, unsigned int mask,
 			   AC_VERB_SET_GPIO_DATA, gpiostate); /* sync */
 }
 
-#ifdef CONFIG_SND_HDA_INPUT_JACK
-static void stac92xx_free_jack_priv(struct snd_jack *jack)
-{
-	struct sigmatel_jack *jacks = jack->private_data;
-	jacks->nid = 0;
-	jacks->jack = NULL;
-}
-#endif
-
 static int stac92xx_add_jack(struct hda_codec *codec,
 		hda_nid_t nid, int type)
 {
 #ifdef CONFIG_SND_HDA_INPUT_JACK
-	struct sigmatel_spec *spec = codec->spec;
-	struct sigmatel_jack *jack;
 	int def_conf = snd_hda_codec_get_pincfg(codec, nid);
 	int connectivity = get_defcfg_connect(def_conf);
 	char name[32];
@@ -4077,26 +4057,15 @@ static int stac92xx_add_jack(struct hda_codec *codec,
 	if (connectivity && connectivity != AC_JACK_PORT_FIXED)
 		return 0;
 
-	snd_array_init(&spec->jacks, sizeof(*jack), 32);
-	jack = snd_array_new(&spec->jacks);
-	if (!jack)
-		return -ENOMEM;
-	jack->nid = nid;
-	jack->type = type;
-
 	snprintf(name, sizeof(name), "%s at %s %s Jack",
 		snd_hda_get_jack_type(def_conf),
 		snd_hda_get_jack_connectivity(def_conf),
 		snd_hda_get_jack_location(def_conf));
 
-	err = snd_jack_new(codec->bus->card, name, type, &jack->jack);
-	if (err < 0) {
-		jack->nid = 0;
+	err = snd_hda_input_jack_add(codec, nid, type, name);
+	if (err < 0)
 		return err;
-	}
-	jack->jack->private_data = jack;
-	jack->jack->private_free = stac92xx_free_jack_priv;
-#endif
+#endif /* CONFIG_SND_HDA_INPUT_JACK */
 	return 0;
 }
 
@@ -4399,23 +4368,6 @@ static int stac92xx_init(struct hda_codec *codec)
 	return 0;
 }
 
-static void stac92xx_free_jacks(struct hda_codec *codec)
-{
-#ifdef CONFIG_SND_HDA_INPUT_JACK
-	/* free jack instances manually when clearing/reconfiguring */
-	struct sigmatel_spec *spec = codec->spec;
-	if (!codec->bus->shutdown && spec->jacks.list) {
-		struct sigmatel_jack *jacks = spec->jacks.list;
-		int i;
-		for (i = 0; i < spec->jacks.used; i++, jacks++) {
-			if (jacks->jack)
-				snd_device_free(codec->bus->card, jacks->jack);
-		}
-	}
-	snd_array_free(&spec->jacks);
-#endif
-}
-
 static void stac92xx_free_kctls(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
@@ -4449,7 +4401,7 @@ static void stac92xx_free(struct hda_codec *codec)
 		return;
 
 	stac92xx_shutup(codec);
-	stac92xx_free_jacks(codec);
+	snd_hda_input_jack_free(codec);
 	snd_array_free(&spec->events);
 
 	kfree(spec);
@@ -4667,33 +4619,6 @@ static void stac92xx_pin_sense(struct hda_codec *codec, hda_nid_t nid)
 	stac_toggle_power_map(codec, nid, get_pin_presence(codec, nid));
 }
 
-static void stac92xx_report_jack(struct hda_codec *codec, hda_nid_t nid)
-{
-	struct sigmatel_spec *spec = codec->spec;
-	struct sigmatel_jack *jacks = spec->jacks.list;
-
-	if (jacks) {
-		int i;
-		for (i = 0; i < spec->jacks.used; i++) {
-			if (jacks->nid == nid) {
-				unsigned int pin_ctl =
-					snd_hda_codec_read(codec, nid,
-					0, AC_VERB_GET_PIN_WIDGET_CONTROL,
-					 0x00);
-				int type = jacks->type;
-				if (type == (SND_JACK_LINEOUT
-						| SND_JACK_HEADPHONE))
-					type = (pin_ctl & AC_PINCTL_HP_EN)
-					? SND_JACK_HEADPHONE : SND_JACK_LINEOUT;
-				snd_jack_report(jacks->jack,
-					get_pin_presence(codec, nid)
-					? type : 0);
-			}
-			jacks++;
-		}
-	}
-}
-
 /* get the pin connection (fixed, none, etc) */
 static unsigned int stac_get_defcfg_connect(struct hda_codec *codec, int idx)
 {
@@ -4782,7 +4707,7 @@ static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 	case STAC_PWR_EVENT:
 		if (spec->num_pwrs > 0)
 			stac92xx_pin_sense(codec, event->nid);
-		stac92xx_report_jack(codec, event->nid);
+		snd_hda_input_jack_report(codec, event->nid);
 
 		switch (codec->subsystem_id) {
 		case 0x103c308f:

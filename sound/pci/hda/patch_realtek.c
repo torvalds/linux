@@ -282,12 +282,6 @@ struct alc_mic_route {
 	unsigned char amix_idx;
 };
 
-struct alc_jack {
-	hda_nid_t nid;
-	int type;
-	struct snd_jack *jack;
-};
-
 #define MUX_IDX_UNDEF	((unsigned char)-1)
 
 struct alc_customize_define {
@@ -365,9 +359,6 @@ struct alc_spec {
 
 	/* PCM information */
 	struct hda_pcm pcm_rec[3];	/* used in alc_build_pcms() */
-
-	/* jack detection */
-	struct snd_array jacks;
 
 	/* dynamic controls, init_verbs and input_mux */
 	struct auto_pin_cfg autocfg;
@@ -1032,94 +1023,32 @@ static void alc_fix_pll_init(struct hda_codec *codec, hda_nid_t nid,
 	alc_fix_pll(codec);
 }
 
-#ifdef CONFIG_SND_HDA_INPUT_JACK
-static void alc_free_jack_priv(struct snd_jack *jack)
-{
-	struct alc_jack *jacks = jack->private_data;
-	jacks->nid = 0;
-	jacks->jack = NULL;
-}
-
-static int alc_add_jack(struct hda_codec *codec,
-		hda_nid_t nid, int type)
-{
-	struct alc_spec *spec;
-	struct alc_jack *jack;
-	const char *name;
-	int err;
-
-	spec = codec->spec;
-	snd_array_init(&spec->jacks, sizeof(*jack), 32);
-	jack = snd_array_new(&spec->jacks);
-	if (!jack)
-		return -ENOMEM;
-
-	jack->nid = nid;
-	jack->type = type;
-	name = (type == SND_JACK_HEADPHONE) ? "Headphone" : "Mic" ;
-
-	err = snd_jack_new(codec->bus->card, name, type, &jack->jack);
-	if (err < 0)
-		return err;
-	jack->jack->private_data = jack;
-	jack->jack->private_free = alc_free_jack_priv;
-	return 0;
-}
-
-static void alc_report_jack(struct hda_codec *codec, hda_nid_t nid)
-{
-	struct alc_spec *spec = codec->spec;
-	struct alc_jack *jacks = spec->jacks.list;
-
-	if (jacks) {
-		int i;
-		for (i = 0; i < spec->jacks.used; i++) {
-			if (jacks->nid == nid) {
-				unsigned int present;
-				present = snd_hda_jack_detect(codec, nid);
-
-				present = (present) ? jacks->type : 0;
-
-				snd_jack_report(jacks->jack, present);
-			}
-			jacks++;
-		}
-	}
-}
-
 static int alc_init_jacks(struct hda_codec *codec)
 {
+#ifdef CONFIG_SND_HDA_INPUT_JACK
 	struct alc_spec *spec = codec->spec;
 	int err;
 	unsigned int hp_nid = spec->autocfg.hp_pins[0];
 	unsigned int mic_nid = spec->ext_mic.pin;
 
 	if (hp_nid) {
-		err = alc_add_jack(codec, hp_nid, SND_JACK_HEADPHONE);
+		err = snd_hda_input_jack_add(codec, hp_nid,
+					     SND_JACK_HEADPHONE, NULL);
 		if (err < 0)
 			return err;
-		alc_report_jack(codec, hp_nid);
+		snd_hda_input_jack_report(codec, hp_nid);
 	}
 
 	if (mic_nid) {
-		err = alc_add_jack(codec, mic_nid, SND_JACK_MICROPHONE);
+		err = snd_hda_input_jack_add(codec, mic_nid,
+					     SND_JACK_MICROPHONE, NULL);
 		if (err < 0)
 			return err;
-		alc_report_jack(codec, mic_nid);
+		snd_hda_input_jack_report(codec, mic_nid);
 	}
-
+#endif /* CONFIG_SND_HDA_INPUT_JACK */
 	return 0;
 }
-#else
-static inline void alc_report_jack(struct hda_codec *codec, hda_nid_t nid)
-{
-}
-
-static inline int alc_init_jacks(struct hda_codec *codec)
-{
-	return 0;
-}
-#endif
 
 static void alc_automute_speaker(struct hda_codec *codec, int pinctl)
 {
@@ -1133,7 +1062,7 @@ static void alc_automute_speaker(struct hda_codec *codec, int pinctl)
 		nid = spec->autocfg.hp_pins[i];
 		if (!nid)
 			break;
-		alc_report_jack(codec, nid);
+		snd_hda_input_jack_report(codec, nid);
 		spec->jack_present |= snd_hda_jack_detect(codec, nid);
 	}
 
@@ -1240,7 +1169,7 @@ static void alc_mic_automute(struct hda_codec *codec)
 					  AC_VERB_SET_CONNECT_SEL,
 					  alive->mux_idx);
 	}
-	alc_report_jack(codec, spec->ext_mic.pin);
+	snd_hda_input_jack_report(codec, spec->ext_mic.pin);
 
 	/* FIXME: analog mixer */
 }
@@ -4283,6 +4212,7 @@ static void alc_free(struct hda_codec *codec)
 		return;
 
 	alc_shutup(codec);
+	snd_hda_input_jack_free(codec);
 	alc_free_kctls(codec);
 	kfree(spec);
 	snd_hda_detach_beep_device(codec);
@@ -14494,7 +14424,7 @@ static void alc269_speaker_automute(struct hda_codec *codec)
 				 HDA_AMP_MUTE, bits);
 	snd_hda_codec_amp_stereo(codec, 0x0c, HDA_INPUT, 1,
 				 HDA_AMP_MUTE, bits);
-	alc_report_jack(codec, nid);
+	snd_hda_input_jack_report(codec, nid);
 }
 
 /* unsolicited event for HP jack sensing */
