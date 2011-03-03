@@ -330,7 +330,7 @@ static void MousevscOnSendCompletion(struct hv_device *Device, struct vmpacket_d
 		return;
 	}
 
-	request = (void *)(unsigned long *)Packet->trans_id;
+	request = (void *)(unsigned long)Packet->trans_id;
 
 	if (request == &inputDevice->ProtocolReq) {
 		/* FIXME */
