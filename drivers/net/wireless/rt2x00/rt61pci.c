@@ -2263,39 +2263,37 @@ static void rt61pci_wakeup(struct rt2x00_dev *rt2x00dev)
 static void rt61pci_enable_interrupt(struct rt2x00_dev *rt2x00dev,
 				     struct rt2x00_field32 irq_field)
 {
-	unsigned long flags;
 	u32 reg;
 
 	/*
 	 * Enable a single interrupt. The interrupt mask register
 	 * access needs locking.
 	 */
-	spin_lock_irqsave(&rt2x00dev->irqmask_lock, flags);
+	spin_lock_irq(&rt2x00dev->irqmask_lock);
 
 	rt2x00pci_register_read(rt2x00dev, INT_MASK_CSR, &reg);
 	rt2x00_set_field32(&reg, irq_field, 0);
 	rt2x00pci_register_write(rt2x00dev, INT_MASK_CSR, reg);
 
-	spin_unlock_irqrestore(&rt2x00dev->irqmask_lock, flags);
+	spin_unlock_irq(&rt2x00dev->irqmask_lock);
 }
 
 static void rt61pci_enable_mcu_interrupt(struct rt2x00_dev *rt2x00dev,
 					 struct rt2x00_field32 irq_field)
 {
-	unsigned long flags;
 	u32 reg;
 
 	/*
 	 * Enable a single MCU interrupt. The interrupt mask register
 	 * access needs locking.
 	 */
-	spin_lock_irqsave(&rt2x00dev->irqmask_lock, flags);
+	spin_lock_irq(&rt2x00dev->irqmask_lock);
 
 	rt2x00pci_register_read(rt2x00dev, MCU_INT_MASK_CSR, &reg);
 	rt2x00_set_field32(&reg, irq_field, 0);
 	rt2x00pci_register_write(rt2x00dev, MCU_INT_MASK_CSR, reg);
 
-	spin_unlock_irqrestore(&rt2x00dev->irqmask_lock, flags);
+	spin_unlock_irq(&rt2x00dev->irqmask_lock);
 }
 
 static void rt61pci_txstatus_tasklet(unsigned long data)
@@ -2333,7 +2331,6 @@ static irqreturn_t rt61pci_interrupt(int irq, void *dev_instance)
 	struct rt2x00_dev *rt2x00dev = dev_instance;
 	u32 reg_mcu, mask_mcu;
 	u32 reg, mask;
-	unsigned long flags;
 
 	/*
 	 * Get the interrupt sources & saved to local variable.
@@ -2378,7 +2375,7 @@ static irqreturn_t rt61pci_interrupt(int irq, void *dev_instance)
 	 * Disable all interrupts for which a tasklet was scheduled right now,
 	 * the tasklet will reenable the appropriate interrupts.
 	 */
-	spin_lock_irqsave(&rt2x00dev->irqmask_lock, flags);
+	spin_lock(&rt2x00dev->irqmask_lock);
 
 	rt2x00pci_register_read(rt2x00dev, INT_MASK_CSR, &reg);
 	reg |= mask;
@@ -2388,7 +2385,7 @@ static irqreturn_t rt61pci_interrupt(int irq, void *dev_instance)
 	reg |= mask_mcu;
 	rt2x00pci_register_write(rt2x00dev, MCU_INT_MASK_CSR, reg);
 
-	spin_unlock_irqrestore(&rt2x00dev->irqmask_lock, flags);
+	spin_unlock(&rt2x00dev->irqmask_lock);
 
 	return IRQ_HANDLED;
 }
