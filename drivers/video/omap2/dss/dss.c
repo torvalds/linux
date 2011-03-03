@@ -850,6 +850,14 @@ void dss_clk_enable(enum dss_clock clks)
 
 	dss_clk_enable_no_ctx(clks);
 
+	/*
+	 * HACK: On omap4 the registers may not be accessible right after
+	 * enabling the clocks. At some point this will be handled by
+	 * pm_runtime, but for the time begin this should make things work.
+	 */
+	if (cpu_is_omap44xx() && check_ctx)
+		udelay(10);
+
 	if (check_ctx && cpu_is_omap34xx() && dss_need_ctx_restore())
 		restore_all_ctx();
 }
