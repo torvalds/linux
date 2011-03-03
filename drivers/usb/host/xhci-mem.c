@@ -870,9 +870,8 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	dev->port = top_dev->portnum;
 	xhci_dbg(xhci, "Set root hub portnum to %d\n", top_dev->portnum);
 
-	/* Is this a LS/FS device under a HS hub? */
-	if ((udev->speed == USB_SPEED_LOW || udev->speed == USB_SPEED_FULL) &&
-			udev->tt) {
+	/* Is this a LS/FS device under an external HS hub? */
+	if (udev->tt && udev->tt->hub->parent) {
 		slot_ctx->tt_info = udev->tt->hub->slot_id;
 		slot_ctx->tt_info |= udev->ttport << 8;
 		if (udev->tt->multi)
