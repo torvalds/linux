@@ -304,7 +304,7 @@ struct bdb_sdvo_lvds_options {
 
 
 extern bool psb_intel_init_bios(struct drm_device *dev);
-extern void psb_intel_destory_bios(struct drm_device *dev);
+extern void psb_intel_destroy_bios(struct drm_device *dev);
 
 /*
  * Driver<->VBIOS interaction occurs through scratch bits in

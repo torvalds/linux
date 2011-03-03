@@ -368,7 +368,6 @@ struct drm_psb_private {
 
 	unsigned long chipset;
 
-	struct drm_psb_dev_info_arg dev_info;
 	struct drm_psb_uopt uopt;
 
 	struct psb_gtt *pg;

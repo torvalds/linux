@@ -273,7 +273,7 @@ bool psb_intel_init_bios(struct drm_device *dev)
 /**
  * Destory and free VBT data
  */
-void psb_intel_destory_bios(struct drm_device *dev)
+void psb_intel_destroy_bios(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct drm_display_mode *sdvo_lvds_vbt_mode =

@@ -22,7 +22,7 @@
 #define BLC_PWM_CTL_C		0x62254
 #define BLC_PWM_CTL2_C		0x62250
 #define BACKLIGHT_MODULATION_FREQ_SHIFT		(17)
-/**
+/*
  * This is the most significant 15 bits of the number of backlight cycles in a
  * complete cycle of the modulated backlight control.
  *
@@ -30,7 +30,7 @@
  */
 #define BACKLIGHT_MODULATION_FREQ_MASK		(0x7fff << 17)
 #define BLM_LEGACY_MODE				(1 << 16)
-/**
+/*
  * This is the number of cycles out of the backlight modulation cycle for which
  * the backlight is on.
  *
@@ -86,7 +86,7 @@
 
 #define PP_STATUS	0x61200
 # define PP_ON					(1 << 31)
-/**
+/*
  * Indicates that all dependencies of the panel are on:
  *
  * - PLL enabled
@@ -143,12 +143,12 @@
 # define DPLLB_LVDS_P2_CLOCK_DIV_7		(1 << 24)	/* i915 */
 # define DPLL_P2_CLOCK_DIV_MASK			0x03000000	/* i915 */
 # define DPLL_FPA01_P1_POST_DIV_MASK		0x00ff0000	/* i915 */
-/**
+/*
  *  The i830 generation, in DAC/serial mode, defines p1 as two plus this
  * bitfield, or just 2 if PLL_P1_DIVIDE_BY_TWO is set.
  */
 # define DPLL_FPA01_P1_POST_DIV_MASK_I830	0x001f0000
-/**
+/*
  * The i830 generation, in LVDS mode, defines P1 as the bit number set within
  * this field (only one bit may be set).
  */
@@ -173,33 +173,33 @@
 # define PLL_LOAD_PULSE_PHASE_MASK	(0xf << PLL_LOAD_PULSE_PHASE_SHIFT)
 # define DISPLAY_RATE_SELECT_FPA1	(1 << 8)
 
-/**
+/*
  * SDVO multiplier for 945G/GM. Not used on 965.
  *
- * \sa DPLL_MD_UDI_MULTIPLIER_MASK
+ * DPLL_MD_UDI_MULTIPLIER_MASK
  */
 # define SDVO_MULTIPLIER_MASK			0x000000ff
 # define SDVO_MULTIPLIER_SHIFT_HIRES		4
 # define SDVO_MULTIPLIER_SHIFT_VGA		0
 
-/** @defgroup DPLL_MD
- * @{
+/*
+ * PLL_MD
  */
-/** Pipe A SDVO/UDI clock multiplier/divider register for G965. */
+/* Pipe A SDVO/UDI clock multiplier/divider register for G965. */
 #define DPLL_A_MD		0x0601c
-/** Pipe B SDVO/UDI clock multiplier/divider register for G965. */
+/* Pipe B SDVO/UDI clock multiplier/divider register for G965. */
 #define DPLL_B_MD		0x06020
-/**
+/*
  * UDI pixel divider, controlling how many pixels are stuffed into a packet.
  *
  * Value is pixels minus 1.  Must be set to 1 pixel for SDVO.
  */
 # define DPLL_MD_UDI_DIVIDER_MASK		0x3f000000
 # define DPLL_MD_UDI_DIVIDER_SHIFT		24
-/** UDI pixel divider for VGA, same as DPLL_MD_UDI_DIVIDER_MASK. */
+/* UDI pixel divider for VGA, same as DPLL_MD_UDI_DIVIDER_MASK. */
 # define DPLL_MD_VGA_UDI_DIVIDER_MASK		0x003f0000
 # define DPLL_MD_VGA_UDI_DIVIDER_SHIFT		16
-/**
+/*
  * SDVO/UDI pixel multiplier.
  *
  * SDVO requires that the bus clock rate be between 1 and 2 Ghz, and the bus
@@ -218,13 +218,13 @@
  */
 # define DPLL_MD_UDI_MULTIPLIER_MASK		0x00003f00
 # define DPLL_MD_UDI_MULTIPLIER_SHIFT		8
-/** SDVO/UDI pixel multiplier for VGA, same as DPLL_MD_UDI_MULTIPLIER_MASK.
+/*
+ * SDVO/UDI pixel multiplier for VGA, same as DPLL_MD_UDI_MULTIPLIER_MASK.
  * This best be set to the default value (3) or the CRT won't work. No,
  * I don't entirely understand what this does...
  */
 # define DPLL_MD_VGA_UDI_MULTIPLIER_MASK	0x0000003f
 # define DPLL_MD_VGA_UDI_MULTIPLIER_SHIFT	0
-/** @} */
 
 #define DPLL_TEST		0x606c
 # define DPLLB_TEST_SDVO_DIV_1			(0 << 22)
@@ -295,7 +295,7 @@
  *
  * Programmed value is multiplier - 1, up to 5x.
  *
- * \sa DPLL_MD_UDI_MULTIPLIER_MASK
+ * DPLL_MD_UDI_MULTIPLIER_MASK
  */
 #define SDVO_PORT_MULTIPLY_MASK			(7 << 23)
 #define SDVO_PORT_MULTIPLY_SHIFT		23
@@ -310,35 +310,32 @@
 #define SDVOB_PRESERVE_MASK		((1 << 17) | (1 << 16) | (1 << 14))
 #define SDVOC_PRESERVE_MASK			(1 << 17)
 
-/** @defgroup LVDS
- * @{
- */
-/**
+/*
  * This register controls the LVDS output enable, pipe selection, and data
  * format selection.
  *
  * All of the clock/data pairs are force powered down by power sequencing.
  */
 #define LVDS			0x61180
-/**
+/*
  * Enables the LVDS port.  This bit must be set before DPLLs are enabled, as
  * the DPLL semantics change when the LVDS is assigned to that pipe.
  */
 # define LVDS_PORT_EN			(1 << 31)
-/** Selects pipe B for LVDS data.  Must be set on pre-965. */
+/* Selects pipe B for LVDS data.  Must be set on pre-965. */
 # define LVDS_PIPEB_SELECT		(1 << 30)
 
-/** Turns on border drawing to allow centered display. */
+/* Turns on border drawing to allow centered display. */
 # define LVDS_BORDER_EN                 (1 << 15)
 
-/**
+/*
  * Enables the A0-A2 data pairs and CLKA, containing 18 bits of color data per
  * pixel.
  */
 # define LVDS_A0A2_CLKA_POWER_MASK	(3 << 8)
 # define LVDS_A0A2_CLKA_POWER_DOWN	(0 << 8)
 # define LVDS_A0A2_CLKA_POWER_UP	(3 << 8)
-/**
+/*
  * Controls the A3 data pair, which contains the additional LSBs for 24 bit
  * mode.  Only enabled if LVDS_A0A2_CLKA_POWER_UP also indicates it should be
  * on.
@@ -346,15 +343,14 @@
 # define LVDS_A3_POWER_MASK		(3 << 6)
 # define LVDS_A3_POWER_DOWN		(0 << 6)
 # define LVDS_A3_POWER_UP		(3 << 6)
-/**
+/*
  * Controls the CLKB pair.  This should only be set when LVDS_B0B3_POWER_UP
  * is set.
  */
 # define LVDS_CLKB_POWER_MASK		(3 << 4)
 # define LVDS_CLKB_POWER_DOWN		(0 << 4)
 # define LVDS_CLKB_POWER_UP		(3 << 4)
-
-/**
+/*
  * Controls the B0-B3 data pairs.  This must be set to match the DPLL p2
  * setting for whether we are in dual-channel mode.  The B3 pair will
  * additionally only be powered up when LVDS_A3_POWER_UP is set.
@@ -419,8 +415,8 @@
 #define PIPE_HDMI_AUDIO_UNDERRUN             (1UL<<26)
 #define PIPE_HDMI_AUDIO_BUFFER_DONE          (1UL<<27)
 #define PIPE_HDMI_AUDIO_INT_MASK (PIPE_HDMI_AUDIO_UNDERRUN | PIPE_HDMI_AUDIO_BUFFER_DONE)
-#define PIPE_EVENT_MASK (BIT29|BIT28|BIT27|BIT26|BIT24|BIT23|BIT22|BIT21|BIT20|BIT16)
-#define PIPE_VBLANK_MASK (BIT25|BIT24|BIT18|BIT17)
+#define PIPE_EVENT_MASK ((1 << 29)|(1 << 28)|(1 << 27)|(1 << 26)|(1 << 24)|(1 << 23)|(1 << 22)|(1 << 21)|(1 << 20)|(1 << 16))
+#define PIPE_VBLANK_MASK ((1 << 25)|(1 << 24)|(1 << 18)|(1 << 17))
 #define HISTOGRAM_INT_CONTROL		0x61268
 #define HISTOGRAM_BIN_DATA		0X61264
 #define HISTOGRAM_LOGIC_CONTROL		0x61260
@@ -567,7 +563,7 @@ struct dpst_guardband {
 #define OV_C_OFFSET		0x08000
 #define OV_OVADD		0x30000
 #define OV_DOVASTA              0x30008
-# define OV_PIPE_SELECT				(BIT6|BIT7)
+# define OV_PIPE_SELECT				((1 << 6)|(1 << 7))
 # define OV_PIPE_SELECT_POS			6
 # define OV_PIPE_A				0
 # define OV_PIPE_C				1
@@ -629,40 +625,6 @@ struct dpst_guardband {
 #define PALETTE_B		0x0a800
 #define PALETTE_C		0x0ac00
 
-#define IS_I830(dev) ((dev)->pci_device == PCI_DEVICE_ID_INTEL_82830_CGC)
-#define IS_845G(dev) ((dev)->pci_device == PCI_DEVICE_ID_INTEL_82845G_IG)
-#define IS_I85X(dev) ((dev)->pci_device == PCI_DEVICE_ID_INTEL_82855GM_IG)
-#define IS_I855(dev) ((dev)->pci_device == PCI_DEVICE_ID_INTEL_82855GM_IG)
-#define IS_I865G(dev) ((dev)->pci_device == PCI_DEVICE_ID_INTEL_82865_IG)
-
-
-/* || dev->pci_device == PCI_DEVICE_ID_INTELPCI_CHIP_E7221_G) */
-#define IS_I915G(dev) (dev->pci_device == PCI_DEVICE_ID_INTEL_82915G_IG)
-#define IS_I915GM(dev) ((dev)->pci_device == PCI_DEVICE_ID_INTEL_82915GM_IG)
-#define IS_I945G(dev) ((dev)->pci_device == PCI_DEVICE_ID_INTEL_82945G_IG)
-#define IS_I945GM(dev) ((dev)->pci_device == PCI_DEVICE_ID_INTEL_82945GM_IG)
-
-#define IS_I965G(dev) ((dev)->pci_device == 0x2972 || \
-		       (dev)->pci_device == 0x2982 || \
-		       (dev)->pci_device == 0x2992 || \
-		       (dev)->pci_device == 0x29A2 || \
-		       (dev)->pci_device == 0x2A02 || \
-		       (dev)->pci_device == 0x2A12)
-
-#define IS_I965GM(dev) ((dev)->pci_device == 0x2A02)
-
-#define IS_G33(dev)    ((dev)->pci_device == 0x29C2 ||	\
-			(dev)->pci_device == 0x29B2 ||	\
-			(dev)->pci_device == 0x29D2)
-
-#define IS_I9XX(dev) (IS_I915G(dev) || IS_I915GM(dev) || IS_I945G(dev) || \
-		      IS_I945GM(dev) || IS_I965G(dev) || IS_POULSBO(dev) || \
-		      IS_MRST(dev))
-
-#define IS_MOBILE(dev) (IS_I830(dev) || IS_I85X(dev) || IS_I915GM(dev) || \
-			IS_I945GM(dev) || IS_I965GM(dev) || \
-			IS_POULSBO(dev) || IS_MRST(dev))
-
 /* Cursor A & B regs */
 #define CURACNTR		0x70080
 #define   CURSOR_MODE_DISABLE   0x00
@@ -707,7 +669,9 @@ struct dpst_guardband {
 #define MDFLD_DPLL_DIV1		0x0f04c
 #define MRST_PERF_MODE		0x020f4
 
-/* MEDFIELD HDMI registers */
+/*
+ * MEDFIELD HDMI registers
+ */
 #define HDMIPHYMISCCTL   	0x61134
 # define HDMI_PHY_POWER_DOWN	0x7f
 #define HDMIB_CONTROL   	0x61140
@@ -724,7 +688,7 @@ struct dpst_guardband {
 #define MIPI			0x61190
 #define MIPI_C			0x62190
 # define MIPI_PORT_EN			(1 << 31)
-/** Turns on border drawing to allow centered display. */
+/* Turns on border drawing to allow centered display. */
 # define SEL_FLOPPED_HSTX		(1 << 23)
 # define PASS_FROM_SPHY_TO_AFE 		(1 << 16)
 # define MIPI_BORDER_EN			(1 << 15)
@@ -756,47 +720,13 @@ struct dpst_guardband {
 /*
  * Moorestown registers.
  */
-/*===========================================================================
-; General Constants
-;--------------------------------------------------------------------------*/
-#define BIT0  0x00000001
-#define BIT1  0x00000002
-#define BIT2  0x00000004
-#define BIT3  0x00000008
-#define BIT4  0x00000010
-#define BIT5  0x00000020
-#define BIT6  0x00000040
-#define BIT7  0x00000080
-#define BIT8  0x00000100
-#define BIT9  0x00000200
-#define BIT10 0x00000400
-#define BIT11 0x00000800
-#define BIT12 0x00001000
-#define BIT13 0x00002000
-#define BIT14 0x00004000
-#define BIT15 0x00008000
-#define BIT16 0x00010000
-#define BIT17 0x00020000
-#define BIT18 0x00040000
-#define BIT19 0x00080000
-#define BIT20 0x00100000
-#define BIT21 0x00200000
-#define BIT22 0x00400000
-#define BIT23 0x00800000
-#define BIT24 0x01000000
-#define BIT25 0x02000000
-#define BIT26 0x04000000
-#define BIT27 0x08000000
-#define BIT28 0x10000000
-#define BIT29 0x20000000
-#define BIT30 0x40000000
-#define BIT31 0x80000000
-/*===========================================================================
-; MIPI IP registers
-;--------------------------------------------------------------------------*/
+
+/*
+ *	MIPI IP registers
+ */
 #define MIPIC_REG_OFFSET             0x800
 #define DEVICE_READY_REG             0xb000
-#define LP_OUTPUT_HOLD               BIT16
+#define LP_OUTPUT_HOLD               (1 << 16)
 #define EXIT_ULPS_DEV_READY          0x3
 #define LP_OUTPUT_HOLD_RELEASE       0x810000
 # define ENTERING_ULPS		(2 << 1)
@@ -804,33 +734,33 @@ struct dpst_guardband {
 # define ULPS_MASK		(3 << 1)
 # define BUS_POSSESSION		(1 << 3)
 #define INTR_STAT_REG                0xb004
-#define RX_SOT_ERROR BIT0
-#define RX_SOT_SYNC_ERROR BIT1
-#define RX_ESCAPE_MODE_ENTRY_ERROR BIT3
-#define RX_LP_TX_SYNC_ERROR BIT4
-#define RX_HS_RECEIVE_TIMEOUT_ERROR BIT5
-#define RX_FALSE_CONTROL_ERROR BIT6
-#define RX_ECC_SINGLE_BIT_ERROR BIT7
-#define RX_ECC_MULTI_BIT_ERROR BIT8
-#define RX_CHECKSUM_ERROR BIT9
-#define RX_DSI_DATA_TYPE_NOT_RECOGNIZED BIT10
-#define RX_DSI_VC_ID_INVALID BIT11
-#define TX_FALSE_CONTROL_ERROR BIT12
-#define TX_ECC_SINGLE_BIT_ERROR BIT13
-#define TX_ECC_MULTI_BIT_ERROR BIT14
-#define TX_CHECKSUM_ERROR BIT15
-#define TX_DSI_DATA_TYPE_NOT_RECOGNIZED BIT16
-#define TX_DSI_VC_ID_INVALID BIT17
-#define HIGH_CONTENTION BIT18
-#define LOW_CONTENTION BIT19
-#define DPI_FIFO_UNDER_RUN BIT20
-#define HS_TX_TIMEOUT BIT21
-#define LP_RX_TIMEOUT BIT22
-#define TURN_AROUND_ACK_TIMEOUT BIT23
-#define ACK_WITH_NO_ERROR BIT24
-#define HS_GENERIC_WR_FIFO_FULL BIT27
-#define LP_GENERIC_WR_FIFO_FULL BIT28
-#define SPL_PKT_SENT			BIT30
+#define RX_SOT_ERROR (1 << 0)
+#define RX_SOT_SYNC_ERROR (1 << 1)
+#define RX_ESCAPE_MODE_ENTRY_ERROR (1 << 3)
+#define RX_LP_TX_SYNC_ERROR (1 << 4)
+#define RX_HS_RECEIVE_TIMEOUT_ERROR (1 << 5)
+#define RX_FALSE_CONTROL_ERROR (1 << 6)
+#define RX_ECC_SINGLE_BIT_ERROR (1 << 7)
+#define RX_ECC_MULTI_BIT_ERROR (1 << 8)
+#define RX_CHECKSUM_ERROR (1 << 9)
+#define RX_DSI_DATA_TYPE_NOT_RECOGNIZED (1 << 10)
+#define RX_DSI_VC_ID_INVALID (1 << 11)
+#define TX_FALSE_CONTROL_ERROR (1 << 12)
+#define TX_ECC_SINGLE_BIT_ERROR (1 << 13)
+#define TX_ECC_MULTI_BIT_ERROR (1 << 14)
+#define TX_CHECKSUM_ERROR (1 << 15)
+#define TX_DSI_DATA_TYPE_NOT_RECOGNIZED (1 << 16)
+#define TX_DSI_VC_ID_INVALID (1 << 17)
+#define HIGH_CONTENTION (1 << 18)
+#define LOW_CONTENTION (1 << 19)
+#define DPI_FIFO_UNDER_RUN (1 << 20)
+#define HS_TX_TIMEOUT (1 << 21)
+#define LP_RX_TIMEOUT (1 << 22)
+#define TURN_AROUND_ACK_TIMEOUT (1 << 23)
+#define ACK_WITH_NO_ERROR (1 << 24)
+#define HS_GENERIC_WR_FIFO_FULL (1 << 27)
+#define LP_GENERIC_WR_FIFO_FULL (1 << 28)
+#define SPL_PKT_SENT			(1 << 30)
 #define INTR_EN_REG                  0xb008
 #define DSI_FUNC_PRG_REG             0xb00c
 #define DPI_CHANNEL_NUMBER_POS   0x03
@@ -873,22 +803,22 @@ struct dpst_guardband {
 #define VERT_FRONT_PORCH_COUNT_REG   0xb040
 #define HIGH_LOW_SWITCH_COUNT_REG    0xb044
 #define DPI_CONTROL_REG              0xb048
-#define DPI_SHUT_DOWN            BIT0
-#define DPI_TURN_ON              BIT1
-#define DPI_COLOR_MODE_ON        BIT2
-#define DPI_COLOR_MODE_OFF       BIT3
-#define DPI_BACK_LIGHT_ON        BIT4
-#define DPI_BACK_LIGHT_OFF       BIT5
-#define DPI_LP                   BIT6
+#define DPI_SHUT_DOWN            (1 << 0)
+#define DPI_TURN_ON              (1 << 1)
+#define DPI_COLOR_MODE_ON        (1 << 2)
+#define DPI_COLOR_MODE_OFF       (1 << 3)
+#define DPI_BACK_LIGHT_ON        (1 << 4)
+#define DPI_BACK_LIGHT_OFF       (1 << 5)
+#define DPI_LP                   (1 << 6)
 #define DPI_DATA_REG                 0xb04c
 #define DPI_BACK_LIGHT_ON_DATA   0x07
 #define DPI_BACK_LIGHT_OFF_DATA  0x17
 #define INIT_COUNT_REG               0xb050
 #define MAX_RET_PAK_REG              0xb054
 #define VIDEO_FMT_REG                0xb058
-#define COMPLETE_LAST_PCKT       BIT2
+#define COMPLETE_LAST_PCKT       (1 << 2)
 #define EOT_DISABLE_REG              0xb05c
-#define ENABLE_CLOCK_STOPPING    BIT1
+#define ENABLE_CLOCK_STOPPING    (1 << 1)
 #define LP_BYTECLK_REG               0xb060
 #define LP_GEN_DATA_REG              0xb064
 #define HS_GEN_DATA_REG              0xb068
@@ -899,30 +829,31 @@ struct dpst_guardband {
 #define WORD_COUNTS_POS		0x8
 #define MCS_PARAMETER_POS	0x10
 #define GEN_FIFO_STAT_REG            0xb074
-#define HS_DATA_FIFO_FULL        BIT0
-#define HS_DATA_FIFO_HALF_EMPTY  BIT1
-#define HS_DATA_FIFO_EMPTY       BIT2
-#define LP_DATA_FIFO_FULL        BIT8
-#define LP_DATA_FIFO_HALF_EMPTY  BIT9
-#define LP_DATA_FIFO_EMPTY       BIT10
-#define HS_CTRL_FIFO_FULL        BIT16
-#define HS_CTRL_FIFO_HALF_EMPTY  BIT17
-#define HS_CTRL_FIFO_EMPTY       BIT18
-#define LP_CTRL_FIFO_FULL        BIT24
-#define LP_CTRL_FIFO_HALF_EMPTY  BIT25
-#define LP_CTRL_FIFO_EMPTY       BIT26
-#define DBI_FIFO_EMPTY           BIT27
-#define DPI_FIFO_EMPTY           BIT28
+#define HS_DATA_FIFO_FULL        (1 << 0)
+#define HS_DATA_FIFO_HALF_EMPTY  (1 << 1)
+#define HS_DATA_FIFO_EMPTY       (1 << 2)
+#define LP_DATA_FIFO_FULL        (1 << 8)
+#define LP_DATA_FIFO_HALF_EMPTY  (1 << 9)
+#define LP_DATA_FIFO_EMPTY       (1 << 10)
+#define HS_CTRL_FIFO_FULL        (1 << 16)
+#define HS_CTRL_FIFO_HALF_EMPTY  (1 << 17)
+#define HS_CTRL_FIFO_EMPTY       (1 << 18)
+#define LP_CTRL_FIFO_FULL        (1 << 24)
+#define LP_CTRL_FIFO_HALF_EMPTY  (1 << 25)
+#define LP_CTRL_FIFO_EMPTY       (1 << 26)
+#define DBI_FIFO_EMPTY           (1 << 27)
+#define DPI_FIFO_EMPTY           (1 << 28)
 #define HS_LS_DBI_ENABLE_REG         0xb078
 #define TXCLKESC_REG		     0xb07c
 #define DPHY_PARAM_REG               0xb080
 #define DBI_BW_CTRL_REG              0xb084
 #define CLK_LANE_SWT_REG             0xb088
-/*===========================================================================
-; MIPI Adapter registers
-;--------------------------------------------------------------------------*/
+
+/*
+ * MIPI Adapter registers
+ */
 #define MIPI_CONTROL_REG             0xb104
-#define MIPI_2X_CLOCK_BITS       (BIT0 | BIT1)
+#define MIPI_2X_CLOCK_BITS       ((1 << 0) | (1 << 1))
 #define MIPI_DATA_ADDRESS_REG        0xb108
 #define MIPI_DATA_LENGTH_REG         0xb10C
 #define MIPI_COMMAND_ADDRESS_REG     0xb110
@@ -938,75 +869,76 @@ struct dpst_guardband {
 #define MIPI_READ_DATA_VALID_REG     0xb138
 /* DBI COMMANDS */
 #define soft_reset                   0x01
-/* ************************************************************************* *\
-The display module performs a software reset.
-Registers are written with their SW Reset default values.
-\* ************************************************************************* */
+/*
+ *	The display module performs a software reset.
+ *	Registers are written with their SW Reset default values.
+ */
 #define get_power_mode               0x0a
-/* ************************************************************************* *\
-The display module returns the current power mode
-\* ************************************************************************* */
+/*
+ *	The display module returns the current power mode
+ */
 #define get_address_mode             0x0b
-/* ************************************************************************* *\
-The display module returns the current status.
-\* ************************************************************************* */
+/*
+ *	The display module returns the current status.
+ */
 #define get_pixel_format             0x0c
-/* ************************************************************************* *\
-This command gets the pixel format for the RGB image data
-used by the interface.
-\* ************************************************************************* */
+/*
+ *	This command gets the pixel format for the RGB image data
+ *	used by the interface.
+ */
 #define get_display_mode             0x0d
-/* ************************************************************************* *\
-The display module returns the Display Image Mode status.
-\* ************************************************************************* */
+/*
+ *	The display module returns the Display Image Mode status.
+ */
 #define get_signal_mode              0x0e
-/* ************************************************************************* *\
-The display module returns the Display Signal Mode.
-\* ************************************************************************* */
+/*
+ *	The display module returns the Display Signal Mode.
+ */
 #define get_diagnostic_result        0x0f
-/* ************************************************************************* *\
-The display module returns the self-diagnostic results following
-a Sleep Out command.
-\* ************************************************************************* */
+/*
+ *	The display module returns the self-diagnostic results following
+ *	a Sleep Out command.
+ */
 #define enter_sleep_mode             0x10
-/* ************************************************************************* *\
-This command causes the display module to enter the Sleep mode.
-In this mode, all unnecessary blocks inside the display module are disabled
-except interface communication. This is the lowest power mode
-the display module supports.
-\* ************************************************************************* */
+/*
+ *	This command causes the display module to enter the Sleep mode.
+ *	In this mode, all unnecessary blocks inside the display module are
+ *	disabled except interface communication. This is the lowest power
+ *	mode the display module supports.
+ */
 #define exit_sleep_mode              0x11
-/* ************************************************************************* *\
-This command causes the display module to exit Sleep mode.
-All blocks inside the display module are enabled.
-\* ************************************************************************* */
+/*
+ *	This command causes the display module to exit Sleep mode.
+ *	All blocks inside the display module are enabled.
+ */
 #define enter_partial_mode           0x12
-/* ************************************************************************* *\
-This command causes the display module to enter the Partial Display Mode.
-The Partial Display Mode window is described by the set_partial_area command.
-\* ************************************************************************* */
+/*
+ *	This command causes the display module to enter the Partial Display
+ *	Mode. The Partial Display Mode window is described by the
+ *	set_partial_area command.
+ */
 #define enter_normal_mode            0x13
-/* ************************************************************************* *\
-This command causes the display module to enter the Normal mode.
-Normal Mode is defined as Partial Display mode and Scroll mode are off
-\* ************************************************************************* */
+/*
+ *	This command causes the display module to enter the Normal mode.
+ *	Normal Mode is defined as Partial Display mode and Scroll mode are off
+ */
 #define exit_invert_mode             0x20
-/* ************************************************************************* *\
-This command causes the display module to stop inverting the image data on
-the display device. The frame memory contents remain unchanged.
-No status bits are changed.
-\* ************************************************************************* */
+/*
+ *	This command causes the display module to stop inverting the image
+ *	data on the display device. The frame memory contents remain unchanged.
+ *	No status bits are changed.
+ */
 #define enter_invert_mode            0x21
-/* ************************************************************************* *\
-This command causes the display module to invert the image data only on
-the display device. The frame memory contents remain unchanged.
-No status bits are changed.
-\* ************************************************************************* */
+/*
+ *	This command causes the display module to invert the image data only on
+ *	the display device. The frame memory contents remain unchanged.
+ *	No status bits are changed.
+ */
 #define set_gamma_curve              0x26
-/* ************************************************************************* *\
-This command selects the desired gamma curve for the display device.
-Four fixed gamma curves are defined in section DCS spec.
-\* ************************************************************************* */
+/*
+ *	This command selects the desired gamma curve for the display device.
+ *	Four fixed gamma curves are defined in section DCS spec.
+ */
 #define set_display_off              0x28
 /* ************************************************************************* *\
 This command causes the display module to stop displaying the image data
@@ -1020,77 +952,80 @@ on the display device. The frame memory contents remain unchanged.
 No status bits are changed.
 \* ************************************************************************* */
 #define set_column_address           0x2a
-/* ************************************************************************* *\
-This command defines the column extent of the frame memory accessed by the
-hostprocessor with the read_memory_continue and write_memory_continue commands.
-No status bits are changed.
-\* ************************************************************************* */
+/*
+ *	This command defines the column extent of the frame memory accessed by
+ *	the hostprocessor with the read_memory_continue and
+ *	write_memory_continue commands.
+ *	No status bits are changed.
+ */
 #define set_page_addr             0x2b
-/* ************************************************************************* *\
-This command defines the page extent of the frame memory accessed by the host
-processor with the write_memory_continue and read_memory_continue command.
-No status bits are changed.
-\* ************************************************************************* */
+/*
+ *	This command defines the page extent of the frame memory accessed by
+ *	the host processor with the write_memory_continue and
+ *	read_memory_continue command. 
+ *	No status bits are changed.
+ */
 #define write_mem_start              0x2c
-/* ************************************************************************* *\
-This command transfers image data from the host processor to the display
-module s frame memory starting at the pixel location specified by
-preceding set_column_address and set_page_address commands.
-\* ************************************************************************* */
+/*
+ *	This command transfers image data from the host processor to the
+ *	display module s frame memory starting at the pixel location specified
+ *	by preceding set_column_address and set_page_address commands.
+ */
 #define set_partial_area             0x30
-/* ************************************************************************* *\
-This command defines the Partial Display mode s display area.
-There are two parameters associated with
-this command, the first defines the Start Row (SR) and the second the End Row
-(ER). SR and ER refer to the Frame Memory Line Pointer.
-\* ************************************************************************* */
+/*
+ *	This command defines the Partial Display mode s display area.
+ *	There are two parameters associated with this command, the first
+ *	defines the Start Row (SR) and the second the End Row (ER). SR and ER
+ *	refer to the Frame Memory Line Pointer.
+ */
 #define set_scroll_area              0x33
-/* ************************************************************************* *\
-This command defines the display modules Vertical Scrolling Area.
-\* ************************************************************************* */
+/*
+ *	This command defines the display modules Vertical Scrolling Area.
+ */
 #define set_tear_off                 0x34
-/* ************************************************************************* *\
-This command turns off the display modules Tearing Effect output signal on
-the TE signal line.
-\* ************************************************************************* */
+/*
+ *	This command turns off the display modules Tearing Effect output
+ *	signal on the TE signal line.
+ */
 #define set_tear_on                  0x35
-/* ************************************************************************* *\
-This command turns on the display modules Tearing Effect output signal
-on the TE signal line.
-\* ************************************************************************* */
+/*
+ *	This command turns on the display modules Tearing Effect output signal
+ *	on the TE signal line.
+ */
 #define set_address_mode             0x36
-/* ************************************************************************* *\
-This command sets the data order for transfers from the host processor to
-display modules frame memory,bits B[7:5] and B3, and from the display
-modules frame memory to the display device, bits B[2:0] and B4.
-\* ************************************************************************* */
+/*
+ *	This command sets the data order for transfers from the host processor
+ *	to display modules frame memory,bits B[7:5] and B3, and from the
+ *	display modules frame memory to the display device, bits B[2:0] and B4.
+ */
 #define set_scroll_start             0x37
-/* ************************************************************************* *\
-This command sets the start of the vertical scrolling area in the frame memory.
-The vertical scrolling area is fully defined when this command is used with
-the set_scroll_area command The set_scroll_start command has one parameter,
-the Vertical Scroll Pointer. The VSP defines the line in the frame memory
-that is written to the display device as the first line of the vertical
-scroll area.
-\* ************************************************************************* */
+/*
+ *	This command sets the start of the vertical scrolling area in the frame
+ *	memory. The vertical scrolling area is fully defined when this command
+ *	is used with the set_scroll_area command The set_scroll_start command
+ *	has one parameter, the Vertical Scroll Pointer. The VSP defines the
+ *	line in the frame memory that is written to the display device as the
+ *	first line of the vertical scroll area.
+ */
 #define exit_idle_mode               0x38
-/* ************************************************************************* *\
-This command causes the display module to exit Idle mode.
-\* ************************************************************************* */
+/*
+ *	This command causes the display module to exit Idle mode.
+ */
 #define enter_idle_mode              0x39
-/* ************************************************************************* *\
-This command causes the display module to enter Idle Mode.
-In Idle Mode, color expression is reduced. Colors are shown on the display
-device using the MSB of each of the R, G and B color components in the frame
-memory
-\* ************************************************************************* */
+/*
+ *	This command causes the display module to enter Idle Mode.
+ *	In Idle Mode, color expression is reduced. Colors are shown on the
+ *	display device using the MSB of each of the R, G and B color
+ *	components in the frame memory
+ */
 #define set_pixel_format             0x3a
-/* ************************************************************************* *\
-This command sets the pixel format for the RGB image data used by the interface.
-Bits D[6:4]  DPI Pixel Format Definition
-Bits D[2:0]  DBI Pixel Format Definition
-Bits D7 and D3 are not used.
-\* ************************************************************************* */
+/*
+ *	This command sets the pixel format for the RGB image data used by the
+ *	interface.
+ *	Bits D[6:4]  DPI Pixel Format Definition
+ *	Bits D[2:0]  DBI Pixel Format Definition
+ *	Bits D7 and D3 are not used.
+ */
   #define DCS_PIXEL_FORMAT_3bbp	 	0x1
   #define DCS_PIXEL_FORMAT_8bbp 	0x2
   #define DCS_PIXEL_FORMAT_12bbp 	0x3
@@ -1098,24 +1033,25 @@ Bits D7 and D3 are not used.
   #define DCS_PIXEL_FORMAT_18bbp	0x6
   #define DCS_PIXEL_FORMAT_24bbp 	0x7
 #define write_mem_cont               0x3c
-/* ************************************************************************* *\
-This command transfers image data from the host processor to the display
-module's frame memory continuing from the pixel location following the
-previous write_memory_continue or write_memory_start command.
-\* ************************************************************************* */
+/*
+ *	This command transfers image data from the host processor to the
+ *	display module's frame memory continuing from the pixel location
+ *	following the previous write_memory_continue or write_memory_start
+ *	command.
+ */
 #define set_tear_scanline            0x44
-/* ************************************************************************* *\
-This command turns on the display modules Tearing Effect output signal on the
-TE signal line when the display module reaches line N.
-\* ************************************************************************* */
+/*
+ *	This command turns on the display modules Tearing Effect output signal
+ *	on the TE signal line when the display module reaches line N.
+ */
 #define get_scanline                 0x45
-/* ************************************************************************* *\
-The display module returns the current scanline, N, used to update the
-display device. The total number of scanlines on a display device is
-defined as VSYNC + VBP + VACT + VFP.The first scanline is defined as
-the first line of V Sync and is denoted as Line 0.
-When in Sleep Mode, the value returned by get_scanline is undefined.
-\* ************************************************************************* */
+/*
+ *	The display module returns the current scanline, N, used to update the
+ *	 display device. The total number of scanlines on a display device is
+ *	defined as VSYNC + VBP + VACT + VFP.The first scanline is defined as
+ *	the first line of V Sync and is denoted as Line 0.
+ *	When in Sleep Mode, the value returned by get_scanline is undefined.
+ */
 
 /* MCS or Generic COMMANDS */
 /* MCS/generic data type */
@@ -1131,7 +1067,7 @@ When in Sleep Mode, the value returned by get_scanline is undefined.
 #define MCS_READ		0x06  /* MCS read, no parameters */
 #define MCS_LONG_WRITE		0x39  /* MCS long write */
 /* MCS/generic commands */
-/*****TPO MCS**********/
+/* TPO MCS */
 #define write_display_profile		0x50
 #define write_display_brightness	0x51
 #define write_ctrl_display		0x53
@@ -1143,19 +1079,19 @@ When in Sleep Mode, the value returned by get_scanline is undefined.
 #define write_gamma_setting		0x58
 #define write_cabc_min_bright		0x5e
 #define write_kbbc_profile		0x60
-/*****TMD MCS**************/
+/* TMD MCS */
 #define tmd_write_display_brightness 0x8c
 
-/* ************************************************************************* *\
-This command is used to control ambient light, panel backlight brightness and
-gamma settings.
-\* ************************************************************************* */
-#define BRIGHT_CNTL_BLOCK_ON	BIT5
-#define AMBIENT_LIGHT_SENSE_ON	BIT4
-#define DISPLAY_DIMMING_ON	BIT3
-#define BACKLIGHT_ON		BIT2
-#define DISPLAY_BRIGHTNESS_AUTO	BIT1
-#define GAMMA_AUTO		BIT0
+/*
+ *	This command is used to control ambient light, panel backlight
+ *	brightness and gamma settings.
+ */
+#define BRIGHT_CNTL_BLOCK_ON	(1 << 5)
+#define AMBIENT_LIGHT_SENSE_ON	(1 << 4)
+#define DISPLAY_DIMMING_ON	(1 << 3)
+#define BACKLIGHT_ON		(1 << 2)
+#define DISPLAY_BRIGHTNESS_AUTO	(1 << 1)
+#define GAMMA_AUTO		(1 << 0)
 
 /* DCS Interface Pixel Formats */
 #define DCS_PIXEL_FORMAT_3BPP         0x1
@@ -1190,8 +1126,9 @@ gamma settings.
 						 * byte alignment
 						 */
 #define DBI_CB_TIME_OUT 0xFFFF
-#define GEN_FB_TIME_OUT 2000
-#define ALIGNMENT_32BYTE_MASK		(~(BIT0|BIT1|BIT2|BIT3|BIT4))
+
+#define GEN_FB_TIME_OUT 2000 
+#define ALIGNMENT_32BYTE_MASK		(~((1 << 0)|(1 << 1)|(1 << 2)|(1 << 3)|(1 << 4)))
 #define SKU_83 						0x01
 #define SKU_100 					0x02
 #define SKU_100L 					0x04

@@ -1,5 +1,5 @@
 /*
- *  psb backlight using HAL
+ *  psb backlight interface
  *
  * Copyright (c) 2009, Intel Corporation.
  *
@@ -73,6 +73,8 @@ int psb_get_brightness(struct backlight_device *bd)
 	DRM_DEBUG_DRIVER("brightness = 0x%x\n", psb_brightness);
 
 	/* return locally cached var instead of HW read (due to DPST etc.) */
+	/* FIXME: ideally return actual value in case firmware fiddled with
+	   it */
 	return psb_brightness;
 }
 
@@ -83,7 +85,7 @@ static const struct backlight_ops psb_ops = {
 
 static int device_backlight_init(struct drm_device *dev)
 {
-	unsigned long CoreClock;
+	unsigned long core_clock;
 	/* u32 bl_max_freq; */
 	/* unsigned long value; */
 	u16 bl_max_freq;
@@ -102,9 +104,9 @@ static int device_backlight_init(struct drm_device *dev)
 	blc_brightnesscmd = dev_priv->lvds_bl->brightnesscmd;
 	blc_type = dev_priv->lvds_bl->type;
 
-	CoreClock = dev_priv->core_freq;
+	core_clock = dev_priv->core_freq;
 
-	value = (CoreClock * MHz) / BLC_PWM_FREQ_CALC_CONSTANT;
+	value = (core_clock * MHz) / BLC_PWM_FREQ_CALC_CONSTANT;
 	value *= blc_pwm_precision_factor;
 	value /= bl_max_freq;
 	value /= blc_pwm_precision_factor;

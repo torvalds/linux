@@ -31,17 +31,6 @@
 #include "psb_ttm_fence_user.h"
 #include "psb_ttm_placement_user.h"
 
-/*
- * Menlow/MRST graphics driver package version
- * a.b.c.xxxx
- * a - Product Family: 5 - Linux
- * b - Major Release Version: 0 - non-Gallium (Unbuntu);
- *                            1 - Gallium (Moblin2)
- * c - Hotfix Release
- * xxxx - Graphics internal build #
- */
-#define PSB_PACKAGE_VERSION "5.3.0.32L.0036"
-
 #define DRM_PSB_SAREA_MAJOR 0
 #define DRM_PSB_SAREA_MINOR 2
 #define PSB_FIXED_SHIFT 16
@@ -52,24 +41,24 @@
  * Public memory types.
  */
 
-#define DRM_PSB_MEM_MMU TTM_PL_PRIV1
-#define DRM_PSB_FLAG_MEM_MMU TTM_PL_FLAG_PRIV1
+#define DRM_PSB_MEM_MMU 	TTM_PL_PRIV1
+#define DRM_PSB_FLAG_MEM_MMU	TTM_PL_FLAG_PRIV1
 
 #define TTM_PL_CI               TTM_PL_PRIV0
 #define TTM_PL_FLAG_CI          TTM_PL_FLAG_PRIV0
 
-#define TTM_PL_RAR               TTM_PL_PRIV2
-#define TTM_PL_FLAG_RAR          TTM_PL_FLAG_PRIV2
+#define TTM_PL_RAR              TTM_PL_PRIV2
+#define TTM_PL_FLAG_RAR         TTM_PL_FLAG_PRIV2
 
-typedef int32_t psb_fixed;
-typedef uint32_t psb_ufixed;
+typedef s32 psb_fixed;
+typedef u32 psb_ufixed;
 
-static inline int32_t psb_int_to_fixed(int a)
+static inline s32 psb_int_to_fixed(int a)
 {
 	return a * (1 << PSB_FIXED_SHIFT);
 }
 
-static inline uint32_t psb_unsigned_to_ufixed(unsigned int a)
+static inline u32 psb_unsigned_to_ufixed(unsigned int a)
 {
 	return a << PSB_FIXED_SHIFT;
 }
@@ -82,13 +71,13 @@ typedef enum {
 } drm_cmd_status_t;
 
 struct drm_psb_scanout {
-	uint32_t buffer_id;	/* DRM buffer object ID */
-	uint32_t rotation;	/* Rotation as in RR_rotation definitions */
-	uint32_t stride;	/* Buffer stride in bytes */
-	uint32_t depth;		/* Buffer depth in bits (NOT) bpp */
-	uint32_t width;		/* Buffer width in pixels */
-	uint32_t height;	/* Buffer height in lines */
-	int32_t transform[3][3];	/* Buffer composite transform */
+	u32 buffer_id;	/* DRM buffer object ID */
+	u32 rotation;	/* Rotation as in RR_rotation definitions */
+	u32 stride;	/* Buffer stride in bytes */
+	u32 depth;		/* Buffer depth in bits (NOT) bpp */
+	u32 width;		/* Buffer width in pixels */
+	u32 height;	/* Buffer height in lines */
+	s32 transform[3][3];	/* Buffer composite transform */
 	/* (scaling, rot, reflect) */
 };
 
@@ -101,14 +90,14 @@ struct drm_psb_scanout {
 struct drm_psb_sarea {
 	/* Track changes of this data structure */
 
-	uint32_t major;
-	uint32_t minor;
+	u32 major;
+	u32 minor;
 
 	/* Last context to touch part of hw */
-	uint32_t ctx_owners[DRM_PSB_SAREA_OWNERS];
+	u32 ctx_owners[DRM_PSB_SAREA_OWNERS];
 
 	/* Definition of front- and rotated buffers */
-	uint32_t num_scanouts;
+	u32 num_scanouts;
 	struct drm_psb_scanout scanouts[DRM_PSB_SAREA_SCANOUTS];
 
 	int planeA_x;
@@ -120,7 +109,7 @@ struct drm_psb_sarea {
 	int planeB_w;
 	int planeB_h;
 	/* Number of active scanouts */
-	uint32_t num_active_scanouts;
+	u32 num_active_scanouts;
 };
 
 #define PSB_RELOC_MAGIC         0x67676767
@@ -134,16 +123,16 @@ struct drm_psb_sarea {
 					 */
 
 struct drm_psb_reloc {
-	uint32_t reloc_op;
-	uint32_t where;		/* offset in destination buffer */
-	uint32_t buffer;	/* Buffer reloc applies to */
-	uint32_t mask;		/* Destination format: */
-	uint32_t shift;		/* Destination format: */
-	uint32_t pre_add;	/* Destination format: */
-	uint32_t background;	/* Destination add */
-	uint32_t dst_buffer;	/* Destination buffer. Index into buffer_list */
-	uint32_t arg0;		/* Reloc-op dependant */
-	uint32_t arg1;
+	u32 reloc_op;
+	u32 where;		/* offset in destination buffer */
+	u32 buffer;	/* Buffer reloc applies to */
+	u32 mask;		/* Destination format: */
+	u32 shift;		/* Destination format: */
+	u32 pre_add;	/* Destination format: */
+	u32 background;	/* Destination add */
+	u32 dst_buffer;	/* Destination buffer. Index into buffer_list */
+	u32 arg0;		/* Reloc-op dependant */
+	u32 arg1;
 };
 
 
@@ -174,12 +163,12 @@ struct drm_psb_reloc {
 #define PSB_FEEDBACK_OP_VISTEST (1 << 0)
 
 struct drm_psb_extension_rep {
-	int32_t exists;
-	uint32_t driver_ioctl_offset;
-	uint32_t sarea_offset;
-	uint32_t major;
-	uint32_t minor;
-	uint32_t pl;
+	s32 exists;
+	u32 driver_ioctl_offset;
+	u32 sarea_offset;
+	u32 major;
+	u32 minor;
+	u32 pl;
 };
 
 #define DRM_PSB_EXT_NAME_LEN 128
@@ -190,20 +179,20 @@ union drm_psb_extension_arg {
 };
 
 struct psb_validate_req {
-	uint64_t set_flags;
-	uint64_t clear_flags;
-	uint64_t next;
-	uint64_t presumed_gpu_offset;
-	uint32_t buffer_handle;
-	uint32_t presumed_flags;
-	uint32_t group;
-	uint32_t pad64;
+	u64 set_flags;
+	u64 clear_flags;
+	u64 next;
+	u64 presumed_gpu_offset;
+	u32 buffer_handle;
+	u32 presumed_flags;
+	u32 group;
+	u32 pad64;
 };
 
 struct psb_validate_rep {
-	uint64_t gpu_offset;
-	uint32_t placement;
-	uint32_t fence_type_mask;
+	u64 gpu_offset;
+	u32 placement;
+	u32 fence_type_mask;
 };
 
 #define PSB_USE_PRESUMED     (1 << 0)
@@ -221,296 +210,30 @@ struct psb_validate_arg {
 #define DRM_PSB_FENCE_NO_USER        (1 << 0)
 
 struct psb_ttm_fence_rep {
-	uint32_t handle;
-	uint32_t fence_class;
-	uint32_t fence_type;
-	uint32_t signaled_types;
-	uint32_t error;
+	u32 handle;
+	u32 fence_class;
+	u32 fence_type;
+	u32 signaled_types;
+	u32 error;
 };
-
-typedef struct drm_psb_cmdbuf_arg {
-	uint64_t buffer_list;	/* List of buffers to validate */
-	uint64_t clip_rects;	/* See i915 counterpart */
-	uint64_t scene_arg;
-	uint64_t fence_arg;
-
-	uint32_t ta_flags;
-
-	uint32_t ta_handle;	/* TA reg-value pairs */
-	uint32_t ta_offset;
-	uint32_t ta_size;
-
-	uint32_t oom_handle;
-	uint32_t oom_offset;
-	uint32_t oom_size;
-
-	uint32_t cmdbuf_handle;	/* 2D Command buffer object or, */
-	uint32_t cmdbuf_offset;	/* rasterizer reg-value pairs */
-	uint32_t cmdbuf_size;
-
-	uint32_t reloc_handle;	/* Reloc buffer object */
-	uint32_t reloc_offset;
-	uint32_t num_relocs;
-
-	int32_t damage;		/* Damage front buffer with cliprects */
-	/* Not implemented yet */
-	uint32_t fence_flags;
-	uint32_t engine;
-
-	/*
-	 * Feedback;
-	 */
-
-	uint32_t feedback_ops;
-	uint32_t feedback_handle;
-	uint32_t feedback_offset;
-	uint32_t feedback_breakpoints;
-	uint32_t feedback_size;
-} drm_psb_cmdbuf_arg_t;
-
-typedef struct drm_psb_pageflip_arg {
-	uint32_t flip_offset;
-	uint32_t stride;
-} drm_psb_pageflip_arg_t;
-
-typedef enum {
-	LNC_VIDEO_DEVICE_INFO,
-	LNC_VIDEO_GETPARAM_RAR_INFO,
-	LNC_VIDEO_GETPARAM_CI_INFO,
-	LNC_VIDEO_GETPARAM_RAR_HANDLER_OFFSET,
-	LNC_VIDEO_FRAME_SKIP,
-	IMG_VIDEO_DECODE_STATUS,
-	IMG_VIDEO_NEW_CONTEXT,
-	IMG_VIDEO_RM_CONTEXT,
-	IMG_VIDEO_MB_ERROR
-} lnc_getparam_key_t;
-
-struct drm_lnc_video_getparam_arg {
-	lnc_getparam_key_t key;
-	uint64_t arg;	/* argument pointer */
-	uint64_t value;	/* feed back pointer */
-};
-
 
 /*
  * Feedback components:
  */
 
-/*
- * Vistest component. The number of these in the feedback buffer
- * equals the number of vistest breakpoints + 1.
- * This is currently the only feedback component.
- */
-
-struct drm_psb_vistest {
-	uint32_t vt[8];
-};
-
 struct drm_psb_sizes_arg {
-	uint32_t ta_mem_size;
-	uint32_t mmu_size;
-	uint32_t pds_size;
-	uint32_t rastgeom_size;
-	uint32_t tt_size;
-	uint32_t vram_size;
-};
-
-struct drm_psb_hist_status_arg {
-	uint32_t buf[32];
+	u32 ta_mem_size;
+	u32 mmu_size;
+	u32 pds_size;
+	u32 rastgeom_size;
+	u32 tt_size;
+	u32 vram_size;
 };
 
 struct drm_psb_dpst_lut_arg {
 	uint8_t lut[256];
 	int output_id;
 };
-
-struct mrst_timing_info {
-	uint16_t pixel_clock;
-	uint8_t hactive_lo;
-	uint8_t hblank_lo;
-	uint8_t hblank_hi:4;
-	uint8_t hactive_hi:4;
-	uint8_t vactive_lo;
-	uint8_t vblank_lo;
-	uint8_t vblank_hi:4;
-	uint8_t vactive_hi:4;
-	uint8_t hsync_offset_lo;
-	uint8_t hsync_pulse_width_lo;
-	uint8_t vsync_pulse_width_lo:4;
-	uint8_t vsync_offset_lo:4;
-	uint8_t vsync_pulse_width_hi:2;
-	uint8_t vsync_offset_hi:2;
-	uint8_t hsync_pulse_width_hi:2;
-	uint8_t hsync_offset_hi:2;
-	uint8_t width_mm_lo;
-	uint8_t height_mm_lo;
-	uint8_t height_mm_hi:4;
-	uint8_t width_mm_hi:4;
-	uint8_t hborder;
-	uint8_t vborder;
-	uint8_t unknown0:1;
-	uint8_t hsync_positive:1;
-	uint8_t vsync_positive:1;
-	uint8_t separate_sync:2;
-	uint8_t stereo:1;
-	uint8_t unknown6:1;
-	uint8_t interlaced:1;
-} __attribute__((packed));
-
-struct gct_r10_timing_info {
-	uint16_t pixel_clock;
-	uint32_t hactive_lo:8;
-	uint32_t hactive_hi:4;
-	uint32_t hblank_lo:8;
-	uint32_t hblank_hi:4;
-	uint32_t hsync_offset_lo:8;
-	uint16_t hsync_offset_hi:2;
-	uint16_t hsync_pulse_width_lo:8;
-	uint16_t hsync_pulse_width_hi:2;
-	uint16_t hsync_positive:1;
-	uint16_t rsvd_1:3;
-	uint8_t  vactive_lo:8;
-	uint16_t vactive_hi:4;
-	uint16_t vblank_lo:8;
-	uint16_t vblank_hi:4;
-	uint16_t vsync_offset_lo:4;
-	uint16_t vsync_offset_hi:2;
-	uint16_t vsync_pulse_width_lo:4;
-	uint16_t vsync_pulse_width_hi:2;
-	uint16_t vsync_positive:1;
-	uint16_t rsvd_2:3;
-} __attribute__((packed));
-
-struct mrst_panel_descriptor_v1{
-	uint32_t Panel_Port_Control; /* 1 dword, Register 0x61180 if LVDS */
-				/* 0x61190 if MIPI */
-	uint32_t Panel_Power_On_Sequencing;/*1 dword,Register 0x61208,*/
-	uint32_t Panel_Power_Off_Sequencing;/*1 dword,Register 0x6120C,*/
-	uint32_t Panel_Power_Cycle_Delay_and_Reference_Divisor;/* 1 dword */
-						/* Register 0x61210 */
-	struct mrst_timing_info DTD;/*18 bytes, Standard definition */
-	uint16_t Panel_Backlight_Inverter_Descriptor;/* 16 bits, as follows */
-				/* Bit 0, Frequency, 15 bits,0 - 32767Hz */
-			/* Bit 15, Polarity, 1 bit, 0: Normal, 1: Inverted */
-	uint16_t Panel_MIPI_Display_Descriptor;
-			/*16 bits, Defined as follows: */
-			/* if MIPI, 0x0000 if LVDS */
-			/* Bit 0, Type, 2 bits, */
-			/* 0: Type-1, */
-			/* 1: Type-2, */
-			/* 2: Type-3, */
-			/* 3: Type-4 */
-			/* Bit 2, Pixel Format, 4 bits */
-			/* Bit0: 16bpp (not supported in LNC), */
-			/* Bit1: 18bpp loosely packed, */
-			/* Bit2: 18bpp packed, */
-			/* Bit3: 24bpp */
-			/* Bit 6, Reserved, 2 bits, 00b */
-		/* Bit 8, Minimum Supported Frame Rate, 6 bits, 0 - 63Hz */
-			/* Bit 14, Reserved, 2 bits, 00b */
-} __attribute__ ((packed));
-
-struct mrst_panel_descriptor_v2{
-	uint32_t Panel_Port_Control; /* 1 dword, Register 0x61180 if LVDS */
-				/* 0x61190 if MIPI */
-	uint32_t Panel_Power_On_Sequencing;/*1 dword,Register 0x61208,*/
-	uint32_t Panel_Power_Off_Sequencing;/*1 dword,Register 0x6120C,*/
-	uint8_t Panel_Power_Cycle_Delay_and_Reference_Divisor;/* 1 byte */
-						/* Register 0x61210 */
-	struct mrst_timing_info DTD;/*18 bytes, Standard definition */
-	uint16_t Panel_Backlight_Inverter_Descriptor;/*16 bits, as follows*/
-				/*Bit 0, Frequency, 16 bits, 0 - 32767Hz*/
-	uint8_t Panel_Initial_Brightness;/* [7:0] 0 - 100% */
-			/*Bit 7, Polarity, 1 bit,0: Normal, 1: Inverted*/
-	uint16_t Panel_MIPI_Display_Descriptor;
-			/*16 bits, Defined as follows: */
-			/* if MIPI, 0x0000 if LVDS */
-			/* Bit 0, Type, 2 bits, */
-			/* 0: Type-1, */
-			/* 1: Type-2, */
-			/* 2: Type-3, */
-			/* 3: Type-4 */
-			/* Bit 2, Pixel Format, 4 bits */
-			/* Bit0: 16bpp (not supported in LNC), */
-			/* Bit1: 18bpp loosely packed, */
-			/* Bit2: 18bpp packed, */
-			/* Bit3: 24bpp */
-			/* Bit 6, Reserved, 2 bits, 00b */
-		/* Bit 8, Minimum Supported Frame Rate, 6 bits, 0 - 63Hz */
-			/* Bit 14, Reserved, 2 bits, 00b */
-} __attribute__ ((packed));
-
-union mrst_panel_rx{
-	struct{
-		uint16_t NumberOfLanes:2; /*Num of Lanes, 2 bits,0 = 1 lane,*/
-			/* 1 = 2 lanes, 2 = 3 lanes, 3 = 4 lanes. */
-		uint16_t MaxLaneFreq:3; /* 0: 100MHz, 1: 200MHz, 2: 300MHz, */
-		/*3: 400MHz, 4: 500MHz, 5: 600MHz, 6: 700MHz, 7: 800MHz.*/
-		uint16_t SupportedVideoTransferMode:2; /*0: Non-burst only */
-					/* 1: Burst and non-burst */
-					/* 2/3: Reserved */
-		uint16_t HSClkBehavior:1; /*0: Continuous, 1: Non-continuous*/
-		uint16_t DuoDisplaySupport:1; /*1 bit,0: No, 1: Yes*/
-		uint16_t ECC_ChecksumCapabilities:1;/*1 bit,0: No, 1: Yes*/
-		uint16_t BidirectionalCommunication:1;/*1 bit,0: No, 1: Yes */
-		uint16_t Rsvd:5;/*5 bits,00000b */
-	} panelrx;
-	uint16_t panel_receiver;
-} __attribute__ ((packed));
-
-struct gct_ioctl_arg{
-	uint8_t bpi; /* boot panel index, number of panel used during boot */
-	uint8_t pt; /* panel type, 4 bit field, 0=lvds, 1=mipi */
-	struct mrst_timing_info DTD; /* timing info for the selected panel */
-	uint32_t Panel_Port_Control;
-	uint32_t PP_On_Sequencing;/*1 dword,Register 0x61208,*/
-	uint32_t PP_Off_Sequencing;/*1 dword,Register 0x6120C,*/
-	uint32_t PP_Cycle_Delay;
-	uint16_t Panel_Backlight_Inverter_Descriptor;
-	uint16_t Panel_MIPI_Display_Descriptor;
-} __attribute__ ((packed));
-
-struct mrst_vbt{
-	char Signature[4]; /*4 bytes,"$GCT" */
-	uint8_t Revision; /*1 byte */
-	uint8_t Size; /*1 byte */
-	uint8_t Checksum; /*1 byte,Calculated*/
-	void *mrst_gct;
-} __attribute__ ((packed));
-
-struct mrst_gct_v1{ /* expect this table to change per customer request*/
-	union{ /*8 bits,Defined as follows: */
-		struct{
-			uint8_t PanelType:4; /*4 bits, Bit field for panels*/
-					/* 0 - 3: 0 = LVDS, 1 = MIPI*/
-					/*2 bits,Specifies which of the*/
-			uint8_t BootPanelIndex:2;
-					/* 4 panels to use by default*/
-			uint8_t BootMIPI_DSI_RxIndex:2;/*Specifies which of*/
-					/* the 4 MIPI DSI receivers to use*/
-			} PD;
-		uint8_t PanelDescriptor;
-	};
-	struct mrst_panel_descriptor_v1 panel[4];/*panel descrs,38 bytes each*/
-	union mrst_panel_rx panelrx[4]; /* panel receivers*/
-} __attribute__ ((packed));
-
-struct mrst_gct_v2{ /* expect this table to change per customer request*/
-	union{ /*8 bits,Defined as follows: */
-		struct{
-			uint8_t PanelType:4; /*4 bits, Bit field for panels*/
-					/* 0 - 3: 0 = LVDS, 1 = MIPI*/
-					/*2 bits,Specifies which of the*/
-			uint8_t BootPanelIndex:2;
-					/* 4 panels to use by default*/
-			uint8_t BootMIPI_DSI_RxIndex:2;/*Specifies which of*/
-					/* the 4 MIPI DSI receivers to use*/
-			} PD;
-		uint8_t PanelDescriptor;
-	};
-	struct mrst_panel_descriptor_v2 panel[4];/*panel descrs,38 bytes each*/
-	union mrst_panel_rx panelrx[4]; /* panel receivers*/
-} __attribute__ ((packed));
 
 #define PSB_DC_CRTC_SAVE 0x01
 #define PSB_DC_CRTC_RESTORE 0x02
@@ -520,20 +243,20 @@ struct mrst_gct_v2{ /* expect this table to change per customer request*/
 #define PSB_DC_OUTPUT_MASK 0x0C
 
 struct drm_psb_dc_state_arg {
-	uint32_t flags;
-	uint32_t obj_id;
+	u32 flags;
+	u32 obj_id;
 };
 
 struct drm_psb_mode_operation_arg {
-	uint32_t obj_id;
-	uint16_t operation;
+	u32 obj_id;
+	u16 operation;
 	struct drm_mode_modeinfo mode;
 	void *data;
 };
 
 struct drm_psb_stolen_memory_arg {
-	uint32_t base;
-	uint32_t size;
+	u32 base;
+	u32 size;
 };
 
 /*Display Register Bits*/
@@ -556,64 +279,64 @@ struct drm_psb_stolen_memory_arg {
 #define OVC_REGRWBITS_OGAM_ALL			(1 << 3)
 
 struct drm_psb_register_rw_arg {
-	uint32_t b_force_hw_on;
+	u32 b_force_hw_on;
 
-	uint32_t display_read_mask;
-	uint32_t display_write_mask;
+	u32 display_read_mask;
+	u32 display_write_mask;
 
 	struct {
-		uint32_t pfit_controls;
-		uint32_t pfit_autoscale_ratios;
-		uint32_t pfit_programmed_scale_ratios;
-		uint32_t pipeasrc;
-		uint32_t pipebsrc;
-		uint32_t vtotal_a;
-		uint32_t vtotal_b;
+		u32 pfit_controls;
+		u32 pfit_autoscale_ratios;
+		u32 pfit_programmed_scale_ratios;
+		u32 pipeasrc;
+		u32 pipebsrc;
+		u32 vtotal_a;
+		u32 vtotal_b;
 	} display;
 
-	uint32_t overlay_read_mask;
-	uint32_t overlay_write_mask;
+	u32 overlay_read_mask;
+	u32 overlay_write_mask;
 
 	struct {
-		uint32_t OVADD;
-		uint32_t OGAMC0;
-		uint32_t OGAMC1;
-		uint32_t OGAMC2;
-		uint32_t OGAMC3;
-		uint32_t OGAMC4;
-		uint32_t OGAMC5;
-        	uint32_t IEP_ENABLED;
-        	uint32_t IEP_BLE_MINMAX;
-        	uint32_t IEP_BSSCC_CONTROL;
-                uint32_t b_wait_vblank;
+		u32 OVADD;
+		u32 OGAMC0;
+		u32 OGAMC1;
+		u32 OGAMC2;
+		u32 OGAMC3;
+		u32 OGAMC4;
+		u32 OGAMC5;
+        	u32 IEP_ENABLED;
+        	u32 IEP_BLE_MINMAX;
+        	u32 IEP_BSSCC_CONTROL;
+                u32 b_wait_vblank;
 	} overlay;
 
-	uint32_t sprite_enable_mask;
-	uint32_t sprite_disable_mask;
+	u32 sprite_enable_mask;
+	u32 sprite_disable_mask;
 
 	struct {
-		uint32_t dspa_control;
-		uint32_t dspa_key_value;
-		uint32_t dspa_key_mask;
-		uint32_t dspc_control;
-		uint32_t dspc_stride;
-		uint32_t dspc_position;
-		uint32_t dspc_linear_offset;
-		uint32_t dspc_size;
-		uint32_t dspc_surface;
+		u32 dspa_control;
+		u32 dspa_key_value;
+		u32 dspa_key_mask;
+		u32 dspc_control;
+		u32 dspc_stride;
+		u32 dspc_position;
+		u32 dspc_linear_offset;
+		u32 dspc_size;
+		u32 dspc_surface;
 	} sprite;
 
-	uint32_t subpicture_enable_mask;
-	uint32_t subpicture_disable_mask;
+	u32 subpicture_enable_mask;
+	u32 subpicture_disable_mask;
 };
 
 struct psb_gtt_mapping_arg {
 	void *hKernelMemInfo;
-	uint32_t offset_pages;
+	u32 offset_pages;
 };
 
 struct drm_psb_getpageaddrs_arg {
-	uint32_t handle;
+	u32 handle;
 	unsigned long *page_addrs;
 	unsigned long gtt_offset;
 };
@@ -659,38 +382,16 @@ struct drm_psb_getpageaddrs_arg {
 #define DRM_PVR_RESERVED6	0x1E
 
 #define DRM_PSB_GET_PIPE_FROM_CRTC_ID 0x1F
-#define DRM_PSB_DPU_QUERY 0x20
-#define DRM_PSB_DPU_DSR_ON 0x21
-#define DRM_PSB_DPU_DSR_OFF 0x22
-
-#define DRM_PSB_DSR_ENABLE	0xfffffffe
-#define DRM_PSB_DSR_DISABLE	0xffffffff
-
-struct psb_drm_dpu_rect {
-    int x, y;
-    int width, height;
-};
-
-struct drm_psb_drv_dsr_off_arg {
-	int screen;
-	struct psb_drm_dpu_rect damage_rect;
-};
-
-
-struct drm_psb_dev_info_arg {
-	uint32_t num_use_attribute_registers;
-};
-#define DRM_PSB_DEVINFO         0x01
 
 #define PSB_MODE_OPERATION_MODE_VALID	0x01
 #define PSB_MODE_OPERATION_SET_DC_BASE  0x02
 
 struct drm_psb_get_pipe_from_crtc_id_arg {
 	/** ID of CRTC being requested **/
-	uint32_t crtc_id;
+	u32 crtc_id;
 
 	/** pipe of requested CRTC **/
-	uint32_t pipe;
+	u32 pipe;
 };
 
 #endif

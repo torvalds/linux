@@ -287,11 +287,6 @@ static void ospm_suspend_pci(struct pci_dev *pdev)
 	printk(KERN_ALERT "ospm_suspend_pci\n");
 #endif
 
-#ifdef CONFIG_MDFD_GL3
-	// Power off GL3 after all GFX sub-systems are powered off.
-	ospm_power_island_down(OSPM_GL3_CACHE_ISLAND);
-#endif
-
 	pci_save_state(pdev);
 	pci_read_config_dword(pdev, 0x5C, &bsm);
 	dev_priv->saveBSM = bsm;

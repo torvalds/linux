@@ -33,14 +33,13 @@
 #include <linux/notifier.h>
 #include <linux/spinlock.h>
 #include <linux/pm_runtime.h>
+#include <acpi/video.h>
 
 int drm_psb_debug;
 static int drm_psb_trap_pagefaults;
 
 int drm_psb_disable_vsync = 1;
 int drm_psb_no_fb;
-int drm_psb_force_pipeb;
-int drm_idle_check_interval = 5;
 int gfxrtdelay = 2 * 1000;
 
 static int psb_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
@@ -57,7 +56,6 @@ MODULE_PARM_DESC(hdmi_edid, "EDID info for HDMI monitor");
 module_param_named(debug, drm_psb_debug, int, 0600);
 module_param_named(no_fb, drm_psb_no_fb, int, 0600);
 module_param_named(trap_pagefaults, drm_psb_trap_pagefaults, int, 0600);
-module_param_named(force_pipeb, drm_psb_force_pipeb, int, 0600);
 module_param_named(rtpm, gfxrtdelay, int, 0600);
 
 
@@ -108,12 +106,6 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 #define DRM_IOCTL_PSB_GETPAGEADDRS	\
 		DRM_IOWR(DRM_COMMAND_BASE + DRM_PSB_GETPAGEADDRS,\
 			 struct drm_psb_getpageaddrs_arg)
-#define DRM_IOCTL_PSB_HIST_ENABLE	\
-		DRM_IOWR(DRM_PSB_HIST_ENABLE + DRM_COMMAND_BASE, \
-			 uint32_t)
-#define DRM_IOCTL_PSB_HIST_STATUS	\
-		DRM_IOWR(DRM_PSB_HIST_STATUS + DRM_COMMAND_BASE, \
-			 struct drm_psb_hist_status_arg)
 #define DRM_IOCTL_PSB_UPDATE_GUARD	\
 		DRM_IOWR(DRM_PSB_UPDATE_GUARD + DRM_COMMAND_BASE, \
 			 uint32_t)
@@ -133,15 +125,9 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 /*
  * TTM execbuf extension.
  */
-#define DRM_PSB_CMDBUF		  (DRM_PSB_DPU_DSR_OFF + 1)
 
-#define DRM_PSB_SCENE_UNREF	  (DRM_PSB_CMDBUF + 1)
-#define DRM_IOCTL_PSB_CMDBUF	\
-		DRM_IOW(DRM_PSB_CMDBUF + DRM_COMMAND_BASE,	\
-			struct drm_psb_cmdbuf_arg)
-#define DRM_IOCTL_PSB_SCENE_UNREF	\
-		DRM_IOW(DRM_PSB_SCENE_UNREF + DRM_COMMAND_BASE, \
-			struct drm_psb_scene)
+#define DRM_PSB_CMDBUF		  0x23
+#define DRM_PSB_SCENE_UNREF	  0x24
 #define DRM_IOCTL_PSB_KMS_OFF	  DRM_IO(DRM_PSB_KMS_OFF + DRM_COMMAND_BASE)
 #define DRM_IOCTL_PSB_KMS_ON	  DRM_IO(DRM_PSB_KMS_ON + DRM_COMMAND_BASE)
 /*
@@ -168,8 +154,6 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 #define DRM_PSB_TTM_FENCE_UNREF    (TTM_FENCE_UNREF + DRM_PSB_FENCE_OFFSET)
 
 #define DRM_PSB_FLIP	   (DRM_PSB_TTM_FENCE_UNREF + 1)	/*20*/
-/* PSB video extension */
-#define DRM_LNC_VIDEO_GETPARAM		(DRM_PSB_FLIP + 1)
 
 #define DRM_IOCTL_PSB_TTM_PL_CREATE    \
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_PSB_TTM_PL_CREATE,\
@@ -201,12 +185,6 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 #define DRM_IOCTL_PSB_TTM_FENCE_UNREF \
 	DRM_IOW(DRM_COMMAND_BASE + DRM_PSB_TTM_FENCE_UNREF,	\
 		 struct ttm_fence_unref_arg)
-#define DRM_IOCTL_PSB_FLIP \
-	DRM_IOWR(DRM_COMMAND_BASE + DRM_PSB_FLIP, \
-		 struct drm_psb_pageflip_arg)
-#define DRM_IOCTL_LNC_VIDEO_GETPARAM \
-	DRM_IOWR(DRM_COMMAND_BASE + DRM_LNC_VIDEO_GETPARAM, \
-		 struct drm_lnc_video_getparam_arg)
 
 static int psb_vt_leave_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
@@ -268,9 +246,6 @@ static struct drm_ioctl_desc psb_ioctls[] = {
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_DPST_BL, psb_dpst_bl_ioctl, DRM_AUTH),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_GET_PIPE_FROM_CRTC_ID,
 					psb_intel_get_pipe_from_crtc_id, 0),
-	/*to be removed later*/
-	/*PSB_IOCTL_DEF(DRM_IOCTL_PSB_SCENE_UNREF, drm_psb_scene_unref_ioctl,
-		      DRM_AUTH),*/
 
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_TTM_PL_CREATE, psb_pl_create_ioctl,
 		      DRM_AUTH),
@@ -392,15 +367,6 @@ static void psb_get_core_freq(struct drm_device *dev)
 #define FB_SKU_100 0
 #define FB_SKU_100L 1
 #define FB_SKU_83 2
-#if 1 /* FIXME remove it after PO */
-#define FB_GFX_CLK_DIVIDE_MASK	(BIT20|BIT21|BIT22)
-#define FB_GFX_CLK_DIVIDE_SHIFT 20
-#define FB_VED_CLK_DIVIDE_MASK	(BIT23|BIT24)
-#define FB_VED_CLK_DIVIDE_SHIFT 23
-#define FB_VEC_CLK_DIVIDE_MASK	(BIT25|BIT26)
-#define FB_VEC_CLK_DIVIDE_SHIFT 25
-#endif	/* FIXME remove it after PO */
-
 
 bool mid_get_pci_revID(struct drm_psb_private *dev_priv)
 {
@@ -596,7 +562,7 @@ static int psb_driver_unload(struct drm_device *dev)
 		dev->dev_private = NULL;
 
 		/*destory VBT data*/
-		psb_intel_destory_bios(dev);
+		psb_intel_destroy_bios(dev);
 	}
 
 	ospm_power_uninit();
@@ -614,10 +580,6 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	unsigned long irqflags;
 	int ret = -ENOMEM;
 	uint32_t tt_pages;
-
-	DRM_INFO("psb - %s\n", PSB_PACKAGE_VERSION);
-
-	DRM_INFO("Run drivers on Poulsbo platform!\n");
 
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (dev_priv == NULL)
@@ -774,11 +736,8 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (ret)
 		return ret;
 
-	/**
-	 *  Init lid switch timer.
-	 *  NOTE: must do this after psb_intel_opregion_init
-	 *  and psb_backlight_init
-	 */
+/*	igd_opregion_init(&dev_priv->opregion_dev); */
+	acpi_video_register();
 	if (dev_priv->lid_state)
 		psb_lid_timer_init(dev_priv);
 
