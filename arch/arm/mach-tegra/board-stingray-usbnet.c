@@ -186,6 +186,17 @@ static struct usb_descriptor_header *hs_function[] = {
 	if (context && context->gadget)					\
 		dev_dbg(&(context->gadget->dev) , fmt , ## args)
 
+static const char *usb_description = "Motorola BLAN Interface";
+
+static ssize_t usbnet_desc_show(struct device *dev,
+				 struct device_attribute *attr, char *buff)
+{
+	ssize_t status = 0;
+	status = sprintf(buff, "%s\n", usb_description);
+	return status;
+}
+
+static DEVICE_ATTR(description, S_IRUGO, usbnet_desc_show, NULL);
 
 static inline struct usbnet_device *func_to_dev(struct usb_function *f)
 {
@@ -402,6 +413,7 @@ static void usbnet_cleanup(struct usbnet_device *dev)
 {
 	struct usbnet_context *context = dev->net_ctxt;
 	if (context) {
+		device_remove_file(&(context->dev->dev), &dev_attr_description);
 		unregister_netdev(context->dev);
 		free_netdev(context->dev);
 		dev->net_ctxt = NULL;
@@ -752,7 +764,6 @@ static void usbnet_resume(struct usb_function *f)
 	USBNETDBG(context, "%s\n", __func__);
 }
 
-
 int usbnet_bind_config(struct usb_configuration *c)
 {
 	struct usbnet_device *dev;
@@ -779,6 +790,15 @@ int usbnet_bind_config(struct usb_configuration *c)
 		free_netdev(net_dev);
 		return -EINVAL;
 	}
+
+	ret = device_create_file(&net_dev->dev, &dev_attr_description);
+	if (ret < 0) {
+		pr_err("%s: sys file creation  error\n", __func__);
+		unregister_netdev(net_dev);
+		free_netdev(net_dev);
+		return -EINVAL;
+	}
+
 	context = netdev_priv(net_dev);
 	INIT_WORK(&context->usbnet_config_wq, usbnet_if_config);
 
@@ -810,9 +830,9 @@ int usbnet_bind_config(struct usb_configuration *c)
 	return 0;
 
 err1:
-	kfree(dev);
 	pr_err("usbnet gadget driver failed to initialize\n");
 	usbnet_cleanup(dev);
+	kfree(dev);
 	return ret;
 }
 
