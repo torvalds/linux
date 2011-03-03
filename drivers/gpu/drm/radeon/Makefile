@@ -36,6 +36,9 @@ $(obj)/r600_reg_safe.h: $(src)/reg_srcs/r600 $(obj)/mkregtable
 $(obj)/evergreen_reg_safe.h: $(src)/reg_srcs/evergreen $(obj)/mkregtable
 	$(call if_changed,mkregtable)
 
+$(obj)/cayman_reg_safe.h: $(src)/reg_srcs/cayman $(obj)/mkregtable
+	$(call if_changed,mkregtable)
+
 $(obj)/r100.o: $(obj)/r100_reg_safe.h $(obj)/rn50_reg_safe.h
 
 $(obj)/r200.o: $(obj)/r200_reg_safe.h
