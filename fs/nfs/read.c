@@ -31,8 +31,8 @@
 
 #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
 
-static int nfs_pagein_multi(struct inode *, struct list_head *, unsigned int, size_t, int, struct pnfs_layout_segment *);
-static int nfs_pagein_one(struct inode *, struct list_head *, unsigned int, size_t, int, struct pnfs_layout_segment *);
+static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc);
+static int nfs_pagein_one(struct nfs_pageio_descriptor *desc);
 static const struct rpc_call_ops nfs_read_partial_ops;
 static const struct rpc_call_ops nfs_read_full_ops;
 
@@ -117,9 +117,9 @@ static void nfs_readpage_truncate_uninitialised_page(struct nfs_read_data *data)
 int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 		       struct page *page)
 {
-	LIST_HEAD(one_request);
 	struct nfs_page	*new;
 	unsigned int len;
+	struct nfs_pageio_descriptor pgio;
 
 	len = nfs_page_length(page);
 	if (len == 0)
@@ -132,11 +132,14 @@ int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 	if (len < PAGE_CACHE_SIZE)
 		zero_user_segment(page, len, PAGE_CACHE_SIZE);
 
-	nfs_list_add_request(new, &one_request);
+	nfs_pageio_init(&pgio, inode, NULL, 0, 0);
+	nfs_list_add_request(new, &pgio.pg_list);
+	pgio.pg_count = len;
+
 	if (NFS_SERVER(inode)->rsize < PAGE_CACHE_SIZE)
-		nfs_pagein_multi(inode, &one_request, 1, len, 0, NULL);
+		nfs_pagein_multi(&pgio);
 	else
-		nfs_pagein_one(inode, &one_request, 1, len, 0, NULL);
+		nfs_pagein_one(&pgio);
 	return 0;
 }
 
@@ -258,20 +261,21 @@ nfs_async_read_error(struct list_head *head)
  * won't see the new data until our attribute cache is updated.  This is more
  * or less conventional NFS client behavior.
  */
-static int nfs_pagein_multi(struct inode *inode, struct list_head *head, unsigned int npages, size_t count, int flags, struct pnfs_layout_segment *lseg)
+static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc)
 {
-	struct nfs_page *req = nfs_list_entry(head->next);
+	struct nfs_page *req = nfs_list_entry(desc->pg_list.next);
 	struct page *page = req->wb_page;
 	struct nfs_read_data *data;
-	size_t rsize = NFS_SERVER(inode)->rsize, nbytes;
+	size_t rsize = NFS_SERVER(desc->pg_inode)->rsize, nbytes;
 	unsigned int offset;
 	int requests = 0;
 	int ret = 0;
+	struct pnfs_layout_segment *lseg;
 	LIST_HEAD(list);
 
 	nfs_list_remove_request(req);
 
-	nbytes = count;
+	nbytes = desc->pg_count;
 	do {
 		size_t len = min(nbytes,rsize);
 
@@ -284,11 +288,11 @@ static int nfs_pagein_multi(struct inode *inode, struct list_head *head, unsigne
 	} while(nbytes != 0);
 	atomic_set(&req->wb_complete, requests);
 
-	/* We know lseg==NULL */
-	lseg = pnfs_update_layout(inode, req->wb_context, IOMODE_READ);
+	BUG_ON(desc->pg_lseg != NULL);
+	lseg = pnfs_update_layout(desc->pg_inode, req->wb_context, IOMODE_READ);
 	ClearPageError(page);
 	offset = 0;
-	nbytes = count;
+	nbytes = desc->pg_count;
 	do {
 		int ret2;
 
@@ -321,14 +325,17 @@ out_bad:
 	return -ENOMEM;
 }
 
-static int nfs_pagein_one(struct inode *inode, struct list_head *head, unsigned int npages, size_t count, int flags, struct pnfs_layout_segment *lseg)
+static int nfs_pagein_one(struct nfs_pageio_descriptor *desc)
 {
 	struct nfs_page		*req;
 	struct page		**pages;
 	struct nfs_read_data	*data;
+	struct list_head *head = &desc->pg_list;
+	struct pnfs_layout_segment *lseg = desc->pg_lseg;
 	int ret = -ENOMEM;
 
-	data = nfs_readdata_alloc(npages);
+	data = nfs_readdata_alloc(nfs_page_array_len(desc->pg_base,
+						     desc->pg_count));
 	if (!data) {
 		nfs_async_read_error(head);
 		goto out;
@@ -344,9 +351,10 @@ static int nfs_pagein_one(struct inode *inode, struct list_head *head, unsigned 
 	}
 	req = nfs_list_entry(data->pages.next);
 	if ((!lseg) && list_is_singular(&data->pages))
-		lseg = pnfs_update_layout(inode, req->wb_context, IOMODE_READ);
+		lseg = pnfs_update_layout(desc->pg_inode, req->wb_context, IOMODE_READ);
 
-	ret = nfs_read_rpcsetup(req, data, &nfs_read_full_ops, count, 0, lseg);
+	ret = nfs_read_rpcsetup(req, data, &nfs_read_full_ops, desc->pg_count,
+				0, lseg);
 out:
 	put_lseg(lseg);
 	return ret;

@@ -214,7 +214,7 @@ nfs_wait_on_request(struct nfs_page *req)
  */
 void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 		     struct inode *inode,
-		     int (*doio)(struct inode *, struct list_head *, unsigned int, size_t, int, struct pnfs_layout_segment *),
+		     int (*doio)(struct nfs_pageio_descriptor *),
 		     size_t bsize,
 		     int io_flags)
 {
@@ -311,13 +311,7 @@ static int nfs_pageio_do_add_request(struct nfs_pageio_descriptor *desc,
 static void nfs_pageio_doio(struct nfs_pageio_descriptor *desc)
 {
 	if (!list_empty(&desc->pg_list)) {
-		int error = desc->pg_doio(desc->pg_inode,
-					  &desc->pg_list,
-					  nfs_page_array_len(desc->pg_base,
-							     desc->pg_count),
-					  desc->pg_count,
-					  desc->pg_ioflags,
-					  desc->pg_lseg);
+		int error = desc->pg_doio(desc);
 		desc->pg_lseg = NULL;
 		if (error < 0)
 			desc->pg_error = error;

@@ -898,20 +898,21 @@ static void nfs_redirty_request(struct nfs_page *req)
  * Generate multiple small requests to write out a single
  * contiguous dirty area on one page.
  */
-static int nfs_flush_multi(struct inode *inode, struct list_head *head, unsigned int npages, size_t count, int how, struct pnfs_layout_segment *lseg)
+static int nfs_flush_multi(struct nfs_pageio_descriptor *desc)
 {
-	struct nfs_page *req = nfs_list_entry(head->next);
+	struct nfs_page *req = nfs_list_entry(desc->pg_list.next);
 	struct page *page = req->wb_page;
 	struct nfs_write_data *data;
-	size_t wsize = NFS_SERVER(inode)->wsize, nbytes;
+	size_t wsize = NFS_SERVER(desc->pg_inode)->wsize, nbytes;
 	unsigned int offset;
 	int requests = 0;
 	int ret = 0;
+	struct pnfs_layout_segment *lseg;
 	LIST_HEAD(list);
 
 	nfs_list_remove_request(req);
 
-	nbytes = count;
+	nbytes = desc->pg_count;
 	do {
 		size_t len = min(nbytes, wsize);
 
@@ -924,11 +925,11 @@ static int nfs_flush_multi(struct inode *inode, struct list_head *head, unsigned
 	} while (nbytes != 0);
 	atomic_set(&req->wb_complete, requests);
 
-	BUG_ON(lseg);
-	lseg = pnfs_update_layout(inode, req->wb_context, IOMODE_RW);
+	BUG_ON(desc->pg_lseg);
+	lseg = pnfs_update_layout(desc->pg_inode, req->wb_context, IOMODE_RW);
 	ClearPageError(page);
 	offset = 0;
-	nbytes = count;
+	nbytes = desc->pg_count;
 	do {
 		int ret2;
 
@@ -940,7 +941,7 @@ static int nfs_flush_multi(struct inode *inode, struct list_head *head, unsigned
 		if (nbytes < wsize)
 			wsize = nbytes;
 		ret2 = nfs_write_rpcsetup(req, data, &nfs_write_partial_ops,
-					  wsize, offset, lseg, how);
+					  wsize, offset, lseg, desc->pg_ioflags);
 		if (ret == 0)
 			ret = ret2;
 		offset += wsize;
@@ -968,14 +969,17 @@ out_bad:
  * This is the case if nfs_updatepage detects a conflicting request
  * that has been written but not committed.
  */
-static int nfs_flush_one(struct inode *inode, struct list_head *head, unsigned int npages, size_t count, int how, struct pnfs_layout_segment *lseg)
+static int nfs_flush_one(struct nfs_pageio_descriptor *desc)
 {
 	struct nfs_page		*req;
 	struct page		**pages;
 	struct nfs_write_data	*data;
+	struct list_head *head = &desc->pg_list;
+	struct pnfs_layout_segment *lseg = desc->pg_lseg;
 	int ret;
 
-	data = nfs_writedata_alloc(npages);
+	data = nfs_writedata_alloc(nfs_page_array_len(desc->pg_base,
+						      desc->pg_count));
 	if (!data) {
 		while (!list_empty(head)) {
 			req = nfs_list_entry(head->next);
@@ -995,10 +999,10 @@ static int nfs_flush_one(struct inode *inode, struct list_head *head, unsigned i
 	}
 	req = nfs_list_entry(data->pages.next);
 	if ((!lseg) && list_is_singular(&data->pages))
-		lseg = pnfs_update_layout(inode, req->wb_context, IOMODE_RW);
+		lseg = pnfs_update_layout(desc->pg_inode, req->wb_context, IOMODE_RW);
 
 	/* Set up the argument struct */
-	ret = nfs_write_rpcsetup(req, data, &nfs_write_full_ops, count, 0, lseg, how);
+	ret = nfs_write_rpcsetup(req, data, &nfs_write_full_ops, desc->pg_count, 0, lseg, desc->pg_ioflags);
 out:
 	put_lseg(lseg); /* Cleans any gotten in ->pg_test */
 	return ret;
