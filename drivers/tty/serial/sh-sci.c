@@ -1504,6 +1504,9 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (likely(baud && port->uartclk))
 		t = sci_scbrr_calc(s->cfg->scbrr_algo_id, baud, port->uartclk);
 
+	if (s->enable)
+		s->enable(port);
+
 	do {
 		status = sci_in(port, SCxSR);
 	} while (!(status & SCxSR_TEND(port)));
@@ -1571,6 +1574,9 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	if ((termios->c_cflag & CREAD) != 0)
 		sci_start_rx(port);
+
+	if (s->disable)
+		s->disable(port);
 }
 
 static const char *sci_type(struct uart_port *port)
