@@ -127,7 +127,7 @@ struct synthhid_device_info_ack {
 
 struct synthhid_input_report {
 	struct synthhid_msg_hdr header;
-	char                    ReportBuffer[1];
+	char buffer[1];
 };
 
 #pragma pack(pop)
@@ -435,7 +435,7 @@ static void MousevscOnReceiveInputReport(struct mousevsc_dev *InputDevice, struc
 	inputDriver = (struct mousevsc_drv_obj *)InputDevice->Device->drv;
 
 	inputreport_callback(InputDevice->Device,
-			     InputReport->ReportBuffer,
+			     InputReport->buffer,
 			     InputReport->header.size);
 }
 
