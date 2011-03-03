@@ -127,7 +127,7 @@ extern unsigned int __mxc_cpu_type;
 # define cpu_is_mx35()		(0)
 #endif
 
-#ifdef CONFIG_ARCH_MX50
+#ifdef CONFIG_SOC_IMX50
 # ifdef mxc_cpu_type
 #  undef mxc_cpu_type
 #  define mxc_cpu_type __mxc_cpu_type
@@ -139,7 +139,7 @@ extern unsigned int __mxc_cpu_type;
 # define cpu_is_mx50()		(0)
 #endif
 
-#ifdef CONFIG_ARCH_MX51
+#ifdef CONFIG_SOC_IMX51
 # ifdef mxc_cpu_type
 #  undef mxc_cpu_type
 #  define mxc_cpu_type __mxc_cpu_type
@@ -151,7 +151,7 @@ extern unsigned int __mxc_cpu_type;
 # define cpu_is_mx51()		(0)
 #endif
 
-#ifdef CONFIG_ARCH_MX53
+#ifdef CONFIG_SOC_IMX53
 # ifdef mxc_cpu_type
 #  undef mxc_cpu_type
 #  define mxc_cpu_type __mxc_cpu_type

@@ -194,7 +194,7 @@ static int __init imxXX_add_imx_dma(void)
 	} else
 #endif
 
-#if defined(CONFIG_ARCH_MX51)
+#if defined(CONFIG_SOC_IMX51)
 	if (cpu_is_mx51()) {
 		imx51_imx_sdma_data.pdata.script_addrs = &addr_imx51_to1;
 		ret = imx_add_imx_sdma(&imx51_imx_sdma_data);

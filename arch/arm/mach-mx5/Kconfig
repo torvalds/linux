@@ -1,5 +1,6 @@
 if ARCH_MX5
-# ARCH_MX51 and ARCH_MX50 are left for compatibility
+# ARCH_MX50/51/53 are left to mark places where prevent multi-soc in single
+# image. So for most time, SOC_IMX50/51/53 should be used.
 
 config ARCH_MX50
 	bool
