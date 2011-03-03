@@ -1101,27 +1101,44 @@ int rt2800_config_shared_key(struct rt2x00_dev *rt2x00dev,
 }
 EXPORT_SYMBOL_GPL(rt2800_config_shared_key);
 
+static inline int rt2800_find_pairwise_keyslot(struct rt2x00_dev *rt2x00dev)
+{
+	int idx;
+	u32 offset, reg;
+
+	/*
+	 * Search for the first free pairwise key entry and return the
+	 * corresponding index.
+	 *
+	 * Make sure the WCID starts _after_ the last possible shared key
+	 * entry (>32).
+	 *
+	 * Since parts of the pairwise key table might be shared with
+	 * the beacon frame buffers 6 & 7 we should only write into the
+	 * first 222 entries.
+	 */
+	for (idx = 33; idx <= 222; idx++) {
+		offset = MAC_WCID_ATTR_ENTRY(idx);
+		rt2800_register_read(rt2x00dev, offset, &reg);
+		if (!reg)
+			return idx;
+	}
+	return -1;
+}
+
 int rt2800_config_pairwise_key(struct rt2x00_dev *rt2x00dev,
 			       struct rt2x00lib_crypto *crypto,
 			       struct ieee80211_key_conf *key)
 {
 	struct hw_key_entry key_entry;
 	u32 offset;
+	int idx;
 
 	if (crypto->cmd == SET_KEY) {
-		/*
-		 * 1 pairwise key is possible per AID, this means that the AID
-		 * equals our hw_key_idx. Make sure the WCID starts _after_ the
-		 * last possible shared key entry.
-		 *
-		 * Since parts of the pairwise key table might be shared with
-		 * the beacon frame buffers 6 & 7 we should only write into the
-		 * first 222 entries.
-		 */
-		if (crypto->aid > (222 - 32))
+		idx = rt2800_find_pairwise_keyslot(rt2x00dev);
+		if (idx < 0)
 			return -ENOSPC;
-
-		key->hw_key_idx = 32 + crypto->aid;
+		key->hw_key_idx = idx;
 
 		memcpy(key_entry.key, crypto->key,
 		       sizeof(key_entry.key));
@@ -2458,7 +2475,7 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 		rt2800_register_multiwrite(rt2x00dev, MAC_WCID_ENTRY(i),
 					      wcid, sizeof(wcid));
 
-		rt2800_register_write(rt2x00dev, MAC_WCID_ATTR_ENTRY(i), 1);
+		rt2800_register_write(rt2x00dev, MAC_WCID_ATTR_ENTRY(i), 0);
 		rt2800_register_write(rt2x00dev, MAC_IVEIV_ENTRY(i), 0);
 	}
 
