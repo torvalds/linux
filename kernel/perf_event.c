@@ -404,8 +404,10 @@ static inline int perf_cgroup_connect(int fd, struct perf_event *event,
 		return -EBADF;
 
 	css = cgroup_css_from_dir(file, perf_subsys_id);
-	if (IS_ERR(css))
-		return PTR_ERR(css);
+	if (IS_ERR(css)) {
+		ret = PTR_ERR(css);
+		goto out;
+	}
 
 	cgrp = container_of(css, struct perf_cgroup, css);
 	event->cgrp = cgrp;
@@ -422,6 +424,7 @@ static inline int perf_cgroup_connect(int fd, struct perf_event *event,
 		/* must be done before we fput() the file */
 		perf_get_cgroup(event);
 	}
+out:
 	fput_light(file, fput_needed);
 	return ret;
 }
