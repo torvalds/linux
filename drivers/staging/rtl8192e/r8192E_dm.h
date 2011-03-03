@@ -219,12 +219,6 @@ void hal_dm_watchdog(struct net_device *dev);
 
 void init_rate_adaptive(struct net_device *dev);
 void dm_txpower_trackingcallback(struct work_struct *work);
-void dm_restore_dynamic_mechanism_state(struct net_device *dev);
-void dm_backup_dynamic_mechanism_state(struct net_device *dev);
-void DM_ChangeFsyncSetting(struct net_device *dev, s32 DM_Type, s32 DM_Value);
-void dm_force_tx_fw_info(struct net_device *dev, u32 force_type,
-			 u32 force_value);
-void dm_rf_operation_test_callback(unsigned long data);
 void dm_rf_pathcheck_workitemcallback(struct work_struct *work);
 void dm_initialize_txpower_tracking(struct r8192_priv *priv);
 void dm_cck_txpower_adjust(struct r8192_priv *priv, bool binch14);
