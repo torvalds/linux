@@ -801,7 +801,6 @@ typedef struct r8192_priv
 	u8  eeprom_CustomerID;
 	u16  eeprom_ChannelPlan;
 	RT_CUSTOMER_ID CustomerID;
-	LED_STRATEGY_8190	LedStrategy;
 	u8	IC_Cut;
 	int irq;
 	struct ieee80211_device *ieee80211;
@@ -827,13 +826,6 @@ typedef struct r8192_priv
 	int rxringcount;
 	u16 rxbuffersize;
 
-	struct sk_buff *rx_skb;
-	u32 *rxring;
-	u32 *rxringtail;
-	dma_addr_t rxringdma;
-	struct buffer *rxbuffer;
-	struct buffer *rxbufferhead;
-	short rx_skb_complete;
 	/* TX stuff */
         struct rtl8192_tx_ring tx_ring[MAX_TX_QUEUE_COUNT];
 	int txringcount;
@@ -850,8 +842,6 @@ typedef struct r8192_priv
 
 	short (*rf_set_sens)(struct net_device *dev,short sens);
 	u8 (*rf_set_chan)(struct net_device *dev,u8 ch);
-	void (*rf_close)(struct net_device *dev);
-	void (*rf_init)(struct net_device *dev);
 	short promisc;
 	/* stats */
 	struct Stats stats;
@@ -923,8 +913,6 @@ typedef struct r8192_priv
 	u8	TxPowerLevelOFDM24G_A[14];	// RF-A, OFDM 2.4G channel 1~14
 	u8	TxPowerLevelOFDM24G_C[14];	// RF-C, OFDM 2.4G channel 1~14
 	u8	LegacyHTTxPowerDiff;			// Legacy to HT rate power diff
-	u8	TxPowerDiff;
-	char	RF_C_TxPwDiff;					// Antenna gain offset, rf-c to rf-a
 	u8	AntennaTxPwDiff[3];				// Antenna gain offset, index 0 for B, 1 for C, and 2 for D
 	u8	CrystalCap;						// CrystalCap.
 	u8	ThermalMeter[2];				// ThermalMeter, index 0 for RFIC0, and 1 for RFIC1
@@ -966,7 +954,6 @@ typedef struct r8192_priv
 
 //+by amy 080515 for dynamic mechenism
 	//Add by amy Tx Power Control for Near/Far Range 2008/05/15
-	bool	bdynamic_txpower;  //bDynamicTxPower
 	bool	bDynamicTxHighPower;  // Tx high power state
 	bool	bDynamicTxLowPower;  // Tx low power state
 	bool	bLastDTPFlag_High;

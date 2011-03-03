@@ -1451,8 +1451,6 @@ void rtl8192_phy_setTxPower(struct r8192_priv *priv, u8 channel)
 			ant_pwr_diff = priv->TxPowerLevelOFDM24G_C[channel-1]
 						-priv->TxPowerLevelOFDM24G_A[channel-1];
 			ant_pwr_diff &= 0xf;
-			//DbgPrint(" ant_pwr_diff = 0x%x", (u8)(ant_pwr_diff));
-			priv->RF_C_TxPwDiff = ant_pwr_diff;
 
 			priv->AntennaTxPwDiff[2] = 0;// RF-D, don't care
 			priv->AntennaTxPwDiff[1] = (u8)(ant_pwr_diff);// RF-C

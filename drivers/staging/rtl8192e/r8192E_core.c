@@ -1901,7 +1901,6 @@ static void rtl8192_init_priv_variable(struct r8192_priv *priv)
 	priv->txringcount = 64;//32;
 	priv->rxbuffersize = 9100;//2048;//1024;
 	priv->rxringcount = MAX_RX_COUNT;//64;
-	priv->rx_skb_complete = 1;
 	priv->chan = 1; //set to channel 1
 	priv->RegWirelessMode = WIRELESS_MODE_AUTO;
 	priv->RegChannelPlan = 0xf;
@@ -2380,42 +2379,6 @@ static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 	if(priv->ChannelPlan > CHANNEL_PLAN_LEN - 1)
 		priv->ChannelPlan = 0; //FCC
 
-	switch(priv->CustomerID)
-	{
-		case RT_CID_DEFAULT:
-			priv->LedStrategy = SW_LED_MODE1;
-			break;
-
-		case RT_CID_819x_CAMEO:
-			priv->LedStrategy = SW_LED_MODE2;
-			break;
-
-		case RT_CID_819x_RUNTOP:
-			priv->LedStrategy = SW_LED_MODE3;
-			break;
-
-		case RT_CID_819x_Netcore:
-			priv->LedStrategy = SW_LED_MODE4;
-			break;
-
-		case RT_CID_Nettronix:
-			priv->LedStrategy = SW_LED_MODE5;
-			break;
-
-		case RT_CID_PRONET:
-			priv->LedStrategy = SW_LED_MODE6;
-			break;
-
-		case RT_CID_TOSHIBA:   //Modify by Jacken 2008/01/31
-			// Do nothing.
-			//break;
-
-		default:
-			priv->LedStrategy = SW_LED_MODE1;
-			break;
-	}
-
-
 	if( priv->eeprom_vid == 0x1186 &&  priv->eeprom_did == 0x3304)
 		priv->ieee80211->bSupportRemoteWakeUp = true;
 	else
@@ -2424,10 +2387,7 @@ static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 
 	RT_TRACE(COMP_INIT, "RegChannelPlan(%d)\n", priv->RegChannelPlan);
 	RT_TRACE(COMP_INIT, "ChannelPlan = %d\n", priv->ChannelPlan);
-	RT_TRACE(COMP_INIT, "LedStrategy = %d\n", priv->LedStrategy);
 	RT_TRACE(COMP_TRACE, "<==== ReadAdapterInfo\n");
-
-	return ;
 }
 
 
