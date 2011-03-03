@@ -3123,13 +3123,10 @@ void nfs4_reset_read(struct rpc_task *task, struct nfs_read_data *data)
 }
 EXPORT_SYMBOL_GPL(nfs4_reset_read);
 
-static int nfs4_write_done(struct rpc_task *task, struct nfs_write_data *data)
+static int nfs4_write_done_cb(struct rpc_task *task, struct nfs_write_data *data)
 {
 	struct inode *inode = data->inode;
 	
-	if (!nfs4_sequence_done(task, &data->res.seq_res))
-		return -EAGAIN;
-
 	if (nfs4_async_handle_error(task, NFS_SERVER(inode), data->args.context->state) == -EAGAIN) {
 		nfs_restart_rpc(task, NFS_SERVER(inode)->nfs_client);
 		return -EAGAIN;
@@ -3141,11 +3138,20 @@ static int nfs4_write_done(struct rpc_task *task, struct nfs_write_data *data)
 	return 0;
 }
 
+static int nfs4_write_done(struct rpc_task *task, struct nfs_write_data *data)
+{
+	if (!nfs4_sequence_done(task, &data->res.seq_res))
+		return -EAGAIN;
+	return data->write_done_cb(task, data);
+}
+
 static void nfs4_proc_write_setup(struct nfs_write_data *data, struct rpc_message *msg)
 {
 	struct nfs_server *server = NFS_SERVER(data->inode);
 
 	data->args.bitmask = server->cache_consistency_bitmask;
+	if (!data->write_done_cb)
+		data->write_done_cb = nfs4_write_done_cb;
 	data->res.server = server;
 	data->timestamp   = jiffies;
 
