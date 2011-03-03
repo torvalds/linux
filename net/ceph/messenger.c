@@ -336,7 +336,6 @@ static void reset_connection(struct ceph_connection *con)
 		ceph_msg_put(con->out_msg);
 		con->out_msg = NULL;
 	}
-	con->out_keepalive_pending = false;
 	con->in_seq = 0;
 	con->in_seq_acked = 0;
 }
@@ -2019,10 +2018,10 @@ static void ceph_fault(struct ceph_connection *con)
 	/* Requeue anything that hasn't been acked */
 	list_splice_init(&con->out_sent, &con->out_queue);
 
-	/* If there are no messages in the queue, place the connection
-	 * in a STANDBY state (i.e., don't try to reconnect just yet). */
-	if (list_empty(&con->out_queue) && !con->out_keepalive_pending) {
-		dout("fault setting STANDBY\n");
+	/* If there are no messages queued or keepalive pending, place
+	 * the connection in a STANDBY state */
+	if (list_empty(&con->out_queue) &&
+	    !test_bit(KEEPALIVE_PENDING, &con->state)) {
 		set_bit(STANDBY, &con->state);
 	} else {
 		/* retry after a delay. */
