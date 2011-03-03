@@ -922,7 +922,7 @@ static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len)
 		hid_dev->ll_driver->open  = mousevsc_hid_open;
 		hid_dev->ll_driver->close = mousevsc_hid_close;
 
-		hid_dev->bus =  0x06;  /* BUS_VIRTUAL */
+		hid_dev->bus = BUS_VIRTUAL;
 		hid_dev->vendor = input_device_ctx->device_info.vendor;
 		hid_dev->product = input_device_ctx->device_info.product;
 		hid_dev->version = input_device_ctx->device_info.version;
