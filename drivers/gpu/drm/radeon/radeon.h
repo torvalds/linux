@@ -664,6 +664,8 @@ struct radeon_wb {
 
 #define RADEON_WB_SCRATCH_OFFSET 0
 #define RADEON_WB_CP_RPTR_OFFSET 1024
+#define RADEON_WB_CP1_RPTR_OFFSET 1280
+#define RADEON_WB_CP2_RPTR_OFFSET 1536
 #define R600_WB_IH_WPTR_OFFSET   2048
 #define R600_WB_EVENT_OFFSET     3072
 
@@ -1186,6 +1188,9 @@ struct radeon_device {
 	struct radeon_mman		mman;
 	struct radeon_fence_driver	fence_drv;
 	struct radeon_cp		cp;
+	/* cayman compute rings */
+	struct radeon_cp		cp1;
+	struct radeon_cp		cp2;
 	struct radeon_ib_pool		ib_pool;
 	struct radeon_irq		irq;
 	struct radeon_asic		*asic;
