@@ -192,6 +192,13 @@ do { if(rt_global_debug_component & component) \
 #define EEPROM_Default_LegacyHTTxPowerDiff	0x4
 #define IEEE80211_WATCH_DOG_TIME    2000
 
+typedef u32 RT_RF_CHANGE_SOURCE;
+#define RF_CHANGE_BY_SW BIT31
+#define RF_CHANGE_BY_HW BIT30
+#define RF_CHANGE_BY_PS BIT29
+#define RF_CHANGE_BY_IPS BIT28
+#define RF_CHANGE_BY_INIT	0	// Do not change the RFOff reason. Defined by Bruce, 2008-01-17.
+
 /* For rtl819x */
 typedef struct _tx_desc_819x_pci {
         //DWORD 0

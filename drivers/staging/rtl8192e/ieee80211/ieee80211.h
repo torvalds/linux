@@ -1825,13 +1825,6 @@ typedef struct _RT_POWER_SAVE_CONTROL
 
 }RT_POWER_SAVE_CONTROL,*PRT_POWER_SAVE_CONTROL;
 
-typedef u32 RT_RF_CHANGE_SOURCE;
-#define RF_CHANGE_BY_SW BIT31
-#define RF_CHANGE_BY_HW BIT30
-#define RF_CHANGE_BY_PS BIT29
-#define RF_CHANGE_BY_IPS BIT28
-#define RF_CHANGE_BY_INIT	0	// Do not change the RFOff reason. Defined by Bruce, 2008-01-17.
-
 #ifdef ENABLE_DOT11D
 typedef enum
 {
