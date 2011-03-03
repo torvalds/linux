@@ -313,28 +313,6 @@ extern const struct scic_sds_io_request_state_handler scic_sds_smp_request_start
 #define scic_sds_request_get_task_context(request) \
 	((request)->task_context_buffer)
 
-#define CACHE_LINE_SIZE (64)
-#define scic_sds_request_align_task_context_buffer(address) \
-	((struct scu_task_context *)(\
-		 (((unsigned long)(address)) + (CACHE_LINE_SIZE - 1)) \
-		 & ~(CACHE_LINE_SIZE - 1) \
-		 ))
-
-/**
- * scic_sds_request_align_sgl_element_buffer() -
- *
- * This macro will align the memory address so that it is correct for the SCU
- * hardware to DMA the SGL element pairs.
- */
-#define scic_sds_request_align_sgl_element_buffer(address) \
-	((struct scu_sgl_element_pair *)(\
-		 ((char *)(address)) \
-		 + (\
-			 ((~(unsigned long)(address)) + 1) \
-			 & (sizeof(struct scu_sgl_element_pair) - 1)	\
-			 ) \
-		 ))
-
 /**
  * scic_sds_request_set_status() -
  *

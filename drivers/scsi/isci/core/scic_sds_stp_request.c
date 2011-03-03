@@ -131,33 +131,25 @@ u32 scic_sds_stp_request_get_object_size(void)
 	       + sizeof(struct sata_fis_reg_h2d)
 	       + sizeof(struct sata_fis_reg_d2h)
 	       + sizeof(struct scu_task_context)
+	       + SMP_CACHE_BYTES
 	       + sizeof(struct scu_sgl_element_pair) * SCU_MAX_SGL_ELEMENT_PAIRS;
 }
 
-/**
- *
- *
- *
- */
-void scic_sds_stp_request_assign_buffers(
-	struct scic_sds_request *request)
+void scic_sds_stp_request_assign_buffers(struct scic_sds_request *sci_req)
 {
-	struct scic_sds_stp_request *this_request = (struct scic_sds_stp_request *)request;
+	struct scic_sds_stp_request *stp_req = container_of(sci_req, typeof(*stp_req), parent);
 
-	this_request->parent.command_buffer =
-		scic_sds_stp_request_get_h2d_reg_buffer(this_request);
-	this_request->parent.response_buffer =
-		scic_sds_stp_request_get_response_buffer(this_request);
-	this_request->parent.sgl_element_pair_buffer =
-		scic_sds_stp_request_get_sgl_element_buffer(this_request);
-	this_request->parent.sgl_element_pair_buffer =
-		scic_sds_request_align_sgl_element_buffer(this_request->parent.sgl_element_pair_buffer);
+	sci_req->command_buffer = scic_sds_stp_request_get_h2d_reg_buffer(stp_req);
+	sci_req->response_buffer = scic_sds_stp_request_get_response_buffer(stp_req);
+	sci_req->sgl_element_pair_buffer = scic_sds_stp_request_get_sgl_element_buffer(stp_req);
+	sci_req->sgl_element_pair_buffer = PTR_ALIGN(sci_req->sgl_element_pair_buffer,
+						     sizeof(struct scu_sgl_element_pair));
 
-	if (this_request->parent.was_tag_assigned_by_user == false) {
-		this_request->parent.task_context_buffer =
-			scic_sds_stp_request_get_task_context_buffer(this_request);
-		this_request->parent.task_context_buffer =
-			scic_sds_request_align_task_context_buffer(this_request->parent.task_context_buffer);
+	if (sci_req->was_tag_assigned_by_user == false) {
+		sci_req->task_context_buffer =
+			scic_sds_stp_request_get_task_context_buffer(stp_req);
+		sci_req->task_context_buffer = PTR_ALIGN(sci_req->task_context_buffer,
+							 SMP_CACHE_BYTES);
 	}
 }
 

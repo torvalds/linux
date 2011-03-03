@@ -80,7 +80,8 @@ u32 scic_sds_smp_request_get_object_size(void)
 	return sizeof(struct scic_sds_request)
 	       + sizeof(struct smp_request)
 	       + sizeof(struct smp_response)
-	       + sizeof(struct scu_task_context);
+	       + sizeof(struct scu_task_context)
+	       + SMP_CACHE_BYTES;
 }
 
 /**
@@ -137,7 +138,7 @@ void scic_sds_smp_request_assign_buffers(
 		this_request->task_context_buffer =
 			scic_sds_smp_request_get_task_context_buffer(this_request);
 		this_request->task_context_buffer =
-			scic_sds_request_align_task_context_buffer(this_request->task_context_buffer);
+			PTR_ALIGN(this_request->task_context_buffer, SMP_CACHE_BYTES);
 	}
 
 }

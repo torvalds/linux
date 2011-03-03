@@ -222,7 +222,7 @@ static u32 scic_sds_ssp_request_get_object_size(void)
 	return sizeof(struct scic_sds_request)
 	       + scic_ssp_io_request_get_object_size()
 	       + sizeof(struct scu_task_context)
-	       + CACHE_LINE_SIZE
+	       + SMP_CACHE_BYTES
 	       + sizeof(struct scu_sgl_element_pair) * SCU_MAX_SGL_ELEMENT_PAIRS;
 }
 
@@ -395,13 +395,15 @@ static void scic_sds_ssp_io_request_assign_buffers(
 	this_request->sgl_element_pair_buffer =
 		scic_sds_ssp_request_get_sgl_element_buffer(this_request);
 	this_request->sgl_element_pair_buffer =
-		scic_sds_request_align_sgl_element_buffer(this_request->sgl_element_pair_buffer);
+		PTR_ALIGN(this_request->sgl_element_pair_buffer,
+			  sizeof(struct scu_sgl_element_pair));
 
 	if (this_request->was_tag_assigned_by_user == false) {
 		this_request->task_context_buffer =
 			scic_sds_ssp_request_get_task_context_buffer(this_request);
 		this_request->task_context_buffer =
-			scic_sds_request_align_task_context_buffer(this_request->task_context_buffer);
+			PTR_ALIGN(this_request->task_context_buffer,
+				  SMP_CACHE_BYTES);
 	}
 }
 
@@ -638,7 +640,7 @@ static void scic_sds_ssp_task_request_assign_buffers(
 		this_request->task_context_buffer =
 			scic_sds_ssp_task_request_get_task_context_buffer(this_request);
 		this_request->task_context_buffer =
-			scic_sds_request_align_task_context_buffer(this_request->task_context_buffer);
+			PTR_ALIGN(this_request->task_context_buffer, SMP_CACHE_BYTES);
 	}
 }
 
