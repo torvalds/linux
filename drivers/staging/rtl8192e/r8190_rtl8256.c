@@ -327,7 +327,7 @@ SetRFPowerState8190(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->ieee80211->PowerSaveControl));
 	bool bResult = true;
 
-	if (eRFPowerState == priv->ieee80211->eRFPowerState &&
+	if (eRFPowerState == priv->eRFPowerState &&
 	    priv->bHwRfOffAction == 0) {
 		bResult = false;
 		goto out;
@@ -338,7 +338,7 @@ SetRFPowerState8190(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 	case eRfOn:
 
 		// turn on RF
-		if ((priv->ieee80211->eRFPowerState == eRfOff) &&
+		if ((priv->eRFPowerState == eRfOff) &&
 		    RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC))
 		{
 			/*
@@ -384,7 +384,7 @@ SetRFPowerState8190(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 	case eRfSleep:
 
 		// HW setting had been configured with deeper mode.
-		if(priv->ieee80211->eRFPowerState == eRfOff)
+		if(priv->eRFPowerState == eRfOff)
 			break;
 
 		r8192e_drain_tx_queues(priv);
@@ -423,7 +423,7 @@ SetRFPowerState8190(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 	if(bResult)
 	{
 		// Update current RF state variable.
-		priv->ieee80211->eRFPowerState = eRFPowerState;
+		priv->eRFPowerState = eRFPowerState;
 	}
 
 out:
@@ -640,7 +640,7 @@ MgntActSet_RF_State(
 
 	spin_lock(&priv->rf_ps_lock);
 
-	rtState = priv->ieee80211->eRFPowerState;
+	rtState = priv->eRFPowerState;
 
 	switch(StateToSet)
 	{

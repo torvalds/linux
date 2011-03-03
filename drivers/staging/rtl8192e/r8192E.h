@@ -37,6 +37,7 @@
 #include <linux/random.h>
 #include <linux/version.h>
 #include <asm/io.h>
+#include "ieee80211/rtl819x_HT.h"
 #include "ieee80211/ieee80211.h"
 
 
@@ -929,6 +930,7 @@ typedef struct r8192_priv
 	char				CCKPresentAttentuation_difference;
 	char				CCKPresentAttentuation;
 	// Use to calculate PWBD.
+	RT_RF_POWER_STATE		eRFPowerState;
 	u8	bCckHighPower;
 	long	undecorated_smoothed_pwdb;
 	long	undecorated_smoothed_cck_adc_pwdb[4];

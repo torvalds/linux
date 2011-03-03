@@ -810,7 +810,7 @@ void rtl8192_phy_SetRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32
 
 	if (!rtl8192_phy_CheckIsLegalRFPath(dev, eRFPath))
 		return;
-	if(priv->ieee80211->eRFPowerState != eRfOn && !priv->being_init_adapter)
+	if (priv->eRFPowerState != eRfOn && !priv->being_init_adapter)
 		return;
 	//down(&priv->rf_sem);
 
@@ -859,7 +859,7 @@ u32 rtl8192_phy_QueryRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u3
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	if (!rtl8192_phy_CheckIsLegalRFPath(dev, eRFPath))
 		return 0;
-	if(priv->ieee80211->eRFPowerState != eRfOn && !priv->being_init_adapter)
+	if (priv->eRFPowerState != eRfOn && !priv->being_init_adapter)
 		return	0;
 	down(&priv->rf_sem);
 	if (priv->Rf_Mode == RF_OP_By_FW)

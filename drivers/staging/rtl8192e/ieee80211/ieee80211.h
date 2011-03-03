@@ -1988,7 +1988,6 @@ struct ieee80211_device {
 	RT_PS_MODE	dot11PowerSaveMode; // Power save mode configured.
 	bool actscanning;
 	bool beinretry;
-	RT_RF_POWER_STATE		eRFPowerState;
 	RT_RF_CHANGE_SOURCE	RfOffReason;
 	bool is_set_key;
 	//11n spec related I wonder if These info structure need to be moved out of ieee80211_device

@@ -215,7 +215,7 @@ static int r8192_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 	if (priv->bHwRadioOff)
 		return 0;
 
-	rtState = priv->ieee80211->eRFPowerState;
+	rtState = priv->eRFPowerState;
 	down(&priv->wx_sem);
 #ifdef ENABLE_IPS
 	if(wrqu->mode == IW_MODE_ADHOC){
@@ -384,7 +384,7 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 	if (priv->bHwRadioOff)
 		return 0;
 
-	rtState = priv->ieee80211->eRFPowerState;
+	rtState = priv->eRFPowerState;
 
 	if(!priv->up) return -ENETDOWN;
 	if (priv->ieee80211->LinkDetectInfo.bBusyTraffic == true)
@@ -475,7 +475,7 @@ static int r8192_wx_set_essid(struct net_device *dev,
 	if (priv->bHwRadioOff)
 		return 0;
 
-	rtState = priv->ieee80211->eRFPowerState;
+	rtState = priv->eRFPowerState;
 	down(&priv->wx_sem);
 
 #ifdef ENABLE_IPS

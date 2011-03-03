@@ -2847,7 +2847,7 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	else
 	{
 		RT_TRACE((COMP_INIT|COMP_RF|COMP_POWER), "%s(): RF-ON \n",__FUNCTION__);
-		priv->ieee80211->eRFPowerState = eRfOn;
+		priv->eRFPowerState = eRfOn;
 		priv->ieee80211->RfOffReason = 0;
 	}
 }
@@ -3059,7 +3059,7 @@ rtl819x_ifcheck_resetornot(struct net_device *dev)
 	RESET_TYPE	RxResetType = RESET_TYPE_NORESET;
 	RT_RF_POWER_STATE 	rfState;
 
-	rfState = priv->ieee80211->eRFPowerState;
+	rfState = priv->eRFPowerState;
 
 	if( rfState != eRfOff &&
 		/*ADAPTER_TEST_STATUS_FLAG(Adapter, ADAPTER_STATUS_FW_DOWNLOAD_FAILURE)) &&*/
@@ -3218,7 +3218,7 @@ IPSEnter(struct net_device *dev)
 
 	if (pPSC->bInactivePs)
 	{
-		rtState = priv->ieee80211->eRFPowerState;
+		rtState = priv->eRFPowerState;
 		//
 		// Added by Bruce, 2007-12-25.
 		// Do not enter IPS in the following conditions:
@@ -3253,7 +3253,7 @@ IPSLeave(struct net_device *dev)
 
 	if (pPSC->bInactivePs)
 	{
-		rtState = priv->ieee80211->eRFPowerState;
+		rtState = priv->eRFPowerState;
 		if (rtState != eRfOn  && !pPSC->bSwRfProcessing && priv->ieee80211->RfOffReason <= RF_CHANGE_BY_IPS)
 		{
 			RT_TRACE(COMP_POWER, "IPSLeave(): Turn on RF.\n");
@@ -3278,7 +3278,7 @@ void ieee80211_ips_leave_wq(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	RT_RF_POWER_STATE	rtState;
-	rtState = priv->ieee80211->eRFPowerState;
+	rtState = priv->eRFPowerState;
 
 	if(priv->ieee80211->PowerSaveControl.bInactivePs){
 		if(rtState == eRfOff){
@@ -3345,7 +3345,7 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 #ifdef ENABLE_IPS
 	if(ieee->actscanning == false){
 		if((ieee->iw_mode == IW_MODE_INFRA) && (ieee->state == IEEE80211_NOLINK) &&
-		    (ieee->eRFPowerState == eRfOn)&&!ieee->is_set_key &&
+		    (priv->eRFPowerState == eRfOn) && !ieee->is_set_key &&
 		    (!ieee->proto_stoppping) && !ieee->wx_set_enc){
 			if(ieee->PowerSaveControl.ReturnPoint == IPS_CALLBACK_NONE){
 				IPSEnter(dev);
@@ -3408,7 +3408,7 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 			rtl819x_update_rxcounts(priv, &TotalRxBcnNum, &TotalRxDataNum);
 			if((TotalRxBcnNum+TotalRxDataNum) == 0)
 			{
-				if( ieee->eRFPowerState == eRfOff)
+				if (priv->eRFPowerState == eRfOff)
 					RT_TRACE(COMP_ERR,"========>%s()\n",__FUNCTION__);
 				printk("===>%s(): AP is power off,connect another one\n",__FUNCTION__);
 				//		Dot11d_Reset(dev);
@@ -3478,7 +3478,7 @@ static int _rtl8192_up(struct net_device *dev)
 	}
 	RT_TRACE(COMP_INIT, "start adapter finished\n");
 
-	if(priv->ieee80211->eRFPowerState!=eRfOn)
+	if (priv->eRFPowerState != eRfOn)
 		MgntActSet_RF_State(dev, eRfOn, priv->ieee80211->RfOffReason);
 
 	if(priv->ieee80211->state != IEEE80211_LINKED)
@@ -5045,7 +5045,7 @@ void setKey(	struct net_device *dev,
 #ifdef ENABLE_IPS
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	RT_RF_POWER_STATE	rtState;
-	rtState = priv->ieee80211->eRFPowerState;
+	rtState = priv->eRFPowerState;
 	if(priv->ieee80211->PowerSaveControl.bInactivePs){
 		if(rtState == eRfOff){
 			if(priv->ieee80211->RfOffReason > RF_CHANGE_BY_IPS)
