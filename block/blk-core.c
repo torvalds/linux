@@ -446,6 +446,11 @@ void blk_put_queue(struct request_queue *q)
 	kobject_put(&q->kobj);
 }
 
+/*
+ * Note: If a driver supplied the queue lock, it should not zap that lock
+ * unexpectedly as some queue cleanup components like elevator_exit() and
+ * blk_throtl_exit() need queue lock.
+ */
 void blk_cleanup_queue(struct request_queue *q)
 {
 	/*
@@ -540,6 +545,12 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	mutex_init(&q->sysfs_lock);
 	spin_lock_init(&q->__queue_lock);
 
+	/*
+	 * By default initialize queue_lock to internal lock and driver can
+	 * override it later if need be.
+	 */
+	q->queue_lock = &q->__queue_lock;
+
 	return q;
 }
 EXPORT_SYMBOL(blk_alloc_queue_node);
@@ -624,7 +635,10 @@ blk_init_allocated_queue_node(struct request_queue *q, request_fn_proc *rfn,
 	q->unprep_rq_fn		= NULL;
 	q->unplug_fn		= generic_unplug_device;
 	q->queue_flags		= QUEUE_FLAG_DEFAULT;
-	q->queue_lock		= lock;
+
+	/* Override internal queue lock with supplied lock pointer */
+	if (lock)
+		q->queue_lock		= lock;
 
 	/*
 	 * This also sets hw/phys segments, boundary and size
