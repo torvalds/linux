@@ -1883,8 +1883,6 @@ static void rtl8192_hw_to_sleep(struct net_device *dev, u32 th, u32 tl)
 	u32 tmp;
 	u32 rb = jiffies;
 
-	spin_lock(&priv->ps_lock);
-
 	// Writing HW register with 0 equals to disable
 	// the timer, that is not really what we want
 	//
@@ -1897,14 +1895,14 @@ static void rtl8192_hw_to_sleep(struct net_device *dev, u32 th, u32 tl)
 	if(((tl>=rb)&& (tl-rb) <= MSECS(MIN_SLEEP_TIME))
 			||((rb>tl)&& (rb-tl) < MSECS(MIN_SLEEP_TIME))) {
 		printk("too short to sleep::%x, %x, %lx\n",tl, rb,  MSECS(MIN_SLEEP_TIME));
-		goto out_unlock;
+		return;
 	}
 
 	if(((tl > rb) && ((tl-rb) > MSECS(MAX_SLEEP_TIME)))||
 			((tl < rb) && (tl>MSECS(69)) && ((rb-tl) > MSECS(MAX_SLEEP_TIME)))||
 			((tl<rb)&&(tl<MSECS(69))&&((tl+0xffffffff-rb)>MSECS(MAX_SLEEP_TIME)))) {
 		printk("========>too long to sleep:%x, %x, %lx\n", tl, rb,  MSECS(MAX_SLEEP_TIME));
-		goto out_unlock;
+		return;
 	}
 
 	tmp = (tl>rb)?(tl-rb):(rb-tl);
@@ -1913,8 +1911,6 @@ static void rtl8192_hw_to_sleep(struct net_device *dev, u32 th, u32 tl)
 
 	queue_delayed_work(priv->ieee80211->wq,
 			(void *)&priv->ieee80211->hw_sleep_wq,0);
-out_unlock:
-	spin_unlock(&priv->ps_lock);
 }
 
 static void rtl8192_init_priv_variable(struct net_device* dev)
@@ -2043,7 +2039,6 @@ static void rtl8192_init_priv_lock(struct r8192_priv* priv)
 {
 	spin_lock_init(&priv->irq_th_lock);
 	spin_lock_init(&priv->rf_ps_lock);
-	spin_lock_init(&priv->ps_lock);
 	sema_init(&priv->wx_sem,1);
 	sema_init(&priv->rf_sem,1);
 	mutex_init(&priv->mutex);

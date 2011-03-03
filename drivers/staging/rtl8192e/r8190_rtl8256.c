@@ -327,8 +327,6 @@ SetRFPowerState8190(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->ieee80211->PowerSaveControl));
 	bool bResult = true;
 
-	spin_lock(&priv->ps_lock);
-
 	if (eRFPowerState == priv->ieee80211->eRFPowerState &&
 	    priv->bHwRfOffAction == 0) {
 		bResult = false;
@@ -429,7 +427,6 @@ SetRFPowerState8190(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 	}
 
 out:
-	spin_unlock(&priv->ps_lock);
 	return bResult;
 }
 
