@@ -63,7 +63,7 @@ static int __devinit olpc_xo1_probe(struct platform_device *pdev)
 	if (!machine_is_olpc())
 		return -ENODEV;
 
-	err = mfd_shared_cell_enable(pdev);
+	err = mfd_cell_enable(pdev);
 	if (err)
 		return err;
 
@@ -88,7 +88,7 @@ static int __devinit olpc_xo1_probe(struct platform_device *pdev)
 
 static int __devexit olpc_xo1_remove(struct platform_device *pdev)
 {
-	mfd_shared_cell_disable(pdev);
+	mfd_cell_disable(pdev);
 
 	if (strcmp(pdev->name, "olpc-xo1-pms") == 0)
 		pms_base = 0;

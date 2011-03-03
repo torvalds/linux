@@ -59,8 +59,8 @@ struct mfd_cell {
  * being called only when a device is first being enabled or no other
  * clients are making use of it.
  */
-extern int mfd_shared_cell_enable(struct platform_device *pdev);
-extern int mfd_shared_cell_disable(struct platform_device *pdev);
+extern int mfd_cell_enable(struct platform_device *pdev);
+extern int mfd_cell_disable(struct platform_device *pdev);
 
 /*
  * Given a platform device that's been created by mfd_add_devices(), fetch

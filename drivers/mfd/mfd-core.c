@@ -18,7 +18,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
-int mfd_shared_cell_enable(struct platform_device *pdev)
+int mfd_cell_enable(struct platform_device *pdev)
 {
 	const struct mfd_cell *cell = mfd_get_cell(pdev);
 	int err = 0;
@@ -33,9 +33,9 @@ int mfd_shared_cell_enable(struct platform_device *pdev)
 
 	return err;
 }
-EXPORT_SYMBOL(mfd_shared_cell_enable);
+EXPORT_SYMBOL(mfd_cell_enable);
 
-int mfd_shared_cell_disable(struct platform_device *pdev)
+int mfd_cell_disable(struct platform_device *pdev)
 {
 	const struct mfd_cell *cell = mfd_get_cell(pdev);
 	int err = 0;
@@ -53,7 +53,7 @@ int mfd_shared_cell_disable(struct platform_device *pdev)
 
 	return err;
 }
-EXPORT_SYMBOL(mfd_shared_cell_disable);
+EXPORT_SYMBOL(mfd_cell_disable);
 
 static int mfd_add_device(struct device *parent, int id,
 			  const struct mfd_cell *cell,
