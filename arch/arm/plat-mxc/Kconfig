@@ -33,6 +33,7 @@ config ARCH_MX3
 config ARCH_MXC91231
 	bool "MXC91231-based"
 	select CPU_V6
+	select MXC_AVIC
 	help
 	  This enables support for systems based on the Freescale MXC91231 family
 
