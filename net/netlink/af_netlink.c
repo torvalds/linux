@@ -1364,12 +1364,6 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	NETLINK_CB(skb).dst_group = dst_group;
 	memcpy(NETLINK_CREDS(skb), &siocb->scm->creds, sizeof(struct ucred));
 
-	/* What can I do? Netlink is asynchronous, so that
-	   we will have to save current capabilities to
-	   check them, when this message will be delivered
-	   to corresponding kernel module.   --ANK (980802)
-	 */
-
 	err = -EFAULT;
 	if (memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len)) {
 		kfree_skb(skb);
