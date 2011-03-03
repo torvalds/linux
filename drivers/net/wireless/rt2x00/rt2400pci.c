@@ -1131,19 +1131,21 @@ static void rt2400pci_write_tx_desc(struct queue_entry *entry,
 	rt2x00_desc_write(txd, 2, word);
 
 	rt2x00_desc_read(txd, 3, &word);
-	rt2x00_set_field32(&word, TXD_W3_PLCP_SIGNAL, txdesc->signal);
+	rt2x00_set_field32(&word, TXD_W3_PLCP_SIGNAL, txdesc->u.plcp.signal);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_SIGNAL_REGNUM, 5);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_SIGNAL_BUSY, 1);
-	rt2x00_set_field32(&word, TXD_W3_PLCP_SERVICE, txdesc->service);
+	rt2x00_set_field32(&word, TXD_W3_PLCP_SERVICE, txdesc->u.plcp.service);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_SERVICE_REGNUM, 6);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_SERVICE_BUSY, 1);
 	rt2x00_desc_write(txd, 3, word);
 
 	rt2x00_desc_read(txd, 4, &word);
-	rt2x00_set_field32(&word, TXD_W4_PLCP_LENGTH_LOW, txdesc->length_low);
+	rt2x00_set_field32(&word, TXD_W4_PLCP_LENGTH_LOW,
+			   txdesc->u.plcp.length_low);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_LENGTH_LOW_REGNUM, 8);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_LENGTH_LOW_BUSY, 1);
-	rt2x00_set_field32(&word, TXD_W4_PLCP_LENGTH_HIGH, txdesc->length_high);
+	rt2x00_set_field32(&word, TXD_W4_PLCP_LENGTH_HIGH,
+			   txdesc->u.plcp.length_high);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_LENGTH_HIGH_REGNUM, 7);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_LENGTH_HIGH_BUSY, 1);
 	rt2x00_desc_write(txd, 4, word);

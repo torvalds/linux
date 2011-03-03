@@ -472,14 +472,15 @@ void rt2800_write_tx_data(struct queue_entry *entry,
 			   test_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags));
 	rt2x00_set_field32(&word, TXWI_W0_AMPDU,
 			   test_bit(ENTRY_TXD_HT_AMPDU, &txdesc->flags));
-	rt2x00_set_field32(&word, TXWI_W0_MPDU_DENSITY, txdesc->mpdu_density);
-	rt2x00_set_field32(&word, TXWI_W0_TX_OP, txdesc->txop);
-	rt2x00_set_field32(&word, TXWI_W0_MCS, txdesc->mcs);
+	rt2x00_set_field32(&word, TXWI_W0_MPDU_DENSITY,
+			   txdesc->u.ht.mpdu_density);
+	rt2x00_set_field32(&word, TXWI_W0_TX_OP, txdesc->u.ht.txop);
+	rt2x00_set_field32(&word, TXWI_W0_MCS, txdesc->u.ht.mcs);
 	rt2x00_set_field32(&word, TXWI_W0_BW,
 			   test_bit(ENTRY_TXD_HT_BW_40, &txdesc->flags));
 	rt2x00_set_field32(&word, TXWI_W0_SHORT_GI,
 			   test_bit(ENTRY_TXD_HT_SHORT_GI, &txdesc->flags));
-	rt2x00_set_field32(&word, TXWI_W0_STBC, txdesc->stbc);
+	rt2x00_set_field32(&word, TXWI_W0_STBC, txdesc->u.ht.stbc);
 	rt2x00_set_field32(&word, TXWI_W0_PHYMODE, txdesc->rate_mode);
 	rt2x00_desc_write(txwi, 0, word);
 
@@ -488,7 +489,7 @@ void rt2800_write_tx_data(struct queue_entry *entry,
 			   test_bit(ENTRY_TXD_ACK, &txdesc->flags));
 	rt2x00_set_field32(&word, TXWI_W1_NSEQ,
 			   test_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags));
-	rt2x00_set_field32(&word, TXWI_W1_BW_WIN_SIZE, txdesc->ba_size);
+	rt2x00_set_field32(&word, TXWI_W1_BW_WIN_SIZE, txdesc->u.ht.ba_size);
 	rt2x00_set_field32(&word, TXWI_W1_WIRELESS_CLI_ID,
 			   test_bit(ENTRY_TXD_ENCRYPT, &txdesc->flags) ?
 			   txdesc->key_idx : 0xff);

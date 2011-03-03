@@ -305,20 +305,27 @@ struct txentry_desc {
 	u16 length;
 	u16 header_length;
 
-	u16 length_high;
-	u16 length_low;
-	u16 signal;
-	u16 service;
+	union {
+		struct {
+			u16 length_high;
+			u16 length_low;
+			u16 signal;
+			u16 service;
+		} plcp;
 
-	u16 mcs;
-	u16 stbc;
-	u16 ba_size;
+		struct {
+			u16 mcs;
+			u16 stbc;
+			u16 ba_size;
+			u16 mpdu_density;
+			short txop;
+		} ht;
+	} u;
+
 	u16 rate_mode;
-	u16 mpdu_density;
 
 	short retry_limit;
 	short ifs;
-	short txop;
 
 	enum cipher cipher;
 	u16 key_idx;

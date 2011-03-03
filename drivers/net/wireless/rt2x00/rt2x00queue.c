@@ -270,12 +270,12 @@ static void rt2x00queue_create_tx_descriptor_plcp(struct queue_entry *entry,
 	 * PLCP setup
 	 * Length calculation depends on OFDM/CCK rate.
 	 */
-	txdesc->signal = hwrate->plcp;
-	txdesc->service = 0x04;
+	txdesc->u.plcp.signal = hwrate->plcp;
+	txdesc->u.plcp.service = 0x04;
 
 	if (hwrate->flags & DEV_RATE_OFDM) {
-		txdesc->length_high = (data_length >> 6) & 0x3f;
-		txdesc->length_low = data_length & 0x3f;
+		txdesc->u.plcp.length_high = (data_length >> 6) & 0x3f;
+		txdesc->u.plcp.length_low = data_length & 0x3f;
 	} else {
 		/*
 		 * Convert length to microseconds.
@@ -290,18 +290,18 @@ static void rt2x00queue_create_tx_descriptor_plcp(struct queue_entry *entry,
 			 * Check if we need to set the Length Extension
 			 */
 			if (hwrate->bitrate == 110 && residual <= 30)
-				txdesc->service |= 0x80;
+				txdesc->u.plcp.service |= 0x80;
 		}
 
-		txdesc->length_high = (duration >> 8) & 0xff;
-		txdesc->length_low = duration & 0xff;
+		txdesc->u.plcp.length_high = (duration >> 8) & 0xff;
+		txdesc->u.plcp.length_low = duration & 0xff;
 
 		/*
 		 * When preamble is enabled we should set the
 		 * preamble bit for the signal.
 		 */
 		if (txrate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
-			txdesc->signal |= 0x08;
+			txdesc->u.plcp.signal |= 0x08;
 	}
 }
 
@@ -397,9 +397,12 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	 * Apply TX descriptor handling by components
 	 */
 	rt2x00crypto_create_tx_descriptor(entry, txdesc);
-	rt2x00ht_create_tx_descriptor(entry, txdesc, hwrate);
 	rt2x00queue_create_tx_descriptor_seq(entry, txdesc);
-	rt2x00queue_create_tx_descriptor_plcp(entry, txdesc, hwrate);
+
+	if (test_bit(DRIVER_REQUIRE_HT_TX_DESC, &rt2x00dev->flags))
+		rt2x00ht_create_tx_descriptor(entry, txdesc, hwrate);
+	else
+		rt2x00queue_create_tx_descriptor_plcp(entry, txdesc, hwrate);
 }
 
 static int rt2x00queue_write_tx_data(struct queue_entry *entry,
