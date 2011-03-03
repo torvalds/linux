@@ -1455,7 +1455,7 @@ static int __init dw_init(void)
 {
 	return platform_driver_probe(&dw_driver, dw_probe);
 }
-module_init(dw_init);
+subsys_initcall(dw_init);
 
 static void __exit dw_exit(void)
 {
