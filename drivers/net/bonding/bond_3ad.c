@@ -281,23 +281,23 @@ static inline int __check_agg_selection_timer(struct port *port)
 }
 
 /**
- * __get_rx_machine_lock - lock the port's RX machine
+ * __get_state_machine_lock - lock the port's state machines
  * @port: the port we're looking at
  *
  */
-static inline void __get_rx_machine_lock(struct port *port)
+static inline void __get_state_machine_lock(struct port *port)
 {
-	spin_lock_bh(&(SLAVE_AD_INFO(port->slave).rx_machine_lock));
+	spin_lock_bh(&(SLAVE_AD_INFO(port->slave).state_machine_lock));
 }
 
 /**
- * __release_rx_machine_lock - unlock the port's RX machine
+ * __release_state_machine_lock - unlock the port's state machines
  * @port: the port we're looking at
  *
  */
-static inline void __release_rx_machine_lock(struct port *port)
+static inline void __release_state_machine_lock(struct port *port)
 {
-	spin_unlock_bh(&(SLAVE_AD_INFO(port->slave).rx_machine_lock));
+	spin_unlock_bh(&(SLAVE_AD_INFO(port->slave).state_machine_lock));
 }
 
 /**
@@ -388,14 +388,14 @@ static u8 __get_duplex(struct port *port)
 }
 
 /**
- * __initialize_port_locks - initialize a port's RX machine spinlock
+ * __initialize_port_locks - initialize a port's STATE machine spinlock
  * @port: the port we're looking at
  *
  */
 static inline void __initialize_port_locks(struct port *port)
 {
 	// make sure it isn't called twice
-	spin_lock_init(&(SLAVE_AD_INFO(port->slave).rx_machine_lock));
+	spin_lock_init(&(SLAVE_AD_INFO(port->slave).state_machine_lock));
 }
 
 //conversions
@@ -2154,7 +2154,7 @@ void bond_3ad_state_machine_handler(struct work_struct *work)
 		 * by all (e.g., port->sm_vars).  ad_rx_machine may run
 		 * concurrently due to incoming LACPDU.
 		 */
-		__get_rx_machine_lock(port);
+		__get_state_machine_lock(port);
 
 		ad_rx_machine(NULL, port);
 		ad_periodic_machine(port);
@@ -2166,7 +2166,7 @@ void bond_3ad_state_machine_handler(struct work_struct *work)
 		if (port->sm_vars & AD_PORT_BEGIN)
 			port->sm_vars &= ~AD_PORT_BEGIN;
 
-		__release_rx_machine_lock(port);
+		__release_state_machine_lock(port);
 	}
 
 re_arm:
@@ -2204,9 +2204,9 @@ static void bond_3ad_rx_indication(struct lacpdu *lacpdu, struct slave *slave, u
 			pr_debug("Received LACPDU on port %d\n",
 				 port->actor_port_number);
 			/* Protect against concurrent state machines */
-			__get_rx_machine_lock(port);
+			__get_state_machine_lock(port);
 			ad_rx_machine(lacpdu, port);
-			__release_rx_machine_lock(port);
+			__release_state_machine_lock(port);
 			break;
 
 		case AD_TYPE_MARKER:
