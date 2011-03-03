@@ -1205,6 +1205,9 @@ static int intel_pmu_cpu_prepare(int cpu)
 {
 	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
 
+	if (!cpu_has_ht_siblings())
+		return NOTIFY_OK;
+
 	cpuc->per_core = kzalloc_node(sizeof(struct intel_percore),
 				      GFP_KERNEL, cpu_to_node(cpu));
 	if (!cpuc->per_core)
@@ -1221,6 +1224,15 @@ static void intel_pmu_cpu_starting(int cpu)
 	int core_id = topology_core_id(cpu);
 	int i;
 
+	init_debug_store_on_cpu(cpu);
+	/*
+	 * Deal with CPUs that don't clear their LBRs on power-up.
+	 */
+	intel_pmu_lbr_reset();
+
+	if (!cpu_has_ht_siblings())
+		return;
+
 	for_each_cpu(i, topology_thread_cpumask(cpu)) {
 		struct intel_percore *pc = per_cpu(cpu_hw_events, i).per_core;
 
@@ -1233,12 +1245,6 @@ static void intel_pmu_cpu_starting(int cpu)
 
 	cpuc->per_core->core_id = core_id;
 	cpuc->per_core->refcnt++;
-
-	init_debug_store_on_cpu(cpu);
-	/*
-	 * Deal with CPUs that don't clear their LBRs on power-up.
-	 */
-	intel_pmu_lbr_reset();
 }
 
 static void intel_pmu_cpu_dying(int cpu)
