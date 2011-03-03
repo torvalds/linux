@@ -43,16 +43,14 @@
 #include "vmbus_hid_protocol.h"
 
 
-enum pipe_prot_msg_type
-{
+enum pipe_prot_msg_type {
 	PipeMessageInvalid = 0,
 	PipeMessageData,
 	PipeMessageMaximum
 };
 
 
-struct pipe_prt_msg
-{
+struct pipe_prt_msg {
 	enum pipe_prot_msg_type PacketType;
 	u32                DataSize;
 	char               Data[1];
@@ -447,8 +445,7 @@ MousevscOnDeviceRemove(struct hv_device *Device)
 	 *
 	 * so that outstanding requests can be completed.
 	 */
-	while (inputDevice->NumOutstandingRequests)
-	{
+	while (inputDevice->NumOutstandingRequests) {
 		pr_info("waiting for %d requests to complete...", inputDevice->NumOutstandingRequests);
 
 		udelay(100);
@@ -497,9 +494,9 @@ MousevscOnSendCompletion(struct hv_device *Device,
 
 	request = (void*)(unsigned long *) Packet->trans_id;
 
-	if (request == &inputDevice->ProtocolReq)
-	{
-
+	if (request == &inputDevice->ProtocolReq) {
+		/* FIXME */
+		/* Shouldn't we be doing something here? */
 	}
 
 	PutInputDevice(Device);
@@ -577,14 +574,12 @@ MousevscOnReceiveDeviceInfo(
 	return;
 
 Cleanup:
-	if (InputDevice->HidDesc)
-	{
+	if (InputDevice->HidDesc) {
 		kfree(InputDevice->HidDesc);
 		InputDevice->HidDesc = NULL;
 	}
 
-	if (InputDevice->ReportDesc)
-	{
+	if (InputDevice->ReportDesc) {
 		kfree(InputDevice->ReportDesc);
 		InputDevice->ReportDesc = NULL;
 	}
@@ -603,8 +598,7 @@ MousevscOnReceiveInputReport(
 {
 	struct mousevsc_drv_obj *inputDriver;
 
-	if (!InputDevice->bInitializeComplete)
-	{
+	if (!InputDevice->bInitializeComplete) {
 		pr_info("Initialization incomplete...ignoring InputReport msg");
 		return;
 	}
@@ -624,8 +618,7 @@ MousevscOnReceive(struct hv_device *Device, struct vmpacket_descriptor *Packet)
 	struct mousevsc_dev *inputDevice;
 
 	inputDevice = MustGetInputDevice(Device);
-	if (!inputDevice)
-	{
+	if (!inputDevice) {
 		pr_err("unable to get input device...device being destroyed?");
 		return;
 	}
@@ -700,8 +693,7 @@ void MousevscOnChannelCallback(void *Context)
 			if (bytesRecvd > 0) {
 				desc = (struct vmpacket_descriptor *)buffer;
 
-				switch (desc->type)
-				{
+				switch (desc->type) {
 					case VM_PKT_COMP:
 						MousevscOnSendCompletion(device,
 									 desc);
