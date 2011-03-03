@@ -316,64 +316,6 @@ static struct list_head	unconf_id_hashtbl[CLIENT_HASH_SIZE];
 static struct list_head client_lru;
 static struct list_head close_lru;
 
-static void unhash_generic_stateid(struct nfs4_stateid *stp)
-{
-	list_del(&stp->st_hash);
-	list_del(&stp->st_perfile);
-	list_del(&stp->st_perstateowner);
-}
-
-static void free_generic_stateid(struct nfs4_stateid *stp)
-{
-	put_nfs4_file(stp->st_file);
-	kmem_cache_free(stateid_slab, stp);
-}
-
-static void release_lock_stateid(struct nfs4_stateid *stp)
-{
-	struct file *file;
-
-	unhash_generic_stateid(stp);
-	file = find_any_file(stp->st_file);
-	if (file)
-		locks_remove_posix(file, (fl_owner_t)stp->st_stateowner);
-	free_generic_stateid(stp);
-}
-
-static void unhash_lockowner(struct nfs4_stateowner *sop)
-{
-	struct nfs4_stateid *stp;
-
-	list_del(&sop->so_idhash);
-	list_del(&sop->so_strhash);
-	list_del(&sop->so_perstateid);
-	while (!list_empty(&sop->so_stateids)) {
-		stp = list_first_entry(&sop->so_stateids,
-				struct nfs4_stateid, st_perstateowner);
-		release_lock_stateid(stp);
-	}
-}
-
-static void release_lockowner(struct nfs4_stateowner *sop)
-{
-	unhash_lockowner(sop);
-	nfs4_put_stateowner(sop);
-}
-
-static void
-release_stateid_lockowners(struct nfs4_stateid *open_stp)
-{
-	struct nfs4_stateowner *lock_sop;
-
-	while (!list_empty(&open_stp->st_lockowners)) {
-		lock_sop = list_entry(open_stp->st_lockowners.next,
-				struct nfs4_stateowner, so_perstateid);
-		/* list_del(&open_stp->st_lockowners);  */
-		BUG_ON(lock_sop->so_is_open_owner);
-		release_lockowner(lock_sop);
-	}
-}
-
 /*
  * We store the NONE, READ, WRITE, and BOTH bits separately in the
  * st_{access,deny}_bmap field of the stateid, in order to track not
@@ -444,6 +386,64 @@ static int nfs4_access_bmap_to_omode(struct nfs4_stateid *stp)
 
 	set_access(&access, stp->st_access_bmap);
 	return nfs4_access_to_omode(access);
+}
+
+static void unhash_generic_stateid(struct nfs4_stateid *stp)
+{
+	list_del(&stp->st_hash);
+	list_del(&stp->st_perfile);
+	list_del(&stp->st_perstateowner);
+}
+
+static void free_generic_stateid(struct nfs4_stateid *stp)
+{
+	put_nfs4_file(stp->st_file);
+	kmem_cache_free(stateid_slab, stp);
+}
+
+static void release_lock_stateid(struct nfs4_stateid *stp)
+{
+	struct file *file;
+
+	unhash_generic_stateid(stp);
+	file = find_any_file(stp->st_file);
+	if (file)
+		locks_remove_posix(file, (fl_owner_t)stp->st_stateowner);
+	free_generic_stateid(stp);
+}
+
+static void unhash_lockowner(struct nfs4_stateowner *sop)
+{
+	struct nfs4_stateid *stp;
+
+	list_del(&sop->so_idhash);
+	list_del(&sop->so_strhash);
+	list_del(&sop->so_perstateid);
+	while (!list_empty(&sop->so_stateids)) {
+		stp = list_first_entry(&sop->so_stateids,
+				struct nfs4_stateid, st_perstateowner);
+		release_lock_stateid(stp);
+	}
+}
+
+static void release_lockowner(struct nfs4_stateowner *sop)
+{
+	unhash_lockowner(sop);
+	nfs4_put_stateowner(sop);
+}
+
+static void
+release_stateid_lockowners(struct nfs4_stateid *open_stp)
+{
+	struct nfs4_stateowner *lock_sop;
+
+	while (!list_empty(&open_stp->st_lockowners)) {
+		lock_sop = list_entry(open_stp->st_lockowners.next,
+				struct nfs4_stateowner, so_perstateid);
+		/* list_del(&open_stp->st_lockowners);  */
+		BUG_ON(lock_sop->so_is_open_owner);
+		release_lockowner(lock_sop);
+	}
 }
 
 static void release_open_stateid(struct nfs4_stateid *stp)
@@ -3764,7 +3764,6 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct file_lock conflock;
 	__be32 status = 0;
 	unsigned int strhashval;
-	unsigned int cmd;
 	int err;
 
 	dprintk("NFSD: nfsd4_lock: start=%Ld length=%Ld\n",
@@ -3851,8 +3850,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 				filp = find_readable_file(lock_stp->st_file);
 			}
 			file_lock.fl_type = F_RDLCK;
-			cmd = F_SETLK;
-		break;
+			break;
 		case NFS4_WRITE_LT:
 		case NFS4_WRITEW_LT:
 			if (find_writeable_file(lock_stp->st_file)) {
@@ -3860,8 +3858,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 				filp = find_writeable_file(lock_stp->st_file);
 			}
 			file_lock.fl_type = F_WRLCK;
-			cmd = F_SETLK;
-		break;
+			break;
 		default:
 			status = nfserr_inval;
 		goto out;
@@ -3885,7 +3882,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	* Note: locks.c uses the BKL to protect the inode's lock list.
 	*/
 
-	err = vfs_lock_file(filp, cmd, &file_lock, &conflock);
+	err = vfs_lock_file(filp, F_SETLK, &file_lock, &conflock);
 	switch (-err) {
 	case 0: /* success! */
 		update_stateid(&lock_stp->st_stateid);
