@@ -1673,12 +1673,6 @@ static void scic_sds_port_ready_substate_waiting_enter(
 
 	scic_sds_port_suspend_port_task_scheduler(this_port);
 
-	/* Kill the dummy task for this port if it has not yet posted
-	 * the hardware will treat this as a NOP and just return abort
-	 * complete.
-	 */
-	scic_sds_port_abort_dummy_request(this_port);
-
 	this_port->not_ready_reason = SCIC_PORT_NOT_READY_NO_ACTIVE_PHYS;
 
 	if (this_port->active_phy_mask != 0) {
@@ -1743,6 +1737,13 @@ static void scic_sds_port_ready_substate_operational_exit(
 	struct sci_base_object *object)
 {
 	struct scic_sds_port *this_port = (struct scic_sds_port *)object;
+
+/*
+ * Kill the dummy task for this port if it has not yet posted
+ * the hardware will treat this as a NOP and just return abort
+ * complete.
+ */
+	scic_sds_port_abort_dummy_request(this_port);
 
 	isci_event_port_not_ready(
 		scic_sds_port_get_controller(this_port),
@@ -2642,6 +2643,13 @@ void scic_sds_port_invalidate_dummy_remote_node(struct scic_sds_port *sci_port)
 	rnc = &scic->remote_node_context_table[rni];
 
 	rnc->ssp.is_valid = false;
+
+	/* ensure the preceding tc abort request has reached the
+	 * controller and give it ample time to act before posting the rnc
+	 * invalidate
+	 */
+	SMU_ISR_READ(scic); /* flush */
+	udelay(10);
 
 	command = SCU_CONTEXT_COMMAND_POST_RNC_INVALIDATE |
 		  phys_index << SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT | rni;
