@@ -116,7 +116,7 @@ struct synthhid_protocol_response {
 
 struct synthhid_device_info {
 	struct synthhid_msg_hdr header;
-	struct hv_input_dev_info    HidDeviceAttributes;
+	struct hv_input_dev_info hid_dev_info;
 	unsigned char               HidDescriptorInformation[1];
 };
 
@@ -184,7 +184,7 @@ struct mousevsc_dev {
 	struct hid_descriptor	*HidDesc;
 	unsigned char		*ReportDesc;
 	u32			ReportDescSize;
-	struct hv_input_dev_info DeviceAttr;
+	struct hv_input_dev_info hid_dev_info;
 };
 
 
@@ -349,7 +349,7 @@ static void MousevscOnReceiveDeviceInfo(struct mousevsc_dev *InputDevice, struct
 	InputDevice->DeviceInfoStatus = 0;
 
 	/* Save the device attr */
-	memcpy(&InputDevice->DeviceAttr, &DeviceInfo->HidDeviceAttributes, sizeof(struct hv_input_dev_info));
+	memcpy(&InputDevice->hid_dev_info, &DeviceInfo->hid_dev_info, sizeof(struct hv_input_dev_info));
 
 	/* Save the hid desc */
 	desc = (struct hid_descriptor *)DeviceInfo->HidDescriptorInformation;
@@ -669,7 +669,7 @@ static int MousevscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 	int ret = 0;
 	struct mousevsc_dev *inputDevice;
 	struct mousevsc_drv_obj *inputDriver;
-	struct hv_input_dev_info deviceInfo;
+	struct hv_input_dev_info dev_info;
 
 	inputDevice = AllocInputDevice(Device);
 
@@ -708,13 +708,13 @@ static int MousevscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 
 	inputDriver = (struct mousevsc_drv_obj *)inputDevice->Device->drv;
 
-	deviceInfo.vendor = inputDevice->DeviceAttr.vendor;
-	deviceInfo.product = inputDevice->DeviceAttr.product;
-	deviceInfo.version = inputDevice->DeviceAttr.version;
-	strcpy(deviceInfo.name, "Microsoft Vmbus HID-compliant Mouse");
+	dev_info.vendor = inputDevice->hid_dev_info.vendor;
+	dev_info.product = inputDevice->hid_dev_info.product;
+	dev_info.version = inputDevice->hid_dev_info.version;
+	strcpy(dev_info.name, "Microsoft Vmbus HID-compliant Mouse");
 
 	/* Send the device info back up */
-	deviceinfo_callback(Device, &deviceInfo);
+	deviceinfo_callback(Device, &dev_info);
 
 	/* Send the report desc back up */
 	/* workaround SA-167 */
