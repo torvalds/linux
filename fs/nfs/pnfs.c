@@ -895,6 +895,30 @@ pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *inode)
 	pgio->pg_test = (ld && ld->pg_test) ? pnfs_write_pg_test : NULL;
 }
 
+enum pnfs_try_status
+pnfs_try_to_write_data(struct nfs_write_data *wdata,
+			const struct rpc_call_ops *call_ops, int how)
+{
+	struct inode *inode = wdata->inode;
+	enum pnfs_try_status trypnfs;
+	struct nfs_server *nfss = NFS_SERVER(inode);
+
+	wdata->mds_ops = call_ops;
+
+	dprintk("%s: Writing ino:%lu %u@%llu (how %d)\n", __func__,
+		inode->i_ino, wdata->args.count, wdata->args.offset, how);
+
+	trypnfs = nfss->pnfs_curr_ld->write_pagelist(wdata, how);
+	if (trypnfs == PNFS_NOT_ATTEMPTED) {
+		put_lseg(wdata->lseg);
+		wdata->lseg = NULL;
+	} else
+		nfs_inc_stats(inode, NFSIOS_PNFS_WRITE);
+
+	dprintk("%s End (trypnfs:%d)\n", __func__, trypnfs);
+	return trypnfs;
+}
+
 /*
  * Call the appropriate parallel I/O subsystem read function.
  */

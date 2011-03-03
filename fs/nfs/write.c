@@ -873,6 +873,10 @@ static int nfs_write_rpcsetup(struct nfs_page *req,
 	data->res.verf    = &data->verf;
 	nfs_fattr_init(&data->fattr);
 
+	if (data->lseg &&
+	    (pnfs_try_to_write_data(data, call_ops, how) == PNFS_ATTEMPTED))
+		return 0;
+
 	return nfs_initiate_write(data, NFS_CLIENT(inode), call_ops, how);
 }
 

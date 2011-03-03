@@ -238,6 +238,12 @@ filelayout_read_pagelist(struct nfs_read_data *data)
 	return PNFS_ATTEMPTED;
 }
 
+static enum pnfs_try_status
+filelayout_write_pagelist(struct nfs_write_data *data, int sync)
+{
+	return PNFS_NOT_ATTEMPTED;
+}
+
 /*
  * filelayout_check_layout()
  *
@@ -455,6 +461,7 @@ static struct pnfs_layoutdriver_type filelayout_type = {
 	.free_lseg		= filelayout_free_lseg,
 	.pg_test		= filelayout_pg_test,
 	.read_pagelist		= filelayout_read_pagelist,
+	.write_pagelist		= filelayout_write_pagelist,
 };
 
 static int __init nfs4filelayout_init(void)
