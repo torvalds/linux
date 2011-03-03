@@ -1,7 +1,6 @@
 #ifndef COMMON_INCD
 #define COMMON_INCD
 
-typedef void VOID;
 typedef u8 BOOLEAN;
 typedef u8 BYTE;
 typedef u8 *PBYTE;
