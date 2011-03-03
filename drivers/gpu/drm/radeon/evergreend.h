@@ -1092,5 +1092,14 @@
 #define SQ_TEX_RESOURCE_WORD6_0                         0x30018
 #define SQ_TEX_RESOURCE_WORD7_0                         0x3001c
 
+/* cayman 3D regs */
+#define CAYMAN_VGT_OFFCHIP_LDS_BASE			0x89B0
+#define CAYMAN_DB_EQAA					0x28804
+#define CAYMAN_DB_DEPTH_INFO				0x2803C
+#define CAYMAN_PA_SC_AA_CONFIG				0x28BE0
+#define         CAYMAN_MSAA_NUM_SAMPLES_SHIFT           0
+#define         CAYMAN_MSAA_NUM_SAMPLES_MASK            0x7
+/* cayman packet3 addition */
+#define	CAYMAN_PACKET3_DEALLOC_STATE			0x14
 
 #endif

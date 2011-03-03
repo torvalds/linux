@@ -29,6 +29,7 @@
 #include "radeon.h"
 #include "evergreend.h"
 #include "evergreen_reg_safe.h"
+#include "cayman_reg_safe.h"
 
 static int evergreen_cs_packet_next_reloc(struct radeon_cs_parser *p,
 					  struct radeon_cs_reloc **cs_reloc);
@@ -425,9 +426,14 @@ static inline int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u3
 {
 	struct evergreen_cs_track *track = (struct evergreen_cs_track *)p->track;
 	struct radeon_cs_reloc *reloc;
-	u32 last_reg = ARRAY_SIZE(evergreen_reg_safe_bm);
+	u32 last_reg;
 	u32 m, i, tmp, *ib;
 	int r;
+
+	if (p->rdev->family >= CHIP_CAYMAN)
+		last_reg = ARRAY_SIZE(cayman_reg_safe_bm);
+	else
+		last_reg = ARRAY_SIZE(evergreen_reg_safe_bm);
 
 	i = (reg >> 7);
 	if (i > last_reg) {
@@ -435,8 +441,13 @@ static inline int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u3
 		return -EINVAL;
 	}
 	m = 1 << ((reg >> 2) & 31);
-	if (!(evergreen_reg_safe_bm[i] & m))
-		return 0;
+	if (p->rdev->family >= CHIP_CAYMAN) {
+		if (!(cayman_reg_safe_bm[i] & m))
+			return 0;
+	} else {
+		if (!(evergreen_reg_safe_bm[i] & m))
+			return 0;
+	}
 	ib = p->ib->ptr;
 	switch (reg) {
 	/* force following reg to 0 in an attemp to disable out buffer
@@ -473,6 +484,20 @@ static inline int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u3
 		break;
 	case DB_DEPTH_CONTROL:
 		track->db_depth_control = radeon_get_ib_value(p, idx);
+		break;
+	case CAYMAN_DB_EQAA:
+		if (p->rdev->family < CHIP_CAYMAN) {
+			dev_warn(p->dev, "bad SET_CONTEXT_REG "
+				 "0x%04X\n", reg);
+			return -EINVAL;
+		}
+		break;
+	case CAYMAN_DB_DEPTH_INFO:
+		if (p->rdev->family < CHIP_CAYMAN) {
+			dev_warn(p->dev, "bad SET_CONTEXT_REG "
+				 "0x%04X\n", reg);
+			return -EINVAL;
+		}
 		break;
 	case DB_Z_INFO:
 		r = evergreen_cs_packet_next_reloc(p, &reloc);
@@ -559,7 +584,21 @@ static inline int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u3
 		track->cb_shader_mask = radeon_get_ib_value(p, idx);
 		break;
 	case PA_SC_AA_CONFIG:
+		if (p->rdev->family >= CHIP_CAYMAN) {
+			dev_warn(p->dev, "bad SET_CONTEXT_REG "
+				 "0x%04X\n", reg);
+			return -EINVAL;
+		}
 		tmp = radeon_get_ib_value(p, idx) & MSAA_NUM_SAMPLES_MASK;
+		track->nsamples = 1 << tmp;
+		break;
+	case CAYMAN_PA_SC_AA_CONFIG:
+		if (p->rdev->family < CHIP_CAYMAN) {
+			dev_warn(p->dev, "bad SET_CONTEXT_REG "
+				 "0x%04X\n", reg);
+			return -EINVAL;
+		}
+		tmp = radeon_get_ib_value(p, idx) & CAYMAN_MSAA_NUM_SAMPLES_MASK;
 		track->nsamples = 1 << tmp;
 		break;
 	case CB_COLOR0_VIEW:
@@ -982,6 +1021,16 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 	case PACKET3_INDEX_TYPE:
 	case PACKET3_NUM_INSTANCES:
 	case PACKET3_CLEAR_STATE:
+		if (pkt->count) {
+			DRM_ERROR("bad INDEX_TYPE/NUM_INSTANCES/CLEAR_STATE\n");
+			return -EINVAL;
+		}
+		break;
+	case CAYMAN_PACKET3_DEALLOC_STATE:
+		if (p->rdev->family < CHIP_CAYMAN) {
+			DRM_ERROR("bad PACKET3_DEALLOC_STATE\n");
+			return -EINVAL;
+		}
 		if (pkt->count) {
 			DRM_ERROR("bad INDEX_TYPE/NUM_INSTANCES/CLEAR_STATE\n");
 			return -EINVAL;
