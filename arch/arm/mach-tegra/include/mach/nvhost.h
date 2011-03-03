@@ -81,8 +81,6 @@ struct nvhost_submit_hdr {
 	__u32 syncpt_incrs;
 	__u32 num_cmdbufs;
 	__u32 num_relocs;
-	__u32 num_waitchks;
-	__u32 waitchk_mask;
 };
 
 struct nvhost_cmdbuf {
@@ -96,13 +94,6 @@ struct nvhost_reloc {
 	__u32 cmdbuf_offset;
 	__u32 target;
 	__u32 target_offset;
-};
-
-struct nvhost_waitchk {
-	__u32 mem;
-	__u32 offset;
-	__u32 syncpt_id;
-	__u32 thresh;
 };
 
 struct nvhost_get_param_args {
