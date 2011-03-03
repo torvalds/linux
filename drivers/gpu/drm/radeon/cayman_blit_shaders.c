@@ -45,6 +45,11 @@ const u32 cayman_default_state[] =
 	0x00000316,
 	0x0000000e, /* VGT_VERTEX_REUSE_BLOCK_CNTL */
 	0x00000010, /*  */
+
+	0xc0026900,
+	0x000000d9,
+	0x00000000, /* CP_RINGID */
+	0x00000000, /* CP_VMID */
 };
 
 const u32 cayman_default_size = ARRAY_SIZE(cayman_default_state);
