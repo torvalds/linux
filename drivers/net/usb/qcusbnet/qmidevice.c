@@ -1236,7 +1236,7 @@ static unsigned int devqmi_poll(struct file *file, poll_table *wait)
 	struct qmihandle *handle = (struct qmihandle *)file->private_data;
 	struct client *client;
 	unsigned int mask = 0;
-	unsigned int flags;
+	unsigned long flags;
 
 	if (!handle) {
 		DBG("Bad file data\n");
@@ -1281,7 +1281,10 @@ int qc_register(struct qcusbnet *dev)
 	dev_t devno;
 	char *name;
 
+	cdev_init(&dev->qmi.cdev, &devqmi_fops);
+	dev->qmi.cdev.owner = THIS_MODULE;
 	dev->valid = true;
+
 	result = client_alloc(dev, QMICTL);
 	if (result) {
 		dev->valid = false;
@@ -1316,10 +1319,6 @@ int qc_register(struct qcusbnet *dev)
 	if (result < 0)
 		return result;
 
-	cdev_init(&dev->qmi.cdev, &devqmi_fops);
-	dev->qmi.cdev.owner = THIS_MODULE;
-	dev->qmi.cdev.ops = &devqmi_fops;
-
 	result = cdev_add(&dev->qmi.cdev, devno, 1);
 	if (result) {
 		DBG("error adding cdev\n");
@@ -1348,6 +1347,7 @@ int qc_register(struct qcusbnet *dev)
 void qc_deregister(struct qcusbnet *dev)
 {
 	struct list_head *node;
+	struct list_head *next;
 	struct client *client;
 	struct inode *inode;
 	struct list_head *inodes;
@@ -1363,7 +1363,7 @@ void qc_deregister(struct qcusbnet *dev)
 		return;
 	}
 
-	list_for_each(node, &dev->qmi.clients) {
+	list_for_each_safe(node, next, &dev->qmi.clients) {
 		client = list_entry(node, struct client, node);
 		DBG("release 0x%04X\n", client->cid);
 		client_free(dev, client->cid);
@@ -1448,6 +1448,7 @@ static bool qmi_ready(struct qcusbnet *dev, u16 timeout)
 				kfree(rbuf);
 				break;
 			}
+			spin_unlock_irqrestore(&dev->qmi.clients_lock, flags);
 		} else {
 			spin_lock_irqsave(&dev->qmi.clients_lock, flags);
 			client_notify(dev, QMICTL, tid);
