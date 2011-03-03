@@ -87,7 +87,10 @@ void machine_kexec(struct kimage *image)
 
 	save_ftrace_enabled = __ftrace_enabled_save();
 
-	default_machine_kexec(image);
+	if (ppc_md.machine_kexec)
+		ppc_md.machine_kexec(image);
+	else
+		default_machine_kexec(image);
 
 	__ftrace_enabled_restore(save_ftrace_enabled);
 
