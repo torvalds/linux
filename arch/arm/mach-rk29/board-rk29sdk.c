@@ -828,7 +828,7 @@ static int rk29_sensor_ioctrl(struct device *dev,enum rk29camera_ioctrl_cmd cmd,
 					}
 				} else {
 					ret = RK29_CAM_EIO_REQUESTFAIL;
-					printk("\n%s..%s..ResetPin=%d request failed!\n",__FUNCTION__,dev_name(dev),camera_reset);
+					printk("\n%s..%s..PowerPin=%d request failed!\n",__FUNCTION__,dev_name(dev),camera_reset);
 				}
 		    } else {
 				ret = RK29_CAM_EIO_INVALID;

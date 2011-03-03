@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/circ_buf.h>
+#include <linux/hardirq.h>
 #include <linux/miscdevice.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
@@ -47,8 +48,8 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SENSOR_V4L2_IDENT V4L2_IDENT_MT9P111
 #define SENSOR_ID SEQUENCE_END
 #define SENSOR_ID_REG SEQUENCE_END
-#define SENSOR_RESET_REG SEQUENCE_END
-#define SENSOR_RESET_VAL 0x00
+#define SENSOR_RESET_REG 0x0010
+#define SENSOR_RESET_VAL 0x0115
 #define SENSOR_MIN_WIDTH    176
 #define SENSOR_MIN_HEIGHT   144
 #define SENSOR_MAX_WIDTH    2592
@@ -72,7 +73,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_Focus         1
 
 
-#define CONFIG_SENSOR_I2C_SPEED     250000       /* Hz */
+#define CONFIG_SENSOR_I2C_SPEED     100000       /* Hz */
 /* Sensor write register continues by preempt_disable/preempt_enable for current process not be scheduled */
 #define CONFIG_SENSOR_I2C_NOSCHED   0
 #define CONFIG_SENSOR_I2C_RDWRCHK   0
@@ -1118,7 +1119,67 @@ static struct reginfo sensor_init_data[] =
 	{0x098E, 0x5C02},		// MCU_ADDR},
 	{0xDC02, 0x003E},    // SYS_ALGO},
 	{0xDC36, 0x34},    // SYS_DARK_COLOR_KILL},
-
+#if 0
+	// Refresh Mode - skip
+	{0xBC18, 0x00}, 	// LL_GAMMA_CONTRAST_CURVE_0
+	{0xBC19, 0x11}, 	// LL_GAMMA_CONTRAST_CURVE_1
+	{0xBC1A, 0x23}, 	// LL_GAMMA_CONTRAST_CURVE_2
+	{0xBC1B, 0x3F}, 	// LL_GAMMA_CONTRAST_CURVE_3
+	{0xBC1C, 0x67}, 	// LL_GAMMA_CONTRAST_CURVE_4
+	{0xBC1D, 0x85}, 	// LL_GAMMA_CONTRAST_CURVE_5
+	{0xBC1E, 0x9B}, 	// LL_GAMMA_CONTRAST_CURVE_6
+	{0xBC1F, 0xAD}, 	// LL_GAMMA_CONTRAST_CURVE_7
+	{0xBC20, 0xBB}, 	// LL_GAMMA_CONTRAST_CURVE_8
+	{0xBC21, 0xC7}, 	// LL_GAMMA_CONTRAST_CURVE_9
+	{0xBC22, 0xD1}, 	// LL_GAMMA_CONTRAST_CURVE_10
+	{0xBC23, 0xDA}, 	// LL_GAMMA_CONTRAST_CURVE_11
+	{0xBC24, 0xE1}, 	// LL_GAMMA_CONTRAST_CURVE_12
+	{0xBC25, 0xE8}, 	// LL_GAMMA_CONTRAST_CURVE_13
+	{0xBC26, 0xEE}, 	// LL_GAMMA_CONTRAST_CURVE_14
+	{0xBC27, 0xF3}, 	// LL_GAMMA_CONTRAST_CURVE_15
+	{0xBC28, 0xF7}, 	// LL_GAMMA_CONTRAST_CURVE_16
+	{0xBC29, 0xFB}, 	// LL_GAMMA_CONTRAST_CURVE_17
+	{0xBC2A, 0xFF}, 	// LL_GAMMA_CONTRAST_CURVE_18
+	{0xBC2B, 0x00}, 	// LL_GAMMA_NEUTRAL_CURVE_0
+	{0xBC2C, 0x05}, 	// LL_GAMMA_NEUTRAL_CURVE_1
+	{0xBC2D, 0x11}, 	// LL_GAMMA_NEUTRAL_CURVE_2
+	{0xBC2E, 0x2E}, 	// LL_GAMMA_NEUTRAL_CURVE_3
+	{0xBC2F, 0x52}, 	// LL_GAMMA_NEUTRAL_CURVE_4
+	{0xBC30, 0x6C}, 	// LL_GAMMA_NEUTRAL_CURVE_5
+	{0xBC31, 0x83}, 	// LL_GAMMA_NEUTRAL_CURVE_6
+	{0xBC32, 0x97}, 	// LL_GAMMA_NEUTRAL_CURVE_7
+	{0xBC33, 0xA7}, 	// LL_GAMMA_NEUTRAL_CURVE_8
+	{0xBC34, 0xB4}, 	// LL_GAMMA_NEUTRAL_CURVE_9
+	{0xBC35, 0xC0}, 	// LL_GAMMA_NEUTRAL_CURVE_10
+	{0xBC36, 0xCB}, 	// LL_GAMMA_NEUTRAL_CURVE_11
+	{0xBC37, 0xD4}, 	// LL_GAMMA_NEUTRAL_CURVE_12
+	{0xBC38, 0xDD}, 	// LL_GAMMA_NEUTRAL_CURVE_13
+	{0xBC39, 0xE5}, 	// LL_GAMMA_NEUTRAL_CURVE_14
+	{0xBC3A, 0xEC}, 	// LL_GAMMA_NEUTRAL_CURVE_15
+	{0xBC3B, 0xF3}, 	// LL_GAMMA_NEUTRAL_CURVE_16
+	{0xBC3C, 0xF9}, 	// LL_GAMMA_NEUTRAL_CURVE_17
+	{0xBC3D, 0xFF}, 	// LL_GAMMA_NEUTRAL_CURVE_18
+	{0xBC3E, 0x00}, 	// LL_GAMMA_NR_CURVE_0
+	{0xBC3F, 0x18}, 	// LL_GAMMA_NR_CURVE_1
+	{0xBC40, 0x25}, 	// LL_GAMMA_NR_CURVE_2
+	{0xBC41, 0x3A}, 	// LL_GAMMA_NR_CURVE_3
+	{0xBC42, 0x59}, 	// LL_GAMMA_NR_CURVE_4
+	{0xBC43, 0x70}, 	// LL_GAMMA_NR_CURVE_5
+	{0xBC44, 0x81}, 	// LL_GAMMA_NR_CURVE_6
+	{0xBC45, 0x90}, 	// LL_GAMMA_NR_CURVE_7
+	{0xBC46, 0x9E}, 	// LL_GAMMA_NR_CURVE_8
+	{0xBC47, 0xAB}, 	// LL_GAMMA_NR_CURVE_9
+	{0xBC48, 0xB6}, 	// LL_GAMMA_NR_CURVE_10
+	{0xBC49, 0xC1}, 	// LL_GAMMA_NR_CURVE_11
+	{0xBC4A, 0xCB}, 	// LL_GAMMA_NR_CURVE_12
+	{0xBC4B, 0xD5}, 	// LL_GAMMA_NR_CURVE_13
+	{0xBC4C, 0xDE}, 	// LL_GAMMA_NR_CURVE_14
+	{0xBC4D, 0xE7}, 	// LL_GAMMA_NR_CURVE_15
+	{0xBC4E, 0xEF}, 	// LL_GAMMA_NR_CURVE_16
+	{0xBC4F, 0xF7}, 	// LL_GAMMA_NR_CURVE_17
+	{0xBC50, 0xFF}, 	// LL_GAMMA_NR_CURVE_18
+	{0xBC51, 0x04}, 	// LL_GAMMA_CURVE_SELECTOR
+#endif
 	//BM_dampening},
 	{0xB801, 0xE0},    // STAT_MODE},
 	{0xB862, 0x04},    // STAT_BMTRACKING_SPEED},
@@ -2179,7 +2240,10 @@ static int sensor_write(struct i2c_client *client, u16 reg, u16 val)
 	{
 		case SEQUENCE_WAIT_MS:
 		{
-			msleep(val);
+			if (in_atomic())
+				mdelay(val);
+			else
+				msleep(val);
 			break;
 		}
 
@@ -2387,7 +2451,9 @@ static int sensor_af_single(struct i2c_client *client)
 
 	ret = sensor_write_array(client, sensor_af_trigger);
 	if (ret<0)
-		SENSOR_TR("%s sensor auto focus trigger fail!!",SENSOR_NAME_STRING());
+		SENSOR_TR("%s sensor auto focus trigger fail!!\n",SENSOR_NAME_STRING());
+	else
+		SENSOR_DG("%s sensor auto focus trigger success!\n",SENSOR_NAME_STRING());
 sensor_af_single_end:
 	return ret;
 }
@@ -2604,6 +2670,14 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 	if (qctrl)
         sensor->info_priv.focus = qctrl->default_value;
 
+	if (sensor_af_init(client) < 0) {
+		sensor->info_priv.funmodule_state &= ~SENSOR_AF_IS_OK;
+		SENSOR_TR("%s auto focus module init is fail!\n",SENSOR_NAME_STRING());
+	} else {
+		sensor->info_priv.funmodule_state |= SENSOR_AF_IS_OK;
+		SENSOR_DG("%s auto focus module init is success!\n",SENSOR_NAME_STRING());
+	}
+
 	#if CONFIG_SENSOR_Flash
 	qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_FLASH);
 	if (qctrl)
@@ -2624,8 +2698,9 @@ static int sensor_deactivate(struct i2c_client *client)
 	SENSOR_DG("\n%s..%s.. Enter\n",SENSOR_NAME_STRING(),__FUNCTION__);
 
 	/* ddl@rock-chips.com : all sensor output pin must change to input for other sensor */
-	sensor_task_lock(client, 1);
 
+
+	sensor_ioctrl(icd, Sensor_PowerDown, 1);
 	/* ddl@rock-chips.com : sensor config init width , because next open sensor quickly(soc_camera_open -> Try to configure with default parameters) */
 	icd->user_width = SENSOR_INIT_WIDTH;
     icd->user_height = SENSOR_INIT_HEIGHT;
@@ -3758,7 +3833,7 @@ static int sensor_video_probe(struct soc_camera_device *icd,
     if (ret != 0) {
         SENSOR_TR("%s soft reset sensor failed\n",SENSOR_NAME_STRING());
         ret = -ENODEV;
-		goto sensor_INIT_ERR;
+		goto sensor_video_probe_err;
     }
 
     mdelay(5);  //delay 5 microseconds
@@ -3770,7 +3845,7 @@ static int sensor_video_probe(struct soc_camera_device *icd,
     if (ret != 0) {
         SENSOR_TR("read chip id failed\n");
         ret = -ENODEV;
-        goto sensor_INIT_ERR;
+        goto sensor_video_probe_err;
     }
 
     SENSOR_DG("\n %s  pid = 0x%x \n", SENSOR_NAME_STRING(), pid);

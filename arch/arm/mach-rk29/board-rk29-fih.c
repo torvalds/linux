@@ -1003,28 +1003,28 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
  * author: ddl@rock-chips.com
  *****************************************************************************************/
 #ifdef CONFIG_VIDEO_RK29
-#define SENSOR_NAME_0 RK29_CAM_SENSOR_NAME_OV5642			/* back camera sensor */
+#define SENSOR_NAME_0 RK29_CAM_SENSOR_NAME_MT9P111         /* back camera sensor */
 #define SENSOR_IIC_ADDR_0 	    0x78
 #define SENSOR_IIC_ADAPTER_ID_0    1
-#define SENSOR_POWER_PIN_0         INVALID_GPIO
+#define SENSOR_POWER_PIN_0         RK29_PIN5_PD7
 #define SENSOR_RESET_PIN_0         INVALID_GPIO
-#define SENSOR_POWERDN_PIN_0       RK29_PIN6_PB7
+#define SENSOR_POWERDN_PIN_0       RK29_PIN1_PB2
 #define SENSOR_FALSH_PIN_0         INVALID_GPIO
 #define SENSOR_POWERACTIVE_LEVEL_0 RK29_CAM_POWERACTIVE_L
 #define SENSOR_RESETACTIVE_LEVEL_0 RK29_CAM_RESETACTIVE_L
 #define SENSOR_POWERDNACTIVE_LEVEL_0 RK29_CAM_POWERDNACTIVE_H
 #define SENSOR_FLASHACTIVE_LEVEL_0 RK29_CAM_FLASHACTIVE_L
 
-#define SENSOR_NAME_1 RK29_CAM_SENSOR_NAME_OV2659			/* front camera sensor */
-#define SENSOR_IIC_ADDR_1 	    0x60
+#define SENSOR_NAME_1 RK29_CAM_SENSOR_NAME_S5K6AA          /* front camera sensor */
+#define SENSOR_IIC_ADDR_1 	    0x00
 #define SENSOR_IIC_ADAPTER_ID_1    1
 #define SENSOR_POWER_PIN_1         INVALID_GPIO
 #define SENSOR_RESET_PIN_1         INVALID_GPIO
-#define SENSOR_POWERDN_PIN_1       RK29_PIN5_PD7
+#define SENSOR_POWERDN_PIN_1       RK29_PIN6_PB7
 #define SENSOR_FALSH_PIN_1         INVALID_GPIO
 #define SENSOR_POWERACTIVE_LEVEL_1 RK29_CAM_POWERACTIVE_L
 #define SENSOR_RESETACTIVE_LEVEL_1 RK29_CAM_RESETACTIVE_L
-#define SENSOR_POWERDNACTIVE_LEVEL_1 RK29_CAM_POWERDNACTIVE_H
+#define SENSOR_POWERDNACTIVE_LEVEL_1 RK29_CAM_POWERDNACTIVE_L
 #define SENSOR_FLASHACTIVE_LEVEL_1 RK29_CAM_FLASHACTIVE_L
 
 static int rk29_sensor_io_init(void);
@@ -1213,7 +1213,7 @@ static int rk29_sensor_ioctrl(struct device *dev,enum rk29camera_ioctrl_cmd cmd,
 					}
 				} else {
 					ret = RK29_CAM_EIO_REQUESTFAIL;
-					printk("\n%s..%s..ResetPin=%d request failed!\n",__FUNCTION__,dev_name(dev),camera_reset);
+					printk("\n%s..%s..PowerPin=%d request failed!\n",__FUNCTION__,dev_name(dev),camera_reset);
 				}
 		    } else {
 				ret = RK29_CAM_EIO_INVALID;
@@ -1333,6 +1333,7 @@ static struct platform_device rk29_soc_camera_pdrv_0 = {
 	},
 };
 #endif
+#if (SENSOR_IIC_ADDR_1 != 0x00)
 static struct i2c_board_info rk29_i2c_cam_info_1[] = {
 	{
 		I2C_BOARD_INFO(SENSOR_NAME_1, SENSOR_IIC_ADDR_1>>1)
@@ -1357,7 +1358,7 @@ static struct platform_device rk29_soc_camera_pdrv_1 = {
 		.platform_data = &rk29_iclink_1,
 	},
 };
-
+#endif
 
 static u64 rockchip_device_camera_dmamask = 0xffffffffUL;
 static struct resource rk29_camera_resource[] = {
@@ -1948,7 +1949,9 @@ static struct platform_device *devices[] __initdata = {
  	#if (SENSOR_IIC_ADDR_0 != 0x00)
  	&rk29_soc_camera_pdrv_0,
  	#endif
+	#if (SENSOR_IIC_ADDR_1 != 0x00)
  	&rk29_soc_camera_pdrv_1,
+ 	#endif
  	&android_pmem_cam_device,
 #endif
 	&android_pmem_device,
