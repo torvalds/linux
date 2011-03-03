@@ -1248,8 +1248,6 @@ static int process_connect(struct ceph_connection *con)
 		     con->auth_retry);
 		if (con->auth_retry == 2) {
 			con->error_msg = "connect authorization failure";
-			reset_connection(con);
-			set_bit(CLOSED, &con->state);
 			return -1;
 		}
 		con->auth_retry = 1;
