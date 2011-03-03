@@ -887,7 +887,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 		ext->alg == IW_ENCODE_ALG_NONE) //none is not allowed to use hwsec WB 2008.07.01
 		{
 			ieee->pairwise_key_type = ieee->group_key_type = KEY_TYPE_NA;
-			CamResetAllEntry(dev);
+			CamResetAllEntry(priv);
 			goto end_hw_sec;
 		}
 		alg =  (ext->alg == IW_ENCODE_ALG_CCMP)?KEY_TYPE_CCMP:ext->alg; // as IW_ENCODE_ALG_CCMP is defined to be 3 and KEY_TYPE_CCMP is defined to 4;

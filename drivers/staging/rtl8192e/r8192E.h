@@ -1059,7 +1059,7 @@ int rtl8192_down(struct net_device *dev);
 int rtl8192_up(struct net_device *dev);
 void rtl8192_commit(struct net_device *dev);
 void write_phy(struct net_device *dev, u8 adr, u8 data);
-void CamResetAllEntry(struct net_device* dev);
+void CamResetAllEntry(struct r8192_priv *priv);
 void EnableHWSecurityConfig8192(struct net_device *dev);
 void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent );
 void dm_cck_txpower_adjust(struct net_device *dev, bool binch14);
@@ -1079,8 +1079,8 @@ void LeisurePSEnter(struct net_device *dev);
 void LeisurePSLeave(struct net_device *dev);
 #endif
 
-bool NicIFEnableNIC(struct net_device* dev);
-bool NicIFDisableNIC(struct net_device* dev);
+bool NicIFEnableNIC(struct r8192_priv *priv);
+bool NicIFDisableNIC(struct r8192_priv *priv);
 
-void PHY_SetRtl8192eRfOff(struct net_device* dev);
+void PHY_SetRtl8192eRfOff(struct r8192_priv *priv);
 #endif

@@ -104,7 +104,7 @@ static void rtl8192_irq_tx_tasklet(unsigned long arg);
 static void rtl8192_prepare_beacon(unsigned long arg);
 static irqreturn_t rtl8192_interrupt(int irq, void *netdev);
 static void rtl819xE_tx_cmd(struct net_device *dev, struct sk_buff *skb);
-static void rtl8192_update_ratr_table(struct net_device* dev);
+static void rtl8192_update_ratr_table(struct r8192_priv *priv);
 static void rtl8192_restart(struct work_struct *work);
 static void watch_dog_timer_callback(unsigned long data);
 static int _rtl8192_up(struct net_device *dev);
@@ -191,9 +191,8 @@ static inline bool rx_hal_is_cck_rate(prx_fwinfo_819x_pci pdrvinfo)
 		!pdrvinfo->RxHT;
 }
 
-void CamResetAllEntry(struct net_device *dev)
+void CamResetAllEntry(struct r8192_priv* priv)
 {
-	struct r8192_priv* priv = ieee80211_priv(dev);
 	write_nic_dword(priv, RWCAM, BIT31|BIT30);
 }
 
@@ -614,9 +613,8 @@ static void tx_timeout(struct net_device *dev)
 	printk("TXTIMEOUT");
 }
 
-static void rtl8192_irq_enable(struct net_device *dev)
+static void rtl8192_irq_enable(struct r8192_priv *priv)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	u32 mask;
 
 	mask = IMR_ROK | IMR_VODOK | IMR_VIDOK | IMR_BEDOK | IMR_BKDOK |
@@ -635,9 +633,8 @@ static void rtl8192_irq_disable(struct net_device *dev)
 	synchronize_irq(dev->irq);
 }
 
-static void rtl8192_update_msr(struct net_device *dev)
+static void rtl8192_update_msr(struct r8192_priv *priv)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8 msr;
 
 	msr  = read_nic_byte(priv, MSR);
@@ -675,11 +672,9 @@ static void rtl8192_set_chan(struct net_device *dev,short ch)
 		priv->rf_set_chan(dev, priv->chan);
 }
 
-static void rtl8192_rx_enable(struct net_device *dev)
+static void rtl8192_rx_enable(struct r8192_priv *priv)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-
-	write_nic_dword(priv, RDQDA,priv->rx_ring_dma);
+	write_nic_dword(priv, RDQDA, priv->rx_ring_dma);
 }
 
 /* the TX_DESC_BASE setting is according to the following queue index
@@ -694,9 +689,8 @@ static void rtl8192_rx_enable(struct net_device *dev)
  *  BEACON_QUEUE   ===>                        8
  *  */
 static const u32 TX_DESC_BASE[] = {BKQDA, BEQDA, VIQDA, VOQDA, HCCAQDA, CQDA, MQDA, HQDA, BQDA};
-static void rtl8192_tx_enable(struct net_device *dev)
+static void rtl8192_tx_enable(struct r8192_priv *priv)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	u32 i;
 
 	for (i = 0; i < MAX_TX_QUEUE_COUNT; i++)
@@ -747,10 +741,8 @@ static void rtl8192_free_tx_ring(struct net_device *dev, unsigned int prio)
 	ring->desc = NULL;
 }
 
-void PHY_SetRtl8192eRfOff(struct net_device* dev)
+void PHY_SetRtl8192eRfOff(struct r8192_priv *priv)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
-
 	//disable RF-Chip A/B
 	rtl8192_setBBreg(priv, rFPGA0_XA_RFInterfaceOE, BIT4, 0x0);
 	//analog to digital off, for power save
@@ -766,7 +758,6 @@ void PHY_SetRtl8192eRfOff(struct net_device* dev)
 	rtl8192_setBBreg(priv, rFPGA0_AnalogParameter1, 0x4, 0x0);
 	// Analog parameter!!Change bias and Lbus control.
 	write_nic_byte(priv, ANAPAR_FOR_8192PciE, 0x07);
-
 }
 
 static void rtl8192_halt_adapter(struct net_device *dev, bool reset)
@@ -799,7 +790,7 @@ static void rtl8192_halt_adapter(struct net_device *dev, bool reset)
 		 * prevent RF config race condition.
 		 */
 		if (!priv->ieee80211->bSupportRemoteWakeUp) {
-			PHY_SetRtl8192eRfOff(dev);
+			PHY_SetRtl8192eRfOff(priv);
 			ulRegRead = read_nic_dword(priv, CPU_GEN);
 			ulRegRead |= CPU_GEN_SYSTEM_RESET;
 			write_nic_dword(priv,CPU_GEN, ulRegRead);
@@ -946,9 +937,8 @@ static void rtl8192_stop_beacon(struct net_device *dev)
 {
 }
 
-static void rtl8192_config_rate(struct net_device* dev, u16* rate_config)
+static void rtl8192_config_rate(struct r8192_priv *priv, u16* rate_config)
 {
-	 struct r8192_priv *priv = ieee80211_priv(dev);
 	 struct ieee80211_network *net;
 	 u8 i=0, basic_rate = 0;
 	 net = & priv->ieee80211->current_network;
@@ -997,11 +987,11 @@ static void rtl8192_config_rate(struct net_device* dev, u16* rate_config)
 #define SHORT_SLOT_TIME 9
 #define NON_SHORT_SLOT_TIME 20
 
-static void rtl8192_update_cap(struct net_device* dev, u16 cap)
+static void rtl8192_update_cap(struct r8192_priv *priv, u16 cap)
 {
 	u32 tmp = 0;
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_network *net = &priv->ieee80211->current_network;
+
 	priv->short_preamble = cap & WLAN_CAPABILITY_SHORT_PREAMBLE;
 	tmp = priv->basic_rate;
 	if (priv->short_preamble)
@@ -1023,16 +1013,15 @@ static void rtl8192_update_cap(struct net_device* dev, u16 cap)
 
 }
 
-static void rtl8192_net_update(struct net_device *dev)
+static void rtl8192_net_update(struct r8192_priv *priv)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_network *net;
 	u16 BcnTimeCfg = 0, BcnCW = 6, BcnIFS = 0xf;
 	u16 rate_config = 0;
 	net = &priv->ieee80211->current_network;
 
 	/* update Basic rate: RR, BRSR */
-	rtl8192_config_rate(dev, &rate_config);
+	rtl8192_config_rate(priv, &rate_config);
 
 	/*
 	 * Select RRSR (in Legacy-OFDM and CCK)
@@ -1462,9 +1451,8 @@ err_free_rings:
 	return 1;
 }
 
-static void rtl8192_pci_resetdescring(struct net_device *dev)
+static void rtl8192_pci_resetdescring(struct r8192_priv *priv)
 {
-    struct r8192_priv *priv = ieee80211_priv(dev);
     int i;
 
     /* force the rx_idx to the first one */
@@ -1504,8 +1492,8 @@ static void rtl8192_link_change(struct net_device *dev)
 
 	if (ieee->state == IEEE80211_LINKED)
 	{
-		rtl8192_net_update(dev);
-		rtl8192_update_ratr_table(dev);
+		rtl8192_net_update(priv);
+		rtl8192_update_ratr_table(priv);
 
 		//add this as in pure N mode, wep encryption will use software way, but there is no chance to set this as wep will not set group key in wext. WB.2008.07.08
 		if ((KEY_TYPE_WEP40 == ieee->pairwise_key_type) || (KEY_TYPE_WEP104 == ieee->pairwise_key_type))
@@ -1516,7 +1504,7 @@ static void rtl8192_link_change(struct net_device *dev)
 		write_nic_byte(priv, 0x173, 0);
 	}
 
-	rtl8192_update_msr(dev);
+	rtl8192_update_msr(priv);
 
 	// 2007/10/16 MH MAC Will update TSF according to all received beacon, so we have
 	//	// To set CBSSID bit when link with any AP or STA.
@@ -1544,14 +1532,13 @@ static const struct ieee80211_qos_parameters def_qos_parameters = {
 static void rtl8192_update_beacon(struct work_struct * work)
 {
         struct r8192_priv *priv = container_of(work, struct r8192_priv, update_beacon_wq.work);
-        struct net_device *dev = priv->ieee80211->dev;
  	struct ieee80211_device* ieee = priv->ieee80211;
 	struct ieee80211_network* net = &ieee->current_network;
 
 	if (ieee->pHTInfo->bCurrentHTSupport)
 		HTUpdateSelfAndPeerSetting(ieee, net);
 	ieee->pHTInfo->bCurrentRT2RTLongSlotTime = net->bssht.bdRT2RTLongSlotTime;
-	rtl8192_update_cap(dev, net->capability);
+	rtl8192_update_cap(priv, net->capability);
 }
 
 /*
@@ -1709,15 +1696,14 @@ static int rtl8192_handle_assoc_response(struct net_device *dev,
 
 
 /* updateRATRTabel for MCS only. Basic rate is not implemented. */
-static void rtl8192_update_ratr_table(struct net_device* dev)
+static void rtl8192_update_ratr_table(struct r8192_priv* priv)
 {
-	struct r8192_priv* priv = ieee80211_priv(dev);
 	struct ieee80211_device* ieee = priv->ieee80211;
 	u8* pMcsRate = ieee->dot11HTOperationalRateSet;
 	u32 ratr_value = 0;
 	u8 rate_index = 0;
 
-	rtl8192_config_rate(dev, (u16*)(&ratr_value));
+	rtl8192_config_rate(priv, (u16*)(&ratr_value));
 	ratr_value |= (*(u16*)(pMcsRate)) << 12;
 
 	switch (ieee->mode)
@@ -2518,15 +2504,14 @@ static short rtl8192_init(struct net_device *dev)
  *  not to do all the hw config as its name says
  * This part need to modified according to the rate set we filtered
  */
-static void rtl8192_hwconfig(struct net_device* dev)
+static void rtl8192_hwconfig(struct r8192_priv *priv)
 {
 	u32 regRATR = 0, regRRSR = 0;
 	u8 regBwOpMode = 0, regTmp = 0;
-	struct r8192_priv *priv = ieee80211_priv(dev);
 
 // Set RRSR, RATR, and BW_OPMODE registers
 	//
-	switch(priv->ieee80211->mode)
+	switch (priv->ieee80211->mode)
 	{
 	case WIRELESS_MODE_B:
 		regBwOpMode = BW_OPMODE_20MHZ;
@@ -2604,7 +2589,7 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 
 	RT_TRACE(COMP_INIT, "====>%s()\n", __FUNCTION__);
 	priv->being_init_adapter = true;
-        rtl8192_pci_resetdescring(dev);
+        rtl8192_pci_resetdescring(priv);
 	// 2007/11/02 MH Before initalizing RF. We can not use FW to do RF-R/W.
 	priv->Rf_Mode = RF_OP_By_SW_3wire;
 
@@ -2697,7 +2682,7 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	udelay(500);
 	}
 	//3Set Hardware(Do nothing now)
-	rtl8192_hwconfig(dev);
+	rtl8192_hwconfig(priv);
 	//2=======================================================
 	// Common Setting for all of the FPGA platform. (part 1)
 	//2=======================================================
@@ -2725,8 +2710,8 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 					NUM_OF_PAGE_IN_FW_QUEUE_BCN<<RSVD_FW_QUEUE_PAGE_BCN_SHIFT|
 					NUM_OF_PAGE_IN_FW_QUEUE_PUB<<RSVD_FW_QUEUE_PAGE_PUB_SHIFT);
 
-	rtl8192_tx_enable(dev);
-	rtl8192_rx_enable(dev);
+	rtl8192_tx_enable(priv);
+	rtl8192_rx_enable(priv);
 	//3Set Response Rate Setting Register
 	// CCK rate is supported by default.
 	// CCK rate will be filtered out only when associated AP does not support it.
@@ -2745,7 +2730,7 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	// 1. Clear all H/W keys.
 	// 2. Enable H/W encryption/decryption.
 	//-----------------------------------------------------------------------------
-	CamResetAllEntry(dev);
+	CamResetAllEntry(priv);
 	{
 		u8 SECR_value = 0x0;
 		SECR_value |= SCR_TxEncEnable;
@@ -2898,7 +2883,7 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 		}
 	}
 
-	rtl8192_irq_enable(dev);
+	rtl8192_irq_enable(priv);
 	priv->being_init_adapter = false;
 	return rtStatus;
 
@@ -2976,7 +2961,7 @@ static void rtl8192_start_beacon(struct net_device *dev)
 
 
 	/* enable the interrupt for ad-hoc process */
-	rtl8192_irq_enable(dev);
+	rtl8192_irq_enable(priv);
 }
 
 static bool HalRxCheckStuck8190Pci(struct net_device *dev)
@@ -5106,10 +5091,10 @@ void setKey(	struct net_device *dev,
 	RT_TRACE(COMP_SEC,"=========>after set key, usconfig:%x\n", usConfig);
 }
 
-bool NicIFEnableNIC(struct net_device* dev)
+bool NicIFEnableNIC(struct r8192_priv *priv)
 {
 	RT_STATUS init_status = RT_STATUS_SUCCESS;
-	struct r8192_priv* priv = ieee80211_priv(dev);
+	struct net_device *dev = priv->ieee80211->dev;
 	PRT_POWER_SAVE_CONTROL pPSC = &priv->PowerSaveControl;
 
 	//YJ,add,091109
@@ -5133,16 +5118,16 @@ bool NicIFEnableNIC(struct net_device* dev)
 	//priv->bfirst_init = false;
 
 	// <3> Enable Interrupt
-	rtl8192_irq_enable(dev);
+	rtl8192_irq_enable(priv);
 	priv->bdisable_nic = false;
 
 	return (init_status == RT_STATUS_SUCCESS);
 }
 
-bool NicIFDisableNIC(struct net_device* dev)
+bool NicIFDisableNIC(struct r8192_priv *priv)
 {
 	bool	status = true;
-	struct r8192_priv* priv = ieee80211_priv(dev);
+	struct net_device *dev = priv->ieee80211->dev;
 	u8 tmp_state = 0;
 	// <1> Disable Interrupt
 

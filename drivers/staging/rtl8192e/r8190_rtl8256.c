@@ -317,10 +317,9 @@ static void r8192e_drain_tx_queues(struct r8192_priv *priv)
 	}
 }
 
-static bool
-SetRFPowerState8190(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
+static bool SetRFPowerState8190(struct r8192_priv *priv,
+				RT_RF_POWER_STATE eRFPowerState)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	PRT_POWER_SAVE_CONTROL pPSC = &priv->PowerSaveControl;
 	bool bResult = true;
 
@@ -342,7 +341,7 @@ SetRFPowerState8190(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 			 * The current RF state is OFF and the RF OFF level
 			 * is halting the NIC, re-initialize the NIC.
 			 */
-			if (!NicIFEnableNIC(dev)) {
+			if (!NicIFEnableNIC(priv)) {
 				RT_TRACE(COMP_ERR, "%s(): NicIFEnableNIC failed\n",__FUNCTION__);
 				bResult = false;
 				goto out;
@@ -386,7 +385,7 @@ SetRFPowerState8190(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 
 		r8192e_drain_tx_queues(priv);
 
-		PHY_SetRtl8192eRfOff(dev);
+		PHY_SetRtl8192eRfOff(priv);
 
 		break;
 
@@ -401,13 +400,13 @@ SetRFPowerState8190(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 		if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_HALT_NIC && !RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC))
 		{
 			/* Disable all components. */
-			NicIFDisableNIC(dev);
+			NicIFDisableNIC(priv);
 			RT_SET_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
 		}
 		else if (!(pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_HALT_NIC))
 		{
 			/* Normal case - IPS should go to this. */
-			PHY_SetRtl8192eRfOff(dev);
+			PHY_SetRtl8192eRfOff(priv);
 		}
 		break;
 
@@ -431,12 +430,8 @@ out:
 
 
 
-static void
-MgntDisconnectIBSS(
-	struct net_device* dev
-)
+static void MgntDisconnectIBSS(struct r8192_priv *priv)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8			i;
 	bool	bFilterOutNonAssociatedBSSID = false;
 
@@ -498,14 +493,9 @@ MgntDisconnectIBSS(
 
 }
 
-static void
-MlmeDisassociateRequest(
-	struct net_device* dev,
-	u8* 		asSta,
-	u8			asRsn
-	)
+static void MlmeDisassociateRequest(struct r8192_priv *priv, u8 *asSta,
+				    u8 asRsn)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8 i;
 
 	RemovePeerTS(priv->ieee80211, asSta);
@@ -557,9 +547,8 @@ MlmeDisassociateRequest(
 }
 
 
-static void MgntDisconnectAP(struct net_device *dev, u8 asRsn)
+static void MgntDisconnectAP(struct r8192_priv *priv, u8 asRsn)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	bool bFilterOutNonAssociatedBSSID = false;
 	u32 RegRCR, Type;
 
@@ -578,26 +567,20 @@ static void MgntDisconnectAP(struct net_device *dev, u8 asRsn)
 	write_nic_dword(priv, RCR, RegRCR);
 	priv->ReceiveConfig = RegRCR;
 
-	MlmeDisassociateRequest(dev, priv->ieee80211->current_network.bssid, asRsn);
+	MlmeDisassociateRequest(priv, priv->ieee80211->current_network.bssid, asRsn);
 
 	priv->ieee80211->state = IEEE80211_NOLINK;
 }
 
 
-static bool
-MgntDisconnect(
-	struct net_device* dev,
-	u8 asRsn
-)
+static bool MgntDisconnect(struct r8192_priv *priv, u8 asRsn)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
-
 	// In adhoc mode, update beacon frame.
 	if( priv->ieee80211->state == IEEE80211_LINKED )
 	{
 		if( priv->ieee80211->iw_mode == IW_MODE_ADHOC )
 		{
-			MgntDisconnectIBSS(dev);
+			MgntDisconnectIBSS(priv);
 		}
 		if( priv->ieee80211->iw_mode == IW_MODE_INFRA )
 		{
@@ -606,7 +589,7 @@ MgntDisconnect(
 			// e.g. OID_802_11_DISASSOCIATE in Windows while as MgntDisconnectAP() is
 			// used to handle disassociation related things to AP, e.g. send Disassoc
 			// frame to AP.  2005.01.27, by rcnjko.
-			MgntDisconnectAP(dev, asRsn);
+			MgntDisconnectAP(priv, asRsn);
 		}
 	}
 
@@ -665,7 +648,7 @@ MgntActSet_RF_State(
 		if (priv->RfOffReason > RF_CHANGE_BY_IPS)
 		{
 			// Disconnect to current BSS when radio off. Asked by QuanTa.
-			MgntDisconnect(dev, disas_lv_ss);
+			MgntDisconnect(priv, disas_lv_ss);
 		}
 
 		priv->RfOffReason |= ChangeSource;
@@ -682,7 +665,7 @@ MgntActSet_RF_State(
 	{
 		RT_TRACE(COMP_POWER, "MgntActSet_RF_State(): Action is allowed.... StateToSet(%d), RfOffReason(%#X)\n", StateToSet, priv->RfOffReason);
 		// Config HW to the specified mode.
-		SetRFPowerState8190(dev, StateToSet);
+		SetRFPowerState8190(priv, StateToSet);
 	}
 	else
 	{
