@@ -1011,7 +1011,6 @@ typedef struct r8192_priv
 	bool bHwRadioOff;
 	//by amy for ps
 	bool RFChangeInProgress; // RF Chnage in progress, by Bruce, 2007-10-30
-	bool SetRFPowerStateInProgress;
 	RT_OP_MODE OpMode;
 	//by amy for reset_count
 	u32 reset_count;

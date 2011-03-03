@@ -328,11 +328,6 @@ SetRFPowerState8190(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 	bool bResult = true;
 
 	spin_lock(&priv->ps_lock);
-	if (priv->SetRFPowerStateInProgress) {
-		bResult = false;
-		goto out;
-	}
-	priv->SetRFPowerStateInProgress = true;
 
 	switch( eRFPowerState )
 	{
@@ -428,7 +423,6 @@ SetRFPowerState8190(struct net_device *dev, RT_RF_POWER_STATE eRFPowerState)
 	}
 
 out:
-	priv->SetRFPowerStateInProgress = false;
 	spin_unlock(&priv->ps_lock);
 	return bResult;
 }

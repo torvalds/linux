@@ -1986,7 +1986,6 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 	priv->ieee80211->RfOffReason = 0;
 	priv->RFChangeInProgress = false;
 	priv->bHwRfOffAction = 0;
-	priv->SetRFPowerStateInProgress = false;
 	priv->ieee80211->PowerSaveControl.bInactivePs = true;
 	priv->ieee80211->PowerSaveControl.bIPSModeBackup = false;
 
