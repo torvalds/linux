@@ -42,7 +42,6 @@
 #include <mach/3ds_debugboard.h>
 
 #include "devices-imx35.h"
-#include "devices.h"
 
 #define EXPIO_PARENT_INT	(MXC_INTERNAL_IRQS + GPIO_PORTA + 1)
 

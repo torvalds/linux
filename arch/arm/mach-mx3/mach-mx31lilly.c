@@ -46,7 +46,6 @@
 #include <mach/ulpi.h>
 
 #include "devices-imx31.h"
-#include "devices.h"
 
 /*
  * This file contains module-specific initialization routines for LILLY-1131.

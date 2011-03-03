@@ -32,15 +32,12 @@
 #include <mach/common.h>
 #include <mach/iomux-mx35.h>
 #include <mach/irqs.h>
-#include <mach/ipu.h>
-#include <mach/mx3fb.h>
 
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
 #include <linux/mfd/mc13xxx.h>
 
 #include "devices-imx35.h"
-#include "devices.h"
 
 #define GPIO_LCDPWR	IMX_GPIO_NR(1, 2)
 #define GPIO_PMIC_INT	IMX_GPIO_NR(2, 0)
@@ -90,12 +87,11 @@ static const struct fb_videomode fb_modedb[] = {
 	}
 };
 
-static struct ipu_platform_data mx3_ipu_data = {
+static const struct ipu_platform_data mx3_ipu_data __initconst = {
 	.irq_base = MXC_IPU_IRQ_START,
 };
 
-static struct mx3fb_platform_data mx3fb_pdata = {
-	.dma_dev	= &mx3_ipu.dev,
+static struct mx3fb_platform_data mx3fb_pdata __initdata = {
 	.name		= "PT0708048",
 	.mode		= fb_modedb,
 	.num_modes	= ARRAY_SIZE(fb_modedb),
@@ -292,8 +288,8 @@ static void __init vpr200_board_init(void)
 	imx35_add_imx_uart0(NULL);
 	imx35_add_imx_uart2(NULL);
 
-	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
-	mxc_register_device(&mx3_fb, &mx3fb_pdata);
+	imx35_add_ipu_core(&mx3_ipu_data);
+	imx35_add_mx3_sdc_fb(&mx3fb_pdata);
 
 	imx35_add_fsl_usb2_udc(&otg_device_pdata);
 	imx35_add_mxc_ehci_hs(&usb_host_pdata);

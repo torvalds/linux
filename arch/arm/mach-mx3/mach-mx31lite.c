@@ -44,7 +44,6 @@
 #include <mach/ulpi.h>
 
 #include "devices-imx31.h"
-#include "devices.h"
 
 /*
  * This file contains the module-specific initialization routines.

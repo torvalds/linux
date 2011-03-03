@@ -38,12 +38,9 @@
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/iomux-mx35.h>
-#include <mach/ipu.h>
-#include <mach/mx3fb.h>
 #include <mach/audmux.h>
 
 #include "devices-imx35.h"
-#include "devices.h"
 
 static const struct fb_videomode fb_modedb[] = {
 	{
@@ -98,12 +95,11 @@ static const struct fb_videomode fb_modedb[] = {
 	},
 };
 
-static struct ipu_platform_data mx3_ipu_data = {
+static const struct ipu_platform_data mx3_ipu_data __initconst = {
 	.irq_base = MXC_IPU_IRQ_START,
 };
 
-static struct mx3fb_platform_data mx3fb_pdata = {
-	.dma_dev	= &mx3_ipu.dev,
+static struct mx3fb_platform_data mx3fb_pdata __initdata = {
 	.name		= "CMO-QVGA",
 	.mode		= fb_modedb,
 	.num_modes	= ARRAY_SIZE(fb_modedb),
@@ -280,8 +276,8 @@ void __init eukrea_mbimxsd35_baseboard_init(void)
 #endif
 
 	imx35_add_imx_uart1(&uart_pdata);
-	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
-	mxc_register_device(&mx3_fb, &mx3fb_pdata);
+	imx35_add_ipu_core(&mx3_ipu_data);
+	imx35_add_mx3_sdc_fb(&mx3fb_pdata);
 
 	imx35_add_imx_ssi(0, &eukrea_mbimxsd_ssi_pdata);
 

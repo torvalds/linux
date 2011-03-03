@@ -39,12 +39,8 @@
 #include <mach/iomux-mx3.h>
 #include <mach/3ds_debugboard.h>
 #include <mach/ulpi.h>
-#include <mach/ipu.h>
-#include <mach/mx3fb.h>
-#include <mach/mx3_camera.h>
 
 #include "devices-imx31.h"
-#include "devices.h"
 
 /* CPLD IRQ line for external uart, external ethernet etc */
 #define EXPIO_PARENT_INT	IOMUX_TO_IRQ(MX31_PIN_GPIO1_1)
@@ -177,22 +173,37 @@ static struct gpio mx31_3ds_camera_gpios[] = {
 	{ MX31_3DS_GPIO_CAMERA_RST, GPIOF_OUT_INIT_HIGH, "camera-reset" },
 };
 
-static int __init mx31_3ds_camera_alloc_dma(void)
+static const struct mx3_camera_pdata mx31_3ds_camera_pdata __initconst = {
+	.flags = MX3_CAMERA_DATAWIDTH_10,
+	.mclk_10khz = 2600,
+};
+
+static int __init mx31_3ds_init_camera(void)
 {
-	int dma;
+	int dma, ret = -ENOMEM;
+	struct platform_device *pdev =
+		imx31_alloc_mx3_camera(&mx31_3ds_camera_pdata);
+
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
 
 	if (!mx3_camera_base)
-		return -ENOMEM;
+		goto err;
 
-	dma = dma_declare_coherent_memory(&mx3_camera.dev,
+	dma = dma_declare_coherent_memory(&pdev->dev,
 					mx3_camera_base, mx3_camera_base,
 					MX31_3DS_CAMERA_BUF_SIZE,
 					DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE);
 
 	if (!(dma & DMA_MEMORY_MAP))
-		return -ENOMEM;
+		goto err;
 
-	return 0;
+	ret = platform_device_add(pdev);
+	if (ret)
+err:
+		platform_device_put(pdev);
+
+	return ret;
 }
 
 static int mx31_3ds_camera_power(struct device *dev, int on)
@@ -240,12 +251,6 @@ static struct platform_device mx31_3ds_ov2640 = {
 	},
 };
 
-struct mx3_camera_pdata mx31_3ds_camera_pdata = {
-	.dma_dev	= &mx3_ipu.dev,
-	.flags		= MX3_CAMERA_DATAWIDTH_10,
-	.mclk_10khz	= 2600,
-};
-
 /*
  * FB support
  */
@@ -272,8 +277,7 @@ static struct ipu_platform_data mx3_ipu_data = {
 	.irq_base = MXC_IPU_IRQ_START,
 };
 
-static struct mx3fb_platform_data mx3fb_pdata = {
-	.dma_dev	= &mx3_ipu.dev,
+static struct mx3fb_platform_data mx3fb_pdata __initdata = {
 	.name		= "Epson-VGA",
 	.mode		= fb_modedb,
 	.num_modes	= ARRAY_SIZE(fb_modedb),
@@ -722,8 +726,8 @@ static void __init mx31_3ds_init(void)
 	imx31_add_mxc_mmc(0, &sdhc1_pdata);
 
 	imx31_add_spi_imx0(&spi0_pdata);
-	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
-	mxc_register_device(&mx3_fb, &mx3fb_pdata);
+	imx31_add_ipu_core(&mx3_ipu_data);
+	imx31_add_mx3_sdc_fb(&mx3fb_pdata);
 
 	/* CSI */
 	/* Camera power: default - off */
@@ -734,10 +738,7 @@ static void __init mx31_3ds_init(void)
 		iclink_ov2640.power = NULL;
 	}
 
-	if (!mx31_3ds_camera_alloc_dma())
-		mxc_register_device(&mx3_camera, &mx31_3ds_camera_pdata);
-	else
-		pr_err("Failed to allocate dma memory for camera");
+	mx31_3ds_init_camera();
 }
 
 static void __init mx31_3ds_timer_init(void)

@@ -40,12 +40,9 @@
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/iomux-mx3.h>
-#include <mach/ipu.h>
-#include <mach/mx3_camera.h>
 #include <mach/ulpi.h>
 
 #include "devices-imx31.h"
-#include "devices.h"
 
 static unsigned int moboard_pins[] = {
 	/* UART0 */
@@ -194,8 +191,8 @@ static struct regulator_init_data sdhc_vreg_data = {
 
 static struct regulator_consumer_supply cam_consumers[] = {
 	{
-		.dev	= &mx3_camera.dev,
-		.supply	= "cam_vcc",
+		.dev_name = "mx3_camera.0",
+		.supply = "cam_vcc",
 	},
 };
 
@@ -458,7 +455,7 @@ static struct platform_device mx31moboard_leds_device = {
 	},
 };
 
-static struct ipu_platform_data mx3_ipu_data = {
+static const struct ipu_platform_data mx3_ipu_data __initconst = {
 	.irq_base = MXC_IPU_IRQ_START,
 };
 
@@ -467,8 +464,7 @@ static struct platform_device *devices[] __initdata = {
 	&mx31moboard_leds_device,
 };
 
-static struct mx3_camera_pdata camera_pdata = {
-	.dma_dev	= &mx3_ipu.dev,
+static struct mx3_camera_pdata camera_pdata __initdata = {
 	.flags		= MX3_CAMERA_DATAWIDTH_8 | MX3_CAMERA_DATAWIDTH_10,
 	.mclk_10khz	= 4800,
 };
@@ -476,18 +472,31 @@ static struct mx3_camera_pdata camera_pdata = {
 static phys_addr_t mx3_camera_base __initdata;
 #define MX3_CAMERA_BUF_SIZE SZ_4M
 
-static int __init mx31moboard_cam_alloc_dma(void)
+static int __init mx31moboard_init_cam(void)
 {
-	int dma;
+	int dma, ret = -ENOMEM;
+	struct platform_device *pdev;
 
+	imx31_add_ipu_core(&mx3_ipu_data);
 
-	dma = dma_declare_coherent_memory(&mx3_camera.dev,
+	pdev = imx31_alloc_mx3_camera(&camera_pdata);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	dma = dma_declare_coherent_memory(&pdev->dev,
 					mx3_camera_base, mx3_camera_base,
 					MX3_CAMERA_BUF_SIZE,
 					DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE);
+	if (!(dma & DMA_MEMORY_MAP))
+		goto err;
 
-	/* The way we call dma_declare_coherent_memory only a malloc can fail */
-	return dma & DMA_MEMORY_MAP ? 0 : -ENOMEM;
+	ret = platform_device_add(pdev);
+	if (ret)
+err:
+		platform_device_put(pdev);
+
+	return ret;
+
 }
 
 static int mx31moboard_baseboard;
@@ -519,9 +528,7 @@ static void __init mx31moboard_init(void)
 
 	imx31_add_mxc_mmc(0, &sdhc1_pdata);
 
-	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
-	if (!mx31moboard_cam_alloc_dma())
-		mxc_register_device(&mx3_camera, &camera_pdata);
+	mx31moboard_init_cam();
 
 	usb_xcvr_reset();
 

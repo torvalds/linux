@@ -17,7 +17,6 @@
 #include <asm/mach-types.h>
 
 #include "pcm037.h"
-#include "devices.h"
 #include "devices-imx31.h"
 
 static unsigned int pcm037_eet_pins[] = {

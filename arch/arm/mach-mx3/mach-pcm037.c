@@ -42,13 +42,9 @@
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/iomux-mx3.h>
-#include <mach/ipu.h>
-#include <mach/mx3_camera.h>
-#include <mach/mx3fb.h>
 #include <mach/ulpi.h>
 
 #include "devices-imx31.h"
-#include "devices.h"
 #include "pcm037.h"
 
 static enum pcm037_board_variant pcm037_instance = PCM037_PCM970;
@@ -405,8 +401,7 @@ static const struct imxmmc_platform_data sdhc_pdata __initconst = {
 	.exit = pcm970_sdhc1_exit,
 };
 
-struct mx3_camera_pdata camera_pdata = {
-	.dma_dev	= &mx3_ipu.dev,
+struct mx3_camera_pdata camera_pdata __initdata = {
 	.flags		= MX3_CAMERA_DATAWIDTH_8 | MX3_CAMERA_DATAWIDTH_10,
 	.mclk_10khz	= 2000,
 };
@@ -414,17 +409,27 @@ struct mx3_camera_pdata camera_pdata = {
 static phys_addr_t mx3_camera_base __initdata;
 #define MX3_CAMERA_BUF_SIZE SZ_4M
 
-static int __init pcm037_camera_alloc_dma(void)
+static int __init pcm037_init_camera(void)
 {
-	int dma;
+	int dma, ret = -ENOMEM;
+	struct platform_device *pdev = imx31_alloc_mx3_camera(&camera_pdata);
 
-	dma = dma_declare_coherent_memory(&mx3_camera.dev,
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	dma = dma_declare_coherent_memory(&pdev->dev,
 					mx3_camera_base, mx3_camera_base,
 					MX3_CAMERA_BUF_SIZE,
 					DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE);
+	if (!(dma & DMA_MEMORY_MAP))
+		goto err;
 
-	/* The way we call dma_declare_coherent_memory only a malloc can fail */
-	return dma & DMA_MEMORY_MAP ? 0 : -ENOMEM;
+	ret = platform_device_add(pdev);
+	if (ret)
+err:
+		platform_device_put(pdev);
+
+	return ret;
 }
 
 static struct platform_device *devices[] __initdata = {
@@ -434,7 +439,7 @@ static struct platform_device *devices[] __initdata = {
 	&pcm037_mt9v022,
 };
 
-static struct ipu_platform_data mx3_ipu_data = {
+static const struct ipu_platform_data mx3_ipu_data __initconst = {
 	.irq_base = MXC_IPU_IRQ_START,
 };
 
@@ -492,7 +497,6 @@ static const struct fb_videomode fb_modedb[] = {
 };
 
 static struct mx3fb_platform_data mx3fb_pdata = {
-	.dma_dev	= &mx3_ipu.dev,
 	.name		= "Sharp-LQ035Q7DH06-QVGA",
 	.mode		= fb_modedb,
 	.num_modes	= ARRAY_SIZE(fb_modedb),
@@ -630,8 +634,8 @@ static void __init pcm037_init(void)
 
 	imx31_add_mxc_nand(&pcm037_nand_board_info);
 	imx31_add_mxc_mmc(0, &sdhc_pdata);
-	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
-	mxc_register_device(&mx3_fb, &mx3fb_pdata);
+	imx31_add_ipu_core(&mx3_ipu_data);
+	imx31_add_mx3_sdc_fb(&mx3fb_pdata);
 
 	/* CSI */
 	/* Camera power: default - off */
@@ -641,8 +645,7 @@ static void __init pcm037_init(void)
 	else
 		iclink_mt9t031.power = NULL;
 
-	if (!pcm037_camera_alloc_dma())
-		mxc_register_device(&mx3_camera, &camera_pdata);
+	pcm037_init_camera();
 
 	platform_device_register(&pcm970_sja1000);
 

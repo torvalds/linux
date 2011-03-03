@@ -37,7 +37,6 @@
 #include <mach/board-mx31lite.h>
 
 #include "devices-imx31.h"
-#include "devices.h"
 
 /*
  * This file contains board-specific initialization routines for the

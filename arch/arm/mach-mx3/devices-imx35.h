@@ -49,6 +49,14 @@ extern const struct imx_imx_uart_1irq_data imx35_imx_uart_data[];
 #define imx35_add_imx_uart1(pdata)	imx35_add_imx_uart(1, pdata)
 #define imx35_add_imx_uart2(pdata)	imx35_add_imx_uart(2, pdata)
 
+extern const struct imx_ipu_core_data imx35_ipu_core_data;
+#define imx35_add_ipu_core(pdata)	\
+	imx_add_ipu_core(&imx35_ipu_core_data, pdata)
+#define imx35_alloc_mx3_camera(pdata)	\
+	imx_alloc_mx3_camera(&imx35_ipu_core_data, pdata)
+#define imx35_add_mx3_sdc_fb(pdata)	\
+	imx_add_mx3_sdc_fb(&imx35_ipu_core_data, pdata)
+
 extern const struct imx_mxc_ehci_data imx35_mxc_ehci_otg_data;
 #define imx35_add_mxc_ehci_otg(pdata)	\
 	imx_add_mxc_ehci(&imx35_mxc_ehci_otg_data, pdata)

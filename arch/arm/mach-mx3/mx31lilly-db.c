@@ -34,11 +34,8 @@
 #include <mach/common.h>
 #include <mach/iomux-mx3.h>
 #include <mach/board-mx31lilly.h>
-#include <mach/mx3fb.h>
-#include <mach/ipu.h>
 
 #include "devices-imx31.h"
-#include "devices.h"
 
 /*
  * This file contains board-specific initialization routines for the
@@ -164,7 +161,7 @@ static const struct imxmmc_platform_data mmc_pdata __initconst = {
 };
 
 /* Framebuffer support */
-static struct ipu_platform_data ipu_data __initdata = {
+static const struct ipu_platform_data ipu_data __initconst = {
 	.irq_base = MXC_IPU_IRQ_START,
 };
 
@@ -187,7 +184,6 @@ static const struct fb_videomode fb_modedb = {
 };
 
 static struct mx3fb_platform_data fb_pdata __initdata = {
-	.dma_dev	= &mx3_ipu.dev,
 	.name		= "CRT-VGA",
 	.mode		= &fb_modedb,
 	.num_modes	= 1,
@@ -202,8 +198,8 @@ static void __init mx31lilly_init_fb(void)
 		return;
 	}
 
-	mxc_register_device(&mx3_ipu, &ipu_data);
-	mxc_register_device(&mx3_fb, &fb_pdata);
+	imx31_add_ipu_core(&ipu_data);
+	imx31_add_mx3_sdc_fb(&fb_pdata);
 	gpio_direction_output(LCD_VCC_EN_GPIO, 1);
 }
 

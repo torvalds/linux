@@ -33,7 +33,6 @@
 #include <mach/iomux-mx3.h>
 
 #include "devices-imx31.h"
-#include "devices.h"
 
 /* FPGA defines */
 #define QONG_FPGA_VERSION(major, minor, rev)	\

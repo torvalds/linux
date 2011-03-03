@@ -48,12 +48,9 @@
 
 #include <mach/common.h>
 #include <mach/iomux-mx3.h>
-#include <mach/ipu.h>
-#include <mach/mx3fb.h>
 #include <mach/ulpi.h>
 
 #include "devices-imx31.h"
-#include "devices.h"
 #include "crm_regs.h"
 
 static int armadillo5x0_pins[] = {
@@ -374,12 +371,11 @@ static const struct fb_videomode fb_modedb[] = {
 	},
 };
 
-static struct ipu_platform_data mx3_ipu_data = {
+static const struct ipu_platform_data mx3_ipu_data __initconst = {
 	.irq_base = MXC_IPU_IRQ_START,
 };
 
-static struct mx3fb_platform_data mx3fb_pdata = {
-	.dma_dev	= &mx3_ipu.dev,
+static struct mx3fb_platform_data mx3fb_pdata __initdata = {
 	.name		= "CRT-VGA",
 	.mode		= fb_modedb,
 	.num_modes	= ARRAY_SIZE(fb_modedb),
@@ -512,8 +508,8 @@ static void __init armadillo5x0_init(void)
 	imx31_add_mxc_mmc(0, &sdhc_pdata);
 
 	/* Register FB */
-	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
-	mxc_register_device(&mx3_fb, &mx3fb_pdata);
+	imx31_add_ipu_core(&mx3_ipu_data);
+	imx31_add_mx3_sdc_fb(&mx3fb_pdata);
 
 	/* Register NOR Flash */
 	mxc_register_device(&armadillo5x0_nor_flash,

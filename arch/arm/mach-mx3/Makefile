@@ -4,7 +4,7 @@
 
 # Object file lists.
 
-obj-y				:= mm.o devices.o cpu.o
+obj-y				:= mm.o cpu.o
 obj-$(CONFIG_SOC_IMX31)		+= clock-imx31.o iomux-imx31.o ehci-imx31.o
 obj-$(CONFIG_SOC_IMX35)		+= clock-imx35.o ehci-imx35.o
 obj-$(CONFIG_MACH_MX31ADS)	+= mach-mx31ads.o

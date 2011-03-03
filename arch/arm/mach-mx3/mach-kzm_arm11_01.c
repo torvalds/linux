@@ -39,7 +39,6 @@
 #include <mach/iomux-mx3.h>
 
 #include "devices-imx31.h"
-#include "devices.h"
 
 #define KZM_ARM11_IO_ADDRESS(x) (IOMEM(					\
 	IMX_IO_P2V_MODULE(x, MX31_CS4) ?:				\

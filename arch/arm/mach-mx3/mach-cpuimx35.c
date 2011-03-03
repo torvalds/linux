@@ -43,7 +43,6 @@
 #include <mach/iomux-mx35.h>
 
 #include "devices-imx35.h"
-#include "devices.h"
 
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,

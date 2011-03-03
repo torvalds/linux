@@ -28,7 +28,6 @@
 #include <mach/ulpi.h>
 
 #include "devices-imx31.h"
-#include "devices.h"
 
 static unsigned int devboard_pins[] = {
 	/* UART1 */

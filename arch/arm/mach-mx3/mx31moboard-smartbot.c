@@ -32,7 +32,6 @@
 #include <media/soc_camera.h>
 
 #include "devices-imx31.h"
-#include "devices.h"
 
 static unsigned int smartbot_pins[] = {
 	/* UART1 */

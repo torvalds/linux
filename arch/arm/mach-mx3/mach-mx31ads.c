@@ -38,7 +38,6 @@
 #endif
 
 #include "devices-imx31.h"
-#include "devices.h"
 
 /* PBC Board interrupt status register */
 #define PBC_INTSTATUS           0x000016
