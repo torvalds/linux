@@ -50,6 +50,16 @@
 #define GPIO_WIFI_PMENA		43
 #define GPIO_WIFI_IRQ		53
 
+/* wl127x BT, FM, GPS connectivity chip */
+static int wl1271_gpios[] = {46, -1, -1};
+static struct platform_device wl1271_device = {
+	.name	= "kim",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &wl1271_gpios,
+	},
+};
+
 static struct gpio_led gpio_leds[] = {
 	{
 		.name			= "pandaboard::status1",
@@ -78,6 +88,7 @@ static struct platform_device leds_gpio = {
 
 static struct platform_device *panda_devices[] __initdata = {
 	&leds_gpio,
+	&wl1271_device,
 };
 
 static void __init omap4_panda_init_early(void)
@@ -180,13 +191,13 @@ static struct omap2_hsmmc_info mmc[] = {
 static struct regulator_consumer_supply omap4_panda_vmmc_supply[] = {
 	{
 		.supply = "vmmc",
-		.dev_name = "mmci-omap-hs.0",
+		.dev_name = "omap_hsmmc.0",
 	},
 };
 
 static struct regulator_consumer_supply omap4_panda_vmmc5_supply = {
 	.supply = "vmmc",
-	.dev_name = "mmci-omap-hs.4",
+	.dev_name = "omap_hsmmc.4",
 };
 
 static struct regulator_init_data panda_vmmc5 = {

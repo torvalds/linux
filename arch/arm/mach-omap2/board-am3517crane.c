@@ -51,9 +51,6 @@ static struct omap_board_mux board_mux[] __initdata = {
 
 static void __init am3517_crane_init_early(void)
 {
-	omap_board_config = am3517_crane_config;
-	omap_board_config_size = ARRAY_SIZE(am3517_crane_config);
-
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
 }
@@ -75,6 +72,9 @@ static void __init am3517_crane_init(void)
 
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap_serial_init();
+
+	omap_board_config = am3517_crane_config;
+	omap_board_config_size = ARRAY_SIZE(am3517_crane_config);
 
 	/* Configure GPIO for EHCI port */
 	if (omap_mux_init_gpio(GPIO_USB_NRESET, OMAP_PIN_OUTPUT)) {

@@ -118,7 +118,7 @@ static struct regulator_consumer_supply zoom_vmmc2_supply = {
 
 static struct regulator_consumer_supply zoom_vmmc3_supply = {
 	.supply		= "vmmc",
-	.dev_name	= "mmci-omap-hs.2",
+	.dev_name	= "omap_hsmmc.2",
 };
 
 /* VMMC1 for OMAP VDD_MMC1 (i/o) and MMC1 card */
@@ -322,9 +322,7 @@ static struct twl4030_madc_platform_data zoom_madc_data = {
 	.irq_line	= 1,
 };
 
-static struct twl4030_codec_audio_data zoom_audio_data = {
-	.audio_mclk = 26000000,
-};
+static struct twl4030_codec_audio_data zoom_audio_data;
 
 static struct twl4030_codec_data zoom_codec_data = {
 	.audio_mclk = 26000000,

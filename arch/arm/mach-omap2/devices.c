@@ -184,95 +184,29 @@ int __init omap4_keyboard_init(struct omap4_keypad_platform_data
 }
 
 #if defined(CONFIG_OMAP_MBOX_FWK) || defined(CONFIG_OMAP_MBOX_FWK_MODULE)
-
-#define MBOX_REG_SIZE   0x120
-
-#ifdef CONFIG_ARCH_OMAP2
-static struct resource omap2_mbox_resources[] = {
-	{
-		.start		= OMAP24XX_MAILBOX_BASE,
-		.end		= OMAP24XX_MAILBOX_BASE + MBOX_REG_SIZE - 1,
-		.flags		= IORESOURCE_MEM,
+static struct omap_device_pm_latency mbox_latencies[] = {
+	[0] = {
+		.activate_func = omap_device_enable_hwmods,
+		.deactivate_func = omap_device_idle_hwmods,
+		.flags = OMAP_DEVICE_LATENCY_AUTO_ADJUST,
 	},
-	{
-		.start		= INT_24XX_MAIL_U0_MPU,
-		.flags		= IORESOURCE_IRQ,
-		.name		= "dsp",
-	},
-	{
-		.start		= INT_24XX_MAIL_U3_MPU,
-		.flags		= IORESOURCE_IRQ,
-		.name		= "iva",
-	},
-};
-static int omap2_mbox_resources_sz = ARRAY_SIZE(omap2_mbox_resources);
-#else
-#define omap2_mbox_resources		NULL
-#define omap2_mbox_resources_sz		0
-#endif
-
-#ifdef CONFIG_ARCH_OMAP3
-static struct resource omap3_mbox_resources[] = {
-	{
-		.start		= OMAP34XX_MAILBOX_BASE,
-		.end		= OMAP34XX_MAILBOX_BASE + MBOX_REG_SIZE - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= INT_24XX_MAIL_U0_MPU,
-		.flags		= IORESOURCE_IRQ,
-		.name		= "dsp",
-	},
-};
-static int omap3_mbox_resources_sz = ARRAY_SIZE(omap3_mbox_resources);
-#else
-#define omap3_mbox_resources		NULL
-#define omap3_mbox_resources_sz		0
-#endif
-
-#ifdef CONFIG_ARCH_OMAP4
-
-#define OMAP4_MBOX_REG_SIZE	0x130
-static struct resource omap4_mbox_resources[] = {
-	{
-		.start          = OMAP44XX_MAILBOX_BASE,
-		.end            = OMAP44XX_MAILBOX_BASE +
-					OMAP4_MBOX_REG_SIZE - 1,
-		.flags          = IORESOURCE_MEM,
-	},
-	{
-		.start          = OMAP44XX_IRQ_MAIL_U0,
-		.flags          = IORESOURCE_IRQ,
-		.name		= "mbox",
-	},
-};
-static int omap4_mbox_resources_sz = ARRAY_SIZE(omap4_mbox_resources);
-#else
-#define omap4_mbox_resources		NULL
-#define omap4_mbox_resources_sz		0
-#endif
-
-static struct platform_device mbox_device = {
-	.name		= "omap-mailbox",
-	.id		= -1,
 };
 
 static inline void omap_init_mbox(void)
 {
-	if (cpu_is_omap24xx()) {
-		mbox_device.resource = omap2_mbox_resources;
-		mbox_device.num_resources = omap2_mbox_resources_sz;
-	} else if (cpu_is_omap34xx()) {
-		mbox_device.resource = omap3_mbox_resources;
-		mbox_device.num_resources = omap3_mbox_resources_sz;
-	} else if (cpu_is_omap44xx()) {
-		mbox_device.resource = omap4_mbox_resources;
-		mbox_device.num_resources = omap4_mbox_resources_sz;
-	} else {
-		pr_err("%s: platform not supported\n", __func__);
+	struct omap_hwmod *oh;
+	struct omap_device *od;
+
+	oh = omap_hwmod_lookup("mailbox");
+	if (!oh) {
+		pr_err("%s: unable to find hwmod\n", __func__);
 		return;
 	}
-	platform_device_register(&mbox_device);
+
+	od = omap_device_build("omap-mailbox", -1, oh, NULL, 0,
+				mbox_latencies, ARRAY_SIZE(mbox_latencies), 0);
+	WARN(IS_ERR(od), "%s: could not build device, err %ld\n",
+						__func__, PTR_ERR(od));
 }
 #else
 static inline void omap_init_mbox(void) { }
@@ -544,117 +478,10 @@ static inline void omap_init_aes(void) { }
 
 /*-------------------------------------------------------------------------*/
 
-#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
+#if defined(CONFIG_MMC_OMAP) || defined(CONFIG_MMC_OMAP_MODULE)
 
-#define MMCHS_SYSCONFIG			0x0010
-#define MMCHS_SYSCONFIG_SWRESET		(1 << 1)
-#define MMCHS_SYSSTATUS			0x0014
-#define MMCHS_SYSSTATUS_RESETDONE	(1 << 0)
-
-static struct platform_device dummy_pdev = {
-	.dev = {
-		.bus = &platform_bus_type,
-	},
-};
-
-/**
- * omap_hsmmc_reset() - Full reset of each HS-MMC controller
- *
- * Ensure that each MMC controller is fully reset.  Controllers
- * left in an unknown state (by bootloader) may prevent retention
- * or OFF-mode.  This is especially important in cases where the
- * MMC driver is not enabled, _or_ built as a module.
- *
- * In order for reset to work, interface, functional and debounce
- * clocks must be enabled.  The debounce clock comes from func_32k_clk
- * and is not under SW control, so we only enable i- and f-clocks.
- **/
-static void __init omap_hsmmc_reset(void)
-{
-	u32 i, nr_controllers;
-	struct clk *iclk, *fclk;
-
-	if (cpu_is_omap242x())
-		return;
-
-	nr_controllers = cpu_is_omap44xx() ? OMAP44XX_NR_MMC :
-		(cpu_is_omap34xx() ? OMAP34XX_NR_MMC : OMAP24XX_NR_MMC);
-
-	for (i = 0; i < nr_controllers; i++) {
-		u32 v, base = 0;
-		struct device *dev = &dummy_pdev.dev;
-
-		switch (i) {
-		case 0:
-			base = OMAP2_MMC1_BASE;
-			break;
-		case 1:
-			base = OMAP2_MMC2_BASE;
-			break;
-		case 2:
-			base = OMAP3_MMC3_BASE;
-			break;
-		case 3:
-			if (!cpu_is_omap44xx())
-				return;
-			base = OMAP4_MMC4_BASE;
-			break;
-		case 4:
-			if (!cpu_is_omap44xx())
-				return;
-			base = OMAP4_MMC5_BASE;
-			break;
-		}
-
-		if (cpu_is_omap44xx())
-			base += OMAP4_MMC_REG_OFFSET;
-
-		dummy_pdev.id = i;
-		dev_set_name(&dummy_pdev.dev, "mmci-omap-hs.%d", i);
-		iclk = clk_get(dev, "ick");
-		if (IS_ERR(iclk))
-			goto err1;
-		if (clk_enable(iclk))
-			goto err2;
-
-		fclk = clk_get(dev, "fck");
-		if (IS_ERR(fclk))
-			goto err3;
-		if (clk_enable(fclk))
-			goto err4;
-
-		omap_writel(MMCHS_SYSCONFIG_SWRESET, base + MMCHS_SYSCONFIG);
-		v = omap_readl(base + MMCHS_SYSSTATUS);
-		while (!(omap_readl(base + MMCHS_SYSSTATUS) &
-			 MMCHS_SYSSTATUS_RESETDONE))
-			cpu_relax();
-
-		clk_disable(fclk);
-		clk_put(fclk);
-		clk_disable(iclk);
-		clk_put(iclk);
-	}
-	return;
-
-err4:
-	clk_put(fclk);
-err3:
-	clk_disable(iclk);
-err2:
-	clk_put(iclk);
-err1:
-	printk(KERN_WARNING "%s: Unable to enable clocks for MMC%d, "
-			    "cannot reset.\n",  __func__, i);
-}
-#else
-static inline void omap_hsmmc_reset(void) {}
-#endif
-
-#if defined(CONFIG_MMC_OMAP) || defined(CONFIG_MMC_OMAP_MODULE) || \
-	defined(CONFIG_MMC_OMAP_HS) || defined(CONFIG_MMC_OMAP_HS_MODULE)
-
-static inline void omap2_mmc_mux(struct omap_mmc_platform_data *mmc_controller,
-			int controller_nr)
+static inline void omap242x_mmc_mux(struct omap_mmc_platform_data
+							*mmc_controller)
 {
 	if ((mmc_controller->slots[0].switch_pin > 0) && \
 		(mmc_controller->slots[0].switch_pin < OMAP_MAX_GPIO_LINES))
@@ -665,163 +492,44 @@ static inline void omap2_mmc_mux(struct omap_mmc_platform_data *mmc_controller,
 		omap_mux_init_gpio(mmc_controller->slots[0].gpio_wp,
 					OMAP_PIN_INPUT_PULLUP);
 
-	if (cpu_is_omap2420() && controller_nr == 0) {
-		omap_mux_init_signal("sdmmc_cmd", 0);
-		omap_mux_init_signal("sdmmc_clki", 0);
-		omap_mux_init_signal("sdmmc_clko", 0);
-		omap_mux_init_signal("sdmmc_dat0", 0);
-		omap_mux_init_signal("sdmmc_dat_dir0", 0);
-		omap_mux_init_signal("sdmmc_cmd_dir", 0);
-		if (mmc_controller->slots[0].caps & MMC_CAP_4_BIT_DATA) {
-			omap_mux_init_signal("sdmmc_dat1", 0);
-			omap_mux_init_signal("sdmmc_dat2", 0);
-			omap_mux_init_signal("sdmmc_dat3", 0);
-			omap_mux_init_signal("sdmmc_dat_dir1", 0);
-			omap_mux_init_signal("sdmmc_dat_dir2", 0);
-			omap_mux_init_signal("sdmmc_dat_dir3", 0);
-		}
-
-		/*
-		 * Use internal loop-back in MMC/SDIO Module Input Clock
-		 * selection
-		 */
-		if (mmc_controller->slots[0].internal_clock) {
-			u32 v = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
-			v |= (1 << 24);
-			omap_ctrl_writel(v, OMAP2_CONTROL_DEVCONF0);
-		}
+	omap_mux_init_signal("sdmmc_cmd", 0);
+	omap_mux_init_signal("sdmmc_clki", 0);
+	omap_mux_init_signal("sdmmc_clko", 0);
+	omap_mux_init_signal("sdmmc_dat0", 0);
+	omap_mux_init_signal("sdmmc_dat_dir0", 0);
+	omap_mux_init_signal("sdmmc_cmd_dir", 0);
+	if (mmc_controller->slots[0].caps & MMC_CAP_4_BIT_DATA) {
+		omap_mux_init_signal("sdmmc_dat1", 0);
+		omap_mux_init_signal("sdmmc_dat2", 0);
+		omap_mux_init_signal("sdmmc_dat3", 0);
+		omap_mux_init_signal("sdmmc_dat_dir1", 0);
+		omap_mux_init_signal("sdmmc_dat_dir2", 0);
+		omap_mux_init_signal("sdmmc_dat_dir3", 0);
 	}
 
-	if (cpu_is_omap34xx()) {
-		if (controller_nr == 0) {
-			omap_mux_init_signal("sdmmc1_clk",
-				OMAP_PIN_INPUT_PULLUP);
-			omap_mux_init_signal("sdmmc1_cmd",
-				OMAP_PIN_INPUT_PULLUP);
-			omap_mux_init_signal("sdmmc1_dat0",
-				OMAP_PIN_INPUT_PULLUP);
-			if (mmc_controller->slots[0].caps &
-				(MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA)) {
-				omap_mux_init_signal("sdmmc1_dat1",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc1_dat2",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc1_dat3",
-					OMAP_PIN_INPUT_PULLUP);
-			}
-			if (mmc_controller->slots[0].caps &
-						MMC_CAP_8_BIT_DATA) {
-				omap_mux_init_signal("sdmmc1_dat4",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc1_dat5",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc1_dat6",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc1_dat7",
-					OMAP_PIN_INPUT_PULLUP);
-			}
-		}
-		if (controller_nr == 1) {
-			/* MMC2 */
-			omap_mux_init_signal("sdmmc2_clk",
-				OMAP_PIN_INPUT_PULLUP);
-			omap_mux_init_signal("sdmmc2_cmd",
-				OMAP_PIN_INPUT_PULLUP);
-			omap_mux_init_signal("sdmmc2_dat0",
-				OMAP_PIN_INPUT_PULLUP);
-
-			/*
-			 * For 8 wire configurations, Lines DAT4, 5, 6 and 7 need to be muxed
-			 * in the board-*.c files
-			 */
-			if (mmc_controller->slots[0].caps &
-				(MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA)) {
-				omap_mux_init_signal("sdmmc2_dat1",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc2_dat2",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc2_dat3",
-					OMAP_PIN_INPUT_PULLUP);
-			}
-			if (mmc_controller->slots[0].caps &
-							MMC_CAP_8_BIT_DATA) {
-				omap_mux_init_signal("sdmmc2_dat4.sdmmc2_dat4",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc2_dat5.sdmmc2_dat5",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc2_dat6.sdmmc2_dat6",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc2_dat7.sdmmc2_dat7",
-					OMAP_PIN_INPUT_PULLUP);
-			}
-		}
-
-		/*
-		 * For MMC3 the pins need to be muxed in the board-*.c files
-		 */
+	/*
+	 * Use internal loop-back in MMC/SDIO Module Input Clock
+	 * selection
+	 */
+	if (mmc_controller->slots[0].internal_clock) {
+		u32 v = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
+		v |= (1 << 24);
+		omap_ctrl_writel(v, OMAP2_CONTROL_DEVCONF0);
 	}
 }
 
-void __init omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
-			int nr_controllers)
+void __init omap242x_init_mmc(struct omap_mmc_platform_data **mmc_data)
 {
-	int i;
-	char *name;
+	char *name = "mmci-omap";
 
-	for (i = 0; i < nr_controllers; i++) {
-		unsigned long base, size;
-		unsigned int irq = 0;
+	if (!mmc_data[0]) {
+		pr_err("%s fails: Incomplete platform data\n", __func__);
+		return;
+	}
 
-		if (!mmc_data[i])
-			continue;
-
-		omap2_mmc_mux(mmc_data[i], i);
-
-		switch (i) {
-		case 0:
-			base = OMAP2_MMC1_BASE;
-			irq = INT_24XX_MMC_IRQ;
-			break;
-		case 1:
-			base = OMAP2_MMC2_BASE;
-			irq = INT_24XX_MMC2_IRQ;
-			break;
-		case 2:
-			if (!cpu_is_omap44xx() && !cpu_is_omap34xx())
-				return;
-			base = OMAP3_MMC3_BASE;
-			irq = INT_34XX_MMC3_IRQ;
-			break;
-		case 3:
-			if (!cpu_is_omap44xx())
-				return;
-			base = OMAP4_MMC4_BASE;
-			irq = OMAP44XX_IRQ_MMC4;
-			break;
-		case 4:
-			if (!cpu_is_omap44xx())
-				return;
-			base = OMAP4_MMC5_BASE;
-			irq = OMAP44XX_IRQ_MMC5;
-			break;
-		default:
-			continue;
-		}
-
-		if (cpu_is_omap2420()) {
-			size = OMAP2420_MMC_SIZE;
-			name = "mmci-omap";
-		} else if (cpu_is_omap44xx()) {
-			if (i < 3)
-				irq += OMAP44XX_IRQ_GIC_START;
-			size = OMAP4_HSMMC_SIZE;
-			name = "mmci-omap-hs";
-		} else {
-			size = OMAP3_HSMMC_SIZE;
-			name = "mmci-omap-hs";
-		}
-		omap_mmc_add(name, i, base, size, irq, mmc_data[i]);
-	};
+	omap242x_mmc_mux(mmc_data[0]);
+	omap_mmc_add(name, 0, OMAP2_MMC1_BASE, OMAP2420_MMC_SIZE,
+					INT_24XX_MMC_IRQ, mmc_data[0]);
 }
 
 #endif
@@ -895,7 +603,6 @@ static int __init omap2_init_devices(void)
 	 * please keep these calls, and their implementations above,
 	 * in alphabetical order so they're easier to sort through.
 	 */
-	omap_hsmmc_reset();
 	omap_init_audio();
 	omap_init_camera();
 	omap_init_mbox();

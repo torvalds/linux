@@ -1929,6 +1929,7 @@ int omap_hwmod_fill_resources(struct omap_hwmod *oh, struct resource *res)
 		os = oh->slaves[i];
 
 		for (j = 0; j < os->addr_cnt; j++) {
+			(res + r)->name = (os->addr + j)->name;
 			(res + r)->start = (os->addr + j)->pa_start;
 			(res + r)->end = (os->addr + j)->pa_end;
 			(res + r)->flags = IORESOURCE_MEM;

@@ -534,9 +534,7 @@ static struct twl4030_madc_platform_data omap3evm_madc_data = {
 	.irq_line	= 1,
 };
 
-static struct twl4030_codec_audio_data omap3evm_audio_data = {
-	.audio_mclk = 26000000,
-};
+static struct twl4030_codec_audio_data omap3evm_audio_data;
 
 static struct twl4030_codec_data omap3evm_codec_data = {
 	.audio_mclk = 26000000,
@@ -604,7 +602,7 @@ static struct regulator_init_data omap3evm_vio = {
 #define OMAP3EVM_WLAN_IRQ_GPIO		(149)
 
 static struct regulator_consumer_supply omap3evm_vmmc2_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.1");
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1");
 
 /* VMMC2 for driving the WL12xx module */
 static struct regulator_init_data omap3evm_vmmc2 = {
@@ -729,8 +727,6 @@ static struct omap_board_config_kernel omap3_evm_config[] __initdata = {
 
 static void __init omap3_evm_init_early(void)
 {
-	omap_board_config = omap3_evm_config;
-	omap_board_config_size = ARRAY_SIZE(omap3_evm_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(mt46h32m32lf6_sdrc_params, NULL);
 }
@@ -835,6 +831,9 @@ static void __init omap3_evm_init(void)
 		omap3_mux_init(omap36x_board_mux, OMAP_PACKAGE_CBB);
 	else
 		omap3_mux_init(omap35x_board_mux, OMAP_PACKAGE_CBB);
+
+	omap_board_config = omap3_evm_config;
+	omap_board_config_size = ARRAY_SIZE(omap3_evm_config);
 
 	omap3_evm_i2c_init();
 

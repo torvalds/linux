@@ -381,13 +381,8 @@ static struct omap_dss_board_info am3517_evm_dss_data = {
 /*
  * Board initialization
  */
-static struct omap_board_config_kernel am3517_evm_config[] __initdata = {
-};
-
 static void __init am3517_evm_init_early(void)
 {
-	omap_board_config = am3517_evm_config;
-	omap_board_config_size = ARRAY_SIZE(am3517_evm_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
 }
@@ -481,8 +476,13 @@ static void am3517_evm_hecc_init(struct ti_hecc_platform_data *pdata)
 	platform_device_register(&am3517_hecc_device);
 }
 
+static struct omap_board_config_kernel am3517_evm_config[] __initdata = {
+};
+
 static void __init am3517_evm_init(void)
 {
+	omap_board_config = am3517_evm_config;
+	omap_board_config_size = ARRAY_SIZE(am3517_evm_config);
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 
 	am3517_evm_i2c_init();

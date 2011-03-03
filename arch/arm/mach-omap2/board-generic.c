@@ -35,8 +35,6 @@ static struct omap_board_config_kernel generic_config[] = {
 
 static void __init omap_generic_init_early(void)
 {
-	omap_board_config = generic_config;
-	omap_board_config_size = ARRAY_SIZE(generic_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
 }
@@ -44,6 +42,8 @@ static void __init omap_generic_init_early(void)
 static void __init omap_generic_init(void)
 {
 	omap_serial_init();
+	omap_board_config = generic_config;
+	omap_board_config_size = ARRAY_SIZE(generic_config);
 }
 
 static void __init omap_generic_map_io(void)

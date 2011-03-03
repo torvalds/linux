@@ -1984,15 +1984,15 @@ static struct omap_clk omap2430_clks[] = {
 	CLK(NULL,	"pka_ick",	&pka_ick,	CK_243X),
 	CLK(NULL,	"usb_fck",	&usb_fck,	CK_243X),
 	CLK("musb-omap2430",	"ick",	&usbhs_ick,	CK_243X),
-	CLK("mmci-omap-hs.0", "ick",	&mmchs1_ick,	CK_243X),
-	CLK("mmci-omap-hs.0", "fck",	&mmchs1_fck,	CK_243X),
-	CLK("mmci-omap-hs.1", "ick",	&mmchs2_ick,	CK_243X),
-	CLK("mmci-omap-hs.1", "fck",	&mmchs2_fck,	CK_243X),
+	CLK("omap_hsmmc.0", "ick",	&mmchs1_ick,	CK_243X),
+	CLK("omap_hsmmc.0", "fck",	&mmchs1_fck,	CK_243X),
+	CLK("omap_hsmmc.1", "ick",	&mmchs2_ick,	CK_243X),
+	CLK("omap_hsmmc.1", "fck",	&mmchs2_fck,	CK_243X),
 	CLK(NULL,	"gpio5_ick",	&gpio5_ick,	CK_243X),
 	CLK(NULL,	"gpio5_fck",	&gpio5_fck,	CK_243X),
 	CLK(NULL,	"mdm_intc_ick",	&mdm_intc_ick,	CK_243X),
-	CLK("mmci-omap-hs.0", "mmchsdb_fck",	&mmchsdb1_fck,	CK_243X),
-	CLK("mmci-omap-hs.1", "mmchsdb_fck", 	&mmchsdb2_fck,	CK_243X),
+	CLK("omap_hsmmc.0", "mmchsdb_fck",	&mmchsdb1_fck,	CK_243X),
+	CLK("omap_hsmmc.1", "mmchsdb_fck",	&mmchsdb2_fck,	CK_243X),
 };
 
 /*

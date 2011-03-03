@@ -142,7 +142,7 @@ static void __init igep3_flash_init(void) {}
 #endif
 
 static struct regulator_consumer_supply igep3_vmmc1_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.0");
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0");
 
 /* VMMC1 for OMAP VDD_MMC1 (i/o) and MMC1 card */
 static struct regulator_init_data igep3_vmmc1 = {
@@ -160,7 +160,7 @@ static struct regulator_init_data igep3_vmmc1 = {
 };
 
 static struct regulator_consumer_supply igep3_vio_supply =
-	REGULATOR_SUPPLY("vmmc_aux", "mmci-omap-hs.1");
+	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.1");
 
 static struct regulator_init_data igep3_vio = {
 	.constraints = {
@@ -178,7 +178,7 @@ static struct regulator_init_data igep3_vio = {
 };
 
 static struct regulator_consumer_supply igep3_vmmc2_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.1");
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1");
 
 static struct regulator_init_data igep3_vmmc2 = {
 	.constraints	= {

@@ -290,8 +290,6 @@ static struct omap_board_config_kernel ldp_config[] __initdata = {
 
 static void __init omap_ldp_init_early(void)
 {
-	omap_board_config = ldp_config;
-	omap_board_config_size = ARRAY_SIZE(ldp_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
 }
@@ -329,6 +327,26 @@ static struct regulator_init_data ldp_vmmc1 = {
 	.consumer_supplies	= &ldp_vmmc1_supply,
 };
 
+/* ads7846 on SPI */
+static struct regulator_consumer_supply ldp_vaux1_supplies[] = {
+	REGULATOR_SUPPLY("vcc", "spi1.0"),
+};
+
+/* VAUX1 */
+static struct regulator_init_data ldp_vaux1 = {
+	.constraints = {
+		.min_uV			= 3000000,
+		.max_uV			= 3000000,
+		.apply_uV		= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies		= ARRAY_SIZE(ldp_vaux1_supplies),
+	.consumer_supplies		= ldp_vaux1_supplies,
+};
+
 static struct twl4030_platform_data ldp_twldata = {
 	.irq_base	= TWL4030_IRQ_BASE,
 	.irq_end	= TWL4030_IRQ_END,
@@ -337,6 +355,7 @@ static struct twl4030_platform_data ldp_twldata = {
 	.madc		= &ldp_madc_data,
 	.usb		= &ldp_usb_data,
 	.vmmc1		= &ldp_vmmc1,
+	.vaux1		= &ldp_vaux1,
 	.gpio		= &ldp_gpio_data,
 	.keypad		= &ldp_kp_twl4030_data,
 };
@@ -422,6 +441,8 @@ static struct mtd_partition ldp_nand_partitions[] = {
 static void __init omap_ldp_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
+	omap_board_config = ldp_config;
+	omap_board_config_size = ARRAY_SIZE(ldp_config);
 	ldp_init_smsc911x();
 	omap_i2c_init();
 	platform_add_devices(ldp_devices, ARRAY_SIZE(ldp_devices));

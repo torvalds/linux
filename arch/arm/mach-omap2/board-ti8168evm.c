@@ -29,8 +29,6 @@ static struct omap_board_config_kernel ti8168_evm_config[] __initdata = {
 
 static void __init ti8168_init_early(void)
 {
-	omap_board_config = ti8168_evm_config;
-	omap_board_config_size = ARRAY_SIZE(ti8168_evm_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
 }
@@ -43,6 +41,8 @@ static void __init ti8168_evm_init_irq(void)
 static void __init ti8168_evm_init(void)
 {
 	omap_serial_init();
+	omap_board_config = ti8168_evm_config;
+	omap_board_config_size = ARRAY_SIZE(ti8168_evm_config);
 }
 
 static void __init ti8168_evm_map_io(void)

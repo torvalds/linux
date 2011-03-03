@@ -142,14 +142,12 @@ static struct omap_board_config_kernel sdp2430_config[] __initdata = {
 
 static void __init omap_2430sdp_init_early(void)
 {
-	omap_board_config = sdp2430_config;
-	omap_board_config_size = ARRAY_SIZE(sdp2430_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
 }
 
 static struct regulator_consumer_supply sdp2430_vmmc1_supplies[] = {
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.0"),
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
 
 /* VMMC1 for OMAP VDD_MMC1 (i/o) and MMC1 card */
@@ -245,6 +243,9 @@ static void __init omap_2430sdp_init(void)
 	int ret;
 
 	omap2430_mux_init(board_mux, OMAP_PACKAGE_ZAC);
+
+	omap_board_config = sdp2430_config;
+	omap_board_config_size = ARRAY_SIZE(sdp2430_config);
 
 	omap2430_i2c_init();
 

@@ -325,8 +325,6 @@ static struct omap_board_config_kernel sdp4430_config[] __initdata = {
 
 static void __init omap_4430sdp_init_early(void)
 {
-	omap_board_config = sdp4430_config;
-	omap_board_config_size = ARRAY_SIZE(sdp4430_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
 #ifdef CONFIG_OMAP_32K_TIMER
@@ -349,11 +347,6 @@ static struct twl4030_usb_data omap4_usbphy_data = {
 
 static struct omap2_hsmmc_info mmc[] = {
 	{
-		.mmc		= 1,
-		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
-		.gpio_wp	= -EINVAL,
-	},
-	{
 		.mmc		= 2,
 		.caps		=  MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
 		.gpio_cd	= -EINVAL,
@@ -361,19 +354,24 @@ static struct omap2_hsmmc_info mmc[] = {
 		.nonremovable   = true,
 		.ocr_mask	= MMC_VDD_29_30,
 	},
+	{
+		.mmc		= 1,
+		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
+		.gpio_wp	= -EINVAL,
+	},
 	{}	/* Terminator */
 };
 
 static struct regulator_consumer_supply sdp4430_vaux_supply[] = {
 	{
 		.supply = "vmmc",
-		.dev_name = "mmci-omap-hs.1",
+		.dev_name = "omap_hsmmc.1",
 	},
 };
 static struct regulator_consumer_supply sdp4430_vmmc_supply[] = {
 	{
 		.supply = "vmmc",
-		.dev_name = "mmci-omap-hs.0",
+		.dev_name = "omap_hsmmc.0",
 	},
 };
 
@@ -639,6 +637,9 @@ static void __init omap_4430sdp_init(void)
 	if (omap_rev() == OMAP4430_REV_ES1_0)
 		package = OMAP_PACKAGE_CBL;
 	omap4_mux_init(board_mux, package);
+
+	omap_board_config = sdp4430_config;
+	omap_board_config_size = ARRAY_SIZE(sdp4430_config);
 
 	omap4_i2c_init();
 	omap_sfh7741prox_init();

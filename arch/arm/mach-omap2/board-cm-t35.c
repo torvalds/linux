@@ -668,14 +668,8 @@ static void __init cm_t35_init_i2c(void)
 			      ARRAY_SIZE(cm_t35_i2c_boardinfo));
 }
 
-static struct omap_board_config_kernel cm_t35_config[] __initdata = {
-};
-
 static void __init cm_t35_init_early(void)
 {
-	omap_board_config = cm_t35_config;
-	omap_board_config_size = ARRAY_SIZE(cm_t35_config);
-
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
 			     mt46h32m32lf6_sdrc_params);
@@ -785,8 +779,13 @@ static struct omap_musb_board_data musb_board_data = {
 	.power			= 100,
 };
 
+static struct omap_board_config_kernel cm_t35_config[] __initdata = {
+};
+
 static void __init cm_t35_init(void)
 {
+	omap_board_config = cm_t35_config;
+	omap_board_config_size = ARRAY_SIZE(cm_t35_config);
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CUS);
 	omap_serial_init();
 	cm_t35_init_i2c();
