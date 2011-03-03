@@ -53,6 +53,8 @@ enum dw_dma_slave_width {
  * @reg_width: peripheral register width
  * @cfg_hi: Platform-specific initializer for the CFG_HI register
  * @cfg_lo: Platform-specific initializer for the CFG_LO register
+ * @src_master: src master for transfers on allocated channel.
+ * @dst_master: dest master for transfers on allocated channel.
  */
 struct dw_dma_slave {
 	struct device		*dma_dev;
@@ -61,8 +63,8 @@ struct dw_dma_slave {
 	enum dw_dma_slave_width	reg_width;
 	u32			cfg_hi;
 	u32			cfg_lo;
-	int			src_master;
-	int			dst_master;
+	u8			src_master;
+	u8			dst_master;
 };
 
 /* Platform-configurable bits in CFG_HI */
