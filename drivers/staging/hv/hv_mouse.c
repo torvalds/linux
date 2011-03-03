@@ -191,7 +191,7 @@ struct mousevsc_dev {
 static const char *driver_name = "mousevsc";
 
 /* {CFA8B69E-5B4A-4cc0-B98B-8BA1A1F3F95A} */
-static const struct hv_guid gMousevscDeviceType = {
+static const struct hv_guid mouse_guid = {
 	.data = {0x9E, 0xB6, 0xA8, 0xCF, 0x4A, 0x5B, 0xc0, 0x4c,
 		 0xB9, 0x8B, 0x8B, 0xA1, 0xA1, 0xF3, 0xF9, 0x5A}
 };
@@ -998,7 +998,7 @@ static int mouse_vsc_initialize(struct hv_driver *Driver)
 	int ret = 0;
 
 	Driver->name = driver_name;
-	memcpy(&Driver->dev_type, &gMousevscDeviceType,
+	memcpy(&Driver->dev_type, &mouse_guid,
 	       sizeof(struct hv_guid));
 
 	/* Setup the dispatch table */
