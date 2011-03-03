@@ -315,17 +315,17 @@ struct txentry_desc {
 
 		struct {
 			u16 mcs;
-			u16 stbc;
-			u16 ba_size;
-			u16 mpdu_density;
-			short txop;
+			u8 stbc;
+			u8 ba_size;
+			u8 mpdu_density;
+			enum txop txop;
 		} ht;
 	} u;
 
 	u16 rate_mode;
 
 	short retry_limit;
-	short ifs;
+	enum ifs ifs;
 
 	enum cipher cipher;
 	u16 key_idx;
