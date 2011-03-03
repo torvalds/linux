@@ -673,9 +673,9 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	pid  = NETLINK_CREDS(skb)->pid;
 	uid  = NETLINK_CREDS(skb)->uid;
-	loginuid = NETLINK_CB(skb).loginuid;
-	sessionid = NETLINK_CB(skb).sessionid;
-	sid  = NETLINK_CB(skb).sid;
+	loginuid = audit_get_loginuid(current);
+	sessionid = audit_get_sessionid(current);
+	security_task_getsecid(current, &sid);
 	seq  = nlh->nlmsg_seq;
 	data = NLMSG_DATA(nlh);
 

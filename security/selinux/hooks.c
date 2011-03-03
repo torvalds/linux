@@ -4669,6 +4669,7 @@ static int selinux_netlink_recv(struct sk_buff *skb, int capability)
 {
 	int err;
 	struct common_audit_data ad;
+	u32 sid;
 
 	err = cap_netlink_recv(skb, capability);
 	if (err)
@@ -4677,8 +4678,9 @@ static int selinux_netlink_recv(struct sk_buff *skb, int capability)
 	COMMON_AUDIT_DATA_INIT(&ad, CAP);
 	ad.u.cap = capability;
 
-	return avc_has_perm(NETLINK_CB(skb).sid, NETLINK_CB(skb).sid,
-			    SECCLASS_CAPABILITY, CAP_TO_MASK(capability), &ad);
+	security_task_getsecid(current, &sid);
+	return avc_has_perm(sid, sid, SECCLASS_CAPABILITY,
+			    CAP_TO_MASK(capability), &ad);
 }
 
 static int ipc_alloc_security(struct task_struct *task,
