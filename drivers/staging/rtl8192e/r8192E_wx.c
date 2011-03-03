@@ -222,7 +222,7 @@ static int r8192_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 
 		if(priv->ieee80211->PowerSaveControl.bInactivePs){
 			if(rtState == eRfOff){
-				if(priv->ieee80211->RfOffReason > RF_CHANGE_BY_IPS)
+				if(priv->RfOffReason > RF_CHANGE_BY_IPS)
 				{
 					RT_TRACE(COMP_ERR, "%s(): RF is OFF.\n",__FUNCTION__);
 					up(&priv->wx_sem);
@@ -408,7 +408,7 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 	if(priv->ieee80211->state != IEEE80211_LINKED){
 		if(priv->ieee80211->PowerSaveControl.bInactivePs){
 			if(rtState == eRfOff){
-				if(priv->ieee80211->RfOffReason > RF_CHANGE_BY_IPS)
+				if(priv->RfOffReason > RF_CHANGE_BY_IPS)
 				{
 					RT_TRACE(COMP_ERR, "%s(): RF is OFF.\n",__FUNCTION__);
 					up(&priv->wx_sem);

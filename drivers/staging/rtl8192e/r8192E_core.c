@@ -1946,7 +1946,7 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 	priv->bDisableNormalResetCheck = false;
 	priv->force_reset = false;
 	//added by amy for power save
-	priv->ieee80211->RfOffReason = 0;
+	priv->RfOffReason = 0;
 	priv->bHwRfOffAction = 0;
 	priv->ieee80211->PowerSaveControl.bInactivePs = true;
 	priv->ieee80211->PowerSaveControl.bIPSModeBackup = false;
@@ -2834,21 +2834,21 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 #ifdef ENABLE_IPS
 
 {
-	if(priv->ieee80211->RfOffReason > RF_CHANGE_BY_PS)
+	if(priv->RfOffReason > RF_CHANGE_BY_PS)
 	{ // H/W or S/W RF OFF before sleep.
-		RT_TRACE((COMP_INIT|COMP_RF|COMP_POWER), "%s(): Turn off RF for RfOffReason(%d)\n", __FUNCTION__,priv->ieee80211->RfOffReason);
-		MgntActSet_RF_State(dev, eRfOff, priv->ieee80211->RfOffReason);
+		RT_TRACE((COMP_INIT|COMP_RF|COMP_POWER), "%s(): Turn off RF for RfOffReason(%d)\n", __FUNCTION__,priv->RfOffReason);
+		MgntActSet_RF_State(dev, eRfOff, priv->RfOffReason);
 	}
-	else if(priv->ieee80211->RfOffReason >= RF_CHANGE_BY_IPS)
+	else if(priv->RfOffReason >= RF_CHANGE_BY_IPS)
 	{ // H/W or S/W RF OFF before sleep.
-		RT_TRACE((COMP_INIT|COMP_RF|COMP_POWER), "%s(): Turn off RF for RfOffReason(%d)\n", __FUNCTION__,priv->ieee80211->RfOffReason);
-		MgntActSet_RF_State(dev, eRfOff, priv->ieee80211->RfOffReason);
+		RT_TRACE((COMP_INIT|COMP_RF|COMP_POWER), "%s(): Turn off RF for RfOffReason(%d)\n",  __FUNCTION__, priv->RfOffReason);
+		MgntActSet_RF_State(dev, eRfOff, priv->RfOffReason);
 	}
 	else
 	{
 		RT_TRACE((COMP_INIT|COMP_RF|COMP_POWER), "%s(): RF-ON \n",__FUNCTION__);
 		priv->eRFPowerState = eRfOn;
-		priv->ieee80211->RfOffReason = 0;
+		priv->RfOffReason = 0;
 	}
 }
 #endif
@@ -3254,7 +3254,7 @@ IPSLeave(struct net_device *dev)
 	if (pPSC->bInactivePs)
 	{
 		rtState = priv->eRFPowerState;
-		if (rtState != eRfOn  && !pPSC->bSwRfProcessing && priv->ieee80211->RfOffReason <= RF_CHANGE_BY_IPS)
+		if (rtState != eRfOn && !pPSC->bSwRfProcessing && priv->RfOffReason <= RF_CHANGE_BY_IPS)
 		{
 			RT_TRACE(COMP_POWER, "IPSLeave(): Turn on RF.\n");
 			pPSC->eInactivePowerState = eRfOn;
@@ -3282,7 +3282,7 @@ void ieee80211_ips_leave_wq(struct net_device *dev)
 
 	if(priv->ieee80211->PowerSaveControl.bInactivePs){
 		if(rtState == eRfOff){
-			if(priv->ieee80211->RfOffReason > RF_CHANGE_BY_IPS)
+			if(priv->RfOffReason > RF_CHANGE_BY_IPS)
 			{
 				RT_TRACE(COMP_ERR, "%s(): RF is OFF.\n",__FUNCTION__);
 				return;
@@ -3479,7 +3479,7 @@ static int _rtl8192_up(struct net_device *dev)
 	RT_TRACE(COMP_INIT, "start adapter finished\n");
 
 	if (priv->eRFPowerState != eRfOn)
-		MgntActSet_RF_State(dev, eRfOn, priv->ieee80211->RfOffReason);
+		MgntActSet_RF_State(dev, eRfOn, priv->RfOffReason);
 
 	if(priv->ieee80211->state != IEEE80211_LINKED)
 	ieee80211_softmac_start_protocol(priv->ieee80211);
@@ -5048,7 +5048,7 @@ void setKey(	struct net_device *dev,
 	rtState = priv->eRFPowerState;
 	if(priv->ieee80211->PowerSaveControl.bInactivePs){
 		if(rtState == eRfOff){
-			if(priv->ieee80211->RfOffReason > RF_CHANGE_BY_IPS)
+			if(priv->RfOffReason > RF_CHANGE_BY_IPS)
 			{
 				RT_TRACE(COMP_ERR, "%s(): RF is OFF.\n",__FUNCTION__);
 				//up(&priv->wx_sem);

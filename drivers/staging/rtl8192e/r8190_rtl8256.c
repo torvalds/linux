@@ -645,11 +645,11 @@ MgntActSet_RF_State(
 	switch(StateToSet)
 	{
 	case eRfOn:
-		priv->ieee80211->RfOffReason &= (~ChangeSource);
+		priv->RfOffReason &= (~ChangeSource);
 
-		if(! priv->ieee80211->RfOffReason)
+		if (!priv->RfOffReason)
 		{
-			priv->ieee80211->RfOffReason = 0;
+			priv->RfOffReason = 0;
 			bActionAllowed = true;
 
 
@@ -659,37 +659,37 @@ MgntActSet_RF_State(
 			}
 		}
 		else
-			RT_TRACE(COMP_POWER, "MgntActSet_RF_State - eRfon reject pMgntInfo->RfOffReason= 0x%x, ChangeSource=0x%X\n", priv->ieee80211->RfOffReason, ChangeSource);
+			RT_TRACE(COMP_POWER, "MgntActSet_RF_State - eRfon reject pMgntInfo->RfOffReason= 0x%x, ChangeSource=0x%X\n", priv->RfOffReason, ChangeSource);
 
 		break;
 
 	case eRfOff:
 
-		if (priv->ieee80211->RfOffReason > RF_CHANGE_BY_IPS)
+		if (priv->RfOffReason > RF_CHANGE_BY_IPS)
 		{
 			// Disconnect to current BSS when radio off. Asked by QuanTa.
 			MgntDisconnect(dev, disas_lv_ss);
 		}
 
-		priv->ieee80211->RfOffReason |= ChangeSource;
+		priv->RfOffReason |= ChangeSource;
 		bActionAllowed = true;
 		break;
 
 	case eRfSleep:
-		priv->ieee80211->RfOffReason |= ChangeSource;
+		priv->RfOffReason |= ChangeSource;
 		bActionAllowed = true;
 		break;
 	}
 
 	if (bActionAllowed)
 	{
-		RT_TRACE(COMP_POWER, "MgntActSet_RF_State(): Action is allowed.... StateToSet(%d), RfOffReason(%#X)\n", StateToSet, priv->ieee80211->RfOffReason);
+		RT_TRACE(COMP_POWER, "MgntActSet_RF_State(): Action is allowed.... StateToSet(%d), RfOffReason(%#X)\n", StateToSet, priv->RfOffReason);
 		// Config HW to the specified mode.
 		SetRFPowerState8190(dev, StateToSet);
 	}
 	else
 	{
-		RT_TRACE(COMP_POWER, "MgntActSet_RF_State(): Action is rejected.... StateToSet(%d), ChangeSource(%#X), RfOffReason(%#X)\n", StateToSet, ChangeSource, priv->ieee80211->RfOffReason);
+		RT_TRACE(COMP_POWER, "MgntActSet_RF_State(): Action is rejected.... StateToSet(%d), ChangeSource(%#X), RfOffReason(%#X)\n", StateToSet, ChangeSource, priv->RfOffReason);
 	}
 
 	// Release RF spinlock
