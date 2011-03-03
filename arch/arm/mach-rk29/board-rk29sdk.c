@@ -402,6 +402,25 @@ static struct mma8452_platform_data mma8452_info = {
 };
 #endif
 
+#if defined (CONFIG_BATTERY_BQ27510)
+#define	DC_CHECK_PIN	RK29_PIN4_PA1
+#define	LI_LION_BAT_NUM	2
+static int bq27510_init_dc_check_pin(void){	
+	if(gpio_request(DC_CHECK_PIN,"dc_check") != 0){      
+		gpio_free(DC_CHECK_PIN);      
+		printk("bq27510 init dc check pin request error\n");      
+		return -EIO;    
+	}	
+	gpio_direction_input(DC_CHECK_PIN);	
+	return 0;
+}
+
+struct bq27510_platform_data bq27510_info = {	
+	.init_dc_check_pin = bq27510_init_dc_check_pin,	
+	.dc_check_pin =  DC_CHECK_PIN,		
+	.bat_num = LI_LION_BAT_NUM,
+};
+#endif
 
 
 /*****************************************************************************************
@@ -506,6 +525,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.type    		= "bq27510",
 		.addr           = 0x55,
 		.flags			= 0,
+		.platform_data  = &bq27510_info,
 	},
 #endif
 #if defined (CONFIG_RTC_HYM8563)
