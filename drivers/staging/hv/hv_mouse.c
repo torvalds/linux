@@ -117,7 +117,7 @@ struct synthhid_protocol_response {
 struct synthhid_device_info {
 	struct synthhid_msg_hdr header;
 	struct hv_input_dev_info hid_dev_info;
-	unsigned char               HidDescriptorInformation[1];
+	struct hid_descriptor hid_descriptor;
 };
 
 struct synthhid_device_info_ack {
@@ -352,7 +352,7 @@ static void MousevscOnReceiveDeviceInfo(struct mousevsc_dev *InputDevice, struct
 	memcpy(&InputDevice->hid_dev_info, &DeviceInfo->hid_dev_info, sizeof(struct hv_input_dev_info));
 
 	/* Save the hid desc */
-	desc = (struct hid_descriptor *)DeviceInfo->HidDescriptorInformation;
+	desc = &DeviceInfo->hid_descriptor;
 	WARN_ON(desc->bLength > 0);
 
 	InputDevice->HidDesc = kzalloc(desc->bLength, GFP_KERNEL);
