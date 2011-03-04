@@ -101,13 +101,12 @@ static void estimation_timer(unsigned long arg)
 	struct netns_ipvs *ipvs;
 
 	ipvs = net_ipvs(net);
-	ip_vs_read_cpu_stats(&ipvs->tot_stats->ustats, ipvs->cpustats);
 	spin_lock(&ipvs->est_lock);
 	list_for_each_entry(e, &ipvs->est_list, list) {
 		s = container_of(e, struct ip_vs_stats, est);
 
-		ip_vs_read_cpu_stats(&s->ustats, s->cpustats);
 		spin_lock(&s->lock);
+		ip_vs_read_cpu_stats(&s->ustats, s->cpustats);
 		n_conns = s->ustats.conns;
 		n_inpkts = s->ustats.inpkts;
 		n_outpkts = s->ustats.outpkts;

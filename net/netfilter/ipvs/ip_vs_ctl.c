@@ -1481,7 +1481,7 @@ static int ip_vs_zero_all(struct net *net)
 		}
 	}
 
-	ip_vs_zero_stats(net_ipvs(net)->tot_stats);
+	ip_vs_zero_stats(&net_ipvs(net)->tot_stats);
 	return 0;
 }
 
@@ -1963,7 +1963,7 @@ static const struct file_operations ip_vs_info_fops = {
 static int ip_vs_stats_show(struct seq_file *seq, void *v)
 {
 	struct net *net = seq_file_single_net(seq);
-	struct ip_vs_stats *tot_stats = net_ipvs(net)->tot_stats;
+	struct ip_vs_stats *tot_stats = &net_ipvs(net)->tot_stats;
 
 /*               01234567 01234567 01234567 0123456701234567 0123456701234567 */
 	seq_puts(seq,
@@ -2007,7 +2007,8 @@ static const struct file_operations ip_vs_stats_fops = {
 static int ip_vs_stats_percpu_show(struct seq_file *seq, void *v)
 {
 	struct net *net = seq_file_single_net(seq);
-	struct ip_vs_stats *tot_stats = net_ipvs(net)->tot_stats;
+	struct ip_vs_stats *tot_stats = &net_ipvs(net)->tot_stats;
+	struct ip_vs_cpu_stats *cpustats = tot_stats->cpustats;
 	int i;
 
 /*               01234567 01234567 01234567 0123456701234567 0123456701234567 */
@@ -2017,11 +2018,20 @@ static int ip_vs_stats_percpu_show(struct seq_file *seq, void *v)
 		   "CPU    Conns  Packets  Packets            Bytes            Bytes\n");
 
 	for_each_possible_cpu(i) {
-		struct ip_vs_cpu_stats *u = per_cpu_ptr(net->ipvs->cpustats, i);
+		struct ip_vs_cpu_stats *u = per_cpu_ptr(cpustats, i);
+		unsigned int start;
+		__u64 inbytes, outbytes;
+
+		do {
+			start = u64_stats_fetch_begin_bh(&u->syncp);
+			inbytes = u->ustats.inbytes;
+			outbytes = u->ustats.outbytes;
+		} while (u64_stats_fetch_retry_bh(&u->syncp, start));
+
 		seq_printf(seq, "%3X %8X %8X %8X %16LX %16LX\n",
-			    i, u->ustats.conns, u->ustats.inpkts,
-			    u->ustats.outpkts, (__u64)u->ustats.inbytes,
-			    (__u64)u->ustats.outbytes);
+			   i, u->ustats.conns, u->ustats.inpkts,
+			   u->ustats.outpkts, (__u64)inbytes,
+			   (__u64)outbytes);
 	}
 
 	spin_lock_bh(&tot_stats->lock);
@@ -3505,17 +3515,12 @@ int __net_init __ip_vs_control_init(struct net *net)
 	atomic_set(&ipvs->nullsvc_counter, 0);
 
 	/* procfs stats */
-	ipvs->tot_stats = kzalloc(sizeof(struct ip_vs_stats), GFP_KERNEL);
-	if (ipvs->tot_stats == NULL) {
-		pr_err("%s(): no memory.\n", __func__);
-		return -ENOMEM;
-	}
-	ipvs->cpustats = alloc_percpu(struct ip_vs_cpu_stats);
-	if (!ipvs->cpustats) {
+	ipvs->tot_stats.cpustats = alloc_percpu(struct ip_vs_cpu_stats);
+	if (!ipvs->tot_stats.cpustats) {
 		pr_err("%s() alloc_percpu failed\n", __func__);
 		goto err_alloc;
 	}
-	spin_lock_init(&ipvs->tot_stats->lock);
+	spin_lock_init(&ipvs->tot_stats.lock);
 
 	proc_net_fops_create(net, "ip_vs", 0, &ip_vs_info_fops);
 	proc_net_fops_create(net, "ip_vs_stats", 0, &ip_vs_stats_fops);
@@ -3563,7 +3568,7 @@ int __net_init __ip_vs_control_init(struct net *net)
 		goto err_dup;
 	}
 #endif
-	ip_vs_new_estimator(net, ipvs->tot_stats);
+	ip_vs_new_estimator(net, &ipvs->tot_stats);
 	ipvs->sysctl_tbl = tbl;
 	/* Schedule defense work */
 	INIT_DELAYED_WORK(&ipvs->defense_work, defense_work_handler);
@@ -3571,9 +3576,8 @@ int __net_init __ip_vs_control_init(struct net *net)
 	return 0;
 
 err_dup:
-	free_percpu(ipvs->cpustats);
+	free_percpu(ipvs->tot_stats.cpustats);
 err_alloc:
-	kfree(ipvs->tot_stats);
 	return -ENOMEM;
 }
 
@@ -3582,7 +3586,7 @@ static void __net_exit __ip_vs_control_cleanup(struct net *net)
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	ip_vs_trash_cleanup(net);
-	ip_vs_kill_estimator(net, ipvs->tot_stats);
+	ip_vs_kill_estimator(net, &ipvs->tot_stats);
 	cancel_delayed_work_sync(&ipvs->defense_work);
 	cancel_work_sync(&ipvs->defense_work.work);
 #ifdef CONFIG_SYSCTL
@@ -3591,8 +3595,7 @@ static void __net_exit __ip_vs_control_cleanup(struct net *net)
 	proc_net_remove(net, "ip_vs_stats_percpu");
 	proc_net_remove(net, "ip_vs_stats");
 	proc_net_remove(net, "ip_vs");
-	free_percpu(ipvs->cpustats);
-	kfree(ipvs->tot_stats);
+	free_percpu(ipvs->tot_stats.cpustats);
 }
 
 static struct pernet_operations ipvs_control_ops = {

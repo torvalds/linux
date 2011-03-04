@@ -851,8 +851,7 @@ struct netns_ipvs {
 	atomic_t		conn_count;      /*  connection counter */
 
 	/* ip_vs_ctl */
-	struct ip_vs_stats		*tot_stats;  /* Statistics & est. */
-	struct ip_vs_cpu_stats __percpu *cpustats;   /* Stats per cpu */
+	struct ip_vs_stats		tot_stats;  /* Statistics & est. */
 	seqcount_t			*ustats_seq; /* u64 read retry */
 
 	int			num_services;    /* no of virtual services */
