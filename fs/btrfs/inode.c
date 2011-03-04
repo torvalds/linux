@@ -3640,10 +3640,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 
 static int btrfs_setsize(struct inode *inode, loff_t newsize)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct btrfs_trans_handle *trans;
 	loff_t oldsize = i_size_read(inode);
-	unsigned long nr;
 	int ret;
 
 	if (newsize == oldsize)
@@ -3659,18 +3656,7 @@ static int btrfs_setsize(struct inode *inode, loff_t newsize)
 			return ret;
 		}
 
-		trans = btrfs_start_transaction(root, 1);
-		if (IS_ERR(trans))
-			return PTR_ERR(trans);
-
-		ret = btrfs_update_inode(trans, root, inode);
-		if (ret) {
-			btrfs_end_transaction(trans, root);
-			return ret;
-		}
-		nr = trans->blocks_used;
-		btrfs_end_transaction(trans, root);
-		btrfs_btree_balance_dirty(root, nr);
+		mark_inode_dirty(inode);
 	} else {
 
 		/*
