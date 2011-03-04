@@ -423,6 +423,7 @@ static int omfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		goto out;
 
 	old_inode->i_ctime = CURRENT_TIME_SEC;
+	mark_inode_dirty(old_inode);
 out:
 	return err;
 }
