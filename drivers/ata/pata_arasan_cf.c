@@ -210,6 +210,8 @@ struct arasan_cf_dev {
 	struct dma_chan *dma_chan;
 	/* Mask for DMA transfers */
 	dma_cap_mask_t mask;
+	/* dma channel private data */
+	void *dma_priv;
 	/* DMA transfer work */
 	struct work_struct work;
 	/* DMA delayed finish work */
@@ -356,6 +358,7 @@ static void dma_callback(void *dev)
 
 static bool filter(struct dma_chan *chan, void *slave)
 {
+	chan->private = slave;
 	return true;
 }
 
@@ -526,7 +529,8 @@ static void data_xfer(struct work_struct *work)
 
 	/* request dma channels */
 	/* dma_request_channel may sleep, so calling from process context */
-	acdev->dma_chan = dma_request_channel(acdev->mask, filter, NULL);
+	acdev->dma_chan = dma_request_channel(acdev->mask, filter,
+			acdev->dma_priv);
 	if (!acdev->dma_chan) {
 		dev_err(acdev->host->dev, "Unable to get dma_chan\n");
 		goto chan_request_fail;
@@ -853,6 +857,7 @@ static int __devinit arasan_cf_probe(struct platform_device *pdev)
 	INIT_WORK(&acdev->work, data_xfer);
 	INIT_DELAYED_WORK(&acdev->dwork, delayed_finish);
 	dma_cap_set(DMA_MEMCPY, acdev->mask);
+	acdev->dma_priv = pdata->dma_priv;
 
 	/* Handle platform specific quirks */
 	if (pdata->quirk) {
