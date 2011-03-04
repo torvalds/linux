@@ -1071,11 +1071,14 @@ static noinline int btrfs_ioctl_subvol_setflags(struct file *file,
 	if (copy_from_user(&flags, arg, sizeof(flags)))
 		return -EFAULT;
 
-	if (flags & ~BTRFS_SUBVOL_CREATE_ASYNC)
+	if (flags & BTRFS_SUBVOL_CREATE_ASYNC)
 		return -EINVAL;
 
 	if (flags & ~BTRFS_SUBVOL_RDONLY)
 		return -EOPNOTSUPP;
+
+	if (!is_owner_or_cap(inode))
+		return -EACCES;
 
 	down_write(&root->fs_info->subvol_sem);
 
@@ -1097,7 +1100,7 @@ static noinline int btrfs_ioctl_subvol_setflags(struct file *file,
 		goto out_reset;
 	}
 
-	ret = btrfs_update_root(trans, root,
+	ret = btrfs_update_root(trans, root->fs_info->tree_root,
 				&root->root_key, &root->root_item);
 
 	btrfs_commit_transaction(trans, root);

@@ -29,6 +29,7 @@
 
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/of_address.h>
 
 /**
  * ehci_xilinx_of_setup - Initialize the device for ehci_reset()

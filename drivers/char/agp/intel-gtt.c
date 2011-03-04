@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/pagemap.h>
 #include <linux/agp_backend.h>
+#include <linux/delay.h>
 #include <asm/smp.h>
 #include "agp.h"
 #include "intel-agp.h"
@@ -70,12 +71,8 @@ static struct _intel_private {
 	u32 __iomem *gtt;		/* I915G */
 	bool clear_fake_agp; /* on first access via agp, fill with scratch */
 	int num_dcache_entries;
-	union {
-		void __iomem *i9xx_flush_page;
-		void *i8xx_flush_page;
-	};
+	void __iomem *i9xx_flush_page;
 	char *i81x_gtt_table;
-	struct page *i8xx_page;
 	struct resource ifp_resource;
 	int resource_valid;
 	struct page *scratch_page;
@@ -722,28 +719,6 @@ static int intel_fake_agp_fetch_size(void)
 
 static void i830_cleanup(void)
 {
-	if (intel_private.i8xx_flush_page) {
-		kunmap(intel_private.i8xx_flush_page);
-		intel_private.i8xx_flush_page = NULL;
-	}
-
-	__free_page(intel_private.i8xx_page);
-	intel_private.i8xx_page = NULL;
-}
-
-static void intel_i830_setup_flush(void)
-{
-	/* return if we've already set the flush mechanism up */
-	if (intel_private.i8xx_page)
-		return;
-
-	intel_private.i8xx_page = alloc_page(GFP_KERNEL);
-	if (!intel_private.i8xx_page)
-		return;
-
-	intel_private.i8xx_flush_page = kmap(intel_private.i8xx_page);
-	if (!intel_private.i8xx_flush_page)
-		i830_cleanup();
 }
 
 /* The chipset_flush interface needs to get data that has already been
@@ -758,14 +733,27 @@ static void intel_i830_setup_flush(void)
  */
 static void i830_chipset_flush(void)
 {
-	unsigned int *pg = intel_private.i8xx_flush_page;
+	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 
-	memset(pg, 0, 1024);
+	/* Forcibly evict everything from the CPU write buffers.
+	 * clflush appears to be insufficient.
+	 */
+	wbinvd_on_all_cpus();
 
-	if (cpu_has_clflush)
-		clflush_cache_range(pg, 1024);
-	else if (wbinvd_on_all_cpus() != 0)
-		printk(KERN_ERR "Timed out waiting for cache flush.\n");
+	/* Now we've only seen documents for this magic bit on 855GM,
+	 * we hope it exists for the other gen2 chipsets...
+	 *
+	 * Also works as advertised on my 845G.
+	 */
+	writel(readl(intel_private.registers+I830_HIC) | (1<<31),
+	       intel_private.registers+I830_HIC);
+
+	while (readl(intel_private.registers+I830_HIC) & (1<<31)) {
+		if (time_after(jiffies, timeout))
+			break;
+
+		udelay(50);
+	}
 }
 
 static void i830_write_entry(dma_addr_t addr, unsigned int entry,
@@ -848,8 +836,6 @@ static int i830_setup(void)
 		return -ENOMEM;
 
 	intel_private.gtt_bus_addr = reg_addr + I810_PTE_BASE;
-
-	intel_i830_setup_flush();
 
 	return 0;
 }

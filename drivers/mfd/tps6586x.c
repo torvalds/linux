@@ -150,12 +150,12 @@ static inline int __tps6586x_write(struct i2c_client *client,
 static inline int __tps6586x_writes(struct i2c_client *client, int reg,
 				  int len, uint8_t *val)
 {
-	int ret;
+	int ret, i;
 
-	ret = i2c_smbus_write_i2c_block_data(client, reg, len, val);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed writings to 0x%02x\n", reg);
-		return ret;
+	for (i = 0; i < len; i++) {
+		ret = __tps6586x_write(client, reg + i, *(val + i));
+		if (ret < 0)
+			return ret;
 	}
 
 	return 0;

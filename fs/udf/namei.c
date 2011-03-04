@@ -32,6 +32,8 @@
 #include <linux/crc-itu-t.h>
 #include <linux/exportfs.h>
 
+enum { UDF_MAX_LINKS = 0xffff };
+
 static inline int udf_match(int len1, const unsigned char *name1, int len2,
 			    const unsigned char *name2)
 {
@@ -650,7 +652,7 @@ static int udf_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	struct udf_inode_info *iinfo;
 
 	err = -EMLINK;
-	if (dir->i_nlink >= (256 << sizeof(dir->i_nlink)) - 1)
+	if (dir->i_nlink >= UDF_MAX_LINKS)
 		goto out;
 
 	err = -EIO;
@@ -1034,9 +1036,8 @@ static int udf_link(struct dentry *old_dentry, struct inode *dir,
 	struct fileIdentDesc cfi, *fi;
 	int err;
 
-	if (inode->i_nlink >= (256 << sizeof(inode->i_nlink)) - 1) {
+	if (inode->i_nlink >= UDF_MAX_LINKS)
 		return -EMLINK;
-	}
 
 	fi = udf_add_entry(dir, dentry, &fibh, &cfi, &err);
 	if (!fi) {
@@ -1131,9 +1132,7 @@ static int udf_rename(struct inode *old_dir, struct dentry *old_dentry,
 			goto end_rename;
 
 		retval = -EMLINK;
-		if (!new_inode &&
-			new_dir->i_nlink >=
-				(256 << sizeof(new_dir->i_nlink)) - 1)
+		if (!new_inode && new_dir->i_nlink >= UDF_MAX_LINKS)
 			goto end_rename;
 	}
 	if (!nfi) {

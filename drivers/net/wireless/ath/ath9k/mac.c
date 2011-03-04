@@ -885,7 +885,7 @@ void ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints)
 	struct ath_common *common = ath9k_hw_common(ah);
 
 	if (!(ints & ATH9K_INT_GLOBAL))
-		ath9k_hw_enable_interrupts(ah);
+		ath9k_hw_disable_interrupts(ah);
 
 	ath_dbg(common, ATH_DBG_INTERRUPT, "0x%x => 0x%x\n", omask, ints);
 
@@ -963,7 +963,8 @@ void ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints)
 			REG_CLR_BIT(ah, AR_IMR_S5, AR_IMR_S5_TIM_TIMER);
 	}
 
-	ath9k_hw_enable_interrupts(ah);
+	if (ints & ATH9K_INT_GLOBAL)
+		ath9k_hw_enable_interrupts(ah);
 
 	return;
 }

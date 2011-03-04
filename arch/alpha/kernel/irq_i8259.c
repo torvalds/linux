@@ -33,10 +33,10 @@ i8259_update_irq_hw(unsigned int irq, unsigned long mask)
 }
 
 inline void
-i8259a_enable_irq(unsigned int irq)
+i8259a_enable_irq(struct irq_data *d)
 {
 	spin_lock(&i8259_irq_lock);
-	i8259_update_irq_hw(irq, cached_irq_mask &= ~(1 << irq));
+	i8259_update_irq_hw(d->irq, cached_irq_mask &= ~(1 << d->irq));
 	spin_unlock(&i8259_irq_lock);
 }
 
@@ -47,16 +47,18 @@ __i8259a_disable_irq(unsigned int irq)
 }
 
 void
-i8259a_disable_irq(unsigned int irq)
+i8259a_disable_irq(struct irq_data *d)
 {
 	spin_lock(&i8259_irq_lock);
-	__i8259a_disable_irq(irq);
+	__i8259a_disable_irq(d->irq);
 	spin_unlock(&i8259_irq_lock);
 }
 
 void
-i8259a_mask_and_ack_irq(unsigned int irq)
+i8259a_mask_and_ack_irq(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
+
 	spin_lock(&i8259_irq_lock);
 	__i8259a_disable_irq(irq);
 
@@ -71,9 +73,9 @@ i8259a_mask_and_ack_irq(unsigned int irq)
 
 struct irq_chip i8259a_irq_type = {
 	.name		= "XT-PIC",
-	.unmask		= i8259a_enable_irq,
-	.mask		= i8259a_disable_irq,
-	.mask_ack	= i8259a_mask_and_ack_irq,
+	.irq_unmask	= i8259a_enable_irq,
+	.irq_mask	= i8259a_disable_irq,
+	.irq_mask_ack	= i8259a_mask_and_ack_irq,
 };
 
 void __init

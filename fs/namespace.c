@@ -1244,7 +1244,7 @@ static int do_umount(struct vfsmount *mnt, int flags)
 		 */
 		br_write_lock(vfsmount_lock);
 		if (mnt_get_count(mnt) != 2) {
-			br_write_lock(vfsmount_lock);
+			br_write_unlock(vfsmount_lock);
 			return -EBUSY;
 		}
 		br_write_unlock(vfsmount_lock);

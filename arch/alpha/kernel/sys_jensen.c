@@ -63,34 +63,34 @@
  */
 
 static void
-jensen_local_enable(unsigned int irq)
+jensen_local_enable(struct irq_data *d)
 {
 	/* the parport is really hw IRQ 1, silly Jensen.  */
-	if (irq == 7)
-		i8259a_enable_irq(1);
+	if (d->irq == 7)
+		i8259a_enable_irq(d);
 }
 
 static void
-jensen_local_disable(unsigned int irq)
+jensen_local_disable(struct irq_data *d)
 {
 	/* the parport is really hw IRQ 1, silly Jensen.  */
-	if (irq == 7)
-		i8259a_disable_irq(1);
+	if (d->irq == 7)
+		i8259a_disable_irq(d);
 }
 
 static void
-jensen_local_mask_ack(unsigned int irq)
+jensen_local_mask_ack(struct irq_data *d)
 {
 	/* the parport is really hw IRQ 1, silly Jensen.  */
-	if (irq == 7)
-		i8259a_mask_and_ack_irq(1);
+	if (d->irq == 7)
+		i8259a_mask_and_ack_irq(d);
 }
 
 static struct irq_chip jensen_local_irq_type = {
 	.name		= "LOCAL",
-	.unmask		= jensen_local_enable,
-	.mask		= jensen_local_disable,
-	.mask_ack	= jensen_local_mask_ack,
+	.irq_unmask	= jensen_local_enable,
+	.irq_mask	= jensen_local_disable,
+	.irq_mask_ack	= jensen_local_mask_ack,
 };
 
 static void 

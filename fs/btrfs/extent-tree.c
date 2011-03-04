@@ -5376,7 +5376,7 @@ again:
 			       num_bytes, data, 1);
 		goto again;
 	}
-	if (ret == -ENOSPC) {
+	if (ret == -ENOSPC && btrfs_test_opt(root, ENOSPC_DEBUG)) {
 		struct btrfs_space_info *sinfo;
 
 		sinfo = __find_space_info(root->fs_info, data);
@@ -8063,6 +8063,13 @@ int btrfs_set_block_group_ro(struct btrfs_root *root,
 out:
 	btrfs_end_transaction(trans, root);
 	return ret;
+}
+
+int btrfs_force_chunk_alloc(struct btrfs_trans_handle *trans,
+			    struct btrfs_root *root, u64 type)
+{
+	u64 alloc_flags = get_alloc_profile(root, type);
+	return do_chunk_alloc(trans, root, 2 * 1024 * 1024, alloc_flags, 1);
 }
 
 /*

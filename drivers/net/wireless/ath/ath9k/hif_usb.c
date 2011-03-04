@@ -219,8 +219,9 @@ static int __hif_usb_tx(struct hif_device_usb *hif_dev)
 	struct tx_buf *tx_buf = NULL;
 	struct sk_buff *nskb = NULL;
 	int ret = 0, i;
-	u16 *hdr, tx_skb_cnt = 0;
+	u16 tx_skb_cnt = 0;
 	u8 *buf;
+	__le16 *hdr;
 
 	if (hif_dev->tx.tx_skb_cnt == 0)
 		return 0;
@@ -245,9 +246,9 @@ static int __hif_usb_tx(struct hif_device_usb *hif_dev)
 
 		buf = tx_buf->buf;
 		buf += tx_buf->offset;
-		hdr = (u16 *)buf;
-		*hdr++ = nskb->len;
-		*hdr++ = ATH_USB_TX_STREAM_MODE_TAG;
+		hdr = (__le16 *)buf;
+		*hdr++ = cpu_to_le16(nskb->len);
+		*hdr++ = cpu_to_le16(ATH_USB_TX_STREAM_MODE_TAG);
 		buf += 4;
 		memcpy(buf, nskb->data, nskb->len);
 		tx_buf->len = nskb->len + 4;
