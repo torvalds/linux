@@ -20,7 +20,6 @@
 #include <net/netns/conntrack.h>
 #endif
 #include <net/netns/xfrm.h>
-#include <net/netns/ip_vs.h>
 
 struct proc_dir_entry;
 struct net_device;
@@ -28,6 +27,7 @@ struct sock;
 struct ctl_table_header;
 struct net_generic;
 struct sock;
+struct netns_ipvs;
 
 
 #define NETDEV_HASHBITS    8
