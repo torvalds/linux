@@ -3540,12 +3540,17 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
 
 		pt = sp->spt;
 		for (i = 0; i < PT64_ENT_PER_PAGE; ++i) {
-			if (sp->role.level != PT_PAGE_TABLE_LEVEL
-			    && is_large_pte(pt[i])) {
+			if (!is_shadow_present_pte(pt[i]) ||
+			      !is_last_spte(pt[i], sp->role.level))
+				continue;
+
+			if (is_large_pte(pt[i])) {
 				drop_spte(kvm, &pt[i],
 					  shadow_trap_nonpresent_pte);
 				--kvm->stat.lpages;
+				continue;
 			}
+
 			/* avoid RMW */
 			if (is_writable_pte(pt[i]))
 				update_spte(&pt[i], pt[i] & ~PT_WRITABLE_MASK);
