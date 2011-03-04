@@ -378,9 +378,7 @@ static int omap_i2c_init(struct omap_i2c_dev *dev)
 			 * REVISIT: Some wkup sources might not be needed.
 			 */
 			dev->westate = OMAP_I2C_WE_ALL;
-			if (dev->rev < OMAP_I2C_REV_ON_4430)
-				omap_i2c_write_reg(dev, OMAP_I2C_WE_REG,
-								dev->westate);
+			omap_i2c_write_reg(dev, OMAP_I2C_WE_REG, dev->westate);
 		}
 	}
 	omap_i2c_write_reg(dev, OMAP_I2C_CON_REG, 0);
