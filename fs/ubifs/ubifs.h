@@ -151,6 +151,12 @@
  */
 #define WORST_COMPR_FACTOR 2
 
+/*
+ * How much memory is needed for a buffer where we comress a data node.
+ */
+#define COMPRESSED_DATA_NODE_BUF_SZ \
+	(UBIFS_DATA_NODE_SZ + UBIFS_BLOCK_SIZE * WORST_COMPR_FACTOR)
+
 /* Maximum expected tree height for use by bottom_up_buf */
 #define BOTTOM_UP_HEIGHT 64
 
@@ -1005,6 +1011,11 @@ struct ubifs_debug_info;
  * @bu_mutex: protects the pre-allocated bulk-read buffer and @c->bu
  * @bu: pre-allocated bulk-read information
  *
+ * @write_reserve_mutex: protects @write_reserve_buf
+ * @write_reserve_buf: on the write path we allocate memory, which might
+ *                     sometimes be unavailable, in which case we use this
+ *                     write reserve buffer
+ *
  * @log_lebs: number of logical eraseblocks in the log
  * @log_bytes: log size in bytes
  * @log_last: last LEB of the log
@@ -1255,6 +1266,9 @@ struct ubifs_info {
 	int max_bu_buf_len;
 	struct mutex bu_mutex;
 	struct bu_info bu;
+
+	struct mutex write_reserve_mutex;
+	void *write_reserve_buf;
 
 	int log_lebs;
 	long long log_bytes;
