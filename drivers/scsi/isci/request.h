@@ -71,7 +71,8 @@ enum isci_request_status {
 	completed   = 0x03,
 	aborting    = 0x04,
 	aborted     = 0x05,
-	terminating = 0x06
+	terminating = 0x06,
+	dead        = 0x07
 };
 
 enum task_type {

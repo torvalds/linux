@@ -663,6 +663,59 @@ static void isci_request_cleanup_completed_loiterer(
 	}
 	isci_request_free(isci_host, isci_request);
 }
+
+/**
+* @isci_termination_timed_out(): this function will deal with a request for
+* which the wait for termination has timed-out.
+*
+* @isci_host    This SCU.
+* @isci_request The I/O request being terminated.
+*/
+static void
+isci_termination_timed_out(
+	struct isci_host    * host,
+	struct isci_request * request
+	)
+{
+	unsigned long state_flags;
+
+	dev_warn(&host->pdev->dev,
+		"%s: host = %p; request = %p\n",
+		__func__, host, request);
+
+	/* At this point, the request to terminate
+	* has timed out. The best we can do is to
+	* have the request die a silent death
+	* if it ever completes.
+	*/
+	spin_lock_irqsave(&request->state_lock, state_flags);
+
+	if (request->status == started) {
+
+		/* Set the request state to "dead",
+		* and clear the task pointer so that an actual
+		* completion event callback doesn't do
+		* anything.
+		*/
+		request->status = dead;
+
+		/* Clear the timeout completion event pointer.*/
+		request->io_request_completion = NULL;
+
+		if (request->ttype == io_task) {
+
+			/* Break links with the sas_task. */
+			if (request->ttype_ptr.io_task_ptr != NULL) {
+
+				request->ttype_ptr.io_task_ptr->lldd_task = NULL;
+				request->ttype_ptr.io_task_ptr            = NULL;
+			}
+		}
+	}
+	spin_unlock_irqrestore(&request->state_lock, state_flags);
+}
+
+
 /**
  * isci_terminate_request_core() - This function will terminate the given
  *    request, and wait for it to complete.  This function must only be called
@@ -684,35 +737,20 @@ static void isci_terminate_request_core(
 	bool needs_cleanup_handling = false;
 	enum isci_request_status request_status;
 	unsigned long flags;
+	unsigned long timeout_remaining;
+
 
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: device = %p; request = %p\n",
 		__func__, isci_device, isci_request);
 
-	/* Peek at the current status of the request.  This will tell
-	 * us if there was special handling on the request such that it
-	 * needs to be detached and freed here.
-	 */
-	spin_lock_irqsave(&isci_request->state_lock, flags);
-	request_status = isci_request_get_state(isci_request);
-
-	if ((isci_request->ttype == io_task) /* TMFs are in their own thread */
-	    && ((request_status == aborted)
-		|| (request_status == aborting)
-		|| (request_status == terminating)
-		|| (request_status == completed)
-		)
-	    ) {
-
-		/* The completion routine won't free a request in
-		 * the aborted/aborting/terminating state, so we do
-		 * it here.
-		 */
-		needs_cleanup_handling = true;
-	}
-	spin_unlock_irqrestore(&isci_request->state_lock, flags);
-
 	spin_lock_irqsave(&isci_host->scic_lock, flags);
+
+	/* Note that we are not going to control
+	* the target to abort the request.
+	*/
+	isci_request->complete_in_target = true;
+
 	/* Make sure the request wasn't just sitting around signalling
 	 * device condition (if the request handle is NULL, then the
 	 * request completed but needed additional handling here).
@@ -733,13 +771,16 @@ static void isci_terminate_request_core(
 	 * fail is when the io request is completed and
 	 * being aborted.
 	 */
-	if (status != SCI_SUCCESS)
+	if (status != SCI_SUCCESS) {
 		dev_err(&isci_host->pdev->dev,
 			"%s: scic_controller_terminate_request"
 			" returned = 0x%x\n",
 			__func__,
 			status);
-	else {
+		/* Clear the completion pointer from the request. */
+		isci_request->io_request_completion = NULL;
+
+	} else {
 		if (was_terminated) {
 			dev_dbg(&isci_host->pdev->dev,
 				"%s: before completion wait (%p)\n",
@@ -747,21 +788,62 @@ static void isci_terminate_request_core(
 				isci_request->io_request_completion);
 
 			/* Wait here for the request to complete. */
-			wait_for_completion(isci_request->io_request_completion);
+			#define TERMINATION_TIMEOUT_MSEC 50
+			timeout_remaining
+				= wait_for_completion_timeout(
+				   isci_request->io_request_completion,
+				   msecs_to_jiffies(TERMINATION_TIMEOUT_MSEC));
 
-			dev_dbg(&isci_host->pdev->dev,
-				"%s: after completion wait (%p)\n",
-				__func__,
-				isci_request->io_request_completion);
+			if (!timeout_remaining) {
+
+				isci_termination_timed_out(isci_host,
+							   isci_request);
+
+				dev_err(&isci_host->pdev->dev,
+					"%s: *** Timeout waiting for "
+					"termination(%p/%p)\n",
+					__func__,
+					isci_request->io_request_completion,
+					isci_request);
+
+			} else
+				dev_dbg(&isci_host->pdev->dev,
+					"%s: after completion wait (%p)\n",
+					__func__,
+					isci_request->io_request_completion);
 		}
+		/* Clear the completion pointer from the request. */
+		isci_request->io_request_completion = NULL;
+
+		/* Peek at the status of the request.  This will tell
+		* us if there was special handling on the request such that it
+		* needs to be detached and freed here.
+		*/
+		spin_lock_irqsave(&isci_request->state_lock, flags);
+		request_status = isci_request_get_state(isci_request);
+
+		if ((isci_request->ttype == io_task) /* TMFs are in their own thread */
+		    && ((request_status == aborted)
+			|| (request_status == aborting)
+			|| (request_status == terminating)
+			|| (request_status == completed)
+			|| (request_status == dead)
+			)
+		    ) {
+
+			/* The completion routine won't free a request in
+			* the aborted/aborting/etc. states, so we do
+			* it here.
+			*/
+			needs_cleanup_handling = true;
+		}
+		spin_unlock_irqrestore(&isci_request->state_lock, flags);
 
 		if (needs_cleanup_handling)
 			isci_request_cleanup_completed_loiterer(
 				isci_host, isci_device, isci_request
 				);
 	}
-	/* Clear the completion pointer from the request. */
-	isci_request->io_request_completion = NULL;
 }
 
 static void isci_terminate_request(
@@ -771,11 +853,7 @@ static void isci_terminate_request(
 	enum isci_request_status new_request_state)
 {
 	enum isci_request_status old_state;
-
 	DECLARE_COMPLETION_ONSTACK(request_completion);
-	unsigned long flags;
-
-	spin_lock_irqsave(&isci_host->scic_lock, flags);
 
 	/* Change state to "new_request_state" if it is currently "started" */
 	old_state = isci_request_change_started_to_newstate(
@@ -823,73 +901,44 @@ void isci_terminate_pending_requests(
 	struct isci_remote_device *isci_device,
 	enum isci_request_status new_request_state)
 {
-	struct isci_request *isci_request;
-	struct sas_task *task;
-	bool done = false;
-	unsigned long flags;
+	struct isci_request *request;
+	struct isci_request *next_request;
+	unsigned long       flags;
+	struct list_head    aborted_request_list;
+
+	INIT_LIST_HEAD(&aborted_request_list);
 
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: isci_device = %p (new request state = %d)\n",
 		__func__, isci_device, new_request_state);
 
-	#define ISCI_TERMINATE_SHOW_PENDING_REQUESTS
-	#ifdef ISCI_TERMINATE_SHOW_PENDING_REQUESTS
-	{
-		struct isci_request *request;
+	spin_lock_irqsave(&isci_host->scic_lock, flags);
 
-		/* Only abort the task if it's in the
-		 * device's request_in_process list
-		 */
-		list_for_each_entry(request,
-				    &isci_device->reqs_in_process,
-				    dev_node)
-			dev_dbg(&isci_host->pdev->dev,
-				"%s: isci_device = %p; request is on "
-				"reqs_in_process list: %p\n",
-				__func__, isci_device, request);
+	/* Move all of the pending requests off of the device list. */
+	list_splice_init(&isci_device->reqs_in_process,
+			 &aborted_request_list);
+
+	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+
+	/* Iterate through the now-local list. */
+	list_for_each_entry_safe(request, next_request,
+				 &aborted_request_list, dev_node) {
+
+		dev_warn(&isci_host->pdev->dev,
+			"%s: isci_device=%p request=%p; task=%p\n",
+			__func__,
+			isci_device, request,
+			((request->ttype == io_task)
+				? isci_request_access_task(request)
+				: NULL));
+
+		/* Mark all still pending I/O with the selected next
+		* state, terminate and free it.
+		*/
+		isci_terminate_request(isci_host, isci_device,
+				       request, new_request_state
+				       );
 	}
-	#endif /* ISCI_TERMINATE_SHOW_PENDING_REQUESTS */
-
-	/* Clean up all pending requests. */
-	do {
-		spin_lock_irqsave(&isci_host->scic_lock, flags);
-
-		if (list_empty(&isci_device->reqs_in_process)) {
-
-			done = true;
-			spin_unlock_irqrestore(&isci_host->scic_lock, flags);
-
-			dev_dbg(&isci_host->pdev->dev,
-				"%s: isci_device = %p; done.\n",
-				__func__, isci_device);
-		} else {
-			/* The list was not empty - grab the first request. */
-			isci_request = list_first_entry(
-				&isci_device->reqs_in_process,
-				struct isci_request, dev_node
-				);
-			/* Note that we are not expecting to have to control
-			 * the target to abort the request.
-			 */
-			isci_request->complete_in_target = true;
-
-			spin_unlock_irqrestore(&isci_host->scic_lock, flags);
-
-			/* Get the libsas task reference. */
-			task = isci_request_access_task(isci_request);
-
-			dev_dbg(&isci_host->pdev->dev,
-				"%s: isci_device=%p request=%p; task=%p\n",
-				__func__, isci_device, isci_request, task);
-
-			/* Mark all still pending I/O with the selected next
-			 * state.
-			 */
-			isci_terminate_request(isci_host, isci_device,
-					       isci_request, new_request_state
-					       );
-		}
-	} while (!done);
 }
 
 /**
