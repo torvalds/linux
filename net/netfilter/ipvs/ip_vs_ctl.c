@@ -411,9 +411,11 @@ ip_vs_service_get(struct net *net, int af, __u32 fwmark, __u16 protocol,
 	/*
 	 *	Check the table hashed by fwmark first
 	 */
-	svc = __ip_vs_svc_fwm_find(net, af, fwmark);
-	if (fwmark && svc)
-		goto out;
+	if (fwmark) {
+		svc = __ip_vs_svc_fwm_find(net, af, fwmark);
+		if (svc)
+			goto out;
+	}
 
 	/*
 	 *	Check the table hashed by <protocol,addr,port>
