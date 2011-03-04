@@ -57,7 +57,9 @@ void xics_update_irq_servers(void)
 	BUG_ON(!np);
 
 	hcpuid = get_hard_smp_processor_id(boot_cpuid);
-	xics_default_server = hcpuid;
+	xics_default_server = xics_default_distrib_server = hcpuid;
+
+	pr_devel("xics: xics_default_server = 0x%x\n", xics_default_server);
 
 	ireg = of_get_property(np, "ibm,ppc-interrupt-gserver#s", &ilen);
 	if (!ireg) {
@@ -75,9 +77,11 @@ void xics_update_irq_servers(void)
 	for (j = 0; j < i; j += 2) {
 		if (ireg[j] == hcpuid) {
 			xics_default_distrib_server = ireg[j+1];
+			break;
 		}
 	}
-
+	pr_devel("xics: xics_default_distrib_server = 0x%x\n",
+		 xics_default_distrib_server);
 	of_node_put(np);
 }
 
@@ -113,7 +117,7 @@ void xics_mask_unknown_vec(unsigned int vec)
 {
 	struct ics *ics;
 
-	pr_err("Interrupt %u (real) is invalid, disabling it.\n", vec);
+	pr_err("Interrupt 0x%x (real) is invalid, disabling it.\n", vec);
 
 	list_for_each_entry(ics, &ics_list, link)
 		ics->mask_unknown(ics, vec);
@@ -293,6 +297,8 @@ unlock:
  * If not we set it to the first cpu in the mask, even if multiple cpus
  * are set. This is so things like irqbalance (which set core and package
  * wide affinities) do the right thing.
+ *
+ * We need to fix this to implement support for the links
  */
 int xics_get_irq_server(unsigned int virq, const struct cpumask *cpumask,
 			unsigned int strict_check)
