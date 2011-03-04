@@ -417,9 +417,7 @@ void __cpuinit numa_add_cpu(int cpu)
 {
 	int physnid, nid;
 
-	nid = numa_cpu_node(cpu);
-	if (nid == NUMA_NO_NODE)
-		nid = early_cpu_to_node(cpu);
+	nid = early_cpu_to_node(cpu);
 	BUG_ON(nid == NUMA_NO_NODE || !node_online(nid));
 
 	physnid = emu_nid_to_phys[nid];
