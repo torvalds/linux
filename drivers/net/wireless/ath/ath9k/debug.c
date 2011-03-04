@@ -562,10 +562,10 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	PR("hw-tx-proc-desc: ", txprocdesc);
 	len += snprintf(buf + len, size - len,
 			"%s%11p%11p%10p%10p\n", "txq-memory-address:",
-			&(sc->tx.txq_map[WME_AC_BE]),
-			&(sc->tx.txq_map[WME_AC_BK]),
-			&(sc->tx.txq_map[WME_AC_VI]),
-			&(sc->tx.txq_map[WME_AC_VO]));
+			sc->tx.txq_map[WME_AC_BE],
+			sc->tx.txq_map[WME_AC_BK],
+			sc->tx.txq_map[WME_AC_VI],
+			sc->tx.txq_map[WME_AC_VO]);
 	if (len >= size)
 		goto done;
 
