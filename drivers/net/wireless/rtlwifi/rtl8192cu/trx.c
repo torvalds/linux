@@ -334,7 +334,7 @@ bool rtl92cu_rx_query_desc(struct ieee80211_hw *hw,
 		rx_status->flag |= RX_FLAG_40MHZ;
 	if (GET_RX_DESC_RX_HT(pdesc))
 		rx_status->flag |= RX_FLAG_HT;
-	rx_status->flag |= RX_FLAG_TSFT;
+	rx_status->flag |= RX_FLAG_MACTIME_MPDU;
 	if (stats->decrypted)
 		rx_status->flag |= RX_FLAG_DECRYPTED;
 	rx_status->rate_idx = _rtl92c_rate_mapping(hw,
@@ -504,7 +504,7 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	bool defaultadapter = true;
-	struct ieee80211_sta *sta = ieee80211_find_sta(mac->vif, mac->bssid);
+	struct ieee80211_sta *sta;
 	struct rtl_tcb_desc tcb_desc;
 	u8 *qc = ieee80211_get_qos_ctl(hdr);
 	u8 tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
@@ -562,10 +562,13 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 		SET_TX_DESC_DATA_BW(txdesc, 0);
 		SET_TX_DESC_DATA_SC(txdesc, 0);
 	}
+	rcu_read_lock();
+	sta = ieee80211_find_sta(mac->vif, mac->bssid);
 	if (sta) {
 		u8 ampdu_density = sta->ht_cap.ampdu_density;
 		SET_TX_DESC_AMPDU_DENSITY(txdesc, ampdu_density);
 	}
+	rcu_read_unlock();
 	if (info->control.hw_key) {
 		struct ieee80211_key_conf *keyconf = info->control.hw_key;
 		switch (keyconf->cipher) {

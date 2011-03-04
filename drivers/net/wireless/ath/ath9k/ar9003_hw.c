@@ -78,15 +78,15 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 		/* Awake Setting */
 
 		INIT_INI_ARRAY(&ah->iniPcieSerdes,
-				ar9485_1_1_pcie_phy_pll_on_clkreq_disable_L1,
-				ARRAY_SIZE(ar9485_1_1_pcie_phy_pll_on_clkreq_disable_L1),
+				ar9485_1_1_pcie_phy_clkreq_disable_L1,
+				ARRAY_SIZE(ar9485_1_1_pcie_phy_clkreq_disable_L1),
 				2);
 
 		/* Sleep Setting */
 
 		INIT_INI_ARRAY(&ah->iniPcieSerdesLowPower,
-				ar9485_1_1_pcie_phy_pll_on_clkreq_disable_L1,
-				ARRAY_SIZE(ar9485_1_1_pcie_phy_pll_on_clkreq_disable_L1),
+				ar9485_1_1_pcie_phy_clkreq_disable_L1,
+				ARRAY_SIZE(ar9485_1_1_pcie_phy_clkreq_disable_L1),
 				2);
 	} else if (AR_SREV_9485(ah)) {
 		/* mac */

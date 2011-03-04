@@ -37,9 +37,7 @@
 #include "dm.h"
 #include "table.h"
 
-#include "../rtl8192c/phy_common.c"
-
-u32 rtl92c_phy_query_rf_reg(struct ieee80211_hw *hw,
+u32 rtl92cu_phy_query_rf_reg(struct ieee80211_hw *hw,
 			    enum radio_path rfpath, u32 regaddr, u32 bitmask)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -65,7 +63,7 @@ u32 rtl92c_phy_query_rf_reg(struct ieee80211_hw *hw,
 	return readback_value;
 }
 
-void rtl92c_phy_set_rf_reg(struct ieee80211_hw *hw,
+void rtl92cu_phy_set_rf_reg(struct ieee80211_hw *hw,
 			   enum radio_path rfpath,
 			   u32 regaddr, u32 bitmask, u32 data)
 {
@@ -104,20 +102,20 @@ void rtl92c_phy_set_rf_reg(struct ieee80211_hw *hw,
 					       regaddr, bitmask, data, rfpath));
 }
 
-bool rtl92c_phy_mac_config(struct ieee80211_hw *hw)
+bool rtl92cu_phy_mac_config(struct ieee80211_hw *hw)
 {
 	bool rtstatus;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	bool is92c = IS_92C_SERIAL(rtlhal->version);
 
-	rtstatus = _rtl92c_phy_config_mac_with_headerfile(hw);
+	rtstatus = _rtl92cu_phy_config_mac_with_headerfile(hw);
 	if (is92c && IS_HARDWARE_TYPE_8192CE(rtlhal))
 		rtl_write_byte(rtlpriv, 0x14, 0x71);
 	return rtstatus;
 }
 
-bool rtl92c_phy_bb_config(struct ieee80211_hw *hw)
+bool rtl92cu_phy_bb_config(struct ieee80211_hw *hw)
 {
 	bool rtstatus = true;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -146,7 +144,7 @@ bool rtl92c_phy_bb_config(struct ieee80211_hw *hw)
 	return rtstatus;
 }
 
-static bool _rtl92c_phy_config_mac_with_headerfile(struct ieee80211_hw *hw)
+bool _rtl92cu_phy_config_mac_with_headerfile(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
@@ -164,7 +162,7 @@ static bool _rtl92c_phy_config_mac_with_headerfile(struct ieee80211_hw *hw)
 	return true;
 }
 
-static bool _rtl92c_phy_config_bb_with_headerfile(struct ieee80211_hw *hw,
+bool _rtl92cu_phy_config_bb_with_headerfile(struct ieee80211_hw *hw,
 						  u8 configtype)
 {
 	int i;
@@ -209,7 +207,6 @@ static bool _rtl92c_phy_config_bb_with_headerfile(struct ieee80211_hw *hw,
 				  phy_regarray_table[i],
 				  phy_regarray_table[i + 1]));
 		}
-		rtl92c_phy_config_bb_external_pa(hw);
 	} else if (configtype == BASEBAND_CONFIG_AGC_TAB) {
 		for (i = 0; i < agctab_arraylen; i = i + 2) {
 			rtl_set_bbreg(hw, agctab_array_table[i], MASKDWORD,
@@ -225,7 +222,7 @@ static bool _rtl92c_phy_config_bb_with_headerfile(struct ieee80211_hw *hw,
 	return true;
 }
 
-static bool _rtl92c_phy_config_bb_with_pgheaderfile(struct ieee80211_hw *hw,
+bool _rtl92cu_phy_config_bb_with_pgheaderfile(struct ieee80211_hw *hw,
 						    u8 configtype)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -263,7 +260,7 @@ static bool _rtl92c_phy_config_bb_with_pgheaderfile(struct ieee80211_hw *hw,
 	return true;
 }
 
-bool rtl92c_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
+bool rtl92cu_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 					  enum radio_path rfpath)
 {
 	int i;
@@ -316,7 +313,6 @@ bool rtl92c_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 				udelay(1);
 			}
 		}
-		_rtl92c_phy_config_rf_external_pa(hw, rfpath);
 		break;
 	case RF90_PATH_B:
 		for (i = 0; i < radiob_arraylen; i = i + 2) {
@@ -352,7 +348,7 @@ bool rtl92c_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 	return true;
 }
 
-void rtl92c_phy_set_bw_mode_callback(struct ieee80211_hw *hw)
+void rtl92cu_phy_set_bw_mode_callback(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
@@ -410,12 +406,12 @@ void rtl92c_phy_set_bw_mode_callback(struct ieee80211_hw *hw)
 			 ("unknown bandwidth: %#X\n", rtlphy->current_chan_bw));
 		break;
 	}
-	rtl92c_phy_rf6052_set_bandwidth(hw, rtlphy->current_chan_bw);
+	rtl92cu_phy_rf6052_set_bandwidth(hw, rtlphy->current_chan_bw);
 	rtlphy->set_bwmode_inprogress = false;
 	RT_TRACE(rtlpriv, COMP_SCAN, DBG_TRACE, ("<==\n"));
 }
 
-void rtl92c_bb_block_on(struct ieee80211_hw *hw)
+void rtl92cu_bb_block_on(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
@@ -425,7 +421,7 @@ void rtl92c_bb_block_on(struct ieee80211_hw *hw)
 	mutex_unlock(&rtlpriv->io.bb_mutex);
 }
 
-static void _rtl92c_phy_lc_calibrate(struct ieee80211_hw *hw, bool is2t)
+void _rtl92cu_phy_lc_calibrate(struct ieee80211_hw *hw, bool is2t)
 {
 	u8 tmpreg;
 	u32 rf_a_mode = 0, rf_b_mode = 0, lc_cal;
@@ -463,7 +459,7 @@ static void _rtl92c_phy_lc_calibrate(struct ieee80211_hw *hw, bool is2t)
 	}
 }
 
-static bool _rtl92ce_phy_set_rf_power_state(struct ieee80211_hw *hw,
+bool _rtl92cu_phy_set_rf_power_state(struct ieee80211_hw *hw,
 					    enum rf_pwrstate rfpwr_state)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -584,7 +580,7 @@ static bool _rtl92ce_phy_set_rf_power_state(struct ieee80211_hw *hw,
 			  jiffies_to_msecs(jiffies -
 					   ppsc->last_awake_jiffies)));
 		ppsc->last_sleep_jiffies = jiffies;
-		_rtl92ce_phy_set_rf_sleep(hw);
+		_rtl92c_phy_set_rf_sleep(hw);
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
@@ -598,7 +594,7 @@ static bool _rtl92ce_phy_set_rf_power_state(struct ieee80211_hw *hw,
 	return bresult;
 }
 
-bool rtl92c_phy_set_rf_power_state(struct ieee80211_hw *hw,
+bool rtl92cu_phy_set_rf_power_state(struct ieee80211_hw *hw,
 				   enum rf_pwrstate rfpwr_state)
 {
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
@@ -606,6 +602,6 @@ bool rtl92c_phy_set_rf_power_state(struct ieee80211_hw *hw,
 
 	if (rfpwr_state == ppsc->rfpwr_state)
 		return bresult;
-	bresult = _rtl92ce_phy_set_rf_power_state(hw, rfpwr_state);
+	bresult = _rtl92cu_phy_set_rf_power_state(hw, rfpwr_state);
 	return bresult;
 }

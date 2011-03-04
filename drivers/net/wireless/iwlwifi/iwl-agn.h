@@ -121,8 +121,6 @@ void iwl_disable_ict(struct iwl_priv *priv);
 int iwl_alloc_isr_ict(struct iwl_priv *priv);
 void iwl_free_isr_ict(struct iwl_priv *priv);
 irqreturn_t iwl_isr_ict(int irq, void *data);
-bool iwl_good_ack_health(struct iwl_priv *priv,
-			 struct iwl_rx_packet *pkt);
 
 /* tx queue */
 void iwlagn_set_wr_ptrs(struct iwl_priv *priv,
@@ -248,8 +246,6 @@ u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant_idx, u8 valid);
 /* rx */
 void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
 				struct iwl_rx_mem_buffer *rxb);
-bool iwl_good_plcp_health(struct iwl_priv *priv,
-			  struct iwl_rx_packet *pkt);
 void iwl_rx_statistics(struct iwl_priv *priv,
 		       struct iwl_rx_mem_buffer *rxb);
 void iwl_reply_statistics(struct iwl_priv *priv,
@@ -356,7 +352,7 @@ iwlagn_remove_notification(struct iwl_priv *priv,
 			   struct iwl_notification_wait *wait_entry);
 
 /* mac80211 handlers (for 4965) */
-int iwlagn_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
+void iwlagn_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
 int iwlagn_mac_start(struct ieee80211_hw *hw);
 void iwlagn_mac_stop(struct ieee80211_hw *hw);
 void iwlagn_configure_filter(struct ieee80211_hw *hw,

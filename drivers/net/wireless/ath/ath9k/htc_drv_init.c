@@ -679,7 +679,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 		     (unsigned long)priv);
 	tasklet_init(&priv->tx_tasklet, ath9k_tx_tasklet,
 		     (unsigned long)priv);
-	INIT_DELAYED_WORK(&priv->ath9k_ani_work, ath9k_ani_work);
+	INIT_DELAYED_WORK(&priv->ani_work, ath9k_htc_ani_work);
 	INIT_WORK(&priv->ps_work, ath9k_ps_work);
 	INIT_WORK(&priv->fatal_work, ath9k_fatal_work);
 
@@ -787,6 +787,7 @@ static int ath9k_init_device(struct ath9k_htc_priv *priv,
 	struct ath_hw *ah;
 	int error = 0;
 	struct ath_regulatory *reg;
+	char hw_name[64];
 
 	/* Bring up device */
 	error = ath9k_init_priv(priv, devid, product, drv_info);
@@ -826,6 +827,22 @@ static int ath9k_init_device(struct ath9k_htc_priv *priv,
 		if (error)
 			goto err_world;
 	}
+
+	ath_dbg(common, ATH_DBG_CONFIG,
+		"WMI:%d, BCN:%d, CAB:%d, UAPSD:%d, MGMT:%d, "
+		"BE:%d, BK:%d, VI:%d, VO:%d\n",
+		priv->wmi_cmd_ep,
+		priv->beacon_ep,
+		priv->cab_ep,
+		priv->uapsd_ep,
+		priv->mgmt_ep,
+		priv->data_be_ep,
+		priv->data_bk_ep,
+		priv->data_vi_ep,
+		priv->data_vo_ep);
+
+	ath9k_hw_name(priv->ah, hw_name, sizeof(hw_name));
+	wiphy_info(hw->wiphy, "%s\n", hw_name);
 
 	ath9k_init_leds(priv);
 	ath9k_start_rfkill_poll(priv);

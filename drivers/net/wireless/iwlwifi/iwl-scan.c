@@ -155,7 +155,6 @@ int iwl_scan_cancel(struct iwl_priv *priv)
 	queue_work(priv->workqueue, &priv->abort_scan);
 	return 0;
 }
-EXPORT_SYMBOL(iwl_scan_cancel);
 
 /**
  * iwl_scan_cancel_timeout - Cancel any currently executing HW scan
@@ -180,7 +179,6 @@ int iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms)
 
 	return test_bit(STATUS_SCAN_HW, &priv->status);
 }
-EXPORT_SYMBOL(iwl_scan_cancel_timeout);
 
 /* Service response to REPLY_SCAN_CMD (0x80) */
 static void iwl_rx_reply_scan(struct iwl_priv *priv,
@@ -288,7 +286,6 @@ void iwl_setup_rx_scan_handlers(struct iwl_priv *priv)
 	priv->rx_handlers[SCAN_COMPLETE_NOTIFICATION] =
 					iwl_rx_scan_complete_notif;
 }
-EXPORT_SYMBOL(iwl_setup_rx_scan_handlers);
 
 inline u16 iwl_get_active_dwell_time(struct iwl_priv *priv,
 				     enum ieee80211_band band,
@@ -301,7 +298,6 @@ inline u16 iwl_get_active_dwell_time(struct iwl_priv *priv,
 		return IWL_ACTIVE_DWELL_TIME_24 +
 			IWL_ACTIVE_DWELL_FACTOR_24GHZ * (n_probes + 1);
 }
-EXPORT_SYMBOL(iwl_get_active_dwell_time);
 
 u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
 			       enum ieee80211_band band,
@@ -333,7 +329,6 @@ u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
 
 	return passive;
 }
-EXPORT_SYMBOL(iwl_get_passive_dwell_time);
 
 void iwl_init_scan_params(struct iwl_priv *priv)
 {
@@ -343,7 +338,6 @@ void iwl_init_scan_params(struct iwl_priv *priv)
 	if (!priv->scan_tx_ant[IEEE80211_BAND_2GHZ])
 		priv->scan_tx_ant[IEEE80211_BAND_2GHZ] = ant_idx;
 }
-EXPORT_SYMBOL(iwl_init_scan_params);
 
 static int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 					  struct ieee80211_vif *vif,
@@ -439,7 +433,6 @@ out_unlock:
 
 	return ret;
 }
-EXPORT_SYMBOL(iwl_mac_hw_scan);
 
 /*
  * internal short scan, this function should only been called while associated.
@@ -536,7 +529,6 @@ u16 iwl_fill_probe_req(struct iwl_priv *priv, struct ieee80211_mgmt *frame,
 
 	return (u16)len;
 }
-EXPORT_SYMBOL(iwl_fill_probe_req);
 
 static void iwl_bg_abort_scan(struct work_struct *work)
 {
@@ -621,7 +613,6 @@ void iwl_setup_scan_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->start_internal_scan, iwl_bg_start_internal_scan);
 	INIT_DELAYED_WORK(&priv->scan_check, iwl_bg_scan_check);
 }
-EXPORT_SYMBOL(iwl_setup_scan_deferred_work);
 
 void iwl_cancel_scan_deferred_work(struct iwl_priv *priv)
 {
@@ -635,4 +626,3 @@ void iwl_cancel_scan_deferred_work(struct iwl_priv *priv)
 		mutex_unlock(&priv->mutex);
 	}
 }
-EXPORT_SYMBOL(iwl_cancel_scan_deferred_work);

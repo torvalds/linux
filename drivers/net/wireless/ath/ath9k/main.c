@@ -910,6 +910,8 @@ void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
 	ath9k_hw_set_gpio(ah, ah->led_pin, 0);
 
 	ieee80211_wake_queues(hw);
+	ieee80211_queue_delayed_work(hw, &sc->hw_pll_work, HZ/2);
+
 out:
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
@@ -923,6 +925,8 @@ void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw)
 	int r;
 
 	ath9k_ps_wakeup(sc);
+	cancel_delayed_work_sync(&sc->hw_pll_work);
+
 	spin_lock_bh(&sc->sc_pcu_lock);
 
 	ieee80211_stop_queues(hw);
@@ -1142,8 +1146,7 @@ mutex_unlock:
 	return r;
 }
 
-static int ath9k_tx(struct ieee80211_hw *hw,
-		    struct sk_buff *skb)
+static void ath9k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
@@ -1200,10 +1203,9 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 		goto exit;
 	}
 
-	return 0;
+	return;
 exit:
 	dev_kfree_skb_any(skb);
-	return 0;
 }
 
 static void ath9k_stop(struct ieee80211_hw *hw)
@@ -1213,9 +1215,6 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	struct ath_common *common = ath9k_hw_common(ah);
 
 	mutex_lock(&sc->mutex);
-
-	if (led_blink)
-		cancel_delayed_work_sync(&sc->ath_led_blink_work);
 
 	cancel_delayed_work_sync(&sc->tx_complete_work);
 	cancel_delayed_work_sync(&sc->hw_pll_work);
@@ -2131,7 +2130,7 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 {
 #define ATH_FLUSH_TIMEOUT	60 /* ms */
 	struct ath_softc *sc = hw->priv;
-	struct ath_txq *txq;
+	struct ath_txq *txq = NULL;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	int i, j, npend = 0;

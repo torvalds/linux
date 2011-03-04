@@ -1361,7 +1361,7 @@ ath5k_receive_frame(struct ath5k_softc *sc, struct sk_buff *skb,
 	 * right now, so it's not too bad...
 	 */
 	rxs->mactime = ath5k_extend_tsf(sc->ah, rs->rs_tstamp);
-	rxs->flag |= RX_FLAG_TSFT;
+	rxs->flag |= RX_FLAG_MACTIME_MPDU;
 
 	rxs->freq = sc->curchan->center_freq;
 	rxs->band = sc->curchan->band;
@@ -1518,7 +1518,7 @@ unlock:
 * TX Handling *
 \*************/
 
-int
+void
 ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
 	       struct ath5k_txq *txq)
 {
@@ -1567,11 +1567,10 @@ ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
 		spin_unlock_irqrestore(&sc->txbuflock, flags);
 		goto drop_packet;
 	}
-	return NETDEV_TX_OK;
+	return;
 
 drop_packet:
 	dev_kfree_skb_any(skb);
-	return NETDEV_TX_OK;
 }
 
 static void

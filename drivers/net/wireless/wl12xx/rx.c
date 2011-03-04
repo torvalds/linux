@@ -92,7 +92,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length)
 {
 	struct wl1271_rx_descriptor *desc;
 	struct sk_buff *skb;
-	u16 *fc;
+	struct ieee80211_hdr *hdr;
 	u8 *buf;
 	u8 beacon = 0;
 
@@ -118,8 +118,8 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length)
 	/* now we pull the descriptor out of the buffer */
 	skb_pull(skb, sizeof(*desc));
 
-	fc = (u16 *)skb->data;
-	if ((*fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_BEACON)
+	hdr = (struct ieee80211_hdr *)skb->data;
+	if (ieee80211_is_beacon(hdr->frame_control))
 		beacon = 1;
 
 	wl1271_rx_status(wl, desc, IEEE80211_SKB_RXCB(skb), beacon);

@@ -153,6 +153,17 @@ extern u32 wl12xx_debug_level;
 #define WL1271_AP_BROADCAST_HLID   1
 #define WL1271_AP_STA_HLID_START   2
 
+/*
+ * When in AP-mode, we allow (at least) this number of mem-blocks
+ * to be transmitted to FW for a STA in PS-mode. Only when packets are
+ * present in the FW buffers it will wake the sleeping STA. We want to put
+ * enough packets for the driver to transmit all of its buffered data before
+ * the STA goes to sleep again. But we don't want to take too much mem-blocks
+ * as it might hurt the throughput of active STAs.
+ * The number of blocks (18) is enough for 2 large packets.
+ */
+#define WL1271_PS_STA_MAX_BLOCKS  (2 * 9)
+
 #define WL1271_AP_BSS_INDEX        0
 #define WL1271_AP_DEF_INACTIV_SEC  300
 #define WL1271_AP_DEF_BEACON_EXP   20
@@ -317,6 +328,17 @@ enum wl12xx_flags {
 	WL1271_FLAG_STA_STATE_SENT,
 	WL1271_FLAG_FW_TX_BUSY,
 	WL1271_FLAG_AP_STARTED
+};
+
+struct wl1271_link {
+	/* AP-mode - TX queue per AC in link */
+	struct sk_buff_head tx_queue[NUM_TX_QUEUES];
+
+	/* accounting for allocated / available TX blocks in FW */
+	u8 allocated_blks;
+	u8 prev_freed_blks;
+
+	u8 addr[ETH_ALEN];
 };
 
 struct wl1271 {
@@ -498,6 +520,21 @@ struct wl1271 {
 	/* RX BA constraint value */
 	bool ba_support;
 	u8 ba_rx_bitmap;
+
+	/*
+	 * AP-mode - links indexed by HLID. The global and broadcast links
+	 * are always active.
+	 */
+	struct wl1271_link links[AP_MAX_LINKS];
+
+	/* the hlid of the link where the last transmitted skb came from */
+	int last_tx_hlid;
+
+	/* AP-mode - a bitmap of links currently in PS mode according to FW */
+	u32 ap_fw_ps_map;
+
+	/* AP-mode - a bitmap of links currently in PS mode in mac80211 */
+	unsigned long ap_ps_map;
 };
 
 struct wl1271_station {

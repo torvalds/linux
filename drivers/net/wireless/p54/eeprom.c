@@ -524,10 +524,13 @@ err_data:
 
 struct p54_rssi_db_entry *p54_rssi_find(struct p54_common *priv, const u16 freq)
 {
-	struct p54_rssi_db_entry *entry = (void *)(priv->rssi_db->data +
-						   priv->rssi_db->offset);
+	struct p54_rssi_db_entry *entry;
 	int i, found = -1;
 
+	if (!priv->rssi_db)
+		return &p54_rssi_default;
+
+	entry = (void *)(priv->rssi_db->data + priv->rssi_db->offset);
 	for (i = 0; i < priv->rssi_db->entries; i++) {
 		if (!same_band(freq, entry[i].freq))
 			continue;

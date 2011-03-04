@@ -31,7 +31,6 @@
 #define IEEE80211_IBSS_JOIN_TIMEOUT (7 * HZ)
 
 #define IEEE80211_IBSS_MERGE_INTERVAL (30 * HZ)
-#define IEEE80211_IBSS_MERGE_DELAY 0x400000
 #define IEEE80211_IBSS_INACTIVITY_LIMIT (60 * HZ)
 
 #define IEEE80211_IBSS_MAX_STA_ENTRIES 128
@@ -355,7 +354,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	if (memcmp(cbss->bssid, sdata->u.ibss.bssid, ETH_ALEN) == 0)
 		goto put_bss;
 
-	if (rx_status->flag & RX_FLAG_TSFT) {
+	if (rx_status->flag & RX_FLAG_MACTIME_MPDU) {
 		/*
 		 * For correct IBSS merging we need mactime; since mactime is
 		 * defined as the time the first data symbol of the frame hits
@@ -396,10 +395,6 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	       (unsigned long long)(rx_timestamp - beacon_timestamp),
 	       jiffies);
 #endif
-
-	/* give slow hardware some time to do the TSF sync */
-	if (rx_timestamp < IEEE80211_IBSS_MERGE_DELAY)
-		goto put_bss;
 
 	if (beacon_timestamp > rx_timestamp) {
 #ifdef CONFIG_MAC80211_IBSS_DEBUG

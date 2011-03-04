@@ -1788,7 +1788,6 @@ err:
 	iwl_dbgfs_unregister(priv);
 	return -ENOMEM;
 }
-EXPORT_SYMBOL(iwl_dbgfs_register);
 
 /**
  * Remove the debugfs files and directories
@@ -1802,7 +1801,6 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 	debugfs_remove_recursive(priv->debugfs_dir);
 	priv->debugfs_dir = NULL;
 }
-EXPORT_SYMBOL(iwl_dbgfs_unregister);
 
 
 

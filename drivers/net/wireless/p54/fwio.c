@@ -559,6 +559,7 @@ int p54_set_edcf(struct p54_common *priv)
 {
 	struct sk_buff *skb;
 	struct p54_edcf *edcf;
+	u8 rtd;
 
 	skb = p54_alloc_skb(priv, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*edcf),
 			    P54_CONTROL_TYPE_DCFINIT, GFP_ATOMIC);
@@ -575,9 +576,15 @@ int p54_set_edcf(struct p54_common *priv)
 		edcf->sifs = 0x0a;
 		edcf->eofpad = 0x06;
 	}
+	/*
+	 * calculate the extra round trip delay according to the
+	 * formula from 802.11-2007 17.3.8.6.
+	 */
+	rtd = 3 * priv->coverage_class;
+	edcf->slottime += rtd;
+	edcf->round_trip_delay = cpu_to_le16(rtd);
 	/* (see prism54/isl_oid.h for further details) */
 	edcf->frameburst = cpu_to_le16(0);
-	edcf->round_trip_delay = cpu_to_le16(0);
 	edcf->flags = 0;
 	memset(edcf->mapping, 0, sizeof(edcf->mapping));
 	memcpy(edcf->queue, priv->qos_params, sizeof(edcf->queue));

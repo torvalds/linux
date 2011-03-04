@@ -52,7 +52,7 @@ extern int ath5k_modparam_nohwcrypt;
 * Mac80211 functions *
 \********************/
 
-static int
+static void
 ath5k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ath5k_softc *sc = hw->priv;
@@ -60,10 +60,10 @@ ath5k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	if (WARN_ON(qnum >= sc->ah->ah_capabilities.cap_queues.q_tx_num)) {
 		dev_kfree_skb_any(skb);
-		return 0;
+		return;
 	}
 
-	return ath5k_tx_queue(hw, skb, &sc->txqs[qnum]);
+	ath5k_tx_queue(hw, skb, &sc->txqs[qnum]);
 }
 
 

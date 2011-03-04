@@ -541,7 +541,7 @@ static bool mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 }
 
 
-static int mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	bool ack;
 	struct ieee80211_tx_info *txi;
@@ -551,7 +551,7 @@ static int mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	if (skb->len < 10) {
 		/* Should not happen; just a sanity check for addr1 use */
 		dev_kfree_skb(skb);
-		return NETDEV_TX_OK;
+		return;
 	}
 
 	ack = mac80211_hwsim_tx_frame(hw, skb);
@@ -571,7 +571,6 @@ static int mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	if (!(txi->flags & IEEE80211_TX_CTL_NO_ACK) && ack)
 		txi->flags |= IEEE80211_TX_STAT_ACK;
 	ieee80211_tx_status_irqsafe(hw, skb);
-	return NETDEV_TX_OK;
 }
 
 

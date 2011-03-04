@@ -430,9 +430,9 @@ static void b43_radio_init2055_post(struct b43_wldev *dev)
 	bool workaround = false;
 
 	if (sprom->revision < 4)
-		workaround = (binfo->vendor != PCI_VENDOR_ID_BROADCOM ||
-				binfo->type != 0x46D ||
-				binfo->rev < 0x41);
+		workaround = (binfo->vendor != PCI_VENDOR_ID_BROADCOM &&
+				binfo->type == 0x46D &&
+				binfo->rev >= 0x41);
 	else
 		workaround =
 			!(sprom->boardflags2_lo & B43_BFL2_RXBB_INT_REG_DIS);
@@ -1281,17 +1281,17 @@ static void b43_nphy_gain_ctrl_workarounds(struct b43_wldev *dev)
 						B43_NPHY_TABLE_DATALO, tmp);
 				}
 			}
-
-			b43_nphy_set_rf_sequence(dev, 5,
-					rfseq_events, rfseq_delays, 3);
-			b43_phy_maskset(dev, B43_NPHY_OVER_DGAIN1,
-				~B43_NPHY_OVER_DGAIN_CCKDGECV & 0xFFFF,
-				0x5A << B43_NPHY_OVER_DGAIN_CCKDGECV_SHIFT);
-
-			if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
-				b43_phy_maskset(dev, B43_PHY_N(0xC5D),
-						0xFF80, 4);
 		}
+
+		b43_nphy_set_rf_sequence(dev, 5,
+				rfseq_events, rfseq_delays, 3);
+		b43_phy_maskset(dev, B43_NPHY_OVER_DGAIN1,
+			~B43_NPHY_OVER_DGAIN_CCKDGECV & 0xFFFF,
+			0x5A << B43_NPHY_OVER_DGAIN_CCKDGECV_SHIFT);
+
+		if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+			b43_phy_maskset(dev, B43_PHY_N(0xC5D),
+					0xFF80, 4);
 	}
 }
 
@@ -2128,7 +2128,7 @@ static int b43_nphy_poll_rssi(struct b43_wldev *dev, u8 type, s32 *buf,
 		save_regs_phy[5] = b43_phy_read(dev, B43_NPHY_AFECTL_OVER);
 		save_regs_phy[6] = b43_phy_read(dev, B43_NPHY_TXF_40CO_B1S0);
 		save_regs_phy[7] = b43_phy_read(dev, B43_NPHY_TXF_40CO_B32S1);
-	} else if (dev->phy.rev == 2) {
+	} else {
 		save_regs_phy[0] = b43_phy_read(dev, B43_NPHY_AFECTL_C1);
 		save_regs_phy[1] = b43_phy_read(dev, B43_NPHY_AFECTL_C2);
 		save_regs_phy[2] = b43_phy_read(dev, B43_NPHY_AFECTL_OVER);
@@ -2179,7 +2179,7 @@ static int b43_nphy_poll_rssi(struct b43_wldev *dev, u8 type, s32 *buf,
 		b43_phy_write(dev, B43_NPHY_AFECTL_OVER, save_regs_phy[5]);
 		b43_phy_write(dev, B43_NPHY_TXF_40CO_B1S0, save_regs_phy[6]);
 		b43_phy_write(dev, B43_NPHY_TXF_40CO_B32S1, save_regs_phy[7]);
-	} else if (dev->phy.rev == 2) {
+	} else {
 		b43_phy_write(dev, B43_NPHY_AFECTL_C1, save_regs_phy[0]);
 		b43_phy_write(dev, B43_NPHY_AFECTL_C2, save_regs_phy[1]);
 		b43_phy_write(dev, B43_NPHY_AFECTL_OVER, save_regs_phy[2]);

@@ -449,26 +449,21 @@ void ath9k_btcoex_timer_pause(struct ath_softc *sc);
 
 #define ATH_LED_PIN_DEF 		1
 #define ATH_LED_PIN_9287		8
-#define ATH_LED_ON_DURATION_IDLE	350	/* in msecs */
-#define ATH_LED_OFF_DURATION_IDLE	250	/* in msecs */
+#define ATH_LED_PIN_9485		6
 
-enum ath_led_type {
-	ATH_LED_RADIO,
-	ATH_LED_ASSOC,
-	ATH_LED_TX,
-	ATH_LED_RX
-};
-
-struct ath_led {
-	struct ath_softc *sc;
-	struct led_classdev led_cdev;
-	enum ath_led_type led_type;
-	char name[32];
-	bool registered;
-};
-
+#ifdef CONFIG_MAC80211_LEDS
 void ath_init_leds(struct ath_softc *sc);
 void ath_deinit_leds(struct ath_softc *sc);
+#else
+static inline void ath_init_leds(struct ath_softc *sc)
+{
+}
+
+static inline void ath_deinit_leds(struct ath_softc *sc)
+{
+}
+#endif
+
 
 /* Antenna diversity/combining */
 #define ATH_ANT_RX_CURRENT_SHIFT 4
@@ -620,15 +615,11 @@ struct ath_softc {
 	struct ath_beacon beacon;
 	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
 
-	struct ath_led radio_led;
-	struct ath_led assoc_led;
-	struct ath_led tx_led;
-	struct ath_led rx_led;
-	struct delayed_work ath_led_blink_work;
-	int led_on_duration;
-	int led_off_duration;
-	int led_on_cnt;
-	int led_off_cnt;
+#ifdef CONFIG_MAC80211_LEDS
+	bool led_registered;
+	char led_name[32];
+	struct led_classdev led_cdev;
+#endif
 
 	struct ath9k_hw_cal_data caldata;
 	int last_rssi;

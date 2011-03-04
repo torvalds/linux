@@ -315,8 +315,6 @@ static struct iwl_lib_ops iwl2000_lib = {
 		.bt_stats_read = iwl_ucode_bt_stats_read,
 		.reply_tx_error = iwl_reply_tx_error_read,
 	},
-	.check_plcp_health = iwl_good_plcp_health,
-	.check_ack_health = iwl_good_ack_health,
 	.txfifo_flush = iwlagn_txfifo_flush,
 	.dev_txfifo_flush = iwlagn_dev_txfifo_flush,
 	.tt_ops = {
@@ -418,6 +416,7 @@ static struct iwl_bt_params iwl2030_bt_params = {
 	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
 	.bt_prio_boost = IWLAGN_BT_PRIO_BOOST_DEFAULT,
 	.bt_sco_disable = true,
+	.bt_session_2 = true,
 };
 
 #define IWL_DEVICE_2000						\

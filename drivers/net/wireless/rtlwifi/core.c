@@ -82,7 +82,7 @@ static void rtl_op_stop(struct ieee80211_hw *hw)
 	mutex_unlock(&rtlpriv->locks.conf_mutex);
 }
 
-static int rtl_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void rtl_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
@@ -97,11 +97,10 @@ static int rtl_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	rtlpriv->intf_ops->adapter_tx(hw, skb);
 
-	return NETDEV_TX_OK;
+	return;
 
 err_free:
 	dev_kfree_skb_any(skb);
-	return NETDEV_TX_OK;
 }
 
 static int rtl_op_add_interface(struct ieee80211_hw *hw,
@@ -552,6 +551,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_TRACE,
 			 ("BSS_CHANGED_HT\n"));
 
+		rcu_read_lock();
 		sta = ieee80211_find_sta(mac->vif, mac->bssid);
 
 		if (sta) {
@@ -564,6 +564,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 				mac->current_ampdu_factor =
 				    sta->ht_cap.ampdu_factor;
 		}
+		rcu_read_unlock();
 
 		rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_SHORTGI_DENSITY,
 					      (u8 *) (&mac->max_mss_density));
@@ -615,6 +616,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 		else
 			mac->mode = WIRELESS_MODE_G;
 
+		rcu_read_lock();
 		sta = ieee80211_find_sta(mac->vif, mac->bssid);
 
 		if (sta) {
@@ -649,6 +651,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 				 */
 			}
 		}
+		rcu_read_unlock();
 
 		/*mac80211 just give us CCK rates any time
 		 *So we add G rate in basic rates when

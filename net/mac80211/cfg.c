@@ -316,6 +316,17 @@ static int ieee80211_config_default_mgmt_key(struct wiphy *wiphy,
 	return 0;
 }
 
+static void rate_idx_to_bitrate(struct rate_info *rate, struct sta_info *sta, int idx)
+{
+	if (!(rate->flags & RATE_INFO_FLAGS_MCS)) {
+		struct ieee80211_supported_band *sband;
+		sband = sta->local->hw.wiphy->bands[
+				sta->local->hw.conf.channel->band];
+		rate->legacy = sband->bitrates[idx].bitrate;
+	} else
+		rate->mcs = idx;
+}
+
 static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
@@ -330,6 +341,7 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 			STATION_INFO_TX_RETRIES |
 			STATION_INFO_TX_FAILED |
 			STATION_INFO_TX_BITRATE |
+			STATION_INFO_RX_BITRATE |
 			STATION_INFO_RX_DROP_MISC;
 
 	sinfo->inactive_time = jiffies_to_msecs(jiffies - sta->last_rx);
@@ -355,15 +367,16 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		sinfo->txrate.flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
 	if (sta->last_tx_rate.flags & IEEE80211_TX_RC_SHORT_GI)
 		sinfo->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
+	rate_idx_to_bitrate(&sinfo->txrate, sta, sta->last_tx_rate.idx);
 
-	if (!(sta->last_tx_rate.flags & IEEE80211_TX_RC_MCS)) {
-		struct ieee80211_supported_band *sband;
-		sband = sta->local->hw.wiphy->bands[
-				sta->local->hw.conf.channel->band];
-		sinfo->txrate.legacy =
-			sband->bitrates[sta->last_tx_rate.idx].bitrate;
-	} else
-		sinfo->txrate.mcs = sta->last_tx_rate.idx;
+	sinfo->rxrate.flags = 0;
+	if (sta->last_rx_rate_flag & RX_FLAG_HT)
+		sinfo->rxrate.flags |= RATE_INFO_FLAGS_MCS;
+	if (sta->last_rx_rate_flag & RX_FLAG_40MHZ)
+		sinfo->rxrate.flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+	if (sta->last_rx_rate_flag & RX_FLAG_SHORT_GI)
+		sinfo->rxrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
+	rate_idx_to_bitrate(&sinfo->rxrate, sta, sta->last_rx_rate_idx);
 
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
 #ifdef CONFIG_MAC80211_MESH
@@ -1800,6 +1813,33 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 
 	*cookie = (unsigned long) skb;
 
+	if (is_offchan && local->ops->offchannel_tx) {
+		int ret;
+
+		IEEE80211_SKB_CB(skb)->band = chan->band;
+
+		mutex_lock(&local->mtx);
+
+		if (local->hw_offchan_tx_cookie) {
+			mutex_unlock(&local->mtx);
+			return -EBUSY;
+		}
+
+		/* TODO: bitrate control, TX processing? */
+		ret = drv_offchannel_tx(local, skb, chan, channel_type, wait);
+
+		if (ret == 0)
+			local->hw_offchan_tx_cookie = *cookie;
+		mutex_unlock(&local->mtx);
+
+		/*
+		 * Allow driver to return 1 to indicate it wants to have the
+		 * frame transmitted with a remain_on_channel + regular TX.
+		 */
+		if (ret != 1)
+			return ret;
+	}
+
 	if (is_offchan && local->ops->remain_on_channel) {
 		unsigned int duration;
 		int ret;
@@ -1885,6 +1925,18 @@ static int ieee80211_mgmt_tx_cancel_wait(struct wiphy *wiphy,
 	int ret = -ENOENT;
 
 	mutex_lock(&local->mtx);
+
+	if (local->ops->offchannel_tx_cancel_wait &&
+	    local->hw_offchan_tx_cookie == cookie) {
+		ret = drv_offchannel_tx_cancel_wait(local);
+
+		if (!ret)
+			local->hw_offchan_tx_cookie = 0;
+
+		mutex_unlock(&local->mtx);
+
+		return ret;
+	}
 
 	if (local->ops->cancel_remain_on_channel) {
 		cookie ^= 2;

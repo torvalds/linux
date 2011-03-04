@@ -169,7 +169,6 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 
 	return ret;
 }
-EXPORT_SYMBOL(iwl_send_add_sta);
 
 static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
 				   struct ieee80211_sta *sta,
@@ -316,7 +315,6 @@ u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	return sta_id;
 
 }
-EXPORT_SYMBOL_GPL(iwl_prep_station);
 
 #define STA_WAIT_TIMEOUT (HZ/2)
 
@@ -379,7 +377,6 @@ int iwl_add_station_common(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	*sta_id_r = sta_id;
 	return ret;
 }
-EXPORT_SYMBOL(iwl_add_station_common);
 
 /**
  * iwl_sta_ucode_deactivate - deactivate ucode status for a station
@@ -513,7 +510,6 @@ out_err:
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 	return -EINVAL;
 }
-EXPORT_SYMBOL_GPL(iwl_remove_station);
 
 /**
  * iwl_clear_ucode_stations - clear ucode station table bits
@@ -548,7 +544,6 @@ void iwl_clear_ucode_stations(struct iwl_priv *priv,
 	if (!cleared)
 		IWL_DEBUG_INFO(priv, "No active stations found to be cleared\n");
 }
-EXPORT_SYMBOL(iwl_clear_ucode_stations);
 
 /**
  * iwl_restore_stations() - Restore driver known stations to device
@@ -625,7 +620,6 @@ void iwl_restore_stations(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	else
 		IWL_DEBUG_INFO(priv, "Restoring all known stations .... complete.\n");
 }
-EXPORT_SYMBOL(iwl_restore_stations);
 
 void iwl_reprogram_ap_sta(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
@@ -668,7 +662,6 @@ void iwl_reprogram_ap_sta(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 			priv->stations[sta_id].sta.sta.addr, ret);
 	iwl_send_lq_cmd(priv, ctx, &lq, CMD_SYNC, true);
 }
-EXPORT_SYMBOL(iwl_reprogram_ap_sta);
 
 int iwl_get_free_ucode_key_index(struct iwl_priv *priv)
 {
@@ -680,7 +673,6 @@ int iwl_get_free_ucode_key_index(struct iwl_priv *priv)
 
 	return WEP_INVALID_OFFSET;
 }
-EXPORT_SYMBOL(iwl_get_free_ucode_key_index);
 
 void iwl_dealloc_bcast_stations(struct iwl_priv *priv)
 {
@@ -700,7 +692,6 @@ void iwl_dealloc_bcast_stations(struct iwl_priv *priv)
 	}
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 }
-EXPORT_SYMBOL_GPL(iwl_dealloc_bcast_stations);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 static void iwl_dump_lq_cmd(struct iwl_priv *priv,
@@ -810,7 +801,6 @@ int iwl_send_lq_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	}
 	return ret;
 }
-EXPORT_SYMBOL(iwl_send_lq_cmd);
 
 int iwl_mac_sta_remove(struct ieee80211_hw *hw,
 		       struct ieee80211_vif *vif,
@@ -832,4 +822,3 @@ int iwl_mac_sta_remove(struct ieee80211_hw *hw,
 	mutex_unlock(&priv->mutex);
 	return ret;
 }
-EXPORT_SYMBOL(iwl_mac_sta_remove);

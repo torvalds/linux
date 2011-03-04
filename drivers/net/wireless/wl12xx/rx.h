@@ -30,10 +30,6 @@
 #define WL1271_RX_MAX_RSSI -30
 #define WL1271_RX_MIN_RSSI -95
 
-#define WL1271_RX_ALIGN_TO 4
-#define WL1271_RX_ALIGN(len) (((len) + WL1271_RX_ALIGN_TO - 1) & \
-			     ~(WL1271_RX_ALIGN_TO - 1))
-
 #define SHORT_PREAMBLE_BIT   BIT(0)
 #define OFDM_RATE_BIT        BIT(6)
 #define PBCC_RATE_BIT        BIT(7)

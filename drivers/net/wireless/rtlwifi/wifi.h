@@ -1384,6 +1384,18 @@ struct rtl_hal_ops {
 			  u32 regaddr, u32 bitmask);
 	void (*set_rfreg) (struct ieee80211_hw *hw, enum radio_path rfpath,
 			   u32 regaddr, u32 bitmask, u32 data);
+	bool (*phy_rf6052_config) (struct ieee80211_hw *hw);
+	void (*phy_rf6052_set_cck_txpower) (struct ieee80211_hw *hw,
+					    u8 *powerlevel);
+	void (*phy_rf6052_set_ofdm_txpower) (struct ieee80211_hw *hw,
+					     u8 *ppowerlevel, u8 channel);
+	bool (*config_bb_with_headerfile) (struct ieee80211_hw *hw,
+					   u8 configtype);
+	bool (*config_bb_with_pgheaderfile) (struct ieee80211_hw *hw,
+					     u8 configtype);
+	void (*phy_lc_calibrate) (struct ieee80211_hw *hw, bool is2t);
+	void (*phy_set_bw_mode_callback) (struct ieee80211_hw *hw);
+	void (*dm_dynamic_txpower) (struct ieee80211_hw *hw);
 };
 
 struct rtl_intf_ops {

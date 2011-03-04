@@ -27,6 +27,8 @@
  *
  *****************************************************************************/
 
+#include "dm_common.h"
+
 struct dig_t dm_digtable;
 static struct ps_t dm_pstable;
 
@@ -517,6 +519,7 @@ void rtl92c_dm_write_dig(struct ieee80211_hw *hw)
 		dm_digtable.pre_igvalue = dm_digtable.cur_igvalue;
 	}
 }
+EXPORT_SYMBOL(rtl92c_dm_write_dig);
 
 static void rtl92c_dm_pwdb_monitor(struct ieee80211_hw *hw)
 {
@@ -554,6 +557,7 @@ void rtl92c_dm_init_edca_turbo(struct ieee80211_hw *hw)
 	rtlpriv->dm.is_any_nonbepkts = false;
 	rtlpriv->dm.is_cur_rdlstate = false;
 }
+EXPORT_SYMBOL(rtl92c_dm_init_edca_turbo);
 
 static void rtl92c_dm_check_edca_turbo(struct ieee80211_hw *hw)
 {
@@ -1103,6 +1107,7 @@ void rtl92c_dm_check_txpower_tracking(struct ieee80211_hw *hw)
 {
 	rtl92c_dm_check_txpower_tracking_thermal_meter(hw);
 }
+EXPORT_SYMBOL(rtl92c_dm_check_txpower_tracking);
 
 void rtl92c_dm_init_rate_adaptive_mask(struct ieee80211_hw *hw)
 {
@@ -1118,6 +1123,7 @@ void rtl92c_dm_init_rate_adaptive_mask(struct ieee80211_hw *hw)
 		rtlpriv->dm.useramask = false;
 
 }
+EXPORT_SYMBOL(rtl92c_dm_init_rate_adaptive_mask);
 
 static void rtl92c_dm_refresh_rate_adaptive_mask(struct ieee80211_hw *hw)
 {
@@ -1307,6 +1313,7 @@ void rtl92c_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_normal)
 		dm_pstable.pre_rfstate = dm_pstable.cur_rfstate;
 	}
 }
+EXPORT_SYMBOL(rtl92c_dm_rf_saving);
 
 static void rtl92c_dm_dynamic_bb_powersaving(struct ieee80211_hw *hw)
 {
@@ -1360,6 +1367,7 @@ void rtl92c_dm_init(struct ieee80211_hw *hw)
 	rtl92c_dm_initialize_txpower_tracking(hw);
 	rtl92c_dm_init_dynamic_bb_powersaving(hw);
 }
+EXPORT_SYMBOL(rtl92c_dm_init);
 
 void rtl92c_dm_watchdog(struct ieee80211_hw *hw)
 {
@@ -1380,9 +1388,11 @@ void rtl92c_dm_watchdog(struct ieee80211_hw *hw)
 		rtl92c_dm_dig(hw);
 		rtl92c_dm_false_alarm_counter_statistics(hw);
 		rtl92c_dm_dynamic_bb_powersaving(hw);
-		rtl92c_dm_dynamic_txpower(hw);
+		rtlpriv->cfg->ops->dm_dynamic_txpower(hw);
 		rtl92c_dm_check_txpower_tracking(hw);
 		rtl92c_dm_refresh_rate_adaptive_mask(hw);
 		rtl92c_dm_check_edca_turbo(hw);
+
 	}
 }
+EXPORT_SYMBOL(rtl92c_dm_watchdog);
