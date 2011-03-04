@@ -1895,6 +1895,17 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (IS_GEN2(dev))
 		dma_set_coherent_mask(&dev->pdev->dev, DMA_BIT_MASK(30));
 
+	/* 965GM sometimes incorrectly writes to hardware status page (HWS)
+	 * using 32bit addressing, overwriting memory if HWS is located
+	 * above 4GB.
+	 *
+	 * The documentation also mentions an issue with undefined
+	 * behaviour if any general state is accessed within a page above 4GB,
+	 * which also needs to be handled carefully.
+	 */
+	if (IS_BROADWATER(dev) || IS_CRESTLINE(dev))
+		dma_set_coherent_mask(&dev->pdev->dev, DMA_BIT_MASK(32));
+
 	mmio_bar = IS_GEN2(dev) ? 1 : 0;
 	dev_priv->regs = pci_iomap(dev->pdev, mmio_bar, 0);
 	if (!dev_priv->regs) {

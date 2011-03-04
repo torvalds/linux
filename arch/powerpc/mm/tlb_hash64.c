@@ -38,13 +38,11 @@ DEFINE_PER_CPU(struct ppc64_tlb_batch, ppc64_tlb_batch);
  * neesd to be flushed. This function will either perform the flush
  * immediately or will batch it up if the current CPU has an active
  * batch on it.
- *
- * Must be called from within some kind of spinlock/non-preempt region...
  */
 void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 		     pte_t *ptep, unsigned long pte, int huge)
 {
-	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
+	struct ppc64_tlb_batch *batch = &get_cpu_var(ppc64_tlb_batch);
 	unsigned long vsid, vaddr;
 	unsigned int psize;
 	int ssize;
@@ -99,6 +97,7 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 	 */
 	if (!batch->active) {
 		flush_hash_page(vaddr, rpte, psize, ssize, 0);
+		put_cpu_var(ppc64_tlb_batch);
 		return;
 	}
 
@@ -127,6 +126,7 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 	batch->index = ++i;
 	if (i >= PPC64_TLB_BATCH_NR)
 		__flush_tlb_pending(batch);
+	put_cpu_var(ppc64_tlb_batch);
 }
 
 /*

@@ -246,6 +246,16 @@ static int wm8994_suspend(struct device *dev)
 	struct wm8994 *wm8994 = dev_get_drvdata(dev);
 	int ret;
 
+	/* Don't actually go through with the suspend if the CODEC is
+	 * still active (eg, for audio passthrough from CP. */
+	ret = wm8994_reg_read(wm8994, WM8994_POWER_MANAGEMENT_1);
+	if (ret < 0) {
+		dev_err(dev, "Failed to read power status: %d\n", ret);
+	} else if (ret & WM8994_VMID_SEL_MASK) {
+		dev_dbg(dev, "CODEC still active, ignoring suspend\n");
+		return 0;
+	}
+
 	/* GPIO configuration state is saved here since we may be configuring
 	 * the GPIO alternate functions even if we're not using the gpiolib
 	 * driver for them.
@@ -261,6 +271,8 @@ static int wm8994_suspend(struct device *dev)
 	if (ret < 0)
 		dev_err(dev, "Failed to save LDO registers: %d\n", ret);
 
+	wm8994->suspended = true;
+
 	ret = regulator_bulk_disable(wm8994->num_supplies,
 				     wm8994->supplies);
 	if (ret != 0) {
@@ -275,6 +287,10 @@ static int wm8994_resume(struct device *dev)
 {
 	struct wm8994 *wm8994 = dev_get_drvdata(dev);
 	int ret;
+
+	/* We may have lied to the PM core about suspending */
+	if (!wm8994->suspended)
+		return 0;
 
 	ret = regulator_bulk_enable(wm8994->num_supplies,
 				    wm8994->supplies);
@@ -297,6 +313,8 @@ static int wm8994_resume(struct device *dev)
 			   &wm8994->gpio_regs);
 	if (ret < 0)
 		dev_err(dev, "Failed to restore GPIO registers: %d\n", ret);
+
+	wm8994->suspended = false;
 
 	return 0;
 }

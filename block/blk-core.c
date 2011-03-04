@@ -352,7 +352,7 @@ void blk_start_queue(struct request_queue *q)
 	WARN_ON(!irqs_disabled());
 
 	queue_flag_clear(QUEUE_FLAG_STOPPED, q);
-	__blk_run_queue(q);
+	__blk_run_queue(q, false);
 }
 EXPORT_SYMBOL(blk_start_queue);
 
@@ -403,13 +403,14 @@ EXPORT_SYMBOL(blk_sync_queue);
 /**
  * __blk_run_queue - run a single device queue
  * @q:	The queue to run
+ * @force_kblockd: Don't run @q->request_fn directly.  Use kblockd.
  *
  * Description:
  *    See @blk_run_queue. This variant must be called with the queue lock
  *    held and interrupts disabled.
  *
  */
-void __blk_run_queue(struct request_queue *q)
+void __blk_run_queue(struct request_queue *q, bool force_kblockd)
 {
 	blk_remove_plug(q);
 
@@ -423,7 +424,7 @@ void __blk_run_queue(struct request_queue *q)
 	 * Only recurse once to avoid overrunning the stack, let the unplug
 	 * handling reinvoke the handler shortly if we already got there.
 	 */
-	if (!queue_flag_test_and_set(QUEUE_FLAG_REENTER, q)) {
+	if (!force_kblockd && !queue_flag_test_and_set(QUEUE_FLAG_REENTER, q)) {
 		q->request_fn(q);
 		queue_flag_clear(QUEUE_FLAG_REENTER, q);
 	} else {
@@ -446,7 +447,7 @@ void blk_run_queue(struct request_queue *q)
 	unsigned long flags;
 
 	spin_lock_irqsave(q->queue_lock, flags);
-	__blk_run_queue(q);
+	__blk_run_queue(q, false);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 EXPORT_SYMBOL(blk_run_queue);
@@ -1053,7 +1054,7 @@ void blk_insert_request(struct request_queue *q, struct request *rq,
 
 	drive_stat_acct(rq, 1);
 	__elv_add_request(q, rq, where, 0);
-	__blk_run_queue(q);
+	__blk_run_queue(q, false);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 EXPORT_SYMBOL(blk_insert_request);
@@ -2609,13 +2610,6 @@ int kblockd_schedule_work(struct request_queue *q, struct work_struct *work)
 	return queue_work(kblockd_workqueue, work);
 }
 EXPORT_SYMBOL(kblockd_schedule_work);
-
-int kblockd_schedule_delayed_work(struct request_queue *q,
-			struct delayed_work *dwork, unsigned long delay)
-{
-	return queue_delayed_work(kblockd_workqueue, dwork, delay);
-}
-EXPORT_SYMBOL(kblockd_schedule_delayed_work);
 
 int __init blk_dev_init(void)
 {

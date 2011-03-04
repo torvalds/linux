@@ -66,10 +66,12 @@ static void blk_flush_complete_seq_end_io(struct request_queue *q,
 
 	/*
 	 * Moving a request silently to empty queue_head may stall the
-	 * queue.  Kick the queue in those cases.
+	 * queue.  Kick the queue in those cases.  This function is called
+	 * from request completion path and calling directly into
+	 * request_fn may confuse the driver.  Always use kblockd.
 	 */
 	if (was_empty && next_rq)
-		__blk_run_queue(q);
+		__blk_run_queue(q, true);
 }
 
 static void pre_flush_end_io(struct request *rq, int error)
@@ -130,7 +132,7 @@ static struct request *queue_next_fseq(struct request_queue *q)
 		BUG();
 	}
 
-	elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
+	elv_insert(q, rq, ELEVATOR_INSERT_REQUEUE);
 	return rq;
 }
 
