@@ -462,6 +462,10 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 		return ret;
 
 	for (i = 0; i < count; i++) {
+		/* Do not add to override if the map failed. */
+		if (map_ops[i].status)
+			continue;
+
 		/* m2p override only supported for GNTMAP_contains_pte mappings */
 		if (!(map_ops[i].flags & GNTMAP_contains_pte))
 			continue;
