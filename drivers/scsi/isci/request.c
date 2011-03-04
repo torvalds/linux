@@ -836,7 +836,7 @@ static void isci_task_save_for_upper_layer_completion(
 			 status);
 		/* Add to the aborted list. */
 		list_add(&request->completed_node,
-			 &host->requests_to_abort);
+			 &host->requests_to_errorback);
 		break;
 
 	default:
@@ -849,7 +849,7 @@ static void isci_task_save_for_upper_layer_completion(
 
 		/* Add to the aborted list. */
 		list_add(&request->completed_node,
-			 &host->requests_to_abort);
+			 &host->requests_to_errorback);
 		break;
 	}
 }
@@ -1184,14 +1184,6 @@ void isci_request_io_request_complete(
 	 * task to recognize the already completed case.
 	 */
 	request->sci_request_handle = NULL;
-
-	/* Only remove the request from the remote device list
-	 * of pending requests if we have not requested error
-	 * handling on this request.
-	 */
-	if (complete_to_host != isci_perform_error_io_completion)
-		list_del_init(&request->dev_node);
-
 
 	/* Save possible completion ptr. */
 	io_request_completion = request->io_request_completion;

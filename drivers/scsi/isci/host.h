@@ -116,7 +116,7 @@ struct isci_host {
 	struct tasklet_struct completion_tasklet;
 	struct list_head mdl_struct_list;
 	struct list_head requests_to_complete;
-	struct list_head requests_to_abort;
+	struct list_head requests_to_errorback;
 	spinlock_t scic_lock;
 
 	/* careful only access this via idev_by_id */

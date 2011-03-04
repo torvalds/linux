@@ -270,27 +270,40 @@ static int isci_host_mdl_allocate_coherent(
 static void isci_host_completion_routine(unsigned long data)
 {
 	struct isci_host *isci_host = (struct isci_host *)data;
-	struct list_head completed_request_list;
-	struct list_head aborted_request_list;
-	struct list_head *current_position;
-	struct list_head *next_position;
+	struct list_head    completed_request_list;
+	struct list_head    errored_request_list;
+	struct list_head    *current_position;
+	struct list_head    *next_position;
 	struct isci_request *request;
 	struct isci_request *next_request;
-	struct sas_task *task;
+	struct sas_task     *task;
 
 	INIT_LIST_HEAD(&completed_request_list);
-	INIT_LIST_HEAD(&aborted_request_list);
+	INIT_LIST_HEAD(&errored_request_list);
 
 	spin_lock_irq(&isci_host->scic_lock);
 
 	scic_sds_controller_completion_handler(isci_host->core_controller);
 
 	/* Take the lists of completed I/Os from the host. */
+
 	list_splice_init(&isci_host->requests_to_complete,
 			 &completed_request_list);
 
-	list_splice_init(&isci_host->requests_to_abort,
-			 &aborted_request_list);
+	/* While holding the scic_lock take all of the normally completed
+	 * I/Os off of the device's pending lists.
+	 */
+	list_for_each_entry(request, &completed_request_list, completed_node) {
+
+		/* Remove the request from the remote device's list
+		* of pending requests.
+		*/
+		list_del_init(&request->dev_node);
+	}
+
+	/* Take the list of errored I/Os from the host. */
+	list_splice_init(&isci_host->requests_to_errorback,
+			 &errored_request_list);
 
 	spin_unlock_irq(&isci_host->scic_lock);
 
@@ -309,13 +322,22 @@ static void isci_host_completion_routine(unsigned long data)
 			request,
 			task);
 
-		task->task_done(task);
-		task->lldd_task = NULL;
+		/* Return the task to libsas */
+		if (task != NULL) {
 
+			task->lldd_task = NULL;
+			if (!(task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
+
+				/* If the task is already in the abort path,
+				* the task_done callback cannot be called.
+				*/
+				task->task_done(task);
+			}
+		}
 		/* Free the request object. */
 		isci_request_free(isci_host, request);
 	}
-	list_for_each_entry_safe(request, next_request, &aborted_request_list,
+	list_for_each_entry_safe(request, next_request, &errored_request_list,
 				 completed_node) {
 
 		task = isci_request_access_task(request);
@@ -327,8 +349,33 @@ static void isci_host_completion_routine(unsigned long data)
 			 request,
 			 task);
 
-		/* Put the task into the abort path. */
-		sas_task_abort(task);
+		if (task != NULL) {
+
+			/* Put the task into the abort path if it's not there
+			 * already.
+			 */
+			if (!(task->task_state_flags & SAS_TASK_STATE_ABORTED))
+				sas_task_abort(task);
+
+		} else {
+			/* This is a case where the request has completed with a
+			 * status such that it needed further target servicing,
+			 * but the sas_task reference has already been removed
+			 * from the request.  Since it was errored, it was not
+			 * being aborted, so there is nothing to do except free
+			 * it.
+			 */
+
+			spin_lock_irq(&isci_host->scic_lock);
+			/* Remove the request from the remote device's list
+			* of pending requests.
+			*/
+			list_del_init(&request->dev_node);
+			spin_unlock_irq(&isci_host->scic_lock);
+
+			/* Free the request object. */
+			isci_request_free(isci_host, request);
+		}
 	}
 
 }
@@ -477,7 +524,7 @@ int isci_host_init(struct isci_host *isci_host)
 	INIT_LIST_HEAD(&(isci_host->mdl_struct_list));
 
 	INIT_LIST_HEAD(&isci_host->requests_to_complete);
-	INIT_LIST_HEAD(&isci_host->requests_to_abort);
+	INIT_LIST_HEAD(&isci_host->requests_to_errorback);
 
 	spin_lock_irq(&isci_host->scic_lock);
 	status = scic_controller_initialize(isci_host->core_controller);
