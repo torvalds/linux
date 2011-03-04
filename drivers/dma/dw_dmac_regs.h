@@ -159,9 +159,9 @@ __dwc_regs(struct dw_dma_chan *dwc)
 }
 
 #define channel_readl(dwc, name) \
-	__raw_readl(&(__dwc_regs(dwc)->name))
+	readl(&(__dwc_regs(dwc)->name))
 #define channel_writel(dwc, name, val) \
-	__raw_writel((val), &(__dwc_regs(dwc)->name))
+	writel((val), &(__dwc_regs(dwc)->name))
 
 static inline struct dw_dma_chan *to_dw_dma_chan(struct dma_chan *chan)
 {
@@ -185,9 +185,9 @@ static inline struct dw_dma_regs __iomem *__dw_regs(struct dw_dma *dw)
 }
 
 #define dma_readl(dw, name) \
-	__raw_readl(&(__dw_regs(dw)->name))
+	readl(&(__dw_regs(dw)->name))
 #define dma_writel(dw, name, val) \
-	__raw_writel((val), &(__dw_regs(dw)->name))
+	writel((val), &(__dw_regs(dw)->name))
 
 #define channel_set_bit(dw, reg, mask) \
 	dma_writel(dw, reg, ((mask) << 8) | (mask))
