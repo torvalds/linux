@@ -1213,6 +1213,17 @@ config ARM_ERRATA_754322
 	  the new ASID. This workaround places two dsb instructions in the mm
 	  switching code so that no page table walks can cross the ASID switch.
 
+config ARM_ERRATA_754327
+	bool "ARM errata: no automatic Store Buffer drain"
+	depends on CPU_V7 && SMP
+	help
+	  This option enables the workaround for the 754327 Cortex-A9 (prior to
+	  r2p0) erratum. The Store Buffer does not have any automatic draining
+	  mechanism and therefore a livelock may occur if an external agent
+	  continuously polls a memory location waiting to observe an update.
+	  This workaround defines cpu_relax() as smp_mb(), preventing correctly
+	  written polling loops from denying visibility of updates to memory.
+
 endmenu
 
 source "arch/arm/common/Kconfig"
