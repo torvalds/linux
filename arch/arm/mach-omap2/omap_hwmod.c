@@ -972,25 +972,29 @@ static int _wait_target_ready(struct omap_hwmod *oh)
 }
 
 /**
- * _lookup_hardreset - return the register bit shift for this hwmod/reset line
+ * _lookup_hardreset - fill register bit info for this hwmod/reset line
  * @oh: struct omap_hwmod *
  * @name: name of the reset line in the context of this hwmod
+ * @ohri: struct omap_hwmod_rst_info * that this function will fill in
  *
  * Return the bit position of the reset line that match the
  * input name. Return -ENOENT if not found.
  */
-static u8 _lookup_hardreset(struct omap_hwmod *oh, const char *name)
+static u8 _lookup_hardreset(struct omap_hwmod *oh, const char *name,
+			    struct omap_hwmod_rst_info *ohri)
 {
 	int i;
 
 	for (i = 0; i < oh->rst_lines_cnt; i++) {
 		const char *rst_line = oh->rst_lines[i].name;
 		if (!strcmp(rst_line, name)) {
-			u8 shift = oh->rst_lines[i].rst_shift;
-			pr_debug("omap_hwmod: %s: _lookup_hardreset: %s: %d\n",
-				 oh->name, rst_line, shift);
+			ohri->rst_shift = oh->rst_lines[i].rst_shift;
+			ohri->st_shift = oh->rst_lines[i].st_shift;
+			pr_debug("omap_hwmod: %s: %s: %s: rst %d st %d\n",
+				 oh->name, __func__, rst_line, ohri->rst_shift,
+				 ohri->st_shift);
 
-			return shift;
+			return 0;
 		}
 	}
 
@@ -1009,21 +1013,22 @@ static u8 _lookup_hardreset(struct omap_hwmod *oh, const char *name)
  */
 static int _assert_hardreset(struct omap_hwmod *oh, const char *name)
 {
-	u8 shift;
+	struct omap_hwmod_rst_info ohri;
+	u8 ret;
 
 	if (!oh)
 		return -EINVAL;
 
-	shift = _lookup_hardreset(oh, name);
-	if (IS_ERR_VALUE(shift))
-		return shift;
+	ret = _lookup_hardreset(oh, name, &ohri);
+	if (IS_ERR_VALUE(ret))
+		return ret;
 
 	if (cpu_is_omap24xx() || cpu_is_omap34xx())
 		return omap2_prm_assert_hardreset(oh->prcm.omap2.module_offs,
-						  shift);
+						  ohri.rst_shift);
 	else if (cpu_is_omap44xx())
 		return omap4_prm_assert_hardreset(oh->prcm.omap4.rstctrl_reg,
-						  shift);
+						  ohri.rst_shift);
 	else
 		return -EINVAL;
 }
@@ -1040,29 +1045,34 @@ static int _assert_hardreset(struct omap_hwmod *oh, const char *name)
  */
 static int _deassert_hardreset(struct omap_hwmod *oh, const char *name)
 {
-	u8 shift;
-	int r;
+	struct omap_hwmod_rst_info ohri;
+	int ret;
 
 	if (!oh)
 		return -EINVAL;
 
-	shift = _lookup_hardreset(oh, name);
-	if (IS_ERR_VALUE(shift))
-		return shift;
+	ret = _lookup_hardreset(oh, name, &ohri);
+	if (IS_ERR_VALUE(ret))
+		return ret;
 
-	if (cpu_is_omap24xx() || cpu_is_omap34xx())
-		r = omap2_prm_deassert_hardreset(oh->prcm.omap2.module_offs,
-						 shift);
-	else if (cpu_is_omap44xx())
-		r = omap4_prm_deassert_hardreset(oh->prcm.omap4.rstctrl_reg,
-						 shift);
-	else
+	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
+		ret = omap2_prm_deassert_hardreset(oh->prcm.omap2.module_offs,
+						   ohri.rst_shift,
+						   ohri.st_shift);
+	} else if (cpu_is_omap44xx()) {
+		if (ohri.st_shift)
+			pr_err("omap_hwmod: %s: %s: hwmod data error: OMAP4 does not support st_shift\n",
+			       oh->name, name);
+		ret = omap4_prm_deassert_hardreset(oh->prcm.omap4.rstctrl_reg,
+						   ohri.rst_shift);
+	} else {
 		return -EINVAL;
+	}
 
-	if (r == -EBUSY)
+	if (ret == -EBUSY)
 		pr_warning("omap_hwmod: %s: failed to hardreset\n", oh->name);
 
-	return r;
+	return ret;
 }
 
 /**
@@ -1075,21 +1085,22 @@ static int _deassert_hardreset(struct omap_hwmod *oh, const char *name)
  */
 static int _read_hardreset(struct omap_hwmod *oh, const char *name)
 {
-	u8 shift;
+	struct omap_hwmod_rst_info ohri;
+	u8 ret;
 
 	if (!oh)
 		return -EINVAL;
 
-	shift = _lookup_hardreset(oh, name);
-	if (IS_ERR_VALUE(shift))
-		return shift;
+	ret = _lookup_hardreset(oh, name, &ohri);
+	if (IS_ERR_VALUE(ret))
+		return ret;
 
 	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
 		return omap2_prm_is_hardreset_asserted(oh->prcm.omap2.module_offs,
-						       shift);
+						       ohri.st_shift);
 	} else if (cpu_is_omap44xx()) {
 		return omap4_prm_is_hardreset_asserted(oh->prcm.omap4.rstctrl_reg,
-						       shift);
+						       ohri.rst_shift);
 	} else {
 		return -EINVAL;
 	}
