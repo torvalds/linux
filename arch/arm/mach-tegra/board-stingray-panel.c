@@ -451,7 +451,18 @@ struct lp8550_platform_data stingray_lp8550_backlight_data = {
 	.direct_ctrl = 0x01,
 	.eeprom_table = stingray_lp8550_eeprom_data,
 	.eeprom_tbl_sz = ARRAY_SIZE(stingray_lp8550_eeprom_data),
+	.scaling_factor = 690, /* For SHP and default */
 };
+
+static int stingray_lp8550_init(void)
+{
+	struct lp8550_platform_data *pdata =
+			 &stingray_lp8550_backlight_data;
+	if (!strncmp(lcd_manfid, "AUO", 3))
+		pdata->scaling_factor = 726;
+
+	return 0;
+}
 
 static struct i2c_board_info __initdata stingray_i2c_bus1_led_info[] = {
 	 {
@@ -506,6 +517,7 @@ int __init stingray_panel_init(void)
 	platform_device_register(&stingray_panel_early_reg_keyreset_device);
 
 	stingray_hdmi_init();
+	stingray_lp8550_init();
 
 	stingray_csi_reg = regulator_get(NULL, "vcsi");
 	if (IS_ERR(stingray_csi_reg)) {
