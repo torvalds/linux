@@ -498,8 +498,15 @@ err_root:
 /* Try to drop out of rcu-walk mode if we were in it, otherwise do nothing.  */
 static inline int nameidata_dentry_drop_rcu_maybe(struct nameidata *nd, struct dentry *dentry)
 {
-	if (nd->flags & LOOKUP_RCU)
-		return nameidata_dentry_drop_rcu(nd, dentry);
+	if (nd->flags & LOOKUP_RCU) {
+		if (unlikely(nameidata_dentry_drop_rcu(nd, dentry))) {
+			nd->flags &= ~LOOKUP_RCU;
+			nd->root.mnt = NULL;
+			rcu_read_unlock();
+			br_read_unlock(vfsmount_lock);
+			return -ECHILD;
+		}
+	}
 	return 0;
 }
 
@@ -1424,7 +1431,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		if (inode && inode->i_op->follow_link) {
 			err = do_follow_link(inode, &next, nd);
 			if (err)
-				goto return_err;
+				return err;
 			nd->inode = nd->path.dentry->d_inode;
 		} else {
 			path_to_nameidata(&next, nd);
@@ -1455,7 +1462,7 @@ last_component:
 		    (lookup_flags & LOOKUP_FOLLOW)) {
 			err = do_follow_link(inode, &next, nd);
 			if (err)
-				goto return_err;
+				return err;
 			nd->inode = nd->path.dentry->d_inode;
 		} else {
 			path_to_nameidata(&next, nd);
@@ -1477,7 +1484,6 @@ lookup_parent:
 	}
 	if (!(nd->flags & LOOKUP_RCU))
 		path_put(&nd->path);
-return_err:
 	if (nd->flags & LOOKUP_RCU) {
 		nd->flags &= ~LOOKUP_RCU;
 		nd->root.mnt = NULL;
