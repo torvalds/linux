@@ -130,10 +130,10 @@ extern u32 wl12xx_debug_level;
 
 
 
-#define WL1271_FW_NAME "wl1271-fw-2.bin"
-#define WL1271_AP_FW_NAME "wl1271-fw-ap.bin"
+#define WL1271_FW_NAME "ti-connectivity/wl1271-fw-2.bin"
+#define WL1271_AP_FW_NAME "ti-connectivity/wl1271-fw-ap.bin"
 
-#define WL1271_NVS_NAME "wl1271-nvs.bin"
+#define WL1271_NVS_NAME "ti-connectivity/wl1271-nvs.bin"
 
 #define WL1271_TX_SECURITY_LO16(s) ((u16)((s) & 0xffff))
 #define WL1271_TX_SECURITY_HI32(s) ((u32)(((s) >> 16) & 0xffffffff))
@@ -317,10 +317,10 @@ enum wl12xx_flags {
 	WL1271_FLAG_JOINED,
 	WL1271_FLAG_GPIO_POWER,
 	WL1271_FLAG_TX_QUEUE_STOPPED,
+	WL1271_FLAG_TX_PENDING,
 	WL1271_FLAG_IN_ELP,
 	WL1271_FLAG_PSM,
 	WL1271_FLAG_PSM_REQUESTED,
-	WL1271_FLAG_IRQ_PENDING,
 	WL1271_FLAG_IRQ_RUNNING,
 	WL1271_FLAG_IDLE,
 	WL1271_FLAG_IDLE_REQUESTED,
@@ -404,6 +404,12 @@ struct wl1271 {
 	struct sk_buff_head tx_queue[NUM_TX_QUEUES];
 	int tx_queue_count;
 
+	/* Frames received, not handled yet by mac80211 */
+	struct sk_buff_head deferred_rx_queue;
+
+	/* Frames sent, not returned yet to mac80211 */
+	struct sk_buff_head deferred_tx_queue;
+
 	struct work_struct tx_work;
 
 	/* Pending TX frames */
@@ -424,8 +430,8 @@ struct wl1271 {
 	/* Intermediate buffer, used for packet aggregation */
 	u8 *aggr_buf;
 
-	/* The target interrupt mask */
-	struct work_struct irq_work;
+	/* Network stack work  */
+	struct work_struct netstack_work;
 
 	/* Hardware recovery work */
 	struct work_struct recovery_work;
@@ -535,6 +541,9 @@ struct wl1271 {
 
 	/* AP-mode - a bitmap of links currently in PS mode in mac80211 */
 	unsigned long ap_ps_map;
+
+	/* Quirks of specific hardware revisions */
+	unsigned int quirks;
 };
 
 struct wl1271_station {
@@ -553,6 +562,8 @@ int wl1271_plt_stop(struct wl1271 *wl);
 #define WL1271_TX_QUEUE_LOW_WATERMARK  10
 #define WL1271_TX_QUEUE_HIGH_WATERMARK 25
 
+#define WL1271_DEFERRED_QUEUE_LIMIT    64
+
 /* WL1271 needs a 200ms sleep after power on, and a 20ms sleep before power
    on in case is has been shut down shortly before */
 #define WL1271_PRE_POWER_ON_SLEEP 20 /* in milliseconds */
@@ -561,5 +572,10 @@ int wl1271_plt_stop(struct wl1271 *wl);
 /* Macros to handle wl1271.sta_rate_set */
 #define HW_BG_RATES_MASK	0xffff
 #define HW_HT_RATES_OFFSET	16
+
+/* Quirks */
+
+/* Each RX/TX transaction requires an end-of-transaction transfer */
+#define WL12XX_QUIRK_END_OF_TRANSACTION	BIT(0)
 
 #endif

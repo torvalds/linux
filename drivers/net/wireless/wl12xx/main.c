@@ -304,7 +304,7 @@ static struct conf_drv_settings default_conf = {
 		.rx_block_num                 = 70,
 		.tx_min_block_num             = 40,
 		.dynamic_memory               = 0,
-		.min_req_tx_blocks            = 104,
+		.min_req_tx_blocks            = 100,
 		.min_req_rx_blocks            = 22,
 		.tx_min                       = 27,
 	}
@@ -374,7 +374,7 @@ static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
 	if (!test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
 		goto out;
 
-	ret = wl1271_ps_elp_wakeup(wl, false);
+	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
 
@@ -635,16 +635,44 @@ static void wl1271_fw_status(struct wl1271 *wl,
 		(s64)le32_to_cpu(status->fw_localtime);
 }
 
-#define WL1271_IRQ_MAX_LOOPS 10
+static void wl1271_flush_deferred_work(struct wl1271 *wl)
+{
+	struct sk_buff *skb;
 
-static void wl1271_irq_work(struct work_struct *work)
+	/* Pass all received frames to the network stack */
+	while ((skb = skb_dequeue(&wl->deferred_rx_queue)))
+		ieee80211_rx_ni(wl->hw, skb);
+
+	/* Return sent skbs to the network stack */
+	while ((skb = skb_dequeue(&wl->deferred_tx_queue)))
+		ieee80211_tx_status(wl->hw, skb);
+}
+
+static void wl1271_netstack_work(struct work_struct *work)
+{
+	struct wl1271 *wl =
+		container_of(work, struct wl1271, netstack_work);
+
+	do {
+		wl1271_flush_deferred_work(wl);
+	} while (skb_queue_len(&wl->deferred_rx_queue));
+}
+
+#define WL1271_IRQ_MAX_LOOPS 256
+
+irqreturn_t wl1271_irq(int irq, void *cookie)
 {
 	int ret;
 	u32 intr;
 	int loopcount = WL1271_IRQ_MAX_LOOPS;
+	struct wl1271 *wl = (struct wl1271 *)cookie;
+	bool done = false;
+	unsigned int defer_count;
 	unsigned long flags;
-	struct wl1271 *wl =
-		container_of(work, struct wl1271, irq_work);
+
+	/* TX might be handled here, avoid redundant work */
+	set_bit(WL1271_FLAG_TX_PENDING, &wl->flags);
+	cancel_work_sync(&wl->tx_work);
 
 	mutex_lock(&wl->mutex);
 
@@ -653,25 +681,26 @@ static void wl1271_irq_work(struct work_struct *work)
 	if (unlikely(wl->state == WL1271_STATE_OFF))
 		goto out;
 
-	ret = wl1271_ps_elp_wakeup(wl, true);
+	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
 
-	spin_lock_irqsave(&wl->wl_lock, flags);
-	while (test_bit(WL1271_FLAG_IRQ_PENDING, &wl->flags) && loopcount) {
-		clear_bit(WL1271_FLAG_IRQ_PENDING, &wl->flags);
-		spin_unlock_irqrestore(&wl->wl_lock, flags);
-		loopcount--;
+	while (!done && loopcount--) {
+		/*
+		 * In order to avoid a race with the hardirq, clear the flag
+		 * before acknowledging the chip. Since the mutex is held,
+		 * wl1271_ps_elp_wakeup cannot be called concurrently.
+		 */
+		clear_bit(WL1271_FLAG_IRQ_RUNNING, &wl->flags);
+		smp_mb__after_clear_bit();
 
 		wl1271_fw_status(wl, wl->fw_status);
 		intr = le32_to_cpu(wl->fw_status->common.intr);
+		intr &= WL1271_INTR_MASK;
 		if (!intr) {
-			wl1271_debug(DEBUG_IRQ, "Zero interrupt received.");
-			spin_lock_irqsave(&wl->wl_lock, flags);
+			done = true;
 			continue;
 		}
-
-		intr &= WL1271_INTR_MASK;
 
 		if (unlikely(intr & WL1271_ACX_INTR_WATCHDOG)) {
 			wl1271_error("watchdog interrupt received! "
@@ -682,25 +711,35 @@ static void wl1271_irq_work(struct work_struct *work)
 			goto out;
 		}
 
-		if (intr & WL1271_ACX_INTR_DATA) {
+		if (likely(intr & WL1271_ACX_INTR_DATA)) {
 			wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_DATA");
+
+			wl1271_rx(wl, &wl->fw_status->common);
+
+			/* Check if any tx blocks were freed */
+			spin_lock_irqsave(&wl->wl_lock, flags);
+			if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags) &&
+			    wl->tx_queue_count) {
+				spin_unlock_irqrestore(&wl->wl_lock, flags);
+				/*
+				 * In order to avoid starvation of the TX path,
+				 * call the work function directly.
+				 */
+				wl1271_tx_work_locked(wl);
+			} else {
+				spin_unlock_irqrestore(&wl->wl_lock, flags);
+			}
 
 			/* check for tx results */
 			if (wl->fw_status->common.tx_results_counter !=
 			    (wl->tx_results_count & 0xff))
 				wl1271_tx_complete(wl);
 
-			/* Check if any tx blocks were freed */
-			if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags) &&
-			    wl->tx_queue_count) {
-				/*
-				 * In order to avoid starvation of the TX path,
-				 * call the work function directly.
-				 */
-				wl1271_tx_work_locked(wl);
-			}
-
-			wl1271_rx(wl, &wl->fw_status->common);
+			/* Make sure the deferred queues don't get too long */
+			defer_count = skb_queue_len(&wl->deferred_tx_queue) +
+				      skb_queue_len(&wl->deferred_rx_queue);
+			if (defer_count > WL1271_DEFERRED_QUEUE_LIMIT)
+				wl1271_flush_deferred_work(wl);
 		}
 
 		if (intr & WL1271_ACX_INTR_EVENT_A) {
@@ -719,21 +758,24 @@ static void wl1271_irq_work(struct work_struct *work)
 
 		if (intr & WL1271_ACX_INTR_HW_AVAILABLE)
 			wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_HW_AVAILABLE");
-
-		spin_lock_irqsave(&wl->wl_lock, flags);
 	}
-
-	if (test_bit(WL1271_FLAG_IRQ_PENDING, &wl->flags))
-		ieee80211_queue_work(wl->hw, &wl->irq_work);
-	else
-		clear_bit(WL1271_FLAG_IRQ_RUNNING, &wl->flags);
-	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
 	wl1271_ps_elp_sleep(wl);
 
 out:
+	spin_lock_irqsave(&wl->wl_lock, flags);
+	/* In case TX was not handled here, queue TX work */
+	clear_bit(WL1271_FLAG_TX_PENDING, &wl->flags);
+	if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags) &&
+	    wl->tx_queue_count)
+		ieee80211_queue_work(wl->hw, &wl->tx_work);
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
+
 	mutex_unlock(&wl->mutex);
+
+	return IRQ_HANDLED;
 }
+EXPORT_SYMBOL_GPL(wl1271_irq);
 
 static int wl1271_fetch_firmware(struct wl1271 *wl)
 {
@@ -974,7 +1016,6 @@ int wl1271_plt_start(struct wl1271 *wl)
 		goto out;
 
 irq_disable:
-		wl1271_disable_interrupts(wl);
 		mutex_unlock(&wl->mutex);
 		/* Unlocking the mutex in the middle of handling is
 		   inherently unsafe. In this case we deem it safe to do,
@@ -983,7 +1024,9 @@ irq_disable:
 		   work function will not do anything.) Also, any other
 		   possible concurrent operations will fail due to the
 		   current state, hence the wl1271 struct should be safe. */
-		cancel_work_sync(&wl->irq_work);
+		wl1271_disable_interrupts(wl);
+		wl1271_flush_deferred_work(wl);
+		cancel_work_sync(&wl->netstack_work);
 		mutex_lock(&wl->mutex);
 power_off:
 		wl1271_power_off(wl);
@@ -1010,14 +1053,15 @@ int __wl1271_plt_stop(struct wl1271 *wl)
 		goto out;
 	}
 
-	wl1271_disable_interrupts(wl);
 	wl1271_power_off(wl);
 
 	wl->state = WL1271_STATE_OFF;
 	wl->rx_counter = 0;
 
 	mutex_unlock(&wl->mutex);
-	cancel_work_sync(&wl->irq_work);
+	wl1271_disable_interrupts(wl);
+	wl1271_flush_deferred_work(wl);
+	cancel_work_sync(&wl->netstack_work);
 	cancel_work_sync(&wl->recovery_work);
 	mutex_lock(&wl->mutex);
 out:
@@ -1041,7 +1085,13 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	int q;
 	u8 hlid = 0;
 
+	q = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
+
+	if (wl->bss_type == BSS_TYPE_AP_BSS)
+		hlid = wl1271_tx_get_hlid(skb);
+
 	spin_lock_irqsave(&wl->wl_lock, flags);
+
 	wl->tx_queue_count++;
 
 	/*
@@ -1054,12 +1104,8 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		set_bit(WL1271_FLAG_TX_QUEUE_STOPPED, &wl->flags);
 	}
 
-	spin_unlock_irqrestore(&wl->wl_lock, flags);
-
 	/* queue the packet */
-	q = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
 	if (wl->bss_type == BSS_TYPE_AP_BSS) {
-		hlid = wl1271_tx_get_hlid(skb);
 		wl1271_debug(DEBUG_TX, "queue skb hlid %d q %d", hlid, q);
 		skb_queue_tail(&wl->links[hlid].tx_queue[q], skb);
 	} else {
@@ -1071,8 +1117,11 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * before that, the tx_work will not be initialized!
 	 */
 
-	if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags))
+	if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags) &&
+	    !test_bit(WL1271_FLAG_TX_PENDING, &wl->flags))
 		ieee80211_queue_work(wl->hw, &wl->tx_work);
+
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
 }
 
 static struct notifier_block wl1271_dev_notifier = {
@@ -1169,7 +1218,6 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		break;
 
 irq_disable:
-		wl1271_disable_interrupts(wl);
 		mutex_unlock(&wl->mutex);
 		/* Unlocking the mutex in the middle of handling is
 		   inherently unsafe. In this case we deem it safe to do,
@@ -1178,7 +1226,9 @@ irq_disable:
 		   work function will not do anything.) Also, any other
 		   possible concurrent operations will fail due to the
 		   current state, hence the wl1271 struct should be safe. */
-		cancel_work_sync(&wl->irq_work);
+		wl1271_disable_interrupts(wl);
+		wl1271_flush_deferred_work(wl);
+		cancel_work_sync(&wl->netstack_work);
 		mutex_lock(&wl->mutex);
 power_off:
 		wl1271_power_off(wl);
@@ -1244,12 +1294,12 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl)
 
 	wl->state = WL1271_STATE_OFF;
 
-	wl1271_disable_interrupts(wl);
-
 	mutex_unlock(&wl->mutex);
 
+	wl1271_disable_interrupts(wl);
+	wl1271_flush_deferred_work(wl);
 	cancel_delayed_work_sync(&wl->scan_complete_work);
-	cancel_work_sync(&wl->irq_work);
+	cancel_work_sync(&wl->netstack_work);
 	cancel_work_sync(&wl->tx_work);
 	cancel_delayed_work_sync(&wl->pspoll_work);
 	cancel_delayed_work_sync(&wl->elp_work);
@@ -1525,7 +1575,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 
 	is_ap = (wl->bss_type == BSS_TYPE_AP_BSS);
 
-	ret = wl1271_ps_elp_wakeup(wl, false);
+	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
 
@@ -1681,7 +1731,7 @@ static void wl1271_op_configure_filter(struct ieee80211_hw *hw,
 	if (unlikely(wl->state == WL1271_STATE_OFF))
 		goto out;
 
-	ret = wl1271_ps_elp_wakeup(wl, false);
+	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
 
@@ -1910,7 +1960,7 @@ static int wl1271_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		goto out_unlock;
 	}
 
-	ret = wl1271_ps_elp_wakeup(wl, false);
+	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out_unlock;
 
@@ -2013,7 +2063,7 @@ static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	ret = wl1271_ps_elp_wakeup(wl, false);
+	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
 
@@ -2039,7 +2089,7 @@ static int wl1271_op_set_frag_threshold(struct ieee80211_hw *hw, u32 value)
 		goto out;
 	}
 
-	ret = wl1271_ps_elp_wakeup(wl, false);
+	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
 
@@ -2067,7 +2117,7 @@ static int wl1271_op_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 		goto out;
 	}
 
-	ret = wl1271_ps_elp_wakeup(wl, false);
+	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
 
@@ -2546,7 +2596,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (unlikely(wl->state == WL1271_STATE_OFF))
 		goto out;
 
-	ret = wl1271_ps_elp_wakeup(wl, false);
+	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
 
@@ -2601,7 +2651,7 @@ static int wl1271_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		conf_tid->apsd_conf[0] = 0;
 		conf_tid->apsd_conf[1] = 0;
 	} else {
-		ret = wl1271_ps_elp_wakeup(wl, false);
+		ret = wl1271_ps_elp_wakeup(wl);
 		if (ret < 0)
 			goto out;
 
@@ -2647,7 +2697,7 @@ static u64 wl1271_op_get_tsf(struct ieee80211_hw *hw)
 	if (unlikely(wl->state == WL1271_STATE_OFF))
 		goto out;
 
-	ret = wl1271_ps_elp_wakeup(wl, false);
+	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
 
@@ -2736,7 +2786,7 @@ static int wl1271_op_sta_add(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
-	ret = wl1271_ps_elp_wakeup(wl, false);
+	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out_free_sta;
 
@@ -2779,7 +2829,7 @@ static int wl1271_op_sta_remove(struct ieee80211_hw *hw,
 	if (WARN_ON(!test_bit(id, wl->ap_hlid_map)))
 		goto out;
 
-	ret = wl1271_ps_elp_wakeup(wl, false);
+	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
 
@@ -2812,7 +2862,7 @@ int wl1271_op_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		goto out;
 	}
 
-	ret = wl1271_ps_elp_wakeup(wl, false);
+	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
 
@@ -3176,7 +3226,7 @@ static ssize_t wl1271_sysfs_store_bt_coex_state(struct device *dev,
 	if (wl->state == WL1271_STATE_OFF)
 		goto out;
 
-	ret = wl1271_ps_elp_wakeup(wl, false);
+	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
 
@@ -3376,9 +3426,12 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 		for (j = 0; j < AP_MAX_LINKS; j++)
 			skb_queue_head_init(&wl->links[j].tx_queue[i]);
 
+	skb_queue_head_init(&wl->deferred_rx_queue);
+	skb_queue_head_init(&wl->deferred_tx_queue);
+
 	INIT_DELAYED_WORK(&wl->elp_work, wl1271_elp_work);
 	INIT_DELAYED_WORK(&wl->pspoll_work, wl1271_pspoll_work);
-	INIT_WORK(&wl->irq_work, wl1271_irq_work);
+	INIT_WORK(&wl->netstack_work, wl1271_netstack_work);
 	INIT_WORK(&wl->tx_work, wl1271_tx_work);
 	INIT_WORK(&wl->recovery_work, wl1271_recovery_work);
 	INIT_DELAYED_WORK(&wl->scan_complete_work, wl1271_scan_complete_work);
@@ -3404,6 +3457,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->last_tx_hlid = 0;
 	wl->ap_ps_map = 0;
 	wl->ap_fw_ps_map = 0;
+	wl->quirks = 0;
 
 	memset(wl->tx_frames_map, 0, sizeof(wl->tx_frames_map));
 	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)

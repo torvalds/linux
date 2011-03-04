@@ -129,7 +129,8 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length)
 
 	skb_trim(skb, skb->len - desc->pad_len);
 
-	ieee80211_rx_ni(wl->hw, skb);
+	skb_queue_tail(&wl->deferred_rx_queue, skb);
+	ieee80211_queue_work(wl->hw, &wl->netstack_work);
 
 	return 0;
 }
@@ -198,7 +199,13 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_common_status *status)
 			pkt_offset += pkt_length;
 		}
 	}
-	wl1271_write32(wl, RX_DRIVER_COUNTER_ADDRESS, wl->rx_counter);
+
+	/*
+	 * Write the driver's packet counter to the FW. This is only required
+	 * for older hardware revisions
+	 */
+	if (wl->quirks & WL12XX_QUIRK_END_OF_TRANSACTION)
+		wl1271_write32(wl, RX_DRIVER_COUNTER_ADDRESS, wl->rx_counter);
 }
 
 void wl1271_set_default_filters(struct wl1271 *wl)

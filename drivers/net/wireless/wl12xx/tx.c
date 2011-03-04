@@ -464,7 +464,7 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 
 	while ((skb = wl1271_skb_dequeue(wl))) {
 		if (!woken_up) {
-			ret = wl1271_ps_elp_wakeup(wl, false);
+			ret = wl1271_ps_elp_wakeup(wl);
 			if (ret < 0)
 				goto out_ack;
 			woken_up = true;
@@ -506,8 +506,14 @@ out_ack:
 		sent_packets = true;
 	}
 	if (sent_packets) {
-		/* interrupt the firmware with the new packets */
-		wl1271_write32(wl, WL1271_HOST_WR_ACCESS, wl->tx_packets_count);
+		/*
+		 * Interrupt the firmware with the new packets. This is only
+		 * required for older hardware revisions
+		 */
+		if (wl->quirks & WL12XX_QUIRK_END_OF_TRANSACTION)
+			wl1271_write32(wl, WL1271_HOST_WR_ACCESS,
+				       wl->tx_packets_count);
+
 		wl1271_handle_tx_low_watermark(wl);
 	}
 
@@ -583,7 +589,8 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 		     result->rate_class_index, result->status);
 
 	/* return the packet to the stack */
-	ieee80211_tx_status(wl->hw, skb);
+	skb_queue_tail(&wl->deferred_tx_queue, skb);
+	ieee80211_queue_work(wl->hw, &wl->netstack_work);
 	wl1271_free_tx_id(wl, result->id);
 }
 
@@ -687,16 +694,30 @@ void wl1271_tx_reset(struct wl1271 *wl)
 	 */
 	wl1271_handle_tx_low_watermark(wl);
 
-	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)
-		if (wl->tx_frames[i] != NULL) {
-			skb = wl->tx_frames[i];
-			wl1271_free_tx_id(wl, i);
-			wl1271_debug(DEBUG_TX, "freeing skb 0x%p", skb);
-			info = IEEE80211_SKB_CB(skb);
-			info->status.rates[0].idx = -1;
-			info->status.rates[0].count = 0;
-			ieee80211_tx_status(wl->hw, skb);
+	for (i = 0; i < ACX_TX_DESCRIPTORS; i++) {
+		if (wl->tx_frames[i] == NULL)
+			continue;
+
+		skb = wl->tx_frames[i];
+		wl1271_free_tx_id(wl, i);
+		wl1271_debug(DEBUG_TX, "freeing skb 0x%p", skb);
+
+		/* Remove private headers before passing the skb to mac80211 */
+		info = IEEE80211_SKB_CB(skb);
+		skb_pull(skb, sizeof(struct wl1271_tx_hw_descr));
+		if (info->control.hw_key &&
+		    info->control.hw_key->cipher == WLAN_CIPHER_SUITE_TKIP) {
+			int hdrlen = ieee80211_get_hdrlen_from_skb(skb);
+			memmove(skb->data + WL1271_TKIP_IV_SPACE, skb->data,
+				hdrlen);
+			skb_pull(skb, WL1271_TKIP_IV_SPACE);
 		}
+
+		info->status.rates[0].idx = -1;
+		info->status.rates[0].count = 0;
+
+		ieee80211_tx_status(wl->hw, skb);
+	}
 }
 
 #define WL1271_TX_FLUSH_TIMEOUT 500000
