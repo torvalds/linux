@@ -79,13 +79,8 @@ static int is_valid_iface(struct net_device *net_dev)
 		return 0;
 
 	/* no batman over batman */
-#ifdef HAVE_NET_DEVICE_OPS
-	if (net_dev->netdev_ops->ndo_start_xmit == interface_tx)
+	if (softif_is_valid(net_dev))
 		return 0;
-#else
-	if (net_dev->hard_start_xmit == interface_tx)
-		return 0;
-#endif
 
 	/* Device is being bridged */
 	/* if (net_dev->priv_flags & IFF_BRIDGE_PORT)
@@ -282,6 +277,8 @@ int hardif_enable_interface(struct hard_iface *hard_iface, char *iface_name)
 {
 	struct bat_priv *bat_priv;
 	struct batman_packet *batman_packet;
+	struct net_device *soft_iface;
+	int ret;
 
 	if (hard_iface->if_status != IF_NOT_IN_USE)
 		goto out;
@@ -289,18 +286,30 @@ int hardif_enable_interface(struct hard_iface *hard_iface, char *iface_name)
 	if (!atomic_inc_not_zero(&hard_iface->refcount))
 		goto out;
 
-	hard_iface->soft_iface = dev_get_by_name(&init_net, iface_name);
+	soft_iface = dev_get_by_name(&init_net, iface_name);
 
-	if (!hard_iface->soft_iface) {
-		hard_iface->soft_iface = softif_create(iface_name);
+	if (!soft_iface) {
+		soft_iface = softif_create(iface_name);
 
-		if (!hard_iface->soft_iface)
+		if (!soft_iface) {
+			ret = -ENOMEM;
 			goto err;
+		}
 
 		/* dev_get_by_name() increases the reference counter for us */
-		dev_hold(hard_iface->soft_iface);
+		dev_hold(soft_iface);
 	}
 
+	if (!softif_is_valid(soft_iface)) {
+		pr_err("Can't create batman mesh interface %s: "
+		       "already exists as regular interface\n",
+		       soft_iface->name);
+		dev_put(soft_iface);
+		ret = -EINVAL;
+		goto err;
+	}
+
+	hard_iface->soft_iface = soft_iface;
 	bat_priv = netdev_priv(hard_iface->soft_iface);
 	hard_iface->packet_len = BAT_PACKET_LEN;
 	hard_iface->packet_buff = kmalloc(hard_iface->packet_len, GFP_ATOMIC);
@@ -308,6 +317,7 @@ int hardif_enable_interface(struct hard_iface *hard_iface, char *iface_name)
 	if (!hard_iface->packet_buff) {
 		bat_err(hard_iface->soft_iface, "Can't add interface packet "
 			"(%s): out of memory\n", hard_iface->net_dev->name);
+		ret = -ENOMEM;
 		goto err;
 	}
 
@@ -370,7 +380,7 @@ out:
 
 err:
 	hardif_free_ref(hard_iface);
-	return -ENOMEM;
+	return ret;
 }
 
 void hardif_disable_interface(struct hard_iface *hard_iface)

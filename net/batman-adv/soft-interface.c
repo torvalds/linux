@@ -622,6 +622,19 @@ void softif_destroy(struct net_device *soft_iface)
 	unregister_netdevice(soft_iface);
 }
 
+int softif_is_valid(struct net_device *net_dev)
+{
+#ifdef HAVE_NET_DEVICE_OPS
+	if (net_dev->netdev_ops->ndo_start_xmit == interface_tx)
+		return 1;
+#else
+	if (net_dev->hard_start_xmit == interface_tx)
+		return 1;
+#endif
+
+	return 0;
+}
+
 /* ethtool */
 static int bat_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {

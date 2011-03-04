@@ -31,5 +31,6 @@ void interface_rx(struct net_device *soft_iface,
 		  int hdr_size);
 struct net_device *softif_create(char *name);
 void softif_destroy(struct net_device *soft_iface);
+int softif_is_valid(struct net_device *net_dev);
 
 #endif /* _NET_BATMAN_ADV_SOFT_INTERFACE_H_ */
