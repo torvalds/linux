@@ -2928,7 +2928,6 @@ static int sctp_setsockopt_peer_primary_addr(struct sock *sk, char __user *optva
 					     unsigned int optlen)
 {
 	struct sctp_sock	*sp;
-	struct sctp_endpoint	*ep;
 	struct sctp_association	*asoc = NULL;
 	struct sctp_setpeerprim	prim;
 	struct sctp_chunk	*chunk;
@@ -2936,7 +2935,6 @@ static int sctp_setsockopt_peer_primary_addr(struct sock *sk, char __user *optva
 	int 			err;
 
 	sp = sctp_sk(sk);
-	ep = sp->ep;
 
 	if (!sctp_addip_enable)
 		return -EPERM;
