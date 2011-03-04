@@ -81,19 +81,19 @@ static const struct inet_peer peer_fake_node = {
 
 struct inet_peer_base {
 	struct inet_peer __rcu *root;
-	spinlock_t	lock;
+	seqlock_t	lock;
 	int		total;
 };
 
 static struct inet_peer_base v4_peers = {
 	.root		= peer_avl_empty_rcu,
-	.lock		= __SPIN_LOCK_UNLOCKED(v4_peers.lock),
+	.lock		= __SEQLOCK_UNLOCKED(v4_peers.lock),
 	.total		= 0,
 };
 
 static struct inet_peer_base v6_peers = {
 	.root		= peer_avl_empty_rcu,
-	.lock		= __SPIN_LOCK_UNLOCKED(v6_peers.lock),
+	.lock		= __SEQLOCK_UNLOCKED(v6_peers.lock),
 	.total		= 0,
 };
 
@@ -177,6 +177,9 @@ static int addr_compare(const struct inetpeer_addr *a,
 	return 0;
 }
 
+#define rcu_deref_locked(X, BASE)				\
+	rcu_dereference_protected(X, lockdep_is_held(&(BASE)->lock.lock))
+
 /*
  * Called with local BH disabled and the pool lock held.
  */
@@ -187,8 +190,7 @@ static int addr_compare(const struct inetpeer_addr *a,
 								\
 	stackptr = _stack;					\
 	*stackptr++ = &_base->root;				\
-	for (u = rcu_dereference_protected(_base->root,		\
-			lockdep_is_held(&_base->lock));		\
+	for (u = rcu_deref_locked(_base->root, _base);		\
 	     u != peer_avl_empty; ) {				\
 		int cmp = addr_compare(_daddr, &u->daddr);	\
 		if (cmp == 0)					\
@@ -198,8 +200,7 @@ static int addr_compare(const struct inetpeer_addr *a,
 		else						\
 			v = &u->avl_right;			\
 		*stackptr++ = v;				\
-		u = rcu_dereference_protected(*v,		\
-			lockdep_is_held(&_base->lock));		\
+		u = rcu_deref_locked(*v, _base);		\
 	}							\
 	u;							\
 })
@@ -246,13 +247,11 @@ static struct inet_peer *lookup_rcu_bh(const struct inetpeer_addr *daddr,
 	struct inet_peer __rcu **v;				\
 	*stackptr++ = &start->avl_left;				\
 	v = &start->avl_left;					\
-	for (u = rcu_dereference_protected(*v,			\
-			lockdep_is_held(&base->lock));		\
+	for (u = rcu_deref_locked(*v, base);			\
 	     u->avl_right != peer_avl_empty_rcu; ) {		\
 		v = &u->avl_right;				\
 		*stackptr++ = v;				\
-		u = rcu_dereference_protected(*v,		\
-			lockdep_is_held(&base->lock));		\
+		u = rcu_deref_locked(*v, base);			\
 	}							\
 	u;							\
 })
@@ -271,21 +270,16 @@ static void peer_avl_rebalance(struct inet_peer __rcu **stack[],
 
 	while (stackend > stack) {
 		nodep = *--stackend;
-		node = rcu_dereference_protected(*nodep,
-				lockdep_is_held(&base->lock));
-		l = rcu_dereference_protected(node->avl_left,
-				lockdep_is_held(&base->lock));
-		r = rcu_dereference_protected(node->avl_right,
-				lockdep_is_held(&base->lock));
+		node = rcu_deref_locked(*nodep, base);
+		l = rcu_deref_locked(node->avl_left, base);
+		r = rcu_deref_locked(node->avl_right, base);
 		lh = node_height(l);
 		rh = node_height(r);
 		if (lh > rh + 1) { /* l: RH+2 */
 			struct inet_peer *ll, *lr, *lrl, *lrr;
 			int lrh;
-			ll = rcu_dereference_protected(l->avl_left,
-				lockdep_is_held(&base->lock));
-			lr = rcu_dereference_protected(l->avl_right,
-				lockdep_is_held(&base->lock));
+			ll = rcu_deref_locked(l->avl_left, base);
+			lr = rcu_deref_locked(l->avl_right, base);
 			lrh = node_height(lr);
 			if (lrh <= node_height(ll)) {	/* ll: RH+1 */
 				RCU_INIT_POINTER(node->avl_left, lr);	/* lr: RH or RH+1 */
@@ -296,10 +290,8 @@ static void peer_avl_rebalance(struct inet_peer __rcu **stack[],
 				l->avl_height = node->avl_height + 1;
 				RCU_INIT_POINTER(*nodep, l);
 			} else { /* ll: RH, lr: RH+1 */
-				lrl = rcu_dereference_protected(lr->avl_left,
-					lockdep_is_held(&base->lock));	/* lrl: RH or RH-1 */
-				lrr = rcu_dereference_protected(lr->avl_right,
-					lockdep_is_held(&base->lock));	/* lrr: RH or RH-1 */
+				lrl = rcu_deref_locked(lr->avl_left, base);/* lrl: RH or RH-1 */
+				lrr = rcu_deref_locked(lr->avl_right, base);/* lrr: RH or RH-1 */
 				RCU_INIT_POINTER(node->avl_left, lrr);	/* lrr: RH or RH-1 */
 				RCU_INIT_POINTER(node->avl_right, r);	/* r: RH */
 				node->avl_height = rh + 1; /* node: RH+1 */
@@ -314,10 +306,8 @@ static void peer_avl_rebalance(struct inet_peer __rcu **stack[],
 		} else if (rh > lh + 1) { /* r: LH+2 */
 			struct inet_peer *rr, *rl, *rlr, *rll;
 			int rlh;
-			rr = rcu_dereference_protected(r->avl_right,
-				lockdep_is_held(&base->lock));
-			rl = rcu_dereference_protected(r->avl_left,
-				lockdep_is_held(&base->lock));
+			rr = rcu_deref_locked(r->avl_right, base);
+			rl = rcu_deref_locked(r->avl_left, base);
 			rlh = node_height(rl);
 			if (rlh <= node_height(rr)) {	/* rr: LH+1 */
 				RCU_INIT_POINTER(node->avl_right, rl);	/* rl: LH or LH+1 */
@@ -328,10 +318,8 @@ static void peer_avl_rebalance(struct inet_peer __rcu **stack[],
 				r->avl_height = node->avl_height + 1;
 				RCU_INIT_POINTER(*nodep, r);
 			} else { /* rr: RH, rl: RH+1 */
-				rlr = rcu_dereference_protected(rl->avl_right,
-					lockdep_is_held(&base->lock));	/* rlr: LH or LH-1 */
-				rll = rcu_dereference_protected(rl->avl_left,
-					lockdep_is_held(&base->lock));	/* rll: LH or LH-1 */
+				rlr = rcu_deref_locked(rl->avl_right, base);/* rlr: LH or LH-1 */
+				rll = rcu_deref_locked(rl->avl_left, base);/* rll: LH or LH-1 */
 				RCU_INIT_POINTER(node->avl_right, rll);	/* rll: LH or LH-1 */
 				RCU_INIT_POINTER(node->avl_left, l);	/* l: LH */
 				node->avl_height = lh + 1; /* node: LH+1 */
@@ -372,7 +360,7 @@ static void unlink_from_pool(struct inet_peer *p, struct inet_peer_base *base)
 
 	do_free = 0;
 
-	spin_lock_bh(&base->lock);
+	write_seqlock_bh(&base->lock);
 	/* Check the reference counter.  It was artificially incremented by 1
 	 * in cleanup() function to prevent sudden disappearing.  If we can
 	 * atomically (because of lockless readers) take this last reference,
@@ -392,8 +380,7 @@ static void unlink_from_pool(struct inet_peer *p, struct inet_peer_base *base)
 			/* look for a node to insert instead of p */
 			struct inet_peer *t;
 			t = lookup_rightempty(p, base);
-			BUG_ON(rcu_dereference_protected(*stackptr[-1],
-					lockdep_is_held(&base->lock)) != t);
+			BUG_ON(rcu_deref_locked(*stackptr[-1], base) != t);
 			**--stackptr = t->avl_left;
 			/* t is removed, t->daddr > x->daddr for any
 			 * x in p->avl_left subtree.
@@ -409,7 +396,7 @@ static void unlink_from_pool(struct inet_peer *p, struct inet_peer_base *base)
 		base->total--;
 		do_free = 1;
 	}
-	spin_unlock_bh(&base->lock);
+	write_sequnlock_bh(&base->lock);
 
 	if (do_free)
 		call_rcu_bh(&p->rcu, inetpeer_free_rcu);
@@ -477,12 +464,16 @@ struct inet_peer *inet_getpeer(struct inetpeer_addr *daddr, int create)
 	struct inet_peer __rcu **stack[PEER_MAXDEPTH], ***stackptr;
 	struct inet_peer_base *base = family_to_base(daddr->family);
 	struct inet_peer *p;
+	unsigned int sequence;
+	int invalidated;
 
 	/* Look up for the address quickly, lockless.
 	 * Because of a concurrent writer, we might not find an existing entry.
 	 */
 	rcu_read_lock_bh();
+	sequence = read_seqbegin(&base->lock);
 	p = lookup_rcu_bh(daddr, base);
+	invalidated = read_seqretry(&base->lock, sequence);
 	rcu_read_unlock_bh();
 
 	if (p) {
@@ -493,14 +484,18 @@ struct inet_peer *inet_getpeer(struct inetpeer_addr *daddr, int create)
 		return p;
 	}
 
+	/* If no writer did a change during our lookup, we can return early. */
+	if (!create && !invalidated)
+		return NULL;
+
 	/* retry an exact lookup, taking the lock before.
 	 * At least, nodes should be hot in our cache.
 	 */
-	spin_lock_bh(&base->lock);
+	write_seqlock_bh(&base->lock);
 	p = lookup(daddr, stack, base);
 	if (p != peer_avl_empty) {
 		atomic_inc(&p->refcnt);
-		spin_unlock_bh(&base->lock);
+		write_sequnlock_bh(&base->lock);
 		/* Remove the entry from unused list if it was there. */
 		unlink_from_unused(p);
 		return p;
@@ -524,7 +519,7 @@ struct inet_peer *inet_getpeer(struct inetpeer_addr *daddr, int create)
 		link_to_pool(p, base);
 		base->total++;
 	}
-	spin_unlock_bh(&base->lock);
+	write_sequnlock_bh(&base->lock);
 
 	if (base->total >= inet_peer_threshold)
 		/* Remove one less-recently-used entry. */
