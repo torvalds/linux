@@ -5080,7 +5080,9 @@ static const char *alc_get_line_out_pfx(const struct auto_pin_cfg *cfg,
 
 	switch (cfg->line_out_type) {
 	case AUTO_PIN_SPEAKER_OUT:
-		return "Speaker";
+		if (cfg->line_outs == 1)
+			return "Speaker";
+		break;
 	case AUTO_PIN_HP_OUT:
 		return "Headphone";
 	default:
