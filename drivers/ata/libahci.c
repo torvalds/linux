@@ -109,6 +109,8 @@ static ssize_t ahci_read_em_buffer(struct device *dev,
 static ssize_t ahci_store_em_buffer(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t size);
+static ssize_t ahci_show_em_supported(struct device *dev,
+				      struct device_attribute *attr, char *buf);
 
 static DEVICE_ATTR(ahci_host_caps, S_IRUGO, ahci_show_host_caps, NULL);
 static DEVICE_ATTR(ahci_host_cap2, S_IRUGO, ahci_show_host_cap2, NULL);
@@ -116,6 +118,7 @@ static DEVICE_ATTR(ahci_host_version, S_IRUGO, ahci_show_host_version, NULL);
 static DEVICE_ATTR(ahci_port_cmd, S_IRUGO, ahci_show_port_cmd, NULL);
 static DEVICE_ATTR(em_buffer, S_IWUSR | S_IRUGO,
 		   ahci_read_em_buffer, ahci_store_em_buffer);
+static DEVICE_ATTR(em_message_supported, S_IRUGO, ahci_show_em_supported, NULL);
 
 struct device_attribute *ahci_shost_attrs[] = {
 	&dev_attr_link_power_management_policy,
@@ -126,6 +129,7 @@ struct device_attribute *ahci_shost_attrs[] = {
 	&dev_attr_ahci_host_version,
 	&dev_attr_ahci_port_cmd,
 	&dev_attr_em_buffer,
+	&dev_attr_em_message_supported,
 	NULL
 };
 EXPORT_SYMBOL_GPL(ahci_shost_attrs);
@@ -341,6 +345,24 @@ static ssize_t ahci_store_em_buffer(struct device *dev,
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	return size;
+}
+
+static ssize_t ahci_show_em_supported(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct ata_port *ap = ata_shost_to_port(shost);
+	struct ahci_host_priv *hpriv = ap->host->private_data;
+	void __iomem *mmio = hpriv->mmio;
+	u32 em_ctl;
+
+	em_ctl = readl(mmio + HOST_EM_CTL);
+
+	return sprintf(buf, "%s%s%s%s\n",
+		       em_ctl & EM_CTL_LED ? "led " : "",
+		       em_ctl & EM_CTL_SAFTE ? "saf-te " : "",
+		       em_ctl & EM_CTL_SES ? "ses-2 " : "",
+		       em_ctl & EM_CTL_SGPIO ? "sgpio " : "");
 }
 
 /**
