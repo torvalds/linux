@@ -1353,20 +1353,30 @@ __i915_write(64, q)
  * must be set to prevent GT core from power down and stale values being
  * returned.
  */
-void __gen6_force_wake_get(struct drm_i915_private *dev_priv);
-void __gen6_force_wake_put (struct drm_i915_private *dev_priv);
-static inline u32 i915_safe_read(struct drm_i915_private *dev_priv, u32 reg)
+void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv);
+void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv);
+void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv);
+
+static inline u32 i915_gt_read(struct drm_i915_private *dev_priv, u32 reg)
 {
 	u32 val;
 
 	if (dev_priv->info->gen >= 6) {
-		__gen6_force_wake_get(dev_priv);
+		__gen6_gt_force_wake_get(dev_priv);
 		val = I915_READ(reg);
-		__gen6_force_wake_put(dev_priv);
+		__gen6_gt_force_wake_put(dev_priv);
 	} else
 		val = I915_READ(reg);
 
 	return val;
+}
+
+static inline void i915_gt_write(struct drm_i915_private *dev_priv,
+				u32 reg, u32 val)
+{
+	if (dev_priv->info->gen >= 6)
+		__gen6_gt_wait_for_fifo(dev_priv);
+	I915_WRITE(reg, val);
 }
 
 static inline void
