@@ -3557,6 +3557,12 @@ out:
 	return ret;
 }
 
+/*
+ * This function puts in dummy file extents for the area we're creating a hole
+ * for.  So if we are truncating this file to a larger size we need to insert
+ * these file extents so that btrfs_get_extent will return a EXTENT_MAP_HOLE for
+ * the range between oldsize and size
+ */
 int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 {
 	struct btrfs_trans_handle *trans;
