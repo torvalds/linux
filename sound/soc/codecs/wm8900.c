@@ -649,7 +649,7 @@ static int wm8900_add_widgets(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int wm8900_set_hw(struct snd_soc_codec *codec)
+static void wm8900_set_hw(struct snd_soc_codec *codec)
 {
 	snd_soc_write(codec, WM8900_REG_POWER3, 0xEF);
 
@@ -657,9 +657,11 @@ static int wm8900_set_hw(struct snd_soc_codec *codec)
 	snd_soc_write(codec, WM8900_REG_ROUTMIXCTL1, 0x150);
 	snd_soc_write(codec, WM8900_REG_LOUT2CTL, 0x139);
 	snd_soc_write(codec, WM8900_REG_ROUT2CTL, 0x139);
+	snd_soc_write(codec, WM8900_REG_LOUT1CTL, 0x139);
+	snd_soc_write(codec, WM8900_REG_ROUT1CTL, 0x139);
 
 	snd_soc_write(codec, WM8900_REG_POWER1, 0x211D);
-	snd_soc_write(codec, WM8900_REG_POWER2, 0xC03F);
+	snd_soc_write(codec, WM8900_REG_POWER2, 0xC1AF);
 
 	//User for asound.conf File
 	snd_soc_write(codec, WM8900_REG_LADC_DV, 0x00C1);
@@ -675,6 +677,12 @@ static int wm8900_set_hw(struct snd_soc_codec *codec)
 
 	//reduce the pop sound
 	snd_soc_write(codec, WM8900_REG_HPCTL1, 0xC0);
+
+	msleep(20);
+	//open SPK control GPIO
+	gpio_request(RK29_PIN6_PB6, NULL);
+	gpio_direction_output(RK29_PIN6_PB6,GPIO_HIGH);
+	gpio_free(RK29_PIN6_PB6);
 }
 
 static int wm8900_hw_params(struct snd_pcm_substream *substream,
@@ -1220,12 +1228,12 @@ static int wm8900_suspend(struct platform_device *pdev, pm_message_t state)
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
 	struct wm8900_priv *wm8900 = codec->private_data;
-
-	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
 	
 	int fll_out = wm8900->fll_out;
 	int fll_in  = wm8900->fll_in;
 	int ret;
+
+	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
 
 	/* Stop the FLL in an orderly fashion */
 	ret = wm8900_set_fll(codec, 0, 0, 0);
@@ -1238,6 +1246,11 @@ static int wm8900_suspend(struct platform_device *pdev, pm_message_t state)
 	wm8900->fll_in = fll_in;
 
 	wm8900_set_bias_level(codec, SND_SOC_BIAS_OFF);
+
+	//close SPK control GPIO
+	gpio_request(RK29_PIN6_PB6, NULL);
+	gpio_direction_output(RK29_PIN6_PB6,GPIO_LOW);
+	gpio_free(RK29_PIN6_PB6);
 
 	return 0;
 }
