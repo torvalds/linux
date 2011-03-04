@@ -1,10 +1,10 @@
 /*
- * wm8994.c -- WM8994 ALSA SoC audio driver
+ * wm8994.c  --  WM8994 ALSA SoC Audio driver
  *
  * Copyright 2009 Wolfson Microelectronics plc
- * Copyright 2005 Openedhand Ltd.
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
+ *
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -17,34 +17,34 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
-#include <linux/spi/spi.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
-#include <sound/tlv.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
+#include <sound/tlv.h>
 
-#include <mach/iomux.h>
-#include <mach/gpio.h>
+#include <linux/mfd/wm8994/core.h>
+#include <linux/mfd/wm8994/registers.h>
+#include <linux/mfd/wm8994/pdata.h>
+#include <linux/mfd/wm8994/gpio.h>
 
 #include "wm8994.h"
-#include <linux/miscdevice.h>
-#include <linux/circ_buf.h>
-#include <mach/spi_fpga.h>
+#include "wm_hubs.h"
 
-/* If digital BB is used,open this define. */
-//#define PCM_BB
+//#include<asm/string.h>
+#include <linux/vmalloc.h>
 
-/* Define what kind of digital BB is used. */
-#ifdef PCM_BB
-#define TD688_MODE  
-//#define MU301_MODE
-//#define CHONGY_MODE
-//#define THINKWILL_M800_MODE
-#endif //PCM_BB
+#define WM8994_PROC
+#ifdef WM8994_PROC
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+char debug_write_read = 0;
+#endif
 
 #if 1
 #define DBG(x...) printk(KERN_INFO x)
@@ -52,2655 +52,3457 @@
 #define DBG(x...) do { } while (0)
 #endif
 
-#define wm8994_mic_VCC 0x0010
-#define WM8994_DELAY 50
+#if 0
+#define DBG_CLK(x...) printk(KERN_INFO x)
+#else
+#define DBG_CLK(x...) do { } while (0)
+#endif
 
-struct i2c_client *wm8994_client;
-//struct wm8994_board wm8994_codec_board_data;
-int reg_send_data(struct i2c_client *client, unsigned short *reg, unsigned short *data, u32 scl_rate);
-int reg_recv_data(struct i2c_client *client, unsigned short *reg, unsigned short *buf, u32 scl_rate);
+#if 0
+#define DBG_INFO(x...) dev_info(x)
+#else
+#define DBG_INFO(x...) do { } while (0)
+#endif
 
-enum wm8994_codec_mode
-{
-  wm8994_AP_to_headset,
-  wm8994_AP_to_speakers,
-  wm8994_recorder_and_AP_to_headset,
-  wm8994_recorder_and_AP_to_speakers,
-  wm8994_FM_to_headset,
-  wm8994_FM_to_headset_and_record,
-  wm8994_FM_to_speakers,
-  wm8994_FM_to_speakers_and_record,
-  wm8994_handsetMIC_to_baseband_to_headset,
-  wm8994_handsetMIC_to_baseband_to_headset_and_record,
-  wm8994_mainMIC_to_baseband_to_earpiece,
-  wm8994_mainMIC_to_baseband_to_earpiece_and_record,
-  wm8994_mainMIC_to_baseband_to_speakers,
-  wm8994_mainMIC_to_baseband_with_AP_to_speakers,
-  wm8994_mainMIC_to_baseband_to_speakers_and_record,
-  wm8994_BT_baseband,
-  wm8994_BT_baseband_and_record,
-  null
+
+
+static struct snd_soc_codec *wm8994_codec;
+struct snd_soc_codec_device soc_codec_dev_wm8994;
+
+struct fll_config {
+	int src;
+	int in;
+	int out;
 };
 
-/* wm8994_current_mode:save current wm8994 mode */
-unsigned char wm8994_current_mode=null;//,wm8994_mic_VCC=0x0000;
+#define WM8994_NUM_DRC 3
+#define WM8994_NUM_EQ  3
 
-void wm8994_set_volume(unsigned char wm8994_mode,unsigned char volume,unsigned char max_volume);
-
-enum stream_type_wm8994
-{
-	VOICE_CALL	=0,
-	BLUETOOTH_SCO	=6,
+static int wm8994_drc_base[] = {
+	WM8994_AIF1_DRC1_1,
+	WM8994_AIF1_DRC2_1,
+	WM8994_AIF2_DRC_1,
 };
 
-/* For voice device route set, add by phc  */
-enum VoiceDeviceSwitch
-{
-	SPEAKER_INCALL,
-	SPEAKER_NORMAL,
-	
-	HEADSET_INCALL,
-	HEADSET_NORMAL,
-
-	EARPIECE_INCALL,
-	EARPIECE_NORMAL,
-	
-	BLUETOOTH_SCO_INCALL,
-	BLUETOOTH_SCO_NORMAL,
-
-	BLUETOOTH_A2DP_INCALL,
-	BLUETOOTH_A2DP_NORMAL,
-	
-	MIC_CAPTURE,
-
-	EARPIECE_RINGTONE,
-	SPEAKER_RINGTONE,
-	HEADSET_RINGTONE,
-	
-	ALL_OPEN,
-	ALL_CLOSED
+static int wm8994_retune_mobile_base[] = {
+	WM8994_AIF1_DAC1_EQ_GAINS_1,
+	WM8994_AIF1_DAC2_EQ_GAINS_1,
+	WM8994_AIF2_EQ_GAINS_1,
 };
 
-
-#define call_maxvol 5
-
-/* call_vol:  save all kinds of system volume value. */
-unsigned char call_vol=3;
-int vol;
-unsigned short headset_vol_table[6]	={0x0100,0x011d,0x012d,0x0135,0x013b,0x013f};
-unsigned short speakers_vol_table[6]	={0x0100,0x011d,0x012d,0x0135,0x013b,0x013f};
-unsigned short earpiece_vol_table[6]	={0x0100,0x011d,0x012d,0x0135,0x013b,0x013f};
-unsigned short BT_vol_table[6]		={0x0100,0x011d,0x012d,0x0135,0x013b,0x013f};
-
-/*
- * wm8994 register cache
- * We can't read the WM8994 register space when we
- * are using 2 wire for device control, so we cache them instead.
- */
-static const u16 wm8994_reg[] = {
-	0x0097, 0x0097, 0x0079, 0x0079,  /*  0 */
-	0x0000, 0x0008, 0x0000, 0x000a,  /*  4 */
-	0x0000, 0x0000, 0x00ff, 0x00ff,  /*  8 */
-	0x000f, 0x000f, 0x0000, 0x0000,  /* 12 */
-	0x0000, 0x007b, 0x0000, 0x0032,  /* 16 */
-	0x0000, 0x00c3, 0x00c3, 0x00c0,  /* 20 */
-	0x0000, 0x0000, 0x0000, 0x0000,  /* 24 */
-	0x0000, 0x0000, 0x0000, 0x0000,  /* 28 */
-	0x0000, 0x0000, 0x0050, 0x0050,  /* 32 */
-	0x0050, 0x0050, 0x0050, 0x0050,  /* 36 */
-	0x0079, 0x0079, 0x0079,          /* 40 */
-};
+#define WM8994_REG_CACHE_SIZE  0x621
 
 /* codec private data */
 struct wm8994_priv {
-	unsigned int sysclk;
+	struct wm_hubs_data hubs;
 	struct snd_soc_codec codec;
-	struct snd_pcm_hw_constraint_list *sysclk_constraints;
-	u16 reg_cache[WM8994_NUM_REG];
+	u16 reg_cache[WM8994_REG_CACHE_SIZE + 1];
+	int sysclk[2];
+	int sysclk_rate[2];
+	int mclk[2];
+	int aifclk[2];
+	struct fll_config fll[2], fll_suspend[2];
+
+	int dac_rates[2];
+	int lrclk_shared[2];
+
+	/* Platform dependant DRC configuration */
+	const char **drc_texts;
+	int drc_cfg[WM8994_NUM_DRC];
+	struct soc_enum drc_enum;
+
+	/* Platform dependant ReTune mobile configuration */
+	int num_retune_mobile_texts;
+	const char **retune_mobile_texts;
+	int retune_mobile_cfg[WM8994_NUM_EQ];
+	struct soc_enum retune_mobile_enum;
+
+	struct wm8994_pdata *pdata;
 };
 
-static int wm8994_read(unsigned short reg,unsigned short *value)
-{
-	unsigned short regs=((reg>>8)&0x00FF)|((reg<<8)&0xFF00),values;
-
-	if (reg_recv_data(wm8994_client,&regs,&values,400000) > 0)
-	{
-		*value=((values>>8)& 0x00FF)|((values<<8)&0xFF00);
-		return 0;
-	}
-
-	printk("%s---line->%d:Codec read error! reg = 0x%x , value = 0x%x\n",__FUNCTION__,__LINE__,reg,*value);
-
-	return -EIO;
-}
-	
-
-static int wm8994_write(unsigned short reg,unsigned short value)
-{
-	unsigned short regs=((reg>>8)&0x00FF)|((reg<<8)&0xFF00),values=((value>>8)&0x00FF)|((value<<8)&0xFF00);
-
-	if (reg_send_data(wm8994_client,&regs,&values,400000) > 0)
-		return 0;
-
-	printk("%s---line->%d:Codec write error! reg = 0x%x , value = 0x%x\n",__FUNCTION__,__LINE__,reg,value);
-
-	return -EIO;
-}
-
-#define wm8994_reset()	wm8994_write(WM8994_RESET, 0)
-void AP_to_headset(void)
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_AP_to_headset)return;
-	wm8994_current_mode=wm8994_AP_to_headset;
-	wm8994_reset();
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x01,  0x0003);
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x200, 0x0001);
-	wm8994_write(0x220, 0x0000);
-	wm8994_write(0x221, 0x0700);
-	wm8994_write(0x222, 0x3126);
-	wm8994_write(0x223, 0x0100);
-
-	wm8994_write(0x210, 0x0083); // SR=48KHz
-	wm8994_write(0x220, 0x0004);  
-	msleep(WM8994_DELAY);
-	wm8994_write(0x220, 0x0005);
-	wm8994_write(0x200, 0x0011);  // sysclk = fll (bit4 =1)   0x0011
-	wm8994_write(0x300, 0x4010);  // i2s 16 bits
-  
-	wm8994_write(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1/ q
-	wm8994_write(0x05,  0x0303);   
-	wm8994_write(0x2D,  0x0100);
-	wm8994_write(0x2E,  0x0100);
-	
-	wm8994_write(0x4C,  0x9F25);
-	msleep(5);
-	wm8994_write(0x01,  0x0303);
-	msleep(50);
-	wm8994_write(0x60,  0x0022);
-	wm8994_write(0x60,  0x00FF);
-	
-	wm8994_write(0x208, 0x000A);
-	wm8994_write(0x420, 0x0000);
-	wm8994_write(0x601, 0x0001);
-	wm8994_write(0x602, 0x0001);
-    
-	wm8994_write(0x610, 0x01A0);  //DAC1 Left Volume bit0~7  		
-	wm8994_write(0x611, 0x01A0);  //DAC1 Right Volume bit0~7	
-	wm8994_write(0x03,  0x3030);
-	wm8994_write(0x22,  0x0000);
-	wm8994_write(0x23,  0x0100);
-	wm8994_write(0x36,  0x0003);
-	wm8994_write(0x1C,  0x017F);  //HPOUT1L Volume
-	wm8994_write(0x1D,  0x017F);  //HPOUT1R Volume
-
-#ifdef  CONFIG_SND_CODEC_SOC_MASTER
-	wm8994_write(0x303, 0x0040); // AIF1 BCLK DIV--------AIF1CLK/4
-	wm8994_write(0x304, 0x0040); // AIF1 ADCLRCK DIV-----BCLK/64
-	wm8994_write(0x305, 0x0040); // AIF1 DACLRCK DIV-----BCLK/64
-	wm8994_write(0x302, 0x4000); // AIF1_MSTR=1
-#endif
-}
-
-void AP_to_speakers(void)
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_AP_to_speakers)return;
-	wm8994_current_mode=wm8994_AP_to_speakers;
-	wm8994_reset();
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x01,  0x0003);
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x200, 0x0001);
-	wm8994_write(0x220, 0x0000);
-	wm8994_write(0x221, 0x0700);
-	wm8994_write(0x222, 0x3126);
-	wm8994_write(0x223, 0x0100);
-
-	wm8994_write(0x210, 0x0083); // SR=48KHz
-	wm8994_write(0x220, 0x0004);  
-	msleep(WM8994_DELAY);
-	wm8994_write(0x220, 0x0005);
-	wm8994_write(0x200, 0x0011);  // sysclk = fll (bit4 =1)   0x0011
-	wm8994_write(0x300, 0xC010);  // i2s 16 bits
-  
-	wm8994_write(0x01,  0x3003); 
-	wm8994_write(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1
-	wm8994_write(0x05,  0x0303);   
-	wm8994_write(0x2D,  0x0100);
-	wm8994_write(0x2E,  0x0100);
-	wm8994_write(0x4C,  0x9F25);
-	wm8994_write(0x60,  0x00EE);
-	wm8994_write(0x208, 0x000A);
-	wm8994_write(0x420, 0x0000); 
-
-	wm8994_write(0x601, 0x0001);
-	wm8994_write(0x602, 0x0001);
-
-	wm8994_write(0x610, 0x01c0);  //DAC1 Left Volume bit0~7	
-	wm8994_write(0x611, 0x01c0);  //DAC1 Right Volume bit0~7	
-	wm8994_write(0x03,  0x0330);
-	wm8994_write(0x22,  0x0000);
-	wm8994_write(0x23,  0x0100);
-	wm8994_write(0x36,  0x0003);
-	wm8994_write(0x26,  0x017F);  //Speaker Left Output Volume
-	wm8994_write(0x27,  0x017F);  //Speaker Right Output Volume
-
-#ifdef CONFIG_SND_CODEC_SOC_MASTER
-	wm8994_write(0x303, 0x0040); // AIF1 BCLK DIV--------AIF1CLK/4
-	wm8994_write(0x304, 0x0040); // AIF1 ADCLRCK DIV-----BCLK/64
-	wm8994_write(0x305, 0x0040); // AIF1 DACLRCK DIV-----BCLK/64
-	wm8994_write(0x302, 0x4000); // AIF1_MSTR=1
-#endif
-}
-
-void recorder_and_AP_to_headset(void)
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_recorder_and_AP_to_headset)return;
-	wm8994_current_mode=wm8994_recorder_and_AP_to_headset;
-	wm8994_reset();
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x01,  0x0003);
-	msleep(WM8994_DELAY);
-
-//MCLK=12MHz
-//48KHz, BCLK=48KHz*64=3.072MHz, Fout=12.288MHz
-
-	wm8994_write(0x200, 0x0001); // AIF1CLK_ENA=1
-	wm8994_write(0x220, 0x0000);
-	wm8994_write(0x221, 0x0700);
-	wm8994_write(0x222, 0x3126);
-	wm8994_write(0x223, 0x0100);
-	wm8994_write(0x210, 0x0083); // SR=48KHz
-	wm8994_write(0x220, 0x0004); 
-	msleep(WM8994_DELAY);
-	wm8994_write(0x220, 0x0005); // FLL1_FRACN_ENA=1, FLL1_ENA=1
-	wm8994_write(0x200, 0x0011); // AIF1CLK_SRC=10, AIF1CLK_ENA=1
-
-	vol=CONFIG_WM8994_RECORDER_VOL;
-	if(vol>60)vol=60;
-	if(vol<-16)vol=-16;
-	if(vol<30){
-		wm8994_write(0x1A,  320+(vol+16)*10/15);  //mic vol
-	}else{
-		wm8994_write(0x2A,  0x0030);
-		wm8994_write(0x1A,  320+(vol-14)*10/15);  //mic vol
-	}
-	vol=CONFIG_WM8994_HEADSET_NORMAL_VOL;
-	if(vol>6)vol=6;
-	if(vol<-57)vol=-57;
-	wm8994_write(0x1C,  320+vol+57);  //-57dB~6dB
-	wm8994_write(0x1D,  320+vol+57);  //-57dB~6dB
-
-	wm8994_write(0x28,  0x0003); // IN1RP_TO_IN1R=1, IN1RN_TO_IN1R=1
-	wm8994_write(0x200, 0x0011); // AIF1CLK_ENA=1
-	wm8994_write(0x208, 0x000A); // DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
-	wm8994_write(0x300, 0xC050); // AIF1ADCL_SRC=1, AIF1ADCR_SRC=1, AIF1_WL=10, AIF1_FMT=10
-	wm8994_write(0x606, 0x0002); // ADC1L_TO_AIF1ADC1L=1
-	wm8994_write(0x607, 0x0002); // ADC1R_TO_AIF1ADC1R=1
-	wm8994_write(0x620, 0x0000); 
-	wm8994_write(0x700, 0xA101); 
-
-	wm8994_write(0x402, 0x01FF); // AIF1ADC1L_VOL [7:0]
-	wm8994_write(0x403, 0x01FF); // AIF1ADC1R_VOL [7:0]
-	wm8994_write(0x2D,  0x0100); // DAC1L_TO_HPOUT1L=1
-	wm8994_write(0x2E,  0x0100); // DAC1R_TO_HPOUT1R=1
-
-	wm8994_write(0x4C,  0x9F25);
-	mdelay(5);
-	wm8994_write(0x01,  0x0313);
-	mdelay(50);
-	wm8994_write(0x60,  0x0022);
-	wm8994_write(0x60,  0x00EE);
-
-	wm8994_write(0x601, 0x0001); // AIF1DAC1L_TO_DAC1L=1
-	wm8994_write(0x602, 0x0001); // AIF1DAC1R_TO_DAC1R=1
-	wm8994_write(0x610, 0x01A0); // DAC1_VU=1, DAC1L_VOL=1100_0000
-	wm8994_write(0x611, 0x01A0); // DAC1_VU=1, DAC1R_VOL=1100_0000
-	wm8994_write(0x02,  0x6110); // TSHUT_ENA=1, TSHUT_OPDIS=1, MIXINR_ENA=1,IN1R_ENA=1
-	wm8994_write(0x03,  0x3030);
-	wm8994_write(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1
-	wm8994_write(0x05,  0x0303); // AIF1DAC1L_ENA=1, AIF1DAC1R_ENA=1, DAC1L_ENA=1, DAC1R_ENA=1
-	wm8994_write(0x420, 0x0000); 
-	wm8994_write(0x700, 0xA101); 
-#ifdef CONFIG_SND_CODEC_SOC_MASTER
-	wm8994_write(0x303, 0x0040); // AIF1 BCLK DIV--------AIF1CLK/4
-	wm8994_write(0x304, 0x0040); // AIF1 ADCLRCK DIV-----BCLK/64
-	wm8994_write(0x305, 0x0040); // AIF1 DACLRCK DIV-----BCLK/64
-	wm8994_write(0x302, 0x3000); // AIF1_MSTR=1
-	msleep(50);
-	wm8994_write(0x302, 0x7000); // AIF1_MSTR=1
-	msleep(50);
-#endif
-}
-
-void recorder_and_AP_to_speakers(void)
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_recorder_and_AP_to_speakers)return;
-	wm8994_current_mode=wm8994_recorder_and_AP_to_speakers;
-	wm8994_reset();
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x01,  0x0003);
-	msleep(WM8994_DELAY);
-
-//MCLK=12MHz
-//48KHz, BCLK=48KHz*64=3.072MHz, Fout=12.288MHz
-
-	wm8994_write(0x200, 0x0001); // AIF1CLK_ENA=1
-	wm8994_write(0x220, 0x0000);
-	wm8994_write(0x221, 0x0700);
-	wm8994_write(0x222, 0x3126);
-	wm8994_write(0x223, 0x0100);
-	wm8994_write(0x210, 0x0083); // SR=48KHz
-
-	wm8994_write(0x220, 0x0004); 
-	msleep(WM8994_DELAY);
-	wm8994_write(0x220, 0x0005); // FLL1_FRACN_ENA=1, FLL1_ENA=1
-	wm8994_write(0x200, 0x0011); // AIF1CLK_SRC=10, AIF1CLK_ENA=1
-
-	wm8994_write(0x02,  0x6110); // TSHUT_ENA=1, TSHUT_OPDIS=1, MIXINR_ENA=1,IN1R_ENA=1
-	wm8994_write(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1
-	wm8994_write(0x28,  0x0003); // IN1RP_TO_IN1R=1, IN1RN_TO_IN1R=1
-	vol=CONFIG_WM8994_RECORDER_VOL;
-	if(vol>60)vol=60;
-	if(vol<-16)vol=-16;
-	if(vol<30){
-		wm8994_write(0x1A,  320+(vol+16)*10/15);  //mic vol
-	}else{
-		wm8994_write(0x2A,  0x0030);
-		wm8994_write(0x1A,  320+(vol-14)*10/15);  //mic vol
-	}
-
-	vol=CONFIG_WM8994_SPEAKER_NORMAL_VOL;
-	if(vol>18)vol=18;
-	if(vol<-57)vol=-57;
-	if(vol<=6){
-		wm8994_write(0x26,  320+vol+57);  //-57dB~6dB
-		wm8994_write(0x27,  320+vol+57);  //-57dB~6dB
-	}else{
-		wm8994_write(0x25,  0x003F);  //0~12dB
-		wm8994_write(0x26,  320+vol+39);  //-57dB~6dB
-		wm8994_write(0x27,  320+vol+39);  //-57dB~6dB
-	}
-
-	wm8994_write(0x200, 0x0011); // AIF1CLK_ENA=1
-	wm8994_write(0x208, 0x000A); // DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
-	wm8994_write(0x300, 0xC050); // AIF1ADCL_SRC=1, AIF1ADCR_SRC=1, AIF1_WL=10, AIF1_FMT=10
-	wm8994_write(0x606, 0x0002); // ADC1L_TO_AIF1ADC1L=1
-	wm8994_write(0x607, 0x0002); // ADC1R_TO_AIF1ADC1R=1
-	wm8994_write(0x620, 0x0000); 
-
-	wm8994_write(0x402, 0x01FF); // AIF1ADC1L_VOL [7:0]
-	wm8994_write(0x403, 0x01FF); // AIF1ADC1R_VOL [7:0]
-
-	wm8994_write(0x700, 0xA101); 
-
-	wm8994_write(0x01,  0x3013);
-	wm8994_write(0x03,  0x0330); // SPKRVOL_ENA=1, SPKLVOL_ENA=1, MIXOUTL_ENA=1, MIXOUTR_ENA=1  
-	wm8994_write(0x05,  0x0303); // AIF1DAC1L_ENA=1, AIF1DAC1R_ENA=1, DAC1L_ENA=1, DAC1R_ENA=1
-	wm8994_write(0x22,  0x0000);
-	wm8994_write(0x23,  0x0100); // SPKOUT_CLASSAB=1
-
-	wm8994_write(0x2D,  0x0001); // DAC1L_TO_MIXOUTL=1
-	wm8994_write(0x2E,  0x0001); // DAC1R_TO_MIXOUTR=1
-	wm8994_write(0x4C,  0x9F25);
-	wm8994_write(0x60,  0x00EE);
-	wm8994_write(0x36,  0x000C); // MIXOUTL_TO_SPKMIXL=1, MIXOUTR_TO_SPKMIXR=1
-	wm8994_write(0x601, 0x0001); // AIF1DAC1L_TO_DAC1L=1
-	wm8994_write(0x602, 0x0001); // AIF1DAC1R_TO_DAC1R=1
-	wm8994_write(0x610, 0x01C0); // DAC1_VU=1, DAC1L_VOL=1100_0000
-	wm8994_write(0x611, 0x01C0); // DAC1_VU=1, DAC1R_VOL=1100_0000
-	wm8994_write(0x420, 0x0000); 
-#ifdef CONFIG_SND_CODEC_SOC_MASTER
-	wm8994_write(0x303, 0x0040); // AIF1 BCLK DIV--------AIF1CLK/4
-	wm8994_write(0x304, 0x0040); // AIF1 ADCLRCK DIV-----BCLK/64
-	wm8994_write(0x305, 0x0040); // AIF1 DACLRCK DIV-----BCLK/64
-	wm8994_write(0x302, 0x3000); // AIF1_MSTR=1
-	msleep(50);
-	wm8994_write(0x302, 0x7000); // AIF1_MSTR=1
-	msleep(50);
-#endif
-}
-
-void FM_to_headset(void)
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_FM_to_headset)return;
-	wm8994_current_mode=wm8994_FM_to_headset;
-	wm8994_reset();
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x01,  0x0323); 
-	wm8994_write(0x02,  0x03A0);  
-	wm8994_write(0x03,  0x0030);	
-	wm8994_write(0x19,  0x010B);  //LEFT LINE INPUT 3&4 VOLUME	
-	wm8994_write(0x1B,  0x010B);  //RIGHT LINE INPUT 3&4 VOLUME
-
-	wm8994_write(0x28,  0x0044);  
-	wm8994_write(0x29,  0x0100);	 
-	wm8994_write(0x2A,  0x0100);
-	wm8994_write(0x2D,  0x0040); 
-	wm8994_write(0x2E,  0x0040);
-	wm8994_write(0x4C,  0x9F25);
-	wm8994_write(0x60,  0x00EE);
-	wm8994_write(0x220, 0x0003);
-	wm8994_write(0x221, 0x0700);
-	wm8994_write(0x224, 0x0CC0);
-	wm8994_write(0x200, 0x0011);
-	wm8994_write(0x1C,  0x01F9);  //LEFT OUTPUT VOLUME	
-	wm8994_write(0x1D,  0x01F9);  //RIGHT OUTPUT VOLUME
-}
-
-void FM_to_headset_and_record(void)
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_FM_to_headset_and_record)return;
-	wm8994_current_mode=wm8994_FM_to_headset_and_record;
-	wm8994_reset();
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x01,   0x0003);
-	msleep(WM8994_DELAY);
-	wm8994_write(0x221,  0x1900);  //8~13BIT div
-
-#ifdef CONFIG_SND_CODEC_SOC_MASTER
-	wm8994_write(0x302,  0x4000);  // master = 0x4000 // slave= 0x0000
-	wm8994_write(0x303,  0x0040);  // master  0x0050 lrck 7.94kHz bclk 510KHz
-#endif
-	
-	wm8994_write(0x220,  0x0004);
-	msleep(WM8994_DELAY);
-	wm8994_write(0x220,  0x0005);  
-
-	wm8994_write(0x01,   0x0323);
-	wm8994_write(0x02,   0x03A0);
-	wm8994_write(0x03,   0x0030);
-	wm8994_write(0x19,   0x010B);  //LEFT LINE INPUT 3&4 VOLUME	
-	wm8994_write(0x1B,   0x010B);  //RIGHT LINE INPUT 3&4 VOLUME
-  
-	wm8994_write(0x28,   0x0044);
-	wm8994_write(0x29,   0x0100);
-	wm8994_write(0x2A,   0x0100);
-	wm8994_write(0x2D,   0x0040);
-	wm8994_write(0x2E,   0x0040);
-	wm8994_write(0x4C,   0x9F25);
-	wm8994_write(0x60,   0x00EE);
-	wm8994_write(0x200,  0x0011);
-	wm8994_write(0x1C,   0x01F9);  //LEFT OUTPUT VOLUME
-	wm8994_write(0x1D,   0x01F9);  //RIGHT OUTPUT VOLUME
-	wm8994_write(0x04,   0x0303);
-	wm8994_write(0x208,  0x000A);
-	wm8994_write(0x300,  0x4050);
-	wm8994_write(0x606,  0x0002);
-	wm8994_write(0x607,  0x0002);
-	wm8994_write(0x620,  0x0000);
-}
-
-void FM_to_speakers(void)
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_FM_to_speakers)return;
-	wm8994_current_mode=wm8994_FM_to_speakers;
-	wm8994_reset();
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x01,   0x3023);
-	wm8994_write(0x02,   0x03A0);
-	wm8994_write(0x03,   0x0330);
-	wm8994_write(0x19,   0x010B);  //LEFT LINE INPUT 3&4 VOLUME
-	wm8994_write(0x1B,   0x010B);  //RIGHT LINE INPUT 3&4 VOLUME
-  
-	wm8994_write(0x22,   0x0000);
-	wm8994_write(0x23,   0x0000);
-	wm8994_write(0x36,   0x000C);
-
-	wm8994_write(0x28,   0x0044);
-	wm8994_write(0x29,   0x0100);
-	wm8994_write(0x2A,   0x0100);
-	wm8994_write(0x2D,   0x0040);
-	wm8994_write(0x2E,   0x0040);
-
-	wm8994_write(0x220,  0x0003);
-	wm8994_write(0x221,  0x0700);
-	wm8994_write(0x224,  0x0CC0);
-
-	wm8994_write(0x200,  0x0011);
-	wm8994_write(0x20,   0x01F9);
-	wm8994_write(0x21,   0x01F9);
-}
-
-void FM_to_speakers_and_record(void)
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_FM_to_speakers_and_record)return;
-	wm8994_current_mode=wm8994_FM_to_speakers_and_record;
-	wm8994_reset();
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x01,   0x0003);  
-	msleep(WM8994_DELAY);
-
-#ifdef CONFIG_SND_CODEC_SOC_MASTER
-	wm8994_write(0x302,  0x4000);  // master = 0x4000 // slave= 0x0000
-	wm8994_write(0x303,  0x0090);  //
-#endif
-	
-	wm8994_write(0x220,  0x0006);
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x01,   0x3023);
-	wm8994_write(0x02,   0x03A0);
-	wm8994_write(0x03,   0x0330);
-	wm8994_write(0x19,   0x010B);  //LEFT LINE INPUT 3&4 VOLUME
-	wm8994_write(0x1B,   0x010B);  //RIGHT LINE INPUT 3&4 VOLUME
-  
-	wm8994_write(0x22,   0x0000);
-	wm8994_write(0x23,   0x0000);
-	wm8994_write(0x36,   0x000C);
-
-	wm8994_write(0x28,   0x0044);
-	wm8994_write(0x29,   0x0100);
-	wm8994_write(0x2A,   0x0100);
-	wm8994_write(0x2D,   0x0040);
-	wm8994_write(0x2E,   0x0040);
-
-	wm8994_write(0x220,  0x0003);
-	wm8994_write(0x221,  0x0700);
-	wm8994_write(0x224,  0x0CC0);
-
-	wm8994_write(0x200,  0x0011);
-	wm8994_write(0x20,   0x01F9);
-	wm8994_write(0x21,   0x01F9);
-	wm8994_write(0x04,   0x0303);
-	wm8994_write(0x208,  0x000A);	
-	wm8994_write(0x300,  0x4050);
-	wm8994_write(0x606,  0x0002);	
-	wm8994_write(0x607,  0x0002);
-	wm8994_write(0x620,  0x0000);
-}
-#ifndef PCM_BB
-void handsetMIC_to_baseband_to_headset(void)
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_handsetMIC_to_baseband_to_headset)return;
-	wm8994_current_mode=wm8994_handsetMIC_to_baseband_to_headset;
-	wm8994_reset();
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x01,  0x0003);
-	msleep(50);
-
-	wm8994_write(0x200, 0x0001);
-	wm8994_write(0x220, 0x0000);
-	wm8994_write(0x221, 0x0700);
-	wm8994_write(0x222, 0x3126);
-	wm8994_write(0x223, 0x0100);
-
-	wm8994_write(0x210, 0x0083); // SR=48KHz
-	wm8994_write(0x220, 0x0004);  
-	msleep(WM8994_DELAY);
-	wm8994_write(0x220, 0x0005);
-	wm8994_write(0x200, 0x0011);  // sysclk = fll (bit4 =1)   0x0011
-	wm8994_write(0x300, 0xC010);  // i2s 16 bits
-
-	vol=CONFIG_WM8994_HEADSET_INCALL_MIC_VOL;
-	if(vol>30)vol=30;
-	if(vol<-22)vol=-22;
-	if(vol<-16){
-		wm8994_write(0x1E,  0x0016);  //mic vol
-		wm8994_write(0x18,  320+(vol+22)*10/15);  //mic vol	
-	}else{
-		wm8994_write(0x1E,  0x0006);  //mic vol
-		wm8994_write(0x18,  320+(vol+16)*10/15);  //mic vol
-	}
-
-	wm8994_write(0x22,  0x0000);
-	wm8994_write(0x23,  0x0100);
-	wm8994_write(0x28,  0x0030);  //IN1LN_TO_IN1L IN1LP_TO_IN1L
-	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
-
-	wm8994_write(0x34,  0x0002);  //IN1L_TO_LINEOUT1P
-	wm8994_write(0x36,  0x0003);
-
-	wm8994_write(0x4C,  0x9F25);
-	msleep(5);
-	wm8994_write(0x01,  0x0323);
-	msleep(50);
-	wm8994_write(0x60,  0x0022);
-	wm8994_write(0x60,  0x00EE);
-
-	wm8994_write(0x02,  0x6040);
-	wm8994_write(0x03,  0x3030);
-	wm8994_write(0x04,  0x0300); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1
-	wm8994_write(0x05,  0x0303);
-#ifdef CONFIG_SND_BB_NORMAL_INPUT
-	wm8994_write(0x2D,  0x0003);  //bit 1 IN2LP_TO_MIXOUTL bit 12 DAC1L_TO_HPOUT1L  0x0102 
-	wm8994_write(0x2E,  0x0003);  //bit 1 IN2RP_TO_MIXOUTR bit 12 DAC1R_TO_HPOUT1R  0x0102
-#endif
-#ifdef CONFIG_SND_BB_DIFFERENTIAL_INPUT
-	vol=CONFIG_WM8994_HEADSET_INCALL_VOL;
-	if(vol>6)vol=6;
-	if(vol<-12)vol=-12;
-	wm8994_write(0x2B,  (vol+12)/3+1);  //-12~6dB
-	wm8994_write(0x02,  0x6240);
-	wm8994_write(0x2D,  0x0041);  //bit 1 MIXINL_TO_MIXOUTL bit 12 DAC1L_TO_HPOUT1L  0x0102 
-	wm8994_write(0x2E,  0x0081);  //bit 1 MIXINL_TO_MIXOUTR bit 12 DAC1R_TO_HPOUT1R  0x0102
-#endif
-	wm8994_write(0x208, 0x000A);
-	wm8994_write(0x224, 0x0CC0);
-	wm8994_write(0x420, 0x0000);
-	wm8994_write(0x601, 0x0001);
-	wm8994_write(0x602, 0x0001);
-
-	wm8994_write(0x610, 0x01A0);  //DAC1 Left Volume bit0~7  		
-	wm8994_write(0x611, 0x01A0);  //DAC1 Right Volume bit0~7
-	wm8994_write(0x700, 0xA101);
-#ifdef CONFIG_SND_CODEC_SOC_MASTER 
-	wm8994_write(0x303, 0x0040); // AIF1 BCLK DIV--------AIF1CLK/4
-	wm8994_write(0x304, 0x0040); // AIF1 ADCLRCK DIV-----BCLK/64
-	wm8994_write(0x305, 0x0040); // AIF1 DACLRCK DIV-----BCLK/64
-	wm8994_write(0x302, 0x3000); // AIF1_MSTR=1
-	msleep(50);
-	wm8994_write(0x302, 0x7000); // AIF1_MSTR=1
-	msleep(50);
-#endif
-}
-
-void handsetMIC_to_baseband_to_headset_and_record(void)
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_handsetMIC_to_baseband_to_headset_and_record)return;
-	wm8994_current_mode=wm8994_handsetMIC_to_baseband_to_headset_and_record;
-	wm8994_reset();
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x01,  0x0303|wm8994_mic_VCC); 
-	wm8994_write(0x02,  0x62C0); 
-	wm8994_write(0x03,  0x3030); 
-	wm8994_write(0x04,  0x0303); 
-	wm8994_write(0x18,  0x014B);  //volume
-	wm8994_write(0x19,  0x014B);  //volume
-	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
-	wm8994_write(0x1E,  0x0006); 
-	wm8994_write(0x28,  0x00B0);  //IN2LP_TO_IN2L
-	wm8994_write(0x29,  0x0120); 
-	wm8994_write(0x2D,  0x0002);  //bit 1 IN2LP_TO_MIXOUTL
-	wm8994_write(0x2E,  0x0002);  //bit 1 IN2RP_TO_MIXOUTR
-	wm8994_write(0x34,  0x0002); 
-	wm8994_write(0x4C,  0x9F25); 
-	wm8994_write(0x60,  0x00EE); 
-	wm8994_write(0x200, 0x0001); 
-	wm8994_write(0x208, 0x000A); 
-	wm8994_write(0x300, 0x0050); 
-
-#ifdef CONFIG_SND_CODEC_SOC_MASTER
-	wm8994_write(0x302, 0x4000);  // master = 0x4000 // slave= 0x0000
-	wm8994_write(0x303, 0x0090);  // master lrck 16k
-#endif
-
-	wm8994_write(0x606, 0x0002); 
-	wm8994_write(0x607, 0x0002); 
-	wm8994_write(0x620, 0x0000);
-}
-
-void mainMIC_to_baseband_to_earpiece(void)
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_earpiece)return;
-	wm8994_current_mode=wm8994_mainMIC_to_baseband_to_earpiece;
-	wm8994_reset();
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x01,  0x0003);
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x200, 0x0001);
-	wm8994_write(0x220, 0x0000);
-	wm8994_write(0x221, 0x0700);
-	wm8994_write(0x222, 0x3126);
-	wm8994_write(0x223, 0x0100);
-
-	wm8994_write(0x210, 0x0083); // SR=48KHz
-	wm8994_write(0x220, 0x0004);
-	msleep(WM8994_DELAY);
-	wm8994_write(0x220, 0x0005);
-	wm8994_write(0x200, 0x0011); // sysclk = fll (bit4 =1)   0x0011
-	wm8994_write(0x300, 0x4010); // i2s 16 bits
-
-	wm8994_write(0x01,  0x0833); //HPOUT2_ENA=1, VMID_SEL=01, BIAS_ENA=1
-	wm8994_write(0x02,  0x6250); //bit4 IN1R_ENV bit6 IN1L_ENV 
-	wm8994_write(0x03,  0x30F0);
-	wm8994_write(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1
-	wm8994_write(0x05,  0x0303);
-	wm8994_write(0x1F,  0x0000);
-#if defined(CONFIG_SND_INSIDE_EARPIECE)||defined(CONFIG_SND_OUTSIDE_EARPIECE)
-	vol=CONFIG_WM8994_EARPIECE_INCALL_VOL;
-	if(vol>30)vol=30;
-	if(vol<-27)vol=-27;
-	if(vol>9){
-		wm8994_write(0x2E,  0x0081);  //30dB
-		wm8994_write(0x33,  0x0018);  //30dB
-		wm8994_write(0x31,  (((30-vol)/3)<<3)+(30-vol)/3);  //-21dB
-	}else if(vol>3){
-		wm8994_write(0x2E,  0x0081);  //30dB
-		wm8994_write(0x33,  0x0018);  //30dB
-		wm8994_write(0x31,  (((24-vol)/3)<<3)+(24-vol)/3);  //-21dB
-		wm8994_write(0x1F,  0x0010);
-	}else if(vol>=0){	
-	}else if(vol>-21){
-		wm8994_write(0x31,  (((-vol)/3)<<3)+(-vol)/3);  //-21dB
-	}else{
-		wm8994_write(0x1F,  0x0010);
-		wm8994_write(0x31,  (((-vol-6)/3)<<3)+(-vol-6)/3);  //-21dB
-	}
-#ifdef CONFIG_SND_INSIDE_EARPIECE
-	wm8994_write(0x28,  0x0003); //IN1RP_TO_IN1R IN1RN_TO_IN1R
-	wm8994_write(0x34,  0x0004); //IN1R_TO_LINEOUT1P
-	vol=CONFIG_WM8994_SPEAKER_INCALL_MIC_VOL;
-	if(vol>30)vol=30;
-	if(vol<-22)vol=-22;
-	if(vol<-16){
-		wm8994_write(0x1E,  0x0016);
-		wm8994_write(0x1A,  320+(vol+22)*10/15);	
-	}else{
-		wm8994_write(0x1E,  0x0006);
-		wm8994_write(0x1A,  320+(vol+16)*10/15);
-	}
-#endif
-#ifdef CONFIG_SND_OUTSIDE_EARPIECE
-	wm8994_write(0x28,  0x0030); //IN1LP_TO_IN1L IN1LN_TO_IN1L
-	wm8994_write(0x34,  0x0002); //IN1L_TO_LINEOUT1P
-	vol=CONFIG_WM8994_HEADSET_INCALL_MIC_VOL;
-	if(vol>30)vol=30;
-	if(vol<-22)vol=-22;
-	if(vol<-16){
-		wm8994_write(0x1E,  0x0016);  //mic vol
-		wm8994_write(0x18,  320+(vol+22)*10/15);  //mic vol	
-	}else{
-		wm8994_write(0x1E,  0x0006);  //mic vol
-		wm8994_write(0x18,  320+(vol+16)*10/15);  //mic vol
-	}
-#endif
-#endif
-#ifdef CONFIG_SND_BB_NORMAL_INPUT
-	wm8994_write(0x2D,  0x0003);  //bit 1 IN2LP_TO_MIXOUTL bit 12 DAC1L_TO_HPOUT1L  0x0102 
-	wm8994_write(0x2E,  0x0003);  //bit 1 IN2RP_TO_MIXOUTR bit 12 DAC1R_TO_HPOUT1R  0x0102
-#endif
-#ifdef CONFIG_SND_BB_DIFFERENTIAL_INPUT
-	wm8994_write(0x2B,  0x0005);  //VRX_MIXINL_VOL
-	wm8994_write(0x2D,  0x0041);  //bit 1 MIXINL_TO_MIXOUTL bit 12 DAC1L_TO_HPOUT1L  0x0102 
-	wm8994_write(0x2E,  0x0081);  //bit 1 MIXINL_TO_MIXOUTR bit 12 DAC1R_TO_HPOUT1R  0x0102
-#endif
-	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
-	wm8994_write(0x33,  0x0010);
-
-	wm8994_write(0x208, 0x000A); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
-	wm8994_write(0x601, 0x0001); //AIF1DAC1L_TO_DAC1L=1
-	wm8994_write(0x602, 0x0001); //AIF1DAC1R_TO_DAC1R=1
-	wm8994_write(0x610, 0x01C0); //DAC1_VU=1, DAC1L_VOL=1100_0000
-	wm8994_write(0x611, 0x01C0); //DAC1_VU=1, DAC1R_VOL=1100_0000
-
-	wm8994_write(0x420, 0x0000);
-	wm8994_write(0x700, 0xA101); 
-#ifdef CONFIG_SND_CODEC_SOC_MASTER
-	wm8994_write(0x303, 0x0040); // AIF1 BCLK DIV--------AIF1CLK/4
-	wm8994_write(0x304, 0x0040); // AIF1 ADCLRCK DIV-----BCLK/64
-	wm8994_write(0x305, 0x0040); // AIF1 DACLRCK DIV-----BCLK/64
-	wm8994_write(0x302, 0x3000); // AIF1_MSTR=1
-	msleep(50);
-	wm8994_write(0x302, 0x7000); // AIF1_MSTR=1
-	msleep(50);
-#endif
-}
-
-void mainMIC_to_baseband_to_earpiece_I2S(void)
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_earpiece)return;
-	wm8994_current_mode=wm8994_mainMIC_to_baseband_to_earpiece;
-	wm8994_reset();
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x01,  0x0003);
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x200, 0x0001);
-	wm8994_write(0x220, 0x0000);
-	wm8994_write(0x221, 0x0700);
-	wm8994_write(0x222, 0x3126);
-	wm8994_write(0x223, 0x0100);
-
-	wm8994_write(0x210, 0x0083); // SR=48KHz
-	wm8994_write(0x220, 0x0004);
-	msleep(WM8994_DELAY);
-	wm8994_write(0x220, 0x0005);
-	wm8994_write(0x200, 0x0011);  // sysclk = fll (bit4 =1)
-
-	wm8994_write(0x02,  0x6240);
-	wm8994_write(0x04,  0x0303);  // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1
-	wm8994_write(0x18,  0x015B);  //IN1_VU=1, IN1L_MUTE=0, IN1L_ZC=1, IN1L_VOL=0_1011
-	wm8994_write(0x1E,  0x0006);
-	wm8994_write(0x1F,  0x0000);
-	wm8994_write(0x28,  0x0030);
-	wm8994_write(0x29,  0x0020); //IN1L_TO_MIXINL=1, IN1L_MIXINL_VOL=0, MIXOUTL_MIXINL_VOL=000
-	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
-
-	wm8994_write(0x200, 0x0011);  // sysclk = fll (bit4 =1)
-
-	wm8994_write(0x208, 0x000A); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
-	wm8994_write(0x300, 0x0050); //AIF1ADCL_SRC=1, AIF1ADCR_SRC=1
-	wm8994_write(0x606, 0x0002); //ADC1L_TO_AIF1ADC1L=1
-	wm8994_write(0x607, 0x0002); //ADC1R_TO_AIF1ADC1R=1
-
-	wm8994_write(0x620, 0x0000);
-	wm8994_write(0x700, 0xA101);
-
-	wm8994_write(0x01,  0x0833); //HPOUT2_ENA=1, VMID_SEL=01, BIAS_ENA=1
-	wm8994_write(0x03,  0x30F0);
-	wm8994_write(0x05,  0x0303);
-	wm8994_write(0x2D,  0x0021); //DAC1L_TO_MIXOUTL=1
-	wm8994_write(0x2E,  0x0001); //DAC1R_TO_MIXOUTR=1
-
-	wm8994_write(0x4C,  0x9F25);
-	wm8994_write(0x60,  0x00EE);
-
-	wm8994_write(0x33,  0x0010);
-	wm8994_write(0x34,  0x0002);
-
-	wm8994_write(0x601, 0x0001); //AIF1DAC1L_TO_DAC1L=1
-	wm8994_write(0x602, 0x0001); //AIF1DAC1R_TO_DAC1R=1
-	wm8994_write(0x610, 0x01FF); //DAC1_VU=1, DAC1L_VOL=1100_0000
-	wm8994_write(0x611, 0x01FF); //DAC1_VU=1, DAC1R_VOL=1100_0000
-
-	wm8994_write(0x420, 0x0000);
-	wm8994_write(0x700, 0xA101); 
-#ifdef CONFIG_SND_CODEC_SOC_MASTER
-	wm8994_write(0x303, 0x0040); // AIF1 BCLK DIV--------AIF1CLK/4
-	wm8994_write(0x304, 0x0040); // AIF1 ADCLRCK DIV-----BCLK/64
-	wm8994_write(0x305, 0x0040); // AIF1 DACLRCK DIV-----BCLK/64
-	wm8994_write(0x302, 0x3000); // AIF1_MSTR=1
-	msleep(50);
-	wm8994_write(0x302, 0x7000); // AIF1_MSTR=1
-	msleep(50);
-#endif
-}
-
-void mainMIC_to_baseband_to_earpiece_and_record(void)
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_earpiece_and_record)return;
-	wm8994_current_mode=wm8994_mainMIC_to_baseband_to_earpiece_and_record;
-	wm8994_reset();
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x01  ,0x0803|wm8994_mic_VCC);
-	wm8994_write(0x02  ,0x6310);
-	wm8994_write(0x03  ,0x30A0);
-	wm8994_write(0x04  ,0x0303);
-	wm8994_write(0x1A  ,0x014F);
-	wm8994_write(0x1E  ,0x0006);
-	wm8994_write(0x1F  ,0x0000);
-	wm8994_write(0x28  ,0x0003);  //MAINMIC_TO_IN1R  //
-	wm8994_write(0x2A  ,0x0020);  //IN1R_TO_MIXINR   //
-	wm8994_write(0x2B  ,0x0005);  //VRX_MIXINL_VOL bit 0~2
-	wm8994_write(0x2C  ,0x0005);  //VRX_MIXINR_VOL
-	wm8994_write(0x2D  ,0x0040);  //MIXINL_TO_MIXOUTL
-	wm8994_write(0x33  ,0x0010);  //MIXOUTLVOL_TO_HPOUT2
-	wm8994_write(0x34  ,0x0004);  //IN1R_TO_LINEOUT1 //
-	wm8994_write(0x200 ,0x0001);
-	wm8994_write(0x208 ,0x000A);
-	wm8994_write(0x300 ,0xC050);
-	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
-
-#ifdef CONFIG_SND_CODEC_SOC_MASTER
-	wm8994_write(0x302, 0x4000);  // master = 0x4000 // slave= 0x0000
-	wm8994_write(0x303, 0x0090);  // master lrck 16k
-#endif
-
-	wm8994_write(0x606 ,0x0002);
-	wm8994_write(0x607 ,0x0002);
-	wm8994_write(0x620 ,0x0000);
-}
-
-void mainMIC_to_baseband_to_speakers(void)
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_speakers)return;
-	wm8994_current_mode=wm8994_mainMIC_to_baseband_to_speakers;
-	wm8994_reset();
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x01,  0x0003);
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x200, 0x0001);
-	wm8994_write(0x220, 0x0000);
-	wm8994_write(0x221, 0x0700);
-	wm8994_write(0x222, 0x3126);
-	wm8994_write(0x223, 0x0100);
-
-	wm8994_write(0x210, 0x0083); // SR=48KHz
-	msleep(WM8994_DELAY);
-	wm8994_write(0x220, 0x0005);
-	wm8994_write(0x200, 0x0011);  // sysclk = fll (bit4 =1)   0x0011
-  	wm8994_write(0x300, 0xC010);  // i2s 16 bits
-	
-	wm8994_write(0x01,  0x3013); 
-	wm8994_write(0x02,  0x6210);
-	wm8994_write(0x03,  0x33F0);
-	wm8994_write(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1
-	wm8994_write(0x05,  0x0303);
-	wm8994_write(0x22,  0x0000);
-	wm8994_write(0x23,  0x0100);
-	vol=CONFIG_WM8994_SPEAKER_INCALL_MIC_VOL;
-	if(vol>30)vol=30;
-	if(vol<-22)vol=-22;
-	if(vol<-16){
-		wm8994_write(0x1E,  0x0016);
-		wm8994_write(0x1A,  320+(vol+22)*10/15);	
-	}else{
-		wm8994_write(0x1E,  0x0006);
-		wm8994_write(0x1A,  320+(vol+16)*10/15);
-	}
-	vol=CONFIG_WM8994_SPEAKER_INCALL_VOL;
-	if(vol>12)vol=12;
-	if(vol<-21)vol=-21;
-	if(vol<0){
-		wm8994_write(0x31,  (((-vol)/3)<<3)+(-vol)/3);
-	}else{
-		wm8994_write(0x25,  ((vol*10/15)<<3)+vol*10/15);
-	}
-	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
-	wm8994_write(0x28,  0x0003);  //IN1RP_TO_IN1R  IN1RN_TO_IN1R
-#ifdef CONFIG_SND_BB_NORMAL_INPUT
-	wm8994_write(0x2D,  0x0003);  //bit 1 IN2LP_TO_MIXOUTL bit 12 DAC1L_TO_HPOUT1L  0x0102 
-	wm8994_write(0x2E,  0x0003);  //bit 1 IN2RP_TO_MIXOUTR bit 12 DAC1R_TO_HPOUT1R  0x0102
-#endif
-#ifdef CONFIG_SND_BB_DIFFERENTIAL_INPUT
-	wm8994_write(0x2B,  0x0005);  //VRX_MIXINL_VOL
-	wm8994_write(0x2D,  0x0041);  //bit 1 MIXINL_TO_MIXOUTL bit 12 DAC1L_TO_HPOUT1L  0x0102 
-	wm8994_write(0x2E,  0x0081);  //bit 1 MIXINL_TO_MIXOUTR bit 12 DAC1R_TO_HPOUT1R  0x0102
-#endif
-	wm8994_write(0x4C,  0x9F25);
-	wm8994_write(0x60,  0x00EE);
-	wm8994_write(0x34,  0x0004);
-	wm8994_write(0x36,  0x000C);  //MIXOUTL_TO_SPKMIXL  MIXOUTR_TO_SPKMIXR
-
-	wm8994_write(0x208, 0x000A);
-	wm8994_write(0x420, 0x0000); 
-	
-	wm8994_write(0x601, 0x0001);
-	wm8994_write(0x602, 0x0001);
-    
-	wm8994_write(0x610, 0x01c0);  //DAC1 Left Volume bit0~7	
-	wm8994_write(0x611, 0x01c0);  //DAC1 Right Volume bit0~7
-	wm8994_write(0x700, 0xA101); 
-#ifdef CONFIG_SND_CODEC_SOC_MASTER
-	wm8994_write(0x303, 0x0040); // AIF1 BCLK DIV--------AIF1CLK/4
-	wm8994_write(0x304, 0x0040); // AIF1 ADCLRCK DIV-----BCLK/64
-	wm8994_write(0x305, 0x0040); // AIF1 DACLRCK DIV-----BCLK/64
-	wm8994_write(0x302, 0x3000); // AIF1_MSTR=1
-	msleep(50);
-	wm8994_write(0x302, 0x7000); // AIF1_MSTR=1
-	msleep(50);
-#endif
-}
-
-void mainMIC_to_baseband_to_speakers_and_record(void)
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_speakers_and_record)return;
-	wm8994_current_mode=wm8994_mainMIC_to_baseband_to_speakers_and_record;
-	wm8994_reset();
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x01, 0x3003|wm8994_mic_VCC);
-	wm8994_write(0x02, 0x6330);
-	wm8994_write(0x03, 0x3330);
-	wm8994_write(0x04, 0x0303);
-	wm8994_write(0x1A, 0x014B);
-	wm8994_write(0x1B, 0x014B);
-	wm8994_write(0x1E, 0x0006);
-	wm8994_write(0x22, 0x0000);
-	wm8994_write(0x23, 0x0100);
- 	wm8994_write(0x28, 0x0007);
-	wm8994_write(0x2A, 0x0120);
-	wm8994_write(0x2D, 0x0002);  //bit 1 IN2LP_TO_MIXOUTL
-	wm8994_write(0x2E, 0x0002);  //bit 1 IN2RP_TO_MIXOUTR
-	wm8994_write(0x34, 0x0004);
-	wm8994_write(0x36, 0x000C);
-	wm8994_write(0x200, 0x0001);
-	wm8994_write(0x208, 0x000A);
- 	wm8994_write(0x300, 0xC050);
-	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
-
-#ifdef CONFIG_SND_CODEC_SOC_MASTER
-	wm8994_write(0x302, 0x4000);  // master = 0x4000 // slave= 0x0000
-	wm8994_write(0x303, 0x0090);  // master lrck 16k
-#endif
-
- 	wm8994_write(0x606, 0x0002);
- 	wm8994_write(0x607, 0x0002);
- 	wm8994_write(0x620, 0x0000);
-}
-
-void BT_baseband(void)
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_BT_baseband)return;
-	wm8994_current_mode=wm8994_BT_baseband;
-	wm8994_reset();
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x01, 0x0003);
-	wm8994_write(0x02, 0x63A0);
-	wm8994_write(0x03, 0x30A0);
-	wm8994_write(0x04, 0x3303);
-	wm8994_write(0x05, 0x3002);
-	wm8994_write(0x06, 0x000A);
-	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
-	wm8994_write(0x1E, 0x0006);
-	wm8994_write(0x29, 0x0100);
-	wm8994_write(0x2A, 0x0100);
-	vol=CONFIG_WM8994_BT_INCALL_MIC_VOL;
-	if(vol>6)vol=6;
-	if(vol<-57)vol=-57;
-	wm8994_write(0x20,  320+vol+57);
-
-	vol=CONFIG_WM8994_BT_INCALL_VOL;
-	if(vol>30)vol=30;
-	if(vol<0)vol=0;
-	if(vol==30){
-		wm8994_write(0x29, 0x0130);
-		wm8994_write(0x2A, 0x0130);
-	}
-
-#ifdef CONFIG_SND_BB_NORMAL_INPUT
-	wm8994_write(0x28, 0x00C0);
-#endif
-#ifdef CONFIG_SND_BB_DIFFERENTIAL_INPUT
-	wm8994_write(0x28, 0x00CC);
-#endif
-	wm8994_write(0x2D, 0x0001);
-	wm8994_write(0x34, 0x0001);
-	wm8994_write(0x200, 0x0001);
-
-	//roger_chen@20100524
-	//8KHz, BCLK=8KHz*128=1024KHz, Fout=2.048MHz
-	wm8994_write(0x204, 0x0001);    // SMbus_16inx_16dat     Write  0x34      * AIF2 Clocking (1)(204H): 0011  AIF2CLK_SRC=00, AIF2CLK_INV=0, AIF2CLK_DIV=0, AIF2CLK_ENA=1
-	wm8994_write(0x208, 0x000F);
-	wm8994_write(0x220, 0x0000);    // SMbus_16inx_16dat     Write  0x34      * FLL1 Control (1)(220H):  0005  FLL1_FRACN_ENA=0, FLL1_OSC_ENA=0, FLL1_ENA=0
-	wm8994_write(0x221, 0x2F00);    // SMbus_16inx_16dat     Write  0x34      * FLL1 Control (2)(221H):  0700  FLL1_OUTDIV=2Fh, FLL1_CTRL_RATE=000, FLL1_FRATIO=000
-	wm8994_write(0x222, 0x3126);    // SMbus_16inx_16dat     Write  0x34      * FLL1 Control (3)(222H):  8FD5  FLL1_K=3126h
-	wm8994_write(0x223, 0x0100);    // SMbus_16inx_16dat     Write  0x34      * FLL1 Control (4)(223H):  00E0  FLL1_N=8h, FLL1_GAIN=0000
-	wm8994_write(0x310, 0xC118);  //DSP/PCM; 16bits; ADC L channel = R channel;MODE A
-
-	wm8994_write(0x210, 0x0003);    // SMbus_16inx_16dat     Write  0x34      * SR=8KHz
-	wm8994_write(0x220, 0x0004);    // SMbus_16inx_16dat     Write  0x34      * FLL1 Control (1)(220H):  0005  FLL1_FRACN_ENA=1, FLL1_OSC_ENA=0, FLL1_ENA=0
-	msleep(50);
-	wm8994_write(0x220, 0x0005);    // SMbus_16inx_16dat     Write  0x34      * FLL1 Control (1)(220H):  0005  FLL1_FRACN_ENA=1, FLL1_OSC_ENA=0, FLL1_ENA=1
-	wm8994_write(0x200, 0x0011);
-	wm8994_write(0x204, 0x0011);    // SMbus_16inx_16dat     Write  0x34      * AIF2 Clocking (1)(204H): 0011  AIF2CLK_SRC=10, AIF2CLK_INV=0, AIF2CLK_DIV=0, AIF2CLK_ENA=1
-
-	wm8994_write(0x440, 0x0018);
-	wm8994_write(0x450, 0x0018);
-	wm8994_write(0x480, 0x0000);
-	wm8994_write(0x481, 0x0000);
-	wm8994_write(0x4A0, 0x0000);
-	wm8994_write(0x4A1, 0x0000);
-	wm8994_write(0x520, 0x0000);
-	wm8994_write(0x540, 0x0018);
-	wm8994_write(0x580, 0x0000);
-	wm8994_write(0x581, 0x0000);
-	wm8994_write(0x601, 0x0004);
-	wm8994_write(0x603, 0x000C);
-	wm8994_write(0x604, 0x0010);
-	wm8994_write(0x605, 0x0010);
-	wm8994_write(0x610, 0x01C0);
-	wm8994_write(0x612, 0x01C0);
-	wm8994_write(0x613, 0x01C0);
-	wm8994_write(0x620, 0x0000);
-
-	//roger_chen@20100519
-	//enable AIF2 BCLK,LRCK
-	//Rev.B and Rev.D is different
-	wm8994_write(0x702, 0x2100);
-	wm8994_write(0x703, 0x2100);
-
-	wm8994_write(0x704, 0xA100);
-	wm8994_write(0x707, 0xA100);
-	wm8994_write(0x708, 0x2100);
-	wm8994_write(0x709, 0x2100);
-	wm8994_write(0x70A, 0x2100);
-#ifdef CONFIG_SND_CODEC_SOC_MASTER
-	wm8994_write(0x700, 0xA101);  
-	wm8994_write(0x705, 0xA101);  
-	wm8994_write(0x303, 0x0090);
-	wm8994_write(0x313, 0x0020);    // SMbus_16inx_16dat     Write  0x34      * AIF2 BCLK DIV--------AIF1CLK/2
-	wm8994_write(0x314, 0x0080);    // SMbus_16inx_16dat     Write  0x34      * AIF2 ADCLRCK DIV-----BCLK/128
-	wm8994_write(0x315, 0x0080);    // SMbus_16inx_16dat     Write  0x34      * AIF2 DACLRCK DIV-----BCLK/128
-	msleep(30);
-	wm8994_write(0x302, 0x3000); 
-	msleep(30);
-	wm8994_write(0x302, 0x7000); 
-	msleep(30);
-	wm8994_write(0x312, 0x3000);    // SMbus_16inx_16dat     Write  0x34      * AIF2 Master/Slave(312H): 7000  AIF2_TRI=0, AIF2_MSTR=1, AIF2_CLK_FRC=0, AIF2_LRCLK_FRC=0
-	msleep(30);
-	wm8994_write(0x312, 0x7000);    // SMbus_16inx_16dat     Write  0x34      * AIF2 Master/Slave(312H): 7000  AIF2_TRI=0, AIF2_MSTR=1, AIF2_CLK_FRC=0, AIF2_LRCLK_FRC=0
-	msleep(50);
-#endif
-}
-
-void BT_baseband_and_record(void)
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_BT_baseband_and_record)return;
-	wm8994_current_mode=wm8994_BT_baseband_and_record;
-	wm8994_reset();
-	msleep(WM8994_DELAY);
-
-	wm8994_write(0x01, 0x0003);
-	wm8994_write(0x02, 0x63A0);
-	wm8994_write(0x03, 0x30A0);
-	wm8994_write(0x04, 0x3303);
-	wm8994_write(0x05, 0x3002);
-	wm8994_write(0x06, 0x000A);
-	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
-	wm8994_write(0x1E, 0x0006);
-	wm8994_write(0x28, 0x00CC);
-	wm8994_write(0x29, 0x0100);
-	wm8994_write(0x2A, 0x0100);
-	wm8994_write(0x2D, 0x0001);
-	wm8994_write(0x34, 0x0001);
-	wm8994_write(0x200, 0x0001);
-
-	//roger_chen@20100524
-	//8KHz, BCLK=8KHz*128=1024KHz, Fout=2.048MHz
-	wm8994_write(0x204, 0x0001);    // SMbus_16inx_16dat     Write  0x34      * AIF2 Clocking (1)(204H): 0011  AIF2CLK_SRC=00, AIF2CLK_INV=0, AIF2CLK_DIV=0, AIF2CLK_ENA=1
-	wm8994_write(0x208, 0x000F);
-	wm8994_write(0x220, 0x0000);    // SMbus_16inx_16dat     Write  0x34      * FLL1 Control (1)(220H):  0005  FLL1_FRACN_ENA=0, FLL1_OSC_ENA=0, FLL1_ENA=0
-	wm8994_write(0x221, 0x2F00);    // SMbus_16inx_16dat     Write  0x34      * FLL1 Control (2)(221H):  0700  FLL1_OUTDIV=2Fh, FLL1_CTRL_RATE=000, FLL1_FRATIO=000
-	wm8994_write(0x222, 0x3126);    // SMbus_16inx_16dat     Write  0x34      * FLL1 Control (3)(222H):  8FD5  FLL1_K=3126h
-	wm8994_write(0x223, 0x0100);    // SMbus_16inx_16dat     Write  0x34      * FLL1 Control (4)(223H):  00E0  FLL1_N=8h, FLL1_GAIN=0000
-	wm8994_write(0x302, 0x4000);
-	wm8994_write(0x303, 0x0090);    
-	wm8994_write(0x310, 0xC118);  //DSP/PCM; 16bits; ADC L channel = R channel;MODE A
-	wm8994_write(0x312, 0x4000);    // SMbus_16inx_16dat     Write  0x34      * AIF2 Master/Slave(312H): 7000  AIF2_TRI=0, AIF2_MSTR=1, AIF2_CLK_FRC=0, AIF2_LRCLK_FRC=0
-	wm8994_write(0x313, 0x0020);    // SMbus_16inx_16dat     Write  0x34      * AIF2 BCLK DIV--------AIF1CLK/2
-	wm8994_write(0x314, 0x0080);    // SMbus_16inx_16dat     Write  0x34      * AIF2 ADCLRCK DIV-----BCLK/128
-	wm8994_write(0x315, 0x0080);    // SMbus_16inx_16dat     Write  0x34      * AIF2 DACLRCK DIV-----BCLK/128
-	wm8994_write(0x210, 0x0003);    // SMbus_16inx_16dat     Write  0x34      * SR=8KHz
-	wm8994_write(0x220, 0x0004);    // SMbus_16inx_16dat     Write  0x34      * FLL1 Control (1)(220H):  0005  FLL1_FRACN_ENA=1, FLL1_OSC_ENA=0, FLL1_ENA=0
-	msleep(WM8994_DELAY);
-	wm8994_write(0x220, 0x0005);    // SMbus_16inx_16dat     Write  0x34      * FLL1 Control (1)(220H):  0005  FLL1_FRACN_ENA=1, FLL1_OSC_ENA=0, FLL1_ENA=1
-	wm8994_write(0x204, 0x0011);    // SMbus_16inx_16dat     Write  0x34      * AIF2 Clocking (1)(204H): 0011  AIF2CLK_SRC=10, AIF2CLK_INV=0, AIF2CLK_DIV=0, AIF2CLK_ENA=1
-
-	wm8994_write(0x440, 0x0018);
-	wm8994_write(0x450, 0x0018);
-	wm8994_write(0x480, 0x0000);
-	wm8994_write(0x481, 0x0000);
-	wm8994_write(0x4A0, 0x0000);
-	wm8994_write(0x4A1, 0x0000);
-	wm8994_write(0x520, 0x0000);
-	wm8994_write(0x540, 0x0018);
-	wm8994_write(0x580, 0x0000);
-	wm8994_write(0x581, 0x0000);
-	wm8994_write(0x601, 0x0004);
-	wm8994_write(0x603, 0x000C);
-	wm8994_write(0x604, 0x0010);
-	wm8994_write(0x605, 0x0010);
-	wm8994_write(0x606, 0x0003);
-	wm8994_write(0x607, 0x0003);
-	wm8994_write(0x610, 0x01C0);
-	wm8994_write(0x612, 0x01C0);
-	wm8994_write(0x613, 0x01C0);
-	wm8994_write(0x620, 0x0000);
-
-	//roger_chen@20100519
-	//enable AIF2 BCLK,LRCK
-	//Rev.B and Rev.D is different
-	wm8994_write(0x702, 0xA100);    
-	wm8994_write(0x703, 0xA100);
-
-	wm8994_write(0x704, 0xA100);
-	wm8994_write(0x707, 0xA100);
-	wm8994_write(0x708, 0x2100);
-	wm8994_write(0x709, 0x2100);
-	wm8994_write(0x70A, 0x2100);
-}
-
-#else //PCM_BB
-
-/******************PCM BB BEGIN*****************/
-
-void handsetMIC_to_baseband_to_headset(void) //pcmbaseband
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_handsetMIC_to_baseband_to_headset)return;
-	wm8994_current_mode=wm8994_handsetMIC_to_baseband_to_headset;
-	wm8994_reset();
-	msleep(50);
-	
-	wm8994_write(0x01,  0x0003|wm8994_mic_VCC);  
-	msleep(50);
-	wm8994_write(0x221, 0x0700);  
-	wm8994_write(0x222, 0x3127);	
-	wm8994_write(0x223, 0x0100);	
-	wm8994_write(0x220, 0x0004);
-	msleep(50);
-	wm8994_write(0x220, 0x0005);  
-
-	wm8994_write(0x01,  0x0303|wm8994_mic_VCC);  ///0x0303);	 // sysclk = fll (bit4 =1)   0x0011 
-	wm8994_write(0x02,  0x0240);
-	wm8994_write(0x03,  0x0030);
-	wm8994_write(0x04,  0x3003);
-	wm8994_write(0x05,  0x3003);  // i2s 16 bits
-	wm8994_write(0x18,  0x010B);
-	wm8994_write(0x28,  0x0030);
-	wm8994_write(0x29,  0x0020);
-	wm8994_write(0x2D,  0x0100);  //0x0100);DAC1L_TO_HPOUT1L    ;;;bit 8 
-	wm8994_write(0x2E,  0x0100);  //0x0100);DAC1R_TO_HPOUT1R    ;;;bit 8 
-	wm8994_write(0x4C,  0x9F25);
-	wm8994_write(0x60,  0x00EE);
-	wm8994_write(0x200, 0x0001);	
-	wm8994_write(0x204, 0x0001);
-	wm8994_write(0x208, 0x0007);	
-	wm8994_write(0x520, 0x0000);	
-	wm8994_write(0x601, 0x0004);  //AIF2DACL_TO_DAC1L
-	wm8994_write(0x602, 0x0004);  //AIF2DACR_TO_DAC1R
-
-	wm8994_write(0x610, 0x01C0);  //DAC1 Left Volume bit0~7
-	wm8994_write(0x611, 0x01C0);  //DAC1 Right Volume bit0~7
-	wm8994_write(0x612, 0x01C0);  //DAC2 Left Volume bit0~7	
-	wm8994_write(0x613, 0x01C0);  //DAC2 Right Volume bit0~7
-
-	wm8994_write(0x702, 0xC100);
-	wm8994_write(0x703, 0xC100);
-	wm8994_write(0x704, 0xC100);
-	wm8994_write(0x706, 0x4100);
-	wm8994_write(0x204, 0x0011);
-	wm8994_write(0x211, 0x0009);
-	#ifdef TD688_MODE
-	wm8994_write(0x310, 0x4108); ///0x4118);  ///interface dsp mode 16bit
-	#endif
-	#ifdef CHONGY_MODE
-	wm8994_write(0x310, 0x4118); ///0x4118);  ///interface dsp mode 16bit
-	#endif	
-	#ifdef MU301_MODE
-	wm8994_write(0x310, 0x4118); ///0x4118);  ///interface dsp mode 16bit
-	wm8994_write(0x241, 0x2f04);
-	wm8994_write(0x242, 0x0000);
-	wm8994_write(0x243, 0x0300);
-	wm8994_write(0x240, 0x0004);
-	msleep(40);
-	wm8994_write(0x240, 0x0005);
-	wm8994_write(0x204, 0x0019); 
-	wm8994_write(0x211, 0x0003);
-	wm8994_write(0x244, 0x0c83);
-	wm8994_write(0x620, 0x0000);
-	#endif
-	#ifdef THINKWILL_M800_MODE
-	wm8994_write(0x310, 0x4118); ///0x4118);  ///interface dsp mode 16bit
-	#endif
-	wm8994_write(0x313, 0x00F0);
-	wm8994_write(0x314, 0x0020);
-	wm8994_write(0x315, 0x0020);
-	wm8994_write(0x603, 0x018c);  ///0x000C);  //Rev.D ADCL SideTone
-	wm8994_write(0x604, 0x0010); //XX
-	wm8994_write(0x605, 0x0010); //XX
-	wm8994_write(0x621, 0x0000);  //0x0001);   ///0x0000);
-	wm8994_write(0x317, 0x0003);
-	wm8994_write(0x312, 0x0000); /// as slave  ///0x4000);  //AIF2 SET AS MASTER
-	
-	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
-}
-
-void handsetMIC_to_baseband_to_headset_and_record(void) //pcmbaseband
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_handsetMIC_to_baseband_to_headset_and_record)return;
-	wm8994_current_mode=wm8994_handsetMIC_to_baseband_to_headset_and_record;
-	wm8994_reset();
-	msleep(50);
-
-	wm8994_write(0x01,  0x0003|wm8994_mic_VCC);  
-	msleep(50);
-	wm8994_write(0x221, 0x0700);  //MCLK=12MHz
-	wm8994_write(0x222, 0x3127);	
-	wm8994_write(0x223, 0x0100);	
-	wm8994_write(0x220, 0x0004);
-	msleep(50);
-	wm8994_write(0x220, 0x0005);  
-
-	wm8994_write(0x01,  0x0303|wm8994_mic_VCC);	 
-	wm8994_write(0x02,  0x0240);
-	wm8994_write(0x03,  0x0030);
-	wm8994_write(0x04,  0x3003);
-	wm8994_write(0x05,  0x3003); 
-	wm8994_write(0x18,  0x010B);  // 0x011F=+30dB for MIC
-	wm8994_write(0x28,  0x0030);
-	wm8994_write(0x29,  0x0020);
-	wm8994_write(0x2D,  0x0100);
-	wm8994_write(0x2E,  0x0100);
-	wm8994_write(0x4C,  0x9F25);
-	wm8994_write(0x60,  0x00EE);
-	wm8994_write(0x200, 0x0001);	
-	wm8994_write(0x204, 0x0001);
-	wm8994_write(0x208, 0x0007);	
-	wm8994_write(0x520, 0x0000);	
-	wm8994_write(0x601, 0x0004);
-	wm8994_write(0x602, 0x0004);
-
-	wm8994_write(0x610, 0x01C0);  //DAC1 Left Volume bit0~7
-	wm8994_write(0x611, 0x01C0);  //DAC1 Right Volume bit0~7
-	wm8994_write(0x612, 0x01C0);  //DAC2 Left Volume bit0~7	
-	wm8994_write(0x613, 0x01C0);  //DAC2 Right Volume bit0~7
-
-	wm8994_write(0x700, 0x8141);  //SYNC issue, AIF1 ADCLRC1 from LRCK1
-	wm8994_write(0x702, 0xC100);
-	wm8994_write(0x703, 0xC100);
-	wm8994_write(0x704, 0xC100);
-	wm8994_write(0x706, 0x4100);
-	wm8994_write(0x204, 0x0011);  //AIF2 MCLK=FLL1
-	wm8994_write(0x211, 0x0009);  //LRCK=8KHz, Rate=MCLK/1536
-	wm8994_write(0x310, 0x4118);  //DSP/PCM 16bits
-	wm8994_write(0x313, 0x00F0);
-	wm8994_write(0x314, 0x0020);
-	wm8994_write(0x315, 0x0020);
-
-	wm8994_write(0x603, 0x018c);  ///0x000C);  //Rev.D ADCL SideTone
-	wm8994_write(0x604, 0x0010);
-	wm8994_write(0x605, 0x0010);
-	wm8994_write(0x621, 0x0000);
-	//wm8994_write(0x317, 0x0003);
-	//wm8994_write(0x312, 0x4000);  //AIF2 SET AS MASTER
-////AIF1
-	wm8994_write(0x04,   0x3303);
-	wm8994_write(0x200,  0x0001);
-	wm8994_write(0x208,  0x000F);
-	wm8994_write(0x210,  0x0009);  //LRCK=8KHz, Rate=MCLK/1536
-	wm8994_write(0x300,  0x0118);  //DSP/PCM 16bits, R ADC = L ADC 
-	wm8994_write(0x606,  0x0003);	
-	wm8994_write(0x607,  0x0003);
-
-////AIF1 Master Clock(SR=8KHz)
-	wm8994_write(0x200,  0x0011);
-	wm8994_write(0x302,  0x4000);
-	wm8994_write(0x303,  0x00F0);
-	wm8994_write(0x304,  0x0020);
-	wm8994_write(0x305,  0x0020);
-
-////AIF1 DAC1 HP
-	wm8994_write(0x05,   0x3303);
-	wm8994_write(0x420,  0x0000);
-	wm8994_write(0x601,  0x0001);
-	wm8994_write(0x602,  0x0001);
-	wm8994_write(0x700,  0x8140);//SYNC issue, AIF1 ADCLRC1 from FLL after AIF1 MASTER!!!
-	
-	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
-}
-
-void mainMIC_to_baseband_to_earpiece(void) //pcmbaseband
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_earpiece)return;
-	wm8994_current_mode=wm8994_mainMIC_to_baseband_to_earpiece;
-	wm8994_reset();
-	msleep(50);
-
-	wm8994_write(0x01,  0x0003|wm8994_mic_VCC);  
-	msleep(50);
-	wm8994_write(0x221, 0x0700);  //MCLK=12MHz
-	wm8994_write(0x222, 0x3127);	
-	wm8994_write(0x223, 0x0100);	
-	wm8994_write(0x220, 0x0004);
-	msleep(50);
-	wm8994_write(0x220, 0x0005);  
-
-	wm8994_write(0x01,  0x0803|wm8994_mic_VCC);   ///0x0813);	 
-	wm8994_write(0x02,  0x0240);   ///0x0110);
-	wm8994_write(0x03,  0x00F0);
-	wm8994_write(0x04,  0x3003);
-	wm8994_write(0x05,  0x3003); 
-	wm8994_write(0x18,  0x011F);
-	wm8994_write(0x1F,  0x0000); 
-	wm8994_write(0x28,  0x0030);  ///0x0003);
-	wm8994_write(0x29,  0x0020);
-	wm8994_write(0x2D,  0x0001);
-	wm8994_write(0x2E,  0x0001);
-	wm8994_write(0x33,  0x0018);
-	wm8994_write(0x200, 0x0001);
-	wm8994_write(0x204, 0x0001);
-	wm8994_write(0x208, 0x0007);
-	wm8994_write(0x520, 0x0000);
-	wm8994_write(0x601, 0x0004);
-	wm8994_write(0x602, 0x0004);
-
-	wm8994_write(0x610, 0x01C0);  //DAC1 Left Volume bit0~7
-	wm8994_write(0x611, 0x01C0);  //DAC1 Right Volume bit0~7
-	wm8994_write(0x612, 0x01C0);  //DAC2 Left Volume bit0~7	
-	wm8994_write(0x613, 0x01C0);  //DAC2 Right Volume bit0~7
-
-	wm8994_write(0x702, 0xC100);
-	wm8994_write(0x703, 0xC100);
-	wm8994_write(0x704, 0xC100);
-	wm8994_write(0x706, 0x4100);
-	wm8994_write(0x204, 0x0011);  //AIF2 MCLK=FLL1
-	wm8994_write(0x211, 0x0009);  //LRCK=8KHz, Rate=MCLK/1536
-	#ifdef TD688_MODE
-	wm8994_write(0x310, 0x4108); ///0x4118);  ///interface dsp mode 16bit
-	#endif
-	#ifdef CHONGY_MODE
-	wm8994_write(0x310, 0x4118); ///0x4118);  ///interface dsp mode 16bit
-	#endif
-	#ifdef MU301_MODE
-	wm8994_write(0x310, 0x4118); ///0x4118);  ///interface dsp mode 16bit
-	wm8994_write(0x241, 0x2f04);
-	wm8994_write(0x242, 0x0000);
-	wm8994_write(0x243, 0x0300);
-	wm8994_write(0x240, 0x0004);
-	msleep(40);
-	wm8994_write(0x240, 0x0005);
-	wm8994_write(0x204, 0x0019); 
-	wm8994_write(0x211, 0x0003);
-	wm8994_write(0x244, 0x0c83);
-	wm8994_write(0x620, 0x0000);
-	#endif
-	#ifdef THINKWILL_M800_MODE
-	wm8994_write(0x310, 0x4118); ///0x4118);  ///interface dsp mode 16bit
-	#endif
-	wm8994_write(0x313, 0x00F0);
-	wm8994_write(0x314, 0x0020);
-	wm8994_write(0x315, 0x0020);
-
-	wm8994_write(0x603, 0x018C);  //Rev.D ADCL SideTone
-	wm8994_write(0x604, 0x0010);
-	wm8994_write(0x605, 0x0010);
-	wm8994_write(0x621, 0x0000);  ///0x0001);
-	wm8994_write(0x317, 0x0003);
-	wm8994_write(0x312, 0x0000);  //AIF2 SET AS MASTER
-	
-	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
-}
-
-void mainMIC_to_baseband_to_earpiece_and_record(void) //pcmbaseband
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_earpiece_and_record)return;
-	wm8994_current_mode=wm8994_mainMIC_to_baseband_to_earpiece_and_record;
-	wm8994_reset();
-	msleep(50);
-
-	wm8994_write(0x01,  0x0003|wm8994_mic_VCC);  
-	msleep(50);
-	wm8994_write(0x221, 0x0700);  //MCLK=12MHz
-	wm8994_write(0x222, 0x3127);
-	wm8994_write(0x223, 0x0100);
-	wm8994_write(0x220, 0x0004);
-	msleep(50);
-	wm8994_write(0x220, 0x0005);  
-
-	wm8994_write(0x01,  0x0803|wm8994_mic_VCC);
-	wm8994_write(0x02,  0x0110);
-	wm8994_write(0x03,  0x00F0);
-	wm8994_write(0x04,  0x3003);
-	wm8994_write(0x05,  0x3003); 
-	wm8994_write(0x1A,  0x010B); 
-	wm8994_write(0x1F,  0x0000); 
-	wm8994_write(0x28,  0x0003);
-	wm8994_write(0x2A,  0x0020);
-	wm8994_write(0x2D,  0x0001);
-	wm8994_write(0x2E,  0x0001);
-	wm8994_write(0x33,  0x0018);
-	wm8994_write(0x200, 0x0001);	
-	wm8994_write(0x204, 0x0001);
-	wm8994_write(0x208, 0x0007);	
-	wm8994_write(0x520, 0x0000);	
-	wm8994_write(0x601, 0x0004);
-	wm8994_write(0x602, 0x0004);
-
-	wm8994_write(0x610, 0x01C0);  //DAC1 Left Volume bit0~7
-	wm8994_write(0x611, 0x01C0);  //DAC1 Right Volume bit0~7
-	wm8994_write(0x612, 0x01C0);  //DAC2 Left Volume bit0~7	
-	wm8994_write(0x613, 0x01C0);  //DAC2 Right Volume bit0~7
-
-	wm8994_write(0x702, 0xC100);
-	wm8994_write(0x703, 0xC100);
-	wm8994_write(0x704, 0xC100);
-	wm8994_write(0x706, 0x4100);
-	wm8994_write(0x204, 0x0011);  //AIF2 MCLK=FLL1
-	wm8994_write(0x211, 0x0009);  //LRCK=8KHz, Rate=MCLK/1536
-	wm8994_write(0x310, 0x4118);  //DSP/PCM 16bits
-	wm8994_write(0x313, 0x00F0);
-	wm8994_write(0x314, 0x0020);
-	wm8994_write(0x315, 0x0020);
-
-	wm8994_write(0x603, 0x018C);  //Rev.D ADCL SideTone
-	wm8994_write(0x604, 0x0010);
-	wm8994_write(0x605, 0x0010);
-	wm8994_write(0x621, 0x0001);
-
-////AIF1
-	wm8994_write(0x04,   0x3303);
-	wm8994_write(0x200,  0x0001);
-	wm8994_write(0x208,  0x000F);
-	wm8994_write(0x210,  0x0009);  //LRCK=8KHz, Rate=MCLK/1536
-	wm8994_write(0x300,  0xC118);  //DSP/PCM 16bits, R ADC = L ADC 
-	wm8994_write(0x606,  0x0003);	
-	wm8994_write(0x607,  0x0003);
-
-////AIF1 Master Clock(SR=8KHz)
-	wm8994_write(0x200,  0x0011);
-	wm8994_write(0x302,  0x4000);
-	wm8994_write(0x303,  0x00F0);
-	wm8994_write(0x304,  0x0020);
-	wm8994_write(0x305,  0x0020);
-
-////AIF1 DAC1 HP
-	wm8994_write(0x05,   0x3303);
-	wm8994_write(0x420,  0x0000);
-	wm8994_write(0x601,  0x0001);
-	wm8994_write(0x602,  0x0001);
-	wm8994_write(0x700,  0x8140);//SYNC issue, AIF1 ADCLRC1 from FLL after AIF1 MASTER!!!
-	
-	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
-}
-
-void mainMIC_to_baseband_to_speakers(void) //pcmbaseband
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_speakers)return;
-	wm8994_current_mode=wm8994_mainMIC_to_baseband_to_speakers;
-	wm8994_reset();
-	msleep(50);
-
-	wm8994_write(0x01,  0x0003|wm8994_mic_VCC);  //0x0013);  
-	msleep(50);
-	wm8994_write(0x221, 0x0700);  //MCLK=12MHz   //FLL1 CONTRLO(2)
-	wm8994_write(0x222, 0x3127);  //FLL1 CONTRLO(3)	
-	wm8994_write(0x223, 0x0100);  //FLL1 CONTRLO(4)	
-	wm8994_write(0x220, 0x0004);  //FLL1 CONTRLO(1)
-	msleep(50);
-	wm8994_write(0x220, 0x0005);  //FLL1 CONTRLO(1)
-
-	wm8994_write(0x01,  0x3003|wm8994_mic_VCC);	 
-	wm8994_write(0x02,  0x0110);
-	wm8994_write(0x03,  0x0030);  ///0x0330);
-	wm8994_write(0x04,  0x3003);
-	wm8994_write(0x05,  0x3003); 
-	wm8994_write(0x1A,  0x011F);
-	wm8994_write(0x22,  0x0000);
-	wm8994_write(0x23,  0x0100);  ///0x0000);
-	wm8994_write(0x25,  0x0152);
-	wm8994_write(0x28,  0x0003);
-	wm8994_write(0x2A,  0x0020);
-	wm8994_write(0x2D,  0x0001);
-	wm8994_write(0x2E,  0x0001);
-	wm8994_write(0x36,  0x000C);  //MIXOUTL_TO_SPKMIXL  MIXOUTR_TO_SPKMIXR
-	wm8994_write(0x200, 0x0001);  //AIF1 CLOCKING(1)
-	wm8994_write(0x204, 0x0001);  //AIF2 CLOCKING(1)
-	wm8994_write(0x208, 0x0007);  //CLOCKING(1)
-	wm8994_write(0x520, 0x0000);  //AIF2 DAC FILTERS(1)
-	wm8994_write(0x601, 0x0004);  //AIF2DACL_DAC1L
-	wm8994_write(0x602, 0x0004);  //AIF2DACR_DAC1R
-
-	wm8994_write(0x610, 0x01C0);  //DAC1 Left Volume bit0~7
-	wm8994_write(0x611, 0x01C0);  //DAC1 Right Volume bit0~7
-	wm8994_write(0x612, 0x01C0);  //DAC2 Left Volume bit0~7	
-	wm8994_write(0x613, 0x01C0);  //DAC2 Right Volume bit0~7
-
-	wm8994_write(0x702, 0xC100);  //GPIO3
-	wm8994_write(0x703, 0xC100);  //GPIO4
-	wm8994_write(0x704, 0xC100);  //GPIO5
-	wm8994_write(0x706, 0x4100);  //GPIO7
-	wm8994_write(0x204, 0x0011);  //AIF2 MCLK=FLL1
-	wm8994_write(0x211, 0x0009);  //LRCK=8KHz, Rate=MCLK/1536
-	#ifdef TD688_MODE
-	wm8994_write(0x310, 0xc108); ///0x4118);  ///interface dsp mode 16bit
-	#endif
-	#ifdef CHONGY_MODE
-	wm8994_write(0x310, 0xc018); ///0x4118);  ///interface dsp mode 16bit
-	#endif
-	#ifdef MU301_MODE
-	wm8994_write(0x310, 0xc118); ///0x4118);  ///interface dsp mode 16bit
-	wm8994_write(0x241, 0x2f04);
-	wm8994_write(0x242, 0x0000);
-	wm8994_write(0x243, 0x0300);
-	wm8994_write(0x240, 0x0004);
-	msleep(40);
-	wm8994_write(0x240, 0x0005);
-	wm8994_write(0x204, 0x0019);
-	wm8994_write(0x211, 0x0003);
-	wm8994_write(0x244, 0x0c83);
-	wm8994_write(0x620, 0x0000);
-	#endif
-	#ifdef THINKWILL_M800_MODE
-	wm8994_write(0x310, 0xc118); ///0x4118);  ///interface dsp mode 16bit
-	#endif
-	wm8994_write(0x313, 0x00F0);  //AIF2BCLK
-	wm8994_write(0x314, 0x0020);  //AIF2ADCLRCK
-	wm8994_write(0x315, 0x0020);  //AIF2DACLRCLK
-
-	wm8994_write(0x603, 0x018C);  //Rev.D ADCL SideTone
-	wm8994_write(0x604, 0x0020);  ///0x0010);  //ADC2_TO_DAC2L
-	wm8994_write(0x605, 0x0020);  //0x0010);  //ADC2_TO_DAC2R
-	wm8994_write(0x621, 0x0000);  ///0x0001);
-	wm8994_write(0x317, 0x0003);
-	wm8994_write(0x312, 0x0000);  //AIF2 SET AS MASTER
-
-	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
-}
-
-void mainMIC_to_baseband_to_speakers_and_record(void) //pcmbaseband
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_speakers_and_record)return;
-	wm8994_current_mode=wm8994_mainMIC_to_baseband_to_speakers_and_record;
-	wm8994_reset();
-	msleep(50);
-
-	wm8994_write(0x01,  0x0003|wm8994_mic_VCC);  
-	msleep(50);
-	wm8994_write(0x221, 0x0700);  //MCLK=12MHz
-	wm8994_write(0x222, 0x3127);	
-	wm8994_write(0x223, 0x0100);	
-	wm8994_write(0x220, 0x0004);
-	msleep(50);
-	wm8994_write(0x220, 0x0005);  
-
-	wm8994_write(0x02,  0x0110);
-	wm8994_write(0x03,  0x0330);
-	wm8994_write(0x04,  0x3003);
-	wm8994_write(0x05,  0x3003); 
-	wm8994_write(0x1A,  0x010B); 
-	wm8994_write(0x22,  0x0000);
-	wm8994_write(0x23,  0x0000);
-	wm8994_write(0x28,  0x0003);
-	wm8994_write(0x2A,  0x0020);
-	wm8994_write(0x2D,  0x0001);
-	wm8994_write(0x2E,  0x0001);
-	wm8994_write(0x36,  0x000C);
-	wm8994_write(0x200, 0x0001);	
-	wm8994_write(0x204, 0x0001);
-	wm8994_write(0x208, 0x0007);	
-	wm8994_write(0x520, 0x0000);	
-	wm8994_write(0x601, 0x0004);
-	wm8994_write(0x602, 0x0004);
-
-	wm8994_write(0x610, 0x01C0);  //DAC1 Left Volume bit0~7
-	wm8994_write(0x611, 0x01C0);  //DAC1 Right Volume bit0~7
-	wm8994_write(0x612, 0x01C0);  //DAC2 Left Volume bit0~7	
-	wm8994_write(0x613, 0x01C0);  //DAC2 Right Volume bit0~7
-
-	wm8994_write(0x700, 0x8141);
-	wm8994_write(0x702, 0xC100);
-	wm8994_write(0x703, 0xC100);
-	wm8994_write(0x704, 0xC100);
-	wm8994_write(0x706, 0x4100);
-	wm8994_write(0x204, 0x0011);  //AIF2 MCLK=FLL1
-	wm8994_write(0x211, 0x0009);  //LRCK=8KHz, Rate=MCLK/1536
-	wm8994_write(0x310, 0x4118);  //DSP/PCM 16bits
-	wm8994_write(0x313, 0x00F0);
-	wm8994_write(0x314, 0x0020);
-	wm8994_write(0x315, 0x0020);
-
-	wm8994_write(0x603, 0x018C);  //Rev.D ADCL SideTone
-	wm8994_write(0x604, 0x0010);
-	wm8994_write(0x605, 0x0010);
-	wm8994_write(0x621, 0x0001);
-
-////AIF1
-	wm8994_write(0x04,   0x3303);
-	wm8994_write(0x200,  0x0001);
-	wm8994_write(0x208,  0x000F);
-	wm8994_write(0x210,  0x0009);  //LRCK=8KHz, Rate=MCLK/1536
-	wm8994_write(0x300,  0xC118);  //DSP/PCM 16bits, R ADC = L ADC 
-	wm8994_write(0x606,  0x0003);	
-	wm8994_write(0x607,  0x0003);
-
-////AIF1 Master Clock(SR=8KHz)
-	wm8994_write(0x200,  0x0011);
-	wm8994_write(0x302,  0x4000);
-	wm8994_write(0x303,  0x00F0);
-	wm8994_write(0x304,  0x0020);
-	wm8994_write(0x305,  0x0020);
-
-////AIF1 DAC1 HP
-	wm8994_write(0x05,   0x3303);
-	wm8994_write(0x420,  0x0000);
-	wm8994_write(0x601,  0x0001);
-	wm8994_write(0x602,  0x0001);
-	wm8994_write(0x700,  0x8140);//SYNC issue, AIF1 ADCLRC1 from FLL after AIF1 MASTER!!!
-	
-	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
-}
-
-void BT_baseband(void) //pcmbaseband
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_BT_baseband)return;
-	wm8994_current_mode=wm8994_BT_baseband;
-	wm8994_reset();
-	msleep(50);
-
-	wm8994_write(0x01 ,0x0003);
-	msleep (50);
-
-	wm8994_write(0x200 ,0x0001);
-	wm8994_write(0x221 ,0x0700);//MCLK=12MHz
-	wm8994_write(0x222 ,0x3127);
-	wm8994_write(0x223 ,0x0100);
-	wm8994_write(0x220 ,0x0004);
-	msleep (50);
-	wm8994_write(0x220 ,0x0005); 
-
-	wm8994_write(0x02 ,0x0000); 
-	wm8994_write(0x200 ,0x0011);// AIF1 MCLK=FLL1
-	wm8994_write(0x210 ,0x0009);// LRCK=8KHz, Rate=MCLK/1536
-	wm8994_write(0x300 ,0x4018);// DSP/PCM 16bits
-
-	wm8994_write(0x204 ,0x0011);// AIF2 MCLK=FLL1
-	wm8994_write(0x211 ,0x0009);// LRCK=8KHz, Rate=MCLK/1536
-	wm8994_write(0x310 ,0x4118);// DSP/PCM 16bits
-	wm8994_write(0x208 ,0x000F); 
-
-/////AIF1
-	wm8994_write(0x700 ,0x8101);
-/////AIF2
-	wm8994_write(0x702 ,0xC100);
-	wm8994_write(0x703 ,0xC100);
-	wm8994_write(0x704 ,0xC100);
-	wm8994_write(0x706 ,0x4100);
-/////AIF3
-	wm8994_write(0x707 ,0xA100); 
-	wm8994_write(0x708 ,0xA100);
-	wm8994_write(0x709 ,0xA100); 
-	wm8994_write(0x70A ,0xA100);
-
-	wm8994_write(0x06 ,0x0001);
-
-	wm8994_write(0x02 ,0x0300);
-	wm8994_write(0x03 ,0x0030);
-	wm8994_write(0x04 ,0x3301);//ADCL off
-	wm8994_write(0x05 ,0x3301);//DACL off
-
-	wm8994_write(0x2A ,0x0005);
-
-	wm8994_write(0x313 ,0x00F0);
-	wm8994_write(0x314 ,0x0020);
-	wm8994_write(0x315 ,0x0020);
-
-	wm8994_write(0x2E ,0x0001);
-	wm8994_write(0x420 ,0x0000);
-	wm8994_write(0x520 ,0x0000);
-	wm8994_write(0x601 ,0x0001);
-	wm8994_write(0x602 ,0x0001);
-	wm8994_write(0x604 ,0x0001);
-	wm8994_write(0x605 ,0x0001);
-	wm8994_write(0x607 ,0x0002);
-	wm8994_write(0x611, 0x01C0);  //DAC1 Right Volume bit0~7
-	wm8994_write(0x612, 0x01C0);  //DAC2 Left Volume bit0~7	
-	wm8994_write(0x613, 0x01C0);  //DAC2 Right Volume bit0~7
-
-
-	wm8994_write(0x312 ,0x4000);
-
-	wm8994_write(0x606 ,0x0001);
-	wm8994_write(0x607 ,0x0003);//R channel for data mix/CPU record data
-
-
-////////////HP output test
-	wm8994_write(0x01 ,0x0303);
-	wm8994_write(0x4C ,0x9F25);
-	wm8994_write(0x60 ,0x00EE);
-///////////end HP test
-
-	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
-}
-
-void BT_baseband_and_record(void) //pcmbaseband
-{
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-
-	if(wm8994_current_mode==wm8994_BT_baseband_and_record)return;
-	wm8994_current_mode=wm8994_BT_baseband_and_record;
-	wm8994_reset();
-	msleep(50);
-
-	wm8994_write(0x01  ,0x0003);
-	msleep (50);
-
-	wm8994_write(0x200 ,0x0001);
-	wm8994_write(0x221 ,0x0700);//MCLK=12MHz
-	wm8994_write(0x222 ,0x3127);
-	wm8994_write(0x223 ,0x0100);
-	wm8994_write(0x220 ,0x0004);
-	msleep (50);
-	wm8994_write(0x220 ,0x0005); 
-
-	wm8994_write(0x02 ,0x0000); 
-	wm8994_write(0x200 ,0x0011);// AIF1 MCLK=FLL1
-	wm8994_write(0x210 ,0x0009);// LRCK=8KHz, Rate=MCLK/1536
-	wm8994_write(0x300 ,0x4018);// DSP/PCM 16bits
-
-	wm8994_write(0x204 ,0x0011);// AIF2 MCLK=FLL1
-	wm8994_write(0x211 ,0x0009);// LRCK=8KHz, Rate=MCLK/1536
-	wm8994_write(0x310 ,0x4118);// DSP/PCM 16bits
-	wm8994_write(0x208 ,0x000F); 
-
-/////AIF1
-	wm8994_write(0x700 ,0x8101);
-/////AIF2
-	wm8994_write(0x702 ,0xC100);
-	wm8994_write(0x703 ,0xC100);
-	wm8994_write(0x704 ,0xC100);
-	wm8994_write(0x706 ,0x4100);
-/////AIF3
-	wm8994_write(0x707 ,0xA100); 
-	wm8994_write(0x708 ,0xA100);
-	wm8994_write(0x709 ,0xA100); 
-	wm8994_write(0x70A ,0xA100);
-
-	wm8994_write(0x06 ,0x0001);
-	wm8994_write(0x02 ,0x0300);
-	wm8994_write(0x03 ,0x0030);
-	wm8994_write(0x04 ,0x3301);//ADCL off
-	wm8994_write(0x05 ,0x3301);//DACL off
-	wm8994_write(0x2A ,0x0005);
-
-	wm8994_write(0x313 ,0x00F0);
-	wm8994_write(0x314 ,0x0020);
-	wm8994_write(0x315 ,0x0020);
-
-	wm8994_write(0x2E  ,0x0001);
-	wm8994_write(0x420 ,0x0000);
-	wm8994_write(0x520 ,0x0000);
-	wm8994_write(0x602 ,0x0001);
-	wm8994_write(0x604 ,0x0001);
-	wm8994_write(0x605 ,0x0001);
-	wm8994_write(0x607 ,0x0002);
-	wm8994_write(0x611, 0x01C0);  //DAC1 Right Volume bit0~7
-	wm8994_write(0x612, 0x01C0);  //DAC2 Left Volume bit0~7	
-	wm8994_write(0x613, 0x01C0);  //DAC2 Right Volume bit0~7
-
-	wm8994_write(0x312 ,0x4000);
-
-	wm8994_write(0x606 ,0x0001);
-	wm8994_write(0x607 ,0x0003);//R channel for data mix/CPU record data
-////////////HP output test
-	wm8994_write(0x01 ,0x0303);
-	wm8994_write(0x4C ,0x9F25); 
-	wm8994_write(0x60 ,0x00EE); 
-///////////end HP test
-
-	wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
-}
-#endif //PCM_BB
-
-
-typedef void (wm8994_codec_fnc_t) (void);
-
-wm8994_codec_fnc_t *wm8994_codec_sequence[] = {
-	AP_to_headset,
-	AP_to_speakers,
-	recorder_and_AP_to_headset,
-	recorder_and_AP_to_speakers,
-	FM_to_headset,
-	FM_to_headset_and_record,
-	FM_to_speakers,
-	FM_to_speakers_and_record,
-	handsetMIC_to_baseband_to_headset,
-	handsetMIC_to_baseband_to_headset_and_record,
-	mainMIC_to_baseband_to_earpiece,
-	mainMIC_to_baseband_to_earpiece_and_record,
-	mainMIC_to_baseband_to_speakers,
-	mainMIC_to_baseband_to_speakers_and_record,
-	BT_baseband,
-	BT_baseband_and_record,
+static struct {
+	unsigned short  readable;   /* Mask of readable bits */
+	unsigned short  writable;   /* Mask of writable bits */
+	unsigned short  vol;        /* Mask of volatile bits */
+} access_masks[] = {
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R0     - Software Reset */
+	{ 0x3B37, 0x3B37, 0x0000 }, /* R1     - Power Management (1) */
+	{ 0x6BF0, 0x6BF0, 0x0000 }, /* R2     - Power Management (2) */
+	{ 0x3FF0, 0x3FF0, 0x0000 }, /* R3     - Power Management (3) */
+	{ 0x3F3F, 0x3F3F, 0x0000 }, /* R4     - Power Management (4) */
+	{ 0x3F0F, 0x3F0F, 0x0000 }, /* R5     - Power Management (5) */
+	{ 0x003F, 0x003F, 0x0000 }, /* R6     - Power Management (6) */
+	{ 0x0000, 0x0000, 0x0000 }, /* R7 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R8 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R9 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R10 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R11 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R12 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R13 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R14 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R15 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R16 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R17 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R18 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R19 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R20 */
+	{ 0x01C0, 0x01C0, 0x0000 }, /* R21    - Input Mixer (1) */
+	{ 0x0000, 0x0000, 0x0000 }, /* R22 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R23 */
+	{ 0x00DF, 0x01DF, 0x0000 }, /* R24    - Left Line Input 1&2 Volume */
+	{ 0x00DF, 0x01DF, 0x0000 }, /* R25    - Left Line Input 3&4 Volume */
+	{ 0x00DF, 0x01DF, 0x0000 }, /* R26    - Right Line Input 1&2 Volume */
+	{ 0x00DF, 0x01DF, 0x0000 }, /* R27    - Right Line Input 3&4 Volume */
+	{ 0x00FF, 0x01FF, 0x0000 }, /* R28    - Left Output Volume */
+	{ 0x00FF, 0x01FF, 0x0000 }, /* R29    - Right Output Volume */
+	{ 0x0077, 0x0077, 0x0000 }, /* R30    - Line Outputs Volume */
+	{ 0x0030, 0x0030, 0x0000 }, /* R31    - HPOUT2 Volume */
+	{ 0x00FF, 0x01FF, 0x0000 }, /* R32    - Left OPGA Volume */
+	{ 0x00FF, 0x01FF, 0x0000 }, /* R33    - Right OPGA Volume */
+	{ 0x007F, 0x007F, 0x0000 }, /* R34    - SPKMIXL Attenuation */
+	{ 0x017F, 0x017F, 0x0000 }, /* R35    - SPKMIXR Attenuation */
+	{ 0x003F, 0x003F, 0x0000 }, /* R36    - SPKOUT Mixers */
+	{ 0x003F, 0x003F, 0x0000 }, /* R37    - ClassD */
+	{ 0x00FF, 0x01FF, 0x0000 }, /* R38    - Speaker Volume Left */
+	{ 0x00FF, 0x01FF, 0x0000 }, /* R39    - Speaker Volume Right */
+	{ 0x00FF, 0x00FF, 0x0000 }, /* R40    - Input Mixer (2) */
+	{ 0x01B7, 0x01B7, 0x0000 }, /* R41    - Input Mixer (3) */
+	{ 0x01B7, 0x01B7, 0x0000 }, /* R42    - Input Mixer (4) */
+	{ 0x01C7, 0x01C7, 0x0000 }, /* R43    - Input Mixer (5) */
+	{ 0x01C7, 0x01C7, 0x0000 }, /* R44    - Input Mixer (6) */
+	{ 0x01FF, 0x01FF, 0x0000 }, /* R45    - Output Mixer (1) */
+	{ 0x01FF, 0x01FF, 0x0000 }, /* R46    - Output Mixer (2) */
+	{ 0x0FFF, 0x0FFF, 0x0000 }, /* R47    - Output Mixer (3) */
+	{ 0x0FFF, 0x0FFF, 0x0000 }, /* R48    - Output Mixer (4) */
+	{ 0x0FFF, 0x0FFF, 0x0000 }, /* R49    - Output Mixer (5) */
+	{ 0x0FFF, 0x0FFF, 0x0000 }, /* R50    - Output Mixer (6) */
+	{ 0x0038, 0x0038, 0x0000 }, /* R51    - HPOUT2 Mixer */
+	{ 0x0077, 0x0077, 0x0000 }, /* R52    - Line Mixer (1) */
+	{ 0x0077, 0x0077, 0x0000 }, /* R53    - Line Mixer (2) */
+	{ 0x03FF, 0x03FF, 0x0000 }, /* R54    - Speaker Mixer */
+	{ 0x00C1, 0x00C1, 0x0000 }, /* R55    - Additional Control */
+	{ 0x00F0, 0x00F0, 0x0000 }, /* R56    - AntiPOP (1) */
+	{ 0x01EF, 0x01EF, 0x0000 }, /* R57    - AntiPOP (2) */
+	{ 0x00FF, 0x00FF, 0x0000 }, /* R58    - MICBIAS */
+	{ 0x000F, 0x000F, 0x0000 }, /* R59    - LDO 1 */
+	{ 0x0007, 0x0007, 0x0000 }, /* R60    - LDO 2 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R61 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R62 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R63 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R64 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R65 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R66 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R67 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R68 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R69 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R70 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R71 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R72 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R73 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R74 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R75 */
+	{ 0x8000, 0x8000, 0x0000 }, /* R76    - Charge Pump (1) */
+	{ 0x0000, 0x0000, 0x0000 }, /* R77 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R78 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R79 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R80 */
+	{ 0x0301, 0x0301, 0x0000 }, /* R81    - Class W (1) */
+	{ 0x0000, 0x0000, 0x0000 }, /* R82 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R83 */
+	{ 0x333F, 0x333F, 0x0000 }, /* R84    - DC Servo (1) */
+	{ 0x0FEF, 0x0FEF, 0x0000 }, /* R85    - DC Servo (2) */
+	{ 0x0000, 0x0000, 0x0000 }, /* R86 */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R87    - DC Servo (4) */
+	{ 0x0333, 0x0000, 0x0000 }, /* R88    - DC Servo Readback */
+	{ 0x0000, 0x0000, 0x0000 }, /* R89 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R90 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R91 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R92 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R93 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R94 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R95 */
+	{ 0x00EE, 0x00EE, 0x0000 }, /* R96    - Analogue HP (1) */
+	{ 0x0000, 0x0000, 0x0000 }, /* R97 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R98 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R99 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R100 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R101 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R102 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R103 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R104 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R105 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R106 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R107 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R108 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R109 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R110 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R111 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R112 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R113 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R114 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R115 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R116 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R117 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R118 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R119 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R120 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R121 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R122 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R123 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R124 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R125 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R126 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R127 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R128 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R129 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R130 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R131 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R132 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R133 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R134 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R135 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R136 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R137 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R138 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R139 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R140 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R141 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R142 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R143 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R144 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R145 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R146 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R147 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R148 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R149 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R150 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R151 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R152 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R153 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R154 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R155 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R156 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R157 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R158 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R159 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R160 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R161 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R162 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R163 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R164 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R165 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R166 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R167 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R168 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R169 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R170 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R171 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R172 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R173 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R174 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R175 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R176 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R177 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R178 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R179 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R180 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R181 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R182 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R183 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R184 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R185 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R186 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R187 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R188 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R189 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R190 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R191 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R192 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R193 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R194 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R195 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R196 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R197 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R198 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R199 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R200 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R201 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R202 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R203 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R204 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R205 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R206 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R207 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R208 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R209 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R210 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R211 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R212 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R213 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R214 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R215 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R216 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R217 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R218 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R219 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R220 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R221 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R222 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R223 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R224 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R225 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R226 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R227 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R228 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R229 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R230 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R231 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R232 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R233 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R234 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R235 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R236 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R237 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R238 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R239 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R240 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R241 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R242 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R243 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R244 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R245 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R246 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R247 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R248 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R249 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R250 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R251 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R252 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R253 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R254 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R255 */
+	{ 0x000F, 0x0000, 0x0000 }, /* R256   - Chip Revision */
+	{ 0x0074, 0x0074, 0x0000 }, /* R257   - Control Interface */
+	{ 0x0000, 0x0000, 0x0000 }, /* R258 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R259 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R260 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R261 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R262 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R263 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R264 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R265 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R266 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R267 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R268 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R269 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R270 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R271 */
+	{ 0x807F, 0x837F, 0x0000 }, /* R272   - Write Sequencer Ctrl (1) */
+	{ 0x017F, 0x0000, 0x0000 }, /* R273   - Write Sequencer Ctrl (2) */
+	{ 0x0000, 0x0000, 0x0000 }, /* R274 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R275 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R276 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R277 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R278 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R279 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R280 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R281 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R282 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R283 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R284 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R285 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R286 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R287 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R288 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R289 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R290 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R291 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R292 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R293 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R294 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R295 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R296 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R297 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R298 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R299 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R300 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R301 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R302 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R303 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R304 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R305 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R306 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R307 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R308 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R309 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R310 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R311 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R312 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R313 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R314 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R315 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R316 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R317 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R318 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R319 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R320 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R321 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R322 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R323 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R324 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R325 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R326 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R327 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R328 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R329 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R330 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R331 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R332 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R333 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R334 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R335 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R336 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R337 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R338 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R339 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R340 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R341 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R342 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R343 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R344 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R345 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R346 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R347 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R348 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R349 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R350 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R351 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R352 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R353 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R354 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R355 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R356 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R357 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R358 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R359 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R360 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R361 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R362 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R363 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R364 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R365 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R366 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R367 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R368 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R369 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R370 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R371 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R372 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R373 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R374 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R375 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R376 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R377 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R378 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R379 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R380 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R381 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R382 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R383 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R384 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R385 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R386 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R387 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R388 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R389 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R390 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R391 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R392 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R393 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R394 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R395 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R396 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R397 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R398 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R399 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R400 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R401 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R402 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R403 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R404 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R405 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R406 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R407 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R408 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R409 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R410 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R411 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R412 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R413 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R414 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R415 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R416 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R417 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R418 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R419 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R420 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R421 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R422 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R423 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R424 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R425 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R426 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R427 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R428 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R429 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R430 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R431 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R432 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R433 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R434 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R435 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R436 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R437 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R438 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R439 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R440 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R441 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R442 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R443 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R444 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R445 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R446 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R447 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R448 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R449 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R450 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R451 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R452 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R453 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R454 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R455 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R456 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R457 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R458 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R459 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R460 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R461 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R462 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R463 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R464 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R465 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R466 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R467 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R468 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R469 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R470 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R471 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R472 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R473 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R474 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R475 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R476 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R477 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R478 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R479 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R480 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R481 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R482 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R483 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R484 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R485 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R486 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R487 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R488 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R489 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R490 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R491 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R492 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R493 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R494 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R495 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R496 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R497 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R498 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R499 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R500 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R501 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R502 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R503 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R504 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R505 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R506 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R507 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R508 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R509 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R510 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R511 */
+	{ 0x001F, 0x001F, 0x0000 }, /* R512   - AIF1 Clocking (1) */
+	{ 0x003F, 0x003F, 0x0000 }, /* R513   - AIF1 Clocking (2) */
+	{ 0x0000, 0x0000, 0x0000 }, /* R514 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R515 */
+	{ 0x001F, 0x001F, 0x0000 }, /* R516   - AIF2 Clocking (1) */
+	{ 0x003F, 0x003F, 0x0000 }, /* R517   - AIF2 Clocking (2) */
+	{ 0x0000, 0x0000, 0x0000 }, /* R518 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R519 */
+	{ 0x001F, 0x001F, 0x0000 }, /* R520   - Clocking (1) */
+	{ 0x0777, 0x0777, 0x0000 }, /* R521   - Clocking (2) */
+	{ 0x0000, 0x0000, 0x0000 }, /* R522 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R523 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R524 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R525 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R526 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R527 */
+	{ 0x00FF, 0x00FF, 0x0000 }, /* R528   - AIF1 Rate */
+	{ 0x00FF, 0x00FF, 0x0000 }, /* R529   - AIF2 Rate */
+	{ 0x000F, 0x0000, 0x0000 }, /* R530   - Rate Status */
+	{ 0x0000, 0x0000, 0x0000 }, /* R531 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R532 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R533 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R534 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R535 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R536 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R537 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R538 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R539 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R540 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R541 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R542 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R543 */
+	{ 0x0007, 0x0007, 0x0000 }, /* R544   - FLL1 Control (1) */
+	{ 0x3F77, 0x3F77, 0x0000 }, /* R545   - FLL1 Control (2) */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R546   - FLL1 Control (3) */
+	{ 0x7FEF, 0x7FEF, 0x0000 }, /* R547   - FLL1 Control (4) */
+	{ 0x1FDB, 0x1FDB, 0x0000 }, /* R548   - FLL1 Control (5) */
+	{ 0x0000, 0x0000, 0x0000 }, /* R549 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R550 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R551 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R552 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R553 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R554 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R555 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R556 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R557 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R558 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R559 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R560 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R561 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R562 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R563 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R564 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R565 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R566 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R567 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R568 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R569 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R570 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R571 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R572 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R573 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R574 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R575 */
+	{ 0x0007, 0x0007, 0x0000 }, /* R576   - FLL2 Control (1) */
+	{ 0x3F77, 0x3F77, 0x0000 }, /* R577   - FLL2 Control (2) */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R578   - FLL2 Control (3) */
+	{ 0x7FEF, 0x7FEF, 0x0000 }, /* R579   - FLL2 Control (4) */
+	{ 0x1FDB, 0x1FDB, 0x0000 }, /* R580   - FLL2 Control (5) */
+	{ 0x0000, 0x0000, 0x0000 }, /* R581 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R582 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R583 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R584 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R585 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R586 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R587 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R588 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R589 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R590 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R591 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R592 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R593 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R594 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R595 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R596 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R597 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R598 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R599 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R600 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R601 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R602 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R603 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R604 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R605 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R606 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R607 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R608 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R609 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R610 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R611 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R612 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R613 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R614 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R615 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R616 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R617 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R618 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R619 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R620 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R621 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R622 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R623 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R624 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R625 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R626 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R627 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R628 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R629 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R630 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R631 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R632 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R633 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R634 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R635 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R636 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R637 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R638 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R639 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R640 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R641 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R642 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R643 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R644 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R645 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R646 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R647 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R648 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R649 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R650 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R651 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R652 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R653 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R654 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R655 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R656 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R657 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R658 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R659 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R660 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R661 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R662 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R663 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R664 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R665 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R666 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R667 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R668 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R669 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R670 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R671 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R672 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R673 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R674 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R675 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R676 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R677 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R678 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R679 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R680 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R681 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R682 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R683 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R684 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R685 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R686 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R687 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R688 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R689 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R690 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R691 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R692 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R693 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R694 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R695 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R696 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R697 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R698 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R699 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R700 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R701 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R702 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R703 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R704 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R705 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R706 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R707 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R708 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R709 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R710 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R711 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R712 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R713 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R714 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R715 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R716 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R717 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R718 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R719 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R720 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R721 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R722 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R723 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R724 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R725 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R726 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R727 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R728 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R729 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R730 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R731 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R732 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R733 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R734 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R735 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R736 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R737 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R738 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R739 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R740 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R741 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R742 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R743 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R744 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R745 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R746 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R747 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R748 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R749 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R750 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R751 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R752 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R753 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R754 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R755 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R756 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R757 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R758 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R759 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R760 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R761 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R762 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R763 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R764 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R765 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R766 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R767 */
+	{ 0xE1F8, 0xE1F8, 0x0000 }, /* R768   - AIF1 Control (1) */
+	{ 0xCD1F, 0xCD1F, 0x0000 }, /* R769   - AIF1 Control (2) */
+	{ 0xF000, 0xF000, 0x0000 }, /* R770   - AIF1 Master/Slave */
+	{ 0x01F0, 0x01F0, 0x0000 }, /* R771   - AIF1 BCLK */
+	{ 0x0FFF, 0x0FFF, 0x0000 }, /* R772   - AIF1ADC LRCLK */
+	{ 0x0FFF, 0x0FFF, 0x0000 }, /* R773   - AIF1DAC LRCLK */
+	{ 0x0003, 0x0003, 0x0000 }, /* R774   - AIF1DAC Data */
+	{ 0x0003, 0x0003, 0x0000 }, /* R775   - AIF1ADC Data */
+	{ 0x0000, 0x0000, 0x0000 }, /* R776 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R777 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R778 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R779 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R780 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R781 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R782 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R783 */
+	{ 0xF1F8, 0xF1F8, 0x0000 }, /* R784   - AIF2 Control (1) */
+	{ 0xFD1F, 0xFD1F, 0x0000 }, /* R785   - AIF2 Control (2) */
+	{ 0xF000, 0xF000, 0x0000 }, /* R786   - AIF2 Master/Slave */
+	{ 0x01F0, 0x01F0, 0x0000 }, /* R787   - AIF2 BCLK */
+	{ 0x0FFF, 0x0FFF, 0x0000 }, /* R788   - AIF2ADC LRCLK */
+	{ 0x0FFF, 0x0FFF, 0x0000 }, /* R789   - AIF2DAC LRCLK */
+	{ 0x0003, 0x0003, 0x0000 }, /* R790   - AIF2DAC Data */
+	{ 0x0003, 0x0003, 0x0000 }, /* R791   - AIF2ADC Data */
+	{ 0x0000, 0x0000, 0x0000 }, /* R792 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R793 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R794 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R795 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R796 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R797 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R798 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R799 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R800 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R801 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R802 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R803 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R804 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R805 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R806 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R807 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R808 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R809 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R810 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R811 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R812 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R813 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R814 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R815 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R816 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R817 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R818 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R819 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R820 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R821 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R822 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R823 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R824 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R825 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R826 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R827 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R828 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R829 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R830 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R831 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R832 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R833 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R834 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R835 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R836 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R837 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R838 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R839 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R840 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R841 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R842 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R843 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R844 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R845 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R846 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R847 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R848 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R849 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R850 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R851 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R852 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R853 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R854 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R855 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R856 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R857 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R858 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R859 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R860 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R861 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R862 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R863 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R864 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R865 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R866 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R867 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R868 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R869 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R870 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R871 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R872 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R873 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R874 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R875 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R876 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R877 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R878 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R879 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R880 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R881 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R882 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R883 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R884 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R885 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R886 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R887 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R888 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R889 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R890 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R891 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R892 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R893 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R894 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R895 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R896 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R897 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R898 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R899 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R900 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R901 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R902 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R903 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R904 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R905 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R906 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R907 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R908 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R909 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R910 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R911 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R912 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R913 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R914 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R915 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R916 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R917 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R918 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R919 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R920 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R921 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R922 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R923 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R924 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R925 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R926 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R927 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R928 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R929 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R930 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R931 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R932 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R933 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R934 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R935 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R936 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R937 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R938 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R939 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R940 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R941 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R942 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R943 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R944 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R945 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R946 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R947 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R948 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R949 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R950 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R951 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R952 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R953 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R954 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R955 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R956 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R957 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R958 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R959 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R960 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R961 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R962 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R963 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R964 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R965 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R966 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R967 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R968 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R969 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R970 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R971 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R972 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R973 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R974 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R975 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R976 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R977 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R978 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R979 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R980 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R981 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R982 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R983 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R984 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R985 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R986 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R987 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R988 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R989 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R990 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R991 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R992 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R993 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R994 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R995 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R996 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R997 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R998 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R999 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1000 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1001 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1002 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1003 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1004 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1005 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1006 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1007 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1008 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1009 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1010 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1011 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1012 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1013 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1014 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1015 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1016 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1017 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1018 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1019 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1020 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1021 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1022 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1023 */
+	{ 0x00FF, 0x01FF, 0x0000 }, /* R1024  - AIF1 ADC1 Left Volume */
+	{ 0x00FF, 0x01FF, 0x0000 }, /* R1025  - AIF1 ADC1 Right Volume */
+	{ 0x00FF, 0x01FF, 0x0000 }, /* R1026  - AIF1 DAC1 Left Volume */
+	{ 0x00FF, 0x01FF, 0x0000 }, /* R1027  - AIF1 DAC1 Right Volume */
+	{ 0x00FF, 0x01FF, 0x0000 }, /* R1028  - AIF1 ADC2 Left Volume */
+	{ 0x00FF, 0x01FF, 0x0000 }, /* R1029  - AIF1 ADC2 Right Volume */
+	{ 0x00FF, 0x01FF, 0x0000 }, /* R1030  - AIF1 DAC2 Left Volume */
+	{ 0x00FF, 0x01FF, 0x0000 }, /* R1031  - AIF1 DAC2 Right Volume */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1032 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1033 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1034 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1035 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1036 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1037 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1038 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1039 */
+	{ 0xF800, 0xF800, 0x0000 }, /* R1040  - AIF1 ADC1 Filters */
+	{ 0x7800, 0x7800, 0x0000 }, /* R1041  - AIF1 ADC2 Filters */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1042 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1043 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1044 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1045 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1046 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1047 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1048 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1049 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1050 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1051 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1052 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1053 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1054 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1055 */
+	{ 0x02B6, 0x02B6, 0x0000 }, /* R1056  - AIF1 DAC1 Filters (1) */
+	{ 0x3F00, 0x3F00, 0x0000 }, /* R1057  - AIF1 DAC1 Filters (2) */
+	{ 0x02B6, 0x02B6, 0x0000 }, /* R1058  - AIF1 DAC2 Filters (1) */
+	{ 0x3F00, 0x3F00, 0x0000 }, /* R1059  - AIF1 DAC2 Filters (2) */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1060 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1061 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1062 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1063 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1064 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1065 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1066 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1067 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1068 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1069 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1070 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1071 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1072 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1073 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1074 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1075 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1076 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1077 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1078 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1079 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1080 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1081 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1082 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1083 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1084 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1085 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1086 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1087 */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1088  - AIF1 DRC1 (1) */
+	{ 0x1FFF, 0x1FFF, 0x0000 }, /* R1089  - AIF1 DRC1 (2) */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1090  - AIF1 DRC1 (3) */
+	{ 0x07FF, 0x07FF, 0x0000 }, /* R1091  - AIF1 DRC1 (4) */
+	{ 0x03FF, 0x03FF, 0x0000 }, /* R1092  - AIF1 DRC1 (5) */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1093 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1094 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1095 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1096 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1097 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1098 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1099 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1100 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1101 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1102 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1103 */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1104  - AIF1 DRC2 (1) */
+	{ 0x1FFF, 0x1FFF, 0x0000 }, /* R1105  - AIF1 DRC2 (2) */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1106  - AIF1 DRC2 (3) */
+	{ 0x07FF, 0x07FF, 0x0000 }, /* R1107  - AIF1 DRC2 (4) */
+	{ 0x03FF, 0x03FF, 0x0000 }, /* R1108  - AIF1 DRC2 (5) */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1109 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1110 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1111 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1112 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1113 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1114 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1115 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1116 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1117 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1118 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1119 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1120 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1121 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1122 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1123 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1124 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1125 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1126 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1127 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1128 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1129 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1130 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1131 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1132 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1133 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1134 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1135 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1136 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1137 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1138 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1139 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1140 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1141 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1142 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1143 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1144 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1145 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1146 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1147 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1148 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1149 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1150 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1151 */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1152  - AIF1 DAC1 EQ Gains (1) */
+	{ 0xFFC0, 0xFFC0, 0x0000 }, /* R1153  - AIF1 DAC1 EQ Gains (2) */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1154  - AIF1 DAC1 EQ Band 1 A */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1155  - AIF1 DAC1 EQ Band 1 B */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1156  - AIF1 DAC1 EQ Band 1 PG */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1157  - AIF1 DAC1 EQ Band 2 A */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1158  - AIF1 DAC1 EQ Band 2 B */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1159  - AIF1 DAC1 EQ Band 2 C */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1160  - AIF1 DAC1 EQ Band 2 PG */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1161  - AIF1 DAC1 EQ Band 3 A */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1162  - AIF1 DAC1 EQ Band 3 B */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1163  - AIF1 DAC1 EQ Band 3 C */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1164  - AIF1 DAC1 EQ Band 3 PG */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1165  - AIF1 DAC1 EQ Band 4 A */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1166  - AIF1 DAC1 EQ Band 4 B */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1167  - AIF1 DAC1 EQ Band 4 C */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1168  - AIF1 DAC1 EQ Band 4 PG */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1169  - AIF1 DAC1 EQ Band 5 A */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1170  - AIF1 DAC1 EQ Band 5 B */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1171  - AIF1 DAC1 EQ Band 5 PG */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1172 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1173 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1174 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1175 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1176 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1177 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1178 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1179 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1180 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1181 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1182 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1183 */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1184  - AIF1 DAC2 EQ Gains (1) */
+	{ 0xFFC0, 0xFFC0, 0x0000 }, /* R1185  - AIF1 DAC2 EQ Gains (2) */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1186  - AIF1 DAC2 EQ Band 1 A */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1187  - AIF1 DAC2 EQ Band 1 B */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1188  - AIF1 DAC2 EQ Band 1 PG */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1189  - AIF1 DAC2 EQ Band 2 A */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1190  - AIF1 DAC2 EQ Band 2 B */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1191  - AIF1 DAC2 EQ Band 2 C */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1192  - AIF1 DAC2 EQ Band 2 PG */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1193  - AIF1 DAC2 EQ Band 3 A */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1194  - AIF1 DAC2 EQ Band 3 B */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1195  - AIF1 DAC2 EQ Band 3 C */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1196  - AIF1 DAC2 EQ Band 3 PG */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1197  - AIF1 DAC2 EQ Band 4 A */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1198  - AIF1 DAC2 EQ Band 4 B */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1199  - AIF1 DAC2 EQ Band 4 C */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1200  - AIF1 DAC2 EQ Band 4 PG */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1201  - AIF1 DAC2 EQ Band 5 A */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1202  - AIF1 DAC2 EQ Band 5 B */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1203  - AIF1 DAC2 EQ Band 5 PG */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1204 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1205 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1206 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1207 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1208 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1209 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1210 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1211 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1212 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1213 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1214 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1215 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1216 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1217 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1218 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1219 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1220 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1221 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1222 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1223 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1224 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1225 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1226 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1227 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1228 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1229 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1230 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1231 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1232 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1233 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1234 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1235 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1236 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1237 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1238 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1239 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1240 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1241 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1242 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1243 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1244 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1245 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1246 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1247 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1248 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1249 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1250 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1251 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1252 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1253 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1254 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1255 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1256 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1257 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1258 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1259 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1260 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1261 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1262 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1263 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1264 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1265 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1266 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1267 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1268 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1269 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1270 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1271 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1272 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1273 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1274 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1275 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1276 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1277 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1278 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1279 */
+	{ 0x00FF, 0x01FF, 0x0000 }, /* R1280  - AIF2 ADC Left Volume */
+	{ 0x00FF, 0x01FF, 0x0000 }, /* R1281  - AIF2 ADC Right Volume */
+	{ 0x00FF, 0x01FF, 0x0000 }, /* R1282  - AIF2 DAC Left Volume */
+	{ 0x00FF, 0x01FF, 0x0000 }, /* R1283  - AIF2 DAC Right Volume */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1284 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1285 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1286 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1287 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1288 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1289 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1290 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1291 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1292 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1293 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1294 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1295 */
+	{ 0xF800, 0xF800, 0x0000 }, /* R1296  - AIF2 ADC Filters */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1297 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1298 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1299 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1300 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1301 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1302 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1303 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1304 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1305 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1306 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1307 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1308 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1309 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1310 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1311 */
+	{ 0x02B6, 0x02B6, 0x0000 }, /* R1312  - AIF2 DAC Filters (1) */
+	{ 0x3F00, 0x3F00, 0x0000 }, /* R1313  - AIF2 DAC Filters (2) */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1314 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1315 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1316 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1317 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1318 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1319 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1320 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1321 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1322 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1323 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1324 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1325 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1326 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1327 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1328 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1329 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1330 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1331 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1332 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1333 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1334 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1335 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1336 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1337 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1338 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1339 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1340 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1341 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1342 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1343 */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1344  - AIF2 DRC (1) */
+	{ 0x1FFF, 0x1FFF, 0x0000 }, /* R1345  - AIF2 DRC (2) */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1346  - AIF2 DRC (3) */
+	{ 0x07FF, 0x07FF, 0x0000 }, /* R1347  - AIF2 DRC (4) */
+	{ 0x03FF, 0x03FF, 0x0000 }, /* R1348  - AIF2 DRC (5) */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1349 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1350 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1351 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1352 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1353 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1354 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1355 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1356 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1357 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1358 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1359 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1360 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1361 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1362 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1363 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1364 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1365 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1366 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1367 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1368 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1369 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1370 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1371 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1372 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1373 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1374 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1375 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1376 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1377 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1378 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1379 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1380 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1381 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1382 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1383 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1384 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1385 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1386 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1387 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1388 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1389 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1390 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1391 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1392 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1393 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1394 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1395 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1396 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1397 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1398 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1399 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1400 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1401 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1402 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1403 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1404 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1405 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1406 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1407 */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1408  - AIF2 EQ Gains (1) */
+	{ 0xFFC0, 0xFFC0, 0x0000 }, /* R1409  - AIF2 EQ Gains (2) */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1410  - AIF2 EQ Band 1 A */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1411  - AIF2 EQ Band 1 B */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1412  - AIF2 EQ Band 1 PG */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1413  - AIF2 EQ Band 2 A */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1414  - AIF2 EQ Band 2 B */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1415  - AIF2 EQ Band 2 C */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1416  - AIF2 EQ Band 2 PG */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1417  - AIF2 EQ Band 3 A */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1418  - AIF2 EQ Band 3 B */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1419  - AIF2 EQ Band 3 C */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1420  - AIF2 EQ Band 3 PG */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1421  - AIF2 EQ Band 4 A */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1422  - AIF2 EQ Band 4 B */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1423  - AIF2 EQ Band 4 C */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1424  - AIF2 EQ Band 4 PG */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1425  - AIF2 EQ Band 5 A */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1426  - AIF2 EQ Band 5 B */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R1427  - AIF2 EQ Band 5 PG */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1428 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1429 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1430 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1431 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1432 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1433 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1434 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1435 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1436 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1437 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1438 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1439 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1440 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1441 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1442 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1443 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1444 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1445 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1446 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1447 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1448 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1449 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1450 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1451 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1452 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1453 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1454 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1455 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1456 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1457 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1458 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1459 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1460 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1461 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1462 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1463 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1464 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1465 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1466 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1467 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1468 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1469 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1470 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1471 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1472 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1473 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1474 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1475 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1476 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1477 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1478 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1479 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1480 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1481 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1482 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1483 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1484 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1485 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1486 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1487 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1488 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1489 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1490 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1491 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1492 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1493 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1494 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1495 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1496 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1497 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1498 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1499 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1500 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1501 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1502 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1503 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1504 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1505 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1506 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1507 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1508 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1509 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1510 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1511 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1512 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1513 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1514 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1515 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1516 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1517 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1518 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1519 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1520 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1521 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1522 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1523 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1524 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1525 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1526 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1527 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1528 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1529 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1530 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1531 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1532 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1533 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1534 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1535 */
+	{ 0x01EF, 0x01EF, 0x0000 }, /* R1536  - DAC1 Mixer Volumes */
+	{ 0x0037, 0x0037, 0x0000 }, /* R1537  - DAC1 Left Mixer Routing */
+	{ 0x0037, 0x0037, 0x0000 }, /* R1538  - DAC1 Right Mixer Routing */
+	{ 0x01EF, 0x01EF, 0x0000 }, /* R1539  - DAC2 Mixer Volumes */
+	{ 0x0037, 0x0037, 0x0000 }, /* R1540  - DAC2 Left Mixer Routing */
+	{ 0x0037, 0x0037, 0x0000 }, /* R1541  - DAC2 Right Mixer Routing */
+	{ 0x0003, 0x0003, 0x0000 }, /* R1542  - AIF1 ADC1 Left Mixer Routing */
+	{ 0x0003, 0x0003, 0x0000 }, /* R1543  - AIF1 ADC1 Right Mixer Routing */
+	{ 0x0003, 0x0003, 0x0000 }, /* R1544  - AIF1 ADC2 Left Mixer Routing */
+	{ 0x0003, 0x0003, 0x0000 }, /* R1545  - AIF1 ADC2 Right mixer Routing */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1546 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1547 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1548 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1549 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1550 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1551 */
+	{ 0x02FF, 0x03FF, 0x0000 }, /* R1552  - DAC1 Left Volume */
+	{ 0x02FF, 0x03FF, 0x0000 }, /* R1553  - DAC1 Right Volume */
+	{ 0x02FF, 0x03FF, 0x0000 }, /* R1554  - DAC2 Left Volume */
+	{ 0x02FF, 0x03FF, 0x0000 }, /* R1555  - DAC2 Right Volume */
+	{ 0x0003, 0x0003, 0x0000 }, /* R1556  - DAC Softmute */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1557 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1558 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1559 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1560 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1561 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1562 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1563 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1564 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1565 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1566 */
+	{ 0x0000, 0x0000, 0x0000 }, /* R1567 */
+	{ 0x0003, 0x0003, 0x0000 }, /* R1568  - Oversampling */
+	{ 0x03C3, 0x03C3, 0x0000 }, /* R1569  - Sidetone */
 };
 
-/********************set wm8994 volume*****volume=0\1\2\3\4\5\6\7*******************/
-
-void wm8994_codec_set_volume(unsigned char system_type,unsigned char volume)
+static int wm8994_readable(unsigned int reg)
 {
-	if(system_type == BLUETOOTH_SCO )
-		volume=volume/3;
+	if (reg >= ARRAY_SIZE(access_masks))
+		return 0;
+	return access_masks[reg].readable != 0;
+}
 
-	if(system_type == VOICE_CALL||system_type == BLUETOOTH_SCO )
-	{
-		if(volume<=call_maxvol)
-			call_vol=volume;
-		else{
-			printk("%s----%d::call volume more than max value 7\n",__FUNCTION__,__LINE__);
-			call_vol=call_maxvol;
-		}
-		if(wm8994_current_mode<null&&wm8994_current_mode>=wm8994_handsetMIC_to_baseband_to_headset)
-			wm8994_set_volume(wm8994_current_mode,call_vol,call_maxvol);
+static int wm8994_volatile(unsigned int reg)
+{
+	if (reg >= WM8994_REG_CACHE_SIZE)
+		return 1;
+
+	switch (reg) {
+	case WM8994_SOFTWARE_RESET:
+	case WM8994_CHIP_REVISION:
+	case WM8994_DC_SERVO_1:
+	case WM8994_DC_SERVO_READBACK:
+	case WM8994_RATE_STATUS:
+	case WM8994_LDO_1:
+	case WM8994_LDO_2:
+		return 1;
+	default:
+		return 0;
 	}
+}
+
+static int wm8994_write(struct snd_soc_codec *codec, unsigned int reg,
+	unsigned int value)
+{
+	struct wm8994_priv *wm8994 = codec->private_data;
+#ifdef WM8994_PROC	
+	if(debug_write_read != 0)
+		DBG("%s:0x%04x = 0x%04x",__FUNCTION__,reg,value);
+#endif		
+	BUG_ON(reg > WM8994_MAX_REGISTER);
+
+	if (!wm8994_volatile(reg))
+		wm8994->reg_cache[reg] = value;
+
+	return wm8994_reg_write(codec->control_data, reg, value);
+}
+
+static unsigned int wm8994_read(struct snd_soc_codec *codec,
+				unsigned int reg)
+{
+	u16 *reg_cache = codec->reg_cache;
+	int read_val;
+	BUG_ON(reg > WM8994_MAX_REGISTER);
+
+	if (wm8994_volatile(reg))
+	{
+		read_val = wm8994_reg_read(codec->control_data, reg);
+	#ifdef WM8994_PROC	
+		if(debug_write_read != 0)
+			DBG("%s:0x%04x = 0x%04x",__FUNCTION__,reg,read_val);
+	#endif		
+		return read_val;
+	}	
 	else
-		printk("%s----%d::system type error!\n",__FUNCTION__,__LINE__);
-}
-
-void wm8994_set_volume(unsigned char wm8994_mode,unsigned char volume,unsigned char max_volume)
-{
-	unsigned short lvol=0,rvol=0;
-	DBG("%s::%d\n",__FUNCTION__,__LINE__);
-	if(volume>max_volume)volume=max_volume;
-	
-	if(wm8994_mode==wm8994_handsetMIC_to_baseband_to_headset_and_record||
-	wm8994_mode==wm8994_handsetMIC_to_baseband_to_headset)
 	{
-		wm8994_read(0x001C, &lvol);
-		wm8994_read(0x001D, &rvol);
-		//HPOUT1L_VOL bit 0~5 /-57dB to +6dB in 1dB steps
-		wm8994_write(0x001C, (lvol&~0x003f)|headset_vol_table[volume]); 
-		//HPOUT1R_VOL bit 0~5 /-57dB to +6dB in 1dB steps
-		wm8994_write(0x001D, (rvol&~0x003f)|headset_vol_table[volume]); 
-	}
-	else if(wm8994_mode==wm8994_mainMIC_to_baseband_to_speakers_and_record||
-	wm8994_mode==wm8994_mainMIC_to_baseband_to_speakers||
-	wm8994_mode==wm8994_mainMIC_to_baseband_with_AP_to_speakers)
-	{
-		wm8994_read(0x0026, &lvol);
-		wm8994_read(0x0027, &rvol);
-		//SPKOUTL_VOL bit 0~5 /-57dB to +6dB in 1dB steps
-		wm8994_write(0x0026, (lvol&~0x003f)|speakers_vol_table[volume]);
-		//SPKOUTR_VOL bit 0~5 /-57dB to +6dB in 1dB steps
-		wm8994_write(0x0027, (rvol&~0x003f)|speakers_vol_table[volume]);
-	}
-	else if(wm8994_mode==wm8994_mainMIC_to_baseband_to_earpiece||
-	wm8994_mode==wm8994_mainMIC_to_baseband_to_earpiece_and_record)
-	{
-		wm8994_read(0x0020, &lvol);
-		wm8994_read(0x0021, &rvol);
-
-		//MIXOUTL_VOL bit 0~5 /-57dB to +6dB in 1dB steps
-		wm8994_write(0x0020, (lvol&~0x003f)|earpiece_vol_table[volume]);
-		//MIXOUTR_VOL bit 0~5 /-57dB to +6dB in 1dB steps
-		wm8994_write(0x0021, (rvol&~0x003f)|earpiece_vol_table[volume]);
-	}
-	else if(wm8994_mode==wm8994_BT_baseband||wm8994_mode==wm8994_BT_baseband_and_record)
-	{
-		//bit 0~4 /-16.5dB to +30dB in 1.5dB steps
-		wm8994_write(0x0019, (0x0400&~0x000f)|BT_vol_table[volume]);
-	}
+	#ifdef WM8994_PROC	
+		if(debug_write_read != 0)
+			DBG("%s:0x%04x = 0x%04x",__FUNCTION__,reg,reg_cache[reg]);
+	#endif			
+		return reg_cache[reg];
+	}	
 }
 
-#define SOC_DOUBLE_SWITCH_WM8994CODEC(xname, route) \
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
-	.info = snd_soc_info_route, \
-	.get = snd_soc_get_route, .put = snd_soc_put_route, \
-	.private_value = route }
-
-int snd_soc_info_route(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_info *uinfo)
+static int configure_aif_clock(struct snd_soc_codec *codec, int aif)
 {
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 0;
-	return 0;
-}
-
-int snd_soc_get_route(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	return 0;
-}
-
-int snd_soc_put_route(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	int route = kcontrol->private_value & 0xff;
-
-	switch(route)
-	{
-		/* Speaker*/
-		case SPEAKER_NORMAL: //AP-> 8994Codec -> Speaker
-			recorder_and_AP_to_speakers();
-			break;
-
-		case SPEAKER_INCALL: //BB-> 8994Codec -> Speaker
-			mainMIC_to_baseband_to_speakers();
-			break;		
-			
-		/* Headset */	
-		case HEADSET_NORMAL:	//AP-> 8994Codec -> Headset
-			recorder_and_AP_to_headset();
-			break;
-		case HEADSET_INCALL:	//AP-> 8994Codec -> Headset
-			handsetMIC_to_baseband_to_headset();
-			break;		    
-
-		/* Earpiece*/			    
-		case EARPIECE_INCALL:	//:BB-> 8994Codec -> EARPIECE
-#ifdef CONFIG_SND_NO_EARPIECE
-			mainMIC_to_baseband_to_speakers();
-#else
-			mainMIC_to_baseband_to_earpiece();
-#endif
-			break;
-
-		case EARPIECE_NORMAL:	//:BB-> 8994Codec -> EARPIECE
-			if(wm8994_current_mode==wm8994_handsetMIC_to_baseband_to_headset)
-				recorder_and_AP_to_headset();
-			else if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_speakers||
-				wm8994_current_mode==wm8994_mainMIC_to_baseband_to_earpiece)
-				recorder_and_AP_to_speakers();
-			else if(wm8994_current_mode==wm8994_recorder_and_AP_to_speakers||
-				wm8994_current_mode==wm8994_recorder_and_AP_to_speakers)
-				break;
-			else{
-				recorder_and_AP_to_speakers();
-				printk("%s--%d--: wm8994 with null mode\n",__FUNCTION__,__LINE__);
-			}	
-			break;
-
-
-		/* BLUETOOTH_SCO*/		    	
-		case BLUETOOTH_SCO_INCALL:	//BB-> 8994Codec -> BLUETOOTH_SCO  
-			BT_baseband();
-			break;
-
-		/* BLUETOOTH_A2DP*/			    
-		case BLUETOOTH_A2DP_NORMAL:	//AP-> 8994Codec -> BLUETOOTH_A2DP
-			break;
-		    
-		case MIC_CAPTURE:
-			if(wm8994_current_mode==wm8994_AP_to_headset)
-				recorder_and_AP_to_headset();
-			else if(wm8994_current_mode==wm8994_AP_to_speakers)
-				recorder_and_AP_to_speakers();
-			else if(wm8994_current_mode==wm8994_recorder_and_AP_to_speakers||
-				wm8994_current_mode==wm8994_recorder_and_AP_to_headset)
-				break;
-			else{
-				recorder_and_AP_to_speakers();
-				printk("%s--%d--: wm8994 with null mode\n",__FUNCTION__,__LINE__);
-			}
-			break;
-
-		case EARPIECE_RINGTONE:
-			AP_to_speakers();
-			break;
-
-		case HEADSET_RINGTONE:
-			AP_to_headset();
-			break;
-
-		case SPEAKER_RINGTONE:
-			AP_to_speakers();
-			break;
-
-		default:
-			//codec_daout_route();
-			break;
-	}
-	return 0;
-}
-/*
- * WM8994 Controls
- */
-
-static const char *bass_boost_txt[] = {"Linear Control", "Adaptive Boost"};
-static const struct soc_enum bass_boost =
-	SOC_ENUM_SINGLE(WM8994_BASS, 7, 2, bass_boost_txt);
-
-static const char *bass_filter_txt[] = { "130Hz @ 48kHz", "200Hz @ 48kHz" };
-static const struct soc_enum bass_filter =
-	SOC_ENUM_SINGLE(WM8994_BASS, 6, 2, bass_filter_txt);
-
-static const char *treble_txt[] = {"8kHz", "4kHz"};
-static const struct soc_enum treble =
-	SOC_ENUM_SINGLE(WM8994_TREBLE, 6, 2, treble_txt);
-
-static const char *stereo_3d_lc_txt[] = {"200Hz", "500Hz"};
-static const struct soc_enum stereo_3d_lc =
-	SOC_ENUM_SINGLE(WM8994_3D, 5, 2, stereo_3d_lc_txt);
-
-static const char *stereo_3d_uc_txt[] = {"2.2kHz", "1.5kHz"};
-static const struct soc_enum stereo_3d_uc =
-	SOC_ENUM_SINGLE(WM8994_3D, 6, 2, stereo_3d_uc_txt);
-
-static const char *stereo_3d_func_txt[] = {"Capture", "Playback"};
-static const struct soc_enum stereo_3d_func =
-	SOC_ENUM_SINGLE(WM8994_3D, 7, 2, stereo_3d_func_txt);
-
-static const char *alc_func_txt[] = {"Off", "Right", "Left", "Stereo"};
-static const struct soc_enum alc_func =
-	SOC_ENUM_SINGLE(WM8994_ALC1, 7, 4, alc_func_txt);
-
-static const char *ng_type_txt[] = {"Constant PGA Gain",
-				    "Mute ADC Output"};
-static const struct soc_enum ng_type =
-	SOC_ENUM_SINGLE(WM8994_NGATE, 1, 2, ng_type_txt);
-
-static const char *deemph_txt[] = {"None", "32Khz", "44.1Khz", "48Khz"};
-static const struct soc_enum deemph =
-	SOC_ENUM_SINGLE(WM8994_ADCDAC, 1, 4, deemph_txt);
-
-static const char *adcpol_txt[] = {"Normal", "L Invert", "R Invert",
-				   "L + R Invert"};
-static const struct soc_enum adcpol =
-	SOC_ENUM_SINGLE(WM8994_ADCDAC, 5, 4, adcpol_txt);
-
-static const DECLARE_TLV_DB_SCALE(pga_tlv, -1725, 75, 0);
-static const DECLARE_TLV_DB_SCALE(adc_tlv, -9750, 50, 1);
-static const DECLARE_TLV_DB_SCALE(dac_tlv, -12750, 50, 1);
-static const DECLARE_TLV_DB_SCALE(out_tlv, -12100, 100, 1);
-static const DECLARE_TLV_DB_SCALE(bypass_tlv, -1500, 300, 0);
-
-static const struct snd_kcontrol_new wm8994_snd_controls[] = {
-
-SOC_DOUBLE_SWITCH_WM8994CODEC("Speaker incall Switch", SPEAKER_INCALL),	
-SOC_DOUBLE_SWITCH_WM8994CODEC("Speaker normal Switch", SPEAKER_NORMAL),
-
-SOC_DOUBLE_SWITCH_WM8994CODEC("Earpiece incall Switch", EARPIECE_INCALL),	
-SOC_DOUBLE_SWITCH_WM8994CODEC("Earpiece normal Switch", EARPIECE_NORMAL),
-
-SOC_DOUBLE_SWITCH_WM8994CODEC("Headset incall Switch", HEADSET_INCALL),	
-SOC_DOUBLE_SWITCH_WM8994CODEC("Headset normal Switch", HEADSET_NORMAL),
-
-SOC_DOUBLE_SWITCH_WM8994CODEC("Bluetooth incall Switch", BLUETOOTH_SCO_INCALL),	
-SOC_DOUBLE_SWITCH_WM8994CODEC("Bluetooth normal Switch", BLUETOOTH_SCO_NORMAL),
-
-SOC_DOUBLE_SWITCH_WM8994CODEC("Bluetooth-A2DP incall Switch", BLUETOOTH_A2DP_INCALL),	
-SOC_DOUBLE_SWITCH_WM8994CODEC("Bluetooth-A2DP normal Switch", BLUETOOTH_A2DP_NORMAL),
-
-SOC_DOUBLE_SWITCH_WM8994CODEC("Capture Switch", MIC_CAPTURE),
-
-SOC_DOUBLE_SWITCH_WM8994CODEC("Earpiece ringtone Switch",EARPIECE_RINGTONE),
-SOC_DOUBLE_SWITCH_WM8994CODEC("Speaker ringtone Switch",SPEAKER_RINGTONE),
-SOC_DOUBLE_SWITCH_WM8994CODEC("Headset ringtone Switch",HEADSET_RINGTONE),
-};
-
-/*
- * DAPM Controls
- */
-
-static int wm8994_lrc_control(struct snd_soc_dapm_widget *w,
-			      struct snd_kcontrol *kcontrol, int event)
-{
-	return 0;
-}
-
-static const char *wm8994_line_texts[] = {
-	"Line 1", "Line 2", "PGA", "Differential"};
-
-static const unsigned int wm8994_line_values[] = {
-	0, 1, 3, 4};
-
-static const struct soc_enum wm8994_lline_enum =
-	SOC_VALUE_ENUM_SINGLE(WM8994_LOUTM1, 0, 7,
-			      ARRAY_SIZE(wm8994_line_texts),
-			      wm8994_line_texts,
-			      wm8994_line_values);
-static const struct snd_kcontrol_new wm8994_left_line_controls =
-	SOC_DAPM_VALUE_ENUM("Route", wm8994_lline_enum);
-
-static const struct soc_enum wm8994_rline_enum =
-	SOC_VALUE_ENUM_SINGLE(WM8994_ROUTM1, 0, 7,
-			      ARRAY_SIZE(wm8994_line_texts),
-			      wm8994_line_texts,
-			      wm8994_line_values);
-static const struct snd_kcontrol_new wm8994_right_line_controls =
-	SOC_DAPM_VALUE_ENUM("Route", wm8994_lline_enum);
-
-/* Left Mixer */
-static const struct snd_kcontrol_new wm8994_left_mixer_controls[] = {
-	SOC_DAPM_SINGLE("Playback Switch", WM8994_LOUTM1, 8, 1, 0),
-	SOC_DAPM_SINGLE("Left Bypass Switch", WM8994_LOUTM1, 7, 1, 0),
-	SOC_DAPM_SINGLE("Right Playback Switch", WM8994_LOUTM2, 8, 1, 0),
-	SOC_DAPM_SINGLE("Right Bypass Switch", WM8994_LOUTM2, 7, 1, 0),
-};
-
-/* Right Mixer */
-static const struct snd_kcontrol_new wm8994_right_mixer_controls[] = {
-	SOC_DAPM_SINGLE("Left Playback Switch", WM8994_ROUTM1, 8, 1, 0),
-	SOC_DAPM_SINGLE("Left Bypass Switch", WM8994_ROUTM1, 7, 1, 0),
-	SOC_DAPM_SINGLE("Playback Switch", WM8994_ROUTM2, 8, 1, 0),
-	SOC_DAPM_SINGLE("Right Bypass Switch", WM8994_ROUTM2, 7, 1, 0),
-};
-
-static const char *wm8994_pga_sel[] = {"Line 1", "Line 2", "Differential"};
-static const unsigned int wm8994_pga_val[] = { 0, 1, 3 };
-
-/* Left PGA Mux */
-static const struct soc_enum wm8994_lpga_enum =
-	SOC_VALUE_ENUM_SINGLE(WM8994_LADCIN, 6, 3,
-			      ARRAY_SIZE(wm8994_pga_sel),
-			      wm8994_pga_sel,
-			      wm8994_pga_val);
-static const struct snd_kcontrol_new wm8994_left_pga_controls =
-	SOC_DAPM_VALUE_ENUM("Route", wm8994_lpga_enum);
-
-/* Right PGA Mux */
-static const struct soc_enum wm8994_rpga_enum =
-	SOC_VALUE_ENUM_SINGLE(WM8994_RADCIN, 6, 3,
-			      ARRAY_SIZE(wm8994_pga_sel),
-			      wm8994_pga_sel,
-			      wm8994_pga_val);
-static const struct snd_kcontrol_new wm8994_right_pga_controls =
-	SOC_DAPM_VALUE_ENUM("Route", wm8994_rpga_enum);
-
-/* Differential Mux */
-static const char *wm8994_diff_sel[] = {"Line 1", "Line 2"};
-static const struct soc_enum diffmux =
-	SOC_ENUM_SINGLE(WM8994_ADCIN, 8, 2, wm8994_diff_sel);
-static const struct snd_kcontrol_new wm8994_diffmux_controls =
-	SOC_DAPM_ENUM("Route", diffmux);
-
-/* Mono ADC Mux */
-static const char *wm8994_mono_mux[] = {"Stereo", "Mono (Left)",
-	"Mono (Right)", "Digital Mono"};
-static const struct soc_enum monomux =
-	SOC_ENUM_SINGLE(WM8994_ADCIN, 6, 4, wm8994_mono_mux);
-static const struct snd_kcontrol_new wm8994_monomux_controls =
-	SOC_DAPM_ENUM("Route", monomux);
-
-static const struct snd_soc_dapm_widget wm8994_dapm_widgets[] = {
-	SND_SOC_DAPM_MICBIAS("Mic Bias", WM8994_PWR1, 1, 0),
-
-	SND_SOC_DAPM_MUX("Differential Mux", SND_SOC_NOPM, 0, 0,
-		&wm8994_diffmux_controls),
-	SND_SOC_DAPM_MUX("Left ADC Mux", SND_SOC_NOPM, 0, 0,
-		&wm8994_monomux_controls),
-	SND_SOC_DAPM_MUX("Right ADC Mux", SND_SOC_NOPM, 0, 0,
-		&wm8994_monomux_controls),
-
-	SND_SOC_DAPM_MUX("Left PGA Mux", WM8994_PWR1, 5, 0,
-		&wm8994_left_pga_controls),
-	SND_SOC_DAPM_MUX("Right PGA Mux", WM8994_PWR1, 4, 0,
-		&wm8994_right_pga_controls),
-
-	SND_SOC_DAPM_MUX("Left Line Mux", SND_SOC_NOPM, 0, 0,
-		&wm8994_left_line_controls),
-	SND_SOC_DAPM_MUX("Right Line Mux", SND_SOC_NOPM, 0, 0,
-		&wm8994_right_line_controls),
-
-	SND_SOC_DAPM_ADC("Right ADC", "Right Capture", WM8994_PWR1, 2, 0),
-	SND_SOC_DAPM_ADC("Left ADC", "Left Capture", WM8994_PWR1, 3, 0),
-
-	SND_SOC_DAPM_DAC("Right DAC", "Right Playback", WM8994_PWR2, 7, 0),
-	SND_SOC_DAPM_DAC("Left DAC", "Left Playback", WM8994_PWR2, 8, 0),
-
-	SND_SOC_DAPM_MIXER("Left Mixer", SND_SOC_NOPM, 0, 0,
-		&wm8994_left_mixer_controls[0],
-		ARRAY_SIZE(wm8994_left_mixer_controls)),
-	SND_SOC_DAPM_MIXER("Right Mixer", SND_SOC_NOPM, 0, 0,
-		&wm8994_right_mixer_controls[0],
-		ARRAY_SIZE(wm8994_right_mixer_controls)),
-
-	SND_SOC_DAPM_PGA("Right Out 2", WM8994_PWR2, 3, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Left Out 2", WM8994_PWR2, 4, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Right Out 1", WM8994_PWR2, 5, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Left Out 1", WM8994_PWR2, 6, 0, NULL, 0),
-
-	SND_SOC_DAPM_POST("LRC control", wm8994_lrc_control),
-
-	SND_SOC_DAPM_OUTPUT("LOUT1"),
-	SND_SOC_DAPM_OUTPUT("ROUT1"),
-	SND_SOC_DAPM_OUTPUT("LOUT2"),
-	SND_SOC_DAPM_OUTPUT("ROUT2"),
-	SND_SOC_DAPM_OUTPUT("VREF"),
-
-	SND_SOC_DAPM_INPUT("LINPUT1"),
-	SND_SOC_DAPM_INPUT("LINPUT2"),
-	SND_SOC_DAPM_INPUT("RINPUT1"),
-	SND_SOC_DAPM_INPUT("RINPUT2"),
-};
-
-static const struct snd_soc_dapm_route audio_map[] = {
-
-	{ "Left Line Mux", "Line 1", "LINPUT1" },
-	{ "Left Line Mux", "Line 2", "LINPUT2" },
-	{ "Left Line Mux", "PGA", "Left PGA Mux" },
-	{ "Left Line Mux", "Differential", "Differential Mux" },
-
-	{ "Right Line Mux", "Line 1", "RINPUT1" },
-	{ "Right Line Mux", "Line 2", "RINPUT2" },
-	{ "Right Line Mux", "PGA", "Right PGA Mux" },
-	{ "Right Line Mux", "Differential", "Differential Mux" },
-
-	{ "Left PGA Mux", "Line 1", "LINPUT1" },
-	{ "Left PGA Mux", "Line 2", "LINPUT2" },
-	{ "Left PGA Mux", "Differential", "Differential Mux" },
-
-	{ "Right PGA Mux", "Line 1", "RINPUT1" },
-	{ "Right PGA Mux", "Line 2", "RINPUT2" },
-	{ "Right PGA Mux", "Differential", "Differential Mux" },
-
-	{ "Differential Mux", "Line 1", "LINPUT1" },
-	{ "Differential Mux", "Line 1", "RINPUT1" },
-	{ "Differential Mux", "Line 2", "LINPUT2" },
-	{ "Differential Mux", "Line 2", "RINPUT2" },
-
-	{ "Left ADC Mux", "Stereo", "Left PGA Mux" },
-	{ "Left ADC Mux", "Mono (Left)", "Left PGA Mux" },
-	{ "Left ADC Mux", "Digital Mono", "Left PGA Mux" },
-
-	{ "Right ADC Mux", "Stereo", "Right PGA Mux" },
-	{ "Right ADC Mux", "Mono (Right)", "Right PGA Mux" },
-	{ "Right ADC Mux", "Digital Mono", "Right PGA Mux" },
-
-	{ "Left ADC", NULL, "Left ADC Mux" },
-	{ "Right ADC", NULL, "Right ADC Mux" },
-
-	{ "Left Line Mux", "Line 1", "LINPUT1" },
-	{ "Left Line Mux", "Line 2", "LINPUT2" },
-	{ "Left Line Mux", "PGA", "Left PGA Mux" },
-	{ "Left Line Mux", "Differential", "Differential Mux" },
-
-	{ "Right Line Mux", "Line 1", "RINPUT1" },
-	{ "Right Line Mux", "Line 2", "RINPUT2" },
-	{ "Right Line Mux", "PGA", "Right PGA Mux" },
-	{ "Right Line Mux", "Differential", "Differential Mux" },
-
-	{ "Left Mixer", "Playback Switch", "Left DAC" },
-	{ "Left Mixer", "Left Bypass Switch", "Left Line Mux" },
-	{ "Left Mixer", "Right Playback Switch", "Right DAC" },
-	{ "Left Mixer", "Right Bypass Switch", "Right Line Mux" },
-
-	{ "Right Mixer", "Left Playback Switch", "Left DAC" },
-	{ "Right Mixer", "Left Bypass Switch", "Left Line Mux" },
-	{ "Right Mixer", "Playback Switch", "Right DAC" },
-	{ "Right Mixer", "Right Bypass Switch", "Right Line Mux" },
-
-	{ "Left Out 1", NULL, "Left Mixer" },
-	{ "LOUT1", NULL, "Left Out 1" },
-	{ "Right Out 1", NULL, "Right Mixer" },
-	{ "ROUT1", NULL, "Right Out 1" },
-
-	{ "Left Out 2", NULL, "Left Mixer" },
-	{ "LOUT2", NULL, "Left Out 2" },
-	{ "Right Out 2", NULL, "Right Mixer" },
-	{ "ROUT2", NULL, "Right Out 2" },
-};
-
-struct _coeff_div {
-	u32 mclk;
-	u32 rate;
-	u16 fs;
-	u8 sr:5;
-	u8 usb:1;
-};
-
-/* codec hifi mclk clock divider coefficients */
-static const struct _coeff_div coeff_div[] = {
-	/* 8k */
-	{12288000, 8000, 1536, 0x6, 0x0},
-	{11289600, 8000, 1408, 0x16, 0x0},
-	{18432000, 8000, 2304, 0x7, 0x0},
-	{16934400, 8000, 2112, 0x17, 0x0},
-	{12000000, 8000, 1500, 0x6, 0x1},
-
-	/* 11.025k */
-	{11289600, 11025, 1024, 0x18, 0x0},
-	{16934400, 11025, 1536, 0x19, 0x0},
-	{12000000, 11025, 1088, 0x19, 0x1},
-
-	/* 16k */
-	{12288000, 16000, 768, 0xa, 0x0},
-	{18432000, 16000, 1152, 0xb, 0x0},
-	{12000000, 16000, 750, 0xa, 0x1},
-
-	/* 22.05k */
-	{11289600, 22050, 512, 0x1a, 0x0},
-	{16934400, 22050, 768, 0x1b, 0x0},
-	{12000000, 22050, 544, 0x1b, 0x1},
-
-	/* 32k */
-	{12288000, 32000, 384, 0xc, 0x0},
-	{18432000, 32000, 576, 0xd, 0x0},
-	{12000000, 32000, 375, 0xa, 0x1},
-
-	/* 44.1k */
-	{11289600, 44100, 256, 0x10, 0x0},
-	{16934400, 44100, 384, 0x11, 0x0},
-	{12000000, 44100, 272, 0x11, 0x1},
-
-	/* 48k */
-	{12288000, 48000, 256, 0x0, 0x0},
-	{18432000, 48000, 384, 0x1, 0x0},
-	{12000000, 48000, 250, 0x0, 0x1},
-
-	/* 88.2k */
-	{11289600, 88200, 128, 0x1e, 0x0},
-	{16934400, 88200, 192, 0x1f, 0x0},
-	{12000000, 88200, 136, 0x1f, 0x1},
-
-	/* 96k */
-	{12288000, 96000, 128, 0xe, 0x0},
-	{18432000, 96000, 192, 0xf, 0x0},
-	{12000000, 96000, 125, 0xe, 0x1},
-};
-
-
-static inline int get_coeff(int mclk, int rate)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(coeff_div); i++) {
-		if (coeff_div[i].rate == rate && coeff_div[i].mclk == mclk)
-			return i;
-	}
-
-	return -EINVAL;
-}
-
-/* The set of rates we can generate from the above for each SYSCLK */
-
-static unsigned int rates_12288[] = {
-	8000, 12000, 16000, 24000, 24000, 32000, 48000, 96000,
-};
-
-static struct snd_pcm_hw_constraint_list constraints_12288 = {
-	.count	= ARRAY_SIZE(rates_12288),
-	.list	= rates_12288,
-};
-
-static unsigned int rates_112896[] = {
-	8000, 11025, 22050, 44100,
-};
-
-static struct snd_pcm_hw_constraint_list constraints_112896 = {
-	.count	= ARRAY_SIZE(rates_112896),
-	.list	= rates_112896,
-};
-
-static unsigned int rates_12[] = {
-	8000, 11025, 12000, 16000, 22050, 2400, 32000, 41100, 48000,
-	48000, 88235, 96000,
-};
-
-static struct snd_pcm_hw_constraint_list constraints_12 = {
-	.count	= ARRAY_SIZE(rates_12),
-	.list	= rates_12,
-};
-
-/*
- * Note that this should be called from init rather than from hw_params.
- */
-static int wm8994_set_dai_sysclk(struct snd_soc_dai *codec_dai,
-		int clk_id, unsigned int freq, int dir)
-{
-	struct snd_soc_codec *codec = codec_dai->codec;
 	struct wm8994_priv *wm8994 = codec->private_data;
-	
-	DBG("%s----%d\n",__FUNCTION__,__LINE__);
-		
-	switch (freq) {
-	case 11289600:
-	case 18432000:
-	case 22579200:
-	case 36864000:
-		wm8994->sysclk_constraints = &constraints_112896;
-		wm8994->sysclk = freq;
-		return 0;
+	int rate;
+	int reg1 = 0;
+	int offset;
 
-	case 12288000:
-	case 16934400:
-	case 24576000:
-	case 33868800:
-		wm8994->sysclk_constraints = &constraints_12288;
-		wm8994->sysclk = freq;
-		return 0;
+	if (aif)
+		offset = 4;
+	else
+		offset = 0;
 
-	case 12000000:
-	case 24000000:
-		wm8994->sysclk_constraints = &constraints_12;
-		wm8994->sysclk = freq;
-		return 0;
-	}
-	return -EINVAL;
-}
+	switch (wm8994->sysclk[aif]) {
+	case WM8994_SYSCLK_MCLK1:
+		rate = wm8994->mclk[0];
+		break;
 
-static int wm8994_set_dai_fmt(struct snd_soc_dai *codec_dai,
-		unsigned int fmt)
-{
-	return 0;
-}
+	case WM8994_SYSCLK_MCLK2:
+		reg1 |= 0x8;
+		rate = wm8994->mclk[1];
+		break;
 
-static int wm8994_pcm_startup(struct snd_pcm_substream *substream,
-			      struct snd_soc_dai *dai)
-{
-	struct snd_soc_codec *codec = dai->codec;
-	struct wm8994_priv *wm8994 = codec->private_data;
-	
-	/* The set of sample rates that can be supported depends on the
-	 * MCLK supplied to the CODEC - enforce this.
-	 */
+	case WM8994_SYSCLK_FLL1:
+		reg1 |= 0x10;
+		rate = wm8994->fll[0].out;
+		break;
 
-	if (!wm8994->sysclk) {
-		dev_err(codec->dev,
-			"No MCLK configured, call set_sysclk() on init\n");
+	case WM8994_SYSCLK_FLL2:
+		reg1 |= 0x18;
+		rate = wm8994->fll[1].out;
+		break;
+
+	default:
 		return -EINVAL;
 	}
 
-	snd_pcm_hw_constraint_list(substream->runtime, 0,
-				   SNDRV_PCM_HW_PARAM_RATE,
-				   wm8994->sysclk_constraints);
+	if (rate >= 13500000) {
+		rate /= 2;
+		reg1 |= WM8994_AIF1CLK_DIV;
+
+		DBG_INFO(codec->dev, "Dividing AIF%d clock to %dHz\n",
+			aif + 1, rate);
+	}
+	wm8994->aifclk[aif] = rate;
+
+	snd_soc_update_bits(codec, WM8994_AIF1_CLOCKING_1 + offset,
+			    WM8994_AIF1CLK_SRC_MASK | WM8994_AIF1CLK_DIV,
+			    reg1);
 
 	return 0;
 }
 
-static int wm8994_pcm_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params,
-				struct snd_soc_dai *dai)
+static int configure_clock(struct snd_soc_codec *codec)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
 	struct wm8994_priv *wm8994 = codec->private_data;
-	int coeff;
-	
-	coeff = get_coeff(wm8994->sysclk, params_rate(params));
-	if (coeff < 0) {
-		coeff = get_coeff(wm8994->sysclk / 2, params_rate(params));
-	}
-	if (coeff < 0) {
-		dev_err(codec->dev,
-			"Unable to configure sample rate %dHz with %dHz MCLK\n",
-			params_rate(params), wm8994->sysclk);
-		return coeff;
-	}
-	params_format(params);
+	int old, new;
+
+	/* Bring up the AIF clocks first */
+	configure_aif_clock(codec, 0);//AIF1
+	configure_aif_clock(codec, 1);//AIF2
+
+	/* Then switch CLK_SYS over to the higher of them; a change
+	 * can only happen as a result of a clocking change which can
+	 * only be made outside of DAPM so we can safely redo the
+	 * clocking.
+	 */
+
+	/* If they're equal it doesn't matter which is used */
+	if (wm8994->aifclk[0] == wm8994->aifclk[1])
+		return 0;
+
+	if (wm8994->aifclk[0] < wm8994->aifclk[1])
+		new = WM8994_SYSCLK_SRC;
+	else
+		new = 0;
+
+	old = snd_soc_read(codec, WM8994_CLOCKING_1) & WM8994_SYSCLK_SRC;
+
+	/* If there's no change then we're done. */
+	if (old == new)
+		return 0;
+
+	snd_soc_update_bits(codec, WM8994_CLOCKING_1, WM8994_SYSCLK_SRC, new);
+
+	snd_soc_dapm_sync(codec);
 
 	return 0;
 }
 
-static int wm8994_mute(struct snd_soc_dai *dai, int mute)
+static int check_clk_sys(struct snd_soc_dapm_widget *source,
+			 struct snd_soc_dapm_widget *sink)
 {
+	int reg = snd_soc_read(source->codec, WM8994_CLOCKING_1);
+	const char *clk;
+
+	/* Check what we're currently using for CLK_SYS */
+	if (reg & WM8994_SYSCLK_SRC)
+		clk = "AIF2CLK";
+	else
+		clk = "AIF1CLK";
+
+	return strcmp(source->name, clk) == 0;
+}
+
+static const char *sidetone_hpf_text[] = {
+	"2.7kHz", "1.35kHz", "675Hz", "370Hz", "180Hz", "90Hz", "45Hz"
+};
+
+static const struct soc_enum sidetone_hpf =
+	SOC_ENUM_SINGLE(WM8994_SIDETONE, 7, 7, sidetone_hpf_text);
+
+static const DECLARE_TLV_DB_SCALE(aif_tlv, 0, 600, 0);
+static const DECLARE_TLV_DB_SCALE(digital_tlv, -7200, 75, 1);
+static const DECLARE_TLV_DB_SCALE(st_tlv, -3600, 300, 0);
+static const DECLARE_TLV_DB_SCALE(wm8994_3d_tlv, -1600, 183, 0);
+static const DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
+
+//--------------------------------------------------------------------------------
+//WM8994_DRC_SWITCH
+//--------------------------------------------------------------------------------
+#define WM8994_DRC_SWITCH(xname, reg, shift) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw,\
+	.put = wm8994_put_drc_sw, \
+	.private_value =  SOC_SINGLE_VALUE(reg, shift, 1, 0) }
+
+static int wm8994_put_drc_sw(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	int mask, ret;
+
+	/* Can't enable both ADC and DAC paths simultaneously */
+	if (mc->shift == WM8994_AIF1DAC1_DRC_ENA_SHIFT)
+		mask = WM8994_AIF1ADC1L_DRC_ENA_MASK |
+			WM8994_AIF1ADC1R_DRC_ENA_MASK;
+	else
+		mask = WM8994_AIF1DAC1_DRC_ENA_MASK;
+
+	ret = snd_soc_read(codec, mc->reg);
+	if (ret < 0)
+		return ret;
+	if (ret & mask)
+		return -EINVAL;
+
+	return snd_soc_put_volsw(kcontrol, ucontrol);
+}
+
+static void wm8994_set_drc(struct snd_soc_codec *codec, int drc)
+{
+	struct wm8994_priv *wm8994 = codec->private_data;
+	struct wm8994_pdata *pdata = wm8994->pdata;
+	int base = wm8994_drc_base[drc];
+	int cfg = wm8994->drc_cfg[drc];
+	int save, i;
+
+	/* Save any enables; the configuration should clear them. */
+	save = snd_soc_read(codec, base);
+	save &= WM8994_AIF1DAC1_DRC_ENA | WM8994_AIF1ADC1L_DRC_ENA |
+		WM8994_AIF1ADC1R_DRC_ENA;
+
+	for (i = 0; i < WM8994_DRC_REGS; i++)
+		snd_soc_update_bits(codec, base + i, 0xffff,
+				    pdata->drc_cfgs[cfg].regs[i]);
+
+	snd_soc_update_bits(codec, base, WM8994_AIF1DAC1_DRC_ENA |
+			     WM8994_AIF1ADC1L_DRC_ENA |
+			     WM8994_AIF1ADC1R_DRC_ENA, save);
+}
+
+/* Icky as hell but saves code duplication */
+static int wm8994_get_drc(const char *name)
+{
+	if (strcmp(name, "AIF1DRC1 Mode") == 0)
+		return 0;
+	if (strcmp(name, "AIF1DRC2 Mode") == 0)
+		return 1;
+	if (strcmp(name, "AIF2DRC Mode") == 0)
+		return 2;
+	return -EINVAL;
+}
+
+static int wm8994_put_drc_enum(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct wm8994_priv *wm8994 = codec->private_data;	
+	struct wm8994_pdata *pdata = wm8994->pdata;
+	int drc = wm8994_get_drc(kcontrol->id.name);
+	int value = ucontrol->value.integer.value[0];
+
+	if (drc < 0)
+		return drc;
+
+	if (value >= pdata->num_drc_cfgs)
+		return -EINVAL;
+
+	wm8994->drc_cfg[drc] = value;
+
+	wm8994_set_drc(codec, drc);
+
+	return 0;
+}
+
+static int wm8994_get_drc_enum(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct wm8994_priv *wm8994 = codec->private_data;
+	int drc = wm8994_get_drc(kcontrol->id.name);
+
+	ucontrol->value.enumerated.item[0] = wm8994->drc_cfg[drc];
+
+	return 0;
+}
+
+static void wm8994_set_retune_mobile(struct snd_soc_codec *codec, int block)
+{
+	struct wm8994_priv *wm8994 = codec->private_data;
+	struct wm8994_pdata *pdata = wm8994->pdata;
+	int base = wm8994_retune_mobile_base[block];
+	int iface, best, best_val, save, i, cfg;
+
+	if (!pdata || !wm8994->num_retune_mobile_texts)
+		return;
+
+	switch (block) {
+	case 0:
+	case 1:
+		iface = 0;
+		break;
+	case 2:
+		iface = 1;
+		break;
+	default:
+		return;
+	}
+
+	/* Find the version of the currently selected configuration
+	 * with the nearest sample rate. */
+	cfg = wm8994->retune_mobile_cfg[block];
+	best = 0;
+	best_val = INT_MAX;
+	for (i = 0; i < pdata->num_retune_mobile_cfgs; i++) {
+		if (strcmp(pdata->retune_mobile_cfgs[i].name,
+			   wm8994->retune_mobile_texts[cfg]) == 0 &&
+		    abs(pdata->retune_mobile_cfgs[i].rate
+			- wm8994->dac_rates[iface]) < best_val) {
+			best = i;
+			best_val = abs(pdata->retune_mobile_cfgs[i].rate
+				       - wm8994->dac_rates[iface]);
+		}
+	}
+
+	dev_info(codec->dev, "ReTune Mobile %d %s/%dHz for %dHz sample rate\n",
+		block,
+		pdata->retune_mobile_cfgs[best].name,
+		pdata->retune_mobile_cfgs[best].rate,
+		wm8994->dac_rates[iface]);
+
+	/* The EQ will be disabled while reconfiguring it, remember the
+	 * current configuration. 
+	 */
+	save = snd_soc_read(codec, base);
+	save &= WM8994_AIF1DAC1_EQ_ENA;
+
+	for (i = 0; i < WM8994_EQ_REGS; i++)
+		snd_soc_update_bits(codec, base + i, 0xffff,
+				pdata->retune_mobile_cfgs[best].regs[i]);
+
+	snd_soc_update_bits(codec, base, WM8994_AIF1DAC1_EQ_ENA, save);
+}
+
+/* Icky as hell but saves code duplication */
+static int wm8994_get_retune_mobile_block(const char *name)
+{
+	if (strcmp(name, "AIF1.1 EQ Mode") == 0)
+		return 0;
+	if (strcmp(name, "AIF1.2 EQ Mode") == 0)
+		return 1;
+	if (strcmp(name, "AIF2 EQ Mode") == 0)
+		return 2;
+	return -EINVAL;
+}
+
+static int wm8994_put_retune_mobile_enum(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct wm8994_priv *wm8994 = codec->private_data;	
+	struct wm8994_pdata *pdata = wm8994->pdata;
+	int block = wm8994_get_retune_mobile_block(kcontrol->id.name);
+	int value = ucontrol->value.integer.value[0];
+
+	if (block < 0)
+		return block;
+
+	if (value >= pdata->num_retune_mobile_cfgs)
+		return -EINVAL;
+
+	wm8994->retune_mobile_cfg[block] = value;
+
+	wm8994_set_retune_mobile(codec, block);
+
+	return 0;
+}
+
+static int wm8994_get_retune_mobile_enum(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct wm8994_priv *wm8994 = codec->private_data;
+	int block = wm8994_get_retune_mobile_block(kcontrol->id.name);
+
+	ucontrol->value.enumerated.item[0] = wm8994->retune_mobile_cfg[block];
+
+	return 0;
+}
+
+static const struct snd_kcontrol_new wm8994_snd_controls[] = {
+
+SOC_DOUBLE_R_TLV("AIF1ADC1 Volume", WM8994_AIF1_ADC1_LEFT_VOLUME,
+		 WM8994_AIF1_ADC1_RIGHT_VOLUME,
+		 1, 119, 0, digital_tlv),
+SOC_DOUBLE_R_TLV("AIF1ADC2 Volume", WM8994_AIF1_ADC2_LEFT_VOLUME,
+		 WM8994_AIF1_ADC2_RIGHT_VOLUME,
+		 1, 119, 0, digital_tlv),
+SOC_DOUBLE_R_TLV("AIF2ADC Volume", WM8994_AIF2_ADC_LEFT_VOLUME,
+		 WM8994_AIF2_ADC_RIGHT_VOLUME,
+		 1, 119, 0, digital_tlv),
+
+SOC_DOUBLE_R_TLV("AIF1DAC1 Volume", WM8994_AIF1_DAC1_LEFT_VOLUME,
+		 WM8994_AIF1_DAC1_RIGHT_VOLUME, 1, 96, 0, digital_tlv),
+SOC_DOUBLE_R_TLV("AIF1DAC2 Volume", WM8994_AIF1_DAC2_LEFT_VOLUME,
+		 WM8994_AIF1_DAC2_RIGHT_VOLUME, 1, 96, 0, digital_tlv),
+SOC_DOUBLE_R_TLV("AIF2DAC Volume", WM8994_AIF2_DAC_LEFT_VOLUME,
+		 WM8994_AIF2_DAC_RIGHT_VOLUME, 1, 96, 0, digital_tlv),
+
+SOC_SINGLE_TLV("AIF1 Boost Volume", WM8994_AIF1_CONTROL_2, 10, 3, 0, aif_tlv),
+SOC_SINGLE_TLV("AIF2 Boost Volume", WM8994_AIF2_CONTROL_2, 10, 3, 0, aif_tlv),
+
+SOC_SINGLE("AIF1DAC1 EQ Switch", WM8994_AIF1_DAC1_EQ_GAINS_1, 0, 1, 0),
+SOC_SINGLE("AIF1DAC2 EQ Switch", WM8994_AIF1_DAC2_EQ_GAINS_1, 0, 1, 0),
+SOC_SINGLE("AIF2 EQ Switch", WM8994_AIF2_EQ_GAINS_1, 0, 1, 0),
+
+WM8994_DRC_SWITCH("AIF1DAC1 DRC Switch", WM8994_AIF1_DRC1_1, 2),
+WM8994_DRC_SWITCH("AIF1ADC1L DRC Switch", WM8994_AIF1_DRC1_1, 1),
+WM8994_DRC_SWITCH("AIF1ADC1R DRC Switch", WM8994_AIF1_DRC1_1, 0),
+
+WM8994_DRC_SWITCH("AIF1DAC2 DRC Switch", WM8994_AIF1_DRC2_1, 2),
+WM8994_DRC_SWITCH("AIF1ADC2L DRC Switch", WM8994_AIF1_DRC2_1, 1),
+WM8994_DRC_SWITCH("AIF1ADC2R DRC Switch", WM8994_AIF1_DRC2_1, 0),
+
+WM8994_DRC_SWITCH("AIF2DAC DRC Switch", WM8994_AIF2_DRC_1, 2),
+WM8994_DRC_SWITCH("AIF2ADCL DRC Switch", WM8994_AIF2_DRC_1, 1),
+WM8994_DRC_SWITCH("AIF2ADCR DRC Switch", WM8994_AIF2_DRC_1, 0),
+
+SOC_SINGLE_TLV("DAC1 Right Sidetone Volume", WM8994_DAC1_MIXER_VOLUMES,
+	       5, 12, 0, st_tlv),
+SOC_SINGLE_TLV("DAC1 Left Sidetone Volume", WM8994_DAC1_MIXER_VOLUMES,
+	       0, 12, 0, st_tlv),
+SOC_SINGLE_TLV("DAC2 Right Sidetone Volume", WM8994_DAC2_MIXER_VOLUMES,
+	       5, 12, 0, st_tlv),
+SOC_SINGLE_TLV("DAC2 Left Sidetone Volume", WM8994_DAC2_MIXER_VOLUMES,
+	       0, 12, 0, st_tlv),
+SOC_ENUM("Sidetone HPF Mux", sidetone_hpf),
+SOC_SINGLE("Sidetone HPF Switch", WM8994_SIDETONE, 6, 1, 0),
+
+SOC_DOUBLE_R_TLV("DAC1 Volume", WM8994_DAC1_LEFT_VOLUME,
+		 WM8994_DAC1_RIGHT_VOLUME, 1, 96, 0, digital_tlv),
+SOC_DOUBLE_R("DAC1 Switch", WM8994_DAC1_LEFT_VOLUME,
+	     WM8994_DAC1_RIGHT_VOLUME, 9, 1, 1),
+
+SOC_DOUBLE_R_TLV("DAC2 Volume", WM8994_DAC2_LEFT_VOLUME,
+		 WM8994_DAC2_RIGHT_VOLUME, 1, 96, 0, digital_tlv),
+SOC_DOUBLE_R("DAC2 Switch", WM8994_DAC2_LEFT_VOLUME,
+	     WM8994_DAC2_RIGHT_VOLUME, 9, 1, 1),
+
+SOC_SINGLE_TLV("SPKL DAC2 Volume", WM8994_SPKMIXL_ATTENUATION,
+	       6, 1, 1, wm_hubs_spkmix_tlv),
+SOC_SINGLE_TLV("SPKL DAC1 Volume", WM8994_SPKMIXL_ATTENUATION,
+	       2, 1, 1, wm_hubs_spkmix_tlv),
+
+SOC_SINGLE_TLV("SPKR DAC2 Volume", WM8994_SPKMIXR_ATTENUATION,
+	       6, 1, 1, wm_hubs_spkmix_tlv),
+SOC_SINGLE_TLV("SPKR DAC1 Volume", WM8994_SPKMIXR_ATTENUATION,
+	       2, 1, 1, wm_hubs_spkmix_tlv),
+
+SOC_SINGLE_TLV("AIF1DAC1 3D Stereo Volume", WM8994_AIF1_DAC1_FILTERS_2,
+	       10, 15, 0, wm8994_3d_tlv),
+SOC_SINGLE("AIF1DAC1 3D Stereo Switch", WM8994_AIF1_DAC2_FILTERS_2,
+	   8, 1, 0),
+SOC_SINGLE_TLV("AIF1DAC2 3D Stereo Volume", WM8994_AIF1_DAC2_FILTERS_2,
+	       10, 15, 0, wm8994_3d_tlv),
+SOC_SINGLE("AIF1DAC2 3D Stereo Switch", WM8994_AIF1_DAC2_FILTERS_2,
+	   8, 1, 0),
+SOC_SINGLE_TLV("AIF2DAC 3D Stereo Volume", WM8994_AIF1_DAC1_FILTERS_2,
+	       10, 15, 0, wm8994_3d_tlv),
+SOC_SINGLE("AIF2DAC 3D Stereo Switch", WM8994_AIF1_DAC2_FILTERS_2,
+	   8, 1, 0),
+};
+
+static const struct snd_kcontrol_new wm8994_eq_controls[] = {
+SOC_SINGLE_TLV("AIF1DAC1 EQ1 Volume", WM8994_AIF1_DAC1_EQ_GAINS_1, 11, 31, 0,
+	       eq_tlv),
+SOC_SINGLE_TLV("AIF1DAC1 EQ2 Volume", WM8994_AIF1_DAC1_EQ_GAINS_1, 6, 31, 0,
+	       eq_tlv),
+SOC_SINGLE_TLV("AIF1DAC1 EQ3 Volume", WM8994_AIF1_DAC1_EQ_GAINS_1, 1, 31, 0,
+	       eq_tlv),
+SOC_SINGLE_TLV("AIF1DAC1 EQ4 Volume", WM8994_AIF1_DAC1_EQ_GAINS_2, 11, 31, 0,
+	       eq_tlv),
+SOC_SINGLE_TLV("AIF1DAC1 EQ5 Volume", WM8994_AIF1_DAC1_EQ_GAINS_2, 6, 31, 0,
+	       eq_tlv),
+
+SOC_SINGLE_TLV("AIF1DAC2 EQ1 Volume", WM8994_AIF1_DAC2_EQ_GAINS_1, 11, 31, 0,
+	       eq_tlv),
+SOC_SINGLE_TLV("AIF1DAC2 EQ2 Volume", WM8994_AIF1_DAC2_EQ_GAINS_1, 6, 31, 0,
+	       eq_tlv),
+SOC_SINGLE_TLV("AIF1DAC2 EQ3 Volume", WM8994_AIF1_DAC2_EQ_GAINS_1, 1, 31, 0,
+	       eq_tlv),
+SOC_SINGLE_TLV("AIF1DAC2 EQ4 Volume", WM8994_AIF1_DAC2_EQ_GAINS_2, 11, 31, 0,
+	       eq_tlv),
+SOC_SINGLE_TLV("AIF1DAC2 EQ5 Volume", WM8994_AIF1_DAC2_EQ_GAINS_2, 6, 31, 0,
+	       eq_tlv),
+
+SOC_SINGLE_TLV("AIF2 EQ1 Volume", WM8994_AIF2_EQ_GAINS_1, 11, 31, 0,
+	       eq_tlv),
+SOC_SINGLE_TLV("AIF2 EQ2 Volume", WM8994_AIF2_EQ_GAINS_1, 6, 31, 0,
+	       eq_tlv),
+SOC_SINGLE_TLV("AIF2 EQ3 Volume", WM8994_AIF2_EQ_GAINS_1, 1, 31, 0,
+	       eq_tlv),
+SOC_SINGLE_TLV("AIF2 EQ4 Volume", WM8994_AIF2_EQ_GAINS_2, 11, 31, 0,
+	       eq_tlv),
+SOC_SINGLE_TLV("AIF2 EQ5 Volume", WM8994_AIF2_EQ_GAINS_2, 6, 31, 0,
+	       eq_tlv),
+};
+
+static int clk_sys_event(struct snd_soc_dapm_widget *w,
+			 struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		return configure_clock(codec);
+
+	case SND_SOC_DAPM_POST_PMD:
+		configure_clock(codec);
+		break;
+	}
+
+	return 0;
+}
+
+static void wm8994_update_class_w(struct snd_soc_codec *codec)
+{
+	int enable = 1;
+	int source = 0;  /* GCC flow analysis can't track enable */
+	int reg, reg_r;
+
+	/* Only support direct DAC->headphone paths */
+	reg = snd_soc_read(codec, WM8994_OUTPUT_MIXER_1);
+	if (!(reg & WM8994_DAC1L_TO_HPOUT1L)) {
+		DBG_INFO(codec->dev, "HPL connected to output mixer\n");
+		enable = 0;
+	}
+
+	reg = snd_soc_read(codec, WM8994_OUTPUT_MIXER_2);
+	if (!(reg & WM8994_DAC1R_TO_HPOUT1R)) {
+		DBG_INFO(codec->dev, "HPR connected to output mixer\n");
+		enable = 0;
+	}
+
+	/* We also need the same setting for L/R and only one path */
+	reg = snd_soc_read(codec, WM8994_DAC1_LEFT_MIXER_ROUTING);
+	switch (reg) {
+	case WM8994_AIF2DACL_TO_DAC1L:
+		DBG_INFO(codec->dev, "Class W source AIF2DAC\n");
+		source = 2 << WM8994_CP_DYN_SRC_SEL_SHIFT;
+		break;
+	case WM8994_AIF1DAC2L_TO_DAC1L:
+		DBG_INFO(codec->dev, "Class W source AIF1DAC2\n");
+		source = 1 << WM8994_CP_DYN_SRC_SEL_SHIFT;
+		break;
+	case WM8994_AIF1DAC1L_TO_DAC1L:
+		DBG_INFO(codec->dev, "Class W source AIF1DAC1\n");
+		source = 0 << WM8994_CP_DYN_SRC_SEL_SHIFT;
+		break;
+	default:
+		DBG_INFO(codec->dev, "DAC mixer setting: %x\n", reg);
+		enable = 0;
+		break;
+	}
+
+	reg_r = snd_soc_read(codec, WM8994_DAC1_RIGHT_MIXER_ROUTING);
+	if (reg_r != reg) {
+		DBG_INFO(codec->dev, "Left and right DAC mixers different\n");
+		enable = 0;
+	}
+
+	if (enable) {
+		DBG_INFO(codec->dev, "Class W enabled\n");
+		snd_soc_update_bits(codec, WM8994_CLASS_W_1,
+				    WM8994_CP_DYN_PWR |
+				    WM8994_CP_DYN_SRC_SEL_MASK,
+				    source | WM8994_CP_DYN_PWR);
+		
+	} else {
+		DBG_INFO(codec->dev, "Class W disabled\n");
+		snd_soc_update_bits(codec, WM8994_CLASS_W_1,
+				    WM8994_CP_DYN_PWR, 0);
+	}
+}
+
+static const char *hp_mux_text[] = {
+	"Mixer",
+	"DAC",
+};
+
+//--------------------------------------------------------------------------------
+//WM8994_HP_ENUM
+//--------------------------------------------------------------------------------
+#define WM8994_HP_ENUM(xname, xenum) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.info = snd_soc_info_enum_double, \
+ 	.get = snd_soc_dapm_get_enum_double, \
+ 	.put = wm8994_put_hp_enum, \
+  	.private_value = (unsigned long)&xenum }
+
+static int wm8994_put_hp_enum(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget *w = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = w->codec;
+	int ret;
+
+	ret = snd_soc_dapm_put_enum_double(kcontrol, ucontrol);
+
+	wm8994_update_class_w(codec);
+
+	return ret;
+}
+
+static const struct soc_enum hpl_enum =
+	SOC_ENUM_SINGLE(WM8994_OUTPUT_MIXER_1, 8, 2, hp_mux_text);
+
+static const struct snd_kcontrol_new hpl_mux =
+	WM8994_HP_ENUM("Left Headphone Mux", hpl_enum);
+
+static const struct soc_enum hpr_enum =
+	SOC_ENUM_SINGLE(WM8994_OUTPUT_MIXER_2, 8, 2, hp_mux_text);
+
+static const struct snd_kcontrol_new hpr_mux =
+	WM8994_HP_ENUM("Right Headphone Mux", hpr_enum);
+
+static const char *adc_mux_text[] = {
+	"ADC",
+	"DMIC",
+};
+
+static const struct soc_enum adc_enum =
+	SOC_ENUM_SINGLE(0, 0, 2, adc_mux_text);
+
+static const struct snd_kcontrol_new adcl_mux =
+	SOC_DAPM_ENUM_VIRT("ADCL Mux", adc_enum);
+
+static const struct snd_kcontrol_new adcr_mux =
+	SOC_DAPM_ENUM_VIRT("ADCR Mux", adc_enum);
+
+static const struct snd_kcontrol_new left_speaker_mixer[] = {
+SOC_DAPM_SINGLE("DAC2 Switch", WM8994_SPEAKER_MIXER, 9, 1, 0),
+SOC_DAPM_SINGLE("Input Switch", WM8994_SPEAKER_MIXER, 7, 1, 0),
+SOC_DAPM_SINGLE("IN1LP Switch", WM8994_SPEAKER_MIXER, 5, 1, 0),
+SOC_DAPM_SINGLE("Output Switch", WM8994_SPEAKER_MIXER, 3, 1, 0),
+SOC_DAPM_SINGLE("DAC1 Switch", WM8994_SPEAKER_MIXER, 1, 1, 0),
+};
+
+static const struct snd_kcontrol_new right_speaker_mixer[] = {
+SOC_DAPM_SINGLE("DAC2 Switch", WM8994_SPEAKER_MIXER, 8, 1, 0),
+SOC_DAPM_SINGLE("Input Switch", WM8994_SPEAKER_MIXER, 6, 1, 0),
+SOC_DAPM_SINGLE("IN1RP Switch", WM8994_SPEAKER_MIXER, 4, 1, 0),
+SOC_DAPM_SINGLE("Output Switch", WM8994_SPEAKER_MIXER, 2, 1, 0),
+SOC_DAPM_SINGLE("DAC1 Switch", WM8994_SPEAKER_MIXER, 0, 1, 0),
+};
+
+/* Debugging; dump chip status after DAPM transitions */
+static int post_ev(struct snd_soc_dapm_widget *w,
+	    struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	DBG_INFO(codec->dev, "SRC status: %x\n",
+		snd_soc_read(codec,  WM8994_RATE_STATUS));
+			 
+	return 0;
+}
+
+static const struct snd_kcontrol_new aif1adc1l_mix[] = {
+SOC_DAPM_SINGLE("ADC/DMIC Switch", WM8994_AIF1_ADC1_LEFT_MIXER_ROUTING,
+		1, 1, 0),
+SOC_DAPM_SINGLE("AIF2 Switch", WM8994_AIF1_ADC1_LEFT_MIXER_ROUTING,
+		0, 1, 0),
+};
+
+static const struct snd_kcontrol_new aif1adc1r_mix[] = {
+SOC_DAPM_SINGLE("ADC/DMIC Switch", WM8994_AIF1_ADC1_RIGHT_MIXER_ROUTING,
+		1, 1, 0),
+SOC_DAPM_SINGLE("AIF2 Switch", WM8994_AIF1_ADC1_RIGHT_MIXER_ROUTING,
+		0, 1, 0),
+};
+
+static const struct snd_kcontrol_new aif2dac2l_mix[] = {
+SOC_DAPM_SINGLE("Right Sidetone Switch", WM8994_DAC2_LEFT_MIXER_ROUTING,
+		5, 1, 0),
+SOC_DAPM_SINGLE("Left Sidetone Switch", WM8994_DAC2_LEFT_MIXER_ROUTING,
+		4, 1, 0),
+SOC_DAPM_SINGLE("AIF2 Switch", WM8994_DAC2_LEFT_MIXER_ROUTING,
+		2, 1, 0),
+SOC_DAPM_SINGLE("AIF1.2 Switch", WM8994_DAC2_LEFT_MIXER_ROUTING,
+		1, 1, 0),
+SOC_DAPM_SINGLE("AIF1.1 Switch", WM8994_DAC2_LEFT_MIXER_ROUTING,
+		0, 1, 0),
+};
+
+static const struct snd_kcontrol_new aif2dac2r_mix[] = {
+SOC_DAPM_SINGLE("Right Sidetone Switch", WM8994_DAC2_RIGHT_MIXER_ROUTING,
+		5, 1, 0),
+SOC_DAPM_SINGLE("Left Sidetone Switch", WM8994_DAC2_RIGHT_MIXER_ROUTING,
+		4, 1, 0),
+SOC_DAPM_SINGLE("AIF2 Switch", WM8994_DAC2_RIGHT_MIXER_ROUTING,
+		2, 1, 0),
+SOC_DAPM_SINGLE("AIF1.2 Switch", WM8994_DAC2_RIGHT_MIXER_ROUTING,
+		1, 1, 0),
+SOC_DAPM_SINGLE("AIF1.1 Switch", WM8994_DAC2_RIGHT_MIXER_ROUTING,
+		0, 1, 0),
+};
+
+//--------------------------------------------------------------------------------
+//WM8994_CLASS_W_SWITCH
+//--------------------------------------------------------------------------------
+#define WM8994_CLASS_W_SWITCH(xname, reg, shift, max, invert) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.info = snd_soc_info_volsw, \
+	.get = snd_soc_dapm_get_volsw, .put = wm8994_put_class_w, \
+	.private_value =  SOC_SINGLE_VALUE(reg, shift, max, invert) }
+
+static int wm8994_put_class_w(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget *w = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = w->codec;
+	int ret;
+
+	ret = snd_soc_dapm_put_volsw(kcontrol, ucontrol);
+
+	wm8994_update_class_w(codec);
+
+	return ret;
+}
+
+static const struct snd_kcontrol_new dac1l_mix[] = {
+WM8994_CLASS_W_SWITCH("Right Sidetone Switch", WM8994_DAC1_LEFT_MIXER_ROUTING,
+		      5, 1, 0),
+WM8994_CLASS_W_SWITCH("Left Sidetone Switch", WM8994_DAC1_LEFT_MIXER_ROUTING,
+		      4, 1, 0),
+WM8994_CLASS_W_SWITCH("AIF2 Switch", WM8994_DAC1_LEFT_MIXER_ROUTING,
+		      2, 1, 0),
+WM8994_CLASS_W_SWITCH("AIF1.2 Switch", WM8994_DAC1_LEFT_MIXER_ROUTING,
+		      1, 1, 0),
+WM8994_CLASS_W_SWITCH("AIF1.1 Switch", WM8994_DAC1_LEFT_MIXER_ROUTING,
+		      0, 1, 0),
+};
+
+static const struct snd_kcontrol_new dac1r_mix[] = {
+WM8994_CLASS_W_SWITCH("Right Sidetone Switch", WM8994_DAC1_RIGHT_MIXER_ROUTING,
+		      5, 1, 0),
+WM8994_CLASS_W_SWITCH("Left Sidetone Switch", WM8994_DAC1_RIGHT_MIXER_ROUTING,
+		      4, 1, 0),
+WM8994_CLASS_W_SWITCH("AIF2 Switch", WM8994_DAC1_RIGHT_MIXER_ROUTING,
+		      2, 1, 0),
+WM8994_CLASS_W_SWITCH("AIF1.2 Switch", WM8994_DAC1_RIGHT_MIXER_ROUTING,
+		      1, 1, 0),
+WM8994_CLASS_W_SWITCH("AIF1.1 Switch", WM8994_DAC1_RIGHT_MIXER_ROUTING,
+		      0, 1, 0),
+};
+
+static const char *sidetone_text[] = {
+	"ADC/DMIC1", "DMIC2",
+};
+
+static const struct soc_enum sidetone1_enum =
+	SOC_ENUM_SINGLE(WM8994_SIDETONE, 0, 2, sidetone_text);
+
+static const struct snd_kcontrol_new sidetone1_mux =
+	SOC_DAPM_ENUM("Left Sidetone Mux", sidetone1_enum);
+
+static const struct soc_enum sidetone2_enum =
+	SOC_ENUM_SINGLE(WM8994_SIDETONE, 1, 2, sidetone_text);
+
+static const struct snd_kcontrol_new sidetone2_mux =
+	SOC_DAPM_ENUM("Right Sidetone Mux", sidetone2_enum);
+
+static const char *aif1dac_text[] = {
+	"AIF1DACDAT", "AIF3DACDAT",
+};
+
+static const struct soc_enum aif1dac_enum =
+	SOC_ENUM_SINGLE(WM8994_POWER_MANAGEMENT_6, 0, 2, aif1dac_text);
+
+static const struct snd_kcontrol_new aif1dac_mux =
+	SOC_DAPM_ENUM("AIF1DAC Mux", aif1dac_enum);
+
+static const char *aif2dac_text[] = {
+	"AIF2DACDAT", "AIF3DACDAT",
+};
+
+static const struct soc_enum aif2dac_enum =
+	SOC_ENUM_SINGLE(WM8994_POWER_MANAGEMENT_6, 1, 2, aif2dac_text);
+
+static const struct snd_kcontrol_new aif2dac_mux =
+	SOC_DAPM_ENUM("AIF2DAC Mux", aif2dac_enum);
+
+static const char *aif2adc_text[] = {
+	"AIF2ADCDAT", "AIF3DACDAT",
+};
+
+static const struct soc_enum aif2adc_enum =
+	SOC_ENUM_SINGLE(WM8994_POWER_MANAGEMENT_6, 2, 2, aif2adc_text);
+
+static const struct snd_kcontrol_new aif2adc_mux =
+	SOC_DAPM_ENUM("AIF2ADC Mux", aif2adc_enum);
+
+static const char *aif3adc_text[] = {
+	"AIF1ADCDAT", "AIF2ADCDAT", "AIF2DACDAT",
+};
+
+static const struct soc_enum aif3adc_enum =
+	SOC_ENUM_SINGLE(WM8994_POWER_MANAGEMENT_6, 3, 3, aif3adc_text);
+
+static const struct snd_kcontrol_new aif3adc_mux =
+	SOC_DAPM_ENUM("AIF3ADC Mux", aif3adc_enum);
+
+static const struct snd_soc_dapm_widget wm8994_dapm_widgets[] = {
+
+SND_SOC_DAPM_INPUT("DMIC1DAT"),
+SND_SOC_DAPM_INPUT("DMIC2DAT"),
+
+SND_SOC_DAPM_SUPPLY("CLK_SYS", SND_SOC_NOPM, 0, 0, clk_sys_event,
+		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+
+SND_SOC_DAPM_SUPPLY("DSP1CLK", WM8994_CLOCKING_1, 3, 0, NULL, 0),
+SND_SOC_DAPM_SUPPLY("DSP2CLK", WM8994_CLOCKING_1, 2, 0, NULL, 0),
+SND_SOC_DAPM_SUPPLY("DSPINTCLK", WM8994_CLOCKING_1, 1, 0, NULL, 0),
+
+SND_SOC_DAPM_SUPPLY("AIF1CLK", WM8994_AIF1_CLOCKING_1, 0, 0, NULL, 0),
+SND_SOC_DAPM_SUPPLY("AIF2CLK", WM8994_AIF2_CLOCKING_1, 0, 0, NULL, 0),
+
+SND_SOC_DAPM_AIF_OUT("AIF1ADC1L", "AIF1 Capture",
+		     0, WM8994_POWER_MANAGEMENT_4, 9, 0),
+SND_SOC_DAPM_AIF_OUT("AIF1ADC1R", "AIF1 Capture",
+		     0, WM8994_POWER_MANAGEMENT_4, 8, 0),
+SND_SOC_DAPM_AIF_IN("AIF1DAC1L", NULL, 0,
+		    WM8994_POWER_MANAGEMENT_5, 9, 0),
+SND_SOC_DAPM_AIF_IN("AIF1DAC1R", NULL, 0,
+		    WM8994_POWER_MANAGEMENT_5, 8, 0),
+
+SND_SOC_DAPM_AIF_OUT("AIF1ADC2L", "AIF1 Capture",
+		     0, WM8994_POWER_MANAGEMENT_4, 11, 0),
+SND_SOC_DAPM_AIF_OUT("AIF1ADC2R", "AIF1 Capture",
+		     0, WM8994_POWER_MANAGEMENT_4, 10, 0),
+SND_SOC_DAPM_AIF_IN("AIF1DAC2L", NULL, 0,
+		    WM8994_POWER_MANAGEMENT_5, 11, 0),
+SND_SOC_DAPM_AIF_IN("AIF1DAC2R", NULL, 0,
+		    WM8994_POWER_MANAGEMENT_5, 10, 0),
+
+SND_SOC_DAPM_MIXER("AIF1ADC1L Mixer", SND_SOC_NOPM, 0, 0,
+		   aif1adc1l_mix, ARRAY_SIZE(aif1adc1l_mix)),
+SND_SOC_DAPM_MIXER("AIF1ADC1R Mixer", SND_SOC_NOPM, 0, 0,
+		   aif1adc1r_mix, ARRAY_SIZE(aif1adc1r_mix)),
+
+SND_SOC_DAPM_MIXER("AIF2DAC2L Mixer", SND_SOC_NOPM, 0, 0,
+		   aif2dac2l_mix, ARRAY_SIZE(aif2dac2l_mix)),
+SND_SOC_DAPM_MIXER("AIF2DAC2R Mixer", SND_SOC_NOPM, 0, 0,
+		   aif2dac2r_mix, ARRAY_SIZE(aif2dac2r_mix)),
+
+SND_SOC_DAPM_MUX("Left Sidetone", SND_SOC_NOPM, 0, 0, &sidetone1_mux),
+SND_SOC_DAPM_MUX("Right Sidetone", SND_SOC_NOPM, 0, 0, &sidetone2_mux),
+
+SND_SOC_DAPM_MIXER("DAC1L Mixer", SND_SOC_NOPM, 0, 0,
+		   dac1l_mix, ARRAY_SIZE(dac1l_mix)),
+SND_SOC_DAPM_MIXER("DAC1R Mixer", SND_SOC_NOPM, 0, 0,
+		   dac1r_mix, ARRAY_SIZE(dac1r_mix)),
+
+SND_SOC_DAPM_AIF_OUT("AIF2ADCL", NULL, 0,
+		     WM8994_POWER_MANAGEMENT_4, 13, 0),
+SND_SOC_DAPM_AIF_OUT("AIF2ADCR", NULL, 0,
+		     WM8994_POWER_MANAGEMENT_4, 12, 0),
+SND_SOC_DAPM_AIF_IN("AIF2DACL", NULL, 0,
+		    WM8994_POWER_MANAGEMENT_5, 13, 0),
+SND_SOC_DAPM_AIF_IN("AIF2DACR", NULL, 0,
+		    WM8994_POWER_MANAGEMENT_5, 12, 0),
+
+SND_SOC_DAPM_AIF_IN("AIF1DACDAT", "AIF1 Playback", 0, SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_AIF_IN("AIF2DACDAT", "AIF2 Playback", 0, SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_AIF_OUT("AIF2ADCDAT", "AIF2 Capture", 0, SND_SOC_NOPM, 0, 0),
+
+SND_SOC_DAPM_MUX("AIF1DAC Mux", SND_SOC_NOPM, 0, 0, &aif1dac_mux),
+SND_SOC_DAPM_MUX("AIF2DAC Mux", SND_SOC_NOPM, 0, 0, &aif2dac_mux),
+SND_SOC_DAPM_MUX("AIF2ADC Mux", SND_SOC_NOPM, 0, 0, &aif2adc_mux),
+SND_SOC_DAPM_MUX("AIF3ADC Mux", SND_SOC_NOPM, 0, 0, &aif3adc_mux),
+
+SND_SOC_DAPM_AIF_IN("AIF3DACDAT", "AIF3 Playback", 0, SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_AIF_IN("AIF3ADCDAT", "AIF3 Capture", 0, SND_SOC_NOPM, 0, 0),
+
+SND_SOC_DAPM_SUPPLY("TOCLK", WM8994_CLOCKING_1, 4, 0, NULL, 0),
+
+SND_SOC_DAPM_ADC("DMIC2L", NULL, WM8994_POWER_MANAGEMENT_4, 5, 0),
+SND_SOC_DAPM_ADC("DMIC2R", NULL, WM8994_POWER_MANAGEMENT_4, 4, 0),
+SND_SOC_DAPM_ADC("DMIC1L", NULL, WM8994_POWER_MANAGEMENT_4, 3, 0),
+SND_SOC_DAPM_ADC("DMIC1R", NULL, WM8994_POWER_MANAGEMENT_4, 2, 0),
+
+/* Power is done with the muxes since the ADC power also controls the
+ * downsampling chain, the chip will automatically manage the analogue
+ * specific portions.
+ */
+SND_SOC_DAPM_ADC("ADCL", NULL, SND_SOC_NOPM, 1, 0),
+SND_SOC_DAPM_ADC("ADCR", NULL, SND_SOC_NOPM, 0, 0),
+
+SND_SOC_DAPM_MUX("ADCL Mux", WM8994_POWER_MANAGEMENT_4, 1, 0, &adcl_mux),
+SND_SOC_DAPM_MUX("ADCR Mux", WM8994_POWER_MANAGEMENT_4, 0, 0, &adcr_mux),
+
+SND_SOC_DAPM_DAC("DAC2L", NULL, WM8994_POWER_MANAGEMENT_5, 3, 0),
+SND_SOC_DAPM_DAC("DAC2R", NULL, WM8994_POWER_MANAGEMENT_5, 2, 0),
+SND_SOC_DAPM_DAC("DAC1L", NULL, WM8994_POWER_MANAGEMENT_5, 1, 0),
+SND_SOC_DAPM_DAC("DAC1R", NULL, WM8994_POWER_MANAGEMENT_5, 0, 0),
+
+SND_SOC_DAPM_MUX("Left Headphone Mux", SND_SOC_NOPM, 0, 0, &hpl_mux),
+SND_SOC_DAPM_MUX("Right Headphone Mux", SND_SOC_NOPM, 0, 0, &hpr_mux),
+
+SND_SOC_DAPM_MIXER("SPKL", WM8994_POWER_MANAGEMENT_3, 8, 0,
+		   left_speaker_mixer, ARRAY_SIZE(left_speaker_mixer)),
+SND_SOC_DAPM_MIXER("SPKR", WM8994_POWER_MANAGEMENT_3, 9, 0,
+		   right_speaker_mixer, ARRAY_SIZE(right_speaker_mixer)),
+
+SND_SOC_DAPM_POST("Debug log", post_ev),
+};
+
+static const struct snd_soc_dapm_route intercon[] = {
+	{ "CLK_SYS", NULL, "AIF1CLK", check_clk_sys },
+	{ "CLK_SYS", NULL, "AIF2CLK", check_clk_sys },
+
+	{ "DSP1CLK", NULL, "CLK_SYS" },
+	{ "DSP2CLK", NULL, "CLK_SYS" },
+	{ "DSPINTCLK", NULL, "CLK_SYS" },
+
+	{ "AIF1ADC1L", NULL, "AIF1CLK" },
+	{ "AIF1ADC1L", NULL, "DSP1CLK" },
+	{ "AIF1ADC1R", NULL, "AIF1CLK" },
+	{ "AIF1ADC1R", NULL, "DSP1CLK" },
+	{ "AIF1ADC1R", NULL, "DSPINTCLK" },
+
+	{ "AIF1DAC1L", NULL, "AIF1CLK" },
+	{ "AIF1DAC1L", NULL, "DSP1CLK" },
+	{ "AIF1DAC1R", NULL, "AIF1CLK" },
+	{ "AIF1DAC1R", NULL, "DSP1CLK" },
+	{ "AIF1DAC1R", NULL, "DSPINTCLK" },
+
+	{ "AIF1ADC2L", NULL, "AIF1CLK" },
+	{ "AIF1ADC2L", NULL, "DSP1CLK" },
+	{ "AIF1ADC2R", NULL, "AIF1CLK" },
+	{ "AIF1ADC2R", NULL, "DSP1CLK" },
+	{ "AIF1ADC2R", NULL, "DSPINTCLK" },
+
+	{ "AIF1DAC2L", NULL, "AIF1CLK" },
+	{ "AIF1DAC2L", NULL, "DSP1CLK" },
+	{ "AIF1DAC2R", NULL, "AIF1CLK" },
+	{ "AIF1DAC2R", NULL, "DSP1CLK" },
+	{ "AIF1DAC2R", NULL, "DSPINTCLK" },
+
+	{ "AIF2ADCL", NULL, "AIF2CLK" },
+	{ "AIF2ADCL", NULL, "DSP2CLK" },
+	{ "AIF2ADCR", NULL, "AIF2CLK" },
+	{ "AIF2ADCR", NULL, "DSP2CLK" },
+	{ "AIF2ADCR", NULL, "DSPINTCLK" },
+
+	{ "AIF2DACL", NULL, "AIF2CLK" },
+	{ "AIF2DACL", NULL, "DSP2CLK" },
+	{ "AIF2DACR", NULL, "AIF2CLK" },
+	{ "AIF2DACR", NULL, "DSP2CLK" },
+	{ "AIF2DACR", NULL, "DSPINTCLK" },
+
+	{ "DMIC1L", NULL, "DMIC1DAT" },
+	{ "DMIC1L", NULL, "CLK_SYS" },
+	{ "DMIC1R", NULL, "DMIC1DAT" },
+	{ "DMIC1R", NULL, "CLK_SYS" },
+	{ "DMIC2L", NULL, "DMIC2DAT" },
+	{ "DMIC2L", NULL, "CLK_SYS" },
+	{ "DMIC2R", NULL, "DMIC2DAT" },
+	{ "DMIC2R", NULL, "CLK_SYS" },
+
+	{ "ADCL", NULL, "AIF1CLK" },
+	{ "ADCL", NULL, "DSP1CLK" },
+	{ "ADCL", NULL, "DSPINTCLK" },
+
+	{ "ADCR", NULL, "AIF1CLK" },
+	{ "ADCR", NULL, "DSP1CLK" },
+	{ "ADCR", NULL, "DSPINTCLK" },
+
+	{ "ADCL Mux", "ADC", "ADCL" },
+	{ "ADCL Mux", "DMIC", "DMIC1L" },
+	{ "ADCR Mux", "ADC", "ADCR" },
+	{ "ADCR Mux", "DMIC", "DMIC1R" },
+
+	{ "DAC1L", NULL, "AIF1CLK" },
+	{ "DAC1L", NULL, "DSP1CLK" },
+	{ "DAC1L", NULL, "DSPINTCLK" },
+
+	{ "DAC1R", NULL, "AIF1CLK" },
+	{ "DAC1R", NULL, "DSP1CLK" },
+	{ "DAC1R", NULL, "DSPINTCLK" },
+
+	{ "DAC2L", NULL, "AIF2CLK" },
+	{ "DAC2L", NULL, "DSP2CLK" },
+	{ "DAC2L", NULL, "DSPINTCLK" },
+
+	{ "DAC2R", NULL, "AIF2DACR" },
+	{ "DAC2R", NULL, "AIF2CLK" },
+	{ "DAC2R", NULL, "DSP2CLK" },
+	{ "DAC2R", NULL, "DSPINTCLK" },
+
+	{ "TOCLK", NULL, "CLK_SYS" },
+
+	/* AIF1 outputs */
+	{ "AIF1ADC1L", NULL, "AIF1ADC1L Mixer" },
+	{ "AIF1ADC1L Mixer", "ADC/DMIC Switch", "ADCL Mux" },
+	{ "AIF1ADC1L Mixer", "AIF2 Switch", "AIF2DACL" },
+
+	{ "AIF1ADC1R", NULL, "AIF1ADC1R Mixer" },
+	{ "AIF1ADC1R Mixer", "ADC/DMIC Switch", "ADCR Mux" },
+	{ "AIF1ADC1R Mixer", "AIF2 Switch", "AIF2DACR" },
+
+	/* Pin level routing for AIF3 */
+	{ "AIF1DAC1L", NULL, "AIF1DAC Mux" },
+	{ "AIF1DAC1R", NULL, "AIF1DAC Mux" },
+	{ "AIF1DAC2L", NULL, "AIF1DAC Mux" },
+	{ "AIF1DAC2R", NULL, "AIF1DAC Mux" },
+
+	{ "AIF2DACL", NULL, "AIF2DAC Mux" },
+	{ "AIF2DACR", NULL, "AIF2DAC Mux" },
+
+	{ "AIF1DAC Mux", "AIF1DACDAT", "AIF1DACDAT" },
+	{ "AIF1DAC Mux", "AIF3DACDAT", "AIF3DACDAT" },
+	{ "AIF2DAC Mux", "AIF2DACDAT", "AIF2DACDAT" },
+	{ "AIF2DAC Mux", "AIF3DACDAT", "AIF3DACDAT" },
+	{ "AIF2ADC Mux", "AIF2ADCDAT", "AIF2ADCL" },
+	{ "AIF2ADC Mux", "AIF2ADCDAT", "AIF2ADCR" },
+	{ "AIF2ADC Mux", "AIF3DACDAT", "AIF3ADCDAT" },
+
+	/* DAC1 inputs */
+	{ "DAC1L", NULL, "DAC1L Mixer" },
+	{ "DAC1L Mixer", "AIF2 Switch", "AIF2DACL" },
+	{ "DAC1L Mixer", "AIF1.2 Switch", "AIF1DAC2L" },
+	{ "DAC1L Mixer", "AIF1.1 Switch", "AIF1DAC1L" },
+	{ "DAC1L Mixer", "Left Sidetone Switch", "Left Sidetone" },
+	{ "DAC1L Mixer", "Right Sidetone Switch", "Right Sidetone" },
+
+	{ "DAC1R", NULL, "DAC1R Mixer" },
+	{ "DAC1R Mixer", "AIF2 Switch", "AIF2DACR" },
+	{ "DAC1R Mixer", "AIF1.2 Switch", "AIF1DAC2R" },
+	{ "DAC1R Mixer", "AIF1.1 Switch", "AIF1DAC1R" },
+	{ "DAC1R Mixer", "Left Sidetone Switch", "Left Sidetone" },
+	{ "DAC1R Mixer", "Right Sidetone Switch", "Right Sidetone" },
+
+	/* DAC2/AIF2 outputs  */
+	{ "AIF2ADCL", NULL, "AIF2DAC2L Mixer" },
+	{ "DAC2L", NULL, "AIF2DAC2L Mixer" },
+	{ "AIF2DAC2L Mixer", "AIF2 Switch", "AIF2DACL" },
+	{ "AIF2DAC2L Mixer", "AIF1.2 Switch", "AIF1DAC2L" },
+	{ "AIF2DAC2L Mixer", "AIF1.1 Switch", "AIF1DAC1L" },
+	{ "AIF2DAC2L Mixer", "Left Sidetone Switch", "Left Sidetone" },
+	{ "AIF2DAC2L Mixer", "Right Sidetone Switch", "Right Sidetone" },
+
+	{ "AIF2ADCR", NULL, "AIF2DAC2R Mixer" },
+	{ "DAC2R", NULL, "AIF2DAC2R Mixer" },
+	{ "AIF2DAC2R Mixer", "AIF2 Switch", "AIF2DACR" },
+	{ "AIF2DAC2R Mixer", "AIF1.2 Switch", "AIF1DAC2R" },
+	{ "AIF2DAC2R Mixer", "AIF1.1 Switch", "AIF1DAC1R" },
+	{ "AIF2DAC2R Mixer", "Left Sidetone Switch", "Left Sidetone" },
+	{ "AIF2DAC2R Mixer", "Right Sidetone Switch", "Right Sidetone" },
+
+	{ "AIF2ADCDAT", NULL, "AIF2ADC Mux" },
+
+	/* AIF3 output */
+	{ "AIF3ADCDAT", "AIF1ADCDAT", "AIF1ADC1L" },
+	{ "AIF3ADCDAT", "AIF1ADCDAT", "AIF1ADC1R" },
+	{ "AIF3ADCDAT", "AIF1ADCDAT", "AIF1ADC2L" },
+	{ "AIF3ADCDAT", "AIF1ADCDAT", "AIF1ADC2R" },
+	{ "AIF3ADCDAT", "AIF2ADCDAT", "AIF2ADCL" },
+	{ "AIF3ADCDAT", "AIF2ADCDAT", "AIF2ADCR" },
+	{ "AIF3ADCDAT", "AIF2DACDAT", "AIF2DACL" },
+	{ "AIF3ADCDAT", "AIF2DACDAT", "AIF2DACR" },
+
+	/* Sidetone */
+	{ "Left Sidetone", "ADC/DMIC1", "ADCL Mux" },
+	{ "Left Sidetone", "DMIC2", "DMIC2L" },
+	{ "Right Sidetone", "ADC/DMIC1", "ADCR Mux" },
+	{ "Right Sidetone", "DMIC2", "DMIC2R" },
+
+	/* Output stages */
+	{ "Left Output Mixer", "DAC Switch", "DAC1L" },
+	{ "Right Output Mixer", "DAC Switch", "DAC1R" },
+
+	{ "SPKL", "DAC1 Switch", "DAC1L" },
+	{ "SPKL", "DAC2 Switch", "DAC2L" },
+
+	{ "SPKR", "DAC1 Switch", "DAC1R" },
+	{ "SPKR", "DAC2 Switch", "DAC2R" },
+
+	{ "Left Headphone Mux", "DAC", "DAC1L" },
+	{ "Right Headphone Mux", "DAC", "DAC1R" },
+};
+
+/* The size in bits of the FLL divide multiplied by 10
+ * to allow rounding later */
+#define FIXED_FLL_SIZE ((1 << 16) * 10)
+
+struct fll_div {
+	u16 outdiv;
+	u16 n;
+	u16 k;
+	u16 clk_ref_div;
+	u16 fll_fratio;
+};
+
+static int wm8994_get_fll_config(struct fll_div *fll,
+				 int freq_in, int freq_out)
+{
+	u64 Kpart;
+	unsigned int K, Ndiv, Nmod;
+
+	DBG_CLK("FLL input=%dHz, output=%dHz\n", freq_in, freq_out);
+
+	/* Scale the input frequency down to <= 13.5MHz */
+	fll->clk_ref_div = 0;
+	while (freq_in > 13500000) {
+		fll->clk_ref_div++;
+		freq_in /= 2;
+
+		if (fll->clk_ref_div > 3)
+			return -EINVAL;
+	}
+	DBG_CLK("CLK_REF_DIV=%d, Fref=%dHz\n", fll->clk_ref_div, freq_in);
+
+	/* Scale the output to give 90MHz<=Fvco<=100MHz */
+	fll->outdiv = 3;
+	while (freq_out * (fll->outdiv + 1) < 90000000) {
+		fll->outdiv++;
+		if (fll->outdiv > 63)
+			return -EINVAL;
+	}
+	freq_out *= fll->outdiv + 1;
+	DBG_CLK("OUTDIV=%d, Fvco=%dHz\n", fll->outdiv, freq_out);
+
+	if (freq_in > 1000000) {
+		fll->fll_fratio = 0;
+	} else {
+		fll->fll_fratio = 3;
+		freq_in *= 8;
+	}
+	DBG_CLK("FLL_FRATIO=%d, Fref=%dHz\n", fll->fll_fratio, freq_in);
+
+	/* Now, calculate N.K */
+	Ndiv = freq_out / freq_in;
+
+	fll->n = Ndiv;
+	Nmod = freq_out % freq_in;
+	DBG_CLK("Nmod=%d\n", Nmod);
+
+	/* Calculate fractional part - scale up so we can round. */
+	Kpart = FIXED_FLL_SIZE * (long long)Nmod;
+
+	do_div(Kpart, freq_in);
+
+	K = Kpart & 0xFFFFFFFF;
+
+	if ((K % 10) >= 5)
+		K += 5;
+
+	/* Move down to proper range now rounding is done */
+	fll->k = K / 10;
+
+	DBG_CLK("N=%x K=%x\n", fll->n, fll->k);
+
+	return 0;
+}
+
+//static int wm8994_set_fll(struct snd_soc_dai *dai, int id, int src,
+//			  unsigned int freq_in, unsigned int freq_out)
+static int wm8994_set_fll(struct snd_soc_dai *dai, int id,
+			  unsigned int freq_in, unsigned int freq_out) 			  
+{
+	struct snd_soc_codec *codec = dai->codec;
+	struct wm8994_priv *wm8994 = codec->private_data;
+	int reg_offset, ret;
+	struct fll_div fll;
+	u16 reg, aif1, aif2;
+//	DBG("Enter %s::%s---%d\n",__FILE__,__FUNCTION__,__LINE__);
+	aif1 = snd_soc_read(codec, WM8994_AIF1_CLOCKING_1)//0x200
+		& WM8994_AIF1CLK_ENA;
+
+	aif2 = snd_soc_read(codec, WM8994_AIF2_CLOCKING_1)
+		& WM8994_AIF2CLK_ENA;
+
+	switch (id) {
+	case WM8994_FLL1:
+		reg_offset = 0;
+		id = 0;
+		break;
+	case WM8994_FLL2:
+		reg_offset = 0x20;
+		id = 1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Are we changing anything?  wm8994->fll[id].src == src && */
+	if ( wm8994->fll[id].in == freq_in && wm8994->fll[id].out == freq_out)
+		return 0;
+
+	/* If we're stopping the FLL redo the old config - no
+	 * registers will actually be written but we avoid GCC flow
+	 * analysis bugs spewing warnings.
+	 */
+	if (freq_out)
+		ret = wm8994_get_fll_config(&fll, freq_in, freq_out);
+	else
+		ret = wm8994_get_fll_config(&fll, wm8994->fll[id].in,
+					    wm8994->fll[id].out);
+	if (ret < 0)
+		return ret;
+
+	/* Gate the AIF clocks while we reclock */
+	snd_soc_update_bits(codec, WM8994_AIF1_CLOCKING_1,
+			    WM8994_AIF1CLK_ENA, 0);
+	snd_soc_update_bits(codec, WM8994_AIF2_CLOCKING_1,
+			    WM8994_AIF2CLK_ENA, 0);
+
+	/* We always need to disable the FLL while reconfiguring */
+	snd_soc_update_bits(codec, WM8994_FLL1_CONTROL_1 + reg_offset, //0x220   先关FLL
+			    WM8994_FLL1_ENA, 0);
+
+	reg = (fll.outdiv << WM8994_FLL1_OUTDIV_SHIFT) |
+		(fll.fll_fratio << WM8994_FLL1_FRATIO_SHIFT);
+	snd_soc_update_bits(codec, WM8994_FLL1_CONTROL_2 + reg_offset,//0x221  DIV
+			    WM8994_FLL1_OUTDIV_MASK |
+			    WM8994_FLL1_FRATIO_MASK, reg);
+
+	snd_soc_write(codec, WM8994_FLL1_CONTROL_3 + reg_offset, fll.k);//0x222	K
+
+	snd_soc_update_bits(codec, WM8994_FLL1_CONTROL_4 + reg_offset,	//0x223		N
+			    WM8994_FLL1_N_MASK,
+				    fll.n << WM8994_FLL1_N_SHIFT);
+
+	snd_soc_update_bits(codec, WM8994_FLL1_CONTROL_5 + reg_offset,//0x224	
+			    WM8994_FLL1_REFCLK_DIV_MASK,
+			    fll.clk_ref_div << WM8994_FLL1_REFCLK_DIV_SHIFT);
+
+	/* Enable (with fractional mode if required) */
+	if (freq_out) {
+		if (fll.k)
+			reg = WM8994_FLL1_ENA | WM8994_FLL1_FRAC;
+		else
+			reg = WM8994_FLL1_ENA;
+		snd_soc_update_bits(codec, WM8994_FLL1_CONTROL_1 + reg_offset,//0x220	
+				    WM8994_FLL1_ENA | WM8994_FLL1_FRAC,
+				    reg);
+	}
+
+	wm8994->fll[id].in = freq_in;
+	wm8994->fll[id].out = freq_out;
+
+	/* Enable any gated AIF clocks */
+	snd_soc_update_bits(codec, WM8994_AIF1_CLOCKING_1,
+			    WM8994_AIF1CLK_ENA, aif1);
+	snd_soc_update_bits(codec, WM8994_AIF2_CLOCKING_1,
+			    WM8994_AIF2CLK_ENA, aif2);
+
+	configure_clock(codec);
+
+	return 0;
+}
+
+static int wm8994_set_dai_sysclk(struct snd_soc_dai *dai,
+		int clk_id, unsigned int freq, int dir)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	struct wm8994_priv *wm8994 = codec->private_data;
+//	DBG("Enter %s::%s---%d\n",__FILE__,__FUNCTION__,__LINE__);
+	switch (dai->id) {
+	case 1:
+	case 2:
+		break;
+	default:
+		// AIF3 shares clocking with AIF1/2 
+		DBG_CLK("ERROR:AIF3 shares clocking with AIF1/2. \n");
+		return -EINVAL;
+	}
+
+
+	switch (clk_id) {
+	case WM8994_SYSCLK_MCLK1:
+		wm8994->sysclk[dai->id - 1] = WM8994_SYSCLK_MCLK1;
+		wm8994->mclk[0] = freq;
+		DBG_INFO(dai->dev, "AIF%d using MCLK1 at %uHz\n",
+			dai->id, freq);
+		break;
+
+	case WM8994_SYSCLK_MCLK2:
+		//TODO: Set GPIO AF 
+		wm8994->sysclk[dai->id - 1] = WM8994_SYSCLK_MCLK2;
+		wm8994->mclk[1] = freq;
+		DBG_INFO(dai->dev, "AIF%d using MCLK2 at %uHz\n",
+			dai->id, freq);
+		break;
+
+	case WM8994_SYSCLK_FLL1:
+		wm8994->sysclk[dai->id - 1] = WM8994_SYSCLK_FLL1;
+		DBG_INFO(dai->dev, "AIF%d using FLL1\n", dai->id);
+		break;
+
+	case WM8994_SYSCLK_FLL2:
+		wm8994->sysclk[dai->id - 1] = WM8994_SYSCLK_FLL2;
+		DBG_INFO(dai->dev, "AIF%d using FLL2\n", dai->id);
+		break;
+
+	default:
+		DBG_CLK("ERROR:AIF3 shares clocking with AIF1/2. \n");
+		return -EINVAL;
+	}
+
+	configure_clock(codec);
+
 	return 0;
 }
 
 static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
+//	DBG("Enter %s---%d\n",__FUNCTION__,__LINE__);
+	switch (level) {
+	case SND_SOC_BIAS_ON:
+		break;
 
+	case SND_SOC_BIAS_PREPARE:
+		/* VMID=2x40k */
+		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
+				    WM8994_VMID_SEL_MASK, 0x2);
+		break;
+
+	case SND_SOC_BIAS_STANDBY:
+		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+			/* Tweak DC servo configuration for improved
+			 * performance. */
+			snd_soc_write(codec, 0x102, 0x3);
+			snd_soc_write(codec, 0x56, 0x3);
+			snd_soc_write(codec, 0x102, 0);
+
+			/* Discharge LINEOUT1 & 2 */
+			snd_soc_update_bits(codec, WM8994_ANTIPOP_1,
+					    WM8994_LINEOUT1_DISCH |
+					    WM8994_LINEOUT2_DISCH,
+					    WM8994_LINEOUT1_DISCH |
+					    WM8994_LINEOUT2_DISCH);
+
+			/* Startup bias, VMID ramp & buffer */
+			snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
+					    WM8994_STARTUP_BIAS_ENA |
+					    WM8994_VMID_BUF_ENA |
+					    WM8994_VMID_RAMP_MASK,
+					    WM8994_STARTUP_BIAS_ENA |
+					    WM8994_VMID_BUF_ENA |
+					    (0x11 << WM8994_VMID_RAMP_SHIFT));
+
+			/* Main bias enable, VMID=2x40k */
+			snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
+					    WM8994_BIAS_ENA |
+					    WM8994_VMID_SEL_MASK,
+					    WM8994_BIAS_ENA | 0x2);
+
+			msleep(20);
+		}
+
+		/* VMID=2x500k */
+		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
+				    WM8994_VMID_SEL_MASK, 0x4);
+
+		break;
+
+	case SND_SOC_BIAS_OFF:
+		if (codec->bias_level == SND_SOC_BIAS_STANDBY) {
+			/* Switch over to startup biases */
+			snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
+					    WM8994_BIAS_SRC |
+					    WM8994_STARTUP_BIAS_ENA |
+					    WM8994_VMID_BUF_ENA |
+					    WM8994_VMID_RAMP_MASK,
+					    WM8994_BIAS_SRC |
+					    WM8994_STARTUP_BIAS_ENA |
+					    WM8994_VMID_BUF_ENA |
+					    (1 << WM8994_VMID_RAMP_SHIFT));
+
+			/* Disable main biases */
+			snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
+					    WM8994_BIAS_ENA |
+					    WM8994_VMID_SEL_MASK, 0);
+
+			/* Discharge line */
+			snd_soc_update_bits(codec, WM8994_ANTIPOP_1,
+					    WM8994_LINEOUT1_DISCH |
+					    WM8994_LINEOUT2_DISCH,
+					    WM8994_LINEOUT1_DISCH |
+					    WM8994_LINEOUT2_DISCH);
+
+			msleep(5);
+
+			/* Switch off startup biases */
+			snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
+					    WM8994_BIAS_SRC |
+					    WM8994_STARTUP_BIAS_ENA |
+					    WM8994_VMID_BUF_ENA |
+					    WM8994_VMID_RAMP_MASK, 0);
+		}
+		break;
+	}
 	codec->bias_level = level;
 	return 0;
 }
 
-#define WM8994_RATES SNDRV_PCM_RATE_48000
+//设置mater slave 以及I2S模式
+static int wm8994_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	int ms_reg;
+	int aif1_reg;
+	int ms = 0;
+	int aif1 = 0;
+//	DBG("Enter %s---%d\n",__FUNCTION__,__LINE__);
+	switch (dai->id) {
+	case 1:
+		ms_reg = WM8994_AIF1_MASTER_SLAVE;
+		aif1_reg = WM8994_AIF1_CONTROL_1;
+		break;
+	case 2:
+		ms_reg = WM8994_AIF2_MASTER_SLAVE;
+		aif1_reg = WM8994_AIF2_CONTROL_1;
+		break;
+	default:
+		return -EINVAL;
+	}
 
-#define WM8994_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
-	SNDRV_PCM_FMTBIT_S24_LE)
+	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
+	case SND_SOC_DAIFMT_CBS_CFS:
+		break;
+	case SND_SOC_DAIFMT_CBM_CFM:
+	//	ms = WM8994_AIF1_MSTR;
+		ms = WM8994_AIF1_MSTR|WM8994_AIF1_CLK_FRC|WM8994_AIF1_LRCLK_FRC;
+		break;
+	default:
+		return -EINVAL;
+	}
 
-static struct snd_soc_dai_ops wm8994_ops = {
-	.startup = wm8994_pcm_startup,
-	.hw_params = wm8994_pcm_hw_params,
-	.set_fmt = wm8994_set_dai_fmt,
-	.set_sysclk = wm8994_set_dai_sysclk,
-	.digital_mute = wm8994_mute,
-	/*add by qiuen for volume*/
-	.set_volume = wm8994_codec_set_volume,
+	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_DSP_B:
+		aif1 |= WM8994_AIF1_LRCLK_INV;
+	case SND_SOC_DAIFMT_DSP_A:
+		aif1 |= 0x18;
+		break;
+	case SND_SOC_DAIFMT_I2S:
+		aif1 |= 0x10;
+		break;
+	case SND_SOC_DAIFMT_RIGHT_J:
+		break;
+	case SND_SOC_DAIFMT_LEFT_J:
+		aif1 |= 0x8;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_DSP_A:
+	case SND_SOC_DAIFMT_DSP_B:
+		/* frame inversion not valid for DSP modes */
+		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
+		case SND_SOC_DAIFMT_NB_NF:
+			break;
+		case SND_SOC_DAIFMT_IB_NF:
+			aif1 |= WM8994_AIF1_BCLK_INV;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+
+	case SND_SOC_DAIFMT_I2S:
+	case SND_SOC_DAIFMT_RIGHT_J:
+	case SND_SOC_DAIFMT_LEFT_J:
+		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
+		case SND_SOC_DAIFMT_NB_NF:
+			break;
+		case SND_SOC_DAIFMT_IB_IF:
+			aif1 |= WM8994_AIF1_BCLK_INV | WM8994_AIF1_LRCLK_INV;
+			break;
+		case SND_SOC_DAIFMT_IB_NF:
+			aif1 |= WM8994_AIF1_BCLK_INV;
+			break;
+		case SND_SOC_DAIFMT_NB_IF:
+			aif1 |= WM8994_AIF1_LRCLK_INV;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	snd_soc_update_bits(codec, aif1_reg,
+			    WM8994_AIF1_BCLK_INV | WM8994_AIF1_LRCLK_INV |
+			    WM8994_AIF1_FMT_MASK,
+			    aif1);
+	snd_soc_update_bits(codec, ms_reg, WM8994_AIF1_MSTR,
+			    ms);
+
+	return 0;
+}
+
+static struct {
+	int val, rate;
+} srs[] = {
+	{ 0,   8000 },
+	{ 1,  11025 },
+	{ 2,  12000 },
+	{ 3,  16000 },
+	{ 4,  22050 },
+	{ 5,  24000 },
+	{ 6,  32000 },
+	{ 7,  44100 },
+	{ 8,  48000 },
+	{ 9,  88200 },
+	{ 10, 96000 },
 };
 
-struct snd_soc_dai wm8994_dai = {
-	.name = "WM8994",
-	.playback = {
-		.stream_name = "Playback",
-		.channels_min = 1,
-		.channels_max = 2,
-		.rates = WM8994_RATES,
-		.formats = WM8994_FORMATS,
+static int fs_ratios[] = {
+	64, 128, 192, 256, 348, 512, 768, 1024, 1408, 1536
+};
+
+static int bclk_divs[] = {
+	10, 15, 20, 30, 40, 50, 60, 80, 110, 120, 160, 220, 240, 320, 440, 480,
+	640, 880, 960, 1280, 1760, 1920
+};
+
+static int wm8994_hw_params(struct snd_pcm_substream *substream,
+			    struct snd_pcm_hw_params *params,
+			    struct snd_soc_dai *dai)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	struct wm8994_priv *wm8994 = codec->private_data;
+	int aif1_reg;
+	int bclk_reg;
+	int lrclk_reg;
+	int rate_reg;
+	int aif1 = 0;
+	int bclk = 0;
+	int lrclk = 0;
+	int rate_val = 0;
+	int id = dai->id - 1;
+
+	int i, cur_val, best_val, bclk_rate, best;
+	
+//	DBG("Enter %s::%s---%d\n",__FILE__,__FUNCTION__,__LINE__);	
+	
+	switch (dai->id) {
+	case 1:
+		aif1_reg = WM8994_AIF1_CONTROL_1;
+		bclk_reg = WM8994_AIF1_BCLK;
+		rate_reg = WM8994_AIF1_RATE;
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK ||
+		    wm8994->lrclk_shared[0])
+			lrclk_reg = WM8994_AIF1DAC_LRCLK;
+		else
+			lrclk_reg = WM8994_AIF1ADC_LRCLK;
+		break;
+	case 2:
+		aif1_reg = WM8994_AIF2_CONTROL_1;
+		bclk_reg = WM8994_AIF2_BCLK;
+		rate_reg = WM8994_AIF2_RATE;
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK ||
+		    wm8994->lrclk_shared[1])
+			lrclk_reg = WM8994_AIF2DAC_LRCLK;
+		else
+			lrclk_reg = WM8994_AIF2ADC_LRCLK;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	bclk_rate = params_rate(params) * 2;
+	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_S16_LE:
+		bclk_rate *= 16;
+		break;
+	case SNDRV_PCM_FORMAT_S20_3LE:
+		bclk_rate *= 20;
+		aif1 |= 0x20;
+		break;
+	case SNDRV_PCM_FORMAT_S24_LE:
+		bclk_rate *= 24;
+		aif1 |= 0x40;
+		break;
+	case SNDRV_PCM_FORMAT_S32_LE:
+		bclk_rate *= 32;
+		aif1 |= 0x60;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	// Try to find an appropriate sample rate; look for an exact match. 
+	for (i = 0; i < ARRAY_SIZE(srs); i++)
+		if (srs[i].rate == params_rate(params))
+			break;
+	if (i == ARRAY_SIZE(srs))
+		return -EINVAL;
+	rate_val |= srs[i].val << WM8994_AIF1_SR_SHIFT;
+
+	DBG_INFO(dai->dev, "Sample rate is %dHz\n", srs[i].rate);
+	DBG_INFO(dai->dev, "AIF%dCLK is %dHz, target BCLK %dHz\n",
+		dai->id, wm8994->aifclk[id], bclk_rate);
+
+	if (wm8994->aifclk[id] == 0) {
+		dev_err(dai->dev, "AIF%dCLK not configured\n", dai->id);
+		return -EINVAL;
+	}
+
+	/* AIFCLK/fs ratio; look for a close match in either direction */
+	best = 0;
+	best_val = abs((fs_ratios[0] * params_rate(params))
+		       - wm8994->aifclk[id]);
+	for (i = 1; i < ARRAY_SIZE(fs_ratios); i++) {
+		cur_val = abs((fs_ratios[i] * params_rate(params))
+			      - wm8994->aifclk[id]);
+		if (cur_val >= best_val)
+			continue;
+		best = i;
+		best_val = cur_val;
+	}
+	DBG_INFO(dai->dev, "Selected AIF%dCLK/fs = %d\n",
+		dai->id, fs_ratios[best]);
+	rate_val |= best;
+
+	// We may not get quite the right frequency if using
+	//  approximate clocks so look for the closest match that is
+	//  higher than the target (we need to ensure that there enough
+	//  BCLKs to clock out the samples).
+	// 
+	best = 0;
+	for (i = 0; i < ARRAY_SIZE(bclk_divs); i++) {
+		cur_val = (wm8994->aifclk[id] * 10 / bclk_divs[i]) - bclk_rate;
+		if (cur_val < 0) // BCLK table is sorted 
+			break;
+		best = i;
+	}
+	bclk_rate = wm8994->aifclk[id] * 10 / bclk_divs[best];
+	DBG_INFO(dai->dev, "Using BCLK_DIV %d for actual BCLK %dHz\n",
+		bclk_divs[best], bclk_rate);
+	bclk |= best << WM8994_AIF1_BCLK_DIV_SHIFT;
+
+	lrclk = bclk_rate / params_rate(params);
+	DBG_INFO(dai->dev, "Using LRCLK rate %d for actual LRCLK %dHz\n",
+		lrclk, bclk_rate / lrclk);
+
+	snd_soc_update_bits(codec, aif1_reg, WM8994_AIF1_WL_MASK, aif1);
+	snd_soc_update_bits(codec, bclk_reg, WM8994_AIF1_BCLK_DIV_MASK, bclk);
+	snd_soc_update_bits(codec, lrclk_reg, WM8994_AIF1DAC_RATE_MASK,
+			    lrclk);
+	snd_soc_update_bits(codec, rate_reg, WM8994_AIF1_SR_MASK |
+			    WM8994_AIF1CLK_RATE_MASK, rate_val);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		switch (dai->id) {
+		case 1:
+			wm8994->dac_rates[0] = params_rate(params);
+			wm8994_set_retune_mobile(codec, 0);
+			wm8994_set_retune_mobile(codec, 1);
+			break;
+		case 2:
+			wm8994->dac_rates[1] = params_rate(params);
+			wm8994_set_retune_mobile(codec, 2);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int wm8994_aif_mute(struct snd_soc_dai *codec_dai, int mute)
+{
+	struct snd_soc_codec *codec = codec_dai->codec;
+	int mute_reg;
+	int reg;
+	
+	switch (codec_dai->id) {
+	case 1:
+		mute_reg = WM8994_AIF1_DAC1_FILTERS_1;
+		break;
+	case 2:
+		mute_reg = WM8994_AIF2_DAC_FILTERS_1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (mute)
+		reg = WM8994_AIF1DAC1_MUTE;
+	else
+		reg = 0;
+
+	snd_soc_update_bits(codec, mute_reg, WM8994_AIF1DAC1_MUTE, reg);
+
+	return 0;
+}
+
+#define WM8994_RATES SNDRV_PCM_RATE_8000_96000
+
+#define WM8994_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
+			SNDRV_PCM_FMTBIT_S24_LE)
+			
+//============================================================================================
+//============================================================================================
+//============================================================================================
+static struct snd_soc_dai_ops wm8994_aif1_dai_ops = {
+	.set_sysclk	= wm8994_set_dai_sysclk,
+	.set_fmt	= wm8994_set_dai_fmt,
+	.hw_params	= wm8994_hw_params,
+	.digital_mute	= wm8994_aif_mute,
+	.set_pll	= wm8994_set_fll,
+};
+
+static struct snd_soc_dai_ops wm8994_aif2_dai_ops = {
+	.set_sysclk	= wm8994_set_dai_sysclk,//设置AIFCLK的来源,并设置频率
+	.set_fmt	= wm8994_set_dai_fmt,//设置master、slave
+	.hw_params	= wm8994_hw_params,//可能是设置bclk和LRCK
+	.digital_mute   = wm8994_aif_mute,//静音
+	.set_pll	= wm8994_set_fll,//设置FLL
+};
+
+struct snd_soc_dai wm8994_dai[] = {
+	{
+		.name = "WM8994 AIF1",
+		.id = 1,
+		.playback = {
+			.stream_name = "AIF1 Playback",
+			.channels_min = 2,
+			.channels_max = 2,
+			.rates = WM8994_RATES,
+			.formats = WM8994_FORMATS,
+		},
+		.capture = {
+			.stream_name = "AIF1 Capture",
+			.channels_min = 2,
+			.channels_max = 2,
+			.rates = WM8994_RATES,
+			.formats = WM8994_FORMATS,
+		 },
+		.ops = &wm8994_aif1_dai_ops,
 	},
-	.capture = {
-		.stream_name = "Capture",
-		.channels_min = 2,
-		.channels_max = 2,
-		.rates = WM8994_RATES,
-		.formats = WM8994_FORMATS,
-	 },
-	.ops = &wm8994_ops,
-	.symmetric_rates = 1,
+	{
+		.name = "WM8994 AIF2",
+		.id = 2,
+		.playback = {
+			.stream_name = "AIF2 Playback",
+			.channels_min = 2,
+			.channels_max = 2,
+			.rates = WM8994_RATES,
+			.formats = WM8994_FORMATS,
+		},
+		.capture = {
+			.stream_name = "AIF2 Capture",
+			.channels_min = 2,
+			.channels_max = 2,
+			.rates = WM8994_RATES,
+			.formats = WM8994_FORMATS,
+		},
+		.ops = &wm8994_aif2_dai_ops,
+	},
+	{
+		.name = "WM8994 AIF3",
+		.playback = {
+			.stream_name = "AIF3 Playback",
+			.channels_min = 2,
+			.channels_max = 2,
+			.rates = WM8994_RATES,
+			.formats = WM8994_FORMATS,
+		},
+		.capture = {
+			.stream_name = "AIF3 Capture",
+			.channels_min = 2,
+			.channels_max = 2,
+			.rates = WM8994_RATES,
+			.formats = WM8994_FORMATS,
+		},
+	}
 };
 EXPORT_SYMBOL_GPL(wm8994_dai);
 
+#ifdef CONFIG_PM
 static int wm8994_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
+	struct wm8994_priv *wm8994 = codec->private_data;
+	int i, ret;
 
-	wm8994_set_bias_level(codec,SND_SOC_BIAS_OFF);
-	wm8994_reset();
-	msleep(WM8994_DELAY);
+	for (i = 0; i < ARRAY_SIZE(wm8994->fll); i++) {
+		memcpy(&wm8994->fll_suspend[i], &wm8994->fll[i],
+		       sizeof(struct fll_config));
+	//	ret = wm8994_set_fll(&codec->dai[0], i + 1, 0, 0, 0);
+		ret = wm8994_set_fll(&codec->dai[0], i + 1, 0, 0);
+		if (ret < 0)
+			dev_warn(codec->dev, "Failed to stop FLL%d: %d\n",
+				 i + 1, ret);
+	}
+
+	wm8994_set_bias_level(codec, SND_SOC_BIAS_OFF);
+
 	return 0;
 }
 
@@ -2708,31 +3510,185 @@ static int wm8994_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
-	wm8994_codec_fnc_t **wm8994_fnc_ptr=wm8994_codec_sequence;
-	unsigned char wm8994_resume_mode=wm8994_current_mode;
-	wm8994_current_mode=null;
+	struct wm8994_priv *wm8994 = codec->private_data;
+	u16 *reg_cache = codec->reg_cache;
+	int i, ret;
 
-	wm8994_set_bias_level(codec,SND_SOC_BIAS_STANDBY);
-	if(wm8994_resume_mode<=wm8994_recorder_and_AP_to_speakers)
-	{
-		wm8994_fnc_ptr+=wm8994_resume_mode;
-		(*wm8994_fnc_ptr)() ;
+	/* Restore the registers */
+	for (i = 1; i < ARRAY_SIZE(wm8994->reg_cache); i++) {
+		switch (i) {
+		case WM8994_LDO_1:
+		case WM8994_LDO_2:
+		case WM8994_SOFTWARE_RESET:
+			/* Handled by other MFD drivers */
+			continue;
+		default:
+			break;
+		}
+
+		if (!access_masks[i].writable)
+			continue;
+
+		wm8994_reg_write(codec->control_data, i, reg_cache[i]);
 	}
-	else if(wm8994_resume_mode>wm8994_BT_baseband_and_record)
-	{
-		printk("%s--%d--: Wm8994 resume with null mode\n",__FUNCTION__,__LINE__);
-	}
-	else
-	{
-		wm8994_fnc_ptr+=wm8994_resume_mode;
-		(*wm8994_fnc_ptr)();
-		printk("%s--%d--: Wm8994 resume with error mode\n",__FUNCTION__,__LINE__);
+
+	wm8994_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+
+	for (i = 0; i < ARRAY_SIZE(wm8994->fll); i++) {
+	//	ret = wm8994_set_fll(&codec->dai[0], i + 1,
+	//			     wm8994->fll_suspend[i].src,
+	//			     wm8994->fll_suspend[i].in,
+	//			     wm8994->fll_suspend[i].out);
+		ret = wm8994_set_fll(&codec->dai[0], i + 1,
+				     wm8994->fll_suspend[i].in,
+				     wm8994->fll_suspend[i].out);			 
+		if (ret < 0)
+			dev_warn(codec->dev, "Failed to restore FLL%d: %d\n",
+				 i + 1, ret);
 	}
 
 	return 0;
 }
+#else
+#define wm8994_suspend NULL
+#define wm8994_resume NULL
+#endif
 
-static struct snd_soc_codec *wm8994_codec;
+//只调用一次
+static void wm8994_handle_retune_mobile_pdata(struct wm8994_priv *wm8994)
+{
+	struct snd_soc_codec *codec = &wm8994->codec;
+	struct wm8994_pdata *pdata = wm8994->pdata;
+	struct snd_kcontrol_new controls[] = {
+		SOC_ENUM_EXT("AIF1.1 EQ Mode",
+			     wm8994->retune_mobile_enum,
+			     wm8994_get_retune_mobile_enum,
+			     wm8994_put_retune_mobile_enum),
+		SOC_ENUM_EXT("AIF1.2 EQ Mode",
+			     wm8994->retune_mobile_enum,
+			     wm8994_get_retune_mobile_enum,
+			     wm8994_put_retune_mobile_enum),
+		SOC_ENUM_EXT("AIF2 EQ Mode",
+			     wm8994->retune_mobile_enum,
+			     wm8994_get_retune_mobile_enum,
+			     wm8994_put_retune_mobile_enum),
+	};
+	int ret, i, j;
+	const char **t;
+
+	/* We need an array of texts for the enum API but the number
+	 * of texts is likely to be less than the number of
+	 * configurations due to the sample rate dependency of the
+	 * configurations. */
+	wm8994->num_retune_mobile_texts = 0;
+	wm8994->retune_mobile_texts = NULL;
+	for (i = 0; i < pdata->num_retune_mobile_cfgs; i++) {
+		for (j = 0; j < wm8994->num_retune_mobile_texts; j++) {
+			if (strcmp(pdata->retune_mobile_cfgs[i].name,
+				   wm8994->retune_mobile_texts[j]) == 0)
+				break;
+		}
+
+		if (j != wm8994->num_retune_mobile_texts)
+			continue;
+
+		/* Expand the array... */
+		t = krealloc(wm8994->retune_mobile_texts,
+			     sizeof(char *) * 
+			     (wm8994->num_retune_mobile_texts + 1),
+			     GFP_KERNEL);
+		if (t == NULL)
+			continue;
+
+		/* ...store the new entry... */
+		t[wm8994->num_retune_mobile_texts] = 
+			pdata->retune_mobile_cfgs[i].name;
+
+		/* ...and remember the new version. */
+		wm8994->num_retune_mobile_texts++;
+		wm8994->retune_mobile_texts = t;
+	}
+
+	DBG_INFO(codec->dev, "Allocated %d unique ReTune Mobile names\n",
+		wm8994->num_retune_mobile_texts);
+
+	wm8994->retune_mobile_enum.max = wm8994->num_retune_mobile_texts;
+	wm8994->retune_mobile_enum.texts = wm8994->retune_mobile_texts;
+
+	ret = snd_soc_add_controls(&wm8994->codec, controls,
+				   ARRAY_SIZE(controls));
+	if (ret != 0)
+		dev_err(wm8994->codec.dev,
+			"Failed to add ReTune Mobile controls: %d\n", ret);
+}
+
+static void wm8994_handle_pdata(struct wm8994_priv *wm8994)
+{
+	struct snd_soc_codec *codec = &wm8994->codec;
+	struct wm8994_pdata *pdata = wm8994->pdata;
+	int ret, i;
+
+	if (!pdata)
+		return;
+
+	wm_hubs_handle_analogue_pdata(codec, pdata->lineout1_diff,
+				      pdata->lineout2_diff,
+				      pdata->lineout1fb,
+				      pdata->lineout2fb,
+				      pdata->jd_scthr,
+				      pdata->jd_thr,
+				      pdata->micbias1_lvl,
+				      pdata->micbias2_lvl);
+	pdata->num_drc_cfgs = 0;//add 
+	DBG_INFO(codec->dev, "%d DRC configurations\n", pdata->num_drc_cfgs);
+
+	if (pdata->num_drc_cfgs) 
+	{
+		struct snd_kcontrol_new controls[] = 
+		{
+			SOC_ENUM_EXT("AIF1DRC1 Mode", wm8994->drc_enum,
+				     wm8994_get_drc_enum, wm8994_put_drc_enum),
+			SOC_ENUM_EXT("AIF1DRC2 Mode", wm8994->drc_enum,
+				     wm8994_get_drc_enum, wm8994_put_drc_enum),
+			SOC_ENUM_EXT("AIF2DRC Mode", wm8994->drc_enum,
+				     wm8994_get_drc_enum, wm8994_put_drc_enum),
+		};
+		
+		// We need an array of texts for the enum API 
+		wm8994->drc_texts = kmalloc(sizeof(char *)
+					    * pdata->num_drc_cfgs, GFP_KERNEL);
+		if (!wm8994->drc_texts) 
+		{
+			dev_err(wm8994->codec.dev,"Failed to allocate %d DRC config texts\n",
+						pdata->num_drc_cfgs);
+			return;
+		}
+		
+		for (i = 0; i < pdata->num_drc_cfgs; i++)
+			wm8994->drc_texts[i] = pdata->drc_cfgs[i].name;
+		
+		wm8994->drc_enum.max = pdata->num_drc_cfgs;
+		wm8994->drc_enum.texts = wm8994->drc_texts;
+		
+		ret = snd_soc_add_controls(&wm8994->codec, controls,
+					   ARRAY_SIZE(controls));
+		if (ret != 0)
+			dev_err(wm8994->codec.dev,
+				"Failed to add DRC mode controls: %d\n", ret);
+
+		for (i = 0; i < WM8994_NUM_DRC; i++)
+			wm8994_set_drc(codec, i);
+	}
+	pdata->num_retune_mobile_cfgs = 0;//add 
+	DBG_INFO(codec->dev, "%d ReTune Mobile configurations\n",
+		pdata->num_retune_mobile_cfgs);
+
+	if (pdata->num_retune_mobile_cfgs)
+		wm8994_handle_retune_mobile_pdata(wm8994);
+	else
+		snd_soc_add_controls(&wm8994->codec, wm8994_eq_controls,
+				     ARRAY_SIZE(wm8994_eq_controls));
+}
 
 static int wm8994_probe(struct platform_device *pdev)
 {
@@ -2752,16 +3708,20 @@ static int wm8994_probe(struct platform_device *pdev)
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
 	if (ret < 0) {
 		dev_err(codec->dev, "failed to create pcms: %d\n", ret);
-		goto pcm_err;
+		return ret;
 	}
 
-	snd_soc_add_controls(codec,wm8994_snd_controls,
-				ARRAY_SIZE(wm8994_snd_controls));
-	snd_soc_dapm_new_controls(codec,wm8994_dapm_widgets,
-				  ARRAY_SIZE(wm8994_dapm_widgets));
-	snd_soc_dapm_add_routes(codec,audio_map, ARRAY_SIZE(audio_map));
-	snd_soc_dapm_new_widgets(codec);
+	wm8994_handle_pdata(codec->private_data);
 
+	wm_hubs_add_analogue_controls(codec);
+	snd_soc_add_controls(codec, wm8994_snd_controls,
+			     ARRAY_SIZE(wm8994_snd_controls));
+	snd_soc_dapm_new_controls(codec, wm8994_dapm_widgets,
+				  ARRAY_SIZE(wm8994_dapm_widgets));
+	wm_hubs_add_analogue_routes(codec, 0, 0);
+	snd_soc_dapm_add_routes(codec, intercon, ARRAY_SIZE(intercon));
+	snd_soc_dapm_new_widgets(codec);	//and
+	
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		dev_err(codec->dev, "failed to register card: %d\n", ret);
@@ -2773,7 +3733,6 @@ static int wm8994_probe(struct platform_device *pdev)
 card_err:
 	snd_soc_free_pcms(socdev);
 	snd_soc_dapm_free(socdev);
-pcm_err:
 	return ret;
 }
 
@@ -2794,53 +3753,303 @@ struct snd_soc_codec_device soc_codec_dev_wm8994 = {
 	.resume =	wm8994_resume,
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm8994);
-
-static int wm8994_register(struct wm8994_priv *wm8994,
-			   enum snd_soc_control_type control)
+//=====================================================================
+//Proc
+#ifdef WM8994_PROC
+static ssize_t wm8994_proc_write(struct file *file, const char __user *buffer,
+			   unsigned long len, void *data)
 {
-	struct snd_soc_codec *codec = &wm8994->codec;
-	int ret;
-
-	if (wm8994_codec) {
-		dev_err(codec->dev, "Another WM8994 is registered\n");
-		ret = -EINVAL;
-		goto err;
+	char *cookie_pot; 
+	char *p;
+	int reg;
+	int value;
+	
+	cookie_pot = (char *)vmalloc( len );
+	if (!cookie_pot) 
+	{
+		return -ENOMEM;
+	} 
+	else 
+	{
+		if (copy_from_user( cookie_pot, buffer, len )) 
+			return -EFAULT;
 	}
+
+	switch(cookie_pot[0])
+	{
+	case 'l':
+	case 'L':
+		if(debug_write_read == 0)
+			debug_write_read = 1;
+		//power
+		DBG("----- power ---\n");
+		snd_soc_read(wm8994_codec,0x01);//wm8994_write(0x01,  0x3003); 
+		snd_soc_read(wm8994_codec,0x03);//wm8994_write(0x03,  0x0330);
+		snd_soc_read(wm8994_codec,0x05);//wm8994_write(0x05,  0x0303); 
+		snd_soc_read(wm8994_codec,0x4C);//wm8994_write(0x4C,  0x9F25);
+		//clk	
+		DBG("----- CLK ----\n");
+		snd_soc_read(wm8994_codec,0x208);//wm8994_write(0x208, 0x000A);
+		snd_soc_read(wm8994_codec,0x200);//wm8994_write(0x200, 0x0011);  // sysclk = fll (bit4 =1)   0x0011
+		snd_soc_read(wm8994_codec,0x220);//wm8994_write(0x220, 0x0005);
+		snd_soc_read(wm8994_codec,0x221);//wm8994_write(0x221, 0x0700);
+		snd_soc_read(wm8994_codec,0x222);//wm8994_write(0x222, 0x3126);
+		snd_soc_read(wm8994_codec,0x223);//wm8994_write(0x223, 0x0100);
+		snd_soc_read(wm8994_codec,0x210);//wm8994_write(0x210, 0x0083); // SR=48KHz
+		snd_soc_read(wm8994_codec,0x303);//wm8994_write(0x303, 0x0040); // AIF1 BCLK DIV--------AIF1CLK/4
+		snd_soc_read(wm8994_codec,0x304);//wm8994_write(0x304, 0x0040);AIF1 ADCLRCK DIV-----BCLK/64
+		snd_soc_read(wm8994_codec,0x305);//wm8994_write(0x305, 0x0040);AIF1 DACLRCK DIV-----BCLK/64
+		snd_soc_read(wm8994_codec,0x302);//wm8994_write(0x302, 0x7000);AIF1_MSTR=1
+		snd_soc_read(wm8994_codec,0x300);//wm8994_write(0x300, 0xC010);  // i2s 16 bits
+		//path
+		DBG("----- path ------ \n");
+		snd_soc_read(wm8994_codec,0x420);//wm8994_write(0x420, 0x0000); 
+		snd_soc_read(wm8994_codec,0x601);//wm8994_write(0x601, 0x0001);
+		snd_soc_read(wm8994_codec,0x602);//wm8994_write(0x602, 0x0001);
+		snd_soc_read(wm8994_codec,0x2D);//wm8994_write(0x2D,  0x0100);
+		snd_soc_read(wm8994_codec,0x2E);//wm8994_write(0x2E,  0x0100);
+		snd_soc_read(wm8994_codec,0x36);//wm8994_write(0x36,  0x0003);
+		//volume
+		DBG("------ volume ----- \n");
+		snd_soc_read(wm8994_codec,0x22);//wm8994_write(0x22,  0x0000); 
+		snd_soc_read(wm8994_codec,0x23);//wm8994_write(0x23,  0x0100); 
+		snd_soc_read(wm8994_codec,0x26);//wm8994_write(0x26,  0x017F);  //Speaker Left Output Volume
+		snd_soc_read(wm8994_codec,0x27);//wm8994_write(0x27,  0x017F);  //Speaker Right Output Volume
+		snd_soc_read(wm8994_codec,0x610);//wm8994_write(0x610, 0x01c0);  //DAC1 Left Volume bit0~7	
+		snd_soc_read(wm8994_codec,0x611);//wm8994_write(0x611, 0x01c0);  //DAC1 Right Volume bit0~7	
+		break;
+	case 'd':
+	case 'D':
+		debug_write_read ++;
+		debug_write_read %= 2;
+		if(debug_write_read != 0)
+			DBG("Debug read and write reg on\n");
+		else	
+			DBG("Debug read and write reg off\n");	
+		break;	
+	case 'r':
+	case 'R':
+		DBG("Read reg debug\n");		
+		if(cookie_pot[1] ==':')
+		{
+			debug_write_read = 1;
+			strsep(&cookie_pot,":");
+			while((p=strsep(&cookie_pot,",")))
+			{
+				snd_soc_read(wm8994_codec,simple_strtol(p,NULL,16));
+			}
+			debug_write_read = 0;;
+			DBG("\n");		
+		}
+		else
+		{
+			DBG("Error Read reg debug.\n");
+			DBG("For example: r:22,23,24,25\n");
+		}
+		break;
+	case 'w':
+	case 'W':
+		DBG("Write reg debug\n");		
+		if(cookie_pot[1] ==':')
+		{
+			debug_write_read = 1;
+			strsep(&cookie_pot,":");
+			while((p=strsep(&cookie_pot,"=")))
+			{
+				reg = simple_strtol(p,NULL,16);
+				p=strsep(&cookie_pot,",");
+				value = simple_strtol(p,NULL,16);
+				snd_soc_write(wm8994_codec,reg,value);
+			}
+			debug_write_read = 0;;
+			DBG("\n");
+		}
+		else
+		{
+			DBG("Error Write reg debug.\n");
+			DBG("For example: w:22=0,23=0,24=0,25=0\n");
+		}
+		break;		
+	default:
+		printk("Please press 'l'!\n");
+		break;
+	}
+
+	return len;
+}
+static const struct file_operations wm8994_proc_fops = {
+	.owner		= THIS_MODULE,
+	//.open		= snd_mem_proc_open,
+	//.read		= seq_read,
+//#ifdef CONFIG_PCI
+	.write		= wm8994_proc_write,
+//#endif
+	//.llseek	= seq_lseek,
+	//.release	= single_release,
+};
+
+static int wm8994_proc_init(void)
+{
+	struct proc_dir_entry *wm8994_proc_entry;
+	wm8994_proc_entry = create_proc_entry("driver/wm8994_ts", 0777, NULL);
+	if(wm8994_proc_entry != NULL)
+	{
+		wm8994_proc_entry->write_proc = wm8994_proc_write;
+		return -1;
+	}
+	else
+	{
+		printk("create proc error !\n");
+	}
+	return 0;
+}
+
+#endif
+
+//=======================================================================================
+static int wm8994_codec_probe(struct platform_device *pdev)
+{
+	int ret;
+	struct wm8994_priv *wm8994;
+	struct snd_soc_codec *codec;
+	int i;
+	u16 rev;
+	
+#ifdef WM8994_PROC
+	wm8994_proc_init();
+#endif
+	
+//	DBG("Enter %s::%s---%d\n",__FILE__,__FUNCTION__,__LINE__);
+	if (wm8994_codec) {
+		dev_err(&pdev->dev, "Another WM8994 is registered\n");
+		return -EINVAL;
+	}
+
+	wm8994 = kzalloc(sizeof(struct wm8994_priv), GFP_KERNEL);
+	if (!wm8994) {
+		dev_err(&pdev->dev, "Failed to allocate private data\n");
+		return -ENOMEM;
+	}
+
+	codec = &wm8994->codec;
 
 	mutex_init(&codec->mutex);
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
 	codec->private_data = wm8994;
+	codec->control_data = dev_get_drvdata(pdev->dev.parent);
 	codec->name = "WM8994";
 	codec->owner = THIS_MODULE;
-	codec->dai = &wm8994_dai;
-	codec->num_dai = 1;
-	codec->reg_cache_size = ARRAY_SIZE(wm8994->reg_cache);
-	codec->reg_cache = &wm8994->reg_cache;
+	codec->read = wm8994_read;
+	codec->write = wm8994_write;
+	codec->readable_register = wm8994_readable;
 	codec->bias_level = SND_SOC_BIAS_OFF;
 	codec->set_bias_level = wm8994_set_bias_level;
+	codec->dai = &wm8994_dai[0];
+	codec->num_dai = 3;
+	codec->reg_cache_size = WM8994_MAX_REGISTER;
+	codec->reg_cache = &wm8994->reg_cache;
+	codec->dev = &pdev->dev;
 
-	memcpy(codec->reg_cache, wm8994_reg,
-	       sizeof(wm8994_reg));
+	wm8994->pdata = pdev->dev.parent->platform_data;
 
-	ret = snd_soc_codec_set_cache_io(codec,7, 9, control);
+	/* Fill the cache with physical values we inherited; don't reset */
+	ret = wm8994_bulk_read(codec->control_data, 0,
+			       ARRAY_SIZE(wm8994->reg_cache) - 1,
+			       codec->reg_cache);
 	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
+		dev_err(codec->dev, "Failed to fill register cache: %d\n",
+			ret);
 		goto err;
 	}
 
-	ret = 0;
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to issue reset\n");
-		goto err;
+	/* Clear the cached values for unreadable/volatile registers to
+	 * avoid potential confusion.
+	 */
+	for (i = 0; i < ARRAY_SIZE(wm8994->reg_cache); i++)
+		if (wm8994_volatile(i) || !wm8994_readable(i))
+			wm8994->reg_cache[i] = 0;
+
+	/* Set revision-specific configuration */
+	rev = snd_soc_read(codec, WM8994_CHIP_REVISION);
+	switch (rev) {
+	case 2:
+	case 3:
+		wm8994->hubs.dcs_codes = -5;
+		wm8994->hubs.hp_startup_mode = 1;
+		wm8994->hubs.dcs_readback_mode = 1;
+		break;
+	default:
+		wm8994->hubs.dcs_readback_mode = 1;
+		break;
 	}
 
-	wm8994_set_bias_level(&wm8994->codec, SND_SOC_BIAS_STANDBY);
+	/* Remember if AIFnLRCLK is configured as a GPIO.  This should be
+	 * configured on init - if a system wants to do this dynamically
+	 * at runtime we can deal with that then.
+	 */
+	ret = wm8994_reg_read(codec->control_data, WM8994_GPIO_1);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to read GPIO1 state: %d\n", ret);
+		goto err;
+	}
+	if ((ret & WM8994_GPN_FN_MASK) != WM8994_GP_FN_PIN_SPECIFIC) {
+		wm8994->lrclk_shared[0] = 1;
+		wm8994_dai[0].symmetric_rates = 1;
+	} else {
+		wm8994->lrclk_shared[0] = 0;
+	}
 
-	wm8994_dai.dev = codec->dev;
+	ret = wm8994_reg_read(codec->control_data, WM8994_GPIO_6);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to read GPIO6 state: %d\n", ret);
+		goto err;
+	}
+	if ((ret & WM8994_GPN_FN_MASK) != WM8994_GP_FN_PIN_SPECIFIC) {
+		wm8994->lrclk_shared[1] = 1;
+		wm8994_dai[1].symmetric_rates = 1;
+	} else {
+		wm8994->lrclk_shared[1] = 0;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(wm8994_dai); i++)
+		wm8994_dai[i].dev = codec->dev;
+
+	wm8994_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	wm8994_codec = codec;
+
+	/* Latch volume updates (right only; we always do left then right). */
+	snd_soc_update_bits(codec, WM8994_AIF1_DAC1_RIGHT_VOLUME,
+			    WM8994_AIF1DAC1_VU, WM8994_AIF1DAC1_VU);
+	snd_soc_update_bits(codec, WM8994_AIF1_DAC2_RIGHT_VOLUME,
+			    WM8994_AIF1DAC2_VU, WM8994_AIF1DAC2_VU);
+	snd_soc_update_bits(codec, WM8994_AIF2_DAC_RIGHT_VOLUME,
+			    WM8994_AIF2DAC_VU, WM8994_AIF2DAC_VU);
+	snd_soc_update_bits(codec, WM8994_AIF1_ADC1_RIGHT_VOLUME,
+			    WM8994_AIF1ADC1_VU, WM8994_AIF1ADC1_VU);
+	snd_soc_update_bits(codec, WM8994_AIF1_ADC2_RIGHT_VOLUME,
+			    WM8994_AIF1ADC2_VU, WM8994_AIF1ADC2_VU);
+	snd_soc_update_bits(codec, WM8994_AIF2_ADC_RIGHT_VOLUME,
+			    WM8994_AIF2ADC_VU, WM8994_AIF1ADC2_VU);
+	snd_soc_update_bits(codec, WM8994_DAC1_RIGHT_VOLUME,
+			    WM8994_DAC1_VU, WM8994_DAC1_VU);
+	snd_soc_update_bits(codec, WM8994_DAC2_RIGHT_VOLUME,
+			    WM8994_DAC2_VU, WM8994_DAC2_VU);
+
+	/* Set the low bit of the 3D stereo depth so TLV matches */
+	snd_soc_update_bits(codec, WM8994_AIF1_DAC1_FILTERS_2,
+			    1 << WM8994_AIF1DAC1_3D_GAIN_SHIFT,
+			    1 << WM8994_AIF1DAC1_3D_GAIN_SHIFT);
+	snd_soc_update_bits(codec, WM8994_AIF1_DAC2_FILTERS_2,
+			    1 << WM8994_AIF1DAC2_3D_GAIN_SHIFT,
+			    1 << WM8994_AIF1DAC2_3D_GAIN_SHIFT);
+	snd_soc_update_bits(codec, WM8994_AIF2_DAC_FILTERS_2,
+			    1 << WM8994_AIF2DAC_3D_GAIN_SHIFT,
+			    1 << WM8994_AIF2DAC_3D_GAIN_SHIFT);
+
+	wm8994_update_class_w(codec);
 
 	ret = snd_soc_register_codec(codec);
 	if (ret != 0) {
@@ -2848,12 +4057,14 @@ static int wm8994_register(struct wm8994_priv *wm8994,
 		goto err;
 	}
 
-	ret = snd_soc_register_dai(&wm8994_dai);
+	ret = snd_soc_register_dais(wm8994_dai, ARRAY_SIZE(wm8994_dai));
 	if (ret != 0) {
-		dev_err(codec->dev, "Failed to register DAI: %d\n", ret);
-		snd_soc_unregister_codec(codec);
+		dev_err(codec->dev, "Failed to register DAIs: %d\n", ret);
 		goto err_codec;
 	}
+
+	platform_set_drvdata(pdev, wm8994);
+
 	return 0;
 
 err_codec:
@@ -2863,206 +4074,38 @@ err:
 	return ret;
 }
 
-static void wm8994_unregister(struct wm8994_priv *wm8994)
+static int __devexit wm8994_codec_remove(struct platform_device *pdev)
 {
-	wm8994_set_bias_level(&wm8994->codec, SND_SOC_BIAS_OFF);
-	snd_soc_unregister_dai(&wm8994_dai);
+	struct wm8994_priv *wm8994 = platform_get_drvdata(pdev);
+	struct snd_soc_codec *codec = &wm8994->codec;
+
+	wm8994_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	snd_soc_unregister_dais(wm8994_dai, ARRAY_SIZE(wm8994_dai));
 	snd_soc_unregister_codec(&wm8994->codec);
 	kfree(wm8994);
 	wm8994_codec = NULL;
-}
-
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-static int wm8994_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
-{
-	struct wm8994_priv *wm8994;
-	struct snd_soc_codec *codec;
-	wm8994_client=i2c;
-
-	wm8994 = kzalloc(sizeof(struct wm8994_priv), GFP_KERNEL);
-	if (wm8994 == NULL)
-		return -ENOMEM;
-
-	codec = &wm8994->codec;
-
-	i2c_set_clientdata(i2c, wm8994);
-	codec->control_data = i2c;
-
-	codec->dev = &i2c->dev;
-
-	return wm8994_register(wm8994, SND_SOC_I2C);
-}
-
-static int wm8994_i2c_remove(struct i2c_client *client)
-{
-	struct wm8994_priv *wm8994 = i2c_get_clientdata(client);
-	wm8994_unregister(wm8994);
-	return 0;
-}
-
-#ifdef CONFIG_PM
-static int wm8994_i2c_suspend(struct i2c_client *client, pm_message_t msg)
-{
-	return snd_soc_suspend_device(&client->dev);
-}
-
-static int wm8994_i2c_resume(struct i2c_client *client)
-{
-	return snd_soc_resume_device(&client->dev);
-}
-#else
-#define wm8994_i2c_suspend NULL
-#define wm8994_i2c_resume NULL
-#endif
-
-static const struct i2c_device_id wm8994_i2c_id[] = {
-	{ "wm8994", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, wm8994_i2c_id);
-
-static struct i2c_driver wm8994_i2c_driver = {
-	.driver = {
-		.name = "WM8994",
-		.owner = THIS_MODULE,
-	},
-	.probe = wm8994_i2c_probe,
-	.remove = wm8994_i2c_remove,
-	.suspend = wm8994_i2c_suspend,
-	.resume = wm8994_i2c_resume,
-	.id_table = wm8994_i2c_id,
-};
-
-int reg_send_data(struct i2c_client *client, unsigned short *reg, unsigned short *data, u32 scl_rate)
-{
-	int ret;
-	struct i2c_adapter *adap = client->adapter;
-	struct i2c_msg msg;
-	char tx_buf[4];
-
-	memcpy(tx_buf, reg, 2);
-	memcpy(tx_buf+2, data, 2);
-	msg.addr = client->addr;
-	msg.buf = tx_buf;
-	msg.len = 4;
-	msg.flags = client->flags;
-	msg.scl_rate = scl_rate;
-	msg.read_type = I2C_NORMAL;
-	ret = i2c_transfer(adap, &msg, 1);
-
-	return ret;
-}
-
-int reg_recv_data(struct i2c_client *client, unsigned short *reg, unsigned short *buf, u32 scl_rate)
-{
-	int ret;
-	struct i2c_adapter *adap = client->adapter;
-	struct i2c_msg msgs[2];
-
-	msgs[0].addr = client->addr;
-	msgs[0].buf = (char *)reg;
-	msgs[0].flags = client->flags;
-	msgs[0].len = 2;
-	msgs[0].scl_rate = scl_rate;
-	msgs[0].read_type = I2C_NO_STOP;
-
-	msgs[1].addr = client->addr;
-	msgs[1].buf = (char *)buf;
-	msgs[1].flags = client->flags | I2C_M_RD;
-	msgs[1].len = 2;
-	msgs[1].scl_rate = scl_rate;
-	msgs[1].read_type = I2C_NO_STOP;
-
-	ret = i2c_transfer(adap, msgs, 2);
-
-	return ret;
-}
-
-#endif
-
-#if defined(CONFIG_SPI_MASTER)
-static int __devinit wm8994_spi_probe(struct spi_device *spi)
-{
-	struct wm8994_priv *wm8994;
-	struct snd_soc_codec *codec;
-
-	wm8994 = kzalloc(sizeof(struct wm8994_priv), GFP_KERNEL);
-	if (wm8994 == NULL)
-		return -ENOMEM;
-
-	codec = &wm8994->codec;
-	codec->control_data = spi;
-	codec->dev = &spi->dev;
-
-	dev_set_drvdata(&spi->dev, wm8994);
-
-	return wm8994_register(wm8994, SND_SOC_SPI);
-}
-
-static int __devexit wm8994_spi_remove(struct spi_device *spi)
-{
-	struct wm8994_priv *wm8994 = dev_get_drvdata(&spi->dev);
-
-	wm8994_unregister(wm8994);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm8994_spi_suspend(struct spi_device *spi, pm_message_t msg)
-{
-	return snd_soc_suspend_device(&spi->dev);
-}
-
-static int wm8994_spi_resume(struct spi_device *spi)
-{
-	return snd_soc_resume_device(&spi->dev);
-}
-#else
-#define wm8994_spi_suspend NULL
-#define wm8994_spi_resume NULL
-#endif
-
-static struct spi_driver wm8994_spi_driver = {
+static struct platform_driver wm8994_codec_driver = {
 	.driver = {
-		.name	= "wm8994",
-		.bus	= &spi_bus_type,
-		.owner	= THIS_MODULE,
-	},
-	.probe		= wm8994_spi_probe,
-	.remove		= __devexit_p(wm8994_spi_remove),
-	.suspend	= wm8994_spi_suspend,
-	.resume		= wm8994_spi_resume,
+		   .name = "wm8994-codec",
+		   .owner = THIS_MODULE,
+		   },
+	.probe = wm8994_codec_probe,
+	.remove = __devexit_p(wm8994_codec_remove),
 };
-#endif
 
-static int __init wm8994_modinit(void)
+static __init int wm8994_init(void)
 {
-	int ret;
-
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	ret = i2c_add_driver(&wm8994_i2c_driver);
-	if (ret != 0)
-		pr_err("WM8994: Unable to register I2C driver: %d\n", ret);
-#endif
-#if defined(CONFIG_SPI_MASTER)
-	ret = spi_register_driver(&wm8994_spi_driver);
-	if (ret != 0)
-		pr_err("WM8994: Unable to register SPI driver: %d\n", ret);
-#endif
-	return ret;
+	return platform_driver_register(&wm8994_codec_driver);
 }
-module_init(wm8994_modinit);
+module_init(wm8994_init);
 
-static void __exit wm8994_exit(void)
+static __exit void wm8994_exit(void)
 {
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	i2c_del_driver(&wm8994_i2c_driver);
-#endif
-#if defined(CONFIG_SPI_MASTER)
-	spi_unregister_driver(&wm8994_spi_driver);
-#endif
+	platform_driver_unregister(&wm8994_codec_driver);
 }
 module_exit(wm8994_exit);
 
@@ -3070,3 +4113,4 @@ module_exit(wm8994_exit);
 MODULE_DESCRIPTION("ASoC WM8994 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:wm8994-codec");

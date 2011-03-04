@@ -41,6 +41,15 @@ config SND_RK29_SOC_WM8900
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the WM8900.
 
+config SND_RK29_SOC_WM8994
+	tristate "SoC I2S Audio support for rockchip - WM8994"
+	depends on SND_RK29_SOC && I2C_RK29
+	select SND_RK29_SOC_I2S
+	select SND_SOC_WM8994
+	help
+	  Say Y if you want to add support for SoC audio on rockchip
+	  with the WM8994.  
+	  
 config SND_RK29_SOC_RK1000
 	tristate "SoC I2S Audio support for rockchip - RK1000"
 	depends on SND_RK29_SOC && RK1000_CONTROL && I2C_RK29

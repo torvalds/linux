@@ -1243,6 +1243,44 @@ static int dapm_mux_update_power(struct snd_soc_dapm_widget *widget,
 	return 0;
 }
 
+/* test and update the power status of a mux widget */
+//copy on 2.6.34  by qjb 
+static int dapm_mux_update_power_34(struct snd_soc_dapm_widget *widget,
+				 struct snd_kcontrol *kcontrol, int change,
+				 int mux, struct soc_enum *e)
+{
+	struct snd_soc_dapm_path *path;
+	int found = 0;
+
+	if (widget->id != snd_soc_dapm_mux &&
+	    widget->id != snd_soc_dapm_value_mux)
+		return -ENODEV;
+
+	if (!change)
+		return 0;
+
+	/* find dapm widget path assoc with kcontrol */
+	list_for_each_entry(path, &widget->codec->dapm_paths, list) {
+		if (path->kcontrol != kcontrol)
+			continue;
+
+		if (!path->name || !e->texts[mux])
+			continue;
+
+		found = 1;
+		/* we now need to match the string in the enum to the path */
+		if (!(strcmp(path->name, e->texts[mux])))
+			path->connect = 1; /* new connection */
+		else
+			path->connect = 0; /* old connection must be powered down */
+	}
+
+	if (found)
+		dapm_power_widgets(widget->codec, SND_SOC_DAPM_STREAM_NOP);
+
+	return 0;
+}
+
 /* test and update the power status of a mixer or switch widget */
 static int dapm_mixer_update_power(struct snd_soc_dapm_widget *widget,
 				   struct snd_kcontrol *kcontrol, int reg,
@@ -1806,6 +1844,56 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_put_enum_double);
+
+/**
+ * snd_soc_dapm_get_enum_virt - Get virtual DAPM mux
+ * @kcontrol: mixer control
+ * @ucontrol: control element information
+ *
+ * Returns 0 for success.
+ */
+ //copy on 2.6.34  by qjb 
+int snd_soc_dapm_get_enum_virt(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.enumerated.item[0] = widget->value;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_get_enum_virt);
+
+/**
+ * snd_soc_dapm_put_enum_virt - Set virtual DAPM mux
+ * @kcontrol: mixer control
+ * @ucontrol: control element information
+ *
+ * Returns 0 for success.
+ */
+ //copy on 2.6.34  by qjb 
+int snd_soc_dapm_put_enum_virt(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
+	struct soc_enum *e =
+		(struct soc_enum *)kcontrol->private_value;
+	int change;
+	int ret = 0;
+
+	if (ucontrol->value.enumerated.item[0] >= e->max)
+		return -EINVAL;
+
+	mutex_lock(&widget->codec->mutex);
+
+	change = widget->value != ucontrol->value.enumerated.item[0];
+	widget->value = ucontrol->value.enumerated.item[0];
+	dapm_mux_update_power_34(widget, kcontrol, change, widget->value, e);
+
+	mutex_unlock(&widget->codec->mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_put_enum_virt);
 
 /**
  * snd_soc_dapm_get_value_enum_double - dapm semi enumerated double mixer get
