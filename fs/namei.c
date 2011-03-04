@@ -2455,21 +2455,28 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	/* !O_CREAT, simple open */
 	error = do_path_lookup(dfd, pathname, flags, &nd);
 	if (unlikely(error))
-		goto out_filp;
+		goto out_filp2;
 	error = -ELOOP;
 	if (!(nd.flags & LOOKUP_FOLLOW)) {
 		if (nd.inode->i_op->follow_link)
-			goto out_path;
+			goto out_path2;
 	}
 	error = -ENOTDIR;
 	if (nd.flags & LOOKUP_DIRECTORY) {
 		if (!nd.inode->i_op->lookup)
-			goto out_path;
+			goto out_path2;
 	}
 	audit_inode(pathname, nd.path.dentry);
 	filp = finish_open(&nd, open_flag, acc_mode);
+out2:
 	release_open_intent(&nd);
 	return filp;
+
+out_path2:
+	path_put(&nd.path);
+out_filp2:
+	filp = ERR_PTR(error);
+	goto out2;
 
 creat:
 	/* OK, have to create the file. Find the parent. */
