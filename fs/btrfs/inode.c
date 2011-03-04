@@ -2664,10 +2664,10 @@ failed:
  * recovery code.  It remove a link in a directory with a given name, and
  * also drops the back refs in the inode to the directory
  */
-int btrfs_unlink_inode(struct btrfs_trans_handle *trans,
-		       struct btrfs_root *root,
-		       struct inode *dir, struct inode *inode,
-		       const char *name, int name_len)
+static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root,
+				struct inode *dir, struct inode *inode,
+				const char *name, int name_len)
 {
 	struct btrfs_path *path;
 	int ret = 0;
@@ -2739,11 +2739,24 @@ err:
 	btrfs_i_size_write(dir, dir->i_size - name_len * 2);
 	inode->i_ctime = dir->i_mtime = dir->i_ctime = CURRENT_TIME;
 	btrfs_update_inode(trans, root, dir);
-	btrfs_drop_nlink(inode);
-	ret = btrfs_update_inode(trans, root, inode);
 out:
 	return ret;
 }
+
+int btrfs_unlink_inode(struct btrfs_trans_handle *trans,
+		       struct btrfs_root *root,
+		       struct inode *dir, struct inode *inode,
+		       const char *name, int name_len)
+{
+	int ret;
+	ret = __btrfs_unlink_inode(trans, root, dir, inode, name, name_len);
+	if (!ret) {
+		btrfs_drop_nlink(inode);
+		ret = btrfs_update_inode(trans, root, inode);
+	}
+	return ret;
+}
+		
 
 /* helper to check if there is any shared block in the path */
 static int check_path_shared(struct btrfs_root *root,
@@ -6999,11 +7012,12 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 					old_dentry->d_name.name,
 					old_dentry->d_name.len);
 	} else {
-		btrfs_inc_nlink(old_dentry->d_inode);
-		ret = btrfs_unlink_inode(trans, root, old_dir,
-					 old_dentry->d_inode,
-					 old_dentry->d_name.name,
-					 old_dentry->d_name.len);
+		ret = __btrfs_unlink_inode(trans, root, old_dir,
+					old_dentry->d_inode,
+					old_dentry->d_name.name,
+					old_dentry->d_name.len);
+		if (!ret)
+			ret = btrfs_update_inode(trans, root, old_inode);
 	}
 	BUG_ON(ret);
 
