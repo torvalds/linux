@@ -216,8 +216,10 @@ struct nilfs_super_block {
  * If there is a bit set in the incompatible feature set that the kernel
  * doesn't know about, it should refuse to mount the filesystem.
  */
+#define NILFS_FEATURE_COMPAT_RO_BLOCK_COUNT	0x00000001ULL
+
 #define NILFS_FEATURE_COMPAT_SUPP	0ULL
-#define NILFS_FEATURE_COMPAT_RO_SUPP	0ULL
+#define NILFS_FEATURE_COMPAT_RO_SUPP	NILFS_FEATURE_COMPAT_RO_BLOCK_COUNT
 #define NILFS_FEATURE_INCOMPAT_SUPP	0ULL
 
 /*
@@ -509,7 +511,7 @@ struct nilfs_checkpoint {
 	__le64 cp_create;
 	__le64 cp_nblk_inc;
 	__le64 cp_inodes_count;
-	__le64 cp_blocks_count;		/* Reserved (might be deleted) */
+	__le64 cp_blocks_count;
 
 	/* Do not change the byte offset of ifile inode.
 	   To keep the compatibility of the disk format,

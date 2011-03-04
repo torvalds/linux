@@ -41,6 +41,24 @@ struct nilfs_iget_args {
 	int for_gc;
 };
 
+void nilfs_inode_add_blocks(struct inode *inode, int n)
+{
+	struct nilfs_root *root = NILFS_I(inode)->i_root;
+
+	inode_add_bytes(inode, (1 << inode->i_blkbits) * n);
+	if (root)
+		atomic_add(n, &root->blocks_count);
+}
+
+void nilfs_inode_sub_blocks(struct inode *inode, int n)
+{
+	struct nilfs_root *root = NILFS_I(inode)->i_root;
+
+	inode_sub_bytes(inode, (1 << inode->i_blkbits) * n);
+	if (root)
+		atomic_sub(n, &root->blocks_count);
+}
+
 /**
  * nilfs_get_block() - get a file block on the filesystem (callback function)
  * @inode - inode struct of the target file

@@ -425,17 +425,6 @@ int nilfs_bmap_test_and_clear_dirty(struct nilfs_bmap *bmap)
 /*
  * Internal use only
  */
-
-void nilfs_bmap_add_blocks(const struct nilfs_bmap *bmap, int n)
-{
-	inode_add_bytes(bmap->b_inode, (1 << bmap->b_inode->i_blkbits) * n);
-}
-
-void nilfs_bmap_sub_blocks(const struct nilfs_bmap *bmap, int n)
-{
-	inode_sub_bytes(bmap->b_inode, (1 << bmap->b_inode->i_blkbits) * n);
-}
-
 __u64 nilfs_bmap_data_get_key(const struct nilfs_bmap *bmap,
 			      const struct buffer_head *bh)
 {
