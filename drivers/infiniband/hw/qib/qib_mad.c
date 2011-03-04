@@ -464,8 +464,9 @@ static int subn_get_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 	memset(smp->data, 0, sizeof(smp->data));
 
 	/* Only return the mkey if the protection field allows it. */
-	if (smp->method == IB_MGMT_METHOD_SET || ibp->mkey == smp->mkey ||
-	    ibp->mkeyprot == 0)
+	if (!(smp->method == IB_MGMT_METHOD_GET &&
+	      ibp->mkey != smp->mkey &&
+	      ibp->mkeyprot == 1))
 		pip->mkey = ibp->mkey;
 	pip->gid_prefix = ibp->gid_prefix;
 	lid = ppd->lid;
