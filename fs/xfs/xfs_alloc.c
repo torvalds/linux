@@ -147,10 +147,9 @@ xfs_alloc_get_rec(
  */
 STATIC void
 xfs_alloc_compute_aligned(
+	xfs_alloc_arg_t	*args,		/* allocation argument structure */
 	xfs_agblock_t	foundbno,	/* starting block in found extent */
 	xfs_extlen_t	foundlen,	/* length in found extent */
-	xfs_extlen_t	alignment,	/* alignment for allocation */
-	xfs_extlen_t	minlen,		/* minimum length for allocation */
 	xfs_agblock_t	*resbno,	/* result block number */
 	xfs_extlen_t	*reslen)	/* result length */
 {
@@ -158,8 +157,8 @@ xfs_alloc_compute_aligned(
 	xfs_extlen_t	diff;
 	xfs_extlen_t	len;
 
-	if (alignment > 1 && foundlen >= minlen) {
-		bno = roundup(foundbno, alignment);
+	if (args->alignment > 1 && foundlen >= args->minlen) {
+		bno = roundup(foundbno, args->alignment);
 		diff = bno - foundbno;
 		len = diff >= foundlen ? 0 : foundlen - diff;
 	} else {
@@ -693,8 +692,7 @@ xfs_alloc_find_best_extent(
 		if (error)
 			goto error0;
 		XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
-		xfs_alloc_compute_aligned(*sbno, *slen, args->alignment,
-					  args->minlen, &bno, slena);
+		xfs_alloc_compute_aligned(args, *sbno, *slen, &bno, slena);
 
 		/*
 		 * The good extent is closer than this one.
@@ -866,8 +864,8 @@ xfs_alloc_ag_vextent_near(
 			if ((error = xfs_alloc_get_rec(cnt_cur, &ltbno, &ltlen, &i)))
 				goto error0;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
-			xfs_alloc_compute_aligned(ltbno, ltlen, args->alignment,
-					args->minlen, &ltbnoa, &ltlena);
+			xfs_alloc_compute_aligned(args, ltbno, ltlen,
+						  &ltbnoa, &ltlena);
 			if (ltlena < args->minlen)
 				continue;
 			args->len = XFS_EXTLEN_MIN(ltlena, args->maxlen);
@@ -987,8 +985,8 @@ xfs_alloc_ag_vextent_near(
 			if ((error = xfs_alloc_get_rec(bno_cur_lt, &ltbno, &ltlen, &i)))
 				goto error0;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
-			xfs_alloc_compute_aligned(ltbno, ltlen, args->alignment,
-					args->minlen, &ltbnoa, &ltlena);
+			xfs_alloc_compute_aligned(args, ltbno, ltlen,
+						  &ltbnoa, &ltlena);
 			if (ltlena >= args->minlen)
 				break;
 			if ((error = xfs_btree_decrement(bno_cur_lt, 0, &i)))
@@ -1003,8 +1001,8 @@ xfs_alloc_ag_vextent_near(
 			if ((error = xfs_alloc_get_rec(bno_cur_gt, &gtbno, &gtlen, &i)))
 				goto error0;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
-			xfs_alloc_compute_aligned(gtbno, gtlen, args->alignment,
-					args->minlen, &gtbnoa, &gtlena);
+			xfs_alloc_compute_aligned(args, gtbno, gtlen,
+						  &gtbnoa, &gtlena);
 			if (gtlena >= args->minlen)
 				break;
 			if ((error = xfs_btree_increment(bno_cur_gt, 0, &i)))
@@ -1183,8 +1181,7 @@ xfs_alloc_ag_vextent_size(
 	 * once aligned; if not, we search left for something better.
 	 * This can't happen in the second case above.
 	 */
-	xfs_alloc_compute_aligned(fbno, flen, args->alignment, args->minlen,
-		&rbno, &rlen);
+	xfs_alloc_compute_aligned(args, fbno, flen, &rbno, &rlen);
 	rlen = XFS_EXTLEN_MIN(args->maxlen, rlen);
 	XFS_WANT_CORRUPTED_GOTO(rlen == 0 ||
 			(rlen <= flen && rbno + rlen <= fbno + flen), error0);
@@ -1209,8 +1206,8 @@ xfs_alloc_ag_vextent_size(
 			XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
 			if (flen < bestrlen)
 				break;
-			xfs_alloc_compute_aligned(fbno, flen, args->alignment,
-				args->minlen, &rbno, &rlen);
+			xfs_alloc_compute_aligned(args, fbno, flen,
+						  &rbno, &rlen);
 			rlen = XFS_EXTLEN_MIN(args->maxlen, rlen);
 			XFS_WANT_CORRUPTED_GOTO(rlen == 0 ||
 				(rlen <= flen && rbno + rlen <= fbno + flen),
