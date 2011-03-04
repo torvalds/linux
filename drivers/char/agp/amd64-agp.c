@@ -773,18 +773,23 @@ int __init agp_amd64_init(void)
 #else
 			printk(KERN_INFO PFX "You can boot with agp=try_unsupported\n");
 #endif
+			pci_unregister_driver(&agp_amd64_pci_driver);
 			return -ENODEV;
 		}
 
 		/* First check that we have at least one AMD64 NB */
-		if (!pci_dev_present(amd_nb_misc_ids))
+		if (!pci_dev_present(amd_nb_misc_ids)) {
+			pci_unregister_driver(&agp_amd64_pci_driver);
 			return -ENODEV;
+		}
 
 		/* Look for any AGP bridge */
 		agp_amd64_pci_driver.id_table = agp_amd64_pci_promisc_table;
 		err = driver_attach(&agp_amd64_pci_driver.driver);
-		if (err == 0 && agp_bridges_found == 0)
+		if (err == 0 && agp_bridges_found == 0) {
+			pci_unregister_driver(&agp_amd64_pci_driver);
 			err = -ENODEV;
+		}
 	}
 	return err;
 }

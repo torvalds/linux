@@ -141,6 +141,7 @@ int snd_jack_new(struct snd_card *card, const char *id, int type,
 
 fail_input:
 	input_free_device(jack->input_dev);
+	kfree(jack->id);
 	kfree(jack);
 	return err;
 }

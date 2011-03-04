@@ -405,9 +405,9 @@ static inline int ocfs2_remove_extent_credits(struct super_block *sb)
 	       ocfs2_quota_trans_credits(sb);
 }
 
-/* data block for new dir/symlink, 2 for bitmap updates (bitmap fe +
- * bitmap block for the new bit) dx_root update for free list */
-#define OCFS2_DIR_LINK_ADDITIONAL_CREDITS (1 + 2 + 1)
+/* data block for new dir/symlink, allocation of directory block, dx_root
+ * update for free list */
+#define OCFS2_DIR_LINK_ADDITIONAL_CREDITS (1 + OCFS2_SUBALLOC_ALLOC + 1)
 
 static inline int ocfs2_add_dir_index_credits(struct super_block *sb)
 {

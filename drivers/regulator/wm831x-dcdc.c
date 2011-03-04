@@ -120,6 +120,7 @@ static unsigned int wm831x_dcdc_get_mode(struct regulator_dev *rdev)
 		return REGULATOR_MODE_IDLE;
 	default:
 		BUG();
+		return -EINVAL;
 	}
 }
 
