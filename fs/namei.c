@@ -1318,6 +1318,18 @@ static inline int may_lookup(struct nameidata *nd)
 	return exec_permission(nd->inode, 0);
 }
 
+static inline int handle_dots(struct nameidata *nd, int type)
+{
+	if (type == LAST_DOTDOT) {
+		if (nd->flags & LOOKUP_RCU) {
+			if (follow_dotdot_rcu(nd))
+				return -ECHILD;
+		} else
+			follow_dotdot(nd);
+	}
+	return 0;
+}
+
 /*
  * Name resolution.
  * This is the basic name resolution function, turning a pathname into
@@ -1393,13 +1405,8 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		 * parent relationships.
 		 */
 		if (unlikely(type != LAST_NORM)) {
-			if (type == LAST_DOTDOT) {
-				if (nd->flags & LOOKUP_RCU) {
-					if (follow_dotdot_rcu(nd))
-						return -ECHILD;
-				} else
-					follow_dotdot(nd);
-			}
+			if (handle_dots(nd, type))
+				return -ECHILD;
 			continue;
 		}
 
@@ -1434,13 +1441,8 @@ last_component:
 		if (lookup_flags & LOOKUP_PARENT)
 			goto lookup_parent;
 		if (unlikely(type != LAST_NORM)) {
-			if (type == LAST_DOTDOT) {
-				if (nd->flags & LOOKUP_RCU) {
-					if (follow_dotdot_rcu(nd))
-						return -ECHILD;
-				} else
-					follow_dotdot(nd);
-			}
+			if (handle_dots(nd, type))
+				return -ECHILD;
 			return 0;
 		}
 		err = do_lookup(nd, &this, &next, &inode);
