@@ -54,8 +54,6 @@ static inline phys_addr_t get_max_mapped(void)
 extern unsigned long init_memory_mapping(unsigned long start,
 					 unsigned long end);
 
-void init_memory_mapping_high(void);
-
 extern void initmem_init(void);
 extern void free_initmem(void);
 

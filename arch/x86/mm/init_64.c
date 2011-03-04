@@ -606,62 +606,8 @@ kernel_physical_mapping_init(unsigned long start,
 void __init initmem_init(void)
 {
 	memblock_x86_register_active_regions(0, 0, max_pfn);
-	init_memory_mapping_high();
 }
 #endif
-
-struct mapping_work_data {
-	unsigned long start;
-	unsigned long end;
-	unsigned long pfn_mapped;
-};
-
-static int __init_refok
-mapping_work_fn(unsigned long start_pfn, unsigned long end_pfn, void *datax)
-{
-	struct mapping_work_data *data = datax;
-	unsigned long pfn_mapped;
-	unsigned long final_start, final_end;
-
-	final_start = max_t(unsigned long, start_pfn<<PAGE_SHIFT, data->start);
-	final_end = min_t(unsigned long, end_pfn<<PAGE_SHIFT, data->end);
-
-	if (final_end <= final_start)
-		return 0;
-
-	pfn_mapped = init_memory_mapping(final_start, final_end);
-
-	if (pfn_mapped > data->pfn_mapped)
-		data->pfn_mapped = pfn_mapped;
-
-	return 0;
-}
-
-static unsigned long __init_refok
-init_memory_mapping_active_regions(unsigned long start, unsigned long end)
-{
-	struct mapping_work_data data;
-
-	data.start = start;
-	data.end = end;
-	data.pfn_mapped = 0;
-
-	work_with_active_regions(MAX_NUMNODES, mapping_work_fn, &data);
-
-	return data.pfn_mapped;
-}
-
-void __init_refok init_memory_mapping_high(void)
-{
-	if (max_pfn > max_low_pfn) {
-		max_pfn_mapped = init_memory_mapping_active_regions(1UL<<32,
-							 max_pfn<<PAGE_SHIFT);
-		/* can we preserve max_low_pfn ? */
-		max_low_pfn = max_pfn;
-
-		memblock.current_limit = get_max_mapped();
-	}
-}
 
 void __init paging_init(void)
 {
