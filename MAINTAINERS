@@ -3520,7 +3520,7 @@ F:	drivers/hwmon/jc42.c
 F:	Documentation/hwmon/jc42
 
 JFS FILESYSTEM
-M:	Dave Kleikamp <shaggy@linux.vnet.ibm.com>
+M:	Dave Kleikamp <shaggy@kernel.org>
 L:	jfs-discussion@lists.sourceforge.net
 W:	http://jfs.sourceforge.net/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shaggy/jfs-2.6.git
