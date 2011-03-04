@@ -424,33 +424,6 @@ int perf_event__synthesize_kernel_mmap(perf_event__handler_t process,
 	return err;
 }
 
-static void thread__comm_adjust(struct thread *self, struct hists *hists)
-{
-	char *comm = self->comm;
-
-	if (!symbol_conf.col_width_list_str && !symbol_conf.field_sep &&
-	    (!symbol_conf.comm_list ||
-	     strlist__has_entry(symbol_conf.comm_list, comm))) {
-		u16 slen = strlen(comm);
-
-		if (hists__new_col_len(hists, HISTC_COMM, slen))
-			hists__set_col_len(hists, HISTC_THREAD, slen + 6);
-	}
-}
-
-static int thread__set_comm_adjust(struct thread *self, const char *comm,
-				   struct hists *hists)
-{
-	int ret = thread__set_comm(self, comm);
-
-	if (ret)
-		return ret;
-
-	thread__comm_adjust(self, hists);
-
-	return 0;
-}
-
 int perf_event__process_comm(union perf_event *event,
 			     struct perf_sample *sample __used,
 			     struct perf_session *session)
@@ -459,8 +432,7 @@ int perf_event__process_comm(union perf_event *event,
 
 	dump_printf(": %s:%d\n", event->comm.comm, event->comm.tid);
 
-	if (thread == NULL || thread__set_comm_adjust(thread, event->comm.comm,
-						      &session->hists)) {
+	if (thread == NULL || thread__set_comm(thread, event->comm.comm)) {
 		dump_printf("problem processing PERF_RECORD_COMM, skipping event.\n");
 		return -1;
 	}
@@ -760,18 +732,6 @@ void thread__find_addr_location(struct thread *self,
 		al->sym = NULL;
 }
 
-static void dso__calc_col_width(struct dso *self, struct hists *hists)
-{
-	if (!symbol_conf.col_width_list_str && !symbol_conf.field_sep &&
-	    (!symbol_conf.dso_list ||
-	     strlist__has_entry(symbol_conf.dso_list, self->name))) {
-		u16 slen = dso__name_len(self);
-		hists__new_col_len(hists, HISTC_DSO, slen);
-	}
-
-	self->slen_calculated = 1;
-}
-
 int perf_event__preprocess_sample(const union perf_event *event,
 				  struct perf_session *session,
 				  struct addr_location *al,
@@ -817,23 +777,8 @@ int perf_event__preprocess_sample(const union perf_event *event,
 			strlist__has_entry(symbol_conf.dso_list,
 					   al->map->dso->long_name)))))
 			goto out_filtered;
-		/*
-		 * We have to do this here as we may have a dso with no symbol
-		 * hit that has a name longer than the ones with symbols
-		 * sampled.
-		 */
-		if (!sort_dso.elide && !al->map->dso->slen_calculated)
-			dso__calc_col_width(al->map->dso, &session->hists);
 
 		al->sym = map__find_symbol(al->map, al->addr, filter);
-	} else {
-		const unsigned int unresolved_col_width = BITS_PER_LONG / 4;
-
-		if (hists__col_len(&session->hists, HISTC_DSO) < unresolved_col_width &&
-		    !symbol_conf.col_width_list_str && !symbol_conf.field_sep &&
-		    !symbol_conf.dso_list)
-			hists__set_col_len(&session->hists, HISTC_DSO,
-					   unresolved_col_width);
 	}
 
 	if (symbol_conf.sym_list && al->sym &&
