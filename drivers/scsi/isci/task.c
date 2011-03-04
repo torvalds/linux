@@ -1116,7 +1116,8 @@ static void isci_abort_task_process_cb(
 		 * request state was already set to "aborted" by the abort
 		 * task function.
 		 */
-		BUG_ON(old_request->status != aborted);
+		BUG_ON((old_request->status != aborted)
+			&& (old_request->status != completed));
 		break;
 
 	case isci_tmf_timed_out:
