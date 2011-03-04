@@ -41,7 +41,7 @@
 #define KXTF9_IRQ_GPIO		TEGRA_GPIO_PV3
 #define MAX9635_IRQ_GPIO	TEGRA_GPIO_PV1
 #define BMP085_IRQ_GPIO		TEGRA_GPIO_PW0
-#define L3G4200D_IRQ_GPIO	TEGRA_GPIO_PH2
+#define L3G4200D_DRDY_GPIO	TEGRA_GPIO_PH3
 #define AKM8975_IRQ_GPIO	TEGRA_GPIO_PQ2
 #define LM3559_RESETN_GPIO	TEGRA_GPIO_PT4
 #define OV5650_RESETN_GPIO	TEGRA_GPIO_PD2
@@ -285,20 +285,20 @@ static int stingray_max9635_init(void)
 
 static int stingray_l3g4200d_init(void)
 {
-	tegra_gpio_enable(L3G4200D_IRQ_GPIO);
-	gpio_request(L3G4200D_IRQ_GPIO, "l3g4200d_irq");
-	gpio_direction_input(L3G4200D_IRQ_GPIO);
+	tegra_gpio_enable(L3G4200D_DRDY_GPIO);
+	gpio_request(L3G4200D_DRDY_GPIO, "l3g4200d_irq");
+	gpio_direction_input(L3G4200D_DRDY_GPIO);
 	return 0;
 }
 
 struct l3g4200d_platform_data stingray_gyro_pdata = {
-	.poll_interval = 200,
-	.min_interval = 20,
+	.poll_interval = 10,
+	.gpio_drdy = L3G4200D_DRDY_GPIO,
 
-	.ctrl_reg1 = 0xff,	/* ODR800 */
+	.ctrl_reg1 = 0x1f,	/* ODR100 */
 	.ctrl_reg2 = 0x00,
-	.ctrl_reg3 = 0x00,
-	.ctrl_reg4 = 0x20,	/* 2000 dps */
+	.ctrl_reg3 = 0x08,	/* Enable DRDY interrupt */
+	.ctrl_reg4 = 0xA0,	/* BDU enable, 2000 dps */
 	.ctrl_reg5 = 0x00,
 	.reference = 0x00,
 	.fifo_ctrl_reg = 0x00,
@@ -405,7 +405,7 @@ static struct i2c_board_info __initdata stingray_i2c_bus3_sensor_info[] = {
 	 {
 		I2C_BOARD_INFO(L3G4200D_NAME, 0x68),
 		.platform_data = &stingray_gyro_pdata,
-		.irq = TEGRA_GPIO_TO_IRQ(L3G4200D_IRQ_GPIO),
+		.irq = TEGRA_GPIO_TO_IRQ(L3G4200D_DRDY_GPIO),
 	 },
 
 	 {
