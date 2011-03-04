@@ -111,9 +111,6 @@ module_param(oos_shadow, bool, 0644);
 #define PT64_LEVEL_SHIFT(level) \
 		(PAGE_SHIFT + (level - 1) * PT64_LEVEL_BITS)
 
-#define PT64_LEVEL_MASK(level) \
-		(((1ULL << PT64_LEVEL_BITS) - 1) << PT64_LEVEL_SHIFT(level))
-
 #define PT64_INDEX(address, level)\
 	(((address) >> PT64_LEVEL_SHIFT(level)) & ((1 << PT64_LEVEL_BITS) - 1))
 
@@ -123,8 +120,6 @@ module_param(oos_shadow, bool, 0644);
 #define PT32_LEVEL_SHIFT(level) \
 		(PAGE_SHIFT + (level - 1) * PT32_LEVEL_BITS)
 
-#define PT32_LEVEL_MASK(level) \
-		(((1ULL << PT32_LEVEL_BITS) - 1) << PT32_LEVEL_SHIFT(level))
 #define PT32_LVL_OFFSET_MASK(level) \
 	(PT32_BASE_ADDR_MASK & ((1ULL << (PAGE_SHIFT + (((level) - 1) \
 						* PT32_LEVEL_BITS))) - 1))
