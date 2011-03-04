@@ -361,9 +361,10 @@ static int omfs_fill_chain(struct file *filp, void *dirent, filldir_t filldir,
 
 		res = filldir(dirent, oi->i_name, strnlen(oi->i_name,
 			OMFS_NAMELEN), filp->f_pos, self, d_type);
-		if (res == 0)
-			filp->f_pos++;
 		brelse(bh);
+		if (res < 0)
+			break;
+		filp->f_pos++;
 	}
 out:
 	return res;
