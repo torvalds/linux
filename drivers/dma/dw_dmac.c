@@ -47,14 +47,13 @@
 
 /*
  * This is configuration-dependent and usually a funny size like 4095.
- * Let's round it down to the nearest power of two.
  *
  * Note that this is a transfer count, i.e. if we transfer 32-bit
- * words, we can do 8192 bytes per descriptor.
+ * words, we can do 16380 bytes per descriptor.
  *
  * This parameter is also system-specific.
  */
-#define DWC_MAX_COUNT	2048U
+#define DWC_MAX_COUNT	4095U
 
 /*
  * Number of descriptors to allocate for each channel. This should be
