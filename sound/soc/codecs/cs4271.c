@@ -555,7 +555,7 @@ static struct spi_driver cs4271_spi_driver = {
 #endif /* defined(CONFIG_SPI_MASTER) */
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-static struct i2c_device_id cs4271_i2c_id[] = {
+static const struct i2c_device_id cs4271_i2c_id[] = {
 	{"cs4271", 0},
 	{}
 };

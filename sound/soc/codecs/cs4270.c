@@ -719,7 +719,7 @@ static int cs4270_i2c_remove(struct i2c_client *i2c_client)
 /*
  * cs4270_id - I2C device IDs supported by this driver
  */
-static struct i2c_device_id cs4270_id[] = {
+static const struct i2c_device_id cs4270_id[] = {
 	{"cs4270", 0},
 	{}
 };
