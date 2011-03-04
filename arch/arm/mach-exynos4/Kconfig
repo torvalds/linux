@@ -109,6 +109,19 @@ config MACH_SMDKV310
 	help
 	  Machine support for Samsung SMDKV310
 
+config MACH_ARMLEX4210
+	bool "ARMLEX4210"
+	select CPU_EXYNOS4210
+	select S3C_DEV_RTC
+	select S3C_DEV_WDT
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_HSMMC3
+	select EXYNOS4_DEV_SYSMMU
+	select EXYNOS4_SETUP_SDHCI
+	help
+	  Machine support for Samsung ARMLEX4210 based on EXYNOS4210
+
 config MACH_UNIVERSAL_C210
 	bool "Mobile UNIVERSAL_C210 Board"
 	select CPU_EXYNOS4210
