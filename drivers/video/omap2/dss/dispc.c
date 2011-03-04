@@ -2831,6 +2831,9 @@ int omap_dispc_register_isr(omap_dispc_isr_t isr, void *arg, u32 mask)
 		break;
 	}
 
+	if (ret)
+		goto err;
+
 	_omap_dispc_set_irqs();
 
 	spin_unlock_irqrestore(&dispc.irq_lock, flags);
