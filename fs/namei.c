@@ -1343,6 +1343,18 @@ static inline int handle_dots(struct nameidata *nd, int type)
 	return 0;
 }
 
+static void terminate_walk(struct nameidata *nd)
+{
+	if (!(nd->flags & LOOKUP_RCU)) {
+		path_put(&nd->path);
+	} else {
+		nd->flags &= ~LOOKUP_RCU;
+		nd->root.mnt = NULL;
+		rcu_read_unlock();
+		br_read_unlock(vfsmount_lock);
+	}
+}
+
 /*
  * Name resolution.
  * This is the basic name resolution function, turning a pathname into
@@ -1482,14 +1494,7 @@ lookup_parent:
 		nd->last_type = type;
 		return 0;
 	}
-	if (!(nd->flags & LOOKUP_RCU))
-		path_put(&nd->path);
-	if (nd->flags & LOOKUP_RCU) {
-		nd->flags &= ~LOOKUP_RCU;
-		nd->root.mnt = NULL;
-		rcu_read_unlock();
-		br_read_unlock(vfsmount_lock);
-	}
+	terminate_walk(nd);
 	return err;
 }
 
