@@ -702,6 +702,8 @@ static void drv_exit(void)
     gckGALDEVICE_Destroy(galDevice);
 
 #if ENABLE_GPU_CLOCK_BY_DRIVER && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
+    printk("gpu: %s clk_disable... ", __func__);
+
     clk_gpu = clk_get(NULL, "gpu");
     if(!IS_ERR(clk_gpu))    clk_disable(clk_gpu);
   
@@ -710,6 +712,8 @@ static void drv_exit(void)
 
     clk_hclk_gpu = clk_get(NULL, "hclk_gpu");
     if(!IS_ERR(clk_hclk_gpu))    clk_disable(clk_hclk_gpu);
+    
+    printk("done!\n");
 #endif
 }
 
@@ -786,13 +790,15 @@ static int __devinit gpu_suspend(struct platform_device *dev, pm_message_t state
 
 	device = platform_get_drvdata(dev);
 
-	status = gckHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_OFF);
+	status = gckHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_SUSPEND);
 
 	if (gcmIS_ERROR(status))
 	{
 	    printk("%s fail!\n", __func__);
 		return -1;
 	}
+
+	printk("Exit %s \n", __func__);
 
 	return 0;
 }
@@ -806,7 +812,7 @@ static int __devinit gpu_resume(struct platform_device *dev)
 
 	device = platform_get_drvdata(dev);
 
-	status = gckHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_ON);
+	status = gckHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_IDLE);
 
 	if (gcmIS_ERROR(status))
 	{
@@ -814,24 +820,16 @@ static int __devinit gpu_resume(struct platform_device *dev)
 		return -1;
 	}
 
+	printk("Exit %s \n", __func__);
+    
 	return 0;
 }
 
 static void __devinit gpu_shutdown(struct platform_device *dev)
 {
-	gceSTATUS status;
-	gckGALDEVICE device;
-    
     printk("Enter %s \n", __func__);
-
-	device = platform_get_drvdata(dev);
-
-	status = gckHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_OFF);
-
-	if (gcmIS_ERROR(status))
-	{
-	    printk("%s fail!\n", __func__);
-	}
+    drv_exit();
+    printk("Exit %s \n", __func__);
 }
 
 static struct platform_driver gpu_driver = {

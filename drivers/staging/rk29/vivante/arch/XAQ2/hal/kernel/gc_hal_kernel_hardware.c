@@ -2618,7 +2618,8 @@ gckHARDWARE_GetIdle(
     pollCount = Wait ? 100 : 1;
 
     /* At most, try for 1 second. */
-    for (retry = 0; retry < 1000; ++retry)
+    //for (retry = 0; retry < 1000; ++retry)
+    for (retry = 0; retry < 100; ++retry)
     {
         /* If we have to wait, try 100 polls per millisecond. */
         for (poll = pollCount; poll > 0; --poll)
@@ -2916,13 +2917,15 @@ gckHARDWARE_SetPowerManagementState(
         },
 
         /* gcvPOWER_SUSPEND      */
-        {   /* ON                */ gcvPOWER_FLAG_START   |
+        {   /* ON                */ gcvPOWER_FLAG_INITIALIZE |
+                                    gcvPOWER_FLAG_START   |
                                     gcvPOWER_FLAG_RELEASE |
                                     gcvPOWER_FLAG_DELAY,
             /* OFF               */ gcvPOWER_FLAG_SAVE |
                                     gcvPOWER_FLAG_OFF  |
                                     gcvPOWER_FLAG_CLOCK_OFF,
-            /* IDLE              */ gcvPOWER_FLAG_START |
+            /* IDLE              */ gcvPOWER_FLAG_INITIALIZE |
+                                    gcvPOWER_FLAG_START |
                                     gcvPOWER_FLAG_DELAY,
             /* SUSPEND           */ 0,
         },

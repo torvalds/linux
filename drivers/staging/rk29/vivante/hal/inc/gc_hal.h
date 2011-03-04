@@ -24,6 +24,7 @@
 #ifndef __gc_hal_h_
 #define __gc_hal_h_
 
+#include <linux/kernel.h>
 #include "gc_hal_types.h"
 #include "gc_hal_enum.h"
 #include "gc_hal_base.h"

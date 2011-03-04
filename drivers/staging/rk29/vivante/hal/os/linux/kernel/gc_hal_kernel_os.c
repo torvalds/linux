@@ -5932,48 +5932,56 @@ gckOS_SetGPUPower(
     struct clk * clk_aclk_gpu = clk_get(NULL, "aclk_gpu");
     struct clk * clk_aclk_ddr_gpu = clk_get(NULL, "aclk_ddr_gpu");
     struct clk * clk_hclk_gpu = clk_get(NULL, "hclk_gpu");
+    static int lastpower = 0;
 
-    printk("---------- Enter gckOS_SetGPUPowerOs=0x%p Clock=%d Power=%d \n", (void*)Os, Clock, Power);
+    //printk("---------- gckOS_SetGPUPower Clock=%d Power=%d \n", Clock, Power);
 
+    mdelay(1);
     if(Clock) {
-        printk("---------- start gpu clk_enable...\n");
+        printk("gpu: clk_enable... ");
         clk_enable(clk_hclk_gpu);
         clk_enable(clk_aclk_gpu);
         clk_enable(clk_aclk_ddr_gpu);
         clk_enable(clk_gpu);
-        printk("---------- end gpu clk_enable!\n");
+        printk("done!\n");
     } else {
-        printk("---------- start gpu clk_disable...\n");
+        printk("gpu: clk_disable... ");
         clk_disable(clk_gpu);
         clk_disable(clk_aclk_gpu);
         clk_disable(clk_aclk_ddr_gpu);
         clk_disable(clk_hclk_gpu);
-        printk("---------- end gpu clk_disable!\n");
+        printk("done!\n");
     }
+    mdelay(1);
 
     if(Power) {
-        unsigned long flags;
-        printk("---------- start gpu power_domain on...\n");
-        mdelay(10);
-        local_irq_save(flags);
-        mdelay(5);
-        pmu_set_power_domain(PD_GPU, true);
-        mdelay(10);
-        local_irq_restore(flags);
-        printk("---------- end gpu power_domain on!\n");
+        if(lastpower != Power) {
+            printk("gpu: power on... ");
+            pmu_set_power_domain(PD_GPU, true);
+            printk("done!\n");
 
-        /* disable gpu' reset bit */
-        cru_set_soft_reset(SOFT_RST_DDR_GPU_PORT, false);
-        cru_set_soft_reset(SOFT_RST_GPU, false);
+            printk("gpu: reset... ");
+            mdelay(1);
+            cru_set_soft_reset(SOFT_RST_GPU, true);
+            cru_set_soft_reset(SOFT_RST_DDR_GPU_PORT, true);
+            mdelay(2);
+            cru_set_soft_reset(SOFT_RST_DDR_GPU_PORT, false);
+            cru_set_soft_reset(SOFT_RST_GPU, false);
+            mdelay(1);
+            cru_set_soft_reset(SOFT_RST_GPU, true);
+            cru_set_soft_reset(SOFT_RST_DDR_GPU_PORT, true);
+            mdelay(2);
+            cru_set_soft_reset(SOFT_RST_DDR_GPU_PORT, false);
+            cru_set_soft_reset(SOFT_RST_GPU, false);
+            mdelay(1);
+            printk("done!\n");
+        }
     } else {
-        //printk("---------- start gpu power_domain off...\n");
+        //printk("gpu: power off... ");
         //pmu_set_power_domain(PD_GPU, false);
-        //printk("---------- end gpu power_domain off!\n");
-
-        /* enable gpu' reset bit */
-        cru_set_soft_reset(SOFT_RST_GPU, true);
-        cru_set_soft_reset(SOFT_RST_DDR_GPU_PORT, true);
+        //printk("done!\n");
     }
+    lastpower = Power;
 
 #endif
 
