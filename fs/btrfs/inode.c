@@ -4837,6 +4837,9 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	if (root->objectid != BTRFS_I(inode)->root->objectid)
 		return -EXDEV;
 
+	if (inode->i_nlink == ~0U)
+		return -EMLINK;
+
 	btrfs_inc_nlink(inode);
 	inode->i_ctime = CURRENT_TIME;
 
