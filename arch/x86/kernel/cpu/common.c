@@ -675,7 +675,7 @@ void __init early_cpu_init(void)
 	const struct cpu_dev *const *cdev;
 	int count = 0;
 
-#ifdef PROCESSOR_SELECT
+#ifdef CONFIG_PROCESSOR_SELECT
 	printk(KERN_INFO "KERNEL supported cpus:\n");
 #endif
 
@@ -687,7 +687,7 @@ void __init early_cpu_init(void)
 		cpu_devs[count] = cpudev;
 		count++;
 
-#ifdef PROCESSOR_SELECT
+#ifdef CONFIG_PROCESSOR_SELECT
 		{
 			unsigned int j;
 
