@@ -897,7 +897,7 @@ static ssize_t read(struct file *filep, char *outbuf, size_t n, loff_t *ppos)
 	struct IR *ir = filep->private_data;
 	struct IR_rx *rx;
 	struct lirc_buffer *rbuf = ir->l.rbuf;
-	int ret = 0, written = 0;
+	int ret = 0, written = 0, retries = 0;
 	unsigned int m;
 	DECLARE_WAITQUEUE(wait, current);
 
@@ -950,6 +950,12 @@ static ssize_t read(struct file *filep, char *outbuf, size_t n, loff_t *ppos)
 				ret = copy_to_user((void *)outbuf+written, buf,
 						   rbuf->chunk_size);
 				written += rbuf->chunk_size;
+			} else {
+				retries++;
+			}
+			if (retries >= 5) {
+				zilog_error("Buffer read failed!\n");
+				ret = -EIO;
 			}
 		}
 	}
