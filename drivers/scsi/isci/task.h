@@ -224,7 +224,7 @@ void isci_task_build_tmf(
 	void (*tmf_sent_cb)(
 		enum isci_tmf_cb_state,
 		struct isci_tmf *, void *),
-	void *cb_data);
+	struct isci_request *old_request);
 
 int isci_task_execute_tmf(
 	struct isci_host *isci_host,

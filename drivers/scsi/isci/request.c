@@ -463,6 +463,12 @@ int isci_request_execute(
 				 */
 				status = SCI_SUCCESS;
 			}
+			else
+				/* Save the tag for possible task mgmt later. */
+				request->io_tag = scic_io_request_get_io_tag(
+						     request->sci_request_handle);
+
+
 		} else
 			dev_warn(&isci_host->pdev->dev,
 				 "%s: failed request start\n",

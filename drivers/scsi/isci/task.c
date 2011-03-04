@@ -544,7 +544,7 @@ void isci_task_build_tmf(
 	void (*tmf_sent_cb)(enum isci_tmf_cb_state,
 			    struct isci_tmf *,
 			    void *),
-	void *cb_data)
+	struct isci_request *old_request)
 {
 	dev_dbg(&isci_device->isci_port->isci_host->pdev->dev,
 		"%s: isci_device = %p\n", __func__, isci_device);
@@ -555,7 +555,9 @@ void isci_task_build_tmf(
 	tmf->tmf_code      = code;
 	tmf->timeout_timer = NULL;
 	tmf->cb_state_func = tmf_sent_cb;
-	tmf->cb_data       = cb_data;
+	tmf->cb_data       = old_request;
+	tmf->io_tag        = old_request->io_tag;
+
 }
 
 static struct isci_request *isci_task_get_request_from_task(
@@ -1247,10 +1249,6 @@ int isci_task_abort_task(struct sas_task *task)
 		/* Fill in the tmf stucture */
 		isci_task_build_tmf(&tmf, isci_device, isci_tmf_ssp_task_abort,
 				    isci_abort_task_process_cb, old_request);
-
-		tmf.io_tag = scic_io_request_get_io_tag(
-			old_request->sci_request_handle
-			);
 
 		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
 
