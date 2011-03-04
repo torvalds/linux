@@ -212,6 +212,19 @@ static inline void wait_for_stop(struct isci_host *ihost)
 	wait_event(ihost->eventq, !test_bit(IHOST_STOP_PENDING, &ihost->flags));
 }
 
+static inline void wait_for_device_start(struct isci_host *ihost, struct isci_remote_device *idev)
+{
+	wait_event(ihost->eventq, !test_bit(IDEV_START_PENDING, &idev->flags));
+}
+
+static inline void wait_for_device_stop(struct isci_host *ihost, struct isci_remote_device *idev)
+{
+	/* todo switch to:
+	 * wait_event(ihost->eventq, !test_bit(IDEV_STOP_PENDING, &idev->flags));
+	 * once devices are statically allocated
+	 */
+	wait_for_completion(idev->cmp);
+}
 
 /**
  * isci_host_from_sas_ha() - This accessor retrieves the isci_host object

@@ -61,12 +61,14 @@ struct scic_sds_remote_device;
 
 struct isci_remote_device {
 	enum isci_status status;
+	#define IDEV_START_PENDING 0
+	#define IDEV_STOP_PENDING 1
+	unsigned long flags;
+	struct completion *cmp;
 	struct isci_port *isci_port;
 	struct domain_device *domain_dev;
-	struct completion *completion;
 	struct list_head node;
 	struct list_head reqs_in_process;
-	struct work_struct stop_work;
 	spinlock_t state_lock;
 };
 
@@ -102,9 +104,8 @@ void isci_remote_device_stop_complete(
 	struct isci_remote_device *,
 	enum sci_status);
 
-enum sci_status isci_remote_device_stop(
-	struct isci_remote_device *isci_device);
-
+enum sci_status isci_remote_device_stop(struct isci_host *ihost,
+					struct isci_remote_device *idev);
 void isci_remote_device_nuke_requests(
 	struct isci_remote_device *isci_device);
 

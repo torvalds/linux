@@ -345,7 +345,7 @@ void isci_host_deinit(struct isci_host *ihost)
 
 		list_for_each_entry_safe(idev, d, &port->remote_dev_list, node) {
 			isci_remote_device_change_state(idev, isci_stopping);
-			isci_remote_device_stop(idev);
+			isci_remote_device_stop(ihost, idev);
 		}
 	}
 

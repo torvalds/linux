@@ -95,6 +95,11 @@ static void isci_remote_device_deconstruct(
 	scic_remote_device_destruct(to_sci_dev(isci_device));
 	isci_device->domain_dev->lldd_dev = NULL;
 	list_del(&isci_device->node);
+
+	clear_bit(IDEV_STOP_PENDING, &isci_device->flags);
+	clear_bit(IDEV_START_PENDING, &isci_device->flags);
+	wake_up(&isci_host->eventq);
+	complete(isci_device->cmp);
 	kmem_cache_free(isci_kmem_cache, isci_device);
 }
 
@@ -279,30 +284,22 @@ isci_remote_device_alloc(struct isci_host *isci_host, struct isci_port *port)
  * isci_remote_device_ready() - This function is called by the scic when the
  *    remote device is ready. We mark the isci device as ready and signal the
  *    waiting proccess.
- * @isci_host: This parameter specifies the isci host object.
- * @isci_device: This parameter specifies the remote device
+ * @idev: This parameter specifies the remote device
  *
  */
-void isci_remote_device_ready(struct isci_remote_device *isci_device)
+void isci_remote_device_ready(struct isci_remote_device *idev)
 {
+	struct isci_host *ihost = idev->isci_port->isci_host;
 	unsigned long flags;
 
-	dev_dbg(&isci_device->isci_port->isci_host->pdev->dev,
-		"%s: isci_device = %p\n", __func__, isci_device);
+	dev_dbg(&ihost->pdev->dev,
+		"%s: isci_device = %p\n", __func__, idev);
 
-	/* device ready is actually a "ready for io" state. */
-	if (isci_device->status == isci_starting ||
-	    isci_device->status == isci_ready) {
-		spin_lock_irqsave(&isci_device->isci_port->remote_device_lock,
-				  flags);
-		isci_remote_device_change_state(isci_device, isci_ready_for_io);
-		if (isci_device->completion)
-			complete(isci_device->completion);
-		spin_unlock_irqrestore(
-				&isci_device->isci_port->remote_device_lock,
-				flags);
-	}
-
+	spin_lock_irqsave(&idev->isci_port->remote_device_lock, flags);
+	isci_remote_device_change_state(idev, isci_ready_for_io);
+	if (test_and_clear_bit(IDEV_START_PENDING, &idev->flags))
+		wake_up(&ihost->eventq);
+	spin_unlock_irqrestore(&idev->isci_port->remote_device_lock, flags);
 }
 
 /**
@@ -341,8 +338,6 @@ void isci_remote_device_stop_complete(
 	struct isci_remote_device *isci_device,
 	enum sci_status status)
 {
-	struct completion *completion = isci_device->completion;
-
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: complete isci_device = %p, status = 0x%x\n",
 		__func__,
@@ -354,9 +349,6 @@ void isci_remote_device_stop_complete(
 	/* after stop, we can tear down resources. */
 	isci_remote_device_deconstruct(isci_host, isci_device);
 
-	/* notify interested parties. */
-	if (completion)
-		complete(completion);
 }
 
 /**
@@ -385,40 +377,33 @@ void isci_remote_device_start_complete(
  *
  * The status of the scic request to stop.
  */
-enum sci_status isci_remote_device_stop(
-	struct isci_remote_device *isci_device)
+enum sci_status isci_remote_device_stop(struct isci_host *ihost, struct isci_remote_device *idev)
 {
 	enum sci_status status;
 	unsigned long flags;
-
 	DECLARE_COMPLETION_ONSTACK(completion);
 
-	dev_dbg(&isci_device->isci_port->isci_host->pdev->dev,
-		"%s: isci_device = %p\n", __func__, isci_device);
+	dev_dbg(&ihost->pdev->dev,
+		"%s: isci_device = %p\n", __func__, idev);
 
-	isci_remote_device_change_state(isci_device, isci_stopping);
+	isci_remote_device_change_state(idev, isci_stopping);
+	set_bit(IDEV_STOP_PENDING, &idev->flags);
+	idev->cmp = &completion;
 
-	/* We need comfirmation that stop completed. */
-	isci_device->completion = &completion;
+	spin_lock_irqsave(&ihost->scic_lock, flags);
 
-	BUG_ON(isci_device->isci_port == NULL);
-	BUG_ON(isci_device->isci_port->isci_host == NULL);
+	status = scic_remote_device_stop(to_sci_dev(idev), 50);
 
-	spin_lock_irqsave(&isci_device->isci_port->isci_host->scic_lock, flags);
-
-	status = scic_remote_device_stop(to_sci_dev(isci_device), 50);
-
-	spin_unlock_irqrestore(&isci_device->isci_port->isci_host->scic_lock, flags);
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
 	/* Wait for the stop complete callback. */
 	if (status == SCI_SUCCESS)
-		wait_for_completion(&completion);
+		wait_for_device_stop(ihost, idev);
 
-	dev_dbg(&isci_device->isci_port->isci_host->pdev->dev,
-		"%s: isci_device = %p - after completion wait\n",
-		__func__, isci_device);
+	dev_dbg(&ihost->pdev->dev,
+		"%s: idev = %p - after completion wait\n",
+		__func__, idev);
 
-	isci_device->completion = NULL;
 	return status;
 }
 
@@ -428,18 +413,16 @@ enum sci_status isci_remote_device_stop(
  * @domain_device: This parameter specifies the libsas domain device.
  *
  */
-void isci_remote_device_gone(
-	struct domain_device *domain_dev)
+void isci_remote_device_gone(struct domain_device *dev)
 {
-	struct isci_remote_device *isci_device = isci_dev_from_domain_dev(
-		domain_dev);
+	struct isci_host *ihost = dev->port->ha->lldd_ha;
+	struct isci_remote_device *idev = dev->lldd_dev;
 
-	dev_dbg(&isci_device->isci_port->isci_host->pdev->dev,
+	dev_dbg(&ihost->pdev->dev,
 		"%s: domain_device = %p, isci_device = %p, isci_port = %p\n",
-		__func__, domain_dev, isci_device, isci_device->isci_port);
+		__func__, dev, idev, idev->isci_port);
 
-	if (isci_device != NULL)
-		isci_remote_device_stop(isci_device);
+	isci_remote_device_stop(ihost, idev);
 }
 
 
@@ -462,7 +445,6 @@ int isci_remote_device_found(struct domain_device *domain_dev)
 	struct asd_sas_phy *sas_phy;
 	struct isci_remote_device *isci_device;
 	enum sci_status status;
-	DECLARE_COMPLETION_ONSTACK(completion);
 
 	isci_host = isci_host_from_sas_ha(domain_dev->port->ha);
 
@@ -498,16 +480,9 @@ int isci_remote_device_found(struct domain_device *domain_dev)
 	spin_lock_irqsave(&isci_port->remote_device_lock, flags);
 	list_add_tail(&isci_device->node, &isci_port->remote_dev_list);
 
-	/* for the device ready event. */
-	isci_device->completion = &completion;
-
+	set_bit(IDEV_START_PENDING, &isci_device->flags);
 	status = isci_remote_device_construct(isci_port, isci_device);
-
 	spin_unlock_irqrestore(&isci_port->remote_device_lock, flags);
-
-	/* wait for the device ready callback. */
-	wait_for_completion(isci_device->completion);
-	isci_device->completion = NULL;
 
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: isci_device = %p\n",
@@ -523,6 +498,9 @@ int isci_remote_device_found(struct domain_device *domain_dev)
 		spin_unlock_irqrestore(&isci_port->remote_device_lock, flags);
 		return -ENODEV;
 	}
+
+	/* wait for the device ready callback. */
+	wait_for_device_start(isci_host, isci_device);
 
 	return 0;
 }

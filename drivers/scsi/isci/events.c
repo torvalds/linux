@@ -526,7 +526,7 @@ void isci_event_remote_device_start_complete(
 /**
  * isci_event_remote_device_stop_complete() - This user callback method will
  *    inform the user that a stop operation has completed.
- * @controller: This parameter specifies the core controller associated with
+ * @scic: This parameter specifies the core controller associated with
  *    the completion callback.
  * @remote_device: This parameter specifies the remote device associated with
  *    the completion callback.
@@ -534,28 +534,20 @@ void isci_event_remote_device_start_complete(
  *    operation.
  *
  */
-void isci_event_remote_device_stop_complete(
-	struct scic_sds_controller *controller,
-	struct scic_sds_remote_device *remote_device,
-	enum sci_status completion_status)
+void isci_event_remote_device_stop_complete(struct scic_sds_controller *scic,
+					    struct scic_sds_remote_device *sci_dev,
+					    enum sci_status completion_status)
 {
-	struct isci_host *isci_host;
-	struct isci_remote_device *isci_device;
+	struct isci_host *ihost;
+	struct isci_remote_device *idev;
 
-	isci_host =
-		(struct isci_host *)sci_object_get_association(controller);
+	ihost = sci_object_get_association(scic);
+	idev = sci_object_get_association(sci_dev);
 
-	isci_device =
-		(struct isci_remote_device *)sci_object_get_association(
-			remote_device
-			);
+	dev_dbg(&ihost->pdev->dev,
+		"%s: idev = %p\n", __func__, idev);
 
-	dev_dbg(&isci_host->pdev->dev,
-		"%s: isci_device = %p\n", __func__, isci_device);
-
-	isci_remote_device_stop_complete(
-		isci_host, isci_device, completion_status);
-
+	isci_remote_device_stop_complete(ihost, idev, completion_status);
 }
 
 /**
