@@ -68,7 +68,7 @@
 #define TPS65910_SMARTREFLEX		1
 
 
-struct tps65910_platform_data *the_tps65910;
+struct tps65910_platform_data *gtps65910_platform = NULL;
 
 enum tps65910x_model {
 	TPS65910,   	/* TI processors OMAP3 family */
@@ -251,7 +251,7 @@ int tps65910_add_irq_work(int irq,
 		void (*handler)(void *data))
 {
 	int ret = 0;
-	the_tps65910->handlers[irq] = handler;
+	gtps65910_platform->handlers[irq] = handler;
 	ret = tps65910_enable_irq(irq);
 
 	return ret;
@@ -262,7 +262,7 @@ int tps65910_remove_irq_work(int irq)
 {
 	int ret = 0;
 	ret = tps65910_disable_irq(irq);
-	the_tps65910->handlers[irq] = NULL;
+	gtps65910_platform->handlers[irq] = NULL;
 	return ret;
 }
 EXPORT_SYMBOL(tps65910_remove_irq_work);
@@ -278,6 +278,7 @@ static void tps65910_core_work(struct work_struct *work)
 	u16 irq = 0;
 	void	(*handler)(void *data) = NULL;
 
+	DBG("Enter::%s %d\n",__FUNCTION__,__LINE__);
 	mutex_lock(&work_lock);
 	while (1) {
 		tps65910_i2c_read_u8(TPS65910_I2C_ID0, &status2,
@@ -298,12 +299,12 @@ static void tps65910_core_work(struct work_struct *work)
 		while (isr) {
 			irq = fls(isr) - 1;
 			isr &= ~(1 << irq);
-			handler = the_tps65910->handlers[irq];
+			handler = gtps65910_platform->handlers[irq];
 			if (handler)
-				handler(the_tps65910);
+				handler(gtps65910_platform);
 		}
 	}
-	enable_irq(the_tps65910->irq_num);
+	enable_irq(gtps65910_platform->irq_num);
 	mutex_unlock(&work_lock);
 }
 
@@ -499,7 +500,7 @@ tps65910_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct tps65910_platform_data	*pdata;
  
 	pdata = client->dev.platform_data;
-	the_tps65910 = pdata;
+	gtps65910_platform = pdata;
 
 	DBG("cwz: tps65910_i2c_probe\n");
 	
@@ -544,7 +545,6 @@ tps65910_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (pdata->board_tps65910_config != NULL)
 		pdata->board_tps65910_config(pdata);
 
-#if 0	//	cwz close, the tps65910_core_work may have some error.
 	if (pdata->irq_num) {
 		/* TPS65910 power ON interrupt(s) would have already been
 		 * occurred, so immediately after request_irq the control will
@@ -554,17 +554,27 @@ tps65910_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		 * initialization before requesting IRQ
 		 */
 		mutex_init(&work_lock);
-		INIT_WORK(&core_work, tps65910_core_work);
+
+		if(gpio_request(client->irq, "tps65910 irq"))
+		{
+			dev_err(&client->dev, "gpio request fail\n");
+			gpio_free(client->irq);
+			goto fail;
+		}
+		
+		pdata->irq_num = gpio_to_irq(client->irq);
+		gpio_pull_updown(client->irq,GPIOPullUp);
 
 		status = request_irq(pdata->irq_num, tps65910_isr,
-					IRQF_DISABLED, "tps65910", pdata);
+					IRQF_TRIGGER_FALLING, client->dev.driver->name, pdata);
 		if (status < 0) {
 			pr_err("tps65910: could not claim irq%d: %d\n",
 					pdata->irq_num,	status);
 			goto fail;
 		}
+		enable_irq_wake(pdata->irq_num);
+		INIT_WORK(&core_work, tps65910_core_work);
 	}
-#endif
 
 	status = add_children(pdata, 0x00);
 	if (status < 0)
@@ -652,9 +662,13 @@ module_exit(tps65910_exit);
 static int proc_tps65910_show(struct seq_file *s, void *v)
 {
     u8 val = 0;
-    struct regulator *vldo;
 	
 	seq_printf(s, "\n\nTPS65910 Registers is:\n");
+
+	tps65910_i2c_read_u8(TPS65910_I2C_ID0, &val, TPS65910_REG_REF);
+	seq_printf(s, "REF_REG=0x%x, Value=0x%x\n", TPS65910_REG_REF, val);
+	tps65910_i2c_read_u8(TPS65910_I2C_ID0, &val, TPS65910_REG_VRTC);
+	seq_printf(s, "VRTC_REG=0x%x, Value=0x%x\n", TPS65910_REG_VRTC, val);
 	
 	tps65910_i2c_read_u8(TPS65910_I2C_ID0, &val, TPS65910_REG_VDD1);
 	seq_printf(s, "VDD1_REG=0x%x, Value=0x%x\n", TPS65910_REG_VDD1, val);
@@ -692,6 +706,9 @@ static int proc_tps65910_show(struct seq_file *s, void *v)
 	seq_printf(s, "DEVCTRL2_REG=0x%x, Value=0x%x\n", TPS65910_REG_DEVCTRL2, val);
 
 #if 0	//	cwz 1 test vcore
+{
+    struct regulator *vldo;
+	
 	vldo = regulator_get(NULL, "vcore");
 	if (vldo != NULL)
 	{
@@ -703,6 +720,7 @@ static int proc_tps65910_show(struct seq_file *s, void *v)
 		uV = regulator_get_voltage(vldo);
 		seq_printf(s, "Get VCORE=%d(uV).\n", uV);
 	}
+}
 #endif	
 	return 0;
 }

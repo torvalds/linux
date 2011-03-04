@@ -1856,6 +1856,9 @@ static void __init rk29_board_iomux_init(void)
 	#ifdef CONFIG_RK29_PWM_REGULATOR
 	rk29_mux_api_set(REGULATOR_PWM_MUX_NAME,REGULATOR_PWM_MUX_MODE);
 	#endif
+	#if defined (CONFIG_TPS65910_CORE)
+    rk29_mux_api_set(GPIO4D32_CPUTRACEDATA32_NAME, GPIO4H_GPIO4D32);
+	#endif
 }
 
 static struct platform_device *devices[] __initdata = {

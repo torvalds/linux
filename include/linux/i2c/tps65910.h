@@ -36,7 +36,7 @@
 #define	TPS65910_I2C_ID1	0x12 /* Smart Reflex */
 
 /* TPS65910 to host IRQ */
-#define TPS65910_HOST_IRQ 	RK29_PIN6_PD3
+#define TPS65910_HOST_IRQ 	RK29_PIN4_PD3
 
 /* TPS65910 MAX GPIOs */
 #define TPS65910_GPIO_MAX	1

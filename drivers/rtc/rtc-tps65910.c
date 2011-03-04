@@ -448,12 +448,13 @@ struct work_struct rtc_wq;
 unsigned long rtc_events;
 struct rtc_device *global_rtc;
 
-void  rtc_work(void  *data)
+void tps65910_rtc_work(void  *data)
 {
-
 	int res;
 	u8 rd_reg;
 	unsigned long events = 0;
+
+	DBG("Enter::%s %d\n",__FUNCTION__,__LINE__);
 
 	res = tps65910_rtc_read_u8(&rd_reg, TPS65910_REG_INT_STS);
 
@@ -511,9 +512,9 @@ static struct rtc_class_ops tps65910_rtc_ops = {
 static int __devinit tps65910_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
-	int ret = 0;
+	int ret = 0, stop_run = 0;
 	u8 rd_reg;
-	struct rtc_time tm_def = {	//	2011.1.1 12:00 Saturday
+	struct rtc_time tm_def = {	//	2011.1.1 12:00:00 Saturday
 		.tm_wday = 6,
 		.tm_year = 111,
 		.tm_mon = 0,
@@ -536,7 +537,6 @@ static int __devinit tps65910_rtc_probe(struct platform_device *pdev)
 	printk(KERN_INFO "TPS65910 RTC device successfully registered\n");
 
 	platform_set_drvdata(pdev, rtc);
-
 	/* Take rtc out of reset */
 	tps65910_rtc_read_u8(&rd_reg, TPS65910_REG_DEVCTRL);
 	rd_reg &= ~BIT_RTC_PWDN;
@@ -545,8 +545,7 @@ static int __devinit tps65910_rtc_probe(struct platform_device *pdev)
 	/* Dummy read to ensure that the register gets updated.
 	 * Please refer tps65910 TRM table:25 for details
 	 */
-	tps65910_rtc_read_u8(&rd_reg, TPS65910_REG_RTC_STATUS);
-
+	stop_run = 0;
 	ret = tps65910_rtc_read_u8(&rd_reg, TPS65910_REG_RTC_STATUS);
 	if (ret < 0) {
 		printk(KERN_ERR "TPS65910 RTC STATUS REG READ FAILED\n");
@@ -556,12 +555,13 @@ static int __devinit tps65910_rtc_probe(struct platform_device *pdev)
 	if (rd_reg & BIT_RTC_STATUS_REG_POWER_UP_M) {
 		dev_warn(&pdev->dev, "Power up reset detected.\n");
 		//	cwz:if rtc power up reset, set default time.
-#if 1
 		printk(KERN_INFO "TPS65910 RTC set to default time\n");
 		tps65910_rtc_set_time(rtc, &tm_def);
-#endif
 	}
-	
+	if (!(rd_reg & BIT_RTC_STATUS_REG_RUN_M)) {
+		dev_warn(&pdev->dev, "RTC stop run.\n");
+		stop_run = 1;
+	}
 	if (rd_reg & BIT_RTC_STATUS_REG_ALARM_M)
 		dev_warn(&pdev->dev, "Pending Alarm interrupt detected.\n");
 
@@ -569,6 +569,7 @@ static int __devinit tps65910_rtc_probe(struct platform_device *pdev)
 	ret = tps65910_rtc_write_u8(rd_reg, TPS65910_REG_RTC_STATUS);
 	if (ret < 0)
 		goto out1;
+	
 	ret = tps65910_rtc_read_u8(&rd_reg, TPS65910_REG_INT_STS);
 	if (ret < 0) {
 		printk(KERN_ERR "TPS65910 RTC STATUS REG READ FAILED\n");
@@ -583,21 +584,19 @@ static int __devinit tps65910_rtc_probe(struct platform_device *pdev)
 	global_rtc = rtc;
 
 	/* Link RTC IRQ handler to TPS65910 Core */
-	tps65910_add_irq_work(TPS65910_RTC_ALARM_IRQ, rtc_work);
-	tps65910_add_irq_work(TPS65910_RTC_PERIOD_IRQ, rtc_work);
+	tps65910_add_irq_work(TPS65910_RTC_ALARM_IRQ, tps65910_rtc_work);
+	tps65910_add_irq_work(TPS65910_RTC_PERIOD_IRQ, tps65910_rtc_work);
 
 	/* Check RTC module status, Enable if it is off */
-	ret = tps65910_rtc_read_u8(&rd_reg, TPS65910_REG_RTC_CTRL);
-	if (ret < 0)
-		goto out1;
-
-	if (!(rd_reg & BIT_RTC_CTRL_REG_STOP_RTC_M)) {		
+	if (stop_run) {
 		dev_info(&pdev->dev, "Enabling TPS65910-RTC.\n");
 		//	cwz:if rtc stop, set default time, then enable rtc
-#if 1
 		printk(KERN_INFO "TPS65910 RTC set to default time\n");
 		tps65910_rtc_set_time(rtc, &tm_def);
-#endif
+		ret = tps65910_rtc_read_u8(&rd_reg, TPS65910_REG_RTC_CTRL);
+		if (ret < 0)
+			goto out1;
+
 		rd_reg |= BIT_RTC_CTRL_REG_STOP_RTC_M;
 		ret = tps65910_rtc_write_u8(rd_reg, TPS65910_REG_RTC_CTRL);
 		if (ret < 0)
