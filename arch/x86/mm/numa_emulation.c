@@ -301,6 +301,7 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 	const u64 max_addr = max_pfn << PAGE_SHIFT;
 	u8 *phys_dist = NULL;
 	size_t phys_size = numa_dist_cnt * numa_dist_cnt * sizeof(phys_dist[0]);
+	int dfl_phys_nid;
 	int i, j, ret;
 
 	if (!emu_cmdline)
@@ -357,6 +358,19 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 					node_distance(i, j);
 	}
 
+	/* determine the default phys nid to use for unmapped nodes */
+	dfl_phys_nid = NUMA_NO_NODE;
+	for (i = 0; i < ARRAY_SIZE(emu_nid_to_phys); i++) {
+		if (emu_nid_to_phys[i] != NUMA_NO_NODE) {
+			dfl_phys_nid = emu_nid_to_phys[i];
+			break;
+		}
+	}
+	if (dfl_phys_nid == NUMA_NO_NODE) {
+		pr_warning("NUMA: Warning: can't determine default physical node, disabling emulation\n");
+		goto no_emu;
+	}
+
 	/* commit */
 	*numa_meminfo = ei;
 
@@ -377,7 +391,7 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 	/* make sure all emulated nodes are mapped to a physical node */
 	for (i = 0; i < ARRAY_SIZE(emu_nid_to_phys); i++)
 		if (emu_nid_to_phys[i] == NUMA_NO_NODE)
-			emu_nid_to_phys[i] = 0;
+			emu_nid_to_phys[i] = dfl_phys_nid;
 
 	/*
 	 * Transform distance table.  numa_set_distance() ignores all
