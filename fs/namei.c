@@ -1052,7 +1052,7 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 
 			seq = read_seqcount_begin(&parent->d_seq);
 			if (read_seqcount_retry(&old->d_seq, nd->seq))
-				return -ECHILD;
+				goto failed;
 			inode = parent->d_inode;
 			nd->path.dentry = parent;
 			nd->seq = seq;
@@ -1065,8 +1065,14 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 	}
 	__follow_mount_rcu(nd, &nd->path, &inode, true);
 	nd->inode = inode;
-
 	return 0;
+
+failed:
+	nd->flags &= ~LOOKUP_RCU;
+	nd->root.mnt = NULL;
+	rcu_read_unlock();
+	br_read_unlock(vfsmount_lock);
+	return -ECHILD;
 }
 
 /*
@@ -1405,9 +1411,8 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		 * parent relationships.
 		 */
 		if (unlikely(type != LAST_NORM)) {
-			err = handle_dots(nd, type);
-			if (err)
-				goto return_err;
+			if (handle_dots(nd, type))
+				return -ECHILD;
 			continue;
 		}
 
@@ -1441,12 +1446,8 @@ last_component:
 		nd->flags &= lookup_flags | ~LOOKUP_CONTINUE;
 		if (lookup_flags & LOOKUP_PARENT)
 			goto lookup_parent;
-		if (unlikely(type != LAST_NORM)) {
-			err = handle_dots(nd, type);
-			if (err)
-				goto return_err;
-			return 0;
-		}
+		if (unlikely(type != LAST_NORM))
+			return handle_dots(nd, type);
 		err = do_lookup(nd, &this, &next, &inode);
 		if (err)
 			break;
