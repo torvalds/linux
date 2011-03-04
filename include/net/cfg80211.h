@@ -413,7 +413,7 @@ struct station_parameters {
  * @STATION_INFO_PLID: @plid filled
  * @STATION_INFO_PLINK_STATE: @plink_state filled
  * @STATION_INFO_SIGNAL: @signal filled
- * @STATION_INFO_TX_BITRATE: @tx_bitrate fields are filled
+ * @STATION_INFO_TX_BITRATE: @txrate fields are filled
  *  (tx_bitrate, tx_bitrate_flags and tx_bitrate_mcs)
  * @STATION_INFO_RX_PACKETS: @rx_packets filled
  * @STATION_INFO_TX_PACKETS: @tx_packets filled
@@ -421,6 +421,7 @@ struct station_parameters {
  * @STATION_INFO_TX_FAILED: @tx_failed filled
  * @STATION_INFO_RX_DROP_MISC: @rx_dropped_misc filled
  * @STATION_INFO_SIGNAL_AVG: @signal_avg filled
+ * @STATION_INFO_RX_BITRATE: @rxrate fields are filled
  */
 enum station_info_flags {
 	STATION_INFO_INACTIVE_TIME	= 1<<0,
@@ -437,6 +438,7 @@ enum station_info_flags {
 	STATION_INFO_TX_FAILED		= 1<<11,
 	STATION_INFO_RX_DROP_MISC	= 1<<12,
 	STATION_INFO_SIGNAL_AVG		= 1<<13,
+	STATION_INFO_RX_BITRATE		= 1<<14,
 };
 
 /**
@@ -506,6 +508,7 @@ struct station_info {
 	s8 signal;
 	s8 signal_avg;
 	struct rate_info txrate;
+	struct rate_info rxrate;
 	u32 rx_packets;
 	u32 tx_packets;
 	u32 tx_retries;

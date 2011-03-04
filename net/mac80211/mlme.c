@@ -145,6 +145,9 @@ void ieee80211_sta_reset_conn_monitor(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
+	if (unlikely(!sdata->u.mgd.associated))
+		return;
+
 	if (sdata->local->hw.flags & IEEE80211_HW_CONNECTION_MONITOR)
 		return;
 
@@ -738,8 +741,18 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 		return;
 
 	if ((local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) &&
-	    (!(ifmgd->flags & IEEE80211_STA_NULLFUNC_ACKED)))
+	    (!(ifmgd->flags & IEEE80211_STA_NULLFUNC_ACKED))) {
+		netif_tx_stop_all_queues(sdata->dev);
+		/*
+		 * Flush all the frames queued in the driver before
+		 * going to power save
+		 */
+		drv_flush(local, false);
 		ieee80211_send_nullfunc(local, sdata, 1);
+
+		/* Flush once again to get the tx status of nullfunc frame */
+		drv_flush(local, false);
+	}
 
 	if (!((local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) &&
 	      (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)) ||
@@ -748,6 +761,8 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 		local->hw.conf.flags |= IEEE80211_CONF_PS;
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 	}
+
+	netif_tx_start_all_queues(sdata->dev);
 }
 
 void ieee80211_dynamic_ps_timer(unsigned long data)
@@ -1069,12 +1084,6 @@ void ieee80211_sta_rx_notify(struct ieee80211_sub_if_data *sdata,
 	 * AP we're connected to.
 	 */
 	if (is_multicast_ether_addr(hdr->addr1))
-		return;
-
-	/*
-	 * In case we receive frames after disassociation.
-	 */
-	if (!sdata->u.mgd.associated)
 		return;
 
 	ieee80211_sta_reset_conn_monitor(sdata);

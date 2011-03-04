@@ -225,7 +225,7 @@ static void lbtf_free_adapter(struct lbtf_private *priv)
 	lbtf_deb_leave(LBTF_DEB_MAIN);
 }
 
-static int lbtf_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void lbtf_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct lbtf_private *priv = hw->priv;
 
@@ -236,7 +236,6 @@ static int lbtf_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * there are no buffered multicast frames to send
 	 */
 	ieee80211_stop_queues(priv->hw);
-	return NETDEV_TX_OK;
 }
 
 static void lbtf_tx_work(struct work_struct *work)

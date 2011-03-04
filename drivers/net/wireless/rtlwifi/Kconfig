@@ -3,6 +3,7 @@ config RTL8192CE
 	depends on MAC80211 && PCI && EXPERIMENTAL
 	select FW_LOADER
 	select RTLWIFI
+	select RTL8192C_COMMON
 	---help---
 	This is the driver for Realtek RTL8192CE/RTL8188CE 802.11n PCIe
 	wireless network adapters.
@@ -14,6 +15,7 @@ config RTL8192CU
 	depends on MAC80211 && USB && EXPERIMENTAL
 	select FW_LOADER
 	select RTLWIFI
+	select RTL8192C_COMMON
 	---help---
 	This is the driver for Realtek RTL8192CU/RTL8188CU 802.11n USB
 	wireless network adapters.
@@ -21,6 +23,11 @@ config RTL8192CU
 	If you choose to build it as a module, it will be called rtl8192cu
 
 config RTLWIFI
+	tristate
+	depends on RTL8192CE || RTL8192CU
+	default m
+
+config RTL8192C_COMMON
 	tristate
 	depends on RTL8192CE || RTL8192CU
 	default m

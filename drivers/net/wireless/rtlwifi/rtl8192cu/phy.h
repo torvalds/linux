@@ -29,6 +29,8 @@
 
 #include "../rtl8192ce/phy.h"
 
-void rtl92c_bb_block_on(struct ieee80211_hw *hw);
+void rtl92cu_bb_block_on(struct ieee80211_hw *hw);
 bool rtl8192_phy_check_is_legal_rfpath(struct ieee80211_hw *hw, u32 rfpath);
 void rtl92c_phy_set_io(struct ieee80211_hw *hw);
+bool _rtl92cu_phy_config_mac_with_headerfile(struct ieee80211_hw *hw);
+bool rtl92cu_phy_bb_config(struct ieee80211_hw *hw);

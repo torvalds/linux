@@ -36,11 +36,12 @@
 #include "phy.h"
 #include "mac.h"
 #include "dm.h"
+#include "rf.h"
 #include "sw.h"
 #include "trx.h"
 #include "led.h"
 #include "hw.h"
-
+#include <linux/vmalloc.h>
 
 MODULE_AUTHOR("Georgia		<georgia@realtek.com>");
 MODULE_AUTHOR("Ziv Huang	<ziv_huang@realtek.com>");
@@ -106,7 +107,7 @@ static struct rtl_hal_ops rtl8192cu_hal_ops = {
 	.switch_channel = rtl92c_phy_sw_chnl,
 	.dm_watchdog = rtl92c_dm_watchdog,
 	.scan_operation_backup = rtl92c_phy_scan_operation_backup,
-	.set_rf_power_state = rtl92c_phy_set_rf_power_state,
+	.set_rf_power_state = rtl92cu_phy_set_rf_power_state,
 	.led_control = rtl92cu_led_control,
 	.enable_hw_sec = rtl92cu_enable_hw_security_config,
 	.set_key = rtl92c_set_key,
@@ -114,8 +115,16 @@ static struct rtl_hal_ops rtl8192cu_hal_ops = {
 	.deinit_sw_leds = rtl92cu_deinit_sw_leds,
 	.get_bbreg = rtl92c_phy_query_bb_reg,
 	.set_bbreg = rtl92c_phy_set_bb_reg,
-	.get_rfreg = rtl92c_phy_query_rf_reg,
-	.set_rfreg = rtl92c_phy_set_rf_reg,
+	.get_rfreg = rtl92cu_phy_query_rf_reg,
+	.set_rfreg = rtl92cu_phy_set_rf_reg,
+	.phy_rf6052_config = rtl92cu_phy_rf6052_config,
+	.phy_rf6052_set_cck_txpower = rtl92cu_phy_rf6052_set_cck_txpower,
+	.phy_rf6052_set_ofdm_txpower = rtl92cu_phy_rf6052_set_ofdm_txpower,
+	.config_bb_with_headerfile = _rtl92cu_phy_config_bb_with_headerfile,
+	.config_bb_with_pgheaderfile = _rtl92cu_phy_config_bb_with_pgheaderfile,
+	.phy_lc_calibrate = _rtl92cu_phy_lc_calibrate,
+	.phy_set_bw_mode_callback = rtl92cu_phy_set_bw_mode_callback,
+	.dm_dynamic_txpower = rtl92cu_dm_dynamic_txpower,
 };
 
 static struct rtl_mod_params rtl92cu_mod_params = {

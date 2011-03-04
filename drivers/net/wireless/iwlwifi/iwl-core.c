@@ -43,11 +43,6 @@
 #include "iwl-helpers.h"
 
 
-MODULE_DESCRIPTION("iwl core");
-MODULE_VERSION(IWLWIFI_VERSION);
-MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
-MODULE_LICENSE("GPL");
-
 /*
  * set bt_coex_active to true, uCode will do kill/defer
  * every time the priority line is asserted (BT is sending signals on the
@@ -65,15 +60,12 @@ MODULE_LICENSE("GPL");
  * default: bt_coex_active = true (BT_COEX_ENABLE)
  */
 bool bt_coex_active = true;
-EXPORT_SYMBOL_GPL(bt_coex_active);
 module_param(bt_coex_active, bool, S_IRUGO);
 MODULE_PARM_DESC(bt_coex_active, "enable wifi/bluetooth co-exist");
 
 u32 iwl_debug_level;
-EXPORT_SYMBOL(iwl_debug_level);
 
 const u8 iwl_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-EXPORT_SYMBOL(iwl_bcast_addr);
 
 
 /* This function both allocates and initializes hw and priv. */
@@ -98,7 +90,6 @@ struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg)
 out:
 	return hw;
 }
-EXPORT_SYMBOL(iwl_alloc_all);
 
 #define MAX_BIT_RATE_40_MHZ 150 /* Mbps */
 #define MAX_BIT_RATE_20_MHZ 72 /* Mbps */
@@ -272,7 +263,6 @@ int iwlcore_init_geos(struct iwl_priv *priv)
 
 	return 0;
 }
-EXPORT_SYMBOL(iwlcore_init_geos);
 
 /*
  * iwlcore_free_geos - undo allocations in iwlcore_init_geos
@@ -283,7 +273,6 @@ void iwlcore_free_geos(struct iwl_priv *priv)
 	kfree(priv->ieee_rates);
 	clear_bit(STATUS_GEO_CONFIGURED, &priv->status);
 }
-EXPORT_SYMBOL(iwlcore_free_geos);
 
 static bool iwl_is_channel_extension(struct iwl_priv *priv,
 				     enum ieee80211_band band,
@@ -328,7 +317,6 @@ bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 			le16_to_cpu(ctx->staging.channel),
 			ctx->ht.extension_chan_offset);
 }
-EXPORT_SYMBOL(iwl_is_ht40_tx_allowed);
 
 static u16 iwl_adjust_beacon_interval(u16 beacon_val, u16 max_beacon_val)
 {
@@ -429,7 +417,6 @@ int iwl_send_rxon_timing(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	return iwl_send_cmd_pdu(priv, ctx->rxon_timing_cmd,
 				sizeof(ctx->timing), &ctx->timing);
 }
-EXPORT_SYMBOL(iwl_send_rxon_timing);
 
 void iwl_set_rxon_hwcrypto(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 			   int hw_decrypt)
@@ -442,7 +429,6 @@ void iwl_set_rxon_hwcrypto(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		rxon->filter_flags |= RXON_FILTER_DIS_DECRYPT_MSK;
 
 }
-EXPORT_SYMBOL(iwl_set_rxon_hwcrypto);
 
 /* validate RXON structure is valid */
 int iwl_check_rxon_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
@@ -515,7 +501,6 @@ int iwl_check_rxon_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(iwl_check_rxon_cmd);
 
 /**
  * iwl_full_rxon_required - check if full RXON (vs RXON_ASSOC) cmd is needed
@@ -579,7 +564,6 @@ int iwl_full_rxon_required(struct iwl_priv *priv,
 
 	return 0;
 }
-EXPORT_SYMBOL(iwl_full_rxon_required);
 
 u8 iwl_rate_get_lowest_plcp(struct iwl_priv *priv,
 			    struct iwl_rxon_context *ctx)
@@ -593,7 +577,6 @@ u8 iwl_rate_get_lowest_plcp(struct iwl_priv *priv,
 	else
 		return IWL_RATE_6M_PLCP;
 }
-EXPORT_SYMBOL(iwl_rate_get_lowest_plcp);
 
 static void _iwl_set_rxon_ht(struct iwl_priv *priv,
 			     struct iwl_ht_config *ht_conf,
@@ -670,7 +653,6 @@ void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_config *ht_conf)
 	for_each_context(priv, ctx)
 		_iwl_set_rxon_ht(priv, ht_conf, ctx);
 }
-EXPORT_SYMBOL(iwl_set_rxon_ht);
 
 /* Return valid, unused, channel for a passive scan to reset the RF */
 u8 iwl_get_single_channel_number(struct iwl_priv *priv,
@@ -711,7 +693,6 @@ u8 iwl_get_single_channel_number(struct iwl_priv *priv,
 
 	return channel;
 }
-EXPORT_SYMBOL(iwl_get_single_channel_number);
 
 /**
  * iwl_set_rxon_channel - Set the band and channel values in staging RXON
@@ -742,7 +723,6 @@ int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
 
 	return 0;
 }
-EXPORT_SYMBOL(iwl_set_rxon_channel);
 
 void iwl_set_flags_for_band(struct iwl_priv *priv,
 			    struct iwl_rxon_context *ctx,
@@ -766,7 +746,6 @@ void iwl_set_flags_for_band(struct iwl_priv *priv,
 		ctx->staging.flags &= ~RXON_FLG_CCK_MSK;
 	}
 }
-EXPORT_SYMBOL(iwl_set_flags_for_band);
 
 /*
  * initialize rxon structure with default values from eeprom
@@ -838,7 +817,6 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv,
 	ctx->staging.ofdm_ht_dual_stream_basic_rates = 0xff;
 	ctx->staging.ofdm_ht_triple_stream_basic_rates = 0xff;
 }
-EXPORT_SYMBOL(iwl_connection_init_rx_config);
 
 void iwl_set_rate(struct iwl_priv *priv)
 {
@@ -871,7 +849,6 @@ void iwl_set_rate(struct iwl_priv *priv)
 		   (IWL_OFDM_BASIC_RATES_MASK >> IWL_FIRST_OFDM_RATE) & 0xFF;
 	}
 }
-EXPORT_SYMBOL(iwl_set_rate);
 
 void iwl_chswitch_done(struct iwl_priv *priv, bool is_success)
 {
@@ -891,7 +868,6 @@ void iwl_chswitch_done(struct iwl_priv *priv, bool is_success)
 		mutex_unlock(&priv->mutex);
 	}
 }
-EXPORT_SYMBOL(iwl_chswitch_done);
 
 void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 {
@@ -919,7 +895,6 @@ void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 		}
 	}
 }
-EXPORT_SYMBOL(iwl_rx_csa);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 void iwl_print_rx_config_cmd(struct iwl_priv *priv,
@@ -941,13 +916,15 @@ void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 	IWL_DEBUG_RADIO(priv, "u8[6] bssid_addr: %pM\n", rxon->bssid_addr);
 	IWL_DEBUG_RADIO(priv, "u16 assoc_id: 0x%x\n", le16_to_cpu(rxon->assoc_id));
 }
-EXPORT_SYMBOL(iwl_print_rx_config_cmd);
 #endif
 /**
  * iwl_irq_handle_error - called for HW or SW error interrupt from card
  */
 void iwl_irq_handle_error(struct iwl_priv *priv)
 {
+	unsigned int reload_msec;
+	unsigned long reload_jiffies;
+
 	/* Set the FW error flag -- cleared on iwl_down */
 	set_bit(STATUS_FW_ERROR, &priv->status);
 
@@ -991,6 +968,25 @@ void iwl_irq_handle_error(struct iwl_priv *priv)
 	 * commands by clearing the INIT status bit */
 	clear_bit(STATUS_READY, &priv->status);
 
+	/*
+	 * If firmware keep reloading, then it indicate something
+	 * serious wrong and firmware having problem to recover
+	 * from it. Instead of keep trying which will fill the syslog
+	 * and hang the system, let's just stop it
+	 */
+	reload_jiffies = jiffies;
+	reload_msec = jiffies_to_msecs((long) reload_jiffies -
+				(long) priv->reload_jiffies);
+	priv->reload_jiffies = reload_jiffies;
+	if (reload_msec <= IWL_MIN_RELOAD_DURATION) {
+		priv->reload_count++;
+		if (priv->reload_count >= IWL_MAX_CONTINUE_RELOAD_CNT) {
+			IWL_ERR(priv, "BUG_ON, Stop restarting\n");
+			return;
+		}
+	} else
+		priv->reload_count = 0;
+
 	if (!test_bit(STATUS_EXIT_PENDING, &priv->status)) {
 		IWL_DEBUG(priv, IWL_DL_FW_ERRORS,
 			  "Restarting adapter due to uCode error.\n");
@@ -999,7 +995,6 @@ void iwl_irq_handle_error(struct iwl_priv *priv)
 			queue_work(priv->workqueue, &priv->restart);
 	}
 }
-EXPORT_SYMBOL(iwl_irq_handle_error);
 
 static int iwl_apm_stop_master(struct iwl_priv *priv)
 {
@@ -1036,7 +1031,6 @@ void iwl_apm_stop(struct iwl_priv *priv)
 	 */
 	iwl_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 }
-EXPORT_SYMBOL(iwl_apm_stop);
 
 
 /*
@@ -1151,7 +1145,6 @@ int iwl_apm_init(struct iwl_priv *priv)
 out:
 	return ret;
 }
-EXPORT_SYMBOL(iwl_apm_init);
 
 
 int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
@@ -1211,7 +1204,6 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 	}
 	return ret;
 }
-EXPORT_SYMBOL(iwl_set_tx_power);
 
 void iwl_send_bt_config(struct iwl_priv *priv)
 {
@@ -1235,7 +1227,6 @@ void iwl_send_bt_config(struct iwl_priv *priv)
 			     sizeof(struct iwl_bt_cmd), &bt_cmd))
 		IWL_ERR(priv, "failed to send BT Coex Config\n");
 }
-EXPORT_SYMBOL(iwl_send_bt_config);
 
 int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags, bool clear)
 {
@@ -1253,7 +1244,6 @@ int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags, bool clear)
 					sizeof(struct iwl_statistics_cmd),
 					&statistics_cmd);
 }
-EXPORT_SYMBOL(iwl_send_statistics_request);
 
 void iwl_rx_pm_sleep_notif(struct iwl_priv *priv,
 			   struct iwl_rx_mem_buffer *rxb)
@@ -1265,7 +1255,6 @@ void iwl_rx_pm_sleep_notif(struct iwl_priv *priv,
 		     sleep->pm_sleep_mode, sleep->pm_wakeup_src);
 #endif
 }
-EXPORT_SYMBOL(iwl_rx_pm_sleep_notif);
 
 void iwl_rx_pm_debug_statistics_notif(struct iwl_priv *priv,
 				      struct iwl_rx_mem_buffer *rxb)
@@ -1277,7 +1266,6 @@ void iwl_rx_pm_debug_statistics_notif(struct iwl_priv *priv,
 			get_cmd_string(pkt->hdr.cmd));
 	iwl_print_hex_dump(priv, IWL_DL_RADIO, pkt->u.raw, len);
 }
-EXPORT_SYMBOL(iwl_rx_pm_debug_statistics_notif);
 
 void iwl_rx_reply_error(struct iwl_priv *priv,
 			struct iwl_rx_mem_buffer *rxb)
@@ -1292,7 +1280,6 @@ void iwl_rx_reply_error(struct iwl_priv *priv,
 		le16_to_cpu(pkt->u.err_resp.bad_cmd_seq_num),
 		le32_to_cpu(pkt->u.err_resp.error_info));
 }
-EXPORT_SYMBOL(iwl_rx_reply_error);
 
 void iwl_clear_isr_stats(struct iwl_priv *priv)
 {
@@ -1344,7 +1331,6 @@ int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 	return 0;
 }
-EXPORT_SYMBOL(iwl_mac_conf_tx);
 
 int iwl_mac_tx_last_beacon(struct ieee80211_hw *hw)
 {
@@ -1352,7 +1338,6 @@ int iwl_mac_tx_last_beacon(struct ieee80211_hw *hw)
 
 	return priv->ibss_manager == IWL_IBSS_MANAGER;
 }
-EXPORT_SYMBOL_GPL(iwl_mac_tx_last_beacon);
 
 static int iwl_set_mode(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
@@ -1462,7 +1447,6 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 	return err;
 }
-EXPORT_SYMBOL(iwl_mac_add_interface);
 
 static void iwl_teardown_interface(struct iwl_priv *priv,
 				   struct ieee80211_vif *vif,
@@ -1515,7 +1499,6 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
 }
-EXPORT_SYMBOL(iwl_mac_remove_interface);
 
 int iwl_alloc_txq_mem(struct iwl_priv *priv)
 {
@@ -1530,14 +1513,12 @@ int iwl_alloc_txq_mem(struct iwl_priv *priv)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(iwl_alloc_txq_mem);
 
 void iwl_free_txq_mem(struct iwl_priv *priv)
 {
 	kfree(priv->txq);
 	priv->txq = NULL;
 }
-EXPORT_SYMBOL(iwl_free_txq_mem);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 
@@ -1576,7 +1557,6 @@ int iwl_alloc_traffic_mem(struct iwl_priv *priv)
 	iwl_reset_traffic_log(priv);
 	return 0;
 }
-EXPORT_SYMBOL(iwl_alloc_traffic_mem);
 
 void iwl_free_traffic_mem(struct iwl_priv *priv)
 {
@@ -1586,7 +1566,6 @@ void iwl_free_traffic_mem(struct iwl_priv *priv)
 	kfree(priv->rx_traffic);
 	priv->rx_traffic = NULL;
 }
-EXPORT_SYMBOL(iwl_free_traffic_mem);
 
 void iwl_dbg_log_tx_data_frame(struct iwl_priv *priv,
 		      u16 length, struct ieee80211_hdr *header)
@@ -1611,7 +1590,6 @@ void iwl_dbg_log_tx_data_frame(struct iwl_priv *priv,
 			(priv->tx_traffic_idx + 1) % IWL_TRAFFIC_ENTRIES;
 	}
 }
-EXPORT_SYMBOL(iwl_dbg_log_tx_data_frame);
 
 void iwl_dbg_log_rx_data_frame(struct iwl_priv *priv,
 		      u16 length, struct ieee80211_hdr *header)
@@ -1636,7 +1614,6 @@ void iwl_dbg_log_rx_data_frame(struct iwl_priv *priv,
 			(priv->rx_traffic_idx + 1) % IWL_TRAFFIC_ENTRIES;
 	}
 }
-EXPORT_SYMBOL(iwl_dbg_log_rx_data_frame);
 
 const char *get_mgmt_string(int cmd)
 {
@@ -1773,7 +1750,6 @@ void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc, u16 len)
 		stats->data_bytes += len;
 	}
 }
-EXPORT_SYMBOL(iwl_update_stats);
 #endif
 
 static void iwl_force_rf_reset(struct iwl_priv *priv)
@@ -1912,7 +1888,6 @@ int iwl_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	mutex_unlock(&priv->mutex);
 	return err;
 }
-EXPORT_SYMBOL(iwl_mac_change_interface);
 
 /*
  * On every watchdog tick we check (latest) time stamp. If it does not
@@ -1984,7 +1959,6 @@ void iwl_bg_watchdog(unsigned long data)
 	mod_timer(&priv->watchdog, jiffies +
 		  msecs_to_jiffies(IWL_WD_TICK(timeout)));
 }
-EXPORT_SYMBOL(iwl_bg_watchdog);
 
 void iwl_setup_watchdog(struct iwl_priv *priv)
 {
@@ -1996,7 +1970,6 @@ void iwl_setup_watchdog(struct iwl_priv *priv)
 	else
 		del_timer(&priv->watchdog);
 }
-EXPORT_SYMBOL(iwl_setup_watchdog);
 
 /*
  * extended beacon time format
@@ -2022,7 +1995,6 @@ u32 iwl_usecs_to_beacons(struct iwl_priv *priv, u32 usec, u32 beacon_interval)
 
 	return (quot << priv->hw_params.beacon_time_tsf_bits) + rem;
 }
-EXPORT_SYMBOL(iwl_usecs_to_beacons);
 
 /* base is usually what we get from ucode with each received frame,
  * the same as HW timer counter counting down
@@ -2050,7 +2022,6 @@ __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
 
 	return cpu_to_le32(res);
 }
-EXPORT_SYMBOL(iwl_add_beacon_time);
 
 #ifdef CONFIG_PM
 
@@ -2070,7 +2041,6 @@ int iwl_pci_suspend(struct device *device)
 
 	return 0;
 }
-EXPORT_SYMBOL(iwl_pci_suspend);
 
 int iwl_pci_resume(struct device *device)
 {
@@ -2099,7 +2069,6 @@ int iwl_pci_resume(struct device *device)
 
 	return 0;
 }
-EXPORT_SYMBOL(iwl_pci_resume);
 
 const struct dev_pm_ops iwl_pm_ops = {
 	.suspend = iwl_pci_suspend,
@@ -2109,6 +2078,5 @@ const struct dev_pm_ops iwl_pm_ops = {
 	.poweroff = iwl_pci_suspend,
 	.restore = iwl_pci_resume,
 };
-EXPORT_SYMBOL(iwl_pm_ops);
 
 #endif /* CONFIG_PM */

@@ -471,6 +471,7 @@ static void iwlagn_check_needed_chains(struct iwl_priv *priv,
 	struct iwl_rxon_context *tmp;
 	struct ieee80211_sta *sta;
 	struct iwl_ht_config *ht_conf = &priv->current_ht_config;
+	struct ieee80211_sta_ht_cap *ht_cap;
 	bool need_multiple;
 
 	lockdep_assert_held(&priv->mutex);
@@ -479,23 +480,7 @@ static void iwlagn_check_needed_chains(struct iwl_priv *priv,
 	case NL80211_IFTYPE_STATION:
 		rcu_read_lock();
 		sta = ieee80211_find_sta(vif, bss_conf->bssid);
-		if (sta) {
-			struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
-			int maxstreams;
-
-			maxstreams = (ht_cap->mcs.tx_params &
-				      IEEE80211_HT_MCS_TX_MAX_STREAMS_MASK)
-					>> IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT;
-			maxstreams += 1;
-
-			need_multiple = true;
-
-			if ((ht_cap->mcs.rx_mask[1] == 0) &&
-			    (ht_cap->mcs.rx_mask[2] == 0))
-				need_multiple = false;
-			if (maxstreams <= 1)
-				need_multiple = false;
-		} else {
+		if (!sta) {
 			/*
 			 * If at all, this can only happen through a race
 			 * when the AP disconnects us while we're still
@@ -503,7 +488,46 @@ static void iwlagn_check_needed_chains(struct iwl_priv *priv,
 			 * will soon tell us about that.
 			 */
 			need_multiple = false;
+			rcu_read_unlock();
+			break;
 		}
+
+		ht_cap = &sta->ht_cap;
+
+		need_multiple = true;
+
+		/*
+		 * If the peer advertises no support for receiving 2 and 3
+		 * stream MCS rates, it can't be transmitting them either.
+		 */
+		if (ht_cap->mcs.rx_mask[1] == 0 &&
+		    ht_cap->mcs.rx_mask[2] == 0) {
+			need_multiple = false;
+		} else if (!(ht_cap->mcs.tx_params &
+						IEEE80211_HT_MCS_TX_DEFINED)) {
+			/* If it can't TX MCS at all ... */
+			need_multiple = false;
+		} else if (ht_cap->mcs.tx_params &
+						IEEE80211_HT_MCS_TX_RX_DIFF) {
+			int maxstreams;
+
+			/*
+			 * But if it can receive them, it might still not
+			 * be able to transmit them, which is what we need
+			 * to check here -- so check the number of streams
+			 * it advertises for TX (if different from RX).
+			 */
+
+			maxstreams = (ht_cap->mcs.tx_params &
+				 IEEE80211_HT_MCS_TX_MAX_STREAMS_MASK);
+			maxstreams >>=
+				IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT;
+			maxstreams += 1;
+
+			if (maxstreams <= 1)
+				need_multiple = false;
+		}
+
 		rcu_read_unlock();
 		break;
 	case NL80211_IFTYPE_ADHOC:

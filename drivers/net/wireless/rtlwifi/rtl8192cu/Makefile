@@ -1,6 +1,5 @@
 rtl8192cu-objs :=		\
 		dm.o		\
-		fw.o		\
 		hw.o		\
 		led.o		\
 		mac.o		\

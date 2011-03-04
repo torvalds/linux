@@ -1475,7 +1475,7 @@ static void ar9170_tx(struct ar9170 *ar)
 				     msecs_to_jiffies(AR9170_JANITOR_DELAY));
 }
 
-int ar9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+void ar9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ar9170 *ar = hw->priv;
 	struct ieee80211_tx_info *info;
@@ -1493,11 +1493,10 @@ int ar9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	skb_queue_tail(&ar->tx_pending[queue], skb);
 
 	ar9170_tx(ar);
-	return NETDEV_TX_OK;
+	return;
 
 err_free:
 	dev_kfree_skb_any(skb);
-	return NETDEV_TX_OK;
 }
 
 static int ar9170_op_add_interface(struct ieee80211_hw *hw,

@@ -210,12 +210,7 @@ struct iwl_lib_ops {
 
 	/* temperature */
 	struct iwl_temp_ops temp_ops;
-	/* check for plcp health */
-	bool (*check_plcp_health)(struct iwl_priv *priv,
-					struct iwl_rx_packet *pkt);
-	/* check for ack health */
-	bool (*check_ack_health)(struct iwl_priv *priv,
-					struct iwl_rx_packet *pkt);
+
 	int (*txfifo_flush)(struct iwl_priv *priv, u16 flush_control);
 	void (*dev_txfifo_flush)(struct iwl_priv *priv, u16 flush_control);
 
@@ -261,6 +256,8 @@ struct iwl_mod_params {
 	int amsdu_size_8K;	/* def: 1 = enable 8K amsdu size */
 	int antenna;  		/* def: 0 = both antennas (use diversity) */
 	int restart_fw;		/* def: 1 = restart firmware */
+	bool plcp_check;	/* def: true = enable plcp health check */
+	bool ack_check;		/* def: false = disable ack health check */
 };
 
 /*
@@ -339,6 +336,7 @@ struct iwl_bt_params {
 	u8 ampdu_factor;
 	u8 ampdu_density;
 	bool bt_sco_disable;
+	bool bt_session_2;
 };
 /*
  * @use_rts_for_aggregation: use rts/cts protection for HT traffic
@@ -509,6 +507,7 @@ void iwl_rx_reply_error(struct iwl_priv *priv,
 * RX
 ******************************************************/
 void iwl_cmd_queue_free(struct iwl_priv *priv);
+void iwl_cmd_queue_unmap(struct iwl_priv *priv);
 int iwl_rx_queue_alloc(struct iwl_priv *priv);
 void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
 				  struct iwl_rx_queue *q);
@@ -517,8 +516,6 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
 /* Handlers */
 void iwl_rx_spectrum_measure_notif(struct iwl_priv *priv,
 					  struct iwl_rx_mem_buffer *rxb);
-void iwl_recover_from_statistics(struct iwl_priv *priv,
-				struct iwl_rx_packet *pkt);
 void iwl_chswitch_done(struct iwl_priv *priv, bool is_success);
 void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
 
@@ -533,6 +530,7 @@ int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 void iwl_tx_queue_reset(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 			int slots_num, u32 txq_id);
 void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id);
+void iwl_tx_queue_unmap(struct iwl_priv *priv, int txq_id);
 void iwl_setup_watchdog(struct iwl_priv *priv);
 /*****************************************************
  * TX power

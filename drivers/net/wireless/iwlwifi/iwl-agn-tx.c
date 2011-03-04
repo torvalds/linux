@@ -947,7 +947,7 @@ void iwlagn_txq_ctx_reset(struct iwl_priv *priv)
  */
 void iwlagn_txq_ctx_stop(struct iwl_priv *priv)
 {
-	int ch;
+	int ch, txq_id;
 	unsigned long flags;
 
 	/* Turn off all Tx DMA fifos */
@@ -966,6 +966,16 @@ void iwlagn_txq_ctx_stop(struct iwl_priv *priv)
 			    iwl_read_direct32(priv, FH_TSSR_TX_STATUS_REG));
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
+
+	if (!priv->txq)
+		return;
+
+	/* Unmap DMA from host system and free skb's */
+	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
+		if (txq_id == priv->cmd_queue)
+			iwl_cmd_queue_unmap(priv);
+		else
+			iwl_tx_queue_unmap(priv, txq_id);
 }
 
 /*

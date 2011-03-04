@@ -99,7 +99,7 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 	return retval;
 }
 
-int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+void rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
@@ -155,12 +155,11 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	if (rt2x00queue_threshold(queue))
 		rt2x00queue_pause_queue(queue);
 
-	return NETDEV_TX_OK;
+	return;
 
  exit_fail:
 	ieee80211_stop_queue(rt2x00dev->hw, qid);
 	dev_kfree_skb_any(skb);
-	return NETDEV_TX_OK;
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_tx);
 

@@ -375,7 +375,7 @@ out:
 	mutex_unlock(&wl->mutex);
 }
 
-static int wl1251_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void wl1251_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct wl1251 *wl = hw->priv;
 	unsigned long flags;
@@ -401,8 +401,6 @@ static int wl1251_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		wl->tx_queue_stopped = true;
 		spin_unlock_irqrestore(&wl->wl_lock, flags);
 	}
-
-	return NETDEV_TX_OK;
 }
 
 static int wl1251_op_start(struct ieee80211_hw *hw)

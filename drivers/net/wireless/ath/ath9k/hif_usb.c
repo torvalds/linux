@@ -52,6 +52,9 @@ static struct usb_device_id ath9k_hif_usb_ids[] = {
 	{ USB_DEVICE(0x083A, 0xA704),
 	  .driver_info = AR9280_USB },  /* SMC Networks */
 
+	{ USB_DEVICE(0x0cf3, 0x20ff),
+	  .driver_info = STORAGE_DEVICE },
+
 	{ },
 };
 
@@ -914,13 +917,11 @@ static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev, u32 drv_info)
 	if (ret) {
 		dev_err(&hif_dev->udev->dev,
 			"ath9k_htc: Unable to allocate URBs\n");
-		goto err_urb;
+		goto err_fw_download;
 	}
 
 	return 0;
 
-err_urb:
-	ath9k_hif_usb_dealloc_urbs(hif_dev);
 err_fw_download:
 	release_firmware(hif_dev->firmware);
 err_fw_req:
@@ -935,12 +936,70 @@ static void ath9k_hif_usb_dev_deinit(struct hif_device_usb *hif_dev)
 		release_firmware(hif_dev->firmware);
 }
 
+/*
+ * An exact copy of the function from zd1211rw.
+ */
+static int send_eject_command(struct usb_interface *interface)
+{
+	struct usb_device *udev = interface_to_usbdev(interface);
+	struct usb_host_interface *iface_desc = &interface->altsetting[0];
+	struct usb_endpoint_descriptor *endpoint;
+	unsigned char *cmd;
+	u8 bulk_out_ep;
+	int r;
+
+	/* Find bulk out endpoint */
+	for (r = 1; r >= 0; r--) {
+		endpoint = &iface_desc->endpoint[r].desc;
+		if (usb_endpoint_dir_out(endpoint) &&
+		    usb_endpoint_xfer_bulk(endpoint)) {
+			bulk_out_ep = endpoint->bEndpointAddress;
+			break;
+		}
+	}
+	if (r == -1) {
+		dev_err(&udev->dev,
+			"ath9k_htc: Could not find bulk out endpoint\n");
+		return -ENODEV;
+	}
+
+	cmd = kzalloc(31, GFP_KERNEL);
+	if (cmd == NULL)
+		return -ENODEV;
+
+	/* USB bulk command block */
+	cmd[0] = 0x55;	/* bulk command signature */
+	cmd[1] = 0x53;	/* bulk command signature */
+	cmd[2] = 0x42;	/* bulk command signature */
+	cmd[3] = 0x43;	/* bulk command signature */
+	cmd[14] = 6;	/* command length */
+
+	cmd[15] = 0x1b;	/* SCSI command: START STOP UNIT */
+	cmd[19] = 0x2;	/* eject disc */
+
+	dev_info(&udev->dev, "Ejecting storage device...\n");
+	r = usb_bulk_msg(udev, usb_sndbulkpipe(udev, bulk_out_ep),
+		cmd, 31, NULL, 2000);
+	kfree(cmd);
+	if (r)
+		return r;
+
+	/* At this point, the device disconnects and reconnects with the real
+	 * ID numbers. */
+
+	usb_set_intfdata(interface, NULL);
+	return 0;
+}
+
 static int ath9k_hif_usb_probe(struct usb_interface *interface,
 			       const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
 	struct hif_device_usb *hif_dev;
 	int ret = 0;
+
+	if (id->driver_info == STORAGE_DEVICE)
+		return send_eject_command(interface);
 
 	hif_dev = kzalloc(sizeof(struct hif_device_usb), GFP_KERNEL);
 	if (!hif_dev) {
@@ -1028,12 +1087,13 @@ static void ath9k_hif_usb_disconnect(struct usb_interface *interface)
 	struct hif_device_usb *hif_dev = usb_get_intfdata(interface);
 	bool unplugged = (udev->state == USB_STATE_NOTATTACHED) ? true : false;
 
-	if (hif_dev) {
-		ath9k_htc_hw_deinit(hif_dev->htc_handle, unplugged);
-		ath9k_htc_hw_free(hif_dev->htc_handle);
-		ath9k_hif_usb_dev_deinit(hif_dev);
-		usb_set_intfdata(interface, NULL);
-	}
+	if (!hif_dev)
+		return;
+
+	ath9k_htc_hw_deinit(hif_dev->htc_handle, unplugged);
+	ath9k_htc_hw_free(hif_dev->htc_handle);
+	ath9k_hif_usb_dev_deinit(hif_dev);
+	usb_set_intfdata(interface, NULL);
 
 	if (!unplugged && (hif_dev->flags & HIF_USB_START))
 		ath9k_hif_usb_reboot(udev);

@@ -86,7 +86,6 @@ MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("iwl4965");
 
 static int iwlagn_ant_coupling;
 static bool iwlagn_bt_ch_announce = 1;
@@ -466,6 +465,15 @@ static void iwl_rx_reply_alive(struct iwl_priv *priv,
 		IWL_WARN(priv, "%s uCode did not respond OK.\n",
 			(palive->ver_subtype == INITIALIZE_SUBTYPE) ?
 			"init" : "runtime");
+		/*
+		 * If fail to load init uCode,
+		 * let's try to load the init uCode again.
+		 * We should not get into this situation, but if it
+		 * does happen, we should not move on and loading "runtime"
+		 * without proper calibrate the device.
+		 */
+		if (palive->ver_subtype == INITIALIZE_SUBTYPE)
+			priv->ucode_type = UCODE_NONE;
 		queue_work(priv->workqueue, &priv->restart);
 	}
 }
@@ -1404,72 +1412,6 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 	else if (handled & CSR_INT_BIT_RF_KILL)
 		iwl_enable_rfkill_int(priv);
 }
-
-/* the threshold ratio of actual_ack_cnt to expected_ack_cnt in percent */
-#define ACK_CNT_RATIO (50)
-#define BA_TIMEOUT_CNT (5)
-#define BA_TIMEOUT_MAX (16)
-
-/**
- * iwl_good_ack_health - checks for ACK count ratios, BA timeout retries.
- *
- * When the ACK count ratio is low and aggregated BA timeout retries exceeding
- * the BA_TIMEOUT_MAX, reload firmware and bring system back to normal
- * operation state.
- */
-bool iwl_good_ack_health(struct iwl_priv *priv, struct iwl_rx_packet *pkt)
-{
-	int actual_delta, expected_delta, ba_timeout_delta;
-	struct statistics_tx *cur, *old;
-
-	if (priv->_agn.agg_tids_count)
-		return true;
-
-	if (iwl_bt_statistics(priv)) {
-		cur = &pkt->u.stats_bt.tx;
-		old = &priv->_agn.statistics_bt.tx;
-	} else {
-		cur = &pkt->u.stats.tx;
-		old = &priv->_agn.statistics.tx;
-	}
-
-	actual_delta = le32_to_cpu(cur->actual_ack_cnt) -
-		       le32_to_cpu(old->actual_ack_cnt);
-	expected_delta = le32_to_cpu(cur->expected_ack_cnt) -
-			 le32_to_cpu(old->expected_ack_cnt);
-
-	/* Values should not be negative, but we do not trust the firmware */
-	if (actual_delta <= 0 || expected_delta <= 0)
-		return true;
-
-	ba_timeout_delta = le32_to_cpu(cur->agg.ba_timeout) -
-			   le32_to_cpu(old->agg.ba_timeout);
-
-	if ((actual_delta * 100 / expected_delta) < ACK_CNT_RATIO &&
-	    ba_timeout_delta > BA_TIMEOUT_CNT) {
-		IWL_DEBUG_RADIO(priv, "deltas: actual %d expected %d ba_timeout %d\n",
-				actual_delta, expected_delta, ba_timeout_delta);
-
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-		/*
-		 * This is ifdef'ed on DEBUGFS because otherwise the
-		 * statistics aren't available. If DEBUGFS is set but
-		 * DEBUG is not, these will just compile out.
-		 */
-		IWL_DEBUG_RADIO(priv, "rx_detected_cnt delta %d\n",
-				priv->_agn.delta_statistics.tx.rx_detected_cnt);
-		IWL_DEBUG_RADIO(priv,
-				"ack_or_ba_timeout_collision delta %d\n",
-				priv->_agn.delta_statistics.tx.ack_or_ba_timeout_collision);
-#endif
-
-		if (ba_timeout_delta >= BA_TIMEOUT_MAX)
-			return false;
-	}
-
-	return true;
-}
-
 
 /*****************************************************************************
  *
@@ -2735,9 +2677,11 @@ static void iwl_alive_start(struct iwl_priv *priv)
 			priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
 	}
 
-	if (priv->cfg->bt_params &&
-	    !priv->cfg->bt_params->advanced_bt_coexist) {
-		/* Configure Bluetooth device coexistence support */
+	if (!priv->cfg->bt_params || (priv->cfg->bt_params &&
+	    !priv->cfg->bt_params->advanced_bt_coexist)) {
+		/*
+		 * default is 2-wire BT coexexistence support
+		 */
 		priv->cfg->ops->hcmd->send_bt_config(priv);
 	}
 
@@ -3320,7 +3264,7 @@ void iwlagn_mac_stop(struct ieee80211_hw *hw)
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
-int iwlagn_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+void iwlagn_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct iwl_priv *priv = hw->priv;
 
@@ -3333,7 +3277,6 @@ int iwlagn_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		dev_kfree_skb_any(skb);
 
 	IWL_DEBUG_MACDUMP(priv, "leave\n");
-	return NETDEV_TX_OK;
 }
 
 void iwlagn_mac_update_tkip_key(struct ieee80211_hw *hw,
@@ -3799,7 +3742,6 @@ static void iwlagn_bg_roc_done(struct work_struct *work)
 	mutex_unlock(&priv->mutex);
 }
 
-#ifdef CONFIG_IWL5000
 static int iwl_mac_remain_on_channel(struct ieee80211_hw *hw,
 				     struct ieee80211_channel *channel,
 				     enum nl80211_channel_type channel_type,
@@ -3855,7 +3797,6 @@ static int iwl_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
 
 	return 0;
 }
-#endif
 
 /*****************************************************************************
  *
@@ -4025,7 +3966,6 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 	kfree(priv->scan_cmd);
 }
 
-#ifdef CONFIG_IWL5000
 struct ieee80211_ops iwlagn_hw_ops = {
 	.tx = iwlagn_mac_tx,
 	.start = iwlagn_mac_start,
@@ -4050,7 +3990,6 @@ struct ieee80211_ops iwlagn_hw_ops = {
 	.remain_on_channel = iwl_mac_remain_on_channel,
 	.cancel_remain_on_channel = iwl_mac_cancel_remain_on_channel,
 };
-#endif
 
 static void iwl_hw_detect(struct iwl_priv *priv)
 {
@@ -4118,12 +4057,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (cfg->mod_params->disable_hw_scan) {
 		dev_printk(KERN_DEBUG, &(pdev->dev),
 			"sw scan support is deprecated\n");
-#ifdef CONFIG_IWL5000
 		iwlagn_hw_ops.hw_scan = NULL;
-#endif
-#ifdef CONFIG_IWL4965
-		iwl4965_hw_ops.hw_scan = NULL;
-#endif
 	}
 
 	hw = iwl_alloc_all(cfg);
@@ -4502,12 +4436,6 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 
 /* Hardware specific file defines the PCI IDs table for that hardware module */
 static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
-#ifdef CONFIG_IWL4965
-	{IWL_PCI_DEVICE(0x4229, PCI_ANY_ID, iwl4965_agn_cfg)},
-	{IWL_PCI_DEVICE(0x4230, PCI_ANY_ID, iwl4965_agn_cfg)},
-#endif /* CONFIG_IWL4965 */
-#ifdef CONFIG_IWL5000
-/* 5100 Series WiFi */
 	{IWL_PCI_DEVICE(0x4232, 0x1201, iwl5100_agn_cfg)}, /* Mini Card */
 	{IWL_PCI_DEVICE(0x4232, 0x1301, iwl5100_agn_cfg)}, /* Half Mini Card */
 	{IWL_PCI_DEVICE(0x4232, 0x1204, iwl5100_agn_cfg)}, /* Mini Card */
@@ -4693,8 +4621,6 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x0893, 0x0266, iwl230_bg_cfg)},
 	{IWL_PCI_DEVICE(0x0892, 0x0466, iwl230_bg_cfg)},
 
-#endif /* CONFIG_IWL5000 */
-
 	{0}
 };
 MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
@@ -4793,3 +4719,9 @@ MODULE_PARM_DESC(antenna_coupling,
 module_param_named(bt_ch_inhibition, iwlagn_bt_ch_announce, bool, S_IRUGO);
 MODULE_PARM_DESC(bt_ch_inhibition,
 		 "Disable BT channel inhibition (default: enable)");
+
+module_param_named(plcp_check, iwlagn_mod_params.plcp_check, bool, S_IRUGO);
+MODULE_PARM_DESC(plcp_check, "Check plcp health (default: 1 [enabled])");
+
+module_param_named(ack_check, iwlagn_mod_params.ack_check, bool, S_IRUGO);
+MODULE_PARM_DESC(ack_check, "Check ack health (default: 0 [disabled])");

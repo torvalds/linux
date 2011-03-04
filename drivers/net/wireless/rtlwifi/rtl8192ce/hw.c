@@ -37,7 +37,6 @@
 #include "def.h"
 #include "phy.h"
 #include "dm.h"
-#include "fw.h"
 #include "led.h"
 #include "hw.h"
 
@@ -949,8 +948,8 @@ int rtl92ce_hw_init(struct ieee80211_hw *hw)
 	}
 
 	rtlhal->last_hmeboxnum = 0;
-	rtl92c_phy_mac_config(hw);
-	rtl92c_phy_bb_config(hw);
+	rtl92ce_phy_mac_config(hw);
+	rtl92ce_phy_bb_config(hw);
 	rtlphy->rf_mode = RF_OP_BY_SW_3WIRE;
 	rtl92c_phy_rf_config(hw);
 	rtlphy->rfreg_chnlval[0] = rtl_get_rfreg(hw, (enum radio_path)0,
