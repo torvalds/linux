@@ -339,8 +339,6 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 
 	pgprintk("%s: gpte %llx spte %p\n", __func__, (u64)gpte, spte);
 	pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
-	if (gpte_to_gfn(gpte) != vcpu->arch.update_pte.gfn)
-		return;
 	pfn = vcpu->arch.update_pte.pfn;
 	if (is_error_pfn(pfn))
 		return;

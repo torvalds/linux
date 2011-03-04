@@ -336,7 +336,6 @@ struct kvm_vcpu_arch {
 	gfn_t last_pte_gfn;
 
 	struct {
-		gfn_t gfn;	/* presumed gfn during guest pte update */
 		pfn_t pfn;	/* pfn corresponding to that gfn */
 		unsigned long mmu_seq;
 	} update_pte;

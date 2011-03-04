@@ -3228,7 +3228,6 @@ static void mmu_guess_page_from_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		kvm_release_pfn_clean(pfn);
 		return;
 	}
-	vcpu->arch.update_pte.gfn = gfn;
 	vcpu->arch.update_pte.pfn = pfn;
 }
 
@@ -3275,9 +3274,8 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 
 	/*
 	 * Assume that the pte write on a page table of the same type
-	 * as the current vcpu paging mode.  This is nearly always true
-	 * (might be false while changing modes).  Note it is verified later
-	 * by update_pte().
+	 * as the current vcpu paging mode since we update the sptes only
+	 * when they have the same mode.
 	 */
 	if ((is_pae(vcpu) && bytes == 4) || !new) {
 		/* Handle a 32-bit guest writing two halves of a 64-bit gpte */
