@@ -10677,6 +10677,7 @@ static struct alc_config_preset alc882_presets[] = {
  */
 enum {
 	PINFIX_ABIT_AW9D_MAX,
+	PINFIX_LENOVO_Y530,
 	PINFIX_PB_M5210,
 	PINFIX_ACER_ASPIRE_7736,
 };
@@ -10688,6 +10689,14 @@ static const struct alc_fixup alc882_fixups[] = {
 			{ 0x15, 0x01080104 }, /* side */
 			{ 0x16, 0x01011012 }, /* rear */
 			{ 0x17, 0x01016011 }, /* clfe */
+			{ }
+		}
+	},
+	[PINFIX_LENOVO_Y530] = {
+		.type = ALC_FIXUP_PINS,
+		.v.pins = (const struct alc_pincfg[]) {
+			{ 0x15, 0x99130112 }, /* rear int speakers */
+			{ 0x16, 0x99130111 }, /* subwoofer */
 			{ }
 		}
 	},
@@ -10706,6 +10715,7 @@ static const struct alc_fixup alc882_fixups[] = {
 
 static struct snd_pci_quirk alc882_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x0155, "Packard-Bell M5120", PINFIX_PB_M5210),
+	SND_PCI_QUIRK(0x17aa, 0x3a0d, "Lenovo Y530", PINFIX_LENOVO_Y530),
 	SND_PCI_QUIRK(0x147b, 0x107a, "Abit AW9D-MAX", PINFIX_ABIT_AW9D_MAX),
 	SND_PCI_QUIRK(0x1025, 0x0296, "Acer Aspire 7736z", PINFIX_ACER_ASPIRE_7736),
 	{}
