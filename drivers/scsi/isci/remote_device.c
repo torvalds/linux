@@ -287,16 +287,13 @@ isci_remote_device_alloc(struct isci_host *ihost, struct isci_port *iport)
 void isci_remote_device_ready(struct isci_remote_device *idev)
 {
 	struct isci_host *ihost = idev->isci_port->isci_host;
-	unsigned long flags;
 
 	dev_dbg(&ihost->pdev->dev,
-		"%s: isci_device = %p\n", __func__, idev);
+		"%s: idev = %p\n", __func__, idev);
 
-	spin_lock_irqsave(&idev->isci_port->remote_device_lock, flags);
 	isci_remote_device_change_state(idev, isci_ready_for_io);
 	if (test_and_clear_bit(IDEV_START_PENDING, &idev->flags))
 		wake_up(&ihost->eventq);
-	spin_unlock_irqrestore(&idev->isci_port->remote_device_lock, flags);
 }
 
 /**
@@ -432,7 +429,6 @@ void isci_remote_device_gone(struct domain_device *dev)
  */
 int isci_remote_device_found(struct domain_device *domain_dev)
 {
-	unsigned long flags;
 	struct isci_host *isci_host;
 	struct isci_port *isci_port;
 	struct isci_phy *isci_phy;
@@ -474,12 +470,12 @@ int isci_remote_device_found(struct domain_device *domain_dev)
 	isci_remote_device_change_state(isci_device, isci_starting);
 
 
-	spin_lock_irqsave(&isci_port->remote_device_lock, flags);
+	spin_lock_irq(&isci_host->scic_lock);
 	list_add_tail(&isci_device->node, &isci_port->remote_dev_list);
 
 	set_bit(IDEV_START_PENDING, &isci_device->flags);
 	status = isci_remote_device_construct(isci_port, isci_device);
-	spin_unlock_irqrestore(&isci_port->remote_device_lock, flags);
+	spin_unlock_irq(&isci_host->scic_lock);
 
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: isci_device = %p\n",
@@ -487,12 +483,12 @@ int isci_remote_device_found(struct domain_device *domain_dev)
 
 	if (status != SCI_SUCCESS) {
 
-		spin_lock_irqsave(&isci_port->remote_device_lock, flags);
+		spin_lock_irq(&isci_host->scic_lock);
 		isci_remote_device_deconstruct(
 			isci_host,
 			isci_device
 			);
-		spin_unlock_irqrestore(&isci_port->remote_device_lock, flags);
+		spin_unlock_irq(&isci_host->scic_lock);
 		return -ENODEV;
 	}
 

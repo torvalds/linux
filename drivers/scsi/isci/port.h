@@ -90,7 +90,6 @@ struct isci_port {
 	struct isci_host *isci_host;
 	struct asd_sas_port sas_port;
 	struct list_head remote_dev_list;
-	spinlock_t remote_device_lock;
 	spinlock_t state_lock;
 	struct list_head domain_dev_list;
 	struct completion start_complete;

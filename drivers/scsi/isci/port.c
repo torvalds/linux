@@ -94,7 +94,6 @@ void isci_port_init(
 
 	INIT_LIST_HEAD(&isci_port->remote_dev_list);
 	INIT_LIST_HEAD(&isci_port->domain_dev_list);
-	spin_lock_init(&isci_port->remote_device_lock);
 	spin_lock_init(&isci_port->state_lock);
 	init_completion(&isci_port->start_complete);
 	isci_port->isci_host = isci_host;
