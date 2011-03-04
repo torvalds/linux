@@ -1949,6 +1949,19 @@ static void con_work(struct work_struct *work)
 						   work.work);
 
 	mutex_lock(&con->mutex);
+	if (test_and_clear_bit(BACKOFF, &con->state)) {
+		dout("con_work %p backing off\n", con);
+		if (queue_delayed_work(ceph_msgr_wq, &con->work,
+				       round_jiffies_relative(con->delay))) {
+			dout("con_work %p backoff %lu\n", con, con->delay);
+			mutex_unlock(&con->mutex);
+			return;
+		} else {
+			con->ops->put(con);
+			dout("con_work %p FAILED to back off %lu\n", con,
+			     con->delay);
+		}
+	}
 
 	if (test_bit(CLOSED, &con->state)) { /* e.g. if we are replaced */
 		dout("con_work CLOSED\n");
@@ -2017,11 +2030,24 @@ static void ceph_fault(struct ceph_connection *con)
 			con->delay = BASE_DELAY_INTERVAL;
 		else if (con->delay < MAX_DELAY_INTERVAL)
 			con->delay *= 2;
-		dout("fault queueing %p delay %lu\n", con, con->delay);
 		con->ops->get(con);
 		if (queue_delayed_work(ceph_msgr_wq, &con->work,
-				       round_jiffies_relative(con->delay)) == 0)
+				       round_jiffies_relative(con->delay))) {
+			dout("fault queued %p delay %lu\n", con, con->delay);
+		} else {
 			con->ops->put(con);
+			dout("fault failed to queue %p delay %lu, backoff\n",
+			     con, con->delay);
+			/*
+			 * In many cases we see a socket state change
+			 * while con_work is running and end up
+			 * queuing (non-delayed) work, such that we
+			 * can't backoff with a delay.  Set a flag so
+			 * that when con_work restarts we schedule the
+			 * delay then.
+			 */
+			set_bit(BACKOFF, &con->state);
+		}
 	}
 
 out_unlock:
