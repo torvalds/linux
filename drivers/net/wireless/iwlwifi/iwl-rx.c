@@ -449,10 +449,8 @@ static bool iwl_good_ack_health(struct iwl_priv *priv, struct iwl_rx_packet *pkt
  * to improve the throughput.
  */
 static bool iwl_good_plcp_health(struct iwl_priv *priv,
-				 struct iwl_rx_packet *pkt)
+				 struct iwl_rx_packet *pkt, unsigned int msecs)
 {
-	unsigned int msecs;
-	unsigned long stamp;
 	int delta;
 	int threshold = priv->cfg->base_params->plcp_delta_threshold;
 
@@ -460,13 +458,6 @@ static bool iwl_good_plcp_health(struct iwl_priv *priv,
 		IWL_DEBUG_RADIO(priv, "plcp_err check disabled\n");
 		return true;
 	}
-
-	stamp = jiffies;
-	msecs = jiffies_to_msecs(stamp - priv->plcp_jiffies);
-	priv->plcp_jiffies = stamp;
-
-	if (msecs == 0)
-		return true;
 
 	if (iwl_bt_statistics(priv)) {
 		struct statistics_rx_bt *cur, *old;
@@ -508,9 +499,21 @@ static void iwl_recover_from_statistics(struct iwl_priv *priv,
 					struct iwl_rx_packet *pkt)
 {
 	const struct iwl_mod_params *mod_params = priv->cfg->mod_params;
+	unsigned int msecs;
+	unsigned long stamp;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status) ||
-	    !iwl_is_any_associated(priv))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	stamp = jiffies;
+	msecs = jiffies_to_msecs(stamp - priv->rx_statistics_jiffies);
+
+	/* Only gather statistics and update time stamp when not associated */
+	if (!iwl_is_any_associated(priv))
+		goto out;
+
+	/* Do not check/recover when do not have enough statistics data */
+	if (msecs < 99)
 		return;
 
 	if (mod_params->ack_check && !iwl_good_ack_health(priv, pkt)) {
@@ -519,8 +522,18 @@ static void iwl_recover_from_statistics(struct iwl_priv *priv,
 			return;
 	}
 
-	if (mod_params->plcp_check && !iwl_good_plcp_health(priv, pkt))
+	if (mod_params->plcp_check && !iwl_good_plcp_health(priv, pkt, msecs))
 		iwl_force_reset(priv, IWL_RF_RESET, false);
+
+out:
+	if (iwl_bt_statistics(priv))
+		memcpy(&priv->_agn.statistics_bt, &pkt->u.stats_bt,
+			sizeof(priv->_agn.statistics_bt));
+	else
+		memcpy(&priv->_agn.statistics, &pkt->u.stats,
+			sizeof(priv->_agn.statistics));
+
+	priv->rx_statistics_jiffies = stamp;
 }
 
 /* Calculate noise level, based on measurements during network silence just
@@ -668,13 +681,6 @@ static void iwl_rx_statistics(struct iwl_priv *priv,
 	}
 
 	iwl_recover_from_statistics(priv, pkt);
-
-	if (iwl_bt_statistics(priv))
-		memcpy(&priv->_agn.statistics_bt, &pkt->u.stats_bt,
-			sizeof(priv->_agn.statistics_bt));
-	else
-		memcpy(&priv->_agn.statistics, &pkt->u.stats,
-			sizeof(priv->_agn.statistics));
 
 	set_bit(STATUS_STATISTICS, &priv->status);
 
