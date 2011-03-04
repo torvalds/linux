@@ -25,6 +25,7 @@ endif
 obj-$(CONFIG_USB_STORAGE_ALAUDA)	+= ums-alauda.o
 obj-$(CONFIG_USB_STORAGE_CYPRESS_ATACB) += ums-cypress.o
 obj-$(CONFIG_USB_STORAGE_DATAFAB)	+= ums-datafab.o
+obj-$(CONFIG_USB_STORAGE_ENE_UB6250)	+= ums-eneub6250.o
 obj-$(CONFIG_USB_STORAGE_FREECOM)	+= ums-freecom.o
 obj-$(CONFIG_USB_STORAGE_ISD200)	+= ums-isd200.o
 obj-$(CONFIG_USB_STORAGE_JUMPSHOT)	+= ums-jumpshot.o
@@ -37,6 +38,7 @@ obj-$(CONFIG_USB_STORAGE_USBAT)		+= ums-usbat.o
 ums-alauda-y		:= alauda.o
 ums-cypress-y		:= cypress_atacb.o
 ums-datafab-y		:= datafab.o
+ums-eneub6250-y		:= ene_ub6250.o
 ums-freecom-y		:= freecom.o
 ums-isd200-y		:= isd200.o
 ums-jumpshot-y		:= jumpshot.o
