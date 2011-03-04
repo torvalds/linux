@@ -108,7 +108,7 @@ static int get_key_haup_common(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw,
 		start, range, toggle, dev, code);
 
 	/* return key */
-	*ir_key = code;
+	*ir_key = (dev << 8) | code;
 	*ir_raw = ircode;
 	return 1;
 }
