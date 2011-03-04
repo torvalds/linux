@@ -942,7 +942,7 @@ stu300_probe(struct platform_device *pdev)
 	adap->owner = THIS_MODULE;
 	/* DDC class but actually often used for more generic I2C */
 	adap->class = I2C_CLASS_DDC;
-	strncpy(adap->name, "ST Microelectronics DDC I2C adapter",
+	strlcpy(adap->name, "ST Microelectronics DDC I2C adapter",
 		sizeof(adap->name));
 	adap->nr = bus_nr;
 	adap->algo = &stu300_algo;

@@ -859,6 +859,7 @@ static void __l2cap_sock_close(struct sock *sk, int reason)
 				result = L2CAP_CR_SEC_BLOCK;
 			else
 				result = L2CAP_CR_BAD_PSM;
+			sk->sk_state = BT_DISCONN;
 
 			rsp.scid   = cpu_to_le16(l2cap_pi(sk)->dcid);
 			rsp.dcid   = cpu_to_le16(l2cap_pi(sk)->scid);

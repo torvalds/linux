@@ -111,6 +111,8 @@ struct se_subsystem_api;
 
 extern int init_se_global(void);
 extern void release_se_global(void);
+extern void init_scsi_index_table(void);
+extern u32 scsi_get_new_index(scsi_index_t);
 extern void transport_init_queue_obj(struct se_queue_obj *);
 extern int transport_subsystem_check_init(void);
 extern int transport_subsystem_register(struct se_subsystem_api *);

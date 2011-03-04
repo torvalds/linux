@@ -315,6 +315,7 @@ static void parse_dep_file(void *map, size_t len)
 	char *end = m + len;
 	char *p;
 	char s[PATH_MAX];
+	int first;
 
 	p = strchr(m, ':');
 	if (!p) {
@@ -327,6 +328,7 @@ static void parse_dep_file(void *map, size_t len)
 
 	clear_config();
 
+	first = 1;
 	while (m < end) {
 		while (m < end && (*m == ' ' || *m == '\\' || *m == '\n'))
 			m++;
@@ -340,9 +342,17 @@ static void parse_dep_file(void *map, size_t len)
 		if (strrcmp(s, "include/generated/autoconf.h") &&
 		    strrcmp(s, "arch/um/include/uml-config.h") &&
 		    strrcmp(s, ".ver")) {
-			printf("  %s \\\n", s);
+			/*
+			 * Do not output the first dependency (the
+			 * source file), so that kbuild is not confused
+			 * if a .c file is rewritten into .S or vice
+			 * versa.
+			 */
+			if (!first)
+				printf("  %s \\\n", s);
 			do_config_file(s);
 		}
+		first = 0;
 		m = p + 1;
 	}
 	printf("\n%s: $(deps_%s)\n\n", target, target);

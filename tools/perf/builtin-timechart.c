@@ -264,9 +264,6 @@ pid_put_sample(int pid, int type, unsigned int cpu, u64 start, u64 end)
 		c->start_time = start;
 	if (p->start_time == 0 || p->start_time > start)
 		p->start_time = start;
-
-	if (cpu > numcpus)
-		numcpus = cpu;
 }
 
 #define MAX_CPUS 4096
@@ -513,6 +510,9 @@ static int process_sample_event(union perf_event *event __used,
 
 		if (!event_str)
 			return 0;
+
+		if (sample->cpu > numcpus)
+			numcpus = sample->cpu;
 
 		if (strcmp(event_str, "power:cpu_idle") == 0) {
 			struct power_processor_entry *ppe = (void *)te;

@@ -203,6 +203,18 @@ struct rtc_device
 	struct hrtimer pie_timer; /* sub second exp, so needs hrtimer */
 	int pie_enabled;
 	struct work_struct irqwork;
+
+
+#ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
+	struct work_struct uie_task;
+	struct timer_list uie_timer;
+	/* Those fields are protected by rtc->irq_lock */
+	unsigned int oldsecs;
+	unsigned int uie_irq_active:1;
+	unsigned int stop_uie_polling:1;
+	unsigned int uie_task_active:1;
+	unsigned int uie_timer_active:1;
+#endif
 };
 #define to_rtc_device(d) container_of(d, struct rtc_device, dev)
 
@@ -235,7 +247,10 @@ extern int rtc_irq_set_freq(struct rtc_device *rtc,
 				struct rtc_task *task, int freq);
 extern int rtc_update_irq_enable(struct rtc_device *rtc, unsigned int enabled);
 extern int rtc_alarm_irq_enable(struct rtc_device *rtc, unsigned int enabled);
+extern int rtc_dev_update_irq_enable_emul(struct rtc_device *rtc,
+						unsigned int enabled);
 
+void rtc_handle_legacy_irq(struct rtc_device *rtc, int num, int mode);
 void rtc_aie_update_irq(void *private);
 void rtc_uie_update_irq(void *private);
 enum hrtimer_restart rtc_pie_update_irq(struct hrtimer *timer);

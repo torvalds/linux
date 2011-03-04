@@ -362,6 +362,7 @@ static int omap2430_musb_init(struct musb *musb)
 
 static int omap2430_musb_exit(struct musb *musb)
 {
+	del_timer_sync(&musb_idle_timer);
 
 	omap2430_low_level_exit(musb);
 	otg_put_transceiver(musb->xceiv);

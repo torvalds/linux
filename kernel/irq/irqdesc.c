@@ -94,7 +94,7 @@ int nr_irqs = NR_IRQS;
 EXPORT_SYMBOL_GPL(nr_irqs);
 
 static DEFINE_MUTEX(sparse_irq_lock);
-static DECLARE_BITMAP(allocated_irqs, NR_IRQS);
+static DECLARE_BITMAP(allocated_irqs, IRQ_BITMAP_BITS);
 
 #ifdef CONFIG_SPARSE_IRQ
 
@@ -216,6 +216,15 @@ int __init early_irq_init(void)
 	/* Let arch update nr_irqs and return the nr of preallocated irqs */
 	initcnt = arch_probe_nr_irqs();
 	printk(KERN_INFO "NR_IRQS:%d nr_irqs:%d %d\n", NR_IRQS, nr_irqs, initcnt);
+
+	if (WARN_ON(nr_irqs > IRQ_BITMAP_BITS))
+		nr_irqs = IRQ_BITMAP_BITS;
+
+	if (WARN_ON(initcnt > IRQ_BITMAP_BITS))
+		initcnt = IRQ_BITMAP_BITS;
+
+	if (initcnt > nr_irqs)
+		nr_irqs = initcnt;
 
 	for (i = 0; i < initcnt; i++) {
 		desc = alloc_desc(i, node);
