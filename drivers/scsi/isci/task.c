@@ -618,9 +618,6 @@ static enum isci_request_status isci_task_validate_request_to_abort(
 		old_state = isci_request_change_started_to_aborted(
 			isci_request, aborted_io_completion);
 
-		/* Only abort requests in the started state. */
-		if (old_state != started)
-			old_state = unallocated;
 	}
 
 	return old_state;
@@ -644,10 +641,23 @@ static void isci_request_cleanup_completed_loiterer(
 
 	spin_lock_irqsave(&isci_host->scic_lock, flags);
 	list_del_init(&isci_request->dev_node);
-	if (task != NULL)
-		task->lldd_task = NULL;
 	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
 
+	if (task != NULL) {
+
+		spin_lock_irqsave(&task->task_state_lock, flags);
+		task->lldd_task = NULL;
+
+		isci_set_task_doneflags(task);
+
+		/* If this task is not in the abort path, call task_done. */
+		if (!(task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
+
+			spin_unlock_irqrestore(&task->task_state_lock, flags);
+			task->task_done(task);
+		} else
+			spin_unlock_irqrestore(&task->task_state_lock, flags);
+	}
 	isci_request_free(isci_host, isci_request);
 }
 /**
@@ -684,17 +694,20 @@ static void isci_terminate_request_core(
 	spin_lock_irqsave(&isci_request->state_lock, flags);
 	request_status = isci_request_get_state(isci_request);
 
-	/* TMFs are in their own thread */
-	if ((isci_request->ttype == io_task) &&
-	    ((request_status == aborted) ||
-	     (request_status == aborting) ||
-	     (request_status == terminating)))
+	if ((isci_request->ttype == io_task) /* TMFs are in their own thread */
+	    && ((request_status == aborted)
+		|| (request_status == aborting)
+		|| (request_status == terminating)
+		|| (request_status == completed)
+		)
+	    ) {
+
 		/* The completion routine won't free a request in
 		 * the aborted/aborting/terminating state, so we do
 		 * it here.
 		 */
 		needs_cleanup_handling = true;
-
+	}
 	spin_unlock_irqrestore(&isci_request->state_lock, flags);
 
 	spin_lock_irqsave(&isci_host->scic_lock, flags);
@@ -765,10 +778,10 @@ static void isci_terminate_request(
 		new_request_state
 		);
 
-	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+	if ((old_state == started) || (old_state == completed)) {
 
-	if (old_state == started)
-		/* This request was not already being aborted. If it had been,
+		/* If the old_state is started:
+		 * This request was not already being aborted. If it had been,
 		 * then the aborting I/O (ie. the TMF request) would not be in
 		 * the aborting state, and thus would be terminated here.  Note
 		 * that since the TMF completion's call to the kernel function
@@ -777,9 +790,15 @@ static void isci_terminate_request(
 		 * special wait here for already aborting requests - the
 		 * termination of the TMF request will force the request
 		 * to finish it's already started terminate.
+		 *
+		 * If old_state == completed:
+		 * This request completed from the SCU hardware perspective
+		 * and now just needs cleaning up in terms of freeing the
+		 * request and potentially calling up to libsas.
 		 */
 		isci_terminate_request_core(isci_host, isci_device,
 					    isci_request, &request_completion);
+	}
 }
 
 /**
@@ -863,10 +882,6 @@ void isci_terminate_pending_requests(
 			isci_terminate_request(isci_host, isci_device,
 					       isci_request, new_request_state
 					       );
-
-			/* Set the 'done' state on the task. */
-			if (task)
-				isci_task_all_done(task);
 		}
 	} while (!done);
 }
@@ -1067,13 +1082,15 @@ static void isci_abort_task_process_cb(
 int isci_task_abort_task(struct sas_task *task)
 {
 	DECLARE_COMPLETION_ONSTACK(aborted_io_completion);
-	struct isci_request *old_request = NULL;
+	struct isci_request       *old_request = NULL;
+	enum isci_request_status  old_state;
 	struct isci_remote_device *isci_device = NULL;
-	struct isci_host *isci_host = NULL;
-	struct isci_tmf tmf;
-	int ret = TMF_RESP_FUNC_FAILED;
-	unsigned long flags;
-	bool any_dev_reset, device_stopping;
+	struct isci_host          *isci_host = NULL;
+	struct isci_tmf           tmf;
+	int                       ret = TMF_RESP_FUNC_FAILED;
+	unsigned long             flags;
+	bool                      any_dev_reset = false;
+	bool                      device_stopping;
 
 	/* Get the isci_request reference from the task.  Note that
 	 * this check does not depend on the pending request list
@@ -1093,21 +1110,6 @@ int isci_task_abort_task(struct sas_task *task)
 	device_stopping = (isci_device->status == isci_stopping)
 			  || (isci_device->status == isci_stopped);
 
-#ifdef NOMORE
-	/* This abort task function is the first stop of the libsas error
-	 * handler thread. Since libsas is executing in a thread with a
-	 * referernce to the "task" parameter, that task cannot be completed
-	 * directly back to the upper layers.  In order to make sure that
-	 * the task is managed correctly if this abort task fails, set the
-	 * "SAS_TASK_STATE_ABORTED" bit now such that completions up the
-	 * stack will be intercepted and only allowed to happen in the
-	 * libsas SCSI error handler thread.
-	 */
-	spin_lock_irqsave(&task->task_state_lock, flags);
-	task->task_state_flags |= SAS_TASK_STATE_ABORTED;
-	spin_unlock_irqrestore(&task->task_state_lock, flags);
-#endif  /* NOMORE */
-
 	/* This version of the driver will fail abort requests for
 	 * SATA/STP.  Failing the abort request this way will cause the
 	 * SCSI error handler thread to escalate to LUN reset
@@ -1123,35 +1125,27 @@ int isci_task_abort_task(struct sas_task *task)
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: old_request == %p\n", __func__, old_request);
 
+	if (!device_stopping)
+		any_dev_reset = isci_device_is_reset_pending(isci_host,isci_device);
+
 	spin_lock_irqsave(&task->task_state_lock, flags);
 
 	/* Don't do resets to stopping devices. */
-	if (device_stopping)
+	if (device_stopping) {
+
 		task->task_state_flags &= ~SAS_TASK_NEED_DEV_RESET;
+		any_dev_reset = false;
 
-	/* See if there is a pending device reset for this device. */
-	any_dev_reset = task->task_state_flags & SAS_TASK_NEED_DEV_RESET;
-
-	spin_unlock_irqrestore(&task->task_state_lock, flags);
-
-	if ((isci_device != NULL) && !device_stopping)
+	} else	/* See if there is a pending device reset for this device. */
 		any_dev_reset = any_dev_reset
-				|| isci_device_is_reset_pending(isci_host,
-								isci_device
-								);
+			|| (task->task_state_flags & SAS_TASK_NEED_DEV_RESET);
 
 	/* If the extraction of the request reference from the task
 	 * failed, then the request has been completed (or if there is a
 	 * pending reset then this abort request function must be failed
 	 * in order to escalate to the target reset).
 	 */
-	if ((old_request == NULL) ||
-	    ((old_request != NULL) &&
-	     (old_request->sci_request_handle == NULL) &&
-	     (old_request->complete_in_target)) ||
-	     any_dev_reset) {
-
-		spin_lock_irqsave(&task->task_state_lock, flags);
+	if ((old_request == NULL) || any_dev_reset) {
 
 		/* If the device reset task flag is set, fail the task
 		 * management request.  Otherwise, the original request
@@ -1163,6 +1157,11 @@ int isci_task_abort_task(struct sas_task *task)
 			 * task is escalated to a target reset.
 			 */
 			task->task_state_flags &= ~SAS_TASK_STATE_DONE;
+
+			/* Make the reset happen as soon as possible. */
+			task->task_state_flags |= SAS_TASK_NEED_DEV_RESET;
+
+			spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 			/* Fail the task management request in order to
 			 * escalate to the target reset.
@@ -1176,13 +1175,8 @@ int isci_task_abort_task(struct sas_task *task)
 				"task %p on dev %p\n",
 				__func__, task, isci_device);
 
+
 		} else {
-			ret = TMF_RESP_FUNC_COMPLETE;
-
-			dev_dbg(&isci_host->pdev->dev,
-				"%s: abort task not needed for %p\n",
-				__func__, task);
-
 			/* The request has already completed and there
 			 * is nothing to do here other than to set the task
 			 * done bit, and indicate that the task abort function
@@ -1190,75 +1184,56 @@ int isci_task_abort_task(struct sas_task *task)
 			 */
 			isci_set_task_doneflags(task);
 
-			/* Set the abort bit to make sure that libsas sticks the
-			 * task in the completed task queue.
-			 */
-/*			task->task_state_flags |= SAS_TASK_STATE_ABORTED; */
+			spin_unlock_irqrestore(&task->task_state_lock, flags);
 
-			/* Check for the situation where the request was
-			 * left around on the device list but the
-			 * request already completed.
-			 */
-			if (old_request && !old_request->sci_request_handle) {
+			ret = TMF_RESP_FUNC_COMPLETE;
 
-				isci_request_cleanup_completed_loiterer(
-					isci_host, isci_device, old_request
-					);
-			}
+			dev_dbg(&isci_host->pdev->dev,
+				"%s: abort task not needed for %p\n",
+				__func__, task);
 		}
-		spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 		return ret;
 	}
+	else
+		spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 	spin_lock_irqsave(&isci_host->scic_lock, flags);
 
-	/* Sanity check the request status, and set the I/O kernel completion
+	/* Check the request status and change to "aborting" if currently
+	 * "starting"; if true then set the I/O kernel completion
 	 * struct that will be triggered when the request completes.
 	 */
-	if (isci_task_validate_request_to_abort(
-		    old_request,
-		    isci_host,
-		    isci_device,
-		    &aborted_io_completion)
-	    == unallocated) {
-		dev_dbg(&isci_host->pdev->dev,
-			"%s: old_request not valid for device = %p\n",
-			__func__,
-			isci_device);
-		old_request = NULL;
-	}
-
-	if (!old_request) {
-
-		/* There is no isci_request attached to the sas_task.
-		 * It must have been completed and detached.
-		 */
-		dev_dbg(&isci_host->pdev->dev,
-			"%s: old_request == NULL\n",
-			__func__);
+	old_state = isci_task_validate_request_to_abort(
+				old_request, isci_host, isci_device,
+				&aborted_io_completion);
+	if ((old_state != started) && (old_state != completed)) {
 
 		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
 
-		/* Set the state on the task. */
-		isci_task_all_done(task);
+		/* The request was already being handled by someone else (because
+		* they got to set the state away from started).
+		*/
+		dev_dbg(&isci_host->pdev->dev,
+			"%s:  device = %p; old_request %p already being aborted\n",
+			__func__,
+			isci_device, old_request);
 
 		return TMF_RESP_FUNC_COMPLETE;
 	}
-	if (task->task_proto == SAS_PROTOCOL_SMP || device_stopping) {
-
-		if (device_stopping)
-			dev_dbg(&isci_host->pdev->dev,
-				"%s: device is stopping, thus no TMF\n",
-				__func__);
-		else
-			dev_dbg(&isci_host->pdev->dev,
-				"%s: request is SMP, thus no TMF\n",
-				__func__);
-
-		old_request->complete_in_target = true;
+	if ((task->task_proto == SAS_PROTOCOL_SMP)
+	    || device_stopping
+	    || old_request->complete_in_target
+	    ) {
 
 		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+
+		dev_dbg(&isci_host->pdev->dev,
+			"%s: SMP request (%d)"
+			" or device is stopping (%d)"
+			" or complete_in_target (%d), thus no TMF\n",
+			__func__, (task->task_proto == SAS_PROTOCOL_SMP),
+			device_stopping, old_request->complete_in_target);
 
 		/* Set the state on the task. */
 		isci_task_all_done(task);
@@ -1266,13 +1241,8 @@ int isci_task_abort_task(struct sas_task *task)
 		ret = TMF_RESP_FUNC_COMPLETE;
 
 		/* Stopping and SMP devices are not sent a TMF, and are not
-		 * reset, but the outstanding I/O request is terminated here.
-		 *
-		 * Clean up the request on our side, and wait for the aborted
-		 * I/O to complete.
+		 * reset, but the outstanding I/O request is terminated below.
 		 */
-		isci_terminate_request_core(isci_host, isci_device, old_request,
-					    &aborted_io_completion);
 	} else {
 		/* Fill in the tmf stucture */
 		isci_task_build_tmf(&tmf, isci_device, isci_tmf_ssp_task_abort,
@@ -1288,23 +1258,23 @@ int isci_task_abort_task(struct sas_task *task)
 		ret = isci_task_execute_tmf(isci_host, &tmf,
 					    ISCI_ABORT_TASK_TIMEOUT_MS);
 
-		if (ret == TMF_RESP_FUNC_COMPLETE) {
-			old_request->complete_in_target = true;
-
-			/* Clean up the request on our side, and wait for the aborted I/O to
-			 * complete.
-			 */
-			isci_terminate_request_core(isci_host, isci_device, old_request,
-						    &aborted_io_completion);
-
-			/* Set the state on the task. */
-			isci_task_all_done(task);
-		} else
+		if (ret != TMF_RESP_FUNC_COMPLETE)
 			dev_err(&isci_host->pdev->dev,
 				"%s: isci_task_send_tmf failed\n",
 				__func__);
 	}
+	if (ret == TMF_RESP_FUNC_COMPLETE) {
+		old_request->complete_in_target = true;
 
+		/* Clean up the request on our side, and wait for the aborted I/O to
+		* complete.
+		*/
+		isci_terminate_request_core(isci_host, isci_device, old_request,
+					    &aborted_io_completion);
+	}
+
+	/* Make sure we do not leave a reference to aborted_io_completion */
+	old_request->io_request_completion = NULL;
 	return ret;
 }
 

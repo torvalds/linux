@@ -814,9 +814,8 @@ static void isci_task_save_for_upper_layer_completion(
 		break;
 
 	case isci_perform_aborted_io_completion:
-		/*
-		 * No notification because this request is already
-		 * in the abort path.
+		/* No notification to libsas because this request is
+		 * already in the abort path.
 		 */
 		dev_warn(&host->pdev->dev,
 			 "%s: Aborted - task = %p, response=%d, status=%d\n",
@@ -824,6 +823,19 @@ static void isci_task_save_for_upper_layer_completion(
 			 task,
 			 response,
 			 status);
+
+		/* Wake up whatever process was waiting for this
+		 * request to complete.
+		 */
+		WARN_ON(request->io_request_completion == NULL);
+
+		if (request->io_request_completion != NULL) {
+
+			/* Signal whoever is waiting that this
+			* request is complete.
+			*/
+			complete(request->io_request_completion);
+		}
 		break;
 
 	case isci_perform_error_io_completion:
@@ -847,7 +859,7 @@ static void isci_task_save_for_upper_layer_completion(
 			 response,
 			 status);
 
-		/* Add to the aborted list. */
+		/* Add to the error to libsas list. */
 		list_add(&request->completed_node,
 			 &host->requests_to_errorback);
 		break;
@@ -873,8 +885,6 @@ void isci_request_io_request_complete(
 	struct ssp_response_iu *resp_iu;
 	void *resp_buf;
 	unsigned long task_flags;
-	unsigned long state_flags;
-	struct completion *io_request_completion;
 	struct isci_remote_device *isci_device   = request->isci_device;
 	enum service_response response       = SAS_TASK_UNDELIVERED;
 	enum exec_status status         = SAS_ABORTED_TASK;
@@ -891,9 +901,8 @@ void isci_request_io_request_complete(
 		task->data_dir,
 		completion_status);
 
-	spin_lock_irqsave(&request->state_lock, state_flags);
+	spin_lock(&request->state_lock);
 	request_status = isci_request_get_state(request);
-	spin_unlock_irqrestore(&request->state_lock, state_flags);
 
 	/* Decode the request status.  Note that if the request has been
 	 * aborted by a task management function, we don't care
@@ -928,6 +937,8 @@ void isci_request_io_request_complete(
 
 		complete_to_host = isci_perform_aborted_io_completion;
 		/* This was an aborted request. */
+
+		spin_unlock(&request->state_lock);
 		break;
 
 	case aborting:
@@ -955,6 +966,8 @@ void isci_request_io_request_complete(
 		complete_to_host = isci_perform_aborted_io_completion;
 
 		/* This was an aborted request. */
+
+		spin_unlock(&request->state_lock);
 		break;
 
 	case terminating:
@@ -977,12 +990,19 @@ void isci_request_io_request_complete(
 		else
 			status = SAS_ABORTED_TASK;
 
-		complete_to_host = isci_perform_normal_io_completion;
+		complete_to_host = isci_perform_aborted_io_completion;
 
 		/* This was a terminated request. */
+
+		spin_unlock(&request->state_lock);
 		break;
 
 	default:
+
+		/* The request is done from an SCU HW perspective. */
+		request->status = completed;
+
+		spin_unlock(&request->state_lock);
 
 		/* This is an active request being completed from the core. */
 		switch (completion_status) {
@@ -1184,20 +1204,6 @@ void isci_request_io_request_complete(
 	 * task to recognize the already completed case.
 	 */
 	request->sci_request_handle = NULL;
-
-	/* Save possible completion ptr. */
-	io_request_completion = request->io_request_completion;
-
-	if (io_request_completion) {
-
-		/* This is inherantly a regular I/O request,
-		 * since we are currently in the regular
-		 * I/O completion callback function.
-		 * Signal whoever is waiting that this
-		 * request is complete.
-		 */
-		complete(io_request_completion);
-	}
 
 	isci_host_can_dequeue(isci_host, 1);
 }
