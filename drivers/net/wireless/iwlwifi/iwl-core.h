@@ -441,10 +441,6 @@ bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 void iwl_connection_init_rx_config(struct iwl_priv *priv,
 				   struct iwl_rxon_context *ctx);
 void iwl_set_rate(struct iwl_priv *priv);
-int iwl_set_decrypted_flag(struct iwl_priv *priv,
-			   struct ieee80211_hdr *hdr,
-			   u32 decrypt_res,
-			   struct ieee80211_rx_status *stats);
 void iwl_irq_handle_error(struct iwl_priv *priv);
 int iwl_mac_add_interface(struct ieee80211_hw *hw,
 			  struct ieee80211_vif *vif);
@@ -493,15 +489,6 @@ static inline void iwl_update_stats(struct iwl_priv *priv, bool is_tx,
 {
 }
 #endif
-/*****************************************************
- * RX handlers.
- * **************************************************/
-void iwl_rx_pm_sleep_notif(struct iwl_priv *priv,
-			   struct iwl_rx_mem_buffer *rxb);
-void iwl_rx_pm_debug_statistics_notif(struct iwl_priv *priv,
-				      struct iwl_rx_mem_buffer *rxb);
-void iwl_rx_reply_error(struct iwl_priv *priv,
-			struct iwl_rx_mem_buffer *rxb);
 
 /*****************************************************
 * RX
@@ -513,11 +500,8 @@ void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
 				  struct iwl_rx_queue *q);
 int iwl_rx_queue_space(const struct iwl_rx_queue *q);
 void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
-/* Handlers */
-void iwl_rx_spectrum_measure_notif(struct iwl_priv *priv,
-					  struct iwl_rx_mem_buffer *rxb);
+
 void iwl_chswitch_done(struct iwl_priv *priv, bool is_success);
-void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
 
 /* TX helpers */
 
