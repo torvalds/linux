@@ -772,8 +772,8 @@ i915_gem_execbuffer_sync_rings(struct drm_i915_gem_object *obj,
 	if (from == NULL || to == from)
 		return 0;
 
-	/* XXX gpu semaphores are currently causing hard hangs on SNB mobile */
-	if (INTEL_INFO(obj->base.dev)->gen < 6 || IS_MOBILE(obj->base.dev))
+	/* XXX gpu semaphores are implicated in various hard hangs on SNB */
+	if (INTEL_INFO(obj->base.dev)->gen < 6 || !i915_semaphores)
 		return i915_gem_object_wait_rendering(obj, true);
 
 	idx = intel_ring_sync_index(from, to);

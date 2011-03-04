@@ -46,6 +46,9 @@ module_param_named(fbpercrtc, i915_fbpercrtc, int, 0400);
 unsigned int i915_powersave = 1;
 module_param_named(powersave, i915_powersave, int, 0600);
 
+unsigned int i915_semaphores = 0;
+module_param_named(semaphores, i915_semaphores, int, 0600);
+
 unsigned int i915_enable_rc6 = 0;
 module_param_named(i915_enable_rc6, i915_enable_rc6, int, 0600);
 

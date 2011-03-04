@@ -956,6 +956,7 @@ extern struct drm_ioctl_desc i915_ioctls[];
 extern int i915_max_ioctl;
 extern unsigned int i915_fbpercrtc;
 extern unsigned int i915_powersave;
+extern unsigned int i915_semaphores;
 extern unsigned int i915_lvds_downclock;
 extern unsigned int i915_panel_use_ssc;
 extern unsigned int i915_enable_rc6;
