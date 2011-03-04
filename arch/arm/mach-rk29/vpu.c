@@ -291,11 +291,10 @@ static long vpu_write_dec(u32 *src)
 	int i;
 	u32 *dst = (u32 *)dec_dev.hwregs;
 
-	dst[VPU_REG_DEC_GATE] = src[VPU_REG_DEC_GATE] | VPU_REG_DEC_GATE_BIT;
-
-	for (i = VPU_REG_DEC_GATE + 1; i < REG_NUM_DEC; i++)
+	for (i = REG_NUM_DEC - 1; i > VPU_REG_DEC_GATE; i--)
 		dst[i] = src[i];
 
+	dst[VPU_REG_DEC_GATE] = src[VPU_REG_DEC_GATE] | VPU_REG_DEC_GATE_BIT;
 	dst[VPU_REG_EN_DEC]   = src[VPU_REG_EN_DEC];
 
 	return 0;
@@ -402,13 +401,17 @@ static long vpu_clear_irqs(VPU_CLIENT_TYPE type)
 		writel(0, &enc_dev.hwregs[ENC_INTERRUPT_REGISTER]);
 		break;
 	}
-	case VPU_DEC :
-	case VPU_DEC_PP : {
+	case VPU_DEC : {
 		writel(0, &dec_dev.hwregs[DEC_INTERRUPT_REGISTER]);
 		break;
 	}
 	case VPU_PP : {
 		writel(0, &pp_dev.hwregs[PP_INTERRUPT_REGISTER]);
+		break;
+	}
+	case VPU_DEC_PP : {
+		writel(0, &pp_dev.hwregs[PP_INTERRUPT_REGISTER]);
+		writel(0, &dec_dev.hwregs[DEC_INTERRUPT_REGISTER]);
 		break;
 	}
 	default : {
