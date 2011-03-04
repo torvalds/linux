@@ -1615,6 +1615,7 @@ static const struct i2c_device_id tlv320dac33_i2c_id[] = {
 	},
 	{ },
 };
+MODULE_DEVICE_TABLE(i2c, tlv320dac33_i2c_id);
 
 static struct i2c_driver tlv320dac33_i2c_driver = {
 	.driver = {
