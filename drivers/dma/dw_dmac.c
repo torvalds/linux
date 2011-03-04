@@ -36,9 +36,11 @@
 		struct dw_dma_slave *__slave = (private);	\
 		int dms = __slave ? __slave->dst_master : 0;	\
 		int sms = __slave ? __slave->src_master : 1;	\
+		u8 smsize = __slave ? __slave->src_msize : 0;	\
+		u8 dmsize = __slave ? __slave->dst_msize : 0;	\
 								\
-		(DWC_CTLL_DST_MSIZE(0)				\
-		 | DWC_CTLL_SRC_MSIZE(0)			\
+		(DWC_CTLL_DST_MSIZE(dmsize)			\
+		 | DWC_CTLL_SRC_MSIZE(smsize)			\
 		 | DWC_CTLL_LLP_D_EN				\
 		 | DWC_CTLL_LLP_S_EN				\
 		 | DWC_CTLL_DMS(dms)				\
@@ -683,7 +685,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 				| DWC_CTLL_DST_WIDTH(reg_width)
 				| DWC_CTLL_DST_FIX
 				| DWC_CTLL_SRC_INC
-				| DWC_CTLL_FC_M2P);
+				| DWC_CTLL_FC(dws->fc));
 		reg = dws->tx_reg;
 		for_each_sg(sgl, sg, sg_len, i) {
 			struct dw_desc	*desc;
@@ -728,7 +730,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 				| DWC_CTLL_SRC_WIDTH(reg_width)
 				| DWC_CTLL_DST_INC
 				| DWC_CTLL_SRC_FIX
-				| DWC_CTLL_FC_P2M);
+				| DWC_CTLL_FC(dws->fc));
 
 		reg = dws->rx_reg;
 		for_each_sg(sgl, sg, sg_len, i) {
@@ -1146,7 +1148,7 @@ struct dw_cyclic_desc *dw_dma_cyclic_prep(struct dma_chan *chan,
 					| DWC_CTLL_SRC_WIDTH(reg_width)
 					| DWC_CTLL_DST_FIX
 					| DWC_CTLL_SRC_INC
-					| DWC_CTLL_FC_M2P
+					| DWC_CTLL_FC(dws->fc)
 					| DWC_CTLL_INT_EN);
 			break;
 		case DMA_FROM_DEVICE:
@@ -1157,7 +1159,7 @@ struct dw_cyclic_desc *dw_dma_cyclic_prep(struct dma_chan *chan,
 					| DWC_CTLL_DST_WIDTH(reg_width)
 					| DWC_CTLL_DST_INC
 					| DWC_CTLL_SRC_FIX
-					| DWC_CTLL_FC_P2M
+					| DWC_CTLL_FC(dws->fc)
 					| DWC_CTLL_INT_EN);
 			break;
 		default:

@@ -86,6 +86,7 @@ struct dw_dma_regs {
 #define DWC_CTLL_SRC_MSIZE(n)	((n)<<14)
 #define DWC_CTLL_S_GATH_EN	(1 << 17)	/* src gather, !FIX */
 #define DWC_CTLL_D_SCAT_EN	(1 << 18)	/* dst scatter, !FIX */
+#define DWC_CTLL_FC(n)		((n) << 20)
 #define DWC_CTLL_FC_M2M		(0 << 20)	/* mem-to-mem */
 #define DWC_CTLL_FC_M2P		(1 << 20)	/* mem-to-periph */
 #define DWC_CTLL_FC_P2M		(2 << 20)	/* periph-to-mem */
