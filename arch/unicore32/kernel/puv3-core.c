@@ -50,8 +50,8 @@ unsigned long long sched_clock(void)
 static struct resource puv3_usb_resources[] = {
 	/* order is significant! */
 	{
-		.start		= PKUNITY_USB_BASE,
-		.end		= PKUNITY_USB_BASE + 0x3ff,
+		.start		= io_v2p(PKUNITY_USB_BASE),
+		.end		= io_v2p(PKUNITY_USB_BASE) + 0x3ff,
 		.flags		= IORESOURCE_MEM,
 	}, {
 		.start		= IRQ_USB,
@@ -82,8 +82,8 @@ static struct musb_hdrc_platform_data puv3_usb_plat = {
 
 static struct resource puv3_mmc_resources[] = {
 	[0] = {
-		.start	= PKUNITY_SDC_BASE,
-		.end	= PKUNITY_SDC_BASE + 0xfff,
+		.start	= io_v2p(PKUNITY_SDC_BASE),
+		.end	= io_v2p(PKUNITY_SDC_BASE) + 0xfff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -95,8 +95,8 @@ static struct resource puv3_mmc_resources[] = {
 
 static struct resource puv3_unigfx_resources[] = {
 	[0] = {
-		.start	= PKUNITY_UNIGFX_BASE,
-		.end	= PKUNITY_UNIGFX_BASE + 0xfff,
+		.start	= io_v2p(PKUNITY_UNIGFX_BASE),
+		.end	= io_v2p(PKUNITY_UNIGFX_BASE) + 0xfff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -108,8 +108,8 @@ static struct resource puv3_unigfx_resources[] = {
 
 static struct resource puv3_rtc_resources[] = {
 	[0] = {
-		.start = PKUNITY_RTC_BASE,
-		.end   = PKUNITY_RTC_BASE + 0xff,
+		.start = io_v2p(PKUNITY_RTC_BASE),
+		.end   = io_v2p(PKUNITY_RTC_BASE) + 0xff,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -126,16 +126,16 @@ static struct resource puv3_rtc_resources[] = {
 
 static struct resource puv3_pwm_resources[] = {
 	[0] = {
-		.start	= PKUNITY_OST_BASE + 0x80,
-		.end	= PKUNITY_OST_BASE + 0xff,
+		.start	= io_v2p(PKUNITY_OST_BASE) + 0x80,
+		.end	= io_v2p(PKUNITY_OST_BASE) + 0xff,
 		.flags	= IORESOURCE_MEM,
 	},
 };
 
 static struct resource puv3_uart0_resources[] = {
 	[0] = {
-		.start = PKUNITY_UART0_BASE,
-		.end   = PKUNITY_UART0_BASE + 0xff,
+		.start = io_v2p(PKUNITY_UART0_BASE),
+		.end   = io_v2p(PKUNITY_UART0_BASE) + 0xff,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -147,8 +147,8 @@ static struct resource puv3_uart0_resources[] = {
 
 static struct resource puv3_uart1_resources[] = {
 	[0] = {
-		.start = PKUNITY_UART1_BASE,
-		.end   = PKUNITY_UART1_BASE + 0xff,
+		.start = io_v2p(PKUNITY_UART1_BASE),
+		.end   = io_v2p(PKUNITY_UART1_BASE) + 0xff,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -160,8 +160,8 @@ static struct resource puv3_uart1_resources[] = {
 
 static struct resource puv3_umal_resources[] = {
 	[0] = {
-		.start = PKUNITY_UMAL_BASE,
-		.end   = PKUNITY_UMAL_BASE + 0x1fff,
+		.start = io_v2p(PKUNITY_UMAL_BASE),
+		.end   = io_v2p(PKUNITY_UMAL_BASE) + 0x1fff,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {

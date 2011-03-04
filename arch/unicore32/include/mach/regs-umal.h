@@ -10,86 +10,86 @@
 /*
  * TX/RX reset and control UMAL_CFG1
  */
-#define UMAL_CFG1		__REG(PKUNITY_UMAL_BASE + 0x0000)
+#define UMAL_CFG1		(PKUNITY_UMAL_BASE + 0x0000)
 /*
  * MAC interface mode control UMAL_CFG2
  */
-#define UMAL_CFG2		__REG(PKUNITY_UMAL_BASE + 0x0004)
+#define UMAL_CFG2		(PKUNITY_UMAL_BASE + 0x0004)
 /*
  * Inter Packet/Frame Gap UMAL_IPGIFG
  */
-#define UMAL_IPGIFG		__REG(PKUNITY_UMAL_BASE + 0x0008)
+#define UMAL_IPGIFG		(PKUNITY_UMAL_BASE + 0x0008)
 /*
  * Collision retry or backoff UMAL_HALFDUPLEX
  */
-#define UMAL_HALFDUPLEX		__REG(PKUNITY_UMAL_BASE + 0x000c)
+#define UMAL_HALFDUPLEX		(PKUNITY_UMAL_BASE + 0x000c)
 /*
  * Maximum Frame Length UMAL_MAXFRAME
  */
-#define UMAL_MAXFRAME		__REG(PKUNITY_UMAL_BASE + 0x0010)
+#define UMAL_MAXFRAME		(PKUNITY_UMAL_BASE + 0x0010)
 /*
  * Test Regsiter UMAL_TESTREG
  */
-#define UMAL_TESTREG		__REG(PKUNITY_UMAL_BASE + 0x001c)
+#define UMAL_TESTREG		(PKUNITY_UMAL_BASE + 0x001c)
 /*
  * MII Management Configure UMAL_MIICFG
  */
-#define UMAL_MIICFG		__REG(PKUNITY_UMAL_BASE + 0x0020)
+#define UMAL_MIICFG		(PKUNITY_UMAL_BASE + 0x0020)
 /*
  * MII Management Command UMAL_MIICMD
  */
-#define UMAL_MIICMD		__REG(PKUNITY_UMAL_BASE + 0x0024)
+#define UMAL_MIICMD		(PKUNITY_UMAL_BASE + 0x0024)
 /*
  * MII Management Address UMAL_MIIADDR
  */
-#define UMAL_MIIADDR		__REG(PKUNITY_UMAL_BASE + 0x0028)
+#define UMAL_MIIADDR		(PKUNITY_UMAL_BASE + 0x0028)
 /*
  * MII Management Control UMAL_MIICTRL
  */
-#define UMAL_MIICTRL		__REG(PKUNITY_UMAL_BASE + 0x002c)
+#define UMAL_MIICTRL		(PKUNITY_UMAL_BASE + 0x002c)
 /*
  * MII Management Status UMAL_MIISTATUS
  */
-#define UMAL_MIISTATUS		__REG(PKUNITY_UMAL_BASE + 0x0030)
+#define UMAL_MIISTATUS		(PKUNITY_UMAL_BASE + 0x0030)
 /*
  * MII Managment Indicator UMAL_MIIIDCT
  */
-#define UMAL_MIIIDCT		__REG(PKUNITY_UMAL_BASE + 0x0034)
+#define UMAL_MIIIDCT		(PKUNITY_UMAL_BASE + 0x0034)
 /*
  * Interface Control UMAL_IFCTRL
  */
-#define UMAL_IFCTRL		__REG(PKUNITY_UMAL_BASE + 0x0038)
+#define UMAL_IFCTRL		(PKUNITY_UMAL_BASE + 0x0038)
 /*
  * Interface Status UMAL_IFSTATUS
  */
-#define UMAL_IFSTATUS		__REG(PKUNITY_UMAL_BASE + 0x003c)
+#define UMAL_IFSTATUS		(PKUNITY_UMAL_BASE + 0x003c)
 /*
  * MAC address (high 4 bytes) UMAL_STADDR1
  */
-#define UMAL_STADDR1		__REG(PKUNITY_UMAL_BASE + 0x0040)
+#define UMAL_STADDR1		(PKUNITY_UMAL_BASE + 0x0040)
 /*
  * MAC address (low 2 bytes) UMAL_STADDR2
  */
-#define UMAL_STADDR2		__REG(PKUNITY_UMAL_BASE + 0x0044)
+#define UMAL_STADDR2		(PKUNITY_UMAL_BASE + 0x0044)
 
 /* FIFO MODULE OF UMAL */
 /* UMAL's FIFO module provides data queuing for increased system level
  * throughput
  */
-#define UMAL_FIFOCFG0		__REG(PKUNITY_UMAL_BASE + 0x0048)
-#define UMAL_FIFOCFG1		__REG(PKUNITY_UMAL_BASE + 0x004c)
-#define UMAL_FIFOCFG2		__REG(PKUNITY_UMAL_BASE + 0x0050)
-#define UMAL_FIFOCFG3		__REG(PKUNITY_UMAL_BASE + 0x0054)
-#define UMAL_FIFOCFG4		__REG(PKUNITY_UMAL_BASE + 0x0058)
-#define UMAL_FIFOCFG5		__REG(PKUNITY_UMAL_BASE + 0x005c)
-#define UMAL_FIFORAM0		__REG(PKUNITY_UMAL_BASE + 0x0060)
-#define UMAL_FIFORAM1		__REG(PKUNITY_UMAL_BASE + 0x0064)
-#define UMAL_FIFORAM2		__REG(PKUNITY_UMAL_BASE + 0x0068)
-#define UMAL_FIFORAM3		__REG(PKUNITY_UMAL_BASE + 0x006c)
-#define UMAL_FIFORAM4		__REG(PKUNITY_UMAL_BASE + 0x0070)
-#define UMAL_FIFORAM5		__REG(PKUNITY_UMAL_BASE + 0x0074)
-#define UMAL_FIFORAM6		__REG(PKUNITY_UMAL_BASE + 0x0078)
-#define UMAL_FIFORAM7		__REG(PKUNITY_UMAL_BASE + 0x007c)
+#define UMAL_FIFOCFG0		(PKUNITY_UMAL_BASE + 0x0048)
+#define UMAL_FIFOCFG1		(PKUNITY_UMAL_BASE + 0x004c)
+#define UMAL_FIFOCFG2		(PKUNITY_UMAL_BASE + 0x0050)
+#define UMAL_FIFOCFG3		(PKUNITY_UMAL_BASE + 0x0054)
+#define UMAL_FIFOCFG4		(PKUNITY_UMAL_BASE + 0x0058)
+#define UMAL_FIFOCFG5		(PKUNITY_UMAL_BASE + 0x005c)
+#define UMAL_FIFORAM0		(PKUNITY_UMAL_BASE + 0x0060)
+#define UMAL_FIFORAM1		(PKUNITY_UMAL_BASE + 0x0064)
+#define UMAL_FIFORAM2		(PKUNITY_UMAL_BASE + 0x0068)
+#define UMAL_FIFORAM3		(PKUNITY_UMAL_BASE + 0x006c)
+#define UMAL_FIFORAM4		(PKUNITY_UMAL_BASE + 0x0070)
+#define UMAL_FIFORAM5		(PKUNITY_UMAL_BASE + 0x0074)
+#define UMAL_FIFORAM6		(PKUNITY_UMAL_BASE + 0x0078)
+#define UMAL_FIFORAM7		(PKUNITY_UMAL_BASE + 0x007c)
 
 /* MAHBE MODUEL OF UMAL */
 /* UMAL's MAHBE module interfaces to the host system through 32-bit AHB Master
@@ -99,35 +99,35 @@
 /*
  * Transmit Control UMAL_DMATxCtrl
  */
-#define UMAL_DMATxCtrl		__REG(PKUNITY_UMAL_BASE + 0x0180)
+#define UMAL_DMATxCtrl		(PKUNITY_UMAL_BASE + 0x0180)
 /*
  * Pointer to TX Descripter UMAL_DMATxDescriptor
  */
-#define UMAL_DMATxDescriptor	__REG(PKUNITY_UMAL_BASE + 0x0184)
+#define UMAL_DMATxDescriptor	(PKUNITY_UMAL_BASE + 0x0184)
 /*
  * Status of Tx Packet Transfers UMAL_DMATxStatus
  */
-#define UMAL_DMATxStatus	__REG(PKUNITY_UMAL_BASE + 0x0188)
+#define UMAL_DMATxStatus	(PKUNITY_UMAL_BASE + 0x0188)
 /*
  * Receive Control UMAL_DMARxCtrl
  */
-#define UMAL_DMARxCtrl		__REG(PKUNITY_UMAL_BASE + 0x018c)
+#define UMAL_DMARxCtrl		(PKUNITY_UMAL_BASE + 0x018c)
 /*
  * Pointer to Rx Descriptor UMAL_DMARxDescriptor
  */
-#define UMAL_DMARxDescriptor	__REG(PKUNITY_UMAL_BASE + 0x0190)
+#define UMAL_DMARxDescriptor	(PKUNITY_UMAL_BASE + 0x0190)
 /*
  * Status of Rx Packet Transfers UMAL_DMARxStatus
  */
-#define UMAL_DMARxStatus	__REG(PKUNITY_UMAL_BASE + 0x0194)
+#define UMAL_DMARxStatus	(PKUNITY_UMAL_BASE + 0x0194)
 /*
  * Interrupt Mask UMAL_DMAIntrMask
  */
-#define UMAL_DMAIntrMask	__REG(PKUNITY_UMAL_BASE + 0x0198)
+#define UMAL_DMAIntrMask	(PKUNITY_UMAL_BASE + 0x0198)
 /*
  * Interrupts, read only UMAL_DMAInterrupt
  */
-#define UMAL_DMAInterrupt	__REG(PKUNITY_UMAL_BASE + 0x019c)
+#define UMAL_DMAInterrupt	(PKUNITY_UMAL_BASE + 0x019c)
 
 /*
  * Commands for UMAL_CFG1 register

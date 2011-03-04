@@ -91,7 +91,7 @@
 	.endm
 
 	.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
-	ldw	\base, =(io_p2v(PKUNITY_INTC_BASE))
+	ldw	\base, =(PKUNITY_INTC_BASE)
 	ldw	\irqstat, [\base+], #0xC	@ INTC_ICIP
 	ldw	\tmp,	  [\base+], #0x4	@ INTC_ICMR
 	and.a	\irqstat, \irqstat, \tmp

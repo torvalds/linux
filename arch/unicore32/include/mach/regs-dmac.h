@@ -5,27 +5,27 @@
 /*
  * Interrupt Status Reg DMAC_ISR.
  */
-#define DMAC_ISR		__REG(PKUNITY_DMAC_BASE + 0x0020)
+#define DMAC_ISR		(PKUNITY_DMAC_BASE + 0x0020)
 /*
  * Interrupt Transfer Complete Status Reg DMAC_ITCSR.
  */
-#define DMAC_ITCSR		__REG(PKUNITY_DMAC_BASE + 0x0050)
+#define DMAC_ITCSR		(PKUNITY_DMAC_BASE + 0x0050)
 /*
  * Interrupt Transfer Complete Clear Reg DMAC_ITCCR.
  */
-#define DMAC_ITCCR		__REG(PKUNITY_DMAC_BASE + 0x0060)
+#define DMAC_ITCCR		(PKUNITY_DMAC_BASE + 0x0060)
 /*
  * Interrupt Error Status Reg DMAC_IESR.
  */
-#define DMAC_IESR		__REG(PKUNITY_DMAC_BASE + 0x0080)
+#define DMAC_IESR		(PKUNITY_DMAC_BASE + 0x0080)
 /*
  * Interrupt Error Clear Reg DMAC_IECR.
  */
-#define DMAC_IECR		__REG(PKUNITY_DMAC_BASE + 0x0090)
+#define DMAC_IECR		(PKUNITY_DMAC_BASE + 0x0090)
 /*
  * Enable Channels Reg DMAC_ENCH.
  */
-#define DMAC_ENCH		__REG(PKUNITY_DMAC_BASE + 0x00B0)
+#define DMAC_ENCH		(PKUNITY_DMAC_BASE + 0x00B0)
 
 /*
  * DMA control reg. Space [byte]
@@ -35,19 +35,19 @@
 /*
  * Source Addr DMAC_SRCADDR(ch).
  */
-#define DMAC_SRCADDR(ch)	__REG(PKUNITY_DMAC_BASE + (ch)*DMASp + 0x00)
+#define DMAC_SRCADDR(ch)	(PKUNITY_DMAC_BASE + (ch)*DMASp + 0x00)
 /*
  * Destination Addr DMAC_DESTADDR(ch).
  */
-#define DMAC_DESTADDR(ch)	__REG(PKUNITY_DMAC_BASE + (ch)*DMASp + 0x04)
+#define DMAC_DESTADDR(ch)	(PKUNITY_DMAC_BASE + (ch)*DMASp + 0x04)
 /*
  * Control Reg DMAC_CONTROL(ch).
  */
-#define DMAC_CONTROL(ch)	__REG(PKUNITY_DMAC_BASE + (ch)*DMASp + 0x0C)
+#define DMAC_CONTROL(ch)	(PKUNITY_DMAC_BASE + (ch)*DMASp + 0x0C)
 /*
  * Configuration Reg DMAC_CONFIG(ch).
  */
-#define DMAC_CONFIG(ch)		__REG(PKUNITY_DMAC_BASE + (ch)*DMASp + 0x10)
+#define DMAC_CONFIG(ch)		(PKUNITY_DMAC_BASE + (ch)*DMASp + 0x10)
 
 #define DMAC_IR_MASK            FMASK(6, 0)
 /*

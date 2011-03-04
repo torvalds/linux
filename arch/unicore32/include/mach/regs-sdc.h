@@ -4,67 +4,67 @@
 /*
  * Clock Control Reg SDC_CCR
  */
-#define SDC_CCR		__REG(PKUNITY_SDC_BASE + 0x0000)
+#define SDC_CCR		(PKUNITY_SDC_BASE + 0x0000)
 /*
  * Software Reset Reg SDC_SRR
  */
-#define SDC_SRR		__REG(PKUNITY_SDC_BASE + 0x0004)
+#define SDC_SRR		(PKUNITY_SDC_BASE + 0x0004)
 /*
  * Argument Reg SDC_ARGUMENT
  */
-#define SDC_ARGUMENT	__REG(PKUNITY_SDC_BASE + 0x0008)
+#define SDC_ARGUMENT	(PKUNITY_SDC_BASE + 0x0008)
 /*
  * Command Reg SDC_COMMAND
  */
-#define SDC_COMMAND	__REG(PKUNITY_SDC_BASE + 0x000C)
+#define SDC_COMMAND	(PKUNITY_SDC_BASE + 0x000C)
 /*
  * Block Size Reg SDC_BLOCKSIZE
  */
-#define SDC_BLOCKSIZE	__REG(PKUNITY_SDC_BASE + 0x0010)
+#define SDC_BLOCKSIZE	(PKUNITY_SDC_BASE + 0x0010)
 /*
  * Block Cound Reg SDC_BLOCKCOUNT
  */
-#define SDC_BLOCKCOUNT	__REG(PKUNITY_SDC_BASE + 0x0014)
+#define SDC_BLOCKCOUNT	(PKUNITY_SDC_BASE + 0x0014)
 /*
  * Transfer Mode Reg SDC_TMR
  */
-#define SDC_TMR		__REG(PKUNITY_SDC_BASE + 0x0018)
+#define SDC_TMR		(PKUNITY_SDC_BASE + 0x0018)
 /*
  * Response Reg. 0 SDC_RES0
  */
-#define SDC_RES0	__REG(PKUNITY_SDC_BASE + 0x001C)
+#define SDC_RES0	(PKUNITY_SDC_BASE + 0x001C)
 /*
  * Response Reg. 1 SDC_RES1
  */
-#define SDC_RES1	__REG(PKUNITY_SDC_BASE + 0x0020)
+#define SDC_RES1	(PKUNITY_SDC_BASE + 0x0020)
 /*
  * Response Reg. 2 SDC_RES2
  */
-#define SDC_RES2	__REG(PKUNITY_SDC_BASE + 0x0024)
+#define SDC_RES2	(PKUNITY_SDC_BASE + 0x0024)
 /*
  * Response Reg. 3 SDC_RES3
  */
-#define SDC_RES3	__REG(PKUNITY_SDC_BASE + 0x0028)
+#define SDC_RES3	(PKUNITY_SDC_BASE + 0x0028)
 /*
  * Read Timeout Control Reg SDC_RTCR
  */
-#define SDC_RTCR	__REG(PKUNITY_SDC_BASE + 0x002C)
+#define SDC_RTCR	(PKUNITY_SDC_BASE + 0x002C)
 /*
  * Interrupt Status Reg SDC_ISR
  */
-#define SDC_ISR		__REG(PKUNITY_SDC_BASE + 0x0030)
+#define SDC_ISR		(PKUNITY_SDC_BASE + 0x0030)
 /*
  * Interrupt Status Mask Reg SDC_ISMR
  */
-#define SDC_ISMR	__REG(PKUNITY_SDC_BASE + 0x0034)
+#define SDC_ISMR	(PKUNITY_SDC_BASE + 0x0034)
 /*
  * RX FIFO SDC_RXFIFO
  */
-#define SDC_RXFIFO	__REG(PKUNITY_SDC_BASE + 0x0038)
+#define SDC_RXFIFO	(PKUNITY_SDC_BASE + 0x0038)
 /*
  * TX FIFO SDC_TXFIFO
  */
-#define SDC_TXFIFO	__REG(PKUNITY_SDC_BASE + 0x003C)
+#define SDC_TXFIFO	(PKUNITY_SDC_BASE + 0x003C)
 
 /*
  * SD Clock Enable SDC_CCR_CLKEN

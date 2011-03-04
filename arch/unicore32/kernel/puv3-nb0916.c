@@ -39,8 +39,8 @@ static struct resource physmap_flash_resource = {
 
 static struct resource puv3_i2c_resources[] = {
 	[0] = {
-		.start = PKUNITY_I2C_BASE,
-		.end   = PKUNITY_I2C_BASE + 0xff,
+		.start = io_v2p(PKUNITY_I2C_BASE),
+		.end   = io_v2p(PKUNITY_I2C_BASE) + 0xff,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {

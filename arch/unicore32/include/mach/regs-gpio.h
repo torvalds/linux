@@ -5,35 +5,35 @@
 /*
  * Voltage Status Reg GPIO_GPLR.
  */
-#define GPIO_GPLR	__REG(PKUNITY_GPIO_BASE + 0x0000)
+#define GPIO_GPLR	(PKUNITY_GPIO_BASE + 0x0000)
 /*
  * Pin Direction Reg GPIO_GPDR.
  */
-#define GPIO_GPDR	__REG(PKUNITY_GPIO_BASE + 0x0004)
+#define GPIO_GPDR	(PKUNITY_GPIO_BASE + 0x0004)
 /*
  * Output Pin Set Reg GPIO_GPSR.
  */
-#define GPIO_GPSR	__REG(PKUNITY_GPIO_BASE + 0x0008)
+#define GPIO_GPSR	(PKUNITY_GPIO_BASE + 0x0008)
 /*
  * Output Pin Clear Reg GPIO_GPCR.
  */
-#define GPIO_GPCR	__REG(PKUNITY_GPIO_BASE + 0x000C)
+#define GPIO_GPCR	(PKUNITY_GPIO_BASE + 0x000C)
 /*
  * Raise Edge Detect Reg GPIO_GRER.
  */
-#define GPIO_GRER	__REG(PKUNITY_GPIO_BASE + 0x0010)
+#define GPIO_GRER	(PKUNITY_GPIO_BASE + 0x0010)
 /*
  * Fall Edge Detect Reg GPIO_GFER.
  */
-#define GPIO_GFER	__REG(PKUNITY_GPIO_BASE + 0x0014)
+#define GPIO_GFER	(PKUNITY_GPIO_BASE + 0x0014)
 /*
  * Edge Status Reg GPIO_GEDR.
  */
-#define GPIO_GEDR	__REG(PKUNITY_GPIO_BASE + 0x0018)
+#define GPIO_GEDR	(PKUNITY_GPIO_BASE + 0x0018)
 /*
  * Sepcial Voltage Detect Reg GPIO_GPIR.
  */
-#define GPIO_GPIR	__REG(PKUNITY_GPIO_BASE + 0x0020)
+#define GPIO_GPIR	(PKUNITY_GPIO_BASE + 0x0020)
 
 #define GPIO_MIN	(0)
 #define GPIO_MAX	(27)

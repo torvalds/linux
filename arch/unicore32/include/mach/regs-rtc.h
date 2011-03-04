@@ -4,19 +4,19 @@
 /*
  * RTC Alarm Reg RTC_RTAR
  */
-#define RTC_RTAR	__REG(PKUNITY_RTC_BASE + 0x0000)
+#define RTC_RTAR	(PKUNITY_RTC_BASE + 0x0000)
 /*
  * RTC Count Reg RTC_RCNR
  */
-#define RTC_RCNR	__REG(PKUNITY_RTC_BASE + 0x0004)
+#define RTC_RCNR	(PKUNITY_RTC_BASE + 0x0004)
 /*
  * RTC Trim Reg RTC_RTTR
  */
-#define RTC_RTTR	__REG(PKUNITY_RTC_BASE + 0x0008)
+#define RTC_RTTR	(PKUNITY_RTC_BASE + 0x0008)
 /*
  * RTC Status Reg RTC_RTSR
  */
-#define RTC_RTSR	__REG(PKUNITY_RTC_BASE + 0x0010)
+#define RTC_RTSR	(PKUNITY_RTC_BASE + 0x0010)
 
 /*
  * ALarm detected RTC_RTSR_AL

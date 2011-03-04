@@ -17,17 +17,16 @@
 
 #include "PKUnity.h"
 
+#ifndef __ASSEMBLY__
+#define io_p2v(x)	(void __iomem *)((x) - PKUNITY_MMIO_BASE)
+#define io_v2p(x)	(phys_addr_t)((x) + PKUNITY_MMIO_BASE)
+#else
 #define io_p2v(x)	((x) - PKUNITY_MMIO_BASE)
 #define io_v2p(x)	((x) + PKUNITY_MMIO_BASE)
-
-#ifndef __ASSEMBLY__
-
-# define __REG(x)	(void __iomem *)io_p2v(x)
-
 #endif
 
 #define PCIBIOS_MIN_IO			0x4000 /* should lower than 64KB */
-#define PCIBIOS_MIN_MEM			PKUNITY_PCIMEM_BASE
+#define PCIBIOS_MIN_MEM			io_v2p(PKUNITY_PCIMEM_BASE)
 
 /*
  * We override the standard dma-mask routines for bouncing.

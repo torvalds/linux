@@ -76,10 +76,10 @@ ENTRY(puv3_cpu_suspend)
 
 
 	@ DDR2 BaseAddr
-	ldw	r0, =io_p2v(PKUNITY_DDR2CTRL_BASE)
+	ldw	r0, =(PKUNITY_DDR2CTRL_BASE)
 
 	@ PM BaseAddr
-	ldw	r1, =io_p2v(PKUNITY_PM_BASE)
+	ldw	r1, =(PKUNITY_PM_BASE)
 
 	@ set PLL_SYS_CFG reg, 275
 	movl	r6, #0x00002401

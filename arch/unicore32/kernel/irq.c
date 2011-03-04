@@ -226,8 +226,8 @@ static struct irq_chip puv3_normal_chip = {
 
 static struct resource irq_resource = {
 	.name	= "irqs",
-	.start	= PKUNITY_INTC_BASE,
-	.end	= PKUNITY_INTC_BASE + 0xFFFFF,
+	.start	= io_v2p(PKUNITY_INTC_BASE),
+	.end	= io_v2p(PKUNITY_INTC_BASE) + 0xFFFFF,
 };
 
 static struct puv3_irq_state {

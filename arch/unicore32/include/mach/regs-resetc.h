@@ -4,11 +4,11 @@
 /*
  * Software Reset Register
  */
-#define RESETC_SWRR	__REG(PKUNITY_RESETC_BASE + 0x0000)
+#define RESETC_SWRR	(PKUNITY_RESETC_BASE + 0x0000)
 /*
  * Reset Status Register
  */
-#define RESETC_RSSR	__REG(PKUNITY_RESETC_BASE + 0x0004)
+#define RESETC_RSSR	(PKUNITY_RESETC_BASE + 0x0004)
 
 /*
  * Software Reset Bit

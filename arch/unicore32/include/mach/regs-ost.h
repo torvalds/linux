@@ -4,47 +4,47 @@
 /*
  * Match Reg 0 OST_OSMR0
  */
-#define OST_OSMR0	__REG(PKUNITY_OST_BASE + 0x0000)
+#define OST_OSMR0	(PKUNITY_OST_BASE + 0x0000)
 /*
  * Match Reg 1 OST_OSMR1
  */
-#define OST_OSMR1	__REG(PKUNITY_OST_BASE + 0x0004)
+#define OST_OSMR1	(PKUNITY_OST_BASE + 0x0004)
 /*
  * Match Reg 2 OST_OSMR2
  */
-#define OST_OSMR2	__REG(PKUNITY_OST_BASE + 0x0008)
+#define OST_OSMR2	(PKUNITY_OST_BASE + 0x0008)
 /*
  * Match Reg 3 OST_OSMR3
  */
-#define OST_OSMR3	__REG(PKUNITY_OST_BASE + 0x000C)
+#define OST_OSMR3	(PKUNITY_OST_BASE + 0x000C)
 /*
  * Counter Reg OST_OSCR
  */
-#define OST_OSCR	__REG(PKUNITY_OST_BASE + 0x0010)
+#define OST_OSCR	(PKUNITY_OST_BASE + 0x0010)
 /*
  * Status Reg OST_OSSR
  */
-#define OST_OSSR	__REG(PKUNITY_OST_BASE + 0x0014)
+#define OST_OSSR	(PKUNITY_OST_BASE + 0x0014)
 /*
  * Watchdog Enable Reg OST_OWER
  */
-#define OST_OWER	__REG(PKUNITY_OST_BASE + 0x0018)
+#define OST_OWER	(PKUNITY_OST_BASE + 0x0018)
 /*
  * Interrupt Enable Reg OST_OIER
  */
-#define OST_OIER	__REG(PKUNITY_OST_BASE + 0x001C)
+#define OST_OIER	(PKUNITY_OST_BASE + 0x001C)
 /*
  * PWM Pulse Width Control Reg OST_PWMPWCR
  */
-#define OST_PWMPWCR	__REG(PKUNITY_OST_BASE + 0x0080)
+#define OST_PWMPWCR	(PKUNITY_OST_BASE + 0x0080)
 /*
  * PWM Duty Cycle Control Reg OST_PWMDCCR
  */
-#define OST_PWMDCCR	__REG(PKUNITY_OST_BASE + 0x0084)
+#define OST_PWMDCCR	(PKUNITY_OST_BASE + 0x0084)
 /*
  * PWM Period Control Reg OST_PWMPCR
  */
-#define OST_PWMPCR	__REG(PKUNITY_OST_BASE + 0x0088)
+#define OST_PWMPCR	(PKUNITY_OST_BASE + 0x0088)
 
 /*
  * Match detected 0 OST_OSSR_M0

@@ -45,8 +45,8 @@ void puv3_pci_adjust_zones(unsigned long *size, unsigned long *holes);
 #define is_pcibus_device(dev)	(dev &&			\
 				(strncmp(dev->bus->name, "pci", 3) == 0))
 
-#define __virt_to_pcibus(x)     (__virt_to_phys(x) + PKUNITY_PCIAHB_BASE)
-#define __pcibus_to_virt(x)     __phys_to_virt((x) - PKUNITY_PCIAHB_BASE)
+#define __virt_to_pcibus(x)     (__virt_to_phys((x) + PKUNITY_PCIAHB_BASE))
+#define __pcibus_to_virt(x)     (__phys_to_virt(x) - PKUNITY_PCIAHB_BASE)
 
 /* kuser area */
 #define KUSER_VECPAGE_BASE	(KUSER_BASE + UL(0x3fff0000))

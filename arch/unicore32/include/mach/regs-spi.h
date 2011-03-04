@@ -4,27 +4,27 @@
 /*
  * Control reg. 0 SPI_CR0
  */
-#define SPI_CR0		__REG(PKUNITY_SPI_BASE + 0x0000)
+#define SPI_CR0		(PKUNITY_SPI_BASE + 0x0000)
 /*
  * Control reg. 1 SPI_CR1
  */
-#define SPI_CR1		__REG(PKUNITY_SPI_BASE + 0x0004)
+#define SPI_CR1		(PKUNITY_SPI_BASE + 0x0004)
 /*
  * Enable reg SPI_SSIENR
  */
-#define SPI_SSIENR	__REG(PKUNITY_SPI_BASE + 0x0008)
+#define SPI_SSIENR	(PKUNITY_SPI_BASE + 0x0008)
 /*
  * Status reg SPI_SR
  */
-#define SPI_SR		__REG(PKUNITY_SPI_BASE + 0x0028)
+#define SPI_SR		(PKUNITY_SPI_BASE + 0x0028)
 /*
  * Interrupt Mask reg SPI_IMR
  */
-#define SPI_IMR		__REG(PKUNITY_SPI_BASE + 0x002C)
+#define SPI_IMR		(PKUNITY_SPI_BASE + 0x002C)
 /*
  * Interrupt Status reg SPI_ISR
  */
-#define SPI_ISR		__REG(PKUNITY_SPI_BASE + 0x0030)
+#define SPI_ISR		(PKUNITY_SPI_BASE + 0x0030)
 
 /*
  * Enable SPI Controller SPI_SSIENR_EN
