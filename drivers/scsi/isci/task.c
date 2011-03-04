@@ -631,13 +631,16 @@ static void isci_request_cleanup_completed_loiterer(
 	struct isci_remote_device *isci_device,
 	struct isci_request *isci_request)
 {
-	struct sas_task *task = isci_request_access_task(isci_request);
-	unsigned long flags;
+	struct sas_task     *task;
+	unsigned long       flags;
+
+	task = (isci_request->ttype == io_task)
+		? isci_request_access_task(isci_request)
+		: NULL;
 
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: isci_device=%p, request=%p, task=%p\n",
-		__func__, isci_device, isci_request,
-		isci_request->ttype_ptr.io_task_ptr);
+		__func__, isci_device, isci_request, task);
 
 	spin_lock_irqsave(&isci_host->scic_lock, flags);
 	list_del_init(&isci_request->dev_node);
