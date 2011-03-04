@@ -550,10 +550,8 @@ static int __init bt_init(void)
 		goto error;
 
 	err = l2cap_init();
-	if (err < 0) {
-		hci_sock_cleanup();
+	if (err < 0)
 		goto sock_err;
-	}
 
 	err = sco_init();
 	if (err < 0) {
