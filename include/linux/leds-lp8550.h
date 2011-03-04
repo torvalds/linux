@@ -36,6 +36,7 @@ struct lp8550_platform_data {
 	u8 direct_ctrl;
 	struct lp8550_eeprom_data *eeprom_table;
 	int eeprom_tbl_sz;
+	int scaling_factor;
 };
 
 #endif	/* __KERNEL__ */
