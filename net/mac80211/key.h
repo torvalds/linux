@@ -21,7 +21,6 @@
 
 #define WEP_IV_LEN		4
 #define WEP_ICV_LEN		4
-#define ALG_TKIP_KEY_LEN	32
 #define ALG_CCMP_KEY_LEN	16
 #define CCMP_HDR_LEN		8
 #define CCMP_MIC_LEN		8
