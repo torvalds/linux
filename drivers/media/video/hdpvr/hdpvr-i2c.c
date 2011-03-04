@@ -56,6 +56,7 @@ struct i2c_client *hdpvr_register_ir_rx_i2c(struct hdpvr_device *dev)
 	init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
 	init_data->type = RC_TYPE_RC5;
 	init_data->name = "HD-PVR";
+	init_data->polling_interval = 405; /* ms, duplicated from Windows */
 	hdpvr_ir_rx_i2c_board_info.platform_data = init_data;
 
 	return i2c_new_device(&dev->i2c_adapter, &hdpvr_ir_rx_i2c_board_info);
@@ -191,7 +192,7 @@ static struct i2c_adapter hdpvr_i2c_adapter_template = {
 
 static int hdpvr_activate_ir(struct hdpvr_device *dev)
 {
-	char buffer[8];
+	char buffer[2];
 
 	mutex_lock(&dev->i2c_mutex);
 
