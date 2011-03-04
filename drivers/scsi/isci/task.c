@@ -677,10 +677,9 @@ static void isci_request_cleanup_completed_loiterer(
 static void isci_terminate_request_core(
 	struct isci_host *isci_host,
 	struct isci_remote_device *isci_device,
-	struct isci_request *isci_request,
-	struct completion *request_completion)
+	struct isci_request *isci_request)
 {
-	enum sci_status status                 = SCI_SUCCESS;
+	enum sci_status status      = SCI_SUCCESS;
 	bool was_terminated         = false;
 	bool needs_cleanup_handling = false;
 	enum isci_request_status request_status;
@@ -720,6 +719,7 @@ static void isci_terminate_request_core(
 	 */
 	if (isci_request->sci_request_handle != NULL) {
 		was_terminated = true;
+		needs_cleanup_handling = true;
 		status = scic_controller_terminate_request(
 			isci_host->core_controller,
 			to_sci_dev(isci_device),
@@ -744,15 +744,15 @@ static void isci_terminate_request_core(
 			dev_dbg(&isci_host->pdev->dev,
 				"%s: before completion wait (%p)\n",
 				__func__,
-				request_completion);
+				isci_request->io_request_completion);
 
 			/* Wait here for the request to complete. */
-			wait_for_completion(request_completion);
+			wait_for_completion(isci_request->io_request_completion);
 
 			dev_dbg(&isci_host->pdev->dev,
 				"%s: after completion wait (%p)\n",
 				__func__,
-				request_completion);
+				isci_request->io_request_completion);
 		}
 
 		if (needs_cleanup_handling)
@@ -760,7 +760,10 @@ static void isci_terminate_request_core(
 				isci_host, isci_device, isci_request
 				);
 	}
+	/* Clear the completion pointer from the request. */
+	isci_request->io_request_completion = NULL;
 }
+
 static void isci_terminate_request(
 	struct isci_host *isci_host,
 	struct isci_remote_device *isci_device,
@@ -800,7 +803,7 @@ static void isci_terminate_request(
 		 * request and potentially calling up to libsas.
 		 */
 		isci_terminate_request_core(isci_host, isci_device,
-					    isci_request, &request_completion);
+					    isci_request);
 	}
 }
 
@@ -1268,8 +1271,7 @@ int isci_task_abort_task(struct sas_task *task)
 		/* Clean up the request on our side, and wait for the aborted I/O to
 		* complete.
 		*/
-		isci_terminate_request_core(isci_host, isci_device, old_request,
-					    &aborted_io_completion);
+		isci_terminate_request_core(isci_host, isci_device, old_request);
 	}
 
 	/* Make sure we do not leave a reference to aborted_io_completion */
