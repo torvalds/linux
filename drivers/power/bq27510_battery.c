@@ -143,6 +143,11 @@ static int bq27510_battery_temperature(struct bq27510_device_info *di)
 	int ret;
 	int temp = 0;
 	u8 buf[2];
+
+	#if CONFIG_NO_BATTERY_IC
+	return 258;
+	#endif
+
 	if(virtual_battery_enable == 1)
 		return 125/*258*/;
 	ret = bq27510_read(di->client,BQ27x00_REG_TEMP,buf,2);
@@ -165,6 +170,10 @@ static int bq27510_battery_voltage(struct bq27510_device_info *di)
 	int ret;
 	u8 buf[2];
 	int volt = 0;
+
+	#if CONFIG_NO_BATTERY_IC
+	return 4000000;
+	#endif
 	if(virtual_battery_enable == 1)
 		return 2000000/*4000000*/;
 
@@ -196,6 +205,10 @@ static int bq27510_battery_current(struct bq27510_device_info *di)
 	int ret;
 	int curr = 0;
 	u8 buf[2];
+
+	#if CONFIG_NO_BATTERY_IC
+	return 22000;
+	#endif
 	if(virtual_battery_enable == 1)
 	return 11000/*22000*/;
 	ret = bq27510_read(di->client,BQ27x00_REG_AI,buf,2);
@@ -225,6 +238,10 @@ static int bq27510_battery_rsoc(struct bq27510_device_info *di)
 	int nvcap = 0,facap = 0,remcap=0,fccap=0,full=0,cnt=0;
 	#endif
 	u8 buf[2];
+
+	#if CONFIG_NO_BATTERY_IC
+	return 100;
+	#endif
 	if(virtual_battery_enable == 1)
 	return 50/*100*/;
 	
@@ -235,6 +252,10 @@ static int bq27510_battery_rsoc(struct bq27510_device_info *di)
 	}
 	rsoc = get_unaligned_le16(buf);
 	DBG("Enter:%s %d--rsoc = %d\n",__FUNCTION__,__LINE__,rsoc);
+
+	#if CONFIG_NO_BATTERY_IC
+	rsoc = 100;
+	#endif
 	#if 0
 	ret = bq27510_read(di->client,0x0c,buf,2);
 	nvcap = get_unaligned_le16(buf);
@@ -265,6 +286,12 @@ static int bq27510_battery_status(struct bq27510_device_info *di,
 	int flags = 0;
 	int status;
 	int ret;
+
+	#if CONFIG_NO_BATTERY_IC
+	val->intval = POWER_SUPPLY_STATUS_FULL;
+	return 0;
+	#endif
+
 	if(virtual_battery_enable == 1)
 	{
 		val->intval = POWER_SUPPLY_STATUS_FULL;
@@ -295,6 +322,12 @@ static int bq27510_health_status(struct bq27510_device_info *di,
 	int flags = 0;
 	int status;
 	int ret;
+	
+	#if CONFIG_NO_BATTERY_IC
+	val->intval = POWER_SUPPLY_HEALTH_GOOD;
+	return 0;
+	#endif
+
 	if(virtual_battery_enable == 1)
 	{
 		val->intval = POWER_SUPPLY_HEALTH_GOOD;
