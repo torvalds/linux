@@ -833,10 +833,7 @@ config SCSI_GDTH
 config SCSI_ISCI
 	tristate "Intel(R) C600 Series Chipset SAS Controller"
 	depends on PCI && SCSI
-	# little endian host assumptions
 	depends on X86
-	# (temporary): dma api misuse
-	depends on !DMAR
 	# (temporary): known alpha quality driver
 	depends on EXPERIMENTAL
 	select SCSI_SAS_LIBSAS
