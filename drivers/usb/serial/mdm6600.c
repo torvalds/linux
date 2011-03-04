@@ -263,6 +263,7 @@ static int mdm6600_attach(struct usb_serial *serial)
 					"mdm6600_write.%d", modem->number);
 	wake_lock_init(&modem->writelock, WAKE_LOCK_SUSPEND, modem->writelock_name);
 
+	usb_get_intf(serial->interface);
 	usb_enable_autosuspend(serial->dev);
 	usb_mark_last_busy(serial->dev);
 
@@ -373,6 +374,7 @@ static void mdm6600_release(struct usb_serial *serial)
 	}
 
 	usb_set_serial_data(serial, NULL);
+	usb_put_intf(serial->interface);
 	kfree(modem);
 }
 
