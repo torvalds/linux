@@ -1405,8 +1405,9 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		 * parent relationships.
 		 */
 		if (unlikely(type != LAST_NORM)) {
-			if (handle_dots(nd, type))
-				return -ECHILD;
+			err = handle_dots(nd, type);
+			if (err)
+				goto return_err;
 			continue;
 		}
 
@@ -1441,8 +1442,9 @@ last_component:
 		if (lookup_flags & LOOKUP_PARENT)
 			goto lookup_parent;
 		if (unlikely(type != LAST_NORM)) {
-			if (handle_dots(nd, type))
-				return -ECHILD;
+			err = handle_dots(nd, type);
+			if (err)
+				goto return_err;
 			return 0;
 		}
 		err = do_lookup(nd, &this, &next, &inode);
@@ -1475,6 +1477,12 @@ lookup_parent:
 	if (!(nd->flags & LOOKUP_RCU))
 		path_put(&nd->path);
 return_err:
+	if (nd->flags & LOOKUP_RCU) {
+		nd->flags &= ~LOOKUP_RCU;
+		nd->root.mnt = NULL;
+		rcu_read_unlock();
+		br_read_unlock(vfsmount_lock);
+	}
 	return err;
 }
 
@@ -1585,16 +1593,10 @@ static int path_lookupat(int dfd, const char *name,
 	retval = link_path_walk(name, nd);
 
 	if (nd->flags & LOOKUP_RCU) {
-		/* RCU dangling. Cancel it. */
-		if (!retval) {
-			if (nameidata_drop_rcu_last(nd))
-				retval = -ECHILD;
-		} else {
-			nd->flags &= ~LOOKUP_RCU;
-			nd->root.mnt = NULL;
-			rcu_read_unlock();
-			br_read_unlock(vfsmount_lock);
-		}
+		/* went all way through without dropping RCU */
+		BUG_ON(retval);
+		if (nameidata_drop_rcu_last(nd))
+			retval = -ECHILD;
 	}
 
 	if (!retval)
