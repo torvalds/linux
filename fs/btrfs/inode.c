@@ -6589,6 +6589,12 @@ static int btrfs_truncate(struct inode *inode)
 		ret = btrfs_orphan_del(trans, inode);
 		if (ret)
 			err = ret;
+	} else if (ret && inode->i_nlink > 0) {
+		/*
+		 * Failed to do the truncate, remove us from the in memory
+		 * orphan list.
+		 */
+		ret = btrfs_orphan_del(NULL, inode);
 	}
 
 	ret = btrfs_update_inode(trans, root, inode);
