@@ -1265,6 +1265,7 @@ static int sd_switch_function(struct rtsx_chip *chip, u8 bus_width)
 
 	sd_card->func_group1_mask &= ~(sd_card->sd_switch_fail);
 
+	/* Function Group 1: Access Mode */
 	for (i = 0; i < 4; i++) {
 		switch ((u8)(chip->sd_speed_prior >> (i*8))) {
 		case SDR104_SUPPORT:
@@ -1349,6 +1350,14 @@ static int sd_switch_function(struct rtsx_chip *chip, u8 bus_width)
 		}
 	}
 
+	if (!func_to_switch || (func_to_switch == HS_SUPPORT)) {
+		/* Do not try to switch current limit if the card doesn't
+		 * support UHS mode or we don't want it to support UHS mode
+		 */
+		return STATUS_SUCCESS;
+	}
+
+	/* Function Group 4: Current Limit */
 	func_to_switch = 0xFF;
 
 	for (i = 0; i < 4; i++) {
@@ -2015,6 +2024,17 @@ static int sd_prepare_reset(struct rtsx_chip *chip)
 		sd_card->sd_clock = CLK_30;
 	}
 
+	sd_card->sd_type = 0;
+	sd_card->seq_mode = 0;
+	sd_card->sd_data_buf_ready = 0;
+	sd_card->capacity = 0;
+
+#ifdef SUPPORT_SD_LOCK
+	sd_card->sd_lock_status = 0;
+	sd_card->sd_erase_status = 0;
+#endif
+
+	chip->capacity[chip->card2lun[SD_CARD]] = 0;
 	chip->sd_io = 0;
 
 	retval = sd_set_init_para(chip);
@@ -2504,6 +2524,15 @@ SD_UNLOCK_ENTRY:
 		sd_dont_switch = 1;
 
 	if (!sd_dont_switch) {
+		if (sd20_mode) {
+			/* Set sd_switch_fail here, because we needn't
+			 * switch to UHS mode
+			 */
+			sd_card->sd_switch_fail = SDR104_SUPPORT_MASK |
+				DDR50_SUPPORT_MASK | SDR50_SUPPORT_MASK;
+		}
+
+		/* Check the card whether follow SD1.1 spec or higher */
 		retval = sd_check_spec(chip, switch_bus_width);
 		if (retval == STATUS_SUCCESS) {
 			retval = sd_switch_function(chip, switch_bus_width);
@@ -2546,7 +2575,7 @@ SD_UNLOCK_ENTRY:
 	sd_card->sd_lock_status &= ~SD_LOCK_1BIT_MODE;
 #endif
 
-	if (CHK_SD30_SPEED(sd_card)) {
+	if (!sd20_mode && CHK_SD30_SPEED(sd_card)) {
 		int read_lba0 = 1;
 
 		RTSX_WRITE_REG(chip, SD30_DRIVE_SEL, 0x07, chip->sd30_drive_sel_1v8);
@@ -3040,28 +3069,6 @@ MMC_UNLOCK_ENTRY:
 	return STATUS_SUCCESS;
 }
 
-static void sd_init_type(struct rtsx_chip *chip)
-{
-	struct sd_info *sd_card = &(chip->sd_card);
-
-	memset(sd_card, 0, sizeof(struct sd_info));
-
-	sd_card->sd_type = 0;
-	sd_card->seq_mode = 0;
-	sd_card->sd_data_buf_ready = 0;
-	sd_card->capacity = 0;
-	sd_card->sd_switch_fail = 0;
-	sd_card->mmc_dont_switch_bus = 0;
-	sd_card->need_retune = 0;
-
-#ifdef SUPPORT_SD_LOCK
-	sd_card->sd_lock_status = 0;
-	sd_card->sd_erase_status = 0;
-#endif
-
-	chip->capacity[chip->card2lun[SD_CARD]] = sd_card->capacity = 0;
-}
-
 int reset_sd_card(struct rtsx_chip *chip)
 {
 	struct sd_info *sd_card = &(chip->sd_card);
@@ -3069,7 +3076,8 @@ int reset_sd_card(struct rtsx_chip *chip)
 
 	sd_init_reg_addr(chip);
 
-	sd_init_type(chip);
+	memset(sd_card, 0, sizeof(struct sd_info));
+	chip->capacity[chip->card2lun[SD_CARD]] = 0;
 
 	retval = enable_card_clock(chip, SD_CARD);
 	if (retval != STATUS_SUCCESS) {
