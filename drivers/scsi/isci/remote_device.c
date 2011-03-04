@@ -67,40 +67,35 @@
 
 /**
  * isci_remote_device_deconstruct() - This function frees an isci_remote_device.
- * @isci_host: This parameter specifies the isci host object.
- * @isci_device: This parameter specifies the remote device to be freed.
+ * @ihost: This parameter specifies the isci host object.
+ * @idev: This parameter specifies the remote device to be freed.
  *
  */
-static void isci_remote_device_deconstruct(
-	struct isci_host *isci_host,
-	struct isci_remote_device *isci_device)
+static void isci_remote_device_deconstruct(struct isci_host *ihost, struct isci_remote_device *idev)
 {
-	dev_dbg(&isci_host->pdev->dev,
-		"%s: isci_device = %p\n", __func__, isci_device);
+	dev_dbg(&ihost->pdev->dev,
+		"%s: isci_device = %p\n", __func__, idev);
 
 	/* There should not be any outstanding io's. All paths to
 	 * here should go through isci_remote_device_nuke_requests.
 	 * If we hit this condition, we will need a way to complete
 	 * io requests in process */
-	while (!list_empty(&isci_device->reqs_in_process)) {
+	while (!list_empty(&idev->reqs_in_process)) {
 
-		dev_err(&isci_host->pdev->dev,
+		dev_err(&ihost->pdev->dev,
 			"%s: ** request list not empty! **\n", __func__);
 		BUG();
 	}
 
-	/* Remove all related references to this device and free
-	 * the cache object.
-	 */
-	scic_remote_device_destruct(to_sci_dev(isci_device));
-	isci_device->domain_dev->lldd_dev = NULL;
-	list_del(&isci_device->node);
+	scic_remote_device_destruct(to_sci_dev(idev));
+	idev->domain_dev->lldd_dev = NULL;
+	idev->domain_dev = NULL;
+	idev->isci_port = NULL;
+	list_del_init(&idev->node);
 
-	clear_bit(IDEV_STOP_PENDING, &isci_device->flags);
-	clear_bit(IDEV_START_PENDING, &isci_device->flags);
-	wake_up(&isci_host->eventq);
-	complete(isci_device->cmp);
-	kmem_cache_free(isci_kmem_cache, isci_device);
+	clear_bit(IDEV_START_PENDING, &idev->flags);
+	clear_bit(IDEV_STOP_PENDING, &idev->flags);
+	wake_up(&ihost->eventq);
 }
 
 
@@ -259,25 +254,27 @@ void isci_remote_device_nuke_requests(
  * pointer to new isci_remote_device.
  */
 static struct isci_remote_device *
-isci_remote_device_alloc(struct isci_host *isci_host, struct isci_port *port)
+isci_remote_device_alloc(struct isci_host *ihost, struct isci_port *iport)
 {
-	struct isci_remote_device *isci_device;
+	struct isci_remote_device *idev;
+	int i;
 
-	isci_device = kmem_cache_zalloc(isci_kmem_cache, GFP_KERNEL);
+	for (i = 0; i < SCI_MAX_REMOTE_DEVICES; i++) {
+		idev = idev_by_id(ihost, i);
+		if (!test_and_set_bit(IDEV_ALLOCATED, &idev->flags))
+			break;
+	}
 
-	if (!isci_device) {
-		dev_warn(&isci_host->pdev->dev, "%s: failed\n", __func__);
+	if (i >= SCI_MAX_REMOTE_DEVICES) {
+		dev_warn(&ihost->pdev->dev, "%s: failed\n", __func__);
 		return NULL;
 	}
 
-	INIT_LIST_HEAD(&isci_device->reqs_in_process);
-	INIT_LIST_HEAD(&isci_device->node);
+	BUG_ON(!list_empty(&idev->reqs_in_process));
+	BUG_ON(!list_empty(&idev->node));
+	isci_remote_device_change_state(idev, isci_freed);
 
-	spin_lock_init(&isci_device->state_lock);
-	isci_remote_device_change_state(isci_device, isci_freed);
-
-	return isci_device;
-
+	return idev;
 }
 
 /**
@@ -381,24 +378,22 @@ enum sci_status isci_remote_device_stop(struct isci_host *ihost, struct isci_rem
 {
 	enum sci_status status;
 	unsigned long flags;
-	DECLARE_COMPLETION_ONSTACK(completion);
 
 	dev_dbg(&ihost->pdev->dev,
 		"%s: isci_device = %p\n", __func__, idev);
 
 	isci_remote_device_change_state(idev, isci_stopping);
 	set_bit(IDEV_STOP_PENDING, &idev->flags);
-	idev->cmp = &completion;
 
 	spin_lock_irqsave(&ihost->scic_lock, flags);
-
 	status = scic_remote_device_stop(to_sci_dev(idev), 50);
-
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
 	/* Wait for the stop complete callback. */
-	if (status == SCI_SUCCESS)
+	if (status == SCI_SUCCESS) {
 		wait_for_device_stop(ihost, idev);
+		clear_bit(IDEV_ALLOCATED, &idev->flags);
+	}
 
 	dev_dbg(&ihost->pdev->dev,
 		"%s: idev = %p - after completion wait\n",
@@ -469,6 +464,8 @@ int isci_remote_device_found(struct domain_device *domain_dev)
 		return -ENODEV;
 
 	isci_device = isci_remote_device_alloc(isci_host, isci_port);
+	if (!isci_device)
+		return -ENODEV;
 
 	INIT_LIST_HEAD(&isci_device->node);
 	domain_dev->lldd_dev = isci_device;

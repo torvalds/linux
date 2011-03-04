@@ -61,6 +61,7 @@
 /*#include "task.h"*/
 #include "timers.h"
 #include "remote_device.h"
+#include "scic_remote_device.h"
 
 #define DRV_NAME "isci"
 #define SCI_PCI_BAR_COUNT 2
@@ -117,8 +118,18 @@ struct isci_host {
 	struct list_head requests_to_complete;
 	struct list_head requests_to_abort;
 	spinlock_t scic_lock;
+
+	/* careful only access this via idev_by_id */
+	struct isci_remote_device devices[0];
 };
 
+static inline struct isci_remote_device *idev_by_id(struct isci_host *ihost, int i)
+{
+	void *p = ihost->devices;
+
+	return p + i * (sizeof(struct isci_remote_device) +
+			scic_remote_device_get_object_size());
+}
 
 /**
  * struct isci_pci_info - This class represents the pci function containing the
@@ -219,11 +230,7 @@ static inline void wait_for_device_start(struct isci_host *ihost, struct isci_re
 
 static inline void wait_for_device_stop(struct isci_host *ihost, struct isci_remote_device *idev)
 {
-	/* todo switch to:
-	 * wait_event(ihost->eventq, !test_bit(IDEV_STOP_PENDING, &idev->flags));
-	 * once devices are statically allocated
-	 */
-	wait_for_completion(idev->cmp);
+	wait_event(ihost->eventq, !test_bit(IDEV_STOP_PENDING, &idev->flags));
 }
 
 /**

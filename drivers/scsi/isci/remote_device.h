@@ -63,8 +63,8 @@ struct isci_remote_device {
 	enum isci_status status;
 	#define IDEV_START_PENDING 0
 	#define IDEV_STOP_PENDING 1
+	#define IDEV_ALLOCATED 2
 	unsigned long flags;
-	struct completion *cmp;
 	struct isci_port *isci_port;
 	struct domain_device *domain_dev;
 	struct list_head node;

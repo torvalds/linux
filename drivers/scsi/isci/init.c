@@ -64,7 +64,6 @@
 #include "sci_environment.h"
 
 static struct scsi_transport_template *isci_transport_template;
-struct kmem_cache *isci_kmem_cache;
 
 static DEFINE_PCI_DEVICE_TABLE(isci_id_table) = {
 	{ PCI_VDEVICE(INTEL, 0x1D61),},
@@ -443,7 +442,10 @@ static struct isci_host *isci_host_alloc(struct pci_dev *pdev, int id)
 	struct Scsi_Host *shost;
 	int err;
 
-	isci_host = devm_kzalloc(&pdev->dev, sizeof(*isci_host), GFP_KERNEL);
+	isci_host = devm_kzalloc(&pdev->dev, sizeof(*isci_host) +
+				 SCI_MAX_REMOTE_DEVICES *
+				 (sizeof(struct isci_remote_device) +
+				  scic_remote_device_get_object_size()), GFP_KERNEL);
 	if (!isci_host)
 		return NULL;
 
@@ -656,31 +658,17 @@ static void __devexit isci_pci_remove(struct pci_dev *pdev)
 
 static __init int isci_init(void)
 {
-	int err = -ENOMEM;
+	int err;
 
 	pr_info("%s: Intel(R) C600 SAS Controller Driver\n", DRV_NAME);
 
-	isci_kmem_cache = kmem_cache_create(DRV_NAME,
-					    sizeof(struct isci_remote_device) +
-					    scic_remote_device_get_object_size(),
-					    0, 0, NULL);
-	if (!isci_kmem_cache)
-		return err;
-
 	isci_transport_template = sas_domain_attach_transport(&isci_transport_ops);
 	if (!isci_transport_template)
-		goto err_kmem;
+		return -ENOMEM;
 
 	err = pci_register_driver(&isci_pci_driver);
 	if (err)
-		goto err_sas;
-
-	return 0;
-
- err_sas:
-	sas_release_transport(isci_transport_template);
- err_kmem:
-	kmem_cache_destroy(isci_kmem_cache);
+		sas_release_transport(isci_transport_template);
 
 	return err;
 }
@@ -689,7 +677,6 @@ static __exit void isci_exit(void)
 {
 	pci_unregister_driver(&isci_pci_driver);
 	sas_release_transport(isci_transport_template);
-	kmem_cache_destroy(isci_kmem_cache);
 }
 
 MODULE_LICENSE("Dual BSD/GPL");

@@ -378,8 +378,7 @@ static void __iomem *smu_base(struct isci_host *isci_host)
 
 int isci_host_init(struct isci_host *isci_host)
 {
-	int err = 0;
-	int index = 0;
+	int err = 0, i;
 	enum sci_status status;
 	struct scic_sds_controller *controller;
 	union scic_oem_parameters scic_oem_params;
@@ -509,13 +508,19 @@ int isci_host_init(struct isci_host *isci_host)
 	if (!isci_host->dma_pool)
 		return -ENOMEM;
 
-	for (index = 0; index < SCI_MAX_PORTS; index++)
-		isci_port_init(&isci_host->isci_ports[index],
-			       isci_host,
-			       index);
+	for (i = 0; i < SCI_MAX_PORTS; i++)
+		isci_port_init(&isci_host->isci_ports[i], isci_host, i);
 
-	for (index = 0; index < SCI_MAX_PHYS; index++)
-		isci_phy_init(&isci_host->phys[index], isci_host, index);
+	for (i = 0; i < SCI_MAX_PHYS; i++)
+		isci_phy_init(&isci_host->phys[i], isci_host, i);
+
+	for (i = 0; i < SCI_MAX_REMOTE_DEVICES; i++) {
+		struct isci_remote_device *idev = idev_by_id(isci_host, i);
+
+		INIT_LIST_HEAD(&idev->reqs_in_process);
+		INIT_LIST_HEAD(&idev->node);
+		spin_lock_init(&idev->state_lock);
+	}
 
 	return 0;
 }
