@@ -790,9 +790,9 @@ static void isci_task_save_for_upper_layer_completion(
 {
 	struct sas_task *task = isci_request_access_task(request);
 
-	isci_task_set_completion_status(task, response, status,
-					 task_notification_selection);
-
+	task_notification_selection
+		= isci_task_set_completion_status(task, response, status,
+						  task_notification_selection);
 
 	/* Tasks aborted specifically by a call to the lldd_abort_task
 	 * function should not be completed to the host in the regular path.
@@ -811,6 +811,9 @@ static void isci_task_save_for_upper_layer_completion(
 		/* Add to the completed list. */
 		list_add(&request->completed_node,
 			 &host->requests_to_complete);
+
+		/* Take the request off the device's pending request list. */
+		list_del_init(&request->dev_node);
 		break;
 
 	case isci_perform_aborted_io_completion:

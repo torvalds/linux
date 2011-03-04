@@ -290,17 +290,6 @@ static void isci_host_completion_routine(unsigned long data)
 	list_splice_init(&isci_host->requests_to_complete,
 			 &completed_request_list);
 
-	/* While holding the scic_lock take all of the normally completed
-	 * I/Os off of the device's pending lists.
-	 */
-	list_for_each_entry(request, &completed_request_list, completed_node) {
-
-		/* Remove the request from the remote device's list
-		* of pending requests.
-		*/
-		list_del_init(&request->dev_node);
-	}
-
 	/* Take the list of errored I/Os from the host. */
 	list_splice_init(&isci_host->requests_to_errorback,
 			 &errored_request_list);

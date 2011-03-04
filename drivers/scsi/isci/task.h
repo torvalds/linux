@@ -280,9 +280,10 @@ static inline void isci_task_all_done(
  * @response: This parameter is the response code for the completed task.
  * @status: This parameter is the status code for the completed task.
  *
- * none.
- */
-static inline void isci_task_set_completion_status(
+* @return The new notification mode for the request.
+*/
+static inline enum isci_completion_selection
+isci_task_set_completion_status(
 	struct sas_task *task,
 	enum service_response response,
 	enum exec_status status,
@@ -295,15 +296,41 @@ static inline void isci_task_set_completion_status(
 	task->task_status.resp = response;
 	task->task_status.stat = status;
 
-	/* Don't set DONE (or clear AT_INITIATOR) for any task going into the
-	 * error path, because the EH interprets that as a handled error condition.
-	 * Also don't take action if there is a reset pending.
-	 */
-	if ((task_notification_selection != isci_perform_error_io_completion)
-	    && !(task->task_state_flags & SAS_TASK_NEED_DEV_RESET))
-		isci_set_task_doneflags(task);
+	/* If a device reset is being indicated, make sure the I/O
+	* is in the error path.
+	*/
+	if (task->task_state_flags & SAS_TASK_NEED_DEV_RESET)
+		task_notification_selection = isci_perform_error_io_completion;
+
+	switch (task_notification_selection) {
+
+		case isci_perform_aborted_io_completion:
+			/* This path can occur with task-managed requests as well as
+			* requests terminated because of LUN or device resets.
+			*/
+			/* Fall through to the normal case... */
+
+		case isci_perform_normal_io_completion:
+			/* Normal notification (task_done) */
+			isci_set_task_doneflags(task);
+			break;
+
+		default:
+			WARN_ON(FALSE);
+			/* Fall through to the error case... */
+
+		case isci_perform_error_io_completion:
+			/* Use sas_task_abort */
+			/* Leave SAS_TASK_STATE_DONE clear
+			*  Leave SAS_TASK_AT_INITIATOR set.
+			*/
+			break;
+	}
 
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
+
+	return task_notification_selection;
+
 }
 /**
  * isci_task_complete_for_upper_layer() - This function completes the request
@@ -322,9 +349,9 @@ static inline void isci_task_complete_for_upper_layer(
 	enum exec_status status,
 	enum isci_completion_selection task_notification_selection)
 {
-	isci_task_set_completion_status(task, response, status,
-					 task_notification_selection);
-
+	task_notification_selection
+		= isci_task_set_completion_status(task, response, status,
+						  task_notification_selection);
 
 	/* Tasks aborted specifically by a call to the lldd_abort_task
 	 * function should not be completed to the host in the regular path.
