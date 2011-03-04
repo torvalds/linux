@@ -1485,6 +1485,7 @@ static struct omap_hwmod_ocp_if omap2430_l4_core__dss_venc = {
 	.clk		= "dss_54m_fck",
 	.addr		= omap2430_dss_venc_addrs,
 	.addr_cnt	= ARRAY_SIZE(omap2430_dss_venc_addrs),
+	.flags		= OCPIF_SWSUP_IDLE,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 

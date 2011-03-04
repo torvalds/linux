@@ -1410,6 +1410,7 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__dss_venc = {
 			.flags	= OMAP_FIREWALL_L4,
 		}
 	},
+	.flags		= OCPIF_SWSUP_IDLE,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
