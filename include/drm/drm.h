@@ -752,6 +752,8 @@ struct drm_event_vblank {
 	__u32 reserved;
 };
 
+#define DRM_CAP_DUMB_BUFFER 0x1
+
 /* typedef area */
 #ifndef __KERNEL__
 typedef struct drm_clip_rect drm_clip_rect_t;

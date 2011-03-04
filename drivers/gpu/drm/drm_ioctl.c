@@ -275,6 +275,14 @@ int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	struct drm_get_cap *req = data;
 
 	req->value = 0;
+	switch (req->capability) {
+	case DRM_CAP_DUMB_BUFFER:
+		if (dev->driver->dumb_create)
+			req->value = 1;
+		break;
+	default:
+		return -EINVAL;
+	}
 	return 0;
 }
 
