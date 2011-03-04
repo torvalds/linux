@@ -412,12 +412,11 @@ static int omfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	/* since omfs locates files by name, we need to unlink _before_
 	 * adding the new link or we won't find the old one */
 	inode_inc_link_count(old_inode);
-	err = omfs_unlink(old_dir, old_dentry);
-	if (err) {
-		inode_dec_link_count(old_inode);
+	err = omfs_delete_entry(old_dentry);
+	if (err)
 		goto out;
-	}
 
+	mark_inode_dirty(old_dir);
 	err = omfs_add_link(new_dentry, old_inode);
 	if (err)
 		goto out;
