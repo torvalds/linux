@@ -221,6 +221,15 @@ void isci_task_build_tmf(
 	struct isci_tmf *tmf,
 	struct isci_remote_device *isci_device,
 	enum isci_tmf_function_codes code,
+	void (*tmf_sent_cb)(enum isci_tmf_cb_state,
+			    struct isci_tmf *,
+			    void *),
+	void *cb_data);
+
+void isci_task_build_abort_task_tmf(
+	struct isci_tmf *tmf,
+	struct isci_remote_device *isci_device,
+	enum isci_tmf_function_codes code,
 	void (*tmf_sent_cb)(
 		enum isci_tmf_cb_state,
 		struct isci_tmf *, void *),
