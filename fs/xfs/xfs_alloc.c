@@ -463,6 +463,27 @@ xfs_alloc_read_agfl(
 	return 0;
 }
 
+STATIC int
+xfs_alloc_update_counters(
+	struct xfs_trans	*tp,
+	struct xfs_perag	*pag,
+	struct xfs_buf		*agbp,
+	long			len)
+{
+	struct xfs_agf		*agf = XFS_BUF_TO_AGF(agbp);
+
+	pag->pagf_freeblks += len;
+	be32_add_cpu(&agf->agf_freeblks, len);
+
+	xfs_trans_agblocks_delta(tp, len);
+	if (unlikely(be32_to_cpu(agf->agf_freeblks) >
+		     be32_to_cpu(agf->agf_length)))
+		return EFSCORRUPTED;
+
+	xfs_alloc_log_agf(tp, agbp, XFS_AGF_FREEBLKS);
+	return 0;
+}
+
 /*
  * Allocation group level functions.
  */
@@ -504,49 +525,44 @@ xfs_alloc_ag_vextent(
 		ASSERT(0);
 		/* NOTREACHED */
 	}
-	if (error)
+
+	if (error || args->agbno == NULLAGBLOCK)
 		return error;
-	/*
-	 * If the allocation worked, need to change the agf structure
-	 * (and log it), and the superblock.
-	 */
-	if (args->agbno != NULLAGBLOCK) {
-		xfs_agf_t	*agf;	/* allocation group freelist header */
-		long		slen = (long)args->len;
 
-		ASSERT(args->len >= args->minlen && args->len <= args->maxlen);
-		ASSERT(!(args->wasfromfl) || !args->isfl);
-		ASSERT(args->agbno % args->alignment == 0);
-		if (!(args->wasfromfl)) {
+	ASSERT(args->len >= args->minlen);
+	ASSERT(args->len <= args->maxlen);
+	ASSERT(!args->wasfromfl || !args->isfl);
+	ASSERT(args->agbno % args->alignment == 0);
 
-			agf = XFS_BUF_TO_AGF(args->agbp);
-			be32_add_cpu(&agf->agf_freeblks, -(args->len));
-			xfs_trans_agblocks_delta(args->tp,
-						 -((long)(args->len)));
-			args->pag->pagf_freeblks -= args->len;
-			ASSERT(be32_to_cpu(agf->agf_freeblks) <=
-				be32_to_cpu(agf->agf_length));
-			xfs_alloc_log_agf(args->tp, args->agbp,
-						XFS_AGF_FREEBLKS);
-			/*
-			 * Search the busylist for these blocks and mark the
-			 * transaction as synchronous if blocks are found. This
-			 * avoids the need to block due to a synchronous log
-			 * force to ensure correct ordering as the synchronous
-			 * transaction will guarantee that for us.
-			 */
-			if (xfs_alloc_busy_search(args->mp, args->agno,
-						args->agbno, args->len))
-				xfs_trans_set_sync(args->tp);
-		}
-		if (!args->isfl)
-			xfs_trans_mod_sb(args->tp,
-				args->wasdel ? XFS_TRANS_SB_RES_FDBLOCKS :
-					XFS_TRANS_SB_FDBLOCKS, -slen);
-		XFS_STATS_INC(xs_allocx);
-		XFS_STATS_ADD(xs_allocb, args->len);
+	if (!args->wasfromfl) {
+		error = xfs_alloc_update_counters(args->tp, args->pag,
+						  args->agbp,
+						  -((long)(args->len)));
+		if (error)
+			return error;
+
+		/*
+		 * Search the busylist for these blocks and mark the
+		 * transaction as synchronous if blocks are found. This
+		 * avoids the need to block due to a synchronous log
+		 * force to ensure correct ordering as the synchronous
+		 * transaction will guarantee that for us.
+		 */
+		if (xfs_alloc_busy_search(args->mp, args->agno,
+					args->agbno, args->len))
+			xfs_trans_set_sync(args->tp);
 	}
-	return 0;
+
+	if (!args->isfl) {
+		xfs_trans_mod_sb(args->tp, args->wasdel ?
+				 XFS_TRANS_SB_RES_FDBLOCKS :
+				 XFS_TRANS_SB_FDBLOCKS,
+				 -((long)(args->len)));
+	}
+
+	XFS_STATS_INC(xs_allocx);
+	XFS_STATS_ADD(xs_allocb, args->len);
+	return error;
 }
 
 /*
@@ -1385,6 +1401,7 @@ xfs_free_ag_extent(
 	xfs_mount_t	*mp;		/* mount point struct for filesystem */
 	xfs_agblock_t	nbno;		/* new starting block of freespace */
 	xfs_extlen_t	nlen;		/* new length of freespace */
+	xfs_perag_t	*pag;		/* per allocation group data */
 
 	mp = tp->t_mountp;
 	/*
@@ -1583,30 +1600,20 @@ xfs_free_ag_extent(
 	XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
 	xfs_btree_del_cursor(cnt_cur, XFS_BTREE_NOERROR);
 	cnt_cur = NULL;
+
 	/*
 	 * Update the freespace totals in the ag and superblock.
 	 */
-	{
-		xfs_agf_t	*agf;
-		xfs_perag_t	*pag;		/* per allocation group data */
+	pag = xfs_perag_get(mp, agno);
+	error = xfs_alloc_update_counters(tp, pag, agbp, len);
+	xfs_perag_put(pag);
+	if (error)
+		goto error0;
 
-		pag = xfs_perag_get(mp, agno);
-		pag->pagf_freeblks += len;
-		xfs_perag_put(pag);
-
-		agf = XFS_BUF_TO_AGF(agbp);
-		be32_add_cpu(&agf->agf_freeblks, len);
-		xfs_trans_agblocks_delta(tp, len);
-		XFS_WANT_CORRUPTED_GOTO(
-			be32_to_cpu(agf->agf_freeblks) <=
-			be32_to_cpu(agf->agf_length),
-			error0);
-		xfs_alloc_log_agf(tp, agbp, XFS_AGF_FREEBLKS);
-		if (!isfl)
-			xfs_trans_mod_sb(tp, XFS_TRANS_SB_FDBLOCKS, (long)len);
-		XFS_STATS_INC(xs_freex);
-		XFS_STATS_ADD(xs_freeb, len);
-	}
+	if (!isfl)
+		xfs_trans_mod_sb(tp, XFS_TRANS_SB_FDBLOCKS, (long)len);
+	XFS_STATS_INC(xs_freex);
+	XFS_STATS_ADD(xs_freeb, len);
 
 	trace_xfs_free_extent(mp, agno, bno, len, isfl, haveleft, haveright);
 
