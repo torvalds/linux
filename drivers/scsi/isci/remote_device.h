@@ -60,7 +60,6 @@ struct isci_host;
 struct scic_sds_remote_device;
 
 struct isci_remote_device {
-	struct scic_sds_remote_device *sci_device_handle;
 	enum isci_status status;
 	struct isci_port *isci_port;
 	struct domain_device *domain_dev;
@@ -72,6 +71,12 @@ struct isci_remote_device {
 	spinlock_t host_quiesce_lock;
 	bool host_quiesce;
 };
+
+static inline struct scic_sds_remote_device *to_sci_dev(struct isci_remote_device *idev)
+{
+	/* core data is an opaque buffer at the end of the idev */
+	return (struct scic_sds_remote_device *) &idev[1];
+}
 
 #define to_isci_remote_device(p)	\
 	container_of(p, struct isci_remote_device, sci_remote_device);

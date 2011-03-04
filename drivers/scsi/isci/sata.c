@@ -348,7 +348,7 @@ int isci_task_send_lu_reset_sata(
 	spin_lock_irqsave(&isci_host->scic_lock, flags);
 
 	/* Resume the device. */
-	scic_sds_remote_device_resume(isci_device->sci_device_handle);
+	scic_sds_remote_device_resume(to_sci_dev(isci_device));
 
 	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
 

@@ -92,7 +92,7 @@ static void isci_remote_device_deconstruct(
 	/* Remove all related references to this device and free
 	 * the cache object.
 	 */
-	scic_remote_device_destruct(isci_device->sci_device_handle);
+	scic_remote_device_destruct(to_sci_dev(isci_device));
 	isci_device->domain_dev->lldd_dev = NULL;
 	list_del(&isci_device->node);
 	kmem_cache_free(isci_kmem_cache, isci_device);
@@ -117,7 +117,7 @@ static enum sci_status isci_remote_device_construct(
 
 	/* let the core do it's common constuction. */
 	scic_remote_device_construct(port->sci_port_handle,
-				     isci_device->sci_device_handle);
+				     to_sci_dev(isci_device));
 
 	/* let the core do it's device specific constuction. */
 	if (isci_device->domain_dev->parent &&
@@ -183,15 +183,11 @@ static enum sci_status isci_remote_device_construct(
 			"%s: parent->dev_type = EDGE_DEV\n",
 			__func__);
 
-		status = scic_remote_device_ea_construct(
-			isci_device->sci_device_handle,
-			(struct smp_response_discover *)&discover_response
-			);
+		status = scic_remote_device_ea_construct(to_sci_dev(isci_device),
+				(struct smp_response_discover *)&discover_response);
 
 	} else
-		status = scic_remote_device_da_construct(
-			isci_device->sci_device_handle
-			);
+		status = scic_remote_device_da_construct(to_sci_dev(isci_device));
 
 
 	if (status != SCI_SUCCESS) {
@@ -204,18 +200,13 @@ static enum sci_status isci_remote_device_construct(
 		return status;
 	}
 
-	sci_object_set_association(
-		isci_device->sci_device_handle,
-		isci_device
-		);
+	sci_object_set_association(to_sci_dev(isci_device), isci_device);
 
 	BUG_ON(port->isci_host == NULL);
 
 	/* start the device. */
-	status = scic_remote_device_start(
-		isci_device->sci_device_handle,
-		ISCI_REMOTE_DEVICE_START_TIMEOUT
-		);
+	status = scic_remote_device_start(to_sci_dev(isci_device),
+					  ISCI_REMOTE_DEVICE_START_TIMEOUT);
 
 	if (status != SCI_SUCCESS) {
 		dev_warn(&port->isci_host->pdev->dev,
@@ -266,7 +257,6 @@ static struct isci_remote_device *
 isci_remote_device_alloc(struct isci_host *isci_host, struct isci_port *port)
 {
 	struct isci_remote_device *isci_device;
-	struct scic_sds_remote_device *sci_dev;
 
 	isci_device = kmem_cache_zalloc(isci_kmem_cache, GFP_KERNEL);
 
@@ -275,8 +265,6 @@ isci_remote_device_alloc(struct isci_host *isci_host, struct isci_port *port)
 		return NULL;
 	}
 
-	sci_dev = (struct scic_sds_remote_device *) &isci_device[1];
-	isci_device->sci_device_handle = sci_dev;
 	INIT_LIST_HEAD(&isci_device->reqs_in_process);
 	INIT_LIST_HEAD(&isci_device->node);
 	isci_device->host_quiesce          = false;
@@ -441,10 +429,7 @@ enum sci_status isci_remote_device_stop(
 
 	spin_lock_irqsave(&isci_device->isci_port->isci_host->scic_lock, flags);
 
-	status = scic_remote_device_stop(
-		isci_device->sci_device_handle,
-		50
-		);
+	status = scic_remote_device_stop(to_sci_dev(isci_device), 50);
 
 	spin_unlock_irqrestore(&isci_device->isci_port->isci_host->scic_lock, flags);
 

@@ -285,7 +285,7 @@ static enum sci_status isci_task_request_build(
 		"%s: isci_tmf = %p\n", __func__, isci_tmf);
 
 	isci_device = isci_tmf->device;
-	sci_device = isci_device->sci_device_handle;
+	sci_device = to_sci_dev(isci_device);
 
 	/* do common allocation and init of request object. */
 	status = isci_request_alloc_tmf(
@@ -395,7 +395,7 @@ static void isci_tmf_timeout_cb(void *tmf_request_arg)
 		/* Terminate the TMF transmit request. */
 		status = scic_controller_terminate_request(
 			request->isci_host->core_controller,
-			request->isci_device->sci_device_handle,
+			to_sci_dev(request->isci_device),
 			request->sci_request_handle
 			);
 
@@ -456,7 +456,7 @@ int isci_task_execute_tmf(
 			"%s: isci_device = %p\n",
 			__func__, isci_device);
 
-	sci_device = isci_device->sci_device_handle;
+	sci_device = to_sci_dev(isci_device);
 
 	/* Assign the pointer to the TMF's completion kernel wait structure. */
 	tmf->complete = &completion;
@@ -728,7 +728,7 @@ static void isci_terminate_request_core(
 		was_terminated = true;
 		status = scic_controller_terminate_request(
 			isci_host->core_controller,
-			isci_device->sci_device_handle,
+			to_sci_dev(isci_device),
 			isci_request->sci_request_handle
 			);
 	}
@@ -1469,7 +1469,7 @@ void isci_task_request_complete(
 
 	scic_controller_complete_task(
 		isci_host->core_controller,
-		isci_device->sci_device_handle,
+		to_sci_dev(isci_device),
 		request->sci_request_handle
 		);
 	/* NULL the request handle to make sure it cannot be terminated
@@ -1612,7 +1612,7 @@ int isci_bus_reset_handler(struct scsi_cmnd *cmd)
 	if (isci_host != NULL)
 		spin_lock_irqsave(&isci_host->scic_lock, flags);
 
-	status = scic_remote_device_reset(isci_dev->sci_device_handle);
+	status = scic_remote_device_reset(to_sci_dev(isci_dev));
 	if (status != SCI_SUCCESS) {
 
 		if (isci_host != NULL)
@@ -1654,8 +1654,7 @@ int isci_bus_reset_handler(struct scsi_cmnd *cmd)
 
 	if (isci_host != NULL)
 		spin_lock_irqsave(&isci_host->scic_lock, flags);
-	status
-		= scic_remote_device_reset_complete(isci_dev->sci_device_handle);
+	status = scic_remote_device_reset_complete(to_sci_dev(isci_dev));
 
 	if (isci_host != NULL)
 		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
