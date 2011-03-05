@@ -9,5 +9,4 @@ easycap-$(CONFIG_EASYCAP_OSS) += easycap_sound_oss.o
 obj-$(CONFIG_EASYCAP)       += easycap.o
 
 ccflags-y := -Wall
-ccflags-y += -DEASYCAP_IS_VIDEODEV_CLIENT
 

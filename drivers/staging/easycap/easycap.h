@@ -29,7 +29,6 @@
  *  THE FOLLOWING PARAMETERS ARE UNDEFINED:
  *
  *                EASYCAP_DEBUG
- *                EASYCAP_IS_VIDEODEV_CLIENT
  *
  *  IF REQUIRED THEY MUST BE EXTERNALLY DEFINED, FOR EXAMPLE AS COMPILER
  *  OPTIONS.
@@ -81,12 +80,8 @@
 #include <sound/initval.h>
 #include <sound/control.h>
 #endif /* !CONFIG_EASYCAP_OSS */
-/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#ifdef EASYCAP_IS_VIDEODEV_CLIENT
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
-#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
-/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 #include <linux/videodev2.h>
 #include <linux/soundcard.h>
 
@@ -295,12 +290,9 @@ struct easycap {
 	int isdongle;
 	int minor;
 
-/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#ifdef EASYCAP_IS_VIDEODEV_CLIENT
 	struct video_device video_device;
 	struct v4l2_device v4l2_device;
-#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
-/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+
 	int status;
 	unsigned int audio_pages_per_fragment;
 	unsigned int audio_bytes_per_fragment;

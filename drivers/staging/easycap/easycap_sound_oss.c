@@ -277,11 +277,7 @@ static int easyoss_open(struct inode *inode, struct file *file)
 	struct usb_interface *pusb_interface;
 	struct easycap *peasycap;
 	int subminor;
-/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#ifdef EASYCAP_IS_VIDEODEV_CLIENT
 	struct v4l2_device *pv4l2_device;
-#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
-/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 	JOT(4, "begins\n");
 
@@ -300,8 +296,6 @@ static int easyoss_open(struct inode *inode, struct file *file)
 		return -1;
 	}
 /*---------------------------------------------------------------------------*/
-#ifdef EASYCAP_IS_VIDEODEV_CLIENT
-/*---------------------------------------------------------------------------*/
 /*
  *  SOME VERSIONS OF THE videodev MODULE OVERWRITE THE DATA WHICH HAS
  *  BEEN WRITTEN BY THE CALL TO usb_set_intfdata() IN easycap_usb_probe(),
@@ -318,8 +312,6 @@ static int easyoss_open(struct inode *inode, struct file *file)
 		peasycap = container_of(pv4l2_device,
 				struct easycap, v4l2_device);
 	}
-#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
-/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 /*---------------------------------------------------------------------------*/
 	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
 		SAY("ERROR: bad peasycap: %p\n", peasycap);
