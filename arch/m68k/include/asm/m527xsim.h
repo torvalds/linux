@@ -19,8 +19,9 @@
 /*
  *	Define the 5270/5271 SIM register set addresses.
  */
-#define	MCFICM_INTC0		0x0c00		/* Base for Interrupt Ctrl 0 */
-#define	MCFICM_INTC1		0x0d00		/* Base for Interrupt Ctrl 1 */
+#define	MCFICM_INTC0		(MCF_IPSBAR + 0x0c00)	/* Base for Interrupt Ctrl 0 */
+#define	MCFICM_INTC1		(MCF_IPSBAR + 0x0d00)	/* Base for Interrupt Ctrl 1 */
+
 #define	MCFINTC_IPRH		0x00		/* Interrupt pending 32-63 */
 #define	MCFINTC_IPRL		0x04		/* Interrupt pending 1-31 */
 #define	MCFINTC_IMRH		0x08		/* Interrupt mask 32-63 */

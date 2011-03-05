@@ -52,11 +52,10 @@ static void intc_irq_mask(struct irq_data *d)
 		u32 val, imrbit;
 
 		irq -= MCFINT_VECBASE;
-		imraddr = MCF_IPSBAR;
 #ifdef MCFICM_INTC1
-		imraddr += (irq & 0x40) ? MCFICM_INTC1 : MCFICM_INTC0;
+		imraddr = (irq & 0x40) ? MCFICM_INTC1 : MCFICM_INTC0;
 #else
-		imraddr += MCFICM_INTC0;
+		imraddr = MCFICM_INTC0;
 #endif
 		imraddr += (irq & 0x20) ? MCFINTC_IMRH : MCFINTC_IMRL;
 		imrbit = 0x1 << (irq & 0x1f);
@@ -75,11 +74,10 @@ static void intc_irq_unmask(struct irq_data *d)
 		u32 val, imrbit;
 
 		irq -= MCFINT_VECBASE;
-		intaddr = MCF_IPSBAR;
 #ifdef MCFICM_INTC1
-		intaddr += (irq & 0x40) ? MCFICM_INTC1 : MCFICM_INTC0;
+		intaddr = (irq & 0x40) ? MCFICM_INTC1 : MCFICM_INTC0;
 #else
-		intaddr += MCFICM_INTC0;
+		intaddr = MCFICM_INTC0;
 #endif
 		imraddr = intaddr + ((irq & 0x20) ? MCFINTC_IMRH : MCFINTC_IMRL);
 		icraddr = intaddr + MCFINTC_ICR0 + (irq & 0x3f);
@@ -116,9 +114,9 @@ void __init init_IRQ(void)
 	init_vectors();
 
 	/* Mask all interrupt sources */
-	__raw_writel(0x1, MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_IMRL);
+	__raw_writel(0x1, MCFICM_INTC0 + MCFINTC_IMRL);
 #ifdef MCFICM_INTC1
-	__raw_writel(0x1, MCF_IPSBAR + MCFICM_INTC1 + MCFINTC_IMRL);
+	__raw_writel(0x1, MCFICM_INTC1 + MCFINTC_IMRL);
 #endif
 
 	for (irq = 0; (irq < NR_IRQS); irq++) {
