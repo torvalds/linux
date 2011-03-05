@@ -1759,9 +1759,9 @@ static void rt_init_metrics(struct rtable *rt, struct fib_info *fi)
 	if (rt->fl.flags & FLOWI_FLAG_PRECOW_METRICS)
 		create = 1;
 
-	rt_bind_peer(rt, create);
-	peer = rt->peer;
+	rt->peer = peer = inet_getpeer_v4(rt->rt_dst, create);
 	if (peer) {
+		rt->rt_peer_genid = rt_peer_genid();
 		if (inet_metrics_new(peer))
 			memcpy(peer->metrics, fi->fib_metrics,
 			       sizeof(u32) * RTAX_MAX);
