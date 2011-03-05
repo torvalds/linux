@@ -49,9 +49,15 @@
 /*
  *	UART module.
  */
-#define MCFUART_BASE1		0x200           /* Base address of UART1 */
-#define MCFUART_BASE2		0x240           /* Base address of UART2 */
-#define MCFUART_BASE3		0x280           /* Base address of UART3 */
+#define	MCFUART_BASE1		(MCF_IPSBAR + 0x00000200)
+#define	MCFUART_BASE2		(MCF_IPSBAR + 0x00000240)
+#define	MCFUART_BASE3		(MCF_IPSBAR + 0x00000280)
+
+/*
+ *	FEC ethernet module.
+ */
+#define	MCFFEC_BASE		(MCF_IPSBAR + 0x00001000)
+#define	MCFFEC_SIZE		0x800
 
 /*
  * 	GPIO registers
