@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Motorola, Inc.
+ * Copyright (C) 2011 Motorola Mobility, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -21,12 +21,15 @@
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/i2c.h>
+#include <linux/irq.h>
 #include <linux/input.h>
+#include <linux/interrupt.h>
 #include <linux/input-polldev.h>
 #include <linux/miscdevice.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/gpio.h>
 
 #include <linux/l3g4200d.h>
 
@@ -64,33 +67,42 @@
 
 #define PM_MASK                         0x08
 #define ENABLE_ALL_AXES			0x07
+#define ODR_MASK	0xF0
+#define ODR100_BW25	0x10
+#define ODR200_BW70	0x70
+#define ODR400_BW110	0xB0
+#define ODR800_BW110	0xF0
 
 #define I2C_RETRY_DELAY			5
 #define I2C_RETRIES			5
 #define AUTO_INCREMENT			0x80
-#define L3G4200D_PU_DELAY               300
+#define L3G4200D_PU_DELAY               320
 
 
 struct l3g4200d_data {
 	struct i2c_client *client;
 	struct l3g4200d_platform_data *pdata;
-
-	struct delayed_work input_work;
 	struct input_dev *input_dev;
 
 	int hw_initialized;
 	atomic_t enabled;
-	int on_before_suspend;
 	struct regulator *regulator;
-
-	u8 shift_adj;
-	u8 resume_state[5];
 };
 
 struct gyro_val {
 	s16 x;
 	s16 y;
 	s16 z;
+};
+
+static const struct {
+	u8 odr_mask;
+	u32 delay_us;
+} gyro_odr_table[] = {
+	{  ODR800_BW110, 1250  },
+	{  ODR400_BW110, 2500  },
+	{  ODR200_BW70,  5000  },
+	{  ODR100_BW25,  10000 },
 };
 
 static uint32_t l3g4200d_debug;
@@ -171,7 +183,7 @@ static int l3g4200d_hw_init(struct l3g4200d_data *gyro)
 	u8 buf[8];
 
 	buf[0] = (AUTO_INCREMENT | L3G4200D_CTRL_REG1);
-	buf[1] = gyro->pdata->ctrl_reg1;
+	buf[1] = gyro->pdata->ctrl_reg1 & ~PM_MASK;
 	buf[2] = gyro->pdata->ctrl_reg2;
 	buf[3] = gyro->pdata->ctrl_reg3;
 	buf[4] = gyro->pdata->ctrl_reg4;
@@ -218,7 +230,7 @@ static void l3g4200d_device_power_off(struct l3g4200d_data *gyro)
 	err = l3g4200d_i2c_read(gyro, buf, 1);
 	if (err < 0) {
 		dev_err(&gyro->client->dev, "read register control_1 failed\n");
-		return;
+		buf[0] = gyro->pdata->ctrl_reg1;
 	}
 	buf[1] = buf[0] & ~PM_MASK;
 	buf[0] = L3G4200D_CTRL_REG1;
@@ -226,23 +238,12 @@ static void l3g4200d_device_power_off(struct l3g4200d_data *gyro)
 	err = l3g4200d_i2c_write(gyro, buf, 1);
 	if (err < 0)
 		dev_err(&gyro->client->dev, "soft power off failed\n");
-
-	if (gyro->regulator) {
-		regulator_disable(gyro->regulator);
-		gyro->hw_initialized = false;
-	}
 }
 
 static int l3g4200d_device_power_on(struct l3g4200d_data *gyro)
 {
 	int err;
 	u8 buf[2] = {L3G4200D_CTRL_REG1, 0};
-
-	if (gyro->regulator) {
-		err = regulator_enable(gyro->regulator);
-		if (err < 0)
-			return err;
-	}
 
 	if (!gyro->hw_initialized) {
 		err = l3g4200d_hw_init(gyro);
@@ -251,16 +252,45 @@ static int l3g4200d_device_power_on(struct l3g4200d_data *gyro)
 			return err;
 		}
 	}
+
 	err = l3g4200d_i2c_read(gyro, buf, 1);
-	if (err < 0)
+	if (err < 0) {
 		dev_err(&gyro->client->dev, "read register control_1 failed\n");
+		buf[0] = gyro->pdata->ctrl_reg1;
+	}
+
 	buf[1] = buf[0] | PM_MASK;
+	buf[0] = L3G4200D_CTRL_REG1;
+	err = l3g4200d_i2c_write(gyro, buf, 1);
+	if (err < 0)
+		dev_err(&gyro->client->dev, "soft power on failed\n");
+
+	msleep(L3G4200D_PU_DELAY);
+
+	return 0;
+}
+
+static void l3g4200d_device_suspend(struct l3g4200d_data *gyro, int suspend)
+{
+	int err;
+	u8 buf[2] = {L3G4200D_CTRL_REG1, 0};
+
+	err = l3g4200d_i2c_read(gyro, buf, 1);
+	if (err < 0) {
+		dev_err(&gyro->client->dev, "read register control_1 failed\n");
+		return;
+	}
+
+	if (suspend)
+		buf[1] = buf[0] & ~ENABLE_ALL_AXES;
+	else
+		buf[1] = buf[0] | ENABLE_ALL_AXES;
+
 	buf[0] = L3G4200D_CTRL_REG1;
 
 	err = l3g4200d_i2c_write(gyro, buf, 1);
 	if (err < 0)
-		dev_err(&gyro->client->dev, "soft power on failed\n");
-	return 0;
+		dev_err(&gyro->client->dev, "suspend %d failed\n", suspend);
 }
 
 static int l3g4200d_get_gyro_data(struct l3g4200d_data *gyro,
@@ -288,11 +318,40 @@ static void l3g4200d_report_values(struct l3g4200d_data *gyro,
 	input_report_rel(gyro->input_dev, REL_RX, data->x);
 	input_report_rel(gyro->input_dev, REL_RY, data->y);
 	input_report_rel(gyro->input_dev, REL_RZ, data->z);
+	input_sync(gyro->input_dev);
 
 	if (l3g4200d_debug)
-		pr_info("%s: Reporting x: %d, y: %d, z: %d\n",
-		__func__, data->x, data->y, data->z);
-	input_sync(gyro->input_dev);
+		pr_info("l3g4200d: x: %3d, y: %3d, z: %3d\n",
+			 data->x, data->y, data->z);
+}
+
+static irqreturn_t gyro_irq_thread(int irq, void *dev)
+{
+	struct l3g4200d_data *gyro = dev;
+	struct gyro_val data;
+	int err;
+
+	err = l3g4200d_get_gyro_data(gyro, &data);
+	if (err < 0)
+		dev_err(&gyro->client->dev, "get_acceleration_data failed\n");
+	else
+		l3g4200d_report_values(gyro, &data);
+
+	return IRQ_HANDLED;
+}
+
+static int l3g4200d_flush_gyro_data(struct l3g4200d_data *gyro)
+{
+	struct gyro_val data;
+	int i;
+
+	for (i = 0; i < 5; i++) {
+		if (gpio_get_value(gyro->pdata->gpio_drdy))
+			l3g4200d_get_gyro_data(gyro, &data);
+		else
+			return 0;
+	}
+	return -EIO;
 }
 
 static int l3g4200d_enable(struct l3g4200d_data *gyro)
@@ -300,26 +359,40 @@ static int l3g4200d_enable(struct l3g4200d_data *gyro)
 	int err;
 
 	if (!atomic_cmpxchg(&gyro->enabled, 0, 1)) {
+		if (gyro->regulator) {
+			err = regulator_enable(gyro->regulator);
+			if (err < 0)
+				goto err0;
+		}
 
 		err = l3g4200d_device_power_on(gyro);
 		if (err < 0) {
-			atomic_set(&gyro->enabled, 0);
-			return err;
+			regulator_disable(gyro->regulator);
+			gyro->hw_initialized = false;
+			goto err0;
 		}
-		schedule_delayed_work(&gyro->input_work,
-			msecs_to_jiffies(L3G4200D_PU_DELAY));
-	}
 
+		/* do not report noise at IC power-up
+		 * flush data before enabling irq */
+		l3g4200d_flush_gyro_data(gyro);
+		enable_irq(gyro->client->irq);
+	}
 	return 0;
+err0:
+	atomic_set(&gyro->enabled, 0);
+	return err;
 }
 
 static int l3g4200d_disable(struct l3g4200d_data *gyro)
 {
 	if (atomic_cmpxchg(&gyro->enabled, 1, 0)) {
-		cancel_delayed_work_sync(&gyro->input_work);
+		disable_irq(gyro->client->irq);
 		l3g4200d_device_power_off(gyro);
+		if (gyro->regulator) {
+			regulator_disable(gyro->regulator);
+			gyro->hw_initialized = false;
+		}
 	}
-
 	return 0;
 }
 
@@ -335,11 +408,61 @@ static int l3g4200d_misc_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int l3g4200d_set_delay(struct l3g4200d_data *gyro, u32 delay_ms)
+{
+	int odr_value = ODR100_BW25;
+	int err = -1;
+	int i;
+	u32 delay_us;
+	u8 buf[2] = {L3G4200D_CTRL_REG1, 0};
+
+	/* do not report noise during ODR update */
+	disable_irq(gyro->client->irq);
+
+	delay_us = delay_ms * USEC_PER_MSEC;
+	for (i = 0; i < ARRAY_SIZE(gyro_odr_table); i++)
+		if (delay_us <= gyro_odr_table[i].delay_us) {
+			odr_value = gyro_odr_table[i].odr_mask;
+			delay_us = gyro_odr_table[i].delay_us;
+			break;
+		}
+
+	if (delay_us >= gyro_odr_table[3].delay_us) {
+		odr_value = gyro_odr_table[3].odr_mask;
+		delay_us = gyro_odr_table[3].delay_us;
+	}
+
+	if (odr_value != (gyro->pdata->ctrl_reg1 & ODR_MASK)) {
+		buf[1] = (gyro->pdata->ctrl_reg1 & ~ODR_MASK);
+		buf[1] |= odr_value;
+		gyro->pdata->ctrl_reg1 = buf[1];
+		err = l3g4200d_i2c_write(gyro, buf, 1);
+		if (err < 0)
+			goto error;
+	}
+
+	gyro->pdata->poll_interval = delay_us / USEC_PER_MSEC;
+	/* noisy data upto 6/ODR */
+	msleep((delay_us * 6) / USEC_PER_MSEC);
+
+	l3g4200d_flush_gyro_data(gyro);
+	enable_irq(gyro->client->irq);
+
+	return 0;
+
+error:
+	dev_err(&gyro->client->dev, "update odr failed 0x%x,0x%x: %d\n",
+		buf[0], buf[1], err);
+
+	return err;
+}
+
 static long l3g4200d_misc_ioctl(struct file *file,
 				unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	int interval;
+	int err = -1;
 	struct l3g4200d_data *gyro = file->private_data;
 
 	switch (cmd) {
@@ -352,8 +475,9 @@ static long l3g4200d_misc_ioctl(struct file *file,
 	case L3G4200D_IOCTL_SET_DELAY:
 		if (copy_from_user(&interval, argp, sizeof(interval)))
 			return -EFAULT;
-		gyro->pdata->poll_interval =
-		    max(interval, gyro->pdata->min_interval);
+		err = l3g4200d_set_delay(gyro, interval);
+		if (err < 0)
+			return err;
 		break;
 
 	case L3G4200D_IOCTL_SET_ENABLE:
@@ -395,71 +519,26 @@ static struct miscdevice l3g4200d_misc_device = {
 	.fops = &l3g4200d_misc_fops,
 };
 
-static void l3g4200d_input_work_func(struct work_struct *work)
-{
-	struct l3g4200d_data *gyro = container_of((struct delayed_work *)work,
-						  struct l3g4200d_data,
-						  input_work);
-	struct gyro_val data;
-	int err;
-
-	err = l3g4200d_get_gyro_data(gyro, &data);
-	if (err < 0)
-		dev_err(&gyro->client->dev, "get_acceleration_data failed\n");
-	else
-		l3g4200d_report_values(gyro, &data);
-
-	schedule_delayed_work(&gyro->input_work,
-			      msecs_to_jiffies(gyro->pdata->poll_interval));
-}
-
-#ifdef L3G4200D_OPEN_ENABLE
-int l3g4200d_input_open(struct input_dev *input)
-{
-	struct l3g4200d_data *gyro = input_get_drvdata(input);
-
-	return l3g4200d_enable(gyro);
-}
-
-void l3g4200d_input_close(struct input_dev *dev)
-{
-	struct l3g4200d_data *gyro = input_get_drvdata(dev);
-
-	l3g4200d_disable(gyro);
-}
-#endif
-
-static int l3g4200d_validate_pdata(struct l3g4200d_data *gyro)
-{
-	gyro->pdata->poll_interval = max(gyro->pdata->poll_interval,
-					gyro->pdata->min_interval);
-
-	/* Enforce minimum polling interval */
-	if (gyro->pdata->poll_interval < gyro->pdata->min_interval) {
-		dev_err(&gyro->client->dev, "minimum poll interval violated\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int l3g4200d_input_init(struct l3g4200d_data *gyro)
 {
 	int err;
 
-	INIT_DELAYED_WORK(&gyro->input_work, l3g4200d_input_work_func);
+	err = request_threaded_irq(gyro->client->irq, NULL,
+			 gyro_irq_thread, IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+			 L3G4200D_NAME, gyro);
+	if (err != 0) {
+		pr_err("%s: irq request failed: %d\n", __func__, err);
+		err = -ENODEV;
+		goto err0;
+	}
+	disable_irq(gyro->client->irq);
 
 	gyro->input_dev = input_allocate_device();
 	if (!gyro->input_dev) {
 		err = -ENOMEM;
 		dev_err(&gyro->client->dev, "input device allocate failed\n");
-		goto err0;
+		goto err1;
 	}
-
-#ifdef L3G4200D_OPEN_ENABLE
-	gyro->input_dev->open = l3g4200d_input_open;
-	gyro->input_dev->close = l3g4200d_input_close;
-#endif
 
 	input_set_drvdata(gyro->input_dev, gyro);
 
@@ -474,13 +553,15 @@ static int l3g4200d_input_init(struct l3g4200d_data *gyro)
 		dev_err(&gyro->client->dev,
 			"unable to register input polled device %s\n",
 			gyro->input_dev->name);
-		goto err1;
+		goto err2;
 	}
 
 	return 0;
 
-err1:
+err2:
 	input_free_device(gyro->input_dev);
+err1:
+	free_irq(gyro->client->irq, gyro);
 err0:
 	return err;
 }
@@ -526,12 +607,6 @@ static int l3g4200d_probe(struct i2c_client *client,
 
 	memcpy(gyro->pdata, client->dev.platform_data, sizeof(*gyro->pdata));
 
-	err = l3g4200d_validate_pdata(gyro);
-	if (err < 0) {
-		dev_err(&client->dev, "failed to validate platform data\n");
-		goto err2;
-	}
-
 	gyro->regulator = regulator_get(&client->dev, "vcc");
 	if (IS_ERR_OR_NULL(gyro->regulator)) {
 		dev_err(&client->dev, "unable to get regulator\n");
@@ -542,6 +617,7 @@ static int l3g4200d_probe(struct i2c_client *client,
 
 	/* As default, do not report information */
 	atomic_set(&gyro->enabled, 0);
+	gyro->hw_initialized = false;
 
 	err = l3g4200d_input_init(gyro);
 	if (err < 0)
@@ -563,7 +639,6 @@ err4:
 err3:
 	if (gyro->regulator)
 		regulator_put(gyro->regulator);
-err2:
 	kfree(gyro->pdata);
 err1:
 	kfree(gyro);
@@ -580,6 +655,7 @@ static int __devexit l3g4200d_remove(struct i2c_client *client)
 	l3g4200d_disable(gyro);
 	if (gyro->regulator)
 		regulator_put(gyro->regulator);
+	free_irq(gyro->client->irq, gyro);
 	kfree(gyro->pdata);
 	kfree(gyro);
 
@@ -590,8 +666,11 @@ static int l3g4200d_resume(struct i2c_client *client)
 {
 	struct l3g4200d_data *gyro = i2c_get_clientdata(client);
 
-	if (gyro->on_before_suspend)
-		return l3g4200d_enable(gyro);
+	if (atomic_read(&gyro->enabled)) {
+		l3g4200d_device_suspend(gyro, 0);
+		l3g4200d_flush_gyro_data(gyro);
+		enable_irq(gyro->client->irq);
+	}
 	return 0;
 }
 
@@ -599,8 +678,11 @@ static int l3g4200d_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	struct l3g4200d_data *gyro = i2c_get_clientdata(client);
 
-	gyro->on_before_suspend = atomic_read(&gyro->enabled);
-	return l3g4200d_disable(gyro);
+	if (atomic_read(&gyro->enabled)) {
+		disable_irq(gyro->client->irq);
+		l3g4200d_device_suspend(gyro, 1);
+	}
+	return 0;
 }
 
 static const struct i2c_device_id l3g4200d_id[] = {
@@ -637,5 +719,5 @@ module_init(l3g4200d_init);
 module_exit(l3g4200d_exit);
 
 MODULE_DESCRIPTION("l3g4200d gyroscope driver");
-MODULE_AUTHOR("Dan Murphy D.Murphy@Motorola.com");
+MODULE_AUTHOR("Motorola Mobility");
 MODULE_LICENSE("GPL");

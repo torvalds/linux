@@ -34,7 +34,7 @@
 
 struct l3g4200d_platform_data {
 	int poll_interval;
-	int min_interval;
+	unsigned gpio_drdy;
 
 	u8 ctrl_reg1;
 	u8 ctrl_reg2;
