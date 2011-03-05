@@ -217,7 +217,7 @@ static inline struct rtable *ip_route_newports(struct rtable *rt,
 				    .fl4_dst = rt->fl.fl4_dst,
 				    .fl4_src = rt->fl.fl4_src,
 				    .fl4_tos = rt->fl.fl4_tos,
-				    .proto = rt->fl.proto,
+				    .proto = protocol,
 				    .fl_ip_sport = sport,
 				    .fl_ip_dport = dport };
 
