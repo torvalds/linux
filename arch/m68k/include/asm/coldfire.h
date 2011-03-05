@@ -41,9 +41,6 @@
     defined(CONFIG_M520x)
 #undef MCF_MBAR
 #define	MCF_MBAR	MCF_IPSBAR
-#elif defined(CONFIG_M532x)
-#undef MCF_MBAR
-#define MCF_MBAR	0x00000000
 #endif
 
 /****************************************************************************/
