@@ -2431,14 +2431,7 @@ static struct rtable *ip_route_output_slow(struct net *net,
 					   const struct flowi *oldflp)
 {
 	u32 tos	= RT_FL_TOS(oldflp);
-	struct flowi fl = { .fl4_dst = oldflp->fl4_dst,
-			    .fl4_src = oldflp->fl4_src,
-			    .fl4_tos = tos & IPTOS_RT_MASK,
-			    .fl4_scope = ((tos & RTO_ONLINK) ?
-					  RT_SCOPE_LINK : RT_SCOPE_UNIVERSE),
-			    .mark = oldflp->mark,
-			    .iif = net->loopback_dev->ifindex,
-			    .oif = oldflp->oif };
+	struct flowi fl;
 	struct fib_result res;
 	unsigned int flags = 0;
 	struct net_device *dev_out = NULL;
@@ -2448,6 +2441,15 @@ static struct rtable *ip_route_output_slow(struct net *net,
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	res.r		= NULL;
 #endif
+
+	fl.oif = oldflp->oif;
+	fl.iif = net->loopback_dev->ifindex;
+	fl.mark = oldflp->mark;
+	fl.fl4_dst = oldflp->fl4_dst;
+	fl.fl4_src = oldflp->fl4_src;
+	fl.fl4_tos = tos & IPTOS_RT_MASK;
+	fl.fl4_scope = ((tos & RTO_ONLINK) ?
+			RT_SCOPE_LINK : RT_SCOPE_UNIVERSE);
 
 	rcu_read_lock();
 	if (oldflp->fl4_src) {
