@@ -69,6 +69,7 @@ struct pcie_link_state {
 };
 
 static int aspm_disabled, aspm_force, aspm_clear_state;
+static bool aspm_support_enabled = true;
 static DEFINE_MUTEX(aspm_lock);
 static LIST_HEAD(link_list);
 
@@ -896,6 +897,7 @@ static int __init pcie_aspm_disable(char *str)
 {
 	if (!strcmp(str, "off")) {
 		aspm_disabled = 1;
+		aspm_support_enabled = false;
 		printk(KERN_INFO "PCIe ASPM is disabled\n");
 	} else if (!strcmp(str, "force")) {
 		aspm_force = 1;
@@ -930,3 +932,8 @@ int pcie_aspm_enabled(void)
 }
 EXPORT_SYMBOL(pcie_aspm_enabled);
 
+bool pcie_aspm_support_enabled(void)
+{
+	return aspm_support_enabled;
+}
+EXPORT_SYMBOL(pcie_aspm_support_enabled);
