@@ -31,14 +31,9 @@
  *	This is generally setup by the boards start up code.
  */
 #define	MCF_MBAR	0x10000000
-#if defined(CONFIG_M520x)
-#define	MCF_IPSBAR	0xFC000000
-#else
 #define	MCF_IPSBAR	0x40000000
-#endif
 
-#if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
-    defined(CONFIG_M520x)
+#if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x)
 #undef MCF_MBAR
 #define	MCF_MBAR	MCF_IPSBAR
 #endif
