@@ -653,7 +653,7 @@ static inline struct page *alloc_hugepage_vma(int defrag,
 					      unsigned long haddr)
 {
 	return alloc_pages_vma(alloc_hugepage_gfpmask(defrag),
-			       HPAGE_PMD_ORDER, vma, haddr);
+			       HPAGE_PMD_ORDER, vma, haddr, numa_node_id());
 }
 
 #ifndef CONFIG_NUMA
