@@ -2479,6 +2479,21 @@ clear:
 	return 0;
 }
 
+/**
+ * pci_pm_reset - Put device into PCI_D3 and back into PCI_D0.
+ * @dev: Device to reset.
+ * @probe: If set, only check if the device can be reset this way.
+ *
+ * If @dev supports native PCI PM and its PCI_PM_CTRL_NO_SOFT_RESET flag is
+ * unset, it will be reinitialized internally when going from PCI_D3hot to
+ * PCI_D0.  If that's the case and the device is not in a low-power state
+ * already, force it into PCI_D3hot and back to PCI_D0, causing it to be reset.
+ *
+ * NOTE: This causes the caller to sleep for twice the device power transition
+ * cooldown period, which for the D0->D3hot and D3hot->D0 transitions is 10 ms
+ * by devault (i.e. unless the @dev's d3_delay field has a different value).
+ * Moreover, only devices in D0 can be reset by this function.
+ */
 static int pci_pm_reset(struct pci_dev *dev, int probe)
 {
 	u16 csr;
