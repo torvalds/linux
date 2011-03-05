@@ -28,6 +28,7 @@
 #include <linux/platform_device.h>
 #include <linux/i2c/twl.h>
 #include <linux/regulator/machine.h>
+#include <linux/regulator/fixed.h>
 #include <linux/spi/spi.h>
 
 #include <linux/mtd/mtd.h>
@@ -97,6 +98,34 @@ static struct ads7846_platform_data ads7846_config = {
 	.keep_vref_on		= 1,
 };
 
+/* fixed regulator for ads7846 */
+static struct regulator_consumer_supply ads7846_supply =
+	REGULATOR_SUPPLY("vcc", "spi1.0");
+
+static struct regulator_init_data vads7846_regulator = {
+	.constraints = {
+		.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &ads7846_supply,
+};
+
+static struct fixed_voltage_config vads7846 = {
+	.supply_name		= "vads7846",
+	.microvolts		= 3300000, /* 3.3V */
+	.gpio			= -EINVAL,
+	.startup_delay		= 0,
+	.init_data		= &vads7846_regulator,
+};
+
+static struct platform_device vads7846_device = {
+	.name		= "reg-fixed-voltage",
+	.id		= 1,
+	.dev = {
+		.platform_data = &vads7846,
+	},
+};
+
 static void __init overo_ads7846_init(void)
 {
 	if ((gpio_request(OVERO_GPIO_PENDOWN, "ADS7846_PENDOWN") == 0) &&
@@ -106,6 +135,8 @@ static void __init overo_ads7846_init(void)
 		printk(KERN_ERR "could not obtain gpio for ADS7846_PENDOWN\n");
 		return;
 	}
+
+	platform_device_register(&vads7846_device);
 }
 
 #else
