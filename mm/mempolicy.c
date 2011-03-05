@@ -1891,7 +1891,8 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
 		page = alloc_page_interleave(gfp, order, interleave_nodes(pol));
 	else
 		page = __alloc_pages_nodemask(gfp, order,
-			policy_zonelist(gfp, pol), policy_nodemask(gfp, pol));
+				policy_zonelist(gfp, pol, numa_node_id()),
+				policy_nodemask(gfp, pol));
 	put_mems_allowed();
 	return page;
 }
