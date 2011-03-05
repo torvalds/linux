@@ -17,6 +17,11 @@
 #include <asm/m52xxacr.h>
 
 /*
+ *	The 5249 has a second MBAR region, define its address.
+ */
+#define	MCF_MBAR2		0x80000000
+
+/*
  *	Define the 5249 SIM register set addresses.
  */
 #define	MCFSIM_RSR		0x00		/* Reset Status reg (r/w) */
