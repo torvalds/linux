@@ -65,6 +65,11 @@ config EXYNOS4_SETUP_I2C7
 	help
 	  Common setup code for i2c bus 7.
 
+config EXYNOS4_SETUP_KEYPAD
+	bool
+	help
+	  Common setup code for keypad.
+
 config EXYNOS4_SETUP_SDHCI
 	bool
 	select EXYNOS4_SETUP_SDHCI_GPIO
