@@ -22,6 +22,7 @@ config MACH_MX23EVK
 	select SOC_IMX23
 	select MXS_HAVE_AMBA_DUART
 	select MXS_HAVE_PLATFORM_AUART
+	select MXS_HAVE_PLATFORM_MXSFB
 	default y
 	help
 	  Include support for MX23EVK platform. This includes specific
