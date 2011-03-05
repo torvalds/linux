@@ -27,15 +27,20 @@
 #endif
 
 /*
- *	Define the processor support peripherals base address.
+ *	Define the processor internal peripherals base address.
+ *
+ *	The majority of ColdFire parts use an MBAR register to set
+ *	the base address. Some have an IPSBAR register instead, and it
+ *	has slightly different rules on its size and alignment. Some
+ *	parts have fixed addresses and the internal peripherals cannot
+ *	be relocated in the address space.
+ *
  *	This is generally setup by the boards start up code.
  */
-#define	MCF_MBAR	0x10000000
-#define	MCF_IPSBAR	0x40000000
-
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x)
-#undef MCF_MBAR
-#define	MCF_MBAR	MCF_IPSBAR
+#define	MCF_IPSBAR	0x40000000
+#else
+#define	MCF_MBAR	0x10000000
 #endif
 
 /****************************************************************************/
