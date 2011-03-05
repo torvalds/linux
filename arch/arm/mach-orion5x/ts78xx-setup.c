@@ -200,7 +200,7 @@ static void ts78xx_ts_nand_write_buf(struct mtd_info *mtd,
 	int sz;
 
 	if (off) {
-		sz = min(4 - off, len);
+		sz = min_t(int, 4 - off, len);
 		writesb(io_base, buf, sz);
 		buf += sz;
 		len -= sz;
@@ -227,7 +227,7 @@ static void ts78xx_ts_nand_read_buf(struct mtd_info *mtd,
 	int sz;
 
 	if (off) {
-		sz = min(4 - off, len);
+		sz = min_t(int, 4 - off, len);
 		readsb(io_base, buf, sz);
 		buf += sz;
 		len -= sz;
