@@ -313,145 +313,146 @@ const struct easycap_standard easycap_standard[] = {
 
 struct easycap_format easycap_format[1 + SETTINGS_MANY];
 
-int
-fillin_formats(void)
+int fillin_formats(void)
 {
+	const char *name1, *name2, *name3, *name4;
+	struct v4l2_format *fmt;
 	int i, j, k, m, n;
 	u32 width, height, pixelformat, bytesperline, sizeimage;
+	u16 mask1, mask2, mask3, mask4;
 	enum v4l2_field field;
 	enum v4l2_colorspace colorspace;
-	u16 mask1, mask2, mask3, mask4;
-	char name1[32], name2[32], name3[32], name4[32];
+
 	for (i = 0, n = 0; i < STANDARD_MANY; i++) {
 		mask1 = 0x0000;
 		switch (i) {
 		case PAL_BGHIN: {
 			mask1 = 0x1F & PAL_BGHIN;
-			strcpy(&name1[0], "PAL_BGHIN");
+			name1 = "PAL_BGHIN";
 			colorspace = V4L2_COLORSPACE_470_SYSTEM_BG;
 			break;
 		}
 		case SECAM: {
 			mask1 = 0x1F & SECAM;
-			strcpy(&name1[0], "SECAM");
+			name1 = "SECAM";
 			colorspace = V4L2_COLORSPACE_470_SYSTEM_BG;
 			break;
 		}
 		case PAL_Nc: {
 			mask1 = 0x1F & PAL_Nc;
-			strcpy(&name1[0], "PAL_Nc");
+			name1 = "PAL_Nc";
 			colorspace = V4L2_COLORSPACE_470_SYSTEM_BG;
 			break;
 		}
 		case PAL_60: {
 			mask1 = 0x1F & PAL_60;
-			strcpy(&name1[0], "PAL_60");
+			name1 = "PAL_60";
 			colorspace = V4L2_COLORSPACE_470_SYSTEM_BG;
 			break;
 		}
 		case PAL_M: {
 			mask1 = 0x1F & PAL_M;
-			strcpy(&name1[0], "PAL_M");
+			name1 = "PAL_M";
 			colorspace = V4L2_COLORSPACE_470_SYSTEM_BG;
 			break;
 		}
 		case NTSC_M: {
 			mask1 = 0x1F & NTSC_M;
-			strcpy(&name1[0], "NTSC_M");
+			name1 = "NTSC_M";
 			colorspace = V4L2_COLORSPACE_470_SYSTEM_M;
 			break;
 		}
 		case NTSC_443: {
 			mask1 = 0x1F & NTSC_443;
-			strcpy(&name1[0], "NTSC_443");
+			name1 = "NTSC_443";
 			colorspace = V4L2_COLORSPACE_470_SYSTEM_M;
 			break;
 		}
 		case NTSC_M_JP: {
 			mask1 = 0x1F & NTSC_M_JP;
-			strcpy(&name1[0], "NTSC_M_JP");
+			name1 = "NTSC_M_JP";
 			colorspace = V4L2_COLORSPACE_470_SYSTEM_M;
 			break;
 		}
 		case NTSC_N: {
 			mask1 = 0x1F & NTSC_M;
-			strcpy(&name1[0], "NTSC_N");
+			name1 = "NTSC_N";
 			colorspace = V4L2_COLORSPACE_470_SYSTEM_M;
 			break;
 		}
 		case NTSC_N_443: {
 			mask1 = 0x1F & NTSC_N_443;
-			strcpy(&name1[0], "NTSC_N_443");
+			name1 = "NTSC_N_443";
 			colorspace = V4L2_COLORSPACE_470_SYSTEM_M;
 			break;
 		}
 		case PAL_BGHIN_SLOW: {
 			mask1 = 0x001F & PAL_BGHIN_SLOW;
 			mask1 |= 0x0200;
-			strcpy(&name1[0], "PAL_BGHIN_SLOW");
+			name1 = "PAL_BGHIN_SLOW";
 			colorspace = V4L2_COLORSPACE_470_SYSTEM_BG;
 			break;
 		}
 		case SECAM_SLOW: {
 			mask1 = 0x001F & SECAM_SLOW;
 			mask1 |= 0x0200;
-			strcpy(&name1[0], "SECAM_SLOW");
+			name1 = "SECAM_SLOW";
 			colorspace = V4L2_COLORSPACE_470_SYSTEM_BG;
 			break;
 		}
 		case PAL_Nc_SLOW: {
 			mask1 = 0x001F & PAL_Nc_SLOW;
 			mask1 |= 0x0200;
-			strcpy(&name1[0], "PAL_Nc_SLOW");
+			name1 = "PAL_Nc_SLOW";
 			colorspace = V4L2_COLORSPACE_470_SYSTEM_BG;
 			break;
 		}
 		case PAL_60_SLOW: {
 			mask1 = 0x001F & PAL_60_SLOW;
 			mask1 |= 0x0200;
-			strcpy(&name1[0], "PAL_60_SLOW");
+			name1 = "PAL_60_SLOW";
 			colorspace = V4L2_COLORSPACE_470_SYSTEM_BG;
 			break;
 		}
 		case PAL_M_SLOW: {
 			mask1 = 0x001F & PAL_M_SLOW;
 			mask1 |= 0x0200;
-			strcpy(&name1[0], "PAL_M_SLOW");
+			name1 = "PAL_M_SLOW";
 			colorspace = V4L2_COLORSPACE_470_SYSTEM_BG;
 			break;
 		}
 		case NTSC_M_SLOW: {
 			mask1 = 0x001F & NTSC_M_SLOW;
 			mask1 |= 0x0200;
-			strcpy(&name1[0], "NTSC_M_SLOW");
+			name1 = "NTSC_M_SLOW";
 			colorspace = V4L2_COLORSPACE_470_SYSTEM_M;
 			break;
 		}
 		case NTSC_443_SLOW: {
 			mask1 = 0x001F & NTSC_443_SLOW;
 			mask1 |= 0x0200;
-			strcpy(&name1[0], "NTSC_443_SLOW");
+			name1 = "NTSC_443_SLOW";
 			colorspace = V4L2_COLORSPACE_470_SYSTEM_M;
 			break;
 		}
 		case NTSC_M_JP_SLOW: {
 			mask1 = 0x001F & NTSC_M_JP_SLOW;
 			mask1 |= 0x0200;
-			strcpy(&name1[0], "NTSC_M_JP_SLOW");
+			name1 = "NTSC_M_JP_SLOW";
 			colorspace = V4L2_COLORSPACE_470_SYSTEM_M;
 			break;
 		}
 		case NTSC_N_SLOW: {
 			mask1 = 0x001F & NTSC_N_SLOW;
 			mask1 |= 0x0200;
-			strcpy(&name1[0], "NTSC_N_SLOW");
+			name1 = "NTSC_N_SLOW";
 			colorspace = V4L2_COLORSPACE_470_SYSTEM_M;
 			break;
 		}
 		case NTSC_N_443_SLOW: {
 			mask1 = 0x001F & NTSC_N_443_SLOW;
 			mask1 |= 0x0200;
-			strcpy(&name1[0], "NTSC_N_443_SLOW");
+			name1 = "NTSC_N_443_SLOW";
 			colorspace = V4L2_COLORSPACE_470_SYSTEM_M;
 			break;
 		}
@@ -465,7 +466,7 @@ fillin_formats(void)
 			case AT_720x576: {
 				if (0x1 & mask1)
 					continue;
-				strcpy(&name2[0], "_AT_720x576");
+				name2 = "_AT_720x576";
 				width = 720;
 				height = 576;
 				break;
@@ -473,13 +474,13 @@ fillin_formats(void)
 			case AT_704x576: {
 				if (0x1 & mask1)
 					continue;
-				strcpy(&name2[0], "_AT_704x576");
+				name2 = "_AT_704x576";
 				width = 704;
 				height = 576;
 				break;
 			}
 			case AT_640x480: {
-				strcpy(&name2[0], "_AT_640x480");
+				name2 = "_AT_640x480";
 				width = 640;
 				height = 480;
 				break;
@@ -487,7 +488,7 @@ fillin_formats(void)
 			case AT_720x480: {
 				if (!(0x1 & mask1))
 					continue;
-				strcpy(&name2[0], "_AT_720x480");
+				name2 = "_AT_720x480";
 				width = 720;
 				height = 480;
 				break;
@@ -495,14 +496,14 @@ fillin_formats(void)
 			case AT_360x288: {
 				if (0x1 & mask1)
 					continue;
-				strcpy(&name2[0], "_AT_360x288");
+				name2 = "_AT_360x288";
 				width = 360;
 				height = 288;
 				mask2 = 0x0800;
 				break;
 			}
 			case AT_320x240: {
-				strcpy(&name2[0], "_AT_320x240");
+				name2 = "_AT_320x240";
 				width = 320;
 				height = 240;
 				mask2 = 0x0800;
@@ -511,7 +512,7 @@ fillin_formats(void)
 			case AT_360x240: {
 				if (!(0x1 & mask1))
 					continue;
-				strcpy(&name2[0], "_AT_360x240");
+				name2 = "_AT_360x240";
 				width = 360;
 				height = 240;
 				mask2 = 0x0800;
@@ -525,39 +526,39 @@ fillin_formats(void)
 				mask3 = 0x0000;
 				switch (k) {
 				case FMT_UYVY: {
-					strcpy(&name3[0], "_" __stringify(FMT_UYVY));
+					name3 = __stringify(FMT_UYVY);
 					pixelformat = V4L2_PIX_FMT_UYVY;
 					mask3 |= (0x02 << 5);
 					break;
 				}
 				case FMT_YUY2: {
-					strcpy(&name3[0], "_" __stringify(FMT_YUY2));
+					name3 = __stringify(FMT_YUY2);
 					pixelformat = V4L2_PIX_FMT_YUYV;
 					mask3 |= (0x02 << 5);
 					mask3 |= 0x0100;
 					break;
 				}
 				case FMT_RGB24: {
-					strcpy(&name3[0], "_" __stringify(FMT_RGB24));
+					name3 = __stringify(FMT_RGB24);
 					pixelformat = V4L2_PIX_FMT_RGB24;
 					mask3 |= (0x03 << 5);
 					break;
 				}
 				case FMT_RGB32: {
-					strcpy(&name3[0], "_" __stringify(FMT_RGB32));
+					name3 = __stringify(FMT_RGB32);
 					pixelformat = V4L2_PIX_FMT_RGB32;
 					mask3 |= (0x04 << 5);
 					break;
 				}
 				case FMT_BGR24: {
-					strcpy(&name3[0], "_" __stringify(FMT_BGR24));
+					name3 = __stringify(FMT_BGR24);
 					pixelformat = V4L2_PIX_FMT_BGR24;
 					mask3 |= (0x03 << 5);
 					mask3 |= 0x0100;
 					break;
 				}
 				case FMT_BGR32: {
-					strcpy(&name3[0], "_" __stringify(FMT_BGR32));
+					name3 = __stringify(FMT_BGR32);
 					pixelformat = V4L2_PIX_FMT_BGR32;
 					mask3 |= (0x04 << 5);
 					mask3 |= 0x0100;
@@ -573,12 +574,12 @@ fillin_formats(void)
 					mask4 = 0x0000;
 					switch (m) {
 					case FIELD_NONE: {
-						strcpy(&name4[0], "-n");
+						name4 = "-n";
 						field = V4L2_FIELD_NONE;
 						break;
 					}
 					case FIELD_INTERLACED: {
-						strcpy(&name4[0], "-i");
+						name4 = "-i";
 						mask4 |= 0x1000;
 						field = V4L2_FIELD_INTERLACED;
 						break;
@@ -588,30 +589,25 @@ fillin_formats(void)
 					}
 					if (SETTINGS_MANY <= n)
 						return -5;
-					strcpy(&easycap_format[n].name[0], &name1[0]);
-					strcat(&easycap_format[n].name[0], &name2[0]);
-					strcat(&easycap_format[n].name[0], &name3[0]);
-					strcat(&easycap_format[n].name[0], &name4[0]);
+
+					strcpy(easycap_format[n].name, name1);
+					strcat(easycap_format[n].name, name2);
+					strcat(easycap_format[n].name, "_");
+					strcat(easycap_format[n].name, name3);
+					strcat(easycap_format[n].name, name4);
 					easycap_format[n].mask =
 						mask1 | mask2 | mask3 | mask4;
-					easycap_format[n].v4l2_format
-					.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-					easycap_format[n].v4l2_format
-					.fmt.pix.width = width;
-					easycap_format[n].v4l2_format
-					.fmt.pix.height = height;
-					easycap_format[n].v4l2_format
-					.fmt.pix.pixelformat = pixelformat;
-					easycap_format[n].v4l2_format
-					.fmt.pix.field = field;
-					easycap_format[n].v4l2_format
-					.fmt.pix.bytesperline = bytesperline;
-					easycap_format[n].v4l2_format
-					.fmt.pix.sizeimage = sizeimage;
-					easycap_format[n].v4l2_format
-					.fmt.pix.colorspace = colorspace;
-					easycap_format[n].v4l2_format
-					.fmt.pix.priv = 0;
+					fmt = &easycap_format[n].v4l2_format;
+
+					fmt->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+					fmt->fmt.pix.width = width;
+					fmt->fmt.pix.height = height;
+					fmt->fmt.pix.pixelformat = pixelformat;
+					fmt->fmt.pix.field = field;
+					fmt->fmt.pix.bytesperline = bytesperline;
+					fmt->fmt.pix.sizeimage = sizeimage;
+					fmt->fmt.pix.colorspace = colorspace;
+					fmt->fmt.pix.priv = 0;
 					n++;
 				}
 			}
@@ -623,8 +619,8 @@ fillin_formats(void)
 	return n;
 }
 /*---------------------------------------------------------------------------*/
-struct v4l2_queryctrl easycap_control[] =
-{{
+struct v4l2_queryctrl easycap_control[] = {
+	{
 		.id       = V4L2_CID_BRIGHTNESS,
 		.type     = V4L2_CTRL_TYPE_INTEGER,
 		.name     = "Brightness",
