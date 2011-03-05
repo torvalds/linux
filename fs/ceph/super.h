@@ -207,7 +207,6 @@ struct ceph_dentry_info {
 	struct dentry *dentry;
 	u64 time;
 	u64 offset;
-	struct inode *parent_inode;
 };
 
 struct ceph_inode_xattrs_info {

@@ -707,7 +707,7 @@ static int fill_inode(struct inode *inode,
 		    (issued & CEPH_CAP_FILE_EXCL) == 0 &&
 		    (ci->i_ceph_flags & CEPH_I_COMPLETE) == 0) {
 			dout(" marking %p complete (empty)\n", inode);
-			ci->i_ceph_flags |= CEPH_I_COMPLETE;
+			/* ci->i_ceph_flags |= CEPH_I_COMPLETE; */
 			ci->i_max_offset = 2;
 		}
 		break;

@@ -60,7 +60,6 @@ int ceph_init_dentry(struct dentry *dentry)
 	}
 	di->dentry = dentry;
 	di->lease_session = NULL;
-	di->parent_inode = igrab(dentry->d_parent->d_inode);
 	dentry->d_fsdata = di;
 	dentry->d_time = jiffies;
 	ceph_dentry_lru_add(dentry);
@@ -410,7 +409,7 @@ more:
 	spin_lock(&inode->i_lock);
 	if (ci->i_release_count == fi->dir_release_count) {
 		dout(" marking %p complete\n", inode);
-		ci->i_ceph_flags |= CEPH_I_COMPLETE;
+		/* ci->i_ceph_flags |= CEPH_I_COMPLETE; */
 		ci->i_max_offset = filp->f_pos;
 	}
 	spin_unlock(&inode->i_lock);
@@ -497,6 +496,7 @@ struct dentry *ceph_finish_lookup(struct ceph_mds_request *req,
 
 	/* .snap dir? */
 	if (err == -ENOENT &&
+	    ceph_snap(parent) == CEPH_NOSNAP &&
 	    strcmp(dentry->d_name.name,
 		   fsc->mount_options->snapdir_name) == 0) {
 		struct inode *inode = ceph_get_snapdir(parent);
@@ -1030,28 +1030,8 @@ out_touch:
 static void ceph_dentry_release(struct dentry *dentry)
 {
 	struct ceph_dentry_info *di = ceph_dentry(dentry);
-	struct inode *parent_inode = NULL;
-	u64 snapid = CEPH_NOSNAP;
 
-	if (!IS_ROOT(dentry)) {
-		parent_inode = di->parent_inode;
-		if (parent_inode)
-			snapid = ceph_snap(parent_inode);
-	}
-	dout("dentry_release %p parent %p\n", dentry, parent_inode);
-	if (parent_inode && snapid != CEPH_SNAPDIR) {
-		struct ceph_inode_info *ci = ceph_inode(parent_inode);
-
-		spin_lock(&parent_inode->i_lock);
-		if (ci->i_shared_gen == di->lease_shared_gen ||
-		    snapid <= CEPH_MAXSNAP) {
-			dout(" clearing %p complete (d_release)\n",
-			     parent_inode);
-			ci->i_ceph_flags &= ~CEPH_I_COMPLETE;
-			ci->i_release_count++;
-		}
-		spin_unlock(&parent_inode->i_lock);
-	}
+	dout("dentry_release %p\n", dentry);
 	if (di) {
 		ceph_dentry_lru_del(dentry);
 		if (di->lease_session)
@@ -1059,8 +1039,6 @@ static void ceph_dentry_release(struct dentry *dentry)
 		kmem_cache_free(ceph_dentry_cachep, di);
 		dentry->d_fsdata = NULL;
 	}
-	if (parent_inode)
-		iput(parent_inode);
 }
 
 static int ceph_snapdir_d_revalidate(struct dentry *dentry,
