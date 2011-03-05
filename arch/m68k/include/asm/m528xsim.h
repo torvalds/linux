@@ -47,6 +47,14 @@
 #define	MCFSIM_DMR1		0x54		/* SDRAM address mask 1 */
 
 /*
+ *	DMA unit base addresses.
+ */
+#define	MCFDMA_BASE0		(MCF_IPSBAR + 0x00000100)
+#define	MCFDMA_BASE1		(MCF_IPSBAR + 0x00000140)
+#define	MCFDMA_BASE2		(MCF_IPSBAR + 0x00000180)
+#define	MCFDMA_BASE3		(MCF_IPSBAR + 0x000001C0)
+
+/*
  *	UART module.
  */
 #define	MCFUART_BASE1		(MCF_IPSBAR + 0x00000200)

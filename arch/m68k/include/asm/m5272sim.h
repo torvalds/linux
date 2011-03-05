@@ -80,6 +80,8 @@
 #define	MCFSIM_PCDAT		(MCF_MBAR + 0x96) /* Port C Data (r/w) */
 #define	MCFSIM_PDCNT		(MCF_MBAR + 0x98) /* Port D Control (r/w) */
 
+#define	MCFDMA_BASE0		(MCF_MBAR + 0xe0) /* Base address DMA 0 */
+
 /*
  *	Define system peripheral IRQ usage.
  */

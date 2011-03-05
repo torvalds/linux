@@ -160,5 +160,14 @@
 */
 #define	MCFGPIO_PAR_QSPI	(MCF_IPSBAR + 0x10004A)
 #define	MCFGPIO_PAR_TIMER	(MCF_IPSBAR + 0x10004C)
+
+/*
+ * DMA unit base addresses.
+ */
+#define	MCFDMA_BASE0		(MCF_IPSBAR + 0x100)
+#define	MCFDMA_BASE1		(MCF_IPSBAR + 0x140)
+#define	MCFDMA_BASE2		(MCF_IPSBAR + 0x180)
+#define	MCFDMA_BASE3		(MCF_IPSBAR + 0x1C0)
+
 /****************************************************************************/
 #endif	/* m523xsim_h */

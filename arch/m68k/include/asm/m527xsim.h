@@ -61,6 +61,14 @@
 #endif
 
 /*
+ *	DMA unit base addresses.
+ */
+#define	MCFDMA_BASE0		(MCF_IPSBAR + 0x100)
+#define	MCFDMA_BASE1		(MCF_IPSBAR + 0x140)
+#define	MCFDMA_BASE2		(MCF_IPSBAR + 0x180)
+#define	MCFDMA_BASE3		(MCF_IPSBAR + 0x1C0)
+
+/*
  *	UART module.
  */
 #define MCFUART_BASE1		(MCF_IPSBAR + 0x200)

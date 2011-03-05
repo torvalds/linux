@@ -92,6 +92,9 @@
 #define	MCFSIM_PADDR		(MCF_MBAR + 0x1c5)	/* Parallel Direction (r/w) */
 #define	MCFSIM_PADAT		(MCF_MBAR + 0x1c9)	/* Parallel Port Value (r/w) */
 
+#define	MCFDMA_BASE0		(MCF_MBAR + 0x200)	/* Base address DMA 0 */
+#define	MCFDMA_BASE1		(MCF_MBAR + 0x240)	/* Base address DMA 1 */
+
 #if defined(CONFIG_NETtel)
 #define	MCFUART_BASE1		0x180		/* Base address of UART1 */
 #define	MCFUART_BASE2		0x140		/* Base address of UART2 */

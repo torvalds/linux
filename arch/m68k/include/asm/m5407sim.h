@@ -85,6 +85,14 @@
 #define	MCFSIM_PADAT		(MCF_MBAR + 0x248)
 
 /*
+ *	DMA unit base addresses.
+ */
+#define MCFDMA_BASE0		(MCF_MBAR + 0x300)	/* Base address DMA 0 */
+#define MCFDMA_BASE1		(MCF_MBAR + 0x340)	/* Base address DMA 1 */
+#define MCFDMA_BASE2		(MCF_MBAR + 0x380)	/* Base address DMA 2 */
+#define MCFDMA_BASE3		(MCF_MBAR + 0x3C0)	/* Base address DMA 3 */
+
+/*
  * Generic GPIO support
  */
 #define MCFGPIO_PIN_MAX			16
