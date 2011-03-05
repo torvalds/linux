@@ -56,6 +56,7 @@
 #define DIS_GPADC			0x00
 #define SW_AVG_16			0x60
 #define ADC_SW_CONV			0x04
+#define EN_ICHAR			0x80
 #define EN_BUF				0x40
 #define DIS_ZERO			0x00
 #define GPADC_BUSY			0x01
@@ -281,9 +282,23 @@ int ab8500_gpadc_convert(struct ab8500_gpadc *gpadc, u8 input)
 			"gpadc_conversion: set avg samples failed\n");
 		goto out;
 	}
-	/* Enable ADC, Buffering and select rising edge, start Conversion */
-	ret = abx500_mask_and_set_register_interruptible(gpadc->dev,
-		AB8500_GPADC, AB8500_GPADC_CTRL1_REG, EN_BUF, EN_BUF);
+	/*
+	 * Enable ADC, buffering, select rising edge and enable ADC path
+	 * charging current sense if it needed
+	 */
+	switch (input) {
+	case MAIN_CHARGER_C:
+	case USB_CHARGER_C:
+		ret = abx500_mask_and_set_register_interruptible(gpadc->dev,
+			AB8500_GPADC, AB8500_GPADC_CTRL1_REG,
+			EN_BUF | EN_ICHAR,
+			EN_BUF | EN_ICHAR);
+		break;
+	default:
+		ret = abx500_mask_and_set_register_interruptible(gpadc->dev,
+			AB8500_GPADC, AB8500_GPADC_CTRL1_REG, EN_BUF, EN_BUF);
+		break;
+	}
 	if (ret < 0) {
 		dev_err(gpadc->dev,
 			"gpadc_conversion: select falling edge failed\n");
