@@ -267,11 +267,13 @@ static int __devinit ab8500_gpadc_probe(struct platform_device *pdev)
 	if (IS_ERR(gpadc->regu)) {
 		ret = PTR_ERR(gpadc->regu);
 		dev_err(gpadc->dev, "failed to get vtvout LDO\n");
-		goto fail;
+		goto fail_irq;
 	}
 	list_add_tail(&gpadc->node, &ab8500_gpadc_list);
 	dev_dbg(gpadc->dev, "probe success\n");
 	return 0;
+fail_irq:
+	free_irq(gpadc->irq, gpadc);
 fail:
 	kfree(gpadc);
 	gpadc = NULL;
