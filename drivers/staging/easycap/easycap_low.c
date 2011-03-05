@@ -412,24 +412,13 @@ int confirm_stream(struct usb_device *p)
 /****************************************************************************/
 int setup_stk(struct usb_device *p, bool ntsc)
 {
-	int i0;
-
+	int i;
+	const struct stk1160config *cfg;
 	if (!p)
 		return -ENODEV;
-	i0 = 0;
-	if (ntsc) {
-		while (0xFFF != stk1160configNTSC[i0].reg) {
-			SET(p, stk1160configNTSC[i0].reg,
-				stk1160configNTSC[i0].set);
-			i0++;
-		}
-	} else {
-		while (0xFFF != stk1160configPAL[i0].reg) {
-			SET(p, stk1160configPAL[i0].reg,
-				stk1160configPAL[i0].set);
-			i0++;
-		}
-	}
+	cfg = (ntsc) ? stk1160configNTSC : stk1160configPAL;
+	for (i = 0; cfg[i].reg != 0xFFF; i++)
+		SET(p, cfg[i].reg, cfg[i].set);
 
 	write_300(p);
 
@@ -438,24 +427,13 @@ int setup_stk(struct usb_device *p, bool ntsc)
 /****************************************************************************/
 int setup_saa(struct usb_device *p, bool ntsc)
 {
-	int i0, ir;
-
+	int i, ir;
+	const struct saa7113config *cfg;
 	if (!p)
 		return -ENODEV;
-	i0 = 0;
-	if (ntsc) {
-		while (0xFF != saa7113configNTSC[i0].reg) {
-			ir = write_saa(p, saa7113configNTSC[i0].reg,
-						saa7113configNTSC[i0].set);
-			i0++;
-		}
-	} else {
-		while (0xFF != saa7113configPAL[i0].reg) {
-			ir = write_saa(p, saa7113configPAL[i0].reg,
-						saa7113configPAL[i0].set);
-			i0++;
-		}
-	}
+	cfg = (ntsc) ?  saa7113configNTSC : saa7113configPAL;
+	for (i = 0; cfg[i].reg != 0xFF; i++)
+		ir = write_saa(p, cfg[i].reg, cfg[i].set);
 	return 0;
 }
 /****************************************************************************/
@@ -575,51 +553,24 @@ int write_300(struct usb_device *p)
 /*--------------------------------------------------------------------------*/
 int check_saa(struct usb_device *p, bool ntsc)
 {
-	int i0, ir, rc;
-
+	int i, ir, rc = 0;
+	struct saa7113config const *cfg;
 	if (!p)
 		return -ENODEV;
-	i0 = 0;
-	rc = 0;
-	if (ntsc) {
-		while (0xFF != saa7113configNTSC[i0].reg) {
-			if (0x0F == saa7113configNTSC[i0].reg) {
-				i0++;
-				continue;
-			}
 
-			ir = read_saa(p, saa7113configNTSC[i0].reg);
-			if (ir != saa7113configNTSC[i0].set) {
-				SAY("SAA register 0x%02X has 0x%02X, "
-						"expected 0x%02X\n",
-						saa7113configNTSC[i0].reg,
-						ir, saa7113configNTSC[i0].set);
+	cfg = (ntsc) ? saa7113configNTSC : saa7113configPAL;
+	for (i = 0; cfg[i].reg != 0xFF; i++) {
+		if (0x0F == cfg[i].reg)
+			continue;
+		ir = read_saa(p, cfg[i].reg);
+		if (ir != cfg[i].set) {
+			SAY("SAA register 0x%02X has 0x%02X, expected 0x%02X\n",
+				cfg[i].reg, ir, cfg[i].set);
 				rc--;
-			}
-			i0++;
-		}
-	} else {
-		while (0xFF != saa7113configPAL[i0].reg) {
-			if (0x0F == saa7113configPAL[i0].reg) {
-				i0++;
-				continue;
-			}
-
-			ir = read_saa(p, saa7113configPAL[i0].reg);
-			if (ir != saa7113configPAL[i0].set) {
-				SAY("SAA register 0x%02X has 0x%02X, "
-						"expected 0x%02X\n",
-						saa7113configPAL[i0].reg,
-						ir, saa7113configPAL[i0].set);
-				rc--;
-			}
-			i0++;
 		}
 	}
-	if (-8 > rc)
-		return rc;
-	else
-		return 0;
+
+	return (rc < -8) ? rc : 0;
 }
 /****************************************************************************/
 int merit_saa(struct usb_device *p)
@@ -687,71 +638,31 @@ int ready_saa(struct usb_device *p)
 /*--------------------------------------------------------------------------*/
 int check_stk(struct usb_device *p, bool ntsc)
 {
-	int i0, ir;
+	int i, ir;
+	const struct stk1160config *cfg;
 
 	if (!p)
 		return -ENODEV;
-	i0 = 0;
-	if (ntsc) {
-		while (0xFFF != stk1160configNTSC[i0].reg) {
-			if (0x000 == stk1160configNTSC[i0].reg) {
-				i0++; continue;
+	cfg = (ntsc) ? stk1160configNTSC : stk1160configPAL;
+
+	for (i = 0; 0xFFF != cfg[i].reg; i++) {
+		if (0x000 == cfg[i].reg || 0x002 == cfg[i].reg)
+			continue;
+
+
+		ir = read_stk(p, cfg[i].reg);
+		if (0x100 == cfg[i].reg) {
+			if ((ir != (0xFF & cfg[i].set)) &&
+			    (ir != (0x80 | (0xFF & cfg[i].set))) &&
+			    (0xFFFF != cfg[i].set)) {
+				SAY("STK reg[0x%03X]=0x%02X expected 0x%02X\n",
+					cfg[i].reg, ir, cfg[i].set);
 			}
-			if (0x002 == stk1160configNTSC[i0].reg) {
-				i0++; continue;
-			}
-			ir = read_stk(p, stk1160configNTSC[i0].reg);
-			if (0x100 == stk1160configNTSC[i0].reg) {
-				if ((ir != (0xFF & stk1160configNTSC[i0].set)) &&
-				    (ir != (0x80 | (0xFF & stk1160configNTSC[i0].set))) &&
-						(0xFFFF != stk1160configNTSC[i0].set)) {
-					SAY("STK register 0x%03X has 0x%02X, "
-						"expected 0x%02X\n",
-						stk1160configNTSC[i0].reg,
-						ir, stk1160configNTSC[i0].set);
-					}
-				i0++; continue;
-				}
-			if ((ir != (0xFF & stk1160configNTSC[i0].set)) &&
-					(0xFFFF != stk1160configNTSC[i0].set)) {
-				SAY("STK register 0x%03X has 0x%02X, "
-						"expected 0x%02X\n",
-						stk1160configNTSC[i0].reg,
-						ir, stk1160configNTSC[i0].set);
-			}
-			i0++;
+			continue;
 		}
-	} else {
-		while (0xFFF != stk1160configPAL[i0].reg) {
-			if (0x000 == stk1160configPAL[i0].reg) {
-				i0++; continue;
-			}
-			if (0x002 == stk1160configPAL[i0].reg) {
-				i0++; continue;
-			}
-			ir = read_stk(p, stk1160configPAL[i0].reg);
-			if (0x100 == stk1160configPAL[i0].reg) {
-				if ((ir != (0xFF & stk1160configPAL[i0].set)) &&
-						(ir != (0x80 | (0xFF &
-						stk1160configPAL[i0].set))) &&
-						(0xFFFF !=
-						stk1160configPAL[i0].set)) {
-					SAY("STK register 0x%03X has 0x%02X, "
-						"expected 0x%02X\n",
-						stk1160configPAL[i0].reg,
-						ir, stk1160configPAL[i0].set);
-					}
-				i0++; continue;
-				}
-			if ((ir != (0xFF & stk1160configPAL[i0].set)) &&
-					(0xFFFF != stk1160configPAL[i0].set)) {
-				SAY("STK register 0x%03X has 0x%02X, "
-						"expected 0x%02X\n",
-						stk1160configPAL[i0].reg,
-						ir, stk1160configPAL[i0].set);
-			}
-			i0++;
-		}
+		if ((ir != (0xFF & cfg[i].set)) && (0xFFFF != cfg[i].set))
+			SAY("STK register 0x%03X has 0x%02X,expected 0x%02X\n",
+				cfg[i].reg, ir, cfg[i].set);
 	}
 	return 0;
 }
