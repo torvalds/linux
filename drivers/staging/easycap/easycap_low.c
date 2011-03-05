@@ -323,7 +323,36 @@ static int regset(struct usb_device *pusb_device, u16 index, u16 value)
 
 	return rc;
 }
-/*****************************************************************************/
+/*--------------------------------------------------------------------------*/
+/*
+ *  FUNCTION wait_i2c() RETURNS 0 ON SUCCESS
+*/
+/*--------------------------------------------------------------------------*/
+static int wait_i2c(struct usb_device *p)
+{
+	u16 get0;
+	u8 igot;
+	const int max = 2;
+	int k;
+
+	if (!p)
+		return -ENODEV;
+
+	for (k = 0;  k < max;  k++) {
+		GET(p, 0x0201, &igot);  get0 = igot;
+		switch (get0) {
+		case 0x04:
+		case 0x01:
+			return 0;
+		case 0x00:
+			msleep(20);
+			continue;
+		default:
+			return get0 - 1;
+		}
+	}
+	return -1;
+}
 
 /****************************************************************************/
 int confirm_resolution(struct usb_device *p)
@@ -935,36 +964,6 @@ int stop_100(struct usb_device *p)
 	return 0;
 }
 /****************************************************************************/
-/*--------------------------------------------------------------------------*/
-/*
- *  FUNCTION wait_i2c() RETURNS 0 ON SUCCESS
-*/
-/*--------------------------------------------------------------------------*/
-int wait_i2c(struct usb_device *p)
-{
-	u16 get0;
-	u8 igot;
-	const int max = 2;
-	int k;
-
-	if (!p)
-		return -ENODEV;
-
-	for (k = 0;  k < max;  k++) {
-		GET(p, 0x0201, &igot);  get0 = igot;
-		switch (get0) {
-		case 0x04:
-		case 0x01:
-			return 0;
-		case 0x00:
-			msleep(20);
-			continue;
-		default:
-			return get0 - 1;
-		}
-	}
-	return -1;
-}
 /****************************************************************************/
 /*****************************************************************************/
 int wakeup_device(struct usb_device *pusb_device)

@@ -558,7 +558,6 @@ int              set_resolution(struct usb_device *,
 int              read_saa(struct usb_device *, u16);
 int              read_stk(struct usb_device *, u32);
 int              write_saa(struct usb_device *, u16, u16);
-int              wait_i2c(struct usb_device *);
 int              write_000(struct usb_device *, u16, u16);
 int              start_100(struct usb_device *);
 int              stop_100(struct usb_device *);
