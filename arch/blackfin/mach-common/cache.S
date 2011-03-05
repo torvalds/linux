@@ -58,6 +58,8 @@
 1:
 .ifeqs "\flushins", BROK_FLUSH_INST
 	\flushins [P0++];
+	nop;
+	nop;
 2:	nop;
 .else
 2:	\flushins [P0++];
