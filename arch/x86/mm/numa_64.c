@@ -543,8 +543,6 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
 	if (!numa_meminfo_cover_memory(mi))
 		return -EINVAL;
 
-	init_memory_mapping_high();
-
 	/* Finally register nodes. */
 	for_each_node_mask(nid, node_possible_map) {
 		u64 start = (u64)max_pfn << PAGE_SHIFT;
@@ -564,6 +562,15 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
 	return 0;
 }
 
+/**
+ * dummy_numma_init - Fallback dummy NUMA init
+ *
+ * Used if there's no underlying NUMA architecture, NUMA initialization
+ * fails, or NUMA is disabled on the command line.
+ *
+ * Must online at least one node and add memory blocks that cover all
+ * allowed memory.  This function must not fail.
+ */
 static int __init dummy_numa_init(void)
 {
 	printk(KERN_INFO "%s\n",
@@ -577,57 +584,64 @@ static int __init dummy_numa_init(void)
 	return 0;
 }
 
+static int __init numa_init(int (*init_func)(void))
+{
+	int i;
+	int ret;
+
+	for (i = 0; i < MAX_LOCAL_APIC; i++)
+		set_apicid_to_node(i, NUMA_NO_NODE);
+
+	nodes_clear(numa_nodes_parsed);
+	nodes_clear(node_possible_map);
+	nodes_clear(node_online_map);
+	memset(&numa_meminfo, 0, sizeof(numa_meminfo));
+	remove_all_active_ranges();
+	numa_reset_distance();
+
+	ret = init_func();
+	if (ret < 0)
+		return ret;
+	ret = numa_cleanup_meminfo(&numa_meminfo);
+	if (ret < 0)
+		return ret;
+
+	numa_emulation(&numa_meminfo, numa_distance_cnt);
+
+	ret = numa_register_memblks(&numa_meminfo);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < nr_cpu_ids; i++) {
+		int nid = early_cpu_to_node(i);
+
+		if (nid == NUMA_NO_NODE)
+			continue;
+		if (!node_online(nid))
+			numa_clear_node(i);
+	}
+	numa_init_array();
+	return 0;
+}
+
 void __init initmem_init(void)
 {
-	int (*numa_init[])(void) = { [2] = dummy_numa_init };
-	int i, j;
+	int ret;
 
 	if (!numa_off) {
 #ifdef CONFIG_ACPI_NUMA
-		numa_init[0] = x86_acpi_numa_init;
+		ret = numa_init(x86_acpi_numa_init);
+		if (!ret)
+			return;
 #endif
 #ifdef CONFIG_AMD_NUMA
-		numa_init[1] = amd_numa_init;
+		ret = numa_init(amd_numa_init);
+		if (!ret)
+			return;
 #endif
 	}
 
-	for (i = 0; i < ARRAY_SIZE(numa_init); i++) {
-		if (!numa_init[i])
-			continue;
-
-		for (j = 0; j < MAX_LOCAL_APIC; j++)
-			set_apicid_to_node(j, NUMA_NO_NODE);
-
-		nodes_clear(numa_nodes_parsed);
-		nodes_clear(node_possible_map);
-		nodes_clear(node_online_map);
-		memset(&numa_meminfo, 0, sizeof(numa_meminfo));
-		remove_all_active_ranges();
-		numa_reset_distance();
-
-		if (numa_init[i]() < 0)
-			continue;
-
-		if (numa_cleanup_meminfo(&numa_meminfo) < 0)
-			continue;
-
-		numa_emulation(&numa_meminfo, numa_distance_cnt);
-
-		if (numa_register_memblks(&numa_meminfo) < 0)
-			continue;
-
-		for (j = 0; j < nr_cpu_ids; j++) {
-			int nid = early_cpu_to_node(j);
-
-			if (nid == NUMA_NO_NODE)
-				continue;
-			if (!node_online(nid))
-				numa_clear_node(j);
-		}
-		numa_init_array();
-		return;
-	}
-	BUG();
+	numa_init(dummy_numa_init);
 }
 
 unsigned long __init numa_free_all_bootmem(void)
