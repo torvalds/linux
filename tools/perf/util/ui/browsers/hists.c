@@ -639,6 +639,9 @@ static void ui_browser__hists_seek(struct ui_browser *self,
 	struct rb_node *nd;
 	bool first = true;
 
+	if (self->nr_entries == 0)
+		return;
+
 	switch (whence) {
 	case SEEK_SET:
 		nd = hists__filter_entries(rb_first(self->entries));
@@ -820,8 +823,8 @@ int hists__browse(struct hists *self, const char *helpline,
 	hists__browser_title(self, msg, sizeof(msg), ev_name,
 			     dso_filter, thread_filter);
 	while (1) {
-		const struct thread *thread;
-		const struct dso *dso;
+		const struct thread *thread = NULL;
+		const struct dso *dso = NULL;
 		char *options[16];
 		int nr_options = 0, choice = 0, i,
 		    annotate = -2, zoom_dso = -2, zoom_thread = -2,
@@ -829,8 +832,10 @@ int hists__browse(struct hists *self, const char *helpline,
 
 		key = hist_browser__run(browser, msg);
 
-		thread = hist_browser__selected_thread(browser);
-		dso = browser->selection->map ? browser->selection->map->dso : NULL;
+		if (browser->he_selection != NULL) {
+			thread = hist_browser__selected_thread(browser);
+			dso = browser->selection->map ? browser->selection->map->dso : NULL;
+		}
 
 		switch (key) {
 		case NEWT_KEY_TAB:
@@ -841,7 +846,8 @@ int hists__browse(struct hists *self, const char *helpline,
 			 */
 			goto out_free_stack;
 		case 'a':
-			if (browser->selection->map == NULL &&
+			if (browser->selection == NULL ||
+			    browser->selection->map == NULL ||
 			    browser->selection->map->dso->annotate_warned)
 				continue;
 			goto do_annotate;
@@ -887,7 +893,8 @@ int hists__browse(struct hists *self, const char *helpline,
 			goto out_free_stack;
 		}
 
-		if (browser->selection->sym != NULL &&
+		if (browser->selection != NULL &&
+		    browser->selection->sym != NULL &&
 		    !browser->selection->map->dso->annotate_warned &&
 		    asprintf(&options[nr_options], "Annotate %s",
 			     browser->selection->sym->name) > 0)
@@ -906,7 +913,8 @@ int hists__browse(struct hists *self, const char *helpline,
 			     (dso->kernel ? "the Kernel" : dso->short_name)) > 0)
 			zoom_dso = nr_options++;
 
-		if (browser->selection->map != NULL &&
+		if (browser->selection != NULL &&
+		    browser->selection->map != NULL &&
 		    asprintf(&options[nr_options], "Browse map details") > 0)
 			browse_map = nr_options++;
 
