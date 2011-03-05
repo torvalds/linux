@@ -399,11 +399,20 @@ static void ts78xx_fpga_supports(void)
 		ts78xx_fpga.supports.ts_rng.present = 1;
 		break;
 	default:
-		printk(KERN_WARNING "Unrecognized TS-78XX FPGA ID 0x%02x",
-		       ts78xx_fpga.id);
-		ts78xx_fpga.supports.ts_rtc.present = 1;
-		ts78xx_fpga.supports.ts_nand.present = 1;
-		ts78xx_fpga.supports.ts_rng.present = 1;
+		/* enable devices if magic matches */
+		switch ((ts78xx_fpga.id >> 8) & 0xffffff) {
+		case TS7800_FPGA_MAGIC:
+			printk(KERN_WARNING "TS-7800 FPGA: unrecognized revision 0x%.2x\n",
+					ts78xx_fpga.id & 0xff);
+			ts78xx_fpga.supports.ts_rtc.present = 1;
+			ts78xx_fpga.supports.ts_nand.present = 1;
+			ts78xx_fpga.supports.ts_rng.present = 1;
+			break;
+		default:
+			ts78xx_fpga.supports.ts_rtc.present = 0;
+			ts78xx_fpga.supports.ts_nand.present = 0;
+			ts78xx_fpga.supports.ts_rng.present = 0;
+		}
 	}
 }
 
