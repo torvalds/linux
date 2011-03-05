@@ -96,7 +96,8 @@ nouveau_notifier_gpuobj_dtor(struct drm_device *dev,
 
 int
 nouveau_notifier_alloc(struct nouveau_channel *chan, uint32_t handle,
-		       int size, uint32_t *b_offset)
+		       int size, uint32_t start, uint32_t end,
+		       uint32_t *b_offset)
 {
 	struct drm_device *dev = chan->dev;
 	struct nouveau_gpuobj *nobj = NULL;
@@ -104,9 +105,10 @@ nouveau_notifier_alloc(struct nouveau_channel *chan, uint32_t handle,
 	uint32_t offset;
 	int target, ret;
 
-	mem = drm_mm_search_free(&chan->notifier_heap, size, 0, 0);
+	mem = drm_mm_search_free_in_range(&chan->notifier_heap, size, 0,
+					  start, end, 0);
 	if (mem)
-		mem = drm_mm_get_block(mem, size, 0);
+		mem = drm_mm_get_block_range(mem, size, 0, start, end);
 	if (!mem) {
 		NV_ERROR(dev, "Channel %d notifier block full\n", chan->id);
 		return -ENOMEM;
@@ -177,7 +179,8 @@ nouveau_ioctl_notifier_alloc(struct drm_device *dev, void *data,
 	if (IS_ERR(chan))
 		return PTR_ERR(chan);
 
-	ret = nouveau_notifier_alloc(chan, na->handle, na->size, &na->offset);
+	ret = nouveau_notifier_alloc(chan, na->handle, na->size, 0, 0x1000,
+				     &na->offset);
 	nouveau_channel_put(&chan);
 	return ret;
 }
