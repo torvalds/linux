@@ -134,6 +134,12 @@
 #define MCF_GPIO_PAR_FECI2C_PAR_SCL_UTXD2   (0x04)
 
 /*
+ *  PIT timer module.
+ */
+#define	MCFPIT_BASE1		0xFC080000	/* Base address of TIMER1 */
+#define	MCFPIT_BASE2		0xFC084000	/* Base address of TIMER2 */
+
+/*
  *  UART module.
  */
 #define MCFUART_BASE1		0x60000		/* Base address of UART1 */

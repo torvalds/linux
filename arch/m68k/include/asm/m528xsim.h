@@ -164,6 +164,14 @@
 #define MCFGPIO_PUAPAR		(MCF_IPSBAR + 0x0010005C)
 
 /*
+ * PIT timer base addresses.
+ */
+#define	MCFPIT_BASE1		(MCF_IPSBAR + 0x00150000)
+#define	MCFPIT_BASE2		(MCF_IPSBAR + 0x00160000)
+#define	MCFPIT_BASE3		(MCF_IPSBAR + 0x00170000)
+#define	MCFPIT_BASE4		(MCF_IPSBAR + 0x00180000)
+
+/*
  * 	Edge Port registers
  */
 #define MCFEPORT_EPPAR		(MCF_IPSBAR + 0x00130000)
