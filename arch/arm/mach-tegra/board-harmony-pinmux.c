@@ -141,12 +141,12 @@ static struct tegra_pingroup_config harmony_pinmux[] = {
 };
 
 static struct tegra_gpio_table gpio_table[] = {
-	{ .gpio = TEGRA_GPIO_PI5,	.enable = true	}, /* mmc2 cd	*/
-	{ .gpio = TEGRA_GPIO_PH1,	.enable = true	}, /* mmc2 wp	*/
-	{ .gpio = TEGRA_GPIO_PT3,	.enable = true	}, /* mmc2 pwr	*/
-	{ .gpio = TEGRA_GPIO_PH2,	.enable = true	}, /* mmc4 cd	*/
-	{ .gpio = TEGRA_GPIO_PH3,	.enable = true	}, /* mmc4 wp	*/
-	{ .gpio = TEGRA_GPIO_PI6,	.enable = true	}, /* mmc4 pwr	*/
+	{ .gpio = TEGRA_GPIO_SD2_CD,		.enable = true	},
+	{ .gpio = TEGRA_GPIO_SD2_WP,		.enable = true	},
+	{ .gpio = TEGRA_GPIO_SD2_POWER,		.enable = true	},
+	{ .gpio = TEGRA_GPIO_SD4_CD,		.enable = true	},
+	{ .gpio = TEGRA_GPIO_SD4_WP,		.enable = true	},
+	{ .gpio = TEGRA_GPIO_SD4_POWER,		.enable = true	},
 };
 
 void harmony_pinmux_init(void)
