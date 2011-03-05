@@ -53,16 +53,20 @@ struct fib_info;
 struct rtable {
 	struct dst_entry	dst;
 
-	/* Cache lookup keys */
-	struct flowi		fl;
+	/* Lookup key. */
+	__be32			rt_key_dst;
+	__be32			rt_key_src;
 
 	int			rt_genid;
 	unsigned		rt_flags;
 	__u16			rt_type;
+	__u8			rt_tos;
 
 	__be32			rt_dst;	/* Path destination	*/
 	__be32			rt_src;	/* Path source		*/
 	int			rt_iif;
+	int			rt_oif;
+	__u32			rt_mark;
 
 	/* Info on neighbour */
 	__be32			rt_gateway;
@@ -76,12 +80,12 @@ struct rtable {
 
 static inline bool rt_is_input_route(struct rtable *rt)
 {
-	return rt->fl.iif != 0;
+	return rt->rt_iif != 0;
 }
 
 static inline bool rt_is_output_route(struct rtable *rt)
 {
-	return rt->fl.iif == 0;
+	return rt->rt_iif == 0;
 }
 
 struct ip_rt_acct {
@@ -212,11 +216,11 @@ static inline struct rtable *ip_route_newports(struct rtable *rt,
 					       __be16 dport, struct sock *sk)
 {
 	if (sport != orig_sport || dport != orig_dport) {
-		struct flowi fl = { .oif = rt->fl.oif,
-				    .mark = rt->fl.mark,
-				    .fl4_dst = rt->fl.fl4_dst,
-				    .fl4_src = rt->fl.fl4_src,
-				    .fl4_tos = rt->fl.fl4_tos,
+		struct flowi fl = { .oif = rt->rt_oif,
+				    .mark = rt->rt_mark,
+				    .fl4_dst = rt->rt_key_dst,
+				    .fl4_src = rt->rt_key_src,
+				    .fl4_tos = rt->rt_tos,
 				    .proto = protocol,
 				    .fl_ip_sport = sport,
 				    .fl_ip_dport = dport };

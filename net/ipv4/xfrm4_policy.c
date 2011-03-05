@@ -70,7 +70,12 @@ static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 {
 	struct rtable *rt = (struct rtable *)xdst->route;
 
-	xdst->u.rt.fl = *fl;
+	rt->rt_key_dst = fl->fl4_dst;
+	rt->rt_key_src = fl->fl4_src;
+	rt->rt_tos = fl->fl4_tos;
+	rt->rt_iif = fl->iif;
+	rt->rt_oif = fl->oif;
+	rt->rt_mark = fl->mark;
 
 	xdst->u.dst.dev = dev;
 	dev_hold(dev);

@@ -1813,12 +1813,22 @@ int ip_mr_input(struct sk_buff *skb)
 	if (IPCB(skb)->flags & IPSKB_FORWARDED)
 		goto dont_forward;
 
-	err = ipmr_fib_lookup(net, &skb_rtable(skb)->fl, &mrt);
-	if (err < 0) {
-		kfree_skb(skb);
-		return err;
+	{
+		struct rtable *rt = skb_rtable(skb);
+		struct flowi fl = {
+			.fl4_dst = rt->rt_key_dst,
+			.fl4_src = rt->rt_key_src,
+			.fl4_tos = rt->rt_tos,
+			.oif = rt->rt_oif,
+			.iif = rt->rt_iif,
+			.mark = rt->rt_mark,
+		};
+		err = ipmr_fib_lookup(net, &fl, &mrt);
+		if (err < 0) {
+			kfree_skb(skb);
+			return err;
+		}
 	}
-
 	if (!local) {
 		if (IPCB(skb)->opt.router_alert) {
 			if (ip_call_ra_chain(skb))
@@ -1946,9 +1956,19 @@ int pim_rcv_v1(struct sk_buff *skb)
 
 	pim = igmp_hdr(skb);
 
-	if (ipmr_fib_lookup(net, &skb_rtable(skb)->fl, &mrt) < 0)
-		goto drop;
-
+	{
+		struct rtable *rt = skb_rtable(skb);
+		struct flowi fl = {
+			.fl4_dst = rt->rt_key_dst,
+			.fl4_src = rt->rt_key_src,
+			.fl4_tos = rt->rt_tos,
+			.oif = rt->rt_oif,
+			.iif = rt->rt_iif,
+			.mark = rt->rt_mark,
+		};
+		if (ipmr_fib_lookup(net, &fl, &mrt) < 0)
+			goto drop;
+	}
 	if (!mrt->mroute_do_pim ||
 	    pim->group != PIM_V1_VERSION || pim->code != PIM_V1_REGISTER)
 		goto drop;
@@ -1978,9 +1998,19 @@ static int pim_rcv(struct sk_buff *skb)
 	     csum_fold(skb_checksum(skb, 0, skb->len, 0))))
 		goto drop;
 
-	if (ipmr_fib_lookup(net, &skb_rtable(skb)->fl, &mrt) < 0)
-		goto drop;
-
+	{
+		struct rtable *rt = skb_rtable(skb);
+		struct flowi fl = {
+			.fl4_dst = rt->rt_key_dst,
+			.fl4_src = rt->rt_key_src,
+			.fl4_tos = rt->rt_tos,
+			.oif = rt->rt_oif,
+			.iif = rt->rt_iif,
+			.mark = rt->rt_mark,
+		};
+		if (ipmr_fib_lookup(net, &fl, &mrt) < 0)
+			goto drop;
+	}
 	if (__pim_rcv(mrt, skb, sizeof(*pim))) {
 drop:
 		kfree_skb(skb);
