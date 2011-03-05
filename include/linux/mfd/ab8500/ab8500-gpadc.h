@@ -3,6 +3,7 @@
  * Licensed under GPLv2.
  *
  * Author: Arun R Murthy <arun.murthy@stericsson.com>
+ * Author: Daniel Willerud <daniel.willerud@stericsson.com>
  */
 
 #ifndef	_AB8500_GPADC_H
@@ -23,6 +24,9 @@
 #define BK_BAT_V	0x0C
 #define DIE_TEMP	0x0D
 
-int ab8500_gpadc_convert(u8 input);
+struct ab8500_gpadc;
+
+struct ab8500_gpadc *ab8500_gpadc_get(char *name);
+int ab8500_gpadc_convert(struct ab8500_gpadc *gpadc, u8 input);
 
 #endif /* _AB8500_GPADC_H */
