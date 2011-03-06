@@ -878,7 +878,7 @@ static int __devinit cx88_audio_initdev(struct pci_dev *pci,
 {
 	struct snd_card  *card;
 	snd_cx88_card_t  *chip;
-	struct cx88_core *core;
+	struct cx88_core *core = NULL;
 	int              err;
 
 	if (devno >= SNDRV_CARDS)
