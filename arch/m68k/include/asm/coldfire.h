@@ -33,14 +33,17 @@
  *	the base address. Some have an IPSBAR register instead, and it
  *	has slightly different rules on its size and alignment. Some
  *	parts have fixed addresses and the internal peripherals cannot
- *	be relocated in the address space.
+ *	be relocated in the CPU address space.
  *
- *	This is generally setup by the boards start up code.
+ *	The value of MBAR or IPSBAR is config time selectable, we no
+ *	longer hard define it here. No MBAR or IPSBAR will be defined if
+ *	this part has a fixed peripheral address map.
  */
-#if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x)
-#define	MCF_IPSBAR	0x40000000
-#else
-#define	MCF_MBAR	0x10000000
+#ifdef CONFIG_MBAR
+#define	MCF_MBAR	CONFIG_MBAR
+#endif
+#ifdef CONFIG_IPSBAR
+#define	MCF_IPSBAR	CONFIG_IPSBAR
 #endif
 
 /****************************************************************************/
