@@ -305,7 +305,7 @@ xfs_trans_read_buf(
 			if (xfs_error_target == target) {
 				if (((xfs_req_num++) % xfs_error_mod) == 0) {
 					xfs_buf_relse(bp);
-					cmn_err(CE_DEBUG, "Returning error!\n");
+					xfs_debug(mp, "Returning error!");
 					return XFS_ERROR(EIO);
 				}
 			}
@@ -403,7 +403,7 @@ xfs_trans_read_buf(
 				xfs_force_shutdown(tp->t_mountp,
 						   SHUTDOWN_META_IO_ERROR);
 				xfs_buf_relse(bp);
-				cmn_err(CE_DEBUG, "Returning trans error!\n");
+				xfs_debug(mp, "Returning trans error!");
 				return XFS_ERROR(EIO);
 			}
 		}
@@ -427,7 +427,7 @@ shutdown_abort:
 	 */
 #if defined(DEBUG)
 	if (XFS_BUF_ISSTALE(bp) && XFS_BUF_ISDELAYWRITE(bp))
-		cmn_err(CE_NOTE, "about to pop assert, bp == 0x%p", bp);
+		xfs_notice(mp, "about to pop assert, bp == 0x%p", bp);
 #endif
 	ASSERT((XFS_BUF_BFLAGS(bp) & (XBF_STALE|XBF_DELWRI)) !=
 				     (XBF_STALE|XBF_DELWRI));

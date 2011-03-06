@@ -133,9 +133,7 @@ xfs_uuid_mount(
 		return 0;
 
 	if (uuid_is_nil(uuid)) {
-		cmn_err(CE_WARN,
-			"XFS: Filesystem %s has nil UUID - can't mount",
-			mp->m_fsname);
+		xfs_warn(mp, "Filesystem has nil UUID - can't mount");
 		return XFS_ERROR(EINVAL);
 	}
 
@@ -163,8 +161,7 @@ xfs_uuid_mount(
 
  out_duplicate:
 	mutex_unlock(&xfs_uuid_table_mutex);
-	cmn_err(CE_WARN, "XFS: Filesystem %s has duplicate UUID - can't mount",
-			 mp->m_fsname);
+	xfs_warn(mp, "Filesystem has duplicate UUID - can't mount");
 	return XFS_ERROR(EINVAL);
 }
 
@@ -867,8 +864,7 @@ xfs_update_alignment(xfs_mount_t *mp)
 		if ((BBTOB(mp->m_dalign) & mp->m_blockmask) ||
 		    (BBTOB(mp->m_swidth) & mp->m_blockmask)) {
 			if (mp->m_flags & XFS_MOUNT_RETERR) {
-				cmn_err(CE_WARN,
-					"XFS: alignment check 1 failed");
+				xfs_warn(mp, "alignment check 1 failed");
 				return XFS_ERROR(EINVAL);
 			}
 			mp->m_dalign = mp->m_swidth = 0;
@@ -1041,14 +1037,14 @@ xfs_check_sizes(xfs_mount_t *mp)
 
 	d = (xfs_daddr_t)XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks);
 	if (XFS_BB_TO_FSB(mp, d) != mp->m_sb.sb_dblocks) {
-		cmn_err(CE_WARN, "XFS: filesystem size mismatch detected");
+		xfs_warn(mp, "filesystem size mismatch detected");
 		return XFS_ERROR(EFBIG);
 	}
 	bp = xfs_buf_read_uncached(mp, mp->m_ddev_targp,
 					d - XFS_FSS_TO_BB(mp, 1),
 					BBTOB(XFS_FSS_TO_BB(mp, 1)), 0);
 	if (!bp) {
-		cmn_err(CE_WARN, "XFS: last sector read failed");
+		xfs_warn(mp, "last sector read failed");
 		return EIO;
 	}
 	xfs_buf_relse(bp);
@@ -1056,14 +1052,14 @@ xfs_check_sizes(xfs_mount_t *mp)
 	if (mp->m_logdev_targp != mp->m_ddev_targp) {
 		d = (xfs_daddr_t)XFS_FSB_TO_BB(mp, mp->m_sb.sb_logblocks);
 		if (XFS_BB_TO_FSB(mp, d) != mp->m_sb.sb_logblocks) {
-			cmn_err(CE_WARN, "XFS: log size mismatch detected");
+			xfs_warn(mp, "log size mismatch detected");
 			return XFS_ERROR(EFBIG);
 		}
 		bp = xfs_buf_read_uncached(mp, mp->m_logdev_targp,
 					d - XFS_FSB_TO_BB(mp, 1),
 					XFS_FSB_TO_B(mp, 1), 0);
 		if (!bp) {
-			cmn_err(CE_WARN, "XFS: log device read failed");
+			xfs_warn(mp, "log device read failed");
 			return EIO;
 		}
 		xfs_buf_relse(bp);
@@ -1175,8 +1171,7 @@ xfs_mountfs(
 	 * transaction subsystem is online.
 	 */
 	if (xfs_sb_has_mismatched_features2(sbp)) {
-		cmn_err(CE_WARN,
-			"XFS: correcting sb_features alignment problem");
+		xfs_warn(mp, "correcting sb_features alignment problem");
 		sbp->sb_features2 |= sbp->sb_bad_features2;
 		sbp->sb_bad_features2 = sbp->sb_features2;
 		mp->m_update_flags |= XFS_SB_FEATURES2 | XFS_SB_BAD_FEATURES2;
@@ -1255,7 +1250,7 @@ xfs_mountfs(
 	 */
 	error = xfs_rtmount_init(mp);
 	if (error) {
-		cmn_err(CE_WARN, "XFS: RT mount failed");
+		xfs_warn(mp, "RT mount failed");
 		goto out_remove_uuid;
 	}
 
@@ -1286,12 +1281,12 @@ xfs_mountfs(
 	INIT_RADIX_TREE(&mp->m_perag_tree, GFP_ATOMIC);
 	error = xfs_initialize_perag(mp, sbp->sb_agcount, &mp->m_maxagi);
 	if (error) {
-		cmn_err(CE_WARN, "XFS: Failed per-ag init: %d", error);
+		xfs_warn(mp, "Failed per-ag init: %d", error);
 		goto out_remove_uuid;
 	}
 
 	if (!sbp->sb_logblocks) {
-		cmn_err(CE_WARN, "XFS: no log defined");
+		xfs_warn(mp, "no log defined");
 		XFS_ERROR_REPORT("xfs_mountfs", XFS_ERRLEVEL_LOW, mp);
 		error = XFS_ERROR(EFSCORRUPTED);
 		goto out_free_perag;
@@ -1304,7 +1299,7 @@ xfs_mountfs(
 			      XFS_FSB_TO_DADDR(mp, sbp->sb_logstart),
 			      XFS_FSB_TO_BB(mp, sbp->sb_logblocks));
 	if (error) {
-		cmn_err(CE_WARN, "XFS: log mount failed");
+		xfs_warn(mp, "log mount failed");
 		goto out_free_perag;
 	}
 
@@ -1341,16 +1336,14 @@ xfs_mountfs(
 	 */
 	error = xfs_iget(mp, NULL, sbp->sb_rootino, 0, XFS_ILOCK_EXCL, &rip);
 	if (error) {
-		cmn_err(CE_WARN, "XFS: failed to read root inode");
+		xfs_warn(mp, "failed to read root inode");
 		goto out_log_dealloc;
 	}
 
 	ASSERT(rip != NULL);
 
 	if (unlikely((rip->i_d.di_mode & S_IFMT) != S_IFDIR)) {
-		cmn_err(CE_WARN, "XFS: corrupted root inode");
-		cmn_err(CE_WARN, "Device %s - root %llu is not a directory",
-			XFS_BUFTARG_NAME(mp->m_ddev_targp),
+		xfs_warn(mp, "corrupted root inode %llu: not a directory",
 			(unsigned long long)rip->i_ino);
 		xfs_iunlock(rip, XFS_ILOCK_EXCL);
 		XFS_ERROR_REPORT("xfs_mountfs_int(2)", XFS_ERRLEVEL_LOW,
@@ -1370,7 +1363,7 @@ xfs_mountfs(
 		/*
 		 * Free up the root inode.
 		 */
-		cmn_err(CE_WARN, "XFS: failed to read RT inodes");
+		xfs_warn(mp, "failed to read RT inodes");
 		goto out_rele_rip;
 	}
 
@@ -1382,7 +1375,7 @@ xfs_mountfs(
 	if (mp->m_update_flags && !(mp->m_flags & XFS_MOUNT_RDONLY)) {
 		error = xfs_mount_log_sb(mp, mp->m_update_flags);
 		if (error) {
-			cmn_err(CE_WARN, "XFS: failed to write sb changes");
+			xfs_warn(mp, "failed to write sb changes");
 			goto out_rtunmount;
 		}
 	}
@@ -1403,10 +1396,7 @@ xfs_mountfs(
 		 * quotachecked license.
 		 */
 		if (mp->m_sb.sb_qflags & XFS_ALL_QUOTA_ACCT) {
-			cmn_err(CE_NOTE,
-				"XFS: resetting qflags for filesystem %s",
-				mp->m_fsname);
-
+			xfs_notice(mp, "resetting quota flags");
 			error = xfs_mount_reset_sbqflags(mp);
 			if (error)
 				return error;
@@ -1420,7 +1410,7 @@ xfs_mountfs(
 	 */
 	error = xfs_log_mount_finish(mp);
 	if (error) {
-		cmn_err(CE_WARN, "XFS: log mount finish failed");
+		xfs_warn(mp, "log mount finish failed");
 		goto out_rtunmount;
 	}
 
@@ -1449,8 +1439,8 @@ xfs_mountfs(
 		resblks = xfs_default_resblks(mp);
 		error = xfs_reserve_blocks(mp, &resblks, NULL);
 		if (error)
-			cmn_err(CE_WARN, "XFS: Unable to allocate reserve "
-				"blocks. Continuing without a reserve pool.");
+			xfs_warn(mp,
+	"Unable to allocate reserve blocks. Continuing without reserve pool.");
 	}
 
 	return 0;
@@ -1539,12 +1529,12 @@ xfs_unmountfs(
 	resblks = 0;
 	error = xfs_reserve_blocks(mp, &resblks, NULL);
 	if (error)
-		cmn_err(CE_WARN, "XFS: Unable to free reserved block pool. "
+		xfs_warn(mp, "Unable to free reserved block pool. "
 				"Freespace may not be correct on next mount.");
 
 	error = xfs_log_sbcount(mp, 1);
 	if (error)
-		cmn_err(CE_WARN, "XFS: Unable to update superblock counters. "
+		xfs_warn(mp, "Unable to update superblock counters. "
 				"Freespace may not be correct on next mount.");
 	xfs_unmountfs_writesb(mp);
 	xfs_unmountfs_wait(mp); 		/* wait for async bufs */
@@ -2027,10 +2017,8 @@ xfs_dev_is_read_only(
 	if (xfs_readonly_buftarg(mp->m_ddev_targp) ||
 	    xfs_readonly_buftarg(mp->m_logdev_targp) ||
 	    (mp->m_rtdev_targp && xfs_readonly_buftarg(mp->m_rtdev_targp))) {
-		cmn_err(CE_NOTE,
-			"XFS: %s required on read-only device.", message);
-		cmn_err(CE_NOTE,
-			"XFS: write access unavailable, cannot proceed.");
+		xfs_notice(mp, "%s required on read-only device.", message);
+		xfs_notice(mp, "write access unavailable, cannot proceed.");
 		return EROFS;
 	}
 	return 0;

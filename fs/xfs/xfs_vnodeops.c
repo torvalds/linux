@@ -1189,9 +1189,8 @@ xfs_inactive(
 		 * inode might be lost for a long time or forever.
 		 */
 		if (!XFS_FORCED_SHUTDOWN(mp)) {
-			cmn_err(CE_NOTE,
-		"xfs_inactive:	xfs_ifree() returned an error = %d on %s",
-				error, mp->m_fsname);
+			xfs_notice(mp, "%s: xfs_ifree returned error %d",
+				__func__, error);
 			xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
 		}
 		xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES|XFS_TRANS_ABORT);

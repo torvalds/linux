@@ -142,10 +142,9 @@ xfs_imap_to_bp(
 				   (int)imap->im_len, buf_flags, &bp);
 	if (error) {
 		if (error != EAGAIN) {
-			cmn_err(CE_WARN,
-				"xfs_imap_to_bp: xfs_trans_read_buf()returned "
-				"an error %d on %s.  Returning error.",
-				error, mp->m_fsname);
+			xfs_warn(mp,
+				"%s: xfs_trans_read_buf() returned error %d.",
+				__func__, error);
 		} else {
 			ASSERT(buf_flags & XBF_TRYLOCK);
 		}
@@ -180,12 +179,11 @@ xfs_imap_to_bp(
 			XFS_CORRUPTION_ERROR("xfs_imap_to_bp",
 						XFS_ERRLEVEL_HIGH, mp, dip);
 #ifdef DEBUG
-			cmn_err(CE_PANIC,
-					"Device %s - bad inode magic/vsn "
-					"daddr %lld #%d (magic=%x)",
-				XFS_BUFTARG_NAME(mp->m_ddev_targp),
+			xfs_emerg(mp,
+				"bad inode magic/vsn daddr %lld #%d (magic=%x)",
 				(unsigned long long)imap->im_blkno, i,
 				be16_to_cpu(dip->di_magic));
+			ASSERT(0);
 #endif
 			xfs_trans_brelse(tp, bp);
 			return XFS_ERROR(EFSCORRUPTED);
@@ -1811,9 +1809,8 @@ xfs_iunlink_remove(
 		 */
 		error = xfs_itobp(mp, tp, ip, &dip, &ibp, XBF_LOCK);
 		if (error) {
-			cmn_err(CE_WARN,
-				"xfs_iunlink_remove: xfs_itobp()  returned an error %d on %s.  Returning error.",
-				error, mp->m_fsname);
+			xfs_warn(mp, "%s: xfs_itobp() returned error %d.",
+				__func__, error);
 			return error;
 		}
 		next_agino = be32_to_cpu(dip->di_next_unlinked);
@@ -1858,9 +1855,9 @@ xfs_iunlink_remove(
 			error = xfs_inotobp(mp, tp, next_ino, &last_dip,
 					    &last_ibp, &last_offset, 0);
 			if (error) {
-				cmn_err(CE_WARN,
-			"xfs_iunlink_remove: xfs_inotobp()  returned an error %d on %s.  Returning error.",
-					error, mp->m_fsname);
+				xfs_warn(mp,
+					"%s: xfs_inotobp() returned error %d.",
+					__func__, error);
 				return error;
 			}
 			next_agino = be32_to_cpu(last_dip->di_next_unlinked);
@@ -1873,9 +1870,8 @@ xfs_iunlink_remove(
 		 */
 		error = xfs_itobp(mp, tp, ip, &dip, &ibp, XBF_LOCK);
 		if (error) {
-			cmn_err(CE_WARN,
-				"xfs_iunlink_remove: xfs_itobp()  returned an error %d on %s.  Returning error.",
-				error, mp->m_fsname);
+			xfs_warn(mp, "%s: xfs_itobp(2) returned error %d.",
+				__func__, error);
 			return error;
 		}
 		next_agino = be32_to_cpu(dip->di_next_unlinked);

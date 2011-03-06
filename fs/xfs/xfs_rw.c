@@ -49,9 +49,9 @@ xfs_do_force_shutdown(
 	logerror = flags & SHUTDOWN_LOG_IO_ERROR;
 
 	if (!(flags & SHUTDOWN_FORCE_UMOUNT)) {
-		cmn_err(CE_NOTE, "xfs_force_shutdown(%s,0x%x) called from "
-				 "line %d of file %s.  Return address = 0x%p",
-			mp->m_fsname, flags, lnnum, fname, __return_address);
+		xfs_notice(mp,
+	"%s(0x%x) called from line %d of file %s.  Return address = 0x%p",
+			__func__, flags, lnnum, fname, __return_address);
 	}
 	/*
 	 * No need to duplicate efforts.
@@ -86,8 +86,8 @@ xfs_do_force_shutdown(
 		}
 	}
 	if (!(flags & SHUTDOWN_FORCE_UMOUNT)) {
-		cmn_err(CE_ALERT, "Please umount the filesystem, "
-				  "and rectify the problem(s)");
+		xfs_alert(mp,
+	"Please umount the filesystem and rectify the problem(s)");
 	}
 }
 
@@ -101,10 +101,9 @@ xfs_ioerror_alert(
 	xfs_buf_t		*bp,
 	xfs_daddr_t		blkno)
 {
-	cmn_err(CE_ALERT,
- "I/O error in filesystem (\"%s\") meta-data dev %s block 0x%llx"
- "       (\"%s\") error %d buf count %zd",
-		(!mp || !mp->m_fsname) ? "(fs name not set)" : mp->m_fsname,
+	xfs_alert(mp,
+		 "I/O error occurred: meta-data dev %s block 0x%llx"
+		 "       (\"%s\") error %d buf count %zd",
 		XFS_BUFTARG_NAME(XFS_BUF_TARGET(bp)),
 		(__uint64_t)blkno, func,
 		XFS_BUF_GETERROR(bp), XFS_BUF_COUNT(bp));

@@ -18,32 +18,6 @@
 #include <xfs.h>
 #include "debug.h"
 
-/* xfs_mount.h drags a lot of crap in, sorry.. */
-#include "xfs_sb.h"
-#include "xfs_inum.h"
-#include "xfs_ag.h"
-#include "xfs_mount.h"
-#include "xfs_error.h"
-
-void
-cmn_err(
-	const char	*lvl,
-	const char	*fmt,
-	...)
-{
-	struct va_format vaf;
-	va_list		args;
-
-	va_start(args, fmt);
-	vaf.fmt = fmt;
-	vaf.va = &args;
-
-	printk("%s%pV", lvl, &vaf);
-	va_end(args);
-
-	BUG_ON(strncmp(lvl, KERN_EMERG, strlen(KERN_EMERG)) == 0);
-}
-
 void
 assfail(char *expr, char *file, int line)
 {

@@ -119,8 +119,7 @@ xfs_qm_newmount(
 	     (gquotaondisk && !XFS_IS_GQUOTA_ON(mp)) ||
 	    (!gquotaondisk &&  XFS_IS_OQUOTA_ON(mp)))  &&
 	    xfs_dev_is_read_only(mp, "changing quota state")) {
-		cmn_err(CE_WARN,
-			"XFS: please mount with%s%s%s%s.",
+		xfs_warn(mp, "please mount with%s%s%s%s.",
 			(!quotaondisk ? "out quota" : ""),
 			(uquotaondisk ? " usrquota" : ""),
 			(pquotaondisk ? " prjquota" : ""),

@@ -2210,8 +2210,8 @@ xfs_rtmount_init(
 	if (sbp->sb_rblocks == 0)
 		return 0;
 	if (mp->m_rtdev_targp == NULL) {
-		cmn_err(CE_WARN,
-	"XFS: This filesystem has a realtime volume, use rtdev=device option");
+		xfs_warn(mp,
+	"Filesystem has a realtime volume, use rtdev=device option");
 		return XFS_ERROR(ENODEV);
 	}
 	mp->m_rsumlevels = sbp->sb_rextslog + 1;
@@ -2225,7 +2225,7 @@ xfs_rtmount_init(
 	 */
 	d = (xfs_daddr_t)XFS_FSB_TO_BB(mp, mp->m_sb.sb_rblocks);
 	if (XFS_BB_TO_FSB(mp, d) != mp->m_sb.sb_rblocks) {
-		cmn_err(CE_WARN, "XFS: realtime mount -- %llu != %llu",
+		xfs_warn(mp, "realtime mount -- %llu != %llu",
 			(unsigned long long) XFS_BB_TO_FSB(mp, d),
 			(unsigned long long) mp->m_sb.sb_rblocks);
 		return XFS_ERROR(EFBIG);
@@ -2234,7 +2234,7 @@ xfs_rtmount_init(
 					d - XFS_FSB_TO_BB(mp, 1),
 					XFS_FSB_TO_B(mp, 1), 0);
 	if (!bp) {
-		cmn_err(CE_WARN, "XFS: realtime device size check failed");
+		xfs_warn(mp, "realtime device size check failed");
 		return EIO;
 	}
 	xfs_buf_relse(bp);

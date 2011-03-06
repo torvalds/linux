@@ -1995,13 +1995,12 @@ xfs_da_do_buf(
 		error = mappedbno == -2 ? 0 : XFS_ERROR(EFSCORRUPTED);
 		if (unlikely(error == EFSCORRUPTED)) {
 			if (xfs_error_level >= XFS_ERRLEVEL_LOW) {
-				cmn_err(CE_ALERT, "xfs_da_do_buf: bno %lld\n",
-					(long long)bno);
-				cmn_err(CE_ALERT, "dir: inode %lld\n",
+				xfs_alert(mp, "%s: bno %lld dir: inode %lld",
+					__func__, (long long)bno,
 					(long long)dp->i_ino);
 				for (i = 0; i < nmap; i++) {
-					cmn_err(CE_ALERT,
-						"[%02d] br_startoff %lld br_startblock %lld br_blockcount %lld br_state %d\n",
+					xfs_alert(mp,
+"[%02d] br_startoff %lld br_startblock %lld br_blockcount %lld br_state %d",
 						i,
 						(long long)mapp[i].br_startoff,
 						(long long)mapp[i].br_startblock,

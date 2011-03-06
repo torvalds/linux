@@ -5778,7 +5778,7 @@ xfs_check_block(
 			else
 				thispa = XFS_BMBT_PTR_ADDR(mp, block, j, dmxr);
 			if (*thispa == *pp) {
-				cmn_err(CE_WARN, "%s: thispa(%d) == pp(%d) %Ld",
+				xfs_warn(mp, "%s: thispa(%d) == pp(%d) %Ld",
 					__func__, j, i,
 					(unsigned long long)be64_to_cpu(*thispa));
 				panic("%s: ptrs are equal in node\n",
@@ -5943,11 +5943,11 @@ xfs_bmap_check_leaf_extents(
 	return;
 
 error0:
-	cmn_err(CE_WARN, "%s: at error0", __func__);
+	xfs_warn(mp, "%s: at error0", __func__);
 	if (bp_release)
 		xfs_trans_brelse(NULL, bp);
 error_norelse:
-	cmn_err(CE_WARN, "%s: BAD after btree leaves for %d extents",
+	xfs_warn(mp, "%s: BAD after btree leaves for %d extents",
 		__func__, i);
 	panic("%s: CORRUPTED BTREE OR SOMETHING", __func__);
 	return;

@@ -828,7 +828,7 @@ xfs_qm_dqget(
 	if (xfs_do_dqerror) {
 		if ((xfs_dqerror_target == mp->m_ddev_targp) &&
 		    (xfs_dqreq_num++ % xfs_dqerror_mod) == 0) {
-			cmn_err(CE_DEBUG, "Returning error in dqget");
+			xfs_debug(mp, "Returning error in dqget");
 			return (EIO);
 		}
 	}
@@ -1427,36 +1427,38 @@ xfs_qm_dqpurge(
 void
 xfs_qm_dqprint(xfs_dquot_t *dqp)
 {
-	cmn_err(CE_DEBUG, "-----------KERNEL DQUOT----------------");
-	cmn_err(CE_DEBUG, "---- dquotID =  %d",
+	struct xfs_mount	*mp = dqp->q_mount;
+
+	xfs_debug(mp, "-----------KERNEL DQUOT----------------");
+	xfs_debug(mp, "---- dquotID =  %d",
 		(int)be32_to_cpu(dqp->q_core.d_id));
-	cmn_err(CE_DEBUG, "---- type    =  %s", DQFLAGTO_TYPESTR(dqp));
-	cmn_err(CE_DEBUG, "---- fs      =  0x%p", dqp->q_mount);
-	cmn_err(CE_DEBUG, "---- blkno   =  0x%x", (int) dqp->q_blkno);
-	cmn_err(CE_DEBUG, "---- boffset =  0x%x", (int) dqp->q_bufoffset);
-	cmn_err(CE_DEBUG, "---- blkhlimit =  %Lu (0x%x)",
+	xfs_debug(mp, "---- type    =  %s", DQFLAGTO_TYPESTR(dqp));
+	xfs_debug(mp, "---- fs      =  0x%p", dqp->q_mount);
+	xfs_debug(mp, "---- blkno   =  0x%x", (int) dqp->q_blkno);
+	xfs_debug(mp, "---- boffset =  0x%x", (int) dqp->q_bufoffset);
+	xfs_debug(mp, "---- blkhlimit =  %Lu (0x%x)",
 		be64_to_cpu(dqp->q_core.d_blk_hardlimit),
 		(int)be64_to_cpu(dqp->q_core.d_blk_hardlimit));
-	cmn_err(CE_DEBUG, "---- blkslimit =  %Lu (0x%x)",
+	xfs_debug(mp, "---- blkslimit =  %Lu (0x%x)",
 		be64_to_cpu(dqp->q_core.d_blk_softlimit),
 		(int)be64_to_cpu(dqp->q_core.d_blk_softlimit));
-	cmn_err(CE_DEBUG, "---- inohlimit =  %Lu (0x%x)",
+	xfs_debug(mp, "---- inohlimit =  %Lu (0x%x)",
 		be64_to_cpu(dqp->q_core.d_ino_hardlimit),
 		(int)be64_to_cpu(dqp->q_core.d_ino_hardlimit));
-	cmn_err(CE_DEBUG, "---- inoslimit =  %Lu (0x%x)",
+	xfs_debug(mp, "---- inoslimit =  %Lu (0x%x)",
 		be64_to_cpu(dqp->q_core.d_ino_softlimit),
 		(int)be64_to_cpu(dqp->q_core.d_ino_softlimit));
-	cmn_err(CE_DEBUG, "---- bcount  =  %Lu (0x%x)",
+	xfs_debug(mp, "---- bcount  =  %Lu (0x%x)",
 		be64_to_cpu(dqp->q_core.d_bcount),
 		(int)be64_to_cpu(dqp->q_core.d_bcount));
-	cmn_err(CE_DEBUG, "---- icount  =  %Lu (0x%x)",
+	xfs_debug(mp, "---- icount  =  %Lu (0x%x)",
 		be64_to_cpu(dqp->q_core.d_icount),
 		(int)be64_to_cpu(dqp->q_core.d_icount));
-	cmn_err(CE_DEBUG, "---- btimer  =  %d",
+	xfs_debug(mp, "---- btimer  =  %d",
 		(int)be32_to_cpu(dqp->q_core.d_btimer));
-	cmn_err(CE_DEBUG, "---- itimer  =  %d",
+	xfs_debug(mp, "---- itimer  =  %d",
 		(int)be32_to_cpu(dqp->q_core.d_itimer));
-	cmn_err(CE_DEBUG, "---------------------------");
+	xfs_debug(mp, "---------------------------");
 }
 #endif
 

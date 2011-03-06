@@ -48,7 +48,7 @@ xfs_error_trap(int e)
 			break;
 		if (e != xfs_etrap[i])
 			continue;
-		cmn_err(CE_NOTE, "xfs_error_trap: error %d", e);
+		xfs_notice(NULL, "%s: error %d", __func__, e);
 		BUG();
 		break;
 	}
@@ -74,7 +74,7 @@ xfs_error_test(int error_tag, int *fsidp, char *expression,
 
 	for (i = 0; i < XFS_NUM_INJECT_ERROR; i++)  {
 		if (xfs_etest[i] == error_tag && xfs_etest_fsid[i] == fsid) {
-			cmn_err(CE_WARN,
+			xfs_warn(NULL,
 	"Injecting error (%s) at file %s, line %d, on filesystem \"%s\"",
 				expression, file, line, xfs_etest_fsname[i]);
 			return 1;
@@ -95,14 +95,14 @@ xfs_errortag_add(int error_tag, xfs_mount_t *mp)
 
 	for (i = 0; i < XFS_NUM_INJECT_ERROR; i++)  {
 		if (xfs_etest_fsid[i] == fsid && xfs_etest[i] == error_tag) {
-			cmn_err(CE_WARN, "XFS error tag #%d on", error_tag);
+			xfs_warn(mp, "error tag #%d on", error_tag);
 			return 0;
 		}
 	}
 
 	for (i = 0; i < XFS_NUM_INJECT_ERROR; i++)  {
 		if (xfs_etest[i] == 0) {
-			cmn_err(CE_WARN, "Turned on XFS error tag #%d",
+			xfs_warn(mp, "Turned on XFS error tag #%d",
 				error_tag);
 			xfs_etest[i] = error_tag;
 			xfs_etest_fsid[i] = fsid;
@@ -114,7 +114,7 @@ xfs_errortag_add(int error_tag, xfs_mount_t *mp)
 		}
 	}
 
-	cmn_err(CE_WARN, "error tag overflow, too many turned on");
+	xfs_warn(mp, "error tag overflow, too many turned on");
 
 	return 1;
 }
@@ -133,7 +133,7 @@ xfs_errortag_clearall(xfs_mount_t *mp, int loud)
 		if ((fsid == 0LL || xfs_etest_fsid[i] == fsid) &&
 		     xfs_etest[i] != 0) {
 			cleared = 1;
-			cmn_err(CE_WARN, "Clearing XFS error tag #%d",
+			xfs_warn(mp, "Clearing XFS error tag #%d",
 				xfs_etest[i]);
 			xfs_etest[i] = 0;
 			xfs_etest_fsid[i] = 0LL;
@@ -144,9 +144,7 @@ xfs_errortag_clearall(xfs_mount_t *mp, int loud)
 	}
 
 	if (loud || cleared)
-		cmn_err(CE_WARN,
-			"Cleared all XFS error tags for filesystem \"%s\"",
-			mp->m_fsname);
+		xfs_warn(mp, "Cleared all XFS error tags for filesystem");
 
 	return 0;
 }

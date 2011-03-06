@@ -80,7 +80,7 @@ xfs_qm_dquot_list_print(
 	int		i = 0;
 
 	list_for_each_entry(dqp, &mp->m_quotainfo->qi_dqlist_lock, qi_mplist) {
-		cmn_err(CE_DEBUG, "   %d. \"%d (%s)\"   "
+		xfs_debug(mp, "   %d. \"%d (%s)\"   "
 				  "bcnt = %lld, icnt = %lld, refs = %d",
 			i++, be32_to_cpu(dqp->q_core.d_id),
 			DQFLAGTO_TYPESTR(dqp),
@@ -205,7 +205,7 @@ xfs_qm_destroy(
 	list_for_each_entry_safe(dqp, n, &xqm->qm_dqfrlist, q_freelist) {
 		xfs_dqlock(dqp);
 #ifdef QUOTADEBUG
-		cmn_err(CE_DEBUG, "FREELIST destroy 0x%p", dqp);
+		xfs_debug(dqp->q_mount, "FREELIST destroy 0x%p", dqp);
 #endif
 		list_del_init(&dqp->q_freelist);
 		xfs_Gqm->qm_dqfrlist_cnt--;
@@ -341,9 +341,7 @@ xfs_qm_mount_quotas(
 	 * quotas immediately.
 	 */
 	if (mp->m_sb.sb_rextents) {
-		cmn_err(CE_NOTE,
-			"Cannot turn on quotas for realtime filesystem %s",
-			mp->m_fsname);
+		xfs_notice(mp, "Cannot turn on quotas for realtime filesystem");
 		mp->m_qflags = 0;
 		goto write_changes;
 	}
@@ -1668,7 +1666,7 @@ xfs_qm_quotacheck(
 	 */
 	ASSERT(list_empty(&mp->m_quotainfo->qi_dqlist));
 
-	cmn_err(CE_NOTE, "XFS quotacheck %s: Please wait.", mp->m_fsname);
+	xfs_notice(mp, "Quotacheck needed: Please wait.");
 
 	/*
 	 * First we go thru all the dquots on disk, USR and GRP/PRJ, and reset
@@ -1746,9 +1744,9 @@ xfs_qm_quotacheck(
 
  error_return:
 	if (error) {
-		cmn_err(CE_WARN, "XFS quotacheck %s: Unsuccessful (Error %d): "
-			"Disabling quotas.",
-			mp->m_fsname, error);
+		xfs_warn(mp,
+	"Quotacheck: Unsuccessful (Error %d): Disabling quotas.",
+			error);
 		/*
 		 * We must turn off quotas.
 		 */
@@ -1756,12 +1754,11 @@ xfs_qm_quotacheck(
 		ASSERT(xfs_Gqm != NULL);
 		xfs_qm_destroy_quotainfo(mp);
 		if (xfs_mount_reset_sbqflags(mp)) {
-			cmn_err(CE_WARN, "XFS quotacheck %s: "
-				"Failed to reset quota flags.", mp->m_fsname);
+			xfs_warn(mp,
+				"Quotacheck: Failed to reset quota flags.");
 		}
-	} else {
-		cmn_err(CE_NOTE, "XFS quotacheck %s: Done.", mp->m_fsname);
-	}
+	} else
+		xfs_notice(mp, "Quotacheck: Done.");
 	return (error);
 }
 
@@ -2107,7 +2104,7 @@ xfs_qm_write_sb_changes(
 	int		error;
 
 #ifdef QUOTADEBUG
-	cmn_err(CE_NOTE, "Writing superblock quota changes :%s", mp->m_fsname);
+	xfs_notice(mp, "Writing superblock quota changes");
 #endif
 	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_SBCHANGE);
 	if ((error = xfs_trans_reserve(tp, 0,

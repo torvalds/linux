@@ -20,18 +20,6 @@
 
 #include <stdarg.h>
 
-struct xfs_mount;
-
-#define CE_DEBUG        KERN_DEBUG
-#define CE_CONT         KERN_INFO
-#define CE_NOTE         KERN_NOTICE
-#define CE_WARN         KERN_WARNING
-#define CE_ALERT        KERN_ALERT
-#define CE_PANIC        KERN_EMERG
-
-void cmn_err(const char *lvl, const char *fmt, ...)
-		__attribute__ ((format (printf, 2, 3)));
-
 extern void assfail(char *expr, char *f, int l);
 
 #define ASSERT_ALWAYS(expr)	\
