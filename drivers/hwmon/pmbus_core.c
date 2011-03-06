@@ -1308,13 +1308,19 @@ static void pmbus_find_attributes(struct i2c_client *client,
 			 * Always compare current temperature against the limit
 			 * registers to determine alarm conditions for a
 			 * specific sensor.
+			 *
+			 * Since there is only one set of limit registers for
+			 * up to three temperature sensors, we need to update
+			 * all limit registers after the limit was changed for
+			 * one of the sensors. This ensures that correct limits
+			 * are reported for all temperature sensors.
 			 */
 			if (pmbus_check_word_register
 			    (client, page, PMBUS_UT_WARN_LIMIT)) {
 				i1 = data->num_sensors;
 				pmbus_add_sensor(data, "temp", "min", in_index,
 						 page, PMBUS_UT_WARN_LIMIT,
-						 PSC_TEMPERATURE, false);
+						 PSC_TEMPERATURE, true);
 				if (info->func[page] & PMBUS_HAVE_STATUS_TEMP) {
 					pmbus_add_boolean_cmp(data, "temp",
 						"min_alarm", in_index, i1, i0,
@@ -1329,7 +1335,7 @@ static void pmbus_find_attributes(struct i2c_client *client,
 				pmbus_add_sensor(data, "temp", "lcrit",
 						 in_index, page,
 						 PMBUS_UT_FAULT_LIMIT,
-						 PSC_TEMPERATURE, false);
+						 PSC_TEMPERATURE, true);
 				if (info->func[page] & PMBUS_HAVE_STATUS_TEMP) {
 					pmbus_add_boolean_cmp(data, "temp",
 						"lcrit_alarm", in_index, i1, i0,
@@ -1343,7 +1349,7 @@ static void pmbus_find_attributes(struct i2c_client *client,
 				i1 = data->num_sensors;
 				pmbus_add_sensor(data, "temp", "max", in_index,
 						 page, PMBUS_OT_WARN_LIMIT,
-						 PSC_TEMPERATURE, false);
+						 PSC_TEMPERATURE, true);
 				if (info->func[page] & PMBUS_HAVE_STATUS_TEMP) {
 					pmbus_add_boolean_cmp(data, "temp",
 						"max_alarm", in_index, i0, i1,
@@ -1357,7 +1363,7 @@ static void pmbus_find_attributes(struct i2c_client *client,
 				i1 = data->num_sensors;
 				pmbus_add_sensor(data, "temp", "crit", in_index,
 						 page, PMBUS_OT_FAULT_LIMIT,
-						 PSC_TEMPERATURE, false);
+						 PSC_TEMPERATURE, true);
 				if (info->func[page] & PMBUS_HAVE_STATUS_TEMP) {
 					pmbus_add_boolean_cmp(data, "temp",
 						"crit_alarm", in_index, i0, i1,
