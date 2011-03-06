@@ -907,7 +907,7 @@ ret:
 #define DIV 15625
 
 static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
-			    enum tuner_mode new_mode,
+			    enum v4l2_tuner_type new_type,
 			    unsigned int type,
 			    v4l2_std_id std,
 			    u16 int_freq)
@@ -933,7 +933,7 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 	 * that xc2028 will be in a safe state.
 	 * Maybe this might also be needed for DTV.
 	 */
-	if (new_mode == V4L2_TUNER_ANALOG_TV) {
+	if (new_type == V4L2_TUNER_ANALOG_TV) {
 		rc = send_seq(priv, {0x00, 0x00});
 
 		/* Analog modes require offset = 0 */
