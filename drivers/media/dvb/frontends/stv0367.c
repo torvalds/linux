@@ -1046,7 +1046,7 @@ static u32 stv0367ter_get_mclk(struct stv0367_state *state, u32 ExtClk_Hz)
 }
 
 static int stv0367ter_filt_coeff_init(struct stv0367_state *state,
-				u16 CellsCoeffs[2][6][5], u32 DemodXtal)
+				u16 CellsCoeffs[3][6][5], u32 DemodXtal)
 {
 	int i, j, k, freq;
 
