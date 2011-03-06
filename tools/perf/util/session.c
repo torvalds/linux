@@ -7,9 +7,51 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 
+#include "evlist.h"
+#include "evsel.h"
 #include "session.h"
 #include "sort.h"
 #include "util.h"
+
+static int perf_session__read_evlist(struct perf_session *session)
+{
+	int i, j;
+
+	session->evlist = perf_evlist__new(NULL, NULL);
+	if (session->evlist == NULL)
+		return -ENOMEM;
+
+	for (i = 0; i < session->header.attrs; ++i) {
+		struct perf_header_attr *hattr = session->header.attr[i];
+		struct perf_evsel *evsel = perf_evsel__new(&hattr->attr, i);
+
+		if (evsel == NULL)
+			goto out_delete_evlist;
+		/*
+		 * Do it before so that if perf_evsel__alloc_id fails, this
+		 * entry gets purged too at perf_evlist__delete().
+		 */
+		perf_evlist__add(session->evlist, evsel);
+		/*
+		 * We don't have the cpu and thread maps on the header, so
+		 * for allocating the perf_sample_id table we fake 1 cpu and
+		 * hattr->ids threads.
+		 */
+		if (perf_evsel__alloc_id(evsel, 1, hattr->ids))
+			goto out_delete_evlist;
+
+		for (j = 0; j < hattr->ids; ++j)
+			perf_evlist__id_hash(session->evlist, evsel, 0, j,
+					     hattr->id[j]);
+	}
+
+	return 0;
+
+out_delete_evlist:
+	perf_evlist__delete(session->evlist);
+	session->evlist = NULL;
+	return -ENOMEM;
+}
 
 static int perf_session__open(struct perf_session *self, bool force)
 {
@@ -53,6 +95,11 @@ static int perf_session__open(struct perf_session *self, bool force)
 
 	if (perf_header__read(self, self->fd) < 0) {
 		pr_err("incompatible file format");
+		goto out_close;
+	}
+
+	if (perf_session__read_evlist(self) < 0) {
+		pr_err("Not enough memory to read the event selector list\n");
 		goto out_close;
 	}
 
@@ -141,7 +188,6 @@ struct perf_session *perf_session__new(const char *filename, int mode,
 	memcpy(self->filename, filename, len);
 	self->threads = RB_ROOT;
 	INIT_LIST_HEAD(&self->dead_threads);
-	self->hists_tree = RB_ROOT;
 	self->last_match = NULL;
 	/*
 	 * On 64bit we can mmap the data file in one go. No need for tiny mmap
@@ -1136,4 +1182,19 @@ size_t perf_session__fprintf_dsos_buildid(struct perf_session *self, FILE *fp,
 {
 	size_t ret = machine__fprintf_dsos_buildid(&self->host_machine, fp, with_hits);
 	return ret + machines__fprintf_dsos_buildid(&self->machines, fp, with_hits);
+}
+
+size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp)
+{
+	struct perf_evsel *pos;
+	size_t ret = fprintf(fp, "Aggregated stats:\n");
+
+	ret += hists__fprintf_nr_events(&session->hists, fp);
+
+	list_for_each_entry(pos, &session->evlist->entries, node) {
+		ret += fprintf(fp, "%s stats:\n", event_name(pos));
+		ret += hists__fprintf_nr_events(&pos->hists, fp);
+	}
+
+	return ret;
 }

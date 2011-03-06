@@ -42,13 +42,10 @@ enum hist_column {
 };
 
 struct hists {
-	struct rb_node		rb_node;
 	struct rb_root		entries;
 	u64			nr_entries;
 	struct events_stats	stats;
-	u64			config;
 	u64			event_stream;
-	u32			type;
 	u16			col_len[HISTC_NR_COLS];
 	/* Best would be to reuse the session callchain cursor */
 	struct callchain_cursor	callchain_cursor;
@@ -87,6 +84,8 @@ u16 hists__col_len(struct hists *self, enum hist_column col);
 void hists__set_col_len(struct hists *self, enum hist_column col, u16 len);
 bool hists__new_col_len(struct hists *self, enum hist_column col, u16 len);
 
+struct perf_evlist;
+
 #ifdef NO_NEWT_SUPPORT
 static inline int hists__browse(struct hists *self __used,
 				const char *helpline __used,
@@ -95,9 +94,8 @@ static inline int hists__browse(struct hists *self __used,
 	return 0;
 }
 
-static inline int hists__tui_browse_tree(struct rb_root *self __used,
-					 const char *help __used,
-					 int evidx __used)
+static inline int hists__tui_browse_tree(struct perf_evlist *evlist __used,
+					 const char *help __used)
 {
 	return 0;
 }
@@ -118,7 +116,7 @@ int hist_entry__tui_annotate(struct hist_entry *self, int evidx);
 #define KEY_LEFT NEWT_KEY_LEFT
 #define KEY_RIGHT NEWT_KEY_RIGHT
 
-int hists__tui_browse_tree(struct rb_root *self, const char *help, int evidx);
+int hists__tui_browse_tree(struct perf_evlist *evlist, const char *help);
 #endif
 
 unsigned int hists__sort_list_width(struct hists *self);

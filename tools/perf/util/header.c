@@ -969,37 +969,6 @@ bool perf_header__sample_id_all(const struct perf_header *header)
 	return value;
 }
 
-struct perf_event_attr *
-perf_header__find_attr(u64 id, struct perf_header *header)
-{
-	int i;
-
-	/*
-	 * We set id to -1 if the data file doesn't contain sample
-	 * ids. This can happen when the data file contains one type
-	 * of event and in that case, the header can still store the
-	 * event attribute information. Check for this and avoid
-	 * walking through the entire list of ids which may be large.
-	 */
-	if (id == -1ULL) {
-		if (header->attrs > 0)
-			return &header->attr[0]->attr;
-		return NULL;
-	}
-
-	for (i = 0; i < header->attrs; i++) {
-		struct perf_header_attr *attr = header->attr[i];
-		int j;
-
-		for (j = 0; j < attr->ids; j++) {
-			if (attr->id[j] == id)
-				return &attr->attr;
-		}
-	}
-
-	return NULL;
-}
-
 int perf_event__synthesize_attr(struct perf_event_attr *attr, u16 ids, u64 *id,
 				perf_event__handler_t process,
 				struct perf_session *session)

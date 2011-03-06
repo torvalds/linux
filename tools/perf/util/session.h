@@ -34,12 +34,12 @@ struct perf_session {
 	struct thread		*last_match;
 	struct machine		host_machine;
 	struct rb_root		machines;
-	struct rb_root		hists_tree;
+	struct perf_evlist	*evlist;
 	/*
-	 * FIXME: should point to the first entry in hists_tree and
-	 *        be a hists instance. Right now its only 'report'
-	 *        that is using ->hists_tree while all the rest use
-	 *        ->hists.
+	 * FIXME: Need to split this up further, we need global
+	 *	  stats + per event stats. 'perf diff' also needs
+	 *	  to properly support multiple events in a single
+	 *	  perf.data file.
 	 */
 	struct hists		hists;
 	u64			sample_type;
@@ -151,11 +151,7 @@ size_t perf_session__fprintf_dsos(struct perf_session *self, FILE *fp);
 size_t perf_session__fprintf_dsos_buildid(struct perf_session *self,
 					  FILE *fp, bool with_hits);
 
-static inline
-size_t perf_session__fprintf_nr_events(struct perf_session *self, FILE *fp)
-{
-	return hists__fprintf_nr_events(&self->hists, fp);
-}
+size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp);
 
 static inline int perf_session__parse_sample(struct perf_session *session,
 					     const union perf_event *event,

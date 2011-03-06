@@ -7,6 +7,8 @@
 #include <newt.h>
 #include <linux/rbtree.h>
 
+#include "../../evsel.h"
+#include "../../evlist.h"
 #include "../../hist.h"
 #include "../../pstack.h"
 #include "../../sort.h"
@@ -987,31 +989,33 @@ out:
 	return key;
 }
 
-int hists__tui_browse_tree(struct rb_root *self, const char *help, int evidx)
+int hists__tui_browse_tree(struct perf_evlist *evlist, const char *help)
 {
-	struct rb_node *first = rb_first(self), *nd = first, *next;
-	int key = 0;
+	struct perf_evsel *pos;
 
-	while (nd) {
-		struct hists *hists = rb_entry(nd, struct hists, rb_node);
-		const char *ev_name = __event_name(hists->type, hists->config);
+	pos = list_entry(evlist->entries.next, struct perf_evsel, node);
+	while (pos) {
+		struct hists *hists = &pos->hists;
+		const char *ev_name = event_name(pos);
+		int key = hists__browse(hists, help, ev_name, pos->idx);
 
-		key = hists__browse(hists, help, ev_name, evidx);
 		switch (key) {
 		case NEWT_KEY_TAB:
-			next = rb_next(nd);
-			if (next)
-				nd = next;
+			if (pos->node.next == &evlist->entries)
+				pos = list_entry(evlist->entries.next, struct perf_evsel, node);
+			else
+				pos = list_entry(pos->node.next, struct perf_evsel, node);
 			break;
 		case NEWT_KEY_UNTAB:
-			if (nd == first)
-				continue;
-			nd = rb_prev(nd);
+			if (pos->node.prev == &evlist->entries)
+				pos = list_entry(evlist->entries.prev, struct perf_evsel, node);
+			else
+				pos = list_entry(pos->node.prev, struct perf_evsel, node);
 			break;
 		default:
 			return key;
 		}
 	}
 
-	return key;
+	return 0;
 }

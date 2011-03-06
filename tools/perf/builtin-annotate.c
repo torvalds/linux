@@ -19,6 +19,8 @@
 #include "perf.h"
 #include "util/debug.h"
 
+#include "util/evlist.h"
+#include "util/evsel.h"
 #include "util/annotate.h"
 #include "util/event.h"
 #include "util/parse-options.h"
@@ -38,9 +40,13 @@ static bool		print_line;
 
 static const char *sym_hist_filter;
 
-static int hists__add_entry(struct hists *self, struct addr_location *al)
+static int perf_evlist__add_sample(struct perf_evlist *evlist,
+				   struct perf_sample *sample,
+				   struct addr_location *al)
 {
+	struct perf_evsel *evsel;
 	struct hist_entry *he;
+	int ret;
 
 	if (sym_hist_filter != NULL &&
 	    (al->sym == NULL || strcmp(sym_hist_filter, al->sym->name) != 0)) {
@@ -53,23 +59,35 @@ static int hists__add_entry(struct hists *self, struct addr_location *al)
 		return 0;
 	}
 
-	he = __hists__add_entry(self, al, NULL, 1);
+	evsel = perf_evlist__id2evsel(evlist, sample->id);
+	if (evsel == NULL) {
+		/*
+		 * FIXME: Propagate this back, but at least we're in a builtin,
+		 * where exit() is allowed. ;-)
+		 */
+		ui__warning("Invalid %s file, contains samples with id not in "
+			    "its header!\n", input_name);
+		exit_browser(0);
+		exit(1);
+	}
+
+	he = __hists__add_entry(&evsel->hists, al, NULL, 1);
 	if (he == NULL)
 		return -ENOMEM;
 
+	ret = 0;
 	if (he->ms.sym != NULL) {
-		/*
-		 * All aggregated on the first sym_hist.
-		 */
 		struct annotation *notes = symbol__annotation(he->ms.sym);
 		if (notes->src == NULL &&
-		    symbol__alloc_hist(he->ms.sym, 1) < 0)
+		    symbol__alloc_hist(he->ms.sym, evlist->nr_entries) < 0)
 			return -ENOMEM;
 
-		return hist_entry__inc_addr_samples(he, 0, al->addr);
+		ret = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
 	}
 
-	return 0;
+	evsel->hists.stats.total_period += sample->period;
+	hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
+	return ret;
 }
 
 static int process_sample_event(union perf_event *event,
@@ -85,7 +103,7 @@ static int process_sample_event(union perf_event *event,
 		return -1;
 	}
 
-	if (!al.filtered && hists__add_entry(&session->hists, &al)) {
+	if (!al.filtered && perf_evlist__add_sample(session->evlist, sample, &al)) {
 		pr_warning("problem incrementing symbol count, "
 			   "skipping event\n");
 		return -1;
@@ -100,7 +118,7 @@ static int hist_entry__tty_annotate(struct hist_entry *he, int evidx)
 				    print_line, full_paths, 0, 0);
 }
 
-static void hists__find_annotations(struct hists *self)
+static void hists__find_annotations(struct hists *self, int evidx)
 {
 	struct rb_node *nd = rb_first(&self->entries), *next;
 	int key = KEY_RIGHT;
@@ -123,8 +141,7 @@ find_next:
 		}
 
 		if (use_browser > 0) {
-			/* For now all is aggregated on the first */
-			key = hist_entry__tui_annotate(he, 0);
+			key = hist_entry__tui_annotate(he, evidx);
 			switch (key) {
 			case KEY_RIGHT:
 				next = rb_next(nd);
@@ -139,8 +156,7 @@ find_next:
 			if (next != NULL)
 				nd = next;
 		} else {
-			/* For now all is aggregated on the first */
-			hist_entry__tty_annotate(he, 0);
+			hist_entry__tty_annotate(he, evidx);
 			nd = rb_next(nd);
 			/*
 			 * Since we have a hist_entry per IP for the same
@@ -166,6 +182,8 @@ static int __cmd_annotate(void)
 {
 	int ret;
 	struct perf_session *session;
+	struct perf_evsel *pos;
+	u64 total_nr_samples;
 
 	session = perf_session__new(input_name, O_RDONLY, force, false, &event_ops);
 	if (session == NULL)
@@ -186,12 +204,36 @@ static int __cmd_annotate(void)
 	if (verbose > 2)
 		perf_session__fprintf_dsos(session, stdout);
 
-	hists__collapse_resort(&session->hists);
-	hists__output_resort(&session->hists);
-	hists__find_annotations(&session->hists);
-out_delete:
-	perf_session__delete(session);
+	total_nr_samples = 0;
+	list_for_each_entry(pos, &session->evlist->entries, node) {
+		struct hists *hists = &pos->hists;
+		u32 nr_samples = hists->stats.nr_events[PERF_RECORD_SAMPLE];
 
+		if (nr_samples > 0) {
+			total_nr_samples += nr_samples;
+			hists__collapse_resort(hists);
+			hists__output_resort(hists);
+			hists__find_annotations(hists, pos->idx);
+		}
+	}
+
+	if (total_nr_samples == 0) {
+		ui__warning("The %s file has no samples!\n", input_name);
+		goto out_delete;
+	}
+out_delete:
+	/*
+	 * Speed up the exit process, for large files this can
+	 * take quite a while.
+	 *
+	 * XXX Enable this when using valgrind or if we ever
+	 * librarize this command.
+	 *
+	 * Also experiment with obstacks to see how much speed
+	 * up we'll get here.
+	 *
+	 * perf_session__delete(session);
+	 */
 	return ret;
 }
 
