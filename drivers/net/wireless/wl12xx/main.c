@@ -298,7 +298,7 @@ static struct conf_drv_settings default_conf = {
 		.tx_ba_win_size = 64,
 		.inactivity_timeout = 10000,
 	},
-	.mem = {
+	.mem_wl127x = {
 		.num_stations                 = 1,
 		.ssid_profiles                = 1,
 		.rx_block_num                 = 70,
@@ -307,7 +307,17 @@ static struct conf_drv_settings default_conf = {
 		.min_req_tx_blocks            = 100,
 		.min_req_rx_blocks            = 22,
 		.tx_min                       = 27,
-	}
+	},
+	.mem_wl128x = {
+		.num_stations                 = 1,
+		.ssid_profiles                = 1,
+		.rx_block_num                 = 40,
+		.tx_min_block_num             = 40,
+		.dynamic_memory               = 1,
+		.min_req_tx_blocks            = 45,
+		.min_req_rx_blocks            = 22,
+		.tx_min                       = 27,
+	},
 };
 
 static void __wl1271_op_remove_interface(struct wl1271 *wl);
@@ -608,15 +618,26 @@ static void wl1271_fw_status(struct wl1271 *wl,
 {
 	struct wl1271_fw_common_status *status = &full_status->common;
 	struct timespec ts;
+	u32 old_tx_blk_count = wl->tx_blocks_available;
 	u32 total = 0;
 	int i;
 
-	if (wl->bss_type == BSS_TYPE_AP_BSS)
+	if (wl->bss_type == BSS_TYPE_AP_BSS) {
 		wl1271_raw_read(wl, FW_STATUS_ADDR, status,
 				sizeof(struct wl1271_fw_ap_status), false);
-	else
+	} else {
 		wl1271_raw_read(wl, FW_STATUS_ADDR, status,
 				sizeof(struct wl1271_fw_sta_status), false);
+
+		/* Update tx total blocks change */
+		wl->tx_total_diff +=
+			((struct wl1271_fw_sta_status *)status)->tx_total -
+			wl->tx_new_total;
+
+		/* Update total tx blocks */
+		wl->tx_new_total =
+			((struct wl1271_fw_sta_status *)status)->tx_total;
+	}
 
 	wl1271_debug(DEBUG_IRQ, "intr: 0x%x (fw_rx_counter = %d, "
 		     "drv_rx_counter = %d, tx_results_counter = %d)",
@@ -627,17 +648,28 @@ static void wl1271_fw_status(struct wl1271 *wl,
 
 	/* update number of available TX blocks */
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
-		u32 cnt = le32_to_cpu(status->tx_released_blks[i]) -
+		total += le32_to_cpu(status->tx_released_blks[i]) -
 			wl->tx_blocks_freed[i];
 
 		wl->tx_blocks_freed[i] =
 			le32_to_cpu(status->tx_released_blks[i]);
-		wl->tx_blocks_available += cnt;
-		total += cnt;
+
+	}
+
+	/*
+	 * By adding the freed blocks to tx_total_diff we are actually
+	 * moving them to the RX pool.
+	 */
+	wl->tx_total_diff += total;
+
+	/* if we have positive difference, add the blocks to the TX pool */
+	if (wl->tx_total_diff >= 0) {
+		wl->tx_blocks_available += wl->tx_total_diff;
+		wl->tx_total_diff = 0;
 	}
 
 	/* if more blocks are available now, tx work can be scheduled */
-	if (total)
+	if (wl->tx_blocks_available > old_tx_blk_count)
 		clear_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags);
 
 	/* for AP update num of allocated TX blocks per link and ps status */

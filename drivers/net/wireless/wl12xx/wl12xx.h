@@ -267,6 +267,8 @@ struct wl1271_fw_sta_status {
 	u8  tx_total;
 	u8  reserved1;
 	__le16 reserved2;
+	/* Total structure size is 68 bytes */
+	u32 padding;
 } __packed;
 
 struct wl1271_fw_full_status {
@@ -397,6 +399,9 @@ struct wl1271 {
 	u32 tx_blocks_freed[NUM_TX_QUEUES];
 	u32 tx_blocks_available;
 	u32 tx_results_count;
+	/* Indicates how many memory blocks should be moved to the RX pool */
+	int tx_total_diff;
+	u32 tx_new_total;
 
 	/* Transmitted TX packets counter for chipset interface */
 	u32 tx_packets_count;
