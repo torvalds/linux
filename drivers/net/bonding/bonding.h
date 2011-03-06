@@ -29,6 +29,8 @@
 #define DRV_NAME	"bonding"
 #define DRV_DESCRIPTION	"Ethernet Channel Bonding Driver"
 
+#define bond_version DRV_DESCRIPTION ": v" DRV_VERSION " (" DRV_RELDATE ")\n"
+
 #define BOND_MAX_ARP_TARGETS	16
 
 #define IS_UP(dev)					   \
@@ -413,6 +415,30 @@ struct bond_net {
 	struct proc_dir_entry *	proc_dir;
 #endif
 };
+
+#ifdef CONFIG_PROC_FS
+void bond_create_proc_entry(struct bonding *bond);
+void bond_remove_proc_entry(struct bonding *bond);
+void bond_create_proc_dir(struct bond_net *bn);
+void bond_destroy_proc_dir(struct bond_net *bn);
+#else
+static inline void bond_create_proc_entry(struct bonding *bond)
+{
+}
+
+static inline void bond_remove_proc_entry(struct bonding *bond)
+{
+}
+
+static inline void bond_create_proc_dir(struct bond_net *bn)
+{
+}
+
+static inline void bond_destroy_proc_dir(struct bond_net *bn)
+{
+}
+#endif
+
 
 /* exported from bond_main.c */
 extern int bond_net_id;
