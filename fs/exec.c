@@ -398,6 +398,17 @@ err:
 	return err;
 }
 
+static const char __user *
+get_user_arg_ptr(const char __user * const __user *argv, int nr)
+{
+	const char __user *ptr;
+
+	if (get_user(ptr, argv + nr))
+		return ERR_PTR(-EFAULT);
+
+	return ptr;
+}
+
 /*
  * count() counts the number of strings in array ARGV.
  */
@@ -407,13 +418,14 @@ static int count(const char __user * const __user * argv, int max)
 
 	if (argv != NULL) {
 		for (;;) {
-			const char __user * p;
+			const char __user *p = get_user_arg_ptr(argv, i);
 
-			if (get_user(p, argv))
-				return -EFAULT;
 			if (!p)
 				break;
-			argv++;
+
+			if (IS_ERR(p))
+				return -EFAULT;
+
 			if (i++ >= max)
 				return -E2BIG;
 
@@ -443,16 +455,18 @@ static int copy_strings(int argc, const char __user *const __user *argv,
 		int len;
 		unsigned long pos;
 
-		if (get_user(str, argv+argc) ||
-				!(len = strnlen_user(str, MAX_ARG_STRLEN))) {
-			ret = -EFAULT;
+		ret = -EFAULT;
+		str = get_user_arg_ptr(argv, argc);
+		if (IS_ERR(str))
 			goto out;
-		}
 
-		if (!valid_arg_len(bprm, len)) {
-			ret = -E2BIG;
+		len = strnlen_user(str, MAX_ARG_STRLEN);
+		if (!len)
 			goto out;
-		}
+
+		ret = -E2BIG;
+		if (!valid_arg_len(bprm, len))
+			goto out;
 
 		/* We're going to work our way backwords. */
 		pos = bprm->p;
