@@ -977,20 +977,6 @@ _GLOBAL(do_stab_bolted)
 	rfid
 	b	.	/* prevent speculative execution */
 
-/*
- * Space for CPU0's segment table.
- *
- * On iSeries, the hypervisor must fill in at least one entry before
- * we get control (with relocate on).  The address is given to the hv
- * as a page number (see xLparMap below), so this must be at a
- * fixed address (the linker can't compute (u64)&initial_stab >>
- * PAGE_SHIFT).
- */
-	. = STAB0_OFFSET	/* 0x6000 */
-	.globl initial_stab
-initial_stab:
-	.space	4096
-
 #ifdef CONFIG_PPC_PSERIES
 /*
  * Data area reserved for FWNMI option.
@@ -1027,3 +1013,17 @@ xLparMap:
 #ifdef CONFIG_PPC_PSERIES
         . = 0x8000
 #endif /* CONFIG_PPC_PSERIES */
+
+/*
+ * Space for CPU0's segment table.
+ *
+ * On iSeries, the hypervisor must fill in at least one entry before
+ * we get control (with relocate on).  The address is given to the hv
+ * as a page number (see xLparMap above), so this must be at a
+ * fixed address (the linker can't compute (u64)&initial_stab >>
+ * PAGE_SHIFT).
+ */
+	. = STAB0_OFFSET	/* 0x8000 */
+	.globl initial_stab
+initial_stab:
+	.space	4096
