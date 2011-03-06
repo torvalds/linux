@@ -158,8 +158,14 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
 		desc = (struct wl1271_tx_hw_descr *)skb_push(
 			skb, total_len - skb->len);
 
-		desc->wl127x_mem.extra_blocks = TX_HW_BLOCK_SPARE;
-		desc->wl127x_mem.total_mem_blocks = total_blocks;
+		/* HW descriptor fields change between wl127x and wl128x */
+		if (wl->chip.id == CHIP_ID_1283_PG20) {
+			desc->wl128x_mem.total_mem_blocks = total_blocks;
+		} else {
+			desc->wl127x_mem.extra_blocks = TX_HW_BLOCK_SPARE;
+			desc->wl127x_mem.total_mem_blocks = total_blocks;
+		}
+
 		desc->id = id;
 
 		wl->tx_blocks_available -= total_blocks;
@@ -249,6 +255,13 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 
 		desc->wl128x_mem.extra_bytes = aligned_len - skb->len;
 		desc->length = cpu_to_le16(aligned_len >> 2);
+
+		wl1271_debug(DEBUG_TX, "tx_fill_hdr: hlid: %d "
+			     "tx_attr: 0x%x len: %d life: %d mem: %d",
+			     desc->hlid, tx_attr,
+			     le16_to_cpu(desc->length),
+			     le16_to_cpu(desc->life_time),
+			     desc->wl128x_mem.total_mem_blocks);
 	} else {
 		int pad;
 
@@ -260,16 +273,15 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 		pad = aligned_len - skb->len;
 		tx_attr |= pad << TX_HW_ATTR_OFST_LAST_WORD_PAD;
 
-		wl1271_debug(DEBUG_TX, "tx_fill_hdr: padding: %d", pad);
+		wl1271_debug(DEBUG_TX, "tx_fill_hdr: pad: %d hlid: %d "
+			     "tx_attr: 0x%x len: %d life: %d mem: %d", pad,
+			     desc->hlid, tx_attr,
+			     le16_to_cpu(desc->length),
+			     le16_to_cpu(desc->life_time),
+			     desc->wl127x_mem.total_mem_blocks);
 	}
 
 	desc->tx_attr = cpu_to_le16(tx_attr);
-
-	wl1271_debug(DEBUG_TX, "tx_fill_hdr: hlid: %d tx_attr: 0x%x "
-		     "len: %d life: %d mem: %d",
-		     desc->hlid, le16_to_cpu(desc->tx_attr),
-		     le16_to_cpu(desc->length),	le16_to_cpu(desc->life_time),
-		     desc->wl127x_mem.total_mem_blocks);
 }
 
 /* caller must hold wl->mutex */

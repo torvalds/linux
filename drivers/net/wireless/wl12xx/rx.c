@@ -163,18 +163,25 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_common_status *status)
 			break;
 		}
 
-		/*
-		 * Choose the block we want to read
-		 * For aggregated packets, only the first memory block should
-		 * be retrieved. The FW takes care of the rest.
-		 */
-		mem_block = wl1271_rx_get_mem_block(status, drv_rx_counter);
-		wl->rx_mem_pool_addr.addr = (mem_block << 8) +
-			le32_to_cpu(wl_mem_map->packet_memory_pool_start);
-		wl->rx_mem_pool_addr.addr_extra =
-			wl->rx_mem_pool_addr.addr + 4;
-		wl1271_write(wl, WL1271_SLV_REG_DATA, &wl->rx_mem_pool_addr,
-				sizeof(wl->rx_mem_pool_addr), false);
+		if (wl->chip.id != CHIP_ID_1283_PG20) {
+			/*
+			 * Choose the block we want to read
+			 * For aggregated packets, only the first memory block
+			 * should be retrieved. The FW takes care of the rest.
+			 */
+			mem_block = wl1271_rx_get_mem_block(status,
+							    drv_rx_counter);
+
+			wl->rx_mem_pool_addr.addr = (mem_block << 8) +
+			   le32_to_cpu(wl_mem_map->packet_memory_pool_start);
+
+			wl->rx_mem_pool_addr.addr_extra =
+				wl->rx_mem_pool_addr.addr + 4;
+
+			wl1271_write(wl, WL1271_SLV_REG_DATA,
+				     &wl->rx_mem_pool_addr,
+				     sizeof(wl->rx_mem_pool_addr), false);
+		}
 
 		/* Read all available packets at once */
 		wl1271_read(wl, WL1271_SLV_MEM_DATA, wl->aggr_buf,
