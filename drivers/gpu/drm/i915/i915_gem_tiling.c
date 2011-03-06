@@ -184,7 +184,7 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 static bool
 i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 {
-	int tile_width, tile_height;
+	int tile_width;
 
 	/* Linear is always fine */
 	if (tiling_mode == I915_TILING_NONE)
@@ -214,20 +214,6 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 				return false;
 		}
 	}
-
-	if (IS_GEN2(dev) ||
-	    (tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev)))
-		tile_height = 32;
-	else
-		tile_height = 8;
-	/* i8xx is strange: It has 2 interleaved rows of tiles, so needs an even
-	 * number of tile rows. */
-	if (IS_GEN2(dev))
-		tile_height *= 2;
-
-	/* Size needs to be aligned to a full tile row */
-	if (size & (tile_height * stride - 1))
-		return false;
 
 	/* 965+ just needs multiples of tile width */
 	if (INTEL_INFO(dev)->gen >= 4) {
