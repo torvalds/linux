@@ -585,13 +585,6 @@ int wl1271_load_firmware(struct wl1271 *wl)
 	/* 6. read the EEPROM parameters */
 	tmp = wl1271_read32(wl, SCR_PAD2);
 
-	ret = wl1271_boot_write_irq_polarity(wl);
-	if (ret < 0)
-		goto out;
-
-	wl1271_write32(wl, ACX_REG_INTERRUPT_MASK,
-		       WL1271_ACX_ALL_EVENTS_VECTOR);
-
 	/* WL1271: The reference driver skips steps 7 to 10 (jumps directly
 	 * to upload_fw) */
 
@@ -617,6 +610,13 @@ int wl1271_boot(struct wl1271 *wl)
 	ret = wl1271_boot_run_firmware(wl);
 	if (ret < 0)
 		goto out;
+
+	ret = wl1271_boot_write_irq_polarity(wl);
+	if (ret < 0)
+		goto out;
+
+	wl1271_write32(wl, ACX_REG_INTERRUPT_MASK,
+		       WL1271_ACX_ALL_EVENTS_VECTOR);
 
 	/* Enable firmware interrupts now */
 	wl1271_boot_enable_interrupts(wl);
