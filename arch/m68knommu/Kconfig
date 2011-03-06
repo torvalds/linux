@@ -519,6 +519,12 @@ config M5407C3
 	help
 	  Support for the Motorola M5407C3 board.
 
+config FIREBEE
+	bool "FireBee board support"
+	depends on M547x
+	help
+	  Support for the FireBee ColdFire 5475 based board.
+
 config CLEOPATRA
 	bool "Feith CLEOPATRA board support"
 	depends on (M5307 || M5407)
