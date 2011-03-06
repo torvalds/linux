@@ -6150,7 +6150,7 @@ xfs_bmap_punch_delalloc_range(
 		if (error) {
 			/* something screwed, just bail */
 			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-				xfs_fs_cmn_err(CE_ALERT, ip->i_mount,
+				xfs_alert(ip->i_mount,
 			"Failed delalloc mapping lookup ino %lld fsb %lld.",
 						ip->i_ino, start_fsb);
 			}

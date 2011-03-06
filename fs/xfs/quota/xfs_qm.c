@@ -402,14 +402,13 @@ xfs_qm_mount_quotas(
 			 * off, but the on disk superblock doesn't know that !
 			 */
 			ASSERT(!(XFS_IS_QUOTA_RUNNING(mp)));
-			xfs_fs_cmn_err(CE_ALERT, mp,
-				"XFS mount_quotas: Superblock update failed!");
+			xfs_alert(mp, "%s: Superblock update failed!",
+				__func__);
 		}
 	}
 
 	if (error) {
-		xfs_fs_cmn_err(CE_WARN, mp,
-			"Failed to initialize disk quotas.");
+		xfs_warn(mp, "Failed to initialize disk quotas.");
 		return;
 	}
 
@@ -1257,7 +1256,7 @@ xfs_qm_qino_alloc(
 	xfs_mod_sb(tp, sbfields);
 
 	if ((error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES))) {
-		xfs_fs_cmn_err(CE_ALERT, mp, "XFS qino_alloc failed!");
+		xfs_alert(mp, "%s failed (error %d)!", __func__, error);
 		return error;
 	}
 	return 0;
@@ -1930,8 +1929,8 @@ again:
 			 */
 			error = xfs_qm_dqflush(dqp, 0);
 			if (error) {
-				xfs_fs_cmn_err(CE_WARN, mp,
-			"xfs_qm_dqreclaim: dquot %p flush failed", dqp);
+				xfs_warn(mp, "%s: dquot %p flush failed",
+					__func__, dqp);
 			}
 			goto dqunlock;
 		}

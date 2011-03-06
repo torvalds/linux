@@ -45,26 +45,6 @@ cmn_err(
 }
 
 void
-xfs_fs_cmn_err(
-	const char		*lvl,
-	struct xfs_mount	*mp,
-	const char		*fmt,
-	...)
-{
-	struct va_format	vaf;
-	va_list			args;
-
-	va_start(args, fmt);
-	vaf.fmt = fmt;
-	vaf.va = &args;
-
-	printk("%sFilesystem %s: %pV", lvl, mp->m_fsname, &vaf);
-	va_end(args);
-
-	BUG_ON(strncmp(lvl, KERN_EMERG, strlen(KERN_EMERG)) == 0);
-}
-
-void
 assfail(char *expr, char *file, int line)
 {
 	printk(KERN_CRIT "Assertion failed: %s, file: %s, line: %d\n", expr,

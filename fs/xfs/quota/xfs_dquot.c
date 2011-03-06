@@ -1393,8 +1393,8 @@ xfs_qm_dqpurge(
 		 */
 		error = xfs_qm_dqflush(dqp, SYNC_WAIT);
 		if (error)
-			xfs_fs_cmn_err(CE_WARN, mp,
-				"xfs_qm_dqpurge: dquot %p flush failed", dqp);
+			xfs_warn(mp, "%s: dquot %p flush failed",
+				__func__, dqp);
 		xfs_dqflock(dqp);
 	}
 	ASSERT(atomic_read(&dqp->q_pincount) == 0);

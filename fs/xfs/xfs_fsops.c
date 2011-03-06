@@ -385,8 +385,8 @@ xfs_growfs_data_private(
 				  XFS_AGB_TO_DADDR(mp, agno, XFS_SB_BLOCK(mp)),
 				  XFS_FSS_TO_BB(mp, 1), 0, &bp);
 		if (error) {
-			xfs_fs_cmn_err(CE_WARN, mp,
-			"error %d reading secondary superblock for ag %d",
+			xfs_warn(mp,
+		"error %d reading secondary superblock for ag %d",
 				error, agno);
 			break;
 		}
@@ -399,7 +399,7 @@ xfs_growfs_data_private(
 		if (!(error = xfs_bwrite(mp, bp))) {
 			continue;
 		} else {
-			xfs_fs_cmn_err(CE_WARN, mp,
+			xfs_warn(mp,
 		"write error %d updating secondary superblock for ag %d",
 				error, agno);
 			break; /* no point in continuing */

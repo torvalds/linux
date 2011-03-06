@@ -1208,12 +1208,12 @@ xfs_inactive(
 		 */
 		error = xfs_bmap_finish(&tp,  &free_list, &committed);
 		if (error)
-			xfs_fs_cmn_err(CE_NOTE, mp, "xfs_inactive: "
-				"xfs_bmap_finish() returned error %d", error);
+			xfs_notice(mp, "%s: xfs_bmap_finish returned error %d",
+				__func__, error);
 		error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
 		if (error)
-			xfs_fs_cmn_err(CE_NOTE, mp, "xfs_inactive: "
-				"xfs_trans_commit() returned error %d", error);
+			xfs_notice(mp, "%s: xfs_trans_commit returned error %d",
+				__func__, error);
 	}
 
 	/*

@@ -881,8 +881,9 @@ xfs_update_alignment(xfs_mount_t *mp)
 				if (mp->m_flags & XFS_MOUNT_RETERR) {
 					return XFS_ERROR(EINVAL);
 				}
-				xfs_fs_cmn_err(CE_WARN, mp,
-"stripe alignment turned off: sunit(%d)/swidth(%d) incompatible with agsize(%d)",
+				xfs_warn(mp,
+		"stripe alignment turned off: sunit(%d)/swidth(%d) "
+		"incompatible with agsize(%d)",
 					mp->m_dalign, mp->m_swidth,
 					sbp->sb_agblocks);
 
@@ -892,9 +893,9 @@ xfs_update_alignment(xfs_mount_t *mp)
 				mp->m_swidth = XFS_BB_TO_FSBT(mp, mp->m_swidth);
 			} else {
 				if (mp->m_flags & XFS_MOUNT_RETERR) {
-					xfs_fs_cmn_err(CE_WARN, mp,
-"stripe alignment turned off: sunit(%d) less than bsize(%d)",
-                                        	mp->m_dalign,
+					xfs_warn(mp,
+		"stripe alignment turned off: sunit(%d) less than bsize(%d)",
+						mp->m_dalign,
 						mp->m_blockmask +1);
 					return XFS_ERROR(EINVAL);
 				}
@@ -1100,7 +1101,7 @@ xfs_mount_reset_sbqflags(
 		return 0;
 
 #ifdef QUOTADEBUG
-	xfs_fs_cmn_err(CE_NOTE, mp, "Writing superblock quota changes");
+	xfs_notice(mp, "Writing superblock quota changes");
 #endif
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_SBCHANGE);
@@ -1108,8 +1109,7 @@ xfs_mount_reset_sbqflags(
 				      XFS_DEFAULT_LOG_COUNT);
 	if (error) {
 		xfs_trans_cancel(tp, 0);
-		xfs_fs_cmn_err(CE_ALERT, mp,
-			"xfs_mount_reset_sbqflags: Superblock update failed!");
+		xfs_alert(mp, "%s: Superblock update failed!", __func__);
 		return error;
 	}
 

@@ -1218,10 +1218,9 @@ xfs_imap_lookup(
 
 	error = xfs_ialloc_read_agi(mp, tp, agno, &agbp);
 	if (error) {
-		xfs_fs_cmn_err(CE_ALERT, mp, "xfs_imap: "
-				"xfs_ialloc_read_agi() returned "
-				"error %d, agno %d",
-				error, agno);
+		xfs_alert(mp,
+			"%s: xfs_ialloc_read_agi() returned error %d, agno %d",
+			__func__, error, agno);
 		return error;
 	}
 
@@ -1299,24 +1298,21 @@ xfs_imap(
 		if (flags & XFS_IGET_UNTRUSTED)
 			return XFS_ERROR(EINVAL);
 		if (agno >= mp->m_sb.sb_agcount) {
-			xfs_fs_cmn_err(CE_ALERT, mp,
-					"xfs_imap: agno (%d) >= "
-					"mp->m_sb.sb_agcount (%d)",
-					agno,  mp->m_sb.sb_agcount);
+			xfs_alert(mp,
+				"%s: agno (%d) >= mp->m_sb.sb_agcount (%d)",
+				__func__, agno, mp->m_sb.sb_agcount);
 		}
 		if (agbno >= mp->m_sb.sb_agblocks) {
-			xfs_fs_cmn_err(CE_ALERT, mp,
-					"xfs_imap: agbno (0x%llx) >= "
-					"mp->m_sb.sb_agblocks (0x%lx)",
-					(unsigned long long) agbno,
-					(unsigned long) mp->m_sb.sb_agblocks);
+			xfs_alert(mp,
+		"%s: agbno (0x%llx) >= mp->m_sb.sb_agblocks (0x%lx)",
+				__func__, (unsigned long long)agbno,
+				(unsigned long)mp->m_sb.sb_agblocks);
 		}
 		if (ino != XFS_AGINO_TO_INO(mp, agno, agino)) {
-			xfs_fs_cmn_err(CE_ALERT, mp,
-					"xfs_imap: ino (0x%llx) != "
-					"XFS_AGINO_TO_INO(mp, agno, agino) "
-					"(0x%llx)",
-					ino, XFS_AGINO_TO_INO(mp, agno, agino));
+			xfs_alert(mp,
+		"%s: ino (0x%llx) != XFS_AGINO_TO_INO() (0x%llx)",
+				__func__, ino,
+				XFS_AGINO_TO_INO(mp, agno, agino));
 		}
 		xfs_stack_trace();
 #endif /* DEBUG */
@@ -1388,10 +1384,9 @@ out_map:
 	 */
 	if ((imap->im_blkno + imap->im_len) >
 	    XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks)) {
-		xfs_fs_cmn_err(CE_ALERT, mp, "xfs_imap: "
-			"(imap->im_blkno (0x%llx) + imap->im_len (0x%llx)) > "
-			" XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks) (0x%llx)",
-			(unsigned long long) imap->im_blkno,
+		xfs_alert(mp,
+	"%s: (im_blkno (0x%llx) + im_len (0x%llx)) > sb_dblocks (0x%llx)",
+			__func__, (unsigned long long) imap->im_blkno,
 			(unsigned long long) imap->im_len,
 			XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks));
 		return XFS_ERROR(EINVAL);

@@ -270,9 +270,9 @@ xfs_swap_extents(
 	/* check inode formats now that data is flushed */
 	error = xfs_swap_extents_check_format(ip, tip);
 	if (error) {
-		xfs_fs_cmn_err(CE_NOTE, mp,
+		xfs_notice(mp,
 		    "%s: inode 0x%llx format is incompatible for exchanging.",
-				__FILE__, ip->i_ino);
+				__func__, ip->i_ino);
 		goto out_unlock;
 	}
 

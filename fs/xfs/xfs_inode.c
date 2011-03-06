@@ -110,8 +110,8 @@ xfs_inobp_check(
 		dip = (xfs_dinode_t *)xfs_buf_offset(bp,
 					i * mp->m_sb.sb_inodesize);
 		if (!dip->di_next_unlinked)  {
-			xfs_fs_cmn_err(CE_ALERT, mp,
-				"Detected a bogus zero next_unlinked field in incore inode buffer 0x%p.  About to pop an ASSERT.",
+			xfs_alert(mp,
+	"Detected bogus zero next_unlinked field in incore inode buffer 0x%p.",
 				bp);
 			ASSERT(dip->di_next_unlinked);
 		}
@@ -806,11 +806,9 @@ xfs_iread(
 	 */
 	if (be16_to_cpu(dip->di_magic) != XFS_DINODE_MAGIC) {
 #ifdef DEBUG
-		xfs_fs_cmn_err(CE_ALERT, mp, "xfs_iread: "
-				"dip->di_magic (0x%x) != "
-				"XFS_DINODE_MAGIC (0x%x)",
-				be16_to_cpu(dip->di_magic),
-				XFS_DINODE_MAGIC);
+		xfs_alert(mp,
+			"%s: dip->di_magic (0x%x) != XFS_DINODE_MAGIC (0x%x)",
+			__func__, be16_to_cpu(dip->di_magic), XFS_DINODE_MAGIC);
 #endif /* DEBUG */
 		error = XFS_ERROR(EINVAL);
 		goto out_brelse;
@@ -828,9 +826,8 @@ xfs_iread(
 		error = xfs_iformat(ip, dip);
 		if (error)  {
 #ifdef DEBUG
-			xfs_fs_cmn_err(CE_ALERT, mp, "xfs_iread: "
-					"xfs_iformat() returned error %d",
-					error);
+			xfs_alert(mp, "%s: xfs_iformat() returned error %d",
+				__func__, error);
 #endif /* DEBUG */
 			goto out_brelse;
 		}
