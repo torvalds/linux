@@ -87,15 +87,9 @@ bool hists__new_col_len(struct hists *self, enum hist_column col, u16 len);
 struct perf_evlist;
 
 #ifdef NO_NEWT_SUPPORT
-static inline int hists__browse(struct hists *self __used,
-				const char *helpline __used,
-				const char *ev_name __used, int evidx __used)
-{
-	return 0;
-}
-
-static inline int hists__tui_browse_tree(struct perf_evlist *evlist __used,
-					 const char *help __used)
+static inline
+int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __used,
+				  const char *help __used)
 {
 	return 0;
 }
@@ -109,14 +103,12 @@ static inline int hist_entry__tui_annotate(struct hist_entry *self __used,
 #define KEY_RIGHT -2
 #else
 #include <newt.h>
-int hists__browse(struct hists *self, const char *helpline,
-		  const char *ev_name, int evidx);
 int hist_entry__tui_annotate(struct hist_entry *self, int evidx);
 
 #define KEY_LEFT NEWT_KEY_LEFT
 #define KEY_RIGHT NEWT_KEY_RIGHT
 
-int hists__tui_browse_tree(struct perf_evlist *evlist, const char *help);
+int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help);
 #endif
 
 unsigned int hists__sort_list_width(struct hists *self);

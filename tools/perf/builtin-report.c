@@ -222,7 +222,8 @@ static size_t hists__fprintf_nr_sample_events(struct hists *self,
 	return ret + fprintf(fp, "\n#\n");
 }
 
-static int hists__tty_browse_tree(struct perf_evlist *evlist, const char *help)
+static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
+					 const char *help)
 {
 	struct perf_evsel *pos;
 
@@ -304,9 +305,9 @@ static int __cmd_report(void)
 	}
 
 	if (use_browser > 0)
-		hists__tui_browse_tree(session->evlist, help);
+		perf_evlist__tui_browse_hists(session->evlist, help);
 	else
-		hists__tty_browse_tree(session->evlist, help);
+		perf_evlist__tty_browse_hists(session->evlist, help);
 
 out_delete:
 	/*

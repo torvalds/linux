@@ -803,9 +803,11 @@ static int hists__browser_title(struct hists *self, char *bf, size_t size,
 	return printed;
 }
 
-int hists__browse(struct hists *self, const char *helpline,
-		  const char *ev_name, int evidx)
+static int perf_evsel__hists_browse(struct perf_evsel *evsel,
+				    const char *helpline, const char *ev_name,
+				    bool left_exits)
 {
+	struct hists *self = &evsel->hists;
 	struct hist_browser *browser = hist_browser__new(self);
 	struct pstack *fstack;
 	const struct thread *thread_filter = NULL;
@@ -878,8 +880,14 @@ int hists__browse(struct hists *self, const char *helpline,
 		case NEWT_KEY_LEFT: {
 			const void *top;
 
-			if (pstack__empty(fstack))
+			if (pstack__empty(fstack)) {
+				/*
+				 * Go back to the perf_evsel_menu__run or other user
+				 */
+				if (left_exits)
+					goto out_free_stack;
 				continue;
+			}
 			top = pstack__pop(fstack);
 			if (top == &dso_filter)
 				goto zoom_out_dso;
@@ -888,7 +896,8 @@ int hists__browse(struct hists *self, const char *helpline,
 			continue;
 		}
 		case NEWT_KEY_ESCAPE:
-			if (!ui__dialog_yesno("Do you really want to exit?"))
+			if (!left_exits &&
+			    !ui__dialog_yesno("Do you really want to exit?"))
 				continue;
 			/* Fall thru */
 		default:
@@ -940,7 +949,7 @@ do_annotate:
 			if (he == NULL)
 				continue;
 
-			hist_entry__tui_annotate(he, evidx);
+			hist_entry__tui_annotate(he, evsel->idx);
 		} else if (choice == browse_map)
 			map__browse(browser->selection->map);
 		else if (choice == zoom_dso) {
@@ -989,15 +998,71 @@ out:
 	return key;
 }
 
-int hists__tui_browse_tree(struct perf_evlist *evlist, const char *help)
-{
-	struct perf_evsel *pos;
+struct perf_evsel_menu {
+	struct ui_browser b;
+	struct perf_evsel *selection;
+};
 
-	pos = list_entry(evlist->entries.next, struct perf_evsel, node);
-	while (pos) {
-		struct hists *hists = &pos->hists;
-		const char *ev_name = event_name(pos);
-		int key = hists__browse(hists, help, ev_name, pos->idx);
+static void perf_evsel_menu__write(struct ui_browser *browser,
+				   void *entry, int row)
+{
+	struct perf_evsel_menu *menu = container_of(browser,
+						    struct perf_evsel_menu, b);
+	struct perf_evsel *evsel = list_entry(entry, struct perf_evsel, node);
+	bool current_entry = ui_browser__is_current_entry(browser, row);
+	unsigned long nr_events = evsel->hists.stats.nr_events[PERF_RECORD_SAMPLE];
+	const char *ev_name = event_name(evsel);
+	char bf[256], unit;
+
+	ui_browser__set_color(browser, current_entry ? HE_COLORSET_SELECTED :
+						       HE_COLORSET_NORMAL);
+
+	nr_events = convert_unit(nr_events, &unit);
+	snprintf(bf, sizeof(bf), "%lu%c%s%s", nr_events,
+		 unit, unit == ' ' ? "" : " ", ev_name);
+	slsmg_write_nstring(bf, browser->width);
+
+	if (current_entry)
+		menu->selection = evsel;
+}
+
+static int perf_evsel_menu__run(struct perf_evsel_menu *menu, const char *help)
+{
+	int exit_keys[] = { NEWT_KEY_ENTER, NEWT_KEY_RIGHT, 0, };
+	struct perf_evlist *evlist = menu->b.priv;
+	struct perf_evsel *pos;
+	const char *ev_name, *title = "Available samples";
+	int key;
+
+	if (ui_browser__show(&menu->b, title,
+			     "ESC: exit, ENTER|->: Browse histograms") < 0)
+		return -1;
+
+	ui_browser__add_exit_keys(&menu->b, exit_keys);
+
+	while (1) {
+		key = ui_browser__run(&menu->b);
+
+		switch (key) {
+		case NEWT_KEY_RIGHT:
+		case NEWT_KEY_ENTER:
+			if (!menu->selection)
+				continue;
+			pos = menu->selection;
+browse_hists:
+			ev_name = event_name(pos);
+			key = perf_evsel__hists_browse(pos, help, ev_name, true);
+			ui_browser__show_title(&menu->b, title);
+			break;
+		case NEWT_KEY_LEFT:
+			continue;
+		case NEWT_KEY_ESCAPE:
+			if (!ui__dialog_yesno("Do you really want to exit?"))
+				continue;
+			/* Fall thru */
+		default:
+			goto out;
+		}
 
 		switch (key) {
 		case NEWT_KEY_TAB:
@@ -1005,17 +1070,69 @@ int hists__tui_browse_tree(struct perf_evlist *evlist, const char *help)
 				pos = list_entry(evlist->entries.next, struct perf_evsel, node);
 			else
 				pos = list_entry(pos->node.next, struct perf_evsel, node);
-			break;
+			goto browse_hists;
 		case NEWT_KEY_UNTAB:
 			if (pos->node.prev == &evlist->entries)
 				pos = list_entry(evlist->entries.prev, struct perf_evsel, node);
 			else
 				pos = list_entry(pos->node.prev, struct perf_evsel, node);
-			break;
+			goto browse_hists;
+		case 'q':
+		case CTRL('c'):
+			goto out;
 		default:
-			return key;
+			break;
 		}
 	}
 
-	return 0;
+out:
+	ui_browser__hide(&menu->b);
+	return key;
+}
+
+static int __perf_evlist__tui_browse_hists(struct perf_evlist *evlist,
+					   const char *help)
+{
+	struct perf_evsel *pos;
+	struct perf_evsel_menu menu = {
+		.b = {
+			.entries    = &evlist->entries,
+			.refresh    = ui_browser__list_head_refresh,
+			.seek	    = ui_browser__list_head_seek,
+			.write	    = perf_evsel_menu__write,
+			.nr_entries = evlist->nr_entries,
+			.priv	    = evlist,
+		},
+	};
+
+	ui_helpline__push("Press ESC to exit");
+
+	list_for_each_entry(pos, &evlist->entries, node) {
+		const char *ev_name = event_name(pos);
+		size_t line_len = strlen(ev_name) + 7;
+
+		if (menu.b.width < line_len)
+			menu.b.width = line_len;
+		/*
+		 * Cache the evsel name, tracepoints have a _high_ cost per
+		 * event_name() call.
+		 */
+		if (pos->name == NULL)
+			pos->name = strdup(ev_name);
+	}
+
+	return perf_evsel_menu__run(&menu, help);
+}
+
+int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help)
+{
+
+	if (evlist->nr_entries == 1) {
+		struct perf_evsel *first = list_entry(evlist->entries.next,
+						      struct perf_evsel, node);
+		const char *ev_name = event_name(first);
+		return perf_evsel__hists_browse(first, help, ev_name, false);
+	}
+
+	return __perf_evlist__tui_browse_hists(evlist, help);
 }
