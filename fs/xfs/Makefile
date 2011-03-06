@@ -111,6 +111,4 @@ xfs-y				+= $(addprefix $(XFS_LINUX)/, \
 				   xfs_xattr.o)
 
 # Objects in support/
-xfs-y				+= $(addprefix support/, \
-				   debug.o \
-				   uuid.o)
+xfs-y				+= support/uuid.o

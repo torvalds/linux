@@ -158,8 +158,4 @@ extern int xfs_errortag_clearall(struct xfs_mount *mp, int loud);
 #define		XFS_PTAG_SHUTDOWN_LOGERROR	0x00000040
 #define		XFS_PTAG_FSBLOCK_ZERO		0x00000080
 
-struct xfs_mount;
-
-extern void xfs_hex_dump(void *p, int length);
-
 #endif	/* __XFS_ERROR_H__ */
