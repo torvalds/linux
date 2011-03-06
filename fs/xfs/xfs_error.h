@@ -162,9 +162,6 @@ struct xfs_mount;
 
 extern void xfs_hex_dump(void *p, int length);
 
-#define xfs_fs_repair_cmn_err(level, mp, fmt, args...) \
-	xfs_fs_cmn_err(level, mp, fmt "  Unmount and run xfs_repair.", ## args)
-
 #define xfs_fs_mount_cmn_err(f, fmt, args...) \
 	do { \
 		if (!(f & XFS_MFSI_QUIET)) 	\
