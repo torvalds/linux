@@ -1133,11 +1133,8 @@ static void alc_automute_speaker(struct hda_codec *codec, int pinctl)
 		nid = spec->autocfg.hp_pins[i];
 		if (!nid)
 			break;
-		if (snd_hda_jack_detect(codec, nid)) {
-			spec->jack_present = 1;
-			break;
-		}
-		alc_report_jack(codec, spec->autocfg.hp_pins[i]);
+		alc_report_jack(codec, nid);
+		spec->jack_present |= snd_hda_jack_detect(codec, nid);
 	}
 
 	mute = spec->jack_present ? HDA_AMP_MUTE : 0;
@@ -15015,7 +15012,7 @@ static struct snd_pci_quirk alc269_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1043, 0x11e3, "ASUS U33Jc", ALC269VB_AMIC),
 	SND_PCI_QUIRK(0x1043, 0x1273, "ASUS UL80Jt", ALC269VB_AMIC),
 	SND_PCI_QUIRK(0x1043, 0x1283, "ASUS U53Jc", ALC269_AMIC),
-	SND_PCI_QUIRK(0x1043, 0x12b3, "ASUS N82Jv", ALC269_AMIC),
+	SND_PCI_QUIRK(0x1043, 0x12b3, "ASUS N82JV", ALC269VB_AMIC),
 	SND_PCI_QUIRK(0x1043, 0x12d3, "ASUS N61Jv", ALC269_AMIC),
 	SND_PCI_QUIRK(0x1043, 0x13a3, "ASUS UL30Vt", ALC269_AMIC),
 	SND_PCI_QUIRK(0x1043, 0x1373, "ASUS G73JX", ALC269_AMIC),
