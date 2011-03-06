@@ -43,6 +43,16 @@
 #define OCP_STATUS_REQ_FAILED 0x20000
 #define OCP_STATUS_RESP_ERROR 0x30000
 
+bool wl1271_set_block_size(struct wl1271 *wl)
+{
+	if (wl->if_ops->set_block_size) {
+		wl->if_ops->set_block_size(wl);
+		return true;
+	}
+
+	return false;
+}
+
 void wl1271_disable_interrupts(struct wl1271 *wl)
 {
 	wl->if_ops->disable_irq(wl);

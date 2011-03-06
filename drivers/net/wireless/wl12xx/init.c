@@ -31,6 +31,7 @@
 #include "cmd.h"
 #include "reg.h"
 #include "tx.h"
+#include "io.h"
 
 int wl1271_sta_init_templates_config(struct wl1271 *wl)
 {
@@ -504,6 +505,27 @@ static int wl1271_set_ba_policies(struct wl1271 *wl)
 	return ret;
 }
 
+int wl1271_chip_specific_init(struct wl1271 *wl)
+{
+	int ret = 0;
+
+	if (wl->chip.id == CHIP_ID_1283_PG20) {
+		u32 host_cfg_bitmap = HOST_IF_CFG_RX_FIFO_ENABLE;
+
+		if (wl1271_set_block_size(wl))
+			/* Enable SDIO padding */
+			host_cfg_bitmap |= HOST_IF_CFG_TX_PAD_TO_SDIO_BLK;
+
+		/* Must be before wl1271_acx_init_mem_config() */
+		ret = wl1271_acx_host_if_cfg_bitmap(wl, host_cfg_bitmap);
+		if (ret < 0)
+			goto out;
+	}
+out:
+	return ret;
+}
+
+
 int wl1271_hw_init(struct wl1271 *wl)
 {
 	struct conf_tx_ac_category *conf_ac;
@@ -516,6 +538,11 @@ int wl1271_hw_init(struct wl1271 *wl)
 		return ret;
 
 	ret = wl1271_cmd_radio_parms(wl);
+	if (ret < 0)
+		return ret;
+
+	/* Chip-specific init */
+	ret = wl1271_chip_specific_init(wl);
 	if (ret < 0)
 		return ret;
 

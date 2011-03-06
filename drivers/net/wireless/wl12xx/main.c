@@ -450,6 +450,11 @@ static int wl1271_plt_init(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
+	/* Chip-specific initializations */
+	ret = wl1271_chip_specific_init(wl);
+	if (ret < 0)
+		return ret;
+
 	ret = wl1271_sta_init_templates_config(wl);
 	if (ret < 0)
 		return ret;
@@ -1335,6 +1340,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl)
 	memset(wl->ap_hlid_map, 0, sizeof(wl->ap_hlid_map));
 	wl->ap_fw_ps_map = 0;
 	wl->ap_ps_map = 0;
+	wl->block_size = 0;
 
 	for (i = 0; i < NUM_TX_QUEUES; i++)
 		wl->tx_blocks_freed[i] = 0;
@@ -3458,6 +3464,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->ap_ps_map = 0;
 	wl->ap_fw_ps_map = 0;
 	wl->quirks = 0;
+	wl->block_size = 0;
 
 	memset(wl->tx_frames_map, 0, sizeof(wl->tx_frames_map));
 	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)

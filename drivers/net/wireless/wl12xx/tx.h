@@ -55,20 +55,48 @@
 #define WL1271_TX_ALIGN_TO 4
 #define WL1271_TKIP_IV_SPACE 4
 
+struct wl127x_tx_mem {
+	/*
+	 * Number of extra memory blocks to allocate for this packet
+	 * in addition to the number of blocks derived from the packet
+	 * length.
+	 */
+	u8 extra_blocks;
+	/*
+	 * Total number of memory blocks allocated by the host for
+	 * this packet. Must be equal or greater than the actual
+	 * blocks number allocated by HW.
+	 */
+	u8 total_mem_blocks;
+} __packed;
+
+struct wl128x_tx_mem {
+	/*
+	 * Total number of memory blocks allocated by the host for
+	 * this packet.
+	 */
+	u8 total_mem_blocks;
+	/*
+	 * Number of extra bytes, at the end of the frame. the host
+	 * uses this padding to complete each frame to integer number
+	 * of SDIO blocks.
+	 */
+	u8 extra_bytes;
+} __packed;
+
 struct wl1271_tx_hw_descr {
 	/* Length of packet in words, including descriptor+header+data */
 	__le16 length;
-	/* Number of extra memory blocks to allocate for this packet in
-	   addition to the number of blocks derived from the packet length */
-	u8 extra_mem_blocks;
-	/* Total number of memory blocks allocated by the host for this packet.
-	   Must be equal or greater than the actual blocks number allocated by
-	   HW!! */
-	u8 total_mem_blocks;
+	union {
+		struct wl127x_tx_mem wl127x_mem;
+		struct wl128x_tx_mem wl128x_mem;
+	} __packed;
 	/* Device time (in us) when the packet arrived to the driver */
 	__le32 start_time;
-	/* Max delay in TUs until transmission. The last device time the
-	   packet can be transmitted is: startTime+(1024*LifeTime) */
+	/*
+	 * Max delay in TUs until transmission. The last device time the
+	 * packet can be transmitted is: start_time + (1024 * life_time)
+	 */
 	__le16 life_time;
 	/* Bitwise fields - see TX_ATTR... definitions above. */
 	__le16 tx_attr;

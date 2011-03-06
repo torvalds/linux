@@ -169,5 +169,6 @@ int wl1271_init_ieee80211(struct wl1271 *wl);
 struct ieee80211_hw *wl1271_alloc_hw(void);
 int wl1271_free_hw(struct wl1271 *wl);
 irqreturn_t wl1271_irq(int irq, void *data);
+bool wl1271_set_block_size(struct wl1271 *wl);
 
 #endif
