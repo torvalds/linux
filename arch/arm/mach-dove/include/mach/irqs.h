@@ -92,10 +92,5 @@
 
 #define NR_IRQS			(IRQ_DOVE_PMU_START + NR_PMU_IRQS)
 
-/* Required for compatability with PXA AC97 driver.	*/
-#define IRQ_AC97		IRQ_DOVE_AC97
-/* Required for compatability with PXA DMA driver.	*/
-#define IRQ_DMA			IRQ_DOVE_PDMA
-/* Required for compatability with PXA NAND driver 	*/
-#define IRQ_NAND		IRQ_DOVE_NAND
+
 #endif

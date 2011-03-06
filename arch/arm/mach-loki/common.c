@@ -18,6 +18,7 @@
 #include <asm/timex.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
+#include <mach/bridge-regs.h>
 #include <mach/loki.h>
 #include <plat/orion_nand.h>
 #include <plat/time.h>
@@ -290,9 +291,15 @@ void __init loki_uart1_init(void)
 /*****************************************************************************
  * Time handling
  ****************************************************************************/
+void __init loki_init_early(void)
+{
+	orion_time_set_base(TIMER_VIRT_BASE);
+}
+
 static void loki_timer_init(void)
 {
-	orion_time_init(IRQ_LOKI_BRIDGE, LOKI_TCLK);
+	orion_time_init(BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
+			IRQ_LOKI_BRIDGE, LOKI_TCLK);
 }
 
 struct sys_timer loki_timer = {

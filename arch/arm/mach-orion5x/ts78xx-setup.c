@@ -191,6 +191,60 @@ static int ts78xx_ts_nand_dev_ready(struct mtd_info *mtd)
 	return readb(TS_NAND_CTRL) & 0x20;
 }
 
+static void ts78xx_ts_nand_write_buf(struct mtd_info *mtd,
+			const uint8_t *buf, int len)
+{
+	struct nand_chip *chip = mtd->priv;
+	void __iomem *io_base = chip->IO_ADDR_W;
+	unsigned long off = ((unsigned long)buf & 3);
+	int sz;
+
+	if (off) {
+		sz = min_t(int, 4 - off, len);
+		writesb(io_base, buf, sz);
+		buf += sz;
+		len -= sz;
+	}
+
+	sz = len >> 2;
+	if (sz) {
+		u32 *buf32 = (u32 *)buf;
+		writesl(io_base, buf32, sz);
+		buf += sz << 2;
+		len -= sz << 2;
+	}
+
+	if (len)
+		writesb(io_base, buf, len);
+}
+
+static void ts78xx_ts_nand_read_buf(struct mtd_info *mtd,
+			uint8_t *buf, int len)
+{
+	struct nand_chip *chip = mtd->priv;
+	void __iomem *io_base = chip->IO_ADDR_R;
+	unsigned long off = ((unsigned long)buf & 3);
+	int sz;
+
+	if (off) {
+		sz = min_t(int, 4 - off, len);
+		readsb(io_base, buf, sz);
+		buf += sz;
+		len -= sz;
+	}
+
+	sz = len >> 2;
+	if (sz) {
+		u32 *buf32 = (u32 *)buf;
+		readsl(io_base, buf32, sz);
+		buf += sz << 2;
+		len -= sz << 2;
+	}
+
+	if (len)
+		readsb(io_base, buf, len);
+}
+
 const char *ts_nand_part_probes[] = { "cmdlinepart", NULL };
 
 static struct mtd_partition ts78xx_ts_nand_parts[] = {
@@ -233,6 +287,8 @@ static struct platform_nand_data ts78xx_ts_nand_data = {
 		 */
 		.cmd_ctrl		= ts78xx_ts_nand_cmd_ctrl,
 		.dev_ready		= ts78xx_ts_nand_dev_ready,
+		.write_buf		= ts78xx_ts_nand_write_buf,
+		.read_buf		= ts78xx_ts_nand_read_buf,
 	},
 };
 
@@ -334,14 +390,29 @@ static void ts78xx_fpga_supports(void)
 	case TS7800_REV_3:
 	case TS7800_REV_4:
 	case TS7800_REV_5:
+	case TS7800_REV_6:
+	case TS7800_REV_7:
+	case TS7800_REV_8:
+	case TS7800_REV_9:
 		ts78xx_fpga.supports.ts_rtc.present = 1;
 		ts78xx_fpga.supports.ts_nand.present = 1;
 		ts78xx_fpga.supports.ts_rng.present = 1;
 		break;
 	default:
-		ts78xx_fpga.supports.ts_rtc.present = 0;
-		ts78xx_fpga.supports.ts_nand.present = 0;
-		ts78xx_fpga.supports.ts_rng.present = 0;
+		/* enable devices if magic matches */
+		switch ((ts78xx_fpga.id >> 8) & 0xffffff) {
+		case TS7800_FPGA_MAGIC:
+			printk(KERN_WARNING "TS-7800 FPGA: unrecognized revision 0x%.2x\n",
+					ts78xx_fpga.id & 0xff);
+			ts78xx_fpga.supports.ts_rtc.present = 1;
+			ts78xx_fpga.supports.ts_nand.present = 1;
+			ts78xx_fpga.supports.ts_rng.present = 1;
+			break;
+		default:
+			ts78xx_fpga.supports.ts_rtc.present = 0;
+			ts78xx_fpga.supports.ts_nand.present = 0;
+			ts78xx_fpga.supports.ts_rng.present = 0;
+		}
 	}
 }
 
@@ -553,6 +624,7 @@ MACHINE_START(TS78XX, "Technologic Systems TS-78xx SBC")
 	.boot_params	= 0x00000100,
 	.init_machine	= ts78xx_init,
 	.map_io		= ts78xx_map_io,
+	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 MACHINE_END
