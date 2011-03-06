@@ -797,6 +797,12 @@ static const int pmbus_temp_registers[] = {
 	PMBUS_READ_TEMPERATURE_3
 };
 
+static const int pmbus_temp_flags[] = {
+	PMBUS_HAVE_TEMP,
+	PMBUS_HAVE_TEMP2,
+	PMBUS_HAVE_TEMP3
+};
+
 static const int pmbus_fan_registers[] = {
 	PMBUS_READ_FAN_SPEED_1,
 	PMBUS_READ_FAN_SPEED_2,
@@ -871,17 +877,16 @@ static void pmbus_find_max_attr(struct i2c_client *client,
 			max_booleans += 2 * PMBUS_MAX_BOOLEANS_PER_FAN;
 		}
 		if (info->func[page] & PMBUS_HAVE_TEMP) {
-			if (page == 0) {
-				max_sensors +=
-				    ARRAY_SIZE(pmbus_temp_registers) *
-				    PMBUS_MAX_SENSORS_PER_TEMP;
-				max_booleans +=
-				    ARRAY_SIZE(pmbus_temp_registers) *
-				    PMBUS_MAX_BOOLEANS_PER_TEMP;
-			} else {
-				max_sensors += PMBUS_MAX_SENSORS_PER_TEMP;
-				max_booleans += PMBUS_MAX_BOOLEANS_PER_TEMP;
-			}
+			max_sensors += PMBUS_MAX_SENSORS_PER_TEMP;
+			max_booleans += PMBUS_MAX_BOOLEANS_PER_TEMP;
+		}
+		if (info->func[page] & PMBUS_HAVE_TEMP2) {
+			max_sensors += PMBUS_MAX_SENSORS_PER_TEMP;
+			max_booleans += PMBUS_MAX_BOOLEANS_PER_TEMP;
+		}
+		if (info->func[page] & PMBUS_HAVE_TEMP3) {
+			max_sensors += PMBUS_MAX_SENSORS_PER_TEMP;
+			max_booleans += PMBUS_MAX_BOOLEANS_PER_TEMP;
 		}
 	}
 	data->max_sensors = max_sensors;
@@ -1273,18 +1278,23 @@ static void pmbus_find_attributes(struct i2c_client *client,
 	 */
 	in_index = 1;
 	for (page = 0; page < info->pages; page++) {
-		int t, temps;
+		int t;
 
-		if (!(info->func[page] & PMBUS_HAVE_TEMP))
-			continue;
-
-		temps = page ? 1 : ARRAY_SIZE(pmbus_temp_registers);
-		for (t = 0; t < temps; t++) {
+		for (t = 0; t < ARRAY_SIZE(pmbus_temp_registers); t++) {
 			bool have_alarm = false;
+
+			/*
+			 * A PMBus chip may support any combination of
+			 * temperature registers on any page. So we can not
+			 * abort after a failure to detect a register, but have
+			 * to continue checking for all registers on all pages.
+			 */
+			if (!(info->func[page] & pmbus_temp_flags[t]))
+				continue;
 
 			if (!pmbus_check_word_register
 			    (client, page, pmbus_temp_registers[t]))
-				break;
+				continue;
 
 			i0 = data->num_sensors;
 			pmbus_add_sensor(data, "temp", "input", in_index, page,
