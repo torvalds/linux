@@ -1970,9 +1970,9 @@ static int r871x_wps_start(struct net_device *dev,
 	struct _adapter *padapter = (struct _adapter *)_netdev_priv(dev);
 	struct iw_point *pdata = &wrqu->data;
 	u32   u32wps_start = 0;
-	unsigned int uintRet = 0;
 
-	uintRet = copy_from_user((void *)&u32wps_start, pdata->pointer, 4);
+	if (copy_from_user((void *)&u32wps_start, pdata->pointer, 4))
+		return -EFAULT;
 	if ((padapter->bDriverStopped) || (pdata == NULL))
 		return -EINVAL;
 	if (u32wps_start == 0)
