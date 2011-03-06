@@ -142,122 +142,118 @@ easycap_alsa_complete(struct urb *purb)
 			    strerror(purb->iso_frame_desc[i].status),
 			    purb->iso_frame_desc[i].status);
 		}
-		if (!purb->iso_frame_desc[i].status) {
-			more = purb->iso_frame_desc[i].actual_length;
-			if (!more)
-				peasycap->audio_mt++;
-			else {
-				if (peasycap->audio_mt) {
-					JOM(12, "%4i empty audio urb frames\n",
-					    peasycap->audio_mt);
-					peasycap->audio_mt = 0;
-				}
-
-				p1 = (u8 *)(purb->transfer_buffer +
-					purb->iso_frame_desc[i].offset);
-
-				/*
-				 *  COPY more BYTES FROM ISOC BUFFER
-				 *  TO THE DMA BUFFER, CONVERTING
-				 *  8-BIT MONO TO 16-BIT SIGNED
-				 *  LITTLE-ENDIAN SAMPLES IF NECESSARY
-				 */
-				while (more) {
-					if (0 > more) {
-						SAM("MISTAKE: more is negative\n");
-						return;
-					}
-					much = dma_bytes - peasycap->dma_fill;
-					if (0 > much) {
-						SAM("MISTAKE: much is negative\n");
-						return;
-					}
-					if (0 == much) {
-						peasycap->dma_fill = 0;
-						peasycap->dma_next = fragment_bytes;
-						JOM(8, "wrapped dma buffer\n");
-					}
-					if (!peasycap->microphone) {
-						if (much > more)
-							much = more;
-						memcpy(prt->dma_area +
-						       peasycap->dma_fill,
-						       p1, much);
-						p1 += much;
-						more -= much;
-					} else {
-#ifdef UPSAMPLE
-						if (much % 16)
-							JOM(8, "MISTAKE? much"
-							    " is not divisible by 16\n");
-						if (much > (16 * more))
-							much = 16 *
-							       more;
-						p2 = (u8 *)(prt->dma_area + peasycap->dma_fill);
-
-						for (j = 0;  j < (much/16);  j++) {
-							newaudio =  ((int) *p1) - 128;
-							newaudio = 128 * newaudio;
-
-							delta = (newaudio - oldaudio) / 4;
-							tmp = oldaudio + delta;
-
-							for (k = 0;  k < 4;  k++) {
-								*p2 = (0x00FF & tmp);
-								*(p2 + 1) = (0xFF00 & tmp) >> 8;
-								p2 += 2;
-								*p2 = (0x00FF & tmp);
-								*(p2 + 1) = (0xFF00 & tmp) >> 8;
-								p2 += 2;
-								tmp += delta;
-							}
-							p1++;
-							more--;
-							oldaudio = tmp;
-						}
-#else /*!UPSAMPLE*/
-						if (much > (2 * more))
-							much = 2 * more;
-						p2 = (u8 *)(prt->dma_area + peasycap->dma_fill);
-
-						for (j = 0;  j < (much / 2);  j++) {
-							tmp = ((int) *p1) - 128;
-							tmp = 128 * tmp;
-							*p2 = (0x00FF & tmp);
-							*(p2 + 1) = (0xFF00 & tmp) >> 8;
-							p1++;
-							p2 += 2;
-							more--;
-						}
-#endif /*UPSAMPLE*/
-					}
-					peasycap->dma_fill += much;
-					if (peasycap->dma_fill >= peasycap->dma_next) {
-						isfragment = peasycap->dma_fill / fragment_bytes;
-						if (0 > isfragment) {
-							SAM("MISTAKE: isfragment is "
-							    "negative\n");
-							return;
-						}
-						peasycap->dma_read = (isfragment - 1) * fragment_bytes;
-						peasycap->dma_next = (isfragment + 1) * fragment_bytes;
-						if (dma_bytes < peasycap->dma_next)
-							peasycap->dma_next = fragment_bytes;
-
-						if (0 <= peasycap->dma_read) {
-							JOM(8, "snd_pcm_period_elap"
-							    "sed(), %i="
-							    "isfragment\n",
-							    isfragment);
-							snd_pcm_period_elapsed(pss);
-						}
-					}
-				}
-			}
-		} else {
+		if (purb->iso_frame_desc[i].status) {
 			JOM(12, "discarding audio samples because "
 			    "%i=purb->iso_frame_desc[i].status\n",
 			    purb->iso_frame_desc[i].status);
+			continue;
+		}
+		more = purb->iso_frame_desc[i].actual_length;
+		if (more == 0) {
+			peasycap->audio_mt++;
+			continue;
+		}
+		if (0 > more) {
+			SAM("MISTAKE: more is negative\n");
+			return;
+		}
+
+		if (peasycap->audio_mt) {
+			JOM(12, "%4i empty audio urb frames\n",
+			    peasycap->audio_mt);
+			peasycap->audio_mt = 0;
+		}
+
+		p1 = (u8 *)(purb->transfer_buffer +
+				purb->iso_frame_desc[i].offset);
+
+		/*
+		 *  COPY more BYTES FROM ISOC BUFFER
+		 *  TO THE DMA BUFFER, CONVERTING
+		 *  8-BIT MONO TO 16-BIT SIGNED
+		 *  LITTLE-ENDIAN SAMPLES IF NECESSARY
+		 */
+		while (more) {
+			much = dma_bytes - peasycap->dma_fill;
+			if (0 > much) {
+				SAM("MISTAKE: much is negative\n");
+				return;
+			}
+			if (0 == much) {
+				peasycap->dma_fill = 0;
+				peasycap->dma_next = fragment_bytes;
+				JOM(8, "wrapped dma buffer\n");
+			}
+			if (!peasycap->microphone) {
+				if (much > more)
+					much = more;
+				memcpy(prt->dma_area + peasycap->dma_fill,
+					p1, much);
+				p1 += much;
+				more -= much;
+			} else {
+#ifdef UPSAMPLE
+				if (much % 16)
+					JOM(8, "MISTAKE? much"
+					    " is not divisible by 16\n");
+				if (much > (16 * more))
+					much = 16 * more;
+				p2 = (u8 *)(prt->dma_area + peasycap->dma_fill);
+
+				for (j = 0;  j < (much / 16);  j++) {
+					newaudio =  ((int) *p1) - 128;
+					newaudio = 128 * newaudio;
+
+					delta = (newaudio - oldaudio) / 4;
+					tmp = oldaudio + delta;
+
+					for (k = 0;  k < 4;  k++) {
+						*p2 = (0x00FF & tmp);
+						*(p2 + 1) = (0xFF00 & tmp) >> 8;
+						p2 += 2;
+						*p2 = (0x00FF & tmp);
+						*(p2 + 1) = (0xFF00 & tmp) >> 8;
+						p2 += 2;
+						tmp += delta;
+					}
+					p1++;
+					more--;
+					oldaudio = tmp;
+				}
+#else /*!UPSAMPLE*/
+				if (much > (2 * more))
+					much = 2 * more;
+				p2 = (u8 *)(prt->dma_area + peasycap->dma_fill);
+
+				for (j = 0;  j < (much / 2);  j++) {
+					tmp = ((int) *p1) - 128;
+					tmp = 128 * tmp;
+					*p2 = (0x00FF & tmp);
+					*(p2 + 1) = (0xFF00 & tmp) >> 8;
+					p1++;
+					p2 += 2;
+					more--;
+				}
+#endif /*UPSAMPLE*/
+			}
+			peasycap->dma_fill += much;
+			if (peasycap->dma_fill >= peasycap->dma_next) {
+				isfragment = peasycap->dma_fill / fragment_bytes;
+				if (0 > isfragment) {
+					SAM("MISTAKE: isfragment is negative\n");
+					return;
+				}
+				peasycap->dma_read = (isfragment - 1) * fragment_bytes;
+				peasycap->dma_next = (isfragment + 1) * fragment_bytes;
+				if (dma_bytes < peasycap->dma_next)
+					peasycap->dma_next = fragment_bytes;
+
+				if (0 <= peasycap->dma_read) {
+					JOM(8, "snd_pcm_period_elapsed(), %i="
+					    "isfragment\n", isfragment);
+					snd_pcm_period_elapsed(pss);
+				}
+			}
 		}
 
 #ifdef UPSAMPLE
@@ -271,18 +267,18 @@ easycap_alsa_complete(struct urb *purb)
  */
 /*---------------------------------------------------------------------------*/
 resubmit:
-	if (peasycap->audio_isoc_streaming) {
-		rc = usb_submit_urb(purb, GFP_ATOMIC);
-		if (rc) {
-			if ((-ENODEV != rc) && (-ENOENT != rc)) {
-				SAM("ERROR: while %i=audio_idle, "
-				    "usb_submit_urb() failed "
-				    "with rc: -%s :%d\n", peasycap->audio_idle,
-				    strerror(rc), rc);
-			}
-			if (0 < peasycap->audio_isoc_streaming)
-				(peasycap->audio_isoc_streaming)--;
+	if (peasycap->audio_isoc_streaming == 0)
+		return;
+
+	rc = usb_submit_urb(purb, GFP_ATOMIC);
+	if (rc) {
+		if ((-ENODEV != rc) && (-ENOENT != rc)) {
+			SAM("ERROR: while %i=audio_idle, usb_submit_urb failed "
+			    "with rc: -%s :%d\n",
+				peasycap->audio_idle, strerror(rc), rc);
 		}
+		if (0 < peasycap->audio_isoc_streaming)
+			peasycap->audio_isoc_streaming--;
 	}
 	return;
 }
@@ -643,10 +639,9 @@ int easycap_alsa_probe(struct easycap *peasycap)
 		SAM("ERROR: Cannot do ALSA snd_card_register()\n");
 		snd_card_free(psnd_card);
 		return -EFAULT;
-	} else {
-		;
-		SAM("registered %s\n", &psnd_card->id[0]);
 	}
+
+	SAM("registered %s\n", &psnd_card->id[0]);
 	return 0;
 }
 #endif /*! CONFIG_EASYCAP_OSS */
@@ -737,83 +732,79 @@ submit_audio_urbs(struct easycap *peasycap)
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
 		return -EFAULT;
 	}
-	if (!peasycap->audio_isoc_streaming) {
-		JOM(4, "initial submission of all audio urbs\n");
-		rc = usb_set_interface(peasycap->pusb_device,
-				       peasycap->audio_interface,
-				       peasycap->audio_altsetting_on);
-		JOM(8, "usb_set_interface(.,%i,%i) returned %i\n",
-		    peasycap->audio_interface,
-		    peasycap->audio_altsetting_on, rc);
 
-		isbad = 0;
-		nospc = 0;
-		m = 0;
+	if (peasycap->audio_isoc_streaming) {
+		JOM(4, "already streaming audio urbs\n");
+		return 0;
+	}
+
+	JOM(4, "initial submission of all audio urbs\n");
+	rc = usb_set_interface(peasycap->pusb_device,
+			       peasycap->audio_interface,
+			       peasycap->audio_altsetting_on);
+	JOM(8, "usb_set_interface(.,%i,%i) returned %i\n",
+	    peasycap->audio_interface,
+	    peasycap->audio_altsetting_on, rc);
+
+	isbad = 0;
+	nospc = 0;
+	m = 0;
+	list_for_each(plist_head, peasycap->purb_audio_head) {
+		pdata_urb = list_entry(plist_head, struct data_urb, list_head);
+		if (pdata_urb && pdata_urb->purb) {
+			purb = pdata_urb->purb;
+			isbuf = pdata_urb->isbuf;
+
+			purb->interval = 1;
+			purb->dev = peasycap->pusb_device;
+			purb->pipe = usb_rcvisocpipe(peasycap->pusb_device,
+					peasycap->audio_endpointnumber);
+			purb->transfer_flags = URB_ISO_ASAP;
+			purb->transfer_buffer = peasycap->audio_isoc_buffer[isbuf].pgo;
+			purb->transfer_buffer_length = peasycap->audio_isoc_buffer_size;
+#ifdef CONFIG_EASYCAP_OSS
+			purb->complete = easyoss_complete;
+#else /* CONFIG_EASYCAP_OSS */
+			purb->complete = easycap_alsa_complete;
+#endif /* CONFIG_EASYCAP_OSS */
+			purb->context = peasycap;
+			purb->start_frame = 0;
+			purb->number_of_packets = peasycap->audio_isoc_framesperdesc;
+			for (j = 0;  j < peasycap->audio_isoc_framesperdesc; j++) {
+				purb->iso_frame_desc[j].offset = j * peasycap->audio_isoc_maxframesize;
+				purb->iso_frame_desc[j].length = peasycap->audio_isoc_maxframesize;
+			}
+
+			rc = usb_submit_urb(purb, GFP_KERNEL);
+			if (rc) {
+				isbad++;
+				SAM("ERROR: usb_submit_urb() failed"
+				    " for urb with rc: -%s: %d\n",
+				    strerror(rc), rc);
+			} else {
+				m++;
+			}
+		} else {
+			isbad++;
+		}
+	}
+	if (nospc) {
+		SAM("-ENOSPC=usb_submit_urb() for %i urbs\n", nospc);
+		SAM(".....  possibly inadequate USB bandwidth\n");
+		peasycap->audio_eof = 1;
+	}
+	if (isbad) {
+		JOM(4, "attempting cleanup instead of submitting\n");
 		list_for_each(plist_head, (peasycap->purb_audio_head)) {
 			pdata_urb = list_entry(plist_head, struct data_urb, list_head);
-			if (pdata_urb) {
-				purb = pdata_urb->purb;
-				if (purb) {
-					isbuf = pdata_urb->isbuf;
-
-					purb->interval = 1;
-					purb->dev = peasycap->pusb_device;
-					purb->pipe = usb_rcvisocpipe(peasycap->pusb_device,
-							peasycap->audio_endpointnumber);
-					purb->transfer_flags = URB_ISO_ASAP;
-					purb->transfer_buffer = peasycap->audio_isoc_buffer[isbuf].pgo;
-					purb->transfer_buffer_length = peasycap->audio_isoc_buffer_size;
-#ifdef CONFIG_EASYCAP_OSS
-					purb->complete = easyoss_complete;
-#else /* CONFIG_EASYCAP_OSS */
-					purb->complete = easycap_alsa_complete;
-#endif /* CONFIG_EASYCAP_OSS */
-					purb->context = peasycap;
-					purb->start_frame = 0;
-					purb->number_of_packets = peasycap->audio_isoc_framesperdesc;
-					for (j = 0;  j < peasycap->audio_isoc_framesperdesc; j++) {
-						purb->iso_frame_desc[j].offset = j * peasycap->audio_isoc_maxframesize;
-						purb->iso_frame_desc[j].length = peasycap->audio_isoc_maxframesize;
-					}
-
-					rc = usb_submit_urb(purb, GFP_KERNEL);
-					if (rc) {
-						isbad++;
-						SAM("ERROR: usb_submit_urb() failed"
-						    " for urb with rc: -%s: %d\n",
-						    strerror(rc), rc);
-					} else {
-						m++;
-					}
-				} else {
-					isbad++;
-				}
-			} else {
-				isbad++;
-			}
+			if (pdata_urb && pdata_urb->purb)
+				usb_kill_urb(pdata_urb->purb);
 		}
-		if (nospc) {
-			SAM("-ENOSPC=usb_submit_urb() for %i urbs\n", nospc);
-			SAM(".....  possibly inadequate USB bandwidth\n");
-			peasycap->audio_eof = 1;
-		}
-		if (isbad) {
-			JOM(4, "attempting cleanup instead of submitting\n");
-			list_for_each(plist_head, (peasycap->purb_audio_head)) {
-				pdata_urb = list_entry(plist_head, struct data_urb, list_head);
-				if (pdata_urb) {
-					purb = pdata_urb->purb;
-					if (purb)
-						usb_kill_urb(purb);
-				}
-			}
-			peasycap->audio_isoc_streaming = 0;
-		} else {
-			peasycap->audio_isoc_streaming = m;
-			JOM(4, "submitted %i audio urbs\n", m);
-		}
-	} else
-		JOM(4, "already streaming audio urbs\n");
+		peasycap->audio_isoc_streaming = 0;
+	} else {
+		peasycap->audio_isoc_streaming = m;
+		JOM(4, "submitted %i audio urbs\n", m);
+	}
 
 	return 0;
 }
@@ -834,29 +825,30 @@ kill_audio_urbs(struct easycap *peasycap)
 		SAY("ERROR: peasycap is NULL\n");
 		return -EFAULT;
 	}
-	if (peasycap->audio_isoc_streaming) {
-		if (peasycap->purb_audio_head) {
-			peasycap->audio_isoc_streaming = 0;
-			JOM(4, "killing audio urbs\n");
-			m = 0;
-			list_for_each(plist_head, (peasycap->purb_audio_head)) {
-				pdata_urb = list_entry(plist_head, struct data_urb, list_head);
-				if (pdata_urb) {
-					if (pdata_urb->purb) {
-						usb_kill_urb(pdata_urb->purb);
-						m++;
-					}
-				}
-			}
-			JOM(4, "%i audio urbs killed\n", m);
-		} else {
-			SAM("ERROR: peasycap->purb_audio_head is NULL\n");
-			return -EFAULT;
-		}
-	} else {
+
+	if (!peasycap->audio_isoc_streaming) {
 		JOM(8, "%i=audio_isoc_streaming, no audio urbs killed\n",
 		    peasycap->audio_isoc_streaming);
+		return 0;
 	}
+
+	if (!peasycap->purb_audio_head) {
+		SAM("ERROR: peasycap->purb_audio_head is NULL\n");
+		return -EFAULT;
+	}
+
+	peasycap->audio_isoc_streaming = 0;
+	JOM(4, "killing audio urbs\n");
+	m = 0;
+	list_for_each(plist_head, (peasycap->purb_audio_head)) {
+		pdata_urb = list_entry(plist_head, struct data_urb, list_head);
+		if (pdata_urb && pdata_urb->purb) {
+			usb_kill_urb(pdata_urb->purb);
+			m++;
+		}
+	}
+	JOM(4, "%i audio urbs killed\n", m);
+
 	return 0;
 }
 /*****************************************************************************/
