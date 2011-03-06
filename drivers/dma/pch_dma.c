@@ -693,6 +693,7 @@ static irqreturn_t pd_irq(int irq, void *devid)
 	return ret;
 }
 
+#ifdef	CONFIG_PM
 static void pch_dma_save_regs(struct pch_dma *pd)
 {
 	struct pch_dma_chan *pd_chan;
@@ -770,6 +771,7 @@ static int pch_dma_resume(struct pci_dev *pdev)
 
 	return 0;
 }
+#endif
 
 static int __devinit pch_dma_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *id)
