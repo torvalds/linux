@@ -1174,6 +1174,48 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 }
 
+#define TX_DUMMY_PACKET_SIZE 1400
+int wl1271_tx_dummy_packet(struct wl1271 *wl)
+{
+	struct sk_buff *skb = NULL;
+	struct ieee80211_hdr_3addr *hdr;
+	int ret = 0;
+
+	skb = dev_alloc_skb(
+		sizeof(struct wl1271_tx_hw_descr) + sizeof(*hdr) +
+		TX_DUMMY_PACKET_SIZE);
+	if (!skb) {
+		wl1271_warning("failed to allocate buffer for dummy packet");
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	skb_reserve(skb, sizeof(struct wl1271_tx_hw_descr));
+
+	hdr = (struct ieee80211_hdr_3addr *) skb_put(skb, sizeof(*hdr));
+	memset(hdr, 0, sizeof(*hdr));
+	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_DATA |
+					 IEEE80211_FCTL_TODS  |
+					 IEEE80211_STYPE_NULLFUNC);
+
+	memcpy(hdr->addr1, wl->bssid, ETH_ALEN);
+	memcpy(hdr->addr2, wl->mac_addr, ETH_ALEN);
+	memcpy(hdr->addr3, wl->bssid, ETH_ALEN);
+
+	skb_put(skb, TX_DUMMY_PACKET_SIZE);
+
+	memset(skb->data, 0, TX_DUMMY_PACKET_SIZE);
+
+	skb->pkt_type = TX_PKT_TYPE_DUMMY_REQ;
+	/* CONF_TX_AC_VO */
+	skb->queue_mapping = 0;
+
+	wl1271_op_tx(wl->hw, skb);
+
+out:
+	return ret;
+}
+
 static struct notifier_block wl1271_dev_notifier = {
 	.notifier_call = wl1271_dev_notify,
 };

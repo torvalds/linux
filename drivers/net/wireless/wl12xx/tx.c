@@ -215,12 +215,28 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 	else
 		desc->life_time = cpu_to_le16(TX_HW_AP_MODE_PKT_LIFETIME_TU);
 
-	/* configure the tx attributes */
-	tx_attr = wl->session_counter << TX_HW_ATTR_OFST_SESSION_COUNTER;
-
 	/* queue (we use same identifiers for tid's and ac's */
 	ac = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
 	desc->tid = ac;
+
+	if (skb->pkt_type == TX_PKT_TYPE_DUMMY_REQ) {
+		/*
+		 * FW expects the dummy packet to have an invalid session id -
+		 * any session id that is different than the one set in the join
+		 */
+		tx_attr = ((~wl->session_counter) <<
+			   TX_HW_ATTR_OFST_SESSION_COUNTER) &
+			   TX_HW_ATTR_SESSION_COUNTER;
+
+		tx_attr |= TX_HW_ATTR_TX_DUMMY_REQ;
+
+		/* Dummy packets require the TID to be management */
+		desc->tid = WL1271_TID_MGMT;
+	} else {
+		/* configure the tx attributes */
+		tx_attr =
+			wl->session_counter << TX_HW_ATTR_OFST_SESSION_COUNTER;
+	}
 
 	if (wl->bss_type != BSS_TYPE_AP_BSS) {
 		desc->aid = hlid;
@@ -587,6 +603,12 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 	skb = wl->tx_frames[id];
 	info = IEEE80211_SKB_CB(skb);
 
+	if (skb->pkt_type == TX_PKT_TYPE_DUMMY_REQ) {
+		dev_kfree_skb(skb);
+		wl1271_free_tx_id(wl, id);
+		return;
+	}
+
 	/* update the TX status info */
 	if (result->status == TX_SUCCESS) {
 		if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
@@ -716,10 +738,15 @@ void wl1271_tx_reset(struct wl1271 *wl)
 			while ((skb = skb_dequeue(&wl->tx_queue[i]))) {
 				wl1271_debug(DEBUG_TX, "freeing skb 0x%p",
 					     skb);
-				info = IEEE80211_SKB_CB(skb);
-				info->status.rates[0].idx = -1;
-				info->status.rates[0].count = 0;
-				ieee80211_tx_status(wl->hw, skb);
+
+				if (skb->pkt_type == TX_PKT_TYPE_DUMMY_REQ) {
+					dev_kfree_skb(skb);
+				} else {
+					info = IEEE80211_SKB_CB(skb);
+					info->status.rates[0].idx = -1;
+					info->status.rates[0].count = 0;
+					ieee80211_tx_status(wl->hw, skb);
+				}
 			}
 		}
 	}
@@ -740,21 +767,29 @@ void wl1271_tx_reset(struct wl1271 *wl)
 		wl1271_free_tx_id(wl, i);
 		wl1271_debug(DEBUG_TX, "freeing skb 0x%p", skb);
 
-		/* Remove private headers before passing the skb to mac80211 */
-		info = IEEE80211_SKB_CB(skb);
-		skb_pull(skb, sizeof(struct wl1271_tx_hw_descr));
-		if (info->control.hw_key &&
-		    info->control.hw_key->cipher == WLAN_CIPHER_SUITE_TKIP) {
-			int hdrlen = ieee80211_get_hdrlen_from_skb(skb);
-			memmove(skb->data + WL1271_TKIP_IV_SPACE, skb->data,
-				hdrlen);
-			skb_pull(skb, WL1271_TKIP_IV_SPACE);
+		if (skb->pkt_type == TX_PKT_TYPE_DUMMY_REQ) {
+			dev_kfree_skb(skb);
+		} else {
+			/*
+			 * Remove private headers before passing the skb to
+			 * mac80211
+			 */
+			info = IEEE80211_SKB_CB(skb);
+			skb_pull(skb, sizeof(struct wl1271_tx_hw_descr));
+			if (info->control.hw_key &&
+			    info->control.hw_key->cipher ==
+			    WLAN_CIPHER_SUITE_TKIP) {
+				int hdrlen = ieee80211_get_hdrlen_from_skb(skb);
+				memmove(skb->data + WL1271_TKIP_IV_SPACE,
+					skb->data, hdrlen);
+				skb_pull(skb, WL1271_TKIP_IV_SPACE);
+			}
+
+			info->status.rates[0].idx = -1;
+			info->status.rates[0].count = 0;
+
+			ieee80211_tx_status(wl->hw, skb);
 		}
-
-		info->status.rates[0].idx = -1;
-		info->status.rates[0].count = 0;
-
-		ieee80211_tx_status(wl->hw, skb);
 	}
 }
 

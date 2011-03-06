@@ -41,6 +41,9 @@
 					  BIT(8) | BIT(9))
 #define TX_HW_ATTR_LAST_WORD_PAD         (BIT(10) | BIT(11))
 #define TX_HW_ATTR_TX_CMPLT_REQ          BIT(12)
+#define TX_HW_ATTR_TX_DUMMY_REQ          BIT(13)
+
+#define TX_PKT_TYPE_DUMMY_REQ            5
 
 #define TX_HW_ATTR_OFST_SAVE_RETRIES     0
 #define TX_HW_ATTR_OFST_HEADER_PAD       1
@@ -54,6 +57,9 @@
 
 #define WL1271_TX_ALIGN_TO 4
 #define WL1271_TKIP_IV_SPACE 4
+
+/* Used for management frames and dummy packets */
+#define WL1271_TID_MGMT 7
 
 struct wl127x_tx_mem {
 	/*
