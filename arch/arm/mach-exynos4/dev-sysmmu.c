@@ -15,6 +15,28 @@
 
 #include <mach/map.h>
 #include <mach/irqs.h>
+#include <mach/sysmmu.h>
+#include <plat/s5p-clock.h>
+
+/* These names must be equal to the clock names in mach-exynos4/clock.c */
+const char *sysmmu_ips_name[EXYNOS4_SYSMMU_TOTAL_IPNUM] = {
+	"SYSMMU_MDMA"	,
+	"SYSMMU_SSS"	,
+	"SYSMMU_FIMC0"	,
+	"SYSMMU_FIMC1"	,
+	"SYSMMU_FIMC2"	,
+	"SYSMMU_FIMC3"	,
+	"SYSMMU_JPEG"	,
+	"SYSMMU_FIMD0"	,
+	"SYSMMU_FIMD1"	,
+	"SYSMMU_PCIe"	,
+	"SYSMMU_G2D"	,
+	"SYSMMU_ROTATOR",
+	"SYSMMU_MDMA2"	,
+	"SYSMMU_TV"	,
+	"SYSMMU_MFC_L"	,
+	"SYSMMU_MFC_R"	,
+};
 
 static struct resource exynos4_sysmmu_resource[] = {
 	[0] = {
@@ -185,5 +207,4 @@ struct platform_device exynos4_device_sysmmu = {
 	.num_resources	= ARRAY_SIZE(exynos4_sysmmu_resource),
 	.resource	= exynos4_sysmmu_resource,
 };
-
 EXPORT_SYMBOL(exynos4_device_sysmmu);
