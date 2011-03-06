@@ -2092,8 +2092,9 @@ static void bnx2x_cmng_fns_init(struct bnx2x *bp, u8 read_cfg, u8 cmng_type)
 		bnx2x_calc_vn_weight_sum(bp);
 
 		/* calculate and set min-max rate for each vn */
-		for (vn = VN_0; vn < E1HVN_MAX; vn++)
-			bnx2x_init_vn_minmax(bp, vn);
+		if (bp->port.pmf)
+			for (vn = VN_0; vn < E1HVN_MAX; vn++)
+				bnx2x_init_vn_minmax(bp, vn);
 
 		/* always enable rate shaping and fairness */
 		bp->cmng.flags.cmng_enables |=
