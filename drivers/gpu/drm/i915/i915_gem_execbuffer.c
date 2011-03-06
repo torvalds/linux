@@ -37,6 +37,7 @@ struct change_domains {
 	uint32_t invalidate_domains;
 	uint32_t flush_domains;
 	uint32_t flush_rings;
+	uint32_t flips;
 };
 
 /*
@@ -189,6 +190,9 @@ i915_gem_object_set_to_gpu_domain(struct drm_i915_gem_object *obj,
 	/* blow away mappings if mapped through GTT */
 	if ((flush_domains | invalidate_domains) & I915_GEM_DOMAIN_GTT)
 		i915_gem_release_mmap(obj);
+
+	if (obj->base.pending_write_domain)
+		cd->flips |= atomic_read(&obj->pending_flip);
 
 	/* The actual obj->write_domain will be updated with
 	 * pending_write_domain after we emit the accumulated flush for all
@@ -774,6 +778,39 @@ i915_gem_execbuffer_sync_rings(struct drm_i915_gem_object *obj,
 }
 
 static int
+i915_gem_execbuffer_wait_for_flips(struct intel_ring_buffer *ring, u32 flips)
+{
+	u32 plane, flip_mask;
+	int ret;
+
+	/* Check for any pending flips. As we only maintain a flip queue depth
+	 * of 1, we can simply insert a WAIT for the next display flip prior
+	 * to executing the batch and avoid stalling the CPU.
+	 */
+
+	for (plane = 0; flips >> plane; plane++) {
+		if (((flips >> plane) & 1) == 0)
+			continue;
+
+		if (plane)
+			flip_mask = MI_WAIT_FOR_PLANE_B_FLIP;
+		else
+			flip_mask = MI_WAIT_FOR_PLANE_A_FLIP;
+
+		ret = intel_ring_begin(ring, 2);
+		if (ret)
+			return ret;
+
+		intel_ring_emit(ring, MI_WAIT_FOR_EVENT | flip_mask);
+		intel_ring_emit(ring, MI_NOOP);
+		intel_ring_advance(ring);
+	}
+
+	return 0;
+}
+
+
+static int
 i915_gem_execbuffer_move_to_gpu(struct intel_ring_buffer *ring,
 				struct list_head *objects)
 {
@@ -781,9 +818,7 @@ i915_gem_execbuffer_move_to_gpu(struct intel_ring_buffer *ring,
 	struct change_domains cd;
 	int ret;
 
-	cd.invalidate_domains = 0;
-	cd.flush_domains = 0;
-	cd.flush_rings = 0;
+	memset(&cd, 0, sizeof(cd));
 	list_for_each_entry(obj, objects, exec_list)
 		i915_gem_object_set_to_gpu_domain(obj, ring, &cd);
 
@@ -792,6 +827,12 @@ i915_gem_execbuffer_move_to_gpu(struct intel_ring_buffer *ring,
 						cd.invalidate_domains,
 						cd.flush_domains,
 						cd.flush_rings);
+		if (ret)
+			return ret;
+	}
+
+	if (cd.flips) {
+		ret = i915_gem_execbuffer_wait_for_flips(ring, cd.flips);
 		if (ret)
 			return ret;
 	}
@@ -837,47 +878,6 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
 
 		if (fault_in_pages_readable(ptr, length))
 			return -EFAULT;
-	}
-
-	return 0;
-}
-
-static int
-i915_gem_execbuffer_wait_for_flips(struct intel_ring_buffer *ring,
-				   struct list_head *objects)
-{
-	struct drm_i915_gem_object *obj;
-	int flips;
-
-	/* Check for any pending flips. As we only maintain a flip queue depth
-	 * of 1, we can simply insert a WAIT for the next display flip prior
-	 * to executing the batch and avoid stalling the CPU.
-	 */
-	flips = 0;
-	list_for_each_entry(obj, objects, exec_list) {
-		if (obj->base.write_domain)
-			flips |= atomic_read(&obj->pending_flip);
-	}
-	if (flips) {
-		int plane, flip_mask, ret;
-
-		for (plane = 0; flips >> plane; plane++) {
-			if (((flips >> plane) & 1) == 0)
-				continue;
-
-			if (plane)
-				flip_mask = MI_WAIT_FOR_PLANE_B_FLIP;
-			else
-				flip_mask = MI_WAIT_FOR_PLANE_A_FLIP;
-
-			ret = intel_ring_begin(ring, 2);
-			if (ret)
-				return ret;
-
-			intel_ring_emit(ring, MI_WAIT_FOR_EVENT | flip_mask);
-			intel_ring_emit(ring, MI_NOOP);
-			intel_ring_advance(ring);
-		}
 	}
 
 	return 0;
@@ -1130,10 +1130,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	batch_obj->base.pending_read_domains |= I915_GEM_DOMAIN_COMMAND;
 
 	ret = i915_gem_execbuffer_move_to_gpu(ring, &objects);
-	if (ret)
-		goto err;
-
-	ret = i915_gem_execbuffer_wait_for_flips(ring, &objects);
 	if (ret)
 		goto err;
 
