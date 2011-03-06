@@ -19,7 +19,6 @@ struct nameidata {
 	struct path	path;
 	struct qstr	last;
 	struct path	root;
-	struct file	*file;
 	struct inode	*inode; /* path.dentry.d_inode */
 	unsigned int	flags;
 	unsigned	seq;

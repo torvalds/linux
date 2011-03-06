@@ -1498,7 +1498,8 @@ lookup_parent:
 	return err;
 }
 
-static int path_init(int dfd, const char *name, unsigned int flags, struct nameidata *nd)
+static int path_init(int dfd, const char *name, unsigned int flags,
+		     struct nameidata *nd, struct file **fp)
 {
 	int retval = 0;
 	int fput_needed;
@@ -1508,7 +1509,6 @@ static int path_init(int dfd, const char *name, unsigned int flags, struct namei
 	nd->flags = flags | LOOKUP_JUMPED;
 	nd->depth = 0;
 	nd->root.mnt = NULL;
-	nd->file = NULL;
 
 	if (*name=='/') {
 		if (flags & LOOKUP_RCU) {
@@ -1557,7 +1557,7 @@ static int path_init(int dfd, const char *name, unsigned int flags, struct namei
 		nd->path = file->f_path;
 		if (flags & LOOKUP_RCU) {
 			if (fput_needed)
-				nd->file = file;
+				*fp = file;
 			nd->seq = __read_seqcount_begin(&nd->path.dentry->d_seq);
 			br_read_lock(vfsmount_lock);
 			rcu_read_lock();
@@ -1580,6 +1580,7 @@ out_fail:
 static int path_lookupat(int dfd, const char *name,
 				unsigned int flags, struct nameidata *nd)
 {
+	struct file *base = NULL;
 	int retval;
 
 	/*
@@ -1596,7 +1597,7 @@ static int path_lookupat(int dfd, const char *name,
 	 * be handled by restarting a traditional ref-walk (which will always
 	 * be able to complete).
 	 */
-	retval = path_init(dfd, name, flags, nd);
+	retval = path_init(dfd, name, flags, nd, &base);
 
 	if (unlikely(retval))
 		return retval;
@@ -1614,10 +1615,8 @@ static int path_lookupat(int dfd, const char *name,
 	if (!retval)
 		retval = handle_reval_path(nd);
 
-	if (nd->file) {
-		fput(nd->file);
-		nd->file = NULL;
-	}
+	if (base)
+		fput(base);
 
 	if (nd->root.mnt) {
 		path_put(&nd->root);
