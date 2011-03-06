@@ -425,8 +425,7 @@ xfs_quiesce_attr(
 	/* Push the superblock and write an unmount record */
 	error = xfs_log_sbcount(mp, 1);
 	if (error)
-		xfs_fs_cmn_err(CE_WARN, mp,
-				"xfs_attr_quiesce: failed to log sb changes. "
+		xfs_warn(mp, "xfs_attr_quiesce: failed to log sb changes. "
 				"Frozen image may not be consistent.");
 	xfs_log_unmount_write(mp);
 	xfs_unmountfs_writesb(mp);
@@ -806,7 +805,7 @@ xfs_reclaim_inode(
 	 * pass on the error.
 	 */
 	if (error && error != EAGAIN && !XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-		xfs_fs_cmn_err(CE_WARN, ip->i_mount,
+		xfs_warn(ip->i_mount,
 			"inode 0x%llx background reclaim flush failed with %d",
 			(long long)ip->i_ino, error);
 	}
