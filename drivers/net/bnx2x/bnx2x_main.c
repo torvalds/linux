@@ -2163,13 +2163,6 @@ static void bnx2x_link_attn(struct bnx2x *bp)
 			bnx2x_stats_handle(bp, STATS_EVENT_LINK_UP);
 	}
 
-	/* indicate link status only if link status actually changed */
-	if (prev_link_status != bp->link_vars.link_status)
-		bnx2x_link_report(bp);
-
-	if (IS_MF(bp))
-		bnx2x_link_sync_notify(bp);
-
 	if (bp->link_vars.link_up && bp->link_vars.line_speed) {
 		int cmng_fns = bnx2x_get_cmng_fns_mode(bp);
 
@@ -2181,6 +2174,13 @@ static void bnx2x_link_attn(struct bnx2x *bp)
 			DP(NETIF_MSG_IFUP,
 			   "single function mode without fairness\n");
 	}
+
+	if (IS_MF(bp))
+		bnx2x_link_sync_notify(bp);
+
+	/* indicate link status only if link status actually changed */
+	if (prev_link_status != bp->link_vars.link_status)
+		bnx2x_link_report(bp);
 }
 
 void bnx2x__link_status_update(struct bnx2x *bp)
