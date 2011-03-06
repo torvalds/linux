@@ -43,21 +43,21 @@
  *	SDRAM configuration registers.
  */
 #ifdef CONFIG_M5271
-#define	MCFSIM_DCR		0x40		/* SDRAM control */
-#define	MCFSIM_DACR0		0x48		/* SDRAM base address 0 */
-#define	MCFSIM_DMR0		0x4c		/* SDRAM address mask 0 */
-#define	MCFSIM_DACR1		0x50		/* SDRAM base address 1 */
-#define	MCFSIM_DMR1		0x54		/* SDRAM address mask 1 */
+#define	MCFSIM_DCR		(MCF_IPSBAR + 0x40)	/* Control */
+#define	MCFSIM_DACR0		(MCF_IPSBAR + 0x48)	/* Base address 0 */
+#define	MCFSIM_DMR0		(MCF_IPSBAR + 0x4c)	/* Address mask 0 */
+#define	MCFSIM_DACR1		(MCF_IPSBAR + 0x50)	/* Base address 1 */
+#define	MCFSIM_DMR1		(MCF_IPSBAR + 0x54)	/* Address mask 1 */
 #endif
 #ifdef CONFIG_M5275
-#define	MCFSIM_DMR		0x40		/* SDRAM mode */
-#define	MCFSIM_DCR		0x44		/* SDRAM control */
-#define	MCFSIM_DCFG1		0x48		/* SDRAM configuration 1 */
-#define	MCFSIM_DCFG2		0x4c		/* SDRAM configuration 2 */
-#define	MCFSIM_DBAR0		0x50		/* SDRAM base address 0 */
-#define	MCFSIM_DMR0		0x54		/* SDRAM address mask 0 */
-#define	MCFSIM_DBAR1		0x58		/* SDRAM base address 1 */
-#define	MCFSIM_DMR1		0x5c		/* SDRAM address mask 1 */
+#define	MCFSIM_DMR		(MCF_IPSBAR + 0x40)	/* Mode */
+#define	MCFSIM_DCR		(MCF_IPSBAR + 0x44)	/* Control */
+#define	MCFSIM_DCFG1		(MCF_IPSBAR + 0x48)	/* Configuration 1 */
+#define	MCFSIM_DCFG2		(MCF_IPSBAR + 0x4c)	/* Configuration 2 */
+#define	MCFSIM_DBAR0		(MCF_IPSBAR + 0x50)	/* Base address 0 */
+#define	MCFSIM_DMR0		(MCF_IPSBAR + 0x54)	/* Address mask 0 */
+#define	MCFSIM_DBAR1		(MCF_IPSBAR + 0x58)	/* Base address 1 */
+#define	MCFSIM_DMR1		(MCF_IPSBAR + 0x5c)	/* Address mask 1 */
 #endif
 
 /*

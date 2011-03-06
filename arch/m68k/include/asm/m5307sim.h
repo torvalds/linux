@@ -89,11 +89,11 @@
 #define MCFSIM_CSCR7		0xde		/* CS 7 Control reg (r/w) */
 #endif /* CONFIG_OLDMASK */
 
-#define MCFSIM_DCR		0x100		/* DRAM Control reg (r/w) */
-#define MCFSIM_DACR0		0x108		/* DRAM 0 Addr and Ctrl (r/w) */
-#define MCFSIM_DMR0		0x10c		/* DRAM 0 Mask reg (r/w) */
-#define MCFSIM_DACR1		0x110		/* DRAM 1 Addr and Ctrl (r/w) */
-#define MCFSIM_DMR1		0x114		/* DRAM 1 Mask reg (r/w) */
+#define MCFSIM_DCR		(MCF_MBAR + 0x100)	/* DRAM Control */
+#define MCFSIM_DACR0		(MCF_MBAR + 0x108)	/* DRAM Addr/Ctrl 0 */
+#define MCFSIM_DMR0		(MCF_MBAR + 0x10c)	/* DRAM Mask 0 */
+#define MCFSIM_DACR1		(MCF_MBAR + 0x110)	/* DRAM Addr/Ctrl 1 */
+#define MCFSIM_DMR1		(MCF_MBAR + 0x114)	/* DRAM Mask 1 */
 
 /*
  *  Timer module.

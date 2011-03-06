@@ -41,17 +41,17 @@
  *	DRAM controller is quite different.
  */
 .macro GET_MEM_SIZE
-	movel	MCF_MBAR+MCFSIM_DMR0,%d0 /* get mask for 1st bank */
+	movel	MCFSIM_DMR0,%d0		/* get mask for 1st bank */
 	btst	#0,%d0			/* check if region enabled */
 	beq	1f
 	andl	#0xfffc0000,%d0
 	beq	1f
 	addl	#0x00040000,%d0		/* convert mask to size */
 1:
-	movel	MCF_MBAR+MCFSIM_DMR1,%d1 /* get mask for 2nd bank */
+	movel	MCFSIM_DMR1,%d1		/* get mask for 2nd bank */
 	btst	#0,%d1			/* check if region enabled */
 	beq	2f
-	andl	#0xfffc0000, %d1
+	andl	#0xfffc0000,%d1
 	beq	2f
 	addl	#0x00040000,%d1
 	addl	%d1,%d0			/* total mem size in d0 */

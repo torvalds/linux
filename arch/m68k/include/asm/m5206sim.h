@@ -48,14 +48,14 @@
 #define	MCFSIM_SWIVR		0x42		/* SW Watchdog intr reg (r/w) */
 #define	MCFSIM_SWSR		0x43		/* SW Watchdog service (r/w) */
 
-#define	MCFSIM_DCRR		0x46		/* DRAM Refresh reg (r/w) */
-#define	MCFSIM_DCTR		0x4a		/* DRAM Timing reg (r/w) */
-#define	MCFSIM_DAR0		0x4c		/* DRAM 0 Address reg(r/w) */
-#define	MCFSIM_DMR0		0x50		/* DRAM 0 Mask reg (r/w) */
-#define	MCFSIM_DCR0		0x57		/* DRAM 0 Control reg (r/w) */
-#define	MCFSIM_DAR1		0x58		/* DRAM 1 Address reg (r/w) */
-#define	MCFSIM_DMR1		0x5c		/* DRAM 1 Mask reg (r/w) */
-#define	MCFSIM_DCR1		0x63		/* DRAM 1 Control reg (r/w) */
+#define	MCFSIM_DCRR		(MCF_MBAR + 0x46) /* DRAM Refresh reg (r/w) */
+#define	MCFSIM_DCTR		(MCF_MBAR + 0x4a) /* DRAM Timing reg (r/w) */
+#define	MCFSIM_DAR0		(MCF_MBAR + 0x4c) /* DRAM 0 Address reg(r/w) */
+#define	MCFSIM_DMR0		(MCF_MBAR + 0x50) /* DRAM 0 Mask reg (r/w) */
+#define	MCFSIM_DCR0		(MCF_MBAR + 0x57) /* DRAM 0 Control reg (r/w) */
+#define	MCFSIM_DAR1		(MCF_MBAR + 0x58) /* DRAM 1 Address reg (r/w) */
+#define	MCFSIM_DMR1		(MCF_MBAR + 0x5c) /* DRAM 1 Mask reg (r/w) */
+#define	MCFSIM_DCR1		(MCF_MBAR + 0x63) /* DRAM 1 Control reg (r/w) */
 
 #define	MCFSIM_CSAR0		0x64		/* CS 0 Address 0 reg (r/w) */
 #define	MCFSIM_CSMR0		0x68		/* CS 0 Mask 0 reg (r/w) */

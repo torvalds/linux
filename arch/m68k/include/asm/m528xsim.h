@@ -40,11 +40,11 @@
 /*
  *	SDRAM configuration registers.
  */
-#define	MCFSIM_DCR		0x44		/* SDRAM control */
-#define	MCFSIM_DACR0		0x48		/* SDRAM base address 0 */
-#define	MCFSIM_DMR0		0x4c		/* SDRAM address mask 0 */
-#define	MCFSIM_DACR1		0x50		/* SDRAM base address 1 */
-#define	MCFSIM_DMR1		0x54		/* SDRAM address mask 1 */
+#define	MCFSIM_DCR		(MCF_IPSBAR + 0x00000044) /* Control */
+#define	MCFSIM_DACR0		(MCF_IPSBAR + 0x00000048) /* Base address 0 */
+#define	MCFSIM_DMR0		(MCF_IPSBAR + 0x0000004c) /* Address mask 0 */
+#define	MCFSIM_DACR1		(MCF_IPSBAR + 0x00000050) /* Base address 1 */
+#define	MCFSIM_DMR1		(MCF_IPSBAR + 0x00000054) /* Address mask 1 */
 
 /*
  *	DMA unit base addresses.

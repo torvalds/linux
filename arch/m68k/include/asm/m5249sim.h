@@ -60,11 +60,11 @@
 #define MCFSIM_CSMR3		0xa8		/* CS 3 Mask reg (r/w) */
 #define MCFSIM_CSCR3		0xae		/* CS 3 Control reg (r/w) */
 
-#define MCFSIM_DCR		0x100		/* DRAM Control reg (r/w) */
-#define MCFSIM_DACR0		0x108		/* DRAM 0 Addr and Ctrl (r/w) */
-#define MCFSIM_DMR0		0x10c		/* DRAM 0 Mask reg (r/w) */
-#define MCFSIM_DACR1		0x110		/* DRAM 1 Addr and Ctrl (r/w) */
-#define MCFSIM_DMR1		0x114		/* DRAM 1 Mask reg (r/w) */
+#define MCFSIM_DCR		(MCF_MBAR + 0x100)	/* DRAM Control */
+#define MCFSIM_DACR0		(MCF_MBAR + 0x108)	/* DRAM 0 Addr/Ctrl */
+#define MCFSIM_DMR0		(MCF_MBAR + 0x10c)	/* DRAM 0 Mask */
+#define MCFSIM_DACR1		(MCF_MBAR + 0x110)	/* DRAM 1 Addr/Ctrl */
+#define MCFSIM_DMR1		(MCF_MBAR + 0x114)	/* DRAM 1 Mask */
 
 /*
  *	Timer module.
