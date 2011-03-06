@@ -58,7 +58,6 @@ void wl1251_ps_elp_sleep(struct wl1251 *wl)
 	unsigned long delay;
 
 	if (wl->psm) {
-		cancel_delayed_work(&wl->elp_work);
 		delay = msecs_to_jiffies(ELP_ENTRY_DELAY);
 		ieee80211_queue_delayed_work(wl->hw, &wl->elp_work, delay);
 	}
@@ -68,6 +67,9 @@ int wl1251_ps_elp_wakeup(struct wl1251 *wl)
 {
 	unsigned long timeout, start;
 	u32 elp_reg;
+
+	if (delayed_work_pending(&wl->elp_work))
+		cancel_delayed_work(&wl->elp_work);
 
 	if (!wl->elp)
 		return 0;
