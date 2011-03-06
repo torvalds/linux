@@ -293,6 +293,11 @@ static int wl1271_chip_wakeup(struct wl1271 *wl)
 		wl1271_notice("chip id 0x%x (1271 PG20)",
 				wl->chip.id);
 		break;
+	case CHIP_ID_1283_PG20:
+		wl1271_notice("chip id 0x%x (1283 PG20)",
+				wl->chip.id);
+		break;
+	case CHIP_ID_1283_PG10:
 	default:
 		wl1271_warning("unsupported chip id: 0x%x", wl->chip.id);
 		return -ENODEV;
