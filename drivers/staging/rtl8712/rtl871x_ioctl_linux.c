@@ -958,7 +958,7 @@ static int r871x_wx_set_priv(struct net_device *dev,
 
 	len = dwrq->length;
 	ext = _malloc(len);
-	if (!_malloc(len))
+	if (!ext)
 		return -ENOMEM;
 	if (copy_from_user(ext, dwrq->pointer, len)) {
 		kfree(ext);
