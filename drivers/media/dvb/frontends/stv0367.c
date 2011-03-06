@@ -913,7 +913,7 @@ static u32 stv0367_get_tuner_freq(struct dvb_frontend *fe)
 	struct dvb_frontend_ops	*frontend_ops = NULL;
 	struct dvb_tuner_ops	*tuner_ops = NULL;
 	u32 freq = 0;
-	u32 err = 0;
+	int err = 0;
 
 	dprintk("%s:\n", __func__);
 
@@ -1940,7 +1940,7 @@ static int stv0367ter_get_frontend(struct dvb_frontend *fe,
 	int constell = 0,/* snr = 0,*/ Data = 0;
 
 	param->frequency = stv0367_get_tuner_freq(fe);
-	if (param->frequency < 0)
+	if ((int)param->frequency < 0)
 		param->frequency = c->frequency;
 
 	constell = stv0367_readbits(state, F367TER_TPS_CONST);
