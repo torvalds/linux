@@ -1211,6 +1211,7 @@ struct bnx2x {
 	/* DCBX Negotation results */
 	struct dcbx_features			dcbx_local_feat;
 	u32					dcbx_error;
+	u32					pending_max;
 };
 
 /**
