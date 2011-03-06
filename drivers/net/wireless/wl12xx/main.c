@@ -832,7 +832,10 @@ static int wl1271_fetch_firmware(struct wl1271 *wl)
 
 	switch (wl->bss_type) {
 	case BSS_TYPE_AP_BSS:
-		fw_name = WL1271_AP_FW_NAME;
+		if (wl->chip.id == CHIP_ID_1283_PG20)
+			fw_name = WL128X_AP_FW_NAME;
+		else
+			fw_name = WL127X_AP_FW_NAME;
 		break;
 	case BSS_TYPE_IBSS:
 	case BSS_TYPE_STA_BSS:

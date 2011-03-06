@@ -132,7 +132,8 @@ extern u32 wl12xx_debug_level;
 
 #define WL1271_FW_NAME "ti-connectivity/wl1271-fw-2.bin"
 #define WL128X_FW_NAME "ti-connectivity/wl128x-fw.bin"
-#define WL1271_AP_FW_NAME "ti-connectivity/wl1271-fw-ap.bin"
+#define WL127X_AP_FW_NAME "ti-connectivity/wl1271-fw-ap.bin"
+#define WL128X_AP_FW_NAME "ti-connectivity/wl128x-fw-ap.bin"
 
 /*
  * wl127x and wl128x are using the same NVS file name. However, the
