@@ -55,6 +55,7 @@
 #include <linux/fs_struct.h>
 #include <linux/pipe_fs_i.h>
 #include <linux/oom.h>
+#include <linux/compat.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
@@ -167,7 +168,7 @@ out:
 
 #ifdef CONFIG_MMU
 
-void acct_arg_size(struct linux_binprm *bprm, unsigned long pages)
+static void acct_arg_size(struct linux_binprm *bprm, unsigned long pages)
 {
 	struct mm_struct *mm = current->mm;
 	long diff = (long)(pages - bprm->vma_pages);
@@ -186,7 +187,7 @@ void acct_arg_size(struct linux_binprm *bprm, unsigned long pages)
 #endif
 }
 
-struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
+static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
 		int write)
 {
 	struct page *page;
@@ -305,11 +306,11 @@ static bool valid_arg_len(struct linux_binprm *bprm, long len)
 
 #else
 
-void acct_arg_size(struct linux_binprm *bprm, unsigned long pages)
+static inline void acct_arg_size(struct linux_binprm *bprm, unsigned long pages)
 {
 }
 
-struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
+static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
 		int write)
 {
 	struct page *page;
@@ -399,17 +400,36 @@ err:
 }
 
 struct user_arg_ptr {
-	const char __user *const __user *native;
+#ifdef CONFIG_COMPAT
+	bool is_compat;
+#endif
+	union {
+		const char __user *const __user *native;
+#ifdef CONFIG_COMPAT
+		compat_uptr_t __user *compat;
+#endif
+	} ptr;
 };
 
 static const char __user *get_user_arg_ptr(struct user_arg_ptr argv, int nr)
 {
-	const char __user *ptr;
+	const char __user *native;
 
-	if (get_user(ptr, argv.native + nr))
+#ifdef CONFIG_COMPAT
+	if (unlikely(argv.is_compat)) {
+		compat_uptr_t compat;
+
+		if (get_user(compat, argv.ptr.compat + nr))
+			return ERR_PTR(-EFAULT);
+
+		return compat_ptr(compat);
+	}
+#endif
+
+	if (get_user(native, argv.ptr.native + nr))
 		return ERR_PTR(-EFAULT);
 
-	return ptr;
+	return native;
 }
 
 /*
@@ -419,7 +439,7 @@ static int count(struct user_arg_ptr argv, int max)
 {
 	int i = 0;
 
-	if (argv.native != NULL) {
+	if (argv.ptr.native != NULL) {
 		for (;;) {
 			const char __user *p = get_user_arg_ptr(argv, i);
 
@@ -542,7 +562,7 @@ int copy_strings_kernel(int argc, const char *const *__argv,
 	int r;
 	mm_segment_t oldfs = get_fs();
 	struct user_arg_ptr argv = {
-		.native = (const char __user *const  __user *)__argv,
+		.ptr.native = (const char __user *const  __user *)__argv,
 	};
 
 	set_fs(KERNEL_DS);
@@ -1516,10 +1536,28 @@ int do_execve(const char *filename,
 	const char __user *const __user *__envp,
 	struct pt_regs *regs)
 {
-	struct user_arg_ptr argv = { .native = __argv };
-	struct user_arg_ptr envp = { .native = __envp };
+	struct user_arg_ptr argv = { .ptr.native = __argv };
+	struct user_arg_ptr envp = { .ptr.native = __envp };
 	return do_execve_common(filename, argv, envp, regs);
 }
+
+#ifdef CONFIG_COMPAT
+int compat_do_execve(char *filename,
+	compat_uptr_t __user *__argv,
+	compat_uptr_t __user *__envp,
+	struct pt_regs *regs)
+{
+	struct user_arg_ptr argv = {
+		.is_compat = true,
+		.ptr.compat = __argv,
+	};
+	struct user_arg_ptr envp = {
+		.is_compat = true,
+		.ptr.compat = __envp,
+	};
+	return do_execve_common(filename, argv, envp, regs);
+}
+#endif
 
 void set_binfmt(struct linux_binfmt *new)
 {
