@@ -544,9 +544,10 @@ xfs_qm_dqtobp(
 	/*
 	 * A simple sanity check in case we got a corrupted dquot...
 	 */
-	if (xfs_qm_dqcheck(ddq, id, dqp->dq_flags & XFS_DQ_ALLTYPES,
+	error = xfs_qm_dqcheck(mp, ddq, id, dqp->dq_flags & XFS_DQ_ALLTYPES,
 			   flags & (XFS_QMOPT_DQREPAIR|XFS_QMOPT_DOWARN),
-			   "dqtobp")) {
+			   "dqtobp");
+	if (error) {
 		if (!(flags & XFS_QMOPT_DQREPAIR)) {
 			xfs_trans_brelse(tp, bp);
 			return XFS_ERROR(EIO);
@@ -1207,8 +1208,9 @@ xfs_qm_dqflush(
 	/*
 	 * A simple sanity check in case we got a corrupted dquot..
 	 */
-	if (xfs_qm_dqcheck(&dqp->q_core, be32_to_cpu(ddqp->d_id), 0,
-			   XFS_QMOPT_DOWARN, "dqflush (incore copy)")) {
+	error = xfs_qm_dqcheck(mp, &dqp->q_core, be32_to_cpu(ddqp->d_id), 0,
+			   XFS_QMOPT_DOWARN, "dqflush (incore copy)");
+	if (error) {
 		xfs_buf_relse(bp);
 		xfs_dqfunlock(dqp);
 		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
