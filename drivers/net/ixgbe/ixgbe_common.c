@@ -1075,7 +1075,7 @@ static void ixgbe_release_eeprom(struct ixgbe_hw *hw)
 	eec &= ~IXGBE_EEC_REQ;
 	IXGBE_WRITE_REG(hw, IXGBE_EEC, eec);
 
-	ixgbe_release_swfw_sync(hw, IXGBE_GSSR_EEP_SM);
+	hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_EEP_SM);
 
 	/* Delay before attempt to obtain semaphore again to allow FW access */
 	msleep(hw->eeprom.semaphore_delay);
