@@ -2178,13 +2178,14 @@ exit:
 }
 
 /*
- * Handle O_CREAT case for do_filp_open
+ * Handle the last step of open()
  */
 static struct file *do_last(struct nameidata *nd, struct path *path,
 			    const struct open_flags *op, const char *pathname)
 {
 	struct dentry *dir = nd->path.dentry;
 	struct file *filp;
+	struct inode *inode;
 	int error;
 
 	nd->flags &= ~LOOKUP_PARENT;
@@ -2192,17 +2193,27 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 
 	switch (nd->last_type) {
 	case LAST_DOTDOT:
-		follow_dotdot(nd);
-		dir = nd->path.dentry;
 	case LAST_DOT:
+		error = handle_dots(nd, nd->last_type);
+		if (error)
+			return ERR_PTR(error);
 		/* fallthrough */
 	case LAST_ROOT:
+		if (nd->flags & LOOKUP_RCU) {
+			if (nameidata_drop_rcu_last(nd))
+				return ERR_PTR(-ECHILD);
+		}
 		error = handle_reval_path(nd);
 		if (error)
 			goto exit;
-		error = -EISDIR;
-		goto exit;
+		audit_inode(pathname, nd->path.dentry);
+		if (op->open_flag & O_CREAT) {
+			error = -EISDIR;
+			goto exit;
+		}
+		goto ok;
 	case LAST_BIND:
+		/* can't be RCU mode here */
 		error = handle_reval_path(nd);
 		if (error)
 			goto exit;
@@ -2210,6 +2221,51 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		goto ok;
 	}
 
+	if (!(op->open_flag & O_CREAT)) {
+		if (nd->last.name[nd->last.len])
+			nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
+		/* we _can_ be in RCU mode here */
+		error = do_lookup(nd, &nd->last, path, &inode);
+		if (error) {
+			terminate_walk(nd);
+			return ERR_PTR(error);
+		}
+		if (!inode) {
+			path_to_nameidata(path, nd);
+			terminate_walk(nd);
+			return ERR_PTR(-ENOENT);
+		}
+		if (unlikely(inode->i_op->follow_link)) {
+			/* We drop rcu-walk here */
+			if (nameidata_dentry_drop_rcu_maybe(nd, path->dentry))
+				return ERR_PTR(-ECHILD);
+			return NULL;
+		}
+		path_to_nameidata(path, nd);
+		nd->inode = inode;
+		/* sayonara */
+		if (nd->flags & LOOKUP_RCU) {
+			if (nameidata_drop_rcu_last(nd))
+				return ERR_PTR(-ECHILD);
+		}
+
+		error = -ENOTDIR;
+		if (nd->flags & LOOKUP_DIRECTORY) {
+			if (!inode->i_op->lookup)
+				goto exit;
+		}
+		audit_inode(pathname, nd->path.dentry);
+		goto ok;
+	}
+
+	/* create side of things */
+
+	if (nd->flags & LOOKUP_RCU) {
+		if (nameidata_drop_rcu_last(nd))
+			return ERR_PTR(-ECHILD);
+	}
+
+	audit_inode(pathname, dir);
 	error = -EISDIR;
 	/* trailing slashes? */
 	if (nd->last.name[nd->last.len])
@@ -2303,6 +2359,7 @@ exit:
 static struct file *path_openat(int dfd, const char *pathname,
 		const struct open_flags *op, int flags)
 {
+	struct file *base = NULL;
 	struct file *filp;
 	struct nameidata nd;
 	struct path path;
@@ -2318,39 +2375,15 @@ static struct file *path_openat(int dfd, const char *pathname,
 	nd.intent.open.flags = open_to_namei_flags(op->open_flag);
 	nd.intent.open.create_mode = op->mode;
 
-	if (op->open_flag & O_CREAT)
-		goto creat;
-
-	/* !O_CREAT, simple open */
-	error = path_lookupat(dfd, pathname, flags | op->intent, &nd);
+	error = path_init(dfd, pathname, flags | LOOKUP_PARENT, &nd, &base);
 	if (unlikely(error))
 		goto out_filp;
-	error = -ELOOP;
-	if (!(nd.flags & LOOKUP_FOLLOW)) {
-		if (nd.inode->i_op->follow_link)
-			goto out_path;
-	}
-	error = -ENOTDIR;
-	if (nd.flags & LOOKUP_DIRECTORY) {
-		if (!nd.inode->i_op->lookup)
-			goto out_path;
-	}
-	audit_inode(pathname, nd.path.dentry);
-	filp = finish_open(&nd, op->open_flag, op->acc_mode);
-	release_open_intent(&nd);
-	return filp;
 
-creat:
-	/* OK, have to create the file. Find the parent. */
-	error = path_lookupat(dfd, pathname, LOOKUP_PARENT | flags, &nd);
+	current->total_link_count = 0;
+	error = link_path_walk(pathname, &nd);
 	if (unlikely(error))
 		goto out_filp;
-	if (unlikely(!audit_dummy_context()))
-		audit_inode(pathname, nd.path.dentry);
 
-	/*
-	 * We have the parent and last component.
-	 */
 	filp = do_last(&nd, &path, op, pathname);
 	while (unlikely(!filp)) { /* trailing symlink */
 		struct path link = path;
@@ -2386,12 +2419,13 @@ creat:
 out:
 	if (nd.root.mnt)
 		path_put(&nd.root);
+	if (base)
+		fput(base);
 	release_open_intent(&nd);
 	return filp;
 
 exit_dput:
 	path_put_conditional(&path, &nd);
-out_path:
 	path_put(&nd.path);
 out_filp:
 	filp = ERR_PTR(error);
