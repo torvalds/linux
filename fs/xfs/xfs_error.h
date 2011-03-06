@@ -162,10 +162,4 @@ struct xfs_mount;
 
 extern void xfs_hex_dump(void *p, int length);
 
-#define xfs_fs_mount_cmn_err(f, fmt, args...) \
-	do { \
-		if (!(f & XFS_MFSI_QUIET)) 	\
-			cmn_err(CE_WARN, "XFS: " fmt, ## args); \
-	} while (0)
-
 #endif	/* __XFS_ERROR_H__ */
