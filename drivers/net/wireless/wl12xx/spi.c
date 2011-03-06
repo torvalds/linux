@@ -401,6 +401,7 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	}
 
 	wl->ref_clock = pdata->board_ref_clock;
+	wl->tcxo_clock = pdata->board_tcxo_clock;
 
 	wl->irq = spi->irq;
 	if (wl->irq < 0) {

@@ -421,6 +421,7 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 
 	wl->irq = wlan_data->irq;
 	wl->ref_clock = wlan_data->board_ref_clock;
+	wl->tcxo_clock = wlan_data->board_tcxo_clock;
 
 	sdio_set_drvdata(func, wl_test);
 

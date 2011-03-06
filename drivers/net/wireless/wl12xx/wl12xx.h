@@ -535,6 +535,7 @@ struct wl1271 {
 	u8 ba_rx_bitmap;
 
 	u32 block_size;
+	int tcxo_clock;
 
 	/*
 	 * AP-mode - links indexed by HLID. The global and broadcast links
