@@ -68,7 +68,7 @@ static inline int altera_ci_irq(void *dev)
 	return 0;
 }
 
-static int altera_ci_tuner_reset(void *dev, int ci_nr)
+static inline int altera_ci_tuner_reset(void *dev, int ci_nr)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return 0;
