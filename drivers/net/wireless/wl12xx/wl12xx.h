@@ -378,7 +378,7 @@ struct wl1271 {
 	u8 *fw;
 	size_t fw_len;
 	u8 fw_bss_type;
-	struct wl1271_nvs_file *nvs;
+	void *nvs;
 	size_t nvs_len;
 
 	s8 hw_pg_ver;

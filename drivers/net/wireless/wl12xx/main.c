@@ -804,7 +804,10 @@ static int wl1271_fetch_firmware(struct wl1271 *wl)
 		break;
 	case BSS_TYPE_IBSS:
 	case BSS_TYPE_STA_BSS:
-		fw_name = WL1271_FW_NAME;
+		if (wl->chip.id == CHIP_ID_1283_PG20)
+			fw_name = WL128X_FW_NAME;
+		else
+			fw_name	= WL1271_FW_NAME;
 		break;
 	default:
 		wl1271_error("no compatible firmware for bss_type %d",
@@ -860,7 +863,7 @@ static int wl1271_fetch_nvs(struct wl1271 *wl)
 		return ret;
 	}
 
-	wl->nvs = kmemdup(fw->data, sizeof(struct wl1271_nvs_file), GFP_KERNEL);
+	wl->nvs = kmemdup(fw->data, fw->size, GFP_KERNEL);
 
 	if (!wl->nvs) {
 		wl1271_error("could not allocate memory for the nvs file");
@@ -3289,7 +3292,11 @@ int wl1271_register_hw(struct wl1271 *wl)
 
 	ret = wl1271_fetch_nvs(wl);
 	if (ret == 0) {
-		u8 *nvs_ptr = (u8 *)wl->nvs->nvs;
+		/* NOTE: The wl->nvs->nvs element must be first, in
+		 * order to simplify the casting, we assume it is at
+		 * the beginning of the wl->nvs structure.
+		 */
+		u8 *nvs_ptr = (u8 *)wl->nvs;
 
 		wl->mac_addr[0] = nvs_ptr[11];
 		wl->mac_addr[1] = nvs_ptr[10];

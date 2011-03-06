@@ -174,7 +174,7 @@ struct wl128x_ini_fem_params_5 {
 #define WL1271_INI_LEGACY_NVS_FILE_SIZE              800
 
 struct wl1271_nvs_file {
-	/* NVS section */
+	/* NVS section - must be first! */
 	u8 nvs[WL1271_INI_NVS_SECTION_SIZE];
 
 	/* INI section */
@@ -195,7 +195,7 @@ struct wl1271_nvs_file {
 } __packed;
 
 struct wl128x_nvs_file {
-	/* NVS section */
+	/* NVS section - must be first! */
 	u8 nvs[WL1271_INI_NVS_SECTION_SIZE];
 
 	/* INI section */

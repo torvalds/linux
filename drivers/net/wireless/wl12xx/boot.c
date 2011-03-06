@@ -243,33 +243,57 @@ static int wl1271_boot_upload_nvs(struct wl1271 *wl)
 	if (wl->nvs == NULL)
 		return -ENODEV;
 
-	/*
-	 * FIXME: the LEGACY NVS image support (NVS's missing the 5GHz band
-	 * configurations) can be removed when those NVS files stop floating
-	 * around.
-	 */
-	if (wl->nvs_len == sizeof(struct wl1271_nvs_file) ||
-	    wl->nvs_len == WL1271_INI_LEGACY_NVS_FILE_SIZE) {
-		/* for now 11a is unsupported in AP mode */
-		if (wl->bss_type != BSS_TYPE_AP_BSS &&
-		    wl->nvs->general_params.dual_mode_select)
-			wl->enable_11a = true;
-	}
+	if (wl->chip.id == CHIP_ID_1283_PG20) {
+		struct wl128x_nvs_file *nvs = (struct wl128x_nvs_file *)wl->nvs;
 
-	if (wl->nvs_len != sizeof(struct wl1271_nvs_file) &&
-	    (wl->nvs_len != WL1271_INI_LEGACY_NVS_FILE_SIZE ||
-	     wl->enable_11a)) {
-		wl1271_error("nvs size is not as expected: %zu != %zu",
-			     wl->nvs_len, sizeof(struct wl1271_nvs_file));
-		kfree(wl->nvs);
-		wl->nvs = NULL;
-		wl->nvs_len = 0;
-		return -EILSEQ;
-	}
+		if (wl->nvs_len == sizeof(struct wl128x_nvs_file)) {
+			if (nvs->general_params.dual_mode_select)
+				wl->enable_11a = true;
+		} else {
+			wl1271_error("nvs size is not as expected: %zu != %zu",
+				     wl->nvs_len,
+				     sizeof(struct wl128x_nvs_file));
+			kfree(wl->nvs);
+			wl->nvs = NULL;
+			wl->nvs_len = 0;
+			return -EILSEQ;
+		}
 
-	/* only the first part of the NVS needs to be uploaded */
-	nvs_len = sizeof(wl->nvs->nvs);
-	nvs_ptr = (u8 *)wl->nvs->nvs;
+		/* only the first part of the NVS needs to be uploaded */
+		nvs_len = sizeof(nvs->nvs);
+		nvs_ptr = (u8 *)nvs->nvs;
+
+	} else {
+		struct wl1271_nvs_file *nvs =
+			(struct wl1271_nvs_file *)wl->nvs;
+		/*
+		 * FIXME: the LEGACY NVS image support (NVS's missing the 5GHz
+		 * band configurations) can be removed when those NVS files stop
+		 * floating around.
+		 */
+		if (wl->nvs_len == sizeof(struct wl1271_nvs_file) ||
+		    wl->nvs_len == WL1271_INI_LEGACY_NVS_FILE_SIZE) {
+			/* for now 11a is unsupported in AP mode */
+			if (wl->bss_type != BSS_TYPE_AP_BSS &&
+			    nvs->general_params.dual_mode_select)
+				wl->enable_11a = true;
+		}
+
+		if (wl->nvs_len != sizeof(struct wl1271_nvs_file) &&
+		    (wl->nvs_len != WL1271_INI_LEGACY_NVS_FILE_SIZE ||
+		     wl->enable_11a)) {
+			wl1271_error("nvs size is not as expected: %zu != %zu",
+				wl->nvs_len, sizeof(struct wl1271_nvs_file));
+			kfree(wl->nvs);
+			wl->nvs = NULL;
+			wl->nvs_len = 0;
+			return -EILSEQ;
+		}
+
+		/* only the first part of the NVS needs to be uploaded */
+		nvs_len = sizeof(nvs->nvs);
+		nvs_ptr = (u8 *) nvs->nvs;
+	}
 
 	/* update current MAC address to NVS */
 	nvs_ptr[11] = wl->mac_addr[0];
@@ -319,10 +343,13 @@ static int wl1271_boot_upload_nvs(struct wl1271 *wl)
 	/*
 	 * We've reached the first zero length, the first NVS table
 	 * is located at an aligned offset which is at least 7 bytes further.
+	 * NOTE: The wl->nvs->nvs element must be first, in order to
+	 * simplify the casting, we assume it is at the beginning of
+	 * the wl->nvs structure.
 	 */
-	nvs_ptr = (u8 *)wl->nvs->nvs +
-			ALIGN(nvs_ptr - (u8 *)wl->nvs->nvs + 7, 4);
-	nvs_len -= nvs_ptr - (u8 *)wl->nvs->nvs;
+	nvs_ptr = (u8 *)wl->nvs +
+			ALIGN(nvs_ptr - (u8 *)wl->nvs + 7, 4);
+	nvs_len -= nvs_ptr - (u8 *)wl->nvs;
 
 	/* Now we must set the partition correctly */
 	wl1271_set_partition(wl, &part_table[PART_WORK]);
