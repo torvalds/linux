@@ -64,34 +64,6 @@ xfs_fs_cmn_err(
 	BUG_ON(strncmp(lvl, KERN_EMERG, strlen(KERN_EMERG)) == 0);
 }
 
-/* All callers to xfs_cmn_err use CE_ALERT, so don't bother testing lvl */
-void
-xfs_cmn_err(
-	int			panic_tag,
-	const char		*lvl,
-	struct xfs_mount	*mp,
-	const char		*fmt,
-	...)
-{
-	struct va_format	vaf;
-	va_list			args;
-	int			do_panic = 0;
-
-	if (xfs_panic_mask && (xfs_panic_mask & panic_tag)) {
-		printk(KERN_ALERT "XFS: Transforming an alert into a BUG.");
-		do_panic = 1;
-	}
-
-	va_start(args, fmt);
-	vaf.fmt = fmt;
-	vaf.va = &args;
-
-	printk(KERN_ALERT "Filesystem %s: %pV", mp->m_fsname, &vaf);
-	va_end(args);
-
-	BUG_ON(do_panic);
-}
-
 void
 assfail(char *expr, char *file, int line)
 {

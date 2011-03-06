@@ -2940,16 +2940,16 @@ xfs_iflush_int(
 
 	if (XFS_TEST_ERROR(be16_to_cpu(dip->di_magic) != XFS_DINODE_MAGIC,
 			       mp, XFS_ERRTAG_IFLUSH_1, XFS_RANDOM_IFLUSH_1)) {
-		xfs_cmn_err(XFS_PTAG_IFLUSH, CE_ALERT, mp,
-		    "xfs_iflush: Bad inode %Lu magic number 0x%x, ptr 0x%p",
-			ip->i_ino, be16_to_cpu(dip->di_magic), dip);
+		xfs_alert_tag(mp, XFS_PTAG_IFLUSH,
+			"%s: Bad inode %Lu magic number 0x%x, ptr 0x%p",
+			__func__, ip->i_ino, be16_to_cpu(dip->di_magic), dip);
 		goto corrupt_out;
 	}
 	if (XFS_TEST_ERROR(ip->i_d.di_magic != XFS_DINODE_MAGIC,
 				mp, XFS_ERRTAG_IFLUSH_2, XFS_RANDOM_IFLUSH_2)) {
-		xfs_cmn_err(XFS_PTAG_IFLUSH, CE_ALERT, mp,
-			"xfs_iflush: Bad inode %Lu, ptr 0x%p, magic number 0x%x",
-			ip->i_ino, ip, ip->i_d.di_magic);
+		xfs_alert_tag(mp, XFS_PTAG_IFLUSH,
+			"%s: Bad inode %Lu, ptr 0x%p, magic number 0x%x",
+			__func__, ip->i_ino, ip, ip->i_d.di_magic);
 		goto corrupt_out;
 	}
 	if ((ip->i_d.di_mode & S_IFMT) == S_IFREG) {
@@ -2957,9 +2957,9 @@ xfs_iflush_int(
 		    (ip->i_d.di_format != XFS_DINODE_FMT_EXTENTS) &&
 		    (ip->i_d.di_format != XFS_DINODE_FMT_BTREE),
 		    mp, XFS_ERRTAG_IFLUSH_3, XFS_RANDOM_IFLUSH_3)) {
-			xfs_cmn_err(XFS_PTAG_IFLUSH, CE_ALERT, mp,
-				"xfs_iflush: Bad regular inode %Lu, ptr 0x%p",
-				ip->i_ino, ip);
+			xfs_alert_tag(mp, XFS_PTAG_IFLUSH,
+				"%s: Bad regular inode %Lu, ptr 0x%p",
+				__func__, ip->i_ino, ip);
 			goto corrupt_out;
 		}
 	} else if ((ip->i_d.di_mode & S_IFMT) == S_IFDIR) {
@@ -2968,28 +2968,28 @@ xfs_iflush_int(
 		    (ip->i_d.di_format != XFS_DINODE_FMT_BTREE) &&
 		    (ip->i_d.di_format != XFS_DINODE_FMT_LOCAL),
 		    mp, XFS_ERRTAG_IFLUSH_4, XFS_RANDOM_IFLUSH_4)) {
-			xfs_cmn_err(XFS_PTAG_IFLUSH, CE_ALERT, mp,
-				"xfs_iflush: Bad directory inode %Lu, ptr 0x%p",
-				ip->i_ino, ip);
+			xfs_alert_tag(mp, XFS_PTAG_IFLUSH,
+				"%s: Bad directory inode %Lu, ptr 0x%p",
+				__func__, ip->i_ino, ip);
 			goto corrupt_out;
 		}
 	}
 	if (XFS_TEST_ERROR(ip->i_d.di_nextents + ip->i_d.di_anextents >
 				ip->i_d.di_nblocks, mp, XFS_ERRTAG_IFLUSH_5,
 				XFS_RANDOM_IFLUSH_5)) {
-		xfs_cmn_err(XFS_PTAG_IFLUSH, CE_ALERT, mp,
-			"xfs_iflush: detected corrupt incore inode %Lu, total extents = %d, nblocks = %Ld, ptr 0x%p",
-			ip->i_ino,
+		xfs_alert_tag(mp, XFS_PTAG_IFLUSH,
+			"%s: detected corrupt incore inode %Lu, "
+			"total extents = %d, nblocks = %Ld, ptr 0x%p",
+			__func__, ip->i_ino,
 			ip->i_d.di_nextents + ip->i_d.di_anextents,
-			ip->i_d.di_nblocks,
-			ip);
+			ip->i_d.di_nblocks, ip);
 		goto corrupt_out;
 	}
 	if (XFS_TEST_ERROR(ip->i_d.di_forkoff > mp->m_sb.sb_inodesize,
 				mp, XFS_ERRTAG_IFLUSH_6, XFS_RANDOM_IFLUSH_6)) {
-		xfs_cmn_err(XFS_PTAG_IFLUSH, CE_ALERT, mp,
-			"xfs_iflush: bad inode %Lu, forkoff 0x%x, ptr 0x%p",
-			ip->i_ino, ip->i_d.di_forkoff, ip);
+		xfs_alert_tag(mp, XFS_PTAG_IFLUSH,
+			"%s: bad inode %Lu, forkoff 0x%x, ptr 0x%p",
+			__func__, ip->i_ino, ip->i_d.di_forkoff, ip);
 		goto corrupt_out;
 	}
 	/*

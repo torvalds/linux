@@ -33,8 +33,6 @@ void cmn_err(const char *lvl, const char *fmt, ...)
 		__attribute__ ((format (printf, 2, 3)));
 void xfs_fs_cmn_err( const char *lvl, struct xfs_mount *mp,
 		const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
-void xfs_cmn_err( int panic_tag, const char *lvl, struct xfs_mount *mp,
-		const char *fmt, ...) __attribute__ ((format (printf, 4, 5)));
 
 extern void assfail(char *expr, char *f, int l);
 

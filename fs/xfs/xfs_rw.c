@@ -69,25 +69,20 @@ xfs_do_force_shutdown(
 		return;
 
 	if (flags & SHUTDOWN_CORRUPT_INCORE) {
-		xfs_cmn_err(XFS_PTAG_SHUTDOWN_CORRUPT, CE_ALERT, mp,
-    "Corruption of in-memory data detected.  Shutting down filesystem: %s",
-			mp->m_fsname);
-		if (XFS_ERRLEVEL_HIGH <= xfs_error_level) {
+		xfs_alert_tag(mp, XFS_PTAG_SHUTDOWN_CORRUPT,
+    "Corruption of in-memory data detected.  Shutting down filesystem");
+		if (XFS_ERRLEVEL_HIGH <= xfs_error_level)
 			xfs_stack_trace();
-		}
 	} else if (!(flags & SHUTDOWN_FORCE_UMOUNT)) {
 		if (logerror) {
-			xfs_cmn_err(XFS_PTAG_SHUTDOWN_LOGERROR, CE_ALERT, mp,
-		"Log I/O Error Detected.  Shutting down filesystem: %s",
-				mp->m_fsname);
+			xfs_alert_tag(mp, XFS_PTAG_SHUTDOWN_LOGERROR,
+		"Log I/O Error Detected.  Shutting down filesystem");
 		} else if (flags & SHUTDOWN_DEVICE_REQ) {
-			xfs_cmn_err(XFS_PTAG_SHUTDOWN_IOERROR, CE_ALERT, mp,
-		"All device paths lost.  Shutting down filesystem: %s",
-				mp->m_fsname);
+			xfs_alert_tag(mp, XFS_PTAG_SHUTDOWN_IOERROR,
+		"All device paths lost.  Shutting down filesystem");
 		} else if (!(flags & SHUTDOWN_REMOTE_REQ)) {
-			xfs_cmn_err(XFS_PTAG_SHUTDOWN_IOERROR, CE_ALERT, mp,
-		"I/O Error Detected.  Shutting down filesystem: %s",
-				mp->m_fsname);
+			xfs_alert_tag(mp, XFS_PTAG_SHUTDOWN_IOERROR,
+		"I/O Error Detected. Shutting down filesystem");
 		}
 	}
 	if (!(flags & SHUTDOWN_FORCE_UMOUNT)) {

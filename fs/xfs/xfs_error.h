@@ -145,10 +145,8 @@ extern int xfs_errortag_clearall(struct xfs_mount *mp, int loud);
 #endif /* DEBUG */
 
 /*
- * XFS panic tags -- allow a call to xfs_cmn_err() be turned into
- *			a panic by setting xfs_panic_mask in a
- *			sysctl.  update xfs_max[XFS_PARAM] if
- *			more are added.
+ * XFS panic tags -- allow a call to xfs_alert_tag() be turned into
+ *			a panic by setting xfs_panic_mask in a sysctl.
  */
 #define		XFS_NO_PTAG			0
 #define		XFS_PTAG_IFLUSH			0x00000001
