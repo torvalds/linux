@@ -655,10 +655,10 @@ static void wm8900_set_hw(struct snd_soc_codec *codec)
 
 	snd_soc_write(codec, WM8900_REG_LOUTMIXCTL1, 0x150);
 	snd_soc_write(codec, WM8900_REG_ROUTMIXCTL1, 0x150);
-	snd_soc_write(codec, WM8900_REG_LOUT2CTL, 0x139);
-	snd_soc_write(codec, WM8900_REG_ROUT2CTL, 0x139);
-	snd_soc_write(codec, WM8900_REG_LOUT1CTL, 0x139);
-	snd_soc_write(codec, WM8900_REG_ROUT1CTL, 0x139);
+	snd_soc_write(codec, WM8900_REG_LOUT2CTL, 0x133);
+	snd_soc_write(codec, WM8900_REG_ROUT2CTL, 0x133);
+	snd_soc_write(codec, WM8900_REG_LOUT1CTL, 0x130);
+	snd_soc_write(codec, WM8900_REG_ROUT1CTL, 0x130);
 
 	snd_soc_write(codec, WM8900_REG_POWER1, 0x211D);
 	snd_soc_write(codec, WM8900_REG_POWER2, 0xC1AF);
@@ -1382,9 +1382,9 @@ static __devinit int wm8900_i2c_probe(struct i2c_client *i2c,
         /* For Fzf Test */
         #if 1
 	snd_soc_write(codec, WM8900_REG_LDAC_DV,
-		      (snd_soc_read(codec, WM8900_REG_LDAC_DV)&0xFF00) | 0xB0);
+		      (snd_soc_read(codec, WM8900_REG_LDAC_DV)&0xFF00) | 0xC0);
 	snd_soc_write(codec, WM8900_REG_RDAC_DV,
-		      (snd_soc_read(codec, WM8900_REG_RDAC_DV)&0xFF00) | 0xB0);
+		      (snd_soc_read(codec, WM8900_REG_RDAC_DV)&0xFF00) | 0xC0);
         		      
         #endif
 	/* Set the DAC and mixer output bias */
