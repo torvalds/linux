@@ -2120,7 +2120,8 @@ static int vmx_get_cpl(struct kvm_vcpu *vcpu)
 	if (!is_protmode(vcpu))
 		return 0;
 
-	if (kvm_get_rflags(vcpu) & X86_EFLAGS_VM) /* if virtual 8086 */
+	if (!is_long_mode(vcpu)
+	    && (kvm_get_rflags(vcpu) & X86_EFLAGS_VM)) /* if virtual 8086 */
 		return 3;
 
 	return vmcs_read16(GUEST_CS_SELECTOR) & 3;
