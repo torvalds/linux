@@ -164,7 +164,7 @@ static int storvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	memcpy(&drv_ctx->class_id, &storvsc_drv_obj->base.dev_type,
 	       sizeof(struct hv_guid));
 
-	drv_ctx->probe = storvsc_probe;
+	drv_ctx->driver.probe = storvsc_probe;
 	drv_ctx->remove = storvsc_remove;
 
 	/* The driver belongs to vmbus */

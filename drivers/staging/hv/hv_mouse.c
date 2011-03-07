@@ -1021,7 +1021,7 @@ static int __init mousevsc_init(void)
 	memcpy(&drv_ctx->class_id, &input_drv_obj->Base.dev_type,
 	       sizeof(struct hv_guid));
 
-	drv_ctx->probe = mousevsc_probe;
+	drv_ctx->driver.probe = mousevsc_probe;
 	drv_ctx->remove = mousevsc_remove;
 
 	/* The driver belongs to vmbus */

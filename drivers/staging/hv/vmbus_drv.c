@@ -919,8 +919,9 @@ static int vmbus_probe(struct device *child_device)
 			device_to_vm_device(child_device);
 
 	/* Let the specific open-source driver handles the probe if it can */
-	if (driver_ctx->probe) {
-		ret = device_ctx->probe_error = driver_ctx->probe(child_device);
+	if (driver_ctx->driver.probe) {
+		ret = device_ctx->probe_error =
+		driver_ctx->driver.probe(child_device);
 		if (ret != 0) {
 			DPRINT_ERR(VMBUS_DRV, "probe() failed for device %s "
 				   "(%p) on driver %s (%d)...",
