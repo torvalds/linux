@@ -462,6 +462,10 @@ sub dodie {
 	`$power_off`;
     }
 
+    if (defined($opt{"LOG_FILE"})) {
+	print " See $opt{LOG_FILE} for more info.\n";
+    }
+
     die @_, "\n";
 }
 
