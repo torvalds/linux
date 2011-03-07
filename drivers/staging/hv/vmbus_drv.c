@@ -617,9 +617,8 @@ static void vmbus_bus_exit(void)
 
 /**
  * vmbus_child_driver_register() - Register a vmbus's child driver
- * @driver_ctx:        Pointer to driver structure you want to register
+ * @drv:        Pointer to driver structure you want to register
  *
- * @driver_ctx is of type &struct driver_context
  *
  * Registers the given driver with Linux through the 'driver_register()' call
  * And sets up the hyper-v vmbus handling for this driver.
@@ -627,17 +626,17 @@ static void vmbus_bus_exit(void)
  *
  * Mainly used by Hyper-V drivers.
  */
-int vmbus_child_driver_register(struct driver_context *driver_ctx)
+int vmbus_child_driver_register(struct device_driver *drv)
 {
 	int ret;
 
 	DPRINT_INFO(VMBUS_DRV, "child driver (%p) registering - name %s",
-		    driver_ctx, driver_ctx->driver.name);
+		    drv, drv->name);
 
 	/* The child driver on this vmbus */
-	driver_ctx->driver.bus = &vmbus_drv.bus;
+	drv->bus = &vmbus_drv.bus;
 
-	ret = driver_register(&driver_ctx->driver);
+	ret = driver_register(drv);
 
 	vmbus_request_offers();
 

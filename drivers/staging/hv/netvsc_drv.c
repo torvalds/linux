@@ -515,7 +515,7 @@ static int netvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	drv_ctx->driver.remove = netvsc_remove;
 
 	/* The driver belongs to vmbus */
-	ret = vmbus_child_driver_register(drv_ctx);
+	ret = vmbus_child_driver_register(&drv_ctx->driver);
 
 	return ret;
 }

@@ -61,7 +61,7 @@ static inline struct driver_context *driver_to_driver_context(struct device_driv
 
 
 /* Vmbus interface */
-int vmbus_child_driver_register(struct driver_context *driver_ctx);
+int vmbus_child_driver_register(struct device_driver *drv);
 void vmbus_child_driver_unregister(struct driver_context *driver_ctx);
 
 extern struct completion hv_channel_ready;

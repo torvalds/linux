@@ -1025,7 +1025,7 @@ static int __init mousevsc_init(void)
 	drv_ctx->driver.remove = mousevsc_remove;
 
 	/* The driver belongs to vmbus */
-	vmbus_child_driver_register(drv_ctx);
+	vmbus_child_driver_register(&drv_ctx->driver);
 
 	return 0;
 }
