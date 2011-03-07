@@ -90,11 +90,7 @@ static DEFINE_SPINLOCK(fib_multipath_lock);
 #define endfor_nexthops(fi) }
 
 
-static const struct
-{
-	int	error;
-	u8	scope;
-} fib_props[RTN_MAX + 1] = {
+const struct fib_prop fib_props[RTN_MAX + 1] = {
 	[RTN_UNSPEC] = {
 		.error	= 0,
 		.scope	= RT_SCOPE_NOWHERE,
@@ -900,68 +896,6 @@ failure:
 	}
 
 	return ERR_PTR(err);
-}
-
-/* Note! fib_semantic_match intentionally uses  RCU list functions. */
-int fib_semantic_match(struct fib_table *tb, struct list_head *head,
-		       const struct flowi *flp, struct fib_result *res,
-		       int prefixlen, int fib_flags)
-{
-	struct fib_alias *fa;
-	int nh_sel = 0;
-
-	list_for_each_entry_rcu(fa, head, fa_list) {
-		int err;
-
-		if (fa->fa_tos &&
-		    fa->fa_tos != flp->fl4_tos)
-			continue;
-
-		if (fa->fa_scope < flp->fl4_scope)
-			continue;
-
-		fib_alias_accessed(fa);
-
-		err = fib_props[fa->fa_type].error;
-		if (err == 0) {
-			struct fib_info *fi = fa->fa_info;
-
-			if (fi->fib_flags & RTNH_F_DEAD)
-				continue;
-
-			for_nexthops(fi) {
-				if (nh->nh_flags & RTNH_F_DEAD)
-					continue;
-				if (!flp->oif || flp->oif == nh->nh_oif)
-					break;
-			}
-#ifdef CONFIG_IP_ROUTE_MULTIPATH
-			if (nhsel < fi->fib_nhs) {
-				nh_sel = nhsel;
-				goto out_fill_res;
-			}
-#else
-			if (nhsel < 1)
-				goto out_fill_res;
-#endif
-			endfor_nexthops(fi);
-			continue;
-		}
-		return err;
-	}
-	return 1;
-
-out_fill_res:
-	res->prefixlen = prefixlen;
-	res->nh_sel = nh_sel;
-	res->type = fa->fa_type;
-	res->scope = fa->fa_scope;
-	res->fi = fa->fa_info;
-	res->table = tb;
-	res->fa_head = head;
-	if (!(fib_flags & FIB_LOOKUP_NOREF))
-		atomic_inc(&res->fi->fib_clntref);
-	return 0;
 }
 
 /* Find appropriate source address to this destination */

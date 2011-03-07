@@ -1349,23 +1349,58 @@ static int check_leaf(struct fib_table *tb, struct trie *t, struct leaf *l,
 	struct hlist_node *node;
 
 	hlist_for_each_entry_rcu(li, node, hhead, hlist) {
-		int err;
+		struct fib_alias *fa;
 		int plen = li->plen;
 		__be32 mask = inet_make_mask(plen);
 
 		if (l->key != (key & ntohl(mask)))
 			continue;
 
-		err = fib_semantic_match(tb, &li->falh, flp, res, plen, fib_flags);
+		list_for_each_entry_rcu(fa, &li->falh, fa_list) {
+			struct fib_info *fi = fa->fa_info;
+			int nhsel, err;
+
+			if (fa->fa_tos && fa->fa_tos != flp->fl4_tos)
+				continue;
+			if (fa->fa_scope < flp->fl4_scope)
+				continue;
+			fib_alias_accessed(fa);
+			err = fib_props[fa->fa_type].error;
+			if (err) {
+#ifdef CONFIG_IP_FIB_TRIE_STATS
+				t->stats.semantic_match_miss++;
+#endif
+				return 1;
+			}
+			if (fi->fib_flags & RTNH_F_DEAD)
+				continue;
+			for (nhsel = 0; nhsel < fi->fib_nhs; nhsel++) {
+				const struct fib_nh *nh = &fi->fib_nh[nhsel];
+
+				if (nh->nh_flags & RTNH_F_DEAD)
+					continue;
+				if (flp->oif && flp->oif != nh->nh_oif)
+					continue;
 
 #ifdef CONFIG_IP_FIB_TRIE_STATS
-		if (err <= 0)
-			t->stats.semantic_match_passed++;
-		else
-			t->stats.semantic_match_miss++;
+				t->stats.semantic_match_passed++;
 #endif
-		if (err <= 0)
-			return err;
+				res->prefixlen = plen;
+				res->nh_sel = nhsel;
+				res->type = fa->fa_type;
+				res->scope = fa->fa_scope;
+				res->fi = fi;
+				res->table = tb;
+				res->fa_head = &li->falh;
+				if (!(fib_flags & FIB_LOOKUP_NOREF))
+					atomic_inc(&res->fi->fib_clntref);
+				return 0;
+			}
+		}
+
+#ifdef CONFIG_IP_FIB_TRIE_STATS
+		t->stats.semantic_match_miss++;
+#endif
 	}
 
 	return 1;

@@ -51,4 +51,11 @@ static inline void fib_result_assign(struct fib_result *res,
 	res->fi = fi;
 }
 
+struct fib_prop {
+	int	error;
+	u8	scope;
+};
+
+extern const struct fib_prop fib_props[RTN_MAX + 1];
+
 #endif /* _FIB_LOOKUP_H */
