@@ -1804,6 +1804,10 @@ enum ieee80211_ampdu_mlme_action {
  *	return value is 1, then the @remain_on_channel will be used with a
  *	regular transmission (if supported.)
  * @offchannel_tx_cancel_wait: cancel wait associated with offchannel TX
+ *
+ * @set_ringparam: Set tx and rx ring sizes.
+ *
+ * @get_ringparam: Get tx and rx ring current and maximum sizes.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
@@ -1888,6 +1892,9 @@ struct ieee80211_ops {
 			     enum nl80211_channel_type channel_type,
 			     unsigned int wait);
 	int (*offchannel_tx_cancel_wait)(struct ieee80211_hw *hw);
+	int (*set_ringparam)(struct ieee80211_hw *hw, u32 tx, u32 rx);
+	void (*get_ringparam)(struct ieee80211_hw *hw,
+			      u32 *tx, u32 *tx_max, u32 *rx, u32 *rx_max);
 };
 
 /**
