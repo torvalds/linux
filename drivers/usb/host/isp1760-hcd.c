@@ -1624,14 +1624,14 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 
 			ptd_write(hcd->regs, reg_base, i, &ptd);
 
-			qtd = ints->qtd;
+			qtd = ints[i].qtd;
 			qh = ints[i].qh;
 
 			free_mem(hcd, qtd);
 			qtd = clean_up_qtdlist(qtd, qh);
 
-			ints->qh = NULL;
-			ints->qtd = NULL;
+			ints[i].qh = NULL;
+			ints[i].qtd = NULL;
 
 			isp1760_urb_done(hcd, urb);
 			if (qtd)
@@ -1655,7 +1655,6 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 			if (!qtd)
 				break;
 		}
-		ints++;
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
