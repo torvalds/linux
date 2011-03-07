@@ -1009,14 +1009,8 @@ int blk_throtl_bio(struct request_queue *q, struct bio **biop)
 		/*
 		 * There is already another bio queued in same dir. No
 		 * need to update dispatch time.
-		 * Still update the disptime if rate limits on this group
-		 * were changed.
 		 */
-		if (!tg->limits_changed)
-			update_disptime = false;
-		else
-			tg->limits_changed = false;
-
+		update_disptime = false;
 		goto queue_bio;
 	}
 
