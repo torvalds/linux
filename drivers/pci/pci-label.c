@@ -174,6 +174,12 @@ pci_remove_acpi_index_label_files(struct pci_dev *pdev)
 	return -1;
 }
 
+static inline bool
+device_has_dsm(struct device *dev)
+{
+	return false;
+}
+
 #else
 
 static const char device_label_dsm_uuid[] = {
