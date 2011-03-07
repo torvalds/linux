@@ -1464,6 +1464,7 @@ static int soc_probe_codec(struct snd_soc_card *card,
 			   struct snd_soc_codec *codec)
 {
 	int ret = 0;
+	const struct snd_soc_codec_driver *driver = codec->driver;
 
 	codec->card = card;
 	codec->dapm.card = card;
@@ -1472,8 +1473,8 @@ static int soc_probe_codec(struct snd_soc_card *card,
 	if (!try_module_get(codec->dev->driver->owner))
 		return -ENODEV;
 
-	if (codec->driver->probe) {
-		ret = codec->driver->probe(codec);
+	if (driver->probe) {
+		ret = driver->probe(codec);
 		if (ret < 0) {
 			dev_err(codec->dev,
 				"asoc: failed to probe CODEC %s: %d\n",
@@ -1481,6 +1482,13 @@ static int soc_probe_codec(struct snd_soc_card *card,
 			goto err_probe;
 		}
 	}
+
+	if (driver->dapm_widgets)
+		snd_soc_dapm_new_controls(&codec->dapm, driver->dapm_widgets,
+					  driver->num_dapm_widgets);
+	if (driver->dapm_routes)
+		snd_soc_dapm_add_routes(&codec->dapm, driver->dapm_routes,
+					driver->num_dapm_routes);
 
 	soc_init_codec_debugfs(codec);
 

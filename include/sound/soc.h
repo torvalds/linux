@@ -562,6 +562,12 @@ struct snd_soc_codec_driver {
 			pm_message_t state);
 	int (*resume)(struct snd_soc_codec *);
 
+	/* Default DAPM setup, added after probe() is run */
+	const struct snd_soc_dapm_widget *dapm_widgets;
+	int num_dapm_widgets;
+	const struct snd_soc_dapm_route *dapm_routes;
+	int num_dapm_routes;
+
 	/* codec IO */
 	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
 	int (*write)(struct snd_soc_codec *, unsigned int, unsigned int);
