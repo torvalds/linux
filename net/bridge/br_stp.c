@@ -397,28 +397,37 @@ static void br_make_forwarding(struct net_bridge_port *p)
 void br_port_state_selection(struct net_bridge *br)
 {
 	struct net_bridge_port *p;
+	unsigned int liveports = 0;
 
 	/* Don't change port states if userspace is handling STP */
 	if (br->stp_enabled == BR_USER_STP)
 		return;
 
 	list_for_each_entry(p, &br->port_list, list) {
-		if (p->state != BR_STATE_DISABLED) {
-			if (p->port_no == br->root_port) {
-				p->config_pending = 0;
-				p->topology_change_ack = 0;
-				br_make_forwarding(p);
-			} else if (br_is_designated_port(p)) {
-				del_timer(&p->message_age_timer);
-				br_make_forwarding(p);
-			} else {
-				p->config_pending = 0;
-				p->topology_change_ack = 0;
-				br_make_blocking(p);
-			}
+		if (p->state == BR_STATE_DISABLED)
+			continue;
+
+		if (p->port_no == br->root_port) {
+			p->config_pending = 0;
+			p->topology_change_ack = 0;
+			br_make_forwarding(p);
+		} else if (br_is_designated_port(p)) {
+			del_timer(&p->message_age_timer);
+			br_make_forwarding(p);
+		} else {
+			p->config_pending = 0;
+			p->topology_change_ack = 0;
+			br_make_blocking(p);
 		}
 
+		if (p->state == BR_STATE_FORWARDING)
+			++liveports;
 	}
+
+	if (liveports == 0)
+		netif_carrier_off(br->dev);
+	else
+		netif_carrier_on(br->dev);
 }
 
 /* called under bridge lock */
