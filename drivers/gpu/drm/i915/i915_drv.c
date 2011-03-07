@@ -49,6 +49,9 @@ module_param_named(panel_ignore_lid, i915_panel_ignore_lid, int, 0600);
 unsigned int i915_powersave = 1;
 module_param_named(powersave, i915_powersave, int, 0600);
 
+unsigned int i915_semaphores = 1;
+module_param_named(semaphores, i915_semaphores, int, 0600);
+
 unsigned int i915_enable_rc6 = 0;
 module_param_named(i915_enable_rc6, i915_enable_rc6, int, 0600);
 
@@ -260,7 +263,7 @@ void intel_detect_pch (struct drm_device *dev)
 	}
 }
 
-void __gen6_force_wake_get(struct drm_i915_private *dev_priv)
+void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 {
 	int count;
 
@@ -276,10 +279,20 @@ void __gen6_force_wake_get(struct drm_i915_private *dev_priv)
 		udelay(10);
 }
 
-void __gen6_force_wake_put(struct drm_i915_private *dev_priv)
+void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE, 0);
 	POSTING_READ(FORCEWAKE);
+}
+
+void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
+{
+	int loop = 500;
+	u32 fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
+	while (fifo < 20 && loop--) {
+		udelay(10);
+		fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
+	}
 }
 
 static int i915_drm_freeze(struct drm_device *dev)

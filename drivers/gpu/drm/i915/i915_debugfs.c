@@ -873,7 +873,7 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 		int max_freq;
 
 		/* RPSTAT1 is in the GT power well */
-		__gen6_force_wake_get(dev_priv);
+		__gen6_gt_force_wake_get(dev_priv);
 
 		rpstat = I915_READ(GEN6_RPSTAT1);
 		rpupei = I915_READ(GEN6_RP_CUR_UP_EI);
@@ -918,7 +918,7 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 		seq_printf(m, "Max non-overclocked (RP0) frequency: %dMHz\n",
 			   max_freq * 100);
 
-		__gen6_force_wake_put(dev_priv);
+		__gen6_gt_force_wake_put(dev_priv);
 	} else {
 		seq_printf(m, "no P-state info available\n");
 	}
