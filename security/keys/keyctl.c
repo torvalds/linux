@@ -1013,12 +1013,42 @@ error:
  */
 long keyctl_negate_key(key_serial_t id, unsigned timeout, key_serial_t ringid)
 {
+	return keyctl_reject_key(id, timeout, ENOKEY, ringid);
+}
+
+/*
+ * Negatively instantiate the key with the given timeout (in seconds) and error
+ * code and link the key into the destination keyring if one is given.
+ *
+ * The caller must have the appropriate instantiation permit set for this to
+ * work (see keyctl_assume_authority).  No other permissions are required.
+ *
+ * The key and any links to the key will be automatically garbage collected
+ * after the timeout expires.
+ *
+ * Negative keys are used to rate limit repeated request_key() calls by causing
+ * them to return the specified error code until the negative key expires.
+ *
+ * If successful, 0 will be returned.
+ */
+long keyctl_reject_key(key_serial_t id, unsigned timeout, unsigned error,
+		       key_serial_t ringid)
+{
 	const struct cred *cred = current_cred();
 	struct request_key_auth *rka;
 	struct key *instkey, *dest_keyring;
 	long ret;
 
-	kenter("%d,%u,%d", id, timeout, ringid);
+	kenter("%d,%u,%u,%d", id, timeout, error, ringid);
+
+	/* must be a valid error code and mustn't be a kernel special */
+	if (error <= 0 ||
+	    error >= MAX_ERRNO ||
+	    error == ERESTARTSYS ||
+	    error == ERESTARTNOINTR ||
+	    error == ERESTARTNOHAND ||
+	    error == ERESTART_RESTARTBLOCK)
+		return -EINVAL;
 
 	/* the appropriate instantiation authorisation key must have been
 	 * assumed before calling this */
@@ -1038,7 +1068,7 @@ long keyctl_negate_key(key_serial_t id, unsigned timeout, key_serial_t ringid)
 		goto error;
 
 	/* instantiate the key and link it into a keyring */
-	ret = key_negate_and_link(rka->target_key, timeout,
+	ret = key_reject_and_link(rka->target_key, timeout, error,
 				  dest_keyring, instkey);
 
 	key_put(dest_keyring);
@@ -1491,6 +1521,12 @@ SYSCALL_DEFINE5(keyctl, int, option, unsigned long, arg2, unsigned long, arg3,
 
 	case KEYCTL_SESSION_TO_PARENT:
 		return keyctl_session_to_parent();
+
+	case KEYCTL_REJECT:
+		return keyctl_reject_key((key_serial_t) arg2,
+					 (unsigned) arg3,
+					 (unsigned) arg4,
+					 (key_serial_t) arg5);
 
 	default:
 		return -EOPNOTSUPP;
