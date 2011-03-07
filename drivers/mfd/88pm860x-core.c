@@ -20,12 +20,19 @@
 
 #define INT_STATUS_NUM			3
 
-char pm860x_backlight_name[][MFD_NAME_SIZE] = {
-	"backlight-0",
-	"backlight-1",
-	"backlight-2",
+static struct resource bk_resources[] __initdata = {
+	{PM8606_BACKLIGHT1, PM8606_BACKLIGHT1, "backlight-0", IORESOURCE_IO,},
+	{PM8606_BACKLIGHT2, PM8606_BACKLIGHT2, "backlight-1", IORESOURCE_IO,},
+	{PM8606_BACKLIGHT3, PM8606_BACKLIGHT3, "backlight-2", IORESOURCE_IO,},
 };
-EXPORT_SYMBOL(pm860x_backlight_name);
+
+static struct mfd_cell bk_devs[] __initdata = {
+	{"88pm860x-backlight", 0,},
+	{"88pm860x-backlight", 1,},
+	{"88pm860x-backlight", 2,},
+};
+
+static struct pm860x_backlight_pdata bk_pdata[ARRAY_SIZE(bk_devs)];
 
 char pm860x_led_name[][MFD_NAME_SIZE] = {
 	"led0-red",
@@ -36,34 +43,6 @@ char pm860x_led_name[][MFD_NAME_SIZE] = {
 	"led1-blue",
 };
 EXPORT_SYMBOL(pm860x_led_name);
-
-#define PM8606_BACKLIGHT_RESOURCE(_i, _x)		\
-{							\
-	.name	= pm860x_backlight_name[_i],		\
-	.start	= PM8606_##_x,				\
-	.end	= PM8606_##_x,				\
-	.flags	= IORESOURCE_IO,			\
-}
-
-static struct resource backlight_resources[] = {
-	PM8606_BACKLIGHT_RESOURCE(PM8606_BACKLIGHT1, WLED1A),
-	PM8606_BACKLIGHT_RESOURCE(PM8606_BACKLIGHT2, WLED2A),
-	PM8606_BACKLIGHT_RESOURCE(PM8606_BACKLIGHT3, WLED3A),
-};
-
-#define PM8606_BACKLIGHT_DEVS(_i)			\
-{							\
-	.name		= "88pm860x-backlight",		\
-	.num_resources	= 1,				\
-	.resources	= &backlight_resources[_i],	\
-	.id		= _i,				\
-}
-
-static struct mfd_cell backlight_devs[] = {
-	PM8606_BACKLIGHT_DEVS(PM8606_BACKLIGHT1),
-	PM8606_BACKLIGHT_DEVS(PM8606_BACKLIGHT2),
-	PM8606_BACKLIGHT_DEVS(PM8606_BACKLIGHT3),
-};
 
 #define PM8606_LED_RESOURCE(_i, _x)			\
 {							\
@@ -595,22 +574,48 @@ static void device_irq_exit(struct pm860x_chip *chip)
 		free_irq(chip->core_irq, chip);
 }
 
+static void __devinit device_bk_init(struct pm860x_chip *chip,
+				     struct i2c_client *i2c,
+				     struct pm860x_platform_data *pdata)
+{
+	int ret;
+	int i, j, id;
+
+	if ((pdata == NULL) || (pdata->backlight == NULL))
+		return;
+
+	if (pdata->num_backlights > ARRAY_SIZE(bk_devs))
+		pdata->num_backlights = ARRAY_SIZE(bk_devs);
+
+	for (i = 0; i < pdata->num_backlights; i++) {
+		memcpy(&bk_pdata[i], &pdata->backlight[i],
+			sizeof(struct pm860x_backlight_pdata));
+		bk_devs[i].mfd_data = &bk_pdata[i];
+
+		for (j = 0; j < ARRAY_SIZE(bk_devs); j++) {
+			id = bk_resources[j].start;
+			if (bk_pdata[i].flags != id)
+				continue;
+
+			bk_devs[i].num_resources = 1;
+			bk_devs[i].resources = &bk_resources[j];
+			ret = mfd_add_devices(chip->dev, 0,
+					      &bk_devs[i], 1,
+					      &bk_resources[j], 0);
+			if (ret < 0) {
+				dev_err(chip->dev, "Failed to add "
+					"backlight subdev\n");
+				return;
+			}
+		}
+	}
+}
+
 static void __devinit device_8606_init(struct pm860x_chip *chip,
 				       struct i2c_client *i2c,
 				       struct pm860x_platform_data *pdata)
 {
 	int ret;
-
-	if (pdata && pdata->backlight) {
-		ret = mfd_add_devices(chip->dev, 0, &backlight_devs[0],
-				      ARRAY_SIZE(backlight_devs),
-				      &backlight_resources[0], 0);
-		if (ret < 0) {
-			dev_err(chip->dev, "Failed to add backlight "
-				"subdev\n");
-			goto out_dev;
-		}
-	}
 
 	if (pdata && pdata->led) {
 		ret = mfd_add_devices(chip->dev, 0, &led_devs[0],
@@ -624,7 +629,6 @@ static void __devinit device_8606_init(struct pm860x_chip *chip,
 	}
 	return;
 out_dev:
-	mfd_remove_devices(chip->dev);
 	device_irq_exit(chip);
 }
 
@@ -743,6 +747,7 @@ int __devinit pm860x_device_init(struct pm860x_chip *chip,
 
 	switch (chip->id) {
 	case CHIP_PM8606:
+		device_bk_init(chip, chip->client, pdata);
 		device_8606_init(chip, chip->client, pdata);
 		break;
 	case CHIP_PM8607:
@@ -753,6 +758,7 @@ int __devinit pm860x_device_init(struct pm860x_chip *chip,
 	if (chip->companion) {
 		switch (chip->id) {
 		case CHIP_PM8607:
+			device_bk_init(chip, chip->companion, pdata);
 			device_8606_init(chip, chip->companion, pdata);
 			break;
 		case CHIP_PM8606:

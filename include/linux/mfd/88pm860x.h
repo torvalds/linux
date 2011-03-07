@@ -356,10 +356,10 @@ struct pm860x_platform_data {
 	int		i2c_port;	/* Controlled by GI2C or PI2C */
 	int		irq_mode;	/* Clear interrupt by read/write(0/1) */
 	int		irq_base;	/* IRQ base number of 88pm860x */
+	int		num_backlights;
 	struct regulator_init_data *regulator[PM8607_MAX_REGULATOR];
 };
 
-extern char pm860x_backlight_name[][MFD_NAME_SIZE];
 extern char pm860x_led_name[][MFD_NAME_SIZE];
 
 extern int pm860x_reg_read(struct i2c_client *, int);
