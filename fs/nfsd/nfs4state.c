@@ -2445,15 +2445,16 @@ nfs4_check_delegmode(struct nfs4_delegation *dp, int flags)
 static struct nfs4_delegation *
 find_delegation_file(struct nfs4_file *fp, stateid_t *stid)
 {
-	struct nfs4_delegation *dp = NULL;
+	struct nfs4_delegation *dp;
 
 	spin_lock(&recall_lock);
-	list_for_each_entry(dp, &fp->fi_delegations, dl_perfile) {
-		if (dp->dl_stateid.si_stateownerid == stid->si_stateownerid)
-			break;
-	}
+	list_for_each_entry(dp, &fp->fi_delegations, dl_perfile)
+		if (dp->dl_stateid.si_stateownerid == stid->si_stateownerid) {
+			spin_unlock(&recall_lock);
+			return dp;
+		}
 	spin_unlock(&recall_lock);
-	return dp;
+	return NULL;
 }
 
 int share_access_to_flags(u32 share_access)
