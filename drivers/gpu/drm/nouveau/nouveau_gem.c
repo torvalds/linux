@@ -600,7 +600,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 		if (push[i].bo_index >= req->nr_buffers) {
 			NV_ERROR(dev, "push %d buffer not in list\n", i);
 			ret = -EINVAL;
-			goto out;
+			goto out_prevalid;
 		}
 
 		bo[push[i].bo_index].read_domains |= (1 << 31);
@@ -612,7 +612,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	if (ret) {
 		if (ret != -ERESTARTSYS)
 			NV_ERROR(dev, "validate: %d\n", ret);
-		goto out;
+		goto out_prevalid;
 	}
 
 	/* Apply any relocations that are required */
@@ -705,6 +705,8 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 out:
 	validate_fini(&op, fence);
 	nouveau_fence_unref(&fence);
+
+out_prevalid:
 	kfree(bo);
 	kfree(push);
 
