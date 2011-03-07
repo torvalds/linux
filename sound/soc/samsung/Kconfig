@@ -39,6 +39,7 @@ config SND_SOC_SAMSUNG_NEO1973_WM8753
 	depends on SND_SOC_SAMSUNG && MACH_NEO1973_GTA01
 	select SND_S3C24XX_I2S
 	select SND_SOC_WM8753
+	select SND_SOC_LM4857
 	help
 	  Say Y if you want to add support for SoC audio on smdk2440
 	  with the WM8753.

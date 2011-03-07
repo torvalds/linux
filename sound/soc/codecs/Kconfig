@@ -347,6 +347,9 @@ config SND_SOC_WM9713
 	tristate
 
 # Amp
+config SND_SOC_LM4857
+	tristate
+
 config SND_SOC_MAX9877
 	tristate
 

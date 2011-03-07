@@ -17,11 +17,9 @@
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/i2c.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <sound/tlv.h>
 
 #include <asm/mach-types.h>
 #include <mach/regs-clock.h>
@@ -33,12 +31,10 @@
 #include <plat/regs-iis.h>
 
 #include "../codecs/wm8753.h"
-#include "lm4857.h"
 #include "dma.h"
 #include "s3c24xx-i2s.h"
 
 static struct snd_soc_card neo1973;
-static struct i2c_client *i2c;
 
 static int neo1973_hifi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
@@ -213,85 +209,7 @@ static struct snd_soc_ops neo1973_voice_ops = {
 	.hw_free = neo1973_voice_hw_free,
 };
 
-static u8 lm4857_regs[4] = {0x00, 0x40, 0x80, 0xC0};
-
-static void lm4857_write_regs(void)
-{
-	pr_debug("Entered %s\n", __func__);
-
-	if (i2c_master_send(i2c, lm4857_regs, 4) != 4)
-		printk(KERN_ERR "lm4857: i2c write failed\n");
-}
-
-static int lm4857_get_reg(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	struct soc_mixer_control *mc =
-		(struct soc_mixer_control *)kcontrol->private_value;
-	int reg = mc->reg;
-	int shift = mc->shift;
-	int mask = mc->max;
-
-	pr_debug("Entered %s\n", __func__);
-
-	ucontrol->value.integer.value[0] = (lm4857_regs[reg] >> shift) & mask;
-	return 0;
-}
-
-static int lm4857_set_reg(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	struct soc_mixer_control *mc =
-		(struct soc_mixer_control *)kcontrol->private_value;
-	int reg = mc->reg;
-	int shift = mc->shift;
-	int mask = mc->max;
-
-	if (((lm4857_regs[reg] >> shift) & mask) ==
-		ucontrol->value.integer.value[0])
-		return 0;
-
-	lm4857_regs[reg] &= ~(mask << shift);
-	lm4857_regs[reg] |= ucontrol->value.integer.value[0] << shift;
-	lm4857_write_regs();
-	return 1;
-}
-
-static int lm4857_get_mode(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	u8 value = lm4857_regs[LM4857_CTRL] & 0x0F;
-
-	pr_debug("Entered %s\n", __func__);
-
-	if (value)
-		value -= 5;
-
-	ucontrol->value.integer.value[0] = value;
-	return 0;
-}
-
-static int lm4857_set_mode(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	u8 value = ucontrol->value.integer.value[0];
-
-	pr_debug("Entered %s\n", __func__);
-
-	if (value)
-		value += 5;
-
-	if ((lm4857_regs[LM4857_CTRL] & 0x0F) == value)
-		return 0;
-
-	lm4857_regs[LM4857_CTRL] &= 0xF0;
-	lm4857_regs[LM4857_CTRL] |= value;
-	lm4857_write_regs();
-	return 1;
-}
-
 static const struct snd_soc_dapm_widget wm8753_dapm_widgets[] = {
-	SND_SOC_DAPM_LINE("Audio Out", NULL),
 	SND_SOC_DAPM_LINE("GSM Line Out", NULL),
 	SND_SOC_DAPM_LINE("GSM Line In", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
@@ -299,12 +217,7 @@ static const struct snd_soc_dapm_widget wm8753_dapm_widgets[] = {
 };
 
 
-static const struct snd_soc_dapm_route dapm_routes[] = {
-
-	/* Connections to the lm4857 amp */
-	{"Audio Out", NULL, "LOUT1"},
-	{"Audio Out", NULL, "ROUT1"},
-
+static const struct snd_soc_dapm_route neo1973_wm8753_routes[] = {
 	/* Connections to the GSM Module */
 	{"GSM Line Out", NULL, "MONO1"},
 	{"GSM Line Out", NULL, "MONO2"},
@@ -324,45 +237,13 @@ static const struct snd_soc_dapm_route dapm_routes[] = {
 	{"ACIN", NULL, "ACOP"},
 };
 
-static const char *lm4857_mode[] = {
-	"Off",
-	"Call Speaker",
-	"Stereo Speakers",
-	"Stereo Speakers + Headphones",
-	"Headphones"
-};
-
-static const struct soc_enum lm4857_mode_enum[] = {
-	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(lm4857_mode), lm4857_mode),
-};
-
-static const DECLARE_TLV_DB_SCALE(stereo_tlv, -4050, 150, 0);
-static const DECLARE_TLV_DB_SCALE(mono_tlv, -3450, 150, 0);
-
-static const struct snd_kcontrol_new wm8753_neo1973_controls[] = {
-	SOC_DAPM_PIN_SWITCH("Audio Out"),
+static const struct snd_kcontrol_new neo1973_wm8753_controls[] = {
 	SOC_DAPM_PIN_SWITCH("GSM Line Out"),
 	SOC_DAPM_PIN_SWITCH("GSM Line In"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
 	SOC_DAPM_PIN_SWITCH("Call Mic"),
-
-	SOC_SINGLE_EXT_TLV("Amp Left Playback Volume", LM4857_LVOL, 0, 31, 0,
-		lm4857_get_reg, lm4857_set_reg, stereo_tlv),
-	SOC_SINGLE_EXT_TLV("Amp Right Playback Volume", LM4857_RVOL, 0, 31, 0,
-		lm4857_get_reg, lm4857_set_reg, stereo_tlv),
-	SOC_SINGLE_EXT_TLV("Amp Mono Playback Volume", LM4857_MVOL, 0, 31, 0,
-		lm4857_get_reg, lm4857_set_reg, mono_tlv),
-	SOC_ENUM_EXT("Amp Mode", lm4857_mode_enum[0],
-		lm4857_get_mode, lm4857_set_mode),
-	SOC_SINGLE_EXT("Amp Spk 3D Playback Switch", LM4857_LVOL, 5, 1, 0,
-		lm4857_get_reg, lm4857_set_reg),
-	SOC_SINGLE_EXT("Amp HP 3d Playback Switch", LM4857_RVOL, 5, 1, 0,
-		lm4857_get_reg, lm4857_set_reg),
-	SOC_SINGLE_EXT("Amp Fast Wakeup Playback Switch", LM4857_CTRL, 5, 1, 0,
-		lm4857_get_reg, lm4857_set_reg),
-	SOC_SINGLE_EXT("Amp Earpiece 6dB Playback Switch", LM4857_CTRL, 4, 1, 0,
-		lm4857_get_reg, lm4857_set_reg),
 };
+
 
 /*
  * This is an example machine initialisation for a wm8753 connected to a
@@ -387,26 +268,63 @@ static int neo1973_wm8753_init(struct snd_soc_pcm_runtime *rtd)
 
 	/* Add neo1973 specific widgets */
 	snd_soc_dapm_new_controls(dapm, wm8753_dapm_widgets,
-				  ARRAY_SIZE(wm8753_dapm_widgets));
+			ARRAY_SIZE(wm8753_dapm_widgets));
 
 	/* set endpoints to default mode */
-	snd_soc_dapm_disable_pin(dapm, "Audio Out");
 	snd_soc_dapm_disable_pin(dapm, "GSM Line Out");
 	snd_soc_dapm_disable_pin(dapm, "GSM Line In");
 	snd_soc_dapm_disable_pin(dapm, "Headset Mic");
 	snd_soc_dapm_disable_pin(dapm, "Call Mic");
 
 	/* add neo1973 specific controls */
-	err = snd_soc_add_controls(codec, wm8753_neo1973_controls,
-				ARRAY_SIZE(8753_neo1973_controls));
+	err = snd_soc_add_controls(codec, neo1973_wm8753_controls,
+				ARRAY_SIZE(neo1973_wm8753_controls));
 	if (err < 0)
 		return err;
 
 	/* set up neo1973 specific audio routes */
-	err = snd_soc_dapm_add_routes(dapm, dapm_routes,
-				      ARRAY_SIZE(dapm_routes));
+	err = snd_soc_dapm_add_routes(dapm, neo1973_wm8753_routes,
+			ARRAY_SIZE(neo1973_wm8753_routes));
 
 	snd_soc_dapm_sync(dapm);
+	return 0;
+}
+
+static const struct snd_soc_dapm_route neo1973_lm4857_routes[] = {
+	{"Amp IN", NULL, "ROUT1"},
+	{"Amp IN", NULL, "LOUT1"},
+
+	{"Handset Spk", NULL, "Amp EP"},
+	{"Stereo Out", NULL, "Amp LS"},
+	{"Headphone", NULL, "Amp HP"},
+};
+
+static const struct snd_soc_dapm_widget neo1973_lm4857_dapm_widgets[] = {
+	SND_SOC_DAPM_SPK("Handset Spk", NULL),
+	SND_SOC_DAPM_SPK("Stereo Out", NULL),
+	SND_SOC_DAPM_HP("Headphone", NULL),
+};
+
+static int neo1973_lm4857_init(struct snd_soc_dapm_context *dapm)
+{
+	int ret;
+
+	ret = snd_soc_dapm_new_controls(dapm, neo1973_lm4857_dapm_widgets,
+			ARRAY_SIZE(neo1973_lm4857_dapm_widgets));
+	if (ret)
+		return ret;
+
+	ret = snd_soc_dapm_add_routes(dapm, neo1973_lm4857_routes,
+			ARRAY_SIZE(neo1973_lm4857_routes));
+	if (ret)
+		return ret;
+
+	snd_soc_dapm_ignore_suspend(dapm, "Stereo Out");
+	snd_soc_dapm_ignore_suspend(dapm, "Handset Spk");
+	snd_soc_dapm_ignore_suspend(dapm, "Headphone");
+
+	snd_soc_dapm_sync(dapm);
+
 	return 0;
 }
 
@@ -449,83 +367,29 @@ static struct snd_soc_dai_link neo1973_dai[] = {
 },
 };
 
+static struct snd_soc_aux_dev neo1973_aux_devs[] = {
+	{
+		.name = "lm4857",
+		.codec_name = "lm4857.0-007c",
+		.init = neo1973_lm4857_init,
+	},
+};
+
+static struct snd_soc_codec_conf neo1973_codec_conf[] = {
+	{
+		.dev_name = "lm4857.0-007c",
+		.name_prefix = "Amp",
+	},
+};
+
 static struct snd_soc_card neo1973 = {
 	.name = "neo1973",
 	.dai_link = neo1973_dai,
 	.num_links = ARRAY_SIZE(neo1973_dai),
-};
-
-static int lm4857_i2c_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
-{
-	pr_debug("Entered %s\n", __func__);
-
-	i2c = client;
-
-	lm4857_write_regs();
-	return 0;
-}
-
-static int lm4857_i2c_remove(struct i2c_client *client)
-{
-	pr_debug("Entered %s\n", __func__);
-
-	i2c = NULL;
-
-	return 0;
-}
-
-static u8 lm4857_state;
-
-static int lm4857_suspend(struct i2c_client *dev, pm_message_t state)
-{
-	pr_debug("Entered %s\n", __func__);
-
-	dev_dbg(&dev->dev, "lm4857_suspend\n");
-	lm4857_state = lm4857_regs[LM4857_CTRL] & 0xf;
-	if (lm4857_state) {
-		lm4857_regs[LM4857_CTRL] &= 0xf0;
-		lm4857_write_regs();
-	}
-	return 0;
-}
-
-static int lm4857_resume(struct i2c_client *dev)
-{
-	pr_debug("Entered %s\n", __func__);
-
-	if (lm4857_state) {
-		lm4857_regs[LM4857_CTRL] |= (lm4857_state & 0x0f);
-		lm4857_write_regs();
-	}
-	return 0;
-}
-
-static void lm4857_shutdown(struct i2c_client *dev)
-{
-	pr_debug("Entered %s\n", __func__);
-
-	dev_dbg(&dev->dev, "lm4857_shutdown\n");
-	lm4857_regs[LM4857_CTRL] &= 0xf0;
-	lm4857_write_regs();
-}
-
-static const struct i2c_device_id lm4857_i2c_id[] = {
-	{ "neo1973_lm4857", 0 },
-	{ }
-};
-
-static struct i2c_driver lm4857_i2c_driver = {
-	.driver = {
-		.name = "LM4857 I2C Amp",
-		.owner = THIS_MODULE,
-	},
-	.suspend =        lm4857_suspend,
-	.resume	=         lm4857_resume,
-	.shutdown =       lm4857_shutdown,
-	.probe =          lm4857_i2c_probe,
-	.remove =         lm4857_i2c_remove,
-	.id_table =       lm4857_i2c_id,
+	.aux_dev = neo1973_aux_devs,
+	.num_aux_devs = ARRAY_SIZE(neo1973_aux_devs),
+	.codec_conf = neo1973_codec_conf,
+	.num_configs = ARRAY_SIZE(neo1973_codec_conf),
 };
 
 static struct platform_device *neo1973_snd_device;
@@ -554,8 +418,6 @@ static int __init neo1973_init(void)
 		return ret;
 	}
 
-	ret = i2c_add_driver(&lm4857_i2c_driver);
-
 	if (ret != 0)
 		platform_device_unregister(neo1973_snd_device);
 
@@ -566,7 +428,6 @@ static void __exit neo1973_exit(void)
 {
 	pr_debug("Entered %s\n", __func__);
 
-	i2c_del_driver(&lm4857_i2c_driver);
 	platform_device_unregister(neo1973_snd_device);
 }
 
