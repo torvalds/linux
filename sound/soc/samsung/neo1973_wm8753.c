@@ -418,23 +418,6 @@ static int neo1973_lm4857_init(struct snd_soc_dapm_context *dapm)
 static int neo1973_lm4857_init(struct snd_soc_dapm_context *dapm) { return 0; };
 #endif
 
-/*
- * BT Codec DAI
- */
-static struct snd_soc_dai_driver bt_dai = {
-	.name = "bluetooth-dai",
-	.playback = {
-		.channels_min = 1,
-		.channels_max = 1,
-		.rates = SNDRV_PCM_RATE_8000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
-	.capture = {
-		.channels_min = 1,
-		.channels_max = 1,
-		.rates = SNDRV_PCM_RATE_8000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
-};
-
 static struct snd_soc_dai_link neo1973_dai[] = {
 { /* Hifi Playback - for similatious use with voice below */
 	.name = "WM8753",
@@ -450,7 +433,7 @@ static struct snd_soc_dai_link neo1973_dai[] = {
 	.name = "Bluetooth",
 	.stream_name = "Voice",
 	.platform_name = "samsung-audio",
-	.cpu_dai_name = "bluetooth-dai",
+	.cpu_dai_name = "dfbmcs320-pcm",
 	.codec_dai_name = "wm8753-voice",
 	.codec_name = "wm8753-codec.0-001a",
 	.ops = &neo1973_voice_ops,
@@ -458,6 +441,10 @@ static struct snd_soc_dai_link neo1973_dai[] = {
 };
 
 static struct snd_soc_aux_dev neo1973_aux_devs[] = {
+	{
+		.name = "dfbmcs320",
+		.codec_name = "dfbmcs320.0",
+	},
 	{
 		.name = "lm4857",
 		.codec_name = "lm4857.0-007c",
@@ -502,7 +489,7 @@ static int __init neo1973_init(void)
 
 	if (machine_is_neo1973_gta02()) {
 		neo1973.name = "neo1973gta02";
-		neo1973.num_aux_devs = 0;
+		neo1973.num_aux_devs = 1;
 
 		ret = gpio_request_array(neo1973_gta02_gpios,
 				ARRAY_SIZE(neo1973_gta02_gpios));
@@ -516,21 +503,14 @@ static int __init neo1973_init(void)
 		goto err_gpio_free;
 	}
 
-	/* register bluetooth DAI here */
-	ret = snd_soc_register_dai(&neo1973_snd_device->dev, &bt_dai);
-	if (ret)
-		goto err_put_device;
-
 	platform_set_drvdata(neo1973_snd_device, &neo1973);
 	ret = platform_device_add(neo1973_snd_device);
 
 	if (ret)
-		goto err_unregister_dai;
+		goto err_put_device;
 
 	return 0;
 
-err_unregister_dai:
-	snd_soc_unregister_dai(&neo1973_snd_device->dev);
 err_put_device:
 	platform_device_put(neo1973_snd_device);
 err_gpio_free:
@@ -544,7 +524,6 @@ module_init(neo1973_init);
 
 static void __exit neo1973_exit(void)
 {
-	snd_soc_unregister_dai(&neo1973_snd_device->dev);
 	platform_device_unregister(neo1973_snd_device);
 
 	if (machine_is_neo1973_gta02()) {
