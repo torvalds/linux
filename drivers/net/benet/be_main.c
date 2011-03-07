@@ -909,17 +909,11 @@ static void be_rx_compl_discard(struct be_adapter *adapter,
 	rxq_idx = AMAP_GET_BITS(struct amap_eth_rx_compl, fragndx, rxcp);
 	num_rcvd = AMAP_GET_BITS(struct amap_eth_rx_compl, numfrags, rxcp);
 
-	 /* Skip out-of-buffer compl(lancer) or flush compl(BE) */
-	if (likely(rxq_idx != rxo->last_frag_index && num_rcvd != 0)) {
-
-		rxo->last_frag_index = rxq_idx;
-
-		for (i = 0; i < num_rcvd; i++) {
-			page_info = get_rx_page_info(adapter, rxo, rxq_idx);
-			put_page(page_info->page);
-			memset(page_info, 0, sizeof(*page_info));
-			index_inc(&rxq_idx, rxq->len);
-		}
+	for (i = 0; i < num_rcvd; i++) {
+		page_info = get_rx_page_info(adapter, rxo, rxq_idx);
+		put_page(page_info->page);
+		memset(page_info, 0, sizeof(*page_info));
+		index_inc(&rxq_idx, rxq->len);
 	}
 }
 
@@ -1579,9 +1573,6 @@ static int be_rx_queues_create(struct be_adapter *adapter)
 	adapter->big_page_size = (1 << get_order(rx_frag_size)) * PAGE_SIZE;
 	for_all_rx_queues(adapter, rxo, i) {
 		rxo->adapter = adapter;
-		/* Init last_frag_index so that the frag index in the first
-		 * completion will never match */
-		rxo->last_frag_index = 0xffff;
 		rxo->rx_eq.max_eqd = BE_MAX_EQD;
 		rxo->rx_eq.enable_aic = true;
 
@@ -1722,7 +1713,7 @@ static int be_poll_rx(struct napi_struct *napi, int budget)
 	struct be_queue_info *rx_cq = &rxo->cq;
 	struct be_eth_rx_compl *rxcp;
 	u32 work_done;
-	u16 frag_index, num_rcvd;
+	u16 num_rcvd;
 	u8 err;
 
 	rxo->stats.rx_polls++;
@@ -1732,16 +1723,10 @@ static int be_poll_rx(struct napi_struct *napi, int budget)
 			break;
 
 		err = AMAP_GET_BITS(struct amap_eth_rx_compl, err, rxcp);
-		frag_index = AMAP_GET_BITS(struct amap_eth_rx_compl, fragndx,
-								rxcp);
 		num_rcvd = AMAP_GET_BITS(struct amap_eth_rx_compl, numfrags,
 								rxcp);
-
-		/* Skip out-of-buffer compl(lancer) or flush compl(BE) */
-		if (likely(frag_index != rxo->last_frag_index &&
-				num_rcvd != 0)) {
-			rxo->last_frag_index = frag_index;
-
+		/* Ignore flush completions */
+		if (num_rcvd) {
 			if (do_gro(rxo, rxcp, err))
 				be_rx_compl_process_gro(adapter, rxo, rxcp);
 			else

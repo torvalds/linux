@@ -220,9 +220,7 @@ struct be_rx_obj {
 	struct be_rx_stats stats;
 	u8 rss_id;
 	bool rx_post_starved;	/* Zero rx frags have been posted to BE */
-	u16 last_frag_index;
-	u16 rsvd;
-	u32 cache_line_barrier[15];
+	u32 cache_line_barrier[16];
 };
 
 struct be_drv_stats {
