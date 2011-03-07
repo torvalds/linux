@@ -3675,12 +3675,11 @@ new_queue:
 
 	cfqq->allocated[rw]++;
 
-	spin_unlock_irqrestore(q->queue_lock, flags);
-
 	cfqq->ref++;
 	rq->elevator_private[0] = cic;
 	rq->elevator_private[1] = cfqq;
 	rq->elevator_private[2] = cfq_ref_get_cfqg(cfqq->cfqg);
+	spin_unlock_irqrestore(q->queue_lock, flags);
 	return 0;
 
 queue_fail:
