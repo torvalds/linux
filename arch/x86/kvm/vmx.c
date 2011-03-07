@@ -3118,7 +3118,7 @@ static int handle_exception(struct kvm_vcpu *vcpu)
 	enum emulation_result er;
 
 	vect_info = vmx->idt_vectoring_info;
-	intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
+	intr_info = vmx->exit_intr_info;
 
 	if (is_machine_check(intr_info))
 		return handle_machine_check(vcpu);
