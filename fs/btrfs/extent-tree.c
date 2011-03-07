@@ -8778,6 +8778,29 @@ out:
 	return ret;
 }
 
+int btrfs_init_space_info(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_space_info *space_info;
+	int ret;
+
+	ret = update_space_info(fs_info, BTRFS_BLOCK_GROUP_SYSTEM, 0, 0,
+								 &space_info);
+	if (ret)
+		return ret;
+
+	ret = update_space_info(fs_info, BTRFS_BLOCK_GROUP_METADATA, 0, 0,
+								 &space_info);
+	if (ret)
+		return ret;
+
+	ret = update_space_info(fs_info, BTRFS_BLOCK_GROUP_DATA, 0, 0,
+								 &space_info);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
 int btrfs_error_unpin_extent_range(struct btrfs_root *root, u64 start, u64 end)
 {
 	return unpin_extent_range(root, start, end);

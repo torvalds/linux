@@ -2065,6 +2065,12 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->metadata_alloc_profile = (u64)-1;
 	fs_info->system_alloc_profile = fs_info->metadata_alloc_profile;
 
+	ret = btrfs_init_space_info(fs_info);
+	if (ret) {
+		printk(KERN_ERR "Failed to initial space info: %d\n", ret);
+		goto fail_block_groups;
+	}
+
 	ret = btrfs_read_block_groups(extent_root);
 	if (ret) {
 		printk(KERN_ERR "Failed to read block groups: %d\n", ret);
