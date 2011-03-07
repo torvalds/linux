@@ -285,10 +285,8 @@ static unsigned int snd_ctl_hole_check(struct snd_card *card,
 	struct snd_kcontrol *kctl;
 
 	list_for_each_entry(kctl, &card->controls, list) {
-		if ((kctl->id.numid <= card->last_numid &&
-		     kctl->id.numid + kctl->count > card->last_numid) ||
-		    (kctl->id.numid <= card->last_numid + count - 1 &&
-		     kctl->id.numid + kctl->count > card->last_numid + count - 1))
+		if (kctl->id.numid < card->last_numid + 1 + count &&
+		    kctl->id.numid + kctl->count > card->last_numid + 1)
 		    	return card->last_numid = kctl->id.numid + kctl->count - 1;
 	}
 	return card->last_numid;
