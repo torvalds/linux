@@ -259,6 +259,11 @@ enum snd_soc_compress_type {
 	SND_SOC_RBTREE_COMPRESSION
 };
 
+int snd_soc_codec_set_sysclk(struct snd_soc_codec *codec, int clk_id,
+			     unsigned int freq, int dir);
+int snd_soc_codec_set_pll(struct snd_soc_codec *codec, int pll_id, int source,
+			  unsigned int freq_in, unsigned int freq_out);
+
 int snd_soc_register_card(struct snd_soc_card *card);
 int snd_soc_unregister_card(struct snd_soc_card *card);
 int snd_soc_suspend(struct device *dev);
@@ -567,6 +572,12 @@ struct snd_soc_codec_driver {
 	int num_dapm_widgets;
 	const struct snd_soc_dapm_route *dapm_routes;
 	int num_dapm_routes;
+
+	/* codec wide operations */
+	int (*set_sysclk)(struct snd_soc_codec *codec,
+			  int clk_id, unsigned int freq, int dir);
+	int (*set_pll)(struct snd_soc_codec *codec, int pll_id, int source,
+		unsigned int freq_in, unsigned int freq_out);
 
 	/* codec IO */
 	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
