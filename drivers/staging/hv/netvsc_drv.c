@@ -512,7 +512,7 @@ static int netvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	       sizeof(struct hv_guid));
 
 	drv_ctx->driver.probe = netvsc_probe;
-	drv_ctx->remove = netvsc_remove;
+	drv_ctx->driver.remove = netvsc_remove;
 
 	/* The driver belongs to vmbus */
 	ret = vmbus_child_driver_register(drv_ctx);

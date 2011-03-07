@@ -1022,7 +1022,7 @@ static int __init mousevsc_init(void)
 	       sizeof(struct hv_guid));
 
 	drv_ctx->driver.probe = mousevsc_probe;
-	drv_ctx->remove = mousevsc_remove;
+	drv_ctx->driver.remove = mousevsc_remove;
 
 	/* The driver belongs to vmbus */
 	vmbus_child_driver_register(drv_ctx);

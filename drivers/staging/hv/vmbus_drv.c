@@ -964,8 +964,8 @@ static int vmbus_remove(struct device *child_device)
 		 * Let the specific open-source driver handles the removal if
 		 * it can
 		 */
-		if (driver_ctx->remove) {
-			ret = driver_ctx->remove(child_device);
+		if (driver_ctx->driver.remove) {
+			ret = driver_ctx->driver.remove(child_device);
 		} else {
 			DPRINT_ERR(VMBUS_DRV,
 				   "remove() method not set for driver - %s",
