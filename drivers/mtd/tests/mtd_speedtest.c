@@ -314,16 +314,16 @@ static inline void stop_timing(void)
 
 static long calc_speed(void)
 {
-	long ms, k, speed;
+	uint64_t k;
+	long ms;
 
 	ms = (finish.tv_sec - start.tv_sec) * 1000 +
 	     (finish.tv_usec - start.tv_usec) / 1000;
-	k = goodebcnt * mtd->erasesize / 1024;
-	if (ms)
-		speed = (k * 1000) / ms;
-	else
-		speed = 0;
-	return speed;
+	if (ms == 0)
+		return 0;
+	k = goodebcnt * (mtd->erasesize / 1024) * 1000;
+	do_div(k, ms);
+	return k;
 }
 
 static int scan_for_bad_eraseblocks(void)
