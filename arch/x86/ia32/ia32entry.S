@@ -25,6 +25,8 @@
 #define sysretl_audit ia32_ret_from_sys_call
 #endif
 
+	.section .entry.text, "ax"
+
 #define IA32_NR_syscalls ((ia32_syscall_end - ia32_sys_call_table)/8)
 
 	.macro IA32_ARG_FIXUP noebp=0
