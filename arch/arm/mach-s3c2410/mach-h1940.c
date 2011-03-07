@@ -162,29 +162,10 @@ struct gpio_chip h1940_latch_gpiochip = {
 	.get			= h1940_gpiolib_latch_get,
 };
 
-static void h1940_udc_pullup(enum s3c2410_udc_cmd_e cmd)
-{
-	printk(KERN_DEBUG "udc: pullup(%d)\n",cmd);
-
-	switch (cmd)
-	{
-		case S3C2410_UDC_P_ENABLE :
-			gpio_set_value(H1940_LATCH_USB_DP, 1);
-			break;
-		case S3C2410_UDC_P_DISABLE :
-			gpio_set_value(H1940_LATCH_USB_DP, 0);
-			break;
-		case S3C2410_UDC_P_RESET :
-			break;
-		default:
-			break;
-	}
-}
-
 static struct s3c2410_udc_mach_info h1940_udc_cfg __initdata = {
-	.udc_command		= h1940_udc_pullup,
 	.vbus_pin		= S3C2410_GPG(5),
 	.vbus_pin_inverted	= 1,
+	.pullup_pin		= H1940_LATCH_USB_DP,
 };
 
 static struct s3c2410_ts_mach_info h1940_ts_cfg __initdata = {
@@ -474,9 +455,6 @@ static void __init h1940_init(void)
 	gpio_direction_output(H1940_LATCH_LCD_P3, 0);
 	gpio_direction_output(H1940_LATCH_LCD_P4, 0);
 	gpio_direction_output(H1940_LATCH_MAX1698_nSHUTDOWN, 0);
-
-	gpio_request(H1940_LATCH_USB_DP, "USB pullup");
-	gpio_direction_output(H1940_LATCH_USB_DP, 0);
 
 	gpio_request(H1940_LATCH_SD_POWER, "SD power");
 	gpio_direction_output(H1940_LATCH_SD_POWER, 0);
