@@ -49,7 +49,7 @@ struct vmbus_driver_context {
 	struct tasklet_struct event_dpc;
 
 	/* The bus root device */
-	struct vm_device device_ctx;
+	struct hv_device device_ctx;
 };
 
 static int vmbus_match(struct device *device, struct device_driver *driver);
@@ -349,12 +349,12 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
 				      struct device_attribute *dev_attr,
 				      char *buf)
 {
-	struct vm_device *device_ctx = device_to_vm_device(dev);
+	struct hv_device *device_ctx = device_to_hv_device(dev);
 	struct hv_device_info device_info;
 
 	memset(&device_info, 0, sizeof(struct hv_device_info));
 
-	get_channel_info(&device_ctx->device_obj, &device_info);
+	get_channel_info(device_ctx, &device_info);
 
 	if (!strcmp(dev_attr->attr.name, "class_id")) {
 		return sprintf(buf, "{%02x%02x%02x%02x-%02x%02x-%02x%02x-"
@@ -459,7 +459,7 @@ static int vmbus_bus_init(void)
 {
 	struct vmbus_driver_context *vmbus_drv_ctx = &vmbus_drv;
 	struct hv_driver *driver = &vmbus_drv.drv_obj;
-	struct vm_device *dev_ctx = &vmbus_drv.device_ctx;
+	struct hv_device *dev_ctx = &vmbus_drv.device_ctx;
 	int ret;
 	unsigned int vector;
 
@@ -530,9 +530,9 @@ static int vmbus_bus_init(void)
 	DPRINT_INFO(VMBUS_DRV, "irq 0x%x vector 0x%x", vmbus_irq, vector);
 
 	/* Call to bus driver to add the root device */
-	memset(dev_ctx, 0, sizeof(struct vm_device));
+	memset(dev_ctx, 0, sizeof(struct hv_device));
 
-	ret = driver->dev_add(&dev_ctx->device_obj, &vector);
+	ret = driver->dev_add(dev_ctx, &vector);
 	if (ret != 0) {
 		DPRINT_ERR(VMBUS_DRV,
 			   "ERROR - Unable to add vmbus root device");
@@ -585,11 +585,11 @@ static void vmbus_bus_exit(void)
 	struct hv_driver *driver = &vmbus_drv.drv_obj;
 	struct vmbus_driver_context *vmbus_drv_ctx = &vmbus_drv;
 
-	struct vm_device *dev_ctx = &vmbus_drv.device_ctx;
+	struct hv_device *dev_ctx = &vmbus_drv.device_ctx;
 
 	/* Remove the root device */
 	if (driver->dev_rm)
-		driver->dev_rm(&dev_ctx->device_obj);
+		driver->dev_rm(dev_ctx);
 
 	if (driver->cleanup)
 		driver->cleanup(driver);
@@ -664,12 +664,11 @@ struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 					    struct hv_guid *instance,
 					    struct vmbus_channel *channel)
 {
-	struct vm_device *child_device_ctx;
 	struct hv_device *child_device_obj;
 
 	/* Allocate the new child device */
-	child_device_ctx = kzalloc(sizeof(struct vm_device), GFP_KERNEL);
-	if (!child_device_ctx) {
+	child_device_obj = kzalloc(sizeof(struct hv_device), GFP_KERNEL);
+	if (!child_device_obj) {
 		DPRINT_ERR(VMBUS_DRV,
 			"unable to allocate device_context for child device");
 		return NULL;
@@ -680,7 +679,7 @@ struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 		"%02x%02x%02x%02x%02x%02x%02x%02x},"
 		"id {%02x%02x%02x%02x-%02x%02x-%02x%02x-"
 		"%02x%02x%02x%02x%02x%02x%02x%02x}",
-		&child_device_ctx->device,
+		&child_device_obj->device,
 		type->data[3], type->data[2], type->data[1], type->data[0],
 		type->data[5], type->data[4], type->data[7], type->data[6],
 		type->data[8], type->data[9], type->data[10], type->data[11],
@@ -694,7 +693,6 @@ struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 		instance->data[12], instance->data[13],
 		instance->data[14], instance->data[15]);
 
-	child_device_obj = &child_device_ctx->device_obj;
 	child_device_obj->channel = channel;
 	memcpy(&child_device_obj->dev_type, type, sizeof(struct hv_guid));
 	memcpy(&child_device_obj->dev_instance, instance,
@@ -711,39 +709,36 @@ int vmbus_child_device_register(struct hv_device *root_device_obj,
 				struct hv_device *child_device_obj)
 {
 	int ret = 0;
-	struct vm_device *root_device_ctx =
-				to_vm_device(root_device_obj);
-	struct vm_device *child_device_ctx =
-				to_vm_device(child_device_obj);
+
 	static atomic_t device_num = ATOMIC_INIT(0);
 
 	DPRINT_DBG(VMBUS_DRV, "child device (%p) registering",
-		   child_device_ctx);
+		   child_device_obj);
 
 	/* Set the device name. Otherwise, device_register() will fail. */
-	dev_set_name(&child_device_ctx->device, "vmbus_0_%d",
+	dev_set_name(&child_device_obj->device, "vmbus_0_%d",
 		     atomic_inc_return(&device_num));
 
 	/* The new device belongs to this bus */
-	child_device_ctx->device.bus = &vmbus_drv.bus; /* device->dev.bus; */
-	child_device_ctx->device.parent = &root_device_ctx->device;
-	child_device_ctx->device.release = vmbus_device_release;
+	child_device_obj->device.bus = &vmbus_drv.bus; /* device->dev.bus; */
+	child_device_obj->device.parent = &root_device_obj->device;
+	child_device_obj->device.release = vmbus_device_release;
 
 	/*
 	 * Register with the LDM. This will kick off the driver/device
 	 * binding...which will eventually call vmbus_match() and vmbus_probe()
 	 */
-	ret = device_register(&child_device_ctx->device);
+	ret = device_register(&child_device_obj->device);
 
 	/* vmbus_probe() error does not get propergate to device_register(). */
-	ret = child_device_ctx->device_obj.probe_error;
+	ret = child_device_obj->probe_error;
 
 	if (ret)
 		DPRINT_ERR(VMBUS_DRV, "unable to register child device (%p)",
-			   &child_device_ctx->device);
+			   &child_device_obj->device);
 	else
 		DPRINT_INFO(VMBUS_DRV, "child device (%p) registered",
-			    &child_device_ctx->device);
+			    &child_device_obj->device);
 
 	return ret;
 }
@@ -754,19 +749,18 @@ int vmbus_child_device_register(struct hv_device *root_device_obj,
  */
 void vmbus_child_device_unregister(struct hv_device *device_obj)
 {
-	struct vm_device *device_ctx = to_vm_device(device_obj);
 
 	DPRINT_INFO(VMBUS_DRV, "unregistering child device (%p)",
-		    &device_ctx->device);
+		    &device_obj->device);
 
 	/*
 	 * Kick off the process of unregistering the device.
 	 * This will call vmbus_remove() and eventually vmbus_device_release()
 	 */
-	device_unregister(&device_ctx->device);
+	device_unregister(&device_obj->device);
 
 	DPRINT_INFO(VMBUS_DRV, "child device (%p) unregistered",
-		    &device_ctx->device);
+		    &device_obj->device);
 }
 
 /*
@@ -778,8 +772,7 @@ void vmbus_child_device_unregister(struct hv_device *device_obj)
  */
 static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
 {
-	struct vm_device *device_ctx = device_to_vm_device(device);
-	struct hv_device *dev = &device_ctx->device_obj;
+	struct hv_device *dev = device_to_hv_device(device);
 	int ret;
 
 	DPRINT_INFO(VMBUS_DRV, "generating uevent - VMBUS_DEVICE_CLASS_GUID={"
@@ -852,17 +845,17 @@ static int vmbus_match(struct device *device, struct device_driver *driver)
 {
 	int match = 0;
 	struct hv_driver *drv = drv_to_hv_drv(driver);
-	struct vm_device *device_ctx = device_to_vm_device(device);
+	struct hv_device *device_ctx = device_to_hv_device(device);
 
 	/* We found our driver ? */
-	if (memcmp(&device_ctx->device_obj.dev_type, &drv->dev_type,
+	if (memcmp(&device_ctx->dev_type, &drv->dev_type,
 		   sizeof(struct hv_guid)) == 0) {
 
-		device_ctx->device_obj.drv = drv->priv;
+		device_ctx->drv = drv->priv;
 		DPRINT_INFO(VMBUS_DRV,
 			    "device object (%p) set to driver object (%p)",
-			    &device_ctx->device_obj,
-			    device_ctx->device_obj.drv);
+			    &device_ctx,
+			    device_ctx->drv);
 
 		match = 1;
 	}
@@ -878,7 +871,7 @@ static int vmbus_match(struct device *device, struct device_driver *driver)
  */
 static void vmbus_probe_failed_cb(struct work_struct *context)
 {
-	struct vm_device *device_ctx = (struct vm_device *)context;
+	struct hv_device *device_ctx = (struct hv_device *)context;
 
 	/*
 	 * Kick off the process of unregistering the device.
@@ -897,13 +890,11 @@ static int vmbus_probe(struct device *child_device)
 	int ret = 0;
 	struct hv_driver *drv =
 			drv_to_hv_drv(child_device->driver);
-	struct vm_device *device_ctx =
-			device_to_vm_device(child_device);
-	struct hv_device *dev = &device_ctx->device_obj;
+	struct hv_device *dev = device_to_hv_device(child_device);
 
 	/* Let the specific open-source driver handles the probe if it can */
 	if (drv->driver.probe) {
-		ret = device_ctx->device_obj.probe_error =
+		ret = dev->probe_error =
 		drv->driver.probe(child_device);
 		if (ret != 0) {
 			DPRINT_ERR(VMBUS_DRV, "probe() failed for device %s "
@@ -1006,7 +997,7 @@ static void vmbus_bus_release(struct device *device)
  */
 static void vmbus_device_release(struct device *device)
 {
-	struct vm_device *device_ctx = device_to_vm_device(device);
+	struct hv_device *device_ctx = device_to_hv_device(device);
 
 	kfree(device_ctx);
 

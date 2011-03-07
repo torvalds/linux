@@ -42,7 +42,7 @@ struct host_device_context {
 	/* must be 1st field
 	 * FIXME this is a bug */
 	/* point back to our device context */
-	struct vm_device *device_ctx;
+	struct hv_device *device_ctx;
 	struct kmem_cache *request_pool;
 	unsigned int port;
 	unsigned char path;
@@ -216,8 +216,7 @@ static int storvsc_probe(struct device *device)
 	struct hv_driver *drv =
 				drv_to_hv_drv(device->driver);
 	struct storvsc_driver_object *storvsc_drv_obj = drv->priv;
-	struct vm_device *device_ctx = device_to_vm_device(device);
-	struct hv_device *device_obj = &device_ctx->device_obj;
+	struct hv_device *device_obj = device_to_hv_device(device);
 	struct Scsi_Host *host;
 	struct host_device_context *host_device_ctx;
 	struct storvsc_device_info device_info;
@@ -238,10 +237,10 @@ static int storvsc_probe(struct device *device)
 	memset(host_device_ctx, 0, sizeof(struct host_device_context));
 
 	host_device_ctx->port = host->host_no;
-	host_device_ctx->device_ctx = device_ctx;
+	host_device_ctx->device_ctx = device_obj;
 
 	host_device_ctx->request_pool =
-				kmem_cache_create(dev_name(&device_ctx->device),
+				kmem_cache_create(dev_name(&device_obj->device),
 					sizeof(struct storvsc_cmd_request) +
 					storvsc_drv_obj->request_ext_size, 0,
 					SLAB_HWCACHE_ALIGN, NULL);
@@ -298,8 +297,7 @@ static int storvsc_remove(struct device *device)
 	struct hv_driver *drv =
 			drv_to_hv_drv(device->driver);
 	struct storvsc_driver_object *storvsc_drv_obj = drv->priv;
-	struct vm_device *device_ctx = device_to_vm_device(device);
-	struct hv_device *device_obj = &device_ctx->device_obj;
+	struct hv_device *device_obj = device_to_hv_device(device);
 	struct Scsi_Host *host = dev_get_drvdata(device);
 	struct host_device_context *host_device_ctx =
 			(struct host_device_context *)host->hostdata;
@@ -589,7 +587,7 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 	int ret;
 	struct host_device_context *host_device_ctx =
 		(struct host_device_context *)scmnd->device->host->hostdata;
-	struct vm_device *device_ctx = host_device_ctx->device_ctx;
+	struct hv_device *device_ctx = host_device_ctx->device_ctx;
 	struct hv_driver *drv =
 		drv_to_hv_drv(device_ctx->device.driver);
 	struct storvsc_driver_object *storvsc_drv_obj = drv->priv;
@@ -737,7 +735,7 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 
 retry_request:
 	/* Invokes the vsc to start an IO */
-	ret = storvsc_drv_obj->on_io_request(&device_ctx->device_obj,
+	ret = storvsc_drv_obj->on_io_request(device_ctx,
 					   &cmd_request->request);
 	if (ret == -1) {
 		/* no more space */
@@ -824,18 +822,18 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 	int ret;
 	struct host_device_context *host_device_ctx =
 		(struct host_device_context *)scmnd->device->host->hostdata;
-	struct vm_device *device_ctx = host_device_ctx->device_ctx;
+	struct hv_device *device_ctx = host_device_ctx->device_ctx;
 
 	DPRINT_INFO(STORVSC_DRV, "sdev (%p) dev obj (%p) - host resetting...",
-		    scmnd->device, &device_ctx->device_obj);
+		    scmnd->device, device_ctx);
 
 	/* Invokes the vsc to reset the host/bus */
-	ret = stor_vsc_on_host_reset(&device_ctx->device_obj);
+	ret = stor_vsc_on_host_reset(device_ctx);
 	if (ret != 0)
 		return ret;
 
 	DPRINT_INFO(STORVSC_DRV, "sdev (%p) dev obj (%p) - host reseted",
-		    scmnd->device, &device_ctx->device_obj);
+		    scmnd->device, device_ctx);
 
 	return ret;
 }

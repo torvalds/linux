@@ -771,7 +771,7 @@ static void MousevscOnCleanup(struct hv_driver *drv)
  * Data types
  */
 struct input_device_context {
-	struct vm_device	*device_ctx;
+	struct hv_device	*device_ctx;
 	struct hid_device	*hid_device;
 	struct hv_input_dev_info device_info;
 	int			connected;
@@ -782,9 +782,8 @@ static struct  mousevsc_drv_obj g_mousevsc_drv;
 
 static void deviceinfo_callback(struct hv_device *dev, struct hv_input_dev_info *info)
 {
-	struct vm_device *device_ctx = to_vm_device(dev);
 	struct input_device_context *input_device_ctx =
-		dev_get_drvdata(&device_ctx->device);
+		dev_get_drvdata(&dev->device);
 
 	memcpy(&input_device_ctx->device_info, info,
 	       sizeof(struct hv_input_dev_info));
@@ -796,9 +795,8 @@ static void inputreport_callback(struct hv_device *dev, void *packet, u32 len)
 {
 	int ret = 0;
 
-	struct vm_device *device_ctx = to_vm_device(dev);
 	struct input_device_context *input_dev_ctx =
-		dev_get_drvdata(&device_ctx->device);
+		dev_get_drvdata(&dev->device);
 
 	ret = hid_input_report(input_dev_ctx->hid_device,
 			      HID_INPUT_REPORT, packet, len, 1);
@@ -823,8 +821,7 @@ static int mousevsc_probe(struct device *device)
 		drv_to_hv_drv(device->driver);
 	struct mousevsc_drv_obj *mousevsc_drv_obj = drv->priv;
 
-	struct vm_device *device_ctx = device_to_vm_device(device);
-	struct hv_device *device_obj = &device_ctx->device_obj;
+	struct hv_device *device_obj = device_to_hv_device(device);
 	struct input_device_context *input_dev_ctx;
 
 	input_dev_ctx = kmalloc(sizeof(struct input_device_context),
@@ -852,8 +849,7 @@ static int mousevsc_remove(struct device *device)
 		drv_to_hv_drv(device->driver);
 	struct mousevsc_drv_obj *mousevsc_drv_obj = drv->priv;
 
-	struct vm_device *device_ctx = device_to_vm_device(device);
-	struct hv_device *device_obj = &device_ctx->device_obj;
+	struct hv_device *device_obj = device_to_hv_device(device);
 	struct input_device_context *input_dev_ctx;
 
 	input_dev_ctx = kmalloc(sizeof(struct input_device_context),
@@ -887,9 +883,8 @@ static int mousevsc_remove(struct device *device)
 
 static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len)
 {
-	struct vm_device *device_ctx = to_vm_device(dev);
 	struct input_device_context *input_device_ctx =
-		dev_get_drvdata(&device_ctx->device);
+		dev_get_drvdata(&dev->device);
 	struct hid_device *hid_dev;
 
 	/* hid_debug = -1; */
@@ -910,7 +905,7 @@ static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len)
 		hid_dev->vendor = input_device_ctx->device_info.vendor;
 		hid_dev->product = input_device_ctx->device_info.product;
 		hid_dev->version = input_device_ctx->device_info.version;
-		hid_dev->dev = device_ctx->device;
+		hid_dev->dev = dev->device;
 
 		sprintf(hid_dev->name, "%s",
 			input_device_ctx->device_info.name);

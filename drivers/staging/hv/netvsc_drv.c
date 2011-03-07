@@ -44,7 +44,7 @@
 
 struct net_device_context {
 	/* point back to our device context */
-	struct vm_device *device_ctx;
+	struct hv_device *device_ctx;
 	unsigned long avail;
 };
 
@@ -70,7 +70,7 @@ static void netvsc_set_multicast_list(struct net_device *net)
 static int netvsc_open(struct net_device *net)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
-	struct hv_device *device_obj = &net_device_ctx->device_ctx->device_obj;
+	struct hv_device *device_obj = net_device_ctx->device_ctx;
 	int ret = 0;
 
 	if (netif_carrier_ok(net)) {
@@ -93,7 +93,7 @@ static int netvsc_open(struct net_device *net)
 static int netvsc_close(struct net_device *net)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
-	struct hv_device *device_obj = &net_device_ctx->device_ctx->device_obj;
+	struct hv_device *device_obj = net_device_ctx->device_ctx;
 	int ret;
 
 	netif_stop_queue(net);
@@ -190,7 +190,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	packet->completion.send.send_completion_ctx = packet;
 	packet->completion.send.send_completion_tid = (unsigned long)skb;
 
-	ret = net_drv_obj->send(&net_device_ctx->device_ctx->device_obj,
+	ret = net_drv_obj->send(net_device_ctx->device_ctx,
 				  packet);
 	if (ret == 0) {
 		net->stats.tx_bytes += skb->len;
@@ -218,8 +218,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 static void netvsc_linkstatus_callback(struct hv_device *device_obj,
 				       unsigned int status)
 {
-	struct vm_device *device_ctx = to_vm_device(device_obj);
-	struct net_device *net = dev_get_drvdata(&device_ctx->device);
+	struct net_device *net = dev_get_drvdata(&device_obj->device);
 
 	if (!net) {
 		DPRINT_ERR(NETVSC_DRV, "got link status but net device "
@@ -244,8 +243,7 @@ static void netvsc_linkstatus_callback(struct hv_device *device_obj,
 static int netvsc_recv_callback(struct hv_device *device_obj,
 				struct hv_netvsc_packet *packet)
 {
-	struct vm_device *device_ctx = to_vm_device(device_obj);
-	struct net_device *net = dev_get_drvdata(&device_ctx->device);
+	struct net_device *net = dev_get_drvdata(&device_obj->device);
 	struct sk_buff *skb;
 	void *data;
 	int i;
@@ -335,8 +333,7 @@ static int netvsc_probe(struct device *device)
 	struct hv_driver *drv =
 		drv_to_hv_drv(device->driver);
 	struct netvsc_driver *net_drv_obj = drv->priv;
-	struct vm_device *device_ctx = device_to_vm_device(device);
-	struct hv_device *device_obj = &device_ctx->device_obj;
+	struct hv_device *device_obj = device_to_hv_device(device);
 	struct net_device *net = NULL;
 	struct net_device_context *net_device_ctx;
 	struct netvsc_device_info device_info;
@@ -353,7 +350,7 @@ static int netvsc_probe(struct device *device)
 	netif_carrier_off(net);
 
 	net_device_ctx = netdev_priv(net);
-	net_device_ctx->device_ctx = device_ctx;
+	net_device_ctx->device_ctx = device_obj;
 	net_device_ctx->avail = ring_size;
 	dev_set_drvdata(device, net);
 
@@ -405,9 +402,8 @@ static int netvsc_remove(struct device *device)
 	struct hv_driver *drv =
 		drv_to_hv_drv(device->driver);
 	struct netvsc_driver *net_drv_obj = drv->priv;
-	struct vm_device *device_ctx = device_to_vm_device(device);
-	struct net_device *net = dev_get_drvdata(&device_ctx->device);
-	struct hv_device *device_obj = &device_ctx->device_obj;
+	struct hv_device *device_obj = device_to_hv_device(device);
+	struct net_device *net = dev_get_drvdata(&device_obj->device);
 	int ret;
 
 	if (net == NULL) {

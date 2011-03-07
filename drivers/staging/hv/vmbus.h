@@ -29,19 +29,11 @@
 #include "vmbus_api.h"
 
 
-struct vm_device {
-	struct hv_device device_obj;
-	struct device device;
-};
 
-static inline struct vm_device *to_vm_device(struct hv_device *d)
-{
-	return container_of(d, struct vm_device, device_obj);
-}
 
-static inline struct vm_device *device_to_vm_device(struct device *d)
+static inline struct hv_device *device_to_hv_device(struct device *d)
 {
-	return container_of(d, struct vm_device, device);
+	return container_of(d, struct hv_device, device);
 }
 
 static inline struct hv_driver *drv_to_hv_drv(struct device_driver *d)

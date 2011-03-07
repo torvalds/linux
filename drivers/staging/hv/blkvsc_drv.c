@@ -95,7 +95,7 @@ struct blkvsc_request {
 /* Per device structure */
 struct block_device_context {
 	/* point back to our device context */
-	struct vm_device *device_ctx;
+	struct hv_device *device_ctx;
 	struct kmem_cache *request_pool;
 	spinlock_t lock;
 	struct gendisk *gd;
@@ -240,8 +240,7 @@ static int blkvsc_probe(struct device *device)
 				drv_to_hv_drv(device->driver);
 	struct storvsc_driver_object *storvsc_drv_obj =
 				drv->priv;
-	struct vm_device *device_ctx = device_to_vm_device(device);
-	struct hv_device *device_obj = &device_ctx->device_obj;
+	struct hv_device *device_obj = device_to_hv_device(device);
 
 	struct block_device_context *blkdev = NULL;
 	struct storvsc_device_info device_info;
@@ -273,7 +272,7 @@ static int blkvsc_probe(struct device *device)
 	/* ASSERT(sizeof(struct blkvsc_request_group) <= */
 	/* 	sizeof(struct blkvsc_request)); */
 
-	blkdev->request_pool = kmem_cache_create(dev_name(&device_ctx->device),
+	blkdev->request_pool = kmem_cache_create(dev_name(&device_obj->device),
 					sizeof(struct blkvsc_request) +
 					storvsc_drv_obj->request_ext_size, 0,
 					SLAB_HWCACHE_ALIGN, NULL);
@@ -290,7 +289,7 @@ static int blkvsc_probe(struct device *device)
 		goto Cleanup;
 	}
 
-	blkdev->device_ctx = device_ctx;
+	blkdev->device_ctx = device_obj;
 	/* this identified the device 0 or 1 */
 	blkdev->target = device_info.target_id;
 	/* this identified the ide ctrl 0 or 1 */
@@ -723,8 +722,7 @@ static int blkvsc_remove(struct device *device)
 				drv_to_hv_drv(device->driver);
 	struct storvsc_driver_object *storvsc_drv_obj =
 				drv->priv;
-	struct vm_device *device_ctx = device_to_vm_device(device);
-	struct hv_device *device_obj = &device_ctx->device_obj;
+	struct hv_device *device_obj = device_to_hv_device(device);
 	struct block_device_context *blkdev = dev_get_drvdata(device);
 	unsigned long flags;
 	int ret;
@@ -839,7 +837,7 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 			void (*request_completion)(struct hv_storvsc_request *))
 {
 	struct block_device_context *blkdev = blkvsc_req->dev;
-	struct vm_device *device_ctx = blkdev->device_ctx;
+	struct hv_device *device_ctx = blkdev->device_ctx;
 	struct hv_driver *drv =
 			drv_to_hv_drv(device_ctx->device.driver);
 	struct storvsc_driver_object *storvsc_drv_obj =
@@ -884,7 +882,7 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 	storvsc_req->sense_buffer = blkvsc_req->sense_buffer;
 	storvsc_req->sense_buffer_size = SCSI_SENSE_BUFFERSIZE;
 
-	ret = storvsc_drv_obj->on_io_request(&blkdev->device_ctx->device_obj,
+	ret = storvsc_drv_obj->on_io_request(blkdev->device_ctx,
 					   &blkvsc_req->request);
 	if (ret == 0)
 		blkdev->num_outstanding_reqs++;
