@@ -33,14 +33,6 @@ struct driver_context {
 
 	struct device_driver driver;
 
-	/*
-	 * Use these methods instead of the struct device_driver so 2.6 kernel
-	 * stops complaining
-	 * TODO - fix this!
-	 */
-	int (*probe)(struct device *);
-	int (*remove)(struct device *);
-	void (*shutdown)(struct device *);
 };
 
 struct vm_device {
