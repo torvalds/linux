@@ -15,9 +15,9 @@
 #include <linux/amba/pl061.h>
 #include <linux/ptrace.h>
 #include <asm/irq.h>
+#include <plat/shirq.h>
 #include <mach/generic.h>
 #include <mach/spear.h>
-#include <plat/shirq.h>
 
 /* pad multiplexing support */
 /* muxing registers */

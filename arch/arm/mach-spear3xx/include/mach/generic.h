@@ -14,11 +14,11 @@
 #ifndef __MACH_GENERIC_H
 #define __MACH_GENERIC_H
 
-#include <asm/mach/time.h>
-#include <asm/mach/map.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/amba/bus.h>
+#include <asm/mach/time.h>
+#include <asm/mach/map.h>
 #include <plat/padmux.h>
 
 /* spear3xx declarations */

@@ -18,8 +18,8 @@
 #include <asm/hardware/vic.h>
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
-#include <mach/irqs.h>
 #include <mach/generic.h>
+#include <mach/irqs.h>
 #include <mach/spear.h>
 
 /* Add spear6xx machines common devices here */
