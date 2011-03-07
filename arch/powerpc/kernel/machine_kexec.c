@@ -26,20 +26,23 @@ void machine_kexec_mask_interrupts(void) {
 
 	for_each_irq(i) {
 		struct irq_desc *desc = irq_to_desc(i);
+		struct irq_chip *chip;
 
-		if (!desc || !desc->chip)
+		if (!desc)
 			continue;
 
-		if (desc->chip->eoi &&
-		    desc->status & IRQ_INPROGRESS)
-			desc->chip->eoi(i);
+		chip = get_irq_desc_chip(desc);
+		if (!chip)
+			continue;
 
-		if (desc->chip->mask)
-			desc->chip->mask(i);
+		if (chip->irq_eoi && desc->status & IRQ_INPROGRESS)
+			chip->irq_eoi(&desc->irq_data);
 
-		if (desc->chip->disable &&
-		    !(desc->status & IRQ_DISABLED))
-			desc->chip->disable(i);
+		if (chip->irq_mask)
+			chip->irq_mask(&desc->irq_data);
+
+		if (chip->irq_disable && !(desc->status & IRQ_DISABLED))
+			chip->irq_disable(&desc->irq_data);
 	}
 }
 
