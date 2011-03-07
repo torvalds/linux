@@ -249,6 +249,14 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 	if (!desc || !*desc)
 		goto error;
 
+	if (type->vet_description) {
+		ret = type->vet_description(desc);
+		if (ret < 0) {
+			key = ERR_PTR(ret);
+			goto error;
+		}
+	}
+
 	desclen = strlen(desc) + 1;
 	quotalen = desclen + type->def_datalen;
 

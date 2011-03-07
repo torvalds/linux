@@ -1062,6 +1062,13 @@ The structure has a number of fields, some of which are mandatory:
      viable.
 
 
+ (*) int (*vet_description)(const char *description);
+
+     This optional method is called to vet a key description.  If the key type
+     doesn't approve of the key description, it may return an error, otherwise
+     it should return 0.
+
+
  (*) int (*instantiate)(struct key *key, const void *data, size_t datalen);
 
      This method is called to attach a payload to a key during construction.

@@ -41,6 +41,9 @@ struct key_type {
 	 */
 	size_t def_datalen;
 
+	/* vet a description */
+	int (*vet_description)(const char *description);
+
 	/* instantiate a key of this type
 	 * - this method should call key_payload_reserve() to determine if the
 	 *   user's quota will hold the payload
