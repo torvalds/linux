@@ -2263,7 +2263,9 @@ static int be_setup(struct be_adapter *adapter)
 	int status;
 	u8 mac[ETH_ALEN];
 
-	cap_flags = en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST;
+	cap_flags = en_flags = BE_IF_FLAGS_UNTAGGED |
+				BE_IF_FLAGS_BROADCAST |
+				BE_IF_FLAGS_MULTICAST;
 
 	if (be_physfn(adapter)) {
 		cap_flags |= BE_IF_FLAGS_MCAST_PROMISCUOUS |

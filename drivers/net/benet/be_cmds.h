@@ -518,7 +518,8 @@ enum be_if_flags {
 	BE_IF_FLAGS_VLAN = 0x100,
 	BE_IF_FLAGS_MCAST_PROMISCUOUS = 0x200,
 	BE_IF_FLAGS_PASS_L2_ERRORS = 0x400,
-	BE_IF_FLAGS_PASS_L3L4_ERRORS = 0x800
+	BE_IF_FLAGS_PASS_L3L4_ERRORS = 0x800,
+	BE_IF_FLAGS_MULTICAST = 0x1000
 };
 
 /* An RX interface is an object with one or more MAC addresses and
