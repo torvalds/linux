@@ -3902,6 +3902,7 @@ static void vmx_complete_atomic_exit(struct vcpu_vmx *vmx)
 	      || vmx->exit_reason == EXIT_REASON_EXCEPTION_NMI))
 		return;
 
+	vmx->exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
 	exit_intr_info = vmx->exit_intr_info;
 
 	/* Handle machine checks before interrupts are enabled */
@@ -3919,7 +3920,7 @@ static void vmx_complete_atomic_exit(struct vcpu_vmx *vmx)
 
 static void vmx_recover_nmi_blocking(struct vcpu_vmx *vmx)
 {
-	u32 exit_intr_info = vmx->exit_intr_info;
+	u32 exit_intr_info;
 	bool unblock_nmi;
 	u8 vector;
 	bool idtv_info_valid;
@@ -3929,6 +3930,11 @@ static void vmx_recover_nmi_blocking(struct vcpu_vmx *vmx)
 	if (cpu_has_virtual_nmis()) {
 		if (vmx->nmi_known_unmasked)
 			return;
+		/*
+		 * Can't use vmx->exit_intr_info since we're not sure what
+		 * the exit reason is.
+		 */
+		exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
 		unblock_nmi = (exit_intr_info & INTR_INFO_UNBLOCK_NMI) != 0;
 		vector = exit_intr_info & INTR_INFO_VECTOR_MASK;
 		/*
@@ -4176,7 +4182,6 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	vmx->launched = 1;
 
 	vmx->exit_reason = vmcs_read32(VM_EXIT_REASON);
-	vmx->exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
 
 	vmx_complete_atomic_exit(vmx);
 	vmx_recover_nmi_blocking(vmx);
