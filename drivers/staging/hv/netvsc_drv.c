@@ -489,7 +489,7 @@ static void netvsc_drv_exit(void)
 	if (netvsc_drv_obj->base.cleanup)
 		netvsc_drv_obj->base.cleanup(&netvsc_drv_obj->base);
 
-	vmbus_child_driver_unregister(drv_ctx);
+	vmbus_child_driver_unregister(&drv_ctx->driver);
 
 	return;
 }

@@ -983,7 +983,7 @@ static void mousevsc_drv_exit(void)
 	if (mousevsc_drv_obj->Base.cleanup)
 		mousevsc_drv_obj->Base.cleanup(&mousevsc_drv_obj->Base);
 
-	vmbus_child_driver_unregister(drv_ctx);
+	vmbus_child_driver_unregister(&drv_ctx->driver);
 
 	return;
 }

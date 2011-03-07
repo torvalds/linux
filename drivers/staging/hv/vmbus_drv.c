@@ -646,23 +646,22 @@ EXPORT_SYMBOL(vmbus_child_driver_register);
 
 /**
  * vmbus_child_driver_unregister() - Unregister a vmbus's child driver
- * @driver_ctx:        Pointer to driver structure you want to un-register
+ * @drv:        Pointer to driver structure you want to un-register
  *
- * @driver_ctx is of type &struct driver_context
  *
  * Un-register the given driver with Linux through the 'driver_unregister()'
  * call. And ungegisters the driver from the Hyper-V vmbus handler.
  *
  * Mainly used by Hyper-V drivers.
  */
-void vmbus_child_driver_unregister(struct driver_context *driver_ctx)
+void vmbus_child_driver_unregister(struct device_driver *drv)
 {
 	DPRINT_INFO(VMBUS_DRV, "child driver (%p) unregistering - name %s",
-		    driver_ctx, driver_ctx->driver.name);
+		    drv, drv->name);
 
-	driver_unregister(&driver_ctx->driver);
+	driver_unregister(drv);
 
-	driver_ctx->driver.bus = NULL;
+	drv->bus = NULL;
 }
 EXPORT_SYMBOL(vmbus_child_driver_unregister);
 

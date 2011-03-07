@@ -209,7 +209,7 @@ static void storvsc_drv_exit(void)
 	if (storvsc_drv_obj->base.cleanup)
 		storvsc_drv_obj->base.cleanup(&storvsc_drv_obj->base);
 
-	vmbus_child_driver_unregister(drv_ctx);
+	vmbus_child_driver_unregister(&drv_ctx->driver);
 	return;
 }
 
