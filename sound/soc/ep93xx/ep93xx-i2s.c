@@ -314,10 +314,12 @@ static int ep93xx_i2s_suspend(struct snd_soc_dai *dai)
 	struct ep93xx_i2s_info *info = snd_soc_dai_get_drvdata(dai);
 
 	if (!dai->active)
-		return;
+		return 0;
 
 	ep93xx_i2s_disable(info, SNDRV_PCM_STREAM_PLAYBACK);
 	ep93xx_i2s_disable(info, SNDRV_PCM_STREAM_CAPTURE);
+
+	return 0;
 }
 
 static int ep93xx_i2s_resume(struct snd_soc_dai *dai)
@@ -325,10 +327,12 @@ static int ep93xx_i2s_resume(struct snd_soc_dai *dai)
 	struct ep93xx_i2s_info *info = snd_soc_dai_get_drvdata(dai);
 
 	if (!dai->active)
-		return;
+		return 0;
 
 	ep93xx_i2s_enable(info, SNDRV_PCM_STREAM_PLAYBACK);
 	ep93xx_i2s_enable(info, SNDRV_PCM_STREAM_CAPTURE);
+
+	return 0;
 }
 #else
 #define ep93xx_i2s_suspend	NULL
