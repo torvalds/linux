@@ -20,40 +20,40 @@
 #include <asm/mcfsim.h>
 #include <asm/traps.h>
 
+/*
+ *	There maybe one or two interrupt control units, each has 64
+ *	interrupts. If there is no second unit then MCFINTC1_* defines
+ *	will be 0 (and code for them optimized away).
+ */
+
 static void intc_irq_mask(struct irq_data *d)
 {
-	unsigned int irq = d->irq;
+	unsigned int irq = d->irq - MCFINT_VECBASE;
 
-	if (irq >= MCFINT_VECBASE) {
-		if (irq < MCFINT_VECBASE + 64)
-			__raw_writeb(irq - MCFINT_VECBASE, MCFINTC0_SIMR);
-		else if ((irq < MCFINT_VECBASE + 128) && MCFINTC1_SIMR)
-			__raw_writeb(irq - MCFINT_VECBASE - 64, MCFINTC1_SIMR);
-	}
+	if (MCFINTC1_SIMR && (irq > 64))
+		__raw_writeb(irq - 64, MCFINTC1_SIMR);
+	else
+		__raw_writeb(irq, MCFINTC0_SIMR);
 }
 
 static void intc_irq_unmask(struct irq_data *d)
 {
-	unsigned int irq = d->irq;
+	unsigned int irq = d->irq - MCFINT_VECBASE;
 
-	if (irq >= MCFINT_VECBASE) {
-		if (irq < MCFINT_VECBASE + 64)
-			__raw_writeb(irq - MCFINT_VECBASE, MCFINTC0_CIMR);
-		else if ((irq < MCFINT_VECBASE + 128) && MCFINTC1_CIMR)
-			__raw_writeb(irq - MCFINT_VECBASE - 64, MCFINTC1_CIMR);
-	}
+	if (MCFINTC1_CIMR && (irq > 64))
+		__raw_writeb(irq - 64, MCFINTC1_CIMR);
+	else
+		__raw_writeb(irq, MCFINTC0_CIMR);
 }
 
 static int intc_irq_set_type(struct irq_data *d, unsigned int type)
 {
-	unsigned int irq = d->irq;
+	unsigned int irq = d->irq - MCFINT_VECBASE;
 
-	if (irq >= MCFINT_VECBASE) {
-		if (irq < MCFINT_VECBASE + 64)
-			__raw_writeb(5, MCFINTC0_ICR0 + irq - MCFINT_VECBASE);
-		else if ((irq < MCFINT_VECBASE) && MCFINTC1_ICR0)
-			__raw_writeb(5, MCFINTC1_ICR0 + irq - MCFINT_VECBASE - 64);
-	}
+	if (MCFINTC1_ICR0 && (irq > 64))
+		__raw_writeb(5, MCFINTC1_ICR0 + irq - 64);
+	else
+		__raw_writeb(5, MCFINTC0_ICR0 + irq);
 	return 0;
 }
 
@@ -66,7 +66,7 @@ static struct irq_chip intc_irq_chip = {
 
 void __init init_IRQ(void)
 {
-	int irq;
+	int irq, eirq;
 
 	init_vectors();
 
@@ -75,7 +75,8 @@ void __init init_IRQ(void)
 	if (MCFINTC1_SIMR)
 		__raw_writeb(0xff, MCFINTC1_SIMR);
 
-	for (irq = 0; (irq < NR_IRQS); irq++) {
+	eirq = MCFINT_VECBASE + 64 + (MCFINTC1_ICR0 ? 64 : 0);
+	for (irq = MCFINT_VECBASE; (irq < eirq); irq++) {
 		set_irq_chip(irq, &intc_irq_chip);
 		set_irq_type(irq, IRQ_TYPE_LEVEL_HIGH);
 		set_irq_handler(irq, handle_level_irq);
