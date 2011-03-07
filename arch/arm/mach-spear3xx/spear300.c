@@ -370,26 +370,6 @@ struct pmx_driver pmx_driver = {
 	.mux_reg = {.offset = PAD_MUX_CONFIG_REG, .mask = 0x00007fff},
 };
 
-/* Add spear300 specific devices here */
-/* arm gpio1 device registration */
-static struct pl061_platform_data gpio1_plat_data = {
-	.gpio_base	= 8,
-	.irq_base	= SPEAR_GPIO1_INT_BASE,
-};
-
-struct amba_device gpio1_device = {
-	.dev = {
-		.init_name = "gpio1",
-		.platform_data = &gpio1_plat_data,
-	},
-	.res = {
-		.start = SPEAR300_GPIO_BASE,
-		.end = SPEAR300_GPIO_BASE + SPEAR300_GPIO_SIZE - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	.irq = {VIRQ_GPIO1, NO_IRQ},
-};
-
 /* spear3xx shared irq */
 struct shirq_dev_config shirq_ras1_config[] = {
 	{
@@ -441,6 +421,26 @@ struct spear_shirq shirq_ras1 = {
 		.status_reg_mask = SHIRQ_RAS1_MASK,
 		.clear_reg = -1,
 	},
+};
+
+/* Add spear300 specific devices here */
+/* arm gpio1 device registration */
+static struct pl061_platform_data gpio1_plat_data = {
+	.gpio_base	= 8,
+	.irq_base	= SPEAR_GPIO1_INT_BASE,
+};
+
+struct amba_device gpio1_device = {
+	.dev = {
+		.init_name = "gpio1",
+		.platform_data = &gpio1_plat_data,
+	},
+	.res = {
+		.start = SPEAR300_GPIO_BASE,
+		.end = SPEAR300_GPIO_BASE + SPEAR300_GPIO_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	.irq = {VIRQ_GPIO1, NO_IRQ},
 };
 
 /* spear300 routines */

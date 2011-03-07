@@ -139,8 +139,6 @@ struct pmx_driver pmx_driver = {
 	.mux_reg = {.offset = PAD_MUX_CONFIG_REG, .mask = 0x00007fff},
 };
 
-/* Add spear310 specific devices here */
-
 /* spear3xx shared irq */
 struct shirq_dev_config shirq_ras1_config[] = {
 	{
@@ -256,6 +254,8 @@ struct spear_shirq shirq_intrcomm_ras = {
 		.clear_reg = -1,
 	},
 };
+
+/* Add spear310 specific devices here */
 
 /* spear310 routines */
 void __init spear310_init(void)
