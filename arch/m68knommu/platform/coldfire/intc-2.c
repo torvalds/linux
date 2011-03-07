@@ -45,54 +45,46 @@ static u8 intc_intpri = MCFSIM_ICR_LEVEL(6) | MCFSIM_ICR_PRI(6);
 
 static void intc_irq_mask(struct irq_data *d)
 {
-	unsigned int irq = d->irq;
+	unsigned int irq = d->irq - MCFINT_VECBASE;
+	unsigned long imraddr;
+	u32 val, imrbit;
 
-	if ((irq >= MCFINT_VECBASE) && (irq <= MCFINT_VECBASE + NR_VECS)) {
-		unsigned long imraddr;
-		u32 val, imrbit;
-
-		irq -= MCFINT_VECBASE;
 #ifdef MCFICM_INTC1
-		imraddr = (irq & 0x40) ? MCFICM_INTC1 : MCFICM_INTC0;
+	imraddr = (irq & 0x40) ? MCFICM_INTC1 : MCFICM_INTC0;
 #else
-		imraddr = MCFICM_INTC0;
+	imraddr = MCFICM_INTC0;
 #endif
-		imraddr += (irq & 0x20) ? MCFINTC_IMRH : MCFINTC_IMRL;
-		imrbit = 0x1 << (irq & 0x1f);
+	imraddr += (irq & 0x20) ? MCFINTC_IMRH : MCFINTC_IMRL;
+	imrbit = 0x1 << (irq & 0x1f);
 
-		val = __raw_readl(imraddr);
-		__raw_writel(val | imrbit, imraddr);
-	}
+	val = __raw_readl(imraddr);
+	__raw_writel(val | imrbit, imraddr);
 }
 
 static void intc_irq_unmask(struct irq_data *d)
 {
-	unsigned int irq = d->irq;
+	unsigned int irq = d->irq - MCFINT_VECBASE;
+	unsigned long intaddr, imraddr, icraddr;
+	u32 val, imrbit;
 
-	if ((irq >= MCFINT_VECBASE) && (irq <= MCFINT_VECBASE + NR_VECS)) {
-		unsigned long intaddr, imraddr, icraddr;
-		u32 val, imrbit;
-
-		irq -= MCFINT_VECBASE;
 #ifdef MCFICM_INTC1
-		intaddr = (irq & 0x40) ? MCFICM_INTC1 : MCFICM_INTC0;
+	intaddr = (irq & 0x40) ? MCFICM_INTC1 : MCFICM_INTC0;
 #else
-		intaddr = MCFICM_INTC0;
+	intaddr = MCFICM_INTC0;
 #endif
-		imraddr = intaddr + ((irq & 0x20) ? MCFINTC_IMRH : MCFINTC_IMRL);
-		icraddr = intaddr + MCFINTC_ICR0 + (irq & 0x3f);
-		imrbit = 0x1 << (irq & 0x1f);
+	imraddr = intaddr + ((irq & 0x20) ? MCFINTC_IMRH : MCFINTC_IMRL);
+	icraddr = intaddr + MCFINTC_ICR0 + (irq & 0x3f);
+	imrbit = 0x1 << (irq & 0x1f);
 
-		/* Don't set the "maskall" bit! */
-		if ((irq & 0x20) == 0)
-			imrbit |= 0x1;
+	/* Don't set the "maskall" bit! */
+	if ((irq & 0x20) == 0)
+		imrbit |= 0x1;
 
-		if (__raw_readb(icraddr) == 0)
-			__raw_writeb(intc_intpri--, icraddr);
+	if (__raw_readb(icraddr) == 0)
+		__raw_writeb(intc_intpri--, icraddr);
 
-		val = __raw_readl(imraddr);
-		__raw_writel(val & ~imrbit, imraddr);
-	}
+	val = __raw_readl(imraddr);
+	__raw_writel(val & ~imrbit, imraddr);
 }
 
 static int intc_irq_set_type(struct irq_data *d, unsigned int type)
@@ -119,7 +111,7 @@ void __init init_IRQ(void)
 	__raw_writel(0x1, MCFICM_INTC1 + MCFINTC_IMRL);
 #endif
 
-	for (irq = 0; (irq < NR_IRQS); irq++) {
+	for (irq = MCFINT_VECBASE; (irq < MCFINT_VECBASE + NR_VECS); irq++) {
 		set_irq_chip(irq, &intc_irq_chip);
 		set_irq_type(irq, IRQ_TYPE_LEVEL_HIGH);
 		set_irq_handler(irq, handle_level_irq);
