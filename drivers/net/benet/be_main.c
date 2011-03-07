@@ -2088,6 +2088,18 @@ static int be_close(struct net_device *netdev)
 	if (!lancer_chip(adapter))
 		be_intr_set(adapter, false);
 
+	for_all_rx_queues(adapter, rxo, i)
+		napi_disable(&rxo->rx_eq.napi);
+
+	napi_disable(&tx_eq->napi);
+
+	if (lancer_chip(adapter)) {
+		be_cq_notify(adapter, adapter->tx_obj.cq.id, false, 0);
+		be_cq_notify(adapter, adapter->mcc_obj.cq.id, false, 0);
+		for_all_rx_queues(adapter, rxo, i)
+			 be_cq_notify(adapter, rxo->cq.id, false, 0);
+	}
+
 	if (adapter->msix_enabled) {
 		vec = be_msix_vec_get(adapter, tx_eq);
 		synchronize_irq(vec);
@@ -2100,11 +2112,6 @@ static int be_close(struct net_device *netdev)
 		synchronize_irq(netdev->irq);
 	}
 	be_irq_unregister(adapter);
-
-	for_all_rx_queues(adapter, rxo, i)
-		napi_disable(&rxo->rx_eq.napi);
-
-	napi_disable(&tx_eq->napi);
 
 	/* Wait for all pending tx completions to arrive so that
 	 * all tx skbs are freed.
