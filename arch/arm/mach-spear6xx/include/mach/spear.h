@@ -14,7 +14,6 @@
 #ifndef __MACH_SPEAR6XX_H
 #define __MACH_SPEAR6XX_H
 
-#include <mach/hardware.h>
 #include <mach/spear600.h>
 
 #define SPEAR6XX_ML_SDRAM_BASE		0x00000000

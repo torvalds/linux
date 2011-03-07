@@ -14,7 +14,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 #include <mach/generic.h>
-#include <mach/spear.h>
+#include <mach/hardware.h>
 
 /* padmux devices to enable */
 static struct pmx_dev *pmx_devs[] = {

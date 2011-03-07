@@ -14,7 +14,7 @@
 #ifndef __MACH_MISC_REGS_H
 #define __MACH_MISC_REGS_H
 
-#include <mach/spear.h>
+#include <mach/hardware.h>
 
 #define MISC_BASE		IOMEM(VA_SPEAR3XX_ICM3_MISC_REG_BASE)
 

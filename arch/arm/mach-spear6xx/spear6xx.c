@@ -19,8 +19,8 @@
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <mach/generic.h>
+#include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/spear.h>
 
 /* Add spear6xx machines common devices here */
 /* uart device registration */

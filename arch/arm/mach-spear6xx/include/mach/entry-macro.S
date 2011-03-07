@@ -13,7 +13,6 @@
 
 #include <asm/hardware/vic.h>
 #include <mach/hardware.h>
-#include <mach/spear.h>
 
 		.macro	disable_fiq
 		.endm

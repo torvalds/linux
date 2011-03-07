@@ -14,7 +14,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 #include <mach/generic.h>
-#include <mach/spear.h>
+#include <mach/hardware.h>
 
 static struct amba_device *amba_devs[] __initdata = {
 	&gpio_device[0],

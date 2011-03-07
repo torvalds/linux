@@ -19,7 +19,7 @@
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <mach/generic.h>
-#include <mach/spear.h>
+#include <mach/hardware.h>
 
 /* Add spear3xx machines common devices here */
 /* gpio device registration */

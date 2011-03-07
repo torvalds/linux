@@ -23,7 +23,6 @@
 #include <mach/generic.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/spear.h>
 
 /*
  * We would use TIMER0 and TIMER1 as clockevent and clocksource.
