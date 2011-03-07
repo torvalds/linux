@@ -210,7 +210,7 @@ static struct nouveau_enum vm_fault[] = {
 };
 
 void
-nv50_fb_vm_trap(struct drm_device *dev, int display, const char *name)
+nv50_fb_vm_trap(struct drm_device *dev, int display)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	const struct nouveau_enum *en, *cl;

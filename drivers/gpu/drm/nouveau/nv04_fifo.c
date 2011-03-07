@@ -516,7 +516,7 @@ nv04_fifo_isr(struct drm_device *dev)
 
 		if (dev_priv->card_type == NV_50) {
 			if (status & 0x00000010) {
-				nv50_fb_vm_trap(dev, 1, "PFIFO_BAR_FAULT");
+				nv50_fb_vm_trap(dev, nouveau_ratelimit());
 				status &= ~0x00000010;
 				nv_wr32(dev, 0x002100, 0x00000010);
 			}

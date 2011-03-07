@@ -1076,7 +1076,7 @@ extern void nv40_fb_set_tile_region(struct drm_device *dev, int i);
 /* nv50_fb.c */
 extern int  nv50_fb_init(struct drm_device *);
 extern void nv50_fb_takedown(struct drm_device *);
-extern void nv50_fb_vm_trap(struct drm_device *, int display, const char *);
+extern void nv50_fb_vm_trap(struct drm_device *, int display);
 
 /* nvc0_fb.c */
 extern int  nvc0_fb_init(struct drm_device *);

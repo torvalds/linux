@@ -702,7 +702,6 @@ nv50_pgraph_tp_trap(struct drm_device *dev, int type, uint32_t ustatus_old,
 		tps++;
 		switch (type) {
 		case 6: /* texture error... unknown for now */
-			nv50_fb_vm_trap(dev, display, name);
 			if (display) {
 				NV_ERROR(dev, "magic set %d:\n", i);
 				for (r = ustatus_addr + 4; r <= ustatus_addr + 0x10; r += 4)
@@ -725,7 +724,6 @@ nv50_pgraph_tp_trap(struct drm_device *dev, int type, uint32_t ustatus_old,
 			uint32_t e1c = nv_rd32(dev, ustatus_addr + 0x14);
 			uint32_t e20 = nv_rd32(dev, ustatus_addr + 0x18);
 			uint32_t e24 = nv_rd32(dev, ustatus_addr + 0x1c);
-			nv50_fb_vm_trap(dev, display, name);
 			/* 2d engine destination */
 			if (ustatus & 0x00000010) {
 				if (display) {
@@ -1068,6 +1066,7 @@ nv50_graph_isr(struct drm_device *dev)
 			NV_INFO(dev, "PGRAPH - ch %d (0x%010llx) subc %d "
 				     "class 0x%04x mthd 0x%04x data 0x%08x\n",
 				chid, inst, subc, class, mthd, data);
+			nv50_fb_vm_trap(dev, 1);
 		}
 	}
 
