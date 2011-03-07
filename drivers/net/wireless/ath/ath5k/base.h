@@ -86,6 +86,7 @@ struct ath5k_txq {
 	spinlock_t		lock;	/* lock on q and link */
 	bool			setup;
 	int			txq_len; /* number of queued buffers */
+	int			txq_max; /* max allowed num of queued buffers */
 	bool			txq_poll_mark;
 	unsigned int		txq_stuck;	/* informational counter */
 };
