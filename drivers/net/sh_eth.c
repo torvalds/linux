@@ -512,6 +512,7 @@ static unsigned long sh_eth_get_edtrr_trns(struct sh_eth_private *mdp)
 }
 
 struct bb_info {
+	void (*set_gate)(unsigned long addr);
 	struct mdiobb_ctrl ctrl;
 	u32 addr;
 	u32 mmd_msk;/* MMD */
@@ -542,6 +543,10 @@ static int bb_read(u32 addr, u32 msk)
 static void sh_mmd_ctrl(struct mdiobb_ctrl *ctrl, int bit)
 {
 	struct bb_info *bitbang = container_of(ctrl, struct bb_info, ctrl);
+
+	if (bitbang->set_gate)
+		bitbang->set_gate(bitbang->addr);
+
 	if (bit)
 		bb_set(bitbang->addr, bitbang->mmd_msk);
 	else
@@ -553,6 +558,9 @@ static void sh_set_mdio(struct mdiobb_ctrl *ctrl, int bit)
 {
 	struct bb_info *bitbang = container_of(ctrl, struct bb_info, ctrl);
 
+	if (bitbang->set_gate)
+		bitbang->set_gate(bitbang->addr);
+
 	if (bit)
 		bb_set(bitbang->addr, bitbang->mdo_msk);
 	else
@@ -563,6 +571,10 @@ static void sh_set_mdio(struct mdiobb_ctrl *ctrl, int bit)
 static int sh_get_mdio(struct mdiobb_ctrl *ctrl)
 {
 	struct bb_info *bitbang = container_of(ctrl, struct bb_info, ctrl);
+
+	if (bitbang->set_gate)
+		bitbang->set_gate(bitbang->addr);
+
 	return bb_read(bitbang->addr, bitbang->mdi_msk);
 }
 
@@ -570,6 +582,9 @@ static int sh_get_mdio(struct mdiobb_ctrl *ctrl)
 static void sh_mdc_ctrl(struct mdiobb_ctrl *ctrl, int bit)
 {
 	struct bb_info *bitbang = container_of(ctrl, struct bb_info, ctrl);
+
+	if (bitbang->set_gate)
+		bitbang->set_gate(bitbang->addr);
 
 	if (bit)
 		bb_set(bitbang->addr, bitbang->mdc_msk);
@@ -1646,7 +1661,8 @@ static int sh_mdio_release(struct net_device *ndev)
 }
 
 /* MDIO bus init function */
-static int sh_mdio_init(struct net_device *ndev, int id)
+static int sh_mdio_init(struct net_device *ndev, int id,
+			struct sh_eth_plat_data *pd)
 {
 	int ret, i;
 	struct bb_info *bitbang;
@@ -1661,6 +1677,7 @@ static int sh_mdio_init(struct net_device *ndev, int id)
 
 	/* bitbang init */
 	bitbang->addr = ndev->base_addr + mdp->reg_offset[PIR];
+	bitbang->set_gate = pd->set_mdio_gate;
 	bitbang->mdi_msk = 0x08;
 	bitbang->mdo_msk = 0x04;
 	bitbang->mmd_msk = 0x02;/* MMD */
@@ -1854,7 +1871,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 		goto out_release;
 
 	/* mdio bus init */
-	ret = sh_mdio_init(ndev, pdev->id);
+	ret = sh_mdio_init(ndev, pdev->id, pd);
 	if (ret)
 		goto out_unregister;
 
