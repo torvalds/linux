@@ -81,6 +81,8 @@ struct rk29_bl_info{
     u32 bl_ref;
     int (*io_init)(void);
     int (*io_deinit)(void);
+	int (*pwm_suspend)(void);
+	int (*pwm_resume)(void);
     struct timer_list timer;  
     struct notifier_block freq_transition;
 };

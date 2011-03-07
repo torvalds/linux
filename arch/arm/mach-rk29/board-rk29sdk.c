@@ -1017,6 +1017,7 @@ static struct platform_device rk29_device_camera = {
 #define PWM_MUX_NAME      GPIO1B5_PWM0_NAME
 #define PWM_MUX_MODE      GPIO1L_PWM0
 #define PWM_MUX_MODE_GPIO GPIO1L_GPIO1B5
+#define PWM_GPIO RK29_PIN1_PB5
 #define PWM_EFFECT_VALUE  1
 
 //#define LCD_DISP_ON_PIN
@@ -1057,11 +1058,33 @@ static int rk29_backlight_io_deinit(void)
     rk29_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE_GPIO);
     return ret;
 }
+
+static int rk29_backlight_pwm_suspend(void)
+{
+	int ret = 0;
+	rk29_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE_GPIO);
+	if (ret = gpio_request(PWM_GPIO, NULL)) {
+		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
+		return -1;
+	}
+	gpio_direction_output(PWM_GPIO, GPIO_LOW);
+	return ret;
+}
+
+static int rk29_backlight_pwm_resume(void)
+{
+	gpio_free(PWM_GPIO);
+	rk29_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
+	return 0;
+}
+
 struct rk29_bl_info rk29_bl_info = {
     .pwm_id   = PWM_ID,
     .bl_ref   = PWM_EFFECT_VALUE,
     .io_init   = rk29_backlight_io_init,
     .io_deinit = rk29_backlight_io_deinit,
+    .pwm_suspend = rk29_backlight_pwm_suspend,
+    .pwm_resume = rk29_backlight_pwm_resume,
 };
 #endif
 /*****************************************************************************************

@@ -164,6 +164,10 @@ static void rk29_delaybacklight_timer(unsigned long data)
 	struct rk29_bl_info *rk29_bl_info = (struct rk29_bl_info *)data;
 	u32 id, brightness;
     	u32 div_total, divh;
+
+	if (rk29_bl_info->pwm_resume)
+		rk29_bl_info->pwm_resume();
+		
 	clk_enable(pwm_clk);
 	id = rk29_bl_info->pwm_id;
     brightness = rk29_bl->props.brightness;
@@ -197,9 +201,12 @@ static void rk29_bl_suspend(struct early_suspend *h)
     }
 
     write_pwm_reg(id, PWM_REG_HRC, divh);
-	if (!suspend_flag)
+	if (!suspend_flag) {
 		clk_disable(pwm_clk);
-
+		if (rk29_bl_info->pwm_suspend)
+			rk29_bl_info->pwm_suspend();
+	}
+	
     suspend_flag = 1;
     del_timer_sync(&rk29_bl_info->timer);
 }
