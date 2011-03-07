@@ -41,17 +41,17 @@ static int edb93xx_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int err;
+	unsigned int mclk_rate;
 	unsigned int rate = params_rate(params);
+
 	/*
-	 * We set LRCLK equal to `rate' and SCLK = LRCLK * 64,
-	 * because our sample size is 32 bit * 2 channels.
-	 * I2S standard permits us to transmit more bits than
-	 * the codec uses.
-	 * MCLK = SCLK * 4 is the best recommended value,
-	 * but we have to fall back to ratio 2 for higher
-	 * sample rates.
+	 * According to CS4271 datasheet we use MCLK/LRCK=256 for
+	 * rates below 50kHz and 128 for higher sample rates
 	 */
-	unsigned int mclk_rate = rate * 64 * ((rate <= 48000) ? 4 : 2);
+	if (rate < 50000)
+		mclk_rate = rate * 64 * 4;
+	else
+		mclk_rate = rate * 64 * 2;
 
 	err = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
 				  SND_SOC_DAIFMT_NB_IF |
