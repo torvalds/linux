@@ -1879,6 +1879,7 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 		snd_soc_dapm_add_routes(&card->dapm, card->dapm_routes,
 					card->num_dapm_routes);
 
+#ifdef CONFIG_DEBUG_FS
 	card->dapm.debugfs_dapm = debugfs_create_dir("dapm",
 						     card->debugfs_card_root);
 	if (!card->dapm.debugfs_dapm)
@@ -1886,6 +1887,7 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 		       "Failed to create card DAPM debugfs directory\n");
 
 	snd_soc_dapm_debugfs_init(&card->dapm);
+#endif
 
 	snprintf(card->snd_card->shortname, sizeof(card->snd_card->shortname),
 		 "%s",  card->name);
