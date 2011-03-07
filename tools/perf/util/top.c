@@ -115,9 +115,23 @@ size_t perf_top__header_snprintf(struct perf_top *top, char *bf, size_t size)
 	if (!top->display_weighted) {
 		ret += SNPRINTF(bf + ret, size - ret, "%s",
 				event_name(top->sym_evsel));
-	} else list_for_each_entry(counter, &top->evlist->entries, node) {
-		ret += SNPRINTF(bf + ret, size - ret, "%s%s",
-				counter->idx ? "/" : "", event_name(counter));
+	} else {
+		/*
+		 * Don't let events eat all the space. Leaving 30 bytes
+		 * for the rest should be enough.
+		 */
+		size_t last_pos = size - 30;
+
+		list_for_each_entry(counter, &top->evlist->entries, node) {
+			ret += SNPRINTF(bf + ret, size - ret, "%s%s",
+					counter->idx ? "/" : "",
+					event_name(counter));
+			if (ret > last_pos) {
+				sprintf(bf + last_pos - 3, "..");
+				ret = last_pos - 1;
+				break;
+			}
+		}
 	}
 
 	ret += SNPRINTF(bf + ret, size - ret, "], ");
