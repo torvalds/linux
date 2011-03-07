@@ -73,7 +73,6 @@ enum isci_status {
 	isci_ready_for_io = 0x03,
 	isci_stopping     = 0x04,
 	isci_stopped      = 0x05,
-	isci_host_quiesce = 0x06
 };
 
 /**

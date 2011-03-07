@@ -81,7 +81,6 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 	struct isci_request *request = NULL;
 	struct isci_remote_device *device;
 	unsigned long flags;
-	unsigned long quiesce_flags = 0;
 	int ret;
 	enum sci_status status;
 
@@ -151,21 +150,7 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 
 		isci_host = isci_host_from_sas_ha(task->dev->port->ha);
 
-		/* check if the controller hasn't started or if the device
-		 * is ready but not accepting IO.
-		 */
-		if (device) {
-
-			spin_lock_irqsave(&device->host_quiesce_lock,
-					  quiesce_flags);
-		}
-		/* From this point onward, any process that needs to guarantee
-		 * that there is no kernel I/O being started will have to wait
-		 * for the quiesce spinlock.
-		 */
-
-		if ((device && ((isci_remote_device_get_state(device) == isci_ready) ||
-		    (isci_remote_device_get_state(device) == isci_host_quiesce)))) {
+		if (device && device->status == isci_ready) {
 
 			/* Forces a retry from scsi mid layer. */
 			dev_warn(task->dev->port->ha->dev,
@@ -179,8 +164,7 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 			if (device)
 				dev_dbg(task->dev->port->ha->dev,
 					"%s: device->status = 0x%x\n",
-					__func__,
-					isci_remote_device_get_state(device));
+					__func__, device->status);
 
 			/* Indicate QUEUE_FULL so that the scsi midlayer
 			 * retries.
@@ -194,7 +178,7 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 			isci_host_can_dequeue(isci_host, 1);
 		}
 		/* the device is going down... */
-		else if (!device || (isci_ready_for_io != isci_remote_device_get_state(device))) {
+		else if (!device || device->status != isci_ready_for_io) {
 
 			dev_dbg(task->dev->port->ha->dev,
 				"%s: task %p: isci_host->status = %d, "
@@ -207,8 +191,7 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 			if (device)
 				dev_dbg(task->dev->port->ha->dev,
 					"%s: device->status = 0x%x\n",
-					__func__,
-					isci_remote_device_get_state(device));
+					__func__, device->status);
 
 			/* Indicate SAS_TASK_UNDELIVERED, so that the scsi
 			 * midlayer removes the target.
@@ -246,11 +229,6 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 						);
 				isci_host_can_dequeue(isci_host, 1);
 			}
-		}
-		if (device) {
-			spin_unlock_irqrestore(&device->host_quiesce_lock,
-					       quiesce_flags
-					       );
 		}
 		task = list_entry(task->list.next, struct sas_task, list);
 	} while (--num > 0);
@@ -442,14 +420,11 @@ int isci_task_execute_tmf(
 	/* sanity check, return TMF_RESP_FUNC_FAILED
 	 * if the device is not there and ready.
 	 */
-	if (!isci_device ||
-	    ((isci_ready_for_io != isci_remote_device_get_state(isci_device)) &&
-	    (isci_host_quiesce != isci_remote_device_get_state(isci_device)))) {
+	if (!isci_device || isci_device->status != isci_ready_for_io) {
 		dev_dbg(&isci_host->pdev->dev,
 			"%s: isci_device = %p not ready (%d)\n",
 			__func__,
-			isci_device,
-			isci_remote_device_get_state(isci_device));
+			isci_device, isci_device->status);
 		return TMF_RESP_FUNC_FAILED;
 	} else
 		dev_dbg(&isci_host->pdev->dev,
@@ -986,9 +961,6 @@ int isci_task_lu_reset(
 		return TMF_RESP_FUNC_FAILED;
 	}
 
-	/* Stop I/O to the remote device. */
-	isci_device_set_host_quiesce_lock_state(isci_device, true);
-
 	/* Send the task management part of the reset. */
 	if (sas_protocol_ata(domain_device->tproto)) {
 		ret = isci_task_send_lu_reset_sata(
@@ -1003,9 +975,6 @@ int isci_task_lu_reset(
 		isci_terminate_pending_requests(isci_host,
 						isci_device,
 						terminating);
-
-	/* Resume I/O to the remote device. */
-	isci_device_set_host_quiesce_lock_state(isci_device, false);
 
 	return ret;
 }
@@ -1627,9 +1596,6 @@ int isci_bus_reset_handler(struct scsi_cmnd *cmd)
 	if (isci_host != NULL)
 		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
 
-	/* Stop I/O to the remote device. */
-	isci_device_set_host_quiesce_lock_state(isci_dev, true);
-
 	/* Make sure all pending requests are able to be fully terminated. */
 	isci_device_clear_reset_pending(isci_dev);
 
@@ -1670,9 +1636,6 @@ int isci_bus_reset_handler(struct scsi_cmnd *cmd)
 	dev_dbg(&cmd->device->sdev_gendev,
 		"%s: cmd %p, isci_dev %p complete.\n",
 		__func__, cmd, isci_dev);
-
-	/* Resume I/O to the remote device. */
-	isci_device_set_host_quiesce_lock_state(isci_dev, false);
 
 	return TMF_RESP_FUNC_COMPLETE;
 }

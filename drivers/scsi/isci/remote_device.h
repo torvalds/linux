@@ -68,8 +68,6 @@ struct isci_remote_device {
 	struct list_head reqs_in_process;
 	struct work_struct stop_work;
 	spinlock_t state_lock;
-	spinlock_t host_quiesce_lock;
-	bool host_quiesce;
 };
 
 static inline struct scic_sds_remote_device *to_sci_dev(struct isci_remote_device *idev)
@@ -82,22 +80,6 @@ static inline struct scic_sds_remote_device *to_sci_dev(struct isci_remote_devic
 	container_of(p, struct isci_remote_device, sci_remote_device);
 
 #define ISCI_REMOTE_DEVICE_START_TIMEOUT 5000
-
-
-/**
- * This function gets the status of the remote_device object.
- * @isci_device: This parameter points to the isci_remote_device object
- *
- * status of the object as a isci_status enum.
- */
-static inline
-enum isci_status isci_remote_device_get_state(
-	struct isci_remote_device *isci_device)
-{
-	return (isci_device->host_quiesce)
-	       ? isci_host_quiesce
-	       : isci_device->status;
-}
 
 
 /**
@@ -145,10 +127,6 @@ bool isci_device_is_reset_pending(
 
 void isci_device_clear_reset_pending(
 	struct isci_remote_device *isci_device);
-
-void isci_device_set_host_quiesce_lock_state(
-	struct isci_remote_device *isci_device,
-	bool lock_state);
 
 void isci_remote_device_change_state(
 	struct isci_remote_device *isci_device,

@@ -267,35 +267,12 @@ isci_remote_device_alloc(struct isci_host *isci_host, struct isci_port *port)
 
 	INIT_LIST_HEAD(&isci_device->reqs_in_process);
 	INIT_LIST_HEAD(&isci_device->node);
-	isci_device->host_quiesce          = false;
 
 	spin_lock_init(&isci_device->state_lock);
-	spin_lock_init(&isci_device->host_quiesce_lock);
 	isci_remote_device_change_state(isci_device, isci_freed);
 
 	return isci_device;
 
-}
-/**
- * isci_device_set_host_quiesce_lock_state() - This function sets the host I/O
- *    quiesce lock state for the remote_device object.
- * @isci_device,: This parameter points to the isci_remote_device object
- * @isci_device: This parameter specifies the new quiesce state.
- *
- */
-void isci_device_set_host_quiesce_lock_state(
-	struct isci_remote_device *isci_device,
-	bool lock_state)
-{
-	unsigned long flags;
-
-	dev_dbg(&isci_device->isci_port->isci_host->pdev->dev,
-		"%s: isci_device=%p, lock_state=%d\n",
-		__func__, isci_device, lock_state);
-
-	spin_lock_irqsave(&isci_device->host_quiesce_lock, flags);
-	isci_device->host_quiesce = lock_state;
-	spin_unlock_irqrestore(&isci_device->host_quiesce_lock, flags);
 }
 
 /**
@@ -314,8 +291,8 @@ void isci_remote_device_ready(struct isci_remote_device *isci_device)
 		"%s: isci_device = %p\n", __func__, isci_device);
 
 	/* device ready is actually a "ready for io" state. */
-	if ((isci_starting == isci_remote_device_get_state(isci_device)) ||
-	    (isci_ready == isci_remote_device_get_state(isci_device))) {
+	if (isci_device->status == isci_starting ||
+	    isci_device->status == isci_ready) {
 		spin_lock_irqsave(&isci_device->isci_port->remote_device_lock,
 				  flags);
 		isci_remote_device_change_state(isci_device, isci_ready_for_io);
