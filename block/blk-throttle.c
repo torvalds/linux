@@ -102,7 +102,7 @@ struct throtl_data
 	/* Work for dispatching throttled bios */
 	struct delayed_work throtl_work;
 
-	atomic_t limits_changed;
+	bool limits_changed;
 };
 
 enum tg_state_flags {
@@ -201,6 +201,7 @@ static struct throtl_grp * throtl_find_alloc_tg(struct throtl_data *td,
 	RB_CLEAR_NODE(&tg->rb_node);
 	bio_list_init(&tg->bio_lists[0]);
 	bio_list_init(&tg->bio_lists[1]);
+	td->limits_changed = false;
 
 	/*
 	 * Take the initial reference that will be released on destroy
@@ -737,34 +738,27 @@ static void throtl_process_limit_change(struct throtl_data *td)
 	struct throtl_grp *tg;
 	struct hlist_node *pos, *n;
 
-	if (!atomic_read(&td->limits_changed))
+	if (!td->limits_changed)
 		return;
 
-	throtl_log(td, "limit changed =%d", atomic_read(&td->limits_changed));
+	xchg(&td->limits_changed, false);
 
-	/*
-	 * Make sure updates from throtl_update_blkio_group_read_bps() group
-	 * of functions to tg->limits_changed are visible. We do not
-	 * want update td->limits_changed to be visible but update to
-	 * tg->limits_changed not being visible yet on this cpu. Hence
-	 * the read barrier.
-	 */
-	smp_rmb();
+	throtl_log(td, "limits changed");
 
 	hlist_for_each_entry_safe(tg, pos, n, &td->tg_list, tg_node) {
-		if (throtl_tg_on_rr(tg) && tg->limits_changed) {
-			throtl_log_tg(td, tg, "limit change rbps=%llu wbps=%llu"
-				" riops=%u wiops=%u", tg->bps[READ],
-				tg->bps[WRITE], tg->iops[READ],
-				tg->iops[WRITE]);
-			tg_update_disptime(td, tg);
-			tg->limits_changed = false;
-		}
-	}
+		if (!tg->limits_changed)
+			continue;
 
-	smp_mb__before_atomic_dec();
-	atomic_dec(&td->limits_changed);
-	smp_mb__after_atomic_dec();
+		if (!xchg(&tg->limits_changed, false))
+			continue;
+
+		throtl_log_tg(td, tg, "limit change rbps=%llu wbps=%llu"
+			" riops=%u wiops=%u", tg->bps[READ], tg->bps[WRITE],
+			tg->iops[READ], tg->iops[WRITE]);
+
+		if (throtl_tg_on_rr(tg))
+			tg_update_disptime(td, tg);
+	}
 }
 
 /* Dispatch throttled bios. Should be called without queue lock held. */
@@ -898,6 +892,15 @@ void throtl_unlink_blkio_group(void *key, struct blkio_group *blkg)
 	spin_unlock_irqrestore(td->queue->queue_lock, flags);
 }
 
+static void throtl_update_blkio_group_common(struct throtl_data *td,
+				struct throtl_grp *tg)
+{
+	xchg(&tg->limits_changed, true);
+	xchg(&td->limits_changed, true);
+	/* Schedule a work now to process the limit change */
+	throtl_schedule_delayed_work(td, 0);
+}
+
 /*
  * For all update functions, key should be a valid pointer because these
  * update functions are called under blkcg_lock, that means, blkg is
@@ -911,61 +914,40 @@ static void throtl_update_blkio_group_read_bps(void *key,
 				struct blkio_group *blkg, u64 read_bps)
 {
 	struct throtl_data *td = key;
+	struct throtl_grp *tg = tg_of_blkg(blkg);
 
-	tg_of_blkg(blkg)->bps[READ] = read_bps;
-	/* Make sure read_bps is updated before setting limits_changed */
-	smp_wmb();
-	tg_of_blkg(blkg)->limits_changed = true;
-
-	/* Make sure tg->limits_changed is updated before td->limits_changed */
-	smp_mb__before_atomic_inc();
-	atomic_inc(&td->limits_changed);
-	smp_mb__after_atomic_inc();
-
-	/* Schedule a work now to process the limit change */
-	throtl_schedule_delayed_work(td, 0);
+	tg->bps[READ] = read_bps;
+	throtl_update_blkio_group_common(td, tg);
 }
 
 static void throtl_update_blkio_group_write_bps(void *key,
 				struct blkio_group *blkg, u64 write_bps)
 {
 	struct throtl_data *td = key;
+	struct throtl_grp *tg = tg_of_blkg(blkg);
 
-	tg_of_blkg(blkg)->bps[WRITE] = write_bps;
-	smp_wmb();
-	tg_of_blkg(blkg)->limits_changed = true;
-	smp_mb__before_atomic_inc();
-	atomic_inc(&td->limits_changed);
-	smp_mb__after_atomic_inc();
-	throtl_schedule_delayed_work(td, 0);
+	tg->bps[WRITE] = write_bps;
+	throtl_update_blkio_group_common(td, tg);
 }
 
 static void throtl_update_blkio_group_read_iops(void *key,
 			struct blkio_group *blkg, unsigned int read_iops)
 {
 	struct throtl_data *td = key;
+	struct throtl_grp *tg = tg_of_blkg(blkg);
 
-	tg_of_blkg(blkg)->iops[READ] = read_iops;
-	smp_wmb();
-	tg_of_blkg(blkg)->limits_changed = true;
-	smp_mb__before_atomic_inc();
-	atomic_inc(&td->limits_changed);
-	smp_mb__after_atomic_inc();
-	throtl_schedule_delayed_work(td, 0);
+	tg->iops[READ] = read_iops;
+	throtl_update_blkio_group_common(td, tg);
 }
 
 static void throtl_update_blkio_group_write_iops(void *key,
 			struct blkio_group *blkg, unsigned int write_iops)
 {
 	struct throtl_data *td = key;
+	struct throtl_grp *tg = tg_of_blkg(blkg);
 
-	tg_of_blkg(blkg)->iops[WRITE] = write_iops;
-	smp_wmb();
-	tg_of_blkg(blkg)->limits_changed = true;
-	smp_mb__before_atomic_inc();
-	atomic_inc(&td->limits_changed);
-	smp_mb__after_atomic_inc();
-	throtl_schedule_delayed_work(td, 0);
+	tg->iops[WRITE] = write_iops;
+	throtl_update_blkio_group_common(td, tg);
 }
 
 static void throtl_shutdown_wq(struct request_queue *q)
@@ -1012,6 +994,7 @@ int blk_throtl_bio(struct request_queue *q, struct bio **biop)
 		 */
 		update_disptime = false;
 		goto queue_bio;
+
 	}
 
 	/* Bio is with-in rate limit of group */
@@ -1052,7 +1035,7 @@ int blk_throtl_init(struct request_queue *q)
 
 	INIT_HLIST_HEAD(&td->tg_list);
 	td->tg_service_tree = THROTL_RB_ROOT;
-	atomic_set(&td->limits_changed, 0);
+	td->limits_changed = false;
 
 	/* Init root group */
 	tg = &td->root_tg;
@@ -1064,6 +1047,7 @@ int blk_throtl_init(struct request_queue *q)
 	/* Practically unlimited BW */
 	tg->bps[0] = tg->bps[1] = -1;
 	tg->iops[0] = tg->iops[1] = -1;
+	td->limits_changed = false;
 
 	/*
 	 * Set root group reference to 2. One reference will be dropped when
