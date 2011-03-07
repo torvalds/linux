@@ -42,11 +42,6 @@
 
 /* Main vmbus driver data structure */
 struct vmbus_driver_context {
-	/* !! These must be the first 2 fields !! */
-	/* FIXME, this is a bug */
-	/* The driver field is not used in here. Instead, the bus field is */
-	/* used to represent the driver */
-	struct driver_context drv_ctx;
 	struct hv_driver drv_obj;
 
 	struct bus_type bus;
@@ -861,20 +856,14 @@ static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
 static int vmbus_match(struct device *device, struct device_driver *driver)
 {
 	int match = 0;
-	struct driver_context *driver_ctx = driver_to_driver_context(driver);
+	struct hv_driver *drv = drv_to_hv_drv(driver);
 	struct vm_device *device_ctx = device_to_vm_device(device);
 
 	/* We found our driver ? */
-	if (memcmp(&device_ctx->class_id, &driver_ctx->class_id,
+	if (memcmp(&device_ctx->class_id, &drv->dev_type,
 		   sizeof(struct hv_guid)) == 0) {
-		/*
-		 * !! NOTE: The driver_ctx is not a vmbus_drv_ctx. We typecast
-		 * it here to access the struct hv_driver field
-		 */
-		struct vmbus_driver_context *vmbus_drv_ctx =
-			(struct vmbus_driver_context *)driver_ctx;
 
-		device_ctx->device_obj.drv = &vmbus_drv_ctx->drv_obj;
+		device_ctx->device_obj.drv = drv->priv;
 		DPRINT_INFO(VMBUS_DRV,
 			    "device object (%p) set to driver object (%p)",
 			    &device_ctx->device_obj,
@@ -911,15 +900,15 @@ static void vmbus_probe_failed_cb(struct work_struct *context)
 static int vmbus_probe(struct device *child_device)
 {
 	int ret = 0;
-	struct driver_context *driver_ctx =
-			driver_to_driver_context(child_device->driver);
+	struct hv_driver *drv =
+			drv_to_hv_drv(child_device->driver);
 	struct vm_device *device_ctx =
 			device_to_vm_device(child_device);
 
 	/* Let the specific open-source driver handles the probe if it can */
-	if (driver_ctx->driver.probe) {
+	if (drv->driver.probe) {
 		ret = device_ctx->probe_error =
-		driver_ctx->driver.probe(child_device);
+		drv->driver.probe(child_device);
 		if (ret != 0) {
 			DPRINT_ERR(VMBUS_DRV, "probe() failed for device %s "
 				   "(%p) on driver %s (%d)...",
@@ -944,7 +933,7 @@ static int vmbus_probe(struct device *child_device)
 static int vmbus_remove(struct device *child_device)
 {
 	int ret;
-	struct driver_context *driver_ctx;
+	struct hv_driver *drv;
 
 	/* Special case root bus device */
 	if (child_device->parent == NULL) {
@@ -956,14 +945,14 @@ static int vmbus_remove(struct device *child_device)
 	}
 
 	if (child_device->driver) {
-		driver_ctx = driver_to_driver_context(child_device->driver);
+		drv = drv_to_hv_drv(child_device->driver);
 
 		/*
 		 * Let the specific open-source driver handles the removal if
 		 * it can
 		 */
-		if (driver_ctx->driver.remove) {
-			ret = driver_ctx->driver.remove(child_device);
+		if (drv->driver.remove) {
+			ret = drv->driver.remove(child_device);
 		} else {
 			DPRINT_ERR(VMBUS_DRV,
 				   "remove() method not set for driver - %s",
@@ -980,7 +969,7 @@ static int vmbus_remove(struct device *child_device)
  */
 static void vmbus_shutdown(struct device *child_device)
 {
-	struct driver_context *driver_ctx;
+	struct hv_driver *drv;
 
 	/* Special case root bus device */
 	if (child_device->parent == NULL) {
@@ -995,11 +984,11 @@ static void vmbus_shutdown(struct device *child_device)
 	if (!child_device->driver)
 		return;
 
-	driver_ctx = driver_to_driver_context(child_device->driver);
+	drv = drv_to_hv_drv(child_device->driver);
 
 	/* Let the specific open-source driver handles the removal if it can */
-	if (driver_ctx->driver.shutdown)
-		driver_ctx->driver.shutdown(child_device);
+	if (drv->driver.shutdown)
+		drv->driver.shutdown(child_device);
 
 	return;
 }

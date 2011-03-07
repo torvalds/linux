@@ -64,9 +64,6 @@ struct storvsc_cmd_request {
 };
 
 struct storvsc_driver_context {
-	/* !! These must be the first 2 fields !! */
-	/* FIXME this is a bug... */
-	struct driver_context drv_ctx;
 	struct storvsc_driver_object drv_obj;
 };
 
@@ -138,12 +135,14 @@ static int storvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 {
 	int ret;
 	struct storvsc_driver_object *storvsc_drv_obj = &g_storvsc_drv.drv_obj;
-	struct driver_context *drv_ctx = &g_storvsc_drv.drv_ctx;
+	struct hv_driver *drv = &g_storvsc_drv.drv_obj.base;
 
 	storvsc_drv_obj->ring_buffer_size = storvsc_ringbuffer_size;
 
 	/* Callback to client driver to complete the initialization */
 	drv_init(&storvsc_drv_obj->base);
+
+	drv->priv = storvsc_drv_obj;
 
 	DPRINT_INFO(STORVSC_DRV,
 		    "request extension size %u, max outstanding reqs %u",
@@ -160,15 +159,13 @@ static int storvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 		return -1;
 	}
 
-	drv_ctx->driver.name = storvsc_drv_obj->base.name;
-	memcpy(&drv_ctx->class_id, &storvsc_drv_obj->base.dev_type,
-	       sizeof(struct hv_guid));
+	drv->driver.name = storvsc_drv_obj->base.name;
 
-	drv_ctx->driver.probe = storvsc_probe;
-	drv_ctx->driver.remove = storvsc_remove;
+	drv->driver.probe = storvsc_probe;
+	drv->driver.remove = storvsc_remove;
 
 	/* The driver belongs to vmbus */
-	ret = vmbus_child_driver_register(&drv_ctx->driver);
+	ret = vmbus_child_driver_register(&drv->driver);
 
 	return ret;
 }
@@ -183,7 +180,7 @@ static int storvsc_drv_exit_cb(struct device *dev, void *data)
 static void storvsc_drv_exit(void)
 {
 	struct storvsc_driver_object *storvsc_drv_obj = &g_storvsc_drv.drv_obj;
-	struct driver_context *drv_ctx = &g_storvsc_drv.drv_ctx;
+	struct hv_driver *drv = &g_storvsc_drv.drv_obj.base;
 	struct device *current_dev = NULL;
 	int ret;
 
@@ -191,7 +188,7 @@ static void storvsc_drv_exit(void)
 		current_dev = NULL;
 
 		/* Get the device */
-		ret = driver_for_each_device(&drv_ctx->driver, NULL,
+		ret = driver_for_each_device(&drv->driver, NULL,
 					     (void *) &current_dev,
 					     storvsc_drv_exit_cb);
 
@@ -209,7 +206,7 @@ static void storvsc_drv_exit(void)
 	if (storvsc_drv_obj->base.cleanup)
 		storvsc_drv_obj->base.cleanup(&storvsc_drv_obj->base);
 
-	vmbus_child_driver_unregister(&drv_ctx->driver);
+	vmbus_child_driver_unregister(&drv->driver);
 	return;
 }
 
@@ -219,10 +216,10 @@ static void storvsc_drv_exit(void)
 static int storvsc_probe(struct device *device)
 {
 	int ret;
-	struct driver_context *driver_ctx =
-				driver_to_driver_context(device->driver);
+	struct hv_driver *drv =
+				drv_to_hv_drv(device->driver);
 	struct storvsc_driver_context *storvsc_drv_ctx =
-				(struct storvsc_driver_context *)driver_ctx;
+				(struct storvsc_driver_context *)drv->priv;
 	struct storvsc_driver_object *storvsc_drv_obj =
 				&storvsc_drv_ctx->drv_obj;
 	struct vm_device *device_ctx = device_to_vm_device(device);
@@ -304,10 +301,10 @@ static int storvsc_probe(struct device *device)
 static int storvsc_remove(struct device *device)
 {
 	int ret;
-	struct driver_context *driver_ctx =
-			driver_to_driver_context(device->driver);
+	struct hv_driver *drv =
+			drv_to_hv_drv(device->driver);
 	struct storvsc_driver_context *storvsc_drv_ctx =
-			(struct storvsc_driver_context *)driver_ctx;
+			(struct storvsc_driver_context *)drv->priv;
 	struct storvsc_driver_object *storvsc_drv_obj =
 			&storvsc_drv_ctx->drv_obj;
 	struct vm_device *device_ctx = device_to_vm_device(device);
@@ -602,10 +599,10 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 	struct host_device_context *host_device_ctx =
 		(struct host_device_context *)scmnd->device->host->hostdata;
 	struct vm_device *device_ctx = host_device_ctx->device_ctx;
-	struct driver_context *driver_ctx =
-		driver_to_driver_context(device_ctx->device.driver);
+	struct hv_driver *drv =
+		drv_to_hv_drv(device_ctx->device.driver);
 	struct storvsc_driver_context *storvsc_drv_ctx =
-		(struct storvsc_driver_context *)driver_ctx;
+		(struct storvsc_driver_context *)drv->priv;
 	struct storvsc_driver_object *storvsc_drv_obj =
 		&storvsc_drv_ctx->drv_obj;
 	struct hv_storvsc_request *request;

@@ -28,12 +28,6 @@
 #include <linux/device.h>
 #include "vmbus_api.h"
 
-struct driver_context {
-	struct hv_guid class_id;
-
-	struct device_driver driver;
-
-};
 
 struct vm_device {
 	struct work_struct probe_failed_work_item;
@@ -54,9 +48,9 @@ static inline struct vm_device *device_to_vm_device(struct device *d)
 	return container_of(d, struct vm_device, device);
 }
 
-static inline struct driver_context *driver_to_driver_context(struct device_driver *d)
+static inline struct hv_driver *drv_to_hv_drv(struct device_driver *d)
 {
-	return container_of(d, struct driver_context, driver);
+	return container_of(d, struct hv_driver, driver);
 }
 
 

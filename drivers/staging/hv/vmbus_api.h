@@ -25,6 +25,8 @@
 #ifndef _VMBUS_API_H_
 #define _VMBUS_API_H_
 
+#include <linux/device.h>
+
 #define MAX_PAGE_BUFFER_COUNT				16
 #define MAX_MULTIPAGE_BUFFER_COUNT			32 /* 128K */
 
@@ -90,6 +92,18 @@ struct hv_driver {
 
 	/* the device type supported by this driver */
 	struct hv_guid dev_type;
+
+	/*
+	 * Device type specific drivers (net, blk etc.)
+	 * need a mechanism to get a pointer to
+	 * device type specific driver structure given
+	 * a pointer to the base hyperv driver structure.
+	 * The current code solves this problem using
+	 * a hack. Support this need explicitly
+	 */
+	void *priv;
+
+	struct device_driver driver;
 
 	int (*dev_add)(struct hv_device *device, void *data);
 	int (*dev_rm)(struct hv_device *device);

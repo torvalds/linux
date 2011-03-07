@@ -117,9 +117,6 @@ struct block_device_context {
 
 /* Per driver */
 struct blkvsc_driver_context {
-	/* !! These must be the first 2 fields !! */
-	/* FIXME this is a bug! */
-	struct driver_context drv_ctx;
 	struct storvsc_driver_object drv_obj;
 };
 
@@ -174,24 +171,24 @@ static const struct block_device_operations block_ops = {
 static int blkvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 {
 	struct storvsc_driver_object *storvsc_drv_obj = &g_blkvsc_drv.drv_obj;
-	struct driver_context *drv_ctx = &g_blkvsc_drv.drv_ctx;
+	struct hv_driver *drv = &g_blkvsc_drv.drv_obj.base;
 	int ret;
 
 	storvsc_drv_obj->ring_buffer_size = blkvsc_ringbuffer_size;
 
+	drv->priv = storvsc_drv_obj;
+
 	/* Callback to client driver to complete the initialization */
 	drv_init(&storvsc_drv_obj->base);
 
-	drv_ctx->driver.name = storvsc_drv_obj->base.name;
-	memcpy(&drv_ctx->class_id, &storvsc_drv_obj->base.dev_type,
-	       sizeof(struct hv_guid));
+	drv->driver.name = storvsc_drv_obj->base.name;
 
-	drv_ctx->driver.probe = blkvsc_probe;
-	drv_ctx->driver.remove = blkvsc_remove;
-	drv_ctx->driver.shutdown = blkvsc_shutdown;
+	drv->driver.probe = blkvsc_probe;
+	drv->driver.remove = blkvsc_remove;
+	drv->driver.shutdown = blkvsc_shutdown;
 
 	/* The driver belongs to vmbus */
-	ret = vmbus_child_driver_register(&drv_ctx->driver);
+	ret = vmbus_child_driver_register(&drv->driver);
 
 	return ret;
 }
@@ -206,7 +203,7 @@ static int blkvsc_drv_exit_cb(struct device *dev, void *data)
 static void blkvsc_drv_exit(void)
 {
 	struct storvsc_driver_object *storvsc_drv_obj = &g_blkvsc_drv.drv_obj;
-	struct driver_context *drv_ctx = &g_blkvsc_drv.drv_ctx;
+	struct hv_driver *drv = &g_blkvsc_drv.drv_obj.base;
 	struct device *current_dev;
 	int ret;
 
@@ -214,7 +211,7 @@ static void blkvsc_drv_exit(void)
 		current_dev = NULL;
 
 		/* Get the device */
-		ret = driver_for_each_device(&drv_ctx->driver, NULL,
+		ret = driver_for_each_device(&drv->driver, NULL,
 					     (void *) &current_dev,
 					     blkvsc_drv_exit_cb);
 
@@ -233,7 +230,7 @@ static void blkvsc_drv_exit(void)
 	if (storvsc_drv_obj->base.cleanup)
 		storvsc_drv_obj->base.cleanup(&storvsc_drv_obj->base);
 
-	vmbus_child_driver_unregister(&drv_ctx->driver);
+	vmbus_child_driver_unregister(&drv->driver);
 
 	return;
 }
@@ -243,10 +240,10 @@ static void blkvsc_drv_exit(void)
  */
 static int blkvsc_probe(struct device *device)
 {
-	struct driver_context *driver_ctx =
-				driver_to_driver_context(device->driver);
+	struct hv_driver *drv =
+				drv_to_hv_drv(device->driver);
 	struct blkvsc_driver_context *blkvsc_drv_ctx =
-				(struct blkvsc_driver_context *)driver_ctx;
+				(struct blkvsc_driver_context *)drv->priv;
 	struct storvsc_driver_object *storvsc_drv_obj =
 				&blkvsc_drv_ctx->drv_obj;
 	struct vm_device *device_ctx = device_to_vm_device(device);
@@ -728,10 +725,10 @@ static int blkvsc_do_read_capacity16(struct block_device_context *blkdev)
  */
 static int blkvsc_remove(struct device *device)
 {
-	struct driver_context *driver_ctx =
-				driver_to_driver_context(device->driver);
+	struct hv_driver *drv =
+				drv_to_hv_drv(device->driver);
 	struct blkvsc_driver_context *blkvsc_drv_ctx =
-				(struct blkvsc_driver_context *)driver_ctx;
+				(struct blkvsc_driver_context *)drv->priv;
 	struct storvsc_driver_object *storvsc_drv_obj =
 				&blkvsc_drv_ctx->drv_obj;
 	struct vm_device *device_ctx = device_to_vm_device(device);
@@ -851,10 +848,10 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 {
 	struct block_device_context *blkdev = blkvsc_req->dev;
 	struct vm_device *device_ctx = blkdev->device_ctx;
-	struct driver_context *driver_ctx =
-			driver_to_driver_context(device_ctx->device.driver);
+	struct hv_driver *drv =
+			drv_to_hv_drv(device_ctx->device.driver);
 	struct blkvsc_driver_context *blkvsc_drv_ctx =
-			(struct blkvsc_driver_context *)driver_ctx;
+			(struct blkvsc_driver_context *)drv->priv;
 	struct storvsc_driver_object *storvsc_drv_obj =
 			&blkvsc_drv_ctx->drv_obj;
 	struct hv_storvsc_request *storvsc_req;
