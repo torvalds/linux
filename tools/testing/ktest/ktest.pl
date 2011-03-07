@@ -820,6 +820,7 @@ sub monitor {
 	}
 
 	if ($full_line =~ /Kernel panic -/) {
+	    $failure_start = time;
 	    $bug = 1;
 	}
 
