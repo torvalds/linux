@@ -1064,7 +1064,7 @@
 /*
  * EEPROM command register
  */
-#define AR5K_EEPROM_CMD		0x6008			/* Register Addres */
+#define AR5K_EEPROM_CMD		0x6008			/* Register Address */
 #define AR5K_EEPROM_CMD_READ	0x00000001	/* EEPROM read */
 #define AR5K_EEPROM_CMD_WRITE	0x00000002	/* EEPROM write */
 #define AR5K_EEPROM_CMD_RESET	0x00000004	/* EEPROM reset */
@@ -1084,7 +1084,7 @@
 /*
  * EEPROM config register
  */
-#define AR5K_EEPROM_CFG			0x6010			/* Register Addres */
+#define AR5K_EEPROM_CFG			0x6010			/* Register Address */
 #define AR5K_EEPROM_CFG_SIZE		0x00000003		/* Size determination override */
 #define AR5K_EEPROM_CFG_SIZE_AUTO	0
 #define AR5K_EEPROM_CFG_SIZE_4KBIT	1
@@ -1126,7 +1126,7 @@
  * Second station id register (Upper 16 bits of MAC address + PCU settings)
  */
 #define AR5K_STA_ID1			0x8004			/* Register Address */
-#define	AR5K_STA_ID1_ADDR_U16		0x0000ffff	/* Upper 16 bits of MAC addres */
+#define	AR5K_STA_ID1_ADDR_U16		0x0000ffff	/* Upper 16 bits of MAC address */
 #define AR5K_STA_ID1_AP			0x00010000	/* Set AP mode */
 #define AR5K_STA_ID1_ADHOC		0x00020000	/* Set Ad-Hoc mode */
 #define AR5K_STA_ID1_PWR_SV		0x00040000	/* Power save reporting */

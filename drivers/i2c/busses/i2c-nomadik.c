@@ -434,7 +434,7 @@ static int read_i2c(struct nmk_i2c_dev *dev)
 	}
 
 	if (timeout == 0) {
-		/* controler has timedout, re-init the h/w */
+		/* controller has timedout, re-init the h/w */
 		dev_err(&dev->pdev->dev, "controller timed out, re-init h/w\n");
 		(void) init_hw(dev);
 		status = -ETIMEDOUT;
@@ -498,7 +498,7 @@ static int write_i2c(struct nmk_i2c_dev *dev)
 	}
 
 	if (timeout == 0) {
-		/* controler has timedout, re-init the h/w */
+		/* controller has timedout, re-init the h/w */
 		dev_err(&dev->pdev->dev, "controller timed out, re-init h/w\n");
 		(void) init_hw(dev);
 		status = -ETIMEDOUT;
@@ -872,6 +872,8 @@ static int __devinit nmk_i2c_probe(struct platform_device *pdev)
 	adap->owner	= THIS_MODULE;
 	adap->class	= I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adap->algo	= &nmk_i2c_algo;
+	snprintf(adap->name, sizeof(adap->name),
+		 "Nomadik I2C%d at %lx", pdev->id, (unsigned long)res->start);
 
 	/* fetch the controller id */
 	adap->nr	= pdev->id;
@@ -891,8 +893,8 @@ static int __devinit nmk_i2c_probe(struct platform_device *pdev)
 		goto err_init_hw;
 	}
 
-	dev_dbg(&pdev->dev, "initialize I2C%d bus on virtual "
-		"base %p\n", pdev->id, dev->virtbase);
+	dev_info(&pdev->dev, "initialize %s on virtual "
+		"base %p\n", adap->name, dev->virtbase);
 
 	ret = i2c_add_numbered_adapter(adap);
 	if (ret) {

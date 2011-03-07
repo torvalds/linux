@@ -53,6 +53,8 @@ static const unsigned short normal_i2c[] = {
 
 /* Configuration register defines */
 #define JC42_CFG_CRIT_ONLY	(1 << 2)
+#define JC42_CFG_TCRIT_LOCK	(1 << 6)
+#define JC42_CFG_EVENT_LOCK	(1 << 7)
 #define JC42_CFG_SHUTDOWN	(1 << 8)
 #define JC42_CFG_HYST_SHIFT	9
 #define JC42_CFG_HYST_MASK	0x03
@@ -332,7 +334,7 @@ static ssize_t set_temp_crit_hyst(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct jc42_data *data = i2c_get_clientdata(client);
-	long val;
+	unsigned long val;
 	int diff, hyst;
 	int err;
 	int ret = count;
@@ -380,14 +382,14 @@ static ssize_t show_alarm(struct device *dev,
 
 static DEVICE_ATTR(temp1_input, S_IRUGO,
 		   show_temp_input, NULL);
-static DEVICE_ATTR(temp1_crit, S_IWUSR | S_IRUGO,
+static DEVICE_ATTR(temp1_crit, S_IRUGO,
 		   show_temp_crit, set_temp_crit);
-static DEVICE_ATTR(temp1_min, S_IWUSR | S_IRUGO,
+static DEVICE_ATTR(temp1_min, S_IRUGO,
 		   show_temp_min, set_temp_min);
-static DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO,
+static DEVICE_ATTR(temp1_max, S_IRUGO,
 		   show_temp_max, set_temp_max);
 
-static DEVICE_ATTR(temp1_crit_hyst, S_IWUSR | S_IRUGO,
+static DEVICE_ATTR(temp1_crit_hyst, S_IRUGO,
 		   show_temp_crit_hyst, set_temp_crit_hyst);
 static DEVICE_ATTR(temp1_max_hyst, S_IRUGO,
 		   show_temp_max_hyst, NULL);
@@ -412,8 +414,31 @@ static struct attribute *jc42_attributes[] = {
 	NULL
 };
 
+static mode_t jc42_attribute_mode(struct kobject *kobj,
+				  struct attribute *attr, int index)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct jc42_data *data = i2c_get_clientdata(client);
+	unsigned int config = data->config;
+	bool readonly;
+
+	if (attr == &dev_attr_temp1_crit.attr)
+		readonly = config & JC42_CFG_TCRIT_LOCK;
+	else if (attr == &dev_attr_temp1_min.attr ||
+		 attr == &dev_attr_temp1_max.attr)
+		readonly = config & JC42_CFG_EVENT_LOCK;
+	else if (attr == &dev_attr_temp1_crit_hyst.attr)
+		readonly = config & (JC42_CFG_EVENT_LOCK | JC42_CFG_TCRIT_LOCK);
+	else
+		readonly = true;
+
+	return S_IRUGO | (readonly ? 0 : S_IWUSR);
+}
+
 static const struct attribute_group jc42_group = {
 	.attrs = jc42_attributes,
+	.is_visible = jc42_attribute_mode,
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */

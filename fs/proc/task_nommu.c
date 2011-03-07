@@ -92,13 +92,14 @@ unsigned long task_vsize(struct mm_struct *mm)
 	return vsize;
 }
 
-int task_statm(struct mm_struct *mm, int *shared, int *text,
-	       int *data, int *resident)
+unsigned long task_statm(struct mm_struct *mm,
+			 unsigned long *shared, unsigned long *text,
+			 unsigned long *data, unsigned long *resident)
 {
 	struct vm_area_struct *vma;
 	struct vm_region *region;
 	struct rb_node *p;
-	int size = kobjsize(mm);
+	unsigned long size = kobjsize(mm);
 
 	down_read(&mm->mmap_sem);
 	for (p = rb_first(&mm->mm_rb); p; p = rb_next(p)) {

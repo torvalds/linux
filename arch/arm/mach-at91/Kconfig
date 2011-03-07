@@ -362,6 +362,12 @@ config MACH_CPU9G20
 	  Select this if you are using a Eukrea Electromatique's
 	  CPU9G20 Board <http://www.eukrea.com/>
 
+config MACH_ACMENETUSFOXG20
+	bool "Acme Systems srl FOX Board G20"
+	help
+	  Select this if you are using Acme Systems
+	  FOX Board G20 <http://www.acmesystems.it>
+
 config MACH_PORTUXG20
 	bool "taskit PortuxG20"
 	help
@@ -381,6 +387,13 @@ config MACH_PCONTROL_G20
 	  Select this if you are using taskit's Stamp9G20 CPU module on this
 	  carrier board, beeing the decentralized unit of a building automation
 	  system; featuring nvram, eth-switch, iso-rs485, display, io
+
+config MACH_GSIA18S
+	bool "GS_IA18_S board"
+	help
+	  This enables support for the GS_IA18_S board
+	  produced by GeoSIG Ltd company. This is an internet accelerograph.
+	  <http://www.geosig.com>
 endif
 
 if (ARCH_AT91SAM9260 || ARCH_AT91SAM9G20)

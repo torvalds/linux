@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/init.h>
+#include <linux/amba/bus.h>
 
 struct platform_device *mxs_add_platform_device_dmamask(
 		const char *name, int id,
@@ -24,14 +25,10 @@ static inline struct platform_device *mxs_add_platform_device(
 			name, id, res, num_resources, data, size_data, 0);
 }
 
+int __init mxs_add_amba_device(const struct amba_device *dev);
+
 /* duart */
-struct mxs_duart_data {
-	resource_size_t iobase;
-	resource_size_t iosize;
-	resource_size_t irq;
-};
-struct platform_device *__init mxs_add_duart(
-		const struct mxs_duart_data *data);
+int __init mxs_add_duart(const struct amba_device *dev);
 
 /* fec */
 #include <linux/fec.h>

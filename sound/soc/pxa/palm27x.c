@@ -21,7 +21,6 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/jack.h>
 
 #include <asm/mach-types.h>
@@ -77,37 +76,38 @@ static struct snd_soc_card palm27x_asoc;
 static int palm27x_ac97_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int err;
 
 	/* add palm27x specific widgets */
-	err = snd_soc_dapm_new_controls(codec, palm27x_dapm_widgets,
+	err = snd_soc_dapm_new_controls(dapm, palm27x_dapm_widgets,
 				ARRAY_SIZE(palm27x_dapm_widgets));
 	if (err)
 		return err;
 
 	/* set up palm27x specific audio path audio_map */
-	err = snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	err = snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 	if (err)
 		return err;
 
 	/* connected pins */
 	if (machine_is_palmld())
-		snd_soc_dapm_enable_pin(codec, "MIC1");
-	snd_soc_dapm_enable_pin(codec, "HPOUTL");
-	snd_soc_dapm_enable_pin(codec, "HPOUTR");
-	snd_soc_dapm_enable_pin(codec, "LOUT2");
-	snd_soc_dapm_enable_pin(codec, "ROUT2");
+		snd_soc_dapm_enable_pin(dapm, "MIC1");
+	snd_soc_dapm_enable_pin(dapm, "HPOUTL");
+	snd_soc_dapm_enable_pin(dapm, "HPOUTR");
+	snd_soc_dapm_enable_pin(dapm, "LOUT2");
+	snd_soc_dapm_enable_pin(dapm, "ROUT2");
 
 	/* not connected pins */
-	snd_soc_dapm_nc_pin(codec, "OUT3");
-	snd_soc_dapm_nc_pin(codec, "MONOOUT");
-	snd_soc_dapm_nc_pin(codec, "LINEINL");
-	snd_soc_dapm_nc_pin(codec, "LINEINR");
-	snd_soc_dapm_nc_pin(codec, "PCBEEP");
-	snd_soc_dapm_nc_pin(codec, "PHONE");
-	snd_soc_dapm_nc_pin(codec, "MIC2");
+	snd_soc_dapm_nc_pin(dapm, "OUT3");
+	snd_soc_dapm_nc_pin(dapm, "MONOOUT");
+	snd_soc_dapm_nc_pin(dapm, "LINEINL");
+	snd_soc_dapm_nc_pin(dapm, "LINEINR");
+	snd_soc_dapm_nc_pin(dapm, "PCBEEP");
+	snd_soc_dapm_nc_pin(dapm, "PHONE");
+	snd_soc_dapm_nc_pin(dapm, "MIC2");
 
-	err = snd_soc_dapm_sync(codec);
+	err = snd_soc_dapm_sync(dapm);
 	if (err)
 		return err;
 
@@ -132,7 +132,7 @@ static struct snd_soc_dai_link palm27x_dai[] = {
 {
 	.name = "AC97 HiFi",
 	.stream_name = "AC97 HiFi",
-	.cpu_dai_name = "pxa-ac97.0",
+	.cpu_dai_name = "pxa2xx-ac97",
 	.codec_dai_name =  "wm9712-hifi",
 	.codec_name = "wm9712-codec",
 	.platform_name = "pxa-pcm-audio",
@@ -141,7 +141,7 @@ static struct snd_soc_dai_link palm27x_dai[] = {
 {
 	.name = "AC97 Aux",
 	.stream_name = "AC97 Aux",
-	.cpu_dai_name = "pxa-ac97.1",
+	.cpu_dai_name = "pxa2xx-ac97-aux",
 	.codec_dai_name = "wm9712-aux",
 	.codec_name = "wm9712-codec",
 	.platform_name = "pxa-pcm-audio",

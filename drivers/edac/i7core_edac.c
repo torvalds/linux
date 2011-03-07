@@ -1,6 +1,6 @@
 /* Intel i7 core/Nehalem Memory Controller kernel module
  *
- * This driver supports yhe memory controllers found on the Intel
+ * This driver supports the memory controllers found on the Intel
  * processor families i7core, i7core 7xx/8xx, i5core, Xeon 35xx,
  * Xeon 55xx and Xeon 56xx also known as Nehalem, Nehalem-EP, Lynnfield
  * and Westmere-EP.
@@ -1271,7 +1271,7 @@ static void __init i7core_xeon_pci_fixup(const struct pci_id_table *table)
 	int i;
 
 	/*
-	 * On Xeon 55xx, the Intel Quckpath Arch Generic Non-core pci buses
+	 * On Xeon 55xx, the Intel Quick Path Arch Generic Non-core pci buses
 	 * aren't announced by acpi. So, we need to use a legacy scan probing
 	 * to detect them
 	 */
@@ -1864,7 +1864,7 @@ static int i7core_mce_check_error(void *priv, struct mce *mce)
 	if (mce->mcgstatus & 1)
 		i7core_check_error(mci);
 
-	/* Advice mcelog that the error were handled */
+	/* Advise mcelog that the errors were handled */
 	return 1;
 }
 

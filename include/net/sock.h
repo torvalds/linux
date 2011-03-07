@@ -152,14 +152,18 @@ struct sock_common {
 	 * fields between dontcopy_begin/dontcopy_end
 	 * are not copied in sock_copy()
 	 */
+	/* private: */
 	int			skc_dontcopy_begin[0];
+	/* public: */
 	union {
 		struct hlist_node	skc_node;
 		struct hlist_nulls_node skc_nulls_node;
 	};
 	int			skc_tx_queue_mapping;
 	atomic_t		skc_refcnt;
+	/* private: */
 	int                     skc_dontcopy_end[0];
+	/* public: */
 };
 
 /**
@@ -749,6 +753,8 @@ struct proto {
 					int level,
 					int optname, char __user *optval,
 					int __user *option);
+	int			(*compat_ioctl)(struct sock *sk,
+					unsigned int cmd, unsigned long arg);
 #endif
 	int			(*sendmsg)(struct kiocb *iocb, struct sock *sk,
 					   struct msghdr *msg, size_t len);

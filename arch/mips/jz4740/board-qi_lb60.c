@@ -65,7 +65,7 @@ static struct nand_ecclayout qi_lb60_ecclayout_1gb = {
 
 /* Early prototypes of the QI LB60 had only 1GB of NAND.
  * In order to support these devices aswell the partition and ecc layout is
- * initalized depending on the NAND size */
+ * initialized depending on the NAND size */
 static struct mtd_partition qi_lb60_partitions_1gb[] = {
 	{
 		.name = "NAND BOOT partition",
@@ -464,7 +464,7 @@ static int __init qi_lb60_board_setup(void)
 	board_gpio_setup();
 
 	if (qi_lb60_init_platform_devices())
-		panic("Failed to initalize platform devices\n");
+		panic("Failed to initialize platform devices\n");
 
 	return 0;
 }

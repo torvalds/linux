@@ -62,6 +62,8 @@ static DECLARE_INTC_DESC(intc_desc, "sh7619", vectors, NULL,
 static struct plat_sci_port scif0_platform_data = {
 	.mapbase	= 0xf8400000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 88, 88, 88, 88 },
 };
@@ -77,6 +79,8 @@ static struct platform_device scif0_device = {
 static struct plat_sci_port scif1_platform_data = {
 	.mapbase	= 0xf8410000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 92, 92, 92, 92 },
 };
@@ -92,6 +96,8 @@ static struct platform_device scif1_device = {
 static struct plat_sci_port scif2_platform_data = {
 	.mapbase	= 0xf8420000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 96, 96, 96, 96 },
 };

@@ -30,6 +30,7 @@
 #include <linux/io.h>
 #include <linux/input.h>
 #include <linux/input/sh_keysc.h>
+#include <linux/mmc/host.h>
 #include <linux/mfd/sh_mobile_sdhi.h>
 #include <linux/gpio.h>
 #include <mach/sh7377.h>
@@ -196,6 +197,10 @@ static struct platform_device keysc_device = {
 };
 
 /* SDHI */
+static struct sh_mobile_sdhi_info sdhi0_info = {
+	.tmio_caps	= MMC_CAP_SDIO_IRQ,
+};
+
 static struct resource sdhi0_resources[] = {
 	[0] = {
 		.name	= "SDHI0",
@@ -214,6 +219,13 @@ static struct platform_device sdhi0_device = {
 	.num_resources  = ARRAY_SIZE(sdhi0_resources),
 	.resource       = sdhi0_resources,
 	.id             = 0,
+	.dev	= {
+		.platform_data	= &sdhi0_info,
+	},
+};
+
+static struct sh_mobile_sdhi_info sdhi1_info = {
+	.tmio_caps	= MMC_CAP_NONREMOVABLE | MMC_CAP_SDIO_IRQ,
 };
 
 static struct resource sdhi1_resources[] = {
@@ -234,6 +246,9 @@ static struct platform_device sdhi1_device = {
 	.num_resources  = ARRAY_SIZE(sdhi1_resources),
 	.resource       = sdhi1_resources,
 	.id             = 1,
+	.dev	= {
+		.platform_data	= &sdhi1_info,
+	},
 };
 
 static struct platform_device *g4evm_devices[] __initdata = {

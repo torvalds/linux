@@ -314,16 +314,6 @@ static int sa1100_rtc_ioctl(struct device *dev, unsigned int cmd,
 		unsigned long arg)
 {
 	switch (cmd) {
-	case RTC_AIE_OFF:
-		spin_lock_irq(&sa1100_rtc_lock);
-		RTSR &= ~RTSR_ALE;
-		spin_unlock_irq(&sa1100_rtc_lock);
-		return 0;
-	case RTC_AIE_ON:
-		spin_lock_irq(&sa1100_rtc_lock);
-		RTSR |= RTSR_ALE;
-		spin_unlock_irq(&sa1100_rtc_lock);
-		return 0;
 	case RTC_UIE_OFF:
 		spin_lock_irq(&sa1100_rtc_lock);
 		RTSR &= ~RTSR_HZE;
@@ -336,6 +326,17 @@ static int sa1100_rtc_ioctl(struct device *dev, unsigned int cmd,
 		return 0;
 	}
 	return -ENOIOCTLCMD;
+}
+
+static int sa1100_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
+{
+	spin_lock_irq(&sa1100_rtc_lock);
+	if (enabled)
+		RTSR |= RTSR_ALE;
+	else
+		RTSR &= ~RTSR_ALE;
+	spin_unlock_irq(&sa1100_rtc_lock);
+	return 0;
 }
 
 static int sa1100_rtc_read_time(struct device *dev, struct rtc_time *tm)
@@ -410,6 +411,7 @@ static const struct rtc_class_ops sa1100_rtc_ops = {
 	.proc = sa1100_rtc_proc,
 	.irq_set_freq = sa1100_irq_set_freq,
 	.irq_set_state = sa1100_irq_set_state,
+	.alarm_irq_enable = sa1100_rtc_alarm_irq_enable,
 };
 
 static int sa1100_rtc_probe(struct platform_device *pdev)

@@ -490,7 +490,7 @@ static int parse_digital_input(struct hda_codec *codec)
  * create mixer controls
  */
 
-static const char *dir_sfx[2] = { "Playback", "Capture" };
+static const char * const dir_sfx[2] = { "Playback", "Capture" };
 
 static int add_mute(struct hda_codec *codec, const char *name, int index,
 		    unsigned int pval, int dir, struct snd_kcontrol **kctlp)
@@ -1039,9 +1039,11 @@ static struct hda_verb cs_errata_init_verbs[] = {
 	{0x11, AC_VERB_SET_PROC_COEF, 0x0008},
 	{0x11, AC_VERB_SET_PROC_STATE, 0x00},
 
+#if 0 /* Don't to set to D3 as we are in power-up sequence */
 	{0x07, AC_VERB_SET_POWER_STATE, 0x03}, /* S/PDIF Rx: D3 */
 	{0x08, AC_VERB_SET_POWER_STATE, 0x03}, /* S/PDIF Tx: D3 */
 	/*{0x01, AC_VERB_SET_POWER_STATE, 0x03},*/ /* AFG: D3 This is already handled */
+#endif
 
 	{} /* terminator */
 };
@@ -1156,7 +1158,7 @@ static int cs_parse_auto_config(struct hda_codec *codec)
 	return 0;
 }
 
-static const char *cs420x_models[CS420X_MODELS] = {
+static const char * const cs420x_models[CS420X_MODELS] = {
 	[CS420X_MBP53] = "mbp53",
 	[CS420X_MBP55] = "mbp55",
 	[CS420X_IMAC27] = "imac27",

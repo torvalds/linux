@@ -31,8 +31,9 @@ static inline bool is_quota_modification(struct inode *inode, struct iattr *ia)
 #define quota_error(sb, fmt, args...) \
 	__quota_error((sb), __func__, fmt , ## args)
 
-extern void __quota_error(struct super_block *sb, const char *func,
-			 const char *fmt, ...);
+extern __attribute__((format (printf, 3, 4)))
+void __quota_error(struct super_block *sb, const char *func,
+		   const char *fmt, ...);
 
 /*
  * declaration of quota_function calls in kernel.
@@ -75,11 +76,9 @@ int dquot_mark_dquot_dirty(struct dquot *dquot);
 
 int dquot_file_open(struct inode *inode, struct file *file);
 
-int dquot_quota_on(struct super_block *sb, int type, int format_id,
-	char *path);
 int dquot_enable(struct inode *inode, int type, int format_id,
 	unsigned int flags);
-int dquot_quota_on_path(struct super_block *sb, int type, int format_id,
+int dquot_quota_on(struct super_block *sb, int type, int format_id,
  	struct path *path);
 int dquot_quota_on_mount(struct super_block *sb, char *qf_name,
  	int format_id, int type);

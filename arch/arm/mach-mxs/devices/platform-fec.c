@@ -45,6 +45,6 @@ struct platform_device *__init mxs_add_fec(
 		},
 	};
 
-	return mxs_add_platform_device("fec", data->id,
+	return mxs_add_platform_device("imx28-fec", data->id,
 			res, ARRAY_SIZE(res), pdata, sizeof(*pdata));
 }

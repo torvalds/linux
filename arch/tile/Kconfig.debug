@@ -3,7 +3,7 @@ menu "Kernel hacking"
 source "lib/Kconfig.debug"
 
 config EARLY_PRINTK
-	bool "Early printk" if EMBEDDED && DEBUG_KERNEL
+	bool "Early printk" if EXPERT && DEBUG_KERNEL
 	default y
 	help
 	  Write kernel log output directly via the hypervisor console.

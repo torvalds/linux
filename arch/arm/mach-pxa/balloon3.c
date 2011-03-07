@@ -477,25 +477,25 @@ static inline void balloon3_leds_init(void) {}
 /******************************************************************************
  * FPGA IRQ
  ******************************************************************************/
-static void balloon3_mask_irq(unsigned int irq)
+static void balloon3_mask_irq(struct irq_data *d)
 {
-	int balloon3_irq = (irq - BALLOON3_IRQ(0));
+	int balloon3_irq = (d->irq - BALLOON3_IRQ(0));
 	balloon3_irq_enabled &= ~(1 << balloon3_irq);
 	__raw_writel(~balloon3_irq_enabled, BALLOON3_INT_CONTROL_REG);
 }
 
-static void balloon3_unmask_irq(unsigned int irq)
+static void balloon3_unmask_irq(struct irq_data *d)
 {
-	int balloon3_irq = (irq - BALLOON3_IRQ(0));
+	int balloon3_irq = (d->irq - BALLOON3_IRQ(0));
 	balloon3_irq_enabled |= (1 << balloon3_irq);
 	__raw_writel(~balloon3_irq_enabled, BALLOON3_INT_CONTROL_REG);
 }
 
 static struct irq_chip balloon3_irq_chip = {
 	.name		= "FPGA",
-	.ack		= balloon3_mask_irq,
-	.mask		= balloon3_mask_irq,
-	.unmask		= balloon3_unmask_irq,
+	.irq_ack	= balloon3_mask_irq,
+	.irq_mask	= balloon3_mask_irq,
+	.irq_unmask	= balloon3_unmask_irq,
 };
 
 static void balloon3_irq_handler(unsigned int irq, struct irq_desc *desc)
@@ -504,8 +504,13 @@ static void balloon3_irq_handler(unsigned int irq, struct irq_desc *desc)
 					balloon3_irq_enabled;
 	do {
 		/* clear useless edge notification */
-		if (desc->chip->ack)
-			desc->chip->ack(BALLOON3_AUX_NIRQ);
+		if (desc->irq_data.chip->irq_ack) {
+			struct irq_data *d;
+
+			d = irq_get_irq_data(BALLOON3_AUX_NIRQ);
+			desc->irq_data.chip->irq_ack(d);
+		}
+
 		while (pending) {
 			irq = BALLOON3_IRQ(0) + __ffs(pending);
 			generic_handle_irq(irq);

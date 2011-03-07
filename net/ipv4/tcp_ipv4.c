@@ -1994,7 +1994,6 @@ static void *listening_get_next(struct seq_file *seq, void *cur)
 				}
 				req = req->dl_next;
 			}
-			st->offset = 0;
 			if (++st->sbucket >= icsk->icsk_accept_queue.listen_opt->nr_table_entries)
 				break;
 get_req:

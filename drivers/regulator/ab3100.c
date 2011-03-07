@@ -362,7 +362,8 @@ static int ab3100_get_best_voltage_index(struct regulator_dev *reg,
 }
 
 static int ab3100_set_voltage_regulator(struct regulator_dev *reg,
-					int min_uV, int max_uV)
+					int min_uV, int max_uV,
+					unsigned *selector)
 {
 	struct ab3100_regulator *abreg = reg->reg_data;
 	u8 regval;
@@ -372,6 +373,8 @@ static int ab3100_set_voltage_regulator(struct regulator_dev *reg,
 	bestindex = ab3100_get_best_voltage_index(reg, min_uV, max_uV);
 	if (bestindex < 0)
 		return bestindex;
+
+	*selector = bestindex;
 
 	err = abx500_get_register_interruptible(abreg->dev, 0,
 						abreg->regreg, &regval);

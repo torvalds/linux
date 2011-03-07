@@ -361,12 +361,6 @@ static struct pm860x_irq_data pm860x_irqs[] = {
 	},
 };
 
-static inline struct pm860x_irq_data *irq_to_pm860x(struct pm860x_chip *chip,
-						    int irq)
-{
-	return &pm860x_irqs[irq - chip->irq_base];
-}
-
 static irqreturn_t pm860x_irq(int irq, void *data)
 {
 	struct pm860x_chip *chip = data;
@@ -388,16 +382,16 @@ static irqreturn_t pm860x_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void pm860x_irq_lock(unsigned int irq)
+static void pm860x_irq_lock(struct irq_data *data)
 {
-	struct pm860x_chip *chip = get_irq_chip_data(irq);
+	struct pm860x_chip *chip = irq_data_get_irq_chip_data(data);
 
 	mutex_lock(&chip->irq_lock);
 }
 
-static void pm860x_irq_sync_unlock(unsigned int irq)
+static void pm860x_irq_sync_unlock(struct irq_data *data)
 {
-	struct pm860x_chip *chip = get_irq_chip_data(irq);
+	struct pm860x_chip *chip = irq_data_get_irq_chip_data(data);
 	struct pm860x_irq_data *irq_data;
 	struct i2c_client *i2c;
 	static unsigned char cached[3] = {0x0, 0x0, 0x0};
@@ -439,25 +433,25 @@ static void pm860x_irq_sync_unlock(unsigned int irq)
 	mutex_unlock(&chip->irq_lock);
 }
 
-static void pm860x_irq_enable(unsigned int irq)
+static void pm860x_irq_enable(struct irq_data *data)
 {
-	struct pm860x_chip *chip = get_irq_chip_data(irq);
-	pm860x_irqs[irq - chip->irq_base].enable
-		= pm860x_irqs[irq - chip->irq_base].offs;
+	struct pm860x_chip *chip = irq_data_get_irq_chip_data(data);
+	pm860x_irqs[data->irq - chip->irq_base].enable
+		= pm860x_irqs[data->irq - chip->irq_base].offs;
 }
 
-static void pm860x_irq_disable(unsigned int irq)
+static void pm860x_irq_disable(struct irq_data *data)
 {
-	struct pm860x_chip *chip = get_irq_chip_data(irq);
-	pm860x_irqs[irq - chip->irq_base].enable = 0;
+	struct pm860x_chip *chip = irq_data_get_irq_chip_data(data);
+	pm860x_irqs[data->irq - chip->irq_base].enable = 0;
 }
 
 static struct irq_chip pm860x_irq_chip = {
 	.name		= "88pm860x",
-	.bus_lock	= pm860x_irq_lock,
-	.bus_sync_unlock = pm860x_irq_sync_unlock,
-	.enable		= pm860x_irq_enable,
-	.disable	= pm860x_irq_disable,
+	.irq_bus_lock	= pm860x_irq_lock,
+	.irq_bus_sync_unlock = pm860x_irq_sync_unlock,
+	.irq_enable	= pm860x_irq_enable,
+	.irq_disable	= pm860x_irq_disable,
 };
 
 static int __devinit device_gpadc_init(struct pm860x_chip *chip,

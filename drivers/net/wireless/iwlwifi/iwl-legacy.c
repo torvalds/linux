@@ -619,7 +619,7 @@ unplugged:
 
 none:
 	/* re-enable interrupts here since we don't have anything to service. */
-	/* only Re-enable if diabled by irq */
+	/* only Re-enable if disabled by irq */
 	if (test_bit(STATUS_INT_ENABLED, &priv->status))
 		iwl_enable_interrupts(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);

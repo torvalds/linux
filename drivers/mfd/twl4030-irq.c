@@ -599,38 +599,38 @@ static void twl4030_sih_do_edge(struct work_struct *work)
  * completion, potentially including some re-ordering, of these requests.
  */
 
-static void twl4030_sih_mask(unsigned irq)
+static void twl4030_sih_mask(struct irq_data *data)
 {
-	struct sih_agent *sih = get_irq_chip_data(irq);
+	struct sih_agent *sih = irq_data_get_irq_chip_data(data);
 	unsigned long flags;
 
 	spin_lock_irqsave(&sih_agent_lock, flags);
-	sih->imr |= BIT(irq - sih->irq_base);
+	sih->imr |= BIT(data->irq - sih->irq_base);
 	sih->imr_change_pending = true;
 	queue_work(wq, &sih->mask_work);
 	spin_unlock_irqrestore(&sih_agent_lock, flags);
 }
 
-static void twl4030_sih_unmask(unsigned irq)
+static void twl4030_sih_unmask(struct irq_data *data)
 {
-	struct sih_agent *sih = get_irq_chip_data(irq);
+	struct sih_agent *sih = irq_data_get_irq_chip_data(data);
 	unsigned long flags;
 
 	spin_lock_irqsave(&sih_agent_lock, flags);
-	sih->imr &= ~BIT(irq - sih->irq_base);
+	sih->imr &= ~BIT(data->irq - sih->irq_base);
 	sih->imr_change_pending = true;
 	queue_work(wq, &sih->mask_work);
 	spin_unlock_irqrestore(&sih_agent_lock, flags);
 }
 
-static int twl4030_sih_set_type(unsigned irq, unsigned trigger)
+static int twl4030_sih_set_type(struct irq_data *data, unsigned trigger)
 {
-	struct sih_agent *sih = get_irq_chip_data(irq);
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct sih_agent *sih = irq_data_get_irq_chip_data(data);
+	struct irq_desc *desc = irq_to_desc(data->irq);
 	unsigned long flags;
 
 	if (!desc) {
-		pr_err("twl4030: Invalid IRQ: %d\n", irq);
+		pr_err("twl4030: Invalid IRQ: %d\n", data->irq);
 		return -EINVAL;
 	}
 
@@ -641,7 +641,7 @@ static int twl4030_sih_set_type(unsigned irq, unsigned trigger)
 	if ((desc->status & IRQ_TYPE_SENSE_MASK) != trigger) {
 		desc->status &= ~IRQ_TYPE_SENSE_MASK;
 		desc->status |= trigger;
-		sih->edge_change |= BIT(irq - sih->irq_base);
+		sih->edge_change |= BIT(data->irq - sih->irq_base);
 		queue_work(wq, &sih->edge_work);
 	}
 	spin_unlock_irqrestore(&sih_agent_lock, flags);
@@ -650,9 +650,9 @@ static int twl4030_sih_set_type(unsigned irq, unsigned trigger)
 
 static struct irq_chip twl4030_sih_irq_chip = {
 	.name		= "twl4030",
-	.mask		= twl4030_sih_mask,
-	.unmask		= twl4030_sih_unmask,
-	.set_type	= twl4030_sih_set_type,
+	.irq_mask      	= twl4030_sih_mask,
+	.irq_unmask	= twl4030_sih_unmask,
+	.irq_set_type	= twl4030_sih_set_type,
 };
 
 /*----------------------------------------------------------------------*/

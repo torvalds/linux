@@ -125,7 +125,7 @@ static u32 dscc4_pci_config_store[16];
 /* Module parameters */
 
 MODULE_AUTHOR("Maintainer: Francois Romieu <romieu@cogenit.fr>");
-MODULE_DESCRIPTION("Siemens PEB20534 PCI Controler");
+MODULE_DESCRIPTION("Siemens PEB20534 PCI Controller");
 MODULE_LICENSE("GPL");
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug,"Enable/disable extra messages");

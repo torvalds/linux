@@ -614,6 +614,10 @@ static int smb_fill_super(struct super_block *sb, void *raw_data, int silent)
 		printk(KERN_ERR "smbfs: failed to start smbiod\n");
 		goto out_no_smbiod;
 	}
+	if (server->mnt->flags & SMB_MOUNT_CASE)
+		sb->s_d_op = &smbfs_dentry_operations_case;
+	else
+		sb->s_d_op = &smbfs_dentry_operations;
 
 	/*
 	 * Keep the super block locked while we get the root inode.

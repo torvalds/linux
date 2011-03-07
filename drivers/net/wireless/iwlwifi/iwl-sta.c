@@ -107,7 +107,7 @@ static int iwl_process_add_sta_resp(struct iwl_priv *priv,
 	/*
 	 * XXX: The MAC address in the command buffer is often changed from
 	 * the original sent to the device. That is, the MAC address
-	 * written to the command buffer often is not the same MAC adress
+	 * written to the command buffer often is not the same MAC address
 	 * read from the command buffer when the command returns. This
 	 * issue has not yet been resolved and this debugging is left to
 	 * observe the problem.

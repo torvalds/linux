@@ -72,6 +72,8 @@ static inline int desc_node(struct irq_desc *desc) { return 0; }
 
 static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node)
 {
+	int cpu;
+
 	desc->irq_data.irq = irq;
 	desc->irq_data.chip = &no_irq_chip;
 	desc->irq_data.chip_data = NULL;
@@ -83,7 +85,8 @@ static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node)
 	desc->irq_count = 0;
 	desc->irqs_unhandled = 0;
 	desc->name = NULL;
-	memset(desc->kstat_irqs, 0, nr_cpu_ids * sizeof(*(desc->kstat_irqs)));
+	for_each_possible_cpu(cpu)
+		*per_cpu_ptr(desc->kstat_irqs, cpu) = 0;
 	desc_smp_init(desc, node);
 }
 
@@ -91,7 +94,7 @@ int nr_irqs = NR_IRQS;
 EXPORT_SYMBOL_GPL(nr_irqs);
 
 static DEFINE_MUTEX(sparse_irq_lock);
-static DECLARE_BITMAP(allocated_irqs, NR_IRQS);
+static DECLARE_BITMAP(allocated_irqs, IRQ_BITMAP_BITS);
 
 #ifdef CONFIG_SPARSE_IRQ
 
@@ -133,8 +136,7 @@ static struct irq_desc *alloc_desc(int irq, int node)
 	if (!desc)
 		return NULL;
 	/* allocate based on nr_cpu_ids */
-	desc->kstat_irqs = kzalloc_node(nr_cpu_ids * sizeof(*desc->kstat_irqs),
-					 gfp, node);
+	desc->kstat_irqs = alloc_percpu(unsigned int);
 	if (!desc->kstat_irqs)
 		goto err_desc;
 
@@ -149,7 +151,7 @@ static struct irq_desc *alloc_desc(int irq, int node)
 	return desc;
 
 err_kstat:
-	kfree(desc->kstat_irqs);
+	free_percpu(desc->kstat_irqs);
 err_desc:
 	kfree(desc);
 	return NULL;
@@ -166,7 +168,7 @@ static void free_desc(unsigned int irq)
 	mutex_unlock(&sparse_irq_lock);
 
 	free_masks(desc);
-	kfree(desc->kstat_irqs);
+	free_percpu(desc->kstat_irqs);
 	kfree(desc);
 }
 
@@ -215,6 +217,15 @@ int __init early_irq_init(void)
 	initcnt = arch_probe_nr_irqs();
 	printk(KERN_INFO "NR_IRQS:%d nr_irqs:%d %d\n", NR_IRQS, nr_irqs, initcnt);
 
+	if (WARN_ON(nr_irqs > IRQ_BITMAP_BITS))
+		nr_irqs = IRQ_BITMAP_BITS;
+
+	if (WARN_ON(initcnt > IRQ_BITMAP_BITS))
+		initcnt = IRQ_BITMAP_BITS;
+
+	if (initcnt > nr_irqs)
+		nr_irqs = initcnt;
+
 	for (i = 0; i < initcnt; i++) {
 		desc = alloc_desc(i, node);
 		set_bit(i, allocated_irqs);
@@ -234,7 +245,6 @@ struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 	}
 };
 
-static unsigned int kstat_irqs_all[NR_IRQS][NR_CPUS];
 int __init early_irq_init(void)
 {
 	int count, i, node = first_online_node;
@@ -250,7 +260,8 @@ int __init early_irq_init(void)
 	for (i = 0; i < count; i++) {
 		desc[i].irq_data.irq = i;
 		desc[i].irq_data.chip = &no_irq_chip;
-		desc[i].kstat_irqs = kstat_irqs_all[i];
+		/* TODO : do this allocation on-demand ... */
+		desc[i].kstat_irqs = alloc_percpu(unsigned int);
 		alloc_masks(desc + i, GFP_KERNEL, node);
 		desc_smp_init(desc + i, node);
 		lockdep_set_class(&desc[i].lock, &irq_desc_lock_class);
@@ -275,6 +286,22 @@ static void free_desc(unsigned int irq)
 
 static inline int alloc_descs(unsigned int start, unsigned int cnt, int node)
 {
+#if defined(CONFIG_KSTAT_IRQS_ONDEMAND)
+	struct irq_desc *desc;
+	unsigned int i;
+
+	for (i = 0; i < cnt; i++) {
+		desc = irq_to_desc(start + i);
+		if (desc && !desc->kstat_irqs) {
+			unsigned int __percpu *stats = alloc_percpu(unsigned int);
+
+			if (!stats)
+				return -1;
+			if (cmpxchg(&desc->kstat_irqs, NULL, stats) != NULL)
+				free_percpu(stats);
+		}
+	}
+#endif
 	return start;
 }
 #endif /* !CONFIG_SPARSE_IRQ */
@@ -391,7 +418,9 @@ void dynamic_irq_cleanup(unsigned int irq)
 unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
-	return desc ? desc->kstat_irqs[cpu] : 0;
+
+	return desc && desc->kstat_irqs ?
+			*per_cpu_ptr(desc->kstat_irqs, cpu) : 0;
 }
 
 #ifdef CONFIG_GENERIC_HARDIRQS
@@ -401,10 +430,10 @@ unsigned int kstat_irqs(unsigned int irq)
 	int cpu;
 	int sum = 0;
 
-	if (!desc)
+	if (!desc || !desc->kstat_irqs)
 		return 0;
 	for_each_possible_cpu(cpu)
-		sum += desc->kstat_irqs[cpu];
+		sum += *per_cpu_ptr(desc->kstat_irqs, cpu);
 	return sum;
 }
 #endif /* CONFIG_GENERIC_HARDIRQS */

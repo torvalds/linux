@@ -15,6 +15,7 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
@@ -23,7 +24,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
@@ -158,7 +158,6 @@ static struct {
 struct wm9081_priv {
 	enum snd_soc_control_type control_type;
 	void *control_data;
-	u16 reg_cache[WM9081_MAX_REGISTER + 1];
 	int sysclk_source;
 	int mclk_rate;
 	int sysclk_rate;
@@ -591,6 +590,10 @@ static int wm9081_set_fll(struct snd_soc_codec *codec, int fll_id,
 	reg5 |= fll_div.fll_clk_ref_div << WM9081_FLL_CLK_REF_DIV_SHIFT;
 	snd_soc_write(codec, WM9081_FLL_CONTROL_5, reg5);
 
+	/* Set gain to the recommended value */
+	snd_soc_update_bits(codec, WM9081_FLL_CONTROL_4,
+			    WM9081_FLL_GAIN_MASK, 0);
+
 	/* Enable the FLL */
 	snd_soc_write(codec, WM9081_FLL_CONTROL_1, reg1 | WM9081_FLL_ENA);
 
@@ -805,7 +808,7 @@ static int wm9081_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_STANDBY:
 		/* Initial cold start */
-		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			/* Disable LINEOUT discharge */
 			reg = snd_soc_read(codec, WM9081_ANTI_POP_CONTROL);
 			reg &= ~WM9081_LINEOUT_DISCH;
@@ -865,7 +868,7 @@ static int wm9081_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 
 	return 0;
 }
@@ -1228,6 +1231,7 @@ static struct snd_soc_dai_driver wm9081_dai = {
 static int wm9081_probe(struct snd_soc_codec *codec)
 {
 	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 	u16 reg;
 
@@ -1269,9 +1273,9 @@ static int wm9081_probe(struct snd_soc_codec *codec)
 				     ARRAY_SIZE(wm9081_eq_controls));
 	}
 
-	snd_soc_dapm_new_controls(codec, wm9081_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, wm9081_dapm_widgets,
 				  ARRAY_SIZE(wm9081_dapm_widgets));
-	snd_soc_dapm_add_routes(codec, audio_paths, ARRAY_SIZE(audio_paths));
+	snd_soc_dapm_add_routes(dapm, audio_paths, ARRAY_SIZE(audio_paths));
 
 	return ret;
 }
@@ -1337,6 +1341,10 @@ static __devinit int wm9081_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(i2c, wm9081);
 	wm9081->control_type = SND_SOC_I2C;
 	wm9081->control_data = i2c;
+
+	if (dev_get_platdata(&i2c->dev))
+		memcpy(&wm9081->retune, dev_get_platdata(&i2c->dev),
+		       sizeof(wm9081->retune));
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm9081, &wm9081_dai, 1);

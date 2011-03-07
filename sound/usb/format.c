@@ -76,7 +76,10 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 		format = 1 << UAC_FORMAT_TYPE_I_PCM;
 	}
 	if (format & (1 << UAC_FORMAT_TYPE_I_PCM)) {
-		if (sample_width > sample_bytes * 8) {
+		if (chip->usb_id == USB_ID(0x0582, 0x0016) /* Edirol SD-90 */ &&
+		    sample_width == 24 && sample_bytes == 2)
+			sample_bytes = 3;
+		else if (sample_width > sample_bytes * 8) {
 			snd_printk(KERN_INFO "%d:%u:%d : sample bitwidth %d in over sample bytes %d\n",
 				   chip->dev->devnum, fp->iface, fp->altsetting,
 				   sample_width, sample_bytes);

@@ -28,7 +28,6 @@
 #include <media/videobuf-vmalloc.h>
 
 #include "xc5000.h"
-#include "dvb_dummy_fe.h"
 #include "s5h1432.h"
 #include "tda18271.h"
 #include "s5h1411.h"
@@ -619,7 +618,7 @@ static int dvb_init(struct cx231xx *dev)
 
 		if (dev->dvb->frontend == NULL) {
 			printk(DRIVER_NAME
-			       ": Failed to attach dummy front end\n");
+			       ": Failed to attach s5h1411 front end\n");
 			result = -EINVAL;
 			goto out_free;
 		}
@@ -665,7 +664,7 @@ static int dvb_init(struct cx231xx *dev)
 
 		if (dev->dvb->frontend == NULL) {
 			printk(DRIVER_NAME
-			       ": Failed to attach dummy front end\n");
+			       ": Failed to attach s5h1411 front end\n");
 			result = -EINVAL;
 			goto out_free;
 		}

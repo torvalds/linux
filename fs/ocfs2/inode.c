@@ -434,7 +434,7 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 	 * #1 and #2 can be simply solved by never taking the lock
 	 * here for system files (which are the only type we read
 	 * during mount). It's a heavier approach, but our main
-	 * concern is user-accesible files anyway.
+	 * concern is user-accessible files anyway.
 	 *
 	 * #3 works itself out because we'll eventually take the
 	 * cluster lock before trusting anything anyway.

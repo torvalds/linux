@@ -38,6 +38,8 @@ extern void smb_install_null_ops(struct smb_ops *ops);
 extern const struct file_operations smb_dir_operations;
 extern const struct inode_operations smb_dir_inode_operations;
 extern const struct inode_operations smb_dir_inode_operations_unix;
+extern const struct dentry_operations smbfs_dentry_operations_case;
+extern const struct dentry_operations smbfs_dentry_operations;
 extern void smb_new_dentry(struct dentry *dentry);
 extern void smb_renew_times(struct dentry *dentry);
 /* cache.c */

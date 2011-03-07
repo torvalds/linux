@@ -460,8 +460,6 @@ redo_bucket:
 		}
 		cond_resched_lock(&dlm->spinlock);
 		num += n;
-		mlog(0, "%s: touched %d lockreses in bucket %d "
-		     "(tot=%d)\n", dlm->name, n, i, num);
 	}
 	spin_unlock(&dlm->spinlock);
 	wake_up(&dlm->dlm_thread_wq);
@@ -1661,8 +1659,8 @@ bail:
 
 static void dlm_unregister_domain_handlers(struct dlm_ctxt *dlm)
 {
-	o2hb_unregister_callback(NULL, &dlm->dlm_hb_up);
-	o2hb_unregister_callback(NULL, &dlm->dlm_hb_down);
+	o2hb_unregister_callback(dlm->name, &dlm->dlm_hb_up);
+	o2hb_unregister_callback(dlm->name, &dlm->dlm_hb_down);
 	o2net_unregister_handler_list(&dlm->dlm_domain_handlers);
 }
 
@@ -1674,13 +1672,13 @@ static int dlm_register_domain_handlers(struct dlm_ctxt *dlm)
 
 	o2hb_setup_callback(&dlm->dlm_hb_down, O2HB_NODE_DOWN_CB,
 			    dlm_hb_node_down_cb, dlm, DLM_HB_NODE_DOWN_PRI);
-	status = o2hb_register_callback(NULL, &dlm->dlm_hb_down);
+	status = o2hb_register_callback(dlm->name, &dlm->dlm_hb_down);
 	if (status)
 		goto bail;
 
 	o2hb_setup_callback(&dlm->dlm_hb_up, O2HB_NODE_UP_CB,
 			    dlm_hb_node_up_cb, dlm, DLM_HB_NODE_UP_PRI);
-	status = o2hb_register_callback(NULL, &dlm->dlm_hb_up);
+	status = o2hb_register_callback(dlm->name, &dlm->dlm_hb_up);
 	if (status)
 		goto bail;
 

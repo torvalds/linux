@@ -1,5 +1,5 @@
 /*
- * card driver for models with WM8776/WM8766 DACs (Xonar DS)
+ * card driver for models with WM8776/WM8766 DACs (Xonar DS/HDAV1.3 Slim)
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
  *
@@ -22,26 +22,48 @@
  *
  * CMI8788:
  *
- * SPI 0 -> WM8766 (surround, center/LFE, back)
- * SPI 1 -> WM8776 (front, input)
+ *   SPI 0 -> WM8766 (surround, center/LFE, back)
+ *   SPI 1 -> WM8776 (front, input)
  *
- * GPIO 4 <- headphone detect, 0 = plugged
- * GPIO 6 -> route input jack to mic-in (0) or line-in (1)
- * GPIO 7 -> enable output to front L/R speaker channels
- * GPIO 8 -> enable output to other speaker channels and front panel headphone
+ *   GPIO 4 <- headphone detect, 0 = plugged
+ *   GPIO 6 -> route input jack to mic-in (0) or line-in (1)
+ *   GPIO 7 -> enable output to front L/R speaker channels
+ *   GPIO 8 -> enable output to other speaker channels and front panel headphone
  *
- * WM8766:
+ * WM8776:
  *
- * input 1 <- line
- * input 2 <- mic
- * input 3 <- front mic
- * input 4 <- aux
+ *   input 1 <- line
+ *   input 2 <- mic
+ *   input 3 <- front mic
+ *   input 4 <- aux
+ */
+
+/*
+ * Xonar HDAV1.3 Slim
+ * ------------------
+ *
+ * CMI8788:
+ *
+ *   I²C <-> WM8776 (addr 0011010)
+ *
+ *   GPIO 0  -> disable HDMI output
+ *   GPIO 1  -> enable HP output
+ *   GPIO 6  -> firmware EEPROM I²C clock
+ *   GPIO 7 <-> firmware EEPROM I²C data
+ *
+ *   UART <-> HDMI controller
+ *
+ * WM8776:
+ *
+ *   input 1 <- mic
+ *   input 2 <- aux
  */
 
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <sound/control.h>
 #include <sound/core.h>
+#include <sound/info.h>
 #include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -55,6 +77,13 @@
 #define GPIO_DS_OUTPUT_FRONTLR	0x0080
 #define GPIO_DS_OUTPUT_ENABLE	0x0100
 
+#define GPIO_SLIM_HDMI_DISABLE	0x0001
+#define GPIO_SLIM_OUTPUT_ENABLE	0x0002
+#define GPIO_SLIM_FIRMWARE_CLK	0x0040
+#define GPIO_SLIM_FIRMWARE_DATA	0x0080
+
+#define I2C_DEVICE_WM8776	0x34	/* 001101, 0, /W=0 */
+
 #define LC_CONTROL_LIMITER	0x40000000
 #define LC_CONTROL_ALC		0x20000000
 
@@ -66,19 +95,37 @@ struct xonar_wm87x6 {
 	struct snd_kcontrol *mic_adcmux_control;
 	struct snd_kcontrol *lc_controls[13];
 	struct snd_jack *hp_jack;
+	struct xonar_hdmi hdmi;
 };
 
-static void wm8776_write(struct oxygen *chip,
-			 unsigned int reg, unsigned int value)
+static void wm8776_write_spi(struct oxygen *chip,
+			     unsigned int reg, unsigned int value)
 {
-	struct xonar_wm87x6 *data = chip->model_data;
-
 	oxygen_write_spi(chip, OXYGEN_SPI_TRIGGER |
 			 OXYGEN_SPI_DATA_LENGTH_2 |
 			 OXYGEN_SPI_CLOCK_160 |
 			 (1 << OXYGEN_SPI_CODEC_SHIFT) |
 			 OXYGEN_SPI_CEN_LATCH_CLOCK_LO,
 			 (reg << 9) | value);
+}
+
+static void wm8776_write_i2c(struct oxygen *chip,
+			     unsigned int reg, unsigned int value)
+{
+	oxygen_write_i2c(chip, I2C_DEVICE_WM8776,
+			 (reg << 1) | (value >> 8), value);
+}
+
+static void wm8776_write(struct oxygen *chip,
+			 unsigned int reg, unsigned int value)
+{
+	struct xonar_wm87x6 *data = chip->model_data;
+
+	if ((chip->model.function_flags & OXYGEN_FUNCTION_2WIRE_SPI_MASK) ==
+	    OXYGEN_FUNCTION_SPI)
+		wm8776_write_spi(chip, reg, value);
+	else
+		wm8776_write_i2c(chip, reg, value);
 	if (reg < ARRAY_SIZE(data->wm8776_regs)) {
 		if (reg >= WM8776_HPLVOL && reg <= WM8776_DACMASTER)
 			value &= ~WM8776_UPDATE;
@@ -245,15 +292,48 @@ static void xonar_ds_init(struct oxygen *chip)
 	snd_component_add(chip->card, "WM8766");
 }
 
+static void xonar_hdav_slim_init(struct oxygen *chip)
+{
+	struct xonar_wm87x6 *data = chip->model_data;
+
+	data->generic.anti_pop_delay = 300;
+	data->generic.output_enable_bit = GPIO_SLIM_OUTPUT_ENABLE;
+
+	wm8776_init(chip);
+
+	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL,
+			  GPIO_SLIM_HDMI_DISABLE |
+			  GPIO_SLIM_FIRMWARE_CLK |
+			  GPIO_SLIM_FIRMWARE_DATA);
+
+	xonar_hdmi_init(chip, &data->hdmi);
+	xonar_enable_output(chip);
+
+	snd_component_add(chip->card, "WM8776");
+}
+
 static void xonar_ds_cleanup(struct oxygen *chip)
 {
 	xonar_disable_output(chip);
 	wm8776_write(chip, WM8776_RESET, 0);
 }
 
+static void xonar_hdav_slim_cleanup(struct oxygen *chip)
+{
+	xonar_hdmi_cleanup(chip);
+	xonar_disable_output(chip);
+	wm8776_write(chip, WM8776_RESET, 0);
+	msleep(2);
+}
+
 static void xonar_ds_suspend(struct oxygen *chip)
 {
 	xonar_ds_cleanup(chip);
+}
+
+static void xonar_hdav_slim_suspend(struct oxygen *chip)
+{
+	xonar_hdav_slim_cleanup(chip);
 }
 
 static void xonar_ds_resume(struct oxygen *chip)
@@ -262,6 +342,15 @@ static void xonar_ds_resume(struct oxygen *chip)
 	wm8766_registers_init(chip);
 	xonar_enable_output(chip);
 	xonar_ds_handle_hp_jack(chip);
+}
+
+static void xonar_hdav_slim_resume(struct oxygen *chip)
+{
+	struct xonar_wm87x6 *data = chip->model_data;
+
+	wm8776_registers_init(chip);
+	xonar_hdmi_resume(chip, &data->hdmi);
+	xonar_enable_output(chip);
 }
 
 static void wm8776_adc_hardware_filter(unsigned int channel,
@@ -278,6 +367,13 @@ static void wm8776_adc_hardware_filter(unsigned int channel,
 	}
 }
 
+static void xonar_hdav_slim_hardware_filter(unsigned int channel,
+					    struct snd_pcm_hardware *hardware)
+{
+	wm8776_adc_hardware_filter(channel, hardware);
+	xonar_hdmi_pcm_hardware_filter(channel, hardware);
+}
+
 static void set_wm87x6_dac_params(struct oxygen *chip,
 				  struct snd_pcm_hw_params *params)
 {
@@ -292,6 +388,14 @@ static void set_wm8776_adc_params(struct oxygen *chip,
 	if (params_rate(params) > 48000)
 		reg |= WM8776_ADCOSR;
 	wm8776_write_cached(chip, WM8776_MSTRCTRL, reg);
+}
+
+static void set_hdav_slim_dac_params(struct oxygen *chip,
+				     struct snd_pcm_hw_params *params)
+{
+	struct xonar_wm87x6 *data = chip->model_data;
+
+	xonar_set_hdmi_params(chip, &data->hdmi, params);
 }
 
 static void update_wm8776_volume(struct oxygen *chip)
@@ -473,11 +577,6 @@ static int wm8776_field_enum_info(struct snd_kcontrol *ctl,
 	const char *const *names;
 
 	max = (ctl->private_value >> 12) & 0xf;
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = max + 1;
-	if (info->value.enumerated.item > max)
-		info->value.enumerated.item = max;
 	switch ((ctl->private_value >> 24) & 0x1f) {
 	case WM8776_ALCCTRL2:
 		names = hld;
@@ -501,8 +600,7 @@ static int wm8776_field_enum_info(struct snd_kcontrol *ctl,
 	default:
 		return -ENXIO;
 	}
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(info, 1, max + 1, names);
 }
 
 static int wm8776_field_volume_info(struct snd_kcontrol *ctl,
@@ -759,13 +857,8 @@ static int wm8776_level_control_info(struct snd_kcontrol *ctl,
 	static const char *const names[3] = {
 		"None", "Peak Limiter", "Automatic Level Control"
 	};
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = 3;
-	if (info->value.enumerated.item >= 3)
-		info->value.enumerated.item = 2;
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
+
+	return snd_ctl_enum_info(info, 1, 3, names);
 }
 
 static int wm8776_level_control_get(struct snd_kcontrol *ctl,
@@ -851,13 +944,7 @@ static int hpf_info(struct snd_kcontrol *ctl, struct snd_ctl_elem_info *info)
 		"None", "High-pass Filter"
 	};
 
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = 2;
-	if (info->value.enumerated.item >= 2)
-		info->value.enumerated.item = 1;
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(info, 1, 2, names);
 }
 
 static int hpf_get(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
@@ -985,6 +1072,53 @@ static const struct snd_kcontrol_new ds_controls[] = {
 		.private_value = 0,
 	},
 };
+static const struct snd_kcontrol_new hdav_slim_controls[] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "HDMI Playback Switch",
+		.info = snd_ctl_boolean_mono_info,
+		.get = xonar_gpio_bit_switch_get,
+		.put = xonar_gpio_bit_switch_put,
+		.private_value = GPIO_SLIM_HDMI_DISABLE | XONAR_GPIO_BIT_INVERT,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Headphone Playback Volume",
+		.info = wm8776_hp_vol_info,
+		.get = wm8776_hp_vol_get,
+		.put = wm8776_hp_vol_put,
+		.tlv = { .p = wm8776_hp_db_scale },
+	},
+	WM8776_BIT_SWITCH("Headphone Playback Switch",
+			  WM8776_PWRDOWN, WM8776_HPPD, 1, 0),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Input Capture Volume",
+		.info = wm8776_input_vol_info,
+		.get = wm8776_input_vol_get,
+		.put = wm8776_input_vol_put,
+		.tlv = { .p = wm8776_adc_db_scale },
+	},
+	WM8776_BIT_SWITCH("Mic Capture Switch",
+			  WM8776_ADCMUX, 1 << 0, 0, 0),
+	WM8776_BIT_SWITCH("Aux Capture Switch",
+			  WM8776_ADCMUX, 1 << 1, 0, 0),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "ADC Filter Capture Enum",
+		.info = hpf_info,
+		.get = hpf_get,
+		.put = hpf_put,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Level Control Capture Enum",
+		.info = wm8776_level_control_info,
+		.get = wm8776_level_control_get,
+		.put = wm8776_level_control_put,
+		.private_value = 0,
+	},
+};
 static const struct snd_kcontrol_new lc_controls[] = {
 	WM8776_FIELD_CTL_VOLUME("Limiter Threshold",
 				WM8776_ALCCTRL1, 0, 11, 0, 15, 0xf,
@@ -1028,6 +1162,26 @@ static const struct snd_kcontrol_new lc_controls[] = {
 				LC_CONTROL_ALC, wm8776_ngth_db_scale),
 };
 
+static int add_lc_controls(struct oxygen *chip)
+{
+	struct xonar_wm87x6 *data = chip->model_data;
+	unsigned int i;
+	struct snd_kcontrol *ctl;
+	int err;
+
+	BUILD_BUG_ON(ARRAY_SIZE(lc_controls) != ARRAY_SIZE(data->lc_controls));
+	for (i = 0; i < ARRAY_SIZE(lc_controls); ++i) {
+		ctl = snd_ctl_new1(&lc_controls[i], chip);
+		if (!ctl)
+			return -ENOMEM;
+		err = snd_ctl_add(chip->card, ctl);
+		if (err < 0)
+			return err;
+		data->lc_controls[i] = ctl;
+	}
+	return 0;
+}
+
 static int xonar_ds_mixer_init(struct oxygen *chip)
 {
 	struct xonar_wm87x6 *data = chip->model_data;
@@ -1049,17 +1203,54 @@ static int xonar_ds_mixer_init(struct oxygen *chip)
 	}
 	if (!data->line_adcmux_control || !data->mic_adcmux_control)
 		return -ENXIO;
-	BUILD_BUG_ON(ARRAY_SIZE(lc_controls) != ARRAY_SIZE(data->lc_controls));
-	for (i = 0; i < ARRAY_SIZE(lc_controls); ++i) {
-		ctl = snd_ctl_new1(&lc_controls[i], chip);
+
+	return add_lc_controls(chip);
+}
+
+static int xonar_hdav_slim_mixer_init(struct oxygen *chip)
+{
+	unsigned int i;
+	struct snd_kcontrol *ctl;
+	int err;
+
+	for (i = 0; i < ARRAY_SIZE(hdav_slim_controls); ++i) {
+		ctl = snd_ctl_new1(&hdav_slim_controls[i], chip);
 		if (!ctl)
 			return -ENOMEM;
 		err = snd_ctl_add(chip->card, ctl);
 		if (err < 0)
 			return err;
-		data->lc_controls[i] = ctl;
 	}
-	return 0;
+
+	return add_lc_controls(chip);
+}
+
+static void dump_wm8776_registers(struct oxygen *chip,
+				  struct snd_info_buffer *buffer)
+{
+	struct xonar_wm87x6 *data = chip->model_data;
+	unsigned int i;
+
+	snd_iprintf(buffer, "\nWM8776:\n00:");
+	for (i = 0; i < 0x10; ++i)
+		snd_iprintf(buffer, " %03x", data->wm8776_regs[i]);
+	snd_iprintf(buffer, "\n10:");
+	for (i = 0x10; i < 0x17; ++i)
+		snd_iprintf(buffer, " %03x", data->wm8776_regs[i]);
+	snd_iprintf(buffer, "\n");
+}
+
+static void dump_wm87x6_registers(struct oxygen *chip,
+				  struct snd_info_buffer *buffer)
+{
+	struct xonar_wm87x6 *data = chip->model_data;
+	unsigned int i;
+
+	dump_wm8776_registers(chip, buffer);
+	snd_iprintf(buffer, "\nWM8766:\n00:");
+	for (i = 0; i < 0x10; ++i)
+		snd_iprintf(buffer, " %03x", data->wm8766_regs[i]);
+	snd_iprintf(buffer, "\n");
 }
 
 static const struct oxygen_model model_xonar_ds = {
@@ -1072,22 +1263,57 @@ static const struct oxygen_model model_xonar_ds = {
 	.suspend = xonar_ds_suspend,
 	.resume = xonar_ds_resume,
 	.pcm_hardware_filter = wm8776_adc_hardware_filter,
-	.get_i2s_mclk = oxygen_default_i2s_mclk,
 	.set_dac_params = set_wm87x6_dac_params,
 	.set_adc_params = set_wm8776_adc_params,
 	.update_dac_volume = update_wm87x6_volume,
 	.update_dac_mute = update_wm87x6_mute,
 	.update_center_lfe_mix = update_wm8766_center_lfe_mix,
 	.gpio_changed = xonar_ds_gpio_changed,
+	.dump_registers = dump_wm87x6_registers,
 	.dac_tlv = wm87x6_dac_db_scale,
 	.model_data_size = sizeof(struct xonar_wm87x6),
 	.device_config = PLAYBACK_0_TO_I2S |
 			 PLAYBACK_1_TO_SPDIF |
 			 CAPTURE_0_FROM_I2S_1,
-	.dac_channels = 8,
+	.dac_channels_pcm = 8,
+	.dac_channels_mixer = 8,
 	.dac_volume_min = 255 - 2*60,
 	.dac_volume_max = 255,
 	.function_flags = OXYGEN_FUNCTION_SPI,
+	.dac_mclks = OXYGEN_MCLKS(256, 256, 128),
+	.adc_mclks = OXYGEN_MCLKS(256, 256, 128),
+	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
+	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
+};
+
+static const struct oxygen_model model_xonar_hdav_slim = {
+	.shortname = "Xonar HDAV1.3 Slim",
+	.longname = "Asus Virtuoso 200",
+	.chip = "AV200",
+	.init = xonar_hdav_slim_init,
+	.mixer_init = xonar_hdav_slim_mixer_init,
+	.cleanup = xonar_hdav_slim_cleanup,
+	.suspend = xonar_hdav_slim_suspend,
+	.resume = xonar_hdav_slim_resume,
+	.pcm_hardware_filter = xonar_hdav_slim_hardware_filter,
+	.set_dac_params = set_hdav_slim_dac_params,
+	.set_adc_params = set_wm8776_adc_params,
+	.update_dac_volume = update_wm8776_volume,
+	.update_dac_mute = update_wm8776_mute,
+	.uart_input = xonar_hdmi_uart_input,
+	.dump_registers = dump_wm8776_registers,
+	.dac_tlv = wm87x6_dac_db_scale,
+	.model_data_size = sizeof(struct xonar_wm87x6),
+	.device_config = PLAYBACK_0_TO_I2S |
+			 PLAYBACK_1_TO_SPDIF |
+			 CAPTURE_0_FROM_I2S_1,
+	.dac_channels_pcm = 8,
+	.dac_channels_mixer = 2,
+	.dac_volume_min = 255 - 2*60,
+	.dac_volume_max = 255,
+	.function_flags = OXYGEN_FUNCTION_2WIRE,
+	.dac_mclks = OXYGEN_MCLKS(256, 256, 128),
+	.adc_mclks = OXYGEN_MCLKS(256, 256, 128),
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
@@ -1098,6 +1324,9 @@ int __devinit get_xonar_wm87x6_model(struct oxygen *chip,
 	switch (id->subdevice) {
 	case 0x838e:
 		chip->model = model_xonar_ds;
+		break;
+	case 0x835e:
+		chip->model = model_xonar_hdav_slim;
 		break;
 	default:
 		return -EINVAL;

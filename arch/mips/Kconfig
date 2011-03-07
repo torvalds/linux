@@ -21,6 +21,7 @@ config MIPS
 	select HAVE_DMA_API_DEBUG
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_PROBE
+	select HAVE_ARCH_JUMP_LABEL
 
 menu "Machine selection"
 
@@ -64,6 +65,22 @@ config AR7
 	help
 	  Support for the Texas Instruments AR7 System-on-a-Chip
 	  family: TNETD7100, 7200 and 7300.
+
+config ATH79
+	bool "Atheros AR71XX/AR724X/AR913X based boards"
+	select ARCH_REQUIRE_GPIOLIB
+	select BOOT_RAW
+	select CEVT_R4K
+	select CSRC_R4K
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select MIPS_MACHINE
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_HAS_EARLY_PRINTK
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_BIG_ENDIAN
+	help
+	  Support for the Atheros AR71XX/AR724X/AR913X SoCs.
 
 config BCM47XX
 	bool "Broadcom BCM47XX based boards"
@@ -717,6 +734,7 @@ config CAVIUM_OCTEON_REFERENCE_BOARD
 endchoice
 
 source "arch/mips/alchemy/Kconfig"
+source "arch/mips/ath79/Kconfig"
 source "arch/mips/bcm63xx/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/jz4740/Kconfig"
@@ -774,9 +792,6 @@ config GENERIC_CMOS_UPDATE
 config SCHED_OMIT_FRAME_POINTER
 	bool
 	default y
-
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	def_bool y
 
 #
 # Select some configuration options automatically based on user selections.
@@ -882,6 +897,9 @@ config MIPS_DISABLE_OBSOLETE_IDE
 
 config SYNC_R4K
 	bool
+
+config MIPS_MACHINE
+	def_bool n
 
 config NO_IOPORT
 	def_bool n
@@ -2218,7 +2236,7 @@ config SECCOMP
 config USE_OF
 	bool "Flattened Device Tree support"
 	select OF
-	select OF_FLATTREE
+	select OF_EARLY_FLATTREE
 	help
 	  Include support for flattened device tree machine descriptions.
 
@@ -2399,5 +2417,21 @@ source "arch/mips/Kconfig.debug"
 source "security/Kconfig"
 
 source "crypto/Kconfig"
+
+menuconfig VIRTUALIZATION
+	bool "Virtualization"
+	default n
+	---help---
+	  Say Y here to get to see options for using your Linux host to run other
+	  operating systems inside virtual machines (guests).
+	  This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
+
+if VIRTUALIZATION
+
+source drivers/virtio/Kconfig
+
+endif # VIRTUALIZATION
 
 source "lib/Kconfig"

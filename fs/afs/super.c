@@ -336,6 +336,7 @@ static int afs_fill_super(struct super_block *sb, void *data)
 	if (!root)
 		goto error;
 
+	sb->s_d_op = &afs_fs_dentry_operations;
 	sb->s_root = root;
 
 	_leave(" = 0");

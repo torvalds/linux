@@ -16,3 +16,14 @@ config MMC_UNSAFE_RESUME
 
 	  This option sets a default which can be overridden by the
 	  module parameter "removable=0" or "removable=1".
+
+config MMC_CLKGATE
+	bool "MMC host clock gating (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  This will attempt to aggressively gate the clock to the MMC card.
+	  This is done to save power due to gating off the logic and bus
+	  noise when the MMC card is not in use. Your host driver has to
+	  support handling this in order for it to be of any use.
+
+	  If unsure, say N.

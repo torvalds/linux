@@ -16,9 +16,7 @@
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/sunrpc/svcauth_gss.h>
-#if defined(CONFIG_NFS_V4_1)
 #include <linux/sunrpc/bc_xprt.h>
-#endif
 
 #include <net/inet_sock.h>
 
@@ -177,30 +175,38 @@ nfs41_callback_svc(void *vrqstp)
 struct svc_rqst *
 nfs41_callback_up(struct svc_serv *serv, struct rpc_xprt *xprt)
 {
-	struct svc_xprt *bc_xprt;
-	struct svc_rqst *rqstp = ERR_PTR(-ENOMEM);
+	struct svc_rqst *rqstp;
+	int ret;
 
-	dprintk("--> %s\n", __func__);
-	/* Create a svc_sock for the service */
-	bc_xprt = svc_sock_create(serv, xprt->prot);
-	if (!bc_xprt)
+	/*
+	 * Create an svc_sock for the back channel service that shares the
+	 * fore channel connection.
+	 * Returns the input port (0) and sets the svc_serv bc_xprt on success
+	 */
+	ret = svc_create_xprt(serv, "tcp-bc", &init_net, PF_INET, 0,
+			      SVC_SOCK_ANONYMOUS);
+	if (ret < 0) {
+		rqstp = ERR_PTR(ret);
 		goto out;
+	}
 
 	/*
 	 * Save the svc_serv in the transport so that it can
 	 * be referenced when the session backchannel is initialized
 	 */
-	serv->bc_xprt = bc_xprt;
 	xprt->bc_serv = serv;
 
 	INIT_LIST_HEAD(&serv->sv_cb_list);
 	spin_lock_init(&serv->sv_cb_lock);
 	init_waitqueue_head(&serv->sv_cb_waitq);
 	rqstp = svc_prepare_thread(serv, &serv->sv_pools[0]);
-	if (IS_ERR(rqstp))
-		svc_sock_destroy(bc_xprt);
+	if (IS_ERR(rqstp)) {
+		svc_xprt_put(serv->sv_bc_xprt);
+		serv->sv_bc_xprt = NULL;
+	}
 out:
-	dprintk("--> %s return %p\n", __func__, rqstp);
+	dprintk("--> %s return %ld\n", __func__,
+		IS_ERR(rqstp) ? PTR_ERR(rqstp) : 0);
 	return rqstp;
 }
 
@@ -322,58 +328,58 @@ void nfs_callback_down(int minorversion)
 	mutex_unlock(&nfs_callback_mutex);
 }
 
-static int check_gss_callback_principal(struct nfs_client *clp,
-					struct svc_rqst *rqstp)
+/* Boolean check of RPC_AUTH_GSS principal */
+int
+check_gss_callback_principal(struct nfs_client *clp, struct svc_rqst *rqstp)
 {
 	struct rpc_clnt *r = clp->cl_rpcclient;
 	char *p = svc_gss_principal(rqstp);
 
+	if (rqstp->rq_authop->flavour != RPC_AUTH_GSS)
+		return 1;
+
+	/* No RPC_AUTH_GSS on NFSv4.1 back channel yet */
+	if (clp->cl_minorversion != 0)
+		return 0;
 	/*
 	 * It might just be a normal user principal, in which case
 	 * userspace won't bother to tell us the name at all.
 	 */
 	if (p == NULL)
-		return SVC_DENIED;
+		return 0;
 
 	/* Expect a GSS_C_NT_HOSTBASED_NAME like "nfs@serverhostname" */
 
 	if (memcmp(p, "nfs@", 4) != 0)
-		return SVC_DENIED;
+		return 0;
 	p += 4;
 	if (strcmp(p, r->cl_server) != 0)
-		return SVC_DENIED;
-	return SVC_OK;
+		return 0;
+	return 1;
 }
 
+/*
+ * pg_authenticate method for nfsv4 callback threads.
+ *
+ * The authflavor has been negotiated, so an incorrect flavor is a server
+ * bug. Drop packets with incorrect authflavor.
+ *
+ * All other checking done after NFS decoding where the nfs_client can be
+ * found in nfs4_callback_compound
+ */
 static int nfs_callback_authenticate(struct svc_rqst *rqstp)
 {
-	struct nfs_client *clp;
-	RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
-	int ret = SVC_OK;
-
-	/* Don't talk to strangers */
-	clp = nfs_find_client(svc_addr(rqstp), 4);
-	if (clp == NULL)
-		return SVC_DROP;
-
-	dprintk("%s: %s NFSv4 callback!\n", __func__,
-			svc_print_addr(rqstp, buf, sizeof(buf)));
-
 	switch (rqstp->rq_authop->flavour) {
-		case RPC_AUTH_NULL:
-			if (rqstp->rq_proc != CB_NULL)
-				ret = SVC_DENIED;
-			break;
-		case RPC_AUTH_UNIX:
-			break;
-		case RPC_AUTH_GSS:
-			ret = check_gss_callback_principal(clp, rqstp);
-			break;
-		default:
-			ret = SVC_DENIED;
+	case RPC_AUTH_NULL:
+		if (rqstp->rq_proc != CB_NULL)
+			return SVC_DROP;
+		break;
+	case RPC_AUTH_GSS:
+		/* No RPC_AUTH_GSS support yet in NFSv4.1 */
+		 if (svc_is_backchannel(rqstp))
+			return SVC_DROP;
 	}
-	nfs_put_client(clp);
-	return ret;
+	return SVC_OK;
 }
 
 /*

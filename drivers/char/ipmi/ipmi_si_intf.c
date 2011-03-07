@@ -57,6 +57,7 @@
 #include <asm/irq.h>
 #include <linux/interrupt.h>
 #include <linux/rcupdate.h>
+#include <linux/ipmi.h>
 #include <linux/ipmi_smi.h>
 #include <asm/io.h>
 #include "ipmi_si_sm.h"
@@ -69,6 +70,8 @@
 #ifdef CONFIG_PPC_OF
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #endif
 
 #define PFX "ipmi_si: "
@@ -107,10 +110,6 @@ enum si_type {
 };
 static char *si_to_str[] = { "kcs", "smic", "bt" };
 
-enum ipmi_addr_src {
-	SI_INVALID = 0, SI_HOTMOD, SI_HARDCODED, SI_SPMI, SI_ACPI, SI_SMBIOS,
-	SI_PCI,	SI_DEVICETREE, SI_DEFAULT
-};
 static char *ipmi_addr_src_to_str[] = { NULL, "hotmod", "hardcoded", "SPMI",
 					"ACPI", "SMBIOS", "PCI",
 					"device-tree", "default" };
@@ -291,6 +290,7 @@ struct smi_info {
 	struct task_struct *thread;
 
 	struct list_head link;
+	union ipmi_smi_info_union addr_info;
 };
 
 #define smi_inc_stat(smi, stat) \
@@ -320,6 +320,7 @@ static int unload_when_empty = 1;
 static int add_smi(struct smi_info *smi);
 static int try_smi_init(struct smi_info *smi);
 static void cleanup_one_si(struct smi_info *to_clean);
+static void cleanup_ipmi_si(void);
 
 static ATOMIC_NOTIFIER_HEAD(xaction_notifier_list);
 static int register_xaction_notifier(struct notifier_block *nb)
@@ -1186,6 +1187,18 @@ static int smi_start_processing(void       *send_info,
 	return 0;
 }
 
+static int get_smi_info(void *send_info, struct ipmi_smi_info *data)
+{
+	struct smi_info *smi = send_info;
+
+	data->addr_src = smi->addr_source;
+	data->dev = smi->dev;
+	data->addr_info = smi->addr_info;
+	get_device(smi->dev);
+
+	return 0;
+}
+
 static void set_maintenance_mode(void *send_info, int enable)
 {
 	struct smi_info   *smi_info = send_info;
@@ -1197,6 +1210,7 @@ static void set_maintenance_mode(void *send_info, int enable)
 static struct ipmi_smi_handlers handlers = {
 	.owner                  = THIS_MODULE,
 	.start_processing       = smi_start_processing,
+	.get_smi_info		= get_smi_info,
 	.sender			= sender,
 	.request_events		= request_events,
 	.set_maintenance_mode   = set_maintenance_mode,
@@ -1928,7 +1942,8 @@ static void __devinit hardcode_find_bmc(void)
 static int acpi_failure;
 
 /* For GPE-type interrupts. */
-static u32 ipmi_acpi_gpe(void *context)
+static u32 ipmi_acpi_gpe(acpi_handle gpe_device,
+	u32 gpe_number, void *context)
 {
 	struct smi_info *smi_info = context;
 	unsigned long   flags;
@@ -2156,6 +2171,7 @@ static int __devinit ipmi_pnp_probe(struct pnp_dev *dev,
 	printk(KERN_INFO PFX "probing via ACPI\n");
 
 	handle = acpi_dev->handle;
+	info->addr_info.acpi_info.acpi_handle = handle;
 
 	/* _IFT tells us the interface type: KCS, BT, etc */
 	status = acpi_evaluate_integer(handle, "_IFT", NULL, &tmp);
@@ -2546,7 +2562,7 @@ static int __devinit ipmi_of_probe(struct platform_device *dev,
 {
 	struct smi_info *info;
 	struct resource resource;
-	const int *regsize, *regspacing, *regshift;
+	const __be32 *regsize, *regspacing, *regshift;
 	struct device_node *np = dev->dev.of_node;
 	int ret;
 	int proplen;
@@ -2599,9 +2615,9 @@ static int __devinit ipmi_of_probe(struct platform_device *dev,
 
 	info->io.addr_data	= resource.start;
 
-	info->io.regsize	= regsize ? *regsize : DEFAULT_REGSIZE;
-	info->io.regspacing	= regspacing ? *regspacing : DEFAULT_REGSPACING;
-	info->io.regshift	= regshift ? *regshift : 0;
+	info->io.regsize	= regsize ? be32_to_cpup(regsize) : DEFAULT_REGSIZE;
+	info->io.regspacing	= regspacing ? be32_to_cpup(regspacing) : DEFAULT_REGSPACING;
+	info->io.regshift	= regshift ? be32_to_cpup(regshift) : 0;
 
 	info->irq		= irq_of_parse_and_map(dev->dev.of_node, 0);
 	info->dev		= &dev->dev;
@@ -3435,16 +3451,7 @@ static int __devinit init_ipmi_si(void)
 	mutex_lock(&smi_infos_lock);
 	if (unload_when_empty && list_empty(&smi_infos)) {
 		mutex_unlock(&smi_infos_lock);
-#ifdef CONFIG_PCI
-		if (pci_registered)
-			pci_unregister_driver(&ipmi_pci_driver);
-#endif
-
-#ifdef CONFIG_PPC_OF
-		if (of_registered)
-			of_unregister_platform_driver(&ipmi_of_platform_driver);
-#endif
-		driver_unregister(&ipmi_driver.driver);
+		cleanup_ipmi_si();
 		printk(KERN_WARNING PFX
 		       "Unable to find any System Interface(s)\n");
 		return -ENODEV;

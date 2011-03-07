@@ -480,9 +480,6 @@ int vmw_fb_init(struct vmw_private *vmw_priv)
 	info->fix.smem_start = 0;
 	info->fix.smem_len = fb_size;
 
-	info->fix.mmio_start = 0;
-	info->fix.mmio_len = 0;
-
 	info->pseudo_palette = par->pseudo_palette;
 	info->screen_base = par->vmalloc;
 	info->screen_size = fb_size;

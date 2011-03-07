@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -533,7 +533,7 @@ s32 e1000e_check_for_fiber_link(struct e1000_hw *hw)
 			mac->autoneg_failed = 1;
 			return 0;
 		}
-		e_dbg("NOT RXing /C/, disable AutoNeg and force link.\n");
+		e_dbg("NOT Rx'ing /C/, disable AutoNeg and force link.\n");
 
 		/* Disable auto-negotiation in the TXCW register */
 		ew32(TXCW, (mac->txcw & ~E1000_TXCW_ANE));
@@ -556,7 +556,7 @@ s32 e1000e_check_for_fiber_link(struct e1000_hw *hw)
 		 * and disable forced link in the Device Control register
 		 * in an attempt to auto-negotiate with our link partner.
 		 */
-		e_dbg("RXing /C/, enable AutoNeg and stop forcing link.\n");
+		e_dbg("Rx'ing /C/, enable AutoNeg and stop forcing link.\n");
 		ew32(TXCW, mac->txcw);
 		ew32(CTRL, (ctrl & ~E1000_CTRL_SLU));
 
@@ -598,7 +598,7 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
 			mac->autoneg_failed = 1;
 			return 0;
 		}
-		e_dbg("NOT RXing /C/, disable AutoNeg and force link.\n");
+		e_dbg("NOT Rx'ing /C/, disable AutoNeg and force link.\n");
 
 		/* Disable auto-negotiation in the TXCW register */
 		ew32(TXCW, (mac->txcw & ~E1000_TXCW_ANE));
@@ -621,7 +621,7 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
 		 * and disable forced link in the Device Control register
 		 * in an attempt to auto-negotiate with our link partner.
 		 */
-		e_dbg("RXing /C/, enable AutoNeg and stop forcing link.\n");
+		e_dbg("Rx'ing /C/, enable AutoNeg and stop forcing link.\n");
 		ew32(TXCW, mac->txcw);
 		ew32(CTRL, (ctrl & ~E1000_CTRL_SLU));
 
@@ -800,9 +800,9 @@ static s32 e1000_commit_fc_settings_generic(struct e1000_hw *hw)
 	 * The possible values of the "fc" parameter are:
 	 *      0:  Flow control is completely disabled
 	 *      1:  Rx flow control is enabled (we can receive pause frames,
-	 *	  but not send pause frames).
+	 *          but not send pause frames).
 	 *      2:  Tx flow control is enabled (we can send pause frames but we
-	 *	  do not support receiving pause frames).
+	 *          do not support receiving pause frames).
 	 *      3:  Both Rx and Tx flow control (symmetric) are enabled.
 	 */
 	switch (hw->fc.current_mode) {
@@ -1031,9 +1031,9 @@ s32 e1000e_force_mac_fc(struct e1000_hw *hw)
 	 * The possible values of the "fc" parameter are:
 	 *      0:  Flow control is completely disabled
 	 *      1:  Rx flow control is enabled (we can receive pause
-	 *	  frames but not send pause frames).
+	 *          frames but not send pause frames).
 	 *      2:  Tx flow control is enabled (we can send pause frames
-	 *	  frames but we do not receive pause frames).
+	 *          frames but we do not receive pause frames).
 	 *      3:  Both Rx and Tx flow control (symmetric) is enabled.
 	 *  other:  No other values should be possible at this point.
 	 */
@@ -1135,7 +1135,8 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 		ret_val = e1e_rphy(hw, PHY_AUTONEG_ADV, &mii_nway_adv_reg);
 		if (ret_val)
 			return ret_val;
-		ret_val = e1e_rphy(hw, PHY_LP_ABILITY, &mii_nway_lp_ability_reg);
+		ret_val =
+		    e1e_rphy(hw, PHY_LP_ABILITY, &mii_nway_lp_ability_reg);
 		if (ret_val)
 			return ret_val;
 
@@ -1188,7 +1189,7 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 			} else {
 				hw->fc.current_mode = e1000_fc_rx_pause;
 				e_dbg("Flow Control = "
-					 "RX PAUSE frames only.\r\n");
+				      "Rx PAUSE frames only.\r\n");
 			}
 		}
 		/*

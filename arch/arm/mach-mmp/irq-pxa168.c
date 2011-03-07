@@ -25,21 +25,21 @@
 #define PRIORITY_DEFAULT	0x1
 #define PRIORITY_NONE		0x0	/* means IRQ disabled */
 
-static void icu_mask_irq(unsigned int irq)
+static void icu_mask_irq(struct irq_data *d)
 {
-	__raw_writel(PRIORITY_NONE, ICU_INT_CONF(irq));
+	__raw_writel(PRIORITY_NONE, ICU_INT_CONF(d->irq));
 }
 
-static void icu_unmask_irq(unsigned int irq)
+static void icu_unmask_irq(struct irq_data *d)
 {
-	__raw_writel(IRQ_ROUTE_TO_AP | PRIORITY_DEFAULT, ICU_INT_CONF(irq));
+	__raw_writel(IRQ_ROUTE_TO_AP | PRIORITY_DEFAULT, ICU_INT_CONF(d->irq));
 }
 
 static struct irq_chip icu_irq_chip = {
-	.name	= "icu_irq",
-	.ack	= icu_mask_irq,
-	.mask	= icu_mask_irq,
-	.unmask	= icu_unmask_irq,
+	.name		= "icu_irq",
+	.irq_ack	= icu_mask_irq,
+	.irq_mask	= icu_mask_irq,
+	.irq_unmask	= icu_unmask_irq,
 };
 
 void __init icu_init_irq(void)
@@ -47,7 +47,7 @@ void __init icu_init_irq(void)
 	int irq;
 
 	for (irq = 0; irq < 64; irq++) {
-		icu_mask_irq(irq);
+		icu_mask_irq(irq_get_irq_data(irq));
 		set_irq_chip(irq, &icu_irq_chip);
 		set_irq_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);

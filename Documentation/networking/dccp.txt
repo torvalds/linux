@@ -38,11 +38,11 @@ The Linux DCCP implementation does not currently support all the features that a
 specified in RFCs 4340...42.
 
 The known bugs are at:
-	http://linux-net.osdl.org/index.php/TODO#DCCP
+	http://www.linuxfoundation.org/collaborate/workgroups/networking/todo#DCCP
 
 For more up-to-date versions of the DCCP implementation, please consider using
 the experimental DCCP test tree; instructions for checking this out are on:
-http://linux-net.osdl.org/index.php/DCCP_Testing#Experimental_DCCP_source_tree
+http://www.linuxfoundation.org/collaborate/workgroups/networking/dccp_testing#Experimental_DCCP_source_tree
 
 
 Socket options
@@ -167,6 +167,7 @@ rx_ccid = 2
 seq_window = 100
 	The initial sequence window (sec. 7.5.2) of the sender. This influences
 	the local ackno validity and the remote seqno validity windows (7.5.1).
+	Values in the range Wmin = 32 (RFC 4340, 7.5.2) up to 2^32-1 can be set.
 
 tx_qlen = 5
 	The size of the transmit buffer in packets. A value of 0 corresponds

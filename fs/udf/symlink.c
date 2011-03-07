@@ -27,7 +27,6 @@
 #include <linux/mm.h>
 #include <linux/stat.h>
 #include <linux/pagemap.h>
-#include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include "udf_i.h"
 
@@ -78,13 +77,16 @@ static int udf_symlink_filler(struct file *file, struct page *page)
 	int err = -EIO;
 	unsigned char *p = kmap(page);
 	struct udf_inode_info *iinfo;
+	uint32_t pos;
 
-	lock_kernel();
 	iinfo = UDF_I(inode);
+	pos = udf_block_map(inode, 0);
+
+	down_read(&iinfo->i_data_sem);
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 		symlink = iinfo->i_ext.i_data + iinfo->i_lenEAttr;
 	} else {
-		bh = sb_bread(inode->i_sb, udf_block_map(inode, 0));
+		bh = sb_bread(inode->i_sb, pos);
 
 		if (!bh)
 			goto out;
@@ -95,14 +97,14 @@ static int udf_symlink_filler(struct file *file, struct page *page)
 	udf_pc_to_char(inode->i_sb, symlink, inode->i_size, p);
 	brelse(bh);
 
-	unlock_kernel();
+	up_read(&iinfo->i_data_sem);
 	SetPageUptodate(page);
 	kunmap(page);
 	unlock_page(page);
 	return 0;
 
 out:
-	unlock_kernel();
+	up_read(&iinfo->i_data_sem);
 	SetPageError(page);
 	kunmap(page);
 	unlock_page(page);

@@ -1153,18 +1153,27 @@ intel_dp_signal_levels(uint8_t train_set, int lane_count)
 static uint32_t
 intel_gen6_edp_signal_levels(uint8_t train_set)
 {
-	switch (train_set & (DP_TRAIN_VOLTAGE_SWING_MASK|DP_TRAIN_PRE_EMPHASIS_MASK)) {
+	int signal_levels = train_set & (DP_TRAIN_VOLTAGE_SWING_MASK |
+					 DP_TRAIN_PRE_EMPHASIS_MASK);
+	switch (signal_levels) {
 	case DP_TRAIN_VOLTAGE_SWING_400 | DP_TRAIN_PRE_EMPHASIS_0:
-		return EDP_LINK_TRAIN_400MV_0DB_SNB_B;
+	case DP_TRAIN_VOLTAGE_SWING_600 | DP_TRAIN_PRE_EMPHASIS_0:
+		return EDP_LINK_TRAIN_400_600MV_0DB_SNB_B;
+	case DP_TRAIN_VOLTAGE_SWING_400 | DP_TRAIN_PRE_EMPHASIS_3_5:
+		return EDP_LINK_TRAIN_400MV_3_5DB_SNB_B;
 	case DP_TRAIN_VOLTAGE_SWING_400 | DP_TRAIN_PRE_EMPHASIS_6:
-		return EDP_LINK_TRAIN_400MV_6DB_SNB_B;
+	case DP_TRAIN_VOLTAGE_SWING_600 | DP_TRAIN_PRE_EMPHASIS_6:
+		return EDP_LINK_TRAIN_400_600MV_6DB_SNB_B;
 	case DP_TRAIN_VOLTAGE_SWING_600 | DP_TRAIN_PRE_EMPHASIS_3_5:
-		return EDP_LINK_TRAIN_600MV_3_5DB_SNB_B;
+	case DP_TRAIN_VOLTAGE_SWING_800 | DP_TRAIN_PRE_EMPHASIS_3_5:
+		return EDP_LINK_TRAIN_600_800MV_3_5DB_SNB_B;
 	case DP_TRAIN_VOLTAGE_SWING_800 | DP_TRAIN_PRE_EMPHASIS_0:
-		return EDP_LINK_TRAIN_800MV_0DB_SNB_B;
+	case DP_TRAIN_VOLTAGE_SWING_1200 | DP_TRAIN_PRE_EMPHASIS_0:
+		return EDP_LINK_TRAIN_800_1200MV_0DB_SNB_B;
 	default:
-		DRM_DEBUG_KMS("Unsupported voltage swing/pre-emphasis level\n");
-		return EDP_LINK_TRAIN_400MV_0DB_SNB_B;
+		DRM_DEBUG_KMS("Unsupported voltage swing/pre-emphasis level:"
+			      "0x%x\n", signal_levels);
+		return EDP_LINK_TRAIN_400_600MV_0DB_SNB_B;
 	}
 }
 
@@ -1334,16 +1343,23 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool channel_eq = false;
-	int tries;
+	int tries, cr_tries;
 	u32 reg;
 	uint32_t DP = intel_dp->DP;
 
 	/* channel equalization */
 	tries = 0;
+	cr_tries = 0;
 	channel_eq = false;
 	for (;;) {
 		/* Use intel_dp->train_set[0] to set the voltage and pre emphasis values */
 		uint32_t    signal_levels;
+
+		if (cr_tries > 5) {
+			DRM_ERROR("failed to train DP, aborting\n");
+			intel_dp_link_down(intel_dp);
+			break;
+		}
 
 		if (IS_GEN6(dev) && is_edp(intel_dp)) {
 			signal_levels = intel_gen6_edp_signal_levels(intel_dp->train_set[0]);
@@ -1367,14 +1383,26 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 		if (!intel_dp_get_link_status(intel_dp))
 			break;
 
+		/* Make sure clock is still ok */
+		if (!intel_clock_recovery_ok(intel_dp->link_status, intel_dp->lane_count)) {
+			intel_dp_start_link_train(intel_dp);
+			cr_tries++;
+			continue;
+		}
+
 		if (intel_channel_eq_ok(intel_dp)) {
 			channel_eq = true;
 			break;
 		}
 
-		/* Try 5 times */
-		if (tries > 5)
-			break;
+		/* Try 5 times, then try clock recovery if that fails */
+		if (tries > 5) {
+			intel_dp_link_down(intel_dp);
+			intel_dp_start_link_train(intel_dp);
+			tries = 0;
+			cr_tries++;
+			continue;
+		}
 
 		/* Compute new intel_dp->train_set as requested by target */
 		intel_get_adjust_train(intel_dp);
@@ -1442,8 +1470,7 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 		/* Changes to enable or select take place the vblank
 		 * after being written.
 		 */
-		intel_wait_for_vblank(intel_dp->base.base.dev,
-				      intel_crtc->pipe);
+		intel_wait_for_vblank(dev, intel_crtc->pipe);
 	}
 
 	I915_WRITE(intel_dp->output_reg, DP & ~DP_PORT_EN);
@@ -1612,6 +1639,24 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 	return 0;
 }
 
+static bool
+intel_dp_detect_audio(struct drm_connector *connector)
+{
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	struct edid *edid;
+	bool has_audio = false;
+
+	edid = drm_get_edid(connector, &intel_dp->adapter);
+	if (edid) {
+		has_audio = drm_detect_monitor_audio(edid);
+
+		connector->display_info.raw_edid = NULL;
+		kfree(edid);
+	}
+
+	return has_audio;
+}
+
 static int
 intel_dp_set_property(struct drm_connector *connector,
 		      struct drm_property *property,
@@ -1625,17 +1670,23 @@ intel_dp_set_property(struct drm_connector *connector,
 		return ret;
 
 	if (property == intel_dp->force_audio_property) {
-		if (val == intel_dp->force_audio)
+		int i = val;
+		bool has_audio;
+
+		if (i == intel_dp->force_audio)
 			return 0;
 
-		intel_dp->force_audio = val;
+		intel_dp->force_audio = i;
 
-		if (val > 0 && intel_dp->has_audio)
-			return 0;
-		if (val < 0 && !intel_dp->has_audio)
+		if (i == 0)
+			has_audio = intel_dp_detect_audio(connector);
+		else
+			has_audio = i > 0;
+
+		if (has_audio == intel_dp->has_audio)
 			return 0;
 
-		intel_dp->has_audio = val > 0;
+		intel_dp->has_audio = has_audio;
 		goto done;
 	}
 

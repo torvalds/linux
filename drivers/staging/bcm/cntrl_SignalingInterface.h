@@ -2,19 +2,6 @@
 #define CNTRL_SIGNALING_INTERFACE_
 
 
-#ifdef BECEEM_TARGET
-
-#include <mac_common.h>
-#include <msg_Dsa.h>
-#include <msg_Dsc.h>
-#include <msg_Dsd.h>
-#include <sch_definitions.h>
-using namespace Beceem;
-#ifdef ENABLE_CORRIGENDUM2_UPDATE
-extern B_UINT32 g_u32Corr2MacFlags;
-#endif
-
-#else
 
 
 #define DSA_REQ 11
@@ -28,7 +15,6 @@ extern B_UINT32 g_u32Corr2MacFlags;
 #define DSD_ACK 19
 #define MAX_CLASSIFIERS_IN_SF  4
 
-#endif
 
 #define MAX_STRING_LEN 20
 #define MAX_PHS_LENGTHS 255
@@ -57,37 +43,7 @@ extern B_UINT32 g_u32Corr2MacFlags;
 ////////////////////////structure Definitions///////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 /// \brief class cCPacketClassificationRule
-#ifdef BECEEM_TARGET
-class CCPacketClassificationRuleSI{
-	public:
-		/// \brief Constructor for the class
-	CCPacketClassificationRuleSI():
-		u8ClassifierRulePriority(mClassifierRulePriority),
-		u8IPTypeOfServiceLength(mIPTypeOfService),
-		u8Protocol(mProtocol),
-		u8IPMaskedSourceAddressLength(0),
-		u8IPDestinationAddressLength(0),
-		u8ProtocolSourcePortRangeLength(0),
-		u8ProtocolDestPortRangeLength(0),
-		u8EthernetDestMacAddressLength(0),
-		u8EthernetSourceMACAddressLength(0),
-		u8EthertypeLength(0),
-		u16UserPriority(mUserPriority),
-		u16VLANID(mVLANID),
-		u8AssociatedPHSI(mAssociatedPHSI),
-		u16PacketClassificationRuleIndex(mPacketClassifierRuleIndex),
-		u8VendorSpecificClassifierParamLength(mVendorSpecificClassifierParamLength),
-		u8IPv6FlowLableLength(mIPv6FlowLableLength),
-		u8ClassifierActionRule(mClassifierActionRule)
-
-		{}
-              void Reset()
-              {
-                    CCPacketClassificationRuleSI();
-              }
-#else
 struct _stCPacketClassificationRuleSI{
-#endif
 
 	/**  16bit UserPriority Of The Service Flow*/
     B_UINT16                        u16UserPriority;
@@ -145,29 +101,10 @@ struct _stCPacketClassificationRuleSI{
     B_UINT8							u8ClassifierActionRule;
     B_UINT16							u16ValidityBitMap;
 };
-#ifndef BECEEM_TARGET
 typedef struct _stCPacketClassificationRuleSI CCPacketClassificationRuleSI,stCPacketClassificationRuleSI, *pstCPacketClassificationRuleSI;
-#endif
 
 /// \brief class CPhsRuleSI
-#ifdef BECEEM_TARGET
-class CPhsRuleSI{
-	public:
-		/// \brief Constructor for the class
-		CPhsRuleSI():
-			u8PHSI(mPHSI),
-			u8PHSFLength(0),
-			u8PHSMLength(0),
-			u8PHSS(mPHSS),
-			u8PHSV(mPHSV),
-			u8VendorSpecificPHSParamsLength(mVendorSpecificPHSParamLength){}
-                void Reset()
-                {
-        		CPhsRuleSI();
-                }
-#else
 typedef struct _stPhsRuleSI {
-#endif
 	/**  8bit PHS Index Of The Service Flow*/
     B_UINT8                         u8PHSI;
 	/**  PHSF Length Of The Service Flow*/
@@ -188,31 +125,11 @@ typedef struct _stPhsRuleSI {
     B_UINT8                         u8VendorSpecificPHSParams[VENDOR_PHS_PARAM_LENGTH];
 
 	B_UINT8                         u8Padding[2];
-#ifdef BECEEM_TARGET
-};
-#else
 }stPhsRuleSI,*pstPhsRuleSI;
 typedef stPhsRuleSI CPhsRuleSI;
-#endif
 
 /// \brief structure cConvergenceSLTypes
-#ifdef BECEEM_TARGET
-class CConvergenceSLTypes{
-	public:
-		/// \brief Constructor for the class
-		CConvergenceSLTypes():
-		u8ClassfierDSCAction(mClassifierDSCAction),
-		u8PhsDSCAction	(mPhsDSCAction)
-		{}
-              void Reset()
-              {
-                    CConvergenceSLTypes();
-                    cCPacketClassificationRule.Reset();
-                    cPhsRule.Reset();
-              }
-#else
 struct _stConvergenceSLTypes{
-#endif
 	/**  8bit Phs Classfier Action Of The Service Flow*/
     B_UINT8                         u8ClassfierDSCAction;
 	/**  8bit Phs DSC Action Of The Service Flow*/
@@ -220,111 +137,15 @@ struct _stConvergenceSLTypes{
 	/**   16bit Padding */
     B_UINT8                         u8Padding[2];
     /// \brief class cCPacketClassificationRule
-#ifdef BECEEM_TARGET
-    CCPacketClassificationRuleSI      cCPacketClassificationRule;
-#else
     stCPacketClassificationRuleSI     cCPacketClassificationRule;
-#endif
     /// \brief class CPhsRuleSI
-#ifdef BECEEM_TARGET
-    CPhsRuleSI				cPhsRule;
-#else
      struct _stPhsRuleSI		cPhsRule;
-#endif
 };
-#ifndef BECEEM_TARGET
 typedef struct _stConvergenceSLTypes stConvergenceSLTypes,CConvergenceSLTypes, *pstConvergenceSLTypes;
-#endif
 
 
 /// \brief structure CServiceFlowParamSI
-#ifdef BECEEM_TARGET
-class CServiceFlowParamSI{
-	public:
-		/// \brief Constructor for the class
-		CServiceFlowParamSI():
-			u32SFID(mSFid),
-			u16CID(mCid),
-			u8ServiceClassNameLength(mServiceClassNameLength),
-			u8MBSService(mMBSService),
-			u8QosParamSet(mQosParamSetType),
-			u8TrafficPriority(mTrafficPriority),
-			u32MaxSustainedTrafficRate(mMaximumSustainedTrafficRate),
-			u32MaxTrafficBurst(mMaximumTrafficBurst),
-			u32MinReservedTrafficRate(mMinimumReservedTrafficRate),
-			u8ServiceFlowSchedulingType(mServiceFlowSchedulingType),
-			u8RequesttransmissionPolicy(mRequestTransmissionPolicy),
-			u32ToleratedJitter(mToleratedJitter),
-			u32MaximumLatency(mMaximumLatency),
-			u8FixedLengthVSVariableLengthSDUIndicator
-			(mFixedLengthVSVariableLength),
-			u8SDUSize(mSDUSize),
-			u16TargetSAID(mTargetSAID),
-			u8ARQEnable(mARQEnable),
-			u16ARQWindowSize(mARQWindowSize),
-			u16ARQBlockLifeTime(mARQBlockLifeTime),
-			u16ARQSyncLossTimeOut(mARQSyncLossTimeOut),
-			u8ARQDeliverInOrder(mARQDeliverInOrder),
-			u16ARQRxPurgeTimeOut(mARQRXPurgeTimeOut),
-			//Add ARQ BLOCK SIZE, ARQ TX and RX delay initializations here
-			//after we move to only CORR2
-			u8RxARQAckProcessingTime(mRxARQAckProcessingTime),
-			u8CSSpecification(mCSSpecification),
-			u8TypeOfDataDeliveryService(mTypeOfDataDeliveryService),
-			u16SDUInterArrivalTime(mSDUInterArrivalTime),
-			u16TimeBase(mTimeBase),
-			u8PagingPreference(mPagingPreference),
-			u8MBSZoneIdentifierassignment(mMBSZoneIdentifierassignmentLength),
-			u8TrafficIndicationPreference(mTrafficIndicationPreference),
-			u8GlobalServicesClassNameLength(mGlobalServicesClassNameLength),
-			u8SNFeedbackEnabled(mSNFeedbackEnabled),
-			u8FSNSize(mFSNSize),
-			u8CIDAllocation4activeBSsLength(mCIDAllocation4activeBSsLength),
-			u16UnsolicitedGrantInterval(mUnsolicitedGrantInterval),
-			u16UnsolicitedPollingInterval(mUnsolicitedPollingInterval),
-			u8PDUSNExtendedSubheader4HarqReordering(mPDUSNExtendedSubheader4HarqReordering),
-			u8MBSContentsIDLength(mMBSContentsIDLength),
-			u8HARQServiceFlows(mHARQServiceFlows),
-			u8AuthTokenLength(mAuthTokenLength),
-			u8HarqChannelMappingLength(mHarqChannelMappingLength),
-			u8VendorSpecificQoSParamLength(mVendorSpecificQoSParamLength),
-            bValid(FALSE),
-	     u8TotalClassifiers()
-{
-//Remove the bolck after we move to Corr2 only code
-#ifdef ENABLE_CORRIGENDUM2_UPDATE
-	if((g_u32Corr2MacFlags & CORR_2_DSX)  ||  (g_u32Corr2MacFlags & CORR_2_ARQ))
-	{
-	/* IEEE Comment #627 / MTG Comment #426 */
-       	u16ARQBlockSize = mARQBlockSize;
-		if(g_u32Corr2MacFlags & CORR_2_ARQ) {
-			u16ARQRetryTxTimeOut = mARQRetryTimeOutTxDelay;
-			if(g_u32VENDOR_TYPE == VENDOR_ALCATEL) {
-				u16ARQRetryRxTimeOut = mARQRetryTimeOutRxDelay_ALU;
-			} else {
-				u16ARQRetryRxTimeOut = mARQRetryTimeOutRxDelay;
-			}
-		}
-		else
-		{
-			u16ARQRetryTxTimeOut = mARQRetryTimeOutTxDelayCorr1;
-			u16ARQRetryRxTimeOut = mARQRetryTimeOutRxDelayCorr1;
-		}
-	}
-	else
-#endif
-	{
-		u16ARQBlockSize = mARQBlockSizeCorr1;
-		u16ARQRetryTxTimeOut = mARQRetryTimeOutTxDelayCorr1;
-		u16ARQRetryRxTimeOut = mARQRetryTimeOutRxDelayCorr1;
-	}
-}
-
-	void ComputeMacOverhead(B_UINT8	u8SecOvrhead);
-	B_UINT16	GetMacOverhead() { return 	u16MacOverhead; }
-#else
 typedef struct _stServiceFlowParamSI{
-#endif //end of ifdef BECEEM_TARGET
 
      /**  32bitSFID Of The Service Flow*/
     B_UINT32                        u32SFID;
@@ -367,11 +188,6 @@ typedef struct _stServiceFlowParamSI{
 
 	 /**  16bit ARQ Purge timeout */
     B_UINT16                        u16ARQRxPurgeTimeOut;
-#if 0 //def ENABLE_CORRIGENDUM2_UPDATE
-/* IEEE Comment #627 / MTG Comment #426 */
-    /// \brief Size of an ARQ block, changed from 2 bytes to 1
-    B_UINT8                        u8ARQBlockSize;
-#endif
 //TODO::Remove this once we move to a new CORR2 driver
     /// \brief Size of an ARQ block
     B_UINT16                        u16ARQBlockSize;
@@ -496,35 +312,18 @@ typedef struct _stServiceFlowParamSI{
 	B_UINT8							bValid;	/**<  Validity flag */
 	B_UINT8				u8Padding;	 /**<  Padding byte*/
 
-#ifdef BECEEM_TARGET
-/**
-Structure for Convergence SubLayer Types with a maximum of 4 classifiers
-*/
-	CConvergenceSLTypes		cConvergenceSLTypes[MAX_CLASSIFIERS_IN_SF];
-#else
 /**
 Structure for Convergence SubLayer Types with a maximum of 4 classifiers
 */
 	stConvergenceSLTypes		cConvergenceSLTypes[MAX_CLASSIFIERS_IN_SF];
-#endif
 
-#ifdef BECEEM_TARGET
-};
-#else
 } stServiceFlowParamSI, *pstServiceFlowParamSI;
 typedef stServiceFlowParamSI CServiceFlowParamSI;
-#endif
 
 /**
 structure stLocalSFAddRequest
 */
 typedef struct _stLocalSFAddRequest{
-#ifdef BECEEM_TARGET
-	   _stLocalSFAddRequest( ) :
-	   	u8Type(0x00),  eConnectionDir(0x00),
-		u16TID(0x0000), u16CID(0x0000),  u16VCID(0x0000)
-	   		{}
-#endif
 
 	B_UINT8                         u8Type;	/**<  Type*/
 	B_UINT8      eConnectionDir;		/**<  Connection direction*/
@@ -535,19 +334,9 @@ typedef struct _stLocalSFAddRequest{
 	/// \brief 16bitVCID
 	B_UINT16                        u16VCID;	/**<  16bit VCID*/
     /// \brief structure ParameterSet
-#ifdef BECEEM_SIGNALLING_INTERFACE_API
-	CServiceFlowParamSI sfParameterSet;
-#endif
 
-#ifdef BECEEM_TARGET
-    CServiceFlowParamSI              *psfParameterSet;
-#else
 	stServiceFlowParamSI	*psfParameterSet;	/**<  structure ParameterSet*/
-#endif
 
-#ifdef USING_VXWORKS
-    USE_DATA_MEMORY_MANAGER();
-#endif
 }stLocalSFAddRequest, *pstLocalSFAddRequest;
 
 
@@ -555,12 +344,6 @@ typedef struct _stLocalSFAddRequest{
 structure stLocalSFAddIndication
 */
 typedef struct _stLocalSFAddIndication{
-#ifdef BECEEM_TARGET
-	   _stLocalSFAddIndication( ) :
-	   	u8Type(0x00),  eConnectionDir(0x00),
-		u16TID(0x0000), u16CID(0x0000),  u16VCID(0x0000)
-	   		{}
-#endif
 
 	B_UINT8                         u8Type;	/**<  Type*/
 	B_UINT8      eConnectionDir;	/**<  Connection Direction*/
@@ -571,37 +354,19 @@ typedef struct _stLocalSFAddIndication{
     /// \brief 16bitVCID
     B_UINT16                        u16VCID;	 /**<  16bitVCID*/
 
-#ifdef 	BECEEM_SIGNALLING_INTERFACE_API
-	CServiceFlowParamSI              sfAuthorizedSet;
-    /// \brief structure AdmittedSet
-    CServiceFlowParamSI              sfAdmittedSet;
-    /// \brief structure ActiveSet
-    CServiceFlowParamSI              sfActiveSet;
-#endif
 
     /// \brief structure AuthorizedSet
-#ifdef BECEEM_TARGET
-    CServiceFlowParamSI              *psfAuthorizedSet;
-    /// \brief structure AdmittedSet
-    CServiceFlowParamSI              *psfAdmittedSet;
-    /// \brief structure ActiveSet
-    CServiceFlowParamSI              *psfActiveSet;
-#else
     /// \brief structure AuthorizedSet
     stServiceFlowParamSI              *psfAuthorizedSet;	/**<  AuthorizedSet of type stServiceFlowParamSI*/
     /// \brief structure AdmittedSet
     stServiceFlowParamSI              *psfAdmittedSet;	/**<  AdmittedSet of type stServiceFlowParamSI*/
     /// \brief structure ActiveSet
     stServiceFlowParamSI              *psfActiveSet;	/**<  sfActiveSet of type stServiceFlowParamSI*/
-#endif
 	B_UINT8				   u8CC;	/**<  Confirmation Code*/
 	B_UINT8				   u8Padd;		/**<  8-bit Padding */
 
     B_UINT16               u16Padd;	/**< 16 bit Padding */
 
-#ifdef USING_VXWORKS
-    USE_DATA_MEMORY_MANAGER();
-#endif
 }stLocalSFAddIndication;
 
 
@@ -619,33 +384,17 @@ typedef struct _stLocalSFAddIndication stLocalSFChangeIndication, *pstLocalSFCha
 structure stLocalSFDeleteRequest
 */
 typedef struct _stLocalSFDeleteRequest{
-#ifdef BECEEM_TARGET
-	   _stLocalSFDeleteRequest( ) :
-	   	u8Type(0x00),  u8Padding(0x00),
-		u16TID(0x0000), u32SFID (0x00000000)
-	   		{}
-#endif
 	B_UINT8                         u8Type;	 /**< Type*/
 	B_UINT8                         u8Padding;	 /**<  Padding byte*/
 	B_UINT16			u16TID;		 /**<  TID*/
     /// \brief 32bitSFID
     B_UINT32                        u32SFID;	 /**<  SFID*/
-#ifdef USING_VXWORKS
-    USE_DATA_MEMORY_MANAGER();
-#endif
 }stLocalSFDeleteRequest, *pstLocalSFDeleteRequest;
 
 /**
 structure stLocalSFDeleteIndication
 */
 typedef struct stLocalSFDeleteIndication{
-#ifdef BECEEM_TARGET
-	   stLocalSFDeleteIndication( ) :
-	   	u8Type(0x00),  u8Padding(0x00),
-		u16TID(0x0000), u16CID(0x0000),
-		u16VCID(0x0000),u32SFID (0x00000000)
-	   		{}
-#endif
 	B_UINT8                         u8Type;	/**< Type */
 	B_UINT8                         u8Padding;	/**< Padding  */
 	B_UINT16			u16TID;			/**< TID */
@@ -658,9 +407,6 @@ typedef struct stLocalSFDeleteIndication{
 	/// \brief 8bit Confirmation code
 	B_UINT8                         u8ConfirmationCode;	/**< Confirmation code */
 	B_UINT8                         u8Padding1[3];		/**< 3 byte Padding  */
-#ifdef USING_VXWORKS
-    USE_DATA_MEMORY_MANAGER();
-#endif
 }stLocalSFDeleteIndication;
 
 typedef struct _stIM_SFHostNotify

@@ -842,15 +842,64 @@ xfs_inode_item_destroy(
  * flushed to disk.  It is responsible for removing the inode item
  * from the AIL if it has not been re-logged, and unlocking the inode's
  * flush lock.
+ *
+ * To reduce AIL lock traffic as much as possible, we scan the buffer log item
+ * list for other inodes that will run this function. We remove them from the
+ * buffer list so we can process all the inode IO completions in one AIL lock
+ * traversal.
  */
 void
 xfs_iflush_done(
 	struct xfs_buf		*bp,
 	struct xfs_log_item	*lip)
 {
-	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
-	xfs_inode_t		*ip = iip->ili_inode;
+	struct xfs_inode_log_item *iip;
+	struct xfs_log_item	*blip;
+	struct xfs_log_item	*next;
+	struct xfs_log_item	*prev;
 	struct xfs_ail		*ailp = lip->li_ailp;
+	int			need_ail = 0;
+
+	/*
+	 * Scan the buffer IO completions for other inodes being completed and
+	 * attach them to the current inode log item.
+	 */
+	blip = XFS_BUF_FSPRIVATE(bp, xfs_log_item_t *);
+	prev = NULL;
+	while (blip != NULL) {
+		if (lip->li_cb != xfs_iflush_done) {
+			prev = blip;
+			blip = blip->li_bio_list;
+			continue;
+		}
+
+		/* remove from list */
+		next = blip->li_bio_list;
+		if (!prev) {
+			XFS_BUF_SET_FSPRIVATE(bp, next);
+		} else {
+			prev->li_bio_list = next;
+		}
+
+		/* add to current list */
+		blip->li_bio_list = lip->li_bio_list;
+		lip->li_bio_list = blip;
+
+		/*
+		 * while we have the item, do the unlocked check for needing
+		 * the AIL lock.
+		 */
+		iip = INODE_ITEM(blip);
+		if (iip->ili_logged && blip->li_lsn == iip->ili_flush_lsn)
+			need_ail++;
+
+		blip = next;
+	}
+
+	/* make sure we capture the state of the initial inode. */
+	iip = INODE_ITEM(lip);
+	if (iip->ili_logged && lip->li_lsn == iip->ili_flush_lsn)
+		need_ail++;
 
 	/*
 	 * We only want to pull the item from the AIL if it is
@@ -861,28 +910,37 @@ xfs_iflush_done(
 	 * the lock since it's cheaper, and then we recheck while
 	 * holding the lock before removing the inode from the AIL.
 	 */
-	if (iip->ili_logged && lip->li_lsn == iip->ili_flush_lsn) {
+	if (need_ail) {
+		struct xfs_log_item *log_items[need_ail];
+		int i = 0;
 		spin_lock(&ailp->xa_lock);
-		if (lip->li_lsn == iip->ili_flush_lsn) {
-			/* xfs_trans_ail_delete() drops the AIL lock. */
-			xfs_trans_ail_delete(ailp, lip);
-		} else {
-			spin_unlock(&ailp->xa_lock);
+		for (blip = lip; blip; blip = blip->li_bio_list) {
+			iip = INODE_ITEM(blip);
+			if (iip->ili_logged &&
+			    blip->li_lsn == iip->ili_flush_lsn) {
+				log_items[i++] = blip;
+			}
+			ASSERT(i <= need_ail);
 		}
+		/* xfs_trans_ail_delete_bulk() drops the AIL lock. */
+		xfs_trans_ail_delete_bulk(ailp, log_items, i);
 	}
 
-	iip->ili_logged = 0;
 
 	/*
-	 * Clear the ili_last_fields bits now that we know that the
-	 * data corresponding to them is safely on disk.
+	 * clean up and unlock the flush lock now we are done. We can clear the
+	 * ili_last_fields bits now that we know that the data corresponding to
+	 * them is safely on disk.
 	 */
-	iip->ili_last_fields = 0;
+	for (blip = lip; blip; blip = next) {
+		next = blip->li_bio_list;
+		blip->li_bio_list = NULL;
 
-	/*
-	 * Release the inode's flush lock since we're done with it.
-	 */
-	xfs_ifunlock(ip);
+		iip = INODE_ITEM(blip);
+		iip->ili_logged = 0;
+		iip->ili_last_fields = 0;
+		xfs_ifunlock(iip->ili_inode);
+	}
 }
 
 /*

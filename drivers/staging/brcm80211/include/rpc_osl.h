@@ -18,7 +18,7 @@
 #define _rpcosl_h_
 
 typedef struct rpc_osl rpc_osl_t;
-extern rpc_osl_t *rpc_osl_attach(osl_t *osh);
+extern rpc_osl_t *rpc_osl_attach(struct osl_info *osh);
 extern void rpc_osl_detach(rpc_osl_t *rpc_osh);
 
 #define RPC_OSL_LOCK(rpc_osh) rpc_osl_lock((rpc_osh))

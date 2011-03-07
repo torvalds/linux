@@ -9,6 +9,7 @@
  */
 
 #include <linux/lockdep.h>
+#include <linux/kobject_ns.h>
 #include <linux/fs.h>
 
 struct sysfs_open_dirent;

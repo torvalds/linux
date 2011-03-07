@@ -426,6 +426,11 @@ extern void __iomem * ioremap_nocache (unsigned long offset, unsigned long size)
 extern void iounmap (volatile void __iomem *addr);
 extern void __iomem * early_ioremap (unsigned long phys_addr, unsigned long size);
 extern void early_iounmap (volatile void __iomem *addr, unsigned long size);
+static inline void __iomem * ioremap_cache (unsigned long phys_addr, unsigned long size)
+{
+	return ioremap(phys_addr, size);
+}
+
 
 /*
  * String version of IO memory access ops:

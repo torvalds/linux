@@ -99,7 +99,7 @@ struct svc_serv {
 	spinlock_t		sv_cb_lock;	/* protects the svc_cb_list */
 	wait_queue_head_t	sv_cb_waitq;	/* sleep here if there are no
 						 * entries in the svc_cb_list */
-	struct svc_xprt		*bc_xprt;
+	struct svc_xprt		*sv_bc_xprt;	/* callback on fore channel */
 #endif /* CONFIG_NFS_V4_1 */
 };
 
@@ -269,6 +269,7 @@ struct svc_rqst {
 	struct cache_req	rq_chandle;	/* handle passed to caches for 
 						 * request delaying 
 						 */
+	bool			rq_dropme;
 	/* Catering to nfsd */
 	struct auth_domain *	rq_client;	/* RPC peer info */
 	struct auth_domain *	rq_gssclient;	/* "gss/"-style peer info */

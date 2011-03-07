@@ -35,6 +35,7 @@ struct ceph_cap;
  */
 struct ceph_mds_reply_info_in {
 	struct ceph_mds_reply_inode *in;
+	struct ceph_dir_layout dir_layout;
 	u32 symlink_len;
 	char *symlink;
 	u32 xattr_len;
@@ -165,7 +166,6 @@ struct ceph_mds_request {
 	struct ceph_mds_client *r_mdsc;
 
 	int r_op;                    /* mds op code */
-	int r_mds;
 
 	/* operation on what? */
 	struct inode *r_inode;              /* arg1 */

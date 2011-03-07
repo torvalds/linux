@@ -43,6 +43,17 @@
 
 
 /*
+ * Define xfs inode iolock lockdep classes. We need to ensure that all active
+ * inodes are considered the same for lockdep purposes, including inodes that
+ * are recycled through the XFS_IRECLAIMABLE state. This is the the only way to
+ * guarantee the locks are considered the same when there are multiple lock
+ * initialisation siteѕ. Also, define a reclaimable inode class so it is
+ * obvious in lockdep reports which class the report is against.
+ */
+static struct lock_class_key xfs_iolock_active;
+struct lock_class_key xfs_iolock_reclaimable;
+
+/*
  * Allocate and initialise an xfs_inode.
  */
 STATIC struct xfs_inode *
@@ -69,8 +80,11 @@ xfs_inode_alloc(
 	ASSERT(atomic_read(&ip->i_pincount) == 0);
 	ASSERT(!spin_is_locked(&ip->i_flags_lock));
 	ASSERT(completion_done(&ip->i_flush));
+	ASSERT(ip->i_ino == 0);
 
 	mrlock_init(&ip->i_iolock, MRLOCK_BARRIER, "xfsio", ip->i_ino);
+	lockdep_set_class_and_name(&ip->i_iolock.mr_lock,
+			&xfs_iolock_active, "xfs_iolock_active");
 
 	/* initialise the xfs inode */
 	ip->i_ino = ino;
@@ -84,9 +98,6 @@ xfs_inode_alloc(
 	memset(&ip->i_d, 0, sizeof(xfs_icdinode_t));
 	ip->i_size = 0;
 	ip->i_new_size = 0;
-
-	/* prevent anyone from using this yet */
-	VFS_I(ip)->i_state = I_NEW;
 
 	return ip;
 }
@@ -145,7 +156,18 @@ xfs_inode_free(
 	ASSERT(!spin_is_locked(&ip->i_flags_lock));
 	ASSERT(completion_done(&ip->i_flush));
 
-	call_rcu(&ip->i_vnode.i_rcu, xfs_inode_free_callback);
+	/*
+	 * Because we use RCU freeing we need to ensure the inode always
+	 * appears to be reclaimed with an invalid inode number when in the
+	 * free state. The ip->i_flags_lock provides the barrier against lookup
+	 * races.
+	 */
+	spin_lock(&ip->i_flags_lock);
+	ip->i_flags = XFS_IRECLAIM;
+	ip->i_ino = 0;
+	spin_unlock(&ip->i_flags_lock);
+
+	call_rcu(&VFS_I(ip)->i_rcu, xfs_inode_free_callback);
 }
 
 /*
@@ -155,14 +177,29 @@ static int
 xfs_iget_cache_hit(
 	struct xfs_perag	*pag,
 	struct xfs_inode	*ip,
+	xfs_ino_t		ino,
 	int			flags,
-	int			lock_flags) __releases(pag->pag_ici_lock)
+	int			lock_flags) __releases(RCU)
 {
 	struct inode		*inode = VFS_I(ip);
 	struct xfs_mount	*mp = ip->i_mount;
 	int			error;
 
+	/*
+	 * check for re-use of an inode within an RCU grace period due to the
+	 * radix tree nodes not being updated yet. We monitor for this by
+	 * setting the inode number to zero before freeing the inode structure.
+	 * If the inode has been reallocated and set up, then the inode number
+	 * will not match, so check for that, too.
+	 */
 	spin_lock(&ip->i_flags_lock);
+	if (ip->i_ino != ino) {
+		trace_xfs_iget_skip(ip);
+		XFS_STATS_INC(xs_ig_frecycle);
+		error = EAGAIN;
+		goto out_error;
+	}
+
 
 	/*
 	 * If we are racing with another cache hit that is currently
@@ -205,7 +242,7 @@ xfs_iget_cache_hit(
 		ip->i_flags |= XFS_IRECLAIM;
 
 		spin_unlock(&ip->i_flags_lock);
-		read_unlock(&pag->pag_ici_lock);
+		rcu_read_unlock();
 
 		error = -inode_init_always(mp->m_super, inode);
 		if (error) {
@@ -213,7 +250,7 @@ xfs_iget_cache_hit(
 			 * Re-initializing the inode failed, and we are in deep
 			 * trouble.  Try to re-add it to the reclaim list.
 			 */
-			read_lock(&pag->pag_ici_lock);
+			rcu_read_lock();
 			spin_lock(&ip->i_flags_lock);
 
 			ip->i_flags &= ~XFS_INEW;
@@ -223,14 +260,20 @@ xfs_iget_cache_hit(
 			goto out_error;
 		}
 
-		write_lock(&pag->pag_ici_lock);
+		spin_lock(&pag->pag_ici_lock);
 		spin_lock(&ip->i_flags_lock);
 		ip->i_flags &= ~(XFS_IRECLAIMABLE | XFS_IRECLAIM);
 		ip->i_flags |= XFS_INEW;
 		__xfs_inode_clear_reclaim_tag(mp, pag, ip);
 		inode->i_state = I_NEW;
+
+		ASSERT(!rwsem_is_locked(&ip->i_iolock.mr_lock));
+		mrlock_init(&ip->i_iolock, MRLOCK_BARRIER, "xfsio", ip->i_ino);
+		lockdep_set_class_and_name(&ip->i_iolock.mr_lock,
+				&xfs_iolock_active, "xfs_iolock_active");
+
 		spin_unlock(&ip->i_flags_lock);
-		write_unlock(&pag->pag_ici_lock);
+		spin_unlock(&pag->pag_ici_lock);
 	} else {
 		/* If the VFS inode is being torn down, pause and try again. */
 		if (!igrab(inode)) {
@@ -241,7 +284,7 @@ xfs_iget_cache_hit(
 
 		/* We've got a live one. */
 		spin_unlock(&ip->i_flags_lock);
-		read_unlock(&pag->pag_ici_lock);
+		rcu_read_unlock();
 		trace_xfs_iget_hit(ip);
 	}
 
@@ -255,7 +298,7 @@ xfs_iget_cache_hit(
 
 out_error:
 	spin_unlock(&ip->i_flags_lock);
-	read_unlock(&pag->pag_ici_lock);
+	rcu_read_unlock();
 	return error;
 }
 
@@ -308,7 +351,7 @@ xfs_iget_cache_miss(
 			BUG();
 	}
 
-	write_lock(&pag->pag_ici_lock);
+	spin_lock(&pag->pag_ici_lock);
 
 	/* insert the new inode */
 	error = radix_tree_insert(&pag->pag_ici_root, agino, ip);
@@ -323,14 +366,14 @@ xfs_iget_cache_miss(
 	ip->i_udquot = ip->i_gdquot = NULL;
 	xfs_iflags_set(ip, XFS_INEW);
 
-	write_unlock(&pag->pag_ici_lock);
+	spin_unlock(&pag->pag_ici_lock);
 	radix_tree_preload_end();
 
 	*ipp = ip;
 	return 0;
 
 out_preload_end:
-	write_unlock(&pag->pag_ici_lock);
+	spin_unlock(&pag->pag_ici_lock);
 	radix_tree_preload_end();
 	if (lock_flags)
 		xfs_iunlock(ip, lock_flags);
@@ -377,7 +420,7 @@ xfs_iget(
 	xfs_agino_t	agino;
 
 	/* reject inode numbers outside existing AGs */
-	if (XFS_INO_TO_AGNO(mp, ino) >= mp->m_sb.sb_agcount)
+	if (!ino || XFS_INO_TO_AGNO(mp, ino) >= mp->m_sb.sb_agcount)
 		return EINVAL;
 
 	/* get the perag structure and ensure that it's inode capable */
@@ -386,15 +429,15 @@ xfs_iget(
 
 again:
 	error = 0;
-	read_lock(&pag->pag_ici_lock);
+	rcu_read_lock();
 	ip = radix_tree_lookup(&pag->pag_ici_root, agino);
 
 	if (ip) {
-		error = xfs_iget_cache_hit(pag, ip, flags, lock_flags);
+		error = xfs_iget_cache_hit(pag, ip, ino, flags, lock_flags);
 		if (error)
 			goto out_error_or_again;
 	} else {
-		read_unlock(&pag->pag_ici_lock);
+		rcu_read_unlock();
 		XFS_STATS_INC(xs_ig_missed);
 
 		error = xfs_iget_cache_miss(mp, pag, tp, ino, &ip,

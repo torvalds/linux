@@ -1,9 +1,9 @@
 /*
  * Support for the MicroBlaze PVR (Processor Version Register)
  *
- * Copyright (C) 2009 Michal Simek <monstr@monstr.eu>
+ * Copyright (C) 2009 - 2011 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2007 John Williams <john.williams@petalogix.com>
- * Copyright (C) 2007 - 2009 PetaLogix
+ * Copyright (C) 2007 - 2011 PetaLogix
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License. See the file COPYING in the main directory of this
@@ -46,11 +46,11 @@ struct pvr_s {
 #define PVR2_I_LMB_MASK			0x10000000
 #define PVR2_INTERRUPT_IS_EDGE_MASK	0x08000000
 #define PVR2_EDGE_IS_POSITIVE_MASK	0x04000000
-#define PVR2_D_PLB_MASK			0x02000000	/* new */
-#define PVR2_I_PLB_MASK			0x01000000	/* new */
-#define PVR2_INTERCONNECT		0x00800000	/* new */
-#define PVR2_USE_EXTEND_FSL		0x00080000	/* new */
-#define PVR2_USE_FSL_EXC		0x00040000	/* new */
+#define PVR2_D_PLB_MASK			0x02000000 /* new */
+#define PVR2_I_PLB_MASK			0x01000000 /* new */
+#define PVR2_INTERCONNECT		0x00800000 /* new */
+#define PVR2_USE_EXTEND_FSL		0x00080000 /* new */
+#define PVR2_USE_FSL_EXC		0x00040000 /* new */
 #define PVR2_USE_MSR_INSTR		0x00020000
 #define PVR2_USE_PCMP_INSTR		0x00010000
 #define PVR2_AREA_OPTIMISED		0x00008000
@@ -59,7 +59,7 @@ struct pvr_s {
 #define PVR2_USE_HW_MUL_MASK		0x00001000
 #define PVR2_USE_FPU_MASK		0x00000800
 #define PVR2_USE_MUL64_MASK		0x00000400
-#define PVR2_USE_FPU2_MASK		0x00000200	/* new */
+#define PVR2_USE_FPU2_MASK		0x00000200 /* new */
 #define PVR2_USE_IPLBEXC 		0x00000100
 #define PVR2_USE_DPLBEXC		0x00000080
 #define PVR2_OPCODE_0x0_ILL_MASK	0x00000040
@@ -122,96 +122,103 @@ struct pvr_s {
 
 
 /* PVR access macros */
-#define PVR_IS_FULL(pvr)		(pvr.pvr[0] & PVR0_PVR_FULL_MASK)
-#define PVR_USE_BARREL(pvr)		(pvr.pvr[0] & PVR0_USE_BARREL_MASK)
-#define PVR_USE_DIV(pvr)		(pvr.pvr[0] & PVR0_USE_DIV_MASK)
-#define PVR_USE_HW_MUL(pvr)		(pvr.pvr[0] & PVR0_USE_HW_MUL_MASK)
-#define PVR_USE_FPU(pvr)		(pvr.pvr[0] & PVR0_USE_FPU_MASK)
-#define PVR_USE_FPU2(pvr)		(pvr.pvr[2] & PVR2_USE_FPU2_MASK)
-#define PVR_USE_ICACHE(pvr)		(pvr.pvr[0] & PVR0_USE_ICACHE_MASK)
-#define PVR_USE_DCACHE(pvr)		(pvr.pvr[0] & PVR0_USE_DCACHE_MASK)
-#define PVR_VERSION(pvr)	((pvr.pvr[0] & PVR0_VERSION_MASK) >> 8)
-#define PVR_USER1(pvr)			(pvr.pvr[0] & PVR0_USER1_MASK)
-#define PVR_USER2(pvr)			(pvr.pvr[1] & PVR1_USER2_MASK)
+#define PVR_IS_FULL(_pvr)	(_pvr.pvr[0] & PVR0_PVR_FULL_MASK)
+#define PVR_USE_BARREL(_pvr)	(_pvr.pvr[0] & PVR0_USE_BARREL_MASK)
+#define PVR_USE_DIV(_pvr)	(_pvr.pvr[0] & PVR0_USE_DIV_MASK)
+#define PVR_USE_HW_MUL(_pvr)	(_pvr.pvr[0] & PVR0_USE_HW_MUL_MASK)
+#define PVR_USE_FPU(_pvr)	(_pvr.pvr[0] & PVR0_USE_FPU_MASK)
+#define PVR_USE_FPU2(_pvr)	(_pvr.pvr[2] & PVR2_USE_FPU2_MASK)
+#define PVR_USE_ICACHE(_pvr)	(_pvr.pvr[0] & PVR0_USE_ICACHE_MASK)
+#define PVR_USE_DCACHE(_pvr)	(_pvr.pvr[0] & PVR0_USE_DCACHE_MASK)
+#define PVR_VERSION(_pvr)	((_pvr.pvr[0] & PVR0_VERSION_MASK) >> 8)
+#define PVR_USER1(_pvr)		(_pvr.pvr[0] & PVR0_USER1_MASK)
+#define PVR_USER2(_pvr)		(_pvr.pvr[1] & PVR1_USER2_MASK)
 
-#define PVR_D_OPB(pvr)			(pvr.pvr[2] & PVR2_D_OPB_MASK)
-#define PVR_D_LMB(pvr)			(pvr.pvr[2] & PVR2_D_LMB_MASK)
-#define PVR_I_OPB(pvr)			(pvr.pvr[2] & PVR2_I_OPB_MASK)
-#define PVR_I_LMB(pvr)			(pvr.pvr[2] & PVR2_I_LMB_MASK)
-#define PVR_INTERRUPT_IS_EDGE(pvr) \
-			(pvr.pvr[2] & PVR2_INTERRUPT_IS_EDGE_MASK)
-#define PVR_EDGE_IS_POSITIVE(pvr) \
-			(pvr.pvr[2] & PVR2_EDGE_IS_POSITIVE_MASK)
-#define PVR_USE_MSR_INSTR(pvr)		(pvr.pvr[2] & PVR2_USE_MSR_INSTR)
-#define PVR_USE_PCMP_INSTR(pvr)		(pvr.pvr[2] & PVR2_USE_PCMP_INSTR)
-#define PVR_AREA_OPTIMISED(pvr)		(pvr.pvr[2] & PVR2_AREA_OPTIMISED)
-#define PVR_USE_MUL64(pvr)		(pvr.pvr[2] & PVR2_USE_MUL64_MASK)
-#define PVR_OPCODE_0x0_ILLEGAL(pvr) \
-			(pvr.pvr[2] & PVR2_OPCODE_0x0_ILL_MASK)
-#define PVR_UNALIGNED_EXCEPTION(pvr) \
-			(pvr.pvr[2] & PVR2_UNALIGNED_EXC_MASK)
-#define PVR_ILL_OPCODE_EXCEPTION(pvr) \
-			(pvr.pvr[2] & PVR2_ILL_OPCODE_EXC_MASK)
-#define PVR_IOPB_BUS_EXCEPTION(pvr) \
-			(pvr.pvr[2] & PVR2_IOPB_BUS_EXC_MASK)
-#define PVR_DOPB_BUS_EXCEPTION(pvr) \
-			(pvr.pvr[2] & PVR2_DOPB_BUS_EXC_MASK)
-#define PVR_DIV_ZERO_EXCEPTION(pvr) \
-			(pvr.pvr[2] & PVR2_DIV_ZERO_EXC_MASK)
-#define PVR_FPU_EXCEPTION(pvr)		(pvr.pvr[2] & PVR2_FPU_EXC_MASK)
-#define PVR_FSL_EXCEPTION(pvr)		(pvr.pvr[2] & PVR2_USE_EXTEND_FSL)
+#define PVR_D_OPB(_pvr)		(_pvr.pvr[2] & PVR2_D_OPB_MASK)
+#define PVR_D_LMB(_pvr)		(_pvr.pvr[2] & PVR2_D_LMB_MASK)
+#define PVR_I_OPB(_pvr)		(_pvr.pvr[2] & PVR2_I_OPB_MASK)
+#define PVR_I_LMB(_pvr)		(_pvr.pvr[2] & PVR2_I_LMB_MASK)
+#define PVR_INTERRUPT_IS_EDGE(_pvr) \
+			(_pvr.pvr[2] & PVR2_INTERRUPT_IS_EDGE_MASK)
+#define PVR_EDGE_IS_POSITIVE(_pvr) \
+			(_pvr.pvr[2] & PVR2_EDGE_IS_POSITIVE_MASK)
+#define PVR_USE_MSR_INSTR(_pvr)		(_pvr.pvr[2] & PVR2_USE_MSR_INSTR)
+#define PVR_USE_PCMP_INSTR(_pvr)	(_pvr.pvr[2] & PVR2_USE_PCMP_INSTR)
+#define PVR_AREA_OPTIMISED(_pvr)	(_pvr.pvr[2] & PVR2_AREA_OPTIMISED)
+#define PVR_USE_MUL64(_pvr)		(_pvr.pvr[2] & PVR2_USE_MUL64_MASK)
+#define PVR_OPCODE_0x0_ILLEGAL(_pvr) \
+			(_pvr.pvr[2] & PVR2_OPCODE_0x0_ILL_MASK)
+#define PVR_UNALIGNED_EXCEPTION(_pvr) \
+			(_pvr.pvr[2] & PVR2_UNALIGNED_EXC_MASK)
+#define PVR_ILL_OPCODE_EXCEPTION(_pvr) \
+			(_pvr.pvr[2] & PVR2_ILL_OPCODE_EXC_MASK)
+#define PVR_IOPB_BUS_EXCEPTION(_pvr) \
+			(_pvr.pvr[2] & PVR2_IOPB_BUS_EXC_MASK)
+#define PVR_DOPB_BUS_EXCEPTION(_pvr) \
+			(_pvr.pvr[2] & PVR2_DOPB_BUS_EXC_MASK)
+#define PVR_DIV_ZERO_EXCEPTION(_pvr) \
+			(_pvr.pvr[2] & PVR2_DIV_ZERO_EXC_MASK)
+#define PVR_FPU_EXCEPTION(_pvr)		(_pvr.pvr[2] & PVR2_FPU_EXC_MASK)
+#define PVR_FSL_EXCEPTION(_pvr)		(_pvr.pvr[2] & PVR2_USE_EXTEND_FSL)
 
-#define PVR_DEBUG_ENABLED(pvr)		(pvr.pvr[3] & PVR3_DEBUG_ENABLED_MASK)
-#define PVR_NUMBER_OF_PC_BRK(pvr) \
-			((pvr.pvr[3] & PVR3_NUMBER_OF_PC_BRK_MASK) >> 25)
-#define PVR_NUMBER_OF_RD_ADDR_BRK(pvr) \
-			((pvr.pvr[3] & PVR3_NUMBER_OF_RD_ADDR_BRK_MASK) >> 19)
-#define PVR_NUMBER_OF_WR_ADDR_BRK(pvr) \
-			((pvr.pvr[3] & PVR3_NUMBER_OF_WR_ADDR_BRK_MASK) >> 13)
-#define PVR_FSL_LINKS(pvr)	((pvr.pvr[3] & PVR3_FSL_LINKS_MASK) >> 7)
+#define PVR_DEBUG_ENABLED(_pvr)		(_pvr.pvr[3] & PVR3_DEBUG_ENABLED_MASK)
+#define PVR_NUMBER_OF_PC_BRK(_pvr) \
+			((_pvr.pvr[3] & PVR3_NUMBER_OF_PC_BRK_MASK) >> 25)
+#define PVR_NUMBER_OF_RD_ADDR_BRK(_pvr) \
+			((_pvr.pvr[3] & PVR3_NUMBER_OF_RD_ADDR_BRK_MASK) >> 19)
+#define PVR_NUMBER_OF_WR_ADDR_BRK(_pvr) \
+			((_pvr.pvr[3] & PVR3_NUMBER_OF_WR_ADDR_BRK_MASK) >> 13)
+#define PVR_FSL_LINKS(_pvr)	((_pvr.pvr[3] & PVR3_FSL_LINKS_MASK) >> 7)
 
-#define PVR_ICACHE_ADDR_TAG_BITS(pvr) \
-			((pvr.pvr[4] & PVR4_ICACHE_ADDR_TAG_BITS_MASK) >> 26)
-#define PVR_ICACHE_USE_FSL(pvr)		(pvr.pvr[4] & PVR4_ICACHE_USE_FSL_MASK)
-#define PVR_ICACHE_ALLOW_WR(pvr)	(pvr.pvr[4] & PVR4_ICACHE_ALLOW_WR_MASK)
-#define PVR_ICACHE_LINE_LEN(pvr) \
-			(1 << ((pvr.pvr[4] & PVR4_ICACHE_LINE_LEN_MASK) >> 21))
-#define PVR_ICACHE_BYTE_SIZE(pvr) \
-			(1 << ((pvr.pvr[4] & PVR4_ICACHE_BYTE_SIZE_MASK) >> 16))
+#define PVR_ICACHE_ADDR_TAG_BITS(_pvr) \
+		((_pvr.pvr[4] & PVR4_ICACHE_ADDR_TAG_BITS_MASK) >> 26)
+#define PVR_ICACHE_USE_FSL(_pvr) \
+		(_pvr.pvr[4] & PVR4_ICACHE_USE_FSL_MASK)
+#define PVR_ICACHE_ALLOW_WR(_pvr) \
+		(_pvr.pvr[4] & PVR4_ICACHE_ALLOW_WR_MASK)
+#define PVR_ICACHE_LINE_LEN(_pvr) \
+		(1 << ((_pvr.pvr[4] & PVR4_ICACHE_LINE_LEN_MASK) >> 21))
+#define PVR_ICACHE_BYTE_SIZE(_pvr) \
+		(1 << ((_pvr.pvr[4] & PVR4_ICACHE_BYTE_SIZE_MASK) >> 16))
 
-#define PVR_DCACHE_ADDR_TAG_BITS(pvr) \
-			((pvr.pvr[5] & PVR5_DCACHE_ADDR_TAG_BITS_MASK) >> 26)
-#define PVR_DCACHE_USE_FSL(pvr)		(pvr.pvr[5] & PVR5_DCACHE_USE_FSL_MASK)
-#define PVR_DCACHE_ALLOW_WR(pvr)	(pvr.pvr[5] & PVR5_DCACHE_ALLOW_WR_MASK)
+#define PVR_DCACHE_ADDR_TAG_BITS(_pvr) \
+			((_pvr.pvr[5] & PVR5_DCACHE_ADDR_TAG_BITS_MASK) >> 26)
+#define PVR_DCACHE_USE_FSL(_pvr)	(_pvr.pvr[5] & PVR5_DCACHE_USE_FSL_MASK)
+#define PVR_DCACHE_ALLOW_WR(_pvr) \
+			(_pvr.pvr[5] & PVR5_DCACHE_ALLOW_WR_MASK)
 /* FIXME two shifts on one line needs any comment */
-#define PVR_DCACHE_LINE_LEN(pvr) \
-			(1 << ((pvr.pvr[5] & PVR5_DCACHE_LINE_LEN_MASK) >> 21))
-#define PVR_DCACHE_BYTE_SIZE(pvr) \
-			(1 << ((pvr.pvr[5] & PVR5_DCACHE_BYTE_SIZE_MASK) >> 16))
+#define PVR_DCACHE_LINE_LEN(_pvr) \
+		(1 << ((_pvr.pvr[5] & PVR5_DCACHE_LINE_LEN_MASK) >> 21))
+#define PVR_DCACHE_BYTE_SIZE(_pvr) \
+		(1 << ((_pvr.pvr[5] & PVR5_DCACHE_BYTE_SIZE_MASK) >> 16))
 
-#define PVR_DCACHE_USE_WRITEBACK(pvr) \
-			((pvr.pvr[5] & PVR5_DCACHE_USE_WRITEBACK) >> 14)
+#define PVR_DCACHE_USE_WRITEBACK(_pvr) \
+			((_pvr.pvr[5] & PVR5_DCACHE_USE_WRITEBACK) >> 14)
 
-#define PVR_ICACHE_BASEADDR(pvr)	(pvr.pvr[6] & PVR6_ICACHE_BASEADDR_MASK)
-#define PVR_ICACHE_HIGHADDR(pvr)	(pvr.pvr[7] & PVR7_ICACHE_HIGHADDR_MASK)
+#define PVR_ICACHE_BASEADDR(_pvr) \
+			(_pvr.pvr[6] & PVR6_ICACHE_BASEADDR_MASK)
+#define PVR_ICACHE_HIGHADDR(_pvr) \
+			(_pvr.pvr[7] & PVR7_ICACHE_HIGHADDR_MASK)
+#define PVR_DCACHE_BASEADDR(_pvr) \
+			(_pvr.pvr[8] & PVR8_DCACHE_BASEADDR_MASK)
+#define PVR_DCACHE_HIGHADDR(_pvr) \
+			(_pvr.pvr[9] & PVR9_DCACHE_HIGHADDR_MASK)
 
-#define PVR_DCACHE_BASEADDR(pvr)	(pvr.pvr[8] & PVR8_DCACHE_BASEADDR_MASK)
-#define PVR_DCACHE_HIGHADDR(pvr)	(pvr.pvr[9] & PVR9_DCACHE_HIGHADDR_MASK)
+#define PVR_TARGET_FAMILY(_pvr) \
+			((_pvr.pvr[10] & PVR10_TARGET_FAMILY_MASK) >> 24)
 
-#define PVR_TARGET_FAMILY(pvr)	((pvr.pvr[10] & PVR10_TARGET_FAMILY_MASK) >> 24)
-
-#define PVR_MSR_RESET_VALUE(pvr) \
-				(pvr.pvr[11] & PVR11_MSR_RESET_VALUE_MASK)
+#define PVR_MSR_RESET_VALUE(_pvr) \
+			(_pvr.pvr[11] & PVR11_MSR_RESET_VALUE_MASK)
 
 /* mmu */
-#define PVR_USE_MMU(pvr)	((pvr.pvr[11] & PVR11_USE_MMU) >> 30)
-#define PVR_MMU_ITLB_SIZE(pvr)	(pvr.pvr[11] & PVR11_MMU_ITLB_SIZE)
-#define PVR_MMU_DTLB_SIZE(pvr)	(pvr.pvr[11] & PVR11_MMU_DTLB_SIZE)
-#define PVR_MMU_TLB_ACCESS(pvr)	(pvr.pvr[11] & PVR11_MMU_TLB_ACCESS)
-#define PVR_MMU_ZONES(pvr)	(pvr.pvr[11] & PVR11_MMU_ZONES)
+#define PVR_USE_MMU(_pvr)		((_pvr.pvr[11] & PVR11_USE_MMU) >> 30)
+#define PVR_MMU_ITLB_SIZE(_pvr)		(_pvr.pvr[11] & PVR11_MMU_ITLB_SIZE)
+#define PVR_MMU_DTLB_SIZE(_pvr)		(_pvr.pvr[11] & PVR11_MMU_DTLB_SIZE)
+#define PVR_MMU_TLB_ACCESS(_pvr)	(_pvr.pvr[11] & PVR11_MMU_TLB_ACCESS)
+#define PVR_MMU_ZONES(_pvr)		(_pvr.pvr[11] & PVR11_MMU_ZONES)
 
 /* endian */
-#define PVR_ENDIAN(pvr)	(pvr.pvr[0] & PVR0_ENDI)
+#define PVR_ENDIAN(_pvr)	(_pvr.pvr[0] & PVR0_ENDI)
 
 int cpu_has_pvr(void);
 void get_pvr(struct pvr_s *pvr);

@@ -11,6 +11,6 @@
 #include <mach/mx23.h>
 #include <mach/devices-common.h>
 
-extern const struct mxs_duart_data mx23_duart_data __initconst;
+extern const struct amba_device mx23_duart_device __initconst;
 #define mx23_add_duart() \
-	mxs_add_duart(&mx23_duart_data)
+	mxs_add_duart(&mx23_duart_device)

@@ -36,7 +36,7 @@
    Rev 1.07.06 Nov.  7 2000 Jeff Garzik <jgarzik@pobox.com> some bug fix and cleaning
    Rev 1.07.05 Nov.  6 2000 metapirat<metapirat@gmx.de> contribute media type select by ifconfig
    Rev 1.07.04 Sep.  6 2000 Lei-Chun Chang added ICS1893 PHY support
-   Rev 1.07.03 Aug. 24 2000 Lei-Chun Chang (lcchang@sis.com.tw) modified 630E eqaulizer workaround rule
+   Rev 1.07.03 Aug. 24 2000 Lei-Chun Chang (lcchang@sis.com.tw) modified 630E equalizer workaround rule
    Rev 1.07.01 Aug. 08 2000 Ollie Lho minor update for SiS 630E and SiS 630E A1
    Rev 1.07    Mar. 07 2000 Ollie Lho bug fix in Rx buffer ring
    Rev 1.06.04 Feb. 11 2000 Jeff Garzik <jgarzik@pobox.com> softnet and init for kernel 2.4
@@ -1777,6 +1777,7 @@ static int sis900_rx(struct net_device *net_dev)
 					      "cur_rx:%4.4d, dirty_rx:%4.4d\n",
 					      net_dev->name, sis_priv->cur_rx,
 					      sis_priv->dirty_rx);
+				dev_kfree_skb(skb);
 				break;
 			}
 

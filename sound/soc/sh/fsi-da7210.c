@@ -18,7 +18,7 @@ static int fsi_da7210_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dai *dai = rtd->codec_dai;
 
 	return snd_soc_dai_set_fmt(dai,
-				   SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+				   SND_SOC_DAIFMT_I2S |
 				   SND_SOC_DAIFMT_CBM_CFM);
 }
 

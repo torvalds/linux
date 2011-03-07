@@ -106,6 +106,9 @@ static int dlm_can_grant_new_lock(struct dlm_lock_resource *res,
 
 		if (!dlm_lock_compatible(tmplock->ml.type, lock->ml.type))
 			return 0;
+		if (!dlm_lock_compatible(tmplock->ml.convert_type,
+					 lock->ml.type))
+			return 0;
 	}
 
 	return 1;

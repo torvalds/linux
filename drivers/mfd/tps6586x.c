@@ -46,8 +46,6 @@
 
 /* device id */
 #define TPS6586X_VERSIONCRC	0xcd
-#define TPS658621A_VERSIONCRC	0x15
-#define TPS658621C_VERSIONCRC	0x2c
 
 struct tps6586x_irq_data {
 	u8	mask_reg;
@@ -152,12 +150,12 @@ static inline int __tps6586x_write(struct i2c_client *client,
 static inline int __tps6586x_writes(struct i2c_client *client, int reg,
 				  int len, uint8_t *val)
 {
-	int ret;
+	int ret, i;
 
-	ret = i2c_smbus_write_i2c_block_data(client, reg, len, val);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed writings to 0x%02x\n", reg);
-		return ret;
+	for (i = 0; i < len; i++) {
+		ret = __tps6586x_write(client, reg + i, *(val + i));
+		if (ret < 0)
+			return ret;
 	}
 
 	return 0;
@@ -325,37 +323,37 @@ static int tps6586x_remove_subdevs(struct tps6586x *tps6586x)
 	return device_for_each_child(tps6586x->dev, NULL, __remove_subdev);
 }
 
-static void tps6586x_irq_lock(unsigned int irq)
+static void tps6586x_irq_lock(struct irq_data *data)
 {
-	struct tps6586x *tps6586x = get_irq_chip_data(irq);
+	struct tps6586x *tps6586x = irq_data_get_irq_chip_data(data);
 
 	mutex_lock(&tps6586x->irq_lock);
 }
 
-static void tps6586x_irq_enable(unsigned int irq)
+static void tps6586x_irq_enable(struct irq_data *irq_data)
 {
-	struct tps6586x *tps6586x = get_irq_chip_data(irq);
-	unsigned int __irq = irq - tps6586x->irq_base;
+	struct tps6586x *tps6586x = irq_data_get_irq_chip_data(irq_data);
+	unsigned int __irq = irq_data->irq - tps6586x->irq_base;
 	const struct tps6586x_irq_data *data = &tps6586x_irqs[__irq];
 
 	tps6586x->mask_reg[data->mask_reg] &= ~data->mask_mask;
 	tps6586x->irq_en |= (1 << __irq);
 }
 
-static void tps6586x_irq_disable(unsigned int irq)
+static void tps6586x_irq_disable(struct irq_data *irq_data)
 {
-	struct tps6586x *tps6586x = get_irq_chip_data(irq);
+	struct tps6586x *tps6586x = irq_data_get_irq_chip_data(irq_data);
 
-	unsigned int __irq = irq - tps6586x->irq_base;
+	unsigned int __irq = irq_data->irq - tps6586x->irq_base;
 	const struct tps6586x_irq_data *data = &tps6586x_irqs[__irq];
 
 	tps6586x->mask_reg[data->mask_reg] |= data->mask_mask;
 	tps6586x->irq_en &= ~(1 << __irq);
 }
 
-static void tps6586x_irq_sync_unlock(unsigned int irq)
+static void tps6586x_irq_sync_unlock(struct irq_data *data)
 {
-	struct tps6586x *tps6586x = get_irq_chip_data(irq);
+	struct tps6586x *tps6586x = irq_data_get_irq_chip_data(data);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(tps6586x->mask_reg); i++) {
@@ -421,10 +419,10 @@ static int __devinit tps6586x_irq_init(struct tps6586x *tps6586x, int irq,
 	tps6586x->irq_base = irq_base;
 
 	tps6586x->irq_chip.name = "tps6586x";
-	tps6586x->irq_chip.enable = tps6586x_irq_enable;
-	tps6586x->irq_chip.disable = tps6586x_irq_disable;
-	tps6586x->irq_chip.bus_lock = tps6586x_irq_lock;
-	tps6586x->irq_chip.bus_sync_unlock = tps6586x_irq_sync_unlock;
+	tps6586x->irq_chip.irq_enable = tps6586x_irq_enable;
+	tps6586x->irq_chip.irq_disable = tps6586x_irq_disable;
+	tps6586x->irq_chip.irq_bus_lock = tps6586x_irq_lock;
+	tps6586x->irq_chip.irq_bus_sync_unlock = tps6586x_irq_sync_unlock;
 
 	for (i = 0; i < ARRAY_SIZE(tps6586x_irqs); i++) {
 		int __irq = i + tps6586x->irq_base;
@@ -498,11 +496,7 @@ static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	if ((ret != TPS658621A_VERSIONCRC) &&
-	    (ret != TPS658621C_VERSIONCRC)) {
-		dev_err(&client->dev, "Unsupported chip ID: %x\n", ret);
-		return -ENODEV;
-	}
+	dev_info(&client->dev, "VERSIONCRC is %02x\n", ret);
 
 	tps6586x = kzalloc(sizeof(struct tps6586x), GFP_KERNEL);
 	if (tps6586x == NULL)

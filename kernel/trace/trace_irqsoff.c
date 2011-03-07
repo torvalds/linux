@@ -453,14 +453,6 @@ void time_hardirqs_off(unsigned long a0, unsigned long a1)
  * Stubs:
  */
 
-void early_boot_irqs_off(void)
-{
-}
-
-void early_boot_irqs_on(void)
-{
-}
-
 void trace_softirqs_on(unsigned long ip)
 {
 }

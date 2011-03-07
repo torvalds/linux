@@ -353,6 +353,7 @@ static void switch_booke_debug_regs(struct thread_struct *new_thread)
 			prime_debug_regs(new_thread);
 }
 #else	/* !CONFIG_PPC_ADV_DEBUG_REGS */
+#ifndef CONFIG_HAVE_HW_BREAKPOINT
 static void set_debug_reg_defaults(struct thread_struct *thread)
 {
 	if (thread->dabr) {
@@ -360,6 +361,7 @@ static void set_debug_reg_defaults(struct thread_struct *thread)
 		set_dabr(0);
 	}
 }
+#endif /* !CONFIG_HAVE_HW_BREAKPOINT */
 #endif	/* CONFIG_PPC_ADV_DEBUG_REGS */
 
 int set_dabr(unsigned long dabr)
@@ -631,7 +633,7 @@ void show_regs(struct pt_regs * regs)
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 		printk("DEAR: "REG", ESR: "REG"\n", regs->dar, regs->dsisr);
 #else
-		printk("DAR: "REG", DSISR: "REG"\n", regs->dar, regs->dsisr);
+		printk("DAR: "REG", DSISR: %08lx\n", regs->dar, regs->dsisr);
 #endif
 	printk("TASK = %p[%d] '%s' THREAD: %p",
 	       current, task_pid_nr(current), current->comm, task_thread_info(current));
@@ -670,11 +672,11 @@ void flush_thread(void)
 {
 	discard_lazy_cpu_state();
 
-#ifdef CONFIG_HAVE_HW_BREAKPOINTS
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
 	flush_ptrace_hw_breakpoint(current);
-#else /* CONFIG_HAVE_HW_BREAKPOINTS */
+#else /* CONFIG_HAVE_HW_BREAKPOINT */
 	set_debug_reg_defaults(&current->thread);
-#endif /* CONFIG_HAVE_HW_BREAKPOINTS */
+#endif /* CONFIG_HAVE_HW_BREAKPOINT */
 }
 
 void

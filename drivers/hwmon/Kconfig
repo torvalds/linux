@@ -238,13 +238,13 @@ config SENSORS_K8TEMP
 	  will be called k8temp.
 
 config SENSORS_K10TEMP
-	tristate "AMD Phenom/Sempron/Turion/Opteron temperature sensor"
+	tristate "AMD Family 10h/11h/12h/14h temperature sensor"
 	depends on X86 && PCI
 	help
 	  If you say yes here you get support for the temperature
 	  sensor(s) inside your CPU. Supported are later revisions of
-	  the AMD Family 10h and all revisions of the AMD Family 11h
-	  microarchitectures.
+	  the AMD Family 10h and all revisions of the AMD Family 11h,
+	  12h (Llano), and 14h (Brazos) microarchitectures.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called k10temp.
@@ -273,6 +273,16 @@ config SENSORS_ATXP1
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called atxp1.
+
+config SENSORS_DS620
+	tristate "Dallas Semiconductor DS620"
+	depends on I2C
+	help
+	  If you say yes here you get support for Dallas Semiconductor
+	  DS620 sensor chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ds620.
 
 config SENSORS_DS1621
 	tristate "Dallas Semiconductor DS1621 and DS1625"
@@ -445,13 +455,14 @@ config SENSORS_JZ4740
 	  called jz4740-hwmon.
 
 config SENSORS_JC42
-	tristate "JEDEC JC42.4 compliant temperature sensors"
+	tristate "JEDEC JC42.4 compliant memory module temperature sensors"
 	depends on I2C
 	help
-	  If you say yes here you get support for Jedec JC42.4 compliant
-	  temperature sensors. Support will include, but not be limited to,
-	  ADT7408, CAT34TS02,, CAT6095, MAX6604, MCP9805, MCP98242, MCP98243,
-	  MCP9843, SE97, SE98, STTS424, TSE2002B3, and TS3000B3.
+	  If you say yes here, you get support for JEDEC JC42.4 compliant
+	  temperature sensors, which are used on many DDR3 memory modules for
+	  mobile devices and servers.  Support will include, but not be limited
+	  to, ADT7408, CAT34TS02, CAT6095, MAX6604, MCP9805, MCP98242, MCP98243,
+	  MCP9843, SE97, SE98, STTS424(E), TSE2002B3, and TS3000B3.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called jc42.
@@ -564,7 +575,7 @@ config SENSORS_LM85
 	help
 	  If you say yes here you get support for National Semiconductor LM85
 	  sensor chips and clones: ADM1027, ADT7463, ADT7468, EMC6D100,
-	  EMC6D101 and EMC6D102.
+	  EMC6D101, EMC6D102, and EMC6D103.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm85.
@@ -608,8 +619,8 @@ config SENSORS_LM93
 	depends on I2C
 	select HWMON_VID
 	help
-	  If you say yes here you get support for National Semiconductor LM93
-	  sensor chips.
+	  If you say yes here you get support for National Semiconductor LM93,
+	  LM94, and compatible sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm93.
@@ -734,6 +745,16 @@ config SENSORS_SHT15
 	  This driver can also be built as a module.  If so, the module
 	  will be called sht15.
 
+config SENSORS_SHT21
+	tristate "Sensiron humidity and temperature sensors. SHT21 and compat."
+	depends on I2C
+	help
+	  If you say yes here you get support for the Sensiron SHT21, SHT25
+	  humidity and temperature sensors.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called sht21.
+
 config SENSORS_S3C
 	tristate "Samsung built-in ADC"
 	depends on S3C_ADC
@@ -789,10 +810,10 @@ config SENSORS_DME1737
 	  will be called dme1737.
 
 config SENSORS_EMC1403
-	tristate "SMSC EMC1403 thermal sensor"
+	tristate "SMSC EMC1403/23 thermal sensor"
 	depends on I2C
 	help
-	  If you say yes here you get support for the SMSC EMC1403
+	  If you say yes here you get support for the SMSC EMC1403/23
 	  temperature monitoring chip.
 
 	  Threshold values can be configured using sysfs.

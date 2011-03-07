@@ -317,7 +317,7 @@ static void zfcp_act_eval_err(struct zfcp_adapter *adapter, u32 table)
 
 /**
  * zfcp_cfdc_port_denied - Process "access denied" for port
- * @port: The port where the acces has been denied
+ * @port: The port where the access has been denied
  * @qual: The FSF status qualifier for the access denied FSF status
  */
 void zfcp_cfdc_port_denied(struct zfcp_port *port,

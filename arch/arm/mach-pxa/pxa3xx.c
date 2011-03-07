@@ -229,11 +229,11 @@ static void __init pxa3xx_init_pm(void)
 	pxa_cpu_pm_fns = &pxa3xx_cpu_pm_fns;
 }
 
-static int pxa3xx_set_wake(unsigned int irq, unsigned int on)
+static int pxa3xx_set_wake(struct irq_data *d, unsigned int on)
 {
 	unsigned long flags, mask = 0;
 
-	switch (irq) {
+	switch (d->irq) {
 	case IRQ_SSP3:
 		mask = ADXER_MFP_WSSP3;
 		break;
@@ -322,40 +322,40 @@ static inline void pxa3xx_init_pm(void) {}
 #define pxa3xx_set_wake	NULL
 #endif
 
-static void pxa_ack_ext_wakeup(unsigned int irq)
+static void pxa_ack_ext_wakeup(struct irq_data *d)
 {
-	PECR |= PECR_IS(irq - IRQ_WAKEUP0);
+	PECR |= PECR_IS(d->irq - IRQ_WAKEUP0);
 }
 
-static void pxa_mask_ext_wakeup(unsigned int irq)
+static void pxa_mask_ext_wakeup(struct irq_data *d)
 {
-	ICMR2 &= ~(1 << ((irq - PXA_IRQ(0)) & 0x1f));
-	PECR &= ~PECR_IE(irq - IRQ_WAKEUP0);
+	ICMR2 &= ~(1 << ((d->irq - PXA_IRQ(0)) & 0x1f));
+	PECR &= ~PECR_IE(d->irq - IRQ_WAKEUP0);
 }
 
-static void pxa_unmask_ext_wakeup(unsigned int irq)
+static void pxa_unmask_ext_wakeup(struct irq_data *d)
 {
-	ICMR2 |= 1 << ((irq - PXA_IRQ(0)) & 0x1f);
-	PECR |= PECR_IE(irq - IRQ_WAKEUP0);
+	ICMR2 |= 1 << ((d->irq - PXA_IRQ(0)) & 0x1f);
+	PECR |= PECR_IE(d->irq - IRQ_WAKEUP0);
 }
 
-static int pxa_set_ext_wakeup_type(unsigned int irq, unsigned int flow_type)
+static int pxa_set_ext_wakeup_type(struct irq_data *d, unsigned int flow_type)
 {
 	if (flow_type & IRQ_TYPE_EDGE_RISING)
-		PWER |= 1 << (irq - IRQ_WAKEUP0);
+		PWER |= 1 << (d->irq - IRQ_WAKEUP0);
 
 	if (flow_type & IRQ_TYPE_EDGE_FALLING)
-		PWER |= 1 << (irq - IRQ_WAKEUP0 + 2);
+		PWER |= 1 << (d->irq - IRQ_WAKEUP0 + 2);
 
 	return 0;
 }
 
 static struct irq_chip pxa_ext_wakeup_chip = {
 	.name		= "WAKEUP",
-	.ack		= pxa_ack_ext_wakeup,
-	.mask		= pxa_mask_ext_wakeup,
-	.unmask		= pxa_unmask_ext_wakeup,
-	.set_type	= pxa_set_ext_wakeup_type,
+	.irq_ack	= pxa_ack_ext_wakeup,
+	.irq_mask	= pxa_mask_ext_wakeup,
+	.irq_unmask	= pxa_unmask_ext_wakeup,
+	.irq_set_type	= pxa_set_ext_wakeup_type,
 };
 
 static void __init pxa_init_ext_wakeup_irq(set_wake_t fn)
@@ -368,7 +368,7 @@ static void __init pxa_init_ext_wakeup_irq(set_wake_t fn)
 		set_irq_flags(irq, IRQF_VALID);
 	}
 
-	pxa_ext_wakeup_chip.set_wake = fn;
+	pxa_ext_wakeup_chip.irq_set_wake = fn;
 }
 
 void __init pxa3xx_init_irq(void)

@@ -273,7 +273,7 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	intf->beacon = entry;
 
 	/*
-	 * The MAC adddress must be configured after the device
+	 * The MAC address must be configured after the device
 	 * has been initialized. Otherwise the device can reset
 	 * the MAC registers.
 	 * The BSSID address must only be configured in AP mode,

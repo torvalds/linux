@@ -761,9 +761,10 @@ extern void select_idle_routine(const struct cpuinfo_x86 *c);
 extern void init_c1e_mask(void);
 
 extern unsigned long		boot_option_idle_override;
-extern unsigned long		idle_halt;
-extern unsigned long		idle_nomwait;
 extern bool			c1e_detected;
+
+enum idle_boot_override {IDLE_NO_OVERRIDE=0, IDLE_HALT, IDLE_NOMWAIT,
+			 IDLE_POLL, IDLE_FORCE_MWAIT};
 
 extern void enable_sep_cpu(void);
 extern int sysenter_setup(void);
@@ -901,7 +902,7 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
 /*
  * The below -8 is to reserve 8 bytes on top of the ring0 stack.
  * This is necessary to guarantee that the entire "struct pt_regs"
- * is accessable even if the CPU haven't stored the SS/ESP registers
+ * is accessible even if the CPU haven't stored the SS/ESP registers
  * on the stack (interrupt gate does not save these registers
  * when switching to the same priv ring).
  * Therefore beware: accessing the ss/esp fields of the

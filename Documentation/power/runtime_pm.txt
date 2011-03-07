@@ -50,6 +50,15 @@ type's callbacks are not defined) of given device.  The bus type, device type
 and device class callbacks are referred to as subsystem-level callbacks in what
 follows.
 
+By default, the callbacks are always invoked in process context with interrupts
+enabled.  However, subsystems can use the pm_runtime_irq_safe() helper function
+to tell the PM core that a device's ->runtime_suspend() and ->runtime_resume()
+callbacks should be invoked in atomic context with interrupts disabled
+(->runtime_idle() is still invoked the default way).  This implies that these
+callback routines must not block or sleep, but it also means that the
+synchronous helper functions listed at the end of Section 4 can be used within
+an interrupt handler or in an atomic context.
+
 The subsystem-level suspend callback is _entirely_ _responsible_ for handling
 the suspend of the device as appropriate, which may, but need not include
 executing the device driver's own ->runtime_suspend() callback (from the
@@ -237,6 +246,10 @@ defined in include/linux/pm.h:
       Section 8); it may be modified only by the pm_runtime_no_callbacks()
       helper function
 
+  unsigned int irq_safe;
+    - indicates that the ->runtime_suspend() and ->runtime_resume() callbacks
+      will be invoked with the spinlock held and interrupts disabled
+
   unsigned int use_autosuspend;
     - indicates that the device's driver supports delayed autosuspend (see
       Section 9); it may be modified only by the
@@ -344,6 +357,10 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
     - decrement the device's usage counter; if the result is 0 then run
       pm_runtime_idle(dev) and return its result
 
+  int pm_runtime_put_sync_suspend(struct device *dev);
+    - decrement the device's usage counter; if the result is 0 then run
+      pm_runtime_suspend(dev) and return its result
+
   int pm_runtime_put_sync_autosuspend(struct device *dev);
     - decrement the device's usage counter; if the result is 0 then run
       pm_runtime_autosuspend(dev) and return its result
@@ -397,6 +414,11 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
       PM attributes from /sys/devices/.../power (or prevent them from being
       added when the device is registered)
 
+  void pm_runtime_irq_safe(struct device *dev);
+    - set the power.irq_safe flag for the device, causing the runtime-PM
+      suspend and resume callbacks (but not the idle callback) to be invoked
+      with interrupts disabled
+
   void pm_runtime_mark_last_busy(struct device *dev);
     - set the power.last_busy field to the current time
 
@@ -437,6 +459,15 @@ pm_runtime_set_suspended()
 pm_runtime_suspended()
 pm_runtime_mark_last_busy()
 pm_runtime_autosuspend_expiration()
+
+If pm_runtime_irq_safe() has been called for a device then the following helper
+functions may also be used in interrupt context:
+
+pm_runtime_suspend()
+pm_runtime_autosuspend()
+pm_runtime_resume()
+pm_runtime_get_sync()
+pm_runtime_put_sync_suspend()
 
 5. Run-time PM Initialization, Device Probing and Removal
 

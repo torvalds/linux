@@ -404,14 +404,17 @@ unsigned long determine_dirtyable_memory(void)
  * - vm.dirty_background_ratio  or  vm.dirty_background_bytes
  * - vm.dirty_ratio             or  vm.dirty_bytes
  * The dirty limits will be lifted by 1/4 for PF_LESS_THROTTLE (ie. nfsd) and
- * runtime tasks.
+ * real-time tasks.
  */
 void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
 {
 	unsigned long background;
 	unsigned long dirty;
-	unsigned long available_memory = determine_dirtyable_memory();
+	unsigned long uninitialized_var(available_memory);
 	struct task_struct *tsk;
+
+	if (!vm_dirty_bytes || !dirty_background_bytes)
+		available_memory = determine_dirtyable_memory();
 
 	if (vm_dirty_bytes)
 		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
@@ -1103,7 +1106,7 @@ EXPORT_SYMBOL(write_one_page);
 int __set_page_dirty_no_writeback(struct page *page)
 {
 	if (!PageDirty(page))
-		SetPageDirty(page);
+		return !TestSetPageDirty(page);
 	return 0;
 }
 

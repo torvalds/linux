@@ -351,12 +351,16 @@ void sym_calc_value(struct symbol *sym)
 			}
 		calc_newval:
 			if (sym->dir_dep.tri == no && sym->rev_dep.tri != no) {
+				struct expr *e;
+				e = expr_simplify_unmet_dep(sym->rev_dep.expr,
+				    sym->dir_dep.expr);
 				fprintf(stderr, "warning: (");
-				expr_fprint(sym->rev_dep.expr, stderr);
+				expr_fprint(e, stderr);
 				fprintf(stderr, ") selects %s which has unmet direct dependencies (",
 					sym->name);
 				expr_fprint(sym->dir_dep.expr, stderr);
 				fprintf(stderr, ")\n");
+				expr_free(e);
 			}
 			newval.tri = EXPR_OR(newval.tri, sym->rev_dep.tri);
 		}
@@ -686,7 +690,7 @@ const char *sym_get_string_default(struct symbol *sym)
 		switch (sym->type) {
 		case S_BOOLEAN:
 		case S_TRISTATE:
-			/* The visibility imay limit the value from yes => mod */
+			/* The visibility may limit the value from yes => mod */
 			val = EXPR_AND(expr_calc_value(prop->expr), prop->visible.tri);
 			break;
 		default:

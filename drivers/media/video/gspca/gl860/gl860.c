@@ -488,7 +488,7 @@ static void sd_callback(struct gspca_dev *gspca_dev)
 
 /*=================== USB driver structure initialisation ==================*/
 
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x05e3, 0x0503)},
 	{USB_DEVICE(0x05e3, 0xf191)},
 	{}

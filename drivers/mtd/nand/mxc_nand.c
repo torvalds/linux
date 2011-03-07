@@ -1009,7 +1009,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	struct mxc_nand_platform_data *pdata = pdev->dev.platform_data;
 	struct mxc_nand_host *host;
 	struct resource *res;
-	int err = 0, nr_parts = 0;
+	int err = 0, __maybe_unused nr_parts = 0;
 	struct nand_ecclayout *oob_smallpage, *oob_largepage;
 
 	/* Allocate memory for MTD device structure and private data */

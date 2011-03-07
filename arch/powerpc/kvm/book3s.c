@@ -1307,11 +1307,9 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	int err = -ENOMEM;
 	unsigned long p;
 
-	vcpu_book3s = vmalloc(sizeof(struct kvmppc_vcpu_book3s));
+	vcpu_book3s = vzalloc(sizeof(struct kvmppc_vcpu_book3s));
 	if (!vcpu_book3s)
 		goto out;
-
-	memset(vcpu_book3s, 0, sizeof(struct kvmppc_vcpu_book3s));
 
 	vcpu_book3s->shadow_vcpu = (struct kvmppc_book3s_shadow_vcpu *)
 		kzalloc(sizeof(*vcpu_book3s->shadow_vcpu), GFP_KERNEL);

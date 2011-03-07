@@ -506,6 +506,15 @@ static int __init pmac_declare_of_platform_devices(void)
 		of_platform_device_create(np, "smu", NULL);
 		of_node_put(np);
 	}
+	np = of_find_node_by_type(NULL, "fcu");
+	if (np == NULL) {
+		/* Some machines have strangely broken device-tree */
+		np = of_find_node_by_path("/u3@0,f8000000/i2c@f8001000/fan@15e");
+	}
+	if (np) {
+		of_platform_device_create(np, "temperature", NULL);
+		of_node_put(np);
+	}
 
 	return 0;
 }

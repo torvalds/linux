@@ -397,7 +397,6 @@ static int nilfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		new_de = nilfs_find_entry(new_dir, &new_dentry->d_name, &new_page);
 		if (!new_de)
 			goto out_dir;
-		inc_nlink(old_inode);
 		nilfs_set_link(new_dir, new_de, new_page, old_inode);
 		nilfs_mark_inode_dirty(new_dir);
 		new_inode->i_ctime = CURRENT_TIME;
@@ -411,13 +410,9 @@ static int nilfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			if (new_dir->i_nlink >= NILFS_LINK_MAX)
 				goto out_dir;
 		}
-		inc_nlink(old_inode);
 		err = nilfs_add_link(new_dentry, old_inode);
-		if (err) {
-			drop_nlink(old_inode);
-			nilfs_mark_inode_dirty(old_inode);
+		if (err)
 			goto out_dir;
-		}
 		if (dir_de) {
 			inc_nlink(new_dir);
 			nilfs_mark_inode_dirty(new_dir);
@@ -431,7 +426,6 @@ static int nilfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	old_inode->i_ctime = CURRENT_TIME;
 
 	nilfs_delete_entry(old_de, old_page);
-	drop_nlink(old_inode);
 
 	if (dir_de) {
 		nilfs_set_link(old_inode, dir_de, dir_page, new_dir);
@@ -577,6 +571,7 @@ const struct inode_operations nilfs_dir_inode_operations = {
 	.rename		= nilfs_rename,
 	.setattr	= nilfs_setattr,
 	.permission	= nilfs_permission,
+	.fiemap		= nilfs_fiemap,
 };
 
 const struct inode_operations nilfs_special_inode_operations = {

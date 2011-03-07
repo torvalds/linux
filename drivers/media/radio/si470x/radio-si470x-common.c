@@ -357,7 +357,8 @@ int si470x_start(struct si470x_device *radio)
 		goto done;
 
 	/* sysconfig 1 */
-	radio->registers[SYSCONFIG1] = SYSCONFIG1_DE;
+	radio->registers[SYSCONFIG1] =
+		(de << 11) & SYSCONFIG1_DE;		/* DE*/
 	retval = si470x_set_register(radio, SYSCONFIG1);
 	if (retval < 0)
 		goto done;
@@ -687,12 +688,8 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 	/* driver constants */
 	strcpy(tuner->name, "FM");
 	tuner->type = V4L2_TUNER_RADIO;
-#if defined(CONFIG_USB_SI470X) || defined(CONFIG_USB_SI470X_MODULE)
 	tuner->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO |
 			    V4L2_TUNER_CAP_RDS | V4L2_TUNER_CAP_RDS_BLOCK_IO;
-#else
-	tuner->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
-#endif
 
 	/* range limits */
 	switch ((radio->registers[SYSCONFIG2] & SYSCONFIG2_BAND) >> 6) {
@@ -718,12 +715,10 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 		tuner->rxsubchans = V4L2_TUNER_SUB_MONO;
 	else
 		tuner->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
-#if defined(CONFIG_USB_SI470X) || defined(CONFIG_USB_SI470X_MODULE)
 	/* If there is a reliable method of detecting an RDS channel,
 	   then this code should check for that before setting this
 	   RDS subchannel. */
 	tuner->rxsubchans |= V4L2_TUNER_SUB_RDS;
-#endif
 
 	/* mono/stereo selector */
 	if ((radio->registers[POWERCFG] & POWERCFG_MONO) == 0)

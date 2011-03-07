@@ -69,12 +69,16 @@ xfs_trans_log_efi_extent(xfs_trans_t		*tp,
 	tp->t_flags |= XFS_TRANS_DIRTY;
 	efip->efi_item.li_desc->lid_flags |= XFS_LID_DIRTY;
 
-	next_extent = efip->efi_next_extent;
+	/*
+	 * atomic_inc_return gives us the value after the increment;
+	 * we want to use it as an array index so we need to subtract 1 from
+	 * it.
+	 */
+	next_extent = atomic_inc_return(&efip->efi_next_extent) - 1;
 	ASSERT(next_extent < efip->efi_format.efi_nextents);
 	extp = &(efip->efi_format.efi_extents[next_extent]);
 	extp->ext_start = start_block;
 	extp->ext_len = ext_len;
-	efip->efi_next_extent++;
 }
 
 

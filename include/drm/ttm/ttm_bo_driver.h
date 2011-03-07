@@ -179,30 +179,6 @@ struct ttm_tt {
 #define TTM_MEMTYPE_FLAG_MAPPABLE      (1 << 1)	/* Memory mappable */
 #define TTM_MEMTYPE_FLAG_CMA           (1 << 3)	/* Can't map aperture */
 
-/**
- * struct ttm_mem_type_manager
- *
- * @has_type: The memory type has been initialized.
- * @use_type: The memory type is enabled.
- * @flags: TTM_MEMTYPE_XX flags identifying the traits of the memory
- * managed by this memory type.
- * @gpu_offset: If used, the GPU offset of the first managed page of
- * fixed memory or the first managed location in an aperture.
- * @size: Size of the managed region.
- * @available_caching: A mask of available caching types, TTM_PL_FLAG_XX,
- * as defined in ttm_placement_common.h
- * @default_caching: The default caching policy used for a buffer object
- * placed in this memory type if the user doesn't provide one.
- * @manager: The range manager used for this memory type. FIXME: If the aperture
- * has a page size different from the underlying system, the granularity
- * of this manager should take care of this. But the range allocating code
- * in ttm_bo.c needs to be modified for this.
- * @lru: The lru list for this memory type.
- *
- * This structure is used to identify and manage memory types for a device.
- * It's set up by the ttm_bo_driver::init_mem_type method.
- */
-
 struct ttm_mem_type_manager;
 
 struct ttm_mem_type_manager_func {
@@ -287,6 +263,36 @@ struct ttm_mem_type_manager_func {
 	void (*debug)(struct ttm_mem_type_manager *man, const char *prefix);
 };
 
+/**
+ * struct ttm_mem_type_manager
+ *
+ * @has_type: The memory type has been initialized.
+ * @use_type: The memory type is enabled.
+ * @flags: TTM_MEMTYPE_XX flags identifying the traits of the memory
+ * managed by this memory type.
+ * @gpu_offset: If used, the GPU offset of the first managed page of
+ * fixed memory or the first managed location in an aperture.
+ * @size: Size of the managed region.
+ * @available_caching: A mask of available caching types, TTM_PL_FLAG_XX,
+ * as defined in ttm_placement_common.h
+ * @default_caching: The default caching policy used for a buffer object
+ * placed in this memory type if the user doesn't provide one.
+ * @func: structure pointer implementing the range manager. See above
+ * @priv: Driver private closure for @func.
+ * @io_reserve_mutex: Mutex optionally protecting shared io_reserve structures
+ * @use_io_reserve_lru: Use an lru list to try to unreserve io_mem_regions
+ * reserved by the TTM vm system.
+ * @io_reserve_lru: Optional lru list for unreserving io mem regions.
+ * @io_reserve_fastpath: Only use bdev::driver::io_mem_reserve to obtain
+ * static information. bdev::driver::io_mem_free is never used.
+ * @lru: The lru list for this memory type.
+ *
+ * This structure is used to identify and manage memory types for a device.
+ * It's set up by the ttm_bo_driver::init_mem_type method.
+ */
+
+
+
 struct ttm_mem_type_manager {
 	struct ttm_bo_device *bdev;
 
@@ -303,6 +309,15 @@ struct ttm_mem_type_manager {
 	uint32_t default_caching;
 	const struct ttm_mem_type_manager_func *func;
 	void *priv;
+	struct mutex io_reserve_mutex;
+	bool use_io_reserve_lru;
+	bool io_reserve_fastpath;
+
+	/*
+	 * Protected by @io_reserve_mutex:
+	 */
+
+	struct list_head io_reserve_lru;
 
 	/*
 	 * Protected by the global->lru_lock.
@@ -510,9 +525,12 @@ struct ttm_bo_global {
  *
  * @driver: Pointer to a struct ttm_bo_driver struct setup by the driver.
  * @man: An array of mem_type_managers.
+ * @fence_lock: Protects the synchronizing members on *all* bos belonging
+ * to this device.
  * @addr_space_mm: Range manager for the device address space.
  * lru_lock: Spinlock that protects the buffer+device lru lists and
  * ddestroy lists.
+ * @val_seq: Current validation sequence.
  * @nice_mode: Try nicely to wait for buffer idle when cleaning a manager.
  * If a GPU lockup has been detected, this is forced to 0.
  * @dev_mapping: A pointer to the struct address_space representing the
@@ -531,6 +549,7 @@ struct ttm_bo_device {
 	struct ttm_bo_driver *driver;
 	rwlock_t vm_lock;
 	struct ttm_mem_type_manager man[TTM_NUM_MEM_TYPES];
+	spinlock_t fence_lock;
 	/*
 	 * Protected by the vm lock.
 	 */
@@ -541,6 +560,7 @@ struct ttm_bo_device {
 	 * Protected by the global:lru lock.
 	 */
 	struct list_head ddestroy;
+	uint32_t val_seq;
 
 	/*
 	 * Protected by load / firstopen / lastclose /unload sync.
@@ -753,31 +773,6 @@ extern void ttm_bo_mem_put_locked(struct ttm_buffer_object *bo,
 
 extern int ttm_bo_wait_cpu(struct ttm_buffer_object *bo, bool no_wait);
 
-/**
- * ttm_bo_pci_offset - Get the PCI offset for the buffer object memory.
- *
- * @bo Pointer to a struct ttm_buffer_object.
- * @bus_base On return the base of the PCI region
- * @bus_offset On return the byte offset into the PCI region
- * @bus_size On return the byte size of the buffer object or zero if
- * the buffer object memory is not accessible through a PCI region.
- *
- * Returns:
- * -EINVAL if the buffer object is currently not mappable.
- * 0 otherwise.
- */
-
-extern int ttm_bo_pci_offset(struct ttm_bo_device *bdev,
-			     struct ttm_mem_reg *mem,
-			     unsigned long *bus_base,
-			     unsigned long *bus_offset,
-			     unsigned long *bus_size);
-
-extern int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
-				struct ttm_mem_reg *mem);
-extern void ttm_mem_io_free(struct ttm_bo_device *bdev,
-				struct ttm_mem_reg *mem);
-
 extern void ttm_bo_global_release(struct drm_global_reference *ref);
 extern int ttm_bo_global_init(struct drm_global_reference *ref);
 
@@ -808,6 +803,22 @@ extern int ttm_bo_device_init(struct ttm_bo_device *bdev,
  * @bo: tear down the virtual mappings for this BO
  */
 extern void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo);
+
+/**
+ * ttm_bo_unmap_virtual
+ *
+ * @bo: tear down the virtual mappings for this BO
+ *
+ * The caller must take ttm_mem_io_lock before calling this function.
+ */
+extern void ttm_bo_unmap_virtual_locked(struct ttm_buffer_object *bo);
+
+extern int ttm_mem_io_reserve_vm(struct ttm_buffer_object *bo);
+extern void ttm_mem_io_free_vm(struct ttm_buffer_object *bo);
+extern int ttm_mem_io_lock(struct ttm_mem_type_manager *man,
+			   bool interruptible);
+extern void ttm_mem_io_unlock(struct ttm_mem_type_manager *man);
+
 
 /**
  * ttm_bo_reserve:
@@ -859,10 +870,43 @@ extern void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo);
  * try again. (only if use_sequence == 1).
  * -ERESTARTSYS: A wait for the buffer to become unreserved was interrupted by
  * a signal. Release all buffer reservations and return to user-space.
+ * -EBUSY: The function needed to sleep, but @no_wait was true
+ * -EDEADLK: Bo already reserved using @sequence. This error code will only
+ * be returned if @use_sequence is set to true.
  */
 extern int ttm_bo_reserve(struct ttm_buffer_object *bo,
 			  bool interruptible,
 			  bool no_wait, bool use_sequence, uint32_t sequence);
+
+
+/**
+ * ttm_bo_reserve_locked:
+ *
+ * @bo: A pointer to a struct ttm_buffer_object.
+ * @interruptible: Sleep interruptible if waiting.
+ * @no_wait: Don't sleep while trying to reserve, rather return -EBUSY.
+ * @use_sequence: If @bo is already reserved, Only sleep waiting for
+ * it to become unreserved if @sequence < (@bo)->sequence.
+ *
+ * Must be called with struct ttm_bo_global::lru_lock held,
+ * and will not remove reserved buffers from the lru lists.
+ * The function may release the LRU spinlock if it needs to sleep.
+ * Otherwise identical to ttm_bo_reserve.
+ *
+ * Returns:
+ * -EAGAIN: The reservation may cause a deadlock.
+ * Release all buffer reservations, wait for @bo to become unreserved and
+ * try again. (only if use_sequence == 1).
+ * -ERESTARTSYS: A wait for the buffer to become unreserved was interrupted by
+ * a signal. Release all buffer reservations and return to user-space.
+ * -EBUSY: The function needed to sleep, but @no_wait was true
+ * -EDEADLK: Bo already reserved using @sequence. This error code will only
+ * be returned if @use_sequence is set to true.
+ */
+extern int ttm_bo_reserve_locked(struct ttm_buffer_object *bo,
+				 bool interruptible,
+				 bool no_wait, bool use_sequence,
+				 uint32_t sequence);
 
 /**
  * ttm_bo_unreserve
@@ -872,6 +916,16 @@ extern int ttm_bo_reserve(struct ttm_buffer_object *bo,
  * Unreserve a previous reservation of @bo.
  */
 extern void ttm_bo_unreserve(struct ttm_buffer_object *bo);
+
+/**
+ * ttm_bo_unreserve_locked
+ *
+ * @bo: A pointer to a struct ttm_buffer_object.
+ *
+ * Unreserve a previous reservation of @bo.
+ * Needs to be called with struct ttm_bo_global::lru_lock held.
+ */
+extern void ttm_bo_unreserve_locked(struct ttm_buffer_object *bo);
 
 /**
  * ttm_bo_wait_unreserved

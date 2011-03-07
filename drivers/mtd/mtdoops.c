@@ -307,6 +307,11 @@ static void mtdoops_do_dump(struct kmsg_dumper *dumper,
 	unsigned long l1_cpy, l2_cpy;
 	char *dst;
 
+	if (reason != KMSG_DUMP_OOPS &&
+	    reason != KMSG_DUMP_PANIC &&
+	    reason != KMSG_DUMP_KEXEC)
+		return;
+
 	/* Only dump oopses if dump_oops is set */
 	if (reason == KMSG_DUMP_OOPS && !dump_oops)
 		return;
@@ -396,7 +401,8 @@ static void mtdoops_notify_remove(struct mtd_info *mtd)
 		printk(KERN_WARNING "mtdoops: could not unregister kmsg_dumper\n");
 
 	cxt->mtd = NULL;
-	flush_scheduled_work();
+	flush_work_sync(&cxt->work_erase);
+	flush_work_sync(&cxt->work_write);
 }
 
 

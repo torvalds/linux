@@ -37,6 +37,9 @@ static struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 	char *value = NULL;
 	struct posix_acl *acl;
 
+	if (!IS_POSIXACL(inode))
+		return NULL;
+
 	acl = get_cached_acl(inode, type);
 	if (acl != ACL_NOT_CACHED)
 		return acl;
@@ -60,8 +63,10 @@ static struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 		size = __btrfs_getxattr(inode, name, value, size);
 		if (size > 0) {
 			acl = posix_acl_from_xattr(value, size);
-			if (IS_ERR(acl))
+			if (IS_ERR(acl)) {
+				kfree(value);
 				return acl;
+			}
 			set_cached_acl(inode, type, acl);
 		}
 		kfree(value);
@@ -81,6 +86,9 @@ static int btrfs_xattr_acl_get(struct dentry *dentry, const char *name,
 {
 	struct posix_acl *acl;
 	int ret = 0;
+
+	if (!IS_POSIXACL(dentry->d_inode))
+		return -EOPNOTSUPP;
 
 	acl = btrfs_get_acl(dentry->d_inode, type);
 

@@ -1335,7 +1335,7 @@ lpfc_##attr##_show(struct device *dev, struct device_attribute *attr, \
 }
 
 /**
- * lpfc_param_init - Intializes a cfg attribute
+ * lpfc_param_init - Initializes a cfg attribute
  *
  * Description:
  * Macro that given an attr e.g. hba_queue_depth expands

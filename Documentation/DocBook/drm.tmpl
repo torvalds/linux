@@ -73,8 +73,8 @@
       services.
     </para>
     <para>
-      The core of every DRM driver is struct drm_device.  Drivers
-      will typically statically initialize a drm_device structure,
+      The core of every DRM driver is struct drm_driver.  Drivers
+      will typically statically initialize a drm_driver structure,
       then pass it to drm_init() at load time.
     </para>
 
@@ -84,7 +84,7 @@
     <title>Driver initialization</title>
     <para>
       Before calling the DRM initialization routines, the driver must
-      first create and fill out a struct drm_device structure.
+      first create and fill out a struct drm_driver structure.
     </para>
     <programlisting>
       static struct drm_driver driver = {

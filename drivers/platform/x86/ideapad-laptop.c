@@ -1,5 +1,5 @@
 /*
- *  ideapad_acpi.c - Lenovo IdeaPad ACPI Extras
+ *  ideapad-laptop.c - Lenovo IdeaPad ACPI Extras
  *
  *  Copyright © 2010 Intel Corporation
  *  Copyright © 2010 David Woodhouse <dwmw2@infradead.org>
@@ -27,31 +27,19 @@
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 #include <linux/rfkill.h>
+#include <linux/platform_device.h>
+#include <linux/input.h>
+#include <linux/input/sparse-keymap.h>
 
-#define IDEAPAD_DEV_CAMERA	0
-#define IDEAPAD_DEV_WLAN	1
-#define IDEAPAD_DEV_BLUETOOTH	2
-#define IDEAPAD_DEV_3G		3
-#define IDEAPAD_DEV_KILLSW	4
+#define IDEAPAD_RFKILL_DEV_NUM	(3)
 
 struct ideapad_private {
-	acpi_handle handle;
-	struct rfkill *rfk[5];
-} *ideapad_priv;
-
-static struct {
-	char *name;
-	int cfgbit;
-	int opcode;
-	int type;
-} ideapad_rfk_data[] = {
-	{ "ideapad_camera",	19, 0x1E, NUM_RFKILL_TYPES },
-	{ "ideapad_wlan",	18, 0x15, RFKILL_TYPE_WLAN },
-	{ "ideapad_bluetooth",	16, 0x17, RFKILL_TYPE_BLUETOOTH },
-	{ "ideapad_3g",		17, 0x20, RFKILL_TYPE_WWAN },
-	{ "ideapad_killsw",	0,  0,    RFKILL_TYPE_WLAN }
+	struct rfkill *rfk[IDEAPAD_RFKILL_DEV_NUM];
+	struct platform_device *platform_device;
+	struct input_dev *inputdev;
 };
 
+static acpi_handle ideapad_handle;
 static bool no_bt_rfkill;
 module_param(no_bt_rfkill, bool, 0444);
 MODULE_PARM_DESC(no_bt_rfkill, "No rfkill for bluetooth.");
@@ -163,17 +151,17 @@ static int write_ec_cmd(acpi_handle handle, int cmd, unsigned long data)
 	pr_err("timeout in write_ec_cmd\n");
 	return -1;
 }
-/* the above is ACPI helpers */
 
+/*
+ * camera power
+ */
 static ssize_t show_ideapad_cam(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	struct ideapad_private *priv = dev_get_drvdata(dev);
-	acpi_handle handle = priv->handle;
 	unsigned long result;
 
-	if (read_ec_data(handle, 0x1D, &result))
+	if (read_ec_data(ideapad_handle, 0x1D, &result))
 		return sprintf(buf, "-1\n");
 	return sprintf(buf, "%lu\n", result);
 }
@@ -182,15 +170,13 @@ static ssize_t store_ideapad_cam(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count)
 {
-	struct ideapad_private *priv = dev_get_drvdata(dev);
-	acpi_handle handle = priv->handle;
 	int ret, state;
 
 	if (!count)
 		return 0;
 	if (sscanf(buf, "%i", &state) != 1)
 		return -EINVAL;
-	ret = write_ec_cmd(handle, 0x1E, state);
+	ret = write_ec_cmd(ideapad_handle, 0x1E, state);
 	if (ret < 0)
 		return ret;
 	return count;
@@ -198,16 +184,27 @@ static ssize_t store_ideapad_cam(struct device *dev,
 
 static DEVICE_ATTR(camera_power, 0644, show_ideapad_cam, store_ideapad_cam);
 
+/*
+ * Rfkill
+ */
+struct ideapad_rfk_data {
+	char *name;
+	int cfgbit;
+	int opcode;
+	int type;
+};
+
+const struct ideapad_rfk_data ideapad_rfk_data[] = {
+	{ "ideapad_wlan",	18, 0x15, RFKILL_TYPE_WLAN },
+	{ "ideapad_bluetooth",	16, 0x17, RFKILL_TYPE_BLUETOOTH },
+	{ "ideapad_3g",		17, 0x20, RFKILL_TYPE_WWAN },
+};
+
 static int ideapad_rfk_set(void *data, bool blocked)
 {
-	int device = (unsigned long)data;
+	unsigned long opcode = (unsigned long)data;
 
-	if (device == IDEAPAD_DEV_KILLSW)
-		return -EINVAL;
-
-	return write_ec_cmd(ideapad_priv->handle,
-			    ideapad_rfk_data[device].opcode,
-			    !blocked);
+	return write_ec_cmd(ideapad_handle, opcode, !blocked);
 }
 
 static struct rfkill_ops ideapad_rfk_ops = {
@@ -217,20 +214,20 @@ static struct rfkill_ops ideapad_rfk_ops = {
 static void ideapad_sync_rfk_state(struct acpi_device *adevice)
 {
 	struct ideapad_private *priv = dev_get_drvdata(&adevice->dev);
-	acpi_handle handle = priv->handle;
 	unsigned long hw_blocked;
 	int i;
 
-	if (read_ec_data(handle, 0x23, &hw_blocked))
+	if (read_ec_data(ideapad_handle, 0x23, &hw_blocked))
 		return;
 	hw_blocked = !hw_blocked;
 
-	for (i = IDEAPAD_DEV_WLAN; i <= IDEAPAD_DEV_KILLSW; i++)
+	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
 		if (priv->rfk[i])
 			rfkill_set_hw_state(priv->rfk[i], hw_blocked);
 }
 
-static int ideapad_register_rfkill(struct acpi_device *adevice, int dev)
+static int __devinit ideapad_register_rfkill(struct acpi_device *adevice,
+					     int dev)
 {
 	struct ideapad_private *priv = dev_get_drvdata(&adevice->dev);
 	int ret;
@@ -239,7 +236,7 @@ static int ideapad_register_rfkill(struct acpi_device *adevice, int dev)
 	if (no_bt_rfkill &&
 	    (ideapad_rfk_data[dev].type == RFKILL_TYPE_BLUETOOTH)) {
 		/* Force to enable bluetooth when no_bt_rfkill=1 */
-		write_ec_cmd(ideapad_priv->handle,
+		write_ec_cmd(ideapad_handle,
 			     ideapad_rfk_data[dev].opcode, 1);
 		return 0;
 	}
@@ -250,7 +247,7 @@ static int ideapad_register_rfkill(struct acpi_device *adevice, int dev)
 	if (!priv->rfk[dev])
 		return -ENOMEM;
 
-	if (read_ec_data(ideapad_priv->handle, ideapad_rfk_data[dev].opcode-1,
+	if (read_ec_data(ideapad_handle, ideapad_rfk_data[dev].opcode-1,
 			 &sw_blocked)) {
 		rfkill_init_sw_state(priv->rfk[dev], 0);
 	} else {
@@ -266,7 +263,8 @@ static int ideapad_register_rfkill(struct acpi_device *adevice, int dev)
 	return 0;
 }
 
-static void ideapad_unregister_rfkill(struct acpi_device *adevice, int dev)
+static void __devexit ideapad_unregister_rfkill(struct acpi_device *adevice,
+						int dev)
 {
 	struct ideapad_private *priv = dev_get_drvdata(&adevice->dev);
 
@@ -277,73 +275,177 @@ static void ideapad_unregister_rfkill(struct acpi_device *adevice, int dev)
 	rfkill_destroy(priv->rfk[dev]);
 }
 
+/*
+ * Platform device
+ */
+static struct attribute *ideapad_attributes[] = {
+	&dev_attr_camera_power.attr,
+	NULL
+};
+
+static struct attribute_group ideapad_attribute_group = {
+	.attrs = ideapad_attributes
+};
+
+static int __devinit ideapad_platform_init(struct ideapad_private *priv)
+{
+	int result;
+
+	priv->platform_device = platform_device_alloc("ideapad", -1);
+	if (!priv->platform_device)
+		return -ENOMEM;
+	platform_set_drvdata(priv->platform_device, priv);
+
+	result = platform_device_add(priv->platform_device);
+	if (result)
+		goto fail_platform_device;
+
+	result = sysfs_create_group(&priv->platform_device->dev.kobj,
+				    &ideapad_attribute_group);
+	if (result)
+		goto fail_sysfs;
+	return 0;
+
+fail_sysfs:
+	platform_device_del(priv->platform_device);
+fail_platform_device:
+	platform_device_put(priv->platform_device);
+	return result;
+}
+
+static void ideapad_platform_exit(struct ideapad_private *priv)
+{
+	sysfs_remove_group(&priv->platform_device->dev.kobj,
+			   &ideapad_attribute_group);
+	platform_device_unregister(priv->platform_device);
+}
+
+/*
+ * input device
+ */
+static const struct key_entry ideapad_keymap[] = {
+	{ KE_KEY, 0x06, { KEY_SWITCHVIDEOMODE } },
+	{ KE_KEY, 0x0D, { KEY_WLAN } },
+	{ KE_END, 0 },
+};
+
+static int __devinit ideapad_input_init(struct ideapad_private *priv)
+{
+	struct input_dev *inputdev;
+	int error;
+
+	inputdev = input_allocate_device();
+	if (!inputdev) {
+		pr_info("Unable to allocate input device\n");
+		return -ENOMEM;
+	}
+
+	inputdev->name = "Ideapad extra buttons";
+	inputdev->phys = "ideapad/input0";
+	inputdev->id.bustype = BUS_HOST;
+	inputdev->dev.parent = &priv->platform_device->dev;
+
+	error = sparse_keymap_setup(inputdev, ideapad_keymap, NULL);
+	if (error) {
+		pr_err("Unable to setup input device keymap\n");
+		goto err_free_dev;
+	}
+
+	error = input_register_device(inputdev);
+	if (error) {
+		pr_err("Unable to register input device\n");
+		goto err_free_keymap;
+	}
+
+	priv->inputdev = inputdev;
+	return 0;
+
+err_free_keymap:
+	sparse_keymap_free(inputdev);
+err_free_dev:
+	input_free_device(inputdev);
+	return error;
+}
+
+static void __devexit ideapad_input_exit(struct ideapad_private *priv)
+{
+	sparse_keymap_free(priv->inputdev);
+	input_unregister_device(priv->inputdev);
+	priv->inputdev = NULL;
+}
+
+static void ideapad_input_report(struct ideapad_private *priv,
+				 unsigned long scancode)
+{
+	sparse_keymap_report_event(priv->inputdev, scancode, 1, true);
+}
+
+/*
+ * module init/exit
+ */
 static const struct acpi_device_id ideapad_device_ids[] = {
 	{ "VPC2004", 0},
 	{ "", 0},
 };
 MODULE_DEVICE_TABLE(acpi, ideapad_device_ids);
 
-static int ideapad_acpi_add(struct acpi_device *adevice)
+static int __devinit ideapad_acpi_add(struct acpi_device *adevice)
 {
-	int i, cfg;
-	int devs_present[5];
+	int ret, i, cfg;
 	struct ideapad_private *priv;
 
 	if (read_method_int(adevice->handle, "_CFG", &cfg))
 		return -ENODEV;
 
-	for (i = IDEAPAD_DEV_CAMERA; i < IDEAPAD_DEV_KILLSW; i++) {
-		if (test_bit(ideapad_rfk_data[i].cfgbit, (unsigned long *)&cfg))
-			devs_present[i] = 1;
-		else
-			devs_present[i] = 0;
-	}
-
-	/* The hardware switch is always present */
-	devs_present[IDEAPAD_DEV_KILLSW] = 1;
-
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-
-	if (devs_present[IDEAPAD_DEV_CAMERA]) {
-		int ret = device_create_file(&adevice->dev, &dev_attr_camera_power);
-		if (ret) {
-			kfree(priv);
-			return ret;
-		}
-	}
-
-	priv->handle = adevice->handle;
 	dev_set_drvdata(&adevice->dev, priv);
-	ideapad_priv = priv;
-	for (i = IDEAPAD_DEV_WLAN; i <= IDEAPAD_DEV_KILLSW; i++) {
-		if (!devs_present[i])
-			continue;
+	ideapad_handle = adevice->handle;
 
-		ideapad_register_rfkill(adevice, i);
+	ret = ideapad_platform_init(priv);
+	if (ret)
+		goto platform_failed;
+
+	ret = ideapad_input_init(priv);
+	if (ret)
+		goto input_failed;
+
+	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++) {
+		if (test_bit(ideapad_rfk_data[i].cfgbit, (unsigned long *)&cfg))
+			ideapad_register_rfkill(adevice, i);
+		else
+			priv->rfk[i] = NULL;
 	}
 	ideapad_sync_rfk_state(adevice);
+
 	return 0;
+
+input_failed:
+	ideapad_platform_exit(priv);
+platform_failed:
+	kfree(priv);
+	return ret;
 }
 
-static int ideapad_acpi_remove(struct acpi_device *adevice, int type)
+static int __devexit ideapad_acpi_remove(struct acpi_device *adevice, int type)
 {
 	struct ideapad_private *priv = dev_get_drvdata(&adevice->dev);
 	int i;
 
-	device_remove_file(&adevice->dev, &dev_attr_camera_power);
-
-	for (i = IDEAPAD_DEV_WLAN; i <= IDEAPAD_DEV_KILLSW; i++)
+	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
 		ideapad_unregister_rfkill(adevice, i);
-
+	ideapad_input_exit(priv);
+	ideapad_platform_exit(priv);
 	dev_set_drvdata(&adevice->dev, NULL);
 	kfree(priv);
+
 	return 0;
 }
 
 static void ideapad_acpi_notify(struct acpi_device *adevice, u32 event)
 {
+	struct ideapad_private *priv = dev_get_drvdata(&adevice->dev);
 	acpi_handle handle = adevice->handle;
 	unsigned long vpc1, vpc2, vpc_bit;
 
@@ -357,6 +459,8 @@ static void ideapad_acpi_notify(struct acpi_device *adevice, u32 event)
 		if (test_bit(vpc_bit, &vpc1)) {
 			if (vpc_bit == 9)
 				ideapad_sync_rfk_state(adevice);
+			else
+				ideapad_input_report(priv, vpc_bit);
 		}
 	}
 }
@@ -371,19 +475,14 @@ static struct acpi_driver ideapad_acpi_driver = {
 	.owner = THIS_MODULE,
 };
 
-
 static int __init ideapad_acpi_module_init(void)
 {
-	acpi_bus_register_driver(&ideapad_acpi_driver);
-
-	return 0;
+	return acpi_bus_register_driver(&ideapad_acpi_driver);
 }
-
 
 static void __exit ideapad_acpi_module_exit(void)
 {
 	acpi_bus_unregister_driver(&ideapad_acpi_driver);
-
 }
 
 MODULE_AUTHOR("David Woodhouse <dwmw2@infradead.org>");

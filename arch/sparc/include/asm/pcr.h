@@ -43,4 +43,6 @@ static inline u64 picl_value(unsigned int nmi_hz)
 
 extern u64 pcr_enable;
 
+extern int pcr_arch_init(void);
+
 #endif /* __PCR_H */

@@ -42,9 +42,6 @@
 #define BCMFASTPATH
 #endif
 
-/* Put some library data/code into ROM to reduce RAM requirements */
-#define BCMROMFN(_fn)		_fn
-
 /* Bus types */
 #define	SI_BUS			0	/* SOC Interconnect */
 #define	PCI_BUS			1	/* PCI target */
@@ -54,35 +51,6 @@
 #define SPI_BUS			6	/* gSPI target */
 #define RPC_BUS			7	/* RPC target */
 
-/* Allows size optimization for single-bus image */
-#ifdef BCMBUSTYPE
-#define BUSTYPE(bus) 	(BCMBUSTYPE)
-#else
-#define BUSTYPE(bus) 	(bus)
-#endif
-
-/* Allows size optimization for single-backplane image */
-#ifdef BCMCHIPTYPE
-#define CHIPTYPE(bus) 	(BCMCHIPTYPE)
-#else
-#define CHIPTYPE(bus) 	(bus)
-#endif
-
-/* Allows size optimization for SPROM support */
-#define SPROMBUS	(PCI_BUS)
-
-/* Allows size optimization for single-chip image */
-#ifdef BCMCHIPID
-#define CHIPID(chip)	(BCMCHIPID)
-#else
-#define CHIPID(chip)	(chip)
-#endif
-
-#ifdef BCMCHIPREV
-#define CHIPREV(rev)	(BCMCHIPREV)
-#else
-#define CHIPREV(rev)	(rev)
-#endif
 
 /* Defines for DMA Address Width - Shared between OSL and HNDDMA */
 #define DMADDR_MASK_32 0x0	/* Address mask for 32-bits */
@@ -146,31 +114,11 @@ typedef struct {
 
 #define BCMEXTRAHDROOM 172
 
-/* Headroom required for dongle-to-host communication.  Packets allocated
- * locally in the dongle (e.g. for CDC ioctls or RNDIS messages) should
- * leave this much room in front for low-level message headers which may
- * be needed to get across the dongle bus to the host.  (These messages
- * don't go over the network, so room for the full WL header above would
- * be a waste.).
-*/
-#define BCMDONGLEHDRSZ 12
-#define BCMDONGLEPADSZ 16
-
-#define BCMDONGLEOVERHEAD	(BCMDONGLEHDRSZ + BCMDONGLEPADSZ)
-
 #ifdef BCMDBG
-
-#define BCMDBG_ERR
-
 #ifndef BCMDBG_ASSERT
 #define BCMDBG_ASSERT
-#endif				/* BCMDBG_ASSERT */
-
-#endif				/* BCMDBG */
-
-#if defined(BCMDBG_ASSERT)
-#define BCMASSERT_SUPPORT
-#endif
+#endif	/* BCMDBG_ASSERT */
+#endif	/* BCMDBG */
 
 /* Macros for doing definition and get/set of bitfields
  * Usage example, e.g. a three-bit field (bits 4-6):
@@ -190,11 +138,10 @@ typedef struct {
 		(((val) & (~(field ## _M << field ## _S))) | \
 		 ((unsigned)(bits) << field ## _S))
 
-/* define BCMSMALL to remove misc features for memory-constrained environments */
-#define	BCMSPACE
-#define bcmspace	true	/* if (bcmspace) code is retained */
-
 /* Max. nvram variable table size */
 #define	MAXSZ_NVRAM_VARS	4096
+
+/* handle forward declaration */
+struct wl_info;
 
 #endif				/* _bcmdefs_h_ */

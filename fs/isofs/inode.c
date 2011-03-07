@@ -939,17 +939,18 @@ root_found:
 		goto out_iput;
 	}
 
-	/* get the root dentry */
-	s->s_root = d_alloc_root(inode);
-	if (!(s->s_root))
-		goto out_no_root;
-
 	table = 0;
 	if (joliet_level)
 		table += 2;
 	if (opt.check == 'r')
 		table++;
-	d_set_d_op(s->s_root, &isofs_dentry_ops[table]);
+
+	s->s_d_op = &isofs_dentry_ops[table];
+
+	/* get the root dentry */
+	s->s_root = d_alloc_root(inode);
+	if (!(s->s_root))
+		goto out_no_root;
 
 	kfree(opt.iocharset);
 

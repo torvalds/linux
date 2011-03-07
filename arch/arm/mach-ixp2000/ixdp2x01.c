@@ -48,16 +48,16 @@
 /*************************************************************************
  * IXDP2x01 IRQ Handling
  *************************************************************************/
-static void ixdp2x01_irq_mask(unsigned int irq)
+static void ixdp2x01_irq_mask(struct irq_data *d)
 {
 	ixp2000_reg_wrb(IXDP2X01_INT_MASK_SET_REG,
-				IXP2000_BOARD_IRQ_MASK(irq));
+				IXP2000_BOARD_IRQ_MASK(d->irq));
 }
 
-static void ixdp2x01_irq_unmask(unsigned int irq)
+static void ixdp2x01_irq_unmask(struct irq_data *d)
 {
 	ixp2000_reg_write(IXDP2X01_INT_MASK_CLR_REG,
-				IXP2000_BOARD_IRQ_MASK(irq));
+				IXP2000_BOARD_IRQ_MASK(d->irq));
 }
 
 static u32 valid_irq_mask;
@@ -67,7 +67,7 @@ static void ixdp2x01_irq_handler(unsigned int irq, struct irq_desc *desc)
 	u32 ex_interrupt;
 	int i;
 
-	desc->chip->mask(irq);
+	desc->irq_data.chip->irq_mask(&desc->irq_data);
 
 	ex_interrupt = *IXDP2X01_INT_STAT_REG & valid_irq_mask;
 
@@ -83,13 +83,13 @@ static void ixdp2x01_irq_handler(unsigned int irq, struct irq_desc *desc)
 		}
 	}
 
-	desc->chip->unmask(irq);
+	desc->irq_data.chip->irq_unmask(&desc->irq_data);
 }
 
 static struct irq_chip ixdp2x01_irq_chip = {
-	.mask	= ixdp2x01_irq_mask,
-	.ack	= ixdp2x01_irq_mask,
-	.unmask	= ixdp2x01_irq_unmask
+	.irq_mask	= ixdp2x01_irq_mask,
+	.irq_ack	= ixdp2x01_irq_mask,
+	.irq_unmask	= ixdp2x01_irq_unmask
 };
 
 /*

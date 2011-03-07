@@ -638,6 +638,14 @@ config I2C_XILINX
 	  This driver can also be built as a module.  If so, the module
 	  will be called xilinx_i2c.
 
+config I2C_EG20T
+        tristate "PCH I2C of Intel EG20T"
+        depends on PCI
+        help
+          This driver is for PCH(Platform controller Hub) I2C of EG20T which
+          is an IOH(Input/Output Hub) for x86 embedded processor.
+          This driver can access PCH I2C bus device.
+
 comment "External I2C/SMBus adapter drivers"
 
 config I2C_PARPORT

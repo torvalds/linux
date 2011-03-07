@@ -430,7 +430,8 @@ static void nilfs_segctor_begin_finfo(struct nilfs_sc_info *sci,
 	nilfs_segctor_map_segsum_entry(
 		sci, &sci->sc_binfo_ptr, sizeof(struct nilfs_finfo));
 
-	if (inode->i_sb && !test_bit(NILFS_SC_HAVE_DELTA, &sci->sc_flags))
+	if (NILFS_I(inode)->i_root &&
+	    !test_bit(NILFS_SC_HAVE_DELTA, &sci->sc_flags))
 		set_bit(NILFS_SC_HAVE_DELTA, &sci->sc_flags);
 	/* skip finfo */
 }
@@ -504,17 +505,6 @@ static int nilfs_segctor_add_file_block(struct nilfs_sc_info *sci,
 	return err;
 }
 
-static int nilfs_handle_bmap_error(int err, const char *fname,
-				   struct inode *inode, struct super_block *sb)
-{
-	if (err == -EINVAL) {
-		nilfs_error(sb, fname, "broken bmap (inode=%lu)\n",
-			    inode->i_ino);
-		err = -EIO;
-	}
-	return err;
-}
-
 /*
  * Callback functions that enumerate, mark, and collect dirty blocks
  */
@@ -524,9 +514,8 @@ static int nilfs_collect_file_data(struct nilfs_sc_info *sci,
 	int err;
 
 	err = nilfs_bmap_propagate(NILFS_I(inode)->i_bmap, bh);
-	if (unlikely(err < 0))
-		return nilfs_handle_bmap_error(err, __func__, inode,
-					       sci->sc_super);
+	if (err < 0)
+		return err;
 
 	err = nilfs_segctor_add_file_block(sci, bh, inode,
 					   sizeof(struct nilfs_binfo_v));
@@ -539,13 +528,7 @@ static int nilfs_collect_file_node(struct nilfs_sc_info *sci,
 				   struct buffer_head *bh,
 				   struct inode *inode)
 {
-	int err;
-
-	err = nilfs_bmap_propagate(NILFS_I(inode)->i_bmap, bh);
-	if (unlikely(err < 0))
-		return nilfs_handle_bmap_error(err, __func__, inode,
-					       sci->sc_super);
-	return 0;
+	return nilfs_bmap_propagate(NILFS_I(inode)->i_bmap, bh);
 }
 
 static int nilfs_collect_file_bmap(struct nilfs_sc_info *sci,
@@ -588,9 +571,8 @@ static int nilfs_collect_dat_data(struct nilfs_sc_info *sci,
 	int err;
 
 	err = nilfs_bmap_propagate(NILFS_I(inode)->i_bmap, bh);
-	if (unlikely(err < 0))
-		return nilfs_handle_bmap_error(err, __func__, inode,
-					       sci->sc_super);
+	if (err < 0)
+		return err;
 
 	err = nilfs_segctor_add_file_block(sci, bh, inode, sizeof(__le64));
 	if (!err)
@@ -776,9 +758,8 @@ static int nilfs_test_metadata_dirty(struct the_nilfs *nilfs,
 		ret++;
 	if (nilfs_mdt_fetch_dirty(nilfs->ns_sufile))
 		ret++;
-	if (ret || nilfs_doing_gc())
-		if (nilfs_mdt_fetch_dirty(nilfs_dat_inode(nilfs)))
-			ret++;
+	if ((ret || nilfs_doing_gc()) && nilfs_mdt_fetch_dirty(nilfs->ns_dat))
+		ret++;
 	return ret;
 }
 
@@ -814,7 +795,7 @@ static void nilfs_segctor_clear_metadata_dirty(struct nilfs_sc_info *sci)
 	nilfs_mdt_clear_dirty(sci->sc_root->ifile);
 	nilfs_mdt_clear_dirty(nilfs->ns_cpfile);
 	nilfs_mdt_clear_dirty(nilfs->ns_sufile);
-	nilfs_mdt_clear_dirty(nilfs_dat_inode(nilfs));
+	nilfs_mdt_clear_dirty(nilfs->ns_dat);
 }
 
 static int nilfs_segctor_create_checkpoint(struct nilfs_sc_info *sci)
@@ -923,7 +904,7 @@ static void nilfs_segctor_fill_in_super_root(struct nilfs_sc_info *sci,
 			      nilfs->ns_nongc_ctime : sci->sc_seg_ctime);
 	raw_sr->sr_flags = 0;
 
-	nilfs_write_inode_common(nilfs_dat_inode(nilfs), (void *)raw_sr +
+	nilfs_write_inode_common(nilfs->ns_dat, (void *)raw_sr +
 				 NILFS_SR_DAT_OFFSET(isz), 1);
 	nilfs_write_inode_common(nilfs->ns_cpfile, (void *)raw_sr +
 				 NILFS_SR_CPFILE_OFFSET(isz), 1);
@@ -1179,7 +1160,7 @@ static int nilfs_segctor_collect_blocks(struct nilfs_sc_info *sci, int mode)
 		sci->sc_stage.scnt++;  /* Fall through */
 	case NILFS_ST_DAT:
  dat_stage:
-		err = nilfs_segctor_scan_file(sci, nilfs_dat_inode(nilfs),
+		err = nilfs_segctor_scan_file(sci, nilfs->ns_dat,
 					      &nilfs_sc_dat_ops);
 		if (unlikely(err))
 			break;
@@ -1563,7 +1544,6 @@ nilfs_segctor_update_payload_blocknr(struct nilfs_sc_info *sci,
 	return 0;
 
  failed_bmap:
-	err = nilfs_handle_bmap_error(err, __func__, inode, sci->sc_super);
 	return err;
 }
 
@@ -1783,6 +1763,7 @@ static void nilfs_clear_copied_buffers(struct list_head *list, int err)
 				if (!err) {
 					set_buffer_uptodate(bh);
 					clear_buffer_dirty(bh);
+					clear_buffer_delay(bh);
 					clear_buffer_nilfs_volatile(bh);
 				}
 				brelse(bh); /* for b_assoc_buffers */
@@ -1909,6 +1890,7 @@ static void nilfs_segctor_complete_write(struct nilfs_sc_info *sci)
 				    b_assoc_buffers) {
 			set_buffer_uptodate(bh);
 			clear_buffer_dirty(bh);
+			clear_buffer_delay(bh);
 			clear_buffer_nilfs_volatile(bh);
 			clear_buffer_nilfs_redirected(bh);
 			if (bh == segbuf->sb_super_root) {

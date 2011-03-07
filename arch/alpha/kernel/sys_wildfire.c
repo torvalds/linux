@@ -104,10 +104,12 @@ wildfire_init_irq_hw(void)
 }
 
 static void
-wildfire_enable_irq(unsigned int irq)
+wildfire_enable_irq(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
+
 	if (irq < 16)
-		i8259a_enable_irq(irq);
+		i8259a_enable_irq(d);
 
 	spin_lock(&wildfire_irq_lock);
 	set_bit(irq, &cached_irq_mask);
@@ -116,10 +118,12 @@ wildfire_enable_irq(unsigned int irq)
 }
 
 static void
-wildfire_disable_irq(unsigned int irq)
+wildfire_disable_irq(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
+
 	if (irq < 16)
-		i8259a_disable_irq(irq);
+		i8259a_disable_irq(d);
 
 	spin_lock(&wildfire_irq_lock);
 	clear_bit(irq, &cached_irq_mask);
@@ -128,43 +132,24 @@ wildfire_disable_irq(unsigned int irq)
 }
 
 static void
-wildfire_mask_and_ack_irq(unsigned int irq)
+wildfire_mask_and_ack_irq(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
+
 	if (irq < 16)
-		i8259a_mask_and_ack_irq(irq);
+		i8259a_mask_and_ack_irq(d);
 
 	spin_lock(&wildfire_irq_lock);
 	clear_bit(irq, &cached_irq_mask);
 	wildfire_update_irq_hw(irq);
 	spin_unlock(&wildfire_irq_lock);
-}
-
-static unsigned int
-wildfire_startup_irq(unsigned int irq)
-{ 
-	wildfire_enable_irq(irq);
-	return 0; /* never anything pending */
-}
-
-static void
-wildfire_end_irq(unsigned int irq)
-{ 
-#if 0
-	if (!irq_desc[irq].action)
-		printk("got irq %d\n", irq);
-#endif
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		wildfire_enable_irq(irq);
 }
 
 static struct irq_chip wildfire_irq_type = {
 	.name		= "WILDFIRE",
-	.startup	= wildfire_startup_irq,
-	.shutdown	= wildfire_disable_irq,
-	.enable		= wildfire_enable_irq,
-	.disable	= wildfire_disable_irq,
-	.ack		= wildfire_mask_and_ack_irq,
-	.end		= wildfire_end_irq,
+	.irq_unmask	= wildfire_enable_irq,
+	.irq_mask	= wildfire_disable_irq,
+	.irq_mask_ack	= wildfire_mask_and_ack_irq,
 };
 
 static void __init
@@ -198,18 +183,21 @@ wildfire_init_irq_per_pca(int qbbno, int pcano)
 	for (i = 0; i < 16; ++i) {
 		if (i == 2)
 			continue;
-		irq_desc[i+irq_bias].status = IRQ_DISABLED | IRQ_LEVEL;
-		irq_desc[i+irq_bias].chip = &wildfire_irq_type;
+		set_irq_chip_and_handler(i+irq_bias, &wildfire_irq_type,
+			handle_level_irq);
+		irq_set_status_flags(i + irq_bias, IRQ_LEVEL);
 	}
 
-	irq_desc[36+irq_bias].status = IRQ_DISABLED | IRQ_LEVEL;
-	irq_desc[36+irq_bias].chip = &wildfire_irq_type;
+	set_irq_chip_and_handler(36+irq_bias, &wildfire_irq_type,
+		handle_level_irq);
+	irq_set_status_flags(36 + irq_bias, IRQ_LEVEL);
 	for (i = 40; i < 64; ++i) {
-		irq_desc[i+irq_bias].status = IRQ_DISABLED | IRQ_LEVEL;
-		irq_desc[i+irq_bias].chip = &wildfire_irq_type;
+		set_irq_chip_and_handler(i+irq_bias, &wildfire_irq_type,
+			handle_level_irq);
+		irq_set_status_flags(i + irq_bias, IRQ_LEVEL);
 	}
 
-	setup_irq(32+irq_bias, &isa_enable);	
+	setup_irq(32+irq_bias, &isa_enable);
 }
 
 static void __init

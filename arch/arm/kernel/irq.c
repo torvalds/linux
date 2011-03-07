@@ -88,7 +88,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_printf(p, "%*d: ", prec, i);
 		for_each_present_cpu(cpu)
 			seq_printf(p, "%10u ", kstat_irqs_cpu(i, cpu));
-		seq_printf(p, " %10s", desc->chip->name ? : "-");
+		seq_printf(p, " %10s", desc->irq_data.chip->name ? : "-");
 		seq_printf(p, "  %s", action->name);
 		for (action = action->next; action; action = action->next)
 			seq_printf(p, ", %s", action->name);
@@ -181,10 +181,11 @@ int __init arch_probe_nr_irqs(void)
 
 static void route_irq(struct irq_desc *desc, unsigned int irq, unsigned int cpu)
 {
-	pr_debug("IRQ%u: moving from cpu%u to cpu%u\n", irq, desc->node, cpu);
+	pr_debug("IRQ%u: moving from cpu%u to cpu%u\n", irq, desc->irq_data.node, cpu);
 
 	raw_spin_lock_irq(&desc->lock);
-	desc->chip->set_affinity(irq, cpumask_of(cpu));
+	desc->irq_data.chip->irq_set_affinity(&desc->irq_data,
+					      cpumask_of(cpu), false);
 	raw_spin_unlock_irq(&desc->lock);
 }
 
@@ -199,16 +200,18 @@ void migrate_irqs(void)
 	struct irq_desc *desc;
 
 	for_each_irq_desc(i, desc) {
-		if (desc->node == cpu) {
-			unsigned int newcpu = cpumask_any_and(desc->affinity,
+		struct irq_data *d = &desc->irq_data;
+
+		if (d->node == cpu) {
+			unsigned int newcpu = cpumask_any_and(d->affinity,
 							      cpu_online_mask);
 			if (newcpu >= nr_cpu_ids) {
 				if (printk_ratelimit())
 					printk(KERN_INFO "IRQ%u no longer affine to CPU%u\n",
 					       i, cpu);
 
-				cpumask_setall(desc->affinity);
-				newcpu = cpumask_any_and(desc->affinity,
+				cpumask_setall(d->affinity);
+				newcpu = cpumask_any_and(d->affinity,
 							 cpu_online_mask);
 			}
 

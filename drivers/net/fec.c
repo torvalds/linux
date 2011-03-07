@@ -17,6 +17,8 @@
  *
  * Bug fixes and cleanup by Philippe De Muyter (phdm@macqel.be)
  * Copyright (c) 2004-2006 Macq Electronique SA.
+ *
+ * Copyright (C) 2010 Freescale Semiconductor, Inc.
  */
 
 #include <linux/module.h>
@@ -45,29 +47,42 @@
 
 #include <asm/cacheflush.h>
 
-#ifndef CONFIG_ARCH_MXC
+#ifndef CONFIG_ARM
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
 #endif
 
 #include "fec.h"
 
-#ifdef CONFIG_ARCH_MXC
-#include <mach/hardware.h>
+#if defined(CONFIG_ARCH_MXC) || defined(CONFIG_SOC_IMX28)
 #define FEC_ALIGNMENT	0xf
 #else
 #define FEC_ALIGNMENT	0x3
 #endif
 
-/*
- * Define the fixed address of the FEC hardware.
- */
-#if defined(CONFIG_M5272)
+#define DRIVER_NAME	"fec"
 
-static unsigned char	fec_mac_default[] = {
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+/* Controller is ENET-MAC */
+#define FEC_QUIRK_ENET_MAC		(1 << 0)
+/* Controller needs driver to swap frame */
+#define FEC_QUIRK_SWAP_FRAME		(1 << 1)
+
+static struct platform_device_id fec_devtype[] = {
+	{
+		.name = DRIVER_NAME,
+		.driver_data = 0,
+	}, {
+		.name = "imx28-fec",
+		.driver_data = FEC_QUIRK_ENET_MAC | FEC_QUIRK_SWAP_FRAME,
+	},
+	{ }
 };
 
+static unsigned char macaddr[ETH_ALEN];
+module_param_array(macaddr, byte, NULL, 0);
+MODULE_PARM_DESC(macaddr, "FEC Ethernet MAC address");
+
+#if defined(CONFIG_M5272)
 /*
  * Some hardware gets it MAC address out of local flash memory.
  * if this is non-zero then assume it is the address to get MAC from.
@@ -133,7 +148,8 @@ static unsigned char	fec_mac_default[] = {
  * account when setting it.
  */
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
-    defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_ARCH_MXC)
+    defined(CONFIG_M520x) || defined(CONFIG_M532x) || \
+    defined(CONFIG_ARCH_MXC) || defined(CONFIG_SOC_IMX28)
 #define	OPT_FRAME_SIZE	(PKT_MAXBUF_SIZE << 16)
 #else
 #define	OPT_FRAME_SIZE	0
@@ -186,7 +202,6 @@ struct fec_enet_private {
 	int     mii_timeout;
 	uint    phy_speed;
 	phy_interface_t	phy_interface;
-	int	index;
 	int	link;
 	int	full_duplex;
 	struct	completion mdio_done;
@@ -213,10 +228,23 @@ static void fec_stop(struct net_device *dev);
 /* Transmitter timeout */
 #define TX_TIMEOUT (2 * HZ)
 
+static void *swap_buffer(void *bufaddr, int len)
+{
+	int i;
+	unsigned int *buf = bufaddr;
+
+	for (i = 0; i < (len + 3) / 4; i++, buf++)
+		*buf = cpu_to_be32(*buf);
+
+	return bufaddr;
+}
+
 static netdev_tx_t
 fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
+	const struct platform_device_id *id_entry =
+				platform_get_device_id(fep->pdev);
 	struct bufdesc *bdp;
 	void *bufaddr;
 	unsigned short	status;
@@ -260,6 +288,14 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		memcpy(fep->tx_bounce[index], (void *)skb->data, skb->len);
 		bufaddr = fep->tx_bounce[index];
 	}
+
+	/*
+	 * Some design made an incorrect assumption on endian mode of
+	 * the system that it's running on. As the result, driver has to
+	 * swap every frame going to and coming from the controller.
+	 */
+	if (id_entry->driver_data & FEC_QUIRK_SWAP_FRAME)
+		swap_buffer(bufaddr, skb->len);
 
 	/* Save skb pointer */
 	fep->tx_skbuff[fep->skb_cur] = skb;
@@ -429,6 +465,8 @@ static void
 fec_enet_rx(struct net_device *dev)
 {
 	struct	fec_enet_private *fep = netdev_priv(dev);
+	const struct platform_device_id *id_entry =
+				platform_get_device_id(fep->pdev);
 	struct bufdesc *bdp;
 	unsigned short status;
 	struct	sk_buff	*skb;
@@ -492,6 +530,9 @@ fec_enet_rx(struct net_device *dev)
 	        dma_unmap_single(NULL, bdp->cbd_bufaddr, bdp->cbd_datlen,
         			DMA_FROM_DEVICE);
 
+		if (id_entry->driver_data & FEC_QUIRK_SWAP_FRAME)
+			swap_buffer(data, pkt_len);
+
 		/* This does 16 byte alignment, exactly what we need.
 		 * The packet length includes FCS, but we don't want to
 		 * include that when passing upstream as it messes up
@@ -538,37 +579,50 @@ rx_processing_done:
 }
 
 /* ------------------------------------------------------------------------- */
-#ifdef CONFIG_M5272
 static void __inline__ fec_get_mac(struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
+	struct fec_platform_data *pdata = fep->pdev->dev.platform_data;
 	unsigned char *iap, tmpaddr[ETH_ALEN];
 
-	if (FEC_FLASHMAC) {
-		/*
-		 * Get MAC address from FLASH.
-		 * If it is all 1's or 0's, use the default.
-		 */
-		iap = (unsigned char *)FEC_FLASHMAC;
-		if ((iap[0] == 0) && (iap[1] == 0) && (iap[2] == 0) &&
-		    (iap[3] == 0) && (iap[4] == 0) && (iap[5] == 0))
-			iap = fec_mac_default;
-		if ((iap[0] == 0xff) && (iap[1] == 0xff) && (iap[2] == 0xff) &&
-		    (iap[3] == 0xff) && (iap[4] == 0xff) && (iap[5] == 0xff))
-			iap = fec_mac_default;
-	} else {
-		*((unsigned long *) &tmpaddr[0]) = readl(fep->hwp + FEC_ADDR_LOW);
-		*((unsigned short *) &tmpaddr[4]) = (readl(fep->hwp + FEC_ADDR_HIGH) >> 16);
+	/*
+	 * try to get mac address in following order:
+	 *
+	 * 1) module parameter via kernel command line in form
+	 *    fec.macaddr=0x00,0x04,0x9f,0x01,0x30,0xe0
+	 */
+	iap = macaddr;
+
+	/*
+	 * 2) from flash or fuse (via platform data)
+	 */
+	if (!is_valid_ether_addr(iap)) {
+#ifdef CONFIG_M5272
+		if (FEC_FLASHMAC)
+			iap = (unsigned char *)FEC_FLASHMAC;
+#else
+		if (pdata)
+			memcpy(iap, pdata->mac, ETH_ALEN);
+#endif
+	}
+
+	/*
+	 * 3) FEC mac registers set by bootloader
+	 */
+	if (!is_valid_ether_addr(iap)) {
+		*((unsigned long *) &tmpaddr[0]) =
+			be32_to_cpu(readl(fep->hwp + FEC_ADDR_LOW));
+		*((unsigned short *) &tmpaddr[4]) =
+			be16_to_cpu(readl(fep->hwp + FEC_ADDR_HIGH) >> 16);
 		iap = &tmpaddr[0];
 	}
 
 	memcpy(dev->dev_addr, iap, ETH_ALEN);
 
-	/* Adjust MAC if using default MAC address */
-	if (iap == fec_mac_default)
-		 dev->dev_addr[ETH_ALEN-1] = fec_mac_default[ETH_ALEN-1] + fep->index;
+	/* Adjust MAC if using macaddr */
+	if (iap == macaddr)
+		 dev->dev_addr[ETH_ALEN-1] = macaddr[ETH_ALEN-1] + fep->pdev->id;
 }
-#endif
 
 /* ------------------------------------------------------------------------- */
 
@@ -651,8 +705,8 @@ static int fec_enet_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 	fep->mii_timeout = 0;
 	init_completion(&fep->mdio_done);
 
-	/* start a read op */
-	writel(FEC_MMFR_ST | FEC_MMFR_OP_READ |
+	/* start a write op */
+	writel(FEC_MMFR_ST | FEC_MMFR_OP_WRITE |
 		FEC_MMFR_PA(mii_id) | FEC_MMFR_RA(regnum) |
 		FEC_MMFR_TA | FEC_MMFR_DATA(value),
 		fep->hwp + FEC_MII_DATA);
@@ -681,6 +735,7 @@ static int fec_enet_mii_probe(struct net_device *dev)
 	char mdio_bus_id[MII_BUS_ID_SIZE];
 	char phy_name[MII_BUS_ID_SIZE + 3];
 	int phy_id;
+	int dev_id = fep->pdev->id;
 
 	fep->phy_dev = NULL;
 
@@ -691,6 +746,8 @@ static int fec_enet_mii_probe(struct net_device *dev)
 		if (fep->mii_bus->phy_map[phy_id] == NULL)
 			continue;
 		if (fep->mii_bus->phy_map[phy_id]->phy_id == 0)
+			continue;
+		if (dev_id--)
 			continue;
 		strncpy(mdio_bus_id, fep->mii_bus->id, MII_BUS_ID_SIZE);
 		break;
@@ -729,9 +786,34 @@ static int fec_enet_mii_probe(struct net_device *dev)
 
 static int fec_enet_mii_init(struct platform_device *pdev)
 {
+	static struct mii_bus *fec0_mii_bus;
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct fec_enet_private *fep = netdev_priv(dev);
+	const struct platform_device_id *id_entry =
+				platform_get_device_id(fep->pdev);
 	int err = -ENXIO, i;
+
+	/*
+	 * The dual fec interfaces are not equivalent with enet-mac.
+	 * Here are the differences:
+	 *
+	 *  - fec0 supports MII & RMII modes while fec1 only supports RMII
+	 *  - fec0 acts as the 1588 time master while fec1 is slave
+	 *  - external phys can only be configured by fec0
+	 *
+	 * That is to say fec1 can not work independently. It only works
+	 * when fec0 is working. The reason behind this design is that the
+	 * second interface is added primarily for Switch mode.
+	 *
+	 * Because of the last point above, both phys are attached on fec0
+	 * mdio interface in board design, and need to be configured by
+	 * fec0 mii_bus.
+	 */
+	if ((id_entry->driver_data & FEC_QUIRK_ENET_MAC) && pdev->id) {
+		/* fec1 uses fec0 mii_bus */
+		fep->mii_bus = fec0_mii_bus;
+		return 0;
+	}
 
 	fep->mii_timeout = 0;
 
@@ -768,6 +850,10 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 
 	if (mdiobus_register(fep->mii_bus))
 		goto err_out_free_mdio_irq;
+
+	/* save fec0 mii_bus */
+	if (id_entry->driver_data & FEC_QUIRK_ENET_MAC)
+		fec0_mii_bus = fep->mii_bus;
 
 	return 0;
 
@@ -1067,9 +1153,8 @@ static const struct net_device_ops fec_netdev_ops = {
  /*
   * XXX:  We need to clean up on failure exits here.
   *
-  * index is only used in legacy code
   */
-static int fec_enet_init(struct net_device *dev, int index)
+static int fec_enet_init(struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
 	struct bufdesc *cbd_base;
@@ -1086,26 +1171,11 @@ static int fec_enet_init(struct net_device *dev, int index)
 
 	spin_lock_init(&fep->hw_lock);
 
-	fep->index = index;
 	fep->hwp = (void __iomem *)dev->base_addr;
 	fep->netdev = dev;
 
-	/* Set the Ethernet address */
-#ifdef CONFIG_M5272
+	/* Get the Ethernet address */
 	fec_get_mac(dev);
-#else
-	{
-		unsigned long l;
-		l = readl(fep->hwp + FEC_ADDR_LOW);
-		dev->dev_addr[0] = (unsigned char)((l & 0xFF000000) >> 24);
-		dev->dev_addr[1] = (unsigned char)((l & 0x00FF0000) >> 16);
-		dev->dev_addr[2] = (unsigned char)((l & 0x0000FF00) >> 8);
-		dev->dev_addr[3] = (unsigned char)((l & 0x000000FF) >> 0);
-		l = readl(fep->hwp + FEC_ADDR_HIGH);
-		dev->dev_addr[4] = (unsigned char)((l & 0xFF000000) >> 24);
-		dev->dev_addr[5] = (unsigned char)((l & 0x00FF0000) >> 16);
-	}
-#endif
 
 	/* Set receive and transmit descriptor base. */
 	fep->rx_bd_base = cbd_base;
@@ -1156,11 +1226,24 @@ static void
 fec_restart(struct net_device *dev, int duplex)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
+	const struct platform_device_id *id_entry =
+				platform_get_device_id(fep->pdev);
 	int i;
+	u32 val, temp_mac[2];
 
 	/* Whack a reset.  We should wait for this. */
 	writel(1, fep->hwp + FEC_ECNTRL);
 	udelay(10);
+
+	/*
+	 * enet-mac reset will reset mac address registers too,
+	 * so need to reconfigure it.
+	 */
+	if (id_entry->driver_data & FEC_QUIRK_ENET_MAC) {
+		memcpy(&temp_mac, dev->dev_addr, ETH_ALEN);
+		writel(cpu_to_be32(temp_mac[0]), fep->hwp + FEC_ADDR_LOW);
+		writel(cpu_to_be32(temp_mac[1]), fep->hwp + FEC_ADDR_HIGH);
+	}
 
 	/* Clear any outstanding interrupt. */
 	writel(0xffc00000, fep->hwp + FEC_IEVENT);
@@ -1208,20 +1291,45 @@ fec_restart(struct net_device *dev, int duplex)
 	/* Set MII speed */
 	writel(fep->phy_speed, fep->hwp + FEC_MII_SPEED);
 
+	/*
+	 * The phy interface and speed need to get configured
+	 * differently on enet-mac.
+	 */
+	if (id_entry->driver_data & FEC_QUIRK_ENET_MAC) {
+		val = readl(fep->hwp + FEC_R_CNTRL);
+
+		/* MII or RMII */
+		if (fep->phy_interface == PHY_INTERFACE_MODE_RMII)
+			val |= (1 << 8);
+		else
+			val &= ~(1 << 8);
+
+		/* 10M or 100M */
+		if (fep->phy_dev && fep->phy_dev->speed == SPEED_100)
+			val &= ~(1 << 9);
+		else
+			val |= (1 << 9);
+
+		writel(val, fep->hwp + FEC_R_CNTRL);
+	} else {
 #ifdef FEC_MIIGSK_ENR
-	if (fep->phy_interface == PHY_INTERFACE_MODE_RMII) {
-		/* disable the gasket and wait */
-		writel(0, fep->hwp + FEC_MIIGSK_ENR);
-		while (readl(fep->hwp + FEC_MIIGSK_ENR) & 4)
-			udelay(1);
+		if (fep->phy_interface == PHY_INTERFACE_MODE_RMII) {
+			/* disable the gasket and wait */
+			writel(0, fep->hwp + FEC_MIIGSK_ENR);
+			while (readl(fep->hwp + FEC_MIIGSK_ENR) & 4)
+				udelay(1);
 
-		/* configure the gasket: RMII, 50 MHz, no loopback, no echo */
-		writel(1, fep->hwp + FEC_MIIGSK_CFGR);
+			/*
+			 * configure the gasket:
+			 *   RMII, 50 MHz, no loopback, no echo
+			 */
+			writel(1, fep->hwp + FEC_MIIGSK_CFGR);
 
-		/* re-enable the gasket */
-		writel(2, fep->hwp + FEC_MIIGSK_ENR);
-	}
+			/* re-enable the gasket */
+			writel(2, fep->hwp + FEC_MIIGSK_ENR);
+		}
 #endif
+	}
 
 	/* And last, enable the transmit and receive processing */
 	writel(2, fep->hwp + FEC_ECNTRL);
@@ -1316,7 +1424,7 @@ fec_probe(struct platform_device *pdev)
 	}
 	clk_enable(fep->clk);
 
-	ret = fec_enet_init(ndev, 0);
+	ret = fec_enet_init(ndev);
 	if (ret)
 		goto failed_init;
 
@@ -1380,8 +1488,10 @@ fec_suspend(struct device *dev)
 
 	if (ndev) {
 		fep = netdev_priv(ndev);
-		if (netif_running(ndev))
-			fec_enet_close(ndev);
+		if (netif_running(ndev)) {
+			fec_stop(ndev);
+			netif_device_detach(ndev);
+		}
 		clk_disable(fep->clk);
 	}
 	return 0;
@@ -1396,8 +1506,10 @@ fec_resume(struct device *dev)
 	if (ndev) {
 		fep = netdev_priv(ndev);
 		clk_enable(fep->clk);
-		if (netif_running(ndev))
-			fec_enet_open(ndev);
+		if (netif_running(ndev)) {
+			fec_restart(ndev, fep->full_duplex);
+			netif_device_attach(ndev);
+		}
 	}
 	return 0;
 }
@@ -1414,12 +1526,13 @@ static const struct dev_pm_ops fec_pm_ops = {
 
 static struct platform_driver fec_driver = {
 	.driver	= {
-		.name	= "fec",
+		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm	= &fec_pm_ops,
 #endif
 	},
+	.id_table = fec_devtype,
 	.probe	= fec_probe,
 	.remove	= __devexit_p(fec_drv_remove),
 };

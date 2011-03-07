@@ -838,7 +838,7 @@ EXPORT_SYMBOL(ep93xx_i2s_release);
 static struct resource ep93xx_ac97_resources[] = {
 	{
 		.start	= EP93XX_AAC_PHYS_BASE,
-		.end	= EP93XX_AAC_PHYS_BASE + 0xb0 - 1,
+		.end	= EP93XX_AAC_PHYS_BASE + 0xac - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{

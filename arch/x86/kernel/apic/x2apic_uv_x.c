@@ -378,7 +378,7 @@ struct apic __refdata apic_x2apic_uv_x = {
 
 static __cpuinit void set_x2apic_extra_bits(int pnode)
 {
-	__this_cpu_write(x2apic_extra_bits, (pnode << 6));
+	__this_cpu_write(x2apic_extra_bits, pnode << uvh_apicid.s.pnode_shift);
 }
 
 /*
@@ -641,7 +641,7 @@ void __cpuinit uv_cpu_init(void)
  */
 int uv_handle_nmi(struct notifier_block *self, unsigned long reason, void *data)
 {
-	if (reason != DIE_NMI_IPI)
+	if (reason != DIE_NMIUNKNOWN)
 		return NOTIFY_OK;
 
 	if (in_crash_kexec)

@@ -516,7 +516,7 @@ static void __devexit chd_dec_pci_remove(struct pci_dev *pdev)
 
 	BCMLOG_ENTER;
 
-	pinfo = (struct crystalhd_adp *) pci_get_drvdata(pdev);
+	pinfo = pci_get_drvdata(pdev);
 	if (!pinfo) {
 		BCMLOG_ERR("could not get adp\n");
 		return;
@@ -626,7 +626,7 @@ int chd_dec_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct crystalhd_ioctl_data *temp;
 	enum BC_STATUS sts = BC_STS_SUCCESS;
 
-	adp = (struct crystalhd_adp *)pci_get_drvdata(pdev);
+	adp = pci_get_drvdata(pdev);
 	if (!adp) {
 		BCMLOG_ERR("could not get adp\n");
 		return -ENODEV;
@@ -660,7 +660,7 @@ int chd_dec_pci_resume(struct pci_dev *pdev)
 	enum BC_STATUS sts = BC_STS_SUCCESS;
 	int rc;
 
-	adp = (struct crystalhd_adp *)pci_get_drvdata(pdev);
+	adp = pci_get_drvdata(pdev);
 	if (!adp) {
 		BCMLOG_ERR("could not get adp\n");
 		return -ENODEV;

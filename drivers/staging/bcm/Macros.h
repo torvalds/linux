@@ -4,10 +4,6 @@
 #ifndef	__MACROS_H__
 #define __MACROS_H__
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-#define kthread_run(threadfn,data,datafmt)(struct task_struct *)kernel_thread(threadfn,data,0)
-#endif
-
 #define TX_TIMER_PERIOD 10	//10 msec
 #define MAX_CLASSIFIERS 100
 //#define MAX_CLASSIFIERS_PER_SF  20
@@ -17,10 +13,9 @@
 #define MAX_DATA_PKTS 		200
 #define MAX_ETH_SIZE 		1536
 #define MAX_CNTL_PKT_SIZE 2048
-/* TIMER RELATED */
-#define JIFFIES_2_QUADPART()	(ULONG)(jiffies * 10000) // jiffies(1msec) to Quadpart(100nsec)
 
 #define MTU_SIZE 1400
+#define TX_QLEN  5
 
 #define MAC_ADDR_REGISTER 0xbf60d000
 
@@ -266,7 +261,7 @@ typedef enum _E_PHS_DSC_ACTION
 
 #define FIRMWARE_BEGIN_ADDR 0xBFC00000
 
-#define INVALID_QUEUE_INDEX (USHORT)-1
+#define INVALID_QUEUE_INDEX NO_OF_QUEUES
 
 #define INVALID_PID (pid_t)-1
 #define DDR_80_MHZ  	0
@@ -300,12 +295,7 @@ typedef enum _E_PHS_DSC_ACTION
 
 /* Idle Mode Related Registers */
 #define DEBUG_INTERRUPT_GENERATOR_REGISTOR 0x0F00007C
-#ifdef BCM_SHM_INTERFACE
-#define SW_ABORT_IDLEMODE_LOC 		0xbfc02f9c
-#define CPE_VIRTUAL_MAILBOX_REG     0xBFC02E58
-#else
 #define SW_ABORT_IDLEMODE_LOC 		0x0FF01FFC
-#endif
 
 #define SW_ABORT_IDLEMODE_PATTERN 	0xd0ea1d1e
 #define DEVICE_INT_OUT_EP_REG0		0x0F011870
@@ -355,12 +345,7 @@ typedef enum ePMU_MODES
 	HYBRID_MODE_6   = 2
 }PMU_MODE;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,30)
-#define MAX_RDM_WRM_RETIRES 16
-#else
 #define MAX_RDM_WRM_RETIRES 1
-#endif
-
 
 enum eAbortPattern {
 	ABORT_SHUTDOWN_MODE = 1,
@@ -369,27 +354,6 @@ enum eAbortPattern {
 	ABORT_IDLE_SYNCDOWN = 3
 };
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
-	#define GET_BCM_ADAPTER(net_dev)  ({\
-    PMINI_ADAPTER __Adapter = NULL;	\
-    if (net_dev)    {   \
-         __Adapter = (PMINI_ADAPTER)(net_dev->priv); \
-    } \
-    else    {   \
-         __Adapter = NULL;  \
-    }__Adapter;} )
-#else
-	#define GET_BCM_ADAPTER(net_dev) ({\
-    PMINI_ADAPTER __Adapter = NULL;	\
-    if (net_dev)    {   \
-         __Adapter = (PMINI_ADAPTER)(*((unsigned long *)netdev_priv(net_dev)));  \
-    } \
-    else    {   \
-         __Adapter = NULL;  \
-    }__Adapter;})
-
-
-#endif
 
 /* Offsets used by driver in skb cb variable */
 #define SKB_CB_CLASSIFICATION_OFFSET    0

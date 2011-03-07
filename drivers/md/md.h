@@ -60,6 +60,12 @@ struct mdk_rdev_s
 	mddev_t *mddev;			/* RAID array if running */
 	int last_events;		/* IO event timestamp */
 
+	/*
+	 * If meta_bdev is non-NULL, it means that a separate device is
+	 * being used to store the metadata (superblock/bitmap) which
+	 * would otherwise be contained on the same device as the data (bdev).
+	 */
+	struct block_device *meta_bdev;
 	struct block_device *bdev;	/* block device handle */
 
 	struct page	*sb_page;
@@ -87,8 +93,6 @@ struct mdk_rdev_s
 #define	Faulty		1		/* device is known to have a fault */
 #define	In_sync		2		/* device is in_sync with rest of array */
 #define	WriteMostly	4		/* Avoid reading if at all possible */
-#define	AllReserved	6		/* If whole device is reserved for
-					 * one array */
 #define	AutoDetected	7		/* added by auto-detect */
 #define Blocked		8		/* An error occured on an externally
 					 * managed array, don't allow writes
@@ -148,7 +152,8 @@ struct mddev_s
 						       * are happening, so run/
 						       * takeover/stop are not safe
 						       */
-
+	int				ready; /* See when safe to pass 
+						* IO requests down */
 	struct gendisk			*gendisk;
 
 	struct kobject			kobj;
@@ -269,6 +274,8 @@ struct mddev_s
 	atomic_t			active;		/* general refcount */
 	atomic_t			openers;	/* number of active opens */
 
+	int				changed;	/* True if we might need to
+							 * reread partition info */
 	int				degraded;	/* whether md should consider
 							 * adding a spare
 							 */
@@ -497,8 +504,8 @@ extern void md_flush_request(mddev_t *mddev, struct bio *bio);
 extern void md_super_write(mddev_t *mddev, mdk_rdev_t *rdev,
 			   sector_t sector, int size, struct page *page);
 extern void md_super_wait(mddev_t *mddev);
-extern int sync_page_io(mdk_rdev_t *rdev, sector_t sector, int size,
-			struct page *page, int rw);
+extern int sync_page_io(mdk_rdev_t *rdev, sector_t sector, int size, 
+			struct page *page, int rw, bool metadata_op);
 extern void md_do_sync(mddev_t *mddev);
 extern void md_new_event(mddev_t *mddev);
 extern int md_allow_write(mddev_t *mddev);

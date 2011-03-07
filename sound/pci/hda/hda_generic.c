@@ -762,7 +762,8 @@ static int check_existing_control(struct hda_codec *codec, const char *type, con
 /*
  * build output mixer controls
  */
-static int create_output_mixers(struct hda_codec *codec, const char **names)
+static int create_output_mixers(struct hda_codec *codec,
+				const char * const *names)
 {
 	struct hda_gspec *spec = codec->spec;
 	int i, err;
@@ -780,8 +781,8 @@ static int create_output_mixers(struct hda_codec *codec, const char **names)
 static int build_output_controls(struct hda_codec *codec)
 {
 	struct hda_gspec *spec = codec->spec;
-	static const char *types_speaker[] = { "Speaker", "Headphone" };
-	static const char *types_line[] = { "Front", "Headphone" };
+	static const char * const types_speaker[] = { "Speaker", "Headphone" };
+	static const char * const types_line[] = { "Front", "Headphone" };
 
 	switch (spec->pcm_vol_nodes) {
 	case 1:

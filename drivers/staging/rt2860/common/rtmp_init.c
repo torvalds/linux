@@ -169,14 +169,14 @@ int RTMPAllocAdapterBlock(void *handle,
 		pBeaconBuf = kmalloc(MAX_BEACON_SIZE, MEM_ALLOC_FLAG);
 		if (pBeaconBuf == NULL) {
 			Status = NDIS_STATUS_FAILURE;
-			DBGPRINT_ERR(("Failed to allocate memory - BeaconBuf!\n"));
+			DBGPRINT_ERR("Failed to allocate memory - BeaconBuf!\n");
 			break;
 		}
 		NdisZeroMemory(pBeaconBuf, MAX_BEACON_SIZE);
 
 		Status = AdapterBlockAllocateMemory(handle, (void **) & pAd);
 		if (Status != NDIS_STATUS_SUCCESS) {
-			DBGPRINT_ERR(("Failed to allocate memory - ADAPTER\n"));
+			DBGPRINT_ERR("Failed to allocate memory - ADAPTER\n");
 			break;
 		}
 		pAd->BeaconBuf = pBeaconBuf;
@@ -785,8 +785,7 @@ void NICReadEEPROMParameters(struct rt_rtmp_adapter *pAd, u8 *mac_addr)
 		  Version.field.Version, Version.field.FaeReleaseNumber));
 
 	if (Version.field.Version > VALID_EEPROM_VERSION) {
-		DBGPRINT_ERR(("E2PROM: WRONG VERSION 0x%x, should be %d\n",
-			      Version.field.Version, VALID_EEPROM_VERSION));
+		DBGPRINT_ERR("E2PROM: WRONG VERSION 0x%x, should be %d\n", Version.field.Version, VALID_EEPROM_VERSION);
 		/*pAd->SystemErrorBitmap |= 0x00000001;
 
 		   // hard-code default value when no proper E2PROM installed
@@ -2911,7 +2910,7 @@ void RTMPSetTimer(struct rt_ralink_timer *pTimer, unsigned long Value)
 			RTMP_OS_Add_Timer(&pTimer->TimerObj, Value);
 		}
 	} else {
-		DBGPRINT_ERR(("RTMPSetTimer failed, Timer hasn't been initialize!\n"));
+		DBGPRINT_ERR("RTMPSetTimer failed, Timer hasn't been initialize!\n");
 	}
 }
 
@@ -2947,7 +2946,7 @@ void RTMPModTimer(struct rt_ralink_timer *pTimer, unsigned long Value)
 			RTMP_OS_Mod_Timer(&pTimer->TimerObj, Value);
 		}
 	} else {
-		DBGPRINT_ERR(("RTMPModTimer failed, Timer hasn't been initialize!\n"));
+		DBGPRINT_ERR("RTMPModTimer failed, Timer hasn't been initialize!\n");
 	}
 }
 
@@ -2989,7 +2988,7 @@ void RTMPCancelTimer(struct rt_ralink_timer *pTimer, OUT BOOLEAN * pCancelled)
 		RtmpTimerQRemove(pTimer->pAd, pTimer);
 #endif /* RTMP_TIMER_TASK_SUPPORT // */
 	} else {
-		DBGPRINT_ERR(("RTMPCancelTimer failed, Timer hasn't been initialize!\n"));
+		DBGPRINT_ERR("RTMPCancelTimer failed, Timer hasn't been initialize!\n");
 	}
 }
 
@@ -3251,8 +3250,7 @@ int rt28xx_init(struct rt_rtmp_adapter *pAd,
 	/* Load 8051 firmware */
 	Status = NICLoadFirmware(pAd);
 	if (Status != NDIS_STATUS_SUCCESS) {
-		DBGPRINT_ERR(("NICLoadFirmware failed, Status[=0x%08x]\n",
-			      Status));
+		DBGPRINT_ERR("NICLoadFirmware failed, Status[=0x%08x]\n", Status);
 		goto err1;
 	}
 
@@ -3268,8 +3266,7 @@ int rt28xx_init(struct rt_rtmp_adapter *pAd,
 
 	Status = RTMPAllocTxRxRingMemory(pAd);
 	if (Status != NDIS_STATUS_SUCCESS) {
-		DBGPRINT_ERR(("RTMPAllocDMAMemory failed, Status[=0x%08x]\n",
-			      Status));
+		DBGPRINT_ERR("RTMPAllocDMAMemory failed, Status[=0x%08x]\n", Status);
 		goto err1;
 	}
 
@@ -3284,7 +3281,7 @@ int rt28xx_init(struct rt_rtmp_adapter *pAd,
 
 	Status = MlmeInit(pAd);
 	if (Status != NDIS_STATUS_SUCCESS) {
-		DBGPRINT_ERR(("MlmeInit failed, Status[=0x%08x]\n", Status));
+		DBGPRINT_ERR("MlmeInit failed, Status[=0x%08x]\n", Status);
 		goto err2;
 	}
 	/* Initialize pAd->StaCfg, pAd->ApCfg, pAd->CommonCfg to manufacture default */
@@ -3309,8 +3306,7 @@ int rt28xx_init(struct rt_rtmp_adapter *pAd,
 	/* */
 	Status = NICInitializeAdapter(pAd, TRUE);
 	if (Status != NDIS_STATUS_SUCCESS) {
-		DBGPRINT_ERR(("NICInitializeAdapter failed, Status[=0x%08x]\n",
-			      Status));
+		DBGPRINT_ERR("NICInitializeAdapter failed, Status[=0x%08x]\n", Status);
 		if (Status != NDIS_STATUS_SUCCESS)
 			goto err3;
 	}

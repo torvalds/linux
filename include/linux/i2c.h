@@ -57,9 +57,10 @@ struct i2c_board_info;
  * transmit an arbitrary number of messages without interruption.
  * @count must be be less than 64k since msg.len is u16.
  */
-extern int i2c_master_send(struct i2c_client *client, const char *buf,
+extern int i2c_master_send(const struct i2c_client *client, const char *buf,
 			   int count);
-extern int i2c_master_recv(struct i2c_client *client, char *buf, int count);
+extern int i2c_master_recv(const struct i2c_client *client, char *buf,
+			   int count);
 
 /* Transfer num messages.
  */
@@ -78,23 +79,25 @@ extern s32 i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 /* Now follow the 'nice' access routines. These also document the calling
    conventions of i2c_smbus_xfer. */
 
-extern s32 i2c_smbus_read_byte(struct i2c_client *client);
-extern s32 i2c_smbus_write_byte(struct i2c_client *client, u8 value);
-extern s32 i2c_smbus_read_byte_data(struct i2c_client *client, u8 command);
-extern s32 i2c_smbus_write_byte_data(struct i2c_client *client,
+extern s32 i2c_smbus_read_byte(const struct i2c_client *client);
+extern s32 i2c_smbus_write_byte(const struct i2c_client *client, u8 value);
+extern s32 i2c_smbus_read_byte_data(const struct i2c_client *client,
+				    u8 command);
+extern s32 i2c_smbus_write_byte_data(const struct i2c_client *client,
 				     u8 command, u8 value);
-extern s32 i2c_smbus_read_word_data(struct i2c_client *client, u8 command);
-extern s32 i2c_smbus_write_word_data(struct i2c_client *client,
+extern s32 i2c_smbus_read_word_data(const struct i2c_client *client,
+				    u8 command);
+extern s32 i2c_smbus_write_word_data(const struct i2c_client *client,
 				     u8 command, u16 value);
 /* Returns the number of read bytes */
-extern s32 i2c_smbus_read_block_data(struct i2c_client *client,
+extern s32 i2c_smbus_read_block_data(const struct i2c_client *client,
 				     u8 command, u8 *values);
-extern s32 i2c_smbus_write_block_data(struct i2c_client *client,
+extern s32 i2c_smbus_write_block_data(const struct i2c_client *client,
 				      u8 command, u8 length, const u8 *values);
 /* Returns the number of read bytes */
-extern s32 i2c_smbus_read_i2c_block_data(struct i2c_client *client,
+extern s32 i2c_smbus_read_i2c_block_data(const struct i2c_client *client,
 					 u8 command, u8 length, u8 *values);
-extern s32 i2c_smbus_write_i2c_block_data(struct i2c_client *client,
+extern s32 i2c_smbus_write_i2c_block_data(const struct i2c_client *client,
 					  u8 command, u8 length,
 					  const u8 *values);
 #endif /* I2C */

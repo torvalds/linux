@@ -1682,20 +1682,6 @@ static int cx25840_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int cx25840_s_config(struct v4l2_subdev *sd, int irq, void *platform_data)
-{
-	struct cx25840_state *state = to_state(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (platform_data) {
-		struct cx25840_platform_data *pdata = platform_data;
-
-		state->pvr150_workaround = pdata->pvr150_workaround;
-		set_input(client, state->vid_input, state->aud_input);
-	}
-	return 0;
-}
-
 static int cx23885_irq_handler(struct v4l2_subdev *sd, u32 status,
 			       bool *handled)
 {
@@ -1787,7 +1773,6 @@ static const struct v4l2_ctrl_ops cx25840_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops cx25840_core_ops = {
 	.log_status = cx25840_log_status,
-	.s_config = cx25840_s_config,
 	.g_chip_ident = cx25840_g_chip_ident,
 	.g_ctrl = v4l2_subdev_g_ctrl,
 	.s_ctrl = v4l2_subdev_s_ctrl,
@@ -1974,7 +1959,6 @@ static int cx25840_probe(struct i2c_client *client,
 	state->vid_input = CX25840_COMPOSITE7;
 	state->aud_input = CX25840_AUDIO8;
 	state->audclk_freq = 48000;
-	state->pvr150_workaround = 0;
 	state->audmode = V4L2_TUNER_MODE_LANG1;
 	state->vbi_line_offset = 8;
 	state->id = id;
@@ -2033,6 +2017,12 @@ static int cx25840_probe(struct i2c_client *client,
 	}
 	v4l2_ctrl_cluster(2, &state->volume);
 	v4l2_ctrl_handler_setup(&state->hdl);
+
+	if (client->dev.platform_data) {
+		struct cx25840_platform_data *pdata = client->dev.platform_data;
+
+		state->pvr150_workaround = pdata->pvr150_workaround;
+	}
 
 	cx25840_ir_probe(sd);
 	return 0;

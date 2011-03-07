@@ -569,7 +569,7 @@ static int user_to_new(struct v4l2_ext_control *c,
 	int ret;
 	u32 size;
 
-	ctrl->has_new = 1;
+	ctrl->is_new = 1;
 	switch (ctrl->type) {
 	case V4L2_CTRL_TYPE_INTEGER64:
 		ctrl->val64 = c->value64;
@@ -1280,8 +1280,12 @@ int v4l2_ctrl_handler_setup(struct v4l2_ctrl_handler *hdl)
 		if (ctrl->done)
 			continue;
 
-		for (i = 0; i < master->ncontrols; i++)
-			cur_to_new(master->cluster[i]);
+		for (i = 0; i < master->ncontrols; i++) {
+			if (master->cluster[i]) {
+				cur_to_new(master->cluster[i]);
+				master->cluster[i]->is_new = 1;
+			}
+		}
 
 		/* Skip button controls and read-only controls. */
 		if (ctrl->type == V4L2_CTRL_TYPE_BUTTON ||
@@ -1340,12 +1344,15 @@ int v4l2_queryctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_queryctrl *qc)
 
 	ctrl = ref->ctrl;
 	memset(qc, 0, sizeof(*qc));
-	qc->id = ctrl->id;
+	if (id >= V4L2_CID_PRIVATE_BASE)
+		qc->id = id;
+	else
+		qc->id = ctrl->id;
 	strlcpy(qc->name, ctrl->name, sizeof(qc->name));
 	qc->minimum = ctrl->minimum;
 	qc->maximum = ctrl->maximum;
 	qc->default_value = ctrl->default_value;
-	if (qc->type == V4L2_CTRL_TYPE_MENU)
+	if (ctrl->type == V4L2_CTRL_TYPE_MENU)
 		qc->step = 1;
 	else
 		qc->step = ctrl->step;
@@ -1645,7 +1652,7 @@ static int try_or_set_control_cluster(struct v4l2_ctrl *master, bool set)
 		if (ctrl == NULL)
 			continue;
 
-		if (ctrl->has_new) {
+		if (ctrl->is_new) {
 			/* Double check this: it may have changed since the
 			   last check in try_or_set_ext_ctrls(). */
 			if (set && (ctrl->flags & V4L2_CTRL_FLAG_GRABBED))
@@ -1719,13 +1726,13 @@ static int try_or_set_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 
 		v4l2_ctrl_lock(ctrl);
 
-		/* Reset the 'has_new' flags of the cluster */
+		/* Reset the 'is_new' flags of the cluster */
 		for (j = 0; j < master->ncontrols; j++)
 			if (master->cluster[j])
-				master->cluster[j]->has_new = 0;
+				master->cluster[j]->is_new = 0;
 
 		/* Copy the new caller-supplied control values.
-		   user_to_new() sets 'has_new' to 1. */
+		   user_to_new() sets 'is_new' to 1. */
 		ret = cluster_walk(i, cs, helpers, user_to_new);
 
 		if (!ret)
@@ -1820,15 +1827,18 @@ static int set_ctrl(struct v4l2_ctrl *ctrl, s32 *val)
 	int ret;
 	int i;
 
+	if (ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY)
+		return -EACCES;
+
 	v4l2_ctrl_lock(ctrl);
 
-	/* Reset the 'has_new' flags of the cluster */
+	/* Reset the 'is_new' flags of the cluster */
 	for (i = 0; i < master->ncontrols; i++)
 		if (master->cluster[i])
-			master->cluster[i]->has_new = 0;
+			master->cluster[i]->is_new = 0;
 
 	ctrl->val = *val;
-	ctrl->has_new = 1;
+	ctrl->is_new = 1;
 	ret = try_or_set_control_cluster(master, false);
 	if (!ret)
 		ret = try_or_set_control_cluster(master, true);

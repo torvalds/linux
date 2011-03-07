@@ -24,6 +24,7 @@
 #include "bnx2x.h"
 #include "bnx2x_cmn.h"
 #include "bnx2x_dump.h"
+#include "bnx2x_init.h"
 
 /* Note: in the format strings below %s is replaced by the queue-name which is
  * either its index or 'fcoe' for the fcoe queue. Make sure the format string
@@ -237,7 +238,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	speed |= (cmd->speed_hi << 16);
 
 	if (IS_MF_SI(bp)) {
-		u32 param = 0;
+		u32 param = 0, part;
 		u32 line_speed = bp->link_vars.line_speed;
 
 		/* use 10G if no link detected */
@@ -250,9 +251,11 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 				       REQ_BC_VER_4_SET_MF_BW);
 			return -EINVAL;
 		}
-		if (line_speed < speed) {
-			BNX2X_DEV_INFO("New speed should be less or equal "
-				       "to actual line speed\n");
+		part = (speed * 100) / line_speed;
+		if (line_speed < speed || !part) {
+			BNX2X_DEV_INFO("Speed setting should be in a range "
+				       "from 1%% to 100%% "
+				       "of actual line speed\n");
 			return -EINVAL;
 		}
 		/* load old values */
@@ -262,8 +265,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		param &= FUNC_MF_CFG_MIN_BW_MASK;
 
 		/* set new MAX value */
-		param |= (((speed * 100) / line_speed)
-				 << FUNC_MF_CFG_MAX_BW_SHIFT)
+		param |= (part << FUNC_MF_CFG_MAX_BW_SHIFT)
 				  & FUNC_MF_CFG_MAX_BW_MASK;
 
 		bnx2x_fw_command(bp, DRV_MSG_CODE_SET_MF_BW, param);
@@ -472,7 +474,7 @@ static int bnx2x_get_regs_len(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	int regdump_len = 0;
-	int i;
+	int i, j, k;
 
 	if (CHIP_IS_E1(bp)) {
 		for (i = 0; i < REGS_COUNT; i++)
@@ -502,6 +504,15 @@ static int bnx2x_get_regs_len(struct net_device *dev)
 			if (IS_E2_ONLINE(wreg_addrs_e2[i].info))
 				regdump_len += wreg_addrs_e2[i].size *
 					(1 + wreg_addrs_e2[i].read_regs_count);
+
+		for (i = 0; i < PAGE_MODE_VALUES_E2; i++)
+			for (j = 0; j < PAGE_WRITE_REGS_E2; j++) {
+				for (k = 0; k < PAGE_READ_REGS_E2; k++)
+					if (IS_E2_ONLINE(page_read_regs_e2[k].
+							 info))
+						regdump_len +=
+						page_read_regs_e2[k].size;
+			}
 	}
 	regdump_len *= 4;
 	regdump_len += sizeof(struct dump_hdr);
@@ -538,6 +549,12 @@ static void bnx2x_get_regs(struct net_device *dev,
 
 	if (!netif_running(bp->dev))
 		return;
+
+	/* Disable parity attentions as long as following dump may
+	 * cause false alarms by reading never written registers. We
+	 * will re-enable parity attentions right after the dump.
+	 */
+	bnx2x_disable_blocks_parity(bp);
 
 	dump_hdr.hdr_size = (sizeof(struct dump_hdr) / 4) - 1;
 	dump_hdr.dump_sign = dump_sign_all;
@@ -580,6 +597,10 @@ static void bnx2x_get_regs(struct net_device *dev,
 
 		bnx2x_read_pages_regs_e2(bp, p);
 	}
+	/* Re-enable parity attentions */
+	bnx2x_clear_blocks_parity(bp);
+	if (CHIP_PARITY_ENABLED(bp))
+		bnx2x_enable_blocks_parity(bp);
 }
 
 #define PHY_FW_VER_LEN			20
@@ -1761,9 +1782,7 @@ static int bnx2x_test_nvram(struct bnx2x *bp)
 		{ 0x100, 0x350 }, /* manuf_info */
 		{ 0x450,  0xf0 }, /* feature_info */
 		{ 0x640,  0x64 }, /* upgrade_key_info */
-		{ 0x6a4,  0x64 },
 		{ 0x708,  0x70 }, /* manuf_key_info */
-		{ 0x778,  0x70 },
 		{     0,     0 }
 	};
 	__be32 buf[0x350 / 4];
@@ -1913,11 +1932,11 @@ static void bnx2x_self_test(struct net_device *dev,
 		buf[4] = 1;
 		etest->flags |= ETH_TEST_FL_FAILED;
 	}
-	if (bp->port.pmf)
-		if (bnx2x_link_test(bp, is_serdes) != 0) {
-			buf[5] = 1;
-			etest->flags |= ETH_TEST_FL_FAILED;
-		}
+
+	if (bnx2x_link_test(bp, is_serdes) != 0) {
+		buf[5] = 1;
+		etest->flags |= ETH_TEST_FL_FAILED;
+	}
 
 #ifdef BNX2X_EXTRA_DEBUG
 	bnx2x_panic_dump(bp);

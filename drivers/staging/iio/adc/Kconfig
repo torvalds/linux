@@ -27,6 +27,41 @@ config MAX1363_RING_BUFFER
 	  Say yes here to include ring buffer support in the MAX1363
 	  ADC driver.
 
+config AD7150
+	tristate "Analog Devices ad7150/1/6 capacitive sensor driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Analog Devices capacitive sensors.
+	  (ad7150, ad7151, ad7156) Provides direct access via sysfs.
+
+config AD7152
+	tristate "Analog Devices ad7152/3 capacitive sensor driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Analog Devices capacitive sensors.
+	  (ad7152, ad7153) Provides direct access via sysfs.
+
+config AD7291
+	tristate "Analog Devices AD7291 temperature sensor driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Analog Devices AD7291
+	  temperature sensors.
+
+config AD7298
+	tristate "Analog Devices AD7298 temperature sensor and ADC driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD7298
+	  temperature sensors and ADC.
+
+config AD7314
+	tristate "Analog Devices AD7314 temperature sensor driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD7314
+	  temperature sensors.
+
 config AD799X
 	tristate "Analog Devices AD799x ADC driver"
 	depends on I2C
@@ -50,9 +85,9 @@ config AD799X_RING_BUFFER
 config AD7476
 	tristate "Analog Devices AD7475/6/7/8 AD7466/7/8 and AD7495 ADC driver"
 	depends on SPI
-	select IIO_RING_BUFFER	
+	select IIO_RING_BUFFER
 	select IIO_SW_RING
-	select IIO_TRIGGER 	
+	select IIO_TRIGGER
 	help
 	  Say yes here to build support for Analog Devices
 	  AD7475, AD7476, AD7477, AD7478, AD7466, AD7467, AD7468, AD7495
@@ -61,3 +96,55 @@ config AD7476
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7476.
+
+config AD7887
+	tristate "Analog Devices AD7887 ADC driver"
+	depends on SPI
+	select IIO_RING_BUFFER
+	select IIO_SW_RING
+	select IIO_TRIGGER
+	help
+	  Say yes here to build support for Analog Devices
+	  AD7887 SPI analog to digital convertor (ADC).
+	  If unsure, say N (but it's safe to say "Y").
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7887.
+
+config AD7745
+	tristate "Analog Devices AD7745, AD7746 AD7747 capacitive sensor driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Analog Devices capacitive sensors.
+	  (AD7745, AD7746, AD7747) Provides direct access via sysfs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7745.
+
+config AD7816
+	tristate "Analog Devices AD7816/7/8 temperature sensor and ADC driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD7816/7/8
+	  temperature sensors and ADC.
+
+config ADT75
+	tristate "Analog Devices ADT75 temperature sensor driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Analog Devices ADT75
+	  temperature sensors.
+
+config ADT7310
+	tristate "Analog Devices ADT7310 temperature sensor driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices ADT7310
+	  temperature sensors.
+
+config ADT7410
+	tristate "Analog Devices ADT7410 temperature sensor driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Analog Devices ADT7410
+	  temperature sensors.

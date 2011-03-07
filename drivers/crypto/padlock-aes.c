@@ -9,6 +9,7 @@
 
 #include <crypto/algapi.h>
 #include <crypto/aes.h>
+#include <crypto/padlock.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -21,7 +22,6 @@
 #include <asm/byteorder.h>
 #include <asm/processor.h>
 #include <asm/i387.h>
-#include "padlock.h"
 
 /*
  * Number of data blocks actually fetched for each xcrypt insn.

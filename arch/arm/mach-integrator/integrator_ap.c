@@ -156,21 +156,21 @@ static void __init ap_map_io(void)
 
 #define INTEGRATOR_SC_VALID_INT	0x003fffff
 
-static void sc_mask_irq(unsigned int irq)
+static void sc_mask_irq(struct irq_data *d)
 {
-	writel(1 << irq, VA_IC_BASE + IRQ_ENABLE_CLEAR);
+	writel(1 << d->irq, VA_IC_BASE + IRQ_ENABLE_CLEAR);
 }
 
-static void sc_unmask_irq(unsigned int irq)
+static void sc_unmask_irq(struct irq_data *d)
 {
-	writel(1 << irq, VA_IC_BASE + IRQ_ENABLE_SET);
+	writel(1 << d->irq, VA_IC_BASE + IRQ_ENABLE_SET);
 }
 
 static struct irq_chip sc_chip = {
-	.name	= "SC",
-	.ack	= sc_mask_irq,
-	.mask	= sc_mask_irq,
-	.unmask = sc_unmask_irq,
+	.name		= "SC",
+	.irq_ack	= sc_mask_irq,
+	.irq_mask	= sc_mask_irq,
+	.irq_unmask	= sc_unmask_irq,
 };
 
 static void __init ap_init_irq(void)

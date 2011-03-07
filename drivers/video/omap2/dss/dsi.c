@@ -792,7 +792,8 @@ static int dsi_pll_power(enum dsi_pll_power_state state)
 }
 
 /* calculate clock rates using dividers in cinfo */
-static int dsi_calc_clock_rates(struct dsi_clock_info *cinfo)
+static int dsi_calc_clock_rates(struct omap_dss_device *dssdev,
+		struct dsi_clock_info *cinfo)
 {
 	if (cinfo->regn == 0 || cinfo->regn > REGN_MAX)
 		return -EINVAL;
@@ -812,7 +813,7 @@ static int dsi_calc_clock_rates(struct dsi_clock_info *cinfo)
 		 * with DSS2_FCK source also */
 		cinfo->highfreq = 0;
 	} else {
-		cinfo->clkin = dispc_pclk_rate();
+		cinfo->clkin = dispc_pclk_rate(dssdev->manager->id);
 
 		if (cinfo->clkin < 32000000)
 			cinfo->highfreq = 0;
@@ -1206,8 +1207,8 @@ void dsi_dump_clocks(struct seq_file *s)
 
 	seq_printf(s,	"VP_CLK\t\t%lu\n"
 			"VP_PCLK\t\t%lu\n",
-			dispc_lclk_rate(),
-			dispc_pclk_rate());
+			dispc_lclk_rate(OMAP_DSS_CHANNEL_LCD),
+			dispc_pclk_rate(OMAP_DSS_CHANNEL_LCD));
 
 	enable_clocks(0);
 }
@@ -2888,7 +2889,7 @@ int omap_dsi_prepare_update(struct omap_dss_device *dssdev,
 	if (dssdev->manager->caps & OMAP_DSS_OVL_MGR_CAP_DISPC) {
 		dss_setup_partial_planes(dssdev, x, y, w, h,
 				enlarge_update_area);
-		dispc_set_lcd_size(*w, *h);
+		dispc_set_lcd_size(dssdev->manager->id, *w, *h);
 	}
 
 	return 0;
@@ -2947,12 +2948,14 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 		return r;
 	}
 
-	dispc_set_lcd_display_type(OMAP_DSS_LCD_DISPLAY_TFT);
+	dispc_set_lcd_display_type(dssdev->manager->id,
+			OMAP_DSS_LCD_DISPLAY_TFT);
 
-	dispc_set_parallel_interface_mode(OMAP_DSS_PARALLELMODE_DSI);
-	dispc_enable_fifohandcheck(1);
+	dispc_set_parallel_interface_mode(dssdev->manager->id,
+			OMAP_DSS_PARALLELMODE_DSI);
+	dispc_enable_fifohandcheck(dssdev->manager->id, 1);
 
-	dispc_set_tft_data_lines(dssdev->ctrl.pixel_size);
+	dispc_set_tft_data_lines(dssdev->manager->id, dssdev->ctrl.pixel_size);
 
 	{
 		struct omap_video_timings timings = {
@@ -2964,7 +2967,7 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 			.vbp		= 0,
 		};
 
-		dispc_set_lcd_timings(&timings);
+		dispc_set_lcd_timings(dssdev->manager->id, &timings);
 	}
 
 	return 0;
@@ -2987,7 +2990,7 @@ static int dsi_configure_dsi_clocks(struct omap_dss_device *dssdev)
 	cinfo.regm  = dssdev->phy.dsi.div.regm;
 	cinfo.regm3 = dssdev->phy.dsi.div.regm3;
 	cinfo.regm4 = dssdev->phy.dsi.div.regm4;
-	r = dsi_calc_clock_rates(&cinfo);
+	r = dsi_calc_clock_rates(dssdev, &cinfo);
 	if (r) {
 		DSSERR("Failed to calc dsi clocks\n");
 		return r;
@@ -3019,7 +3022,7 @@ static int dsi_configure_dispc_clocks(struct omap_dss_device *dssdev)
 		return r;
 	}
 
-	r = dispc_set_clock_div(&dispc_cinfo);
+	r = dispc_set_clock_div(dssdev->manager->id, &dispc_cinfo);
 	if (r) {
 		DSSERR("Failed to set dispc clocks\n");
 		return r;

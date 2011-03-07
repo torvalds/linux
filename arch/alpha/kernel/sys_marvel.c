@@ -104,9 +104,10 @@ io7_get_irq_ctl(unsigned int irq, struct io7 **pio7)
 }
 
 static void
-io7_enable_irq(unsigned int irq)
+io7_enable_irq(struct irq_data *d)
 {
 	volatile unsigned long *ctl;
+	unsigned int irq = d->irq;
 	struct io7 *io7;
 
 	ctl = io7_get_irq_ctl(irq, &io7);
@@ -115,7 +116,7 @@ io7_enable_irq(unsigned int irq)
 		       __func__, irq);
 		return;
 	}
-		
+
 	spin_lock(&io7->irq_lock);
 	*ctl |= 1UL << 24;
 	mb();
@@ -124,9 +125,10 @@ io7_enable_irq(unsigned int irq)
 }
 
 static void
-io7_disable_irq(unsigned int irq)
+io7_disable_irq(struct irq_data *d)
 {
 	volatile unsigned long *ctl;
+	unsigned int irq = d->irq;
 	struct io7 *io7;
 
 	ctl = io7_get_irq_ctl(irq, &io7);
@@ -135,7 +137,7 @@ io7_disable_irq(unsigned int irq)
 		       __func__, irq);
 		return;
 	}
-		
+
 	spin_lock(&io7->irq_lock);
 	*ctl &= ~(1UL << 24);
 	mb();
@@ -143,60 +145,30 @@ io7_disable_irq(unsigned int irq)
 	spin_unlock(&io7->irq_lock);
 }
 
-static unsigned int
-io7_startup_irq(unsigned int irq)
-{
-	io7_enable_irq(irq);
-	return 0;	/* never anything pending */
-}
-
 static void
-io7_end_irq(unsigned int irq)
+marvel_irq_noop(struct irq_data *d)
 {
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		io7_enable_irq(irq);
-}
-
-static void
-marvel_irq_noop(unsigned int irq) 
-{ 
-	return; 
-}
-
-static unsigned int
-marvel_irq_noop_return(unsigned int irq) 
-{ 
-	return 0; 
+	return;
 }
 
 static struct irq_chip marvel_legacy_irq_type = {
 	.name		= "LEGACY",
-	.startup	= marvel_irq_noop_return,
-	.shutdown	= marvel_irq_noop,
-	.enable		= marvel_irq_noop,
-	.disable	= marvel_irq_noop,
-	.ack		= marvel_irq_noop,
-	.end		= marvel_irq_noop,
+	.irq_mask	= marvel_irq_noop,
+	.irq_unmask	= marvel_irq_noop,
 };
 
 static struct irq_chip io7_lsi_irq_type = {
 	.name		= "LSI",
-	.startup	= io7_startup_irq,
-	.shutdown	= io7_disable_irq,
-	.enable		= io7_enable_irq,
-	.disable	= io7_disable_irq,
-	.ack		= io7_disable_irq,
-	.end		= io7_end_irq,
+	.irq_unmask	= io7_enable_irq,
+	.irq_mask	= io7_disable_irq,
+	.irq_mask_ack	= io7_disable_irq,
 };
 
 static struct irq_chip io7_msi_irq_type = {
 	.name		= "MSI",
-	.startup	= io7_startup_irq,
-	.shutdown	= io7_disable_irq,
-	.enable		= io7_enable_irq,
-	.disable	= io7_disable_irq,
-	.ack		= marvel_irq_noop,
-	.end		= io7_end_irq,
+	.irq_unmask	= io7_enable_irq,
+	.irq_mask	= io7_disable_irq,
+	.irq_ack	= marvel_irq_noop,
 };
 
 static void
@@ -304,8 +276,8 @@ init_io7_irqs(struct io7 *io7,
 
 	/* Set up the lsi irqs.  */
 	for (i = 0; i < 128; ++i) {
-		irq_desc[base + i].status = IRQ_DISABLED | IRQ_LEVEL;
-		irq_desc[base + i].chip = lsi_ops;
+		set_irq_chip_and_handler(base + i, lsi_ops, handle_level_irq);
+		irq_set_status_flags(i, IRQ_LEVEL);
 	}
 
 	/* Disable the implemented irqs in hardware.  */
@@ -318,8 +290,8 @@ init_io7_irqs(struct io7 *io7,
 
 	/* Set up the msi irqs.  */
 	for (i = 128; i < (128 + 512); ++i) {
-		irq_desc[base + i].status = IRQ_DISABLED | IRQ_LEVEL;
-		irq_desc[base + i].chip = msi_ops;
+		set_irq_chip_and_handler(base + i, msi_ops, handle_level_irq);
+		irq_set_status_flags(i, IRQ_LEVEL);
 	}
 
 	for (i = 0; i < 16; ++i)
@@ -336,8 +308,8 @@ marvel_init_irq(void)
 
 	/* Reserve the legacy irqs.  */
 	for (i = 0; i < 16; ++i) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].chip = &marvel_legacy_irq_type;
+		set_irq_chip_and_handler(i, &marvel_legacy_irq_type,
+			handle_level_irq);
 	}
 
 	/* Init the io7 irqs.  */

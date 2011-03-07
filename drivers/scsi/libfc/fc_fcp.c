@@ -1250,7 +1250,7 @@ static void fc_lun_reset_send(unsigned long data)
 /**
  * fc_lun_reset() - Send a LUN RESET command to a device
  *		    and wait for the reply
- * @lport: The local port to sent the comand on
+ * @lport: The local port to sent the command on
  * @fsp:   The FCP packet that identifies the LUN to be reset
  * @id:	   The SCSI command ID
  * @lun:   The LUN ID to be reset

@@ -19,6 +19,8 @@ prototypes:
 	void (*d_release)(struct dentry *);
 	void (*d_iput)(struct dentry *, struct inode *);
 	char *(*d_dname)((struct dentry *dentry, char *buffer, int buflen);
+	struct vfsmount *(*d_automount)(struct path *path);
+	int (*d_manage)(struct dentry *, bool);
 
 locking rules:
 		rename_lock	->d_lock	may block	rcu-walk
@@ -29,6 +31,8 @@ d_delete:	no		yes		no		no
 d_release:	no		no		yes		no
 d_iput:		no		no		yes		no
 d_dname:	no		no		no		no
+d_automount:	no		no		yes		no
+d_manage:	no		no		yes (ref-walk)	maybe
 
 --------------------------- inode_operations --------------------------- 
 prototypes:
@@ -56,7 +60,6 @@ ata *);
 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
 	int (*removexattr) (struct dentry *, const char *);
 	void (*truncate_range)(struct inode *, loff_t, loff_t);
-	long (*fallocate)(struct inode *inode, int mode, loff_t offset, loff_t len);
 	int (*fiemap)(struct inode *, struct fiemap_extent_info *, u64 start, u64 len);
 
 locking rules:
@@ -84,7 +87,6 @@ getxattr:	no
 listxattr:	no
 removexattr:	yes
 truncate_range:	yes
-fallocate:	no
 fiemap:		no
 	Additionally, ->rmdir(), ->unlink() and ->rename() have ->i_mutex on
 victim.
@@ -343,7 +345,6 @@ prototypes:
 	int (*fl_grant)(struct file_lock *, struct file_lock *, int);
 	void (*fl_release_private)(struct file_lock *);
 	void (*fl_break)(struct file_lock *); /* break_lease callback */
-	int (*fl_mylease)(struct file_lock *, struct file_lock *);
 	int (*fl_change)(struct file_lock **, int);
 
 locking rules:
@@ -353,7 +354,6 @@ fl_notify:		yes		no
 fl_grant:		no		no
 fl_release_private:	maybe		no
 fl_break:		yes		no
-fl_mylease:		yes		no
 fl_change		yes		no
 
 --------------------------- buffer_head -----------------------------------
@@ -435,6 +435,7 @@ prototypes:
 	ssize_t (*splice_read)(struct file *, loff_t *, struct pipe_inode_info *,
 			size_t, unsigned int);
 	int (*setlease)(struct file *, long, struct file_lock **);
+	long (*fallocate)(struct file *, int, loff_t, loff_t);
 };
 
 locking rules:

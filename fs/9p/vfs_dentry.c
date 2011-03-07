@@ -86,7 +86,7 @@ static int v9fs_cached_dentry_delete(const struct dentry *dentry)
  *
  */
 
-void v9fs_dentry_release(struct dentry *dentry)
+static void v9fs_dentry_release(struct dentry *dentry)
 {
 	struct v9fs_dentry *dent;
 	struct p9_fid *temp, *current_fid;

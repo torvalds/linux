@@ -123,15 +123,15 @@ static unsigned long mainstone_pin_config[] = {
 
 static unsigned long mainstone_irq_enabled;
 
-static void mainstone_mask_irq(unsigned int irq)
+static void mainstone_mask_irq(struct irq_data *d)
 {
-	int mainstone_irq = (irq - MAINSTONE_IRQ(0));
+	int mainstone_irq = (d->irq - MAINSTONE_IRQ(0));
 	MST_INTMSKENA = (mainstone_irq_enabled &= ~(1 << mainstone_irq));
 }
 
-static void mainstone_unmask_irq(unsigned int irq)
+static void mainstone_unmask_irq(struct irq_data *d)
 {
-	int mainstone_irq = (irq - MAINSTONE_IRQ(0));
+	int mainstone_irq = (d->irq - MAINSTONE_IRQ(0));
 	/* the irq can be acknowledged only if deasserted, so it's done here */
 	MST_INTSETCLR &= ~(1 << mainstone_irq);
 	MST_INTMSKENA = (mainstone_irq_enabled |= (1 << mainstone_irq));
@@ -139,16 +139,17 @@ static void mainstone_unmask_irq(unsigned int irq)
 
 static struct irq_chip mainstone_irq_chip = {
 	.name		= "FPGA",
-	.ack		= mainstone_mask_irq,
-	.mask		= mainstone_mask_irq,
-	.unmask		= mainstone_unmask_irq,
+	.irq_ack	= mainstone_mask_irq,
+	.irq_mask	= mainstone_mask_irq,
+	.irq_unmask	= mainstone_unmask_irq,
 };
 
 static void mainstone_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned long pending = MST_INTSETCLR & mainstone_irq_enabled;
 	do {
-		desc->chip->ack(irq);	/* clear useless edge notification */
+		/* clear useless edge notification */
+		desc->irq_data.chip->irq_ack(&desc->irq_data);
 		if (likely(pending)) {
 			irq = MAINSTONE_IRQ(0) + __ffs(pending);
 			generic_handle_irq(irq);

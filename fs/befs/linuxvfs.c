@@ -390,7 +390,7 @@ static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
 		int num_blks;
 
 		befs_ino->i_data.ds =
-		    fsds_to_cpu(sb, raw_inode->data.datastream);
+		    fsds_to_cpu(sb, &raw_inode->data.datastream);
 
 		num_blks = befs_count_blocks(sb, &befs_ino->i_data.ds);
 		inode->i_blocks =

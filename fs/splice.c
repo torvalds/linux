@@ -682,19 +682,14 @@ static int pipe_to_sendpage(struct pipe_inode_info *pipe,
 {
 	struct file *file = sd->u.file;
 	loff_t pos = sd->pos;
-	int ret, more;
+	int more;
 
-	ret = buf->ops->confirm(pipe, buf);
-	if (!ret) {
-		more = (sd->flags & SPLICE_F_MORE) || sd->len < sd->total_len;
-		if (file->f_op && file->f_op->sendpage)
-			ret = file->f_op->sendpage(file, buf->page, buf->offset,
-						   sd->len, &pos, more);
-		else
-			ret = -EINVAL;
-	}
+	if (!likely(file->f_op && file->f_op->sendpage))
+		return -EINVAL;
 
-	return ret;
+	more = (sd->flags & SPLICE_F_MORE) || sd->len < sd->total_len;
+	return file->f_op->sendpage(file, buf->page, buf->offset,
+				    sd->len, &pos, more);
 }
 
 /*
@@ -726,13 +721,6 @@ int pipe_to_file(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 	struct page *page;
 	void *fsdata;
 	int ret;
-
-	/*
-	 * make sure the data in this buffer is uptodate
-	 */
-	ret = buf->ops->confirm(pipe, buf);
-	if (unlikely(ret))
-		return ret;
 
 	offset = sd->pos & ~PAGE_CACHE_MASK;
 
@@ -805,12 +793,17 @@ int splice_from_pipe_feed(struct pipe_inode_info *pipe, struct splice_desc *sd,
 		if (sd->len > sd->total_len)
 			sd->len = sd->total_len;
 
-		ret = actor(pipe, buf, sd);
-		if (ret <= 0) {
+		ret = buf->ops->confirm(pipe, buf);
+		if (unlikely(ret)) {
 			if (ret == -ENODATA)
 				ret = 0;
 			return ret;
 		}
+
+		ret = actor(pipe, buf, sd);
+		if (ret <= 0)
+			return ret;
+
 		buf->offset += ret;
 		buf->len -= ret;
 
@@ -1043,10 +1036,6 @@ static int write_pipe_buf(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 {
 	int ret;
 	void *data;
-
-	ret = buf->ops->confirm(pipe, buf);
-	if (ret)
-		return ret;
 
 	data = buf->ops->map(pipe, buf, 0);
 	ret = kernel_write(sd->u.file, data + buf->offset, sd->len, sd->pos);
@@ -1494,10 +1483,6 @@ static int pipe_to_user(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 {
 	char *src;
 	int ret;
-
-	ret = buf->ops->confirm(pipe, buf);
-	if (unlikely(ret))
-		return ret;
 
 	/*
 	 * See if we can use the atomic maps, by prefaulting in the

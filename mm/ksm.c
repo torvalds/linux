@@ -34,6 +34,7 @@
 #include <linux/swap.h>
 #include <linux/ksm.h>
 #include <linux/hash.h>
+#include <linux/freezer.h>
 
 #include <asm/tlbflush.h>
 #include "internal.h"
@@ -411,6 +412,20 @@ out:
 	up_read(&mm->mmap_sem);
 }
 
+static struct page *page_trans_compound_anon(struct page *page)
+{
+	if (PageTransCompound(page)) {
+		struct page *head = compound_trans_head(page);
+		/*
+		 * head may actually be splitted and freed from under
+		 * us but it's ok here.
+		 */
+		if (PageAnon(head))
+			return head;
+	}
+	return NULL;
+}
+
 static struct page *get_mergeable_page(struct rmap_item *rmap_item)
 {
 	struct mm_struct *mm = rmap_item->mm;
@@ -430,7 +445,7 @@ static struct page *get_mergeable_page(struct rmap_item *rmap_item)
 	page = follow_page(vma, addr, FOLL_GET);
 	if (IS_ERR_OR_NULL(page))
 		goto out;
-	if (PageAnon(page)) {
+	if (PageAnon(page) || page_trans_compound_anon(page)) {
 		flush_anon_page(vma, page, addr);
 		flush_dcache_page(page);
 	} else {
@@ -708,6 +723,7 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 	if (addr == -EFAULT)
 		goto out;
 
+	BUG_ON(PageTransCompound(page));
 	ptep = page_check_address(page, mm, addr, &ptl, 0);
 	if (!ptep)
 		goto out;
@@ -783,6 +799,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 		goto out;
 
 	pmd = pmd_offset(pud, addr);
+	BUG_ON(pmd_trans_huge(*pmd));
 	if (!pmd_present(*pmd))
 		goto out;
 
@@ -800,12 +817,41 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 	set_pte_at_notify(mm, addr, ptep, mk_pte(kpage, vma->vm_page_prot));
 
 	page_remove_rmap(page);
+	if (!page_mapped(page))
+		try_to_free_swap(page);
 	put_page(page);
 
 	pte_unmap_unlock(ptep, ptl);
 	err = 0;
 out:
 	return err;
+}
+
+static int page_trans_compound_anon_split(struct page *page)
+{
+	int ret = 0;
+	struct page *transhuge_head = page_trans_compound_anon(page);
+	if (transhuge_head) {
+		/* Get the reference on the head to split it. */
+		if (get_page_unless_zero(transhuge_head)) {
+			/*
+			 * Recheck we got the reference while the head
+			 * was still anonymous.
+			 */
+			if (PageAnon(transhuge_head))
+				ret = split_huge_page(transhuge_head);
+			else
+				/*
+				 * Retry later if split_huge_page run
+				 * from under us.
+				 */
+				ret = 1;
+			put_page(transhuge_head);
+		} else
+			/* Retry later if split_huge_page run from under us. */
+			ret = 1;
+	}
+	return ret;
 }
 
 /*
@@ -828,6 +874,9 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
 
 	if (!(vma->vm_flags & VM_MERGEABLE))
 		goto out;
+	if (PageTransCompound(page) && page_trans_compound_anon_split(page))
+		goto out;
+	BUG_ON(PageTransCompound(page));
 	if (!PageAnon(page))
 		goto out;
 
@@ -1247,6 +1296,18 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
 
 	slot = ksm_scan.mm_slot;
 	if (slot == &ksm_mm_head) {
+		/*
+		 * A number of pages can hang around indefinitely on per-cpu
+		 * pagevecs, raised page count preventing write_protect_page
+		 * from merging them.  Though it doesn't really matter much,
+		 * it is puzzling to see some stuck in pages_volatile until
+		 * other activity jostles them out, and they also prevented
+		 * LTP's KSM test from succeeding deterministically; so drain
+		 * them here (here rather than on entry to ksm_do_scan(),
+		 * so we don't IPI too often when pages_to_scan is set low).
+		 */
+		lru_add_drain_all();
+
 		root_unstable_tree = RB_ROOT;
 
 		spin_lock(&ksm_mmlist_lock);
@@ -1277,7 +1338,13 @@ next_mm:
 			if (ksm_test_exit(mm))
 				break;
 			*page = follow_page(vma, ksm_scan.address, FOLL_GET);
-			if (!IS_ERR_OR_NULL(*page) && PageAnon(*page)) {
+			if (IS_ERR_OR_NULL(*page)) {
+				ksm_scan.address += PAGE_SIZE;
+				cond_resched();
+				continue;
+			}
+			if (PageAnon(*page) ||
+			    page_trans_compound_anon(*page)) {
 				flush_anon_page(vma, *page, ksm_scan.address);
 				flush_dcache_page(*page);
 				rmap_item = get_next_rmap_item(slot,
@@ -1291,8 +1358,7 @@ next_mm:
 				up_read(&mm->mmap_sem);
 				return rmap_item;
 			}
-			if (!IS_ERR_OR_NULL(*page))
-				put_page(*page);
+			put_page(*page);
 			ksm_scan.address += PAGE_SIZE;
 			cond_resched();
 		}
@@ -1352,7 +1418,7 @@ static void ksm_do_scan(unsigned int scan_npages)
 	struct rmap_item *rmap_item;
 	struct page *uninitialized_var(page);
 
-	while (scan_npages--) {
+	while (scan_npages-- && likely(!freezing(current))) {
 		cond_resched();
 		rmap_item = scan_get_next_rmap_item(&page);
 		if (!rmap_item)
@@ -1370,6 +1436,7 @@ static int ksmd_should_run(void)
 
 static int ksm_scan_thread(void *nothing)
 {
+	set_freezable();
 	set_user_nice(current, 5);
 
 	while (!kthread_should_stop()) {
@@ -1378,11 +1445,13 @@ static int ksm_scan_thread(void *nothing)
 			ksm_do_scan(ksm_thread_pages_to_scan);
 		mutex_unlock(&ksm_thread_mutex);
 
+		try_to_freeze();
+
 		if (ksmd_should_run()) {
 			schedule_timeout_interruptible(
 				msecs_to_jiffies(ksm_thread_sleep_millisecs));
 		} else {
-			wait_event_interruptible(ksm_thread_wait,
+			wait_event_freezable(ksm_thread_wait,
 				ksmd_should_run() || kthread_should_stop());
 		}
 	}

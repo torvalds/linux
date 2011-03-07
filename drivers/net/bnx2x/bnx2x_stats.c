@@ -158,6 +158,11 @@ static void bnx2x_storm_stats_post(struct bnx2x *bp)
 
 		spin_lock_bh(&bp->stats_lock);
 
+		if (bp->stats_pending) {
+			spin_unlock_bh(&bp->stats_lock);
+			return;
+		}
+
 		ramrod_data.drv_counter = bp->stats_counter++;
 		ramrod_data.collect_port = bp->port.pmf ? 1 : 0;
 		for_each_eth_queue(bp, i)
@@ -1234,13 +1239,13 @@ void bnx2x_stats_handle(struct bnx2x *bp, enum bnx2x_stats_event event)
 	if (unlikely(bp->panic))
 		return;
 
+	bnx2x_stats_stm[bp->stats_state][event].action(bp);
+
 	/* Protect a state change flow */
 	spin_lock_bh(&bp->stats_lock);
 	state = bp->stats_state;
 	bp->stats_state = bnx2x_stats_stm[state][event].next_state;
 	spin_unlock_bh(&bp->stats_lock);
-
-	bnx2x_stats_stm[state][event].action(bp);
 
 	if ((event != STATS_EVENT_UPDATE) || netif_msg_timer(bp))
 		DP(BNX2X_MSG_STATS, "state %d -> event %d -> state %d\n",

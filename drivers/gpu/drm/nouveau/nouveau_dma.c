@@ -36,7 +36,7 @@ nouveau_dma_pre_init(struct nouveau_channel *chan)
 	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
 	struct nouveau_bo *pushbuf = chan->pushbuf_bo;
 
-	if (dev_priv->card_type == NV_50) {
+	if (dev_priv->card_type >= NV_50) {
 		const int ib_size = pushbuf->bo.mem.size / 2;
 
 		chan->dma.ib_base = (pushbuf->bo.mem.size - ib_size) >> 2;
@@ -59,27 +59,32 @@ nouveau_dma_init(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *obj = NULL;
 	int ret, i;
 
-	/* Create NV_MEMORY_TO_MEMORY_FORMAT for buffer moves */
-	ret = nouveau_gpuobj_gr_new(chan, dev_priv->card_type < NV_50 ?
-				    0x0039 : 0x5039, &obj);
-	if (ret)
-		return ret;
+	if (dev_priv->card_type >= NV_C0) {
+		ret = nouveau_gpuobj_gr_new(chan, 0x9039, 0x9039);
+		if (ret)
+			return ret;
 
-	ret = nouveau_ramht_insert(chan, NvM2MF, obj);
-	nouveau_gpuobj_ref(NULL, &obj);
+		ret = RING_SPACE(chan, 2);
+		if (ret)
+			return ret;
+
+		BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0000, 1);
+		OUT_RING  (chan, 0x00009039);
+		FIRE_RING (chan);
+		return 0;
+	}
+
+	/* Create NV_MEMORY_TO_MEMORY_FORMAT for buffer moves */
+	ret = nouveau_gpuobj_gr_new(chan, NvM2MF, dev_priv->card_type < NV_50 ?
+				    0x0039 : 0x5039);
 	if (ret)
 		return ret;
 
 	/* NV_MEMORY_TO_MEMORY_FORMAT requires a notifier object */
-	ret = nouveau_notifier_alloc(chan, NvNotify0, 32, &chan->m2mf_ntfy);
-	if (ret)
-		return ret;
-
-	/* Map push buffer */
-	ret = nouveau_bo_map(chan->pushbuf_bo);
+	ret = nouveau_notifier_alloc(chan, NvNotify0, 32, 0xfd0, 0x1000,
+				     &chan->m2mf_ntfy);
 	if (ret)
 		return ret;
 

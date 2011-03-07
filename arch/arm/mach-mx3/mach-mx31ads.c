@@ -162,9 +162,9 @@ static void mx31ads_expio_irq_handler(u32 irq, struct irq_desc *desc)
  * Disable an expio pin's interrupt by setting the bit in the imr.
  * @param irq           an expio virtual irq number
  */
-static void expio_mask_irq(u32 irq)
+static void expio_mask_irq(struct irq_data *d)
 {
-	u32 expio = MXC_IRQ_TO_EXPIO(irq);
+	u32 expio = MXC_IRQ_TO_EXPIO(d->irq);
 	/* mask the interrupt */
 	__raw_writew(1 << expio, PBC_INTMASK_CLEAR_REG);
 	__raw_readw(PBC_INTMASK_CLEAR_REG);
@@ -174,9 +174,9 @@ static void expio_mask_irq(u32 irq)
  * Acknowledge an expanded io pin's interrupt by clearing the bit in the isr.
  * @param irq           an expanded io virtual irq number
  */
-static void expio_ack_irq(u32 irq)
+static void expio_ack_irq(struct irq_data *d)
 {
-	u32 expio = MXC_IRQ_TO_EXPIO(irq);
+	u32 expio = MXC_IRQ_TO_EXPIO(d->irq);
 	/* clear the interrupt status */
 	__raw_writew(1 << expio, PBC_INTSTATUS_REG);
 }
@@ -185,18 +185,18 @@ static void expio_ack_irq(u32 irq)
  * Enable a expio pin's interrupt by clearing the bit in the imr.
  * @param irq           a expio virtual irq number
  */
-static void expio_unmask_irq(u32 irq)
+static void expio_unmask_irq(struct irq_data *d)
 {
-	u32 expio = MXC_IRQ_TO_EXPIO(irq);
+	u32 expio = MXC_IRQ_TO_EXPIO(d->irq);
 	/* unmask the interrupt */
 	__raw_writew(1 << expio, PBC_INTMASK_SET_REG);
 }
 
 static struct irq_chip expio_irq_chip = {
 	.name = "EXPIO(CPLD)",
-	.ack = expio_ack_irq,
-	.mask = expio_mask_irq,
-	.unmask = expio_unmask_irq,
+	.irq_ack = expio_ack_irq,
+	.irq_mask = expio_mask_irq,
+	.irq_unmask = expio_unmask_irq,
 };
 
 static void __init mx31ads_init_expio(void)

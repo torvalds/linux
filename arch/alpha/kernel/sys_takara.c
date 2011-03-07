@@ -45,43 +45,28 @@ takara_update_irq_hw(unsigned long irq, unsigned long mask)
 }
 
 static inline void
-takara_enable_irq(unsigned int irq)
+takara_enable_irq(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
 	unsigned long mask;
 	mask = (cached_irq_mask[irq >= 64] &= ~(1UL << (irq & 63)));
 	takara_update_irq_hw(irq, mask);
 }
 
 static void
-takara_disable_irq(unsigned int irq)
+takara_disable_irq(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
 	unsigned long mask;
 	mask = (cached_irq_mask[irq >= 64] |= 1UL << (irq & 63));
 	takara_update_irq_hw(irq, mask);
 }
 
-static unsigned int
-takara_startup_irq(unsigned int irq)
-{
-	takara_enable_irq(irq);
-	return 0; /* never anything pending */
-}
-
-static void
-takara_end_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		takara_enable_irq(irq);
-}
-
 static struct irq_chip takara_irq_type = {
 	.name		= "TAKARA",
-	.startup	= takara_startup_irq,
-	.shutdown	= takara_disable_irq,
-	.enable		= takara_enable_irq,
-	.disable	= takara_disable_irq,
-	.ack		= takara_disable_irq,
-	.end		= takara_end_irq,
+	.irq_unmask	= takara_enable_irq,
+	.irq_mask	= takara_disable_irq,
+	.irq_mask_ack	= takara_disable_irq,
 };
 
 static void
@@ -153,8 +138,8 @@ takara_init_irq(void)
 		takara_update_irq_hw(i, -1);
 
 	for (i = 16; i < 128; ++i) {
-		irq_desc[i].status = IRQ_DISABLED | IRQ_LEVEL;
-		irq_desc[i].chip = &takara_irq_type;
+		set_irq_chip_and_handler(i, &takara_irq_type, handle_level_irq);
+		irq_set_status_flags(i, IRQ_LEVEL);
 	}
 
 	common_init_isa_dma();

@@ -15,6 +15,7 @@
 #include <linux/memblock.h>
 #include <linux/of.h>
 #include <linux/irq.h>
+#include <linux/ftrace.h>
 
 #include <asm/machdep.h>
 #include <asm/prom.h>
@@ -44,10 +45,7 @@ void machine_kexec_mask_interrupts(void) {
 
 void machine_crash_shutdown(struct pt_regs *regs)
 {
-	if (ppc_md.machine_crash_shutdown)
-		ppc_md.machine_crash_shutdown(regs);
-	else
-		default_machine_crash_shutdown(regs);
+	default_machine_crash_shutdown(regs);
 }
 
 /*
@@ -65,8 +63,6 @@ int machine_kexec_prepare(struct kimage *image)
 
 void machine_kexec_cleanup(struct kimage *image)
 {
-	if (ppc_md.machine_kexec_cleanup)
-		ppc_md.machine_kexec_cleanup(image);
 }
 
 void arch_crash_save_vmcoreinfo(void)
@@ -87,10 +83,16 @@ void arch_crash_save_vmcoreinfo(void)
  */
 void machine_kexec(struct kimage *image)
 {
+	int save_ftrace_enabled;
+
+	save_ftrace_enabled = __ftrace_enabled_save();
+
 	if (ppc_md.machine_kexec)
 		ppc_md.machine_kexec(image);
 	else
 		default_machine_kexec(image);
+
+	__ftrace_enabled_restore(save_ftrace_enabled);
 
 	/* Fall back to normal restart if we're still alive. */
 	machine_restart(NULL);

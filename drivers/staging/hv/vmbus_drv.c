@@ -33,6 +33,7 @@
 #include "logging.h"
 #include "vmbus.h"
 #include "channel.h"
+#include "vmbus_private.h"
 
 
 /* FIXME! We need to do this dynamically for PIC and APIC system */
@@ -46,7 +47,7 @@ struct vmbus_driver_context {
 	/* The driver field is not used in here. Instead, the bus field is */
 	/* used to represent the driver */
 	struct driver_context drv_ctx;
-	struct vmbus_driver drv_obj;
+	struct hv_driver drv_obj;
 
 	struct bus_type bus;
 	struct tasklet_struct msg_dpc;
@@ -69,13 +70,6 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id);
 static void vmbus_device_release(struct device *device);
 static void vmbus_bus_release(struct device *device);
 
-static struct hv_device *vmbus_child_device_create(struct hv_guid *type,
-						   struct hv_guid *instance,
-						   struct vmbus_channel *channel);
-static void vmbus_child_device_destroy(struct hv_device *device_obj);
-static int vmbus_child_device_register(struct hv_device *root_device_obj,
-				       struct hv_device *child_device_obj);
-static void vmbus_child_device_unregister(struct hv_device *child_device_obj);
 static ssize_t vmbus_show_device_attr(struct device *dev,
 				      struct device_attribute *dev_attr,
 				      char *buf);
@@ -129,6 +123,182 @@ static struct vmbus_driver_context g_vmbus_drv = {
 	.bus.dev_attrs =	vmbus_device_attrs,
 };
 
+static const char *gDriverName = "hyperv";
+
+/*
+ * Windows vmbus does not defined this.
+ * We defined this to be consistent with other devices
+ */
+/* {c5295816-f63a-4d5f-8d1a-4daf999ca185} */
+static const struct hv_guid gVmbusDeviceType = {
+	.data = {
+		0x16, 0x58, 0x29, 0xc5, 0x3a, 0xf6, 0x5f, 0x4d,
+		0x8d, 0x1a, 0x4d, 0xaf, 0x99, 0x9c, 0xa1, 0x85
+	}
+};
+
+/* {ac3760fc-9adf-40aa-9427-a70ed6de95c5} */
+static const struct hv_guid gVmbusDeviceId = {
+	.data = {
+		0xfc, 0x60, 0x37, 0xac, 0xdf, 0x9a, 0xaa, 0x40,
+		0x94, 0x27, 0xa7, 0x0e, 0xd6, 0xde, 0x95, 0xc5
+	}
+};
+
+static struct hv_device *gDevice; /* vmbus root device */
+
+/*
+ * VmbusChildDeviceAdd - Registers the child device with the vmbus
+ */
+int VmbusChildDeviceAdd(struct hv_device *ChildDevice)
+{
+	return vmbus_child_device_register(gDevice, ChildDevice);
+}
+
+/*
+ * VmbusOnDeviceAdd - Callback when the root bus device is added
+ */
+static int VmbusOnDeviceAdd(struct hv_device *dev, void *AdditionalInfo)
+{
+	u32 *irqvector = AdditionalInfo;
+	int ret;
+
+	gDevice = dev;
+
+	memcpy(&gDevice->deviceType, &gVmbusDeviceType, sizeof(struct hv_guid));
+	memcpy(&gDevice->deviceInstance, &gVmbusDeviceId,
+	       sizeof(struct hv_guid));
+
+	/* strcpy(dev->name, "vmbus"); */
+	/* SynIC setup... */
+	on_each_cpu(hv_synic_init, (void *)irqvector, 1);
+
+	/* Connect to VMBus in the root partition */
+	ret = VmbusConnect();
+
+	/* VmbusSendEvent(device->localPortId+1); */
+	return ret;
+}
+
+/*
+ * VmbusOnDeviceRemove - Callback when the root bus device is removed
+ */
+static int VmbusOnDeviceRemove(struct hv_device *dev)
+{
+	int ret = 0;
+
+	vmbus_release_unattached_channels();
+	VmbusDisconnect();
+	on_each_cpu(hv_synic_cleanup, NULL, 1);
+	return ret;
+}
+
+/*
+ * VmbusOnCleanup - Perform any cleanup when the driver is removed
+ */
+static void VmbusOnCleanup(struct hv_driver *drv)
+{
+	/* struct vmbus_driver *driver = (struct vmbus_driver *)drv; */
+
+	hv_cleanup();
+}
+
+struct onmessage_work_context {
+	struct work_struct work;
+	struct hv_message msg;
+};
+
+static void vmbus_onmessage_work(struct work_struct *work)
+{
+	struct onmessage_work_context *ctx;
+
+	ctx = container_of(work, struct onmessage_work_context,
+			   work);
+	vmbus_onmessage(&ctx->msg);
+	kfree(ctx);
+}
+
+/*
+ * vmbus_on_msg_dpc - DPC routine to handle messages from the hypervisior
+ */
+static void vmbus_on_msg_dpc(struct hv_driver *drv)
+{
+	int cpu = smp_processor_id();
+	void *page_addr = hv_context.synic_message_page[cpu];
+	struct hv_message *msg = (struct hv_message *)page_addr +
+				  VMBUS_MESSAGE_SINT;
+	struct onmessage_work_context *ctx;
+
+	while (1) {
+		if (msg->header.message_type == HVMSG_NONE) {
+			/* no msg */
+			break;
+		} else {
+			ctx = kmalloc(sizeof(*ctx), GFP_ATOMIC);
+			if (ctx == NULL)
+				continue;
+			INIT_WORK(&ctx->work, vmbus_onmessage_work);
+			memcpy(&ctx->msg, msg, sizeof(*msg));
+			queue_work(gVmbusConnection.WorkQueue, &ctx->work);
+		}
+
+		msg->header.message_type = HVMSG_NONE;
+
+		/*
+		 * Make sure the write to MessageType (ie set to
+		 * HVMSG_NONE) happens before we read the
+		 * MessagePending and EOMing. Otherwise, the EOMing
+		 * will not deliver any more messages since there is
+		 * no empty slot
+		 */
+		mb();
+
+		if (msg->header.message_flags.msg_pending) {
+			/*
+			 * This will cause message queue rescan to
+			 * possibly deliver another msg from the
+			 * hypervisor
+			 */
+			wrmsrl(HV_X64_MSR_EOM, 0);
+		}
+	}
+}
+
+/*
+ * vmbus_on_isr - ISR routine
+ */
+static int vmbus_on_isr(struct hv_driver *drv)
+{
+	int ret = 0;
+	int cpu = smp_processor_id();
+	void *page_addr;
+	struct hv_message *msg;
+	union hv_synic_event_flags *event;
+
+	page_addr = hv_context.synic_message_page[cpu];
+	msg = (struct hv_message *)page_addr + VMBUS_MESSAGE_SINT;
+
+	/* Check if there are actual msgs to be process */
+	if (msg->header.message_type != HVMSG_NONE) {
+		DPRINT_DBG(VMBUS, "received msg type %d size %d",
+				msg->header.message_type,
+				msg->header.payload_size);
+		ret |= 0x1;
+	}
+
+	/* TODO: Check if there are events to be process */
+	page_addr = hv_context.synic_event_page[cpu];
+	event = (union hv_synic_event_flags *)page_addr + VMBUS_MESSAGE_SINT;
+
+	/* Since we are a child, we only need to check bit 0 */
+	if (test_and_clear_bit(0, (unsigned long *) &event->flags32[0])) {
+		DPRINT_DBG(VMBUS, "received event %d", event->flags32[0]);
+		ret |= 0x2;
+	}
+
+	return ret;
+}
+
 static void get_channel_info(struct hv_device *device,
 			     struct hv_device_info *info)
 {
@@ -139,35 +309,38 @@ static void get_channel_info(struct hv_device *device,
 
 	vmbus_get_debug_info(device->channel, &debug_info);
 
-	info->ChannelId = debug_info.RelId;
-	info->ChannelState = debug_info.State;
-	memcpy(&info->ChannelType, &debug_info.InterfaceType,
+	info->ChannelId = debug_info.relid;
+	info->ChannelState = debug_info.state;
+	memcpy(&info->ChannelType, &debug_info.interfacetype,
 	       sizeof(struct hv_guid));
-	memcpy(&info->ChannelInstance, &debug_info.InterfaceInstance,
+	memcpy(&info->ChannelInstance, &debug_info.interface_instance,
 	       sizeof(struct hv_guid));
 
-	info->MonitorId = debug_info.MonitorId;
+	info->MonitorId = debug_info.monitorid;
 
-	info->ServerMonitorPending = debug_info.ServerMonitorPending;
-	info->ServerMonitorLatency = debug_info.ServerMonitorLatency;
-	info->ServerMonitorConnectionId = debug_info.ServerMonitorConnectionId;
+	info->ServerMonitorPending = debug_info.servermonitor_pending;
+	info->ServerMonitorLatency = debug_info.servermonitor_latency;
+	info->ServerMonitorConnectionId = debug_info.servermonitor_connectionid;
 
-	info->ClientMonitorPending = debug_info.ClientMonitorPending;
-	info->ClientMonitorLatency = debug_info.ClientMonitorLatency;
-	info->ClientMonitorConnectionId = debug_info.ClientMonitorConnectionId;
+	info->ClientMonitorPending = debug_info.clientmonitor_pending;
+	info->ClientMonitorLatency = debug_info.clientmonitor_latency;
+	info->ClientMonitorConnectionId = debug_info.clientmonitor_connectionid;
 
-	info->Inbound.InterruptMask = debug_info.Inbound.CurrentInterruptMask;
-	info->Inbound.ReadIndex = debug_info.Inbound.CurrentReadIndex;
-	info->Inbound.WriteIndex = debug_info.Inbound.CurrentWriteIndex;
-	info->Inbound.BytesAvailToRead = debug_info.Inbound.BytesAvailToRead;
-	info->Inbound.BytesAvailToWrite = debug_info.Inbound.BytesAvailToWrite;
+	info->Inbound.InterruptMask = debug_info.inbound.current_interrupt_mask;
+	info->Inbound.ReadIndex = debug_info.inbound.current_read_index;
+	info->Inbound.WriteIndex = debug_info.inbound.current_write_index;
+	info->Inbound.BytesAvailToRead = debug_info.inbound.bytes_avail_toread;
+	info->Inbound.BytesAvailToWrite =
+		debug_info.inbound.bytes_avail_towrite;
 
-	info->Outbound.InterruptMask = debug_info.Outbound.CurrentInterruptMask;
-	info->Outbound.ReadIndex = debug_info.Outbound.CurrentReadIndex;
-	info->Outbound.WriteIndex = debug_info.Outbound.CurrentWriteIndex;
-	info->Outbound.BytesAvailToRead = debug_info.Outbound.BytesAvailToRead;
+	info->Outbound.InterruptMask =
+		debug_info.outbound.current_interrupt_mask;
+	info->Outbound.ReadIndex = debug_info.outbound.current_read_index;
+	info->Outbound.WriteIndex = debug_info.outbound.current_write_index;
+	info->Outbound.BytesAvailToRead =
+		debug_info.outbound.bytes_avail_toread;
 	info->Outbound.BytesAvailToWrite =
-		debug_info.Outbound.BytesAvailToWrite;
+		debug_info.outbound.bytes_avail_towrite;
 }
 
 /*
@@ -286,44 +459,55 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
  *	- setup the vmbus root device
  *	- retrieve the channel offers
  */
-static int vmbus_bus_init(int (*drv_init)(struct hv_driver *drv))
+static int vmbus_bus_init(void)
 {
 	struct vmbus_driver_context *vmbus_drv_ctx = &g_vmbus_drv;
-	struct vmbus_driver *vmbus_drv_obj = &g_vmbus_drv.drv_obj;
+	struct hv_driver *driver = &g_vmbus_drv.drv_obj;
 	struct vm_device *dev_ctx = &g_vmbus_drv.device_ctx;
 	int ret;
 	unsigned int vector;
 
-	/*
-	 * Set this up to allow lower layer to callback to add/remove child
-	 * devices on the bus
-	 */
-	vmbus_drv_obj->OnChildDeviceCreate = vmbus_child_device_create;
-	vmbus_drv_obj->OnChildDeviceDestroy = vmbus_child_device_destroy;
-	vmbus_drv_obj->OnChildDeviceAdd = vmbus_child_device_register;
-	vmbus_drv_obj->OnChildDeviceRemove = vmbus_child_device_unregister;
+	DPRINT_INFO(VMBUS, "+++++++ HV Driver version = %s +++++++",
+		    HV_DRV_VERSION);
+	DPRINT_INFO(VMBUS, "+++++++ Vmbus supported version = %d +++++++",
+			VMBUS_REVISION_NUMBER);
+	DPRINT_INFO(VMBUS, "+++++++ Vmbus using SINT %d +++++++",
+			VMBUS_MESSAGE_SINT);
+	DPRINT_DBG(VMBUS, "sizeof(vmbus_channel_packet_page_buffer)=%zd, "
+			"sizeof(VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER)=%zd",
+			sizeof(struct vmbus_channel_packet_page_buffer),
+			sizeof(struct vmbus_channel_packet_multipage_buffer));
 
-	/* Call to bus driver to initialize */
-	ret = drv_init(&vmbus_drv_obj->Base);
+	driver->name = gDriverName;
+	memcpy(&driver->deviceType, &gVmbusDeviceType, sizeof(struct hv_guid));
+
+	/* Setup dispatch table */
+	driver->OnDeviceAdd	= VmbusOnDeviceAdd;
+	driver->OnDeviceRemove	= VmbusOnDeviceRemove;
+	driver->OnCleanup	= VmbusOnCleanup;
+
+	/* Hypervisor initialization...setup hypercall page..etc */
+	ret = hv_init();
 	if (ret != 0) {
-		DPRINT_ERR(VMBUS_DRV, "Unable to initialize vmbus (%d)", ret);
+		DPRINT_ERR(VMBUS, "Unable to initialize the hypervisor - 0x%x",
+				ret);
 		goto cleanup;
 	}
 
 	/* Sanity checks */
-	if (!vmbus_drv_obj->Base.OnDeviceAdd) {
+	if (!driver->OnDeviceAdd) {
 		DPRINT_ERR(VMBUS_DRV, "OnDeviceAdd() routine not set");
 		ret = -1;
 		goto cleanup;
 	}
 
-	vmbus_drv_ctx->bus.name = vmbus_drv_obj->Base.name;
+	vmbus_drv_ctx->bus.name = driver->name;
 
 	/* Initialize the bus context */
 	tasklet_init(&vmbus_drv_ctx->msg_dpc, vmbus_msg_dpc,
-		     (unsigned long)vmbus_drv_obj);
+		     (unsigned long)driver);
 	tasklet_init(&vmbus_drv_ctx->event_dpc, vmbus_event_dpc,
-		     (unsigned long)vmbus_drv_obj);
+		     (unsigned long)driver);
 
 	/* Now, register the bus driver with LDM */
 	ret = bus_register(&vmbus_drv_ctx->bus);
@@ -334,7 +518,7 @@ static int vmbus_bus_init(int (*drv_init)(struct hv_driver *drv))
 
 	/* Get the interrupt resource */
 	ret = request_irq(vmbus_irq, vmbus_isr, IRQF_SAMPLE_RANDOM,
-			  vmbus_drv_obj->Base.name, NULL);
+			  driver->name, NULL);
 
 	if (ret != 0) {
 		DPRINT_ERR(VMBUS_DRV, "ERROR - Unable to request IRQ %d",
@@ -352,7 +536,7 @@ static int vmbus_bus_init(int (*drv_init)(struct hv_driver *drv))
 	/* Call to bus driver to add the root device */
 	memset(dev_ctx, 0, sizeof(struct vm_device));
 
-	ret = vmbus_drv_obj->Base.OnDeviceAdd(&dev_ctx->device_obj, &vector);
+	ret = driver->OnDeviceAdd(&dev_ctx->device_obj, &vector);
 	if (ret != 0) {
 		DPRINT_ERR(VMBUS_DRV,
 			   "ERROR - Unable to add vmbus root device");
@@ -392,9 +576,7 @@ static int vmbus_bus_init(int (*drv_init)(struct hv_driver *drv))
 		goto cleanup;
 	}
 
-
-	vmbus_drv_obj->GetChannelOffers();
-
+	vmbus_request_offers();
 	wait_for_completion(&hv_channel_ready);
 
 cleanup:
@@ -408,17 +590,17 @@ cleanup:
  */
 static void vmbus_bus_exit(void)
 {
-	struct vmbus_driver *vmbus_drv_obj = &g_vmbus_drv.drv_obj;
+	struct hv_driver *driver = &g_vmbus_drv.drv_obj;
 	struct vmbus_driver_context *vmbus_drv_ctx = &g_vmbus_drv;
 
 	struct vm_device *dev_ctx = &g_vmbus_drv.device_ctx;
 
 	/* Remove the root device */
-	if (vmbus_drv_obj->Base.OnDeviceRemove)
-		vmbus_drv_obj->Base.OnDeviceRemove(&dev_ctx->device_obj);
+	if (driver->OnDeviceRemove)
+		driver->OnDeviceRemove(&dev_ctx->device_obj);
 
-	if (vmbus_drv_obj->Base.OnCleanup)
-		vmbus_drv_obj->Base.OnCleanup(&vmbus_drv_obj->Base);
+	if (driver->OnCleanup)
+		driver->OnCleanup(driver);
 
 	/* Unregister the root bus device */
 	device_unregister(&dev_ctx->device);
@@ -446,7 +628,6 @@ static void vmbus_bus_exit(void)
  */
 int vmbus_child_driver_register(struct driver_context *driver_ctx)
 {
-	struct vmbus_driver *vmbus_drv_obj = &g_vmbus_drv.drv_obj;
 	int ret;
 
 	DPRINT_INFO(VMBUS_DRV, "child driver (%p) registering - name %s",
@@ -457,7 +638,7 @@ int vmbus_child_driver_register(struct driver_context *driver_ctx)
 
 	ret = driver_register(&driver_ctx->driver);
 
-	vmbus_drv_obj->GetChannelOffers();
+	vmbus_request_offers();
 
 	return ret;
 }
@@ -489,9 +670,9 @@ EXPORT_SYMBOL(vmbus_child_driver_unregister);
  * vmbus_child_device_create - Creates and registers a new child device
  * on the vmbus.
  */
-static struct hv_device *vmbus_child_device_create(struct hv_guid *type,
-						   struct hv_guid *instance,
-						   struct vmbus_channel *channel)
+struct hv_device *vmbus_child_device_create(struct hv_guid *type,
+					    struct hv_guid *instance,
+					    struct vmbus_channel *channel)
 {
 	struct vm_device *child_device_ctx;
 	struct hv_device *child_device_obj;
@@ -538,8 +719,8 @@ static struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 /*
  * vmbus_child_device_register - Register the child device on the specified bus
  */
-static int vmbus_child_device_register(struct hv_device *root_device_obj,
-				       struct hv_device *child_device_obj)
+int vmbus_child_device_register(struct hv_device *root_device_obj,
+				struct hv_device *child_device_obj)
 {
 	int ret = 0;
 	struct vm_device *root_device_ctx =
@@ -583,7 +764,7 @@ static int vmbus_child_device_register(struct hv_device *root_device_obj,
  * vmbus_child_device_unregister - Remove the specified child device
  * from the vmbus.
  */
-static void vmbus_child_device_unregister(struct hv_device *device_obj)
+void vmbus_child_device_unregister(struct hv_device *device_obj)
 {
 	struct vm_device *device_ctx = to_vm_device(device_obj);
 
@@ -598,13 +779,6 @@ static void vmbus_child_device_unregister(struct hv_device *device_obj)
 
 	DPRINT_INFO(VMBUS_DRV, "child device (%p) unregistered",
 		    &device_ctx->device);
-}
-
-/*
- * vmbus_child_device_destroy - Destroy the specified child device on the vmbus.
- */
-static void vmbus_child_device_destroy(struct hv_device *device_obj)
-{
 }
 
 /*
@@ -701,7 +875,7 @@ static int vmbus_match(struct device *device, struct device_driver *driver)
 		struct vmbus_driver_context *vmbus_drv_ctx =
 			(struct vmbus_driver_context *)driver_ctx;
 
-		device_ctx->device_obj.Driver = &vmbus_drv_ctx->drv_obj.Base;
+		device_ctx->device_obj.Driver = &vmbus_drv_ctx->drv_obj;
 		DPRINT_INFO(VMBUS_DRV,
 			    "device object (%p) set to driver object (%p)",
 			    &device_ctx->device_obj,
@@ -849,7 +1023,6 @@ static void vmbus_device_release(struct device *device)
 {
 	struct vm_device *device_ctx = device_to_vm_device(device);
 
-	/* vmbus_child_device_destroy(&device_ctx->device_obj); */
 	kfree(device_ctx);
 
 	/* !!DO NOT REFERENCE device_ctx anymore at this point!! */
@@ -860,36 +1033,28 @@ static void vmbus_device_release(struct device *device)
  */
 static void vmbus_msg_dpc(unsigned long data)
 {
-	struct vmbus_driver *vmbus_drv_obj = (struct vmbus_driver *)data;
-
-	/* ASSERT(vmbus_drv_obj->OnMsgDpc != NULL); */
+	struct hv_driver *driver = (struct hv_driver *)data;
 
 	/* Call to bus driver to handle interrupt */
-	vmbus_drv_obj->OnMsgDpc(&vmbus_drv_obj->Base);
+	vmbus_on_msg_dpc(driver);
 }
 
 /*
- * vmbus_msg_dpc - Tasklet routine to handle hypervisor events
+ * vmbus_event_dpc - Tasklet routine to handle hypervisor events
  */
 static void vmbus_event_dpc(unsigned long data)
 {
-	struct vmbus_driver *vmbus_drv_obj = (struct vmbus_driver *)data;
-
-	/* ASSERT(vmbus_drv_obj->OnEventDpc != NULL); */
-
 	/* Call to bus driver to handle interrupt */
-	vmbus_drv_obj->OnEventDpc(&vmbus_drv_obj->Base);
+	VmbusOnEvents();
 }
 
 static irqreturn_t vmbus_isr(int irq, void *dev_id)
 {
-	struct vmbus_driver *vmbus_driver_obj = &g_vmbus_drv.drv_obj;
+	struct hv_driver *driver = &g_vmbus_drv.drv_obj;
 	int ret;
 
-	/* ASSERT(vmbus_driver_obj->OnIsr != NULL); */
-
 	/* Call to bus driver to handle interrupt */
-	ret = vmbus_driver_obj->OnIsr(&vmbus_driver_obj->Base);
+	ret = vmbus_on_isr(driver);
 
 	/* Schedules a dpc if necessary */
 	if (ret > 0) {
@@ -928,7 +1093,7 @@ static int __init vmbus_init(void)
 	if (!dmi_check_system(microsoft_hv_dmi_table))
 		return -ENODEV;
 
-	return vmbus_bus_init(VmbusInitialize);
+	return vmbus_bus_init();
 }
 
 static void __exit vmbus_exit(void)

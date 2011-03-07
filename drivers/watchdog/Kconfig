@@ -409,15 +409,26 @@ config ALIM7101_WDT
 	  Most people will say N.
 
 config F71808E_WDT
-	tristate "Fintek F71808E, F71882FG and F71889FG Watchdog"
+	tristate "Fintek F71808E, F71862FG, F71869, F71882FG and F71889FG Watchdog"
 	depends on X86 && EXPERIMENTAL
 	help
 	  This is the driver for the hardware watchdog on the Fintek
-	  F71808E, F71882FG and F71889FG Super I/O controllers.
+	  F71808E, F71862FG, F71869, F71882FG and F71889FG Super I/O controllers.
 
 	  You can compile this driver directly into the kernel, or use
 	  it as a module.  The module will be called f71808e_wdt.
 
+config SP5100_TCO
+	tristate "AMD/ATI SP5100 TCO Timer/Watchdog"
+	depends on X86 && PCI
+	---help---
+	  Hardware watchdog driver for the AMD/ATI SP5100 chipset. The TCO
+	  (Total Cost of Ownership) timer is a watchdog timer that will reboot
+	  the machine after its expiration. The expiration time can be
+	  configured with the "heartbeat" parameter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sp5100_tco.
 
 config GEODE_WDT
 	tristate "AMD Geode CS5535/CS5536 Watchdog"
@@ -631,6 +642,24 @@ config PC87413_WDT
 
 	  Most people will say N.
 
+config NV_TCO
+	tristate "nVidia TCO Timer/Watchdog"
+	depends on X86 && PCI
+	---help---
+	  Hardware driver for the TCO timer built into the nVidia Hub family
+	  (such as the MCP51).  The TCO (Total Cost of Ownership) timer is a
+	  watchdog timer that will reboot the machine after its second
+	  expiration. The expiration time can be configured with the
+	  "heartbeat" parameter.
+
+	  On some motherboards the driver may fail to reset the chipset's
+	  NO_REBOOT flag which prevents the watchdog from rebooting the
+	  machine. If this is the case you will get a kernel message like
+	  "failed to reset NO_REBOOT flag, reboot disabled by hardware".
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nv_tco.
+
 config RDC321X_WDT
 	tristate "RDC R-321x SoC watchdog"
 	depends on X86_RDC321X
@@ -722,14 +751,15 @@ config SMSC37B787_WDT
 	  Most people will say N.
 
 config W83627HF_WDT
-	tristate "W83627HF Watchdog Timer"
+	tristate "W83627HF/W83627DHG Watchdog Timer"
 	depends on X86
 	---help---
 	  This is the driver for the hardware watchdog on the W83627HF chipset
 	  as used in Advantech PC-9578 and Tyan S2721-533 motherboards
-	  (and likely others).  This watchdog simply watches your kernel to
-	  make sure it doesn't freeze, and if it does, it reboots your computer
-	  after a certain amount of time.
+	  (and likely others). The driver also supports the W83627DHG chip.
+	  This watchdog simply watches your kernel to make sure it doesn't
+	  freeze, and if it does, it reboots your computer after a certain
+	  amount of time.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called w83627hf_wdt.
@@ -832,9 +862,21 @@ config SBC_EPX_C3_WATCHDOG
 
 # M68K Architecture
 
-# M68KNOMMU Architecture
+config M54xx_WATCHDOG
+	tristate "MCF54xx watchdog support"
+	depends on M548x
+	help
+	  To compile this driver as a module, choose M here: the
+	  module will be called m54xx_wdt.
 
 # MIPS Architecture
+
+config ATH79_WDT
+	tristate "Atheros AR71XX/AR724X/AR913X hardware watchdog"
+	depends on ATH79
+	help
+	  Hardware driver for the built-in watchdog timer on the Atheros
+	  AR71XX/AR724X/AR913X SoCs.
 
 config BCM47XX_WDT
 	tristate "Broadcom BCM47xx Watchdog Timer"

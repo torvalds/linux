@@ -91,7 +91,6 @@ static void nilfs_commit_chunk(struct page *page,
 			       unsigned from, unsigned to)
 {
 	struct inode *dir = mapping->host;
-	struct nilfs_sb_info *sbi = NILFS_SB(dir->i_sb);
 	loff_t pos = page_offset(page) + from;
 	unsigned len = to - from;
 	unsigned nr_dirty, copied;
@@ -103,7 +102,7 @@ static void nilfs_commit_chunk(struct page *page,
 		i_size_write(dir, pos + copied);
 	if (IS_DIRSYNC(dir))
 		nilfs_set_transaction_flag(NILFS_TI_SYNC);
-	err = nilfs_set_file_dirty(sbi, dir, nr_dirty);
+	err = nilfs_set_file_dirty(dir, nr_dirty);
 	WARN_ON(err); /* do not happen */
 	unlock_page(page);
 }

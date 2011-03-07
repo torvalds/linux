@@ -21,9 +21,12 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/ulpi.h>
 #include <linux/slab.h>
 
 #include <mach/mxc_ehci.h>
+
+#include <asm/mach-types.h>
 
 #define ULPI_VIEWPORT_OFFSET	0x170
 
@@ -114,6 +117,7 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 	struct usb_hcd *hcd;
 	struct resource *res;
 	int irq, ret;
+	unsigned int flags;
 	struct ehci_mxc_priv *priv;
 	struct device *dev = &pdev->dev;
 	struct ehci_hcd *ehci;
@@ -177,8 +181,8 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 		clk_enable(priv->ahbclk);
 	}
 
-	/* "dr" device has its own clock */
-	if (pdev->id == 0) {
+	/* "dr" device has its own clock on i.MX51 */
+	if (cpu_is_mx51() && (pdev->id == 0)) {
 		priv->phy1clk = clk_get(dev, "usb_phy1");
 		if (IS_ERR(priv->phy1clk)) {
 			ret = PTR_ERR(priv->phy1clk);
@@ -239,6 +243,23 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
 	if (ret)
 		goto err_add;
+
+	if (pdata->otg) {
+		/*
+		 * efikamx and efikasb have some hardware bug which is
+		 * preventing usb to work unless CHRGVBUS is set.
+		 * It's in violation of USB specs
+		 */
+		if (machine_is_mx51_efikamx() || machine_is_mx51_efikasb()) {
+			flags = otg_io_read(pdata->otg, ULPI_OTG_CTRL);
+			flags |= ULPI_OTG_CTRL_CHRGVBUS;
+			ret = otg_io_write(pdata->otg, flags, ULPI_OTG_CTRL);
+			if (ret) {
+				dev_err(dev, "unable to set CHRVBUS\n");
+				goto err_add;
+			}
+		}
+	}
 
 	return 0;
 

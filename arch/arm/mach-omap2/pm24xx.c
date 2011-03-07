@@ -134,7 +134,7 @@ static void omap2_enter_full_retention(void)
 
 	/* Block console output in case it is on one of the OMAP UARTs */
 	if (!is_suspending())
-		if (try_acquire_console_sem())
+		if (!console_trylock())
 			goto no_sleep;
 
 	omap_uart_prepare_idle(0);
@@ -151,7 +151,7 @@ static void omap2_enter_full_retention(void)
 	omap_uart_resume_idle(0);
 
 	if (!is_suspending())
-		release_console_sem();
+		console_unlock();
 
 no_sleep:
 	if (omap2_pm_debug) {
@@ -350,7 +350,7 @@ static void omap2_pm_end(void)
 	enable_hlt();
 }
 
-static struct platform_suspend_ops omap_pm_ops = {
+static const struct platform_suspend_ops omap_pm_ops = {
 	.begin		= omap2_pm_begin,
 	.enter		= omap2_pm_enter,
 	.end		= omap2_pm_end,

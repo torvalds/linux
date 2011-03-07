@@ -40,6 +40,7 @@
 #include <plat/nand.h>
 #include <plat/usb.h>
 #include <plat/display.h>
+#include <plat/panel-generic-dpi.h>
 
 #include <plat/mcspi.h>
 #include <linux/input/matrix_keypad.h>
@@ -160,13 +161,18 @@ static void omap3_stalker_disable_lcd(struct omap_dss_device *dssdev)
 	lcd_enabled = 0;
 }
 
-static struct omap_dss_device omap3_stalker_lcd_device = {
-	.name			= "lcd",
-	.driver_name		= "generic_panel",
-	.phy.dpi.data_lines	= 24,
-	.type			= OMAP_DISPLAY_TYPE_DPI,
+static struct panel_generic_dpi_data lcd_panel = {
+	.name			= "generic",
 	.platform_enable	= omap3_stalker_enable_lcd,
 	.platform_disable	= omap3_stalker_disable_lcd,
+};
+
+static struct omap_dss_device omap3_stalker_lcd_device = {
+	.name			= "lcd",
+	.driver_name		= "generic_dpi_panel",
+	.data			= &lcd_panel,
+	.phy.dpi.data_lines	= 24,
+	.type			= OMAP_DISPLAY_TYPE_DPI,
 };
 
 static int omap3_stalker_enable_tv(struct omap_dss_device *dssdev)
@@ -208,13 +214,18 @@ static void omap3_stalker_disable_dvi(struct omap_dss_device *dssdev)
 	dvi_enabled = 0;
 }
 
-static struct omap_dss_device omap3_stalker_dvi_device = {
-	.name			= "dvi",
-	.driver_name		= "generic_panel",
-	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.phy.dpi.data_lines	= 24,
+static struct panel_generic_dpi_data dvi_panel = {
+	.name			= "generic",
 	.platform_enable	= omap3_stalker_enable_dvi,
 	.platform_disable	= omap3_stalker_disable_dvi,
+};
+
+static struct omap_dss_device omap3_stalker_dvi_device = {
+	.name			= "dvi",
+	.type			= OMAP_DISPLAY_TYPE_DPI,
+	.driver_name		= "generic_dpi_panel",
+	.data			= &dvi_panel,
+	.phy.dpi.data_lines	= 24,
 };
 
 static struct omap_dss_device *omap3_stalker_dss_devices[] = {

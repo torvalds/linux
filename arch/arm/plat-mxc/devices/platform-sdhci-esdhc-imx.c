@@ -53,6 +53,18 @@ imx51_sdhci_esdhc_imx_data[] __initconst = {
 };
 #endif /* ifdef CONFIG_SOC_IMX51 */
 
+#ifdef CONFIG_SOC_IMX53
+const struct imx_sdhci_esdhc_imx_data
+imx53_sdhci_esdhc_imx_data[] __initconst = {
+#define imx53_sdhci_esdhc_imx_data_entry(_id, _hwid)			\
+	imx_sdhci_esdhc_imx_data_entry(MX53, _id, _hwid)
+	imx53_sdhci_esdhc_imx_data_entry(0, 1),
+	imx53_sdhci_esdhc_imx_data_entry(1, 2),
+	imx53_sdhci_esdhc_imx_data_entry(2, 3),
+	imx53_sdhci_esdhc_imx_data_entry(3, 4),
+};
+#endif /* ifdef CONFIG_SOC_IMX53 */
+
 struct platform_device *__init imx_add_sdhci_esdhc_imx(
 		const struct imx_sdhci_esdhc_imx_data *data,
 		const struct esdhc_platform_data *pdata)

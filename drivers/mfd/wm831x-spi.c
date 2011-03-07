@@ -81,6 +81,8 @@ static int __devinit wm831x_spi_probe(struct spi_device *spi)
 		type = WM8321;
 	else if (strcmp(spi->modalias, "wm8325") == 0)
 		type = WM8325;
+	else if (strcmp(spi->modalias, "wm8326") == 0)
+		type = WM8326;
 	else {
 		dev_err(&spi->dev, "Unknown device type\n");
 		return -EINVAL;
@@ -184,6 +186,17 @@ static struct spi_driver wm8325_spi_driver = {
 	.suspend	= wm831x_spi_suspend,
 };
 
+static struct spi_driver wm8326_spi_driver = {
+	.driver = {
+		.name	= "wm8326",
+		.bus	= &spi_bus_type,
+		.owner	= THIS_MODULE,
+	},
+	.probe		= wm831x_spi_probe,
+	.remove		= __devexit_p(wm831x_spi_remove),
+	.suspend	= wm831x_spi_suspend,
+};
+
 static int __init wm831x_spi_init(void)
 {
 	int ret;
@@ -212,12 +225,17 @@ static int __init wm831x_spi_init(void)
 	if (ret != 0)
 		pr_err("Failed to register WM8325 SPI driver: %d\n", ret);
 
+	ret = spi_register_driver(&wm8326_spi_driver);
+	if (ret != 0)
+		pr_err("Failed to register WM8326 SPI driver: %d\n", ret);
+
 	return 0;
 }
 subsys_initcall(wm831x_spi_init);
 
 static void __exit wm831x_spi_exit(void)
 {
+	spi_unregister_driver(&wm8326_spi_driver);
 	spi_unregister_driver(&wm8325_spi_driver);
 	spi_unregister_driver(&wm8321_spi_driver);
 	spi_unregister_driver(&wm8320_spi_driver);

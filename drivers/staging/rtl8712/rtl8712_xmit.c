@@ -148,7 +148,7 @@ static u32 get_ff_hwaddr(struct xmit_frame *pxmitframe)
 		case 0x11:
 		case 0x12:
 		case 0x13:
-			addr = RTL8712_DMA_H2CCMD;;
+			addr = RTL8712_DMA_H2CCMD;
 			break;
 		default:
 			addr = RTL8712_DMA_BEQ;/*RTL8712_EP_LO;*/

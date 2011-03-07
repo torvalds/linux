@@ -993,8 +993,7 @@ static void ocfs2_disable_quotas(struct ocfs2_super *osb)
 }
 
 /* Handle quota on quotactl */
-static int ocfs2_quota_on(struct super_block *sb, int type, int format_id,
-			  char *path)
+static int ocfs2_quota_on(struct super_block *sb, int type, int format_id)
 {
 	unsigned int feature[MAXQUOTAS] = { OCFS2_FEATURE_RO_COMPAT_USRQUOTA,
 					     OCFS2_FEATURE_RO_COMPAT_GRPQUOTA};
@@ -1013,7 +1012,7 @@ static int ocfs2_quota_off(struct super_block *sb, int type)
 }
 
 static const struct quotactl_ops ocfs2_quotactl_ops = {
-	.quota_on	= ocfs2_quota_on,
+	.quota_on_meta	= ocfs2_quota_on,
 	.quota_off	= ocfs2_quota_off,
 	.quota_sync	= dquot_quota_sync,
 	.get_info	= dquot_get_dqinfo,
@@ -1317,7 +1316,7 @@ static int ocfs2_parse_options(struct super_block *sb,
 			       struct mount_options *mopt,
 			       int is_remount)
 {
-	int status;
+	int status, user_stack = 0;
 	char *p;
 	u32 tmp;
 
@@ -1460,6 +1459,15 @@ static int ocfs2_parse_options(struct super_block *sb,
 			memcpy(mopt->cluster_stack, args[0].from,
 			       OCFS2_STACK_LABEL_LEN);
 			mopt->cluster_stack[OCFS2_STACK_LABEL_LEN] = '\0';
+			/*
+			 * Open code the memcmp here as we don't have
+			 * an osb to pass to
+			 * ocfs2_userspace_stack().
+			 */
+			if (memcmp(mopt->cluster_stack,
+				   OCFS2_CLASSIC_CLUSTER_STACK,
+				   OCFS2_STACK_LABEL_LEN))
+				user_stack = 1;
 			break;
 		case Opt_inode64:
 			mopt->mount_opt |= OCFS2_MOUNT_INODE64;
@@ -1515,13 +1523,16 @@ static int ocfs2_parse_options(struct super_block *sb,
 		}
 	}
 
-	/* Ensure only one heartbeat mode */
-	tmp = mopt->mount_opt & (OCFS2_MOUNT_HB_LOCAL | OCFS2_MOUNT_HB_GLOBAL |
-				 OCFS2_MOUNT_HB_NONE);
-	if (hweight32(tmp) != 1) {
-		mlog(ML_ERROR, "Invalid heartbeat mount options\n");
-		status = 0;
-		goto bail;
+	if (user_stack == 0) {
+		/* Ensure only one heartbeat mode */
+		tmp = mopt->mount_opt & (OCFS2_MOUNT_HB_LOCAL |
+					 OCFS2_MOUNT_HB_GLOBAL |
+					 OCFS2_MOUNT_HB_NONE);
+		if (hweight32(tmp) != 1) {
+			mlog(ML_ERROR, "Invalid heartbeat mount options\n");
+			status = 0;
+			goto bail;
+		}
 	}
 
 	status = 1;
@@ -2097,6 +2108,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 
 	sb->s_fs_info = osb;
 	sb->s_op = &ocfs2_sops;
+	sb->s_d_op = &ocfs2_dentry_ops;
 	sb->s_export_op = &ocfs2_export_ops;
 	sb->s_qcop = &ocfs2_quotactl_ops;
 	sb->dq_op = &ocfs2_quota_operations;

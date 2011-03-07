@@ -23,6 +23,22 @@ extern struct workqueue_struct *xfsconvertd_workqueue;
 extern mempool_t *xfs_ioend_pool;
 
 /*
+ * Types of I/O for bmap clustering and I/O completion tracking.
+ */
+enum {
+	IO_DIRECT = 0,	/* special case for direct I/O ioends */
+	IO_DELALLOC,	/* mapping covers delalloc region */
+	IO_UNWRITTEN,	/* mapping covers allocated but uninitialized data */
+	IO_OVERWRITE,	/* mapping covers already allocated extent */
+};
+
+#define XFS_IO_TYPES \
+	{ 0,			"" }, \
+	{ IO_DELALLOC,		"delalloc" }, \
+	{ IO_UNWRITTEN,		"unwritten" }, \
+	{ IO_OVERWRITE,		"overwrite" }
+
+/*
  * xfs_ioend struct manages large extent writes for XFS.
  * It can manage several multi-page bio's at once.
  */

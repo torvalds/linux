@@ -159,7 +159,9 @@ ENTRY(cpu_v7_set_pte_ext)
 	tstne	r1, #L_PTE_PRESENT
 	moveq	r3, #0
 
-	str	r3, [r0, #2048]!
+ ARM(	str	r3, [r0, #2048]! )
+ THUMB(	add	r0, r0, #2048 )
+ THUMB(	str	r3, [r0] )
 	mcr	p15, 0, r0, c7, c10, 1		@ flush_pte
 #endif
 	mov	pc, lr
@@ -261,6 +263,12 @@ __v7_setup:
 	mrceq	p15, 0, r10, c15, c0, 1		@ read diagnostic register
 	orreq	r10, r10, #1 << 6		@ set bit #6
 	mcreq	p15, 0, r10, c15, c0, 1		@ write diagnostic register
+#endif
+#ifdef CONFIG_ARM_ERRATA_751472
+	cmp	r6, #0x30			@ present prior to r3p0
+	mrclt	p15, 0, r10, c15, c0, 1		@ read diagnostic register
+	orrlt	r10, r10, #1 << 11		@ set bit #11
+	mcrlt	p15, 0, r10, c15, c0, 1		@ write diagnostic register
 #endif
 
 3:	mov	r10, #0

@@ -297,6 +297,8 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	ci->i_release_count = 0;
 	ci->i_symlink = NULL;
 
+	memset(&ci->i_dir_layout, 0, sizeof(ci->i_dir_layout));
+
 	ci->i_fragtree = RB_ROOT;
 	mutex_init(&ci->i_fragtree_mutex);
 
@@ -689,6 +691,8 @@ static int fill_inode(struct inode *inode,
 		inode->i_op = &ceph_dir_iops;
 		inode->i_fop = &ceph_dir_fops;
 
+		ci->i_dir_layout = iinfo->dir_layout;
+
 		ci->i_files = le64_to_cpu(info->files);
 		ci->i_subdirs = le64_to_cpu(info->subdirs);
 		ci->i_rbytes = le64_to_cpu(info->rbytes);
@@ -703,13 +707,9 @@ static int fill_inode(struct inode *inode,
 		    (issued & CEPH_CAP_FILE_EXCL) == 0 &&
 		    (ci->i_ceph_flags & CEPH_I_COMPLETE) == 0) {
 			dout(" marking %p complete (empty)\n", inode);
-			ci->i_ceph_flags |= CEPH_I_COMPLETE;
+			/* ci->i_ceph_flags |= CEPH_I_COMPLETE; */
 			ci->i_max_offset = 2;
 		}
-
-		/* it may be better to set st_size in getattr instead? */
-		if (ceph_test_mount_opt(ceph_sb_to_client(inode->i_sb), RBYTES))
-			inode->i_size = ci->i_rbytes;
 		break;
 	default:
 		pr_err("fill_inode %llx.%llx BAD mode 0%o\n",
@@ -1815,7 +1815,11 @@ int ceph_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		else
 			stat->dev = 0;
 		if (S_ISDIR(inode->i_mode)) {
-			stat->size = ci->i_rbytes;
+			if (ceph_test_mount_opt(ceph_sb_to_client(inode->i_sb),
+						RBYTES))
+				stat->size = ci->i_rbytes;
+			else
+				stat->size = ci->i_files + ci->i_subdirs;
 			stat->blocks = 0;
 			stat->blksize = 65536;
 		}

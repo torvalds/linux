@@ -50,12 +50,12 @@ static struct sk_buff *frag_merge_packet(struct list_head *head,
 		skb = tfp->skb;
 	}
 
+	if (skb_linearize(skb) < 0 || skb_linearize(tmp_skb) < 0)
+		goto err;
+
 	skb_pull(tmp_skb, sizeof(struct unicast_frag_packet));
-	if (pskb_expand_head(skb, 0, tmp_skb->len, GFP_ATOMIC) < 0) {
-		/* free buffered skb, skb will be freed later */
-		kfree_skb(tfp->skb);
-		return NULL;
-	}
+	if (pskb_expand_head(skb, 0, tmp_skb->len, GFP_ATOMIC) < 0)
+		goto err;
 
 	/* move free entry to end */
 	tfp->skb = NULL;
@@ -70,6 +70,11 @@ static struct sk_buff *frag_merge_packet(struct list_head *head,
 	unicast_packet->packet_type = BAT_UNICAST;
 
 	return skb;
+
+err:
+	/* free buffered skb, skb will be freed later */
+	kfree_skb(tfp->skb);
+	return NULL;
 }
 
 static void frag_create_entry(struct list_head *head, struct sk_buff *skb)
@@ -229,10 +234,12 @@ int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	if (!bat_priv->primary_if)
 		goto dropped;
 
-	unicast_packet = (struct unicast_packet *) skb->data;
-
-	memcpy(&tmp_uc, unicast_packet, uc_hdr_len);
 	frag_skb = dev_alloc_skb(data_len - (data_len / 2) + ucf_hdr_len);
+	if (!frag_skb)
+		goto dropped;
+
+	unicast_packet = (struct unicast_packet *) skb->data;
+	memcpy(&tmp_uc, unicast_packet, uc_hdr_len);
 	skb_split(skb, frag_skb, data_len / 2);
 
 	if (my_skb_head_push(skb, ucf_hdr_len - uc_hdr_len) < 0 ||

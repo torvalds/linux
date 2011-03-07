@@ -253,7 +253,7 @@ static inline int ext4_journal_force_commit(journal_t *journal)
 static inline int ext4_jbd2_file_inode(handle_t *handle, struct inode *inode)
 {
 	if (ext4_handle_valid(handle))
-		return jbd2_journal_file_inode(handle, &EXT4_I(inode)->jinode);
+		return jbd2_journal_file_inode(handle, EXT4_I(inode)->jinode);
 	return 0;
 }
 

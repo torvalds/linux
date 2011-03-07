@@ -2852,7 +2852,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 			if (unlikely(!fcf_record)) {
 				lpfc_printf_log(phba, KERN_ERR,
 					LOG_MBOX | LOG_SLI,
-					"2554 Could not allocate memmory for "
+					"2554 Could not allocate memory for "
 					"fcf record\n");
 				rc = -ENODEV;
 				goto out;

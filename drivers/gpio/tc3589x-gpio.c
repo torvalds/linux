@@ -110,10 +110,10 @@ static struct gpio_chip template_chip = {
 	.can_sleep		= 1,
 };
 
-static int tc3589x_gpio_irq_set_type(unsigned int irq, unsigned int type)
+static int tc3589x_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 {
-	struct tc3589x_gpio *tc3589x_gpio = get_irq_chip_data(irq);
-	int offset = irq - tc3589x_gpio->irq_base;
+	struct tc3589x_gpio *tc3589x_gpio = irq_data_get_irq_chip_data(d);
+	int offset = d->irq - tc3589x_gpio->irq_base;
 	int regoffset = offset / 8;
 	int mask = 1 << (offset % 8);
 
@@ -137,16 +137,16 @@ static int tc3589x_gpio_irq_set_type(unsigned int irq, unsigned int type)
 	return 0;
 }
 
-static void tc3589x_gpio_irq_lock(unsigned int irq)
+static void tc3589x_gpio_irq_lock(struct irq_data *d)
 {
-	struct tc3589x_gpio *tc3589x_gpio = get_irq_chip_data(irq);
+	struct tc3589x_gpio *tc3589x_gpio = irq_data_get_irq_chip_data(d);
 
 	mutex_lock(&tc3589x_gpio->irq_lock);
 }
 
-static void tc3589x_gpio_irq_sync_unlock(unsigned int irq)
+static void tc3589x_gpio_irq_sync_unlock(struct irq_data *d)
 {
-	struct tc3589x_gpio *tc3589x_gpio = get_irq_chip_data(irq);
+	struct tc3589x_gpio *tc3589x_gpio = irq_data_get_irq_chip_data(d);
 	struct tc3589x *tc3589x = tc3589x_gpio->tc3589x;
 	static const u8 regmap[] = {
 		[REG_IBE]	= TC3589x_GPIOIBE0,
@@ -172,20 +172,20 @@ static void tc3589x_gpio_irq_sync_unlock(unsigned int irq)
 	mutex_unlock(&tc3589x_gpio->irq_lock);
 }
 
-static void tc3589x_gpio_irq_mask(unsigned int irq)
+static void tc3589x_gpio_irq_mask(struct irq_data *d)
 {
-	struct tc3589x_gpio *tc3589x_gpio = get_irq_chip_data(irq);
-	int offset = irq - tc3589x_gpio->irq_base;
+	struct tc3589x_gpio *tc3589x_gpio = irq_data_get_irq_chip_data(d);
+	int offset = d->irq - tc3589x_gpio->irq_base;
 	int regoffset = offset / 8;
 	int mask = 1 << (offset % 8);
 
 	tc3589x_gpio->regs[REG_IE][regoffset] &= ~mask;
 }
 
-static void tc3589x_gpio_irq_unmask(unsigned int irq)
+static void tc3589x_gpio_irq_unmask(struct irq_data *d)
 {
-	struct tc3589x_gpio *tc3589x_gpio = get_irq_chip_data(irq);
-	int offset = irq - tc3589x_gpio->irq_base;
+	struct tc3589x_gpio *tc3589x_gpio = irq_data_get_irq_chip_data(d);
+	int offset = d->irq - tc3589x_gpio->irq_base;
 	int regoffset = offset / 8;
 	int mask = 1 << (offset % 8);
 
@@ -194,11 +194,11 @@ static void tc3589x_gpio_irq_unmask(unsigned int irq)
 
 static struct irq_chip tc3589x_gpio_irq_chip = {
 	.name			= "tc3589x-gpio",
-	.bus_lock		= tc3589x_gpio_irq_lock,
-	.bus_sync_unlock	= tc3589x_gpio_irq_sync_unlock,
-	.mask			= tc3589x_gpio_irq_mask,
-	.unmask			= tc3589x_gpio_irq_unmask,
-	.set_type		= tc3589x_gpio_irq_set_type,
+	.irq_bus_lock		= tc3589x_gpio_irq_lock,
+	.irq_bus_sync_unlock	= tc3589x_gpio_irq_sync_unlock,
+	.irq_mask		= tc3589x_gpio_irq_mask,
+	.irq_unmask		= tc3589x_gpio_irq_unmask,
+	.irq_set_type		= tc3589x_gpio_irq_set_type,
 };
 
 static irqreturn_t tc3589x_gpio_irq(int irq, void *dev)

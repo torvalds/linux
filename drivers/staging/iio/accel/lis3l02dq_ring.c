@@ -517,7 +517,7 @@ int lis3l02dq_configure_ring(struct iio_dev *indio_dev)
 
 	ret = iio_alloc_pollfunc(indio_dev, NULL, &lis3l02dq_poll_func_th);
 	if (ret)
-		goto error_iio_sw_rb_free;;
+		goto error_iio_sw_rb_free;
 	indio_dev->modes |= INDIO_RING_TRIGGERED;
 	return 0;
 

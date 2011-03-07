@@ -37,6 +37,13 @@ struct dm_kcopyd_client {
 	unsigned int nr_pages;
 	unsigned int nr_free_pages;
 
+	/*
+	 * Block devices to unplug.
+	 * Non-NULL pointer means that a block device has some pending requests
+	 * and needs to be unplugged.
+	 */
+	struct block_device *unplug[2];
+
 	struct dm_io_client *io_client;
 
 	wait_queue_head_t destroyq;
@@ -308,6 +315,31 @@ static int run_complete_job(struct kcopyd_job *job)
 	return 0;
 }
 
+/*
+ * Unplug the block device at the specified index.
+ */
+static void unplug(struct dm_kcopyd_client *kc, int rw)
+{
+	if (kc->unplug[rw] != NULL) {
+		blk_unplug(bdev_get_queue(kc->unplug[rw]));
+		kc->unplug[rw] = NULL;
+	}
+}
+
+/*
+ * Prepare block device unplug. If there's another device
+ * to be unplugged at the same array index, we unplug that
+ * device first.
+ */
+static void prepare_unplug(struct dm_kcopyd_client *kc, int rw,
+			   struct block_device *bdev)
+{
+	if (likely(kc->unplug[rw] == bdev))
+		return;
+	unplug(kc, rw);
+	kc->unplug[rw] = bdev;
+}
+
 static void complete_io(unsigned long error, void *context)
 {
 	struct kcopyd_job *job = (struct kcopyd_job *) context;
@@ -345,7 +377,7 @@ static int run_io_job(struct kcopyd_job *job)
 {
 	int r;
 	struct dm_io_request io_req = {
-		.bi_rw = job->rw | REQ_SYNC | REQ_UNPLUG,
+		.bi_rw = job->rw,
 		.mem.type = DM_IO_PAGE_LIST,
 		.mem.ptr.pl = job->pages,
 		.mem.offset = job->offset,
@@ -354,10 +386,16 @@ static int run_io_job(struct kcopyd_job *job)
 		.client = job->kc->io_client,
 	};
 
-	if (job->rw == READ)
+	if (job->rw == READ) {
 		r = dm_io(&io_req, 1, &job->source, NULL);
-	else
+		prepare_unplug(job->kc, READ, job->source.bdev);
+	} else {
+		if (job->num_dests > 1)
+			io_req.bi_rw |= REQ_UNPLUG;
 		r = dm_io(&io_req, job->num_dests, job->dests, NULL);
+		if (!(io_req.bi_rw & REQ_UNPLUG))
+			prepare_unplug(job->kc, WRITE, job->dests[0].bdev);
+	}
 
 	return r;
 }
@@ -435,10 +473,18 @@ static void do_work(struct work_struct *work)
 	 * Pages jobs when successful will jump onto the io jobs
 	 * list.  io jobs call wake when they complete and it all
 	 * starts again.
+	 *
+	 * Note that io_jobs add block devices to the unplug array,
+	 * this array is cleared with "unplug" calls. It is thus
+	 * forbidden to run complete_jobs after io_jobs and before
+	 * unplug because the block device could be destroyed in
+	 * job completion callback.
 	 */
 	process_jobs(&kc->complete_jobs, kc, run_complete_job);
 	process_jobs(&kc->pages_jobs, kc, run_pages_job);
 	process_jobs(&kc->io_jobs, kc, run_io_job);
+	unplug(kc, READ);
+	unplug(kc, WRITE);
 }
 
 /*
@@ -619,12 +665,15 @@ int dm_kcopyd_client_create(unsigned int nr_pages,
 	INIT_LIST_HEAD(&kc->io_jobs);
 	INIT_LIST_HEAD(&kc->pages_jobs);
 
+	memset(kc->unplug, 0, sizeof(kc->unplug));
+
 	kc->job_pool = mempool_create_slab_pool(MIN_JOBS, _job_cache);
 	if (!kc->job_pool)
 		goto bad_slab;
 
 	INIT_WORK(&kc->kcopyd_work, do_work);
-	kc->kcopyd_wq = create_singlethread_workqueue("kcopyd");
+	kc->kcopyd_wq = alloc_workqueue("kcopyd",
+					WQ_NON_REENTRANT | WQ_MEM_RECLAIM, 0);
 	if (!kc->kcopyd_wq)
 		goto bad_workqueue;
 

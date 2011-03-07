@@ -11,6 +11,7 @@
 #define __INCORE_DOT_H__
 
 #include <linux/fs.h>
+#include <linux/kobject.h>
 #include <linux/workqueue.h>
 #include <linux/dlm.h>
 #include <linux/buffer_head.h>

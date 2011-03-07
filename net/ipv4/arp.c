@@ -1017,14 +1017,13 @@ static int arp_req_set_proxy(struct net *net, struct net_device *dev, int on)
 		IPV4_DEVCONF_ALL(net, PROXY_ARP) = on;
 		return 0;
 	}
-	if (__in_dev_get_rcu(dev)) {
-		IN_DEV_CONF_SET(__in_dev_get_rcu(dev), PROXY_ARP, on);
+	if (__in_dev_get_rtnl(dev)) {
+		IN_DEV_CONF_SET(__in_dev_get_rtnl(dev), PROXY_ARP, on);
 		return 0;
 	}
 	return -ENXIO;
 }
 
-/* must be called with rcu_read_lock() */
 static int arp_req_set_public(struct net *net, struct arpreq *r,
 		struct net_device *dev)
 {
@@ -1143,6 +1142,23 @@ static int arp_req_get(struct arpreq *r, struct net_device *dev)
 	return err;
 }
 
+int arp_invalidate(struct net_device *dev, __be32 ip)
+{
+	struct neighbour *neigh = neigh_lookup(&arp_tbl, &ip, dev);
+	int err = -ENXIO;
+
+	if (neigh) {
+		if (neigh->nud_state & ~NUD_NOARP)
+			err = neigh_update(neigh, NULL, NUD_FAILED,
+					   NEIGH_UPDATE_F_OVERRIDE|
+					   NEIGH_UPDATE_F_ADMIN);
+		neigh_release(neigh);
+	}
+
+	return err;
+}
+EXPORT_SYMBOL(arp_invalidate);
+
 static int arp_req_delete_public(struct net *net, struct arpreq *r,
 		struct net_device *dev)
 {
@@ -1163,7 +1179,6 @@ static int arp_req_delete(struct net *net, struct arpreq *r,
 {
 	int err;
 	__be32 ip;
-	struct neighbour *neigh;
 
 	if (r->arp_flags & ATF_PUBL)
 		return arp_req_delete_public(net, r, dev);
@@ -1181,16 +1196,7 @@ static int arp_req_delete(struct net *net, struct arpreq *r,
 		if (!dev)
 			return -EINVAL;
 	}
-	err = -ENXIO;
-	neigh = neigh_lookup(&arp_tbl, &ip, dev);
-	if (neigh) {
-		if (neigh->nud_state & ~NUD_NOARP)
-			err = neigh_update(neigh, NULL, NUD_FAILED,
-					   NEIGH_UPDATE_F_OVERRIDE|
-					   NEIGH_UPDATE_F_ADMIN);
-		neigh_release(neigh);
-	}
-	return err;
+	return arp_invalidate(dev, ip);
 }
 
 /*
@@ -1226,10 +1232,10 @@ int arp_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 	if (!(r.arp_flags & ATF_NETMASK))
 		((struct sockaddr_in *)&r.arp_netmask)->sin_addr.s_addr =
 							   htonl(0xFFFFFFFFUL);
-	rcu_read_lock();
+	rtnl_lock();
 	if (r.arp_dev[0]) {
 		err = -ENODEV;
-		dev = dev_get_by_name_rcu(net, r.arp_dev);
+		dev = __dev_get_by_name(net, r.arp_dev);
 		if (dev == NULL)
 			goto out;
 
@@ -1256,7 +1262,7 @@ int arp_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 		break;
 	}
 out:
-	rcu_read_unlock();
+	rtnl_unlock();
 	if (cmd == SIOCGARP && !err && copy_to_user(arg, &r, sizeof(r)))
 		err = -EFAULT;
 	return err;

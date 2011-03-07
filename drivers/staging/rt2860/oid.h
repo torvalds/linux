@@ -32,7 +32,8 @@
 	Revision History:
 	Who			When			What
 	--------	----------		----------------------------------------------
-	Name		Date			Modification logs
+	Name			Date			Modification logs
+	Justin P. Mattock 	11/07/2010	Fix typos in comments
 */
 #ifndef _OID_H_
 #define _OID_H_
@@ -78,7 +79,7 @@
 #define NDIS_802_11_LENGTH_RATES        8
 #define NDIS_802_11_LENGTH_RATES_EX     16
 #define MAC_ADDR_LENGTH                 6
-/*#define MAX_NUM_OF_CHS                                        49 // 14 channels @2.4G +  12@UNII + 4 @MMAC + 11 @HiperLAN2 + 7 @Japan + 1 as NULL terminationc */
+/*#define MAX_NUM_OF_CHS                                        49 // 14 channels @2.4G +  12@UNII + 4 @MMAC + 11 @HiperLAN2 + 7 @Japan + 1 as NULL termination */
 #define MAX_NUM_OF_CHS				54	/* 14 channels @2.4G +  12@UNII(lower/middle) + 16@HiperLAN2 + 11@UNII(upper) + 0 @Japan + 1 as NULL termination */
 #define MAX_NUMBER_OF_EVENT				10	/* entry # in EVENT table */
 #define MAX_NUMBER_OF_MAC				32	/* if MAX_MBSSID_NUM is 8, this value can't be larger than 211 */
@@ -87,7 +88,7 @@
 #define MAX_NUMBER_OF_DLS_ENTRY			4
 
 #define RT_QUERY_SIGNAL_CONTEXT				0x0402
-#define RT_SET_IAPP_PID                 	0x0404
+#define RT_SET_IAPP_PID				0x0404
 #define RT_SET_APD_PID						0x0405
 #define RT_SET_DEL_MAC_ENTRY				0x0406
 #define RT_QUERY_EVENT_TABLE			0x0407
@@ -610,7 +611,7 @@ struct rt_802_11_event_log {
 
 struct rt_802_11_event_table {
 	unsigned long Num;
-	unsigned long Rsv;		/* to align Log[] at LARGE_INEGER boundary */
+	unsigned long Rsv;		/* to align Log[] at LARGE_INTEGER boundary */
 	struct rt_802_11_event_log Log[MAX_NUMBER_OF_EVENT];
 };
 
@@ -721,9 +722,9 @@ struct rt_802_11_tx_rates {
 #define	AUTH_FAIL				0x4	/* Open authentication fail */
 #define	AUTH_FAIL_KEYS			0x5	/* Shared authentication fail */
 #define	ASSOC_FAIL				0x6	/* Association failed */
-#define	EAP_MIC_FAILURE			0x7	/* Deauthencation because MIC failure */
-#define	EAP_4WAY_TIMEOUT		0x8	/* Deauthencation on 4-way handshake timeout */
-#define	EAP_GROUP_KEY_TIMEOUT	0x9	/* Deauthencation on group key handshake timeout */
+#define	EAP_MIC_FAILURE			0x7	/* Deauthentication because MIC failure */
+#define	EAP_4WAY_TIMEOUT		0x8	/* Deauthentication on 4-way handshake timeout */
+#define	EAP_GROUP_KEY_TIMEOUT	0x9	/* Deauthentication on group key handshake timeout */
 #define	EAP_SUCCESS				0xa	/* EAP succeed */
 #define	DETECT_RADAR_SIGNAL		0xb	/* Radar signal occur in current channel */
 #define EXTRA_INFO_MAX			0xb	/* Indicate Last OID */

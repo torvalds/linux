@@ -642,7 +642,7 @@ static struct device_attribute card_number_attrs =
  *  external accesses.  Thus, you should call this function at the end
  *  of the initialization of the card.
  *
- *  Returns zero otherwise a negative error code if the registrain failed.
+ *  Returns zero otherwise a negative error code if the registration failed.
  */
 int snd_card_register(struct snd_card *card)
 {

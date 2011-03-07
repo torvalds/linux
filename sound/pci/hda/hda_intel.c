@@ -1235,7 +1235,8 @@ static int azx_setup_periods(struct azx *chip,
 			pos_adj = 0;
 		} else {
 			ofs = setup_bdle(substream, azx_dev,
-					 &bdl, ofs, pos_adj, 1);
+					 &bdl, ofs, pos_adj,
+					 !substream->runtime->no_period_wakeup);
 			if (ofs < 0)
 				goto error;
 		}
@@ -1247,7 +1248,8 @@ static int azx_setup_periods(struct azx *chip,
 					 period_bytes - pos_adj, 0);
 		else
 			ofs = setup_bdle(substream, azx_dev, &bdl, ofs,
-					 period_bytes, 1);
+					 period_bytes,
+					 !substream->runtime->no_period_wakeup);
 		if (ofs < 0)
 			goto error;
 	}
@@ -1515,7 +1517,8 @@ static struct snd_pcm_hardware azx_pcm_hw = {
 				 /* No full-resume yet implemented */
 				 /* SNDRV_PCM_INFO_RESUME |*/
 				 SNDRV_PCM_INFO_PAUSE |
-				 SNDRV_PCM_INFO_SYNC_START),
+				 SNDRV_PCM_INFO_SYNC_START |
+				 SNDRV_PCM_INFO_NO_PERIOD_WAKEUP),
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =		SNDRV_PCM_RATE_48000,
 	.rate_min =		48000,
@@ -2305,6 +2308,7 @@ static struct snd_pci_quirk position_fix_list[] __devinitdata = {
 	SND_PCI_QUIRK(0x1043, 0x813d, "ASUS P5AD2", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1043, 0x81b3, "ASUS", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1043, 0x81e7, "ASUS M2V", POS_FIX_LPIB),
+	SND_PCI_QUIRK(0x1043, 0x8410, "ASUS", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x104d, 0x9069, "Sony VPCS11V9E", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1106, 0x3288, "ASUS M2V-MX SE", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1179, 0xff10, "Toshiba A100-259", POS_FIX_LPIB),
@@ -2700,7 +2704,7 @@ static int __devinit azx_probe(struct pci_dev *pci,
 	if (err < 0)
 		goto out_free;
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
-	if (patch[dev]) {
+	if (patch[dev] && *patch[dev]) {
 		snd_printk(KERN_ERR SFX "Applying patch firmware '%s'\n",
 			   patch[dev]);
 		err = snd_hda_load_patch(chip->bus, patch[dev]);
@@ -2806,6 +2810,8 @@ static DEFINE_PCI_DEVICE_TABLE(azx_ids) = {
 #endif
 	/* Vortex86MX */
 	{ PCI_DEVICE(0x17f3, 0x3010), .driver_data = AZX_DRIVER_GENERIC },
+	/* VMware HDAudio */
+	{ PCI_DEVICE(0x15ad, 0x1977), .driver_data = AZX_DRIVER_GENERIC },
 	/* AMD/ATI Generic, PCI class code and Vendor ID for HD Audio */
 	{ PCI_DEVICE(PCI_VENDOR_ID_ATI, PCI_ANY_ID),
 	  .class = PCI_CLASS_MULTIMEDIA_HD_AUDIO << 8,

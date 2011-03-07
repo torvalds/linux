@@ -158,7 +158,7 @@ EXPORT_SYMBOL(sk_filter);
 /**
  *	sk_run_filter - run a filter on a socket
  *	@skb: buffer to run the filter on
- *	@filter: filter to apply
+ *	@fentry: filter to apply
  *
  * Decode and apply filter instructions to the skb->data.
  * Return length to keep, 0 for none. @skb is the data we are

@@ -1,5 +1,5 @@
 /*
- *	iPAQ h1930/h1940/rx1950 battery controler driver
+ *	iPAQ h1930/h1940/rx1950 battery controller driver
  *	Copyright (c) Vasily Khoruzhick
  *	Based on h1940_battery.c by Arnaud Patard
  *
@@ -112,6 +112,13 @@ static int calc_full_volt(int volt_val, int cur_val, int impedance)
 	return volt_val + cur_val * impedance / 1000;
 }
 
+static int charge_finished(struct s3c_adc_bat *bat)
+{
+	return bat->pdata->gpio_inverted ?
+		!gpio_get_value(bat->pdata->gpio_charge_finished) :
+		gpio_get_value(bat->pdata->gpio_charge_finished);
+}
+
 static int s3c_adc_bat_get_property(struct power_supply *psy,
 				    enum power_supply_property psp,
 				    union power_supply_propval *val)
@@ -140,7 +147,7 @@ static int s3c_adc_bat_get_property(struct power_supply *psy,
 
 	if (bat->cable_plugged &&
 		((bat->pdata->gpio_charge_finished < 0) ||
-		!gpio_get_value(bat->pdata->gpio_charge_finished))) {
+		!charge_finished(bat))) {
 		lut = bat->pdata->lut_acin;
 		lut_size = bat->pdata->lut_acin_cnt;
 	}
@@ -236,8 +243,7 @@ static void s3c_adc_bat_work(struct work_struct *work)
 		}
 	} else {
 		if ((bat->pdata->gpio_charge_finished >= 0) && is_plugged) {
-			is_charged = gpio_get_value(
-				main_bat.pdata->gpio_charge_finished);
+			is_charged = charge_finished(&main_bat);
 			if (is_charged) {
 				if (bat->pdata->disable_charger)
 					bat->pdata->disable_charger();
@@ -427,5 +433,5 @@ static void __exit s3c_adc_bat_exit(void)
 module_exit(s3c_adc_bat_exit);
 
 MODULE_AUTHOR("Vasily Khoruzhick <anarsoul@gmail.com>");
-MODULE_DESCRIPTION("iPAQ H1930/H1940/RX1950 battery controler driver");
+MODULE_DESCRIPTION("iPAQ H1930/H1940/RX1950 battery controller driver");
 MODULE_LICENSE("GPL");

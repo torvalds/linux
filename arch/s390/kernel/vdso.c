@@ -203,7 +203,6 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	if (!uses_interp)
 		return 0;
 
-	vdso_base = mm->mmap_base;
 #ifdef CONFIG_64BIT
 	vdso_pagelist = vdso64_pagelist;
 	vdso_pages = vdso64_pages;
@@ -233,8 +232,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	 * fail and end up putting it elsewhere.
 	 */
 	down_write(&mm->mmap_sem);
-	vdso_base = get_unmapped_area(NULL, vdso_base,
-				      vdso_pages << PAGE_SHIFT, 0, 0);
+	vdso_base = get_unmapped_area(NULL, 0, vdso_pages << PAGE_SHIFT, 0, 0);
 	if (IS_ERR_VALUE(vdso_base)) {
 		rc = vdso_base;
 		goto out_up;

@@ -36,6 +36,8 @@
 static struct plat_sci_port scif0_platform_data = {
 	.mapbase	= 0xe6c40000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE,
+	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
 	.irqs		= { gic_spi(72), gic_spi(72),
 			    gic_spi(72), gic_spi(72) },
@@ -52,6 +54,8 @@ static struct platform_device scif0_device = {
 static struct plat_sci_port scif1_platform_data = {
 	.mapbase	= 0xe6c50000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE,
+	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
 	.irqs		= { gic_spi(73), gic_spi(73),
 			    gic_spi(73), gic_spi(73) },
@@ -68,6 +72,8 @@ static struct platform_device scif1_device = {
 static struct plat_sci_port scif2_platform_data = {
 	.mapbase	= 0xe6c60000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE,
+	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
 	.irqs		= { gic_spi(74), gic_spi(74),
 			    gic_spi(74), gic_spi(74) },
@@ -84,6 +90,8 @@ static struct platform_device scif2_device = {
 static struct plat_sci_port scif3_platform_data = {
 	.mapbase	= 0xe6c70000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE,
+	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
 	.irqs		= { gic_spi(75), gic_spi(75),
 			    gic_spi(75), gic_spi(75) },
@@ -100,6 +108,8 @@ static struct platform_device scif3_device = {
 static struct plat_sci_port scif4_platform_data = {
 	.mapbase	= 0xe6c80000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE,
+	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
 	.irqs		= { gic_spi(78), gic_spi(78),
 			    gic_spi(78), gic_spi(78) },
@@ -116,6 +126,8 @@ static struct platform_device scif4_device = {
 static struct plat_sci_port scif5_platform_data = {
 	.mapbase	= 0xe6cb0000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE,
+	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
 	.irqs		= { gic_spi(79), gic_spi(79),
 			    gic_spi(79), gic_spi(79) },
@@ -132,6 +144,8 @@ static struct platform_device scif5_device = {
 static struct plat_sci_port scif6_platform_data = {
 	.mapbase	= 0xe6cc0000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE,
+	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
 	.irqs		= { gic_spi(156), gic_spi(156),
 			    gic_spi(156), gic_spi(156) },
@@ -148,6 +162,8 @@ static struct platform_device scif6_device = {
 static struct plat_sci_port scif7_platform_data = {
 	.mapbase	= 0xe6cd0000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE,
+	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFA,
 	.irqs		= { gic_spi(143), gic_spi(143),
 			    gic_spi(143), gic_spi(143) },
@@ -164,6 +180,8 @@ static struct platform_device scif7_device = {
 static struct plat_sci_port scif8_platform_data = {
 	.mapbase	= 0xe6c30000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE,
+	.scbrr_algo_id	= SCBRR_ALGO_4,
 	.type		= PORT_SCIFB,
 	.irqs		= { gic_spi(80), gic_spi(80),
 			    gic_spi(80), gic_spi(80) },

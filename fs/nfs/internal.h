@@ -128,9 +128,12 @@ extern void nfs_umount(const struct nfs_mount_request *info);
 /* client.c */
 extern struct rpc_program nfs_program;
 
+extern void nfs_cleanup_cb_ident_idr(void);
 extern void nfs_put_client(struct nfs_client *);
-extern struct nfs_client *nfs_find_client(const struct sockaddr *, u32);
-extern struct nfs_client *nfs_find_client_next(struct nfs_client *);
+extern struct nfs_client *nfs4_find_client_no_ident(const struct sockaddr *);
+extern struct nfs_client *nfs4_find_client_ident(int);
+extern struct nfs_client *
+nfs4_find_client_sessionid(const struct sockaddr *, struct nfs4_sessionid *);
 extern struct nfs_server *nfs_create_server(
 					const struct nfs_parsed_mount_data *,
 					struct nfs_fh *);
@@ -185,17 +188,20 @@ extern int __init nfs_init_directcache(void);
 extern void nfs_destroy_directcache(void);
 
 /* nfs2xdr.c */
-extern int nfs_stat_to_errno(int);
+extern int nfs_stat_to_errno(enum nfs_stat);
 extern struct rpc_procinfo nfs_procedures[];
-extern __be32 *nfs_decode_dirent(struct xdr_stream *, struct nfs_entry *, struct nfs_server *, int);
+extern int nfs2_decode_dirent(struct xdr_stream *,
+				struct nfs_entry *, int);
 
 /* nfs3xdr.c */
 extern struct rpc_procinfo nfs3_procedures[];
-extern __be32 *nfs3_decode_dirent(struct xdr_stream *, struct nfs_entry *, struct nfs_server *, int);
+extern int nfs3_decode_dirent(struct xdr_stream *,
+				struct nfs_entry *, int);
 
 /* nfs4xdr.c */
 #ifdef CONFIG_NFS_V4
-extern __be32 *nfs4_decode_dirent(struct xdr_stream *, struct nfs_entry *, struct nfs_server *, int);
+extern int nfs4_decode_dirent(struct xdr_stream *,
+				struct nfs_entry *, int);
 #endif
 #ifdef CONFIG_NFS_V4_1
 extern const u32 nfs41_maxread_overhead;
@@ -245,6 +251,7 @@ extern char *nfs_path(const char *base,
 		      const struct dentry *droot,
 		      const struct dentry *dentry,
 		      char *buffer, ssize_t buflen);
+extern struct vfsmount *nfs_d_automount(struct path *path);
 
 /* getroot.c */
 extern struct dentry *nfs_get_root(struct super_block *, struct nfs_fh *);

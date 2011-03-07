@@ -21,6 +21,7 @@
 #include <linux/rwsem.h>
 #include <linux/rbtree.h>
 #include <linux/poll.h>
+#include <linux/workqueue.h>
 
 /** Max number of pages that can be used in a single read request */
 #define FUSE_MAX_PAGES_PER_REQ 32
@@ -53,6 +54,12 @@ extern struct mutex fuse_mutex;
 extern unsigned max_user_bgreq;
 extern unsigned max_user_congthresh;
 
+/* One forget request */
+struct fuse_forget_link {
+	struct fuse_forget_one forget_one;
+	struct fuse_forget_link *next;
+};
+
 /** FUSE inode */
 struct fuse_inode {
 	/** Inode data */
@@ -66,7 +73,7 @@ struct fuse_inode {
 	u64 nlookup;
 
 	/** The request used for sending the FORGET message */
-	struct fuse_req *forget_req;
+	struct fuse_forget_link *forget;
 
 	/** Time in jiffies until the file attributes are valid */
 	u64 i_time;
@@ -255,9 +262,11 @@ struct fuse_req {
 
 	/** Data for asynchronous requests */
 	union {
-		struct fuse_forget_in forget_in;
 		struct {
-			struct fuse_release_in in;
+			union {
+				struct fuse_release_in in;
+				struct work_struct work;
+			};
 			struct path path;
 		} release;
 		struct fuse_init_in init_in;
@@ -368,6 +377,13 @@ struct fuse_conn {
 
 	/** Pending interrupts */
 	struct list_head interrupts;
+
+	/** Queue of pending forgets */
+	struct fuse_forget_link forget_list_head;
+	struct fuse_forget_link *forget_list_tail;
+
+	/** Batching of FORGET requests (positive indicates FORGET batch) */
+	int forget_batch;
 
 	/** Flag indicating if connection is blocked.  This will be
 	    the case before the INIT reply is received, and if there
@@ -543,8 +559,10 @@ int fuse_lookup_name(struct super_block *sb, u64 nodeid, struct qstr *name,
 /**
  * Send FORGET command
  */
-void fuse_send_forget(struct fuse_conn *fc, struct fuse_req *req,
-		      u64 nodeid, u64 nlookup);
+void fuse_queue_forget(struct fuse_conn *fc, struct fuse_forget_link *forget,
+		       u64 nodeid, u64 nlookup);
+
+struct fuse_forget_link *fuse_alloc_forget(void);
 
 /**
  * Initialize READ or READDIR request
@@ -654,11 +672,6 @@ void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req);
  * Send a request (synchronous)
  */
 void fuse_request_send(struct fuse_conn *fc, struct fuse_req *req);
-
-/**
- * Send a request with no reply
- */
-void fuse_request_send_noreply(struct fuse_conn *fc, struct fuse_req *req);
 
 /**
  * Send a request in the background

@@ -70,7 +70,7 @@ config PREVENT_FIRMWARE_BUILD
 	  If unsure say Y here.
 
 config FW_LOADER
-	tristate "Userspace firmware loading support" if EMBEDDED
+	tristate "Userspace firmware loading support" if EXPERT
 	default y
 	---help---
 	  This option is provided for the case where no in-kernel-tree modules

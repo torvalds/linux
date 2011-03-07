@@ -841,7 +841,7 @@ lcs_notify_lancmd_waiters(struct lcs_card *card, struct lcs_cmd *cmd)
 }
 
 /**
- * Emit buffer of a lan comand.
+ * Emit buffer of a lan command.
  */
 static void
 lcs_lancmd_timeout(unsigned long data)

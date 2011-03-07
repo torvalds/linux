@@ -61,11 +61,13 @@ void nilfs_free_private_page(struct page *);
 int nilfs_copy_dirty_pages(struct address_space *, struct address_space *);
 void nilfs_copy_back_pages(struct address_space *, struct address_space *);
 void nilfs_clear_dirty_pages(struct address_space *);
-void nilfs_mapping_init_once(struct address_space *mapping);
 void nilfs_mapping_init(struct address_space *mapping,
 			struct backing_dev_info *bdi,
 			const struct address_space_operations *aops);
 unsigned nilfs_page_count_clean_buffers(struct page *, unsigned, unsigned);
+unsigned long nilfs_find_uncommitted_extent(struct inode *inode,
+					    sector_t start_blk,
+					    sector_t *blkoff);
 
 #define NILFS_PAGE_BUG(page, m, a...) \
 	do { nilfs_page_bug(page); BUG(); } while (0)

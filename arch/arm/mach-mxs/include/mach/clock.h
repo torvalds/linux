@@ -29,8 +29,6 @@ struct clk {
 	int id;
 	/* Source clock this clk depends on */
 	struct clk *parent;
-	/* Secondary clock to enable/disable with this clock */
-	struct clk *secondary;
 	/* Reference count of clock enable/disable */
 	__s8 usecount;
 	/* Register bit position for clock's enable/disable control. */

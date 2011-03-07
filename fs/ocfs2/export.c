@@ -137,9 +137,7 @@ check_gen:
 	}
 
 	result = d_obtain_alias(inode);
-	if (!IS_ERR(result))
-		d_set_d_op(result, &ocfs2_dentry_ops);
-	else
+	if (IS_ERR(result))
 		mlog_errno(PTR_ERR(result));
 
 bail:
@@ -175,8 +173,6 @@ static struct dentry *ocfs2_get_parent(struct dentry *child)
 	}
 
 	parent = d_obtain_alias(ocfs2_iget(OCFS2_SB(dir->i_sb), blkno, 0, 0));
-	if (!IS_ERR(parent))
-		d_set_d_op(parent, &ocfs2_dentry_ops);
 
 bail_unlock:
 	ocfs2_inode_unlock(dir, 0);

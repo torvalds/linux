@@ -128,6 +128,19 @@ static int get_key_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 
 static int get_key_haup_xvr(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
+	int ret;
+	unsigned char buf[1] = { 0 };
+
+	/*
+	 * This is the same apparent "are you ready?" poll command observed
+	 * watching Windows driver traffic and implemented in lirc_zilog. With
+	 * this added, we get far saner remote behavior with z8 chips on usb
+	 * connected devices, even with the default polling interval of 100ms.
+	 */
+	ret = i2c_master_send(ir->c, buf, 1);
+	if (ret != 1)
+		return (ret < 0) ? ret : -EINVAL;
+
 	return get_key_haup_common (ir, ir_key, ir_raw, 6, 3);
 }
 
@@ -244,15 +257,17 @@ static void ir_key_poll(struct IR_i2c *ir)
 	static u32 ir_key, ir_raw;
 	int rc;
 
-	dprintk(2,"ir_poll_key\n");
+	dprintk(3, "%s\n", __func__);
 	rc = ir->get_key(ir, &ir_key, &ir_raw);
 	if (rc < 0) {
 		dprintk(2,"error\n");
 		return;
 	}
 
-	if (rc)
+	if (rc) {
+		dprintk(1, "%s: keycode = 0x%04x\n", __func__, ir_key);
 		rc_keydown(ir->rc, ir_key, 0);
+	}
 }
 
 static void ir_work(struct work_struct *work)
@@ -320,6 +335,12 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ir->get_key = get_key_avermedia_cardbus;
 		rc_type     = RC_TYPE_OTHER;
 		ir_codes    = RC_MAP_AVERMEDIA_CARDBUS;
+		break;
+	case 0x71:
+		name        = "Hauppauge/Zilog Z8";
+		ir->get_key = get_key_haup_xvr;
+		rc_type     = RC_TYPE_RC5;
+		ir_codes    = hauppauge ? RC_MAP_HAUPPAUGE_NEW : RC_MAP_RC5_TV;
 		break;
 	}
 

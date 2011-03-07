@@ -197,3 +197,10 @@ void __init samsung_gpiolib_add_4bit2_chips(struct s3c_gpio_chip *chip,
 		s3c_gpiolib_add(chip);
 	}
 }
+
+void __init samsung_gpiolib_add_2bit_chips(struct s3c_gpio_chip *chip,
+					   int nr_chips)
+{
+	for (; nr_chips > 0; nr_chips--, chip++)
+		s3c_gpiolib_add(chip);
+}

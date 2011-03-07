@@ -230,10 +230,10 @@ static struct intc_mask_reg intca_mask_registers[] __initdata = {
 	  { SCIFB, SCIFA5, SCIFA4, MSIOF1,
 	    0, 0, MSIOF2, 0 } },
 	{ 0xe694009c, 0xe69400dc, 8, /* IMR7A / IMCR7A */
-	  { DISABLED, DISABLED, ENABLED, ENABLED,
+	  { DISABLED, ENABLED, ENABLED, ENABLED,
 	    FLCTL_FLTREQ1I, FLCTL_FLTREQ0I, FLCTL_FLTENDI, FLCTL_FLSTEI } },
 	{ 0xe69400a0, 0xe69400e0, 8, /* IMR8A / IMCR8A */
-	  { 0, DISABLED, ENABLED, ENABLED,
+	  { 0, ENABLED, ENABLED, ENABLED,
 	    TTI20, USBHSDMAC0_USHDMI, 0, 0 } },
 	{ 0xe69400a4, 0xe69400e4, 8, /* IMR9A / IMCR9A */
 	  { CMT1_CMT13, CMT1_CMT12, CMT1_CMT11, CMT1_CMT10,
@@ -365,6 +365,7 @@ static struct intc_desc intca_desc __initdata = {
 
 enum {
 	UNUSED_INTCS = 0,
+	ENABLED_INTCS,
 
 	INTCS,
 
@@ -413,7 +414,7 @@ enum {
 	CMT4,
 	DSITX1_DSITX1_0,
 	DSITX1_DSITX1_1,
-	/* MFIS2 */
+	MFIS2_INTCS, /* Priority always enabled using ENABLED_INTCS */
 	CPORTS2R,
 	/* CEC */
 	JPU6E,
@@ -477,7 +478,7 @@ static struct intc_vect intcs_vectors[] = {
 	INTCS_VECT(CMT4, 0x1980),
 	INTCS_VECT(DSITX1_DSITX1_0, 0x19a0),
 	INTCS_VECT(DSITX1_DSITX1_1, 0x19c0),
-	/* MFIS2 */
+	INTCS_VECT(MFIS2_INTCS, 0x1a00),
 	INTCS_VECT(CPORTS2R, 0x1a20),
 	/* CEC */
 	INTCS_VECT(JPU6E, 0x1a80),
@@ -543,7 +544,7 @@ static struct intc_mask_reg intcs_mask_registers[] = {
 	  { 0, TMU1_TUNI2, TMU1_TUNI1, TMU1_TUNI0,
 	    CMT4, DSITX1_DSITX1_0, DSITX1_DSITX1_1, 0 } },
 	{ 0xffd5019c, 0xffd501dc, 8, /* IMR7SA3 / IMCR7SA3 */
-	  { 0, CPORTS2R, 0, 0,
+	  { MFIS2_INTCS, CPORTS2R, 0, 0,
 	    JPU6E, 0, 0, 0 } },
 	{ 0xffd20104, 0, 16, /* INTAMASK */
 	  { 0, 0, 0, 0, 0, 0, 0, 0,
@@ -571,7 +572,8 @@ static struct intc_prio_reg intcs_prio_registers[] = {
 	{ 0xffd50030, 0, 16, 4, /* IPRMS3 */ { TMU1, 0, 0, 0 } },
 	{ 0xffd50034, 0, 16, 4, /* IPRNS3 */ { CMT4, DSITX1_DSITX1_0,
 					       DSITX1_DSITX1_1, 0 } },
-	{ 0xffd50038, 0, 16, 4, /* IPROS3 */ { 0, CPORTS2R, 0, 0 } },
+	{ 0xffd50038, 0, 16, 4, /* IPROS3 */ { ENABLED_INTCS, CPORTS2R,
+					       0, 0 } },
 	{ 0xffd5003c, 0, 16, 4, /* IPRPS3 */ { JPU6E, 0, 0, 0 } },
 };
 
@@ -590,6 +592,7 @@ static struct resource intcs_resources[] __initdata = {
 
 static struct intc_desc intcs_desc __initdata = {
 	.name = "sh7372-intcs",
+	.force_enable = ENABLED_INTCS,
 	.resource = intcs_resources,
 	.num_resources = ARRAY_SIZE(intcs_resources),
 	.hw = INTC_HW_DESC(intcs_vectors, intcs_groups, intcs_mask_registers,

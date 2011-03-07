@@ -10,6 +10,7 @@ config CPU_S3C2443
 	select CPU_LLSERIAL_S3C2440
 	select SAMSUNG_CLKSRC
 	select S3C2443_CLOCK
+	select S3C_GPIO_PULL_S3C2443
 	help
 	  Support for the S3C2443 SoC from the S3C24XX line
 
@@ -25,7 +26,7 @@ config MACH_SMDK2443
 	bool "SMDK2443"
 	select CPU_S3C2443
 	select MACH_SMDK
-	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
 	help
 	  Say Y here if you are using an SMDK2443
 

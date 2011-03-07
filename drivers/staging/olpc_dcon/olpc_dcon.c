@@ -27,7 +27,6 @@
 #include <asm/uaccess.h>
 #include <linux/ctype.h>
 #include <linux/reboot.h>
-#include <linux/gpio.h>
 #include <asm/tsc.h>
 #include <asm/olpc.h>
 
@@ -49,7 +48,7 @@ struct dcon_platform_data {
 	int (*init)(void);
 	void (*bus_stabilize_wiggle)(void);
 	void (*set_dconload)(int);
-	int (*read_status)(void);
+	u8 (*read_status)(void);
 };
 
 static struct dcon_platform_data *pdata;
@@ -374,17 +373,17 @@ static void dcon_source_switch(struct work_struct *work)
 		 *
 		 * For now, we just hope..
 		 */
-		acquire_console_sem();
+		console_lock();
 		ignore_fb_events = 1;
 		if (fb_blank(fbinfo, FB_BLANK_UNBLANK)) {
 			ignore_fb_events = 0;
-			release_console_sem();
+			console_unlock();
 			printk(KERN_ERR "olpc-dcon:  Failed to enter CPU mode\n");
 			dcon_pending = DCON_SOURCE_DCON;
 			return;
 		}
 		ignore_fb_events = 0;
-		release_console_sem();
+		console_unlock();
 
 		/* And turn off the DCON */
 		pdata->set_dconload(1);
@@ -436,12 +435,12 @@ static void dcon_source_switch(struct work_struct *work)
 			}
 		}
 
-		acquire_console_sem();
+		console_lock();
 		ignore_fb_events = 1;
 		if (fb_blank(fbinfo, FB_BLANK_POWERDOWN))
 			printk(KERN_ERR "olpc-dcon:  couldn't blank fb!\n");
 		ignore_fb_events = 0;
-		release_console_sem();
+		console_unlock();
 
 		printk(KERN_INFO "olpc-dcon: The DCON has control\n");
 		break;
@@ -615,7 +614,7 @@ static struct device_attribute dcon_device_files[] = {
 	__ATTR(resumeline, 0644, dcon_resumeline_show, dcon_resumeline_store),
 };
 
-static struct backlight_ops dcon_bl_ops = {
+static const struct backlight_ops dcon_bl_ops = {
 	.get_brightness = dconbl_get,
 	.update_status = dconbl_set
 };

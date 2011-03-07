@@ -96,6 +96,7 @@ config MTD_NAND_SPIA
 config MTD_NAND_AMS_DELTA
 	tristate "NAND Flash device on Amstrad E3"
 	depends on MACH_AMS_DELTA
+	default y
 	help
 	  Support for NAND flash on Amstrad E3 (Delta).
 

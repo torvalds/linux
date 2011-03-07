@@ -912,9 +912,9 @@ static int sh_mobile_release(struct fb_info *info, int user)
 
 	/* Nothing to reconfigure, when called from fbcon */
 	if (user) {
-		acquire_console_sem();
+		console_lock();
 		sh_mobile_fb_reconfig(info);
-		release_console_sem();
+		console_unlock();
 	}
 
 	mutex_unlock(&ch->open_lock);

@@ -1092,7 +1092,8 @@ static void mark_bbt_region(struct mtd_info *mtd, struct nand_bbt_descr *td)
 
 /**
  * verify_bbt_descr - verify the bad block description
- * @bd:			the table to verify
+ * @mtd:	MTD device structure
+ * @bd:		the table to verify
  *
  * This functions performs a few sanity checks on the bad block description
  * table.

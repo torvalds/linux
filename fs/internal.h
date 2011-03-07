@@ -70,6 +70,10 @@ extern void mnt_set_mountpoint(struct vfsmount *, struct dentry *,
 extern void release_mounts(struct list_head *);
 extern void umount_tree(struct vfsmount *, int, struct list_head *);
 extern struct vfsmount *copy_tree(struct vfsmount *, struct dentry *, int);
+extern int finish_automount(struct vfsmount *, struct path *);
+
+extern void mnt_make_longterm(struct vfsmount *);
+extern void mnt_make_shortterm(struct vfsmount *);
 
 extern void __init mnt_init(void);
 
@@ -108,4 +112,4 @@ extern void release_open_intent(struct nameidata *);
  */
 extern int get_nr_dirty_inodes(void);
 extern void evict_inodes(struct super_block *);
-extern int invalidate_inodes(struct super_block *);
+extern int invalidate_inodes(struct super_block *, bool);

@@ -1192,7 +1192,7 @@ static ssize_t bin_dn_node_address(struct file *file,
 
 		buf[result] = '\0';
 
-		/* Convert the decnet addresss to binary */
+		/* Convert the decnet address to binary */
 		result = -EIO;
 		nodep = strchr(buf, '.') + 1;
 		if (!nodep)

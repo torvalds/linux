@@ -24,7 +24,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
 #include <sound/wm8904.h>
@@ -1427,10 +1426,11 @@ static const struct snd_soc_dapm_route wm8912_intercon[] = {
 static int wm8904_add_widgets(struct snd_soc_codec *codec)
 {
 	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_new_controls(codec, wm8904_core_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, wm8904_core_dapm_widgets,
 				  ARRAY_SIZE(wm8904_core_dapm_widgets));
-	snd_soc_dapm_add_routes(codec, core_intercon,
+	snd_soc_dapm_add_routes(dapm, core_intercon,
 				ARRAY_SIZE(core_intercon));
 
 	switch (wm8904->devtype) {
@@ -1442,20 +1442,20 @@ static int wm8904_add_widgets(struct snd_soc_codec *codec)
 		snd_soc_add_controls(codec, wm8904_snd_controls,
 				     ARRAY_SIZE(wm8904_snd_controls));
 
-		snd_soc_dapm_new_controls(codec, wm8904_adc_dapm_widgets,
+		snd_soc_dapm_new_controls(dapm, wm8904_adc_dapm_widgets,
 					  ARRAY_SIZE(wm8904_adc_dapm_widgets));
-		snd_soc_dapm_new_controls(codec, wm8904_dac_dapm_widgets,
+		snd_soc_dapm_new_controls(dapm, wm8904_dac_dapm_widgets,
 					  ARRAY_SIZE(wm8904_dac_dapm_widgets));
-		snd_soc_dapm_new_controls(codec, wm8904_dapm_widgets,
+		snd_soc_dapm_new_controls(dapm, wm8904_dapm_widgets,
 					  ARRAY_SIZE(wm8904_dapm_widgets));
 
-		snd_soc_dapm_add_routes(codec, core_intercon,
+		snd_soc_dapm_add_routes(dapm, core_intercon,
 					ARRAY_SIZE(core_intercon));
-		snd_soc_dapm_add_routes(codec, adc_intercon,
+		snd_soc_dapm_add_routes(dapm, adc_intercon,
 					ARRAY_SIZE(adc_intercon));
-		snd_soc_dapm_add_routes(codec, dac_intercon,
+		snd_soc_dapm_add_routes(dapm, dac_intercon,
 					ARRAY_SIZE(dac_intercon));
-		snd_soc_dapm_add_routes(codec, wm8904_intercon,
+		snd_soc_dapm_add_routes(dapm, wm8904_intercon,
 					ARRAY_SIZE(wm8904_intercon));
 		break;
 
@@ -1463,17 +1463,17 @@ static int wm8904_add_widgets(struct snd_soc_codec *codec)
 		snd_soc_add_controls(codec, wm8904_dac_snd_controls,
 				     ARRAY_SIZE(wm8904_dac_snd_controls));
 
-		snd_soc_dapm_new_controls(codec, wm8904_dac_dapm_widgets,
+		snd_soc_dapm_new_controls(dapm, wm8904_dac_dapm_widgets,
 					  ARRAY_SIZE(wm8904_dac_dapm_widgets));
 
-		snd_soc_dapm_add_routes(codec, dac_intercon,
+		snd_soc_dapm_add_routes(dapm, dac_intercon,
 					ARRAY_SIZE(dac_intercon));
-		snd_soc_dapm_add_routes(codec, wm8912_intercon,
+		snd_soc_dapm_add_routes(dapm, wm8912_intercon,
 					ARRAY_SIZE(wm8912_intercon));
 		break;
 	}
 
-	snd_soc_dapm_new_widgets(codec);
+	snd_soc_dapm_new_widgets(dapm);
 	return 0;
 }
 
@@ -1589,7 +1589,7 @@ static int wm8904_hw_params(struct snd_pcm_substream *substream,
 		       - wm8904->fs);
 	for (i = 1; i < ARRAY_SIZE(clk_sys_rates); i++) {
 		cur_val = abs((wm8904->sysclk_rate /
-			       clk_sys_rates[i].ratio) - wm8904->fs);;
+			       clk_sys_rates[i].ratio) - wm8904->fs);
 		if (cur_val < best_val) {
 			best = i;
 			best_val = cur_val;
@@ -2138,7 +2138,7 @@ static int wm8904_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			ret = regulator_bulk_enable(ARRAY_SIZE(wm8904->supplies),
 						    wm8904->supplies);
 			if (ret != 0) {
@@ -2197,7 +2197,7 @@ static int wm8904_set_bias_level(struct snd_soc_codec *codec,
 				       wm8904->supplies);
 		break;
 	}
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -2373,7 +2373,7 @@ static int wm8904_probe(struct snd_soc_codec *codec)
 	int ret, i;
 
 	codec->cache_sync = 1;
-	codec->idle_bias_off = 1;
+	codec->dapm.idle_bias_off = 1;
 
 	switch (wm8904->devtype) {
 	case WM8904:

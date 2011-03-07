@@ -203,7 +203,7 @@ static int kill_proc_ao(struct task_struct *t, unsigned long addr, int trapno,
 #ifdef __ARCH_SI_TRAPNO
 	si.si_trapno = trapno;
 #endif
-	si.si_addr_lsb = compound_order(compound_head(page)) + PAGE_SHIFT;
+	si.si_addr_lsb = compound_trans_order(compound_head(page)) + PAGE_SHIFT;
 	/*
 	 * Don't use force here, it's convenient if the signal
 	 * can be temporarily blocked.
@@ -233,8 +233,8 @@ void shake_page(struct page *p, int access)
 	}
 
 	/*
-	 * Only all shrink_slab here (which would also
-	 * shrink other caches) if access is not potentially fatal.
+	 * Only call shrink_slab here (which would also shrink other caches) if
+	 * access is not potentially fatal.
 	 */
 	if (access) {
 		int nr;
@@ -854,6 +854,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	int ret;
 	int kill = 1;
 	struct page *hpage = compound_head(p);
+	struct page *ppage;
 
 	if (PageReserved(p) || PageSlab(p))
 		return SWAP_SUCCESS;
@@ -895,6 +896,44 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	}
 
 	/*
+	 * ppage: poisoned page
+	 *   if p is regular page(4k page)
+	 *        ppage == real poisoned page;
+	 *   else p is hugetlb or THP, ppage == head page.
+	 */
+	ppage = hpage;
+
+	if (PageTransHuge(hpage)) {
+		/*
+		 * Verify that this isn't a hugetlbfs head page, the check for
+		 * PageAnon is just for avoid tripping a split_huge_page
+		 * internal debug check, as split_huge_page refuses to deal with
+		 * anything that isn't an anon page. PageAnon can't go away fro
+		 * under us because we hold a refcount on the hpage, without a
+		 * refcount on the hpage. split_huge_page can't be safely called
+		 * in the first place, having a refcount on the tail isn't
+		 * enough * to be safe.
+		 */
+		if (!PageHuge(hpage) && PageAnon(hpage)) {
+			if (unlikely(split_huge_page(hpage))) {
+				/*
+				 * FIXME: if splitting THP is failed, it is
+				 * better to stop the following operation rather
+				 * than causing panic by unmapping. System might
+				 * survive if the page is freed later.
+				 */
+				printk(KERN_INFO
+					"MCE %#lx: failed to split THP\n", pfn);
+
+				BUG_ON(!PageHWPoison(p));
+				return SWAP_FAIL;
+			}
+			/* THP is split, so ppage should be the real poisoned page. */
+			ppage = p;
+		}
+	}
+
+	/*
 	 * First collect all the processes that have the page
 	 * mapped in dirty form.  This has to be done before try_to_unmap,
 	 * because ttu takes the rmap data structures down.
@@ -903,12 +942,18 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	 * there's nothing that can be done.
 	 */
 	if (kill)
-		collect_procs(hpage, &tokill);
+		collect_procs(ppage, &tokill);
 
-	ret = try_to_unmap(hpage, ttu);
+	if (hpage != ppage)
+		lock_page_nosync(ppage);
+
+	ret = try_to_unmap(ppage, ttu);
 	if (ret != SWAP_SUCCESS)
 		printk(KERN_ERR "MCE %#lx: failed to unmap page (mapcount=%d)\n",
-				pfn, page_mapcount(hpage));
+				pfn, page_mapcount(ppage));
+
+	if (hpage != ppage)
+		unlock_page(ppage);
 
 	/*
 	 * Now that the dirty bit has been propagated to the
@@ -919,7 +964,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	 * use a more force-full uncatchable kill to prevent
 	 * any accesses to the poisoned memory.
 	 */
-	kill_procs_ao(&tokill, !!PageDirty(hpage), trapno,
+	kill_procs_ao(&tokill, !!PageDirty(ppage), trapno,
 		      ret != SWAP_SUCCESS, p, pfn);
 
 	return ret;
@@ -928,7 +973,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 static void set_page_hwpoison_huge_page(struct page *hpage)
 {
 	int i;
-	int nr_pages = 1 << compound_order(hpage);
+	int nr_pages = 1 << compound_trans_order(hpage);
 	for (i = 0; i < nr_pages; i++)
 		SetPageHWPoison(hpage + i);
 }
@@ -936,7 +981,7 @@ static void set_page_hwpoison_huge_page(struct page *hpage)
 static void clear_page_hwpoison_huge_page(struct page *hpage)
 {
 	int i;
-	int nr_pages = 1 << compound_order(hpage);
+	int nr_pages = 1 << compound_trans_order(hpage);
 	for (i = 0; i < nr_pages; i++)
 		ClearPageHWPoison(hpage + i);
 }
@@ -966,7 +1011,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 		return 0;
 	}
 
-	nr_pages = 1 << compound_order(hpage);
+	nr_pages = 1 << compound_trans_order(hpage);
 	atomic_long_add(nr_pages, &mce_bad_pages);
 
 	/*
@@ -1020,19 +1065,22 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 	 * The check (unnecessarily) ignores LRU pages being isolated and
 	 * walked by the page reclaim code, however that's not a big loss.
 	 */
-	if (!PageLRU(p) && !PageHuge(p))
-		shake_page(p, 0);
-	if (!PageLRU(p) && !PageHuge(p)) {
-		/*
-		 * shake_page could have turned it free.
-		 */
-		if (is_free_buddy_page(p)) {
-			action_result(pfn, "free buddy, 2nd try", DELAYED);
-			return 0;
+	if (!PageHuge(p) && !PageTransCompound(p)) {
+		if (!PageLRU(p))
+			shake_page(p, 0);
+		if (!PageLRU(p)) {
+			/*
+			 * shake_page could have turned it free.
+			 */
+			if (is_free_buddy_page(p)) {
+				action_result(pfn, "free buddy, 2nd try",
+						DELAYED);
+				return 0;
+			}
+			action_result(pfn, "non LRU", IGNORED);
+			put_page(p);
+			return -EBUSY;
 		}
-		action_result(pfn, "non LRU", IGNORED);
-		put_page(p);
-		return -EBUSY;
 	}
 
 	/*
@@ -1062,7 +1110,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 	 * For error on the tail page, we should set PG_hwpoison
 	 * on the head page to show that the hugepage is hwpoisoned
 	 */
-	if (PageTail(p) && TestSetPageHWPoison(hpage)) {
+	if (PageHuge(p) && PageTail(p) && TestSetPageHWPoison(hpage)) {
 		action_result(pfn, "hugepage already hardware poisoned",
 				IGNORED);
 		unlock_page(hpage);
@@ -1164,7 +1212,7 @@ int unpoison_memory(unsigned long pfn)
 		return 0;
 	}
 
-	nr_pages = 1 << compound_order(page);
+	nr_pages = 1 << compound_trans_order(page);
 
 	if (!get_page_unless_zero(page)) {
 		/*
@@ -1290,9 +1338,13 @@ static int soft_offline_huge_page(struct page *page, int flags)
 	/* Keep page count to indicate a given hugepage is isolated. */
 
 	list_add(&hpage->lru, &pagelist);
-	ret = migrate_huge_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL, 0);
+	ret = migrate_huge_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL, 0,
+				true);
 	if (ret) {
-			putback_lru_pages(&pagelist);
+		struct page *page1, *page2;
+		list_for_each_entry_safe(page1, page2, &pagelist, lru)
+			put_page(page1);
+
 		pr_debug("soft offline: %#lx: migration failed %d, type %lx\n",
 			 pfn, ret, page->flags);
 		if (ret > 0)
@@ -1301,7 +1353,7 @@ static int soft_offline_huge_page(struct page *page, int flags)
 	}
 done:
 	if (!PageHWPoison(hpage))
-		atomic_long_add(1 << compound_order(hpage), &mce_bad_pages);
+		atomic_long_add(1 << compound_trans_order(hpage), &mce_bad_pages);
 	set_page_hwpoison_huge_page(hpage);
 	dequeue_hwpoisoned_huge_page(hpage);
 	/* keep elevated page count for bad page */
@@ -1413,8 +1465,10 @@ int soft_offline_page(struct page *page, int flags)
 		LIST_HEAD(pagelist);
 
 		list_add(&page->lru, &pagelist);
-		ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL, 0);
+		ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL,
+								0, true);
 		if (ret) {
+			putback_lru_pages(&pagelist);
 			pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
 				pfn, ret, page->flags);
 			if (ret > 0)

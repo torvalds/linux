@@ -772,13 +772,10 @@ static struct dentry *vfat_lookup(struct inode *dir, struct dentry *dentry,
 
 out:
 	unlock_super(sb);
-	d_set_d_op(dentry, sb->s_root->d_op);
 	dentry->d_time = dentry->d_parent->d_inode->i_version;
 	dentry = d_splice_alias(inode, dentry);
-	if (dentry) {
-		d_set_d_op(dentry, sb->s_root->d_op);
+	if (dentry)
 		dentry->d_time = dentry->d_parent->d_inode->i_version;
-	}
 	return dentry;
 
 error:
@@ -1066,24 +1063,18 @@ static const struct inode_operations vfat_dir_inode_operations = {
 	.getattr	= fat_getattr,
 };
 
+static void setup(struct super_block *sb)
+{
+	if (MSDOS_SB(sb)->options.name_check != 's')
+		sb->s_d_op = &vfat_ci_dentry_ops;
+	else
+		sb->s_d_op = &vfat_dentry_ops;
+}
+
 static int vfat_fill_super(struct super_block *sb, void *data, int silent)
 {
-	int res;
-
-	lock_super(sb);
-	res = fat_fill_super(sb, data, silent, &vfat_dir_inode_operations, 1);
-	if (res) {
-		unlock_super(sb);
-		return res;
-	}
-
-	if (MSDOS_SB(sb)->options.name_check != 's')
-		d_set_d_op(sb->s_root, &vfat_ci_dentry_ops);
-	else
-		d_set_d_op(sb->s_root, &vfat_dentry_ops);
-
-	unlock_super(sb);
-	return 0;
+	return fat_fill_super(sb, data, silent, &vfat_dir_inode_operations,
+			     1, setup);
 }
 
 static struct dentry *vfat_mount(struct file_system_type *fs_type,

@@ -283,7 +283,7 @@ static int smb_compare_dentry(const struct dentry *,
 		unsigned int, const char *, const struct qstr *);
 static int smb_delete_dentry(const struct dentry *);
 
-static const struct dentry_operations smbfs_dentry_operations =
+const struct dentry_operations smbfs_dentry_operations =
 {
 	.d_revalidate	= smb_lookup_validate,
 	.d_hash		= smb_hash_dentry,
@@ -291,7 +291,7 @@ static const struct dentry_operations smbfs_dentry_operations =
 	.d_delete	= smb_delete_dentry,
 };
 
-static const struct dentry_operations smbfs_dentry_operations_case =
+const struct dentry_operations smbfs_dentry_operations_case =
 {
 	.d_revalidate	= smb_lookup_validate,
 	.d_delete	= smb_delete_dentry,
@@ -403,12 +403,6 @@ smb_delete_dentry(const struct dentry *dentry)
 void
 smb_new_dentry(struct dentry *dentry)
 {
-	struct smb_sb_info *server = server_from_dentry(dentry);
-
-	if (server->mnt->flags & SMB_MOUNT_CASE)
-		d_set_d_op(dentry, &smbfs_dentry_operations_case);
-	else
-		d_set_d_op(dentry, &smbfs_dentry_operations);
 	dentry->d_time = jiffies;
 }
 
@@ -440,7 +434,6 @@ smb_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	struct smb_fattr finfo;
 	struct inode *inode;
 	int error;
-	struct smb_sb_info *server;
 
 	error = -ENAMETOOLONG;
 	if (dentry->d_name.len > SMB_MAXNAMELEN)
@@ -468,12 +461,6 @@ smb_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 		inode = smb_iget(dir->i_sb, &finfo);
 		if (inode) {
 	add_entry:
-			server = server_from_dentry(dentry);
-			if (server->mnt->flags & SMB_MOUNT_CASE)
-				d_set_d_op(dentry, &smbfs_dentry_operations_case);
-			else
-				d_set_d_op(dentry, &smbfs_dentry_operations);
-
 			d_add(dentry, inode);
 			smb_renew_times(dentry);
 			error = 0;

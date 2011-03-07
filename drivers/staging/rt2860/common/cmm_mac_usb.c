@@ -236,7 +236,7 @@ int NICInitTransmit(struct rt_rtmp_adapter *pAd)
 		os_alloc_mem(pAd, (u8 **) (&pAd->MgmtDescRing.AllocVa),
 			     pAd->MgmtDescRing.AllocSize);
 		if (pAd->MgmtDescRing.AllocVa == NULL) {
-			DBGPRINT_ERR(("Failed to allocate a big buffer for MgmtDescRing!\n"));
+			DBGPRINT_ERR("Failed to allocate a big buffer for MgmtDescRing!\n");
 			Status = NDIS_STATUS_RESOURCES;
 			goto out1;
 		}

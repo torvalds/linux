@@ -20,8 +20,12 @@
 #define EXTENT_IOBITS (EXTENT_LOCKED | EXTENT_WRITEBACK)
 #define EXTENT_CTLBITS (EXTENT_DO_ACCOUNTING | EXTENT_FIRST_DELALLOC)
 
-/* flags for bio submission */
+/*
+ * flags for bio submission. The high bits indicate the compression
+ * type for this bio
+ */
 #define EXTENT_BIO_COMPRESSED 1
+#define EXTENT_BIO_FLAG_SHIFT 16
 
 /* these are bit numbers for test/set bit */
 #define EXTENT_BUFFER_UPTODATE 0
@@ -135,6 +139,17 @@ struct extent_buffer {
 	wait_queue_head_t lock_wq;
 };
 
+static inline void extent_set_compress_type(unsigned long *bio_flags,
+					    int compress_type)
+{
+	*bio_flags |= compress_type << EXTENT_BIO_FLAG_SHIFT;
+}
+
+static inline int extent_compress_type(unsigned long bio_flags)
+{
+	return bio_flags >> EXTENT_BIO_FLAG_SHIFT;
+}
+
 struct extent_map_tree;
 
 static inline struct extent_state *extent_state_next(struct extent_state *state)
@@ -176,7 +191,7 @@ void extent_io_exit(void);
 
 u64 count_range_bits(struct extent_io_tree *tree,
 		     u64 *start, u64 search_end,
-		     u64 max_bytes, unsigned long bits);
+		     u64 max_bytes, unsigned long bits, int contig);
 
 void free_extent_state(struct extent_state *state);
 int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,

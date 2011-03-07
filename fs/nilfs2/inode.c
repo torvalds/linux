@@ -58,7 +58,7 @@ int nilfs_get_block(struct inode *inode, sector_t blkoff,
 	struct nilfs_inode_info *ii = NILFS_I(inode);
 	__u64 blknum = 0;
 	int err = 0, ret;
-	struct inode *dat = nilfs_dat_inode(NILFS_I_NILFS(inode));
+	struct inode *dat = NILFS_I_NILFS(inode)->ns_dat;
 	unsigned maxblocks = bh_result->b_size >> inode->i_blkbits;
 
 	down_read(&NILFS_MDT(dat)->mi_sem);
@@ -96,11 +96,6 @@ int nilfs_get_block(struct inode *inode, sector_t blkoff,
 				       inode->i_ino,
 				       (unsigned long long)blkoff);
 				err = 0;
-			} else if (err == -EINVAL) {
-				nilfs_error(inode->i_sb, __func__,
-					    "broken bmap (inode=%lu)\n",
-					    inode->i_ino);
-				err = -EIO;
 			}
 			nilfs_transaction_abort(inode->i_sb);
 			goto out;
@@ -109,6 +104,7 @@ int nilfs_get_block(struct inode *inode, sector_t blkoff,
 		nilfs_transaction_commit(inode->i_sb); /* never fails */
 		/* Error handling should be detailed */
 		set_buffer_new(bh_result);
+		set_buffer_delay(bh_result);
 		map_bh(bh_result, inode->i_sb, 0); /* dbn must be changed
 						      to proper value */
 	} else if (ret == -ENOENT) {
@@ -185,10 +181,9 @@ static int nilfs_set_page_dirty(struct page *page)
 
 	if (ret) {
 		struct inode *inode = page->mapping->host;
-		struct nilfs_sb_info *sbi = NILFS_SB(inode->i_sb);
 		unsigned nr_dirty = 1 << (PAGE_SHIFT - inode->i_blkbits);
 
-		nilfs_set_file_dirty(sbi, inode, nr_dirty);
+		nilfs_set_file_dirty(inode, nr_dirty);
 	}
 	return ret;
 }
@@ -229,7 +224,7 @@ static int nilfs_write_end(struct file *file, struct address_space *mapping,
 						  start + copied);
 	copied = generic_write_end(file, mapping, pos, len, copied, page,
 				   fsdata);
-	nilfs_set_file_dirty(NILFS_SB(inode->i_sb), inode, nr_dirty);
+	nilfs_set_file_dirty(inode, nr_dirty);
 	err = nilfs_transaction_commit(inode->i_sb);
 	return err ? : copied;
 }
@@ -425,13 +420,12 @@ static int __nilfs_read_inode(struct super_block *sb,
 			      struct nilfs_root *root, unsigned long ino,
 			      struct inode *inode)
 {
-	struct nilfs_sb_info *sbi = NILFS_SB(sb);
-	struct inode *dat = nilfs_dat_inode(sbi->s_nilfs);
+	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
 	struct buffer_head *bh;
 	struct nilfs_inode *raw_inode;
 	int err;
 
-	down_read(&NILFS_MDT(dat)->mi_sem);	/* XXX */
+	down_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
 	err = nilfs_ifile_get_inode_block(root->ifile, ino, &bh);
 	if (unlikely(err))
 		goto bad_inode;
@@ -461,7 +455,7 @@ static int __nilfs_read_inode(struct super_block *sb,
 	}
 	nilfs_ifile_unmap_inode(root->ifile, ino, bh);
 	brelse(bh);
-	up_read(&NILFS_MDT(dat)->mi_sem);	/* XXX */
+	up_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
 	nilfs_set_inode_flags(inode);
 	return 0;
 
@@ -470,7 +464,7 @@ static int __nilfs_read_inode(struct super_block *sb,
 	brelse(bh);
 
  bad_inode:
-	up_read(&NILFS_MDT(dat)->mi_sem);	/* XXX */
+	up_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
 	return err;
 }
 
@@ -629,7 +623,7 @@ static void nilfs_truncate_bmap(struct nilfs_inode_info *ii,
 
 	if (!test_bit(NILFS_I_BMAP, &ii->i_state))
 		return;
- repeat:
+repeat:
 	ret = nilfs_bmap_last_key(ii->i_bmap, &b);
 	if (ret == -ENOENT)
 		return;
@@ -646,14 +640,10 @@ static void nilfs_truncate_bmap(struct nilfs_inode_info *ii,
 		     nilfs_bmap_truncate(ii->i_bmap, b) == 0))
 		goto repeat;
 
- failed:
-	if (ret == -EINVAL)
-		nilfs_error(ii->vfs_inode.i_sb, __func__,
-			    "bmap is broken (ino=%lu)", ii->vfs_inode.i_ino);
-	else
-		nilfs_warning(ii->vfs_inode.i_sb, __func__,
-			      "failed to truncate bmap (ino=%lu, err=%d)",
-			      ii->vfs_inode.i_ino, ret);
+failed:
+	nilfs_warning(ii->vfs_inode.i_sb, __func__,
+		      "failed to truncate bmap (ino=%lu, err=%d)",
+		      ii->vfs_inode.i_ino, ret);
 }
 
 void nilfs_truncate(struct inode *inode)
@@ -682,7 +672,7 @@ void nilfs_truncate(struct inode *inode)
 		nilfs_set_transaction_flag(NILFS_TI_SYNC);
 
 	nilfs_mark_inode_dirty(inode);
-	nilfs_set_file_dirty(NILFS_SB(sb), inode, 0);
+	nilfs_set_file_dirty(inode, 0);
 	nilfs_transaction_commit(sb);
 	/* May construct a logical segment and may fail in sync mode.
 	   But truncate has no return value. */
@@ -800,9 +790,9 @@ int nilfs_permission(struct inode *inode, int mask, unsigned int flags)
 	return generic_permission(inode, mask, flags, NULL);
 }
 
-int nilfs_load_inode_block(struct nilfs_sb_info *sbi, struct inode *inode,
-			   struct buffer_head **pbh)
+int nilfs_load_inode_block(struct inode *inode, struct buffer_head **pbh)
 {
+	struct nilfs_sb_info *sbi = NILFS_SB(inode->i_sb);
 	struct nilfs_inode_info *ii = NILFS_I(inode);
 	int err;
 
@@ -843,9 +833,9 @@ int nilfs_inode_dirty(struct inode *inode)
 	return ret;
 }
 
-int nilfs_set_file_dirty(struct nilfs_sb_info *sbi, struct inode *inode,
-			 unsigned nr_dirty)
+int nilfs_set_file_dirty(struct inode *inode, unsigned nr_dirty)
 {
+	struct nilfs_sb_info *sbi = NILFS_SB(inode->i_sb);
 	struct nilfs_inode_info *ii = NILFS_I(inode);
 
 	atomic_add(nr_dirty, &sbi->s_nilfs->ns_ndirtyblks);
@@ -878,11 +868,10 @@ int nilfs_set_file_dirty(struct nilfs_sb_info *sbi, struct inode *inode,
 
 int nilfs_mark_inode_dirty(struct inode *inode)
 {
-	struct nilfs_sb_info *sbi = NILFS_SB(inode->i_sb);
 	struct buffer_head *ibh;
 	int err;
 
-	err = nilfs_load_inode_block(sbi, inode, &ibh);
+	err = nilfs_load_inode_block(inode, &ibh);
 	if (unlikely(err)) {
 		nilfs_warning(inode->i_sb, __func__,
 			      "failed to reget inode block.\n");
@@ -923,4 +912,135 @@ void nilfs_dirty_inode(struct inode *inode)
 	nilfs_transaction_begin(inode->i_sb, &ti, 0);
 	nilfs_mark_inode_dirty(inode);
 	nilfs_transaction_commit(inode->i_sb); /* never fails */
+}
+
+int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+		 __u64 start, __u64 len)
+{
+	struct the_nilfs *nilfs = NILFS_I_NILFS(inode);
+	__u64 logical = 0, phys = 0, size = 0;
+	__u32 flags = 0;
+	loff_t isize;
+	sector_t blkoff, end_blkoff;
+	sector_t delalloc_blkoff;
+	unsigned long delalloc_blklen;
+	unsigned int blkbits = inode->i_blkbits;
+	int ret, n;
+
+	ret = fiemap_check_flags(fieinfo, FIEMAP_FLAG_SYNC);
+	if (ret)
+		return ret;
+
+	mutex_lock(&inode->i_mutex);
+
+	isize = i_size_read(inode);
+
+	blkoff = start >> blkbits;
+	end_blkoff = (start + len - 1) >> blkbits;
+
+	delalloc_blklen = nilfs_find_uncommitted_extent(inode, blkoff,
+							&delalloc_blkoff);
+
+	do {
+		__u64 blkphy;
+		unsigned int maxblocks;
+
+		if (delalloc_blklen && blkoff == delalloc_blkoff) {
+			if (size) {
+				/* End of the current extent */
+				ret = fiemap_fill_next_extent(
+					fieinfo, logical, phys, size, flags);
+				if (ret)
+					break;
+			}
+			if (blkoff > end_blkoff)
+				break;
+
+			flags = FIEMAP_EXTENT_MERGED | FIEMAP_EXTENT_DELALLOC;
+			logical = blkoff << blkbits;
+			phys = 0;
+			size = delalloc_blklen << blkbits;
+
+			blkoff = delalloc_blkoff + delalloc_blklen;
+			delalloc_blklen = nilfs_find_uncommitted_extent(
+				inode, blkoff, &delalloc_blkoff);
+			continue;
+		}
+
+		/*
+		 * Limit the number of blocks that we look up so as
+		 * not to get into the next delayed allocation extent.
+		 */
+		maxblocks = INT_MAX;
+		if (delalloc_blklen)
+			maxblocks = min_t(sector_t, delalloc_blkoff - blkoff,
+					  maxblocks);
+		blkphy = 0;
+
+		down_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
+		n = nilfs_bmap_lookup_contig(
+			NILFS_I(inode)->i_bmap, blkoff, &blkphy, maxblocks);
+		up_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
+
+		if (n < 0) {
+			int past_eof;
+
+			if (unlikely(n != -ENOENT))
+				break; /* error */
+
+			/* HOLE */
+			blkoff++;
+			past_eof = ((blkoff << blkbits) >= isize);
+
+			if (size) {
+				/* End of the current extent */
+
+				if (past_eof)
+					flags |= FIEMAP_EXTENT_LAST;
+
+				ret = fiemap_fill_next_extent(
+					fieinfo, logical, phys, size, flags);
+				if (ret)
+					break;
+				size = 0;
+			}
+			if (blkoff > end_blkoff || past_eof)
+				break;
+		} else {
+			if (size) {
+				if (phys && blkphy << blkbits == phys + size) {
+					/* The current extent goes on */
+					size += n << blkbits;
+				} else {
+					/* Terminate the current extent */
+					ret = fiemap_fill_next_extent(
+						fieinfo, logical, phys, size,
+						flags);
+					if (ret || blkoff > end_blkoff)
+						break;
+
+					/* Start another extent */
+					flags = FIEMAP_EXTENT_MERGED;
+					logical = blkoff << blkbits;
+					phys = blkphy << blkbits;
+					size = n << blkbits;
+				}
+			} else {
+				/* Start a new extent */
+				flags = FIEMAP_EXTENT_MERGED;
+				logical = blkoff << blkbits;
+				phys = blkphy << blkbits;
+				size = n << blkbits;
+			}
+			blkoff += n;
+		}
+		cond_resched();
+	} while (true);
+
+	/* If ret is 1 then we just hit the end of the extent array */
+	if (ret == 1)
+		ret = 0;
+
+	mutex_unlock(&inode->i_mutex);
+	return ret;
 }

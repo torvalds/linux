@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2008 Analog Devices Inc.
+ * Copyright 2007-2010 Analog Devices Inc.
  *
  * Licensed under the ADI BSD license or the GPL-2 (or later)
  */

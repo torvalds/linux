@@ -164,24 +164,18 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	return r;
 }
 
-struct kvm *kvm_arch_create_vm(void)
+int kvm_arch_init_vm(struct kvm *kvm)
 {
-	struct kvm *kvm;
 	int rc;
 	char debug_name[16];
 
 	rc = s390_enable_sie();
 	if (rc)
-		goto out_nokvm;
-
-	rc = -ENOMEM;
-	kvm = kzalloc(sizeof(struct kvm), GFP_KERNEL);
-	if (!kvm)
-		goto out_nokvm;
+		goto out_err;
 
 	kvm->arch.sca = (struct sca_block *) get_zeroed_page(GFP_KERNEL);
 	if (!kvm->arch.sca)
-		goto out_nosca;
+		goto out_err;
 
 	sprintf(debug_name, "kvm-%u", current->pid);
 
@@ -195,13 +189,11 @@ struct kvm *kvm_arch_create_vm(void)
 	debug_register_view(kvm->arch.dbf, &debug_sprintf_view);
 	VM_EVENT(kvm, 3, "%s", "vm created");
 
-	return kvm;
+	return 0;
 out_nodbf:
 	free_page((unsigned long)(kvm->arch.sca));
-out_nosca:
-	kfree(kvm);
-out_nokvm:
-	return ERR_PTR(rc);
+out_err:
+	return rc;
 }
 
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
@@ -240,11 +232,8 @@ void kvm_arch_sync_events(struct kvm *kvm)
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	kvm_free_vcpus(kvm);
-	kvm_free_physmem(kvm);
 	free_page((unsigned long)(kvm->arch.sca));
 	debug_unregister(kvm->arch.dbf);
-	cleanup_srcu_struct(&kvm->srcu);
-	kfree(kvm);
 }
 
 /* Section: vcpu related */

@@ -16,13 +16,14 @@
 /* ****************** BCMSDH Interface Functions *************************** */
 
 #include <linux/types.h>
+#include <linux/netdevice.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>
 #include <bcmendian.h>
+#include <osl.h>
 #include <bcmutils.h>
 #include <hndsoc.h>
 #include <siutils.h>
-#include <osl.h>
 
 #include <bcmsdh.h>		/* BRCM API for SDIO
 			 clients (such as wl, dhd) */
@@ -38,7 +39,7 @@ struct bcmsdh_info {
 	bool init_success;	/* underlying driver successfully attached */
 	void *sdioh;		/* handler for sdioh */
 	u32 vendevid;	/* Target Vendor and Device ID on SD bus */
-	osl_t *osh;
+	struct osl_info *osh;
 	bool regfail;		/* Save status of last
 				 reg_read/reg_write call */
 	u32 sbwad;		/* Save backplane window address */
@@ -55,7 +56,8 @@ void bcmsdh_enable_hw_oob_intr(bcmsdh_info_t *sdh, bool enable)
 }
 #endif
 
-bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *cfghdl, void **regsva, uint irq)
+bcmsdh_info_t *bcmsdh_attach(struct osl_info *osh, void *cfghdl,
+				void **regsva, uint irq)
 {
 	bcmsdh_info_t *bcmsdh;
 
@@ -84,7 +86,7 @@ bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *cfghdl, void **regsva, uint irq)
 	return bcmsdh;
 }
 
-int bcmsdh_detach(osl_t *osh, void *sdh)
+int bcmsdh_detach(struct osl_info *osh, void *sdh)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 
@@ -451,7 +453,7 @@ bool bcmsdh_regfail(void *sdh)
 
 int
 bcmsdh_recv_buf(void *sdh, u32 addr, uint fn, uint flags,
-		u8 *buf, uint nbytes, void *pkt,
+		u8 *buf, uint nbytes, struct sk_buff *pkt,
 		bcmsdh_cmplt_fn_t complete, void *handle)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;

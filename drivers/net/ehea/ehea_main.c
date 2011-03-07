@@ -437,7 +437,7 @@ static void ehea_init_fill_rq1(struct ehea_port_res *pr, int nr_rq1a)
 		}
 	}
 	/* Ring doorbell */
-	ehea_update_rq1a(pr->qp, i);
+	ehea_update_rq1a(pr->qp, i - 1);
 }
 
 static int ehea_refill_rq_def(struct ehea_port_res *pr,
@@ -1329,9 +1329,7 @@ static int ehea_fill_port_res(struct ehea_port_res *pr)
 	int ret;
 	struct ehea_qp_init_attr *init_attr = &pr->qp->init_attr;
 
-	ehea_init_fill_rq1(pr, init_attr->act_nr_rwqes_rq1
-			       - init_attr->act_nr_rwqes_rq2
-			       - init_attr->act_nr_rwqes_rq3 - 1);
+	ehea_init_fill_rq1(pr, pr->rq1_skba.len);
 
 	ret = ehea_refill_rq2(pr, init_attr->act_nr_rwqes_rq2 - 1);
 

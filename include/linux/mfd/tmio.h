@@ -57,6 +57,10 @@
  * is configured in 4-bit mode.
  */
 #define TMIO_MMC_BLKSZ_2BYTES		(1 << 1)
+/*
+ * Some controllers can support SDIO IRQ signalling.
+ */
+#define TMIO_MMC_SDIO_IRQ		(1 << 2)
 
 int tmio_core_mmc_enable(void __iomem *cnf, int shift, unsigned long base);
 int tmio_core_mmc_resume(void __iomem *cnf, int shift, unsigned long base);
@@ -66,6 +70,7 @@ void tmio_core_mmc_clk_div(void __iomem *cnf, int shift, int state);
 struct tmio_mmc_dma {
 	void *chan_priv_tx;
 	void *chan_priv_rx;
+	int alignment_shift;
 };
 
 /*

@@ -554,6 +554,7 @@ static void __init omap_sfh7741prox_init(void)
 
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
+	OMAP4_MUX(USBB2_ULPITLL_CLK, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
 #else
@@ -576,11 +577,12 @@ static void __init omap_4430sdp_init(void)
 	omap4_twl6030_hsmmc_init(mmc);
 
 	/* Power on the ULPI PHY */
-	if (gpio_is_valid(OMAP4SDP_MDM_PWR_EN_GPIO)) {
-		/* FIXME: Assumes pad is already muxed for GPIO mode */
-		gpio_request(OMAP4SDP_MDM_PWR_EN_GPIO, "USBB1 PHY VMDM_3V3");
+	status = gpio_request(OMAP4SDP_MDM_PWR_EN_GPIO, "USBB1 PHY VMDM_3V3");
+	if (status)
+		pr_err("%s: Could not get USBB1 PHY GPIO\n", __func__);
+	else
 		gpio_direction_output(OMAP4SDP_MDM_PWR_EN_GPIO, 1);
-	}
+
 	usb_ehci_init(&ehci_pdata);
 	usb_musb_init(&musb_board_data);
 

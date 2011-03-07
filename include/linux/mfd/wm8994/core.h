@@ -17,6 +17,11 @@
 
 #include <linux/interrupt.h>
 
+enum wm8994_type {
+	WM8994 = 0,
+	WM8958 = 1,
+};
+
 struct regulator_dev;
 struct regulator_bulk_data;
 
@@ -48,6 +53,8 @@ struct wm8994 {
 	struct mutex io_lock;
 	struct mutex irq_lock;
 
+	enum wm8994_type type;
+
 	struct device *dev;
 	int (*read_dev)(struct wm8994 *wm8994, unsigned short reg,
 			int bytes, void *dest);
@@ -64,10 +71,12 @@ struct wm8994 {
 	u16 irq_masks_cache[WM8994_NUM_IRQ_REGS];
 
 	/* Used over suspend/resume */
+	bool suspended;
 	u16 ldo_regs[WM8994_NUM_LDO_REGS];
 	u16 gpio_regs[WM8994_NUM_GPIO_REGS];
 
 	struct regulator_dev *dbvdd;
+	int num_supplies;
 	struct regulator_bulk_data *supplies;
 };
 

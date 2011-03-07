@@ -130,6 +130,7 @@ static void __init omap_zoom_init(void)
 			ARRAY_SIZE(zoom_nand_partitions), ZOOM_NAND_CS);
 	zoom_debugboard_init();
 	zoom_peripherals_init();
+	zoom_display_init();
 }
 
 MACHINE_START(OMAP_ZOOM2, "OMAP Zoom2 board")

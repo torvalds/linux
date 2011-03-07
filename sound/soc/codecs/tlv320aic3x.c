@@ -46,7 +46,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
 #include <sound/tlv320aic3x.h>
@@ -60,6 +59,8 @@ static const char *aic3x_supply_names[AIC3X_NUM_SUPPLIES] = {
 	"AVDD",		/* Analog DAC Voltage */
 	"DRVDD",	/* ADC Analog and Output Driver Voltage */
 };
+
+static LIST_HEAD(reset_list);
 
 struct aic3x_priv;
 
@@ -77,6 +78,7 @@ struct aic3x_priv {
 	struct aic3x_setup_data *setup;
 	void *control_data;
 	unsigned int sysclk;
+	struct list_head list;
 	int master;
 	int gpio_reset;
 	int power;
@@ -183,7 +185,7 @@ static int snd_soc_dapm_put_volsw_aic3x(struct snd_kcontrol *kcontrol,
 
 	if (snd_soc_test_bits(widget->codec, reg, val_mask, val)) {
 		/* find dapm widget path assoc with kcontrol */
-		list_for_each_entry(path, &widget->codec->dapm_paths, list) {
+		list_for_each_entry(path, &widget->dapm->card->paths, list) {
 			if (path->kcontrol != kcontrol)
 				continue;
 
@@ -199,7 +201,7 @@ static int snd_soc_dapm_put_volsw_aic3x(struct snd_kcontrol *kcontrol,
 		}
 
 		if (found)
-			snd_soc_dapm_sync(widget->codec);
+			snd_soc_dapm_sync(widget->dapm);
 	}
 
 	ret = snd_soc_update_bits(widget->codec, reg, val_mask, val);
@@ -788,17 +790,19 @@ static const struct snd_soc_dapm_route intercon_3007[] = {
 static int aic3x_add_widgets(struct snd_soc_codec *codec)
 {
 	struct aic3x_priv *aic3x = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_new_controls(codec, aic3x_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, aic3x_dapm_widgets,
 				  ARRAY_SIZE(aic3x_dapm_widgets));
 
 	/* set up audio path interconnects */
-	snd_soc_dapm_add_routes(codec, intercon, ARRAY_SIZE(intercon));
+	snd_soc_dapm_add_routes(dapm, intercon, ARRAY_SIZE(intercon));
 
 	if (aic3x->model == AIC3X_MODEL_3007) {
-		snd_soc_dapm_new_controls(codec, aic3007_dapm_widgets,
+		snd_soc_dapm_new_controls(dapm, aic3007_dapm_widgets,
 			ARRAY_SIZE(aic3007_dapm_widgets));
-		snd_soc_dapm_add_routes(codec, intercon_3007, ARRAY_SIZE(intercon_3007));
+		snd_soc_dapm_add_routes(dapm, intercon_3007,
+					ARRAY_SIZE(intercon_3007));
 	}
 
 	return 0;
@@ -1075,7 +1079,7 @@ static int aic3x_regulator_event(struct notifier_block *nb,
 		 * Put codec to reset and require cache sync as at least one
 		 * of the supplies was disabled
 		 */
-		if (aic3x->gpio_reset >= 0)
+		if (gpio_is_valid(aic3x->gpio_reset))
 			gpio_set_value(aic3x->gpio_reset, 0);
 		aic3x->codec->cache_sync = 1;
 	}
@@ -1102,7 +1106,7 @@ static int aic3x_set_power(struct snd_soc_codec *codec, int power)
 		if (!codec->cache_sync)
 			goto out;
 
-		if (aic3x->gpio_reset >= 0) {
+		if (gpio_is_valid(aic3x->gpio_reset)) {
 			udelay(1);
 			gpio_set_value(aic3x->gpio_reset, 1);
 		}
@@ -1135,7 +1139,7 @@ static int aic3x_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_ON:
 		break;
 	case SND_SOC_BIAS_PREPARE:
-		if (codec->bias_level == SND_SOC_BIAS_STANDBY &&
+		if (codec->dapm.bias_level == SND_SOC_BIAS_STANDBY &&
 		    aic3x->master) {
 			/* enable pll */
 			reg = snd_soc_read(codec, AIC3X_PLL_PROGA_REG);
@@ -1146,7 +1150,7 @@ static int aic3x_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_STANDBY:
 		if (!aic3x->power)
 			aic3x_set_power(codec, 1);
-		if (codec->bias_level == SND_SOC_BIAS_PREPARE &&
+		if (codec->dapm.bias_level == SND_SOC_BIAS_PREPARE &&
 		    aic3x->master) {
 			/* disable pll */
 			reg = snd_soc_read(codec, AIC3X_PLL_PROGA_REG);
@@ -1159,7 +1163,7 @@ static int aic3x_set_bias_level(struct snd_soc_codec *codec,
 			aic3x_set_power(codec, 0);
 		break;
 	}
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 
 	return 0;
 }
@@ -1344,14 +1348,28 @@ static int aic3x_init(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static bool aic3x_is_shared_reset(struct aic3x_priv *aic3x)
+{
+	struct aic3x_priv *a;
+
+	list_for_each_entry(a, &reset_list, list) {
+		if (gpio_is_valid(aic3x->gpio_reset) &&
+		    aic3x->gpio_reset == a->gpio_reset)
+			return true;
+	}
+
+	return false;
+}
+
 static int aic3x_probe(struct snd_soc_codec *codec)
 {
 	struct aic3x_priv *aic3x = snd_soc_codec_get_drvdata(codec);
 	int ret, i;
 
+	INIT_LIST_HEAD(&aic3x->list);
 	codec->control_data = aic3x->control_data;
 	aic3x->codec = codec;
-	codec->idle_bias_off = 1;
+	codec->dapm.idle_bias_off = 1;
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 8, aic3x->control_type);
 	if (ret != 0) {
@@ -1359,7 +1377,8 @@ static int aic3x_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	if (aic3x->gpio_reset >= 0) {
+	if (gpio_is_valid(aic3x->gpio_reset) &&
+	    !aic3x_is_shared_reset(aic3x)) {
 		ret = gpio_request(aic3x->gpio_reset, "tlv320aic3x reset");
 		if (ret != 0)
 			goto err_gpio;
@@ -1405,6 +1424,7 @@ static int aic3x_probe(struct snd_soc_codec *codec)
 		snd_soc_add_controls(codec, &aic3x_classd_amp_gain_ctrl, 1);
 
 	aic3x_add_widgets(codec);
+	list_add(&aic3x->list, &reset_list);
 
 	return 0;
 
@@ -1414,10 +1434,10 @@ err_notif:
 					      &aic3x->disable_nb[i].nb);
 	regulator_bulk_free(ARRAY_SIZE(aic3x->supplies), aic3x->supplies);
 err_get:
-	if (aic3x->gpio_reset >= 0)
+	if (gpio_is_valid(aic3x->gpio_reset) &&
+	    !aic3x_is_shared_reset(aic3x))
 		gpio_free(aic3x->gpio_reset);
 err_gpio:
-	kfree(aic3x);
 	return ret;
 }
 
@@ -1427,7 +1447,9 @@ static int aic3x_remove(struct snd_soc_codec *codec)
 	int i;
 
 	aic3x_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	if (aic3x->gpio_reset >= 0) {
+	list_del(&aic3x->list);
+	if (gpio_is_valid(aic3x->gpio_reset) &&
+	    !aic3x_is_shared_reset(aic3x)) {
 		gpio_set_value(aic3x->gpio_reset, 0);
 		gpio_free(aic3x->gpio_reset);
 	}
@@ -1523,21 +1545,6 @@ static struct i2c_driver aic3x_i2c_driver = {
 	.remove = aic3x_i2c_remove,
 	.id_table = aic3x_i2c_id,
 };
-
-static inline void aic3x_i2c_init(void)
-{
-	int ret;
-
-	ret = i2c_add_driver(&aic3x_i2c_driver);
-	if (ret)
-		printk(KERN_ERR "%s: error regsitering i2c driver, %d\n",
-		       __func__, ret);
-}
-
-static inline void aic3x_i2c_exit(void)
-{
-	i2c_del_driver(&aic3x_i2c_driver);
-}
 #endif
 
 static int __init aic3x_modinit(void)

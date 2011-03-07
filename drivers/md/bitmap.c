@@ -210,11 +210,11 @@ static struct page *read_sb_page(mddev_t *mddev, loff_t offset,
 		    || test_bit(Faulty, &rdev->flags))
 			continue;
 
-		target = rdev->sb_start + offset + index * (PAGE_SIZE/512);
+		target = offset + index * (PAGE_SIZE/512);
 
 		if (sync_page_io(rdev, target,
 				 roundup(size, bdev_logical_block_size(rdev->bdev)),
-				 page, READ)) {
+				 page, READ, true)) {
 			page->index = index;
 			attach_page_buffers(page, NULL); /* so that free_buffer will
 							  * quietly no-op */
@@ -264,14 +264,18 @@ static mdk_rdev_t *next_active_rdev(mdk_rdev_t *rdev, mddev_t *mddev)
 static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 {
 	mdk_rdev_t *rdev = NULL;
+	struct block_device *bdev;
 	mddev_t *mddev = bitmap->mddev;
 
 	while ((rdev = next_active_rdev(rdev, mddev)) != NULL) {
 		int size = PAGE_SIZE;
 		loff_t offset = mddev->bitmap_info.offset;
+
+		bdev = (rdev->meta_bdev) ? rdev->meta_bdev : rdev->bdev;
+
 		if (page->index == bitmap->file_pages-1)
 			size = roundup(bitmap->last_page_size,
-				       bdev_logical_block_size(rdev->bdev));
+				       bdev_logical_block_size(bdev));
 		/* Just make sure we aren't corrupting data or
 		 * metadata
 		 */
@@ -1542,7 +1546,7 @@ void bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector)
 	wait_event(bitmap->mddev->recovery_wait,
 		   atomic_read(&bitmap->mddev->recovery_active) == 0);
 
-	bitmap->mddev->curr_resync_completed = bitmap->mddev->curr_resync;
+	bitmap->mddev->curr_resync_completed = sector;
 	set_bit(MD_CHANGE_CLEAN, &bitmap->mddev->flags);
 	sector &= ~((1ULL << CHUNK_BLOCK_SHIFT(bitmap)) - 1);
 	s = 0;

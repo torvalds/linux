@@ -303,13 +303,13 @@ int mmc_add_card(struct mmc_card *card)
 			type, card->rca);
 	}
 
-	ret = device_add(&card->dev);
-	if (ret)
-		return ret;
-
 #ifdef CONFIG_DEBUG_FS
 	mmc_add_card_debugfs(card);
 #endif
+
+	ret = device_add(&card->dev);
+	if (ret)
+		return ret;
 
 	mmc_card_set_present(card);
 

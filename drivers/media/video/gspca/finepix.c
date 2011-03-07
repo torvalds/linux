@@ -229,7 +229,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 }
 
 /* Table of supported USB devices */
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x04cb, 0x0104)},
 	{USB_DEVICE(0x04cb, 0x0109)},
 	{USB_DEVICE(0x04cb, 0x010b)},

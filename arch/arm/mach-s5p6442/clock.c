@@ -340,7 +340,7 @@ void __init_or_cpufreq s5p6442_setup_clocks(void)
 	clk_pclkd1.rate = pclkd1;
 }
 
-static struct clk init_clocks_disable[] = {
+static struct clk init_clocks_off[] = {
 	{
 		.name		= "pdma",
 		.id		= -1,
@@ -408,23 +408,13 @@ static struct clk *clks[] __initdata = {
 
 void __init s5p6442_register_clocks(void)
 {
-	struct clk *clkptr;
-	int i, ret;
-
 	s3c24xx_register_clocks(clks, ARRAY_SIZE(clks));
 
 	s3c_register_clksrc(clksrcs, ARRAY_SIZE(clksrcs));
 	s3c_register_clocks(init_clocks, ARRAY_SIZE(init_clocks));
 
-	clkptr = init_clocks_disable;
-	for (i = 0; i < ARRAY_SIZE(init_clocks_disable); i++, clkptr++) {
-		ret = s3c24xx_register_clock(clkptr);
-		if (ret < 0) {
-			printk(KERN_ERR "Fail to register clock %s (%d)\n",
-					clkptr->name, ret);
-		} else
-			(clkptr->enable)(clkptr, 0);
-	}
+	s3c_register_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
+	s3c_disable_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
 
 	s3c_pwmclk_init();
 }

@@ -173,7 +173,8 @@ int intc_set_priority(unsigned int irq, unsigned int prio)
 	return 0;
 }
 
-#define VALID(x) (x | 0x80)
+#define SENSE_VALID_FLAG 0x80
+#define VALID(x) (x | SENSE_VALID_FLAG)
 
 static unsigned char intc_irq_sense_table[IRQ_TYPE_SENSE_MASK + 1] = {
 	[IRQ_TYPE_EDGE_FALLING] = VALID(0),
@@ -201,7 +202,8 @@ static int intc_set_type(struct irq_data *data, unsigned int type)
 	ihp = intc_find_irq(d->sense, d->nr_sense, irq);
 	if (ihp) {
 		addr = INTC_REG(d, _INTC_ADDR_E(ihp->handle), 0);
-		intc_reg_fns[_INTC_FN(ihp->handle)](addr, ihp->handle, value);
+		intc_reg_fns[_INTC_FN(ihp->handle)](addr, ihp->handle,
+						    value & ~SENSE_VALID_FLAG);
 	}
 
 	return 0;

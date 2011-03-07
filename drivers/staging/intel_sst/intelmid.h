@@ -178,9 +178,4 @@ extern struct snd_kcontrol_new snd_intelmad_controls_mrst[];
 extern struct snd_kcontrol_new snd_intelmad_controls_mfld[];
 extern struct snd_pmic_ops *intelmad_vendor_ops[];
 
-/* This is an enabler hook as the platform detection logic isn't yet
-   present and depends on some firmware and DMI support to detect AAVA
-   devices. It will vanish once the AAVA platform support is merged */
-#define is_aava()	0
-
 #endif /* __INTELMID_H */

@@ -309,6 +309,9 @@ static int validate_request(struct autofs_wait_queue **wait,
 	 * completed while we waited on the mutex ...
 	 */
 	if (notify == NFY_MOUNT) {
+		struct dentry *new = NULL;
+		int valid = 1;
+
 		/*
 		 * If the dentry was successfully mounted while we slept
 		 * on the wait queue mutex we can return success. If it
@@ -316,8 +319,20 @@ static int validate_request(struct autofs_wait_queue **wait,
 		 * a multi-mount with no mount at it's base) we can
 		 * continue on and create a new request.
 		 */
+		if (!IS_ROOT(dentry)) {
+			if (dentry->d_inode && d_unhashed(dentry)) {
+				struct dentry *parent = dentry->d_parent;
+				new = d_lookup(parent, &dentry->d_name);
+				if (new)
+					dentry = new;
+			}
+		}
 		if (have_submounts(dentry))
-			return 0;
+			valid = 0;
+
+		if (new)
+			dput(new);
+		return valid;
 	}
 
 	return 1;

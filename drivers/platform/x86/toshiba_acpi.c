@@ -841,7 +841,7 @@ static void remove_toshiba_proc_entries(void)
 	remove_proc_entry("version", toshiba_proc_dir);
 }
 
-static struct backlight_ops toshiba_backlight_data = {
+static const struct backlight_ops toshiba_backlight_data = {
         .get_brightness = get_lcd,
         .update_status  = set_lcd_status,
 };

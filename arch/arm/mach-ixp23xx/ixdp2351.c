@@ -48,14 +48,14 @@
 /*
  * IXDP2351 Interrupt Handling
  */
-static void ixdp2351_inta_mask(unsigned int irq)
+static void ixdp2351_inta_mask(struct irq_data *d)
 {
-	*IXDP2351_CPLD_INTA_MASK_SET_REG = IXDP2351_INTA_IRQ_MASK(irq);
+	*IXDP2351_CPLD_INTA_MASK_SET_REG = IXDP2351_INTA_IRQ_MASK(d->irq);
 }
 
-static void ixdp2351_inta_unmask(unsigned int irq)
+static void ixdp2351_inta_unmask(struct irq_data *d)
 {
-	*IXDP2351_CPLD_INTA_MASK_CLR_REG = IXDP2351_INTA_IRQ_MASK(irq);
+	*IXDP2351_CPLD_INTA_MASK_CLR_REG = IXDP2351_INTA_IRQ_MASK(d->irq);
 }
 
 static void ixdp2351_inta_handler(unsigned int irq, struct irq_desc *desc)
@@ -64,7 +64,7 @@ static void ixdp2351_inta_handler(unsigned int irq, struct irq_desc *desc)
 		*IXDP2351_CPLD_INTA_STAT_REG & IXDP2351_INTA_IRQ_VALID;
 	int i;
 
-	desc->chip->mask(irq);
+	desc->irq_data.chip->irq_mask(&desc->irq_data);
 
 	for (i = 0; i < IXDP2351_INTA_IRQ_NUM; i++) {
 		if (ex_interrupt & (1 << i)) {
@@ -74,23 +74,23 @@ static void ixdp2351_inta_handler(unsigned int irq, struct irq_desc *desc)
 		}
 	}
 
-	desc->chip->unmask(irq);
+	desc->irq_data.chip->irq_unmask(&desc->irq_data);
 }
 
 static struct irq_chip ixdp2351_inta_chip = {
-	.ack	= ixdp2351_inta_mask,
-	.mask	= ixdp2351_inta_mask,
-	.unmask	= ixdp2351_inta_unmask
+	.irq_ack	= ixdp2351_inta_mask,
+	.irq_mask	= ixdp2351_inta_mask,
+	.irq_unmask	= ixdp2351_inta_unmask
 };
 
-static void ixdp2351_intb_mask(unsigned int irq)
+static void ixdp2351_intb_mask(struct irq_data *d)
 {
-	*IXDP2351_CPLD_INTB_MASK_SET_REG = IXDP2351_INTB_IRQ_MASK(irq);
+	*IXDP2351_CPLD_INTB_MASK_SET_REG = IXDP2351_INTB_IRQ_MASK(d->irq);
 }
 
-static void ixdp2351_intb_unmask(unsigned int irq)
+static void ixdp2351_intb_unmask(struct irq_data *d)
 {
-	*IXDP2351_CPLD_INTB_MASK_CLR_REG = IXDP2351_INTB_IRQ_MASK(irq);
+	*IXDP2351_CPLD_INTB_MASK_CLR_REG = IXDP2351_INTB_IRQ_MASK(d->irq);
 }
 
 static void ixdp2351_intb_handler(unsigned int irq, struct irq_desc *desc)
@@ -99,7 +99,7 @@ static void ixdp2351_intb_handler(unsigned int irq, struct irq_desc *desc)
 		*IXDP2351_CPLD_INTB_STAT_REG & IXDP2351_INTB_IRQ_VALID;
 	int i;
 
-	desc->chip->ack(irq);
+	desc->irq_data.chip->irq_ack(&desc->irq_data);
 
 	for (i = 0; i < IXDP2351_INTB_IRQ_NUM; i++) {
 		if (ex_interrupt & (1 << i)) {
@@ -109,13 +109,13 @@ static void ixdp2351_intb_handler(unsigned int irq, struct irq_desc *desc)
 		}
 	}
 
-	desc->chip->unmask(irq);
+	desc->irq_data.chip->irq_unmask(&desc->irq_data);
 }
 
 static struct irq_chip ixdp2351_intb_chip = {
-	.ack	= ixdp2351_intb_mask,
-	.mask	= ixdp2351_intb_mask,
-	.unmask	= ixdp2351_intb_unmask
+	.irq_ack	= ixdp2351_intb_mask,
+	.irq_mask	= ixdp2351_intb_mask,
+	.irq_unmask	= ixdp2351_intb_unmask
 };
 
 void __init ixdp2351_init_irq(void)

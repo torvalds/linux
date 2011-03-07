@@ -769,7 +769,7 @@ static int iowarrior_probe(struct usb_interface *interface,
 	int i;
 	int retval = -ENOMEM;
 
-	/* allocate memory for our device state and intialize it */
+	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(struct iowarrior), GFP_KERNEL);
 	if (dev == NULL) {
 		dev_err(&interface->dev, "Out of memory\n");

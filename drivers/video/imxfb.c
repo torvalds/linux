@@ -974,6 +974,6 @@ static void __exit imxfb_cleanup(void)
 module_init(imxfb_init);
 module_exit(imxfb_cleanup);
 
-MODULE_DESCRIPTION("Motorola i.MX framebuffer driver");
+MODULE_DESCRIPTION("Freescale i.MX framebuffer driver");
 MODULE_AUTHOR("Sascha Hauer, Pengutronix");
 MODULE_LICENSE("GPL");

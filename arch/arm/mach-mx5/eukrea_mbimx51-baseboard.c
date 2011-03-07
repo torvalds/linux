@@ -21,7 +21,6 @@
 #include <linux/fsl_devices.h>
 #include <linux/i2c/tsc2007.h>
 #include <linux/leds.h>
-#include <linux/input/matrix_keypad.h>
 
 #include <mach/common.h>
 #include <mach/hardware.h>
@@ -157,7 +156,7 @@ static int mbimx51_keymap[] = {
 	KEY(3, 3, KEY_ENTER),
 };
 
-static struct matrix_keymap_data mbimx51_map_data = {
+static const struct matrix_keymap_data mbimx51_map_data __initconst = {
 	.keymap		= mbimx51_keymap,
 	.keymap_size	= ARRAY_SIZE(mbimx51_keymap),
 };
@@ -209,7 +208,7 @@ void __init eukrea_mbimx51_baseboard_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	mxc_register_device(&mxc_keypad_device, &mbimx51_map_data);
+	imx51_add_imx_keypad(&mbimx51_map_data);
 
 	gpio_request(MBIMX51_TSC2007_GPIO, "tsc2007_irq");
 	gpio_direction_input(MBIMX51_TSC2007_GPIO);

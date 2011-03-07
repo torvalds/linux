@@ -35,6 +35,7 @@
 #include <plat/common.h>
 #include <plat/usb.h>
 #include <plat/display.h>
+#include <plat/panel-generic-dpi.h>
 
 #include "mux.h"
 #include "control.h"
@@ -303,13 +304,18 @@ static void am3517_evm_panel_disable_lcd(struct omap_dss_device *dssdev)
 	lcd_enabled = 0;
 }
 
+static struct panel_generic_dpi_data lcd_panel = {
+	.name			= "sharp_lq",
+	.platform_enable	= am3517_evm_panel_enable_lcd,
+	.platform_disable	= am3517_evm_panel_disable_lcd,
+};
+
 static struct omap_dss_device am3517_evm_lcd_device = {
 	.type			= OMAP_DISPLAY_TYPE_DPI,
 	.name			= "lcd",
-	.driver_name		= "sharp_lq_panel",
+	.driver_name		= "generic_dpi_panel",
+	.data			= &lcd_panel,
 	.phy.dpi.data_lines 	= 16,
-	.platform_enable	= am3517_evm_panel_enable_lcd,
-	.platform_disable	= am3517_evm_panel_disable_lcd,
 };
 
 static int am3517_evm_panel_enable_tv(struct omap_dss_device *dssdev)
@@ -346,13 +352,18 @@ static void am3517_evm_panel_disable_dvi(struct omap_dss_device *dssdev)
 	dvi_enabled = 0;
 }
 
+static struct panel_generic_dpi_data dvi_panel = {
+	.name			= "generic",
+	.platform_enable	= am3517_evm_panel_enable_dvi,
+	.platform_disable	= am3517_evm_panel_disable_dvi,
+};
+
 static struct omap_dss_device am3517_evm_dvi_device = {
 	.type			= OMAP_DISPLAY_TYPE_DPI,
 	.name			= "dvi",
-	.driver_name		= "generic_panel",
+	.driver_name		= "generic_dpi_panel",
+	.data			= &dvi_panel,
 	.phy.dpi.data_lines	= 24,
-	.platform_enable	= am3517_evm_panel_enable_dvi,
-	.platform_disable	= am3517_evm_panel_disable_dvi,
 };
 
 static struct omap_dss_device *am3517_evm_dss_devices[] = {

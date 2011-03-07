@@ -70,7 +70,7 @@ extern int imx_irq_set_priority(unsigned char irq, unsigned char prio);
 
 /* all normal IRQs can be FIQs */
 #define FIQ_START	0
-/* switch betwean IRQ and FIQ */
+/* switch between IRQ and FIQ */
 extern int mxc_set_irq_fiq(unsigned int irq, unsigned int type);
 
 #endif /* __ASM_ARCH_MXC_IRQS_H__ */

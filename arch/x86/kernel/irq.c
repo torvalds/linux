@@ -4,6 +4,7 @@
 #include <linux/cpu.h>
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
+#include <linux/of.h>
 #include <linux/seq_file.h>
 #include <linux/smp.h>
 #include <linux/ftrace.h>
@@ -275,6 +276,15 @@ void smp_x86_platform_ipi(struct pt_regs *regs)
 
 EXPORT_SYMBOL_GPL(vector_used_by_percpu_irq);
 
+#ifdef CONFIG_OF
+unsigned int irq_create_of_mapping(struct device_node *controller,
+		const u32 *intspec, unsigned int intsize)
+{
+	return intspec[0];
+}
+EXPORT_SYMBOL_GPL(irq_create_of_mapping);
+#endif
+
 #ifdef CONFIG_HOTPLUG_CPU
 /* A cpu has been removed from cpu_online_mask.  Reset irq affinities. */
 void fixup_irqs(void)
@@ -357,7 +367,8 @@ void fixup_irqs(void)
 		if (irr  & (1 << (vector % 32))) {
 			irq = __this_cpu_read(vector_irq[vector]);
 
-			data = irq_get_irq_data(irq);
+			desc = irq_to_desc(irq);
+			data = &desc->irq_data;
 			raw_spin_lock(&desc->lock);
 			if (data->chip->irq_retrigger)
 				data->chip->irq_retrigger(data);

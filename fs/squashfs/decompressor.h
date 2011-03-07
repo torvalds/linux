@@ -52,4 +52,13 @@ static inline int squashfs_decompress(struct squashfs_sb_info *msblk,
 	return msblk->decompressor->decompress(msblk, buffer, bh, b, offset,
 		length, srclength, pages);
 }
+
+#ifdef CONFIG_SQUASHFS_XZ
+extern const struct squashfs_decompressor squashfs_xz_comp_ops;
+#endif
+
+#ifdef CONFIG_SQUASHFS_LZO
+extern const struct squashfs_decompressor squashfs_lzo_comp_ops;
+#endif
+
 #endif

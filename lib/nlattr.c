@@ -148,7 +148,7 @@ nla_policy_len(const struct nla_policy *p, int n)
 {
 	int i, len = 0;
 
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < n; i++, p++) {
 		if (p->len)
 			len += nla_total_size(p->len);
 		else if (nla_attr_minlen[p->type])
@@ -167,7 +167,7 @@ nla_policy_len(const struct nla_policy *p, int n)
  * @policy: validation policy
  *
  * Parses a stream of attributes and stores a pointer to each attribute in
- * the tb array accessable via the attribute type. Attributes with a type
+ * the tb array accessible via the attribute type. Attributes with a type
  * exceeding maxtype will be silently ignored for backwards compatibility
  * reasons. policy may be set to NULL if no validation is required.
  *

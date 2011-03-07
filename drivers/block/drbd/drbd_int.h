@@ -911,8 +911,6 @@ struct drbd_md {
 struct drbd_backing_dev {
 	struct block_device *backing_bdev;
 	struct block_device *md_bdev;
-	struct file *lo_file;
-	struct file *md_file;
 	struct drbd_md md;
 	struct disk_conf dc; /* The user provided config... */
 	sector_t known_size; /* last known size of that backing device */

@@ -735,6 +735,7 @@ struct efx_nic {
 	unsigned next_buffer_table;
 	unsigned n_channels;
 	unsigned n_rx_channels;
+	unsigned tx_channel_offset;
 	unsigned n_tx_channels;
 	unsigned int rx_buffer_len;
 	unsigned int rx_buffer_order;
@@ -929,8 +930,13 @@ efx_get_channel(struct efx_nic *efx, unsigned index)
 	     _channel = (_channel->channel + 1 < (_efx)->n_channels) ?	\
 		     (_efx)->channel[_channel->channel + 1] : NULL)
 
-extern struct efx_tx_queue *
-efx_get_tx_queue(struct efx_nic *efx, unsigned index, unsigned type);
+static inline struct efx_tx_queue *
+efx_get_tx_queue(struct efx_nic *efx, unsigned index, unsigned type)
+{
+	EFX_BUG_ON_PARANOID(index >= efx->n_tx_channels ||
+			    type >= EFX_TXQ_TYPES);
+	return &efx->channel[efx->tx_channel_offset + index]->tx_queue[type];
+}
 
 static inline struct efx_tx_queue *
 efx_channel_get_tx_queue(struct efx_channel *channel, unsigned type)

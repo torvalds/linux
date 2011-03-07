@@ -258,7 +258,7 @@ static void __maybe_unused pcpu_next_pop(struct pcpu_chunk *chunk,
 
 /*
  * (Un)populated page region iterators.  Iterate over (un)populated
- * page regions betwen @start and @end in @chunk.  @rs and @re should
+ * page regions between @start and @end in @chunk.  @rs and @re should
  * be integer variables and will be set to start and end page index of
  * the current region.
  */

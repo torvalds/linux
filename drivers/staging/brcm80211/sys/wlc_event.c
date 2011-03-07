@@ -16,9 +16,13 @@
 
 #include <linux/kernel.h>
 #include <bcmdefs.h>
-#include <linuxver.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+#include <osl.h>
 #include <bcmutils.h>
 #include <siutils.h>
+#include <sbhndpio.h>
+#include <sbhnddma.h>
 #include <wlioctl.h>
 #include <wlc_cfg.h>
 #include <wlc_pub.h>
@@ -32,6 +36,7 @@
 #ifdef MSGTRACE
 #include <msgtrace.h>
 #endif
+#include <wl_dbg.h>
 
 /* Local prototypes */
 static void wlc_timer_cb(void *arg);
@@ -42,7 +47,7 @@ struct wlc_eventq {
 	wlc_event_t *tail;
 	struct wlc_info *wlc;
 	void *wl;
-	wlc_pub_t *pub;
+	struct wlc_pub *pub;
 	bool tpending;
 	bool workpending;
 	struct wl_timer *timer;
@@ -53,7 +58,8 @@ struct wlc_eventq {
 /*
  * Export functions
  */
-wlc_eventq_t *wlc_eventq_attach(wlc_pub_t *pub, struct wlc_info *wlc, void *wl,
+wlc_eventq_t *wlc_eventq_attach(struct wlc_pub *pub, struct wlc_info *wlc,
+				void *wl,
 				wlc_eventq_cb_t cb)
 {
 	wlc_eventq_t *eq;
@@ -69,8 +75,8 @@ wlc_eventq_t *wlc_eventq_attach(wlc_pub_t *pub, struct wlc_info *wlc, void *wl,
 
 	eq->timer = wl_init_timer(eq->wl, wlc_timer_cb, eq, "eventq");
 	if (!eq->timer) {
-		WL_ERROR(("wl%d: wlc_eventq_attach: timer failed\n",
-			  pub->unit));
+		WL_ERROR("wl%d: wlc_eventq_attach: timer failed\n",
+			 pub->unit);
 		kfree(eq);
 		return NULL;
 	}

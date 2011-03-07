@@ -1838,7 +1838,7 @@ bfa_ioim_sm_cleanup_qfull(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 
 	case BFA_IOIM_SM_ABORT:
 		/*
-		 * IO is alraedy being cleaned up implicitly
+		 * IO is already being cleaned up implicitly
 		 */
 		ioim->io_cbfn = __bfa_cb_ioim_abort;
 		break;

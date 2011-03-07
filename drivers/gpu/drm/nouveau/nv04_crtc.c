@@ -551,7 +551,10 @@ nv_crtc_mode_set_regs(struct drm_crtc *crtc, struct drm_display_mode * mode)
 	if (dev_priv->card_type >= NV_30)
 		regp->gpio_ext = NVReadCRTC(dev, 0, NV_PCRTC_GPIO_EXT);
 
-	regp->crtc_cfg = NV_PCRTC_CONFIG_START_ADDRESS_HSYNC;
+	if (dev_priv->card_type >= NV_10)
+		regp->crtc_cfg = NV10_PCRTC_CONFIG_START_ADDRESS_HSYNC;
+	else
+		regp->crtc_cfg = NV04_PCRTC_CONFIG_START_ADDRESS_HSYNC;
 
 	/* Some misc regs */
 	if (dev_priv->card_type == NV_40) {
@@ -669,6 +672,7 @@ static void nv_crtc_prepare(struct drm_crtc *crtc)
 	if (nv_two_heads(dev))
 		NVSetOwner(dev, nv_crtc->index);
 
+	drm_vblank_pre_modeset(dev, nv_crtc->index);
 	funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
 
 	NVBlankScreen(dev, nv_crtc->index, true);
@@ -701,6 +705,7 @@ static void nv_crtc_commit(struct drm_crtc *crtc)
 #endif
 
 	funcs->dpms(crtc, DRM_MODE_DPMS_ON);
+	drm_vblank_post_modeset(dev, nv_crtc->index);
 }
 
 static void nv_crtc_destroy(struct drm_crtc *crtc)
@@ -986,6 +991,7 @@ static const struct drm_crtc_funcs nv04_crtc_funcs = {
 	.cursor_move = nv04_crtc_cursor_move,
 	.gamma_set = nv_crtc_gamma_set,
 	.set_config = drm_crtc_helper_set_config,
+	.page_flip = nouveau_crtc_page_flip,
 	.destroy = nv_crtc_destroy,
 };
 

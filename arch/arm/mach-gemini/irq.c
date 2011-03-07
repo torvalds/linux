@@ -32,34 +32,34 @@
 #define FIQ_LEVEL(base_addr)	(base_addr + 0x30)
 #define FIQ_STATUS(base_addr)	(base_addr + 0x34)
 
-static void gemini_ack_irq(unsigned int irq)
+static void gemini_ack_irq(struct irq_data *d)
 {
-	__raw_writel(1 << irq, IRQ_CLEAR(IO_ADDRESS(GEMINI_INTERRUPT_BASE)));
+	__raw_writel(1 << d->irq, IRQ_CLEAR(IO_ADDRESS(GEMINI_INTERRUPT_BASE)));
 }
 
-static void gemini_mask_irq(unsigned int irq)
+static void gemini_mask_irq(struct irq_data *d)
 {
 	unsigned int mask;
 
 	mask = __raw_readl(IRQ_MASK(IO_ADDRESS(GEMINI_INTERRUPT_BASE)));
-	mask &= ~(1 << irq);
+	mask &= ~(1 << d->irq);
 	__raw_writel(mask, IRQ_MASK(IO_ADDRESS(GEMINI_INTERRUPT_BASE)));
 }
 
-static void gemini_unmask_irq(unsigned int irq)
+static void gemini_unmask_irq(struct irq_data *d)
 {
 	unsigned int mask;
 
 	mask = __raw_readl(IRQ_MASK(IO_ADDRESS(GEMINI_INTERRUPT_BASE)));
-	mask |= (1 << irq);
+	mask |= (1 << d->irq);
 	__raw_writel(mask, IRQ_MASK(IO_ADDRESS(GEMINI_INTERRUPT_BASE)));
 }
 
 static struct irq_chip gemini_irq_chip = {
-	.name	= "INTC",
-	.ack	= gemini_ack_irq,
-	.mask	= gemini_mask_irq,
-	.unmask	= gemini_unmask_irq,
+	.name		= "INTC",
+	.irq_ack	= gemini_ack_irq,
+	.irq_mask	= gemini_mask_irq,
+	.irq_unmask	= gemini_unmask_irq,
 };
 
 static struct resource irq_resource = {

@@ -473,6 +473,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 		asb->s_namelen = ADFS_F_NAME_LEN;
 	}
 
+	sb->s_d_op = &adfs_dentry_operations;
 	root = adfs_iget(sb, &root_obj);
 	sb->s_root = d_alloc_root(root);
 	if (!sb->s_root) {
@@ -483,8 +484,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 		kfree(asb->s_map);
 		adfs_error(sb, "get root inode failed\n");
 		goto error;
-	} else
-		d_set_d_op(sb->s_root, &adfs_dentry_operations);
+	}
 	unlock_kernel();
 	return 0;
 

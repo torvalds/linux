@@ -569,15 +569,11 @@ static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		}
 		return ret;
 	} else {
-		cl->bstats.packets +=
-			skb_is_gso(skb)?skb_shinfo(skb)->gso_segs:1;
-		cl->bstats.bytes += qdisc_pkt_len(skb);
+		bstats_update(&cl->bstats, skb);
 		htb_activate(q, cl);
 	}
 
 	sch->q.qlen++;
-	sch->bstats.packets += skb_is_gso(skb)?skb_shinfo(skb)->gso_segs:1;
-	sch->bstats.bytes += qdisc_pkt_len(skb);
 	return NET_XMIT_SUCCESS;
 }
 
@@ -648,12 +644,10 @@ static void htb_charge_class(struct htb_sched *q, struct htb_class *cl,
 				htb_add_to_wait_tree(q, cl, diff);
 		}
 
-		/* update byte stats except for leaves which are already updated */
-		if (cl->level) {
-			cl->bstats.bytes += bytes;
-			cl->bstats.packets += skb_is_gso(skb)?
-					skb_shinfo(skb)->gso_segs:1;
-		}
+		/* update basic stats except for leaves which are already updated */
+		if (cl->level)
+			bstats_update(&cl->bstats, skb);
+
 		cl = cl->parent;
 	}
 }
@@ -847,7 +841,7 @@ next:
 
 static struct sk_buff *htb_dequeue(struct Qdisc *sch)
 {
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb;
 	struct htb_sched *q = qdisc_priv(sch);
 	int level;
 	psched_time_t next_event;
@@ -856,6 +850,8 @@ static struct sk_buff *htb_dequeue(struct Qdisc *sch)
 	/* try to dequeue direct packets as high prio (!) to minimize cpu work */
 	skb = __skb_dequeue(&q->direct_queue);
 	if (skb != NULL) {
+ok:
+		qdisc_bstats_update(sch, skb);
 		sch->flags &= ~TCQ_F_THROTTLED;
 		sch->q.qlen--;
 		return skb;
@@ -889,11 +885,8 @@ static struct sk_buff *htb_dequeue(struct Qdisc *sch)
 			int prio = ffz(m);
 			m |= 1 << prio;
 			skb = htb_dequeue_tree(q, prio, level);
-			if (likely(skb != NULL)) {
-				sch->q.qlen--;
-				sch->flags &= ~TCQ_F_THROTTLED;
-				goto fin;
-			}
+			if (likely(skb != NULL))
+				goto ok;
 		}
 	}
 	sch->qstats.overlimits++;

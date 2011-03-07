@@ -25,9 +25,7 @@ TRACE_EVENT(kfree_skb,
 
 	TP_fast_assign(
 		__entry->skbaddr = skb;
-		if (skb) {
-			__entry->protocol = ntohs(skb->protocol);
-		}
+		__entry->protocol = ntohs(skb->protocol);
 		__entry->location = location;
 	),
 

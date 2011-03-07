@@ -64,35 +64,34 @@
 #define VIC_VECTPRIORITY(n) VIC_REG(0x0200+((n) * 4))
 #define VIC_VECTADDR(n)     VIC_REG(0x0400+((n) * 4))
 
-static void msm_irq_ack(unsigned int irq)
+static void msm_irq_ack(struct irq_data *d)
 {
-	void __iomem *reg = VIC_INT_CLEAR0 + ((irq & 32) ? 4 : 0);
-	irq = 1 << (irq & 31);
-	writel(irq, reg);
+	void __iomem *reg = VIC_INT_CLEAR0 + ((d->irq & 32) ? 4 : 0);
+	writel(1 << (d->irq & 31), reg);
 }
 
-static void msm_irq_mask(unsigned int irq)
+static void msm_irq_mask(struct irq_data *d)
 {
-	void __iomem *reg = VIC_INT_ENCLEAR0 + ((irq & 32) ? 4 : 0);
-	writel(1 << (irq & 31), reg);
+	void __iomem *reg = VIC_INT_ENCLEAR0 + ((d->irq & 32) ? 4 : 0);
+	writel(1 << (d->irq & 31), reg);
 }
 
-static void msm_irq_unmask(unsigned int irq)
+static void msm_irq_unmask(struct irq_data *d)
 {
-	void __iomem *reg = VIC_INT_ENSET0 + ((irq & 32) ? 4 : 0);
-	writel(1 << (irq & 31), reg);
+	void __iomem *reg = VIC_INT_ENSET0 + ((d->irq & 32) ? 4 : 0);
+	writel(1 << (d->irq & 31), reg);
 }
 
-static int msm_irq_set_wake(unsigned int irq, unsigned int on)
+static int msm_irq_set_wake(struct irq_data *d, unsigned int on)
 {
 	return -EINVAL;
 }
 
-static int msm_irq_set_type(unsigned int irq, unsigned int flow_type)
+static int msm_irq_set_type(struct irq_data *d, unsigned int flow_type)
 {
-	void __iomem *treg = VIC_INT_TYPE0 + ((irq & 32) ? 4 : 0);
-	void __iomem *preg = VIC_INT_POLARITY0 + ((irq & 32) ? 4 : 0);
-	int b = 1 << (irq & 31);
+	void __iomem *treg = VIC_INT_TYPE0 + ((d->irq & 32) ? 4 : 0);
+	void __iomem *preg = VIC_INT_POLARITY0 + ((d->irq & 32) ? 4 : 0);
+	int b = 1 << (d->irq & 31);
 
 	if (flow_type & (IRQF_TRIGGER_FALLING | IRQF_TRIGGER_LOW))
 		writel(readl(preg) | b, preg);
@@ -101,22 +100,22 @@ static int msm_irq_set_type(unsigned int irq, unsigned int flow_type)
 
 	if (flow_type & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING)) {
 		writel(readl(treg) | b, treg);
-		irq_desc[irq].handle_irq = handle_edge_irq;
+		irq_desc[d->irq].handle_irq = handle_edge_irq;
 	}
 	if (flow_type & (IRQF_TRIGGER_HIGH | IRQF_TRIGGER_LOW)) {
 		writel(readl(treg) & (~b), treg);
-		irq_desc[irq].handle_irq = handle_level_irq;
+		irq_desc[d->irq].handle_irq = handle_level_irq;
 	}
 	return 0;
 }
 
 static struct irq_chip msm_irq_chip = {
-	.name      = "msm",
-	.ack       = msm_irq_ack,
-	.mask      = msm_irq_mask,
-	.unmask    = msm_irq_unmask,
-	.set_wake  = msm_irq_set_wake,
-	.set_type  = msm_irq_set_type,
+	.name          = "msm",
+	.irq_ack       = msm_irq_ack,
+	.irq_mask      = msm_irq_mask,
+	.irq_unmask    = msm_irq_unmask,
+	.irq_set_wake  = msm_irq_set_wake,
+	.irq_set_type  = msm_irq_set_type,
 };
 
 void __init msm_init_irq(void)

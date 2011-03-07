@@ -29,7 +29,6 @@
 
 #include "squashfs_fs.h"
 #include "squashfs_fs_sb.h"
-#include "squashfs_fs_i.h"
 #include "squashfs.h"
 #include "decompressor.h"
 
@@ -66,8 +65,8 @@ static int zlib_uncompress(struct squashfs_sb_info *msblk, void **buffer,
 	struct buffer_head **bh, int b, int offset, int length, int srclength,
 	int pages)
 {
-	int zlib_err = 0, zlib_init = 0;
-	int avail, bytes, k = 0, page = 0;
+	int zlib_err, zlib_init = 0;
+	int k = 0, page = 0;
 	z_stream *stream = msblk->stream;
 
 	mutex_lock(&msblk->read_data_mutex);
@@ -75,20 +74,13 @@ static int zlib_uncompress(struct squashfs_sb_info *msblk, void **buffer,
 	stream->avail_out = 0;
 	stream->avail_in = 0;
 
-	bytes = length;
 	do {
 		if (stream->avail_in == 0 && k < b) {
-			avail = min(bytes, msblk->devblksize - offset);
-			bytes -= avail;
+			int avail = min(length, msblk->devblksize - offset);
+			length -= avail;
 			wait_on_buffer(bh[k]);
 			if (!buffer_uptodate(bh[k]))
 				goto release_mutex;
-
-			if (avail == 0) {
-				offset = 0;
-				put_bh(bh[k++]);
-				continue;
-			}
 
 			stream->next_in = bh[k]->b_data + offset;
 			stream->avail_in = avail;
@@ -125,6 +117,11 @@ static int zlib_uncompress(struct squashfs_sb_info *msblk, void **buffer,
 	zlib_err = zlib_inflateEnd(stream);
 	if (zlib_err != Z_OK) {
 		ERROR("zlib_inflate error, data probably corrupt\n");
+		goto release_mutex;
+	}
+
+	if (k < b) {
+		ERROR("zlib_uncompress error, data remaining\n");
 		goto release_mutex;
 	}
 

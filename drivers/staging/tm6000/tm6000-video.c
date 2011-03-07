@@ -1450,29 +1450,55 @@ static struct video_device tm6000_template = {
  * ------------------------------------------------------------------
  */
 
-int tm6000_v4l2_register(struct tm6000_core *dev)
+static struct video_device *vdev_init(struct tm6000_core *dev,
+		const struct video_device
+		*template, const char *type_name)
 {
-	int ret = -1;
 	struct video_device *vfd;
 
 	vfd = video_device_alloc();
-	if(!vfd) {
+	if (NULL == vfd)
+		return NULL;
+
+	*vfd = *template;
+	vfd->v4l2_dev = &dev->v4l2_dev;
+	vfd->release = video_device_release;
+	vfd->debug = tm6000_debug;
+	vfd->lock = &dev->lock;
+
+	snprintf(vfd->name, sizeof(vfd->name), "%s %s", dev->name, type_name);
+
+	video_set_drvdata(vfd, dev);
+	return vfd;
+}
+
+int tm6000_v4l2_register(struct tm6000_core *dev)
+{
+	int ret = -1;
+
+	dev->vfd = vdev_init(dev, &tm6000_template, "video");
+
+	if (!dev->vfd) {
+		printk(KERN_INFO "%s: can't register video device\n",
+		       dev->name);
 		return -ENOMEM;
 	}
-	dev->vfd = vfd;
 
 	/* init video dma queues */
 	INIT_LIST_HEAD(&dev->vidq.active);
 	INIT_LIST_HEAD(&dev->vidq.queued);
 
-	memcpy(dev->vfd, &tm6000_template, sizeof(*(dev->vfd)));
-	dev->vfd->debug = tm6000_debug;
-	dev->vfd->lock = &dev->lock;
-
-	vfd->v4l2_dev = &dev->v4l2_dev;
-	video_set_drvdata(vfd, dev);
-
 	ret = video_register_device(dev->vfd, VFL_TYPE_GRABBER, video_nr);
+
+	if (ret < 0) {
+		printk(KERN_INFO "%s: can't register video device\n",
+		       dev->name);
+		return ret;
+	}
+
+	printk(KERN_INFO "%s: registered device %s\n",
+	       dev->name, video_device_node_name(dev->vfd));
+
 	printk(KERN_INFO "Trident TVMaster TM5600/TM6000/TM6010 USB2 board (Load status: %d)\n", ret);
 	return ret;
 }

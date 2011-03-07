@@ -115,7 +115,6 @@ static unsigned long clk_pxa3xx_smemc_getrate(struct clk *clk)
 {
 	unsigned long acsr = ACSR;
 	unsigned long memclkcfg = __raw_readl(MEMCLKCFG);
-	unsigned int smcfs = (acsr >> 23) & 0x7;
 
 	return BASE_CLK * smcfs_mult[(acsr >> 23) & 0x7] /
 			df_clkdiv[(memclkcfg >> 16) & 0x3];

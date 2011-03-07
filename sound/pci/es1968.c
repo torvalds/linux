@@ -220,7 +220,7 @@ MODULE_PARM_DESC(joystick, "Enable joystick.");
 #define	RINGB_EN_2CODEC		0x0020
 #define RINGB_SING_BIT_DUAL	0x0040
 
-/* ****Port Adresses**** */
+/* ****Port Addresses**** */
 
 /*   Write & Read */
 #define ESM_INDEX		0x02

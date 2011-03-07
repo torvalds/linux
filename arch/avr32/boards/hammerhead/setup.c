@@ -150,7 +150,7 @@ static void __init set_hw_addr(struct platform_device *pdev)
 	regs = (void __iomem __force *)res->start;
 	pclk = clk_get(&pdev->dev, "pclk");
 
-	if (!pclk)
+	if (IS_ERR(pclk))
 		return;
 
 	clk_enable(pclk);

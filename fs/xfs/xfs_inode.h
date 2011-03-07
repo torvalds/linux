@@ -376,12 +376,13 @@ static inline void xfs_ifunlock(xfs_inode_t *ip)
 /*
  * In-core inode flags.
  */
-#define XFS_IRECLAIM    0x0001  /* we have started reclaiming this inode    */
-#define XFS_ISTALE	0x0002	/* inode has been staled */
-#define XFS_IRECLAIMABLE 0x0004 /* inode can be reclaimed */
-#define XFS_INEW	0x0008	/* inode has just been allocated */
-#define XFS_IFILESTREAM	0x0010	/* inode is in a filestream directory */
-#define XFS_ITRUNCATED	0x0020	/* truncated down so flush-on-close */
+#define XFS_IRECLAIM		0x0001  /* started reclaiming this inode */
+#define XFS_ISTALE		0x0002	/* inode has been staled */
+#define XFS_IRECLAIMABLE	0x0004	/* inode can be reclaimed */
+#define XFS_INEW		0x0008	/* inode has just been allocated */
+#define XFS_IFILESTREAM		0x0010	/* inode is in a filestream directory */
+#define XFS_ITRUNCATED		0x0020	/* truncated down so flush-on-close */
+#define XFS_IDIRTY_RELEASE	0x0040	/* dirty release already seen */
 
 /*
  * Flags for inode locking.
@@ -437,6 +438,8 @@ static inline void xfs_ifunlock(xfs_inode_t *ip)
 
 #define XFS_IOLOCK_DEP(flags)	(((flags) & XFS_IOLOCK_DEP_MASK) >> XFS_IOLOCK_SHIFT)
 #define XFS_ILOCK_DEP(flags)	(((flags) & XFS_ILOCK_DEP_MASK) >> XFS_ILOCK_SHIFT)
+
+extern struct lock_class_key xfs_iolock_reclaimable;
 
 /*
  * Flags for xfs_itruncate_start().

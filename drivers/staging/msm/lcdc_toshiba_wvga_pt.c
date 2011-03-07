@@ -77,7 +77,7 @@ static void toshiba_spi_write(char cmd, uint32 data, int num)
 
 	/* followed by parameter bytes */
 	if (num) {
-		bp = (char *)&data;;
+		bp = (char *)&data;
 		bp += (num - 1);
 		while (num) {
 			toshiba_spi_write_byte(1, *bp);

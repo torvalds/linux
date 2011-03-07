@@ -38,6 +38,7 @@
 #include <plat/dma.h>
 #include <plat/gpmc.h>
 #include <plat/display.h>
+#include <plat/panel-generic-dpi.h>
 
 #include <plat/gpmc-smc91x.h>
 
@@ -270,13 +271,18 @@ static struct omap_dss_device sdp3430_lcd_device = {
 	.platform_disable	= sdp3430_panel_disable_lcd,
 };
 
-static struct omap_dss_device sdp3430_dvi_device = {
-	.name			= "dvi",
-	.driver_name		= "generic_panel",
-	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.phy.dpi.data_lines	= 24,
+static struct panel_generic_dpi_data dvi_panel = {
+	.name			= "generic",
 	.platform_enable	= sdp3430_panel_enable_dvi,
 	.platform_disable	= sdp3430_panel_disable_dvi,
+};
+
+static struct omap_dss_device sdp3430_dvi_device = {
+	.name			= "dvi",
+	.type			= OMAP_DISPLAY_TYPE_DPI,
+	.driver_name		= "generic_dpi_panel",
+	.data			= &dvi_panel,
+	.phy.dpi.data_lines	= 24,
 };
 
 static struct omap_dss_device sdp3430_tv_device = {

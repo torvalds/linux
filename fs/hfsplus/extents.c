@@ -397,8 +397,8 @@ int hfsplus_file_extend(struct inode *inode)
 	u32 start, len, goal;
 	int res;
 
-	if (sbi->total_blocks - sbi->free_blocks + 8 >
-			sbi->alloc_file->i_size * 8) {
+	if (sbi->alloc_file->i_size * 8 <
+	    sbi->total_blocks - sbi->free_blocks + 8) {
 		/* extend alloc file */
 		printk(KERN_ERR "hfs: extend alloc file! "
 				"(%llu,%u,%u)\n",

@@ -140,7 +140,7 @@ void snd_hda_set_vmaster_tlv(struct hda_codec *codec, hda_nid_t nid, int dir,
 struct snd_kcontrol *snd_hda_find_mixer_ctl(struct hda_codec *codec,
 					    const char *name);
 int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
-			unsigned int *tlv, const char **slaves);
+			unsigned int *tlv, const char * const *slaves);
 int snd_hda_codec_reset(struct hda_codec *codec);
 
 /* amp value bits */
@@ -341,10 +341,10 @@ void snd_print_pcm_bits(int pcm, char *buf, int buflen);
  * Misc
  */
 int snd_hda_check_board_config(struct hda_codec *codec, int num_configs,
-			       const char **modelnames,
+			       const char * const *modelnames,
 			       const struct snd_pci_quirk *pci_list);
 int snd_hda_check_board_codec_sid_config(struct hda_codec *codec,
-                               int num_configs, const char **models,
+                               int num_configs, const char * const *models,
                                const struct snd_pci_quirk *tbl);
 int snd_hda_add_new_ctls(struct hda_codec *codec,
 			 struct snd_kcontrol_new *knew);

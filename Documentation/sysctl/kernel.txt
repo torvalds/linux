@@ -34,6 +34,7 @@ show up in /proc/sys/kernel:
 - hotplug
 - java-appletviewer           [ binfmt_java, obsolete ]
 - java-interpreter            [ binfmt_java, obsolete ]
+- kptr_restrict
 - kstack_depth_to_print       [ X86 only ]
 - l2cr                        [ PPC only ]
 - modprobe                    ==> Documentation/debugging-modules.txt
@@ -258,6 +259,19 @@ l2cr: (PPC only)
 
 This flag controls the L2 cache of G3 processor boards. If
 0, the cache is disabled. Enabled if nonzero.
+
+==============================================================
+
+kptr_restrict:
+
+This toggle indicates whether restrictions are placed on
+exposing kernel addresses via /proc and other interfaces.  When
+kptr_restrict is set to (0), there are no restrictions.  When
+kptr_restrict is set to (1), the default, kernel pointers
+printed using the %pK format specifier will be replaced with 0's
+unless the user has CAP_SYSLOG.  When kptr_restrict is set to
+(2), kernel pointers printed using %pK will be replaced with 0's
+regardless of privileges.
 
 ==============================================================
 

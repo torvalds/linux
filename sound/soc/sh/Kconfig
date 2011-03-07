@@ -48,7 +48,7 @@ config SND_SH7760_AC97
 
 config SND_FSI_AK4642
 	tristate "FSI-AK4642 sound support"
-	depends on SND_SOC_SH4_FSI && I2C_SH_MOBILE
+	depends on SND_SOC_SH4_FSI && I2C
 	select SND_SOC_AK4642
 	help
 	  This option enables generic sound support for the
@@ -56,7 +56,7 @@ config SND_FSI_AK4642
 
 config SND_FSI_DA7210
 	tristate "FSI-DA7210 sound support"
-	depends on SND_SOC_SH4_FSI && I2C_SH_MOBILE
+	depends on SND_SOC_SH4_FSI && I2C
 	select SND_SOC_DA7210
 	help
 	  This option enables generic sound support for the

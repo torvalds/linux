@@ -223,6 +223,10 @@ static struct bridge_drv_interface drv_interface_fxns = {
 	bridge_msg_set_queue_id,
 };
 
+static struct notifier_block dsp_mbox_notifier = {
+	.notifier_call = io_mbox_msg,
+};
+
 static inline void flush_all(struct bridge_dev_context *dev_context)
 {
 	if (dev_context->dw_brd_state == BRD_DSP_HIBERNATION ||
@@ -553,7 +557,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		 * Enable Mailbox events and also drain any pending
 		 * stale messages.
 		 */
-		dev_context->mbox = omap_mbox_get("dsp");
+		dev_context->mbox = omap_mbox_get("dsp", &dsp_mbox_notifier);
 		if (IS_ERR(dev_context->mbox)) {
 			dev_context->mbox = NULL;
 			pr_err("%s: Failed to get dsp mailbox handle\n",
@@ -563,8 +567,6 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 
 	}
 	if (!status) {
-		dev_context->mbox->rxq->callback = (int (*)(void *))io_mbox_msg;
-
 /*PM_IVA2GRPSEL_PER = 0xC0;*/
 		temp = readl(resources->dw_per_pm_base + 0xA8);
 		temp = (temp & 0xFFFFFF30) | 0xC0;
@@ -596,7 +598,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		dev_dbg(bridge, "DSP c_int00 Address =  0x%x\n", dsp_addr);
 		if (dsp_debug)
 			while (__raw_readw(dw_sync_addr))
-				;;
+				;
 
 		/* Wait for DSP to clear word in shared memory */
 		/* Read the Location */
@@ -685,7 +687,7 @@ static int bridge_brd_stop(struct bridge_dev_context *dev_ctxt)
 	/* Disable the mailbox interrupts */
 	if (dev_context->mbox) {
 		omap_mbox_disable_irq(dev_context->mbox, IRQ_RX);
-		omap_mbox_put(dev_context->mbox);
+		omap_mbox_put(dev_context->mbox, &dsp_mbox_notifier);
 		dev_context->mbox = NULL;
 	}
 	/* Reset IVA2 clocks*/
@@ -786,10 +788,7 @@ static int bridge_dev_create(struct bridge_dev_context
 
 	pt_attrs = kzalloc(sizeof(struct pg_table_attrs), GFP_KERNEL);
 	if (pt_attrs != NULL) {
-		/* Assuming that we use only DSP's memory map
-		 * until 0x4000:0000 , we would need only 1024
-		 * L1 enties i.e L1 size = 4K */
-		pt_attrs->l1_size = 0x1000;
+		pt_attrs->l1_size = SZ_16K; /* 4096 entries of 32 bits */
 		align_size = pt_attrs->l1_size;
 		/* Align sizes are expected to be power of 2 */
 		/* we like to get aligned on L1 table size */
@@ -1671,7 +1670,7 @@ static int pte_set(struct pg_table_attrs *pt, u32 pa, u32 va,
 			/* Find a free L2 PT. */
 			for (i = 0; (i < pt->l2_num_pages) &&
 			     (pt->pg_info[i].num_entries != 0); i++)
-				;;
+				;
 			if (i < pt->l2_num_pages) {
 				l2_page_num = i;
 				l2_base_pa = pt->l2_base_pa + (l2_page_num *

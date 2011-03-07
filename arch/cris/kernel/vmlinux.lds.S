@@ -72,11 +72,6 @@ SECTIONS
 	INIT_TEXT_SECTION(PAGE_SIZE)
 	.init.data : { INIT_DATA }
 	.init.setup : { INIT_SETUP(16) }
-#ifdef CONFIG_ETRAX_ARCH_V32
-	__start___param = .;
-	__param : { *(__param) }
-	__stop___param = .;
-#endif
 	.initcall.init : {
 		INIT_CALLS
 	}

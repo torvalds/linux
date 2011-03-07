@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -122,7 +122,7 @@ static struct acpi_exdump_info acpi_ex_dump_event[2] = {
 
 static struct acpi_exdump_info acpi_ex_dump_method[9] = {
 	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_method), NULL},
-	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(method.method_flags), "Method Flags"},
+	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(method.info_flags), "Info Flags"},
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(method.param_count),
 	 "Parameter Count"},
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(method.sync_level), "Sync Level"},

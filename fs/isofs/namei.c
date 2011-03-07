@@ -172,8 +172,6 @@ struct dentry *isofs_lookup(struct inode *dir, struct dentry *dentry, struct nam
 	struct inode *inode;
 	struct page *page;
 
-	d_set_d_op(dentry, dir->i_sb->s_root->d_op);
-
 	page = alloc_page(GFP_USER);
 	if (!page)
 		return ERR_PTR(-ENOMEM);

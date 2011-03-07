@@ -225,6 +225,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
 	next = start;
 	while (next <= end &&
 	       pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE)) {
+		mem_cgroup_uncharge_start();
 		for (i = 0; i < pagevec_count(&pvec); i++) {
 			struct page *page = pvec.pages[i];
 			pgoff_t page_index = page->index;
@@ -247,6 +248,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
 			unlock_page(page);
 		}
 		pagevec_release(&pvec);
+		mem_cgroup_uncharge_end();
 		cond_resched();
 	}
 
@@ -549,13 +551,12 @@ EXPORT_SYMBOL(truncate_pagecache);
  * @inode: inode
  * @newsize: new file size
  *
- * truncate_setsize updastes i_size update and performs pagecache
- * truncation (if necessary) for a file size updates. It will be
- * typically be called from the filesystem's setattr function when
- * ATTR_SIZE is passed in.
+ * truncate_setsize updates i_size and performs pagecache truncation (if
+ * necessary) to @newsize. It will be typically be called from the filesystem's
+ * setattr function when ATTR_SIZE is passed in.
  *
- * Must be called with inode_mutex held and after all filesystem
- * specific block truncation has been performed.
+ * Must be called with inode_mutex held and before all filesystem specific
+ * block truncation has been performed.
  */
 void truncate_setsize(struct inode *inode, loff_t newsize)
 {

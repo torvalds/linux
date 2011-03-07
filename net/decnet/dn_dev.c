@@ -1130,7 +1130,7 @@ static struct dn_dev *dn_dev_create(struct net_device *dev, int *err)
 /*
  * This processes a device up event. We only start up
  * the loopback device & ethernet devices with correct
- * MAC addreses automatically. Others must be started
+ * MAC addresses automatically. Others must be started
  * specifically.
  *
  * FIXME: How should we configure the loopback address ? If we could dispense

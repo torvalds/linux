@@ -40,11 +40,11 @@ phandle prom_getchild(phandle node)
 {
 	phandle cnode;
 
-	if (node == -1)
+	if ((s32)node == -1)
 		return 0;
 
 	cnode = __prom_getchild(node);
-	if (cnode == 0 || cnode == -1)
+	if (cnode == 0 || (s32)cnode == -1)
 		return 0;
 
 	return cnode;
@@ -72,11 +72,11 @@ phandle prom_getsibling(phandle node)
 {
 	phandle sibnode;
 
-	if (node == -1)
+	if ((s32)node == -1)
 		return 0;
 
 	sibnode = __prom_getsibling(node);
-	if (sibnode == 0 || sibnode == -1)
+	if (sibnode == 0 || (s32)sibnode == -1)
 		return 0;
 
 	return sibnode;
@@ -219,7 +219,7 @@ static char *__prom_nextprop(phandle node, char * oprop)
  */
 char *prom_nextprop(phandle node, char *oprop, char *buffer)
 {
-	if (node == 0 || node == -1)
+	if (node == 0 || (s32)node == -1)
 		return "";
 
 	return __prom_nextprop(node, oprop);
@@ -253,7 +253,7 @@ phandle prom_finddevice(char *name)
 				if (d != s + 3 && (!*d || *d == '/')
 				    && d <= s + 3 + 8) {
 					node2 = node;
-					while (node2 && node2 != -1) {
+					while (node2 && (s32)node2 != -1) {
 						if (prom_getproperty (node2, "reg", (char *)reg, sizeof (reg)) > 0) {
 							if (which_io == reg[0].which_io && phys_addr == reg[0].phys_addr) {
 								node = node2;
@@ -261,7 +261,7 @@ phandle prom_finddevice(char *name)
 							}
 						}
 						node2 = prom_getsibling(node2);
-						if (!node2 || node2 == -1)
+						if (!node2 || (s32)node2 == -1)
 							break;
 						node2 = prom_searchsiblings(prom_getsibling(node2), nbuf);
 					}
@@ -303,6 +303,7 @@ phandle prom_inst2pkg(int inst)
 	node = (*romvec->pv_v2devops.v2_inst2pkg)(inst);
 	restore_current();
 	spin_unlock_irqrestore(&prom_lock, flags);
-	if (node == -1) return 0;
+	if ((s32)node == -1)
+		return 0;
 	return node;
 }

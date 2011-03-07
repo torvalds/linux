@@ -20,14 +20,14 @@
 
 #include "common.h"
 
-static void lh7a40x_ack_cpld_irq (u32 irq)
+static void lh7a40x_ack_cpld_irq(struct irq_data *d)
 {
 	/* CPLD doesn't have ack capability */
 }
 
-static void lh7a40x_mask_cpld_irq (u32 irq)
+static void lh7a40x_mask_cpld_irq(struct irq_data *d)
 {
-	switch (irq) {
+	switch (d->irq) {
 	case IRQ_LPD7A40X_ETH_INT:
 		CPLD_INTERRUPTS = CPLD_INTERRUPTS | 0x4;
 		break;
@@ -37,9 +37,9 @@ static void lh7a40x_mask_cpld_irq (u32 irq)
 	}
 }
 
-static void lh7a40x_unmask_cpld_irq (u32 irq)
+static void lh7a40x_unmask_cpld_irq(struct irq_data *d)
 {
-	switch (irq) {
+	switch (d->irq) {
 	case IRQ_LPD7A40X_ETH_INT:
 		CPLD_INTERRUPTS = CPLD_INTERRUPTS & ~ 0x4;
 		break;
@@ -50,17 +50,17 @@ static void lh7a40x_unmask_cpld_irq (u32 irq)
 }
 
 static struct irq_chip lh7a40x_cpld_chip = {
-	.name	= "CPLD",
-	.ack	= lh7a40x_ack_cpld_irq,
-	.mask	= lh7a40x_mask_cpld_irq,
-	.unmask	= lh7a40x_unmask_cpld_irq,
+	.name		= "CPLD",
+	.irq_ack	= lh7a40x_ack_cpld_irq,
+	.irq_mask	= lh7a40x_mask_cpld_irq,
+	.irq_unmask	= lh7a40x_unmask_cpld_irq,
 };
 
 static void lh7a40x_cpld_handler (unsigned int irq, struct irq_desc *desc)
 {
 	unsigned int mask = CPLD_INTERRUPTS;
 
-	desc->chip->ack (irq);
+	desc->irq_data.chip->ack (irq);
 
 	if ((mask & 0x1) == 0)	/* WLAN */
 		generic_handle_irq(IRQ_LPD7A40X_ETH_INT);
@@ -68,7 +68,7 @@ static void lh7a40x_cpld_handler (unsigned int irq, struct irq_desc *desc)
 	if ((mask & 0x2) == 0)	/* Touch */
 		generic_handle_irq(IRQ_LPD7A400_TS);
 
-	desc->chip->unmask (irq); /* Level-triggered need this */
+	desc->irq_data.chip->unmask (irq); /* Level-triggered need this */
 }
 
 

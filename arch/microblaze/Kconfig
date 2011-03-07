@@ -14,7 +14,9 @@ config MICROBLAZE
 	select HAVE_DMA_API_DEBUG
 	select TRACING_SUPPORT
 	select OF
-	select OF_FLATTREE
+	select OF_EARLY_FLATTREE
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_PROBE
 
 config SWAP
 	def_bool n
@@ -37,12 +39,6 @@ config GENERIC_FIND_NEXT_BIT
 config GENERIC_HWEIGHT
 	def_bool y
 
-config GENERIC_HARDIRQS
-	def_bool y
-
-config GENERIC_IRQ_PROBE
-	def_bool y
-
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
 
@@ -50,9 +46,6 @@ config GENERIC_TIME_VSYSCALL
 	def_bool n
 
 config GENERIC_CLOCKEVENTS
-	def_bool y
-
-config GENERIC_HARDIRQS_NO__DO_IRQ
 	def_bool y
 
 config GENERIC_GPIO

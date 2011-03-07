@@ -19,9 +19,8 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/err.h>
 #include <linux/platform_device.h>
-#include <mach/common.h>
+#include <linux/amba/bus.h>
 
 struct platform_device *__init mxs_add_platform_device_dmamask(
 		const char *name, int id,
@@ -72,4 +71,18 @@ err:
 	}
 
 	return pdev;
+}
+
+int __init mxs_add_amba_device(const struct amba_device *dev)
+{
+	struct amba_device *adev = kmalloc(sizeof(*adev), GFP_KERNEL);
+
+	if (!adev) {
+		pr_err("%s: failed to allocate memory", __func__);
+		return -ENOMEM;
+	}
+
+	*adev = *dev;
+
+	return amba_device_register(adev, &iomem_resource);
 }

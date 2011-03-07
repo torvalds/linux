@@ -617,9 +617,6 @@ struct cx18 {
 	struct cx18_in_work_order in_work_order[CX18_MAX_IN_WORK_ORDERS];
 	char epu_debug_str[256]; /* CX18_EPU_DEBUG is rare: use shared space */
 
-	struct workqueue_struct *out_work_queue;
-	char out_workq_name[12]; /* "cx18-NN-out" */
-
 	/* i2c */
 	struct i2c_adapter i2c_adap[2];
 	struct i2c_algo_bit_data i2c_algo[2];

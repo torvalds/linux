@@ -373,26 +373,20 @@ static int lstats_show_proc(struct seq_file *m, void *v)
 		return -ESRCH;
 	seq_puts(m, "Latency Top version : v0.1\n");
 	for (i = 0; i < 32; i++) {
-		if (task->latency_record[i].backtrace[0]) {
+		struct latency_record *lr = &task->latency_record[i];
+		if (lr->backtrace[0]) {
 			int q;
-			seq_printf(m, "%i %li %li ",
-				task->latency_record[i].count,
-				task->latency_record[i].time,
-				task->latency_record[i].max);
+			seq_printf(m, "%i %li %li",
+				   lr->count, lr->time, lr->max);
 			for (q = 0; q < LT_BACKTRACEDEPTH; q++) {
-				char sym[KSYM_SYMBOL_LEN];
-				char *c;
-				if (!task->latency_record[i].backtrace[q])
+				unsigned long bt = lr->backtrace[q];
+				if (!bt)
 					break;
-				if (task->latency_record[i].backtrace[q] == ULONG_MAX)
+				if (bt == ULONG_MAX)
 					break;
-				sprint_symbol(sym, task->latency_record[i].backtrace[q]);
-				c = strchr(sym, '+');
-				if (c)
-					*c = 0;
-				seq_printf(m, "%s ", sym);
+				seq_printf(m, " %ps", (void *)bt);
 			}
-			seq_printf(m, "\n");
+			seq_putc(m, '\n');
 		}
 
 	}
@@ -751,14 +745,7 @@ static int proc_single_show(struct seq_file *m, void *v)
 
 static int proc_single_open(struct inode *inode, struct file *filp)
 {
-	int ret;
-	ret = single_open(filp, proc_single_show, NULL);
-	if (!ret) {
-		struct seq_file *m = filp->private_data;
-
-		m->private = inode;
-	}
-	return ret;
+	return single_open(filp, proc_single_show, inode);
 }
 
 static const struct file_operations proc_single_file_operations = {
@@ -1164,7 +1151,7 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
 		goto err_task_lock;
 	}
 
-	if (oom_score_adj < task->signal->oom_score_adj &&
+	if (oom_score_adj < task->signal->oom_score_adj_min &&
 			!capable(CAP_SYS_RESOURCE)) {
 		err = -EACCES;
 		goto err_sighand;
@@ -1177,6 +1164,8 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
 			atomic_dec(&task->mm->oom_disable_count);
 	}
 	task->signal->oom_score_adj = oom_score_adj;
+	if (has_capability_noaudit(current, CAP_SYS_RESOURCE))
+		task->signal->oom_score_adj_min = oom_score_adj;
 	/*
 	 * Scale /proc/pid/oom_adj appropriately ensuring that OOM_DISABLE is
 	 * always attainable.
@@ -1386,15 +1375,7 @@ sched_write(struct file *file, const char __user *buf,
 
 static int sched_open(struct inode *inode, struct file *filp)
 {
-	int ret;
-
-	ret = single_open(filp, sched_show, NULL);
-	if (!ret) {
-		struct seq_file *m = filp->private_data;
-
-		m->private = inode;
-	}
-	return ret;
+	return single_open(filp, sched_show, inode);
 }
 
 static const struct file_operations proc_pid_sched_operations = {
@@ -1530,15 +1511,7 @@ static int comm_show(struct seq_file *m, void *v)
 
 static int comm_open(struct inode *inode, struct file *filp)
 {
-	int ret;
-
-	ret = single_open(filp, comm_show, NULL);
-	if (!ret) {
-		struct seq_file *m = filp->private_data;
-
-		m->private = inode;
-	}
-	return ret;
+	return single_open(filp, comm_show, inode);
 }
 
 static const struct file_operations proc_pid_set_comm_operations = {

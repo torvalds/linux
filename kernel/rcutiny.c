@@ -189,7 +189,8 @@ static int rcu_kthread(void *arg)
 	unsigned long flags;
 
 	for (;;) {
-		wait_event(rcu_kthread_wq, have_rcu_kthread_work != 0);
+		wait_event_interruptible(rcu_kthread_wq,
+					 have_rcu_kthread_work != 0);
 		morework = rcu_boost();
 		local_irq_save(flags);
 		work = have_rcu_kthread_work;

@@ -21,9 +21,7 @@
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
 
-#include <linux/ncp_fs.h>
-
-#include "ncplib_kernel.h"
+#include "ncp_fs.h"
 
 static void ncp_read_volume_list(struct file *, void *, filldir_t,
 				struct ncp_cache_control *);
@@ -82,21 +80,13 @@ static int ncp_compare_dentry(const struct dentry *, const struct inode *,
 		unsigned int, const char *, const struct qstr *);
 static int ncp_delete_dentry(const struct dentry *);
 
-static const struct dentry_operations ncp_dentry_operations =
+const struct dentry_operations ncp_dentry_operations =
 {
 	.d_revalidate	= ncp_lookup_validate,
 	.d_hash		= ncp_hash_dentry,
 	.d_compare	= ncp_compare_dentry,
 	.d_delete	= ncp_delete_dentry,
 };
-
-const struct dentry_operations ncp_root_dentry_operations =
-{
-	.d_hash		= ncp_hash_dentry,
-	.d_compare	= ncp_compare_dentry,
-	.d_delete	= ncp_delete_dentry,
-};
-
 
 #define ncp_namespace(i)	(NCP_SERVER(i)->name_space[NCP_FINFO(i)->volNumber])
 
@@ -308,6 +298,9 @@ ncp_lookup_validate(struct dentry *dentry, struct nameidata *nd)
 	struct ncp_entry_info finfo;
 	int res, val = 0, len;
 	__u8 __name[NCP_MAXPATHLEN + 1];
+
+	if (dentry == dentry->d_sb->s_root)
+		return 1;
 
 	if (nd->flags & LOOKUP_RCU)
 		return -ECHILD;
@@ -637,7 +630,6 @@ ncp_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 		entry->ino = iunique(dir->i_sb, 2);
 		inode = ncp_iget(dir->i_sb, entry);
 		if (inode) {
-			d_set_d_op(newdent, &ncp_dentry_operations);
 			d_instantiate(newdent, inode);
 			if (!hashed)
 				d_rehash(newdent);
@@ -893,7 +885,6 @@ static struct dentry *ncp_lookup(struct inode *dir, struct dentry *dentry, struc
 	if (inode) {
 		ncp_new_dentry(dentry);
 add_entry:
-		d_set_d_op(dentry, &ncp_dentry_operations);
 		d_add(dentry, inode);
 		error = 0;
 	}

@@ -1,5 +1,9 @@
 menu "Machine selection"
 
+config SCORE
+       def_bool y
+       select HAVE_GENERIC_HARDIRQS
+
 choice
 	prompt "System type"
 	default MACH_SPCT6600
@@ -53,9 +57,6 @@ config GENERIC_CLOCKEVENTS
 config SCHED_NO_NO_OMIT_FRAME_POINTER
 	def_bool y
 
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	def_bool y
-
 config GENERIC_SYSCALL_TABLE
 	def_bool y
 
@@ -66,9 +67,6 @@ config SCORE_L1_CACHE_SHIFT
 menu "Kernel type"
 
 config 32BIT
-	def_bool y
-
-config GENERIC_HARDIRQS
 	def_bool y
 
 config ARCH_FLATMEM_ENABLE

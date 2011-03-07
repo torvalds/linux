@@ -45,7 +45,7 @@ struct usb_led {
 
 static void change_color(struct usb_led *led)
 {
-	int retval;
+	int retval = 0;
 	unsigned char *buffer;
 
 	buffer = kmalloc(8, GFP_KERNEL);

@@ -49,8 +49,8 @@
 #include <asm/mtrr.h>
 #include <asm/smp.h>
 #include <asm/mce.h>
-#include <asm/kvm_para.h>
 #include <asm/tsc.h>
+#include <asm/hypervisor.h>
 
 unsigned int num_processors;
 
@@ -684,7 +684,7 @@ static int __init calibrate_APIC_clock(void)
 	lapic_clockevent.mult = div_sc(delta, TICK_NSEC * LAPIC_CAL_LOOPS,
 				       lapic_clockevent.shift);
 	lapic_clockevent.max_delta_ns =
-		clockevent_delta2ns(0x7FFFFF, &lapic_clockevent);
+		clockevent_delta2ns(0x7FFFFFFF, &lapic_clockevent);
 	lapic_clockevent.min_delta_ns =
 		clockevent_delta2ns(0xF, &lapic_clockevent);
 
@@ -1381,12 +1381,17 @@ void __cpuinit end_local_APIC_setup(void)
 #endif
 
 	apic_pm_activate();
+}
+
+void __init bsp_end_local_APIC_setup(void)
+{
+	end_local_APIC_setup();
 
 	/*
 	 * Now that local APIC setup is completed for BP, configure the fault
 	 * handling for interrupt remapping.
 	 */
-	if (!smp_processor_id() && intr_remapping_enabled)
+	if (intr_remapping_enabled)
 		enable_drhd_fault_handling();
 
 }
@@ -1476,7 +1481,8 @@ void __init enable_IR_x2apic(void)
 		/* IR is required if there is APIC ID > 255 even when running
 		 * under KVM
 		 */
-		if (max_physical_apicid > 255 || !kvm_para_available())
+		if (max_physical_apicid > 255 ||
+		    !hypervisor_x2apic_available())
 			goto nox2apic;
 		/*
 		 * without IR all CPUs can be addressed by IOAPIC/MSI
@@ -1755,7 +1761,7 @@ int __init APIC_init_uniprocessor(void)
 		enable_IO_APIC();
 #endif
 
-	end_local_APIC_setup();
+	bsp_end_local_APIC_setup();
 
 #ifdef CONFIG_X86_IO_APIC
 	if (smp_found_config && !skip_ioapic_setup && nr_ioapics)

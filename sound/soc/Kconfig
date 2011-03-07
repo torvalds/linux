@@ -20,6 +20,21 @@ menuconfig SND_SOC
 
 if SND_SOC
 
+config SND_SOC_CACHE_LZO
+	bool "Support LZO compression for register caches"
+	select LZO_COMPRESS
+	select LZO_DECOMPRESS
+	---help---
+	   Select this to enable LZO compression for register caches.
+	   This will allow machine or CODEC drivers to compress register
+	   caches in memory, reducing the memory consumption at the
+	   expense of performance.  If this is not present and is used
+	   the system will fall back to uncompressed caches.
+
+	   Usually it is safe to disable this option, where cache
+	   compression in used the rbtree option will typically perform
+	   better.
+
 config SND_SOC_AC97_BUS
 	bool
 
@@ -36,7 +51,7 @@ source "sound/soc/nuc900/Kconfig"
 source "sound/soc/omap/Kconfig"
 source "sound/soc/kirkwood/Kconfig"
 source "sound/soc/pxa/Kconfig"
-source "sound/soc/s3c24xx/Kconfig"
+source "sound/soc/samsung/Kconfig"
 source "sound/soc/s6000/Kconfig"
 source "sound/soc/sh/Kconfig"
 source "sound/soc/txx9/Kconfig"

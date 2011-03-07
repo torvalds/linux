@@ -77,9 +77,9 @@ rio_read_config(struct file *filp, struct kobject *kobj,
 
 	/* Several chips lock up trying to read undefined config space */
 	if (capable(CAP_SYS_ADMIN))
-		size = 0x200000;
+		size = RIO_MAINT_SPACE_SZ;
 
-	if (off > size)
+	if (off >= size)
 		return 0;
 	if (off + count > size) {
 		size -= off;
@@ -147,10 +147,10 @@ rio_write_config(struct file *filp, struct kobject *kobj,
 	loff_t init_off = off;
 	u8 *data = (u8 *) buf;
 
-	if (off > 0x200000)
+	if (off >= RIO_MAINT_SPACE_SZ)
 		return 0;
-	if (off + count > 0x200000) {
-		size = 0x200000 - off;
+	if (off + count > RIO_MAINT_SPACE_SZ) {
+		size = RIO_MAINT_SPACE_SZ - off;
 		count = size;
 	}
 
@@ -200,7 +200,7 @@ static struct bin_attribute rio_config_attr = {
 		 .name = "config",
 		 .mode = S_IRUGO | S_IWUSR,
 		 },
-	.size = 0x200000,
+	.size = RIO_MAINT_SPACE_SZ,
 	.read = rio_read_config,
 	.write = rio_write_config,
 };
@@ -217,7 +217,7 @@ int rio_create_sysfs_dev_files(struct rio_dev *rdev)
 
 	err = device_create_bin_file(&rdev->dev, &rio_config_attr);
 
-	if (!err && rdev->rswitch) {
+	if (!err && (rdev->pef & RIO_PEF_SWITCH)) {
 		err = device_create_file(&rdev->dev, &dev_attr_routes);
 		if (!err && rdev->rswitch->sw_sysfs)
 			err = rdev->rswitch->sw_sysfs(rdev, RIO_SW_SYSFS_CREATE);
@@ -239,7 +239,7 @@ int rio_create_sysfs_dev_files(struct rio_dev *rdev)
 void rio_remove_sysfs_dev_files(struct rio_dev *rdev)
 {
 	device_remove_bin_file(&rdev->dev, &rio_config_attr);
-	if (rdev->rswitch) {
+	if (rdev->pef & RIO_PEF_SWITCH) {
 		device_remove_file(&rdev->dev, &dev_attr_routes);
 		if (rdev->rswitch->sw_sysfs)
 			rdev->rswitch->sw_sysfs(rdev, RIO_SW_SYSFS_REMOVE);

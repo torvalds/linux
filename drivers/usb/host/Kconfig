@@ -151,6 +151,8 @@ config USB_EHCI_MSM
 	  Qualcomm chipsets. Root Hub has inbuilt TT.
 	  This driver depends on OTG driver for PHY initialization,
 	  clock management, powering up VBUS, and power management.
+	  This driver is not supported on boards like trout which
+	  has an external PHY.
 
 config USB_EHCI_HCD_PPC_OF
 	bool "EHCI support for PPC USB controller on OF platform bus"

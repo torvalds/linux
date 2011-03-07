@@ -87,7 +87,7 @@ static int __init aio_setup(void)
 
 	aio_wq = create_workqueue("aio");
 	abe_pool = mempool_create_kmalloc_pool(1, sizeof(struct aio_batch_entry));
-	BUG_ON(!abe_pool);
+	BUG_ON(!aio_wq || !abe_pool);
 
 	pr_debug("aio_setup: sizeof(struct page) = %d\n", (int)sizeof(struct page));
 
@@ -239,15 +239,23 @@ static void __put_ioctx(struct kioctx *ctx)
 	call_rcu(&ctx->rcu_head, ctx_rcu_free);
 }
 
-#define get_ioctx(kioctx) do {						\
-	BUG_ON(atomic_read(&(kioctx)->users) <= 0);			\
-	atomic_inc(&(kioctx)->users);					\
-} while (0)
-#define put_ioctx(kioctx) do {						\
-	BUG_ON(atomic_read(&(kioctx)->users) <= 0);			\
-	if (unlikely(atomic_dec_and_test(&(kioctx)->users))) 		\
-		__put_ioctx(kioctx);					\
-} while (0)
+static inline void get_ioctx(struct kioctx *kioctx)
+{
+	BUG_ON(atomic_read(&kioctx->users) <= 0);
+	atomic_inc(&kioctx->users);
+}
+
+static inline int try_get_ioctx(struct kioctx *kioctx)
+{
+	return atomic_inc_not_zero(&kioctx->users);
+}
+
+static inline void put_ioctx(struct kioctx *kioctx)
+{
+	BUG_ON(atomic_read(&kioctx->users) <= 0);
+	if (unlikely(atomic_dec_and_test(&kioctx->users)))
+		__put_ioctx(kioctx);
+}
 
 /* ioctx_alloc
  *	Allocates and initializes an ioctx.  Returns an ERR_PTR if it failed.
@@ -601,8 +609,13 @@ static struct kioctx *lookup_ioctx(unsigned long ctx_id)
 	rcu_read_lock();
 
 	hlist_for_each_entry_rcu(ctx, n, &mm->ioctx_list, list) {
-		if (ctx->user_id == ctx_id && !ctx->dead) {
-			get_ioctx(ctx);
+		/*
+		 * RCU protects us against accessing freed memory but
+		 * we have to be careful not to get a reference when the
+		 * reference count already dropped to 0 (ctx->dead test
+		 * is unreliable because of races).
+		 */
+		if (ctx->user_id == ctx_id && !ctx->dead && try_get_ioctx(ctx)){
 			ret = ctx;
 			break;
 		}
@@ -798,29 +811,12 @@ static void aio_queue_work(struct kioctx * ctx)
 	queue_delayed_work(aio_wq, &ctx->wq, timeout);
 }
 
-
 /*
- * aio_run_iocbs:
- * 	Process all pending retries queued on the ioctx
- * 	run list.
- * Assumes it is operating within the aio issuer's mm
- * context.
- */
-static inline void aio_run_iocbs(struct kioctx *ctx)
-{
-	int requeue;
-
-	spin_lock_irq(&ctx->ctx_lock);
-
-	requeue = __aio_run_iocbs(ctx);
-	spin_unlock_irq(&ctx->ctx_lock);
-	if (requeue)
-		aio_queue_work(ctx);
-}
-
-/*
- * just like aio_run_iocbs, but keeps running them until
- * the list stays empty
+ * aio_run_all_iocbs:
+ *	Process all pending retries queued on the ioctx
+ *	run list, and keep running them until the list
+ *	stays empty.
+ * Assumes it is operating within the aio issuer's mm context.
  */
 static inline void aio_run_all_iocbs(struct kioctx *ctx)
 {
@@ -1646,6 +1642,23 @@ static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 		goto out_put_req;
 
 	spin_lock_irq(&ctx->ctx_lock);
+	/*
+	 * We could have raced with io_destroy() and are currently holding a
+	 * reference to ctx which should be destroyed. We cannot submit IO
+	 * since ctx gets freed as soon as io_submit() puts its reference.  The
+	 * check here is reliable: io_destroy() sets ctx->dead before waiting
+	 * for outstanding IO and the barrier between these two is realized by
+	 * unlock of mm->ioctx_lock and lock of ctx->ctx_lock.  Analogously we
+	 * increment ctx->reqs_active before checking for ctx->dead and the
+	 * barrier is realized by unlock and lock of ctx->ctx_lock. Thus if we
+	 * don't see ctx->dead set here, io_destroy() waits for our IO to
+	 * finish.
+	 */
+	if (ctx->dead) {
+		spin_unlock_irq(&ctx->ctx_lock);
+		ret = -EINVAL;
+		goto out_put_req;
+	}
 	aio_run_iocb(req);
 	if (!list_empty(&ctx->run_list)) {
 		/* drain the run list */
@@ -1839,7 +1852,7 @@ SYSCALL_DEFINE5(io_getevents, aio_context_t, ctx_id,
 	long ret = -EINVAL;
 
 	if (likely(ioctx)) {
-		if (likely(min_nr <= nr && min_nr >= 0 && nr >= 0))
+		if (likely(min_nr <= nr && min_nr >= 0))
 			ret = read_events(ioctx, min_nr, nr, events, timeout);
 		put_ioctx(ioctx);
 	}

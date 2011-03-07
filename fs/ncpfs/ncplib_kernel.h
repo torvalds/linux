@@ -32,8 +32,6 @@
 #include <linux/ctype.h>
 #endif /* CONFIG_NCPFS_NLS */
 
-#include <linux/ncp_fs.h>
-
 #define NCP_MIN_SYMLINK_SIZE	8
 #define NCP_MAX_SYMLINK_SIZE	512
 

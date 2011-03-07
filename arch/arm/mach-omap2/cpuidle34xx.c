@@ -47,6 +47,8 @@
 
 #define OMAP3_STATE_MAX OMAP3_STATE_C7
 
+#define CPUIDLE_FLAG_CHECK_BM	0x10000	/* use omap3_enter_idle_bm() */
+
 struct omap3_processor_cx {
 	u8 valid;
 	u8 type;
@@ -252,7 +254,7 @@ static int omap3_enter_idle_bm(struct cpuidle_device *dev,
 	 * FIXME: we currently manage device-specific idle states
 	 *        for PER and CORE in combination with CPU-specific
 	 *        idle states.  This is wrong, and device-specific
-	 *        idle managment needs to be separated out into 
+	 *        idle management needs to be separated out into 
 	 *        its own code.
 	 */
 

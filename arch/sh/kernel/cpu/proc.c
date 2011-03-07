@@ -25,7 +25,7 @@ static const char *cpu_name[] = {
 	[CPU_SH5_101]	= "SH5-101",	[CPU_SH5_103]	= "SH5-103",
 	[CPU_MXG]	= "MX-G",	[CPU_SH7723]	= "SH7723",
 	[CPU_SH7366]	= "SH7366",	[CPU_SH7724]	= "SH7724",
-	[CPU_SH_NONE]	= "Unknown"
+	[CPU_SH7372]	= "SH7372",	[CPU_SH_NONE]	= "Unknown"
 };
 
 const char *get_cpu_subtype(struct sh_cpuinfo *c)

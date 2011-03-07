@@ -152,11 +152,14 @@ int iwl_eeprom_check_sku(struct iwl_priv *priv)
 
 	eeprom_sku = iwl_eeprom_query16(priv, EEPROM_SKU_CAP);
 
-	priv->cfg->sku = ((eeprom_sku & EEPROM_SKU_CAP_BAND_SELECTION) >>
+	if (!priv->cfg->sku) {
+		/* not using sku overwrite */
+		priv->cfg->sku =
+			((eeprom_sku & EEPROM_SKU_CAP_BAND_SELECTION) >>
 			EEPROM_SKU_CAP_BAND_POS);
-	if (eeprom_sku & EEPROM_SKU_CAP_11N_ENABLE)
-		priv->cfg->sku |= IWL_SKU_N;
-
+		if (eeprom_sku & EEPROM_SKU_CAP_11N_ENABLE)
+			priv->cfg->sku |= IWL_SKU_N;
+	}
 	if (!priv->cfg->sku) {
 		IWL_ERR(priv, "Invalid device sku\n");
 		return -EINVAL;
@@ -168,7 +171,7 @@ int iwl_eeprom_check_sku(struct iwl_priv *priv)
 		/* not using .cfg overwrite */
 		radio_cfg = iwl_eeprom_query16(priv, EEPROM_RADIO_CONFIG);
 		priv->cfg->valid_tx_ant = EEPROM_RF_CFG_TX_ANT_MSK(radio_cfg);
-		priv->cfg->valid_rx_ant = EEPROM_RF_CFG_TX_ANT_MSK(radio_cfg);
+		priv->cfg->valid_rx_ant = EEPROM_RF_CFG_RX_ANT_MSK(radio_cfg);
 		if (!priv->cfg->valid_tx_ant || !priv->cfg->valid_rx_ant) {
 			IWL_ERR(priv, "Invalid chain (0X%x, 0X%x)\n",
 				priv->cfg->valid_tx_ant,

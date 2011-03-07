@@ -1373,7 +1373,6 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomute 	= 0x1800,
 		.audio_mode_gpio= fv2000s_audio,
 		.no_msp34xx	= 1,
-		.no_tda9875	= 1,
 		.needs_tvaudio  = 1,
 		.pll            = PLL_28,
 		.tuner_type     = TUNER_PHILIPS_PAL,
@@ -1511,7 +1510,6 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomute 	= 0x09,
 		.needs_tvaudio  = 1,
 		.no_msp34xx	= 1,
-		.no_tda9875	= 1,
 		.pll		= PLL_28,
 		.tuner_type	= TUNER_PHILIPS_PAL,
 		.tuner_addr	= ADDR_UNSET,
@@ -1550,7 +1548,6 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomask2      = 0x07ff,
 		.muxsel         = MUXSEL(3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3),
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 		.muxsel_hook    = rv605_muxsel,
@@ -1686,7 +1683,6 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 	},
 	[BTTV_BOARD_OSPREY1x0_848] = {
@@ -1699,7 +1695,6 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 	},
 
@@ -1714,7 +1709,6 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 	},
 	[BTTV_BOARD_OSPREY1x1] = {
@@ -1727,7 +1721,6 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 	},
 	[BTTV_BOARD_OSPREY1x1_SVID] = {
@@ -1740,7 +1733,6 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 	},
 	[BTTV_BOARD_OSPREY2xx] = {
@@ -1753,7 +1745,6 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 	},
 
@@ -1768,7 +1759,6 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 	},
 	[BTTV_BOARD_OSPREY2x0] = {
@@ -1781,7 +1771,6 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 	},
 	[BTTV_BOARD_OSPREY500] = {
@@ -1794,7 +1783,6 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 	},
 	[BTTV_BOARD_OSPREY540] = {
@@ -1805,7 +1793,6 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 	},
 
@@ -1820,7 +1807,6 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,      /* must avoid, conflicts with the bt860 */
 	},
 	[BTTV_BOARD_IDS_EAGLE] = {
@@ -1835,7 +1821,6 @@ struct tvcard bttv_tvcards[] = {
 		.muxsel         = MUXSEL(2, 2, 2, 2),
 		.muxsel_hook    = eagle_muxsel,
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.pll            = PLL_28,
 	},
 	[BTTV_BOARD_PINNACLESAT] = {
@@ -1846,7 +1831,6 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 		.muxsel         = MUXSEL(3, 1),
 		.pll            = PLL_28,
@@ -1897,7 +1881,6 @@ struct tvcard bttv_tvcards[] = {
 		.svhs           = 2,
 		.gpiomask       = 0,
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 		.muxsel         = MUXSEL(2, 0, 1),
 		.pll            = PLL_28,
@@ -1970,7 +1953,6 @@ struct tvcard bttv_tvcards[] = {
 		/* Tuner, CVid, SVid, CVid over SVid connector */
 		.muxsel         = MUXSEL(2, 3, 1, 1),
 		.gpiomask       = 0,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 		.tuner_type     = TUNER_PHILIPS_PAL_I,
 		.tuner_addr	= ADDR_UNSET,
@@ -2017,7 +1999,6 @@ struct tvcard bttv_tvcards[] = {
 		.muxsel         = MUXSEL(2,2,2,2, 3,3,3,3, 1,1,1,1, 0,0,0,0),
 		.muxsel_hook    = xguard_muxsel,
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 		.pll            = PLL_28,
 	},
@@ -2029,7 +2010,6 @@ struct tvcard bttv_tvcards[] = {
 		.svhs           = NO_SVHS,
 		.muxsel         = MUXSEL(2, 3, 1, 0),
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 		.pll            = PLL_28,
 		.tuner_type     = TUNER_ABSENT,
@@ -2134,7 +2114,6 @@ struct tvcard bttv_tvcards[] = {
 		.svhs           = NO_SVHS,   /* card has no svhs */
 		.needs_tvaudio  = 0,
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 		.gpiomask       = 0x00,
 		.muxsel         = MUXSEL(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
@@ -2156,7 +2135,6 @@ struct tvcard bttv_tvcards[] = {
 	[BTTV_BOARD_TWINHAN_DST] = {
 		.name           = "Twinhan DST + clones",
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
@@ -2171,7 +2149,6 @@ struct tvcard bttv_tvcards[] = {
 		/* Vid In, SVid In, Vid over SVid in connector */
 		.muxsel		= MUXSEL(3, 1, 1, 3),
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
@@ -2226,7 +2203,6 @@ struct tvcard bttv_tvcards[] = {
 		.svhs           = NO_SVHS,
 		.muxsel         = MUXSEL(2, 3, 1, 0),
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 		.needs_tvaudio  = 0,
 		.tuner_type     = TUNER_ABSENT,
@@ -2278,7 +2254,6 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomask       = 0,
 		.gpiomask2      = 0x3C<<16,/*Set the GPIO[18]->GPIO[21] as output pin.==> drive the video inputs through analog multiplexers*/
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 		/*878A input is always MUX0, see above.*/
 		.muxsel         = MUXSEL(2, 2, 2, 2),
@@ -2302,7 +2277,6 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_TEMIC_PAL,
 		.tuner_addr	= ADDR_UNSET,
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 	},
 	[BTTV_BOARD_AVDVBT_771] = {
 		/* Wolfram Joost <wojo@frokaschwei.de> */
@@ -2313,7 +2287,6 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.muxsel         = MUXSEL(3, 3),
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 		.pll            = PLL_28,
 		.has_dvb        = 1,
@@ -2329,7 +2302,6 @@ struct tvcard bttv_tvcards[] = {
 		.svhs           = 1,
 		.muxsel         = MUXSEL(3, 1, 2, 0), /* Comp0, S-Video, ?, ? */
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 		.pll            = PLL_28,
 		.tuner_type     = TUNER_ABSENT,
@@ -2393,7 +2365,6 @@ struct tvcard bttv_tvcards[] = {
 		/* Chris Pascoe <c.pascoe@itee.uq.edu.au> */
 		.name           = "DViCO FusionHDTV DVB-T Lite",
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 		.pll            = PLL_28,
 		.no_video       = 1,
@@ -2440,7 +2411,6 @@ struct tvcard bttv_tvcards[] = {
 		.muxsel         = MUXSEL(2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2),
 		.pll		= PLL_28,
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432	= 1,
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
@@ -2478,7 +2448,6 @@ struct tvcard bttv_tvcards[] = {
 		.pll		= PLL_28,
 		.no_msp34xx	= 1,
 		.no_tda7432	= 1,
-		.no_tda9875	= 1,
 		.muxsel_hook	= kodicom4400r_muxsel,
 	},
 	[BTTV_BOARD_KODICOM_4400R_SL] = {
@@ -2500,7 +2469,6 @@ struct tvcard bttv_tvcards[] = {
 		.pll		= PLL_28,
 		.no_msp34xx	= 1,
 		.no_tda7432	= 1,
-		.no_tda9875	= 1,
 		.muxsel_hook	= kodicom4400r_muxsel,
 	},
 		/* ---- card 0x86---------------------------------- */
@@ -2530,7 +2498,6 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux        = { 0x00400005, 0, 0x00000001, 0 },
 		.gpiomute 	= 0x00c00007,
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 		.has_dvb        = 1,
 	},
@@ -2630,7 +2597,6 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr     = ADDR_UNSET,
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 	},
 		/* ---- card 0x8d ---------------------------------- */
@@ -2658,7 +2624,6 @@ struct tvcard bttv_tvcards[] = {
 		.muxsel		= MUXSEL(2, 3, 1, 1),
 		.gpiomux 	= { 100000, 100002, 100002, 100000 },
 		.no_msp34xx	= 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 		.pll		= PLL_28,
 		.tuner_type	= TUNER_TNF_5335MF,
@@ -2674,7 +2639,6 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomask	= 0x0f, /* old: 7 */
 		.muxsel		= MUXSEL(0, 1, 3, 2), /* Composite 0-3 */
 		.no_msp34xx	= 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 		.tuner_type	= TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
@@ -2732,7 +2696,6 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux        = { 0x00400005, 0, 0x00000001, 0 },
 		.gpiomute 	= 0x00c00007,
 		.no_msp34xx     = 1,
-		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 	},
 	/* ---- card 0x95---------------------------------- */
@@ -2874,7 +2837,6 @@ struct tvcard bttv_tvcards[] = {
 		.pll		= PLL_28,
 		.no_msp34xx	= 1,
 		.no_tda7432	= 1,
-		.no_tda9875	= 1,
 		.muxsel_hook    = gv800s_muxsel,
 	},
 		[BTTV_BOARD_GEOVISION_GV800S_SL] = {
@@ -2899,7 +2861,6 @@ struct tvcard bttv_tvcards[] = {
 		.pll		= PLL_28,
 		.no_msp34xx	= 1,
 		.no_tda7432	= 1,
-		.no_tda9875	= 1,
 		.muxsel_hook    = gv800s_muxsel,
 	},
 	[BTTV_BOARD_PV183] = {

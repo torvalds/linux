@@ -17,6 +17,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
+#include <linux/input.h>
 
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
@@ -31,6 +32,7 @@
 #include <plat/gpmc.h>
 #include <plat/usb.h>
 #include <plat/display.h>
+#include <plat/panel-generic-dpi.h>
 #include <plat/onenand.h>
 
 #include "mux.h"
@@ -459,13 +461,18 @@ static void igep2_disable_dvi(struct omap_dss_device *dssdev)
 	gpio_direction_output(IGEP2_GPIO_DVI_PUP, 0);
 }
 
+static struct panel_generic_dpi_data dvi_panel = {
+	.name			= "generic",
+	.platform_enable	= igep2_enable_dvi,
+	.platform_disable	= igep2_disable_dvi,
+};
+
 static struct omap_dss_device igep2_dvi_device = {
 	.type			= OMAP_DISPLAY_TYPE_DPI,
 	.name			= "dvi",
-	.driver_name		= "generic_panel",
+	.driver_name		= "generic_dpi_panel",
+	.data			= &dvi_panel,
 	.phy.dpi.data_lines	= 24,
-	.platform_enable	= igep2_enable_dvi,
-	.platform_disable	= igep2_disable_dvi,
 };
 
 static struct omap_dss_device *igep2_dss_devices[] = {
@@ -535,6 +542,37 @@ static struct twl4030_codec_data igep2_codec_data = {
 	.audio = &igep2_audio_data,
 };
 
+static int igep2_keymap[] = {
+	KEY(0, 0, KEY_LEFT),
+	KEY(0, 1, KEY_RIGHT),
+	KEY(0, 2, KEY_A),
+	KEY(0, 3, KEY_B),
+	KEY(1, 0, KEY_DOWN),
+	KEY(1, 1, KEY_UP),
+	KEY(1, 2, KEY_E),
+	KEY(1, 3, KEY_F),
+	KEY(2, 0, KEY_ENTER),
+	KEY(2, 1, KEY_I),
+	KEY(2, 2, KEY_J),
+	KEY(2, 3, KEY_K),
+	KEY(3, 0, KEY_M),
+	KEY(3, 1, KEY_N),
+	KEY(3, 2, KEY_O),
+	KEY(3, 3, KEY_P)
+};
+
+static struct matrix_keymap_data igep2_keymap_data = {
+	.keymap			= igep2_keymap,
+	.keymap_size		= ARRAY_SIZE(igep2_keymap),
+};
+
+static struct twl4030_keypad_data igep2_keypad_pdata = {
+	.keymap_data	= &igep2_keymap_data,
+	.rows		= 4,
+	.cols		= 4,
+	.rep		= 1,
+};
+
 static struct twl4030_platform_data igep2_twldata = {
 	.irq_base	= TWL4030_IRQ_BASE,
 	.irq_end	= TWL4030_IRQ_END,
@@ -543,6 +581,7 @@ static struct twl4030_platform_data igep2_twldata = {
 	.usb		= &igep2_usb_data,
 	.codec		= &igep2_codec_data,
 	.gpio		= &igep2_twl4030_gpio_pdata,
+	.keypad		= &igep2_keypad_pdata,
 	.vmmc1          = &igep2_vmmc1,
 	.vpll2		= &igep2_vpll2,
 	.vio		= &igep2_vio,

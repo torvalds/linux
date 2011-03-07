@@ -45,6 +45,7 @@
 #include <asm/bugs.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
+#include <asm/olpc_ofw.h>
 #include <asm/pgalloc.h>
 #include <asm/sections.h>
 #include <asm/paravirt.h>
@@ -715,6 +716,7 @@ void __init paging_init(void)
 	/*
 	 * NOTE: at this point the bootmem allocator is fully available.
 	 */
+	olpc_dt_build_devicetree();
 	sparse_init();
 	zone_sizes_init();
 }

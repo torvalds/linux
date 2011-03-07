@@ -15,7 +15,6 @@
 #include <linux/audit.h>
 #include <linux/lsm_audit.h>
 #include <linux/in6.h>
-#include <linux/path.h>
 #include <asm/system.h>
 #include "flask.h"
 #include "av_permissions.h"

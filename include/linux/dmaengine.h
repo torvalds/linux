@@ -532,7 +532,7 @@ static inline int dmaengine_resume(struct dma_chan *chan)
 	return dmaengine_device_control(chan, DMA_RESUME, 0);
 }
 
-static inline int dmaengine_submit(struct dma_async_tx_descriptor *desc)
+static inline dma_cookie_t dmaengine_submit(struct dma_async_tx_descriptor *desc)
 {
 	return desc->tx_submit(desc);
 }

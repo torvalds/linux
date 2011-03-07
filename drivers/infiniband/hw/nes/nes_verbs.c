@@ -3936,6 +3936,30 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	return nesibdev;
 }
 
+
+/**
+ * nes_handle_delayed_event
+ */
+static void nes_handle_delayed_event(unsigned long data)
+{
+	struct nes_vnic *nesvnic = (void *) data;
+
+	if (nesvnic->delayed_event != nesvnic->last_dispatched_event) {
+		struct ib_event event;
+
+		event.device = &nesvnic->nesibdev->ibdev;
+		if (!event.device)
+			goto stop_timer;
+		event.event = nesvnic->delayed_event;
+		event.element.port_num = nesvnic->logical_port + 1;
+		ib_dispatch_event(&event);
+	}
+
+stop_timer:
+	nesvnic->event_timer.function = NULL;
+}
+
+
 void  nes_port_ibevent(struct nes_vnic *nesvnic)
 {
 	struct nes_ib_device *nesibdev = nesvnic->nesibdev;
@@ -3944,7 +3968,18 @@ void  nes_port_ibevent(struct nes_vnic *nesvnic)
 	event.device = &nesibdev->ibdev;
 	event.element.port_num = nesvnic->logical_port + 1;
 	event.event = nesdev->iw_status ? IB_EVENT_PORT_ACTIVE : IB_EVENT_PORT_ERR;
-	ib_dispatch_event(&event);
+
+	if (!nesvnic->event_timer.function) {
+		ib_dispatch_event(&event);
+		nesvnic->last_dispatched_event = event.event;
+		nesvnic->event_timer.function = nes_handle_delayed_event;
+		nesvnic->event_timer.data = (unsigned long) nesvnic;
+		nesvnic->event_timer.expires = jiffies + NES_EVENT_DELAY;
+		add_timer(&nesvnic->event_timer);
+	} else {
+		mod_timer(&nesvnic->event_timer, jiffies + NES_EVENT_DELAY);
+	}
+	nesvnic->delayed_event = event.event;
 }
 
 

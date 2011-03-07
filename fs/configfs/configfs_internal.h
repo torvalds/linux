@@ -90,6 +90,7 @@ extern const struct file_operations configfs_file_operations;
 extern const struct file_operations bin_fops;
 extern const struct inode_operations configfs_dir_inode_operations;
 extern const struct inode_operations configfs_symlink_inode_operations;
+extern const struct dentry_operations configfs_dentry_ops;
 
 extern int configfs_symlink(struct inode *dir, struct dentry *dentry,
 			    const char *symname);

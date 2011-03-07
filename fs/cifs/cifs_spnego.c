@@ -98,6 +98,8 @@ struct key *
 cifs_get_spnego_key(struct cifsSesInfo *sesInfo)
 {
 	struct TCP_Server_Info *server = sesInfo->server;
+	struct sockaddr_in *sa = (struct sockaddr_in *) &server->dstaddr;
+	struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *) &server->dstaddr;
 	char *description, *dp;
 	size_t desc_len;
 	struct key *spnego_key;
@@ -127,10 +129,10 @@ cifs_get_spnego_key(struct cifsSesInfo *sesInfo)
 	dp = description + strlen(description);
 
 	/* add the server address */
-	if (server->addr.sockAddr.sin_family == AF_INET)
-		sprintf(dp, "ip4=%pI4", &server->addr.sockAddr.sin_addr);
-	else if (server->addr.sockAddr.sin_family == AF_INET6)
-		sprintf(dp, "ip6=%pI6", &server->addr.sockAddr6.sin6_addr);
+	if (server->dstaddr.ss_family == AF_INET)
+		sprintf(dp, "ip4=%pI4", &sa->sin_addr);
+	else if (server->dstaddr.ss_family == AF_INET6)
+		sprintf(dp, "ip6=%pI6", &sa6->sin6_addr);
 	else
 		goto out;
 

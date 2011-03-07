@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/acpi.h>
 #include <linux/mfd/core.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
 static int mfd_add_device(struct device *parent, int id,
@@ -81,6 +82,9 @@ static int mfd_add_device(struct device *parent, int id,
 	ret = platform_device_add(pdev);
 	if (ret)
 		goto fail_res;
+
+	if (cell->pm_runtime_no_callbacks)
+		pm_runtime_no_callbacks(&pdev->dev);
 
 	kfree(res);
 

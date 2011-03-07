@@ -34,7 +34,7 @@
 
 #include <linux/i2c/tps65010.h>
 
-#include <asm/gpio.h>
+#include <linux/gpio.h>
 
 
 /*-------------------------------------------------------------------------*/

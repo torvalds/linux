@@ -144,6 +144,11 @@ enum {
 	MLX4_STAT_RATE_OFFSET	= 5
 };
 
+enum mlx4_protocol {
+	MLX4_PROTOCOL_IB,
+	MLX4_PROTOCOL_EN,
+};
+
 enum {
 	MLX4_MTT_FLAG_PRESENT		= 1
 };
@@ -500,8 +505,9 @@ int mlx4_INIT_PORT(struct mlx4_dev *dev, int port);
 int mlx4_CLOSE_PORT(struct mlx4_dev *dev, int port);
 
 int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
-			  int block_mcast_loopback);
-int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16]);
+			  int block_mcast_loopback, enum mlx4_protocol protocol);
+int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
+			  enum mlx4_protocol protocol);
 
 int mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac, int *index);
 void mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, int index);

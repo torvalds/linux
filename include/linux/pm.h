@@ -367,45 +367,6 @@ extern struct dev_pm_ops generic_subsys_pm_ops;
 					{ .event = PM_EVENT_AUTO_RESUME, })
 
 /**
- * Device power management states
- *
- * These state labels are used internally by the PM core to indicate the current
- * status of a device with respect to the PM core operations.
- *
- * DPM_ON		Device is regarded as operational.  Set this way
- *			initially and when ->complete() is about to be called.
- *			Also set when ->prepare() fails.
- *
- * DPM_PREPARING	Device is going to be prepared for a PM transition.  Set
- *			when ->prepare() is about to be called.
- *
- * DPM_RESUMING		Device is going to be resumed.  Set when ->resume(),
- *			->thaw(), or ->restore() is about to be called.
- *
- * DPM_SUSPENDING	Device has been prepared for a power transition.  Set
- *			when ->prepare() has just succeeded.
- *
- * DPM_OFF		Device is regarded as inactive.  Set immediately after
- *			->suspend(), ->freeze(), or ->poweroff() has succeeded.
- *			Also set when ->resume()_noirq, ->thaw_noirq(), or
- *			->restore_noirq() is about to be called.
- *
- * DPM_OFF_IRQ		Device is in a "deep sleep".  Set immediately after
- *			->suspend_noirq(), ->freeze_noirq(), or
- *			->poweroff_noirq() has just succeeded.
- */
-
-enum dpm_state {
-	DPM_INVALID,
-	DPM_ON,
-	DPM_PREPARING,
-	DPM_RESUMING,
-	DPM_SUSPENDING,
-	DPM_OFF,
-	DPM_OFF_IRQ,
-};
-
-/**
  * Device run-time power management status.
  *
  * These status labels are used internally by the PM core to indicate the
@@ -463,13 +424,15 @@ struct wakeup_source;
 struct dev_pm_info {
 	pm_message_t		power_state;
 	unsigned int		can_wakeup:1;
-	unsigned		async_suspend:1;
-	enum dpm_state		status;		/* Owned by the PM core */
+	unsigned int		async_suspend:1;
+	unsigned int		in_suspend:1;	/* Owned by the PM core */
 	spinlock_t		lock;
 #ifdef CONFIG_PM_SLEEP
 	struct list_head	entry;
 	struct completion	completion;
 	struct wakeup_source	*wakeup;
+#else
+	unsigned int		should_wakeup:1;
 #endif
 #ifdef CONFIG_PM_RUNTIME
 	struct timer_list	suspend_timer;
@@ -486,6 +449,7 @@ struct dev_pm_info {
 	unsigned int		run_wake:1;
 	unsigned int		runtime_auto:1;
 	unsigned int		no_callbacks:1;
+	unsigned int		irq_safe:1;
 	unsigned int		use_autosuspend:1;
 	unsigned int		timer_autosuspends:1;
 	enum rpm_request	request;
@@ -609,5 +573,12 @@ extern unsigned int	pm_flags;
 
 #define PM_APM	1
 #define PM_ACPI	2
+
+extern int pm_generic_suspend(struct device *dev);
+extern int pm_generic_resume(struct device *dev);
+extern int pm_generic_freeze(struct device *dev);
+extern int pm_generic_thaw(struct device *dev);
+extern int pm_generic_restore(struct device *dev);
+extern int pm_generic_poweroff(struct device *dev);
 
 #endif /* _LINUX_PM_H */

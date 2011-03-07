@@ -8071,7 +8071,7 @@ lpfc_pci_remove_one_s3(struct pci_dev *pdev)
 	 * the HBA.
 	 */
 
-	/* HBA interrupt will be diabled after this call */
+	/* HBA interrupt will be disabled after this call */
 	lpfc_sli_hba_down(phba);
 	/* Stop kthread signal shall trigger work_done one more time */
 	kthread_stop(phba->worker_thread);

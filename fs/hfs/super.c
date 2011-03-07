@@ -429,12 +429,11 @@ static int hfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!root_inode)
 		goto bail_no_root;
 
+	sb->s_d_op = &hfs_dentry_operations;
 	res = -ENOMEM;
 	sb->s_root = d_alloc_root(root_inode);
 	if (!sb->s_root)
 		goto bail_iput;
-
-	d_set_d_op(sb->s_root, &hfs_dentry_operations);
 
 	/* everything's okay */
 	return 0;

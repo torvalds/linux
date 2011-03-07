@@ -550,6 +550,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	/* Fill superblock stuff */
 	s->s_magic = HPFS_SUPER_MAGIC;
 	s->s_op = &hpfs_sops;
+	s->s_d_op = &hpfs_dentry_operations;
 
 	sbi->sb_root = superblock->root;
 	sbi->sb_fs_size = superblock->n_sectors;
@@ -651,7 +652,6 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 		iput(root);
 		goto bail0;
 	}
-	hpfs_set_dentry_operations(s->s_root);
 
 	/*
 	 * find the root directory's . pointer & finish filling in the inode

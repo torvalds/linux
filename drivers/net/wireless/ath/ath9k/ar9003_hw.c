@@ -146,8 +146,8 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 		/* Sleep Setting */
 
 		INIT_INI_ARRAY(&ah->iniPcieSerdesLowPower,
-				ar9300PciePhy_clkreq_enable_L1_2p2,
-				ARRAY_SIZE(ar9300PciePhy_clkreq_enable_L1_2p2),
+				ar9300PciePhy_pll_on_clkreq_disable_L1_2p2,
+				ARRAY_SIZE(ar9300PciePhy_pll_on_clkreq_disable_L1_2p2),
 				2);
 
 		/* Fast clock modal settings */

@@ -217,7 +217,8 @@ static const struct super_operations simple_super_operations = {
  * will never be mountable)
  */
 struct dentry *mount_pseudo(struct file_system_type *fs_type, char *name,
-	const struct super_operations *ops, unsigned long magic)
+	const struct super_operations *ops,
+	const struct dentry_operations *dops, unsigned long magic)
 {
 	struct super_block *s = sget(fs_type, NULL, set_anon_super, NULL);
 	struct dentry *dentry;
@@ -254,6 +255,7 @@ struct dentry *mount_pseudo(struct file_system_type *fs_type, char *name,
 	dentry->d_parent = dentry;
 	d_instantiate(dentry, root);
 	s->s_root = dentry;
+	s->s_d_op = dops;
 	s->s_flags |= MS_ACTIVE;
 	return dget(s->s_root);
 

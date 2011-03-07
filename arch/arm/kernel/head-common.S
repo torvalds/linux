@@ -60,6 +60,8 @@ str_a1:	.asciz	"\nError: unrecognized/unsupported machine ID (r1 = 0x"
 str_a2:	.asciz	").\n\nAvailable machine support:\n\nID (hex)\tNAME\n"
 str_a3:	.asciz	"\nPlease check your kernel config and/or bootloader.\n"
 	.align
+#else
+	b	__error
 #endif
 
 /*

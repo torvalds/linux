@@ -1,5 +1,5 @@
 /*
- * ADIS16260 Programmable Digital Gyroscope Sensor Driver
+ * ADIS16260/ADIS16265 Programmable Digital Gyroscope Sensor Driver
  *
  * Copyright 2010 Analog Devices Inc.
  *
@@ -134,8 +134,6 @@ static int adis16260_spi_read_reg_16(struct device *dev,
 	mutex_lock(&st->buf_lock);
 	st->tx[0] = ADIS16260_READ_REG(lower_reg_address);
 	st->tx[1] = 0;
-	st->tx[2] = 0;
-	st->tx[3] = 0;
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfers[0], &msg);
@@ -293,6 +291,22 @@ static ssize_t adis16260_write_frequency(struct device *dev,
 	return ret ? ret : len;
 }
 
+static ssize_t adis16260_read_gyro_scale(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct adis16260_state *st = iio_dev_get_devdata(indio_dev);
+	ssize_t ret = 0;
+
+	if (st->negate)
+		ret = sprintf(buf, "-");
+	/* Take the iio_dev status lock */
+	ret += sprintf(buf + ret, "%s\n", "0.00127862821");
+
+	return ret;
+}
+
 static int adis16260_reset(struct device *dev)
 {
 	int ret;
@@ -447,18 +461,6 @@ static IIO_DEV_ATTR_IN_NAMED_RAW(0, supply,
 				ADIS16260_SUPPLY_OUT);
 static IIO_CONST_ATTR_IN_NAMED_SCALE(0, supply, "0.0018315");
 
-static IIO_DEV_ATTR_GYRO(adis16260_read_14bit_signed,
-		ADIS16260_GYRO_OUT);
-static IIO_CONST_ATTR_GYRO_SCALE("0.00127862821");
-static IIO_DEV_ATTR_GYRO_CALIBSCALE(S_IWUSR | S_IRUGO,
-		adis16260_read_14bit_signed,
-		adis16260_write_16bit,
-		ADIS16260_GYRO_SCALE);
-static IIO_DEV_ATTR_GYRO_CALIBBIAS(S_IWUSR | S_IRUGO,
-		adis16260_read_12bit_signed,
-		adis16260_write_16bit,
-		ADIS16260_GYRO_OFF);
-
 static IIO_DEV_ATTR_TEMP_RAW(adis16260_read_12bit_unsigned);
 static IIO_CONST_ATTR_TEMP_OFFSET("25");
 static IIO_CONST_ATTR_TEMP_SCALE("0.1453");
@@ -470,8 +472,6 @@ static IIO_CONST_ATTR(in1_scale, "0.0006105");
 static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 		adis16260_read_frequency,
 		adis16260_write_frequency);
-static IIO_DEV_ATTR_ANGL(adis16260_read_14bit_signed,
-		ADIS16260_ANGL_OUT);
 
 static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, adis16260_write_reset, 0);
 
@@ -487,38 +487,70 @@ static struct attribute_group adis16260_event_attribute_group = {
 	.attrs = adis16260_event_attributes,
 };
 
-static struct attribute *adis16260_attributes[] = {
-	&iio_dev_attr_in0_supply_raw.dev_attr.attr,
-	&iio_const_attr_in0_supply_scale.dev_attr.attr,
-	&iio_dev_attr_gyro_raw.dev_attr.attr,
-	&iio_const_attr_gyro_scale.dev_attr.attr,
-	&iio_dev_attr_gyro_calibscale.dev_attr.attr,
-	&iio_dev_attr_gyro_calibbias.dev_attr.attr,
-	&iio_dev_attr_angl_raw.dev_attr.attr,
-	&iio_dev_attr_temp_raw.dev_attr.attr,
-	&iio_const_attr_temp_offset.dev_attr.attr,
-	&iio_const_attr_temp_scale.dev_attr.attr,
-	&iio_dev_attr_in1_raw.dev_attr.attr,
-	&iio_const_attr_in1_scale.dev_attr.attr,
-	&iio_dev_attr_sampling_frequency.dev_attr.attr,
-	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
-	&iio_dev_attr_reset.dev_attr.attr,
-	&iio_const_attr_name.dev_attr.attr,
-	NULL
-};
+#define ADIS16260_GYRO_ATTR_SET(axis)					\
+	IIO_DEV_ATTR_GYRO##axis(adis16260_read_14bit_signed,		\
+				ADIS16260_GYRO_OUT);			\
+	static IIO_DEV_ATTR_GYRO##axis##_SCALE(S_IRUGO,			\
+					adis16260_read_gyro_scale,	\
+					NULL,				\
+					0);				\
+	static IIO_DEV_ATTR_GYRO##axis##_CALIBSCALE(S_IRUGO | S_IWUSR,	\
+					adis16260_read_12bit_unsigned,	\
+					adis16260_write_16bit,		\
+					ADIS16260_GYRO_SCALE);		\
+	static IIO_DEV_ATTR_GYRO##axis##_CALIBBIAS(S_IWUSR | S_IRUGO,	\
+					adis16260_read_12bit_signed,	\
+					adis16260_write_16bit,		\
+					ADIS16260_GYRO_OFF);		\
+	static IIO_DEV_ATTR_ANGL##axis(adis16260_read_14bit_signed,	\
+				       ADIS16260_ANGL_OUT);
 
-static const struct attribute_group adis16260_attribute_group = {
-	.attrs = adis16260_attributes,
-};
+static ADIS16260_GYRO_ATTR_SET();
+static ADIS16260_GYRO_ATTR_SET(_X);
+static ADIS16260_GYRO_ATTR_SET(_Y);
+static ADIS16260_GYRO_ATTR_SET(_Z);
+
+#define ADIS16260_ATTR_GROUP(axis)					\
+	struct attribute *adis16260_attributes##axis[] = {		\
+		&iio_dev_attr_in0_supply_raw.dev_attr.attr,		\
+		&iio_const_attr_in0_supply_scale.dev_attr.attr,		\
+		&iio_dev_attr_gyro##axis##_raw.dev_attr.attr,		\
+		&iio_dev_attr_gyro##axis##_scale.dev_attr.attr,		\
+		&iio_dev_attr_gyro##axis##_calibscale.dev_attr.attr,	\
+		&iio_dev_attr_gyro##axis##_calibbias.dev_attr.attr,	\
+		&iio_dev_attr_angl##axis##_raw.dev_attr.attr,		\
+		&iio_dev_attr_temp_raw.dev_attr.attr,			\
+		&iio_const_attr_temp_offset.dev_attr.attr,		\
+		&iio_const_attr_temp_scale.dev_attr.attr,		\
+		&iio_dev_attr_in1_raw.dev_attr.attr,			\
+		&iio_const_attr_in1_scale.dev_attr.attr,		\
+		&iio_dev_attr_sampling_frequency.dev_attr.attr,		\
+		&iio_const_attr_sampling_frequency_available.dev_attr.attr, \
+		&iio_dev_attr_reset.dev_attr.attr,			\
+		&iio_const_attr_name.dev_attr.attr,			\
+		NULL							\
+	};								\
+	static const struct attribute_group adis16260_attribute_group##axis \
+	= {								\
+		.attrs = adis16260_attributes##axis,			\
+	};
+
+static ADIS16260_ATTR_GROUP();
+static ADIS16260_ATTR_GROUP(_x);
+static ADIS16260_ATTR_GROUP(_y);
+static ADIS16260_ATTR_GROUP(_z);
 
 static int __devinit adis16260_probe(struct spi_device *spi)
 {
 	int ret, regdone = 0;
+	struct adis16260_platform_data *pd = spi->dev.platform_data;
 	struct adis16260_state *st = kzalloc(sizeof *st, GFP_KERNEL);
 	if (!st) {
 		ret =  -ENOMEM;
 		goto error_ret;
 	}
+	if (pd)
+		st->negate = pd->negate;
 	/* this is only used for removal purposes */
 	spi_set_drvdata(spi, st);
 
@@ -545,7 +577,24 @@ static int __devinit adis16260_probe(struct spi_device *spi)
 	st->indio_dev->dev.parent = &spi->dev;
 	st->indio_dev->num_interrupt_lines = 1;
 	st->indio_dev->event_attrs = &adis16260_event_attribute_group;
-	st->indio_dev->attrs = &adis16260_attribute_group;
+	if (pd && pd->direction)
+		switch (pd->direction) {
+		case 'x':
+			st->indio_dev->attrs = &adis16260_attribute_group_x;
+			break;
+		case 'y':
+			st->indio_dev->attrs = &adis16260_attribute_group_y;
+			break;
+		case 'z':
+			st->indio_dev->attrs = &adis16260_attribute_group_z;
+			break;
+		default:
+			st->indio_dev->attrs = &adis16260_attribute_group;
+			break;
+		}
+	else
+		st->indio_dev->attrs = &adis16260_attribute_group;
+
 	st->indio_dev->dev_data = (void *)(st);
 	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
@@ -635,6 +684,18 @@ err_ret:
 	return ret;
 }
 
+/*
+ * These parts do not need to be differentiated until someone adds
+ * support for the on chip filtering.
+ */
+static const struct spi_device_id adis16260_id[] = {
+	{"adis16260", 0},
+	{"adis16265", 0},
+	{"adis16250", 0},
+	{"adis16255", 0},
+	{}
+};
+
 static struct spi_driver adis16260_driver = {
 	.driver = {
 		.name = "adis16260",
@@ -642,6 +703,7 @@ static struct spi_driver adis16260_driver = {
 	},
 	.probe = adis16260_probe,
 	.remove = __devexit_p(adis16260_remove),
+	.id_table = adis16260_id,
 };
 
 static __init int adis16260_init(void)

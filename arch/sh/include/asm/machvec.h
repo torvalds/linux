@@ -31,6 +31,7 @@ struct sh_machine_vector {
 	int (*mv_mode_pins)(void);
 
 	void (*mv_mem_init)(void);
+	void (*mv_mem_reserve)(void);
 };
 
 extern struct sh_machine_vector sh_mv;

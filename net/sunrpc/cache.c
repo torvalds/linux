@@ -37,7 +37,7 @@
 
 #define	 RPCDBG_FACILITY RPCDBG_CACHE
 
-static void cache_defer_req(struct cache_req *req, struct cache_head *item);
+static bool cache_defer_req(struct cache_req *req, struct cache_head *item);
 static void cache_revisit_request(struct cache_head *item);
 
 static void cache_init(struct cache_head *h)
@@ -128,6 +128,7 @@ static void cache_fresh_locked(struct cache_head *head, time_t expiry)
 {
 	head->expiry_time = expiry;
 	head->last_refresh = seconds_since_boot();
+	smp_wmb(); /* paired with smp_rmb() in cache_is_valid() */
 	set_bit(CACHE_VALID, &head->flags);
 }
 
@@ -208,9 +209,34 @@ static inline int cache_is_valid(struct cache_detail *detail, struct cache_head 
 		/* entry is valid */
 		if (test_bit(CACHE_NEGATIVE, &h->flags))
 			return -ENOENT;
-		else
+		else {
+			/*
+			 * In combination with write barrier in
+			 * sunrpc_cache_update, ensures that anyone
+			 * using the cache entry after this sees the
+			 * updated contents:
+			 */
+			smp_rmb();
 			return 0;
+		}
 	}
+}
+
+static int try_to_negate_entry(struct cache_detail *detail, struct cache_head *h)
+{
+	int rv;
+
+	write_lock(&detail->hash_lock);
+	rv = cache_is_valid(detail, h);
+	if (rv != -EAGAIN) {
+		write_unlock(&detail->hash_lock);
+		return rv;
+	}
+	set_bit(CACHE_NEGATIVE, &h->flags);
+	cache_fresh_locked(h, seconds_since_boot()+CACHE_NEW_EXPIRY);
+	write_unlock(&detail->hash_lock);
+	cache_fresh_unlocked(h, detail);
+	return -ENOENT;
 }
 
 /*
@@ -251,14 +277,8 @@ int cache_check(struct cache_detail *detail,
 			case -EINVAL:
 				clear_bit(CACHE_PENDING, &h->flags);
 				cache_revisit_request(h);
-				if (rv == -EAGAIN) {
-					set_bit(CACHE_NEGATIVE, &h->flags);
-					cache_fresh_locked(h, seconds_since_boot()+CACHE_NEW_EXPIRY);
-					cache_fresh_unlocked(h, detail);
-					rv = -ENOENT;
-				}
+				rv = try_to_negate_entry(detail, h);
 				break;
-
 			case -EAGAIN:
 				clear_bit(CACHE_PENDING, &h->flags);
 				cache_revisit_request(h);
@@ -268,9 +288,11 @@ int cache_check(struct cache_detail *detail,
 	}
 
 	if (rv == -EAGAIN) {
-		cache_defer_req(rqstp, h);
-		if (!test_bit(CACHE_PENDING, &h->flags)) {
-			/* Request is not deferred */
+		if (!cache_defer_req(rqstp, h)) {
+			/*
+			 * Request was not deferred; handle it as best
+			 * we can ourselves:
+			 */
 			rv = cache_is_valid(detail, h);
 			if (rv == -EAGAIN)
 				rv = -ETIMEDOUT;
@@ -618,18 +640,19 @@ static void cache_limit_defers(void)
 		discard->revisit(discard, 1);
 }
 
-static void cache_defer_req(struct cache_req *req, struct cache_head *item)
+/* Return true if and only if a deferred request is queued. */
+static bool cache_defer_req(struct cache_req *req, struct cache_head *item)
 {
 	struct cache_deferred_req *dreq;
 
 	if (req->thread_wait) {
 		cache_wait_req(req, item);
 		if (!test_bit(CACHE_PENDING, &item->flags))
-			return;
+			return false;
 	}
 	dreq = req->defer(req);
 	if (dreq == NULL)
-		return;
+		return false;
 	setup_deferral(dreq, item, 1);
 	if (!test_bit(CACHE_PENDING, &item->flags))
 		/* Bit could have been cleared before we managed to
@@ -638,6 +661,7 @@ static void cache_defer_req(struct cache_req *req, struct cache_head *item)
 		cache_revisit_request(item);
 
 	cache_limit_defers();
+	return true;
 }
 
 static void cache_revisit_request(struct cache_head *item)

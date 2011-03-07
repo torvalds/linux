@@ -36,6 +36,8 @@
 #define PPC_INST_NOP			0x60000000
 #define PPC_INST_POPCNTB		0x7c0000f4
 #define PPC_INST_POPCNTB_MASK		0xfc0007fe
+#define PPC_INST_POPCNTD		0x7c0003f4
+#define PPC_INST_POPCNTW		0x7c0002f4
 #define PPC_INST_RFCI			0x4c000066
 #define PPC_INST_RFDI			0x4c00004e
 #define PPC_INST_RFMCI			0x4c00004c
@@ -88,6 +90,12 @@
 					__PPC_RB(b) | __PPC_EH(eh))
 #define PPC_MSGSND(b)		stringify_in_c(.long PPC_INST_MSGSND | \
 					__PPC_RB(b))
+#define PPC_POPCNTB(a, s)	stringify_in_c(.long PPC_INST_POPCNTB | \
+					__PPC_RA(a) | __PPC_RS(s))
+#define PPC_POPCNTD(a, s)	stringify_in_c(.long PPC_INST_POPCNTD | \
+					__PPC_RA(a) | __PPC_RS(s))
+#define PPC_POPCNTW(a, s)	stringify_in_c(.long PPC_INST_POPCNTW | \
+					__PPC_RA(a) | __PPC_RS(s))
 #define PPC_RFCI		stringify_in_c(.long PPC_INST_RFCI)
 #define PPC_RFDI		stringify_in_c(.long PPC_INST_RFDI)
 #define PPC_RFMCI		stringify_in_c(.long PPC_INST_RFMCI)

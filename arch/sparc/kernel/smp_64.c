@@ -49,6 +49,7 @@
 #include <asm/mdesc.h>
 #include <asm/ldc.h>
 #include <asm/hypervisor.h>
+#include <asm/pcr.h>
 
 #include "cpumap.h"
 
@@ -1358,6 +1359,7 @@ void __cpu_die(unsigned int cpu)
 
 void __init smp_cpus_done(unsigned int max_cpus)
 {
+	pcr_arch_init();
 }
 
 void smp_send_reschedule(int cpu)

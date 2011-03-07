@@ -284,12 +284,11 @@ static int samplerate = 100;
 
 module_param(ixjdebug, int, 0);
 
-static struct pci_device_id ixj_pci_tbl[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(ixj_pci_tbl) = {
 	{ PCI_VENDOR_ID_QUICKNET, PCI_DEVICE_ID_QUICKNET_XJ,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ }
 };
-
 MODULE_DEVICE_TABLE(pci, ixj_pci_tbl);
 
 /************************************************************************
@@ -6581,7 +6580,8 @@ static long do_ixj_ioctl(struct file *file_p, unsigned int cmd, unsigned long ar
 	case IXJCTL_SET_FILTER:
 		if (copy_from_user(&jf, argp, sizeof(jf))) 
 			retval = -EFAULT;
-		retval = ixj_init_filter(j, &jf);
+		else
+			retval = ixj_init_filter(j, &jf);
 		break;
 	case IXJCTL_SET_FILTER_RAW:
 		if (copy_from_user(&jfr, argp, sizeof(jfr))) 

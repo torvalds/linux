@@ -29,9 +29,9 @@
 #include <sound/pcm_params.h>
 #include <sound/tlv.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/wm8903.h>
+#include <trace/events/asoc.h>
 
 #include "wm8903.h"
 
@@ -214,15 +214,14 @@ static u16 wm8903_reg_defaults[] = {
 
 struct wm8903_priv {
 
-	u16 reg_cache[ARRAY_SIZE(wm8903_reg_defaults)];
-
 	int sysclk;
 	int irq;
 
-	/* Reference counts */
+	int fs;
+	int deemph;
+
+	/* Reference count */
 	int class_w_users;
-	int playback_active;
-	int capture_active;
 
 	struct completion wseq;
 
@@ -231,9 +230,6 @@ struct wm8903_priv {
 	int mic_short;
 	int mic_last_report;
 	int mic_delay;
-
-	struct snd_pcm_substream *master_substream;
-	struct snd_pcm_substream *slave_substream;
 };
 
 static int wm8903_volatile_register(unsigned int reg)
@@ -463,6 +459,72 @@ static int wm8903_class_w_put(struct snd_kcontrol *kcontrol,
 	.private_value =  SOC_SINGLE_VALUE(reg, shift, max, invert) }
 
 
+static int wm8903_deemph[] = { 0, 32000, 44100, 48000 };
+
+static int wm8903_set_deemph(struct snd_soc_codec *codec)
+{
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
+	int val, i, best;
+
+	/* If we're using deemphasis select the nearest available sample
+	 * rate.
+	 */
+	if (wm8903->deemph) {
+		best = 1;
+		for (i = 2; i < ARRAY_SIZE(wm8903_deemph); i++) {
+			if (abs(wm8903_deemph[i] - wm8903->fs) <
+			    abs(wm8903_deemph[best] - wm8903->fs))
+				best = i;
+		}
+
+		val = best << WM8903_DEEMPH_SHIFT;
+	} else {
+		best = 0;
+		val = 0;
+	}
+
+	dev_dbg(codec->dev, "Set deemphasis %d (%dHz)\n",
+		best, wm8903_deemph[best]);
+
+	return snd_soc_update_bits(codec, WM8903_DAC_DIGITAL_1,
+				   WM8903_DEEMPH_MASK, val);
+}
+
+static int wm8903_get_deemph(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
+
+	ucontrol->value.enumerated.item[0] = wm8903->deemph;
+
+	return 0;
+}
+
+static int wm8903_put_deemph(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
+	int deemph = ucontrol->value.enumerated.item[0];
+	int ret = 0;
+
+	if (deemph > 1)
+		return -EINVAL;
+
+	mutex_lock(&codec->mutex);
+	if (wm8903->deemph != deemph) {
+		wm8903->deemph = deemph;
+
+		wm8903_set_deemph(codec);
+
+		ret = 1;
+	}
+	mutex_unlock(&codec->mutex);
+
+	return ret;
+}
+
 /* ALSA can only do steps of .01dB */
 static const DECLARE_TLV_DB_SCALE(digital_tlv, -7200, 75, 1);
 
@@ -474,6 +536,23 @@ static const DECLARE_TLV_DB_SCALE(drc_tlv_amp, -2250, 75, 0);
 static const DECLARE_TLV_DB_SCALE(drc_tlv_min, 0, 600, 0);
 static const DECLARE_TLV_DB_SCALE(drc_tlv_max, 1200, 600, 0);
 static const DECLARE_TLV_DB_SCALE(drc_tlv_startup, -300, 50, 0);
+
+static const char *hpf_mode_text[] = {
+	"Hi-fi", "Voice 1", "Voice 2", "Voice 3"
+};
+
+static const struct soc_enum hpf_mode =
+	SOC_ENUM_SINGLE(WM8903_ADC_DIGITAL_0, 5, 4, hpf_mode_text);
+
+static const char *osr_text[] = {
+	"Low power", "High performance"
+};
+
+static const struct soc_enum adc_osr =
+	SOC_ENUM_SINGLE(WM8903_ANALOGUE_ADC_0, 0, 2, osr_text);
+
+static const struct soc_enum dac_osr =
+	SOC_ENUM_SINGLE(WM8903_DAC_DIGITAL_1, 0, 2, osr_text);
 
 static const char *drc_slope_text[] = {
 	"1", "1/2", "1/4", "1/8", "1/16", "0"
@@ -536,13 +615,6 @@ static const char *mute_mode_text[] = {
 
 static const struct soc_enum mute_mode =
 	SOC_ENUM_SINGLE(WM8903_DAC_DIGITAL_1, 9, 2, mute_mode_text);
-
-static const char *dac_deemphasis_text[] = {
-	"Disabled", "32kHz", "44.1kHz", "48kHz"
-};
-
-static const struct soc_enum dac_deemphasis =
-	SOC_ENUM_SINGLE(WM8903_DAC_DIGITAL_1, 1, 4, dac_deemphasis_text);
 
 static const char *companding_text[] = {
 	"ulaw", "alaw"
@@ -613,6 +685,9 @@ SOC_SINGLE("Right Input PGA Common Mode Switch", WM8903_ANALOGUE_RIGHT_INPUT_1,
 	   6, 1, 0),
 
 /* ADCs */
+SOC_ENUM("ADC OSR", adc_osr),
+SOC_SINGLE("HPF Switch", WM8903_ADC_DIGITAL_0, 4, 1, 0),
+SOC_ENUM("HPF Mode", hpf_mode),
 SOC_SINGLE("DRC Switch", WM8903_DRC_0, 15, 1, 0),
 SOC_ENUM("DRC Compressor Slope R0", drc_slope_r0),
 SOC_ENUM("DRC Compressor Slope R1", drc_slope_r1),
@@ -642,14 +717,16 @@ SOC_DOUBLE_TLV("Digital Sidetone Volume", WM8903_DAC_DIGITAL_0, 4, 8,
 	       12, 0, digital_sidetone_tlv),
 
 /* DAC */
+SOC_ENUM("DAC OSR", dac_osr),
 SOC_DOUBLE_R_TLV("Digital Playback Volume", WM8903_DAC_DIGITAL_VOLUME_LEFT,
 		 WM8903_DAC_DIGITAL_VOLUME_RIGHT, 1, 120, 0, digital_tlv),
 SOC_ENUM("DAC Soft Mute Rate", soft_mute),
 SOC_ENUM("DAC Mute Mode", mute_mode),
 SOC_SINGLE("DAC Mono Switch", WM8903_DAC_DIGITAL_1, 12, 1, 0),
-SOC_ENUM("DAC De-emphasis", dac_deemphasis),
 SOC_ENUM("DAC Companding Mode", dac_companding),
 SOC_SINGLE("DAC Companding Switch", WM8903_AUDIO_INTERFACE_0, 1, 1, 0),
+SOC_SINGLE_BOOL_EXT("Playback Deemphasis Switch", 0,
+		    wm8903_get_deemph, wm8903_put_deemph),
 
 /* Headphones */
 SOC_DOUBLE_R("Headphone Switch",
@@ -923,10 +1000,11 @@ static const struct snd_soc_dapm_route intercon[] = {
 
 static int wm8903_add_widgets(struct snd_soc_codec *codec)
 {
-	snd_soc_dapm_new_controls(codec, wm8903_dapm_widgets,
-				  ARRAY_SIZE(wm8903_dapm_widgets));
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_add_routes(codec, intercon, ARRAY_SIZE(intercon));
+	snd_soc_dapm_new_controls(dapm, wm8903_dapm_widgets,
+				  ARRAY_SIZE(wm8903_dapm_widgets));
+	snd_soc_dapm_add_routes(dapm, intercon, ARRAY_SIZE(intercon));
 
 	return 0;
 }
@@ -934,7 +1012,7 @@ static int wm8903_add_widgets(struct snd_soc_codec *codec)
 static int wm8903_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
-	u16 reg, reg2;
+	u16 reg;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -946,7 +1024,7 @@ static int wm8903_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			snd_soc_write(codec, WM8903_CLOCK_RATES_2,
 				     WM8903_CLK_SYS_ENA);
 
@@ -958,23 +1036,15 @@ static int wm8903_set_bias_level(struct snd_soc_codec *codec,
 			wm8903_run_sequence(codec, 0);
 			wm8903_sync_reg_cache(codec, codec->reg_cache);
 
-			/* Enable low impedence charge pump output */
-			reg = snd_soc_read(codec,
-					  WM8903_CONTROL_INTERFACE_TEST_1);
-			snd_soc_write(codec, WM8903_CONTROL_INTERFACE_TEST_1,
-				     reg | WM8903_TEST_KEY);
-			reg2 = snd_soc_read(codec, WM8903_CHARGE_PUMP_TEST_1);
-			snd_soc_write(codec, WM8903_CHARGE_PUMP_TEST_1,
-				     reg2 | WM8903_CP_SW_KELVIN_MODE_MASK);
-			snd_soc_write(codec, WM8903_CONTROL_INTERFACE_TEST_1,
-				     reg);
-
 			/* By default no bypass paths are enabled so
 			 * enable Class W support.
 			 */
 			dev_dbg(codec->dev, "Enabling Class W\n");
-			snd_soc_write(codec, WM8903_CLASS_W_0, reg |
-				     WM8903_CP_DYN_FREQ | WM8903_CP_DYN_V);
+			snd_soc_update_bits(codec, WM8903_CLASS_W_0,
+					    WM8903_CP_DYN_FREQ |
+					    WM8903_CP_DYN_V,
+					    WM8903_CP_DYN_FREQ |
+					    WM8903_CP_DYN_V);
 		}
 
 		reg = snd_soc_read(codec, WM8903_VMID_CONTROL_0);
@@ -991,7 +1061,7 @@ static int wm8903_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 
 	return 0;
 }
@@ -1222,58 +1292,6 @@ static struct {
 	{ 0,      0 },
 };
 
-static int wm8903_startup(struct snd_pcm_substream *substream,
-			  struct snd_soc_dai *dai)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
-	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
-	struct snd_pcm_runtime *master_runtime;
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		wm8903->playback_active++;
-	else
-		wm8903->capture_active++;
-
-	/* The DAI has shared clocks so if we already have a playback or
-	 * capture going then constrain this substream to match it.
-	 */
-	if (wm8903->master_substream) {
-		master_runtime = wm8903->master_substream->runtime;
-
-		dev_dbg(codec->dev, "Constraining to %d bits\n",
-			master_runtime->sample_bits);
-
-		snd_pcm_hw_constraint_minmax(substream->runtime,
-					     SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
-					     master_runtime->sample_bits,
-					     master_runtime->sample_bits);
-
-		wm8903->slave_substream = substream;
-	} else
-		wm8903->master_substream = substream;
-
-	return 0;
-}
-
-static void wm8903_shutdown(struct snd_pcm_substream *substream,
-			    struct snd_soc_dai *dai)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
-	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		wm8903->playback_active--;
-	else
-		wm8903->capture_active--;
-
-	if (wm8903->master_substream == substream)
-		wm8903->master_substream = wm8903->slave_substream;
-
-	wm8903->slave_substream = NULL;
-}
-
 static int wm8903_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
@@ -1298,11 +1316,6 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 	u16 clock1 = snd_soc_read(codec, WM8903_CLOCK_RATES_1);
 	u16 dac_digital1 = snd_soc_read(codec, WM8903_DAC_DIGITAL_1);
 
-	if (substream == wm8903->slave_substream) {
-		dev_dbg(codec->dev, "Ignoring hw_params for slave substream\n");
-		return 0;
-	}
-
 	/* Enable sloping stopband filter for low sample rates */
 	if (fs <= 24000)
 		dac_digital1 |= WM8903_DAC_SB_FILT;
@@ -1319,19 +1332,6 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 			best_val = cur_val;
 		}
 	}
-
-	/* Constraints should stop us hitting this but let's make sure */
-	if (wm8903->capture_active)
-		switch (sample_rates[dsp_config].rate) {
-		case 88200:
-		case 96000:
-			dev_err(codec->dev, "%dHz unsupported by ADC\n",
-				fs);
-			return -EINVAL;
-
-		default:
-			break;
-		}
 
 	dev_dbg(codec->dev, "DSP fs = %dHz\n", sample_rates[dsp_config].rate);
 	clock1 &= ~WM8903_SAMPLE_RATE_MASK;
@@ -1428,6 +1428,9 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 	aif2 |= bclk_divs[bclk_div].div;
 	aif3 |= bclk / fs;
 
+	wm8903->fs = params_rate(params);
+	wm8903_set_deemph(codec);
+
 	snd_soc_write(codec, WM8903_CLOCK_RATES_0, clock0);
 	snd_soc_write(codec, WM8903_CLOCK_RATES_1, clock1);
 	snd_soc_write(codec, WM8903_AUDIO_INTERFACE_1, aif1);
@@ -1479,7 +1482,7 @@ int wm8903_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 			    WM8903_MICDET_EINT | WM8903_MICSHRT_EINT,
 			    irq_mask);
 
-	if (det && shrt) {
+	if (det || shrt) {
 		/* Enable mic detection, this may not have been set through
 		 * platform data (eg, if the defaults are OK). */
 		snd_soc_update_bits(codec, WM8903_WRITE_SEQUENCER_0,
@@ -1520,6 +1523,11 @@ static irqreturn_t wm8903_irq(int irq, void *data)
 	 */
 	mic_report = wm8903->mic_last_report;
 	int_pol = snd_soc_read(codec, WM8903_INTERRUPT_POLARITY_1);
+
+#ifndef CONFIG_SND_SOC_WM8903_MODULE
+	if (int_val & (WM8903_MICSHRT_EINT | WM8903_MICDET_EINT))
+		trace_snd_soc_jack_irq(dev_name(codec->dev));
+#endif
 
 	if (int_val & WM8903_MICSHRT_EINT) {
 		dev_dbg(codec->dev, "Microphone short (pol=%x)\n", int_pol);
@@ -1571,8 +1579,6 @@ static irqreturn_t wm8903_irq(int irq, void *data)
 			SNDRV_PCM_FMTBIT_S24_LE)
 
 static struct snd_soc_dai_ops wm8903_dai_ops = {
-	.startup	= wm8903_startup,
-	.shutdown	= wm8903_shutdown,
 	.hw_params	= wm8903_hw_params,
 	.digital_mute	= wm8903_digital_mute,
 	.set_fmt	= wm8903_set_dai_fmt,

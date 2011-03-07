@@ -69,7 +69,7 @@ comment "PC-card bridges"
 config YENTA
 	tristate "CardBus yenta-compatible bridge support"
 	depends on PCI
-	select CARDBUS if !EMBEDDED
+	select CARDBUS if !EXPERT
 	select PCCARD_NONSTATIC if PCMCIA != n
 	---help---
 	  This option enables support for CardBus host bridges.  Virtually
@@ -84,27 +84,27 @@ config YENTA
 
 config YENTA_O2
 	default y
-	bool "Special initialization for O2Micro bridges" if EMBEDDED
+	bool "Special initialization for O2Micro bridges" if EXPERT
 	depends on YENTA
 
 config YENTA_RICOH
 	default y
-	bool "Special initialization for Ricoh bridges" if EMBEDDED
+	bool "Special initialization for Ricoh bridges" if EXPERT
 	depends on YENTA
 
 config YENTA_TI
 	default y
-	bool "Special initialization for TI and EnE bridges" if EMBEDDED
+	bool "Special initialization for TI and EnE bridges" if EXPERT
 	depends on YENTA
 
 config YENTA_ENE_TUNE
 	default y
-	bool "Auto-tune EnE bridges for CB cards" if EMBEDDED
+	bool "Auto-tune EnE bridges for CB cards" if EXPERT
 	depends on YENTA_TI && CARDBUS
 
 config YENTA_TOSHIBA
 	default y
-	bool "Special initialization for Toshiba ToPIC bridges" if EMBEDDED
+	bool "Special initialization for Toshiba ToPIC bridges" if EXPERT
 	depends on YENTA
 
 config PD6729

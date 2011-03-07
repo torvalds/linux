@@ -821,7 +821,7 @@ retry:
  *
  * Wait for command done. This is a helper function for nand_wait used when
  * we are in interrupt context. May happen when in panic and trying to write
- * an oops trough mtdoops.
+ * an oops through mtdoops.
  */
 static void panic_nand_wait(struct mtd_info *mtd, struct nand_chip *chip,
 			    unsigned long timeo)
@@ -2865,20 +2865,24 @@ static int nand_flash_detect_onfi(struct mtd_info *mtd, struct nand_chip *chip,
 
 	/* check version */
 	val = le16_to_cpu(p->revision);
-	if (val == 1 || val > (1 << 4)) {
-		printk(KERN_INFO "%s: unsupported ONFI version: %d\n",
-								__func__, val);
-		return 0;
-	}
-
-	if (val & (1 << 4))
+	if (val & (1 << 5))
+		chip->onfi_version = 23;
+	else if (val & (1 << 4))
 		chip->onfi_version = 22;
 	else if (val & (1 << 3))
 		chip->onfi_version = 21;
 	else if (val & (1 << 2))
 		chip->onfi_version = 20;
-	else
+	else if (val & (1 << 1))
 		chip->onfi_version = 10;
+	else
+		chip->onfi_version = 0;
+
+	if (!chip->onfi_version) {
+		printk(KERN_INFO "%s: unsupported ONFI version: %d\n",
+								__func__, val);
+		return 0;
+	}
 
 	sanitize_string(p->manufacturer, sizeof(p->manufacturer));
 	sanitize_string(p->model, sizeof(p->model));
@@ -2887,7 +2891,7 @@ static int nand_flash_detect_onfi(struct mtd_info *mtd, struct nand_chip *chip,
 	mtd->writesize = le32_to_cpu(p->byte_per_page);
 	mtd->erasesize = le32_to_cpu(p->pages_per_block) * mtd->writesize;
 	mtd->oobsize = le16_to_cpu(p->spare_bytes_per_page);
-	chip->chipsize = le32_to_cpu(p->blocks_per_lun) * mtd->erasesize;
+	chip->chipsize = (uint64_t)le32_to_cpu(p->blocks_per_lun) * mtd->erasesize;
 	busw = 0;
 	if (le16_to_cpu(p->features) & 1)
 		busw = NAND_BUSWIDTH_16;
@@ -3157,7 +3161,7 @@ ident_done:
 	printk(KERN_INFO "NAND device: Manufacturer ID:"
 		" 0x%02x, Chip ID: 0x%02x (%s %s)\n", *maf_id, *dev_id,
 		nand_manuf_ids[maf_idx].name,
-	chip->onfi_version ? type->name : chip->onfi_params.model);
+		chip->onfi_version ? chip->onfi_params.model : type->name);
 
 	return type;
 }
@@ -3435,6 +3439,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 	mtd->resume = nand_resume;
 	mtd->block_isbad = nand_block_isbad;
 	mtd->block_markbad = nand_block_markbad;
+	mtd->writebufsize = mtd->writesize;
 
 	/* propagate ecc.layout to mtd_info */
 	mtd->ecclayout = chip->ecc.layout;

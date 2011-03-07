@@ -31,7 +31,7 @@ static int dac_volume_info(struct snd_kcontrol *ctl,
 	struct oxygen *chip = ctl->private_data;
 
 	info->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	info->count = chip->model.dac_channels;
+	info->count = chip->model.dac_channels_mixer;
 	info->value.integer.min = chip->model.dac_volume_min;
 	info->value.integer.max = chip->model.dac_volume_max;
 	return 0;
@@ -44,7 +44,7 @@ static int dac_volume_get(struct snd_kcontrol *ctl,
 	unsigned int i;
 
 	mutex_lock(&chip->mutex);
-	for (i = 0; i < chip->model.dac_channels; ++i)
+	for (i = 0; i < chip->model.dac_channels_mixer; ++i)
 		value->value.integer.value[i] = chip->dac_volume[i];
 	mutex_unlock(&chip->mutex);
 	return 0;
@@ -59,7 +59,7 @@ static int dac_volume_put(struct snd_kcontrol *ctl,
 
 	changed = 0;
 	mutex_lock(&chip->mutex);
-	for (i = 0; i < chip->model.dac_channels; ++i)
+	for (i = 0; i < chip->model.dac_channels_mixer; ++i)
 		if (value->value.integer.value[i] != chip->dac_volume[i]) {
 			chip->dac_volume[i] = value->value.integer.value[i];
 			changed = 1;
@@ -97,6 +97,16 @@ static int dac_mute_put(struct snd_kcontrol *ctl,
 	return changed;
 }
 
+static unsigned int upmix_item_count(struct oxygen *chip)
+{
+	if (chip->model.dac_channels_pcm < 8)
+		return 2;
+	else if (chip->model.update_center_lfe_mix)
+		return 5;
+	else
+		return 3;
+}
+
 static int upmix_info(struct snd_kcontrol *ctl, struct snd_ctl_elem_info *info)
 {
 	static const char *const names[5] = {
@@ -107,15 +117,9 @@ static int upmix_info(struct snd_kcontrol *ctl, struct snd_ctl_elem_info *info)
 		"Front+Surround+Center/LFE+Back",
 	};
 	struct oxygen *chip = ctl->private_data;
-	unsigned int count = chip->model.update_center_lfe_mix ? 5 : 3;
+	unsigned int count = upmix_item_count(chip);
 
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = count;
-	if (info->value.enumerated.item >= count)
-		info->value.enumerated.item = count - 1;
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(info, 1, count, names);
 }
 
 static int upmix_get(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
@@ -176,6 +180,8 @@ void oxygen_update_dac_routing(struct oxygen *chip)
 			    (1 << OXYGEN_PLAY_DAC1_SOURCE_SHIFT) |
 			    (2 << OXYGEN_PLAY_DAC2_SOURCE_SHIFT) |
 			    (3 << OXYGEN_PLAY_DAC3_SOURCE_SHIFT);
+	if (chip->model.adjust_dac_routing)
+		reg_value = chip->model.adjust_dac_routing(chip, reg_value);
 	oxygen_write16_masked(chip, OXYGEN_PLAY_ROUTING, reg_value,
 			      OXYGEN_PLAY_DAC0_SOURCE_MASK |
 			      OXYGEN_PLAY_DAC1_SOURCE_MASK |
@@ -188,7 +194,7 @@ void oxygen_update_dac_routing(struct oxygen *chip)
 static int upmix_put(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
 {
 	struct oxygen *chip = ctl->private_data;
-	unsigned int count = chip->model.update_center_lfe_mix ? 5 : 3;
+	unsigned int count = upmix_item_count(chip);
 	int changed;
 
 	if (value->value.enumerated.item[0] >= count)
@@ -430,30 +436,31 @@ static int spdif_input_default_get(struct snd_kcontrol *ctl,
 	return 0;
 }
 
-static int spdif_loopback_get(struct snd_kcontrol *ctl,
-			      struct snd_ctl_elem_value *value)
+static int spdif_bit_switch_get(struct snd_kcontrol *ctl,
+				struct snd_ctl_elem_value *value)
 {
 	struct oxygen *chip = ctl->private_data;
+	u32 bit = ctl->private_value;
 
 	value->value.integer.value[0] =
-		!!(oxygen_read32(chip, OXYGEN_SPDIF_CONTROL)
-		   & OXYGEN_SPDIF_LOOPBACK);
+		!!(oxygen_read32(chip, OXYGEN_SPDIF_CONTROL) & bit);
 	return 0;
 }
 
-static int spdif_loopback_put(struct snd_kcontrol *ctl,
-			      struct snd_ctl_elem_value *value)
+static int spdif_bit_switch_put(struct snd_kcontrol *ctl,
+				struct snd_ctl_elem_value *value)
 {
 	struct oxygen *chip = ctl->private_data;
+	u32 bit = ctl->private_value;
 	u32 oldreg, newreg;
 	int changed;
 
 	spin_lock_irq(&chip->reg_lock);
 	oldreg = oxygen_read32(chip, OXYGEN_SPDIF_CONTROL);
 	if (value->value.integer.value[0])
-		newreg = oldreg | OXYGEN_SPDIF_LOOPBACK;
+		newreg = oldreg | bit;
 	else
-		newreg = oldreg & ~OXYGEN_SPDIF_LOOPBACK;
+		newreg = oldreg & ~bit;
 	changed = newreg != oldreg;
 	if (changed)
 		oxygen_write32(chip, OXYGEN_SPDIF_CONTROL, newreg);
@@ -644,6 +651,46 @@ static int ac97_volume_put(struct snd_kcontrol *ctl,
 	return change;
 }
 
+static int mic_fmic_source_info(struct snd_kcontrol *ctl,
+			   struct snd_ctl_elem_info *info)
+{
+	static const char *const names[] = { "Mic Jack", "Front Panel" };
+
+	return snd_ctl_enum_info(info, 1, 2, names);
+}
+
+static int mic_fmic_source_get(struct snd_kcontrol *ctl,
+			       struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+
+	mutex_lock(&chip->mutex);
+	value->value.enumerated.item[0] =
+		!!(oxygen_read_ac97(chip, 0, CM9780_JACK) & CM9780_FMIC2MIC);
+	mutex_unlock(&chip->mutex);
+	return 0;
+}
+
+static int mic_fmic_source_put(struct snd_kcontrol *ctl,
+			       struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+	u16 oldreg, newreg;
+	int change;
+
+	mutex_lock(&chip->mutex);
+	oldreg = oxygen_read_ac97(chip, 0, CM9780_JACK);
+	if (value->value.enumerated.item[0])
+		newreg = oldreg | CM9780_FMIC2MIC;
+	else
+		newreg = oldreg & ~CM9780_FMIC2MIC;
+	change = newreg != oldreg;
+	if (change)
+		oxygen_write_ac97(chip, 0, CM9780_JACK, newreg);
+	mutex_unlock(&chip->mutex);
+	return change;
+}
+
 static int ac97_fp_rec_volume_info(struct snd_kcontrol *ctl,
 				   struct snd_ctl_elem_info *info)
 {
@@ -791,8 +838,17 @@ static const struct snd_kcontrol_new spdif_input_controls[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = SNDRV_CTL_NAME_IEC958("Loopback ", NONE, SWITCH),
 		.info = snd_ctl_boolean_mono_info,
-		.get = spdif_loopback_get,
-		.put = spdif_loopback_put,
+		.get = spdif_bit_switch_get,
+		.put = spdif_bit_switch_put,
+		.private_value = OXYGEN_SPDIF_LOOPBACK,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = SNDRV_CTL_NAME_IEC958("Validity Check ",CAPTURE,SWITCH),
+		.info = snd_ctl_boolean_mono_info,
+		.get = spdif_bit_switch_get,
+		.put = spdif_bit_switch_put,
+		.private_value = OXYGEN_SPDIF_SPDVALID,
 	},
 };
 
@@ -908,6 +964,13 @@ static const struct snd_kcontrol_new ac97_controls[] = {
 	AC97_VOLUME("Mic Capture Volume", 0, AC97_MIC, 0),
 	AC97_SWITCH("Mic Capture Switch", 0, AC97_MIC, 15, 1),
 	AC97_SWITCH("Mic Boost (+20dB)", 0, AC97_MIC, 6, 0),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Mic Source Capture Enum",
+		.info = mic_fmic_source_info,
+		.get = mic_fmic_source_get,
+		.put = mic_fmic_source_put,
+	},
 	AC97_SWITCH("Line Capture Switch", 0, AC97_LINE, 15, 1),
 	AC97_VOLUME("CD Capture Volume", 0, AC97_CD, 1),
 	AC97_SWITCH("CD Capture Switch", 0, AC97_CD, 15, 1),
@@ -970,7 +1033,10 @@ static int add_controls(struct oxygen *chip,
 				continue;
 		}
 		if (!strcmp(template.name, "Stereo Upmixing") &&
-		    chip->model.dac_channels == 2)
+		    chip->model.dac_channels_pcm == 2)
+			continue;
+		if (!strcmp(template.name, "Mic Source Capture Enum") &&
+		    !(chip->model.device_config & AC97_FMIC_SWITCH))
 			continue;
 		if (!strncmp(template.name, "CD Capture ", 11) &&
 		    !(chip->model.device_config & AC97_CD_INPUT))

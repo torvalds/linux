@@ -5646,7 +5646,7 @@ bfa_cb_lps_fdisc_comp(void *bfad, void *uarg, bfa_status_t status)
 	switch (status) {
 	case BFA_STATUS_OK:
 		/*
-		 * Initialiaze the V-Port fields
+		 * Initialize the V-Port fields
 		 */
 		__vport_fcid(vport) = vport->lps->lp_pid;
 		vport->vport_stats.fdisc_accepts++;

@@ -314,13 +314,14 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb->ip_summed = CHECKSUM_NONE;
 
-	ah = (struct ip_auth_hdr *)skb->data;
-	iph = ip_hdr(skb);
-	ihl = ip_hdrlen(skb);
 
 	if ((err = skb_cow_data(skb, 0, &trailer)) < 0)
 		goto out;
 	nfrags = err;
+
+	ah = (struct ip_auth_hdr *)skb->data;
+	iph = ip_hdr(skb);
+	ihl = ip_hdrlen(skb);
 
 	work_iph = ah_alloc_tmp(ahash, nfrags, ihl + ahp->icv_trunc_len);
 	if (!work_iph)

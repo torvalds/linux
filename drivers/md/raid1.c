@@ -593,7 +593,10 @@ static int flush_pending_writes(conf_t *conf)
 	if (conf->pending_bio_list.head) {
 		struct bio *bio;
 		bio = bio_list_get(&conf->pending_bio_list);
+		/* Only take the spinlock to quiet a warning */
+		spin_lock(conf->mddev->queue->queue_lock);
 		blk_remove_plug(conf->mddev->queue);
+		spin_unlock(conf->mddev->queue->queue_lock);
 		spin_unlock_irq(&conf->device_lock);
 		/* flush any pending bitmap writes to
 		 * disk before proceeding w/ I/O */
@@ -959,7 +962,7 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 		atomic_inc(&r1_bio->remaining);
 		spin_lock_irqsave(&conf->device_lock, flags);
 		bio_list_add(&conf->pending_bio_list, mbio);
-		blk_plug_device(mddev->queue);
+		blk_plug_device_unlocked(mddev->queue);
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 	}
 	r1_bio_write_done(r1_bio, bio->bi_vcnt, behind_pages, behind_pages != NULL);
@@ -1027,8 +1030,9 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 	} else
 		set_bit(Faulty, &rdev->flags);
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
-	printk(KERN_ALERT "md/raid1:%s: Disk failure on %s, disabling device.\n"
-	       KERN_ALERT "md/raid1:%s: Operation continuing on %d devices.\n",
+	printk(KERN_ALERT
+	       "md/raid1:%s: Disk failure on %s, disabling device.\n"
+	       "md/raid1:%s: Operation continuing on %d devices.\n",
 	       mdname(mddev), bdevname(rdev->bdev, b),
 	       mdname(mddev), conf->raid_disks - mddev->degraded);
 }
@@ -1364,10 +1368,10 @@ static void sync_request_write(mddev_t *mddev, r1bio_t *r1_bio)
 					 */
 					rdev = conf->mirrors[d].rdev;
 					if (sync_page_io(rdev,
-							 sect + rdev->data_offset,
+							 sect,
 							 s<<9,
 							 bio->bi_io_vec[idx].bv_page,
-							 READ)) {
+							 READ, false)) {
 						success = 1;
 						break;
 					}
@@ -1390,10 +1394,10 @@ static void sync_request_write(mddev_t *mddev, r1bio_t *r1_bio)
 					rdev = conf->mirrors[d].rdev;
 					atomic_add(s, &rdev->corrected_errors);
 					if (sync_page_io(rdev,
-							 sect + rdev->data_offset,
+							 sect,
 							 s<<9,
 							 bio->bi_io_vec[idx].bv_page,
-							 WRITE) == 0)
+							 WRITE, false) == 0)
 						md_error(mddev, rdev);
 				}
 				d = start;
@@ -1405,10 +1409,10 @@ static void sync_request_write(mddev_t *mddev, r1bio_t *r1_bio)
 						continue;
 					rdev = conf->mirrors[d].rdev;
 					if (sync_page_io(rdev,
-							 sect + rdev->data_offset,
+							 sect,
 							 s<<9,
 							 bio->bi_io_vec[idx].bv_page,
-							 READ) == 0)
+							 READ, false) == 0)
 						md_error(mddev, rdev);
 				}
 			} else {
@@ -1488,10 +1492,8 @@ static void fix_read_error(conf_t *conf, int read_disk,
 			rdev = conf->mirrors[d].rdev;
 			if (rdev &&
 			    test_bit(In_sync, &rdev->flags) &&
-			    sync_page_io(rdev,
-					 sect + rdev->data_offset,
-					 s<<9,
-					 conf->tmppage, READ))
+			    sync_page_io(rdev, sect, s<<9,
+					 conf->tmppage, READ, false))
 				success = 1;
 			else {
 				d++;
@@ -1514,9 +1516,8 @@ static void fix_read_error(conf_t *conf, int read_disk,
 			rdev = conf->mirrors[d].rdev;
 			if (rdev &&
 			    test_bit(In_sync, &rdev->flags)) {
-				if (sync_page_io(rdev,
-						 sect + rdev->data_offset,
-						 s<<9, conf->tmppage, WRITE)
+				if (sync_page_io(rdev, sect, s<<9,
+						 conf->tmppage, WRITE, false)
 				    == 0)
 					/* Well, this device is dead */
 					md_error(mddev, rdev);
@@ -1531,9 +1532,8 @@ static void fix_read_error(conf_t *conf, int read_disk,
 			rdev = conf->mirrors[d].rdev;
 			if (rdev &&
 			    test_bit(In_sync, &rdev->flags)) {
-				if (sync_page_io(rdev,
-						 sect + rdev->data_offset,
-						 s<<9, conf->tmppage, READ)
+				if (sync_page_io(rdev, sect, s<<9,
+						 conf->tmppage, READ, false)
 				    == 0)
 					/* Well, this device is dead */
 					md_error(mddev, rdev);
@@ -2024,7 +2024,6 @@ static int run(mddev_t *mddev)
 	if (IS_ERR(conf))
 		return PTR_ERR(conf);
 
-	mddev->queue->queue_lock = &conf->device_lock;
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
 		disk_stack_limits(mddev->gendisk, rdev->bdev,
 				  rdev->data_offset << 9);

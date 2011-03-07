@@ -682,7 +682,7 @@ static int p4_validate_raw_event(struct perf_event *event)
 	 * if an event is shared accross the logical threads
 	 * the user needs special permissions to be able to use it
 	 */
-	if (p4_event_bind_map[v].shared) {
+	if (p4_ht_active() && p4_event_bind_map[v].shared) {
 		if (perf_paranoid_cpu() && !capable(CAP_SYS_ADMIN))
 			return -EACCES;
 	}
@@ -727,7 +727,8 @@ static int p4_hw_config(struct perf_event *event)
 		event->hw.config = p4_set_ht_bit(event->hw.config);
 
 	if (event->attr.type == PERF_TYPE_RAW) {
-
+		struct p4_event_bind *bind;
+		unsigned int esel;
 		/*
 		 * Clear bits we reserve to be managed by kernel itself
 		 * and never allowed from a user space
@@ -743,6 +744,13 @@ static int p4_hw_config(struct perf_event *event)
 		 * bits since we keep additional info here (for cache events and etc)
 		 */
 		event->hw.config |= event->attr.config;
+		bind = p4_config_get_bind(event->attr.config);
+		if (!bind) {
+			rc = -EINVAL;
+			goto out;
+		}
+		esel = P4_OPCODE_ESEL(bind->opcode);
+		event->hw.config |= p4_config_pack_cccr(P4_CCCR_ESEL(esel));
 	}
 
 	rc = x86_setup_perfctr(event);
@@ -753,19 +761,26 @@ out:
 
 static inline int p4_pmu_clear_cccr_ovf(struct hw_perf_event *hwc)
 {
-	int overflow = 0;
-	u32 low, high;
+	u64 v;
 
-	rdmsr(hwc->config_base + hwc->idx, low, high);
-
-	/* we need to check high bit for unflagged overflows */
-	if ((low & P4_CCCR_OVF) || !(high & (1 << 31))) {
-		overflow = 1;
-		(void)checking_wrmsrl(hwc->config_base + hwc->idx,
-			((u64)low) & ~P4_CCCR_OVF);
+	/* an official way for overflow indication */
+	rdmsrl(hwc->config_base + hwc->idx, v);
+	if (v & P4_CCCR_OVF) {
+		wrmsrl(hwc->config_base + hwc->idx, v & ~P4_CCCR_OVF);
+		return 1;
 	}
 
-	return overflow;
+	/*
+	 * In some circumstances the overflow might issue an NMI but did
+	 * not set P4_CCCR_OVF bit. Because a counter holds a negative value
+	 * we simply check for high bit being set, if it's cleared it means
+	 * the counter has reached zero value and continued counting before
+	 * real NMI signal was received:
+	 */
+	if (!(v & ARCH_P4_UNFLAGGED_BIT))
+		return 1;
+
+	return 0;
 }
 
 static void p4_pmu_disable_pebs(void)
@@ -1152,9 +1167,9 @@ static __initconst const struct x86_pmu p4_pmu = {
 	 */
 	.num_counters		= ARCH_P4_MAX_CCCR,
 	.apic			= 1,
-	.cntval_bits		= 40,
-	.cntval_mask		= (1ULL << 40) - 1,
-	.max_period		= (1ULL << 39) - 1,
+	.cntval_bits		= ARCH_P4_CNTRVAL_BITS,
+	.cntval_mask		= ARCH_P4_CNTRVAL_MASK,
+	.max_period		= (1ULL << (ARCH_P4_CNTRVAL_BITS - 1)) - 1,
 	.hw_config		= p4_hw_config,
 	.schedule_events	= p4_pmu_schedule_events,
 	/*

@@ -39,6 +39,8 @@ module_param(ieee80211_disable_40mhz_24ghz, bool, 0644);
 MODULE_PARM_DESC(ieee80211_disable_40mhz_24ghz,
 		 "Disable 40MHz support in the 2.4GHz band");
 
+static struct lock_class_key ieee80211_rx_skb_queue_class;
+
 void ieee80211_configure_filter(struct ieee80211_local *local)
 {
 	u64 mc;
@@ -569,7 +571,15 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	spin_lock_init(&local->filter_lock);
 	spin_lock_init(&local->queue_stop_reason_lock);
 
-	skb_queue_head_init(&local->rx_skb_queue);
+	/*
+	 * The rx_skb_queue is only accessed from tasklets,
+	 * but other SKB queues are used from within IRQ
+	 * context. Therefore, this one needs a different
+	 * locking class so our direct, non-irq-safe use of
+	 * the queue's lock doesn't throw lockdep warnings.
+	 */
+	skb_queue_head_init_class(&local->rx_skb_queue,
+				  &ieee80211_rx_skb_queue_class);
 
 	INIT_DELAYED_WORK(&local->scan_work, ieee80211_scan_work);
 

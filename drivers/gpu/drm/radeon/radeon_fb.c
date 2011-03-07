@@ -113,11 +113,14 @@ static int radeonfb_create_pinned_object(struct radeon_fbdev *rfbdev,
 	u32 tiling_flags = 0;
 	int ret;
 	int aligned_size, size;
+	int height = mode_cmd->height;
 
 	/* need to align pitch with crtc limits */
 	mode_cmd->pitch = radeon_align_pitch(rdev, mode_cmd->width, mode_cmd->bpp, fb_tiled) * ((mode_cmd->bpp + 1) / 8);
 
-	size = mode_cmd->pitch * mode_cmd->height;
+	if (rdev->family >= CHIP_R600)
+		height = ALIGN(mode_cmd->height, 8);
+	size = mode_cmd->pitch * height;
 	aligned_size = ALIGN(size, PAGE_SIZE);
 	ret = radeon_gem_object_create(rdev, aligned_size, 0,
 				       RADEON_GEM_DOMAIN_VRAM,
@@ -247,8 +250,6 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 	info->apertures->ranges[0].base = rdev->ddev->mode_config.fb_base;
 	info->apertures->ranges[0].size = rdev->mc.aper_size;
 
-	info->fix.mmio_start = 0;
-	info->fix.mmio_len = 0;
 	info->pixmap.size = 64*1024;
 	info->pixmap.buf_align = 8;
 	info->pixmap.access_align = 32;

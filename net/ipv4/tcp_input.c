@@ -1222,7 +1222,7 @@ static int tcp_check_dsack(struct sock *sk, struct sk_buff *ack_skb,
 	}
 
 	/* D-SACK for already forgotten data... Do dumb counting. */
-	if (dup_sack &&
+	if (dup_sack && tp->undo_marker && tp->undo_retrans &&
 	    !after(end_seq_0, prior_snd_una) &&
 	    after(end_seq_0, tp->undo_marker))
 		tp->undo_retrans--;
@@ -1299,7 +1299,8 @@ static u8 tcp_sacktag_one(struct sk_buff *skb, struct sock *sk,
 
 	/* Account D-SACK for retransmitted packet. */
 	if (dup_sack && (sacked & TCPCB_RETRANS)) {
-		if (after(TCP_SKB_CB(skb)->end_seq, tp->undo_marker))
+		if (tp->undo_marker && tp->undo_retrans &&
+		    after(TCP_SKB_CB(skb)->end_seq, tp->undo_marker))
 			tp->undo_retrans--;
 		if (sacked & TCPCB_SACKED_ACKED)
 			state->reord = min(fack_count, state->reord);
@@ -4399,7 +4400,7 @@ static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 			if (!skb_copy_datagram_iovec(skb, 0, tp->ucopy.iov, chunk)) {
 				tp->ucopy.len -= chunk;
 				tp->copied_seq += chunk;
-				eaten = (chunk == skb->len && !th->fin);
+				eaten = (chunk == skb->len);
 				tcp_rcv_space_adjust(sk);
 			}
 			local_bh_disable();

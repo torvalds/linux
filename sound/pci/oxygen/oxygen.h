@@ -16,6 +16,10 @@
 #define PCM_AC97	5
 #define PCM_COUNT	6
 
+#define OXYGEN_MCLKS(f_single, f_double, f_quad) ((MCLK_##f_single << 0) | \
+						  (MCLK_##f_double << 2) | \
+						  (MCLK_##f_quad   << 4))
+
 #define OXYGEN_IO_SIZE	0x100
 
 #define OXYGEN_EEPROM_ID	0x434d	/* "CM" */
@@ -35,6 +39,7 @@
 #define MIDI_OUTPUT		0x0800
 #define MIDI_INPUT		0x1000
 #define AC97_CD_INPUT		0x2000
+#define AC97_FMIC_SWITCH	0x4000
 
 enum {
 	CONTROL_SPDIF_PCM,
@@ -65,6 +70,7 @@ struct snd_pcm_hardware;
 struct snd_pcm_hw_params;
 struct snd_kcontrol_new;
 struct snd_rawmidi;
+struct snd_info_buffer;
 struct oxygen;
 
 struct oxygen_model {
@@ -79,8 +85,6 @@ struct oxygen_model {
 	void (*resume)(struct oxygen *chip);
 	void (*pcm_hardware_filter)(unsigned int channel,
 				    struct snd_pcm_hardware *hardware);
-	unsigned int (*get_i2s_mclk)(struct oxygen *chip, unsigned int channel,
-				     struct snd_pcm_hw_params *hw_params);
 	void (*set_dac_params)(struct oxygen *chip,
 			       struct snd_pcm_hw_params *params);
 	void (*set_adc_params)(struct oxygen *chip,
@@ -88,19 +92,25 @@ struct oxygen_model {
 	void (*update_dac_volume)(struct oxygen *chip);
 	void (*update_dac_mute)(struct oxygen *chip);
 	void (*update_center_lfe_mix)(struct oxygen *chip, bool mixed);
+	unsigned int (*adjust_dac_routing)(struct oxygen *chip,
+					   unsigned int play_routing);
 	void (*gpio_changed)(struct oxygen *chip);
 	void (*uart_input)(struct oxygen *chip);
 	void (*ac97_switch)(struct oxygen *chip,
 			    unsigned int reg, unsigned int mute);
+	void (*dump_registers)(struct oxygen *chip,
+			       struct snd_info_buffer *buffer);
 	const unsigned int *dac_tlv;
-	unsigned long private_data;
 	size_t model_data_size;
 	unsigned int device_config;
-	u8 dac_channels;
+	u8 dac_channels_pcm;
+	u8 dac_channels_mixer;
 	u8 dac_volume_min;
 	u8 dac_volume_max;
 	u8 misc_flags;
 	u8 function_flags;
+	u8 dac_mclks;
+	u8 adc_mclks;
 	u16 dac_i2s_format;
 	u16 adc_i2s_format;
 };
@@ -121,7 +131,6 @@ struct oxygen {
 	u8 pcm_running;
 	u8 dac_routing;
 	u8 spdif_playback_enable;
-	u8 revision;
 	u8 has_ac97_0;
 	u8 has_ac97_1;
 	u32 spdif_bits;
@@ -167,8 +176,6 @@ void oxygen_update_spdif_source(struct oxygen *chip);
 /* oxygen_pcm.c */
 
 int oxygen_pcm_init(struct oxygen *chip);
-unsigned int oxygen_default_i2s_mclk(struct oxygen *chip, unsigned int channel,
-				     struct snd_pcm_hw_params *hw_params);
 
 /* oxygen_io.c */
 

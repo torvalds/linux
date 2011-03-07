@@ -25,7 +25,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 
 #include "wm8971.h"
@@ -333,10 +332,11 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static int wm8971_add_widgets(struct snd_soc_codec *codec)
 {
-	snd_soc_dapm_new_controls(codec, wm8971_dapm_widgets,
-				  ARRAY_SIZE(wm8971_dapm_widgets));
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_new_controls(dapm, wm8971_dapm_widgets,
+				  ARRAY_SIZE(wm8971_dapm_widgets));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	return 0;
 }
@@ -553,7 +553,7 @@ static int wm8971_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_write(codec, WM8971_PWR1, 0x0001);
 		break;
 	}
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -590,9 +590,11 @@ static struct snd_soc_dai_driver wm8971_dai = {
 
 static void wm8971_work(struct work_struct *work)
 {
-	struct snd_soc_codec *codec =
-		container_of(work, struct snd_soc_codec, delayed_work.work);
-	wm8971_set_bias_level(codec, codec->bias_level);
+	struct snd_soc_dapm_context *dapm =
+		container_of(work, struct snd_soc_dapm_context,
+			     delayed_work.work);
+	struct snd_soc_codec *codec = dapm->codec;
+	wm8971_set_bias_level(codec, codec->dapm.bias_level);
 }
 
 static int wm8971_suspend(struct snd_soc_codec *codec, pm_message_t state)
@@ -620,11 +622,11 @@ static int wm8971_resume(struct snd_soc_codec *codec)
 	wm8971_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* charge wm8971 caps */
-	if (codec->suspend_bias_level == SND_SOC_BIAS_ON) {
+	if (codec->dapm.suspend_bias_level == SND_SOC_BIAS_ON) {
 		reg = snd_soc_read(codec, WM8971_PWR1) & 0xfe3e;
 		snd_soc_write(codec, WM8971_PWR1, reg | 0x01c0);
-		codec->bias_level = SND_SOC_BIAS_ON;
-		queue_delayed_work(wm8971_workq, &codec->delayed_work,
+		codec->dapm.bias_level = SND_SOC_BIAS_ON;
+		queue_delayed_work(wm8971_workq, &codec->dapm.delayed_work,
 			msecs_to_jiffies(1000));
 	}
 
@@ -643,7 +645,7 @@ static int wm8971_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	INIT_DELAYED_WORK(&codec->delayed_work, wm8971_work);
+	INIT_DELAYED_WORK(&codec->dapm.delayed_work, wm8971_work);
 	wm8971_workq = create_workqueue("wm8971");
 	if (wm8971_workq == NULL)
 		return -ENOMEM;
@@ -653,8 +655,8 @@ static int wm8971_probe(struct snd_soc_codec *codec)
 	/* charge output caps - set vmid to 5k for quick power up */
 	reg = snd_soc_read(codec, WM8971_PWR1) & 0xfe3e;
 	snd_soc_write(codec, WM8971_PWR1, reg | 0x01c0);
-	codec->bias_level = SND_SOC_BIAS_STANDBY;
-	queue_delayed_work(wm8971_workq, &codec->delayed_work,
+	codec->dapm.bias_level = SND_SOC_BIAS_STANDBY;
+	queue_delayed_work(wm8971_workq, &codec->dapm.delayed_work,
 		msecs_to_jiffies(1000));
 
 	/* set the update bits */

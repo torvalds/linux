@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/suspend.h>
 #include <linux/sysdev.h>
+#include <linux/irq.h>
 
 #include <asm/mach/map.h>
 #include <mach/hardware.h>
@@ -282,15 +283,15 @@ static inline void pxa25x_init_pm(void) {}
 /* PXA25x: supports wakeup from GPIO0..GPIO15 and RTC alarm
  */
 
-static int pxa25x_set_wake(unsigned int irq, unsigned int on)
+static int pxa25x_set_wake(struct irq_data *d, unsigned int on)
 {
-	int gpio = IRQ_TO_GPIO(irq);
+	int gpio = IRQ_TO_GPIO(d->irq);
 	uint32_t mask = 0;
 
 	if (gpio >= 0 && gpio < 85)
 		return gpio_set_wake(gpio, on);
 
-	if (irq == IRQ_RTCAlrm) {
+	if (d->irq == IRQ_RTCAlrm) {
 		mask = PWER_RTC;
 		goto set_pwer;
 	}

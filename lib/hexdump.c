@@ -154,6 +154,7 @@ nil:
 }
 EXPORT_SYMBOL(hex_dump_to_buffer);
 
+#ifdef CONFIG_PRINTK
 /**
  * print_hex_dump - print a text hex dump to syslog for a binary blob of data
  * @level: kernel log level (e.g. KERN_DEBUG)
@@ -238,3 +239,4 @@ void print_hex_dump_bytes(const char *prefix_str, int prefix_type,
 		       buf, len, true);
 }
 EXPORT_SYMBOL(print_hex_dump_bytes);
+#endif

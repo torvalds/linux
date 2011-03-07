@@ -254,10 +254,10 @@ static struct regulator_init_data cam_data = {
 
 static struct mc13783_regulator_init_data pcm038_regulators[] = {
 	{
-		.id = MC13783_REGU_VCAM,
+		.id = MC13783_REG_VCAM,
 		.init_data = &cam_data,
 	}, {
-		.id = MC13783_REGU_VMMC1,
+		.id = MC13783_REG_VMMC1,
 		.init_data = &sdhc1_data,
 	},
 };

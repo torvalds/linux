@@ -186,7 +186,7 @@ enum {
  * struct i2400m_poke_table - Hardware poke table for the Intel 2400m
  *
  * This structure will be used to create a device specific poke table
- * to put the device in a consistant state at boot time.
+ * to put the device in a consistent state at boot time.
  *
  * @address: The device address to poke
  *
@@ -703,7 +703,7 @@ enum i2400m_bm_cmd_flags {
  * @I2400M_BRI_MAC_REINIT: We need to reinitialize the boot
  *     rom after reading the MAC address. This is quite a dirty hack,
  *     if you ask me -- the device requires the bootrom to be
- *     intialized after reading the MAC address.
+ *     initialized after reading the MAC address.
  */
 enum i2400m_bri {
 	I2400M_BRI_SOFT       = 1 << 1,

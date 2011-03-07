@@ -95,6 +95,10 @@ static int __init kgdbtest_init(void)
 {
 	struct proc_dir_entry *entry;
 
+#if L2_LENGTH
+	num2 = 0;
+#endif
+
 	entry = proc_create("kgdbtest", 0, NULL, &kgdb_test_proc_fops);
 	if (entry == NULL)
 		return -ENOMEM;

@@ -31,8 +31,10 @@
 
 #define MAX_SLOTS		21
 
-static void it8152_mask_irq(unsigned int irq)
+static void it8152_mask_irq(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
+
        if (irq >= IT8152_LD_IRQ(0)) {
 	       __raw_writel((__raw_readl(IT8152_INTC_LDCNIMR) |
 			    (1 << (irq - IT8152_LD_IRQ(0)))),
@@ -48,8 +50,10 @@ static void it8152_mask_irq(unsigned int irq)
        }
 }
 
-static void it8152_unmask_irq(unsigned int irq)
+static void it8152_unmask_irq(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
+
        if (irq >= IT8152_LD_IRQ(0)) {
 	       __raw_writel((__raw_readl(IT8152_INTC_LDCNIMR) &
 			     ~(1 << (irq - IT8152_LD_IRQ(0)))),
@@ -67,9 +71,9 @@ static void it8152_unmask_irq(unsigned int irq)
 
 static struct irq_chip it8152_irq_chip = {
 	.name		= "it8152",
-	.ack		= it8152_mask_irq,
-	.mask		= it8152_mask_irq,
-	.unmask		= it8152_unmask_irq,
+	.irq_ack	= it8152_mask_irq,
+	.irq_mask	= it8152_mask_irq,
+	.irq_unmask	= it8152_unmask_irq,
 };
 
 void it8152_init_irq(void)
@@ -236,7 +240,7 @@ static struct resource it8152_mem = {
 
 /*
  * The following functions are needed for DMA bouncing.
- * ITE8152 chip can addrees up to 64MByte, so all the devices
+ * ITE8152 chip can address up to 64MByte, so all the devices
  * connected to ITE8152 (PCI and USB) should have limited DMA window
  */
 

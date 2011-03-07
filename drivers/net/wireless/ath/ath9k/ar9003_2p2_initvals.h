@@ -1842,7 +1842,7 @@ static const u32 ar9300_2p2_soc_preamble[][2] = {
 
 static const u32 ar9300PciePhy_pll_on_clkreq_disable_L1_2p2[][2] = {
 	/* Addr      allmodes  */
-	{0x00004040, 0x08212e5e},
+	{0x00004040, 0x0821265e},
 	{0x00004040, 0x0008003b},
 	{0x00004044, 0x00000000},
 };

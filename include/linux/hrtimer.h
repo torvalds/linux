@@ -131,7 +131,6 @@ struct hrtimer_sleeper {
  * @index:		clock type index for per_cpu support when moving a
  *			timer to a base on another cpu.
  * @active:		red black tree root node for the active timers
- * @first:		pointer to the timer node which expires first
  * @resolution:		the resolution of the clock, in nanoseconds
  * @get_time:		function to retrieve the current time of the clock
  * @softirq_time:	the time when running the hrtimer queue in the softirq

@@ -137,8 +137,6 @@ static phys_addr_t __init_memblock memblock_find_base(phys_addr_t size,
 
 	BUG_ON(0 == size);
 
-	size = memblock_align_up(size, align);
-
 	/* Pump up max_addr */
 	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
 		end = memblock.current_limit;
@@ -683,13 +681,13 @@ int __init_memblock memblock_is_memory(phys_addr_t addr)
 
 int __init_memblock memblock_is_region_memory(phys_addr_t base, phys_addr_t size)
 {
-	int idx = memblock_search(&memblock.reserved, base);
+	int idx = memblock_search(&memblock.memory, base);
 
 	if (idx == -1)
 		return 0;
-	return memblock.reserved.regions[idx].base <= base &&
-		(memblock.reserved.regions[idx].base +
-		 memblock.reserved.regions[idx].size) >= (base + size);
+	return memblock.memory.regions[idx].base <= base &&
+		(memblock.memory.regions[idx].base +
+		 memblock.memory.regions[idx].size) >= (base + size);
 }
 
 int __init_memblock memblock_is_region_reserved(phys_addr_t base, phys_addr_t size)

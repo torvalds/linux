@@ -130,7 +130,7 @@ static void restore_core_regs(void)
 	au_writel(sleep_usb[1], USBD_ENABLE);
 	au_sync();
 #else
-	/* enable accces to OTG memory */
+	/* enable access to OTG memory */
 	au_writel(au_readl(USB_MSR_BASE + 4) | (1 << 6), USB_MSR_BASE + 4);
 	au_sync();
 

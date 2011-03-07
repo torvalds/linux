@@ -699,16 +699,16 @@ static irqreturn_t stmpe_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void stmpe_irq_lock(unsigned int irq)
+static void stmpe_irq_lock(struct irq_data *data)
 {
-	struct stmpe *stmpe = get_irq_chip_data(irq);
+	struct stmpe *stmpe = irq_data_get_irq_chip_data(data);
 
 	mutex_lock(&stmpe->irq_lock);
 }
 
-static void stmpe_irq_sync_unlock(unsigned int irq)
+static void stmpe_irq_sync_unlock(struct irq_data *data)
 {
-	struct stmpe *stmpe = get_irq_chip_data(irq);
+	struct stmpe *stmpe = irq_data_get_irq_chip_data(data);
 	struct stmpe_variant_info *variant = stmpe->variant;
 	int num = DIV_ROUND_UP(variant->num_irqs, 8);
 	int i;
@@ -727,20 +727,20 @@ static void stmpe_irq_sync_unlock(unsigned int irq)
 	mutex_unlock(&stmpe->irq_lock);
 }
 
-static void stmpe_irq_mask(unsigned int irq)
+static void stmpe_irq_mask(struct irq_data *data)
 {
-	struct stmpe *stmpe = get_irq_chip_data(irq);
-	int offset = irq - stmpe->irq_base;
+	struct stmpe *stmpe = irq_data_get_irq_chip_data(data);
+	int offset = data->irq - stmpe->irq_base;
 	int regoffset = offset / 8;
 	int mask = 1 << (offset % 8);
 
 	stmpe->ier[regoffset] &= ~mask;
 }
 
-static void stmpe_irq_unmask(unsigned int irq)
+static void stmpe_irq_unmask(struct irq_data *data)
 {
-	struct stmpe *stmpe = get_irq_chip_data(irq);
-	int offset = irq - stmpe->irq_base;
+	struct stmpe *stmpe = irq_data_get_irq_chip_data(data);
+	int offset = data->irq - stmpe->irq_base;
 	int regoffset = offset / 8;
 	int mask = 1 << (offset % 8);
 
@@ -749,10 +749,10 @@ static void stmpe_irq_unmask(unsigned int irq)
 
 static struct irq_chip stmpe_irq_chip = {
 	.name			= "stmpe",
-	.bus_lock		= stmpe_irq_lock,
-	.bus_sync_unlock	= stmpe_irq_sync_unlock,
-	.mask			= stmpe_irq_mask,
-	.unmask			= stmpe_irq_unmask,
+	.irq_bus_lock		= stmpe_irq_lock,
+	.irq_bus_sync_unlock	= stmpe_irq_sync_unlock,
+	.irq_mask		= stmpe_irq_mask,
+	.irq_unmask		= stmpe_irq_unmask,
 };
 
 static int __devinit stmpe_irq_init(struct stmpe *stmpe)

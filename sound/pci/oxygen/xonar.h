@@ -24,6 +24,8 @@ void xonar_init_ext_power(struct oxygen *chip);
 void xonar_init_cs53x1(struct oxygen *chip);
 void xonar_set_cs53x1_params(struct oxygen *chip,
 			     struct snd_pcm_hw_params *params);
+
+#define XONAR_GPIO_BIT_INVERT	(1 << 16)
 int xonar_gpio_bit_switch_get(struct snd_kcontrol *ctl,
 			      struct snd_ctl_elem_value *value);
 int xonar_gpio_bit_switch_put(struct snd_kcontrol *ctl,

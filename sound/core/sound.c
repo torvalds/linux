@@ -188,14 +188,22 @@ static const struct file_operations snd_fops =
 };
 
 #ifdef CONFIG_SND_DYNAMIC_MINORS
-static int snd_find_free_minor(void)
+static int snd_find_free_minor(int type)
 {
 	int minor;
 
+	/* static minors for module auto loading */
+	if (type == SNDRV_DEVICE_TYPE_SEQUENCER)
+		return SNDRV_MINOR_SEQUENCER;
+	if (type == SNDRV_DEVICE_TYPE_TIMER)
+		return SNDRV_MINOR_TIMER;
+
 	for (minor = 0; minor < ARRAY_SIZE(snd_minors); ++minor) {
-		/* skip minors still used statically for autoloading devices */
-		if (SNDRV_MINOR_DEVICE(minor) == SNDRV_MINOR_CONTROL ||
-		    minor == SNDRV_MINOR_SEQUENCER)
+		/* skip static minors still used for module auto loading */
+		if (SNDRV_MINOR_DEVICE(minor) == SNDRV_MINOR_CONTROL)
+			continue;
+		if (minor == SNDRV_MINOR_SEQUENCER ||
+		    minor == SNDRV_MINOR_TIMER)
 			continue;
 		if (!snd_minors[minor])
 			return minor;
@@ -269,7 +277,7 @@ int snd_register_device_for_dev(int type, struct snd_card *card, int dev,
 	preg->private_data = private_data;
 	mutex_lock(&sound_mutex);
 #ifdef CONFIG_SND_DYNAMIC_MINORS
-	minor = snd_find_free_minor();
+	minor = snd_find_free_minor(type);
 #else
 	minor = snd_kernel_minor(type, card, dev);
 	if (minor >= 0 && snd_minors[minor])

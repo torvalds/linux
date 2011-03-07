@@ -419,7 +419,7 @@ void wl1251_disable_interrupts(struct wl1251 *wl);
 #define WL1251_FW_NAME "wl1251-fw.bin"
 #define WL1251_NVS_NAME "wl1251-nvs.bin"
 
-#define WL1251_POWER_ON_SLEEP 10 /* in miliseconds */
+#define WL1251_POWER_ON_SLEEP 10 /* in milliseconds */
 
 #define WL1251_PART_DOWN_MEM_START	0x0
 #define WL1251_PART_DOWN_MEM_SIZE	0x16800

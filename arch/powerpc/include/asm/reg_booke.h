@@ -246,6 +246,20 @@
 					store or cache line push */
 #endif
 
+/* Bit definitions for the HID1 */
+#ifdef CONFIG_E500
+/* e500v1/v2 */
+#define HID1_PLL_CFG_MASK 0xfc000000	/* PLL_CFG input pins */
+#define HID1_RFXE	0x00020000	/* Read fault exception enable */
+#define HID1_R1DPE	0x00008000	/* R1 data bus parity enable */
+#define HID1_R2DPE	0x00004000	/* R2 data bus parity enable */
+#define HID1_ASTME	0x00002000	/* Address bus streaming mode enable */
+#define HID1_ABE	0x00001000	/* Address broadcast enable */
+#define HID1_MPXTT	0x00000400	/* MPX re-map transfer type */
+#define HID1_ATS	0x00000080	/* Atomic status */
+#define HID1_MID_MASK	0x0000000f	/* MID input pins */
+#endif
+
 /* Bit definitions for the DBSR. */
 /*
  * DBSR bits which have conflicting definitions on true Book E versus IBM 40x.

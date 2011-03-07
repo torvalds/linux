@@ -19,22 +19,24 @@
 #include <mach/dma.h>
 #include <mach/irqs.h>
 
+static const char *rclksrc[] = {
+	[0] = "busclk",
+	[1] = "i2sclk",
+};
+
 static int s5pv210_cfg_i2s(struct platform_device *pdev)
 {
 	/* configure GPIO for i2s port */
 	switch (pdev->id) {
+	case 0:
+		s3c_gpio_cfgpin_range(S5PV210_GPI(0), 7, S3C_GPIO_SFN(2));
+		break;
 	case 1:
 		s3c_gpio_cfgpin_range(S5PV210_GPC0(0), 5, S3C_GPIO_SFN(2));
 		break;
-
 	case 2:
 		s3c_gpio_cfgpin_range(S5PV210_GPC1(0), 5, S3C_GPIO_SFN(4));
 		break;
-
-	case -1:
-		s3c_gpio_cfgpin_range(S5PV210_GPI(0), 7, S3C_GPIO_SFN(2));
-		break;
-
 	default:
 		printk(KERN_ERR "Invalid Device %d\n", pdev->id);
 		return -EINVAL;
@@ -43,8 +45,15 @@ static int s5pv210_cfg_i2s(struct platform_device *pdev)
 	return 0;
 }
 
-static struct s3c_audio_pdata s3c_i2s_pdata = {
+static struct s3c_audio_pdata i2sv5_pdata = {
 	.cfg_gpio = s5pv210_cfg_i2s,
+	.type = {
+		.i2s = {
+			.quirks = QUIRK_PRI_6CHAN | QUIRK_SEC_DAI
+					 | QUIRK_NEED_RSTCLR,
+			.src_clk = rclksrc,
+		},
+	},
 };
 
 static struct resource s5pv210_iis0_resource[] = {
@@ -63,15 +72,34 @@ static struct resource s5pv210_iis0_resource[] = {
 		.end   = DMACH_I2S0_RX,
 		.flags = IORESOURCE_DMA,
 	},
+	[3] = {
+		.start = DMACH_I2S0S_TX,
+		.end = DMACH_I2S0S_TX,
+		.flags = IORESOURCE_DMA,
+	},
 };
 
 struct platform_device s5pv210_device_iis0 = {
-	.name		  = "s3c64xx-iis-v4",
-	.id		  = -1,
+	.name = "samsung-i2s",
+	.id = 0,
 	.num_resources	  = ARRAY_SIZE(s5pv210_iis0_resource),
 	.resource	  = s5pv210_iis0_resource,
 	.dev = {
-		.platform_data = &s3c_i2s_pdata,
+		.platform_data = &i2sv5_pdata,
+	},
+};
+
+static const char *rclksrc_v3[] = {
+	[0] = "iis",
+	[1] = "audio-bus",
+};
+
+static struct s3c_audio_pdata i2sv3_pdata = {
+	.cfg_gpio = s5pv210_cfg_i2s,
+	.type = {
+		.i2s = {
+			.src_clk = rclksrc_v3,
+		},
 	},
 };
 
@@ -94,12 +122,12 @@ static struct resource s5pv210_iis1_resource[] = {
 };
 
 struct platform_device s5pv210_device_iis1 = {
-	.name		  = "s3c64xx-iis",
+	.name		  = "samsung-i2s",
 	.id		  = 1,
 	.num_resources	  = ARRAY_SIZE(s5pv210_iis1_resource),
 	.resource	  = s5pv210_iis1_resource,
 	.dev = {
-		.platform_data = &s3c_i2s_pdata,
+		.platform_data = &i2sv3_pdata,
 	},
 };
 
@@ -122,12 +150,12 @@ static struct resource s5pv210_iis2_resource[] = {
 };
 
 struct platform_device s5pv210_device_iis2 = {
-	.name		  = "s3c64xx-iis",
+	.name		  = "samsung-i2s",
 	.id		  = 2,
 	.num_resources	  = ARRAY_SIZE(s5pv210_iis2_resource),
 	.resource	  = s5pv210_iis2_resource,
 	.dev = {
-		.platform_data = &s3c_i2s_pdata,
+		.platform_data = &i2sv3_pdata,
 	},
 };
 
@@ -283,7 +311,7 @@ static struct s3c_audio_pdata s3c_ac97_pdata = {
 static u64 s5pv210_ac97_dmamask = DMA_BIT_MASK(32);
 
 struct platform_device s5pv210_device_ac97 = {
-	.name		  = "s3c-ac97",
+	.name		  = "samsung-ac97",
 	.id		  = -1,
 	.num_resources	  = ARRAY_SIZE(s5pv210_ac97_resource),
 	.resource	  = s5pv210_ac97_resource,
