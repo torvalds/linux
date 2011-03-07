@@ -26,6 +26,7 @@
 #define _VMBUS_API_H_
 
 #include <linux/device.h>
+#include <linux/workqueue.h>
 
 #define MAX_PAGE_BUFFER_COUNT				16
 #define MAX_MULTIPAGE_BUFFER_COUNT			32 /* 128K */
@@ -116,6 +117,8 @@ struct hv_device {
 	struct hv_driver *drv;
 
 	char name[64];
+
+	struct work_struct probe_failed_work_item;
 
 	/* the device type id of this device */
 	struct hv_guid dev_type;

@@ -904,6 +904,7 @@ static int vmbus_probe(struct device *child_device)
 			drv_to_hv_drv(child_device->driver);
 	struct vm_device *device_ctx =
 			device_to_vm_device(child_device);
+	struct hv_device *dev = &device_ctx->device_obj;
 
 	/* Let the specific open-source driver handles the probe if it can */
 	if (drv->driver.probe) {
@@ -915,9 +916,9 @@ static int vmbus_probe(struct device *child_device)
 				   dev_name(child_device), child_device,
 				   child_device->driver->name, ret);
 
-			INIT_WORK(&device_ctx->probe_failed_work_item,
+			INIT_WORK(&dev->probe_failed_work_item,
 				  vmbus_probe_failed_cb);
-			schedule_work(&device_ctx->probe_failed_work_item);
+			schedule_work(&dev->probe_failed_work_item);
 		}
 	} else {
 		DPRINT_ERR(VMBUS_DRV, "probe() method not set for driver - %s",

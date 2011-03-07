@@ -30,7 +30,6 @@
 
 
 struct vm_device {
-	struct work_struct probe_failed_work_item;
 	struct hv_guid class_id;
 	struct hv_guid device_id;
 	int probe_error;
