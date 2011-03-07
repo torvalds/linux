@@ -22,6 +22,7 @@
 #include <linux/mfd/ab8500.h>
 #include <linux/regulator/ab8500.h>
 #include <linux/mfd/tc3589x.h>
+#include <linux/mfd/tps6105x.h>
 #include <linux/mfd/ab8500/gpio.h>
 #include <linux/leds-lp5521.h>
 #include <linux/input.h>
@@ -90,6 +91,15 @@ struct platform_device ab8500_device = {
 	},
 	.num_resources = 1,
 	.resource = ab8500_resources,
+};
+
+/*
+ * TPS61052
+ */
+
+static struct tps6105x_platform_data mop500_tps61052_data = {
+	.mode = TPS6105X_MODE_VOLTAGE,
+	.regulator_data = &tps61052_regulator,
 };
 
 /*
@@ -162,11 +172,19 @@ static struct lp5521_platform_data __initdata lp5521_sec_data = {
        .clock_mode     = LP5521_CLOCK_EXT,
 };
 
-static struct i2c_board_info mop500_i2c0_devices[] = {
+static struct i2c_board_info __initdata mop500_i2c0_devices[] = {
 	{
 		I2C_BOARD_INFO("tc3589x", 0x42),
 		.irq		= NOMADIK_GPIO_TO_IRQ(217),
 		.platform_data  = &mop500_tc35892_data,
+	},
+};
+
+/* I2C0 devices only available prior to HREFv60 */
+static struct i2c_board_info __initdata mop500_i2c0_old_devices[] = {
+	{
+		I2C_BOARD_INFO("tps61052", 0x33),
+		.platform_data  = &mop500_tps61052_data,
 	},
 };
 
@@ -432,6 +450,9 @@ static void __init mop500_init_machine(void)
 
 	i2c_register_board_info(0, mop500_i2c0_devices,
 				ARRAY_SIZE(mop500_i2c0_devices));
+	if (!machine_is_hrefv60())
+		i2c_register_board_info(0, mop500_i2c0_old_devices,
+					ARRAY_SIZE(mop500_i2c0_old_devices));
 	i2c_register_board_info(2, mop500_i2c2_devices,
 				ARRAY_SIZE(mop500_i2c2_devices));
 }

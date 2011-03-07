@@ -13,6 +13,30 @@
 #include <linux/regulator/ab8500.h>
 #include "board-mop500-regulators.h"
 
+/*
+ * TPS61052 regulator
+ */
+static struct regulator_consumer_supply tps61052_vaudio_consumers[] = {
+	/*
+	 * Boost converter supply to raise voltage on audio speaker, this
+	 * is actually connected to three pins, VInVhfL (left amplifier)
+	 * VInVhfR (right amplifier) and VIntDClassInt - all three must
+	 * be connected to the same voltage.
+	 */
+	REGULATOR_SUPPLY("vintdclassint", "ab8500-codec.0"),
+};
+
+struct regulator_init_data tps61052_regulator = {
+	.constraints = {
+		.name = "vaudio-hf",
+		.min_uV = 4500000,
+		.max_uV = 4500000,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(tps61052_vaudio_consumers),
+	.consumer_supplies = tps61052_vaudio_consumers,
+};
+
 static struct regulator_consumer_supply ab8500_vaux1_consumers[] = {
 	/* External displays, connector on board 2v5 power supply */
 	REGULATOR_SUPPLY("vaux12v5", "mcde.0"),
