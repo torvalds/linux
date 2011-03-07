@@ -35,24 +35,15 @@ config SND_SAMSUNG_I2S
 	tristate
 
 config SND_SOC_SAMSUNG_NEO1973_WM8753
-	tristate "SoC I2S Audio support for NEO1973 - WM8753"
-	depends on SND_SOC_SAMSUNG && MACH_NEO1973_GTA01
+	tristate "Audio support for Openmoko Neo1973 Smartphones (GTA01/GTA02)"
+	depends on SND_SOC_SAMSUNG && (MACH_NEO1973_GTA01 || MACH_NEO1973_GTA02)
 	select SND_S3C24XX_I2S
 	select SND_SOC_WM8753
-	select SND_SOC_LM4857
+	select SND_SOC_LM4857 if MACH_NEO1973_GTA01
 	help
-	  Say Y if you want to add support for SoC audio on smdk2440
-	  with the WM8753.
+	  Say Y here to enable audio support for the Openmoko Neo1973
+	  Smartphones.
 
-config SND_SOC_SAMSUNG_NEO1973_GTA02_WM8753
-	tristate "Audio support for the Openmoko Neo FreeRunner (GTA02)"
-	depends on SND_SOC_SAMSUNG && MACH_NEO1973_GTA02
-	select SND_S3C24XX_I2S
-	select SND_SOC_WM8753
-	help
-	  This driver provides audio support for the Openmoko Neo FreeRunner
-	  smartphone.
-	  
 config SND_SOC_SAMSUNG_JIVE_WM8750
 	tristate "SoC I2S Audio support for Jive"
 	depends on SND_SOC_SAMSUNG && MACH_JIVE
