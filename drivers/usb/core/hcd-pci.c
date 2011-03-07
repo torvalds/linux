@@ -363,8 +363,7 @@ static int check_root_hub_suspended(struct device *dev)
 	struct pci_dev		*pci_dev = to_pci_dev(dev);
 	struct usb_hcd		*hcd = pci_get_drvdata(pci_dev);
 
-	if (!(hcd->state == HC_STATE_SUSPENDED ||
-			hcd->state == HC_STATE_HALT)) {
+	if (HCD_RH_RUNNING(hcd)) {
 		dev_warn(dev, "Root hub is not suspended\n");
 		return -EBUSY;
 	}
@@ -386,7 +385,7 @@ static int suspend_common(struct device *dev, bool do_wakeup)
 	if (retval)
 		return retval;
 
-	if (hcd->driver->pci_suspend) {
+	if (hcd->driver->pci_suspend && !HCD_DEAD(hcd)) {
 		/* Optimization: Don't suspend if a root-hub wakeup is
 		 * pending and it would cause the HCD to wake up anyway.
 		 */
@@ -427,7 +426,7 @@ static int resume_common(struct device *dev, int event)
 	struct usb_hcd		*hcd = pci_get_drvdata(pci_dev);
 	int			retval;
 
-	if (hcd->state != HC_STATE_SUSPENDED) {
+	if (HCD_RH_RUNNING(hcd)) {
 		dev_dbg(dev, "can't resume, not suspended!\n");
 		return 0;
 	}
@@ -442,7 +441,7 @@ static int resume_common(struct device *dev, int event)
 
 	clear_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
 
-	if (hcd->driver->pci_resume) {
+	if (hcd->driver->pci_resume && !HCD_DEAD(hcd)) {
 		if (event != PM_EVENT_AUTO_RESUME)
 			wait_for_companions(pci_dev, hcd);
 
@@ -475,10 +474,10 @@ static int hcd_pci_suspend_noirq(struct device *dev)
 
 	pci_save_state(pci_dev);
 
-	/* If the root hub is HALTed rather than SUSPENDed,
+	/* If the root hub is dead rather than suspended,
 	 * disallow remote wakeup.
 	 */
-	if (hcd->state == HC_STATE_HALT)
+	if (HCD_DEAD(hcd))
 		device_set_wakeup_enable(dev, 0);
 	dev_dbg(dev, "wakeup: %d\n", device_may_wakeup(dev));
 
