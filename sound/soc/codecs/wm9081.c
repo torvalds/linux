@@ -762,7 +762,7 @@ SND_SOC_DAPM_SUPPLY("TOCLK", WM9081_CLOCK_CONTROL_3, 2, 0, NULL, 0),
 };
 
 
-static const struct snd_soc_dapm_route audio_paths[] = {
+static const struct snd_soc_dapm_route wm9081_audio_paths[] = {
 	{ "DAC", NULL, "CLK_SYS" },
 	{ "DAC", NULL, "CLK_DSP" },
 
@@ -1232,7 +1232,6 @@ static struct snd_soc_dai_driver wm9081_dai = {
 static int wm9081_probe(struct snd_soc_codec *codec)
 {
 	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 	u16 reg;
 
@@ -1282,10 +1281,6 @@ static int wm9081_probe(struct snd_soc_codec *codec)
 				     ARRAY_SIZE(wm9081_eq_controls));
 	}
 
-	snd_soc_dapm_new_controls(dapm, wm9081_dapm_widgets,
-				  ARRAY_SIZE(wm9081_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, audio_paths, ARRAY_SIZE(audio_paths));
-
 	return ret;
 }
 
@@ -1334,6 +1329,10 @@ static struct snd_soc_codec_driver soc_codec_dev_wm9081 = {
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm9081_reg_defaults,
 	.volatile_register = wm9081_volatile_register,
+	.dapm_widgets	  = wm9081_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm9081_dapm_widgets),
+	.dapm_routes     = wm9081_audio_paths,
+	.num_dapm_routes = ARRAY_SIZE(wm9081_audio_paths),
 };
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
