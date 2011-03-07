@@ -726,7 +726,7 @@ int be_cmd_cq_create(struct be_adapter *adapter,
 
 	req->num_pages =  cpu_to_le16(PAGES_4K_SPANNED(q_mem->va, q_mem->size));
 	if (lancer_chip(adapter)) {
-		req->hdr.version = 1;
+		req->hdr.version = 2;
 		req->page_size = 1; /* 1 for 4K */
 		AMAP_SET_BITS(struct amap_cq_context_lancer, coalescwm, ctxt,
 								coalesce_wm);
@@ -861,6 +861,12 @@ int be_cmd_txq_create(struct be_adapter *adapter,
 
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ETH, OPCODE_ETH_TX_CREATE,
 		sizeof(*req));
+
+	if (lancer_chip(adapter)) {
+		req->hdr.version = 1;
+		AMAP_SET_BITS(struct amap_tx_context, if_id, ctxt,
+					adapter->if_handle);
+	}
 
 	req->num_pages = PAGES_4K_SPANNED(q_mem->va, q_mem->size);
 	req->ulp_num = BE_ULP1_NUM;

@@ -430,7 +430,7 @@ struct be_cmd_resp_mcc_create {
 /* Pseudo amap definition in which each bit of the actual structure is defined
  * as a byte: used to calculate offset/shift/mask of each field */
 struct amap_tx_context {
-	u8 rsvd0[16];		/* dword 0 */
+	u8 if_id[16];		/* dword 0 */
 	u8 tx_ring_size[4];	/* dword 0 */
 	u8 rsvd1[26];		/* dword 0 */
 	u8 pci_func_id[8];	/* dword 1 */
