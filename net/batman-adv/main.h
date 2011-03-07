@@ -122,7 +122,7 @@
 #define REVISION_VERSION_STR " "REVISION_VERSION
 #endif
 
-extern struct list_head if_list;
+extern struct list_head hardif_list;
 
 extern unsigned char broadcast_addr[];
 extern struct workqueue_struct *bat_event_workqueue;
@@ -164,5 +164,15 @@ static inline void bat_dbg(char type __always_unused,
 		bat_dbg(DBG_ALL, _batpriv, fmt, ## arg);		\
 		pr_err("%s: " fmt, _netdev->name, ## arg);		\
 	} while (0)
+
+/**
+ * returns 1 if they are the same ethernet addr
+ *
+ * note: can't use compare_ether_addr() as it requires aligned memory
+ */
+static inline int compare_eth(void *data1, void *data2)
+{
+	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
+}
 
 #endif /* _NET_BATMAN_ADV_MAIN_H_ */

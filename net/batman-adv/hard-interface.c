@@ -31,8 +31,8 @@
 
 #include <linux/if_arp.h>
 
-/* protect update critical side of if_list - but not the content */
-static DEFINE_SPINLOCK(if_list_lock);
+/* protect update critical side of hardif_list - but not the content */
+static DEFINE_SPINLOCK(hardif_list_lock);
 
 
 static int batman_skb_recv(struct sk_buff *skb,
@@ -40,33 +40,31 @@ static int batman_skb_recv(struct sk_buff *skb,
 			   struct packet_type *ptype,
 			   struct net_device *orig_dev);
 
-static void hardif_free_rcu(struct rcu_head *rcu)
+void hardif_free_rcu(struct rcu_head *rcu)
 {
-	struct batman_if *batman_if;
+	struct hard_iface *hard_iface;
 
-	batman_if = container_of(rcu, struct batman_if, rcu);
-	dev_put(batman_if->net_dev);
-	kref_put(&batman_if->refcount, hardif_free_ref);
+	hard_iface = container_of(rcu, struct hard_iface, rcu);
+	dev_put(hard_iface->net_dev);
+	kfree(hard_iface);
 }
 
-struct batman_if *get_batman_if_by_netdev(struct net_device *net_dev)
+struct hard_iface *hardif_get_by_netdev(struct net_device *net_dev)
 {
-	struct batman_if *batman_if;
+	struct hard_iface *hard_iface;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(batman_if, &if_list, list) {
-		if (batman_if->net_dev == net_dev)
+	list_for_each_entry_rcu(hard_iface, &hardif_list, list) {
+		if (hard_iface->net_dev == net_dev &&
+		    atomic_inc_not_zero(&hard_iface->refcount))
 			goto out;
 	}
 
-	batman_if = NULL;
+	hard_iface = NULL;
 
 out:
-	if (batman_if)
-		kref_get(&batman_if->refcount);
-
 	rcu_read_unlock();
-	return batman_if;
+	return hard_iface;
 }
 
 static int is_valid_iface(struct net_device *net_dev)
@@ -81,13 +79,8 @@ static int is_valid_iface(struct net_device *net_dev)
 		return 0;
 
 	/* no batman over batman */
-#ifdef HAVE_NET_DEVICE_OPS
-	if (net_dev->netdev_ops->ndo_start_xmit == interface_tx)
+	if (softif_is_valid(net_dev))
 		return 0;
-#else
-	if (net_dev->hard_start_xmit == interface_tx)
-		return 0;
-#endif
 
 	/* Device is being bridged */
 	/* if (net_dev->priv_flags & IFF_BRIDGE_PORT)
@@ -96,27 +89,25 @@ static int is_valid_iface(struct net_device *net_dev)
 	return 1;
 }
 
-static struct batman_if *get_active_batman_if(struct net_device *soft_iface)
+static struct hard_iface *hardif_get_active(struct net_device *soft_iface)
 {
-	struct batman_if *batman_if;
+	struct hard_iface *hard_iface;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(batman_if, &if_list, list) {
-		if (batman_if->soft_iface != soft_iface)
+	list_for_each_entry_rcu(hard_iface, &hardif_list, list) {
+		if (hard_iface->soft_iface != soft_iface)
 			continue;
 
-		if (batman_if->if_status == IF_ACTIVE)
+		if (hard_iface->if_status == IF_ACTIVE &&
+		    atomic_inc_not_zero(&hard_iface->refcount))
 			goto out;
 	}
 
-	batman_if = NULL;
+	hard_iface = NULL;
 
 out:
-	if (batman_if)
-		kref_get(&batman_if->refcount);
-
 	rcu_read_unlock();
-	return batman_if;
+	return hard_iface;
 }
 
 static void update_primary_addr(struct bat_priv *bat_priv)
@@ -132,24 +123,24 @@ static void update_primary_addr(struct bat_priv *bat_priv)
 }
 
 static void set_primary_if(struct bat_priv *bat_priv,
-			   struct batman_if *batman_if)
+			   struct hard_iface *hard_iface)
 {
 	struct batman_packet *batman_packet;
-	struct batman_if *old_if;
+	struct hard_iface *old_if;
 
-	if (batman_if)
-		kref_get(&batman_if->refcount);
+	if (hard_iface && !atomic_inc_not_zero(&hard_iface->refcount))
+		hard_iface = NULL;
 
 	old_if = bat_priv->primary_if;
-	bat_priv->primary_if = batman_if;
+	bat_priv->primary_if = hard_iface;
 
 	if (old_if)
-		kref_put(&old_if->refcount, hardif_free_ref);
+		hardif_free_ref(old_if);
 
 	if (!bat_priv->primary_if)
 		return;
 
-	batman_packet = (struct batman_packet *)(batman_if->packet_buff);
+	batman_packet = (struct batman_packet *)(hard_iface->packet_buff);
 	batman_packet->flags = PRIMARIES_FIRST_HOP;
 	batman_packet->ttl = TTL;
 
@@ -162,42 +153,42 @@ static void set_primary_if(struct bat_priv *bat_priv,
 	atomic_set(&bat_priv->hna_local_changed, 1);
 }
 
-static bool hardif_is_iface_up(struct batman_if *batman_if)
+static bool hardif_is_iface_up(struct hard_iface *hard_iface)
 {
-	if (batman_if->net_dev->flags & IFF_UP)
+	if (hard_iface->net_dev->flags & IFF_UP)
 		return true;
 
 	return false;
 }
 
-static void update_mac_addresses(struct batman_if *batman_if)
+static void update_mac_addresses(struct hard_iface *hard_iface)
 {
-	memcpy(((struct batman_packet *)(batman_if->packet_buff))->orig,
-	       batman_if->net_dev->dev_addr, ETH_ALEN);
-	memcpy(((struct batman_packet *)(batman_if->packet_buff))->prev_sender,
-	       batman_if->net_dev->dev_addr, ETH_ALEN);
+	memcpy(((struct batman_packet *)(hard_iface->packet_buff))->orig,
+	       hard_iface->net_dev->dev_addr, ETH_ALEN);
+	memcpy(((struct batman_packet *)(hard_iface->packet_buff))->prev_sender,
+	       hard_iface->net_dev->dev_addr, ETH_ALEN);
 }
 
 static void check_known_mac_addr(struct net_device *net_dev)
 {
-	struct batman_if *batman_if;
+	struct hard_iface *hard_iface;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(batman_if, &if_list, list) {
-		if ((batman_if->if_status != IF_ACTIVE) &&
-		    (batman_if->if_status != IF_TO_BE_ACTIVATED))
+	list_for_each_entry_rcu(hard_iface, &hardif_list, list) {
+		if ((hard_iface->if_status != IF_ACTIVE) &&
+		    (hard_iface->if_status != IF_TO_BE_ACTIVATED))
 			continue;
 
-		if (batman_if->net_dev == net_dev)
+		if (hard_iface->net_dev == net_dev)
 			continue;
 
-		if (!compare_orig(batman_if->net_dev->dev_addr,
-				  net_dev->dev_addr))
+		if (!compare_eth(hard_iface->net_dev->dev_addr,
+				 net_dev->dev_addr))
 			continue;
 
 		pr_warning("The newly added mac address (%pM) already exists "
 			   "on: %s\n", net_dev->dev_addr,
-			   batman_if->net_dev->name);
+			   hard_iface->net_dev->name);
 		pr_warning("It is strongly recommended to keep mac addresses "
 			   "unique to avoid problems!\n");
 	}
@@ -207,7 +198,7 @@ static void check_known_mac_addr(struct net_device *net_dev)
 int hardif_min_mtu(struct net_device *soft_iface)
 {
 	struct bat_priv *bat_priv = netdev_priv(soft_iface);
-	struct batman_if *batman_if;
+	struct hard_iface *hard_iface;
 	/* allow big frames if all devices are capable to do so
 	 * (have MTU > 1500 + BAT_HEADER_LEN) */
 	int min_mtu = ETH_DATA_LEN;
@@ -216,15 +207,15 @@ int hardif_min_mtu(struct net_device *soft_iface)
 		goto out;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(batman_if, &if_list, list) {
-		if ((batman_if->if_status != IF_ACTIVE) &&
-		    (batman_if->if_status != IF_TO_BE_ACTIVATED))
+	list_for_each_entry_rcu(hard_iface, &hardif_list, list) {
+		if ((hard_iface->if_status != IF_ACTIVE) &&
+		    (hard_iface->if_status != IF_TO_BE_ACTIVATED))
 			continue;
 
-		if (batman_if->soft_iface != soft_iface)
+		if (hard_iface->soft_iface != soft_iface)
 			continue;
 
-		min_mtu = min_t(int, batman_if->net_dev->mtu - BAT_HEADER_LEN,
+		min_mtu = min_t(int, hard_iface->net_dev->mtu - BAT_HEADER_LEN,
 				min_mtu);
 	}
 	rcu_read_unlock();
@@ -242,77 +233,95 @@ void update_min_mtu(struct net_device *soft_iface)
 		soft_iface->mtu = min_mtu;
 }
 
-static void hardif_activate_interface(struct batman_if *batman_if)
+static void hardif_activate_interface(struct hard_iface *hard_iface)
 {
 	struct bat_priv *bat_priv;
 
-	if (batman_if->if_status != IF_INACTIVE)
+	if (hard_iface->if_status != IF_INACTIVE)
 		return;
 
-	bat_priv = netdev_priv(batman_if->soft_iface);
+	bat_priv = netdev_priv(hard_iface->soft_iface);
 
-	update_mac_addresses(batman_if);
-	batman_if->if_status = IF_TO_BE_ACTIVATED;
+	update_mac_addresses(hard_iface);
+	hard_iface->if_status = IF_TO_BE_ACTIVATED;
 
 	/**
 	 * the first active interface becomes our primary interface or
 	 * the next active interface after the old primay interface was removed
 	 */
 	if (!bat_priv->primary_if)
-		set_primary_if(bat_priv, batman_if);
+		set_primary_if(bat_priv, hard_iface);
 
-	bat_info(batman_if->soft_iface, "Interface activated: %s\n",
-		 batman_if->net_dev->name);
+	bat_info(hard_iface->soft_iface, "Interface activated: %s\n",
+		 hard_iface->net_dev->name);
 
-	update_min_mtu(batman_if->soft_iface);
+	update_min_mtu(hard_iface->soft_iface);
 	return;
 }
 
-static void hardif_deactivate_interface(struct batman_if *batman_if)
+static void hardif_deactivate_interface(struct hard_iface *hard_iface)
 {
-	if ((batman_if->if_status != IF_ACTIVE) &&
-	   (batman_if->if_status != IF_TO_BE_ACTIVATED))
+	if ((hard_iface->if_status != IF_ACTIVE) &&
+	    (hard_iface->if_status != IF_TO_BE_ACTIVATED))
 		return;
 
-	batman_if->if_status = IF_INACTIVE;
+	hard_iface->if_status = IF_INACTIVE;
 
-	bat_info(batman_if->soft_iface, "Interface deactivated: %s\n",
-		 batman_if->net_dev->name);
+	bat_info(hard_iface->soft_iface, "Interface deactivated: %s\n",
+		 hard_iface->net_dev->name);
 
-	update_min_mtu(batman_if->soft_iface);
+	update_min_mtu(hard_iface->soft_iface);
 }
 
-int hardif_enable_interface(struct batman_if *batman_if, char *iface_name)
+int hardif_enable_interface(struct hard_iface *hard_iface, char *iface_name)
 {
 	struct bat_priv *bat_priv;
 	struct batman_packet *batman_packet;
+	struct net_device *soft_iface;
+	int ret;
 
-	if (batman_if->if_status != IF_NOT_IN_USE)
+	if (hard_iface->if_status != IF_NOT_IN_USE)
 		goto out;
 
-	batman_if->soft_iface = dev_get_by_name(&init_net, iface_name);
+	if (!atomic_inc_not_zero(&hard_iface->refcount))
+		goto out;
 
-	if (!batman_if->soft_iface) {
-		batman_if->soft_iface = softif_create(iface_name);
+	soft_iface = dev_get_by_name(&init_net, iface_name);
 
-		if (!batman_if->soft_iface)
+	if (!soft_iface) {
+		soft_iface = softif_create(iface_name);
+
+		if (!soft_iface) {
+			ret = -ENOMEM;
 			goto err;
+		}
 
 		/* dev_get_by_name() increases the reference counter for us */
-		dev_hold(batman_if->soft_iface);
+		dev_hold(soft_iface);
 	}
 
-	bat_priv = netdev_priv(batman_if->soft_iface);
-	batman_if->packet_len = BAT_PACKET_LEN;
-	batman_if->packet_buff = kmalloc(batman_if->packet_len, GFP_ATOMIC);
-
-	if (!batman_if->packet_buff) {
-		bat_err(batman_if->soft_iface, "Can't add interface packet "
-			"(%s): out of memory\n", batman_if->net_dev->name);
+	if (!softif_is_valid(soft_iface)) {
+		pr_err("Can't create batman mesh interface %s: "
+		       "already exists as regular interface\n",
+		       soft_iface->name);
+		dev_put(soft_iface);
+		ret = -EINVAL;
 		goto err;
 	}
 
-	batman_packet = (struct batman_packet *)(batman_if->packet_buff);
+	hard_iface->soft_iface = soft_iface;
+	bat_priv = netdev_priv(hard_iface->soft_iface);
+	hard_iface->packet_len = BAT_PACKET_LEN;
+	hard_iface->packet_buff = kmalloc(hard_iface->packet_len, GFP_ATOMIC);
+
+	if (!hard_iface->packet_buff) {
+		bat_err(hard_iface->soft_iface, "Can't add interface packet "
+			"(%s): out of memory\n", hard_iface->net_dev->name);
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	batman_packet = (struct batman_packet *)(hard_iface->packet_buff);
 	batman_packet->packet_type = BAT_PACKET;
 	batman_packet->version = COMPAT_VERSION;
 	batman_packet->flags = 0;
@@ -320,107 +329,107 @@ int hardif_enable_interface(struct batman_if *batman_if, char *iface_name)
 	batman_packet->tq = TQ_MAX_VALUE;
 	batman_packet->num_hna = 0;
 
-	batman_if->if_num = bat_priv->num_ifaces;
+	hard_iface->if_num = bat_priv->num_ifaces;
 	bat_priv->num_ifaces++;
-	batman_if->if_status = IF_INACTIVE;
-	orig_hash_add_if(batman_if, bat_priv->num_ifaces);
+	hard_iface->if_status = IF_INACTIVE;
+	orig_hash_add_if(hard_iface, bat_priv->num_ifaces);
 
-	batman_if->batman_adv_ptype.type = __constant_htons(ETH_P_BATMAN);
-	batman_if->batman_adv_ptype.func = batman_skb_recv;
-	batman_if->batman_adv_ptype.dev = batman_if->net_dev;
-	kref_get(&batman_if->refcount);
-	dev_add_pack(&batman_if->batman_adv_ptype);
+	hard_iface->batman_adv_ptype.type = __constant_htons(ETH_P_BATMAN);
+	hard_iface->batman_adv_ptype.func = batman_skb_recv;
+	hard_iface->batman_adv_ptype.dev = hard_iface->net_dev;
+	dev_add_pack(&hard_iface->batman_adv_ptype);
 
-	atomic_set(&batman_if->seqno, 1);
-	atomic_set(&batman_if->frag_seqno, 1);
-	bat_info(batman_if->soft_iface, "Adding interface: %s\n",
-		 batman_if->net_dev->name);
+	atomic_set(&hard_iface->seqno, 1);
+	atomic_set(&hard_iface->frag_seqno, 1);
+	bat_info(hard_iface->soft_iface, "Adding interface: %s\n",
+		 hard_iface->net_dev->name);
 
-	if (atomic_read(&bat_priv->fragmentation) && batman_if->net_dev->mtu <
+	if (atomic_read(&bat_priv->fragmentation) && hard_iface->net_dev->mtu <
 		ETH_DATA_LEN + BAT_HEADER_LEN)
-		bat_info(batman_if->soft_iface,
+		bat_info(hard_iface->soft_iface,
 			"The MTU of interface %s is too small (%i) to handle "
 			"the transport of batman-adv packets. Packets going "
 			"over this interface will be fragmented on layer2 "
 			"which could impact the performance. Setting the MTU "
 			"to %zi would solve the problem.\n",
-			batman_if->net_dev->name, batman_if->net_dev->mtu,
+			hard_iface->net_dev->name, hard_iface->net_dev->mtu,
 			ETH_DATA_LEN + BAT_HEADER_LEN);
 
-	if (!atomic_read(&bat_priv->fragmentation) && batman_if->net_dev->mtu <
+	if (!atomic_read(&bat_priv->fragmentation) && hard_iface->net_dev->mtu <
 		ETH_DATA_LEN + BAT_HEADER_LEN)
-		bat_info(batman_if->soft_iface,
+		bat_info(hard_iface->soft_iface,
 			"The MTU of interface %s is too small (%i) to handle "
 			"the transport of batman-adv packets. If you experience"
 			" problems getting traffic through try increasing the "
 			"MTU to %zi.\n",
-			batman_if->net_dev->name, batman_if->net_dev->mtu,
+			hard_iface->net_dev->name, hard_iface->net_dev->mtu,
 			ETH_DATA_LEN + BAT_HEADER_LEN);
 
-	if (hardif_is_iface_up(batman_if))
-		hardif_activate_interface(batman_if);
+	if (hardif_is_iface_up(hard_iface))
+		hardif_activate_interface(hard_iface);
 	else
-		bat_err(batman_if->soft_iface, "Not using interface %s "
+		bat_err(hard_iface->soft_iface, "Not using interface %s "
 			"(retrying later): interface not active\n",
-			batman_if->net_dev->name);
+			hard_iface->net_dev->name);
 
 	/* begin scheduling originator messages on that interface */
-	schedule_own_packet(batman_if);
+	schedule_own_packet(hard_iface);
 
 out:
 	return 0;
 
 err:
-	return -ENOMEM;
+	hardif_free_ref(hard_iface);
+	return ret;
 }
 
-void hardif_disable_interface(struct batman_if *batman_if)
+void hardif_disable_interface(struct hard_iface *hard_iface)
 {
-	struct bat_priv *bat_priv = netdev_priv(batman_if->soft_iface);
+	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 
-	if (batman_if->if_status == IF_ACTIVE)
-		hardif_deactivate_interface(batman_if);
+	if (hard_iface->if_status == IF_ACTIVE)
+		hardif_deactivate_interface(hard_iface);
 
-	if (batman_if->if_status != IF_INACTIVE)
+	if (hard_iface->if_status != IF_INACTIVE)
 		return;
 
-	bat_info(batman_if->soft_iface, "Removing interface: %s\n",
-		 batman_if->net_dev->name);
-	dev_remove_pack(&batman_if->batman_adv_ptype);
-	kref_put(&batman_if->refcount, hardif_free_ref);
+	bat_info(hard_iface->soft_iface, "Removing interface: %s\n",
+		 hard_iface->net_dev->name);
+	dev_remove_pack(&hard_iface->batman_adv_ptype);
 
 	bat_priv->num_ifaces--;
-	orig_hash_del_if(batman_if, bat_priv->num_ifaces);
+	orig_hash_del_if(hard_iface, bat_priv->num_ifaces);
 
-	if (batman_if == bat_priv->primary_if) {
-		struct batman_if *new_if;
+	if (hard_iface == bat_priv->primary_if) {
+		struct hard_iface *new_if;
 
-		new_if = get_active_batman_if(batman_if->soft_iface);
+		new_if = hardif_get_active(hard_iface->soft_iface);
 		set_primary_if(bat_priv, new_if);
 
 		if (new_if)
-			kref_put(&new_if->refcount, hardif_free_ref);
+			hardif_free_ref(new_if);
 	}
 
-	kfree(batman_if->packet_buff);
-	batman_if->packet_buff = NULL;
-	batman_if->if_status = IF_NOT_IN_USE;
+	kfree(hard_iface->packet_buff);
+	hard_iface->packet_buff = NULL;
+	hard_iface->if_status = IF_NOT_IN_USE;
 
-	/* delete all references to this batman_if */
+	/* delete all references to this hard_iface */
 	purge_orig_ref(bat_priv);
-	purge_outstanding_packets(bat_priv, batman_if);
-	dev_put(batman_if->soft_iface);
+	purge_outstanding_packets(bat_priv, hard_iface);
+	dev_put(hard_iface->soft_iface);
 
 	/* nobody uses this interface anymore */
 	if (!bat_priv->num_ifaces)
-		softif_destroy(batman_if->soft_iface);
+		softif_destroy(hard_iface->soft_iface);
 
-	batman_if->soft_iface = NULL;
+	hard_iface->soft_iface = NULL;
+	hardif_free_ref(hard_iface);
 }
 
-static struct batman_if *hardif_add_interface(struct net_device *net_dev)
+static struct hard_iface *hardif_add_interface(struct net_device *net_dev)
 {
-	struct batman_if *batman_if;
+	struct hard_iface *hard_iface;
 	int ret;
 
 	ret = is_valid_iface(net_dev);
@@ -429,73 +438,73 @@ static struct batman_if *hardif_add_interface(struct net_device *net_dev)
 
 	dev_hold(net_dev);
 
-	batman_if = kmalloc(sizeof(struct batman_if), GFP_ATOMIC);
-	if (!batman_if) {
+	hard_iface = kmalloc(sizeof(struct hard_iface), GFP_ATOMIC);
+	if (!hard_iface) {
 		pr_err("Can't add interface (%s): out of memory\n",
 		       net_dev->name);
 		goto release_dev;
 	}
 
-	ret = sysfs_add_hardif(&batman_if->hardif_obj, net_dev);
+	ret = sysfs_add_hardif(&hard_iface->hardif_obj, net_dev);
 	if (ret)
 		goto free_if;
 
-	batman_if->if_num = -1;
-	batman_if->net_dev = net_dev;
-	batman_if->soft_iface = NULL;
-	batman_if->if_status = IF_NOT_IN_USE;
-	INIT_LIST_HEAD(&batman_if->list);
-	kref_init(&batman_if->refcount);
-
-	check_known_mac_addr(batman_if->net_dev);
-
-	spin_lock(&if_list_lock);
-	list_add_tail_rcu(&batman_if->list, &if_list);
-	spin_unlock(&if_list_lock);
-
+	hard_iface->if_num = -1;
+	hard_iface->net_dev = net_dev;
+	hard_iface->soft_iface = NULL;
+	hard_iface->if_status = IF_NOT_IN_USE;
+	INIT_LIST_HEAD(&hard_iface->list);
 	/* extra reference for return */
-	kref_get(&batman_if->refcount);
-	return batman_if;
+	atomic_set(&hard_iface->refcount, 2);
+
+	check_known_mac_addr(hard_iface->net_dev);
+
+	spin_lock(&hardif_list_lock);
+	list_add_tail_rcu(&hard_iface->list, &hardif_list);
+	spin_unlock(&hardif_list_lock);
+
+	return hard_iface;
 
 free_if:
-	kfree(batman_if);
+	kfree(hard_iface);
 release_dev:
 	dev_put(net_dev);
 out:
 	return NULL;
 }
 
-static void hardif_remove_interface(struct batman_if *batman_if)
+static void hardif_remove_interface(struct hard_iface *hard_iface)
 {
 	/* first deactivate interface */
-	if (batman_if->if_status != IF_NOT_IN_USE)
-		hardif_disable_interface(batman_if);
+	if (hard_iface->if_status != IF_NOT_IN_USE)
+		hardif_disable_interface(hard_iface);
 
-	if (batman_if->if_status != IF_NOT_IN_USE)
+	if (hard_iface->if_status != IF_NOT_IN_USE)
 		return;
 
-	batman_if->if_status = IF_TO_BE_REMOVED;
-	sysfs_del_hardif(&batman_if->hardif_obj);
-	call_rcu(&batman_if->rcu, hardif_free_rcu);
+	hard_iface->if_status = IF_TO_BE_REMOVED;
+	sysfs_del_hardif(&hard_iface->hardif_obj);
+	hardif_free_ref(hard_iface);
 }
 
 void hardif_remove_interfaces(void)
 {
-	struct batman_if *batman_if, *batman_if_tmp;
+	struct hard_iface *hard_iface, *hard_iface_tmp;
 	struct list_head if_queue;
 
 	INIT_LIST_HEAD(&if_queue);
 
-	spin_lock(&if_list_lock);
-	list_for_each_entry_safe(batman_if, batman_if_tmp, &if_list, list) {
-		list_del_rcu(&batman_if->list);
-		list_add_tail(&batman_if->list, &if_queue);
+	spin_lock(&hardif_list_lock);
+	list_for_each_entry_safe(hard_iface, hard_iface_tmp,
+				 &hardif_list, list) {
+		list_del_rcu(&hard_iface->list);
+		list_add_tail(&hard_iface->list, &if_queue);
 	}
-	spin_unlock(&if_list_lock);
+	spin_unlock(&hardif_list_lock);
 
 	rtnl_lock();
-	list_for_each_entry_safe(batman_if, batman_if_tmp, &if_queue, list) {
-		hardif_remove_interface(batman_if);
+	list_for_each_entry_safe(hard_iface, hard_iface_tmp, &if_queue, list) {
+		hardif_remove_interface(hard_iface);
 	}
 	rtnl_unlock();
 }
@@ -504,43 +513,43 @@ static int hard_if_event(struct notifier_block *this,
 			 unsigned long event, void *ptr)
 {
 	struct net_device *net_dev = (struct net_device *)ptr;
-	struct batman_if *batman_if = get_batman_if_by_netdev(net_dev);
+	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);
 	struct bat_priv *bat_priv;
 
-	if (!batman_if && event == NETDEV_REGISTER)
-		batman_if = hardif_add_interface(net_dev);
+	if (!hard_iface && event == NETDEV_REGISTER)
+		hard_iface = hardif_add_interface(net_dev);
 
-	if (!batman_if)
+	if (!hard_iface)
 		goto out;
 
 	switch (event) {
 	case NETDEV_UP:
-		hardif_activate_interface(batman_if);
+		hardif_activate_interface(hard_iface);
 		break;
 	case NETDEV_GOING_DOWN:
 	case NETDEV_DOWN:
-		hardif_deactivate_interface(batman_if);
+		hardif_deactivate_interface(hard_iface);
 		break;
 	case NETDEV_UNREGISTER:
-		spin_lock(&if_list_lock);
-		list_del_rcu(&batman_if->list);
-		spin_unlock(&if_list_lock);
+		spin_lock(&hardif_list_lock);
+		list_del_rcu(&hard_iface->list);
+		spin_unlock(&hardif_list_lock);
 
-		hardif_remove_interface(batman_if);
+		hardif_remove_interface(hard_iface);
 		break;
 	case NETDEV_CHANGEMTU:
-		if (batman_if->soft_iface)
-			update_min_mtu(batman_if->soft_iface);
+		if (hard_iface->soft_iface)
+			update_min_mtu(hard_iface->soft_iface);
 		break;
 	case NETDEV_CHANGEADDR:
-		if (batman_if->if_status == IF_NOT_IN_USE)
+		if (hard_iface->if_status == IF_NOT_IN_USE)
 			goto hardif_put;
 
-		check_known_mac_addr(batman_if->net_dev);
-		update_mac_addresses(batman_if);
+		check_known_mac_addr(hard_iface->net_dev);
+		update_mac_addresses(hard_iface);
 
-		bat_priv = netdev_priv(batman_if->soft_iface);
-		if (batman_if == bat_priv->primary_if)
+		bat_priv = netdev_priv(hard_iface->soft_iface);
+		if (hard_iface == bat_priv->primary_if)
 			update_primary_addr(bat_priv);
 		break;
 	default:
@@ -548,7 +557,7 @@ static int hard_if_event(struct notifier_block *this,
 	};
 
 hardif_put:
-	kref_put(&batman_if->refcount, hardif_free_ref);
+	hardif_free_ref(hard_iface);
 out:
 	return NOTIFY_DONE;
 }
@@ -561,10 +570,10 @@ static int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 {
 	struct bat_priv *bat_priv;
 	struct batman_packet *batman_packet;
-	struct batman_if *batman_if;
+	struct hard_iface *hard_iface;
 	int ret;
 
-	batman_if = container_of(ptype, struct batman_if, batman_adv_ptype);
+	hard_iface = container_of(ptype, struct hard_iface, batman_adv_ptype);
 	skb = skb_share_check(skb, GFP_ATOMIC);
 
 	/* skb was released by skb_share_check() */
@@ -580,16 +589,16 @@ static int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 				|| !skb_mac_header(skb)))
 		goto err_free;
 
-	if (!batman_if->soft_iface)
+	if (!hard_iface->soft_iface)
 		goto err_free;
 
-	bat_priv = netdev_priv(batman_if->soft_iface);
+	bat_priv = netdev_priv(hard_iface->soft_iface);
 
 	if (atomic_read(&bat_priv->mesh_state) != MESH_ACTIVE)
 		goto err_free;
 
 	/* discard frames on not active interfaces */
-	if (batman_if->if_status != IF_ACTIVE)
+	if (hard_iface->if_status != IF_ACTIVE)
 		goto err_free;
 
 	batman_packet = (struct batman_packet *)skb->data;
@@ -607,32 +616,32 @@ static int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	switch (batman_packet->packet_type) {
 		/* batman originator packet */
 	case BAT_PACKET:
-		ret = recv_bat_packet(skb, batman_if);
+		ret = recv_bat_packet(skb, hard_iface);
 		break;
 
 		/* batman icmp packet */
 	case BAT_ICMP:
-		ret = recv_icmp_packet(skb, batman_if);
+		ret = recv_icmp_packet(skb, hard_iface);
 		break;
 
 		/* unicast packet */
 	case BAT_UNICAST:
-		ret = recv_unicast_packet(skb, batman_if);
+		ret = recv_unicast_packet(skb, hard_iface);
 		break;
 
 		/* fragmented unicast packet */
 	case BAT_UNICAST_FRAG:
-		ret = recv_ucast_frag_packet(skb, batman_if);
+		ret = recv_ucast_frag_packet(skb, hard_iface);
 		break;
 
 		/* broadcast packet */
 	case BAT_BCAST:
-		ret = recv_bcast_packet(skb, batman_if);
+		ret = recv_bcast_packet(skb, hard_iface);
 		break;
 
 		/* vis packet */
 	case BAT_VIS:
-		ret = recv_vis_packet(skb, batman_if);
+		ret = recv_vis_packet(skb, hard_iface);
 		break;
 	default:
 		ret = NET_RX_DROP;
