@@ -2082,7 +2082,6 @@ static int be_close(struct net_device *netdev)
 
 	be_async_mcc_disable(adapter);
 
-	netif_stop_queue(netdev);
 	netif_carrier_off(netdev);
 	adapter->link_up = false;
 
