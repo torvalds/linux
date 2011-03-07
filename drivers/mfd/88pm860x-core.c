@@ -26,57 +26,32 @@ static struct resource bk_resources[] __initdata = {
 	{PM8606_BACKLIGHT3, PM8606_BACKLIGHT3, "backlight-2", IORESOURCE_IO,},
 };
 
+static struct resource led_resources[] __initdata = {
+	{PM8606_LED1_RED,   PM8606_LED1_RED,   "led0-red",   IORESOURCE_IO,},
+	{PM8606_LED1_GREEN, PM8606_LED1_GREEN, "led0-green", IORESOURCE_IO,},
+	{PM8606_LED1_BLUE,  PM8606_LED1_BLUE,  "led0-blue",  IORESOURCE_IO,},
+	{PM8606_LED2_RED,   PM8606_LED2_RED,   "led1-red",   IORESOURCE_IO,},
+	{PM8606_LED2_GREEN, PM8606_LED2_GREEN, "led1-green", IORESOURCE_IO,},
+	{PM8606_LED2_BLUE,  PM8606_LED2_BLUE,  "led1-blue",  IORESOURCE_IO,},
+};
+
 static struct mfd_cell bk_devs[] __initdata = {
 	{"88pm860x-backlight", 0,},
 	{"88pm860x-backlight", 1,},
 	{"88pm860x-backlight", 2,},
 };
 
+static struct mfd_cell led_devs[] __initdata = {
+	{"88pm860x-led", 0,},
+	{"88pm860x-led", 1,},
+	{"88pm860x-led", 2,},
+	{"88pm860x-led", 3,},
+	{"88pm860x-led", 4,},
+	{"88pm860x-led", 5,},
+};
+
 static struct pm860x_backlight_pdata bk_pdata[ARRAY_SIZE(bk_devs)];
-
-char pm860x_led_name[][MFD_NAME_SIZE] = {
-	"led0-red",
-	"led0-green",
-	"led0-blue",
-	"led1-red",
-	"led1-green",
-	"led1-blue",
-};
-EXPORT_SYMBOL(pm860x_led_name);
-
-#define PM8606_LED_RESOURCE(_i, _x)			\
-{							\
-	.name	= pm860x_led_name[_i],			\
-	.start	= PM8606_##_x,				\
-	.end	= PM8606_##_x,				\
-	.flags	= IORESOURCE_IO,			\
-}
-
-static struct resource led_resources[] = {
-	PM8606_LED_RESOURCE(PM8606_LED1_RED, RGB1B),
-	PM8606_LED_RESOURCE(PM8606_LED1_GREEN, RGB1C),
-	PM8606_LED_RESOURCE(PM8606_LED1_BLUE, RGB1D),
-	PM8606_LED_RESOURCE(PM8606_LED2_RED, RGB2B),
-	PM8606_LED_RESOURCE(PM8606_LED2_GREEN, RGB2C),
-	PM8606_LED_RESOURCE(PM8606_LED2_BLUE, RGB2D),
-};
-
-#define PM8606_LED_DEVS(_i)				\
-{							\
-	.name		= "88pm860x-led",		\
-	.num_resources	= 1,				\
-	.resources	= &led_resources[_i],		\
-	.id		= _i,				\
-}
-
-static struct mfd_cell led_devs[] = {
-	PM8606_LED_DEVS(PM8606_LED1_RED),
-	PM8606_LED_DEVS(PM8606_LED1_GREEN),
-	PM8606_LED_DEVS(PM8606_LED1_BLUE),
-	PM8606_LED_DEVS(PM8606_LED2_RED),
-	PM8606_LED_DEVS(PM8606_LED2_GREEN),
-	PM8606_LED_DEVS(PM8606_LED2_BLUE),
-};
+static struct pm860x_led_pdata led_pdata[ARRAY_SIZE(led_devs)];
 
 static struct resource touch_resources[] = {
 	{
@@ -611,25 +586,41 @@ static void __devinit device_bk_init(struct pm860x_chip *chip,
 	}
 }
 
-static void __devinit device_8606_init(struct pm860x_chip *chip,
-				       struct i2c_client *i2c,
-				       struct pm860x_platform_data *pdata)
+static void __devinit device_led_init(struct pm860x_chip *chip,
+				      struct i2c_client *i2c,
+				      struct pm860x_platform_data *pdata)
 {
 	int ret;
+	int i, j, id;
 
-	if (pdata && pdata->led) {
-		ret = mfd_add_devices(chip->dev, 0, &led_devs[0],
-				      ARRAY_SIZE(led_devs),
-				      &led_resources[0], 0);
-		if (ret < 0) {
-			dev_err(chip->dev, "Failed to add led "
-				"subdev\n");
-			goto out_dev;
+	if ((pdata == NULL) || (pdata->led == NULL))
+		return;
+
+	if (pdata->num_leds > ARRAY_SIZE(led_devs))
+		pdata->num_leds = ARRAY_SIZE(led_devs);
+
+	for (i = 0; i < pdata->num_leds; i++) {
+		memcpy(&led_pdata[i], &pdata->led[i],
+			sizeof(struct pm860x_led_pdata));
+		led_devs[i].mfd_data = &led_pdata[i];
+
+		for (j = 0; j < ARRAY_SIZE(led_devs); j++) {
+			id = led_resources[j].start;
+			if (led_pdata[i].flags != id)
+				continue;
+
+			led_devs[i].num_resources = 1;
+			led_devs[i].resources = &led_resources[j],
+			ret = mfd_add_devices(chip->dev, 0,
+					      &led_devs[i], 1,
+					      &led_resources[j], 0);
+			if (ret < 0) {
+				dev_err(chip->dev, "Failed to add "
+					"led subdev\n");
+				return;
+			}
 		}
 	}
-	return;
-out_dev:
-	device_irq_exit(chip);
 }
 
 static void __devinit device_8607_init(struct pm860x_chip *chip,
@@ -748,7 +739,7 @@ int __devinit pm860x_device_init(struct pm860x_chip *chip,
 	switch (chip->id) {
 	case CHIP_PM8606:
 		device_bk_init(chip, chip->client, pdata);
-		device_8606_init(chip, chip->client, pdata);
+		device_led_init(chip, chip->client, pdata);
 		break;
 	case CHIP_PM8607:
 		device_8607_init(chip, chip->client, pdata);
@@ -759,7 +750,7 @@ int __devinit pm860x_device_init(struct pm860x_chip *chip,
 		switch (chip->id) {
 		case CHIP_PM8607:
 			device_bk_init(chip, chip->companion, pdata);
-			device_8606_init(chip, chip->companion, pdata);
+			device_led_init(chip, chip->companion, pdata);
 			break;
 		case CHIP_PM8606:
 			device_8607_init(chip, chip->companion, pdata);
