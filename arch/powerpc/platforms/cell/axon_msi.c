@@ -93,6 +93,7 @@ static void msic_dcr_write(struct axon_msic *msic, unsigned int dcr_n, u32 val)
 
 static void axon_msi_cascade(unsigned int irq, struct irq_desc *desc)
 {
+	struct irq_chip *chip = get_irq_desc_chip(desc);
 	struct axon_msic *msic = get_irq_data(irq);
 	u32 write_offset, msi;
 	int idx;
@@ -145,7 +146,7 @@ static void axon_msi_cascade(unsigned int irq, struct irq_desc *desc)
 		msic->read_offset &= MSIC_FIFO_SIZE_MASK;
 	}
 
-	desc->chip->eoi(irq);
+	chip->irq_eoi(&desc->irq_data);
 }
 
 static struct axon_msic *find_msi_translator(struct pci_dev *dev)
