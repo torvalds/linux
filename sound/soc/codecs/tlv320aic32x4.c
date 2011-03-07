@@ -340,13 +340,13 @@ static inline int aic32x4_get_divs(int mclk, int rate)
 
 static int aic32x4_add_widgets(struct snd_soc_codec *codec)
 {
-	snd_soc_dapm_new_controls(codec, aic32x4_dapm_widgets,
-				ARRAY_SIZE(aic32x4_dapm_widgets));
+	snd_soc_dapm_new_controls(&codec->dapm, aic32x4_dapm_widgets,
+				  ARRAY_SIZE(aic32x4_dapm_widgets));
 
-	snd_soc_dapm_add_routes(codec, aic32x4_dapm_routes,
+	snd_soc_dapm_add_routes(&codec->dapm, aic32x4_dapm_routes,
 				ARRAY_SIZE(aic32x4_dapm_routes));
 
-	snd_soc_dapm_new_widgets(codec);
+	snd_soc_dapm_new_widgets(&codec->dapm);
 	return 0;
 }
 
@@ -602,7 +602,7 @@ static int aic32x4_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_OFF:
 		break;
 	}
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 	return 0;
 }
 
