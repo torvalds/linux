@@ -3905,7 +3905,8 @@ static void vmx_complete_atomic_exit(struct vcpu_vmx *vmx)
 		kvm_machine_check();
 
 	/* We need to handle NMIs before interrupts are enabled */
-	if ((exit_intr_info & INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_NMI_INTR &&
+	if (vmx->exit_reason == EXIT_REASON_EXCEPTION_NMI &&
+	    (exit_intr_info & INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_NMI_INTR &&
 	    (exit_intr_info & INTR_INFO_VALID_MASK)) {
 		kvm_before_handle_nmi(&vmx->vcpu);
 		asm("int $2");
