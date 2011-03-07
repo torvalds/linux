@@ -237,6 +237,7 @@ struct cfq_data {
 	struct rb_root prio_trees[CFQ_PRIO_LISTS];
 
 	unsigned int busy_queues;
+	unsigned int busy_sync_queues;
 
 	int rq_in_driver;
 	int rq_in_flight[2];
@@ -1344,6 +1345,8 @@ static void cfq_add_cfqq_rr(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	BUG_ON(cfq_cfqq_on_rr(cfqq));
 	cfq_mark_cfqq_on_rr(cfqq);
 	cfqd->busy_queues++;
+	if (cfq_cfqq_sync(cfqq))
+		cfqd->busy_sync_queues++;
 
 	cfq_resort_rr_list(cfqd, cfqq);
 }
@@ -1370,6 +1373,8 @@ static void cfq_del_cfqq_rr(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	cfq_group_service_tree_del(cfqd, cfqq->cfqg);
 	BUG_ON(!cfqd->busy_queues);
 	cfqd->busy_queues--;
+	if (cfq_cfqq_sync(cfqq))
+		cfqd->busy_sync_queues--;
 }
 
 /*
@@ -2377,6 +2382,7 @@ static bool cfq_may_dispatch(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	 * Does this cfqq already have too much IO in flight?
 	 */
 	if (cfqq->dispatched >= max_dispatch) {
+		bool promote_sync = false;
 		/*
 		 * idle queue must always only have a single IO in flight
 		 */
@@ -2384,15 +2390,31 @@ static bool cfq_may_dispatch(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 			return false;
 
 		/*
+		 * If there is only one sync queue, and its think time is
+		 * small, we can ignore async queue here and give the sync
+		 * queue no dispatch limit. The reason is a sync queue can
+		 * preempt async queue, limiting the sync queue doesn't make
+		 * sense. This is useful for aiostress test.
+		 */
+		if (cfq_cfqq_sync(cfqq) && cfqd->busy_sync_queues == 1) {
+			struct cfq_io_context *cic = RQ_CIC(cfqq->next_rq);
+
+			if (sample_valid(cic->ttime_samples) &&
+				cic->ttime_mean < cfqd->cfq_slice_idle)
+				promote_sync = true;
+		}
+
+		/*
 		 * We have other queues, don't allow more IO from this one
 		 */
-		if (cfqd->busy_queues > 1 && cfq_slice_used_soon(cfqd, cfqq))
+		if (cfqd->busy_queues > 1 && cfq_slice_used_soon(cfqd, cfqq) &&
+				!promote_sync)
 			return false;
 
 		/*
 		 * Sole queue user, no limit
 		 */
-		if (cfqd->busy_queues == 1)
+		if (cfqd->busy_queues == 1 || promote_sync)
 			max_dispatch = -1;
 		else
 			/*
