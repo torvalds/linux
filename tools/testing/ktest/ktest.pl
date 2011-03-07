@@ -930,6 +930,18 @@ sub check_buildlog {
     return 1;
 }
 
+sub make_oldconfig {
+    my ($defconfig) = @_;
+
+    if (!run_command "$defconfig $make oldnoconfig") {
+	# Perhaps oldnoconfig doesn't exist in this version of the kernel
+	# try a yes '' | oldconfig
+	doprint "oldnoconfig failed, trying yes '' | make oldconfig\n";
+	run_command "yes '' | $defconfig $make oldconfig" or
+	    dodie "failed make config oldconfig";
+    }
+}
+
 sub build {
     my ($type) = @_;
     my $defconfig = "";
@@ -975,8 +987,12 @@ sub build {
 	$defconfig = "KCONFIG_ALLCONFIG=$minconfig";
     }
 
-    run_command "$defconfig $make $type" or
-	dodie "failed make config";
+    if ($type eq "oldnoconfig") {
+	make_oldconfig $defconfig;
+    } else {
+	run_command "$defconfig $make $type" or
+	    dodie "failed make config";
+    }
 
     $redirect = "$buildlog";
     if (!run_command "$make $build_options") {
@@ -1395,9 +1411,7 @@ sub create_config {
     close(OUT);
 
 #    exit;
-    run_command "$make oldnoconfig" or
-	dodie "failed make config oldconfig";
-
+    make_oldconfig "";
 }
 
 sub compare_configs {
@@ -1599,8 +1613,7 @@ sub config_bisect {
     close(IN);
 
     # Now run oldconfig with the minconfig (and addconfigs)
-    run_command "$defconfig $make oldnoconfig" or
-	dodie "failed make config oldconfig";
+    make_oldconfig $defconfig;
 
     # check to see what we lost (or gained)
     open (IN, $output_config)
