@@ -527,6 +527,7 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 #define HDSPM_MADIFACE_REV	213
 #define HDSPM_AES_REV		240
 #define HDSPM_AES32_REV		234
+#define HDSPM_AES32_OLD_REV	233
 
 /* speed factor modes */
 #define HDSPM_SPEED_SINGLE 0
@@ -6397,6 +6398,7 @@ static int __devinit snd_hdspm_create(struct snd_card *card,
 		break;
 	case HDSPM_AES_REV:
 	case HDSPM_AES32_REV:
+	case HDSPM_AES32_OLD_REV:
 		hdspm->io_type = AES32;
 		hdspm->card_name = "RME AES32";
 		hdspm->midiPorts = 2;
