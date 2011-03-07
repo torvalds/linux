@@ -2,10 +2,16 @@
 #define __ASM_SH_ETH_H__
 
 enum {EDMAC_LITTLE_ENDIAN, EDMAC_BIG_ENDIAN};
+enum {
+	SH_ETH_REG_GIGABIT,
+	SH_ETH_REG_FAST_SH4,
+	SH_ETH_REG_FAST_SH3_SH2
+};
 
 struct sh_eth_plat_data {
 	int phy;
 	int edmac_endian;
+	int register_type;
 
 	unsigned char mac_addr[6];
 	unsigned no_ether_link:1;
