@@ -546,8 +546,6 @@ static int vmbus_bus_init(void)
 	}
 	/* strcpy(dev_ctx->device.bus_id, dev_ctx->device_obj.name); */
 	dev_set_name(&dev_ctx->device, "vmbus_0_0");
-	memcpy(&dev_ctx->device_id, &dev_ctx->device_obj.dev_instance,
-		sizeof(struct hv_guid));
 
 	/* No need to bind a driver to the root device. */
 	dev_ctx->device.parent = NULL;
@@ -702,7 +700,6 @@ struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 	memcpy(&child_device_obj->dev_instance, instance,
 	       sizeof(struct hv_guid));
 
-	memcpy(&child_device_ctx->device_id, instance, sizeof(struct hv_guid));
 
 	return child_device_obj;
 }
@@ -826,22 +823,22 @@ static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
 	ret = add_uevent_var(env, "VMBUS_DEVICE_DEVICE_GUID={"
 			     "%02x%02x%02x%02x-%02x%02x-%02x%02x-"
 			     "%02x%02x%02x%02x%02x%02x%02x%02x}",
-			     device_ctx->device_id.data[3],
-			     device_ctx->device_id.data[2],
-			     device_ctx->device_id.data[1],
-			     device_ctx->device_id.data[0],
-			     device_ctx->device_id.data[5],
-			     device_ctx->device_id.data[4],
-			     device_ctx->device_id.data[7],
-			     device_ctx->device_id.data[6],
-			     device_ctx->device_id.data[8],
-			     device_ctx->device_id.data[9],
-			     device_ctx->device_id.data[10],
-			     device_ctx->device_id.data[11],
-			     device_ctx->device_id.data[12],
-			     device_ctx->device_id.data[13],
-			     device_ctx->device_id.data[14],
-			     device_ctx->device_id.data[15]);
+			     dev->dev_instance.data[3],
+			     dev->dev_instance.data[2],
+			     dev->dev_instance.data[1],
+			     dev->dev_instance.data[0],
+			     dev->dev_instance.data[5],
+			     dev->dev_instance.data[4],
+			     dev->dev_instance.data[7],
+			     dev->dev_instance.data[6],
+			     dev->dev_instance.data[8],
+			     dev->dev_instance.data[9],
+			     dev->dev_instance.data[10],
+			     dev->dev_instance.data[11],
+			     dev->dev_instance.data[12],
+			     dev->dev_instance.data[13],
+			     dev->dev_instance.data[14],
+			     dev->dev_instance.data[15]);
 	if (ret)
 		return ret;
 
