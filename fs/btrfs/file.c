@@ -69,6 +69,19 @@ static noinline int btrfs_copy_from_user(loff_t pos, int num_pages,
 
 		/* Flush processor's dcache for this page */
 		flush_dcache_page(page);
+
+		/*
+		 * if we get a partial write, we can end up with
+		 * partially up to date pages.  These add
+		 * a lot of complexity, so make sure they don't
+		 * happen by forcing this copy to be retried.
+		 *
+		 * The rest of the btrfs_file_write code will fall
+		 * back to page at a time copies after we return 0.
+		 */
+		if (!PageUptodate(page) && copied < count)
+			copied = 0;
+
 		iov_iter_advance(i, copied);
 		write_bytes -= copied;
 		total_copied += copied;
