@@ -1353,8 +1353,6 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
 		if (memcmp(dig_in, dig_vv, dgs)) {
 			dev_err(DEV, "Digest integrity check FAILED: %llus +%u\n",
 				(unsigned long long)sector, data_size);
-			drbd_bcast_ee(mdev, "digest failed",
-					dgs, dig_in, dig_vv, peer_req);
 			drbd_free_ee(mdev, peer_req);
 			return NULL;
 		}
