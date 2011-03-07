@@ -130,6 +130,7 @@ struct vcpu_vmx {
 	u8                    fail;
 	u32                   exit_intr_info;
 	u32                   idt_vectoring_info;
+	ulong                 rflags;
 	struct shared_msr_entry *guest_msrs;
 	int                   nmsrs;
 	int                   save_nmsrs;
@@ -970,17 +971,23 @@ static unsigned long vmx_get_rflags(struct kvm_vcpu *vcpu)
 {
 	unsigned long rflags, save_rflags;
 
-	rflags = vmcs_readl(GUEST_RFLAGS);
-	if (to_vmx(vcpu)->rmode.vm86_active) {
-		rflags &= RMODE_GUEST_OWNED_EFLAGS_BITS;
-		save_rflags = to_vmx(vcpu)->rmode.save_rflags;
-		rflags |= save_rflags & ~RMODE_GUEST_OWNED_EFLAGS_BITS;
+	if (!test_bit(VCPU_EXREG_RFLAGS, (ulong *)&vcpu->arch.regs_avail)) {
+		__set_bit(VCPU_EXREG_RFLAGS, (ulong *)&vcpu->arch.regs_avail);
+		rflags = vmcs_readl(GUEST_RFLAGS);
+		if (to_vmx(vcpu)->rmode.vm86_active) {
+			rflags &= RMODE_GUEST_OWNED_EFLAGS_BITS;
+			save_rflags = to_vmx(vcpu)->rmode.save_rflags;
+			rflags |= save_rflags & ~RMODE_GUEST_OWNED_EFLAGS_BITS;
+		}
+		to_vmx(vcpu)->rflags = rflags;
 	}
-	return rflags;
+	return to_vmx(vcpu)->rflags;
 }
 
 static void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 {
+	__set_bit(VCPU_EXREG_RFLAGS, (ulong *)&vcpu->arch.regs_avail);
+	to_vmx(vcpu)->rflags = rflags;
 	if (to_vmx(vcpu)->rmode.vm86_active) {
 		to_vmx(vcpu)->rmode.save_rflags = rflags;
 		rflags |= X86_EFLAGS_IOPL | X86_EFLAGS_VM;
@@ -4124,6 +4131,7 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	      );
 
 	vcpu->arch.regs_avail = ~((1 << VCPU_REGS_RIP) | (1 << VCPU_REGS_RSP)
+				  | (1 << VCPU_EXREG_RFLAGS)
 				  | (1 << VCPU_EXREG_PDPTR)
 				  | (1 << VCPU_EXREG_CR3));
 	vcpu->arch.regs_dirty = 0;
