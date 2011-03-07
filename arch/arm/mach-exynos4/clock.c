@@ -23,6 +23,7 @@
 
 #include <mach/map.h>
 #include <mach/regs-clock.h>
+#include <mach/sysmmu.h>
 
 static struct clk clk_sclk_hdmi27m = {
 	.name		= "sclk_hdmi27m",
@@ -81,9 +82,19 @@ static int exynos4_clksrc_mask_peril1_ctrl(struct clk *clk, int enable)
 	return s5p_gatectrl(S5P_CLKSRC_MASK_PERIL1, clk, enable);
 }
 
+static int exynos4_clk_ip_mfc_ctrl(struct clk *clk, int enable)
+{
+	return s5p_gatectrl(S5P_CLKGATE_IP_MFC, clk, enable);
+}
+
 static int exynos4_clk_ip_cam_ctrl(struct clk *clk, int enable)
 {
 	return s5p_gatectrl(S5P_CLKGATE_IP_CAM, clk, enable);
+}
+
+static int exynos4_clk_ip_tv_ctrl(struct clk *clk, int enable)
+{
+	return s5p_gatectrl(S5P_CLKGATE_IP_TV, clk, enable);
 }
 
 static int exynos4_clk_ip_image_ctrl(struct clk *clk, int enable)
@@ -602,7 +613,77 @@ static struct clk init_clocks_off[] = {
 		.parent		= &clk_aclk_100.clk,
 		.enable		= exynos4_clk_ip_peril_ctrl,
 		.ctrlbit	= (1 << 13),
-	},
+	}, {
+		.name		= "SYSMMU_MDMA",
+		.id		= -1,
+		.enable		= exynos4_clk_ip_image_ctrl,
+		.ctrlbit	= (1 << 5),
+	}, {
+		.name		= "SYSMMU_FIMC0",
+		.id		= -1,
+		.enable		= exynos4_clk_ip_cam_ctrl,
+		.ctrlbit	= (1 << 7),
+	}, {
+		.name		= "SYSMMU_FIMC1",
+		.id		= -1,
+		.enable		= exynos4_clk_ip_cam_ctrl,
+		.ctrlbit	= (1 << 8),
+	}, {
+		.name		= "SYSMMU_FIMC2",
+		.id		= -1,
+		.enable		= exynos4_clk_ip_cam_ctrl,
+		.ctrlbit	= (1 << 9),
+	}, {
+		.name		= "SYSMMU_FIMC3",
+		.id		= -1,
+		.enable		= exynos4_clk_ip_cam_ctrl,
+		.ctrlbit	= (1 << 10),
+	}, {
+		.name		= "SYSMMU_JPEG",
+		.id		= -1,
+		.enable		= exynos4_clk_ip_cam_ctrl,
+		.ctrlbit	= (1 << 11),
+	}, {
+		.name		= "SYSMMU_FIMD0",
+		.id		= -1,
+		.enable		= exynos4_clk_ip_lcd0_ctrl,
+		.ctrlbit	= (1 << 4),
+	}, {
+		.name		= "SYSMMU_FIMD1",
+		.id		= -1,
+		.enable		= exynos4_clk_ip_lcd1_ctrl,
+		.ctrlbit	= (1 << 4),
+	}, {
+		.name		= "SYSMMU_PCIe",
+		.id		= -1,
+		.enable		= exynos4_clk_ip_fsys_ctrl,
+		.ctrlbit	= (1 << 18),
+	}, {
+		.name		= "SYSMMU_G2D",
+		.id		= -1,
+		.enable		= exynos4_clk_ip_image_ctrl,
+		.ctrlbit	= (1 << 3),
+	}, {
+		.name		= "SYSMMU_ROTATOR",
+		.id		= -1,
+		.enable		= exynos4_clk_ip_image_ctrl,
+		.ctrlbit	= (1 << 4),
+	}, {
+		.name		= "SYSMMU_TV",
+		.id		= -1,
+		.enable		= exynos4_clk_ip_tv_ctrl,
+		.ctrlbit	= (1 << 4),
+	}, {
+		.name		= "SYSMMU_MFC_L",
+		.id		= -1,
+		.enable		= exynos4_clk_ip_mfc_ctrl,
+		.ctrlbit	= (1 << 1),
+	}, {
+		.name		= "SYSMMU_MFC_R",
+		.id		= -1,
+		.enable		= exynos4_clk_ip_mfc_ctrl,
+		.ctrlbit	= (1 << 2),
+	}
 };
 
 static struct clk init_clocks[] = {

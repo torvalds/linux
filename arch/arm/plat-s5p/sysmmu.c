@@ -174,6 +174,8 @@ void s5p_sysmmu_set_tablebase_pgd(sysmmu_ips ips, unsigned long pgd)
 void s5p_sysmmu_enable(sysmmu_ips ips, unsigned long pgd)
 {
 	if (!is_sysmmu_active(ips)) {
+		sysmmu_clk_enable(ips);
+
 		__sysmmu_set_ptbase(ips, pgd);
 
 		__raw_writel(CTRL_ENABLE, sysmmusfrs[ips] + S5P_MMU_CTRL);
@@ -190,6 +192,7 @@ void s5p_sysmmu_disable(sysmmu_ips ips)
 	if (is_sysmmu_active(ips)) {
 		__raw_writel(CTRL_DISABLE, sysmmusfrs[ips] + S5P_MMU_CTRL);
 		set_sysmmu_inactive(ips);
+		sysmmu_clk_disable(ips);
 		dev_dbg(dev, "%s is disabled.\n", sysmmu_ips_name[ips]);
 	} else {
 		dev_dbg(dev, "%s is already disabled.\n", sysmmu_ips_name[ips]);
@@ -217,6 +220,9 @@ static int s5p_sysmmu_probe(struct platform_device *pdev)
 
 	for (i = 0; i < S5P_SYSMMU_TOTAL_IPNUM; i++) {
 		int irq;
+
+		sysmmu_clk_init(dev, i);
+		sysmmu_clk_disable(i);
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		if (!res) {

@@ -208,3 +208,25 @@ struct platform_device exynos4_device_sysmmu = {
 	.resource	= exynos4_sysmmu_resource,
 };
 EXPORT_SYMBOL(exynos4_device_sysmmu);
+
+static struct clk *sysmmu_clk[S5P_SYSMMU_TOTAL_IPNUM];
+void sysmmu_clk_init(struct device *dev, sysmmu_ips ips)
+{
+	sysmmu_clk[ips] = clk_get(dev, sysmmu_ips_name[ips]);
+	if (IS_ERR(sysmmu_clk[ips]))
+		sysmmu_clk[ips] = NULL;
+	else
+		clk_put(sysmmu_clk[ips]);
+}
+
+void sysmmu_clk_enable(sysmmu_ips ips)
+{
+	if (sysmmu_clk[ips])
+		clk_enable(sysmmu_clk[ips]);
+}
+
+void sysmmu_clk_disable(sysmmu_ips ips)
+{
+	if (sysmmu_clk[ips])
+		clk_disable(sysmmu_clk[ips]);
+}
