@@ -79,6 +79,10 @@ static unsigned short force_id;
 module_param(force_id, ushort, 0);
 MODULE_PARM_DESC(force_id, "Override the detected device ID");
 
+static unsigned short fan_debounce;
+module_param(fan_debounce, ushort, 0);
+MODULE_PARM_DESC(fan_debounce, "Enable debouncing for fan RPM signal");
+
 #define DRVNAME "w83627ehf"
 
 /*
@@ -187,6 +191,7 @@ static const u16 W83627EHF_REG_TEMP_CONFIG[] = { 0, 0x152, 0x252, 0 };
 /* NCT6775F has its own fan divider registers */
 #define NCT6775_REG_FANDIV1		0x506
 #define NCT6775_REG_FANDIV2		0x507
+#define NCT6775_REG_FAN_DEBOUNCE	0xf0
 
 #define W83627EHF_REG_ALARM1		0x459
 #define W83627EHF_REG_ALARM2		0x45A
@@ -2089,6 +2094,22 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 		fan5pin = !(superio_inb(sio_data->sioreg, 0x24) & 0x02);
 		fan4min = fan4pin;
 	}
+
+	if (fan_debounce &&
+	    (sio_data->kind == nct6775 || sio_data->kind == nct6776)) {
+		u8 tmp;
+
+		superio_select(sio_data->sioreg, W83627EHF_LD_HWM);
+		tmp = superio_inb(sio_data->sioreg, NCT6775_REG_FAN_DEBOUNCE);
+		if (sio_data->kind == nct6776)
+			superio_outb(sio_data->sioreg, NCT6775_REG_FAN_DEBOUNCE,
+				     0x3e | tmp);
+		else
+			superio_outb(sio_data->sioreg, NCT6775_REG_FAN_DEBOUNCE,
+				     0x1e | tmp);
+		pr_info("Enabled fan debounce for chip %s\n", data->name);
+	}
+
 	superio_exit(sio_data->sioreg);
 
 	/* It looks like fan4 and fan5 pins can be alternatively used
