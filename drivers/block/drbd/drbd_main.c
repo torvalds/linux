@@ -86,7 +86,6 @@ MODULE_PARM_DESC(allow_oos, "DONT USE!");
 module_param(minor_count, uint, 0444);
 module_param(disable_sendpage, bool, 0644);
 module_param(allow_oos, bool, 0);
-module_param(cn_idx, uint, 0444);
 module_param(proc_details, int, 0644);
 
 #ifdef CONFIG_DRBD_FAULT_INJECTION
@@ -108,7 +107,6 @@ module_param(fault_devs, int, 0644);
 unsigned int minor_count = DRBD_MINOR_COUNT_DEF;
 int disable_sendpage;
 int allow_oos;
-unsigned int cn_idx = CN_IDX_DRBD;
 int proc_details;       /* Detail level in proc drbd*/
 
 /* Module parameter for setting the user mode helper program
@@ -2175,7 +2173,7 @@ static void drbd_cleanup(void)
 	if (drbd_proc)
 		remove_proc_entry("drbd", NULL);
 
-	drbd_nl_cleanup();
+	drbd_genl_unregister();
 
 	idr_for_each_entry(&minors, mdev, i)
 		drbd_delete_device(i);
@@ -2237,6 +2235,9 @@ struct drbd_tconn *conn_by_name(const char *name)
 {
 	struct drbd_tconn *tconn;
 
+	if (!name || !name[0])
+		return NULL;
+
 	write_lock_irq(&global_state_lock);
 	list_for_each_entry(tconn, &drbd_tconns, all_tconn) {
 		if (!strcmp(tconn->name, name))
@@ -2248,7 +2249,7 @@ found:
 	return tconn;
 }
 
-struct drbd_tconn *drbd_new_tconn(char *name)
+struct drbd_tconn *drbd_new_tconn(const char *name)
 {
 	struct drbd_tconn *tconn;
 
@@ -2333,6 +2334,7 @@ enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, 
 
 	mdev->tconn = tconn;
 	mdev->minor = minor;
+	mdev->vnr = vnr;
 
 	drbd_init_set_defaults(mdev);
 
@@ -2461,10 +2463,6 @@ int __init drbd_init(void)
 #endif
 	}
 
-	err = drbd_nl_init();
-	if (err)
-		return err;
-
 	err = register_blkdev(DRBD_MAJOR, "drbd");
 	if (err) {
 		printk(KERN_ERR
@@ -2472,6 +2470,13 @@ int __init drbd_init(void)
 		       DRBD_MAJOR);
 		return err;
 	}
+
+	err = drbd_genl_register();
+	if (err) {
+		printk(KERN_ERR "drbd: unable to register generic netlink family\n");
+		goto fail;
+	}
+
 
 	register_reboot_notifier(&drbd_notifier);
 
@@ -2487,12 +2492,12 @@ int __init drbd_init(void)
 
 	err = drbd_create_mempools();
 	if (err)
-		goto Enomem;
+		goto fail;
 
 	drbd_proc = proc_create_data("drbd", S_IFREG | S_IRUGO , NULL, &drbd_proc_fops, NULL);
 	if (!drbd_proc)	{
 		printk(KERN_ERR "drbd: unable to register proc file\n");
-		goto Enomem;
+		goto fail;
 	}
 
 	rwlock_init(&global_state_lock);
@@ -2507,7 +2512,7 @@ int __init drbd_init(void)
 
 	return 0; /* Success! */
 
-Enomem:
+fail:
 	drbd_cleanup();
 	if (err == -ENOMEM)
 		/* currently always the case */

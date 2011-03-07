@@ -970,6 +970,11 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	enum drbd_fencing_p fp;
 	enum drbd_req_event what = NOTHING;
 	union drbd_state nsm = (union drbd_state){ .i = -1 };
+	struct sib_info sib;
+
+	sib.sib_reason = SIB_STATE_CHANGE;
+	sib.os = os;
+	sib.ns = ns;
 
 	if (os.conn != C_CONNECTED && ns.conn == C_CONNECTED) {
 		clear_bit(CRASHED_PRIMARY, &mdev->flags);
@@ -984,7 +989,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	}
 
 	/* Inform userspace about the change... */
-	drbd_bcast_state(mdev, ns);
+	drbd_bcast_event(mdev, &sib);
 
 	if (!(os.role == R_PRIMARY && os.disk < D_UP_TO_DATE && os.pdsk < D_UP_TO_DATE) &&
 	    (ns.role == R_PRIMARY && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE))

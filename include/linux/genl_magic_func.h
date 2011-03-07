@@ -95,7 +95,7 @@ static struct nla_policy s_name ## _nl_policy[] __read_mostly =		\
 #endif
 #endif
 
-#if 1
+#ifdef GENL_MAGIC_DEBUG
 static void dprint_field(const char *dir, int nla_type,
 		const char *name, void *valp)
 {
