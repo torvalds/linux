@@ -129,8 +129,8 @@ extern struct pmx_dev pmx_telecom_camera;
 extern struct pmx_dev pmx_telecom_dac;
 extern struct pmx_dev pmx_telecom_i2s;
 extern struct pmx_dev pmx_telecom_boot_pins;
-extern struct pmx_dev pmx_telecom_sdio_4bit;
-extern struct pmx_dev pmx_telecom_sdio_8bit;
+extern struct pmx_dev pmx_telecom_sdhci_4bit;
+extern struct pmx_dev pmx_telecom_sdhci_8bit;
 extern struct pmx_dev pmx_gpio1;
 
 /* Add spear300 machine function declarations here */
@@ -172,14 +172,14 @@ extern struct pmx_dev pmx_clcd;
 extern struct pmx_dev pmx_emi;
 extern struct pmx_dev pmx_fsmc;
 extern struct pmx_dev pmx_spp;
-extern struct pmx_dev pmx_sdio;
+extern struct pmx_dev pmx_sdhci;
 extern struct pmx_dev pmx_i2s;
 extern struct pmx_dev pmx_uart1;
 extern struct pmx_dev pmx_uart1_modem;
 extern struct pmx_dev pmx_uart2;
 extern struct pmx_dev pmx_touchscreen;
 extern struct pmx_dev pmx_can;
-extern struct pmx_dev pmx_sdio_led;
+extern struct pmx_dev pmx_sdhci_led;
 extern struct pmx_dev pmx_pwm0;
 extern struct pmx_dev pmx_pwm1;
 extern struct pmx_dev pmx_pwm2;

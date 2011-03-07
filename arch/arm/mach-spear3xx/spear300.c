@@ -310,7 +310,7 @@ struct pmx_dev pmx_telecom_boot_pins = {
 	.enb_on_reset = 1,
 };
 
-struct pmx_dev_mode pmx_telecom_sdio_4bit_modes[] = {
+struct pmx_dev_mode pmx_telecom_sdhci_4bit_modes[] = {
 	{
 		.ids = PHOTO_FRAME_MODE | LEND_IP_PHONE_MODE |
 			HEND_IP_PHONE_MODE | LEND_WIFI_PHONE_MODE |
@@ -323,14 +323,14 @@ struct pmx_dev_mode pmx_telecom_sdio_4bit_modes[] = {
 	},
 };
 
-struct pmx_dev pmx_telecom_sdio_4bit = {
-	.name = "telecom_sdio_4bit",
-	.modes = pmx_telecom_sdio_4bit_modes,
-	.mode_count = ARRAY_SIZE(pmx_telecom_sdio_4bit_modes),
+struct pmx_dev pmx_telecom_sdhci_4bit = {
+	.name = "telecom_sdhci_4bit",
+	.modes = pmx_telecom_sdhci_4bit_modes,
+	.mode_count = ARRAY_SIZE(pmx_telecom_sdhci_4bit_modes),
 	.enb_on_reset = 1,
 };
 
-struct pmx_dev_mode pmx_telecom_sdio_8bit_modes[] = {
+struct pmx_dev_mode pmx_telecom_sdhci_8bit_modes[] = {
 	{
 		.ids = PHOTO_FRAME_MODE | LEND_IP_PHONE_MODE |
 			HEND_IP_PHONE_MODE | LEND_WIFI_PHONE_MODE |
@@ -342,10 +342,10 @@ struct pmx_dev_mode pmx_telecom_sdio_8bit_modes[] = {
 	},
 };
 
-struct pmx_dev pmx_telecom_sdio_8bit = {
-	.name = "telecom_sdio_8bit",
-	.modes = pmx_telecom_sdio_8bit_modes,
-	.mode_count = ARRAY_SIZE(pmx_telecom_sdio_8bit_modes),
+struct pmx_dev pmx_telecom_sdhci_8bit = {
+	.name = "telecom_sdhci_8bit",
+	.modes = pmx_telecom_sdhci_8bit_modes,
+	.mode_count = ARRAY_SIZE(pmx_telecom_sdhci_8bit_modes),
 	.enb_on_reset = 1,
 };
 

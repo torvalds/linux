@@ -28,7 +28,7 @@ static struct pmx_dev *pmx_devs[] = {
 	/* spear300 specific devices */
 	&pmx_fsmc_2_chips,
 	&pmx_clcd,
-	&pmx_telecom_sdio_4bit,
+	&pmx_telecom_sdhci_4bit,
 	&pmx_gpio1,
 };
 
