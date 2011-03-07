@@ -279,31 +279,31 @@ void snd_ctl_free_one(struct snd_kcontrol *kcontrol)
 
 EXPORT_SYMBOL(snd_ctl_free_one);
 
-static unsigned int snd_ctl_hole_check(struct snd_card *card,
-				       unsigned int count)
+static bool snd_ctl_remove_numid_conflict(struct snd_card *card,
+					  unsigned int count)
 {
 	struct snd_kcontrol *kctl;
 
 	list_for_each_entry(kctl, &card->controls, list) {
 		if (kctl->id.numid < card->last_numid + 1 + count &&
-		    kctl->id.numid + kctl->count > card->last_numid + 1)
-		    	return card->last_numid = kctl->id.numid + kctl->count - 1;
+		    kctl->id.numid + kctl->count > card->last_numid + 1) {
+		    	card->last_numid = kctl->id.numid + kctl->count - 1;
+			return true;
+		}
 	}
-	return card->last_numid;
+	return false;
 }
 
 static int snd_ctl_find_hole(struct snd_card *card, unsigned int count)
 {
-	unsigned int last_numid, iter = 100000;
+	unsigned int iter = 100000;
 
-	last_numid = card->last_numid;
-	while (last_numid != snd_ctl_hole_check(card, count)) {
+	while (snd_ctl_remove_numid_conflict(card, count)) {
 		if (--iter == 0) {
 			/* this situation is very unlikely */
 			snd_printk(KERN_ERR "unable to allocate new control numid\n");
 			return -ENOMEM;
 		}
-		last_numid = card->last_numid;
 	}
 	return 0;
 }
