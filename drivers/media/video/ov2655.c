@@ -2810,11 +2810,11 @@ static int sensor_video_probe(struct soc_camera_device *icd,
 
     icd->formats = sensor_colour_formats;
     icd->num_formats = ARRAY_SIZE(sensor_colour_formats);
-
+	sensor_ioctrl(icd, Sensor_PowerDown, 1);
     return 0;
 
 sensor_video_probe_err:
-
+	sensor_ioctrl(icd, Sensor_PowerDown, 1);
     return ret;
 }
 static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
