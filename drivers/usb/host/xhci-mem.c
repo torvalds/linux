@@ -307,7 +307,7 @@ struct xhci_ep_ctx *xhci_get_ep_ctx(struct xhci_hcd *xhci,
 
 /***************** Streams structures manipulation *************************/
 
-void xhci_free_stream_ctx(struct xhci_hcd *xhci,
+static void xhci_free_stream_ctx(struct xhci_hcd *xhci,
 		unsigned int num_stream_ctxs,
 		struct xhci_stream_ctx *stream_ctx, dma_addr_t dma)
 {
@@ -335,7 +335,7 @@ void xhci_free_stream_ctx(struct xhci_hcd *xhci,
  * The stream context array must be a power of 2, and can be as small as
  * 64 bytes or as large as 1MB.
  */
-struct xhci_stream_ctx *xhci_alloc_stream_ctx(struct xhci_hcd *xhci,
+static struct xhci_stream_ctx *xhci_alloc_stream_ctx(struct xhci_hcd *xhci,
 		unsigned int num_stream_ctxs, dma_addr_t *dma,
 		gfp_t mem_flags)
 {
@@ -1900,11 +1900,11 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	val &= DBOFF_MASK;
 	xhci_dbg(xhci, "// Doorbell array is located at offset 0x%x"
 			" from cap regs base addr\n", val);
-	xhci->dba = (void *) xhci->cap_regs + val;
+	xhci->dba = (void __iomem *) xhci->cap_regs + val;
 	xhci_dbg_regs(xhci);
 	xhci_print_run_regs(xhci);
 	/* Set ir_set to interrupt register set 0 */
-	xhci->ir_set = (void *) xhci->run_regs->ir_set;
+	xhci->ir_set = &xhci->run_regs->ir_set[0];
 
 	/*
 	 * Event ring setup: Allocate a normal ring, but also setup
@@ -1961,7 +1961,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	/* Set the event ring dequeue address */
 	xhci_set_hc_event_deq(xhci);
 	xhci_dbg(xhci, "Wrote ERST address to ir_set 0.\n");
-	xhci_print_ir_set(xhci, xhci->ir_set, 0);
+	xhci_print_ir_set(xhci, 0);
 
 	/*
 	 * XXX: Might need to set the Interrupter Moderation Register to

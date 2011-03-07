@@ -212,9 +212,14 @@ static void flush_end_io(struct request *flush_rq, int error)
 		queued |= blk_flush_complete_seq(rq, seq, error);
 	}
 
-	/* after populating an empty queue, kick it to avoid stall */
+	/*
+	 * Moving a request silently to empty queue_head may stall the
+	 * queue.  Kick the queue in those cases.  This function is called
+	 * from request completion path and calling directly into
+	 * request_fn may confuse the driver.  Always use kblockd.
+	 */
 	if (queued && was_empty)
-		__blk_run_queue(q);
+		__blk_run_queue(q, true);
 }
 
 /**
@@ -257,7 +262,7 @@ static bool blk_kick_flush(struct request_queue *q)
 	q->flush_rq.end_io = flush_end_io;
 
 	q->flush_pending_idx ^= 1;
-	elv_insert(q, &q->flush_rq, ELEVATOR_INSERT_FRONT);
+	elv_insert(q, &q->flush_rq, ELEVATOR_INSERT_REQUEUE);
 	return true;
 }
 
@@ -266,9 +271,12 @@ static void flush_data_end_io(struct request *rq, int error)
 	struct request_queue *q = rq->q;
 	bool was_empty = elv_queue_empty(q);
 
-	/* after populating an empty queue, kick it to avoid stall */
+	/*
+	 * After populating an empty queue, kick it to avoid stall.  Read
+	 * the comment in flush_end_io().
+	 */
 	if (blk_flush_complete_seq(rq, REQ_FSEQ_DATA, error) && was_empty)
-		__blk_run_queue(q);
+		__blk_run_queue(q, true);
 }
 
 /**

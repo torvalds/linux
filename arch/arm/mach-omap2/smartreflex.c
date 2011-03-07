@@ -900,7 +900,7 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 		return PTR_ERR(dbg_dir);
 	}
 
-	(void) debugfs_create_file("autocomp", S_IRUGO | S_IWUGO, dbg_dir,
+	(void) debugfs_create_file("autocomp", S_IRUGO | S_IWUSR, dbg_dir,
 				(void *)sr_info, &pm_sr_fops);
 	(void) debugfs_create_x32("errweight", S_IRUGO, dbg_dir,
 			&sr_info->err_weight);
@@ -939,7 +939,7 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 		strcpy(name, "volt_");
 		sprintf(volt_name, "%d", volt_data[i].volt_nominal);
 		strcat(name, volt_name);
-		(void) debugfs_create_x32(name, S_IRUGO | S_IWUGO, nvalue_dir,
+		(void) debugfs_create_x32(name, S_IRUGO | S_IWUSR, nvalue_dir,
 				&(sr_info->nvalue_table[i].nvalue));
 	}
 

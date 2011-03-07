@@ -109,7 +109,7 @@ int xhci_halt(struct xhci_hcd *xhci)
 /*
  * Set the run bit and wait for the host to be running.
  */
-int xhci_start(struct xhci_hcd *xhci)
+static int xhci_start(struct xhci_hcd *xhci)
 {
 	u32 temp;
 	int ret;
@@ -329,7 +329,7 @@ int xhci_init(struct usb_hcd *hcd)
 
 
 #ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
-void xhci_event_ring_work(unsigned long arg)
+static void xhci_event_ring_work(unsigned long arg)
 {
 	unsigned long flags;
 	int temp;
@@ -473,7 +473,7 @@ int xhci_run(struct usb_hcd *hcd)
 			xhci->ir_set, (unsigned int) ER_IRQ_ENABLE(temp));
 	xhci_writel(xhci, ER_IRQ_ENABLE(temp),
 			&xhci->ir_set->irq_pending);
-	xhci_print_ir_set(xhci, xhci->ir_set, 0);
+	xhci_print_ir_set(xhci, 0);
 
 	if (NUM_TEST_NOOPS > 0)
 		doorbell = xhci_setup_one_noop(xhci);
@@ -528,7 +528,7 @@ void xhci_stop(struct usb_hcd *hcd)
 	temp = xhci_readl(xhci, &xhci->ir_set->irq_pending);
 	xhci_writel(xhci, ER_IRQ_DISABLE(temp),
 			&xhci->ir_set->irq_pending);
-	xhci_print_ir_set(xhci, xhci->ir_set, 0);
+	xhci_print_ir_set(xhci, 0);
 
 	xhci_dbg(xhci, "cleaning up memory\n");
 	xhci_mem_cleanup(xhci);
@@ -755,7 +755,7 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 		temp = xhci_readl(xhci, &xhci->ir_set->irq_pending);
 		xhci_writel(xhci, ER_IRQ_DISABLE(temp),
 				&xhci->ir_set->irq_pending);
-		xhci_print_ir_set(xhci, xhci->ir_set, 0);
+		xhci_print_ir_set(xhci, 0);
 
 		xhci_dbg(xhci, "cleaning up memory\n");
 		xhci_mem_cleanup(xhci);
@@ -857,7 +857,7 @@ unsigned int xhci_last_valid_endpoint(u32 added_ctxs)
 /* Returns 1 if the arguments are OK;
  * returns 0 this is a root hub; returns -EINVAL for NULL pointers.
  */
-int xhci_check_args(struct usb_hcd *hcd, struct usb_device *udev,
+static int xhci_check_args(struct usb_hcd *hcd, struct usb_device *udev,
 		struct usb_host_endpoint *ep, int check_ep, bool check_virt_dev,
 		const char *func) {
 	struct xhci_hcd	*xhci;
@@ -1693,7 +1693,7 @@ static void xhci_setup_input_ctx_for_config_ep(struct xhci_hcd *xhci,
 	xhci_dbg_ctx(xhci, in_ctx, xhci_last_valid_endpoint(add_flags));
 }
 
-void xhci_setup_input_ctx_for_quirk(struct xhci_hcd *xhci,
+static void xhci_setup_input_ctx_for_quirk(struct xhci_hcd *xhci,
 		unsigned int slot_id, unsigned int ep_index,
 		struct xhci_dequeue_state *deq_state)
 {

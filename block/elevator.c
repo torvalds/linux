@@ -602,7 +602,7 @@ void elv_quiesce_start(struct request_queue *q)
 	 */
 	elv_drain_elevator(q);
 	while (q->rq.elvpriv) {
-		__blk_run_queue(q);
+		__blk_run_queue(q, false);
 		spin_unlock_irq(q->queue_lock);
 		msleep(10);
 		spin_lock_irq(q->queue_lock);
@@ -651,7 +651,7 @@ void elv_insert(struct request_queue *q, struct request *rq, int where)
 		 *   with anything.  There's no point in delaying queue
 		 *   processing.
 		 */
-		__blk_run_queue(q);
+		__blk_run_queue(q, false);
 		break;
 
 	case ELEVATOR_INSERT_SORT:
