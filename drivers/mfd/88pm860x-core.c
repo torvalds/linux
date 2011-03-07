@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/88pm860x.h>
+#include <linux/regulator/machine.h>
 
 #define INT_STATUS_NUM			3
 
@@ -35,6 +36,27 @@ static struct resource led_resources[] __initdata = {
 	{PM8606_LED2_BLUE,  PM8606_LED2_BLUE,  "led1-blue",  IORESOURCE_IO,},
 };
 
+static struct resource regulator_resources[] __initdata = {
+	{PM8607_ID_BUCK1, PM8607_ID_BUCK1, "buck-1", IORESOURCE_IO,},
+	{PM8607_ID_BUCK2, PM8607_ID_BUCK2, "buck-2", IORESOURCE_IO,},
+	{PM8607_ID_BUCK3, PM8607_ID_BUCK3, "buck-3", IORESOURCE_IO,},
+	{PM8607_ID_LDO1,  PM8607_ID_LDO1,  "ldo-01", IORESOURCE_IO,},
+	{PM8607_ID_LDO2,  PM8607_ID_LDO2,  "ldo-02", IORESOURCE_IO,},
+	{PM8607_ID_LDO3,  PM8607_ID_LDO3,  "ldo-03", IORESOURCE_IO,},
+	{PM8607_ID_LDO4,  PM8607_ID_LDO4,  "ldo-04", IORESOURCE_IO,},
+	{PM8607_ID_LDO5,  PM8607_ID_LDO5,  "ldo-05", IORESOURCE_IO,},
+	{PM8607_ID_LDO6,  PM8607_ID_LDO6,  "ldo-06", IORESOURCE_IO,},
+	{PM8607_ID_LDO7,  PM8607_ID_LDO7,  "ldo-07", IORESOURCE_IO,},
+	{PM8607_ID_LDO8,  PM8607_ID_LDO8,  "ldo-08", IORESOURCE_IO,},
+	{PM8607_ID_LDO9,  PM8607_ID_LDO9,  "ldo-09", IORESOURCE_IO,},
+	{PM8607_ID_LDO10, PM8607_ID_LDO10, "ldo-10", IORESOURCE_IO,},
+	{PM8607_ID_LDO11, PM8607_ID_LDO11, "ldo-11", IORESOURCE_IO,},
+	{PM8607_ID_LDO12, PM8607_ID_LDO12, "ldo-12", IORESOURCE_IO,},
+	{PM8607_ID_LDO13, PM8607_ID_LDO13, "ldo-13", IORESOURCE_IO,},
+	{PM8607_ID_LDO14, PM8607_ID_LDO14, "ldo-14", IORESOURCE_IO,},
+	{PM8607_ID_LDO15, PM8607_ID_LDO15, "ldo-15", IORESOURCE_IO,},
+};
+
 static struct mfd_cell bk_devs[] __initdata = {
 	{"88pm860x-backlight", 0,},
 	{"88pm860x-backlight", 1,},
@@ -50,8 +72,30 @@ static struct mfd_cell led_devs[] __initdata = {
 	{"88pm860x-led", 5,},
 };
 
+static struct mfd_cell regulator_devs[] __initdata = {
+	{"88pm860x-regulator", 0,},
+	{"88pm860x-regulator", 1,},
+	{"88pm860x-regulator", 2,},
+	{"88pm860x-regulator", 3,},
+	{"88pm860x-regulator", 4,},
+	{"88pm860x-regulator", 5,},
+	{"88pm860x-regulator", 6,},
+	{"88pm860x-regulator", 7,},
+	{"88pm860x-regulator", 8,},
+	{"88pm860x-regulator", 9,},
+	{"88pm860x-regulator", 10,},
+	{"88pm860x-regulator", 11,},
+	{"88pm860x-regulator", 12,},
+	{"88pm860x-regulator", 13,},
+	{"88pm860x-regulator", 14,},
+	{"88pm860x-regulator", 15,},
+	{"88pm860x-regulator", 16,},
+	{"88pm860x-regulator", 17,},
+};
+
 static struct pm860x_backlight_pdata bk_pdata[ARRAY_SIZE(bk_devs)];
 static struct pm860x_led_pdata led_pdata[ARRAY_SIZE(led_devs)];
+static struct regulator_init_data regulator_pdata[ARRAY_SIZE(regulator_devs)];
 
 static struct resource touch_resources[] = {
 	{
@@ -68,13 +112,6 @@ static struct mfd_cell touch_devs[] = {
 		.resources	= &touch_resources[0],
 	},
 };
-
-#define PM8607_REG_RESOURCE(_start, _end)		\
-{							\
-	.start	= PM8607_##_start,			\
-	.end	= PM8607_##_end,			\
-	.flags	= IORESOURCE_IO,			\
-}
 
 static struct resource power_supply_resources[] = {
 	{
@@ -147,52 +184,6 @@ static struct mfd_cell codec_devs[] = {
 		.resources	= &codec_resources[0],
 		.id		= -1,
 	},
-};
-
-static struct resource regulator_resources[] = {
-	PM8607_REG_RESOURCE(BUCK1, BUCK1),
-	PM8607_REG_RESOURCE(BUCK2, BUCK2),
-	PM8607_REG_RESOURCE(BUCK3, BUCK3),
-	PM8607_REG_RESOURCE(LDO1,  LDO1),
-	PM8607_REG_RESOURCE(LDO2,  LDO2),
-	PM8607_REG_RESOURCE(LDO3,  LDO3),
-	PM8607_REG_RESOURCE(LDO4,  LDO4),
-	PM8607_REG_RESOURCE(LDO5,  LDO5),
-	PM8607_REG_RESOURCE(LDO6,  LDO6),
-	PM8607_REG_RESOURCE(LDO7,  LDO7),
-	PM8607_REG_RESOURCE(LDO8,  LDO8),
-	PM8607_REG_RESOURCE(LDO9,  LDO9),
-	PM8607_REG_RESOURCE(LDO10, LDO10),
-	PM8607_REG_RESOURCE(LDO12, LDO12),
-	PM8607_REG_RESOURCE(VIBRATOR_SET, VIBRATOR_SET),
-	PM8607_REG_RESOURCE(LDO14, LDO14),
-};
-
-#define PM8607_REG_DEVS(_id)						\
-{									\
-	.name		= "88pm860x-regulator",				\
-	.num_resources	= 1,						\
-	.resources	= &regulator_resources[PM8607_ID_##_id],	\
-	.id		= PM8607_ID_##_id,				\
-}
-
-static struct mfd_cell regulator_devs[] = {
-	PM8607_REG_DEVS(BUCK1),
-	PM8607_REG_DEVS(BUCK2),
-	PM8607_REG_DEVS(BUCK3),
-	PM8607_REG_DEVS(LDO1),
-	PM8607_REG_DEVS(LDO2),
-	PM8607_REG_DEVS(LDO3),
-	PM8607_REG_DEVS(LDO4),
-	PM8607_REG_DEVS(LDO5),
-	PM8607_REG_DEVS(LDO6),
-	PM8607_REG_DEVS(LDO7),
-	PM8607_REG_DEVS(LDO8),
-	PM8607_REG_DEVS(LDO9),
-	PM8607_REG_DEVS(LDO10),
-	PM8607_REG_DEVS(LDO12),
-	PM8607_REG_DEVS(LDO13),
-	PM8607_REG_DEVS(LDO14),
 };
 
 struct pm860x_irq_data {
@@ -623,6 +614,64 @@ static void __devinit device_led_init(struct pm860x_chip *chip,
 	}
 }
 
+static void __devinit device_regulator_init(struct pm860x_chip *chip,
+					    struct i2c_client *i2c,
+					    struct pm860x_platform_data *pdata)
+{
+	struct regulator_init_data *initdata;
+	int ret;
+	int i, j;
+
+	if ((pdata == NULL) || (pdata->regulator == NULL))
+		return;
+
+	if (pdata->num_regulators > ARRAY_SIZE(regulator_devs))
+		pdata->num_regulators = ARRAY_SIZE(regulator_devs);
+
+	for (i = 0, j = -1; i < pdata->num_regulators; i++) {
+		initdata = &pdata->regulator[i];
+		if (strstr(initdata->constraints.name, "BUCK")) {
+			sscanf(initdata->constraints.name, "BUCK%d", &j);
+			/* BUCK1 ~ BUCK3 */
+			if ((j < 1) || (j > 3)) {
+				dev_err(chip->dev, "Failed to add constraint "
+					"(%s)\n", initdata->constraints.name);
+				goto out;
+			}
+			j = (j - 1) + PM8607_ID_BUCK1;
+		}
+		if (strstr(initdata->constraints.name, "LDO")) {
+			sscanf(initdata->constraints.name, "LDO%d", &j);
+			/* LDO1 ~ LDO15 */
+			if ((j < 1) || (j > 15)) {
+				dev_err(chip->dev, "Failed to add constraint "
+					"(%s)\n", initdata->constraints.name);
+				goto out;
+			}
+			j = (j - 1) + PM8607_ID_LDO1;
+		}
+		if (j == -1) {
+			dev_err(chip->dev, "Failed to add constraint (%s)\n",
+				initdata->constraints.name);
+			goto out;
+		}
+		memcpy(&regulator_pdata[i], &pdata->regulator[i],
+			sizeof(struct regulator_init_data));
+		regulator_devs[i].mfd_data = &regulator_pdata[i];
+		regulator_devs[i].num_resources = 1;
+		regulator_devs[i].resources = &regulator_resources[j];
+
+		ret = mfd_add_devices(chip->dev, 0, &regulator_devs[i], 1,
+				      &regulator_resources[j], 0);
+		if (ret < 0) {
+			dev_err(chip->dev, "Failed to add regulator subdev\n");
+			goto out;
+		}
+	}
+out:
+	return;
+}
+
 static void __devinit device_8607_init(struct pm860x_chip *chip,
 				       struct i2c_client *i2c,
 				       struct pm860x_platform_data *pdata)
@@ -678,14 +727,6 @@ static void __devinit device_8607_init(struct pm860x_chip *chip,
 	if (ret < 0)
 		goto out;
 
-	ret = mfd_add_devices(chip->dev, 0, &regulator_devs[0],
-			      ARRAY_SIZE(regulator_devs),
-			      &regulator_resources[0], 0);
-	if (ret < 0) {
-		dev_err(chip->dev, "Failed to add regulator subdev\n");
-		goto out_dev;
-	}
-
 	if (pdata && pdata->touch) {
 		ret = mfd_add_devices(chip->dev, 0, &touch_devs[0],
 				      ARRAY_SIZE(touch_devs),
@@ -723,6 +764,8 @@ static void __devinit device_8607_init(struct pm860x_chip *chip,
 		dev_err(chip->dev, "Failed to add codec subdev\n");
 		goto out_dev;
 	}
+
+	device_regulator_init(chip, i2c, pdata);
 	return;
 out_dev:
 	mfd_remove_devices(chip->dev);

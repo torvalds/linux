@@ -131,9 +131,11 @@ enum {
 	PM8607_ID_LDO8,
 	PM8607_ID_LDO9,
 	PM8607_ID_LDO10,
+	PM8607_ID_LDO11,
 	PM8607_ID_LDO12,
 	PM8607_ID_LDO13,
 	PM8607_ID_LDO14,
+	PM8607_ID_LDO15,
 
 	PM8607_ID_RG_MAX,
 };
@@ -310,8 +312,6 @@ struct pm860x_chip {
 
 };
 
-#define PM8607_MAX_REGULATOR	PM8607_ID_RG_MAX	/* 3 Bucks, 13 LDOs */
-
 enum {
 	GI2C_PORT = 0,
 	PI2C_PORT,
@@ -351,6 +351,7 @@ struct pm860x_platform_data {
 	struct pm860x_led_pdata		*led;
 	struct pm860x_touch_pdata	*touch;
 	struct pm860x_power_pdata	*power;
+	struct regulator_init_data	*regulator;
 
 	unsigned short	companion_addr;	/* I2C address of companion chip */
 	int		i2c_port;	/* Controlled by GI2C or PI2C */
@@ -358,7 +359,7 @@ struct pm860x_platform_data {
 	int		irq_base;	/* IRQ base number of 88pm860x */
 	int		num_leds;
 	int		num_backlights;
-	struct regulator_init_data *regulator[PM8607_MAX_REGULATOR];
+	int		num_regulators;
 };
 
 extern int pm860x_reg_read(struct i2c_client *, int);
