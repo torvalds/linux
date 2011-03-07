@@ -17,6 +17,10 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
 #include <linux/mmc/host.h>
+#include <linux/fb.h>
+#include <linux/pwm_backlight.h>
+
+#include <video/platform_lcd.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -181,6 +185,73 @@ static struct platform_device nuri_gpio_keys = {
 	},
 };
 
+static void nuri_lcd_power_on(struct plat_lcd_data *pd, unsigned int power)
+{
+	int gpio = EXYNOS4_GPE1(5);
+
+	gpio_request(gpio, "LVDS_nSHDN");
+	gpio_direction_output(gpio, power);
+	gpio_free(gpio);
+}
+
+static int nuri_bl_init(struct device *dev)
+{
+	int ret, gpio = EXYNOS4_GPE2(3);
+
+	ret = gpio_request(gpio, "LCD_LDO_EN");
+	if (!ret)
+		gpio_direction_output(gpio, 0);
+
+	return ret;
+}
+
+static int nuri_bl_notify(struct device *dev, int brightness)
+{
+	if (brightness < 1)
+		brightness = 0;
+
+	gpio_set_value(EXYNOS4_GPE2(3), 1);
+
+	return brightness;
+}
+
+static void nuri_bl_exit(struct device *dev)
+{
+	gpio_free(EXYNOS4_GPE2(3));
+}
+
+/* nuri pwm backlight */
+static struct platform_pwm_backlight_data nuri_backlight_data = {
+	.pwm_id			= 0,
+	.pwm_period_ns		= 30000,
+	.max_brightness		= 100,
+	.dft_brightness		= 50,
+	.init			= nuri_bl_init,
+	.notify			= nuri_bl_notify,
+	.exit			= nuri_bl_exit,
+};
+
+static struct platform_device nuri_backlight_device = {
+	.name			= "pwm-backlight",
+	.id			= -1,
+	.dev			= {
+		.parent		= &s3c_device_timer[0].dev,
+		.platform_data	= &nuri_backlight_data,
+	},
+};
+
+static struct plat_lcd_data nuri_lcd_platform_data = {
+	.set_power		= nuri_lcd_power_on,
+};
+
+static struct platform_device nuri_lcd_device = {
+	.name			= "platform-lcd",
+	.id			= -1,
+	.dev			= {
+		.platform_data	= &nuri_lcd_platform_data,
+	},
+};
+
 /* I2C1 */
 static struct i2c_board_info i2c1_devs[] __initdata = {
 	/* Gyro, To be updated */
@@ -198,9 +269,12 @@ static struct platform_device *nuri_devices[] __initdata = {
 	&s3c_device_hsmmc2,
 	&s3c_device_hsmmc3,
 	&s3c_device_wdt,
+	&s3c_device_timer[0],
 
 	/* NURI Devices */
 	&nuri_gpio_keys,
+	&nuri_lcd_device,
+	&nuri_backlight_device,
 };
 
 static void __init nuri_map_io(void)
