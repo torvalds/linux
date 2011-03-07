@@ -1769,8 +1769,7 @@ static bool emulator_io_port_access_allowed(struct x86_emulate_ctxt *ctxt,
 	struct desc_struct tr_seg;
 	u32 base3;
 	int r;
-	u16 io_bitmap_ptr;
-	u8 perm, bit_idx = port & 0x7;
+	u16 io_bitmap_ptr, perm, bit_idx = port & 0x7;
 	unsigned mask = (1 << len) - 1;
 	unsigned long base;
 
@@ -1788,7 +1787,7 @@ static bool emulator_io_port_access_allowed(struct x86_emulate_ctxt *ctxt,
 		return false;
 	if (io_bitmap_ptr + port/8 > desc_limit_scaled(&tr_seg))
 		return false;
-	r = ops->read_std(base + io_bitmap_ptr + port/8, &perm, 1, ctxt->vcpu,
+	r = ops->read_std(base + io_bitmap_ptr + port/8, &perm, 2, ctxt->vcpu,
 			  NULL);
 	if (r != X86EMUL_CONTINUE)
 		return false;
