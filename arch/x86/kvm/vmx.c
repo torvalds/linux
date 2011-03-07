@@ -128,6 +128,7 @@ struct vcpu_vmx {
 	unsigned long         host_rsp;
 	int                   launched;
 	u8                    fail;
+	u8                    cpl;
 	u32                   exit_intr_info;
 	u32                   idt_vectoring_info;
 	ulong                 rflags;
@@ -987,6 +988,7 @@ static unsigned long vmx_get_rflags(struct kvm_vcpu *vcpu)
 static void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 {
 	__set_bit(VCPU_EXREG_RFLAGS, (ulong *)&vcpu->arch.regs_avail);
+	__clear_bit(VCPU_EXREG_CPL, (ulong *)&vcpu->arch.regs_avail);
 	to_vmx(vcpu)->rflags = rflags;
 	if (to_vmx(vcpu)->rmode.vm86_active) {
 		to_vmx(vcpu)->rmode.save_rflags = rflags;
@@ -2005,6 +2007,7 @@ static void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	vmcs_writel(CR0_READ_SHADOW, cr0);
 	vmcs_writel(GUEST_CR0, hw_cr0);
 	vcpu->arch.cr0 = cr0;
+	__clear_bit(VCPU_EXREG_CPL, (ulong *)&vcpu->arch.regs_avail);
 }
 
 static u64 construct_eptp(unsigned long root_hpa)
@@ -2115,7 +2118,7 @@ static u64 vmx_get_segment_base(struct kvm_vcpu *vcpu, int seg)
 	return vmcs_readl(sf->base);
 }
 
-static int vmx_get_cpl(struct kvm_vcpu *vcpu)
+static int __vmx_get_cpl(struct kvm_vcpu *vcpu)
 {
 	if (!is_protmode(vcpu))
 		return 0;
@@ -2126,6 +2129,16 @@ static int vmx_get_cpl(struct kvm_vcpu *vcpu)
 
 	return vmcs_read16(GUEST_CS_SELECTOR) & 3;
 }
+
+static int vmx_get_cpl(struct kvm_vcpu *vcpu)
+{
+	if (!test_bit(VCPU_EXREG_CPL, (ulong *)&vcpu->arch.regs_avail)) {
+		__set_bit(VCPU_EXREG_CPL, (ulong *)&vcpu->arch.regs_avail);
+		to_vmx(vcpu)->cpl = __vmx_get_cpl(vcpu);
+	}
+	return to_vmx(vcpu)->cpl;
+}
+
 
 static u32 vmx_segment_access_rights(struct kvm_segment *var)
 {
@@ -2192,6 +2205,7 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 		ar |= 0x1; /* Accessed */
 
 	vmcs_write32(sf->ar_bytes, ar);
+	__clear_bit(VCPU_EXREG_CPL, (ulong *)&vcpu->arch.regs_avail);
 }
 
 static void vmx_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l)
@@ -4133,6 +4147,7 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.regs_avail = ~((1 << VCPU_REGS_RIP) | (1 << VCPU_REGS_RSP)
 				  | (1 << VCPU_EXREG_RFLAGS)
+				  | (1 << VCPU_EXREG_CPL)
 				  | (1 << VCPU_EXREG_PDPTR)
 				  | (1 << VCPU_EXREG_CR3));
 	vcpu->arch.regs_dirty = 0;

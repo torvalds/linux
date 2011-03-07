@@ -119,6 +119,7 @@ enum kvm_reg_ex {
 	VCPU_EXREG_PDPTR = NR_VCPU_REGS,
 	VCPU_EXREG_CR3,
 	VCPU_EXREG_RFLAGS,
+	VCPU_EXREG_CPL,
 };
 
 enum {
