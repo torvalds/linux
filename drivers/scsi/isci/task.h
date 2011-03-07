@@ -302,14 +302,19 @@ isci_task_set_completion_status(
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
 
-	task->task_status.resp = response;
-	task->task_status.stat = status;
-
 	/* If a device reset is being indicated, make sure the I/O
 	* is in the error path.
 	*/
-	if (task->task_state_flags & SAS_TASK_NEED_DEV_RESET)
+	if (task->task_state_flags & SAS_TASK_NEED_DEV_RESET) {
+
+		/* Fail the I/O to make sure it goes into the error path. */
+		response = SAS_TASK_UNDELIVERED;
+		status = SAM_STAT_TASK_ABORTED;
+
 		task_notification_selection = isci_perform_error_io_completion;
+	}
+	task->task_status.resp = response;
+	task->task_status.stat = status;
 
 	switch (task_notification_selection) {
 

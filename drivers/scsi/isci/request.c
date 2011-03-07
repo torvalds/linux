@@ -809,11 +809,11 @@ static void isci_task_save_for_upper_layer_completion(
 
 		/* Normal notification (task_done) */
 		dev_dbg(&host->pdev->dev,
-			"%s: Normal - task = %p, response=%d, status=%d\n",
+			"%s: Normal - task = %p, response=%d (%d), status=%d (%d)\n",
 			__func__,
 			task,
-			response,
-			status);
+			task->task_status.resp, response,
+			task->task_status.stat, status);
 		/* Add to the completed list. */
 		list_add(&request->completed_node,
 			 &host->requests_to_complete);
@@ -827,11 +827,11 @@ static void isci_task_save_for_upper_layer_completion(
 		 * already in the abort path.
 		 */
 		dev_warn(&host->pdev->dev,
-			 "%s: Aborted - task = %p, response=%d, status=%d\n",
+			 "%s: Aborted - task = %p, response=%d (%d), status=%d (%d)\n",
 			 __func__,
 			 task,
-			 response,
-			 status);
+			 task->task_status.resp, response,
+			 task->task_status.stat, status);
 
 		/* Wake up whatever process was waiting for this
 		 * request to complete.
@@ -850,11 +850,11 @@ static void isci_task_save_for_upper_layer_completion(
 	case isci_perform_error_io_completion:
 		/* Use sas_task_abort */
 		dev_warn(&host->pdev->dev,
-			 "%s: Error - task = %p, response=%d, status=%d\n",
+			 "%s: Error - task = %p, response=%d (%d), status=%d (%d)\n",
 			 __func__,
 			 task,
-			 response,
-			 status);
+			 task->task_status.resp, response,
+			 task->task_status.stat, status);
 		/* Add to the aborted list. */
 		list_add(&request->completed_node,
 			 &host->requests_to_errorback);
@@ -862,11 +862,11 @@ static void isci_task_save_for_upper_layer_completion(
 
 	default:
 		dev_warn(&host->pdev->dev,
-			 "%s: Unknown - task = %p, response=%d, status=%d\n",
+			 "%s: Unknown - task = %p, response=%d (%d), status=%d (%d)\n",
 			 __func__,
 			 task,
-			 response,
-			 status);
+			 task->task_status.resp, response,
+			 task->task_status.stat, status);
 
 		/* Add to the error to libsas list. */
 		list_add(&request->completed_node,
@@ -1164,6 +1164,10 @@ void isci_request_io_request_complete(
 			spin_lock_irqsave(&task->task_state_lock, task_flags);
 			task->task_state_flags |= SAS_TASK_NEED_DEV_RESET;
 			spin_unlock_irqrestore(&task->task_state_lock, task_flags);
+
+			/* Fail the I/O. */
+			response = SAS_TASK_UNDELIVERED;
+			status = SAM_STAT_TASK_ABORTED;
 
 			complete_to_host = isci_perform_error_io_completion;
 			request->complete_in_target = false;
