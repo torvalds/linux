@@ -557,15 +557,13 @@ static inline u64 min_vdisktime(u64 min_vdisktime, u64 vdisktime)
 
 static void update_min_vdisktime(struct cfq_rb_root *st)
 {
-	u64 vdisktime = st->min_vdisktime;
 	struct cfq_group *cfqg;
 
 	if (st->left) {
 		cfqg = rb_entry_cfqg(st->left);
-		vdisktime = min_vdisktime(vdisktime, cfqg->vdisktime);
+		st->min_vdisktime = max_vdisktime(st->min_vdisktime,
+						  cfqg->vdisktime);
 	}
-
-	st->min_vdisktime = max_vdisktime(st->min_vdisktime, vdisktime);
 }
 
 /*
