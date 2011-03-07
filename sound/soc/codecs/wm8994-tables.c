@@ -1573,7 +1573,7 @@ const struct wm8994_access_mask wm8994_access_masks[WM8994_CACHE_SIZE] = {
 	{ 0x03C3, 0x03C3 }, /* R1569  - Sidetone */
 };
 
-const __devinitdata u16 wm8994_reg_defaults[WM8994_CACHE_SIZE] = {
+const u16 wm8994_reg_defaults[WM8994_CACHE_SIZE] = {
 	0x8994,     /* R0     - Software Reset */
 	0x0000,     /* R1     - Power Management (1) */
 	0x6000,     /* R2     - Power Management (2) */
