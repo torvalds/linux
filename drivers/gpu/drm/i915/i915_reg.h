@@ -3261,6 +3261,8 @@
 #define  FORCEWAKE				0xA18C
 #define  FORCEWAKE_ACK				0x130090
 
+#define  GT_FIFO_FREE_ENTRIES			0x120008
+
 #define GEN6_RPNSWREQ				0xA008
 #define   GEN6_TURBO_DISABLE			(1<<31)
 #define   GEN6_FREQUENCY(x)			((x)<<25)
