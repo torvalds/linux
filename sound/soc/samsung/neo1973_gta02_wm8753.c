@@ -370,6 +370,11 @@ static struct snd_soc_card neo1973_gta02 = {
 	.num_links = ARRAY_SIZE(neo1973_gta02_dai),
 };
 
+static const struct gpio neo1973_gta02_gpios[] = {
+	{ GTA02_GPIO_HP_IN, GPIOF_OUT_INIT_HIGH, "GTA02_HP_IN" },
+	{ GTA02_GPIO_AMP_SHUT, GPIOF_OUT_INIT_HIGH, "GTA02_AMP_SHUT" },
+};
+
 static struct platform_device *neo1973_gta02_snd_device;
 
 static int __init neo1973_gta02_init(void)
@@ -382,9 +387,16 @@ static int __init neo1973_gta02_init(void)
 		return -ENODEV;
 	}
 
+	ret = gpio_request_array(neo1973_gta02_gpios,
+				ARRAY_SIZE(neo1973_gta02_gpios));
+	if (ret)
+		return ret;
+
 	neo1973_gta02_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!neo1973_gta02_snd_device)
-		return -ENOMEM;
+	if (!neo1973_gta02_snd_device) {
+		ret = -ENOMEM;
+		goto err_gpio_free;
+	}
 
 	/* register bluetooth DAI here */
 	ret = snd_soc_register_dai(&neo1973_gta02_snd_device->dev, &bt_dai);
@@ -397,43 +409,14 @@ static int __init neo1973_gta02_init(void)
 	if (ret)
 		goto err_unregister_dai;
 
-	/* Initialise GPIOs used by amp */
-	ret = gpio_request(GTA02_GPIO_HP_IN, "GTA02_HP_IN");
-	if (ret) {
-		pr_err("gta02_wm8753: Failed to register GPIO %d\n", GTA02_GPIO_HP_IN);
-		goto err_del_device;
-	}
-
-	ret = gpio_direction_output(GTA02_GPIO_HP_IN, 1);
-	if (ret) {
-		pr_err("gta02_wm8753: Failed to configure GPIO %d\n", GTA02_GPIO_HP_IN);
-		goto err_free_gpio_hp_in;
-	}
-
-	ret = gpio_request(GTA02_GPIO_AMP_SHUT, "GTA02_AMP_SHUT");
-	if (ret) {
-		pr_err("gta02_wm8753: Failed to register GPIO %d\n", GTA02_GPIO_AMP_SHUT);
-		goto err_free_gpio_hp_in;
-	}
-
-	ret = gpio_direction_output(GTA02_GPIO_AMP_SHUT, 1);
-	if (ret) {
-		pr_err("gta02_wm8753: Failed to configure GPIO %d\n", GTA02_GPIO_AMP_SHUT);
-		goto err_free_gpio_amp_shut;
-	}
-
 	return 0;
 
-err_free_gpio_amp_shut:
-	gpio_free(GTA02_GPIO_AMP_SHUT);
-err_free_gpio_hp_in:
-	gpio_free(GTA02_GPIO_HP_IN);
-err_del_device:
-	platform_device_del(neo1973_gta02_snd_device);
 err_unregister_dai:
 	snd_soc_unregister_dai(&neo1973_gta02_snd_device->dev);
 err_put_device:
 	platform_device_put(neo1973_gta02_snd_device);
+err_gpio_free:
+	gpio_free_array(neo1973_gta02_gpios, ARRAY_SIZE(neo1973_gta02_gpios));
 	return ret;
 }
 module_init(neo1973_gta02_init);
@@ -442,8 +425,7 @@ static void __exit neo1973_gta02_exit(void)
 {
 	snd_soc_unregister_dai(&neo1973_gta02_snd_device->dev);
 	platform_device_unregister(neo1973_gta02_snd_device);
-	gpio_free(GTA02_GPIO_HP_IN);
-	gpio_free(GTA02_GPIO_AMP_SHUT);
+	gpio_free_array(neo1973_gta02_gpios, ARRAY_SIZE(neo1973_gta02_gpios));
 }
 module_exit(neo1973_gta02_exit);
 
