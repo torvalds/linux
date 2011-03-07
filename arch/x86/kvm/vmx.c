@@ -3896,17 +3896,20 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
 
 static void vmx_complete_atomic_exit(struct vcpu_vmx *vmx)
 {
-	u32 exit_intr_info = vmx->exit_intr_info;
+	u32 exit_intr_info;
+
+	if (!(vmx->exit_reason == EXIT_REASON_MCE_DURING_VMENTRY
+	      || vmx->exit_reason == EXIT_REASON_EXCEPTION_NMI))
+		return;
+
+	exit_intr_info = vmx->exit_intr_info;
 
 	/* Handle machine checks before interrupts are enabled */
-	if ((vmx->exit_reason == EXIT_REASON_MCE_DURING_VMENTRY)
-	    || (vmx->exit_reason == EXIT_REASON_EXCEPTION_NMI
-		&& is_machine_check(exit_intr_info)))
+	if (is_machine_check(exit_intr_info))
 		kvm_machine_check();
 
 	/* We need to handle NMIs before interrupts are enabled */
-	if (vmx->exit_reason == EXIT_REASON_EXCEPTION_NMI &&
-	    (exit_intr_info & INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_NMI_INTR &&
+	if ((exit_intr_info & INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_NMI_INTR &&
 	    (exit_intr_info & INTR_INFO_VALID_MASK)) {
 		kvm_before_handle_nmi(&vmx->vcpu);
 		asm("int $2");
