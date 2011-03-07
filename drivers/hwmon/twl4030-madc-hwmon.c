@@ -154,4 +154,4 @@ module_exit(twl4030_madc_hwmon_exit);
 MODULE_DESCRIPTION("TWL4030 ADC Hwmon driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("J Keerthy");
-MODULE_ALIAS("twl4030_madc_hwmon");
+MODULE_ALIAS("platform:twl4030_madc_hwmon");
