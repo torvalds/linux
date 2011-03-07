@@ -225,7 +225,8 @@ static int xhci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int	retval = 0;
 
-	if (hcd->state != HC_STATE_SUSPENDED)
+	if (hcd->state != HC_STATE_SUSPENDED ||
+			xhci->shared_hcd->state != HC_STATE_SUSPENDED)
 		return -EINVAL;
 
 	retval = xhci_suspend(xhci);

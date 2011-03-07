@@ -681,6 +681,7 @@ int xhci_suspend(struct xhci_hcd *xhci)
 
 	spin_lock_irq(&xhci->lock);
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &xhci->shared_hcd->flags);
 	/* step 1: stop endpoint */
 	/* skipped assuming that port suspend has done */
 
@@ -811,10 +812,14 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 
 		xhci_dbg(xhci, "Start the secondary HCD\n");
 		retval = xhci_run(secondary_hcd);
-		if (!retval)
+		if (!retval) {
 			set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+			set_bit(HCD_FLAG_HW_ACCESSIBLE,
+					&xhci->shared_hcd->flags);
+		}
 failed_restart:
 		hcd->state = HC_STATE_SUSPENDED;
+		xhci->shared_hcd->state = HC_STATE_SUSPENDED;
 		return retval;
 	}
 
@@ -835,6 +840,7 @@ failed_restart:
 	 */
 
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+	set_bit(HCD_FLAG_HW_ACCESSIBLE, &xhci->shared_hcd->flags);
 
 	spin_unlock_irq(&xhci->lock);
 	return 0;

@@ -2256,10 +2256,12 @@ hw_died:
 irqreturn_t xhci_msi_irq(int irq, struct usb_hcd *hcd)
 {
 	irqreturn_t ret;
+	struct xhci_hcd *xhci;
 
+	xhci = hcd_to_xhci(hcd);
 	set_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
-	if (hcd->shared_hcd)
-		set_bit(HCD_FLAG_SAW_IRQ, &hcd->shared_hcd->flags);
+	if (xhci->shared_hcd)
+		set_bit(HCD_FLAG_SAW_IRQ, &xhci->shared_hcd->flags);
 
 	ret = xhci_irq(hcd);
 
