@@ -637,6 +637,9 @@ The keyctl syscall functions are:
 	long keyctl(KEYCTL_INSTANTIATE, key_serial_t key,
 		    const void *payload, size_t plen,
 		    key_serial_t keyring);
+	long keyctl(KEYCTL_INSTANTIATE_IOV, key_serial_t key,
+		    const struct iovec *payload_iov, unsigned ioc,
+		    key_serial_t keyring);
 
      If the kernel calls back to userspace to complete the instantiation of a
      key, userspace should use this call to supply data for the key before the
@@ -651,6 +654,9 @@ The keyctl syscall functions are:
      this case too.
 
      The payload and plen arguments describe the payload data as for add_key().
+
+     The payload_iov and ioc arguments describe the payload data in an iovec
+     array instead of a single buffer.
 
 
  (*) Negatively instantiate a partially constructed key.
@@ -1244,10 +1250,11 @@ hand the request off to (perhaps a path held in placed in another key by, for
 example, the KDE desktop manager).
 
 The program (or whatever it calls) should finish construction of the key by
-calling KEYCTL_INSTANTIATE, which also permits it to cache the key in one of
-the keyrings (probably the session ring) before returning. Alternatively, the
-key can be marked as negative with KEYCTL_NEGATE or KEYCTL_REJECT; this also
-permits the key to be cached in one of the keyrings.
+calling KEYCTL_INSTANTIATE or KEYCTL_INSTANTIATE_IOV, which also permits it to
+cache the key in one of the keyrings (probably the session ring) before
+returning.  Alternatively, the key can be marked as negative with KEYCTL_NEGATE
+or KEYCTL_REJECT; this also permits the key to be cached in one of the
+keyrings.
 
 If it returns with the key remaining in the unconstructed state, the key will
 be marked as being negative, it will be added to the session keyring, and an
