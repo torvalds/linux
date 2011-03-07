@@ -33,6 +33,7 @@
 #define CS4271_PCM_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
 			    SNDRV_PCM_FMTBIT_S24_LE | \
 			    SNDRV_PCM_FMTBIT_S32_LE)
+#define CS4271_PCM_RATES SNDRV_PCM_RATE_8000_192000
 
 /*
  * CS4271 registers
@@ -392,14 +393,14 @@ static struct snd_soc_dai_driver cs4271_dai = {
 		.stream_name	= "Playback",
 		.channels_min	= 2,
 		.channels_max	= 2,
-		.rates		= SNDRV_PCM_RATE_8000_96000,
+		.rates		= CS4271_PCM_RATES,
 		.formats	= CS4271_PCM_FORMATS,
 	},
 	.capture = {
 		.stream_name	= "Capture",
 		.channels_min	= 2,
 		.channels_max	= 2,
-		.rates		= SNDRV_PCM_RATE_8000_96000,
+		.rates		= CS4271_PCM_RATES,
 		.formats	= CS4271_PCM_FORMATS,
 	},
 	.ops = &cs4271_dai_ops,
