@@ -403,16 +403,24 @@ nv50_instmem_unmap(struct nouveau_gpuobj *gpuobj)
 void
 nv50_instmem_flush(struct drm_device *dev)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	spin_lock(&dev_priv->ramin_lock);
 	nv_wr32(dev, 0x00330c, 0x00000001);
 	if (!nv_wait(dev, 0x00330c, 0x00000002, 0x00000000))
 		NV_ERROR(dev, "PRAMIN flush timeout\n");
+	spin_unlock(&dev_priv->ramin_lock);
 }
 
 void
 nv84_instmem_flush(struct drm_device *dev)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	spin_lock(&dev_priv->ramin_lock);
 	nv_wr32(dev, 0x070000, 0x00000001);
 	if (!nv_wait(dev, 0x070000, 0x00000002, 0x00000000))
 		NV_ERROR(dev, "PRAMIN flush timeout\n");
+	spin_unlock(&dev_priv->ramin_lock);
 }
 
