@@ -622,7 +622,7 @@ static struct clk dummy_apb_pclk;
 
 /* array of all spear 6xx clock lookups */
 static struct clk_lookup spear_clk_lookups[] = {
-	{ .con_id = "apb_pclk",	.clk = &dummy_apb_pclk},
+	{ .con_id = "apb_pclk",		.clk = &dummy_apb_pclk},
 	/* root clks */
 	{ .con_id = "osc_32k_clk",	.clk = &osc_32k_clk},
 	{ .con_id = "osc_30m_clk",	.clk = &osc_30m_clk},
@@ -650,9 +650,9 @@ static struct clk_lookup spear_clk_lookups[] = {
 	{ .dev_id = "gpt2",		.clk = &gpt2_clk},
 	{ .dev_id = "gpt3",		.clk = &gpt3_clk},
 	/* clock derived from pll3 clk */
+	{ .dev_id = "designware_udc",	.clk = &usbd_clk},
 	{ .con_id = "usbh.0_clk",	.clk = &usbh0_clk},
 	{ .con_id = "usbh.1_clk",	.clk = &usbh1_clk},
-	{ .dev_id = "usbd",		.clk = &usbd_clk},
 	/* clock derived from ahb clk */
 	{ .con_id = "apb_clk",		.clk = &apb_clk},
 	{ .dev_id = "i2c_designware.0",	.clk = &i2c_clk},
