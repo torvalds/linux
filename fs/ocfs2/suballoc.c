@@ -434,7 +434,8 @@ static int ocfs2_block_group_fill(handle_t *handle,
 	 * allocation time. */
 
 bail:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -792,7 +793,8 @@ bail:
 
 	brelse(bg_bh);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -884,7 +886,8 @@ static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 bail:
 	brelse(bh);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -1046,7 +1049,8 @@ bail:
 		*ac = NULL;
 	}
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -1146,7 +1150,8 @@ bail:
 		*ac = NULL;
 	}
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -1221,7 +1226,8 @@ bail:
 		*ac = NULL;
 	}
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -1384,7 +1390,8 @@ static inline int ocfs2_block_group_set_bits(handle_t *handle,
 	ocfs2_journal_dirty(handle, group_bh);
 
 bail:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -1474,7 +1481,8 @@ out_rollback:
 		prev_bg->bg_next_group = cpu_to_le64(prev_bg_ptr);
 	}
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -1860,7 +1868,8 @@ bail:
 	brelse(group_bh);
 	brelse(prev_group_bh);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -1972,7 +1981,8 @@ set_hint:
 	}
 
 bail:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -2009,7 +2019,8 @@ int ocfs2_claim_metadata(handle_t *handle,
 	*num_bits = res.sr_bits;
 	status = 0;
 bail:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -2216,7 +2227,8 @@ int ocfs2_claim_new_inode(handle_t *handle,
 	ocfs2_save_inode_ac_group(dir, ac);
 	status = 0;
 bail:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -2347,7 +2359,8 @@ int __ocfs2_claim_clusters(handle_t *handle,
 	ac->ac_bits_given += *num_clusters;
 
 bail:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -2491,7 +2504,8 @@ static int _ocfs2_free_suballoc_bits(handle_t *handle,
 bail:
 	brelse(group_bh);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -2563,7 +2577,8 @@ static int _ocfs2_free_clusters(handle_t *handle,
 					 num_clusters);
 
 out:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -2770,7 +2785,8 @@ static int ocfs2_get_suballoc_slot_bit(struct ocfs2_super *osb, u64 blkno,
 bail:
 	brelse(inode_bh);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -2821,7 +2837,8 @@ static int ocfs2_test_suballoc_bit(struct ocfs2_super *osb,
 bail:
 	brelse(group_bh);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -2887,6 +2904,7 @@ int ocfs2_test_inode_bit(struct ocfs2_super *osb, u64 blkno, int *res)
 	iput(inode_alloc_inode);
 	brelse(alloc_bh);
 bail:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }

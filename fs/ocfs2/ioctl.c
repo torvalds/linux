@@ -59,7 +59,6 @@ static int ocfs2_get_inode_attr(struct inode *inode, unsigned *flags)
 	*flags = OCFS2_I(inode)->ip_attr;
 	ocfs2_inode_unlock(inode, 0);
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -125,7 +124,6 @@ bail:
 
 	brelse(bh);
 
-	mlog_exit(status);
 	return status;
 }
 

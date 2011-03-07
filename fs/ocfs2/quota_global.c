@@ -402,7 +402,8 @@ int ocfs2_global_read_info(struct super_block *sb, int type)
 			   msecs_to_jiffies(oinfo->dqi_syncms));
 
 out_err:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 out_unlock:
 	ocfs2_unlock_global_qf(oinfo, 0);
@@ -621,7 +622,6 @@ static int ocfs2_sync_dquot_helper(struct dquot *dquot, unsigned long type)
 out_ilock:
 	ocfs2_unlock_global_qf(oinfo, 1);
 out:
-	mlog_exit(status);
 	return status;
 }
 
@@ -660,7 +660,6 @@ static int ocfs2_write_dquot(struct dquot *dquot)
 	mutex_unlock(&sb_dqopt(dquot->dq_sb)->dqio_mutex);
 	ocfs2_commit_trans(osb, handle);
 out:
-	mlog_exit(status);
 	return status;
 }
 
@@ -722,7 +721,8 @@ out_ilock:
 	ocfs2_unlock_global_qf(oinfo, 1);
 out:
 	mutex_unlock(&dquot->dq_lock);
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -809,7 +809,8 @@ out_dq:
 	set_bit(DQ_ACTIVE_B, &dquot->dq_flags);
 out:
 	mutex_unlock(&dquot->dq_lock);
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -866,7 +867,8 @@ out_dlock:
 out_ilock:
 	ocfs2_unlock_global_qf(oinfo, 1);
 out:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -891,7 +893,8 @@ static int ocfs2_write_info(struct super_block *sb, int type)
 out_ilock:
 	ocfs2_unlock_global_qf(oinfo, 1);
 out:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 

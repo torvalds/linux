@@ -727,7 +727,6 @@ static int dlm_remaster_locks(struct dlm_ctxt *dlm, u8 dead_node)
 	if (destroy)
 		dlm_destroy_recovery_area(dlm, dead_node);
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -1496,9 +1495,9 @@ leave:
 			kfree(buf);
 		if (item)
 			kfree(item);
+		mlog_errno(ret);
 	}
 
-	mlog_exit(ret);
 	return ret;
 }
 
@@ -1567,7 +1566,6 @@ leave:
 		dlm_lockres_put(res);
 	}
 	kfree(data);
-	mlog_exit(ret);
 }
 
 
@@ -1986,7 +1984,6 @@ leave:
 			dlm_lock_put(newlock);
 	}
 
-	mlog_exit(ret);
 	return ret;
 }
 

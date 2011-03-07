@@ -141,7 +141,7 @@ check_gen:
 		mlog_errno(PTR_ERR(result));
 
 bail:
-	mlog_exit_ptr(result);
+	mlog(0, "result = %p\n", result);
 	return result;
 }
 
@@ -178,7 +178,7 @@ bail_unlock:
 	ocfs2_inode_unlock(dir, 0);
 
 bail:
-	mlog_exit_ptr(parent);
+	mlog(0, "parent %p\n", parent);
 
 	return parent;
 }
@@ -243,7 +243,7 @@ static int ocfs2_encode_fh(struct dentry *dentry, u32 *fh_in, int *max_len,
 	*max_len = len;
 
 bail:
-	mlog_exit(type);
+	mlog(0, "type = %d\n", type);
 	return type;
 }
 

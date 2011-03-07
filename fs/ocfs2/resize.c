@@ -82,7 +82,6 @@ static u16 ocfs2_calc_new_backup_super(struct inode *inode,
 		backups++;
 	}
 
-	mlog_exit_void();
 	return backups;
 }
 
@@ -176,7 +175,8 @@ out_rollback:
 		le16_add_cpu(&group->bg_free_bits_count, -1 * num_bits);
 	}
 out:
-	mlog_exit(ret);
+	if (ret)
+		mlog_errno(ret);
 	return ret;
 }
 
@@ -375,7 +375,6 @@ out_mutex:
 	iput(main_bm_inode);
 
 out:
-	mlog_exit_void();
 	return ret;
 }
 
@@ -585,6 +584,5 @@ out_mutex:
 	iput(main_bm_inode);
 
 out:
-	mlog_exit_void();
 	return ret;
 }

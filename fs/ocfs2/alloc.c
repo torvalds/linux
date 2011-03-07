@@ -985,7 +985,7 @@ int ocfs2_num_free_extents(struct ocfs2_super *osb,
 bail:
 	brelse(eb_bh);
 
-	mlog_exit(retval);
+	mlog(0, "retval = %d\n", retval);
 	return retval;
 }
 
@@ -1070,8 +1070,8 @@ bail:
 			brelse(bhs[i]);
 			bhs[i] = NULL;
 		}
+		mlog_errno(status);
 	}
-	mlog_exit(status);
 	return status;
 }
 
@@ -1326,7 +1326,6 @@ bail:
 		kfree(new_eb_bhs);
 	}
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -1407,7 +1406,6 @@ static int ocfs2_shift_tree_depth(handle_t *handle,
 bail:
 	brelse(new_eb_bh);
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -1493,7 +1491,6 @@ static int ocfs2_find_branch_target(struct ocfs2_extent_tree *et,
 bail:
 	brelse(bh);
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -4552,7 +4549,7 @@ static int ocfs2_figure_insert_type(struct ocfs2_extent_tree *et,
 					      ocfs2_et_get_last_eb_blk(et),
 					      &bh);
 		if (ret) {
-			mlog_exit(ret);
+			mlog_errno(ret);
 			goto out;
 		}
 		eb = (struct ocfs2_extent_block *) bh->b_data;
@@ -4716,7 +4713,6 @@ int ocfs2_insert_extent(handle_t *handle,
 bail:
 	brelse(last_eb_bh);
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -4818,7 +4814,6 @@ int ocfs2_add_clusters_in_btree(handle_t *handle,
 	}
 
 leave:
-	mlog_exit(status);
 	if (reason_ret)
 		*reason_ret = reason;
 	return status;
@@ -5029,7 +5024,7 @@ int ocfs2_split_extent(handle_t *handle,
 					      ocfs2_et_get_last_eb_blk(et),
 					      &last_eb_bh);
 		if (ret) {
-			mlog_exit(ret);
+			mlog_errno(ret);
 			goto out;
 		}
 
@@ -5849,7 +5844,6 @@ int ocfs2_truncate_log_append(struct ocfs2_super *osb,
 
 	osb->truncated_clusters += num_clusters;
 bail:
-	mlog_exit(status);
 	return status;
 }
 
@@ -5920,7 +5914,6 @@ static int ocfs2_replay_truncate_records(struct ocfs2_super *osb,
 	osb->truncated_clusters = 0;
 
 bail:
-	mlog_exit(status);
 	return status;
 }
 
@@ -5995,7 +5988,6 @@ out_mutex:
 	iput(data_alloc_inode);
 
 out:
-	mlog_exit(status);
 	return status;
 }
 
@@ -6023,8 +6015,6 @@ static void ocfs2_truncate_log_worker(struct work_struct *work)
 		mlog_errno(status);
 	else
 		ocfs2_init_steal_slots(osb);
-
-	mlog_exit(status);
 }
 
 #define OCFS2_TRUNCATE_LOG_FLUSH_INTERVAL (2 * HZ)
@@ -6070,7 +6060,6 @@ static int ocfs2_get_truncate_log_info(struct ocfs2_super *osb,
 	*tl_inode = inode;
 	*tl_bh    = bh;
 bail:
-	mlog_exit(status);
 	return status;
 }
 
@@ -6141,9 +6130,9 @@ bail:
 	if (status < 0 && (*tl_copy)) {
 		kfree(*tl_copy);
 		*tl_copy = NULL;
+		mlog_errno(status);
 	}
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -6201,7 +6190,6 @@ int ocfs2_complete_truncate_log_recovery(struct ocfs2_super *osb,
 bail_up:
 	mutex_unlock(&tl_inode->i_mutex);
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -6221,8 +6209,6 @@ void ocfs2_truncate_log_shutdown(struct ocfs2_super *osb)
 		brelse(osb->osb_tl_bh);
 		iput(osb->osb_tl_inode);
 	}
-
-	mlog_exit_void();
 }
 
 int ocfs2_truncate_log_init(struct ocfs2_super *osb)
@@ -6246,7 +6232,6 @@ int ocfs2_truncate_log_init(struct ocfs2_super *osb)
 	osb->osb_tl_bh    = tl_bh;
 	osb->osb_tl_inode = tl_inode;
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -7112,7 +7097,6 @@ bail:
 
 	ocfs2_free_path(path);
 
-	mlog_exit(status);
 	return status;
 }
 

@@ -476,7 +476,8 @@ static int ocfs2_init_global_system_inodes(struct ocfs2_super *osb)
 	}
 
 bail:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -504,7 +505,8 @@ static int ocfs2_init_local_system_inodes(struct ocfs2_super *osb)
 	}
 
 bail:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -534,7 +536,7 @@ static void ocfs2_release_system_inodes(struct ocfs2_super *osb)
 	}
 
 	if (!osb->local_system_inodes)
-		goto out;
+		return;
 
 	for (i = 0; i < NUM_LOCAL_SYSTEM_INODES * osb->max_slots; i++) {
 		if (osb->local_system_inodes[i]) {
@@ -545,9 +547,6 @@ static void ocfs2_release_system_inodes(struct ocfs2_super *osb)
 
 	kfree(osb->local_system_inodes);
 	osb->local_system_inodes = NULL;
-
-out:
-	mlog_exit(0);
 }
 
 /* We're allocating fs objects, use GFP_NOFS */
@@ -1202,7 +1201,6 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 			mlog_errno(status);
 			atomic_set(&osb->vol_state, VOLUME_DISABLED);
 			wake_up(&osb->osb_mount_event);
-			mlog_exit(status);
 			return status;
 		}
 	}
@@ -1216,7 +1214,6 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	/* Start this when the mount is almost sure of being successful */
 	ocfs2_orphan_scan_start(osb);
 
-	mlog_exit(status);
 	return status;
 
 read_super_error:
@@ -1231,7 +1228,8 @@ read_super_error:
 		ocfs2_dismount_volume(sb, 1);
 	}
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -1532,7 +1530,6 @@ static int ocfs2_parse_options(struct super_block *sb,
 	status = 1;
 
 bail:
-	mlog_exit(status);
 	return status;
 }
 
@@ -1661,9 +1658,8 @@ leave:
 		ocfs2_quota_shutdown();
 		ocfs2_free_mem_caches();
 		exit_ocfs2_uptodate_cache();
+		mlog_errno(status);
 	}
-
-	mlog_exit(status);
 
 	if (status >= 0) {
 		return register_filesystem(&ocfs2_fs_type);
@@ -1689,8 +1685,6 @@ static void __exit ocfs2_exit(void)
 	unregister_filesystem(&ocfs2_fs_type);
 
 	exit_ocfs2_uptodate_cache();
-
-	mlog_exit_void();
 }
 
 static void ocfs2_put_super(struct super_block *sb)
@@ -1699,8 +1693,6 @@ static void ocfs2_put_super(struct super_block *sb)
 
 	ocfs2_sync_blockdev(sb);
 	ocfs2_dismount_volume(sb, 0);
-
-	mlog_exit_void();
 }
 
 static int ocfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -1759,7 +1751,8 @@ bail:
 	if (inode)
 		iput(inode);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 
 	return status;
 }
@@ -1923,7 +1916,6 @@ leave:
 	if (unlock_super)
 		ocfs2_super_unlock(osb, 1);
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -2373,7 +2365,6 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	}
 
 bail:
-	mlog_exit(status);
 	return status;
 }
 
@@ -2443,7 +2434,8 @@ static int ocfs2_verify_volume(struct ocfs2_dinode *di,
 	}
 
 out:
-	mlog_exit(status);
+	if (status && status != -EAGAIN)
+		mlog_errno(status);
 	return status;
 }
 
@@ -2538,7 +2530,8 @@ finally:
 	if (local_alloc)
 		kfree(local_alloc);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -2567,8 +2560,6 @@ static void ocfs2_delete_osb(struct ocfs2_super *osb)
 	kfree(osb->uuid_str);
 	ocfs2_put_dlm_debug(osb->osb_dlm_debug);
 	memset(osb, 0, sizeof(struct ocfs2_super));
-
-	mlog_exit_void();
 }
 
 /* Put OCFS2 into a readonly state, or (if the user specifies it),

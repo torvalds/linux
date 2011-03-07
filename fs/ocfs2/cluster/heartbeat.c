@@ -1679,7 +1679,6 @@ static int o2hb_populate_slot_data(struct o2hb_region *reg)
 	}
 
 out:
-	mlog_exit(ret);
 	return ret;
 }
 

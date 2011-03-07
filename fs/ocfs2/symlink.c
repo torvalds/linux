@@ -72,7 +72,6 @@ static char *ocfs2_fast_symlink_getlink(struct inode *inode,
 	fe = (struct ocfs2_dinode *) (*bh)->b_data;
 	link = (char *) fe->id2.i_symlink;
 bail:
-	mlog_exit(status);
 
 	return link;
 }
@@ -100,7 +99,8 @@ static int ocfs2_readlink(struct dentry *dentry,
 
 	brelse(bh);
 out:
-	mlog_exit(ret);
+	if (ret < 0)
+		mlog_errno(ret);
 	return ret;
 }
 
@@ -136,7 +136,8 @@ bail:
 	nd_set_link(nd, status ? ERR_PTR(status) : link);
 	brelse(bh);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return NULL;
 }
 

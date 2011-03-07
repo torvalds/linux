@@ -5570,7 +5570,6 @@ static int ocfs2_xattr_set_entry_bucket(struct inode *inode,
 
 
 out:
-	mlog_exit(ret);
 	return ret;
 }
 
@@ -5637,7 +5636,6 @@ static int ocfs2_xattr_set_entry_index_block(struct inode *inode,
 		mlog_errno(ret);
 
 out:
-	mlog_exit(ret);
 	return ret;
 }
 

@@ -66,6 +66,7 @@ int ocfs2_write_block(struct ocfs2_super *osb, struct buffer_head *bh,
 	 * can get modified during recovery even if read-only. */
 	if (ocfs2_is_hard_readonly(osb)) {
 		ret = -EROFS;
+		mlog_errno(ret);
 		goto out;
 	}
 
@@ -91,11 +92,11 @@ int ocfs2_write_block(struct ocfs2_super *osb, struct buffer_head *bh,
 		 * uptodate. */
 		ret = -EIO;
 		put_bh(bh);
+		mlog_errno(ret);
 	}
 
 	ocfs2_metadata_cache_io_unlock(ci);
 out:
-	mlog_exit(ret);
 	return ret;
 }
 
@@ -374,7 +375,6 @@ int ocfs2_read_blocks(struct ocfs2_caching_info *ci, u64 block, int nr,
 
 bail:
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -413,6 +413,7 @@ int ocfs2_write_super_or_backup(struct ocfs2_super *osb,
 
 	if (ocfs2_is_hard_readonly(osb) || ocfs2_is_soft_readonly(osb)) {
 		ret = -EROFS;
+		mlog_errno(ret);
 		goto out;
 	}
 
@@ -432,9 +433,9 @@ int ocfs2_write_super_or_backup(struct ocfs2_super *osb,
 	if (!buffer_uptodate(bh)) {
 		ret = -EIO;
 		put_bh(bh);
+		mlog_errno(ret);
 	}
 
 out:
-	mlog_exit(ret);
 	return ret;
 }

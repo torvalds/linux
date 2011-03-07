@@ -82,7 +82,6 @@
 
 /* bits that are frequently given and infrequently matched in the low word */
 /* NOTE: If you add a flag, you need to also update masklog.c! */
-#define ML_EXIT		0x0000000000000002ULL /* func call exit */
 #define ML_TCP		0x0000000000000004ULL /* net cluster/tcp.c */
 #define ML_MSG		0x0000000000000008ULL /* net network messages */
 #define ML_SOCKET	0x0000000000000010ULL /* net socket lifetime */
@@ -123,7 +122,6 @@
 #define ML_KTHREAD	0x4000000000000000ULL /* kernel thread activity */
 
 #define MLOG_INITIAL_AND_MASK (ML_ERROR|ML_NOTICE)
-#define MLOG_INITIAL_NOT_MASK (ML_EXIT)
 #ifndef MLOG_MASK_PREFIX
 #define MLOG_MASK_PREFIX 0
 #endif
@@ -220,48 +218,6 @@ extern struct mlog_bits mlog_and_bits, mlog_not_bits;
 	    _st != AOP_TRUNCATED_PAGE && _st != -ENOSPC)		\
 		mlog(ML_ERROR, "status = %lld\n", (long long)_st);	\
 } while (0)
-
-#if defined(CONFIG_OCFS2_DEBUG_MASKLOG)
-/*
- * We disable this for sparse.
- */
-#if !defined(__CHECKER__)
-#define mlog_exit(st) do {						     \
-	if (__builtin_types_compatible_p(typeof(st), unsigned long))	     \
-		mlog(ML_EXIT, "EXIT: %lu\n", (unsigned long) (st));	     \
-	else if (__builtin_types_compatible_p(typeof(st), signed long))      \
-		mlog(ML_EXIT, "EXIT: %ld\n", (signed long) (st));	     \
-	else if (__builtin_types_compatible_p(typeof(st), unsigned int)	     \
-		 || __builtin_types_compatible_p(typeof(st), unsigned short) \
-		 || __builtin_types_compatible_p(typeof(st), unsigned char)) \
-		mlog(ML_EXIT, "EXIT: %u\n", (unsigned int) (st));	     \
-	else if (__builtin_types_compatible_p(typeof(st), signed int)	     \
-		 || __builtin_types_compatible_p(typeof(st), signed short)   \
-		 || __builtin_types_compatible_p(typeof(st), signed char))   \
-		mlog(ML_EXIT, "EXIT: %d\n", (signed int) (st));		     \
-	else if (__builtin_types_compatible_p(typeof(st), long long))	     \
-		mlog(ML_EXIT, "EXIT: %lld\n", (long long) (st));	     \
-	else								     \
-		mlog(ML_EXIT, "EXIT: %llu\n", (unsigned long long) (st));    \
-} while (0)
-#else
-#define mlog_exit(st) do {						     \
-	mlog(ML_EXIT, "EXIT: %lld\n", (long long) (st));		     \
-} while (0)
-#endif
-
-#define mlog_exit_ptr(ptr) do {						\
-	mlog(ML_EXIT, "EXIT: %p\n", ptr);				\
-} while (0)
-
-#define mlog_exit_void() do {						\
-	mlog(ML_EXIT, "EXIT\n");					\
-} while (0)
-#else
-#define mlog_exit(...)  do { } while (0)
-#define mlog_exit_ptr(...)  do { } while (0)
-#define mlog_exit_void(...)  do { } while (0)
-#endif  /* defined(CONFIG_OCFS2_DEBUG_MASKLOG) */
 
 #define mlog_bug_on_msg(cond, fmt, args...) do {			\
 	if (cond) {							\

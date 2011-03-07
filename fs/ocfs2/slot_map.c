@@ -510,7 +510,6 @@ int ocfs2_find_slot(struct ocfs2_super *osb)
 		mlog_errno(status);
 
 bail:
-	mlog_exit(status);
 	return status;
 }
 

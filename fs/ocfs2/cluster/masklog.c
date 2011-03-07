@@ -30,7 +30,7 @@
 
 struct mlog_bits mlog_and_bits = MLOG_BITS_RHS(MLOG_INITIAL_AND_MASK);
 EXPORT_SYMBOL_GPL(mlog_and_bits);
-struct mlog_bits mlog_not_bits = MLOG_BITS_RHS(MLOG_INITIAL_NOT_MASK);
+struct mlog_bits mlog_not_bits = MLOG_BITS_RHS(0);
 EXPORT_SYMBOL_GPL(mlog_not_bits);
 
 static ssize_t mlog_mask_show(u64 mask, char *buf)
@@ -80,7 +80,6 @@ struct mlog_attribute {
 }
 
 static struct mlog_attribute mlog_attrs[MLOG_MAX_BITS] = {
-	define_mask(EXIT),
 	define_mask(TCP),
 	define_mask(MSG),
 	define_mask(SOCKET),

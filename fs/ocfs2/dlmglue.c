@@ -406,8 +406,6 @@ static void ocfs2_build_lock_name(enum ocfs2_lock_type type,
 	BUG_ON(len != (OCFS2_LOCK_ID_MAX_LEN - 1));
 
 	mlog(0, "built lock resource with name: %s\n", name);
-
-	mlog_exit_void();
 }
 
 static DEFINE_SPINLOCK(ocfs2_dlm_tracking_lock);
@@ -752,7 +750,6 @@ void ocfs2_lock_res_free(struct ocfs2_lock_res *res)
 	memset(&res->l_lksb, 0, sizeof(res->l_lksb));
 
 	res->l_flags = 0UL;
-	mlog_exit_void();
 }
 
 static inline void ocfs2_inc_holders(struct ocfs2_lock_res *lockres,
@@ -770,8 +767,6 @@ static inline void ocfs2_inc_holders(struct ocfs2_lock_res *lockres,
 	default:
 		BUG();
 	}
-
-	mlog_exit_void();
 }
 
 static inline void ocfs2_dec_holders(struct ocfs2_lock_res *lockres,
@@ -791,7 +786,6 @@ static inline void ocfs2_dec_holders(struct ocfs2_lock_res *lockres,
 	default:
 		BUG();
 	}
-	mlog_exit_void();
 }
 
 /* WARNING: This function lives in a world where the only three lock
@@ -850,8 +844,6 @@ static inline void ocfs2_generic_handle_downconvert_action(struct ocfs2_lock_res
 		lockres_clear_flags(lockres, OCFS2_LOCK_BLOCKED);
 	}
 	lockres_clear_flags(lockres, OCFS2_LOCK_BUSY);
-
-	mlog_exit_void();
 }
 
 static inline void ocfs2_generic_handle_convert_action(struct ocfs2_lock_res *lockres)
@@ -877,8 +869,6 @@ static inline void ocfs2_generic_handle_convert_action(struct ocfs2_lock_res *lo
 	lockres_or_flags(lockres, OCFS2_LOCK_UPCONVERT_FINISHING);
 
 	lockres_clear_flags(lockres, OCFS2_LOCK_BUSY);
-
-	mlog_exit_void();
 }
 
 static inline void ocfs2_generic_handle_attach_action(struct ocfs2_lock_res *lockres)
@@ -894,8 +884,6 @@ static inline void ocfs2_generic_handle_attach_action(struct ocfs2_lock_res *loc
 	lockres->l_level = lockres->l_requested;
 	lockres_or_flags(lockres, OCFS2_LOCK_ATTACHED);
 	lockres_clear_flags(lockres, OCFS2_LOCK_BUSY);
-
-	mlog_exit_void();
 }
 
 static int ocfs2_generic_handle_bast(struct ocfs2_lock_res *lockres,
@@ -923,8 +911,7 @@ static int ocfs2_generic_handle_bast(struct ocfs2_lock_res *lockres,
 
 	if (needs_downconvert)
 		lockres_or_flags(lockres, OCFS2_LOCK_BLOCKED);
-
-	mlog_exit(needs_downconvert);
+	mlog(0, "needs_downconvert = %d\n", needs_downconvert);
 	return needs_downconvert;
 }
 
@@ -1145,7 +1132,6 @@ static void ocfs2_unlock_ast(struct ocfs2_dlm_lksb *lksb, int error)
 		     "unlock_action %d\n", error, lockres->l_name,
 		     lockres->l_unlock_action);
 		spin_unlock_irqrestore(&lockres->l_lock, flags);
-		mlog_exit_void();
 		return;
 	}
 
@@ -1169,8 +1155,6 @@ static void ocfs2_unlock_ast(struct ocfs2_dlm_lksb *lksb, int error)
 	lockres->l_unlock_action = OCFS2_UNLOCK_INVALID;
 	wake_up(&lockres->l_event);
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
-
-	mlog_exit_void();
 }
 
 /*
@@ -1226,7 +1210,6 @@ static inline void ocfs2_recover_from_dlm_error(struct ocfs2_lock_res *lockres,
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
 
 	wake_up(&lockres->l_event);
-	mlog_exit_void();
 }
 
 /* Note: If we detect another process working on the lock (i.e.,
@@ -1273,7 +1256,6 @@ static int ocfs2_lock_create(struct ocfs2_super *osb,
 	mlog(0, "lock %s, return from ocfs2_dlm_lock\n", lockres->l_name);
 
 bail:
-	mlog_exit(ret);
 	return ret;
 }
 
@@ -1561,7 +1543,6 @@ out:
 				caller_ip);
 	}
 #endif
-	mlog_exit(ret);
 	return ret;
 }
 
@@ -1591,7 +1572,6 @@ static void __ocfs2_cluster_unlock(struct ocfs2_super *osb,
 	if (lockres->l_lockdep_map.key != NULL)
 		rwsem_release(&lockres->l_lockdep_map, 1, caller_ip);
 #endif
-	mlog_exit_void();
 }
 
 static int ocfs2_create_new_lock(struct ocfs2_super *osb,
@@ -1658,7 +1638,6 @@ int ocfs2_create_new_inode_locks(struct inode *inode)
 	}
 
 bail:
-	mlog_exit(ret);
 	return ret;
 }
 
@@ -1674,10 +1653,8 @@ int ocfs2_rw_lock(struct inode *inode, int write)
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 	     write ? "EXMODE" : "PRMODE");
 
-	if (ocfs2_mount_local(osb)) {
-		mlog_exit(0);
+	if (ocfs2_mount_local(osb))
 		return 0;
-	}
 
 	lockres = &OCFS2_I(inode)->ip_rw_lockres;
 
@@ -1688,7 +1665,6 @@ int ocfs2_rw_lock(struct inode *inode, int write)
 	if (status < 0)
 		mlog_errno(status);
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -1704,8 +1680,6 @@ void ocfs2_rw_unlock(struct inode *inode, int write)
 
 	if (!ocfs2_mount_local(osb))
 		ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres, level);
-
-	mlog_exit_void();
 }
 
 /*
@@ -1733,7 +1707,6 @@ int ocfs2_open_lock(struct inode *inode)
 		mlog_errno(status);
 
 out:
-	mlog_exit(status);
 	return status;
 }
 
@@ -1766,7 +1739,6 @@ int ocfs2_try_open_lock(struct inode *inode, int write)
 				    level, DLM_LKF_NOQUEUE, 0);
 
 out:
-	mlog_exit(status);
 	return status;
 }
 
@@ -1792,7 +1764,7 @@ void ocfs2_open_unlock(struct inode *inode)
 				     DLM_LOCK_EX);
 
 out:
-	mlog_exit_void();
+	return;
 }
 
 static int ocfs2_flock_handle_signal(struct ocfs2_lock_res *lockres,
@@ -2028,8 +2000,6 @@ static void ocfs2_downconvert_on_unlock(struct ocfs2_super *osb,
 
 	if (kick)
 		ocfs2_wake_downconvert_thread(osb);
-
-	mlog_exit_void();
 }
 
 #define OCFS2_SEC_BITS   34
@@ -2089,8 +2059,6 @@ static void __ocfs2_stuff_meta_lvb(struct inode *inode)
 
 out:
 	mlog_meta_lvb(0, lockres);
-
-	mlog_exit_void();
 }
 
 static void ocfs2_unpack_timespec(struct timespec *spec,
@@ -2136,8 +2104,6 @@ static void ocfs2_refresh_inode_from_lvb(struct inode *inode)
 	ocfs2_unpack_timespec(&inode->i_ctime,
 			      be64_to_cpu(lvb->lvb_ictime_packed));
 	spin_unlock(&oi->ip_lock);
-
-	mlog_exit_void();
 }
 
 static inline int ocfs2_meta_lvb_is_trustable(struct inode *inode,
@@ -2184,7 +2150,7 @@ refresh_check:
 
 	status = 1;
 bail:
-	mlog_exit(status);
+	mlog(0, "status %d\n", status);
 	return status;
 }
 
@@ -2202,8 +2168,6 @@ static inline void ocfs2_complete_lock_res_refresh(struct ocfs2_lock_res *lockre
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
 
 	wake_up(&lockres->l_event);
-
-	mlog_exit_void();
 }
 
 /* may or may not return a bh if it went to disk. */
@@ -2284,7 +2248,6 @@ static int ocfs2_inode_lock_update(struct inode *inode,
 bail_refresh:
 	ocfs2_complete_lock_res_refresh(lockres, status);
 bail:
-	mlog_exit(status);
 	return status;
 }
 
@@ -2419,7 +2382,6 @@ bail:
 	if (local_bh)
 		brelse(local_bh);
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -2496,7 +2458,6 @@ int ocfs2_inode_lock_atime(struct inode *inode,
 	} else
 		*level = 0;
 
-	mlog_exit(ret);
 	return ret;
 }
 
@@ -2514,8 +2475,6 @@ void ocfs2_inode_unlock(struct inode *inode,
 	if (!ocfs2_is_hard_readonly(OCFS2_SB(inode->i_sb)) &&
 	    !ocfs2_mount_local(osb))
 		ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres, level);
-
-	mlog_exit_void();
 }
 
 int ocfs2_orphan_scan_lock(struct ocfs2_super *osb, u32 *seqno)
@@ -2597,7 +2556,6 @@ int ocfs2_super_lock(struct ocfs2_super *osb,
 		ocfs2_track_lock_refresh(lockres);
 	}
 bail:
-	mlog_exit(status);
 	return status;
 }
 
@@ -3057,7 +3015,6 @@ bail:
 			kthread_stop(osb->dc_task);
 	}
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -3086,8 +3043,6 @@ void ocfs2_dlm_shutdown(struct ocfs2_super *osb,
 	osb->cconn = NULL;
 
 	ocfs2_dlm_shutdown_debug(osb);
-
-	mlog_exit_void();
 }
 
 static int ocfs2_drop_lock(struct ocfs2_super *osb,
@@ -3169,7 +3124,6 @@ static int ocfs2_drop_lock(struct ocfs2_super *osb,
 
 	ocfs2_wait_on_busy_lock(lockres);
 out:
-	mlog_exit(0);
 	return 0;
 }
 
@@ -3251,7 +3205,6 @@ int ocfs2_drop_inode_locks(struct inode *inode)
 	if (err < 0 && !status)
 		status = err;
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -3314,7 +3267,6 @@ static int ocfs2_downconvert_lock(struct ocfs2_super *osb,
 
 	ret = 0;
 bail:
-	mlog_exit(ret);
 	return ret;
 }
 
@@ -3362,7 +3314,6 @@ static int ocfs2_cancel_convert(struct ocfs2_super *osb,
 
 	mlog(ML_BASTS, "lockres %s\n", lockres->l_name);
 
-	mlog_exit(ret);
 	return ret;
 }
 
@@ -3552,14 +3503,14 @@ downconvert:
 				     gen);
 
 leave:
-	mlog_exit(ret);
+	if (ret)
+		mlog_errno(ret);
 	return ret;
 
 leave_requeue:
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
 	ctl->requeue = 1;
 
-	mlog_exit(0);
 	return 0;
 }
 
@@ -3800,8 +3751,6 @@ static void ocfs2_set_qinfo_lvb(struct ocfs2_lock_res *lockres)
 	lvb->lvb_blocks = cpu_to_be32(oinfo->dqi_gi.dqi_blocks);
 	lvb->lvb_free_blk = cpu_to_be32(oinfo->dqi_gi.dqi_free_blk);
 	lvb->lvb_free_entry = cpu_to_be32(oinfo->dqi_gi.dqi_free_entry);
-
-	mlog_exit_void();
 }
 
 void ocfs2_qinfo_unlock(struct ocfs2_mem_dqinfo *oinfo, int ex)
@@ -3812,7 +3761,6 @@ void ocfs2_qinfo_unlock(struct ocfs2_mem_dqinfo *oinfo, int ex)
 
 	if (!ocfs2_is_hard_readonly(osb) && !ocfs2_mount_local(osb))
 		ocfs2_cluster_unlock(osb, lockres, level);
-	mlog_exit_void();
 }
 
 static int ocfs2_refresh_qinfo(struct ocfs2_mem_dqinfo *oinfo)
@@ -3889,7 +3837,6 @@ int ocfs2_qinfo_lock(struct ocfs2_mem_dqinfo *oinfo, int ex)
 		ocfs2_qinfo_unlock(oinfo, ex);
 	ocfs2_complete_lock_res_refresh(lockres, status);
 bail:
-	mlog_exit(status);
 	return status;
 }
 
@@ -3968,8 +3915,6 @@ unqueue:
 	if (ctl.unblock_action != UNBLOCK_CONTINUE
 	    && lockres->l_ops->post_unlock)
 		lockres->l_ops->post_unlock(osb, lockres);
-
-	mlog_exit_void();
 }
 
 static void ocfs2_schedule_blocked_lock(struct ocfs2_super *osb,
@@ -3995,8 +3940,6 @@ static void ocfs2_schedule_blocked_lock(struct ocfs2_super *osb,
 		osb->blocked_lock_count++;
 	}
 	spin_unlock(&osb->dc_task_lock);
-
-	mlog_exit_void();
 }
 
 static void ocfs2_downconvert_thread_do_work(struct ocfs2_super *osb)
@@ -4027,8 +3970,6 @@ static void ocfs2_downconvert_thread_do_work(struct ocfs2_super *osb)
 		spin_lock(&osb->dc_task_lock);
 	}
 	spin_unlock(&osb->dc_task_lock);
-
-	mlog_exit_void();
 }
 
 static int ocfs2_downconvert_thread_lists_empty(struct ocfs2_super *osb)

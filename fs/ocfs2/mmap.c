@@ -55,7 +55,7 @@ static int ocfs2_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 	ret = filemap_fault(area, vmf);
 	ocfs2_unblock_signals(&oldset);
 
-	mlog_exit_ptr(vmf->page);
+	mlog(0, "%p\n", vmf->page);
 	return ret;
 }
 

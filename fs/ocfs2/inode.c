@@ -172,7 +172,7 @@ bail:
 	if (!IS_ERR(inode)) {
 		mlog(0, "returning inode with number %llu\n",
 		     (unsigned long long)OCFS2_I(inode)->ip_blkno);
-		mlog_exit_ptr(inode);
+		mlog(0, "inode %p\n", inode);
 	}
 
 	return inode;
@@ -203,7 +203,6 @@ static int ocfs2_find_actor(struct inode *inode, void *opaque)
 
 	ret = 1;
 bail:
-	mlog_exit(ret);
 	return ret;
 }
 
@@ -235,7 +234,6 @@ static int ocfs2_init_locked_inode(struct inode *inode, void *opaque)
 		lockdep_set_class(&OCFS2_I(inode)->ip_alloc_sem,
 				  &ocfs2_file_ip_alloc_sem_key);
 
-	mlog_exit(0);
 	return 0;
 }
 
@@ -381,7 +379,6 @@ void ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 	if (S_ISDIR(inode->i_mode))
 		ocfs2_resv_set_type(&OCFS2_I(inode)->ip_la_data_resv,
 				    OCFS2_RESV_FLAG_DIR);
-	mlog_exit_void();
 }
 
 static int ocfs2_read_locked_inode(struct inode *inode,
@@ -534,7 +531,6 @@ bail:
 	if (args && bh)
 		brelse(bh);
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -598,7 +594,6 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 out:
 	if (handle)
 		ocfs2_commit_trans(osb, handle);
-	mlog_exit(status);
 	return status;
 }
 
@@ -1078,7 +1073,7 @@ bail_unlock_nfs_sync:
 bail_unblock:
 	ocfs2_unblock_signals(&oldset);
 bail:
-	mlog_exit_void();
+	return;
 }
 
 static void ocfs2_clear_inode(struct inode *inode)
@@ -1177,8 +1172,6 @@ static void ocfs2_clear_inode(struct inode *inode)
 	 */
 	jbd2_journal_release_jbd_inode(OCFS2_SB(inode->i_sb)->journal->j_journal,
 				       &oi->ip_jinode);
-
-	mlog_exit_void();
 }
 
 void ocfs2_evict_inode(struct inode *inode)
@@ -1208,7 +1201,6 @@ int ocfs2_drop_inode(struct inode *inode)
 	else
 		res = generic_drop_inode(inode);
 
-	mlog_exit_void();
 	return res;
 }
 
@@ -1248,8 +1240,6 @@ int ocfs2_inode_revalidate(struct dentry *dentry)
 	}
 	ocfs2_inode_unlock(inode, 0);
 bail:
-	mlog_exit(status);
-
 	return status;
 }
 
@@ -1296,7 +1286,6 @@ int ocfs2_mark_inode_dirty(handle_t *handle,
 
 	ocfs2_journal_dirty(handle, bh);
 leave:
-	mlog_exit(status);
 	return status;
 }
 

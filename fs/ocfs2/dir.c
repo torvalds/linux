@@ -400,7 +400,7 @@ static int inline ocfs2_search_dirblock(struct buffer_head *bh,
 	}
 
 bail:
-	mlog_exit(ret);
+	mlog(0, "ret = %d\n", ret);
 	return ret;
 }
 
@@ -784,7 +784,7 @@ cleanup_and_exit:
 	for (; ra_ptr < ra_max; ra_ptr++)
 		brelse(bh_use[ra_ptr]);
 
-	mlog_exit_ptr(ret);
+	mlog(0, "ret = %p\n", ret);
 	return ret;
 }
 
@@ -1198,7 +1198,6 @@ static int __ocfs2_delete_entry(handle_t *handle, struct inode *dir,
 		de = (struct ocfs2_dir_entry *)((char *)de + le16_to_cpu(de->rec_len));
 	}
 bail:
-	mlog_exit(status);
 	return status;
 }
 
@@ -1759,8 +1758,9 @@ int __ocfs2_add_entry(handle_t *handle,
 	 * from ever getting here. */
 	retval = -ENOSPC;
 bail:
+	if (retval)
+		mlog_errno(retval);
 
-	mlog_exit(retval);
 	return retval;
 }
 
@@ -2045,9 +2045,10 @@ int ocfs2_readdir(struct file * filp, void * dirent, filldir_t filldir)
 				      dirent, filldir, NULL);
 
 	ocfs2_inode_unlock(inode, lock_level);
+	if (error)
+		mlog_errno(error);
 
 bail_nolock:
-	mlog_exit(error);
 
 	return error;
 }
@@ -2119,7 +2120,8 @@ int ocfs2_check_dir_for_entry(struct inode *dir,
 bail:
 	ocfs2_free_dir_lookup_result(&lookup);
 
-	mlog_exit(ret);
+	if (ret)
+		mlog_errno(ret);
 	return ret;
 }
 
@@ -2372,7 +2374,6 @@ static int ocfs2_fill_new_dir_el(struct ocfs2_super *osb,
 bail:
 	brelse(new_bh);
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -3227,7 +3228,6 @@ static int ocfs2_do_extend_dir(struct super_block *sb,
 bail:
 	if (did_quota && status < 0)
 		dquot_free_space_nodirty(dir, ocfs2_clusters_to_bytes(sb, 1));
-	mlog_exit(status);
 	return status;
 }
 
@@ -3426,7 +3426,6 @@ bail:
 
 	brelse(new_bh);
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -3573,8 +3572,9 @@ next:
 	status = 0;
 bail:
 	brelse(bh);
+	if (status)
+		mlog_errno(status);
 
-	mlog_exit(status);
 	return status;
 }
 

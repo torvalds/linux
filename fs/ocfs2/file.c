@@ -135,7 +135,6 @@ static int ocfs2_file_open(struct inode *inode, struct file *file)
 	}
 
 leave:
-	mlog_exit(status);
 	return status;
 }
 
@@ -153,8 +152,6 @@ static int ocfs2_file_release(struct inode *inode, struct file *file)
 	spin_unlock(&oi->ip_lock);
 
 	ocfs2_free_file_private(inode, file);
-
-	mlog_exit(0);
 
 	return 0;
 }
@@ -195,7 +192,8 @@ static int ocfs2_sync_file(struct file *file, int datasync)
 	err = jbd2_journal_force_commit(journal);
 
 bail:
-	mlog_exit(err);
+	if (err)
+		mlog_errno(err);
 
 	return (err < 0) ? -EIO : 0;
 }
@@ -278,7 +276,6 @@ int ocfs2_update_inode_atime(struct inode *inode,
 out_commit:
 	ocfs2_commit_trans(OCFS2_SB(inode->i_sb), handle);
 out:
-	mlog_exit(ret);
 	return ret;
 }
 
@@ -300,7 +297,6 @@ static int ocfs2_set_inode_size(handle_t *handle,
 	}
 
 bail:
-	mlog_exit(status);
 	return status;
 }
 
@@ -424,8 +420,6 @@ static int ocfs2_orphan_for_truncate(struct ocfs2_super *osb,
 out_commit:
 	ocfs2_commit_trans(osb, handle);
 out:
-
-	mlog_exit(status);
 	return status;
 }
 
@@ -520,7 +514,6 @@ bail:
 	if (!status && OCFS2_I(inode)->ip_clusters == 0)
 		status = ocfs2_try_remove_refcount_tree(inode, di_bh);
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -713,7 +706,6 @@ leave:
 	brelse(bh);
 	bh = NULL;
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -1269,7 +1261,6 @@ bail:
 			mlog_errno(status);
 	}
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -1295,8 +1286,6 @@ int ocfs2_getattr(struct vfsmount *mnt,
 	stat->blksize = osb->s_clustersize;
 
 bail:
-	mlog_exit(err);
-
 	return err;
 }
 
@@ -1318,7 +1307,6 @@ int ocfs2_permission(struct inode *inode, int mask, unsigned int flags)
 
 	ocfs2_inode_unlock(inode, 0);
 out:
-	mlog_exit(ret);
 	return ret;
 }
 
@@ -1359,7 +1347,6 @@ static int __ocfs2_write_remove_suid(struct inode *inode,
 out_trans:
 	ocfs2_commit_trans(osb, handle);
 out:
-	mlog_exit(ret);
 	return ret;
 }
 
@@ -2393,7 +2380,6 @@ out_sems:
 
 	if (written)
 		ret = written;
-	mlog_exit(ret);
 	return ret;
 }
 
@@ -2476,7 +2462,6 @@ static ssize_t ocfs2_file_splice_write(struct pipe_inode_info *pipe,
 		balance_dirty_pages_ratelimited_nr(mapping, nr_pages);
 	}
 
-	mlog_exit(ret);
 	return ret;
 }
 
@@ -2507,7 +2492,6 @@ static ssize_t ocfs2_file_splice_read(struct file *in,
 	ret = generic_file_splice_read(in, ppos, pipe, len, flags);
 
 bail:
-	mlog_exit(ret);
 	return ret;
 }
 
@@ -2588,7 +2572,6 @@ bail:
 	}
 	if (rw_level != -1)
 		ocfs2_rw_unlock(inode, rw_level);
-	mlog_exit(ret);
 
 	return ret;
 }

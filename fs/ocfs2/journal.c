@@ -335,7 +335,6 @@ static int ocfs2_commit_cache(struct ocfs2_super *osb)
 	ocfs2_wake_downconvert_thread(osb);
 	wake_up(&journal->j_checkpointed);
 finally:
-	mlog_exit(status);
 	return status;
 }
 
@@ -450,8 +449,6 @@ int ocfs2_extend_trans(handle_t *handle, int nblocks)
 
 	status = 0;
 bail:
-
-	mlog_exit(status);
 	return status;
 }
 
@@ -665,7 +662,6 @@ static int __ocfs2_journal_access(handle_t *handle,
 		mlog(ML_ERROR, "Error %d getting %d access to buffer!\n",
 		     status, type);
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -739,8 +735,6 @@ void ocfs2_journal_dirty(handle_t *handle, struct buffer_head *bh)
 
 	status = jbd2_journal_dirty_metadata(handle, bh);
 	BUG_ON(status);
-
-	mlog_exit_void();
 }
 
 #define OCFS2_DEFAULT_COMMIT_INTERVAL	(HZ * JBD2_DEFAULT_MAX_COMMIT_AGE)
@@ -854,7 +848,6 @@ done:
 		}
 	}
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -899,7 +892,6 @@ static int ocfs2_journal_toggle_dirty(struct ocfs2_super *osb,
 	if (status < 0)
 		mlog_errno(status);
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -989,7 +981,6 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 done:
 	if (inode)
 		iput(inode);
-	mlog_exit_void();
 }
 
 static void ocfs2_clear_journal_error(struct super_block *sb,
@@ -1048,7 +1039,6 @@ int ocfs2_journal_load(struct ocfs2_journal *journal, int local, int replayed)
 		osb->commit_task = NULL;
 
 done:
-	mlog_exit(status);
 	return status;
 }
 
@@ -1072,7 +1062,6 @@ int ocfs2_journal_wipe(struct ocfs2_journal *journal, int full)
 		mlog_errno(status);
 
 bail:
-	mlog_exit(status);
 	return status;
 }
 
@@ -1146,7 +1135,6 @@ static int ocfs2_force_read_journal(struct inode *inode)
 bail:
 	for(i = 0; i < CONCURRENT_JOURNAL_FILL; i++)
 		brelse(bhs[i]);
-	mlog_exit(status);
 	return status;
 }
 
@@ -1236,7 +1224,6 @@ void ocfs2_complete_recovery(struct work_struct *work)
 	}
 
 	mlog(0, "Recovery completion\n");
-	mlog_exit_void();
 }
 
 /* NOTE: This function always eats your references to la_dinode and
@@ -1432,7 +1419,6 @@ bail:
 	if (rm_quota)
 		kfree(rm_quota);
 
-	mlog_exit(status);
 	/* no one is callint kthread_stop() for us so the kthread() api
 	 * requires that we call do_exit().  And it isn't exported, but
 	 * complete_and_exit() seems to be a minimal wrapper around it. */
@@ -1469,8 +1455,6 @@ void ocfs2_recovery_thread(struct ocfs2_super *osb, int node_num)
 out:
 	mutex_unlock(&osb->recovery_lock);
 	wake_up(&osb->recovery_event);
-
-	mlog_exit_void();
 }
 
 static int ocfs2_read_journal_inode(struct ocfs2_super *osb,
@@ -1646,7 +1630,6 @@ done:
 
 	brelse(bh);
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -1716,7 +1699,6 @@ static int ocfs2_recover_node(struct ocfs2_super *osb,
 	status = 0;
 done:
 
-	mlog_exit(status);
 	return status;
 }
 
@@ -1826,7 +1808,6 @@ int ocfs2_mark_dead_nodes(struct ocfs2_super *osb)
 
 	status = 0;
 bail:
-	mlog_exit(status);
 	return status;
 }
 

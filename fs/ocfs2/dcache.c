@@ -123,8 +123,7 @@ valid:
 	ret = 1;
 
 bail:
-	mlog_exit(ret);
-
+	mlog(0, "ret = %d\n", ret);
 	return ret;
 }
 

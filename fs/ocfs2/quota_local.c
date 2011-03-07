@@ -575,7 +575,8 @@ out_put_bh:
 	}
 	if (status < 0)
 		free_recovery_list(&(rec->r_list[type]));
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 

@@ -364,7 +364,8 @@ bail:
 
 	mlog(0, "Local alloc window bits = %d\n", osb->local_alloc_bits);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -478,8 +479,6 @@ out:
 
 	if (alloc_copy)
 		kfree(alloc_copy);
-
-	mlog_exit_void();
 }
 
 /*
@@ -548,7 +547,8 @@ bail:
 		iput(inode);
 	}
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -614,7 +614,8 @@ out_mutex:
 out:
 	if (!status)
 		ocfs2_init_steal_slots(osb);
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -724,7 +725,8 @@ bail:
 	mlog(0, "bits=%d, slot=%d, ret=%d\n", bits_wanted, osb->slot_num,
 	     status);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -779,7 +781,8 @@ int ocfs2_claim_local_alloc_bits(struct ocfs2_super *osb,
 	ocfs2_journal_dirty(handle, osb->local_alloc_bh);
 
 bail:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -794,7 +797,7 @@ static u32 ocfs2_local_alloc_count_bits(struct ocfs2_dinode *alloc)
 	for (i = 0; i < le16_to_cpu(la->la_size); i++)
 		count += hweight8(buffer[i]);
 
-	mlog_exit(count);
+	mlog(0, "count %u\n", count);
 	return count;
 }
 
@@ -884,7 +887,7 @@ bail:
 	if (local_resv)
 		ocfs2_resv_discard(resmap, resv);
 
-	mlog_exit(bitoff);
+	mlog(0, "bitoff %d\n", bitoff);
 	return bitoff;
 }
 
@@ -898,8 +901,6 @@ static void ocfs2_clear_local_alloc(struct ocfs2_dinode *alloc)
 	la->la_bm_off = 0;
 	for(i = 0; i < le16_to_cpu(la->la_size); i++)
 		la->la_bitmap[i] = 0;
-
-	mlog_exit_void();
 }
 
 #if 0
@@ -995,7 +996,8 @@ static int ocfs2_sync_local_to_main(struct ocfs2_super *osb,
 	}
 
 bail:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -1120,7 +1122,8 @@ bail:
 		*ac = NULL;
 	}
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -1212,7 +1215,8 @@ retry_enospc:
 	mlog(0, "window bits = %u\n", le32_to_cpu(alloc->id1.bitmap1.i_total));
 
 bail:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -1308,7 +1312,8 @@ bail:
 	if (ac)
 		ocfs2_free_alloc_context(ac);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 

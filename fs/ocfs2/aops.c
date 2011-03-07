@@ -123,7 +123,6 @@ static int ocfs2_symlink_get_block(struct inode *inode, sector_t iblock,
 bail:
 	brelse(bh);
 
-	mlog_exit(err);
 	return err;
 }
 
@@ -208,7 +207,6 @@ bail:
 	if (err < 0)
 		err = -EIO;
 
-	mlog_exit(err);
 	return err;
 }
 
@@ -323,7 +321,6 @@ out_inode_unlock:
 out:
 	if (unlock)
 		unlock_page(page);
-	mlog_exit(ret);
 	return ret;
 }
 
@@ -401,8 +398,6 @@ static int ocfs2_writepage(struct page *page, struct writeback_control *wbc)
 	mlog(0, "(0x%p)\n", page);
 
 	ret = block_write_full_page(page, ocfs2_get_block, wbc);
-
-	mlog_exit(ret);
 
 	return ret;
 }
@@ -483,8 +478,6 @@ static sector_t ocfs2_bmap(struct address_space *mapping, sector_t block)
 
 bail:
 	status = err ? 0 : p_blkno;
-
-	mlog_exit((int)status);
 
 	return status;
 }
@@ -616,7 +609,6 @@ static ssize_t ocfs2_direct_IO(int rw,
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_path.dentry->d_inode->i_mapping->host;
-	int ret;
 
 	/*
 	 * Fallback to buffered I/O if we see an inode without
@@ -629,13 +621,10 @@ static ssize_t ocfs2_direct_IO(int rw,
 	if (i_size_read(inode) <= offset)
 		return 0;
 
-	ret = __blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev,
-				   iov, offset, nr_segs,
-				   ocfs2_direct_IO_get_blocks,
-				   ocfs2_dio_end_io, NULL, 0);
-
-	mlog_exit(ret);
-	return ret;
+	return __blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev,
+				    iov, offset, nr_segs,
+				    ocfs2_direct_IO_get_blocks,
+				    ocfs2_dio_end_io, NULL, 0);
 }
 
 static void ocfs2_figure_cluster_boundaries(struct ocfs2_super *osb,

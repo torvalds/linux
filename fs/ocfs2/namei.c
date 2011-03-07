@@ -182,7 +182,7 @@ bail_unlock:
 
 bail:
 
-	mlog_exit_ptr(ret);
+	mlog(0, "%p\n", ret);
 
 	return ret;
 }
@@ -466,7 +466,8 @@ leave:
 		iput(inode);
 	}
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 
 	return status;
 }
@@ -577,7 +578,8 @@ leave:
 		}
 	}
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -618,7 +620,8 @@ static int ocfs2_mkdir(struct inode *dir,
 	mlog(0, "(0x%p, 0x%p, %d, '%.*s')\n", dir, dentry, mode,
 	     dentry->d_name.len, dentry->d_name.name);
 	ret = ocfs2_mknod(dir, dentry, mode | S_IFDIR, 0);
-	mlog_exit(ret);
+	if (ret)
+		mlog_errno(ret);
 
 	return ret;
 }
@@ -633,7 +636,8 @@ static int ocfs2_create(struct inode *dir,
 	mlog(0, "(0x%p, 0x%p, %d, '%.*s')\n", dir, dentry, mode,
 	     dentry->d_name.len, dentry->d_name.name);
 	ret = ocfs2_mknod(dir, dentry, mode | S_IFREG, 0);
-	mlog_exit(ret);
+	if (ret)
+		mlog_errno(ret);
 
 	return ret;
 }
@@ -757,7 +761,8 @@ out:
 
 	ocfs2_free_dir_lookup_result(&lookup);
 
-	mlog_exit(err);
+	if (err)
+		mlog_errno(err);
 
 	return err;
 }
@@ -954,7 +959,8 @@ leave:
 	ocfs2_free_dir_lookup_result(&orphan_insert);
 	ocfs2_free_dir_lookup_result(&lookup);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 
 	return status;
 }
@@ -1025,7 +1031,8 @@ static int ocfs2_double_lock(struct ocfs2_super *osb,
 	}
 
 bail:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -1476,7 +1483,8 @@ bail:
 	brelse(old_dir_bh);
 	brelse(new_dir_bh);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 
 	return status;
 }
@@ -1579,7 +1587,8 @@ bail:
 		kfree(bhs);
 	}
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -1835,7 +1844,8 @@ bail:
 		iput(inode);
 	}
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 
 	return status;
 }
@@ -1865,7 +1875,8 @@ static int ocfs2_blkno_stringify(u64 blkno, char *name)
 
 	status = 0;
 bail:
-	mlog_exit(status);
+	if (status < 0)
+		mlog_errno(status);
 	return status;
 }
 
@@ -1978,7 +1989,8 @@ out:
 		iput(orphan_dir_inode);
 	}
 
-	mlog_exit(ret);
+	if (ret)
+		mlog_errno(ret);
 	return ret;
 }
 
@@ -2060,7 +2072,8 @@ static int ocfs2_orphan_add(struct ocfs2_super *osb,
 leave:
 	brelse(orphan_dir_bh);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -2120,7 +2133,8 @@ int ocfs2_orphan_del(struct ocfs2_super *osb,
 leave:
 	ocfs2_free_dir_lookup_result(&lookup);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -2472,7 +2486,8 @@ leave:
 
 	ocfs2_free_dir_lookup_result(&lookup);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 
 	return status;
 }
