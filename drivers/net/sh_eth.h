@@ -207,6 +207,7 @@ static const u16 sh_eth_offset_gigabit[SH_ETH_MAX_REGISTER_OFFSET] = {
 	[CEECR]	= 0x0770,
 	[MAFCR]	= 0x0778,
 
+	[ARSTR]	= 0x0000,
 	[TSU_CTRST]	= 0x0004,
 	[TSU_FWEN0]	= 0x0010,
 	[TSU_FWEN1]	= 0x0014,
@@ -328,6 +329,7 @@ static const u16 sh_eth_offset_fast_sh3_sh2[SH_ETH_MAX_REGISTER_OFFSET] = {
 	[TPAUSER]	= 0x01c4,
 	[BCFR]	= 0x01cc,
 
+	[ARSTR]	= 0x0000,
 	[TSU_CTRST]	= 0x0004,
 	[TSU_FWEN0]	= 0x0010,
 	[TSU_FWEN1]	= 0x0014,
@@ -370,21 +372,6 @@ static const u16 sh_eth_offset_fast_sh3_sh2[SH_ETH_MAX_REGISTER_OFFSET] = {
 	[TSU_ADRL31]	= 0x01fc,
 
 };
-
-#if defined(CONFIG_CPU_SUBTYPE_SH7763)
-/* This CPU register maps is very difference by other SH4 CPU */
-/* Chip Base Address */
-# define SH_TSU_ADDR	0xFEE01800
-# define ARSTR		SH_TSU_ADDR
-#elif defined(CONFIG_CPU_SH4)	/* #if defined(CONFIG_CPU_SUBTYPE_SH7763) */
-#else /* #elif defined(CONFIG_CPU_SH4) */
-/* This section is SH3 or SH2 */
-#ifndef CONFIG_CPU_SUBTYPE_SH7619
-/* Chip base address */
-# define SH_TSU_ADDR  0xA7000804
-# define ARSTR		  0xA7000800
-#endif
-#endif /* CONFIG_CPU_SUBTYPE_SH7763 */
 
 /* Driver's parameters */
 #if defined(CONFIG_CPU_SH4)
@@ -770,6 +757,7 @@ struct sh_eth_cpu_data {
 	unsigned mpr:1;			/* EtherC have MPR */
 	unsigned tpauser:1;		/* EtherC have TPAUSER */
 	unsigned bculr:1;		/* EtherC have BCULR */
+	unsigned tsu:1;			/* EtherC have TSU */
 	unsigned hw_swap:1;		/* E-DMAC have DE bit in EDMR */
 	unsigned rpadir:1;		/* E-DMAC have RPADIR */
 	unsigned no_trimd:1;		/* E-DMAC DO NOT have TRIMD */

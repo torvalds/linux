@@ -145,8 +145,10 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 #define SH_ETH_HAS_TSU	1
 static void sh_eth_chip_reset(struct net_device *ndev)
 {
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+
 	/* reset device */
-	writel(ARSTR_ARSTR, ARSTR);
+	sh_eth_tsu_write(mdp, ARSTR_ARSTR, ARSTR);
 	mdelay(1);
 }
 
@@ -229,6 +231,7 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.hw_swap	= 1,
 	.no_trimd	= 1,
 	.no_ade		= 1,
+	.tsu		= 1,
 };
 
 #elif defined(CONFIG_CPU_SUBTYPE_SH7619)
@@ -246,6 +249,7 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 #define SH_ETH_HAS_TSU	1
 static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
+	.tsu		= 1,
 };
 #endif
 
@@ -1446,6 +1450,7 @@ static void sh_eth_set_multicast_list(struct net_device *ndev)
 				ECMR_MCT, ECMR);
 	}
 }
+#endif /* SH_ETH_HAS_TSU */
 
 /* SuperH's TSU register init function */
 static void sh_eth_tsu_init(struct sh_eth_private *mdp)
@@ -1475,7 +1480,6 @@ static void sh_eth_tsu_init(struct sh_eth_private *mdp)
 	sh_eth_tsu_write(mdp, 0, TSU_POST3);	/* Disable CAM entry [16-23] */
 	sh_eth_tsu_write(mdp, 0, TSU_POST4);	/* Disable CAM entry [24-31] */
 }
-#endif /* SH_ETH_HAS_TSU */
 
 /* MDIO bus release function */
 static int sh_mdio_release(struct net_device *ndev)
@@ -1676,14 +1680,23 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 
 	/* First device only init */
 	if (!devno) {
+		if (mdp->cd->tsu) {
+			struct resource *rtsu;
+			rtsu = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+			if (!rtsu) {
+				dev_err(&pdev->dev, "Not found TSU resource\n");
+				goto out_release;
+			}
+			mdp->tsu_addr = ioremap(rtsu->start,
+						resource_size(rtsu));
+		}
 		if (mdp->cd->chip_reset)
 			mdp->cd->chip_reset(ndev);
 
-#if defined(SH_ETH_HAS_TSU)
-		/* TSU init (Init only)*/
-		mdp->tsu_addr = SH_TSU_ADDR;
-		sh_eth_tsu_init(mdp);
-#endif
+		if (mdp->cd->tsu) {
+			/* TSU init (Init only)*/
+			sh_eth_tsu_init(mdp);
+		}
 	}
 
 	/* network device register */
@@ -1709,6 +1722,8 @@ out_unregister:
 
 out_release:
 	/* net_dev free */
+	if (mdp->tsu_addr)
+		iounmap(mdp->tsu_addr);
 	if (ndev)
 		free_netdev(ndev);
 
@@ -1719,7 +1734,9 @@ out:
 static int sh_eth_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct sh_eth_private *mdp = netdev_priv(ndev);
 
+	iounmap(mdp->tsu_addr);
 	sh_mdio_release(ndev);
 	unregister_netdev(ndev);
 	pm_runtime_disable(&pdev->dev);
