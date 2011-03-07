@@ -61,6 +61,12 @@ static void rb_insert_active_sym(struct rb_root *tree, struct sym_entry *se)
 	rb_insert_color(&se->rb_node, tree);
 }
 
+#define SNPRINTF(buf, size, fmt, args...) \
+({ \
+	size_t r = snprintf(buf, size, fmt, ## args); \
+	r > size ?  size : r; \
+})
+
 size_t perf_top__header_snprintf(struct perf_top *top, char *bf, size_t size)
 {
 	struct perf_evsel *counter;
@@ -70,7 +76,7 @@ size_t perf_top__header_snprintf(struct perf_top *top, char *bf, size_t size)
 	size_t ret = 0;
 
 	if (!perf_guest) {
-		ret = snprintf(bf, size,
+		ret = SNPRINTF(bf, size,
 			       "   PerfTop:%8.0f irqs/sec  kernel:%4.1f%%"
 			       "  exact: %4.1f%% [", samples_per_sec,
 			       100.0 - (100.0 * ((samples_per_sec - ksamples_per_sec) /
@@ -81,7 +87,7 @@ size_t perf_top__header_snprintf(struct perf_top *top, char *bf, size_t size)
 		float guest_kernel_samples_per_sec = top->guest_kernel_samples / top->delay_secs;
 		float guest_us_samples_per_sec = top->guest_us_samples / top->delay_secs;
 
-		ret = snprintf(bf, size,
+		ret = SNPRINTF(bf, size,
 			       "   PerfTop:%8.0f irqs/sec  kernel:%4.1f%% us:%4.1f%%"
 			       " guest kernel:%4.1f%% guest us:%4.1f%%"
 			       " exact: %4.1f%% [", samples_per_sec,
@@ -101,38 +107,38 @@ size_t perf_top__header_snprintf(struct perf_top *top, char *bf, size_t size)
 	if (top->evlist->nr_entries == 1 || !top->display_weighted) {
 		struct perf_evsel *first;
 		first = list_entry(top->evlist->entries.next, struct perf_evsel, node);
-		ret += snprintf(bf + ret, size - ret, "%" PRIu64 "%s ",
+		ret += SNPRINTF(bf + ret, size - ret, "%" PRIu64 "%s ",
 				(uint64_t)first->attr.sample_period,
 				top->freq ? "Hz" : "");
 	}
 
 	if (!top->display_weighted) {
-		ret += snprintf(bf + ret, size - ret, "%s",
+		ret += SNPRINTF(bf + ret, size - ret, "%s",
 				event_name(top->sym_evsel));
 	} else list_for_each_entry(counter, &top->evlist->entries, node) {
-		ret += snprintf(bf + ret, size - ret, "%s%s",
+		ret += SNPRINTF(bf + ret, size - ret, "%s%s",
 				counter->idx ? "/" : "", event_name(counter));
 	}
 
-	ret += snprintf(bf + ret, size - ret, "], ");
+	ret += SNPRINTF(bf + ret, size - ret, "], ");
 
 	if (top->target_pid != -1)
-		ret += snprintf(bf + ret, size - ret, " (target_pid: %d",
+		ret += SNPRINTF(bf + ret, size - ret, " (target_pid: %d",
 				top->target_pid);
 	else if (top->target_tid != -1)
-		ret += snprintf(bf + ret, size - ret, " (target_tid: %d",
+		ret += SNPRINTF(bf + ret, size - ret, " (target_tid: %d",
 				top->target_tid);
 	else
-		ret += snprintf(bf + ret, size - ret, " (all");
+		ret += SNPRINTF(bf + ret, size - ret, " (all");
 
 	if (top->cpu_list)
-		ret += snprintf(bf + ret, size - ret, ", CPU%s: %s)",
+		ret += SNPRINTF(bf + ret, size - ret, ", CPU%s: %s)",
 				top->evlist->cpus->nr > 1 ? "s" : "", top->cpu_list);
 	else {
 		if (top->target_tid != -1)
-			ret += snprintf(bf + ret, size - ret, ")");
+			ret += SNPRINTF(bf + ret, size - ret, ")");
 		else
-			ret += snprintf(bf + ret, size - ret, ", %d CPU%s)",
+			ret += SNPRINTF(bf + ret, size - ret, ", %d CPU%s)",
 					top->evlist->cpus->nr,
 					top->evlist->cpus->nr > 1 ? "s" : "");
 	}
