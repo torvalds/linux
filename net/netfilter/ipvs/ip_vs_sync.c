@@ -697,13 +697,12 @@ ip_vs_conn_fill_param_sync(struct net *net, int af, union ip_vs_sync_conn *sc,
 			return 1;
 		}
 
-		p->pe_data = kmalloc(pe_data_len, GFP_ATOMIC);
+		p->pe_data = kmemdup(pe_data, pe_data_len, GFP_ATOMIC);
 		if (!p->pe_data) {
 			if (p->pe->module)
 				module_put(p->pe->module);
 			return -ENOMEM;
 		}
-		memcpy(p->pe_data, pe_data, pe_data_len);
 		p->pe_data_len = pe_data_len;
 	}
 	return 0;
