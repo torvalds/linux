@@ -1140,10 +1140,9 @@ static int wm9081_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 	return 0;
 }
 
-static int wm9081_set_sysclk(struct snd_soc_dai *codec_dai,
+static int wm9081_set_sysclk(struct snd_soc_codec *codec,
 			     int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
 	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
 
 	switch (clk_id) {
@@ -1208,7 +1207,6 @@ static int wm9081_set_tdm_slot(struct snd_soc_dai *dai,
 
 static struct snd_soc_dai_ops wm9081_dai_ops = {
 	.hw_params = wm9081_hw_params,
-	.set_sysclk = wm9081_set_sysclk,
 	.set_fmt = wm9081_set_dai_fmt,
 	.digital_mute = wm9081_digital_mute,
 	.set_tdm_slot = wm9081_set_tdm_slot,
@@ -1324,11 +1322,15 @@ static struct snd_soc_codec_driver soc_codec_dev_wm9081 = {
 	.remove = 	wm9081_remove,
 	.suspend =	wm9081_suspend,
 	.resume =	wm9081_resume,
+
+	.set_sysclk = wm9081_set_sysclk,
 	.set_bias_level = wm9081_set_bias_level,
+
 	.reg_cache_size = ARRAY_SIZE(wm9081_reg_defaults),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm9081_reg_defaults,
 	.volatile_register = wm9081_volatile_register,
+
 	.dapm_widgets	  = wm9081_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(wm9081_dapm_widgets),
 	.dapm_routes     = wm9081_audio_paths,
