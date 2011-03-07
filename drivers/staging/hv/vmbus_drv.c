@@ -742,7 +742,7 @@ int vmbus_child_device_register(struct hv_device *root_device_obj,
 	ret = device_register(&child_device_ctx->device);
 
 	/* vmbus_probe() error does not get propergate to device_register(). */
-	ret = child_device_ctx->probe_error;
+	ret = child_device_ctx->device_obj.probe_error;
 
 	if (ret)
 		DPRINT_ERR(VMBUS_DRV, "unable to register child device (%p)",
@@ -908,7 +908,7 @@ static int vmbus_probe(struct device *child_device)
 
 	/* Let the specific open-source driver handles the probe if it can */
 	if (drv->driver.probe) {
-		ret = device_ctx->probe_error =
+		ret = device_ctx->device_obj.probe_error =
 		drv->driver.probe(child_device);
 		if (ret != 0) {
 			DPRINT_ERR(VMBUS_DRV, "probe() failed for device %s "

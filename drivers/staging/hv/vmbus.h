@@ -32,7 +32,6 @@
 struct vm_device {
 	struct hv_guid class_id;
 	struct hv_guid device_id;
-	int probe_error;
 	struct hv_device device_obj;
 	struct device device;
 };
