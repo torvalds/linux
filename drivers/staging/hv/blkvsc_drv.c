@@ -188,7 +188,7 @@ static int blkvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 
 	drv_ctx->driver.probe = blkvsc_probe;
 	drv_ctx->driver.remove = blkvsc_remove;
-	drv_ctx->shutdown = blkvsc_shutdown;
+	drv_ctx->driver.shutdown = blkvsc_shutdown;
 
 	/* The driver belongs to vmbus */
 	ret = vmbus_child_driver_register(drv_ctx);

@@ -1000,8 +1000,8 @@ static void vmbus_shutdown(struct device *child_device)
 	driver_ctx = driver_to_driver_context(child_device->driver);
 
 	/* Let the specific open-source driver handles the removal if it can */
-	if (driver_ctx->shutdown)
-		driver_ctx->shutdown(child_device);
+	if (driver_ctx->driver.shutdown)
+		driver_ctx->driver.shutdown(child_device);
 
 	return;
 }
