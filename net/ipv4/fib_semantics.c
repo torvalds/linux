@@ -707,6 +707,9 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 	int nhs = 1;
 	struct net *net = cfg->fc_nlinfo.nl_net;
 
+	if (cfg->fc_type > RTN_MAX)
+		goto err_inval;
+
 	/* Fast check to catch the most weird cases */
 	if (fib_props[cfg->fc_type].scope > cfg->fc_scope)
 		goto err_inval;
@@ -812,6 +815,17 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 		if (cfg->fc_gw || cfg->fc_oif || cfg->fc_mp)
 			goto err_inval;
 		goto link_it;
+	} else {
+		switch (cfg->fc_type) {
+		case RTN_UNICAST:
+		case RTN_LOCAL:
+		case RTN_BROADCAST:
+		case RTN_ANYCAST:
+		case RTN_MULTICAST:
+			break;
+		default:
+			goto err_inval;
+		}
 	}
 
 	if (cfg->fc_scope > RT_SCOPE_HOST)
@@ -915,35 +929,23 @@ int fib_semantic_match(struct fib_table *tb, struct list_head *head,
 			if (fi->fib_flags & RTNH_F_DEAD)
 				continue;
 
-			switch (fa->fa_type) {
-			case RTN_UNICAST:
-			case RTN_LOCAL:
-			case RTN_BROADCAST:
-			case RTN_ANYCAST:
-			case RTN_MULTICAST:
-				for_nexthops(fi) {
-					if (nh->nh_flags & RTNH_F_DEAD)
-						continue;
-					if (!flp->oif || flp->oif == nh->nh_oif)
-						break;
-				}
-#ifdef CONFIG_IP_ROUTE_MULTIPATH
-				if (nhsel < fi->fib_nhs) {
-					nh_sel = nhsel;
-					goto out_fill_res;
-				}
-#else
-				if (nhsel < 1)
-					goto out_fill_res;
-#endif
-				endfor_nexthops(fi);
-				continue;
-
-			default:
-				pr_warning("fib_semantic_match bad type %#x\n",
-					   fa->fa_type);
-				return -EINVAL;
+			for_nexthops(fi) {
+				if (nh->nh_flags & RTNH_F_DEAD)
+					continue;
+				if (!flp->oif || flp->oif == nh->nh_oif)
+					break;
 			}
+#ifdef CONFIG_IP_ROUTE_MULTIPATH
+			if (nhsel < fi->fib_nhs) {
+				nh_sel = nhsel;
+				goto out_fill_res;
+			}
+#else
+			if (nhsel < 1)
+				goto out_fill_res;
+#endif
+			endfor_nexthops(fi);
+			continue;
 		}
 		return err;
 	}
