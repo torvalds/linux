@@ -128,8 +128,8 @@ static int am200_init_gpio_regs(struct metronomefb_par *par)
 	return 0;
 
 err_req_gpio:
-	while (i > 0)
-		gpio_free(gpios[i--]);
+	while (--i >= 0)
+		gpio_free(gpios[i]);
 
 	return err;
 }
