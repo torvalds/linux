@@ -368,6 +368,14 @@ extern int pm860x_bulk_read(struct i2c_client *, int, int, unsigned char *);
 extern int pm860x_bulk_write(struct i2c_client *, int, int, unsigned char *);
 extern int pm860x_set_bits(struct i2c_client *, int, unsigned char,
 			   unsigned char);
+extern int pm860x_page_reg_read(struct i2c_client *, int);
+extern int pm860x_page_reg_write(struct i2c_client *, int, unsigned char);
+extern int pm860x_page_bulk_read(struct i2c_client *, int, int,
+				 unsigned char *);
+extern int pm860x_page_bulk_write(struct i2c_client *, int, int,
+				  unsigned char *);
+extern int pm860x_page_set_bits(struct i2c_client *, int, unsigned char,
+				unsigned char);
 
 extern int pm860x_device_init(struct pm860x_chip *chip,
 			      struct pm860x_platform_data *pdata) __devinit ;
