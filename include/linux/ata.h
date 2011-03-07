@@ -89,6 +89,7 @@ enum {
 	ATA_ID_SPG		= 98,
 	ATA_ID_LBA_CAPACITY_2	= 100,
 	ATA_ID_SECTOR_SIZE	= 106,
+	ATA_ID_WWN		= 108,
 	ATA_ID_LOGICAL_SECTOR_SIZE	= 117,	/* and 118 */
 	ATA_ID_LAST_LUN		= 126,
 	ATA_ID_DLF		= 128,
@@ -103,6 +104,7 @@ enum {
 	ATA_ID_SERNO_LEN	= 20,
 	ATA_ID_FW_REV_LEN	= 8,
 	ATA_ID_PROD_LEN		= 40,
+	ATA_ID_WWN_LEN		= 8,
 
 	ATA_PCI_CTL_OFS		= 2,
 
@@ -813,6 +815,11 @@ static inline int ata_id_has_unload(const u16 *id)
 	    id[ATA_ID_CFSSE] & (1 << 13))
 		return 1;
 	return 0;
+}
+
+static inline bool ata_id_has_wwn(const u16 *id)
+{
+	return (id[ATA_ID_CSF_DEFAULT] & 0xC100) == 0x4100;
 }
 
 static inline int ata_id_form_factor(const u16 *id)
