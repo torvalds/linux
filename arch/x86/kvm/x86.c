@@ -4162,8 +4162,8 @@ static unsigned long emulator_get_cached_segment_base(int seg,
 	return get_segment_base(vcpu, seg);
 }
 
-static bool emulator_get_cached_descriptor(struct desc_struct *desc, int seg,
-					   struct kvm_vcpu *vcpu)
+static bool emulator_get_cached_descriptor(struct desc_struct *desc, u32 *base3,
+					   int seg, struct kvm_vcpu *vcpu)
 {
 	struct kvm_segment var;
 
@@ -4176,6 +4176,10 @@ static bool emulator_get_cached_descriptor(struct desc_struct *desc, int seg,
 		var.limit >>= 12;
 	set_desc_limit(desc, var.limit);
 	set_desc_base(desc, (unsigned long)var.base);
+#ifdef CONFIG_X86_64
+	if (base3)
+		*base3 = var.base >> 32;
+#endif
 	desc->type = var.type;
 	desc->s = var.s;
 	desc->dpl = var.dpl;
@@ -4188,8 +4192,8 @@ static bool emulator_get_cached_descriptor(struct desc_struct *desc, int seg,
 	return true;
 }
 
-static void emulator_set_cached_descriptor(struct desc_struct *desc, int seg,
-					   struct kvm_vcpu *vcpu)
+static void emulator_set_cached_descriptor(struct desc_struct *desc, u32 base3,
+					   int seg, struct kvm_vcpu *vcpu)
 {
 	struct kvm_segment var;
 
@@ -4197,6 +4201,9 @@ static void emulator_set_cached_descriptor(struct desc_struct *desc, int seg,
 	kvm_get_segment(vcpu, &var, seg);
 
 	var.base = get_desc_base(desc);
+#ifdef CONFIG_X86_64
+	var.base |= ((u64)base3) << 32;
+#endif
 	var.limit = get_desc_limit(desc);
 	if (desc->g)
 		var.limit = (var.limit << 12) | 0xfff;

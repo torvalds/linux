@@ -142,9 +142,9 @@ struct x86_emulate_ops {
 	int (*pio_out_emulated)(int size, unsigned short port, const void *val,
 				unsigned int count, struct kvm_vcpu *vcpu);
 
-	bool (*get_cached_descriptor)(struct desc_struct *desc,
+	bool (*get_cached_descriptor)(struct desc_struct *desc, u32 *base3,
 				      int seg, struct kvm_vcpu *vcpu);
-	void (*set_cached_descriptor)(struct desc_struct *desc,
+	void (*set_cached_descriptor)(struct desc_struct *desc, u32 base3,
 				      int seg, struct kvm_vcpu *vcpu);
 	u16 (*get_segment_selector)(int seg, struct kvm_vcpu *vcpu);
 	void (*set_segment_selector)(u16 sel, int seg, struct kvm_vcpu *vcpu);
