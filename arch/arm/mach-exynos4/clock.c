@@ -489,6 +489,7 @@ static struct clk init_clocks_off[] = {
 	}, {
 		.name		= "watchdog",
 		.id		= -1,
+		.parent		= &clk_aclk_100.clk,
 		.enable		= exynos4_clk_ip_perir_ctrl,
 		.ctrlbit	= (1 << 14),
 	}, {
