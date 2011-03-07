@@ -1138,12 +1138,14 @@ static int rk29_camera_try_fmt(struct soc_camera_device *icd,
                                    struct v4l2_format *f)
 {
     struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct rk29_camera_dev *pcdev = ici->priv;
     struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
     const struct soc_camera_format_xlate *xlate;
     struct v4l2_pix_format *pix = &f->fmt.pix;
     __u32 pixfmt = pix->pixelformat;
     enum v4l2_field field;
     int ret,usr_w,usr_h;
+	int bytes_per_pixel;
 
 	usr_w = pix->width;
 	usr_h = pix->height;
@@ -1169,13 +1171,25 @@ static int rk29_camera_try_fmt(struct soc_camera_device *icd,
     ret = v4l2_subdev_call(sd, video, try_fmt, f);
     pix->pixelformat = pixfmt;
 	#ifdef CONFIG_VIDEO_RK29_WORK_IPP
+	bytes_per_pixel = (xlate->cam_fmt->depth + 7) >> 3;
 	if ((pix->width > usr_w) && (pix->height > usr_h)) {
-		pix->width = usr_w;
-		pix->height = usr_h;
-	} else if ((pix->width < usr_w) && (pix->height < usr_h)) {
-		if (((usr_w>>1) < pix->width) && ((usr_h>>1) < pix->height)) {
+		/* Assume preview buffer minimum is 4 */
+		if (PAGE_ALIGN(bytes_per_pixel*pix->width*pix->height)*4 <= pcdev->vipmem_size) {
 			pix->width = usr_w;
 			pix->height = usr_h;
+		} else {
+			RK29CAMERA_TR("vipmem for IPP is overflow, This resolution(%dx%d -> %dx%d) is invalidate!\n",pix->width,pix->height,usr_w,usr_h);
+		}
+	} else if ((pix->width < usr_w) && (pix->height < usr_h)) {
+		if (((usr_w>>1) < pix->width) && ((usr_h>>1) < pix->height)) {
+			if (PAGE_ALIGN(bytes_per_pixel*pix->width*pix->height)*4 <= pcdev->vipmem_size) {
+				pix->width = usr_w;
+				pix->height = usr_h;
+			} else {
+				RK29CAMERA_TR("vipmem for IPP is overflow, This resolution(%dx%d -> %dx%d) is invalidate!\n",pix->width,pix->height,usr_w,usr_h);
+			}
+		} else {
+			RK29CAMERA_TR("The aspect ratio(%dx%d//%dx%d) is bigger than 2 !\n",pix->width,pix->height,usr_w,usr_h);
 		}
 	}
 	#endif
