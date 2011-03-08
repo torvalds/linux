@@ -70,6 +70,17 @@ enum sci_status isci_parse_oem_parameters(
 	int scu_index);
 struct isci_orom *isci_request_firmware(struct pci_dev *pdev, const struct firmware *fw);
 struct isci_orom *isci_get_efi_var(struct pci_dev *pdev);
+
+struct isci_oem_hdr {
+	u8 sig[4];
+	u8 rev_major;
+	u8 rev_minor;
+	u16 len;
+	u8 checksum;
+	u8 reserved1;
+	u16 reserved2;
+} __attribute__ ((packed));
+
 #else
 #define SCI_MAX_PORTS 4
 #define SCI_MAX_PHYS 4
@@ -80,6 +91,8 @@ struct isci_orom *isci_get_efi_var(struct pci_dev *pdev);
 
 #define ROMSIGNATURE		0xaa55
 
+#define ISCI_OEM_SIG		"$OEM"
+#define ISCI_OEM_SIG_SIZE	4
 #define ISCI_ROM_SIG		"ISCUOEMB"
 #define ISCI_ROM_SIG_SIZE	8
 

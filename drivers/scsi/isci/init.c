@@ -495,8 +495,11 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 	}
 
 	if (orom)
-		dev_info(&pdev->dev, "sas parameters (version: %#x) loaded\n",
-			 orom->hdr.version);
+		dev_info(&pdev->dev,
+			 "OEM SAS parameters (version: %u.%u) loaded\n",
+			 (orom->hdr.version & 0xf0) >> 4,
+			 (orom->hdr.version & 0xf));
+
 	pci_info->orom = orom;
 
 	err = isci_pci_init(pdev);

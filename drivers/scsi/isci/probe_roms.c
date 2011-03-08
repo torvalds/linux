@@ -51,6 +51,10 @@ struct isci_orom *isci_request_oprom(struct pci_dev *pdev)
 	void __iomem *oprom = pci_map_biosrom(pdev);
 	struct isci_orom *rom = NULL;
 	size_t len, i;
+	int j;
+	char oem_sig[4];
+	struct isci_oem_hdr oem_hdr;
+	u8 *tmp, sum;
 
 	if (!oprom)
 		return NULL;
@@ -58,13 +62,45 @@ struct isci_orom *isci_request_oprom(struct pci_dev *pdev)
 	len = pci_biosrom_size(pdev);
 	rom = devm_kzalloc(&pdev->dev, sizeof(*rom), GFP_KERNEL);
 
-	for (i = 0; i < len && rom; i += ISCI_ROM_SIG_SIZE) {
-		memcpy_fromio(rom->hdr.signature, oprom + i, ISCI_ROM_SIG_SIZE);
-		if (memcmp(rom->hdr.signature, ISCI_ROM_SIG,
-			   ISCI_ROM_SIG_SIZE) == 0) {
-			size_t copy_len = min(len - i, sizeof(*rom));
+	for (i = 0; i < len && rom; i += ISCI_OEM_SIG_SIZE) {
+		memcpy_fromio(oem_sig, oprom + i, ISCI_OEM_SIG_SIZE);
 
-			memcpy_fromio(rom, oprom + i, copy_len);
+		/* we think we found the OEM table */
+		if (memcmp(oem_sig, ISCI_OEM_SIG, ISCI_OEM_SIG_SIZE) == 0) {
+			size_t copy_len;
+
+			memcpy_fromio(&oem_hdr, oprom + i, sizeof(oem_hdr));
+
+			copy_len = min(oem_hdr.len - sizeof(oem_hdr),
+				       sizeof(*rom));
+
+			memcpy_fromio(rom,
+				      oprom + i + sizeof(oem_hdr),
+				      copy_len);
+
+			/* calculate checksum */
+			tmp = (u8 *)&oem_hdr;
+			for (j = 0, sum = 0; j < sizeof(oem_hdr); j++, tmp++)
+				sum += *tmp;
+
+			tmp = (u8 *)rom;
+			for (j = 0; j < sizeof(*rom); j++, tmp++)
+				sum += *tmp;
+
+			if (sum != 0) {
+				dev_warn(&pdev->dev,
+					 "OEM table checksum failed\n");
+				continue;
+			}
+
+			/* keep going if that's not the oem param table */
+			if (memcmp(rom->hdr.signature,
+				   ISCI_ROM_SIG,
+				   ISCI_ROM_SIG_SIZE) != 0)
+				continue;
+
+			dev_info(&pdev->dev,
+				 "OEM parameter table found in OROM\n");
 			break;
 		}
 	}
