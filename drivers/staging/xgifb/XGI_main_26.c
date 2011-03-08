@@ -2707,7 +2707,6 @@ static int forcecrt1 = -1;
 static int pdc = -1;
 static int pdc1 = -1;
 static int noypan = -1;
-static int nomax = -1;
 static int userom = -1;
 static int useoem = -1;
 static char *tvstandard = NULL;
@@ -2727,7 +2726,6 @@ MODULE_AUTHOR("XGITECH , Others");
 
 module_param(mem, int, 0);
 module_param(noypan, int, 0);
-module_param(nomax, int, 0);
 module_param(userom, int, 0);
 module_param(useoem, int, 0);
 module_param(mode, charp, 0);
@@ -2753,13 +2751,6 @@ module_param(videoram, int, 0);
 MODULE_PARM_DESC(noypan,
 		"\nIf set to anything other than 0, y-panning will be disabled and scrolling\n"
 		"will be performed by redrawing the screen. (default: 0)\n");
-
-MODULE_PARM_DESC(nomax,
-		"\nIf y-panning is enabled, xgifb will by default use the entire available video\n"
-		"memory for the virtual screen in order to optimize scrolling performance. If\n"
-		"this is set to anything other than 0, xgifb will not do this and thereby\n"
-		"enable the user to positively specify a virtual Y size of the screen using\n"
-		"fbset. (default: 0)\n");
 
 MODULE_PARM_DESC(mode,
 		"\nSelects the desired default display mode in the format XxYxDepth,\n"
