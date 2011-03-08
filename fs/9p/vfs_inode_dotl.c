@@ -245,6 +245,7 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 	v9fs_set_create_acl(dentry, dacl, pacl);
 
 	v9inode = V9FS_I(inode);
+	mutex_lock(&v9inode->v_mutex);
 	if (v9ses->cache && !v9inode->writeback_fid) {
 		/*
 		 * clone a fid and add it to writeback_fid
@@ -256,10 +257,12 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 		inode_fid = v9fs_writeback_fid(dentry);
 		if (IS_ERR(inode_fid)) {
 			err = PTR_ERR(inode_fid);
+			mutex_unlock(&v9inode->v_mutex);
 			goto error;
 		}
 		v9inode->writeback_fid = (void *) inode_fid;
 	}
+	mutex_unlock(&v9inode->v_mutex);
 	/* Since we are opening a file, assign the open fid to the file */
 	filp = lookup_instantiate_filp(nd, dentry, generic_file_open);
 	if (IS_ERR(filp)) {

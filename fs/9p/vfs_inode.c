@@ -221,6 +221,7 @@ struct inode *v9fs_alloc_inode(struct super_block *sb)
 #endif
 	v9inode->writeback_fid = NULL;
 	v9inode->cache_validity = 0;
+	mutex_init(&v9inode->v_mutex);
 	return &v9inode->vfs_inode;
 }
 
@@ -650,6 +651,7 @@ v9fs_vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	/* if we are opening a file, assign the open fid to the file */
 	if (nd && nd->flags & LOOKUP_OPEN) {
 		v9inode = V9FS_I(dentry->d_inode);
+		mutex_lock(&v9inode->v_mutex);
 		if (v9ses->cache && !v9inode->writeback_fid) {
 			/*
 			 * clone a fid and add it to writeback_fid
@@ -661,10 +663,12 @@ v9fs_vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 			inode_fid = v9fs_writeback_fid(dentry);
 			if (IS_ERR(inode_fid)) {
 				err = PTR_ERR(inode_fid);
+				mutex_unlock(&v9inode->v_mutex);
 				goto error;
 			}
 			v9inode->writeback_fid = (void *) inode_fid;
 		}
+		mutex_unlock(&v9inode->v_mutex);
 		filp = lookup_instantiate_filp(nd, dentry, generic_file_open);
 		if (IS_ERR(filp)) {
 			err = PTR_ERR(filp);

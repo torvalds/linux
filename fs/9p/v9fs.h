@@ -130,6 +130,7 @@ struct v9fs_inode {
 #endif
 	unsigned int cache_validity;
 	struct p9_fid *writeback_fid;
+	struct mutex v_mutex;
 	struct inode vfs_inode;
 };
 
