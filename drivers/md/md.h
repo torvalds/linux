@@ -274,6 +274,8 @@ struct mddev_s
 	atomic_t			active;		/* general refcount */
 	atomic_t			openers;	/* number of active opens */
 
+	int				changed;	/* True if we might need to
+							 * reread partition info */
 	int				degraded;	/* whether md should consider
 							 * adding a spare
 							 */

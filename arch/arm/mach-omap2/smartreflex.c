@@ -282,6 +282,7 @@ error:
 		dev_err(&sr_info->pdev->dev, "%s: ERROR in registering"
 			"interrupt handler. Smartreflex will"
 			"not function as desired\n", __func__);
+		kfree(name);
 		kfree(sr_info);
 		return ret;
 }
@@ -879,7 +880,7 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 		ret = sr_late_init(sr_info);
 		if (ret) {
 			pr_warning("%s: Error in SR late init\n", __func__);
-			return ret;
+			goto err_release_region;
 		}
 	}
 
@@ -890,17 +891,20 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 	 * not try to create rest of the debugfs entries.
 	 */
 	vdd_dbg_dir = omap_voltage_get_dbgdir(sr_info->voltdm);
-	if (!vdd_dbg_dir)
-		return -EINVAL;
+	if (!vdd_dbg_dir) {
+		ret = -EINVAL;
+		goto err_release_region;
+	}
 
 	dbg_dir = debugfs_create_dir("smartreflex", vdd_dbg_dir);
 	if (IS_ERR(dbg_dir)) {
 		dev_err(&pdev->dev, "%s: Unable to create debugfs directory\n",
 			__func__);
-		return PTR_ERR(dbg_dir);
+		ret = PTR_ERR(dbg_dir);
+		goto err_release_region;
 	}
 
-	(void) debugfs_create_file("autocomp", S_IRUGO | S_IWUGO, dbg_dir,
+	(void) debugfs_create_file("autocomp", S_IRUGO | S_IWUSR, dbg_dir,
 				(void *)sr_info, &pm_sr_fops);
 	(void) debugfs_create_x32("errweight", S_IRUGO, dbg_dir,
 			&sr_info->err_weight);
@@ -913,7 +917,8 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 	if (IS_ERR(nvalue_dir)) {
 		dev_err(&pdev->dev, "%s: Unable to create debugfs directory"
 			"for n-values\n", __func__);
-		return PTR_ERR(nvalue_dir);
+		ret = PTR_ERR(nvalue_dir);
+		goto err_release_region;
 	}
 
 	omap_voltage_get_volttable(sr_info->voltdm, &volt_data);
@@ -922,24 +927,16 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 			" corresponding vdd vdd_%s. Cannot create debugfs"
 			"entries for n-values\n",
 			__func__, sr_info->voltdm->name);
-		return -ENODATA;
+		ret = -ENODATA;
+		goto err_release_region;
 	}
 
 	for (i = 0; i < sr_info->nvalue_count; i++) {
-		char *name;
-		char volt_name[32];
+		char name[NVALUE_NAME_LEN + 1];
 
-		name = kzalloc(NVALUE_NAME_LEN + 1, GFP_KERNEL);
-		if (!name) {
-			dev_err(&pdev->dev, "%s: Unable to allocate memory"
-				" for n-value directory name\n",  __func__);
-			return -ENOMEM;
-		}
-
-		strcpy(name, "volt_");
-		sprintf(volt_name, "%d", volt_data[i].volt_nominal);
-		strcat(name, volt_name);
-		(void) debugfs_create_x32(name, S_IRUGO | S_IWUGO, nvalue_dir,
+		snprintf(name, sizeof(name), "volt_%d",
+			 volt_data[i].volt_nominal);
+		(void) debugfs_create_x32(name, S_IRUGO | S_IWUSR, nvalue_dir,
 				&(sr_info->nvalue_table[i].nvalue));
 	}
 
