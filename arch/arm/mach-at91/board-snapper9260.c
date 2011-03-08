@@ -65,7 +65,7 @@ static struct at91_udc_data __initdata snapper9260_udc_data = {
 	.vbus_polled		= 1,
 };
 
-static struct at91_eth_data snapper9260_macb_data = {
+static struct macb_platform_data snapper9260_macb_data = {
 	.is_rmii	= 1,
 };
 

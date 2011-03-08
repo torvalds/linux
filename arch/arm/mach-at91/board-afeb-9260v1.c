@@ -103,7 +103,7 @@ static struct spi_board_info afeb9260_spi_devices[] = {
 /*
  * MACB Ethernet device
  */
-static struct at91_eth_data __initdata afeb9260_macb_data = {
+static struct macb_platform_data __initdata afeb9260_macb_data = {
 	.phy_irq_pin	= AT91_PIN_PA9,
 	.is_rmii	= 0,
 };

@@ -155,7 +155,7 @@ static struct at91_mmc_data __initdata neocore926_mmc_data = {
 /*
  * MACB Ethernet device
  */
-static struct at91_eth_data __initdata neocore926_macb_data = {
+static struct macb_platform_data __initdata neocore926_macb_data = {
 	.phy_irq_pin	= AT91_PIN_PE31,
 	.is_rmii	= 1,
 };

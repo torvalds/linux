@@ -99,7 +99,7 @@ static struct at91_udc_data __initdata cpu9krea_udc_data = {
 /*
  * MACB Ethernet device
  */
-static struct at91_eth_data __initdata cpu9krea_macb_data = {
+static struct macb_platform_data __initdata cpu9krea_macb_data = {
 	.is_rmii	= 1,
 };
 
