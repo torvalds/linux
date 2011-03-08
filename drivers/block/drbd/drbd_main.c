@@ -2322,6 +2322,7 @@ enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, 
 	struct request_queue *q;
 	int vnr_got = vnr;
 	int minor_got = minor;
+	enum drbd_ret_code err = ERR_NOMEM;
 
 	mdev = minor_to_mdev(minor);
 	if (mdev)
@@ -2389,35 +2390,35 @@ enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, 
 	INIT_LIST_HEAD(&mdev->current_epoch->list);
 	mdev->epochs = 1;
 
-	if (!idr_pre_get(&tconn->volumes, GFP_KERNEL))
-		goto out_no_vol_idr;
-	if (idr_get_new(&tconn->volumes, mdev, &vnr_got))
-		goto out_no_vol_idr;
-	if (vnr_got != vnr) {
-		dev_err(DEV, "vnr_got (%d) != vnr (%d)\n", vnr_got, vnr);
-		goto out_idr_remove_vol;
+	if (!idr_pre_get(&minors, GFP_KERNEL))
+		goto out_no_minor_idr;
+	if (idr_get_new_above(&minors, mdev, minor, &minor_got))
+		goto out_no_minor_idr;
+	if (minor_got != minor) {
+		err = ERR_MINOR_EXISTS;
+		drbd_msg_put_info("requested minor exists already");
+		goto out_idr_remove_minor;
 	}
 
-	if (!idr_pre_get(&minors, GFP_KERNEL))
-		goto out_idr_remove_vol;
-	if (idr_get_new(&minors, mdev, &minor_got))
-		goto out_idr_remove_vol;
-	if (minor_got != minor) {
-		/* minor exists, or other idr strangeness? */
-		dev_err(DEV, "available minor (%d) != requested minor (%d)\n",
-				minor_got, minor);
+	if (!idr_pre_get(&tconn->volumes, GFP_KERNEL))
 		goto out_idr_remove_minor;
+	if (idr_get_new_above(&tconn->volumes, mdev, vnr, &vnr_got))
+		goto out_idr_remove_minor;
+	if (vnr_got != vnr) {
+		err = ERR_INVALID_REQUEST;
+		drbd_msg_put_info("requested volume exists already");
+		goto out_idr_remove_vol;
 	}
 	add_disk(disk);
 
 	return NO_ERROR;
 
-out_idr_remove_minor:
-	idr_remove(&minors, minor_got);
 out_idr_remove_vol:
 	idr_remove(&tconn->volumes, vnr_got);
+out_idr_remove_minor:
+	idr_remove(&minors, minor_got);
 	synchronize_rcu();
-out_no_vol_idr:
+out_no_minor_idr:
 	kfree(mdev->current_epoch);
 out_no_epoch:
 	drbd_bm_cleanup(mdev);
@@ -2429,7 +2430,7 @@ out_no_disk:
 	blk_cleanup_queue(q);
 out_no_q:
 	kfree(mdev);
-	return ERR_NOMEM;
+	return err;
 }
 
 /* counterpart of drbd_new_device.

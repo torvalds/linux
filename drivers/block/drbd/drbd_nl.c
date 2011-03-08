@@ -109,7 +109,7 @@ static void drbd_adm_send_reply(struct sk_buff *skb, struct genl_info *info)
 
 /* Used on a fresh "drbd_adm_prepare"d reply_skb, this cannot fail: The only
  * reason it could fail was no space in skb, and there are 4k available. */
-static int drbd_msg_put_info(const char *info)
+int drbd_msg_put_info(const char *info)
 {
 	struct sk_buff *skb = adm_ctx.reply_skb;
 	struct nlattr *nla;
