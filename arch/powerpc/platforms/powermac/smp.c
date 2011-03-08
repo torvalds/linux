@@ -951,13 +951,6 @@ static void pmac_cpu_die(void)
 	smp_wmb();
 
 	/*
-	 * during the path that leads here preemption is disabled,
-	 * reenable it now so that when coming up preempt count is
-	 * zero correctly
-	 */
-	preempt_enable();
-
-	/*
 	 * Re-enable interrupts. The NAP code needs to enable them
 	 * anyways, do it now so we deal with the case where one already
 	 * happened while soft-disabled.
