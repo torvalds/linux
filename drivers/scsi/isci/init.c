@@ -56,12 +56,15 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/firmware.h>
+#include <linux/efi.h>
 #include <asm/string.h>
 #include "isci.h"
 #include "task.h"
 #include "sci_controller_constants.h"
 #include "scic_remote_device.h"
 #include "sci_environment.h"
+#include "probe_roms.h"
 
 static struct scsi_transport_template *isci_transport_template;
 
@@ -373,85 +376,6 @@ static int isci_setup_interrupts(struct pci_dev *pdev)
 	return err;
 }
 
-/**
- * isci_parse_oem_parameters() - This method will take OEM parameters
- *    from the module init parameters and copy them to oem_params. This will
- *    only copy values that are not set to the module parameter default values
- * @oem_parameters: This parameter specifies the controller default OEM
- *    parameters. It is expected that this has been initialized to the default
- *    parameters for the controller
- *
- *
- */
-enum sci_status isci_parse_oem_parameters(union scic_oem_parameters *oem_params,
-					  int scu_index,
-					  struct isci_firmware *fw)
-{
-	int i;
-
-	/* check for valid inputs */
-	if (!(scu_index >= 0
-	      && scu_index < SCI_MAX_CONTROLLERS
-	      && oem_params != NULL)) {
-		return SCI_FAILURE;
-	}
-
-	for (i = 0; i < SCI_MAX_PHYS; i++) {
-		int array_idx = i + (SCI_MAX_PHYS * scu_index);
-		u64 sas_addr = fw->sas_addrs[array_idx];
-
-		if (sas_addr != 0) {
-			oem_params->sds1.phys[i].sas_address.low =
-				(u32)(sas_addr & 0xffffffff);
-			oem_params->sds1.phys[i].sas_address.high =
-				(u32)((sas_addr >> 32) & 0xffffffff);
-		}
-	}
-
-	for (i = 0; i < SCI_MAX_PORTS; i++) {
-		int array_idx = i + (SCI_MAX_PORTS * scu_index);
-		u32 pmask = fw->phy_masks[array_idx];
-
-		oem_params->sds1.ports[i].phy_mask = pmask;
-	}
-
-	return SCI_SUCCESS;
-}
-
-/**
- * isci_parse_user_parameters() - This method will take user parameters
- *    from the module init parameters and copy them to user_params. This will
- *    only copy values that are not set to the module parameter default values
- * @user_parameters: This parameter specifies the controller default user
- *    parameters. It is expected that this has been initialized to the default
- *    parameters for the controller
- *
- *
- */
-enum sci_status isci_parse_user_parameters(
-	union scic_user_parameters *user_params,
-	int scu_index,
-	struct isci_firmware *fw)
-{
-	int i;
-
-	if (!(scu_index >= 0
-	      && scu_index < SCI_MAX_CONTROLLERS
-	      && user_params != NULL)) {
-		return SCI_FAILURE;
-	}
-
-	for (i = 0; i < SCI_MAX_PORTS; i++) {
-		int array_idx = i + (SCI_MAX_PORTS * scu_index);
-		u32 gen = fw->phy_gens[array_idx];
-
-		user_params->sds1.phys[i].max_speed_generation = gen;
-
-	}
-
-	return SCI_SUCCESS;
-}
-
 static struct isci_host *isci_host_alloc(struct pci_dev *pdev, int id)
 {
 	struct isci_host *isci_host;
@@ -535,73 +459,13 @@ static void check_si_rev(struct pci_dev *pdev)
 		
 }
 
-static int isci_verify_firmware(const struct firmware *fw,
-				struct isci_firmware *isci_fw)
-{
-	const u8 *tmp;
-
-	if (fw->size < ISCI_FIRMWARE_MIN_SIZE)
-		return -EINVAL;
-
-	tmp = fw->data;
-
-	/* 12th char should be the NULL terminate for the ID string */
-	if (tmp[11] != '\0')
-		return -EINVAL;
-
-	if (strncmp("#SCU MAGIC#", tmp, 11) != 0)
-		return -EINVAL;
-
-	isci_fw->id = tmp;
-	isci_fw->version = fw->data[ISCI_FW_VER_OFS];
-	isci_fw->subversion = fw->data[ISCI_FW_SUBVER_OFS];
-
-	tmp = fw->data + ISCI_FW_DATA_OFS;
-
-	while (*tmp != ISCI_FW_HDR_EOF) {
-		switch (*tmp) {
-		case ISCI_FW_HDR_PHYMASK:
-			tmp++;
-			isci_fw->phy_masks_size = *tmp;
-			tmp++;
-			isci_fw->phy_masks = (const u32 *)tmp;
-			tmp += sizeof(u32) * isci_fw->phy_masks_size;
-			break;
-
-		case ISCI_FW_HDR_PHYGEN:
-			tmp++;
-			isci_fw->phy_gens_size = *tmp;
-			tmp++;
-			isci_fw->phy_gens = (const u32 *)tmp;
-			tmp += sizeof(u32) * isci_fw->phy_gens_size;
-			break;
-
-		case ISCI_FW_HDR_SASADDR:
-			tmp++;
-			isci_fw->sas_addrs_size = *tmp;
-			tmp++;
-			isci_fw->sas_addrs = (const u64 *)tmp;
-			tmp += sizeof(u64) * isci_fw->sas_addrs_size;
-			break;
-
-		default:
-			pr_err("bad field in firmware binary blob\n");
-			return -EINVAL;
-		}
-	}
-
-	pr_info("isci firmware v%u.%u loaded.\n",
-	       isci_fw->version, isci_fw->subversion);
-
-	return SCI_SUCCESS;
-}
-
 static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct isci_pci_info *pci_info;
 	int err, i;
 	struct isci_host *isci_host;
 	const struct firmware *fw = NULL;
+	struct isci_orom *orom;
 
 	check_si_rev(pdev);
 
@@ -610,32 +474,31 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 		return -ENOMEM;
 	pci_set_drvdata(pdev, pci_info);
 
-	err = request_firmware(&fw, ISCI_FW_NAME, &pdev->dev);
-	if (err) {
-		dev_warn(&pdev->dev,
-			 "Loading firmware failed, using default values\n");
-		dev_warn(&pdev->dev,
-			 "Default OEM configuration being used:"
-			 " 4 narrow ports, and default SAS Addresses\n");
-	} else {
-		isci_firmware = devm_kzalloc(&pdev->dev,
-					     sizeof(struct isci_firmware),
-					     GFP_KERNEL);
-		if (isci_firmware) {
-			err = isci_verify_firmware(fw, isci_firmware);
-			if (err != SCI_SUCCESS) {
-				dev_warn(&pdev->dev,
-					 "firmware verification failed\n");
-				dev_warn(&pdev->dev,
-					 "Default OEM configuration being used:"
-					 " 4 narrow ports, and default SAS "
-					 "Addresses\n");
-				devm_kfree(&pdev->dev, isci_firmware);
-				isci_firmware = NULL;
-			}
+	if (efi_enabled) {
+		/* do EFI parsing here */
+		orom = NULL;
+	} else
+		orom = isci_request_oprom(pdev);
+
+	if (!orom) {
+		orom = isci_request_firmware(pdev, fw);
+		if (!orom) {
+			/* TODO convert this to WARN_TAINT_ONCE once the
+			 * orom/efi parameter support is widely available
+			 */
+			dev_warn(&pdev->dev,
+				 "Loading user firmware failed, using default "
+				 "values\n");
+			dev_warn(&pdev->dev,
+				 "Default OEM configuration being used: 4 "
+				 "narrow ports, and default SAS Addresses\n");
 		}
-		release_firmware(fw);
 	}
+
+	if (orom)
+		dev_info(&pdev->dev, "sas parameters (version: %#x) loaded\n",
+			 orom->hdr.version);
+	pci_info->orom = orom;
 
 	err = isci_pci_init(pdev);
 	if (err)

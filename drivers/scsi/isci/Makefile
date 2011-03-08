@@ -9,7 +9,7 @@ EXTRA_CFLAGS += -Idrivers/scsi/isci/core/ -Idrivers/scsi/isci/
 obj-$(CONFIG_SCSI_ISCI) += isci.o
 isci-objs := init.o phy.o request.o sata.o \
 	     remote_device.o port.o timers.o \
-	     host.o task.o events.o \
+	     host.o task.o events.o probe_roms.o \
 	     core/scic_sds_controller.o  \
 	     core/scic_sds_remote_device.o    \
 	     core/scic_sds_request.o \

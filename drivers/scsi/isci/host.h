@@ -140,8 +140,8 @@ static inline struct isci_remote_device *idev_by_id(struct isci_host *ihost, int
 
 struct isci_pci_info {
 	struct msix_entry msix_entries[SCI_MAX_MSIX_INT];
-	int core_lib_array_index;
 	struct isci_host *hosts[SCI_MAX_CONTROLLERS];
+	struct isci_orom *orom;
 };
 
 static inline struct isci_pci_info *to_pci_info(struct pci_dev *pdev)

@@ -52,36 +52,79 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef _ISCI_PROBE_ROMS_H_
+#define _ISCI_PROBE_ROMS_H_
 
-#ifndef __ISCI_H__
-#define __ISCI_H__
+#ifdef __KERNEL__
+#include <linux/firmware.h>
+#include <linux/pci.h>
 
-#include <linux/kernel.h>
-#include <linux/list.h>
-#include <linux/types.h>
-#include <linux/spinlock.h>
-#include <linux/interrupt.h>
-#include <linux/bug.h>
-#include <scsi/libsas.h>
-#include <scsi/scsi.h>
+struct isci_orom *isci_request_oprom(struct pci_dev *pdev);
 
-#include "sci_base_controller.h"
-#include "scic_controller.h"
-#include "host.h"
-#include "timers.h"
-#include "sci_status.h"
-#include "request.h"
-#include "events.h"
-#include "task.h"
-#include "sata.h"
+union scic_oem_parameters;
+struct isci_orom;
 
-irqreturn_t isci_msix_isr(int vec, void *data);
-irqreturn_t isci_intx_isr(int vec, void *data);
-irqreturn_t isci_error_isr(int vec, void *data);
+enum sci_status isci_parse_oem_parameters(
+	union scic_oem_parameters *oem_params,
+	struct isci_orom *orom,
+	int scu_index);
+struct isci_orom *isci_request_firmware(struct pci_dev *pdev, const struct firmware *fw);
+int isci_get_efi_var(struct pci_dev *pdev);
+#else
+#define SCI_MAX_PORTS 4
+#define SCI_MAX_PHYS 4
+#endif
 
-bool scic_sds_controller_isr(struct scic_sds_controller *scic);
-void scic_sds_controller_completion_handler(struct scic_sds_controller *scic);
-bool scic_sds_controller_error_isr(struct scic_sds_controller *scic);
-void scic_sds_controller_error_handler(struct scic_sds_controller *scic);
+#define ISCI_FW_NAME		"isci/isci_firmware.bin"
 
-#endif  /* __ISCI_H__ */
+#define ROMSIGNATURE		0xaa55
+
+#define ISCI_ROM_SIG		"ISCUOEMB"
+#define ISCI_ROM_SIG_SIZE	8
+
+#define ISCI_EFI_VENDOR_GUID	NULL_GUID
+#define ISCI_EFI_ATTRIBUTES	0
+#define ISCI_EFI_VAR_NAME	"isci_oemb"
+
+struct sci_bios_oem_param_block_hdr {
+	uint8_t signature[ISCI_ROM_SIG_SIZE];
+	uint16_t total_block_length;
+	uint8_t hdr_length;
+	uint8_t version;
+	uint8_t preboot_source;
+	uint8_t num_elements;
+	uint8_t element_length;
+	uint8_t reserved[8];
+} __attribute__ ((packed));
+
+struct scic_sds_oem_params {
+	struct {
+		uint8_t mode_type;
+		uint8_t max_concurrent_dev_spin_up;
+		uint8_t do_enable_ssc;
+		uint8_t reserved;
+	} controller;
+
+	struct {
+		uint8_t phy_mask;
+	} ports[SCI_MAX_PORTS];
+
+	struct sci_phy_oem_params {
+		struct {
+			uint32_t high;
+			uint32_t low;
+		} sas_address;
+
+		uint32_t afe_tx_amp_control0;
+		uint32_t afe_tx_amp_control1;
+		uint32_t afe_tx_amp_control2;
+		uint32_t afe_tx_amp_control3;
+	} phys[SCI_MAX_PHYS];
+} __attribute__ ((packed));
+
+struct isci_orom {
+	struct sci_bios_oem_param_block_hdr hdr;
+	struct scic_sds_oem_params ctrl[2];
+} __attribute__ ((packed));
+
+#endif

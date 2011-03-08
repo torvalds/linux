@@ -2039,10 +2039,8 @@ static void scic_sds_controller_set_default_config_parameters(struct scic_sds_co
 
 	/* Initialize all of the phy parameter information. */
 	for (index = 0; index < SCI_MAX_PHYS; index++) {
-		/*
-		 * Default to 3G (i.e. Gen 2) for now.  User can override if
-		 * they choose. */
-		scic->user_parameters.sds1.phys[index].max_speed_generation = 2;
+		/* Default to 6G (i.e. Gen 3) for now. */
+		scic->user_parameters.sds1.phys[index].max_speed_generation = 3;
 
 		/* the frequencies cannot be 0 */
 		scic->user_parameters.sds1.phys[index].align_insertion_frequency = 0x7f;

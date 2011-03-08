@@ -68,6 +68,7 @@
 #include "sci_status.h"
 #include "intel_sas.h"
 #include "sci_controller_constants.h"
+#include "probe_roms.h"
 
 struct scic_sds_controller;
 
@@ -224,44 +225,6 @@ union scic_user_parameters {
 #define SCIC_SDS_PARM_PHY_MASK_MAX 0xF
 
 /**
- * struct scic_sds_oem_parameters - This structure delineates the various OEM
- *    parameters that must be set the core user.
- *
- *
- */
-struct scic_sds_oem_parameters {
-	struct {
-		/**
-		 * This field indicates whether Spread Spectrum Clocking (SSC)
-		 * should be enabled or disabled.
-		 */
-		bool do_enable_ssc;
-
-	} controller;
-
-	struct {
-		/**
-		 * This field specifies the phys to be contained inside a port.
-		 * The bit position in the mask specifies the index of the phy
-		 * to be contained in the port.  Multiple bits (i.e. phys)
-		 * can be contained in a single port.
-		 */
-		u8 phy_mask;
-
-	} ports[SCI_MAX_PORTS];
-
-	struct sci_phy_oem_params {
-		/**
-		 * This field specifies the SAS address to be transmitted on
-		 * for this phy index.
-		 */
-		struct sci_sas_address sas_address;
-
-	} phys[SCI_MAX_PHYS];
-
-};
-
-/**
  * This structure/union specifies the various different OEM parameter sets
  *    available.  Each type is specific to a hardware controller version.
  *
@@ -273,7 +236,7 @@ union scic_oem_parameters {
 	 * Storage Controller Unit (SCU) Driver Standard (SDS) version
 	 * 1.
 	 */
-	struct scic_sds_oem_parameters sds1;
+	struct scic_sds_oem_params sds1;
 
 };
 

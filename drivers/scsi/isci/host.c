@@ -61,6 +61,7 @@
 #include "port.h"
 #include "request.h"
 #include "host.h"
+#include "probe_roms.h"
 
 irqreturn_t isci_msix_isr(int vec, void *data)
 {
@@ -419,6 +420,7 @@ int isci_host_init(struct isci_host *isci_host)
 	struct scic_sds_controller *controller;
 	union scic_oem_parameters scic_oem_params;
 	union scic_user_parameters scic_user_params;
+	struct isci_pci_info *pci_info = to_pci_info(isci_host->pdev);
 
 	isci_timer_list_construct(isci_host);
 
@@ -461,29 +463,30 @@ int isci_host_init(struct isci_host *isci_host)
 	sci_object_set_association(isci_host->core_controller,
 				   (void *)isci_host);
 
-	/* grab initial values stored in the controller object for OEM and USER
-	 * parameters */
-	scic_oem_parameters_get(controller, &scic_oem_params);
+	/*
+	 * grab initial values stored in the controller object for OEM and USER
+	 * parameters
+	 */
 	scic_user_parameters_get(controller, &scic_user_params);
+	status = scic_user_parameters_set(isci_host->core_controller,
+					  &scic_user_params);
+	if (status != SCI_SUCCESS) {
+		dev_warn(&isci_host->pdev->dev,
+			 "%s: scic_user_parameters_set failed\n",
+			 __func__);
+		return -ENODEV;
+	}
 
-	if (isci_firmware) {
-		/* grab any OEM and USER parameters specified in binary blob */
+	scic_oem_parameters_get(controller, &scic_oem_params);
+
+	/* grab any OEM parameters specified in orom */
+	if (pci_info->orom) {
 		status = isci_parse_oem_parameters(&scic_oem_params,
-						   isci_host->id,
-						   isci_firmware);
+						   pci_info->orom,
+						   isci_host->id);
 		if (status != SCI_SUCCESS) {
 			dev_warn(&isci_host->pdev->dev,
 				 "parsing firmware oem parameters failed\n");
-			return -EINVAL;
-		}
-
-		status = isci_parse_user_parameters(&scic_user_params,
-						    isci_host->id,
-						    isci_firmware);
-		if (status != SCI_SUCCESS) {
-			dev_warn(&isci_host->pdev->dev,
-				 "%s: isci_parse_user_parameters"
-				 " failed\n", __func__);
 			return -EINVAL;
 		}
 	} else {
@@ -492,16 +495,6 @@ int isci_host_init(struct isci_host *isci_host)
 		if (status != SCI_SUCCESS) {
 			dev_warn(&isci_host->pdev->dev,
 				 "%s: scic_oem_parameters_set failed\n",
-				 __func__);
-			return -ENODEV;
-		}
-
-
-		status = scic_user_parameters_set(isci_host->core_controller,
-						  &scic_user_params);
-		if (status != SCI_SUCCESS) {
-			dev_warn(&isci_host->pdev->dev,
-				 "%s: scic_user_parameters_set failed\n",
 				 __func__);
 			return -ENODEV;
 		}
