@@ -3046,9 +3046,8 @@ static void InactivePsWorkItemCallback(struct r8192_priv *priv)
 
 #ifdef ENABLE_LPS
 /* Change current and default preamble mode. */
-bool MgntActSet_802_11_PowerSaveMode(struct net_device *dev,	u8 rtPsMode)
+bool MgntActSet_802_11_PowerSaveMode(struct r8192_priv *priv, u8 rtPsMode)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	// Currently, we do not change power save mode on IBSS mode.
 	if(priv->ieee80211->iw_mode == IW_MODE_ADHOC)
@@ -3075,7 +3074,7 @@ bool MgntActSet_802_11_PowerSaveMode(struct net_device *dev,	u8 rtPsMode)
 	if(priv->ieee80211->sta_sleep != 0 && rtPsMode == IEEE80211_PS_DISABLED)
 	{
 		// Notify the AP we awke.
-		rtl8192_hw_wakeup(dev);
+		rtl8192_hw_wakeup(priv->ieee80211->dev);
 		priv->ieee80211->sta_sleep = 0;
 
                 spin_lock(&priv->ieee80211->mgmt_tx_lock);
@@ -3107,7 +3106,7 @@ void LeisurePSEnter(struct net_device *dev)
 
 			if(priv->ieee80211->ps == IEEE80211_PS_DISABLED)
 			{
-				MgntActSet_802_11_PowerSaveMode(dev, IEEE80211_PS_MBCAST|IEEE80211_PS_UNICAST);
+				MgntActSet_802_11_PowerSaveMode(priv, IEEE80211_PS_MBCAST|IEEE80211_PS_UNICAST);
 
 			}
 		}
@@ -3128,7 +3127,7 @@ void LeisurePSLeave(struct net_device *dev)
 		if(priv->ieee80211->ps != IEEE80211_PS_DISABLED)
 		{
 			// move to lps_wakecomplete()
-			MgntActSet_802_11_PowerSaveMode(dev, IEEE80211_PS_DISABLED);
+			MgntActSet_802_11_PowerSaveMode(priv, IEEE80211_PS_DISABLED);
 
 		}
 	}
