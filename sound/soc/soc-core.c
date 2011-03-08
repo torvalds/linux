@@ -500,20 +500,20 @@ static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int ret;
 
-	if (codec_dai->driver->symmetric_rates || cpu_dai->driver->symmetric_rates ||
-			rtd->dai_link->symmetric_rates) {
-		dev_dbg(&rtd->dev, "Symmetry forces %dHz rate\n",
-				rtd->rate);
+	if (!codec_dai->driver->symmetric_rates &&
+	    !cpu_dai->driver->symmetric_rates &&
+	    !rtd->dai_link->symmetric_rates)
+		return 0;
 
-		ret = snd_pcm_hw_constraint_minmax(substream->runtime,
-						   SNDRV_PCM_HW_PARAM_RATE,
-						   rtd->rate,
-						   rtd->rate);
-		if (ret < 0) {
-			dev_err(&rtd->dev,
-				"Unable to apply rate symmetry constraint: %d\n", ret);
-			return ret;
-		}
+	dev_dbg(&rtd->dev, "Symmetry forces %dHz rate\n", rtd->rate);
+
+	ret = snd_pcm_hw_constraint_minmax(substream->runtime,
+					   SNDRV_PCM_HW_PARAM_RATE,
+					   rtd->rate, rtd->rate);
+	if (ret < 0) {
+		dev_err(&rtd->dev,
+			"Unable to apply rate symmetry constraint: %d\n", ret);
+		return ret;
 	}
 
 	return 0;
