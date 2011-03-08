@@ -1,7 +1,7 @@
 /*
- * drivers/input/touchscreen/xpt2046_ts.c - driver for rk2818 spi xpt2046 device and console
+ * drivers/input/touchscreen/xpt2046_ts.c - driver for rk29 spi xpt2046 device and console
  *
- * Copyright (C) 2010 ROCKCHIP, Inc.
+ * Copyright (C) 2011 ROCKCHIP, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and

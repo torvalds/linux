@@ -15,6 +15,9 @@
 
 #ifndef __DRIVERS_TOUCHSCREEN_XPT2046_TS_H
 #define __DRIVERS_TOUCHSCREEN_XPT2046_TS_H
+
+#define IOMUX_NAME_SIZE 20
+
 enum xpt2046_filter {
 	XPT2046_FILTER_OK,
 	XPT2046_FILTER_REPEAT,
@@ -44,6 +47,13 @@ struct xpt2046_platform_data {
 	int	gpio_pendown;		/* the GPIO used to decide the pendown
 					 * state if get_pendown_state == NULL
 					 */
+	char	pendown_iomux_name[IOMUX_NAME_SIZE];	
+	int		pendown_iomux_mode;	
+	int 	touch_ad_top;
+	int     touch_ad_bottom;
+	int 	touch_ad_left;
+	int 	touch_ad_right;
+	int		touch_virtualkey_length;
 	int	(*get_pendown_state)(void);
 	int	(*filter_init)	(struct xpt2046_platform_data *pdata,
 				 void **filter_data);

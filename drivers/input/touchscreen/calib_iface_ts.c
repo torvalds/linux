@@ -33,35 +33,33 @@ extern volatile struct adc_point gADPoint;
 extern volatile int gZvalue[3];
 #endif
 
-
-#if defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_CBN_SPI)
-	int screen_x[5] = { 50, 270,  50, 270, 160}; 
-	int screen_y[5] = { 40,  40, 440, 440, 240}; 
-#elif defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI) 
-  int screen_x[5] = { 50, 750,  50, 750, 400};
-  int screen_y[5] = { 40,  40, 440, 440, 240};
-#elif defined(CONFIG_TOUCHSCREEN_XPT2046_1024X600_CBN_SPI) 
-  int screen_x[5] = {50, 974,  50, 974, 512};
-  int screen_y[5] = {50,  50, 550, 550, 300};
-#endif
-
-
-
-
+#if 0
 #if defined(CONFIG_MACH_RK2818INFO_IT50) && defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI)
+	int screen_x[5] = { 50, 750,  50, 750, 400};
+  	int screen_y[5] = { 40,  40, 440, 440, 240};
 	int uncali_x_default[5] = { 3735,  301, 3754,  290, 1993 };
 	int uncali_y_default[5] = {  3442,  3497, 413, 459, 1880 };
 #elif defined(CONFIG_MACH_RK2818INFO) && defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI) 
+	int screen_x[5] = { 50, 750,  50, 750, 400};
+  	int screen_y[5] = { 40,  40, 440, 440, 240};
 	int uncali_x_default[5] = { 438,  565, 3507,  3631, 2105 };
 	int uncali_y_default[5] = {  3756,  489, 3792, 534, 2159 };
 #elif (defined(CONFIG_MACH_RAHO) || defined(CONFIG_MACH_RAHOSDK) || defined(CONFIG_MACH_RK2818INFO))&& defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_CBN_SPI)
+	int screen_x[5] = { 50, 270,  50, 270, 160}; 
+	int screen_y[5] = { 40,  40, 440, 440, 240}; 
 	int uncali_x_default[5] = { 812,  3341, 851,  3371, 2183 };
 	int uncali_y_default[5] = {  442,  435, 3193, 3195, 2004 };
-#elif defined(CONFIG_MACH_RK29SDK) && defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI)
-	int uncali_x_default[5] = { 3735,  301, 3754,  290, 1993 };
-	int uncali_y_default[5] = {  3442,  3497, 413, 459, 1880 };
+#elif defined(CONFIG_MACH_Z5) && defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI)
+	int uncali_x_default[5] = {  3267,  831, 3139, 715, 1845 };
+	int uncali_y_default[5] = { 3638,  3664, 564,  591, 2087 };
+	int screen_x[5] = { 70,  410, 70, 410, 240};
+	int screen_y[5] = { 50, 50,  740, 740, 400};
 #endif
-
+#endif
+int screen_x[5] = { 0 };
+int screen_y[5] = { 0 };
+int uncali_x_default[5] = { 0 };
+int uncali_y_default[5] = { 0 };
 int uncali_x[5] = { 0 };
 int uncali_y[5] = { 0 };
 
@@ -163,7 +161,7 @@ static CLASS_ATTR(calistatus, 0666, touch_cali_status, NULL);
 static CLASS_ATTR(pressure, 0666, touch_pressure, NULL);
 #endif
 
-static int __init tp_calib_iface_init(void)
+int  tp_calib_iface_init(int *x,int *y,int *uncali_x, int *uncali_y)
 {
     int ret = 0;
     int err = 0;
@@ -175,6 +173,11 @@ static int __init tp_calib_iface_init(void)
         return -ENOMEM;
     }
     
+    memcpy(screen_x,x,5*sizeof(int));
+	memcpy(screen_y,y,5*sizeof(int));
+	memcpy(uncali_x_default,uncali_x,5*sizeof(int));
+	memcpy(uncali_y_default,uncali_y,5*sizeof(int));
+	
     err = TouchPanelSetCalibration(4, screen_x, screen_y, uncali_x_default, uncali_y_default);
     	printk("tp_calib_iface_init---%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
 	                uncali_x_default[0], uncali_y_default[0],
@@ -205,7 +208,7 @@ static int __init tp_calib_iface_init(void)
     return ret;
 }
 
-static void __exit tp_calib_iface_exit(void)
+void tp_calib_iface_exit(void)
 {
     class_remove_file(tp_class, &class_attr_touchcheck);
     class_remove_file(tp_class, &class_attr_touchadc);
@@ -216,8 +219,8 @@ static void __exit tp_calib_iface_exit(void)
     class_destroy(tp_class);
 }
 
-module_init(tp_calib_iface_init);
-module_exit(tp_calib_iface_exit);
+//module_init(tp_calib_iface_init);
+//module_exit(tp_calib_iface_exit);
 
 MODULE_AUTHOR("Yongle Lai");
 MODULE_DESCRIPTION("XPT2046 TPC driver @ Rockchip");

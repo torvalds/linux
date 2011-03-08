@@ -13,8 +13,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef __DRIVERS_TOUCHSCREEN_LARGENUM_TS_H
-#define __DRIVERS_TOUCHSCREEN_LARGENUM_TS_H
+#ifndef LARGENUM_TS_H
+#define LARGENUM_TS_H
 
 #define SIZE_OF_LARGENUM 3
 
@@ -149,4 +149,4 @@ LargeNumBits(
     PLARGENUM   pNum
     );
 
-#endif
+#endif /* LARGENUM_TS_H */

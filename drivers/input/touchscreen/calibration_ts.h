@@ -54,4 +54,6 @@ TouchPanelCalibrateAPoint(
     int   *pCalY      //@PARM The calibrated Y coordinate
     );
 
+int  tp_calib_iface_init(int *x,int *y,int *uncali_x, int *uncali_y);
+void  tp_calib_iface_exit(void);
 #endif

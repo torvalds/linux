@@ -518,7 +518,7 @@ int TouchFilter(unsigned short* x,unsigned short* y,bool isdown)
 		ClearBuff();
 		ret=TS_ERR_TDOWN;
 		}
-	if(!TS_isINVALID(x,y))
+	if(!TS_isINVALID(*x,*y))
 		addToBuff(x,y);
 	if(sBuffIndex<FILTER_BUF_LEN)
 		ret=TS_ERR_LOWBUF;

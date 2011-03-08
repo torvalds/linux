@@ -1,7 +1,7 @@
 /*
- * drivers/input/touchscreen/xpt2046_ts.c - driver for rk2818 spi xpt2046 device and console
+ * drivers/input/touchscreen/xpt2046_ts.c - driver for rk29 spi xpt2046 device and console
  *
- * Copyright (C) 2010 ROCKCHIP, Inc.
+ * Copyright (C) 2011 ROCKCHIP, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -23,7 +23,10 @@
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <asm/irq.h>
-
+#include <mach/iomux.h>
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+#endif
 #include "xpt2046_ts.h"
 
 /*
@@ -52,38 +55,10 @@
 #else
 	#define xpt2046printk(msg...)
 #endif
-#define LCD_MAX_LENGTH				800
-#define LCD_MAX_WIDTH				480
-
-#ifdef CONFIG_MACH_RK2818INFO_IT50
-#define PT2046_TOUCH_AD_LEFT 207
-#define PT2046_TOUCH_AD_RIGHT 3940
-#define PT2046_TOUCH_AD_TOP 3624
-#define PT2046_TOUCH_AD_BOTTOM 153
-
-#define AD_TO_X(adx) (LCD_MAX_WIDTH * ( PT2046_TOUCH_AD_TOP - adx) / ( PT2046_TOUCH_AD_TOP  - PT2046_TOUCH_AD_BOTTOM))
-#define AD_TO_Y(ady) (LCD_MAX_LENGTH * ( ady - PT2046_TOUCH_AD_LEFT ) / (PT2046_TOUCH_AD_RIGHT - PT2046_TOUCH_AD_LEFT))
-/* 
-#define PT2046_TOUCH_AD_LEFT		4000
-#define PT2046_TOUCH_AD_RIGHT		110
-#define PT2046_TOUCH_AD_TOP		110
-#define PT2046_TOUCH_AD_BOTTOM	3800
-#define AD_TO_Y(adx)	(LCD_MAX_WIDTH * ( PT2046_TOUCH_AD_BOTTOM - adx) / ( PT2046_TOUCH_AD_BOTTOM  - PT2046_TOUCH_AD_TOP ))
-#define AD_TO_X(ady)	(LCD_MAX_LENGTH * (PT2046_TOUCH_AD_LEFT - ady) / (PT2046_TOUCH_AD_LEFT - PT2046_TOUCH_AD_RIGHT))
-*/
-#else
-#define PT2046_TOUCH_AD_LEFT		3855
-#define PT2046_TOUCH_AD_RIGHT		260
-#define PT2046_TOUCH_AD_TOP		300
-#define PT2046_TOUCH_AD_BOTTOM	3755
-#define AD_TO_X(adx)	(LCD_MAX_WIDTH * (adx - PT2046_TOUCH_AD_TOP) / ( PT2046_TOUCH_AD_BOTTOM  - PT2046_TOUCH_AD_TOP ))
-#define AD_TO_Y(ady)	(LCD_MAX_LENGTH * (PT2046_TOUCH_AD_LEFT - ady) / (PT2046_TOUCH_AD_LEFT - PT2046_TOUCH_AD_RIGHT))
-#endif
 
 #define TS_POLL_DELAY	(10 * 1000000)	/* ns delay before the first sample */
 #define TS_POLL_PERIOD	(20 * 1000000)	/* ns delay between samples */
 
-#define DEBOUNCE_REPTIME  3
 /* this driver doesn't aim at the peak continuous sample rate */
 #define	SAMPLE_BITS	(8 /*cmd*/ + 16 /*sample*/ + 2 /* before, after */)
 
@@ -111,32 +86,37 @@ struct xpt2046_packet {
 
 struct xpt2046 {
 	struct input_dev	*input;
-	char			phys[32];
-	char			name[32];
-
+	char	phys[32];
+	char	name[32];
+	char	pendown_iomux_name[IOMUX_NAME_SIZE];	
 	struct spi_device	*spi;
 
-	u16			model;
-	bool			swap_xy;
-	
+	u16		model;
+	u16		x_min, x_max;	
+	u16		y_min, y_max; 
+	u16		debounce_max;
+	u16		debounce_tol;
+	u16		debounce_rep;
+	u16		penirq_recheck_delay_usecs;
+	bool	swap_xy;
+
 	struct xpt2046_packet	*packet;
 
 	struct spi_transfer	xfer[18];
 	struct spi_message	msg[5];
 	struct spi_message	*last_msg;
-	int			msg_idx;
-	int			read_cnt;
-	int			read_rep;
-	int			last_read;
-
-	u16			debounce_max;
-	u16			debounce_tol;
-	u16			debounce_rep;
-
-	u16			penirq_recheck_delay_usecs;
-
+	int		msg_idx;
+	int		read_cnt;
+	int		read_rep;
+	int		last_read;
+	int		pendown_iomux_mode;	
+	int 	touch_ad_top;
+	int     touch_ad_bottom;
+	int 	touch_ad_left;
+	int 	touch_ad_right;
+	int 	touch_virtualkey_length;
 	spinlock_t		lock;
-	struct hrtimer		timer;
+	struct hrtimer	timer;
 	unsigned		pendown:1;	/* P: lock */
 	unsigned		pending:1;	/* P: lock */
 // FIXME remove "irq_disabled"
@@ -145,12 +125,15 @@ struct xpt2046 {
 	unsigned		is_suspended:1;
 
 	int			(*filter)(void *data, int data_idx, int *val);
-	void			*filter_data;
-	void			(*filter_cleanup)(void *data);
+	void		*filter_data;
+	void		(*filter_cleanup)(void *data);
 	int			(*get_pendown_state)(void);
 	int			gpio_pendown;
 
-	void			(*wait_for_sync)(void);
+	void		(*wait_for_sync)(void);
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	struct early_suspend early_suspend;
+#endif
 };
 
 /* leave chip selected when we're done, for quicker re-select? */
@@ -222,7 +205,22 @@ struct dfr_req {
 
 static void xpt2046_enable(struct xpt2046 *ts);
 static void xpt2046_disable(struct xpt2046 *ts);
+static int xpt2046_verifyAndConvert(struct xpt2046 *ts,u16 adx, u16 ady,u16 *x, u16 *y)
+{
+	*x = ts->x_max * (ts->touch_ad_left - adx)/(ts->touch_ad_left - ts->touch_ad_right);
+    *y = ts->y_max * (ts->touch_ad_top - ady)/(ts->touch_ad_top - ts->touch_ad_bottom);
 
+	xpt2046printk("%s:(%d/%d)\n",__FUNCTION__,*x, *y);
+	
+	if((*x< ts->x_min) || (*x > ts->x_max))
+		return 1;
+
+	if((*y< ts->y_min) || (*y > ts->y_max + ts->touch_virtualkey_length))
+		return 1;
+
+
+	return 0;
+}
 static int device_suspended(struct device *dev)
 {
 	struct xpt2046 *ts = dev_get_drvdata(dev);
@@ -304,7 +302,6 @@ static void null_wait_for_sync(void)
  * The SPI transfer completion callback does the real work.  It reports
  * touchscreen events and reactivates the timer (or IRQ) as appropriate.
  */
-
 static void xpt2046_rx(void *xpt)
 {
 	struct xpt2046		*ts = xpt;
@@ -359,17 +356,21 @@ static void xpt2046_rx(void *xpt)
 	 */
 	if (Rt) {
 		struct input_dev *input = ts->input;
+		
+		if (ts->swap_xy)
+			swap(x, y);	
+		
+		if(xpt2046_verifyAndConvert(ts,x,y,&x,&y))
+		{
+			xpt2046printk("***>%s:xpt2046_verifyAndConvert fail\n",__FUNCTION__);
+			goto out;
+		}
+		
 		if (!ts->pendown) {
 			input_report_key(input, BTN_TOUCH, 1);
 			ts->pendown = 1;
 			xpt2046printk("***>%s:input_report_key(pen down)\n",__FUNCTION__);
-		}
-		
-		x =  AD_TO_X(x);
-		y =  AD_TO_Y(y);
-		
-		if (ts->swap_xy)
-			swap(x, y);	
+		}	
 		
 		input_report_abs(input, ABS_X, x);
 		input_report_abs(input, ABS_Y, y);
@@ -377,7 +378,7 @@ static void xpt2046_rx(void *xpt)
 		input_sync(input);
 		xpt2046printk("***>%s:input_report_abs(%4d/%4d)\n",__FUNCTION__,x, y);
 	}
-
+out:
 	hrtimer_start(&ts->timer, ktime_set(0, TS_POLL_PERIOD),
 			HRTIMER_MODE_REL);
 }
@@ -410,13 +411,7 @@ static int xpt2046_debounce(void *xpt, int data_idx, int *val)
 		xpt2046printk("***>%s:*val == 4095 || *val == 0\n",__FUNCTION__);
 		return XPT2046_FILTER_IGNORE;
 	}
-	/* discard the first sample. */
-/*	if(!ts->read_cnt)
-	{
-		ts->read_cnt++;
-		return XPT2046_FILTER_REPEAT;
-	}
-move discard ahead  */
+
 
 	if (ts->read_cnt==1 || (abs(ts->last_read - *val) > ts->debounce_tol)) {
 		/* Start over collecting consistent readings. */
@@ -466,6 +461,7 @@ static int xpt2046_no_filter(void *xpt, int data_idx, int *val)
 	return XPT2046_FILTER_OK;
 }
 
+//#define spi_async(a,b)
 static void xpt2046_rx_val(void *xpt)
 {
 	struct xpt2046 *ts = xpt;
@@ -621,10 +617,8 @@ static void xpt2046_enable(struct xpt2046 *ts)
 	enable_irq(ts->spi->irq);
 }
 
-static int xpt2046_suspend(struct spi_device *spi, pm_message_t message)
+static int xpt2046_pSuspend(struct xpt2046 *ts)
 {
-	struct xpt2046 *ts = dev_get_drvdata(&spi->dev);
-
 	spin_lock_irq(&ts->lock);
 
 	ts->is_suspended = 1;
@@ -633,13 +627,10 @@ static int xpt2046_suspend(struct spi_device *spi, pm_message_t message)
 	spin_unlock_irq(&ts->lock);
 
 	return 0;
-
 }
 
-static int xpt2046_resume(struct spi_device *spi)
+static int xpt2046_pResume(struct xpt2046 *ts)
 {
-	struct xpt2046 *ts = dev_get_drvdata(&spi->dev);
-
 	spin_lock_irq(&ts->lock);
 
 	ts->is_suspended = 0;
@@ -649,6 +640,55 @@ static int xpt2046_resume(struct spi_device *spi)
 
 	return 0;
 }
+
+#if !defined(CONFIG_HAS_EARLYSUSPEND)
+static int xpt2046_suspend(struct spi_device *spi, pm_message_t message)
+{
+	struct xpt2046 *ts = dev_get_drvdata(&spi->dev);
+	
+	printk("xpt2046_suspend\n");
+	
+	xpt2046_pSuspend(ts);
+	
+	return 0;
+}
+
+static int xpt2046_resume(struct spi_device *spi)
+{
+	struct xpt2046 *ts = dev_get_drvdata(&spi->dev);
+	
+	printk("xpt2046_resume\n");
+	
+	xpt2046_pResume(ts);
+
+	return 0;
+}
+
+#elif defined(CONFIG_HAS_EARLYSUSPEND)
+static void xpt2046_early_suspend(struct early_suspend *h)
+{
+	struct xpt2046	*ts;
+    ts = container_of(h, struct xpt2046, early_suspend);
+	
+	printk("xpt2046_suspend early\n");
+	
+	xpt2046_pSuspend(ts);
+	
+	return;
+}
+
+static void xpt2046_late_resume(struct early_suspend *h)
+{
+	struct xpt2046	*ts;
+    ts = container_of(h, struct xpt2046, early_suspend);
+	
+	printk("xpt2046_resume late\n");
+	
+	xpt2046_pResume(ts);
+
+	return;
+}
+#endif
 
 static int __devinit setup_pendown(struct spi_device *spi, struct xpt2046 *ts)
 {
@@ -674,14 +714,25 @@ static int __devinit setup_pendown(struct spi_device *spi, struct xpt2046 *ts)
         if (err)
             dev_err(&spi->dev, "xpt2046 io_init fail\n");
     }
-    
+	
+	ts->gpio_pendown = pdata->gpio_pendown;
+	strcpy(ts->pendown_iomux_name,pdata->pendown_iomux_name);
+	ts->pendown_iomux_mode = pdata->pendown_iomux_mode;
+	
+    rk29_mux_api_set(ts->pendown_iomux_name,pdata->pendown_iomux_mode);
 	err = gpio_request(pdata->gpio_pendown, "xpt2046_pendown");
 	if (err) {
 		dev_err(&spi->dev, "failed to request pendown GPIO%d\n",
 				pdata->gpio_pendown);
 		return err;
 	}
-
+	
+	err = gpio_pull_updown(pdata->gpio_pendown, GPIOPullUp);
+	if (err) {
+		dev_err(&spi->dev, "failed to pullup pendown GPIO%d\n",
+				pdata->gpio_pendown);
+		return err;
+	}
 	ts->gpio_pendown = pdata->gpio_pendown;
 	return 0;
 }
@@ -696,8 +747,6 @@ static int __devinit xpt2046_probe(struct spi_device *spi)
 	struct spi_transfer		*x;
 	int				vref;
 	int				err;
-	
-
 	
 	if (!spi->irq) {
 		dev_dbg(&spi->dev, "no IRQ?\n");
@@ -751,7 +800,7 @@ static int __devinit xpt2046_probe(struct spi_device *spi)
 	spin_lock_init(&ts->lock);
 
 	ts->model = pdata->model ? : 2046;
-
+	
 	if (pdata->filter != NULL) {
 		if (pdata->filter_init != NULL) {
 			err = pdata->filter_init(pdata, &ts->filter_data);
@@ -780,9 +829,20 @@ static int __devinit xpt2046_probe(struct spi_device *spi)
 				pdata->penirq_recheck_delay_usecs;
 
 	ts->wait_for_sync = pdata->wait_for_sync ? : null_wait_for_sync;
-
+	ts->x_min = pdata->x_min;
+	ts->x_max = pdata->x_max;
+	ts->y_min = pdata->y_min;
+	ts->y_max = pdata->y_max;
+	
+	ts->touch_ad_top = pdata->touch_ad_top;
+	ts->touch_ad_bottom= pdata->touch_ad_bottom;
+	ts->touch_ad_left= pdata->touch_ad_left;
+	ts->touch_ad_right= pdata->touch_ad_right;
+	
+	ts->touch_virtualkey_length = pdata->touch_virtualkey_length;
+	
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", dev_name(&spi->dev));
-	snprintf(ts->name, sizeof(ts->name), "XPT%d Touchscreen", ts->model);
+	snprintf(ts->name, sizeof(ts->name), "xpt%d-touchscreen", ts->model);
 
 	input_dev->name = ts->name;
 	input_dev->phys = ts->phys;
@@ -791,12 +851,12 @@ static int __devinit xpt2046_probe(struct spi_device *spi)
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 	input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 	input_set_abs_params(input_dev, ABS_X,
-			pdata->x_min ? : 0,
-			pdata->x_max ? : MAX_12BIT,
+			ts->x_min ? : 0,
+			ts->x_max ? : MAX_12BIT,
 			0, 0);
 	input_set_abs_params(input_dev, ABS_Y,
-			pdata->y_min ? : 0,
-			pdata->y_max ? : MAX_12BIT,
+			ts->y_min ? : 0,
+			ts->y_max ? : MAX_12BIT,
 			0, 0);
 	
 	vref = pdata->keep_vref_on;
@@ -864,7 +924,7 @@ static int __devinit xpt2046_probe(struct spi_device *spi)
 
 	if (request_irq(spi->irq, xpt2046_irq, IRQF_TRIGGER_FALLING,
 			spi->dev.driver->name, ts)) {
-		printk("%s:trying pin change workaround on irq %d\n",__FUNCTION__,spi->irq);
+		xpt2046printk("%s:trying pin change workaround on irq %d\n",__FUNCTION__,spi->irq);
 		err = request_irq(spi->irq, xpt2046_irq,
 				  IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 				  spi->dev.driver->name, ts);
@@ -883,7 +943,15 @@ static int __devinit xpt2046_probe(struct spi_device *spi)
 	err = input_register_device(input_dev);
 	if (err)
 		goto err_remove_attr_group;
-  printk("xpt2046_ts: driver initialized\n");
+	
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	ts->early_suspend.suspend = xpt2046_early_suspend;
+	ts->early_suspend.resume = xpt2046_late_resume;
+	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
+	register_early_suspend(&ts->early_suspend);
+#endif
+
+    xpt2046printk("xpt2046_ts: driver initialized\n");
 	return 0;
 
  err_remove_attr_group:
@@ -906,8 +974,13 @@ static int __devexit xpt2046_remove(struct spi_device *spi)
 	struct xpt2046		*ts = dev_get_drvdata(&spi->dev);
 
 	input_unregister_device(ts->input);
-
+	
+#if !defined(CONFIG_HAS_EARLYSUSPEND)
 	xpt2046_suspend(spi, PMSG_SUSPEND);
+#elif defined(CONFIG_HAS_EARLYSUSPEND)
+	xpt2046_early_suspend(&ts->early_suspend);
+	unregister_early_suspend(&ts->early_suspend);
+#endif
 
 	free_irq(ts->spi->irq, ts);
 	/* suspend left the IRQ disabled */
@@ -934,22 +1007,26 @@ static struct spi_driver xpt2046_driver = {
 	},
 	.probe		= xpt2046_probe,
 	.remove		= __devexit_p(xpt2046_remove),
+#ifndef CONFIG_HAS_EARLYSUSPEND
 	.suspend	= xpt2046_suspend,
 	.resume		= xpt2046_resume,
+#endif
 };
-
+extern int spi_register_driver(struct spi_driver *sdrv);
 static int __init xpt2046_init(void)
 {
 	return spi_register_driver(&xpt2046_driver);
 }
-module_init(xpt2046_init);
+
 
 static void __exit xpt2046_exit(void)
 {
+	xpt2046printk("Touch panel drive XPT2046 driver exit...\n");
 	spi_unregister_driver(&xpt2046_driver);
 }
+module_init(xpt2046_init);
 module_exit(xpt2046_exit);
 
-MODULE_DESCRIPTION("rk2818 spi xpt2046 TouchScreen Driver");
+MODULE_DESCRIPTION("rk29xx spi xpt2046 TouchScreen Driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("spi:xpt2046");
