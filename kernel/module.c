@@ -1627,7 +1627,7 @@ void unset_section_ro_nx(struct module *mod, void *module_region)
 }
 
 /* Iterate through all modules and set each module's text as RW */
-void set_all_modules_text_rw()
+void set_all_modules_text_rw(void)
 {
 	struct module *mod;
 
@@ -1648,7 +1648,7 @@ void set_all_modules_text_rw()
 }
 
 /* Iterate through all modules and set each module's text as RO */
-void set_all_modules_text_ro()
+void set_all_modules_text_ro(void)
 {
 	struct module *mod;
 
