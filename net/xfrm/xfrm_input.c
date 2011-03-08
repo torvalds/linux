@@ -107,6 +107,7 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 	struct net *net = dev_net(skb->dev);
 	int err;
 	__be32 seq;
+	__be32 seq_hi;
 	struct xfrm_state *x;
 	xfrm_address_t *daddr;
 	struct xfrm_mode *inner_mode;
@@ -184,7 +185,10 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 
 		spin_unlock(&x->lock);
 
+		seq_hi = htonl(xfrm_replay_seqhi(x, seq));
+
 		XFRM_SKB_CB(skb)->seq.input.low = seq;
+		XFRM_SKB_CB(skb)->seq.input.hi = seq_hi;
 
 		nexthdr = x->type->input(x, skb);
 
