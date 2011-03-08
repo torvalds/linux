@@ -475,8 +475,10 @@ static struct xfrm_state *xfrm_state_construct(struct net *net,
 	x->preplay.seq = x->replay.seq+x->replay_maxdiff;
 	x->preplay.oseq = x->replay.oseq +x->replay_maxdiff;
 
-	/* override default values from above */
+	if ((err = xfrm_init_replay(x)))
+		goto error;
 
+	/* override default values from above */
 	xfrm_update_ae_params(x, attrs);
 
 	return x;

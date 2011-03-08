@@ -192,6 +192,9 @@ struct xfrm_state {
 	struct xfrm_replay_state preplay;
 	struct xfrm_replay_state_esn *preplay_esn;
 
+	/* The functions for replay detection. */
+	struct xfrm_replay	*repl;
+
 	/* internal flag that only holds state for delayed aevent at the
 	 * moment
 	*/
@@ -259,6 +262,15 @@ struct km_event {
 	u32	pid;
 	u32	event;
 	struct net *net;
+};
+
+struct xfrm_replay {
+	void	(*advance)(struct xfrm_state *x, __be32 net_seq);
+	int	(*check)(struct xfrm_state *x,
+			 struct sk_buff *skb,
+			 __be32 net_seq);
+	void	(*notify)(struct xfrm_state *x, int event);
+	int	(*overflow)(struct xfrm_state *x, struct sk_buff *skb);
 };
 
 struct net_device;
@@ -693,6 +705,8 @@ extern void xfrm_audit_state_delete(struct xfrm_state *x, int result,
 				    u32 auid, u32 ses, u32 secid);
 extern void xfrm_audit_state_replay_overflow(struct xfrm_state *x,
 					     struct sk_buff *skb);
+extern void xfrm_audit_state_replay(struct xfrm_state *x,
+				    struct sk_buff *skb, __be32 net_seq);
 extern void xfrm_audit_state_notfound_simple(struct sk_buff *skb, u16 family);
 extern void xfrm_audit_state_notfound(struct sk_buff *skb, u16 family,
 				      __be32 net_spi, __be32 net_seq);
@@ -722,6 +736,11 @@ static inline void xfrm_audit_state_delete(struct xfrm_state *x, int result,
 
 static inline void xfrm_audit_state_replay_overflow(struct xfrm_state *x,
 					     struct sk_buff *skb)
+{
+}
+
+static inline void xfrm_audit_state_replay(struct xfrm_state *x,
+					   struct sk_buff *skb, __be32 net_seq)
 {
 }
 
@@ -1408,10 +1427,7 @@ extern int xfrm_state_delete(struct xfrm_state *x);
 extern int xfrm_state_flush(struct net *net, u8 proto, struct xfrm_audit *audit_info);
 extern void xfrm_sad_getinfo(struct net *net, struct xfrmk_sadinfo *si);
 extern void xfrm_spd_getinfo(struct net *net, struct xfrmk_spdinfo *si);
-extern int xfrm_replay_check(struct xfrm_state *x,
-			     struct sk_buff *skb, __be32 seq);
-extern void xfrm_replay_advance(struct xfrm_state *x, __be32 seq);
-extern void xfrm_replay_notify(struct xfrm_state *x, int event);
+extern int xfrm_init_replay(struct xfrm_state *x);
 extern int xfrm_state_mtu(struct xfrm_state *x, int mtu);
 extern int xfrm_init_state(struct xfrm_state *x);
 extern int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb);
