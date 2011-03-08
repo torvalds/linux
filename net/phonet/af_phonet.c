@@ -195,11 +195,7 @@ static int pn_send(struct sk_buff *skb, struct net_device *dev,
 	if (skb->pkt_type == PACKET_LOOPBACK) {
 		skb_reset_mac_header(skb);
 		skb_orphan(skb);
-		if (irq)
-			netif_rx(skb);
-		else
-			netif_rx_ni(skb);
-		err = 0;
+		err = (irq ? netif_rx(skb) : netif_rx_ni(skb)) ? -ENOBUFS : 0;
 	} else {
 		err = dev_hard_header(skb, dev, ntohs(skb->protocol),
 					NULL, NULL, skb->len);
@@ -208,6 +204,8 @@ static int pn_send(struct sk_buff *skb, struct net_device *dev,
 			goto drop;
 		}
 		err = dev_queue_xmit(skb);
+		if (unlikely(err > 0))
+			err = net_xmit_errno(err);
 	}
 
 	return err;
