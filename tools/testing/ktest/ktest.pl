@@ -47,6 +47,7 @@ $default{"SCP_TO_TARGET"}	= "scp \$SRC_FILE \$SSH_USER\@\$MACHINE:\$DST_FILE";
 $default{"REBOOT"}		= "ssh \$SSH_USER\@\$MACHINE reboot";
 $default{"STOP_AFTER_SUCCESS"}	= 10;
 $default{"STOP_AFTER_FAILURE"}	= 60;
+$default{"STOP_TEST_AFTER"}	= 600;
 $default{"LOCALVERSION"}	= "-test";
 
 my $ktest_config;
@@ -102,6 +103,7 @@ my $console;
 my $success_line;
 my $stop_after_success;
 my $stop_after_failure;
+my $stop_test_after;
 my $build_target;
 my $target_image;
 my $localversion;
@@ -768,8 +770,10 @@ sub monitor {
 
     my $success_start;
     my $failure_start;
+    my $monitor_start = time;
+    my $done = 0;
 
-    for (;;) {
+    while (!$done) {
 
 	if ($booted) {
 	    $line = wait_for_input($monitor_fp, $booted_timeout);
@@ -830,6 +834,12 @@ sub monitor {
 
 	if ($line =~ /\n/) {
 	    $full_line = "";
+	}
+
+	if ($stop_test_after > 0 && !$booted && !$bug) {
+	    if (time - $monitor_start > $stop_test_after) {
+		$done = 1;
+	    }
 	}
     }
 
@@ -2002,6 +2012,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $success_line = set_test_option("SUCCESS_LINE", $i);
     $stop_after_success = set_test_option("STOP_AFTER_SUCCESS", $i);
     $stop_after_failure = set_test_option("STOP_AFTER_FAILURE", $i);
+    $stop_test_after = set_test_option("STOP_TEST_AFTER", $i);
     $build_target = set_test_option("BUILD_TARGET", $i);
     $ssh_exec = set_test_option("SSH_EXEC", $i);
     $scp_to_target = set_test_option("SCP_TO_TARGET", $i);
