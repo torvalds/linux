@@ -22,6 +22,7 @@
 
 #define MAX_DSS_MANAGERS	3
 #define MAX_DSS_OVERLAYS	3
+#define MAX_DSS_LCD_MANAGERS	2
 
 /* DSS has feature id */
 enum dss_feat_id {
@@ -38,6 +39,7 @@ enum dss_feat_id {
 	FEAT_RESIZECONF		= 1 << 10,
 	/* Independent core clk divider */
 	FEAT_CORE_CLK_DIV	= 1 << 11,
+	FEAT_LCD_CLK_SRC	= 1 << 12,
 };
 
 /* DSS register field id */
@@ -49,6 +51,7 @@ enum dss_feat_reg_field {
 	FEAT_REG_FIFOSIZE,
 	FEAT_REG_HORIZONTALACCU,
 	FEAT_REG_VERTICALACCU,
+	FEAT_REG_DISPC_CLK_SWITCH,
 };
 
 /* DSS Feature Functions */

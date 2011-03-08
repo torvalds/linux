@@ -118,9 +118,12 @@ enum dss_clock {
 };
 
 enum dss_clk_source {
-	DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC,	/* DSI1_PLL_FCLK */
-	DSS_CLK_SRC_DSI_PLL_HSDIV_DSI,		/* DSI2_PLL_FCLK */
-	DSS_CLK_SRC_FCK,			/* DSS1_ALWON_FCLK */
+	DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC,	/* OMAP3: DSI1_PLL_FCLK
+						 * OMAP4: PLL1_CLK1 */
+	DSS_CLK_SRC_DSI_PLL_HSDIV_DSI,		/* OMAP3: DSI2_PLL_FCLK
+						 * OMAP4: PLL1_CLK2 */
+	DSS_CLK_SRC_FCK,			/* OMAP2/3: DSS1_ALWON_FCLK
+						 * OMAP4: DSS_FCLK */
 };
 
 /* Correlates clock source name and dss_clk_source member */
@@ -152,17 +155,19 @@ struct dsi_clock_info {
 	unsigned long fint;
 	unsigned long clkin4ddr;
 	unsigned long clkin;
-	unsigned long dsi_pll_hsdiv_dispc_clk;	/* DSI1_PLL_CLK */
-	unsigned long dsi_pll_hsdiv_dsi_clk;	/* DSI2_PLL_CLK */
-
+	unsigned long dsi_pll_hsdiv_dispc_clk;	/* OMAP3: DSI1_PLL_CLK
+						 * OMAP4: PLLx_CLK1 */
+	unsigned long dsi_pll_hsdiv_dsi_clk;	/* OMAP3: DSI2_PLL_CLK
+						 * OMAP4: PLLx_CLK2 */
 	unsigned long lp_clk;
 
 	/* dividers */
 	u16 regn;
 	u16 regm;
-	u16 regm_dispc;	/* REGM3 */
-	u16 regm_dsi;	/* REGM4 */
-
+	u16 regm_dispc;	/* OMAP3: REGM3
+			 * OMAP4: REGM4 */
+	u16 regm_dsi;	/* OMAP3: REGM4
+			 * OMAP4: REGM5 */
 	u16 lp_clk_div;
 
 	u8 highfreq;
@@ -235,8 +240,11 @@ void dss_sdi_disable(void);
 
 void dss_select_dispc_clk_source(enum dss_clk_source clk_src);
 void dss_select_dsi_clk_source(enum dss_clk_source clk_src);
+void dss_select_lcd_clk_source(enum omap_channel channel,
+		enum dss_clk_source clk_src);
 enum dss_clk_source dss_get_dispc_clk_source(void);
 enum dss_clk_source dss_get_dsi_clk_source(void);
+enum dss_clk_source dss_get_lcd_clk_source(enum omap_channel channel);
 
 void dss_set_venc_output(enum omap_dss_venc_type type);
 void dss_set_dac_pwrdn_bgz(bool enable);

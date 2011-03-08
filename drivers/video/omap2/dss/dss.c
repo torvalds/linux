@@ -77,6 +77,7 @@ static struct {
 
 	enum dss_clk_source dsi_clk_source;
 	enum dss_clk_source dispc_clk_source;
+	enum dss_clk_source lcd_clk_source[MAX_DSS_LCD_MANAGERS];
 
 	u32		ctx[DSS_SZ_REGS / sizeof(u32)];
 } dss;
@@ -292,6 +293,7 @@ void dss_dump_regs(struct seq_file *s)
 void dss_select_dispc_clk_source(enum dss_clk_source clk_src)
 {
 	int b;
+	u8 start, end;
 
 	switch (clk_src) {
 	case DSS_CLK_SRC_FCK:
@@ -305,7 +307,9 @@ void dss_select_dispc_clk_source(enum dss_clk_source clk_src)
 		BUG();
 	}
 
-	REG_FLD_MOD(DSS_CONTROL, b, 0, 0);	/* DISPC_CLK_SWITCH */
+	dss_feat_get_reg_field(FEAT_REG_DISPC_CLK_SWITCH, &start, &end);
+
+	REG_FLD_MOD(DSS_CONTROL, b, start, end);	/* DISPC_CLK_SWITCH */
 
 	dss.dispc_clk_source = clk_src;
 }
@@ -331,6 +335,34 @@ void dss_select_dsi_clk_source(enum dss_clk_source clk_src)
 	dss.dsi_clk_source = clk_src;
 }
 
+void dss_select_lcd_clk_source(enum omap_channel channel,
+		enum dss_clk_source clk_src)
+{
+	int b, ix, pos;
+
+	if (!dss_has_feature(FEAT_LCD_CLK_SRC))
+		return;
+
+	switch (clk_src) {
+	case DSS_CLK_SRC_FCK:
+		b = 0;
+		break;
+	case DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
+		BUG_ON(channel != OMAP_DSS_CHANNEL_LCD);
+		b = 1;
+		dsi_wait_pll_hsdiv_dispc_active();
+		break;
+	default:
+		BUG();
+	}
+
+	pos = channel == OMAP_DSS_CHANNEL_LCD ? 0 : 12;
+	REG_FLD_MOD(DSS_CONTROL, b, pos, pos);	/* LCDx_CLK_SWITCH */
+
+	ix = channel == OMAP_DSS_CHANNEL_LCD ? 0 : 1;
+	dss.lcd_clk_source[ix] = clk_src;
+}
+
 enum dss_clk_source dss_get_dispc_clk_source(void)
 {
 	return dss.dispc_clk_source;
@@ -339,6 +371,12 @@ enum dss_clk_source dss_get_dispc_clk_source(void)
 enum dss_clk_source dss_get_dsi_clk_source(void)
 {
 	return dss.dsi_clk_source;
+}
+
+enum dss_clk_source dss_get_lcd_clk_source(enum omap_channel channel)
+{
+	int ix = channel == OMAP_DSS_CHANNEL_LCD ? 0 : 1;
+	return dss.lcd_clk_source[ix];
 }
 
 /* calculate clock rates using dividers in cinfo */
@@ -624,6 +662,8 @@ static int dss_init(void)
 
 	dss.dsi_clk_source = DSS_CLK_SRC_FCK;
 	dss.dispc_clk_source = DSS_CLK_SRC_FCK;
+	dss.lcd_clk_source[0] = DSS_CLK_SRC_FCK;
+	dss.lcd_clk_source[1] = DSS_CLK_SRC_FCK;
 
 	dss_save_context();
 

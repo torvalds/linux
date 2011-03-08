@@ -59,6 +59,7 @@ static const struct dss_reg_field omap2_dss_reg_fields[] = {
 	{ FEAT_REG_FIFOSIZE, 8, 0 },
 	{ FEAT_REG_HORIZONTALACCU, 9, 0 },
 	{ FEAT_REG_VERTICALACCU, 25, 16 },
+	{ FEAT_REG_DISPC_CLK_SWITCH, 0, 0 },
 };
 
 static const struct dss_reg_field omap3_dss_reg_fields[] = {
@@ -69,6 +70,7 @@ static const struct dss_reg_field omap3_dss_reg_fields[] = {
 	{ FEAT_REG_FIFOSIZE, 10, 0 },
 	{ FEAT_REG_HORIZONTALACCU, 9, 0 },
 	{ FEAT_REG_VERTICALACCU, 25, 16 },
+	{ FEAT_REG_DISPC_CLK_SWITCH, 0, 0 },
 };
 
 static const struct dss_reg_field omap4_dss_reg_fields[] = {
@@ -79,6 +81,7 @@ static const struct dss_reg_field omap4_dss_reg_fields[] = {
 	{ FEAT_REG_FIFOSIZE, 15, 0 },
 	{ FEAT_REG_HORIZONTALACCU, 10, 0 },
 	{ FEAT_REG_VERTICALACCU, 26, 16 },
+	{ FEAT_REG_DISPC_CLK_SWITCH, 9, 8 },
 };
 
 static const enum omap_display_type omap2_dss_supported_displays[] = {
@@ -171,6 +174,12 @@ static const struct dss_clk_source_name omap3_dss_clk_source_names[] = {
 	{ DSS_CLK_SRC_FCK, "DSS1_ALWON_FCLK" },
 };
 
+static const struct dss_clk_source_name omap4_dss_clk_source_names[] = {
+	{ DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC, "PLL1_CLK1" },
+	{ DSS_CLK_SRC_DSI_PLL_HSDIV_DSI, "PLL1_CLK2" },
+	{ DSS_CLK_SRC_FCK, "DSS_FCLK" },
+};
+
 /* OMAP2 DSS Features */
 static struct omap_dss_features omap2_dss_features = {
 	.reg_fields = omap2_dss_reg_fields,
@@ -235,14 +244,14 @@ static struct omap_dss_features omap4_dss_features = {
 	.has_feature	=
 		FEAT_GLOBAL_ALPHA | FEAT_PRE_MULT_ALPHA |
 		FEAT_MGR_LCD2 | FEAT_GLOBAL_ALPHA_VID1 |
-		FEAT_CORE_CLK_DIV,
+		FEAT_CORE_CLK_DIV | FEAT_LCD_CLK_SRC,
 
 	.num_mgrs = 3,
 	.num_ovls = 3,
 	.max_dss_fck = 186000000,
 	.supported_displays = omap4_dss_supported_displays,
 	.supported_color_modes = omap3_dss_supported_color_modes,
-	.clksrc_names = omap3_dss_clk_source_names,
+	.clksrc_names = omap4_dss_clk_source_names,
 };
 
 /* Functions returning values related to a DSS feature */
