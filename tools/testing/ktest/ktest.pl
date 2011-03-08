@@ -1280,6 +1280,13 @@ sub bisect {
     my $type = $opt{"BISECT_TYPE[$i]"};
     my $start = $opt{"BISECT_START[$i]"};
     my $replay = $opt{"BISECT_REPLAY[$i]"};
+    my $start_files = $opt{"BISECT_FILES[$i]"};
+
+    if (defined($start_files)) {
+	$start_files = " -- " . $start_files;
+    } else {
+	$start_files = "";
+    }
 
     # convert to true sha1's
     $good = get_sha1($good);
@@ -1333,7 +1340,7 @@ sub bisect {
 	    die "Failed to checkout $head";
     }
 
-    run_command "git bisect start" or
+    run_command "git bisect start$start_files" or
 	dodie "could not start bisect";
 
     run_command "git bisect good $good" or
