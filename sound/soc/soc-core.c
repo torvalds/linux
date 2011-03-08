@@ -505,6 +505,16 @@ static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream)
 	    !rtd->dai_link->symmetric_rates)
 		return 0;
 
+	/* This can happen if multiple streams are starting simultaneously -
+	 * the second can need to get its constraints before the first has
+	 * picked a rate.  Complain and allow the application to carry on.
+	 */
+	if (!rtd->rate) {
+		dev_warn(&rtd->dev,
+			 "Not enforcing symmetric_rates due to race\n");
+		return 0;
+	}
+
 	dev_dbg(&rtd->dev, "Symmetry forces %dHz rate\n", rtd->rate);
 
 	ret = snd_pcm_hw_constraint_minmax(substream->runtime,
