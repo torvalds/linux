@@ -551,6 +551,10 @@ void __devinit start_secondary(void *unused)
 
 	secondary_cpu_time_init();
 
+#ifdef CONFIG_PPC64
+	if (system_state == SYSTEM_RUNNING)
+		vdso_data->processorCount++;
+#endif
 	ipi_call_lock();
 	notify_cpu_starting(cpu);
 	set_cpu_online(cpu, true);
