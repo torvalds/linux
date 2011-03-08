@@ -30,6 +30,8 @@ struct soc_camera_device {
 	struct device *pdev;		/* Platform device */
 	s32 user_width;
 	s32 user_height;
+	u32 bytesperline;		/* for padding, zero if unused */
+	u32 sizeimage;
 	enum v4l2_colorspace colorspace;
 	unsigned char iface;		/* Host number */
 	unsigned char devnum;		/* Device number per host */

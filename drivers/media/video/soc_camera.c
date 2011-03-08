@@ -389,6 +389,8 @@ static int soc_camera_set_fmt(struct soc_camera_device *icd,
 
 	icd->user_width		= pix->width;
 	icd->user_height	= pix->height;
+	icd->bytesperline	= pix->bytesperline;
+	icd->sizeimage		= pix->sizeimage;
 	icd->colorspace		= pix->colorspace;
 	icd->field		= pix->field;
 	if (ici->ops->init_videobuf)
@@ -661,14 +663,11 @@ static int soc_camera_g_fmt_vid_cap(struct file *file, void *priv,
 
 	pix->width		= icd->user_width;
 	pix->height		= icd->user_height;
+	pix->bytesperline	= icd->bytesperline;
+	pix->sizeimage		= icd->sizeimage;
 	pix->field		= icd->field;
 	pix->pixelformat	= icd->current_fmt->host_fmt->fourcc;
-	pix->bytesperline	= soc_mbus_bytes_per_line(pix->width,
-						icd->current_fmt->host_fmt);
 	pix->colorspace		= icd->colorspace;
-	if (pix->bytesperline < 0)
-		return pix->bytesperline;
-	pix->sizeimage		= pix->height * pix->bytesperline;
 	dev_dbg(&icd->dev, "current_fmt->fourcc: 0x%08x\n",
 		icd->current_fmt->host_fmt->fourcc);
 	return 0;
