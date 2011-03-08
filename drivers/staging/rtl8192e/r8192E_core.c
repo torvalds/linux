@@ -2429,7 +2429,7 @@ static short rtl8192_init(struct r8192_priv *priv)
 	rtl8192_get_channel_map(priv);
 	init_hal_dm(dev);
 	init_timer(&priv->watch_dog_timer);
-	priv->watch_dog_timer.data = (unsigned long)dev;
+	priv->watch_dog_timer.data = (unsigned long)priv;
 	priv->watch_dog_timer.function = watch_dog_timer_callback;
         if (request_irq(dev->irq, rtl8192_interrupt, IRQF_SHARED, dev->name, dev)) {
 		printk("Error allocating IRQ %d",dev->irq);
@@ -3379,7 +3379,7 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 
 void watch_dog_timer_callback(unsigned long data)
 {
-	struct r8192_priv *priv = ieee80211_priv((struct net_device *) data);
+	struct r8192_priv *priv = (struct r8192_priv *) data;
 	queue_delayed_work(priv->priv_wq,&priv->watch_dog_wq,0);
 	mod_timer(&priv->watch_dog_timer, jiffies + MSECS(IEEE80211_WATCH_DOG_TIME));
 
@@ -3409,7 +3409,7 @@ static int _rtl8192_up(struct r8192_priv *priv)
 	if(priv->ieee80211->state != IEEE80211_LINKED)
 	ieee80211_softmac_start_protocol(priv->ieee80211);
 	ieee80211_reset_queue(priv->ieee80211);
-	watch_dog_timer_callback((unsigned long) dev);
+	watch_dog_timer_callback((unsigned long) priv);
 	if(!netif_queue_stopped(dev))
 		netif_start_queue(dev);
 	else
