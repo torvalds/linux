@@ -206,12 +206,28 @@ static cycle_t exynos4_pwm4_read(struct clocksource *cs)
 	return (cycle_t) ~__raw_readl(S3C_TIMERREG(0x40));
 }
 
+static void exynos4_pwm4_resume(struct clocksource *cs)
+{
+	unsigned long pclk;
+
+	pclk = clk_get_rate(timerclk);
+
+	clk_set_rate(tdiv4, pclk / 2);
+	clk_set_parent(tin4, tdiv4);
+
+	exynos4_pwm_init(4, ~0);
+	exynos4_pwm_start(4, 1);
+}
+
 struct clocksource pwm_clocksource = {
 	.name		= "pwm_timer4",
 	.rating		= 250,
 	.read		= exynos4_pwm4_read,
 	.mask		= CLOCKSOURCE_MASK(32),
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS ,
+#ifdef CONFIG_PM
+	.resume		= exynos4_pwm4_resume,
+#endif
 };
 
 static void __init exynos4_clocksource_init(void)
