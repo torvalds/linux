@@ -388,34 +388,32 @@ unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
 		XGINew_SetReg1(pVBInfo->P3d4, 0x83, 0x00);
 	printk("181");
 
-	if (HwDeviceExtension->bSkipSense == 0) {
-		printk("182");
+	printk("182");
 
-		XGI_SenseCRT1(pVBInfo);
+	XGI_SenseCRT1(pVBInfo);
 
-		printk("183");
-		/* XGINew_DetectMonitor(HwDeviceExtension); */
-		pVBInfo->IF_DEF_CH7007 = 0;
-		if ((HwDeviceExtension->jChipType == XG21) && (pVBInfo->IF_DEF_CH7007)) {
-			printk("184");
-			XGI_GetSenseStatus(HwDeviceExtension, pVBInfo); /* sense CRT2 */
-			printk("185");
+	printk("183");
+	/* XGINew_DetectMonitor(HwDeviceExtension); */
+	pVBInfo->IF_DEF_CH7007 = 0;
+	if ((HwDeviceExtension->jChipType == XG21) && (pVBInfo->IF_DEF_CH7007)) {
+		printk("184");
+		XGI_GetSenseStatus(HwDeviceExtension, pVBInfo); /* sense CRT2 */
+		printk("185");
 
-		}
-		if (HwDeviceExtension->jChipType == XG21) {
-			printk("186");
+	}
+	if (HwDeviceExtension->jChipType == XG21) {
+		printk("186");
 
-			XGINew_SetRegANDOR(pVBInfo->P3d4, 0x32, ~Monitor1Sense, Monitor1Sense); /* Z9 default has CRT */
-			temp = GetXG21FPBits(pVBInfo);
-			XGINew_SetRegANDOR(pVBInfo->P3d4, 0x37, ~0x01, temp);
-			printk("187");
+		XGINew_SetRegANDOR(pVBInfo->P3d4, 0x32, ~Monitor1Sense, Monitor1Sense); /* Z9 default has CRT */
+		temp = GetXG21FPBits(pVBInfo);
+		XGINew_SetRegANDOR(pVBInfo->P3d4, 0x37, ~0x01, temp);
+		printk("187");
 
-		}
-		if (HwDeviceExtension->jChipType == XG27) {
-			XGINew_SetRegANDOR(pVBInfo->P3d4, 0x32, ~Monitor1Sense, Monitor1Sense); /* Z9 default has CRT */
-			temp = GetXG27FPBits(pVBInfo);
-			XGINew_SetRegANDOR(pVBInfo->P3d4, 0x37, ~0x03, temp);
-		}
+	}
+	if (HwDeviceExtension->jChipType == XG27) {
+		XGINew_SetRegANDOR(pVBInfo->P3d4, 0x32, ~Monitor1Sense, Monitor1Sense); /* Z9 default has CRT */
+		temp = GetXG27FPBits(pVBInfo);
+		XGINew_SetRegANDOR(pVBInfo->P3d4, 0x37, ~0x03, temp);
 	}
 	printk("19");
 

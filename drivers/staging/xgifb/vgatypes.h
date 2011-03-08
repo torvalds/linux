@@ -82,8 +82,6 @@ struct xgi_hw_device_info
 
     unsigned char bIntegratedMMEnabled;/* supporting integration MM enable */
 
-    unsigned char bSkipSense;
-
 	unsigned char(*pQueryVGAConfigSpace)(struct xgi_hw_device_info *,
 					    unsigned long, unsigned long,
 					    unsigned long *);
