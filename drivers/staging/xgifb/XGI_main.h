@@ -65,9 +65,6 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 
 #define MAX_ROM_SCAN              0x10000
 
-#define OH_ALLOC_SIZE             4000
-#define SENTINEL                  0x7fffffff
-
 #define SEQ_ADR                   0x14
 #define SEQ_DATA                  0x15
 #define DAC_ADR                   0x18
@@ -315,7 +312,6 @@ static int XGIfb_userom = 0;
 /* global flags */
 static int XGIfb_registered;
 static int XGIfb_tvmode = 0;
-static int XGIfb_mem = 0;
 static int XGIfb_pdc = 0;
 static int enable_dstn = 0;
 static int XGIfb_ypan = -1;
@@ -538,31 +534,6 @@ static const struct _chswtable {
 	{ 0,      0,      ""       , ""       }
 };
 
-typedef struct _XGI_OH {
-	struct _XGI_OH *poh_next;
-	struct _XGI_OH *poh_prev;
-	unsigned long offset;
-	unsigned long size;
-} XGI_OH;
-
-typedef struct _XGI_OHALLOC {
-	struct _XGI_OHALLOC *poha_next;
-	XGI_OH aoh[1];
-} XGI_OHALLOC;
-
-typedef struct _XGI_HEAP {
-	XGI_OH oh_free;
-	XGI_OH oh_used;
-	XGI_OH *poh_freelist;
-	XGI_OHALLOC *poha_chain;
-	unsigned long max_freesize;
-} XGI_HEAP;
-
-static unsigned long XGIfb_heap_start;
-static unsigned long XGIfb_heap_end;
-static unsigned long XGIfb_heap_size;
-static XGI_HEAP      XGIfb_heap;
-
 // Eden Chen
 static const struct _XGI_TV_filter {
 	u8 filter[9][4];
@@ -766,15 +737,6 @@ static int      XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 static void     XGIfb_pre_setmode(void);
 static void     XGIfb_post_setmode(void);
 
-struct XGI_memreq {
-	unsigned long offset;
-	unsigned long size;
-};
-
-/* XGI-specific Export functions */
-void            XGI_malloc(struct XGI_memreq *req);
-void            XGI_free(unsigned long base);
-
 /* Internal hardware access routines */
 void            XGIfb_set_reg4(u16 port, unsigned long data);
 u32             XGIfb_get_reg3(u16 port);
@@ -787,15 +749,6 @@ static void     XGIfb_detect_VB(void);
 static void     XGIfb_get_VB_type(void);
 static int      XGIfb_has_VB(void);
 
-
-/* Internal heap routines */
-static int      XGIfb_heap_init(void);
-static XGI_OH   *XGIfb_poh_new_node(void);
-static XGI_OH   *XGIfb_poh_allocate(unsigned long size);
-static void     XGIfb_delete_node(XGI_OH *poh);
-static void     XGIfb_insert_node(XGI_OH *pohList, XGI_OH *poh);
-static XGI_OH   *XGIfb_poh_free(unsigned long base);
-static void     XGIfb_free_node(XGI_OH *poh);
 
 /* Internal routines to access PCI configuration space */
 unsigned char XGIfb_query_VGA_config_space(struct xgi_hw_device_info *pXGIhw_ext,

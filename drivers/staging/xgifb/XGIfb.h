@@ -92,7 +92,6 @@ struct video_info{
         char  *       mmio_vbase;
         unsigned long vga_base;
         unsigned long mtrr;
-        unsigned long heapstart;
 
         int    video_bpp;
         int    video_cmap_len;
