@@ -99,8 +99,7 @@ static LIST_HEAD(ballooned_pages);
 
 /* Main work function, always executed in process context. */
 static void balloon_process(struct work_struct *work);
-static DECLARE_WORK(balloon_worker, balloon_process);
-static struct timer_list balloon_timer;
+static DECLARE_DELAYED_WORK(balloon_worker, balloon_process);
 
 /* When ballooning out (allocating memory to return to Xen) we don't really
    want the kernel to try too hard since that can trigger the oom killer. */
@@ -170,11 +169,6 @@ static struct page *balloon_next_page(struct page *page)
 	if (next == &ballooned_pages)
 		return NULL;
 	return list_entry(next, struct page, lru);
-}
-
-static void balloon_alarm(unsigned long unused)
-{
-	schedule_work(&balloon_worker);
 }
 
 static unsigned long current_target(void)
@@ -333,7 +327,7 @@ static void balloon_process(struct work_struct *work)
 
 	/* Schedule more work if there is some still to be done. */
 	if (current_target() != balloon_stats.current_pages)
-		mod_timer(&balloon_timer, jiffies + HZ);
+		schedule_delayed_work(&balloon_worker, HZ);
 
 	mutex_unlock(&balloon_mutex);
 }
@@ -343,7 +337,7 @@ static void balloon_set_new_target(unsigned long target)
 {
 	/* No need for lock. Not read-modify-write updates. */
 	balloon_stats.target_pages = target;
-	schedule_work(&balloon_worker);
+	schedule_delayed_work(&balloon_worker, 0);
 }
 
 static struct xenbus_watch target_watch =
@@ -399,10 +393,6 @@ static int __init balloon_init(void)
 	balloon_stats.target_pages  = balloon_stats.current_pages;
 	balloon_stats.balloon_low   = 0;
 	balloon_stats.balloon_high  = 0;
-
-	init_timer(&balloon_timer);
-	balloon_timer.data = 0;
-	balloon_timer.function = balloon_alarm;
 
 	register_balloon(&balloon_sysdev);
 
