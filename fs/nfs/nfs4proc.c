@@ -51,7 +51,6 @@
 #include <linux/sunrpc/bc_xprt.h>
 #include <linux/xattr.h>
 #include <linux/utsname.h>
-#include <linux/mm.h>
 
 #include "nfs4_fs.h"
 #include "delegation.h"
