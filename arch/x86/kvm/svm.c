@@ -1155,7 +1155,9 @@ static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 	wrmsrl(MSR_KERNEL_GS_BASE, current->thread.gs);
 	load_gs_index(svm->host.gs);
 #else
+#ifdef CONFIG_X86_32_LAZY_GS
 	loadsegment(gs, svm->host.gs);
+#endif
 #endif
 	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
 		wrmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
@@ -3649,6 +3651,9 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	wrmsrl(MSR_GS_BASE, svm->host.gs_base);
 #else
 	loadsegment(fs, svm->host.fs);
+#ifndef CONFIG_X86_32_LAZY_GS
+	loadsegment(gs, svm->host.gs);
+#endif
 #endif
 
 	reload_tss(vcpu);
