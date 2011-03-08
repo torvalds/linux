@@ -304,7 +304,6 @@ struct biovec_slab {
 };
 
 extern struct bio_set *fs_bio_set;
-extern struct biovec_slab bvec_slabs[BIOVEC_NR_POOLS] __read_mostly;
 
 /*
  * a small number of entries is fine, not going to be performance critical.
