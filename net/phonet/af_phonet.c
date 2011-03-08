@@ -262,10 +262,9 @@ int pn_skb_send(struct sock *sk, struct sk_buff *skb,
 	else if (phonet_address_lookup(net, daddr) == 0) {
 		dev = phonet_device_get(net);
 		skb->pkt_type = PACKET_LOOPBACK;
-	} else if (pn_sockaddr_get_object(target) == 0) {
+	} else if (dst == 0) {
 		/* Resource routing (small race until phonet_rcv()) */
-		struct sock *sk = pn_find_sock_by_res(net,
-							target->spn_resource);
+		struct sock *sk = pn_find_sock_by_res(net, res);
 		if (sk)	{
 			sock_put(sk);
 			dev = phonet_device_get(net);
