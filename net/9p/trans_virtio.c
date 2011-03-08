@@ -146,11 +146,10 @@ static void req_done(struct virtqueue *vq)
 		rc = virtqueue_get_buf(chan->vq, &len);
 
 		if (rc != NULL) {
-			if (!chan->ring_bufs_avail) {
-				chan->ring_bufs_avail = 1;
-				wake_up(chan->vc_wq);
-			}
+			chan->ring_bufs_avail = 1;
 			spin_unlock_irqrestore(&chan->lock, flags);
+			/* Wakeup if anyone waiting for VirtIO ring space. */
+			wake_up(chan->vc_wq);
 			P9_DPRINTK(P9_DEBUG_TRANS, ": rc %p\n", rc);
 			P9_DPRINTK(P9_DEBUG_TRANS, ": lookup tag %d\n",
 					rc->tag);
