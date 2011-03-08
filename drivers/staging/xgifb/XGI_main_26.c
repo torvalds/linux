@@ -2287,7 +2287,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		break;
 	}
 
-	XGIhw_ext.pDevice = NULL;
 	if ((xgi_video_info.chip == XG21) || (XGIfb_userom)) {
 		XGIhw_ext.pjVirtualRomBase = xgifb_copy_rom(pdev);
 		if (XGIhw_ext.pjVirtualRomBase)
@@ -2298,10 +2297,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		XGIhw_ext.pjVirtualRomBase = NULL;
 		printk(KERN_INFO "XGIfb: Video ROM usage disabled\n");
 	}
-	XGIhw_ext.pjCustomizedROMImage = NULL;
 	XGIhw_ext.pQueryVGAConfigSpace = &XGIfb_query_VGA_config_space;
-	/* XGIhw_ext.pQueryNorthBridgeSpace = &XGIfb_query_north_bridge_space; */
-	strcpy(XGIhw_ext.szVBIOSVer, "0.84");
 
 	if (!XGIvga_enabled) {
 		/* Mapping Max FB Size for 315 Init */
