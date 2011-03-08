@@ -161,29 +161,25 @@ static int ixgbe_get_settings(struct net_device *netdev,
 		}
 
 		ecmd->advertising = ADVERTISED_Autoneg;
-		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_100_FULL)
-			ecmd->advertising |= ADVERTISED_100baseT_Full;
-		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_10GB_FULL)
-			ecmd->advertising |= ADVERTISED_10000baseT_Full;
-		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_1GB_FULL)
-			ecmd->advertising |= ADVERTISED_1000baseT_Full;
-		/*
-		 * It's possible that phy.autoneg_advertised may not be
-		 * set yet.  If so display what the default would be -
-		 * both 1G and 10G supported.
-		 */
-		if (!(ecmd->advertising & (ADVERTISED_1000baseT_Full |
-					   ADVERTISED_10000baseT_Full)))
+		if (hw->phy.autoneg_advertised) {
+			if (hw->phy.autoneg_advertised &
+			    IXGBE_LINK_SPEED_100_FULL)
+				ecmd->advertising |= ADVERTISED_100baseT_Full;
+			if (hw->phy.autoneg_advertised &
+			    IXGBE_LINK_SPEED_10GB_FULL)
+				ecmd->advertising |= ADVERTISED_10000baseT_Full;
+			if (hw->phy.autoneg_advertised &
+			    IXGBE_LINK_SPEED_1GB_FULL)
+				ecmd->advertising |= ADVERTISED_1000baseT_Full;
+		} else {
+			/*
+			 * Default advertised modes in case
+			 * phy.autoneg_advertised isn't set.
+			 */
 			ecmd->advertising |= (ADVERTISED_10000baseT_Full |
 					      ADVERTISED_1000baseT_Full);
-
-		switch (hw->mac.type) {
-		case ixgbe_mac_X540:
-			if (!(ecmd->advertising & ADVERTISED_100baseT_Full))
-				ecmd->advertising |= (ADVERTISED_100baseT_Full);
-			break;
-		default:
-			break;
+			if (hw->mac.type == ixgbe_mac_X540)
+				ecmd->advertising |= ADVERTISED_100baseT_Full;
 		}
 
 		if (hw->phy.media_type == ixgbe_media_type_copper) {
@@ -335,6 +331,9 @@ static int ixgbe_set_settings(struct net_device *netdev,
 
 		if (ecmd->advertising & ADVERTISED_1000baseT_Full)
 			advertised |= IXGBE_LINK_SPEED_1GB_FULL;
+
+		if (ecmd->advertising & ADVERTISED_100baseT_Full)
+			advertised |= IXGBE_LINK_SPEED_100_FULL;
 
 		if (old == advertised)
 			return err;

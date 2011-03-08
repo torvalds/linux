@@ -251,8 +251,11 @@ static u32 ixgbe_get_supported_physical_layer_X540(struct ixgbe_hw *hw)
 }
 
 /**
- * ixgbe_init_eeprom_params_X540 - Initialize EEPROM params
- * @hw: pointer to hardware structure
+ *  ixgbe_init_eeprom_params_X540 - Initialize EEPROM params
+ *  @hw: pointer to hardware structure
+ *
+ *  Initializes the EEPROM parameters ixgbe_eeprom_info within the
+ *  ixgbe_hw struct in order to set up EEPROM access.
  **/
 static s32 ixgbe_init_eeprom_params_X540(struct ixgbe_hw *hw)
 {
@@ -271,7 +274,7 @@ static s32 ixgbe_init_eeprom_params_X540(struct ixgbe_hw *hw)
 		                          IXGBE_EEPROM_WORD_SIZE_SHIFT);
 
 		hw_dbg(hw, "Eeprom params: type = %d, size = %d\n",
-		        eeprom->type, eeprom->word_size);
+		       eeprom->type, eeprom->word_size);
 	}
 
 	return 0;

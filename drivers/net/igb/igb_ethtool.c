@@ -86,6 +86,10 @@ static const struct igb_stats igb_gstrings_stats[] = {
 	IGB_STAT("tx_smbus", stats.mgptc),
 	IGB_STAT("rx_smbus", stats.mgprc),
 	IGB_STAT("dropped_smbus", stats.mgpdc),
+	IGB_STAT("os2bmc_rx_by_bmc", stats.o2bgptc),
+	IGB_STAT("os2bmc_tx_by_bmc", stats.b2ospc),
+	IGB_STAT("os2bmc_tx_by_host", stats.o2bspc),
+	IGB_STAT("os2bmc_rx_by_host", stats.b2ogprc),
 };
 
 #define IGB_NETDEV_STAT(_net_stat) { \
@@ -603,7 +607,10 @@ static void igb_get_regs(struct net_device *netdev,
 	regs_buff[548] = rd32(E1000_TDFT);
 	regs_buff[549] = rd32(E1000_TDFHS);
 	regs_buff[550] = rd32(E1000_TDFPC);
-
+	regs_buff[551] = adapter->stats.o2bgptc;
+	regs_buff[552] = adapter->stats.b2ospc;
+	regs_buff[553] = adapter->stats.o2bspc;
+	regs_buff[554] = adapter->stats.b2ogprc;
 }
 
 static int igb_get_eeprom_len(struct net_device *netdev)

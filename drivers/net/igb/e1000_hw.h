@@ -248,6 +248,10 @@ struct e1000_hw_stats {
 	u64 scvpc;
 	u64 hrmpc;
 	u64 doosync;
+	u64 o2bgptc;
+	u64 o2bspc;
+	u64 b2ospc;
+	u64 b2ogprc;
 };
 
 struct e1000_phy_stats {

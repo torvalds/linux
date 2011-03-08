@@ -659,6 +659,8 @@
 #define IXGBE_QPTC(_i) (0x06030 + ((_i) * 0x40)) /* 16 of these */
 #define IXGBE_QBRC(_i) (0x01034 + ((_i) * 0x40)) /* 16 of these */
 #define IXGBE_QBTC(_i) (0x06034 + ((_i) * 0x40)) /* 16 of these */
+#define IXGBE_QBRC_L(_i) (0x01034 + ((_i) * 0x40)) /* 16 of these */
+#define IXGBE_QBRC_H(_i) (0x01038 + ((_i) * 0x40)) /* 16 of these */
 #define IXGBE_QPRDC(_i) (0x01430 + ((_i) * 0x40)) /* 16 of these */
 #define IXGBE_QBTC_L(_i) (0x08700 + ((_i) * 0x8)) /* 16 of these */
 #define IXGBE_QBTC_H(_i) (0x08704 + ((_i) * 0x8)) /* 16 of these */
@@ -669,6 +671,11 @@
 #define IXGBE_FCOEDWRC  0x0242C /* Number of FCoE DWords Received */
 #define IXGBE_FCOEPTC   0x08784 /* Number of FCoE Packets Transmitted */
 #define IXGBE_FCOEDWTC  0x08788 /* Number of FCoE DWords Transmitted */
+#define IXGBE_PCRC8ECL  0x0E810
+#define IXGBE_PCRC8ECH  0x0E811
+#define IXGBE_PCRC8ECH_MASK     0x1F
+#define IXGBE_LDPCECL   0x0E820
+#define IXGBE_LDPCECH   0x0E821
 
 /* Management */
 #define IXGBE_MAVTV(_i) (0x05010 + ((_i) * 4)) /* 8 of these (0-7) */
@@ -2691,6 +2698,9 @@ struct ixgbe_info {
 #define IXGBE_ERR_EEPROM_VERSION                -24
 #define IXGBE_ERR_NO_SPACE                      -25
 #define IXGBE_ERR_OVERTEMP                      -26
+#define IXGBE_ERR_FC_NOT_NEGOTIATED             -27
+#define IXGBE_ERR_FC_NOT_SUPPORTED              -28
+#define IXGBE_ERR_FLOW_CONTROL                  -29
 #define IXGBE_ERR_SFP_SETUP_NOT_COMPLETE        -30
 #define IXGBE_ERR_PBA_SECTION                   -31
 #define IXGBE_ERR_INVALID_ARGUMENT              -32

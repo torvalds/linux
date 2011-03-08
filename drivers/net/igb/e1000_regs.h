@@ -328,4 +328,11 @@
 
 /* DMA Coalescing registers */
 #define E1000_PCIEMISC          0x05BB8 /* PCIE misc config register */
+
+/* OS2BMC Registers */
+#define E1000_B2OSPC    0x08FE0 /* BMC2OS packets sent by BMC */
+#define E1000_B2OGPRC   0x04158 /* BMC2OS packets received by host */
+#define E1000_O2BGPTC   0x08FE4 /* OS2BMC packets received by BMC */
+#define E1000_O2BSPC    0x0415C /* OS2BMC packets transmitted by host */
+
 #endif

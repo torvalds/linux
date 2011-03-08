@@ -57,6 +57,7 @@ s32 ixgbe_identify_phy_generic(struct ixgbe_hw *hw)
 {
 	s32 status = IXGBE_ERR_PHY_ADDR_INVALID;
 	u32 phy_addr;
+	u16 ext_ability = 0;
 
 	if (hw->phy.type == ixgbe_phy_unknown) {
 		for (phy_addr = 0; phy_addr < IXGBE_MAX_PHY_ADDR; phy_addr++) {
@@ -65,12 +66,29 @@ s32 ixgbe_identify_phy_generic(struct ixgbe_hw *hw)
 				ixgbe_get_phy_id(hw);
 				hw->phy.type =
 				        ixgbe_get_phy_type_from_id(hw->phy.id);
+
+				if (hw->phy.type == ixgbe_phy_unknown) {
+					hw->phy.ops.read_reg(hw,
+							     MDIO_PMA_EXTABLE,
+							     MDIO_MMD_PMAPMD,
+							     &ext_ability);
+					if (ext_ability &
+					    (MDIO_PMA_EXTABLE_10GBT |
+					     MDIO_PMA_EXTABLE_1000BT))
+						hw->phy.type =
+							 ixgbe_phy_cu_unknown;
+					else
+						hw->phy.type =
+							 ixgbe_phy_generic;
+				}
+
 				status = 0;
 				break;
 			}
 		}
 		/* clear value if nothing found */
-		hw->phy.mdio.prtad = 0;
+		if (status != 0)
+			hw->phy.mdio.prtad = 0;
 	} else {
 		status = 0;
 	}
@@ -823,7 +841,6 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 			goto out;
 		}
 
-		/* This is guaranteed to be 82599, no need to check for NULL */
 		hw->mac.ops.get_device_caps(hw, &enforce_sfp);
 		if (!(enforce_sfp & IXGBE_DEVICE_CAPS_ALLOW_ANY_SFP) &&
 		    !((hw->phy.sfp_type == ixgbe_sfp_type_1g_cu_core0) ||
