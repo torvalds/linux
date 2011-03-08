@@ -118,7 +118,7 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 	if (encap_type < 0) {
 		async = 1;
 		x = xfrm_input_state(skb);
-		seq = XFRM_SKB_CB(skb)->seq.input;
+		seq = XFRM_SKB_CB(skb)->seq.input.low;
 		goto resume;
 	}
 
@@ -184,7 +184,7 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 
 		spin_unlock(&x->lock);
 
-		XFRM_SKB_CB(skb)->seq.input = seq;
+		XFRM_SKB_CB(skb)->seq.input.low = seq;
 
 		nexthdr = x->type->input(x, skb);
 

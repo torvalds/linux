@@ -215,7 +215,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	}
 
 	esph->spi = x->id.spi;
-	esph->seq_no = htonl(XFRM_SKB_CB(skb)->seq.output);
+	esph->seq_no = htonl(XFRM_SKB_CB(skb)->seq.output.low);
 
 	sg_init_table(sg, nfrags);
 	skb_to_sgvec(skb, sg,
@@ -227,7 +227,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	aead_givcrypt_set_crypt(req, sg, sg, clen, iv);
 	aead_givcrypt_set_assoc(req, asg, sizeof(*esph));
 	aead_givcrypt_set_giv(req, esph->enc_data,
-			      XFRM_SKB_CB(skb)->seq.output);
+			      XFRM_SKB_CB(skb)->seq.output.low);
 
 	ESP_SKB_CB(skb)->tmp = tmp;
 	err = crypto_aead_givencrypt(req);

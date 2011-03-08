@@ -582,8 +582,14 @@ struct xfrm_skb_cb {
 
         /* Sequence number for replay protection. */
 	union {
-		u64 output;
-		__be32 input;
+		struct {
+			__u32 low;
+			__u32 hi;
+		} output;
+		struct {
+			__be32 low;
+			__be32 hi;
+		} input;
 	} seq;
 };
 

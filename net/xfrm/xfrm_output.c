@@ -68,7 +68,7 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 		}
 
 		if (x->type->flags & XFRM_TYPE_REPLAY_PROT) {
-			XFRM_SKB_CB(skb)->seq.output = ++x->replay.oseq;
+			XFRM_SKB_CB(skb)->seq.output.low = ++x->replay.oseq;
 			if (unlikely(x->replay.oseq == 0)) {
 				XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTSTATESEQERROR);
 				x->replay.oseq--;
