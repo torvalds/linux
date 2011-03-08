@@ -853,6 +853,12 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 				goto err_inval;
 	}
 
+	change_nexthops(fi) {
+		nexthop_nh->nh_saddr = inet_select_addr(nexthop_nh->nh_dev,
+							nexthop_nh->nh_gw,
+							nexthop_nh->nh_scope);
+	} endfor_nexthops(fi)
+
 link_it:
 	ofi = fib_find_info(fi);
 	if (ofi) {
@@ -896,13 +902,6 @@ failure:
 	}
 
 	return ERR_PTR(err);
-}
-
-/* Find appropriate source address to this destination */
-
-__be32 __fib_res_prefsrc(struct fib_result *res)
-{
-	return inet_select_addr(FIB_RES_DEV(*res), FIB_RES_GW(*res), res->scope);
 }
 
 int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
@@ -1126,6 +1125,24 @@ void fib_select_default(struct fib_result *res)
 	tb->tb_default = last_idx;
 out:
 	return;
+}
+
+void fib_update_nh_saddrs(struct net_device *dev)
+{
+	struct hlist_head *head;
+	struct hlist_node *node;
+	struct fib_nh *nh;
+	unsigned int hash;
+
+	hash = fib_devindex_hashfn(dev->ifindex);
+	head = &fib_info_devhash[hash];
+	hlist_for_each_entry(nh, node, head, nh_hash) {
+		if (nh->nh_dev != dev)
+			continue;
+		nh->nh_saddr = inet_select_addr(nh->nh_dev,
+						nh->nh_gw,
+						nh->nh_scope);
+	}
 }
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH

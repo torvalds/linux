@@ -60,6 +60,7 @@ struct fib_nh {
 #endif
 	int			nh_oif;
 	__be32			nh_gw;
+	__be32			nh_saddr;
 };
 
 /*
@@ -139,10 +140,12 @@ struct fib_result_nl {
 
 #endif /* CONFIG_IP_ROUTE_MULTIPATH */
 
-#define FIB_RES_PREFSRC(res)		((res).fi->fib_prefsrc ? : __fib_res_prefsrc(&res))
+#define FIB_RES_SADDR(res)		(FIB_RES_NH(res).nh_saddr)
 #define FIB_RES_GW(res)			(FIB_RES_NH(res).nh_gw)
 #define FIB_RES_DEV(res)		(FIB_RES_NH(res).nh_dev)
 #define FIB_RES_OIF(res)		(FIB_RES_NH(res).nh_oif)
+
+#define FIB_RES_PREFSRC(res)		((res).fi->fib_prefsrc ? : FIB_RES_SADDR(res))
 
 struct fib_table {
 	struct hlist_node tb_hlist;
@@ -224,8 +227,8 @@ extern void fib_select_default(struct fib_result *res);
 extern int ip_fib_check_default(__be32 gw, struct net_device *dev);
 extern int fib_sync_down_dev(struct net_device *dev, int force);
 extern int fib_sync_down_addr(struct net *net, __be32 local);
+extern void fib_update_nh_saddrs(struct net_device *dev);
 extern int fib_sync_up(struct net_device *dev);
-extern __be32  __fib_res_prefsrc(struct fib_result *res);
 extern void fib_select_multipath(const struct flowi *flp, struct fib_result *res);
 
 /* Exported by fib_trie.c */
