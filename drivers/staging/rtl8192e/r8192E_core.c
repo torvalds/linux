@@ -103,7 +103,7 @@ static void rtl8192_irq_rx_tasklet(unsigned long arg);
 static void rtl8192_irq_tx_tasklet(unsigned long arg);
 static void rtl8192_prepare_beacon(unsigned long arg);
 static irqreturn_t rtl8192_interrupt(int irq, void *netdev);
-static void rtl819xE_tx_cmd(struct net_device *dev, struct sk_buff *skb);
+static void rtl819xE_tx_cmd(struct r8192_priv *priv, struct sk_buff *skb);
 static void rtl8192_update_ratr_table(struct r8192_priv *priv);
 static void rtl8192_restart(struct work_struct *work);
 static void watch_dog_timer_callback(unsigned long data);
@@ -879,7 +879,7 @@ static int rtl8192_hard_start_xmit(struct sk_buff *skb,struct net_device *dev)
 
         memcpy(skb->cb, &dev, sizeof(dev));
 	if (queue_index == TXCMD_QUEUE) {
-		rtl819xE_tx_cmd(dev, skb);
+		rtl819xE_tx_cmd(priv, skb);
 		ret = 0;
 		return ret;
 	} else {
@@ -1050,9 +1050,8 @@ static void rtl8192_net_update(struct r8192_priv *priv)
 	}
 }
 
-static void rtl819xE_tx_cmd(struct net_device *dev, struct sk_buff *skb)
+static void rtl819xE_tx_cmd(struct r8192_priv *priv, struct sk_buff *skb)
 {
-    struct r8192_priv *priv = ieee80211_priv(dev);
     struct rtl8192_tx_ring *ring;
     tx_desc_819x_pci *entry;
     unsigned int idx;
