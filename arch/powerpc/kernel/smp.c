@@ -553,7 +553,11 @@ void __init smp_cpus_done(unsigned int max_cpus)
 
 	free_cpumask_var(old_mask);
 
+	if (smp_ops && smp_ops->bringup_done)
+		smp_ops->bringup_done();
+
 	dump_numa_cpu_topology();
+
 }
 
 int arch_sd_sibling_asym_packing(void)
