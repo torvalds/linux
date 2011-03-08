@@ -3138,10 +3138,8 @@ void LeisurePSLeave(struct net_device *dev)
 
 
 /* Enter the inactive power save mode. RF will be off */
-void
-IPSEnter(struct net_device *dev)
+void IPSEnter(struct r8192_priv *priv)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	PRT_POWER_SAVE_CONTROL pPSC = &priv->PowerSaveControl;
 	RT_RF_POWER_STATE 			rtState;
 
@@ -3275,7 +3273,7 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 		    (priv->eRFPowerState == eRfOn) && !ieee->is_set_key &&
 		    (!ieee->proto_stoppping) && !ieee->wx_set_enc){
 			if (priv->PowerSaveControl.ReturnPoint == IPS_CALLBACK_NONE){
-				IPSEnter(dev);
+				IPSEnter(priv);
 			}
 		}
 	}
