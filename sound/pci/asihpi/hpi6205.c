@@ -2088,7 +2088,7 @@ static u16 message_response_sequence(struct hpi_adapter_obj *pao,
 		phr->specific_error = sizeof(interface->u);
 		phr->size = sizeof(struct hpi_response_header);
 		HPI_DEBUG_LOG(ERROR,
-			"message len %d too big for buffer %ld \n", phm->size,
+			"message len %d too big for buffer %zd \n", phm->size,
 			sizeof(interface->u));
 		return 0;
 	}
