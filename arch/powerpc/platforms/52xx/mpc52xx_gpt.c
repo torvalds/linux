@@ -135,9 +135,9 @@ DEFINE_MUTEX(mpc52xx_gpt_list_mutex);
  * Cascaded interrupt controller hooks
  */
 
-static void mpc52xx_gpt_irq_unmask(unsigned int virq)
+static void mpc52xx_gpt_irq_unmask(struct irq_data *d)
 {
-	struct mpc52xx_gpt_priv *gpt = get_irq_chip_data(virq);
+	struct mpc52xx_gpt_priv *gpt = irq_data_get_irq_chip_data(d);
 	unsigned long flags;
 
 	spin_lock_irqsave(&gpt->lock, flags);
@@ -145,9 +145,9 @@ static void mpc52xx_gpt_irq_unmask(unsigned int virq)
 	spin_unlock_irqrestore(&gpt->lock, flags);
 }
 
-static void mpc52xx_gpt_irq_mask(unsigned int virq)
+static void mpc52xx_gpt_irq_mask(struct irq_data *d)
 {
-	struct mpc52xx_gpt_priv *gpt = get_irq_chip_data(virq);
+	struct mpc52xx_gpt_priv *gpt = irq_data_get_irq_chip_data(d);
 	unsigned long flags;
 
 	spin_lock_irqsave(&gpt->lock, flags);
@@ -155,20 +155,20 @@ static void mpc52xx_gpt_irq_mask(unsigned int virq)
 	spin_unlock_irqrestore(&gpt->lock, flags);
 }
 
-static void mpc52xx_gpt_irq_ack(unsigned int virq)
+static void mpc52xx_gpt_irq_ack(struct irq_data *d)
 {
-	struct mpc52xx_gpt_priv *gpt = get_irq_chip_data(virq);
+	struct mpc52xx_gpt_priv *gpt = irq_data_get_irq_chip_data(d);
 
 	out_be32(&gpt->regs->status, MPC52xx_GPT_STATUS_IRQMASK);
 }
 
-static int mpc52xx_gpt_irq_set_type(unsigned int virq, unsigned int flow_type)
+static int mpc52xx_gpt_irq_set_type(struct irq_data *d, unsigned int flow_type)
 {
-	struct mpc52xx_gpt_priv *gpt = get_irq_chip_data(virq);
+	struct mpc52xx_gpt_priv *gpt = irq_data_get_irq_chip_data(d);
 	unsigned long flags;
 	u32 reg;
 
-	dev_dbg(gpt->dev, "%s: virq=%i type=%x\n", __func__, virq, flow_type);
+	dev_dbg(gpt->dev, "%s: virq=%i type=%x\n", __func__, d->irq, flow_type);
 
 	spin_lock_irqsave(&gpt->lock, flags);
 	reg = in_be32(&gpt->regs->mode) & ~MPC52xx_GPT_MODE_ICT_MASK;
@@ -184,10 +184,10 @@ static int mpc52xx_gpt_irq_set_type(unsigned int virq, unsigned int flow_type)
 
 static struct irq_chip mpc52xx_gpt_irq_chip = {
 	.name = "MPC52xx GPT",
-	.unmask = mpc52xx_gpt_irq_unmask,
-	.mask = mpc52xx_gpt_irq_mask,
-	.ack = mpc52xx_gpt_irq_ack,
-	.set_type = mpc52xx_gpt_irq_set_type,
+	.irq_unmask = mpc52xx_gpt_irq_unmask,
+	.irq_mask = mpc52xx_gpt_irq_mask,
+	.irq_ack = mpc52xx_gpt_irq_ack,
+	.irq_set_type = mpc52xx_gpt_irq_set_type,
 };
 
 void mpc52xx_gpt_irq_cascade(unsigned int virq, struct irq_desc *desc)
