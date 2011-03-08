@@ -875,11 +875,13 @@ static int ldo_regulator_register(struct snd_soc_codec *codec,
 	ldo->dev = regulator_register(&ldo->desc, codec->dev,
 					  init_data, ldo);
 	if (IS_ERR(ldo->dev)) {
+		int ret = PTR_ERR(ldo->dev);
+
 		dev_err(codec->dev, "failed to register regulator\n");
 		kfree(ldo->desc.name);
 		kfree(ldo);
 
-		return PTR_ERR(ldo->dev);
+		return ret;
 	}
 
 	return 0;
