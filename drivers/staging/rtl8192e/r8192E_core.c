@@ -4362,11 +4362,10 @@ static void rtl8192_irq_tx_tasklet(unsigned long arg)
 
 /* Record the received data rate */
 static void UpdateReceivedRateHistogramStatistics8190(
-	struct net_device *dev,
+	struct r8192_priv *priv,
 	struct ieee80211_rx_stats* pstats
 	)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	u32 rcvType=1;   //0: Total, 1:OK, 2:CRC, 3:ICV
 	u32 rateIndex;
 	u32 preamble_guardinterval;  //1: short preamble/GI, 0: long preamble/GI
@@ -4485,7 +4484,7 @@ static void rtl8192_rx(struct net_device *dev)
                 /* it is debug only. It should be disabled in released driver.
                  * 2007.1.11 by Emily
                  * */
-                UpdateReceivedRateHistogramStatistics8190(dev, &stats);
+                UpdateReceivedRateHistogramStatistics8190(priv, &stats);
 
                 stats.bIsAMPDU = (pDrvInfo->PartAggr==1);
                 stats.bFirstMPDU = (pDrvInfo->PartAggr==1) && (pDrvInfo->FirstAGGR==1);
