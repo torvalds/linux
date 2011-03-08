@@ -32,9 +32,9 @@ static struct mcf_gpio_chip mcf_gpio_chips[] = {
 			.set			= mcf_gpio_set_value,
 			.ngpio			= 8,
 		},
-		.pddr				= MCFSIM_PADDR,
-		.podr				= MCFSIM_PADAT,
-		.ppdr				= MCFSIM_PADAT,
+		.pddr				= (void __iomem *) MCFSIM_PADDR,
+		.podr				= (void __iomem *) MCFSIM_PADAT,
+		.ppdr				= (void __iomem *) MCFSIM_PADAT,
 	},
 };
 
