@@ -2416,9 +2416,10 @@ static short rtl8192_get_channel_map(struct r8192_priv *priv)
 	return 0;
 }
 
-static short rtl8192_init(struct net_device *dev)
+static short rtl8192_init(struct r8192_priv *priv)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
+	struct net_device *dev = priv->ieee80211->dev;
+
 	memset(&(priv->stats),0,sizeof(struct Stats));
 	rtl8192_init_priv_variable(priv);
 	rtl8192_init_priv_lock(priv);
@@ -4655,7 +4656,7 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
         }
 
 	RT_TRACE(COMP_INIT, "Driver probe completed1\n");
-	if(rtl8192_init(dev)!=0){
+	if (rtl8192_init(priv)!=0) {
 		RT_TRACE(COMP_ERR, "Initialization failed\n");
 		goto fail;
 	}
