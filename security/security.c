@@ -181,11 +181,6 @@ int security_real_capable_noaudit(struct task_struct *tsk, int cap)
 	return ret;
 }
 
-int security_sysctl(struct ctl_table *table, int op)
-{
-	return security_ops->sysctl(table, op);
-}
-
 int security_quotactl(int cmds, int type, int id, struct super_block *sb)
 {
 	return security_ops->quotactl(cmds, type, id, sb);
@@ -271,6 +266,11 @@ int security_sb_copy_data(char *orig, char *copy)
 }
 EXPORT_SYMBOL(security_sb_copy_data);
 
+int security_sb_remount(struct super_block *sb, void *data)
+{
+	return security_ops->sb_remount(sb, data);
+}
+
 int security_sb_kern_mount(struct super_block *sb, int flags, void *data)
 {
 	return security_ops->sb_kern_mount(sb, flags, data);
@@ -335,11 +335,13 @@ void security_inode_free(struct inode *inode)
 }
 
 int security_inode_init_security(struct inode *inode, struct inode *dir,
-				  char **name, void **value, size_t *len)
+				 const struct qstr *qstr, char **name,
+				 void **value, size_t *len)
 {
 	if (unlikely(IS_PRIVATE(inode)))
 		return -EOPNOTSUPP;
-	return security_ops->inode_init_security(inode, dir, name, value, len);
+	return security_ops->inode_init_security(inode, dir, qstr, name, value,
+						 len);
 }
 EXPORT_SYMBOL(security_inode_init_security);
 

@@ -115,7 +115,7 @@ static int jfs_create(struct inode *dip, struct dentry *dentry, int mode,
 	if (rc)
 		goto out3;
 
-	rc = jfs_init_security(tid, ip, dip);
+	rc = jfs_init_security(tid, ip, dip, &dentry->d_name);
 	if (rc) {
 		txAbort(tid, 0);
 		goto out3;
@@ -253,7 +253,7 @@ static int jfs_mkdir(struct inode *dip, struct dentry *dentry, int mode)
 	if (rc)
 		goto out3;
 
-	rc = jfs_init_security(tid, ip, dip);
+	rc = jfs_init_security(tid, ip, dip, &dentry->d_name);
 	if (rc) {
 		txAbort(tid, 0);
 		goto out3;
@@ -932,7 +932,7 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 	mutex_lock_nested(&JFS_IP(dip)->commit_mutex, COMMIT_MUTEX_PARENT);
 	mutex_lock_nested(&JFS_IP(ip)->commit_mutex, COMMIT_MUTEX_CHILD);
 
-	rc = jfs_init_security(tid, ip, dip);
+	rc = jfs_init_security(tid, ip, dip, &dentry->d_name);
 	if (rc)
 		goto out3;
 
@@ -1395,7 +1395,7 @@ static int jfs_mknod(struct inode *dir, struct dentry *dentry,
 	if (rc)
 		goto out3;
 
-	rc = jfs_init_security(tid, ip, dir);
+	rc = jfs_init_security(tid, ip, dir, &dentry->d_name);
 	if (rc) {
 		txAbort(tid, 0);
 		goto out3;
