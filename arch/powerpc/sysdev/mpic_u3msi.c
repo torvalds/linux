@@ -26,23 +26,23 @@ static struct mpic *msi_mpic;
 static void mpic_u3msi_mask_irq(struct irq_data *data)
 {
 	mask_msi_irq(data);
-	mpic_mask_irq(data->irq);
+	mpic_mask_irq(data);
 }
 
 static void mpic_u3msi_unmask_irq(struct irq_data *data)
 {
-	mpic_unmask_irq(data->irq);
+	mpic_unmask_irq(data);
 	unmask_msi_irq(data);
 }
 
 static struct irq_chip mpic_u3msi_chip = {
-	.irq_shutdown	= mpic_u3msi_mask_irq,
-	.irq_mask	= mpic_u3msi_mask_irq,
-	.irq_unmask	= mpic_u3msi_unmask_irq,
-	.eoi		= mpic_end_irq,
-	.set_type	= mpic_set_irq_type,
-	.set_affinity	= mpic_set_affinity,
-	.name		= "MPIC-U3MSI",
+	.irq_shutdown		= mpic_u3msi_mask_irq,
+	.irq_mask		= mpic_u3msi_mask_irq,
+	.irq_unmask		= mpic_u3msi_unmask_irq,
+	.irq_eoi		= mpic_end_irq,
+	.irq_set_type		= mpic_set_irq_type,
+	.irq_set_affinity	= mpic_set_affinity,
+	.name			= "MPIC-U3MSI",
 };
 
 static u64 read_ht_magic_addr(struct pci_dev *pdev, unsigned int pos)
