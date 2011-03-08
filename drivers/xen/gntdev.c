@@ -257,14 +257,13 @@ static int find_grant_ptes(pte_t *pte, pgtable_t token,
 static int map_grant_pages(struct grant_map *map)
 {
 	int i, err = 0;
-	phys_addr_t addr;
 
 	if (!use_ptemod) {
 		/* Note: it could already be mapped */
 		if (map->map_ops[0].handle != -1)
 			return 0;
 		for (i = 0; i < map->count; i++) {
-			addr = (phys_addr_t)
+			unsigned long addr = (unsigned long)
 				pfn_to_kaddr(page_to_pfn(map->pages[i]));
 			gnttab_set_map_op(&map->map_ops[i], addr, map->flags,
 				map->grants[i].ref,
