@@ -1110,6 +1110,7 @@ sub do_run_test {
 
 	    # we are not guaranteed to get a full line
 	    $full_line .= $line;
+	    doprint $line;
 
 	    if ($full_line =~ /call trace:/i) {
 		$bug = 1;
@@ -1126,6 +1127,19 @@ sub do_run_test {
     } while (!$child_done && !$bug);
 
     if ($bug) {
+	my $failure_start = time;
+	my $now;
+	do {
+	    $line = wait_for_input($monitor_fp, 1);
+	    if (defined($line)) {
+		doprint $line;
+	    }
+	    $now = time;
+	    if ($now - $failure_start >= $stop_after_failure) {
+		last;
+	    }
+	} while (defined($line));
+
 	doprint "Detected kernel crash!\n";
 	# kill the child with extreme prejudice
 	kill 9, $child_pid;
