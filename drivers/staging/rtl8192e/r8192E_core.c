@@ -4266,14 +4266,13 @@ rtl8192_record_rxdesc_forlateruse(
 
 
 
-static void TranslateRxSignalStuff819xpci(struct net_device *dev,
+static void TranslateRxSignalStuff819xpci(struct r8192_priv *priv,
         struct sk_buff *skb,
         struct ieee80211_rx_stats * pstats,
         prx_desc_819x_pci pdesc,
         prx_fwinfo_819x_pci pdrvinfo)
 {
     // TODO: We must only check packet for current MAC address. Not finish
-    struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
     bool bpacket_match_bssid, bpacket_toself;
     bool bPacketBeacon=false, bToSelfBA=false;
     struct ieee80211_hdr_3addr *hdr;
@@ -4304,7 +4303,7 @@ static void TranslateRxSignalStuff819xpci(struct net_device *dev,
     }
     if(WLAN_FC_GET_FRAMETYPE(fc) == IEEE80211_STYPE_BLOCKACK)
     {
-        if((!compare_ether_addr(praddr,dev->dev_addr)))
+        if (!compare_ether_addr(praddr, priv->ieee80211->dev->dev_addr))
             bToSelfBA = true;
     }
 
@@ -4505,7 +4504,7 @@ static void rtl8192_rx(struct net_device *dev)
                 stats.RxIs40MHzPacket = pDrvInfo->BW;
 
                 /* ???? */
-                TranslateRxSignalStuff819xpci(dev,skb, &stats, pdesc, pDrvInfo);
+                TranslateRxSignalStuff819xpci(priv, skb, &stats, pdesc, pDrvInfo);
 
                 /* Rx A-MPDU */
                 if(pDrvInfo->FirstAGGR==1 || pDrvInfo->PartAggr == 1)
