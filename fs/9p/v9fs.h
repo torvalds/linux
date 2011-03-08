@@ -174,6 +174,11 @@ static inline struct v9fs_session_info *v9fs_inode2v9ses(struct inode *inode)
 	return (inode->i_sb->s_fs_info);
 }
 
+static inline struct v9fs_session_info *v9fs_dentry2v9ses(struct dentry *dentry)
+{
+	return dentry->d_sb->s_fs_info;
+}
+
 static inline int v9fs_proto_dotu(struct v9fs_session_info *v9ses)
 {
 	return v9ses->flags & V9FS_PROTO_2000U;

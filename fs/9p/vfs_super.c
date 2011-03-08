@@ -262,7 +262,7 @@ static int v9fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 		goto done;
 	}
 
-	v9ses = v9fs_inode2v9ses(dentry->d_inode);
+	v9ses = v9fs_dentry2v9ses(dentry);
 	if (v9fs_proto_dotl(v9ses)) {
 		res = p9_client_statfs(fid, &rs);
 		if (res == 0) {
