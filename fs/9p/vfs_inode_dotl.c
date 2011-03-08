@@ -456,12 +456,6 @@ int v9fs_vfs_setattr_dotl(struct dentry *dentry, struct iattr *iattr)
 	if (IS_ERR(fid))
 		return PTR_ERR(fid);
 
-	if ((iattr->ia_valid & ATTR_SIZE) &&
-	    iattr->ia_size != i_size_read(dentry->d_inode)) {
-		retval = vmtruncate(dentry->d_inode, iattr->ia_size);
-		if (retval)
-			return retval;
-	}
 	/* Write all dirty data */
 	if (S_ISREG(dentry->d_inode->i_mode))
 		filemap_write_and_wait(dentry->d_inode->i_mapping);
@@ -469,8 +463,12 @@ int v9fs_vfs_setattr_dotl(struct dentry *dentry, struct iattr *iattr)
 	retval = p9_client_setattr(fid, &p9attr);
 	if (retval < 0)
 		return retval;
-	v9fs_invalidate_inode_attr(dentry->d_inode);
 
+	if ((iattr->ia_valid & ATTR_SIZE) &&
+	    iattr->ia_size != i_size_read(dentry->d_inode))
+		truncate_setsize(dentry->d_inode, iattr->ia_size);
+
+	v9fs_invalidate_inode_attr(dentry->d_inode);
 	setattr_copy(dentry->d_inode, iattr);
 	mark_inode_dirty(dentry->d_inode);
 	if (iattr->ia_valid & ATTR_MODE) {

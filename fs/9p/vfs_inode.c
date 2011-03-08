@@ -971,6 +971,10 @@ static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	struct p9_wstat wstat;
 
 	P9_DPRINTK(P9_DEBUG_VFS, "\n");
+	retval = inode_change_ok(dentry->d_inode, iattr);
+	if (retval)
+		return retval;
+
 	retval = -EPERM;
 	v9ses = v9fs_inode2v9ses(dentry->d_inode);
 	fid = v9fs_fid_lookup(dentry);
@@ -997,12 +1001,7 @@ static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
 		if (iattr->ia_valid & ATTR_GID)
 			wstat.n_gid = iattr->ia_gid;
 	}
-	if ((iattr->ia_valid & ATTR_SIZE) &&
-	    iattr->ia_size != i_size_read(dentry->d_inode)) {
-		retval = vmtruncate(dentry->d_inode, iattr->ia_size);
-		if (retval)
-			return retval;
-	}
+
 	/* Write all dirty data */
 	if (S_ISREG(dentry->d_inode->i_mode))
 		filemap_write_and_wait(dentry->d_inode->i_mapping);
@@ -1010,6 +1009,11 @@ static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	retval = p9_client_wstat(fid, &wstat);
 	if (retval < 0)
 		return retval;
+
+	if ((iattr->ia_valid & ATTR_SIZE) &&
+	    iattr->ia_size != i_size_read(dentry->d_inode))
+		truncate_setsize(dentry->d_inode, iattr->ia_size);
+
 	v9fs_invalidate_inode_attr(dentry->d_inode);
 
 	setattr_copy(dentry->d_inode, iattr);
