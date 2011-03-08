@@ -2273,20 +2273,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	printk("XGIfb:chipid = %x\n", xgi_video_info.chip);
 	XGIhw_ext.jChipType = xgi_video_info.chip;
 
-	switch (xgi_video_info.chip) {
-	case XG40:
-	case XG41:
-	case XG42:
-	case XG45:
-	case XG20:
-	case XG21:
-	case XG27:
-		XGIhw_ext.bIntegratedMMEnabled = 1;
-		break;
-	default:
-		break;
-	}
-
 	if ((xgi_video_info.chip == XG21) || (XGIfb_userom)) {
 		XGIhw_ext.pjVirtualRomBase = xgifb_copy_rom(pdev);
 		if (XGIhw_ext.pjVirtualRomBase)

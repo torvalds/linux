@@ -152,9 +152,6 @@ unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
 	pVBInfo->ISXPDOS = 0;
 	printk("3");
 
-	if (!HwDeviceExtension->bIntegratedMMEnabled)
-		return 0; /* alan */
-
 	printk("4");
 
 	/* VBIOSVersion[4] = 0x0; */
