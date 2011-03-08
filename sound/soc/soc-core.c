@@ -2344,22 +2344,45 @@ EXPORT_SYMBOL_GPL(snd_soc_set_runtime_hwparams);
  * @_template: control template
  * @data: control private data
  * @long_name: control long name
+ * @prefix: control name prefix
  *
  * Create a new mixer control from a template control.
  *
  * Returns 0 for success, else error.
  */
 struct snd_kcontrol *snd_soc_cnew(const struct snd_kcontrol_new *_template,
-	void *data, char *long_name)
+				  void *data, char *long_name,
+				  const char *prefix)
 {
 	struct snd_kcontrol_new template;
+	struct snd_kcontrol *kcontrol;
+	char *name = NULL;
+	int name_len;
 
 	memcpy(&template, _template, sizeof(template));
-	if (long_name)
-		template.name = long_name;
 	template.index = 0;
 
-	return snd_ctl_new1(&template, data);
+	if (!long_name)
+		long_name = template.name;
+
+	if (prefix) {
+		name_len = strlen(long_name) + strlen(prefix) + 2;
+		name = kmalloc(name_len, GFP_ATOMIC);
+		if (!name)
+			return NULL;
+
+		snprintf(name, name_len, "%s %s", prefix, long_name);
+
+		template.name = name;
+	} else {
+		template.name = long_name;
+	}
+
+	kcontrol = snd_ctl_new1(&template, data);
+
+	kfree(name);
+
+	return kcontrol;
 }
 EXPORT_SYMBOL_GPL(snd_soc_cnew);
 
@@ -2378,22 +2401,16 @@ int snd_soc_add_controls(struct snd_soc_codec *codec,
 	const struct snd_kcontrol_new *controls, int num_controls)
 {
 	struct snd_card *card = codec->card->snd_card;
-	char prefixed_name[44], *name;
 	int err, i;
 
 	for (i = 0; i < num_controls; i++) {
 		const struct snd_kcontrol_new *control = &controls[i];
-		if (codec->name_prefix) {
-			snprintf(prefixed_name, sizeof(prefixed_name), "%s %s",
-				 codec->name_prefix, control->name);
-			name = prefixed_name;
-		} else {
-			name = control->name;
-		}
-		err = snd_ctl_add(card, snd_soc_cnew(control, codec, name));
+		err = snd_ctl_add(card, snd_soc_cnew(control, codec,
+						     control->name,
+						     codec->name_prefix));
 		if (err < 0) {
 			dev_err(codec->dev, "%s: Failed to add %s: %d\n",
-				codec->name, name, err);
+				codec->name, control->name, err);
 			return err;
 		}
 	}

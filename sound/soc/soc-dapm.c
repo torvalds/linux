@@ -369,6 +369,12 @@ static int dapm_new_mixer(struct snd_soc_dapm_context *dapm,
 	size_t name_len;
 	struct snd_soc_dapm_path *path;
 	struct snd_card *card = dapm->card->snd_card;
+	const char *prefix;
+
+	if (dapm->codec)
+		prefix = dapm->codec->name_prefix;
+	else
+		prefix = NULL;
 
 	/* add kcontrol */
 	for (i = 0; i < w->num_kcontrols; i++) {
@@ -409,7 +415,7 @@ static int dapm_new_mixer(struct snd_soc_dapm_context *dapm,
 			path->long_name[name_len - 1] = '\0';
 
 			path->kcontrol = snd_soc_cnew(&w->kcontrols[i], w,
-				path->long_name);
+						      path->long_name, prefix);
 			ret = snd_ctl_add(card, path->kcontrol);
 			if (ret < 0) {
 				dev_err(dapm->dev,
@@ -431,6 +437,7 @@ static int dapm_new_mux(struct snd_soc_dapm_context *dapm,
 	struct snd_soc_dapm_path *path = NULL;
 	struct snd_kcontrol *kcontrol;
 	struct snd_card *card = dapm->card->snd_card;
+	const char *prefix;
 	int ret = 0;
 
 	if (!w->num_kcontrols) {
@@ -438,7 +445,12 @@ static int dapm_new_mux(struct snd_soc_dapm_context *dapm,
 		return -EINVAL;
 	}
 
-	kcontrol = snd_soc_cnew(&w->kcontrols[0], w, w->name);
+	if (dapm->codec)
+		prefix = dapm->codec->name_prefix;
+	else
+		prefix = NULL;
+
+	kcontrol = snd_soc_cnew(&w->kcontrols[0], w, w->name, prefix);
 	ret = snd_ctl_add(card, kcontrol);
 
 	if (ret < 0)
