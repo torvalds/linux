@@ -37,6 +37,7 @@ $default{"POWEROFF_ON_SUCCESS"}	= 0;
 $default{"BUILD_OPTIONS"}	= "";
 $default{"BISECT_SLEEP_TIME"}	= 60;   # sleep time between bisects
 $default{"CLEAR_LOG"}		= 0;
+$default{"BISECT_MANUAL"}	= 0;
 $default{"SUCCESS_LINE"}	= "login:";
 $default{"BOOTED_TIMEOUT"}	= 1;
 $default{"DIE_ON_FAILURE"}	= 1;
@@ -81,6 +82,7 @@ my $addconfig;
 my $in_bisect = 0;
 my $bisect_bad = "";
 my $reverse_bisect;
+my $bisect_manual;
 my $in_patchcheck = 0;
 my $run_test;
 my $redirect;
@@ -1046,6 +1048,21 @@ sub get_version {
     doprint "$version\n";
 }
 
+sub answer_bisect {
+    for (;;) {
+	doprint "Pass or fail? [p/f]";
+	my $ans = <STDIN>;
+	chomp $ans;
+	if ($ans eq "p" || $ans eq "P") {
+	    return 1;
+	} elsif ($ans eq "f" || $ans eq "F") {
+	    return 0;
+	} else {
+	    print "Please answer 'P' or 'F'\n";
+	}
+    }
+}
+
 sub child_run_test {
     my $failed = 0;
 
@@ -1214,6 +1231,9 @@ sub run_bisect {
 
     my $ret = run_bisect_test $type, $buildtype;
 
+    if ($bisect_manual) {
+	$ret = answer_bisect;
+    }
 
     # Are we looking for where it worked, not failed?
     if ($reverse_bisect) {
@@ -1524,7 +1544,9 @@ sub run_config_bisect {
 	}
 
 	$ret = run_config_bisect_test $type;
-
+	if ($bisect_manual) {
+	    $ret = answer_bisect;
+	}
 	if ($ret) {
 	    process_passed %current_config;
 	    return 0;
@@ -1555,7 +1577,13 @@ sub run_config_bisect {
 	$half = int($#start_list / 2);
     } while ($half > 0);
 
-    # we found a single config, try it again
+    # we found a single config, try it again unless we are running manually
+
+    if ($bisect_manual) {
+	process_failed $start_list[0];
+	return 1;
+    }
+
     my @tophalf = @start_list[0 .. 0];
 
     $ret = run_config_bisect_test $type;
@@ -1925,6 +1953,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $poweroff_after_halt = set_test_option("POWEROFF_AFTER_HALT", $i);
     $sleep_time = set_test_option("SLEEP_TIME", $i);
     $bisect_sleep_time = set_test_option("BISECT_SLEEP_TIME", $i);
+    $bisect_manual = set_test_option("BISECT_MANUAL", $i);
     $store_failures = set_test_option("STORE_FAILURES", $i);
     $timeout = set_test_option("TIMEOUT", $i);
     $booted_timeout = set_test_option("BOOTED_TIMEOUT", $i);
