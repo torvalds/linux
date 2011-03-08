@@ -78,8 +78,9 @@ irqreturn_t isci_intx_isr(int vec, void *data)
 	struct pci_dev *pdev = data;
 	struct isci_host *ihost;
 	irqreturn_t ret = IRQ_NONE;
+	int i;
 
-	for_each_isci_host(ihost, pdev) {
+	for_each_isci_host(i, ihost, pdev) {
 		struct scic_sds_controller *scic = ihost->core_controller;
 
 		if (scic_sds_controller_isr(scic)) {

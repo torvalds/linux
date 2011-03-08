@@ -117,7 +117,6 @@ struct isci_host {
 	struct list_head requests_to_complete;
 	struct list_head requests_to_abort;
 	spinlock_t scic_lock;
-	struct isci_host *next;
 };
 
 
@@ -131,7 +130,7 @@ struct isci_host {
 struct isci_pci_info {
 	struct msix_entry msix_entries[SCI_MAX_MSIX_INT];
 	int core_lib_array_index;
-	struct isci_host *hosts;
+	struct isci_host *hosts[SCI_MAX_CONTROLLERS];
 };
 
 static inline struct isci_pci_info *to_pci_info(struct pci_dev *pdev)
@@ -139,9 +138,10 @@ static inline struct isci_pci_info *to_pci_info(struct pci_dev *pdev)
 	return pci_get_drvdata(pdev);
 }
 
-#define for_each_isci_host(isci_host, pdev) \
-	for (isci_host = to_pci_info(pdev)->hosts;\
-	     isci_host; isci_host = isci_host->next)
+#define for_each_isci_host(id, ihost, pdev) \
+	for (id = 0, ihost = to_pci_info(pdev)->hosts[id]; \
+	     id < ARRAY_SIZE(to_pci_info(pdev)->hosts) && ihost; \
+	     ihost = to_pci_info(pdev)->hosts[++id])
 
 static inline
 enum isci_status isci_host_get_state(

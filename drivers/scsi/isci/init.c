@@ -285,16 +285,6 @@ static int __devinit isci_pci_init(struct pci_dev *pdev)
 	return 0;
 }
 
-static struct isci_host *isci_host_by_id(struct pci_dev *pdev, int id)
-{
-	struct isci_host *h;
-
-	for_each_isci_host(h, pdev)
-		if (h->id == id)
-			return h;
-	return NULL;
-}
-
 static int num_controllers(struct pci_dev *pdev)
 {
 	/* bar size alone can tell us if we are running with a dual controller
@@ -332,7 +322,7 @@ static int isci_setup_interrupts(struct pci_dev *pdev)
 	for (i = 0; i < num_msix; i++) {
 		int id = i / SCI_NUM_MSI_X_INT;
 		struct msix_entry *msix = &pci_info->msix_entries[i];
-		struct isci_host *isci_host = isci_host_by_id(pdev, id);
+		struct isci_host *isci_host = pci_info->hosts[id];
 		irq_handler_t isr;
 
 		/* odd numbered vectors are error interrupts */
@@ -351,7 +341,7 @@ static int isci_setup_interrupts(struct pci_dev *pdev)
 		dev_info(&pdev->dev, "msix setup failed falling back to intx\n");
 		while (i--) {
 			id = i / SCI_NUM_MSI_X_INT;
-			isci_host = isci_host_by_id(pdev, id);
+			isci_host = pci_info->hosts[id];
 			msix = &pci_info->msix_entries[i];
 			devm_free_irq(&pdev->dev, msix->vector, isci_host);
 		}
@@ -634,22 +624,20 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 			err = -ENOMEM;
 			goto err_host_alloc;
 		}
-
-		h->next = pci_info->hosts;
-		pci_info->hosts = h;
+		pci_info->hosts[i] = h;
 	}
 
 	err = isci_setup_interrupts(pdev);
 	if (err)
 		goto err_host_alloc;
 
-	for_each_isci_host(isci_host, pdev)
+	for_each_isci_host(i, isci_host, pdev)
 		scsi_scan_host(isci_host->shost);
 
 	return 0;
 
  err_host_alloc:
-	for_each_isci_host(isci_host, pdev)
+	for_each_isci_host(i, isci_host, pdev)
 		isci_unregister_sas_ha(isci_host);
 	return err;
 }
@@ -657,8 +645,9 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 static void __devexit isci_pci_remove(struct pci_dev *pdev)
 {
 	struct isci_host *isci_host;
+	int i;
 
-	for_each_isci_host(isci_host, pdev) {
+	for_each_isci_host(i, isci_host, pdev) {
 		isci_unregister_sas_ha(isci_host);
 		isci_host_deinit(isci_host);
 		scic_controller_disable_interrupts(isci_host->core_controller);
