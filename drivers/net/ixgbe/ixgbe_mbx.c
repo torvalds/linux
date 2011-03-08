@@ -453,7 +453,7 @@ void ixgbe_init_mbx_params_pf(struct ixgbe_hw *hw)
 		return;
 
 	mbx->timeout = 0;
-	mbx->udelay = 0;
+	mbx->usec_delay = 0;
 
 	mbx->stats.msgs_tx = 0;
 	mbx->stats.msgs_rx = 0;
