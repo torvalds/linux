@@ -136,7 +136,6 @@ static int pep_indicate(struct sock *sk, u8 id, u8 code,
 
 #define PAD 0x00
 
-#ifdef CONFIG_PHONET_PIPECTRLR
 static int pipe_handler_request(struct sock *sk, u8 id, u8 code,
 				const void *data, int len)
 {
@@ -168,11 +167,7 @@ static int pipe_handler_send_created_ind(struct sock *sk)
 				data, 4, GFP_ATOMIC);
 }
 
-static int pipe_handler_send_ind(struct sock *sk, u8 id)
-{
-	return pep_indicate(sk, id, PAD, NULL, 0, GFP_ATOMIC);
-}
-
+#ifdef CONFIG_PHONET_PIPECTRLR
 static int pipe_handler_enable_pipe(struct sock *sk, int enable)
 {
 	u8 id = enable ? PNS_PEP_ENABLE_REQ : PNS_PEP_DISABLE_REQ;
@@ -376,31 +371,10 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 			sk->sk_state_change(sk);
 		break;
 
-#ifdef CONFIG_PHONET_PIPECTRLR
-	case PNS_PEP_DISCONNECT_RESP:
-		sk->sk_state = TCP_CLOSE;
-		break;
-#endif
-
 	case PNS_PEP_ENABLE_REQ:
 		/* Wait for PNS_PIPE_(ENABLED|REDIRECTED)_IND */
 		pep_reply(sk, skb, PN_PIPE_NO_ERROR, NULL, 0, GFP_ATOMIC);
 		break;
-
-#ifdef CONFIG_PHONET_PIPECTRLR
-	case PNS_PEP_ENABLE_RESP:
-		pipe_handler_send_ind(sk, PNS_PIPE_ENABLED_IND);
-
-		if (!pn_flow_safe(pn->tx_fc)) {
-			atomic_set(&pn->tx_credits, 1);
-			sk->sk_write_space(sk);
-		}
-		if (sk->sk_state == TCP_ESTABLISHED)
-			break; /* Nothing to do */
-		sk->sk_state = TCP_ESTABLISHED;
-		pipe_grant_credits(sk, GFP_ATOMIC);
-		break;
-#endif
 
 	case PNS_PEP_RESET_REQ:
 		switch (hdr->state_after_reset) {
@@ -419,15 +393,6 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 		atomic_set(&pn->tx_credits, 0);
 		pep_reply(sk, skb, PN_PIPE_NO_ERROR, NULL, 0, GFP_ATOMIC);
 		break;
-
-#ifdef CONFIG_PHONET_PIPECTRLR
-	case PNS_PEP_DISABLE_RESP:
-		atomic_set(&pn->tx_credits, 0);
-		pipe_handler_send_ind(sk, PNS_PIPE_DISABLED_IND);
-		sk->sk_state = TCP_SYN_RECV;
-		pn->rx_credits = 0;
-		break;
-#endif
 
 	case PNS_PEP_CTRL_REQ:
 		if (skb_queue_len(&pn->ctrlreq_queue) >= PNPIPE_CTRLREQ_MAX) {
@@ -521,7 +486,6 @@ static void pipe_destruct(struct sock *sk)
 	skb_queue_purge(&pn->ctrlreq_queue);
 }
 
-#ifdef CONFIG_PHONET_PIPECTRLR
 static u8 pipe_negotiate_fc(const u8 *fcs, unsigned n)
 {
 	unsigned i;
@@ -546,6 +510,8 @@ static int pep_connresp_rcv(struct sock *sk, struct sk_buff *skb)
 		return -EINVAL;
 
 	hdr = pnp_hdr(skb);
+	if (hdr->error_code != PN_PIPE_NO_ERROR)
+		return -ECONNREFUSED;
 
 	/* Parse sub-blocks */
 	n_sb = hdr->data[4];
@@ -573,14 +539,74 @@ static int pep_connresp_rcv(struct sock *sk, struct sk_buff *skb)
 		n_sb--;
 	}
 
-	sk->sk_state = TCP_SYN_RECV;
-	sk->sk_backlog_rcv = pipe_do_rcv;
-	pn->rx_credits = 0;
-	sk->sk_state_change(sk);
-
 	return pipe_handler_send_created_ind(sk);
 }
-#endif
+
+/* Queue an skb to an actively connected sock.
+ * Socket lock must be held. */
+static int pipe_handler_do_rcv(struct sock *sk, struct sk_buff *skb)
+{
+	struct pep_sock *pn = pep_sk(sk);
+	struct pnpipehdr *hdr = pnp_hdr(skb);
+	int err = NET_RX_SUCCESS;
+
+	switch (hdr->message_id) {
+	case PNS_PIPE_ALIGNED_DATA:
+		__skb_pull(skb, 1);
+		/* fall through */
+	case PNS_PIPE_DATA:
+		__skb_pull(skb, 3); /* Pipe data header */
+		if (!pn_flow_safe(pn->rx_fc)) {
+			err = sock_queue_rcv_skb(sk, skb);
+			if (!err)
+				return NET_RX_SUCCESS;
+			err = NET_RX_DROP;
+			break;
+		}
+
+		if (pn->rx_credits == 0) {
+			atomic_inc(&sk->sk_drops);
+			err = NET_RX_DROP;
+			break;
+		}
+		pn->rx_credits--;
+		skb->dev = NULL;
+		skb_set_owner_r(skb, sk);
+		err = skb->len;
+		skb_queue_tail(&sk->sk_receive_queue, skb);
+		if (!sock_flag(sk, SOCK_DEAD))
+			sk->sk_data_ready(sk, err);
+		return NET_RX_SUCCESS;
+
+	case PNS_PEP_CONNECT_RESP:
+		if (sk->sk_state != TCP_SYN_SENT)
+			break;
+		if (!sock_flag(sk, SOCK_DEAD))
+			sk->sk_state_change(sk);
+		if (pep_connresp_rcv(sk, skb)) {
+			sk->sk_state = TCP_CLOSE_WAIT;
+			break;
+		}
+
+		sk->sk_state = TCP_ESTABLISHED;
+		if (!pn_flow_safe(pn->tx_fc)) {
+			atomic_set(&pn->tx_credits, 1);
+			sk->sk_write_space(sk);
+		}
+		pipe_grant_credits(sk, GFP_ATOMIC);
+		break;
+
+	case PNS_PEP_DISCONNECT_RESP:
+		/* sock should already be dead, nothing to do */
+		break;
+
+	case PNS_PEP_STATUS_IND:
+		pipe_rcv_status(sk, skb);
+		break;
+	}
+	kfree_skb(skb);
+	return err;
+}
 
 /* Listening sock must be locked */
 static struct sock *pep_find_pipe(const struct hlist_head *hlist,
@@ -649,12 +675,6 @@ static int pep_do_rcv(struct sock *sk, struct sk_buff *skb)
 			sk->sk_data_ready(sk, 0);
 		return NET_RX_SUCCESS;
 
-#ifdef CONFIG_PHONET_PIPECTRLR
-	case PNS_PEP_CONNECT_RESP:
-		pep_connresp_rcv(sk, skb);
-		break;
-#endif
-
 	case PNS_PEP_DISCONNECT_REQ:
 		pep_reply(sk, skb, PN_PIPE_NO_ERROR, NULL, 0, GFP_ATOMIC);
 		break;
@@ -667,15 +687,19 @@ static int pep_do_rcv(struct sock *sk, struct sk_buff *skb)
 	case PNS_PEP_ENABLE_REQ:
 	case PNS_PEP_DISABLE_REQ:
 		/* invalid handle is not even allowed here! */
-	default:
 		break;
+
+	default:
+		if ((1 << sk->sk_state)
+				& ~(TCPF_CLOSE|TCPF_LISTEN|TCPF_CLOSE_WAIT))
+			/* actively connected socket */
+			return pipe_handler_do_rcv(sk, skb);
 	}
 drop:
 	kfree_skb(skb);
 	return NET_RX_SUCCESS;
 }
 
-#ifndef CONFIG_PHONET_PIPECTRLR
 static int pipe_do_remove(struct sock *sk)
 {
 	struct pep_sock *pn = pep_sk(sk);
@@ -693,7 +717,6 @@ static int pipe_do_remove(struct sock *sk)
 	ph->data[0] = PAD;
 	return pn_skb_send(sk, skb, NULL);
 }
-#endif
 
 /* associated socket ceases to exist */
 static void pep_sock_close(struct sock *sk, long timeout)
@@ -706,13 +729,12 @@ static void pep_sock_close(struct sock *sk, long timeout)
 
 	lock_sock(sk);
 	if ((1 << sk->sk_state) & (TCPF_SYN_RECV|TCPF_ESTABLISHED)) {
-#ifndef CONFIG_PHONET_PIPECTRLR
-		/* Forcefully remove dangling Phonet pipe */
-		pipe_do_remove(sk);
-#else
-		/* send pep disconnect request */
-		pipe_handler_request(sk, PNS_PEP_DISCONNECT_REQ, PAD, NULL, 0);
-#endif
+		if (sk->sk_backlog_rcv == pipe_do_rcv)
+			/* Forcefully remove dangling Phonet pipe */
+			pipe_do_remove(sk);
+		else
+			pipe_handler_request(sk, PNS_PEP_DISCONNECT_REQ, PAD,
+						NULL, 0);
 	}
 	sk->sk_state = TCP_CLOSE;
 
@@ -844,20 +866,22 @@ drop:
 	return newsk;
 }
 
-#ifdef CONFIG_PHONET_PIPECTRLR
 static int pep_sock_connect(struct sock *sk, struct sockaddr *addr, int len)
 {
 	struct pep_sock *pn = pep_sk(sk);
-	const struct sockaddr_pn *spn = (struct sockaddr_pn *)addr;
+	int err;
 	u8 data[4] = { 0 /* sub-blocks */, PAD, PAD, PAD };
 
-	pn->pn_sk.dobject = pn_sockaddr_get_object(spn);
-	pn->pn_sk.resource = pn_sockaddr_get_resource(spn);
 	pn->pipe_handle = 1; /* anything but INVALID_HANDLE */
-	return pipe_handler_request(sk, PNS_PEP_CONNECT_REQ,
-					PN_PIPE_DISABLE, data, 4);
+	err = pipe_handler_request(sk, PNS_PEP_CONNECT_REQ,
+					PN_PIPE_ENABLE, data, 4);
+	if (err) {
+		pn->pipe_handle = PN_PIPE_INVALID_HANDLE;
+		return err;
+	}
+	sk->sk_state = TCP_SYN_SENT;
+	return 0;
 }
-#endif
 
 static int pep_ioctl(struct sock *sk, int cmd, unsigned long arg)
 {
@@ -890,8 +914,16 @@ static int pep_init(struct sock *sk)
 
 	sk->sk_destruct = pipe_destruct;
 	INIT_HLIST_HEAD(&pn->hlist);
+	pn->listener = NULL;
 	skb_queue_head_init(&pn->ctrlreq_queue);
+	atomic_set(&pn->tx_credits, 0);
+	pn->ifindex = 0;
+	pn->peer_type = 0;
 	pn->pipe_handle = PN_PIPE_INVALID_HANDLE;
+	pn->rx_credits = 0;
+	pn->rx_fc = pn->tx_fc = PN_LEGACY_FLOW_CONTROL;
+	pn->init_enable = 1;
+	pn->aligned = 0;
 	return 0;
 }
 
@@ -1219,9 +1251,9 @@ static void pep_sock_unhash(struct sock *sk)
 
 	lock_sock(sk);
 
-#ifndef CONFIG_PHONET_PIPECTRLR
-	if ((1 << sk->sk_state) & ~(TCPF_CLOSE|TCPF_LISTEN)) {
+	if (pn->listener != NULL) {
 		skparent = pn->listener;
+		pn->listener = NULL;
 		release_sock(sk);
 
 		pn = pep_sk(skparent);
@@ -1229,7 +1261,7 @@ static void pep_sock_unhash(struct sock *sk)
 		sk_del_node_init(sk);
 		sk = skparent;
 	}
-#endif
+
 	/* Unhash a listening sock only when it is closed
 	 * and all of its active connected pipes are closed. */
 	if (hlist_empty(&pn->hlist))
@@ -1243,9 +1275,7 @@ static void pep_sock_unhash(struct sock *sk)
 static struct proto pep_proto = {
 	.close		= pep_sock_close,
 	.accept		= pep_sock_accept,
-#ifdef CONFIG_PHONET_PIPECTRLR
 	.connect	= pep_sock_connect,
-#endif
 	.ioctl		= pep_ioctl,
 	.init		= pep_init,
 	.setsockopt	= pep_setsockopt,
