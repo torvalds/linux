@@ -51,6 +51,7 @@ struct fib_nh {
 	struct fib_info		*nh_parent;
 	unsigned		nh_flags;
 	unsigned char		nh_scope;
+	unsigned char		nh_cfg_scope;
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	int			nh_weight;
 	int			nh_power;

@@ -854,9 +854,10 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 	}
 
 	change_nexthops(fi) {
+		nexthop_nh->nh_cfg_scope = cfg->fc_scope;
 		nexthop_nh->nh_saddr = inet_select_addr(nexthop_nh->nh_dev,
 							nexthop_nh->nh_gw,
-							nexthop_nh->nh_scope);
+							nexthop_nh->nh_cfg_scope);
 	} endfor_nexthops(fi)
 
 link_it:
@@ -1141,7 +1142,7 @@ void fib_update_nh_saddrs(struct net_device *dev)
 			continue;
 		nh->nh_saddr = inet_select_addr(nh->nh_dev,
 						nh->nh_gw,
-						nh->nh_scope);
+						nh->nh_cfg_scope);
 	}
 }
 
