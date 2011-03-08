@@ -58,6 +58,7 @@ enum omap_display_type {
 	OMAP_DISPLAY_TYPE_SDI		= 1 << 2,
 	OMAP_DISPLAY_TYPE_DSI		= 1 << 3,
 	OMAP_DISPLAY_TYPE_VENC		= 1 << 4,
+	OMAP_DISPLAY_TYPE_HDMI		= 1 << 5,
 };
 
 enum omap_plane {
