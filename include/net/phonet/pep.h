@@ -28,7 +28,6 @@ struct pep_sock {
 
 	/* XXX: union-ify listening vs connected stuff ? */
 	/* Listening socket stuff: */
-	struct hlist_head	ackq;
 	struct hlist_head	hlist;
 
 	/* Connected socket stuff: */

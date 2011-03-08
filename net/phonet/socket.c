@@ -327,6 +327,9 @@ static int pn_socket_accept(struct socket *sock, struct socket *newsock,
 	struct sock *newsk;
 	int err;
 
+	if (unlikely(sk->sk_state != TCP_LISTEN))
+		return -EINVAL;
+
 	newsk = sk->sk_prot->accept(sk, flags, &err);
 	if (!newsk)
 		return err;
@@ -363,13 +366,8 @@ static unsigned int pn_socket_poll(struct file *file, struct socket *sock,
 
 	poll_wait(file, sk_sleep(sk), wait);
 
-	switch (sk->sk_state) {
-	case TCP_LISTEN:
-		return hlist_empty(&pn->ackq) ? 0 : POLLIN;
-	case TCP_CLOSE:
+	if (sk->sk_state == TCP_CLOSE)
 		return POLLERR;
-	}
-
 	if (!skb_queue_empty(&sk->sk_receive_queue))
 		mask |= POLLIN | POLLRDNORM;
 	if (!skb_queue_empty(&pn->ctrlreq_queue))
