@@ -750,6 +750,8 @@ int __init mx28_clocks_init(void)
 	clk_enable(&emi_clk);
 	clk_enable(&uart_clk);
 
+	clk_set_parent(&lcdif_clk, &ref_pix_clk);
+
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	mxs_timer_init(&clk32k_clk, MX28_INT_TIMER0);
