@@ -85,6 +85,9 @@ struct btrfs_device {
 	/* physical drive uuid (or lvm uuid) */
 	u8 uuid[BTRFS_UUID_SIZE];
 
+	/* per-device scrub information */
+	struct scrub_dev *scrub_device;
+
 	struct btrfs_work work;
 };
 
@@ -156,6 +159,9 @@ struct map_lookup {
 	int sub_stripes;
 	struct btrfs_bio_stripe stripes[];
 };
+
+#define map_lookup_size(n) (sizeof(struct map_lookup) + \
+			    (sizeof(struct btrfs_bio_stripe) * (n)))
 
 /* Used to sort the devices by max_avail(descending sort) */
 int btrfs_cmp_device_free_bytes(const void *dev_info1, const void *dev_info2);

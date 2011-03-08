@@ -42,6 +42,43 @@ struct btrfs_ioctl_vol_args_v2 {
 	char name[BTRFS_SUBVOL_NAME_MAX + 1];
 };
 
+/*
+ * structure to report errors and progress to userspace, either as a
+ * result of a finished scrub, a canceled scrub or a progress inquiry
+ */
+struct btrfs_scrub_progress {
+	__u64 data_extents_scrubbed;	/* # of data extents scrubbed */
+	__u64 tree_extents_scrubbed;	/* # of tree extents scrubbed */
+	__u64 data_bytes_scrubbed;	/* # of data bytes scrubbed */
+	__u64 tree_bytes_scrubbed;	/* # of tree bytes scrubbed */
+	__u64 read_errors;		/* # of read errors encountered (EIO) */
+	__u64 csum_errors;		/* # of failed csum checks */
+	__u64 verify_errors;		/* # of occurences, where the metadata
+					 * of a tree block did not match the
+					 * expected values, like generation or
+					 * logical */
+	__u64 no_csum;			/* # of 4k data block for which no csum
+					 * is present, probably the result of
+					 * data written with nodatasum */
+	__u64 csum_discards;		/* # of csum for which no data was found
+					 * in the extent tree. */
+	__u64 super_errors;		/* # of bad super blocks encountered */
+	__u64 malloc_errors;		/* # of internal kmalloc errors. These
+					 * will likely cause an incomplete
+					 * scrub */
+	__u64 uncorrectable_errors;	/* # of errors where either no intact
+					 * copy was found or the writeback
+					 * failed */
+	__u64 corrected_errors;		/* # of errors corrected */
+	__u64 last_physical;		/* last physical address scrubbed. In
+					 * case a scrub was aborted, this can
+					 * be used to restart the scrub */
+	__u64 unverified_errors;	/* # of occurences where a read for a
+					 * full (64k) bio failed, but the re-
+					 * check succeeded for each 4k piece.
+					 * Intermittent error. */
+};
+
 #define BTRFS_INO_LOOKUP_PATH_MAX 4080
 struct btrfs_ioctl_ino_lookup_args {
 	__u64 treeid;
