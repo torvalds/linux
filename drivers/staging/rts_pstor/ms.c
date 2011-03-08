@@ -1099,7 +1099,14 @@ static int reset_ms_pro(struct rtsx_chip *chip)
 	struct ms_info *ms_card = &(chip->ms_card);
 	int retval;
 #ifdef XC_POWERCLASS
-	u8 change_power_class = 2;
+	u8 change_power_class;
+
+	if (chip->ms_power_class_en & 0x02)
+		change_power_class = 2;
+	else if (chip->ms_power_class_en & 0x01)
+		change_power_class = 1;
+	else
+		change_power_class = 0;
 #endif
 
 #ifdef XC_POWERCLASS
@@ -1128,10 +1135,7 @@ Retry:
 	}
 
 	if (change_power_class && CHK_MSXC(ms_card)) {
-		u8 power_class_en = 0x03;
-
-		if (CHECK_PID(chip, 0x5209))
-			power_class_en = chip->ms_power_class_en;
+		u8 power_class_en = chip->ms_power_class_en;
 
 		RTSX_DEBUGP("power_class_en = 0x%x\n", power_class_en);
 		RTSX_DEBUGP("change_power_class = %d\n", change_power_class);

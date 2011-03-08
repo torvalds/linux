@@ -850,6 +850,7 @@ static void rtsx_init_options(struct rtsx_chip *chip)
 	chip->sd_default_rx_phase = 15;
 	chip->pmos_pwr_on_interval = 200;
 	chip->sd_voltage_switch_delay = 1000;
+	chip->ms_power_class_en = 3;
 
 	chip->sd_400mA_ocp_thd = 1;
 	chip->sd_800mA_ocp_thd = 5;
