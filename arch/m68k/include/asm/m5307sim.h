@@ -95,6 +95,12 @@
 #define MCFSIM_DACR1		0x110		/* DRAM 1 Addr and Ctrl (r/w) */
 #define MCFSIM_DMR1		0x114		/* DRAM 1 Mask reg (r/w) */
 
+/*
+ *  Timer module.
+ */
+#define MCFTIMER_BASE1		(MCF_MBAR + 0x140)	/* Base of TIMER1 */
+#define MCFTIMER_BASE2		(MCF_MBAR + 0x180)	/* Base of TIMER2 */
+
 #define	MCFSIM_PADDR		(MCF_MBAR + 0x244)
 #define	MCFSIM_PADAT		(MCF_MBAR + 0x248)
 

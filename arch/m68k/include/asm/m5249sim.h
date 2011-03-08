@@ -19,7 +19,7 @@
 /*
  *	The 5249 has a second MBAR region, define its address.
  */
-#define	MCF_MBAR2		0x80000000
+#define MCF_MBAR2		0x80000000
 
 /*
  *	Define the 5249 SIM register set addresses.
@@ -65,6 +65,12 @@
 #define MCFSIM_DMR0		0x10c		/* DRAM 0 Mask reg (r/w) */
 #define MCFSIM_DACR1		0x110		/* DRAM 1 Addr and Ctrl (r/w) */
 #define MCFSIM_DMR1		0x114		/* DRAM 1 Mask reg (r/w) */
+
+/*
+ *	Timer module.
+ */
+#define MCFTIMER_BASE1		(MCF_MBAR + 0x140)	/* Base of TIMER1 */
+#define MCFTIMER_BASE2		(MCF_MBAR + 0x180)	/* Base of TIMER2 */
 
 /*
  *	UART module.

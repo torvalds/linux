@@ -89,6 +89,9 @@
 #define	MCFSIM_PAR		0xcb		/* Pin Assignment reg (r/w) */
 #endif
 
+#define	MCFTIMER_BASE1		(MCF_MBAR + 0x100)	/* Base of TIMER1 */
+#define	MCFTIMER_BASE2		(MCF_MBAR + 0x120)	/* Base of TIMER2 */
+
 #define	MCFSIM_PADDR		(MCF_MBAR + 0x1c5)	/* Parallel Direction (r/w) */
 #define	MCFSIM_PADAT		(MCF_MBAR + 0x1c9)	/* Parallel Port Value (r/w) */
 
