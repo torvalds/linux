@@ -95,11 +95,11 @@
 
 #define EXYNOS4_PA_AC97			0x139A0000
 
+#define EXYNOS4_PA_SPDIF		0x139B0000
+
 #define EXYNOS4_PA_TIMER		0x139D0000
 
 #define EXYNOS4_PA_SDRAM		0x40000000
-
-#define EXYNOS4_PA_SPDIF		0xE1100000
 
 /* Compatibiltiy Defines */
 
