@@ -1122,7 +1122,8 @@ void rtl8192_commit(struct r8192_priv *priv);
 void write_phy(struct net_device *dev, u8 adr, u8 data);
 void CamResetAllEntry(struct r8192_priv *priv);
 void EnableHWSecurityConfig8192(struct r8192_priv *priv);
-void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent );
+void setKey(struct r8192_priv *priv, u8 EntryNo, u8 KeyIndex, u16 KeyType,
+	    const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent);
 void firmware_init_param(struct net_device *dev);
 RT_STATUS cmpk_message_handle_tx(struct net_device *dev, u8* codevirtualaddress, u32 packettype, u32 buffer_len);
 

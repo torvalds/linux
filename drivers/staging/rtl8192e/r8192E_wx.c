@@ -686,25 +686,15 @@ static int r8192_wx_set_enc(struct net_device *dev,
 		if(wrqu->encoding.length==0x5){
 		ieee->pairwise_key_type = KEY_TYPE_WEP40;
 			EnableHWSecurityConfig8192(priv);
-			setKey( dev,
-				key_idx,                //EntryNo
-				key_idx,                //KeyIndex
-				KEY_TYPE_WEP40,         //KeyType
-				zero_addr[key_idx],
-				0,                      //DefaultKey
-				hwkey);                 //KeyContent
+			setKey(priv, key_idx, key_idx, KEY_TYPE_WEP40,
+			       zero_addr[key_idx], 0, hwkey);
 		}
 
 		else if(wrqu->encoding.length==0xd){
 			ieee->pairwise_key_type = KEY_TYPE_WEP104;
 				EnableHWSecurityConfig8192(priv);
-			setKey( dev,
-				key_idx,                //EntryNo
-				key_idx,                //KeyIndex
-				KEY_TYPE_WEP104,        //KeyType
-				zero_addr[key_idx],
-				0,                      //DefaultKey
-				hwkey);                 //KeyContent
+			setKey(priv, key_idx, key_idx, KEY_TYPE_WEP104,
+			       zero_addr[key_idx], 0, hwkey);
 		}
 		else printk("wrong type in WEP, not WEP40 and WEP104\n");
 	}
@@ -909,37 +899,20 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 		{
 			if (ext->key_len == 13)
 				ieee->pairwise_key_type = alg = KEY_TYPE_WEP104;
-			setKey( dev,
-					idx,//EntryNo
-					idx, //KeyIndex
-					alg,  //KeyType
-					zero, //MacAddr
-					0,              //DefaultKey
-					key);           //KeyContent
+			setKey(priv, idx, idx, alg, zero, 0, key);
 		}
 		else if (group)
 		{
 			ieee->group_key_type = alg;
-			setKey( dev,
-					idx,//EntryNo
-					idx, //KeyIndex
-					alg,  //KeyType
-					broadcast_addr, //MacAddr
-					0,              //DefaultKey
-					key);           //KeyContent
+			setKey(priv, idx, idx, alg, broadcast_addr, 0, key);
 		}
 		else //pairwise key
 		{
 			if ((ieee->pairwise_key_type == KEY_TYPE_CCMP) && ieee->pHTInfo->bCurrentHTSupport){
 							write_nic_byte(priv, 0x173, 1); //fix aes bug
 			}
-			setKey( dev,
-					4,//EntryNo
-					idx, //KeyIndex
-					alg,  //KeyType
-					(u8*)ieee->ap_mac_addr, //MacAddr
-					0,              //DefaultKey
-					key);           //KeyContent
+			setKey(priv, 4, idx, alg,
+			       (u8*)ieee->ap_mac_addr, 0, key);
 		}
 
 

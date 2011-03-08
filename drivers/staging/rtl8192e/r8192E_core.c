@@ -3542,7 +3542,6 @@ static int r8192_set_mac_adr(struct net_device *dev, void *mac)
 static void r8192e_set_hw_key(struct r8192_priv *priv, struct ieee_param *ipw)
 {
 	struct ieee80211_device *ieee = priv->ieee80211;
-	struct net_device *dev = priv->ieee80211->dev;
 	u8 broadcast_addr[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
 	u32 key[4];
 
@@ -3567,13 +3566,13 @@ static void r8192e_set_hw_key(struct r8192_priv *priv, struct ieee_param *ipw)
 			 * key as in IPW interface, adhoc will only get here,
 			 * so we need index entry for its default key serching!
 			 */
-			setKey(dev, 4, ipw->u.crypt.idx,
+			setKey(priv, 4, ipw->u.crypt.idx,
 			       ieee->pairwise_key_type,
 			       (u8*)ieee->ap_mac_addr, 0, key);
 
 			/* LEAP WEP will never set this. */
 			if (ieee->auth_mode != 2)
-				setKey(dev, ipw->u.crypt.idx, ipw->u.crypt.idx,
+				setKey(priv, ipw->u.crypt.idx, ipw->u.crypt.idx,
 				       ieee->pairwise_key_type,
 				       (u8*)ieee->ap_mac_addr, 0, key);
 		}
@@ -3596,7 +3595,7 @@ static void r8192e_set_hw_key(struct r8192_priv *priv, struct ieee_param *ipw)
 			ieee->group_key_type = KEY_TYPE_NA;
 
 		if (ieee->group_key_type) {
-			setKey(dev, ipw->u.crypt.idx, ipw->u.crypt.idx,
+			setKey(priv, ipw->u.crypt.idx, ipw->u.crypt.idx,
 			       ieee->group_key_type, broadcast_addr, 0, key);
 		}
 	}
@@ -4950,21 +4949,16 @@ void EnableHWSecurityConfig8192(struct r8192_priv *priv)
 }
 #define TOTAL_CAM_ENTRY 32
 //#define CAM_CONTENT_COUNT 8
-void setKey(	struct net_device *dev,
-		u8 EntryNo,
-		u8 KeyIndex,
-		u16 KeyType,
-		const u8 *MacAddr,
-		u8 DefaultKey,
-		u32 *KeyContent )
+void setKey(struct r8192_priv *priv, u8 EntryNo, u8 KeyIndex, u16 KeyType,
+	    const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent)
 {
 	u32 TargetCommand = 0;
 	u32 TargetContent = 0;
 	u16 usConfig = 0;
 	u8 i;
 #ifdef ENABLE_IPS
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	RT_RF_POWER_STATE	rtState;
+
 	rtState = priv->eRFPowerState;
 	if (priv->PowerSaveControl.bInactivePs){
 		if(rtState == eRfOff){
@@ -4986,7 +4980,7 @@ void setKey(	struct net_device *dev,
 	if (EntryNo >= TOTAL_CAM_ENTRY)
 		RT_TRACE(COMP_ERR, "cam entry exceeds in setKey()\n");
 
-	RT_TRACE(COMP_SEC, "====>to setKey(), dev:%p, EntryNo:%d, KeyIndex:%d, KeyType:%d, MacAddr%pM\n", dev,EntryNo, KeyIndex, KeyType, MacAddr);
+	RT_TRACE(COMP_SEC, "====>to setKey(), priv:%p, EntryNo:%d, KeyIndex:%d, KeyType:%d, MacAddr%pM\n", priv, EntryNo, KeyIndex, KeyType, MacAddr);
 
 	if (DefaultKey)
 		usConfig |= BIT15 | (KeyType<<2);
