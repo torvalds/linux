@@ -389,27 +389,6 @@ SOC_DAPM_SINGLE("IN2 Switch", WM9081_ANALOGUE_MIXER, 2, 1, 0),
 SOC_DAPM_SINGLE("Playback Switch", WM9081_ANALOGUE_MIXER, 4, 1, 0),
 };
 
-static int speaker_event(struct snd_soc_dapm_widget *w,
-			 struct snd_kcontrol *kcontrol, int event)
-{
-	struct snd_soc_codec *codec = w->codec;
-	unsigned int reg = snd_soc_read(codec, WM9081_POWER_MANAGEMENT);
-
-	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
-		reg |= WM9081_SPK_ENA;
-		break;
-
-	case SND_SOC_DAPM_PRE_PMD:
-		reg &= ~WM9081_SPK_ENA;
-		break;
-	}
-
-	snd_soc_write(codec, WM9081_POWER_MANAGEMENT, reg);
-
-	return 0;
-}
-
 struct _fll_div {
 	u16 fll_fratio;
 	u16 fll_outdiv;
@@ -747,9 +726,8 @@ SND_SOC_DAPM_MIXER_NAMED_CTL("Mixer", SND_SOC_NOPM, 0, 0,
 
 SND_SOC_DAPM_PGA("LINEOUT PGA", WM9081_POWER_MANAGEMENT, 4, 0, NULL, 0),
 
-SND_SOC_DAPM_PGA_E("Speaker PGA", WM9081_POWER_MANAGEMENT, 2, 0, NULL, 0,
-		   speaker_event,
-		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_PGA("Speaker PGA", WM9081_POWER_MANAGEMENT, 2, 0, NULL, 0),
+SND_SOC_DAPM_PGA("Speaker", WM9081_POWER_MANAGEMENT, 1, 0, NULL, 0),
 
 SND_SOC_DAPM_OUTPUT("LINEOUT"),
 SND_SOC_DAPM_OUTPUT("SPKN"),
@@ -780,8 +758,10 @@ static const struct snd_soc_dapm_route wm9081_audio_paths[] = {
 	{ "Speaker PGA", NULL, "TOCLK" },
 	{ "Speaker PGA", NULL, "CLK_SYS" },
 
-	{ "SPKN", NULL, "Speaker PGA" },
-	{ "SPKP", NULL, "Speaker PGA" },
+	{ "Speaker", NULL, "Speaker PGA" },
+
+	{ "SPKN", NULL, "Speaker" },
+	{ "SPKP", NULL, "Speaker" },
 };
 
 static int wm9081_set_bias_level(struct snd_soc_codec *codec,
