@@ -1128,7 +1128,7 @@ RT_STATUS cmpk_message_handle_tx(struct net_device *dev, u8* codevirtualaddress,
 
 #ifdef ENABLE_IPS
 void IPSEnter(struct net_device *dev);
-void IPSLeave(struct net_device *dev);
+void IPSLeave(struct r8192_priv *priv);
 void IPSLeave_wq(struct work_struct *work);
 void ieee80211_ips_leave_wq(struct net_device *dev);
 void ieee80211_ips_leave(struct net_device *dev);

@@ -231,7 +231,7 @@ static int r8192_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 				else{
 					RT_TRACE(COMP_ERR, "%s(): IPSLeave\n",__FUNCTION__);
 					down(&priv->ieee80211->ips_sem);
-					IPSLeave(dev);
+					IPSLeave(priv);
 					up(&priv->ieee80211->ips_sem);
 				}
 			}
@@ -417,7 +417,7 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 				else{
 					//RT_TRACE(COMP_PS, "%s(): IPSLeave\n",__FUNCTION__);
 					down(&priv->ieee80211->ips_sem);
-					IPSLeave(dev);
+					IPSLeave(priv);
 					up(&priv->ieee80211->ips_sem);
 				}
 			}
@@ -480,7 +480,7 @@ static int r8192_wx_set_essid(struct net_device *dev,
 
 #ifdef ENABLE_IPS
         down(&priv->ieee80211->ips_sem);
-        IPSLeave(dev);
+        IPSLeave(priv);
         up(&priv->ieee80211->ips_sem);
 #endif
 	ret = ieee80211_wx_set_essid(priv->ieee80211,a,wrqu,b);
@@ -590,7 +590,7 @@ static int r8192_wx_set_wap(struct net_device *dev,
 
 #ifdef ENABLE_IPS
         down(&priv->ieee80211->ips_sem);
-        IPSLeave(dev);
+        IPSLeave(priv);
         up(&priv->ieee80211->ips_sem);
 #endif
 	ret = ieee80211_wx_set_wap(priv->ieee80211,info,awrq,extra);
@@ -647,7 +647,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
         priv->ieee80211->wx_set_enc = 1;
 #ifdef ENABLE_IPS
         down(&priv->ieee80211->ips_sem);
-        IPSLeave(dev);
+        IPSLeave(priv);
         up(&priv->ieee80211->ips_sem);
 #endif
 
@@ -869,7 +869,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 
 #ifdef ENABLE_IPS
         down(&priv->ieee80211->ips_sem);
-        IPSLeave(dev);
+        IPSLeave(priv);
         up(&priv->ieee80211->ips_sem);
 #endif
 

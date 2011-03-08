@@ -3173,10 +3173,8 @@ IPSEnter(struct net_device *dev)
 //		Leave the inactive power save mode, RF will be on.
 //	2007.08.17, by shien chang.
 //
-void
-IPSLeave(struct net_device *dev)
+void IPSLeave(struct r8192_priv *priv)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	PRT_POWER_SAVE_CONTROL pPSC = &priv->PowerSaveControl;
 	RT_RF_POWER_STATE 	rtState;
 
@@ -3199,7 +3197,7 @@ void IPSLeave_wq(struct work_struct *work)
 
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	down(&priv->ieee80211->ips_sem);
-	IPSLeave(dev);
+	IPSLeave(priv);
 	up(&priv->ieee80211->ips_sem);
 }
 
@@ -3228,7 +3226,7 @@ void ieee80211_ips_leave(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	down(&priv->ieee80211->ips_sem);
-	IPSLeave(dev);
+	IPSLeave(priv);
 	up(&priv->ieee80211->ips_sem);
 }
 #endif
@@ -4981,7 +4979,7 @@ void setKey(	struct net_device *dev,
 			}
 			else{
 				down(&priv->ieee80211->ips_sem);
-				IPSLeave(dev);
+				IPSLeave(priv);
 				up(&priv->ieee80211->ips_sem);
 			}
 		}
