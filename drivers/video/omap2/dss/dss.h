@@ -299,6 +299,11 @@ static inline int dsi_init_platform_driver(void)
 static inline void dsi_uninit_platform_driver(void)
 {
 }
+static inline unsigned long dsi_get_pll_hsdiv_dispc_rate(void)
+{
+	WARN("%s: DSI not compiled in, returning rate as 0\n", __func__);
+	return 0;
+}
 static inline void dsi_wait_pll_hsdiv_dispc_active(void)
 {
 }

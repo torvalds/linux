@@ -293,13 +293,17 @@ void dss_select_dispc_clk_source(enum dss_clk_source clk_src)
 {
 	int b;
 
-	BUG_ON(clk_src != DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC &&
-			clk_src != DSS_CLK_SRC_FCK);
-
-	b = clk_src == DSS_CLK_SRC_FCK ? 0 : 1;
-
-	if (clk_src == DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC)
+	switch (clk_src) {
+	case DSS_CLK_SRC_FCK:
+		b = 0;
+		break;
+	case DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
+		b = 1;
 		dsi_wait_pll_hsdiv_dispc_active();
+		break;
+	default:
+		BUG();
+	}
 
 	REG_FLD_MOD(DSS_CONTROL, b, 0, 0);	/* DISPC_CLK_SWITCH */
 
@@ -310,13 +314,17 @@ void dss_select_dsi_clk_source(enum dss_clk_source clk_src)
 {
 	int b;
 
-	BUG_ON(clk_src != DSS_CLK_SRC_DSI_PLL_HSDIV_DSI &&
-			clk_src != DSS_CLK_SRC_FCK);
-
-	b = clk_src == DSS_CLK_SRC_FCK ? 0 : 1;
-
-	if (clk_src == DSS_CLK_SRC_DSI_PLL_HSDIV_DSI)
+	switch (clk_src) {
+	case DSS_CLK_SRC_FCK:
+		b = 0;
+		break;
+	case DSS_CLK_SRC_DSI_PLL_HSDIV_DSI:
+		b = 1;
 		dsi_wait_pll_hsdiv_dsi_active();
+		break;
+	default:
+		BUG();
+	}
 
 	REG_FLD_MOD(DSS_CONTROL, b, 1, 1);	/* DSI_CLK_SWITCH */
 

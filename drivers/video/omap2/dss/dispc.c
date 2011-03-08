@@ -2341,14 +2341,17 @@ unsigned long dispc_fclk_rate(void)
 {
 	unsigned long r = 0;
 
-	if (dss_get_dispc_clk_source() == DSS_CLK_SRC_FCK)
+	switch (dss_get_dispc_clk_source()) {
+	case DSS_CLK_SRC_FCK:
 		r = dss_clk_get_rate(DSS_CLK_FCK);
-	else
-#ifdef CONFIG_OMAP2_DSS_DSI
+		break;
+	case DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
 		r = dsi_get_pll_hsdiv_dispc_rate();
-#else
-	BUG();
-#endif
+		break;
+	default:
+		BUG();
+	}
+
 	return r;
 }
 
