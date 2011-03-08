@@ -4313,10 +4313,10 @@ static void TranslateRxSignalStuff819xpci(struct r8192_priv *priv,
 }
 
 
-static void rtl8192_tx_resume(struct net_device *dev)
+static void rtl8192_tx_resume(struct r8192_priv *priv)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	struct ieee80211_device *ieee = priv->ieee80211;
+	struct net_device *dev = priv->ieee80211->dev;
 	struct sk_buff *skb;
 	int queue_index;
 
@@ -4350,7 +4350,7 @@ static void rtl8192_irq_tx_tasklet(unsigned long arg)
 
 	spin_unlock_irqrestore(&priv->irq_th_lock, flags);
 
-	rtl8192_tx_resume(dev);
+	rtl8192_tx_resume(priv);
 }
 
 /* Record the received data rate */
