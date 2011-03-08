@@ -66,7 +66,6 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 
 #define MAX_ROM_SCAN              0x10000
 
-#define HW_CURSOR_CAP             0x80
 #define TURBO_QUEUE_CAP           0x40
 #define AGP_CMD_QUEUE_CAP         0x20
 #define VM_CMD_QUEUE_CAP          0x10
@@ -79,10 +78,6 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 #define COMMAND_QUEUE_AREA_SIZE   0x80000 /* 512K */
 #define COMMAND_QUEUE_THRESHOLD   0x1F
 
-
-/* TW */
-#define HW_CURSOR_AREA_SIZE_315   0x4000  /* 16K */
-#define HW_CURSOR_AREA_SIZE_300   0x1000  /* 4K */
 
 #define OH_ALLOC_SIZE             4000
 #define SENTINEL                  0x7fffffff
@@ -350,7 +345,6 @@ static int enable_dstn = 0;
 static int XGIfb_ypan = -1;
 
 
-static int XGIfb_hwcursor_size = 0;
 static int XGIfb_CRT2_write_enable = 0;
 
 static int XGIfb_crt2type = -1; /* TW: CRT2 type (for overriding autodetection) */
@@ -612,8 +606,6 @@ typedef struct _XGI_HEAP {
 	XGI_OHALLOC *poha_chain;
 	unsigned long max_freesize;
 } XGI_HEAP;
-
-static unsigned long XGIfb_hwcursor_vbase;
 
 static unsigned long XGIfb_heap_start;
 static unsigned long XGIfb_heap_end;

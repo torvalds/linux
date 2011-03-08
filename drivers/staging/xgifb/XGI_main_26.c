@@ -2122,19 +2122,6 @@ static int XGIfb_heap_init(void)
 	break;
 }
 
-	/* TW: Now reserve memory for the HWCursor. It is always located at the very
-	top of the videoRAM, right below the TB memory area (if used). */
-	if (XGIfb_heap_size >= XGIfb_hwcursor_size) {
-		XGIfb_heap_end -= XGIfb_hwcursor_size;
-		XGIfb_heap_size -= XGIfb_hwcursor_size;
-		XGIfb_hwcursor_vbase = XGIfb_heap_end;
-
-		XGIfb_caps |= HW_CURSOR_CAP;
-
-		DPRINTK("XGIfb: Hardware Cursor start at 0x%lx, size is %dK\n",
-				XGIfb_heap_end, XGIfb_hwcursor_size/1024);
-	}
-
 	XGIfb_heap.poha_chain = NULL;
 	XGIfb_heap.poh_freelist = NULL;
 
@@ -2772,27 +2759,22 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 			xgi_video_info.chip = XG21;
 		else
 			xgi_video_info.chip = XG20;
-		XGIfb_hwcursor_size = HW_CURSOR_AREA_SIZE_315 * 2;
 		XGIfb_CRT2_write_enable = IND_XGI_CRT2_WRITE_ENABLE_315;
 		break;
 	case PCI_DEVICE_ID_XG_40:
 		xgi_video_info.chip = XG40;
-		XGIfb_hwcursor_size = HW_CURSOR_AREA_SIZE_315 * 2;
 		XGIfb_CRT2_write_enable = IND_XGI_CRT2_WRITE_ENABLE_315;
 		break;
 	case PCI_DEVICE_ID_XG_41:
 		xgi_video_info.chip = XG41;
-		XGIfb_hwcursor_size = HW_CURSOR_AREA_SIZE_315 * 2;
 		XGIfb_CRT2_write_enable = IND_XGI_CRT2_WRITE_ENABLE_315;
 		break;
 	case PCI_DEVICE_ID_XG_42:
 		xgi_video_info.chip = XG42;
-		XGIfb_hwcursor_size = HW_CURSOR_AREA_SIZE_315 * 2;
 		XGIfb_CRT2_write_enable = IND_XGI_CRT2_WRITE_ENABLE_315;
 		break;
 	case PCI_DEVICE_ID_XG_27:
 		xgi_video_info.chip = XG27;
-		XGIfb_hwcursor_size = HW_CURSOR_AREA_SIZE_315 * 2;
 		XGIfb_CRT2_write_enable = IND_XGI_CRT2_WRITE_ENABLE_315;
 		break;
 	default:
