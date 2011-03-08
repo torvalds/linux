@@ -427,8 +427,7 @@ nouveau_sgdma_init(struct drm_device *dev)
 	u32 aper_size, align;
 	int ret;
 
-	if (dev_priv->card_type >= NV_50 ||
-	    dev_priv->ramin_rsvd_vram >= 2 * 1024 * 1024)
+	if (dev_priv->card_type >= NV_50 || drm_pci_device_is_pcie(dev))
 		aper_size = 512 * 1024 * 1024;
 	else
 		aper_size = 64 * 1024 * 1024;

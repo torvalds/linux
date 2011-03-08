@@ -424,14 +424,32 @@ nouveau_mem_vram_init(struct drm_device *dev)
 	}
 
 	/* reserve space at end of VRAM for PRAMIN */
-	if (dev_priv->chipset == 0x40 || dev_priv->chipset == 0x47 ||
-	    dev_priv->chipset == 0x49 || dev_priv->chipset == 0x4b)
-		dev_priv->ramin_rsvd_vram = (2 * 1024 * 1024);
-	else
-	if (dev_priv->card_type >= NV_40)
-		dev_priv->ramin_rsvd_vram = (1 * 1024 * 1024);
-	else
-		dev_priv->ramin_rsvd_vram = (512 * 1024);
+	if (dev_priv->card_type >= NV_50) {
+		dev_priv->ramin_rsvd_vram = 1 * 1024 * 1024;
+	} else
+	if (dev_priv->card_type >= NV_40) {
+		u32 vs = hweight8((nv_rd32(dev, 0x001540) & 0x0000ff00) >> 8);
+		u32 rsvd;
+
+		/* estimate grctx size, the magics come from nv40_grctx.c */
+		if      (dev_priv->chipset == 0x40) rsvd = 0x6aa0 * vs;
+		else if (dev_priv->chipset  < 0x43) rsvd = 0x4f00 * vs;
+		else if (nv44_graph_class(dev))	    rsvd = 0x4980 * vs;
+		else				    rsvd = 0x4a40 * vs;
+		rsvd += 16 * 1024;
+		rsvd *= dev_priv->engine.fifo.channels;
+
+		/* pciegart table */
+		if (drm_pci_device_is_pcie(dev))
+			rsvd += 512 * 1024;
+
+		/* object storage */
+		rsvd += 512 * 1024;
+
+		dev_priv->ramin_rsvd_vram = round_up(rsvd, 4096);
+	} else {
+		dev_priv->ramin_rsvd_vram = 512 * 1024;
+	}
 
 	ret = dev_priv->engine.vram.init(dev);
 	if (ret)
