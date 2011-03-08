@@ -804,7 +804,7 @@ sub monitor {
 	}
 
 	if ($full_line =~ /call trace:/i) {
-	    if (!$skip_call_trace) {
+	    if (!$bug && !$skip_call_trace) {
 		$bug = 1;
 		$failure_start = time;
 	    }
