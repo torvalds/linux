@@ -119,6 +119,19 @@ static inline int verify_sec_ctx_len(struct nlattr **attrs)
 	return 0;
 }
 
+static inline int verify_replay(struct xfrm_usersa_info *p,
+				struct nlattr **attrs)
+{
+	struct nlattr *rt = attrs[XFRMA_REPLAY_ESN_VAL];
+
+	if (!rt)
+		return 0;
+
+	if (p->replay_window != 0)
+		return -EINVAL;
+
+	return 0;
+}
 
 static int verify_newsa_info(struct xfrm_usersa_info *p,
 			     struct nlattr **attrs)
@@ -213,6 +226,8 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 	if ((err = verify_one_alg(attrs, XFRMA_ALG_COMP)))
 		goto out;
 	if ((err = verify_sec_ctx_len(attrs)))
+		goto out;
+	if ((err = verify_replay(p, attrs)))
 		goto out;
 
 	err = -EINVAL;
@@ -345,6 +360,33 @@ static int attach_aead(struct xfrm_algo_aead **algpp, u8 *props,
 	return 0;
 }
 
+static int xfrm_alloc_replay_state_esn(struct xfrm_replay_state_esn **replay_esn,
+				       struct xfrm_replay_state_esn **preplay_esn,
+				       struct nlattr *rta)
+{
+	struct xfrm_replay_state_esn *p, *pp, *up;
+
+	if (!rta)
+		return 0;
+
+	up = nla_data(rta);
+
+	p = kmemdup(up, xfrm_replay_state_esn_len(up), GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
+	pp = kmemdup(up, xfrm_replay_state_esn_len(up), GFP_KERNEL);
+	if (!pp) {
+		kfree(p);
+		return -ENOMEM;
+	}
+
+	*replay_esn = p;
+	*preplay_esn = pp;
+
+	return 0;
+}
+
 static inline int xfrm_user_sec_ctx_size(struct xfrm_sec_ctx *xfrm_ctx)
 {
 	int len = 0;
@@ -380,9 +422,19 @@ static void copy_from_user_state(struct xfrm_state *x, struct xfrm_usersa_info *
 static void xfrm_update_ae_params(struct xfrm_state *x, struct nlattr **attrs)
 {
 	struct nlattr *rp = attrs[XFRMA_REPLAY_VAL];
+	struct nlattr *re = attrs[XFRMA_REPLAY_ESN_VAL];
 	struct nlattr *lt = attrs[XFRMA_LTIME_VAL];
 	struct nlattr *et = attrs[XFRMA_ETIMER_THRESH];
 	struct nlattr *rt = attrs[XFRMA_REPLAY_THRESH];
+
+	if (re) {
+		struct xfrm_replay_state_esn *replay_esn;
+		replay_esn = nla_data(re);
+		memcpy(x->replay_esn, replay_esn,
+		       xfrm_replay_state_esn_len(replay_esn));
+		memcpy(x->preplay_esn, replay_esn,
+		       xfrm_replay_state_esn_len(replay_esn));
+	}
 
 	if (rp) {
 		struct xfrm_replay_state *replay;
@@ -467,13 +519,14 @@ static struct xfrm_state *xfrm_state_construct(struct net *net,
 	    security_xfrm_state_alloc(x, nla_data(attrs[XFRMA_SEC_CTX])))
 		goto error;
 
+	if ((err = xfrm_alloc_replay_state_esn(&x->replay_esn, &x->preplay_esn,
+					       attrs[XFRMA_REPLAY_ESN_VAL])))
+		goto error;
+
 	x->km.seq = p->seq;
 	x->replay_maxdiff = net->xfrm.sysctl_aevent_rseqth;
 	/* sysctl_xfrm_aevent_etime is in 100ms units */
 	x->replay_maxage = (net->xfrm.sysctl_aevent_etime*HZ)/XFRM_AE_ETH_M;
-	x->preplay.bitmap = 0;
-	x->preplay.seq = x->replay.seq+x->replay_maxdiff;
-	x->preplay.oseq = x->replay.oseq +x->replay_maxdiff;
 
 	if ((err = xfrm_init_replay(x)))
 		goto error;
@@ -708,6 +761,10 @@ static int copy_to_user_state_extra(struct xfrm_state *x,
 
 	if (xfrm_mark_put(skb, &x->mark))
 		goto nla_put_failure;
+
+	if (x->replay_esn)
+		NLA_PUT(skb, XFRMA_REPLAY_ESN_VAL,
+			xfrm_replay_state_esn_len(x->replay_esn), x->replay_esn);
 
 	if (x->security && copy_sec_ctx(x->security, skb) < 0)
 		goto nla_put_failure;
@@ -1578,10 +1635,14 @@ static int xfrm_flush_sa(struct sk_buff *skb, struct nlmsghdr *nlh,
 	return 0;
 }
 
-static inline size_t xfrm_aevent_msgsize(void)
+static inline size_t xfrm_aevent_msgsize(struct xfrm_state *x)
 {
+	size_t replay_size = x->replay_esn ?
+			      xfrm_replay_state_esn_len(x->replay_esn) :
+			      sizeof(struct xfrm_replay_state);
+
 	return NLMSG_ALIGN(sizeof(struct xfrm_aevent_id))
-	       + nla_total_size(sizeof(struct xfrm_replay_state))
+	       + nla_total_size(replay_size)
 	       + nla_total_size(sizeof(struct xfrm_lifetime_cur))
 	       + nla_total_size(sizeof(struct xfrm_mark))
 	       + nla_total_size(4) /* XFRM_AE_RTHR */
@@ -1606,7 +1667,13 @@ static int build_aevent(struct sk_buff *skb, struct xfrm_state *x, const struct 
 	id->reqid = x->props.reqid;
 	id->flags = c->data.aevent;
 
-	NLA_PUT(skb, XFRMA_REPLAY_VAL, sizeof(x->replay), &x->replay);
+	if (x->replay_esn)
+		NLA_PUT(skb, XFRMA_REPLAY_ESN_VAL,
+			xfrm_replay_state_esn_len(x->replay_esn),
+			x->replay_esn);
+	else
+		NLA_PUT(skb, XFRMA_REPLAY_VAL, sizeof(x->replay), &x->replay);
+
 	NLA_PUT(skb, XFRMA_LTIME_VAL, sizeof(x->curlft), &x->curlft);
 
 	if (id->flags & XFRM_AE_RTHR)
@@ -1639,16 +1706,16 @@ static int xfrm_get_ae(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct xfrm_aevent_id *p = nlmsg_data(nlh);
 	struct xfrm_usersa_id *id = &p->sa_id;
 
-	r_skb = nlmsg_new(xfrm_aevent_msgsize(), GFP_ATOMIC);
-	if (r_skb == NULL)
-		return -ENOMEM;
-
 	mark = xfrm_mark_get(attrs, &m);
 
 	x = xfrm_state_lookup(net, mark, &id->daddr, id->spi, id->proto, id->family);
-	if (x == NULL) {
-		kfree_skb(r_skb);
+	if (x == NULL)
 		return -ESRCH;
+
+	r_skb = nlmsg_new(xfrm_aevent_msgsize(x), GFP_ATOMIC);
+	if (r_skb == NULL) {
+		xfrm_state_put(x);
+		return -ENOMEM;
 	}
 
 	/*
@@ -1680,9 +1747,10 @@ static int xfrm_new_ae(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct xfrm_mark m;
 	struct xfrm_aevent_id *p = nlmsg_data(nlh);
 	struct nlattr *rp = attrs[XFRMA_REPLAY_VAL];
+	struct nlattr *re = attrs[XFRMA_REPLAY_ESN_VAL];
 	struct nlattr *lt = attrs[XFRMA_LTIME_VAL];
 
-	if (!lt && !rp)
+	if (!lt && !rp && !re)
 		return err;
 
 	/* pedantic mode - thou shalt sayeth replaceth */
@@ -2147,6 +2215,7 @@ static const struct nla_policy xfrma_policy[XFRMA_MAX+1] = {
 	[XFRMA_KMADDRESS]	= { .len = sizeof(struct xfrm_user_kmaddress) },
 	[XFRMA_MARK]		= { .len = sizeof(struct xfrm_mark) },
 	[XFRMA_TFCPAD]		= { .type = NLA_U32 },
+	[XFRMA_REPLAY_ESN_VAL]	= { .len = sizeof(struct xfrm_replay_state_esn) },
 };
 
 static struct xfrm_link {
@@ -2274,7 +2343,7 @@ static int xfrm_aevent_state_notify(struct xfrm_state *x, const struct km_event 
 	struct net *net = xs_net(x);
 	struct sk_buff *skb;
 
-	skb = nlmsg_new(xfrm_aevent_msgsize(), GFP_ATOMIC);
+	skb = nlmsg_new(xfrm_aevent_msgsize(x), GFP_ATOMIC);
 	if (skb == NULL)
 		return -ENOMEM;
 
@@ -2328,6 +2397,8 @@ static inline size_t xfrm_sa_len(struct xfrm_state *x)
 		l += nla_total_size(sizeof(*x->encap));
 	if (x->tfcpad)
 		l += nla_total_size(sizeof(x->tfcpad));
+	if (x->replay_esn)
+		l += nla_total_size(xfrm_replay_state_esn_len(x->replay_esn));
 	if (x->security)
 		l += nla_total_size(sizeof(struct xfrm_user_sec_ctx) +
 				    x->security->ctx_len);
