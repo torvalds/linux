@@ -37,7 +37,7 @@
 
 #define MAX_TREE_SIZE (2 + MAX_SERVER_SIZE + 1 + MAX_SHARE_SIZE + 1)
 #define MAX_SERVER_SIZE 15
-#define MAX_SHARE_SIZE  64	/* used to be 20, this should still be enough */
+#define MAX_SHARE_SIZE 80
 #define MAX_USERNAME_SIZE 256	/* reasonable maximum for current servers */
 #define MAX_PASSWORD_SIZE 512	/* max for windows seems to be 256 wide chars */
 
