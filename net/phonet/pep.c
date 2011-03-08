@@ -522,7 +522,8 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 		if (!pn_flow_safe(pn->rx_fc)) {
 			err = sock_queue_rcv_skb(sk, skb);
 			if (!err)
-				return 0;
+				return NET_RX_SUCCESS;
+			err = -ENOBUFS;
 			break;
 		}
 
@@ -575,7 +576,7 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 	}
 out:
 	kfree_skb(skb);
-	return err;
+	return (err == -ENOBUFS) ? NET_RX_DROP : NET_RX_SUCCESS;
 
 queue:
 	skb->dev = NULL;
@@ -584,7 +585,7 @@ queue:
 	skb_queue_tail(queue, skb);
 	if (!sock_flag(sk, SOCK_DEAD))
 		sk->sk_data_ready(sk, err);
-	return 0;
+	return NET_RX_SUCCESS;
 }
 
 /* Destroy connected sock. */
@@ -686,11 +687,6 @@ static int pep_connreq_rcv(struct sock *sk, struct sk_buff *skb)
 	}
 	peer_type = hdr->other_pep_type << 8;
 
-	if (unlikely(sk->sk_state != TCP_LISTEN) || sk_acceptq_is_full(sk)) {
-		pep_reject_conn(sk, skb, PN_PIPE_ERR_PEP_IN_USE);
-		return -ENOBUFS;
-	}
-
 	/* Parse sub-blocks (options) */
 	n_sb = hdr->data[4];
 	while (n_sb > 0) {
@@ -790,7 +786,6 @@ static int pep_do_rcv(struct sock *sk, struct sk_buff *skb)
 	struct sock *sknode;
 	struct pnpipehdr *hdr;
 	struct sockaddr_pn dst;
-	int err = NET_RX_SUCCESS;
 	u8 pipe_handle;
 
 	if (!pskb_may_pull(skb, sizeof(*hdr)))
@@ -814,18 +809,20 @@ static int pep_do_rcv(struct sock *sk, struct sk_buff *skb)
 		sock_put(sknode);
 		if (net_ratelimit())
 			printk(KERN_WARNING"Phonet unconnected PEP ignored");
-		err = NET_RX_DROP;
 		goto drop;
 	}
 
 	switch (hdr->message_id) {
 	case PNS_PEP_CONNECT_REQ:
-		err = pep_connreq_rcv(sk, skb);
+		if (sk->sk_state == TCP_LISTEN && !sk_acceptq_is_full(sk))
+			pep_connreq_rcv(sk, skb);
+		else
+			pep_reject_conn(sk, skb, PN_PIPE_ERR_PEP_IN_USE);
 		break;
 
 #ifdef CONFIG_PHONET_PIPECTRLR
 	case PNS_PEP_CONNECT_RESP:
-		err = pep_connresp_rcv(sk, skb);
+		pep_connresp_rcv(sk, skb);
 		break;
 #endif
 
@@ -842,11 +839,11 @@ static int pep_do_rcv(struct sock *sk, struct sk_buff *skb)
 	case PNS_PEP_DISABLE_REQ:
 		/* invalid handle is not even allowed here! */
 	default:
-		err = NET_RX_DROP;
+		break;
 	}
 drop:
 	kfree_skb(skb);
-	return err;
+	return NET_RX_SUCCESS;
 }
 
 #ifndef CONFIG_PHONET_PIPECTRLR
