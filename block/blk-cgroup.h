@@ -240,7 +240,7 @@ static inline char *blkg_path(struct blkio_group *blkg) { return NULL; }
 
 #endif
 
-#define BLKIO_WEIGHT_MIN	100
+#define BLKIO_WEIGHT_MIN	10
 #define BLKIO_WEIGHT_MAX	1000
 #define BLKIO_WEIGHT_DEFAULT	500
 

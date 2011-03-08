@@ -140,7 +140,7 @@ Proportional weight policy files
 	- Specifies per cgroup weight. This is default weight of the group
 	  on all the devices until and unless overridden by per device rule.
 	  (See blkio.weight_device).
-	  Currently allowed range of weights is from 100 to 1000.
+	  Currently allowed range of weights is from 10 to 1000.
 
 - blkio.weight_device
 	- One can specify per cgroup per device rules using this interface.
