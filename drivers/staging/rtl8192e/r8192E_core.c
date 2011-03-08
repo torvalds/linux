@@ -1488,7 +1488,7 @@ static void rtl8192_link_change(struct net_device *dev)
 
 		//add this as in pure N mode, wep encryption will use software way, but there is no chance to set this as wep will not set group key in wext. WB.2008.07.08
 		if ((KEY_TYPE_WEP40 == ieee->pairwise_key_type) || (KEY_TYPE_WEP104 == ieee->pairwise_key_type))
-		EnableHWSecurityConfig8192(dev);
+		EnableHWSecurityConfig8192(priv);
 	}
 	else
 	{
@@ -3561,7 +3561,7 @@ static void r8192e_set_hw_key(struct r8192_priv *priv, struct ieee_param *ipw)
 
 		if (ieee->pairwise_key_type) {
 			memcpy(key, ipw->u.crypt.key, 16);
-			EnableHWSecurityConfig8192(dev);
+			EnableHWSecurityConfig8192(priv);
 			/*
 			 * We fill both index entry and 4th entry for pairwise
 			 * key as in IPW interface, adhoc will only get here,
@@ -4913,10 +4913,9 @@ out_unlock:
 	return ret;
 }
 
-void EnableHWSecurityConfig8192(struct net_device *dev)
+void EnableHWSecurityConfig8192(struct r8192_priv *priv)
 {
         u8 SECR_value = 0x0;
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	struct ieee80211_device* ieee = priv->ieee80211;
 
 	SECR_value = SCR_TxEncEnable | SCR_RxDecEnable;

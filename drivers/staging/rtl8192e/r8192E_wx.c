@@ -685,7 +685,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
 		//printk("-------====>length:%d, key_idx:%d, flag:%x\n", wrqu->encoding.length, key_idx, wrqu->encoding.flags);
 		if(wrqu->encoding.length==0x5){
 		ieee->pairwise_key_type = KEY_TYPE_WEP40;
-			EnableHWSecurityConfig8192(dev);
+			EnableHWSecurityConfig8192(priv);
 			setKey( dev,
 				key_idx,                //EntryNo
 				key_idx,                //KeyIndex
@@ -697,7 +697,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
 
 		else if(wrqu->encoding.length==0xd){
 			ieee->pairwise_key_type = KEY_TYPE_WEP104;
-				EnableHWSecurityConfig8192(dev);
+				EnableHWSecurityConfig8192(priv);
 			setKey( dev,
 				key_idx,                //EntryNo
 				key_idx,                //KeyIndex
@@ -901,7 +901,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 			if ((ext->key_len == 13) && (alg == KEY_TYPE_WEP40) )
 				alg = KEY_TYPE_WEP104;
 			ieee->pairwise_key_type = alg;
-			EnableHWSecurityConfig8192(dev);
+			EnableHWSecurityConfig8192(priv);
 		}
 		memcpy((u8*)key, ext->key, 16); //we only get 16 bytes key.why? WB 2008.7.1
 
