@@ -408,10 +408,17 @@ int vnic_dev_fw_info(struct vnic_dev *vdev,
 		if (!vdev->fw_info)
 			return -ENOMEM;
 
+		memset(vdev->fw_info, 0, sizeof(struct vnic_devcmd_fw_info));
+
 		a0 = vdev->fw_info_pa;
+		a1 = sizeof(struct vnic_devcmd_fw_info);
 
 		/* only get fw_info once and cache it */
 		err = vnic_dev_cmd(vdev, CMD_MCPU_FW_INFO, &a0, &a1, wait);
+		if (err == ERR_ECMDUNKNOWN) {
+			err = vnic_dev_cmd(vdev, CMD_MCPU_FW_INFO_OLD,
+				&a0, &a1, wait);
+		}
 	}
 
 	*fw_info = vdev->fw_info;
