@@ -1,3 +1,4 @@
+# Select this to activate the generic irq options below
 config HAVE_GENERIC_HARDIRQS
 	bool
 
@@ -17,27 +18,36 @@ config GENERIC_HARDIRQS_NO_COMPAT
        bool
 
 # Options selectable by the architecture code
+
+# Make sparse irq Kconfig switch below available
 config HAVE_SPARSE_IRQ
        bool
 
+# Enable the generic irq autoprobe mechanism
 config GENERIC_IRQ_PROBE
 	bool
 
+# Use the generic /proc/interrupts implementation
 config GENERIC_IRQ_SHOW
        bool
 
+# Support for delayed migration from interrupt context
 config GENERIC_PENDING_IRQ
 	bool
 
+# Alpha specific irq affinity mechanism
 config AUTO_IRQ_AFFINITY
        bool
 
+# Tasklet based software resend for pending interrupts on enable_irq()
 config HARDIRQS_SW_RESEND
        bool
 
+# Preflow handler support for fasteoi (sparc64)
 config IRQ_PREFLOW_FASTEOI
        bool
 
+# Support forced irq threading
 config IRQ_FORCED_THREADING
        bool
 
