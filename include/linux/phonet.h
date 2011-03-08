@@ -36,7 +36,7 @@
 /* Socket options for SOL_PNPIPE level */
 #define PNPIPE_ENCAP		1
 #define PNPIPE_IFINDEX		2
-#define PNPIPE_PIPE_HANDLE	3
+#define PNPIPE_HANDLE		3
 #define PNPIPE_ENABLE           4
 /* unused slot */
 

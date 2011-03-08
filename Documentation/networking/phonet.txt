@@ -181,6 +181,10 @@ The pipe protocol provides two socket options at the SOL_PNPIPE level:
     interface index of the network interface created by PNPIPE_ENCAP,
     or zero if encapsulation is off.
 
+  PNPIPE_HANDLE is a read-only integer value. It contains the underlying
+    identifier ("pipe handle") of the pipe. This is only defined for
+    socket descriptors that are already connected or being connected.
+
 
 Phonet Pipe-controller Implementation
 -------------------------------------
@@ -198,9 +202,6 @@ It allows a phonet sequenced socket (host-pep) to initiate a Pipe connection
 between itself and a remote pipe-end point (e.g. modem).
 
 The implementation adds socket options at SOL_PNPIPE level:
-
- PNPIPE_PIPE_HANDLE
-	It accepts an integer argument for setting value of pipe handle.
 
   PNPIPE_ENABLE accepts one integer value (int). If set to zero, the pipe
     is disabled. If the value is non-zero, the pipe is enabled. If the pipe

@@ -853,6 +853,7 @@ static int pep_sock_connect(struct sock *sk, struct sockaddr *addr, int len)
 
 	pn->pn_sk.dobject = pn_sockaddr_get_object(spn);
 	pn->pn_sk.resource = pn_sockaddr_get_resource(spn);
+	pn->pipe_handle = 1; /* anything but INVALID_HANDLE */
 	return pipe_handler_request(sk, PNS_PEP_CONNECT_REQ,
 					PN_PIPE_DISABLE, data, 4);
 }
@@ -909,14 +910,6 @@ static int pep_setsockopt(struct sock *sk, int level, int optname,
 
 	lock_sock(sk);
 	switch (optname) {
-#ifdef CONFIG_PHONET_PIPECTRLR
-	case PNPIPE_PIPE_HANDLE:
-		if (val) {
-			pn->pipe_handle = val;
-			break;
-		}
-#endif
-
 	case PNPIPE_ENCAP:
 		if (val && val != PNPIPE_ENCAP_IP) {
 			err = -EINVAL;
@@ -980,6 +973,12 @@ static int pep_getsockopt(struct sock *sk, int level, int optname,
 
 	case PNPIPE_IFINDEX:
 		val = pn->ifindex;
+		break;
+
+	case PNPIPE_HANDLE:
+		val = pn->pipe_handle;
+		if (val == PN_PIPE_INVALID_HANDLE)
+			return -EINVAL;
 		break;
 
 #ifdef CONFIG_PHONET_PIPECTRLR
