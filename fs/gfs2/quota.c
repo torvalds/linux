@@ -834,6 +834,7 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 			goto out_end_trans;
 
 		do_qc(qd, -qd->qd_change_sync);
+		set_bit(QDF_REFRESH, &qd->qd_flags);
 	}
 
 	error = 0;
@@ -929,6 +930,7 @@ int gfs2_quota_lock(struct gfs2_inode *ip, u32 uid, u32 gid)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_alloc *al = ip->i_alloc;
+	struct gfs2_quota_data *qd;
 	unsigned int x;
 	int error = 0;
 
@@ -942,7 +944,11 @@ int gfs2_quota_lock(struct gfs2_inode *ip, u32 uid, u32 gid)
 	     sort_qd, NULL);
 
 	for (x = 0; x < al->al_qd_num; x++) {
-		error = do_glock(al->al_qd[x], NO_FORCE, &al->al_qd_ghs[x]);
+		int force = NO_FORCE;
+		qd = al->al_qd[x];
+		if (test_and_clear_bit(QDF_REFRESH, &qd->qd_flags))
+			force = FORCE;
+		error = do_glock(qd, force, &al->al_qd_ghs[x]);
 		if (error)
 			break;
 	}
