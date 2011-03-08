@@ -652,7 +652,8 @@ v9fs_vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	if (nd && nd->flags & LOOKUP_OPEN) {
 		v9inode = V9FS_I(dentry->d_inode);
 		mutex_lock(&v9inode->v_mutex);
-		if (v9ses->cache && !v9inode->writeback_fid) {
+		if (v9ses->cache && !v9inode->writeback_fid &&
+		    ((flags & O_ACCMODE) != O_RDONLY)) {
 			/*
 			 * clone a fid and add it to writeback_fid
 			 * we do it during open time instead of
