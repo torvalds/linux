@@ -1824,9 +1824,8 @@ static short rtl8192_is_tx_queue_empty(struct net_device *dev)
 	return 1;
 }
 
-static void rtl8192_hw_sleep_down(struct net_device *dev)
+static void rtl8192_hw_sleep_down(struct r8192_priv *priv)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	MgntActSet_RF_State(priv, eRfSleep, RF_CHANGE_BY_PS);
 }
 
@@ -1879,7 +1878,7 @@ static void rtl8192_hw_to_sleep(struct net_device *dev, u32 th, u32 tl)
 	queue_delayed_work(priv->ieee80211->wq,
 			   &priv->ieee80211->hw_wakeup_wq,tmp);
 
-        rtl8192_hw_sleep_down(dev);
+        rtl8192_hw_sleep_down(priv);
 }
 
 static void rtl8192_init_priv_variable(struct r8192_priv *priv)
