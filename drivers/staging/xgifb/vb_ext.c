@@ -9,24 +9,11 @@
 #include "vb_util.h"
 #include "vb_setmode.h"
 #include "vb_ext.h"
-extern unsigned char XGI330_SoftSetting;
-extern unsigned char XGI330_OutputSelect;
-extern unsigned short XGI330_RGBSenseData2;
-extern unsigned short XGI330_YCSenseData2;
-extern unsigned short XGI330_VideoSenseData2;
-void XGI_GetSenseStatus(struct xgi_hw_device_info *HwDeviceExtension,
-		struct vb_device_info *pVBInfo);
 unsigned char XGINew_GetPanelID(struct vb_device_info *pVBInfo);
-unsigned short XGINew_SenseLCD(struct xgi_hw_device_info *,
-		struct vb_device_info *pVBInfo);
 unsigned char XGINew_GetLCDDDCInfo(
 		struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo);
-void XGISetDPMS(struct xgi_hw_device_info *pXGIHWDE,
-		unsigned long VESA_POWER_STATE);
 unsigned char XGINew_BridgeIsEnable(struct xgi_hw_device_info *,
-		struct vb_device_info *pVBInfo);
-unsigned char XGINew_Sense(unsigned short tempbx, unsigned short tempcx,
 		struct vb_device_info *pVBInfo);
 unsigned char XGINew_SenseHiTV(struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo);
@@ -34,10 +21,6 @@ unsigned char XGINew_SenseHiTV(struct xgi_hw_device_info *HwDeviceExtension,
 /**************************************************************
  *********************** Dynamic Sense ************************
  *************************************************************/
-
-void XGI_WaitDisplay(void);
-unsigned char XGI_Is301C(struct vb_device_info *);
-unsigned char XGI_Is301LV(struct vb_device_info *);
 
 static unsigned char XGINew_Is301B(struct vb_device_info *pVBInfo)
 {
