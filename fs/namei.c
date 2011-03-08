@@ -1217,16 +1217,6 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 	int err;
 
 	/*
-	 * See if the low-level filesystem might want
-	 * to use its own hash..
-	 */
-	if (unlikely(parent->d_flags & DCACHE_OP_HASH)) {
-		err = parent->d_op->d_hash(parent, nd->inode, name);
-		if (err < 0)
-			return err;
-	}
-
-	/*
 	 * Rename seqlock is not required here because in the off chance
 	 * of a false negative due to a concurrent rename, we're going to
 	 * do the non-racy lookup, below.
@@ -1414,8 +1404,16 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			case 1:
 				type = LAST_DOT;
 		}
-		if (likely(type == LAST_NORM))
+		if (likely(type == LAST_NORM)) {
+			struct dentry *parent = nd->path.dentry;
 			nd->flags &= ~LOOKUP_JUMPED;
+			if (unlikely(parent->d_flags & DCACHE_OP_HASH)) {
+				err = parent->d_op->d_hash(parent, nd->inode,
+							   &this);
+				if (err < 0)
+					break;
+			}
+		}
 
 		/* remove trailing slashes? */
 		if (!c)
@@ -1723,17 +1721,6 @@ static struct dentry *__lookup_hash(struct qstr *name,
 		return ERR_PTR(err);
 
 	/*
-	 * See if the low-level filesystem might want
-	 * to use its own hash..
-	 */
-	if (base->d_flags & DCACHE_OP_HASH) {
-		err = base->d_op->d_hash(base, inode, name);
-		dentry = ERR_PTR(err);
-		if (err < 0)
-			goto out;
-	}
-
-	/*
 	 * Don't bother with __d_lookup: callers are for creat as
 	 * well as unlink, so a lot of the time it would cost
 	 * a double lookup.
@@ -1745,7 +1732,7 @@ static struct dentry *__lookup_hash(struct qstr *name,
 
 	if (!dentry)
 		dentry = d_alloc_and_lookup(base, name, nd);
-out:
+
 	return dentry;
 }
 
@@ -1791,6 +1778,15 @@ struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 		hash = partial_name_hash(c, hash);
 	}
 	this.hash = end_name_hash(hash);
+	/*
+	 * See if the low-level filesystem might want
+	 * to use its own hash..
+	 */
+	if (base->d_flags & DCACHE_OP_HASH) {
+		int err = base->d_op->d_hash(base, base->d_inode, &this);
+		if (err < 0)
+			return ERR_PTR(err);
+	}
 
 	return __lookup_hash(&this, base, NULL);
 }
