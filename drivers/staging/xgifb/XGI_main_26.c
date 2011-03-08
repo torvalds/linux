@@ -898,24 +898,6 @@ static void XGIfb_search_crt2type(const char *name)
 		printk(KERN_INFO "XGIfb: Invalid CRT2 type: %s\n", name);
 }
 
-static void XGIfb_search_queuemode(const char *name)
-{
-	int i = 0;
-
-	if (name == NULL)
-		return;
-
-	while (XGI_queuemode[i].type_no != -1) {
-		if (!strcmp(name, XGI_queuemode[i].name)) {
-			XGIfb_queuemode = XGI_queuemode[i].type_no;
-			break;
-		}
-		i++;
-	}
-	if (XGIfb_queuemode < 0)
-		printk(KERN_INFO "XGIfb: Invalid queuemode type: %s\n", name);
-}
-
 static u8 XGIfb_search_refresh_rate(unsigned int rate)
 {
 	u16 xres, yres;
@@ -1906,19 +1888,6 @@ void XGI_Sense30x(void)
 static int XGIfb_heap_init(void)
 {
 	XGI_OH *poh;
-	u8 temp = 0;
-
-	int agp_enabled = 1;
-	u32 agp_size;
-	unsigned long *cmdq_baseport = NULL;
-	unsigned long *read_port = NULL;
-	unsigned long *write_port = NULL;
-	XGI_CMDTYPE cmd_type;
-#ifndef AGPOFF
-	struct agp_kern_info *agp_info;
-	struct agp_memory *agp;
-	u32 agp_phys;
-#endif
 
 	/* TW: The heap start is either set manually using the "mem" parameter, or
 	 *     defaults as follows:
@@ -1949,178 +1918,6 @@ static int XGIfb_heap_init(void)
 	XGIfb_heap_end = (unsigned long) xgi_video_info.video_vbase
 			+ xgi_video_info.video_size;
 	XGIfb_heap_size = XGIfb_heap_end - XGIfb_heap_start;
-
-	/* TW: Now initialize the 310 series' command queue mode.
-	 * On 310/325, there are three queue modes available which
-	 * are chosen by setting bits 7:5 in SR26:
-	 * 1. MMIO queue mode (bit 5, 0x20). The hardware will keep
-	 *    track of the queue, the FIFO, command parsing and so
-	 *    on. This is the one comparable to the 300 series.
-	 * 2. VRAM queue mode (bit 6, 0x40). In this case, one will
-	 *    have to do queue management himself. Register 0x85c4 will
-	 *    hold the location of the next free queue slot, 0x85c8
-	 *    is the "queue read pointer" whose way of working is
-	 *    unknown to me. Anyway, this mode would require a
-	 *    translation of the MMIO commands to some kind of
-	 *    accelerator assembly and writing these commands
-	 *    to the memory location pointed to by 0x85c4.
-	 *    We will not use this, as nobody knows how this
-	 *    "assembly" works, and as it would require a complete
-	 *    re-write of the accelerator code.
-	 * 3. AGP queue mode (bit 7, 0x80). Works as 2., but keeps the
-	 *    queue in AGP memory space.
-	 *
-	 * SR26 bit 4 is called "Bypass H/W queue".
-	 * SR26 bit 1 is called "Enable Command Queue Auto Correction"
-	 * SR26 bit 0 resets the queue
-	 * Size of queue memory is encoded in bits 3:2 like this:
-	 *    00  (0x00)  512K
-	 *    01  (0x04)  1M
-	 *    10  (0x08)  2M
-	 *    11  (0x0C)  4M
-	 * The queue location is to be written to 0x85C0.
-	 *
-	 */
-	cmdq_baseport = (unsigned long *) (xgi_video_info.mmio_vbase
-			+ MMIO_QUEUE_PHYBASE);
-	write_port = (unsigned long *) (xgi_video_info.mmio_vbase
-			+ MMIO_QUEUE_WRITEPORT);
-	read_port = (unsigned long *) (xgi_video_info.mmio_vbase
-			+ MMIO_QUEUE_READPORT);
-
-	DPRINTK("AGP base: 0x%p, read: 0x%p, write: 0x%p\n", cmdq_baseport, read_port, write_port);
-
-	agp_size = COMMAND_QUEUE_AREA_SIZE;
-
-#ifndef AGPOFF
-	if (XGIfb_queuemode == AGP_CMD_QUEUE) {
-		agp_info = vzalloc(sizeof(*agp_info));
-		agp_copy_info(agp_info);
-
-		agp_backend_acquire();
-
-		agp = agp_allocate_memory(COMMAND_QUEUE_AREA_SIZE / PAGE_SIZE,
-				AGP_NORMAL_MEMORY);
-		if (agp == NULL) {
-			DPRINTK("XGIfb: Allocating AGP buffer failed.\n");
-			agp_enabled = 0;
-		} else {
-			if (agp_bind_memory(agp, agp->pg_start) != 0) {
-				DPRINTK("XGIfb: AGP: Failed to bind memory\n");
-				/* TODO: Free AGP memory here */
-				agp_enabled = 0;
-			} else {
-				agp_enable(0);
-			}
-		}
-	}
-#else
-	agp_enabled = 0;
-#endif
-
-	/* TW: Now select the queue mode */
-
-	if ((agp_enabled) && (XGIfb_queuemode == AGP_CMD_QUEUE)) {
-		cmd_type = AGP_CMD_QUEUE;
-		printk(KERN_INFO "XGIfb: Using AGP queue mode\n");
-	/* } else if (XGIfb_heap_size >= COMMAND_QUEUE_AREA_SIZE)  */
-	} else if (XGIfb_queuemode == VM_CMD_QUEUE) {
-		cmd_type = VM_CMD_QUEUE;
-		printk(KERN_INFO "XGIfb: Using VRAM queue mode\n");
-	} else {
-		printk(KERN_INFO "XGIfb: Using MMIO queue mode\n");
-		cmd_type = MMIO_CMD;
-	}
-
-	switch (agp_size) {
-	case 0x80000:
-		temp = XGI_CMD_QUEUE_SIZE_512k;
-		break;
-	case 0x100000:
-		temp = XGI_CMD_QUEUE_SIZE_1M;
-		break;
-	case 0x200000:
-		temp = XGI_CMD_QUEUE_SIZE_2M;
-		break;
-	case 0x400000:
-		temp = XGI_CMD_QUEUE_SIZE_4M;
-		break;
-	}
-
-	switch (cmd_type) {
-	case AGP_CMD_QUEUE:
-#ifndef AGPOFF
-		DPRINTK("XGIfb: AGP buffer base = 0x%lx, offset = 0x%x, size = %dK\n",
-			agp_info->aper_base, agp->physical, agp_size/1024);
-
-		agp_phys = agp_info->aper_base + agp->physical;
-
-		outXGIIDXREG(XGICR, IND_XGI_AGP_IO_PAD, 0);
-		outXGIIDXREG(XGICR, IND_XGI_AGP_IO_PAD, XGI_AGP_2X);
-
-		outXGIIDXREG(XGISR, IND_XGI_CMDQUEUE_THRESHOLD, COMMAND_QUEUE_THRESHOLD);
-
-		outXGIIDXREG(XGISR, IND_XGI_CMDQUEUE_SET, XGI_CMD_QUEUE_RESET);
-
-		*write_port = *read_port;
-
-		temp |= XGI_AGP_CMDQUEUE_ENABLE;
-		outXGIIDXREG(XGISR, IND_XGI_CMDQUEUE_SET, temp);
-
-		*cmdq_baseport = agp_phys;
-
-		XGIfb_caps |= AGP_CMD_QUEUE_CAP;
-#endif
-		break;
-
-	case VM_CMD_QUEUE:
-		XGIfb_heap_end -= COMMAND_QUEUE_AREA_SIZE;
-		XGIfb_heap_size -= COMMAND_QUEUE_AREA_SIZE;
-
-		outXGIIDXREG(XGISR, IND_XGI_CMDQUEUE_THRESHOLD, COMMAND_QUEUE_THRESHOLD);
-
-		outXGIIDXREG(XGISR, IND_XGI_CMDQUEUE_SET, XGI_CMD_QUEUE_RESET);
-
-		*write_port = *read_port;
-
-		temp |= XGI_VRAM_CMDQUEUE_ENABLE;
-		outXGIIDXREG(XGISR, IND_XGI_CMDQUEUE_SET, temp);
-
-		*cmdq_baseport = xgi_video_info.video_size - COMMAND_QUEUE_AREA_SIZE;
-
-		XGIfb_caps |= VM_CMD_QUEUE_CAP;
-
-		DPRINTK("XGIfb: VM Cmd Queue offset = 0x%lx, size is %dK\n",
-			*cmdq_baseport, COMMAND_QUEUE_AREA_SIZE/1024);
-		break;
-
-	default: /* MMIO */
-
-		/* printk("%s:%d - I'm here\n", __FUNCTION__, __LINE__); */
-		/* TW: This previously only wrote XGI_MMIO_CMD_ENABLE
-		 * to IND_XGI_CMDQUEUE_SET. I doubt that this is
-		 * enough. Reserve memory in any way.
-		 */
-		/* FIXME XGIfb_heap_end -= COMMAND_QUEUE_AREA_SIZE; */
-		/* FIXME XGIfb_heap_size -= COMMAND_QUEUE_AREA_SIZE; */
-		/* FIXME */
-		/* FIXME outXGIIDXREG(XGISR, IND_XGI_CMDQUEUE_THRESHOLD, COMMAND_QUEUE_THRESHOLD); */
-		/* FIXME outXGIIDXREG(XGISR, IND_XGI_CMDQUEUE_SET, XGI_CMD_QUEUE_RESET); */
-		/* FIXME */
-		/* FIXME *write_port = *read_port; */
-		/* FIXME */
-		/* FIXME *//* TW: Set Auto_Correction bit */
-		/* FIXME temp |= (XGI_MMIO_CMD_ENABLE | XGI_CMD_AUTO_CORR); */
-		/* FIXME outXGIIDXREG(XGISR, IND_XGI_CMDQUEUE_SET, temp); */
-		/* FIXME */
-		/* FIXME *cmdq_baseport = xgi_video_info.video_size - COMMAND_QUEUE_AREA_SIZE; */
-		/* FIXME */
-		/* FIXME XGIfb_caps |= MMIO_CMD_QUEUE_CAP; */
-		/* FIXME */
-		/* FIXME DPRINTK("XGIfb: MMIO Cmd Queue offset = 0x%lx, size is %dK\n", */
-		/* FIXME	*cmdq_baseport, COMMAND_QUEUE_AREA_SIZE/1024); */
-	break;
-}
 
 	XGIfb_heap.poha_chain = NULL;
 	XGIfb_heap.poh_freelist = NULL;
@@ -2643,8 +2440,6 @@ XGIINITSTATIC int __init XGIfb_setup(char *options)
 			enable_dstn = 1;
 			/* TW: DSTN overrules forcecrt2type */
 			XGIfb_crt2type = DISPTYPE_LCD;
-		} else if (!strncmp(this_opt, "queuemode:", 10)) {
-			XGIfb_search_queuemode(this_opt + 10);
 		} else if (!strncmp(this_opt, "pdc:", 4)) {
 			XGIfb_pdc = simple_strtoul(this_opt + 4, NULL, 0);
 			if (XGIfb_pdc & ~0x3c) {
@@ -2662,10 +2457,6 @@ XGIINITSTATIC int __init XGIfb_setup(char *options)
 			/* printk(KERN_INFO "XGIfb: Invalid option %s\n", this_opt); */
 		}
 
-		/* TW: Acceleration only with MMIO mode */
-		if ((XGIfb_queuemode != -1) && (XGIfb_queuemode != MMIO_CMD)) {
-			XGIfb_ypan = 0;
-		}
 		/* TW: Panning only with acceleration */
 		XGIfb_ypan = 0;
 

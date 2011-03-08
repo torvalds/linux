@@ -10,7 +10,6 @@
 #include "vb_def.h"
 
 //#define LINUXBIOS   /* turn this on when compiling for LINUXBIOS */
-#define AGPOFF     /* default is turn off AGP */
 
 #define XGIFAIL(x) do { printk(x "\n"); return -EINVAL; } while(0)
 
@@ -65,19 +64,6 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 #endif
 
 #define MAX_ROM_SCAN              0x10000
-
-#define TURBO_QUEUE_CAP           0x40
-#define AGP_CMD_QUEUE_CAP         0x20
-#define VM_CMD_QUEUE_CAP          0x10
-#define MMIO_CMD_QUEUE_CAP        0x08
-
-
-
-/* For 315 series */
-
-#define COMMAND_QUEUE_AREA_SIZE   0x80000 /* 512K */
-#define COMMAND_QUEUE_THRESHOLD   0x1F
-
 
 #define OH_ALLOC_SIZE             4000
 #define SENTINEL                  0x7fffffff
@@ -189,16 +175,6 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 
 #define XGI_MEM_MAP_IO_ENABLE     0x01  /* SR20 */
 #define XGI_PCI_ADDR_ENABLE       0x80
-
-#define XGI_AGP_CMDQUEUE_ENABLE   0x80  /* 315/650/740 SR26 */
-#define XGI_VRAM_CMDQUEUE_ENABLE  0x40
-#define XGI_MMIO_CMD_ENABLE       0x20
-#define XGI_CMD_QUEUE_SIZE_512k   0x00
-#define XGI_CMD_QUEUE_SIZE_1M     0x04
-#define XGI_CMD_QUEUE_SIZE_2M     0x08
-#define XGI_CMD_QUEUE_SIZE_4M     0x0C
-#define XGI_CMD_QUEUE_RESET       0x01
-#define XGI_CMD_AUTO_CORR	  0x02
 
 #define XGI_SIMULTANEOUS_VIEW_ENABLE  0x01  /* CR30 */
 #define XGI_MODE_SELECT_CRT2      0x02
@@ -350,8 +326,6 @@ static int XGIfb_CRT2_write_enable = 0;
 static int XGIfb_crt2type = -1; /* TW: CRT2 type (for overriding autodetection) */
 static int XGIfb_tvplug = -1; /* PR: Tv plug type (for overriding autodetection) */
 
-static int XGIfb_queuemode = -1; /* TW: Use MMIO queue mode by default (310/325 series only) */
-
 static unsigned char XGIfb_detectedpdc = 0;
 
 static unsigned char XGIfb_detectedlcda = 0xff;
@@ -367,15 +341,6 @@ static struct xgi_hw_device_info XGIhw_ext;
 
 /* TW: XGI private structure */
 static struct vb_device_info  XGI_Pr;
-
-/* card parameters */
-static u8            XGIfb_caps = 0;
-
-typedef enum _XGI_CMDTYPE {
-	MMIO_CMD = 0,
-	AGP_CMD_QUEUE,
-	VM_CMD_QUEUE,
-} XGI_CMDTYPE;
 
 #define MD_XGI300 1
 #define MD_XGI315 2
@@ -517,20 +482,6 @@ static const struct _XGI_crt2type {
 	{"composite", 	DISPTYPE_TV, 	TVPLUG_COMPOSITE},
 	{"scart", 	DISPTYPE_TV, 	TVPLUG_SCART},
 	{"\0",  	-1, 		-1}
-};
-
-/* Queue mode selection for 310 series */
-static const struct _XGI_queuemode {
-	char name[6];
-	int type_no;
-} XGI_queuemode[] = {
-	{"AGP",  	AGP_CMD_QUEUE},
-	{"VRAM", 	VM_CMD_QUEUE},
-	{"MMIO", 	MMIO_CMD},
-	{"agp",  	AGP_CMD_QUEUE},
-	{"vram", 	VM_CMD_QUEUE},
-	{"mmio", 	MMIO_CMD},
-	{"\0",   	-1}
 };
 
 /* TV standard */
