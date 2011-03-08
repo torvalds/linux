@@ -4418,9 +4418,8 @@ static void UpdateReceivedRateHistogramStatistics8190(
 	priv->stats.received_rate_histogram[rcvType][rateIndex]++;
 }
 
-static void rtl8192_rx(struct net_device *dev)
+static void rtl8192_rx(struct r8192_priv *priv)
 {
-    struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
     struct ieee80211_hdr_1addr *ieee80211_hdr = NULL;
     bool unicast_packet = false;
     struct ieee80211_rx_stats stats = {
@@ -4551,7 +4550,7 @@ done:
 static void rtl8192_irq_rx_tasklet(unsigned long arg)
 {
 	struct r8192_priv *priv = (struct r8192_priv*) arg;
-       rtl8192_rx(priv->ieee80211->dev);
+	rtl8192_rx(priv);
 	/* unmask RDU */
        write_nic_dword(priv, INTA_MASK, read_nic_dword(priv, INTA_MASK) | IMR_RDU);
 }
