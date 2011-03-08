@@ -186,9 +186,11 @@ struct xfrm_state {
 
 	/* State for replay detection */
 	struct xfrm_replay_state replay;
+	struct xfrm_replay_state_esn *replay_esn;
 
 	/* Replay detection state at the time we sent the last notification */
 	struct xfrm_replay_state preplay;
+	struct xfrm_replay_state_esn *preplay_esn;
 
 	/* internal flag that only holds state for delayed aevent at the
 	 * moment
@@ -1567,6 +1569,11 @@ static inline int xfrm_alg_len(const struct xfrm_algo *alg)
 static inline int xfrm_alg_auth_len(const struct xfrm_algo_auth *alg)
 {
 	return sizeof(*alg) + ((alg->alg_key_len + 7) / 8);
+}
+
+static inline int xfrm_replay_state_esn_len(struct xfrm_replay_state_esn *replay_esn)
+{
+	return sizeof(*replay_esn) + replay_esn->bmp_len * sizeof(__u32);
 }
 
 #ifdef CONFIG_XFRM_MIGRATE
