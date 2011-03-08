@@ -38,6 +38,7 @@ $default{"BUILD_OPTIONS"}	= "";
 $default{"BISECT_SLEEP_TIME"}	= 60;   # sleep time between bisects
 $default{"CLEAR_LOG"}		= 0;
 $default{"BISECT_MANUAL"}	= 0;
+$default{"BISECT_SKIP"}		= 1;
 $default{"SUCCESS_LINE"}	= "login:";
 $default{"BOOTED_TIMEOUT"}	= 1;
 $default{"DIE_ON_FAILURE"}	= 1;
@@ -83,6 +84,7 @@ my $in_bisect = 0;
 my $bisect_bad = "";
 my $reverse_bisect;
 my $bisect_manual;
+my $bisect_skip;
 my $in_patchcheck = 0;
 my $run_test;
 my $redirect;
@@ -1169,7 +1171,15 @@ sub run_git_bisect {
     return 1;
 }
 
-# returns 1 on success, 0 on failure
+sub bisect_reboot {
+    doprint "Reboot and sleep $bisect_sleep_time seconds\n";
+    reboot;
+    start_monitor;
+    wait_for_monitor $bisect_sleep_time;
+    end_monitor;
+}
+
+# returns 1 on success, 0 on failure, -1 on skip
 sub run_bisect_test {
     my ($type, $buildtype) = @_;
 
@@ -1183,6 +1193,10 @@ sub run_bisect_test {
     build $buildtype or $failed = 1;
 
     if ($type ne "build") {
+	if ($failed && $bisect_skip) {
+	    $in_bisect = 0;
+	    return -1;
+	}
 	dodie "Failed on build" if $failed;
 
 	# Now boot the box
@@ -1194,6 +1208,12 @@ sub run_bisect_test {
 	monitor or $failed = 1;
 
 	if ($type ne "boot") {
+	    if ($failed && $bisect_skip) {
+		end_monitor;
+		bisect_reboot;
+		$in_bisect = 0;
+		return -1;
+	    }
 	    dodie "Failed on boot" if $failed;
 
 	    do_run_test or $failed = 1;
@@ -1206,11 +1226,7 @@ sub run_bisect_test {
 
 	# reboot the box to a good kernel
 	if ($type ne "build") {
-	    doprint "Reboot and sleep $bisect_sleep_time seconds\n";
-	    reboot;
-	    start_monitor;
-	    wait_for_monitor $bisect_sleep_time;
-	    end_monitor;
+	    bisect_reboot;
 	}
     } else {
 	$result = 1;
@@ -1240,10 +1256,13 @@ sub run_bisect {
 	$ret = !$ret;
     }
 
-    if ($ret) {
+    if ($ret > 0) {
 	return "good";
-    } else {
+    } elsif ($ret == 0) {
 	return  "bad";
+    } elsif ($bisect_skip) {
+	doprint "HIT A BAD COMMIT ... SKIPPING\n";
+	return "skip";
     }
 }
 
@@ -1954,6 +1973,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $sleep_time = set_test_option("SLEEP_TIME", $i);
     $bisect_sleep_time = set_test_option("BISECT_SLEEP_TIME", $i);
     $bisect_manual = set_test_option("BISECT_MANUAL", $i);
+    $bisect_skip = set_test_option("BISECT_SKIP", $i);
     $store_failures = set_test_option("STORE_FAILURES", $i);
     $timeout = set_test_option("TIMEOUT", $i);
     $booted_timeout = set_test_option("BOOTED_TIMEOUT", $i);
