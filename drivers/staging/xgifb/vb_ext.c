@@ -9,13 +9,13 @@
 #include "vb_util.h"
 #include "vb_setmode.h"
 #include "vb_ext.h"
-unsigned char XGINew_GetPanelID(struct vb_device_info *pVBInfo);
-unsigned char XGINew_GetLCDDDCInfo(
+static unsigned char XGINew_GetPanelID(struct vb_device_info *pVBInfo);
+static unsigned char XGINew_GetLCDDDCInfo(
 		struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo);
-unsigned char XGINew_BridgeIsEnable(struct xgi_hw_device_info *,
+static unsigned char XGINew_BridgeIsEnable(struct xgi_hw_device_info *,
 		struct vb_device_info *pVBInfo);
-unsigned char XGINew_SenseHiTV(struct xgi_hw_device_info *HwDeviceExtension,
+static unsigned char XGINew_SenseHiTV(struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo);
 
 /**************************************************************
@@ -34,7 +34,7 @@ static unsigned char XGINew_Is301B(struct vb_device_info *pVBInfo)
 		return 1;
 }
 
-unsigned char XGINew_Sense(unsigned short tempbx, unsigned short tempcx, struct vb_device_info *pVBInfo)
+static unsigned char XGINew_Sense(unsigned short tempbx, unsigned short tempcx, struct vb_device_info *pVBInfo)
 {
 	unsigned short temp, i, tempch;
 
@@ -214,7 +214,7 @@ unsigned short XGINew_SenseLCD(struct xgi_hw_device_info *HwDeviceExtension, str
 	return temp;
 }
 
-unsigned char XGINew_GetLCDDDCInfo(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo)
+static unsigned char XGINew_GetLCDDDCInfo(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo)
 {
 	unsigned short temp;
 
@@ -256,7 +256,7 @@ unsigned char XGINew_GetLCDDDCInfo(struct xgi_hw_device_info *HwDeviceExtension,
 	}
 }
 
-unsigned char XGINew_GetPanelID(struct vb_device_info *pVBInfo)
+static unsigned char XGINew_GetPanelID(struct vb_device_info *pVBInfo)
 {
 	unsigned short PanelTypeTable[16] = { SyncNN | PanelRGB18Bit
 			| Panel800x600  | _PanelType00, SyncNN | PanelRGB18Bit
@@ -318,7 +318,7 @@ unsigned char XGINew_GetPanelID(struct vb_device_info *pVBInfo)
 	}
 }
 
-unsigned char XGINew_BridgeIsEnable(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo)
+static unsigned char XGINew_BridgeIsEnable(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo)
 {
 	unsigned short flag;
 
@@ -334,7 +334,7 @@ unsigned char XGINew_BridgeIsEnable(struct xgi_hw_device_info *HwDeviceExtension
 	return 0;
 }
 
-unsigned char XGINew_SenseHiTV(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo)
+static unsigned char XGINew_SenseHiTV(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo)
 {
 	unsigned short tempbx, tempcx, temp, i, tempch;
 
