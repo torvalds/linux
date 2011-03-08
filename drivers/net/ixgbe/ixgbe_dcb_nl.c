@@ -145,6 +145,9 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 		}
 
 		adapter->flags |= IXGBE_FLAG_DCB_ENABLED;
+		if (!netdev_get_num_tc(netdev))
+			ixgbe_setup_tc(netdev, MAX_TRAFFIC_CLASS);
+
 		ixgbe_init_interrupt_scheme(adapter);
 		if (netif_running(netdev))
 			netdev->netdev_ops->ndo_open(netdev);
@@ -168,6 +171,8 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 			default:
 				break;
 			}
+
+			ixgbe_setup_tc(netdev, 0);
 
 			ixgbe_init_interrupt_scheme(adapter);
 			if (netif_running(netdev))
@@ -351,7 +356,7 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 		return DCB_NO_HW_CHG;
 
 	ret = ixgbe_copy_dcb_cfg(&adapter->temp_dcb_cfg, &adapter->dcb_cfg,
-				 adapter->ring_feature[RING_F_DCB].indices);
+				 MAX_TRAFFIC_CLASS);
 
 	if (ret)
 		return DCB_NO_HW_CHG;
