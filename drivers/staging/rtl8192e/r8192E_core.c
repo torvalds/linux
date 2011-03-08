@@ -3703,9 +3703,8 @@ static u8 HwRateToMRate90(bool bIsHT, u8 rate)
 }
 
 /* Record the TSF time stamp when receiving a packet */
-static void UpdateRxPktTimeStamp8190 (struct net_device *dev, struct ieee80211_rx_stats *stats)
+static void UpdateRxPktTimeStamp8190(struct r8192_priv *priv, struct ieee80211_rx_stats *stats)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 
 	if(stats->bIsAMPDU && !stats->bFirstMPDU) {
 		stats->mac_time[0] = priv->LastRxDescTSFLow;
@@ -4487,7 +4486,7 @@ static void rtl8192_rx(struct net_device *dev)
                 stats.TimeStampLow = pDrvInfo->TSFL;
                 stats.TimeStampHigh = read_nic_dword(priv, TSFR+4);
 
-                UpdateRxPktTimeStamp8190(dev, &stats);
+                UpdateRxPktTimeStamp8190(priv, &stats);
 
                 //
                 // Get Total offset of MPDU Frame Body
