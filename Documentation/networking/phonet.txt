@@ -205,19 +205,6 @@ The pipe protocol provides two socket options at the SOL_PNPIPE level:
     socket descriptors that are already connected or being connected.
 
 
-Phonet Pipe-controller Implementation
--------------------------------------
-
-Phonet Pipe-controller is enabled by selecting the CONFIG_PHONET_PIPECTRLR
-Kconfig option.
-
-The implementation adds socket options at SOL_PNPIPE level:
-
-  PNPIPE_ENABLE accepts one integer value (int). If set to zero, the pipe
-    is disabled. If the value is non-zero, the pipe is enabled. If the pipe
-    is not (yet) connected, ENOTCONN is error is returned.
-
-
 Authors
 -------
 

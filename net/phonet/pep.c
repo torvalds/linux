@@ -167,15 +167,6 @@ static int pipe_handler_send_created_ind(struct sock *sk)
 				data, 4, GFP_ATOMIC);
 }
 
-#ifdef CONFIG_PHONET_PIPECTRLR
-static int pipe_handler_enable_pipe(struct sock *sk, int enable)
-{
-	u8 id = enable ? PNS_PEP_ENABLE_REQ : PNS_PEP_DISABLE_REQ;
-
-	return pipe_handler_request(sk, id, PAD, NULL, 0);
-}
-#endif
-
 static int pep_accept_conn(struct sock *sk, struct sk_buff *skb)
 {
 	static const u8 data[20] = {
@@ -968,16 +959,6 @@ static int pep_setsockopt(struct sock *sk, int level, int optname,
 		}
 		goto out_norel;
 
-#ifdef CONFIG_PHONET_PIPECTRLR
-	case PNPIPE_ENABLE:
-		if ((1 << sk->sk_state) & ~(TCPF_SYN_RECV|TCPF_ESTABLISHED)) {
-			err = -ENOTCONN;
-			break;
-		}
-		err = pipe_handler_enable_pipe(sk, val);
-		break;
-#endif
-
 	default:
 		err = -ENOPROTOOPT;
 	}
@@ -1012,12 +993,6 @@ static int pep_getsockopt(struct sock *sk, int level, int optname,
 		if (val == PN_PIPE_INVALID_HANDLE)
 			return -EINVAL;
 		break;
-
-#ifdef CONFIG_PHONET_PIPECTRLR
-	case PNPIPE_ENABLE:
-		val = sk->sk_state == TCP_ESTABLISHED;
-		break;
-#endif
 
 	default:
 		return -ENOPROTOOPT;

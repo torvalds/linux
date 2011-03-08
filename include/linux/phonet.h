@@ -37,8 +37,6 @@
 #define PNPIPE_ENCAP		1
 #define PNPIPE_IFINDEX		2
 #define PNPIPE_HANDLE		3
-#define PNPIPE_ENABLE           4
-/* unused slot */
 
 #define PNADDR_ANY		0
 #define PNADDR_BROADCAST	0xFC
