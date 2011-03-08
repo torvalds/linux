@@ -1759,28 +1759,6 @@ static struct dentry *lookup_hash(struct nameidata *nd)
 	return __lookup_hash(&nd->last, nd->path.dentry, nd);
 }
 
-static int __lookup_one_len(const char *name, struct qstr *this,
-		struct dentry *base, int len)
-{
-	unsigned long hash;
-	unsigned int c;
-
-	this->name = name;
-	this->len = len;
-	if (!len)
-		return -EACCES;
-
-	hash = init_name_hash();
-	while (len--) {
-		c = *(const unsigned char *)name++;
-		if (c == '/' || c == '\0')
-			return -EACCES;
-		hash = partial_name_hash(c, hash);
-	}
-	this->hash = end_name_hash(hash);
-	return 0;
-}
-
 /**
  * lookup_one_len - filesystem helper to lookup single pathname component
  * @name:	pathname component to lookup
@@ -1794,14 +1772,25 @@ static int __lookup_one_len(const char *name, struct qstr *this,
  */
 struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 {
-	int err;
 	struct qstr this;
+	unsigned long hash;
+	unsigned int c;
 
 	WARN_ON_ONCE(!mutex_is_locked(&base->d_inode->i_mutex));
 
-	err = __lookup_one_len(name, &this, base, len);
-	if (err)
-		return ERR_PTR(err);
+	this.name = name;
+	this.len = len;
+	if (!len)
+		return ERR_PTR(-EACCES);
+
+	hash = init_name_hash();
+	while (len--) {
+		c = *(const unsigned char *)name++;
+		if (c == '/' || c == '\0')
+			return ERR_PTR(-EACCES);
+		hash = partial_name_hash(c, hash);
+	}
+	this.hash = end_name_hash(hash);
 
 	return __lookup_hash(&this, base, NULL);
 }
