@@ -264,10 +264,9 @@ static bool blk_kick_flush(struct request_queue *q)
 static void flush_data_end_io(struct request *rq, int error)
 {
 	struct request_queue *q = rq->q;
-	bool was_empty = elv_queue_empty(q);
 
 	/* after populating an empty queue, kick it to avoid stall */
-	if (blk_flush_complete_seq(rq, REQ_FSEQ_DATA, error) && was_empty)
+	if (blk_flush_complete_seq(rq, REQ_FSEQ_DATA, error))
 		__blk_run_queue(q);
 }
 

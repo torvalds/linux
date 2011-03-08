@@ -105,6 +105,7 @@ extern void elv_add_request(struct request_queue *, struct request *, int, int);
 extern void __elv_add_request(struct request_queue *, struct request *, int, int);
 extern void elv_insert(struct request_queue *, struct request *, int);
 extern int elv_merge(struct request_queue *, struct request **, struct bio *);
+extern int elv_try_merge(struct request *, struct bio *);
 extern void elv_merge_requests(struct request_queue *, struct request *,
 			       struct request *);
 extern void elv_merged_request(struct request_queue *, struct request *, int);

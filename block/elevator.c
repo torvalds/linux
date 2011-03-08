@@ -113,7 +113,7 @@ int elv_rq_merge_ok(struct request *rq, struct bio *bio)
 }
 EXPORT_SYMBOL(elv_rq_merge_ok);
 
-static inline int elv_try_merge(struct request *__rq, struct bio *bio)
+int elv_try_merge(struct request *__rq, struct bio *bio)
 {
 	int ret = ELEVATOR_NO_MERGE;
 
@@ -421,6 +421,8 @@ void elv_dispatch_sort(struct request_queue *q, struct request *rq)
 	struct list_head *entry;
 	int stop_flags;
 
+	BUG_ON(rq->cmd_flags & REQ_ON_PLUG);
+
 	if (q->last_merge == rq)
 		q->last_merge = NULL;
 
@@ -696,6 +698,8 @@ void elv_insert(struct request_queue *q, struct request *rq, int where)
 void __elv_add_request(struct request_queue *q, struct request *rq, int where,
 		       int plug)
 {
+	BUG_ON(rq->cmd_flags & REQ_ON_PLUG);
+
 	if (rq->cmd_flags & REQ_SOFTBARRIER) {
 		/* barriers are scheduling boundary, update end_sector */
 		if (rq->cmd_type == REQ_TYPE_FS ||

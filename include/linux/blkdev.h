@@ -871,6 +871,31 @@ struct request_queue *blk_alloc_queue(gfp_t);
 struct request_queue *blk_alloc_queue_node(gfp_t, int);
 extern void blk_put_queue(struct request_queue *);
 
+struct blk_plug {
+	unsigned long magic;
+	struct list_head list;
+	unsigned int should_sort;
+};
+
+extern void blk_start_plug(struct blk_plug *);
+extern void blk_finish_plug(struct blk_plug *);
+extern void __blk_flush_plug(struct task_struct *, struct blk_plug *);
+
+static inline void blk_flush_plug(struct task_struct *tsk)
+{
+	struct blk_plug *plug = tsk->plug;
+
+	if (unlikely(plug))
+		__blk_flush_plug(tsk, plug);
+}
+
+static inline bool blk_needs_flush_plug(struct task_struct *tsk)
+{
+	struct blk_plug *plug = tsk->plug;
+
+	return plug && !list_empty(&plug->list);
+}
+
 /*
  * tag stuff
  */
@@ -1292,6 +1317,23 @@ extern int __blkdev_driver_ioctl(struct block_device *, fmode_t, unsigned int,
 static inline long nr_blockdev_pages(void)
 {
 	return 0;
+}
+
+static inline void blk_start_plug(struct list_head *list)
+{
+}
+
+static inline void blk_finish_plug(struct list_head *list)
+{
+}
+
+static inline void blk_flush_plug(struct task_struct *tsk)
+{
+}
+
+static inline bool blk_needs_flush_plug(struct task_struct *tsk)
+{
+	return false;
 }
 
 #endif /* CONFIG_BLOCK */
