@@ -51,7 +51,7 @@ static int iioutils_break_up_name(const char *full_name,
 	w = working;
 	r = working;
 
-	while(*r != '\0') {
+	while (*r != '\0') {
 		if (!isdigit(*r)) {
 			*w = *r;
 			w++;
@@ -242,6 +242,26 @@ error_ret:
 	return ret;
 }
 
+/**
+ * bsort_channel_array_by_index() - reorder so that the array is in index order
+ *
+ **/
+
+inline void bsort_channel_array_by_index(struct iio_channel_info **ci_array,
+					 int cnt)
+{
+
+	struct iio_channel_info temp;
+	int x, y;
+
+	for (x = 0; x < cnt; x++)
+		for (y = 0; y < (cnt - 1); y++)
+			if ((*ci_array)[y].index > (*ci_array)[y+1].index) {
+				temp = (*ci_array)[y + 1];
+				(*ci_array)[y + 1] = (*ci_array)[y];
+				(*ci_array)[y] = temp;
+			}
+}
 
 /**
  * build_channel_array() - function to figure out what channels are present
@@ -254,7 +274,7 @@ inline int build_channel_array(const char *device_dir,
 {
 	DIR *dp;
 	FILE *sysfsfp;
-	int count = 0, temp, i;
+	int count, temp, i;
 	struct iio_channel_info *current;
 	int ret;
 	const struct dirent *ent;
@@ -290,11 +310,10 @@ inline int build_channel_array(const char *device_dir,
 			fscanf(sysfsfp, "%u", &ret);
 			if (ret == 1)
 				(*counter)++;
-			count++;
 			fclose(sysfsfp);
 			free(filename);
 		}
-	*ci_array = malloc(sizeof(**ci_array)*count);
+	*ci_array = malloc(sizeof(**ci_array) * (*counter));
 	if (*ci_array == NULL) {
 		ret = -ENOMEM;
 		goto error_close_dir;
@@ -321,6 +340,13 @@ inline int build_channel_array(const char *device_dir,
 			}
 			fscanf(sysfsfp, "%u", &current->enabled);
 			fclose(sysfsfp);
+
+			if (!current->enabled) {
+				free(filename);
+				count--;
+				continue;
+			}
+
 			current->scale = 1.0;
 			current->offset = 0;
 			current->name = strndup(ent->d_name,
@@ -375,26 +401,10 @@ inline int build_channel_array(const char *device_dir,
 						current->generic_name);
 		}
 	}
-	/* reorder so that the array is in index order*/
-	current = malloc(sizeof(**ci_array)*(*counter));
-	if (current == NULL) {
-		ret = -ENOMEM;
-		goto error_cleanup_array;
-	}
+
 	closedir(dp);
-	count = 0;
-	temp = 0;
-	while (count < *counter)
-		for (i = 0; i < *counter; i++)
-			if ((*ci_array)[i].index == temp) {
-				memcpy(&current[count++],
-				       &(*ci_array)[i],
-				       sizeof(*current));
-				temp++;
-				break;
-			}
-	free(*ci_array);
-	*ci_array = current;
+	/* reorder so that the array is in index order */
+	bsort_channel_array_by_index(ci_array, *counter);
 
 	return 0;
 
