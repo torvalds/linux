@@ -793,6 +793,48 @@ static void macb_reset_hw(struct macb *bp)
 	macb_readl(bp, ISR);
 }
 
+static u32 gem_mdc_clk_div(struct macb *bp)
+{
+	u32 config;
+	unsigned long pclk_hz = clk_get_rate(bp->pclk);
+
+	if (pclk_hz <= 20000000)
+		config = GEM_BF(CLK, GEM_CLK_DIV8);
+	else if (pclk_hz <= 40000000)
+		config = GEM_BF(CLK, GEM_CLK_DIV16);
+	else if (pclk_hz <= 80000000)
+		config = GEM_BF(CLK, GEM_CLK_DIV32);
+	else if (pclk_hz <= 120000000)
+		config = GEM_BF(CLK, GEM_CLK_DIV48);
+	else if (pclk_hz <= 160000000)
+		config = GEM_BF(CLK, GEM_CLK_DIV64);
+	else
+		config = GEM_BF(CLK, GEM_CLK_DIV96);
+
+	return config;
+}
+
+static u32 macb_mdc_clk_div(struct macb *bp)
+{
+	u32 config;
+	unsigned long pclk_hz;
+
+	if (macb_is_gem(bp))
+		return gem_mdc_clk_div(bp);
+
+	pclk_hz = clk_get_rate(bp->pclk);
+	if (pclk_hz <= 20000000)
+		config = MACB_BF(CLK, MACB_CLK_DIV8);
+	else if (pclk_hz <= 40000000)
+		config = MACB_BF(CLK, MACB_CLK_DIV16);
+	else if (pclk_hz <= 80000000)
+		config = MACB_BF(CLK, MACB_CLK_DIV32);
+	else
+		config = MACB_BF(CLK, MACB_CLK_DIV64);
+
+	return config;
+}
+
 static void macb_init_hw(struct macb *bp)
 {
 	u32 config;
@@ -800,7 +842,7 @@ static void macb_init_hw(struct macb *bp)
 	macb_reset_hw(bp);
 	__macb_set_hwaddr(bp);
 
-	config = macb_readl(bp, NCFGR) & MACB_BF(CLK, -1L);
+	config = macb_mdc_clk_div(bp);
 	config |= MACB_BIT(PAE);		/* PAuse Enable */
 	config |= MACB_BIT(DRFCS);		/* Discard Rx FCS */
 	config |= MACB_BIT(BIG);		/* Receive oversized frames */
@@ -1119,7 +1161,6 @@ static int __init macb_probe(struct platform_device *pdev)
 	struct net_device *dev;
 	struct macb *bp;
 	struct phy_device *phydev;
-	unsigned long pclk_hz;
 	u32 config;
 	int err = -ENXIO;
 
@@ -1183,15 +1224,7 @@ static int __init macb_probe(struct platform_device *pdev)
 	dev->base_addr = regs->start;
 
 	/* Set MII management clock divider */
-	pclk_hz = clk_get_rate(bp->pclk);
-	if (pclk_hz <= 20000000)
-		config = MACB_BF(CLK, MACB_CLK_DIV8);
-	else if (pclk_hz <= 40000000)
-		config = MACB_BF(CLK, MACB_CLK_DIV16);
-	else if (pclk_hz <= 80000000)
-		config = MACB_BF(CLK, MACB_CLK_DIV32);
-	else
-		config = MACB_BF(CLK, MACB_CLK_DIV64);
+	config = macb_mdc_clk_div(bp);
 	macb_writel(bp, NCFGR, config);
 
 	macb_get_hwaddr(bp);

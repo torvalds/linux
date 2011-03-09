@@ -135,6 +135,9 @@
 #define MACB_IRXFCS_OFFSET			19
 #define MACB_IRXFCS_SIZE			1
 
+/* GEM specific NCFGR bitfields. */
+#define GEM_CLK_OFFSET				18
+#define GEM_CLK_SIZE				3
 /* Bitfields in NSR */
 #define MACB_NSR_LINK_OFFSET			0
 #define MACB_NSR_LINK_SIZE			1
@@ -248,6 +251,14 @@
 #define MACB_CLK_DIV16				1
 #define MACB_CLK_DIV32				2
 #define MACB_CLK_DIV64				3
+
+/* GEM specific constants for CLK. */
+#define GEM_CLK_DIV8				0
+#define GEM_CLK_DIV16				1
+#define GEM_CLK_DIV32				2
+#define GEM_CLK_DIV48				3
+#define GEM_CLK_DIV64				4
+#define GEM_CLK_DIV96				5
 
 /* Constants for MAN register */
 #define MACB_MAN_SOF				1
