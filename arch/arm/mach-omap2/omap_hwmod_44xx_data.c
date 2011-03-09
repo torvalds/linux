@@ -264,11 +264,27 @@ static struct omap_hwmod_ocp_if omap44xx_mmc2__l3_main_1 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+/* L3 target configuration and error log registers */
+static struct omap_hwmod_irq_info omap44xx_l3_targ_irqs[] = {
+	{ .irq = 9  + OMAP44XX_IRQ_GIC_START },
+	{ .irq = 10 + OMAP44XX_IRQ_GIC_START },
+};
+
+static struct omap_hwmod_addr_space omap44xx_l3_main_1_addrs[] = {
+	{
+		.pa_start	= 0x44000000,
+		.pa_end		= 0x44000fff,
+		.flags		= ADDR_TYPE_RT,
+	},
+};
+
 /* mpu -> l3_main_1 */
 static struct omap_hwmod_ocp_if omap44xx_mpu__l3_main_1 = {
 	.master		= &omap44xx_mpu_hwmod,
 	.slave		= &omap44xx_l3_main_1_hwmod,
 	.clk		= "l3_div_ck",
+	.addr		= omap44xx_l3_main_1_addrs,
+	.addr_cnt	= ARRAY_SIZE(omap44xx_l3_main_1_addrs),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -286,6 +302,8 @@ static struct omap_hwmod_ocp_if *omap44xx_l3_main_1_slaves[] = {
 static struct omap_hwmod omap44xx_l3_main_1_hwmod = {
 	.name		= "l3_main_1",
 	.class		= &omap44xx_l3_hwmod_class,
+	.mpu_irqs	= omap44xx_l3_targ_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(omap44xx_l3_targ_irqs),
 	.slaves		= omap44xx_l3_main_1_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap44xx_l3_main_1_slaves),
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
@@ -332,11 +350,21 @@ static struct omap_hwmod_ocp_if omap44xx_iva__l3_main_2 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+static struct omap_hwmod_addr_space omap44xx_l3_main_2_addrs[] = {
+	{
+		.pa_start	= 0x44800000,
+		.pa_end		= 0x44801fff,
+		.flags		= ADDR_TYPE_RT,
+	},
+};
+
 /* l3_main_1 -> l3_main_2 */
 static struct omap_hwmod_ocp_if omap44xx_l3_main_1__l3_main_2 = {
 	.master		= &omap44xx_l3_main_1_hwmod,
 	.slave		= &omap44xx_l3_main_2_hwmod,
 	.clk		= "l3_div_ck",
+	.addr		= omap44xx_l3_main_2_addrs,
+	.addr_cnt	= ARRAY_SIZE(omap44xx_l3_main_2_addrs),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -377,11 +405,21 @@ static struct omap_hwmod omap44xx_l3_main_2_hwmod = {
 };
 
 /* l3_main_3 interface data */
+static struct omap_hwmod_addr_space omap44xx_l3_main_3_addrs[] = {
+	{
+		.pa_start	= 0x45000000,
+		.pa_end		= 0x45000fff,
+		.flags		= ADDR_TYPE_RT,
+	},
+};
+
 /* l3_main_1 -> l3_main_3 */
 static struct omap_hwmod_ocp_if omap44xx_l3_main_1__l3_main_3 = {
 	.master		= &omap44xx_l3_main_1_hwmod,
 	.slave		= &omap44xx_l3_main_3_hwmod,
 	.clk		= "l3_div_ck",
+	.addr		= omap44xx_l3_main_3_addrs,
+	.addr_cnt	= ARRAY_SIZE(omap44xx_l3_main_3_addrs),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 

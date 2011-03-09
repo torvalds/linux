@@ -100,10 +100,26 @@ static struct omap_hwmod_ocp_if omap3xxx_l3_main__l4_per = {
 	.user	= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+/* L3 taret configuration and error log registers */
+static struct omap_hwmod_irq_info omap3xxx_l3_main_irqs[] = {
+	{ .irq = INT_34XX_L3_DBG_IRQ },
+	{ .irq = INT_34XX_L3_APP_IRQ },
+};
+
+static struct omap_hwmod_addr_space omap3xxx_l3_main_addrs[] = {
+	{
+		.pa_start       = 0x68000000,
+		.pa_end         = 0x6800ffff,
+		.flags          = ADDR_TYPE_RT,
+	},
+};
+
 /* MPU -> L3 interface */
 static struct omap_hwmod_ocp_if omap3xxx_mpu__l3_main = {
-	.master = &omap3xxx_mpu_hwmod,
-	.slave	= &omap3xxx_l3_main_hwmod,
+	.master   = &omap3xxx_mpu_hwmod,
+	.slave    = &omap3xxx_l3_main_hwmod,
+	.addr     = omap3xxx_l3_main_addrs,
+	.addr_cnt = ARRAY_SIZE(omap3xxx_l3_main_addrs),
 	.user	= OCP_USER_MPU,
 };
 
@@ -135,6 +151,8 @@ static struct omap_hwmod_ocp_if *omap3xxx_l3_main_masters[] = {
 static struct omap_hwmod omap3xxx_l3_main_hwmod = {
 	.name		= "l3_main",
 	.class		= &l3_hwmod_class,
+	.mpu_irqs       = omap3xxx_l3_main_irqs,
+	.mpu_irqs_cnt   = ARRAY_SIZE(omap3xxx_l3_main_irqs),
 	.masters	= omap3xxx_l3_main_masters,
 	.masters_cnt	= ARRAY_SIZE(omap3xxx_l3_main_masters),
 	.slaves		= omap3xxx_l3_main_slaves,
