@@ -174,49 +174,23 @@ static int langwell_otg_set_power(struct otg_transceiver *otg,
 	return 0;
 }
 
-/* A-device drives vbus, controlled through PMIC CHRGCNTL register*/
+/* A-device drives vbus, controlled through IPC commands */
 static int langwell_otg_set_vbus(struct otg_transceiver *otg, bool enabled)
 {
 	struct langwell_otg		*lnw = the_transceiver;
-	u8 r;
+	u8				sub_id;
 
 	dev_dbg(lnw->dev, "%s <--- %s\n", __func__, enabled ? "on" : "off");
 
-	/* FIXME: surely we should cache this on the first read. If not use
-	   readv to avoid two transactions */
-	if (intel_scu_ipc_ioread8(0x00, &r) < 0) {
-		dev_dbg(lnw->dev, "Failed to read PMIC register 0xD2");
+	if (enabled)
+		sub_id = 0x8; /* Turn on the VBus */
+	else
+		sub_id = 0x9; /* Turn off the VBus */
+
+	if (intel_scu_ipc_simple_command(0xef, sub_id)) {
+		dev_dbg(lnw->dev, "Failed to set Vbus via IPC commands\n");
 		return -EBUSY;
 	}
-	if ((r & 0x03) != 0x02) {
-		dev_dbg(lnw->dev, "not NEC PMIC attached\n");
-		return -EBUSY;
-	}
-
-	if (intel_scu_ipc_ioread8(0x20, &r) < 0) {
-		dev_dbg(lnw->dev, "Failed to read PMIC register 0xD2");
-		return -EBUSY;
-	}
-
-	if ((r & 0x20) == 0) {
-		dev_dbg(lnw->dev, "no battery attached\n");
-		return -EBUSY;
-	}
-
-	/* Workaround for battery attachment issue */
-	if (r == 0x34) {
-		dev_dbg(lnw->dev, "no battery attached on SH\n");
-		return -EBUSY;
-	}
-
-	dev_dbg(lnw->dev, "battery attached. 2 reg = %x\n", r);
-
-	/* workaround: FW detect writing 0x20/0xc0 to d4 event.
-	 * this is only for NEC PMIC.
-	 */
-
-	if (intel_scu_ipc_iowrite8(0xD4, enabled ? 0x20 : 0xC0))
-		dev_dbg(lnw->dev, "Failed to write PMIC.\n");
 
 	dev_dbg(lnw->dev, "%s --->\n", __func__);
 
@@ -394,14 +368,14 @@ static void langwell_otg_phy_low_power(int on)
 	dev_dbg(lnw->dev, "%s <--- done\n", __func__);
 }
 
-/* After drv vbus, add 2 ms delay to set PHCD */
+/* After drv vbus, add 5 ms delay to set PHCD */
 static void langwell_otg_phy_low_power_wait(int on)
 {
 	struct langwell_otg	*lnw = the_transceiver;
 
-	dev_dbg(lnw->dev, "add 2ms delay before programing PHCD\n");
+	dev_dbg(lnw->dev, "add 5ms delay before programing PHCD\n");
 
-	mdelay(2);
+	mdelay(5);
 	langwell_otg_phy_low_power(on);
 }
 
