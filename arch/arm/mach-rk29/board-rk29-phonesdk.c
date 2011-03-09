@@ -507,92 +507,102 @@ int wm831x_post_init(struct wm831x *parm)
 	struct regulator *dcdc;
 	struct regulator *ldo;
 	
-	//dcdc init
-	dcdc = regulator_get(NULL, "dcdc1");
-	regulator_set_voltage(dcdc,1800000,1800000);
-	regulator_enable(dcdc);
-	printk("%s set dcdc1=%dmV end\n", __FUNCTION__, regulator_get_voltage(dcdc));	
-	regulator_put(dcdc);
 
-	dcdc = regulator_get(NULL, "dcdc2");
-	regulator_set_voltage(dcdc,1300000,1300000);
-	regulator_enable(dcdc);				
-	printk("%s set dcdc2=%dmV end\n", __FUNCTION__, regulator_get_voltage(dcdc));
-	regulator_put(dcdc);
-
-	dcdc = regulator_get(NULL, "dcdc3");
+	dcdc = regulator_get(NULL, "dcdc3");		// 1th IO
 	regulator_set_voltage(dcdc,3000000,3000000);
 	regulator_enable(dcdc);			
 	printk("%s set dcdc3=%dmV end\n", __FUNCTION__, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);
-
-	dcdc = regulator_get(NULL, "dcdc4");
-	regulator_set_voltage(dcdc,20000000,20000000);		
-	regulator_enable(dcdc);	
-	printk("%s set dcdc4=%dmV end\n", __FUNCTION__, regulator_get_voltage(dcdc));
-	regulator_put(dcdc);
+	udelay(100);
 	
-	//ldo init
-	ldo = regulator_get(NULL, "ldo1");
-	regulator_set_voltage(ldo,1800000,1800000);
-	regulator_enable(ldo);			
-	printk("%s set ldo1=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));		
-	regulator_put(ldo);
-
-	ldo = regulator_get(NULL, "ldo2");
-	regulator_set_voltage(ldo,1800000,1800000);
-	regulator_enable(ldo);			
-	printk("%s set ldo2=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-
-	ldo = regulator_get(NULL, "ldo3");
-	regulator_set_voltage(ldo,1800000,1800000);
-	regulator_enable(ldo);			
-	printk("%s set ldo3=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-
-	ldo = regulator_get(NULL, "ldo4");
-	regulator_set_voltage(ldo,2800000,2800000);
-	//regulator_enable(ldo);	
-	//printk("%s set ldo4=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-
-	ldo = regulator_get(NULL, "ldo5");
-	regulator_set_voltage(ldo,2800000,2800000);
-	regulator_enable(ldo);			
-	printk("%s set ldo5=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-
-	ldo = regulator_get(NULL, "ldo6");
-	regulator_set_voltage(ldo,3000000,3000000);
-	regulator_enable(ldo);			
-	printk("%s set ldo6=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-
-	ldo = regulator_get(NULL, "ldo7");
-	regulator_set_voltage(ldo,3300000,3300000);
-	regulator_enable(ldo);			
-	printk("%s set ldo7=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-
-	ldo = regulator_get(NULL, "ldo8");
-	regulator_set_voltage(ldo,1200000,1200000);
-	//regulator_enable(ldo);			
-	//printk("%s set ldo8=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-
-	ldo = regulator_get(NULL, "ldo9");
-	regulator_set_voltage(ldo,3000000,3000000);
-	regulator_enable(ldo);			
-	printk("%s set ldo9=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
-	regulator_put(ldo);
-
-	ldo = regulator_get(NULL, "ldo10");
+	ldo = regulator_get(NULL, "ldo10");	// 1th modem IO
 	regulator_set_voltage(ldo,3000000,3000000);
 	regulator_enable(ldo);			
 	printk("%s set ldo10=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
+	udelay(100);
+	
+	dcdc = regulator_get(NULL, "dcdc2");	// 2th CORE
+	regulator_set_voltage(dcdc,1300000,1300000);
+	regulator_enable(dcdc);				
+	printk("%s set dcdc2=%dmV end\n", __FUNCTION__, regulator_get_voltage(dcdc));
+	regulator_put(dcdc);
+	udelay(100);
+	
+	dcdc = regulator_get(NULL, "dcdc1");	// 3th ddr
+	regulator_set_voltage(dcdc,1800000,1800000);
+	regulator_enable(dcdc);
+	printk("%s set dcdc1=%dmV end\n", __FUNCTION__, regulator_get_voltage(dcdc));	
+	regulator_put(dcdc);
+	udelay(100);
+	
+	ldo = regulator_get(NULL, "ldo1");		// 3th nand
+	regulator_set_voltage(ldo,1800000,1800000);
+	regulator_enable(ldo);			
+	printk("%s set ldo1=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));		
+	regulator_put(ldo);
+	udelay(100);
+	
+	ldo = regulator_get(NULL, "ldo4");		// 4th usb
+	regulator_set_voltage(ldo,2500000,2500000);
+	regulator_enable(ldo);	
+	printk("%s set ldo4=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
+	regulator_put(ldo);
+	udelay(100);
+	
+	ldo = regulator_get(NULL, "ldo7");		// 5th usb
+	regulator_set_voltage(ldo,3300000,3300000);
+	regulator_enable(ldo);			
+	printk("%s set ldo7=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
+	regulator_put(ldo);
+	udelay(100);
+	
+	dcdc = regulator_get(NULL, "dcdc4");	// backlight
+	regulator_set_voltage(dcdc,20000000,20000000);		
+	regulator_enable(dcdc);	
+	printk("%s set dcdc4=%dmV end\n", __FUNCTION__, regulator_get_voltage(dcdc));
+	regulator_put(dcdc);
+	udelay(100);
+#if 1
+	
+	ldo = regulator_get(NULL, "ldo2");		//lcd
+	regulator_set_voltage(ldo,3000000,3000000);
+	regulator_enable(ldo);			
+	printk("%s set ldo2=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
+	regulator_put(ldo);
 
+	ldo = regulator_get(NULL, "ldo3");		//sram
+	regulator_set_voltage(ldo,1800000,1800000);
+	regulator_enable(ldo);			
+	printk("%s set ldo3=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
+	regulator_put(ldo);	
+
+	ldo = regulator_get(NULL, "ldo5");		//tf
+	regulator_set_voltage(ldo,3000000,3000000);
+	regulator_enable(ldo);			
+	printk("%s set ldo5=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
+	regulator_put(ldo);
+
+	ldo = regulator_get(NULL, "ldo6");		//camera
+	regulator_set_voltage(ldo,2800000,2800000);
+	regulator_enable(ldo);			
+	printk("%s set ldo6=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
+	regulator_put(ldo);
+
+	ldo = regulator_get(NULL, "ldo8");		//cmmb
+	regulator_set_voltage(ldo,1200000,1200000);
+	regulator_enable(ldo);			
+	printk("%s set ldo8=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
+	regulator_put(ldo);
+
+	ldo = regulator_get(NULL, "ldo9");		//cmmb
+	regulator_set_voltage(ldo,3000000,3000000);
+	regulator_enable(ldo);			
+	printk("%s set ldo9=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
+	regulator_put(ldo);
+	
+#endif
+	
 	ldo = regulator_get(NULL, "ldo11");
 	//regulator_enable(ldo);			
 	printk("%s set ldo11=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));	
