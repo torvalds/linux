@@ -2111,57 +2111,6 @@ static int open_will_truncate(int flag, struct inode *inode)
 	return (flag & O_TRUNC);
 }
 
-static struct file *finish_open(struct nameidata *nd,
-				int open_flag, int acc_mode)
-{
-	struct file *filp;
-	int will_truncate;
-	int error;
-
-	will_truncate = open_will_truncate(open_flag, nd->path.dentry->d_inode);
-	if (will_truncate) {
-		error = mnt_want_write(nd->path.mnt);
-		if (error)
-			goto exit;
-	}
-	error = may_open(&nd->path, acc_mode, open_flag);
-	if (error) {
-		if (will_truncate)
-			mnt_drop_write(nd->path.mnt);
-		goto exit;
-	}
-	filp = nameidata_to_filp(nd);
-	if (!IS_ERR(filp)) {
-		error = ima_file_check(filp, acc_mode);
-		if (error) {
-			fput(filp);
-			filp = ERR_PTR(error);
-		}
-	}
-	if (!IS_ERR(filp)) {
-		if (will_truncate) {
-			error = handle_truncate(filp);
-			if (error) {
-				fput(filp);
-				filp = ERR_PTR(error);
-			}
-		}
-	}
-	/*
-	 * It is now safe to drop the mnt write
-	 * because the filp has had a write taken
-	 * on its behalf.
-	 */
-	if (will_truncate)
-		mnt_drop_write(nd->path.mnt);
-	path_put(&nd->path);
-	return filp;
-
-exit:
-	path_put(&nd->path);
-	return ERR_PTR(error);
-}
-
 /*
  * Handle the last step of open()
  */
@@ -2169,6 +2118,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 			    const struct open_flags *op, const char *pathname)
 {
 	struct dentry *dir = nd->path.dentry;
+	int will_truncate;
 	struct file *filp;
 	struct inode *inode;
 	int error;
@@ -2329,7 +2279,43 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	if (S_ISDIR(nd->inode->i_mode))
 		goto exit;
 ok:
-	filp = finish_open(nd, op->open_flag, op->acc_mode);
+	will_truncate = open_will_truncate(op->open_flag, nd->path.dentry->d_inode);
+	if (will_truncate) {
+		error = mnt_want_write(nd->path.mnt);
+		if (error)
+			goto exit;
+	}
+	error = may_open(&nd->path, op->acc_mode, op->open_flag);
+	if (error) {
+		if (will_truncate)
+			mnt_drop_write(nd->path.mnt);
+		goto exit;
+	}
+	filp = nameidata_to_filp(nd);
+	if (!IS_ERR(filp)) {
+		error = ima_file_check(filp, op->acc_mode);
+		if (error) {
+			fput(filp);
+			filp = ERR_PTR(error);
+		}
+	}
+	if (!IS_ERR(filp)) {
+		if (will_truncate) {
+			error = handle_truncate(filp);
+			if (error) {
+				fput(filp);
+				filp = ERR_PTR(error);
+			}
+		}
+	}
+	/*
+	 * It is now safe to drop the mnt write
+	 * because the filp has had a write taken
+	 * on its behalf.
+	 */
+	if (will_truncate)
+		mnt_drop_write(nd->path.mnt);
+	path_put(&nd->path);
 	return filp;
 
 exit_mutex_unlock:
