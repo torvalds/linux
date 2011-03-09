@@ -120,11 +120,10 @@ static int ft1000_attach(struct pcmcia_device *link)
 
 	DEBUG(0, "ft1000_cs: ft1000_attach()\n");
 
-	local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
+	local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
 	if (!local) {
 		return -ENOMEM;
 	}
-	memset(local, 0, sizeof(local_info_t));
 	local->link = link;
 
 	link->priv = local;
