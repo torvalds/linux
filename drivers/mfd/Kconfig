@@ -129,6 +129,15 @@ config UCB1400_CORE
 	  To compile this driver as a module, choose M here: the
 	  module will be called ucb1400_core.
 
+config TPS6105X
+	tristate "TPS61050/61052 Boost Converters"
+	depends on I2C
+	help
+	  This option enables a driver for the TP61050/TPS61052
+	  high-power "white LED driver". This boost converter is
+	  sometimes used for other things than white LEDs, and
+	  also contains a GPIO pin.
+
 config TPS65010
 	tristate "TPS6501x Power Management chips"
 	depends on I2C && GPIOLIB
