@@ -88,7 +88,6 @@ struct nilfs_segsum_pointer {
 /**
  * struct nilfs_sc_info - Segment constructor information
  * @sc_super: Back pointer to super_block struct
- * @sc_sbi: Back pointer to nilfs_sb_info struct
  * @sc_root: root object of the current filesystem tree
  * @sc_nblk_inc: Block count of current generation
  * @sc_dirty_files: List of files to be written
@@ -131,7 +130,6 @@ struct nilfs_segsum_pointer {
  */
 struct nilfs_sc_info {
 	struct super_block     *sc_super;
-	struct nilfs_sb_info   *sc_sbi;
 	struct nilfs_root      *sc_root;
 
 	unsigned long		sc_nblk_inc;
