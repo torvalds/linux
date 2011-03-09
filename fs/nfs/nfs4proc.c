@@ -5359,6 +5359,9 @@ static int nfs41_proc_reclaim_complete(struct nfs_client *clp)
 		status = PTR_ERR(task);
 		goto out;
 	}
+	status = nfs4_wait_for_completion_rpc_task(task);
+	if (status == 0)
+		status = task->tk_status;
 	rpc_put_task(task);
 	return 0;
 out:
