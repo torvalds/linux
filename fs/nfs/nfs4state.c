@@ -1007,9 +1007,9 @@ void nfs4_schedule_state_manager(struct nfs_client *clp)
 }
 
 /*
- * Schedule a state recovery attempt
+ * Schedule a lease recovery attempt
  */
-void nfs4_schedule_state_recovery(struct nfs_client *clp)
+void nfs4_schedule_lease_recovery(struct nfs_client *clp)
 {
 	if (!clp)
 		return;
@@ -1039,6 +1039,14 @@ int nfs4_state_mark_reclaim_nograce(struct nfs_client *clp, struct nfs4_state *s
 	set_bit(NFS_OWNER_RECLAIM_NOGRACE, &state->owner->so_flags);
 	set_bit(NFS4CLNT_RECLAIM_NOGRACE, &clp->cl_state);
 	return 1;
+}
+
+void nfs4_schedule_stateid_recovery(const struct nfs_server *server, struct nfs4_state *state)
+{
+	struct nfs_client *clp = server->nfs_client;
+
+	nfs4_state_mark_reclaim_nograce(clp, state);
+	nfs4_schedule_state_manager(clp);
 }
 
 static int nfs4_reclaim_locks(struct nfs4_state *state, const struct nfs4_state_recovery_ops *ops)
@@ -1436,10 +1444,15 @@ static int nfs4_reclaim_lease(struct nfs_client *clp)
 }
 
 #ifdef CONFIG_NFS_V4_1
+void nfs4_schedule_session_recovery(struct nfs4_session *session)
+{
+	nfs4_schedule_lease_recovery(session->clp);
+}
+
 void nfs41_handle_recall_slot(struct nfs_client *clp)
 {
 	set_bit(NFS4CLNT_RECALL_SLOT, &clp->cl_state);
-	nfs4_schedule_state_recovery(clp);
+	nfs4_schedule_state_manager(clp);
 }
 
 static void nfs4_reset_all_state(struct nfs_client *clp)
@@ -1447,7 +1460,7 @@ static void nfs4_reset_all_state(struct nfs_client *clp)
 	if (test_and_set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) == 0) {
 		clp->cl_boot_time = CURRENT_TIME;
 		nfs4_state_start_reclaim_nograce(clp);
-		nfs4_schedule_state_recovery(clp);
+		nfs4_schedule_state_manager(clp);
 	}
 }
 
@@ -1455,7 +1468,7 @@ static void nfs41_handle_server_reboot(struct nfs_client *clp)
 {
 	if (test_and_set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) == 0) {
 		nfs4_state_start_reclaim_reboot(clp);
-		nfs4_schedule_state_recovery(clp);
+		nfs4_schedule_state_manager(clp);
 	}
 }
 
@@ -1475,7 +1488,7 @@ static void nfs41_handle_cb_path_down(struct nfs_client *clp)
 {
 	nfs_expire_all_delegations(clp);
 	if (test_and_set_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state) == 0)
-		nfs4_schedule_state_recovery(clp);
+		nfs4_schedule_state_manager(clp);
 }
 
 void nfs41_handle_sequence_flag_errors(struct nfs_client *clp, u32 flags)
