@@ -160,13 +160,6 @@ config HID_EMS_FF
 	Currently the following devices are known to be supported:
 	 - Trio Linker Plus II
 
-config HID_EGALAX
-	tristate "eGalax multi-touch panel"
-	depends on USB_HID
-	---help---
-	Support for the eGalax dual-touch panels, including the
-	Joojoo and Wetab tablets.
-
 config HID_ELECOM
 	tristate "ELECOM BM084 bluetooth mouse"
 	depends on BT_HIDP
@@ -307,6 +300,8 @@ config HID_MULTITOUCH
 	  - IrTouch Infrared USB panels
 	  - Pixcir dual touch panels
 	  - 'Sensing Win7-TwoFinger' panel by GeneralTouch
+          - eGalax dual-touch panels, including the
+	    Joojoo and Wetab tablets
 
 	  If unsure, say N.
 
