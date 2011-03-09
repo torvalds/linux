@@ -2183,11 +2183,6 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	path->dentry = dentry;
 	path->mnt = nd->path.mnt;
 
-	if (IS_ERR(nd->intent.open.file)) {
-		error = PTR_ERR(nd->intent.open.file);
-		goto exit_mutex_unlock;
-	}
-
 	/* Negative dentry, just create the file */
 	if (!dentry->d_inode) {
 		int mode = op->mode;
