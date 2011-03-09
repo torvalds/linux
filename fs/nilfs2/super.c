@@ -109,7 +109,7 @@ static void nilfs_set_error(struct nilfs_sb_info *sbi)
 void nilfs_error(struct super_block *sb, const char *function,
 		 const char *fmt, ...)
 {
-	struct nilfs_sb_info *sbi = NILFS_SB(sb);
+	struct the_nilfs *nilfs = sbi->s_nilfs;
 	struct va_format vaf;
 	va_list args;
 
@@ -126,13 +126,13 @@ void nilfs_error(struct super_block *sb, const char *function,
 	if (!(sb->s_flags & MS_RDONLY)) {
 		nilfs_set_error(sbi);
 
-		if (nilfs_test_opt(sbi, ERRORS_RO)) {
+		if (nilfs_test_opt(nilfs, ERRORS_RO)) {
 			printk(KERN_CRIT "Remounting filesystem read-only\n");
 			sb->s_flags |= MS_RDONLY;
 		}
 	}
 
-	if (nilfs_test_opt(sbi, ERRORS_PANIC))
+	if (nilfs_test_opt(nilfs, ERRORS_PANIC))
 		panic("NILFS (device %s): panic forced after error\n",
 		      sb->s_id);
 }
@@ -196,7 +196,7 @@ static int nilfs_sync_super(struct nilfs_sb_info *sbi, int flag)
 
  retry:
 	set_buffer_dirty(nilfs->ns_sbh[0]);
-	if (nilfs_test_opt(sbi, BARRIER)) {
+	if (nilfs_test_opt(nilfs, BARRIER)) {
 		err = __sync_dirty_buffer(nilfs->ns_sbh[0],
 					  WRITE_SYNC | WRITE_FLUSH_FUA);
 	} else {
@@ -530,22 +530,22 @@ static int nilfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 static int nilfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 {
 	struct super_block *sb = vfs->mnt_sb;
-	struct nilfs_sb_info *sbi = NILFS_SB(sb);
+	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
 	struct nilfs_root *root = NILFS_I(vfs->mnt_root->d_inode)->i_root;
 
-	if (!nilfs_test_opt(sbi, BARRIER))
+	if (!nilfs_test_opt(nilfs, BARRIER))
 		seq_puts(seq, ",nobarrier");
 	if (root->cno != NILFS_CPTREE_CURRENT_CNO)
 		seq_printf(seq, ",cp=%llu", (unsigned long long)root->cno);
-	if (nilfs_test_opt(sbi, ERRORS_PANIC))
+	if (nilfs_test_opt(nilfs, ERRORS_PANIC))
 		seq_puts(seq, ",errors=panic");
-	if (nilfs_test_opt(sbi, ERRORS_CONT))
+	if (nilfs_test_opt(nilfs, ERRORS_CONT))
 		seq_puts(seq, ",errors=continue");
-	if (nilfs_test_opt(sbi, STRICT_ORDER))
+	if (nilfs_test_opt(nilfs, STRICT_ORDER))
 		seq_puts(seq, ",order=strict");
-	if (nilfs_test_opt(sbi, NORECOVERY))
+	if (nilfs_test_opt(nilfs, NORECOVERY))
 		seq_puts(seq, ",norecovery");
-	if (nilfs_test_opt(sbi, DISCARD))
+	if (nilfs_test_opt(nilfs, DISCARD))
 		seq_puts(seq, ",discard");
 
 	return 0;
@@ -594,7 +594,7 @@ static match_table_t tokens = {
 
 static int parse_options(char *options, struct super_block *sb, int is_remount)
 {
-	struct nilfs_sb_info *sbi = NILFS_SB(sb);
+	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
 
@@ -609,29 +609,29 @@ static int parse_options(char *options, struct super_block *sb, int is_remount)
 		token = match_token(p, tokens, args);
 		switch (token) {
 		case Opt_barrier:
-			nilfs_set_opt(sbi, BARRIER);
+			nilfs_set_opt(nilfs, BARRIER);
 			break;
 		case Opt_nobarrier:
-			nilfs_clear_opt(sbi, BARRIER);
+			nilfs_clear_opt(nilfs, BARRIER);
 			break;
 		case Opt_order:
 			if (strcmp(args[0].from, "relaxed") == 0)
 				/* Ordered data semantics */
-				nilfs_clear_opt(sbi, STRICT_ORDER);
+				nilfs_clear_opt(nilfs, STRICT_ORDER);
 			else if (strcmp(args[0].from, "strict") == 0)
 				/* Strict in-order semantics */
-				nilfs_set_opt(sbi, STRICT_ORDER);
+				nilfs_set_opt(nilfs, STRICT_ORDER);
 			else
 				return 0;
 			break;
 		case Opt_err_panic:
-			nilfs_write_opt(sbi, ERROR_MODE, ERRORS_PANIC);
+			nilfs_write_opt(nilfs, ERROR_MODE, ERRORS_PANIC);
 			break;
 		case Opt_err_ro:
-			nilfs_write_opt(sbi, ERROR_MODE, ERRORS_RO);
+			nilfs_write_opt(nilfs, ERROR_MODE, ERRORS_RO);
 			break;
 		case Opt_err_cont:
-			nilfs_write_opt(sbi, ERROR_MODE, ERRORS_CONT);
+			nilfs_write_opt(nilfs, ERROR_MODE, ERRORS_CONT);
 			break;
 		case Opt_snapshot:
 			if (is_remount) {
@@ -642,13 +642,13 @@ static int parse_options(char *options, struct super_block *sb, int is_remount)
 			}
 			break;
 		case Opt_norecovery:
-			nilfs_set_opt(sbi, NORECOVERY);
+			nilfs_set_opt(nilfs, NORECOVERY);
 			break;
 		case Opt_discard:
-			nilfs_set_opt(sbi, DISCARD);
+			nilfs_set_opt(nilfs, DISCARD);
 			break;
 		case Opt_nodiscard:
-			nilfs_clear_opt(sbi, DISCARD);
+			nilfs_clear_opt(nilfs, DISCARD);
 			break;
 		default:
 			printk(KERN_ERR
@@ -660,10 +660,12 @@ static int parse_options(char *options, struct super_block *sb, int is_remount)
 }
 
 static inline void
-nilfs_set_default_options(struct nilfs_sb_info *sbi,
+nilfs_set_default_options(struct super_block *sb,
 			  struct nilfs_super_block *sbp)
 {
-	sbi->s_mount_opt =
+	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
+
+	nilfs->ns_mount_opt =
 		NILFS_MOUNT_ERRORS_RO | NILFS_MOUNT_BARRIER;
 }
 
@@ -736,7 +738,7 @@ int nilfs_store_magic_and_option(struct super_block *sb,
 	sb->s_flags |= MS_NOATIME;
 #endif
 
-	nilfs_set_default_options(sbi, sbp);
+	nilfs_set_default_options(sb, sbp);
 
 	sbi->s_resuid = le16_to_cpu(sbp->s_def_resuid);
 	sbi->s_resgid = le16_to_cpu(sbp->s_def_resgid);
@@ -1023,7 +1025,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 	int err;
 
 	old_sb_flags = sb->s_flags;
-	old_mount_opt = sbi->s_mount_opt;
+	old_mount_opt = nilfs->ns_mount_opt;
 
 	if (!parse_options(data, sb, 1)) {
 		err = -EINVAL;
@@ -1092,7 +1094,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 
  restore_opts:
 	sb->s_flags = old_sb_flags;
-	sbi->s_mount_opt = old_mount_opt;
+	nilfs->ns_mount_opt = old_mount_opt;
 	return err;
 }
 

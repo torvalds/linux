@@ -34,8 +34,6 @@ struct nilfs_sc_info;
  * NILFS super-block data in memory
  */
 struct nilfs_sb_info {
-	/* Mount options */
-	unsigned long s_mount_opt;
 	uid_t s_resuid;
 	gid_t s_resgid;
 
@@ -67,19 +65,5 @@ static inline struct nilfs_sc_info *NILFS_SC(struct nilfs_sb_info *sbi)
 {
 	return sbi->s_sc_info;
 }
-
-/*
- * Bit operations for the mount option
- */
-#define nilfs_clear_opt(sbi, opt)  \
-	do { (sbi)->s_mount_opt &= ~NILFS_MOUNT_##opt; } while (0)
-#define nilfs_set_opt(sbi, opt)  \
-	do { (sbi)->s_mount_opt |= NILFS_MOUNT_##opt; } while (0)
-#define nilfs_test_opt(sbi, opt)   ((sbi)->s_mount_opt & NILFS_MOUNT_##opt)
-#define nilfs_write_opt(sbi, mask, opt)					\
-	do { (sbi)->s_mount_opt =					\
-		(((sbi)->s_mount_opt & ~NILFS_MOUNT_##mask) |		\
-		 NILFS_MOUNT_##opt);					\
-	} while (0)
 
 #endif /* _NILFS_SB */

@@ -283,7 +283,7 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 	if (s_flags & MS_RDONLY) {
 		__u64 features;
 
-		if (nilfs_test_opt(sbi, NORECOVERY)) {
+		if (nilfs_test_opt(nilfs, NORECOVERY)) {
 			printk(KERN_INFO "NILFS: norecovery option specified. "
 			       "skipping roll-forward recovery\n");
 			goto skip_recovery;
@@ -305,7 +305,7 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 			goto failed_unload;
 		}
 		sbi->s_super->s_flags &= ~MS_RDONLY;
-	} else if (nilfs_test_opt(sbi, NORECOVERY)) {
+	} else if (nilfs_test_opt(nilfs, NORECOVERY)) {
 		printk(KERN_ERR "NILFS: recovery cancelled because norecovery "
 		       "option was specified for a read/write mount\n");
 		err = -EINVAL;

@@ -72,6 +72,7 @@ enum {
  * @ns_cptree: rb-tree of all mounted checkpoints (nilfs_root)
  * @ns_cptree_lock: lock protecting @ns_cptree
  * @ns_gc_inodes: dummy inodes to keep live blocks
+ * @ns_mount_opt: mount options
  * @ns_blocksize_bits: bit length of block size
  * @ns_blocksize: block size
  * @ns_nsegments: number of segments in filesystem
@@ -148,6 +149,9 @@ struct the_nilfs {
 	/* GC inode list */
 	struct list_head	ns_gc_inodes;
 
+	/* Mount options */
+	unsigned long		ns_mount_opt;
+
 	/* Disk layout information (static) */
 	unsigned int		ns_blocksize_bits;
 	unsigned int		ns_blocksize;
@@ -179,6 +183,20 @@ THE_NILFS_FNS(INIT, init)
 THE_NILFS_FNS(DISCONTINUED, discontinued)
 THE_NILFS_FNS(GC_RUNNING, gc_running)
 THE_NILFS_FNS(SB_DIRTY, sb_dirty)
+
+/*
+ * Mount option operations
+ */
+#define nilfs_clear_opt(nilfs, opt)  \
+	do { (nilfs)->ns_mount_opt &= ~NILFS_MOUNT_##opt; } while (0)
+#define nilfs_set_opt(nilfs, opt)  \
+	do { (nilfs)->ns_mount_opt |= NILFS_MOUNT_##opt; } while (0)
+#define nilfs_test_opt(nilfs, opt) ((nilfs)->ns_mount_opt & NILFS_MOUNT_##opt)
+#define nilfs_write_opt(nilfs, mask, opt)				\
+	do { (nilfs)->ns_mount_opt =					\
+		(((nilfs)->ns_mount_opt & ~NILFS_MOUNT_##mask) |	\
+		 NILFS_MOUNT_##opt);					\
+	} while (0)
 
 /**
  * struct nilfs_root - nilfs root object

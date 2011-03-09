@@ -2298,6 +2298,7 @@ int nilfs_construct_dsync_segment(struct super_block *sb, struct inode *inode,
 				  loff_t start, loff_t end)
 {
 	struct nilfs_sb_info *sbi = NILFS_SB(sb);
+	struct the_nilfs *nilfs = sbi->s_nilfs;
 	struct nilfs_sc_info *sci = NILFS_SC(sbi);
 	struct nilfs_inode_info *ii;
 	struct nilfs_transaction_info ti;
@@ -2310,9 +2311,9 @@ int nilfs_construct_dsync_segment(struct super_block *sb, struct inode *inode,
 
 	ii = NILFS_I(inode);
 	if (test_bit(NILFS_I_INODE_DIRTY, &ii->i_state) ||
-	    nilfs_test_opt(sbi, STRICT_ORDER) ||
+	    nilfs_test_opt(nilfs, STRICT_ORDER) ||
 	    test_bit(NILFS_SC_UNCLOSED, &sci->sc_flags) ||
-	    nilfs_discontinued(sbi->s_nilfs)) {
+	    nilfs_discontinued(nilfs)) {
 		nilfs_transaction_unlock(sbi);
 		err = nilfs_segctor_sync(sci);
 		return err;
@@ -2480,14 +2481,14 @@ int nilfs_clean_segments(struct super_block *sb, struct nilfs_argv *argv,
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(sci->sc_interval);
 	}
-	if (nilfs_test_opt(sbi, DISCARD)) {
+	if (nilfs_test_opt(nilfs, DISCARD)) {
 		int ret = nilfs_discard_segments(nilfs, sci->sc_freesegs,
 						 sci->sc_nfreesegs);
 		if (ret) {
 			printk(KERN_WARNING
 			       "NILFS warning: error %d on discard request, "
 			       "turning discards off for the device\n", ret);
-			nilfs_clear_opt(sbi, DISCARD);
+			nilfs_clear_opt(nilfs, DISCARD);
 		}
 	}
 
