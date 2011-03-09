@@ -1446,6 +1446,7 @@ int blkdev_put(struct block_device *bdev, fmode_t mode)
 		if (bdev_free) {
 			if (bdev->bd_write_holder) {
 				disk_unblock_events(bdev->bd_disk);
+				disk_check_events(bdev->bd_disk);
 				bdev->bd_write_holder = false;
 			} else
 				disk_check_events(bdev->bd_disk);

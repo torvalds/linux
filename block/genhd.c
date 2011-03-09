@@ -1494,7 +1494,7 @@ void disk_block_events(struct gendisk *disk)
 void disk_unblock_events(struct gendisk *disk)
 {
 	if (disk->ev)
-		__disk_unblock_events(disk, true);
+		__disk_unblock_events(disk, false);
 }
 
 /**
