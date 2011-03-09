@@ -181,7 +181,6 @@ int nilfs_transaction_begin(struct super_block *sb,
 			    struct nilfs_transaction_info *ti,
 			    int vacancy_check)
 {
-	struct nilfs_sb_info *sbi;
 	struct the_nilfs *nilfs;
 	int ret = nilfs_prepare_segment_lock(ti);
 
@@ -192,8 +191,7 @@ int nilfs_transaction_begin(struct super_block *sb,
 
 	vfs_check_frozen(sb, SB_FREEZE_WRITE);
 
-	sbi = NILFS_SB(sb);
-	nilfs = sbi->s_nilfs;
+	nilfs = NILFS_SB(sb)->s_nilfs;
 	down_read(&nilfs->ns_segctor_sem);
 	if (vacancy_check && nilfs_near_disk_full(nilfs)) {
 		up_read(&nilfs->ns_segctor_sem);
@@ -290,12 +288,12 @@ void nilfs_relax_pressure_in_lock(struct super_block *sb)
 	downgrade_write(&nilfs->ns_segctor_sem);
 }
 
-static void nilfs_transaction_lock(struct nilfs_sb_info *sbi,
+static void nilfs_transaction_lock(struct super_block *sb,
 				   struct nilfs_transaction_info *ti,
 				   int gcflag)
 {
 	struct nilfs_transaction_info *cur_ti = current->journal_info;
-	struct the_nilfs *nilfs = sbi->s_nilfs;
+	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
 	struct nilfs_sc_info *sci = nilfs->ns_writer;
 
 	WARN_ON(cur_ti);
@@ -313,17 +311,17 @@ static void nilfs_transaction_lock(struct nilfs_sb_info *sbi,
 
 		nilfs_segctor_do_immediate_flush(sci);
 
-		up_write(&sbi->s_nilfs->ns_segctor_sem);
+		up_write(&nilfs->ns_segctor_sem);
 		yield();
 	}
 	if (gcflag)
 		ti->ti_flags |= NILFS_TI_GC;
 }
 
-static void nilfs_transaction_unlock(struct nilfs_sb_info *sbi)
+static void nilfs_transaction_unlock(struct super_block *sb)
 {
 	struct nilfs_transaction_info *ti = current->journal_info;
-	struct the_nilfs *nilfs = sbi->s_nilfs;
+	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
 
 	BUG_ON(ti == NULL || ti->ti_magic != NILFS_TI_MAGIC);
 	BUG_ON(ti->ti_count > 0);
@@ -2292,8 +2290,7 @@ int nilfs_construct_segment(struct super_block *sb)
 int nilfs_construct_dsync_segment(struct super_block *sb, struct inode *inode,
 				  loff_t start, loff_t end)
 {
-	struct nilfs_sb_info *sbi = NILFS_SB(sb);
-	struct the_nilfs *nilfs = sbi->s_nilfs;
+	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
 	struct nilfs_sc_info *sci = nilfs->ns_writer;
 	struct nilfs_inode_info *ii;
 	struct nilfs_transaction_info ti;
@@ -2302,14 +2299,14 @@ int nilfs_construct_dsync_segment(struct super_block *sb, struct inode *inode,
 	if (!sci)
 		return -EROFS;
 
-	nilfs_transaction_lock(sbi, &ti, 0);
+	nilfs_transaction_lock(sb, &ti, 0);
 
 	ii = NILFS_I(inode);
 	if (test_bit(NILFS_I_INODE_DIRTY, &ii->i_state) ||
 	    nilfs_test_opt(nilfs, STRICT_ORDER) ||
 	    test_bit(NILFS_SC_UNCLOSED, &sci->sc_flags) ||
 	    nilfs_discontinued(nilfs)) {
-		nilfs_transaction_unlock(sbi);
+		nilfs_transaction_unlock(sb);
 		err = nilfs_segctor_sync(sci);
 		return err;
 	}
@@ -2318,7 +2315,7 @@ int nilfs_construct_dsync_segment(struct super_block *sb, struct inode *inode,
 	if (!test_bit(NILFS_I_QUEUED, &ii->i_state) &&
 	    !test_bit(NILFS_I_BUSY, &ii->i_state)) {
 		spin_unlock(&nilfs->ns_inode_lock);
-		nilfs_transaction_unlock(sbi);
+		nilfs_transaction_unlock(sb);
 		return 0;
 	}
 	spin_unlock(&nilfs->ns_inode_lock);
@@ -2328,7 +2325,7 @@ int nilfs_construct_dsync_segment(struct super_block *sb, struct inode *inode,
 
 	err = nilfs_segctor_do_construct(sci, SC_LSEG_DSYNC);
 
-	nilfs_transaction_unlock(sbi);
+	nilfs_transaction_unlock(sb);
 	return err;
 }
 
@@ -2384,8 +2381,7 @@ static void nilfs_segctor_notify(struct nilfs_sc_info *sci, int mode, int err)
  */
 static int nilfs_segctor_construct(struct nilfs_sc_info *sci, int mode)
 {
-	struct nilfs_sb_info *sbi = NILFS_SB(sci->sc_super);
-	struct the_nilfs *nilfs = sbi->s_nilfs;
+	struct the_nilfs *nilfs = NILFS_SB(sci->sc_super)->s_nilfs;
 	struct nilfs_super_block **sbp;
 	int err = 0;
 
@@ -2403,11 +2399,12 @@ static int nilfs_segctor_construct(struct nilfs_sc_info *sci, int mode)
 		    nilfs_discontinued(nilfs)) {
 			down_write(&nilfs->ns_sem);
 			err = -EIO;
-			sbp = nilfs_prepare_super(sbi,
+			sbp = nilfs_prepare_super(sci->sc_super,
 						  nilfs_sb_will_flip(nilfs));
 			if (likely(sbp)) {
 				nilfs_set_log_cursor(sbp[0], nilfs);
-				err = nilfs_commit_super(sbi, NILFS_SB_COMMIT);
+				err = nilfs_commit_super(sci->sc_super,
+							 NILFS_SB_COMMIT);
 			}
 			up_write(&nilfs->ns_sem);
 		}
@@ -2439,8 +2436,7 @@ nilfs_remove_written_gcinodes(struct the_nilfs *nilfs, struct list_head *head)
 int nilfs_clean_segments(struct super_block *sb, struct nilfs_argv *argv,
 			 void **kbufs)
 {
-	struct nilfs_sb_info *sbi = NILFS_SB(sb);
-	struct the_nilfs *nilfs = sbi->s_nilfs;
+	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
 	struct nilfs_sc_info *sci = nilfs->ns_writer;
 	struct nilfs_transaction_info ti;
 	int err;
@@ -2448,7 +2444,7 @@ int nilfs_clean_segments(struct super_block *sb, struct nilfs_argv *argv,
 	if (unlikely(!sci))
 		return -EROFS;
 
-	nilfs_transaction_lock(sbi, &ti, 1);
+	nilfs_transaction_lock(sb, &ti, 1);
 
 	err = nilfs_mdt_save_to_shadow_map(nilfs->ns_dat);
 	if (unlikely(err))
@@ -2491,16 +2487,15 @@ int nilfs_clean_segments(struct super_block *sb, struct nilfs_argv *argv,
 	sci->sc_freesegs = NULL;
 	sci->sc_nfreesegs = 0;
 	nilfs_mdt_clear_shadow_map(nilfs->ns_dat);
-	nilfs_transaction_unlock(sbi);
+	nilfs_transaction_unlock(sb);
 	return err;
 }
 
 static void nilfs_segctor_thread_construct(struct nilfs_sc_info *sci, int mode)
 {
-	struct nilfs_sb_info *sbi = NILFS_SB(sci->sc_super);
 	struct nilfs_transaction_info ti;
 
-	nilfs_transaction_lock(sbi, &ti, 0);
+	nilfs_transaction_lock(sci->sc_super, &ti, 0);
 	nilfs_segctor_construct(sci, mode);
 
 	/*
@@ -2511,7 +2506,7 @@ static void nilfs_segctor_thread_construct(struct nilfs_sc_info *sci, int mode)
 	if (test_bit(NILFS_SC_UNCLOSED, &sci->sc_flags))
 		nilfs_segctor_start_timer(sci);
 
-	nilfs_transaction_unlock(sbi);
+	nilfs_transaction_unlock(sci->sc_super);
 }
 
 static void nilfs_segctor_do_immediate_flush(struct nilfs_sc_info *sci)
@@ -2668,17 +2663,17 @@ static void nilfs_segctor_kill_thread(struct nilfs_sc_info *sci)
 /*
  * Setup & clean-up functions
  */
-static struct nilfs_sc_info *nilfs_segctor_new(struct nilfs_sb_info *sbi,
+static struct nilfs_sc_info *nilfs_segctor_new(struct super_block *sb,
 					       struct nilfs_root *root)
 {
-	struct the_nilfs *nilfs = sbi->s_nilfs;
+	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
 	struct nilfs_sc_info *sci;
 
 	sci = kzalloc(sizeof(*sci), GFP_KERNEL);
 	if (!sci)
 		return NULL;
 
-	sci->sc_super = sbi->s_super;
+	sci->sc_super = sb;
 
 	nilfs_get_root(root);
 	sci->sc_root = root;
@@ -2712,12 +2707,11 @@ static void nilfs_segctor_write_out(struct nilfs_sc_info *sci)
 	/* The segctord thread was stopped and its timer was removed.
 	   But some tasks remain. */
 	do {
-		struct nilfs_sb_info *sbi = NILFS_SB(sci->sc_super);
 		struct nilfs_transaction_info ti;
 
-		nilfs_transaction_lock(sbi, &ti, 0);
+		nilfs_transaction_lock(sci->sc_super, &ti, 0);
 		ret = nilfs_segctor_construct(sci, SC_LSEG_SR);
-		nilfs_transaction_unlock(sbi);
+		nilfs_transaction_unlock(sci->sc_super);
 
 	} while (ret && retrycount-- > 0);
 }
@@ -2766,22 +2760,21 @@ static void nilfs_segctor_destroy(struct nilfs_sc_info *sci)
 }
 
 /**
- * nilfs_attach_segment_constructor - attach a segment constructor
- * @sbi: nilfs_sb_info
+ * nilfs_attach_log_writer - attach log writer
+ * @sb: super block instance
  * @root: root object of the current filesystem tree
  *
- * nilfs_attach_segment_constructor() allocates a struct nilfs_sc_info,
- * initializes it, and starts the segment constructor.
+ * This allocates a log writer object, initializes it, and starts the
+ * log writer.
  *
  * Return Value: On success, 0 is returned. On error, one of the following
  * negative error code is returned.
  *
  * %-ENOMEM - Insufficient memory available.
  */
-int nilfs_attach_segment_constructor(struct nilfs_sb_info *sbi,
-				     struct nilfs_root *root)
+int nilfs_attach_log_writer(struct super_block *sb, struct nilfs_root *root)
 {
-	struct the_nilfs *nilfs = sbi->s_nilfs;
+	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
 	int err;
 
 	if (nilfs->ns_writer) {
@@ -2790,10 +2783,10 @@ int nilfs_attach_segment_constructor(struct nilfs_sb_info *sbi,
 		 * read/write after nilfs_error degenerated it into a
 		 * read-only mount.
 		 */
-		nilfs_detach_segment_constructor(sbi);
+		nilfs_detach_log_writer(sb);
 	}
 
-	nilfs->ns_writer = nilfs_segctor_new(sbi, root);
+	nilfs->ns_writer = nilfs_segctor_new(sb, root);
 	if (!nilfs->ns_writer)
 		return -ENOMEM;
 
@@ -2806,15 +2799,15 @@ int nilfs_attach_segment_constructor(struct nilfs_sb_info *sbi,
 }
 
 /**
- * nilfs_detach_segment_constructor - destroy the segment constructor
- * @sbi: nilfs_sb_info
+ * nilfs_detach_log_writer - destroy log writer
+ * @sb: super block instance
  *
- * nilfs_detach_segment_constructor() kills the segment constructor daemon,
- * frees the struct nilfs_sc_info, and destroy the dirty file list.
+ * This kills log writer daemon, frees the log writer object, and
+ * destroys list of dirty files.
  */
-void nilfs_detach_segment_constructor(struct nilfs_sb_info *sbi)
+void nilfs_detach_log_writer(struct super_block *sb)
 {
-	struct the_nilfs *nilfs = sbi->s_nilfs;
+	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
 	LIST_HEAD(garbage_list);
 
 	down_write(&nilfs->ns_segctor_sem);
@@ -2827,9 +2820,8 @@ void nilfs_detach_segment_constructor(struct nilfs_sb_info *sbi)
 	spin_lock(&nilfs->ns_inode_lock);
 	if (!list_empty(&nilfs->ns_dirty_files)) {
 		list_splice_init(&nilfs->ns_dirty_files, &garbage_list);
-		nilfs_warning(sbi->s_super, __func__,
-			      "Non empty dirty list after the last "
-			      "segment construction\n");
+		nilfs_warning(sb, __func__,
+			      "Hit dirty file after stopped log writer\n");
 	}
 	spin_unlock(&nilfs->ns_inode_lock);
 	up_write(&nilfs->ns_segctor_sem);

@@ -233,18 +233,16 @@ extern void nilfs_flush_segment(struct super_block *, ino_t);
 extern int nilfs_clean_segments(struct super_block *, struct nilfs_argv *,
 				void **);
 
-int nilfs_attach_segment_constructor(struct nilfs_sb_info *sbi,
-				     struct nilfs_root *root);
-extern void nilfs_detach_segment_constructor(struct nilfs_sb_info *);
+int nilfs_attach_log_writer(struct super_block *sb, struct nilfs_root *root);
+void nilfs_detach_log_writer(struct super_block *sb);
 
 /* recovery.c */
 extern int nilfs_read_super_root_block(struct the_nilfs *, sector_t,
 				       struct buffer_head **, int);
 extern int nilfs_search_super_root(struct the_nilfs *,
 				   struct nilfs_recovery_info *);
-extern int nilfs_salvage_orphan_logs(struct the_nilfs *,
-				     struct nilfs_sb_info *,
-				     struct nilfs_recovery_info *);
+int nilfs_salvage_orphan_logs(struct the_nilfs *nilfs, struct super_block *sb,
+			      struct nilfs_recovery_info *ri);
 extern void nilfs_dispose_segment_list(struct list_head *);
 
 #endif /* _NILFS_SEGMENT_H */

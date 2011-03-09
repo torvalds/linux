@@ -295,11 +295,11 @@ extern int nilfs_check_feature_compatibility(struct super_block *,
 					     struct nilfs_super_block *);
 extern void nilfs_set_log_cursor(struct nilfs_super_block *,
 				 struct the_nilfs *);
-extern struct nilfs_super_block **nilfs_prepare_super(struct nilfs_sb_info *,
-						      int flip);
-extern int nilfs_commit_super(struct nilfs_sb_info *, int);
-extern int nilfs_cleanup_super(struct nilfs_sb_info *);
-int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno, int curr_mnt,
+struct nilfs_super_block **nilfs_prepare_super(struct super_block *sb,
+					       int flip);
+int nilfs_commit_super(struct super_block *sb, int flag);
+int nilfs_cleanup_super(struct super_block *sb);
+int nilfs_attach_checkpoint(struct super_block *sb, __u64 cno, int curr_mnt,
 			    struct nilfs_root **root);
 int nilfs_checkpoint_is_mounted(struct super_block *sb, __u64 cno);
 

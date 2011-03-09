@@ -267,15 +267,14 @@ static inline int nilfs_sb_will_flip(struct the_nilfs *nilfs)
 void nilfs_set_last_segment(struct the_nilfs *, sector_t, u64, __u64);
 struct the_nilfs *alloc_nilfs(struct block_device *bdev);
 void destroy_nilfs(struct the_nilfs *nilfs);
-int init_nilfs(struct the_nilfs *, struct nilfs_sb_info *, char *);
-int load_nilfs(struct the_nilfs *, struct nilfs_sb_info *);
+int init_nilfs(struct the_nilfs *nilfs, struct super_block *sb, char *data);
+int load_nilfs(struct the_nilfs *nilfs, struct super_block *sb);
 int nilfs_discard_segments(struct the_nilfs *, __u64 *, size_t);
 int nilfs_count_free_blocks(struct the_nilfs *, sector_t *);
 struct nilfs_root *nilfs_lookup_root(struct the_nilfs *nilfs, __u64 cno);
 struct nilfs_root *nilfs_find_or_create_root(struct the_nilfs *nilfs,
 					     __u64 cno);
 void nilfs_put_root(struct nilfs_root *root);
-struct nilfs_sb_info *nilfs_find_sbinfo(struct the_nilfs *, int, __u64);
 int nilfs_near_disk_full(struct the_nilfs *);
 void nilfs_fall_back_super_block(struct the_nilfs *);
 void nilfs_swap_super_block(struct the_nilfs *);
