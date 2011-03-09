@@ -43,8 +43,8 @@ DEFINE_SPINLOCK(dbg_lock);
 static char dbg_key_buf0[128];
 static char dbg_key_buf1[128];
 
-unsigned int ubifs_msg_flags = UBIFS_MSG_FLAGS_DEFAULT;
-unsigned int ubifs_chk_flags = UBIFS_CHK_FLAGS_DEFAULT;
+unsigned int ubifs_msg_flags;
+unsigned int ubifs_chk_flags;
 unsigned int ubifs_tst_flags;
 
 module_param_named(debug_msgs, ubifs_msg_flags, uint, S_IRUGO | S_IWUSR);
