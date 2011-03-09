@@ -1533,9 +1533,15 @@ unsigned short ip_rt_frag_needed(struct net *net, struct iphdr *iph,
 		if (mtu < ip_rt_min_pmtu)
 			mtu = ip_rt_min_pmtu;
 		if (!peer->pmtu_expires || mtu < peer->pmtu_learned) {
+			unsigned long pmtu_expires;
+
+			pmtu_expires = jiffies + ip_rt_mtu_expires;
+			if (!pmtu_expires)
+				pmtu_expires = 1UL;
+
 			est_mtu = mtu;
 			peer->pmtu_learned = mtu;
-			peer->pmtu_expires = jiffies + ip_rt_mtu_expires;
+			peer->pmtu_expires = pmtu_expires;
 		}
 
 		inet_putpeer(peer);
@@ -1549,7 +1555,7 @@ static void check_peer_pmtu(struct dst_entry *dst, struct inet_peer *peer)
 {
 	unsigned long expires = peer->pmtu_expires;
 
-	if (time_before(expires, jiffies)) {
+	if (time_before(jiffies, expires)) {
 		u32 orig_dst_mtu = dst_mtu(dst);
 		if (peer->pmtu_learned < orig_dst_mtu) {
 			if (!peer->pmtu_orig)
@@ -1574,14 +1580,20 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 		if (mtu < ip_rt_min_pmtu)
 			mtu = ip_rt_min_pmtu;
 		if (!peer->pmtu_expires || mtu < peer->pmtu_learned) {
+			unsigned long pmtu_expires;
+
+			pmtu_expires = jiffies + ip_rt_mtu_expires;
+			if (!pmtu_expires)
+				pmtu_expires = 1UL;
+
 			peer->pmtu_learned = mtu;
-			peer->pmtu_expires = jiffies + ip_rt_mtu_expires;
+			peer->pmtu_expires = pmtu_expires;
 
 			atomic_inc(&__rt_peer_genid);
 			rt->rt_peer_genid = rt_peer_genid();
-
-			check_peer_pmtu(dst, peer);
 		}
+		check_peer_pmtu(dst, peer);
+
 		inet_putpeer(peer);
 	}
 }
