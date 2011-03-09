@@ -209,6 +209,12 @@ static int omap_dss_probe(struct platform_device *pdev)
 		goto err_dsi;
 	}
 
+	r = hdmi_init_platform_driver();
+	if (r) {
+		DSSERR("Failed to initialize hdmi\n");
+		goto err_hdmi;
+	}
+
 	r = dss_initialize_debugfs();
 	if (r)
 		goto err_debugfs;
@@ -238,6 +244,8 @@ static int omap_dss_probe(struct platform_device *pdev)
 err_register:
 	dss_uninitialize_debugfs();
 err_debugfs:
+	hdmi_uninit_platform_driver();
+err_hdmi:
 	dsi_uninit_platform_driver();
 err_dsi:
 	venc_uninit_platform_driver();
@@ -263,6 +271,7 @@ static int omap_dss_remove(struct platform_device *pdev)
 	dispc_uninit_platform_driver();
 	rfbi_uninit_platform_driver();
 	dsi_uninit_platform_driver();
+	hdmi_uninit_platform_driver();
 	dss_uninit_platform_driver();
 
 	dss_uninit_overlays(pdev);
