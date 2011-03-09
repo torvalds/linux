@@ -18,6 +18,7 @@
 #include <linux/crypto.h>
 #include <linux/xattr.h>
 #include <linux/integrity.h>
+#include <linux/evm.h>
 #include "evm.h"
 
 int evm_initialized;
