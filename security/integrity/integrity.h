@@ -18,6 +18,17 @@
 /* iint cache flags */
 #define IMA_MEASURED		0x01
 
+enum evm_ima_xattr_type {
+	IMA_XATTR_DIGEST = 0x01,
+	EVM_XATTR_HMAC,
+	EVM_IMA_XATTR_DIGSIG,
+};
+
+struct evm_ima_xattr_data {
+	u8 type;
+	u8 digest[SHA1_DIGEST_SIZE];
+}  __attribute__((packed));
+
 /* integrity data associated with an inode */
 struct integrity_iint_cache {
 	struct rb_node rb_node; /* rooted in integrity_iint_tree */
