@@ -36,6 +36,7 @@
 
 #include <xen/xen.h>
 #include <xen/grant_table.h>
+#include <xen/balloon.h>
 #include <xen/gntdev.h>
 #include <xen/events.h>
 #include <asm/xen/hypervisor.h>
@@ -122,10 +123,10 @@ static struct grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count)
 	    NULL == add->pages)
 		goto err;
 
+	if (alloc_xenballooned_pages(count, add->pages))
+		goto err;
+
 	for (i = 0; i < count; i++) {
-		add->pages[i] = alloc_page(GFP_KERNEL | __GFP_HIGHMEM);
-		if (add->pages[i] == NULL)
-			goto err;
 		add->map_ops[i].handle = -1;
 		add->unmap_ops[i].handle = -1;
 	}
@@ -137,11 +138,6 @@ static struct grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count)
 	return add;
 
 err:
-	if (add->pages)
-		for (i = 0; i < count; i++) {
-			if (add->pages[i])
-				__free_page(add->pages[i]);
-		}
 	kfree(add->pages);
 	kfree(add->grants);
 	kfree(add->map_ops);
@@ -184,8 +180,6 @@ static struct grant_map *gntdev_find_map_index(struct gntdev_priv *priv,
 
 static void gntdev_put_map(struct grant_map *map)
 {
-	int i;
-
 	if (!map)
 		return;
 
@@ -202,29 +196,7 @@ static void gntdev_put_map(struct grant_map *map)
 		if (!use_ptemod)
 			unmap_grant_pages(map, 0, map->count);
 
-		for (i = 0; i < map->count; i++) {
-			uint32_t check, *tmp;
-			if (!map->pages[i])
-				continue;
-			/* XXX When unmapping in an HVM domain, Xen will
-			 * sometimes end up mapping the GFN to an invalid MFN.
-			 * In this case, writes will be discarded and reads will
-			 * return all 0xFF bytes.  Leak these unusable GFNs
-			 * until Xen supports fixing their p2m mapping.
-			 *
-			 * Confirmed present in Xen 4.1-RC3 with HVM source
-			 */
-			tmp = kmap(map->pages[i]);
-			*tmp = 0xdeaddead;
-			mb();
-			check = *tmp;
-			kunmap(map->pages[i]);
-			if (check == 0xdeaddead)
-				__free_page(map->pages[i]);
-			else
-				pr_debug("Discard page %d=%ld\n", i,
-					page_to_pfn(map->pages[i]));
-		}
+		free_xenballooned_pages(map->count, map->pages);
 	}
 	kfree(map->pages);
 	kfree(map->grants);
