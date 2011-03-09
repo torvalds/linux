@@ -271,6 +271,38 @@ Description:
 		where a single output sets the value for multiple channels
 		simultaneously.
 
+What:		/sys/bus/iio/devices/deviceX/outY_powerdown_mode
+What:		/sys/bus/iio/devices/deviceX/out_powerdown_mode
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies the output powerdown mode.
+		DAC output stage is disconnected from the amplifier and
+		1kohm_to_gnd: connected to ground via an 1kOhm resistor
+		100kohm_to_gnd: connected to ground via an 100kOhm resistor
+		three_state: left floating
+		For a list of available output power down options read
+		outX_powerdown_mode_available. If Y is not present the
+		mode is shared across all outputs.
+
+What:		/sys/bus/iio/devices/deviceX/outY_powerdown_mode_available
+What:		/sys/bus/iio/devices/deviceX/out_powerdown_mode_available
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Lists all available output power down modes.
+		If Y is not present the mode is shared across all outputs.
+
+What:		/sys/bus/iio/devices/deviceX/outY_powerdown
+What:		/sys/bus/iio/devices/deviceX/out_powerdown
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Writing 1 causes output Y to enter the power down mode specified
+		by the corresponding outY_powerdown_mode. Clearing returns to
+		normal operation. Y may be suppressed if all outputs are
+		controlled together.
+
 What:		/sys/bus/iio/devices/deviceX/deviceX:eventY
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
