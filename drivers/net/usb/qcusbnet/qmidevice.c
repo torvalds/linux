@@ -1601,15 +1601,15 @@ static int setup_wds_callback(struct qcusbnet *dev)
 		return result;
 	}
 
-/* TODO: Restore this once the ril supports it
 	result = usb_control_msg(dev->usbnet->udev,
-				 usb_sndctrlpipe(dev->usbnet->udev, 0),
-				 0x22, 0x21, 1, 0, NULL, 0, 100);
+			usb_sndctrlpipe(dev->usbnet->udev, 0),
+			0x22, 0x21, 1,
+			dev->iface->cur_altsetting->desc.bInterfaceNumber,
+			NULL, 0, 100);
 	if (result < 0) {
 		DBG("Bad SetControlLineState status %d\n", result);
 		return result;
 	}
-*/
 
 	return 0;
 }
