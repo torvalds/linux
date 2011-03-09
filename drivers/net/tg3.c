@@ -10487,14 +10487,16 @@ static int tg3_test_nvram(struct tg3 *tp)
 		goto out;
 	}
 
+	err = -EIO;
+
 	/* Bootstrap checksum at offset 0x10 */
 	csum = calc_crc((unsigned char *) buf, 0x10);
-	if (csum != be32_to_cpu(buf[0x10/4]))
+	if (csum != le32_to_cpu(buf[0x10/4]))
 		goto out;
 
 	/* Manufacturing block starts at offset 0x74, checksum at 0xfc */
 	csum = calc_crc((unsigned char *) &buf[0x74/4], 0x88);
-	if (csum != be32_to_cpu(buf[0xfc/4]))
+	if (csum != le32_to_cpu(buf[0xfc/4]))
 		goto out;
 
 	err = 0;
