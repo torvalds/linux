@@ -783,7 +783,7 @@ int rk29_set_cursor_pos(struct rk29fb_inf *inf, int x, int y)
     /* set data */
     if (x >= 0x800 || y >= 0x800 )
         return -EINVAL;
-	printk("%s: %08x,%08x \n",__func__, x, y);
+	//printk("%s: %08x,%08x \n",__func__, x, y);
     x += (screen->left_margin + screen->hsync_len);
     y += (screen->upper_margin + screen->vsync_len);
     LcdWrReg(inf, HWC_DSP_ST, v_BIT11LO(x)|v_BIT11HI(y));
