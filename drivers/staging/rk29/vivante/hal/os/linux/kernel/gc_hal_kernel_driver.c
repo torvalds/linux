@@ -24,6 +24,8 @@
 #include <linux/device.h>
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
+#include <linux/earlysuspend.h>
+#include <linux/delay.h>
 
 #include "gc_hal_kernel_linux.h"
 #include "gc_hal_driver.h"
@@ -33,6 +35,7 @@
 #include <linux/platform_device.h>
 #endif
 #include <mach/rk29_iomap.h>
+#include <mach/cru.h>
 
 MODULE_DESCRIPTION("Vivante Graphics Driver");
 MODULE_LICENSE("GPL");
@@ -566,6 +569,19 @@ static int drv_init(void)
 
     // enable ram clock gate
     writel(readl(RK29_GRF_BASE+0xc0) & ~0x100000, RK29_GRF_BASE+0xc0);
+    
+#if 1
+    printk("%s : gpu reset... ", __func__);
+    mdelay(2);
+    cru_set_soft_reset(SOFT_RST_GPU, true);
+    cru_set_soft_reset(SOFT_RST_DDR_GPU_PORT, true);
+    mdelay(1);
+    cru_set_soft_reset(SOFT_RST_DDR_GPU_PORT, false);
+    cru_set_soft_reset(SOFT_RST_GPU, false);
+    mdelay(2);
+    printk("done!\n");
+#endif
+    
 #endif
 
 	if (showArgs)
@@ -712,7 +728,7 @@ static void drv_exit(void)
 
     clk_hclk_gpu = clk_get(NULL, "hclk_gpu");
     if(!IS_ERR(clk_hclk_gpu))    clk_disable(clk_hclk_gpu);
-    
+
     printk("done!\n");
 #endif
 }
@@ -728,6 +744,49 @@ module_exit(drv_exit);
 #define DEVICE_NAME "galcore"
 #endif
 
+
+
+#if CONFIG_HAS_EARLYSUSPEND
+static void gpu_early_suspend(struct early_suspend *h)
+{
+	gceSTATUS status;
+    
+    printk("Enter %s \n", __func__);
+
+	status = gckHARDWARE_SetPowerManagementState(galDevice->kernel->hardware, gcvPOWER_SUSPEND);
+
+	if (gcmIS_ERROR(status))
+	{
+	    printk("%s fail!\n", __func__);
+		return;
+	}
+
+	printk("Exit %s \n", __func__);
+}
+
+static void gpu_early_resume(struct early_suspend *h)
+{
+	gceSTATUS status;
+    
+    printk("Enter %s \n", __func__);
+
+	status = gckHARDWARE_SetPowerManagementState(galDevice->kernel->hardware, gcvPOWER_IDLE);
+
+	if (gcmIS_ERROR(status))
+	{
+	    printk("%s fail!\n", __func__);
+		return;
+	}
+
+	printk("Exit %s \n", __func__);
+}
+
+struct early_suspend gpu_early_suspend_info = {
+	.suspend = gpu_early_suspend,
+	.resume = gpu_early_resume,
+	.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 1,
+};
+#endif
 
 static int __devinit gpu_probe(struct platform_device *pdev)
 {
@@ -761,6 +820,10 @@ static int __devinit gpu_probe(struct platform_device *pdev)
     gpu_timer.function = gputimer_callback;
     gpu_timer.expires = jiffies + 15*HZ;
     add_timer(&gpu_timer);
+#endif
+
+#if CONFIG_HAS_EARLYSUSPEND
+    register_early_suspend(&gpu_early_suspend_info);
 #endif
 
 	ret = drv_init();
@@ -831,6 +894,7 @@ static void __devinit gpu_shutdown(struct platform_device *dev)
     drv_exit();
     printk("Exit %s \n", __func__);
 }
+
 
 static struct platform_driver gpu_driver = {
 	.probe		= gpu_probe,

@@ -979,6 +979,8 @@ gckEVENT_Interrupt(
     /* Combine current interrupt status with pending flags. */
     Event->pending |= Data;
 
+    //printk("& ");
+
     /* Success. */
     gcmkFOOTER_NO();
     return gcvSTATUS_OK;

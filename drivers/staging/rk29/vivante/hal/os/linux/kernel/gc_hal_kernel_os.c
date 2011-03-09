@@ -37,7 +37,6 @@
 
 #include <linux/delay.h>
 #include <mach/pmu.h>
-#include <mach/cru.h>
 
 #if !USE_NEW_LINUX_SIGNAL
 #define USER_SIGNAL_TABLE_LEN_INIT  64
@@ -5936,7 +5935,6 @@ gckOS_SetGPUPower(
 
     //printk("---------- gckOS_SetGPUPower Clock=%d Power=%d \n", Clock, Power);
 
-    mdelay(1);
     if(Clock) {
         printk("gpu: clk_enable... ");
         clk_enable(clk_hclk_gpu);
@@ -5952,28 +5950,11 @@ gckOS_SetGPUPower(
         clk_disable(clk_hclk_gpu);
         printk("done!\n");
     }
-    mdelay(1);
 
     if(Power) {
         if(lastpower != Power) {
             printk("gpu: power on... ");
             pmu_set_power_domain(PD_GPU, true);
-            printk("done!\n");
-
-            printk("gpu: reset... ");
-            mdelay(1);
-            cru_set_soft_reset(SOFT_RST_GPU, true);
-            cru_set_soft_reset(SOFT_RST_DDR_GPU_PORT, true);
-            mdelay(2);
-            cru_set_soft_reset(SOFT_RST_DDR_GPU_PORT, false);
-            cru_set_soft_reset(SOFT_RST_GPU, false);
-            mdelay(1);
-            cru_set_soft_reset(SOFT_RST_GPU, true);
-            cru_set_soft_reset(SOFT_RST_DDR_GPU_PORT, true);
-            mdelay(2);
-            cru_set_soft_reset(SOFT_RST_DDR_GPU_PORT, false);
-            cru_set_soft_reset(SOFT_RST_GPU, false);
-            mdelay(1);
             printk("done!\n");
         }
     } else {

@@ -2618,8 +2618,7 @@ gckHARDWARE_GetIdle(
     pollCount = Wait ? 100 : 1;
 
     /* At most, try for 1 second. */
-    //for (retry = 0; retry < 1000; ++retry)
-    for (retry = 0; retry < 100; ++retry)
+    for (retry = 0; retry < 200; ++retry)
     {
         /* If we have to wait, try 100 polls per millisecond. */
         for (poll = pollCount; poll > 0; --poll)
