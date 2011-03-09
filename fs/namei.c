@@ -2049,30 +2049,6 @@ static int handle_truncate(struct file *filp)
 }
 
 /*
- * Be careful about ever adding any more callers of this
- * function.  Its flags must be in the namei format, not
- * what get passed to sys_open().
- */
-static int __open_namei_create(struct nameidata *nd, struct path *path,
-				int open_flag, int mode)
-{
-	int error;
-	struct dentry *dir = nd->path.dentry;
-
-	if (!IS_POSIXACL(dir->d_inode))
-		mode &= ~current_umask();
-	error = security_path_mknod(&nd->path, path->dentry, mode, 0);
-	if (error)
-		goto out_unlock;
-	error = vfs_create(dir->d_inode, path->dentry, mode, nd);
-out_unlock:
-	mutex_unlock(&dir->d_inode->i_mutex);
-	dput(nd->path.dentry);
-	nd->path.dentry = path->dentry;
-	return error;
-}
-
-/*
  * Note that while the flag value (low two bits) for sys_open means:
  *	00 - read-only
  *	01 - write-only
@@ -2096,17 +2072,6 @@ static inline int open_to_namei_flags(int flag)
 	return flag;
 }
 
-static int open_will_truncate(int flag, struct inode *inode)
-{
-	/*
-	 * We'll never write to the fs underlying
-	 * a device file.
-	 */
-	if (special_file(inode->i_mode))
-		return 0;
-	return (flag & O_TRUNC);
-}
-
 /*
  * Handle the last step of open()
  */
@@ -2114,8 +2079,9 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 			    const struct open_flags *op, const char *pathname)
 {
 	struct dentry *dir = nd->path.dentry;
+	struct dentry *dentry;
 	int open_flag = op->open_flag;
-	int will_truncate;
+	int will_truncate = open_flag & O_TRUNC;
 	int want_write = 0;
 	int skip_perm = 0;
 	struct file *filp;
@@ -2207,14 +2173,15 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 
 	mutex_lock(&dir->d_inode->i_mutex);
 
-	path->dentry = lookup_hash(nd);
-	path->mnt = nd->path.mnt;
-
-	error = PTR_ERR(path->dentry);
-	if (IS_ERR(path->dentry)) {
+	dentry = lookup_hash(nd);
+	error = PTR_ERR(dentry);
+	if (IS_ERR(dentry)) {
 		mutex_unlock(&dir->d_inode->i_mutex);
 		goto exit;
 	}
+
+	path->dentry = dentry;
+	path->mnt = nd->path.mnt;
 
 	if (IS_ERR(nd->intent.open.file)) {
 		error = PTR_ERR(nd->intent.open.file);
@@ -2222,10 +2189,13 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	}
 
 	/* Negative dentry, just create the file */
-	if (!path->dentry->d_inode) {
+	if (!dentry->d_inode) {
+		int mode = op->mode;
+		if (!IS_POSIXACL(dir->d_inode))
+			mode &= ~current_umask();
 		/*
 		 * This write is needed to ensure that a
-		 * ro->rw transition does not occur between
+		 * rw->ro transition does not occur between
 		 * the time when the file is created and when
 		 * a permanent write count is taken through
 		 * the 'struct file' in nameidata_to_filp().
@@ -2234,13 +2204,19 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		if (error)
 			goto exit_mutex_unlock;
 		want_write = 1;
-		will_truncate = 0;
-		error = __open_namei_create(nd, path, open_flag, op->mode);
-		if (error)
-			goto exit;
 		/* Don't check for write permission, don't truncate */
 		open_flag &= ~O_TRUNC;
+		will_truncate = 0;
 		skip_perm = 1;
+		error = security_path_mknod(&nd->path, dentry, mode, 0);
+		if (error)
+			goto exit_mutex_unlock;
+		error = vfs_create(dir->d_inode, dentry, mode, nd);
+		if (error)
+			goto exit_mutex_unlock;
+		mutex_unlock(&dir->d_inode->i_mutex);
+		dput(nd->path.dentry);
+		nd->path.dentry = dentry;
 		goto common;
 	}
 
@@ -2271,7 +2247,9 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	if (S_ISDIR(nd->inode->i_mode))
 		goto exit;
 ok:
-	will_truncate = open_will_truncate(open_flag, nd->path.dentry->d_inode);
+	if (!S_ISREG(nd->inode->i_mode))
+		will_truncate = 0;
+
 	if (will_truncate) {
 		error = mnt_want_write(nd->path.mnt);
 		if (error)
