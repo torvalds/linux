@@ -2069,11 +2069,7 @@ out_unlock:
 	mutex_unlock(&dir->d_inode->i_mutex);
 	dput(nd->path.dentry);
 	nd->path.dentry = path->dentry;
-
-	if (error)
-		return error;
-	/* Don't check for write permission, don't truncate */
-	return may_open(&nd->path, 0, open_flag & ~O_TRUNC);
+	return error;
 }
 
 /*
@@ -2235,6 +2231,12 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		if (error)
 			goto exit_mutex_unlock;
 		error = __open_namei_create(nd, path, op->open_flag, op->mode);
+		if (error) {
+			mnt_drop_write(nd->path.mnt);
+			goto exit;
+		}
+		/* Don't check for write permission, don't truncate */
+		error = may_open(&nd->path, 0, op->open_flag & ~O_TRUNC);
 		if (error) {
 			mnt_drop_write(nd->path.mnt);
 			goto exit;
