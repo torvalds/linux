@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/security.h>
+#include <linux/integrity.h>
 #include <linux/ima.h>
 
 #define MAX_LSM_XATTR	1
@@ -336,7 +337,7 @@ int security_inode_alloc(struct inode *inode)
 
 void security_inode_free(struct inode *inode)
 {
-	ima_inode_free(inode);
+	integrity_inode_free(inode);
 	security_ops->inode_free_security(inode);
 }
 

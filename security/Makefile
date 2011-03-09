@@ -24,5 +24,5 @@ obj-$(CONFIG_SECURITY_APPARMOR)		+= apparmor/built-in.o
 obj-$(CONFIG_CGROUP_DEVICE)		+= device_cgroup.o
 
 # Object integrity file lists
-subdir-$(CONFIG_IMA)			+= integrity/ima
-obj-$(CONFIG_IMA)			+= integrity/ima/built-in.o
+subdir-$(CONFIG_INTEGRITY)		+= integrity
+obj-$(CONFIG_INTEGRITY)			+= integrity/built-in.o

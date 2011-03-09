@@ -24,11 +24,13 @@
 #include <linux/tpm.h>
 #include <linux/audit.h>
 
+#include "../integrity.h"
+
 enum ima_show_type { IMA_SHOW_BINARY, IMA_SHOW_ASCII };
 enum tpm_pcrs { TPM_PCR0 = 0, TPM_PCR8 = 8 };
 
 /* digest size for IMA, fits SHA1 or MD5 */
-#define IMA_DIGEST_SIZE		20
+#define IMA_DIGEST_SIZE		SHA1_DIGEST_SIZE
 #define IMA_EVENT_NAME_LEN_MAX	255
 
 #define IMA_HASH_BITS 9
@@ -96,34 +98,21 @@ static inline unsigned long ima_hash_key(u8 *digest)
 	return hash_long(*digest, IMA_HASH_BITS);
 }
 
-/* iint cache flags */
-#define IMA_MEASURED		0x01
-
-/* integrity data associated with an inode */
-struct ima_iint_cache {
-	struct rb_node rb_node; /* rooted in ima_iint_tree */
-	struct inode *inode;	/* back pointer to inode in question */
-	u64 version;		/* track inode changes */
-	unsigned char flags;
-	u8 digest[IMA_DIGEST_SIZE];
-	struct mutex mutex;	/* protects: version, flags, digest */
-};
-
 /* LIM API function definitions */
 int ima_must_measure(struct inode *inode, int mask, int function);
-int ima_collect_measurement(struct ima_iint_cache *iint, struct file *file);
-void ima_store_measurement(struct ima_iint_cache *iint, struct file *file,
+int ima_collect_measurement(struct integrity_iint_cache *iint,
+			    struct file *file);
+void ima_store_measurement(struct integrity_iint_cache *iint, struct file *file,
 			   const unsigned char *filename);
 int ima_store_template(struct ima_template_entry *entry, int violation,
 		       struct inode *inode);
-void ima_template_show(struct seq_file *m, void *e,
-		       enum ima_show_type show);
+void ima_template_show(struct seq_file *m, void *e, enum ima_show_type show);
 
 /* rbtree tree calls to lookup, insert, delete
  * integrity data associated with an inode.
  */
-struct ima_iint_cache *ima_iint_insert(struct inode *inode);
-struct ima_iint_cache *ima_iint_find(struct inode *inode);
+struct integrity_iint_cache *integrity_iint_insert(struct inode *inode);
+struct integrity_iint_cache *integrity_iint_find(struct inode *inode);
 
 /* IMA policy related functions */
 enum ima_hooks { FILE_CHECK = 1, FILE_MMAP, BPRM_CHECK };
