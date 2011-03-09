@@ -64,7 +64,7 @@ s32 ixgbe_ieee_credits(__u8 *bw, __u16 *refill, __u16 *max, int max_frame)
 			val = min_credit;
 		refill[i] = val;
 
-		max[i] = (bw[i] * MAX_CREDIT)/100;
+		max[i] = bw[i] ? (bw[i] * MAX_CREDIT)/100 : min_credit;
 	}
 	return 0;
 }
