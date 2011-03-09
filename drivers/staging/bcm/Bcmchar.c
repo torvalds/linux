@@ -19,12 +19,10 @@ static int bcm_char_open(struct inode *inode, struct file * filp)
 	PPER_TARANG_DATA    pTarang = NULL;
 
 	Adapter = GET_BCM_ADAPTER(gblpnetdev);
-	pTarang = (PPER_TARANG_DATA)kmalloc(sizeof(PER_TARANG_DATA),
-					    GFP_KERNEL);
+	pTarang = kzalloc(sizeof(PER_TARANG_DATA), GFP_KERNEL);
 	if (!pTarang)
 		return -ENOMEM;
 
-	memset(pTarang, 0, sizeof(PER_TARANG_DATA));
 	pTarang->Adapter = Adapter;
 	pTarang->RxCntrlMsgBitMask = 0xFFFFFFFF & ~(1 << 0xB);
 
