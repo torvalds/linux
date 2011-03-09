@@ -996,23 +996,6 @@ out:
 	return size;
 }
 
-int memslot_id(struct kvm *kvm, gfn_t gfn)
-{
-	int i;
-	struct kvm_memslots *slots = kvm_memslots(kvm);
-	struct kvm_memory_slot *memslot = NULL;
-
-	for (i = 0; i < slots->nmemslots; ++i) {
-		memslot = &slots->memslots[i];
-
-		if (gfn >= memslot->base_gfn
-		    && gfn < memslot->base_gfn + memslot->npages)
-			break;
-	}
-
-	return memslot - slots->memslots;
-}
-
 static unsigned long gfn_to_hva_many(struct kvm_memory_slot *slot, gfn_t gfn,
 				     gfn_t *nr_pages)
 {
