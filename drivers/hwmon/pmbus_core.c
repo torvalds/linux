@@ -270,18 +270,22 @@ const struct pmbus_driver_info *pmbus_get_driver_info(struct i2c_client *client)
 }
 EXPORT_SYMBOL_GPL(pmbus_get_driver_info);
 
-static int pmbus_get_status(struct i2c_client *client, int page, int reg)
+/*
+ * _pmbus_read_byte_data() is similar to pmbus_read_byte_data(), but checks if
+ * a device specific mapping funcion exists and calls it if necessary.
+ */
+static int _pmbus_read_byte_data(struct i2c_client *client, int page, int reg)
 {
 	struct pmbus_data *data = i2c_get_clientdata(client);
 	const struct pmbus_driver_info *info = data->info;
 	int status;
 
-	if (info->get_status) {
-		status = info->get_status(client, page, reg);
+	if (info->read_byte_data) {
+		status = info->read_byte_data(client, page, reg);
 		if (status != -ENODATA)
 			return status;
 	}
-	return  pmbus_read_byte_data(client, page, reg);
+	return pmbus_read_byte_data(client, page, reg);
 }
 
 static struct pmbus_data *pmbus_update_device(struct device *dev)
@@ -302,38 +306,41 @@ static struct pmbus_data *pmbus_update_device(struct device *dev)
 			if (!(info->func[i] & PMBUS_HAVE_STATUS_VOUT))
 				continue;
 			data->status[PB_STATUS_VOUT_BASE + i]
-			  = pmbus_get_status(client, i, PMBUS_STATUS_VOUT);
+			  = _pmbus_read_byte_data(client, i, PMBUS_STATUS_VOUT);
 		}
 		for (i = 0; i < info->pages; i++) {
 			if (!(info->func[i] & PMBUS_HAVE_STATUS_IOUT))
 				continue;
 			data->status[PB_STATUS_IOUT_BASE + i]
-			  = pmbus_get_status(client, i, PMBUS_STATUS_IOUT);
+			  = _pmbus_read_byte_data(client, i, PMBUS_STATUS_IOUT);
 		}
 		for (i = 0; i < info->pages; i++) {
 			if (!(info->func[i] & PMBUS_HAVE_STATUS_TEMP))
 				continue;
 			data->status[PB_STATUS_TEMP_BASE + i]
-			  = pmbus_get_status(client, i,
-					     PMBUS_STATUS_TEMPERATURE);
+			  = _pmbus_read_byte_data(client, i,
+						  PMBUS_STATUS_TEMPERATURE);
 		}
 		for (i = 0; i < info->pages; i++) {
 			if (!(info->func[i] & PMBUS_HAVE_STATUS_FAN12))
 				continue;
 			data->status[PB_STATUS_FAN_BASE + i]
-			  = pmbus_get_status(client, i, PMBUS_STATUS_FAN_12);
+			  = _pmbus_read_byte_data(client, i,
+						  PMBUS_STATUS_FAN_12);
 		}
 
 		for (i = 0; i < info->pages; i++) {
 			if (!(info->func[i] & PMBUS_HAVE_STATUS_FAN34))
 				continue;
 			data->status[PB_STATUS_FAN34_BASE + i]
-			  = pmbus_get_status(client, i, PMBUS_STATUS_FAN_34);
+			  = _pmbus_read_byte_data(client, i,
+						  PMBUS_STATUS_FAN_34);
 		}
 
 		if (info->func[0] & PMBUS_HAVE_STATUS_INPUT)
 			data->status[PB_STATUS_INPUT_BASE]
-			  = pmbus_get_status(client, 0, PMBUS_STATUS_INPUT);
+			  = _pmbus_read_byte_data(client, 0,
+						  PMBUS_STATUS_INPUT);
 
 		for (i = 0; i < data->num_sensors; i++) {
 			struct pmbus_sensor *sensor = &data->sensors[i];
