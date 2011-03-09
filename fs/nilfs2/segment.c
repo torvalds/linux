@@ -2676,6 +2676,7 @@ static void nilfs_segctor_kill_thread(struct nilfs_sc_info *sci)
 static struct nilfs_sc_info *nilfs_segctor_new(struct nilfs_sb_info *sbi,
 					       struct nilfs_root *root)
 {
+	struct the_nilfs *nilfs = sbi->s_nilfs;
 	struct nilfs_sc_info *sci;
 
 	sci = kzalloc(sizeof(*sci), GFP_KERNEL);
@@ -2703,10 +2704,10 @@ static struct nilfs_sc_info *nilfs_segctor_new(struct nilfs_sb_info *sbi,
 	sci->sc_mjcp_freq = HZ * NILFS_SC_DEFAULT_SR_FREQ;
 	sci->sc_watermark = NILFS_SC_DEFAULT_WATERMARK;
 
-	if (sbi->s_interval)
-		sci->sc_interval = sbi->s_interval;
-	if (sbi->s_watermark)
-		sci->sc_watermark = sbi->s_watermark;
+	if (nilfs->ns_interval)
+		sci->sc_interval = nilfs->ns_interval;
+	if (nilfs->ns_watermark)
+		sci->sc_watermark = nilfs->ns_watermark;
 	return sci;
 }
 

@@ -73,6 +73,10 @@ enum {
  * @ns_cptree_lock: lock protecting @ns_cptree
  * @ns_gc_inodes: dummy inodes to keep live blocks
  * @ns_mount_opt: mount options
+ * @ns_resuid: uid for reserved blocks
+ * @ns_resgid: gid for reserved blocks
+ * @ns_interval: checkpoint creation interval
+ * @ns_watermark: watermark for the number of dirty buffers
  * @ns_blocksize_bits: bit length of block size
  * @ns_blocksize: block size
  * @ns_nsegments: number of segments in filesystem
@@ -151,6 +155,11 @@ struct the_nilfs {
 
 	/* Mount options */
 	unsigned long		ns_mount_opt;
+
+	uid_t			ns_resuid;
+	gid_t			ns_resgid;
+	unsigned long		ns_interval;
+	unsigned long		ns_watermark;
 
 	/* Disk layout information (static) */
 	unsigned int		ns_blocksize_bits;

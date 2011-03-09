@@ -729,7 +729,7 @@ int nilfs_store_magic_and_option(struct super_block *sb,
 				 struct nilfs_super_block *sbp,
 				 char *data)
 {
-	struct nilfs_sb_info *sbi = NILFS_SB(sb);
+	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
 
 	sb->s_magic = le16_to_cpu(sbp->s_magic);
 
@@ -740,10 +740,10 @@ int nilfs_store_magic_and_option(struct super_block *sb,
 
 	nilfs_set_default_options(sb, sbp);
 
-	sbi->s_resuid = le16_to_cpu(sbp->s_def_resuid);
-	sbi->s_resgid = le16_to_cpu(sbp->s_def_resgid);
-	sbi->s_interval = le32_to_cpu(sbp->s_c_interval);
-	sbi->s_watermark = le32_to_cpu(sbp->s_c_block_max);
+	nilfs->ns_resuid = le16_to_cpu(sbp->s_def_resuid);
+	nilfs->ns_resgid = le16_to_cpu(sbp->s_def_resgid);
+	nilfs->ns_interval = le32_to_cpu(sbp->s_c_interval);
+	nilfs->ns_watermark = le32_to_cpu(sbp->s_c_block_max);
 
 	return !parse_options(data, sb, 0) ? -EINVAL : 0 ;
 }

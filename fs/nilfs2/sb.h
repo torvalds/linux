@@ -34,13 +34,6 @@ struct nilfs_sc_info;
  * NILFS super-block data in memory
  */
 struct nilfs_sb_info {
-	uid_t s_resuid;
-	gid_t s_resgid;
-
-	unsigned long s_interval;	/* construction interval */
-	unsigned long s_watermark;	/* threshold of data amount
-					   for the segment construction */
-
 	/* Fundamental members */
 	struct super_block *s_super;	/* reverse pointer to super_block */
 	struct the_nilfs *s_nilfs;
