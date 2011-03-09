@@ -3321,7 +3321,7 @@ static void show_results(struct pktgen_dev *pkt_dev, int nr_frags)
 				    pkt_dev->started_at);
 	ktime_t idle = ns_to_ktime(pkt_dev->idle_acc);
 
-	p += sprintf(p, "OK: %llu(c%llu+d%llu) nsec, %llu (%dbyte,%dfrags)\n",
+	p += sprintf(p, "OK: %llu(c%llu+d%llu) usec, %llu (%dbyte,%dfrags)\n",
 		     (unsigned long long)ktime_to_us(elapsed),
 		     (unsigned long long)ktime_to_us(ktime_sub(elapsed, idle)),
 		     (unsigned long long)ktime_to_us(idle),
